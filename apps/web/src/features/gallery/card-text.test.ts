@@ -2,7 +2,14 @@ import type { FeedCardView } from "@opika/contracts";
 import type { Freshness } from "@opika/domain";
 import { freshnessLabel } from "@opika/ui";
 import { describe, expect, it } from "vitest";
-import { cardAccessibleName, cardMetaLine, housingCityLabel, isReserved } from "./card-text";
+import {
+  cardAccessibleName,
+  cardFactsParts,
+  cardMetaLine,
+  cardSpeciesBadgeTone,
+  housingCityLabel,
+  isReserved,
+} from "./card-text";
 
 const FRESHNESS: Freshness = {
   kind: "fresh",
@@ -88,6 +95,40 @@ describe("cardMetaLine", () => {
     expect(cardAccessibleName(makeCard({ sex: "female", ageBucket: "senior" }), null)).toContain(
       "літня",
     );
+  });
+});
+
+/** gallery-v3 (Figma `58:1617`): sex named as its own word, no city. */
+describe("cardFactsParts", () => {
+  it("lists sex, age and size as separate parts, in that order", () => {
+    const card = makeCard({ sex: "male", ageBucket: "young", size: "small" });
+    expect(cardFactsParts(card)).toEqual(["Хлопчик", "молодий", "мала"]);
+  });
+
+  it("uses the gender-neutral age word, not the sex-agreeing one cardMetaLine uses", () => {
+    const card = makeCard({ sex: "female", ageBucket: "young", size: "small" });
+    expect(cardFactsParts(card)).toEqual(["Дівчинка", "молодий", "мала"]);
+  });
+
+  it("drops the sex part for an unknown sex rather than guessing", () => {
+    const card = makeCard({ sex: "unknown", ageBucket: "adult", size: "large" });
+    expect(cardFactsParts(card)).toEqual(["дорослий", "велика"]);
+  });
+
+  it("never mentions the city — city stays in the accessible name only", () => {
+    const card = makeCard({
+      publicLocation: { cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never },
+    });
+    expect(cardFactsParts(card).join(" ")).not.toContain("перетримці");
+  });
+});
+
+describe("cardSpeciesBadgeTone", () => {
+  it.each([
+    ["dog", "bg-brand-dog"],
+    ["cat", "bg-brand-accent"],
+  ] as const)("%s → %s", (species, tone) => {
+    expect(cardSpeciesBadgeTone(species)).toBe(tone);
   });
 });
 

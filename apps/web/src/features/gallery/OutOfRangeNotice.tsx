@@ -41,21 +41,21 @@ export function OutOfRangeNotice({
       role="status"
       aria-live="polite"
       data-testid="gallery-out-of-range-notice"
-      className="font-rg bg-rg-fill rounded-rg-button p-4 desktop:py-4 desktop:px-5 flex flex-col gap-2 desktop:flex-row desktop:items-center desktop:gap-4 mb-4"
+      className="font-brand-ui bg-brand-line rounded-brand-field p-4 desktop:py-4 desktop:px-5 flex flex-col gap-2 desktop:flex-row desktop:items-center desktop:gap-4 mb-4"
     >
       <div className="flex flex-col gap-1 desktop:flex-1">
-        <span className="text-[15px]/[22px] font-medium text-rg-ink">
+        <span className="text-[15px]/[22px] font-medium text-brand-ink">
           {uk.outOfRangePage.notFound
             .replace("{requested}", String(requestedPage))
             .replace("{total}", String(totalPages))}
         </span>
-        <span className="text-[15px]/[22px] text-rg-ink-2">
+        <span className="text-[15px]/[22px] text-brand-ink-2">
           {uk.outOfRangePage.showingLast.replace("{total}", String(totalPages))}
         </span>
       </div>
       <Link
         href={galleryPageHref(filters, sort, 1, citySlugs)}
-        className="text-[15px] text-rg-ink underline underline-offset-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+        className="text-[15px] text-brand-ink underline underline-offset-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
       >
         {uk.outOfRangePage.backToFirst}
       </Link>

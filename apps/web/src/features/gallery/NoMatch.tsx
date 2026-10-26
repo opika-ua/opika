@@ -53,13 +53,13 @@ export function NoMatch({ filters, sort, citySlugs, relaxations }: NoMatchProps)
   return (
     <div
       data-testid="gallery-no-match"
-      className="font-rg bg-rg-surface rounded-rg-card py-12 px-8 flex flex-col items-start gap-8"
+      className="font-brand-ui bg-brand-surface rounded-brand-card py-12 px-8 flex flex-col items-start gap-8"
     >
       <div className="flex flex-col gap-3">
-        <h2 className="text-[34px]/[38px] font-bold tracking-[-0.03em] text-rg-ink text-pretty">
+        <h2 className="text-[34px]/[38px] font-bold tracking-[-0.03em] text-brand-ink text-pretty">
           {uk.noMatch.heading}
         </h2>
-        <p className="text-[17px]/[26px] text-rg-ink-2 text-pretty">{uk.noMatch.reassurance}</p>
+        <p className="text-[17px]/[26px] text-brand-ink-2 text-pretty">{uk.noMatch.reassurance}</p>
       </div>
 
       {relaxations.length > 0 && (
@@ -70,15 +70,15 @@ export function NoMatch({ filters, sort, citySlugs, relaxations }: NoMatchProps)
                 key={suggestion.dimension}
                 href={galleryHref(relaxDimension(filters, suggestion.dimension), sort, citySlugs)}
                 data-testid="no-match-suggestion"
-                className={`min-h-14 flex items-center justify-center rounded-rg-button font-medium text-[15px] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] ${
-                  index === 0 ? "bg-rg-ink text-rg-surface" : "bg-rg-fill text-rg-ink"
+                className={`min-h-14 flex items-center justify-center rounded-brand-field font-medium text-[15px] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+                  index === 0 ? "bg-brand-ink text-brand-on-ink" : "bg-brand-line text-brand-ink"
                 }`}
               >
                 {suggestionLabel(suggestion)}
               </Link>
             ))}
           </div>
-          <p className="text-[13px]/[18px] text-rg-ink-3 text-pretty">
+          <p className="text-[13px]/[18px] text-brand-muted text-pretty">
             {uk.noMatch.suggestionExplainer}
           </p>
         </>

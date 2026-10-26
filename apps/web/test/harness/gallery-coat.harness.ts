@@ -14,7 +14,7 @@
 
 import { expect, test } from "@playwright/test";
 import { openRoute } from "./harness";
-import { DESKTOP } from "./viewports";
+import { DESKTOP, PHONE } from "./viewports";
 
 /** TEST-NET-2, `.43`: the next address no other harness file claims (see `gallery-filters.harness.ts`). */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.43" } });
@@ -30,17 +30,27 @@ const foundCount = async (page: import("@playwright/test").Page): Promise<number
 };
 
 test.describe("/tvaryny fur filter", () => {
+  /**
+   * gallery-v3 (Figma `58:1617`): fur also has its own desktop dropdown
+   * now (`GalleryFilterDropdowns.tsx`, GV3-Q1), but this test deliberately
+   * exercises `FilterSheet` at phone width instead — its real `<form>`
+   * submit is a genuinely different interaction from the dropdown's
+   * click-to-navigate links, not a cosmetic selector swap, and is the only
+   * path at phone width (the sheet is the gallery's sole filter UI below
+   * `desktop:`).
+   */
   test("«Довгошерсті» narrows the list, writes `sherst=long`, and a listed animal's page says «Довга»", async ({
     page,
   }) => {
-    await openRoute(page, "/tvaryny", DESKTOP, { readySelector: CARD });
+    await openRoute(page, "/tvaryny", PHONE, { readySelector: CARD });
     const everyone = await foundCount(page);
 
-    await page
-      .getByTestId("filter-rail")
-      .getByRole("group", { name: "Шерсть" })
-      .getByRole("link", { name: "Довгошерсті" })
-      .click();
+    await page.getByTestId("filter-sheet-trigger").click();
+    // The checkbox is visually `sr-only`; its wrapping <label> is what a
+    // real tap lands on, the same idiom `gallery-filters.harness.ts`'s own
+    // no-JS test uses for the identical reason.
+    await page.getByText("Довгошерсті", { exact: true }).click();
+    await page.getByRole("button", { name: /Показати/ }).click();
     await page.waitForURL(/sherst=long/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
     const longHaired = await foundCount(page);

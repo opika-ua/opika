@@ -1,16 +1,23 @@
 /**
  * E2's own verification list (docs/build-plan.md doesn't spell these out
- * per-phase, but the phase brief does): the rail is measurably visible at
- * >=1024 and the sheet is not, and vice versa below — by bounding rect, not
- * by class name or markup presence; a filter applied, then the URL copied
- * and reopened in a fresh context, produces the same result set; the back
- * button returns to the previous result set, asserted on rendered rows
- * rather than on the URL alone; and at least one filter application works
- * with JavaScript disabled.
+ * per-phase, but the phase brief does): the desktop filter row is
+ * measurably visible at >=1024 and the sheet is not, and vice versa below —
+ * by bounding rect, not by class name or markup presence; a filter applied,
+ * then the URL copied and reopened in a fresh context, produces the same
+ * result set; the back button returns to the previous result set, asserted
+ * on rendered rows rather than on the URL alone; and at least one filter
+ * application works with JavaScript disabled.
+ *
+ * gallery-v3 (Figma `58:1617`): `FilterRail` is retired — the desktop
+ * dropdown row (`GalleryFilterDropdowns`/`GalleryControlBlock`) and its own
+ * «Фільтр» toggle now own what the rail used to, and the old deck-entry
+ * keyboard-reachability tests this file carried are gone with that link
+ * (Oleksii, mid-build: "let's hide access to Гортати по одній page for now
+ * as well").
  */
 
 import { expect, test } from "@playwright/test";
-import { expectReachableByTab, openRoute } from "./harness";
+import { openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
 /**
@@ -45,23 +52,36 @@ async function cardNames(page: {
   return page.locator(`${CARD} [data-testid='card-name']`).allTextContents();
 }
 
-test.describe("/tvaryny rail vs sheet — mutually exclusive by breakpoint", () => {
-  test("at >=1024, the rail is visible and the sheet trigger is not", async ({ page }) => {
+/**
+ * gallery-v3 (Figma `58:1617`): `FilterRail` is retired and «Фільтр» at
+ * >=1024 now toggles `GalleryControlBlock`'s own dropdown row
+ * (`gallery-filter-row`), not `FilterSheet`'s modal — designer
+ * clarification mid-build. The breakpoint split that used to hold between
+ * the rail and the sheet now holds between this toggleable row and the
+ * sheet instead.
+ */
+test.describe("/tvaryny filter row vs sheet — mutually exclusive by breakpoint", () => {
+  test("at >=1024, the toggle button is visible and the sheet trigger is not", async ({ page }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    const railBox = await page.getByTestId("filter-rail").boundingBox();
-    expect(railBox, "filter-rail should have a real bounding box at desktop width").not.toBeNull();
-    expect(railBox?.width, "filter-rail should have non-zero width").toBeGreaterThan(0);
+    const toggleBox = await page.getByTestId("gallery-filter-toggle").boundingBox();
+    expect(
+      toggleBox,
+      "gallery-filter-toggle should have a real bounding box at desktop width",
+    ).not.toBeNull();
+    expect(toggleBox?.width, "gallery-filter-toggle should have non-zero width").toBeGreaterThan(0);
 
     const triggerBox = await page.getByTestId("filter-sheet-trigger").boundingBox();
     expect(
       triggerBox,
       "filter-sheet-trigger should have no bounding box (display:none) at desktop width — " +
-        "the rail owns filtering there, not the sheet",
+        "the toggle row owns filtering there, not the sheet",
     ).toBeNull();
   });
 
-  test("below 1024, the sheet trigger is visible and the rail is not", async ({ page }) => {
+  test("below 1024, the sheet trigger is visible and the toggle button is not", async ({
+    page,
+  }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
 
     const triggerBox = await page.getByTestId("filter-sheet-trigger").boundingBox();
@@ -71,37 +91,12 @@ test.describe("/tvaryny rail vs sheet — mutually exclusive by breakpoint", () 
     ).not.toBeNull();
     expect(triggerBox?.width, "filter-sheet-trigger should have non-zero width").toBeGreaterThan(0);
 
-    const railBox = await page.getByTestId("filter-rail").boundingBox();
+    const toggleBox = await page.getByTestId("gallery-filter-toggle").boundingBox();
     expect(
-      railBox,
-      "filter-rail should have no bounding box (display:none) at phone width — the sheet " +
-        "owns filtering there, not the rail",
+      toggleBox,
+      "gallery-filter-toggle should have no bounding box (display:none) at phone width — the " +
+        "sheet owns filtering there, no mobile Figma section exists yet",
     ).toBeNull();
-  });
-});
-
-/**
- * Keyboard operation. E5's deck-entry control has two instances — desktop
- * header, mobile row — CSS-hidden by breakpoint, same as the rail/sheet
- * split above, so each needs its own viewport.
- */
-test.describe("/tvaryny deck entry — keyboard reachability", () => {
-  test("the desktop entry link is reachable by Tab", async ({ page }) => {
-    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
-
-    await expectReachableByTab(page, {
-      label: "desktop deck-entry link",
-      locator: page.getByTestId("deck-entry-desktop"),
-    });
-  });
-
-  test("the mobile entry link is reachable by Tab", async ({ page }) => {
-    await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
-
-    await expectReachableByTab(page, {
-      label: "mobile deck-entry link",
-      locator: page.getByTestId("deck-entry-mobile"),
-    });
   });
 });
 
@@ -112,15 +107,18 @@ test.describe("/tvaryny filters — URL is the single source of truth", () => {
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await page.getByTestId("filter-rail").getByRole("link", { name: "Собаки" }).click();
-    await page.waitForURL(/vyd=dog/);
+    // Any one of the five dropdowns exercises the same URL-as-source-of-truth
+    // path; size is as good as any other.
+    await page.getByRole("button", { name: "РОЗМІР" }).click();
+    await page.getByRole("link", { name: "Великий" }).click();
+    await page.waitForURL(/rozmir=large/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
 
     const filteredUrl = page.url();
     const namesInOriginalContext = await cardNames(page);
     expect(
       namesInOriginalContext.length,
-      "the dog filter should narrow the 24-card page",
+      "the size filter should narrow the 24-card page",
     ).toBeGreaterThan(0);
 
     // A genuinely fresh context — no cookies, no session, standing in for
@@ -163,7 +161,8 @@ test.describe("/tvaryny filters — URL is the single source of truth", () => {
     await page.goto("/pro", { waitUntil: "load" });
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await page.getByTestId("filter-rail").getByRole("link", { name: "Малий" }).click();
+    await page.getByRole("button", { name: "РОЗМІР" }).click();
+    await page.getByRole("link", { name: "Малий" }).click();
     await page.waitForURL(/rozmir=small/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
     const namesAfterFiltering = await cardNames(page);
@@ -210,9 +209,11 @@ test.describe("/tvaryny legacy city-id links redirect to their real slug", () =>
       /\/tvaryny\?misto=brovary$/,
     );
     await page.locator(CARD).first().waitFor({ state: "visible" });
-    const activeCityChip = page.getByTestId("filter-rail").locator('a[aria-current="true"]');
-    await expect(activeCityChip).toHaveCount(1);
-    await expect(activeCityChip).toHaveText(/Бровари/);
+    // gallery-v3: the city dropdown's own button shows the selected
+    // value's label instead of the placeholder once a city is set
+    // (`GalleryFilterDropdowns.tsx`'s `cityLabel`) — the rail's
+    // `aria-current` chip this test used to read is gone with the rail.
+    await expect(page.getByRole("button", { name: "МІСТО" })).toHaveText("Бровари");
   });
 
   test("the redirect is a real, permanent 308, not a 200 that merely renders the same content", async ({

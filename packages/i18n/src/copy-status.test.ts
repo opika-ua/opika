@@ -1339,6 +1339,25 @@ describe("/prytulkam §3 ¶4 (forShelters.whatHappensToAnimals)", () => {
 });
 
 /**
+ * GV3-Q3, 2026-10-26 (standing-constraints.md's commitment #8 row). A first
+ * attempt at this narrowing added a new builder-written clause about the
+ * deck being temporarily unlinked, instead of only deleting the overclaim —
+ * which a Tier 1 review caught, since adding copy needs the normal gate
+ * regardless of how accurate it reads; only a bare deletion is exempt. This
+ * pins the result as an exact match, not merely `.not.toContain("по одній")`
+ * — a test that only checks the phrase is gone would have passed against
+ * that first, wrongly-replaced attempt just as easily as against the
+ * correct bare deletion, since the added clause didn't contain that phrase
+ * either.
+ */
+describe("/prytulkam §3 ¶2 (forShelters.whatHappensToAnimals, GV3-Q3)", () => {
+  it("is the bare deletion, not a replacement sentence", () => {
+    const paragraphs = uk.forShelters.whatHappensToAnimals.split("\n\n");
+    expect(paragraphs[1]).toBe("Тварин можна дивитися списком.");
+  });
+});
+
+/**
  * K4-B4, answer 3 (Oleksii, verbatim: "ʼ (U+02BC) in all my strings, incl.
  * contacts.atLeastOne «звʼязку»."): his K4 strings use the letter-apostrophe
  * only. Scoped to PR 2's keys; older catalogue strings keep U+0027

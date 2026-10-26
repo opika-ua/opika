@@ -3,29 +3,26 @@ import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { permanentRedirect } from "next/navigation";
 import { anonymousRouterClient } from "../../api/server-client";
-import { Footer } from "../../features/chrome/Footer";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
-import { AnimalCard } from "../../features/gallery/AnimalCard";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
 import { cardCityId } from "../../features/gallery/card-text";
-import { DeckEntryLink } from "../../features/gallery/DeckEntryLink";
-import { FilterRail } from "../../features/gallery/FilterRail";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
 import {
-  deckEntryHref,
   parseGalleryQuery,
   redirectHrefForLegacyCityIds,
   type SearchParams,
 } from "../../features/gallery/filter-url";
-import { GalleryPagination } from "../../features/gallery/GalleryPagination";
-import { railResultCount, sheetResultCount } from "../../features/gallery/gallery-copy";
+import { GalleryCard } from "../../features/gallery/GalleryCard";
+import { GalleryControlBlock } from "../../features/gallery/GalleryControlBlock";
+import { GalleryFilterDropdowns } from "../../features/gallery/GalleryFilterDropdowns";
+import { GalleryPageNav } from "../../features/gallery/GalleryPageNav";
+import { GallerySortToggle } from "../../features/gallery/GallerySortToggle";
+import { railResultCount } from "../../features/gallery/gallery-copy";
 import { hasPagination } from "../../features/gallery/gallery-pagination";
 import { NoMatch } from "../../features/gallery/NoMatch";
 import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
-import { SortControl } from "../../features/gallery/SortControl";
-import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 
 /**
  * Same reasoning as `../page.tsx`: without this, `next build` would try to
@@ -144,15 +141,6 @@ export async function renderGallery(
   const page = await client.gallery.list({ filters, sort, page: pageNumber });
 
   /**
-   * E5, docs/design/README.md "Gallery ↔ deck" > "Entry": the deck has
-   * nothing to show when the gallery itself has no matches, so the control
-   * is only rendered alongside the grid, never alongside `NoMatch`. `total`
-   * rides along on the URL rather than the deck re-deriving it — see
-   * `deckEntryHref`'s own comment.
-   */
-  const deckHref = deckEntryHref(filters, page.totalMatching, citySlugs);
-
-  /**
    * docs/design/README.md, "Gallery states" > "No match". Only queried when
    * there's actually nothing to show — `gallery.relaxationCounts` is its
    * own scan (`packages/contracts/src/procedures/gallery.ts`: "a single
@@ -165,229 +153,201 @@ export async function renderGallery(
       : [];
 
   return (
-    <div className="font-rg min-h-dvh bg-rg-page">
+    <div className="font-brand-ui min-h-dvh bg-brand-page">
       {/*
-        Phase T moved the wordmark, heights and nav into `SiteHeader` — see
-        that component for what the design specifies and what was composed.
-        The deck entry stays here rather than moving with them: it is the
-        gallery's own control, not site-wide chrome, and `hidden
-        desktop:inline-flex` keeps its mobile half in the row below (that
-        row's own comment records why it's neither the mock's sticky bottom
-        bar nor a combined "Фільтри · N" label — both pre-existing gaps).
+        gallery-v3 (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`): the
+        header is in the frame and is re-skinned in `SiteHeader.tsx` itself
+        (shared across every route) rather than here, so it's called with no
+        children on this route. The deck entry link that used to live in the
+        header's trailing slot is gone from this page entirely — Oleksii,
+        mid-build: "let's hide access to Гортати по одній page for now as
+        well." It was never in the Figma frame to begin with.
       */}
-      <SiteHeader wordmarkIsCurrentPage kabinetSignedIn={kabinetSignedIn}>
-        {page.totalMatching > 0 && (
-          <DeckEntryLink
-            href={deckHref}
-            testId="deck-entry-desktop"
-            className="hidden desktop:inline-flex min-h-12 items-center rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-          >
-            {uk.feed.enterDeck}
-          </DeckEntryLink>
-        )}
-      </SiteHeader>
+      <SiteHeader wordmarkIsCurrentPage kabinetSignedIn={kabinetSignedIn} />
 
       {/*
-        The gallery's own visible carrier of the D-2 demo disclosure — see
-        this file's top comment (2026-09-10 correction) for why the deck's
-        header label alone wasn't enough and `og:description` doesn't count
-        as visible. Muted, single line, no colour beyond the standard
-        caption tone: a factual notice, not an alert (this app's own
-        "freshness is honest and never alarming" rule, applied to the same
-        idea — demo status is stated, not tinted).
+        The visible D-2 demo disclosure banner that used to render here
+        (`uk.demo.bannerNotice`, `gallery-demo-banner`, gated on
+        `REGISTRY_HAS_NO_REAL_SHELTERS`) is removed from this page —
+        Oleksii, mid-build, verbatim: "remove На сайті поки немає справжніх
+        притулків — усі картки тут демонстраційні. as we hide our app
+        anyways and people without gate cant access it ye[t]." The
+        `og:description`/`description` metadata swap this file's own top
+        comment (2026-09-10 correction) describes lives in the root
+        `app/layout.tsx`, not here, and is untouched — a link-preview
+        concern, not a banner a gated visitor sees in the page body.
       */}
-      {REGISTRY_HAS_NO_REAL_SHELTERS && (
-        <div className="px-4 tablet:px-6 desktop:px-15 pt-4 desktop:pt-6">
-          <span data-testid="gallery-demo-banner" className="text-[13px]/[18px] text-rg-ink-3">
-            {uk.demo.bannerNotice}
-          </span>
-        </div>
-      )}
 
       {/*
-        Padding and max-width deliberately live on different elements.
-        Preflight is border-box, so a max-width and a padding on the SAME
-        element share one budget — max-w-[960px] plus px-15 (60px a side)
-        would leave 840px of actual content, not the design's 960. This way
-        the outer div's padding sets the page-edge margin and the rail/grid
-        row's own max-width is the real content width, matching how the
-        design states them as two separate numbers ("page padding 40 60 56
-        desktop ... content 960").
+        Main, max-width 1400 centred — the frame's own number. 56px side
+        gutters (`px-14`) below `desktop:` reuse `SiteHeader`'s own gutter
+        (that component's top comment explains why: the frame states it for
+        the header and nothing for the main content, so this PR reuses the
+        header's number for a consistent column edge — confirmed self-
+        consistent in `GalleryCard.tsx`'s own `SIZES` derivation, which
+        reaches exactly 1512px, the frame's stated width, as the point the
+        1400 cap starts to bind). 40px below the header (`pt-10`) is the
+        frame's own number too. Below `desktop:`, this PR keeps the page's
+        pre-existing padding (`px-4`/`px-6`) — "below 1024px... keep the
+        existing column counts and breakpoints."
       */}
-      <div className="p-4 tablet:p-6 desktop:pt-10 desktop:px-15 desktop:pb-14">
-        <div
-          data-testid="gallery-mobile-toolbar"
-          className="flex items-center justify-between gap-4 mb-4 desktop:hidden"
-        >
+      <div className="mx-auto max-w-[1400px] px-4 tablet:px-6 desktop:px-14 pt-10 desktop:pb-14 pb-10">
+        {/* 52px between the control block, the grid and the pagination — the frame's own number. */}
+        <div className="flex flex-col gap-13">
           {/*
-            `min-w-0`, found 2026-09-12 as the real cause of a CI-only
-            horizontal-overflow failure at 320px. A flex item's default
-            `min-width: auto` floors it at its own min-content width — here
-            the longest Ukrainian word in the count sentence, 93px. At 320
-            the row has 288px of content box, the button group beside this
-            span needs 193px and will not shrink, so the span was clamped at
-            its 93px floor and the 15px that did not fit was pushed out of
-            the container instead: the group's right edge landed at 318.59px
-            against a 320px viewport. That 1.41px was font metrics, not
-            layout — CI's Linux Chromium renders this sentence a couple of
-            pixels wider than this machine's Windows Chromium and tipped it
-            to a 322px document, which is why it failed only there.
-            `min-w-0` removes the floor, so the sentence wraps to another
-            line and the group sits at the container's own padding edge
-            (304px) — a position set by padding rather than by text width,
-            which is what makes the slack real. Measured no-op at 360 and
-            390, where the span never reaches its floor.
+            «Фільтр» toggles row 2 (the dropdowns + sort) open/closed —
+            designer clarification mid-build, not the generic hand-off's
+            "opens the sheet" instruction. See `GalleryControlBlock.tsx`'s
+            own comment. Desktop only for now (no mobile Figma section yet):
+            `FilterSheet` — the sole `trailing` content now the deck entry
+            link is gone — keeps its own pre-existing `desktop:hidden`
+            trigger for mobile/tablet, unchanged by this PR.
           */}
-          <span className="min-w-0 text-[15px]/[22px] text-rg-ink-2">
-            {sheetResultCount(
-              page.totalMatching,
-              page.totalShelters,
-              filters.cities.kind !== "any",
-            )}
-          </span>
-          {/*
-            docs/design/README.md's 0–599 row calls this a "sticky bottom
-            bar «Фільтри · N / Гортати»" — this row is neither sticky nor
-            that combined "N" label (`FilterSheet`'s own trigger predates
-            E5 and reads plainly "Фільтри"). Both are pre-existing gaps
-            from whichever phase built this row, not introduced here;
-            adding "Гортати" beside the existing trigger is E5's actual
-            scope, not a retrofit of the row's positioning.
-          */}
-          <div className="flex items-center gap-2">
-            {/* Batch D: «По одній» is adopter-only, his own wording — suppressed here too, not just in the header's own children slot above. */}
-            {page.totalMatching > 0 && !kabinetSignedIn && (
-              <DeckEntryLink
-                href={deckHref}
-                testId="deck-entry-mobile"
-                /* 48, not 44 — README:200's minimum touch target. This one is
-                   the mobile deck entry, so it is on the gallery for every
-                   phone visitor; found by Phase D's sweep, not by a report. */
-                className="min-h-12 inline-flex items-center rounded-rg-button bg-rg-fill px-3.5 text-[13px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-              >
-                {uk.feed.enterDeckShort}
-              </DeckEntryLink>
-            )}
-            <FilterSheet
-              filters={filters}
-              sort={sort}
-              cities={cityList}
-              citySlugs={citySlugs}
-              resultCount={page.totalMatching}
-              shelterCount={page.totalShelters}
-            />
-          </div>
-        </div>
-
-        {/*
-          No max-width on this row itself — it's implicitly bounded by its
-          children's own constraints (rail: fixed 280px; grid: max-width
-          960/1320) regardless of viewport, so an explicit outer cap would
-          only ever be redundant or, below the point every child's stated
-          size actually fits (1392px/1752px after padding — see
-          docs/design/README.md's note under "Breakpoints & Surfaces"),
-          actively wrong: it doesn't change how much room the grid gets,
-          but it looks like it should. The grid's own max-width is what
-          makes 960/1320 a ceiling the fluid case below it approaches
-          rather than a constant every viewport must hit exactly — E1's
-          own harness assumed the latter, correctly, before the rail
-          existed and there was nothing else in "content" to divide.
-        */}
-        <div className="desktop:flex desktop:gap-8 desktop:items-start">
-          <ReplaceNav>
-            <FilterRail
-              filters={filters}
-              sort={sort}
-              cities={cityList}
-              citySlugs={citySlugs}
-              resultCount={page.totalMatching}
-              shelterCount={page.totalShelters}
-            />
-          </ReplaceNav>
-
-          <div className="flex-1 min-w-0">
-            <div className="hidden desktop:flex items-center justify-between mb-4">
-              <span className="text-[15px]/[22px] text-rg-ink-2">
-                {railResultCount(page.totalMatching, page.totalShelters)}
-              </span>
-              <ReplaceNav>
-                <SortControl filters={filters} sort={sort} citySlugs={citySlugs} />
-              </ReplaceNav>
-            </div>
-
-            {/*
-              Dropping E2.5's roving tabindex (docs/build-plan.md's E2.5 row)
-              means every card is a real Tab stop — 24 of them — so this is
-              the shortcut past them to "next page," not decoration. Only
-              rendered when GalleryPagination itself will be, through the
-              same `hasPagination` both sides read: a skip link to an id
-              that isn't on the page goes nowhere.
-              `sr-only focus:not-sr-only`: invisible until a keyboard user
-              actually reaches it by Tab, which is exactly who needs it.
-            */}
-            {page.totalMatching === 0 ? (
-              <NoMatch
+          <GalleryControlBlock
+            // `min-w-0 break-words` on the h1 below: the heading's text
+            // changed from "Каталог" (one word, 288px, never wraps) to
+            // "Шукають дім" (Oleksii, mid-build, owner-approved final
+            // copy — two words, 457px on one line, 333px for "Шукають"
+            // alone — the longer word is now WIDER than the old
+            // single-word heading ever was). Row 1 is a flex row sharing
+            // space with the filter trigger, and a flex item's default
+            // `min-width: auto` floors it at its own min-content size
+            // (here, the longer word, since text can only wrap at spaces
+            // by default) — the exact `min-w-0` class of bug this file's
+            // own mobile-toolbar comment already documents finding once
+            // before. Below ~600px that floor (333px) exceeds the room
+            // actually left beside the trigger, which would overflow the
+            // page horizontally rather than wrap. `min-w-0` lets the flex
+            // item shrink past that floor; `break-words` guarantees even
+            // a single word breaks rather than visually overflowing in
+            // the rare case the full available width is narrower than it
+            // — together, "stays on one line from 1024px up and wraps
+            // cleanly below that," verified by computed-style measurement
+            // at the real breakpoints, not by eye.
+            title={
+              <h1 className="min-w-0 break-words font-brand-display text-[48px] leading-none text-brand-ink">
+                {uk.feed.galleryTitle}
+              </h1>
+            }
+            trailing={
+              // Oleksii, mid-build: "let's hide access to Гортати по одній
+              // page for now as well" — the deck entry link (never in the
+              // Figma frame to begin with, flagged there for the owner and
+              // designer) is removed from this row entirely, not merely
+              // restyled. The deck route itself (`/tvaryny/gortaty`) still
+              // exists and still reads its own filters/total from the URL;
+              // only this page's own link to it is gone — `deckEntryHref`
+              // and `DeckEntryLink` are no longer imported here at all.
+              <FilterSheet
                 filters={filters}
                 sort={sort}
+                cities={cityList}
                 citySlugs={citySlugs}
-                relaxations={relaxations}
+                resultCount={page.totalMatching}
+                shelterCount={page.totalShelters}
               />
-            ) : (
-              <>
-                {/*
-                  E4, docs/design/README.md's "Out-of-range page (P1/P2)":
-                  `pageNumber` is what was requested (parseGalleryQuery,
-                  unclamped beyond 1); `page.page` is what gallery.list
-                  actually resolved and served (E0's clamp). They differ
-                  only when the requested page was beyond `totalPages` but
-                  within `MAX_GALLERY_PAGE` — anything past that ceiling
-                  fails oRPC's own input validation before this component
-                  ever renders, and is caught by error.tsx instead.
-                */}
-                {pageNumber !== page.page && (
-                  <OutOfRangeNotice
-                    requestedPage={pageNumber}
-                    totalPages={page.totalPages}
-                    filters={filters}
-                    sort={sort}
-                    citySlugs={citySlugs}
-                  />
-                )}
+            }
+          >
+            <ReplaceNav>
+              <GalleryFilterDropdowns
+                filters={filters}
+                sort={sort}
+                cities={cityList}
+                citySlugs={citySlugs}
+              />
+            </ReplaceNav>
+            <ReplaceNav>
+              <GallerySortToggle filters={filters} sort={sort} citySlugs={citySlugs} />
+            </ReplaceNav>
+          </GalleryControlBlock>
 
-                {hasPagination(page.totalPages) && (
-                  <a
-                    href="#pagination"
-                    data-testid="pagination-skip-link"
-                    className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-12 focus:items-center focus:rounded-rg-button focus:bg-rg-ink focus:px-4 focus:text-[15px] focus:text-rg-surface focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-                  >
-                    {uk.pagination.skipLink}
-                  </a>
-                )}
+          {/*
+            "«Знайдено…» isn't in the frame. Keep it as a visually hidden
+            live region; don't delete it." `position: absolute` (Tailwind's
+            `sr-only`) takes this out of the flex flow entirely, so it costs
+            no `gap-13` slot of its own.
+          */}
+          <span className="sr-only" aria-live="polite">
+            {railResultCount(page.totalMatching, page.totalShelters)}
+          </span>
 
-                <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 wide:grid-cols-4 ultrawide:grid-cols-6 gap-4 desktop:gap-6 desktop:max-w-[960px] wide:max-w-[1320px] ultrawide:max-w-[1992px]">
-                  {page.items.map((item, index) => (
-                    <AnimalCard
-                      key={item.id}
-                      card={item}
-                      cityName={cityNames.get(cardCityId(item)) ?? null}
-                      priority={index < PRIORITY_ROW_SIZE}
-                    />
-                  ))}
-                </ArrowKeyGrid>
-
-                <GalleryPagination
+          {/*
+            Dropping E2.5's roving tabindex (docs/build-plan.md's E2.5 row)
+            means every card is a real Tab stop — 24 of them — so the skip
+            link below is the shortcut past them to "next page," not
+            decoration. Only rendered when GalleryPageNav itself will be,
+            through the same `hasPagination` both sides read: a skip link to
+            an id that isn't on the page goes nowhere.
+            `sr-only focus:not-sr-only`: invisible until a keyboard user
+            actually reaches it by Tab, which is exactly who needs it.
+          */}
+          {page.totalMatching === 0 ? (
+            <NoMatch
+              filters={filters}
+              sort={sort}
+              citySlugs={citySlugs}
+              relaxations={relaxations}
+            />
+          ) : (
+            <>
+              {/*
+                E4, docs/design/README.md's "Out-of-range page (P1/P2)":
+                `pageNumber` is what was requested (parseGalleryQuery,
+                unclamped beyond 1); `page.page` is what gallery.list
+                actually resolved and served (E0's clamp). They differ only
+                when the requested page was beyond `totalPages` but within
+                `MAX_GALLERY_PAGE` — anything past that ceiling fails oRPC's
+                own input validation before this component ever renders,
+                and is caught by error.tsx instead.
+              */}
+              {pageNumber !== page.page && (
+                <OutOfRangeNotice
+                  requestedPage={pageNumber}
+                  totalPages={page.totalPages}
                   filters={filters}
                   sort={sort}
                   citySlugs={citySlugs}
-                  page={page.page}
-                  totalPages={page.totalPages}
                 />
-              </>
-            )}
-          </div>
-        </div>
+              )}
 
-        <Footer />
+              {hasPagination(page.totalPages) && (
+                <a
+                  href="#pagination"
+                  data-testid="pagination-skip-link"
+                  className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-12 focus:items-center focus:rounded-brand-field focus:bg-brand-ink focus:px-4 focus:text-[15px] focus:text-brand-on-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+                >
+                  {uk.pagination.skipLink}
+                </a>
+              )}
+
+              {/*
+                4 columns at `desktop:`, gap 30 (the frame's own numbers) —
+                below that, this PR keeps the pre-existing 1/2-column,
+                16px-gap breakpoints ("below 1024px... keep the existing
+                column counts and breakpoints"). No max-width on the grid
+                itself: the page wrapper above already caps content at 1400.
+              */}
+              <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-4 gap-4 desktop:gap-[30px]">
+                {page.items.map((item, index) => (
+                  <GalleryCard
+                    key={item.id}
+                    card={item}
+                    cityName={cityNames.get(cardCityId(item)) ?? null}
+                    priority={index < PRIORITY_ROW_SIZE}
+                  />
+                ))}
+              </ArrowKeyGrid>
+
+              <GalleryPageNav
+                filters={filters}
+                sort={sort}
+                citySlugs={citySlugs}
+                page={page.page}
+                totalPages={page.totalPages}
+              />
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

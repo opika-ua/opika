@@ -139,4 +139,27 @@ describe("subscribeToLikesChanges", () => {
     window.dispatchEvent(new StorageEvent("storage", { key: "likes.v1" }));
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  /**
+   * `storage` never fires in the document that made the write (WHATWG spec,
+   * cross-tab only) — a caller that only watches, like the header's
+   * `SavedNavLink`, would otherwise never learn about a save made elsewhere
+   * on the same page at all. `toggleSavedAnimal` is the real write path, not
+   * a synthetic event, so this also confirms the write itself notifies.
+   */
+  it("calls back on a same-tab write through toggleSavedAnimal, which storage alone would miss", () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeToLikesChanges(onChange);
+    toggleSavedAnimal("a1", new Date());
+    expect(onChange).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it("stops calling back on a same-tab write after unsubscribe", () => {
+    const onChange = vi.fn();
+    const unsubscribe = subscribeToLikesChanges(onChange);
+    unsubscribe();
+    toggleSavedAnimal("a1", new Date());
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

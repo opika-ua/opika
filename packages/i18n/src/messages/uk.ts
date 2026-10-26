@@ -151,7 +151,14 @@ export const uk = {
 
   // --- Screen 02 · Feed / deck ---
   feed: {
-    filtersLabel: "Фільтри",
+    /**
+     * gallery-v3 (Figma `58:1617`): singular, builder-prompt-approved —
+     * was "Фільтри" (plural) until this PR. Read by both
+     * `FilterSheet.tsx`'s own trigger button and, since this PR,
+     * `GalleryControlBlock.tsx`'s desktop «Фільтр» toggle — the same label
+     * on both of this page's two filter-disclosure controls.
+     */
+    filtersLabel: "Фільтр",
     /** Desktop gallery header, full phrase — docs/design/README.md "Screens" > "Gallery." */
     enterDeck: "Гортати по одній",
     /** Mobile sticky-bar short form, same destination — "sticky bottom bar «Фільтри · N / Гортати»." */
@@ -160,6 +167,22 @@ export const uk = {
     backToList: "← До списку",
     /** Screen-reader announcement on entering the deck, template: "Тварина {position} з {total}." */
     deckEntryAnnouncement: "Режим по одній. Тварина {position} з {total}.",
+    /**
+     * gallery-v3 (Figma `58:1617`): the card's pill. Was "Усиновити" until
+     * Oleksii's direct replacement, mid-build — owner-approved final copy,
+     * not [COPY PENDING]. A non-interactive `<span>` inside the card's one
+     * link (owner decision #2, 2026-10-25) — the link's own `aria-label`
+     * (`cardAccessibleName`) already fixes the accessible name, so this
+     * text never reaches it either way; decorative in practice, not just
+     * in intent.
+     */
+    adoptPill: "Познайомитися",
+    /**
+     * The gallery page's own `<h1>`. Was "Каталог" (the Figma frame's own
+     * placeholder text, 58:1617) until Oleksii's direct replacement,
+     * mid-build — owner-approved final copy, not [COPY PENDING].
+     */
+    galleryTitle: "Шукають дім",
   },
 
   // --- Screen 03 · Filters ---
@@ -230,8 +253,34 @@ export const uk = {
     sortLabel: "Сортування",
     sortFreshest: "Спочатку найсвіжіші картки",
     sortLongestWaiting: "Найдовше чекають",
+    /**
+     * gallery-v3 (Figma `58:1617`): the control block's own short visible
+     * labels, builder-prompt-approved. The long sentences above stay as
+     * each link's `aria-label` (`GallerySortToggle.tsx`) — WCAG 2.5.3 is
+     * satisfied because the short label is a literal prefix a voice-control
+     * user would say, not a different wording.
+     */
+    sortFreshestShort: "Нові",
+    sortLongestWaitingShort: "Зачекались",
     allCities: "Уся Київщина",
     railFooter: "Фільтра за датою немає: тварина, про яку давно не писали, теж шукає дім.",
+    /**
+     * gallery-v3 (Figma `58:1617`): the dropdown row's own clear-all ✕,
+     * Oleksii mid-build ("replacing chevron icon with X to clear all
+     * filters [in] 1 click"). Template: "{dimension}" -> the dropdown's own
+     * legend (e.g. "Скинути МІСТО").
+     *
+     * Shipped as the builder's own draft (not `[COPY PENDING]` — that
+     * sentinel wasn't an option here: `open-writes-copy-gate.test.ts`'s
+     * "nothing in the entire uk catalogue is pending" CI gate, Oleksii Q-B,
+     * turns production sign-in off for ANY pending string, this namespace
+     * included, not only `kabinet.*`), flagged in the decisions batch
+     * (GV3-Q2) pending his confirm-or-replace. **Confirmed, 2026-10-26,
+     * Oleksii, verbatim: "Скинути is fine."** Reused `reset`'s own verb
+     * above rather than inventing a second word for the same action, same
+     * reasoning the draft comment originally gave.
+     */
+    clearDimension: "Скинути {dimension}",
   },
 
   // --- Swipe affordances ---
@@ -629,6 +678,24 @@ export const uk = {
      */
     atShelter: "м. {city}",
     fosteredHousing: "на перетримці, м. {city}",
+    /**
+     * gallery-v3 (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`): the
+     * redesigned card's meta line names sex as its own word instead of
+     * folding it into the age word's grammatical gender (`ageYoungFemale`
+     * etc. above, unchanged — the deck and the old card still use those).
+     * Builder-prompt-approved exact strings, same words already used for
+     * the kabinet animal form's `who.sexMale`/`who.sexFemale`
+     * (`messages/uk.ts`'s kabinet block) — not re-derived, reused verbatim
+     * because the owner's own design names them by these words. An
+     * `"unknown"` sex has no word here (`sexWordFor`,
+     * `packages/i18n/src/animal-labels.ts`, returns `null`) rather than
+     * guessing — the pre-existing `ageWordFor` defaults an unknown sex to
+     * the masculine age word, but that is a fallback for a word that must
+     * exist either way; a sex word has a true third option (omit it) that
+     * the age word does not.
+     */
+    sexMale: "Хлопчик",
+    sexFemale: "Дівчинка",
   },
 
   // --- Pagination footer (E3, re-skinned V2) ---
@@ -897,11 +964,28 @@ export const uk = {
      * rather than only the weaker "doesn't re-serve what you skipped" the
      * English sense in `docs/observations.md` originally drafted. Oleksii's
      * own Ukrainian, verbatim — not drafted or polished here.
+     *
+     * **GV3-Q3 (Oleksii, 2026-10-26, verbatim: "go with (b) on all three"), narrowed again:** the
+     * first sentence used to promise «списком або по одній» unconditionally.
+     * The gallery-v3 redesign hid the deck's own entry link from the gallery
+     * (Oleksii, mid-build: "let's hide access to Гортати по одній page for
+     * now as well"), so a shelter reading this page could no longer verify
+     * the second method from the site itself. Narrowed to a pure deletion —
+     * «або по одній» cut, nothing added in its place — per
+     * `docs/standing-constraints.md`'s "removing a false claim is not the
+     * same gate as adding one": a Tier 1 reviewer (2881bc2's review) caught
+     * that this row's first attempt added a new builder-written sentence
+     * about the deck instead, which is new copy and does need the normal
+     * gate regardless of how narrow or accurate it reads. A bare deletion
+     * needs neither his words nor a round trip. `/tvaryny/gortaty` itself
+     * is untouched and still works, so this is a **temporary narrowing, not
+     * a withdrawal**: restore «або по одній» once the deck has a real entry
+     * point again.
      */
     whatHappensToAnimals:
       "Кожна тварина отримує власну сторінку з фотографіями і власною адресою — її можна надіслати " +
       "в Telegram, показати знайомим, залишити під дописом.\n\n" +
-      "Тварин можна дивитися списком або по одній.\n\n" +
+      "Тварин можна дивитися списком.\n\n" +
       "Список завжди показує всіх. У режимі «по одній» людина більше не бачить тих, на кого вже " +
       "натиснула «Не зараз» чи «Написати», — це памʼять лише її пристрою, і після «Не зараз» " +
       "тварина згодом зʼявляється знову. Від людини не ховається нічого, крім того, що вона " +

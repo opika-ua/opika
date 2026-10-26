@@ -1,6 +1,6 @@
 import { AGE_BUCKETS, SIZE_BUCKETS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { ageBucketLabel, ageWordFor, sizeLabel } from "./animal-labels";
+import { ageBucketLabel, ageWordFor, sexWordFor, sizeLabel } from "./animal-labels";
 
 describe("ageBucketLabel", () => {
   it("returns a distinct, non-empty word for every bucket", () => {
@@ -47,5 +47,19 @@ describe("ageWordFor, each sex × bucket", () => {
 
   it("the masculine words are the card's long-standing ones, unchanged", () => {
     expect(AGE_BUCKETS.map(ageBucketLabel)).toEqual(["малюк", "молодий", "дорослий", "літній"]);
+  });
+});
+
+/** gallery-v3 (Figma `58:1617`): the redesigned card names sex as its own word. */
+describe("sexWordFor", () => {
+  it.each([
+    ["male", "Хлопчик"],
+    ["female", "Дівчинка"],
+  ] as const)("%s → «%s»", (sex, word) => {
+    expect(sexWordFor(sex)).toBe(word);
+  });
+
+  it("an unknown sex has no word — the caller omits it rather than guessing", () => {
+    expect(sexWordFor("unknown")).toBeNull();
   });
 });

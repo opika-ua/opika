@@ -45,6 +45,31 @@ async function firstAnimalHref(page: import("@playwright/test").Page): Promise<s
   return cachedAnimalHref;
 }
 
+/**
+ * `NAV_SAVED` only renders once something's saved (`SavedNavLink.tsx`,
+ * Oleksii: "show Збережені tab in header only if we have something saved
+ * otherwise hide it"). An `addInitScript`, not a real save through the UI —
+ * these tests are about the header, not the save flow, and `likes-store.ts`'s
+ * own shape (`version`, `items[].animalId`/`likedAt`) is what `SavedNavLink`
+ * reads, so seeding it directly is the same state a real save would leave,
+ * reached without depending on `SaveButton` staying wired the way it is
+ * today. Registered before `openRoute`'s own `page.goto`, so it's in place
+ * for that navigation, same as every later one on this page.
+ */
+async function seedASavedAnimal(page: import("@playwright/test").Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "likes.v1",
+      JSON.stringify({
+        version: 1,
+        items: [
+          { animalId: "00000000-0000-4000-8000-000000000000", likedAt: new Date().toISOString() },
+        ],
+      }),
+    );
+  });
+}
+
 test.describe("the header is on every user-facing surface except the deck", () => {
   for (const [name, route] of [
     ["gallery", GALLERY],
@@ -52,6 +77,7 @@ test.describe("the header is on every user-facing surface except the deck", () =
     ["for shelters", FOR_SHELTERS],
   ] as const) {
     test(`${name} carries the wordmark and all three site links`, async ({ page }) => {
+      await seedASavedAnimal(page);
       await openRoute(page, route, PHONE, { readySelector: HEADER });
 
       await expect(page.locator(WORDMARK)).toHaveText("Opika");
@@ -61,9 +87,21 @@ test.describe("the header is on every user-facing surface except the deck", () =
     });
   }
 
+  /**
+   * Oleksii, from a live screenshot: "show Збережені tab in header only if
+   * we have something saved otherwise hide it." A fresh context has nothing
+   * in `localStorage` at all, so this is the real default, not a seeded one.
+   */
+  test("«Збережені» is absent for a visitor with nothing saved", async ({ page }) => {
+    await openRoute(page, GALLERY, PHONE, { readySelector: HEADER });
+    await expect(page.locator(NAV_ABOUT)).toHaveAttribute("href", ABOUT);
+    await expect(page.locator(NAV_SAVED)).toHaveCount(0);
+  });
+
   test("the detail page carries it too — this is the URL people paste into Telegram", async ({
     page,
   }) => {
+    await seedASavedAnimal(page);
     await openRoute(page, await firstAnimalHref(page), DETAIL_PHONE, { readySelector: HEADER });
 
     await expect(page.locator(WORDMARK)).toHaveText("Opika");
@@ -88,18 +126,19 @@ test.describe("the header is on every user-facing surface except the deck", () =
 });
 
 /**
- * D-2: the demo banner (`gallery-demo-banner`/`detail-demo-banner`) shows on
- * both pages while the registry holds no real shelters. `NARROW_PHONE` (320)
- * is this project's own narrowest supported width (`docs/stack-decision.md`,
- * "budget Android"). Its clipping and the pages' sideways overflow were
- * measured here until 2026-10-20 (removed with the other UI-measuring tests).
+ * D-2: the demo banner (`detail-demo-banner`) shows on the detail page while
+ * the registry holds no real shelters. `NARROW_PHONE` (320) is this
+ * project's own narrowest supported width (`docs/stack-decision.md`, "budget
+ * Android"). Its clipping and the pages' sideways overflow were measured
+ * here until 2026-10-20 (removed with the other UI-measuring tests).
+ *
+ * The gallery's own banner (`gallery-demo-banner`) is gone — Oleksii,
+ * mid-build, verbatim: "remove На сайті поки немає справжніх притулків —
+ * усі картки тут демонстраційні. as we hide our app anyways and people
+ * without gate cant access it ye[t]." Only the detail page's instance is
+ * still asserted.
  */
-test.describe("the demo banner is visible on both pages", () => {
-  test("gallery banner is visible at 320", async ({ page }) => {
-    await openRoute(page, GALLERY, NARROW_PHONE, { readySelector: HEADER });
-    await expect(page.getByTestId("gallery-demo-banner")).toBeVisible();
-  });
-
+test.describe("the demo banner is visible on the detail page", () => {
   test("detail page banner is visible at 320", async ({ page }) => {
     await openRoute(page, await firstAnimalHref(page), NARROW_PHONE, { readySelector: HEADER });
     await expect(page.getByTestId("detail-demo-banner")).toBeVisible();
@@ -124,6 +163,7 @@ test.describe("the header is reachable by keyboard", () => {
   });
 
   test("the «Збережені» link is reachable by Tab", async ({ page }) => {
+    await seedASavedAnimal(page);
     await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
     await expectReachableByTab(page, {
       label: "header «Збережені» link",
