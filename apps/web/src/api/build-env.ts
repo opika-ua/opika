@@ -1,4 +1,5 @@
 import { photoUploadEnvProblem } from "../kabinet/photo-upload-env";
+import { r2CleanupEnvProblem } from "../kabinet/r2-cleanup-env";
 import { signInEnvProblems } from "../kabinet/sign-in-env";
 import { envValueOf, paddedValueMessage } from "./env-value";
 
@@ -201,7 +202,9 @@ export const r2PublicBaseUrlProblem = (
  *
  * The photo upload variables (P-Q10, production only) are
  * `photoUploadEnvProblem` (`kabinet/photo-upload-env.ts`), shared with the boot
- * check the same way.
+ * check the same way. The R2 clean-up job's own credentials (GDPR photo
+ * retention, production only) are `r2CleanupEnvProblem`
+ * (`kabinet/r2-cleanup-env.ts`), shared the same way.
  */
 export function assertBuildEnv(env: Readonly<Record<string, string | undefined>>): void {
   const problems: string[] = [];
@@ -212,6 +215,7 @@ export function assertBuildEnv(env: Readonly<Record<string, string | undefined>>
     rateLimitKeySecretProblem(env),
     locationSecretProblem(env),
     photoUploadEnvProblem(env),
+    r2CleanupEnvProblem(env),
   ]) {
     if (problem !== null) {
       problems.push(`Invalid or missing required environment variable: ${problem}`);

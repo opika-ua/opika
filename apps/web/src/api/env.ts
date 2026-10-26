@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { photoUploadEnvProblem } from "../kabinet/photo-upload-env";
+import { r2CleanupEnvProblem } from "../kabinet/r2-cleanup-env";
 import { signInEnvProblems } from "../kabinet/sign-in-env";
 import {
   cronSecretProblem,
@@ -294,6 +295,7 @@ export function validateEnv(): void {
     rateLimitKeySecretProblem(process.env),
     locationSecretProblem(process.env),
     photoUploadEnvProblem(process.env),
+    r2CleanupEnvProblem(process.env),
     ...signInEnvProblems(process.env),
   ].filter((problem): problem is string => problem !== null);
   if (problems.length > 0) {

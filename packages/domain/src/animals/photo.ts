@@ -49,6 +49,41 @@ export const MAX_ANIMAL_PHOTOS = 10;
 export const PHOTO_MAX_EDGE_PX = 2000;
 
 /**
+ * How long an R2 photo object may sit unreferenced before the clean-up job
+ * may delete it (GDPR photo retention, `docs/gdpr-analysis.md`). Oleksii's
+ * R2-B1 design approval (`docs/decisions-inbox/feat-r2-photo-cleanup.md`)
+ * confirms, verbatim, "the 7-day grace matching Neon's restore window" —
+ * 7 is his own number, matched to Neon's Launch-plan point-in-time-restore
+ * window (checked directly against Neon's own docs, 2026-10-25, not
+ * assumed — `docs/stack-decision.md` names Neon's Launch plan (§0, §3.1)
+ * but doesn't itself state the window's length in days, so this isn't
+ * cited back to that doc): if the database is ever restored a few days back,
+ * the restored rows still find their photos. The same window also
+ * covers two smaller, real races: an edit racing a concurrent one (both
+ * touch the same animal's `photos` array within the grace window), and a
+ * photo uploaded but never saved (the upload and the `animals.photos` write
+ * are two separate steps; a crash between them leaves an object nothing yet
+ * references, briefly, by design — never a reason to delete it within a day).
+ */
+export const R2_CLEANUP_GRACE_PERIOD_DAYS = 7;
+
+/**
+ * Whether an object first seen unreferenced at `firstSeenUnreferencedAt` may
+ * be deleted at `now`, under `graceDays`. `now` and `firstSeenUnreferencedAt`
+ * are both parameters — this function never reads the clock — so the manual
+ * post-reset run (`--grace-days 0`, `docs/launch-sequence.md`) can ask the
+ * same question the scheduled job does, just with a different bound.
+ */
+export function isPastGracePeriod(
+  firstSeenUnreferencedAt: Date,
+  now: Date,
+  graceDays: number = R2_CLEANUP_GRACE_PERIOD_DAYS,
+): boolean {
+  const graceMs = graceDays * 24 * 60 * 60 * 1000;
+  return now.getTime() - firstSeenUnreferencedAt.getTime() >= graceMs;
+}
+
+/**
  * Why the server refused an uploaded file as a photo. The server decides by
  * the file's own bytes, never by its name or the type the browser declared:
  * - `unsupported_type`: its magic bytes are not JPEG, PNG or WebP (GIF, SVG,

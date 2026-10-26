@@ -116,8 +116,14 @@ describe("runSmoke against the local database", () => {
     // (auth:revoke-all's purge), then 38 (the gallery's relaxation counts),
     // then 39 (fur set and cleared by the kabinet edit, filtered in the
     // gallery and the deck, DR1 S3), then 40 (the gallery list scoped to one
-    // shelter, DR1 S5), then S8's 41 (animals.cardsByIds's findByIds).
-    expect(outcomes.length).toBe(41);
+    // shelter, DR1 S5), then S8's 41 (animals.cardsByIds's findByIds), then
+    // GDPR photo retention's 42 — six checks (PR #200, Tier 1 review,
+    // blocker 4): referencedStorageKeys' jsonb_array_elements SELECT,
+    // referencedObjectKeys' derived variant, recordScan's track, still
+    // Unreferenced's re-check, and afterDeleted's jsonb_set UPDATE plus a
+    // read-back confirming the null landed for real, not just in the
+    // statement's own reported count.
+    expect(outcomes.length).toBe(47);
   });
 
   it("passes every statement over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
@@ -139,6 +145,6 @@ describe("runSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes.length).toBe(41);
+    expect(outcomes.length).toBe(47);
   });
 });
