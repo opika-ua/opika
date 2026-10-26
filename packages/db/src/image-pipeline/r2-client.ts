@@ -10,13 +10,16 @@ import { r2EndpointUrl } from "./variants";
  * exercised without a real bucket, so it stays small on purpose — see
  * `docs/h1-decisions.md`, "what stays unverified until a real bucket exists."
  *
- * No delete, copy or lifecycle call exists here or anywhere else (K-Q2: "no
- * code path that overwrites or deletes an existing object"; a source scan in
+ * No delete, copy or lifecycle call exists here (K-Q2: "no code path that
+ * overwrites or deletes an existing object") — a source scan in
  * `apps/web/src/kabinet/photo-pipeline-scan.test.ts` keeps it that way, and
- * keeps this the one file that imports the S3 client). Two callers since PR 3:
- * the onboarding script, from an operator's machine, and the kabinet's upload
- * (`shelter.photos.add`), from the deployed app, with its own
- * token (P-Q10).
+ * keeps this and `r2-cleanup-client.ts` the only two files that import the
+ * S3 client. That second file is the one named exception to K-Q2's "no
+ * delete" half, for the GDPR photo-retention job (`docs/gdpr-analysis.md`)
+ * — never a reason to weaken the rule here, which still holds. Two callers
+ * since PR 3: the onboarding script, from an operator's machine, and the
+ * kabinet's upload (`shelter.photos.add`), from the deployed app, with its
+ * own token (P-Q10).
  *
  * `@aws-sdk/client-s3`: R2 is S3-API-compatible by design (Cloudflare's own
  * docs recommend this exact client), and there's no lighter-weight official

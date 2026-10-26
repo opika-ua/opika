@@ -580,8 +580,10 @@ export const shelterPhotosContract = {
     .errors({ ...shelterCasErrors, NOT_FOUND: apiErrors.NOT_FOUND }),
   /**
    * Takes the photo off the animal. The stored files stay where they are
-   * (no code path deletes an object, K-Q2); a takedown is a manual step
-   * (P-Q14, `docs/onboarding-a-shelter.md`).
+   * for now — unreferenced, and either taken down manually (P-Q14,
+   * `docs/onboarding-a-shelter.md`) or deleted automatically within the
+   * GDPR photo-retention job's grace period (`docs/gdpr-analysis.md`,
+   * R2-B1).
    */
   remove: animalWrite
     .input(

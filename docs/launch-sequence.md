@@ -17,6 +17,15 @@ console), not `psql` — this supersedes the `psql`-based form used in earlier m
 runbooks (0013–0015) for this document's own steps; those runbooks are otherwise unchanged.
 Oleksii runs every step; nothing here is automated end-to-end.
 
+**Dependency, before step 1, not merely before step 6** (Oleksii's FR-F4, confirmed
+2026-10-25): the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`, R2-B1)
+must already be built, deployed to production and enabled — its scheduled job running, its
+own `R2_CLEANUP_ACCESS_KEY_ID`/`R2_CLEANUP_SECRET_ACCESS_KEY` set — before the *first* real
+reset (step 2), not merely before step 6's manual one-off run. Step 2's `TRUNCATE` orphans
+every photo belonging to whatever test/demo data was already in production; those photos need
+the job already running to ever get swept at all, on the daily schedule or by the manual
+`--grace-days 0` runs (steps 6 and 11).
+
 ## Rehearse first, once, long before the real sequence ever runs
 
 **Oleksii's own instruction, 2026-10-25** (in place of rebuilding this script under a
@@ -186,19 +195,22 @@ removal step.
 
 **Dependency, confirmed 2026-10-25:** the R2 clean-up job (`docs/gdpr-analysis.md`, photo
 retention) must already be built, deployed and enabled — its scheduled job running, its own
-`R2_CLEANUP_*` token set — before this step, and before cycle 2's step 2 too. Sweeps whatever
-step 2's reset just orphaned: every photo belonging to whatever test/demo data was already in
-production before this cycle began.
+`R2_CLEANUP_*` token set — before this step, and before cycle 2's reset (step 8) too (see the
+note at the top of this document: the requirement is before step 1, not merely before this
+step). Sweeps whatever step 2's reset just orphaned: every photo belonging to whatever
+test/demo data was already in production before this cycle began.
 
 ```powershell
 $env:DATABASE_URL = Read-Secret "Production DIRECT connection string"
 $env:R2_CLEANUP_ACCESS_KEY_ID = Read-Secret "R2_CLEANUP_ACCESS_KEY_ID"
 $env:R2_CLEANUP_SECRET_ACCESS_KEY = Read-Secret "R2_CLEANUP_SECRET_ACCESS_KEY"
 
-# Dry run — counts and total size only, never a key.
-pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod --grace-days 0
+# Optional general preview — the default 7-day grace period, not this
+# step's own --grace-days 0 override (see the note below for why).
+pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod
 
-# Apply.
+# Apply, at the post-reset override. There is currently no dry run for
+# --grace-days 0 itself — see the open question below.
 pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod --grace-days 0 --commit
 
 Remove-Item Env:DATABASE_URL
@@ -206,13 +218,23 @@ Remove-Item Env:R2_CLEANUP_ACCESS_KEY_ID
 Remove-Item Env:R2_CLEANUP_SECRET_ACCESS_KEY
 ```
 
-`--grace-days 0` is refused everywhere except a manual run with `--commit` and a correct
-`--expect` — the scheduled job itself has no way to be given an override at all, so this
-flag only ever does something here, by hand, right after a reset. Script and flag name as
-designed; confirm the exact invocation against that PR once it lands.
+`--grace-days 0` is refused everywhere except a manual run with `--commit` — his R2-B1 words,
+verbatim, "allowed only in a manual run with --commit and the typed --expect" — so there is no
+dry-run preview of what the override specifically would catch before this commits; the general
+preview above (no `--grace-days`) only shows what's due at the default 7-day period, which right
+after a reset is nothing yet. `--expect` is required unconditionally for this script, commit or
+not (R2-F2, the same shape as `demo:remove`'s own `main()`) — and the scheduled job
+(`/api/cron/r2-cleanup`) has no way to be given an override at all: it never reads a
+`--grace-days`-shaped input, by construction, not by a check.
 
-**Verification:** the dry run reports a count and a total size, nothing identifying; the
-`--commit` run reports how many objects it actually deleted.
+⚠ **Open question for Oleksii, not yet answered** (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
+R2-F4): should `--grace-days N` be allowed without `--commit`, as a read-only preview (scans and
+records tracking rows, deletes nothing)? If yes, this step gets a dry-run line back and the
+verification below changes to match; if no, this step stays as written. Confirm before relying
+on this runbook for a real production run.
+
+**Verification:** the `--commit` run reports how many objects it actually deleted, and prints
+their keys (not a size summary) — review that list before trusting the count.
 
 **Rollback:** none — this only deletes R2 objects nothing in the database (just emptied by
 step 2) refers to any more.

@@ -60,6 +60,14 @@ export {
   kabinetShelterRepo,
 } from "./kabinet-shelter-repo";
 export { kabinetSupportRepo, SUPPORT_IDLE_MS } from "./kabinet-support-repo";
+export {
+  afterDeleted,
+  recordScan,
+  referencedObjectKeys,
+  referencedStorageKeys,
+  stillUnreferenced,
+  trackedUnreferencedObjects,
+} from "./r2-cleanup-repo";
 export { revealRepo } from "./reveal-repo";
 export { type SessionRow, sessionRepo } from "./session-repo";
 export { shelterRepo } from "./shelter-repo";

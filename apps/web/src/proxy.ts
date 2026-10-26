@@ -155,7 +155,7 @@ export function isGateExemptPath(pathname: string): boolean {
  * paths, not a prefix, so a route added under `/api/cron/` later is gated
  * until someone lists it here on purpose.
  */
-const CRON_PATHS: readonly string[] = ["/api/cron/auth-cleanup"];
+const CRON_PATHS: readonly string[] = ["/api/cron/auth-cleanup", "/api/cron/r2-cleanup"];
 
 export function isCronPath(pathname: string): boolean {
   return CRON_PATHS.includes(pathname);

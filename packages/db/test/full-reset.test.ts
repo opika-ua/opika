@@ -21,6 +21,7 @@ import {
   supportSessions,
 } from "../src/schema/auth";
 import { cities } from "../src/schema/cities";
+import { r2UnreferencedObjects } from "../src/schema/r2-cleanup";
 import { sessions } from "../src/schema/sessions";
 import { shelters } from "../src/schema/shelters";
 import { recordAnimalsImported } from "../src/script-history";
@@ -41,12 +42,12 @@ import {
  * exhaustive). This proves the *mechanism*: populated tables go to 0,
  * `cities` — the one deliberate exclusion — is untouched, row and all.
  *
- * Every one of the 17 tables in `FULL_RESET_TABLES` gets at least one real
- * row (Tier 1 review finding 5, PR #199): with only 4 of 17 populated, a
- * `TRUNCATE` that silently skipped the other 13 — `auth_user`,
- * `super_admins` and `auth_verification` included — still passed, since
- * "0 before, 0 after" is indistinguishable from "never touched because
- * already empty."
+ * Every table in `FULL_RESET_TABLES` gets at least one real row (Tier 1
+ * review finding 5, PR #199): with only 4 of 17 populated, a `TRUNCATE` that
+ * silently skipped the other 13 — `auth_user`, `super_admins` and
+ * `auth_verification` included — still passed, since "0 before, 0 after" is
+ * indistinguishable from "never touched because already empty." Grown to 18
+ * with `r2_unreferenced_objects` (GDPR photo retention).
  */
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
 let cleanup: () => Promise<void>;
@@ -59,7 +60,7 @@ beforeEach(async () => truncateAll(db));
 
 const NOW = new Date("2026-10-25T10:00:00.000Z");
 
-/** One real row in every one of the 17 reset tables, nothing shared with `cities`. */
+/** One real row in every reset table, nothing shared with `cities`. */
 async function populateEveryResetTable() {
   const city = makeCity();
   await cityRepo(db).insert(city);
@@ -184,6 +185,10 @@ async function populateEveryResetTable() {
     tokenHash: randomUUID(),
     startedAt: NOW,
     lastSeenAt: NOW,
+  });
+  await db.insert(r2UnreferencedObjects).values({
+    objectKey: `animals/orphan-${randomUUID()}/card.webp`,
+    firstSeenUnreferencedAt: NOW,
   });
 
   return { city };

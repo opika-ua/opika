@@ -20,6 +20,7 @@ import {
 } from "@opika/domain";
 import { count, eq, inArray } from "drizzle-orm";
 import { createDatabase, type Database } from "../src/client";
+import { variantObjectKey } from "../src/image-pipeline/variants";
 import { productionEndpoint } from "../src/prod-guard";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
@@ -40,6 +41,14 @@ import { kabinetInvitedUsersRepo } from "../src/repos/kabinet-invited-users-repo
 import { kabinetRegistryRepo } from "../src/repos/kabinet-registry-repo";
 import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
 import { kabinetSupportRepo, SUPPORT_IDLE_MS } from "../src/repos/kabinet-support-repo";
+import {
+  afterDeleted,
+  recordScan,
+  referencedObjectKeys,
+  referencedStorageKeys,
+  stillUnreferenced,
+} from "../src/repos/r2-cleanup-repo";
+import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { superAdminRepo } from "../src/repos/super-admin-repo";
 import { swipeRepo } from "../src/repos/swipe-repo";
@@ -53,12 +62,14 @@ import {
   superAdmins,
   supportSessions,
 } from "../src/schema/auth";
+import { reveals } from "../src/schema/reveals";
 import { insertShelterFromScript, recordAnimalsImported } from "../src/script-history";
 import {
   makeAdopter,
   makeAnimal,
   makeCity,
   makeDraftAnimal,
+  makeReveal,
   makeShelter,
   makeSwipe,
 } from "../src/test-utils/fixtures";
@@ -2010,6 +2021,77 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     foundIds.length === 2 && foundIds.includes(atShelter.id) && foundIds.includes(fostered.id),
     `${foundIds.length} row(s) found for 2 real + 1 unknown id`,
   );
+
+  // 42. GDPR photo retention (PR #200, Tier 1 review, blocker 4): the raw
+  // SQL `r2-cleanup-repo.ts` never had a real-Neon run before this.
+  // `referencedStorageKeys`'s `jsonb_array_elements` SELECT and
+  // `afterDeleted`'s `jsonb_set` UPDATE (with its scalar-OR'd WHERE, never
+  // an array binding) both go through `executeRows`, the one place that
+  // already handles postgres-js/neon-http's differing raw-result shapes —
+  // but the statements themselves, with their real jsonb operators, had
+  // only ever executed locally until this step.
+  const r2StorageKey = `smoke/${tag}/photo-1`;
+  const r2Animal = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: shelter.id,
+    photos: [{ storageKey: r2StorageKey, width: 800, height: 1000, alt: null }] as never,
+  });
+  await animalRepo(db).insert(r2Animal, city.id);
+  const r2Referenced = await referencedStorageKeys(db);
+  check(
+    "r2-cleanup-repo: referencedStorageKeys (jsonb_array_elements SELECT) over neon-http",
+    r2Referenced.has(r2StorageKey),
+    `${r2Referenced.size} referenced storage key(s), expected one to include this run's`,
+  );
+  const r2ObjectKeys = await referencedObjectKeys(db);
+  const r2CardKey = variantObjectKey(r2StorageKey, "card");
+  check(
+    "r2-cleanup-repo: referencedObjectKeys derives the card variant",
+    r2ObjectKeys.has(r2CardKey),
+    `${r2ObjectKeys.size} referenced object key(s)`,
+  );
+
+  const r2OrphanKey = variantObjectKey(`smoke/${tag}/orphan`, "card");
+  const scanResult = await recordScan(db, [r2CardKey, r2OrphanKey], NOW);
+  check(
+    "r2-cleanup-repo: recordScan tracks the orphan, leaves the referenced key alone",
+    scanResult.newlyTracked === 1,
+    `newlyTracked ${scanResult.newlyTracked}, expected 1`,
+  );
+  const stillDue = await stillUnreferenced(db, [r2CardKey, r2OrphanKey]);
+  check(
+    "r2-cleanup-repo: stillUnreferenced re-check excludes the referenced key",
+    stillDue.length === 1 && stillDue[0] === r2OrphanKey,
+    `${JSON.stringify(stillDue)}`,
+  );
+
+  const r2Adopter = makeAdopter({ id: randomUUID() as never });
+  await adopterRepo(db).insert(r2Adopter);
+  const r2Reveal = makeReveal({
+    id: randomUUID() as never,
+    adopterId: r2Adopter.id,
+    animalId: r2Animal.id,
+    shelterId: shelter.id,
+    animalSnapshot: {
+      name: "Smoke",
+      primaryPhoto: { storageKey: r2StorageKey, width: 800, height: 1000, alt: null },
+    },
+  });
+  await revealRepo(db).insert(r2Reveal);
+  const deleteResult = await afterDeleted(db, [r2CardKey]);
+  check(
+    "r2-cleanup-repo: afterDeleted nulls the reveal snapshot's primaryPhoto (jsonb_set UPDATE) over neon-http",
+    deleteResult.snapshotsNulled === 1,
+    `snapshotsNulled ${deleteResult.snapshotsNulled}, expected 1`,
+  );
+  const [r2RevealRow] = await db.select().from(reveals).where(eq(reveals.id, r2Reveal.id));
+  const r2SnapshotAfter = r2RevealRow?.animalSnapshot as { primaryPhoto: unknown } | undefined;
+  check(
+    "r2-cleanup-repo: the null is real, read back from Neon, not just the statement's own count",
+    r2SnapshotAfter?.primaryPhoto === null,
+    `primaryPhoto read back as ${JSON.stringify(r2SnapshotAfter?.primaryPhoto)}`,
+  );
+
   return out;
 }
 

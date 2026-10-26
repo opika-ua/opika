@@ -80,6 +80,21 @@ export function variantObjectKey(storageKey: string, variant: ImageVariantName):
   return `${storageKey}/${variant}.webp`;
 }
 
+const VARIANT_OBJECT_SUFFIX = new RegExp(`/(${IMAGE_VARIANT_NAMES.join("|")})\\.webp$`);
+
+/**
+ * The inverse of `variantObjectKey` — the R2 clean-up job's own need (GDPR
+ * photo retention): given a real bucket object key, the `storageKey` it was
+ * derived from, or `null` if the key doesn't match the one scheme this
+ * module ever writes (so a stray or malformed key is skipped, never
+ * mis-parsed into treating an unrelated object as one of ours).
+ */
+export function storageKeyFromObjectKey(objectKey: string): string | null {
+  return VARIANT_OBJECT_SUFFIX.test(objectKey)
+    ? objectKey.replace(VARIANT_OBJECT_SUFFIX, "")
+    : null;
+}
+
 /**
  * A positive check, not a negative one — `packages/db/src/seed.ts` stores
  * `storageKey: "seed-photos/dog-1.jpg"` (no leading slash), so "does this

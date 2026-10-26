@@ -28,6 +28,8 @@ const UPLOAD = {
   R2_BUCKET_NAME: "example-photo-bucket",
   R2_UPLOAD_ACCESS_KEY_ID: "example-upload-key-id",
   R2_UPLOAD_SECRET_ACCESS_KEY: "example-upload-secret-value",
+  R2_CLEANUP_ACCESS_KEY_ID: "example-cleanup-key-id",
+  R2_CLEANUP_SECRET_ACCESS_KEY: "example-cleanup-secret-value",
 } as const;
 // A recognisable value, so a test can show it never reaches the message.
 const SHORT_SECRET = "short-secret-value-0123456789ab"; // 31 characters
