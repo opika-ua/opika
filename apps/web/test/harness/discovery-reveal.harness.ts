@@ -81,7 +81,7 @@ test.describe(`${ROUTE} inline reveal`, () => {
     await expect(dialog.getByText(/^м\. \S/)).toBeVisible();
   });
 
-  test("the deck's dialog has no 'back to gallery' link - only the detail page's does", async ({
+  test("the deck's dialog has no 'back to gallery' link – only the detail page's does", async ({
     page,
   }) => {
     await page.getByRole("button", { name: "Написати" }).click();
@@ -165,7 +165,7 @@ test.describe(`${ROUTE} inline reveal`, () => {
     expect(
       sessionCookieTokens.size,
       `expected exactly one session token to ever be minted for this visitor, saw ` +
-        `${sessionCookieTokens.size}: ${[...sessionCookieTokens].join(", ")} - two means two ` +
+        `${sessionCookieTokens.size}: ${[...sessionCookieTokens].join(", ")} – two means two ` +
         `concurrent session.bootstrap calls raced and minted two adopters`,
     ).toBe(1);
   });
@@ -211,7 +211,7 @@ test.describe(`${ROUTE} inline reveal`, () => {
    * a real server and a real, deliberately delayed `animals.reveal`
    * response - the one window in which the bug was reachable at all.
    */
-  test("a right-drag while a reveal is already in flight springs back - no second reveal, and the deck does not advance past it", async ({
+  test("a right-drag while a reveal is already in flight springs back – no second reveal, and the deck does not advance past it", async ({
     page,
   }) => {
     let revealRequests = 0;
@@ -290,7 +290,7 @@ test.describe(`${ROUTE} inline reveal`, () => {
         () => page.getByTestId("swipe-card").evaluate((el) => (el as HTMLElement).style.transform),
         {
           message:
-            "the refused card must spring back to centre, not stay stuck at its exit position - this " +
+            "the refused card must spring back to centre, not stay stuck at its exit position – this " +
             "is the one assertion that would have failed against the pre-fix `handleCommit`-only guard",
           timeout: 5_000,
         },
@@ -306,7 +306,7 @@ test.describe(`${ROUTE} inline reveal`, () => {
 
     expect(
       revealRequests,
-      "exactly one animals.reveal request - a refused second drag must never send one at all",
+      "exactly one animals.reveal request – a refused second drag must never send one at all",
     ).toBe(1);
   });
 });

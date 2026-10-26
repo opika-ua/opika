@@ -35,13 +35,13 @@ const NAV = "[data-testid='gallery-pagination']";
 const PAGE_LINK = "[data-testid='pagination-page']";
 
 test.describe("/tvaryny pagination", () => {
-  test("the seeded corpus is genuinely multi-page - a precondition for every test below", async ({
+  test("the seeded corpus is genuinely multi-page – a precondition for every test below", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
     await expect(
       page.locator(NAV),
-      "gallery-pagination did not render at all - either totalPages <= 1 (the seed " +
+      "gallery-pagination did not render at all – either totalPages <= 1 (the seed " +
         "corpus shrank below one page) or the component is broken. Every other test in " +
         "this file assumes a real multi-page corpus.",
     ).toBeAttached();
@@ -75,7 +75,7 @@ test.describe("/tvaryny pagination", () => {
     await expect(active).toHaveText(/^2/);
   });
 
-  test("clicking a page number is a real push - three separate back-presses undo three page moves", async ({
+  test("clicking a page number is a real push – three separate back-presses undo three page moves", async ({
     page,
   }) => {
     // A real prior page, the same reasoning gallery-filters.harness.ts's own
@@ -173,7 +173,7 @@ test.describe("/tvaryny pagination", () => {
    * reasoning). This test is what would catch a regression back to
    * mismatched visible text instead.
    */
-  test("prev/next carry no visible text - the accessible name alone says what they do", async ({
+  test("prev/next carry no visible text – the accessible name alone says what they do", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });

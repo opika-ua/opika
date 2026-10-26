@@ -23,7 +23,7 @@ export const en = {
   },
 
   demo: {
-    bannerNotice: "The site doesn't hold any real shelters yet - every card here is a demo.",
+    bannerNotice: "The site doesn't hold any real shelters yet – every card here is a demo.",
     deckLabel: "Demo",
   },
 
@@ -60,7 +60,7 @@ export const en = {
     temperament: "Temperament",
     colour: "Colour",
     /** Template: "{count} {animalWord} match. Shelters in this city - {shelterCount}." */
-    resultCount: "{count} {animalWord} match. Shelters in this city - {shelterCount}.",
+    resultCount: "{count} {animalWord} match. Shelters in this city – {shelterCount}.",
     /** Template: "{count} {animalWord} match, across {shelterCount} {shelterWord}." - used when no city is selected, see uk.ts's note. */
     resultCountAnyCity: "{count} {animalWord} match, across {shelterCount} {shelterWord}.",
     reset: "Reset",
@@ -95,7 +95,7 @@ export const en = {
     saved: "Saved",
     added: "{name}: added to saved",
     removed: "{name}: removed from saved",
-    full: "The list is full - it can hold at most {max} animals. To add a new one, remove one first.",
+    full: "The list is full – it can hold at most {max} animals. To add a new one, remove one first.",
     title: "Saved animals",
     deviceOnly:
       "The list is kept only in this browser: it won't be there on another device or browser.",
@@ -173,7 +173,7 @@ export const en = {
     notFound: {
       eyebrow: "NOT FOUND",
       title: "This listing is gone.",
-      body: "The animal is no longer on the site or the link is out of date. This isn't an error - the listing is simply no longer here.",
+      body: "The animal is no longer on the site or the link is out of date. This isn't an error – the listing is simply no longer here.",
       action: "All animals",
     },
     rateLimited: "Too many requests. Please try again later.",
@@ -197,9 +197,9 @@ export const en = {
     /** Template: "Contact details saved as they are today · {date}" */
     contactsFootnote: "Contact details saved as they are today · {date}",
     meetingPlace: "you'll agree on a place when you message",
-    reflectionHeading: "Before you write - three things worth thinking through calmly:",
+    reflectionHeading: "Before you write – three things worth thinking through calmly:",
     reflection1: "This is 10-15 years together, not a weekend.",
-    reflection2: "Food, the vet, transport - monthly costs.",
+    reflection2: "Food, the vet, transport – monthly costs.",
     reflection3: "Whether everyone you live with agrees.",
     writeTelegram: "Message on Telegram",
     call: "Call",
@@ -218,7 +218,7 @@ export const en = {
   // --- Exhausted (07) ---
   exhausted: {
     title: "That's everyone who fits right now.",
-    body: "There aren't many shelters here, so the list is short - that's normal.",
+    body: "There aren't many shelters here, so the list is short – that's normal.",
     newAnimals: "New animals appear when shelters update their cards. Usually every few weeks.",
     /**
      * Template: "All of Kyiv oblast (+{count})"
@@ -230,7 +230,7 @@ export const en = {
     toList: "Browse the list",
     reviewAgain: "Look through them again, no rush",
     footnote:
-      "If you know a shelter in Kyiv oblast that isn't here - tell us, and we'll reach out to them.",
+      "If you know a shelter in Kyiv oblast that isn't here – tell us, and we'll reach out to them.",
   },
 
   // --- Error states (08) ---
@@ -254,10 +254,10 @@ export const en = {
     /** Mirrors uk.ts's rateLimited key-for-key - machine-translated like the rest of this file, not a native pass; see this file's own top comment. */
     rateLimited: {
       title: "You've revealed the contacts of many shelters today.",
-      body: "The next ones - tomorrow.",
+      body: "The next ones – tomorrow.",
     },
     photoMissing: {
-      placeholder: "No photo yet - the shelter hasn't sent one",
+      placeholder: "No photo yet – the shelter hasn't sent one",
     },
   },
 
@@ -382,15 +382,15 @@ export const en = {
 
   // --- Gallery out-of-range page notice - see the uk key's own note ---
   outOfRangePage: {
-    notFound: "Page {requested} doesn't exist - there are only {total}.",
-    showingLast: "Showing page {total} - the last one. Nothing was lost.",
+    notFound: "Page {requested} doesn't exist – there are only {total}.",
+    showingLast: "Showing page {total} – the last one. Nothing was lost.",
     backToFirst: "Back to the first page",
   },
 
   // --- Footer - see the uk key's own note ---
   footer: {
     fontCredit:
-      "e-Ukraine typeface - Ukraine's Ministry of Digital Transformation (thedigital.gov.ua/fonts), Dmytro Rastvortsev / Fedoriv, CC BY 4.0.",
+      "e-Ukraine typeface – Ukraine's Ministry of Digital Transformation (thedigital.gov.ua/fonts), Dmytro Rastvortsev / Fedoriv, CC BY 4.0.",
   },
 
   // --- Site-wide header links (Phase T) - see the uk key's own note ---
@@ -405,13 +405,13 @@ export const en = {
   about: {
     title: "About this project",
     intro:
-      "{site} is a site where animals from shelters in the Kyiv region look for a home. One person builds it - me, in my free time. There's no team and no investor.",
+      "{site} is a site where animals from shelters in the Kyiv region look for a home. One person builds it – me, in my free time. There's no team and no investor.",
     free: "The site is free for shelters, with no paid tiers. If that ever changes, every shelter will know well in advance, not after the fact.",
     money:
-      'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) - the site only shows the link; the money goes directly, and you can see exactly where.',
-    data: "Data a shelter enters - address, contact details, animal listings - belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks.",
+      'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) – the site only shows the link; the money goes directly, and you can see exactly where.',
+    data: "Data a shelter enters – address, contact details, animal listings – belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks.",
     analytics:
-      "The site collects basic visit statistics - how many people visit and how fast the pages load - with no advertising.",
+      "The site collects basic visit statistics – how many people visit and how fast the pages load – with no advertising.",
     /** Template: "Get in touch: {contact}" */
     contact: "Get in touch: {contact}",
   },
@@ -442,20 +442,20 @@ export const en = {
       whoIsBehindThis: "Who is behind this",
       howToStart: "How to start",
     },
-    whatThisIs: `${COPY_PENDING} 1. What this is - one sentence.`,
-    cost: `${COPY_PENDING} 2. What it costs - nothing, now and later.`,
+    whatThisIs: `${COPY_PENDING} 1. What this is – one sentence.`,
+    cost: `${COPY_PENDING} 2. What it costs – nothing, now and later.`,
     whatHappensToAnimals: `${COPY_PENDING} 3. What happens to their animals.`,
     whoContactsWhom: `${COPY_PENDING} 4. Who contacts whom.`,
     noObligation: `${COPY_PENDING} 4b. No lead queue, nothing to answer.`,
-    money: `${COPY_PENDING} 5. Money - never touched.`,
+    money: `${COPY_PENDING} 5. Money – never touched.`,
     verification: `${COPY_PENDING} 6. What "verified" means.`,
     verificationOpenToVolunteers: `${COPY_PENDING} 6b. Open to unregistered volunteer groups.`,
     whatToPrepare: `${COPY_PENDING} 7. What to prepare.`,
     whyThatSentence: `${COPY_PENDING} 8. Why we ask for the freshness sentence.`,
     whenAnimalFindsHome: `${COPY_PENDING} 9. When an animal finds a home.`,
-    howToLeave: `${COPY_PENDING} 9b. How to leave - write, and everything is removed, no conditions.`,
+    howToLeave: `${COPY_PENDING} 9b. How to leave – write, and everything is removed, no conditions.`,
     whoIsBehindThis: `${COPY_PENDING} 10. Who is behind this.`,
-    howToStart: `${COPY_PENDING} 11. How to start - write to {contact}.`,
+    howToStart: `${COPY_PENDING} 11. How to start – write to {contact}.`,
     signInLink: `Sign in to the cabinet`,
   },
   kabinet: {

@@ -56,7 +56,7 @@ const createdView = (
   }) as unknown as CreatedShelterView;
 
 const TELL =
-  "Повідомте притулок особисто: запрошення надіслано з noreply@mail.example.org. Якщо листа не видно - хай перевірить вкладку «Промоакції».";
+  "Повідомте притулок особисто: запрошення надіслано з noreply@mail.example.org. Якщо листа не видно – хай перевірить вкладку «Промоакції».";
 
 function fakeClient(create: (input: unknown) => Promise<CreatedShelterView>) {
   const fns = {
@@ -362,7 +362,7 @@ describe("one request only", () => {
         await vi.advanceTimersByTimeAsync(60_000);
       });
       expect(screen.getByRole("alert").textContent).toBe(
-        "Відповідь не надійшла. Притулок міг створитися - перевірте список, перш ніж пробувати знову.",
+        "Відповідь не надійшла. Притулок міг створитися – перевірте список, перш ніж пробувати знову.",
       );
       expect(fns.create).toHaveBeenCalledTimes(1);
       // The form stays, so the operator can try again once the list is checked.
@@ -574,7 +574,7 @@ describe("the evidence editor", () => {
     const card = screen.getByRole("group", { name: "Власник банківського рахунку" });
     expect(document.activeElement).toBe(within(card).getByLabelText("Власник рахунку"));
     expect(
-      within(card).getByText("Документ не додано - для цього типу доказу це дозволено."),
+      within(card).getByText("Документ не додано – для цього типу доказу це дозволено."),
     ).toBeDefined();
     await u.click(within(card).getByRole("button", { name: "Прибрати" }));
     expect(screen.queryByRole("group", { name: "Власник банківського рахунку" })).toBeNull();

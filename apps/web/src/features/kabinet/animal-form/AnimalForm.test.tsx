@@ -238,7 +238,7 @@ const WRITE_GRANTS = [["open writes", { kind: "open" }]] as const satisfies read
   AnimalFormEditing,
 ])[];
 const LAST_PHOTO_KEPT_NOT_SHOWN =
-  "Картка опублікована, тож одне фото має лишитися - навіть поки її ще не бачать.";
+  "Картка опублікована, тож одне фото має лишитися – навіть поки її ще не бачать.";
 
 beforeEach(() => {
   window.history.replaceState(null, "", "/kabinet/tvaryny/nova");
@@ -396,7 +396,7 @@ describe("a draft saves itself (T6)", () => {
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(
       await screen.findByText(
-        "Хтось змінив цю картку після того, як ви її відкрили. Ваші останні зміни не збережено. Ось поточна версія - внесіть їх ще раз.",
+        "Хтось змінив цю картку після того, як ви її відкрили. Ваші останні зміни не збережено. Ось поточна версія – внесіть їх ще раз.",
       ),
     ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Показати поточну версію" }));
@@ -413,7 +413,7 @@ describe("a draft saves itself (T6)", () => {
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(
       await screen.findByText(
-        "Чернетку не збережено. Перевірте зʼєднання - усе, що ви ввели, лишається тут.",
+        "Чернетку не збережено. Перевірте зʼєднання – усе, що ви ввели, лишається тут.",
       ),
     ).toBeTruthy();
     expect((screen.getByLabelText("Про тварину") as HTMLTextAreaElement).value).toBe("Лагідна.");
@@ -502,7 +502,7 @@ describe("a draft saves itself (T6)", () => {
     } as Partial<KabinetAnimalView>);
     renderForm(outgrown);
     const onCard = (word: string) =>
-      `Вік указано станом на 1 вересня 2024 р. Тепер на картці - «${word}». Якщо тварина вже старша, оновіть вік.`;
+      `Вік указано станом на 1 вересня 2024 р. Тепер на картці – «${word}». Якщо тварина вже старша, оновіть вік.`;
     expect(screen.getByText(onCard("молода"))).toBeTruthy();
     await user.click(
       within(screen.getByRole("group", { name: "Стать" })).getByLabelText("Хлопчик"),
@@ -540,7 +540,7 @@ describe("a draft saves itself (T6)", () => {
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(screen.getByText("Дата народження не може бути в майбутньому.")).toBeTruthy();
     fireEvent.change(birth, { target: { value: "1996-10-16" } });
-    expect(screen.getByText("Ця дата надто давня - понад 30 років тому.")).toBeTruthy();
+    expect(screen.getByText("Ця дата надто давня – понад 30 років тому.")).toBeTruthy();
     expect(client.calls.update).not.toHaveBeenCalled();
     // Exactly thirty years back is allowed, and saves as the birth date chosen.
     fireEvent.change(birth, { target: { value: "1996-10-17" } });
@@ -561,7 +561,7 @@ describe("a draft saves itself (T6)", () => {
       within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText(/Дорослий/),
     );
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(await screen.findByText("Ця дата надто давня - понад 30 років тому.")).toBeTruthy();
+    expect(await screen.findByText("Ця дата надто давня – понад 30 років тому.")).toBeTruthy();
   });
 
   it("an old bucket the animal may have outgrown asks for a new age", () => {
@@ -577,7 +577,7 @@ describe("a draft saves itself (T6)", () => {
     expect(
       // One full stop after «р.», not two.
       screen.getByText(
-        "Вік указано станом на 1 вересня 2024 р. Тепер на картці - «молодий». Якщо тварина вже старша, оновіть вік.",
+        "Вік указано станом на 1 вересня 2024 р. Тепер на картці – «молодий». Якщо тварина вже старша, оновіть вік.",
       ),
     ).toBeTruthy();
   });
@@ -625,7 +625,7 @@ describe("a draft saves itself (T6)", () => {
  * the test - never a sleep - decides exactly when it settles.
  */
 describe("the unsaved-work warning and the saved-time line", () => {
-  const FAILURE = "Чернетку не збережено. Перевірте зʼєднання - усе, що ви ввели, лишається тут.";
+  const FAILURE = "Чернетку не збережено. Перевірте зʼєднання – усе, що ви ввели, лишається тут.";
   // Kyiv is UTC+3 in October (before the last-Sunday-of-October change):
   // NOW ("2026-10-17T09:00:00.000Z") reads 12:00, and 15 minutes later reads
   // 12:15 - transcribed by hand, never computed with the code's own `timeOf`
@@ -1147,7 +1147,7 @@ describe("photos", () => {
     expect(await screen.findByText("Фото прибрано.")).toBeTruthy();
     expect(
       screen.getByText(
-        "Фото зникло з картки. Сам файл не видаляється одразу - якщо його треба прибрати зовсім, напишіть мені.",
+        "Фото зникло з картки. Сам файл не видаляється одразу – якщо його треба прибрати зовсім, напишіть мені.",
       ),
     ).toBeTruthy();
   });
@@ -1161,7 +1161,7 @@ describe("photos", () => {
     await user.click(screen.getByRole("button", { name: "Зробити обкладинкою" }));
     expect(
       await screen.findByText(
-        "Фото змінилися в іншому вікні. Тут - поточний набір, спробуйте ще раз.",
+        "Фото змінилися в іншому вікні. Тут – поточний набір, спробуйте ще раз.",
       ),
     ).toBeTruthy();
     expect(await screen.findByRole("group", { name: "Фото 1 з 1" })).toBeTruthy();
@@ -1175,7 +1175,7 @@ describe("photos", () => {
     await user.click(screen.getByRole("button", { name: "Зробити обкладинкою" }));
     expect(
       await screen.findByText(
-        "Не збереглося - на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
+        "Не збереглося – на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
       ),
     ).toBeTruthy();
   });
@@ -1187,14 +1187,14 @@ describe("photos", () => {
     }));
     renderForm(draft({ photos } as Partial<KabinetAnimalView>));
     expect(screen.queryByRole("button", { name: "+ Фото" })).toBeNull();
-    expect(screen.getByText("Це максимум - 10 фото.")).toBeTruthy();
+    expect(screen.getByText("Це максимум – 10 фото.")).toBeTruthy();
   });
 
   it("captions: the on-device resize to 2000 px and the metadata stripping, both true of the pipeline", () => {
     renderForm(draft());
     expect(
       screen.getByText(
-        /^Перше фото - обкладинка; щоб змінити порядок, перетягніть фото\. Для публікації потрібне хоча б одне\. Великі фото зменшуються на пристрої до 2\s?000 пікселів перед відправкою - так менше мобільного трафіку\.$/,
+        /^Перше фото – обкладинка; щоб змінити порядок, перетягніть фото\. Для публікації потрібне хоча б одне\. Великі фото зменшуються на пристрої до 2\s?000 пікселів перед відправкою – так менше мобільного трафіку\.$/,
       ),
     ).toBeTruthy();
     expect(
@@ -1488,7 +1488,7 @@ describe("fur", () => {
  */
 
 /** The «Інше» text field's own name: «Інше» stays the checkbox's and the radio's. */
-const OTHER_FIELD = "Інше - Своїми словами";
+const OTHER_FIELD = "Інше – Своїми словами";
 
 describe("temperament", () => {
   const group = () => within(screen.getByRole("group", { name: "Характер" }));

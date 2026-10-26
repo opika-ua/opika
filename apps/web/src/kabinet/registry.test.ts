@@ -1821,7 +1821,7 @@ describe("after an invitation email is sent, the operator is reminded to tell th
   const expectReminderFrom = (reminder: Reminder, sender: string) => {
     expect(reminder?.kind).toBe("tell_personally");
     expect(reminder?.text).toBe(
-      `Повідомте притулок особисто: запрошення надіслано з ${sender}. Якщо листа не видно - хай перевірить вкладку «Промоакції».`,
+      `Повідомте притулок особисто: запрошення надіслано з ${sender}. Якщо листа не видно – хай перевірить вкладку «Промоакції».`,
     );
   };
 

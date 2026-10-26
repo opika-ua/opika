@@ -47,7 +47,7 @@ describe("the shelter page's metadata (PR B, the SEO review of page titles)", ()
     ).toBe(`/prytulky/${SHELTER_ID}`);
   });
 
-  it("openGraph carries no title of its own - Next fills it from the already-templated one", async () => {
+  it("openGraph carries no title of its own – Next fills it from the already-templated one", async () => {
     const metadata = await generateMetadata({ params, searchParams });
     expect(metadata.openGraph).not.toHaveProperty("title");
   });
@@ -76,7 +76,7 @@ describe("the shelter page's metadata (PR B, the SEO review of page titles)", ()
       const { generateMetadata: freshGenerateMetadata } = await import("./page");
       const description = (await freshGenerateMetadata({ params, searchParams })).description;
       expect(description).toBe(
-        "На сайті поки немає справжніх притулків - усі картки тут демонстраційні.",
+        "На сайті поки немає справжніх притулків – усі картки тут демонстраційні.",
       );
     });
 

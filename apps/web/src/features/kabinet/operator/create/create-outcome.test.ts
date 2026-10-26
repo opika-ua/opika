@@ -95,7 +95,7 @@ describe("create's refusals", () => {
   ])("a lost answer: %s; the shelter may exist, so the list first", (_case, error) => {
     expect(createRefusalOf(error)).toEqual({ kind: "lost_answer" });
     expect(message(error)).toBe(
-      "Відповідь не надійшла. Притулок міг створитися - перевірте список, перш ніж пробувати знову.",
+      "Відповідь не надійшла. Притулок міг створитися – перевірте список, перш ніж пробувати знову.",
     );
   });
 
