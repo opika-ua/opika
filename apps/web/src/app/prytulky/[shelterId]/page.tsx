@@ -14,9 +14,7 @@ import {
 } from "../../../features/shelters/shelter-page-load";
 import { parseShelterPageQuery } from "../../../features/shelters/shelter-url";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
-import { trimAtWordBoundary } from "../../../seo-text";
-
-const META_DESCRIPTION_MAX_LENGTH = 160;
+import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
 
 /** Live listing data, like `/tvaryny`: prerendering would bake in a stale snapshot. */
 export const dynamic = "force-dynamic";
@@ -113,7 +111,11 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: `/prytulky/${shelterId}` },
+    // `shelter.id`, not the raw route param - same reasoning as the animal page's own
+    // canonical (found on review): a UUID's schema accepts any case, so a request that
+    // happened to use uppercase would otherwise get a canonical that disagrees with the
+    // lowercase form every other link on the site actually uses.
+    alternates: { canonical: `/prytulky/${shelter.id}` },
     openGraph: { type: "website", description },
   };
 }

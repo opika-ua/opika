@@ -25,7 +25,6 @@ import { hasPagination } from "../../features/gallery/gallery-pagination";
 import { NoMatch } from "../../features/gallery/NoMatch";
 import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
-import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 
 /**
  * Same reasoning as `../page.tsx`: without this, `next build` would try to
@@ -43,24 +42,26 @@ export const dynamic = "force-dynamic";
  * `SITE_TITLE`) is what gets it templated, producing "Собаки й коти з притулків
  * Київщини – Opika".
  *
- * `description`/`openGraph.description` reuse `uk.firstRun.promise` outright, not new
- * copy - it's already the root layout's own non-demo link-preview sentence (D-2), and
- * the owner's review of this PR's draft already cut the longer version proposed here
- * down to exactly that sentence ("remove «гортайте по одній» - the deck is off").
- * While `REGISTRY_HAS_NO_REAL_SHELTERS`, the existing D-2 demo-notice swap applies
- * instead - this page claims nothing about verified shelters that don't exist yet.
+ * No `description` and no `openGraph` here, deliberately - found on review:
+ * Next doesn't merge a child's `openGraph` into a parent's, it replaces the whole
+ * object, so this page's own `openGraph: { type, description }` was silently dropping
+ * the root layout's `siteName`/`locale` from every link preview of the gallery. The
+ * root's own `description` (D-2's `linkPreviewDescription` ternary - `uk.demo.
+ * bannerNotice` while `REGISTRY_HAS_NO_REAL_SHELTERS`, `uk.firstRun.promise` once real
+ * shelters exist) and its `openGraph` (now carrying `title: titled(SITE_TITLE)`,
+ * `brand.ts`) already say exactly what this page would have said by hand - the owner's
+ * review of this PR's draft cut the longer description once proposed here down to
+ * exactly `uk.firstRun.promise` ("remove «гортайте по одній» - the deck is off"), which
+ * is what made the two identical in the first place. Leaving both unset here means
+ * there's one definition of the non-demo link-preview sentence, not two that can drift.
  *
  * The gallery's own filter/sort/page query variants canonicalise here too (owner,
  * PR B): no `generateMetadata`, so this one static object answers every `?...` combo
  * identically, which is exactly what a single shared canonical needs.
  */
-const description = REGISTRY_HAS_NO_REAL_SHELTERS ? uk.demo.bannerNotice : uk.firstRun.promise;
-
 export const metadata: Metadata = {
   title: SITE_TITLE,
-  description,
   alternates: { canonical: "/tvaryny" },
-  openGraph: { type: "website", description },
 };
 
 /**

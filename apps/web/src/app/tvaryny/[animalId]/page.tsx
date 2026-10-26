@@ -1,7 +1,7 @@
 import type { AnimalDetailView } from "@opika/contracts";
 import { isRealPhotoKey, r2PublicUrl } from "@opika/db/image-pipeline";
 import { textIn } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { speciesWordFor, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -15,7 +15,7 @@ import { speciesLabel } from "../../../features/animal-detail/detail-text";
 import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
-import { trimAtWordBoundary } from "../../../seo-text";
+import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
 
 /**
  * Same reasoning as `../page.tsx` and `../../page.tsx`: prerendering at
@@ -113,13 +113,14 @@ const loadAnimalPageOnce = cache((animalId: string) => loadAnimalPage(animalId))
  *   The age bucket and the reserved/adopted state are both deliberately absent -
  *   neither belongs in a title a search index can keep stale, and the state was
  *   never in it to begin with.
- * - `description`: species + shelter name + city (as "м. {city}", the same
- *   case-free convention `uk.detail.backToListIn` already uses, rather than a
- *   locative "у {city}" this codebase has no declension support for - see
- *   `ageBucketLabel`'s own flagged simplifications for the class of gap this
- *   sidesteps deliberately rather than by oversight), then one line of the
- *   animal's own description, trimmed at a word boundary to stay within 160
- *   characters total and never padded past whatever's actually there.
+ * - `description`: `{species word} {name} · {city} · {shelterName}.` (the sex-aware
+ *   species word, `speciesWordFor` - distinct from the title's own sex-neutral
+ *   `speciesLabel`; `city` dropped, not rendered empty, when the animal's location
+ *   doesn't resolve to a known city; no "з притулку", "м.", or quotes around the
+ *   shelter name, since a shelter's own display name may already carry either),
+ *   then one line of the animal's own description, trimmed at a word boundary to
+ *   stay within 160 characters total and never padded past whatever's actually
+ *   there. See `animalMetaDescription`'s own doc comment for the full format.
  *
  * `openGraph.title` is omitted, not duplicated: Next resolves a missing
  * `openGraph.title` from the page's own already-templated `title` (same
@@ -162,10 +163,13 @@ export async function generateMetadata({
   return {
     title,
     description,
-    // Always the bare id, no query string - the pet-card work (owner, PR B)
-    // adds gallery-context params to this same URL, and this canonical must
-    // never vary with them.
-    alternates: { canonical: `/tvaryny/${animalId}` },
+    // Always the animal's own validated id, no query string - the pet-card work
+    // (owner, PR B) adds gallery-context params to this same URL, and this canonical
+    // must never vary with them. `animal.id`, not the raw route param: `AnimalIdSchema`
+    // accepts a UUID in any case, so a request that happened to use uppercase would
+    // otherwise get a canonical that disagrees with the lowercase form every other
+    // link on the site actually uses.
+    alternates: { canonical: `/tvaryny/${animal.id}` },
     openGraph: {
       type: "article",
       description,
@@ -175,22 +179,44 @@ export async function generateMetadata({
   };
 }
 
-const META_DESCRIPTION_MAX_LENGTH = 160;
+/** A body sentence shorter than this reads as a cut-off word, not a useful fragment -
+ * omitted entirely rather than shown truncated (found on review: an unusually long
+ * shelter name could leave almost no room for it). */
+const MIN_USEFUL_BODY_LENGTH = 20;
 
 /**
- * `{species} з притулку «{shelter}», м. {city}. {animal's own description, trimmed}.`
- * Exported for its own test; `cityName` is `null` whenever the animal's location
- * doesn't resolve to a known city (`loadAnimalPage`'s own fallback), dropped from the
- * sentence entirely rather than rendered as an empty "м. ".
+ * `{species word} {name} · {city} · {shelterName}. {animal's own description, trimmed}.`
+ * - owner's exact wording, replacing an earlier draft ("з притулку «...», м. ..."):
+ * no "з притулку", no "м.", and no quotes around the shelter name, because a shelter's
+ * own display name may already contain "притулок" or quotes of its own. The species
+ * word is sex-aware (`speciesWordFor`, `@opika/i18n`) - distinct from the title's own
+ * `speciesLabel`, which stays sex-neutral. Exported for its own test; `cityName` is
+ * `null` whenever the animal's location doesn't resolve to a known city (`loadAnimalPage`'s
+ * own fallback), dropped from the sentence entirely rather than rendered as an empty
+ * " · ".
+ *
+ * The shelter name itself is trimmed to whatever budget is left after the fixed
+ * surrounding segments - found on review: an unusually long shelter name could
+ * otherwise make the prefix alone exceed `META_DESCRIPTION_MAX_LENGTH`, which
+ * `trimAtWordBoundary`'s own 160-character ceiling is supposed to guarantee never
+ * happens to the description as a whole.
  */
 export function animalMetaDescription(
-  animal: Pick<AnimalDetailView, "species" | "description">,
+  animal: Pick<AnimalDetailView, "name" | "species" | "sex" | "description">,
   shelterName: string,
   cityName: string | null,
 ): string {
-  const cityPart = cityName ? `, м. ${cityName}` : "";
-  const prefix = `${speciesLabel(animal.species)} з притулку «${shelterName}»${cityPart}.`;
-  const remaining = META_DESCRIPTION_MAX_LENGTH - prefix.length - 1;
-  const body = remaining > 0 ? trimAtWordBoundary(textIn(animal.description, "uk"), remaining) : "";
+  const speciesWord = speciesWordFor(animal.species, animal.sex);
+  const fixedPrefix = [`${speciesWord} ${animal.name}`, cityName].filter(Boolean).join(" · ");
+  // " · " before the shelter name (3 characters), "." after it (1 character).
+  const shelterBudget = Math.max(0, META_DESCRIPTION_MAX_LENGTH - fixedPrefix.length - 3 - 1);
+  const safeShelterName = trimAtWordBoundary(shelterName, shelterBudget);
+  const prefix = `${fixedPrefix} · ${safeShelterName}.`;
+
+  const bodyBudget = META_DESCRIPTION_MAX_LENGTH - prefix.length - 1;
+  const body =
+    bodyBudget >= MIN_USEFUL_BODY_LENGTH
+      ? trimAtWordBoundary(textIn(animal.description, "uk"), bodyBudget)
+      : "";
   return body ? `${prefix} ${body}` : prefix;
 }

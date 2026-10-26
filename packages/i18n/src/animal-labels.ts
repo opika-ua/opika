@@ -1,6 +1,7 @@
 import {
   type AgeBucket,
   type AnimalSex,
+  type AnimalSpecies,
   type GrammaticalGender,
   grammaticalGenderOf,
   type SizeBucket,
@@ -49,6 +50,30 @@ const FEMININE_AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
 export function ageWordFor(bucket: AgeBucket, sex: AnimalSex): string {
   const gender: GrammaticalGender = grammaticalGenderOf(sex);
   return gender === "feminine" ? FEMININE_AGE_BUCKET_LABELS[bucket] : AGE_BUCKET_LABELS[bucket];
+}
+
+const SPECIES_WORD_LABELS: Record<AnimalSpecies, string> = {
+  dog: uk.detail.speciesDogMale,
+  cat: uk.detail.speciesCat,
+};
+const FEMININE_SPECIES_WORD_LABELS: Record<AnimalSpecies, string> = {
+  dog: uk.detail.speciesDog,
+  cat: uk.detail.speciesCatFemale,
+};
+
+/**
+ * The sex-aware species word for the animal page's meta description (PR B, the SEO
+ * review of page titles; owner's exact wording): cat male «Кіт», female «Кішка»; dog
+ * male «Пес», female «Собака»; unknown sex takes the masculine form, same convention
+ * `ageWordFor` above already uses - picking a gender for an unknown sex would state
+ * something nobody recorded. Distinct from `detail-text.ts`'s `speciesLabel`, which
+ * stays sex-neutral for the card/page subtitle line and is unaffected by this.
+ */
+export function speciesWordFor(species: AnimalSpecies, sex: AnimalSex): string {
+  const gender: GrammaticalGender = grammaticalGenderOf(sex);
+  return gender === "feminine"
+    ? FEMININE_SPECIES_WORD_LABELS[species]
+    : SPECIES_WORD_LABELS[species];
 }
 
 /**

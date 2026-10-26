@@ -80,12 +80,36 @@ describe("the shelter page's metadata (PR B, the SEO review of page titles)", ()
       );
     });
 
-    it("is the shelter's own text, trimmed to 160 characters and never padded, once real shelters exist", async () => {
+    it("is the shelter's own text, never padded, once real shelters exist", async () => {
       vi.doMock("../../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
       const { generateMetadata: freshGenerateMetadata } = await import("./page");
       const description = (await freshGenerateMetadata({ params, searchParams })).description;
       expect(description).toBe(DESCRIPTION);
       expect(DESCRIPTION.length).toBeLessThan(120);
+    });
+
+    /**
+     * The test above uses the fixture's own short `DESCRIPTION` (under 120 characters),
+     * so it can prove "never padded" but can't prove the 160-character ceiling is real
+     * - found on review: removing the trim call entirely still left that test green.
+     * This one supplies a shelter description long enough to actually force the cut.
+     */
+    it("trims a long shelter description to 160 characters, at a word boundary", async () => {
+      vi.doMock("../../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
+      const longDescription =
+        "Цей притулок опікується тваринами вже багато років і завжди радий новим друзям та " +
+        "волонтерам, які готові допомогти з доглядом, прогулянками, транспортуванням до ветлікаря " +
+        "та пошуком дому для кожного мешканця притулку.";
+      expect(longDescription.length).toBeGreaterThan(160);
+      current = stubShelterPageClient({
+        kind: "answer",
+        shelter: makeShelterPageShelter({ description: { uk: longDescription, en: null } }),
+      });
+      const { generateMetadata: freshGenerateMetadata } = await import("./page");
+      const description = (await freshGenerateMetadata({ params, searchParams })).description;
+      expect(description?.length).toBeLessThanOrEqual(160);
+      expect(description?.length).toBeGreaterThan(120);
+      expect(longDescription.startsWith(description ?? "")).toBe(true);
     });
   });
 });

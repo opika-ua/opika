@@ -1,44 +1,27 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { metadata } from "./page";
 
 /**
- * `/tvaryny`'s `metadata` export (PR B, the SEO review of page titles) is a plain
- * object, computed once at module load from `REGISTRY_HAS_NO_REAL_SHELTERS` - so,
- * same as the root layout's own `linkPreviewDescription`, reaching the branch where
- * real shelters exist needs the module reloaded under a mock, not just a fresh call.
- * The same `vi.doMock` + `vi.resetModules` + dynamic re-import pattern
- * `AnimalDetailScreen.test.tsx` uses for its own demo-gated branches.
+ * `/tvaryny`'s own `metadata` export (PR B, the SEO review of page titles) owns only
+ * `title` and `alternates.canonical` - no `description`, no `openGraph`. Found on
+ * review: a child's `openGraph` replaces the root layout's whole object rather than
+ * merging into it, so setting one here was silently dropping the root's `siteName`/
+ * `locale` from every gallery link preview. The root layout's own description/openGraph
+ * (`app/layout.tsx`, `seo-flags.test.ts` covers its D-2 ternary) is what actually
+ * answers both once this page leaves them unset, and inheriting it is exactly the
+ * point - one definition of the non-demo link-preview sentence, not two that can drift.
  */
 describe("/tvaryny's own metadata", () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
-
-  it("title is the subject alone - the root template appends the brand", async () => {
-    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
-    const { metadata } = await import("./page");
+  it("title is the subject alone - the root template appends the brand", () => {
     expect(metadata.title).toBe("Собаки й коти з притулків Київщини");
   });
 
-  it("canonical is always the bare path, regardless of any filter/sort/page query", async () => {
-    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
-    const { metadata } = await import("./page");
+  it("canonical is always the bare path, regardless of any filter/sort/page query", () => {
     expect(metadata.alternates?.canonical).toBe("/tvaryny");
   });
 
-  it("description is the D-2 demo disclosure while the registry holds no real shelters", async () => {
-    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
-    const { metadata } = await import("./page");
-    expect(metadata.description).toBe(
-      "На сайті поки немає справжніх притулків - усі картки тут демонстраційні.",
-    );
-  });
-
-  it("description no longer mentions «гортайте по одній» once real shelters exist - the deck is off", async () => {
-    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
-    const { metadata } = await import("./page");
-    expect(metadata.description).toBe(
-      "Собаки й коти з перевірених притулків Київщини шукають дім. Перегляньте список.",
-    );
-    expect(metadata.description).not.toContain("гортайте");
+  it("sets no description or openGraph of its own - the root layout's apply by inheritance", () => {
+    expect(metadata.description).toBeUndefined();
+    expect(metadata.openGraph).toBeUndefined();
   });
 });

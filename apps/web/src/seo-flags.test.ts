@@ -1,5 +1,6 @@
 import { PENDING_R4_2_ANALYTICS_SENTENCE } from "@opika/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SITE_ORIGIN } from "./brand";
 import {
   assertAnalyticsCopyMatchesGateState,
   assertDemoDiscoverabilityInvariant,
@@ -41,6 +42,16 @@ vi.mock("next/font/local", () => ({
  */
 afterEach(() => {
   vi.doUnmock("./seo-flags");
+});
+
+/**
+ * PR B, the SEO review of page titles - found missing on review: `metadataBase` had
+ * no test at all, even though every indexable page's `alternates.canonical` is a
+ * relative path that depends on it resolving correctly.
+ */
+it("metadataBase is the fixed SITE_ORIGIN constant, never left unset", async () => {
+  const { metadata } = await import("./app/layout");
+  expect(metadata.metadataBase).toEqual(new URL(SITE_ORIGIN));
 });
 
 /**
@@ -474,7 +485,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS - /tvaryny/[animalId] link-preview descr
     publicLocation: null,
     shelter: { id: "d0000000-0000-4000-8000-000000000001" },
   };
-  const REAL_DESCRIPTION = "Кіт з притулку «Добрі лапи», м. Бровари. Лагідний кіт.";
+  const REAL_DESCRIPTION = "Кіт Мурчик · Бровари · Добрі лапи. Лагідний кіт.";
 
   beforeEach(() => {
     vi.resetModules();

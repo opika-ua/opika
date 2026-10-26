@@ -123,34 +123,45 @@ export default function GalleryError({
   }, []);
 
   return (
-    <div className="font-rg min-h-dvh bg-rg-page flex items-center justify-center p-4">
-      <div
-        role="alert"
-        aria-live="assertive"
-        data-testid="gallery-error"
-        className="animate-fade-in w-full max-w-140 bg-rg-surface rounded-rg-card p-8 flex flex-col gap-4 items-start"
-      >
-        <span className="text-[12px]/[16px] font-medium tracking-[0.08em] uppercase text-rg-ink-3">
-          {uk.galleryError.eyebrow}
-        </span>
-        <h1
-          ref={headingRef}
-          tabIndex={-1}
-          className="text-[34px]/[38px] font-bold tracking-[-0.03em] text-rg-ink text-pretty outline-none"
+    <>
+      {/*
+        PR B, the SEO review of page titles - corrected on review: a Client Component
+        (error boundaries must be one) can't export `metadata`/`robots`, but it isn't
+        true that there's "no code path" to noindex it, as an earlier draft of this
+        file's own comment claimed. React hoists a `<title>`/`<meta>` rendered anywhere
+        in the tree up to `<head>` (Next's own error.md names exactly this as the
+        Client-Component alternative to a `metadata` export), so this tag reaches the
+        real document head the same as a Server Component's `robots` would.
+      */}
+      <meta name="robots" content="noindex, nofollow" />
+      <div className="font-rg min-h-dvh bg-rg-page flex items-center justify-center p-4">
+        <div
+          role="alert"
+          aria-live="assertive"
+          data-testid="gallery-error"
+          className="animate-fade-in w-full max-w-140 bg-rg-surface rounded-rg-card p-8 flex flex-col gap-4 items-start"
         >
-          {uk.galleryError.title}
-        </h1>
-        <p className="text-[17px]/[26px] text-rg-ink-2 text-pretty">{uk.galleryError.body}</p>
-        <div className="flex flex-wrap items-center gap-4">
-          <button
-            type="button"
-            data-testid="gallery-error-retry"
-            onClick={retry}
-            className="min-h-14 px-6 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+          <span className="text-[12px]/[16px] font-medium tracking-[0.08em] uppercase text-rg-ink-3">
+            {uk.galleryError.eyebrow}
+          </span>
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-[34px]/[38px] font-bold tracking-[-0.03em] text-rg-ink text-pretty outline-none"
           >
-            {uk.galleryError.action}
-          </button>
-          {/*
+            {uk.galleryError.title}
+          </h1>
+          <p className="text-[17px]/[26px] text-rg-ink-2 text-pretty">{uk.galleryError.body}</p>
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              type="button"
+              data-testid="gallery-error-retry"
+              onClick={retry}
+              className="min-h-14 px-6 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+            >
+              {uk.galleryError.action}
+            </button>
+            {/*
             E5's actual escape hatch - see this file's own top comment for
             why a filter rail here would not be one. A genuine `<a href>`,
             not `next/link`'s `Link`: confirmed by the harness, not
@@ -162,15 +173,16 @@ export default function GalleryError({
             entirely, at the unavoidable cost of a full reload instead of
             a transition.
           */}
-          <a
-            href="/tvaryny"
-            data-testid="gallery-error-show-all"
-            className="min-h-14 inline-flex items-center px-6 rounded-rg-button text-rg-ink font-medium text-[15px] underline underline-offset-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-          >
-            {uk.galleryError.showAll}
-          </a>
+            <a
+              href="/tvaryny"
+              data-testid="gallery-error-show-all"
+              className="min-h-14 inline-flex items-center px-6 rounded-rg-button text-rg-ink font-medium text-[15px] underline underline-offset-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+            >
+              {uk.galleryError.showAll}
+            </a>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

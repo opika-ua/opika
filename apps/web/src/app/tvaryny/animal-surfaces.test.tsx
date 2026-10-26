@@ -114,36 +114,10 @@ describe("the full page", () => {
       vi.unstubAllEnvs();
     });
 
-    /**
-     * `REGISTRY_HAS_NO_REAL_SHELTERS` is `true` today, so the two branches need
-     * their own module mock - the same `vi.doMock` + `vi.resetModules` + dynamic
-     * re-import pattern `AnimalDetailScreen.test.tsx` uses for its own demo-gated
-     * branches. `animalMetaDescription`'s own test covers the real formatting in
-     * detail; this just confirms the ternary actually wires to it.
-     */
-    describe("description, by REGISTRY_HAS_NO_REAL_SHELTERS", () => {
-      beforeEach(() => {
-        vi.resetModules();
-      });
-
-      it("is the D-2 demo disclosure while the registry holds no real shelters", async () => {
-        current = stubAnimalPageClient();
-        vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
-        const { generateMetadata: freshGenerateMetadata } = await import("./[animalId]/page");
-        expect((await freshGenerateMetadata({ params })).description).toBe(
-          "На сайті поки немає справжніх притулків - усі картки тут демонстраційні.",
-        );
-      });
-
-      it("is built from the animal's own data once real shelters exist", async () => {
-        current = stubAnimalPageClient();
-        vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
-        const { generateMetadata: freshGenerateMetadata } = await import("./[animalId]/page");
-        expect((await freshGenerateMetadata({ params })).description).toBe(
-          "Кіт з притулку «Тестовий притулок «Домівка»», м. Бровари. Лагідний кіт, любить сидіти на підвіконні.",
-        );
-      });
-    });
+    // The description's own demo/real branches (by `REGISTRY_HAS_NO_REAL_SHELTERS`) are
+    // covered in `seo-flags.test.ts`'s own describe block for this route, which also
+    // varies `SITE_IS_PUBLICLY_DISCOVERABLE` independently - duplicating a narrower
+    // version of the same two cases here added no coverage, found on review.
   });
 
   it("NOT_FOUND is still the 404", async () => {
