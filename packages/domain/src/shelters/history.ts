@@ -22,6 +22,11 @@ import { VerificationStatusSchema } from "./verification/state";
  * `AnimalPatchSchema` keys plus `photos` (a contracts test pins the two
  * together). Photos aren't a patch key: they change through their own
  * procedures (`shelter.photos.*`, P-Q3), which record `fields: ["photos"]`.
+ *
+ * Names only, never values (K-Q7): a medical note or a custom temperament is
+ * free text the shelter can change or clear, and append-only history would
+ * keep every version of it forever. The order here is the order a history
+ * line lists them in.
  */
 export const ANIMAL_EDITED_FIELDS = [
   "name",
@@ -29,10 +34,13 @@ export const ANIMAL_EDITED_FIELDS = [
   "sex",
   "size",
   "coatLength",
+  "colour",
   "age",
   "description",
+  "temperament",
   "vaccination",
   "spayNeuter",
+  "medicalNotes",
   "photos",
 ] as const;
 export type AnimalEditedField = (typeof ANIMAL_EDITED_FIELDS)[number];

@@ -45,6 +45,9 @@ const newDraft: DraftAnimal = {
   vaccination: unknownFact,
   spayNeuter: unknownFact,
   documentReadiness: { kind: "unknown" },
+  temperament: [],
+  colour: null,
+  medicalNotes: null,
   listing: { kind: "draft" },
   publicLocation: null,
   createdAt: AT,
@@ -167,6 +170,53 @@ describe("publishReadinessOf", () => {
 
   it("never counts unrecorded fur as a gap (DR1-D10)", () => {
     expect(publishReadinessOf({ ...completeDraft, coatLength: null }).kind).toBe("ready");
+  });
+
+  it("never counts an unrecorded temperament, colour or medical note as a gap", () => {
+    expect(
+      publishReadinessOf({ ...completeDraft, temperament: [], colour: null, medicalNotes: null }),
+    ).toEqual({ kind: "ready", facts });
+    // And the gap list stays the four it was: none of the three ever joins it.
+    expect(PUBLISH_GAP_KINDS).toEqual(["size", "age", "description", "photo"]);
+  });
+});
+
+describe("the pet card fields are recorded on every listing kind, never required", () => {
+  const recorded = {
+    temperament: [
+      { kind: "preset", trait: "calm" },
+      { kind: "custom", text: { uk: "Любить сидіти на руках", en: null } },
+    ],
+    colour: { kind: "preset", colour: "tabby" },
+    medicalNotes: { uk: "Потребує гіпоалергенного корму.", en: null },
+  } as const;
+
+  it("a draft and every listed kind parse with all three unrecorded and with all three set", () => {
+    expect(DraftAnimalSchema.safeParse(newDraft).success).toBe(true);
+    expect(DraftAnimalSchema.safeParse({ ...newDraft, ...recorded }).success).toBe(true);
+    for (const listing of NON_DRAFT_LISTINGS) {
+      expect(ListedAnimalSchema.safeParse(listed(listing)).success).toBe(true);
+      expect(ListedAnimalSchema.safeParse({ ...listed(listing), ...recorded }).success).toBe(true);
+    }
+  });
+
+  it("refuses an animal that omits any of the three, rather than reading the absence as unrecorded", () => {
+    for (const field of ["temperament", "colour", "medicalNotes"] as const) {
+      const { [field]: _omitted, ...without } = listed(NON_DRAFT_LISTINGS[0] as NonDraftListing);
+      expect(ListedAnimalSchema.safeParse(without).success, field).toBe(false);
+    }
+  });
+
+  it("refuses a malformed value in each", () => {
+    const base = listed(NON_DRAFT_LISTINGS[0] as NonDraftListing);
+    expect(ListedAnimalSchema.safeParse({ ...base, temperament: null }).success).toBe(false);
+    expect(
+      ListedAnimalSchema.safeParse({ ...base, colour: { kind: "preset", colour: "purple" } })
+        .success,
+    ).toBe(false);
+    expect(
+      ListedAnimalSchema.safeParse({ ...base, medicalNotes: { uk: "", en: null } }).success,
+    ).toBe(false);
   });
 });
 

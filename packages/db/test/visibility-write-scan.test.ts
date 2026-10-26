@@ -46,7 +46,7 @@ const EXPECTED: ReadonlyArray<{
 }> = [
   {
     file: "schema/animals.ts",
-    line: 134,
+    line: 204,
     text: 'listingKind: text("listing_kind", {',
     kind: "definition",
     why: "the column itself",
@@ -60,14 +60,14 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/gallery-repo.ts",
-    line: 269,
+    line: 280,
     text: "listingKind: animals.listingKind,",
     kind: "read",
     why: "getAnimalColumns' SELECT list for the gallery page",
   },
   {
     file: "repos/mappers.ts",
-    line: 126,
+    line: 178,
     text: "verificationStatus: shelter.verification.status,",
     kind: "write",
     why:
@@ -77,7 +77,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/mappers.ts",
-    line: 189,
+    line: 257,
     text: "listingKind: animal.listing.kind,",
     kind: "write",
     why:
@@ -88,7 +88,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/kabinet-animal-repo.ts",
-    line: 336,
+    line: 349,
     text: "listingKind: next.kind,",
     kind: "write",
     why:

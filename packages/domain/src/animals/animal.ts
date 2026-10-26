@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { AnimalIdSchema, ShelterIdSchema } from "../primitives/ids";
 import { LocalizedTextSchema } from "../primitives/localized-text";
+import { ANIMAL_DESCRIPTION_MAX_CHARACTERS } from "../shelters/freshness-sentence";
 import { PublicLocationSchema } from "../shelters/location";
 import { isPubliclyVerified, type ShelterVerification } from "../shelters/verification";
 import { AgeEstimateSchema } from "./age";
 import { SpayNeuterStatusSchema, VaccinationStatusSchema } from "./attestation";
 import { CoatLengthSchema } from "./coat";
+import { AnimalColourSchema } from "./colour";
 import { DocumentReadinessSchema } from "./document-readiness";
 import {
   type AnimalListingState,
@@ -16,6 +18,7 @@ import {
 } from "./listing";
 import { type AnimalPhoto, AnimalPhotoSchema, MAX_ANIMAL_PHOTOS } from "./photo";
 import { SizeBucketSchema } from "./size";
+import { TemperamentSchema } from "./temperament";
 
 /**
  * Closed at dog and cat. Adding a species later is an additive change the
@@ -60,6 +63,12 @@ const animalCoreShape = {
   vaccination: VaccinationStatusSchema,
   spayNeuter: SpayNeuterStatusSchema,
   documentReadiness: DocumentReadinessSchema,
+  /** [] = not recorded. Never a publish gap, never a scoring/completeness input (same as coatLength). */
+  temperament: TemperamentSchema,
+  /** null = not recorded, same as coatLength. */
+  colour: AnimalColourSchema.nullable(),
+  /** Free text for the card's «Медичний стан» column; null omits that column (full-width «Моя історія» instead). */
+  medicalNotes: LocalizedTextSchema.nullable(),
   /**
    * When an animal is fostered away from its shelter, it has its own public
    * location at `city` precision (city + district, no coordinates). When
@@ -97,6 +106,14 @@ const animalCoreShape = {
    */
   version: z.int().nonnegative(),
 };
+
+/**
+ * The description's cap, by reference rather than a second 1500: the form
+ * reuses the description's counter for this field, and that counter's noun
+ * («символів») is pinned to the description's number
+ * (`copy-plural-pins.test.ts`), so the two caps move together or not at all.
+ */
+export const MEDICAL_NOTES_MAX_CHARACTERS = ANIMAL_DESCRIPTION_MAX_CHARACTERS;
 
 /**
  * What a listing must carry before anyone can see it (K-Q5: "everything else

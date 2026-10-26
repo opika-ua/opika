@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import {
+  type Animal,
   type AnimalListingState,
   DEFAULT_SEEN_SET_POLICY,
   EVERYONE_SCOPE,
@@ -2090,6 +2092,83 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     "r2-cleanup-repo: the null is real, read back from Neon, not just the statement's own count",
     r2SnapshotAfter?.primaryPhoto === null,
     `primaryPhoto read back as ${JSON.stringify(r2SnapshotAfter?.primaryPhoto)}`,
+  );
+
+  // 43. The pet card's fields (migration 0017). `temperament_traits` is the
+  // schema's first array column: Drizzle sends it as an array literal and
+  // parses whatever the driver hands back, which postgres-js and neon-http
+  // shape differently, and only a run over this driver shows the round trip
+  // holds. Written and cleared through the kabinet edit's own write
+  // (`writeEditIf`, as `animalsUpdate` calls it) and read back through
+  // `findWithCity`: three presets in order with a custom entry last, a custom
+  // colour and a medical note, each with its English; then an empty
+  // temperament, a preset colour and no note.
+  const cardAnimal = makeAnimal({ id: randomUUID() as never, shelterId: shelter.id });
+  await animalRepo(db).insert(cardAnimal, city.id);
+  const cardFields = {
+    temperament: [
+      { kind: "preset", trait: "shy" },
+      { kind: "preset", trait: "good_with_cats" },
+      { kind: "preset", trait: "calm" },
+      {
+        kind: "custom",
+        text: { uk: "Боїться грози", en: { text: "Afraid of thunderstorms", provenance: "human" } },
+      },
+    ],
+    colour: {
+      kind: "custom",
+      text: { uk: "Димчасте", en: { text: "Smoky", provenance: "human" } },
+    },
+    medicalNotes: {
+      uk: "Потребує гіпоалергенного корму.",
+      en: { text: "Needs hypoallergenic food.", provenance: "human" },
+    },
+  } satisfies Pick<Animal, "temperament" | "colour" | "medicalNotes">;
+  const cardCleared = {
+    temperament: [],
+    colour: { kind: "preset", colour: "tabby" },
+    medicalNotes: null,
+  } satisfies Pick<Animal, "temperament" | "colour" | "medicalNotes">;
+  const cardEdit = async (
+    fields: Pick<Animal, "temperament" | "colour" | "medicalNotes">,
+    at: Date,
+  ) => {
+    const read = await kabinetAnimals.findWithCity(cardAnimal.id);
+    if (!read) return { kind: "conflict" as const };
+    return kabinetAnimals.writeEditIf(
+      { ...read.animal, ...fields, lastUpdatedAt: at, version: read.animal.version + 1 },
+      read.cityId,
+      read.animal.version,
+      {
+        id: randomUUID(),
+        entry: {
+          kind: "animal_edited",
+          at,
+          actor: smokeActor,
+          animalId: cardAnimal.id,
+          animalName: read.animal.name,
+          fields: ["colour", "temperament", "medicalNotes"],
+        },
+      },
+    );
+  };
+  const cardFieldsOf = async () => {
+    const read = (await kabinetAnimals.findWithCity(cardAnimal.id))?.animal;
+    return read === undefined
+      ? null
+      : { temperament: read.temperament, colour: read.colour, medicalNotes: read.medicalNotes };
+  };
+  const cardSet = await cardEdit(cardFields, later(29000));
+  const cardAfterSet = await cardFieldsOf();
+  const cardClear = await cardEdit(cardCleared, later(30000));
+  const cardAfterClear = await cardFieldsOf();
+  check(
+    "pet card fields: temperament_traits (text[]), a custom colour and a medical note set then cleared through writeEditIf, read back over this driver",
+    cardSet.kind === "ok" &&
+      isDeepStrictEqual(cardAfterSet, cardFields) &&
+      cardClear.kind === "ok" &&
+      isDeepStrictEqual(cardAfterClear, cardCleared),
+    `set ${cardSet.kind} → ${JSON.stringify(cardAfterSet)}; cleared ${cardClear.kind} → ${JSON.stringify(cardAfterClear)}`,
   );
 
   return out;

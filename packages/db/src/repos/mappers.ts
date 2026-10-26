@@ -3,12 +3,16 @@ import type {
   AdopterIdentity,
   AdopterProfile,
   Animal,
+  AnimalColour,
   City,
   CityId,
+  CoatColour,
   ContactReveal,
   LocalizedText,
   Shelter,
   Swipe,
+  Temperament,
+  TemperamentTrait,
   TextProvenance,
 } from "@opika/domain";
 import {
@@ -18,6 +22,7 @@ import {
   confirmationAnchorOf,
   type DiscoverableAnimal,
   isDiscoverableAnimal,
+  temperamentTraitsOf,
   waitAnchorOf,
 } from "@opika/domain";
 import type { adopters } from "../schema/adopters";
@@ -67,6 +72,53 @@ function columnsToLocalizedText(
         ? { text: enText, provenance: enProvenance as TextProvenance }
         : null,
   };
+}
+
+/** An optional `LocalizedText` as its three nullable columns: all null when there is none. */
+function optionalTextToColumns(lt: LocalizedText | null): {
+  uk: string | null;
+  enText: string | null;
+  enProvenance: TextProvenance | null;
+} {
+  return lt === null ? { uk: null, enText: null, enProvenance: null } : localizedTextToColumns(lt);
+}
+
+/** The reverse. No Ukrainian is no text: the `_en_check` CHECKs keep an English one from being stored alone. */
+function columnsToOptionalText(
+  uk: string | null,
+  enText: string | null,
+  enProvenance: string | null,
+): LocalizedText | null {
+  return uk === null ? null : columnsToLocalizedText(uk, enText, enProvenance);
+}
+
+// --- The pet card's temperament and colour ---
+//
+// `Temperament` is presets then at most one custom entry, last
+// (`TemperamentSchema`), so it splits into the filterable array and one
+// optional text, and joins back in exactly the order it was stored.
+
+const customTemperamentOf = (temperament: Temperament): LocalizedText | null => {
+  const last = temperament.at(-1);
+  return last?.kind === "custom" ? last.text : null;
+};
+
+function columnsToTemperament(
+  traits: readonly TemperamentTrait[],
+  custom: LocalizedText | null,
+): Temperament {
+  return [
+    ...traits.map((trait) => ({ kind: "preset" as const, trait })),
+    ...(custom === null ? [] : [{ kind: "custom" as const, text: custom }]),
+  ];
+}
+
+function columnsToColour(
+  preset: CoatColour | null,
+  custom: LocalizedText | null,
+): AnimalColour | null {
+  if (preset !== null) return { kind: "preset", colour: preset };
+  return custom === null ? null : { kind: "custom", text: custom };
 }
 
 // --- City ---
@@ -168,6 +220,11 @@ export function rowToShelter(row: ShelterRow): Shelter {
  */
 export function animalToRowWithCity(animal: Animal, cityId: CityId): AnimalInsert {
   const desc = animal.description === null ? null : localizedTextToColumns(animal.description);
+  const temperamentCustom = optionalTextToColumns(customTemperamentOf(animal.temperament));
+  const colourCustom = optionalTextToColumns(
+    animal.colour?.kind === "custom" ? animal.colour.text : null,
+  );
+  const medicalNotes = optionalTextToColumns(animal.medicalNotes);
   return {
     id: animal.id,
     shelterId: animal.shelterId,
@@ -185,6 +242,17 @@ export function animalToRowWithCity(animal: Animal, cityId: CityId): AnimalInser
     vaccination: animal.vaccination,
     spayNeuter: animal.spayNeuter,
     documentReadiness: animal.documentReadiness,
+    temperamentTraits: temperamentTraitsOf(animal.temperament),
+    temperamentCustomUk: temperamentCustom.uk,
+    temperamentCustomEnText: temperamentCustom.enText,
+    temperamentCustomEnProvenance: temperamentCustom.enProvenance,
+    coatColour: animal.colour?.kind === "preset" ? animal.colour.colour : null,
+    coatColourCustomUk: colourCustom.uk,
+    coatColourCustomEnText: colourCustom.enText,
+    coatColourCustomEnProvenance: colourCustom.enProvenance,
+    medicalNotesUk: medicalNotes.uk,
+    medicalNotesEnText: medicalNotes.enText,
+    medicalNotesEnProvenance: medicalNotes.enProvenance,
     listing: animal.listing,
     listingKind: animal.listing.kind,
     waitAnchorAt: waitAnchorOf(animal.listing),
@@ -218,6 +286,27 @@ export function rowToAnimal(row: AnimalRow): Animal {
     vaccination: row.vaccination,
     spayNeuter: row.spayNeuter,
     documentReadiness: row.documentReadiness,
+    temperament: columnsToTemperament(
+      row.temperamentTraits,
+      columnsToOptionalText(
+        row.temperamentCustomUk,
+        row.temperamentCustomEnText,
+        row.temperamentCustomEnProvenance,
+      ),
+    ),
+    colour: columnsToColour(
+      row.coatColour ?? null,
+      columnsToOptionalText(
+        row.coatColourCustomUk,
+        row.coatColourCustomEnText,
+        row.coatColourCustomEnProvenance,
+      ),
+    ),
+    medicalNotes: columnsToOptionalText(
+      row.medicalNotesUk,
+      row.medicalNotesEnText,
+      row.medicalNotesEnProvenance,
+    ),
     publicLocation: row.publicLocation ?? null,
     everServedAt: row.everServedAt ?? null,
     createdAt: row.createdAt,

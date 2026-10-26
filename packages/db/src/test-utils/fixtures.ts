@@ -133,6 +133,9 @@ const completeAnimalFields = (): CompleteAnimalFields => ({
   vaccination: { source: "shelter_declared", state: "unknown", declaredAt: now },
   spayNeuter: { source: "shelter_declared", state: "unknown", declaredAt: now },
   documentReadiness: UNKNOWN_DOCUMENT_READINESS,
+  temperament: [],
+  colour: null,
+  medicalNotes: null,
   publicLocation: null,
   // Matches the published/verified defaults below: a fixture a test doesn't
   // override is already visible. A test exercising S8-F5 overrides this

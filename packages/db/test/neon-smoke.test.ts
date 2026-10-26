@@ -122,8 +122,10 @@ describe("runSmoke against the local database", () => {
     // referencedObjectKeys' derived variant, recordScan's track, still
     // Unreferenced's re-check, and afterDeleted's jsonb_set UPDATE plus a
     // read-back confirming the null landed for real, not just in the
-    // statement's own reported count.
-    expect(outcomes.length).toBe(47);
+    // statement's own reported count. Then 43, the pet card's fields
+    // (migration 0017): the schema's first array column, set and cleared
+    // through writeEditIf and read back.
+    expect(outcomes.length).toBe(48);
   });
 
   it("passes every statement over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
@@ -145,6 +147,6 @@ describe("runSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes.length).toBe(47);
+    expect(outcomes.length).toBe(48);
   });
 });

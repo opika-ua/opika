@@ -698,6 +698,63 @@ export const uk = {
     sexFemale: "Дівчинка",
   },
 
+  // --- The pet card's temperament: chips, kabinet checkboxes, filter options ---
+  /**
+   * Owner-approved in the pet card redesign's Phase 0 (2026-10-26), as the
+   * builder brief relayed it. One trait per key, three forms each:
+   * `masculine` for a male animal and one whose sex is «Не записано» (the
+   * card's long-standing rule, `grammaticalGenderOf`, the same one the age
+   * word follows), `feminine` for a female one, and `plural` for a filter
+   * option, which names the category rather than one animal. The three
+   * «Ладнає з …» traits have no gender, only a number.
+   */
+  temperament: {
+    playful: { masculine: "Грайливий", feminine: "Грайлива", plural: "Грайливі" },
+    calm: { masculine: "Спокійний", feminine: "Спокійна", plural: "Спокійні" },
+    affectionate: { masculine: "Ласкавий", feminine: "Ласкава", plural: "Ласкаві" },
+    energetic: { masculine: "Енергійний", feminine: "Енергійна", plural: "Енергійні" },
+    independent: { masculine: "Самостійний", feminine: "Самостійна", plural: "Самостійні" },
+    shy: { masculine: "Соромʼязливий", feminine: "Соромʼязлива", plural: "Соромʼязливі" },
+    good_with_kids: {
+      masculine: "Ладнає з дітьми",
+      feminine: "Ладнає з дітьми",
+      plural: "Ладнають з дітьми",
+    },
+    good_with_cats: {
+      masculine: "Ладнає з котами",
+      feminine: "Ладнає з котами",
+      plural: "Ладнають з котами",
+    },
+    good_with_dogs: {
+      masculine: "Ладнає з собаками",
+      feminine: "Ладнає з собаками",
+      plural: "Ладнають з собаками",
+    },
+  },
+
+  // --- The pet card's coat colour: the chip and the filter option ---
+  /**
+   * Owner-approved in the same Phase 0 round (2026-10-26). One form per
+   * colour, the neuter, which agrees with «забарвлення» in the chip and
+   * stands alone as a filter option; the animal's sex never changes it.
+   */
+  coatColour: {
+    names: {
+      black: "Чорне",
+      white: "Біле",
+      grey: "Сіре",
+      ginger: "Руде",
+      brown: "Коричневе",
+      cream: "Кремове",
+      black_white: "Чорно-біле",
+      tricolour: "Триколірне",
+      tabby: "Смугасте",
+      spotted: "Плямисте",
+    },
+    /** Template: "{label}" is one of `names`. */
+    chip: "{label} забарвлення",
+  },
+
   // --- Pagination footer (E3, re-skinned V2) ---
   // `docs/design/Opika Registry System.dc.html`'s pagination row (lines
   // 189-195) has the literal values: prev/next are visible-text buttons
@@ -1545,6 +1602,17 @@ export const uk = {
         long: "Довга",
         unknown: "Не вказано",
       },
+      /**
+       * Pet card redesign (Phase 0, owner-approved, 2026-10-26). `unknown`
+       * is `coat.unknown`'s own words, written out again: the two fields'
+       * «not given» must read the same.
+       */
+      colour: {
+        title: "Забарвлення",
+        unknown: "Не вказано",
+        other: "Інше",
+        customPlaceholder: "Своїми словами",
+      },
       age: {
         title: "Вік",
         modeLabel: "Що відомо про вік",
@@ -1576,12 +1644,28 @@ export const uk = {
         counter: "{count} з {max} символів",
         counterOver: "Зайвих символів: {over}",
       },
+      /** Pet card redesign (Phase 0, owner-approved, 2026-10-26); the chips' words are `temperament.*`. */
+      temperament: {
+        title: "Характер",
+        hint: "Можна обрати кілька. Необовʼязково.",
+        other: "Інше",
+        customPlaceholder: "Своїми словами",
+      },
       health: {
         title: "Медичний стан",
         confirm: "Зроблено",
         unknownNote:
           "«Не записано» — чесна відповідь. Ті, хто шукає тварину, так і побачать «Не записано», а не «ні».",
         registryReadOnly: "Підтверджено державним реєстром тварин. Тут цей рядок змінити не можна.",
+      },
+      /**
+       * Pet card redesign (Phase 0, owner-approved, 2026-10-26). Not labelled
+       * «Медичний стан» on purpose: that is already this form's health card,
+       * and the public card's own column heading, which the hint names.
+       */
+      medicalNotes: {
+        label: "Що ще варто знати про здоровʼя",
+        hint: "Необовʼязково. Ті, хто шукає тварину, побачать цей текст у розділі «Медичний стан».",
       },
       photos: {
         title: "Фото",
@@ -2483,6 +2567,10 @@ export const uk = {
         photos: "Фото",
         /** DR1 (S3), his text (2026-10-20). */
         coatLength: "Шерсть",
+        /** Pet card redesign (Phase 0, owner-approved, 2026-10-26). */
+        temperament: "Характер",
+        colour: "Забарвлення",
+        medicalNotes: "Медичний стан",
       },
     },
   },

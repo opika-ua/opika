@@ -12,7 +12,14 @@ import { Button, buttonClass } from "../../controls/controls";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { CAPTION, ERROR_TEXT } from "../profile-edit/styles";
 import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../profile-edit/unsaved-changes";
-import { AgeSection, DescriptionSection, HealthSection, WhoSection } from "./FormSections";
+import {
+  AgeSection,
+  DescriptionSection,
+  HealthSection,
+  MedicalNotesSection,
+  TemperamentSection,
+  WhoSection,
+} from "./FormSections";
 import {
   ageInputOf,
   emptyValues,
@@ -34,7 +41,8 @@ import { PhotoSection } from "./PhotoSection";
 
 /**
  * K3 · add / edit animal (KABINET K3; `docs/k3-copy-sheet.md`). One page,
- * not a wizard: «Хто це», «Вік», «Опис», then «Фото» and «Медичний стан».
+ * not a wizard: «Хто це», «Вік», «Опис», «Характер», then «Фото»,
+ * «Медичний стан» and the medical note.
  *
  * **A draft saves itself** (KAB:179): 10 seconds after the last change and
  * when a field is left (decision taken T6, so a typing session writes a few
@@ -456,6 +464,12 @@ export function AnimalForm({
             problems={shownProblems}
             disabled={!editable}
           />
+          <TemperamentSection
+            values={values}
+            set={set}
+            problems={shownProblems}
+            disabled={!editable}
+          />
         </div>
         <div className="flex min-w-0 flex-col gap-3 desktop:gap-4">
           {view !== null ? (
@@ -474,6 +488,12 @@ export function AnimalForm({
             set={set}
             disabled={!editable}
             vaccination={view?.vaccination ?? null}
+          />
+          <MedicalNotesSection
+            values={values}
+            set={set}
+            problems={shownProblems}
+            disabled={!editable}
           />
         </div>
       </form>
@@ -530,6 +550,9 @@ const fieldOfTarget = (target: EventTarget): FieldProblem["field"] | null => {
   if (id === "animal-description") return "description";
   if (id === "animal-birth-date") return "birthDate";
   if (id === "animal-as-of") return "asOf";
+  if (id === "animal-temperament-custom") return "temperamentCustom";
+  if (id === "animal-colour-custom") return "colourCustom";
+  if (id === "animal-medical-notes") return "medicalNotes";
   return null;
 };
 

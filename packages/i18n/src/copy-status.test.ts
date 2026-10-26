@@ -1086,6 +1086,10 @@ describe("kabinet animal history labels (his K3 words, 2026-10-17)", () => {
     "field.photos": "Фото",
     // Not a K3 word: his designer-round-1 text (2026-10-20), «kabinet.history.field.coatLength».
     "field.coatLength": "Шерсть",
+    // Not K3 words either: the pet card redesign's (Phase 0, owner-approved, 2026-10-26).
+    "field.temperament": "Характер",
+    "field.colour": "Забарвлення",
+    "field.medicalNotes": "Медичний стан",
   };
 
   it("holds exactly these words, as he wrote them", () => {
@@ -1582,6 +1586,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(K3_FINAL).filter((path) => path.startsWith("kabinet.animalForm.")),
         // His designer-round-1 fur words, pinned in their own block below.
         ...Object.keys(DR1_FUR).filter((path) => path.startsWith("kabinet.animalForm.")),
+        // The pet card redesign's words, pinned in their own block below.
+        ...Object.keys(PET_CARD_COPY).filter((path) => path.startsWith("kabinet.animalForm.")),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -1980,6 +1986,69 @@ describe("designer round 1 fur copy (his text, 2026-10-20)", () => {
   it("the animal page's value words are not the filter labels", () => {
     expect(uk.detail.coatShort).not.toBe(uk.filters.coatShort);
     expect(uk.detail.coatLong).not.toBe(uk.filters.coatLong);
+  });
+});
+
+/**
+ * The pet card redesign, PR 1: temperament, coat colour and the medical note.
+ * Owner-approved in its Phase 0 round (2026-10-26), as the builder brief
+ * relayed it; transcribed here literally, never read from `uk.ts`. Final
+ * strings, none `[COPY PENDING]`. U+02BC as the apostrophe.
+ */
+const PET_CARD_COPY: Record<string, string> = {
+  "kabinet.animalForm.temperament.title": "Характер",
+  "kabinet.animalForm.temperament.hint": "Можна обрати кілька. Необовʼязково.",
+  "kabinet.animalForm.temperament.other": "Інше",
+  "kabinet.animalForm.temperament.customPlaceholder": "Своїми словами",
+  "kabinet.animalForm.colour.title": "Забарвлення",
+  "kabinet.animalForm.colour.unknown": "Не вказано",
+  "kabinet.animalForm.colour.other": "Інше",
+  "kabinet.animalForm.colour.customPlaceholder": "Своїми словами",
+  "kabinet.animalForm.medicalNotes.label": "Що ще варто знати про здоровʼя",
+  "kabinet.animalForm.medicalNotes.hint":
+    "Необовʼязково. Ті, хто шукає тварину, побачать цей текст у розділі «Медичний стан».",
+  "kabinet.animalHistoryLabels.field.temperament": "Характер",
+  "kabinet.animalHistoryLabels.field.colour": "Забарвлення",
+  "kabinet.animalHistoryLabels.field.medicalNotes": "Медичний стан",
+  "coatColour.chip": "{label} забарвлення",
+};
+
+describe("pet card fields copy (Phase 0, owner-approved, 2026-10-26)", () => {
+  const atRoot = (path: string): unknown =>
+    path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], uk);
+
+  it.each(Object.entries(PET_CARD_COPY))("%s is the approved text, exactly", (path, text) => {
+    expect(atRoot(path)).toBe(text);
+  });
+
+  it("the colour's «not given» reads exactly as the fur's", () => {
+    expect(uk.kabinet.animalForm.colour.unknown).toBe(uk.kabinet.animalForm.coat.unknown);
+  });
+
+  it("the form's medical-note field is not labelled «Медичний стан», the health card's own title", () => {
+    expect(uk.kabinet.animalForm.health.title).toBe("Медичний стан");
+    expect(uk.kabinet.animalForm.medicalNotes.label).not.toBe(uk.kabinet.animalForm.health.title);
+  });
+
+  it("nothing the pet card adds is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
+    const leaves = (node: unknown, path: string): [string, string][] =>
+      typeof node === "string"
+        ? [[path, node]]
+        : Object.entries(node as Record<string, unknown>).flatMap(([key, child]) =>
+            leaves(child, `${path}.${key}`),
+          );
+    const added = [
+      ...Object.entries(PET_CARD_COPY),
+      ...leaves(uk.temperament, "temperament"),
+      ...leaves(uk.coatColour, "coatColour"),
+    ];
+    expect(added.length).toBeGreaterThan(Object.keys(PET_CARD_COPY).length);
+    for (const [path, text] of added) {
+      expect(text, path).not.toContain(COPY_PENDING);
+      expect(text, path).not.toMatch(/['’]/);
+    }
   });
 });
 

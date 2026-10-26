@@ -1030,6 +1030,102 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
   });
 
   /**
+   * The pet card's temperament, colour and medical note: set and cleared on a
+   * published card (none is a listing fact), stored as sent, and named in
+   * history by field only, never by value (K-Q7).
+   */
+  it("temperament, colour and the medical note are set, then cleared on a published card, recorded by name only", async () => {
+    const a = await animal();
+    expect(a.listing.kind).toBe("published");
+    const set = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: {
+        temperament: [
+          { kind: "preset", trait: "shy" },
+          { kind: "preset", trait: "calm" },
+          { kind: "custom", text: { uk: "Боїться грози", en: null } },
+        ],
+        colour: { kind: "custom", text: { uk: "Димчасте", en: null } },
+        medicalNotes: { uk: "Потребує гіпоалергенного корму.", en: null },
+      },
+    });
+    expect(set.status).toBe(200);
+    const stored = await reload(a.id);
+    expect(stored.temperament).toEqual([
+      { kind: "preset", trait: "shy" },
+      { kind: "preset", trait: "calm" },
+      { kind: "custom", text: { uk: "Боїться грози", en: null } },
+    ]);
+    expect(stored.colour).toEqual({ kind: "custom", text: { uk: "Димчасте", en: null } });
+    expect(stored.medicalNotes).toEqual({ uk: "Потребує гіпоалергенного корму.", en: null });
+    expect(set.body.temperament).toEqual(stored.temperament);
+
+    const cleared = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: set.body.version,
+      patch: { temperament: [], colour: null, medicalNotes: null },
+    });
+    expect(cleared.status).toBe(200);
+    const after = await reload(a.id);
+    expect(after.temperament).toEqual([]);
+    expect(after.colour).toBeNull();
+    expect(after.medicalNotes).toBeNull();
+    expect(after.listing.kind).toBe("published");
+
+    const lines = await animalLines();
+    expect(lines.map((l) => (l.kind === "animal_edited" ? l.fields : l.kind))).toEqual([
+      ["colour", "temperament", "medicalNotes"],
+      ["colour", "temperament", "medicalNotes"],
+    ]);
+    const recorded = JSON.stringify(lines);
+    for (const value of ["Боїться грози", "Димчасте", "гіпоалергенного", "shy"]) {
+      expect(recorded).not.toContain(value);
+    }
+  });
+
+  it("a custom text keeps its English while its Ukrainian is unchanged, and drops it once it changes", async () => {
+    const english = { text: "Smoky", provenance: "human" } as const;
+    const a = await animal({
+      colour: { kind: "custom", text: { uk: "Димчасте", en: english } },
+      medicalNotes: {
+        uk: "Без особливостей.",
+        en: { text: "Nothing special.", provenance: "human" },
+      },
+    });
+    const kept = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { colour: { kind: "custom", text: { uk: "Димчасте", en: english } } },
+    });
+    expect(kept.body.version).toBe(a.version);
+    const changed = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: {
+        colour: { kind: "custom", text: { uk: "Сіро-димчасте", en: english } },
+        medicalNotes: { uk: "Потребує дієти.", en: { text: "Needs a diet.", provenance: "human" } },
+      },
+    });
+    expect(changed.status).toBe(200);
+    const after = await reload(a.id);
+    expect(after.colour).toEqual({ kind: "custom", text: { uk: "Сіро-димчасте", en: null } });
+    expect(after.medicalNotes).toEqual({ uk: "Потребує дієти.", en: null });
+  });
+
+  it("refuses a custom temperament over its cap with BAD_REQUEST, writing nothing", async () => {
+    const a = await animal();
+    const refused = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { temperament: [{ kind: "custom", text: { uk: "я".repeat(41), en: null } }] },
+    });
+    expect(refused.status).toBe(400);
+    expect((await reload(a.id)).temperament).toEqual([]);
+    expect(await animalLines()).toEqual([]);
+  });
+
+  /**
    * D3 (Oleksii: "keep the chosen «Станом на» date"): the form shows the
    * stored bucket and its date, so re-sending them is "no change", even for a
    * bucket stamped at save time before D3 (compared as Kyiv calendar dates).

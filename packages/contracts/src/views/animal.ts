@@ -84,6 +84,9 @@ export const AnimalDetailViewSchema = ListedAnimalSchema.pick({
   vaccination: true,
   spayNeuter: true,
   documentReadiness: true,
+  temperament: true,
+  colour: true,
+  medicalNotes: true,
 })
   .extend(animalLocation)
   .extend(derivedAnimalFacts)

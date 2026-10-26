@@ -33,6 +33,9 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
     vaccination: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
     spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
     documentReadiness: { kind: "unknown" },
+    temperament: [],
+    colour: null,
+    medicalNotes: null,
     ageBucket: "young",
     freshness: freshnessOf(AT, NOW, DEFAULT_FRESHNESS_POLICY),
     shelter: {

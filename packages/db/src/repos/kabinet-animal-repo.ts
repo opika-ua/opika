@@ -230,11 +230,13 @@ export function kabinetAnimalRepo(db: Database) {
      * planned on the old list. Its `animal_edited` line is written by the same
      * statement, so a conflict records nothing.
      *
-     * A save that writes a null (a draft's cleared description, F-B1) also
-     * requires the row to still be a draft: a publish landing between the
-     * read and the write then makes it a conflict the caller re-reads, never a
-     * CHECK violation. A save writing no null keeps the `version`-only
-     * condition, so it never conflicts with a listing move.
+     * A save that writes a null listing fact (a draft's cleared description,
+     * F-B1) also requires the row to still be a draft: a publish landing
+     * between the read and the write then makes it a conflict the caller
+     * re-reads, never a CHECK violation. A save writing no such null keeps the
+     * `version`-only condition, so it never conflicts with a listing move. A
+     * cleared fur, colour, temperament or medical note is no listing fact and
+     * lands on any listing kind.
      */
     async writeEditIf(
       animal: Animal,
@@ -257,6 +259,17 @@ export function kabinetAnimalRepo(db: Database) {
           descriptionUk: row.descriptionUk,
           descriptionEnText: row.descriptionEnText,
           descriptionEnProvenance: row.descriptionEnProvenance,
+          temperamentTraits: row.temperamentTraits,
+          temperamentCustomUk: row.temperamentCustomUk,
+          temperamentCustomEnText: row.temperamentCustomEnText,
+          temperamentCustomEnProvenance: row.temperamentCustomEnProvenance,
+          coatColour: row.coatColour,
+          coatColourCustomUk: row.coatColourCustomUk,
+          coatColourCustomEnText: row.coatColourCustomEnText,
+          coatColourCustomEnProvenance: row.coatColourCustomEnProvenance,
+          medicalNotesUk: row.medicalNotesUk,
+          medicalNotesEnText: row.medicalNotesEnText,
+          medicalNotesEnProvenance: row.medicalNotesEnProvenance,
           vaccination: row.vaccination,
           spayNeuter: row.spayNeuter,
           lastUpdatedAt: row.lastUpdatedAt,

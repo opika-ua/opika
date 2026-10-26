@@ -1,16 +1,25 @@
 import type { AgeEstimateInput, AnimalPatchSchema, KabinetAnimalView } from "@opika/contracts";
 import {
   type AgeBucket,
+  type AnimalColour,
   type AnimalSex,
   type AnimalSpecies,
   ageDateProblem,
   animalDescriptionProblem,
   animalNameProblem,
   type CalendarDate,
+  COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
+  type CoatColour,
   type CoatLength,
+  characterCount,
   kyivCalendarDateOf,
+  type LocalizedText,
+  MEDICAL_NOTES_MAX_CHARACTERS,
   type MedicalState,
   type SizeBucket,
+  TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
+  type Temperament,
+  type TemperamentTrait,
 } from "@opika/domain";
 import type { z } from "zod";
 
@@ -43,8 +52,24 @@ export type FormValues = {
   asOf: string;
   /** The Ukrainian description as typed; blank means none. */
   description: string;
+  /**
+   * The presets ticked, in the order they were ticked: the order the card
+   * shows and the database keeps. A stored temperament loads in its stored
+   * order, so re-saving what the form shows is never a change.
+   */
+  temperamentTraits: readonly TemperamentTrait[];
+  /** «Інше» ticked. Unticking keeps what was typed on screen but sends none of it. */
+  temperamentOther: boolean;
+  /** The custom entry as typed; blank, trimmed, means none. */
+  temperamentCustom: string;
+  /** Null is «Не вказано», like fur; "other" is the shelter's own words in `colourCustom`. */
+  colour: CoatColour | "other" | null;
+  /** The custom colour as typed; blank, trimmed, means none. */
+  colourCustom: string;
   vaccination: MedicalState;
   spayNeuter: MedicalState;
+  /** The medical note as typed; blank means none, as the description. */
+  medicalNotes: string;
 };
 
 export type AnimalPatch = z.infer<typeof AnimalPatchSchema>;
@@ -61,8 +86,14 @@ export const emptyValues = (today: CalendarDate): FormValues => ({
   bucket: null,
   asOf: today,
   description: "",
+  temperamentTraits: [],
+  temperamentOther: false,
+  temperamentCustom: "",
+  colour: null,
+  colourCustom: "",
   vaccination: "unknown",
   spayNeuter: "unknown",
+  medicalNotes: "",
 });
 
 /**
@@ -89,21 +120,49 @@ const ageFieldsOf = (
     : { ageMode: "declared_bucket", birthDate: "", bucket: stored.bucket, asOf: stored.asOf };
 };
 
-export const valuesOf = (view: KabinetAnimalView, today: CalendarDate): FormValues => ({
-  name: view.name,
-  species: view.species,
-  sex: view.sex,
-  size: view.size,
-  coatLength: view.coatLength,
-  ...ageFieldsOf(view.age, today),
-  description: view.description?.uk ?? "",
-  vaccination: view.vaccination.state,
-  spayNeuter: view.spayNeuter.state,
-});
+/** The temperament's custom entry, which `TemperamentSchema` keeps last; null when there is none. */
+const customTemperamentOf = (temperament: Temperament): LocalizedText | null => {
+  const last = temperament.at(-1);
+  return last?.kind === "custom" ? last.text : null;
+};
+
+const customColourOf = (colour: AnimalColour | null): LocalizedText | null =>
+  colour?.kind === "custom" ? colour.text : null;
+
+export const valuesOf = (view: KabinetAnimalView, today: CalendarDate): FormValues => {
+  const customTemperament = customTemperamentOf(view.temperament);
+  return {
+    name: view.name,
+    species: view.species,
+    sex: view.sex,
+    size: view.size,
+    coatLength: view.coatLength,
+    ...ageFieldsOf(view.age, today),
+    description: view.description?.uk ?? "",
+    temperamentTraits: view.temperament.flatMap((entry) =>
+      entry.kind === "preset" ? [entry.trait] : [],
+    ),
+    temperamentOther: customTemperament !== null,
+    temperamentCustom: customTemperament?.uk ?? "",
+    colour:
+      view.colour === null ? null : view.colour.kind === "preset" ? view.colour.colour : "other",
+    colourCustom: customColourOf(view.colour)?.uk ?? "",
+    vaccination: view.vaccination.state,
+    spayNeuter: view.spayNeuter.state,
+    medicalNotes: view.medicalNotes?.uk ?? "",
+  };
+};
+
+const sameList = <T>(a: readonly T[], b: readonly T[]): boolean =>
+  a.length === b.length && a.every((item, index) => item === b[index]);
 
 /** Field by field, so a `/nova` form with nothing typed can be told from one with something in it, even before a name and a species exist to diff against. */
 export function valuesEqual(a: FormValues, b: FormValues): boolean {
-  return (Object.keys(a) as (keyof FormValues)[]).every((key) => a[key] === b[key]);
+  return (Object.keys(a) as (keyof FormValues)[]).every((key) => {
+    const left = a[key];
+    const right = b[key];
+    return Array.isArray(left) && Array.isArray(right) ? sameList(left, right) : left === right;
+  });
 }
 
 /** The age the fields give, or null while the chosen mode isn't filled in. */
@@ -126,6 +185,64 @@ const sameAgeInput = (a: AgeEstimateInput | null, b: AgeEstimateInput | null): b
 };
 
 const isBlank = (text: string) => text.trim() === "";
+
+/**
+ * A custom text as the patch sends it: trimmed, and carrying the stored
+ * English when the Ukrainian is unchanged, so ticking one more preset never
+ * drops a translation the shelter didn't touch (the server keeps English only
+ * beside the Ukrainian it translates, `textAfterEdit`).
+ */
+const customTextOf = (typed: string, stored: LocalizedText | null): LocalizedText => {
+  const uk = typed.trim();
+  return stored !== null && stored.uk === uk ? stored : { uk, en: null };
+};
+
+/** What the temperament fields say, as the domain value: the presets, then the custom entry, if any. */
+export const temperamentOf = (values: FormValues, stored: Temperament): Temperament => [
+  ...values.temperamentTraits.map((trait) => ({ kind: "preset" as const, trait })),
+  ...(values.temperamentOther && !isBlank(values.temperamentCustom)
+    ? [
+        {
+          kind: "custom" as const,
+          text: customTextOf(values.temperamentCustom, customTemperamentOf(stored)),
+        },
+      ]
+    : []),
+];
+
+/** What the colour fields say: a preset, the shelter's words, or nothing; a blank «Інше» is nothing. */
+export const colourOf = (values: FormValues, stored: AnimalColour | null): AnimalColour | null => {
+  if (values.colour === null) return null;
+  if (values.colour !== "other") return { kind: "preset", colour: values.colour };
+  return isBlank(values.colourCustom)
+    ? null
+    : { kind: "custom", text: customTextOf(values.colourCustom, customColourOf(stored)) };
+};
+
+const sameText = (a: LocalizedText | null, b: LocalizedText | null): boolean =>
+  a === null || b === null
+    ? a === b
+    : a.uk === b.uk &&
+      (a.en === null || b.en === null
+        ? a.en === b.en
+        : a.en.text === b.en.text && a.en.provenance === b.en.provenance);
+
+const sameColour = (a: AnimalColour | null, b: AnimalColour | null): boolean => {
+  if (a === null || b === null) return a === b;
+  if (a.kind === "preset" && b.kind === "preset") return a.colour === b.colour;
+  if (a.kind === "custom" && b.kind === "custom") return sameText(a.text, b.text);
+  return false;
+};
+
+const sameTemperament = (a: Temperament, b: Temperament): boolean =>
+  a.length === b.length &&
+  a.every((entry, index) => {
+    const other = b[index];
+    if (other === undefined) return false;
+    if (entry.kind === "preset" && other.kind === "preset") return entry.trait === other.trait;
+    if (entry.kind === "custom" && other.kind === "custom") return sameText(entry.text, other.text);
+    return false;
+  });
 
 /**
  * The smallest patch that turns `view` into what the fields say, or null
@@ -153,6 +270,15 @@ export function patchOf(view: KabinetAnimalView, values: FormValues): AnimalPatc
     patch.vaccination = { state: values.vaccination };
   }
   if (values.spayNeuter !== view.spayNeuter.state) patch.spayNeuter = { state: values.spayNeuter };
+  const temperament = temperamentOf(values, view.temperament);
+  if (!sameTemperament(temperament, view.temperament)) patch.temperament = temperament;
+  const colour = colourOf(values, view.colour);
+  if (!sameColour(colour, view.colour)) patch.colour = colour;
+  if (isBlank(values.medicalNotes)) {
+    if (view.medicalNotes !== null) patch.medicalNotes = null;
+  } else if (values.medicalNotes !== view.medicalNotes?.uk) {
+    patch.medicalNotes = { uk: values.medicalNotes, en: null };
+  }
   return Object.keys(patch).length === 0 ? null : patch;
 }
 
@@ -162,7 +288,20 @@ export type FieldProblem =
   | { field: "species"; key: "speciesRequired" }
   | { field: "description"; key: "descriptionTooLong" | "requiredOnceListed" }
   | { field: "birthDate"; key: "birthDateFuture" | "dateTooOld" }
-  | { field: "asOf"; key: "asOfFuture" | "dateTooOld" };
+  | { field: "asOf"; key: "asOfFuture" | "dateTooOld" }
+  /**
+   * The pet card's texts over their caps. `over` is how many characters too
+   * many, which the field says in the counter's own words («Зайвих символів»):
+   * no sentence of its own exists for these three yet.
+   */
+  | {
+      field: "temperamentCustom" | "colourCustom" | "medicalNotes";
+      key: "overLimit";
+      over: number;
+    };
+
+/** How far a text is over its cap, counted as the server counts it; 0 when it fits. */
+const overBy = (text: string, max: number): number => Math.max(0, characterCount(text) - max);
 
 /**
  * What stops a save, checked with the rules the server applies (the same
@@ -194,6 +333,20 @@ export function problemsOf(
   } else if (isBlank(values.description) && listing !== "new" && listing !== "draft") {
     problems.push({ field: "description", key: "requiredOnceListed" });
   }
+  const temperamentOver = values.temperamentOther
+    ? overBy(values.temperamentCustom.trim(), TEMPERAMENT_CUSTOM_MAX_CHARACTERS)
+    : 0;
+  if (temperamentOver > 0) {
+    problems.push({ field: "temperamentCustom", key: "overLimit", over: temperamentOver });
+  }
+  const colourOver =
+    values.colour === "other"
+      ? overBy(values.colourCustom.trim(), COAT_COLOUR_CUSTOM_MAX_CHARACTERS)
+      : 0;
+  if (colourOver > 0) problems.push({ field: "colourCustom", key: "overLimit", over: colourOver });
+  const medicalOver = overBy(values.medicalNotes, MEDICAL_NOTES_MAX_CHARACTERS);
+  if (medicalOver > 0)
+    problems.push({ field: "medicalNotes", key: "overLimit", over: medicalOver });
   if (values.ageMode === "birth_date" && values.birthDate !== "") {
     const problem = ageDateProblem(values.birthDate, now);
     if (problem !== null) {

@@ -76,8 +76,11 @@ const fieldLabel = (field: AnimalEditedField): string => {
     case "sex":
     case "size":
     case "coatLength":
+    case "colour":
     case "age":
     case "description":
+    case "temperament":
+    case "medicalNotes":
     case "photos":
       return labels.field[field];
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled field; unreachable at runtime */
