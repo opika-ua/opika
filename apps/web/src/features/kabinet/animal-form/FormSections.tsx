@@ -18,7 +18,6 @@ import {
   declaredAtOfCalendarDate,
   instantOfCalendarDate,
   isAgeEstimateUncertain,
-  MEDICAL_NOTES_MAX_CHARACTERS,
   type MedicalState,
   SIZE_BUCKETS,
   type SizeBucket,
@@ -350,8 +349,9 @@ export function AgeSection({
 
 /**
  * The counter turns into a polite announcement only near the cap, not on
- * every keystroke: within 100 characters, or a quarter of a short cap (10 of
- * a custom temperament's 40), where 100 would be every keystroke.
+ * every keystroke: within 100 characters (the description), or a quarter of
+ * a short cap (10 of a custom temperament's 40, 7 of a custom colour's 30),
+ * where 100 would be every keystroke.
  */
 const ANNOUNCE_WITHIN = 100;
 
@@ -375,7 +375,13 @@ function CharacterCounter({ text, max }: { text: string; max: number }) {
   );
 }
 
-/** A short text in the shelter's own words, under its own cap: «Інше» for a colour or a temperament. */
+/**
+ * A short text in the shelter's own words, under its own cap: «Інше» for a
+ * colour or a temperament. Its accessible name is «Інше - Своїми словами»,
+ * two approved strings: the checkbox or radio that opens it is already
+ * «Інше», and a screen reader would otherwise announce two controls with one
+ * name. The visible label stays in the name (WCAG 2.5.3, label in name).
+ */
 function CustomTextField({
   id,
   label,
@@ -399,6 +405,7 @@ function CustomTextField({
     <TextField
       id={id}
       label={label}
+      aria-label={`${label} - ${placeholder}`}
       placeholder={placeholder}
       value={value}
       error={error}
@@ -535,31 +542,5 @@ export function HealthSection({
       />
       <p className={CAPTION}>{t.health.unknownNote}</p>
     </section>
-  );
-}
-
-/**
- * The medical note: its own card below «Медичний стан», which it doesn't
- * change. Free text the public card shows under «Медичний стан», which is
- * why the field itself is labelled otherwise. Optional; blank means none.
- */
-export function MedicalNotesSection({ values, set, problems, disabled }: SectionProps) {
-  return (
-    <div className={CARD}>
-      <TextAreaField
-        id="animal-medical-notes"
-        label={t.medicalNotes.label}
-        value={values.medicalNotes}
-        error={problemText(problems, "medicalNotes")}
-        disabled={disabled}
-        hint={
-          <>
-            <span>{t.medicalNotes.hint}</span>
-            <CharacterCounter text={values.medicalNotes} max={MEDICAL_NOTES_MAX_CHARACTERS} />
-          </>
-        }
-        onChange={(event) => set({ medicalNotes: event.currentTarget.value })}
-      />
-    </div>
   );
 }

@@ -765,10 +765,6 @@ export const en = {
         registryReadOnly:
           "Confirmed by the state animal registry. This line can't be changed here.",
       },
-      medicalNotes: {
-        label: "Anything else worth knowing about health",
-        hint: "Optional. People looking for an animal will see this text in the «Medical» section.",
-      },
       photos: {
         title: "Photos",
         ratioNote: "4:5 format; the first photo is the cover.",

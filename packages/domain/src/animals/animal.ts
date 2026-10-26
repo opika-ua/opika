@@ -108,10 +108,11 @@ const animalCoreShape = {
 };
 
 /**
- * The description's cap, by reference rather than a second 1500: the form
- * reuses the description's counter for this field, and that counter's noun
- * («символів») is pinned to the description's number
- * (`copy-plural-pins.test.ts`), so the two caps move together or not at all.
+ * The description's cap, by reference rather than a second 1500: the note is
+ * the same kind of free text, and its kabinet field (PR 5) is to reuse the
+ * description's counter, whose noun («символів») is pinned to the
+ * description's number (`copy-plural-pins.test.ts`). One constant keeps the
+ * two caps moving together.
  */
 export const MEDICAL_NOTES_MAX_CHARACTERS = ANIMAL_DESCRIPTION_MAX_CHARACTERS;
 

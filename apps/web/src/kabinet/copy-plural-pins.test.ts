@@ -5,7 +5,6 @@ import {
   ANIMAL_NAME_MAX_CHARACTERS,
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   DEFAULT_FRESHNESS_POLICY,
-  MEDICAL_NOTES_MAX_CHARACTERS,
   TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
@@ -107,15 +106,15 @@ describe("the caps K3's plural nouns were written for", () => {
 });
 
 /**
- * The pet card's three texts reuse the description's counter, «{count} з
- * {max} символів», with their own caps: 40, 30 and 1,500. «символів» is
- * right for each of those, not for every cap (41 would take «символу»).
+ * The pet card's two custom texts reuse the description's counter, «{count}
+ * з {max} символів», with their own caps: 40 and 30. «символів» is right for
+ * each of those, not for every cap (41 would take «символу»). The medical
+ * note's field, and with it its counter's pin, arrives in PR 5.
  */
 describe("the caps the pet card fields' counters were written for", () => {
   it.each([
     ["TEMPERAMENT_CUSTOM_MAX_CHARACTERS", TEMPERAMENT_CUSTOM_MAX_CHARACTERS, 40],
     ["COAT_COLOUR_CUSTOM_MAX_CHARACTERS", COAT_COLOUR_CUSTOM_MAX_CHARACTERS, 30],
-    ["MEDICAL_NOTES_MAX_CHARACTERS", MEDICAL_NOTES_MAX_CHARACTERS, 1500],
   ] as const)("%s is %i («символів»)", (name, cap, written) => {
     expect(
       cap,

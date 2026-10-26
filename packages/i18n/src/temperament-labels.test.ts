@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import { temperamentFilterLabel, temperamentLabelFor } from "./temperament-labels";
 
 /**
- * The owner-approved table (pet card redesign, Phase 0, 2026-10-26),
- * transcribed rather than read from `uk.ts`, so a changed word fails here.
- * The apostrophe is U+02BC.
+ * The table as the coordinating session's brief gave it (pet card redesign,
+ * 2026-10-26, relayed there as approved in Phase 0; no message of his for it
+ * is held here), transcribed rather than read from `uk.ts`, so a changed word
+ * fails here. The apostrophe is U+02BC.
  */
 const WORDS = {
   playful: ["Грайливий", "Грайлива", "Грайливі"],

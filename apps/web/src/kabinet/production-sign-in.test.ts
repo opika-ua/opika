@@ -303,13 +303,14 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 637 with designer round 1, S6 (his DR1-Q1 and DR1-Q5 text, 2026-10-20): less
     // `voice.nameStaysHint`, `voice.insertName` and `voice.previewNoAnimals`, plus
     // `errors.nameTokenGone`.
-    // 650 with the pet card redesign's 13 (Phase 0, owner-approved, 2026-10-26): the four
-    // `animalForm.temperament.*`, the four `animalForm.colour.*`, the two
-    // `animalForm.medicalNotes.*` and three `animalHistoryLabels.field.*`.
-    expect(pending.length + written.length).toBe(650);
+    // 648 with the pet card redesign's 11 (his approval of 2026-10-26, quoted in
+    // copy-status.test.ts's `PET_CARD_COPY`): the four `animalForm.temperament.*`, the four
+    // `animalForm.colour.*` and three `animalHistoryLabels.field.*`. His other two, the medical
+    // note's label and hint, ship in PR 5 with the note's field.
+    expect(pending.length + written.length).toBe(648);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
-    expect(written).toContain("kabinet.animalForm.medicalNotes.hint");
+    expect(written).toContain("kabinet.animalForm.temperament.hint");
     expect(written).toContain("kabinet.operator.create.errors.nameTooLong");
     expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(written).toContain("kabinet.animalForm.draft.notVisible");

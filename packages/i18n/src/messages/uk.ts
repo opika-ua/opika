@@ -700,8 +700,10 @@ export const uk = {
 
   // --- The pet card's temperament: chips, kabinet checkboxes, filter options ---
   /**
-   * Owner-approved in the pet card redesign's Phase 0 (2026-10-26), as the
-   * builder brief relayed it. One trait per key, three forms each:
+   * As the coordinating session's brief gave them (pet card redesign,
+   * 2026-10-26), which relayed them as approved in the redesign's Phase 0.
+   * This branch holds no message of his for these words: the approval is the
+   * brief's statement, not a quote. One trait per key, three forms each:
    * `masculine` for a male animal and one whose sex is «Не записано» (the
    * card's long-standing rule, `grammaticalGenderOf`, the same one the age
    * word follows), `feminine` for a female one, and `plural` for a filter
@@ -734,8 +736,8 @@ export const uk = {
 
   // --- The pet card's coat colour: the chip and the filter option ---
   /**
-   * Owner-approved in the same Phase 0 round (2026-10-26). One form per
-   * colour, the neuter, which agrees with «забарвлення» in the chip and
+   * From the same brief, on the same footing as `temperament` above. One
+   * form per colour, the neuter, which agrees with «забарвлення» in the chip and
    * stands alone as a filter option; the animal's sex never changes it.
    */
   coatColour: {
@@ -1603,9 +1605,18 @@ export const uk = {
         unknown: "Не вказано",
       },
       /**
-       * Pet card redesign (Phase 0, owner-approved, 2026-10-26). `unknown`
-       * is `coat.unknown`'s own words, written out again: the two fields'
-       * «not given» must read the same.
+       * Pet card redesign. These four, `temperament`'s four below and the
+       * three history labels are his approved copy. Oleksii, 2026-10-26, in
+       * the coordinating session, verbatim: "Kabinet strings: approved
+       * as-is. All 13, exactly as in your table, are now owner-approved final
+       * copy." His 13 also held the medical note's label and hint, which
+       * wait for PR 5 with the note's field (inbox PC1-D1). The first commit
+       * of these strings (eb929c6) already called them owner-approved, before
+       * he had answered: that claim was wrong when it was written, and his
+       * answer above is the approval it lacked.
+       *
+       * `unknown` is `coat.unknown`'s own words, written out again: the two
+       * fields' «not given» must read the same.
        */
       colour: {
         title: "Забарвлення",
@@ -1644,7 +1655,7 @@ export const uk = {
         counter: "{count} з {max} символів",
         counterOver: "Зайвих символів: {over}",
       },
-      /** Pet card redesign (Phase 0, owner-approved, 2026-10-26); the chips' words are `temperament.*`. */
+      /** Pet card redesign; his approval is quoted at `colour` above. The chips' words are `temperament.*`. */
       temperament: {
         title: "Характер",
         hint: "Можна обрати кілька. Необовʼязково.",
@@ -1657,15 +1668,6 @@ export const uk = {
         unknownNote:
           "«Не записано» — чесна відповідь. Ті, хто шукає тварину, так і побачать «Не записано», а не «ні».",
         registryReadOnly: "Підтверджено державним реєстром тварин. Тут цей рядок змінити не можна.",
-      },
-      /**
-       * Pet card redesign (Phase 0, owner-approved, 2026-10-26). Not labelled
-       * «Медичний стан» on purpose: that is already this form's health card,
-       * and the public card's own column heading, which the hint names.
-       */
-      medicalNotes: {
-        label: "Що ще варто знати про здоровʼя",
-        hint: "Необовʼязково. Ті, хто шукає тварину, побачать цей текст у розділі «Медичний стан».",
       },
       photos: {
         title: "Фото",
@@ -2567,9 +2569,14 @@ export const uk = {
         photos: "Фото",
         /** DR1 (S3), his text (2026-10-20). */
         coatLength: "Шерсть",
-        /** Pet card redesign (Phase 0, owner-approved, 2026-10-26). */
+        /** Pet card redesign; his approval is quoted at `animalForm.colour`. */
         temperament: "Характер",
         colour: "Забарвлення",
+        /**
+         * Here though the note's form field waits for PR 5 (inbox PC1-D1): a
+         * history line only names the field, which is true whenever the note
+         * is written, and `shelter.animals.update` already takes it.
+         */
         medicalNotes: "Медичний стан",
       },
     },

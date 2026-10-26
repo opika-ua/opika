@@ -14,7 +14,6 @@ import {
   characterCount,
   kyivCalendarDateOf,
   type LocalizedText,
-  MEDICAL_NOTES_MAX_CHARACTERS,
   type MedicalState,
   type SizeBucket,
   TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
@@ -68,8 +67,6 @@ export type FormValues = {
   colourCustom: string;
   vaccination: MedicalState;
   spayNeuter: MedicalState;
-  /** The medical note as typed; blank means none, as the description. */
-  medicalNotes: string;
 };
 
 export type AnimalPatch = z.infer<typeof AnimalPatchSchema>;
@@ -93,7 +90,6 @@ export const emptyValues = (today: CalendarDate): FormValues => ({
   colourCustom: "",
   vaccination: "unknown",
   spayNeuter: "unknown",
-  medicalNotes: "",
 });
 
 /**
@@ -149,7 +145,6 @@ export const valuesOf = (view: KabinetAnimalView, today: CalendarDate): FormValu
     colourCustom: customColourOf(view.colour)?.uk ?? "",
     vaccination: view.vaccination.state,
     spayNeuter: view.spayNeuter.state,
-    medicalNotes: view.medicalNotes?.uk ?? "",
   };
 };
 
@@ -274,11 +269,6 @@ export function patchOf(view: KabinetAnimalView, values: FormValues): AnimalPatc
   if (!sameTemperament(temperament, view.temperament)) patch.temperament = temperament;
   const colour = colourOf(values, view.colour);
   if (!sameColour(colour, view.colour)) patch.colour = colour;
-  if (isBlank(values.medicalNotes)) {
-    if (view.medicalNotes !== null) patch.medicalNotes = null;
-  } else if (values.medicalNotes !== view.medicalNotes?.uk) {
-    patch.medicalNotes = { uk: values.medicalNotes, en: null };
-  }
   return Object.keys(patch).length === 0 ? null : patch;
 }
 
@@ -290,15 +280,11 @@ export type FieldProblem =
   | { field: "birthDate"; key: "birthDateFuture" | "dateTooOld" }
   | { field: "asOf"; key: "asOfFuture" | "dateTooOld" }
   /**
-   * The pet card's texts over their caps. `over` is how many characters too
-   * many, which the field says in the counter's own words («Зайвих символів»):
-   * no sentence of its own exists for these three yet.
+   * The pet card's custom texts over their caps. `over` is how many
+   * characters too many, which the field says in the counter's own words
+   * («Зайвих символів»): no sentence of its own exists for these two yet.
    */
-  | {
-      field: "temperamentCustom" | "colourCustom" | "medicalNotes";
-      key: "overLimit";
-      over: number;
-    };
+  | { field: "temperamentCustom" | "colourCustom"; key: "overLimit"; over: number };
 
 /** How far a text is over its cap, counted as the server counts it; 0 when it fits. */
 const overBy = (text: string, max: number): number => Math.max(0, characterCount(text) - max);
@@ -344,9 +330,6 @@ export function problemsOf(
       ? overBy(values.colourCustom.trim(), COAT_COLOUR_CUSTOM_MAX_CHARACTERS)
       : 0;
   if (colourOver > 0) problems.push({ field: "colourCustom", key: "overLimit", over: colourOver });
-  const medicalOver = overBy(values.medicalNotes, MEDICAL_NOTES_MAX_CHARACTERS);
-  if (medicalOver > 0)
-    problems.push({ field: "medicalNotes", key: "overLimit", over: medicalOver });
   if (values.ageMode === "birth_date" && values.birthDate !== "") {
     const problem = ageDateProblem(values.birthDate, now);
     if (problem !== null) {
