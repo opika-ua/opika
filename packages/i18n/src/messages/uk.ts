@@ -458,9 +458,14 @@ export const uk = {
      * gender regardless of `sex` - same simplification `cardMeta`'s own
      * age words already make (documented there as a flagged, not fixed,
      * gap), not a new one introduced here. Used by `detail-text.ts`'s
-     * `speciesLabel`, which is sex-neutral everywhere it's read: the card
-     * and page subtitle line, the animal page's own `<title>` (PR B, the
-     * SEO review), the kabinet form and the gallery's filter chips.
+     * `speciesLabel`, sex-neutral at both its callers: the card/page
+     * subtitle line (`animalSubtitle`) and the animal page's own `<title>`
+     * (PR B, the SEO review). These two string values are also read
+     * directly, bypassing `speciesLabel`, by the kabinet form
+     * (`FormSections.tsx`) - its own `t.who.speciesLabel` is an unrelated
+     * i18n key, not this function. The gallery's filter chips are a
+     * different pair entirely (`uk.filters.speciesDogs`/`speciesCats`,
+     * plural, for the rail - see the comment above).
      * `animal-labels.ts`'s `speciesWordFor` (PR B's animal meta description,
      * owner's exact wording) is a separate, sex-*aware* function for that
      * one surface only; it reuses `speciesDog` as its *feminine* form

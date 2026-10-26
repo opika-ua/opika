@@ -114,8 +114,8 @@ describe("animalMetaDescription (PR B, the SEO review of page titles)", () => {
    */
   it("the body-omission floor excludes a fragment that would otherwise fit, not just a zero budget", () => {
     const animal = makeDetailAnimal({ description: { uk: "Короткийопис.", en: null } });
-    // 25 repetitions of "дім " (4 chars each) trimmed to exactly 125 chars of shelter
-    // name -> a prefix of 149 chars -> a body budget of exactly 10.
+    // 32 repetitions of "дім " (4 chars each), trimmed and cut to exactly 125 chars of
+    // shelter name -> a prefix of 149 chars -> a body budget of exactly 10.
     const shelterName = "дім ".repeat(32).trim().slice(0, 125);
     const description = animalMetaDescription(animal, shelterName, "Бровари");
     expect(description.endsWith(".")).toBe(true);

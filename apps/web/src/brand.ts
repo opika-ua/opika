@@ -36,13 +36,13 @@ export const SITE_ORIGIN = "https://opika.org.ua";
 export const SITE_TITLE = "Собаки й коти з притулків Київщини";
 
 /**
- * `%s` is Next's title-template slot. The separator is an en dash (U+2013), not this
- * repo's own hyphen rule - a deliberate, named exception (owner, PR B SEO review,
- * 2026-10-26, verbatim: "The title separator is « – » (U+2013)... No «-» or «—»."),
- * because a browser-tab/search-result title separator is a different convention than
- * prose punctuation. `docs/standing-constraints.md`'s dash rule carries this exception;
+ * `%s` is Next's title-template slot. The separator is an en dash (U+2013) – an instance
+ * of the repo's own dash rule (owner, PR B SEO review, 2026-10-26, verbatim: "The title
+ * separator is « – » (U+2013)... No «-» or «—»."), not an exception to it: en dash is
+ * the general clause separator (`docs/standing-constraints.md`'s "Dash characters" rule,
+ * #208). What's specific to this one location is that it's pinned by a dedicated test –
  * `apps/web/src/no-em-en-dash.test.ts` checks for exactly this character here, not its
- * absence.
+ * absence – rather than resting on the written rule alone, the way a comment does.
  */
 export const TITLE_TEMPLATE = `%s – ${WORDMARK}`;
 
