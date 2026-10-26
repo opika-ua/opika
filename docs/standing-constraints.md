@@ -240,23 +240,26 @@ happened.
 
 ## Code
 
-- **No em dash (U+2014 "—") and no en dash (U+2013 "–") anywhere we write:** UI copy,
-  emails, metadata, code comments, docs, commit messages, PR bodies. Use a plain hyphen
-  "-" (spaced " - " where a dash would separate clauses), or rewrite the sentence.
-  Owner, 2026-10-26. A verbatim quote of someone's own words, or of an external source,
-  is exempt from this rule by the same logic as "Only Oleksii's own words constitute
-  approval" above - the quote stays character-exact, dashes included, rather than being
-  silently rewritten into something he or the source never wrote.
+- **Dash characters: never an em dash (U+2014 "—").** Where a dash is needed, use an en
+  dash (U+2013 "–") – spaced " – " between clauses, unspaced in a range ("1–3"). A plain
+  hyphen "-" is for compound words only ("чорно-білий"), never a clause separator. Owner,
+  2026-10-26 – final wording. It supersedes two earlier same-day phrasings: a chat
+  shorthand that just said "use en dash" with no further detail, and a fuller write-up
+  that `chore/dash-cleanup` (#206) carried – banning the en dash too and requiring a
+  plain hyphen everywhere a dash was needed – which #206 merged into this file before
+  this correction landed. Only this entry is authoritative.
 
-  Guarded in the places a regression would reach a user: a Vitest test fails if either
-  character appears in a `packages/i18n/src/messages/**` catalogue's exported values
-  (its own comments are exempt, same as everywhere else), `apps/web/src/brand.ts`'s own
-  exported strings, the email templates, or any `metadata`/`generateMetadata` export.
-  Comments and docs are covered by this written rule, not by CI - a 2026-10-26 sweep
-  converted the vast majority of the roughly 7,000 instances found at the time, but a
-  few hundred sitting inside verbatim quotes (`docs/decisions-inbox.md` and similar decision records) were
-  deliberately left alone rather than risk rewriting someone's actual words by script;
-  converting the rest by hand is a follow-up, not a blocker.
+  **Known-wrong on `main` right now, pending a follow-up PR:** #206's merge (commit
+  `7d2d1f1`) already shipped the superseded hyphen-only wording as this same bullet, its
+  repo-wide sweep converting roughly 7,000 em/en dash instances to plain hyphens
+  (including ones that should have become en dashes under this corrected rule, not
+  hyphens), and its guard test (`apps/web/src/no-em-en-dash.test.ts`) still asserts that
+  no catalogue value, `brand.ts` string, email template or metadata export contains an
+  en dash – the opposite of what this rule now requires wherever one of those surfaces
+  needs a clause-separating dash. None of that is fixed by this commit; it only corrects
+  the written rule itself. A verbatim quote of someone's own words, or of an external
+  source, is exempt from the rule – it stays character-exact rather than being silently
+  rewritten into something he or the source never wrote.
 - **No `any`.** Biome errors on it.
 - **Every state that isn't a boolean is a discriminated union**, generics over string
   enums, distinguishing field named consistently within a type (`kind`, `status`, or
