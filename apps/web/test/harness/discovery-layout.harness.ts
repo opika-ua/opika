@@ -49,11 +49,11 @@ test.describe("/tvaryny/gortaty not-a-judgement notice", () => {
       // Transcribed from the design's own recovered copy, not compared
       // against `uk.actions.notAJudgementNotice` itself - a self-comparing
       // assertion passes against any value the constant happens to hold.
-      await expect(notice).toHaveText("«Не зараз» - це просто фільтр, а не оцінка тварини.");
+      await expect(notice).toHaveText("«Не зараз» – це просто фільтр, а не оцінка тварини.");
     });
   }
 
-  test(`is hidden at ${NARROW_PHONE.name} - the one width narrower than this product's stated audience`, async ({
+  test(`is hidden at ${NARROW_PHONE.name} – the one width narrower than this product's stated audience`, async ({
     page,
   }) => {
     await openRoute(page, ROUTE, NARROW_PHONE, { readySelector: CARD });
@@ -91,13 +91,13 @@ test.describe("/tvaryny/gortaty demo banner", () => {
 
       await expect(
         page.getByTestId("deck-position"),
-        `the position count is missing at ${viewport.name} - demo mode must not drop it, ` +
+        `the position count is missing at ${viewport.name} – demo mode must not drop it, ` +
           `Oleksii's Phase D decision`,
       ).toBeVisible();
 
       await expect(
         page.getByTestId("deck-progress-bar"),
-        `the progress bar is visible at ${viewport.name} alongside the demo banner - it should ` +
+        `the progress bar is visible at ${viewport.name} alongside the demo banner – it should ` +
           `degrade first (D-1's degrade order), before the count`,
       ).toBeHidden();
     });

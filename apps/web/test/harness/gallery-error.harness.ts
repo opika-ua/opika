@@ -171,7 +171,7 @@ test.describe("/tvaryny error state", () => {
   });
 });
 
-test.describe("/tvaryny no-match - relaxation counts are real numbers", () => {
+test.describe("/tvaryny no-match – relaxation counts are real numbers", () => {
   /**
    * `gallery.relaxationCounts` (E2) had no verified consumer through a
    * real browser render before this test - `NoMatch.tsx`'s own unit-level
