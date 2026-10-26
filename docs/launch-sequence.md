@@ -209,8 +209,8 @@ $env:R2_CLEANUP_SECRET_ACCESS_KEY = Read-Secret "R2_CLEANUP_SECRET_ACCESS_KEY"
 # step's own --grace-days 0 override (see the note below for why).
 pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod
 
-# Apply, at the post-reset override. There is currently no dry run for
-# --grace-days 0 itself — see the open question below.
+# Apply, at the post-reset override. There is no dry run for --grace-days 0
+# itself — R2-F4 (closed) keeps the override requiring --commit.
 pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod --grace-days 0 --commit
 
 Remove-Item Env:DATABASE_URL
@@ -227,11 +227,9 @@ not (R2-F2, the same shape as `demo:remove`'s own `main()`) — and the schedule
 (`/api/cron/r2-cleanup`) has no way to be given an override at all: it never reads a
 `--grace-days`-shaped input, by construction, not by a check.
 
-⚠ **Open question for Oleksii, not yet answered** (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
-R2-F4): should `--grace-days N` be allowed without `--commit`, as a read-only preview (scans and
-records tracking rows, deletes nothing)? If yes, this step gets a dry-run line back and the
-verification below changes to match; if no, this step stays as written. Confirm before relying
-on this runbook for a real production run.
+**R2-F4, closed** (`docs/decisions-inbox.md`): Oleksii, verbatim, 2026-10-26: "Record R2-F4 as
+closed: --grace-days keeps requiring --commit." The preview idea (a read-only run of
+`--grace-days N` without `--commit`) is not adopted; this step stays exactly as written above.
 
 **Verification:** the `--commit` run reports how many objects it actually deleted, and prints
 their keys (not a size summary) — review that list before trusting the count.

@@ -23,12 +23,11 @@
  *     manual run with --commit and the typed --expect, refused by the
  *     scheduled job." So `--grace-days` requires `--commit`, by his own
  *     words — a Tier 1 delta review asked whether a read-only preview
- *     (without `--commit`) should be allowed too; that's an open question
- *     for him, not something this file decides on its own (`docs/decisions-
- *     inbox/feat-r2-photo-cleanup.md`, R2-F4). `--expect` is required
- *     unconditionally either way (this script only ever targets production
- *     — there is nothing to clean up locally, the same reasoning as
- *     `demo:remove`).
+ *     (without `--commit`) should be allowed too; closed, 2026-10-26
+ *     (`docs/decisions-inbox.md`, R2-F4): kept exactly as written here,
+ *     the preview idea not adopted. `--expect` is required unconditionally
+ *     either way (this script only ever targets production — there is
+ *     nothing to clean up locally, the same reasoning as `demo:remove`).
  *
  * Usage (from the repo root; `PROD_NEON_ENDPOINT` from the shell or the root
  * `.env.local`, as for every production-aware script):
@@ -78,9 +77,9 @@ const FLAG_SPELLING = /^-{1,2}[A-Za-z][A-Za-z0-9-]*$/;
  * since `--expect` is required unconditionally in `main` regardless of
  * `--grace-days`, "and the typed --expect" falls out of that rather than
  * needing its own check here). A Tier 1 delta review asked whether a
- * read-only preview without `--commit` should be allowed too — an open
- * question for him (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
- * R2-F4), not decided here either way.
+ * read-only preview without `--commit` should be allowed too — closed,
+ * 2026-10-26 (`docs/decisions-inbox.md`, R2-F4): not adopted, this
+ * function's refusal stays as written.
  */
 export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
   const args = argv.slice(2);
