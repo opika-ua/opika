@@ -205,10 +205,12 @@ $env:DATABASE_URL = Read-Secret "Production DIRECT connection string"
 $env:R2_CLEANUP_ACCESS_KEY_ID = Read-Secret "R2_CLEANUP_ACCESS_KEY_ID"
 $env:R2_CLEANUP_SECRET_ACCESS_KEY = Read-Secret "R2_CLEANUP_SECRET_ACCESS_KEY"
 
-# Dry run — counts and total size only, never a key.
-pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod --grace-days 0
+# Optional general preview — the default 7-day grace period, not this
+# step's own --grace-days 0 override (see the note below for why).
+pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod
 
-# Apply.
+# Apply, at the post-reset override. There is currently no dry run for
+# --grace-days 0 itself — see the open question below.
 pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod --grace-days 0 --commit
 
 Remove-Item Env:DATABASE_URL
@@ -216,16 +218,23 @@ Remove-Item Env:R2_CLEANUP_ACCESS_KEY_ID
 Remove-Item Env:R2_CLEANUP_SECRET_ACCESS_KEY
 ```
 
-`--grace-days 0` is refused everywhere except a manual run with `--commit` (`parseCleanupArgs`,
-`packages/db/src/r2-cleanup.ts`) — `--expect` is required unconditionally for this script,
-commit or not (R2-F2, the same shape as `demo:remove`'s own `main()`) — and the scheduled job
+`--grace-days 0` is refused everywhere except a manual run with `--commit` — his R2-B1 words,
+verbatim, "allowed only in a manual run with --commit and the typed --expect" — so there is no
+dry-run preview of what the override specifically would catch before this commits; the general
+preview above (no `--grace-days`) only shows what's due at the default 7-day period, which right
+after a reset is nothing yet. `--expect` is required unconditionally for this script, commit or
+not (R2-F2, the same shape as `demo:remove`'s own `main()`) — and the scheduled job
 (`/api/cron/r2-cleanup`) has no way to be given an override at all: it never reads a
-`--grace-days`-shaped input, by construction, not by a check. So this flag only ever does
-something here, by hand, right after a reset. The invocation above is confirmed against the
-landed script, not a placeholder.
+`--grace-days`-shaped input, by construction, not by a check.
 
-**Verification:** the dry run reports a count and a total size, nothing identifying; the
-`--commit` run reports how many objects it actually deleted.
+⚠ **Open question for Oleksii, not yet answered** (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
+R2-F4): should `--grace-days N` be allowed without `--commit`, as a read-only preview (scans and
+records tracking rows, deletes nothing)? If yes, this step gets a dry-run line back and the
+verification below changes to match; if no, this step stays as written. Confirm before relying
+on this runbook for a real production run.
+
+**Verification:** the `--commit` run reports how many objects it actually deleted, and prints
+their keys (not a size summary) — review that list before trusting the count.
 
 **Rollback:** none — this only deletes R2 objects nothing in the database (just emptied by
 step 2) refers to any more.

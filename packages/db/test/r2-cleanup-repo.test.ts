@@ -8,6 +8,7 @@ import {
   recordScan,
   referencedObjectKeys,
   referencedStorageKeys,
+  SQL_BATCH_SIZE,
   stillUnreferenced,
   trackedUnreferencedObjects,
 } from "../src/repos/r2-cleanup-repo";
@@ -90,6 +91,20 @@ describe("referencedStorageKeys / referencedObjectKeys", () => {
 
   it("is empty when nothing has any photos", async () => {
     expect(await referencedStorageKeys(db)).toEqual(new Set());
+  });
+});
+
+describe("SQL_BATCH_SIZE", () => {
+  it("stays well under Postgres's 65535 bind-parameter limit at this file's worst per-row rate (Tier 1 review, PR #200, note 7/9)", () => {
+    // recordScan's INSERT binds 2 parameters per row (objectKey,
+    // firstSeenUnreferencedAt) — the most of any statement this file
+    // chunks. A batch size that still crosses the real limit, even at a
+    // lower per-row rate than today's, defeats the whole point of
+    // chunking; this is the guard a mutation like "bump it to 1,000,000"
+    // should trip, which the row-count tests alone don't (they only prove
+    // the chunking loop is correct, not that the chunk size itself is sane).
+    const WORST_CASE_PARAMS_PER_ROW = 2;
+    expect(SQL_BATCH_SIZE * WORST_CASE_PARAMS_PER_ROW).toBeLessThan(65_535);
   });
 });
 
@@ -182,6 +197,21 @@ describe("stillUnreferenced", () => {
 
     expect(await stillUnreferenced(db, [key1, key2])).toEqual([key2]);
   });
+
+  it("protects any object under a referenced photo's own path, not just the three known variants (Tier 1 review, PR #200, note 6)", async () => {
+    await insertAnimalWithPhotos(["animals/a/1"]);
+    // Neither a known variant name nor the .webp extension — exactly the
+    // shape a future variant or a format migration would produce. The old
+    // implementation (parsing a fixed variant/extension regex out of the
+    // key) would have missed this; the parent-path check doesn't need to
+    // know what the object is called, only where it sits.
+    const futureVariant = "animals/a/1/hero.avif";
+    const unrelatedOrphan = "animals/orphan/1/card.webp";
+
+    expect(await stillUnreferenced(db, [futureVariant, unrelatedOrphan])).toEqual([
+      unrelatedOrphan,
+    ]);
+  });
 });
 
 describe("afterDeleted", () => {
@@ -221,4 +251,15 @@ describe("afterDeleted", () => {
   it("does nothing on an empty list", async () => {
     expect(await afterDeleted(db, [])).toEqual({ snapshotsNulled: 0 });
   });
+
+  it("clears tracking rows across more than one SQL batch (Tier 1 review, PR #200, note 9)", async () => {
+    const keys = Array.from({ length: 1500 }, (_, i) => `animals/deleted-${i}/card.webp`);
+    await recordScan(db, keys, NOW);
+    expect(await trackedUnreferencedObjects(db)).toHaveLength(1500);
+
+    const result = await afterDeleted(db, keys);
+
+    expect(result.snapshotsNulled).toBe(0); // no reveals in this test, just the tracking table
+    expect(await trackedUnreferencedObjects(db)).toEqual([]);
+  }, 30_000);
 });

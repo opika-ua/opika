@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { R2CleanupClient } from "../src/image-pipeline/r2-cleanup-client";
 import { variantObjectKey } from "../src/image-pipeline/variants";
 import { formatReport, parseCleanupArgs, runR2Cleanup } from "../src/r2-cleanup";
@@ -95,6 +95,37 @@ describe("runR2Cleanup", () => {
     expect(report.deleted).toEqual([orphan]);
     expect(r2.remaining()).toEqual([]);
     expect(await trackedUnreferencedObjects(db)).toEqual([]);
+  });
+
+  it("deletes exactly what stillUnreferenced approves, not everything in dueForDeletion (Tier 1 review, PR #200, finding re: the re-check being bypassable)", async () => {
+    // A mock, not a real race: proves runR2Cleanup's delete step is driven
+    // by stillUnreferenced's own return value, which removing the call
+    // entirely (the mutation the delta review tried) would break even
+    // though no other test here catches it — those tests all arrange for
+    // recordScan's own self-heal to clear a re-referenced key before it
+    // ever reaches `due`, so they never actually exercise this call.
+    const kept = variantObjectKey("animals/kept/1", "card");
+    const filteredOut = variantObjectKey("animals/filtered-out/1", "card");
+    vi.resetModules();
+    vi.doMock("../src/repos/r2-cleanup-repo", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("../src/repos/r2-cleanup-repo")>();
+      return {
+        ...actual,
+        stillUnreferenced: async (_db: unknown, candidates: readonly string[]) =>
+          candidates.filter((key) => key !== filteredOut),
+      };
+    });
+    const { runR2Cleanup: mockedRunR2Cleanup } = await import("../src/r2-cleanup-run");
+    const r2 = fakeR2([kept, filteredOut]);
+    await mockedRunR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+
+    const past = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
+    const report = await mockedRunR2Cleanup(db, r2, past, { commit: true, graceDays: undefined });
+
+    expect([...report.dueForDeletion].sort()).toEqual([filteredOut, kept].sort());
+    expect(report.deleted).toEqual([kept]); // stillUnreferenced's mock excluded filteredOut
+    expect(r2.remaining()).toEqual([filteredOut]);
+    vi.doUnmock("../src/repos/r2-cleanup-repo");
   });
 
   it("a key referenced again before the second run is never deleted, even past the grace period", async () => {
@@ -206,11 +237,15 @@ describe("parseCleanupArgs", () => {
     });
   });
 
-  it("accepts --grace-days without --commit — a preview, nothing deleted (Tier 1 review, blocker 3)", () => {
+  it("refuses --grace-days without --commit", () => {
+    // His R2-B1 words, verbatim: "--grace-days 0 allowed only in a manual
+    // run with --commit". A Tier 1 delta review raised whether a
+    // read-only preview should be allowed too — an open question for him
+    // (R2-F4), not decided here either way.
     expect(parseCleanupArgs(argv("--expect", "ep-x", "--grace-days", "0"))).toEqual({
-      kind: "ok",
-      commit: false,
-      graceDays: 0,
+      kind: "refused",
+      reason:
+        "--grace-days needs --commit (a non-default grace period is honoured only on a real run)",
     });
   });
 

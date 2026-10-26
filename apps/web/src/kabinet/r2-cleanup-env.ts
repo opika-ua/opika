@@ -8,9 +8,9 @@ import type { R2CleanupCronConfig } from "./r2-cleanup-cron";
  * own doc comment. Account and bucket are shared with every other R2 caller
  * (the same bucket, so a deleted key is the same object everywhere).
  *
- * Enabled by the env vars' own presence (a reversible decision taken while
- * building this, not asked): no separate feature flag, the same shape
- * `photoUploadConfigOf` already uses for the upload token.
+ * His R2-B1 words, confirmed: "enabling it by the env vars' presence" — no
+ * separate feature flag, the same shape `photoUploadConfigOf` already uses
+ * for the upload token.
  */
 export const R2_CLEANUP_ENV_NAMES = [
   "R2_ACCOUNT_ID",
@@ -41,6 +41,43 @@ export function r2CleanupConfigOf(env: Env): R2CleanupCronConfig | undefined {
 }
 
 /**
+ * The same three-way classification `r2CleanupEnvProblem` applies at build
+ * time (off / misconfigured / on), but usable at request time in any
+ * environment — `r2CleanupEnvProblem` itself is deliberately production-only
+ * (a build-time gate), while the cron route needs this distinction on every
+ * real call, wherever it runs (Tier 1 review, PR #200, low finding: before
+ * this, the cron answered 500 every single day while deliberately left off,
+ * indistinguishable from a real misconfiguration in Vercel's own cron
+ * monitoring).
+ */
+export type R2CleanupState =
+  | { kind: "off" }
+  | { kind: "misconfigured"; problem: string }
+  | { kind: "on"; config: R2CleanupCronConfig };
+
+export function r2CleanupStateOf(env: Env): R2CleanupState {
+  const values = R2_CLEANUP_ENV_NAMES.map((name) => ({ name, value: envValueOf(env, name) }));
+  const padded = values.filter(({ value }) => value.kind === "padded").map(({ name }) => name);
+  if (padded.length > 0) return { kind: "misconfigured", problem: paddedValueMessage(padded) };
+
+  const accessKeyId = envValueOf(env, "R2_CLEANUP_ACCESS_KEY_ID");
+  const secretAccessKey = envValueOf(env, "R2_CLEANUP_SECRET_ACCESS_KEY");
+  const cleanupCredentialAttempted = accessKeyId.kind === "set" || secretAccessKey.kind === "set";
+  if (!cleanupCredentialAttempted) return { kind: "off" };
+
+  const missing = values.filter(({ value }) => value.kind === "missing").map(({ name }) => name);
+  if (missing.length > 0) {
+    return {
+      kind: "misconfigured",
+      problem: `${missing.join(", ")} must be set alongside R2_CLEANUP_ACCESS_KEY_ID/R2_CLEANUP_SECRET_ACCESS_KEY once either is set`,
+    };
+  }
+  const config = r2CleanupConfigOf(env);
+  if (!config) return { kind: "off" }; // unreachable given the checks above; keeps the return type honest
+  return { kind: "on", config };
+}
+
+/**
  * What a production deployment refuses to build or boot over, the same
  * shape as `photoUploadEnvProblem` **except for one deliberate difference**
  * (Tier 1 review, PR #200, blocker 2): the job is "enabled by the env vars'
@@ -61,20 +98,10 @@ export function r2CleanupConfigOf(env: Env): R2CleanupCronConfig | undefined {
  */
 export function r2CleanupEnvProblem(env: Env): string | null {
   if (env.VERCEL_ENV !== "production") return null;
-  const values = R2_CLEANUP_ENV_NAMES.map((name) => ({ name, value: envValueOf(env, name) }));
-  const padded = values.filter(({ value }) => value.kind === "padded").map(({ name }) => name);
-  if (padded.length > 0) return paddedValueMessage(padded);
-
-  const accessKeyId = envValueOf(env, "R2_CLEANUP_ACCESS_KEY_ID");
-  const secretAccessKey = envValueOf(env, "R2_CLEANUP_SECRET_ACCESS_KEY");
-  const cleanupCredentialAttempted = accessKeyId.kind === "set" || secretAccessKey.kind === "set";
-  if (!cleanupCredentialAttempted) return null;
-
-  const missing = values.filter(({ value }) => value.kind === "missing").map(({ name }) => name);
-  if (missing.length === 0) return null;
+  const state = r2CleanupStateOf(env);
+  if (state.kind !== "misconfigured") return null;
   return (
-    `${missing.join(", ")} must be set alongside R2_CLEANUP_ACCESS_KEY_ID/R2_CLEANUP_SECRET_ACCESS_KEY ` +
-    "once either is set (the R2 photo clean-up job, GDPR photo retention) — set them in Vercel's " +
+    `${state.problem} (the R2 photo clean-up job, GDPR photo retention) — set them in Vercel's ` +
     "Production environment only, never Preview, or unset both cleanup credentials to leave the job off"
   );
 }

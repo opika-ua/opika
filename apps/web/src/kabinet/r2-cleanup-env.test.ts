@@ -45,6 +45,23 @@ describe("r2CleanupEnvProblem", () => {
     expect(r2CleanupEnvProblem({ VERCEL_ENV: "production" })).toBeNull();
   });
 
+  it("production's real off state: R2_ACCOUNT_ID/R2_BUCKET_NAME already set for uploads, neither cleanup credential set, is not a problem", () => {
+    // The scenario this job actually ships into (Tier 1 delta review,
+    // finding 3): the upload token's two shared vars are already required
+    // in production regardless of this job, so "off" in practice never
+    // looks like all four absent — it looks like exactly this. A mutation
+    // that collapses this function to "a problem unless all four are
+    // absent or all four are present" passes every other test here but
+    // would wrongly flag this one as a problem.
+    expect(
+      r2CleanupEnvProblem({
+        VERCEL_ENV: "production",
+        R2_ACCOUNT_ID: "acct",
+        R2_BUCKET_NAME: "photos",
+      }),
+    ).toBeNull();
+  });
+
   it("all four present is not a problem", () => {
     expect(r2CleanupEnvProblem(FULL)).toBeNull();
   });

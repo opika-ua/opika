@@ -15,7 +15,7 @@ import { r2UnreferencedObjects } from "../schema/r2-cleanup";
  * review, PR #200, note 9) — each chunk stays well under the limit even at
  * several parameters per row.
  */
-const SQL_BATCH_SIZE = 1000;
+export const SQL_BATCH_SIZE = 1000;
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -65,32 +65,38 @@ export async function referencedObjectKeys(db: Database): Promise<Set<string>> {
 }
 
 /**
+ * A real bucket object's own parent path — `animals/{animalId}/{photoId}`
+ * for `animals/{animalId}/{photoId}/card.webp`, derived structurally (one
+ * path segment up), never by parsing a variant name or a file extension
+ * out of the key. `variantObjectKey` always writes exactly
+ * `${storageKey}/${variant}.webp`, so a referenced photo's storage key IS
+ * the parent path of every real object under it, by construction, for any
+ * variant name and any extension that scheme might ever use.
+ */
+function parentPathOf(objectKey: string): string {
+  const lastSlash = objectKey.lastIndexOf("/");
+  return lastSlash === -1 ? objectKey : objectKey.slice(0, lastSlash);
+}
+
+/**
  * Whether a real bucket object key belongs to a currently-referenced photo
- * — parses the key's own `storageKey` prefix (`storageKeyFromObjectKey`)
- * and checks *that* against the referenced storage keys, rather than
- * deriving an exact 3-key set per storage key and matching the candidate
- * against it (Tier 1 review, PR #200, note 6). For today's naming scheme
- * the two give identical results — both `variantObjectKey` (the forward
- * direction) and `storageKeyFromObjectKey` (the reverse) are built from the
- * same `IMAGE_VARIANT_NAMES` list and the same `.webp` suffix, by
- * construction, and `referencedObjectKeys` already iterates
- * `IMAGE_VARIANT_NAMES` rather than a hardcoded count — so a variant
- * *added* to that list was never the gap. This version is simply the more
- * direct way to ask the same question (one membership check per candidate,
- * not three), and is what `recordScan`/`stillUnreferenced` use below.
- *
- * ⚠ What neither version protects against: a *file-extension* change.
- * `storageKeyFromObjectKey`'s own regex hardcodes `.webp`, the same as
- * `variantObjectKey`'s construction — if that suffix is ever changed, every
- * object already in the bucket under the old extension stops parsing (or
- * stops matching the new derivation) and would look unreferenced to BOTH
- * implementations, however it's written. Changing the image format is not
- * a drop-in edit here: it needs either keeping the old suffix recognised
- * as well (a migration period), or pausing this job across the cutover.
+ * — by its parent path, not by exact membership in a derived 3-variant key
+ * set (Tier 1 review, PR #200, note 6; an earlier fix for the same note
+ * checked via `storageKeyFromObjectKey`'s regex parse instead, which still
+ * hardcoded the variant names and the `.webp` suffix and so protected
+ * nothing more than the exact-set version — the delta review that found
+ * that is why this is a parent-path check instead). This protects every
+ * object under a referenced photo's path — a future variant name, a
+ * changed file extension, anything of that shape — because none of that
+ * changes *where* an object for that photo sits, only what it's called
+ * once it's there. The one thing this still can't do anything about: if a
+ * future pipeline redesign ever wrote a referenced photo's objects
+ * somewhere other than directly under its own storage key, this job would
+ * need its own update to match, the same as any other code that assumes
+ * today's layout.
  */
 function isReferencedObjectKey(objectKey: string, referenced: ReadonlySet<string>): boolean {
-  const storageKey = storageKeyFromObjectKey(objectKey);
-  return storageKey !== null && referenced.has(storageKey);
+  return referenced.has(parentPathOf(objectKey));
 }
 
 /**

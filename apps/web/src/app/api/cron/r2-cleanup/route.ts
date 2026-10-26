@@ -1,6 +1,6 @@
 import { kabinetDb } from "../../../../kabinet/kabinet-db";
 import { handleR2CleanupCron } from "../../../../kabinet/r2-cleanup-cron";
-import { r2CleanupConfigOf } from "../../../../kabinet/r2-cleanup-env";
+import { r2CleanupStateOf } from "../../../../kabinet/r2-cleanup-env";
 
 /**
  * Vercel's cron (`apps/web/vercel.json`, `crons`, daily) calls this with GET
@@ -13,7 +13,7 @@ export async function GET(request: Request): Promise<Response> {
     cronSecret: process.env.CRON_SECRET,
     db: kabinetDb,
     now: new Date(),
-    r2: r2CleanupConfigOf(process.env),
+    r2State: r2CleanupStateOf(process.env),
     log: (line) => console.info(line),
   });
 }

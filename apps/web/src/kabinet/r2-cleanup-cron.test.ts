@@ -3,7 +3,8 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setupTestDatabase, truncateAll } from "@opika/db/test";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { handleR2CleanupCron, type R2CleanupCronConfig } from "./r2-cleanup-cron";
+import { handleR2CleanupCron } from "./r2-cleanup-cron";
+import type { R2CleanupState } from "./r2-cleanup-env";
 
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). The orchestration itself
@@ -23,16 +24,19 @@ afterAll(async () => cleanup?.());
 beforeEach(async () => truncateAll(db));
 
 const SECRET = "cron-secret-for-tests-0123456789abcdef";
-const R2: R2CleanupCronConfig = {
-  accountId: "acct",
-  bucketName: "photos",
-  accessKeyId: "id",
-  secretAccessKey: "not-a-secret",
+const ON: R2CleanupState = {
+  kind: "on",
+  config: {
+    accountId: "acct",
+    bucketName: "photos",
+    accessKeyId: "id",
+    secretAccessKey: "not-a-secret",
+  },
 };
 
 async function run(
   headers: Record<string, string>,
-  overrides: { cronSecret?: string | undefined; r2?: R2CleanupCronConfig | undefined } = {},
+  overrides: { cronSecret?: string | undefined; r2State?: R2CleanupState } = {},
 ) {
   const lines: string[] = [];
   const response = await handleR2CleanupCron(
@@ -41,7 +45,7 @@ async function run(
       cronSecret: "cronSecret" in overrides ? overrides.cronSecret : SECRET,
       db: () => db,
       now: new Date("2026-10-25T04:00:00.000Z"),
-      r2: "r2" in overrides ? overrides.r2 : R2,
+      r2State: overrides.r2State ?? ON,
       log: (line) => lines.push(line),
     },
   );
@@ -137,11 +141,28 @@ describe("the R2 clean-up cron's own boundary", () => {
     ]);
   });
 
-  it("missing R2 config: refuses with 500 rather than silently doing nothing", async () => {
-    const { response, lines } = await run({ authorization: `Bearer ${SECRET}` }, { r2: undefined });
+  it("deliberately off (no R2 credentials set): answers 200, quiet — never a daily false alarm", async () => {
+    // Tier 1 review, PR #200, low finding: before this, "off" and "broken"
+    // were the same response (500), so the cron reported a daily "failure"
+    // in Vercel's own monitoring for as long as the job was left off on
+    // purpose, which is the expected state before Oleksii enables it.
+    const { response, lines } = await run(
+      { authorization: `Bearer ${SECRET}` },
+      { r2State: { kind: "off" } },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ outcome: "off" });
+    expect(lines.map((l) => JSON.parse(l))).toEqual([{ event: "r2_cleanup", outcome: "off" }]);
+  });
+
+  it("misconfigured (a half-entered credential, or a padded value): refuses with 500 rather than silently doing nothing", async () => {
+    const { response, lines } = await run(
+      { authorization: `Bearer ${SECRET}` },
+      { r2State: { kind: "misconfigured", problem: "R2_CLEANUP_SECRET_ACCESS_KEY must be set" } },
+    );
     expect(response.status).toBe(500);
     expect(lines.map((l) => JSON.parse(l))).toEqual([
-      { event: "r2_cleanup", outcome: "refused_no_r2_config" },
+      { event: "r2_cleanup", outcome: "refused_misconfigured" },
     ]);
   });
 

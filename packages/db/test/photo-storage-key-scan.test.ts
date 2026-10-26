@@ -82,6 +82,21 @@ function animalPhotoSchemaEmbeddings(): Hit[] {
   return [...domain, ...contracts].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
 }
 
+/**
+ * A `.pick({ …, photos: true, … })` that carries the whole `photos` array
+ * through to a new schema, without ever writing `AnimalPhotoSchema` as a
+ * token (Tier 1 review, PR #200, note 11) — the textual embedding scan
+ * above can't see this, since nothing here literally names the schema;
+ * `pick` just selects an existing field by name.
+ */
+const PICKED_PHOTOS_FIELD = /\bphotos\s*:\s*true\b/;
+function pickedPhotosFields(): Hit[] {
+  return [
+    ...scan(DOMAIN_ROOT, PICKED_PHOTOS_FIELD),
+    ...scan(CONTRACTS_ROOT, PICKED_PHOTOS_FIELD),
+  ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
 /** A bare `z.string()` field whose name reads like a storage key, wherever it is declared. */
 // A suffix match (`\w*`), not an exact one, and case-insensitive on the key
 // name (Tier 1 review, PR #200, note 11) — `coverPhotoKey` has a capital
@@ -141,6 +156,28 @@ const EXPECTED_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
 ];
 
+const EXPECTED_PICKED_PHOTOS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
+  {
+    file: "contracts/src/kabinet/views.ts",
+    line: 71,
+    text: "photos: true,",
+    kind: "view",
+    why:
+      "KabinetDraftAnimalViewSchema/KabinetListedAnimalViewSchema (K3's edit form) — the whole " +
+      "photos array picked straight from DraftAnimalSchema/ListedAnimalSchema, a per-request " +
+      "projection of animals.photos, not a second stored copy.",
+  },
+  {
+    file: "contracts/src/views/animal.ts",
+    line: 83,
+    text: "photos: true,",
+    kind: "view",
+    why:
+      "AnimalDetailViewSchema (the animal detail page) — same shape as kabinet/views.ts's pick: " +
+      "a per-request projection of animals.photos, not storage.",
+  },
+];
+
 const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   {
     file: "domain/src/animals/photo.ts",
@@ -170,6 +207,14 @@ describe("every schema field that can hold a photo's storage key is classified (
     );
   });
 
+  it("every .pick({ photos: true }) site is classified — a new one needs a new entry here", () => {
+    expect(pickedPhotosFields()).toEqual(
+      [...EXPECTED_PICKED_PHOTOS]
+        .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
+        .map(({ file, line, text }) => ({ file, line, text })),
+    );
+  });
+
   it("exactly one embedding is classified as a live reference, and it's the one the clean-up repo reads", () => {
     const storageSites = EXPECTED_EMBEDDINGS.filter(
       (e) => e.kind === "storage" && e.file.endsWith("animal.ts"),
@@ -189,7 +234,11 @@ describe("every schema field that can hold a photo's storage key is classified (
   });
 
   it("every classified entry has a real reason", () => {
-    for (const entry of [...EXPECTED_EMBEDDINGS, ...EXPECTED_BARE_FIELDS]) {
+    for (const entry of [
+      ...EXPECTED_EMBEDDINGS,
+      ...EXPECTED_PICKED_PHOTOS,
+      ...EXPECTED_BARE_FIELDS,
+    ]) {
       expect(entry.why.length).toBeGreaterThan(20);
     }
   });

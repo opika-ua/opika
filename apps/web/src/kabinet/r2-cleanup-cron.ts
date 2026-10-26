@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Database } from "@opika/db";
+import type { R2CleanupState } from "./r2-cleanup-env";
 
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). The scheduled half of the
@@ -16,9 +17,13 @@ import type { Database } from "@opika/db";
  *   digests). No secret, or an empty one, refuses every call — fail closed.
  * - **R2 credentials:** this job's own (`R2_CLEANUP_ACCESS_KEY_ID`/
  *   `R2_CLEANUP_SECRET_ACCESS_KEY`), never the upload token or the
- *   onboarding script's — `r2-cleanup-client.ts`'s own doc comment. Missing
- *   or incomplete credentials refuse the run (500) rather than skip R2 and
- *   silently do nothing.
+ *   onboarding script's — `r2-cleanup-client.ts`'s own doc comment.
+ *   Deliberately left off (`r2CleanupStateOf`'s `"off"`) answers 200, quiet
+ *   — the expected state before Oleksii enables it, and the daily cron
+ *   would otherwise report a 500 "failure" every single day until he does
+ *   (Tier 1 review, PR #200, low finding). Genuinely broken (`"misconfigured"`
+ *   — a padded value, or a half-entered credential) still refuses with 500,
+ *   never skipping R2 and silently doing nothing.
  * - **What it logs:** counts only, never an object key, a storage key or an
  *   animal id — the same discipline as `auth-cleanup.ts`'s "log counts
  *   only, never addresses."
@@ -36,7 +41,7 @@ export async function handleR2CleanupCron(
     cronSecret: string | undefined;
     db: () => Database;
     now: Date;
-    r2: R2CleanupCronConfig | undefined;
+    r2State: R2CleanupState;
     log: (line: string) => void;
   },
 ): Promise<Response> {
@@ -47,13 +52,17 @@ export async function handleR2CleanupCron(
   if (!bearerMatches(request.headers.get("authorization"), deps.cronSecret)) {
     return new Response("Unauthorized", { status: 401 });
   }
-  if (!deps.r2) {
-    deps.log(JSON.stringify({ event: "r2_cleanup", outcome: "refused_no_r2_config" }));
-    return new Response("R2 clean-up credentials not configured", { status: 500 });
+  if (deps.r2State.kind === "off") {
+    deps.log(JSON.stringify({ event: "r2_cleanup", outcome: "off" }));
+    return Response.json({ outcome: "off" });
+  }
+  if (deps.r2State.kind === "misconfigured") {
+    deps.log(JSON.stringify({ event: "r2_cleanup", outcome: "refused_misconfigured" }));
+    return new Response("R2 clean-up credentials misconfigured", { status: 500 });
   }
 
   const pipeline = await import("@opika/db/image-pipeline/server");
-  const r2 = pipeline.createR2CleanupClient(deps.r2);
+  const r2 = pipeline.createR2CleanupClient(deps.r2State.config);
   const report = await pipeline.runR2Cleanup(deps.db(), r2, deps.now, {
     commit: true,
     graceDays: undefined,
