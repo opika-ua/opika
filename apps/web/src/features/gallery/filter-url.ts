@@ -403,6 +403,10 @@ const TOTAL_PARAM = "total";
  * `null` for anyone who reaches `/tvaryny/gortaty` without it (a reload, a
  * bookmark, a shared link) — the deck header degrades to showing position
  * alone rather than guessing a denominator it was never given.
+ *
+ * **No production caller since the gallery-v3 redesign** — see
+ * `DeckEntryLink.tsx`'s own top comment for why this is kept rather than
+ * deleted (GV3-Q3, a documented temporary narrowing, not a removal).
  */
 export function deckEntryHref(
   filters: FeedFilters,

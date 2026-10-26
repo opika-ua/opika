@@ -270,18 +270,15 @@ export const uk = {
      * filters [in] 1 click"). Template: "{dimension}" -> the dropdown's own
      * legend (e.g. "Скинути МІСТО").
      *
-     * Draft, not confirmed: this wording is the builder's own, not his —
-     * flagged in the PR's decisions batch (GV3-Q2) rather than shipped as
-     * [COPY PENDING]. That sentinel is not an option here:
-     * `open-writes-copy-gate.test.ts`'s "nothing in the entire uk catalogue
-     * is pending" CI gate (Oleksii, Q-B, verbatim: "the guard checks the
-     * entire catalogue; nothing pending anywhere") turns production sign-in
-     * off for ANY pending string, this namespace included, not only
-     * `kabinet.*`. Reuses `reset`'s own verb above rather than inventing a
-     * second word for the same action — a reasonable draft like the demo-mode
-     * strings' own precedent ("drafted by Claude from an English sense;
-     * Oleksii selected these from offered options"), awaiting the same kind
-     * of confirm-or-replace rather than a round-trip before shipping.
+     * Shipped as the builder's own draft (not `[COPY PENDING]` — that
+     * sentinel wasn't an option here: `open-writes-copy-gate.test.ts`'s
+     * "nothing in the entire uk catalogue is pending" CI gate, Oleksii Q-B,
+     * turns production sign-in off for ANY pending string, this namespace
+     * included, not only `kabinet.*`), flagged in the decisions batch
+     * (GV3-Q2) pending his confirm-or-replace. **Confirmed, 2026-10-26,
+     * Oleksii, verbatim: "Скинути is fine."** Reused `reset`'s own verb
+     * above rather than inventing a second word for the same action, same
+     * reasoning the draft comment originally gave.
      */
     clearDimension: "Скинути {dimension}",
   },
@@ -968,7 +965,7 @@ export const uk = {
      * English sense in `docs/observations.md` originally drafted. Oleksii's
      * own Ukrainian, verbatim — not drafted or polished here.
      *
-     * **GV3-Q3 (Oleksii, 2026-10-26: "go with (b)"), narrowed again:** the
+     * **GV3-Q3 (Oleksii, 2026-10-26, verbatim: "go with (b) on all three"), narrowed again:** the
      * first sentence used to promise «списком або по одній» unconditionally.
      * The gallery-v3 redesign hid the deck's own entry link from the gallery
      * (Oleksii, mid-build: "let's hide access to Гортати по одній page for

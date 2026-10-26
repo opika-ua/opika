@@ -3,6 +3,15 @@
 import { markEnteringFromGallery } from "../discovery/deck-entry-marker";
 
 /**
+ * **No production caller since the gallery-v3 redesign** (Oleksii,
+ * mid-build: "let's hide access to Гортати по одній page for now as
+ * well") — kept, not deleted, because that hiding is a documented
+ * temporary narrowing (`docs/standing-constraints.md`'s commitment #8
+ * row, GV3-Q3), not a removal of the feature. Deleting this now would
+ * mean rewriting it from scratch to restore the entry point later;
+ * keeping it costs nothing a dead-code check would catch, since
+ * `deckEntryHref` (`filter-url.ts`) still has real tests of its own.
+ *
  * The one piece of `page.tsx`'s (Server Component) deck entry control that
  * has to be a Client Component: marking `sessionStorage` right before the
  * navigation fires. A Server Component cannot pass an `onClick` across the
