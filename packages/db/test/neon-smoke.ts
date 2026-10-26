@@ -2171,6 +2171,121 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `set ${cardSet.kind} → ${JSON.stringify(cardAfterSet)}; cleared ${cardClear.kind} → ${JSON.stringify(cardAfterClear)}`,
   );
 
+  // 44. The temperament and colour filters (pet card PR 1b), over this
+  // driver. The temperament clause is the first array overlap in an
+  // adopter-facing query, `temperament_traits && ARRAY[$n, $m]::text[]`, one
+  // scalar parameter per trait: which binding neon-http accepts is exactly
+  // what a local run can't show. A city, a verified shelter and four
+  // published animals of this run's own, so every list is scoped to that
+  // city: two with presets, one with nothing recorded, one with only the
+  // shelter's own words.
+  const pcCity = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(pcCity);
+  const pcBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} T` });
+  const pcAddress = { ...pcBase.exactAddress, cityId: pcCity.id };
+  await insertShelterFromScript(
+    db,
+    {
+      ...pcBase,
+      exactAddress: pcAddress,
+      publicLocation: publicLocationOf(pcBase.id, pcAddress, policy),
+    },
+    by,
+  );
+  const pcAnimal = (fields: Pick<Animal, "temperament" | "colour">) =>
+    makeAnimal({ id: randomUUID() as never, shelterId: pcBase.id, ...fields });
+  const pcShyCat = pcAnimal({
+    temperament: [
+      { kind: "preset", trait: "shy" },
+      { kind: "preset", trait: "good_with_cats" },
+    ],
+    colour: { kind: "preset", colour: "cream" },
+  });
+  const pcPlayful = pcAnimal({
+    temperament: [{ kind: "preset", trait: "playful" }],
+    colour: { kind: "preset", colour: "black" },
+  });
+  const pcBlank = pcAnimal({ temperament: [], colour: null });
+  const pcOwnWords = pcAnimal({
+    temperament: [{ kind: "custom", text: { uk: "Любить сніг", en: null } }],
+    colour: { kind: "custom", text: { uk: "Димчасте", en: null } },
+  });
+  for (const animal of [pcShyCat, pcPlayful, pcBlank, pcOwnWords]) {
+    await animalRepo(db).insert(animal, pcCity.id);
+  }
+  const pcName = new Map([
+    [pcShyCat.id, "shyCat"],
+    [pcPlayful.id, "playful"],
+    [pcBlank.id, "blank"],
+    [pcOwnWords.id, "ownWords"],
+  ]);
+  const pcFound = async (only: Partial<FeedFilters>) => {
+    const filters: FeedFilters = {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf", values: [pcCity.id] },
+      ...only,
+    };
+    const names = (items: readonly { id: string }[]) =>
+      items
+        .map((a) => pcName.get(a.id as never) ?? "other")
+        .sort()
+        .join(",");
+    const gallery = await galleryRepo(db).list({
+      filters,
+      scope: EVERYONE_SCOPE,
+      sort: "freshest",
+      page: 1,
+      pageSize: 24,
+      now: NOW,
+    });
+    const deck = await feedRepo(db).list({
+      filters,
+      cursor: null,
+      limit: 20,
+      adopterId: null,
+      now: NOW,
+      seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
+    });
+    return { gallery: names(gallery.items), deck: names(deck.items) };
+  };
+  const bothAre = (found: { gallery: string; deck: string }, expected: string) =>
+    found.gallery === expected && found.deck === expected;
+
+  const oneMatching = await pcFound({
+    temperaments: { kind: "oneOf", values: ["good_with_cats", "energetic"] },
+  });
+  const eitherTrait = await pcFound({
+    temperaments: { kind: "oneOf", values: ["shy", "playful"] },
+  });
+  const noTrait = await pcFound({ temperaments: { kind: "oneOf", values: ["energetic"] } });
+  const traitRelaxation = await galleryRepo(db).relaxationCounts({
+    filters: {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf", values: [pcCity.id] },
+      temperaments: { kind: "oneOf", values: ["energetic"] },
+    },
+    now: NOW,
+  });
+  const withoutTrait = traitRelaxation.relaxations.find((r) => r.dimension === "temperaments");
+  check(
+    "temperament filter (&& over ARRAY[...] of scalar parameters) in the gallery, the deck and the relaxation counts",
+    bothAre(oneMatching, "shyCat") &&
+      bothAre(eitherTrait, "playful,shyCat") &&
+      bothAre(noTrait, "") &&
+      traitRelaxation.current === 0 &&
+      withoutTrait?.additional === 4,
+    `good_with_cats|energetic: ${JSON.stringify(oneMatching)}; shy|playful: ${JSON.stringify(eitherTrait)}; energetic: ${JSON.stringify(noTrait)}; relaxation current ${traitRelaxation.current}, without temperament +${withoutTrait?.additional ?? "none"}`,
+  );
+
+  const creamOrTabby = await pcFound({ colours: { kind: "oneOf", values: ["cream", "tabby"] } });
+  const black = await pcFound({ colours: { kind: "oneOf", values: ["black"] } });
+  const white = await pcFound({ colours: { kind: "oneOf", values: ["white"] } });
+  check(
+    "colour filter (IN over coat_colour) in the gallery and the deck, a custom or unrecorded colour never matching",
+    bothAre(creamOrTabby, "shyCat") && bothAre(black, "playful") && bothAre(white, ""),
+    `cream|tabby: ${JSON.stringify(creamOrTabby)}; black: ${JSON.stringify(black)}; white: ${JSON.stringify(white)}`,
+  );
+
   return out;
 }
 

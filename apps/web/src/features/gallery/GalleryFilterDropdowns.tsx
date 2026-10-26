@@ -12,23 +12,28 @@ import type {
 import {
   AGE_BUCKETS,
   ANIMAL_SPECIES,
+  COAT_COLOURS,
   COAT_LENGTHS,
   isExplicitlySelected,
   relaxDimension,
   SIZE_BUCKETS,
+  TEMPERAMENT_TRAITS,
 } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { colourFilterLabel, temperamentFilterLabel, uk } from "@opika/i18n";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { COLOUR_GROUP_LABEL, TEMPERAMENT_GROUP_LABEL } from "./filter-labels";
 import type { CitySlugsById } from "./filter-url";
 import {
   galleryHref,
   withToggledAge,
   withToggledCity,
   withToggledCoat,
+  withToggledColour,
   withToggledSize,
   withToggledSpecies,
+  withToggledTemperament,
 } from "./filter-url";
 import { ChevronDownIcon } from "./icons";
 
@@ -138,7 +143,7 @@ function Dropdown({
   }, [open]);
 
   return (
-    // flex-1 (not a fixed width): when five dropdowns don't fit one row and
+    // flex-1 (not a fixed width): when the dropdowns don't fit one row and
     // the last one wraps alone, flexbox distributes grow/shrink per wrapped
     // line independently, so that lone item stretches to fill the row
     // instead of sitting narrow beside empty space - the specific "looks a
@@ -231,13 +236,13 @@ function DropdownOption({
 }
 
 /**
- * The gallery-v3 control block's five real dropdowns - city, age, size,
- * species, fur (Figma `58:1617` shows four, city/age/size/«Стать»; species
- * and fur are added here per Oleksii's Tier 1 review decision GV3-Q1 (b),
- * 2026-10-26, closing the gap the Tier 1 reviewer found: without them,
- * `desktop:` had no control at all for two of `FeedFilters`' five
- * dimensions - `FilterSheet`'s own species/fur checkboxes exist but that
- * whole sheet is `desktop:hidden`).
+ * The gallery-v3 control block's real dropdowns – city, age, size, species,
+ * fur, then temperament and colour (below). Figma `58:1617` shows four,
+ * city/age/size/«Стать»; species and fur are added here per Oleksii's Tier 1
+ * review decision GV3-Q1 (b), 2026-10-26, closing the gap the Tier 1 reviewer
+ * found: without them, `desktop:` had no control at all for two of
+ * `FeedFilters`' then five dimensions – `FilterSheet`'s own species/fur
+ * checkboxes exist but that whole sheet is `desktop:hidden`.
  *
  * **Still no «Стать» (sex) dropdown, unchanged reasoning:** `FeedFilters`
  * (`packages/domain`) has no sex dimension at all - no param, no toggle
@@ -258,6 +263,19 @@ function DropdownOption({
  * Hidden below `desktop:` - "Below 1024px... Hide the dropdowns; «Фільтр»
  * opens the sheet" (`FilterSheet.tsx`, still wired at every width since
  * this PR).
+ *
+ * **Temperament and colour, the sixth and seventh** (pet card PR 1b).
+ * Oleksii, 2026-10-26, in the coordinating session, verbatim as that session
+ * relayed it to this branch: "two more dropdowns,
+ * temperament, colour. The row wraps onto a second line when it doesn't fit;
+ * the sort switch stays right-aligned on the first line. Same component and
+ * behaviour as the existing five. Below 1024px, unchanged." Their options
+ * read the filter words PR 1 built for exactly this (`temperamentFilterLabel`,
+ * the plural, his PC-Q2; `colourFilterLabel`, the neuter), and their group
+ * names are the kabinet's («Характер», «Забарвлення», `filter-labels.ts`).
+ * This container takes the room the sort switch leaves (`min-w-0 flex-1`) and
+ * wraps inside it; `GalleryControlBlock`'s row itself no longer wraps, so the
+ * switch never drops below the dropdowns.
  */
 export function GalleryFilterDropdowns({
   filters,
@@ -301,6 +319,20 @@ export function GalleryFilterDropdowns({
         .join(", ")
     : uk.filters.coat;
 
+  const temperamentActive = filters.temperaments.kind !== "any";
+  const temperamentLabel = temperamentActive
+    ? TEMPERAMENT_TRAITS.filter((trait) => isExplicitlySelected(filters.temperaments, trait))
+        .map(temperamentFilterLabel)
+        .join(", ")
+    : TEMPERAMENT_GROUP_LABEL;
+
+  const colourActive = filters.colours.kind !== "any";
+  const colourLabel = colourActive
+    ? COAT_COLOURS.filter((colour) => isExplicitlySelected(filters.colours, colour))
+        .map(colourFilterLabel)
+        .join(", ")
+    : COLOUR_GROUP_LABEL;
+
   return (
     <div
       data-testid="gallery-filter-dropdowns"
@@ -315,8 +347,10 @@ export function GalleryFilterDropdowns({
       // a lone item stranded on its own row stretches to fill that row
       // instead of sitting narrow beside empty space, which was the actual
       // "weird" part: wrapping itself is fine, an orphaned narrow control
-      // isn't.
-      className="hidden flex-wrap items-center gap-3 desktop:flex"
+      // isn't. `min-w-0 flex-1`: seven dropdowns wrap here, inside the room
+      // beside the sort switch, rather than pushing the switch onto a line of
+      // its own (his PR 1b answer, quoted above the component).
+      className="hidden min-w-0 flex-1 flex-wrap items-center gap-3 desktop:flex"
     >
       <Dropdown
         legend={uk.filters.city}
@@ -399,6 +433,40 @@ export function GalleryFilterDropdowns({
             href={galleryHref(withToggledCoat(filters, coat), sort, citySlugs)}
           >
             {COAT_LABEL[coat]}
+          </DropdownOption>
+        ))}
+      </Dropdown>
+
+      <Dropdown
+        legend={TEMPERAMENT_GROUP_LABEL}
+        active={temperamentActive}
+        label={temperamentLabel}
+        clearHref={galleryHref(relaxDimension(filters, "temperaments"), sort, citySlugs)}
+      >
+        {TEMPERAMENT_TRAITS.map((trait) => (
+          <DropdownOption
+            key={trait}
+            active={isExplicitlySelected(filters.temperaments, trait)}
+            href={galleryHref(withToggledTemperament(filters, trait), sort, citySlugs)}
+          >
+            {temperamentFilterLabel(trait)}
+          </DropdownOption>
+        ))}
+      </Dropdown>
+
+      <Dropdown
+        legend={COLOUR_GROUP_LABEL}
+        active={colourActive}
+        label={colourLabel}
+        clearHref={galleryHref(relaxDimension(filters, "colours"), sort, citySlugs)}
+      >
+        {COAT_COLOURS.map((colour) => (
+          <DropdownOption
+            key={colour}
+            active={isExplicitlySelected(filters.colours, colour)}
+            href={galleryHref(withToggledColour(filters, colour), sort, citySlugs)}
+          >
+            {colourFilterLabel(colour)}
           </DropdownOption>
         ))}
       </Dropdown>

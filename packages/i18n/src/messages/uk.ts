@@ -832,6 +832,15 @@ export const uk = {
     /** The fur dimension's own suggestion, his text (DR1, 2026-10-20): a
      * whole template of its own, not `removeDimension` with a fur label. */
     relaxCoat: "Будь-яка шерсть: +{count}",
+    /**
+     * Pet card PR 1b: the temperament and colour suggestions, built on his
+     * `relaxCoat` above, word for word but the group's noun, agreeing in
+     * gender («характер» masculine, «забарвлення» neuter). **The builder's
+     * draft, awaiting his sign-off** (inbox PC1b-C1): not `[COPY PENDING]`,
+     * which nothing in `uk` may be.
+     */
+    relaxTemperament: "Будь-який характер: +{count}",
+    relaxColour: "Будь-яке забарвлення: +{count}",
     /** Static, filter-value-independent - the mock's own closing caption
      * below the two suggestion buttons (`Opika Registry System.dc.html`'s
      * B4 frame), unlike the middle sentence above which names one specific

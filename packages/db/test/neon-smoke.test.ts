@@ -124,8 +124,11 @@ describe("runSmoke against the local database", () => {
     // read-back confirming the null landed for real, not just in the
     // statement's own reported count. Then 43, the pet card's fields
     // (migration 0017): the schema's first array column, set and cleared
-    // through writeEditIf and read back.
-    expect(outcomes.length).toBe(48);
+    // through writeEditIf and read back. Then 44, two checks (pet card PR 1b):
+    // the temperament filter's array overlap, one scalar parameter per trait,
+    // and the colour filter, in the gallery, the deck and the relaxation
+    // counts.
+    expect(outcomes.length).toBe(50);
   });
 
   it("passes every statement over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
@@ -147,6 +150,6 @@ describe("runSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes.length).toBe(48);
+    expect(outcomes.length).toBe(50);
   });
 });

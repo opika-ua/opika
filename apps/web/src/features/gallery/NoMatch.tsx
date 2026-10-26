@@ -13,21 +13,33 @@ interface NoMatchProps {
   relaxations: readonly GalleryRelaxation[];
 }
 
-const DIMENSION_LABEL: Record<Exclude<FeedFilterDimension, "coatLengths">, string> = {
+/**
+ * Fur has a sentence of its own (his `noMatch.relaxCoat`, DR1), so it never
+ * goes through «Прибрати «{dimension}»»: the bare count is his template's
+ * whole number, with no noun to agree with it. Temperament and colour (pet
+ * card PR 1b) follow fur's pattern, «Будь-який характер: +{count}» and
+ * «Будь-яке забарвлення: +{count}».
+ */
+const OWN_SENTENCE = {
+  coatLengths: uk.noMatch.relaxCoat,
+  temperaments: uk.noMatch.relaxTemperament,
+  colours: uk.noMatch.relaxColour,
+} as const satisfies Partial<Record<FeedFilterDimension, string>>;
+type OwnSentenceDimension = keyof typeof OWN_SENTENCE;
+
+const hasOwnSentence = (dimension: FeedFilterDimension): dimension is OwnSentenceDimension =>
+  Object.hasOwn(OWN_SENTENCE, dimension);
+
+const DIMENSION_LABEL: Record<Exclude<FeedFilterDimension, OwnSentenceDimension>, string> = {
   cities: uk.filters.city.toLowerCase(),
   species: uk.filters.species.toLowerCase(),
   sizes: uk.filters.size.toLowerCase(),
   ages: uk.filters.age.toLowerCase(),
 };
 
-/**
- * Fur has a sentence of its own (his `noMatch.relaxCoat`, DR1), so it never
- * goes through «Прибрати «{dimension}»»: the bare count is his template's
- * whole number, with no noun to agree with it.
- */
 function suggestionLabel({ dimension, additional }: GalleryRelaxation): string {
-  if (dimension === "coatLengths") {
-    return fillTemplate(uk.noMatch.relaxCoat, { count: String(additional) });
+  if (hasOwnSentence(dimension)) {
+    return fillTemplate(OWN_SENTENCE[dimension], { count: String(additional) });
   }
   const animalWord = uk.noMatch.additionalAnimals
     .replace("{count}", String(additional))

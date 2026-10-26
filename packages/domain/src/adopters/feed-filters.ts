@@ -2,7 +2,9 @@ import { z } from "zod";
 import { AGE_BUCKETS, AgeBucketSchema } from "../animals/age";
 import { ANIMAL_SPECIES, AnimalSpeciesSchema } from "../animals/animal";
 import { COAT_LENGTHS, CoatLengthSchema } from "../animals/coat";
+import { COAT_COLOURS, CoatColourSchema } from "../animals/colour";
 import { SIZE_BUCKETS, SizeBucketSchema } from "../animals/size";
+import { TEMPERAMENT_TRAITS, TemperamentTraitSchema } from "../animals/temperament";
 import { CityIdSchema } from "../primitives/ids";
 
 /**
@@ -47,6 +49,19 @@ export const FeedFiltersSchema = z.object({
    * segment, so no earlier fingerprint can equal a current one.
    */
   coatLengths: filterSelectionSchema(CoatLengthSchema).default({ kind: "any" }),
+  /**
+   * The pet card's two filterable fields, defaulted for the reason fur is: a
+   * filter set from before they existed still parses, as "no temperament or
+   * colour filter", and its cursor answers `INVALID_CURSOR` once.
+   *
+   * A temperament filter matches an animal that has *any* of the chosen
+   * traits, not all of them: ticking «Грайливі» and «Спокійні» widens the
+   * list, as every other multi-select here does. Only the presets are
+   * filterable; a custom entry or a custom colour is the shelter's own words,
+   * which no filter can enumerate.
+   */
+  temperaments: filterSelectionSchema(TemperamentTraitSchema).default({ kind: "any" }),
+  colours: filterSelectionSchema(CoatColourSchema).default({ kind: "any" }),
 });
 export type FeedFilters = z.infer<typeof FeedFiltersSchema>;
 
@@ -56,6 +71,8 @@ export const NO_FILTERS: FeedFilters = {
   sizes: { kind: "any" },
   ages: { kind: "any" },
   coatLengths: { kind: "any" },
+  temperaments: { kind: "any" },
+  colours: { kind: "any" },
 };
 
 /**
@@ -63,8 +80,9 @@ export const NO_FILTERS: FeedFilters = {
  * hand-written string literals.
  *
  * `FeedFiltersSchema.keyof()` derives this from the schema itself, so adding a
- * dimension (fur was the fifth) cannot leave a relaxation suggestion, a URL
- * parameter or a count query silently covering only the earlier ones.
+ * dimension (fur was the fifth, temperament and colour the sixth and seventh)
+ * cannot leave a relaxation suggestion, a URL parameter or a count query
+ * silently covering only the earlier ones.
  */
 export const FeedFilterDimensionSchema = FeedFiltersSchema.keyof();
 export type FeedFilterDimension = z.infer<typeof FeedFilterDimensionSchema>;
@@ -143,6 +161,13 @@ const canonicalizeSelection = <T extends string>(
  * Two filter sets that mean the same thing must serialise identically, or a
  * keyset cursor issued against one stops matching the other and the feed
  * silently restarts. Also what makes filter state shareable in a URL.
+ *
+ * Fur, temperament and colour can be unrecorded, so for them "every box
+ * ticked" and "no filter" differ by one group: the animals with nothing
+ * recorded, which only "no filter" admits. They collapse anyway, as fur
+ * already did. A person who ticks every option is asking for everything the
+ * filter offers, not for "only animals whose shelter described them", and two
+ * encodings of that one request would be the cursor mismatch above.
  */
 export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
   cities: canonicalizeSelection(filters.cities, null),
@@ -150,6 +175,8 @@ export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
   sizes: canonicalizeSelection(filters.sizes, SIZE_BUCKETS),
   ages: canonicalizeSelection(filters.ages, AGE_BUCKETS),
   coatLengths: canonicalizeSelection(filters.coatLengths, COAT_LENGTHS),
+  temperaments: canonicalizeSelection(filters.temperaments, TEMPERAMENT_TRAITS),
+  colours: canonicalizeSelection(filters.colours, COAT_COLOURS),
 });
 
 /**
@@ -159,6 +186,11 @@ export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
  * unfiltered feed means nothing once a city is selected. Embedding this in the
  * cursor payload turns "cursor reused across a filter change" from a silently
  * wrong page into a rejected one. Doubles as the URL state key.
+ *
+ * A new dimension appends its segment, never inserts one: an older
+ * fingerprint then has fewer segments than any current one, so it can never
+ * equal one, and a cursor issued before the dimension existed is refused
+ * once rather than read against the wrong filters.
  */
 export const filtersFingerprint = (filters: FeedFilters): string => {
   const canonical = canonicalizeFilters(filters);
@@ -171,5 +203,7 @@ export const filtersFingerprint = (filters: FeedFilters): string => {
     encode(canonical.sizes),
     encode(canonical.ages),
     encode(canonical.coatLengths),
+    encode(canonical.temperaments),
+    encode(canonical.colours),
   ].join("|");
 };

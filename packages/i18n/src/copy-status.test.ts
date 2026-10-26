@@ -2063,6 +2063,38 @@ describe("pet card kabinet copy (his approval, 2026-10-26)", () => {
 });
 
 /**
+ * Pet card PR 1b: the two no-match suggestions for the new filters. **The
+ * builder's drafts, not his copy**, awaiting his sign-off (inbox PC1b-C1):
+ * fur's «Будь-яка шерсть: +{count}» (his, `DR1_FUR` above) with the group's
+ * noun swapped and the adjective agreeing with it. Pinned so his answer, if it
+ * changes them, changes this table too, and the heading here can then say
+ * whose words they are. The filter groups' names reuse his approved kabinet
+ * titles (`PET_CARD_COPY`); the options reuse PR 1's card words.
+ */
+const PC1B_DRAFTS: Record<string, string> = {
+  "noMatch.relaxTemperament": "Будь-який характер: +{count}",
+  "noMatch.relaxColour": "Будь-яке забарвлення: +{count}",
+};
+
+describe("pet card filter suggestions (builder drafts, awaiting his sign-off)", () => {
+  const atRoot = (path: string): unknown =>
+    path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], uk);
+
+  it.each(Object.entries(PC1B_DRAFTS))("%s is the draft, exactly", (path, text) => {
+    expect(atRoot(path)).toBe(text);
+  });
+
+  it("each keeps fur's shape: «Будь-…» + the group's noun + «: +{count}»", () => {
+    for (const path of Object.keys(PC1B_DRAFTS)) {
+      expect(atRoot(path), path).toMatch(/^Будь-\S+ \S+: \+\{count\}$/u);
+    }
+    expect(uk.noMatch.relaxCoat).toMatch(/^Будь-\S+ \S+: \+\{count\}$/u);
+  });
+});
+
+/**
  * Designer round 1, S4: the preview drawer's strings (`docs/designer-round-1.md`
  * §11, item 3, Oleksii, 2026-10-20), transcribed from that item, never read
  * from `uk.ts`. Item 3, verbatim: "preview.close: yes, reuse the existing

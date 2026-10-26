@@ -51,3 +51,57 @@ describe("NoMatch: the fur suggestion", () => {
     );
   });
 });
+
+/**
+ * Pet card PR 1b: temperament and colour take fur's pattern, a sentence of
+ * their own. Expected text is the builder's draft as it stands in the
+ * catalogue (inbox PC1b-C1, awaiting his sign-off), typed out here.
+ */
+describe("NoMatch: the temperament and colour suggestions", () => {
+  const filters: FeedFilters = {
+    ...NO_FILTERS,
+    species: { kind: "oneOf", values: ["cat"] },
+    temperaments: { kind: "oneOf", values: ["playful"] },
+    colours: { kind: "oneOf", values: ["cream"] },
+  };
+
+  it("names each one's count in its own sentence, in the contract's order", () => {
+    render(
+      <NoMatch
+        filters={filters}
+        sort="freshest"
+        citySlugs={new Map()}
+        relaxations={[
+          { dimension: "colours", additional: 12 },
+          { dimension: "temperaments", additional: 5 },
+          { dimension: "species", additional: 1 },
+        ]}
+      />,
+    );
+    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual([
+      "Будь-яке забарвлення: +12",
+      "Будь-який характер: +5",
+      "Прибрати «вид» (+1 тварина)",
+    ]);
+  });
+
+  it("each links to the same filters with only its own dimension dropped", () => {
+    render(
+      <NoMatch
+        filters={filters}
+        sort="longest_waiting"
+        citySlugs={new Map()}
+        relaxations={[
+          { dimension: "temperaments", additional: 5 },
+          { dimension: "colours", additional: 12 },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Будь-який характер: +5" }).getAttribute("href")).toBe(
+      "/tvaryny?vyd=cat&zabarvlennia=cream&sort=longest_waiting",
+    );
+    expect(
+      screen.getByRole("link", { name: "Будь-яке забарвлення: +12" }).getAttribute("href"),
+    ).toBe("/tvaryny?vyd=cat&kharakter=playful&sort=longest_waiting");
+  });
+});

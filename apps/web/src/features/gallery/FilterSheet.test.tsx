@@ -202,4 +202,59 @@ describe("FilterSheet", () => {
     expect((sheet.getByLabelText("Короткошерсті") as HTMLInputElement).checked).toBe(true);
     expect((sheet.getByLabelText("Довгошерсті") as HTMLInputElement).checked).toBe(false);
   });
+  /**
+   * Pet card PR 1b: the «Характер» and «Забарвлення» groups. A native GET
+   * submission of two ticked boxes repeats the param; the sheet reads that
+   * back through the same parser and writes the one canonical URL.
+   */
+  it("has a «Характер» group; ticking two traits submits them as one `kharakter`", () => {
+    const { router } = renderSheet();
+    const sheet = within(screen.getByTestId("filter-sheet"));
+    const group = within(sheet.getByRole("group", { name: "Характер", hidden: true }));
+    expect(group.getAllByRole("checkbox", { hidden: true })).toHaveLength(9);
+
+    fireEvent.click(group.getByLabelText("Соромʼязливі"));
+    fireEvent.click(group.getByLabelText("Ладнають з дітьми"));
+    fireEvent.click(sheet.getByRole("button", { name: /Показати/, hidden: true }));
+
+    const [href] = router.replace.mock.calls[0] as [string];
+    expect(new URL(href, "http://x").searchParams.get("kharakter")).toBe("good_with_kids,shy");
+  });
+
+  it("has a «Забарвлення» group; ticking «Триколірне» submits `zabarvlennia=tricolour`", () => {
+    const { router } = renderSheet();
+    const sheet = within(screen.getByTestId("filter-sheet"));
+    const group = within(sheet.getByRole("group", { name: "Забарвлення", hidden: true }));
+    expect(group.getAllByRole("checkbox", { hidden: true })).toHaveLength(10);
+
+    fireEvent.click(group.getByLabelText("Триколірне"));
+    fireEvent.click(sheet.getByRole("button", { name: /Показати/, hidden: true }));
+
+    const [href] = router.replace.mock.calls[0] as [string];
+    expect(new URL(href, "http://x").searchParams.get("zabarvlennia")).toBe("tricolour");
+  });
+
+  it("ticking every colour submits no colour filter at all", () => {
+    const { router } = renderSheet();
+    const sheet = within(screen.getByTestId("filter-sheet"));
+    const group = within(sheet.getByRole("group", { name: "Забарвлення", hidden: true }));
+    for (const box of group.getAllByRole("checkbox", { hidden: true })) fireEvent.click(box);
+    fireEvent.click(sheet.getByRole("button", { name: /Показати/, hidden: true }));
+
+    const [href] = router.replace.mock.calls[0] as [string];
+    expect(href).toBe("/tvaryny");
+  });
+
+  it("shows the applied temperament and colour as checked", () => {
+    renderSheet({
+      ...NO_FILTERS,
+      temperaments: { kind: "oneOf", values: ["calm"] },
+      colours: { kind: "oneOf", values: ["grey"] },
+    });
+    const sheet = within(screen.getByTestId("filter-sheet"));
+    expect((sheet.getByLabelText("Спокійні") as HTMLInputElement).checked).toBe(true);
+    expect((sheet.getByLabelText("Грайливі") as HTMLInputElement).checked).toBe(false);
+    expect((sheet.getByLabelText("Сіре") as HTMLInputElement).checked).toBe(true);
+    expect((sheet.getByLabelText("Біле") as HTMLInputElement).checked).toBe(false);
+  });
 });

@@ -55,7 +55,13 @@ export function GallerySortToggle({ filters, sort, citySlugs }: GallerySortToggl
   const otherHref = sort === "freshest" ? longestWaitingHref : freshestHref;
 
   return (
-    <nav aria-label={uk.filters.sortLabel} className="flex items-center gap-3 font-brand-ui">
+    // `shrink-0`: in the control block's row the dropdowns give way and wrap,
+    // never the switch. `min-h-13` is a dropdown trigger's own height, so the
+    // switch sits centred on the first line of dropdowns beside it.
+    <nav
+      aria-label={uk.filters.sortLabel}
+      className="flex min-h-13 shrink-0 items-center gap-3 font-brand-ui"
+    >
       <Link
         prefetch={false}
         href={freshestHref}
