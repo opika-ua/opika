@@ -30,6 +30,12 @@ const animal: Animal = {
   vaccination: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
   spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
   documentReadiness: { kind: "unknown" },
+  temperament: [
+    { kind: "preset", trait: "affectionate" },
+    { kind: "custom", text: { uk: "Муркоче на руках", en: null } },
+  ],
+  colour: { kind: "preset", colour: "ginger" },
+  medicalNotes: { uk: "Потребує гіпоалергенного корму.", en: null },
   listing: { kind: "published", publishedAt: AT, confirmedAt: AT, undoable: null },
   publicLocation: null,
   everServedAt: AT,
@@ -99,10 +105,12 @@ describe("animal views expose exactly their intended fields", () => {
     expect(Object.keys(parsed).sort()).toEqual([
       "ageBucket",
       "coatLength",
+      "colour",
       "description",
       "documentReadiness",
       "freshness",
       "id",
+      "medicalNotes",
       "name",
       "photos",
       "publicLocation",
@@ -111,8 +119,51 @@ describe("animal views expose exactly their intended fields", () => {
       "size",
       "spayNeuter",
       "species",
+      "temperament",
       "vaccination",
     ]);
+  });
+
+  /**
+   * The pet card's temperament, colour and medical note reach the animal page
+   * as stored, and never the gallery or deck card: the card has no room for
+   * them, and the deck holds several cards in memory at once.
+   */
+  it("the animal page carries temperament, colour and the medical note as stored; the feed card none of them", () => {
+    const detail = AnimalDetailViewSchema.parse({ ...animal, ...derived, shelter: shelterSummary });
+    expect(detail.temperament).toEqual(animal.temperament);
+    expect(detail.colour).toEqual(animal.colour);
+    expect(detail.medicalNotes).toEqual(animal.medicalNotes);
+
+    const card = FeedCardViewSchema.parse({
+      ...animal,
+      ...derived,
+      primaryPhoto: null,
+      shelter: shelterSummary,
+    });
+    for (const field of ["temperament", "colour", "medicalNotes"]) {
+      expect(card, field).not.toHaveProperty(field);
+    }
+  });
+
+  it("the animal page carries each unrecorded as itself ([] or null), never dropped", () => {
+    const unrecorded = { ...animal, temperament: [], colour: null, medicalNotes: null };
+    const detail = AnimalDetailViewSchema.parse({
+      ...unrecorded,
+      ...derived,
+      shelter: shelterSummary,
+    });
+    expect(detail.temperament).toEqual([]);
+    expect(detail.colour).toBeNull();
+    expect(detail.medicalNotes).toBeNull();
+    for (const field of ["temperament", "colour", "medicalNotes"] as const) {
+      const { [field]: _omitted, ...without } = animal;
+      expect(
+        AnimalDetailViewSchema.safeParse({ ...without, ...derived, shelter: shelterSummary })
+          .success,
+        field,
+      ).toBe(false);
+    }
   });
 
   it("both public views carry unrecorded fur as null, never dropped or invented (DR1-D10)", () => {

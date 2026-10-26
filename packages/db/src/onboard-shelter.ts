@@ -390,6 +390,12 @@ export function buildAnimal(
     vaccination: UNKNOWN_ATTESTATION(now),
     spayNeuter: UNKNOWN_ATTESTATION(now),
     documentReadiness: UNKNOWN_DOCUMENT_READINESS,
+    // Not part of the onboarding input, like fur (DR1-D12): an onboarded
+    // animal starts with no temperament, colour or medical note recorded,
+    // and the shelter records them in the kabinet. No new flag.
+    temperament: [],
+    colour: null,
+    medicalNotes: null,
     // Publishing is the first confirmation: a shelter handing over a live
     // animal is saying it is looking for a home today.
     listing,

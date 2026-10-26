@@ -296,6 +296,50 @@ export const en = {
     sexFemale: "girl",
   },
 
+  // --- The pet card's temperament (English drafts; see the uk keys) ---
+  // English adjectives don't inflect, so the three forms only differ where
+  // the verb does.
+  temperament: {
+    playful: { masculine: "Playful", feminine: "Playful", plural: "Playful" },
+    calm: { masculine: "Calm", feminine: "Calm", plural: "Calm" },
+    affectionate: { masculine: "Affectionate", feminine: "Affectionate", plural: "Affectionate" },
+    energetic: { masculine: "Energetic", feminine: "Energetic", plural: "Energetic" },
+    independent: { masculine: "Independent", feminine: "Independent", plural: "Independent" },
+    shy: { masculine: "Shy", feminine: "Shy", plural: "Shy" },
+    good_with_kids: {
+      masculine: "Gets on with children",
+      feminine: "Gets on with children",
+      plural: "Get on with children",
+    },
+    good_with_cats: {
+      masculine: "Gets on with cats",
+      feminine: "Gets on with cats",
+      plural: "Get on with cats",
+    },
+    good_with_dogs: {
+      masculine: "Gets on with dogs",
+      feminine: "Gets on with dogs",
+      plural: "Get on with dogs",
+    },
+  },
+
+  // --- The pet card's coat colour (English drafts) ---
+  coatColour: {
+    names: {
+      black: "Black",
+      white: "White",
+      grey: "Grey",
+      ginger: "Ginger",
+      brown: "Brown",
+      cream: "Cream",
+      black_white: "Black and white",
+      tricolour: "Tricolour",
+      tabby: "Tabby",
+      spotted: "Spotted",
+    },
+    chip: "{label} coat",
+  },
+
   // --- Pagination footer (E3) ---
   pagination: {
     navLabel: "Pages",
@@ -673,6 +717,12 @@ export const en = {
         long: "Long",
         unknown: "Not given",
       },
+      colour: {
+        title: "Coat colour",
+        unknown: "Not given",
+        other: "Other",
+        customPlaceholder: "In your own words",
+      },
       age: {
         title: "Age",
         modeLabel: "What is known about the age",
@@ -700,6 +750,12 @@ export const en = {
         hint: "Plain text, no formatting.",
         counter: "{count} of {max} characters",
         counterOver: "Characters over the limit: {over}",
+      },
+      temperament: {
+        title: "Temperament",
+        hint: "You can choose several. Optional.",
+        other: "Other",
+        customPlaceholder: "In your own words",
       },
       health: {
         title: "Medical",
@@ -1339,6 +1395,9 @@ export const en = {
         description: "Description",
         photos: "Photos",
         coatLength: "Fur",
+        temperament: "Temperament",
+        colour: "Coat colour",
+        medicalNotes: "Medical",
       },
     },
   },

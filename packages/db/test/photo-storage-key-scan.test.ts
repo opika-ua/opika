@@ -135,7 +135,7 @@ type Kind = "storage" | "view" | "definition";
 const EXPECTED_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   {
     file: "domain/src/animals/animal.ts",
-    line: 59,
+    line: 62,
     text: "photos: z.array(AnimalPhotoSchema).max(MAX_ANIMAL_PHOTOS).readonly(),",
     kind: "storage",
     why:

@@ -31,6 +31,9 @@ export function makeDetailAnimal(overrides: Partial<AnimalDetailView> = {}): Ani
     vaccination: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
     spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
     documentReadiness: { kind: "unknown" },
+    temperament: [],
+    colour: null,
+    medicalNotes: null,
     ageBucket: "young",
     freshness: { kind: "aging", confirmedAt: AT, ageDays: 5 },
     shelter: {

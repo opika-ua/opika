@@ -69,6 +69,9 @@ export async function animalsById(
     vaccination: animal.vaccination,
     spayNeuter: animal.spayNeuter,
     documentReadiness: animal.documentReadiness,
+    temperament: animal.temperament,
+    colour: animal.colour,
+    medicalNotes: animal.medicalNotes,
     ageBucket: ageBucketOf(animal.age, context.now),
     freshness: listingFreshness(animal.listing, context.now),
     shelter: {

@@ -22,6 +22,9 @@ const baseAnimal: DiscoverableAnimal = {
   vaccination: { source: "shelter_declared", state: "confirmed", declaredAt: NOW },
   spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: NOW },
   documentReadiness: { kind: "unknown" },
+  temperament: [],
+  colour: null,
+  medicalNotes: null,
   listing: { kind: "published", publishedAt: NOW, confirmedAt: NOW, undoable: null },
   publicLocation: null,
   everServedAt: NOW,
@@ -189,6 +192,25 @@ describe("completeness stays photos, description and vaccination (commitment 1)"
     const scores = (["short", "long", null] as const).map((coatLength) =>
       scoreAt(animal({ coatLength }), 0, longOnly),
     );
+    expect(new Set(scores).size).toBe(1);
+  });
+
+  it("scores an animal the same whatever its temperament, colour and medical note", () => {
+    // Commitment 1: date and completeness order a card, nothing else. Recording
+    // character, colour or a medical note must never move one.
+    const scores = [
+      animal({}),
+      animal({
+        temperament: [
+          { kind: "preset", trait: "playful" },
+          { kind: "preset", trait: "good_with_kids" },
+          { kind: "custom", text: { uk: "Обожнює мʼячики", en: null } },
+        ],
+      }),
+      animal({ colour: { kind: "preset", colour: "ginger" } }),
+      animal({ colour: { kind: "custom", text: { uk: "Димчастий", en: null } } }),
+      animal({ medicalNotes: { uk: "Має хронічний гастрит, потребує дієти.", en: null } }),
+    ].map((subject) => scoreAt(subject, 0));
     expect(new Set(scores).size).toBe(1);
   });
 });

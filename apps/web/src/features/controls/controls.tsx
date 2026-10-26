@@ -237,6 +237,27 @@ export function RadioOption({
   );
 }
 
+/**
+ * `RadioOption`'s row for a choice of several (the pet card's temperament
+ * first): the whole row is the label and the touch target, on the 48px
+ * token, and the checkbox holds focus and takes the shared ring. The group's
+ * question is the surrounding `fieldset`'s `legend`.
+ */
+export function CheckboxOption({
+  label,
+  className = "",
+  ...props
+}: { label: ReactNode } & Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
+  return (
+    <label
+      className={`flex min-h-target items-center gap-3 rounded-rg-button bg-rg-fill px-4 ${className}`}
+    >
+      <input type="checkbox" className={FOCUS_RING} {...props} />
+      <span className={LABEL}>{label}</span>
+    </label>
+  );
+}
+
 export type Segment<T extends string> = {
   value: T;
   label: ReactNode;

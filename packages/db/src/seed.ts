@@ -29,6 +29,7 @@ import { pathToFileURL } from "node:url";
 import {
   type AgeEstimate,
   type Animal,
+  type AnimalColour,
   type AnimalId,
   type AnimalListingState,
   type AnimalPhoto,
@@ -37,6 +38,7 @@ import {
   animalPublicLocationOf,
   type City,
   type CityId,
+  COAT_COLOURS,
   type CoatLength,
   citySlugOf,
   type DocumentReadiness,
@@ -54,6 +56,8 @@ import {
   type ShelterVerification,
   type SizeBucket,
   type SpayNeuterStatus,
+  TEMPERAMENT_TRAITS,
+  type Temperament,
   type TranslatedText,
   testOnlyLocationPolicy,
   UNKNOWN_DOCUMENT_READINESS,
@@ -1054,6 +1058,35 @@ const DESCRIPTIONS_UK = [
   "Веселої натури, обожнює грати з мʼячиком. Добре ладнає з дітьми старше 7 років.",
 ];
 
+/**
+ * The pet card's free-text fields (fictional, like the rest). Each is under
+ * its kabinet cap: 40 characters for a custom temperament, 30 for a custom
+ * colour, 1,500 for a medical note. The first of each carries an English
+ * text, so the English columns round-trip in the seeded corpus too.
+ */
+const CUSTOM_TEMPERAMENTS: readonly LocalizedText[] = [
+  { uk: "Боїться грози", en: { text: "Afraid of thunderstorms", provenance: "human" } },
+  { uk: "Любить їздити в машині", en: null },
+  { uk: "Обожнює мʼячики", en: null },
+  { uk: "Спить лише на дивані", en: null },
+];
+
+const CUSTOM_COLOURS: readonly LocalizedText[] = [
+  { uk: "Димчасте", en: { text: "Smoky", provenance: "machine" } },
+  { uk: "Палеве з білими лапками", en: null },
+  { uk: "Шоколадне", en: null },
+];
+
+const MEDICAL_NOTES: readonly LocalizedText[] = [
+  {
+    uk: "Потребує гіпоалергенного корму.",
+    en: { text: "Needs hypoallergenic food.", provenance: "human" },
+  },
+  { uk: "Має хронічний гастрит, годуємо дієтичним кормом.", en: null },
+  { uk: "Після лікування лапи трохи накульгує, але бігає й грається.", en: null },
+  { uk: "Щорічний огляд у ветеринара пройдено, без зауважень.", en: null },
+];
+
 const DESCRIPTIONS_EN: { text: string; provenance: "human" | "machine" }[] = [
   {
     text: "Very friendly animal, loves children and other pets. Trained for outdoor walks.",
@@ -1186,6 +1219,35 @@ export function buildAnimals(
     // relaxation count and «Не записано» all have rows to show.
     const coatRoll = i % 7;
     const coatLength: CoatLength | null = coatRoll < 3 ? "short" : coatRoll < 5 ? "long" : null;
+
+    // The pet card's fields, each on its own cycle so they spread across
+    // both species (cycle 3) and every listing kind (cycle 20), with
+    // unrecorded values among published animals: every temperament preset
+    // and every colour preset, a custom entry of each, an empty temperament,
+    // no colour and no medical note all have discoverable rows to show.
+    //
+    // Temperament: one to three presets (stepping by 4, coprime with the nine
+    // traits, so no repeat), nothing on every sixth, and a custom entry last
+    // on every eleventh (`TemperamentSchema`'s order).
+    const temperamentCount = i % 6 === 5 ? 0 : 1 + (i % 3);
+    const temperament: Temperament = [
+      ...Array.from({ length: temperamentCount }, (_, k) => ({
+        kind: "preset" as const,
+        trait: pick(TEMPERAMENT_TRAITS, i + k * 4),
+      })),
+      ...(i % 11 === 4 ? [{ kind: "custom" as const, text: pick(CUSTOM_TEMPERAMENTS, i) }] : []),
+    ];
+    // Colour: the ten presets in turn, then the shelter's own words, then
+    // «Не вказано» (cycle 12).
+    const colourRoll = i % 12;
+    const colour: AnimalColour | null =
+      colourRoll < COAT_COLOURS.length
+        ? { kind: "preset", colour: pick(COAT_COLOURS, colourRoll) }
+        : colourRoll === COAT_COLOURS.length
+          ? { kind: "custom", text: pick(CUSTOM_COLOURS, i) }
+          : null;
+    // A medical note on one animal in four; the rest omit the card's column.
+    const medicalNotes: LocalizedText | null = i % 4 === 1 ? pick(MEDICAL_NOTES, i) : null;
 
     // Age: mix of birth_date and declared_bucket
     const age: AgeEstimate =
@@ -1392,6 +1454,9 @@ export function buildAnimals(
       vaccination,
       spayNeuter,
       documentReadiness,
+      temperament,
+      colour,
+      medicalNotes,
       publicLocation,
       // S8-F5: fictional seed data, computed the same way the real hooks
       // would, not hand-set - so a verified shelter's published animals

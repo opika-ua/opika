@@ -698,6 +698,83 @@ export const uk = {
     sexFemale: "Дівчинка",
   },
 
+  // --- The pet card's temperament: chips, kabinet checkboxes, filter options ---
+  /**
+   * His words and his table. Oleksii, 2026-10-26, in the coordinating
+   * session, verbatim as that session relayed it to this branch, except that
+   * his nine-row table is shortened to the bracket, since the keys below are
+   * it, form for form: "PC-Q2, temperament labels (owner rewrite): no «вдача»
+   * phrasing. Use adjectives that agree with the animal's sex. Each trait
+   * gets male / female / plural forms in packages/i18n (domain keys
+   * unchanged): [his table: each trait's male / female / plural forms, as
+   * below] The apostrophe in «Сором'язливий» is ʼ (U+02BC), not '. Chips on
+   * the pet card use the animal's sex: male → male form, female → female
+   * form, sex not recorded → male form. Kabinet checkboxes use the form for
+   * the sex currently selected in the form, and update live if the sex
+   * changes. The gallery filter dropdown (and the chip link's accessible
+   * name) uses the plural. Add a unit test: the label picks the right form
+   * for male, female, unknown and the filter context."
+   *
+   * The forms follow `grammaticalGenderOf`, the age word's rule (his "sex not
+   * recorded → male form" is its masculine for «Не записано»). The three
+   * «Ладнає з …» traits have no gender, only a number.
+   */
+  temperament: {
+    playful: { masculine: "Грайливий", feminine: "Грайлива", plural: "Грайливі" },
+    calm: { masculine: "Спокійний", feminine: "Спокійна", plural: "Спокійні" },
+    affectionate: { masculine: "Ласкавий", feminine: "Ласкава", plural: "Ласкаві" },
+    energetic: { masculine: "Енергійний", feminine: "Енергійна", plural: "Енергійні" },
+    independent: { masculine: "Самостійний", feminine: "Самостійна", plural: "Самостійні" },
+    shy: { masculine: "Соромʼязливий", feminine: "Соромʼязлива", plural: "Соромʼязливі" },
+    good_with_kids: {
+      masculine: "Ладнає з дітьми",
+      feminine: "Ладнає з дітьми",
+      plural: "Ладнають з дітьми",
+    },
+    good_with_cats: {
+      masculine: "Ладнає з котами",
+      feminine: "Ладнає з котами",
+      plural: "Ладнають з котами",
+    },
+    good_with_dogs: {
+      masculine: "Ладнає з собаками",
+      feminine: "Ладнає з собаками",
+      plural: "Ладнають з собаками",
+    },
+  },
+
+  // --- The pet card's coat colour: the chip and the filter option ---
+  /**
+   * Proposed to him, then confirmed by him. The coordinating session put this
+   * table to him in its Phase 0 proposal, on a research agent's
+   * recommendation: a pattern such as «смугастий» doesn't read as a colour,
+   * and a bare masculine colour word on a female animal's chip reads wrong.
+   * Oleksii confirmed it, 2026-10-26, in the coordinating session, verbatim:
+   * "Colour stays as approved: neuter forms agreeing with «забарвлення».
+   * Everything else from my previous message stands." He approved the
+   * proposed forms; he didn't write the words himself.
+   *
+   * One form per colour, the neuter, which agrees with «забарвлення» in the
+   * chip and stands alone as a filter option; the animal's sex never changes
+   * it.
+   */
+  coatColour: {
+    names: {
+      black: "Чорне",
+      white: "Біле",
+      grey: "Сіре",
+      ginger: "Руде",
+      brown: "Коричневе",
+      cream: "Кремове",
+      black_white: "Чорно-біле",
+      tricolour: "Триколірне",
+      tabby: "Смугасте",
+      spotted: "Плямисте",
+    },
+    /** Template: "{label}" is one of `names`. */
+    chip: "{label} забарвлення",
+  },
+
   // --- Pagination footer (E3, re-skinned V2) ---
   // `docs/design/Opika Registry System.dc.html`'s pagination row (lines
   // 189-195) has the literal values: prev/next are visible-text buttons
@@ -1545,6 +1622,26 @@ export const uk = {
         long: "Довга",
         unknown: "Не вказано",
       },
+      /**
+       * Pet card redesign. These four, `temperament`'s four below and the
+       * three history labels are his approved copy. Oleksii, 2026-10-26, in
+       * the coordinating session, verbatim: "Kabinet strings: approved
+       * as-is. All 13, exactly as in your table, are now owner-approved final
+       * copy." His 13 also held the medical note's label and hint, which
+       * wait for PR 5 with the note's field (inbox PC1-D1). The first commit
+       * of these strings (eb929c6) already called them owner-approved, before
+       * he had answered: that claim was wrong when it was written, and his
+       * answer above is the approval it lacked.
+       *
+       * `unknown` is `coat.unknown`'s own words, written out again: the two
+       * fields' «not given» must read the same.
+       */
+      colour: {
+        title: "Забарвлення",
+        unknown: "Не вказано",
+        other: "Інше",
+        customPlaceholder: "Своїми словами",
+      },
       age: {
         title: "Вік",
         modeLabel: "Що відомо про вік",
@@ -1575,6 +1672,13 @@ export const uk = {
         /** «символів» is the form for 1,500 (pinned in `copy-plural-pins.test.ts`). */
         counter: "{count} з {max} символів",
         counterOver: "Зайвих символів: {over}",
+      },
+      /** Pet card redesign; his approval is quoted at `colour` above. The chips' words are `temperament.*`. */
+      temperament: {
+        title: "Характер",
+        hint: "Можна обрати кілька. Необовʼязково.",
+        other: "Інше",
+        customPlaceholder: "Своїми словами",
       },
       health: {
         title: "Медичний стан",
@@ -2483,6 +2587,15 @@ export const uk = {
         photos: "Фото",
         /** DR1 (S3), his text (2026-10-20). */
         coatLength: "Шерсть",
+        /** Pet card redesign; his approval is quoted at `animalForm.colour`. */
+        temperament: "Характер",
+        colour: "Забарвлення",
+        /**
+         * Here though the note's form field waits for PR 5 (inbox PC1-D1): a
+         * history line only names the field, which is true whenever the note
+         * is written, and `shelter.animals.update` already takes it.
+         */
+        medicalNotes: "Медичний стан",
       },
     },
   },

@@ -1086,6 +1086,10 @@ describe("kabinet animal history labels (his K3 words, 2026-10-17)", () => {
     "field.photos": "Фото",
     // Not a K3 word: his designer-round-1 text (2026-10-20), «kabinet.history.field.coatLength».
     "field.coatLength": "Шерсть",
+    // Not K3 words either: the pet card redesign's, his approval of 2026-10-26 (`PET_CARD_COPY`).
+    "field.temperament": "Характер",
+    "field.colour": "Забарвлення",
+    "field.medicalNotes": "Медичний стан",
   };
 
   it("holds exactly these words, as he wrote them", () => {
@@ -1582,6 +1586,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(K3_FINAL).filter((path) => path.startsWith("kabinet.animalForm.")),
         // His designer-round-1 fur words, pinned in their own block below.
         ...Object.keys(DR1_FUR).filter((path) => path.startsWith("kabinet.animalForm.")),
+        // The pet card redesign's words, pinned in their own block below.
+        ...Object.keys(PET_CARD_COPY).filter((path) => path.startsWith("kabinet.animalForm.")),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -1980,6 +1986,79 @@ describe("designer round 1 fur copy (his text, 2026-10-20)", () => {
   it("the animal page's value words are not the filter labels", () => {
     expect(uk.detail.coatShort).not.toBe(uk.filters.coatShort);
     expect(uk.detail.coatLong).not.toBe(uk.filters.coatLong);
+  });
+});
+
+/**
+ * The pet card redesign, PR 1: the kabinet strings for temperament and coat
+ * colour, and three history labels. Oleksii, 2026-10-26, in the coordinating
+ * session, verbatim: "Kabinet strings: approved as-is. All 13, exactly as in
+ * your table, are now owner-approved final copy." His 13 were these 11 plus
+ * the medical note's label and hint, which wait for PR 5 with the note's
+ * field (his answer quoted in inbox PC1-D1; both strings are recorded there
+ * verbatim).
+ *
+ * This table was first committed (eb929c6) under a heading that called it
+ * owner-approved, before he had answered; that was wrong when written. Since
+ * his answer above it is his approved copy, transcribed here literally, never
+ * read from `uk.ts`. U+02BC as the apostrophe. The card's own words
+ * (`temperament.*`, `coatColour.*`) are pinned in `temperament-labels.test.ts`
+ * and `colour-labels.test.ts`.
+ */
+const PET_CARD_COPY: Record<string, string> = {
+  "kabinet.animalForm.temperament.title": "Характер",
+  "kabinet.animalForm.temperament.hint": "Можна обрати кілька. Необовʼязково.",
+  "kabinet.animalForm.temperament.other": "Інше",
+  "kabinet.animalForm.temperament.customPlaceholder": "Своїми словами",
+  "kabinet.animalForm.colour.title": "Забарвлення",
+  "kabinet.animalForm.colour.unknown": "Не вказано",
+  "kabinet.animalForm.colour.other": "Інше",
+  "kabinet.animalForm.colour.customPlaceholder": "Своїми словами",
+  "kabinet.animalHistoryLabels.field.temperament": "Характер",
+  "kabinet.animalHistoryLabels.field.colour": "Забарвлення",
+  "kabinet.animalHistoryLabels.field.medicalNotes": "Медичний стан",
+};
+
+describe("pet card kabinet copy (his approval, 2026-10-26)", () => {
+  const atRoot = (path: string): unknown =>
+    path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], uk);
+
+  it("holds the 11 of his 13 that ship in PR 1", () => {
+    expect(Object.keys(PET_CARD_COPY)).toHaveLength(11);
+  });
+
+  it.each(Object.entries(PET_CARD_COPY))("%s is his approved text, exactly", (path, text) => {
+    expect(atRoot(path)).toBe(text);
+  });
+
+  it("the medical note's two strings are not in the catalogue until PR 5 ships its field", () => {
+    expect(Object.keys(uk.kabinet.animalForm)).not.toContain("medicalNotes");
+    expect(Object.keys(en.kabinet.animalForm)).not.toContain("medicalNotes");
+  });
+
+  it("the colour's «not given» reads exactly as the fur's", () => {
+    expect(uk.kabinet.animalForm.colour.unknown).toBe(uk.kabinet.animalForm.coat.unknown);
+  });
+
+  it("nothing the pet card adds is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
+    const leaves = (node: unknown, path: string): [string, string][] =>
+      typeof node === "string"
+        ? [[path, node]]
+        : Object.entries(node as Record<string, unknown>).flatMap(([key, child]) =>
+            leaves(child, `${path}.${key}`),
+          );
+    const added = [
+      ...Object.entries(PET_CARD_COPY),
+      ...leaves(uk.temperament, "temperament"),
+      ...leaves(uk.coatColour, "coatColour"),
+    ];
+    expect(added.length).toBeGreaterThan(Object.keys(PET_CARD_COPY).length);
+    for (const [path, text] of added) {
+      expect(text, path).not.toContain(COPY_PENDING);
+      expect(text, path).not.toMatch(/['’]/);
+    }
   });
 });
 

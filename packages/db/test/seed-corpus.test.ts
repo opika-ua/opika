@@ -1,11 +1,17 @@
 import {
   AnimalSchema,
+  COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
+  COAT_COLOURS,
+  characterCount,
   confirmationAnchorOf,
   DEFAULT_FRESHNESS_POLICY,
   freshnessOf,
   isDiscoverable,
   isPubliclyVerified,
+  MEDICAL_NOTES_MAX_CHARACTERS,
   ShelterSchema,
+  TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
+  TEMPERAMENT_TRAITS,
 } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { buildAnimals, buildCities, buildShelters, NOW, requireEnglishCityName } from "../src/seed";
@@ -227,6 +233,81 @@ describe("seed corpus - D-4 hostile cases", () => {
 
     it("leaves fur unrecorded on drafts too, never a listing fact", () => {
       expect(animals.some((a) => a.listing.kind === "draft" && a.coatLength === null)).toBe(true);
+    });
+  });
+
+  /**
+   * The pet card's temperament, colour and medical note: every preset, a
+   * custom entry of each kind and every unrecorded state, each on an animal
+   * an adopter can see, so the card, its filters and «Не записано» all have
+   * rows to show.
+   */
+  describe("pet card fields", () => {
+    const discoverable = animals.filter((a) => isDiscoverable(a.listing));
+
+    for (const trait of TEMPERAMENT_TRAITS) {
+      it(`has a discoverable animal with temperament «${trait}»`, () => {
+        expect(
+          discoverable.some((a) =>
+            a.temperament.some((entry) => entry.kind === "preset" && entry.trait === trait),
+          ),
+        ).toBe(true);
+      });
+    }
+
+    it("has a discoverable custom temperament, last after presets, and one with English", () => {
+      const customs = discoverable.filter((a) => a.temperament.at(-1)?.kind === "custom");
+      expect(customs.some((a) => a.temperament.length > 1)).toBe(true);
+      expect(
+        customs.some((a) => {
+          const last = a.temperament.at(-1);
+          return last?.kind === "custom" && last.text.en !== null;
+        }),
+      ).toBe(true);
+    });
+
+    it("has a discoverable animal with no temperament recorded", () => {
+      expect(discoverable.some((a) => a.temperament.length === 0)).toBe(true);
+    });
+
+    for (const colour of COAT_COLOURS) {
+      it(`has a discoverable animal coloured «${colour}»`, () => {
+        expect(
+          discoverable.some((a) => a.colour?.kind === "preset" && a.colour.colour === colour),
+        ).toBe(true);
+      });
+    }
+
+    it("has a discoverable custom colour and a discoverable animal with no colour", () => {
+      expect(discoverable.some((a) => a.colour?.kind === "custom")).toBe(true);
+      expect(discoverable.some((a) => a.colour === null)).toBe(true);
+    });
+
+    it("has discoverable animals with a medical note and without one", () => {
+      expect(discoverable.some((a) => a.medicalNotes !== null)).toBe(true);
+      expect(discoverable.some((a) => a.medicalNotes === null)).toBe(true);
+    });
+
+    it("keeps every seeded custom text within its kabinet cap, so a shelter could save it again", () => {
+      for (const animal of animals) {
+        for (const entry of animal.temperament) {
+          if (entry.kind === "custom") {
+            expect(characterCount(entry.text.uk)).toBeLessThanOrEqual(
+              TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
+            );
+          }
+        }
+        if (animal.colour?.kind === "custom") {
+          expect(characterCount(animal.colour.text.uk)).toBeLessThanOrEqual(
+            COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
+          );
+        }
+        if (animal.medicalNotes !== null) {
+          expect(characterCount(animal.medicalNotes.uk)).toBeLessThanOrEqual(
+            MEDICAL_NOTES_MAX_CHARACTERS,
+          );
+        }
+      }
     });
   });
 });

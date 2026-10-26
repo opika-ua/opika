@@ -1,5 +1,6 @@
 import {
   AgeBucketSchema,
+  AnimalColourSchema,
   AnimalIdSchema,
   AnimalNameInputSchema,
   AnimalSexSchema,
@@ -7,6 +8,7 @@ import {
   animalDescriptionProblem,
   animalDescriptionProblemMessage,
   CalendarDateSchema,
+  COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   CoatLengthSchema,
   characterCount,
   DonationLinkSchema,
@@ -15,8 +17,10 @@ import {
   type FreshnessSentence,
   freshnessSentenceProblemMessage,
   LISTING_KINDS,
+  type LocalizedText,
   LocalizedTextSchema,
   MAX_ANIMAL_PHOTOS,
+  MEDICAL_NOTES_MAX_CHARACTERS,
   MedicalDeclarationInputSchema,
   normalizeFreshnessSentenceText,
   PauseCodeSchema,
@@ -29,6 +33,8 @@ import {
   ShelterLegalEntitySchema,
   SizeBucketSchema,
   SuspensionCodeSchema,
+  TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
+  TemperamentSchema,
   TextProvenanceSchema,
   VERIFICATION_STATUSES,
   VerificationStatusSchema,
@@ -271,6 +277,63 @@ const AnimalDescriptionInputSchema = LocalizedTextSchema.superRefine((descriptio
   if (description.en !== null) withinDescriptionLimit(description.en.text, ["en", "text"], ctx);
 });
 
+/**
+ * The same check as the description's, for the pet card's shorter texts:
+ * each language against its own field's cap, counted as a reader sees them
+ * (`characterCount`, K-B2). The caps live in domain beside the schemas they
+ * bound, as the description's does.
+ */
+const withinCharacterLimit = (
+  max: number,
+  what: string,
+  text: LocalizedText,
+  path: readonly PropertyKey[],
+  ctx: z.RefinementCtx,
+) => {
+  const languages: [string, readonly PropertyKey[]][] = [[text.uk, ["uk"]]];
+  if (text.en !== null) languages.push([text.en.text, ["en", "text"]]);
+  for (const [value, at] of languages) {
+    const characters = characterCount(value);
+    if (characters > max) {
+      ctx.addIssue({
+        code: "custom",
+        path: [...path, ...at],
+        message: `${what} is ${characters} characters; the maximum is ${max}`,
+      });
+    }
+  }
+};
+
+const TemperamentInputSchema = TemperamentSchema.superRefine((temperament, ctx) => {
+  temperament.forEach((entry, index) => {
+    if (entry.kind === "custom") {
+      withinCharacterLimit(
+        TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
+        "Custom temperament",
+        entry.text,
+        [index, "text"],
+        ctx,
+      );
+    }
+  });
+});
+
+const AnimalColourInputSchema = AnimalColourSchema.superRefine((colour, ctx) => {
+  if (colour.kind === "custom") {
+    withinCharacterLimit(
+      COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
+      "Custom colour",
+      colour.text,
+      ["text"],
+      ctx,
+    );
+  }
+});
+
+const MedicalNotesInputSchema = LocalizedTextSchema.superRefine((notes, ctx) => {
+  withinCharacterLimit(MEDICAL_NOTES_MAX_CHARACTERS, "Medical notes", notes, [], ctx);
+});
+
 // ─── shelter.profile ────────────────────────────────────────────────────────
 
 const shelterProfileRead = kabinet.$meta(shelterRead).output(KabinetShelterViewSchema);
@@ -356,7 +419,9 @@ export type AgeEstimateInput = z.infer<typeof AgeEstimateInputSchema>;
  * segmented choice with no "unselected" once made, so `size: null` and
  * `age: null` stay BAD_REQUEST (decision taken T4). Fur is the exception
  * that can go back to null (DR1-D10): «Не вказано» is a complete answer, not
- * a gap, so a shelter that guessed can take the guess back.
+ * a gap, so a shelter that guessed can take the guess back. Colour and the
+ * medical note clear to null the same way, on any listing kind, and a
+ * temperament clears to `[]`: none of the three is a listing fact.
  */
 export const AnimalPatchSchema = z
   .strictObject({
@@ -365,10 +430,13 @@ export const AnimalPatchSchema = z
     sex: AnimalSexSchema,
     size: SizeBucketSchema,
     coatLength: CoatLengthSchema.nullable(),
+    colour: AnimalColourInputSchema.nullable(),
     age: AgeEstimateInputSchema,
     description: AnimalDescriptionInputSchema.nullable(),
+    temperament: TemperamentInputSchema,
     vaccination: MedicalDeclarationInputSchema,
     spayNeuter: MedicalDeclarationInputSchema,
+    medicalNotes: MedicalNotesInputSchema.nullable(),
   })
   .partial()
   .refine((patch) => Object.keys(patch).length > 0, { message: "Empty patch" });

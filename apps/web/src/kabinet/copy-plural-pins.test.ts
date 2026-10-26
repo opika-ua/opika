@@ -3,7 +3,9 @@ import {
   AGE_DATE_MAX_YEARS_BACK,
   ANIMAL_DESCRIPTION_MAX_CHARACTERS,
   ANIMAL_NAME_MAX_CHARACTERS,
+  COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   DEFAULT_FRESHNESS_POLICY,
+  TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
@@ -100,6 +102,25 @@ describe("the caps K3's plural nouns were written for", () => {
     expect(rules.select(1500)).toBe("many");
     expect(rules.select(60)).toBe("many");
     expect(rules.select(30)).toBe("many");
+  });
+});
+
+/**
+ * The pet card's two custom texts reuse the description's counter, «{count}
+ * з {max} символів», with their own caps: 40 and 30. «символів» is right for
+ * each of those, not for every cap (41 would take «символу»). The medical
+ * note's field, and with it its counter's pin, arrives in PR 5.
+ */
+describe("the caps the pet card fields' counters were written for", () => {
+  it.each([
+    ["TEMPERAMENT_CUSTOM_MAX_CHARACTERS", TEMPERAMENT_CUSTOM_MAX_CHARACTERS, 40],
+    ["COAT_COLOUR_CUSTOM_MAX_CHARACTERS", COAT_COLOUR_CUSTOM_MAX_CHARACTERS, 30],
+  ] as const)("%s is %i («символів»)", (name, cap, written) => {
+    expect(
+      cap,
+      `${name} changed: «символів» in kabinet.animalForm.description.counter, which this field's counter reuses, was written for ${written} and must be rechecked before this pin moves`,
+    ).toBe(written);
+    expect(new Intl.PluralRules("uk").select(cap)).toBe("many");
   });
 });
 

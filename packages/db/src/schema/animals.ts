@@ -6,6 +6,7 @@ import type {
   AnimalSex,
   AnimalSpecies,
   CityId,
+  CoatColour,
   CoatLength,
   DocumentReadiness,
   LocalizedText,
@@ -13,6 +14,7 @@ import type {
   ShelterId,
   SizeBucket,
   SpayNeuterStatus,
+  TemperamentTrait,
   VaccinationStatus,
 } from "@opika/domain";
 import { sql } from "drizzle-orm";
@@ -129,6 +131,74 @@ export const animals = pgTable(
     spayNeuter: jsonb<SpayNeuterStatus>("spay_neuter").notNull(),
     documentReadiness: jsonb<DocumentReadiness>("document_readiness").notNull(),
 
+    /**
+     * The temperament's presets, in the order the shelter gave them: the
+     * filterable part of `Animal.temperament` (`temperamentTraitsOf`). Its
+     * custom entry, the shelter's own words, is the three columns below, and
+     * reads back as the array's last element (`TemperamentSchema`'s rule), so
+     * the stored value round-trips with nothing to reorder. `{}` is «Не
+     * записано»: not null, because "none recorded" is one answer, not two.
+     *
+     * The schema's first array column. Drizzle turns the JS array into a
+     * Postgres array literal before either driver sees it, and parses either
+     * driver's answer back (`PgArray`'s mappers), so no array is ever bound
+     * as a raw parameter (which `r2-cleanup-repo.ts` avoids as unproven
+     * across postgres-js and neon-http).
+     */
+    temperamentTraits: text("temperament_traits", {
+      enum: [
+        "playful",
+        "calm",
+        "affectionate",
+        "energetic",
+        "independent",
+        "shy",
+        "good_with_kids",
+        "good_with_cats",
+        "good_with_dogs",
+      ],
+    })
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`)
+      .$type<readonly TemperamentTrait[]>(),
+    temperamentCustomUk: text("temperament_custom_uk"),
+    temperamentCustomEnText: text("temperament_custom_en_text"),
+    temperamentCustomEnProvenance: text("temperament_custom_en_provenance", {
+      enum: ["human", "machine"],
+    }),
+    /**
+     * A preset colour or the shelter's own words, never both
+     * (`animals_coat_colour_one_kind_check`): the domain's `AnimalColour` is
+     * one or the other, and the database refuses the row it refuses. All
+     * null is «Не вказано», on every listing kind, like fur.
+     */
+    coatColour: text("coat_colour", {
+      enum: [
+        "black",
+        "white",
+        "grey",
+        "ginger",
+        "brown",
+        "cream",
+        "black_white",
+        "tricolour",
+        "tabby",
+        "spotted",
+      ],
+    }).$type<CoatColour>(),
+    coatColourCustomUk: text("coat_colour_custom_uk"),
+    coatColourCustomEnText: text("coat_colour_custom_en_text"),
+    coatColourCustomEnProvenance: text("coat_colour_custom_en_provenance", {
+      enum: ["human", "machine"],
+    }),
+    /** Null omits the card's «Медичний стан» column; never a listing fact. */
+    medicalNotesUk: text("medical_notes_uk"),
+    medicalNotesEnText: text("medical_notes_en_text"),
+    medicalNotesEnProvenance: text("medical_notes_en_provenance", {
+      enum: ["human", "machine"],
+    }),
+
     listing: jsonb<AnimalListingState>("listing").notNull(),
     /** Denormalised from listing JSONB for feed-query filtering. */
     listingKind: text("listing_kind", {
@@ -183,6 +253,24 @@ export const animals = pgTable(
     check(
       "animals_description_en_check",
       sql`${t.descriptionUk} IS NOT NULL OR (${t.descriptionEnText} IS NULL AND ${t.descriptionEnProvenance} IS NULL)`,
+    ),
+    /** One colour per animal: a preset or the shelter's words, never both (`AnimalColour`). */
+    check(
+      "animals_coat_colour_one_kind_check",
+      sql`${t.coatColour} IS NULL OR ${t.coatColourCustomUk} IS NULL`,
+    ),
+    /** The same English-needs-Ukrainian rule as the description's, for each new text. */
+    check(
+      "animals_temperament_custom_en_check",
+      sql`${t.temperamentCustomUk} IS NOT NULL OR (${t.temperamentCustomEnText} IS NULL AND ${t.temperamentCustomEnProvenance} IS NULL)`,
+    ),
+    check(
+      "animals_coat_colour_custom_en_check",
+      sql`${t.coatColourCustomUk} IS NOT NULL OR (${t.coatColourCustomEnText} IS NULL AND ${t.coatColourCustomEnProvenance} IS NULL)`,
+    ),
+    check(
+      "animals_medical_notes_en_check",
+      sql`${t.medicalNotesUk} IS NOT NULL OR (${t.medicalNotesEnText} IS NULL AND ${t.medicalNotesEnProvenance} IS NULL)`,
     ),
 
     /**
@@ -244,6 +332,20 @@ export const animals = pgTable(
      */
     index("animals_wait_anchor_filtered_idx")
       .on(t.cityId, t.species, t.size, t.waitAnchorAt.asc().nullsLast(), t.id.asc())
+      .where(sql`listing_kind IN ('published', 'reserved')`),
+
+    /**
+     * For the temperament and colour filters: GIN, because a temperament
+     * filter asks "does the array contain these traits", which a btree can't
+     * answer; a btree for colour, because ten values narrow where fur's two
+     * don't (fur has no index of its own). Both partial on the discoverable
+     * kinds, as every adopter-facing query is, so drafts' rows never enter them.
+     */
+    index("animals_temperament_traits_idx")
+      .using("gin", t.temperamentTraits)
+      .where(sql`listing_kind IN ('published', 'reserved')`),
+    index("animals_coat_colour_idx")
+      .on(t.coatColour)
       .where(sql`listing_kind IN ('published', 'reserved')`),
   ],
 );

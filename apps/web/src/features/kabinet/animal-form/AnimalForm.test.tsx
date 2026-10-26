@@ -37,6 +37,9 @@ const draft = (overrides: Partial<KabinetAnimalView> = {}): KabinetAnimalView =>
     age: null,
     description: null,
     photos: [],
+    temperament: [],
+    colour: null,
+    medicalNotes: null,
     vaccination: unknown,
     spayNeuter: unknown,
     documentReadiness: { kind: "unknown" },
@@ -94,6 +97,9 @@ function fakeClient(start: KabinetAnimalView | null): FakeClient {
         ...(patch.sex !== undefined ? { sex: patch.sex } : {}),
         ...(patch.size !== undefined ? { size: patch.size } : {}),
         ...(patch.coatLength !== undefined ? { coatLength: patch.coatLength } : {}),
+        ...(patch.temperament !== undefined ? { temperament: patch.temperament } : {}),
+        ...(patch.colour !== undefined ? { colour: patch.colour } : {}),
+        ...(patch.medicalNotes !== undefined ? { medicalNotes: patch.medicalNotes } : {}),
         ...(patch.description !== undefined ? { description: patch.description } : {}),
         ...(patch.age !== undefined
           ? {
@@ -1469,6 +1475,300 @@ describe("fur", () => {
         patch: { coatLength: "long" },
       }),
     );
+  });
+});
+
+/**
+ * The pet card's temperament and colour; the medical note has no field yet
+ * (below). Words transcribed here, never read from `uk.ts`: the trait words
+ * as Oleksii wrote them and the colour words as he confirmed them (both
+ * quoted at `uk.ts`'s `temperament` and `coatColour`), and the form's kabinet
+ * strings as he approved them (quoted in `copy-status.test.ts`), all on
+ * 2026-10-26. Optional, never a publish gap, each clearable.
+ */
+
+/** The «Інше» text field's own name: «Інше» stays the checkbox's and the radio's. */
+const OTHER_FIELD = "Інше - Своїми словами";
+
+describe("temperament", () => {
+  const group = () => within(screen.getByRole("group", { name: "Характер" }));
+  const box = (label: string) => group().getByRole("checkbox", { name: label }) as HTMLInputElement;
+
+  it("lists the nine presets and «Інше», in the masculine while the sex is «Не записано»", () => {
+    renderForm(null);
+    expect(
+      group()
+        .getAllByRole("checkbox")
+        .map((checkbox) => checkbox.closest("label")?.textContent),
+    ).toEqual([
+      "Грайливий",
+      "Спокійний",
+      "Ласкавий",
+      "Енергійний",
+      "Самостійний",
+      "Соромʼязливий",
+      "Ладнає з дітьми",
+      "Ладнає з котами",
+      "Ладнає з собаками",
+      "Інше",
+    ]);
+    expect(screen.getByText("Можна обрати кілька. Необовʼязково.")).toBeTruthy();
+  });
+
+  it("follows the sex chosen above: «Дівчинка» turns the words feminine, at once", async () => {
+    const user = userEvent.setup();
+    renderForm(draft());
+    await user.click(
+      within(screen.getByRole("group", { name: "Стать" })).getByLabelText("Дівчинка"),
+    );
+    expect(box("Грайлива")).toBeTruthy();
+    expect(box("Соромʼязлива")).toBeTruthy();
+    expect(box("Ладнає з котами")).toBeTruthy();
+    expect(group().queryByRole("checkbox", { name: "Грайливий" })).toBeNull();
+  });
+
+  // A published card, which saves only when asked: a draft also saves each
+  // time a field is left, which would split this into one save per box.
+  it("saves the presets in the order ticked, as the one changed field", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(published());
+    await user.click(box("Спокійний"));
+    // Space ticks the focused checkbox, as a keyboard user does.
+    box("Ладнає з дітьми").focus();
+    await user.keyboard(" ");
+    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(client.calls.update).toHaveBeenCalledTimes(1);
+    expect(client.calls.update).toHaveBeenCalledWith({
+      animalId: ID,
+      expectedVersion: 0,
+      patch: {
+        temperament: [
+          { kind: "preset", trait: "calm" },
+          { kind: "preset", trait: "good_with_kids" },
+        ],
+      },
+    });
+  });
+
+  it("«Інше» opens a field for the shelter's own words, sent last after the presets", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(published());
+    expect(group().queryByRole("textbox")).toBeNull();
+    await user.click(box("Інше"));
+    const field = group().getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement;
+    expect(field.placeholder).toBe("Своїми словами");
+    await user.type(field, "  Боїться грози ");
+    await user.click(box("Ласкавий"));
+    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
+      patch: {
+        temperament: [
+          { kind: "preset", trait: "affectionate" },
+          { kind: "custom", text: { uk: "Боїться грози", en: null } },
+        ],
+      },
+    });
+  });
+
+  it("«Інше» and the field it opens are two controls with two names", async () => {
+    const user = userEvent.setup();
+    renderForm(published());
+    await user.click(box("Інше"));
+    // Exact names: «Інше» is the checkbox alone, the field has its own.
+    expect(group().getAllByRole("checkbox", { name: "Інше" })).toHaveLength(1);
+    expect(group().queryByRole("textbox", { name: "Інше" })).toBeNull();
+    const field = group().getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement;
+    expect(field).not.toBe(box("Інше"));
+    // What a sighted person reads beside the field is still the start of its
+    // name (label in name), so «Інше» spoken to voice control reaches it.
+    expect(field.labels?.[0]?.textContent).toBe("Інше");
+  });
+
+  it("counts the custom words against 40, and a save over it sends nothing", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.click(box("Інше"));
+    const field = group().getByRole("textbox", { name: OTHER_FIELD });
+    fireEvent.change(field, { target: { value: "я".repeat(40) } });
+    expect(group().getByText("40 з 40 символів")).toBeTruthy();
+    fireEvent.change(field, { target: { value: "я".repeat(41) } });
+    expect(group().getByText("Зайвих символів: 1")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update).not.toHaveBeenCalled();
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("loads a stored temperament in its order, and clearing every box sends []", async () => {
+    const client = renderForm(
+      published({
+        temperament: [
+          { kind: "preset", trait: "shy" },
+          { kind: "preset", trait: "playful" },
+          { kind: "custom", text: { uk: "Гризе капці", en: null } },
+        ],
+      } as Partial<KabinetAnimalView>),
+    );
+    expect(box("Соромʼязливий").checked).toBe(true);
+    expect(box("Грайливий").checked).toBe(true);
+    expect(box("Інше").checked).toBe(true);
+    expect((group().getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement).value).toBe(
+      "Гризе капці",
+    );
+    // Nothing changed yet: the stored order is the form's, so no patch is due.
+    expect(screen.getByRole("button", { name: "Зберегти" }).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+    fireEvent.click(box("Соромʼязливий"));
+    fireEvent.click(box("Грайливий"));
+    fireEvent.click(box("Інше"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { temperament: [] } });
+  });
+
+  it("keeps the custom entry's English when only a preset changes", async () => {
+    const custom = {
+      kind: "custom",
+      text: { uk: "Гризе капці", en: { text: "Chews slippers", provenance: "human" } },
+    } as const;
+    const client = renderForm(published({ temperament: [custom] } as Partial<KabinetAnimalView>));
+    fireEvent.click(box("Спокійний"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
+      patch: { temperament: [{ kind: "preset", trait: "calm" }, custom] },
+    });
+  });
+
+  it("isn't one of the publish gaps", () => {
+    renderForm(null);
+    expect(screen.getByText(MISSING_ALL)).toBeTruthy();
+  });
+});
+
+describe("colour", () => {
+  const group = () => within(screen.getByRole("group", { name: "Забарвлення" }));
+  const checked = (label: string) => (group().getByLabelText(label) as HTMLInputElement).checked;
+
+  it("is a labelled radio group of the ten colours, «Інше» and «Не вказано», starting on «Не вказано»", () => {
+    renderForm(null);
+    expect(
+      group()
+        .getAllByRole("radio")
+        .map((radio) => radio.closest("label")?.textContent),
+    ).toEqual([
+      "Чорне",
+      "Біле",
+      "Сіре",
+      "Руде",
+      "Коричневе",
+      "Кремове",
+      "Чорно-біле",
+      "Триколірне",
+      "Смугасте",
+      "Плямисте",
+      "Інше",
+      "Не вказано",
+    ]);
+    expect(checked("Не вказано")).toBe(true);
+  });
+
+  it("saves a preset colour on a draft as the one changed field", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.click(group().getByLabelText("Смугасте"));
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update).toHaveBeenCalledWith({
+      animalId: ID,
+      expectedVersion: 0,
+      patch: { colour: { kind: "preset", colour: "tabby" } },
+    });
+  });
+
+  it("«Інше» and the field it opens are two controls with two names", async () => {
+    const user = userEvent.setup();
+    renderForm(published());
+    await user.click(group().getByLabelText("Інше"));
+    expect(screen.getAllByRole("radio", { name: "Інше" })).toHaveLength(1);
+    expect(screen.queryByRole("textbox", { name: "Інше" })).toBeNull();
+    const field = screen.getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement;
+    expect(field.labels?.[0]?.textContent).toBe("Інше");
+  });
+
+  it("«Інше» takes the shelter's own words, counted against 30", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.click(group().getByLabelText("Інше"));
+    const field = screen.getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement;
+    expect(field.placeholder).toBe("Своїми словами");
+    await user.type(field, "Димчасте");
+    expect(screen.getByText("8 з 30 символів")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
+      patch: { colour: { kind: "custom", text: { uk: "Димчасте", en: null } } },
+    });
+  });
+
+  it("refuses to save a custom colour over 30 characters", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.click(group().getByLabelText("Інше"));
+    fireEvent.change(screen.getByRole("textbox", { name: OTHER_FIELD }), {
+      target: { value: "я".repeat(31) },
+    });
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update).not.toHaveBeenCalled();
+  });
+
+  it("shows the stored colour, and «Не вказано» clears it on a published card", async () => {
+    const client = renderForm(
+      published({ colour: { kind: "preset", colour: "ginger" } } as Partial<KabinetAnimalView>),
+    );
+    expect(checked("Руде")).toBe(true);
+    fireEvent.click(group().getByLabelText("Не вказано"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { colour: null } });
+  });
+
+  it("loads a stored custom colour as «Інше» with its words", () => {
+    renderForm(
+      published({
+        colour: { kind: "custom", text: { uk: "Палеве", en: null } },
+      } as Partial<KabinetAnimalView>),
+    );
+    expect(checked("Інше")).toBe(true);
+    expect((screen.getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement).value).toBe(
+      "Палеве",
+    );
+  });
+});
+
+/**
+ * The medical note's field ships in PR 5, with the public column its hint
+ * names (his answer, inbox PC1-D1): until then the form has no field for it,
+ * and a save never touches a note already stored.
+ */
+describe("medical note", () => {
+  it("has no field on the form, and a save leaves a stored note alone", async () => {
+    const client = renderForm(
+      published({
+        medicalNotes: { uk: "Потребує дієти.", en: null },
+      } as Partial<KabinetAnimalView>),
+    );
+    expect(screen.queryByText(/здоровʼя/)).toBeNull();
+    expect(screen.queryByText(/у розділі «Медичний стан»/)).toBeNull();
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "Забарвлення" })).getByLabelText("Руде"),
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    const sent = client.calls.update.mock.calls[0]?.[0] as { patch: Record<string, unknown> };
+    expect(sent.patch).toEqual({ colour: { kind: "preset", colour: "ginger" } });
   });
 });
 
