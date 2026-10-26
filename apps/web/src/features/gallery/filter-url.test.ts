@@ -11,11 +11,14 @@ import {
   parseGalleryQuery,
   redirectHrefForLegacyCityIds,
   resetFiltersHref,
+  similarAnimalsHref,
   withToggledAge,
   withToggledCity,
   withToggledCoat,
+  withToggledColour,
   withToggledSize,
   withToggledSpecies,
+  withToggledTemperament,
 } from "./filter-url";
 
 const CITY_A = "11111111-1111-4111-8111-111111111111" as CityId;
@@ -413,5 +416,149 @@ describe("the fur filter in the URL", () => {
 
   it("«Скинути» clears it", () => {
     expect(resetFiltersHref("freshest")).toBe("/tvaryny");
+  });
+});
+
+/**
+ * Temperament and colour (pet card PR 1b): `kharakter` and `zabarvlennia`,
+ * read and written like `sherst`. Expected strings are the URL scheme
+ * literally, never built from `GALLERY_PARAM`, so a renamed param fails here.
+ */
+describe("the temperament and colour filters in the URL", () => {
+  const EVERY_TRAIT =
+    "playful,calm,affectionate,energetic,independent,shy,good_with_kids,good_with_cats,good_with_dogs";
+  const EVERY_COLOUR = "black,white,grey,ginger,brown,cream,black_white,tricolour,tabby,spotted";
+
+  it("parses `kharakter` and `zabarvlennia`, comma-joined or repeated, dropping what it doesn't know", () => {
+    expect(
+      parseGalleryQuery({ kharakter: "shy,grumpy,calm" }, NO_SLUGS).filters.temperaments,
+    ).toEqual({ kind: "oneOf", values: ["calm", "shy"] });
+    expect(
+      parseGalleryQuery({ kharakter: ["good_with_cats", "good_with_dogs"] }, NO_SLUGS).filters
+        .temperaments,
+    ).toEqual({ kind: "oneOf", values: ["good_with_cats", "good_with_dogs"] });
+    expect(
+      parseGalleryQuery({ zabarvlennia: ["tabby", "smoky"] }, NO_SLUGS).filters.colours,
+    ).toEqual({ kind: "oneOf", values: ["tabby"] });
+    expect(parseGalleryQuery({ zabarvlennia: "smoky" }, NO_SLUGS).filters.colours).toEqual(ANY);
+  });
+
+  it("every trait, or every colour, is no filter at all, read or written", () => {
+    expect(parseGalleryQuery({ kharakter: EVERY_TRAIT }, NO_SLUGS).filters.temperaments).toEqual(
+      ANY,
+    );
+    expect(parseGalleryQuery({ zabarvlennia: EVERY_COLOUR }, NO_SLUGS).filters.colours).toEqual(
+      ANY,
+    );
+
+    // Ticking every option one by one, as the dropdown does, lands back on
+    // the bare gallery URL rather than spelling the whole list out.
+    const everyTrait = EVERY_TRAIT.split(",").reduce(
+      (filters, trait) => withToggledTemperament(filters, trait as never),
+      NO_FILTERS,
+    );
+    expect(galleryHref(everyTrait, "freshest", NO_CITIES)).toBe("/tvaryny");
+    const everyColour = EVERY_COLOUR.split(",").reduce(
+      (filters, colour) => withToggledColour(filters, colour as never),
+      NO_FILTERS,
+    );
+    expect(galleryHref(everyColour, "freshest", NO_CITIES)).toBe("/tvaryny");
+  });
+
+  it("one short of every trait is still a filter", () => {
+    const [, ...eight] = EVERY_TRAIT.split(",");
+    const href = galleryHref(
+      parseGalleryQuery({ kharakter: eight.join(",") }, NO_SLUGS).filters,
+      "freshest",
+      NO_CITIES,
+    );
+    expect(new URL(href, "http://x").searchParams.get("kharakter")?.split(",")).toHaveLength(8);
+  });
+
+  it("round-trips through galleryHref after fur and before the sort", () => {
+    const filters = withToggledColour(
+      withToggledTemperament(
+        withToggledTemperament(withToggledCoat(NO_FILTERS, "long"), "shy"),
+        "calm",
+      ),
+      "black",
+    );
+    const href = galleryHref(filters, "longest_waiting", NO_CITIES);
+    expect(href).toBe(
+      "/tvaryny?sherst=long&kharakter=calm%2Cshy&zabarvlennia=black&sort=longest_waiting",
+    );
+    const reparsed = parseGalleryQuery(
+      Object.fromEntries(new URL(href, "http://x").searchParams),
+      NO_SLUGS,
+    );
+    expect(reparsed).toEqual({ filters, sort: "longest_waiting", page: 1 });
+  });
+
+  it("toggling a trait or a colour off again leaves no filter", () => {
+    expect(withToggledTemperament(withToggledTemperament(NO_FILTERS, "shy"), "shy")).toEqual(
+      NO_FILTERS,
+    );
+    expect(withToggledColour(withToggledColour(NO_FILTERS, "cream"), "cream")).toEqual(NO_FILTERS);
+  });
+
+  it("is carried into a page link and into the deck", () => {
+    const filters = withToggledColour(withToggledTemperament(NO_FILTERS, "shy"), "tabby");
+    expect(galleryPageHref(filters, "freshest", 3, NO_CITIES)).toBe(
+      "/tvaryny?kharakter=shy&zabarvlennia=tabby&stor=3",
+    );
+    const deckHref = deckEntryHref(filters, 7, NO_CITIES);
+    expect(deckHref).toBe("/tvaryny/gortaty?kharakter=shy&zabarvlennia=tabby&total=7");
+    expect(
+      parseDeckQuery(Object.fromEntries(new URL(deckHref, "http://x").searchParams), NO_SLUGS),
+    ).toEqual({ filters, total: 7 });
+  });
+
+  it("the deck's header names them in the filter options' own words", () => {
+    const filters = withToggledColour(
+      withToggledTemperament(
+        withToggledTemperament(withToggledSpecies(NO_FILTERS, "cat"), "shy"),
+        "good_with_cats",
+      ),
+      "black",
+    );
+    expect(filtersInWords(filters, new Map())).toBe(
+      "коти · ладнають з котами/соромʼязливі · чорне",
+    );
+  });
+});
+
+/**
+ * The pet card's chip link (A6's URL half; PR 5 renders the chip): species
+ * plus exactly one filter, every other filter cleared, the default sort, no
+ * city. Each expected href is the URL scheme literally.
+ */
+describe("similarAnimalsHref", () => {
+  it.each([
+    ["dog", { dimension: "ages", value: "young" }, "/tvaryny?vyd=dog&vik=young"],
+    ["cat", { dimension: "sizes", value: "small" }, "/tvaryny?vyd=cat&rozmir=small"],
+    ["dog", { dimension: "coatLengths", value: "long" }, "/tvaryny?vyd=dog&sherst=long"],
+    ["cat", { dimension: "temperaments", value: "shy" }, "/tvaryny?vyd=cat&kharakter=shy"],
+    [
+      "dog",
+      { dimension: "colours", value: "black_white" },
+      "/tvaryny?vyd=dog&zabarvlennia=black_white",
+    ],
+  ] as const)("%s + %o → %s", (species, chip, expected) => {
+    expect(similarAnimalsHref(species, chip)).toBe(expected);
+  });
+
+  it("asks a fresh question: nothing but the species and the chip, the default sort, page 1", () => {
+    const href = similarAnimalsHref("cat", { dimension: "temperaments", value: "good_with_dogs" });
+    expect(
+      parseGalleryQuery(Object.fromEntries(new URL(href, "http://x").searchParams), NO_SLUGS),
+    ).toEqual({
+      filters: {
+        ...NO_FILTERS,
+        species: { kind: "oneOf", values: ["cat"] },
+        temperaments: { kind: "oneOf", values: ["good_with_dogs"] },
+      },
+      sort: "freshest",
+      page: 1,
+    });
   });
 });

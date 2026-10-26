@@ -213,6 +213,29 @@ describe("completeness stays photos, description and vaccination (commitment 1)"
     ].map((subject) => scoreAt(subject, 0));
     expect(new Set(scores).size).toBe(1);
   });
+
+  it("does not rank on temperament or colour even when their filters are on (PR 1b)", () => {
+    // As fur: the query applies the filter, and ranking must not add either
+    // as a preference signal on top, or describing an animal would move it.
+    const filtered: FeedFilters = {
+      ...NO_FILTERS,
+      temperaments: { kind: "oneOf", values: ["playful", "shy"] },
+      colours: { kind: "oneOf", values: ["ginger"] },
+    };
+    const scores = [
+      animal({}),
+      animal({ temperament: [{ kind: "preset", trait: "playful" }] }),
+      animal({
+        temperament: [
+          { kind: "preset", trait: "shy" },
+          { kind: "preset", trait: "playful" },
+        ],
+      }),
+      animal({ colour: { kind: "preset", colour: "ginger" } }),
+      animal({ colour: { kind: "preset", colour: "black" } }),
+    ].map((subject) => scoreAt(subject, 0, filtered));
+    expect(new Set(scores).size).toBe(1);
+  });
 });
 
 describe("preference component", () => {

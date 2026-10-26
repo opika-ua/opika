@@ -15,7 +15,7 @@ const CITY_SLUGS = new Map([
 ]);
 
 describe("GalleryFilterDropdowns", () => {
-  it("renders exactly five dropdown triggers - city, age, size, species, fur, never a 'sex' one", () => {
+  it("renders exactly seven dropdown triggers – city, age, size, species, fur, temperament, colour, never a 'sex' one", () => {
     render(
       <GalleryFilterDropdowns
         filters={NO_FILTERS}
@@ -24,7 +24,7 @@ describe("GalleryFilterDropdowns", () => {
         citySlugs={CITY_SLUGS}
       />,
     );
-    expect(screen.getAllByRole("button")).toHaveLength(5);
+    expect(screen.getAllByRole("button")).toHaveLength(7);
     expect(screen.queryByLabelText(/Стать/)).toBeNull();
   });
 
@@ -239,5 +239,115 @@ describe("GalleryFilterDropdowns", () => {
     fireEvent.click(screen.getByLabelText(`${uk.filters.coat}: ${uk.filters.coat}`));
     const option = screen.getByRole("link", { name: uk.filters.coatLong });
     expect(option.getAttribute("href")).toBe("/tvaryny?sherst=long");
+  });
+  /**
+   * Pet card PR 1b: the sixth and seventh dropdowns. Expected names are his
+   * approved words typed out («Характер», «Забарвлення», PC1b-T2; the plural
+   * trait words, PC-Q2; the neuter colours, PC1-D4), not read from the
+   * catalogue.
+   */
+  it("the temperament dropdown lists every trait in its plural and «Соромʼязливі» writes kharakter=shy", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={NO_FILTERS}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Характер: Характер" }));
+    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual([
+      "Грайливі",
+      "Спокійні",
+      "Ласкаві",
+      "Енергійні",
+      "Самостійні",
+      "Соромʼязливі",
+      "Ладнають з дітьми",
+      "Ладнають з котами",
+      "Ладнають з собаками",
+    ]);
+    expect(screen.getByRole("link", { name: "Соромʼязливі" }).getAttribute("href")).toBe(
+      "/tvaryny?kharakter=shy",
+    );
+  });
+
+  it("the colour dropdown lists every colour and «Чорно-біле» writes zabarvlennia=black_white", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={NO_FILTERS}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Забарвлення: Забарвлення" }));
+    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual([
+      "Чорне",
+      "Біле",
+      "Сіре",
+      "Руде",
+      "Коричневе",
+      "Кремове",
+      "Чорно-біле",
+      "Триколірне",
+      "Смугасте",
+      "Плямисте",
+    ]);
+    expect(screen.getByRole("link", { name: "Чорно-біле" }).getAttribute("href")).toBe(
+      "/tvaryny?zabarvlennia=black_white",
+    );
+  });
+
+  it("an active temperament or colour shows its values on the trigger and marks them aria-current", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={{
+          ...NO_FILTERS,
+          temperaments: { kind: "oneOf", values: ["calm", "shy"] },
+          colours: { kind: "oneOf", values: ["ginger"] },
+        }}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+    const temperament = screen.getByRole("button", {
+      name: "Характер: Спокійні, Соромʼязливі",
+    });
+    expect(temperament.textContent).toBe("Спокійні, Соромʼязливі");
+    expect(screen.getByRole("button", { name: "Забарвлення: Руде" }).textContent).toBe("Руде");
+
+    fireEvent.click(temperament);
+    expect(screen.getByRole("link", { name: /Спокійні/ }).getAttribute("aria-current")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("link", { name: /Грайливі/ }).getAttribute("aria-current")).toBeNull();
+    // Unticking one keeps the other, and the colour.
+    expect(screen.getByRole("link", { name: /Спокійні/ }).getAttribute("href")).toBe(
+      "/tvaryny?kharakter=shy&zabarvlennia=ginger",
+    );
+  });
+
+  it("the temperament and colour ✕ each clear only their own dimension", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={{
+          ...NO_FILTERS,
+          coatLengths: { kind: "oneOf", values: ["short"] },
+          temperaments: { kind: "oneOf", values: ["playful"] },
+          colours: { kind: "oneOf", values: ["white"] },
+        }}
+        sort="longest_waiting"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+    expect(screen.getByLabelText("Скинути Характер").getAttribute("href")).toBe(
+      "/tvaryny?sherst=short&zabarvlennia=white&sort=longest_waiting",
+    );
+    expect(screen.getByLabelText("Скинути Забарвлення").getAttribute("href")).toBe(
+      "/tvaryny?sherst=short&kharakter=playful&sort=longest_waiting",
+    );
   });
 });

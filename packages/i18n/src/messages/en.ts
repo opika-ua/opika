@@ -57,6 +57,8 @@ export const en = {
     coat: "Fur",
     coatShort: "Short-haired",
     coatLong: "Long-haired",
+    temperament: "Temperament",
+    colour: "Colour",
     /** Template: "{count} {animalWord} match. Shelters in this city - {shelterCount}." */
     resultCount: "{count} {animalWord} match. Shelters in this city - {shelterCount}.",
     /** Template: "{count} {animalWord} match, across {shelterCount} {shelterWord}." - used when no city is selected, see uk.ts's note. */
@@ -362,6 +364,8 @@ export const en = {
     showAllCities: "Show every city ({animalWord})",
     additionalAnimals: "+{count} {animalWord}",
     relaxCoat: "Any fur: +{count}",
+    relaxTemperament: "Any temperament: +{count}",
+    relaxColour: "Any colour: +{count}",
     suggestionExplainer:
       "Each suggestion names how many animals it would add. An empty screen never says " +
       '"try something else" without a number.',

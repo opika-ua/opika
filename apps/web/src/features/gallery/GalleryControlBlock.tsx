@@ -7,9 +7,9 @@ import { FilterIcon } from "./icons";
 
 /**
  * gallery-v3 (Figma `58:1617`) control block: «Фільтр» toggles the
- * dropdown row (city/age/size/species/fur + sort) open or closed - it does not open
- * `FilterSheet`'s modal. Designer clarification (verbatim, mid-build):
- * "this Filters button shows that search filters below or hides if they
+ * dropdown row (city/age/size/species/fur/temperament/colour + sort) open or
+ * closed – it does not open `FilterSheet`'s modal. Designer clarification
+ * (verbatim, mid-build): "this Filters button shows that search filters below or hides if they
  * are shown." Desktop only for now — "we don't have [a] mobile section in
  * Figma yet, so do only desktop for now" — mobile/tablet keep the
  * pre-existing `FilterSheet` modal (rendered by the caller as `children`
@@ -33,7 +33,7 @@ export function GalleryControlBlock({
   title: ReactNode;
   /** `FilterSheet`'s own trigger (at narrow widths - it's `desktop:hidden`) - rendered before the toggle button. */
   trailing: ReactNode;
-  /** Row 2's content - the five dropdowns and the sort toggle. */
+  /** Row 2's content – the seven dropdowns and the sort toggle. */
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(true);
@@ -143,7 +143,15 @@ export function GalleryControlBlock({
         }`}
       >
         <div className={expanded ? "overflow-visible" : "overflow-hidden"}>
-          <div className="flex flex-wrap items-center justify-between gap-4">{children}</div>
+          {/*
+            No `flex-wrap` here (pet card PR 1b): seven dropdowns no longer fit
+            one line at any desktop width, and a wrapping row would push the
+            sort switch onto a line of its own. The dropdowns wrap inside their
+            own container instead (`GalleryFilterDropdowns`, `min-w-0 flex-1`),
+            and `items-start` keeps the switch level with their first line
+            rather than centred on all of them.
+          */}
+          <div className="flex items-start justify-between gap-4">{children}</div>
         </div>
       </div>
     </div>

@@ -176,6 +176,8 @@ describe("filter dimensions", () => {
       sizes: { kind: "oneOf", values: ["small"] },
       ages: { kind: "oneOf", values: ["baby"] },
       coatLengths: { kind: "oneOf", values: ["long"] },
+      temperaments: { kind: "oneOf", values: ["shy"] },
+      colours: { kind: "oneOf", values: ["ginger"] },
     };
 
     const relaxed = relaxDimension(narrow, "sizes");
@@ -185,6 +187,8 @@ describe("filter dimensions", () => {
     expect(relaxed.species).toEqual(narrow.species);
     expect(relaxed.ages).toEqual(narrow.ages);
     expect(relaxed.coatLengths).toEqual(narrow.coatLengths);
+    expect(relaxed.temperaments).toEqual(narrow.temperaments);
+    expect(relaxed.colours).toEqual(narrow.colours);
   });
 
   it("does not mutate the filters it relaxes", () => {
@@ -280,5 +284,171 @@ describe("the fur dimension (DR1, S2)", () => {
     expect(relaxed.coatLengths).toEqual({ kind: "any" });
     expect(relaxed.sizes).toEqual(narrow.sizes);
     expect(FEED_FILTER_DIMENSIONS).toContain("coatLengths");
+  });
+});
+
+/**
+ * Temperament and colour (pet card redesign, PR 1b): the sixth and seventh
+ * dimensions, built the way fur was. The universes are written out here, not
+ * read from `TEMPERAMENT_TRAITS`/`COAT_COLOURS`: a trait added to the domain
+ * then turns the "every box ticked" cases red until someone decides it
+ * belongs in the collapse, rather than passing against whatever the constant
+ * holds.
+ */
+describe("the temperament and colour dimensions", () => {
+  const EVERY_TRAIT = [
+    "playful",
+    "calm",
+    "affectionate",
+    "energetic",
+    "independent",
+    "shy",
+    "good_with_kids",
+    "good_with_cats",
+    "good_with_dogs",
+  ] as const;
+  const EVERY_COLOUR = [
+    "black",
+    "white",
+    "grey",
+    "ginger",
+    "brown",
+    "cream",
+    "black_white",
+    "tricolour",
+    "tabby",
+    "spotted",
+  ] as const;
+
+  it("collapses ticking every temperament trait back to any", () => {
+    const every: FeedFilters = {
+      ...NO_FILTERS,
+      temperaments: { kind: "oneOf", values: [...EVERY_TRAIT] },
+    };
+    expect(canonicalizeFilters(every).temperaments).toEqual({ kind: "any" });
+    expect(canonicalizeFilters(every)).toEqual(NO_FILTERS);
+    expect(filtersFingerprint(every)).toBe(filtersFingerprint(NO_FILTERS));
+  });
+
+  it("collapses ticking every colour back to any", () => {
+    const every: FeedFilters = {
+      ...NO_FILTERS,
+      colours: { kind: "oneOf", values: [...EVERY_COLOUR] },
+    };
+    expect(canonicalizeFilters(every).colours).toEqual({ kind: "any" });
+    expect(canonicalizeFilters(every)).toEqual(NO_FILTERS);
+    expect(filtersFingerprint(every)).toBe(filtersFingerprint(NO_FILTERS));
+  });
+
+  it("keeps every selection one short of the whole list as a constraint", () => {
+    const [, ...eightTraits] = EVERY_TRAIT;
+    const [, ...nineColours] = EVERY_COLOUR;
+    const narrowed = canonicalizeFilters({
+      ...NO_FILTERS,
+      temperaments: { kind: "oneOf", values: eightTraits },
+      colours: { kind: "oneOf", values: nineColours },
+    });
+    expect(narrowed.temperaments).toEqual({
+      kind: "oneOf",
+      values: [...eightTraits].sort(),
+    });
+    expect(narrowed.colours).toEqual({ kind: "oneOf", values: [...nineColours].sort() });
+  });
+
+  it("orders and de-duplicates the chosen traits, so the order ticked never changes the fingerprint", () => {
+    const a: FeedFilters = {
+      ...NO_FILTERS,
+      temperaments: { kind: "oneOf", values: ["shy", "calm", "shy"] },
+    };
+    const b: FeedFilters = {
+      ...NO_FILTERS,
+      temperaments: { kind: "oneOf", values: ["calm", "shy"] },
+    };
+    expect(canonicalizeFilters(a).temperaments).toEqual({
+      kind: "oneOf",
+      values: ["calm", "shy"],
+    });
+    expect(filtersFingerprint(a)).toBe(filtersFingerprint(b));
+  });
+
+  it("gives a trait and a colour of the same selection their own segments", () => {
+    const prints = [
+      NO_FILTERS,
+      { ...NO_FILTERS, temperaments: { kind: "oneOf", values: ["calm"] } },
+      { ...NO_FILTERS, colours: { kind: "oneOf", values: ["black"] } },
+      {
+        ...NO_FILTERS,
+        temperaments: { kind: "oneOf", values: ["calm"] },
+        colours: { kind: "oneOf", values: ["black"] },
+      },
+    ] satisfies FeedFilters[];
+    expect(new Set(prints.map(filtersFingerprint)).size).toBe(4);
+  });
+
+  it("never reproduces a fingerprint from before the sixth and seventh dimensions", () => {
+    // The five-segment form every cursor issued before PR 1b carries, rebuilt
+    // by hand from the old rule (cities|species|sizes|ages|coatLengths),
+    // never from the current function.
+    const legacy = (f: FeedFilters): string => {
+      const c = canonicalizeFilters(f);
+      const encode = (s: { kind: "any" } | { kind: "oneOf"; values: readonly string[] }) =>
+        s.kind === "any" ? "*" : s.values.join(",");
+      return [c.cities, c.species, c.sizes, c.ages, c.coatLengths].map(encode).join("|");
+    };
+    const sets: FeedFilters[] = [
+      NO_FILTERS,
+      { ...NO_FILTERS, coatLengths: { kind: "oneOf", values: ["long"] } },
+      { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
+      { ...NO_FILTERS, temperaments: { kind: "oneOf", values: ["playful"] } },
+      { ...NO_FILTERS, colours: { kind: "oneOf", values: ["tabby"] } },
+    ];
+    const current = new Set(sets.map(filtersFingerprint));
+    for (const set of sets) {
+      expect(current.has(legacy(set))).toBe(false);
+    }
+  });
+
+  it("reads a filter set stored before these dimensions as no temperament or colour filter", () => {
+    const stored = {
+      cities: { kind: "any" },
+      species: { kind: "oneOf", values: ["dog"] },
+      sizes: { kind: "any" },
+      ages: { kind: "any" },
+      coatLengths: { kind: "oneOf", values: ["short"] },
+    };
+    const parsed = FeedFiltersSchema.parse(stored);
+    expect(parsed.temperaments).toEqual({ kind: "any" });
+    expect(parsed.colours).toEqual({ kind: "any" });
+    expect(parsed.coatLengths).toEqual({ kind: "oneOf", values: ["short"] });
+  });
+
+  it("refuses a value outside each closed list, and an empty selection", () => {
+    for (const bad of [
+      { temperaments: { kind: "oneOf", values: ["grumpy"] } },
+      { temperaments: { kind: "oneOf", values: [] } },
+      { colours: { kind: "oneOf", values: ["smoky"] } },
+      { colours: { kind: "oneOf", values: [] } },
+    ]) {
+      expect(
+        FeedFiltersSchema.safeParse({ ...NO_FILTERS, ...bad }).success,
+        JSON.stringify(bad),
+      ).toBe(false);
+    }
+  });
+
+  it("relaxes each of the two like any other dimension", () => {
+    const narrow: FeedFilters = {
+      ...NO_FILTERS,
+      temperaments: { kind: "oneOf", values: ["energetic"] },
+      colours: { kind: "oneOf", values: ["white"] },
+    };
+    expect(relaxDimension(narrow, "temperaments")).toEqual({
+      ...narrow,
+      temperaments: { kind: "any" },
+    });
+    expect(relaxDimension(narrow, "colours")).toEqual({ ...narrow, colours: { kind: "any" } });
+    expect(isConstrained(narrow, "temperaments")).toBe(true);
+    expect(isConstrained(narrow, "colours")).toBe(true);
+    expect(FEED_FILTER_DIMENSIONS).toEqual(expect.arrayContaining(["temperaments", "colours"]));
   });
 });

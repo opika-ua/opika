@@ -181,3 +181,72 @@ describe("feedList - cursors across the fifth filter dimension", () => {
     );
   });
 });
+
+/**
+ * Pet card PR 1b: the fingerprint gained a sixth and seventh segment
+ * (temperament, colour), so every deck cursor issued before the deploy
+ * carries a five-segment one. Refused once, as fur's were, never decoded into
+ * a page of a differently filtered feed.
+ */
+describe("feedList – cursors across the temperament and colour dimensions", () => {
+  beforeEach(() => {
+    listMock.mockReset().mockResolvedValue({ items: [], nextCursor: null });
+    reachableCountMock.mockReset().mockResolvedValue(0);
+    findByIdsMock.mockReset().mockResolvedValue([]);
+  });
+
+  const context: AppContext = {
+    db: {} as AppContext["db"],
+    adopterId: null,
+    tokenHash: null,
+    now: new Date("2026-10-26T12:00:00Z"),
+    setCookies: [],
+  };
+  const position = { at: new Date("2026-10-01T00:00:00Z"), id: "some-animal-id" };
+  const shy = { ...NO_FILTERS, temperaments: { kind: "oneOf", values: ["shy"] } } as const;
+  const calm = { ...NO_FILTERS, temperaments: { kind: "oneOf", values: ["calm"] } } as const;
+  const black = { ...NO_FILTERS, colours: { kind: "oneOf", values: ["black"] } } as const;
+
+  async function codeOf(promise: Promise<unknown>): Promise<string | null> {
+    try {
+      await promise;
+      return null;
+    } catch (error) {
+      return (error as { code?: string }).code ?? "thrown without a code";
+    }
+  }
+
+  it("refuses a cursor signed before these dimensions existed, and never queries a page for it", async () => {
+    // What `filtersFingerprint(NO_FILTERS)` returned between fur and PR 1b,
+    // transcribed rather than computed: five "any" segments.
+    const legacy = encodeFeedCursor(position, "*|*|*|*|*", "test-secret") as FeedCursor;
+    expect(
+      await codeOf(feedList({ filters: NO_FILTERS, cursor: legacy, limit: 10 }, context, errors)),
+    ).toBe("INVALID_CURSOR");
+    expect(listMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a cursor replayed under another temperament, or with a colour added", async () => {
+    const issued = encodeFeedCursor(position, filtersFingerprint(shy), "test-secret") as FeedCursor;
+    for (const filters of [calm, { ...shy, colours: black.colours }, NO_FILTERS]) {
+      expect(
+        await codeOf(feedList({ filters, cursor: issued, limit: 10 }, context, errors)),
+        JSON.stringify(filters),
+      ).toBe("INVALID_CURSOR");
+    }
+    expect(listMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a cursor issued for the same temperament and colour", async () => {
+    const both = { ...shy, colours: black.colours };
+    const issued = encodeFeedCursor(
+      position,
+      filtersFingerprint(both),
+      "test-secret",
+    ) as FeedCursor;
+    expect(
+      await codeOf(feedList({ filters: both, cursor: issued, limit: 10 }, context, errors)),
+    ).toBeNull();
+    expect(listMock).toHaveBeenCalledWith(expect.objectContaining({ filters: both }));
+  });
+});

@@ -2063,6 +2063,66 @@ describe("pet card kabinet copy (his approval, 2026-10-26)", () => {
 });
 
 /**
+ * Pet card PR 1b: the two filter groups' names and the two no-match
+ * suggestions, his approved copy, transcribed here, never read from `uk.ts`.
+ *
+ * The group names, Oleksii, 2026-10-26, verbatim as the coordinating session
+ * relayed it (inbox PC1b-T2): "split them. Add filters.temperament =
+ * «Характер» and filters.colour = «Забарвлення» (same text, their own keys),
+ * mirroring filters.coat. The public gallery must not read kabinet.* strings.
+ * Both new keys count as owner-approved, since the text is identical to what I
+ * already approved."
+ *
+ * The suggestions, drafted by the builder on his fur sentence, then approved,
+ * verbatim as relayed (inbox PC1b-C1): "No-match copy: (a), approved as
+ * written... owner-approved final copy, matching the «Будь-яка шерсть»
+ * precedent."
+ */
+const PC1B_COPY: Record<string, string> = {
+  "filters.temperament": "Характер",
+  "filters.colour": "Забарвлення",
+  "noMatch.relaxTemperament": "Будь-який характер: +{count}",
+  "noMatch.relaxColour": "Будь-яке забарвлення: +{count}",
+};
+
+describe("pet card filter copy (his approval, 2026-10-26)", () => {
+  const atRoot = (path: string): unknown =>
+    path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], uk);
+
+  it.each(Object.entries(PC1B_COPY))("%s is his approved text, exactly", (path, text) => {
+    expect(atRoot(path)).toBe(text);
+  });
+
+  it("the group names are public keys of their own, as fur's is, not the kabinet's", () => {
+    // Same words in both places by his decision; separate keys, so the
+    // kabinet's titles can change without moving the public filters.
+    expect(Object.keys(uk.filters)).toEqual(
+      expect.arrayContaining(["coat", "temperament", "colour"]),
+    );
+    expect(Object.keys(en.filters)).toEqual(
+      expect.arrayContaining(["coat", "temperament", "colour"]),
+    );
+  });
+
+  it("each suggestion keeps fur's shape: «Будь-…» + the group's noun + «: +{count}»", () => {
+    for (const path of ["noMatch.relaxTemperament", "noMatch.relaxColour"]) {
+      expect(atRoot(path), path).toMatch(/^Будь-\S+ \S+: \+\{count\}$/u);
+    }
+    expect(uk.noMatch.relaxCoat).toMatch(/^Будь-\S+ \S+: \+\{count\}$/u);
+  });
+
+  it("nothing here is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
+    for (const [path] of Object.entries(PC1B_COPY)) {
+      const text = atRoot(path) as string;
+      expect(text, path).not.toContain(COPY_PENDING);
+      expect(text, path).not.toMatch(/['’]/);
+    }
+  });
+});
+
+/**
  * Designer round 1, S4: the preview drawer's strings (`docs/designer-round-1.md`
  * §11, item 3, Oleksii, 2026-10-20), transcribed from that item, never read
  * from `uk.ts`. Item 3, verbatim: "preview.close: yes, reuse the existing

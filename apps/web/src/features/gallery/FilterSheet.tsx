@@ -14,12 +14,14 @@ import {
   AGE_BUCKETS,
   ANIMAL_SPECIES,
   ANY,
+  COAT_COLOURS,
   COAT_LENGTHS,
   DEFAULT_GALLERY_SORT,
   isExplicitlySelected,
   SIZE_BUCKETS,
+  TEMPERAMENT_TRAITS,
 } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { colourFilterLabel, temperamentFilterLabel, uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import type { CitySlugsById } from "./filter-url";
@@ -408,6 +410,52 @@ export function FilterSheet({
                     className="sr-only"
                   />
                   {AGE_LABEL[age]}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          {/* Pet card PR 1b: the same group, twice more, after age and before
+              sort, with the filter words PR 1 built for these two. Below
+              1024px the sheet is the only filter control, so phones need these
+              (Oleksii, 2026-10-26, verbatim as relayed: "keeping the two new
+              filter groups there is approved; phones need a control for these
+              filters."; inbox PC1b-T15). */}
+          <fieldset className="flex flex-col gap-3">
+            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
+              {uk.filters.temperament}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {TEMPERAMENT_TRAITS.map((trait) => (
+                <label key={trait} className={CHIP_LABEL_BASE}>
+                  <input
+                    type="checkbox"
+                    name={GALLERY_PARAM.temperament}
+                    value={trait}
+                    defaultChecked={isExplicitlySelected(filters.temperaments, trait)}
+                    className="sr-only"
+                  />
+                  {temperamentFilterLabel(trait)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="flex flex-col gap-3">
+            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
+              {uk.filters.colour}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {COAT_COLOURS.map((colour) => (
+                <label key={colour} className={CHIP_LABEL_BASE}>
+                  <input
+                    type="checkbox"
+                    name={GALLERY_PARAM.colour}
+                    value={colour}
+                    defaultChecked={isExplicitlySelected(filters.colours, colour)}
+                    className="sr-only"
+                  />
+                  {colourFilterLabel(colour)}
                 </label>
               ))}
             </div>
