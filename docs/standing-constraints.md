@@ -54,6 +54,13 @@ SQL or auth is involved). Its notes go into one follow-up batch per area, fixed 
 together later. Tier 1 notes that touch a live security path count as blockers; tests-only and
 docs notes don’t." Every check still happens; a non-blocking note's check moves to its batch.
 
+**Superseded in full, 2026-10-26** by `CLAUDE.md`'s "Working mode: lean": the tiered,
+batched-notes process above is historical. A separate review round now applies only to lean
+rule 1's categories (migrations/SQL, auth/access, R2 writes or deletes, GDPR/privacy, security
+fixes); everything else merges on CI green plus the builder's own self-check. This still
+governs only *when* a check happens, not *whether* - product options are still weighed on
+quality, never on speed.
+
 ## How work is verified
 
 **A user-interface item may not be marked done on the basis of inspecting markup.** It

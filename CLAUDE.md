@@ -17,6 +17,28 @@ before overriding it.**
 
 @docs/standing-constraints.md
 
+## Working mode: lean (owner, 2026-10-26; overrides older process rules)
+
+The base app is done. Remaining work: design, pre-launch debugging, security audit, launch.
+Priority: speed with sensible quality.
+
+1. Separate reviewer only for: migrations or SQL, auth and permissions, R2 writes or deletes,
+   GDPR/privacy, security fixes. One round; only blockers get a re-check. Everything else (UI,
+   design, copy, docs, tests): CI green plus self-check, then merge.
+2. No review-record PRs, no decisions-inbox fold PRs. Decisions go in the feature PR's
+   description.
+3. One feature = one PR. Split only so a migration lands first.
+4. New Ukrainian copy: one table at the start of a task, asked once. Strings from the Figma
+   design are approved.
+5. Mutation tests and the full Playwright harness only for rule-1 changes.
+6. Comments: 1–3 lines, why only. Trim long ones in files you touch.
+7. Reports to the owner: ≤10 lines: done / needs Oleksii / next.
+8. Smoke sittings only for SQL PRs: fresh Neon child branch, `PROD_NEON_ENDPOINT` set, never
+   production. PowerShell, `Read-Secret`, one sitting file per day.
+9. Fresh session per PR with a short brief; at most two local agents.
+10. If a PR's CI doesn't start, check for a merge conflict with `main` first.
+11. Never «—» (U+2014); use «–» where a dash is needed; «-» only inside words.
+
 ## What this is
 
 A swipe-based pet adoption platform connecting adopters with verified
@@ -569,10 +591,38 @@ why - it's the newest version that's already cleared quarantine. Don't
 entry; wait a day, or pick the next-newest cleared version instead.
 @docs/model-policy.md
 
-# Working loop
+# Working loop (historical - superseded 2026-10-26 by "Working mode: lean" above)
 
-Append this section to CLAUDE.md. It is what makes the reviewer fire without being asked, and
-what lets work continue without Oleksii gating every step.
+Everything below this point - the Tier 1/2/3 gate, the cloud/local "who does what" split, the
+STOP/PASS-WITH-NOTES review loop, the decisions-inbox table, per-area follow-up batching, and
+the documentation-diet row-length rule - described the process in force before 2026-10-26. It
+is kept as a record of how past PRs were actually reviewed and merged (so e.g. a review file
+under `docs/reviews/` or a row in `docs/decisions-inbox.md` is legible), not as current
+instruction. Follow "Working mode: lean" above instead. `docs/decisions-inbox.md` and
+`docs/decisions-inbox/*.md` are frozen as of 2026-10-26: new decisions go in the PR description
+(lean rule 2), nothing new is appended to the inbox table.
+
+A few pieces of mechanics from this section are still true and still used:
+
+- **Never generate artificial CPU or memory load** to reproduce a bug - deterministic forcing
+  only (fake clocks, injected delays, forced scheduling order), never busy-loops or piles of
+  parallel processes. Permanent, Oleksii, 2026-10-19 (an agent crashed the PC doing this).
+- **Merge only the commit that was reviewed/green.** `gh pr merge --squash --match-head-commit
+  <sha>` - GitHub refuses if the head moved since. Never run `update-branch` yourself; a rebase
+  produces a new head too and needs its own green CI check before merging.
+- **A rebase needs no fresh review round** (lean rule 1 still applies to whether it needs one
+  at all) **only when all three hold:** no conflicts; `git range-diff` shows every patch
+  unchanged; the PR's changed files don't overlap the files changed by the new commits on
+  `main`. Green CI on the rebased head is then the gate. Otherwise treat the new head like any
+  other change under lean rule 1.
+- **Full `pnpm check` runs are serialised:** at most two at once on the machine. Targeted test
+  suites are free to run concurrently.
+- A reviewer's STOP (rule-1 changes only, now) blocks the **merge**, not the **commit** -
+  commit and push working code before raising the decision to Oleksii; never hold a green
+  working tree uncommitted while waiting for an answer.
+
+The rest of this section (everything from "Who does what" to "Process tiers") is archived
+below unedited, for history only.
 
 ## Who does what (2026-10-23; supersedes the 2026-10-21 cloud/local split below, and the rules
 further below where they conflict)
