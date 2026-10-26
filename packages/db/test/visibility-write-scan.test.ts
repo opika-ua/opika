@@ -60,7 +60,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/gallery-repo.ts",
-    line: 425,
+    line: 411,
     text: "listingKind: animals.listingKind,",
     kind: "read",
     why: "getAnimalColumns' SELECT list for the gallery page",

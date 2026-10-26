@@ -12,7 +12,7 @@ import {
   maxNavigablePage,
   relaxDimension,
 } from "@opika/domain";
-import { and, asc, desc, eq, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
 import {
@@ -78,23 +78,21 @@ function orderingFor(sort: GallerySort): SQL[] {
 }
 
 /**
- * The mirror of `orderingFor`, for the "prev" direction: finding the row
- * immediately before a seek key means scanning toward it from the opposite
- * end, so `LIMIT 1` returns the closest row rather than an arbitrary one
- * further away. Whichever row `buildFeedPredicate`/`buildScopePredicate`
- * would place it next to in `orderingFor`'s own order is exactly the row
- * this returns.
+ * The mirror of `orderingFor`, for the "prev" direction: scanning toward a
+ * seek point from the opposite end, so `LIMIT 1` returns the closest row
+ * rather than an arbitrary one further away.
+ *
+ * No `NULLS` clause for `longest_waiting`, unlike `orderingFor`: every row
+ * this ordering runs against already passed `buildFeedPredicate`, which
+ * restricts to `DISCOVERABLE_LISTING_KINDS` - and `waitAnchorOf` is
+ * non-null for exactly those kinds. There is no null row in the result set
+ * for a `NULLS` clause to place.
  */
 function reverseOrderingFor(sort: GallerySort): SQL[] {
   switch (sort) {
     case "freshest":
       return [asc(animals.lastConfirmedAt), desc(animals.id)];
     case "longest_waiting":
-      // No NULLS clause needed here, unlike `orderingFor`: every row this
-      // ordering ever runs against already passed `buildFeedPredicate`,
-      // which restricts to `DISCOVERABLE_LISTING_KINDS` - and `waitAnchorOf`
-      // is non-null for exactly those listing kinds, never for the ones it
-      // excludes. There is no null row in the set to place.
       return [desc(animals.waitAnchorAt), desc(animals.id)];
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
@@ -103,8 +101,6 @@ function reverseOrderingFor(sort: GallerySort): SQL[] {
     }
   }
 }
-
-type SeekKey = { readonly value: Date; readonly id: AnimalId };
 
 /** The column `orderingFor`/`reverseOrderingFor` sort on for this mode. */
 function anchorColumnFor(sort: GallerySort) {
@@ -122,25 +118,33 @@ function anchorColumnFor(sort: GallerySort) {
 }
 
 /**
- * "Give me the row(s) that come after `key` in `orderingFor(sort)`'s order" -
- * `feed-repo.ts`'s own keyset-cursor predicate, generalised to the sort mode
- * the gallery also offers. `direction` flips both halves of the comparison
- * (which side of `key` and which side of a tie on `id`), never only one -
- * "prev" is "next" read backwards, not a different rule.
+ * "Give me the row that comes after `animalId` in `orderingFor(sort)`'s
+ * order" - `feed-repo.ts`'s own keyset-cursor predicate, generalised to the
+ * sort mode the gallery also offers. `direction` flips both halves of the
+ * comparison (which side of the anchor, which side of a tie on `id`), never
+ * only one - "prev" is "next" read backwards, not a different rule.
+ *
+ * The anchor is a scalar subquery on `animalId`, not a value fetched into
+ * JS first: that keeps the comparison inside Postgres at full `timestamptz`
+ * precision (a `Date` round-trip would truncate to milliseconds), and it
+ * makes an unknown id or a null anchor (draft, adopted, withdrawn) answer
+ * themselves - the subquery returns `NULL`, every comparison against `NULL`
+ * is `NULL`, and the `WHERE` matches nothing. No separate check needed for
+ * either case.
  */
-function seekCondition(sort: GallerySort, direction: "prev" | "next", key: SeekKey): SQL {
+function seekCondition(sort: GallerySort, direction: "prev" | "next", animalId: AnimalId): SQL {
   const column = anchorColumnFor(sort);
-  const keyValue = key.value.toISOString();
+  const anchor = sql`(SELECT ${column} FROM ${animals} WHERE ${animals.id} = ${animalId})`;
   const primaryIsDescending = sort === "freshest";
   const wantGreater = direction === "next" ? !primaryIsDescending : primaryIsDescending;
   const tieWantsGreaterId = direction === "next";
 
-  const primary = wantGreater
-    ? sql`${column} > ${keyValue}::timestamptz`
-    : sql`${column} < ${keyValue}::timestamptz`;
-  const tie = tieWantsGreaterId ? sql`${animals.id} > ${key.id}` : sql`${animals.id} < ${key.id}`;
+  const primary = wantGreater ? sql`${column} > ${anchor}` : sql`${column} < ${anchor}`;
+  const tie = tieWantsGreaterId
+    ? sql`${animals.id} > ${animalId}`
+    : sql`${animals.id} < ${animalId}`;
 
-  return sql`(${primary} OR (${column} = ${keyValue}::timestamptz AND ${tie}))`;
+  return sql`(${primary} OR (${column} = ${anchor} AND ${tie}))`;
 }
 
 async function fetchNeighbour(
@@ -148,9 +152,9 @@ async function fetchNeighbour(
   where: SQL | undefined,
   sort: GallerySort,
   direction: "prev" | "next",
-  key: SeekKey,
+  animalId: AnimalId,
 ): Promise<NeighbourRow | undefined> {
-  const condition = seekCondition(sort, direction, key);
+  const condition = seekCondition(sort, direction, animalId);
   const order = direction === "next" ? orderingFor(sort) : reverseOrderingFor(sort);
   const rows = await db
     .select({ id: animals.id, name: animals.name })
@@ -333,16 +337,17 @@ export function galleryRepo(db: Database) {
 
     /**
      * Prev/next for the pet card overlay, under the same `(filters, sort,
-     * scope)` as `list` - same predicate builders, same `orderingFor`, so the
-     * order these two methods agree on can't drift apart by one of them
-     * changing alone.
+     * scope)` as `list` - same predicate builders, same `orderingFor`/
+     * `reverseOrderingFor`, so the two can't drift apart.
      *
-     * The seek key comes from the animal's own row, fetched unfiltered, not
-     * from a position in a filtered result set - which is exactly what makes
-     * this still answer correctly for an animal that has since dropped out
-     * of the current filters (PR 2's own requirement): it has no row in the
-     * filtered set to be "at", but it still has a `lastConfirmedAt` or
-     * `waitAnchorAt` of its own to seek neighbours from.
+     * The seek anchor is looked up by `animalId` inside the SQL itself
+     * (`seekCondition`'s subquery), not from a position in a filtered
+     * result set - which is why this still answers correctly for an animal
+     * that has since dropped out of the current filters (PR 2's own
+     * requirement), and why an unknown id or a non-discoverable animal
+     * (draft, adopted, withdrawn - no `lastConfirmedAt`/`waitAnchorAt` to
+     * seek from) both resolve to no rows rather than needing their own
+     * checks here.
      */
     async neighbours(opts: {
       animalId: AnimalId;
@@ -351,33 +356,14 @@ export function galleryRepo(db: Database) {
       sort: GallerySort;
       now: Date;
     }): Promise<Neighbours> {
-      const [current] = await db
-        .select({
-          id: animals.id,
-          lastConfirmedAt: animals.lastConfirmedAt,
-          waitAnchorAt: animals.waitAnchorAt,
-        })
-        .from(animals)
-        .where(eq(animals.id, opts.animalId))
-        .limit(1);
-
-      if (!current) return { prev: null, next: null };
-
-      const value = opts.sort === "freshest" ? current.lastConfirmedAt : current.waitAnchorAt;
-      // Null here means draft, adopted or withdrawn (`waitAnchorOf`/
-      // `confirmationAnchorOf`'s own rule) - no position in this ordering to
-      // seek from at all, not merely a filtered-out one.
-      if (value === null) return { prev: null, next: null };
-      const key: SeekKey = { value, id: current.id };
-
       const where = and(
         ...buildFeedPredicate(opts.filters, opts.now),
         ...buildScopePredicate(opts.scope),
       );
 
       const [prev, next] = await Promise.all([
-        fetchNeighbour(db, where, opts.sort, "prev", key),
-        fetchNeighbour(db, where, opts.sort, "next", key),
+        fetchNeighbour(db, where, opts.sort, "prev", opts.animalId),
+        fetchNeighbour(db, where, opts.sort, "next", opts.animalId),
       ]);
 
       return { prev: prev ?? null, next: next ?? null };

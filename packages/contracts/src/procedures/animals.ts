@@ -94,15 +94,9 @@ export const animalsCardsByIdsContract = oc
   });
 
 /**
- * Prev/next for the pet card overlay (pet card PR 2, section B).
- *
- * The context is the gallery the visitor is on, not a property of the
- * animal, so it travels on every call rather than being looked up server
- * side: `filters` and `sort` are the same values `gallery.list` was called
- * with, and the repository reuses its predicate and ordering builders so the
- * two can never drift apart. Still answers correctly for an animal that has
- * since dropped out of that filtered set - the seek key comes from the
- * animal's own row, not from a position in the result set.
+ * Prev/next for the pet card overlay. `filters`/`sort` travel on every call
+ * (the gallery the visitor is on), not looked up server side - they're the
+ * same values `gallery.list` was called with.
  */
 export const AnimalsNeighboursInputSchema = z.object({
   animalId: AnimalIdSchema,
@@ -120,10 +114,8 @@ export const NeighbourViewSchema = z.object({
 
 export const AnimalsNeighboursOutputSchema = z.object({
   /**
-   * `null` at either end (no wrap-around), and for an unknown `animalId` or
-   * one that no longer has a position in this ordering (a draft, adopted or
-   * withdrawn animal) - both read the same as "nothing there" to a caller
-   * that only wants to know what to link to next.
+   * `null` at either end (no wrap-around), and also for an unknown or
+   * non-discoverable `animalId` - both read as "nothing there" either way.
    */
   prev: NeighbourViewSchema.nullable(),
   next: NeighbourViewSchema.nullable(),

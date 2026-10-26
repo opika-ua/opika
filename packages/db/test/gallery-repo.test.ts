@@ -883,43 +883,136 @@ describe("galleryRepo.neighbours", () => {
     },
   );
 
+  it.each<GallerySort>(["freshest", "longest_waiting"])(
+    "breaks a tie on id ascending, for %s, matching list() across a page boundary",
+    async (sort) => {
+      const city = makeCity();
+      await cityRepo(db).insert(city);
+      const shelter = await makeShelterInCity(city.id);
+
+      // Two groups of three, each sharing one `confirmedAt` and one
+      // `waitAnchorAt` within the group - a real tie on both sort columns at
+      // once, broken only by `id`. Group A sorts first under both modes
+      // (fresher and longer-waiting); the groups are a precondition this
+      // test checks before relying on it, same as `seedPermutedOrderings`.
+      const tiedPublished = (confirmedAt: Date, publishedAt: Date) => ({
+        kind: "published" as const,
+        publishedAt,
+        confirmedAt,
+        undoable: null,
+      });
+      const groupA = Array.from({ length: 3 }, () =>
+        makeAnimal({
+          shelterId: shelter.id,
+          listing: tiedPublished(daysBefore(1), daysBefore(30)),
+        }),
+      );
+      const groupB = Array.from({ length: 3 }, () =>
+        makeAnimal({
+          shelterId: shelter.id,
+          listing: tiedPublished(daysBefore(10), daysBefore(5)),
+        }),
+      );
+      await animalRepo(db).insertMany(
+        [...groupA, ...groupB].map((animal) => ({ animal, cityId: city.id })),
+      );
+
+      const byIdAscending = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : 1);
+      const expectedOrder = [
+        ...[...groupA].sort(byIdAscending),
+        ...[...groupB].sort(byIdAscending),
+      ].map((animal) => animal.id);
+      expect(new Set(expectedOrder).size, "the six ids must be distinct").toBe(6);
+
+      const gallery = galleryRepo(db);
+
+      // Fetched as two separate pages, not one - the walk below must agree
+      // with `list()`'s order regardless of where a page happened to end.
+      const [page1, page2] = await Promise.all([
+        gallery.list({
+          filters: NO_FILTERS,
+          scope: EVERYONE_SCOPE,
+          sort,
+          page: 1,
+          pageSize: 3,
+          now: NOW,
+        }),
+        gallery.list({
+          filters: NO_FILTERS,
+          scope: EVERYONE_SCOPE,
+          sort,
+          page: 2,
+          pageSize: 3,
+          now: NOW,
+        }),
+      ]);
+      const pagedOrder = [...page1.items, ...page2.items].map((animal) => animal.id);
+      expect(pagedOrder, "list() across two pages").toEqual(expectedOrder);
+
+      for (let i = 0; i < expectedOrder.length; i++) {
+        const neighbours = await gallery.neighbours({
+          animalId: expectedOrder[i] as AnimalId,
+          filters: NO_FILTERS,
+          scope: EVERYONE_SCOPE,
+          sort,
+          now: NOW,
+        });
+        expect(neighbours.prev?.id ?? null, `prev of index ${i}`).toBe(
+          expectedOrder[i - 1] ?? null,
+        );
+        expect(neighbours.next?.id ?? null, `next of index ${i}`).toBe(
+          expectedOrder[i + 1] ?? null,
+        );
+      }
+    },
+  );
+
   it("seeks from an animal's own row even once it has dropped out of the current filters", async () => {
     const city = makeCity();
     await cityRepo(db).insert(city);
     const shelter = await makeShelterInCity(city.id);
 
-    const dogAfter = makeAnimal({
+    // A cat sits immediately adjacent to `catMiddle` on each side (catTrapPrev,
+    // catTrapNext) - its *unfiltered* neighbour. If the filter predicate were
+    // dropped or ignored, the assertions below would see one of these cats
+    // instead of the dog two steps away, and fail - proving the filter is
+    // genuinely narrowing the seek, not merely tolerated.
+    const published = (confirmedAt: Date) => ({
+      kind: "published" as const,
+      publishedAt: daysBefore(30),
+      confirmedAt,
+      undoable: null,
+    });
+    const dogPrev = makeAnimal({
       shelterId: shelter.id,
       species: "dog",
-      listing: {
-        kind: "published",
-        publishedAt: daysBefore(30),
-        confirmedAt: daysBefore(1),
-        undoable: null,
-      },
+      listing: published(daysBefore(1)),
+    });
+    const catTrapPrev = makeAnimal({
+      shelterId: shelter.id,
+      species: "cat",
+      listing: published(daysBefore(2)),
     });
     const catMiddle = makeAnimal({
       shelterId: shelter.id,
       species: "cat",
-      listing: {
-        kind: "published",
-        publishedAt: daysBefore(30),
-        confirmedAt: daysBefore(2),
-        undoable: null,
-      },
+      listing: published(daysBefore(3)),
     });
-    const dogBefore = makeAnimal({
+    const catTrapNext = makeAnimal({
+      shelterId: shelter.id,
+      species: "cat",
+      listing: published(daysBefore(4)),
+    });
+    const dogNext = makeAnimal({
       shelterId: shelter.id,
       species: "dog",
-      listing: {
-        kind: "published",
-        publishedAt: daysBefore(30),
-        confirmedAt: daysBefore(3),
-        undoable: null,
-      },
+      listing: published(daysBefore(5)),
     });
     await animalRepo(db).insertMany(
-      [dogAfter, catMiddle, dogBefore].map((animal) => ({ animal, cityId: city.id })),
+      [dogPrev, catTrapPrev, catMiddle, catTrapNext, dogNext].map((animal) => ({
+        animal,
+        cityId: city.id,
+      })),
     );
 
     const dogsOnly: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
@@ -935,8 +1028,8 @@ describe("galleryRepo.neighbours", () => {
       now: NOW,
     });
 
-    expect(neighbours.prev?.id).toBe(dogAfter.id);
-    expect(neighbours.next?.id).toBe(dogBefore.id);
+    expect(neighbours.prev?.id).toBe(dogPrev.id);
+    expect(neighbours.next?.id).toBe(dogNext.id);
   });
 
   it("returns null at both ends for an unknown animal id", async () => {
