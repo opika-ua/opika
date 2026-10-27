@@ -1,4 +1,11 @@
-import { AnimalIdSchema } from "@opika/domain";
+import {
+  AnimalIdSchema,
+  DEFAULT_GALLERY_SORT,
+  EVERYONE_SCOPE,
+  FeedFiltersSchema,
+  GalleryScopeSchema,
+  GallerySortSchema,
+} from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 import { apiErrors } from "../errors";
@@ -82,6 +89,41 @@ export const AnimalsCardsByIdsOutputSchema = z.object({
 export const animalsCardsByIdsContract = oc
   .input(AnimalsCardsByIdsInputSchema)
   .output(AnimalsCardsByIdsOutputSchema)
+  .errors({
+    RATE_LIMITED: apiErrors.RATE_LIMITED,
+  });
+
+/**
+ * Prev/next for the pet card overlay. `filters`/`sort` travel on every call
+ * (the gallery the visitor is on), not looked up server side - they're the
+ * same values `gallery.list` was called with.
+ */
+export const AnimalsNeighboursInputSchema = z.object({
+  animalId: AnimalIdSchema,
+  filters: FeedFiltersSchema,
+  sort: GallerySortSchema.default(DEFAULT_GALLERY_SORT),
+  scope: GalleryScopeSchema.default(EVERYONE_SCOPE),
+});
+
+/** Just enough to render a label and link to the next overlay - the full
+ * card is a second navigation away, not prefetched into this response. */
+export const NeighbourViewSchema = z.object({
+  id: AnimalIdSchema,
+  name: z.string(),
+});
+
+export const AnimalsNeighboursOutputSchema = z.object({
+  /**
+   * `null` at either end (no wrap-around), and also for an unknown or
+   * non-discoverable `animalId` - both read as "nothing there" either way.
+   */
+  prev: NeighbourViewSchema.nullable(),
+  next: NeighbourViewSchema.nullable(),
+});
+
+export const animalsNeighboursContract = oc
+  .input(AnimalsNeighboursInputSchema)
+  .output(AnimalsNeighboursOutputSchema)
   .errors({
     RATE_LIMITED: apiErrors.RATE_LIMITED,
   });

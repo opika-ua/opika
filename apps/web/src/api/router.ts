@@ -1,7 +1,7 @@
 import { contract } from "@opika/contracts";
 import { implement } from "@orpc/server";
 import type { AppContext } from "./context";
-import { animalsById, animalsCardsByIds } from "./handlers/animals";
+import { animalsById, animalsCardsByIds, animalsNeighbours } from "./handlers/animals";
 import { citiesList } from "./handlers/cities";
 import { feedList } from "./handlers/feed";
 import { galleryList, galleryRelaxationCounts } from "./handlers/gallery";
@@ -47,6 +47,9 @@ export const router = impl.router({
     ),
     cardsByIds: impl.animals.cardsByIds.handler(({ input, context }) =>
       animalsCardsByIds(input, context),
+    ),
+    neighbours: impl.animals.neighbours.handler(({ input, context }) =>
+      animalsNeighbours(input, context),
     ),
   },
   reveals: {
