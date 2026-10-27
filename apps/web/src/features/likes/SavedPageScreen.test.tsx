@@ -35,6 +35,7 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
     shelter: {
       id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as FeedCardView["shelter"]["id"],
       displayName: "Тестовий притулок",
+      logo: null,
       publicLocation: { cityId: CITY_ID as never },
       verification: "verified",
     },

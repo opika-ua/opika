@@ -1,15 +1,10 @@
 import { z } from "zod";
 
 /**
- * A storage key, never a URL - the same reasoning as `AnimalPhoto`
- * (`packages/domain/src/animals/photo.ts`): variant naming and CDN host
- * belong to the image pipeline, and baking either into stored data would
- * make changing them a data migration.
- *
- * Square by construction (the upload crops it, not this schema) - no `alt`
- * field, unlike `AnimalPhoto`: a shelter's logo has one accessible name,
- * the shelter's own `displayName`, computed at render time rather than
- * stored a second time here.
+ * A storage key, never a URL - same reasoning as `AnimalPhoto`. No `alt`
+ * field: the shelter's own `displayName` is the accessible name, computed
+ * at render time rather than stored a second time here (PR 3b's upload
+ * will be the thing that actually crops it square - not built yet).
  */
 export const ShelterLogoSchema = z.object({
   storageKey: z.string().min(1),
