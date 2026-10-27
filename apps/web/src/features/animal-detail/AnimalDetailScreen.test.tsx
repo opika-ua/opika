@@ -41,6 +41,7 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
     shelter: {
       id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as AnimalDetailView["shelter"]["id"],
       displayName: "Тестовий притулок",
+      logo: null,
       publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
       verification: "verified",
     },
@@ -55,6 +56,7 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
     description: { uk: "Опис притулку", en: null },
     publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
     donation: null,
+    logo: null,
     createdAt: new Date("2023-01-01T00:00:00.000Z"),
     freshnessSentence: null,
     verification: "verified",

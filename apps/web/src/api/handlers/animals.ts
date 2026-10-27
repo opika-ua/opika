@@ -77,6 +77,7 @@ export async function animalsById(
     shelter: {
       id: shelter.id,
       displayName: shelter.displayName,
+      logo: shelter.logo,
       publicLocation: cityOnlyLocationOf(shelter.publicLocation),
       verification: "verified",
     },
@@ -173,6 +174,7 @@ export async function animalsCardsByIds(
         shelter: {
           id: shelter.id,
           displayName: shelter.displayName,
+          logo: shelter.logo,
           publicLocation: cityOnlyLocationOf(shelter.publicLocation),
           verification: "verified" as const,
         },

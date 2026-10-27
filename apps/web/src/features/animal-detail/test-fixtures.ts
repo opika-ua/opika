@@ -39,6 +39,7 @@ export function makeDetailAnimal(overrides: Partial<AnimalDetailView> = {}): Ani
     shelter: {
       id: SHELTER_ID as AnimalDetailView["shelter"]["id"],
       displayName: "Тестовий притулок «Домівка»",
+      logo: null,
       publicLocation: { cityId: CITY_ID as never },
       verification: "verified",
     },
@@ -53,6 +54,7 @@ export function makeDetailShelter(overrides: Partial<PublicShelterView> = {}): P
     description: { uk: "Опис притулку", en: null },
     publicLocation: { cityId: CITY_ID as never },
     donation: { url: "https://pay.example.org/domivka", provider: "monobank_jar" },
+    logo: null,
     createdAt: new Date("2023-01-01T00:00:00.000Z"),
     freshnessSentence: null,
     verification: "verified",

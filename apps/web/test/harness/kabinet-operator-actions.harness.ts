@@ -133,6 +133,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
       exactAddress,
       contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
       donation: null,
+      logo: null,
       // Rehearsal step 5: "I approve a donation link".
       pendingDonation: {
         link: { url: "https://send.monobank.ua/jar/harness-rui3", provider: "monobank_jar" },

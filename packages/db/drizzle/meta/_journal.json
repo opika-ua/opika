@@ -127,6 +127,13 @@
       "when": 1793012226308,
       "tag": "0017_animal_card_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793084512369,
+      "tag": "0018_shelter_logo",
+      "breakpoints": true
     }
   ]
 }

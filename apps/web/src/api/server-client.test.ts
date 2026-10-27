@@ -77,10 +77,41 @@ describe("anonymousRouterClient", () => {
     expect(Object.keys(page.items[0]?.shelter ?? {}).sort()).toEqual([
       "displayName",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);
     expect(JSON.stringify(page.items[0]?.shelter)).not.toContain("вул. Тестова");
+  });
+
+  /** Pet card PR 3a: the key list test above checks `logo` is present, never that its
+   * value is the one actually stored - every handler copies it by hand (`logo:
+   * shelter.logo`), so a typo there would pass the key-list check and still ship null. */
+  it("carries the shelter's actual logo value through gallery.list, not just the key", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const logo = { storageKey: "shelters/test/logo/abc123", width: 160, height: 160 };
+    const shelter = makeShelter({
+      logo,
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id }), city.id);
+
+    const page = await anonymousRouterClient(h.db).gallery.list({
+      filters: NO_FILTERS,
+      page: 1,
+      pageSize: 24,
+    });
+
+    expect(page.items[0]?.shelter.logo).toEqual(logo);
   });
 
   it("also exposes gallery.relaxationCounts - V2's no-match state, read-only same as gallery.list", async () => {
@@ -156,12 +187,14 @@ describe("anonymousRouterClient", () => {
       "donation",
       "freshnessSentence",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);
     expect(Object.keys(detail.shelter).sort()).toEqual([
       "displayName",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);

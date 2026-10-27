@@ -811,6 +811,7 @@ export function buildShelters(cities: City[]): Shelter[] {
         def.donationUrl && def.donationProvider
           ? { url: def.donationUrl, provider: def.donationProvider }
           : null,
+      logo: null,
       pendingDonation: null,
       version: 0,
       freshnessSentence: def.freshnessSentenceUk ? { uk: def.freshnessSentenceUk, en: null } : null,

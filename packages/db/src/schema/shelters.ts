@@ -6,6 +6,7 @@ import type {
   ShelterContact,
   ShelterId,
   ShelterLegalEntity,
+  ShelterLogo,
   ShelterVerification,
   VerificationStatus,
 } from "@opika/domain";
@@ -29,6 +30,7 @@ export const shelters = pgTable(
     exactAddress: jsonb<ExactAddress>("exact_address").notNull(),
     contact: jsonb<ShelterContact>("contact").notNull(),
     donation: jsonb<DonationLink>("donation"),
+    logo: jsonb<ShelterLogo>("logo"),
     /**
      * A shelter's proposed replacement for `donation`, awaiting the operator
      * (H2, KABINET N20). Null when nothing is pending. The live `donation`

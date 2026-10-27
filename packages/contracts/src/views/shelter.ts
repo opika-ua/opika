@@ -31,6 +31,7 @@ export const PublicShelterViewSchema = ShelterSchema.pick({
   displayName: true,
   description: true,
   donation: true,
+  logo: true,
   createdAt: true,
   freshnessSentence: true,
 }).extend({
@@ -47,6 +48,7 @@ export type PublicShelterView = z.infer<typeof PublicShelterViewSchema>;
 export const ShelterSummaryViewSchema = ShelterSchema.pick({
   id: true,
   displayName: true,
+  logo: true,
 }).extend({
   publicLocation: PublicCityLocationViewSchema,
   verification: VerificationBadgeSchema,
