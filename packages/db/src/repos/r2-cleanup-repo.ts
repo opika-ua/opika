@@ -2,6 +2,8 @@ import { inArray, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import {
   IMAGE_VARIANT_NAMES,
+  LOGO_VARIANT_NAMES,
+  SHELTER_LOGO_PREFIX,
   storageKeyFromObjectKey,
   variantObjectKey,
 } from "../image-pipeline/variants";
@@ -25,8 +27,9 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`): the one source of "this
- * photo is referenced" — every `storageKey` in any `animals.photos` row,
- * any listing state (draft/published/reserved/adopted/withdrawn all count).
+ * photo or logo is referenced" — every `storageKey` in any `animals.photos`
+ * row, any listing state (draft/published/reserved/adopted/withdrawn all
+ * count), unioned with every shelter's own `logo` (pet card PR 4).
  *
  * `reveals.animal_snapshot.primaryPhoto` is deliberately **not** read here.
  * Oleksii, 2026-10-25: "check whether [it] is displayed anywhere today. If
@@ -48,18 +51,29 @@ export async function referencedStorageKeys(db: Database): Promise<Set<string>> 
     sql`
       SELECT DISTINCT photo->>'storageKey' AS storage_key
       FROM "animals", jsonb_array_elements("animals"."photos") AS photo
+      UNION
+      SELECT "logo"->>'storageKey' AS storage_key
+      FROM "shelters"
+      WHERE "logo" IS NOT NULL
     `,
   );
   return new Set(rows.map((row) => row.storage_key));
 }
 
-/** Every real R2 object key (all three variants) a currently-referenced storage key derives to. */
+/**
+ * Every real R2 object key a currently-referenced storage key derives to -
+ * the animal-photo variants for an `animals/` key, the logo variants for a
+ * `shelters/` one (`SHELTER_LOGO_PREFIX`), by construction the only two
+ * namespaces `referencedStorageKeys` can ever return.
+ */
 export async function referencedObjectKeys(db: Database): Promise<Set<string>> {
   const storageKeys = await referencedStorageKeys(db);
   const objectKeys = new Set<string>();
   for (const storageKey of storageKeys) {
-    for (const variant of IMAGE_VARIANT_NAMES)
-      objectKeys.add(variantObjectKey(storageKey, variant));
+    const variants = storageKey.startsWith(SHELTER_LOGO_PREFIX)
+      ? LOGO_VARIANT_NAMES
+      : IMAGE_VARIANT_NAMES;
+    for (const variant of variants) objectKeys.add(variantObjectKey(storageKey, variant));
   }
   return objectKeys;
 }

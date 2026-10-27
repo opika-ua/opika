@@ -13,6 +13,7 @@
 import { isPastGracePeriod, R2_CLEANUP_GRACE_PERIOD_DAYS } from "@opika/domain";
 import type { Database } from "./client";
 import type { R2CleanupClient } from "./image-pipeline/r2-cleanup-client";
+import { SHELTER_LOGO_PREFIX } from "./image-pipeline/variants";
 import {
   afterDeleted,
   recordScan,
@@ -20,8 +21,11 @@ import {
   trackedUnreferencedObjects,
 } from "./repos/r2-cleanup-repo";
 
-/** The one namespace this job ever touches - `isRealPhotoKey`'s own bound. */
+/** The animal-photo namespace - `isRealPhotoKey`'s own bound. */
 export const ANIMAL_PHOTO_PREFIX = "animals/";
+
+/** The two namespaces this job scans (pet card PR 4 added the second). */
+export const CLEANUP_PREFIXES = [ANIMAL_PHOTO_PREFIX, SHELTER_LOGO_PREFIX] as const;
 
 /**
  * Matches `r2-cleanup-client.ts`'s own `DELETE_BATCH_SIZE` - the re-check
@@ -71,7 +75,10 @@ export async function runR2Cleanup(
   options: { commit: boolean; graceDays: number | undefined },
 ): Promise<R2CleanupReport> {
   const graceDays = options.graceDays ?? R2_CLEANUP_GRACE_PERIOD_DAYS;
-  const bucketKeys = await r2.listObjectKeys(ANIMAL_PHOTO_PREFIX);
+  // One listing call per prefix - R2's own ListObjectsV2 takes exactly one
+  // prefix, so the two namespaces can't be scanned in a single call.
+  const perPrefix = await Promise.all(CLEANUP_PREFIXES.map((prefix) => r2.listObjectKeys(prefix)));
+  const bucketKeys = perPrefix.flat();
   const { newlyTracked, cleared } = await recordScan(db, bucketKeys, now);
 
   const tracked = await trackedUnreferencedObjects(db);
@@ -119,7 +126,7 @@ export function formatReport(
   heading: "Would delete" | "Deleted",
 ): string[] {
   const lines = [
-    `Bucket objects scanned (${ANIMAL_PHOTO_PREFIX}): ${report.scanned}`,
+    `Bucket objects scanned (${CLEANUP_PREFIXES.join(", ")}): ${report.scanned}`,
     `Newly tracked as unreferenced: ${report.newlyTracked}`,
     `Referenced again, untracked: ${report.clearedBack}`,
     `Past the grace period (${heading}): ${report.dueForDeletion.length}`,
