@@ -104,6 +104,7 @@ describe("animals.cardsByIds", () => {
     expect(Object.keys(shelterView ?? {}).sort()).toEqual([
       "displayName",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);

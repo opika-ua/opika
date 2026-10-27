@@ -207,6 +207,19 @@ const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
       "AnimalPhotoSchema's own field - the one place a storage key is a bare string; every " +
       "other field that can carry one wraps this schema instead of repeating its shape.",
   },
+  {
+    file: "domain/src/shelters/logo.ts",
+    line: 15,
+    text: "storageKey: z.string().min(1),",
+    kind: "definition",
+    why:
+      "ShelterLogoSchema's own field (pet card PR 3a) - a second, deliberately separate bare " +
+      "field, not AnimalPhotoSchema reused: one logo, not an array, and no alt text (the " +
+      "shelter's own displayName is the accessible name). Durable (shelters.logo) once PR 3b " +
+      "ships the upload, but not yet a live key anywhere - no write path exists in this PR. " +
+      "r2-cleanup-repo.ts's reference set does not cover shelters/*/logo/ yet; PR 4 widens it, " +
+      "and must merge before PR 3b's upload ships to production (the PR plan's own ordering).",
+  },
 ];
 
 describe("every schema field that can hold a photo's storage key is classified (GDPR photo retention)", () => {

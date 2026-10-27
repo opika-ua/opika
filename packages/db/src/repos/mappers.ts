@@ -171,6 +171,7 @@ export function shelterToRow(shelter: Shelter): ShelterInsert {
     exactAddress: shelter.exactAddress,
     contact: shelter.contact,
     donation: shelter.donation,
+    logo: shelter.logo,
     pendingDonation: shelter.pendingDonation,
     version: shelter.version,
     freshnessSentenceUk: shelter.freshnessSentence?.uk ?? null,
@@ -199,6 +200,7 @@ export function rowToShelter(row: ShelterRow): Shelter {
     exactAddress: row.exactAddress,
     contact: row.contact,
     donation: row.donation ?? null,
+    logo: row.logo ?? null,
     pendingDonation: row.pendingDonation ?? null,
     version: row.version,
     freshnessSentence: row.freshnessSentenceUk

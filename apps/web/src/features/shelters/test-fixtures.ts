@@ -38,6 +38,7 @@ export function makeCardView(index: number, overrides: Partial<FeedCardView> = {
     shelter: {
       id: SHELTER_ID as FeedCardView["shelter"]["id"],
       displayName: "Лапа допомоги",
+      logo: null,
       publicLocation: { cityId: CITY_ID as never },
       verification: "verified",
     },

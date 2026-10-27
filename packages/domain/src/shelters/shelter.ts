@@ -5,6 +5,7 @@ import { ShelterContactSchema } from "./contact";
 import { DonationLinkSchema, PendingDonationSchema } from "./donation";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema, PublicLocationSchema } from "./location";
+import { ShelterLogoSchema } from "./logo";
 import { ShelterVerificationSchema } from "./verification/state";
 
 /**
@@ -38,6 +39,9 @@ export const ShelterSchema = z.object({
   exactAddress: ExactAddressSchema,
   contact: ShelterContactSchema,
   donation: DonationLinkSchema.nullable(),
+  /** Null until the shelter uploads one; the fallback is a client-rendered
+   * initials circle (pet card PR 3b), not a stored placeholder image. */
+  logo: ShelterLogoSchema.nullable(),
   /**
    * A proposed replacement for `donation`, awaiting the operator (H2, N20).
    * Never part of any public view: `PublicShelterViewSchema` is built with

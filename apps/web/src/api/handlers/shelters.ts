@@ -33,6 +33,7 @@ export async function sheltersById(
     description: shelter.description,
     publicLocation: cityOnlyLocationOf(shelter.publicLocation),
     donation: shelter.donation,
+    logo: shelter.logo,
     createdAt: shelter.createdAt,
     freshnessSentence: shelter.freshnessSentence,
     verification: "verified",

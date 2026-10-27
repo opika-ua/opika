@@ -108,6 +108,40 @@ describe("shelterRepo", () => {
     expect(found).toEqual(shelter);
   });
 
+  /** Pet card PR 3a (migration 0018): the new `logo` JSONB column, set. */
+  it("round-trips a shelter with a logo set", async () => {
+    const cities = cityRepo(db);
+    const shelters = shelterRepo(db);
+
+    const city = makeCity();
+    await cities.insert(city);
+
+    const shelter = makeShelter({
+      publicLocation: {
+        cityId: city.id,
+        district: null,
+        precision: "fuzzed_address",
+        approximate: {
+          center: { lat: 50.45, lng: 30.52 },
+          precisionMetres: 1000,
+        } as never,
+      },
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+      logo: { storageKey: "shelters/test/logo/abc123", width: 160, height: 160 },
+    });
+    await shelters.insert(shelter);
+    const found = await shelters.findById(shelter.id);
+
+    expect(found?.logo).toEqual(shelter.logo);
+  });
+
   it("exposes exactly its three methods: no unaudited whole-row update, and any addition a conscious one", () => {
     // RG-Q12: a full-row write that skips the `version` bump is the one path
     // that could slip past the kabinet's compare-and-set. Keys, not a type

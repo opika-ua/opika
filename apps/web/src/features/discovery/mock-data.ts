@@ -13,6 +13,7 @@ function mockId(n: number): AnimalId {
 const mockShelter: ShelterSummaryView = {
   id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as never,
   displayName: "Тестовий притулок",
+  logo: null,
   publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
   verification: "verified",
 };
