@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { en } from "./messages/en";
-import { PENDING_R4_2_ANALYTICS_SENTENCE, uk } from "./messages/uk";
+import { R4_2_ANALYTICS_SENTENCE, uk } from "./messages/uk";
 
 /**
  * The Ukrainian apostrophe in the catalogue is U+02BC (ʼ), the character
@@ -40,7 +40,7 @@ function leafStrings(value: unknown, path: string): [string, string][] {
 describe("message catalogue apostrophes", () => {
   const ukValues: [string, string][] = [
     ...leafStrings(uk, ""),
-    ["PENDING_R4_2_ANALYTICS_SENTENCE", PENDING_R4_2_ANALYTICS_SENTENCE],
+    ["R4_2_ANALYTICS_SENTENCE", R4_2_ANALYTICS_SENTENCE],
   ];
 
   it("no Ukrainian value uses U+0027 or U+2019 between letters", () => {

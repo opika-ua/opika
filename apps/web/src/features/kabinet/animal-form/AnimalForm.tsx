@@ -16,6 +16,7 @@ import {
   AgeSection,
   DescriptionSection,
   HealthSection,
+  MedicalNotesSection,
   TemperamentSection,
   WhoSection,
 } from "./FormSections";
@@ -40,10 +41,11 @@ import { PhotoSection } from "./PhotoSection";
 
 /**
  * K3 · add / edit animal (KABINET K3; `docs/k3-copy-sheet.md`). One page,
- * not a wizard: «Хто це», «Вік», «Опис», «Характер», then «Фото» and
- * «Медичний стан». The animal's medical note has no field here yet: it
- * arrives with the public column that shows it (PR 5), since its hint says
- * where people see it.
+ * not a wizard: «Хто це», «Вік», «Опис», «Характер», then «Фото», «Медичний
+ * стан» (the structured facts - vaccination, spay/neuter) and, pet card PR
+ * 5, the shelter's own free-text health note (`MedicalNotesSection`,
+ * placed beside `HealthSection` as the right column's second
+ * health-adjacent card - a reversible layout call, not a mock's).
  *
  * **A draft saves itself** (KAB:179): 10 seconds after the last change and
  * when a field is left (decision taken T6, so a typing session writes a few
@@ -490,6 +492,12 @@ export function AnimalForm({
             disabled={!editable}
             vaccination={view?.vaccination ?? null}
           />
+          <MedicalNotesSection
+            values={values}
+            set={set}
+            problems={shownProblems}
+            disabled={!editable}
+          />
         </div>
       </form>
 
@@ -543,6 +551,7 @@ const fieldOfTarget = (target: EventTarget): FieldProblem["field"] | null => {
   if (id === "animal-name") return "name";
   if (name === "animal-species") return "species";
   if (id === "animal-description") return "description";
+  if (id === "animal-medical-notes") return "medicalNotes";
   if (id === "animal-birth-date") return "birthDate";
   if (id === "animal-as-of") return "asOf";
   if (id === "animal-temperament-custom") return "temperamentCustom";

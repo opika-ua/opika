@@ -317,12 +317,24 @@
   --color-brand-line: #e7dae0;
   --color-brand-accent: #f26427;
   --color-brand-dog: #794eba;
+  /**
+   * Pet card PR 5 (Figma `75:425`/`88:1929`): the overlay's «Попередній»/
+   * «Наступний» labels, `#99667D`. No existing token was close enough to
+   * reuse (nearest is `ink-2` at `#805F6E`, a visibly different hue) - a
+   * fourth named colour in this block, same reasoning as `dog` above.
+   */
+  --color-brand-plum: #99667d;
 
   --radius-brand-tag: 8px;
   --radius-brand-field: 12px;
   --radius-brand-panel: 20px;
   --radius-brand-card: 24px;
   --radius-brand-pill: 999px;
+  /** Pet card PR 5: the overlay panel's own top-corner radius, 48px - too
+   * large for `panel`'s existing 20px to double as, and no other surface
+   * needs this value yet, so it's its own token rather than widening an
+   * existing one to this surface's single use. */
+  --radius-brand-panel-lg: 48px;
 
   /*
    * `next/font/local` (apps/web/src/app/fonts.ts, `brandDisplay`/`brandUi`),

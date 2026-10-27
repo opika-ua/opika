@@ -37,6 +37,12 @@ interface RevealFlowProps {
  * close control unique to mobile. `close` already reaches the same place
  * (dialog closed, focus back on the trigger) either way - the difference
  * is the label, not the behaviour.
+ *
+ * Pet card PR 5, owner decision 4: «Дати сімʼю», the panel header's own
+ * pill (64px tall, orange `bg-brand-accent`), opens this exact flow with no
+ * new logic - only this trigger's own label and styling changed, from
+ * `uk.actions.writeShelter` ("Написати притулку") to `uk.detail.giveHome`.
+ * The dialog it opens, `secondaryAction` included, is untouched.
  */
 export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) {
   const { state, open, close: closeReveal } = useReveal();
@@ -65,9 +71,9 @@ export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) 
         data-testid="reveal-trigger"
         disabled={state.kind === "loading"}
         onClick={openThisAnimal}
-        className="min-h-14 flex-1 rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] disabled:opacity-60"
+        className="inline-flex h-16 items-center justify-center rounded-brand-pill bg-brand-accent px-11 text-[20px] font-semibold text-brand-on-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] disabled:opacity-60"
       >
-        {uk.actions.writeShelter}
+        {uk.detail.giveHome}
       </button>
 
       {(state.kind === "error" || state.kind === "open") && (

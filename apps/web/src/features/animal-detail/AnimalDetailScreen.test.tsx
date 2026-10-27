@@ -65,68 +65,28 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
 }
 
 /**
- * D-2 (`docs/observations.md`): the `shelterVerifiedYears` badge asserts
- * something true about a *verified* shelter, fictional while
- * `REGISTRY_HAS_NO_REAL_SHELTERS`. `animal-detail.harness.ts` only ever
- * checks the suppressed (demo, `true`) state - an absence check with no
- * positive control, so it would stay green even if the badge's JSX were
- * deleted outright rather than gated. This exercises both states directly,
- * the same `vi.doMock` + `vi.resetModules` + dynamic re-import pattern
- * `DeckScreen.test.tsx` uses for its own demo-banner branch.
+ * Pet card PR 5: the `shelterVerifiedYears` badge ("Перевірено вручну · на
+ * сайті з {year} року") had no slot in the Figma header - the shelter row is
+ * now just the logo, the name and the city (owner decision 1, "follow the
+ * Figma design completely"). It was already suppressed everywhere in
+ * production (`REGISTRY_HAS_NO_REAL_SHELTERS` is `true`), so dropping it
+ * removes dead JSX, not a live feature - a decision taken, recorded here
+ * rather than silently deleting its old test block. `uk.detail
+ * .shelterVerifiedYears` itself is left in the catalogue (unlike the keys
+ * this PR actually deletes elsewhere), since restoring the badge, if ever
+ * wanted, would need its exact words back.
  */
-describe("AnimalDetailScreen – shelterVerifiedYears badge (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
-
-  it("suppresses the badge while the registry holds no real shelters", async () => {
-    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
+describe("AnimalDetailScreen – shelterVerifiedYears badge (retired, pet card PR 5)", () => {
+  it("renders nowhere, demo mode or not", async () => {
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
-
     render(
       <AnimalDetailScreen
         animal={makeAnimal()}
         shelter={makeShelter({ createdAt: new Date("2023-01-01T00:00:00.000Z") })}
         cityName="Бровари"
-        backToGalleryHref="/tvaryny?misto=brovary"
       />,
     );
-
     expect(screen.queryByText(/Перевірено вручну/)).toBeNull();
-  });
-
-  it("shows the badge with the year the shelter's record was created, once real shelters exist", async () => {
-    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
-    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
-
-    render(
-      <AnimalDetailScreen
-        animal={makeAnimal()}
-        shelter={makeShelter({ createdAt: new Date("2023-01-01T00:00:00.000Z") })}
-        cityName="Бровари"
-        backToGalleryHref="/tvaryny?misto=brovary"
-      />,
-    );
-
-    // Audit 2026-10-22 #21: a year, not a count of years - a shelter's whole first year
-    // used to read «0 років на Opika». Transcribed from the audit's wording.
-    expect(screen.getByText("Перевірено вручну · на сайті з 2023 року")).not.toBeNull();
-  });
-
-  it("reads the year in UTC, so the server's time zone can't move it across New Year", async () => {
-    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
-    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
-
-    render(
-      <AnimalDetailScreen
-        animal={makeAnimal()}
-        shelter={makeShelter({ createdAt: new Date("2025-12-31T23:30:00.000Z") })}
-        cityName="Бровари"
-        backToGalleryHref="/tvaryny?misto=brovary"
-      />,
-    );
-
-    expect(screen.getByText("Перевірено вручну · на сайті з 2025 року")).not.toBeNull();
   });
 });
 
@@ -146,14 +106,7 @@ describe("AnimalDetailScreen – demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
     vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
 
-    render(
-      <AnimalDetailScreen
-        animal={makeAnimal()}
-        shelter={makeShelter()}
-        cityName="Бровари"
-        backToGalleryHref="/tvaryny?misto=brovary"
-      />,
-    );
+    render(<AnimalDetailScreen animal={makeAnimal()} shelter={makeShelter()} cityName="Бровари" />);
 
     expect(screen.getByTestId("detail-demo-banner").textContent).toBe(
       "На сайті поки немає справжніх притулків – усі картки тут демонстраційні.",
@@ -164,14 +117,7 @@ describe("AnimalDetailScreen – demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
     vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
 
-    render(
-      <AnimalDetailScreen
-        animal={makeAnimal()}
-        shelter={makeShelter()}
-        cityName="Бровари"
-        backToGalleryHref="/tvaryny?misto=brovary"
-      />,
-    );
+    render(<AnimalDetailScreen animal={makeAnimal()} shelter={makeShelter()} cityName="Бровари" />);
 
     expect(screen.queryByTestId("detail-demo-banner")).toBeNull();
   });
@@ -194,55 +140,10 @@ describe("AnimalDetailScreen – the shelter row (designer round 1, S6)", () => 
         animal={makeAnimal()}
         shelter={makeShelter({ displayName: "Лапа допомоги" })}
         cityName="Бровари"
-        backToGalleryHref="/tvaryny"
       />,
     );
     const link = screen.getByRole("link", { name: "Сторінка притулку «Лапа допомоги»" });
     expect(link.getAttribute("href")).toBe("/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd");
-  });
-
-  /**
-   * Review of b50a905 (DR1-S6-F1): `aria-label` replaces a link's whole
-   * accessible name, so the verified-years badge text was invisible to a
-   * screen reader once `REGISTRY_HAS_NO_REAL_SHELTERS` is false - true only
-   * by the flag's own suppression, not by design. `aria-describedby` wires
-   * the badge in as the link's description instead.
-   */
-  it("exposes the verified-years badge to a screen reader via aria-describedby, once real shelters exist", async () => {
-    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
-    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
-    const shelter = makeShelter({
-      displayName: "Лапа допомоги",
-      createdAt: new Date("2023-01-01T00:00:00.000Z"),
-    });
-    render(
-      <AnimalDetailScreen
-        animal={makeAnimal()}
-        shelter={shelter}
-        cityName="Бровари"
-        backToGalleryHref="/tvaryny"
-      />,
-    );
-    const link = screen.getByRole("link", { name: "Сторінка притулку «Лапа допомоги»" });
-    const describedById = link.getAttribute("aria-describedby");
-    expect(describedById).toBeTruthy();
-    const badge = document.getElementById(describedById as string);
-    expect(badge?.textContent).toBe("Перевірено вручну · на сайті з 2023 року");
-  });
-
-  it("carries no aria-describedby while the badge is suppressed (demo mode)", async () => {
-    vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
-    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
-    render(
-      <AnimalDetailScreen
-        animal={makeAnimal()}
-        shelter={makeShelter({ displayName: "Лапа допомоги" })}
-        cityName="Бровари"
-        backToGalleryHref="/tvaryny"
-      />,
-    );
-    const link = screen.getByRole("link", { name: "Сторінка притулку «Лапа допомоги»" });
-    expect(link.getAttribute("aria-describedby")).toBeNull();
   });
 
   it("keeps the donation link, with its domain as text", async () => {
@@ -254,7 +155,6 @@ describe("AnimalDetailScreen – the shelter row (designer round 1, S6)", () => 
           donation: { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" },
         })}
         cityName="Бровари"
-        backToGalleryHref="/tvaryny"
       />,
     );
     const donate = screen.getByTestId("donate-link");
@@ -268,46 +168,69 @@ describe("AnimalDetailScreen – a city name is printed literally (review findin
     vi.resetModules();
   });
 
+  /**
+   * Pet card PR 5: the back-link row this test used to check (O-12's own
+   * regex-injection guard, `"m. {city}".replace`) is gone with the row
+   * itself (owner decision B). The header's shelter row now has the only
+   * place `cityName` renders as text (beside the decorative location icon,
+   * owner decision 6) - same guard, same reason (`cityName` reaches a
+   * `.replace("{city}", () => cityName)` call inside `fillTemplate` for the
+   * shelter-row's own `aria-label`, and is printed directly as the location
+   * text), rechecked against the new location.
+   */
   it("does not read $& or $1 in the city name as replacement patterns", async () => {
     vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
     render(
-      <AnimalDetailScreen
-        animal={makeAnimal()}
-        shelter={makeShelter()}
-        cityName="Місто $& $1"
-        backToGalleryHref="/tvaryny?misto=brovary"
-      />,
+      <AnimalDetailScreen animal={makeAnimal()} shelter={makeShelter()} cityName="Місто $& $1" />,
     );
-    expect(screen.getByText("← Усі тварини · м. Місто $& $1")).toBeTruthy();
-    expect(screen.getByText("м. Місто $& $1")).toBeTruthy();
+    expect(screen.getByText("Місто $& $1")).toBeTruthy();
   });
 });
 
-/** Q9 (Oleksii, 2026-10-18): the subtitle's age word agrees with the animal. */
-describe("AnimalDetailScreen subtitle, by sex", () => {
+/** The meta line names sex as its own word (owner decision 1 - follows the gallery card's
+ * own `cardFactsParts`, which also names sex separately rather than folding it into the age
+ * word's grammatical gender the way the pre-redesign subtitle's `ageWordFor` did). */
+describe("AnimalDetailScreen meta line, by sex", () => {
   it.each([
-    ["female", /· молода ·/],
-    ["male", /· молодий ·/],
-  ] as const)("a %s animal's subtitle", async (sex, word) => {
+    ["female", "Дівчинка"],
+    ["male", "Хлопчик"],
+  ] as const)("a %s animal's meta line names the sex", async (sex, word) => {
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
     render(
       <AnimalDetailScreen
         animal={makeAnimal({ sex, ageBucket: "young" })}
         shelter={makeShelter()}
         cityName="Бровари"
-        backToGalleryHref="/tvaryny"
       />,
     );
-    expect(screen.getByText(word)).toBeTruthy();
+    // The sex word appears twice by design: the meta line ("Хлопчик · Молодий · Малий")
+    // and the «Про мене» chip row both show it (Figma's own two separate facts).
+    expect(screen.getAllByText(word).length).toBeGreaterThan(0);
+  });
+
+  it("an unrecorded sex shows no sex chip at all (sexWordFor's own null-for-unknown contract)", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal({ sex: "unknown" })}
+        shelter={makeShelter()}
+        cityName="Бровари"
+      />,
+    );
+    expect(screen.queryByText("Хлопчик")).toBeNull();
+    expect(screen.queryByText("Дівчинка")).toBeNull();
   });
 });
 
 /**
- * DR1 (S3), his rule: «Шерсть» with «Коротка» / «Довга», the form's words;
- * no row at all when fur isn't recorded (never «Не вказано» to adopters).
+ * Pet card PR 5, A6: coat length moved from its own stacked "Шерсть:
+ * Коротка" row (`CoatFact`, deleted with this PR) into a filterable chip in
+ * the «Про мене» row, using the filter dropdown's own plural words
+ * (`uk.filters.coatShort`/`coatLong`) - no row at all when fur isn't
+ * recorded, same rule as before, just a different fact word.
  */
-describe("AnimalDetailScreen – the fur fact", () => {
+describe("AnimalDetailScreen – the coat length chip", () => {
   const renderWith = async (coatLength: AnimalDetailView["coatLength"]) => {
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
     render(
@@ -315,25 +238,72 @@ describe("AnimalDetailScreen – the fur fact", () => {
         animal={makeAnimal({ coatLength })}
         shelter={makeShelter()}
         cityName="Бровари"
-        backToGalleryHref="/tvaryny"
       />,
     );
   };
 
   it.each([
-    ["short", "Коротка"],
-    ["long", "Довга"],
-  ] as const)("a %s coat reads «Шерсть: %s»", async (coatLength, value) => {
-    await renderWith(coatLength);
-    const term = screen.getByRole("term");
-    expect(term.textContent).toBe("Шерсть:");
-    expect(screen.getByRole("definition").textContent).toBe(value);
+    ["short", "Короткошерсті"],
+    ["long", "Довгошерсті"],
+  ] as const)(
+    "a %s coat is a chip linking to the gallery's own filter",
+    async (coatLength, text) => {
+      await renderWith(coatLength);
+      // `makeAnimal`'s defaults (`ageBucket: "young"`, `size: "small"`) render their own
+      // filterable chips too, so the coat chip is found by its own exact accessible name
+      // (species "cat" → `uk.detail.chipSpeciesCat`), not a loose "Показати схожих" match.
+      const chip = screen.getByRole("link", {
+        name: `Показати схожих котів: ${text.toLowerCase()}`,
+      });
+      expect(chip.textContent).toBe(text);
+      expect(chip.getAttribute("href")).toContain(`sherst=${coatLength}`);
+    },
+  );
+
+  it("shows no coat chip when it isn't recorded", async () => {
+    await renderWith(null);
+    expect(screen.queryByText("Короткошерсті")).toBeNull();
+    expect(screen.queryByText("Довгошерсті")).toBeNull();
+  });
+});
+
+/**
+ * Pet card PR 5, owner decision A3: the medical fact chips (vaccination,
+ * spay/neuter) keep the «Не записано» rule - unlike every other chip in
+ * the «Про мене» row, which simply doesn't render for an unrecorded fact,
+ * these two always render, even unknown, never hidden and never shown as
+ * "no" (`docs/standing-constraints.md`'s own product rule).
+ */
+describe("AnimalDetailScreen – the medical fact chips always render (A3)", () => {
+  it("an unknown vaccination/spay-neuter state reads «Не записано», not hidden", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal({
+          vaccination: { source: "shelter_declared", state: "unknown", declaredAt: AT },
+          spayNeuter: { source: "shelter_declared", state: "unknown", declaredAt: AT },
+        })}
+        shelter={makeShelter()}
+        cityName="Бровари"
+      />,
+    );
+    expect(screen.getByText("Комплексне щеплення: Не записано")).toBeTruthy();
+    expect(screen.getByText("Стерилізація: Не записано")).toBeTruthy();
   });
 
-  it("shows no fur row when it isn't recorded", async () => {
-    await renderWith(null);
-    expect(screen.queryByText(/Шерсть/)).toBeNull();
-    expect(screen.queryByText(/Не вказано/)).toBeNull();
-    expect(screen.queryByRole("term")).toBeNull();
+  it("a confirmed, shelter-declared state reads the real status, not «Не записано»", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal({
+          vaccination: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
+          spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
+        })}
+        shelter={makeShelter()}
+        cityName="Бровари"
+      />,
+    );
+    expect(screen.getByText("Комплексне щеплення: Зроблено, за даними притулку")).toBeTruthy();
+    expect(screen.queryByText(/Не записано/)).toBeNull();
   });
 });

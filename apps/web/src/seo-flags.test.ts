@@ -1,4 +1,4 @@
-import { PENDING_R4_2_ANALYTICS_SENTENCE } from "@opika/i18n";
+import { R4_2_ANALYTICS_SENTENCE } from "@opika/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SITE_ORIGIN } from "./brand";
 import {
@@ -10,7 +10,7 @@ import {
 const INCOMPLETE_ANALYTICS_COPY =
   "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко " +
   "працюють сторінки – без реклами.";
-const LANDED_ANALYTICS_COPY = `${INCOMPLETE_ANALYTICS_COPY} ${PENDING_R4_2_ANALYTICS_SENTENCE}`;
+const LANDED_ANALYTICS_COPY = `${INCOMPLETE_ANALYTICS_COPY} ${R4_2_ANALYTICS_SENTENCE}`;
 
 /**
  * D-3's and D-2's tests both import `./app/layout` (for `metadata.robots`
@@ -201,7 +201,7 @@ describe("assertDemoDiscoverabilityInvariant", () => {
 
 /**
  * R4-2's tripwire (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`):
- * `uk.about.analytics` must carry `PENDING_R4_2_ANALYTICS_SENTENCE` exactly
+ * `uk.about.analytics` must carry `R4_2_ANALYTICS_SENTENCE` exactly
  * when `SITE_IS_PUBLICLY_DISCOVERABLE` is true, and must not carry it while
  * that flag is false - two-sided, not one, because the sentence landing
  * early is its own violation («одне кукі» would be false while the gate

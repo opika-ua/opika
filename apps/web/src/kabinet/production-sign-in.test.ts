@@ -309,7 +309,12 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // note's label and hint, ship in PR 5 with the note's field.
     // 661 with pet card PR 3b's logo section: the twelve `profileEdit.logo.*` keys (his final
     // text, 2026-10-27, including `add`) and `operator.history.logo_changed`.
-    expect(pending.length + written.length).toBe(661);
+    // 664 with pet card PR 5's medical note field: his `animalForm.medicalNotes.title`/`.hint`
+    // (given directly, 2026-10-27), plus the builder-drafted
+    // `animalForm.validation.medicalNotesTooLong` (not his words, but real text, never
+    // `COPY_PENDING` - a pending `kabinet.*` string would turn production sign-in off
+    // entirely, which this very test exists to gate).
+    expect(pending.length + written.length).toBe(664);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

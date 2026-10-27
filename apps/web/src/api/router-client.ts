@@ -46,11 +46,17 @@ import { router } from "./router";
  * here and must not be - it needs a real `adopterId` this path never has
  * (see `apps/web/src/api/browser-client.ts` for where the reveal flow's
  * client-side caller lives).
+ *
+ * `animals.neighbours` (pet card PR 5, built server-side in PR #217 but
+ * never exposed on any client until now) joins the list for the gallery's
+ * animal overlay (`app/tvaryny/@preview/(.)[animalId]/page.tsx`, itself a
+ * Server Component): the same shape of safe as `byId`/`relaxationCounts` -
+ * filters/sort input only, no `adopterId`, nothing written.
  */
 const serverComponentRouter = {
   cities: { list: router.cities.list },
   gallery: { list: router.gallery.list, relaxationCounts: router.gallery.relaxationCounts },
-  animals: { byId: router.animals.byId },
+  animals: { byId: router.animals.byId, neighbours: router.animals.neighbours },
   shelters: { byId: router.shelters.byId },
 } as const;
 

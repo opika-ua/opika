@@ -1,9 +1,11 @@
 import type { FeedCardView } from "@opika/contracts";
+import type { FeedFilters, GallerySort } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 import Image from "next/image";
 import Link from "next/link";
 import { cardAccessibleName, cardFactsParts, cardSpeciesBadgeTone, isReserved } from "./card-text";
+import { animalPageHref, type CitySlugsById } from "./filter-url";
 
 /**
  * The gallery-v3 card (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`) - a
@@ -65,16 +67,33 @@ interface GalleryCardProps {
   /** Pre-resolved by the caller (`cities.list`) - the card never fetches. */
   cityName: string | null;
   priority?: boolean;
+  /**
+   * Pet card PR 5, decision B: the gallery's own current filter and sort,
+   * carried on every card's own href so the overlay (opened by clicking this
+   * link) can ask `animals.neighbours` for the right walk through the same
+   * result set this card is part of - not threaded for any reason of this
+   * card's own.
+   */
+  filters: FeedFilters;
+  sort: GallerySort;
+  citySlugs: CitySlugsById;
 }
 
-export function GalleryCard({ card, cityName, priority = false }: GalleryCardProps) {
+export function GalleryCard({
+  card,
+  cityName,
+  priority = false,
+  filters,
+  sort,
+  citySlugs,
+}: GalleryCardProps) {
   const photo = card.primaryPhoto;
   const reserved = isReserved(card.listingKind);
   const facts = cardFactsParts(card);
 
   return (
     <Link
-      href={`/tvaryny/${card.id}`}
+      href={animalPageHref(card.id, filters, sort, citySlugs)}
       // Off, same reasoning as every other gallery link (`AnimalCard.tsx`'s
       // own comment): the overlay's prefetch-per-visible-card cost against
       // proxy.ts's per-IP budget.

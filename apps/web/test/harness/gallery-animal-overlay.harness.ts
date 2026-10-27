@@ -116,14 +116,29 @@ test.describe("the gallery's animal overlay", () => {
 
       // What the animal page shows, because it is the animal page (his Q1).
       await expect(dialog.getByRole("heading", { level: 1, name })).toBeVisible();
-      await expect(dialog.getByRole("button", { name: uk.actions.writeShelter })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: uk.detail.giveHome })).toBeVisible();
       await expect(dialog.getByText(/^Оновлено /)).toBeVisible();
-      await expect(dialog.getByText(uk.medical.heading)).toBeVisible();
+      // «Медичний стан» (pet card PR 5, A3) only renders a column when the shelter has
+      // written a free-text note - no seeded animal has one yet (the field is new, no
+      // backfill), so «Про мене» (always rendered) is the stand-in for "this is really
+      // the animal page" here.
+      await expect(dialog.getByText(uk.detail.aboutMeHeading)).toBeVisible();
       // His Q2: no «Відкрити повну сторінку», the overlay is the page.
       await expect(dialog.getByText("Відкрити повну сторінку")).toHaveCount(0);
     });
 
-    test("opening a card spends one request of the visitor's budget, not a re-prefetch of the gallery or the page's own links back to it", async ({
+    /**
+     * Pet card PR 5, decision B: the overlay's own prev/next links are
+     * deliberately prefetched (`AnimalOverlay.tsx`'s own comment on
+     * `NeighbourLink` - the one `/tvaryny` link in this codebase that is,
+     * unlike every other gallery/animal link's `prefetch={false}`), so
+     * opening a card now charges the opened animal's own path plus up to
+     * two more - its neighbours. What this test still guards: no
+     * *unbounded* or *gallery* re-fetch - every charged path is either the
+     * opened animal or a real `/tvaryny/{uuid}` neighbour, never a second
+     * `/tvaryny` gallery-list fetch or more than two distinct neighbours.
+     */
+    test("opening a card charges only itself and its own neighbours - never a re-prefetch of the gallery", async ({
       page,
     }) => {
       await openGallery(page);
@@ -143,7 +158,15 @@ test.describe("the gallery's animal overlay", () => {
       // again. Wait for the network to settle rather than for a time.
       await network.untilSettled();
 
-      expect(charged.map((url) => url.split("?")[0])).toEqual([href]);
+      const distinctPaths = [...new Set(charged.map((url) => url.split("?")[0]))];
+      expect(distinctPaths, "the opened animal's own path is always charged").toContain(href);
+      const neighbours = distinctPaths.filter((path) => path !== href);
+      expect(neighbours.length, "at most the prev and next neighbours").toBeLessThanOrEqual(2);
+      for (const path of neighbours) {
+        expect(path, `"${path}" should be a real animal path, not a gallery re-fetch`).toMatch(
+          /^\/tvaryny\/[0-9a-f-]{36}$/,
+        );
+      }
     });
 
     test("opening a card further down keeps the list where it was", async ({ page }) => {
@@ -227,17 +250,38 @@ test.describe("the gallery's animal overlay", () => {
       }
     });
 
-    test("«Не зараз» inside the overlay goes to the gallery and leaves no overlay open over it", async ({
+    /**
+     * Pet card PR 5, owner decision B: "prev/next navigate between
+     * intercepted overlay routes (soft navigation with `router.replace`),
+     * so the next animal opens in the same overlay without a full page."
+     * `openGallery` here opens page 2 (`GALLERY_PAGE_2`), whose first card
+     * is not the gallery's own first animal - it has both neighbours, so
+     * this only asserts «Наступний» works, not an end-of-list case (that's
+     * a domain-level concern, already covered by the repository's own
+     * `animals.neighbours` tests - `null` at a real end).
+     */
+    test("«Наступний» opens the next animal in the same overlay, no full-page navigation", async ({
       page,
     }) => {
       await openGallery(page);
-      const { dialog } = await openOverlayFrom(page);
+      const { name: openedName } = await openOverlayFrom(page);
 
-      await dialog.getByRole("link", { name: uk.actions.notNow }).click();
+      // The label's own visible text is always «Наступний» (the design's literal word,
+      // not the neighbour's name - that's in its aria-label only), so the neighbour is
+      // identified by the dialog's name *changing*, not by reading it off the link.
+      await page.getByTestId("overlay-next").click();
 
-      await page.waitForURL((url) => url.pathname === "/tvaryny" && url.search !== "?stor=2");
-      await expect(page.getByRole("dialog")).toHaveCount(0);
-      await expect(page.locator(CARD).first()).toBeVisible();
+      const newDialog = page.getByRole("dialog");
+      // Polls (not a fixed wait): the soft navigation briefly leaves the old dialog's
+      // aria-label in place until React commits the new one, same "settle on a real
+      // state, not the clock" discipline this repo's harness timing already follows.
+      await expect(
+        newDialog,
+        "opened a different animal, not the same one again",
+      ).not.toHaveAttribute("aria-label", openedName);
+      // Still the overlay, not a full page: the list stays attached behind it.
+      await expect(page.locator(CARD).first()).toBeAttached();
+      expect(new URL(page.url()).pathname).not.toBe(GALLERY_PAGE_2.split("?")[0]);
     });
 
     test("a reload of the overlay's URL renders the full page, with no overlay", async ({
@@ -292,11 +336,11 @@ test.describe("the gallery's animal overlay", () => {
 
     /** Opens the reveal from inside the overlay and waits for its dialog. */
     async function openRevealIn(page: Page, overlay: ReturnType<Page["getByRole"]>) {
-      await overlay.getByRole("button", { name: uk.actions.writeShelter }).click();
+      await overlay.getByRole("button", { name: uk.detail.giveHome }).click();
       await expect(page.getByTestId("reveal-dialog")).toBeVisible();
     }
 
-    test("the first Escape closes only the reveal, focus on «Написати притулку»; the second closes the overlay, focus on the card", async ({
+    test("the first Escape closes only the reveal, focus on «Дати сімʼю»; the second closes the overlay, focus on the card", async ({
       page,
     }) => {
       await openGallery(page);
@@ -306,7 +350,7 @@ test.describe("the gallery's animal overlay", () => {
       await page.keyboard.press("Escape");
       await expect(page.getByTestId("reveal-dialog")).toHaveCount(0);
       await expect(dialog).toBeVisible();
-      await expect(dialog.getByRole("button", { name: uk.actions.writeShelter })).toBeFocused();
+      await expect(dialog.getByRole("button", { name: uk.detail.giveHome })).toBeFocused();
       expect(new URL(page.url()).pathname).toBe(href);
 
       await page.keyboard.press("Escape");

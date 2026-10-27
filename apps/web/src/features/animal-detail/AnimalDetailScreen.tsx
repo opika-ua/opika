@@ -1,86 +1,63 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
-import { donationHost, hasAnyDocumentEvidence } from "@opika/domain";
-import { fillTemplate, uk } from "@opika/i18n";
+import { donationHost, hasAnyDocumentEvidence, textIn } from "@opika/domain";
+import { fillTemplate, sexWordFor, sizeLabel, temperamentLabelFor, uk } from "@opika/i18n";
+import { freshnessLabel } from "@opika/ui";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
-import { Footer } from "../chrome/Footer";
 import { SiteHeader } from "../chrome/SiteHeader";
-import { FOCUS_RING } from "../controls/controls";
+import { chipDisplayLabel, similarAnimalsHref, similarAnimalsLabel } from "../gallery/filter-url";
 import { SaveButton } from "../likes/SaveButton";
+import { ShelterLogoAvatar } from "../shelters/ShelterLogoAvatar";
 import { shelterPagePath } from "../shelters/shelter-url";
-import { CoatFact } from "./CoatFact";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
-import { animalLocationLine, animalSubtitle } from "./detail-text";
-import { FreshnessBlock } from "./FreshnessBlock";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
+import { ShareButton } from "./ShareButton";
 
-/**
- * "Перевірено вручну · на сайті з {year} року" - the calendar year the shelter's
- * record was created, in UTC so the server's time zone can't move it. A count of
- * years floored from the creation date (the earlier wording) read «0 років» for a
- * shelter's whole first year (audit 2026-10-22 #21); a year can't. Deliberately
- * no site name in the sentence: it was a brand string in the catalogue.
- */
-function sinceYear(createdAt: Date): number {
-  return createdAt.getUTCFullYear();
-}
-
-/** The subtitle's own type, shared by the fur row under it rather than a style of its own. */
-const SUBTITLE_TEXT = "text-[15px]/[22px] text-rg-ink-2";
+const FOCUS =
+  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]";
 
 interface AnimalDetailScreenProps {
   animal: AnimalDetailView;
   shelter: PublicShelterView;
   /** Resolved by the caller (`cities.list`), same pattern as the gallery's `AnimalCard` - this component never fetches. */
   cityName: string | null;
-  /** O-12 (`docs/observations.md`): where "← Усі тварини · м. {city}" actually
-   * goes - the gallery filtered to this animal's city, built by the caller
-   * through `galleryHref` (`/tvaryny` unfiltered only if the city couldn't
-   * be resolved). Every back-navigation on this screen shares it: the
-   * header's two links and the "Не зараз" button all mean the same "back to
-   * where I was," not three independent destinations. */
-  backToGalleryHref: string;
 }
 
 /**
- * `docs/design/README.md`'s addendum, frames D1 (1920)/D2 (360) -
- * `Opika Registry Frames.dc.html`, opened directly per
- * `docs/standing-constraints.md`'s "when a mock exists, open the mock
- * file." One DOM tree reflowing by breakpoint (`tablet:`/`desktop:`),
- * matching the gallery's own approach: a Server Component cannot know the
- * client's width, and this page must render correctly with no JS.
+ * Pet card PR 5 (Figma `75:425`/`88:1929`), replacing the pre-redesign
+ * `docs/design/README.md` addendum layout wholesale. `AnimalDetailScreen`
+ * (full-page chrome: `SiteHeader`, the demo banner) and `AnimalDetailContent`
+ * (the shared panel body, rendered by both this full page and the gallery's
+ * overlay, `AnimalOverlay.tsx`) stay the two exports batch A split this file
+ * into (2026-10-23) - minimising blast radius for their two callers - but
+ * `AnimalDetailContent`'s own internals are a full rewrite, not a restyle.
  *
- * Real deviations from the mock, all recorded rather than silently
- * resolved - see this phase's PR body for the full account:
- * 1. The subtitle is 3 segments (species · age · size), not the mock's 4
- *    ("Метис · 2 роки · середня · стерилізація не записана"). Two changes,
- *    not one: "Метис" (breed) is dropped because `Animal` has no breed
- *    field at all; the trailing sterilisation clause is dropped because
- *    that fact already gets its own full row in the medical section below
- *    - repeating it in the subtitle risked the two disagreeing the moment
- *    either one changed independently.
- * 2. The medical section renders two rows (vaccination, spayNeuter), not
- *    the mock's three ("Сказ" / "Комплексне щеплення" / "Стерилізація") -
- *    `medical-labels.ts`'s own comment has the full reasoning.
- * 3. ~~The header carries only the back link, not the mock's own
- *    logo+wordmark beside it.~~ **Reversed in Phase T, and the reasoning
- *    that stood here was wrong.** It argued against "repeating the wordmark
- *    a second time on every route" while itself noting that mock D1 shows
- *    both - so the mock had already settled it, and this deviated from it
- *    knowingly. The design critique found the cost: this URL is the one
- *    people paste into Telegram, and it arrived with no brand, no promise
- *    text, and no route to «Про проєкт» (critique E1/B2). The header is now
- *    the shared `SiteHeader`, which carries the wordmark and site nav on
- *    every surface but the deck.
+ * **The old "← Усі тварини" back-link row is gone entirely** (owner decision
+ * B's reasoning: "whoever lands [on the full page] didn't come from the
+ * gallery," and the Figma page reference shows nothing between the header
+ * and the panel at all - no back link, no placeholder row kept only for
+ * spacing). `backToGalleryHref`/`uk.detail.backToListIn` left with it;
+ * `uk.feed.backToList` stays, still used by the deck and its own error page.
  *
- * **Designer feedback batch A (2026-10-23):** split into this frame - the
- * header, demo banner and breadcrumb, full-page only - and
- * `AnimalDetailContent` below, which the gallery's overlay now renders
- * directly with none of the three. The overlay's own "no page frame inside
- * it" is a Dribbble-style convention (the opened card's own chrome, not the
- * site's), not a claim that the two surfaces show different facts - same
- * loader, same content component either way.
+ * **Prev/next now lives entirely in `AnimalOverlay.tsx`**, not here - this
+ * screen renders no prev/next row at all, matching "hide prev/next entirely"
+ * literally rather than keeping an always-invisible row for spacing parity
+ * with the overlay. The full page genuinely never fetches neighbours
+ * (`animal-page-load.ts` is unchanged by this PR), so there is no data this
+ * screen could render even if it wanted to.
+ *
+ * Real deviations from the Figma frame, recorded rather than silently
+ * resolved - see the PR body for the full account, including the
+ * "Contrast deviations (owner override)" list (decision 10):
+ * 1. The meta line shows the age *bucket*, not "N років" (owner decision 3 -
+ *    the contract only carries `ageBucket`).
+ * 2. The freshness tag reuses `freshnessLabel` verbatim ("Оновлено N днів
+ *    тому"), not the Figma mock's literal "Оновлено: N днів тому" with a
+ *    colon (owner decision 2 - follows the gallery's own mechanism exactly).
+ * 3. The backdrop/tint behind the overlay is an approximated flat colour,
+ *    not a literal two-layer composite - see `AnimalOverlay.tsx`'s own
+ *    comment.
  */
 export function AnimalDetailScreen({
   // Defaulted here (not in `SiteHeader`, which stays strict) purely so the
@@ -91,7 +68,7 @@ export function AnimalDetailScreen({
   ...content
 }: AnimalDetailScreenProps & { kabinetSignedIn?: boolean }) {
   return (
-    <div className="font-rg min-h-dvh bg-rg-page">
+    <div className="font-brand-ui min-h-dvh bg-brand-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
       {/*
@@ -106,308 +83,294 @@ export function AnimalDetailScreen({
         full history.
       */}
       {REGISTRY_HAS_NO_REAL_SHELTERS && (
-        <div className="p-4 tablet:p-6 desktop:px-8 desktop:max-w-[1200px] desktop:mx-auto">
-          <span data-testid="detail-demo-banner" className="text-[13px]/[18px] text-rg-ink-3">
+        <div className="p-4 tablet:p-6 desktop:px-14">
+          <span data-testid="detail-demo-banner" className="text-[13px]/[18px] text-brand-ink-2">
             {uk.demo.bannerNotice}
           </span>
         </div>
       )}
 
-      {/*
-        O-8 (`docs/observations.md`): this used to render inside `SiteHeader`
-        via its `leading` slot, beside the wordmark, where it read as a site
-        navigation item rather than the page's own back-link. Moved below
-        the header, above the content, left-aligned - the same "never two
-        navigations at once" direction `docs/design/README.md`'s deck-chrome
-        section states for the gallery/deck split, applied here to header
-        nav vs. page-own navigation instead of gallery nav vs. deck nav.
-        **Batch A:** this is also exactly the "«← Усі тварини» breadcrumb"
-        his overlay feedback says stays off the overlay - the full page
-        keeps it, the overlay (which renders `AnimalDetailContent` alone,
-        below) never had it move back in.
-
-        `min-h-12` (48), not the `min-h-11` (44) these carried before:
-        docs/design/README.md:200 sets 48 as the minimum touch target
-        *anywhere*, and calls it a civic-trust metric rather than the WCAG
-        floor. Same rule as the header-height fix (critique A2) and found in
-        the same pass, one component over.
-
-        Horizontal padding matches the content column immediately below
-        (`p-4 tablet:p-6`, desktop's own `desktop:px-8` starts at the same
-        breakpoint) so the back-link's left edge lines up with the photo and
-        text columns it sits above, not with the header's wider padding.
-      */}
-      <div className="p-4 tablet:p-6 desktop:px-8 desktop:pt-6 desktop:max-w-[1200px] desktop:mx-auto">
-        {/*
-          Not prefetched, like every link back to the gallery here: each
-          prefetch of a `/tvaryny` URL is charged to the visitor's per-IP
-          budget in `proxy.ts`, and in the gallery's overlay these links are
-          on screen the moment a card opens (DR1-S4-T3's reason, S4b).
-        */}
-        <Link
-          href={content.backToGalleryHref}
-          prefetch={false}
-          data-testid="back-to-list"
-          className="min-h-12 inline-flex items-center gap-1.5 rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] desktop:hidden"
-        >
-          {uk.feed.backToList}
-        </Link>
-        <Link
-          href={content.backToGalleryHref}
-          prefetch={false}
-          data-testid="back-to-list-desktop"
-          className="hidden desktop:inline-flex min-h-12 items-center text-[15px] text-rg-ink-2 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-        >
-          {uk.detail.backToListIn.replace("{city}", () => content.cityName ?? "")}
-        </Link>
+      <div className="pt-6 desktop:pt-10">
+        <AnimalDetailContent {...content} />
       </div>
-
-      <AnimalDetailContent {...content} />
     </div>
   );
 }
 
 /**
- * The gallery overlay and the full page both render exactly this (batch A):
- * everything the mock specifies for the animal itself, with no page chrome
- * - no header, no demo banner, no breadcrumb, all three of which the full
- * page supplies around it above and the overlay, deliberately, does not.
+ * The gallery overlay and the full page both render exactly this: everything
+ * the Figma panel specifies for the animal itself, with no page chrome - no
+ * header, no demo banner, both of which the full page supplies around it
+ * above, and the overlay's own backdrop/close-button/prev-next row supplies
+ * instead (`AnimalOverlay.tsx`). No `neighbours` concept here at all - prev/
+ * next is navigation chrome, not animal content, so it lives one level up in
+ * whichever of the two callers actually has it.
  */
-export function AnimalDetailContent({
-  animal,
-  shelter,
-  cityName,
-  backToGalleryHref,
-}: AnimalDetailScreenProps) {
+export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailScreenProps) {
   const showDocuments =
     animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
-
-  const subtitle = animalSubtitle(animal);
-  const locationLine = animalLocationLine(animal, cityName);
-  // Computed once, not written out at both the link and the badge, so the
-  // two can't drift apart (review of df5915d, simplification).
-  const shelterVerifiedBadgeId = `shelter-verified-${shelter.id}`;
+  const customTemperament = animal.temperament.find((entry) => entry.kind === "custom");
 
   return (
-    <>
-      <div className="desktop:max-w-[1200px] desktop:mx-auto p-4 tablet:p-6 desktop:py-10 desktop:px-8 desktop:flex desktop:gap-10 desktop:items-start">
-        {/* Photo column - sticky on desktop, fixed-height strip on mobile. */}
-        <div className="desktop:w-[560px] desktop:flex-none desktop:sticky desktop:top-10 flex flex-col gap-2">
-          <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} />
-        </div>
-
-        {/* Content column */}
-        <div className="flex-1 min-w-0 flex flex-col gap-6 mt-4 desktop:mt-0">
-          <div className="flex flex-col gap-1">
-            {/*
-              The save toggle (designer round 1, S7; DR1-D8) sits beside the name, not in the
-              "Не зараз" / "Написати" row below: those two are the swipe-equivalent choice this
-              page offers, and a bookmark is a lighter, independent "come back to this" mark, not
-              a third option in that choice (DR1-D8's own reasoning for keeping it off the deck
-              card applies to crowding that specific row, not to the page as a whole). No mock
-              frame for this screen exists; this placement is the builder's call, reversible.
-            */}
-            <div className="flex items-start justify-between gap-3">
+    <div className="mx-auto flex max-w-[1084px] flex-col gap-13 p-4 tablet:p-6 desktop:p-10">
+      {/* Header */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-6 desktop:flex-row desktop:items-start desktop:justify-between">
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex items-center gap-3">
               <h1
                 data-testid="animal-name"
-                className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.03em] text-rg-ink"
+                className="font-brand-display text-[48px]/[1.15] font-bold tracking-[-0.01em] text-brand-ink"
               >
                 {animal.name}
               </h1>
               <SaveButton animalId={animal.id} animalName={animal.name} />
             </div>
-            <span className={SUBTITLE_TEXT}>{subtitle}</span>
-            <CoatFact coatLength={animal.coatLength} className={SUBTITLE_TEXT} />
+            <MetaLine animal={animal} />
           </div>
-
-          {/*
-            Freshness quote block - a separate card below the name, on both
-            mobile and desktop, matching the mock's D1 (1920) and D2 (360)
-            frames exactly: neither ever overlays freshness on the photo.
-            An earlier version of this screen also overlaid a redundant
-            freshness-pips-only cluster on the mobile photo (duplicating
-            this block's own pips for no reason, and incidentally occupying
-            the mock's actual photo-dot-indicator corner) - removed when
-            `DetailPhotoGallery.tsx`'s real dot indicator needed that corner
-            for what the mock actually puts there. See O-22,
-            `docs/observations.md`, for the full account.
-          */}
-          {/*
-            The pips and the day count only. The shelter's sentence that sat
-            under them moved to the shelter page (designer round 1, S6;
-            Oleksii's DR1-Q1, verbatim: "the shelter’s freshness sentence
-            leaves the deck and animal pages and shows only on the shelter
-            page. «Оновлено … тому» stays on every card."). The shelter row
-            below links there.
-          */}
-          <FreshnessBlock freshness={animal.freshness} />
-
-          <div className="flex gap-2">
-            {/*
-              Real navigation back to the gallery, not an inert button - a
-              reviewer finding, caught by checking for an onClick/href
-              rather than trusting the visible label: this used to be a
-              `<button>` with neither, the same "renders but does nothing"
-              failure standing-constraints was written for
-              (`/discovery`'s dead swipe gesture). Unlike the deck, this
-              page has no "next card" to advance to on decline - "Не
-              зараз" here means "not this one, back to the list," so it
-              goes to the same place the header's own back link does.
-              Not `swipes.record`: that call is deck-scoped today (a
-              browsing context this page isn't), and inventing a second
-              meaning for it here is a product decision this fix isn't
-              making.
-            */}
-            <Link
-              href={backToGalleryHref}
-              prefetch={false}
-              data-testid="not-now-button"
-              className="min-h-14 flex-1 flex items-center justify-center rounded-rg-button bg-rg-fill text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-            >
-              {uk.actions.notNow}
-            </Link>
+          <div className="flex flex-none items-center gap-4">
             <RevealFlow animalId={animal.id} animalName={animal.name} cityName={cityName} />
+            <ShareButton animalId={animal.id} animalName={animal.name} />
           </div>
+        </div>
 
-          <div className="flex flex-col desktop:flex-row gap-6">
-            <div className="flex-1 min-w-0 flex flex-col gap-3">
-              <span className="text-[19px]/[24px] font-medium text-rg-ink">
-                {uk.medical.heading}
-              </span>
-              <MedicalRowView row={vaccinationRow(animal.vaccination)} />
-              <MedicalRowView row={spayNeuterRow(animal.spayNeuter)} />
-              {showDocuments && (
-                <div className="flex gap-2 pt-1">
-                  {animal.documentReadiness.kind === "tracked" &&
-                    animal.documentReadiness.microchip.kind === "present" && (
-                      <span className="inline-flex min-h-7 items-center rounded-rg-chip bg-rg-fill px-3 text-[13px] text-rg-ink-2">
-                        {uk.documents.chipPresent}
-                      </span>
-                    )}
-                  {animal.documentReadiness.kind === "tracked" &&
-                    animal.documentReadiness.rabiesVaccination.kind === "present" && (
-                      <span className="inline-flex min-h-7 items-center rounded-rg-chip bg-rg-fill px-3 text-[13px] text-rg-ink-2">
-                        {uk.documents.rabiesPresent}
-                      </span>
-                    )}
-                </div>
-              )}
-            </div>
-
-            <div className="desktop:w-65 desktop:flex-none flex flex-col gap-3">
-              <span className="text-[19px]/[24px] font-medium text-rg-ink">
-                {uk.location.heading}
-              </span>
-              <div className="bg-rg-fill-strong rounded-rg-button p-4 flex flex-col gap-2">
-                <span className="text-[15px]/[22px] font-medium text-rg-ink">{locationLine}</span>
-                <span className="text-[15px]/[22px] text-rg-ink-2">
-                  {uk.location.noMapExplanation}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4 pt-2">
-            {/*
-              The shelter row is a link to the shelter page (designer round 1,
-              S6), where its own words are. Its accessible name is his
-              `detail.shelterRowLink`; the visible name and badge stay as they
-              were. Not prefetched, like every link here: a prefetch of a
-              `/prytulky` URL is charged to the visitor's per-IP budget
-              (`proxy.ts`).
-
-              `aria-label` replaces a link's whole accessible name, so without
-              more it would silence the verified-years badge below for a
-              screen reader (review of b50a905, DR1-S6-F1's aria-label
-              finding) - true today only because
-              `REGISTRY_HAS_NO_REAL_SHELTERS` keeps the badge from rendering
-              at all, but a wrong fix here breaks the day that flag flips.
-              `aria-describedby` adds the badge as the link's description
-              rather than folding it into `shelterRowLink`'s own wording,
-              which would need new Ukrainian this isn't the row to invent.
-            */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <span
+            data-testid="freshness-block"
+            className="inline-flex h-8 items-center rounded-[10px] bg-brand-line px-3 text-[16px] font-semibold text-brand-ink"
+          >
+            {freshnessLabel(animal.freshness)}
+          </span>
+          <div className="flex flex-wrap items-center gap-[30px]">
             <Link
               href={shelterPagePath(shelter.id)}
               prefetch={false}
               aria-label={fillTemplate(uk.detail.shelterRowLink, { name: shelter.displayName })}
-              aria-describedby={REGISTRY_HAS_NO_REAL_SHELTERS ? undefined : shelterVerifiedBadgeId}
-              className={`flex min-h-target items-center gap-3 rounded-rg-button ${FOCUS_RING}`}
+              className={`inline-flex items-center gap-3.5 rounded-brand-field ${FOCUS}`}
             >
-              <span
-                aria-hidden="true"
-                className="size-11 rounded-full bg-rg-fill inline-flex items-center justify-center text-[15px] font-medium text-rg-ink-2 flex-none"
-              >
-                {shelter.displayName.replace(/[«»]/g, "").trim().slice(0, 1)}
+              <ShelterLogoAvatar logo={shelter.logo} displayName={shelter.displayName} />
+              <span className="text-[20px] font-semibold text-brand-ink">
+                {shelter.displayName}
               </span>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[15px]/[22px] font-medium text-rg-ink">
-                  {shelter.displayName}
-                </span>
-                {/*
-                  D-2 (seo-flags.ts's own comment on REGISTRY_HAS_NO_REAL_SHELTERS):
-                  this badge asserts something true about a *verified* shelter -
-                  fictional while the flag is true, which it is on production
-                  today. Suppressed rather than shown for a shelter that doesn't
-                  exist.
-                */}
-                {!REGISTRY_HAS_NO_REAL_SHELTERS && (
-                  <span id={shelterVerifiedBadgeId} className="text-[13px]/[18px] text-rg-ink-3">
-                    {fillTemplate(uk.detail.shelterVerifiedYears, {
-                      year: String(sinceYear(shelter.createdAt)),
-                    })}
-                  </span>
-                )}
-              </div>
             </Link>
-
-            {shelter.donation && (
-              <a
-                href={shelter.donation.url}
-                target="_blank"
-                rel="noopener"
-                data-testid="donate-link"
-                className="flex items-center justify-between gap-3 min-h-14 rounded-rg-button bg-rg-fill px-5 text-[15px] text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-              >
-                <span>{uk.detail.donateShelter}</span>
-                <span className="text-rg-ink-2">{donationHost(shelter.donation)} ↗</span>
-              </a>
+            {cityName && (
+              <span className="inline-flex items-center gap-2">
+                <img
+                  src="/pet-card/icon-location.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width={32}
+                  height={32}
+                />
+                <span
+                  data-testid="shelter-city"
+                  className="text-[20px] font-semibold text-brand-accent"
+                >
+                  {cityName}
+                </span>
+              </span>
             )}
           </div>
         </div>
+        {/*
+          Commitment 5 (`docs/standing-constraints.md`): donations are external links to the
+          shelter's own payment page, domain visible before the tap. No frame in the Figma
+          reference shows this state (its mock shelter carries no donation link), so keeping it
+          is a decision taken, not a deviation from the design - a visual redesign was never
+          asked to drop a real feature it just doesn't happen to mock. Placed under the header
+          row rather than inside it, since the Figma header has no slot for it.
+          `data-testid="donate-link"` unchanged for continuity with its existing test.
+        */}
+        {shelter.donation && (
+          <a
+            href={shelter.donation.url}
+            target="_blank"
+            rel="noopener"
+            data-testid="donate-link"
+            className={`inline-flex w-fit items-center gap-3 rounded-brand-field border-2 border-brand-line px-4 py-2 text-[16px] font-medium text-brand-ink ${FOCUS}`}
+          >
+            <span>{uk.detail.donateShelter}</span>
+            <span className="text-brand-ink-2">{donationHost(shelter.donation)} ↗</span>
+          </a>
+        )}
       </div>
 
-      <div className="p-4 tablet:p-6 desktop:px-8 desktop:max-w-[1200px] desktop:mx-auto">
-        <Footer />
+      {/* Photo slider */}
+      <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} />
+
+      {/* Про мене */}
+      <div className="flex flex-col gap-4">
+        <h2 className="text-[26px] font-bold text-brand-ink">{uk.detail.aboutMeHeading}</h2>
+        <div className="flex flex-wrap gap-4">
+          <FilterableChipLink species={animal.species} dimension="ages" value={animal.ageBucket} />
+          <SexChip sex={animal.sex} />
+          <FilterableChipLink species={animal.species} dimension="sizes" value={animal.size} />
+          {animal.temperament
+            .filter((entry) => entry.kind === "preset")
+            .map((entry) => (
+              <FilterableChipLink
+                key={entry.trait}
+                species={animal.species}
+                dimension="temperaments"
+                value={entry.trait}
+                visibleText={temperamentLabelFor(entry.trait, animal.sex)}
+              />
+            ))}
+          {customTemperament?.kind === "custom" && (
+            <PlainChip text={textIn(customTemperament.text, "uk")} />
+          )}
+          {animal.colour?.kind === "preset" && (
+            <FilterableChipLink
+              species={animal.species}
+              dimension="colours"
+              value={animal.colour.colour}
+            />
+          )}
+          {animal.colour?.kind === "custom" && (
+            <PlainChip text={textIn(animal.colour.text, "uk")} />
+          )}
+          {animal.coatLength && (
+            <FilterableChipLink
+              species={animal.species}
+              dimension="coatLengths"
+              value={animal.coatLength}
+            />
+          )}
+          <MedicalChip row={vaccinationRow(animal.vaccination)} />
+          <MedicalChip row={spayNeuterRow(animal.spayNeuter)} />
+          {showDocuments && animal.documentReadiness.kind === "tracked" && (
+            <>
+              {animal.documentReadiness.microchip.kind === "present" && (
+                <PlainChip text={uk.documents.chipPresent} />
+              )}
+              {animal.documentReadiness.rabiesVaccination.kind === "present" && (
+                <PlainChip text={uk.documents.rabiesPresent} />
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </>
+
+      {/* Моя історія / Медичний стан */}
+      <div className="flex flex-col gap-13 desktop:flex-row">
+        <div className="flex flex-1 flex-col gap-3">
+          <h2 className="text-[26px] font-bold text-brand-ink">{uk.detail.myStoryHeading}</h2>
+          {/*
+            Decision 10 (contrast deviations, owner override): `brand-muted`
+            is 2.66:1 on white, failing AA for body text. Shipped as designed
+            anyway, per his instruction - see the PR body's own "Contrast
+            deviations" list, which recommends `brand-ink-2` (5.4:1) as the fix.
+          */}
+          <p className="text-[20px]/[1.4] tracking-[0.2px] text-brand-muted">
+            {textIn(animal.description, "uk")}
+          </p>
+        </div>
+        {animal.medicalNotes !== null && (
+          <div className="flex flex-1 flex-col gap-3">
+            <h2 className="text-[26px] font-bold text-brand-ink">{uk.detail.medicalHeading}</h2>
+            <p className="text-[20px]/[1.4] tracking-[0.2px] text-brand-muted">
+              {textIn(animal.medicalNotes, "uk")}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer divider */}
+      <div className="flex items-center justify-center gap-10 pt-2">
+        <img
+          src="/pet-card/divider-left.svg"
+          alt=""
+          aria-hidden="true"
+          className="min-w-0 flex-1"
+        />
+        <img
+          src="/pet-card/mascot-divider.svg"
+          alt=""
+          aria-hidden="true"
+          className="h-15 flex-none"
+        />
+        <img
+          src="/pet-card/divider-right.svg"
+          alt=""
+          aria-hidden="true"
+          className="min-w-0 flex-1"
+        />
+      </div>
+    </div>
   );
 }
 
-/**
- * Stacked (label above status), not side-by-side: the medical column
- * shares its row with the fixed-width "Де живе" column at desktop
- * (`w-65`), which leaves it real but narrow - a side-by-side layout with
- * "Комплексне щеплення" as the label overlapped its own status text at
- * 1920, caught by looking at the actual rendered screenshot, not assumed
- * from the JSX. Stacking removes the width budget entirely rather than
- * trimming it closer to a number that might collide again with a longer
- * translation later.
- */
-function MedicalRowView({ row }: { row: ReturnType<typeof vaccinationRow> }) {
+/** "Хлопчик · 5 років · середній" - sex, age bucket (owner decision 3 - the contract only
+ * carries the bucket, never "N років") and size, the same three facts (and the same
+ * gender-neutral age-bucket word) `cardFactsParts` already composes for the gallery card's
+ * own meta line, just inlined here rather than coerced through `FeedCardView`'s shape. */
+function MetaLine({ animal }: { animal: AnimalDetailView }) {
+  const parts = [
+    sexWordFor(animal.sex),
+    chipDisplayLabel({ dimension: "ages", value: animal.ageBucket }),
+    sizeLabel(animal.size),
+  ].filter((part): part is string => Boolean(part));
   return (
-    <div className="flex items-start gap-3">
-      <span
-        aria-hidden="true"
-        className={`w-1 h-4 mt-1 rounded-rg-chip flex-none ${row.barClassName}`}
-      />
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-[15px]/[22px] text-rg-ink">{row.label}</span>
-        <span
-          className={`text-[13px]/[18px] ${row.barClassName === "bg-rg-registry" ? "font-medium text-rg-registry" : row.barClassName === "bg-rg-ink-3" ? "text-rg-ink-2" : "text-rg-ink-3"}`}
-        >
-          {row.statusText}
+    <span className="flex items-center gap-3 text-[20px]/[1.4] font-medium text-brand-ink-2">
+      {parts.map((part, index) => (
+        <span key={part} className="flex items-center gap-3">
+          {index > 0 && (
+            <span aria-hidden="true" className="h-1 w-[1.5px] shrink-0 bg-brand-ink-2" />
+          )}
+          {part}
         </span>
-      </div>
-    </div>
+      ))}
+    </span>
+  );
+}
+
+const CHIP =
+  "inline-flex h-13 items-center rounded-brand-field border-2 border-brand-line px-4 text-[20px] font-semibold text-brand-ink";
+
+/** A non-filterable fact, as plain text (A6 - custom «Інше» values and the medical facts). */
+function PlainChip({ text }: { text: string }) {
+  return <span className={CHIP}>{text}</span>;
+}
+
+/** The sex chip (plain text - no sex filter exists, A6): omitted entirely for "unknown", the
+ * same no-word-for-unknown contract `sexWordFor` already has (unlike `ageWordFor`, which
+ * always has some word to fall back to). A component of its own, not an inline `&&`, purely so
+ * TS narrows `sexWordFor`'s `string | null` return to `string` before `PlainChip` sees it. */
+function SexChip({ sex }: { sex: AnimalDetailView["sex"] }) {
+  const word = sexWordFor(sex);
+  return word === null ? null : <PlainChip text={word} />;
+}
+
+/** A medical fact chip (owner decision A3): always rendered, even unknown - the «Не записано»
+ * rule applies to this fact specifically, unlike the other, omit-when-absent chips below. */
+function MedicalChip({ row }: { row: ReturnType<typeof vaccinationRow> }) {
+  return <PlainChip text={`${row.label}: ${row.statusText}`} />;
+}
+
+/** A filterable chip (A6): a `<Link>` to the gallery filtered to the animal's species plus this
+ * one fact, accessible name via `similarAnimalsLabel`. `visibleText` overrides the default
+ * (`chipDisplayLabel`) for temperament, whose visible chip uses the sex-matched singular form,
+ * not the plural the accessible name reads. */
+function FilterableChipLink<D extends Parameters<typeof chipDisplayLabel>[0]["dimension"]>({
+  species,
+  dimension,
+  value,
+  visibleText,
+}: {
+  species: AnimalDetailView["species"];
+  dimension: D;
+  value: Extract<Parameters<typeof chipDisplayLabel>[0], { dimension: D }>["value"];
+  visibleText?: string;
+}) {
+  const chip = { dimension, value } as Parameters<typeof chipDisplayLabel>[0];
+  return (
+    <Link
+      href={similarAnimalsHref(species, chip)}
+      prefetch={false}
+      aria-label={similarAnimalsLabel(species, chip)}
+      className={`${CHIP} ${FOCUS}`}
+    >
+      {visibleText ?? chipDisplayLabel(chip)}
+    </Link>
   );
 }

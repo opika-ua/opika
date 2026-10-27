@@ -24,21 +24,28 @@ export const COPY_PENDING = "[COPY PENDING]";
  * (`docs/observations.md`'s "/pro sentence" section has the full gating
  * decision). The text has moved since his original 2026-10-06 draft
  * (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`): PR #186 (S8)
- * appended the saved-list sentence, and the right-swipe word is now
- * «Написати» only, matching the global rename in copy audit #19
- * (2026-10-22, PR #183) - «Запитати» no longer names anything in the
- * product. **This constant, not the 2026-10-06 file, is what lands** when
- * R4-2 actually ships. `apps/web/src/seo-flags.ts`'s
+ * appended the saved-list sentence; the global rename in copy audit #19
+ * (2026-10-22, PR #183) made the right-swipe word «Написати» everywhere at
+ * the time - «Запитати» no longer named anything in the product. Pet card
+ * PR 5 (2026-10-27) renamed this constant (dropping the `PENDING_` prefix -
+ * it was never about *his* approval being pending, only about the gate
+ * above; the text itself has been his approved words since 2026-10-06) and
+ * swapped «Написати» for «Дати сімʼю», the pet card's own reveal-trigger
+ * label, which the deck's own button no longer shares now that the two
+ * surfaces have different words for the same action. **This constant, not
+ * the 2026-10-06 file, is what lands** when R4-2 actually ships. Still held:
+ * the pre-launch cookie-disclosure gate this sentence waits on is unrelated
+ * to PR 5 and remains unresolved. `apps/web/src/seo-flags.ts`'s
  * `assertAnalyticsCopyMatchesGateState` checks for this exact string, not a
  * loose substring, so that a reworded or partial version of the sentence
  * still trips the tripwire. When this lands, append this constant to
- * `uk.about.analytics` directly - `+ " " + PENDING_R4_2_ANALYTICS_SENTENCE`
- * or equivalent - rather than retyping the text, so the landed sentence and
+ * `uk.about.analytics` directly - `+ " " + R4_2_ANALYTICS_SENTENCE` or
+ * equivalent - rather than retyping the text, so the landed sentence and
  * this constant can never drift apart.
  */
-export const PENDING_R4_2_ANALYTICS_SENTENCE =
+export const R4_2_ANALYTICS_SENTENCE =
   "Людині, яка шукає тварину, сайт ставить одне кукі – і тільки після першої дії: " +
-  "«Не зараз» чи «Написати». У ньому немає імені чи номера телефону, лише " +
+  "«Не зараз» чи «Дати сімʼю». У ньому немає імені чи номера телефону, лише " +
   "випадковий ідентифікатор: щоб режим «по одній» памʼятав, кого ви вже бачили, а сайт – " +
   "чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без візитів або через 30 " +
   "днів у будь-якому разі. Окремо від кукі, якщо ви зберігаєте тварин, їхній список лежить " +
@@ -420,17 +427,20 @@ export const uk = {
 
   // --- Location ---
   location: {
-    heading: "Де живе",
     /** Template: "м. {city} · у домі волонтерки" */
     fostered: "Живе у волонтерки, м. {city}. Точної адреси ми не знаємо і не показуємо.",
-    noMapExplanation:
-      "Карти тут немає: сайт показує лише місто. Місце зустрічі узгодите з притулком.",
     /**
-     * The detail screen's own "Де живе" block (D1/D2) - a short first line,
-     * `noMapExplanation` above as the second. Distinct from `fostered`
-     * above, which is one longer combined sentence for a different slot
-     * (the gallery card's meta line uses `cardMeta.fosteredHousing`/
-     * `atShelter` instead, also separate from both of these).
+     * Pet card PR 5 dropped the detail screen's own "Де живе" explanatory
+     * block (`heading`/`noMapExplanation`, used only there): the new panel
+     * header shows just the bare city name as text beside a decorative
+     * location icon (owner decision 6 - "the location icon is decoration,
+     * the city is text"; the reference screenshot shows "Київ", not "м.
+     * Київ" - no template, the resolved `cityName` prop printed as-is), no
+     * heading, no map-absence sentence. `lineAtShelter` stays in use,
+     * unchanged, by `ContactRevealDialog.tsx`'s own meeting-place line;
+     * `lineFostered` is kept for symmetry even though nothing calls it
+     * today - the gallery card's own meta line uses
+     * `cardMeta.fosteredHousing`/`atShelter` instead.
      */
     lineFostered: "м. {city} · на перетримці",
     lineAtShelter: "м. {city}",
@@ -460,8 +470,6 @@ export const uk = {
      * the shelter's display name.
      */
     shelterRowLink: "Сторінка притулку «{name}»",
-    /** Template: "← Усі тварини · м. {city}" - the mock's D1 desktop back link (frame D1). */
-    backToListIn: "← Усі тварини · м. {city}",
     /**
      * The subtitle line's species word - "Метис · 2 роки · середня" in the
      * mock, but "Метис" (mixed breed) has no domain field at all (`Animal`
@@ -492,11 +500,6 @@ export const uk = {
     /** Sex-specific, for `speciesWordFor` only - never the sex-neutral subtitle line above. */
     speciesDogMale: "Пес",
     speciesCatFemale: "Кішка",
-    /** DR1 (S3), his text: the fact's own words, not the filter labels («Короткошерсті»);
-     * the value matches the kabinet form's. No row at all when fur isn't recorded. */
-    coatLabel: "Шерсть",
-    coatShort: "Коротка",
-    coatLong: "Довга",
     notFound: {
       eyebrow: "НЕ ЗНАЙДЕНО",
       title: "Цієї картки більше немає.",
@@ -514,13 +517,50 @@ export const uk = {
     rateLimited: "Забагато запитів. Спробуйте ще раз пізніше.",
     /**
      * O-10 (`docs/observations.md`) + critique C6 - accessibility copy for the
-     * photo gallery's dot indicator (mobile) and thumbnail strip (desktop).
-     * Placeholders since D6-3; his Ukrainian since PR 6 (Q-A, 2026-10-19).
-     * `{n}` is the photo's 1-based position.
+     * photo gallery. His Ukrainian since PR 6 (Q-A, 2026-10-19). Pet card PR 5
+     * replaced the dot/thumbnail controls this once also labelled with a
+     * native scroll-snap slider (`photoGalleryDot`/`photoGalleryThumbnail`
+     * retired with that UI, `copy-status.test.ts` has the full account);
+     * this one survives as the slider's own scroll-container label, since it
+     * names "the photo list," not any particular control for moving through it.
      */
     photoGalleryLabel: "Фотографії тварини",
-    photoGalleryDot: "Фото {n}",
-    photoGalleryThumbnail: "Переглянути фото {n}",
+    /**
+     * Pet card PR 5, builder's own draft (not his words - flagged in the PR
+     * for confirm-or-replace, same low-risk mechanical-label reasoning as
+     * `kabinet.animalForm.validation.medicalNotesTooLong`). The slider's own
+     * prev/next buttons' accessible names.
+     */
+    photoNext: "Наступне фото",
+    photoPrev: "Попереднє фото",
+    /**
+     * Pet card PR 5 (Figma `75:425`/`88:1929`). The prev/next labels above
+     * the panel, the two header pills, the three section headings and the
+     * share-copied confirmation are the design's own owner-approved words
+     * (handoff, 2026-10-26); the chip-link template and species words are
+     * his own text, given directly, 2026-10-27 (full provenance recorded in
+     * `copy-status.test.ts`'s `PET_CARD_PR5_COPY` round).
+     */
+    prev: "Попередній",
+    next: "Наступний",
+    giveHome: "Дати сімʼю",
+    share: "Поділитись",
+    shareCopied: "Посилання скопійовано.",
+    aboutMeHeading: "Про мене",
+    myStoryHeading: "Моя історія",
+    medicalHeading: "Медичний стан",
+    /**
+     * Template: "Показати схожих {species}: {value}" - a filterable chip
+     * link's accessible name. `{species}` is `chipSpeciesCat`/`chipSpeciesDog`
+     * below; `{value}` is the dimension's own existing label text,
+     * lowercased, with no quotes around it (his exact wording, 2026-10-27:
+     * "«Показати схожих {котів|собак}: {значення}», with no quotes around
+     * the value. The value is lowercase and uses the filter form"). Built by
+     * `similarAnimalsLabel` (`apps/web/src/features/gallery/filter-url.ts`).
+     */
+    chipLinkName: "Показати схожих {species}: {value}",
+    chipSpeciesCat: "котів",
+    chipSpeciesDog: "собак",
   },
 
   // --- The gallery's animal overlay (designer round 1, §2 of docs/designer-round-1.md) ---
@@ -1753,6 +1793,22 @@ export const uk = {
           "«Не записано» – чесна відповідь. Ті, хто шукає тварину, так і побачать «Не записано», а не «ні».",
         registryReadOnly: "Підтверджено державним реєстром тварин. Тут цей рядок змінити не можна.",
       },
+      /**
+       * Pet card PR 5. His own words, given directly (2026-10-27): "Two
+       * strings are already approved: «Що ще варто знати про здоровʼя» and
+       * «Необовʼязково. Ті, хто шукає тварину, побачать цей текст у розділі
+       * «Медичний стан».»" `title` doubles as both the card's `<h2>` and the
+       * field's own `label`, the same pattern `description` above uses for
+       * its `title`/`label` pair - here they're identical text rather than
+       * two different ones, which is fine, nothing requires them to differ.
+       * The structured facts (vaccination, spay/neuter) stay in `health`
+       * above and move to the public page's chip row (A3); this is the
+       * shelter's own free-text note, distinct from both.
+       */
+      medicalNotes: {
+        title: "Що ще варто знати про здоровʼя",
+        hint: "Необовʼязково. Ті, хто шукає тварину, побачать цей текст у розділі «Медичний стан».",
+      },
       photos: {
         title: "Фото",
         ratioNote: "Формат 4:5, перше фото – обкладинка.",
@@ -1884,6 +1940,16 @@ export const uk = {
         nameTooLong: "Імʼя довше за {max} символів.",
         /** «символів» is the form for 1,500 (pinned). */
         descriptionTooLong: "Опис довший за {max} символів.",
+        /**
+         * Pet card PR 5, builder's own draft - not his words, mirroring
+         * `descriptionTooLong` exactly (same cap, `MEDICAL_NOTES_MAX_CHARACTERS
+         * === ANIMAL_DESCRIPTION_MAX_CHARACTERS`), flagged in the PR for his
+         * confirm-or-replace rather than held as `[COPY PENDING]` - a pending
+         * `kabinet.*` string would turn production sign-in off entirely
+         * (`copy-status.test.ts`'s gate), which a cosmetic validation message
+         * doesn't warrant risking.
+         */
+        medicalNotesTooLong: "Текст про здоровʼя довший за {max} символів.",
         birthDateFuture: "Дата народження не може бути в майбутньому.",
         asOfFuture: "Дата «Станом на» не може бути в майбутньому.",
         /** «років» is the form for 30, `AGE_DATE_MAX_YEARS_BACK` (his note: "pin the plural for 30"). */

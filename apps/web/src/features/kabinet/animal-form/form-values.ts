@@ -51,6 +51,9 @@ export type FormValues = {
   asOf: string;
   /** The Ukrainian description as typed; blank means none. */
   description: string;
+  /** The Ukrainian medical note as typed (pet card PR 5's «Медичний стан»); blank means none,
+   * same blank↔null pattern as `description` - never required to publish (A3). */
+  medicalNotes: string;
   /**
    * The presets ticked, in the order they were ticked: the order the card
    * shows and the database keeps. A stored temperament loads in its stored
@@ -83,6 +86,7 @@ export const emptyValues = (today: CalendarDate): FormValues => ({
   bucket: null,
   asOf: today,
   description: "",
+  medicalNotes: "",
   temperamentTraits: [],
   temperamentOther: false,
   temperamentCustom: "",
@@ -135,6 +139,7 @@ export const valuesOf = (view: KabinetAnimalView, today: CalendarDate): FormValu
     coatLength: view.coatLength,
     ...ageFieldsOf(view.age, today),
     description: view.description?.uk ?? "",
+    medicalNotes: view.medicalNotes?.uk ?? "",
     temperamentTraits: view.temperament.flatMap((entry) =>
       entry.kind === "preset" ? [entry.trait] : [],
     ),
@@ -261,6 +266,11 @@ export function patchOf(view: KabinetAnimalView, values: FormValues): AnimalPatc
   } else if (values.description !== view.description?.uk) {
     patch.description = { uk: values.description, en: null };
   }
+  if (isBlank(values.medicalNotes)) {
+    if (view.medicalNotes !== null) patch.medicalNotes = null;
+  } else if (values.medicalNotes !== view.medicalNotes?.uk) {
+    patch.medicalNotes = { uk: values.medicalNotes, en: null };
+  }
   if (view.vaccination.source !== "registry" && values.vaccination !== view.vaccination.state) {
     patch.vaccination = { state: values.vaccination };
   }
@@ -277,6 +287,8 @@ export type FieldProblem =
   | { field: "name"; key: "nameRequired" | "nameBrace" | "nameTooLong" }
   | { field: "species"; key: "speciesRequired" }
   | { field: "description"; key: "descriptionTooLong" | "requiredOnceListed" }
+  /** Never a publish gap, unlike `description` - A3: medical notes is optional for every listing kind. */
+  | { field: "medicalNotes"; key: "medicalNotesTooLong" }
   | { field: "birthDate"; key: "birthDateFuture" | "dateTooOld" }
   | { field: "asOf"; key: "asOfFuture" | "dateTooOld" }
   /**
@@ -318,6 +330,12 @@ export function problemsOf(
     problems.push({ field: "description", key: "descriptionTooLong" });
   } else if (isBlank(values.description) && listing !== "new" && listing !== "draft") {
     problems.push({ field: "description", key: "requiredOnceListed" });
+  }
+  // `MEDICAL_NOTES_MAX_CHARACTERS === ANIMAL_DESCRIPTION_MAX_CHARACTERS` by definition
+  // (packages/domain/src/animals/animal.ts), so the description's own threshold function
+  // is exactly right here too - no second domain function needed for the same cap.
+  if (animalDescriptionProblem(values.medicalNotes) !== null) {
+    problems.push({ field: "medicalNotes", key: "medicalNotesTooLong" });
   }
   const temperamentOver = values.temperamentOther
     ? overBy(values.temperamentCustom.trim(), TEMPERAMENT_CUSTOM_MAX_CHARACTERS)

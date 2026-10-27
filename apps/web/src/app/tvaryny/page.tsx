@@ -366,6 +366,9 @@ export async function renderGallery(
                     card={item}
                     cityName={cityNames.get(cardCityId(item)) ?? null}
                     priority={index < PRIORITY_ROW_SIZE}
+                    filters={filters}
+                    sort={sort}
+                    citySlugs={citySlugs}
                   />
                 ))}
               </ArrowKeyGrid>

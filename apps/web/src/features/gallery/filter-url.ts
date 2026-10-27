@@ -1,5 +1,6 @@
 import type {
   AgeBucket,
+  AnimalId,
   AnimalSpecies,
   CityId,
   CitySlug,
@@ -25,7 +26,13 @@ import {
   SizeBucketSchema,
   TemperamentTraitSchema,
 } from "@opika/domain";
-import { colourFilterLabel, temperamentFilterLabel, uk } from "@opika/i18n";
+import {
+  colourChipLabel,
+  colourFilterLabel,
+  fillTemplate,
+  temperamentFilterLabel,
+  uk,
+} from "@opika/i18n";
 
 /**
  * The design's own URL example (`/tvaryny?misto=brovary&stor=1`,
@@ -418,6 +425,27 @@ export function galleryPageHref(
 }
 
 /**
+ * Pet card PR 5, decision B: a card link (and the overlay's own prev/next
+ * links) carry the gallery's current filter and sort context, so
+ * `animals.neighbours` (the overlay's server-side call) can compute the
+ * right walk through the same result set the visitor is actually browsing -
+ * without it, every card link would open an animal with no idea which
+ * gallery it came from. Same param scheme as `galleryHref`/`galleryPageHref`
+ * (reuses `filterAndSortParams`), just rooted at `/tvaryny/{id}` instead of
+ * `/tvaryny`. No `page` param, for the same reason `galleryHref` carries
+ * none: opening one animal isn't "go to this result-set page."
+ */
+export function animalPageHref(
+  animalId: AnimalId,
+  filters: FeedFilters,
+  sort: GallerySort,
+  citySlugs: CitySlugsById,
+): string {
+  const qs = filterAndSortParams(filters, sort, citySlugs).toString();
+  return qs ? `/tvaryny/${animalId}?${qs}` : `/tvaryny/${animalId}`;
+}
+
+/**
  * "Скинути" - clears every filter dimension, keeps the current sort. No
  * `citySlugs` parameter: `NO_FILTERS.cities` is always `{ kind: "any" }` by
  * definition, so `galleryHref`'s own city-slug lookup can never fire for
@@ -481,6 +509,56 @@ function withOnlyChip(filters: FeedFilters, chip: FilterableChip): FeedFilters {
 export function similarAnimalsHref(species: AnimalSpecies, chip: FilterableChip): string {
   const filters = withOnlyChip({ ...NO_FILTERS, species: only(species) }, chip);
   return galleryHref(filters, DEFAULT_GALLERY_SORT, NO_CITY_SLUGS);
+}
+
+/**
+ * A filterable chip's own visible text - the dimension's existing label,
+ * exactly as the filter dropdown already shows it (`AGE_WORDS`/`SIZE_WORDS`/
+ * `COAT_WORDS` below, the same maps `filtersInWords` already resolves these
+ * three dimensions through), or the card's own sex-matched/colour-template
+ * word for temperament/colour. Defined here, ahead of those three `const`
+ * maps in this file, because `const` bindings (unlike `function`) aren't
+ * usable before their own declaration runs - this only works because
+ * nothing calls this function until the whole module has finished loading.
+ */
+export function chipDisplayLabel(chip: FilterableChip): string {
+  switch (chip.dimension) {
+    case "ages":
+      return AGE_WORDS[chip.value];
+    case "sizes":
+      return SIZE_WORDS[chip.value];
+    case "coatLengths":
+      return COAT_WORDS[chip.value];
+    case "temperaments":
+      return temperamentFilterLabel(chip.value);
+    case "colours":
+      return colourChipLabel(chip.value);
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled chip; unreachable at runtime */
+    default: {
+      const unreachable: never = chip;
+      return unreachable;
+    }
+  }
+}
+
+const CHIP_SPECIES_WORDS: Record<AnimalSpecies, string> = {
+  cat: uk.detail.chipSpeciesCat,
+  dog: uk.detail.chipSpeciesDog,
+};
+
+/**
+ * A filterable chip link's accessible name (owner decision 8 + his exact
+ * template, 2026-10-27: "«Показати схожих {котів|собак}: {значення}», with
+ * no quotes around the value. The value is lowercase and uses the filter
+ * form"). `{value}` reuses `chipDisplayLabel` above, lowercased, rather than
+ * a separately-maintained set of lowercase words - one source per dimension,
+ * the same discipline `filtersInWords` already applies for its own sentence.
+ */
+export function similarAnimalsLabel(species: AnimalSpecies, chip: FilterableChip): string {
+  return fillTemplate(uk.detail.chipLinkName, {
+    species: CHIP_SPECIES_WORDS[species],
+    value: chipDisplayLabel(chip).toLowerCase(),
+  });
 }
 
 /**

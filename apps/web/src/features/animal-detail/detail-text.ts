@@ -1,5 +1,5 @@
 import type { AnimalDetailView } from "@opika/contracts";
-import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
+import { uk } from "@opika/i18n";
 
 /**
  * Singular, common gender regardless of `sex` - the catalogue's own flagged
@@ -7,37 +7,13 @@ import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
  * exporting this. Reused by `[animalId]/page.tsx`'s `generateMetadata` (PR B, the SEO
  * review) for the title's `{species}` segment, rather than that file keeping its own
  * copy of this species → label mapping.
+ *
+ * `animalSubtitle`/`animalLocationLine`, this function's own former neighbours, were
+ * retired in pet card PR 5: the new panel header's meta line is sex · age bucket · size
+ * (`AnimalDetailScreen.tsx`'s own `MetaLine`, matching the gallery card's `cardFactsParts`),
+ * not species · age · size, and the header shows the bare city name as text beside a
+ * decorative location icon (owner decision 6), not a composed sentence.
  */
 export function speciesLabel(species: AnimalDetailView["species"]): string {
   return species === "dog" ? uk.detail.speciesDog : uk.detail.speciesCat;
-}
-
-/**
- * The line under the animal's name: species · age · size. Its own function,
- * not inlined into `AnimalDetailScreen` (its only caller since S4b unified
- * the animal page and the gallery's overlay into one shared screen
- * component, rendered from both routes) - kept separate for the same reason
- * `CoatFact` is.
- */
-export function animalSubtitle(animal: AnimalDetailView): string {
-  return [
-    speciesLabel(animal.species),
-    ageWordFor(animal.ageBucket, animal.sex),
-    sizeLabel(animal.size),
-  ].join(" · ");
-}
-
-/**
- * Where the animal lives, by city only. `animal.publicLocation` is `null` for
- * an animal still at its own shelter, which inherits the shelter's location
- * (`CLAUDE.md` decision #17); non-null means fostered. Either way the view
- * holds the city only (Oleksii, 2026-10-14, EM-Q10), so nullness is the one
- * signal, and a fostered animal is a place name, never a pin.
- */
-export function animalLocationLine(animal: AnimalDetailView, cityName: string | null): string {
-  const isFostered = animal.publicLocation !== null;
-  return (isFostered ? uk.location.lineFostered : uk.location.lineAtShelter).replace(
-    "{city}",
-    () => cityName ?? "",
-  );
 }

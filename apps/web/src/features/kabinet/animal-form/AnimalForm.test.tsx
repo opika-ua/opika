@@ -1,4 +1,5 @@
 import type { KabinetAnimalView } from "@opika/contracts";
+import { ANIMAL_DESCRIPTION_MAX_CHARACTERS } from "@opika/domain";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1748,27 +1749,84 @@ describe("colour", () => {
 });
 
 /**
- * The medical note's field ships in PR 5, with the public column its hint
- * names (his answer, inbox PC1-D1): until then the form has no field for it,
- * and a save never touches a note already stored.
+ * The medical note's field, pet card PR 5: his two strings (title, hint),
+ * given directly, 2026-10-27, transcribed here rather than read from
+ * `uk.ts`. Mirrors `description`'s own blank↔null pattern and reuses its
+ * character cap (`MEDICAL_NOTES_MAX_CHARACTERS === ANIMAL_DESCRIPTION_MAX_CHARACTERS`).
+ * Never a publish gap (A3) - unlike `description`, a blank note is never
+ * `requiredOnceListed`.
  */
 describe("medical note", () => {
-  it("has no field on the form, and a save leaves a stored note alone", async () => {
+  const TITLE = "Що ще варто знати про здоровʼя";
+  const HINT =
+    "Необовʼязково. Ті, хто шукає тварину, побачать цей текст у розділі «Медичний стан».";
+  // `getByRole("textbox", ...)`, not `getByLabelText`: the section wrapping this field
+  // shares its own `aria-labelledby` text with the field's label (both read `TITLE`, since
+  // his approval gave only one string, not a separate heading/label pair the way
+  // `description` has `description.title`/`description.label`), so `getByLabelText` would
+  // match both the section and the field.
+  const field = () => screen.getByRole("textbox", { name: TITLE }) as HTMLTextAreaElement;
+
+  it("has its own labelled field with his hint, starting empty", () => {
+    renderForm(null);
+    expect(field().value).toBe("");
+    expect(screen.getByText(HINT)).toBeTruthy();
+  });
+
+  it("loads a stored note", () => {
+    renderForm(
+      published({
+        medicalNotes: { uk: "Потребує дієти.", en: null },
+      } as Partial<KabinetAnimalView>),
+    );
+    expect(field().value).toBe("Потребує дієти.");
+  });
+
+  it("saves a typed note on a draft as the one changed field", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.type(field(), "Алергія на курку.");
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update).toHaveBeenCalledWith({
+      animalId: ID,
+      expectedVersion: 0,
+      patch: { medicalNotes: { uk: "Алергія на курку.", en: null } },
+    });
+  });
+
+  it("clearing a stored note sends null, as the one changed field", async () => {
     const client = renderForm(
       published({
         medicalNotes: { uk: "Потребує дієти.", en: null },
       } as Partial<KabinetAnimalView>),
     );
-    expect(screen.queryByText(/здоровʼя/)).toBeNull();
-    expect(screen.queryByText(/у розділі «Медичний стан»/)).toBeNull();
-    fireEvent.click(
-      within(screen.getByRole("group", { name: "Забарвлення" })).getByLabelText("Руде"),
-    );
+    fireEvent.change(field(), { target: { value: "" } });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     });
-    const sent = client.calls.update.mock.calls[0]?.[0] as { patch: Record<string, unknown> };
-    expect(sent.patch).toEqual({ colour: { kind: "preset", colour: "ginger" } });
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
+      patch: { medicalNotes: null },
+    });
+  });
+
+  it("counts against the description's own cap, and a save over it sends nothing", async () => {
+    const client = renderForm(draft());
+    fireEvent.change(field(), {
+      target: { value: "я".repeat(ANIMAL_DESCRIPTION_MAX_CHARACTERS + 1) },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    });
+    expect(client.calls.update).not.toHaveBeenCalled();
+    expect(field().getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("isn't one of the publish gaps, unlike description", () => {
+    // `MISSING_ALL` (`"...розмір, вік, опис і фото."`) is the exact gap list a fresh form
+    // shows - A3: an empty medical note never adds itself to it, the way an empty
+    // description does.
+    renderForm(null);
+    expect(screen.getByText(MISSING_ALL)).toBeTruthy();
   });
 });
 
