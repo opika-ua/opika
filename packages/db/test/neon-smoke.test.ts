@@ -127,8 +127,11 @@ describe("runSmoke against the local database", () => {
     // through writeEditIf and read back. Then 44, two checks (pet card PR 1b):
     // the temperament filter's array overlap, one scalar parameter per trait,
     // and the colour filter, in the gallery, the deck and the relaxation
-    // counts.
-    expect(outcomes.length).toBe(50);
+    // counts. Then 45, two checks (pet card PR 2): the scalar-subquery seek
+    // in animals.neighbours - list() order through a tied pair broken by id,
+    // and the end-of-list/unknown-id null cases - over neon-http's own
+    // timestamptz comparison and id tiebreak, not just postgres-js's.
+    expect(outcomes.length).toBe(52);
   });
 
   it("passes every statement over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
@@ -150,6 +153,6 @@ describe("runSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes.length).toBe(50);
+    expect(outcomes.length).toBe(52);
   });
 });

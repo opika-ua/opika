@@ -3,9 +3,11 @@ import type {
   AnimalsByIdInputSchema,
   AnimalsCardsByIdsInputSchema,
   AnimalsCardsByIdsOutputSchema,
+  AnimalsNeighboursInputSchema,
+  AnimalsNeighboursOutputSchema,
   apiErrors,
 } from "@opika/contracts";
-import { animalRepo, shelterRepo } from "@opika/db/repos";
+import { animalRepo, galleryRepo, shelterRepo } from "@opika/db/repos";
 import {
   ageBucketOf,
   isDiscoverableAnimal,
@@ -183,4 +185,25 @@ export async function animalsCardsByIds(
   });
 
   return { items };
+}
+
+type NeighboursInput = z.infer<typeof AnimalsNeighboursInputSchema>;
+type NeighboursOutput = z.infer<typeof AnimalsNeighboursOutputSchema>;
+
+/**
+ * Prev/next for the overlay, computed server side from the gallery's own
+ * order. No `NOT_FOUND`: an unknown or non-discoverable `animalId` answers
+ * the same `{ prev: null, next: null }` as an end of the list.
+ */
+export async function animalsNeighbours(
+  input: NeighboursInput,
+  context: AppContext,
+): Promise<NeighboursOutput> {
+  return galleryRepo(context.db).neighbours({
+    animalId: input.animalId,
+    filters: input.filters,
+    scope: input.scope,
+    sort: input.sort,
+    now: context.now,
+  });
 }
