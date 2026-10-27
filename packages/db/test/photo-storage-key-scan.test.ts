@@ -238,6 +238,40 @@ const EXPECTED_LOGO_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }>
       'referencedStorageKeys reads exactly this column; a logo\'s storage key is "live" iff ' +
       "it appears here.",
   },
+  {
+    file: "domain/src/shelters/history.ts",
+    line: 154,
+    text: "previous: ShelterLogoSchema.nullable(),",
+    kind: "storage",
+    why:
+      "shelter_history's logo_changed entry (pet card PR 3b) - durable, but deliberately " +
+      "NOT a reference, the same reasoning as reveals.animal_snapshot.primaryPhoto above: no " +
+      "history-list rendering shows a past logo image, so a stale previous/next value here " +
+      "never keeps an object alive past the grace period.",
+  },
+  {
+    file: "domain/src/shelters/history.ts",
+    line: 155,
+    text: "next: ShelterLogoSchema.nullable(),",
+    kind: "storage",
+    why: "logo_changed's own next field - same durable-but-not-a-reference reasoning as previous above.",
+  },
+  {
+    file: "domain/src/shelters/history-shelter-facing.ts",
+    line: 82,
+    text: "previous: ShelterLogoSchema.nullable(),",
+    kind: "view",
+    why:
+      "ShelterFacingHistoryItemSchema's own logo_changed projection - a per-request view of " +
+      "the history entry above, never a second stored copy.",
+  },
+  {
+    file: "domain/src/shelters/history-shelter-facing.ts",
+    line: 83,
+    text: "next: ShelterLogoSchema.nullable(),",
+    kind: "view",
+    why: "The same projection's next field - same reasoning as previous above.",
+  },
 ];
 
 const EXPECTED_PICKED_LOGO: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
@@ -258,6 +292,15 @@ const EXPECTED_PICKED_LOGO: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
     why:
       "ShelterSummaryViewSchema (the card view) - same shape as PublicShelterViewSchema's " +
       "pick above: a per-request projection, not storage.",
+  },
+  {
+    file: "contracts/src/kabinet/views.ts",
+    line: 110,
+    text: "logo: true,",
+    kind: "view",
+    why:
+      "KabinetShelterViewSchema (K4, pet card PR 3b) - the shelter's own view of its logo, " +
+      "a per-request projection of shelters.logo, not storage.",
   },
 ];
 

@@ -307,7 +307,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // copy-status.test.ts's `PET_CARD_COPY`): the four `animalForm.temperament.*`, the four
     // `animalForm.colour.*` and three `animalHistoryLabels.field.*`. His other two, the medical
     // note's label and hint, ship in PR 5 with the note's field.
-    expect(pending.length + written.length).toBe(648);
+    // 661 with pet card PR 3b's logo section: the twelve `profileEdit.logo.*` keys (his final
+    // text, 2026-10-27, including `add`) and `operator.history.logo_changed`.
+    expect(pending.length + written.length).toBe(661);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

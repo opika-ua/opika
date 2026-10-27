@@ -102,6 +102,8 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "shelter.photos.add": WRITE,
   "shelter.photos.reorder": WRITE,
   "shelter.photos.remove": WRITE,
+  "shelter.logo.set": WRITE,
+  "shelter.logo.remove": WRITE,
   "shelter.history.list": READ,
   "registry.shelters.list": REGISTRY,
   "registry.shelters.byId": REGISTRY,
@@ -196,12 +198,12 @@ describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
 describe("no procedure declares the retired SHELTER_WRITES_NOT_YET_AVAILABLE (P6-Q8)", () => {
   const RETIRED = ["SHELTER", "WRITES", "NOT", "YET", "AVAILABLE"].join("_");
 
-  it("sanity: the matrix still names the sixteen shelter writes", () => {
+  it("sanity: the matrix still names the eighteen shelter writes", () => {
     expect(
       Object.values(EXPECTED_ACCESS).filter(
         (access) => access.surface === "shelter" && access.mode === "write",
       ),
-    ).toHaveLength(16);
+    ).toHaveLength(18);
   });
 
   it("is no API error any more", () => {
@@ -316,6 +318,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "donation",
         "pendingDonation",
         "freshnessSentence",
+        "logo",
         "version",
         "verification",
       ].sort(),
@@ -507,6 +510,8 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
     "shelter.photos.add": ANIMAL_VIEW_KEYS,
     "shelter.photos.reorder": ANIMAL_VIEW_KEYS,
     "shelter.photos.remove": ANIMAL_VIEW_KEYS,
+    "shelter.logo.set": SHELTER_VIEW_KEYS,
+    "shelter.logo.remove": SHELTER_VIEW_KEYS,
     "shelter.history.list": ["items", "nextCursor"],
   };
 
@@ -548,6 +553,7 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     contact_changed: ["kind", "at", "actor", "previous", "next"],
     freshness_sentence_changed: ["kind", "at", "actor", "previous", "next"],
     description_changed: ["kind", "at", "actor", "previous", "next"],
+    logo_changed: ["kind", "at", "actor", "previous", "next"],
     donation_proposed: ["kind", "at", "actor", "link"],
     donation_proposal_cancelled: ["kind", "at", "actor"],
     donation_decided: ["kind", "at", "actor", "decision", "link", "previousLive"],

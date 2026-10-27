@@ -99,7 +99,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/kabinet-shelter-repo.ts",
-    line: 66,
+    line: 69,
     text: "verificationStatus: change.verification.status,",
     kind: "write",
     why: "applyAuditedMany's columnsOf - the one UPDATE of this column; its own `becomesVerified` check is hook 2",

@@ -10,6 +10,7 @@ import {
 } from "./history";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
+import { ShelterLogoSchema } from "./logo";
 import { FreshnessSentenceSchema } from "./shelter";
 import {
   PauseReasonSchema,
@@ -74,6 +75,12 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
     ...base,
     previous: LocalizedTextSchema,
     next: LocalizedTextSchema,
+  }),
+  z.object({
+    kind: z.literal("logo_changed"),
+    ...base,
+    previous: ShelterLogoSchema.nullable(),
+    next: ShelterLogoSchema.nullable(),
   }),
   z.object({ kind: z.literal("donation_proposed"), ...base, link: DonationLinkSchema }),
   z.object({ kind: z.literal("donation_proposal_cancelled"), ...base }),
@@ -194,6 +201,14 @@ export function shelterFacingHistoryOf(
     case "description_changed":
       return {
         kind: "description_changed",
+        at: entry.at,
+        actor: shelterActorView(entry.actor),
+        previous: entry.previous,
+        next: entry.next,
+      };
+    case "logo_changed":
+      return {
+        kind: "logo_changed",
         at: entry.at,
         actor: shelterActorView(entry.actor),
         previous: entry.previous,

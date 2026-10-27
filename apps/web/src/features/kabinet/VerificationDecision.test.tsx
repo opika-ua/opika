@@ -31,6 +31,7 @@ const view = (verification: KabinetShelterView["verification"]): KabinetShelterV
   donation: null,
   pendingDonation: null,
   freshnessSentence: null,
+  logo: null,
   version: 3,
   verification,
 });

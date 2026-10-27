@@ -14,8 +14,11 @@ export {
   IMAGE_VARIANTS,
   type ImageVariantName,
   isRealPhotoKey,
+  LOGO_VARIANTS,
+  type LogoVariantName,
   nearestVariant,
   r2EndpointUrl,
   r2PublicUrl,
+  SHELTER_LOGO_KEY_PATTERN,
   variantObjectKey,
 } from "./variants";

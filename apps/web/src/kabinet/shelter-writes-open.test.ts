@@ -20,7 +20,7 @@ import { handleKabinetRpc, kabinetRouter } from "./rpc-route";
  * router actually mounted on `/api/kabinet/*` and reading the access each one
  * declares, not from a list written here, so a write added later is held to
  * the same assertions automatically. The count is pinned too
- * (`toHaveLength(16)`), as a tripwire: a new write fails it, and the edit
+ * (`toHaveLength(18)`), as a tripwire: a new write fails it, and the edit
  * that bumps it is where someone confirms who may call it.
  *
  * Until PR 6 this file was `shelter-writes-refused.test.ts` and pinned the
@@ -130,8 +130,8 @@ async function snapshot() {
 }
 
 describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
-  it("finds the sixteen shelter writes, confirm, update and the photo writes among them", () => {
-    expect(shelterWrites).toHaveLength(16);
+  it("finds the eighteen shelter writes, confirm, update, the photo writes and the logo writes among them", () => {
+    expect(shelterWrites).toHaveLength(18);
     expect(shelterWrites).toEqual(
       expect.arrayContaining([
         "shelter.animals.confirm",
@@ -139,6 +139,8 @@ describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
         "shelter.photos.add",
         "shelter.photos.reorder",
         "shelter.photos.remove",
+        "shelter.logo.set",
+        "shelter.logo.remove",
         "shelter.profile.updateContact",
         "shelter.verification.requestReview",
       ]),

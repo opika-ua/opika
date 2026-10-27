@@ -673,6 +673,36 @@ export const shelterPhotosContract = {
     }),
 };
 
+// ─── shelter.logo ───────────────────────────────────────────────────────────
+
+/**
+ * The shelter's own logo (pet card PR 3b): its own procedures, outside
+ * `profile`'s form fields, for the same reason `shelter.photos.*` is - an
+ * upload is a file, not a form field. One nullable value rather than a list
+ * (P-Q2's `add`/`reorder`/`remove` shape doesn't apply): `set` replaces
+ * whatever was there, `remove` clears it back to the fallback-initials
+ * avatar. `set` shares animal photos' size/type limits and upload rate
+ * limit (`shelterUploadKey`, `PHOTO_UPLOAD_RATE_LIMITS`) - a decision taken,
+ * not specified: a logo is rare next to animal photos, so sharing one
+ * allowance costs nothing in practice and avoids a second limiter pool.
+ * `remove` isn't an upload and charges nothing. Both go through
+ * `tapWithRetry` (a re-read on each attempt, no client-sent
+ * `expectedVersion`), the same shape `pause`/`resume`/the donation actions
+ * use, not `editFromForm`'s - a file upload (or a removal) has no stale form
+ * value to protect against a race on.
+ */
+export const shelterLogoContract = {
+  set: shelterProfileWrite
+    .input(z.strictObject({ file: z.file().max(PHOTO_UPLOAD_MAX_FILE_BYTES) }))
+    .errors({
+      ...shelterScopedErrors,
+      RATE_LIMITED: apiErrors.RATE_LIMITED,
+      PHOTO_UPLOADS_UNAVAILABLE: apiErrors.PHOTO_UPLOADS_UNAVAILABLE,
+      PHOTO_REJECTED: apiErrors.PHOTO_REJECTED,
+    }),
+  remove: shelterProfileWrite.input(empty).errors(shelterScopedErrors),
+};
+
 // ─── registry (operator only) ───────────────────────────────────────────────
 
 const shelterRef = z.strictObject({ shelterId: ShelterIdSchema });

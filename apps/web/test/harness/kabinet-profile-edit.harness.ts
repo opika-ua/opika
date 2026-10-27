@@ -17,6 +17,8 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createDatabase } from "@opika/db";
 import { kabinetInvitationRepo } from "@opika/db/repos";
 import { authMember, authUser, shelters } from "@opika/db/schema";
@@ -26,6 +28,15 @@ import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.35";
 test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" });
+
+const SEED_PHOTO = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "public",
+  "seed-photos",
+  "cat-1.jpg",
+);
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
@@ -150,6 +161,28 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
     await page.getByRole("button", { name: "Відновити прийом тварин" }).click();
     await expect(page.getByText("Прийом відновлено. Ваших тварин знову видно.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Призупинити прийом тварин" })).toBeVisible();
+    await page.close();
+  });
+
+  /**
+   * Pet card PR 3b. A real file, through a real browser's device-side
+   * compression (`compressPhoto`'s canvas path - happy-dom has none, so this
+   * is the one place that step runs for real) and a real round trip to the
+   * server. This harness environment has no R2 credentials configured
+   * (`photo-upload-env.ts`), so the real, honest answer here is
+   * `PHOTO_UPLOADS_UNAVAILABLE` - which is exactly the failure mode the
+   * section's own error mapping must render correctly, not a mocked stand-in
+   * for a success this environment can't produce.
+   */
+  test("choosing a logo file runs real client-side compression and reports the server's real answer", async () => {
+    const page = await profilePage();
+    const section = page.getByRole("region", { name: "Логотип притулку" });
+    // setInputFiles acts on the hidden <input> directly - no native file
+    // picker dialog involved, so nothing here waits on one.
+    await page.getByTestId("logo-file-input").setInputFiles(SEED_PHOTO);
+    await expect(
+      section.getByText("На цій версії сайту логотип завантажити не можна."),
+    ).toBeVisible();
     await page.close();
   });
 

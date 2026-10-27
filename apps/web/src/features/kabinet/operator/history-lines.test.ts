@@ -188,6 +188,18 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     "Змінено опис притулку · ви",
   ],
   [
+    "logo_changed",
+    {
+      kind: "logo_changed",
+      at: AT,
+      actor: byMe,
+      previous: null,
+      next: { storageKey: "shelters/s/logo/0", width: 160, height: 160 },
+    },
+    // his final text, 2026-10-27 (pet card PR 3b)
+    "Змінено логотип притулку · ви",
+  ],
+  [
     "donation_proposed",
     { kind: "donation_proposed", at: AT, actor: byOlena, link },
     "Запропоновано посилання на збір: send.monobank.ua · Олена",

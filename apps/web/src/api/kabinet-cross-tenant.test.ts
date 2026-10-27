@@ -240,6 +240,14 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
     ["shelter.animals.list", () => smuggle({ filter: { kind: "all" }, cursor: null, limit: 50 })],
     ["shelter.history.list", () => smuggle({ cursor: null, limit: 50 })],
     ["shelter.animals.createDraft", () => smuggle({ name: "Новий", species: "dog" })],
+    [
+      "shelter.logo.set",
+      async () =>
+        smuggle({
+          file: new File([new Uint8Array(await testJpeg())], "b.jpg", { type: "image/jpeg" }),
+        }),
+    ],
+    ["shelter.logo.remove", () => smuggle({})],
   ];
 
   for (const [procedure, input] of cases) {
@@ -331,8 +339,10 @@ describe("coverage", () => {
       "shelter.animals.list",
       "shelter.animals.createDraft",
       "shelter.history.list",
+      "shelter.logo.set",
+      "shelter.logo.remove",
     ];
-    expect(new Set(covered).size).toBe(20);
+    expect(new Set(covered).size).toBe(22);
     expect([...covered].sort()).toEqual(pathsOf(shelterKabinetContract.shelter, "shelter").sort());
   });
 });
