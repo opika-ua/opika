@@ -131,6 +131,28 @@ describe("runR2Cleanup", () => {
     expect(r2.remaining()).toEqual([keptLogo]); // referenced, untouched
   });
 
+  it("never touches an object under shelters/ that isn't logo-shaped, even past the grace period (Tier 1 review, PR #220, finding 1 - the STOP)", async () => {
+    // This job's bucket scan has to list the whole shelters/ prefix (R2
+    // takes one literal prefix per call, and shelter ids vary), so the
+    // thing actually protecting a shelter's other data is isKeyOwnedByThisJob
+    // narrowing that listing down - not the reference check, which would
+    // mark any of these "unreferenced" just as readily as a real orphaned
+    // logo, with nothing to tell them apart once they're in scope.
+    const evidence = "shelters/s/evidence/statute.pdf";
+    const cover = variantObjectKey("shelters/s/cover/abc", "card");
+    const readme = "shelters/readme.txt";
+    const r2 = fakeR2([evidence, cover, readme]);
+
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+    const past = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
+    const report = await runR2Cleanup(db, r2, past, { commit: true, graceDays: undefined });
+
+    expect(report.scanned).toBe(0);
+    expect(report.dueForDeletion).toEqual([]);
+    expect(report.deleted).toEqual([]);
+    expect(r2.remaining().sort()).toEqual([cover, evidence, readme].sort());
+  });
+
   it("deletes exactly what stillUnreferenced approves, not everything in dueForDeletion (Tier 1 review, PR #200, finding re: the re-check being bypassable)", async () => {
     // A mock, not a real race: proves runR2Cleanup's delete step is driven
     // by stillUnreferenced's own return value, which removing the call

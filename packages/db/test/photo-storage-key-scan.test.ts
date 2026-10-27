@@ -5,11 +5,11 @@ import { describe, expect, it } from "vitest";
 
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). `r2-cleanup-repo.ts`'s
- * `referencedStorageKeys` reads exactly one column (`animals.photos`) as the
- * live reference set. Oleksii, 2026-10-25, widening that design before it was
- * built: "widen the structural test so it catches any schema field that can
- * hold a storage key (a plain string or `AnimalPhotoSchema`), not just the
- * schema import."
+ * `referencedStorageKeys` reads `animals.photos` and (since pet card PR 4)
+ * `shelters.logo` as the live reference set. Oleksii, 2026-10-25, widening
+ * that design before it was built: "widen the structural test so it catches
+ * any schema field that can hold a storage key (a plain string or
+ * `AnimalPhotoSchema`), not just the schema import."
  *
  * This is that check. It finds every place in `packages/domain` and
  * `packages/contracts` where a schema field is typed to carry a photo's

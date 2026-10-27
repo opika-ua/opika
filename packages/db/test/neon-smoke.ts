@@ -2094,6 +2094,38 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `primaryPhoto read back as ${JSON.stringify(r2SnapshotAfter?.primaryPhoto)}`,
   );
 
+  // 42b. Pet card PR 4 widened referencedStorageKeys's UNION to also read
+  // shelters.logo - that UNION, and the SHELTER_LOGO_PREFIX branch in
+  // referencedObjectKeys, had only ever run against local Postgres before
+  // this step (Tier 1 review, PR #220, note 2).
+  const r2LogoStorageKey = `shelters/${tag}/logo/1`;
+  const r2LogoBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} R2` });
+  const r2LogoShelter = {
+    ...r2LogoBase,
+    exactAddress: { ...r2LogoBase.exactAddress, cityId: city.id },
+    publicLocation: publicLocationOf(
+      r2LogoBase.id,
+      { ...r2LogoBase.exactAddress, cityId: city.id },
+      policy,
+    ),
+    logo: { storageKey: r2LogoStorageKey, width: 160, height: 160 },
+  };
+  await insertShelterFromScript(db, r2LogoShelter, by);
+  const r2LogoReferenced = await referencedStorageKeys(db);
+  check(
+    "r2-cleanup-repo: referencedStorageKeys's UNION also reads shelters.logo over neon-http",
+    r2LogoReferenced.has(r2LogoStorageKey),
+    `${r2LogoReferenced.size} referenced storage key(s), expected one to include this shelter's logo`,
+  );
+  const r2LogoObjectKeys = await referencedObjectKeys(db);
+  const r2LogoSmallKey = variantObjectKey(r2LogoStorageKey, "small");
+  check(
+    "r2-cleanup-repo: referencedObjectKeys derives the logo's small variant, not the photo variants",
+    r2LogoObjectKeys.has(r2LogoSmallKey) &&
+      !r2LogoObjectKeys.has(variantObjectKey(r2LogoStorageKey, "card")),
+    `${r2LogoObjectKeys.size} referenced object key(s)`,
+  );
+
   // 43. The pet card's fields (migration 0017). `temperament_traits` is the
   // schema's first array column: Drizzle sends it as an array literal and
   // parses whatever the driver hands back, which postgres-js and neon-http

@@ -201,10 +201,14 @@ export async function stillUnreferenced(
  * `storageKey` matches one of them - Oleksii, 2026-10-25: "when its object
  * is deleted, set that snapshot's primaryPhoto to null in the same run (so
  * nothing points at a missing file)." Grouped by `storageKey`, not
- * `objectKey`: a snapshot names a photo, not a variant, and all three of a
- * photo's variants are always deleted together (the reference check above
- * is keyed on `storageKey` too), so this runs once per photo, not three
- * times.
+ * `objectKey`: a snapshot names a photo, not a variant, and every one of an
+ * animal photo's three variants is always deleted together (the reference
+ * check above is keyed on `storageKey` too), so this runs once per photo,
+ * not three times. A deleted shelter-logo key (two variants, pet card PR 4)
+ * groups the same way structurally, but `reveals.animal_snapshot` never
+ * names a logo - only `AnimalPhotoSchema` embeds there - so this is a
+ * harmless no-op for logos: `storageKeys` still derives, the `UPDATE` just
+ * never matches a row.
  */
 export async function afterDeleted(
   db: Database,

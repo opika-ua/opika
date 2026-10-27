@@ -52,6 +52,19 @@ export const LOGO_VARIANT_NAMES = Object.keys(LOGO_VARIANTS) as LogoVariantName[
  */
 export const SHELTER_LOGO_PREFIX = "shelters/";
 
+/**
+ * The real key shape under `shelters/` this job is allowed to touch -
+ * `shelters/<shelterId>/logo/<anything>`, never the whole `shelters/` tree.
+ * R2's `ListObjectsV2` takes one literal prefix per call, and shelter ids
+ * vary, so the bucket scan (`r2-cleanup-run.ts`) has to list the broader
+ * `SHELTER_LOGO_PREFIX` and filter down to this shape before anything gets
+ * tracked for deletion - otherwise verification evidence, a future cover
+ * photo, or any other object someone puts under `shelters/` would look
+ * "unreferenced" to this job and get permanently deleted after the grace
+ * period (Tier 1 review, PR #220, finding 1 - the STOP this pattern fixes).
+ */
+export const SHELTER_LOGO_KEY_PATTERN = /^shelters\/[^/]+\/logo\//;
+
 /** Every variant name this module ever writes, across both namespaces - `storageKeyFromObjectKey`'s own inverse needs the full set, not just one. */
 const ALL_VARIANT_NAMES = [...IMAGE_VARIANT_NAMES, ...LOGO_VARIANT_NAMES];
 

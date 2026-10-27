@@ -1,7 +1,8 @@
 /**
  * `r2:cleanup`: GDPR photo retention (`docs/gdpr-analysis.md`). Deletes R2
- * photo objects that have sat unreferenced (no `animals.photos` row names
- * their storage key) for at least the grace period - `r2-cleanup-repo.ts`'s
+ * photo and shelter-logo objects that have sat unreferenced (no
+ * `animals.photos` row or `shelters.logo` names their storage key) for at
+ * least the grace period - `r2-cleanup-repo.ts`'s
  * own doc comments cover the reference rule and the tracking table,
  * `r2-cleanup-run.ts` the orchestration this CLI and the scheduled job both
  * share. This file is the CLI only - `r2-cleanup-run.ts` has no `prod-guard`
