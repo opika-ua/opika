@@ -113,6 +113,7 @@ export async function feedList(
         shelter: {
           id: shelter.id,
           displayName: shelter.displayName,
+          logo: shelter.logo,
           publicLocation: cityOnlyLocationOf(shelter.publicLocation),
           verification:
             shelter.verification.status === "verified"

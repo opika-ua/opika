@@ -244,6 +244,7 @@ export async function registrySheltersCreate(
     exactAddress: input.exactAddress,
     contact: input.contact,
     donation: null,
+    logo: null,
     pendingDonation: null,
     version: 0,
     freshnessSentence: input.freshnessSentence,

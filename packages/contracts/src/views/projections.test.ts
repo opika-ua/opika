@@ -47,6 +47,7 @@ const animal: Animal = {
 const shelterSummary = {
   id: animal.shelterId,
   displayName: "Тестовий притулок",
+  logo: null,
   publicLocation: {
     precision: "fuzzed_address",
     cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -282,6 +283,7 @@ describe("shelter views expose exactly their intended fields", () => {
       "donation",
       "freshnessSentence",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);
@@ -291,6 +293,7 @@ describe("shelter views expose exactly their intended fields", () => {
     expect(Object.keys(ShelterSummaryViewSchema.shape).sort()).toEqual([
       "displayName",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);

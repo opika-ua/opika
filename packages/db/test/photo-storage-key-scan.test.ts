@@ -207,6 +207,20 @@ const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
       "AnimalPhotoSchema's own field - the one place a storage key is a bare string; every " +
       "other field that can carry one wraps this schema instead of repeating its shape.",
   },
+  {
+    file: "domain/src/shelters/logo.ts",
+    line: 10,
+    text: "storageKey: z.string().min(1),",
+    kind: "definition",
+    why:
+      "ShelterLogoSchema's own field (pet card PR 3a) - separate from AnimalPhotoSchema " +
+      "because it needs no alt text (displayName is the accessible name). No write path " +
+      "exists yet, so no live key anywhere; r2-cleanup-repo.ts doesn't cover shelters/*/logo/ " +
+      "yet either (PR 4, before PR 3b's upload ships). NOTE: this scan (bareStorageKeyFields) " +
+      "catches the field itself, but animalPhotoSchemaEmbeddings/pickedPhotosFields have no " +
+      "ShelterLogoSchema-equivalent - an embedding or a `logo: true` pick elsewhere would pass " +
+      "silently today. PR 4 should widen those two scans the same way this entry widened this one.",
+  },
 ];
 
 describe("every schema field that can hold a photo's storage key is classified (GDPR photo retention)", () => {
@@ -218,7 +232,7 @@ describe("every schema field that can hold a photo's storage key is classified (
     );
   });
 
-  it("no bare string field holds a storage key outside AnimalPhotoSchema's own definition", () => {
+  it("every bare-string storage-key field is one of the classified ones - a new one needs a new entry here", () => {
     expect(bareStorageKeyFields()).toEqual(
       [...EXPECTED_BARE_FIELDS]
         .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)

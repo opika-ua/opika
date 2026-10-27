@@ -53,6 +53,7 @@ const shelter: Shelter = {
   exactAddress,
   contact,
   donation: null,
+  logo: null,
   pendingDonation: null,
   version: 0,
   freshnessSentence: null,
@@ -97,6 +98,22 @@ describe("public shelter projections withhold the private fields", () => {
     const summary = ShelterSummaryViewSchema.parse({ ...shelter, verification: "verified" });
     expect(summary).not.toHaveProperty("exactAddress");
     expect(summary).not.toHaveProperty("contact");
+  });
+
+  /** Pet card PR 3a: `logo` carries the same `AnimalPhoto`-shaped storage key
+   * and dimensions in both views - a public, non-sensitive field, unlike the
+   * ones withheld above. */
+  it("carries the logo, both on the shelter page's view and on the card summary", () => {
+    const withLogo = {
+      ...shelter,
+      logo: { storageKey: "shelters/x/logo/y", width: 160, height: 160 },
+    };
+    expect(PublicShelterViewSchema.parse({ ...withLogo, verification: "verified" }).logo).toEqual(
+      withLogo.logo,
+    );
+    expect(ShelterSummaryViewSchema.parse({ ...withLogo, verification: "verified" }).logo).toEqual(
+      withLogo.logo,
+    );
   });
 
   /**
@@ -353,6 +370,7 @@ describe("the pause note reaches no public view (K4-B4)", () => {
       "donation",
       "freshnessSentence",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);
@@ -360,6 +378,7 @@ describe("the pause note reaches no public view (K4-B4)", () => {
     expect(Object.keys(summary).sort()).toEqual([
       "displayName",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);

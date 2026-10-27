@@ -333,6 +333,7 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
     exactAddress: input.exactAddress,
     contact: input.contact,
     donation: input.donation,
+    logo: null,
     pendingDonation: null,
     version: 0,
     freshnessSentence: { uk: input.freshnessSentenceUk, en: null },
