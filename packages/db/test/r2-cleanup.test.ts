@@ -46,12 +46,29 @@ async function insertAnimalWithPhotos(storageKeys: string[]) {
   await animalRepo(db).insert(animal, city.id as never);
 }
 
-/** An in-memory stand-in for `R2CleanupClient`, holding exactly the keys it's told about. */
+/** Pet card PR 4: a real shelter row with a logo set. */
+async function insertShelterWithLogo(storageKey: string) {
+  const city = makeCity();
+  await cityRepo(db).insert(city);
+  const shelter = makeShelter({
+    publicLocation: { ...makeShelter().publicLocation, cityId: city.id } as never,
+    logo: { storageKey, width: 160, height: 160 },
+  });
+  await shelterRepo(db).insert(shelter);
+}
+
+/**
+ * An in-memory stand-in for `R2CleanupClient`, holding exactly the keys
+ * it's told about. `listObjectKeys` filters by prefix, same as the real
+ * client - `runR2Cleanup` now calls it once per namespace
+ * (`CLEANUP_PREFIXES`), and a fake that ignored the prefix would double-list
+ * every key once PR 4 added the second call.
+ */
 function fakeR2(objectKeys: string[]): R2CleanupClient & { remaining(): string[] } {
   const store = new Set(objectKeys);
   return {
-    async listObjectKeys() {
-      return [...store];
+    async listObjectKeys(prefix) {
+      return [...store].filter((key) => key.startsWith(prefix));
     },
     async deleteObjects(keys) {
       const deleted: string[] = [];
@@ -95,6 +112,45 @@ describe("runR2Cleanup", () => {
     expect(report.deleted).toEqual([orphan]);
     expect(r2.remaining()).toEqual([]);
     expect(await trackedUnreferencedObjects(db)).toEqual([]);
+  });
+
+  it("scans both namespaces in one run: an orphaned animal photo and an orphaned shelter logo, a referenced logo left alone (pet card PR 4)", async () => {
+    await insertShelterWithLogo("shelters/kept/logo/1");
+    const keptLogo = variantObjectKey("shelters/kept/logo/1", "small");
+    const orphanLogo = variantObjectKey("shelters/orphan/logo/1", "small");
+    const orphanPhoto = variantObjectKey("animals/orphan/1", "card");
+    const r2 = fakeR2([keptLogo, orphanLogo, orphanPhoto]);
+
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+    const past = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
+    const report = await runR2Cleanup(db, r2, past, { commit: true, graceDays: undefined });
+
+    expect(report.scanned).toBe(3);
+    expect([...report.dueForDeletion].sort()).toEqual([orphanLogo, orphanPhoto].sort());
+    expect([...report.deleted].sort()).toEqual([orphanLogo, orphanPhoto].sort());
+    expect(r2.remaining()).toEqual([keptLogo]); // referenced, untouched
+  });
+
+  it("never touches an object under shelters/ that isn't logo-shaped, even past the grace period (Tier 1 review, PR #220, finding 1 - the STOP)", async () => {
+    // This job's bucket scan has to list the whole shelters/ prefix (R2
+    // takes one literal prefix per call, and shelter ids vary), so the
+    // thing actually protecting a shelter's other data is isKeyOwnedByThisJob
+    // narrowing that listing down - not the reference check, which would
+    // mark any of these "unreferenced" just as readily as a real orphaned
+    // logo, with nothing to tell them apart once they're in scope.
+    const evidence = "shelters/s/evidence/statute.pdf";
+    const cover = variantObjectKey("shelters/s/cover/abc", "card");
+    const readme = "shelters/readme.txt";
+    const r2 = fakeR2([evidence, cover, readme]);
+
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+    const past = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
+    const report = await runR2Cleanup(db, r2, past, { commit: true, graceDays: undefined });
+
+    expect(report.scanned).toBe(0);
+    expect(report.dueForDeletion).toEqual([]);
+    expect(report.deleted).toEqual([]);
+    expect(r2.remaining().sort()).toEqual([cover, evidence, readme].sort());
   });
 
   it("deletes exactly what stillUnreferenced approves, not everything in dueForDeletion (Tier 1 review, PR #200, finding re: the re-check being bypassable)", async () => {

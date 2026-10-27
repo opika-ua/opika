@@ -122,7 +122,11 @@ describe("runSmoke against the local database", () => {
     // referencedObjectKeys' derived variant, recordScan's track, still
     // Unreferenced's re-check, and afterDeleted's jsonb_set UPDATE plus a
     // read-back confirming the null landed for real, not just in the
-    // statement's own reported count. Then 43, the pet card's fields
+    // statement's own reported count. Then 42b, two checks (pet card PR 4,
+    // Tier 1 review, note 2): referencedStorageKeys' UNION also reads
+    // shelters.logo over neon-http, and referencedObjectKeys derives the
+    // logo's own small/large variants, not the animal-photo ones. Then 43,
+    // the pet card's fields
     // (migration 0017): the schema's first array column, set and cleared
     // through writeEditIf and read back. Then 44, two checks (pet card PR 1b):
     // the temperament filter's array overlap, one scalar parameter per trait,
@@ -131,7 +135,7 @@ describe("runSmoke against the local database", () => {
     // in animals.neighbours - list() order through a tied pair broken by id,
     // and the end-of-list/unknown-id null cases - over neon-http's own
     // timestamptz comparison and id tiebreak, not just postgres-js's.
-    expect(outcomes.length).toBe(52);
+    expect(outcomes.length).toBe(54);
   });
 
   it("passes every statement over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
@@ -153,6 +157,6 @@ describe("runSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes.length).toBe(52);
+    expect(outcomes.length).toBe(54);
   });
 });

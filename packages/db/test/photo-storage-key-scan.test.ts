@@ -5,11 +5,11 @@ import { describe, expect, it } from "vitest";
 
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). `r2-cleanup-repo.ts`'s
- * `referencedStorageKeys` reads exactly one column (`animals.photos`) as the
- * live reference set. Oleksii, 2026-10-25, widening that design before it was
- * built: "widen the structural test so it catches any schema field that can
- * hold a storage key (a plain string or `AnimalPhotoSchema`), not just the
- * schema import."
+ * `referencedStorageKeys` reads `animals.photos` and (since pet card PR 4)
+ * `shelters.logo` as the live reference set. Oleksii, 2026-10-25, widening
+ * that design before it was built: "widen the structural test so it catches
+ * any schema field that can hold a storage key (a plain string or
+ * `AnimalPhotoSchema`), not just the schema import."
  *
  * This is that check. It finds every place in `packages/domain` and
  * `packages/contracts` where a schema field is typed to carry a photo's
@@ -83,6 +83,28 @@ function animalPhotoSchemaEmbeddings(): Hit[] {
 }
 
 /**
+ * The same embedding scan, for `ShelterLogoSchema` (pet card PR 4 widening -
+ * the TODO left in this file's own `EXPECTED_BARE_FIELDS` entry for
+ * `shelters/logo.ts`, now that `r2-cleanup-repo.ts` reads `shelters.logo` as
+ * a live reference too). A separate function, not a merged pattern: the two
+ * schemas' own import/definition lines need separate exclusion patterns, and
+ * keeping them apart keeps each failure's "which schema, which site" obvious.
+ */
+const SHELTER_LOGO_SCHEMA_IMPORT = /^\s*import\b|^\s*\w+,?\s*$|^\s*ShelterLogoSchema,?\s*$/;
+function shelterLogoSchemaEmbeddings(): Hit[] {
+  const domain = scan(DOMAIN_ROOT, /ShelterLogoSchema/).filter(
+    (hit) =>
+      !SHELTER_LOGO_SCHEMA_IMPORT.test(hit.text) &&
+      !/^export const ShelterLogoSchema/.test(hit.text) &&
+      !/^export type ShelterLogo\b/.test(hit.text),
+  );
+  const contracts = scan(CONTRACTS_ROOT, /ShelterLogoSchema/).filter(
+    (hit) => !SHELTER_LOGO_SCHEMA_IMPORT.test(hit.text),
+  );
+  return [...domain, ...contracts].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
+/**
  * A `.pick({ …, photos: true, … })` that carries the whole `photos` array
  * through to a new schema, without ever writing `AnimalPhotoSchema` as a
  * token (Tier 1 review, PR #200, note 11) - the textual embedding scan
@@ -95,6 +117,14 @@ function pickedPhotosFields(): Hit[] {
     ...scan(DOMAIN_ROOT, PICKED_PHOTOS_FIELD),
     ...scan(CONTRACTS_ROOT, PICKED_PHOTOS_FIELD),
   ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
+/** The same `.pick` blind spot, for `logo` (pet card PR 4 widening - see `pickedPhotosFields` above). */
+const PICKED_LOGO_FIELD = /\blogo\s*:\s*true\b/;
+function pickedLogoFields(): Hit[] {
+  return [...scan(DOMAIN_ROOT, PICKED_LOGO_FIELD), ...scan(CONTRACTS_ROOT, PICKED_LOGO_FIELD)].sort(
+    (a, b) => a.file.localeCompare(b.file) || a.line - b.line,
+  );
 }
 
 /**
@@ -197,6 +227,40 @@ const EXPECTED_PICKED_PHOTOS: ReadonlyArray<Hit & { kind: Kind; why: string }> =
   },
 ];
 
+const EXPECTED_LOGO_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
+  {
+    file: "domain/src/shelters/shelter.ts",
+    line: 44,
+    text: "logo: ShelterLogoSchema.nullable(),",
+    kind: "storage",
+    why:
+      "shelters.logo - the one durable reference (pet card PR 4). r2-cleanup-repo.ts's " +
+      'referencedStorageKeys reads exactly this column; a logo\'s storage key is "live" iff ' +
+      "it appears here.",
+  },
+];
+
+const EXPECTED_PICKED_LOGO: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
+  {
+    file: "contracts/src/views/shelter.ts",
+    line: 34,
+    text: "logo: true,",
+    kind: "view",
+    why:
+      "PublicShelterViewSchema - a per-request projection of shelters.logo, not a second " +
+      "stored copy.",
+  },
+  {
+    file: "contracts/src/views/shelter.ts",
+    line: 51,
+    text: "logo: true,",
+    kind: "view",
+    why:
+      "ShelterSummaryViewSchema (the card view) - same shape as PublicShelterViewSchema's " +
+      "pick above: a per-request projection, not storage.",
+  },
+];
+
 const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   {
     file: "domain/src/animals/photo.ts",
@@ -214,12 +278,12 @@ const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
     kind: "definition",
     why:
       "ShelterLogoSchema's own field (pet card PR 3a) - separate from AnimalPhotoSchema " +
-      "because it needs no alt text (displayName is the accessible name). No write path " +
-      "exists yet, so no live key anywhere; r2-cleanup-repo.ts doesn't cover shelters/*/logo/ " +
-      "yet either (PR 4, before PR 3b's upload ships). NOTE: this scan (bareStorageKeyFields) " +
-      "catches the field itself, but animalPhotoSchemaEmbeddings/pickedPhotosFields have no " +
-      "ShelterLogoSchema-equivalent - an embedding or a `logo: true` pick elsewhere would pass " +
-      "silently today. PR 4 should widen those two scans the same way this entry widened this one.",
+      "because it needs no alt text (displayName is the accessible name). PR 4 widened " +
+      "r2-cleanup-repo.ts's referencedStorageKeys to also read shelters.logo, and widened " +
+      "this file's embedding and .pick scans (shelterLogoSchemaEmbeddings, pickedLogoFields) " +
+      "the same way this entry already covered the bare-field one - no write path exists yet " +
+      "(PR 3b's upload), so no live key anywhere today, but a future embedding or " +
+      "`logo: true` pick elsewhere no longer passes silently.",
   },
 ];
 
@@ -227,6 +291,14 @@ describe("every schema field that can hold a photo's storage key is classified (
   it("AnimalPhotoSchema is embedded in exactly the classified places - a new site needs a new entry here", () => {
     expect(animalPhotoSchemaEmbeddings()).toEqual(
       [...EXPECTED_EMBEDDINGS]
+        .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
+        .map(({ file, line, text }) => ({ file, line, text })),
+    );
+  });
+
+  it("ShelterLogoSchema is embedded in exactly the classified places - a new site needs a new entry here", () => {
+    expect(shelterLogoSchemaEmbeddings()).toEqual(
+      [...EXPECTED_LOGO_EMBEDDINGS]
         .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
         .map(({ file, line, text }) => ({ file, line, text })),
     );
@@ -243,6 +315,14 @@ describe("every schema field that can hold a photo's storage key is classified (
   it("every .pick({ photos: true }) site is classified - a new one needs a new entry here", () => {
     expect(pickedPhotosFields()).toEqual(
       [...EXPECTED_PICKED_PHOTOS]
+        .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
+        .map(({ file, line, text }) => ({ file, line, text })),
+    );
+  });
+
+  it("every .pick({ logo: true }) site is classified - a new one needs a new entry here", () => {
+    expect(pickedLogoFields()).toEqual(
+      [...EXPECTED_PICKED_LOGO]
         .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
         .map(({ file, line, text }) => ({ file, line, text })),
     );
@@ -270,11 +350,31 @@ describe("every schema field that can hold a photo's storage key is classified (
     expect(repoText).toMatch(/"animals"\."photos"/);
   });
 
+  it("exactly one embedding is classified as a live reference for shelters, and it's the one the clean-up repo reads", () => {
+    const storageSites = EXPECTED_LOGO_EMBEDDINGS.filter(
+      (e) => e.kind === "storage" && e.file.endsWith("shelter.ts"),
+    );
+    expect(storageSites).toHaveLength(1);
+
+    const repoPath = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      "..",
+      "src",
+      "repos",
+      "r2-cleanup-repo.ts",
+    );
+    const repoText = readFileSync(repoPath, "utf8");
+    expect(repoText).toMatch(/FROM\s+"shelters"/i);
+    expect(repoText).toMatch(/"logo"->>'storageKey'/);
+  });
+
   it("every classified entry has a real reason", () => {
     for (const entry of [
       ...EXPECTED_EMBEDDINGS,
       ...EXPECTED_PICKED_PHOTOS,
       ...EXPECTED_BARE_FIELDS,
+      ...EXPECTED_LOGO_EMBEDDINGS,
+      ...EXPECTED_PICKED_LOGO,
     ]) {
       expect(entry.why.length).toBeGreaterThan(20);
     }

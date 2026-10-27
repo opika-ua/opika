@@ -27,6 +27,48 @@ export type ImageVariantName = keyof typeof IMAGE_VARIANTS;
 export const IMAGE_VARIANT_NAMES = Object.keys(IMAGE_VARIANTS) as ImageVariantName[];
 
 /**
+ * A shelter logo's own two sizes (pet card PR 3a §C): 1x/2x for a 40px
+ * display circle. A separate set from `IMAGE_VARIANTS`, not folded into it -
+ * a logo is square, has no `detail`-sized rendering anywhere, and the two
+ * namespaces (`animals/`, `shelters/…/logo/`) never collide on a variant
+ * name, so `variantObjectKey` below accepts either set interchangeably.
+ */
+export const LOGO_VARIANTS = {
+  small: { width: 80, height: 80 },
+  large: { width: 160, height: 160 },
+} as const;
+
+export type LogoVariantName = keyof typeof LOGO_VARIANTS;
+
+export const LOGO_VARIANT_NAMES = Object.keys(LOGO_VARIANTS) as LogoVariantName[];
+
+/**
+ * Where a shelter logo's storage key starts (`shelterLogoStorageKeyFor`,
+ * added once PR 3b writes one, follows this exactly: `shelters/<shelterId>/
+ * logo/<id>`). Shared between the R2 clean-up job's bucket scan and its
+ * reference-set lookup, which both need to tell a logo's key apart from an
+ * animal photo's to pick the right variant set - defined once here rather
+ * than duplicated as a literal in each.
+ */
+export const SHELTER_LOGO_PREFIX = "shelters/";
+
+/**
+ * The real key shape under `shelters/` this job is allowed to touch -
+ * `shelters/<shelterId>/logo/<anything>`, never the whole `shelters/` tree.
+ * R2's `ListObjectsV2` takes one literal prefix per call, and shelter ids
+ * vary, so the bucket scan (`r2-cleanup-run.ts`) has to list the broader
+ * `SHELTER_LOGO_PREFIX` and filter down to this shape before anything gets
+ * tracked for deletion - otherwise verification evidence, a future cover
+ * photo, or any other object someone puts under `shelters/` would look
+ * "unreferenced" to this job and get permanently deleted after the grace
+ * period (Tier 1 review, PR #220, finding 1 - the STOP this pattern fixes).
+ */
+export const SHELTER_LOGO_KEY_PATTERN = /^shelters\/[^/]+\/logo\//;
+
+/** Every variant name this module ever writes, across both namespaces - `storageKeyFromObjectKey`'s own inverse needs the full set, not just one. */
+const ALL_VARIANT_NAMES = [...IMAGE_VARIANT_NAMES, ...LOGO_VARIANT_NAMES];
+
+/**
  * The smallest variant that covers a requested width, never upscaled past
  * `detail` - matches `next/image`'s own behaviour of asking a loader for
  * several candidate widths and accepting the closest one it gets back.
@@ -75,12 +117,15 @@ export function animalPhotoStorageKeyFor(animalId: AnimalId, photoId: string): s
   return `animals/${animalId}/${photoId}`;
 }
 
-/** The real R2 object key for one variant of one photo - never stored, always derived. */
-export function variantObjectKey(storageKey: string, variant: ImageVariantName): string {
+/** The real R2 object key for one variant of one photo or logo - never stored, always derived. */
+export function variantObjectKey(
+  storageKey: string,
+  variant: ImageVariantName | LogoVariantName,
+): string {
   return `${storageKey}/${variant}.webp`;
 }
 
-const VARIANT_OBJECT_SUFFIX = new RegExp(`/(${IMAGE_VARIANT_NAMES.join("|")})\\.webp$`);
+const VARIANT_OBJECT_SUFFIX = new RegExp(`/(${ALL_VARIANT_NAMES.join("|")})\\.webp$`);
 
 /**
  * The inverse of `variantObjectKey` - the R2 clean-up job's own need (GDPR

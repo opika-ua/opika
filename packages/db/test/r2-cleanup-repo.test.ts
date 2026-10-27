@@ -57,6 +57,20 @@ async function insertAnimalWithPhotos(storageKeys: string[]) {
   return { shelter, animal };
 }
 
+const logo = (storageKey: string) => ({ storageKey, width: 160, height: 160 });
+
+/** Pet card PR 4: a real shelter row with a logo set, no animal needed. */
+async function insertShelterWithLogo(storageKey: string | null) {
+  const city = makeCity();
+  await cityRepo(db).insert(city);
+  const shelter = makeShelter({
+    publicLocation: { ...makeShelter().publicLocation, cityId: city.id } as never,
+    logo: storageKey === null ? null : logo(storageKey),
+  });
+  await shelterRepo(db).insert(shelter);
+  return shelter;
+}
+
 /** A real reveal row, foreign keys and all, with the given primaryPhoto storage key. */
 async function insertRevealWithPrimaryPhoto(storageKey: string) {
   const { shelter, animal } = await insertAnimalWithPhotos([]);
@@ -92,6 +106,36 @@ describe("referencedStorageKeys / referencedObjectKeys", () => {
     );
   });
 
+  it("finds a shelter's logo too, deriving the logo (not animal-photo) variants (pet card PR 4)", async () => {
+    await insertShelterWithLogo("shelters/s/logo/1");
+
+    const storageKeys = await referencedStorageKeys(db);
+    expect([...storageKeys]).toEqual(["shelters/s/logo/1"]);
+
+    const objectKeys = await referencedObjectKeys(db);
+    expect([...objectKeys].sort()).toEqual(
+      [
+        variantObjectKey("shelters/s/logo/1", "small"),
+        variantObjectKey("shelters/s/logo/1", "large"),
+      ].sort(),
+    );
+  });
+
+  it("unions both namespaces in one call - an animal photo and a shelter logo together", async () => {
+    await insertAnimalWithPhotos(["animals/a/1"]);
+    await insertShelterWithLogo("shelters/s/logo/1");
+
+    expect([...(await referencedStorageKeys(db))].sort()).toEqual([
+      "animals/a/1",
+      "shelters/s/logo/1",
+    ]);
+  });
+
+  it("a shelter with no logo contributes nothing - null is not a storage key", async () => {
+    await insertShelterWithLogo(null);
+    expect(await referencedStorageKeys(db)).toEqual(new Set());
+  });
+
   it("is empty when nothing has any photos", async () => {
     expect(await referencedStorageKeys(db)).toEqual(new Set());
   });
@@ -122,6 +166,19 @@ describe("recordScan", () => {
     expect(result).toEqual({ newlyTracked: 1, cleared: 0 });
     const tracked = await trackedUnreferencedObjects(db);
     expect(tracked).toEqual([{ objectKey: orphanKey, firstSeenUnreferencedAt: NOW }]);
+  });
+
+  it("tracks a shelter logo exactly like an animal photo (pet card PR 4)", async () => {
+    await insertShelterWithLogo("shelters/s/logo/1");
+    const referencedLogo = variantObjectKey("shelters/s/logo/1", "small");
+    const orphanLogo = variantObjectKey("shelters/orphan/logo/1", "small");
+
+    const result = await recordScan(db, [referencedLogo, orphanLogo], NOW);
+
+    expect(result).toEqual({ newlyTracked: 1, cleared: 0 });
+    expect(await trackedUnreferencedObjects(db)).toEqual([
+      { objectKey: orphanLogo, firstSeenUnreferencedAt: NOW },
+    ]);
   });
 
   it("is idempotent: a second scan with the same input changes nothing", async () => {
@@ -214,6 +271,14 @@ describe("stillUnreferenced", () => {
     expect(await stillUnreferenced(db, [futureVariant, unrelatedOrphan])).toEqual([
       unrelatedOrphan,
     ]);
+  });
+
+  it("protects a referenced shelter logo the same way, keeps an orphaned one (pet card PR 4)", async () => {
+    await insertShelterWithLogo("shelters/s/logo/1");
+    const referencedLogo = variantObjectKey("shelters/s/logo/1", "small");
+    const orphanLogo = variantObjectKey("shelters/orphan/logo/1", "small");
+
+    expect(await stillUnreferenced(db, [referencedLogo, orphanLogo])).toEqual([orphanLogo]);
   });
 });
 
