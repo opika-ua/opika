@@ -3,7 +3,7 @@
 import type { AnimalPhoto } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Image from "next/image";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Pet card PR 5 (Figma `75:425`/`88:1929`): replaced the dot-indicator
@@ -43,6 +43,32 @@ export function DetailPhotoGallery({
   const visible = photos.slice(0, 3);
   const scrollerRef = useRef<HTMLElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  /**
+   * `"unknown"` until a real measurement comes in, and treated as "there
+   * might be something to scroll to" (the buttons' old, unconditional
+   * behaviour) rather than hidden - happy-dom's `scrollWidth`/`clientWidth`
+   * are both 0 with no real layout, so a naive "no overflow" default would
+   * hide the buttons in every component test regardless of photo count.
+   * `ResizeObserver` doesn't run real geometry there either, so this stays
+   * `"unknown"` in tests and the buttons render exactly as before; only a
+   * real browser's real box sizes ever flip it to `"fits"`.
+   */
+  const [overflow, setOverflow] = useState<SliderOverflow>("unknown");
+
+  const measureOverflow = useCallback(() => {
+    const node = scrollerRef.current;
+    if (!node) return;
+    setOverflow(sliderOverflowOf(node.scrollWidth, node.clientWidth));
+  }, []);
+
+  useEffect(() => {
+    measureOverflow();
+    const node = scrollerRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measureOverflow);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [measureOverflow]);
 
   const onScroll = useCallback(() => {
     const node = scrollerRef.current;
@@ -54,6 +80,11 @@ export function DetailPhotoGallery({
   }, []);
 
   if (visible.length === 0) return null;
+  // Found live: two photos narrow enough to both fit the panel's width need
+  // no slider at all - the old unconditional "2+ photos means both buttons"
+  // rule left a "next" button that scrolled nothing (owner feedback, PR 5
+  // follow-up). `"unknown"` still counts as scrollable (see above).
+  const canScroll = visible.length > 1 && overflow !== "fits";
 
   return (
     <div className="relative">
@@ -82,31 +113,36 @@ export function DetailPhotoGallery({
         ))}
       </section>
 
-      {visible.length > 1 && scrolled && (
+      {canScroll && scrolled && (
         <button
           type="button"
           onClick={() => scrollBy(-1)}
           aria-label={uk.detail.photoPrev}
           data-testid="detail-photo-prev"
-          className="absolute bottom-6 right-20 inline-flex size-13 items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+          className="absolute left-6 top-1/2 inline-flex size-13 -translate-y-1/2 items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
         >
           <img
             src="/pet-card/icon-chevron-next.svg"
             alt=""
             aria-hidden="true"
-            className="scale-x-[-1]"
+            className="rotate-90"
           />
         </button>
       )}
-      {visible.length > 1 && (
+      {canScroll && (
         <button
           type="button"
           onClick={() => scrollBy(1)}
           aria-label={uk.detail.photoNext}
           data-testid="detail-photo-next"
-          className="absolute bottom-6 right-6 inline-flex size-13 items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+          className="absolute right-6 top-1/2 inline-flex size-13 -translate-y-1/2 items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
         >
-          <img src="/pet-card/icon-chevron-next.svg" alt="" aria-hidden="true" />
+          <img
+            src="/pet-card/icon-chevron-next.svg"
+            alt=""
+            aria-hidden="true"
+            className="-rotate-90"
+          />
         </button>
       )}
     </div>
@@ -115,3 +151,20 @@ export function DetailPhotoGallery({
 
 /** 360px photo width + 24px gap - one slider "step," matching the frame's own numbers. */
 const PHOTO_STEP_PX = 384;
+
+export type SliderOverflow = "unknown" | "overflows" | "fits";
+
+/**
+ * Pure, so the "is there really anything to scroll to" decision is testable
+ * without a real layout pass - `clientWidth` is 0 whenever the node hasn't
+ * been laid out yet (every component test; happy-dom never lays anything
+ * out), which is not the same fact as "0 width of real content fits in 0
+ * width of real container," so that case stays `"unknown"` rather than
+ * being read as `"fits"`. The `+1` absorbs sub-pixel rounding between the
+ * two measurements, which a real browser's layout can introduce even when
+ * nothing is actually cut off.
+ */
+export function sliderOverflowOf(scrollWidth: number, clientWidth: number): SliderOverflow {
+  if (clientWidth === 0) return "unknown";
+  return scrollWidth > clientWidth + 1 ? "overflows" : "fits";
+}

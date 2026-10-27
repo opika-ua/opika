@@ -42,6 +42,17 @@ import { useModalFocus } from "../controls/useModalFocus";
 const BACKDROP =
   "fixed inset-x-0 bottom-0 top-16 desktop:top-18 z-40 [background-color:color-mix(in_srgb,var(--color-brand-accent)_30%,var(--color-brand-page)_70%)]";
 /**
+ * `SiteHeader` (`app/tvaryny/page.tsx`) stays opaque on the gallery itself -
+ * it has to occlude the grid scrolling under it, `sticky`. The reference
+ * screenshot's own header has no fill at all once this overlay is open, the
+ * peach backdrop showing straight through it. Flipping that per-render would
+ * need a prop threaded from this component, two routes away, into a header
+ * neither owns; `:has()` reaches it with no new prop and no risk to the
+ * normal-page case, which never matches the selector. `data-pet-card-overlay`
+ * is this component's own marker, not reused elsewhere.
+ */
+const OVERLAY_MARKER = "pet-card-overlay-open";
+/**
  * `useModalFocus`'s Tab trap only ever looks inside `dialogRef`'s own
  * subtree (`dialogRef.current.querySelectorAll(FOCUSABLE)`) - so `role`,
  * `aria-modal` and the ref all sit on this one wrapper, around the close
@@ -70,7 +81,7 @@ const NEIGHBOUR_LABEL =
  * handoff's own fixed desktop width, centred on the peach backdrop.
  */
 const FRAME =
-  "relative flex-1 mx-auto w-full max-w-[1084px] overflow-y-auto overscroll-contain bg-brand-surface rounded-t-brand-panel-lg";
+  "relative flex-1 mx-auto w-full max-w-[1084px] overflow-y-auto overscroll-contain bg-brand-surface rounded-t-brand-panel-lg brand-scrollbar";
 
 export type OverlayNeighbour = { name: string; href: string } | null;
 
@@ -127,7 +138,7 @@ export function AnimalOverlay({
   useNeighbourArrowKeys(neighbours, router);
 
   return (
-    <div className={BACKDROP}>
+    <div className={BACKDROP} data-testid={OVERLAY_MARKER}>
       <div
         ref={dialogRef}
         role="dialog"

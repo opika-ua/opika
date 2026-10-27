@@ -1,7 +1,7 @@
 import type { AnimalPhoto } from "@opika/domain";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { DetailPhotoGallery } from "./DetailPhotoGallery";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { DetailPhotoGallery, sliderOverflowOf } from "./DetailPhotoGallery";
 
 function photo(storageKey: string): AnimalPhoto {
   return { storageKey, width: 1200, height: 900, alt: null };
@@ -88,5 +88,67 @@ describe("DetailPhotoGallery", () => {
 
     expect(container.firstChild).toBeNull();
     expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  /**
+   * Pet card PR 5 follow-up: a real screenshot caught two photos narrow
+   * enough to both fit the panel showing a "next" button that scrolled
+   * nothing - the old rule was "2+ photos" alone, with no check that there
+   * was anything to scroll to. `clientWidth`/`scrollWidth` are stubbed on
+   * the prototype (not the instance, per the component's own comment on
+   * `sliderOverflowOf`: a real measurement only happens once both are
+   * non-zero, which happy-dom's default layout-less 0/0 never is) so the
+   * mount effect's own measurement sees real-looking, equal values.
+   */
+  describe("no slider buttons when the photos already fit (no real overflow)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("renders two photos that fit with no next/prev buttons at all", () => {
+      vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1000);
+      vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockReturnValue(1000);
+
+      render(
+        <DetailPhotoGallery photos={[photo("/a.jpg"), photo("/b.jpg")]} altFallback="Мурчик" />,
+      );
+
+      expect(screen.getAllByTestId("detail-photo")).toHaveLength(2);
+      expect(screen.queryByRole("button", { name: "Наступне фото" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Попереднє фото" })).toBeNull();
+    });
+
+    /**
+     * Mutation proof: a version of `canScroll` that only checked
+     * `visible.length > 1` (the old rule) would still pass every other test
+     * in this file - this is the one that catches it. Confirmed red against
+     * that exact mutation before being kept.
+     */
+    it("still shows the next button when the same photo count genuinely overflows", () => {
+      vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1000);
+      vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockReturnValue(1128);
+
+      render(
+        <DetailPhotoGallery photos={[photo("/a.jpg"), photo("/b.jpg")]} altFallback="Мурчик" />,
+      );
+
+      expect(screen.getAllByRole("button", { name: "Наступне фото" })).toHaveLength(1);
+    });
+  });
+});
+
+describe("sliderOverflowOf", () => {
+  it('is "unknown" when the container hasn\'t been laid out (clientWidth 0) - never read as "fits"', () => {
+    expect(sliderOverflowOf(0, 0)).toBe("unknown");
+    expect(sliderOverflowOf(1128, 0)).toBe("unknown");
+  });
+
+  it('is "overflows" once the content is wider than the container by more than the rounding slack', () => {
+    expect(sliderOverflowOf(1128, 1000)).toBe("overflows");
+  });
+
+  it('is "fits" when the content is no wider than the container (within 1px of rounding slack)', () => {
+    expect(sliderOverflowOf(1000, 1000)).toBe("fits");
+    expect(sliderOverflowOf(1000.5, 1000)).toBe("fits");
   });
 });

@@ -422,3 +422,40 @@
     display: block;
   }
 }
+
+/*
+ * Pet card PR 5 (Figma `75:425`): the gallery's own `SiteHeader` has no
+ * fill in the reference screenshot once the animal overlay is open - the
+ * peach backdrop shows straight through it. `SiteHeader` stays opaque on
+ * the gallery itself (it has to occlude the grid scrolling under its own
+ * `sticky` position), so this can't be a class on the header. `:has()`
+ * reaches across the two components with no prop threaded between them,
+ * and matches nothing on every other route, where the marker never exists.
+ */
+body:has([data-testid="pet-card-overlay-open"]) header {
+  background-color: transparent;
+}
+
+/*
+ * The pet card panel's own vertical scroll (`AnimalOverlay.tsx`'s `FRAME`)
+ * is a real nested scroll region, not the document - the platform's default
+ * scrollbar for one of those is a boxed, arrowed relic next to the rest of
+ * this design (found live, not assumed: a real screenshot of the panel
+ * scrolled). `scrollbar-width`/`scrollbar-color` cover Firefox; the
+ * `::-webkit-scrollbar*` rules cover Chromium/WebKit, which ignore the
+ * standard property pair entirely as of this writing.
+ */
+.brand-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-brand-line) transparent;
+}
+.brand-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.brand-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.brand-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--color-brand-line);
+  border-radius: 9999px;
+}

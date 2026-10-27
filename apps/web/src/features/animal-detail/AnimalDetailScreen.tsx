@@ -120,7 +120,7 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
             <div className="flex items-center gap-3">
               <h1
                 data-testid="animal-name"
-                className="font-brand-display text-[48px]/[1.15] font-bold tracking-[-0.01em] text-brand-ink"
+                className="text-[48px]/[1.15] font-bold tracking-[-0.01em] text-brand-ink"
               >
                 {animal.name}
               </h1>
