@@ -43,7 +43,7 @@ const compressionMessage = (result: Exclude<CompressedPhoto, { kind: "ok" }>): s
   }
 };
 
-/** The server's refusal of an upload, in the logo's own words (never the photo ones - "Сайт не може використати цей файл як логотип", not "...як фото"). */
+/** The server's refusal of an upload, in the logo's own words, never the animal-photo ones. */
 const uploadFailure = (error: unknown): string => {
   switch (codeOf(error)) {
     case "PHOTO_REJECTED":
@@ -59,10 +59,11 @@ const uploadFailure = (error: unknown): string => {
 
 /**
  * K4's logo section (pet card PR 3b §C): the current logo or the
- * fallback-initials avatar, a file input («Змінити логотип») and, once a
- * logo is set, «Прибрати логотип». Reuses `compressPhoto` on the device
- * first, the same as `PhotoSection`'s animal photos - a logo is still just
- * an image upload, re-encoded and stripped of metadata the same way.
+ * fallback-initials avatar, a file input («Додати логотип» with none set,
+ * «Змінити логотип» once one is) and, once a logo is set, «Прибрати
+ * логотип». Reuses `compressPhoto` on the device first, the same as
+ * `PhotoSection`'s animal photos - a logo is still just an image upload,
+ * re-encoded and stripped of metadata the same way.
  *
  * Calls `client.shelter.logo.*` directly rather than going through
  * `ProfileEditor`'s generic `write()` wrapper, for the same reason
@@ -139,7 +140,7 @@ export function LogoSection({
             aria-busy={state.kind === "preparing" || state.kind === "uploading" || undefined}
             onClick={() => fileInput.current?.click()}
           >
-            {t.change}
+            {logo === null ? t.add : t.change}
           </Button>
           {logo !== null ? (
             <Button variant="text" onClick={() => void remove()}>

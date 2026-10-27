@@ -80,4 +80,35 @@ describe("opikaImageLoader", () => {
       );
     });
   });
+
+  describe("real logo keys (shelters/*/logo/ namespace - pet card PR 3b)", () => {
+    const REAL_LOGO_KEY = "shelters/51000000-0000-4000-8000-000000000001/logo/0";
+
+    beforeEach(() => {
+      process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL = "https://cdn.opika.org.ua";
+    });
+
+    afterEach(() => {
+      delete process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
+    });
+
+    /**
+     * The one assertion a previous Tier 1 review (PR #221, finding 3) found
+     * missing: this file's own branch choosing `LOGO_VARIANTS` over
+     * `IMAGE_VARIANTS` by namespace. A mutation that always picked
+     * `IMAGE_VARIANTS` left every other test in this file green (none of
+     * them ever asks for a logo key), and would have requested
+     * `…/thumb.webp` for a logo - an object this job never writes, a 404 in
+     * production.
+     */
+    it("picks the logo's own small/large variant, never an animal-photo one", () => {
+      const small = opikaImageLoader({ src: REAL_LOGO_KEY, width: 40, quality: 75 });
+      expect(small).toBe(`https://cdn.opika.org.ua/${REAL_LOGO_KEY}/small.webp`);
+      const large = opikaImageLoader({ src: REAL_LOGO_KEY, width: 4000, quality: 75 });
+      expect(large).toBe(`https://cdn.opika.org.ua/${REAL_LOGO_KEY}/large.webp`);
+      expect(small).not.toContain("/thumb.webp");
+      expect(small).not.toContain("/card.webp");
+      expect(small).not.toContain("/detail.webp");
+    });
+  });
 });

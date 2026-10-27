@@ -196,7 +196,7 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
       previous: null,
       next: { storageKey: "shelters/s/logo/0", width: 160, height: 160 },
     },
-    // builder's own draft, flagged for Oleksii's confirm-or-replace (pet card PR 3b)
+    // his final text, 2026-10-27 (pet card PR 3b)
     "Змінено логотип притулку · ви",
   ],
   [

@@ -20,7 +20,7 @@ import { handleKabinetRpc, kabinetRouter } from "./rpc-route";
  * router actually mounted on `/api/kabinet/*` and reading the access each one
  * declares, not from a list written here, so a write added later is held to
  * the same assertions automatically. The count is pinned too
- * (`toHaveLength(16)`), as a tripwire: a new write fails it, and the edit
+ * (`toHaveLength(18)`), as a tripwire: a new write fails it, and the edit
  * that bumps it is where someone confirms who may call it.
  *
  * Until PR 6 this file was `shelter-writes-refused.test.ts` and pinned the

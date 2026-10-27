@@ -41,7 +41,10 @@ export const kabinetUserKey = (userId: string) => `user:${userId}`;
  * share one allowance, and charged on every `shelter.photos.add` that passed
  * the write policy, before ownership (P-T4) and before the file is sniffed or
  * decoded: a refused file still cost the server the work of reading it, and a
- * call naming another shelter's animal spends a unit too.
+ * call naming another shelter's animal spends a unit too. Since pet card
+ * PR 3b, `shelter.logo.set` charges this same allowance too (a decision
+ * taken, not a second pool); `shelter.logo.remove` isn't an upload and
+ * charges nothing.
  */
 export const PHOTO_UPLOAD_RATE_LIMITS = {
   perHour: { windowMs: 60 * 60_000, maxRequests: 60 },

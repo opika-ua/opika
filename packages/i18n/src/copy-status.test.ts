@@ -506,6 +506,21 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
       "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде „Оновлено … тому“.",
     // his DR1-Q1 text (2026-10-20)
     "profileEdit.voice.previewEmpty": "Речення немає – на сторінці притулку його не буде.",
+    // Pet card PR 3b §C. His final text (2026-10-27): `add`, `rejected` and `failed`
+    // replace the builder's draft; the other eight are approved as the builder wrote them.
+    "profileEdit.logo.title": "Логотип притулку",
+    "profileEdit.logo.add": "Додати логотип",
+    "profileEdit.logo.change": "Змінити логотип",
+    "profileEdit.logo.remove": "Прибрати логотип",
+    "profileEdit.logo.uploading": "Завантаження…",
+    "profileEdit.logo.updated": "Логотип оновлено.",
+    "profileEdit.logo.removed": "Логотип прибрано.",
+    "profileEdit.logo.removeFailed":
+      "Не вдалося прибрати логотип. Перевірте зʼєднання і спробуйте ще раз.",
+    "profileEdit.logo.rejected": "Цей файл не підходить для логотипа. Спробуйте інше зображення.",
+    "profileEdit.logo.rateLimited": "Забагато спроб за короткий час. Спробуйте трохи пізніше.",
+    "profileEdit.logo.uploadsUnavailable": "На цій версії сайту логотип завантажити не можна.",
+    "profileEdit.logo.failed": "Логотип не завантажився. Перевірте зʼєднання і спробуйте ще раз.",
   };
 
   const leafPaths = (node: unknown, prefix: string): string[] =>
@@ -515,36 +530,14 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
           leafPaths(child, `${prefix}.${key}`),
         );
 
-  /**
-   * Pet card PR 3b: the eleven new `logo.*` keys, outside his K4-final set -
-   * the builder's own draft, flagged for Oleksii's confirm-or-replace, same
-   * mechanism commitment #8's `clearDimension` used. Listed here, not folded
-   * into `K4_FINAL`, so this file never claims a value as "his final text"
-   * that isn't.
-   */
-  const PENDING_BUILDER_DRAFTS_K4 = [
-    "profileEdit.logo.title",
-    "profileEdit.logo.change",
-    "profileEdit.logo.remove",
-    "profileEdit.logo.uploading",
-    "profileEdit.logo.updated",
-    "profileEdit.logo.removed",
-    "profileEdit.logo.removeFailed",
-    "profileEdit.logo.rejected",
-    "profileEdit.logo.rateLimited",
-    "profileEdit.logo.uploadsUnavailable",
-    "profileEdit.logo.failed",
-  ];
-
-  it("profileEdit holds exactly his keys, no more and no fewer, plus any flagged builder draft", () => {
+  it("profileEdit holds exactly his keys, no more and no fewer", () => {
     // P6-Q8 (Oleksii, verbatim: "Q8 / 0.3b: delete `refused_until_edit_screens`,
     // `SHELTER_WRITES_NOT_YET_AVAILABLE` and `profileEdit.errors.notAvailable`.").
     expect(Object.keys(uk.kabinet.profileEdit.errors)).not.toContain("notAvailable");
     expect(leafPaths(uk.kabinet.profileEdit, "profileEdit").sort()).toEqual(
-      [
-        ...Object.keys(K4_FINAL).filter((path) => path.startsWith("profileEdit.")),
-        ...PENDING_BUILDER_DRAFTS_K4,
-      ].sort(),
+      Object.keys(K4_FINAL)
+        .filter((path) => path.startsWith("profileEdit."))
+        .sort(),
     );
   });
 
@@ -978,6 +971,11 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.errors.nameTooLong": "Назва довша за {max} символів.",
   };
 
+  /** Pet card PR 3b. His final text (2026-10-27): the builder's draft, approved as written. */
+  const PET_CARD_PR3B_LOGO_CHANGED: Record<string, string> = {
+    "operator.history.logo_changed": "Змінено логотип притулку",
+  };
+
   const leafPaths = (node: unknown, prefix: string): string[] =>
     typeof node === "string"
       ? [prefix]
@@ -989,16 +987,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
       .split(".")
       .reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], uk.kabinet);
 
-  /**
-   * Pet card PR 3b: a new key, outside every negotiated round above - the
-   * builder's own draft (`operator.history.logo_changed`), flagged for
-   * Oleksii's confirm-or-replace, same mechanism commitment #8's
-   * `clearDimension` used. Listed here, not folded into `RUI_FINAL`, so this
-   * file never claims a value as "his final text" that isn't.
-   */
-  const PENDING_BUILDER_DRAFTS = ["operator.history.logo_changed"];
-
-  it("operator and verificationDecision hold exactly his keys, no more and no fewer, plus any flagged builder draft", () => {
+  it("operator and verificationDecision hold exactly his keys, no more and no fewer", () => {
     expect(
       [
         ...leafPaths(uk.kabinet.operator, "operator"),
@@ -1011,21 +1000,26 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(ROUND_2_REASON_VIEW),
         ...Object.keys(ROUND_3_N7),
         ...Object.keys(ROUND_4C_RUI4_F2),
-        ...PENDING_BUILDER_DRAFTS,
+        ...Object.keys(PET_CARD_PR3B_LOGO_CHANGED),
       ].sort(),
     );
   });
 
-  it("sanity: his file's 220 strings (216 as written, 3 replaced in round 2, 1 in round 3) and 3 later keys", () => {
+  it("sanity: his file's 220 strings (216 as written, 3 replaced in round 2, 1 in round 3) and 4 later keys", () => {
     expect(Object.keys(RUI_FINAL).length).toBe(216);
     expect(Object.keys(ROUND_3_N7)).toHaveLength(2);
     expect(Object.keys(ROUND_4C_RUI4_F2)).toHaveLength(1);
+    expect(Object.keys(PET_CARD_PR3B_LOGO_CHANGED)).toHaveLength(1);
     expect(Object.keys(CHECKED_AGAINST_CODE).length).toBe(2);
     expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his !== null)).toHaveLength(1);
     expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his === null)).toHaveLength(1);
   });
 
   it.each(Object.entries(RUI_FINAL))("%s is his final text", (path, text) => {
+    expect(valueAt(path)).toBe(text);
+  });
+
+  it.each(Object.entries(PET_CARD_PR3B_LOGO_CHANGED))("%s is his final text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
 
@@ -1427,11 +1421,9 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
   it("sanity: the walk reaches his strings, and the letter-apostrophe is in them", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
-    // errors.nameTokenGone; 83 since pet card PR 3b added the eleven-key
-    // logo.* section (the builder's own draft, flagged for his review - not
-    // part of "his strings" this describe block's own name refers to, but
-    // reached by the same walk since it lives under kabinet.profileEdit).
-    expect(k4.length).toBe(83);
+    // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
+    // logo.* section (his final text, 2026-10-27).
+    expect(k4.length).toBe(84);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

@@ -681,14 +681,15 @@ export const shelterPhotosContract = {
  * upload is a file, not a form field. One nullable value rather than a list
  * (P-Q2's `add`/`reorder`/`remove` shape doesn't apply): `set` replaces
  * whatever was there, `remove` clears it back to the fallback-initials
- * avatar. Same size/type limits and the same upload rate limit as animal
- * photos (`shelterUploadKey`, `PHOTO_UPLOAD_RATE_LIMITS`) - a decision taken,
+ * avatar. `set` shares animal photos' size/type limits and upload rate
+ * limit (`shelterUploadKey`, `PHOTO_UPLOAD_RATE_LIMITS`) - a decision taken,
  * not specified: a logo is rare next to animal photos, so sharing one
  * allowance costs nothing in practice and avoids a second limiter pool.
- * `KabinetShelterViewSchema`'s own `version` guards concurrent writes the
- * same way every other profile write does (`tapWithRetry`'s re-read, not a
- * client-sent `expectedVersion` - a file upload has no stale form value to
- * protect against).
+ * `remove` isn't an upload and charges nothing. Both go through
+ * `tapWithRetry` (a re-read on each attempt, no client-sent
+ * `expectedVersion`), the same shape `pause`/`resume`/the donation actions
+ * use, not `editFromForm`'s - a file upload (or a removal) has no stale form
+ * value to protect against a race on.
  */
 export const shelterLogoContract = {
   set: shelterProfileWrite

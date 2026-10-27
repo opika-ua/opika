@@ -1,14 +1,15 @@
-import type { KabinetShelterView } from "@opika/contracts";
-import { cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
+import type { KabinetAnimalView, KabinetShelterView } from "@opika/contracts";
+import { animalRepo, cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
 import {
   imageFactsOf,
+  makeAnimal,
   makeCity,
   makeShelter,
   setupTestDatabase,
   testJpeg,
   truncateAll,
 } from "@opika/db/test";
-import type { Shelter, ShelterAdminId } from "@opika/domain";
+import type { CityId, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter, type RateLimiter } from "../api/rate-limit";
 import { fromRpcBody, rpcRequestInit } from "../api/test-harness";
@@ -43,11 +44,13 @@ const ADMIN = "33333333-3333-4333-8333-333333333333" as ShelterAdminId;
 const ORIGIN = "http://localhost";
 let shelter: Shelter;
 let asAdmin: KabinetPrincipal;
+let cityId: CityId;
 
 beforeEach(async () => {
   await truncateAll(db);
   const city = makeCity();
   await cityRepo(db).insert(city);
+  cityId = city.id;
   const created = makeShelter({
     publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
   });
@@ -87,11 +90,11 @@ function uploadsOn(
   };
 }
 
-async function call(
+async function call<T = KabinetShelterView>(
   path: string,
   input: unknown,
   opts: { uploads: PhotoUploads },
-): Promise<{ status: number; body: KabinetShelterView }> {
+): Promise<{ status: number; body: T }> {
   const { body, headers } = rpcRequestInit(input);
   const request = new Request(`${ORIGIN}/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
@@ -130,7 +133,7 @@ async function call(
   } catch {
     // a plain-text refusal
   }
-  return { status: response.status, body: parsed as KabinetShelterView };
+  return { status: response.status, body: parsed as T };
 }
 
 const errorOf = (body: unknown) => body as { code?: string; data?: unknown };
@@ -228,12 +231,26 @@ describe("shelter.logo.set", () => {
     expect(errorOf(result.body).code).toBe("PHOTO_UPLOADS_UNAVAILABLE");
   });
 
-  it("shares the animal-photo upload allowance (a decision taken, not a separate limiter pool) - exhausting it rate-limits a logo set too", async () => {
-    const exhausted = inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 0 });
-    const { uploads } = uploadsOn(capturingStore(), { perHour: exhausted });
-    const result = await call("shelter.logo.set", { file: await jpeg() }, { uploads });
-    expect(result.status).toBe(429);
-    expect(errorOf(result.body).code).toBe("RATE_LIMITED");
+  it("shares the animal-photo upload allowance (a decision taken, not a separate limiter pool) - a photo upload spends the unit a logo set then finds empty", async () => {
+    // A limiter that allows exactly one request per hour, proving the two
+    // endpoints draw on the *same* instance rather than each merely having
+    // its own equally-strict limiter (a dedicated logo-only limiter that
+    // refused everything would pass a weaker version of this test too).
+    const shared = inMemoryRateLimiter({ windowMs: 60 * 60_000, maxRequests: 1 });
+    const { uploads } = uploadsOn(capturingStore(), { perHour: shared });
+    const target = makeAnimal({ shelterId: shelter.id });
+    await animalRepo(db).insert(target, cityId);
+
+    const photoResult = await call<KabinetAnimalView>(
+      "shelter.photos.add",
+      { animalId: target.id, file: await jpeg() },
+      { uploads },
+    );
+    expect(photoResult.status).toBe(200);
+
+    const logoResult = await call("shelter.logo.set", { file: await jpeg() }, { uploads });
+    expect(logoResult.status).toBe(429);
+    expect(errorOf(logoResult.body).code).toBe("RATE_LIMITED");
   });
 });
 
