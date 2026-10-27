@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { pendingCopyKeys, pendingCopyPaths } from "./copy-status";
 import { en } from "./messages/en";
-import { COPY_PENDING, PENDING_R4_2_ANALYTICS_SENTENCE, uk } from "./messages/uk";
+import { COPY_PENDING, R4_2_ANALYTICS_SENTENCE, uk } from "./messages/uk";
 
 describe("pendingCopyKeys", () => {
   it("names the keys still holding a placeholder, sorted", () => {
@@ -636,7 +636,7 @@ describe("CB-B1: the replaced strings name no «реєстр»", () => {
     "forShelters.howToStart": [uk.forShelters.howToStart, en.forShelters.howToStart],
     "demo.bannerNotice": [uk.demo.bannerNotice, en.demo.bannerNotice],
     "detail.notFound.body": [uk.detail.notFound.body, en.detail.notFound.body],
-    PENDING_R4_2_ANALYTICS_SENTENCE: [PENDING_R4_2_ANALYTICS_SENTENCE, ""],
+    R4_2_ANALYTICS_SENTENCE: [R4_2_ANALYTICS_SENTENCE, ""],
     // PR 6: his pr6-copy-uk.md §1.5 replaces the whole paragraph (0.3d: «реєстр зберігає» → «сайт зберігає»).
     "about.data": [uk.about.data, en.about.data],
   };
@@ -1615,6 +1615,12 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(DR1_FUR).filter((path) => path.startsWith("kabinet.animalForm.")),
         // The pet card redesign's words, pinned in their own block below.
         ...Object.keys(PET_CARD_COPY).filter((path) => path.startsWith("kabinet.animalForm.")),
+        // Pet card PR 5's own his-approved words (medicalNotes.title/hint), pinned below.
+        ...Object.keys(PET_CARD_PR5_COPY).filter((path) => path.startsWith("kabinet.animalForm.")),
+        // Pet card PR 5's one builder-drafted validation string - not his words, flagged
+        // in the PR for confirm-or-replace, but real text (never COPY_PENDING, see the
+        // "Critical gate" reasoning on PET_CARD_PR5_COPY's own comment above).
+        "kabinet.animalForm.validation.medicalNotesTooLong",
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -1841,12 +1847,21 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
  * Q-A (Oleksii, 2026-10-19), verbatim: "detail.photoGalleryLabel «Фотографії тварини»;
  * detail.photoGalleryDot «Фото {n}»; detail.photoGalleryThumbnail «Переглянути фото {n}»." The
  * public animal page's screen-reader labels, transcribed from his message.
+ *
+ * Pet card PR 5 replaced the dot-indicator/thumbnail-strip gallery with a native scroll-snap
+ * slider (Figma `75:425`/`88:1929`): `photoGalleryDot`/`photoGalleryThumbnail` named controls
+ * that no longer exist, so they're retired with that UI rather than kept as dead strings.
+ * `photoGalleryLabel` survives unchanged - it labels "the photo list" regardless of which
+ * control renders the list, so the new slider's scroll container reuses it as-is.
  */
-describe("Q-A: the animal page's photo gallery labels", () => {
-  it("are his three strings", () => {
+describe("Q-A: the animal page's photo gallery label", () => {
+  it("is his string", () => {
     expect(uk.detail.photoGalleryLabel).toBe("Фотографії тварини");
-    expect(uk.detail.photoGalleryDot).toBe("Фото {n}");
-    expect(uk.detail.photoGalleryThumbnail).toBe("Переглянути фото {n}");
+  });
+
+  it("the dot/thumbnail labels are gone with the UI they named", () => {
+    expect(Object.keys(uk.detail)).not.toContain("photoGalleryDot");
+    expect(Object.keys(uk.detail)).not.toContain("photoGalleryThumbnail");
   });
 });
 
@@ -1981,9 +1996,18 @@ describe("kabinet passwords copy (PW-1, his Ukrainian, 2026-10-19)", () => {
 
 /**
  * Designer round 1, S3: his fur copy (`docs/designer-round-1.md` §11,
- * Oleksii, 2026-10-20), transcribed literally. `detail.coatShort` /
- * `detail.coatLong` carry his instruction "The value is «Коротка» / «Довга»,
- * the same as the form", under the animal page's own keys.
+ * Oleksii, 2026-10-20), transcribed literally.
+ *
+ * Pet card PR 5 retired `detail.coatLabel`/`coatShort`/`coatLong` (his "The
+ * value is «Коротка» / «Довга», the same as the form" instruction): those
+ * backed the old `CoatFact` meta-line fact, which the new panel header
+ * doesn't render (the Figma meta line is sex · age bucket · size only, no
+ * fur segment). Coat length now appears only as a «Про мене» chip, which
+ * reuses `filters.coatShort`/`coatLong` - the filter dropdown's own plural
+ * words - matching how the chip's accessible name already has to ("the
+ * existing age/size/coat labels," his 2026-10-27 instruction), so the two
+ * surfaces read the same word rather than two different ones for the same
+ * fact. `CoatFact.tsx` itself is deleted with its only caller.
  */
 const DR1_FUR: Record<string, string> = {
   "kabinet.animalForm.coat.label": "Шерсть",
@@ -1995,9 +2019,6 @@ const DR1_FUR: Record<string, string> = {
   "filters.coatShort": "Короткошерсті",
   "filters.coatLong": "Довгошерсті",
   "noMatch.relaxCoat": "Будь-яка шерсть: +{count}",
-  "detail.coatLabel": "Шерсть",
-  "detail.coatShort": "Коротка",
-  "detail.coatLong": "Довга",
 };
 
 describe("designer round 1 fur copy (his text, 2026-10-20)", () => {
@@ -2010,9 +2031,10 @@ describe("designer round 1 fur copy (his text, 2026-10-20)", () => {
     expect(atRoot(path)).toBe(text);
   });
 
-  it("the animal page's value words are not the filter labels", () => {
-    expect(uk.detail.coatShort).not.toBe(uk.filters.coatShort);
-    expect(uk.detail.coatLong).not.toBe(uk.filters.coatLong);
+  it("the animal page's own coat words are gone with CoatFact, the component they backed", () => {
+    expect(Object.keys(uk.detail)).not.toContain("coatLabel");
+    expect(Object.keys(uk.detail)).not.toContain("coatShort");
+    expect(Object.keys(uk.detail)).not.toContain("coatLong");
   });
 });
 
@@ -2060,9 +2082,9 @@ describe("pet card kabinet copy (his approval, 2026-10-26)", () => {
     expect(atRoot(path)).toBe(text);
   });
 
-  it("the medical note's two strings are not in the catalogue until PR 5 ships its field", () => {
-    expect(Object.keys(uk.kabinet.animalForm)).not.toContain("medicalNotes");
-    expect(Object.keys(en.kabinet.animalForm)).not.toContain("medicalNotes");
+  it("the medical note's two strings ship in PR 5, under their own round below, not this one", () => {
+    expect(Object.keys(uk.kabinet.animalForm)).toContain("medicalNotes");
+    expect(Object.keys(en.kabinet.animalForm)).toContain("medicalNotes");
   });
 
   it("the colour's «not given» reads exactly as the fur's", () => {
@@ -2146,6 +2168,89 @@ describe("pet card filter copy (his approval, 2026-10-26)", () => {
       expect(text, path).not.toContain(COPY_PENDING);
       expect(text, path).not.toMatch(/['’]/);
     }
+  });
+});
+
+/**
+ * Pet card PR 5 (Figma `75:425`/`88:1929`): the panel chrome strings are the
+ * design's own owner-approved words (handoff, 2026-10-26: «Попередній»,
+ * «Наступний», «Дати сімʼю», «Поділитись», «Про мене», «Моя історія»,
+ * «Медичний стан»); the chip-link template, species words, share-copied
+ * confirmation and the medical-notes field's two kabinet strings are his own
+ * text, given directly in the coordinating session, 2026-10-27, transcribed
+ * here literally rather than read from `uk.ts`, same discipline every other
+ * round in this file uses.
+ *
+ * Two strings this PR also changes are pinned separately, not folded in
+ * here: `R4_2_ANALYTICS_SENTENCE`'s new text (its own `describe` below,
+ * since it's a held constant, not a `uk.ts` path) and the freshness tag
+ * (unchanged text - it reuses `freshnessLabel`/`uk.freshness.updatedAgo`
+ * verbatim, already pinned where that key lives, per owner decision 2).
+ */
+const PET_CARD_PR5_COPY: Record<string, string> = {
+  "detail.prev": "Попередній",
+  "detail.next": "Наступний",
+  "detail.giveHome": "Дати сімʼю",
+  "detail.share": "Поділитись",
+  "detail.shareCopied": "Посилання скопійовано.",
+  "detail.aboutMeHeading": "Про мене",
+  "detail.myStoryHeading": "Моя історія",
+  "detail.medicalHeading": "Медичний стан",
+  "detail.chipLinkName": "Показати схожих {species}: {value}",
+  "detail.chipSpeciesCat": "котів",
+  "detail.chipSpeciesDog": "собак",
+  "kabinet.animalForm.medicalNotes.title": "Що ще варто знати про здоровʼя",
+  "kabinet.animalForm.medicalNotes.hint":
+    "Необовʼязково. Ті, хто шукає тварину, побачать цей текст у розділі «Медичний стан».",
+};
+
+describe("pet card PR 5 copy (owner-approved, 2026-10-26/27)", () => {
+  const atRoot = (path: string): unknown =>
+    path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], uk);
+
+  it("holds his 13 strings for this round", () => {
+    expect(Object.keys(PET_CARD_PR5_COPY)).toHaveLength(13);
+  });
+
+  it.each(Object.entries(PET_CARD_PR5_COPY))("%s is his approved text, exactly", (path, text) => {
+    expect(atRoot(path)).toBe(text);
+  });
+
+  it("nothing here is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
+    for (const [path, text] of Object.entries(PET_CARD_PR5_COPY)) {
+      expect(text, path).not.toContain(COPY_PENDING);
+      expect(text, path).not.toMatch(/['’]/);
+    }
+  });
+});
+
+/**
+ * R4-2's text, held off `/pro` by the same pre-launch gate it always was -
+ * see `uk.ts`'s own doc comment on `R4_2_ANALYTICS_SENTENCE` for the gating
+ * mechanism, unchanged by this PR. Only the constant's name (dropped the
+ * `PENDING_` prefix - it never meant "pending his approval," only "held
+ * behind the gate," and his 2026-10-27 instruction asked for the rename once
+ * this round's text made that clearer) and one word of its own text changed:
+ * «Написати» → «Дати сімʼю», his exact instruction, "approved as drafted,
+ * with «Написати» changed to «Дати сімʼю» and the rest unchanged."
+ */
+describe("R4_2_ANALYTICS_SENTENCE (owner-approved text, 2026-10-27)", () => {
+  it("names «Дати сімʼю», not «Написати»", () => {
+    expect(R4_2_ANALYTICS_SENTENCE).toContain("«Не зараз» чи «Дати сімʼю»");
+    expect(R4_2_ANALYTICS_SENTENCE).not.toContain("Написати");
+  });
+
+  it("is otherwise byte-for-byte his original 2026-10-06 sentence", () => {
+    expect(R4_2_ANALYTICS_SENTENCE).toBe(
+      "Людині, яка шукає тварину, сайт ставить одне кукі – і тільки після першої дії: " +
+        "«Не зараз» чи «Дати сімʼю». У ньому немає імені чи номера телефону, лише " +
+        "випадковий ідентифікатор: щоб режим «по одній» памʼятав, кого ви вже бачили, а сайт – " +
+        "чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без візитів або через 30 " +
+        "днів у будь-якому разі. Окремо від кукі, якщо ви зберігаєте тварин, їхній список лежить " +
+        "у цьому браузері.",
+    );
   });
 });
 
@@ -2268,7 +2373,7 @@ describe("the copy audit of 2026-10-22", () => {
     expect(everything.length).toBeGreaterThan(1000);
     const hits = everything.filter(([, text]) => /пробн/iu.test(text)).map(([path]) => path);
     expect(hits).toEqual([]);
-    expect(PENDING_R4_2_ANALYTICS_SENTENCE).not.toMatch(/пробн/iu);
+    expect(R4_2_ANALYTICS_SENTENCE).not.toMatch(/пробн/iu);
   });
 
   it("the guard above would catch the word", () => {

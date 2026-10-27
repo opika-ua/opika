@@ -5,6 +5,7 @@ import { uk } from "@opika/i18n";
 import { useCallback, useRef } from "react";
 import { ContactRevealDialog } from "../reveal/ContactRevealDialog";
 import { useReveal } from "../reveal/useReveal";
+import { PillButton } from "./PillButton";
 
 interface RevealFlowProps {
   animalId: AnimalId;
@@ -37,6 +38,12 @@ interface RevealFlowProps {
  * close control unique to mobile. `close` already reaches the same place
  * (dialog closed, focus back on the trigger) either way - the difference
  * is the label, not the behaviour.
+ *
+ * Pet card PR 5, owner decision 4: «Дати сімʼю», the panel header's own
+ * pill (64px tall, orange `bg-brand-accent`), opens this exact flow with no
+ * new logic - only this trigger's own label and styling changed, from
+ * `uk.actions.writeShelter` ("Написати притулку") to `uk.detail.giveHome`.
+ * The dialog it opens, `secondaryAction` included, is untouched.
  */
 export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) {
   const { state, open, close: closeReveal } = useReveal();
@@ -59,16 +66,15 @@ export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) 
 
   return (
     <>
-      <button
+      <PillButton
         ref={triggerRef}
-        type="button"
+        tone="accent"
         data-testid="reveal-trigger"
         disabled={state.kind === "loading"}
         onClick={openThisAnimal}
-        className="min-h-14 flex-1 rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] disabled:opacity-60"
       >
-        {uk.actions.writeShelter}
-      </button>
+        {uk.detail.giveHome}
+      </PillButton>
 
       {(state.kind === "error" || state.kind === "open") && (
         <ContactRevealDialog

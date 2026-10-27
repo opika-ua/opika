@@ -317,12 +317,24 @@
   --color-brand-line: #e7dae0;
   --color-brand-accent: #f26427;
   --color-brand-dog: #794eba;
+  /**
+   * Pet card PR 5 (Figma `75:425`/`88:1929`): the overlay's «Попередній»/
+   * «Наступний» labels, `#99667D`. No existing token was close enough to
+   * reuse (nearest is `ink-2` at `#805F6E`, a visibly different hue) - a
+   * fourth named colour in this block, same reasoning as `dog` above.
+   */
+  --color-brand-plum: #99667d;
 
   --radius-brand-tag: 8px;
   --radius-brand-field: 12px;
   --radius-brand-panel: 20px;
   --radius-brand-card: 24px;
   --radius-brand-pill: 999px;
+  /** Pet card PR 5: the overlay panel's own top-corner radius, 48px - too
+   * large for `panel`'s existing 20px to double as, and no other surface
+   * needs this value yet, so it's its own token rather than widening an
+   * existing one to this surface's single use. */
+  --radius-brand-panel-lg: 48px;
 
   /*
    * `next/font/local` (apps/web/src/app/fonts.ts, `brandDisplay`/`brandUi`),
@@ -409,4 +421,70 @@
   #tvaryny-filters:target {
     display: block;
   }
+}
+
+/*
+ * Pet card PR 5 (Figma `75:425`): the gallery's own `SiteHeader` has no
+ * fill in the reference once the animal overlay is open - the peach
+ * backdrop's own blur shows straight through it. `:has()` reaches across
+ * the two components with no prop threaded between them, and matches
+ * nothing on every other route, where the marker never exists.
+ *
+ * Plain `transparent`, not a second tint-plus-blur of the header's own:
+ * two separate elements each blurring only what's directly behind their
+ * own box produced a visible seam at the shared edge between them, found
+ * live (a real screenshot, not assumed) - a Gaussian blur can't pull
+ * context across a boundary neither element's box extends past. Fixed by
+ * making `AnimalOverlay.tsx`'s own backdrop cover the *entire* viewport,
+ * under the header in stacking order (`z-20` under the header's `z-30`),
+ * so there is exactly one blur pass for the whole screen and the header
+ * simply rides on top of it with no fill of its own - see that file's
+ * `BACKDROP` comment for the full account, including why covering the
+ * header no longer breaks click-through for the controls below it.
+ * `SiteHeader` still has to stay fully opaque on every *other* route,
+ * where it's `sticky` over the grid scrolling under it with no overlay
+ * open - this rule only ever applies while the marker exists.
+ */
+body:has([data-testid="pet-card-overlay-open"]) header {
+  background-color: transparent;
+}
+
+/*
+ * The pet card panel's own vertical scroll (`AnimalOverlay.tsx`'s `FRAME`)
+ * is a real nested scroll region, not the document - the platform's default
+ * scrollbar for one of those is a boxed, arrowed relic next to the rest of
+ * this design (found live, not assumed: a real screenshot of the panel
+ * scrolled). `scrollbar-width`/`scrollbar-color` cover Firefox; the
+ * `::-webkit-scrollbar*` rules cover Chromium/WebKit, which ignore the
+ * standard property pair entirely as of this writing.
+ *
+ * Invisible at rest, shown on hover or while `useScrollingClass` has added
+ * `is-scrolling` - even correctly clipped to the panel's own curve
+ * (`AnimalOverlay.tsx`'s `FRAME_CLIP`), a permanent track butting straight
+ * up against a 48px radius still read as an odd, "stuck on" line next to
+ * it (his own call, not assumed). A scrollbar with nothing to show at
+ * rest has nothing to look odd about.
+ */
+.brand-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.brand-scrollbar:hover,
+.brand-scrollbar.is-scrolling {
+  scrollbar-color: var(--color-brand-line) transparent;
+}
+.brand-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.brand-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.brand-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+  transition: background-color 200ms ease;
+}
+.brand-scrollbar:hover::-webkit-scrollbar-thumb,
+.brand-scrollbar.is-scrolling::-webkit-scrollbar-thumb {
+  background-color: var(--color-brand-line);
 }

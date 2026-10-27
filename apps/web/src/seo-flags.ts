@@ -1,5 +1,5 @@
 import type { VerificationBadge } from "@opika/contracts";
-import { PENDING_R4_2_ANALYTICS_SENTENCE, uk } from "@opika/i18n";
+import { R4_2_ANALYTICS_SENTENCE, uk } from "@opika/i18n";
 
 /**
  * Two facts, not one - `NOINDEX_EVERYTHING` (#43) originally collapsed
@@ -182,7 +182,7 @@ export function assertDemoDiscoverabilityInvariant(
  * gate still 403s every request - a real visitor reaching the page through
  * the gate link already carries a second, undisclosed cookie
  * (`__Host-prelaunch-gate`, `apps/web/src/api/prelaunch-gate.ts`). Oleksii's
- * own R4-2 Ukrainian is drafted and held in `PENDING_R4_2_ANALYTICS_SENTENCE`
+ * own R4-2 Ukrainian is drafted and held in `R4_2_ANALYTICS_SENTENCE`
  * (`packages/i18n/src/messages/uk.ts`), not yet appended to
  * `uk.about.analytics` - `docs/build-plan.md`'s R4 row. The current sentence
  * isn't false, only incomplete, so this is a test-time tripwire, not a
@@ -195,7 +195,7 @@ export function assertDemoDiscoverabilityInvariant(
  * violation, but the sentence landed while the gate is still up is the
  * *other* half of the same invariant - «одне кукі» would be false for
  * exactly the reason this whole tripwire exists, the moment the sentence
- * ships early. Checked against `PENDING_R4_2_ANALYTICS_SENTENCE` itself,
+ * ships early. Checked against `R4_2_ANALYTICS_SENTENCE` itself,
  * not a loose keyword like "кукі", so a reworded or partially-landed
  * version of the sentence still trips this rather than passing on a
  * coincidental substring match.
@@ -222,21 +222,21 @@ export function assertAnalyticsCopyMatchesGateState(
   analyticsText: string = uk.about.analytics,
   siteIsPubliclyDiscoverable: boolean = SITE_IS_PUBLICLY_DISCOVERABLE,
 ): void {
-  const hasR42Sentence = analyticsText.includes(PENDING_R4_2_ANALYTICS_SENTENCE);
+  const hasR42Sentence = analyticsText.includes(R4_2_ANALYTICS_SENTENCE);
 
   if (siteIsPubliclyDiscoverable && !hasR42Sentence) {
     throw new Error(
       "Invariant violated: SITE_IS_PUBLICLY_DISCOVERABLE is true (the pre-launch gate is " +
         "down, apps/web/src/seo-flags.ts) but uk.about.analytics (packages/i18n/src/" +
         "messages/uk.ts) still doesn't carry R4-2's sentence " +
-        "(PENDING_R4_2_ANALYTICS_SENTENCE). It needs to land before launch.",
+        "(R4_2_ANALYTICS_SENTENCE). It needs to land before launch.",
     );
   }
 
   if (!siteIsPubliclyDiscoverable && hasR42Sentence) {
     throw new Error(
       "Invariant violated: uk.about.analytics already carries R4-2's 'одне кукі' sentence " +
-        "(PENDING_R4_2_ANALYTICS_SENTENCE) but SITE_IS_PUBLICLY_DISCOVERABLE is still false " +
+        "(R4_2_ANALYTICS_SENTENCE) but SITE_IS_PUBLICLY_DISCOVERABLE is still false " +
         "(apps/web/src/seo-flags.ts) - the pre-launch gate's __Host-prelaunch-gate cookie " +
         "makes 'one cookie' false while the gate still exists. Either hold the sentence back " +
         "until the gate comes down, or the gate removal shipped without this flag.",

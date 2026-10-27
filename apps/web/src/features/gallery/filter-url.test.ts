@@ -1,8 +1,10 @@
-import { ANY, type CityId, citySlugOf, NO_FILTERS } from "@opika/domain";
+import { ANY, type AnimalId, type CityId, citySlugOf, NO_FILTERS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
+  animalPageHref,
   type CityIdsBySlug,
   type CitySlugsById,
+  chipDisplayLabel,
   deckEntryHref,
   filtersInWords,
   galleryHref,
@@ -12,6 +14,7 @@ import {
   redirectHrefForLegacyCityIds,
   resetFiltersHref,
   similarAnimalsHref,
+  similarAnimalsLabel,
   withToggledAge,
   withToggledCity,
   withToggledCoat,
@@ -560,5 +563,95 @@ describe("similarAnimalsHref", () => {
       sort: "freshest",
       page: 1,
     });
+  });
+});
+
+/**
+ * Pet card PR 5, decision B: every gallery card's own link to `/tvaryny/{id}`,
+ * carrying the gallery's current filter and sort so the overlay can compute
+ * the right neighbours. Same param scheme `galleryHref` already has its own
+ * tests for; this only checks the path swap and that the params round-trip.
+ */
+describe("animalPageHref", () => {
+  const ANIMAL_ID = "33333333-3333-4333-8333-333333333333" as AnimalId;
+
+  it("is the bare animal path with no filters, sort or city", () => {
+    expect(animalPageHref(ANIMAL_ID, NO_FILTERS, "freshest", NO_CITIES)).toBe(
+      `/tvaryny/${ANIMAL_ID}`,
+    );
+  });
+
+  it("carries the species filter and a non-default sort", () => {
+    const href = animalPageHref(
+      ANIMAL_ID,
+      { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } },
+      "longest_waiting",
+      NO_CITIES,
+    );
+    const url = new URL(href, "http://x");
+    expect(url.pathname).toBe(`/tvaryny/${ANIMAL_ID}`);
+    expect(url.searchParams.get("vyd")).toBe("dog");
+    expect(url.searchParams.get("sort")).toBe("longest_waiting");
+  });
+});
+
+/**
+ * Pet card PR 5, his exact template (2026-10-27): "«Показати схожих
+ * {котів|собак}: {значення}», with no quotes around the value. The value is
+ * lowercase and uses the filter form: plural for temperament, «руде
+ * забарвлення» for colour, and the existing age/size/coat labels in
+ * lowercase." Each case below is transcribed from that instruction, not
+ * derived - a mutation that silently swapped which word-source a dimension
+ * reads from (e.g. the temperament *singular* sex-matched word instead of
+ * the plural) would still produce *a* plausible-looking sentence, so this
+ * pins the exact text per dimension rather than a shape check.
+ */
+describe("similarAnimalsLabel", () => {
+  it("colour: his own example, exactly", () => {
+    expect(similarAnimalsLabel("cat", { dimension: "colours", value: "ginger" })).toBe(
+      "Показати схожих котів: руде забарвлення",
+    );
+  });
+
+  it("temperament: the plural form, lowercased - not the chip's own sex-matched singular", () => {
+    expect(similarAnimalsLabel("dog", { dimension: "temperaments", value: "good_with_kids" })).toBe(
+      "Показати схожих собак: ладнають з дітьми",
+    );
+  });
+
+  it("age/size/coat length: the existing filter labels, lowercased", () => {
+    expect(similarAnimalsLabel("cat", { dimension: "ages", value: "baby" })).toBe(
+      "Показати схожих котів: малюк",
+    );
+    expect(similarAnimalsLabel("dog", { dimension: "sizes", value: "large" })).toBe(
+      "Показати схожих собак: великий",
+    );
+    expect(similarAnimalsLabel("cat", { dimension: "coatLengths", value: "short" })).toBe(
+      "Показати схожих котів: короткошерсті",
+    );
+  });
+
+  it("mutation proof: a dog chip never says «котів» and a cat chip never says «собак»", () => {
+    expect(similarAnimalsLabel("dog", { dimension: "ages", value: "adult" })).not.toContain(
+      "котів",
+    );
+    expect(similarAnimalsLabel("cat", { dimension: "ages", value: "adult" })).not.toContain(
+      "собак",
+    );
+  });
+});
+
+/** `similarAnimalsLabel`'s own value source, exported separately because the panel's visible
+ * chip text reuses it directly for every dimension except temperament (which the panel shows
+ * in its sex-matched singular form instead - `temperamentLabelFor`, not this function). */
+describe("chipDisplayLabel", () => {
+  it("colour is the chip template, capitalised - the same text the «Про мене» chip itself shows", () => {
+    expect(chipDisplayLabel({ dimension: "colours", value: "ginger" })).toBe("Руде забарвлення");
+  });
+
+  it("age/size/coat length are the filter dropdown's own labels", () => {
+    expect(chipDisplayLabel({ dimension: "ages", value: "senior" })).toBe("Літній");
+    expect(chipDisplayLabel({ dimension: "sizes", value: "medium" })).toBe("Середній");
+    expect(chipDisplayLabel({ dimension: "coatLengths", value: "long" })).toBe("Довгошерсті");
   });
 });

@@ -39,7 +39,7 @@ test.describe("/tvaryny fur filter", () => {
    * path at phone width (the sheet is the gallery's sole filter UI below
    * `desktop:`).
    */
-  test("«Довгошерсті» narrows the list, writes `sherst=long`, and a listed animal's page says «Довга»", async ({
+  test("«Довгошерсті» narrows the list, writes `sherst=long`, and a listed animal's page shows a «Довгошерсті» chip", async ({
     page,
   }) => {
     await openRoute(page, "/tvaryny", PHONE, { readySelector: CARD });
@@ -57,9 +57,12 @@ test.describe("/tvaryny fur filter", () => {
     expect(longHaired).toBeGreaterThan(0);
     expect(longHaired).toBeLessThan(everyone);
 
+    // Pet card PR 5: coat length moved from a "Шерсть: Довга" fact row
+    // (`CoatFact`, deleted) into a filterable «Про мене» chip, the filter
+    // dropdown's own plural word - the same text this very filter just used.
     await page.locator(CARD).first().click();
-    await expect(page.getByRole("term")).toHaveText("Шерсть:");
-    await expect(page.getByRole("definition")).toHaveText("Довга");
+    const overlay = page.getByRole("dialog");
+    await expect(overlay.getByText("Довгошерсті", { exact: true })).toBeVisible();
   });
 
   test("no match because of fur offers «Будь-яка шерсть: +N», and following it shows N", async ({

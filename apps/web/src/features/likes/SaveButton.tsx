@@ -3,7 +3,7 @@
 import type { AnimalId } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useEffect, useState } from "react";
-import { buttonClass } from "../controls/controls";
+import { CircleButton } from "../animal-detail/CircleButton";
 import {
   isAnimalSaved,
   MAX_LIKES,
@@ -26,6 +26,11 @@ interface SaveButtonProps {
  * rendering, and reading it during the client's first render (before hydration) would mismatch
  * what the server sent. The button renders unsaved until that effect runs, which is correct -
  * nothing about `isAnimalSaved` is knowable before then.
+ *
+ * Pet card PR 5: restyled off `buttonClass("icon")` (the old `rg-*` boxed-fill look, a visible
+ * leftover from the previous design) onto `CircleButton`, the same white-circle shape the
+ * overlay's close button and the photo slider's prev/next already use - one consistent button
+ * language for the panel instead of one surface in the old system.
  */
 export function SaveButton({ animalId, animalName }: SaveButtonProps) {
   const [saved, setSaved] = useState(false);
@@ -55,16 +60,16 @@ export function SaveButton({ animalId, animalName }: SaveButtonProps) {
 
   return (
     <>
-      <button
-        type="button"
+      <CircleButton
+        size="sm"
         onClick={toggle}
         aria-pressed={saved}
         aria-label={saved ? uk.likes.saved : uk.likes.save}
         data-testid="save-button"
-        className={buttonClass("icon")}
+        className="text-brand-ink"
       >
         <BookmarkIcon filled={saved} />
-      </button>
+      </CircleButton>
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>

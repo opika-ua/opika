@@ -18,6 +18,7 @@ import {
   declaredAtOfCalendarDate,
   instantOfCalendarDate,
   isAgeEstimateUncertain,
+  MEDICAL_NOTES_MAX_CHARACTERS,
   type MedicalState,
   SIZE_BUCKETS,
   type SizeBucket,
@@ -78,6 +79,10 @@ const problemText = (
     case "descriptionTooLong":
       return fillTemplate(t.validation.descriptionTooLong, {
         max: integer.format(ANIMAL_DESCRIPTION_MAX_CHARACTERS),
+      });
+    case "medicalNotesTooLong":
+      return fillTemplate(t.validation.medicalNotesTooLong, {
+        max: integer.format(MEDICAL_NOTES_MAX_CHARACTERS),
       });
     case "requiredOnceListed":
       return t.errors.requiredOnceListed;
@@ -437,6 +442,42 @@ export function DescriptionSection({ values, set, problems, disabled }: SectionP
           </>
         }
         onChange={(event) => set({ description: event.currentTarget.value })}
+      />
+    </section>
+  );
+}
+
+/**
+ * «Медичний стан» on the public pet card (pet card PR 5, A3) - a free-text
+ * note distinct from the structured vaccination/spay-neuter facts
+ * (`HealthSection` above), which stay exactly as they were and still feed
+ * the «Про мене» chip row on the public page, not this field. Mirrors
+ * `DescriptionSection` above field for field: optional (no
+ * `requiredOnceListed`-equivalent problem - A3 says never required to
+ * publish), reuses the description's own character cap
+ * (`MEDICAL_NOTES_MAX_CHARACTERS === ANIMAL_DESCRIPTION_MAX_CHARACTERS`,
+ * `packages/domain/src/animals/animal.ts`'s own comment on that constant).
+ * His own two strings (title, hint), given directly, 2026-10-27.
+ */
+export function MedicalNotesSection({ values, set, problems, disabled }: SectionProps) {
+  return (
+    <section aria-labelledby="medical-notes-title" className={CARD}>
+      <h2 id="medical-notes-title" className={CARD_TITLE}>
+        {t.medicalNotes.title}
+      </h2>
+      <TextAreaField
+        id="animal-medical-notes"
+        label={t.medicalNotes.title}
+        value={values.medicalNotes}
+        error={problemText(problems, "medicalNotes")}
+        disabled={disabled}
+        hint={
+          <>
+            <span>{t.medicalNotes.hint}</span>
+            <CharacterCounter text={values.medicalNotes} max={MEDICAL_NOTES_MAX_CHARACTERS} />
+          </>
+        }
+        onChange={(event) => set({ medicalNotes: event.currentTarget.value })}
       />
     </section>
   );

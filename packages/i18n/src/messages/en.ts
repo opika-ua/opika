@@ -138,12 +138,9 @@ export const en = {
 
   // --- Location ---
   location: {
-    heading: "Where they live",
     /** Template: "Living with a volunteer in {city}..." */
     fostered:
       "Living with a volunteer in {city}. We don't know the exact address and won't invent one.",
-    noMapExplanation:
-      "There's no map here: we don't know the exact address, and we won't make one up. You'll agree on a meeting place with the shelter.",
     lineFostered: "{city} · living with a volunteer",
     lineAtShelter: "{city}",
   },
@@ -160,16 +157,11 @@ export const en = {
     shelterVerifiedYears: "Manually verified · on the site since {year}",
     donateShelter: "Support the shelter",
     shelterRowLink: "The shelter's page: «{name}»",
-    /** Template: "← All animals in {city}" */
-    backToListIn: "← All animals in {city}",
     speciesDog: "Dog",
     speciesCat: "Cat",
     /** English has no sex-specific noun the way `speciesWordFor` needs for Ukrainian - both reuse the plain word. */
     speciesDogMale: "Dog",
     speciesCatFemale: "Cat",
-    coatLabel: "Fur",
-    coatShort: "Short",
-    coatLong: "Long",
     notFound: {
       eyebrow: "NOT FOUND",
       title: "This listing is gone.",
@@ -178,8 +170,19 @@ export const en = {
     },
     rateLimited: "Too many requests. Please try again later.",
     photoGalleryLabel: "Animal photos",
-    photoGalleryDot: "Photo {n}",
-    photoGalleryThumbnail: "View photo {n}",
+    photoNext: "Next photo",
+    photoPrev: "Previous photo",
+    prev: "Previous",
+    next: "Next",
+    giveHome: "Give a home",
+    share: "Share",
+    shareCopied: "Link copied.",
+    aboutMeHeading: "About me",
+    myStoryHeading: "My story",
+    medicalHeading: "Medical",
+    chipLinkName: "Show similar {species}: {value}",
+    chipSpeciesCat: "cats",
+    chipSpeciesDog: "dogs",
   },
 
   // --- The gallery's animal overlay ---
@@ -786,6 +789,10 @@ export const en = {
         registryReadOnly:
           "Confirmed by the state animal registry. This line can't be changed here.",
       },
+      medicalNotes: {
+        title: "Anything else worth knowing about their health",
+        hint: "Optional. People looking for an animal will see this text under «Medical».",
+      },
       photos: {
         title: "Photos",
         ratioNote: "4:5 format; the first photo is the cover.",
@@ -875,6 +882,7 @@ export const en = {
         nameBrace: "A name can't contain curly braces.",
         nameTooLong: "The name is longer than {max} characters.",
         descriptionTooLong: "The description is longer than {max} characters.",
+        medicalNotesTooLong: "The health note is longer than {max} characters.",
         birthDateFuture: "The birth date can't be in the future.",
         asOfFuture: "The «As of» date can't be in the future.",
         dateTooOld: "That date is too far back: more than {years} years ago.",

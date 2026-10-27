@@ -26,7 +26,6 @@
  */
 
 import { citySlugOf } from "@opika/domain";
-import { uk } from "@opika/i18n";
 import { expect, test } from "@playwright/test";
 import { expectReachableByTab, openRoute } from "./harness";
 import { DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
@@ -117,89 +116,36 @@ async function openFirstAnimalDetail(
 }
 
 test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
-  test("360 – name, photo, action row, and both back links are real and visible", async ({
-    page,
-  }) => {
+  test("360 – name, photo, reveal trigger are real and visible", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_PHONE);
 
     await expect(page.getByTestId("animal-name")).toBeVisible();
-    await expect(page.getByTestId("detail-photo")).toBeVisible();
-    await expect(page.getByTestId("not-now-button")).toBeVisible();
+    await expect(page.getByTestId("detail-photo").first()).toBeVisible();
     await expect(page.getByTestId("reveal-trigger")).toBeVisible();
-
-    const mobileBack = page.getByTestId("back-to-list");
-    const desktopBack = page.getByTestId("back-to-list-desktop");
-    await expect(mobileBack, "the mobile back link is the visible one at 360").toBeVisible();
-    await expect(
-      desktopBack,
-      "the desktop back link should have no bounding box (display:none) at 360",
-    ).toBeHidden();
   });
 
-  test("1920 – desktop back link, sticky photo column, and thumbnails are real and visible", async ({
-    page,
-  }) => {
+  /**
+   * Pet card PR 5 (owner decision B) removed the full page's own back-link
+   * row entirely ("whoever lands here didn't come from the gallery") - the
+   * O-12 city-claim test this block used to carry (`back-to-list-desktop`'s
+   * own "← Усі тварини у {city}" text/href cross-check) has no link left to
+   * check. What replaces it: the header's shelter row now prints the bare
+   * city name as plain text (owner decision 6, no link, no href to get
+   * wrong), so what's left to verify is only that it's a real, known seeded
+   * city's name, not empty or a placeholder.
+   */
+  test("1920 – the shelter row names a real seeded city", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
 
     await expect(page.getByTestId("animal-name")).toBeVisible();
-    await expect(page.getByTestId("detail-photo")).toBeVisible();
+    await expect(page.getByTestId("detail-photo").first()).toBeVisible();
 
-    const mobileBack = page.getByTestId("back-to-list");
-    const desktopBack = page.getByTestId("back-to-list-desktop");
-    await expect(desktopBack, "the desktop back link is the visible one at 1920").toBeVisible();
-    await expect(
-      mobileBack,
-      "the mobile back link should have no bounding box (display:none) at 1920",
-    ).toBeHidden();
-
-    /**
-     * O-12 (`docs/observations.md`): «← Усі тварини у {city}» has to
-     * actually claim a real city, not the unfiltered gallery - the link's
-     * own text is the claim being checked. Folded into this existing test
-     * (rather than a standalone one) to add zero extra page loads:
-     * `gallery-filters.harness.ts` already proves a `?misto=` link
-     * genuinely narrows the gallery it lands on, so what's left to check
-     * here is that this href is built at all (not the bare `/tvaryny` the
-     * bug produced) and names *this animal's own* city, not a placeholder.
-     *
-     * A membership check against the known seeded slugs alone does not
-     * prove that - every seeded slug is equally "real," so a mutation that
-     * resolves the *wrong* city consistently (e.g. always Kyiv, for every
-     * animal) still produces a value that passes a bare "is this a real
-     * slug" assertion. The fix cross-checks two independently computed
-     * fields instead - `backToListIn`'s own visible city name (from
-     * `AnimalDetailScreen`'s `cityName` prop) and the href's `misto` slug
-     * (from its separate `backToGalleryHref` prop) - which catches the two
-     * fields disagreeing (one derivation swapped onto a different city than
-     * the other). It does **not** catch both being wrong the *same* way -
-     * a consistently-wrong `city` lookup in `page.tsx` that both props are
-     * built from would still make the two sides agree. Proving "the right
-     * one, not just a consistent one" needs an oracle outside this page
-     * (the real seeded corpus's actual per-animal city assignment), which
-     * costs a database read this harness test doesn't have - a real,
-     * accepted gap, not something the assertion below overclaims to close.
-     */
-    const linkText = await desktopBack.textContent();
-    const prefix = uk.detail.backToListIn.replace("{city}", "");
-    expect(linkText?.startsWith(prefix), `"${linkText}" should start with "${prefix}"`).toBe(true);
-    const visibleCityName = (linkText ?? "").slice(prefix.length).trim();
+    const cityText = await page.getByTestId("shelter-city").textContent();
+    expect(cityText?.trim().length ?? 0, "a real city name is shown").toBeGreaterThan(0);
     expect(
-      visibleCityName.length,
-      "a real city name must remain after stripping the template",
-    ).toBeGreaterThan(0);
-
-    const href = await desktopBack.getAttribute("href");
-    const url = new URL(href ?? "", "http://x");
-    expect(url.pathname).toBe("/tvaryny");
-    const citySlug = url.searchParams.get("misto");
-    expect(
-      citySlug,
-      "O-12: the link claims a city, so the href must actually carry one",
-    ).not.toBeNull();
-    expect(
-      citySlug,
-      `the href's city ("${citySlug}") must match the link's own visible city ("${visibleCityName}")`,
-    ).toBe(expectedSlugFor(visibleCityName));
+      () => expectedSlugFor(cityText?.trim() ?? ""),
+      `"${cityText}" is a known seeded city`,
+    ).not.toThrow();
   });
 
   test("clicking a gallery card actually reaches a real animal, not a 404", async ({ page }) => {
@@ -229,14 +175,6 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
 });
 
 test.describe("/tvaryny/[animalId] keyboard reachability", () => {
-  test("the back-to-list link is reachable by Tab", async ({ page }) => {
-    await openFirstAnimalDetail(page, DETAIL_PHONE);
-    await expectReachableByTab(page, {
-      label: "back-to-list link",
-      locator: page.getByTestId("back-to-list"),
-    });
-  });
-
   test("the reveal trigger is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
     await expectReachableByTab(page, {
@@ -245,19 +183,22 @@ test.describe("/tvaryny/[animalId] keyboard reachability", () => {
     });
   });
 
-  test("the back-to-list-desktop link is reachable by Tab", async ({ page }) => {
+  /** Pet card PR 5, owner decision 8: "every interactive element gets a hit area of at least
+   * 48px (the prev/next labels, the close button, the slider buttons, the chip links)" and
+   * "filterable chips are <Link>s" - this is their own keyboard-reachability coverage. */
+  test("the share button is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
     await expectReachableByTab(page, {
-      label: "back-to-list-desktop link",
-      locator: page.getByTestId("back-to-list-desktop"),
+      label: "share button",
+      locator: page.getByTestId("share-button"),
     });
   });
 
-  test("the not-now link is reachable by Tab", async ({ page }) => {
+  test("a filterable chip link is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
     await expectReachableByTab(page, {
-      label: "not-now-button link",
-      locator: page.getByTestId("not-now-button"),
+      label: "a «Показати схожих» chip link",
+      locator: page.getByRole("link", { name: /Показати схожих/ }).first(),
     });
   });
 

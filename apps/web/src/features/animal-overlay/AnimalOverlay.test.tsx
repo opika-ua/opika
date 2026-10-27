@@ -19,7 +19,7 @@ import { mockAppRouter, WithMockRouter } from "../gallery/test-router";
  * loader stubbed. Oleksii, 2026-10-21, verbatim: "One component: the gallery
  * opens the same AnimalDetailScreen in an overlay." and, for the stacked
  * dialogs: "with the reveal open over the overlay, the first Escape closes
- * only the reveal, and focus returns to «Написати притулку» inside the
+ * only the reveal, and focus returns to «Дати сімʼю» inside the
  * overlay. The second Escape closes the overlay, and focus returns to the
  * gallery card it came from." What a real browser does with the URL and
  * history is `gallery-animal-overlay.harness.ts`'s.
@@ -64,7 +64,7 @@ function GalleryCard() {
 async function openOverlay() {
   const router = mockAppRouter();
   const { client } = stubAnimalPageClient();
-  const overlay = await renderAnimalOverlay(ANIMAL_ID, client);
+  const overlay = await renderAnimalOverlay(ANIMAL_ID, {}, client);
   const card = render(
     <WithMockRouter router={router}>
       <GalleryCard />
@@ -77,7 +77,7 @@ async function openOverlay() {
 }
 
 async function openReveal(dialog: HTMLElement) {
-  fireEvent.click(within(dialog).getByRole("button", { name: "Написати притулку" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Дати сімʼю" }));
   return screen.findByTestId("reveal-dialog");
 }
 
@@ -97,26 +97,29 @@ describe("the gallery's animal overlay", () => {
     expect(dialog.contains(document.activeElement)).toBe(true);
   });
 
-  it("shows what the animal page shows: the shelter, «Написати притулку», the donation link, fur, photos, freshness", async () => {
+  it("shows what the animal page shows: the shelter, «Дати сімʼю», the donation link, fur, photos, freshness", async () => {
     const { dialog } = await openOverlay();
     const inside = within(dialog);
     expect(inside.getByRole("heading", { level: 1, name: "Мурчик" })).toBeTruthy();
     expect(inside.getAllByText("Тестовий притулок «Домівка»").length).toBeGreaterThan(0);
-    expect(inside.getByRole("button", { name: "Написати притулку" })).toBeTruthy();
+    expect(inside.getByRole("button", { name: "Дати сімʼю" })).toBeTruthy();
     expect(inside.getByRole("link", { name: /Підтримати притулок/ }).getAttribute("href")).toBe(
       "https://pay.example.org/domivka",
     );
-    expect(inside.getByText("Довга")).toBeTruthy();
-    expect(inside.getByRole("button", { name: "Переглянути фото 2" })).toBeTruthy();
+    // Pet card PR 5: coat length moved from the old "Шерсть: Довга" fur fact
+    // (`CoatFact`, deleted) into a chip using the filter dropdown's own
+    // plural word.
+    expect(inside.getByText("Довгошерсті")).toBeTruthy();
+    // Two photos (the fixture's `a.jpg`/`b.jpg`) means the slider's own
+    // "next" button renders (`DetailPhotoGallery.tsx`: hidden entirely for
+    // a single photo).
+    expect(inside.getByRole("button", { name: "Наступне фото" })).toBeTruthy();
     expect(inside.getByText("Оновлено 5 днів тому")).toBeTruthy();
   });
 
-  it("batch A: no site header, no breadcrumb inside it - those stay on the full page only (review of 6825ffd, finding 3)", async () => {
+  it("no site header inside it - that stays on the full page only (batch A, review of 6825ffd, finding 3)", async () => {
     const { dialog } = await openOverlay();
-    const inside = within(dialog);
-    expect(inside.queryByTestId("site-header")).toBeNull();
-    expect(inside.queryByTestId("back-to-list")).toBeNull();
-    expect(inside.queryByTestId("back-to-list-desktop")).toBeNull();
+    expect(within(dialog).queryByTestId("site-header")).toBeNull();
   });
 
   it("has no «Відкрити повну сторінку»: the overlay is the page (his Q2)", async () => {
@@ -140,16 +143,14 @@ describe("the gallery's animal overlay", () => {
     expect(document.body.style.overflow).toBe("");
   });
 
-  it("with the reveal open, the first Escape closes only the reveal and focus goes to «Написати притулку»; the second closes the overlay", async () => {
+  it("with the reveal open, the first Escape closes only the reveal and focus goes to «Дати сімʼю»; the second closes the overlay", async () => {
     const { router, dialog } = await openOverlay();
     await openReveal(dialog);
 
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(screen.queryByTestId("reveal-dialog")).toBeNull());
     expect(router.back, "the overlay stays open").not.toHaveBeenCalled();
-    expect(document.activeElement).toBe(
-      within(dialog).getByRole("button", { name: "Написати притулку" }),
-    );
+    expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Дати сімʼю" }));
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(router.back).toHaveBeenCalledTimes(1);
@@ -180,7 +181,7 @@ describe("the gallery's animal overlay", () => {
 describe("the reveal from the overlay and from the page", () => {
   async function revealCallsFrom(surface: ReactNode) {
     const { unmount } = render(<WithMockRouter>{surface}</WithMockRouter>);
-    fireEvent.click(screen.getByRole("button", { name: "Написати притулку" }));
+    fireEvent.click(screen.getByRole("button", { name: "Дати сімʼю" }));
     await screen.findByTestId("reveal-dialog");
     unmount();
     const calls = { bootstrap: bootstrap.mock.calls, reveal: reveal.mock.calls };
@@ -192,13 +193,12 @@ describe("the reveal from the overlay and from the page", () => {
 
   it("is one `animals.reveal` request with the same input, either way", async () => {
     const { client } = stubAnimalPageClient();
-    const fromOverlay = await revealCallsFrom(await renderAnimalOverlay(ANIMAL_ID, client));
+    const fromOverlay = await revealCallsFrom(await renderAnimalOverlay(ANIMAL_ID, {}, client));
     const fromPage = await revealCallsFrom(
       <AnimalDetailScreen
         animal={makeDetailAnimal()}
         shelter={makeDetailShelter()}
         cityName="Бровари"
-        backToGalleryHref="/tvaryny?misto=brovary"
       />,
     );
 
