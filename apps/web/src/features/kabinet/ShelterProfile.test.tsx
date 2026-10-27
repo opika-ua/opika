@@ -37,6 +37,7 @@ const view = (overrides: Partial<KabinetShelterView> = {}): KabinetShelterView =
   donation: null,
   pendingDonation: null,
   freshnessSentence: null,
+  logo: null,
   version: 3,
   verification: { status: "verified", since: new Date("2025-03-14T10:00:00Z") },
   ...overrides,

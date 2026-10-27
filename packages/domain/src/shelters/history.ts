@@ -13,6 +13,7 @@ import { ShelterContactSchema } from "./contact";
 import { DonationLinkSchema } from "./donation";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
+import { ShelterLogoSchema } from "./logo";
 import { FreshnessSentenceSchema } from "./shelter";
 import { VerificationEventSchema } from "./verification/events";
 import { VerificationStatusSchema } from "./verification/state";
@@ -132,6 +133,26 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     actor: ShelterActorSchema,
     previous: LocalizedTextSchema,
     next: LocalizedTextSchema,
+  }),
+  /**
+   * The shelter's own logo, set or cleared (pet card PR 3b). Same shape as
+   * `contact_changed`/`description_changed`: an immediate, audited edit, no
+   * approval step - a logo is the shelter's own mark, not a verified fact.
+   *
+   * Durable, but deliberately NOT a reference `r2-cleanup-repo.ts`'s
+   * `referencedStorageKeys` counts - the same reasoning as
+   * `contact-reveal.ts`'s `primaryPhoto`: no history-list rendering shows a
+   * past logo image (this entry's own `uk` copy is text-only, "changed its
+   * logo"), so an old `previous`/`next` value sitting here forever doesn't
+   * keep its object alive past the grace period once nothing else points
+   * at it.
+   */
+  z.object({
+    kind: z.literal("logo_changed"),
+    at: z.date(),
+    actor: ShelterActorSchema,
+    previous: ShelterLogoSchema.nullable(),
+    next: ShelterLogoSchema.nullable(),
   }),
   z.object({
     kind: z.literal("donation_proposed"),
@@ -303,6 +324,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "contact_changed":
     case "freshness_sentence_changed":
     case "description_changed":
+    case "logo_changed":
     case "donation_proposed":
     case "donation_proposal_cancelled":
     case "donation_decided":

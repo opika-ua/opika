@@ -36,7 +36,9 @@ import {
   profileGet,
   profilePause,
   profileProposeDonation,
+  profileRemoveLogo,
   profileResume,
+  profileSetLogo,
   profileUpdateContact,
   profileUpdateFreshnessSentence,
   verificationRequestReview,
@@ -202,6 +204,14 @@ export const shelterKabinetRouter = guarded.router({
       ),
       remove: guarded.shelter.photos.remove.handler(({ context, input, errors }) =>
         photosRemove(context, writeScope(context.access), input, errors),
+      ),
+    },
+    logo: {
+      set: guarded.shelter.logo.set.handler(({ context, input, errors }) =>
+        profileSetLogo(context, writeScope(context.access), input, errors),
+      ),
+      remove: guarded.shelter.logo.remove.handler(({ context }) =>
+        profileRemoveLogo(context, writeScope(context.access)),
       ),
     },
   },

@@ -201,6 +201,8 @@ function lineOf(
       return { text: t.freshness_sentence_changed, actor: actorOf(entry.actor, people) };
     case "description_changed":
       return { text: t.description_changed, actor: actorOf(entry.actor, people) };
+    case "logo_changed":
+      return { text: t.logo_changed, actor: actorOf(entry.actor, people) };
     case "donation_proposed":
       return {
         text: fillTemplate(t.donation_proposed, { host: donationHost(entry.link) }),

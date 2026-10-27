@@ -33,16 +33,36 @@ const kabinetProfileBrowserContract = {
       pause: shelterKabinetContract.shelter.profile.pause,
       resume: shelterKabinetContract.shelter.profile.resume,
     },
+    logo: {
+      set: shelterKabinetContract.shelter.logo.set,
+      remove: shelterKabinetContract.shelter.logo.remove,
+    },
   },
 } as const;
 
-export type KabinetProfileClient = ContractRouterClient<typeof kabinetProfileBrowserContract>;
+/** Per call: a logo upload passes `onUploadProgress` and travels over `XMLHttpRequest` (`xhrFetch`), the same shape `KabinetAnimalClientContext` gives the animal form's own upload calls; every other profile call uses plain `fetch`. */
+export type KabinetProfileClientContext = {
+  onUploadProgress?: (progress: UploadProgress) => void;
+};
+
+export type KabinetProfileClient = ContractRouterClient<
+  typeof kabinetProfileBrowserContract,
+  KabinetProfileClientContext
+>;
 
 const link = new RPCLink<Record<never, never>>({
   url: () => `${window.location.origin}/api/kabinet`,
 });
 
-export const kabinetProfileBrowserClient: KabinetProfileClient = createORPCClient(link);
+const profileLink = new RPCLink<KabinetProfileClientContext>({
+  url: () => `${window.location.origin}/api/kabinet`,
+  fetch: (request, init, options) => {
+    const onProgress = options.context.onUploadProgress;
+    return onProgress === undefined ? fetch(request, init) : xhrFetch(request, onProgress);
+  },
+});
+
+export const kabinetProfileBrowserClient: KabinetProfileClient = createORPCClient(profileLink);
 
 /**
  * What K3's animal form (`/kabinet/tvaryny/*`) may call from the browser,

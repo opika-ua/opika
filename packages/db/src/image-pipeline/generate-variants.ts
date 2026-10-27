@@ -1,6 +1,5 @@
 import sharp, { type SharpOptions } from "sharp";
 import { displayedDimensions } from "./resolve-local-photo";
-import { IMAGE_VARIANT_NAMES, IMAGE_VARIANTS, type ImageVariantName } from "./variants";
 
 type Size = { width: number; height: number };
 
@@ -53,11 +52,19 @@ export function attentionCropBox(source: Size, variant: Size): Size {
  *
  * `input` passes decoder limits through (`limitInputPixels` for uploads) to
  * every sharp instance here.
+ *
+ * Generic over the variant set (pet card PR 3b): the attention-crop and
+ * progressive-resize logic below has nothing animal-photo-specific about
+ * it - a logo's `LOGO_VARIANTS` (square, two sizes) runs through exactly
+ * the same pipeline as `IMAGE_VARIANTS` (4:5, three sizes), since
+ * `attentionCropBox`'s crop shape comes entirely from the variant map's own
+ * `{width, height}` entries, never from a hardcoded aspect ratio.
  */
-export async function generateVariants(
+export async function generateVariants<T extends Record<string, Size>>(
+  variants: T,
   source: Buffer,
   input: Pick<SharpOptions, "limitInputPixels"> = {},
-): Promise<Record<ImageVariantName, Buffer>> {
+): Promise<Record<keyof T, Buffer>> {
   const header = await sharp(source, input).metadata();
   if (!header.width || !header.height) throw new Error("The source has no dimensions");
   const displayed = displayedDimensions({
@@ -66,8 +73,7 @@ export async function generateVariants(
     orientation: header.orientation,
   });
   const entries = await Promise.all(
-    IMAGE_VARIANT_NAMES.map(async (name) => {
-      const variant = IMAGE_VARIANTS[name];
+    (Object.entries(variants) as [keyof T, Size][]).map(async ([name, variant]) => {
       const crop = attentionCropBox(displayed, variant);
       const cropped = sharp(source, input)
         // `.rotate()` with no argument applies the file's own EXIF
@@ -97,5 +103,5 @@ export async function generateVariants(
       return [name, buffer] as const;
     }),
   );
-  return Object.fromEntries(entries) as Record<ImageVariantName, Buffer>;
+  return Object.fromEntries(entries) as Record<keyof T, Buffer>;
 }

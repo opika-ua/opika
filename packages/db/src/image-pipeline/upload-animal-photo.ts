@@ -5,6 +5,7 @@ import type { ImageStorageClient } from "./r2-client";
 import {
   animalPhotoStorageKeyFor,
   IMAGE_VARIANT_NAMES,
+  IMAGE_VARIANTS,
   type ImageVariantName,
   variantObjectKey,
 } from "./variants";
@@ -39,7 +40,7 @@ export async function uploadAnimalPhoto(
   dimensions: { width: number; height: number },
 ): Promise<AnimalPhoto> {
   const storageKey = animalPhotoStorageKeyFor(animalId, photoId);
-  const variants = await generateVariants(readFileSync(resolvedPath));
+  const variants = await generateVariants(IMAGE_VARIANTS, readFileSync(resolvedPath));
   await storePhotoVariants(r2, storageKey, variants);
   return { storageKey, width: dimensions.width, height: dimensions.height, alt: null };
 }

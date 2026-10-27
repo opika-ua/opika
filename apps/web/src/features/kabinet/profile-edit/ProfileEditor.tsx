@@ -9,6 +9,7 @@ import {
 import { LockedBlock } from "../ProfileParts";
 import { ContactsSection } from "./ContactsSection";
 import { DonationSection } from "./DonationSection";
+import { LogoSection } from "./LogoSection";
 import { PauseControl } from "./PauseControl";
 import { VoiceSection } from "./VoiceSection";
 import { runWrite } from "./write-result";
@@ -72,6 +73,12 @@ export function ProfileEditor({
           declined={donationDeclined}
           propose={(url) => write(() => profile.proposeDonation({ url }))}
           cancel={() => write(() => profile.cancelDonationProposal({}))}
+        />
+        <LogoSection
+          logo={view.logo}
+          displayName={view.displayName}
+          onView={setView}
+          client={client}
         />
       </div>
       <div className="flex min-w-0 flex-col gap-3 desktop:gap-4">

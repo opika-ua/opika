@@ -1611,6 +1611,28 @@ export const uk = {
         paused: "Прийом на паузі.",
         resumed: "Прийом відновлено. Ваших тварин знову видно.",
       },
+      /**
+       * Pet card PR 3b §C. Shipped as the builder's own draft (not
+       * `[COPY PENDING]` - no `kabinet.*` string may be, since PR 6:
+       * `copy-status.test.ts`), flagged for Oleksii's confirm-or-replace.
+       * The compression-stage refusals (HEIC, unreadable, too large) reuse
+       * `kabinet.animalForm.photoErrors`'s own three, since they describe the
+       * same device-side step for the same reason; only the upload-stage
+       * outcomes below are new, written for a logo rather than a photo.
+       */
+      logo: {
+        title: "Логотип притулку",
+        change: "Змінити логотип",
+        remove: "Прибрати логотип",
+        uploading: "Завантаження…",
+        updated: "Логотип оновлено.",
+        removed: "Логотип прибрано.",
+        removeFailed: "Не вдалося прибрати логотип. Перевірте зʼєднання і спробуйте ще раз.",
+        rejected: "Сайт не може використати цей файл як логотип.",
+        rateLimited: "Забагато спроб за короткий час. Спробуйте трохи пізніше.",
+        uploadsUnavailable: "На цій версії сайту логотип завантажити не можна.",
+        failed: "Не завантажилось. Перевірте зʼєднання і спробуйте ще раз.",
+      },
     },
     /**
      * The five listing states as K3's header chip and K2's rows name them
@@ -2382,6 +2404,13 @@ export const uk = {
         contact_changed: "Змінено контакти",
         freshness_sentence_changed: "Змінено речення на сторінці притулку",
         description_changed: "Змінено опис притулку",
+        /**
+         * Pet card PR 3b. Shipped as the builder's own draft (not
+         * `[COPY PENDING]` - no `kabinet.*` string may be, since PR 6:
+         * `copy-status.test.ts`), same pattern as the other `*_changed`
+         * lines above it. Flagged for Oleksii's confirm-or-replace.
+         */
+        logo_changed: "Змінено логотип притулку",
         donation_proposed: "Запропоновано посилання на збір: {host}",
         donation_proposal_cancelled: "Пропозицію посилання скасовано",
         donation_approved: "Посилання на збір схвалено",

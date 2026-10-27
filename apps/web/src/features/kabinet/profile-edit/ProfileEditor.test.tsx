@@ -42,6 +42,7 @@ const baseView = (overrides: Partial<KabinetShelterView> = {}): KabinetShelterVi
     uk: "Оновлюємо картки щосуботи.",
     en: { text: "We update the cards every Saturday.", provenance: "human" },
   },
+  logo: null,
   version: 3,
   verification: { status: "verified", since: new Date("2025-03-14T10:00:00Z") },
   ...overrides,

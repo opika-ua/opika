@@ -130,8 +130,8 @@ async function snapshot() {
 }
 
 describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
-  it("finds the sixteen shelter writes, confirm, update and the photo writes among them", () => {
-    expect(shelterWrites).toHaveLength(16);
+  it("finds the eighteen shelter writes, confirm, update, the photo writes and the logo writes among them", () => {
+    expect(shelterWrites).toHaveLength(18);
     expect(shelterWrites).toEqual(
       expect.arrayContaining([
         "shelter.animals.confirm",
@@ -139,6 +139,8 @@ describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
         "shelter.photos.add",
         "shelter.photos.reorder",
         "shelter.photos.remove",
+        "shelter.logo.set",
+        "shelter.logo.remove",
         "shelter.profile.updateContact",
         "shelter.verification.requestReview",
       ]),

@@ -133,6 +133,7 @@ describe("kabinetHomeOf", () => {
       "freshnessSentence",
       "id",
       "legalEntity",
+      "logo",
       "pendingDonation",
       "verification",
       "version",

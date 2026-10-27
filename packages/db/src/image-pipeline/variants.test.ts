@@ -4,9 +4,11 @@ import {
   animalPhotoStorageKeyFor,
   IMAGE_VARIANTS,
   isRealPhotoKey,
+  LOGO_VARIANTS,
   nearestVariant,
   r2EndpointUrl,
   r2PublicUrl,
+  shelterLogoStorageKeyFor,
   storageKeyFromObjectKey,
   variantObjectKey,
 } from "./variants";
@@ -15,23 +17,30 @@ const ANIMAL_ID = AnimalIdSchema.parse("a0000000-0000-4000-8000-000000000000");
 
 describe("nearestVariant", () => {
   it("picks thumb for anything at or below 176", () => {
-    expect(nearestVariant(88)).toBe("thumb");
-    expect(nearestVariant(176)).toBe("thumb");
+    expect(nearestVariant(IMAGE_VARIANTS, 88)).toBe("thumb");
+    expect(nearestVariant(IMAGE_VARIANTS, 176)).toBe("thumb");
   });
 
   it("picks card for the measured gallery/deck 2x range", () => {
-    expect(nearestVariant(177)).toBe("card");
-    expect(nearestVariant(624)).toBe("card");
-    expect(nearestVariant(640)).toBe("card");
+    expect(nearestVariant(IMAGE_VARIANTS, 177)).toBe("card");
+    expect(nearestVariant(IMAGE_VARIANTS, 624)).toBe("card");
+    expect(nearestVariant(IMAGE_VARIANTS, 640)).toBe("card");
   });
 
   it("picks detail for anything above card, up to and beyond the detail width", () => {
-    expect(nearestVariant(641)).toBe("detail");
-    expect(nearestVariant(1120)).toBe("detail");
+    expect(nearestVariant(IMAGE_VARIANTS, 641)).toBe("detail");
+    expect(nearestVariant(IMAGE_VARIANTS, 1120)).toBe("detail");
   });
 
   it("never upscales past detail - the largest variant is the ceiling", () => {
-    expect(nearestVariant(4000)).toBe("detail");
+    expect(nearestVariant(IMAGE_VARIANTS, 4000)).toBe("detail");
+  });
+
+  it("picks the logo's own small/large variants, generic over a different set (pet card PR 3b)", () => {
+    expect(nearestVariant(LOGO_VARIANTS, 40)).toBe("small");
+    expect(nearestVariant(LOGO_VARIANTS, 80)).toBe("small");
+    expect(nearestVariant(LOGO_VARIANTS, 81)).toBe("large");
+    expect(nearestVariant(LOGO_VARIANTS, 4000)).toBe("large");
   });
 });
 
@@ -49,6 +58,27 @@ describe("animalPhotoStorageKeyFor", () => {
     ["empty", ""],
   ])("refuses %s, so no key can be reused (P-Q13)", (_label, photoId) => {
     expect(() => animalPhotoStorageKeyFor(ANIMAL_ID, photoId)).toThrow(/fresh random/);
+  });
+});
+
+describe("shelterLogoStorageKeyFor", () => {
+  const SHELTER_ID = "51000000-0000-4000-8000-000000000001";
+
+  it("is shelters/{shelterId}/logo/{logoId} for a v4 UUID logo id (pet card PR 3b)", () => {
+    expect(
+      shelterLogoStorageKeyFor(SHELTER_ID as never, "b1000000-0000-4000-8000-000000000001"),
+    ).toBe(
+      "shelters/51000000-0000-4000-8000-000000000001/logo/b1000000-0000-4000-8000-000000000001",
+    );
+  });
+
+  it.each([
+    ["an array index", "0"],
+    ["a non-v4 UUID", "b1000000-0000-1000-8000-000000000001"],
+    ["a path segment", "../other"],
+    ["empty", ""],
+  ])("refuses %s, so no key can be reused", (_label, logoId) => {
+    expect(() => shelterLogoStorageKeyFor(SHELTER_ID as never, logoId)).toThrow(/fresh random/);
   });
 });
 
@@ -97,6 +127,18 @@ describe("isRealPhotoKey", () => {
     expect(isRealPhotoKey("/icon.svg")).toBe(false);
     expect(isRealPhotoKey("/_next/static/media/logo.png")).toBe(false);
   });
+
+  it("recognises a real logo key (pet card PR 3b), never the rest of a shelter's own path", () => {
+    expect(isRealPhotoKey("shelters/51000000-0000-4000-8000-000000000001/logo/0")).toBe(true);
+    // The exact probe shapes a Tier 1 review found this job must never treat
+    // as a real image (PR #220's STOP): verification evidence, a future
+    // cover photo elsewhere under the shelter's own path, a bare file.
+    expect(
+      isRealPhotoKey("shelters/51000000-0000-4000-8000-000000000001/evidence/statute.pdf"),
+    ).toBe(false);
+    expect(isRealPhotoKey("shelters/51000000-0000-4000-8000-000000000001/cover/0")).toBe(false);
+    expect(isRealPhotoKey("shelters/readme.txt")).toBe(false);
+  });
 });
 
 describe("r2PublicUrl", () => {
@@ -109,6 +151,12 @@ describe("r2PublicUrl", () => {
   it("does not double a trailing slash on the base url", () => {
     expect(r2PublicUrl("https://cdn.example.com/", "animals/x/0", "card")).toBe(
       "https://cdn.example.com/animals/x/0/card.webp",
+    );
+  });
+
+  it("derives a logo's own variant too (pet card PR 3b)", () => {
+    expect(r2PublicUrl("https://cdn.example.com", "shelters/s/logo/0", "small")).toBe(
+      "https://cdn.example.com/shelters/s/logo/0/small.webp",
     );
   });
 });

@@ -12,6 +12,7 @@ import {
   type ShelterHistoryEntry,
   type ShelterId,
   type ShelterLegalEntity,
+  type ShelterLogo,
   type ShelterVerification,
 } from "@opika/domain";
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
@@ -34,6 +35,8 @@ export type AuditedShelterChange =
   | { kind: "verification"; verification: ShelterVerification }
   | { kind: "description"; description: LocalizedText }
   | { kind: "legal_entity"; legalEntity: ShelterLegalEntity }
+  /** The shelter's own logo, set or cleared (pet card PR 3b). */
+  | { kind: "logo"; logo: ShelterLogo | null }
   /**
    * The premises moved (S4). The public location is recomputed by the caller
    * with the location policy and travels with the address, never apart from
@@ -75,6 +78,8 @@ function columnsOf(change: AuditedShelterChange) {
     }
     case "legal_entity":
       return { legalEntity: change.legalEntity };
+    case "logo":
+      return { logo: change.logo };
     case "exact_address":
       return {
         exactAddress: change.exactAddress,

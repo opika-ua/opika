@@ -91,7 +91,7 @@ const logOrphan = (storageKey: string) => console.error({ event: "photo_orphaned
  * cropping before enlarging, `attentionCropBox`); what it
  * produces after the budget is dropped, so it never reaches storage.
  */
-async function withinBudget<T>(
+export async function withinBudget<T>(
   work: Promise<T>,
   budgetMs: number,
 ): Promise<{ kind: "done"; value: T } | { kind: "over_budget" }> {

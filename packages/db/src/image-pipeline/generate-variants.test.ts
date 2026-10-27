@@ -32,12 +32,12 @@ function isRed([r, g, b]: [number, number, number]): boolean {
 
 describe("generateVariants", () => {
   it("produces exactly the three named variants", async () => {
-    const variants = await generateVariants(REAL_PHOTO);
+    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO);
     expect(Object.keys(variants).sort()).toEqual(["card", "detail", "thumb"]);
   });
 
   it("each variant is a real WebP at exactly its specified dimensions", async () => {
-    const variants = await generateVariants(REAL_PHOTO);
+    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO);
     for (const [name, buffer] of Object.entries(variants)) {
       const meta = await sharp(buffer).metadata();
       const spec = IMAGE_VARIANTS[name as keyof typeof IMAGE_VARIANTS];
@@ -49,7 +49,7 @@ describe("generateVariants", () => {
 
   it("actually shrinks a real photo - sanity check against a no-op bug", async () => {
     const originalSize = REAL_PHOTO.byteLength;
-    const variants = await generateVariants(REAL_PHOTO);
+    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO);
     // Round-1 review found the original assertion here
     // (`toBeLessThan(originalSize * 2)`) passed even against a mutated
     // pass-through no-op - `originalSize < originalSize * 2` is trivially
@@ -59,8 +59,10 @@ describe("generateVariants", () => {
     // `detail` (1120x1400) has more pixels than cat-1.jpg's original
     // 1024x490 - confirmed empirically against this exact fixture, not
     // assumed to hold for photos in general.
-    expect(variants.detail.byteLength).toBeLessThan(originalSize);
-    expect(variants.thumb.byteLength).toBeLessThan(variants.detail.byteLength);
+    const detail = variants.detail;
+    const thumb = variants.thumb;
+    expect(detail.byteLength).toBeLessThan(originalSize);
+    expect(thumb.byteLength).toBeLessThan(detail.byteLength);
   });
 
   it("handles a landscape source without distortion - cover crop, not squeeze", async () => {
@@ -73,7 +75,7 @@ describe("generateVariants", () => {
       sourceMeta.height ?? 0,
     );
 
-    const variants = await generateVariants(landscape);
+    const variants = await generateVariants(IMAGE_VARIANTS, landscape);
     const cardMeta = await sharp(variants.card).metadata();
     // fit: "cover" always produces the exact target box regardless of
     // source aspect ratio - this is the property that proves no distortion
@@ -108,7 +110,7 @@ describe("generateVariants", () => {
     // Every variant: the displayed 200 × 300 covers `thumb` (scaled down,
     // then cropped) but not `card` or `detail` (cropped, then enlarged), so
     // both paths through `generateVariants` are held to the rotation.
-    const variants = await generateVariants(source);
+    const variants = await generateVariants(IMAGE_VARIANTS, source);
     for (const [name, bytes] of Object.entries(variants)) {
       const { data, info } = await sharp(bytes).raw().toBuffer({ resolveWithObject: true });
 

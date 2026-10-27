@@ -9,6 +9,7 @@ import {
   registryVerificationContract,
   shelterAnimalsContract,
   shelterHistoryContract,
+  shelterLogoContract,
   shelterPhotosContract,
   shelterProfileContract,
   shelterVerificationContract,
@@ -29,6 +30,7 @@ export const shelterKabinetContract = {
     verification: shelterVerificationContract,
     animals: shelterAnimalsContract,
     photos: shelterPhotosContract,
+    logo: shelterLogoContract,
     history: shelterHistoryContract,
   },
 } as const;

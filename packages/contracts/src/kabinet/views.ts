@@ -107,6 +107,7 @@ export const KabinetShelterViewSchema = ShelterSchema.pick({
   donation: true,
   pendingDonation: true,
   freshnessSentence: true,
+  logo: true,
   version: true,
 }).extend({ verification: ShelterFacingVerificationSchema });
 export type KabinetShelterView = z.infer<typeof KabinetShelterViewSchema>;

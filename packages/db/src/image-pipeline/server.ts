@@ -16,7 +16,8 @@
 export type { R2CleanupReport } from "../r2-cleanup-run";
 export { runR2Cleanup } from "../r2-cleanup-run";
 export { generateVariants } from "./generate-variants";
-export { prepareUploadedPhoto } from "./prepare-uploaded-photo";
+export type { PreparedLogo, PreparedPhoto } from "./prepare-uploaded-photo";
+export { prepareUploadedLogo, prepareUploadedPhoto } from "./prepare-uploaded-photo";
 export type { R2CleanupClient, R2CleanupConfig } from "./r2-cleanup-client";
 export { createR2CleanupClient } from "./r2-cleanup-client";
 export type { ImageStorageClient, R2Config } from "./r2-client";
@@ -24,4 +25,5 @@ export { createR2Client } from "./r2-client";
 export type { LocalPhotoDimensions } from "./resolve-local-photo";
 export { resolveLocalPhotoPath, validateLocalPhoto } from "./resolve-local-photo";
 export { storePhotoVariants, uploadAnimalPhoto } from "./upload-animal-photo";
-export { animalPhotoStorageKeyFor } from "./variants";
+export { storeLogoVariants } from "./upload-shelter-logo";
+export { animalPhotoStorageKeyFor, shelterLogoStorageKeyFor } from "./variants";

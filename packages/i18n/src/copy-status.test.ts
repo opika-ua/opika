@@ -515,14 +515,36 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
           leafPaths(child, `${prefix}.${key}`),
         );
 
-  it("profileEdit holds exactly his keys, no more and no fewer", () => {
+  /**
+   * Pet card PR 3b: the eleven new `logo.*` keys, outside his K4-final set -
+   * the builder's own draft, flagged for Oleksii's confirm-or-replace, same
+   * mechanism commitment #8's `clearDimension` used. Listed here, not folded
+   * into `K4_FINAL`, so this file never claims a value as "his final text"
+   * that isn't.
+   */
+  const PENDING_BUILDER_DRAFTS_K4 = [
+    "profileEdit.logo.title",
+    "profileEdit.logo.change",
+    "profileEdit.logo.remove",
+    "profileEdit.logo.uploading",
+    "profileEdit.logo.updated",
+    "profileEdit.logo.removed",
+    "profileEdit.logo.removeFailed",
+    "profileEdit.logo.rejected",
+    "profileEdit.logo.rateLimited",
+    "profileEdit.logo.uploadsUnavailable",
+    "profileEdit.logo.failed",
+  ];
+
+  it("profileEdit holds exactly his keys, no more and no fewer, plus any flagged builder draft", () => {
     // P6-Q8 (Oleksii, verbatim: "Q8 / 0.3b: delete `refused_until_edit_screens`,
     // `SHELTER_WRITES_NOT_YET_AVAILABLE` and `profileEdit.errors.notAvailable`.").
     expect(Object.keys(uk.kabinet.profileEdit.errors)).not.toContain("notAvailable");
     expect(leafPaths(uk.kabinet.profileEdit, "profileEdit").sort()).toEqual(
-      Object.keys(K4_FINAL)
-        .filter((path) => path.startsWith("profileEdit."))
-        .sort(),
+      [
+        ...Object.keys(K4_FINAL).filter((path) => path.startsWith("profileEdit.")),
+        ...PENDING_BUILDER_DRAFTS_K4,
+      ].sort(),
     );
   });
 
@@ -967,7 +989,16 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
       .split(".")
       .reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], uk.kabinet);
 
-  it("operator and verificationDecision hold exactly his keys, no more and no fewer", () => {
+  /**
+   * Pet card PR 3b: a new key, outside every negotiated round above - the
+   * builder's own draft (`operator.history.logo_changed`), flagged for
+   * Oleksii's confirm-or-replace, same mechanism commitment #8's
+   * `clearDimension` used. Listed here, not folded into `RUI_FINAL`, so this
+   * file never claims a value as "his final text" that isn't.
+   */
+  const PENDING_BUILDER_DRAFTS = ["operator.history.logo_changed"];
+
+  it("operator and verificationDecision hold exactly his keys, no more and no fewer, plus any flagged builder draft", () => {
     expect(
       [
         ...leafPaths(uk.kabinet.operator, "operator"),
@@ -980,6 +1011,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(ROUND_2_REASON_VIEW),
         ...Object.keys(ROUND_3_N7),
         ...Object.keys(ROUND_4C_RUI4_F2),
+        ...PENDING_BUILDER_DRAFTS,
       ].sort(),
     );
   });
@@ -1395,8 +1427,11 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
   it("sanity: the walk reaches his strings, and the letter-apostrophe is in them", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
-    // errors.nameTokenGone.
-    expect(k4.length).toBe(72);
+    // errors.nameTokenGone; 83 since pet card PR 3b added the eleven-key
+    // logo.* section (the builder's own draft, flagged for his review - not
+    // part of "his strings" this describe block's own name refers to, but
+    // reached by the same walk since it lives under kabinet.profileEdit).
+    expect(k4.length).toBe(83);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });
