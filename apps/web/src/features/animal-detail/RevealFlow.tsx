@@ -5,6 +5,7 @@ import { uk } from "@opika/i18n";
 import { useCallback, useRef } from "react";
 import { ContactRevealDialog } from "../reveal/ContactRevealDialog";
 import { useReveal } from "../reveal/useReveal";
+import { PillButton } from "./PillButton";
 
 interface RevealFlowProps {
   animalId: AnimalId;
@@ -65,16 +66,15 @@ export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) 
 
   return (
     <>
-      <button
+      <PillButton
         ref={triggerRef}
-        type="button"
+        tone="accent"
         data-testid="reveal-trigger"
         disabled={state.kind === "loading"}
         onClick={openThisAnimal}
-        className="inline-flex h-16 items-center justify-center rounded-brand-pill bg-brand-accent px-11 text-[20px] font-semibold text-brand-on-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] disabled:opacity-60"
       >
         {uk.detail.giveHome}
-      </button>
+      </PillButton>
 
       {(state.kind === "error" || state.kind === "open") && (
         <ContactRevealDialog

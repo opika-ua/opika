@@ -4,6 +4,7 @@ import type { AnimalId } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useState } from "react";
 import { SITE_ORIGIN } from "../../brand";
+import { PillButton } from "./PillButton";
 
 /**
  * Pet card PR 5, owner decision 5: «Поділитись» (the panel header's own
@@ -50,14 +51,9 @@ export function ShareButton({ animalId, animalName }: { animalId: AnimalId; anim
 
   return (
     <>
-      <button
-        type="button"
-        data-testid="share-button"
-        onClick={() => void share()}
-        className="inline-flex h-16 items-center justify-center rounded-brand-pill bg-brand-ink px-11 text-[20px] font-semibold text-brand-on-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
-      >
+      <PillButton tone="ink" data-testid="share-button" onClick={() => void share()}>
         {uk.detail.share}
-      </button>
+      </PillButton>
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>

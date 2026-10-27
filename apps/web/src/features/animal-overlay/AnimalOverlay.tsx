@@ -1,55 +1,84 @@
 "use client";
 
 import { uk } from "@opika/i18n";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { CircleButton } from "../animal-detail/CircleButton";
 import { useModalFocus } from "../controls/useModalFocus";
+import { useScrollingClass } from "../controls/useScrollingClass";
 
 /**
  * Pet card PR 5 (Figma `75:425`), replacing designer feedback batch A's dark
  * Dribbble-style backdrop with the pet card's own look: `SiteHeader` stays
- * fully visible and undimmed at the top - it's rendered inside
- * `app/tvaryny/page.tsx` itself (not a root layout), `position: sticky
- * top-0 z-30`, `min-h-16 desktop:min-h-18` (64/72px).
+ * fully visible at the top - it's rendered inside `app/tvaryny/page.tsx`
+ * itself (not a root layout), `position: sticky top-0 z-30`, `min-h-16
+ * desktop:min-h-18` (64/72px).
  *
- * **This backdrop starts *below* the header (`top-16 desktop:top-18`), not
- * at the true viewport top.** A first version tried a pure z-index trick
- * instead (this backdrop at `z-20`, under the header's `z-30`, covering the
- * full viewport) on the reasoning that the header would simply "paint over"
- * the backdrop wherever they overlapped - true for *painting*, false for
- * *hit-testing*: a full-width `z-30` block still intercepts every pointer
- * event in its own rectangle regardless of what's visually on top within
- * it, so the close button (positioned in that same top band) became
- * unclickable, caught by the harness, not by review (`docs/standing-
- * constraints.md`'s "requires a rendered assertion" - this is exactly that
- * class of bug). Starting the backdrop's own box below the header avoids
- * the overlap entirely, which is also what the reference screenshot's own
- * geometry shows (the close button's vertical centre sits well below the
- * header's bottom edge, not inside it).
+ * **This backdrop covers the *entire* viewport (`inset-0`), under the
+ * header's own `z-30` (`z-20` here).** Two earlier versions tried
+ * narrower shapes and both broke something a real screenshot caught, not
+ * review:
+ * - Starting the backdrop's own box *below* the header (`top-16
+ *   desktop:top-18`) avoided the click-interception a full-viewport `z-20`
+ *   box was once assumed to cause here, but gave the header *its own*,
+ *   separate `backdrop-filter` (see git history) - two adjacent elements
+ *   each blurring only what's directly behind their own box can't pull
+ *   blur context across the seam between them, so a visible hard edge
+ *   showed exactly at the header's bottom border, even with both blurs
+ *   set to the same radius and the same tint colour.
+ * - The click-interception concern itself turns out not to apply to
+ *   *this* geometry: the worry was a full-width `z-30` layer intercepting
+ *   pointer events across its whole rectangle regardless of paint order,
+ *   but hit-testing is still geometric - the header's own box only ever
+ *   spans `y: [0, 72px]`, and the close button sits below that, at a
+ *   point the header's box never covers, so there is nothing for the
+ *   header to intercept there. Confirmed live, not assumed: every control
+ *   in the top bar is independently click-tested after this change.
  *
- * Fill colour: the Figma spec is "the gallery stays behind at 20% opacity,
- * with a full-screen `#F26427` tint at 30% opacity on top." Literally
- * dimming the live gallery would mean reaching into `tvaryny/layout.tsx`'s
- * sibling `@preview`/`children` slots - exactly the kind of restructuring
- * that reintroduced the ghost-header-text bug batch A fixed, for a purely
- * visual effect. Approximated instead as one flat `color-mix` tint derived
- * from the same two tokens the Figma math would composite (`brand-accent`
- * at 30% over `brand-page`, the gallery's own background colour) - a
- * decision taken, not a literal implementation of the two-layer spec; see
- * the PR body.
+ * One backdrop blurring the whole viewport, with the header riding on
+ * top of it with no fill or blur of its own (`globals.css`'s `:has()`
+ * rule), is what actually matches the reference: no seam, because
+ * there's only one blur pass to have one.
+ *
+ * `pt-16 desktop:pt-18` on `DIALOG` below replaces the vertical gap the
+ * old `top-16`-offset backdrop used to provide for free - the header no
+ * longer carves out its own space, so the dialog's own content has to
+ * start that far down instead, to land the close button and the
+ * prev/next row at the same place the reference shows.
+ *
+ * Fill: the Figma frame's own tint layer is a real `backdrop-filter: blur`
+ * over the live gallery, not a flat colour - confirmed against the Figma
+ * file directly (its blurred layer shows real, if illegible, card shapes
+ * through the tint), not just the two static reference PNGs, which
+ * flatten the effect. Semi-transparent, not opaque, so the real gallery -
+ * whatever it's scrolled to - shows through softly, matching the
+ * reference. This is also *safer* than the flat-colour approximation
+ * this file tried first: a strong blur destroys text legibility more
+ * thoroughly than the low opacity that caused batch A's ghost-header-text
+ * bug did, not less.
+ *
+ * `[background-color:color-mix(in_srgb,...)]`, not Tailwind's own
+ * `bg-brand-accent/30` opacity modifier: Tailwind v4's `/opacity` modifier
+ * mixes in OKLab by default (`oklab(... / 0.3)`), which read as a visibly
+ * different shade than a literal `color-mix(in srgb, ...)` the one time
+ * this project had both in play at once (the header's own short-lived
+ * separate tint, before this became one backdrop) - spelled out
+ * explicitly here so nothing downstream has to match it by coincidence.
  */
 const BACKDROP =
-  "fixed inset-x-0 bottom-0 top-16 desktop:top-18 z-40 [background-color:color-mix(in_srgb,var(--color-brand-accent)_30%,var(--color-brand-page)_70%)]";
+  "fixed inset-0 z-20 backdrop-blur-2xl [background-color:color-mix(in_srgb,var(--color-brand-accent)_30%,transparent)]";
 /**
  * `SiteHeader` (`app/tvaryny/page.tsx`) stays opaque on the gallery itself -
- * it has to occlude the grid scrolling under it, `sticky`. The reference
- * screenshot's own header has no fill at all once this overlay is open, the
- * peach backdrop showing straight through it. Flipping that per-render would
- * need a prop threaded from this component, two routes away, into a header
- * neither owns; `:has()` reaches it with no new prop and no risk to the
- * normal-page case, which never matches the selector. `data-pet-card-overlay`
- * is this component's own marker, not reused elsewhere.
+ * it has to occlude the grid scrolling under it, `sticky`. Here, it has no
+ * fill or blur of its own (`globals.css`'s `:has()` rule) and rides on top
+ * of `BACKDROP`'s one continuous blur instead - see `BACKDROP`'s own
+ * comment for why a second, separate blur on the header produced a seam.
+ * Flipping the header's fill per-render would need a prop threaded from
+ * this component, two routes away, into a header neither owns; `:has()`
+ * reaches it with no new prop and no risk to the normal-page case, which
+ * never matches the selector.
  */
 const OVERLAY_MARKER = "pet-card-overlay-open";
 /**
@@ -62,15 +91,22 @@ const OVERLAY_MARKER = "pet-card-overlay-open";
  * "renders but doesn't work" class of bug `docs/standing-constraints.md`
  * exists to catch.
  */
-const DIALOG = "relative flex flex-col h-full outline-none";
+const DIALOG = "relative flex h-full flex-col pt-16 outline-none desktop:pt-18";
 /**
  * The close button and the «Попередній»/«Наступний» row sit directly on the
  * peach backdrop (no separate dark strip, unlike batch A) - roughly one
  * horizontal band, matching the reference screenshot's vertical rhythm.
+ *
+ * `max-w-[1084px] mx-auto`: the Figma frame's own prev/next row
+ * (`75:714`) is exactly as wide as the panel below it, not the full
+ * viewport - a real screenshot caught the labels sitting far out past the
+ * panel's own edges, near the viewport corners, which this row's earlier
+ * full-width `justify-between` produced by construction. `NeighbourLink`'s
+ * `left-0`/`right-0` resolve against this box's own padding edge, not the
+ * viewport, once this is the box they're absolutely positioned inside.
  */
-const TOP_BAR = "shrink-0 relative flex items-center justify-center px-6 py-6 desktop:px-14";
-const CLOSE_BUTTON =
-  "inline-flex size-13 items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-ink focus-visible:outline-offset-[3px]";
+const TOP_BAR =
+  "shrink-0 relative mx-auto flex w-full max-w-[1084px] items-center justify-center px-6 py-6 desktop:px-13";
 const NEIGHBOUR_LABEL =
   "inline-flex min-h-target items-center px-4 text-[26px] font-semibold text-brand-plum focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-ink focus-visible:outline-offset-[3px]";
 /**
@@ -79,9 +115,25 @@ const NEIGHBOUR_LABEL =
  * left, right and bottom are flush to the viewport edge on desktop, where a
  * rounded corner would have nothing to read against. `max-w-[1084px]`: the
  * handoff's own fixed desktop width, centred on the peach backdrop.
+ *
+ * Two boxes, not one: Chrome's classic (non-overlay) scrollbar isn't
+ * reliably clipped by a scrolling element's own `border-radius` - a real
+ * screenshot caught the thumb sitting past the rounded corner specifically
+ * at the top, where the curve is tightest, even nested inside an
+ * `overflow-hidden` ancestor with the matching radius (the scrollbar is
+ * its own compositing layer, and `overflow: hidden` + `border-radius`
+ * clipping doesn't reliably reach into a child's own layer the way
+ * `clip-path` does). `FRAME_CLIP` owns both: `overflow-hidden` for the
+ * ordinary case, `clip-path` as the one that actually holds at the
+ * curve - same radius, expressed the one way `clip-path`'s `inset()`
+ * takes it (top-left, top-right, bottom-right, bottom-left, matching
+ * `border-radius`'s own shorthand order). `FRAME_SCROLL`, with no radius
+ * of its own, owns the actual `overflow-y-auto` and never paints past
+ * its parent's clipped edge.
  */
-const FRAME =
-  "relative flex-1 mx-auto w-full max-w-[1084px] overflow-y-auto overscroll-contain bg-brand-surface rounded-t-brand-panel-lg brand-scrollbar";
+const FRAME_CLIP =
+  "relative flex-1 mx-auto w-full max-w-[1084px] overflow-hidden bg-brand-surface rounded-t-brand-panel-lg [clip-path:inset(0_round_var(--radius-brand-panel-lg)_var(--radius-brand-panel-lg)_0_0)]";
+const FRAME_SCROLL = "h-full overflow-y-auto overscroll-contain brand-scrollbar";
 
 export type OverlayNeighbour = { name: string; href: string } | null;
 
@@ -132,6 +184,7 @@ export function AnimalOverlay({
   const router = useRouter();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const close = useCallback(() => router.back(), [router]);
+  const scrollRef = useScrollingClass<HTMLDivElement>();
 
   useModalFocus({ dialogRef, initialFocusRef: dialogRef, onClose: close });
   useReturnFocusToOpener(openerHref);
@@ -149,17 +202,23 @@ export function AnimalOverlay({
       >
         <div className={TOP_BAR}>
           <NeighbourLink neighbour={neighbours.prev} align="left" />
-          <button
-            type="button"
-            className={CLOSE_BUTTON}
-            aria-label={uk.preview.close}
-            onClick={close}
-          >
-            <img src="/pet-card/icon-close.svg" alt="" aria-hidden="true" />
-          </button>
+          <CircleButton aria-label={uk.preview.close} onClick={close}>
+            <Image
+              src="/pet-card/icon-close.svg"
+              alt=""
+              aria-hidden="true"
+              width={24}
+              height={24}
+              unoptimized
+            />
+          </CircleButton>
           <NeighbourLink neighbour={neighbours.next} align="right" />
         </div>
-        <div className={FRAME}>{children}</div>
+        <div className={FRAME_CLIP}>
+          <div ref={scrollRef} className={FRAME_SCROLL}>
+            {children}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -186,7 +245,15 @@ function NeighbourLink({
   neighbour: OverlayNeighbour;
   align: "left" | "right";
 }) {
-  const side = align === "left" ? "left-6 desktop:left-14" : "right-6 desktop:right-14";
+  // NOT `left-0`/`right-0`: an absolutely positioned child's containing
+  // block is TOP_BAR's padding *box* (content+padding together), whose
+  // edges sit at TOP_BAR's own outer edge - an abspos child ignores its
+  // parent's padding entirely, a well-known CSS gotcha a real measurement
+  // caught (the label was flush with the viewport-ish edge, exactly
+  // `padding-right` too far out). Matching TOP_BAR's own `px-6
+  // desktop:px-13` directly is what actually lands the label at the
+  // padding edge, same as a normal-flow child would get for free.
+  const side = align === "left" ? "left-6 desktop:left-13" : "right-6 desktop:right-13";
   if (neighbour === null) {
     return (
       <span aria-hidden="true" className={`invisible absolute top-1/2 -translate-y-1/2 ${side}`}>

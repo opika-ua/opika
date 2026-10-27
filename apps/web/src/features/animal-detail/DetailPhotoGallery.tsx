@@ -4,6 +4,7 @@ import type { AnimalPhoto } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CircleButton } from "./CircleButton";
 
 /**
  * Pet card PR 5 (Figma `75:425`/`88:1929`): replaced the dot-indicator
@@ -43,6 +44,13 @@ export function DetailPhotoGallery({
   const visible = photos.slice(0, 3);
   const scrollerRef = useRef<HTMLElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  /** Mirrors `scrolled` at the other end: "next" hides once there's nothing
+   * further to reveal, the same "no wrap-around" shape "prev" already had -
+   * a real screenshot caught "next" staying visible (and clickable, doing
+   * nothing) past the last photo while "prev" correctly disappeared at the
+   * first. Starts `false`: a container `canScroll` ever renders for has
+   * scroll position 0 on mount, which is never "at the end" by construction. */
+  const [atEnd, setAtEnd] = useState(false);
   /**
    * `"unknown"` until a real measurement comes in, and treated as "there
    * might be something to scroll to" (the buttons' old, unconditional
@@ -72,7 +80,10 @@ export function DetailPhotoGallery({
 
   const onScroll = useCallback(() => {
     const node = scrollerRef.current;
-    if (node) setScrolled(node.scrollLeft > 0);
+    if (!node) return;
+    setScrolled(node.scrollLeft > 0);
+    // `+1` absorbs the same sub-pixel rounding slack `sliderOverflowOf` does.
+    setAtEnd(node.scrollLeft + node.clientWidth >= node.scrollWidth - 1);
   }, []);
 
   const scrollBy = useCallback((direction: 1 | -1) => {
@@ -114,36 +125,43 @@ export function DetailPhotoGallery({
       </section>
 
       {canScroll && scrolled && (
-        <button
-          type="button"
+        <CircleButton
           onClick={() => scrollBy(-1)}
           aria-label={uk.detail.photoPrev}
           data-testid="detail-photo-prev"
-          className="absolute left-6 top-1/2 inline-flex size-13 -translate-y-1/2 items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+          className="absolute left-6 top-1/2 -translate-y-1/2"
         >
-          <img
+          {/* `unoptimized`: a static icon, not a real photo key - the custom
+          loader (`image-loader.ts`) ignores `width` for these regardless,
+          and Next warns on a loader that does. */}
+          <Image
             src="/pet-card/icon-chevron-next.svg"
             alt=""
             aria-hidden="true"
+            width={24}
+            height={24}
+            unoptimized
             className="rotate-90"
           />
-        </button>
+        </CircleButton>
       )}
-      {canScroll && (
-        <button
-          type="button"
+      {canScroll && !atEnd && (
+        <CircleButton
           onClick={() => scrollBy(1)}
           aria-label={uk.detail.photoNext}
           data-testid="detail-photo-next"
-          className="absolute right-6 top-1/2 inline-flex size-13 -translate-y-1/2 items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+          className="absolute right-6 top-1/2 -translate-y-1/2"
         >
-          <img
+          <Image
             src="/pet-card/icon-chevron-next.svg"
             alt=""
             aria-hidden="true"
+            width={24}
+            height={24}
+            unoptimized
             className="-rotate-90"
           />
-        </button>
+        </CircleButton>
       )}
     </div>
   );

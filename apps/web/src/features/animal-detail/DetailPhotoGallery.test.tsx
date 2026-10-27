@@ -68,6 +68,30 @@ describe("DetailPhotoGallery", () => {
     expect(scrollBy).toHaveBeenCalledWith({ left: -384, behavior: "smooth" });
   });
 
+  /**
+   * Mutation proof: a version of the next button gated only on `canScroll`
+   * (the old rule, no end check) would still pass every other test in this
+   * file - a real screenshot caught it staying visible, and clickable doing
+   * nothing, once the strip had nothing further to reveal. `scrollWidth`/
+   * `clientWidth` are stubbed to a real-looking, already-at-the-end
+   * relationship (`scrollLeft + clientWidth === scrollWidth`), the same
+   * non-zero-`clientWidth` precondition `sliderOverflowOf`'s own tests use
+   * to get a conclusive reading out of happy-dom.
+   */
+  it("the next button disappears once scrolled to the end - no wrap-around, same as prev at the start", () => {
+    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    const scroller = screen.getByRole("region", { name: "Фотографії тварини" });
+    screen.getByRole("button", { name: "Наступне фото" }); // throws if absent
+
+    Object.defineProperty(scroller, "clientWidth", { value: 1000, configurable: true });
+    Object.defineProperty(scroller, "scrollWidth", { value: 1128, configurable: true });
+    Object.defineProperty(scroller, "scrollLeft", { value: 128, configurable: true });
+    fireEvent.scroll(scroller);
+
+    expect(screen.queryByRole("button", { name: "Наступне фото" })).toBeNull();
+    screen.getByRole("button", { name: "Попереднє фото" }); // still here, scrolled > 0
+  });
+
   it("no slider buttons at all for a single-photo animal", () => {
     render(<DetailPhotoGallery photos={[photo("/only.jpg")]} altFallback="Мурчик" />);
 

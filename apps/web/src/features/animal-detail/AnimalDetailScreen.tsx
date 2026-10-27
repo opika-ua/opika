@@ -2,6 +2,7 @@ import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
 import { donationHost, hasAnyDocumentEvidence, textIn } from "@opika/domain";
 import { fillTemplate, sexWordFor, sizeLabel, temperamentLabelFor, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
+import Image from "next/image";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { SiteHeader } from "../chrome/SiteHeader";
@@ -117,20 +118,30 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-6 desktop:flex-row desktop:items-start desktop:justify-between">
           <div className="flex min-w-0 flex-col gap-1">
-            <div className="flex items-center gap-3">
-              <h1
-                data-testid="animal-name"
-                className="text-[48px]/[1.15] font-bold tracking-[-0.01em] text-brand-ink"
-              >
-                {animal.name}
-              </h1>
-              <SaveButton animalId={animal.id} animalName={animal.name} />
-            </div>
+            <h1
+              data-testid="animal-name"
+              className="text-[48px]/[1.15] font-bold tracking-[-0.01em] text-brand-ink"
+            >
+              {animal.name}
+            </h1>
             <MetaLine animal={animal} />
           </div>
+          {/*
+            Pet card PR 5 follow-up: the save toggle moved here from beside
+            the name, where it crowded the one piece of text that names the
+            animal - the Figma reference has no save affordance to place at
+            all, so this is a reversible UX call, not a deviation from a
+            spec. Grouped with the two secondary/utility actions (share,
+            same shape as `RevealFlow`/`ShareButton`'s own pills) rather
+            than with the name (identity) or alone in a corner - «Дати
+            сімʼю» stays the one unmistakably primary action, and «Поділитись»
+            plus save read as one small cluster of "do something with this
+            listing" actions beside it.
+          */}
           <div className="flex flex-none items-center gap-4">
             <RevealFlow animalId={animal.id} animalName={animal.name} cityName={cityName} />
             <ShareButton animalId={animal.id} animalName={animal.name} />
+            <SaveButton animalId={animal.id} animalName={animal.name} />
           </div>
         </div>
 
@@ -155,12 +166,13 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
             </Link>
             {cityName && (
               <span className="inline-flex items-center gap-2">
-                <img
+                <Image
                   src="/pet-card/icon-location.svg"
                   alt=""
                   aria-hidden="true"
                   width={32}
                   height={32}
+                  unoptimized
                 />
                 <span
                   data-testid="shelter-city"
@@ -277,23 +289,32 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
 
       {/* Footer divider */}
       <div className="flex items-center justify-center gap-10 pt-2">
-        <img
+        <Image
           src="/pet-card/divider-left.svg"
           alt=""
           aria-hidden="true"
-          className="min-w-0 flex-1"
+          width={431}
+          height={6}
+          unoptimized
+          className="h-auto min-w-0 flex-1"
         />
-        <img
+        <Image
           src="/pet-card/mascot-divider.svg"
           alt=""
           aria-hidden="true"
-          className="h-15 flex-none"
+          width={63}
+          height={60}
+          unoptimized
+          className="h-15 w-auto flex-none"
         />
-        <img
+        <Image
           src="/pet-card/divider-right.svg"
           alt=""
           aria-hidden="true"
-          className="min-w-0 flex-1"
+          unoptimized
+          width={431}
+          height={6}
+          className="h-auto min-w-0 flex-1"
         />
       </div>
     </div>
