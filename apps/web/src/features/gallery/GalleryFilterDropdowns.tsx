@@ -142,13 +142,15 @@ function Dropdown({
   }, [open]);
 
   return (
-    // flex-1 (not a fixed width): when the dropdowns don't fit one row and
-    // the last one wraps alone, flexbox distributes grow/shrink per wrapped
-    // line independently, so that lone item stretches to fill the row
-    // instead of sitting narrow beside empty space - the specific "looks a
-    // bit weird" Oleksii flagged from a live screenshot. min-w keeps it from
-    // shrinking past a readable width before the row wraps at all.
-    <div ref={rootRef} className="relative min-w-[11rem] flex-1">
+    // flex-initial (content-sized, never grows): the earlier flex-1 fix
+    // solved a narrow-orphan problem at five dropdowns, but at seven it
+    // produces the opposite one - two leftover items alone on a wrapped
+    // row stretch to ~545px each, filling the row rather than sitting at a
+    // sensible width (design critique, 2026-10-27). Sizing to each
+    // button's own content - its label plus the chevron/clear slot - means
+    // a short last row just ends instead of ballooning; min-w is still the
+    // floor that keeps any one dropdown from shrinking past readability.
+    <div ref={rootRef} className="relative min-w-[11rem] flex-initial">
       <button
         ref={buttonRef}
         type="button"
@@ -344,14 +346,12 @@ export function GalleryFilterDropdowns({
       // width the page's own desktop:px-14 gutters leave at the 1024px
       // desktop floor (measured live, not assumed). Figma's frame never
       // anticipated five, so there's no mock geometry to match here.
-      // Each `Dropdown` is now `flex-1` rather than a fixed width (Oleksii,
-      // from a live screenshot: "2 rows of filters look a bit weird") - this
-      // doesn't stop wrapping from happening when it must, but it does mean
-      // a lone item stranded on its own row stretches to fill that row
-      // instead of sitting narrow beside empty space, which was the actual
-      // "weird" part: wrapping itself is fine, an orphaned narrow control
-      // isn't. `min-w-0 flex-1`: seven dropdowns wrap here, inside the room
-      // beside the sort switch, rather than pushing the switch onto a line of
+      // This container is `flex-1` so the whole group takes the room the
+      // sort switch leaves - separate from each individual `Dropdown`,
+      // which is `flex-initial` (content-sized, see that component) rather
+      // than stretched to fill its row. `min-w-0 flex-1`: seven dropdowns
+      // wrap here, inside the room beside the sort switch, rather than
+      // pushing the switch onto a line of
       // its own (his PR 1b answer, quoted above the component).
       className="hidden min-w-0 flex-1 flex-wrap items-center gap-3 desktop:flex"
     >
