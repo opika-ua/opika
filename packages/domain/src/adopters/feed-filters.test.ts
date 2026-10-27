@@ -178,6 +178,7 @@ describe("filter dimensions", () => {
       coatLengths: { kind: "oneOf", values: ["long"] },
       temperaments: { kind: "oneOf", values: ["shy"] },
       colours: { kind: "oneOf", values: ["ginger"] },
+      sexes: { kind: "oneOf", values: ["male"] },
     };
 
     const relaxed = relaxDimension(narrow, "sizes");
@@ -189,6 +190,7 @@ describe("filter dimensions", () => {
     expect(relaxed.coatLengths).toEqual(narrow.coatLengths);
     expect(relaxed.temperaments).toEqual(narrow.temperaments);
     expect(relaxed.colours).toEqual(narrow.colours);
+    expect(relaxed.sexes).toEqual(narrow.sexes);
   });
 
   it("does not mutate the filters it relaxes", () => {
@@ -450,5 +452,100 @@ describe("the temperament and colour dimensions", () => {
     expect(isConstrained(narrow, "temperaments")).toBe(true);
     expect(isConstrained(narrow, "colours")).toBe(true);
     expect(FEED_FILTER_DIMENSIONS).toEqual(expect.arrayContaining(["temperaments", "colours"]));
+  });
+});
+
+/**
+ * Sex: the eighth dimension (sex-filter feature). Unlike fur/temperament/
+ * colour, it is a closed universe over a field that is never null -
+ * "unknown" is a real, explicit value, not an absence - so it collapses on
+ * the same rule species/sizes/ages do, not the null-admitting one above.
+ */
+describe("the sex dimension", () => {
+  const EVERY_SEX = ["male", "female", "unknown"] as const;
+
+  it("collapses ticking every sex back to any", () => {
+    const every: FeedFilters = {
+      ...NO_FILTERS,
+      sexes: { kind: "oneOf", values: [...EVERY_SEX] },
+    };
+    expect(canonicalizeFilters(every).sexes).toEqual({ kind: "any" });
+    expect(canonicalizeFilters(every)).toEqual(NO_FILTERS);
+    expect(filtersFingerprint(every)).toBe(filtersFingerprint(NO_FILTERS));
+  });
+
+  it("keeps a partial selection as a constraint", () => {
+    expect(
+      canonicalizeFilters({ ...NO_FILTERS, sexes: { kind: "oneOf", values: ["male"] } }).sexes,
+    ).toEqual({
+      kind: "oneOf",
+      values: ["male"],
+    });
+    expect(
+      isConstrained({ ...NO_FILTERS, sexes: { kind: "oneOf", values: ["female"] } }, "sexes"),
+    ).toBe(true);
+  });
+
+  it("gives each sex selection its own fingerprint", () => {
+    const bySex = (
+      values: readonly ["male" | "female" | "unknown", ...("male" | "female" | "unknown")[]],
+    ): FeedFilters => ({
+      ...NO_FILTERS,
+      sexes: { kind: "oneOf", values },
+    });
+    const prints = [NO_FILTERS, bySex(["male"]), bySex(["female"]), bySex(["unknown"])].map(
+      filtersFingerprint,
+    );
+    expect(new Set(prints).size).toBe(4);
+  });
+
+  it("never reproduces a fingerprint from before this dimension existed", () => {
+    const legacy = (f: FeedFilters): string => {
+      const c = canonicalizeFilters(f);
+      const encode = (s: { kind: "any" } | { kind: "oneOf"; values: readonly string[] }) =>
+        s.kind === "any" ? "*" : s.values.join(",");
+      return [c.cities, c.species, c.sizes, c.ages, c.coatLengths, c.temperaments, c.colours]
+        .map(encode)
+        .join("|");
+    };
+    const sets: FeedFilters[] = [
+      NO_FILTERS,
+      { ...NO_FILTERS, sexes: { kind: "oneOf", values: ["unknown"] } },
+    ];
+    const current = new Set(sets.map(filtersFingerprint));
+    for (const set of sets) {
+      expect(current.has(legacy(set))).toBe(false);
+    }
+  });
+
+  it("reads a filter set stored before this dimension as no sex filter", () => {
+    const stored = {
+      cities: { kind: "any" },
+      species: { kind: "oneOf", values: ["dog"] },
+      sizes: { kind: "any" },
+      ages: { kind: "any" },
+      coatLengths: { kind: "any" },
+      temperaments: { kind: "any" },
+      colours: { kind: "any" },
+    };
+    const parsed = FeedFiltersSchema.parse(stored);
+    expect(parsed.sexes).toEqual({ kind: "any" });
+  });
+
+  it("refuses a value outside the closed list, and an empty selection", () => {
+    expect(
+      FeedFiltersSchema.safeParse({ ...NO_FILTERS, sexes: { kind: "oneOf", values: ["other"] } })
+        .success,
+    ).toBe(false);
+    expect(
+      FeedFiltersSchema.safeParse({ ...NO_FILTERS, sexes: { kind: "oneOf", values: [] } }).success,
+    ).toBe(false);
+  });
+
+  it("relaxes like any other dimension", () => {
+    const narrow: FeedFilters = { ...NO_FILTERS, sexes: { kind: "oneOf", values: ["unknown"] } };
+    expect(relaxDimension(narrow, "sexes")).toEqual({ ...narrow, sexes: { kind: "any" } });
+    expect(isConstrained(narrow, "sexes")).toBe(true);
+    expect(FEED_FILTER_DIMENSIONS).toContain("sexes");
   });
 });

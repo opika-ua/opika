@@ -176,10 +176,12 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       ),
     ).toBeVisible();
     await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
-    const missing = page.getByText("Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.");
+    const missing = page.getByText(
+      "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.",
+    );
     await expect(missing).toBeVisible();
     await expect(publishButton(page)).toHaveAccessibleDescription(
-      "Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.",
+      "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.",
     );
 
     // Stored: the draft's own address shows it after a reload, still a draft.
@@ -225,6 +227,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       savesParked -= 1;
       await route.continue();
     });
+    await page.getByRole("group", { name: "Стать" }).getByText("Хлопчик").click();
     await page.getByRole("group", { name: "Розмір" }).getByText("Середній").click();
     await page
       .getByRole("group", { name: "Вік на ту дату" })

@@ -2,6 +2,7 @@
 
 import type {
   AgeBucket,
+  AnimalSex,
   AnimalSpecies,
   CityId,
   CitySlug,
@@ -12,6 +13,7 @@ import type {
 } from "@opika/domain";
 import {
   AGE_BUCKETS,
+  ANIMAL_SEXES,
   ANIMAL_SPECIES,
   ANY,
   COAT_COLOURS,
@@ -65,6 +67,11 @@ const AGE_LABEL: Record<AgeBucket, string> = {
 const COAT_LABEL: Record<CoatLength, string> = {
   short: uk.filters.coatShort,
   long: uk.filters.coatLong,
+};
+const SEX_LABEL: Record<AnimalSex, string> = {
+  male: uk.filters.sexMale,
+  female: uk.filters.sexFemale,
+  unknown: uk.filters.sexUnknown,
 };
 
 /**
@@ -456,6 +463,29 @@ export function FilterSheet({
                     className="sr-only"
                   />
                   {colourFilterLabel(colour)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          {/* Sex-filter feature: the eighth dimension, same group shape as
+              temperament/colour above, after colour and before sort to
+              match the desktop row's own order. */}
+          <fieldset className="flex flex-col gap-3">
+            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
+              {uk.filters.sex}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {ANIMAL_SEXES.map((sex) => (
+                <label key={sex} className={CHIP_LABEL_BASE}>
+                  <input
+                    type="checkbox"
+                    name={GALLERY_PARAM.sex}
+                    value={sex}
+                    defaultChecked={isExplicitlySelected(filters.sexes, sex)}
+                    className="sr-only"
+                  />
+                  {SEX_LABEL[sex]}
                 </label>
               ))}
             </div>

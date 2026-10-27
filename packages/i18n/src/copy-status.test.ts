@@ -1621,6 +1621,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         // in the PR for confirm-or-replace, but real text (never COPY_PENDING, see the
         // "Critical gate" reasoning on PET_CARD_PR5_COPY's own comment above).
         "kabinet.animalForm.validation.medicalNotesTooLong",
+        // The sex-filter feature's one new gap word, pinned in its own block below.
+        ...Object.keys(SEX_FILTER_COPY).filter((path) => path.startsWith("kabinet.animalForm.")),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -2220,6 +2222,53 @@ describe("pet card PR 5 copy (owner-approved, 2026-10-26/27)", () => {
 
   it("nothing here is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
     for (const [path, text] of Object.entries(PET_CARD_PR5_COPY)) {
+      expect(text, path).not.toContain(COPY_PENDING);
+      expect(text, path).not.toMatch(/['’]/);
+    }
+  });
+});
+
+/**
+ * Sex-filter feature: the eighth gallery dimension. `filters.sex*` and
+ * `kabinet.animalForm.publish.gap.sex` are new keys, not a GV3/PC1b carry-over
+ * (`GalleryFilterDropdowns.tsx`'s old "no sex dimension" comment, reversed
+ * here). The dropdown legend and the two sex words duplicate words already
+ * public elsewhere (`filters.sex` = the same «Стать» his GV3-Q1 review used
+ * for this dimension by name; `sexMale`/`sexFemale` = `cardMeta.sexMale`/
+ * `sexFemale`, the gallery card's own words; `sexUnknown` = the standing
+ * rule's own «Не записано»), so none of those four needed fresh approval.
+ * The one genuinely new slot - «стать» in the publish-gap list - was
+ * confirmed directly in chat: his answer, verbatim: "«стать» (Recommended)"
+ * to the question whether the lowercase form of «Стать» fits that list's
+ * register (розмір, вік, опис, фото).
+ */
+const SEX_FILTER_COPY: Record<string, string> = {
+  "filters.sex": "Стать",
+  "filters.sexMale": "Хлопчик",
+  "filters.sexFemale": "Дівчинка",
+  "filters.sexUnknown": "Не записано",
+  "kabinet.animalForm.publish.gap.sex": "стать",
+};
+
+describe("sex-filter copy", () => {
+  const atRoot = (path: string): unknown =>
+    path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], uk);
+
+  it.each(Object.entries(SEX_FILTER_COPY))("%s is the confirmed text, exactly", (path, text) => {
+    expect(atRoot(path)).toBe(text);
+  });
+
+  it("the filter words are duplicates of already-public words, not new ones", () => {
+    expect(uk.filters.sexMale).toBe(uk.cardMeta.sexMale);
+    expect(uk.filters.sexFemale).toBe(uk.cardMeta.sexFemale);
+    expect(uk.filters.sexUnknown).toBe(uk.medical.unknown);
+  });
+
+  it("nothing here is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
+    for (const [path] of Object.entries(SEX_FILTER_COPY)) {
+      const text = atRoot(path) as string;
       expect(text, path).not.toContain(COPY_PENDING);
       expect(text, path).not.toMatch(/['’]/);
     }

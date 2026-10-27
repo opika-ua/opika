@@ -35,6 +35,15 @@ export const AnimalSexSchema = z.enum(["male", "female", "unknown"]);
 export type AnimalSex = z.infer<typeof AnimalSexSchema>;
 
 /**
+ * A closed universe, like `ANIMAL_SPECIES` - "unknown" is a real, stored
+ * value (the never-null default), not an absence the way `coatLength`'s
+ * `null` is. The sex filter can therefore collapse "every option ticked" to
+ * "any" the same way species/size/age do (`canonicalizeFilters`), rather
+ * than following fur/temperament/colour's null-admitting asymmetry.
+ */
+export const ANIMAL_SEXES = ["male", "female", "unknown"] as const satisfies readonly AnimalSex[];
+
+/**
  * What every animal has from the moment it exists (K-Q5, Oleksii: "name +
  * species to create; everything else and ≥1 photo to publish").
  *

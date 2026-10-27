@@ -360,6 +360,7 @@ describe("galleryRepo.list", () => {
       coatLengths: { kind: "any" },
       temperaments: { kind: "any" },
       colours: { kind: "any" },
+      sexes: { kind: "any" },
     };
     const page = await galleryRepo(db).list({
       filters,
@@ -754,6 +755,7 @@ describe("galleryRepo.relaxationCounts", () => {
         coatLengths: { kind: "any" },
         temperaments: { kind: "any" },
         colours: { kind: "any" },
+        sexes: { kind: "any" },
       },
       now: NOW,
     });

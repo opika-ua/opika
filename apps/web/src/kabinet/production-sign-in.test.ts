@@ -314,7 +314,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // `animalForm.validation.medicalNotesTooLong` (not his words, but real text, never
     // `COPY_PENDING` - a pending `kabinet.*` string would turn production sign-in off
     // entirely, which this very test exists to gate).
-    expect(pending.length + written.length).toBe(664);
+    // 665 with the sex-filter feature's one new gap word, `animalForm.publish.gap.sex`
+    // (confirmed directly in chat, pinned in copy-status.test.ts's `SEX_FILTER_COPY`).
+    expect(pending.length + written.length).toBe(665);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

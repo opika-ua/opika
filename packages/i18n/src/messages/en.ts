@@ -59,6 +59,10 @@ export const en = {
     coatLong: "Long-haired",
     temperament: "Temperament",
     colour: "Colour",
+    sex: "Sex",
+    sexMale: "Boy",
+    sexFemale: "Girl",
+    sexUnknown: "Not recorded",
     /** Template: "{count} {animalWord} match. Shelters in this city - {shelterCount}." */
     resultCount: "{count} {animalWord} match. Shelters in this city – {shelterCount}.",
     /** Template: "{count} {animalWord} match, across {shelterCount} {shelterWord}." - used when no city is selected, see uk.ts's note. */
@@ -855,6 +859,7 @@ export const en = {
         button: "Publish",
         missing: "To publish, this still needs: {list}.",
         gap: {
+          sex: "sex",
           size: "size",
           age: "age",
           description: "description",

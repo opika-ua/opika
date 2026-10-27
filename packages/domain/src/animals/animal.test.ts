@@ -61,7 +61,7 @@ const facts = {
   description: { uk: "Спокійна, любить гуляти.", en: null },
 } as const;
 
-const completeDraft: DraftAnimal = { ...newDraft, ...facts, photos: [PHOTO] };
+const completeDraft: DraftAnimal = { ...newDraft, ...facts, sex: "male", photos: [PHOTO] };
 
 const NON_DRAFT_LISTINGS: readonly NonDraftListing[] = [
   { kind: "published", publishedAt: EARLIER, confirmedAt: EARLIER, undoable: null },
@@ -142,13 +142,21 @@ describe("publishReadinessOf", () => {
   it("lists every gap in form order when nothing but a name and a species is there", () => {
     expect(publishReadinessOf(newDraft)).toEqual({
       kind: "gaps",
-      gaps: [{ kind: "size" }, { kind: "age" }, { kind: "description" }, { kind: "photo" }],
+      gaps: [
+        { kind: "sex" },
+        { kind: "size" },
+        { kind: "age" },
+        { kind: "description" },
+        { kind: "photo" },
+      ],
     });
-    // Form order, transcribed from the copy sheet's §11 («розмір», «вік», «опис», «фото»).
-    expect(PUBLISH_GAP_KINDS).toEqual(["size", "age", "description", "photo"]);
+    // Form order: species, then sex, then the rest (`FormSections.tsx`); sex
+    // joined this list reversing D2 (sex-filter feature's own Phase 0 note).
+    expect(PUBLISH_GAP_KINDS).toEqual(["sex", "size", "age", "description", "photo"]);
   });
 
   it.each([
+    ["sex", { sex: "unknown" }],
     ["size", { size: null }],
     ["age", { age: null }],
     ["description", { description: null }],
@@ -164,8 +172,15 @@ describe("publishReadinessOf", () => {
     expect(publishReadinessOf(completeDraft)).toEqual({ kind: "ready", facts });
   });
 
-  it("never counts the sex or the medical facts as gaps (D2, «Не записано» is an answer)", () => {
-    expect(publishReadinessOf({ ...completeDraft, sex: "unknown" }).kind).toBe("ready");
+  it("counts an unknown sex as a gap - reverses D2, which this feature's own decision record replaces", () => {
+    expect(publishReadinessOf({ ...completeDraft, sex: "unknown" })).toEqual({
+      kind: "gaps",
+      gaps: [{ kind: "sex" }],
+    });
+  });
+
+  it("never counts the medical facts as gaps", () => {
+    expect(publishReadinessOf(completeDraft).kind).toBe("ready");
   });
 
   it("never counts unrecorded fur as a gap (DR1-D10)", () => {
@@ -176,8 +191,8 @@ describe("publishReadinessOf", () => {
     expect(
       publishReadinessOf({ ...completeDraft, temperament: [], colour: null, medicalNotes: null }),
     ).toEqual({ kind: "ready", facts });
-    // And the gap list stays the four it was: none of the three ever joins it.
-    expect(PUBLISH_GAP_KINDS).toEqual(["size", "age", "description", "photo"]);
+    // And the gap list stays the five it is now: none of the three ever joins it.
+    expect(PUBLISH_GAP_KINDS).toEqual(["sex", "size", "age", "description", "photo"]);
   });
 });
 
@@ -223,6 +238,7 @@ describe("the pet card fields are recorded on every listing kind, never required
 describe("publishGaps", () => {
   it("is a draft's readiness gaps, or none when it is ready", () => {
     expect(publishGaps(newDraft)).toEqual([
+      { kind: "sex" },
       { kind: "size" },
       { kind: "age" },
       { kind: "description" },

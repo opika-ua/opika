@@ -106,6 +106,7 @@ const dirtyOf = (
 
 /** What still keeps the form's current content from publishing, in form order (K-Q5, as `publishReadinessOf`). */
 const gapsOf = (values: FormValues, photoCount: number): PublishGap[] => [
+  ...(values.sex === "unknown" ? [{ kind: "sex" } as const] : []),
   ...(values.size === null ? [{ kind: "size" } as const] : []),
   ...(ageInputOf(values) === null ? [{ kind: "age" } as const] : []),
   ...(values.description.trim() === "" ? [{ kind: "description" } as const] : []),

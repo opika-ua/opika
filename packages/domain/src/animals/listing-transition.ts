@@ -244,10 +244,19 @@ export const transitionListing = (
 /**
  * What can keep a draft from being published (K-Q5: "everything else and ≥1
  * photo to publish"), in form order, so a list of gaps reads in the order the
- * shelter fills them in. No `sex`: it starts «Не записано» and that is a
- * complete answer (D2).
+ * shelter fills them in.
+ *
+ * `sex` joined this list reversing D2 ("No `sex`: it starts «Не записано»
+ * and that is a complete answer"), per the sex-filter feature's own Phase 0
+ * decision: a gallery filter that can select "Не записано" needs that
+ * answer to mean something a shelter chose, not merely the field's own
+ * never-null default. Listed before `size` to match the form's own field
+ * order (species, then sex, then size - `FormSections.tsx`). Only gates a
+ * *new* publish: `publishGaps` below re-checks a non-draft animal for a
+ * photo only, so an already-published animal with sex still «Не записано»
+ * keeps showing exactly as it did before this change - nothing retroactive.
  */
-export const PUBLISH_GAP_KINDS = ["size", "age", "description", "photo"] as const;
+export const PUBLISH_GAP_KINDS = ["sex", "size", "age", "description", "photo"] as const;
 
 /** One thing that keeps a draft from being published. */
 export const PublishGapSchema = z.object({ kind: z.enum(PUBLISH_GAP_KINDS) });
@@ -271,11 +280,18 @@ export type PublishReadiness =
  * this particular animal can make one.
  */
 export const publishReadinessOf = (draft: DraftAnimal): PublishReadiness => {
-  const { size, age, description } = draft;
-  if (size !== null && age !== null && description !== null && draft.photos.length > 0) {
+  const { size, age, description, sex } = draft;
+  if (
+    sex !== "unknown" &&
+    size !== null &&
+    age !== null &&
+    description !== null &&
+    draft.photos.length > 0
+  ) {
     return { kind: "ready", facts: { size, age, description } };
   }
   const missing: Record<PublishGap["kind"], boolean> = {
+    sex: sex === "unknown",
     size: size === null,
     age: age === null,
     description: description === null,

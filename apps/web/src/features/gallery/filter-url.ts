@@ -1,6 +1,7 @@
 import type {
   AgeBucket,
   AnimalId,
+  AnimalSex,
   AnimalSpecies,
   CityId,
   CitySlug,
@@ -15,6 +16,7 @@ import type {
 import {
   AgeBucketSchema,
   ANY,
+  AnimalSexSchema,
   AnimalSpeciesSchema,
   CityIdSchema,
   CoatColourSchema,
@@ -54,7 +56,8 @@ import {
  * do the pet card's two (PR 1b): `kharakter` for «Характер» and
  * `zabarvlennia` for «Забарвлення», each named after its group label, as
  * `sherst` is after «Шерсть» (the national transliteration: «х» is `kh`, a
- * final «я» is `ia`).
+ * final «я» is `ia`). `stat` (sex) follows the same rule for «Стать» - «ь»
+ * drops, as `sherst`'s own final «ь» does.
  */
 const CITY_PARAM = "misto";
 const SPECIES_PARAM = "vyd";
@@ -63,11 +66,12 @@ const AGE_PARAM = "vik";
 const COAT_PARAM = "sherst";
 const TEMPERAMENT_PARAM = "kharakter";
 const COLOUR_PARAM = "zabarvlennia";
+const SEX_PARAM = "stat";
 const SORT_PARAM = "sort";
 const PAGE_PARAM = "stor";
 
 /**
- * The same nine names, exported for the one caller that cannot go through
+ * The same ten names, exported for the one caller that cannot go through
  * `galleryHref`: `FilterSheet`'s `<form method="GET">`, whose field `name`
  * attributes ARE the query keys the browser submits with no JS running.
  * Spelling them as literals there would be a second, uncompiled copy of
@@ -83,6 +87,7 @@ export const GALLERY_PARAM = {
   coat: COAT_PARAM,
   temperament: TEMPERAMENT_PARAM,
   colour: COLOUR_PARAM,
+  sex: SEX_PARAM,
   sort: SORT_PARAM,
   page: PAGE_PARAM,
 } as const;
@@ -194,6 +199,7 @@ export function parseGalleryQuery(
       TemperamentTraitSchema,
     ),
     colours: parseSelection<CoatColour>(searchParams[COLOUR_PARAM], CoatColourSchema),
+    sexes: parseSelection<AnimalSex>(searchParams[SEX_PARAM], AnimalSexSchema),
   });
 
   const sortResult = GallerySortSchema.safeParse(firstValue(searchParams[SORT_PARAM]));
@@ -217,7 +223,7 @@ export function parseGalleryQuery(
  *
  * Rewrites only the value of the city param - every other param's value
  * (`stor`, `sort`, `vyd`, `rozmir`, `vik`, `sherst`, `kharakter`,
- * `zabarvlennia`, or anything this file doesn't recognise) survives
+ * `zabarvlennia`, `stat`, or anything this file doesn't recognise) survives
  * unchanged once re-parsed, never dropped or altered.
  * Not literally byte-for-byte: `URLSearchParams` re-serialises the whole
  * query string, so `misto` always ends up last regardless of where it sat
@@ -330,6 +336,9 @@ export const withToggledTemperament = (
 export const withToggledColour = (filters: FeedFilters, colour: CoatColour): FeedFilters =>
   canonicalizeFilters({ ...filters, colours: toggle(filters.colours, colour) });
 
+export const withToggledSex = (filters: FeedFilters, sex: AnimalSex): FeedFilters =>
+  canonicalizeFilters({ ...filters, sexes: toggle(filters.sexes, sex) });
+
 /** Any `CityId` the map has no slug for is dropped - see `parseCitySelection`'s
  * own comment on the same "unmappable degrades silently" posture. In
  * practice every id in `filters.cities` came from `cities.list` in the first
@@ -368,6 +377,9 @@ function filterParams(filters: FeedFilters, citySlugs: CitySlugsById): URLSearch
   }
   if (canonical.colours.kind === "oneOf") {
     params.set(COLOUR_PARAM, canonical.colours.values.join(","));
+  }
+  if (canonical.sexes.kind === "oneOf") {
+    params.set(SEX_PARAM, canonical.sexes.values.join(","));
   }
 
   return params;
@@ -463,8 +475,11 @@ const NO_CITY_SLUGS: CitySlugsById = new Map();
 /**
  * One fact on an animal's card that the gallery can filter on: the chip a
  * person taps to see more animals like this one in that respect. Sex is not
- * here because `FeedFilters` has no sex dimension (GV3-B1), and city is not
- * here because «more like this» means the animal, not the place.
+ * here because the card never renders it as a chip - `sexWordFor` puts it in
+ * the plain meta line, not among the card's tappable facts - not because
+ * `FeedFilters` lacks the dimension (it gained one, sex-filter feature; the
+ * card's own chip set is a separate, unaddressed question). City is not here
+ * because «more like this» means the animal, not the place.
  */
 export type FilterableChip =
   | { dimension: "ages"; value: AgeBucket }
@@ -655,6 +670,11 @@ const COAT_WORDS: Record<CoatLength, string> = {
   short: uk.filters.coatShort,
   long: uk.filters.coatLong,
 };
+const SEX_WORDS: Record<AnimalSex, string> = {
+  male: uk.filters.sexMale,
+  female: uk.filters.sexFemale,
+  unknown: uk.filters.sexUnknown,
+};
 
 /**
  * "Бровари · собаки · середні" - `docs/design/README.md`'s "Deck chrome and
@@ -705,6 +725,9 @@ export function filtersInWords(
   }
   if (canonical.colours.kind === "oneOf") {
     parts.push(canonical.colours.values.map((c) => colourFilterLabel(c).toLowerCase()).join("/"));
+  }
+  if (canonical.sexes.kind === "oneOf") {
+    parts.push(canonical.sexes.values.map((s) => SEX_WORDS[s].toLowerCase()).join("/"));
   }
 
   return parts.length > 0 ? parts.join(" · ") : null;

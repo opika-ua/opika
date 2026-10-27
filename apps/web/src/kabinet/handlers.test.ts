@@ -1690,7 +1690,13 @@ describe("K3: drafts, readiness and the description", () => {
     expect(result.body).toMatchObject({
       code: "PUBLISH_REQUIREMENTS_UNMET",
       data: {
-        gaps: [{ kind: "size" }, { kind: "age" }, { kind: "description" }, { kind: "photo" }],
+        gaps: [
+          { kind: "sex" },
+          { kind: "size" },
+          { kind: "age" },
+          { kind: "description" },
+          { kind: "photo" },
+        ],
       },
     });
     expect((await reload(draft.id)).listing.kind).toBe("draft");
@@ -1698,10 +1704,11 @@ describe("K3: drafts, readiness and the description", () => {
   });
 
   it.each([
-    ["size", { age: AGE, description: DESCRIPTION, photos: [PHOTO] }],
-    ["age", { size: "small", description: DESCRIPTION, photos: [PHOTO] }],
-    ["description", { size: "small", age: AGE, photos: [PHOTO] }],
-    ["photo", { size: "small", age: AGE, description: DESCRIPTION }],
+    ["sex", { size: "small", age: AGE, description: DESCRIPTION, photos: [PHOTO] }],
+    ["size", { sex: "male", age: AGE, description: DESCRIPTION, photos: [PHOTO] }],
+    ["age", { sex: "male", size: "small", description: DESCRIPTION, photos: [PHOTO] }],
+    ["description", { sex: "male", size: "small", age: AGE, photos: [PHOTO] }],
+    ["photo", { sex: "male", size: "small", age: AGE, description: DESCRIPTION }],
   ] as const)("a draft missing only its %s answers exactly that gap", async (kind, filled) => {
     const draft = await bareDraft(filled);
     const result = await publish(draft.id);
@@ -1715,6 +1722,7 @@ describe("K3: drafts, readiness and the description", () => {
       animalId: draft.id,
       expectedVersion: draft.version,
       patch: {
+        sex: "male",
         size: "small",
         age: { kind: "declared_bucket", bucket: "young", asOf: "2026-09-01" },
         description: DESCRIPTION,
@@ -1914,6 +1922,7 @@ describe("K2: the animal list", () => {
     await animalRepo(db).insert(bare, cityId as never);
     const partial = makeDraftAnimal({
       shelterId: shelter.id,
+      sex: "male",
       size: "small",
       age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date("2026-09-01") },
     });
@@ -1924,7 +1933,13 @@ describe("K2: the animal list", () => {
     const rows = new Map((await list({ kind: "all" })).body.items.map((row) => [row.id, row]));
     expect(rows.get(bare.id)).toMatchObject({
       age: null,
-      publishGaps: [{ kind: "size" }, { kind: "age" }, { kind: "description" }, { kind: "photo" }],
+      publishGaps: [
+        { kind: "sex" },
+        { kind: "size" },
+        { kind: "age" },
+        { kind: "description" },
+        { kind: "photo" },
+      ],
     });
     expect(rows.get(partial.id)).toMatchObject({
       age: partial.age,

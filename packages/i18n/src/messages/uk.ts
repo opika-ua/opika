@@ -225,6 +225,24 @@ export const uk = {
     temperament: "Характер",
     colour: "Забарвлення",
     /**
+     * The eighth dimension, following the same "split, their own key" rule
+     * `temperament`/`colour` above record from his words - the text is not
+     * new: `sex` is the same «Стать» his own GV3-Q1 review already used for
+     * this dimension (`GalleryFilterDropdowns.tsx`'s old "still no «Стать»"
+     * comment); `sexMale`/`sexFemale` duplicate `cardMeta.sexMale/sexFemale`
+     * (the card's own words, already public); `sexUnknown` duplicates
+     * `medical.unknown`/`kabinet.profileNotRecorded` - the standing rule's
+     * own word for an unknown field (`docs/standing-constraints.md`). Sex has
+     * no "unrecorded" case the way fur/temperament/colour do (`feed-filters.ts`),
+     * so it needs no dedicated no-match sentence: `NoMatch.tsx`'s generic
+     * «Прибрати «{dimension}»» template covers it exactly as it already
+     * covers species/size/age.
+     */
+    sex: "Стать",
+    sexMale: "Хлопчик",
+    sexFemale: "Дівчинка",
+    sexUnknown: "Не записано",
+    /**
      * Template: "Знайдено {count} {animalWord}. Притулків у цьому місті:
      * {shelterCount}." `{animalWord}` is pre-pluralized by the caller
      * (`pluralizeUk(count, uk.filters.animalWordAccusative)`) - the template
@@ -1897,6 +1915,10 @@ export const uk = {
         button: "Опублікувати",
         missing: "Щоб опублікувати, ще потрібно: {list}.",
         gap: {
+          // Sex-filter feature, reversing D2: the same word as `filters.sex`
+          // («Стать»), lowercase, in this list's own register (every other
+          // entry here is a bare lowercase noun).
+          sex: "стать",
           size: "розмір",
           age: "вік",
           description: "опис",

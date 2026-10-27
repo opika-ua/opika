@@ -19,6 +19,7 @@ import {
   withToggledCity,
   withToggledCoat,
   withToggledColour,
+  withToggledSex,
   withToggledSize,
   withToggledSpecies,
   withToggledTemperament,
@@ -527,6 +528,64 @@ describe("the temperament and colour filters in the URL", () => {
     expect(filtersInWords(filters, new Map())).toBe(
       "коти · ладнають з котами/соромʼязливі · чорне",
     );
+  });
+});
+
+/**
+ * Sex-filter feature: `stat`, the eighth dimension, read and written like
+ * `sherst`/`kharakter`/`zabarvlennia`. Unlike those three, it is a closed
+ * universe over a never-null field - "unknown" is a real value, not an
+ * absence - so it collapses on the species/size/age rule, not the
+ * null-admitting one.
+ */
+describe("the sex filter in the URL", () => {
+  it("parses `stat`, comma-joined or repeated, dropping a value it doesn't know", () => {
+    expect(parseGalleryQuery({ stat: "male" }, NO_SLUGS).filters.sexes).toEqual({
+      kind: "oneOf",
+      values: ["male"],
+    });
+    expect(parseGalleryQuery({ stat: ["female", "other"] }, NO_SLUGS).filters.sexes).toEqual({
+      kind: "oneOf",
+      values: ["female"],
+    });
+  });
+
+  it("every value is no sex filter at all", () => {
+    expect(parseGalleryQuery({ stat: "male,female,unknown" }, NO_SLUGS).filters.sexes).toEqual(ANY);
+  });
+
+  it("round-trips through galleryHref with the other filters and the sort", () => {
+    const filters = withToggledSex(withToggledSpecies(NO_FILTERS, "cat"), "female");
+    const href = galleryHref(filters, "longest_waiting", NO_CITIES);
+    expect(href).toBe("/tvaryny?vyd=cat&stat=female&sort=longest_waiting");
+    const reparsed = parseGalleryQuery(
+      Object.fromEntries(new URL(href, "http://x").searchParams),
+      NO_SLUGS,
+    );
+    expect(reparsed).toEqual({ filters, sort: "longest_waiting", page: 1 });
+  });
+
+  it("is carried into a page link and into the deck", () => {
+    const filters = withToggledSex(NO_FILTERS, "unknown");
+    expect(galleryPageHref(filters, "freshest", 2, NO_CITIES)).toBe("/tvaryny?stat=unknown&stor=2");
+    const deckHref = deckEntryHref(filters, 5, NO_CITIES);
+    expect(deckHref).toBe("/tvaryny/gortaty?stat=unknown&total=5");
+    expect(
+      parseDeckQuery(Object.fromEntries(new URL(deckHref, "http://x").searchParams), NO_SLUGS),
+    ).toEqual({ filters, total: 5 });
+  });
+
+  it("the deck's header names it in his filter words", () => {
+    const filters = withToggledSex(withToggledSpecies(NO_FILTERS, "dog"), "male");
+    expect(filtersInWords(filters, new Map())).toBe("собаки · хлопчик");
+  });
+
+  it("toggling it off again leaves no filter", () => {
+    expect(withToggledSex(withToggledSex(NO_FILTERS, "male"), "male")).toEqual(NO_FILTERS);
+  });
+
+  it("«Скинути» clears it", () => {
+    expect(resetFiltersHref("freshest")).toBe("/tvaryny");
   });
 });
 
