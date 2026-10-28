@@ -6,7 +6,6 @@ import type {
   AnimalSpecies,
   CityId,
   CitySlug,
-  CoatLength,
   FeedFilters,
   GallerySort,
   SizeBucket,
@@ -16,14 +15,11 @@ import {
   ANIMAL_SEXES,
   ANIMAL_SPECIES,
   ANY,
-  COAT_COLOURS,
-  COAT_LENGTHS,
   DEFAULT_GALLERY_SORT,
   isExplicitlySelected,
   SIZE_BUCKETS,
-  TEMPERAMENT_TRAITS,
 } from "@opika/domain";
-import { colourFilterLabel, temperamentFilterLabel, uk } from "@opika/i18n";
+import { uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import type { CitySlugsById } from "./filter-url";
@@ -63,10 +59,6 @@ const AGE_LABEL: Record<AgeBucket, string> = {
   young: uk.filters.ageYoung,
   adult: uk.filters.ageAdult,
   senior: uk.filters.ageSenior,
-};
-const COAT_LABEL: Record<CoatLength, string> = {
-  short: uk.filters.coatShort,
-  long: uk.filters.coatLong,
 };
 const SEX_LABEL: Record<AnimalSex, string> = {
   male: uk.filters.sexMale,
@@ -342,15 +334,37 @@ export function FilterSheet({
             </div>
           </fieldset>
 
+          {/*
+            Radio, not checkbox (gallery filter restructure): species
+            becomes an exclusive choice everywhere, matching the desktop
+            toggle's own semantics - mirrors the sort fieldset's own radio
+            group below, including its "any" option, which has no checkbox
+            equivalent elsewhere in this form since every other dimension
+            here really is multi-select. The "any" radio's empty value
+            submits `vyd=` on check, which `AnimalSpeciesSchema` refuses to
+            parse - `filter-url.ts`'s own "unrecognised tokens are dropped
+            silently" rule then collapses that to `{kind: "any"}`, the same
+            way an absent param already does.
+          */}
           <fieldset className="flex flex-col gap-3">
             <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
               {uk.filters.species}
             </legend>
             <div className="flex flex-wrap gap-2">
+              <label className={CHIP_LABEL_BASE}>
+                <input
+                  type="radio"
+                  name={GALLERY_PARAM.species}
+                  value=""
+                  defaultChecked={filters.species.kind === "any"}
+                  className="sr-only"
+                />
+                {uk.filters.speciesAny}
+              </label>
               {ANIMAL_SPECIES.map((species) => (
                 <label key={species} className={CHIP_LABEL_BASE}>
                   <input
-                    type="checkbox"
+                    type="radio"
                     name={GALLERY_PARAM.species}
                     value={species}
                     defaultChecked={isExplicitlySelected(filters.species, species)}
@@ -384,26 +398,6 @@ export function FilterSheet({
 
           <fieldset className="flex flex-col gap-3">
             <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.coat}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {COAT_LENGTHS.map((coat) => (
-                <label key={coat} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="checkbox"
-                    name={GALLERY_PARAM.coat}
-                    value={coat}
-                    defaultChecked={isExplicitlySelected(filters.coatLengths, coat)}
-                    className="sr-only"
-                  />
-                  {COAT_LABEL[coat]}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
               {uk.filters.age}
             </legend>
             <div className="flex flex-wrap gap-2">
@@ -422,55 +416,13 @@ export function FilterSheet({
             </div>
           </fieldset>
 
-          {/* Pet card PR 1b: the same group, twice more, after age and before
-              sort, with the filter words PR 1 built for these two. Below
-              1024px the sheet is the only filter control, so phones need these
+          {/* Pet card PR 1b added this group after age and before sort
               (Oleksii, 2026-10-26, verbatim as relayed: "keeping the two new
               filter groups there is approved; phones need a control for these
-              filters."; inbox PC1b-T15). */}
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.temperament}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {TEMPERAMENT_TRAITS.map((trait) => (
-                <label key={trait} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="checkbox"
-                    name={GALLERY_PARAM.temperament}
-                    value={trait}
-                    defaultChecked={isExplicitlySelected(filters.temperaments, trait)}
-                    className="sr-only"
-                  />
-                  {temperamentFilterLabel(trait)}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.colour}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {COAT_COLOURS.map((colour) => (
-                <label key={colour} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="checkbox"
-                    name={GALLERY_PARAM.colour}
-                    value={colour}
-                    defaultChecked={isExplicitlySelected(filters.colours, colour)}
-                    className="sr-only"
-                  />
-                  {colourFilterLabel(colour)}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          {/* Sex-filter feature: the eighth dimension, same group shape as
-              temperament/colour above, after colour and before sort to
-              match the desktop row's own order. */}
+              filters."; inbox PC1b-T15). Its sibling groups, temperament and
+              colour, were removed by the gallery filter restructure - sex is
+              the one survivor below 1024px, where the sheet is the only
+              filter control. */}
           <fieldset className="flex flex-col gap-3">
             <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
               {uk.filters.sex}

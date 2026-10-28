@@ -26,7 +26,13 @@ export function temperamentLabelFor(trait: TemperamentTrait, sex: AnimalSex): st
   return TEMPERAMENT_WORDS[trait][gender];
 }
 
-/** Gallery filter option and the chip-link's accessible name - names the category, not one animal. */
+/**
+ * The plural, category-naming form - not one animal's. No production caller
+ * since the gallery filter restructure removed temperament as a filter
+ * dimension; left in place (not deleted) because `temperament-labels.test.ts`
+ * is the test Oleksii explicitly asked for, covering every form including
+ * this one. A candidate for deletion in a later cleanup, not this PR.
+ */
 export function temperamentFilterLabel(trait: TemperamentTrait): string {
   return TEMPERAMENT_WORDS[trait].plural;
 }

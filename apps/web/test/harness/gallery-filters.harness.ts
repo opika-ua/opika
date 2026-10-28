@@ -254,21 +254,18 @@ test.describe("/tvaryny filters – work with JavaScript disabled", () => {
       page.locator(SHEET),
       "the <dialog> should be revealed by the :target rule alone, with no JS",
     ).toBeVisible();
-    const speciesCheckbox = page.locator(`${SHEET} input[name="vyd"][value="dog"]`);
-    await expect(
-      speciesCheckbox,
-      "the species checkbox should be reachable without JS",
-    ).toBeAttached();
+    // A radio, not a checkbox (gallery filter restructure: species is
+    // exclusive-choice now), but the name/value scheme and the sr-only/
+    // wrapping-<label> pattern are unchanged.
+    const speciesRadio = page.locator(`${SHEET} input[name="vyd"][value="dog"]`);
+    await expect(speciesRadio, "the species radio should be reachable without JS").toBeAttached();
     // The input itself is visually `sr-only` (1x1, clipped) - its wrapping
     // <label> is what a real tap actually lands on and what native <label>
     // semantics forward the click to, exactly like every other chip in
     // this UI. Clicking the tiny input directly is a test artifact, not
     // how anyone - mouse or screen reader - actually operates this control.
-    await speciesCheckbox.locator("xpath=..").click();
-    await expect(
-      speciesCheckbox,
-      "clicking the label should check the checkbox it wraps",
-    ).toBeChecked();
+    await speciesRadio.locator("xpath=..").click();
+    await expect(speciesRadio, "clicking the label should check the radio it wraps").toBeChecked();
     await page.locator(`${SHEET} button[type="submit"]`).click();
 
     await page.waitForURL(/vyd=dog/);

@@ -1,20 +1,9 @@
 import { randomUUID } from "node:crypto";
-import {
-  type CityId,
-  type CoatLength,
-  DEFAULT_SEEN_SET_POLICY,
-  EVERYONE_SCOPE,
-  type FeedFilters,
-  type ListedAnimal,
-  NO_FILTERS,
-  type ShelterAdminId,
-} from "@opika/domain";
+import type { CityId, CoatLength, ListedAnimal, ShelterAdminId } from "@opika/domain";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
-import { feedRepo } from "../src/repos/feed-repo";
-import { galleryRepo } from "../src/repos/gallery-repo";
 import { kabinetAnimalRepo } from "../src/repos/kabinet-animal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import {
@@ -75,13 +64,6 @@ async function seedFur(): Promise<Record<"short" | "long" | "unrecorded", Listed
   return corpus;
 }
 
-const furFilter = (values: readonly [CoatLength, ...CoatLength[]]): FeedFilters => ({
-  ...NO_FILTERS,
-  coatLengths: { kind: "oneOf", values },
-});
-
-const ids = (animals: readonly { id: string }[]): string[] => animals.map((a) => a.id).sort();
-
 describe("animals.coat_length (migration 0014)", () => {
   it("is a nullable text column with no default, so no existing row gained a value", async () => {
     const rows = await db.execute<{
@@ -108,65 +90,6 @@ describe("animals.coat_length (migration 0014)", () => {
         expect((await animalRepo(db).findById(animal.id))?.coatLength).toBe(expected);
       }
     }
-  });
-});
-
-describe("the fur filter in the shared predicate (DR1-D11)", () => {
-  it("the gallery lists only the chosen fur, never an unrecorded one", async () => {
-    const corpus = await seedFur();
-    const list = (filters: FeedFilters) =>
-      galleryRepo(db).list({
-        filters,
-        scope: EVERYONE_SCOPE,
-        sort: "freshest",
-        page: 1,
-        pageSize: 24,
-        now: NOW,
-      });
-
-    expect(ids((await list(furFilter(["long"]))).items)).toEqual(ids(corpus.long));
-    expect(ids((await list(furFilter(["short"]))).items)).toEqual(ids(corpus.short));
-    expect((await list(NO_FILTERS)).totalMatching).toBe(9);
-  });
-
-  it("the deck serves only the chosen fur", async () => {
-    const corpus = await seedFur();
-    const page = await feedRepo(db).list({
-      filters: furFilter(["short"]),
-      cursor: null,
-      limit: 20,
-      adopterId: null,
-      now: NOW,
-      seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
-    });
-    expect(ids(page.items)).toEqual(ids(corpus.short));
-  });
-
-  it("the fur relaxation is the unfiltered count minus the filtered one, unrecorded included", async () => {
-    await seedFur();
-    const counts = await galleryRepo(db).relaxationCounts({
-      filters: furFilter(["long"]),
-      now: NOW,
-    });
-    expect(counts.current).toBe(2);
-    expect(counts.relaxations).toEqual([{ dimension: "coatLengths", additional: 9 - 2 }]);
-  });
-
-  it("relaxes fur alongside another dimension, each from the same predicate", async () => {
-    await seedFur();
-    const counts = await galleryRepo(db).relaxationCounts({
-      filters: { ...furFilter(["short"]), species: { kind: "oneOf", values: ["cat"] } },
-      now: NOW,
-    });
-    // Every fixture animal is a dog: no cat matches, dropping the species
-    // filter shows the 3 short-haired dogs, dropping fur shows no cat at all.
-    expect(counts.current).toBe(0);
-    expect(new Map(counts.relaxations.map((r) => [r.dimension, r.additional]))).toEqual(
-      new Map([
-        ["species", 3],
-        ["coatLengths", 0],
-      ]),
-    );
   });
 });
 

@@ -114,30 +114,31 @@ describe("runSmoke against the local database", () => {
     // K3's 27-31 (F-B1, K3-T7, RH-B7), then K2's 32-36 (the list's keyset,
     // filters and counts; confirm/undo; the recorded moves), then KH-Q12's 37
     // (auth:revoke-all's purge), then 38 (the gallery's relaxation counts),
-    // then 39 (fur set and cleared by the kabinet edit, filtered in the
-    // gallery and the deck, DR1 S3), then 40 (the gallery list scoped to one
-    // shelter, DR1 S5), then S8's 41 (animals.cardsByIds's findByIds), then
-    // GDPR photo retention's 42 - six checks (PR #200, Tier 1 review,
-    // blocker 4): referencedStorageKeys' jsonb_array_elements SELECT,
-    // referencedObjectKeys' derived variant, recordScan's track, still
-    // Unreferenced's re-check, and afterDeleted's jsonb_set UPDATE plus a
-    // read-back confirming the null landed for real, not just in the
+    // then 39 (fur set and cleared by the kabinet edit, DR1 S3 - the write
+    // round trip only since the gallery filter restructure removed the fur
+    // filter that used to verify it there too), then 40 (the gallery list
+    // scoped to one shelter, DR1 S5), then S8's 41 (animals.cardsByIds's
+    // findByIds), then GDPR photo retention's 42 - six checks (PR #200, Tier
+    // 1 review, blocker 4): referencedStorageKeys' jsonb_array_elements
+    // SELECT, referencedObjectKeys' derived variant, recordScan's track,
+    // still Unreferenced's re-check, and afterDeleted's jsonb_set UPDATE plus
+    // a read-back confirming the null landed for real, not just in the
     // statement's own reported count. Then 42b, two checks (pet card PR 4,
     // Tier 1 review, note 2): referencedStorageKeys' UNION also reads
     // shelters.logo over neon-http, and referencedObjectKeys derives the
     // logo's own small/large variants, not the animal-photo ones. Then 43,
-    // the pet card's fields
-    // (migration 0017): the schema's first array column, set and cleared
-    // through writeEditIf and read back. Then 44, two checks (pet card PR 1b):
-    // the temperament filter's array overlap, one scalar parameter per trait,
-    // and the colour filter, in the gallery, the deck and the relaxation
-    // counts. Then 44b, one more (sex-filter feature): the sex filter's own
-    // IN clause, over the same corpus, including the explicit "unknown"
-    // value. Then 45, two checks (pet card PR 2): the scalar-subquery seek
-    // in animals.neighbours - list() order through a tied pair broken by id,
-    // and the end-of-list/unknown-id null cases - over neon-http's own
-    // timestamptz comparison and id tiebreak, not just postgres-js's.
-    expect(outcomes.length).toBe(55);
+    // the pet card's fields (migration 0017): the schema's first array
+    // column, set and cleared through writeEditIf and read back (the
+    // temperament/colour filter checks that used to follow at 44 are gone
+    // with the filters themselves, gallery filter restructure). Then 44b,
+    // one more (sex-filter feature), kept because sex stays a filter: the
+    // sex filter's own IN clause, over the same corpus, including the
+    // explicit "unknown" value. Then 45, two checks (pet card PR 2): the
+    // scalar-subquery seek in animals.neighbours - list() order through a
+    // tied pair broken by id, and the end-of-list/unknown-id null cases -
+    // over neon-http's own timestamptz comparison and id tiebreak, not just
+    // postgres-js's.
+    expect(outcomes.length).toBe(53);
   });
 
   it("passes every statement over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
@@ -159,6 +160,6 @@ describe("runSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes.length).toBe(55);
+    expect(outcomes.length).toBe(53);
   });
 });

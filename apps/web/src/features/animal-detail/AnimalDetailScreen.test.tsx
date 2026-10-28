@@ -221,14 +221,36 @@ describe("AnimalDetailScreen meta line, by sex", () => {
     expect(screen.queryByText("Хлопчик")).toBeNull();
     expect(screen.queryByText("Дівчинка")).toBeNull();
   });
+
+  /**
+   * The sex chip's own filterable link (gallery filter restructure
+   * reverses SF-D5): same `FilterableChipLink` pattern age/size already
+   * use, writing `stat=` rather than a `filters.sex*`-worded href for any
+   * other dimension.
+   */
+  it("a recorded sex is a chip linking to the gallery's own sex filter", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal({ sex: "male", ageBucket: "young" })}
+        shelter={makeShelter()}
+        cityName="Бровари"
+      />,
+    );
+    const chip = screen.getByRole("link", { name: "Показати схожих котів: хлопчик" });
+    expect(chip.textContent).toBe("Хлопчик");
+    expect(chip.getAttribute("href")).toContain("stat=male");
+  });
 });
 
 /**
- * Pet card PR 5, A6: coat length moved from its own stacked "Шерсть:
- * Коротка" row (`CoatFact`, deleted with this PR) into a filterable chip in
- * the «Про мене» row, using the filter dropdown's own plural words
- * (`uk.filters.coatShort`/`coatLong`) - no row at all when fur isn't
- * recorded, same rule as before, just a different fact word.
+ * Pet card PR 5, A6, originally: coat length moved from its own stacked
+ * "Шерсть: Коротка" row (`CoatFact`, deleted with this PR) into a
+ * filterable chip in the «Про мене» row. **Changed, gallery filter
+ * restructure:** the fur filter itself is gone, so this chip is plain
+ * text again, same as temperament/colour - still `uk.filters.coatShort`/
+ * `coatLong` (those two words stay public, their only caller now), still
+ * no row at all when fur isn't recorded, just no longer a link anywhere.
  */
 describe("AnimalDetailScreen – the coat length chip", () => {
   const renderWith = async (coatLength: AnimalDetailView["coatLength"]) => {
@@ -245,20 +267,11 @@ describe("AnimalDetailScreen – the coat length chip", () => {
   it.each([
     ["short", "Короткошерсті"],
     ["long", "Довгошерсті"],
-  ] as const)(
-    "a %s coat is a chip linking to the gallery's own filter",
-    async (coatLength, text) => {
-      await renderWith(coatLength);
-      // `makeAnimal`'s defaults (`ageBucket: "young"`, `size: "small"`) render their own
-      // filterable chips too, so the coat chip is found by its own exact accessible name
-      // (species "cat" → `uk.detail.chipSpeciesCat`), not a loose "Показати схожих" match.
-      const chip = screen.getByRole("link", {
-        name: `Показати схожих котів: ${text.toLowerCase()}`,
-      });
-      expect(chip.textContent).toBe(text);
-      expect(chip.getAttribute("href")).toContain(`sherst=${coatLength}`);
-    },
-  );
+  ] as const)("a %s coat is a plain, non-filterable chip", async (coatLength, text) => {
+    await renderWith(coatLength);
+    const chip = screen.getByText(text);
+    expect(chip.closest("a")).toBeNull();
+  });
 
   it("shows no coat chip when it isn't recorded", async () => {
     await renderWith(null);

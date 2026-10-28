@@ -283,29 +283,6 @@ describe("seed corpus - D-4 hostile cases", () => {
       expect(discoverable.some((a) => a.colour === null)).toBe(true);
     });
 
-    /**
-     * What `gallery-temperament-colour.harness.ts`'s no-match case leans on:
-     * `kharakter=playful&zabarvlennia=cream` matches nobody, while dropping
-     * either filter finds someone. It holds by construction (cream is colour
-     * cycle 5, and every animal on temperament cycle 6's sixth step carries no
-     * preset), and this makes it a limit, not a coincidence a seed tweak
-     * breaks silently.
-     */
-    it("has no discoverable cream animal with a temperament preset, yet has discoverable cream and playful animals", () => {
-      const cream = discoverable.filter(
-        (a) => a.colour?.kind === "preset" && a.colour.colour === "cream",
-      );
-      expect(cream.length).toBeGreaterThan(0);
-      expect(cream.filter((a) => a.temperament.some((entry) => entry.kind === "preset"))).toEqual(
-        [],
-      );
-      expect(
-        discoverable.some((a) =>
-          a.temperament.some((entry) => entry.kind === "preset" && entry.trait === "playful"),
-        ),
-      ).toBe(true);
-    });
-
     it("has discoverable animals with a medical note and without one", () => {
       expect(discoverable.some((a) => a.medicalNotes !== null)).toBe(true);
       expect(discoverable.some((a) => a.medicalNotes === null)).toBe(true);

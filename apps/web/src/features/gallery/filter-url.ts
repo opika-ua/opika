@@ -5,13 +5,10 @@ import type {
   AnimalSpecies,
   CityId,
   CitySlug,
-  CoatColour,
-  CoatLength,
   FeedFilters,
   FilterSelection,
   GallerySort,
   SizeBucket,
-  TemperamentTrait,
 } from "@opika/domain";
 import {
   AgeBucketSchema,
@@ -19,22 +16,14 @@ import {
   AnimalSexSchema,
   AnimalSpeciesSchema,
   CityIdSchema,
-  CoatColourSchema,
-  CoatLengthSchema,
   canonicalizeFilters,
   DEFAULT_GALLERY_SORT,
   GallerySortSchema,
+  isExplicitlySelected,
   NO_FILTERS,
   SizeBucketSchema,
-  TemperamentTraitSchema,
 } from "@opika/domain";
-import {
-  colourChipLabel,
-  colourFilterLabel,
-  fillTemplate,
-  temperamentFilterLabel,
-  uk,
-} from "@opika/i18n";
+import { fillTemplate, uk } from "@opika/i18n";
 
 /**
  * The design's own URL example (`/tvaryny?misto=brovary&stor=1`,
@@ -52,26 +41,27 @@ import {
  * arrives as a parameter built once by the caller (`cities.list`), the same
  * pattern `filtersInWords`'s own `cityNames` map already established below.
  *
- * `sherst` (fur, designer round 1) follows the same transliteration, and so
- * do the pet card's two (PR 1b): `kharakter` for «Характер» and
- * `zabarvlennia` for «Забарвлення», each named after its group label, as
- * `sherst` is after «Шерсть» (the national transliteration: «х» is `kh`, a
- * final «я» is `ia`). `stat` (sex) follows the same rule for «Стать» - «ь»
- * drops, as `sherst`'s own final «ь» does.
+ * `stat` (sex) follows the same transliteration convention for «Стать» -
+ * «ь» drops, the way a final «я» becomes `ia`.
+ *
+ * `sherst`/`kharakter`/`zabarvlennia` (fur, temperament, colour) existed
+ * here too, through the pet card redesign; removed with those three
+ * dimensions by the gallery filter restructure, which found them harder to
+ * use well than to use at all. A stale link carrying one of them degrades
+ * the same way an unrecognised param always has - `parseGalleryQuery`
+ * drops anything it doesn't recognise, so an old `?sherst=long` link still
+ * opens the gallery, just without that constraint.
  */
 const CITY_PARAM = "misto";
 const SPECIES_PARAM = "vyd";
 const SIZE_PARAM = "rozmir";
 const AGE_PARAM = "vik";
-const COAT_PARAM = "sherst";
-const TEMPERAMENT_PARAM = "kharakter";
-const COLOUR_PARAM = "zabarvlennia";
 const SEX_PARAM = "stat";
 const SORT_PARAM = "sort";
 const PAGE_PARAM = "stor";
 
 /**
- * The same ten names, exported for the one caller that cannot go through
+ * The same seven names, exported for the one caller that cannot go through
  * `galleryHref`: `FilterSheet`'s `<form method="GET">`, whose field `name`
  * attributes ARE the query keys the browser submits with no JS running.
  * Spelling them as literals there would be a second, uncompiled copy of
@@ -84,9 +74,6 @@ export const GALLERY_PARAM = {
   species: SPECIES_PARAM,
   size: SIZE_PARAM,
   age: AGE_PARAM,
-  coat: COAT_PARAM,
-  temperament: TEMPERAMENT_PARAM,
-  colour: COLOUR_PARAM,
   sex: SEX_PARAM,
   sort: SORT_PARAM,
   page: PAGE_PARAM,
@@ -193,12 +180,6 @@ export function parseGalleryQuery(
     species: parseSelection<AnimalSpecies>(searchParams[SPECIES_PARAM], AnimalSpeciesSchema),
     sizes: parseSelection<SizeBucket>(searchParams[SIZE_PARAM], SizeBucketSchema),
     ages: parseSelection<AgeBucket>(searchParams[AGE_PARAM], AgeBucketSchema),
-    coatLengths: parseSelection<CoatLength>(searchParams[COAT_PARAM], CoatLengthSchema),
-    temperaments: parseSelection<TemperamentTrait>(
-      searchParams[TEMPERAMENT_PARAM],
-      TemperamentTraitSchema,
-    ),
-    colours: parseSelection<CoatColour>(searchParams[COLOUR_PARAM], CoatColourSchema),
     sexes: parseSelection<AnimalSex>(searchParams[SEX_PARAM], AnimalSexSchema),
   });
 
@@ -222,9 +203,9 @@ export function parseGalleryQuery(
  * instead."
  *
  * Rewrites only the value of the city param - every other param's value
- * (`stor`, `sort`, `vyd`, `rozmir`, `vik`, `sherst`, `kharakter`,
- * `zabarvlennia`, `stat`, or anything this file doesn't recognise) survives
- * unchanged once re-parsed, never dropped or altered.
+ * (`stor`, `sort`, `vyd`, `rozmir`, `vik`, `stat`, or anything this file
+ * doesn't recognise) survives unchanged once re-parsed, never dropped or
+ * altered.
  * Not literally byte-for-byte: `URLSearchParams` re-serialises the whole
  * query string, so `misto` always ends up last regardless of where it sat
  * originally, and a value containing characters `URLSearchParams` encodes
@@ -315,26 +296,26 @@ const toggle = <T extends string>(selection: FilterSelection<T>, value: T): Filt
 export const withToggledCity = (filters: FeedFilters, cityId: CityId): FeedFilters =>
   canonicalizeFilters({ ...filters, cities: toggle(filters.cities, cityId) });
 
-export const withToggledSpecies = (filters: FeedFilters, species: AnimalSpecies): FeedFilters =>
-  canonicalizeFilters({ ...filters, species: toggle(filters.species, species) });
+/**
+ * The species toggle's own write (gallery filter restructure): exclusive
+ * choice, not the multi-select every other dimension above uses - tapping
+ * "Cats" while "Dogs" is selected replaces it, it doesn't add to it.
+ * Tapping the already-selected option clears back to "any", since a toggle
+ * has no separate clear control the way a dropdown does.
+ */
+export const withOnlySpecies = (filters: FeedFilters, species: AnimalSpecies): FeedFilters =>
+  canonicalizeFilters({
+    ...filters,
+    species: isExplicitlySelected(filters.species, species)
+      ? ANY
+      : { kind: "oneOf", values: [species] },
+  });
 
 export const withToggledSize = (filters: FeedFilters, size: SizeBucket): FeedFilters =>
   canonicalizeFilters({ ...filters, sizes: toggle(filters.sizes, size) });
 
 export const withToggledAge = (filters: FeedFilters, age: AgeBucket): FeedFilters =>
   canonicalizeFilters({ ...filters, ages: toggle(filters.ages, age) });
-
-export const withToggledCoat = (filters: FeedFilters, coat: CoatLength): FeedFilters =>
-  canonicalizeFilters({ ...filters, coatLengths: toggle(filters.coatLengths, coat) });
-
-export const withToggledTemperament = (
-  filters: FeedFilters,
-  trait: TemperamentTrait,
-): FeedFilters =>
-  canonicalizeFilters({ ...filters, temperaments: toggle(filters.temperaments, trait) });
-
-export const withToggledColour = (filters: FeedFilters, colour: CoatColour): FeedFilters =>
-  canonicalizeFilters({ ...filters, colours: toggle(filters.colours, colour) });
 
 export const withToggledSex = (filters: FeedFilters, sex: AnimalSex): FeedFilters =>
   canonicalizeFilters({ ...filters, sexes: toggle(filters.sexes, sex) });
@@ -368,15 +349,6 @@ function filterParams(filters: FeedFilters, citySlugs: CitySlugsById): URLSearch
   }
   if (canonical.ages.kind === "oneOf") {
     params.set(AGE_PARAM, canonical.ages.values.join(","));
-  }
-  if (canonical.coatLengths.kind === "oneOf") {
-    params.set(COAT_PARAM, canonical.coatLengths.values.join(","));
-  }
-  if (canonical.temperaments.kind === "oneOf") {
-    params.set(TEMPERAMENT_PARAM, canonical.temperaments.values.join(","));
-  }
-  if (canonical.colours.kind === "oneOf") {
-    params.set(COLOUR_PARAM, canonical.colours.values.join(","));
   }
   if (canonical.sexes.kind === "oneOf") {
     params.set(SEX_PARAM, canonical.sexes.values.join(","));
@@ -474,19 +446,20 @@ const NO_CITY_SLUGS: CitySlugsById = new Map();
 
 /**
  * One fact on an animal's card that the gallery can filter on: the chip a
- * person taps to see more animals like this one in that respect. Sex is not
- * here because `SexChip` renders as a plain, non-tappable chip (A6) - not
- * because `FeedFilters` lacks the dimension (it gained one, sex-filter
- * feature; SF-D5 left making the sex chip filterable as a separate,
- * unaddressed question). City is not here because «more like this» means
- * the animal, not the place.
+ * person taps to see more animals like this one in that respect. `sexes`
+ * reverses SF-D5 (gallery filter restructure): sex is one of the four
+ * dimensions the restructure keeps as a real filter, so its chip becomes
+ * tappable along with it - SF-D5's "out of scope for this feature" was
+ * about the sex-filter PR alone, and this is exactly the broader feature
+ * that question was left open for. Fur, temperament and colour left this
+ * union the same way they left `FeedFilters` - removed, not merely
+ * stopped-at. City is not here because «more like this» means the animal,
+ * not the place.
  */
 export type FilterableChip =
   | { dimension: "ages"; value: AgeBucket }
   | { dimension: "sizes"; value: SizeBucket }
-  | { dimension: "coatLengths"; value: CoatLength }
-  | { dimension: "temperaments"; value: TemperamentTrait }
-  | { dimension: "colours"; value: CoatColour };
+  | { dimension: "sexes"; value: AnimalSex };
 
 const only = <T>(value: T): FilterSelection<T> => ({ kind: "oneOf", values: [value] });
 
@@ -497,12 +470,8 @@ function withOnlyChip(filters: FeedFilters, chip: FilterableChip): FeedFilters {
       return { ...filters, ages: only(chip.value) };
     case "sizes":
       return { ...filters, sizes: only(chip.value) };
-    case "coatLengths":
-      return { ...filters, coatLengths: only(chip.value) };
-    case "temperaments":
-      return { ...filters, temperaments: only(chip.value) };
-    case "colours":
-      return { ...filters, colours: only(chip.value) };
+    case "sexes":
+      return { ...filters, sexes: only(chip.value) };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled chip; unreachable at runtime */
     default: {
       const unreachable: never = chip;
@@ -529,12 +498,11 @@ export function similarAnimalsHref(species: AnimalSpecies, chip: FilterableChip)
 /**
  * A filterable chip's own visible text - the dimension's existing label,
  * exactly as the filter dropdown already shows it (`AGE_WORDS`/`SIZE_WORDS`/
- * `COAT_WORDS` below, the same maps `filtersInWords` already resolves these
- * three dimensions through), or the card's own sex-matched/colour-template
- * word for temperament/colour. Defined here, ahead of those three `const`
- * maps in this file, because `const` bindings (unlike `function`) aren't
- * usable before their own declaration runs - this only works because
- * nothing calls this function until the whole module has finished loading.
+ * `SEX_WORDS` below, the same maps `filtersInWords` already resolves these
+ * dimensions through). Defined here, ahead of those `const` maps in this
+ * file, because `const` bindings (unlike `function`) aren't usable before
+ * their own declaration runs - this only works because nothing calls this
+ * function until the whole module has finished loading.
  */
 export function chipDisplayLabel(chip: FilterableChip): string {
   switch (chip.dimension) {
@@ -542,12 +510,8 @@ export function chipDisplayLabel(chip: FilterableChip): string {
       return AGE_WORDS[chip.value];
     case "sizes":
       return SIZE_WORDS[chip.value];
-    case "coatLengths":
-      return COAT_WORDS[chip.value];
-    case "temperaments":
-      return temperamentFilterLabel(chip.value);
-    case "colours":
-      return colourChipLabel(chip.value);
+    case "sexes":
+      return SEX_WORDS[chip.value];
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled chip; unreachable at runtime */
     default: {
       const unreachable: never = chip;
@@ -666,10 +630,6 @@ const AGE_WORDS: Record<AgeBucket, string> = {
   adult: uk.filters.ageAdult,
   senior: uk.filters.ageSenior,
 };
-const COAT_WORDS: Record<CoatLength, string> = {
-  short: uk.filters.coatShort,
-  long: uk.filters.coatLong,
-};
 const SEX_WORDS: Record<AnimalSex, string> = {
   male: uk.filters.sexMale,
   female: uk.filters.sexFemale,
@@ -712,19 +672,6 @@ export function filtersInWords(
   }
   if (canonical.ages.kind === "oneOf") {
     parts.push(canonical.ages.values.map((a) => AGE_WORDS[a].toLowerCase()).join("/"));
-  }
-  if (canonical.coatLengths.kind === "oneOf") {
-    parts.push(canonical.coatLengths.values.map((c) => COAT_WORDS[c].toLowerCase()).join("/"));
-  }
-  // The filter options' own words (plural traits, neuter colours), lower-cased
-  // like every group above: the header names what the deck inherited.
-  if (canonical.temperaments.kind === "oneOf") {
-    parts.push(
-      canonical.temperaments.values.map((t) => temperamentFilterLabel(t).toLowerCase()).join("/"),
-    );
-  }
-  if (canonical.colours.kind === "oneOf") {
-    parts.push(canonical.colours.values.map((c) => colourFilterLabel(c).toLowerCase()).join("/"));
   }
   if (canonical.sexes.kind === "oneOf") {
     parts.push(canonical.sexes.values.map((s) => SEX_WORDS[s].toLowerCase()).join("/"));

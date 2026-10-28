@@ -6,10 +6,7 @@ import {
   AnimalSexSchema,
   AnimalSpeciesSchema,
 } from "../animals/animal";
-import { COAT_LENGTHS, CoatLengthSchema } from "../animals/coat";
-import { COAT_COLOURS, CoatColourSchema } from "../animals/colour";
 import { SIZE_BUCKETS, SizeBucketSchema } from "../animals/size";
-import { TEMPERAMENT_TRAITS, TemperamentTraitSchema } from "../animals/temperament";
 import { CityIdSchema } from "../primitives/ids";
 
 /**
@@ -47,33 +44,10 @@ export const FeedFiltersSchema = z.object({
   sizes: filterSelectionSchema(SizeBucketSchema),
   ages: filterSelectionSchema(AgeBucketSchema),
   /**
-   * Defaults to "any" when absent, so a filter set written before the fifth
-   * dimension existed (a tab's `sessionStorage`, a request from a page loaded
-   * before the deploy) still parses, as "no fur filter", which is what it
-   * meant. Its cursor still answers `INVALID_CURSOR`: the fingerprint gained a
-   * segment, so no earlier fingerprint can equal a current one.
-   */
-  coatLengths: filterSelectionSchema(CoatLengthSchema).default({ kind: "any" }),
-  /**
-   * The pet card's two filterable fields, defaulted for the reason fur is: a
-   * filter set from before they existed still parses, as "no temperament or
-   * colour filter", and its cursor answers `INVALID_CURSOR` once.
-   *
-   * A temperament filter matches an animal that has *any* of the chosen
-   * traits, not all of them: ticking «Грайливі» and «Спокійні» widens the
-   * list, as every other multi-select here does. Only the presets are
-   * filterable; a custom entry or a custom colour is the shelter's own words,
-   * which no filter can enumerate.
-   */
-  temperaments: filterSelectionSchema(TemperamentTraitSchema).default({ kind: "any" }),
-  colours: filterSelectionSchema(CoatColourSchema).default({ kind: "any" }),
-  /**
-   * Defaulted for the same backward-compatibility reason as the dimensions
-   * above: a filter set saved before this one existed still parses, as "no
-   * sex filter". Unlike `coatLengths`/`temperaments`/`colours`, `sex` is
-   * never null on `Animal` - "unknown" is a real, explicit value (`ANIMAL_SEXES`) -
-   * so this collapses to "any" the same way `species`/`sizes`/`ages` do, not
-   * the null-admitting way the three above do.
+   * Defaulted so a filter set saved before this dimension existed still
+   * parses, as "no sex filter". `sex` is never null on `Animal` - "unknown"
+   * is a real, explicit value (`ANIMAL_SEXES`) - so this collapses to "any"
+   * the same way `species`/`sizes`/`ages` do.
    */
   sexes: filterSelectionSchema(AnimalSexSchema).default({ kind: "any" }),
 });
@@ -84,9 +58,6 @@ export const NO_FILTERS: FeedFilters = {
   species: { kind: "any" },
   sizes: { kind: "any" },
   ages: { kind: "any" },
-  coatLengths: { kind: "any" },
-  temperaments: { kind: "any" },
-  colours: { kind: "any" },
   sexes: { kind: "any" },
 };
 
@@ -94,9 +65,8 @@ export const NO_FILTERS: FeedFilters = {
  * The dimensions a filter set constrains, as data rather than as
  * hand-written string literals.
  *
- * `FeedFiltersSchema.keyof()` derives this from the schema itself, so adding a
- * dimension (fur was the fifth, temperament and colour the sixth and seventh,
- * sex the eighth) cannot leave a relaxation suggestion, a URL parameter or a
+ * `FeedFiltersSchema.keyof()` derives this from the schema itself, so adding
+ * a dimension cannot leave a relaxation suggestion, a URL parameter or a
  * count query silently covering only the earlier ones.
  */
 export const FeedFilterDimensionSchema = FeedFiltersSchema.keyof();
@@ -177,25 +147,15 @@ const canonicalizeSelection = <T extends string>(
  * keyset cursor issued against one stops matching the other and the feed
  * silently restarts. Also what makes filter state shareable in a URL.
  *
- * Fur, temperament and colour can be unrecorded, so for them "every box
- * ticked" and "no filter" differ by one group: the animals with nothing
- * recorded, which only "no filter" admits. They collapse anyway, as fur
- * already did. A person who ticks every option is asking for everything the
- * filter offers, not for "only animals whose shelter described them", and two
- * encodings of that one request would be the cursor mismatch above.
- *
- * Sex has no such gap - `ANIMAL_SEXES` is exhaustive over a field that is
- * never null - so it collapses on the closed universe exactly as
- * species/sizes/ages do above.
+ * Every dimension here is a closed universe over a field that is never null,
+ * so each collapses on its own universe exactly as `species`/`sizes`/`ages`
+ * do.
  */
 export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
   cities: canonicalizeSelection(filters.cities, null),
   species: canonicalizeSelection(filters.species, ANIMAL_SPECIES),
   sizes: canonicalizeSelection(filters.sizes, SIZE_BUCKETS),
   ages: canonicalizeSelection(filters.ages, AGE_BUCKETS),
-  coatLengths: canonicalizeSelection(filters.coatLengths, COAT_LENGTHS),
-  temperaments: canonicalizeSelection(filters.temperaments, TEMPERAMENT_TRAITS),
-  colours: canonicalizeSelection(filters.colours, COAT_COLOURS),
   sexes: canonicalizeSelection(filters.sexes, ANIMAL_SEXES),
 });
 
@@ -207,10 +167,19 @@ export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
  * cursor payload turns "cursor reused across a filter change" from a silently
  * wrong page into a rejected one. Doubles as the URL state key.
  *
- * A new dimension appends its segment, never inserts one: an older
- * fingerprint then has fewer segments than any current one, so it can never
- * equal one, and a cursor issued before the dimension existed is refused
- * once rather than read against the wrong filters.
+ * This PR drops three dimensions (coatLengths, temperaments, colours), so
+ * every fingerprint built today has fewer segments than any issued before
+ * it - a cursor from before this change is refused outright rather than
+ * read against the wrong filters. That is a property of this one
+ * transition, not a standing guarantee: once dimensions can be both added
+ * and removed over time, segment count is no longer monotonic, and a
+ * future schema change could coincidentally land on a count some past era
+ * also used. Even then, a literal string match additionally requires every
+ * encoded value to match position-for-position, and the dimensions' own
+ * value vocabularies don't overlap (a city id never looks like a size
+ * bucket), so an accidental full collision stays implausible rather than
+ * impossible by construction. Treat this as defense in depth alongside the
+ * cursor's own `kind` tag and HMAC signature, not as a standalone proof.
  */
 export const filtersFingerprint = (filters: FeedFilters): string => {
   const canonical = canonicalizeFilters(filters);
@@ -222,9 +191,6 @@ export const filtersFingerprint = (filters: FeedFilters): string => {
     encode(canonical.species),
     encode(canonical.sizes),
     encode(canonical.ages),
-    encode(canonical.coatLengths),
-    encode(canonical.temperaments),
-    encode(canonical.colours),
     encode(canonical.sexes),
   ].join("|");
 };

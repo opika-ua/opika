@@ -199,6 +199,15 @@ export const uk = {
     species: "ВИД",
     speciesDogs: "Собаки",
     speciesCats: "Коти",
+    /**
+     * The species toggle's third segment (gallery filter restructure):
+     * confirmed in chat, his answer: "«Усі» (Recommended)". The kabinet
+     * has the same word for an analogous "all" filter state
+     * (`kabinet.animalList.filter.all`), but PC1b-T2's rule ("the public
+     * gallery must not read kabinet.* strings") means this is its own,
+     * separate public-namespace string, not a cross-namespace reuse.
+     */
+    speciesAny: "Усі",
     size: "РОЗМІР",
     sizeSmall: "Малий",
     sizeMedium: "Середній",
@@ -208,22 +217,17 @@ export const uk = {
     ageYoung: "Молодий",
     ageAdult: "Дорослий",
     ageSenior: "Літній",
-    /** Designer round 1 (S3): the fur group, his text (2026-10-20). */
-    coat: "Шерсть",
+    /**
+     * No longer a filter's own values (the gallery filter restructure
+     * removed `coat` - the dropdown's own legend - with the fur dimension
+     * itself), but kept under this key: pet card PR 5 already made the
+     * detail page's «Про мене» coat-length chip reuse these two words
+     * rather than carrying its own copy of "short-haired"/"long-haired",
+     * and that chip (now a plain, non-filterable one, same restructure)
+     * still needs them. Designer round 1 (S3), his text (2026-10-20).
+     */
     coatShort: "Короткошерсті",
     coatLong: "Довгошерсті",
-    /**
-     * Pet card PR 1b: the temperament and colour groups' names, public keys of
-     * their own like `coat` above, never read from `kabinet.*`. Oleksii,
-     * 2026-10-26, verbatim: "split them. Add filters.temperament = «Характер»
-     * and filters.colour = «Забарвлення» (same text, their own keys),
-     * mirroring filters.coat. The public gallery must not read kabinet.*
-     * strings. Both new keys count as owner-approved, since the text is
-     * identical to what I already approved." Their options are the card's own
-     * words (`temperamentFilterLabel`, `colourFilterLabel`).
-     */
-    temperament: "Характер",
-    colour: "Забарвлення",
     /**
      * The eighth dimension - all 4 strings duplicate already-approved words
      * (SF-Q2, `copy-status.test.ts`): `sex` is his K3 field label
@@ -913,20 +917,6 @@ export const uk = {
      * never a suggestion with none (docs/design/README.md: "no suggestion
      * without a number"). */
     additionalAnimals: "+{count} {animalWord}",
-    /** The fur dimension's own suggestion, his text (DR1, 2026-10-20): a
-     * whole template of its own, not `removeDimension` with a fur label. */
-    relaxCoat: "Будь-яка шерсть: +{count}",
-    /**
-     * Pet card PR 1b: the temperament and colour suggestions, built on his
-     * `relaxCoat` above, word for word but the group's noun, agreeing in
-     * gender («характер» masculine, «забарвлення» neuter). Drafted by the
-     * builder, then approved by him (inbox PC1b-C1). Oleksii, 2026-10-26,
-     * verbatim as the coordinating session relayed it: "No-match copy: (a),
-     * approved as written... owner-approved final copy, matching the
-     * «Будь-яка шерсть» precedent."
-     */
-    relaxTemperament: "Будь-який характер: +{count}",
-    relaxColour: "Будь-яке забарвлення: +{count}",
     /** Static, filter-value-independent - the mock's own closing caption
      * below the two suggestion buttons (`Opika Registry System.dc.html`'s
      * B4 frame), unlike the middle sentence above which names one specific

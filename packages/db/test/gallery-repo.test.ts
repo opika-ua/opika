@@ -357,9 +357,6 @@ describe("galleryRepo.list", () => {
       species: { kind: "oneOf", values: ["dog"] },
       sizes: { kind: "oneOf", values: ["small"] },
       ages: { kind: "any" },
-      coatLengths: { kind: "any" },
-      temperaments: { kind: "any" },
-      colours: { kind: "any" },
       sexes: { kind: "any" },
     };
     const page = await galleryRepo(db).list({
@@ -752,9 +749,6 @@ describe("galleryRepo.relaxationCounts", () => {
         species: { kind: "oneOf", values: ["dog"] },
         sizes: { kind: "oneOf", values: ["small"] },
         ages: { kind: "any" },
-        coatLengths: { kind: "any" },
-        temperaments: { kind: "any" },
-        colours: { kind: "any" },
         sexes: { kind: "any" },
       },
       now: NOW,
