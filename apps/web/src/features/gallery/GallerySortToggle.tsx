@@ -1,9 +1,9 @@
 import type { FeedFilters, GallerySort } from "@opika/domain";
 import { GALLERY_SORTS } from "@opika/domain";
 import { uk } from "@opika/i18n";
+import Link from "next/link";
 import type { CitySlugsById } from "./filter-url";
 import { galleryHref } from "./filter-url";
-import { Dropdown, DropdownOption } from "./GalleryFilterDropdowns";
 
 interface GallerySortToggleProps {
   filters: FeedFilters;
@@ -11,54 +11,85 @@ interface GallerySortToggleProps {
   citySlugs: CitySlugsById;
 }
 
-const SORT_LABEL: Record<GallerySort, string> = {
-  freshest: uk.filters.sortFreshestShort,
-  longest_waiting: uk.filters.sortLongestWaitingShort,
-};
-
-const SORT_FULL_SENTENCE: Record<GallerySort, string> = {
-  freshest: uk.filters.sortFreshest,
-  longest_waiting: uk.filters.sortLongestWaiting,
-};
-
 /**
- * «Сортування: Нові/Зачекались» - the gallery-v3 control block's sort
- * control, restyled as a filter-styled dropdown (gallery filter
- * restructure, decision taken: the user's own instruction was "toggle
- * old/new becomes a new filter like Old New options", read as the visual
- * inverse of the species change below it - species moved from a dropdown
- * to a toggle, sort moves from its own sliding-knob toggle to the
- * dropdown city/age/size/sex already use. Not "every other filter here":
- * species is the one dimension that went the other way, onto a toggle.
+ * «Нові ⬤ Зачекались» - the two-link sliding-knob sort toggle, restored
+ * per the owner's option-B sketch (`filter-row-option-B.png`) after #228
+ * had restyled it into a `Dropdown`. Pre-#228 version, unchanged (its
+ * `galleryHref`/`uk.filters.sort*` dependencies hadn't drifted): still two
+ * real links, each an instant navigation - only two sorts ever exist
+ * (`GALLERY_SORTS`), so a disclosure menu would be new interaction
+ * surface for no benefit.
  *
- * Reuses `GalleryFilterDropdowns.tsx`'s own `Dropdown`/`DropdownOption` -
- * same component, not a visual copy - with no `clearHref`: sort always
- * carries a real value (there is no "any" sort), so `Dropdown` always
- * shows its chevron here, never the clear ✕ the filter dropdowns show
- * once constrained. `active` is always `true`: the trigger's label is
- * always the real current sort, never a placeholder, so it reads in the
- * same ink colour a constrained filter dropdown does, not the muted
- * placeholder colour.
- *
- * `GallerySort`/`GALLERY_SORTS` (`packages/domain`) are unchanged - this
- * is a pure UI restyle, not a semantic change to sorting itself. Still two
- * real links, each an instant navigation: only two sorts ever exist, so a
- * client-side "open a menu" control (what `Dropdown`'s own disclosure
- * mechanism technically is) buys real choice between them for free,
- * without inventing a third interaction pattern for exactly two options.
+ * Visible labels are the owner's pre-approved short forms («Нові» /
+ * «Зачекались»); each `aria-label` is the short label followed by the
+ * long sentence (e.g. "Нові. Спочатку найсвіжіші картки"), so it both
+ * contains the visible text verbatim (WCAG 2.5.3) and keeps the fuller
+ * context.
  */
 export function GallerySortToggle({ filters, sort, citySlugs }: GallerySortToggleProps) {
+  const freshestHref = galleryHref(filters, "freshest", citySlugs);
+  const longestWaitingHref = galleryHref(filters, "longest_waiting", citySlugs);
+  const activeIndex = GALLERY_SORTS.indexOf(sort);
+  // Clicking the track flips to whichever sort isn't active - only two
+  // sorts ever exist, so "flip" and "go to the other one" are the same href.
+  const otherHref = sort === "freshest" ? longestWaitingHref : freshestHref;
+
   return (
-    <Dropdown legend={uk.filters.sortLabel} active={true} label={SORT_LABEL[sort]}>
-      {GALLERY_SORTS.map((candidate) => (
-        <DropdownOption
-          key={candidate}
-          active={candidate === sort}
-          href={galleryHref(filters, candidate, citySlugs)}
-        >
-          {SORT_FULL_SENTENCE[candidate]}
-        </DropdownOption>
-      ))}
-    </Dropdown>
+    // shrink-0: in the control block's row the dropdowns give way and wrap,
+    // never the switch. min-h-13 is a dropdown trigger's own height, so the
+    // switch sits centred on the first line of dropdowns beside it.
+    <nav
+      aria-label={uk.filters.sortLabel}
+      className="flex min-h-13 shrink-0 items-center gap-3 font-brand-ui"
+    >
+      <Link
+        prefetch={false}
+        href={freshestHref}
+        aria-label={`${uk.filters.sortFreshestShort}. ${uk.filters.sortFreshest}`}
+        aria-current={sort === "freshest" ? "true" : undefined}
+        data-testid="sort-freshest"
+        className={`flex min-h-12 items-center rounded-brand-pill px-2 text-[18px]/[1.2] font-semibold focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+          sort === "freshest" ? "text-brand-ink" : "text-brand-muted"
+        }`}
+      >
+        {uk.filters.sortFreshestShort}
+      </Link>
+
+      {/*
+        The track: 46x26, radius 13 (rounded-brand-pill, 999 renders fully
+        rounded at this size), ink fill, a 20px surface-coloured knob
+        sliding to whichever side is active. A real link to "the other"
+        sort, but tabIndex={-1} and aria-hidden keep it out of the Tab
+        order and the accessible tree - it always leads where one of the
+        two text links beside it already does.
+      */}
+      <Link
+        prefetch={false}
+        href={otherHref}
+        tabIndex={-1}
+        aria-hidden="true"
+        data-testid="sort-track"
+        className="relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-brand-pill bg-brand-ink p-[3px]"
+      >
+        <span
+          className={`block size-5 rounded-brand-pill bg-brand-surface transition-transform duration-[120ms] ${
+            activeIndex === 1 ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </Link>
+
+      <Link
+        prefetch={false}
+        href={longestWaitingHref}
+        aria-label={`${uk.filters.sortLongestWaitingShort}. ${uk.filters.sortLongestWaiting}`}
+        aria-current={sort === "longest_waiting" ? "true" : undefined}
+        data-testid="sort-longest-waiting"
+        className={`flex min-h-12 items-center rounded-brand-pill px-2 text-[18px]/[1.2] font-semibold focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+          sort === "longest_waiting" ? "text-brand-ink" : "text-brand-muted"
+        }`}
+      >
+        {uk.filters.sortLongestWaitingShort}
+      </Link>
+    </nav>
   );
 }
