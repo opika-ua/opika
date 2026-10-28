@@ -137,14 +137,16 @@ export const apiErrors = {
   },
   /**
    * A save that would clear a listing fact on an animal that has been
-   * published (F-B1): only a draft may lack one. Today only the description
-   * can be cleared, so `field` is that in practice; the enum names every
-   * listing fact so the answer stays exact if another becomes clearable.
+   * published (F-B1): only a draft may lack one. The enum names every
+   * listing fact so the answer stays exact as more become gated – `sex`
+   * joined description/size/age (SF-F1): an already-listed animal's sex
+   * may not drift back to "unknown", the same way its description may
+   * not drift back to null.
    */
   LISTING_FACT_REQUIRED: {
     status: 422,
     message: "A listing that was published must keep this field.",
-    data: z.object({ field: z.enum(["size", "age", "description"]) }),
+    data: z.object({ field: z.enum(["size", "age", "description", "sex"]) }),
   },
   /**
    * A birth date or «as of» date the server refuses (D3, Oleksii: "Refuse a

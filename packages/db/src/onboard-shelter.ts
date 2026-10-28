@@ -201,7 +201,11 @@ const OnboardAnimalSchema = z.object({
   // The kabinet's rule: no braces in a name (K-Q6, kept since DR1-Q5; see `animalNameProblem`).
   name: AnimalNameInputSchema,
   species: AnimalSpeciesSchema,
-  sex: AnimalSexSchema,
+  // Onboarding always publishes directly (no draft stage), so unlike the kabinet's
+  // draft form, "unknown" is never an acceptable starting value here (SF-F1).
+  sex: AnimalSexSchema.refine((s) => s !== "unknown", {
+    message: "Onboarded animals must have a known sex (male or female), not unknown",
+  }),
   size: SizeBucketSchema,
   ageBucket: z.enum(["baby", "young", "adult", "senior"]),
   // K3's cap: an onboarded description over it couldn't be saved again in K3.

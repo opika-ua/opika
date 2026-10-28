@@ -591,6 +591,9 @@ export async function animalsUpdate(
     const age = editedAge(animal.age, patch.age, deps.now, errors);
     /* v8 ignore next -- the patch can't clear an age (`age: null` is BAD_REQUEST) */
     if (age === null) throw errors.LISTING_FACT_REQUIRED({ data: { field: "age" } });
+    // SF-F1: unlike size/age/description, sex has no null variant – "unknown"
+    // is the stored-but-incomplete value a listed card must never drift back to.
+    if (common.sex === "unknown") throw errors.LISTING_FACT_REQUIRED({ data: { field: "sex" } });
     edited = { ...animal, ...common, size: patch.size ?? animal.size, age, description: kept };
   }
   const [first, ...rest] = changedFields(animal, edited);

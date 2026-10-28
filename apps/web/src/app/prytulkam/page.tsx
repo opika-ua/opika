@@ -2,10 +2,8 @@ import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { WORDMARK } from "../../brand";
-import { Footer } from "../../features/chrome/Footer";
+import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
-import { SiteHeader } from "../../features/chrome/SiteHeader";
-import { linkClass } from "../../features/controls/controls";
 import { SIGN_IN_PAGE_PATH } from "../../features/kabinet/routes";
 
 /**
@@ -81,7 +79,7 @@ export const metadata: Metadata = {
  * describe at all. Composed rather than invented: the page shell, width,
  * type scale and spacing are «Про проєкт»'s (`app/pro/page.tsx`), which is
  * itself the design's own established treatment for a static text page; the
- * one emphasised block reuses the `bg-rg-fill` surface the freshness block
+ * one emphasised block reuses the `bg-brand-line` surface the freshness block
  * and filter chips already use. No new visual idiom is introduced here.
  *
  * Section headings are deliberately absent rather than invented: headings are
@@ -97,21 +95,26 @@ const h = uk.forShelters.headings;
  * of loss `messages.test.ts`'s parity check exists to catch and cannot see
  * inside a single string.
  */
-const BODY = "text-[17px]/[26px] text-rg-ink whitespace-pre-line";
+const BODY = "text-[20px]/[1.4] text-brand-ink-2 whitespace-pre-line";
 
 /**
  * A real `<h2>` under the page's `<h1>`, not a styled paragraph - the whole
  * value of the headings is to a reader who is not reading linearly, and a
  * screen-reader user navigating by heading gets nothing from a bold `<p>`.
+ * 26px bold, the pet card panel's own section-heading style.
  */
 function Section({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="font-bold text-[19px]/[26px] tracking-[-0.02em] text-rg-ink">{heading}</h2>
+      <h2 className="text-[26px] font-bold text-brand-ink">{heading}</h2>
       {children}
     </section>
   );
 }
+
+/** «Увійти в кабінет»: the gallery's secondary-pill button look. */
+const SIGN_IN_LINK_CLASS =
+  "self-start inline-flex min-h-12 items-center rounded-brand-pill bg-brand-line px-6 text-[16px] font-semibold text-brand-ink hover:text-brand-accent focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]";
 
 /**
  * Designer feedback batch D (2026-10-23): same trade as `/pro`'s own
@@ -131,43 +134,40 @@ export default async function ForSheltersPage() {
 /** The page body; exported so `page.test.tsx` can render it without a real request scope. */
 export function renderForSheltersPage(kabinetSignedIn: boolean) {
   return (
-    <div className="font-rg min-h-dvh bg-rg-page">
-      <SiteHeader kabinetSignedIn={kabinetSignedIn} />
+    <ContentPageLayout
+      kabinetSignedIn={kabinetSignedIn}
+      currentPage="prytulkam"
+      title={uk.forShelters.title}
+    >
+      {/*
+        PW-2, his scope item 1: «Увійти в кабінет» → /kabinet/vkhid. Under the title, so a shelter
+        already in the kabinet, sent here again, finds the way in without reading the page.
+      */}
+      <Link href={SIGN_IN_PAGE_PATH} className={SIGN_IN_LINK_CLASS}>
+        {uk.forShelters.signInLink}
+      </Link>
 
-      <div className="max-w-[640px] mx-auto p-4 tablet:p-6 desktop:py-16 flex flex-col gap-6">
-        <h1 className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.035em] text-rg-ink">
-          {uk.forShelters.title}
-        </h1>
-        {/*
-          PW-2, his scope item 1: «Увійти в кабінет» → /kabinet/vkhid. Under the title, so a shelter
-          already in the kabinet, sent here again, finds the way in without reading the page; the
-          shared link control, theme tokens only.
-        */}
-        <Link href={SIGN_IN_PAGE_PATH} className={`${linkClass("text")} self-start`}>
-          {uk.forShelters.signInLink}
-        </Link>
-
-        <Section heading={h.whatThisIs}>
-          <p className="text-[19px]/[28px] text-rg-ink">{uk.forShelters.whatThisIs}</p>
-        </Section>
-        <Section heading={h.cost}>
-          <p className={BODY}>{uk.forShelters.cost}</p>
-        </Section>
-        <Section heading={h.whatHappensToAnimals}>
-          <p className={BODY}>{uk.forShelters.whatHappensToAnimals}</p>
-        </Section>
-        <Section heading={h.whoContactsWhom}>
-          <p className={BODY}>{uk.forShelters.whoContactsWhom}</p>
-          <p className={BODY}>{uk.forShelters.noObligation}</p>
-        </Section>
-        <Section heading={h.money}>
-          <p className={BODY}>{uk.forShelters.money}</p>
-        </Section>
-        <Section heading={h.verification}>
-          <p className={BODY}>{uk.forShelters.verification}</p>
-          <p className={BODY}>{uk.forShelters.verificationOpenToVolunteers}</p>
-        </Section>
-        {/*
+      <Section heading={h.whatThisIs}>
+        <p className="text-[20px]/[1.4] text-brand-ink-2">{uk.forShelters.whatThisIs}</p>
+      </Section>
+      <Section heading={h.cost}>
+        <p className={BODY}>{uk.forShelters.cost}</p>
+      </Section>
+      <Section heading={h.whatHappensToAnimals}>
+        <p className={BODY}>{uk.forShelters.whatHappensToAnimals}</p>
+      </Section>
+      <Section heading={h.whoContactsWhom}>
+        <p className={BODY}>{uk.forShelters.whoContactsWhom}</p>
+        <p className={BODY}>{uk.forShelters.noObligation}</p>
+      </Section>
+      <Section heading={h.money}>
+        <p className={BODY}>{uk.forShelters.money}</p>
+      </Section>
+      <Section heading={h.verification}>
+        <p className={BODY}>{uk.forShelters.verification}</p>
+        <p className={BODY}>{uk.forShelters.verificationOpenToVolunteers}</p>
+      </Section>
+      {/*
           §6 ends on «Ваш другий номер телефону - не рекомендація» - the only
           sentence on the page that anticipates someone gaming the process. It
           earns its place by proving the verification is enforced rather than
@@ -175,44 +175,44 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
           «потрібно небагато» is what recovers the tone, in one line. Keep
           these two adjacent.
         */}
-        <Section heading={h.whatToPrepare}>
-          <p className={BODY}>{uk.forShelters.whatToPrepare}</p>
-        </Section>
+      <Section heading={h.whatToPrepare}>
+        <p className={BODY}>{uk.forShelters.whatToPrepare}</p>
+      </Section>
 
-        {/*
+      {/*
           §8 is the paragraph the argument document marks as needing the most
           care - no shelter has been asked for a freshness sentence before, so
           the reason has to land or the request reads as strange. Given the
           page's one piece of emphasis for that reason, using the same
-          `bg-rg-fill` block the freshness display itself uses, so the
+          `bg-brand-line` block the freshness display itself uses, so the
           explanation and the thing it explains share a surface.
         */}
-        <Section heading={h.whyThatSentence}>
-          <div
-            data-testid="why-that-sentence"
-            className="bg-rg-fill rounded-rg-button p-4 flex flex-col gap-2"
-          >
-            <p className={BODY}>{uk.forShelters.whyThatSentence}</p>
-          </div>
-        </Section>
-        <Section heading={h.whenAnimalFindsHome}>
-          <p className={BODY}>{uk.forShelters.whenAnimalFindsHome}</p>
-        </Section>
-        {/*
+      <Section heading={h.whyThatSentence}>
+        <div
+          data-testid="why-that-sentence"
+          className="bg-brand-line rounded-brand-field p-4 flex flex-col gap-2"
+        >
+          <p className={BODY}>{uk.forShelters.whyThatSentence}</p>
+        </div>
+      </Section>
+      <Section heading={h.whenAnimalFindsHome}>
+        <p className={BODY}>{uk.forShelters.whenAnimalFindsHome}</p>
+      </Section>
+      {/*
           The largest unspoken objection on the page, and previously unanswered
           in eleven sections: what happens if they change their mind. It is the
           first question anyone asks before handing their data to a stranger
           with a website, and the answer is one of the strongest things the
           project can say.
         */}
-        <Section heading={h.howToLeave}>
-          <p className={BODY}>{uk.forShelters.howToLeave}</p>
-        </Section>
-        <Section heading={h.whoIsBehindThis}>
-          <p className={BODY}>{uk.forShelters.whoIsBehindThis}</p>
-        </Section>
+      <Section heading={h.howToLeave}>
+        <p className={BODY}>{uk.forShelters.howToLeave}</p>
+      </Section>
+      <Section heading={h.whoIsBehindThis}>
+        <p className={BODY}>{uk.forShelters.whoIsBehindThis}</p>
+      </Section>
 
-        {/*
+      {/*
           `hello@opika.org.ua` is live and receives mail (Cloudflare Email
           Routing, delivery tested 2026-09-02) - the same address
           `app/pro/page.tsx` renders. It mattered more here than there: a
@@ -220,13 +220,11 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
           page whose entire purpose is "write to us" is worse than absent if
           the address bounces. That gate is satisfied, not outstanding.
         */}
-        <Section heading={h.howToStart}>
-          <p className={BODY}>
-            {uk.forShelters.howToStart.replace("{contact}", "hello@opika.org.ua")}
-          </p>
-        </Section>
-        <Footer currentPage="prytulkam" />
-      </div>
-    </div>
+      <Section heading={h.howToStart}>
+        <p className={BODY}>
+          {uk.forShelters.howToStart.replace("{contact}", "hello@opika.org.ua")}
+        </p>
+      </Section>
+    </ContentPageLayout>
   );
 }

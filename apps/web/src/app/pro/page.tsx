@@ -1,9 +1,8 @@
 import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { WORDMARK } from "../../brand";
-import { Footer } from "../../features/chrome/Footer";
+import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
-import { SiteHeader } from "../../features/chrome/SiteHeader";
 
 /**
  * `about.intro` names the site with a `{site}` slot (audit 2026-10-22 #33): the
@@ -88,28 +87,20 @@ export default async function AboutPage() {
 /** The page body; exported so `page.test.tsx` can render it without a real request scope. */
 export function renderAboutPage(kabinetSignedIn: boolean) {
   return (
-    <div className="font-rg min-h-dvh bg-rg-page">
-      <SiteHeader kabinetSignedIn={kabinetSignedIn} />
-
-      <div className="max-w-[640px] mx-auto p-4 tablet:p-6 desktop:py-16 flex flex-col gap-6">
-        <h1 className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.03em] text-rg-ink">
-          {uk.about.title}
-        </h1>
-        <p className="text-[17px]/[26px] text-rg-ink">{INTRO}</p>
-        <p className="text-[17px]/[26px] text-rg-ink">{uk.about.free}</p>
-        <p className="text-[17px]/[26px] text-rg-ink">{uk.about.money}</p>
-        {/* Four paragraphs in one catalogue string (audit 2026-10-22 #45), split on the blank line. */}
-        {uk.about.data.split("\n\n").map((paragraph) => (
-          <p key={paragraph} className="text-[17px]/[26px] text-rg-ink">
-            {paragraph}
-          </p>
-        ))}
-        <p className="text-[17px]/[26px] text-rg-ink">{uk.about.analytics}</p>
-        <p className="text-[15px]/[22px] text-rg-ink-2 pt-2">
-          {uk.about.contact.replace("{contact}", "hello@opika.org.ua")}
+    <ContentPageLayout kabinetSignedIn={kabinetSignedIn} currentPage="pro" title={uk.about.title}>
+      <p className="text-[20px]/[1.4] text-brand-ink-2">{INTRO}</p>
+      <p className="text-[20px]/[1.4] text-brand-ink-2">{uk.about.free}</p>
+      <p className="text-[20px]/[1.4] text-brand-ink-2">{uk.about.money}</p>
+      {/* Four paragraphs in one catalogue string (audit 2026-10-22 #45), split on the blank line. */}
+      {uk.about.data.split("\n\n").map((paragraph) => (
+        <p key={paragraph} className="text-[20px]/[1.4] text-brand-ink-2">
+          {paragraph}
         </p>
-        <Footer currentPage="pro" />
-      </div>
-    </div>
+      ))}
+      <p className="text-[20px]/[1.4] text-brand-ink-2">{uk.about.analytics}</p>
+      <p className="border-t border-brand-line pt-6 text-[20px]/[1.4] text-brand-ink-2">
+        {uk.about.contact.replace("{contact}", "hello@opika.org.ua")}
+      </p>
+    </ContentPageLayout>
   );
 }

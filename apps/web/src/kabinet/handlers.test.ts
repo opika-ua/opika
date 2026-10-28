@@ -1770,6 +1770,42 @@ describe("K3: drafts, readiness and the description", () => {
     expect(await lines()).toEqual([]);
   });
 
+  it("setting a published animal's sex to unknown is LISTING_FACT_REQUIRED, writing nothing (SF-F1)", async () => {
+    const listed = await animal();
+    const result = await call<{ code?: string; data?: unknown }>("shelter.animals.update", {
+      animalId: listed.id,
+      expectedVersion: listed.version,
+      patch: { sex: "unknown" },
+    });
+    expect(result.status).toBe(422);
+    expect(result.body).toMatchObject({
+      code: "LISTING_FACT_REQUIRED",
+      data: { field: "sex" },
+    });
+    const stored = await reload(listed.id);
+    expect(stored.sex).toBe(listed.sex);
+    expect(stored.version).toBe(listed.version);
+    expect(await lines()).toEqual([]);
+  });
+
+  it("a draft can be saved and stay at sex unknown (SF-F1, must not regress)", async () => {
+    const draft = await bareDraft({ photos: [PHOTO] });
+    const result = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: draft.id,
+      expectedVersion: draft.version,
+      patch: {
+        size: "small",
+        age: { kind: "declared_bucket", bucket: "young", asOf: "2026-09-01" },
+        description: DESCRIPTION,
+      },
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.sex).toBe("unknown");
+    const stored = await reload(draft.id);
+    expect(stored.sex).toBe("unknown");
+    expect(stored.listing.kind).toBe("draft");
+  });
+
   it("a changed Ukrainian description drops the English; an unchanged one keeps it (T5)", async () => {
     const english = { text: "Calm, likes walks.", provenance: "human" } as const;
     const listed = await animal({ description: { uk: "Спокійна.", en: english } });
