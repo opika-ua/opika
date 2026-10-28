@@ -1876,6 +1876,19 @@ describe("the limits (§4.3, §9 answers 5 and 7)", () => {
     expect(known[5]?.status).toBe(429);
   });
 
+  it("a delayed attempt logs the limiter's name and nothing else (owner, 2026-10-28)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      for (let i = 0; i < 6; i++) await signInWithPassword("nobody@example.org", GOOD);
+      const refusals = warn.mock.calls.filter(
+        ([line]) => (line as { event?: unknown } | null)?.event === "rate_limited",
+      );
+      expect(refusals).toEqual([[{ event: "rate_limited", limiter: "kabinet-sign-in-delay" }]]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("five failures spread past 15 minutes start no delay", async () => {
     await adminWithPassword();
     for (let i = 0; i < 4; i++) await signInWithPassword(ADMIN, "не-той-пароль-зовсім");

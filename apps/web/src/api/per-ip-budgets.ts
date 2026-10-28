@@ -1,15 +1,15 @@
 import { ORPCError } from "@orpc/server";
 import type { AppCaller } from "./context";
 import { type RateLimiter, sharedRateLimiter } from "./rate-limit";
+import { redisCredentialsOf } from "./redis-credentials";
 
 /**
  * Audit F1: an anonymous adopter costs one request, so the per-adopter reveal
- * budget (30 shelters / 24 h, `reveal-rate-limit.ts`) bounded nothing for a
- * caller that throws its cookie away. These two budgets sit per IP (per /64
- * for IPv6, `rateLimitSubjectOf`), on top of it. Numbers approved by the owner.
+ * budget (30 shelters / 24 h, fixed, `reveal-rate-limit.ts`) bounded nothing for a
+ * caller that throws its cookie away. These two budgets sit per IP (per /64 for
+ * IPv6, `rateLimitSubjectOf`), on top of it. Sizes are environment variables
+ * (owner, 2026-10-28), documented in `docs/launch-sequence.md`.
  */
-export const ADOPTER_MINTS_PER_IP_PER_DAY = 10;
-export const NEW_SHELTER_REVEALS_PER_IP_PER_DAY = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type PerIpBudgets = {
@@ -25,26 +25,66 @@ export type PerIpBudgets = {
 
 export type PerIpBudgetSizes = { adopterMints: number; newShelterReveals: number };
 
-const SERVED_SIZES: PerIpBudgetSizes = {
-  adopterMints: ADOPTER_MINTS_PER_IP_PER_DAY,
-  newShelterReveals: NEW_SHELTER_REVEALS_PER_IP_PER_DAY,
+/** Each size's variable and default, per 24 h per address. */
+export const PER_IP_BUDGET_VARIABLES = {
+  adopterMints: { variable: "RATE_LIMIT_ADOPTERS_PER_IP_DAY", fallback: 50 },
+  newShelterReveals: { variable: "RATE_LIMIT_REVEALS_PER_IP_DAY", fallback: 100 },
+} as const;
+
+export type BudgetConfigWarning = {
+  event: "rate_limit_config_invalid";
+  variable: string;
+  using: number;
 };
+
+const consoleConfigWarning = (line: BudgetConfigWarning) => console.warn(line);
+
+/**
+ * A positive whole number, or the default with a warning naming the variable
+ * and the default only: a mistyped value could be a secret pasted into the
+ * wrong field, so it is never logged. Unset is the default, silently.
+ */
+function sizeFrom(
+  env: Readonly<Record<string, string | undefined>>,
+  { variable, fallback }: { variable: string; fallback: number },
+  warn: (line: BudgetConfigWarning) => void,
+): number {
+  const raw = env[variable];
+  if (raw === undefined) return fallback;
+  const text = raw.trim();
+  const size = /^[1-9][0-9]*$/.test(text) ? Number(text) : Number.NaN;
+  if (Number.isSafeInteger(size)) return size;
+  warn({ event: "rate_limit_config_invalid", variable, using: fallback });
+  return fallback;
+}
 
 /**
  * The Playwright harness mints an adopter per test from one address
- * (127.0.0.1), far past ten a day, so its `next start` sets
- * `HARNESS_LIFTS_PER_IP_BUDGETS=1`. Ignored on any Vercel deployment.
+ * (127.0.0.1), so its `next start` sets `HARNESS_LIFTS_PER_IP_BUDGETS=1`.
+ * Ignored on any Vercel deployment and wherever the shared store is configured.
  */
 const LIFTED_SIZE = 1_000_000;
 
 export function perIpBudgetSizesFor(
   env: Readonly<Record<string, string | undefined>>,
+  warn: (line: BudgetConfigWarning) => void = consoleConfigWarning,
 ): PerIpBudgetSizes {
   const onVercel = Boolean(env.VERCEL) || Boolean(env.VERCEL_ENV);
-  if (!onVercel && env.HARNESS_LIFTS_PER_IP_BUDGETS === "1") {
+  const sharedStore = redisCredentialsOf(env) !== null;
+  if (!onVercel && !sharedStore && env.HARNESS_LIFTS_PER_IP_BUDGETS === "1") {
     return { adopterMints: LIFTED_SIZE, newShelterReveals: LIFTED_SIZE };
   }
-  return SERVED_SIZES;
+  return {
+    adopterMints: sizeFrom(env, PER_IP_BUDGET_VARIABLES.adopterMints, warn),
+    newShelterReveals: sizeFrom(env, PER_IP_BUDGET_VARIABLES.newShelterReveals, warn),
+  };
+}
+
+/** Read and validated once per instance; `instrumentation.ts` calls it at startup. */
+let servedSizes: PerIpBudgetSizes | undefined;
+export function servedPerIpBudgetSizes(): PerIpBudgetSizes {
+  servedSizes ??= perIpBudgetSizesFor(process.env);
+  return servedSizes;
 }
 
 type LimiterFactory = (opts: {
@@ -67,7 +107,7 @@ export function perIpBudgetsOf(make: LimiterFactory, sizes: PerIpBudgetSizes): P
 /** The served budgets: Upstash where configured, in-memory otherwise (`sharedRateLimiter`). */
 let served: PerIpBudgets | undefined;
 export function servedPerIpBudgets(): PerIpBudgets {
-  served ??= perIpBudgetsOf(sharedRateLimiter, perIpBudgetSizesFor(process.env));
+  served ??= perIpBudgetsOf(sharedRateLimiter, servedPerIpBudgetSizes());
   return served;
 }
 

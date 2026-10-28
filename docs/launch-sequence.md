@@ -368,6 +368,52 @@ step 14 worked, not an action with its own state.
 
 ---
 
+## Per-IP limits on the adopter API, and where to see a refusal
+
+Two limits on the public API are environment variables (owner, 2026-10-28; #243), so a
+launch-day crowd behind one shared address (a carrier's NAT, an office, a campus) can be let
+through without a code change. Each counts per IP address over a rolling 24 hours; an IPv6
+address counts as its whole /64.
+
+| Variable | Default | What it limits |
+|---|---|---|
+| `RATE_LIMIT_ADOPTERS_PER_IP_DAY` | 50 | New anonymous visitors (`session.bootstrap` creating one) from one address. Returning visitors cost nothing. |
+| `RATE_LIMIT_REVEALS_PER_IP_DAY` | 100 | Shelters whose contacts are opened for the first time, by any visitor behind one address. Re-opening a shelter that visitor already opened costs nothing. |
+
+Each visitor's own limit, 30 shelters per 24 hours, is fixed in code and is not one of these.
+
+A value must be a positive whole number (`75`, not `75.0`, `0` or `-1`). Anything else, an
+empty value included, is ignored: the default applies and the instance logs one warning at
+startup, `{ event: "rate_limit_config_invalid", variable, using }`, naming the variable and the
+default, never the value. Unset means the default, with no warning.
+
+**To raise either:** Vercel → the project → Settings → Environment Variables → add or edit it for
+**Production**, then redeploy (Deployments → the current one → Redeploy). A changed variable
+reaches only new deployments. Lowering works the same way. `HARNESS_LIFTS_PER_IP_BUDGETS` belongs
+to the Playwright harness only: it is ignored on any Vercel deployment and wherever the shared
+store is configured, so never set it there.
+
+**To see whether real visitors meet a limit:** Vercel → the project → Logs, search
+`rate_limited`. Every refusal writes one line, `{ event: "rate_limited", limiter: "<name>" }`,
+with no IP address, email address, cookie or visitor id in it. The names:
+
+- `adopter-mint`, `reveal-ip`: the two variables above.
+- `reveal-adopter`: a visitor's own 30 shelters.
+- `api`: 100 requests a minute per address, on the API and the gallery, deck, animal and
+  shelter pages.
+- `kabinet-ip`, `kabinet-user`: the shelter cabinet's per-address and per-account budgets.
+- `kabinet-sign-in-ip`, `kabinet-sign-in-address`: sign-in links. The visitor sees the same
+  answer as a sent link; the refusal is logged anyway.
+- `kabinet-sign-in-delay`: the password sign-in's increasing wait.
+- `kabinet-forgot-ip`, `kabinet-forgot-address`, `kabinet-reset-ip`, `kabinet-invite-ip`:
+  «Забули пароль?», the reset form and the invitation link's password.
+- `kabinet-photo-hour`, `kabinet-photo-day`: photo and logo uploads per shelter.
+
+A steady trickle of `adopter-mint` or `reveal-ip` from ordinary use is the signal to raise the
+matching variable.
+
+---
+
 ## D-5/D-7, closed by this document
 
 **D-5**'s concern (a demo contact ever indexed) is now closed **by construction**, not by

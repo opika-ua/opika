@@ -114,22 +114,11 @@ export function useReveal(ensureSession?: () => Promise<boolean>) {
       if (generation !== callGenerationRef.current) return;
       if (!ready) {
         /**
-         * `bootstrapError instanceof TypeError` is the same "offline" test
-         * `use-feed-deck.ts:102-104` and the `revealError` branch below both
-         * use - a genuine network failure reaching `session.bootstrap`
-         * itself, before `animals.reveal` is ever called. Otherwise
-         * `"loadFailed"`, never `"rateLimited"` - not because
-         * `session.bootstrap` can't declare `RATE_LIMITED` in its contract
-         * (`packages/contracts/src/procedures/session.ts` says it can), but
-         * because the mechanism that actually rate-limits it is the generic
-         * per-IP limiter (`apps/web/src/api/rate-limit.ts`), which answers
-         * with a raw `new Response("Too Many Requests", { status: 429 })`
-         * before oRPC's own handler ever runs
-         * (`app/api/rpc/[...rpc]/route.ts`) - never a well-formed, defined
-         * oRPC error. If `session.bootstrap` ever threw a real
-         * `errors.RATE_LIMITED()` from inside its own handler, this branch
-         * would need to inspect that error the same way the block below
-         * does - it doesn't today because nothing here can produce one.
+         * A network failure (`TypeError`) is offline. A bootstrap 429 is
+         * `tooManyRequests`, never `rateLimited`: both the per-IP API limiter
+         * (`api/public-rpc-route.ts`) and the per-IP adopter cap
+         * (`perIpBudgetSpent`, `api/per-ip-budgets.ts`) answer with the undefined
+         * `TOO_MANY_REQUESTS`, so `isTooManyRequests` catches either.
          */
         const reason: RevealErrorReason =
           bootstrapError instanceof TypeError

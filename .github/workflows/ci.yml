@@ -19,6 +19,11 @@ env:
   # manager explicitly before it's ever invoked lazily.
   COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
 
+# Least privilege (audit F13): the one job only reads the repository. The cache and the
+# failure artefacts use the runner's own token, not GITHUB_TOKEN.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest

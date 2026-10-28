@@ -35,6 +35,37 @@ test.describe("security headers (audit F5)", () => {
     expectSecurityHeaders(api.headers(), "POST /api/rpc/animals/cardsByIds");
   });
 
+  /** The three the owner wants enforced, on responses no page code shapes. */
+  function expectEnforced(headers: Record<string, string>, what: string) {
+    expect(headers["x-content-type-options"], what).toBe("nosniff");
+    expect(headers["content-security-policy"], what).toBe("frame-ancestors 'none'");
+    expect(headers["strict-transport-security"], what).toBe("max-age=63072000; includeSubDomains");
+  }
+
+  test("a 404 page, a build asset, a public file and the proxy's own refusal carry them", async ({
+    request,
+  }) => {
+    const notFound = await request.get(`/tvaryny/not-a-real-id?${GATE}`, { headers: IP_HEADERS });
+    expect(notFound.status()).toBe(404);
+    expectEnforced(notFound.headers(), "the 404 page");
+
+    const gallery = await (await request.get(`/tvaryny?${GATE}`, { headers: IP_HEADERS })).text();
+    const asset = /\/_next\/static\/[^"'\s]+\.js/.exec(gallery)?.[0];
+    expect(asset, "the gallery links a build asset").toBeDefined();
+    const built = await request.get(asset ?? "", { headers: IP_HEADERS });
+    expect(built.status()).toBe(200);
+    expectEnforced(built.headers(), `the build asset ${asset}`);
+
+    const publicFile = await request.get(`/brand-v3/logo.svg?${GATE}`, { headers: IP_HEADERS });
+    expect(publicFile.status()).toBe(200);
+    expectEnforced(publicFile.headers(), "a file under /public");
+
+    // `proxy.ts` answers this itself (the pre-launch gate), as it does its 429s.
+    const gated = await request.get("/prytulkam", { headers: IP_HEADERS });
+    expect(gated.status()).toBe(403);
+    expectEnforced(gated.headers(), "the proxy's own refusal");
+  });
+
   /** Every report-only violation the page raises, collected as the browser fires them. */
   async function violationsOn(page: Page, path: string): Promise<string[]> {
     await page.addInitScript(() => {
