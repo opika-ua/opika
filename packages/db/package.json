@@ -35,6 +35,7 @@
     "db:neon-smoke": "tsx test/neon-smoke.ts",
     "worktree:remove": "tsx src/tools/worktree-remove.ts",
     "db:prune-test-dbs": "tsx src/tools/prune-test-dbs.ts",
+    "smoke-sitting": "tsx src/tools/smoke-sitting.ts",
     "r2:cleanup": "tsx src/r2-cleanup.ts"
   },
   "dependencies": {
