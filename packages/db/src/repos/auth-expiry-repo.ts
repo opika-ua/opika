@@ -48,7 +48,7 @@ export const KABINET_SESSION_LIMITS = {
  * session's cookie comes back, which may be never.
  *
  * **Past expiry means `expires_at < now`, strictly**, matching Better Auth
- * 1.6.33: `getSession` rejects a session when `expiresAt < new Date()`,
+ * 1.7.14: `getSession` rejects a session when `expiresAt < new Date()`,
  * `consumeVerificationValue` rejects a verification when
  * `expiresAt < new Date()`, and its own verification sweep deletes
  * `expiresAt lt now`. A row expiring at exactly `now` is still live to Better

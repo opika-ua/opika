@@ -38,6 +38,10 @@ import { handleKabinetRpc } from "./rpc-route";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
 import { enterSupport } from "./support";
 
+// Better Auth 1.7 asks how a user came to be; it is read only by `validateUserInfo`, which is
+// unset here. These fixtures stand in for the operator's server-side invitation write.
+const OPERATOR_INVITE = { method: "operator-invite" } as const;
+
 /** The principal the route acts on: `kabinetIdentityOf`, the function the route calls. */
 const principalOf = async (
   auth: Parameters<typeof kabinetIdentityOf>[0],
@@ -134,7 +138,10 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
 /** Through Better Auth's real adapter: this is the insert the review found broken. */
 async function createUser(email: string) {
   const ctx = await auth.$context;
-  const user = await ctx.internalAdapter.createUser({ email, name: "Олена", emailVerified: true });
+  const user = await ctx.internalAdapter.createUser(
+    { email, name: "Олена", emailVerified: true },
+    OPERATOR_INVITE,
+  );
   if (!user) throw new Error("createUser returned nothing");
   return user;
 }
@@ -405,11 +412,10 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
       limiters: unlimitedKabinet(),
     });
     const ctx = await secureAuth.$context;
-    await ctx.internalAdapter.createUser({
-      email: "olena@example.org",
-      name: "О",
-      emailVerified: true,
-    });
+    await ctx.internalAdapter.createUser(
+      { email: "olena@example.org", name: "О", emailVerified: true },
+      OPERATOR_INVITE,
+    );
     await secureAuth.handler(
       new Request(`${https}/api/auth/sign-in/magic-link`, {
         method: "POST",
@@ -474,11 +480,10 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
       limiters: unlimitedKabinet(),
     });
     const ctx = await secureAuth.$context;
-    const user = await ctx.internalAdapter.createUser({
-      email: "olena@example.org",
-      name: "О",
-      emailVerified: true,
-    });
+    const user = await ctx.internalAdapter.createUser(
+      { email: "olena@example.org", name: "О", emailVerified: true },
+      OPERATOR_INVITE,
+    );
     const password = "ялинка-під-вікном-1987";
     await ctx.internalAdapter.linkAccount({
       userId: user.id,

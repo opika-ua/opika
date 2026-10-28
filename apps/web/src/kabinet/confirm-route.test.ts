@@ -19,6 +19,10 @@ import { capturingSender } from "./magic-link-sender";
 import { generousPasswordLimiters } from "./password-limits";
 import { capturingPasswordMail } from "./password-mail";
 
+// Better Auth 1.7 asks how a user came to be; it is read only by `validateUserInfo`, which is
+// unset here. These fixtures stand in for the operator's server-side invitation write.
+const OPERATOR_INVITE = { method: "operator-invite" } as const;
+
 /**
  * IN-Q11: a GET never consumes anything. Real Better Auth, real Postgres,
  * real `Request`s, as in `auth.test.ts`; the scanner is just a GET.
@@ -86,11 +90,10 @@ const deps = (acceptInvitation: AcceptInvitation = realAccept()) => ({
 /** A known user asks to sign in; returns the emailed link. */
 async function emailedLink(): Promise<string> {
   const ctx = await auth.$context;
-  await ctx.internalAdapter.createUser({
-    email: "olena@example.org",
-    name: "Олена",
-    emailVerified: true,
-  });
+  await ctx.internalAdapter.createUser(
+    { email: "olena@example.org", name: "Олена", emailVerified: true },
+    OPERATOR_INVITE,
+  );
   await handleKabinetAuth(
     new Request(`${BASE}/api/auth/sign-in/magic-link`, {
       method: "POST",

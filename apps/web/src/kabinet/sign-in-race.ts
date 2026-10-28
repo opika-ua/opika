@@ -31,11 +31,11 @@ export const sameWrites = (
 /**
  * PW1-F6: a password sign-in must not keep a session when the password was written while it ran.
  *
- * Better Auth 1.6.33's sign-in (`dist/api/routes/sign-in.mjs`) reads the stored hash, runs scrypt
+ * Better Auth 1.7.14's sign-in (`dist/api/routes/sign-in.mjs`) reads the stored hash, runs scrypt
  * (tens of milliseconds), and only then inserts its session. A reset or a change that writes the
- * new password in between ends every session there is at that moment (PW1-F5, in the write's own
- * statement) and Better Auth's revoke follows, but the sign-in's insert comes later, so without
- * this its session, made with the old password, would outlive both. Oleksii, 2026-10-20, verbatim
+ * new password in between ends every session there is at that moment (Better Auth's revoke just
+ * before the write, PW1-F5's in the write's own statement), but the sign-in's insert comes later,
+ * so without this its session, made with the old password, would outlive both. Oleksii, 2026-10-20, verbatim
  * excerpt: "The check: after a successful password sign-in, if the password was written after the
  * request began, delete the session it just created and return the usual single failure. Run the
  * check on every sign-in so the timing stays identical."

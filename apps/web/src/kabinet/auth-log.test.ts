@@ -10,7 +10,13 @@ import { APIError } from "better-auth/api";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth } from "./auth";
-import { type AuthLogLevel, maskedAuthLogging, maskedLogText, maskedLogValue } from "./auth-log";
+import {
+  type AuthLogLevel,
+  maskedAuthHandler,
+  maskedAuthLogging,
+  maskedLogText,
+  maskedLogValue,
+} from "./auth-log";
 import { capturingSender } from "./magic-link-sender";
 import { generousPasswordLimiters } from "./password-limits";
 import { capturingPasswordMail } from "./password-mail";
@@ -153,12 +159,17 @@ describe("Better Auth's error log through the masking (onAPIError)", () => {
     });
   }
 
-  it("an APIError short of a 500 is an answer, not logged; a 500 is, as its status and code", () => {
+  it("an APIError short of a 500 is an answer, not logged; a 500 is, as its status and code", async () => {
     const out = { error: vi.fn(), warn: vi.fn(), log: vi.fn() };
-    const { onAPIError } = maskedAuthLogging(out);
-    onAPIError.onError(new APIError("UNAUTHORIZED", { message: ADDRESS, code: "X" }));
+    // As better-call answers a thrown APIError (`toResponse`): its body as JSON.
+    const answering = (error: APIError) =>
+      maskedAuthHandler(
+        async () => Response.json(error.body, { status: error.statusCode }),
+        out,
+      )(new Request(BASE));
+    await answering(new APIError("UNAUTHORIZED", { message: ADDRESS, code: "X" }));
     expect(out.error).not.toHaveBeenCalled();
-    onAPIError.onError(
+    await answering(
       new APIError("INTERNAL_SERVER_ERROR", { message: `${ADDRESS} ${TOKEN}`, code: "BROKEN" }),
     );
     expect(out.error.mock.calls).toEqual([
@@ -216,7 +227,7 @@ describe("Better Auth's logger through the masking, every level", () => {
 });
 
 describe("the review's notes on the masking (3, 4 and 5)", () => {
-  it("onAPIError given Drizzle's raw error (not through the cleaned handle): one masked line, and a bare 500 thrown", async () => {
+  it("the handler given Drizzle's raw error (not through the cleaned handle): one masked line, and an empty 500", async () => {
     const out = { error: vi.fn(), warn: vi.fn(), log: vi.fn() };
     const raw = await realQueryError();
     // The control: the error this test hands it does carry all three.
@@ -226,17 +237,13 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
       true,
       true,
     ]);
-    let thrown: unknown;
-    try {
-      maskedAuthLogging(out).onAPIError.onError(raw);
-    } catch (error) {
-      thrown = error;
-    }
+    const answer = await maskedAuthHandler(async () => {
+      throw raw;
+    }, out)(new Request(BASE));
     expect(out.error.mock.calls).toEqual([
       ["[kabinet] Better Auth error: API error · Error (42703)"],
     ]);
-    expect(thrown).toBeInstanceOf(APIError);
-    expect(inspect(thrown, { depth: 6 }).includes("params")).toBe(false);
+    expect([answer.status, await answer.text()]).toEqual([500, ""]);
   });
 
   it("note 3: only a real error is shown by its name; an object with a `name` is user data, `[object]`", async () => {

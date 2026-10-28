@@ -121,18 +121,10 @@ export function writeMaskedAuthLine(
  *
  * - `logger.log`: every line Better Auth logs, at every level, masked. Its level stays Better
  *   Auth's default (`warn`), so debug and info lines are dropped before they get here.
- * - `onAPIError.onError`: Better Auth's own handler for an error escaping an endpoint or a hook,
- *   which logs the error itself, and a failed Drizzle query's message names the address it
- *   looked up. Ours logs what Better Auth's would, masked: an internal error or anything that
- *   isn't an `APIError`, at error level. An `APIError` short of a 500 is an answer (a refusal, a
- *   400), as Better Auth's default leaves it unlogged too.
- * - **And it throws a bare 500 `APIError` for anything that isn't one.** Better Auth's router
- *   (better-call 1.4.0, `router.mjs`) prints any error that is still not an `APIError` once
- *   `onError` returns, whole, with `console.error("# SERVER_ERROR: ", error)`, the message and
- *   its parameters included, then answers an empty 500. An `APIError` thrown from `onError` is
- *   answered as itself instead, with nothing printed: the same empty 500, now with a JSON
- *   content type. `auth-log.test.ts` pins that no such line is written, so a better-call upgrade
- *   that changes it turns the test red.
+ * - `onAPIError.throw`: an error escaping an endpoint or a hook comes back out of `auth.handler`,
+ *   where `maskedAuthHandler` logs it. Better Auth 1.7 no longer lets `onAPIError.onError` turn
+ *   one into an answer: it swallows what `onError` throws, and better-call (1.4.4, `router.mjs`)
+ *   then prints the error whole (`# SERVER_ERROR`), message and parameters included.
  */
 export function maskedAuthLogging(out: AuthLogConsole = console) {
   return {
@@ -140,17 +132,37 @@ export function maskedAuthLogging(out: AuthLogConsole = console) {
       log: (level: AuthLogLevel, message: string, ...args: unknown[]) =>
         writeMaskedAuthLine(out, level, message, args),
     },
-    onAPIError: {
-      onError: (error: unknown) => {
-        if (isAPIError(error)) {
-          if (error.status === "INTERNAL_SERVER_ERROR") {
-            writeMaskedAuthLine(out, "error", "API error", [error]);
-          }
-          return;
-        }
-        writeMaskedAuthLine(out, "error", "API error", [error]);
-        throw new APIError("INTERNAL_SERVER_ERROR");
-      },
-    },
+    onAPIError: { throw: true },
+  };
+}
+
+/**
+ * `auth.handler`, with each failure logged once, masked, at error level: a thrown error by its
+ * name and SQLSTATE (answered as an empty 500), a 500 answer by its code. Anything short of a 500
+ * is an answer (a refusal, a 400) and stays unlogged, as Better Auth's own default leaves it.
+ * `auth-log.test.ts` pins that nothing else is printed, so an upgrade that changes it turns red.
+ */
+export function maskedAuthHandler(
+  handler: (request: Request) => Promise<Response>,
+  out: AuthLogConsole = console,
+): (request: Request) => Promise<Response> {
+  return async (request) => {
+    let response: Response;
+    try {
+      response = await handler(request);
+    } catch (error) {
+      writeMaskedAuthLine(out, "error", "API error", [error]);
+      return new Response(null, { status: 500 });
+    }
+    if (response.status === 500) {
+      const body: unknown = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      const code = stringField(body, "code");
+      const answered = new APIError("INTERNAL_SERVER_ERROR", code === null ? undefined : { code });
+      writeMaskedAuthLine(out, "error", "API error", [answered]);
+    }
+    return response;
   };
 }
