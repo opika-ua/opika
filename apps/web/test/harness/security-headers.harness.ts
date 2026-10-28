@@ -50,20 +50,10 @@ test.describe("security headers (audit F5)", () => {
     return page.evaluate(() => (window as unknown as { __csp: string[] }).__csp);
   }
 
-  /**
-   * The one known report: zod 4's client bundle probes for JIT support with
-   * `try { Function("") } catch {}` and falls back to its plain parser when
-   * refused, so an enforced policy without 'unsafe-eval' costs it nothing.
-   * Anything else (a script, style, font, image or request) fails here.
-   */
-  const ZOD_JIT_PROBE = "script-src eval (report)";
-
+  // No exceptions: zod's eval probe is off in the browser (`src/instrumentation-client.ts`).
   for (const path of ["/tvaryny", "/tvaryny/gortaty", "/prytulkam", "/zberezheni", "/pro"]) {
-    test(`the report-only policy reports nothing on ${path} but zod's eval probe`, async ({
-      page,
-    }) => {
-      const reported = await violationsOn(page, path);
-      expect(reported.filter((violation) => violation !== ZOD_JIT_PROBE)).toEqual([]);
+    test(`the report-only policy reports nothing on ${path}`, async ({ page }) => {
+      expect(await violationsOn(page, path)).toEqual([]);
     });
   }
 });

@@ -61,6 +61,7 @@ import {
 } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * The operator's registry (`registry.*`, `session.exitSupport`) through the
@@ -124,7 +125,7 @@ async function call<T = Record<string, unknown>>(
   } = {},
 ): Promise<Result<T>> {
   const headers: Record<string, string> = { "content-type": "application/json" };
-  if (opts.cookie !== undefined) headers.cookie = opts.cookie;
+  headers.cookie = [TEST_SESSION_COOKIE, opts.cookie].filter(Boolean).join("; ");
   headers.origin ??= "http://localhost";
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",

@@ -9,6 +9,7 @@ import type { KabinetPrincipal } from "../kabinet/actor";
 import { capturingInvitationSender } from "../kabinet/email-senders";
 import { capturingPasswordMail } from "../kabinet/password-mail";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
+import { TEST_SESSION_COOKIE } from "../kabinet/test-session-cookie";
 import { inMemoryRateLimiter } from "./rate-limit";
 import { fromRpcBody, toRpcBody } from "./test-harness";
 
@@ -49,7 +50,11 @@ const limiters = {
 async function call(path: string, input: unknown, principal: KabinetPrincipal) {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { "content-type": "application/json", origin: "http://localhost" },
+    headers: {
+      "content-type": "application/json",
+      origin: "http://localhost",
+      cookie: TEST_SESSION_COOKIE,
+    },
     body: JSON.stringify(toRpcBody(input)),
   });
   const response = await handleKabinetRpc(request, {

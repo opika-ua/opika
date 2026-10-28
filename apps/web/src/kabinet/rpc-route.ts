@@ -6,6 +6,7 @@ import { boundedBody } from "../api/bounded-body";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
+import { kabinetCookieName } from "./auth";
 import type { KabinetAuthAvailability } from "./auth-route";
 import { isSameOriginPost } from "./confirm-route";
 import { invitationRouter } from "./invitation-router";
@@ -36,6 +37,45 @@ export const KABINET_RPC_PREFIX = "/api/kabinet";
 
 const tooMany = () => new Response("Too Many Requests", { status: 429 });
 const tooLarge = () => new Response("Payload Too Large", { status: 413 });
+const unauthorized = () => new Response("Unauthorized", { status: 401 });
+
+/**
+ * The paths a caller with no session may use: the `invitation_link` procedures
+ * (PW-2), whose token is the credential. Read from the served router's own
+ * access meta, so a new anonymous procedure can't be forgotten here.
+ */
+function anonymousPathsOf(node: unknown, path: readonly string[] = []): string[] {
+  if (typeof node !== "object" || node === null) return [];
+  if ("~orpc" in node) {
+    const meta = (node as { "~orpc": { meta?: { access?: { surface?: string } | null } } })["~orpc"]
+      .meta;
+    return meta?.access?.surface === "invitation_link"
+      ? [`${KABINET_RPC_PREFIX}/${path.join("/")}`]
+      : [];
+  }
+  return Object.entries(node).flatMap(([key, child]) => anonymousPathsOf(child, [...path, key]));
+}
+
+export const KABINET_ANONYMOUS_PATHS: ReadonlySet<string> = new Set(
+  anonymousPathsOf(kabinetRouter),
+);
+
+const SESSION_COOKIE_NAMES: ReadonlySet<string> = new Set([
+  kabinetCookieName("session_token", true),
+  kabinetCookieName("session_token", false),
+]);
+
+/** Whether a non-empty kabinet session cookie is present. Presence only: `resolve` checks it. */
+function hasSessionCookie(cookieHeader: string | null): boolean {
+  return (cookieHeader ?? "").split(";").some((pair) => {
+    const at = pair.indexOf("=");
+    return (
+      at > 0 &&
+      SESSION_COOKIE_NAMES.has(pair.slice(0, at).trim()) &&
+      pair.slice(at + 1).trim() !== ""
+    );
+  });
+}
 
 /**
  * Everything `/api/kabinet/*` does, as a function the tests call with a real
@@ -92,13 +132,21 @@ export async function handleKabinetRpc(
   if (!isSameOriginPost(request.headers.get("origin"), deps.availability.baseURL)) {
     return new Response("Forbidden", { status: 403 });
   }
+  // P-Q7: an oversized declared body is refused first, before anything is read.
+  const declared = request.headers.get("content-length");
+  if (declared !== null && Number(declared) > KABINET_MAX_BODY_BYTES) return tooLarge();
+  // Audit F9 (owner, 2026-10-28): no session cookie, no body read and no database,
+  // except on the invitation link. The real session lookup stays below.
+  const path = new URL(request.url).pathname;
+  if (!KABINET_ANONYMOUS_PATHS.has(path) && !hasSessionCookie(request.headers.get("cookie"))) {
+    return unauthorized();
+  }
   // P-Q7: before any session is looked up or any database touched, so an
   // oversized upload costs a read of at most the ceiling and nothing else.
   const bounded = await boundedBody(request, KABINET_MAX_BODY_BYTES);
   if (bounded === "too_large") return tooLarge();
   // RG-Q10: without the location key the registry can't create a shelter or
   // move one honestly, so all of it is unavailable rather than half of it.
-  const path = new URL(bounded.url).pathname;
   if (deps.locationPolicy === null && path.startsWith(`${KABINET_RPC_PREFIX}/registry/`)) {
     return new Response("Registry is not available", { status: 503 });
   }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { SHELTER_WRITE_POLICY } from "./access";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * K-Q8 (Oleksii, 2026-10-15): `/api/kabinet` answers only calls from the
@@ -67,9 +68,9 @@ describe("/api/kabinet refuses calls that don't come from the site (K-Q8)", () =
 
   it("the site's own Origin goes through to the session lookup", async () => {
     const { deps: d, resolvedCount } = deps();
-    await expect(handleKabinetRpc(post({ origin: BASE }), d)).rejects.toThrow(
-      "a refused call must never resolve a session",
-    );
+    await expect(
+      handleKabinetRpc(post({ origin: BASE, cookie: TEST_SESSION_COOKIE }), d),
+    ).rejects.toThrow("a refused call must never resolve a session");
     expect(resolvedCount()).toBe(1);
   });
 });
