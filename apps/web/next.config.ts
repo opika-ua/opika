@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { assertBuildEnv } from "./src/api/build-env";
+import { securityHeaders } from "./src/security-headers";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./src/seo-flags";
 
 /**
@@ -72,10 +73,21 @@ const nextConfig: NextConfig = {
    * entire noindex mechanism now, not one layer behind robots.txt. Covers
    * `/public` files too - "checked before the filesystem" per Next's own
    * `headers()` docs.
+   *
+   * The security headers (audit F5, `src/security-headers.ts`) go on every
+   * route regardless of that flag.
    */
   async headers() {
-    if (SITE_IS_PUBLICLY_DISCOVERABLE) return [];
+    const security = {
+      source: "/:path*",
+      headers: securityHeaders({
+        photoBaseUrl: process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
+        development: process.env.NODE_ENV === "development",
+      }),
+    };
+    if (SITE_IS_PUBLICLY_DISCOVERABLE) return [security];
     return [
+      security,
       {
         source: "/:path*",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],

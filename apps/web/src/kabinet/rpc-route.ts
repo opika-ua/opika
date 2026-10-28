@@ -2,6 +2,7 @@ import { KABINET_MAX_BODY_BYTES } from "@opika/contracts";
 import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
+import { boundedBody } from "../api/bounded-body";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
@@ -35,45 +36,6 @@ export const KABINET_RPC_PREFIX = "/api/kabinet";
 
 const tooMany = () => new Response("Too Many Requests", { status: 429 });
 const tooLarge = () => new Response("Payload Too Large", { status: 413 });
-
-/**
- * The request with its body read into memory, or `too_large` as soon as it
- * is known to exceed `KABINET_MAX_BODY_BYTES` (P-Q7): by a declared
- * `Content-Length` without reading a byte, or, for a body without one
- * (chunked), by counting while reading and stopping at the first byte over.
- * Either way before any session is looked up or any database touched, so an
- * oversized upload costs a read of at most the ceiling and nothing else.
- *
- * A declared length is not trusted to be honest: the count runs on every
- * body, so one that claims less than it sends is refused all the same.
- */
-async function boundedBody(request: Request): Promise<Request | "too_large"> {
-  const declared = request.headers.get("content-length");
-  if (declared !== null && Number(declared) > KABINET_MAX_BODY_BYTES) return "too_large";
-  if (request.body === null) return request;
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > KABINET_MAX_BODY_BYTES) {
-      await reader.cancel();
-      return "too_large";
-    }
-    chunks.push(value);
-  }
-  const headers = new Headers(request.headers);
-  // The buffered body sets its own length; a chunked framing header no longer applies.
-  headers.delete("content-length");
-  headers.delete("transfer-encoding");
-  return new Request(request.url, {
-    method: request.method,
-    headers,
-    body: Buffer.concat(chunks),
-  });
-}
 
 /**
  * Everything `/api/kabinet/*` does, as a function the tests call with a real
@@ -130,7 +92,9 @@ export async function handleKabinetRpc(
   if (!isSameOriginPost(request.headers.get("origin"), deps.availability.baseURL)) {
     return new Response("Forbidden", { status: 403 });
   }
-  const bounded = await boundedBody(request);
+  // P-Q7: before any session is looked up or any database touched, so an
+  // oversized upload costs a read of at most the ceiling and nothing else.
+  const bounded = await boundedBody(request, KABINET_MAX_BODY_BYTES);
   if (bounded === "too_large") return tooLarge();
   // RG-Q10: without the location key the registry can't create a shelter or
   // move one honestly, so all of it is unavailable rather than half of it.

@@ -17,6 +17,7 @@ import {
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
+import { perIpBudgetSpent, spendPerIpBudget } from "../per-ip-budgets";
 import { checkRevealRateLimit } from "../reveal-rate-limit";
 import { cityOnlyLocationOf } from "./public-location";
 
@@ -41,7 +42,8 @@ export type AnimalsRevealErrors = ORPCErrorConstructorMap<{
  * - Is idempotent: a second reveal for the same animal returns the existing one
  * - Writes an immutable audit record with a denormalised shelter snapshot
  *   (exact address included, for the operator; `toView` leaves it out)
- * - Rate-limits per adopter via a Postgres counter (survives across instances)
+ * - Rate-limits per adopter via a Postgres counter (survives across instances),
+ *   and per IP on top of it (audit F1)
  */
 export async function animalsReveal(
   input: RevealInput,
@@ -84,7 +86,20 @@ export async function animalsReveal(
   // Rate limit check - persisted in Postgres, survives across instances.
   // Distinct-shelter budget: free if this shelter is already revealed
   // within the window (see checkRevealRateLimit's own doc comment).
-  await checkRevealRateLimit(context.db, context.adopterId, shelter.id, context.now, errors);
+  const use = await checkRevealRateLimit(
+    context.db,
+    context.adopterId,
+    shelter.id,
+    context.now,
+    errors,
+  );
+  // Audit F1: the same unit, counted per IP across every adopter behind it.
+  if (
+    use === "new_shelter" &&
+    !(await spendPerIpBudget(context.caller, "newShelterReveals", context.now))
+  ) {
+    throw perIpBudgetSpent();
+  }
 
   const reveal: ContactReveal = {
     id: RevealIdSchema.parse(crypto.randomUUID()) as RevealId,

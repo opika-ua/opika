@@ -138,6 +138,9 @@ export default defineConfig({
       BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
       BETTER_AUTH_URL: ORIGIN,
       RATE_LIMIT_KEY_SECRET: HARNESS_RATE_LIMIT_KEY_SECRET,
+      // Every spec mints its adopters from 127.0.0.1, far past ten a day (audit F1,
+      // `api/per-ip-budgets.ts`). Ignored on any Vercel deployment.
+      HARNESS_LIFTS_PER_IP_BUDGETS: "1",
     },
     stdout: "pipe",
     stderr: "pipe",

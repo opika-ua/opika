@@ -45,10 +45,9 @@ jobs:
           --health-retries 5
 
     steps:
-      # v7 — GitHub deprecated the Node 20 Actions runner in Sep 2025;
-      # anything older than actions/checkout@v5 targets that runtime and
-      # is not guaranteed to run on current hosted runners.
-      - uses: actions/checkout@v7
+      # Every action is pinned to a full commit SHA (a tag can be moved; a SHA can't), with its
+      # release as the trailing comment. v7: GitHub deprecated the Node 20 Actions runner in Sep 2025.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The whole history, so the next step can diff the pull request against its base.
           fetch-depth: 0
@@ -84,9 +83,8 @@ jobs:
         if: steps.classify.outputs.code != 'false'
         run: corepack install
 
-      # v6 — same Node-20-runner deprecation applies to setup-node; v6 is
-      # current as of this workflow and targets the node24 runtime.
-      - uses: actions/setup-node@v6
+      # v6: the same Node 20 runner deprecation; v6 targets the node24 runtime.
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         if: steps.classify.outputs.code != 'false'
         with:
           node-version: 24
@@ -123,10 +121,10 @@ jobs:
         run: pnpm run build:web
 
       # ~170MB and unchanged between runs of the same Playwright version, so
-      # key the cache on the lockfile — a version bump busts it.
+      # key the cache on the lockfile: a version bump busts it.
       - name: Cache Playwright browsers
         if: steps.classify.outputs.code != 'false'
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
@@ -149,7 +147,7 @@ jobs:
       # is just a number, and the first instinct is to re-run it.
       - name: Upload harness artefacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: harness-failures
           path: apps/web/test-results/
