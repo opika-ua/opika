@@ -227,10 +227,15 @@ export const uk = {
     /**
      * The eighth dimension, following the same "split, their own key" rule
      * `temperament`/`colour` above record from his words - the text is not
-     * new: `sex` is the same «Стать» his own GV3-Q1 review already used for
-     * this dimension (`GalleryFilterDropdowns.tsx`'s old "still no «Стать»"
-     * comment); `sexMale`/`sexFemale` duplicate `cardMeta.sexMale/sexFemale`
-     * (the card's own words, already public); `sexUnknown` duplicates
+     * new: `sex` reuses «Стать», already his own approved word for this
+     * dimension in two places - the K3 form's own field label
+     * (`kabinet.animalForm.who.sexLabel`, pinned in `copy-status.test.ts`'s
+     * `K3_FINAL`) and Figma `58:1617` itself, where the gallery-v3 frame
+     * shows a «Стать» control (`GalleryFilterDropdowns.tsx`'s own comment
+     * on that frame - correction, 2026-10-28: not GV3-Q1, whose text is
+     * "go with (b) on all three" and never names this dimension).
+     * `sexMale`/`sexFemale` duplicate `cardMeta.sexMale/sexFemale` (the
+     * card's own words, already public); `sexUnknown` duplicates
      * `medical.unknown`/`kabinet.profileNotRecorded` - the standing rule's
      * own word for an unknown field (`docs/standing-constraints.md`). Sex has
      * no "unrecorded" case the way fur/temperament/colour do (`feed-filters.ts`),

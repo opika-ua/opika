@@ -2233,8 +2233,10 @@ describe("pet card PR 5 copy (owner-approved, 2026-10-26/27)", () => {
  * `kabinet.animalForm.publish.gap.sex` are new keys, not a GV3/PC1b carry-over
  * (`GalleryFilterDropdowns.tsx`'s old "no sex dimension" comment, reversed
  * here). The dropdown legend and the two sex words duplicate words already
- * public elsewhere (`filters.sex` = the same «Стать» his GV3-Q1 review used
- * for this dimension by name; `sexMale`/`sexFemale` = `cardMeta.sexMale`/
+ * public elsewhere (`filters.sex` = the same «Стать» already his own
+ * approved word in two places, the K3 form's own `who.sexLabel` and Figma
+ * `58:1617` - correction, 2026-10-28: not GV3-Q1, whose own text never
+ * names this dimension; `sexMale`/`sexFemale` = `cardMeta.sexMale`/
  * `sexFemale`, the gallery card's own words; `sexUnknown` = the standing
  * rule's own «Не записано»), so none of those four needed fresh approval.
  * The one genuinely new slot - «стать» in the publish-gap list - was

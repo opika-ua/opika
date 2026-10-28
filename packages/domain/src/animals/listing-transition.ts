@@ -248,13 +248,17 @@ export const transitionListing = (
  *
  * `sex` joined this list reversing D2 ("No `sex`: it starts «Не записано»
  * and that is a complete answer"), per the sex-filter feature's own Phase 0
- * decision: a gallery filter that can select "Не записано" needs that
- * answer to mean something a shelter chose, not merely the field's own
- * never-null default. Listed before `size` to match the form's own field
- * order (species, then sex, then size - `FormSections.tsx`). Only gates a
- * *new* publish: `publishGaps` below re-checks a non-draft animal for a
- * photo only, so an already-published animal with sex still «Не записано»
- * keeps showing exactly as it did before this change - nothing retroactive.
+ * decision (SF-Q1): a *new* draft can no longer reach published with sex
+ * still «Не записано» - a chosen (not merely defaulted) «Не записано» is
+ * refused the same as an unfilled size or age would be. Listed before
+ * `size` to match the form's own field order (species, then sex, then size
+ * - `FormSections.tsx`). Only gates a *new* publish: `publishGaps` below
+ * re-checks a non-draft animal for a photo only, so an already-published
+ * animal with sex still «Не записано» keeps showing exactly as it did
+ * before this change - nothing retroactive. The gallery's own «Не
+ * записано» filter option (`ANIMAL_SEXES`) still has real matches among
+ * those grandfathered rows; it will just never gain a new one going
+ * forward.
  */
 export const PUBLISH_GAP_KINDS = ["sex", "size", "age", "description", "photo"] as const;
 

@@ -50,6 +50,10 @@ export const ANIMAL_SEXES = ["male", "female", "unknown"] as const satisfies rea
  * `sex` is never missing: a new animal starts at "unknown" («Не записано»),
  * the way its medical facts start unknown (D2, Oleksii: "sex defaults to
  * "unknown" («Не записано»). Sex stays NOT NULL and is not a publish gap.").
+ * The default stands - reversed is only whether that default can stay
+ * through a *new* publish: the sex-filter feature's SF-Q1 makes "unknown"
+ * a publish gap (`listing-transition.ts`'s `PUBLISH_GAP_KINDS`), so D2's
+ * NOT NULL half is unchanged and its "not a publish gap" half is not.
  *
  * `lastUpdatedAt` is edit time: when anything on the record last changed. It
  * is not what freshness measures - that is `listing.confirmedAt` (H2-3), when
