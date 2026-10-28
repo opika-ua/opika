@@ -279,7 +279,7 @@ function SpeciesToggle({
     <fieldset
       aria-label={uk.filters.species}
       data-testid="species-toggle"
-      className="flex h-13 shrink-0 items-center gap-1 rounded-brand-pill border-2 border-brand-line bg-brand-page p-1"
+      className="flex shrink-0 items-center gap-1 rounded-brand-pill border-2 border-brand-line bg-brand-page p-1"
     >
       {options.map(({ species, label, testid }) => {
         const active =
@@ -297,7 +297,7 @@ function SpeciesToggle({
             href={href}
             aria-current={active ? "true" : undefined}
             data-testid={testid}
-            className={`flex h-full min-w-11 items-center justify-center rounded-brand-pill px-3 text-[16px]/[1.2] font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+            className={`flex min-h-target min-w-11 items-center justify-center rounded-brand-pill px-3 text-[16px]/[1.2] font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
               active ? "bg-brand-ink text-brand-surface" : "text-brand-muted"
             }`}
           >

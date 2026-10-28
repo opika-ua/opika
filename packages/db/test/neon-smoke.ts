@@ -2249,9 +2249,11 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const bothAre = (found: { gallery: string; deck: string }, expected: string) =>
     found.gallery === expected && found.deck === expected;
 
-  // 44b. The sex filter (eighth dimension), over the same corpus. "unknown"
-  // is a real, explicit value here - not an absence - so it is a normal `IN`
-  // member, unlike a custom or unrecorded colour above.
+  // 44b. The sex filter, over the same corpus. "unknown" is a real, explicit
+  // value here - not an absence - so it is a normal `IN` member, unlike the
+  // "custom" and "unrecorded" variants the corpus's own temperament/colour
+  // fields carry (step 44's fixtures, no longer filterable, kept only as
+  // data that still exercises this filter's "unknown" case meaningfully).
   const males = await pcFound({ sexes: { kind: "oneOf", values: ["male"] } });
   const females = await pcFound({ sexes: { kind: "oneOf", values: ["female"] } });
   const unknownSex = await pcFound({ sexes: { kind: "oneOf", values: ["unknown"] } });

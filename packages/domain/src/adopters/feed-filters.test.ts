@@ -239,10 +239,11 @@ describe("the sex dimension", () => {
   });
 
   it("never reproduces a fingerprint from before this dimension existed", () => {
-    // The 8-segment form every cursor issued while sex was the eighth
-    // dimension carries - fur/temperament/colour (segments 5-7) are
-    // hardcoded "*" rather than read off `c`, since this PR removes them
-    // from FeedFilters entirely and they were always "any" for any value
+    // The 7-segment form every cursor was issued under before this PR:
+    // `sexes` did not exist as a dimension yet, and fur/temperament/colour
+    // (segments 5-7) were the last three. Those three are hardcoded "*"
+    // rather than read off `c`, since this PR removes them from
+    // FeedFilters entirely and they were always "any" for any value
     // constructible as today's narrower type.
     const legacy = (f: FeedFilters): string => {
       const c = canonicalizeFilters(f);

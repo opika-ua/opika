@@ -28,7 +28,8 @@ const SORT_FULL_SENTENCE: Record<GallerySort, string> = {
  * old/new becomes a new filter like Old New options", read as the visual
  * inverse of the species change below it - species moved from a dropdown
  * to a toggle, sort moves from its own sliding-knob toggle to the
- * dropdown every other filter here uses).
+ * dropdown city/age/size/sex already use. Not "every other filter here":
+ * species is the one dimension that went the other way, onto a toggle.
  *
  * Reuses `GalleryFilterDropdowns.tsx`'s own `Dropdown`/`DropdownOption` -
  * same component, not a visual copy - with no `clearHref`: sort always

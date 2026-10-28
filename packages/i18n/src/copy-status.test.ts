@@ -2214,6 +2214,38 @@ describe("sex-filter copy", () => {
 });
 
 /**
+ * The gallery filter restructure's one new string: the species toggle's
+ * third segment, confirmed in chat, his answer: "«Усі» (Recommended)". Every
+ * other word the restructure touches (city/size/age/sex labels, the sort
+ * sentences) already existed before this PR; this is the sole addition.
+ */
+const SPECIES_TOGGLE_COPY: Record<string, string> = {
+  "filters.speciesAny": "Усі",
+};
+
+describe("species-toggle copy (gallery filter restructure)", () => {
+  const atRoot = (path: string): unknown =>
+    path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], uk);
+
+  it.each(Object.entries(SPECIES_TOGGLE_COPY))(
+    "%s is the confirmed text, exactly",
+    (path, text) => {
+      expect(atRoot(path)).toBe(text);
+    },
+  );
+
+  it("nothing here is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
+    for (const [path] of Object.entries(SPECIES_TOGGLE_COPY)) {
+      const text = atRoot(path) as string;
+      expect(text, path).not.toContain(COPY_PENDING);
+      expect(text, path).not.toMatch(/['’]/);
+    }
+  });
+});
+
+/**
  * R4-2's text, held off `/pro` by the same pre-launch gate it always was -
  * see `uk.ts`'s own doc comment on `R4_2_ANALYTICS_SENTENCE` for the gating
  * mechanism, unchanged by this PR. Only the constant's name (dropped the

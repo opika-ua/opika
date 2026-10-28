@@ -416,12 +416,13 @@ export function FilterSheet({
             </div>
           </fieldset>
 
-          {/* Pet card PR 1b: the same group, twice more, after age and before
-              sort, with the filter words PR 1 built for these two. Below
-              1024px the sheet is the only filter control, so phones need these
+          {/* Pet card PR 1b added this group after age and before sort
               (Oleksii, 2026-10-26, verbatim as relayed: "keeping the two new
               filter groups there is approved; phones need a control for these
-              filters."; inbox PC1b-T15). */}
+              filters."; inbox PC1b-T15). Its sibling groups, temperament and
+              colour, were removed by the gallery filter restructure - sex is
+              the one survivor below 1024px, where the sheet is the only
+              filter control. */}
           <fieldset className="flex flex-col gap-3">
             <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
               {uk.filters.sex}

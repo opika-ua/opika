@@ -167,10 +167,19 @@ export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
  * cursor payload turns "cursor reused across a filter change" from a silently
  * wrong page into a rejected one. Doubles as the URL state key.
  *
- * A new dimension appends its segment, never inserts one: an older
- * fingerprint then has fewer segments than any current one, so it can never
- * equal one, and a cursor issued before the dimension existed is refused
- * once rather than read against the wrong filters.
+ * This PR drops three dimensions (coatLengths, temperaments, colours), so
+ * every fingerprint built today has fewer segments than any issued before
+ * it - a cursor from before this change is refused outright rather than
+ * read against the wrong filters. That is a property of this one
+ * transition, not a standing guarantee: once dimensions can be both added
+ * and removed over time, segment count is no longer monotonic, and a
+ * future schema change could coincidentally land on a count some past era
+ * also used. Even then, a literal string match additionally requires every
+ * encoded value to match position-for-position, and the dimensions' own
+ * value vocabularies don't overlap (a city id never looks like a size
+ * bucket), so an accidental full collision stays implausible rather than
+ * impossible by construction. Treat this as defense in depth alongside the
+ * cursor's own `kind` tag and HMAC signature, not as a standalone proof.
  */
 export const filtersFingerprint = (filters: FeedFilters): string => {
   const canonical = canonicalizeFilters(filters);

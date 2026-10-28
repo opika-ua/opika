@@ -257,6 +257,20 @@ describe("GalleryFilterDropdowns", () => {
     expect(screen.getByTestId("species-cat").getAttribute("href")).toBe("/tvaryny?vyd=cat");
   });
 
+  it("the species toggle marks «Усі» active when no species is selected, and only «Усі»", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={NO_FILTERS}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+    expect(screen.getByTestId("species-any").getAttribute("aria-current")).toBe("true");
+    expect(screen.getByTestId("species-dog").getAttribute("aria-current")).toBeNull();
+    expect(screen.getByTestId("species-cat").getAttribute("aria-current")).toBeNull();
+  });
+
   it("the species toggle's «Усі» segment clears the species filter entirely", () => {
     render(
       <GalleryFilterDropdowns
