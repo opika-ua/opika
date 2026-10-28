@@ -7,11 +7,12 @@
  * `/api/kabinet/*` answers 503 (fail closed, IN-R2). A Preview gets the same
  * answer for its own reason.
  *
- * **Signed in** (KS-T3's specs, `test.fixme` until the wiring commit): the
- * read-only profile at `/kabinet` (KS-Q1) and its sign-out. (Its sideways
- * overflow at 360 and 1440 and the sign-out's 48px box and outline were
- * measured here until 2026-10-20, removed with the other UI-measuring
- * tests.) Production sign-in needs a real email provider, which the harness
+ * **Signed in** (KS-T3's specs, `test.fixme` until the wiring commit):
+ * Головна at `/kabinet` (kabinet redesign Phase 2 PR 1 - the landing page,
+ * replacing K4's read-only profile in that slot, KS-Q1) and its sign-out.
+ * (Its sideways overflow at 360 and 1440 and the sign-out's 48px box and
+ * outline were measured here until 2026-10-20, removed with the other
+ * UI-measuring tests.) Production sign-in needs a real email provider, which the harness
  * must never reach, so these run on a second server on the same build with
  * sign-in available through the development console sender
  * (`sign-in-server.ts`, the confirm spec's pattern). The admin signs in the
@@ -115,7 +116,8 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
       page.waitForURL((url) => url.pathname === "/kabinet"),
       page.getByRole("button").click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
+    // Kabinet redesign Phase 2 PR 1: /kabinet is now Головна, not the profile editor.
+    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
     await page.close();
   });
 

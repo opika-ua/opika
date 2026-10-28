@@ -1,6 +1,6 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
-import { BODY, CAPTION, CARD, CARD_TITLE, INNER, STRONG } from "./profile-edit/styles";
+import { BODY, CAPTION, CARD, INNER, PAGE_TITLE, STRONG } from "./profile-edit/styles";
 
 /**
  * K5 at its minimum (RU-Q7, answer 7, verbatim: "Yes: a minimal shelter-side
@@ -27,6 +27,13 @@ import { BODY, CAPTION, CARD, CARD_TITLE, INNER, STRONG } from "./profile-edit/s
  * note. Every other status renders nothing: pending and under review are the
  * chip's to say, verified needs no notice, and a pause is the shelter's own
  * (`PausedStatus`).
+ *
+ * **Hierarchy (owner's data/structure-hierarchy direction, 2026-10-28):**
+ * the heading takes Головна's own page-title weight (`PAGE_TITLE`, not the
+ * routine `CARD_TITLE` every other card on that page uses) - a rejection or
+ * suspension outranks everything else Головна can show (it means nothing of
+ * the shelter's is visible at all), and the page's own structure has to say
+ * so before the words do.
  */
 export function VerificationDecision({
   verification,
@@ -50,7 +57,7 @@ export function VerificationDecision({
   const note = verification.reason.note;
   return (
     <section aria-label={title} className={CARD}>
-      <h2 className={CARD_TITLE}>{title}</h2>
+      <h2 className={PAGE_TITLE}>{title}</h2>
       <p className={BODY}>{rejected ? t.rejectedEffect : t.suspendedEffect}</p>
       <p className={STRONG}>{fillTemplate(t.reason, { code })}</p>
       {note !== null ? (

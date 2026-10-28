@@ -47,8 +47,8 @@ describe("AnimalPage", () => {
         page={{ kind: "missing", shelter, viewer: "admin", editing: { kind: "read_only" } }}
       />,
     );
-    expect(screen.getByRole("link", { name: "← Профіль притулку" }).getAttribute("href")).toBe(
-      "/kabinet",
+    expect(screen.getByRole("link", { name: "← Притулок" }).getAttribute("href")).toBe(
+      "/kabinet/prytulok",
     );
     expect(screen.queryByRole("link", { name: "← Тварини" })).toBeNull();
   });
