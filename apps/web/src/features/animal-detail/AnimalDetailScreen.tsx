@@ -347,8 +347,12 @@ function MetaLine({ animal }: { animal: AnimalDetailView }) {
   );
 }
 
+// Same gap `PillButton.tsx` had: `h-13` (52px, already over the 48px floor - unchanged,
+// some chips here are plain non-interactive `<span>`s and some are `FilterableChipLink`s,
+// and the floor only ever governs the interactive ones) stays constant, but `px-4
+// text-[20px]` at every width read as desktop-sized on a phone. Smaller below `desktop:`.
 const CHIP =
-  "inline-flex h-13 items-center rounded-brand-field border-2 border-brand-line px-4 text-[20px] font-semibold text-brand-ink";
+  "inline-flex h-13 items-center rounded-brand-field border-2 border-brand-line px-3 text-[16px] font-semibold text-brand-ink desktop:px-4 desktop:text-[20px]";
 
 /** Coat length's own words, no longer read through `chipDisplayLabel` (gallery filter
  * restructure removed the fur filter, which that function served): the two words
