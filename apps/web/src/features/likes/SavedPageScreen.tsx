@@ -69,13 +69,36 @@ function EmptyState() {
  * rendered width here), his copy for every state, nothing invented beyond
  * arrangement.
  *
- * **Designer feedback batch C (2026-10-23):** `load`'s `unknown`/`loading`
- * states (`useSavedCards.ts`'s own comment has the race this replaced)
- * render an `aria-live` notice and, once the real count is known,
- * that many skeleton cards - never the empty state for a list that merely
- * hasn't loaded yet. The empty state now only ever renders for ids that are
- * genuinely empty (`load.kind === "empty"`) or for a `ready` list with
- * nothing left to show after the S8-D2 filter below.
+ * **Designer feedback batch C (2026-10-23):** `load`'s `loading` state
+ * (`useSavedCards.ts`'s own comment has the race this replaced) renders an
+ * `aria-live` notice and, once the real count is known, that many skeleton
+ * cards - never the empty state for a list that's actually mid-fetch. The
+ * empty state renders for ids that are genuinely empty (`load.kind ===
+ * "empty"`) or for a `ready` list with nothing left to show after the
+ * S8-D2 filter below.
+ *
+ * **Performance audit, responsive-audit Phase 1 (2026-10-28):** `unknown`
+ * - the brief moment before `localStorage` has been read at all - now
+ * renders the empty state too, not nothing. `localStorage` can't be read
+ * during the server render (it doesn't exist there), so `load` always
+ * starts `unknown` on first paint regardless of what's actually saved; for
+ * the common case (a fresh visitor, nothing saved yet - the one the audit
+ * measured), the old "render nothing, then pop in the empty state once
+ * `useSavedCards` has read storage" cost a real layout shift (the footer
+ * moving down once the empty-state panel appeared below it) and delayed
+ * LCP to whenever hydration finished, past budget under mobile throttling
+ * (measured 2.8-3.2s LCP / 0.147 CLS against a 2.5s / 0.1 budget). Treating
+ * `unknown` as `empty` means that panel is already in the server-rendered
+ * HTML, so the common case now has nothing to shift or wait for - verified
+ * against the real failure mode, not assumed to fix it.
+ *
+ * The honest cost, recorded rather than hidden: a returning visitor who
+ * *does* have saves now sees the empty-state panel very briefly before it's
+ * replaced by the loading skeleton (`unknown` → `loading`), where before it
+ * saw nothing in that same window. That's a strictly rarer path (it needs a
+ * prior save on this device) and a shorter, lower-stakes flash than the one
+ * just fixed - traded deliberately for the fresh-visitor fix, not an
+ * oversight.
  */
 export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPageScreenProps) {
   const { load, storageBlocked, removeSaved } = useSavedCards();
@@ -106,7 +129,7 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
           )}
         </div>
 
-        {(load.kind === "unknown" || load.kind === "loading") && (
+        {load.kind === "loading" && (
           <span role="status" aria-live="polite" className="sr-only">
             {uk.likes.loading}
           </span>
@@ -125,7 +148,9 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
           </ul>
         )}
 
-        {(load.kind === "empty" || (visible !== null && visible.length === 0)) && <EmptyState />}
+        {(load.kind === "unknown" ||
+          load.kind === "empty" ||
+          (visible !== null && visible.length === 0)) && <EmptyState />}
 
         {visible !== null && visible.length > 0 && (
           <ul className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-4 gap-4 desktop:gap-[30px]">

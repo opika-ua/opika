@@ -172,3 +172,35 @@ test.describe("the saved page's batch read", () => {
     ).toBe(429);
   });
 });
+
+/**
+ * Performance audit, responsive-audit Phase 1 (2026-10-28): a fresh
+ * visitor's `/zberezheni` (nothing saved yet - localStorage starts empty
+ * for everyone) used to render nothing until client JS read `localStorage`
+ * and discovered it was empty, then pop the empty-state panel in
+ * underneath the header - a real layout shift (the footer moving down)
+ * and a delayed LCP, measured past budget under mobile throttling (2.8-
+ * 3.2s LCP / 0.147 CLS against a 2.5s / 0.1 budget). `localStorage` can't
+ * be read on the server, so the fix isn't "read it sooner" but "assume
+ * empty by default," which only a real SSR response - not a jsdom
+ * component test, which flushes every effect synchronously regardless of
+ * what the server could ever know - can actually verify: a context with
+ * JS disabled sees exactly the HTML the server sent, nothing a client
+ * effect added afterwards.
+ */
+test.describe("/zberezheni's empty state ships in the server response", () => {
+  test("a fresh visitor's empty state is in the HTML itself - no client-side pop-in", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      javaScriptEnabled: false,
+      extraHTTPHeaders: { "x-forwarded-for": "198.51.100.44" },
+    });
+    const page = await context.newPage();
+    const response = await page.goto("/zberezheni", { waitUntil: "load" });
+    const html = (await response?.text()) ?? "";
+    expect(html).toContain('data-testid="saved-empty"');
+    expect(html).not.toContain('data-testid="saved-skeletons"');
+    await context.close();
+  });
+});
