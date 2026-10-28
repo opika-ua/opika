@@ -307,6 +307,20 @@ describe("OnboardInputSchema's text rules", () => {
     // 1,500 paw prints are 3,000 UTF-16 units.
     expect(parse({}, { descriptionUk: "🐾".repeat(1500) }).success).toBe(true);
   });
+
+  // SF-F1: onboarding always publishes directly, so unlike a kabinet draft,
+  // there is no pre-publish stage where "unknown" is an acceptable sex.
+  it("refuses an animal with sex unknown", () => {
+    const refused = parse({}, { sex: "unknown" });
+    expect(refused.success).toBe(false);
+    expect(refused.error?.issues.map((issue) => issue.message)).toContain(
+      "Onboarded animals must have a known sex (male or female), not unknown",
+    );
+  });
+
+  it.each([["male"], ["female"]])("accepts an animal with sex %s", (sex) => {
+    expect(parse({}, { sex }).success).toBe(true);
+  });
 });
 
 describe("refuseIfInsideRepo", () => {

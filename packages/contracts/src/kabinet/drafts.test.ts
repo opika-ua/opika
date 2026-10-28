@@ -114,6 +114,8 @@ describe("the update patch (F-B1, T4)", () => {
     expect(apiErrors.LISTING_FACT_REQUIRED.data.safeParse({ field: "description" }).success).toBe(
       true,
     );
+    // SF-F1: sex joined the gated listing facts.
+    expect(apiErrors.LISTING_FACT_REQUIRED.data.safeParse({ field: "sex" }).success).toBe(true);
   });
 });
 
