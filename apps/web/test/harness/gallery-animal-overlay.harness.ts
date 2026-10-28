@@ -125,6 +125,8 @@ test.describe("the gallery's animal overlay", () => {
       await expect(dialog.getByText(uk.detail.aboutMeHeading)).toBeVisible();
       // His Q2: no «Відкрити повну сторінку», the overlay is the page.
       await expect(dialog.getByText("Відкрити повну сторінку")).toHaveCount(0);
+      // Designer change, 2026-10-28: a fresh open from the gallery animates in.
+      await expect(dialog).toHaveClass(/animate-panel-up/);
     });
 
     /**
@@ -266,9 +268,10 @@ test.describe("the gallery's animal overlay", () => {
       await openGallery(page);
       const { name: openedName } = await openOverlayFrom(page);
 
-      // The label's own visible text is always «Наступний» (the design's literal word,
-      // not the neighbour's name - that's in its aria-label only), so the neighbour is
-      // identified by the dialog's name *changing*, not by reading it off the link.
+      // The control's visible content is a chevron icon, not text (designer change,
+      // 2026-10-28) - the neighbour's name lives only in its aria-label - so the
+      // neighbour is identified by the dialog's name *changing*, not by reading it
+      // off the link.
       await page.getByTestId("overlay-next").click();
 
       const newDialog = page.getByRole("dialog");
@@ -282,6 +285,9 @@ test.describe("the gallery's animal overlay", () => {
       // Still the overlay, not a full page: the list stays attached behind it.
       await expect(page.locator(CARD).first()).toBeAttached();
       expect(new URL(page.url()).pathname).not.toBe(GALLERY_PAGE_2.split("?")[0]);
+      // Designer change, 2026-10-28: the entrance animation is for a fresh
+      // open from the gallery only, not every prev/next step.
+      await expect(newDialog).not.toHaveClass(/animate-panel-up/);
     });
 
     test("a reload of the overlay's URL renders the full page, with no overlay", async ({
