@@ -100,7 +100,7 @@ export function GalleryCard({
       prefetch={false}
       aria-label={cardAccessibleName(card, cityName)}
       data-testid="animal-card"
-      className="relative block aspect-[328/480] overflow-clip rounded-brand-card font-brand-ui focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+      className="relative block aspect-[328/480] overflow-clip rounded-brand-card font-brand-ui focus-ring"
     >
       {/*
         A pulsating skeleton (Figma node `87:1747`, a flat rounded-rect the

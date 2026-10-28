@@ -73,7 +73,7 @@ export function GalleryPageNav({
           href={galleryPageHref(filters, sort, page - 1, citySlugs)}
           aria-label={uk.pagination.prev}
           data-testid="pagination-prev"
-          className="flex min-h-12 min-w-12 items-center justify-center rounded-brand-pill text-brand-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+          className="flex min-h-12 min-w-12 items-center justify-center rounded-brand-pill text-brand-ink focus-ring"
         >
           <ChevronIcon className="size-6 rotate-90" />
         </Link>
@@ -115,7 +115,7 @@ export function GalleryPageNav({
               href={galleryPageHref(filters, sort, item, citySlugs)}
               aria-label={pageAriaLabel(item)}
               data-testid="pagination-page"
-              className="relative flex min-h-12 min-w-12 items-center justify-center focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+              className="relative flex min-h-12 min-w-12 items-center justify-center focus-ring"
             >
               <span
                 aria-hidden="true"
@@ -136,7 +136,7 @@ export function GalleryPageNav({
           href={galleryPageHref(filters, sort, page + 1, citySlugs)}
           aria-label={uk.pagination.next}
           data-testid="pagination-next"
-          className="flex min-h-12 min-w-12 items-center justify-center rounded-brand-pill text-brand-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+          className="flex min-h-12 min-w-12 items-center justify-center rounded-brand-pill text-brand-ink focus-ring"
         >
           <ChevronIcon className="size-6 -rotate-90" />
         </Link>

@@ -71,7 +71,7 @@ export function NoMatch({ filters, sort, citySlugs, relaxations }: NoMatchProps)
                 key={suggestion.dimension}
                 href={galleryHref(relaxDimension(filters, suggestion.dimension), sort, citySlugs)}
                 data-testid="no-match-suggestion"
-                className={`min-h-14 flex items-center justify-center rounded-brand-field font-medium text-[15px] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+                className={`min-h-14 flex items-center justify-center rounded-brand-field font-medium text-[15px] focus-ring ${
                   index === 0 ? "bg-brand-ink text-brand-on-ink" : "bg-brand-line text-brand-ink"
                 }`}
               >

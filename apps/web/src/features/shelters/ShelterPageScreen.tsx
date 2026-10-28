@@ -17,8 +17,7 @@ import { ShelterSortToggle } from "./ShelterSortToggle";
 import type { ShelterPageView } from "./shelter-page-load";
 import { shelterWordsOf } from "./shelter-words";
 
-const FOCUS =
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]";
+const FOCUS = "focus-ring";
 
 /**
  * A small fact pill (verification, animal count, the donation link) - design

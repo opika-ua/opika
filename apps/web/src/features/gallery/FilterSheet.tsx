@@ -77,7 +77,7 @@ const SEX_LABEL: Record<AnimalSex, string> = {
  * removed", which drawing it where nobody can see it is a way of removing.
  */
 const CHIP_LABEL_BASE =
-  "min-h-12 inline-flex items-center rounded-rg-chip px-5 font-rg text-[15px] leading-none cursor-pointer transition-colors duration-[120ms] ease-rg has-[:checked]:bg-rg-ink has-[:checked]:text-rg-surface has-[:checked]:font-medium bg-rg-fill text-rg-ink has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-rg-registry has-[:focus-visible]:outline-offset-[3px]";
+  "min-h-12 inline-flex items-center rounded-rg-chip px-5 font-rg text-[15px] leading-none cursor-pointer transition-colors duration-[120ms] ease-rg has-[:checked]:bg-rg-ink has-[:checked]:text-rg-surface has-[:checked]:font-medium bg-rg-fill text-rg-ink focus-ring-within-registry";
 
 /**
  * docs/design/README.md, "03 · Фільтри" + "Rail, count, sort": "Below
@@ -240,7 +240,7 @@ export function FilterSheet({
         href={`#${SHEET_ID}`}
         onClick={openWithJs}
         data-testid="filter-sheet-trigger"
-        className="font-rg desktop:hidden min-h-12 inline-flex items-center rounded-rg-button bg-rg-fill px-4 text-[15px] text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+        className="font-rg desktop:hidden min-h-12 inline-flex items-center rounded-rg-button bg-rg-fill px-4 text-[15px] text-rg-ink focus-ring-registry"
       >
         {uk.feed.filtersLabel}
       </a>
@@ -301,7 +301,7 @@ export function FilterSheet({
               href="#"
               onClick={closeWithJs}
               aria-label={uk.preview.close}
-              className="min-h-12 min-w-12 inline-flex items-center justify-center rounded-rg-button text-rg-ink-3 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+              className="min-h-12 min-w-12 inline-flex items-center justify-center rounded-rg-button text-rg-ink-3 focus-ring-registry"
             >
               ✕
             </a>
@@ -484,13 +484,13 @@ export function FilterSheet({
               <a
                 href={resetFiltersHref(sort)}
                 onClick={onResetClick}
-                className="min-h-14 flex items-center justify-center rounded-rg-button bg-rg-fill text-rg-ink font-medium text-[15px] px-6 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+                className="min-h-14 flex items-center justify-center rounded-rg-button bg-rg-fill text-rg-ink font-medium text-[15px] px-6 focus-ring-registry"
               >
                 {uk.filters.reset}
               </a>
               <button
                 type="submit"
-                className="min-h-14 flex-1 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+                className="min-h-14 flex-1 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-ring-registry"
               >
                 {showCountLabel(resultCount)}
               </button>

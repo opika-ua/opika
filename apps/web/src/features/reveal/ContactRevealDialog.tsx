@@ -326,7 +326,7 @@ function RevealError({
           onClick={onClose}
           aria-label={uk.preview.close}
           data-testid="reveal-close"
-          className="size-12 flex-none rounded-rg-button bg-rg-fill text-[17px] text-rg-ink-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+          className="size-12 flex-none rounded-rg-button bg-rg-fill text-[17px] text-rg-ink-2 focus-ring-registry"
         >
           ✕
         </button>
@@ -349,7 +349,7 @@ function RevealError({
           type="button"
           onClick={onRetry}
           data-testid="reveal-retry"
-          className="min-h-14 rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+          className="min-h-14 rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-ring-registry"
         >
           {copy.action}
         </button>
@@ -402,7 +402,7 @@ function RevealContent({
           onClick={onClose}
           aria-label={uk.preview.close}
           data-testid="reveal-close"
-          className="size-12 flex-none rounded-rg-button bg-rg-fill text-[17px] text-rg-ink-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+          className="size-12 flex-none rounded-rg-button bg-rg-fill text-[17px] text-rg-ink-2 focus-ring-registry"
         >
           ✕
         </button>
@@ -445,7 +445,7 @@ function RevealContent({
             target={primaryAction.external ? "_blank" : undefined}
             rel={primaryAction.external ? "noopener" : undefined}
             data-testid="reveal-primary-action"
-            className="min-h-14 flex-1 flex items-center justify-center rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+            className="min-h-14 flex-1 flex items-center justify-center rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-ring-registry"
           >
             {primaryAction.label}
           </a>
@@ -455,7 +455,7 @@ function RevealContent({
             type="button"
             onClick={secondaryAction.onClick}
             data-testid="reveal-back-to-gallery"
-            className="min-h-14 text-[15px] text-rg-ink-2 underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] rounded-rg-button"
+            className="min-h-14 text-[15px] text-rg-ink-2 underline focus-ring-registry rounded-rg-button"
           >
             {secondaryAction.label}
           </button>

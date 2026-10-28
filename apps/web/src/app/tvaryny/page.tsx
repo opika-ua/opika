@@ -351,7 +351,7 @@ export async function renderGallery(
                 <a
                   href="#pagination"
                   data-testid="pagination-skip-link"
-                  className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-12 focus:items-center focus:rounded-brand-field focus:bg-brand-ink focus:px-4 focus:text-[15px] focus:text-brand-on-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+                  className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-12 focus:items-center focus:rounded-brand-field focus:bg-brand-ink focus:px-4 focus:text-[15px] focus:text-brand-on-ink focus-ring"
                 >
                   {uk.pagination.skipLink}
                 </a>

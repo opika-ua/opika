@@ -38,7 +38,7 @@ export const PillButton = forwardRef<HTMLButtonElement, PillButtonProps>(functio
       // "Test logic, not looks" era convention as `ContentPageLayout.tsx`'s own
       // `text-[34px]/[1.1] desktop:text-[48px]/[1.1]` h1) - still comfortably over the
       // 48px touch floor, just proportionate to a phone instead of a 1440px panel.
-      className={`inline-flex h-13 cursor-pointer items-center justify-center rounded-brand-pill ${TONE_CLASS[tone]} px-6 text-[16px] font-semibold text-brand-on-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] disabled:cursor-not-allowed disabled:opacity-60 desktop:h-16 desktop:px-11 desktop:text-[20px] ${className}`}
+      className={`inline-flex h-13 cursor-pointer items-center justify-center rounded-brand-pill ${TONE_CLASS[tone]} px-6 text-[16px] font-semibold text-brand-on-ink focus-ring disabled:cursor-not-allowed disabled:opacity-60 desktop:h-16 desktop:px-11 desktop:text-[20px] ${className}`}
       {...props}
     />
   );

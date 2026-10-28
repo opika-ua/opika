@@ -19,11 +19,12 @@
   --color-paper: #fbf7f0;
   --color-paper-alt: #f4ecdf;
   --color-sunken-deep: #efe6d6;
-  --color-line: #e8decb;
   --color-line-strong: #e0d4bf;
   --color-line-heavy: #c9bca2;
-  --color-ink: #2a2118;
-  --color-ink-2: #4a3d2c;
+  /* Bare `ink`/`ink-2` are the retired Keeper's Voice values; the unprefixed names now belong to
+   * the single token set below. SwipeDeck's exhausted state is the only reader. */
+  --color-legacy-ink: #2a2118;
+  --color-legacy-ink-2: #4a3d2c;
   --color-ink-3: #6e5c44;
   --color-ink-4: #85735a;
   --color-leaf: #4f6b3a;
@@ -39,7 +40,6 @@
    * radius later is a one-line edit instead of a search for which 12s mean
    * "button".
    */
-  --radius-card: 20px;
   --radius-photo: 12px;
   --radius-button: 12px;
   --radius-freshness: 12px;
@@ -135,7 +135,7 @@
   /* One step, two places only: the deck's top card and the sheet
    * (`docs/design/README.md`). Nothing else in the new system casts a
    * shadow. */
-  --shadow-rg-card: 0 24px 48px -32px rgba(16, 17, 18, 0.4);
+  --shadow-rg-card: var(--shadow-float);
 
   /*
    * quick 120ms · settle 220ms · reveal 280ms, all on this one curve —
@@ -145,7 +145,7 @@
    * `duration-<n>` utilities, same reasoning as the old block: only the
    * curve is non-default.
    */
-  --ease-rg: cubic-bezier(0.3, 0, 0, 1);
+  --ease-rg: var(--ease-standard);
 
   /*
    * No new spacing tokens. The new 7-step scale — 4 · 8 · 12 · 16 · 24 ·
@@ -322,15 +322,15 @@
    * `--radius-brand-*` and `--font-brand-*` follow the same prefixing for
    * the same reason as the colours above.
    */
-  --color-brand-page: #faf7f6;
-  --color-brand-surface: #faf8f6;
-  --color-brand-ink: #270041;
-  --color-brand-on-ink: #faf8f9;
-  --color-brand-ink-2: #805f6e;
-  --color-brand-muted: #b58fa0;
-  --color-brand-line: #e7dae0;
-  --color-brand-accent: #f26427;
-  --color-brand-dog: #794eba;
+  --color-brand-page: var(--color-page);
+  --color-brand-surface: var(--color-surface);
+  --color-brand-ink: var(--color-ink);
+  --color-brand-on-ink: var(--color-on-ink);
+  --color-brand-ink-2: var(--color-ink-2);
+  --color-brand-muted: var(--color-muted);
+  --color-brand-line: var(--color-line);
+  --color-brand-accent: var(--color-accent);
+  --color-brand-dog: var(--color-species-dog);
   /**
    * Pet card PR 5 (Figma `75:425`/`88:1929`): the overlay's «Попередній»/
    * «Наступний» labels, `#99667D`. No existing token was close enough to
@@ -339,16 +339,16 @@
    */
   --color-brand-plum: #99667d;
 
-  --radius-brand-tag: 8px;
-  --radius-brand-field: 12px;
-  --radius-brand-panel: 20px;
-  --radius-brand-card: 24px;
-  --radius-brand-pill: 999px;
+  --radius-brand-tag: var(--radius-tag);
+  --radius-brand-field: var(--radius-field);
+  --radius-brand-panel: var(--radius-panel);
+  --radius-brand-card: var(--radius-card);
+  --radius-brand-pill: var(--radius-pill);
   /** Pet card PR 5: the overlay panel's own top-corner radius, 48px - too
    * large for `panel`'s existing 20px to double as, and no other surface
    * needs this value yet, so it's its own token rather than widening an
    * existing one to this surface's single use. */
-  --radius-brand-panel-lg: 48px;
+  --radius-brand-panel-lg: var(--radius-sheet);
 
   /*
    * `next/font/local` (apps/web/src/app/fonts.ts, `brandDisplay`/`brandUi`),
@@ -362,6 +362,144 @@
    */
   --font-brand-display: var(--font-climate-crisis);
   --font-brand-ui: var(--font-bellota-text);
+
+  /*
+   * ==== The single token set (design system PR 1) ====
+   * Semantic names, no prefix. The values are the brand set's; `brand-*` above
+   * now alias these so both spellings render the same until the migration PRs
+   * move each usage and PR 4 deletes the aliases. `rg-*` keeps its own values:
+   * they differ from the brand ones, so aliasing would change pixels.
+   */
+  --color-page: #faf7f6;
+  --color-surface: #faf8f6;
+  --color-ink: #270041;
+  --color-ink-2: #805f6e;
+  --color-muted: #b58fa0;
+  --color-line: #e7dae0;
+  --color-accent: #f26427;
+  --color-on-ink: #faf8f9;
+  --color-species-dog: #794eba;
+  /* Cats are shown in the accent colour today (`card-text.ts`). */
+  --color-species-cat: var(--color-accent);
+  --color-focus: var(--color-accent);
+  /* Kabinet states. No screen uses these yet; values chosen for 4.5:1 text on
+   * `surface`, to be confirmed by the first screen that renders them. */
+  --color-success: #1f7a3d;
+  --color-warning: #8a5a00;
+  --color-danger: #b3261e;
+
+  /* Fixed radius scale. */
+  --radius-tag: 8px;
+  --radius-field: 12px;
+  --radius-panel: 20px;
+  --radius-card: 24px;
+  --radius-sheet: 48px;
+  --radius-pill: 999px;
+
+  /* The one shadow, for floating layers. */
+  --shadow-float: 0 24px 48px -32px rgba(16, 17, 18, 0.4);
+
+  /* Motion: one easing, three durations. Durations are zeroed under
+   * prefers-reduced-motion (see the media query after this block). */
+  --ease-standard: cubic-bezier(0.3, 0, 0, 1);
+  --duration-quick: 120ms;
+  --duration-settle: 220ms;
+  --duration-reveal: 280ms;
+
+  /*
+   * Type scale: `text-<name>` sets size, line height, weight and tracking.
+   * The display sizes are set in `font-brand-display`; add that class beside
+   * them (a Tailwind text utility cannot carry a font family).
+   */
+  --text-display-xl: 48px;
+  --text-display-xl--line-height: 1.1;
+  --text-display-xl--font-weight: 400;
+  --text-display-xl--letter-spacing: 0;
+  --text-display-l: 32px;
+  --text-display-l--line-height: 1.15;
+  --text-display-l--font-weight: 400;
+  --text-display-l--letter-spacing: 0;
+  --text-title: 26px;
+  --text-title--line-height: 1.2;
+  --text-title--font-weight: 700;
+  --text-title--letter-spacing: 0;
+  --text-body-l: 20px;
+  --text-body-l--line-height: 1.4;
+  --text-body-l--font-weight: 400;
+  --text-body-l--letter-spacing: 0;
+  --text-body: 16px;
+  --text-body--line-height: 1.4;
+  --text-body--font-weight: 400;
+  --text-body--letter-spacing: 0;
+  --text-label: 16px;
+  --text-label--line-height: 1.4;
+  --text-label--font-weight: 600;
+  --text-label--letter-spacing: 0;
+  --text-caption: 15px;
+  --text-caption--line-height: 1.4;
+  --text-caption--font-weight: 400;
+  --text-caption--letter-spacing: 0;
+
+  /* The brand UI face is the page default; `font-sans` stays Commissioner for
+   * the few elements that still ask for it by name. */
+  --default-font-family: var(--font-bellota-text);
+}
+
+/*
+ * Stacking order, as `z-(--z-<name>)`. Tailwind has no z-index theme
+ * namespace, so these are plain custom properties.
+ */
+:root {
+  --z-header: 30;
+  --z-popover: 40;
+  --z-sheet: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-quick: 0ms;
+    --duration-settle: 0ms;
+    --duration-reveal: 0ms;
+  }
+}
+
+/*
+ * The one focus ring: 3px, 3px offset, drawn only for keyboard focus. The
+ * colour variants are the ones the old pasted recipe used; `registry` is the
+ * V2 blue and goes away with the `rg-` set.
+ */
+@utility focus-ring {
+  &:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 3px;
+  }
+}
+@utility focus-ring-ink {
+  &:focus-visible {
+    outline: 3px solid var(--color-brand-ink);
+    outline-offset: 3px;
+  }
+}
+@utility focus-ring-white {
+  &:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+  }
+}
+@utility focus-ring-registry {
+  &:focus-visible {
+    outline: 3px solid var(--color-rg-registry);
+    outline-offset: 3px;
+  }
+}
+/* For a visually hidden input whose styled wrapper shows the ring. */
+@utility focus-ring-within-registry {
+  &:has(:focus-visible) {
+    outline: 3px solid var(--color-rg-registry);
+    outline-offset: 3px;
+  }
 }
 
 @keyframes spin-fast {

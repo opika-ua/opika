@@ -162,7 +162,7 @@ export function Dropdown({
         // name, failing WCAG 2.5.3 (Label in Name) against the visible
         // <span> below. Ending with `label` verbatim is what satisfies it.
         aria-label={`${legend}: ${label}`}
-        className={`flex h-13 w-full min-w-0 cursor-pointer items-center justify-between gap-3 rounded-brand-field border-2 bg-brand-page px-5 font-brand-ui text-[16px]/[1.2] font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+        className={`flex h-13 w-full min-w-0 cursor-pointer items-center justify-between gap-3 rounded-brand-field border-2 bg-brand-page px-5 font-brand-ui text-[16px]/[1.2] font-semibold transition-colors focus-ring ${
           active ? "border-brand-accent text-brand-ink" : "border-brand-line text-brand-muted"
         } ${open ? "border-brand-accent" : ""}`}
       >
@@ -201,7 +201,7 @@ export function Dropdown({
           // minimum target size. `right-1.5` (not `right-5`) keeps the glyph
           // itself centered on the same spot the chevron it replaces occupies
           // - only the invisible padding around it grew.
-          className="absolute top-1/2 right-1.5 flex min-h-12 min-w-12 -translate-y-1/2 cursor-pointer items-center justify-center text-[16px] text-brand-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+          className="absolute top-1/2 right-1.5 flex min-h-12 min-w-12 -translate-y-1/2 cursor-pointer items-center justify-center text-[16px] text-brand-ink focus-ring"
         >
           <span aria-hidden="true">✕</span>
         </Link>
@@ -230,7 +230,7 @@ export function DropdownOption({
       prefetch={false}
       href={href}
       aria-current={active ? "true" : undefined}
-      className={`flex min-h-12 w-full cursor-pointer items-center rounded-brand-field px-3 text-[16px]/[1.2] transition-colors hover:bg-brand-line focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+      className={`flex min-h-12 w-full cursor-pointer items-center rounded-brand-field px-3 text-[16px]/[1.2] transition-colors hover:bg-brand-line focus-ring ${
         active ? "font-semibold text-brand-ink" : "text-brand-ink-2"
       }`}
     >
@@ -316,7 +316,7 @@ export function SpeciesToggle({
             href={href}
             aria-current={segmentActive ? "true" : undefined}
             data-testid={`${testid}${testIdSuffix}`}
-            className={`flex h-full min-w-11 flex-1 items-center justify-center rounded-brand-field px-3 text-[16px]/[1.2] font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+            className={`flex h-full min-w-11 flex-1 items-center justify-center rounded-brand-field px-3 text-[16px]/[1.2] font-semibold transition-colors focus-ring ${
               segmentActive ? "bg-brand-ink text-brand-on-ink" : "text-brand-muted"
             }`}
           >
