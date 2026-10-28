@@ -110,13 +110,20 @@ export function DetailPhotoGallery({
           <div
             key={`${index}-${photo.storageKey}`}
             data-testid="detail-photo"
-            className="relative h-[480px] w-[360px] flex-none snap-start overflow-hidden rounded-[30px] bg-brand-line"
+            // 360x480 (3:4) is the handoff's own number, but that's wider than a phone's
+            // own content column once the page's p-4 (32px) gutters are subtracted - found
+            // live, not assumed: a real page-level horizontal scrollbar, constant regardless
+            // of viewport, because this cell stayed a fixed 360px wide underneath it.
+            // `w-[min(...)]` keeps the designed 360px width everywhere it fits and only
+            // shrinks below that; `aspect-[3/4]` (not a fixed height) keeps the photo's own
+            // proportions correct once the width does shrink, rather than cropping shorter.
+            className="relative aspect-[3/4] w-[min(360px,calc(100vw-2rem))] flex-none snap-start overflow-hidden rounded-[30px] bg-brand-line"
           >
             <Image
               src={photo.storageKey}
               alt={photo.alt?.uk ?? altFallback}
               fill
-              sizes="360px"
+              sizes="(max-width: 392px) calc(100vw - 32px), 360px"
               priority={index === 0}
               className="object-cover"
             />
