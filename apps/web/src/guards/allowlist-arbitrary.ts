@@ -56,7 +56,8 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
   },
   "features/controls/controls.tsx": {
     max: 3,
-    reason: "Shared controls; extracted into src/ui in DS PR 2.",
+    reason:
+      "Legacy link classes keep `aria-[current=page]:` variants until the kabinet moves to src/ui.",
   },
   "features/discovery/DeckScreen.tsx": {
     max: 6,

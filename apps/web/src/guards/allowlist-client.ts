@@ -4,6 +4,12 @@
  * (`docs/ui/inventory-2026-10.md`, section 4). Remove an entry when the directive goes.
  */
 export const CLIENT_FILES: Readonly<Record<string, string>> = {
+  "app/dev/ui/Demos.tsx": "showcase state for Modal, Popover and the toggle chip (dev only)",
+  "app/dev/ui/SegmentedDemo.tsx": "showcase state for SegmentedControl (dev only)",
+  "ui/dialog-core.ts": "hook: showModal, scroll lock, backdrop click on the native dialog",
+  "ui/Modal.tsx": "controlled dialog; refs and the dialog core",
+  "ui/Popover.tsx": "open state, outside-press and Esc listeners",
+  "ui/Sheet.tsx": "open state and hash-link upgrade to showModal; no-JS :target path stays",
   "app/tvaryny/error.tsx": "Next error boundary (must be client); retry button, focus on mount",
   "app/tvaryny/gortaty/error.tsx": "Next error boundary (must be client); retry button",
   "features/animal-detail/CircleButton.tsx":
