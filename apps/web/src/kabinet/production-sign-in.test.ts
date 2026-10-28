@@ -316,7 +316,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // entirely, which this very test exists to gate).
     // 665 with the sex-filter feature's one new gap word, `animalForm.publish.gap.sex`
     // (confirmed directly in chat, pinned in copy-status.test.ts's `SEX_FILTER_COPY`).
-    expect(pending.length + written.length).toBe(665);
+    // 666 with the kabinet redesign Phase 2 PR 1's one new key, `kabinet.nav.home`
+    // («Головна», owner-approved 2026-10-28, pinned in copy-status.test.ts's K2_FINAL).
+    expect(pending.length + written.length).toBe(666);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

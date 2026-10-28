@@ -1,14 +1,13 @@
-import { kabinetActorRepo } from "@opika/db/repos";
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { requireEnv } from "../../api/env";
-import { kabinetHomeOf } from "../../features/kabinet/home";
+import { kabinetDashboardOf } from "../../features/kabinet/dashboard";
 import { JoinFailedCard } from "../../features/kabinet/JoinFailedCard";
 import { KabinetBrand } from "../../features/kabinet/KabinetBrand";
+import { KabinetHome } from "../../features/kabinet/KabinetHome";
 import { OPERATOR_HOME } from "../../features/kabinet/routes";
-import { ShelterProfile } from "../../features/kabinet/ShelterProfile";
 import { SHELTER_WRITE_POLICY } from "../../kabinet/access";
 import { invitationAccepter, selfHealingIdentity } from "../../kabinet/invitation-accept";
 import { kabinetDb } from "../../kabinet/kabinet-db";
@@ -17,14 +16,21 @@ import { kabinetIdentityOf } from "../../kabinet/principal";
 import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "./available-auth";
 
 export const metadata: Metadata = {
-  title: uk.kabinet.profile.pageTitle,
+  title: uk.kabinet.nav.home,
 };
 
 /**
- * The cabinet's home, where the magic link lands (KS-T2): the read-only
- * "your shelter" page (KS-Q1). While sign-in is unavailable it answers its
- * own 404 before touching auth or the database. Who sees what is
- * `kabinetHomeOf`'s decision, the API's own access matrix.
+ * Головна (kabinet redesign Phase 2 PR 1): `SHELTER_HOME`, where the magic
+ * link lands (KS-T2), and where sign-in's redirect, every invite/reset email
+ * link, and an old `/kabinet` bookmark all land - unchanged URL, new content.
+ * It used to serve K4's read-only "your shelter" page (KS-Q1); that screen
+ * moved to its own path (`app/kabinet/prytulok/page.tsx`, «Притулок» in the
+ * nav), and this page took the landing slot with "what needs attention"
+ * instead (`KabinetHome`; the research proposal,
+ * `Claude outputs\KABINET-IA-2026-10-28.md` §4). While sign-in is
+ * unavailable it answers its own 404 before touching auth or the database.
+ * Who sees what is `kabinetDashboardOf`'s decision, the same access matrix
+ * `kabinetHomeOf` and `kabinetAnimalListPageOf` already apply.
  *
  * A signed-in user with no role first gets the automatic invitation accept
  * again (IN-Q12): if it failed on «Увійти», this load is the retry.
@@ -56,19 +62,17 @@ export default async function KabinetHomePage() {
   const operator = operatorNameOf({
     KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,
   });
-  const home = await kabinetHomeOf(healed.identity.principal, {
+  const dashboard = await kabinetDashboardOf(healed.identity.principal, {
     db,
     now,
     newId: () => crypto.randomUUID(),
     invites,
     linkBaseURL: baseURL,
-    // The served route's own policy, so the editor shows exactly when the
-    // API would accept its writes.
     shelterWrites: SHELTER_WRITE_POLICY,
     cursorSecret: requireEnv("CURSOR_HMAC_SECRET"),
     operatorDisplayName: standaloneOperatorName(operator),
   });
-  switch (home.kind) {
+  switch (dashboard.kind) {
     case "sign_in":
       redirect("/kabinet/vkhid");
       break;
@@ -79,31 +83,21 @@ export default async function KabinetHomePage() {
       // RU-T1: the operator's home is their list, which guards itself.
       redirect(OPERATOR_HOME);
       break;
-    case "shelter": {
-      // PW-1: «Змінити пароль» for the shelter's own admin, never a support view (the
-      // operator's session): whether a password exists decides the form or the note.
-      const userId = healed.identity.userId;
-      const password =
-        home.viewer === "admin" && userId !== null
-          ? ({
-              kind: (await kabinetActorRepo(db).hasPassword(userId)) ? "set" : "not_set",
-            } as const)
-          : null;
+    case "shelter":
       return (
-        <ShelterProfile
-          view={home.view}
-          cityName={home.cityName}
-          viewer={home.viewer}
-          // The locked note puts the name mid-sentence; the decision's signature stands alone.
+        <KabinetHome
+          view={dashboard.view}
+          viewer={dashboard.viewer}
           operator={operator}
-          editing={home.editing}
-          password={password}
+          draftCount={dashboard.draftCount}
+          staleCount={dashboard.staleCount}
+          animalListShown={dashboard.animalListShown}
+          canWrite={dashboard.canWrite}
         />
       );
-    }
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
-      const unreachable: never = home;
+      const unreachable: never = dashboard;
       return unreachable;
     }
   }

@@ -3,7 +3,7 @@ import { AnimalForm } from "./animal-form/AnimalForm";
 import type { KabinetAnimalPage } from "./animal-page";
 import { KabinetBrand } from "./KabinetBrand";
 import { CAPTION } from "./profile-edit/styles";
-import { ANIMAL_LIST_PATH, animalListShownTo, SHELTER_HOME } from "./routes";
+import { ANIMAL_LIST_PATH, animalListShownTo, SHELTER_PROFILE_PATH } from "./routes";
 import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
 
@@ -16,12 +16,16 @@ import { SupportBanner } from "./SupportBanner";
  * **The back link** goes to K2's list with his `animalForm.backToList`
  * («← Тварини», PR 5), wherever the list is shown to this viewer (P1:
  * writes open, or the support view). A viewer the list isn't shown to goes
- * back to its profile, named by the profile's own title; since PR 6 opened
- * every shelter's writes, no shelter admin is one, and the branch stays so
- * the page, the nav and this link keep sharing one rule.
+ * back to Притулок (`SHELTER_PROFILE_PATH`, kabinet redesign Phase 2 PR 1 -
+ * renamed from «Профіль притулку»), named by its own title; since PR 6
+ * opened every shelter's writes, no shelter admin is one, and the branch
+ * stays so the page, the nav and this link keep sharing one rule.
  */
 export const BACK_TO_LIST = { href: ANIMAL_LIST_PATH, label: uk.kabinet.animalForm.backToList };
-export const BACK_TO_PROFILE = { href: SHELTER_HOME, label: `← ${uk.kabinet.profile.title}` };
+export const BACK_TO_PROFILE = {
+  href: SHELTER_PROFILE_PATH,
+  label: `← ${uk.kabinet.profile.title}`,
+};
 
 export function AnimalPage({
   page,
