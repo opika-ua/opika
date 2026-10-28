@@ -3,6 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "browserslist": [
+    "ios_saf >= 16",
+    "safari >= 16",
+    "chrome >= 130",
+    "and_chr >= 130",
+    "edge >= 130",
+    "samsung >= 27",
+    "last 2 firefox versions"
+  ],
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",

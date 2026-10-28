@@ -48,7 +48,7 @@ export function GallerySortToggle({ filters, sort, citySlugs }: GallerySortToggl
         aria-label={`${uk.filters.sortFreshestShort}. ${uk.filters.sortFreshest}`}
         aria-current={sort === "freshest" ? "true" : undefined}
         data-testid="sort-freshest"
-        className={`flex min-h-12 items-center rounded-brand-pill px-2 text-[18px]/[1.2] font-semibold focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+        className={`flex min-h-12 items-center rounded-brand-pill px-2 text-[18px]/[1.2] font-semibold focus-ring ${
           sort === "freshest" ? "text-brand-ink" : "text-brand-muted"
         }`}
       >
@@ -84,7 +84,7 @@ export function GallerySortToggle({ filters, sort, citySlugs }: GallerySortToggl
         aria-label={`${uk.filters.sortLongestWaitingShort}. ${uk.filters.sortLongestWaiting}`}
         aria-current={sort === "longest_waiting" ? "true" : undefined}
         data-testid="sort-longest-waiting"
-        className={`flex min-h-12 items-center rounded-brand-pill px-2 text-[18px]/[1.2] font-semibold focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+        className={`flex min-h-12 items-center rounded-brand-pill px-2 text-[18px]/[1.2] font-semibold focus-ring ${
           sort === "longest_waiting" ? "text-brand-ink" : "text-brand-muted"
         }`}
       >

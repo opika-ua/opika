@@ -33,7 +33,7 @@ export const circleButtonClass = (size: keyof typeof SIZE_CLASS = "md", classNam
   // default flex-shrink squeezed its width down to an oval while its height held, since
   // the circle's two axes don't shrink the same way. A fixed-size control should never
   // flex at all; the two text pills next to it are the ones meant to give way or wrap.
-  `inline-flex shrink-0 ${SIZE_CLASS[size]} cursor-pointer items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-ink focus-visible:outline-offset-[3px] disabled:cursor-not-allowed disabled:opacity-60 ${className}`;
+  `inline-flex shrink-0 ${SIZE_CLASS[size]} cursor-pointer items-center justify-center rounded-full bg-brand-surface shadow-md focus-ring-ink disabled:cursor-not-allowed disabled:opacity-60 ${className}`;
 
 interface CircleButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: keyof typeof SIZE_CLASS;

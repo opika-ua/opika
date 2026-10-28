@@ -22,8 +22,7 @@ import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
 import { ShareButton } from "./ShareButton";
 
-const FOCUS =
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]";
+const FOCUS = "focus-ring";
 
 interface AnimalDetailScreenProps {
   animal: AnimalDetailView;

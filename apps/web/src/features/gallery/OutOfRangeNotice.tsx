@@ -55,7 +55,7 @@ export function OutOfRangeNotice({
       </div>
       <Link
         href={galleryPageHref(filters, sort, 1, citySlugs)}
-        className="text-[15px] text-brand-ink underline underline-offset-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+        className="text-[15px] text-brand-ink underline underline-offset-2 focus-ring"
       >
         {uk.outOfRangePage.backToFirst}
       </Link>

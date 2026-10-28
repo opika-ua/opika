@@ -8,8 +8,7 @@ import { uk } from "@opika/i18n";
  * (Oleksii, IN-T12 item 7: "reuse K1's card (approved), with its own heading
  * key kabinet.confirm.joinFailedTitle").
  */
-const FOCUS =
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
+const FOCUS = "focus-ring-registry";
 const PRIMARY = `inline-flex min-h-14 w-full items-center justify-center rounded-rg-button bg-rg-ink px-6 text-[15px] font-medium whitespace-nowrap text-white ${FOCUS}`;
 const TITLE =
   "text-2xl leading-7 font-bold tracking-[-0.02em] text-rg-ink tablet:text-[34px] tablet:leading-[38px] tablet:tracking-[-0.03em]";
