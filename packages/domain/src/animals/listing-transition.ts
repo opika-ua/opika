@@ -257,8 +257,11 @@ export const transitionListing = (
  * animal with sex still «Не записано» keeps showing exactly as it did
  * before this change - nothing retroactive. The gallery's own «Не
  * записано» filter option (`ANIMAL_SEXES`) still has real matches among
- * those grandfathered rows; it will just never gain a new one going
- * forward.
+ * those grandfathered rows, and can keep gaining more: only the kabinet's
+ * own draft-to-published move is gated here. `shelter.animals.update` and
+ * onboarding still accept «Не записано» on an already-listed or newly
+ * onboarded animal with no check of their own - a real gap, tracked as a
+ * follow-up (SF-F1), not fixed by this list.
  */
 export const PUBLISH_GAP_KINDS = ["sex", "size", "age", "description", "photo"] as const;
 

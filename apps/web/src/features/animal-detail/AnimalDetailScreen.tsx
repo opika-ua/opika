@@ -353,8 +353,10 @@ function PlainChip({ text }: { text: string }) {
   return <span className={CHIP}>{text}</span>;
 }
 
-/** The sex chip (plain text - no sex filter exists, A6): omitted entirely for "unknown", the
- * same no-word-for-unknown contract `sexWordFor` already has (unlike `ageWordFor`, which
+/** The sex chip (plain text, A6): a sex filter exists (`feed-filters.ts`'s `sexes`), but
+ * SF-D5 left the card's own sex chip non-filterable as a separate, unaddressed product
+ * question - adding one is not implied by adding the filter. Omitted entirely for "unknown",
+ * the same no-word-for-unknown contract `sexWordFor` already has (unlike `ageWordFor`, which
  * always has some word to fall back to). A component of its own, not an inline `&&`, purely so
  * TS narrows `sexWordFor`'s `string | null` return to `string` before `PlainChip` sees it. */
 function SexChip({ sex }: { sex: AnimalDetailView["sex"] }) {

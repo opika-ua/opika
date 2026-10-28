@@ -475,11 +475,11 @@ const NO_CITY_SLUGS: CitySlugsById = new Map();
 /**
  * One fact on an animal's card that the gallery can filter on: the chip a
  * person taps to see more animals like this one in that respect. Sex is not
- * here because the card never renders it as a chip - `sexWordFor` puts it in
- * the plain meta line, not among the card's tappable facts - not because
- * `FeedFilters` lacks the dimension (it gained one, sex-filter feature; the
- * card's own chip set is a separate, unaddressed question). City is not here
- * because «more like this» means the animal, not the place.
+ * here because `SexChip` renders as a plain, non-tappable chip (A6) - not
+ * because `FeedFilters` lacks the dimension (it gained one, sex-filter
+ * feature; SF-D5 left making the sex chip filterable as a separate,
+ * unaddressed question). City is not here because «more like this» means
+ * the animal, not the place.
  */
 export type FilterableChip =
   | { dimension: "ages"; value: AgeBucket }
