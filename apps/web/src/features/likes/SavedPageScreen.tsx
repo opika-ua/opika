@@ -118,7 +118,16 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
 
       <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-13 px-4 pt-10 pb-10 tablet:px-6 desktop:px-14 desktop:pb-14">
         <div className="flex flex-col gap-1">
-          <h1 className="font-brand-display text-[48px] leading-none text-brand-ink">
+          {/*
+            Responsive audit Phase 2 (2026-10-28): «Збережені» alone measures
+            389px at a flat 48px display font - wider than the ~328px column
+            at 360-390px, so it rendered as a real horizontal overflow (not a
+            wrap problem; it already wraps between words, one word just
+            doesn't fit on its own line). Same fix `/pro`/`/prytulkam`'s own
+            h1 already uses (`ContentPageLayout.tsx`): scale down below
+            `desktop:` instead of a flat size.
+          */}
+          <h1 className="font-brand-display text-[34px]/[1.1] desktop:text-[48px]/[1.1] text-brand-ink">
             {uk.likes.title}
           </h1>
           <p className="text-[15px]/[20px] text-brand-ink-2">{uk.likes.deviceOnly}</p>
@@ -176,7 +185,9 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
                   type="button"
                   onClick={() => removeSaved(item.animalId)}
                   data-testid="saved-remove"
-                  className={`inline-flex min-h-11 w-fit items-center rounded-brand-field border-2 border-brand-line px-4 text-[15px] font-medium text-brand-ink hover:bg-brand-line ${FOCUS}`}
+                  // `min-h-12` (48px floor, responsive audit Phase 2): was
+                  // `min-h-11` (44px), under the touch-target minimum.
+                  className={`inline-flex min-h-12 w-fit items-center rounded-brand-field border-2 border-brand-line px-4 text-[15px] font-medium text-brand-ink hover:bg-brand-line ${FOCUS}`}
                 >
                   {uk.likes.remove}
                 </button>
