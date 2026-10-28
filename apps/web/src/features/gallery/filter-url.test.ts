@@ -47,6 +47,18 @@ describe("parseGalleryQuery", () => {
     });
   });
 
+  it("ignores a stale link's removed params (sherst/kharakter/zabarvlennia) rather than throwing", () => {
+    // Fur/temperament/colour were removed as filter dimensions by the gallery filter
+    // restructure; an old shared link carrying one of their params must still open the
+    // gallery, just without that constraint - parseGalleryQuery only ever reads its own
+    // known keys (GALLERY_PARAM), so an unrecognised key has no code path that touches it.
+    const result = parseGalleryQuery(
+      { vyd: "dog", sherst: "long", kharakter: "playful", zabarvlennia: "black" },
+      NO_SLUGS,
+    );
+    expect(result).toEqual(parseGalleryQuery({ vyd: "dog" }, NO_SLUGS));
+  });
+
   it("parses a comma-separated multi-select dimension", () => {
     const { filters } = parseGalleryQuery({ vyd: "dog,cat" }, NO_SLUGS);
     // Both species selected collapses to "any" - canonicalizeFilters' own rule,
