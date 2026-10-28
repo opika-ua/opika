@@ -20,6 +20,16 @@ const SIZE_CLASS = {
   md: "size-13",
 } as const;
 
+/**
+ * The className half of the circle-button look, standalone so a real
+ * `<Link>` (the overlay's prev/next - prefetched navigation, not a click
+ * handler) can carry the identical visual treatment without going through
+ * a `<button>`. `CircleButton` below is this plus the `<button>` element
+ * itself; this is the one place the look is actually defined.
+ */
+export const circleButtonClass = (size: keyof typeof SIZE_CLASS = "md", className = ""): string =>
+  `inline-flex ${SIZE_CLASS[size]} cursor-pointer items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-ink focus-visible:outline-offset-[3px] disabled:cursor-not-allowed disabled:opacity-60 ${className}`;
+
 interface CircleButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: keyof typeof SIZE_CLASS;
   children: ReactNode;
@@ -32,11 +42,7 @@ export function CircleButton({
   ...props
 }: CircleButtonProps) {
   return (
-    <button
-      type="button"
-      className={`inline-flex ${SIZE_CLASS[size]} cursor-pointer items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-ink focus-visible:outline-offset-[3px] disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
-      {...props}
-    >
+    <button type="button" className={circleButtonClass(size, className)} {...props}>
       {children}
     </button>
   );

@@ -287,6 +287,20 @@
   --animate-fade-in: fade-in 220ms ease-out;
 
   /*
+   * ---- Pet card overlay entrance (designer change, 2026-10-28; timing
+   * revised twice the same day: first "250-300ms and ease-in", then "even
+   * faster") ----
+   * 120ms, this system's own "quick" step (above) - the fastest named
+   * duration already in the motion scale, rather than inventing a new one.
+   * The panel slides up from below as the overlay opens, timed to match the
+   * header's own 120ms retraction (`:has()` rule below) so the two motions
+   * - header leaving, panel rising into the space it left - read as one
+   * coordinated opening. Only plays on a fresh open, never on prev/next
+   * inside the overlay (`AnimalOverlay.tsx`'s `skipNextEntranceAnimation`).
+   */
+  --animate-panel-up: panel-up 120ms ease-in;
+
+  /*
    * ==== Gallery-v3 brand redesign — a third, parallel token set ====
    *
    * Figma file `euz4JGfpToY31VJY7ppVj9`, node `58:1617` ("catalog"). This
@@ -362,6 +376,12 @@
   }
 }
 
+@keyframes panel-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
 /*
  * The diagonal-hatch placeholder standing in for shelter photography.
  * `#F6EFE3` is not a tokens.ts colour — it was already a one-off hex inline
@@ -424,6 +444,33 @@
 }
 
 /*
+ * Designer change (2026-10-28): the header slides fully out of the
+ * viewport while the overlay is open, trading its own height back to the
+ * panel for "a more vertical space" - `AnimalOverlay.tsx`'s `DIALOG` no
+ * longer reserves `pt-16/pt-18` to clear it, since there is nothing left to
+ * clear once this finishes.
+ *
+ * The transition lives on the bare `header` selector (lower specificity),
+ * ahead of the `:has()` rule below that actually moves it (higher
+ * specificity) - descending-specificity ordering, not the reverse, is what
+ * keeps a later, more specific override from fighting an earlier one; a
+ * plain `transition`, not a one-shot `@keyframes` animation, because the
+ * `:has()` match itself toggles on open and off, so `transform` already
+ * animates both ways for free - up and away on open, back down on close -
+ * with no second, reversed keyframe to keep in sync. `header` always
+ * carries the transition (not only while the marker matches), so the very
+ * first open animates instead of snapping; nothing else on the site ever
+ * changes this header's transform, so the rule is inert everywhere else.
+ *
+ * 120ms, ease-in: revised twice same day, "make animation shorter 250-300ms
+ * and ease-in", then "even faster" - this system's own "quick" step
+ * (`--ease-rg`'s own block above), matching `--animate-panel-up`'s timing.
+ */
+header {
+  transition: transform 120ms ease-in;
+}
+
+/*
  * Pet card PR 5 (Figma `75:425`): the gallery's own `SiteHeader` has no
  * fill in the reference once the animal overlay is open - the peach
  * backdrop's own blur shows straight through it. `:has()` reaches across
@@ -443,10 +490,12 @@
  * header no longer breaks click-through for the controls below it.
  * `SiteHeader` still has to stay fully opaque on every *other* route,
  * where it's `sticky` over the grid scrolling under it with no overlay
- * open - this rule only ever applies while the marker exists.
+ * open - this rule only ever applies while the marker exists. The slide
+ * (above) rides along on the same marker.
  */
 body:has([data-testid="pet-card-overlay-open"]) header {
   background-color: transparent;
+  transform: translateY(-100%);
 }
 
 /*
