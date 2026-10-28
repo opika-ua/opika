@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { WORDMARK } from "../../brand";
 import { SavedNavLink } from "../likes/SavedNavLink";
 import { BrandLogo } from "./BrandLogo";
+import { MobileNavMenu } from "./MobileNavMenu";
 
 /**
  * The one header, on every user-facing surface except the deck.
@@ -204,6 +205,60 @@ function WordmarkText() {
   return <span className="sr-only">{WORDMARK}</span>;
 }
 
+/**
+ * The header's own nav links, factored out so the one conditional
+ * (Кабінет for a signed-in shelter admin/operator, «Збережені» otherwise)
+ * is never written twice in two different shapes - both the inline
+ * `<nav>` (`tablet:` and up) and `MobileNavMenu`'s drawer (below
+ * `tablet:`) render this same component, just inside different wrappers.
+ *
+ * `testIdSuffix`: both call sites render in the DOM at once regardless of
+ * which width actually shows which one (the drawer's own closed `<dialog>`
+ * hides its copy from the accessibility tree, not from the DOM - see
+ * `MobileNavMenu`'s own comment) - sharing one `data-testid` between the
+ * two would make every existing `page.locator("[data-testid='nav-about']")`
+ * style query in `site-header.harness.ts` resolve to two elements, a
+ * strict-mode violation found by actually running that suite, not assumed
+ * safe. The suffix keeps the tablet-and-up nav's ids exactly as they were
+ * (empty string) so none of that existing harness needs to change, and
+ * gives the drawer's own copies their own distinct ids.
+ */
+function NavLinks({
+  kabinetSignedIn,
+  linkClassName,
+  testIdSuffix = "",
+}: {
+  kabinetSignedIn: boolean;
+  linkClassName: string;
+  testIdSuffix?: string;
+}) {
+  return (
+    <>
+      <Link
+        href="/prytulkam"
+        data-testid={`nav-for-shelters${testIdSuffix}`}
+        className={linkClassName}
+      >
+        {uk.nav.forShelters}
+      </Link>
+      <Link href="/pro" data-testid={`nav-about${testIdSuffix}`} className={linkClassName}>
+        {uk.nav.about}
+      </Link>
+      {kabinetSignedIn ? (
+        <Link href="/kabinet" data-testid={`nav-kabinet${testIdSuffix}`} className={linkClassName}>
+          {uk.nav.kabinet}
+        </Link>
+      ) : (
+        // S8: the saved page (`/zberezheni`), linked from every surface the
+        // header is on - but only while there's something saved to link to
+        // (Oleksii, from a live screenshot: "show Збережені tab in header
+        // only if we have something saved otherwise hide it").
+        <SavedNavLink className={linkClassName} testId={`nav-saved${testIdSuffix}`} />
+      )}
+    </>
+  );
+}
+
 export function SiteHeader({
   children,
   wordmarkIsCurrentPage = false,
@@ -213,13 +268,14 @@ export function SiteHeader({
     <header
       data-testid="site-header"
       /*
-        `flex-wrap` below `tablet:` is load-bearing, not defensive - confirmed
-        by a real regression, not assumed safe to drop: removing it once the
-        `leading` slot's own content stopped needing it (O-8 moved that
-        content out of this component entirely) broke real horizontal-scroll
-        harness assertions at 360px, on both the gallery and detail pages.
-        Above 600px everything fits on one line and `tablet:flex-nowrap`
-        restores the single row the design's own header description assumes.
+        `flex-wrap`/`tablet:flex-nowrap` removed (hamburger-menu pass) - re-verified by
+        rendering, not assumed: it was load-bearing only for the inline `<nav>`'s own content
+        needing room below `tablet:` (O-8's history, still true when this was written). Now
+        that the nav renders nowhere below `tablet:` at all (hidden; `MobileNavMenu`'s drawer
+        carries the same links instead), there is only ever one row's worth of content at any
+        width - the logo and, below `tablet:`, the hamburger trigger - so nothing is left to
+        wrap. Confirmed zero overflow at 320/360/390px with the class removed, both with and
+        without the drawer open.
         72px desktop height / 56px desktop side gutters are the gallery-v3
         frame's own numbers; mobile/tablet keep this component's pre-existing
         values (see this file's top comment). `sticky top-0`: Oleksii,
@@ -229,7 +285,7 @@ export function SiteHeader({
         one of them, while staying below `FilterSheet`'s own `z-50` modal,
         which must still cover it when open.
       */
-      className="sticky top-0 z-30 min-h-16 desktop:min-h-18 flex flex-wrap tablet:flex-nowrap items-center gap-3 desktop:gap-4 bg-brand-page px-4 tablet:px-6 desktop:px-14 py-2 tablet:py-0"
+      className="sticky top-0 z-30 min-h-16 desktop:min-h-18 flex items-center gap-3 desktop:gap-4 bg-brand-page px-4 tablet:px-6 desktop:px-14 py-2 tablet:py-0"
     >
       {wordmarkIsCurrentPage ? (
         <span data-testid="site-wordmark" className="inline-flex items-center">
@@ -257,26 +313,28 @@ export function SiteHeader({
         `nav` with an accessible name: this is the second landmark of its kind
         on the gallery (the pagination nav is the other), and two unnamed
         `nav`s are indistinguishable in a screen reader's landmark list.
+
+        Hidden below `tablet:` (owner: "for mobile i need a hamburger menu
+        which would open navigation and have those links from header rather
+        than scale and move those links below logo") - `MobileNavMenu`,
+        below, renders the same `NavLinks` inside its own drawer for that
+        width instead.
       */}
-      <nav aria-label={WORDMARK} className="flex flex-wrap items-center gap-2 desktop:gap-10">
-        <Link href="/prytulkam" data-testid="nav-for-shelters" className={NAV_LINK_CLASS}>
-          {uk.nav.forShelters}
-        </Link>
-        <Link href="/pro" data-testid="nav-about" className={NAV_LINK_CLASS}>
-          {uk.nav.about}
-        </Link>
-        {kabinetSignedIn ? (
-          <Link href="/kabinet" data-testid="nav-kabinet" className={NAV_LINK_CLASS}>
-            {uk.nav.kabinet}
-          </Link>
-        ) : (
-          // S8: the saved page (`/zberezheni`), linked from every surface the
-          // header is on - but only while there's something saved to link to
-          // (Oleksii, from a live screenshot: "show Збережені tab in header
-          // only if we have something saved otherwise hide it").
-          <SavedNavLink className={NAV_LINK_CLASS} />
-        )}
+      <nav aria-label={WORDMARK} className="hidden tablet:flex items-center gap-2 desktop:gap-10">
+        <NavLinks kabinetSignedIn={kabinetSignedIn} linkClassName={NAV_LINK_CLASS} />
       </nav>
+
+      <MobileNavMenu>
+        {/* `w-full`: the drawer's own `flex flex-col` list wants full-width rows for a
+            thumb-friendly tap target, unlike the horizontal `tablet:` nav above, which
+            sizes each link to its own text. Composed onto `NAV_LINK_CLASS`, not a second
+            copy of it, so the two stay the same font/colour/focus-ring by construction. */}
+        <NavLinks
+          kabinetSignedIn={kabinetSignedIn}
+          linkClassName={`${NAV_LINK_CLASS} w-full`}
+          testIdSuffix="-menu"
+        />
+      </MobileNavMenu>
 
       {/* Batch D: every current caller's `children` is adopter-only (the deck entry link). */}
       {!kabinetSignedIn && children}
