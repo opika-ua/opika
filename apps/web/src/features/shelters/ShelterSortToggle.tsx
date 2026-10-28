@@ -27,7 +27,6 @@ export function ShelterSortToggle({ shelterId, sort }: ShelterSortToggleProps) {
   const freshestHref = hrefFor("freshest");
   const longestWaitingHref = hrefFor("longest_waiting");
   const activeIndex = GALLERY_SORTS.indexOf(sort);
-  const otherHref = sort === "freshest" ? longestWaitingHref : freshestHref;
 
   return (
     <nav
@@ -48,10 +47,16 @@ export function ShelterSortToggle({ shelterId, sort }: ShelterSortToggleProps) {
         {uk.filters.sortFreshestShort}
       </Link>
 
-      <Link
-        prefetch={false}
-        href={otherHref}
-        tabIndex={-1}
+      {/*
+        Responsive audit Phase 2 (2026-10-28): was a real `<Link>` to the
+        other sort option, so despite `aria-hidden`/`tabIndex={-1}` keeping
+        it out of keyboard and screen-reader navigation, it was still a
+        26px-tall tappable target on touch - under the 48px floor, and
+        purely redundant with the two flanking pills, which already lead to
+        both destinations. A plain `<div>` keeps the same visual track/knob
+        with nothing left to tap.
+      */}
+      <div
         aria-hidden="true"
         data-testid="sort-track"
         className="relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-brand-pill bg-brand-ink p-[3px]"
@@ -61,7 +66,7 @@ export function ShelterSortToggle({ shelterId, sort }: ShelterSortToggleProps) {
             activeIndex === 1 ? "translate-x-5" : "translate-x-0"
           }`}
         />
-      </Link>
+      </div>
 
       <Link
         prefetch={false}

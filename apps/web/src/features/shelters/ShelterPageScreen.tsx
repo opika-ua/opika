@@ -196,7 +196,12 @@ export function ShelterPageScreen({
                 target="_blank"
                 rel="noopener"
                 data-testid="donate-link"
-                className={`${FACT_PILL} hover:border-brand-accent hover:text-brand-accent ${FOCUS}`}
+                // `min-h-12`: the only one of the three fact pills that's a real
+                // control (the other two are plain `<span>`s) - 48px floor per
+                // `docs/standing-constraints.md`, on top of `FACT_PILL`'s own
+                // smaller `h-10` visual height for the secondary-facts row
+                // (CSS `min-height` wins over a smaller `height` when larger).
+                className={`${FACT_PILL} min-h-12 hover:border-brand-accent hover:text-brand-accent ${FOCUS}`}
               >
                 <span>{uk.detail.donateShelter}</span>
                 <span className="text-brand-ink-2">· {donationHost(shelter.donation)} ↗</span>
