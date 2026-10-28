@@ -383,6 +383,21 @@
 }
 
 /*
+ * Reduced-motion guard for the overlay's entrance (`--animate-panel-up`,
+ * used as `.animate-panel-up`) and the header's own retraction (`header`'s
+ * bare `transition` rule, below) - found live: the deck's own swipe gesture
+ * already checks `matchMedia('(prefers-reduced-motion: reduce)')`
+ * (`use-swipe-gesture.ts`), but these two, both from #224/the designer round,
+ * had no equivalent. Unlayered, like the rules it overrides, so it wins the
+ * cascade over Tailwind's own utilities layer regardless of source order.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-panel-up {
+    animation: none;
+  }
+}
+
+/*
  * The diagonal-hatch placeholder standing in for shelter photography.
  * `#F6EFE3` is not a tokens.ts colour — it was already a one-off hex inline
  * before this migration; kept as one here rather than promoted to a named
@@ -486,6 +501,12 @@
  */
 header {
   transition: transform 120ms ease-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  header {
+    transition: none;
+  }
 }
 
 /*
