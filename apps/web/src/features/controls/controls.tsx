@@ -1,346 +1,102 @@
-import type {
-  ButtonHTMLAttributes,
-  InputHTMLAttributes,
-  ReactNode,
-  Ref,
-  SelectHTMLAttributes,
-  TextareaHTMLAttributes,
-} from "react";
+import type { ButtonHTMLAttributes, Ref } from "react";
+import { Button as KitButton, buttonClass as kitButtonClass } from "../../ui/Button";
+import { Chip, chipClass } from "../../ui/Chip";
+import { cx } from "../../ui/cx";
 
 /**
- * The shared controls (K4 is the first consumer; inbox K4-T12). Styled only
- * through theme tokens: the `rg-*` colours and radii, Tailwind's type and
- * spacing scale, and `--spacing-target` for the 48px minimum height every
- * control carries (`globals.css`). Oleksii, 2026-10-17: "styled only through
- * shared design tokens (colour, type, spacing) so the rebrand is a token
- * swap. No one-off styles in components." A rebrand edits the tokens and this
- * file, never a screen.
- *
- * Plain components, no hooks: a server page and a client form can both use
- * them. Existing screens keep their own class strings until a change touches
- * them (not migrated in PR 2).
+ * TEMPORARY compatibility layer. The shared controls were absorbed into `src/ui` (DS PR 2); this
+ * file only re-exports them under their old names and maps the old button variants onto the kit's,
+ * so no consumer breaks. It is deleted when the last consumer imports from `src/ui` directly (the
+ * kabinet migration). New code imports `src/ui`, never this file.
  */
-
-/** The one visible keyboard-focus indicator, on `:focus-visible` only. */
-export const FOCUS_RING =
-  "focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-solid focus-visible:outline-rg-registry";
+export {
+  Checkbox as CheckboxOption,
+  CONTROL,
+  ERROR,
+  HINT,
+  INVALID,
+  LABEL,
+  Radio as RadioOption,
+  type Segment,
+  SegmentedControl,
+  Select as SelectField,
+  TextArea as TextAreaField,
+  TextField,
+} from "../../ui/form";
 
 export type ButtonVariant = "primary" | "secondary" | "text" | "icon" | "chip";
 
-const BUTTON: Record<ButtonVariant, string> = {
-  primary: "rounded-rg-button bg-rg-ink px-6 text-base font-medium text-rg-surface",
-  secondary: "rounded-rg-button bg-rg-fill px-6 text-base font-medium text-rg-ink",
-  text: "px-2 text-base text-rg-ink underline",
-  /** A glyph-only control (a dialog's ✕); its name goes in `aria-label`. */
-  icon: "w-target flex-none rounded-rg-button bg-rg-fill text-lg text-rg-ink",
-  /**
-   * A filter chip that acts in place (K2's chips): the `chip` link's look, the
-   * chosen one styled from `aria-pressed`, so what tells a screen reader which
-   * one is on also decides what a sighted person sees.
-   */
-  chip: "rounded-rg-chip bg-rg-fill px-4 text-base text-rg-ink aria-pressed:bg-rg-ink aria-pressed:text-rg-surface",
-};
-
-/**
- * KABINET's disabled button: fill and ink-3, `aria-disabled="true"` rather
- * than `disabled`, so it stays focusable and the reason written next to it
- * can be reached (the sign-in card's own pattern). Its handler is the one
- * that ignores the press.
- */
-const ARIA_DISABLED = "aria-disabled:bg-rg-fill aria-disabled:text-rg-ink-3";
+const KIT_VARIANT = {
+  primary: "primary",
+  secondary: "secondary",
+  text: "ghost",
+  icon: "icon",
+  chip: "secondary",
+} as const;
 
 export const buttonClass = (variant: ButtonVariant): string =>
-  `inline-flex min-h-target items-center justify-center ${BUTTON[variant]} ${ARIA_DISABLED} ${FOCUS_RING}`;
+  variant === "chip"
+    ? cx(
+        chipClass(false),
+        "focus-ring aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-on-ink",
+      )
+    : kitButtonClass(KIT_VARIANT[variant]);
 
-/**
- * Links that go somewhere rather than act (R-UI's operator screens first), on
- * the same 48px target and focus ring as the buttons. A link that looks like
- * a button uses `buttonClass` instead.
- *
- * `nav` and `chip` say which one is the current page with
- * `aria-current="page"`, and the current one is styled from that attribute,
- * so the markup that tells a screen reader where it is also decides what a
- * sighted person sees.
- */
 export type LinkVariant = "text" | "nav" | "chip";
 
 const LINK: Record<LinkVariant, string> = {
-  /** An underlined link on its own line (S4's way back to the list). */
-  text: "text-base text-rg-ink underline",
-  /** An item of a page's nav. */
-  nav: "rounded-rg-button px-4 text-base font-medium text-rg-ink aria-[current=page]:bg-rg-surface",
-  /** One of a row of filter chips (S1's status filter). */
-  chip: "rounded-rg-chip bg-rg-fill px-4 text-base text-rg-ink aria-[current=page]:bg-rg-ink aria-[current=page]:text-rg-surface",
+  text: "text-body text-ink underline",
+  nav: "rounded-field px-4 text-label text-ink aria-[current=page]:bg-surface",
+  chip: "rounded-pill border-2 border-line bg-page px-4 text-label text-ink aria-[current=page]:bg-ink aria-[current=page]:text-on-ink",
 };
 
 export const linkClass = (variant: LinkVariant): string =>
-  `inline-flex min-h-target items-center ${LINK[variant]} ${FOCUS_RING}`;
+  `inline-flex min-h-target items-center ${LINK[variant]} focus-ring`;
 
 export function Button({
   variant = "primary",
-  className = "",
+  className,
   type = "button",
+  ref,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   ref?: Ref<HTMLButtonElement>;
 }) {
-  return <button type={type} className={`${buttonClass(variant)} ${className}`} {...props} />;
-}
-
-/** Exported for composite fields (the password field and its show/hide button), so they share these tokens. */
-export const CONTROL = `min-h-target w-full min-w-0 rounded-rg-button bg-rg-fill px-4 text-lg text-rg-ink ${FOCUS_RING}`;
-/** An invalid control: an inset ink ring, never a colour of its own. */
-export const INVALID = "ring-2 ring-inset ring-rg-ink";
-export const LABEL = "text-base font-medium text-rg-ink";
-export const HINT = "text-sm text-rg-ink-3";
-export const ERROR = "text-base font-medium text-rg-ink";
-
-type FieldSlots = {
-  id: string;
-  label: ReactNode;
-  /** Shown under the control and linked with `aria-describedby`. */
-  hint?: ReactNode | undefined;
-  /** The field's message; non-null marks the control invalid and links it. */
-  error?: string | null | undefined;
-  /** Extra ids the control is described by (a counter, a shared note). */
-  describedBy?: readonly string[] | undefined;
-};
-
-function fieldA11y({ id, hint, error, describedBy = [] }: FieldSlots) {
-  const ids = [
-    ...(hint !== undefined ? [`${id}-hint`] : []),
-    ...describedBy,
-    ...(error ? [`${id}-error`] : []),
-  ];
-  return {
-    "aria-invalid": error ? true : undefined,
-    "aria-describedby": ids.length > 0 ? ids.join(" ") : undefined,
-  } as const;
-}
-
-function FieldFrame({ slots, children }: { slots: FieldSlots; children: ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-2">
-      <label htmlFor={slots.id} className={LABEL}>
-        {slots.label}
-      </label>
-      {children}
-      {slots.error ? (
-        <p id={`${slots.id}-error`} className={ERROR}>
-          {slots.error}
-        </p>
-      ) : null}
-      {slots.hint !== undefined ? (
-        <div id={`${slots.id}-hint`} className={`flex flex-col gap-1 ${HINT}`}>
-          {slots.hint}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-export function TextField({
-  id,
-  label,
-  hint,
-  error,
-  describedBy,
-  className = "",
-  ref,
-  ...props
-}: FieldSlots &
-  Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & { ref?: Ref<HTMLInputElement> }) {
-  const slots = { id, label, hint, error, describedBy };
-  return (
-    <FieldFrame slots={slots}>
-      <input
-        id={id}
-        ref={ref}
-        className={`${CONTROL} ${error ? INVALID : ""} ${className}`}
-        {...fieldA11y(slots)}
-        {...props}
-      />
-    </FieldFrame>
-  );
-}
-
-export function TextAreaField({
-  id,
-  label,
-  hint,
-  error,
-  describedBy,
-  className = "",
-  ref,
-  ...props
-}: FieldSlots &
-  Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "id"> & { ref?: Ref<HTMLTextAreaElement> }) {
-  const slots = { id, label, hint, error, describedBy };
-  return (
-    <FieldFrame slots={slots}>
-      <textarea
-        id={id}
-        ref={ref}
-        className={`${CONTROL} min-h-30 resize-y py-3 ${error ? INVALID : ""} ${className}`}
-        {...fieldA11y(slots)}
-        {...props}
-      />
-    </FieldFrame>
-  );
-}
-
-export function SelectField({
-  id,
-  label,
-  hint,
-  error,
-  describedBy,
-  className = "",
-  children,
-  ...props
-}: FieldSlots & Omit<SelectHTMLAttributes<HTMLSelectElement>, "id">) {
-  const slots = { id, label, hint, error, describedBy };
-  return (
-    <FieldFrame slots={slots}>
-      <select
-        id={id}
-        className={`${CONTROL} ${error ? INVALID : ""} ${className}`}
-        {...fieldA11y(slots)}
-        {...props}
+  if (variant === "chip") {
+    const { children, "aria-pressed": pressed, ...rest } = props;
+    return (
+      <Chip
+        kind="toggle"
+        pressed={pressed === true || pressed === "true"}
+        type={type}
+        {...(className === undefined ? {} : { className })}
+        {...rest}
       >
         {children}
-      </select>
-    </FieldFrame>
-  );
-}
-
-/**
- * One option of a radio group (S2's legal form first). The whole row is the
- * label, so the touch target is the row, on the 48px token; the radio itself
- * takes the shared focus ring, since it is what holds focus. The group's
- * question is the surrounding `fieldset`'s `legend`, and its message is
- * linked there, so this stays one option and nothing more.
- */
-export function RadioOption({
-  label,
-  className = "",
-  ...props
-}: { label: ReactNode } & Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
+      </Chip>
+    );
+  }
+  if (variant === "icon") {
+    const { "aria-label": ariaLabel = "", ...rest } = props;
+    return (
+      <KitButton
+        variant="icon"
+        aria-label={ariaLabel}
+        type={type}
+        ref={ref}
+        {...(className === undefined ? {} : { className })}
+        {...rest}
+      />
+    );
+  }
   return (
-    <label
-      className={`flex min-h-target items-center gap-3 rounded-rg-button bg-rg-fill px-4 ${className}`}
-    >
-      <input type="radio" className={FOCUS_RING} {...props} />
-      <span className={LABEL}>{label}</span>
-    </label>
-  );
-}
-
-/**
- * `RadioOption`'s row for a choice of several (the pet card's temperament
- * first): the whole row is the label and the touch target, on the 48px
- * token, and the checkbox holds focus and takes the shared ring. The group's
- * question is the surrounding `fieldset`'s `legend`.
- */
-export function CheckboxOption({
-  label,
-  className = "",
-  ...props
-}: { label: ReactNode } & Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
-  return (
-    <label
-      className={`flex min-h-target items-center gap-3 rounded-rg-button bg-rg-fill px-4 ${className}`}
-    >
-      <input type="checkbox" className={FOCUS_RING} {...props} />
-      <span className={LABEL}>{label}</span>
-    </label>
-  );
-}
-
-export type Segment<T extends string> = {
-  value: T;
-  label: ReactNode;
-  /** A line under the label inside the segment (a size's weight hint). */
-  hint?: ReactNode;
-};
-
-/**
- * N7's segmented control, as a group of native radio buttons: arrow keys
- * move the choice and a screen reader announces "1 of 3", with nothing
- * re-implemented. The radio sits inside its segment, visually hidden; the
- * segment carries the 48px minimum height (`min-h-target`), the selected
- * state (white with an inset ink ring, N7) and the focus ring while its radio
- * has keyboard focus. Segments wrap onto more lines when they don't fit
- * (Oleksii, K3 sheet answer 8: "stack the segments on a narrow screen if
- * they don't fit"). `value` null means nothing chosen yet, which a draft's
- * unanswered size shows as no segment selected (F-B1).
- */
-export function SegmentedControl<T extends string>({
-  name,
-  legend,
-  segments,
-  value,
-  onChange,
-  disabled = false,
-  hint,
-  error,
-  describedBy = [],
-}: {
-  name: string;
-  legend: ReactNode;
-  segments: readonly Segment<T>[];
-  value: T | null;
-  onChange: (value: T) => void;
-  disabled?: boolean;
-  hint?: ReactNode;
-  error?: string | null;
-  describedBy?: readonly string[];
-}) {
-  const ids = [
-    ...(hint !== undefined ? [`${name}-hint`] : []),
-    ...describedBy,
-    ...(error ? [`${name}-error`] : []),
-  ];
-  return (
-    <fieldset
-      className="flex min-w-0 flex-col gap-2"
-      disabled={disabled}
-      aria-describedby={ids.length > 0 ? ids.join(" ") : undefined}
-      aria-invalid={error ? true : undefined}
-    >
-      <legend className={`${LABEL} mb-2`}>{legend}</legend>
-      <div
-        className={`flex flex-wrap gap-1 rounded-rg-button bg-rg-fill p-1 ${error ? INVALID : ""}`}
-      >
-        {segments.map((segment) => (
-          <label
-            key={segment.value}
-            className={`flex min-h-target min-w-0 flex-auto cursor-pointer flex-col items-center justify-center rounded-rg-button px-2 py-1 text-center text-base text-rg-ink has-checked:bg-rg-surface has-checked:font-medium has-checked:ring-2 has-checked:ring-rg-ink has-checked:ring-inset has-focus-visible:outline-3 has-focus-visible:outline-offset-3 has-focus-visible:outline-solid has-focus-visible:outline-rg-registry has-disabled:cursor-default tablet:px-4`}
-          >
-            <input
-              type="radio"
-              className="sr-only"
-              name={name}
-              value={segment.value}
-              checked={value === segment.value}
-              onChange={() => onChange(segment.value)}
-            />
-            <span>{segment.label}</span>
-            {segment.hint !== undefined ? <span className={HINT}>{segment.hint}</span> : null}
-          </label>
-        ))}
-      </div>
-      {error ? (
-        <p id={`${name}-error`} className={ERROR}>
-          {error}
-        </p>
-      ) : null}
-      {hint !== undefined ? (
-        <div id={`${name}-hint`} className={HINT}>
-          {hint}
-        </div>
-      ) : null}
-    </fieldset>
+    <KitButton
+      variant={KIT_VARIANT[variant]}
+      type={type}
+      ref={ref}
+      {...(className === undefined ? {} : { className })}
+      {...props}
+    />
   );
 }
