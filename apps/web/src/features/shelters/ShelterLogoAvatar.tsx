@@ -13,17 +13,27 @@ export function ShelterLogoAvatar({
   logo,
   displayName,
   size = 40,
+  className,
 }: {
   logo: ShelterLogo | null;
   displayName: string;
   size?: number;
+  /**
+   * Responsive audit Phase 2 (2026-10-28): overrides the rendered box size
+   * with a (possibly breakpoint-varying) Tailwind size class, so a caller
+   * using a large `size` for a sharp image on a big screen isn't stuck
+   * rendering that same large box at phone widths. `size` still sets the
+   * `<Image>`'s intrinsic width/height either way - a larger `size` stays
+   * sharp on a high-DPI phone even once this shrinks the visible box.
+   */
+  className?: string;
 }) {
   if (logo === null) {
     return (
       <span
         aria-hidden="true"
-        className="inline-flex shrink-0 items-center justify-center rounded-full bg-rg-fill-strong font-semibold text-rg-ink"
-        style={{ width: size, height: size }}
+        className={`inline-flex shrink-0 items-center justify-center rounded-full bg-rg-fill-strong font-semibold text-rg-ink ${className ?? ""}`}
+        style={className === undefined ? { width: size, height: size } : undefined}
       >
         {shelterInitialsOf(displayName)}
       </span>
@@ -35,7 +45,7 @@ export function ShelterLogoAvatar({
       alt=""
       width={size}
       height={size}
-      className="shrink-0 rounded-full object-cover"
+      className={`shrink-0 rounded-full object-cover ${className ?? ""}`}
     />
   );
 }
