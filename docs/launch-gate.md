@@ -62,6 +62,7 @@ execution is still open.
 | Item | Owner | Status | Done means | Depends on |
 |---|---|---|---|---|
 | **O-19** - touch-target/keyboard enforcement mechanism | Local agent, when picked up | **OPEN, filed-not-designed** by Oleksii's own instruction | A shared Playwright helper + a sweep, strategy undecided | not scheduled |
+| **Sitemap scale** | Local agent | **OPEN, follow-up** (owner accepted #241's limits for launch) | Sitemap: when listed animals pass ~1,500, switch to a sitemap index with keyset-paginated chunks and a dedicated shelters listing (needs SQL + smoke). | not scheduled |
 
 ## Items from the 2026-10-24 brief, not yet rows in `docs/build-plan.md`
 

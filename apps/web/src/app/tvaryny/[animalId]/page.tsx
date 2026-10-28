@@ -14,6 +14,8 @@ import {
 import { speciesLabel } from "../../../features/animal-detail/detail-text";
 import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
+import { JsonLd } from "../../../seo/json-ld";
+import { animalBreadcrumbs } from "../../../seo/json-ld-builders";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
 import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
 
@@ -61,7 +63,12 @@ export function renderAnimalPage(load: AnimalPageLoad, kabinetSignedIn: boolean)
     case "rate_limited":
       return <RateLimitedScreen />;
     case "animal":
-      return <AnimalDetailScreen {...load.view} kabinetSignedIn={kabinetSignedIn} />;
+      return (
+        <>
+          <JsonLd data={animalBreadcrumbs(uk.feed.galleryTitle, load.view.animal)} />
+          <AnimalDetailScreen {...load.view} kabinetSignedIn={kabinetSignedIn} />
+        </>
+      );
   }
 }
 
