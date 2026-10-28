@@ -442,7 +442,7 @@ function ActionButton({
   // with its focus-visible styling and a test" rules out shipping either
   // without the other.
   const base =
-    "min-h-14 rounded-rg-button text-[15px] leading-none cursor-pointer disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] disabled:opacity-60";
+    "min-h-14 rounded-rg-button text-[15px] leading-none cursor-pointer disabled:cursor-not-allowed focus-ring-registry disabled:opacity-60";
 
   if (variant === "primary") {
     return (
@@ -547,7 +547,7 @@ function ErrorState({
             type="button"
             onClick={onRetry}
             data-testid="deck-error-retry"
-            className="min-h-14 rounded-rg-button bg-rg-ink text-rg-surface text-[15px] font-medium leading-[normal] cursor-pointer mt-row focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+            className="min-h-14 rounded-rg-button bg-rg-ink text-rg-surface text-[15px] font-medium leading-[normal] cursor-pointer mt-row focus-ring-registry"
           >
             {copy.action}
           </button>
@@ -570,11 +570,11 @@ function ExhaustedState({
       <div
         ref={headingRef}
         tabIndex={-1}
-        className="font-serif font-medium text-[26px]/[30px] text-ink outline-none"
+        className="font-serif font-medium text-[26px]/[30px] text-legacy-ink outline-none"
       >
         {uk.exhausted.title}
       </div>
-      <div className="font-sans text-[15px]/[23px] text-ink-2">{uk.exhausted.body}</div>
+      <div className="font-sans text-[15px]/[23px] text-legacy-ink-2">{uk.exhausted.body}</div>
       <div className="font-sans text-sm leading-[normal] text-ink-3">{uk.exhausted.newAnimals}</div>
       {/* Not prefetched: each prefetch of a `/tvaryny` URL is charged to the per-IP budget (`proxy.ts`). */}
       {listHref !== undefined && (

@@ -1,11 +1,12 @@
 import type { AnimalDetailView, FeedCardView, ShelterSummaryView } from "@opika/contracts";
+import { DEFAULT_GALLERY_SORT, NO_FILTERS } from "@opika/domain";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AnimalDetailScreen } from "../animal-detail/AnimalDetailScreen";
 import { makeDetailAnimal } from "../animal-detail/test-fixtures";
 import { AnimalOverlay } from "../animal-overlay/AnimalOverlay";
 import { SwipeCard } from "../discovery/SwipeCard";
-import { AnimalCard } from "../gallery/AnimalCard";
+import { GalleryCard } from "../gallery/GalleryCard";
 import { WithMockRouter } from "../gallery/test-router";
 import { ShelterPageScreen } from "./ShelterPageScreen";
 import {
@@ -96,7 +97,15 @@ describe("the shelter's sentence and «Слова притулку» show only o
   });
 
   it("the gallery card: neither", () => {
-    const { container } = render(<AnimalCard card={card} cityName="Бровари" />);
+    const { container } = render(
+      <GalleryCard
+        card={card}
+        cityName="Бровари"
+        filters={NO_FILTERS}
+        sort={DEFAULT_GALLERY_SORT}
+        citySlugs={new Map()}
+      />,
+    );
     expectNoSentence("the gallery card", container);
   });
 

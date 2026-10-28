@@ -171,7 +171,7 @@ export function DeckScreen({
           type="button"
           onClick={exit}
           data-testid="deck-back-to-list"
-          className="min-h-12 inline-flex items-center gap-2 shrink-0 rounded-rg-button bg-rg-fill px-4 text-[13px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+          className="min-h-12 inline-flex items-center gap-2 shrink-0 rounded-rg-button bg-rg-fill px-4 text-[13px] font-medium text-rg-ink focus-ring-registry"
         >
           {uk.feed.backToList}
         </button>

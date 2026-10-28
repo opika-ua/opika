@@ -157,7 +157,7 @@ export default function GalleryError({
               type="button"
               data-testid="gallery-error-retry"
               onClick={retry}
-              className="min-h-14 px-6 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+              className="min-h-14 px-6 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-ring-registry"
             >
               {uk.galleryError.action}
             </button>
@@ -176,7 +176,7 @@ export default function GalleryError({
             <a
               href="/tvaryny"
               data-testid="gallery-error-show-all"
-              className="min-h-14 inline-flex items-center px-6 rounded-rg-button text-rg-ink font-medium text-[15px] underline underline-offset-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+              className="min-h-14 inline-flex items-center px-6 rounded-rg-button text-rg-ink font-medium text-[15px] underline underline-offset-2 focus-ring-registry"
             >
               {uk.galleryError.showAll}
             </a>
