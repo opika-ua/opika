@@ -2229,20 +2229,13 @@ describe("pet card PR 5 copy (owner-approved, 2026-10-26/27)", () => {
 });
 
 /**
- * Sex-filter feature: the eighth gallery dimension. `filters.sex*` and
- * `kabinet.animalForm.publish.gap.sex` are new keys, not a GV3/PC1b carry-over
- * (`GalleryFilterDropdowns.tsx`'s old "no sex dimension" comment, reversed
- * here). The dropdown legend and the two sex words duplicate words already
- * public elsewhere (`filters.sex` = the same «Стать» already his own
- * approved word in two places, the K3 form's own `who.sexLabel` and Figma
- * `58:1617` - correction, 2026-10-28: not GV3-Q1, whose own text never
- * names this dimension; `sexMale`/`sexFemale` = `cardMeta.sexMale`/
- * `sexFemale`, the gallery card's own words; `sexUnknown` = the standing
- * rule's own «Не записано»), so none of those four needed fresh approval.
- * The one genuinely new slot - «стать» in the publish-gap list - was
- * confirmed directly in chat: his answer, verbatim: "«стать» (Recommended)"
- * to the question whether the lowercase form of «Стать» fits that list's
- * register (розмір, вік, опис, фото).
+ * Sex-filter feature's 4 strings, all duplicating already-approved words:
+ * `filters.sex` is «Стать», approved twice - his K3 field label
+ * `who.sexLabel`, and Figma `58:1617` under lean rule 4 (not GV3-Q1, SF-Q2's
+ * 2026-10-28 correction); `sexMale`/`sexFemale` duplicate
+ * `cardMeta.sexMale`/`sexFemale`; `sexUnknown` duplicates the standing
+ * rule's «Не записано». Only the gap-list word («стать») needed fresh
+ * approval - his answer, verbatim: "«стать» (Recommended)".
  */
 const SEX_FILTER_COPY: Record<string, string> = {
   "filters.sex": "Стать",

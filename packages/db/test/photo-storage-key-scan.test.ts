@@ -330,45 +330,41 @@ const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
 ];
 
+/**
+ * Matches by `file` + `text`, not `line` (two Tier 1 reviews, 2026-10-28): the
+ * text is what the GDPR scan actually cares about, and a line number drifts
+ * on any unrelated edit above the site - an unrecorded comment addition
+ * broke this exact check once already. `scan()`'s own failure-mode comment
+ * ("fails this test by file and line") still gets a line number for a
+ * genuinely new site, from the raw scan output in the thrown diff; it just
+ * isn't part of what equality checks.
+ */
+const byFileThenText = (a: Hit, b: Hit): number =>
+  a.file.localeCompare(b.file) || a.text.localeCompare(b.text);
+const withoutLine = (hits: ReadonlyArray<Hit>): ReadonlyArray<Omit<Hit, "line">> =>
+  [...hits].sort(byFileThenText).map(({ file, text }) => ({ file, text }));
+
 describe("every schema field that can hold a photo's storage key is classified (GDPR photo retention)", () => {
   it("AnimalPhotoSchema is embedded in exactly the classified places - a new site needs a new entry here", () => {
-    expect(animalPhotoSchemaEmbeddings()).toEqual(
-      [...EXPECTED_EMBEDDINGS]
-        .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
-        .map(({ file, line, text }) => ({ file, line, text })),
-    );
+    expect(withoutLine(animalPhotoSchemaEmbeddings())).toEqual(withoutLine(EXPECTED_EMBEDDINGS));
   });
 
   it("ShelterLogoSchema is embedded in exactly the classified places - a new site needs a new entry here", () => {
-    expect(shelterLogoSchemaEmbeddings()).toEqual(
-      [...EXPECTED_LOGO_EMBEDDINGS]
-        .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
-        .map(({ file, line, text }) => ({ file, line, text })),
+    expect(withoutLine(shelterLogoSchemaEmbeddings())).toEqual(
+      withoutLine(EXPECTED_LOGO_EMBEDDINGS),
     );
   });
 
   it("every bare-string storage-key field is one of the classified ones - a new one needs a new entry here", () => {
-    expect(bareStorageKeyFields()).toEqual(
-      [...EXPECTED_BARE_FIELDS]
-        .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
-        .map(({ file, line, text }) => ({ file, line, text })),
-    );
+    expect(withoutLine(bareStorageKeyFields())).toEqual(withoutLine(EXPECTED_BARE_FIELDS));
   });
 
   it("every .pick({ photos: true }) site is classified - a new one needs a new entry here", () => {
-    expect(pickedPhotosFields()).toEqual(
-      [...EXPECTED_PICKED_PHOTOS]
-        .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
-        .map(({ file, line, text }) => ({ file, line, text })),
-    );
+    expect(withoutLine(pickedPhotosFields())).toEqual(withoutLine(EXPECTED_PICKED_PHOTOS));
   });
 
   it("every .pick({ logo: true }) site is classified - a new one needs a new entry here", () => {
-    expect(pickedLogoFields()).toEqual(
-      [...EXPECTED_PICKED_LOGO]
-        .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
-        .map(({ file, line, text }) => ({ file, line, text })),
-    );
+    expect(withoutLine(pickedLogoFields())).toEqual(withoutLine(EXPECTED_PICKED_LOGO));
   });
 
   it("no non-test .shape.photos access exists outside this scan's own awareness of it", () => {

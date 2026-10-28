@@ -225,25 +225,13 @@ export const uk = {
     temperament: "Характер",
     colour: "Забарвлення",
     /**
-     * The eighth dimension, following the same "split, their own key" rule
-     * `temperament`/`colour` above record from his words - the text is not
-     * new: `sex` reuses «Стать», his own already-approved word for this
-     * dimension at the K3 form's own field label
-     * (`kabinet.animalForm.who.sexLabel`, pinned in `copy-status.test.ts`'s
-     * `K3_FINAL`). Figma `58:1617` also shows a «Стать» control on the
-     * gallery-v3 frame (`GalleryFilterDropdowns.tsx`'s own comment on that
-     * frame - correction, 2026-10-28: not GV3-Q1, whose text is "go with
-     * (b) on all three" and never names this dimension), but that frame is
-     * the designer's work, not a second place he approved the word himself
-     * - the K3 field label is the one provenance for "his own word" here.
-     * `sexMale`/`sexFemale` duplicate `cardMeta.sexMale/sexFemale` (the
-     * card's own words, already public); `sexUnknown` duplicates
-     * `medical.unknown`/`kabinet.profileNotRecorded` - the standing rule's
-     * own word for an unknown field (`docs/standing-constraints.md`). Sex has
-     * no "unrecorded" case the way fur/temperament/colour do (`feed-filters.ts`),
-     * so it needs no dedicated no-match sentence: `NoMatch.tsx`'s generic
-     * «Прибрати «{dimension}»» template covers it exactly as it already
-     * covers species/size/age.
+     * The eighth dimension - all 4 strings duplicate already-approved words
+     * (SF-Q2, `copy-status.test.ts`): `sex` is his K3 field label
+     * `who.sexLabel`; `sexMale`/`sexFemale` duplicate `cardMeta.sexMale/
+     * sexFemale`; `sexUnknown` duplicates the standing rule's «Не записано».
+     * No dedicated no-match sentence needed - sex has no "unrecorded" case
+     * the way fur/temperament/colour do, so `NoMatch.tsx`'s generic
+     * «Прибрати «{dimension}»» template covers it.
      */
     sex: "Стать",
     sexMale: "Хлопчик",

@@ -246,22 +246,11 @@ export const transitionListing = (
  * photo to publish"), in form order, so a list of gaps reads in the order the
  * shelter fills them in.
  *
- * `sex` joined this list reversing D2 ("No `sex`: it starts «Не записано»
- * and that is a complete answer"), per the sex-filter feature's own Phase 0
- * decision (SF-Q1): a *new* draft can no longer reach published with sex
- * still «Не записано» - a chosen (not merely defaulted) «Не записано» is
- * refused the same as an unfilled size or age would be. Listed before
- * `size` to match the form's own field order (species, then sex, then size
- * - `FormSections.tsx`). Only gates a *new* publish: `publishGaps` below
- * re-checks a non-draft animal for a photo only, so an already-published
- * animal with sex still «Не записано» keeps showing exactly as it did
- * before this change - nothing retroactive. The gallery's own «Не
- * записано» filter option (`ANIMAL_SEXES`) still has real matches among
- * those grandfathered rows, and can keep gaining more: only the kabinet's
- * own draft-to-published move is gated here. `shelter.animals.update` and
- * onboarding still accept «Не записано» on an already-listed or newly
- * onboarded animal with no check of their own - a real gap, tracked as a
- * follow-up (SF-F1), not fixed by this list.
+ * `sex` joined this list reversing D2 (SF-Q1): a *new* draft can no longer
+ * reach published with sex still «Не записано». Only gates a *new* publish -
+ * `shelter.animals.update` and onboarding still accept «Не записано» with no
+ * check of their own on an already-listed or onboarded animal, a real gap
+ * tracked as a follow-up (SF-F1), not fixed by this list.
  */
 export const PUBLISH_GAP_KINDS = ["sex", "size", "age", "description", "photo"] as const;
 
