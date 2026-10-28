@@ -54,7 +54,7 @@ export function SheetDemo() {
 export function PopoverDemo() {
   return (
     <div className="flex flex-wrap items-start gap-3">
-      <Popover label="City: any" trigger="CITY" className="w-52">
+      <Popover label="Місто: будь-яке" trigger="Місто" className="w-52">
         <Chip kind="option" type="radio" name="city" value="kyiv">
           Kyiv
         </Chip>

@@ -141,7 +141,7 @@ test.describe("kit behaviour in a real browser", () => {
     page,
   }) => {
     await openRoute(page, ROUTE, PHONE_360, { readySelector: READY });
-    const trigger = page.getByRole("button", { name: "City: any" });
+    const trigger = page.getByRole("button", { name: "Місто: будь-яке" });
     await trigger.click();
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
     await expect(page.getByRole("radio", { name: "Kyiv" })).toBeAttached();
