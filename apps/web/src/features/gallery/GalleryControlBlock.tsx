@@ -97,7 +97,7 @@ export function GalleryControlBlock({
           aria-expanded={open}
           aria-controls="gallery-filter-row"
           data-testid="gallery-filter-toggle"
-          className="hidden h-13 cursor-pointer items-center gap-2 rounded-brand-field bg-brand-ink px-6 font-brand-ui text-[20px]/[1.2] font-semibold text-brand-on-ink tracking-[-0.2px] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] desktop:inline-flex"
+          className="hidden h-13 cursor-pointer items-center gap-2 rounded-brand-field bg-brand-ink px-6 font-brand-ui text-[20px]/[1.2] font-semibold text-brand-on-ink tracking-[-0.2px] focus-ring desktop:inline-flex"
         >
           <FilterIcon className="size-6" />
           {uk.feed.filtersLabel}

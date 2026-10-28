@@ -10,8 +10,7 @@ import { GalleryCard } from "../gallery/GalleryCard";
 import { SavedCardSkeleton } from "./SavedCardSkeleton";
 import { type SavedCardResult, useSavedCards } from "./useSavedCards";
 
-const FOCUS =
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]";
+const FOCUS = "focus-ring";
 
 interface SavedPageScreenProps {
   /** `cities.list`, resolved server-side - this screen never fetches it itself. */

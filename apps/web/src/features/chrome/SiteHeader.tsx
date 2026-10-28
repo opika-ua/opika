@@ -189,8 +189,7 @@ export interface SiteHeaderProps {
 const NAV_LINK_CLASS =
   "font-brand-ui inline-flex min-h-12 shrink-0 items-center whitespace-nowrap " +
   "text-[20px]/[1.2] font-semibold text-brand-ink transition-colors duration-[120ms] " +
-  "hover:text-brand-accent focus-visible:outline focus-visible:outline-[3px] " +
-  "focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]";
+  "hover:text-brand-accent focus-ring";
 
 /**
  * `sr-only`, not visible text: the lockup image (`BrandLogo`) already draws
@@ -300,7 +299,7 @@ export function SiteHeader({
           href="/tvaryny"
           prefetch={false}
           data-testid="site-wordmark"
-          className="inline-flex min-h-12 items-center rounded-brand-field focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+          className="inline-flex min-h-12 items-center rounded-brand-field focus-ring"
         >
           <BrandLogo />
           <WordmarkText />

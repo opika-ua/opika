@@ -93,7 +93,7 @@ export function MobileNavMenu({ children }: { children: ReactNode }) {
         aria-controls={MENU_ID}
         aria-haspopup="dialog"
         data-testid="nav-menu-trigger"
-        className="tablet:hidden inline-flex min-h-target min-w-target items-center justify-center rounded-brand-field text-brand-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+        className="tablet:hidden inline-flex min-h-target min-w-target items-center justify-center rounded-brand-field text-brand-ink focus-ring"
       >
         <MenuIcon className="size-6" />
       </a>
@@ -117,7 +117,7 @@ export function MobileNavMenu({ children }: { children: ReactNode }) {
               href="#"
               onClick={closeWithJs}
               aria-label={uk.preview.close}
-              className="inline-flex min-h-target min-w-target items-center justify-center rounded-brand-field text-brand-ink-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]"
+              className="inline-flex min-h-target min-w-target items-center justify-center rounded-brand-field text-brand-ink-2 focus-ring"
             >
               ✕
             </a>

@@ -8,8 +8,7 @@ import { confirmLeave as defaultConfirmLeave } from "./profile-edit/unsaved-chan
 export const SIGN_OUT_PATH = "/api/auth/sign-out";
 export const SIGNED_OUT_DESTINATION = "/kabinet/vkhid";
 
-const FOCUS =
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
+const FOCUS = "focus-ring-registry";
 
 async function defaultSignOut(): Promise<void> {
   const response = await fetch(SIGN_OUT_PATH, {

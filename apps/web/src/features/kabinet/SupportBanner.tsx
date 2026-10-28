@@ -15,8 +15,7 @@ export const EXIT_SUPPORT_PATH = "/api/kabinet/session/exitSupport";
  */
 export const AFTER_SUPPORT_DESTINATION = OPERATOR_HOME;
 
-const FOCUS =
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-white focus-visible:outline-offset-[3px]";
+const FOCUS = "focus-ring-white";
 
 async function defaultExit(): Promise<boolean> {
   const response = await fetch(EXIT_SUPPORT_PATH, {

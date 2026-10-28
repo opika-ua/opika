@@ -47,8 +47,7 @@ export const SIGN_IN_PATH = "/api/auth/sign-in/magic-link";
 /** Where the link lands after verification, and where a password sign-in goes: the cabinet's home. */
 export const SIGN_IN_CALLBACK = SHELTER_HOME;
 
-const FOCUS =
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
+const FOCUS = "focus-ring-registry";
 const SECONDARY_DISABLED = `inline-flex min-h-14 flex-1 items-center justify-center rounded-rg-button bg-rg-fill px-6 text-[15px] whitespace-nowrap text-rg-ink-3 tablet:flex-none ${FOCUS}`;
 const SECONDARY = `inline-flex min-h-14 flex-1 items-center justify-center rounded-rg-button bg-rg-fill px-6 text-[15px] whitespace-nowrap text-rg-ink tablet:flex-none ${FOCUS}`;
 const TEXT_BUTTON = `inline-flex min-h-14 items-center justify-center px-2 text-[15px] whitespace-nowrap text-rg-ink underline ${FOCUS}`;

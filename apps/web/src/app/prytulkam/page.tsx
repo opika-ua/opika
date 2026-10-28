@@ -114,7 +114,7 @@ function Section({ heading, children }: { heading: string; children: React.React
 
 /** «Увійти в кабінет»: the gallery's secondary-pill button look. */
 const SIGN_IN_LINK_CLASS =
-  "self-start inline-flex min-h-12 items-center rounded-brand-pill bg-brand-line px-6 text-[16px] font-semibold text-brand-ink hover:text-brand-accent focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]";
+  "self-start inline-flex min-h-12 items-center rounded-brand-pill bg-brand-line px-6 text-[16px] font-semibold text-brand-ink hover:text-brand-accent focus-ring";
 
 /**
  * Designer feedback batch D (2026-10-23): same trade as `/pro`'s own
