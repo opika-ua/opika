@@ -28,7 +28,12 @@ const SIZE_CLASS = {
  * itself; this is the one place the look is actually defined.
  */
 export const circleButtonClass = (size: keyof typeof SIZE_CLASS = "md", className = ""): string =>
-  `inline-flex ${SIZE_CLASS[size]} cursor-pointer items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-ink focus-visible:outline-offset-[3px] disabled:cursor-not-allowed disabled:opacity-60 ${className}`;
+  // `shrink-0`: found live at narrow widths - the save toggle beside two text pills
+  // (`SaveButton` in `AnimalDetailScreen.tsx`) has no flex-basis of its own, so the row's
+  // default flex-shrink squeezed its width down to an oval while its height held, since
+  // the circle's two axes don't shrink the same way. A fixed-size control should never
+  // flex at all; the two text pills next to it are the ones meant to give way or wrap.
+  `inline-flex shrink-0 ${SIZE_CLASS[size]} cursor-pointer items-center justify-center rounded-full bg-brand-surface shadow-md focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-ink focus-visible:outline-offset-[3px] disabled:cursor-not-allowed disabled:opacity-60 ${className}`;
 
 interface CircleButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: keyof typeof SIZE_CLASS;
