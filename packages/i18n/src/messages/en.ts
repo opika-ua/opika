@@ -401,6 +401,7 @@ export const en = {
     forShelters: "For shelters",
     saved: "Saved",
     kabinet: "Cabinet",
+    menu: "Menu",
   },
 
   // --- About page - see the uk key's own note ---

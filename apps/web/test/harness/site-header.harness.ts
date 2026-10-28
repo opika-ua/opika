@@ -18,7 +18,7 @@
 
 import { expect, test } from "@playwright/test";
 import { expectReachableByTab, openRoute } from "./harness";
-import { DETAIL_PHONE, NARROW_PHONE, PHONE } from "./viewports";
+import { DESKTOP, DETAIL_PHONE, NARROW_PHONE, PHONE } from "./viewports";
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.31" } });
 
@@ -34,6 +34,15 @@ const NAV_ABOUT = "[data-testid='nav-about']";
 const NAV_SHELTERS = "[data-testid='nav-for-shelters']";
 const NAV_SAVED = "[data-testid='nav-saved']";
 const CARD = "[data-testid='animal-card']";
+
+// Hamburger menu (below `tablet:`): the drawer's own copies of the three
+// links carry a `-menu` suffix (`SiteHeader.tsx`'s `NavLinks`), distinct
+// from the ids above, which always address the inline, tablet-and-up nav.
+const NAV_MENU_TRIGGER = "[data-testid='nav-menu-trigger']";
+const NAV_MENU_SHEET = "[data-testid='nav-menu-sheet']";
+const NAV_ABOUT_MENU = "[data-testid='nav-about-menu']";
+const NAV_SHELTERS_MENU = "[data-testid='nav-for-shelters-menu']";
+const NAV_SAVED_MENU = "[data-testid='nav-saved-menu']";
 
 let cachedAnimalHref: string | null = null;
 async function firstAnimalHref(page: import("@playwright/test").Page): Promise<string> {
@@ -145,29 +154,112 @@ test.describe("the demo banner is visible on the detail page", () => {
   });
 });
 
+/**
+ * `PHONE` (390px) is below `tablet:` (600px, `--breakpoint-tablet`), so the
+ * inline `<nav>` is CSS-hidden there and its links are out of the native tab
+ * order (a `display: none` element is never a Tab stop) - reaching them now
+ * goes through `MobileNavMenu`'s drawer instead. Updated for the hamburger
+ * menu, not deleted: the owner's task that added it explicitly kept "48px
+ * touch target on the toggle button, aria-expanded/aria-controls, visible
+ * focus" as a requirement, and this describe block is what used to cover the
+ * links' own reachability at this exact width - still worth covering, just
+ * through the drawer now.
+ */
 test.describe("the header is reachable by keyboard", () => {
-  test("the «Про проєкт» link is reachable by Tab", async ({ page }) => {
+  test("the hamburger toggle is reachable by Tab, below tablet:", async ({ page }) => {
     await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
     await expectReachableByTab(page, {
-      label: "header «Про проєкт» link",
-      locator: page.locator(NAV_ABOUT),
+      label: "header hamburger menu toggle",
+      locator: page.locator(NAV_MENU_TRIGGER),
     });
   });
 
-  test("the «Для притулків» link is reachable by Tab", async ({ page }) => {
+  test("the «Про проєкт» link is reachable by Tab, once the drawer is open", async ({ page }) => {
     await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await page.locator(NAV_MENU_TRIGGER).click();
     await expectReachableByTab(page, {
-      label: "header «Для притулків» link",
-      locator: page.locator(NAV_SHELTERS),
+      label: "drawer «Про проєкт» link",
+      locator: page.locator(NAV_ABOUT_MENU),
     });
   });
 
-  test("the «Збережені» link is reachable by Tab", async ({ page }) => {
+  test("the «Для притулків» link is reachable by Tab, once the drawer is open", async ({
+    page,
+  }) => {
+    await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await page.locator(NAV_MENU_TRIGGER).click();
+    await expectReachableByTab(page, {
+      label: "drawer «Для притулків» link",
+      locator: page.locator(NAV_SHELTERS_MENU),
+    });
+  });
+
+  test("the «Збережені» link is reachable by Tab, once the drawer is open", async ({ page }) => {
     await seedASavedAnimal(page);
     await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await page.locator(NAV_MENU_TRIGGER).click();
     await expectReachableByTab(page, {
-      label: "header «Збережені» link",
-      locator: page.locator(NAV_SAVED),
+      label: "drawer «Збережені» link",
+      locator: page.locator(NAV_SAVED_MENU),
     });
+  });
+});
+
+test.describe("the mobile nav drawer (below tablet:)", () => {
+  test("below tablet:, the hamburger toggle is visible and the inline nav is not", async ({
+    page,
+  }) => {
+    await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await expect(page.locator(NAV_MENU_TRIGGER)).toBeVisible();
+    await expect(page.locator(NAV_ABOUT)).toBeHidden();
+  });
+
+  test("at tablet: and up, the inline nav is visible and the hamburger toggle is not", async ({
+    page,
+  }) => {
+    await openRoute(page, ABOUT, DESKTOP, { readySelector: HEADER });
+    await expect(page.locator(NAV_ABOUT)).toBeVisible();
+    await expect(page.locator(NAV_MENU_TRIGGER)).toBeHidden();
+  });
+
+  test("opens with zero JS, via the plain #site-nav-menu anchor jump", async ({ browser }) => {
+    const context = await browser.newContext({
+      javaScriptEnabled: false,
+      extraHTTPHeaders: { "x-forwarded-for": "198.51.100.31" },
+    });
+    const page = await context.newPage();
+    await page.setViewportSize({ width: PHONE.width, height: PHONE.height });
+    await page.goto(ABOUT, { waitUntil: "load" });
+    await page.locator(NAV_MENU_TRIGGER).click();
+    // The reveal itself, asserted rather than left implicit in a later
+    // click's actionability timeout - same reasoning as `FilterSheet`'s own
+    // no-JS test: with no JS this is `:target` and `globals.css`'s
+    // `#site-nav-menu:target` rule doing all of the work, and if that rule
+    // were dropped the dialog would stay `display: none` from the UA
+    // stylesheet's own `dialog:not([open])`.
+    await expect(
+      page.locator(NAV_MENU_SHEET),
+      "the <dialog> should be revealed by the :target rule alone, with no JS",
+    ).toBeVisible();
+    await expect(page.locator(NAV_ABOUT_MENU)).toBeVisible();
+    await context.close();
+  });
+
+  test("Escape closes the open drawer and returns focus to the toggle", async ({ page }) => {
+    await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await page.locator(NAV_MENU_TRIGGER).click();
+    await expect(page.locator(NAV_MENU_SHEET)).toBeVisible();
+
+    await page.keyboard.press("Escape");
+
+    await expect(page.locator(NAV_MENU_SHEET)).toBeHidden();
+    await expect(page.locator(NAV_MENU_TRIGGER)).toBeFocused();
+  });
+
+  test("clicking a link in the drawer navigates to it", async ({ page }) => {
+    await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await page.locator(NAV_MENU_TRIGGER).click();
+    await page.locator(NAV_SHELTERS_MENU).click();
+    await expect(page).toHaveURL(FOR_SHELTERS);
   });
 });

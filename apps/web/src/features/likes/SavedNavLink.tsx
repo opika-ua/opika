@@ -7,6 +7,11 @@ import { readLikesStore, subscribeToLikesChanges } from "./likes-store";
 
 interface SavedNavLinkProps {
   className: string;
+  /** Lets a second render site (the header's mobile drawer) give its own copy a distinct
+   * id, so the two don't collide in a `page.locator("[data-testid='nav-saved']")` query -
+   * `SiteHeader.tsx`'s own `NavLinks` comment has the full reasoning. Defaults to this
+   * component's original, pre-drawer id so its one other caller is unaffected. */
+  testId?: string;
 }
 
 /**
@@ -27,7 +32,7 @@ interface SavedNavLinkProps {
  * full data from the server - that hook exists for the saved page itself,
  * which actually renders the cards.
  */
-export function SavedNavLink({ className }: SavedNavLinkProps) {
+export function SavedNavLink({ className, testId = "nav-saved" }: SavedNavLinkProps) {
   const [hasSaved, setHasSaved] = useState(false);
 
   useEffect(() => {
@@ -39,7 +44,7 @@ export function SavedNavLink({ className }: SavedNavLinkProps) {
   if (!hasSaved) return null;
 
   return (
-    <Link href="/zberezheni" data-testid="nav-saved" className={className}>
+    <Link href="/zberezheni" data-testid={testId} className={className}>
       {uk.nav.saved}
     </Link>
   );
