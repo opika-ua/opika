@@ -1,6 +1,6 @@
 import { NO_FILTERS } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { GalleryFilterDropdowns } from "./GalleryFilterDropdowns";
 
@@ -15,7 +15,7 @@ const CITY_SLUGS = new Map([
 ]);
 
 describe("GalleryFilterDropdowns", () => {
-  it("renders exactly eight dropdown triggers – city, age, size, species, fur, temperament, colour, sex", () => {
+  it("renders exactly four dropdown triggers - city, age, size, sex (gallery filter restructure)", () => {
     render(
       <GalleryFilterDropdowns
         filters={NO_FILTERS}
@@ -24,8 +24,24 @@ describe("GalleryFilterDropdowns", () => {
         citySlugs={CITY_SLUGS}
       />,
     );
-    expect(screen.getAllByRole("button")).toHaveLength(8);
+    expect(screen.getAllByRole("button")).toHaveLength(4);
     expect(screen.getByLabelText(`${uk.filters.sex}: ${uk.filters.sex}`)).toBeTruthy();
+  });
+
+  it("renders the species toggle's three segments as links, not dropdown buttons", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={NO_FILTERS}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+    const toggle = screen.getByTestId("species-toggle");
+    expect(toggle.tagName).toBe("FIELDSET");
+    expect(screen.getByTestId("species-any")).toBeTruthy();
+    expect(screen.getByTestId("species-dog")).toBeTruthy();
+    expect(screen.getByTestId("species-cat")).toBeTruthy();
   });
 
   it("shows the group name as a muted placeholder when nothing is selected", () => {
@@ -170,10 +186,9 @@ describe("GalleryFilterDropdowns", () => {
       <GalleryFilterDropdowns
         filters={{
           ...NO_FILTERS,
-          species: { kind: "oneOf", values: ["cat"] },
           sizes: { kind: "oneOf", values: ["large"] },
-          coatLengths: { kind: "oneOf", values: ["long"] },
           ages: { kind: "oneOf", values: ["young"] },
+          sexes: { kind: "oneOf", values: ["male"] },
         }}
         sort="freshest"
         cities={CITIES}
@@ -181,15 +196,15 @@ describe("GalleryFilterDropdowns", () => {
       />,
     );
 
-    const speciesClear = screen.getByLabelText(
-      uk.filters.clearDimension.replace("{dimension}", uk.filters.species),
+    const sizeClear = screen.getByLabelText(
+      uk.filters.clearDimension.replace("{dimension}", uk.filters.size),
     );
-    expect(speciesClear.getAttribute("href")).toBe("/tvaryny?rozmir=large&vik=young&sherst=long");
+    expect(sizeClear.getAttribute("href")).toBe("/tvaryny?vik=young&stat=male");
 
-    const coatClear = screen.getByLabelText(
-      uk.filters.clearDimension.replace("{dimension}", uk.filters.coat),
+    const ageClear = screen.getByLabelText(
+      uk.filters.clearDimension.replace("{dimension}", uk.filters.age),
     );
-    expect(coatClear.getAttribute("href")).toBe("/tvaryny?vyd=cat&rozmir=large&vik=young");
+    expect(ageClear.getAttribute("href")).toBe("/tvaryny?rozmir=large&stat=male");
   });
 
   it("marks the selected option with aria-current", () => {
@@ -207,13 +222,13 @@ describe("GalleryFilterDropdowns", () => {
   });
 
   /**
-   * GV3-Q1 (b): the two dropdowns added to close the Tier 1 review's desktop
-   * filter gap. Real coverage for `withToggledSpecies`/`withToggledCoat`'s
-   * own wiring here, not just the "five triggers exist" structural count
-   * above - a wrong import or a swapped dimension key would still render
-   * five buttons.
+   * The species toggle's own wiring (gallery filter restructure): exclusive
+   * choice (selecting one species replaces, not adds to, any prior one),
+   * tapping the active segment clears back to "any", and the inactive
+   * segments are always present as real links regardless of filter state -
+   * unlike a `Dropdown`, the toggle has no open/closed disclosure to drive.
    */
-  it("the species dropdown selects «Коти» and writes vyd=cat", () => {
+  it("the species toggle writes vyd=cat for the cat segment", () => {
     render(
       <GalleryFilterDropdowns
         filters={NO_FILTERS}
@@ -222,81 +237,36 @@ describe("GalleryFilterDropdowns", () => {
         citySlugs={CITY_SLUGS}
       />,
     );
-    fireEvent.click(screen.getByLabelText(`${uk.filters.species}: ${uk.filters.species}`));
-    const option = screen.getByRole("link", { name: uk.filters.speciesCats });
-    expect(option.getAttribute("href")).toBe("/tvaryny?vyd=cat");
+    const catOption = screen.getByTestId("species-cat");
+    expect(catOption.getAttribute("href")).toBe("/tvaryny?vyd=cat");
+    expect(catOption.getAttribute("aria-current")).toBeNull();
   });
 
-  it("the fur dropdown selects «Довгошерсті» and writes sherst=long", () => {
+  it("the species toggle marks the active segment aria-current and replaces it with the other, exclusively", () => {
     render(
       <GalleryFilterDropdowns
-        filters={NO_FILTERS}
+        filters={{ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } }}
         sort="freshest"
         cities={CITIES}
         citySlugs={CITY_SLUGS}
       />,
     );
-    fireEvent.click(screen.getByLabelText(`${uk.filters.coat}: ${uk.filters.coat}`));
-    const option = screen.getByRole("link", { name: uk.filters.coatLong });
-    expect(option.getAttribute("href")).toBe("/tvaryny?sherst=long");
-  });
-  /**
-   * Pet card PR 1b: the sixth and seventh dropdowns. Expected names are his
-   * approved words typed out («Характер», «Забарвлення», PC1b-T2; the plural
-   * trait words, PC-Q2; the neuter colours, PC1-D4), not read from the
-   * catalogue.
-   */
-  it("the temperament dropdown lists every trait in its plural and «Соромʼязливі» writes kharakter=shy", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={NO_FILTERS}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Характер: Характер" }));
-    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual([
-      "Грайливі",
-      "Спокійні",
-      "Ласкаві",
-      "Енергійні",
-      "Самостійні",
-      "Соромʼязливі",
-      "Ладнають з дітьми",
-      "Ладнають з котами",
-      "Ладнають з собаками",
-    ]);
-    expect(screen.getByRole("link", { name: "Соромʼязливі" }).getAttribute("href")).toBe(
-      "/tvaryny?kharakter=shy",
-    );
+    expect(screen.getByTestId("species-dog").getAttribute("aria-current")).toBe("true");
+    expect(screen.getByTestId("species-any").getAttribute("aria-current")).toBeNull();
+    // Selecting cat replaces dog - never both, unlike the dropdowns' own multi-select.
+    expect(screen.getByTestId("species-cat").getAttribute("href")).toBe("/tvaryny?vyd=cat");
   });
 
-  it("the colour dropdown lists every colour and «Чорно-біле» writes zabarvlennia=black_white", () => {
+  it("the species toggle's «Усі» segment clears the species filter entirely", () => {
     render(
       <GalleryFilterDropdowns
-        filters={NO_FILTERS}
+        filters={{ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } }}
         sort="freshest"
         cities={CITIES}
         citySlugs={CITY_SLUGS}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Забарвлення: Забарвлення" }));
-    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual([
-      "Чорне",
-      "Біле",
-      "Сіре",
-      "Руде",
-      "Коричневе",
-      "Кремове",
-      "Чорно-біле",
-      "Триколірне",
-      "Смугасте",
-      "Плямисте",
-    ]);
-    expect(screen.getByRole("link", { name: "Чорно-біле" }).getAttribute("href")).toBe(
-      "/tvaryny?zabarvlennia=black_white",
-    );
+    expect(screen.getByTestId("species-any").getAttribute("href")).toBe("/tvaryny");
   });
 
   it("the sex dropdown lists male, female and unrecorded, and «Дівчинка» writes stat=female", () => {
@@ -309,11 +279,16 @@ describe("GalleryFilterDropdowns", () => {
       />,
     );
     fireEvent.click(screen.getByLabelText(`${uk.filters.sex}: ${uk.filters.sex}`));
-    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual([
-      "Хлопчик",
-      "Дівчинка",
-      "Не записано",
-    ]);
+    // Scoped to the sex dropdown's own open panel (an ARIA group named by
+    // its legend) - the species toggle's own three links are always on the
+    // page too, now that it's a toggle rather than a closed-by-default
+    // dropdown, and would otherwise show up in a page-wide link query.
+    const panel = screen.getByRole("group", { name: uk.filters.sex });
+    expect(
+      within(panel)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Хлопчик", "Дівчинка", "Не записано"]);
     expect(screen.getByRole("link", { name: "Дівчинка" }).getAttribute("href")).toBe(
       "/tvaryny?stat=female",
     );
@@ -330,57 +305,5 @@ describe("GalleryFilterDropdowns", () => {
     );
     expect(screen.getByRole("button", { name: "Стать: Хлопчик" }).textContent).toBe("Хлопчик");
     expect(screen.getByLabelText("Скинути Стать").getAttribute("href")).toBe("/tvaryny");
-  });
-
-  it("an active temperament or colour shows its values on the trigger and marks them aria-current", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={{
-          ...NO_FILTERS,
-          temperaments: { kind: "oneOf", values: ["calm", "shy"] },
-          colours: { kind: "oneOf", values: ["ginger"] },
-        }}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    const temperament = screen.getByRole("button", {
-      name: "Характер: Спокійні, Соромʼязливі",
-    });
-    expect(temperament.textContent).toBe("Спокійні, Соромʼязливі");
-    expect(screen.getByRole("button", { name: "Забарвлення: Руде" }).textContent).toBe("Руде");
-
-    fireEvent.click(temperament);
-    expect(screen.getByRole("link", { name: /Спокійні/ }).getAttribute("aria-current")).toBe(
-      "true",
-    );
-    expect(screen.getByRole("link", { name: /Грайливі/ }).getAttribute("aria-current")).toBeNull();
-    // Unticking one keeps the other, and the colour.
-    expect(screen.getByRole("link", { name: /Спокійні/ }).getAttribute("href")).toBe(
-      "/tvaryny?kharakter=shy&zabarvlennia=ginger",
-    );
-  });
-
-  it("the temperament and colour ✕ each clear only their own dimension", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={{
-          ...NO_FILTERS,
-          coatLengths: { kind: "oneOf", values: ["short"] },
-          temperaments: { kind: "oneOf", values: ["playful"] },
-          colours: { kind: "oneOf", values: ["white"] },
-        }}
-        sort="longest_waiting"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    expect(screen.getByLabelText("Скинути Характер").getAttribute("href")).toBe(
-      "/tvaryny?sherst=short&zabarvlennia=white&sort=longest_waiting",
-    );
-    expect(screen.getByLabelText("Скинути Забарвлення").getAttribute("href")).toBe(
-      "/tvaryny?sherst=short&kharakter=playful&sort=longest_waiting",
-    );
   });
 });

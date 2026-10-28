@@ -55,7 +55,7 @@ test.describe("/tvaryny sex filter", () => {
 
     await page.getByTestId("filter-sheet-trigger").click();
     // The checkbox is visually `sr-only`; its wrapping <label> is what a real
-    // tap lands on, as in `gallery-coat.harness.ts`. Scoped to the sheet
+    // tap lands on. Scoped to the sheet
     // itself - found live, not assumed: a bare page-wide «Хлопчик» text
     // lookup also matches every gallery card whose own meta line shows
     // «Хлопчик» (the grid stays mounted behind the sheet), so Playwright's

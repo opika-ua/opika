@@ -5,7 +5,6 @@ import type {
   AnimalSex,
   AnimalSpecies,
   CityId,
-  CoatLength,
   FeedFilters,
   GallerySort,
   SizeBucket,
@@ -13,29 +12,22 @@ import type {
 import {
   AGE_BUCKETS,
   ANIMAL_SEXES,
-  ANIMAL_SPECIES,
-  COAT_COLOURS,
-  COAT_LENGTHS,
   isExplicitlySelected,
   relaxDimension,
   SIZE_BUCKETS,
-  TEMPERAMENT_TRAITS,
 } from "@opika/domain";
-import { colourFilterLabel, temperamentFilterLabel, uk } from "@opika/i18n";
+import { uk } from "@opika/i18n";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { CitySlugsById } from "./filter-url";
 import {
   galleryHref,
+  withOnlySpecies,
   withToggledAge,
   withToggledCity,
-  withToggledCoat,
-  withToggledColour,
   withToggledSex,
   withToggledSize,
-  withToggledSpecies,
-  withToggledTemperament,
 } from "./filter-url";
 import { ChevronDownIcon } from "./icons";
 
@@ -60,10 +52,6 @@ const AGE_LABEL: Record<AgeBucket, string> = {
   young: uk.filters.ageYoung,
   adult: uk.filters.ageAdult,
   senior: uk.filters.ageSenior,
-};
-const COAT_LABEL: Record<CoatLength, string> = {
-  short: uk.filters.coatShort,
-  long: uk.filters.coatLong,
 };
 const SEX_LABEL: Record<AnimalSex, string> = {
   male: uk.filters.sexMale,
@@ -107,7 +95,7 @@ const SEX_LABEL: Record<AnimalSex, string> = {
  * needs its own click handler (navigate to the cleared href, then close
  * the panel) independent of the toggle's open/closed click.
  */
-function Dropdown({
+export function Dropdown({
   legend,
   active,
   label,
@@ -117,8 +105,15 @@ function Dropdown({
   legend: string;
   active: boolean;
   label: string;
-  /** The "clear this dimension" href, shown as a ✕ in place of the chevron once `active`. */
-  clearHref: string;
+  /**
+   * The "clear this dimension" href, shown as a ✕ in place of the chevron
+   * once `active`. Omitted entirely by `GallerySortToggle`'s own dropdown
+   * (gallery filter restructure): sort always carries a real value, so
+   * there is nothing to clear back to "any" - that control passes no
+   * `clearHref` and always sees the chevron instead, regardless of
+   * `active`.
+   */
+  clearHref?: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -184,15 +179,18 @@ function Dropdown({
         <span className={`truncate ${active ? "" : "uppercase"}`}>{label}</span>
         {/* Reserves the chevron's own slot even when it's replaced, so the
             label's truncation width never shifts between the two states. */}
-        <span className="size-5 shrink-0" aria-hidden={active ? undefined : "true"}>
-          {!active && (
+        <span
+          className="size-5 shrink-0"
+          aria-hidden={active && clearHref !== undefined ? undefined : "true"}
+        >
+          {!(active && clearHref !== undefined) && (
             <ChevronDownIcon
               className={`size-5 text-brand-ink transition-transform duration-[120ms] ${open ? "rotate-180" : ""}`}
             />
           )}
         </span>
       </button>
-      {active && (
+      {active && clearHref !== undefined && (
         <Link
           prefetch={false}
           href={clearHref}
@@ -220,7 +218,7 @@ function Dropdown({
   );
 }
 
-function DropdownOption({
+export function DropdownOption({
   active,
   href,
   children,
@@ -245,52 +243,93 @@ function DropdownOption({
 }
 
 /**
- * The gallery-v3 control block's real dropdowns – city, age, size, species,
- * fur, temperament, colour, then sex (below, the eighth and last). Figma
- * `58:1617` shows four, city/age/size/«Стать»; species and fur are added
- * here per Oleksii's Tier 1 review decision GV3-Q1 (b), 2026-10-26, closing
- * the gap the Tier 1 reviewer found: without them, `desktop:` had no
- * control at all for two of `FeedFilters`' then five dimensions –
- * `FilterSheet`'s own species/fur checkboxes exist but that whole sheet is
- * `desktop:hidden`.
+ * The species filter's own control (gallery filter restructure, decision
+ * taken: no mock exists for this exact shape). A three-way segmented
+ * toggle - «Усі» / «Собаки» / «Коти» - replacing the dropdown every other
+ * dimension here still uses: exclusive choice, not the dropdown's
+ * multi-select, so `withOnlySpecies` (`filter-url.ts`) writes the next
+ * href rather than the toggle-add/remove every `withToggledX` helper uses.
  *
- * **«Стать» (sex) joined as the eighth dimension (sex-filter feature),
- * reversing the earlier "no schema change for a dropdown" reasoning that
- * used to sit here.** `FeedFilters` gained `sexes` (`feed-filters.ts`),
- * `feed-predicate.ts` gained the `IN` clause, and this dropdown is its one
- * caller beside the sheet - wired end to end, not a control that claims to
- * filter and doesn't. Options are «Хлопчик»/«Дівчинка»/«Не записано»
- * (`ANIMAL_SEXES`, a closed universe like species/size/age - "unknown" is a
- * real, explicit value, not an absence).
+ * Visual language matches `GallerySortToggle`'s own pill (`rounded-brand-
+ * pill`, ink/surface fill, the same focus-visible treatment), but as three
+ * plain buttons rather than a sliding knob - a knob reads cleanly between
+ * two positions; a third state ("any") has no natural slot on a two-ended
+ * track.
+ */
+function SpeciesToggle({
+  filters,
+  sort,
+  citySlugs,
+}: {
+  filters: FeedFilters;
+  sort: GallerySort;
+  citySlugs: CitySlugsById;
+}) {
+  const options: ReadonlyArray<{
+    species: AnimalSpecies | null;
+    label: string;
+    testid: string;
+  }> = [
+    { species: null, label: uk.filters.speciesAny, testid: "species-any" },
+    { species: "dog", label: SPECIES_LABEL.dog, testid: "species-dog" },
+    { species: "cat", label: SPECIES_LABEL.cat, testid: "species-cat" },
+  ];
+
+  return (
+    <fieldset
+      aria-label={uk.filters.species}
+      data-testid="species-toggle"
+      className="flex h-13 shrink-0 items-center gap-1 rounded-brand-pill border-2 border-brand-line bg-brand-page p-1"
+    >
+      {options.map(({ species, label, testid }) => {
+        const active =
+          species === null
+            ? filters.species.kind === "any"
+            : isExplicitlySelected(filters.species, species);
+        const href =
+          species === null
+            ? galleryHref(relaxDimension(filters, "species"), sort, citySlugs)
+            : galleryHref(withOnlySpecies(filters, species), sort, citySlugs);
+        return (
+          <Link
+            key={testid}
+            prefetch={false}
+            href={href}
+            aria-current={active ? "true" : undefined}
+            data-testid={testid}
+            className={`flex h-full min-w-11 items-center justify-center rounded-brand-pill px-3 text-[16px]/[1.2] font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+              active ? "bg-brand-ink text-brand-surface" : "text-brand-muted"
+            }`}
+          >
+            {label}
+          </Link>
+        );
+      })}
+    </fieldset>
+  );
+}
+
+/**
+ * The gallery-v3 control block's real controls - city, age, size, a
+ * species toggle, then sex (the four survivors, gallery filter
+ * restructure). Figma `58:1617` shows four dropdowns, city/age/size/
+ * «Стать»; fur, temperament and colour (added later, GV3-Q1 (b) and pet
+ * card PR 1b) are gone again with this restructure - found harder to use
+ * well than to use at all - and species moved from a dropdown to the
+ * `SpeciesToggle` above, which this restructure's own text description
+ * specified directly ("kind filter like dogs or cats becomes a toggle").
  *
- * Species and fur mirror `FilterSheet.tsx`'s own `SPECIES_LABEL`/
- * `COAT_LABEL` maps (duplicated, not imported - same risk `FilterRail.tsx`,
- * the old toggle-link UI for these two dimensions, already carried before
- * it was deleted) and reuse `filter-url.ts`'s `withToggledSpecies`/
- * `withToggledCoat` - the same helpers `FilterRail` called, not
- * `FilterSheet`, which submits a native `<form>` instead of navigating
- * per-option links.
+ * **«Стать» (sex) stays a dropdown**, unaffected by the restructure except
+ * for sitting at the deck's own filter-words header differently now that
+ * it isn't the last dropdown added: `FeedFilters` carries `sexes`
+ * (`feed-filters.ts`), `feed-predicate.ts` has the `IN` clause, and this
+ * dropdown is its one caller beside the sheet - wired end to end, not a
+ * control that claims to filter and doesn't. Options are «Хлопчик»/
+ * «Дівчинка»/«Не записано» (`ANIMAL_SEXES`, a closed universe like
+ * species/size/age - "unknown" is a real, explicit value, not an absence).
  *
  * Hidden below `desktop:` - "Below 1024px... Hide the dropdowns; «Фільтр»
- * opens the sheet" (`FilterSheet.tsx`, still wired at every width since
- * this PR).
- *
- * **Temperament and colour, the sixth and seventh** (pet card PR 1b).
- * Oleksii, 2026-10-26, in the coordinating session, verbatim as that session
- * relayed it to this branch: "two more dropdowns,
- * temperament, colour. The row wraps onto a second line when it doesn't fit;
- * the sort switch stays right-aligned on the first line. Same component and
- * behaviour as the existing five. Below 1024px, unchanged." Their options
- * read the filter words PR 1 built for exactly this (`temperamentFilterLabel`,
- * the plural, his PC-Q2; `colourFilterLabel`, the neuter), and their group
- * names are public keys of their own, `uk.filters.temperament` and
- * `uk.filters.colour`, as fur's is `uk.filters.coat` (his PC1b-T2 answer: "The
- * public gallery must not read kabinet.* strings."). Below 1024px this row
- * stays hidden; the sheet there gains the same two groups, which he approved
- * separately (PC1b-T15): "phones need a control for these filters."
- * This container takes the room the sort switch leaves (`min-w-0 flex-1`) and
- * wraps inside it; `GalleryControlBlock`'s row itself no longer wraps, so the
- * switch never drops below the dropdowns.
+ * opens the sheet" (`FilterSheet.tsx`, still wired at every width).
  */
 export function GalleryFilterDropdowns({
   filters,
@@ -320,34 +359,6 @@ export function GalleryFilterDropdowns({
         .join(", ")
     : uk.filters.size;
 
-  const speciesActive = filters.species.kind !== "any";
-  const speciesLabel = speciesActive
-    ? ANIMAL_SPECIES.filter((species) => isExplicitlySelected(filters.species, species))
-        .map((species) => SPECIES_LABEL[species])
-        .join(", ")
-    : uk.filters.species;
-
-  const coatActive = filters.coatLengths.kind !== "any";
-  const coatLabel = coatActive
-    ? COAT_LENGTHS.filter((coat) => isExplicitlySelected(filters.coatLengths, coat))
-        .map((coat) => COAT_LABEL[coat])
-        .join(", ")
-    : uk.filters.coat;
-
-  const temperamentActive = filters.temperaments.kind !== "any";
-  const temperamentLabel = temperamentActive
-    ? TEMPERAMENT_TRAITS.filter((trait) => isExplicitlySelected(filters.temperaments, trait))
-        .map(temperamentFilterLabel)
-        .join(", ")
-    : uk.filters.temperament;
-
-  const colourActive = filters.colours.kind !== "any";
-  const colourLabel = colourActive
-    ? COAT_COLOURS.filter((colour) => isExplicitlySelected(filters.colours, colour))
-        .map(colourFilterLabel)
-        .join(", ")
-    : uk.filters.colour;
-
   const sexActive = filters.sexes.kind !== "any";
   const sexLabel = sexActive
     ? ANIMAL_SEXES.filter((sex) => isExplicitlySelected(filters.sexes, sex))
@@ -361,15 +372,11 @@ export function GalleryFilterDropdowns({
       // flex-wrap: five dropdowns at their natural w-53 (212px) plus four
       // gap-3 (12px) gaps come to 1108px - wider than the 912px of content
       // width the page's own desktop:px-14 gutters leave at the 1024px
-      // desktop floor (measured live, not assumed). Figma's frame never
-      // anticipated five, so there's no mock geometry to match here.
+      // desktop floor (measured live, not assumed).
       // This container is `flex-1` so the whole group takes the room the
       // sort switch leaves - separate from each individual `Dropdown`,
       // which is `flex-initial` (content-sized, see that component) rather
-      // than stretched to fill its row. `min-w-0 flex-1`: seven dropdowns
-      // wrap here, inside the room beside the sort switch, rather than
-      // pushing the switch onto a line of
-      // its own (his PR 1b answer, quoted above the component).
+      // than stretched to fill its row.
       className="hidden min-w-0 flex-1 flex-wrap items-center gap-3 desktop:flex"
     >
       <Dropdown
@@ -423,73 +430,7 @@ export function GalleryFilterDropdowns({
         ))}
       </Dropdown>
 
-      <Dropdown
-        legend={uk.filters.species}
-        active={speciesActive}
-        label={speciesLabel}
-        clearHref={galleryHref(relaxDimension(filters, "species"), sort, citySlugs)}
-      >
-        {ANIMAL_SPECIES.map((species) => (
-          <DropdownOption
-            key={species}
-            active={isExplicitlySelected(filters.species, species)}
-            href={galleryHref(withToggledSpecies(filters, species), sort, citySlugs)}
-          >
-            {SPECIES_LABEL[species]}
-          </DropdownOption>
-        ))}
-      </Dropdown>
-
-      <Dropdown
-        legend={uk.filters.coat}
-        active={coatActive}
-        label={coatLabel}
-        clearHref={galleryHref(relaxDimension(filters, "coatLengths"), sort, citySlugs)}
-      >
-        {COAT_LENGTHS.map((coat) => (
-          <DropdownOption
-            key={coat}
-            active={isExplicitlySelected(filters.coatLengths, coat)}
-            href={galleryHref(withToggledCoat(filters, coat), sort, citySlugs)}
-          >
-            {COAT_LABEL[coat]}
-          </DropdownOption>
-        ))}
-      </Dropdown>
-
-      <Dropdown
-        legend={uk.filters.temperament}
-        active={temperamentActive}
-        label={temperamentLabel}
-        clearHref={galleryHref(relaxDimension(filters, "temperaments"), sort, citySlugs)}
-      >
-        {TEMPERAMENT_TRAITS.map((trait) => (
-          <DropdownOption
-            key={trait}
-            active={isExplicitlySelected(filters.temperaments, trait)}
-            href={galleryHref(withToggledTemperament(filters, trait), sort, citySlugs)}
-          >
-            {temperamentFilterLabel(trait)}
-          </DropdownOption>
-        ))}
-      </Dropdown>
-
-      <Dropdown
-        legend={uk.filters.colour}
-        active={colourActive}
-        label={colourLabel}
-        clearHref={galleryHref(relaxDimension(filters, "colours"), sort, citySlugs)}
-      >
-        {COAT_COLOURS.map((colour) => (
-          <DropdownOption
-            key={colour}
-            active={isExplicitlySelected(filters.colours, colour)}
-            href={galleryHref(withToggledColour(filters, colour), sort, citySlugs)}
-          >
-            {colourFilterLabel(colour)}
-          </DropdownOption>
-        ))}
-      </Dropdown>
+      <SpeciesToggle filters={filters} sort={sort} citySlugs={citySlugs} />
 
       <Dropdown
         legend={uk.filters.sex}

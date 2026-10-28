@@ -2,7 +2,7 @@ import { NO_FILTERS } from "@opika/domain";
 import { ORPCError } from "@orpc/client";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { withToggledSpecies } from "../gallery/filter-url";
+import { withOnlySpecies } from "../gallery/filter-url";
 import { generateMockCards } from "./mock-data";
 import { useFeedDeck } from "./use-feed-deck";
 
@@ -146,7 +146,7 @@ describe("useFeedDeck", () => {
     });
 
     it("is replaced by the new starting fetch when the filters change", async () => {
-      const OTHER_FILTERS = withToggledSpecies(NO_FILTERS, "dog");
+      const OTHER_FILTERS = withOnlySpecies(NO_FILTERS, "dog");
       list
         .mockResolvedValueOnce({ items: generateMockCards(3), nextCursor: null, reachableCount: 7 })
         .mockResolvedValueOnce({
@@ -456,7 +456,7 @@ describe("useFeedDeck", () => {
     const freshCards = generateMockCards(2);
     list.mockResolvedValueOnce({ items: freshCards, nextCursor: null });
 
-    const OTHER_FILTERS = withToggledSpecies(NO_FILTERS, "dog");
+    const OTHER_FILTERS = withOnlySpecies(NO_FILTERS, "dog");
     const { result, rerender } = renderHook(({ filters }) => useFeedDeck(filters), {
       initialProps: { filters: NO_FILTERS },
     });
@@ -489,7 +489,7 @@ describe("useFeedDeck", () => {
     });
     list.mockResolvedValueOnce({ items: generateMockCards(1), nextCursor: null });
 
-    const OTHER_FILTERS = withToggledSpecies(NO_FILTERS, "dog");
+    const OTHER_FILTERS = withOnlySpecies(NO_FILTERS, "dog");
     const { rerender } = renderHook(({ filters }) => useFeedDeck(filters), {
       initialProps: { filters: NO_FILTERS },
     });

@@ -15,14 +15,11 @@ import {
   resetFiltersHref,
   similarAnimalsHref,
   similarAnimalsLabel,
+  withOnlySpecies,
   withToggledAge,
   withToggledCity,
-  withToggledCoat,
-  withToggledColour,
   withToggledSex,
   withToggledSize,
-  withToggledSpecies,
-  withToggledTemperament,
 } from "./filter-url";
 
 const CITY_A = "11111111-1111-4111-8111-111111111111" as CityId;
@@ -129,22 +126,29 @@ describe("parseGalleryQuery", () => {
 });
 
 describe("withToggled*", () => {
-  it("adds a value not yet selected", () => {
-    expect(withToggledSpecies(NO_FILTERS, "dog")).toEqual({
+  /**
+   * `withOnlySpecies` (gallery filter restructure, the species toggle's own
+   * write) is exclusive-choice, not the multi-select every `withToggledX`
+   * helper otherwise in this file is: selecting a second species replaces
+   * the first, it never accumulates toward "every option ticked collapses
+   * to any" the way the dropdown dimensions below do.
+   */
+  it("selects a value not yet selected", () => {
+    expect(withOnlySpecies(NO_FILTERS, "dog")).toEqual({
       ...NO_FILTERS,
       species: { kind: "oneOf", values: ["dog"] },
     });
   });
 
-  it("removes a value already selected", () => {
-    const once = withToggledSpecies(NO_FILTERS, "dog");
-    expect(withToggledSpecies(once, "dog")).toEqual(NO_FILTERS);
+  it("clears back to any when the already-selected value is tapped again", () => {
+    const once = withOnlySpecies(NO_FILTERS, "dog");
+    expect(withOnlySpecies(once, "dog")).toEqual(NO_FILTERS);
   });
 
-  it("selecting every value in the universe collapses back to any", () => {
-    const dogSelected = withToggledSpecies(NO_FILTERS, "dog");
-    const both = withToggledSpecies(dogSelected, "cat");
-    expect(both.species).toEqual(ANY);
+  it("selecting a different species replaces it - never both at once", () => {
+    const dogSelected = withOnlySpecies(NO_FILTERS, "dog");
+    const catSelected = withOnlySpecies(dogSelected, "cat");
+    expect(catSelected.species).toEqual({ kind: "oneOf", values: ["cat"] });
   });
 
   it("cities have no static universe, so selecting two never collapses", () => {
@@ -183,7 +187,7 @@ describe("galleryHref", () => {
   });
 
   it("round-trips through parseGalleryQuery", () => {
-    const filters = withToggledSpecies(withToggledCity(NO_FILTERS, CITY_A), "dog");
+    const filters = withOnlySpecies(withToggledCity(NO_FILTERS, CITY_A), "dog");
     const href = galleryHref(filters, "longest_waiting", CITY_SLUGS);
     const reparsed = parseGalleryQuery(
       Object.fromEntries(new URL(href, "http://x").searchParams),
@@ -213,7 +217,7 @@ describe("galleryPageHref", () => {
   });
 
   it("carries filters and sort forward unchanged, unlike galleryHref", () => {
-    const filters = withToggledSpecies(withToggledCity(NO_FILTERS, CITY_A), "dog");
+    const filters = withOnlySpecies(withToggledCity(NO_FILTERS, CITY_A), "dog");
     const href = galleryPageHref(filters, "longest_waiting", 2, CITY_SLUGS);
     const reparsed = parseGalleryQuery(
       Object.fromEntries(new URL(href, "http://x").searchParams),
@@ -231,7 +235,7 @@ describe("galleryPageHref", () => {
 
 describe("deckEntryHref / parseDeckQuery", () => {
   it("round-trips filters and carries the total through, with no sort/page params at all", () => {
-    const filters = withToggledSpecies(withToggledCity(NO_FILTERS, CITY_A), "dog");
+    const filters = withOnlySpecies(withToggledCity(NO_FILTERS, CITY_A), "dog");
     const href = deckEntryHref(filters, 34, CITY_SLUGS);
 
     expect(href).not.toContain("sort=");
@@ -288,7 +292,7 @@ describe("filtersInWords", () => {
 
   it("joins only the dimensions actually constrained, city first", () => {
     const filters = withToggledSize(
-      withToggledSpecies(withToggledCity(NO_FILTERS, CITY_A), "dog"),
+      withOnlySpecies(withToggledCity(NO_FILTERS, CITY_A), "dog"),
       "medium",
     );
     expect(filtersInWords(filters, cityNames)).toBe("Бровари · собаки · середній");
@@ -373,170 +377,10 @@ describe("redirectHrefForLegacyCityIds", () => {
 });
 
 /**
- * Fur (DR1, S3): `sherst`, read and written like the other multi-selects.
- * The expected strings are the URL scheme literally, not built from
- * `GALLERY_PARAM`, so a renamed param fails here.
- */
-describe("the fur filter in the URL", () => {
-  it("parses `sherst`, comma-joined or repeated, dropping a value it doesn't know", () => {
-    expect(parseGalleryQuery({ sherst: "long" }, NO_SLUGS).filters.coatLengths).toEqual({
-      kind: "oneOf",
-      values: ["long"],
-    });
-    expect(parseGalleryQuery({ sherst: ["short", "curly"] }, NO_SLUGS).filters.coatLengths).toEqual(
-      { kind: "oneOf", values: ["short"] },
-    );
-  });
-
-  it("both values is no fur filter at all", () => {
-    expect(parseGalleryQuery({ sherst: "short,long" }, NO_SLUGS).filters.coatLengths).toEqual(ANY);
-  });
-
-  it("round-trips through galleryHref with the other filters and the sort", () => {
-    const filters = withToggledCoat(withToggledSpecies(NO_FILTERS, "cat"), "long");
-    const href = galleryHref(filters, "longest_waiting", NO_CITIES);
-    expect(href).toBe("/tvaryny?vyd=cat&sherst=long&sort=longest_waiting");
-    const reparsed = parseGalleryQuery(
-      Object.fromEntries(new URL(href, "http://x").searchParams),
-      NO_SLUGS,
-    );
-    expect(reparsed).toEqual({ filters, sort: "longest_waiting", page: 1 });
-  });
-
-  it("is carried into a page link and into the deck", () => {
-    const filters = withToggledCoat(NO_FILTERS, "short");
-    expect(galleryPageHref(filters, "freshest", 2, NO_CITIES)).toBe("/tvaryny?sherst=short&stor=2");
-    const deckHref = deckEntryHref(filters, 5, NO_CITIES);
-    expect(deckHref).toBe("/tvaryny/gortaty?sherst=short&total=5");
-    expect(
-      parseDeckQuery(Object.fromEntries(new URL(deckHref, "http://x").searchParams), NO_SLUGS),
-    ).toEqual({ filters, total: 5 });
-  });
-
-  it("the deck's header names it in his filter words", () => {
-    const filters = withToggledCoat(withToggledSpecies(NO_FILTERS, "dog"), "long");
-    expect(filtersInWords(filters, new Map())).toBe("собаки · довгошерсті");
-  });
-
-  it("«Скинути» clears it", () => {
-    expect(resetFiltersHref("freshest")).toBe("/tvaryny");
-  });
-});
-
-/**
- * Temperament and colour (pet card PR 1b): `kharakter` and `zabarvlennia`,
- * read and written like `sherst`. Expected strings are the URL scheme
- * literally, never built from `GALLERY_PARAM`, so a renamed param fails here.
- */
-describe("the temperament and colour filters in the URL", () => {
-  const EVERY_TRAIT =
-    "playful,calm,affectionate,energetic,independent,shy,good_with_kids,good_with_cats,good_with_dogs";
-  const EVERY_COLOUR = "black,white,grey,ginger,brown,cream,black_white,tricolour,tabby,spotted";
-
-  it("parses `kharakter` and `zabarvlennia`, comma-joined or repeated, dropping what it doesn't know", () => {
-    expect(
-      parseGalleryQuery({ kharakter: "shy,grumpy,calm" }, NO_SLUGS).filters.temperaments,
-    ).toEqual({ kind: "oneOf", values: ["calm", "shy"] });
-    expect(
-      parseGalleryQuery({ kharakter: ["good_with_cats", "good_with_dogs"] }, NO_SLUGS).filters
-        .temperaments,
-    ).toEqual({ kind: "oneOf", values: ["good_with_cats", "good_with_dogs"] });
-    expect(
-      parseGalleryQuery({ zabarvlennia: ["tabby", "smoky"] }, NO_SLUGS).filters.colours,
-    ).toEqual({ kind: "oneOf", values: ["tabby"] });
-    expect(parseGalleryQuery({ zabarvlennia: "smoky" }, NO_SLUGS).filters.colours).toEqual(ANY);
-  });
-
-  it("every trait, or every colour, is no filter at all, read or written", () => {
-    expect(parseGalleryQuery({ kharakter: EVERY_TRAIT }, NO_SLUGS).filters.temperaments).toEqual(
-      ANY,
-    );
-    expect(parseGalleryQuery({ zabarvlennia: EVERY_COLOUR }, NO_SLUGS).filters.colours).toEqual(
-      ANY,
-    );
-
-    // Ticking every option one by one, as the dropdown does, lands back on
-    // the bare gallery URL rather than spelling the whole list out.
-    const everyTrait = EVERY_TRAIT.split(",").reduce(
-      (filters, trait) => withToggledTemperament(filters, trait as never),
-      NO_FILTERS,
-    );
-    expect(galleryHref(everyTrait, "freshest", NO_CITIES)).toBe("/tvaryny");
-    const everyColour = EVERY_COLOUR.split(",").reduce(
-      (filters, colour) => withToggledColour(filters, colour as never),
-      NO_FILTERS,
-    );
-    expect(galleryHref(everyColour, "freshest", NO_CITIES)).toBe("/tvaryny");
-  });
-
-  it("one short of every trait is still a filter", () => {
-    const [, ...eight] = EVERY_TRAIT.split(",");
-    const href = galleryHref(
-      parseGalleryQuery({ kharakter: eight.join(",") }, NO_SLUGS).filters,
-      "freshest",
-      NO_CITIES,
-    );
-    expect(new URL(href, "http://x").searchParams.get("kharakter")?.split(",")).toHaveLength(8);
-  });
-
-  it("round-trips through galleryHref after fur and before the sort", () => {
-    const filters = withToggledColour(
-      withToggledTemperament(
-        withToggledTemperament(withToggledCoat(NO_FILTERS, "long"), "shy"),
-        "calm",
-      ),
-      "black",
-    );
-    const href = galleryHref(filters, "longest_waiting", NO_CITIES);
-    expect(href).toBe(
-      "/tvaryny?sherst=long&kharakter=calm%2Cshy&zabarvlennia=black&sort=longest_waiting",
-    );
-    const reparsed = parseGalleryQuery(
-      Object.fromEntries(new URL(href, "http://x").searchParams),
-      NO_SLUGS,
-    );
-    expect(reparsed).toEqual({ filters, sort: "longest_waiting", page: 1 });
-  });
-
-  it("toggling a trait or a colour off again leaves no filter", () => {
-    expect(withToggledTemperament(withToggledTemperament(NO_FILTERS, "shy"), "shy")).toEqual(
-      NO_FILTERS,
-    );
-    expect(withToggledColour(withToggledColour(NO_FILTERS, "cream"), "cream")).toEqual(NO_FILTERS);
-  });
-
-  it("is carried into a page link and into the deck", () => {
-    const filters = withToggledColour(withToggledTemperament(NO_FILTERS, "shy"), "tabby");
-    expect(galleryPageHref(filters, "freshest", 3, NO_CITIES)).toBe(
-      "/tvaryny?kharakter=shy&zabarvlennia=tabby&stor=3",
-    );
-    const deckHref = deckEntryHref(filters, 7, NO_CITIES);
-    expect(deckHref).toBe("/tvaryny/gortaty?kharakter=shy&zabarvlennia=tabby&total=7");
-    expect(
-      parseDeckQuery(Object.fromEntries(new URL(deckHref, "http://x").searchParams), NO_SLUGS),
-    ).toEqual({ filters, total: 7 });
-  });
-
-  it("the deck's header names them in the filter options' own words", () => {
-    const filters = withToggledColour(
-      withToggledTemperament(
-        withToggledTemperament(withToggledSpecies(NO_FILTERS, "cat"), "shy"),
-        "good_with_cats",
-      ),
-      "black",
-    );
-    expect(filtersInWords(filters, new Map())).toBe(
-      "коти · ладнають з котами/соромʼязливі · чорне",
-    );
-  });
-});
-
-/**
- * Sex-filter feature: `stat`, the eighth dimension, read and written like
- * `sherst`/`kharakter`/`zabarvlennia`. Unlike those three, it is a closed
- * universe over a never-null field - "unknown" is a real value, not an
- * absence - so it collapses on the species/size/age rule, not the
- * null-admitting one.
+ * Sex-filter feature: `stat`, read and written like the other multi-selects
+ * (`misto`/`rozmir`/`vik`). A closed universe over a never-null field -
+ * "unknown" is a real value, not an absence - so it collapses on the
+ * species/size/age rule.
  */
 describe("the sex filter in the URL", () => {
   it("parses `stat`, comma-joined or repeated, dropping a value it doesn't know", () => {
@@ -555,7 +399,7 @@ describe("the sex filter in the URL", () => {
   });
 
   it("round-trips through galleryHref with the other filters and the sort", () => {
-    const filters = withToggledSex(withToggledSpecies(NO_FILTERS, "cat"), "female");
+    const filters = withToggledSex(withOnlySpecies(NO_FILTERS, "cat"), "female");
     const href = galleryHref(filters, "longest_waiting", NO_CITIES);
     expect(href).toBe("/tvaryny?vyd=cat&stat=female&sort=longest_waiting");
     const reparsed = parseGalleryQuery(
@@ -576,7 +420,7 @@ describe("the sex filter in the URL", () => {
   });
 
   it("the deck's header names it in his filter words", () => {
-    const filters = withToggledSex(withToggledSpecies(NO_FILTERS, "dog"), "male");
+    const filters = withToggledSex(withOnlySpecies(NO_FILTERS, "dog"), "male");
     expect(filtersInWords(filters, new Map())).toBe("собаки · хлопчик");
   });
 
@@ -598,26 +442,20 @@ describe("similarAnimalsHref", () => {
   it.each([
     ["dog", { dimension: "ages", value: "young" }, "/tvaryny?vyd=dog&vik=young"],
     ["cat", { dimension: "sizes", value: "small" }, "/tvaryny?vyd=cat&rozmir=small"],
-    ["dog", { dimension: "coatLengths", value: "long" }, "/tvaryny?vyd=dog&sherst=long"],
-    ["cat", { dimension: "temperaments", value: "shy" }, "/tvaryny?vyd=cat&kharakter=shy"],
-    [
-      "dog",
-      { dimension: "colours", value: "black_white" },
-      "/tvaryny?vyd=dog&zabarvlennia=black_white",
-    ],
+    ["dog", { dimension: "sexes", value: "male" }, "/tvaryny?vyd=dog&stat=male"],
   ] as const)("%s + %o → %s", (species, chip, expected) => {
     expect(similarAnimalsHref(species, chip)).toBe(expected);
   });
 
   it("asks a fresh question: nothing but the species and the chip, the default sort, page 1", () => {
-    const href = similarAnimalsHref("cat", { dimension: "temperaments", value: "good_with_dogs" });
+    const href = similarAnimalsHref("cat", { dimension: "sexes", value: "female" });
     expect(
       parseGalleryQuery(Object.fromEntries(new URL(href, "http://x").searchParams), NO_SLUGS),
     ).toEqual({
       filters: {
         ...NO_FILTERS,
         species: { kind: "oneOf", values: ["cat"] },
-        temperaments: { kind: "oneOf", values: ["good_with_dogs"] },
+        sexes: { kind: "oneOf", values: ["female"] },
       },
       sort: "freshest",
       page: 1,
@@ -657,36 +495,22 @@ describe("animalPageHref", () => {
 /**
  * Pet card PR 5, his exact template (2026-10-27): "«Показати схожих
  * {котів|собак}: {значення}», with no quotes around the value. The value is
- * lowercase and uses the filter form: plural for temperament, «руде
- * забарвлення» for colour, and the existing age/size/coat labels in
- * lowercase." Each case below is transcribed from that instruction, not
- * derived - a mutation that silently swapped which word-source a dimension
- * reads from (e.g. the temperament *singular* sex-matched word instead of
- * the plural) would still produce *a* plausible-looking sentence, so this
- * pins the exact text per dimension rather than a shape check.
+ * lowercase and uses the existing age/size filter labels in lowercase."
+ * Each case below is transcribed from that instruction, not derived.
  */
 describe("similarAnimalsLabel", () => {
-  it("colour: his own example, exactly", () => {
-    expect(similarAnimalsLabel("cat", { dimension: "colours", value: "ginger" })).toBe(
-      "Показати схожих котів: руде забарвлення",
-    );
-  });
-
-  it("temperament: the plural form, lowercased - not the chip's own sex-matched singular", () => {
-    expect(similarAnimalsLabel("dog", { dimension: "temperaments", value: "good_with_kids" })).toBe(
-      "Показати схожих собак: ладнають з дітьми",
-    );
-  });
-
-  it("age/size/coat length: the existing filter labels, lowercased", () => {
+  it("age/size: the existing filter labels, lowercased", () => {
     expect(similarAnimalsLabel("cat", { dimension: "ages", value: "baby" })).toBe(
       "Показати схожих котів: малюк",
     );
     expect(similarAnimalsLabel("dog", { dimension: "sizes", value: "large" })).toBe(
       "Показати схожих собак: великий",
     );
-    expect(similarAnimalsLabel("cat", { dimension: "coatLengths", value: "short" })).toBe(
-      "Показати схожих котів: короткошерсті",
+  });
+
+  it("sex: the existing filter label, lowercased", () => {
+    expect(similarAnimalsLabel("dog", { dimension: "sexes", value: "male" })).toBe(
+      "Показати схожих собак: хлопчик",
     );
   });
 
@@ -700,17 +524,13 @@ describe("similarAnimalsLabel", () => {
   });
 });
 
-/** `similarAnimalsLabel`'s own value source, exported separately because the panel's visible
- * chip text reuses it directly for every dimension except temperament (which the panel shows
- * in its sex-matched singular form instead - `temperamentLabelFor`, not this function). */
+/** `similarAnimalsLabel`'s own value source, exported separately because the panel's
+ * visible chip text reuses it directly, for every dimension `FilterableChip` still
+ * admits (ages, sizes, sexes - gallery filter restructure). */
 describe("chipDisplayLabel", () => {
-  it("colour is the chip template, capitalised - the same text the «Про мене» chip itself shows", () => {
-    expect(chipDisplayLabel({ dimension: "colours", value: "ginger" })).toBe("Руде забарвлення");
-  });
-
-  it("age/size/coat length are the filter dropdown's own labels", () => {
+  it("age/size/sex are the filter dropdown's own labels", () => {
     expect(chipDisplayLabel({ dimension: "ages", value: "senior" })).toBe("Літній");
     expect(chipDisplayLabel({ dimension: "sizes", value: "medium" })).toBe("Середній");
-    expect(chipDisplayLabel({ dimension: "coatLengths", value: "long" })).toBe("Довгошерсті");
+    expect(chipDisplayLabel({ dimension: "sexes", value: "female" })).toBe("Дівчинка");
   });
 });

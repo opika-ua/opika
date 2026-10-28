@@ -182,19 +182,6 @@ describe("completeness stays photos, description and vaccination (commitment 1)"
     expect(new Set(scores).size).toBe(1);
   });
 
-  it("does not rank on fur even when a fur filter is on", () => {
-    // The query applies the filter; ranking must not add fur as a preference
-    // signal on top, or recording fur would move a card.
-    const longOnly: FeedFilters = {
-      ...NO_FILTERS,
-      coatLengths: { kind: "oneOf", values: ["long"] },
-    };
-    const scores = (["short", "long", null] as const).map((coatLength) =>
-      scoreAt(animal({ coatLength }), 0, longOnly),
-    );
-    expect(new Set(scores).size).toBe(1);
-  });
-
   it("scores an animal the same whatever its temperament, colour and medical note", () => {
     // Commitment 1: date and completeness order a card, nothing else. Recording
     // character, colour or a medical note must never move one.
@@ -211,29 +198,6 @@ describe("completeness stays photos, description and vaccination (commitment 1)"
       animal({ colour: { kind: "custom", text: { uk: "Димчастий", en: null } } }),
       animal({ medicalNotes: { uk: "Має хронічний гастрит, потребує дієти.", en: null } }),
     ].map((subject) => scoreAt(subject, 0));
-    expect(new Set(scores).size).toBe(1);
-  });
-
-  it("does not rank on temperament or colour even when their filters are on (PR 1b)", () => {
-    // As fur: the query applies the filter, and ranking must not add either
-    // as a preference signal on top, or describing an animal would move it.
-    const filtered: FeedFilters = {
-      ...NO_FILTERS,
-      temperaments: { kind: "oneOf", values: ["playful", "shy"] },
-      colours: { kind: "oneOf", values: ["ginger"] },
-    };
-    const scores = [
-      animal({}),
-      animal({ temperament: [{ kind: "preset", trait: "playful" }] }),
-      animal({
-        temperament: [
-          { kind: "preset", trait: "shy" },
-          { kind: "preset", trait: "playful" },
-        ],
-      }),
-      animal({ colour: { kind: "preset", colour: "ginger" } }),
-      animal({ colour: { kind: "preset", colour: "black" } }),
-    ].map((subject) => scoreAt(subject, 0, filtered));
     expect(new Set(scores).size).toBe(1);
   });
 });

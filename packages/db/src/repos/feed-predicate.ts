@@ -14,9 +14,8 @@ import { shelters } from "../schema/shelters";
  *
  * Two repositories now build it - the deck's keyset feed and the gallery's
  * numbered pages - and they must agree exactly, or a filter that hides an
- * animal from one surface leaves it visible on the other. A new
- * `FeedFilters` dimension (temperament and colour were the sixth and
- * seventh, sex the eighth) is a one-site edit here rather than a two-site
+ * animal from one surface leaves it visible on the other. A new or removed
+ * `FeedFilters` dimension is a one-site edit here rather than a two-site
  * edit somebody does once.
  *
  * Split into the two halves rather than only the whole, because
@@ -74,42 +73,15 @@ export function buildFilterPredicate(filters: FeedFilters, now: Date): SQL[] {
     conditions.push(inArray(animals.species, [...filters.species.values]));
   }
   // `sex` is NOT NULL - "unknown" is a real, explicit value, not an absence -
-  // so this `IN` has no "unrecorded" asymmetry to call out, unlike fur,
-  // temperament and colour below. No dedicated index: the same reasoning as
-  // `coatLength`'s own comment in `animals.ts` (a low-cardinality equality
-  // applied to rows the feed and wait-anchor indexes already narrow).
+  // so this `IN` has no "unrecorded" asymmetry to call out. No dedicated
+  // index: the same reasoning as `coatLength`'s own comment in `animals.ts`
+  // (a low-cardinality equality applied to rows the feed and wait-anchor
+  // indexes already narrow).
   if (filters.sexes.kind === "oneOf") {
     conditions.push(inArray(animals.sex, [...filters.sexes.values]));
   }
   if (filters.sizes.kind === "oneOf") {
     conditions.push(inArray(animals.size, [...filters.sizes.values]));
-  }
-  // `IN` never matches NULL, so an animal whose fur isn't recorded is left
-  // out while a fur filter is on (DR1-D11), the way every other dimension
-  // treats a value it can't confirm; the relaxation count says how many.
-  if (filters.coatLengths.kind === "oneOf") {
-    conditions.push(inArray(animals.coatLength, [...filters.coatLengths.values]));
-  }
-  // "Has any of the chosen traits": array overlap, which the GIN index
-  // `animals_temperament_traits_idx` answers. The right-hand array is built in
-  // SQL from one scalar parameter per trait, never bound as one JS array:
-  // postgres-js (local) and neon-http (production) aren't proven to bind an
-  // array parameter identically (`r2-cleanup-repo.ts` records the same
-  // choice), and a scalar text parameter is the one thing both bind alike.
-  // An animal with no presets recorded (`{}`) overlaps nothing, so it is left
-  // out, as unrecorded fur is.
-  if (filters.temperaments.kind === "oneOf") {
-    const traits = sql.join(
-      filters.temperaments.values.map((trait) => sql`${trait}`),
-      sql`, `,
-    );
-    conditions.push(sql`${animals.temperamentTraits} && ARRAY[${traits}]::text[]`);
-  }
-  // A plain `IN` on the btree-indexed `coat_colour`. A custom colour stores
-  // NULL there (its words are in `coat_colour_custom_uk`), so it never matches
-  // a colour filter, and neither does an unrecorded one.
-  if (filters.colours.kind === "oneOf") {
-    conditions.push(inArray(animals.coatColour, [...filters.colours.values]));
   }
   if (filters.ages.kind === "oneOf") {
     const ageConditions: SQL[] = filters.ages.values.map((bucket) => {

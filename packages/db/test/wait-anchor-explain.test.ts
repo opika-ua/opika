@@ -253,9 +253,6 @@ describe("longest-waiting EXPLAIN", () => {
       species: { kind: "oneOf", values: ["dog"] },
       sizes: { kind: "oneOf", values: ["small"] },
       ages: { kind: "any" },
-      coatLengths: { kind: "any" },
-      temperaments: { kind: "any" },
-      colours: { kind: "any" },
       sexes: { kind: "any" },
     };
 

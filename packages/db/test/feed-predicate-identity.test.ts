@@ -99,11 +99,8 @@ const ALL_FILTERS: FeedFilters = {
   species: { kind: "oneOf", values: ["dog"] as [AnimalSpecies] },
   sizes: { kind: "oneOf", values: ["small", "medium"] as [SizeBucket, SizeBucket] },
   ages: { kind: "oneOf", values: ["baby", "young"] as [AgeBucket, AgeBucket] },
-  coatLengths: { kind: "any" },
   // "Every dimension" means every dimension that existed when these snapshots
-  // were recorded; fur, temperament, colour and sex have cases of their own below.
-  temperaments: { kind: "any" },
-  colours: { kind: "any" },
+  // were recorded; sex has a case of its own below.
   sexes: { kind: "any" },
 };
 
@@ -158,45 +155,7 @@ describe("feed.list generated SQL is unchanged by the shared-predicate extractio
     ).toMatchSnapshot();
   });
 
-  it("a fur filter (DR1, S2): one IN over coat_length, NULL left out by IN itself", async () => {
-    // Added with the fifth dimension rather than recorded before it: there was
-    // no fur clause to preserve. Pins that the clause is a plain equality set
-    // with no `OR coat_length IS NULL` (DR1-D11).
-    expect(
-      await sqlFor({
-        filters: { ...NO_FILTERS, coatLengths: { kind: "oneOf", values: ["long"] } },
-        cursor: null,
-        adopterId: null,
-      }),
-    ).toMatchSnapshot();
-  });
-
-  // Pet card redesign, PR 1b. Recorded with the dimensions, as fur's was.
-  it("a temperament filter: one && over temperament_traits, against ARRAY[...] of scalar parameters", async () => {
-    expect(
-      await sqlFor({
-        filters: {
-          ...NO_FILTERS,
-          temperaments: { kind: "oneOf", values: ["shy", "good_with_cats"] },
-        },
-        cursor: null,
-        adopterId: null,
-      }),
-    ).toMatchSnapshot();
-  });
-
-  it("a colour filter: one IN over coat_colour, NULL left out by IN itself", async () => {
-    expect(
-      await sqlFor({
-        filters: { ...NO_FILTERS, colours: { kind: "oneOf", values: ["black", "tabby"] } },
-        cursor: null,
-        adopterId: null,
-      }),
-    ).toMatchSnapshot();
-  });
-
-  // The eighth dimension. A plain IN like species/size, not the null-admitting
-  // shape fur/temperament/colour have: `sex` is NOT NULL, so there is no
+  // A plain IN like species/size: `sex` is NOT NULL, so there is no
   // "unrecorded" case to call out.
   it("a sex filter: one IN over sex", async () => {
     expect(
@@ -206,40 +165,5 @@ describe("feed.list generated SQL is unchanged by the shared-predicate extractio
         adopterId: null,
       }),
     ).toMatchSnapshot();
-  });
-});
-
-/**
- * The temperament clause's binding, asserted rather than only snapshotted.
- *
- * Every parameter the deck's query carries must be a scalar. A JS array bound
- * as one parameter works on postgres-js: it serialises the array into one
- * array literal (`{"calm","playful","shy"}`, bound to `$4::text[]`) and every
- * row-level test passes. Whether neon-http binds it the same way is unproven,
- * which is why the clause builds its array in SQL from one parameter per
- * trait. Only a check on the parameters themselves catches that regression on
- * this side of a real-Neon run (mutation-tested: binding the traits as one
- * array fails this test and the snapshot above, and nothing else).
- *
- * The debug hook sees each parameter already serialised, so an array shows up
- * here as that literal string, not as a JS array.
- */
-describe("the temperament clause binds one scalar parameter per trait", () => {
-  it("passes each chosen trait as its own string parameter, never one array literal", async () => {
-    const { query, parameters } = await sqlFor({
-      filters: {
-        ...NO_FILTERS,
-        temperaments: { kind: "oneOf", values: ["calm", "playful", "shy"] },
-      },
-      cursor: null,
-      adopterId: null,
-    });
-
-    const arrayLiterals = parameters.filter((p) => typeof p === "string" && p.startsWith("{"));
-    expect(arrayLiterals).toEqual([]);
-    for (const trait of ["calm", "playful", "shy"]) {
-      expect(parameters, trait).toContain(trait);
-    }
-    expect(query).toMatch(/"temperament_traits" && ARRAY\[\$\d+, \$\d+, \$\d+\]::text\[\]/);
   });
 });

@@ -1,6 +1,13 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
 import { donationHost, hasAnyDocumentEvidence, textIn } from "@opika/domain";
-import { fillTemplate, sexWordFor, sizeLabel, temperamentLabelFor, uk } from "@opika/i18n";
+import {
+  colourChipLabel,
+  fillTemplate,
+  sexWordFor,
+  sizeLabel,
+  temperamentLabelFor,
+  uk,
+} from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 import Image from "next/image";
 import Link from "next/link";
@@ -215,39 +222,23 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
         <h2 className="text-[26px] font-bold text-brand-ink">{uk.detail.aboutMeHeading}</h2>
         <div className="flex flex-wrap gap-4">
           <FilterableChipLink species={animal.species} dimension="ages" value={animal.ageBucket} />
-          <SexChip sex={animal.sex} />
+          <SexChip species={animal.species} sex={animal.sex} />
           <FilterableChipLink species={animal.species} dimension="sizes" value={animal.size} />
           {animal.temperament
             .filter((entry) => entry.kind === "preset")
             .map((entry) => (
-              <FilterableChipLink
-                key={entry.trait}
-                species={animal.species}
-                dimension="temperaments"
-                value={entry.trait}
-                visibleText={temperamentLabelFor(entry.trait, animal.sex)}
-              />
+              <PlainChip key={entry.trait} text={temperamentLabelFor(entry.trait, animal.sex)} />
             ))}
           {customTemperament?.kind === "custom" && (
             <PlainChip text={textIn(customTemperament.text, "uk")} />
           )}
           {animal.colour?.kind === "preset" && (
-            <FilterableChipLink
-              species={animal.species}
-              dimension="colours"
-              value={animal.colour.colour}
-            />
+            <PlainChip text={colourChipLabel(animal.colour.colour)} />
           )}
           {animal.colour?.kind === "custom" && (
             <PlainChip text={textIn(animal.colour.text, "uk")} />
           )}
-          {animal.coatLength && (
-            <FilterableChipLink
-              species={animal.species}
-              dimension="coatLengths"
-              value={animal.coatLength}
-            />
-          )}
+          {animal.coatLength && <PlainChip text={COAT_WORDS[animal.coatLength]} />}
           <MedicalChip row={vaccinationRow(animal.vaccination)} />
           <MedicalChip row={spayNeuterRow(animal.spayNeuter)} />
           {showDocuments && animal.documentReadiness.kind === "tracked" && (
@@ -348,20 +339,39 @@ function MetaLine({ animal }: { animal: AnimalDetailView }) {
 const CHIP =
   "inline-flex h-13 items-center rounded-brand-field border-2 border-brand-line px-4 text-[20px] font-semibold text-brand-ink";
 
+/** Coat length's own words, no longer read through `chipDisplayLabel` (gallery filter
+ * restructure removed the fur filter, which that function served): the two words
+ * themselves stay public, under `uk.filters.*` still, since this chip is their only
+ * remaining caller - see that key's own comment in `uk.ts`. */
+const COAT_WORDS: Record<NonNullable<AnimalDetailView["coatLength"]>, string> = {
+  short: uk.filters.coatShort,
+  long: uk.filters.coatLong,
+};
+
 /** A non-filterable fact, as plain text (A6 - custom «Інше» values and the medical facts). */
 function PlainChip({ text }: { text: string }) {
   return <span className={CHIP}>{text}</span>;
 }
 
-/** The sex chip (plain text, A6): a sex filter exists (`feed-filters.ts`'s `sexes`), but
- * SF-D5 left the card's own sex chip non-filterable as a separate, unaddressed product
- * question - adding one is not implied by adding the filter. Omitted entirely for "unknown",
- * the same no-word-for-unknown contract `sexWordFor` already has (unlike `ageWordFor`, which
- * always has some word to fall back to). A component of its own, not an inline `&&`, purely so
- * TS narrows `sexWordFor`'s `string | null` return to `string` before `PlainChip` sees it. */
-function SexChip({ sex }: { sex: AnimalDetailView["sex"] }) {
+/** The sex chip: filterable since the gallery filter restructure, which reverses SF-D5
+ * ("left non-filterable as a separate, unaddressed product question") - sex is one of
+ * the four dimensions that restructure keeps as a real filter, so its chip joins
+ * ages/sizes as a `FilterableChipLink`, same pattern, same species-plus-one-fact
+ * question. Still omitted entirely for "unknown" - unaffected by filterability, the
+ * same no-word-for-unknown contract `sexWordFor` already has (unlike `ageWordFor`,
+ * which always has some word to fall back to) - a chip reading "more like this: not
+ * recorded" would answer a question nobody asked. */
+function SexChip({
+  species,
+  sex,
+}: {
+  species: AnimalDetailView["species"];
+  sex: AnimalDetailView["sex"];
+}) {
   const word = sexWordFor(sex);
-  return word === null ? null : <PlainChip text={word} />;
+  return word === null ? null : (
+    <FilterableChipLink species={species} dimension="sexes" value={sex} visibleText={word} />
+  );
 }
 
 /** A medical fact chip (owner decision A3): always rendered, even unknown - the «Не записано»

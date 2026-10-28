@@ -1882,12 +1882,12 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `current ${relaxation.current}, without species +${withoutSpecies?.additional ?? "none"}, ${relaxation.relaxations.length} suggestion(s)`,
   );
 
-  // 39. fur (DR1 S3, Oleksii's Q2 (a): "set «long», clear to null, then filter
-  // the gallery and the deck by fur"): written and cleared through the
-  // kabinet edit's own write (`writeEditIf`, as `animalsUpdate` calls it),
-  // read back through this driver, and filtered through the gallery's and the
-  // deck's own repositories. A city, a verified shelter and a published dog of
-  // this run's own, so every list below is scoped to that one city.
+  // 39. fur (DR1 S3): set «long», then cleared to null, through the kabinet
+  // edit's own write (`writeEditIf`, as `animalsUpdate` calls it), read back
+  // through this driver. (Until the gallery filter restructure removed the
+  // fur filter, this also filtered the gallery and the deck by fur,
+  // Oleksii's Q2 (a) - that half is gone with the filter itself.) A city, a
+  // verified shelter and a published dog of this run's own.
   const furCity = makeCity({ id: randomUUID() as never });
   await cityRepo(db).insert(furCity);
   const furBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} H` });
@@ -1928,53 +1928,17 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       },
     );
   };
-  const furFound = async (coatLength: "short" | "long") => {
-    const filters: FeedFilters = {
-      ...NO_FILTERS,
-      cities: { kind: "oneOf", values: [furCity.id] },
-      coatLengths: { kind: "oneOf", values: [coatLength] },
-    };
-    const gallery = await galleryRepo(db).list({
-      filters,
-      scope: EVERYONE_SCOPE,
-      sort: "freshest",
-      page: 1,
-      pageSize: 24,
-      now: NOW,
-    });
-    const deck = await feedRepo(db).list({
-      filters,
-      cursor: null,
-      limit: 20,
-      adopterId: null,
-      now: NOW,
-      seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
-    });
-    return {
-      gallery: gallery.items.some((a) => a.id === furDog.id),
-      deck: deck.items.some((a) => a.id === furDog.id),
-    };
-  };
   const furSet = await furEdit("long", later(27000));
   const furAfterSet = (await kabinetAnimals.findWithCity(furDog.id))?.animal.coatLength;
-  const longWhileSet = await furFound("long");
-  const shortWhileSet = await furFound("short");
   const furCleared = await furEdit(null, later(28000));
   const furAfterClear = (await kabinetAnimals.findWithCity(furDog.id))?.animal.coatLength;
-  const longAfterClear = await furFound("long");
   check(
-    "fur set «long» then cleared through the kabinet edit write, filtered in the gallery and the deck",
+    "fur set «long» then cleared through the kabinet edit write, read back over this driver",
     furSet.kind === "ok" &&
       furAfterSet === "long" &&
-      longWhileSet.gallery &&
-      longWhileSet.deck &&
-      !shortWhileSet.gallery &&
-      !shortWhileSet.deck &&
       furCleared.kind === "ok" &&
-      furAfterClear === null &&
-      !longAfterClear.gallery &&
-      !longAfterClear.deck,
-    `set ${furSet.kind} → ${furAfterSet ?? "null"}; long: gallery ${longWhileSet.gallery}, deck ${longWhileSet.deck}; short: gallery ${shortWhileSet.gallery}, deck ${shortWhileSet.deck}; cleared ${furCleared.kind} → ${furAfterClear === undefined ? "missing" : (furAfterClear ?? "null")}; long after clear: gallery ${longAfterClear.gallery}, deck ${longAfterClear.deck}`,
+      furAfterClear === null,
+    `set ${furSet.kind} → ${furAfterSet ?? "null"}; cleared ${furCleared.kind} → ${furAfterClear === undefined ? "missing" : (furAfterClear ?? "null")}`,
   );
 
   // 40. the shelter page's list (DR1 S5, DR1-D4): `gallery.list` scoped to one
@@ -2203,14 +2167,13 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `set ${cardSet.kind} → ${JSON.stringify(cardAfterSet)}; cleared ${cardClear.kind} → ${JSON.stringify(cardAfterClear)}`,
   );
 
-  // 44. The temperament and colour filters (pet card PR 1b), over this
-  // driver. The temperament clause is the first array overlap in an
-  // adopter-facing query, `temperament_traits && ARRAY[$n, $m]::text[]`, one
-  // scalar parameter per trait: which binding neon-http accepts is exactly
-  // what a local run can't show. A city, a verified shelter and four
-  // published animals of this run's own, so every list is scoped to that
-  // city: two with presets, one with nothing recorded, one with only the
-  // shelter's own words.
+  // 44. Corpus for the sex filter check below (44b). Originally built for
+  // the temperament and colour filters too (pet card PR 1b) - removed with
+  // those filters by the gallery filter restructure - but the same four
+  // animals (two with temperament/colour presets, one with nothing
+  // recorded, one with only the shelter's own words) still exercise the sex
+  // filter's "unknown" case meaningfully, so the corpus stays as built. A
+  // city, a verified shelter and four published animals of this run's own.
   const pcCity = makeCity({ id: randomUUID() as never });
   await cityRepo(db).insert(pcCity);
   const pcBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} T` });
@@ -2285,41 +2248,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   };
   const bothAre = (found: { gallery: string; deck: string }, expected: string) =>
     found.gallery === expected && found.deck === expected;
-
-  const oneMatching = await pcFound({
-    temperaments: { kind: "oneOf", values: ["good_with_cats", "energetic"] },
-  });
-  const eitherTrait = await pcFound({
-    temperaments: { kind: "oneOf", values: ["shy", "playful"] },
-  });
-  const noTrait = await pcFound({ temperaments: { kind: "oneOf", values: ["energetic"] } });
-  const traitRelaxation = await galleryRepo(db).relaxationCounts({
-    filters: {
-      ...NO_FILTERS,
-      cities: { kind: "oneOf", values: [pcCity.id] },
-      temperaments: { kind: "oneOf", values: ["energetic"] },
-    },
-    now: NOW,
-  });
-  const withoutTrait = traitRelaxation.relaxations.find((r) => r.dimension === "temperaments");
-  check(
-    "temperament filter (&& over ARRAY[...] of scalar parameters) in the gallery, the deck and the relaxation counts",
-    bothAre(oneMatching, "shyCat") &&
-      bothAre(eitherTrait, "playful,shyCat") &&
-      bothAre(noTrait, "") &&
-      traitRelaxation.current === 0 &&
-      withoutTrait?.additional === 4,
-    `good_with_cats|energetic: ${JSON.stringify(oneMatching)}; shy|playful: ${JSON.stringify(eitherTrait)}; energetic: ${JSON.stringify(noTrait)}; relaxation current ${traitRelaxation.current}, without temperament +${withoutTrait?.additional ?? "none"}`,
-  );
-
-  const creamOrTabby = await pcFound({ colours: { kind: "oneOf", values: ["cream", "tabby"] } });
-  const black = await pcFound({ colours: { kind: "oneOf", values: ["black"] } });
-  const white = await pcFound({ colours: { kind: "oneOf", values: ["white"] } });
-  check(
-    "colour filter (IN over coat_colour) in the gallery and the deck, a custom or unrecorded colour never matching",
-    bothAre(creamOrTabby, "shyCat") && bothAre(black, "playful") && bothAre(white, ""),
-    `cream|tabby: ${JSON.stringify(creamOrTabby)}; black: ${JSON.stringify(black)}; white: ${JSON.stringify(white)}`,
-  );
 
   // 44b. The sex filter (eighth dimension), over the same corpus. "unknown"
   // is a real, explicit value here - not an absence - so it is a normal `IN`
