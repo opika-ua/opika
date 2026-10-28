@@ -13,6 +13,8 @@ import {
   type ShelterPageLoad,
 } from "../../../features/shelters/shelter-page-load";
 import { parseShelterPageQuery } from "../../../features/shelters/shelter-url";
+import { JsonLd } from "../../../seo/json-ld";
+import { shelterBreadcrumbs } from "../../../seo/json-ld-builders";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
 import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
 
@@ -53,7 +55,12 @@ export function renderShelterPage(load: ShelterPageLoad, kabinetSignedIn: boolea
     case "rate_limited":
       return <RateLimitedScreen />;
     case "shelter":
-      return <ShelterPageScreen {...load.view} kabinetSignedIn={kabinetSignedIn} />;
+      return (
+        <>
+          <JsonLd data={shelterBreadcrumbs(uk.feed.galleryTitle, load.view.shelter)} />
+          <ShelterPageScreen {...load.view} kabinetSignedIn={kabinetSignedIn} />
+        </>
+      );
   }
 }
 
