@@ -17,7 +17,10 @@ import {
 } from "../../features/gallery/filter-url";
 import { GalleryCard } from "../../features/gallery/GalleryCard";
 import { GalleryControlBlock } from "../../features/gallery/GalleryControlBlock";
-import { GalleryFilterDropdowns } from "../../features/gallery/GalleryFilterDropdowns";
+import {
+  GalleryFilterDropdowns,
+  SpeciesToggle,
+} from "../../features/gallery/GalleryFilterDropdowns";
 import { GalleryPageNav } from "../../features/gallery/GalleryPageNav";
 import { GallerySortToggle } from "../../features/gallery/GallerySortToggle";
 import { railResultCount } from "../../features/gallery/gallery-copy";
@@ -227,35 +230,21 @@ export async function renderGallery(
         {/* 52px between the control block, the grid and the pagination - the frame's own number. */}
         <div className="flex flex-col gap-13">
           {/*
-            «Фільтр» toggles row 2 (the dropdowns + sort) open/closed -
-            designer clarification mid-build, not the generic hand-off's
-            "opens the sheet" instruction. See `GalleryControlBlock.tsx`'s
-            own comment. Desktop only for now (no mobile Figma section yet):
-            `FilterSheet` - the sole `trailing` content now the deck entry
-            link is gone - keeps its own pre-existing `desktop:hidden`
-            trigger for mobile/tablet, unchanged by this PR.
+            «Фільтр» toggles row 2 (the dropdowns + sort) open/closed at
+            desktop - see `GalleryControlBlock.tsx`'s own comment for that
+            and for the option-B mobile row (species full width, then
+            `FilterSheet`'s trigger + sort) below 1024px.
           */}
           <GalleryControlBlock
-            // `min-w-0 break-words` on the h1 below: the heading's text
-            // changed from "Каталог" (one word, 288px, never wraps) to
-            // "Шукають дім" (Oleksii, mid-build, owner-approved final
-            // copy - two words, 457px on one line, 333px for "Шукають"
-            // alone - the longer word is now WIDER than the old
-            // single-word heading ever was). Row 1 is a flex row sharing
-            // space with the filter trigger, and a flex item's default
-            // `min-width: auto` floors it at its own min-content size
-            // (here, the longer word, since text can only wrap at spaces
-            // by default) - the exact `min-w-0` class of bug this file's
-            // own mobile-toolbar comment already documents finding once
-            // before. Below ~600px that floor (333px) exceeds the room
-            // actually left beside the trigger, which would overflow the
-            // page horizontally rather than wrap. `min-w-0` lets the flex
-            // item shrink past that floor; `break-words` guarantees even
-            // a single word breaks rather than visually overflowing in
-            // the rare case the full available width is narrower than it
-            // - together, "stays on one line from 1024px up and wraps
-            // cleanly below that," verified by computed-style measurement
-            // at the real breakpoints, not by eye.
+            // `min-w-0 break-words` on the h1 below: "Шукають дім" (two
+            // words, 333px for "Шукають" alone) is a flex item in row 1,
+            // which still shares that row with the desktop-only «Фільтр»
+            // toggle button at >=1024px (plenty of room there) - a flex
+            // item's default `min-width: auto` would otherwise floor it at
+            // its own min-content size. Below 1024px `trailing` has moved
+            // out of row 1 into the new mobile row below, so the title has
+            // the row to itself there; `min-w-0`/`break-words` stay as a
+            // defensive floor either way.
             title={
               <h1 className="min-w-0 break-words font-brand-display text-[48px] leading-none text-brand-ink">
                 {uk.feed.galleryTitle}
@@ -278,6 +267,22 @@ export async function renderGallery(
                 resultCount={page.totalMatching}
                 shelterCount={page.totalShelters}
               />
+            }
+            mobileSpecies={
+              <ReplaceNav>
+                <SpeciesToggle
+                  filters={filters}
+                  sort={sort}
+                  citySlugs={citySlugs}
+                  className="w-full"
+                  testIdSuffix="-mobile"
+                />
+              </ReplaceNav>
+            }
+            mobileSort={
+              <ReplaceNav>
+                <GallerySortToggle filters={filters} sort={sort} citySlugs={citySlugs} />
+              </ReplaceNav>
             }
           >
             <ReplaceNav>
