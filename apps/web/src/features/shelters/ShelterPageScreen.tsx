@@ -157,7 +157,21 @@ export function ShelterPageScreen({
             content in a 390px viewport), not merely an ugly wrap.
           */}
           <div className="flex min-w-0 flex-1 flex-col items-start gap-4 tablet:flex-row tablet:gap-6">
-            <ShelterLogoAvatar logo={shelter.logo} displayName={shelter.displayName} size={160} />
+            {/*
+              Responsive audit Phase 2 (2026-10-28): the 160px circle, full
+              desktop size, measured ~44% of a 360px viewport's width -
+              disproportionate next to the h1 and the fact pills, which both
+              already scale down below `tablet:`. `size={160}` stays (keeps
+              the `<Image>` sharp on a high-DPI phone); `className` shrinks
+              only the rendered box below `tablet:`, the same breakpoint the
+              surrounding flex layout already switches on.
+            */}
+            <ShelterLogoAvatar
+              logo={shelter.logo}
+              displayName={shelter.displayName}
+              size={160}
+              className="size-24 tablet:size-40"
+            />
             <div className="flex min-w-0 flex-col gap-3 tablet:pt-2">
               <h1 className="min-w-0 break-words font-brand-display text-[36px] leading-none text-brand-ink tablet:text-[48px]">
                 {shelter.displayName}
@@ -196,7 +210,12 @@ export function ShelterPageScreen({
                 target="_blank"
                 rel="noopener"
                 data-testid="donate-link"
-                className={`${FACT_PILL} hover:border-brand-accent hover:text-brand-accent ${FOCUS}`}
+                // `min-h-12`: the only one of the three fact pills that's a real
+                // control (the other two are plain `<span>`s) - 48px floor per
+                // `docs/standing-constraints.md`, on top of `FACT_PILL`'s own
+                // smaller `h-10` visual height for the secondary-facts row
+                // (CSS `min-height` wins over a smaller `height` when larger).
+                className={`${FACT_PILL} min-h-12 hover:border-brand-accent hover:text-brand-accent ${FOCUS}`}
               >
                 <span>{uk.detail.donateShelter}</span>
                 <span className="text-brand-ink-2">· {donationHost(shelter.donation)} ↗</span>
