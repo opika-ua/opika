@@ -15,7 +15,7 @@ const CITY_SLUGS = new Map([
 ]);
 
 describe("GalleryFilterDropdowns", () => {
-  it("renders exactly seven dropdown triggers – city, age, size, species, fur, temperament, colour, never a 'sex' one", () => {
+  it("renders exactly eight dropdown triggers – city, age, size, species, fur, temperament, colour, sex", () => {
     render(
       <GalleryFilterDropdowns
         filters={NO_FILTERS}
@@ -24,8 +24,8 @@ describe("GalleryFilterDropdowns", () => {
         citySlugs={CITY_SLUGS}
       />,
     );
-    expect(screen.getAllByRole("button")).toHaveLength(7);
-    expect(screen.queryByLabelText(/Стать/)).toBeNull();
+    expect(screen.getAllByRole("button")).toHaveLength(8);
+    expect(screen.getByLabelText(`${uk.filters.sex}: ${uk.filters.sex}`)).toBeTruthy();
   });
 
   it("shows the group name as a muted placeholder when nothing is selected", () => {
@@ -297,6 +297,39 @@ describe("GalleryFilterDropdowns", () => {
     expect(screen.getByRole("link", { name: "Чорно-біле" }).getAttribute("href")).toBe(
       "/tvaryny?zabarvlennia=black_white",
     );
+  });
+
+  it("the sex dropdown lists male, female and unrecorded, and «Дівчинка» writes stat=female", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={NO_FILTERS}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText(`${uk.filters.sex}: ${uk.filters.sex}`));
+    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual([
+      "Хлопчик",
+      "Дівчинка",
+      "Не записано",
+    ]);
+    expect(screen.getByRole("link", { name: "Дівчинка" }).getAttribute("href")).toBe(
+      "/tvaryny?stat=female",
+    );
+  });
+
+  it("an active sex selection shows its value on the trigger and clears with its own ✕", () => {
+    render(
+      <GalleryFilterDropdowns
+        filters={{ ...NO_FILTERS, sexes: { kind: "oneOf", values: ["male"] } }}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Стать: Хлопчик" }).textContent).toBe("Хлопчик");
+    expect(screen.getByLabelText("Скинути Стать").getAttribute("href")).toBe("/tvaryny");
   });
 
   it("an active temperament or colour shows its values on the trigger and marks them aria-current", () => {

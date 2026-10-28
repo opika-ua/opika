@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { AGE_BUCKETS, AgeBucketSchema } from "../animals/age";
-import { ANIMAL_SPECIES, AnimalSpeciesSchema } from "../animals/animal";
+import {
+  ANIMAL_SEXES,
+  ANIMAL_SPECIES,
+  AnimalSexSchema,
+  AnimalSpeciesSchema,
+} from "../animals/animal";
 import { COAT_LENGTHS, CoatLengthSchema } from "../animals/coat";
 import { COAT_COLOURS, CoatColourSchema } from "../animals/colour";
 import { SIZE_BUCKETS, SizeBucketSchema } from "../animals/size";
@@ -62,6 +67,15 @@ export const FeedFiltersSchema = z.object({
    */
   temperaments: filterSelectionSchema(TemperamentTraitSchema).default({ kind: "any" }),
   colours: filterSelectionSchema(CoatColourSchema).default({ kind: "any" }),
+  /**
+   * Defaulted for the same backward-compatibility reason as the dimensions
+   * above: a filter set saved before this one existed still parses, as "no
+   * sex filter". Unlike `coatLengths`/`temperaments`/`colours`, `sex` is
+   * never null on `Animal` - "unknown" is a real, explicit value (`ANIMAL_SEXES`) -
+   * so this collapses to "any" the same way `species`/`sizes`/`ages` do, not
+   * the null-admitting way the three above do.
+   */
+  sexes: filterSelectionSchema(AnimalSexSchema).default({ kind: "any" }),
 });
 export type FeedFilters = z.infer<typeof FeedFiltersSchema>;
 
@@ -73,6 +87,7 @@ export const NO_FILTERS: FeedFilters = {
   coatLengths: { kind: "any" },
   temperaments: { kind: "any" },
   colours: { kind: "any" },
+  sexes: { kind: "any" },
 };
 
 /**
@@ -80,9 +95,9 @@ export const NO_FILTERS: FeedFilters = {
  * hand-written string literals.
  *
  * `FeedFiltersSchema.keyof()` derives this from the schema itself, so adding a
- * dimension (fur was the fifth, temperament and colour the sixth and seventh)
- * cannot leave a relaxation suggestion, a URL parameter or a count query
- * silently covering only the earlier ones.
+ * dimension (fur was the fifth, temperament and colour the sixth and seventh,
+ * sex the eighth) cannot leave a relaxation suggestion, a URL parameter or a
+ * count query silently covering only the earlier ones.
  */
 export const FeedFilterDimensionSchema = FeedFiltersSchema.keyof();
 export type FeedFilterDimension = z.infer<typeof FeedFilterDimensionSchema>;
@@ -168,6 +183,10 @@ const canonicalizeSelection = <T extends string>(
  * already did. A person who ticks every option is asking for everything the
  * filter offers, not for "only animals whose shelter described them", and two
  * encodings of that one request would be the cursor mismatch above.
+ *
+ * Sex has no such gap - `ANIMAL_SEXES` is exhaustive over a field that is
+ * never null - so it collapses on the closed universe exactly as
+ * species/sizes/ages do above.
  */
 export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
   cities: canonicalizeSelection(filters.cities, null),
@@ -177,6 +196,7 @@ export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
   coatLengths: canonicalizeSelection(filters.coatLengths, COAT_LENGTHS),
   temperaments: canonicalizeSelection(filters.temperaments, TEMPERAMENT_TRAITS),
   colours: canonicalizeSelection(filters.colours, COAT_COLOURS),
+  sexes: canonicalizeSelection(filters.sexes, ANIMAL_SEXES),
 });
 
 /**
@@ -205,5 +225,6 @@ export const filtersFingerprint = (filters: FeedFilters): string => {
     encode(canonical.coatLengths),
     encode(canonical.temperaments),
     encode(canonical.colours),
+    encode(canonical.sexes),
   ].join("|");
 };

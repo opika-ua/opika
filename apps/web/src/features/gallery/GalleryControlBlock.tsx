@@ -33,7 +33,7 @@ export function GalleryControlBlock({
   title: ReactNode;
   /** `FilterSheet`'s own trigger (at narrow widths - it's `desktop:hidden`) - rendered before the toggle button. */
   trailing: ReactNode;
-  /** Row 2's content – the seven dropdowns and the sort toggle. */
+  /** Row 2's content – the eight dropdowns and the sort toggle. */
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(true);
@@ -144,8 +144,9 @@ export function GalleryControlBlock({
       >
         <div className={expanded ? "overflow-visible" : "overflow-hidden"}>
           {/*
-            No `flex-wrap` here (pet card PR 1b): seven dropdowns no longer fit
-            one line at any desktop width, and a wrapping row would push the
+            No `flex-wrap` here (pet card PR 1b): seven dropdowns (eight since
+            the sex-filter feature) no longer fit one line at any desktop
+            width, and a wrapping row would push the
             sort switch onto a line of its own. The dropdowns wrap inside their
             own container instead (`GalleryFilterDropdowns`, `min-w-0 flex-1`),
             and `items-start` keeps the switch level with their first line

@@ -202,6 +202,26 @@ describe("FilterSheet", () => {
     expect((sheet.getByLabelText("Короткошерсті") as HTMLInputElement).checked).toBe(true);
     expect((sheet.getByLabelText("Довгошерсті") as HTMLInputElement).checked).toBe(false);
   });
+
+  it("has a «Стать» group; ticking «Дівчинка» submits `stat=female`", () => {
+    const { router } = renderSheet();
+    const sheet = within(screen.getByTestId("filter-sheet"));
+    const group = within(sheet.getByRole("group", { name: "Стать", hidden: true }));
+    expect(group.getAllByRole("checkbox", { hidden: true })).toHaveLength(3);
+
+    fireEvent.click(group.getByLabelText("Дівчинка"));
+    fireEvent.click(sheet.getByRole("button", { name: /Показати/, hidden: true }));
+
+    const [href] = router.replace.mock.calls[0] as [string];
+    expect(new URL(href, "http://x").searchParams.get("stat")).toBe("female");
+  });
+
+  it("shows the applied sex selection as checked", () => {
+    renderSheet({ ...NO_FILTERS, sexes: { kind: "oneOf", values: ["unknown"] } });
+    const sheet = within(screen.getByTestId("filter-sheet"));
+    expect((sheet.getByLabelText("Не записано") as HTMLInputElement).checked).toBe(true);
+    expect((sheet.getByLabelText("Хлопчик") as HTMLInputElement).checked).toBe(false);
+  });
   /**
    * Pet card PR 1b: the «Характер» and «Забарвлення» groups. A native GET
    * submission of two ticked boxes repeats the param; the sheet reads that

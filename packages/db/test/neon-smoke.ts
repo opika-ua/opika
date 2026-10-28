@@ -2224,7 +2224,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     },
     by,
   );
-  const pcAnimal = (fields: Pick<Animal, "temperament" | "colour">) =>
+  const pcAnimal = (fields: Pick<Animal, "temperament" | "colour" | "sex">) =>
     makeAnimal({ id: randomUUID() as never, shelterId: pcBase.id, ...fields });
   const pcShyCat = pcAnimal({
     temperament: [
@@ -2232,15 +2232,18 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       { kind: "preset", trait: "good_with_cats" },
     ],
     colour: { kind: "preset", colour: "cream" },
+    sex: "male",
   });
   const pcPlayful = pcAnimal({
     temperament: [{ kind: "preset", trait: "playful" }],
     colour: { kind: "preset", colour: "black" },
+    sex: "female",
   });
-  const pcBlank = pcAnimal({ temperament: [], colour: null });
+  const pcBlank = pcAnimal({ temperament: [], colour: null, sex: "unknown" });
   const pcOwnWords = pcAnimal({
     temperament: [{ kind: "custom", text: { uk: "Любить сніг", en: null } }],
     colour: { kind: "custom", text: { uk: "Димчасте", en: null } },
+    sex: "unknown",
   });
   for (const animal of [pcShyCat, pcPlayful, pcBlank, pcOwnWords]) {
     await animalRepo(db).insert(animal, pcCity.id);
@@ -2316,6 +2319,20 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     "colour filter (IN over coat_colour) in the gallery and the deck, a custom or unrecorded colour never matching",
     bothAre(creamOrTabby, "shyCat") && bothAre(black, "playful") && bothAre(white, ""),
     `cream|tabby: ${JSON.stringify(creamOrTabby)}; black: ${JSON.stringify(black)}; white: ${JSON.stringify(white)}`,
+  );
+
+  // 44b. The sex filter (eighth dimension), over the same corpus. "unknown"
+  // is a real, explicit value here - not an absence - so it is a normal `IN`
+  // member, unlike a custom or unrecorded colour above.
+  const males = await pcFound({ sexes: { kind: "oneOf", values: ["male"] } });
+  const females = await pcFound({ sexes: { kind: "oneOf", values: ["female"] } });
+  const unknownSex = await pcFound({ sexes: { kind: "oneOf", values: ["unknown"] } });
+  check(
+    "sex filter (IN over sex) in the gallery and the deck, including the explicit 'unknown' value",
+    bothAre(males, "shyCat") &&
+      bothAre(females, "playful") &&
+      bothAre(unknownSex, "blank,ownWords"),
+    `male: ${JSON.stringify(males)}; female: ${JSON.stringify(females)}; unknown: ${JSON.stringify(unknownSex)}`,
   );
 
   // Pet card PR 2: animals.neighbours. Two of the three cards share one

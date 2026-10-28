@@ -53,6 +53,28 @@ describe("NoMatch: the fur suggestion", () => {
 });
 
 /**
+ * Sex-filter feature: unlike fur/temperament/colour, sex has no own sentence
+ * - it is a closed universe over a never-null field, so the generic
+ * «Прибрати «…»» template (already used for species/size/age) covers it.
+ */
+describe("NoMatch: the sex suggestion", () => {
+  it("uses the generic 'Прибрати' template, not a sentence of its own", () => {
+    render(
+      <NoMatch
+        filters={{ ...NO_FILTERS, sizes: { kind: "oneOf", values: ["small"] } }}
+        sort="freshest"
+        citySlugs={new Map()}
+        relaxations={[{ dimension: "sexes", additional: 3 }]}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Прибрати «стать» (+3 тварини)" })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Прибрати «стать» (+3 тварини)" }).getAttribute("href"),
+    ).toBe("/tvaryny?rozmir=small");
+  });
+});
+
+/**
  * Pet card PR 1b: temperament and colour take fur's pattern, a sentence of
  * their own. Expected text is his approved copy (inbox PC1b-C1), typed out
  * here.

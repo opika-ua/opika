@@ -35,6 +35,11 @@ const DIMENSION_LABEL: Record<Exclude<FeedFilterDimension, OwnSentenceDimension>
   species: uk.filters.species.toLowerCase(),
   sizes: uk.filters.size.toLowerCase(),
   ages: uk.filters.age.toLowerCase(),
+  // Sex (sex-filter feature) is a closed universe like species/size/age, not
+  // the null-admitting shape fur/temperament/colour have above, so it needs
+  // no own sentence - the generic «Прибрати «{dimension}»» template is
+  // exactly as true for it as it already is for species.
+  sexes: uk.filters.sex.toLowerCase(),
 };
 
 function suggestionLabel({ dimension, additional }: GalleryRelaxation): string {

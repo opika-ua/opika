@@ -15,8 +15,9 @@ import { shelters } from "../schema/shelters";
  * Two repositories now build it - the deck's keyset feed and the gallery's
  * numbered pages - and they must agree exactly, or a filter that hides an
  * animal from one surface leaves it visible on the other. A new
- * `FeedFilters` dimension (temperament and colour were the sixth and seventh)
- * is a one-site edit here rather than a two-site edit somebody does once.
+ * `FeedFilters` dimension (temperament and colour were the sixth and
+ * seventh, sex the eighth) is a one-site edit here rather than a two-site
+ * edit somebody does once.
  *
  * Split into the two halves rather than only the whole, because
  * `gallery.relaxationCounts` needs them separately: its base scan is the
@@ -71,6 +72,14 @@ export function buildFilterPredicate(filters: FeedFilters, now: Date): SQL[] {
   }
   if (filters.species.kind === "oneOf") {
     conditions.push(inArray(animals.species, [...filters.species.values]));
+  }
+  // `sex` is NOT NULL - "unknown" is a real, explicit value, not an absence -
+  // so this `IN` has no "unrecorded" asymmetry to call out, unlike fur,
+  // temperament and colour below. No dedicated index: the same reasoning as
+  // `coatLength`'s own comment in `animals.ts` (a low-cardinality equality
+  // applied to rows the feed and wait-anchor indexes already narrow).
+  if (filters.sexes.kind === "oneOf") {
+    conditions.push(inArray(animals.sex, [...filters.sexes.values]));
   }
   if (filters.sizes.kind === "oneOf") {
     conditions.push(inArray(animals.size, [...filters.sizes.values]));

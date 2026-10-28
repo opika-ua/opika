@@ -53,6 +53,7 @@ const draft = (overrides: Partial<KabinetAnimalView> = {}): KabinetAnimalView =>
   }) as KabinetAnimalView;
 
 const complete = {
+  sex: "male",
   size: "medium",
   age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date("2026-09-01T00:00:00Z") },
   description: { uk: "Спокійна, любить гуляти.", en: null },
@@ -220,7 +221,7 @@ const formStatus = () => {
 };
 
 const SAVE_DRAFT = "Зберегти чернетку";
-const MISSING_ALL = "Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.";
+const MISSING_ALL = "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.";
 const PUBLISH_DONE = "Опубліковано. Тепер картку бачать ті, хто шукає тварину.";
 // His final text for a shelter that hasn't passed verification (round 2b, answer 3).
 const PUBLISHED_NOT_SHOWN =

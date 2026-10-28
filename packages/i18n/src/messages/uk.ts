@@ -225,6 +225,19 @@ export const uk = {
     temperament: "Характер",
     colour: "Забарвлення",
     /**
+     * The eighth dimension - all 4 strings duplicate already-approved words
+     * (SF-Q2, `copy-status.test.ts`): `sex` is his K3 field label
+     * `who.sexLabel`; `sexMale`/`sexFemale` duplicate `cardMeta.sexMale/
+     * sexFemale`; `sexUnknown` duplicates the standing rule's «Не записано».
+     * No dedicated no-match sentence needed - sex has no "unrecorded" case
+     * the way fur/temperament/colour do, so `NoMatch.tsx`'s generic
+     * «Прибрати «{dimension}»» template covers it.
+     */
+    sex: "Стать",
+    sexMale: "Хлопчик",
+    sexFemale: "Дівчинка",
+    sexUnknown: "Не записано",
+    /**
      * Template: "Знайдено {count} {animalWord}. Притулків у цьому місті:
      * {shelterCount}." `{animalWord}` is pre-pluralized by the caller
      * (`pluralizeUk(count, uk.filters.animalWordAccusative)`) - the template
@@ -1897,6 +1910,10 @@ export const uk = {
         button: "Опублікувати",
         missing: "Щоб опублікувати, ще потрібно: {list}.",
         gap: {
+          // Sex-filter feature, reversing D2: the same word as `filters.sex`
+          // («Стать»), lowercase, in this list's own register (every other
+          // entry here is a bare lowercase noun).
+          sex: "стать",
           size: "розмір",
           age: "вік",
           description: "опис",

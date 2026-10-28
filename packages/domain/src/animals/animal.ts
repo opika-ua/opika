@@ -35,12 +35,25 @@ export const AnimalSexSchema = z.enum(["male", "female", "unknown"]);
 export type AnimalSex = z.infer<typeof AnimalSexSchema>;
 
 /**
+ * A closed universe, like `ANIMAL_SPECIES` - "unknown" is a real, stored
+ * value (the never-null default), not an absence the way `coatLength`'s
+ * `null` is. The sex filter can therefore collapse "every option ticked" to
+ * "any" the same way species/size/age do (`canonicalizeFilters`), rather
+ * than following fur/temperament/colour's null-admitting asymmetry.
+ */
+export const ANIMAL_SEXES = ["male", "female", "unknown"] as const satisfies readonly AnimalSex[];
+
+/**
  * What every animal has from the moment it exists (K-Q5, Oleksii: "name +
  * species to create; everything else and ≥1 photo to publish").
  *
  * `sex` is never missing: a new animal starts at "unknown" («Не записано»),
  * the way its medical facts start unknown (D2, Oleksii: "sex defaults to
  * "unknown" («Не записано»). Sex stays NOT NULL and is not a publish gap.").
+ * The default stands - reversed is only whether that default can stay
+ * through a *new* publish: the sex-filter feature's SF-Q1 makes "unknown"
+ * a publish gap (`listing-transition.ts`'s `PUBLISH_GAP_KINDS`), so D2's
+ * NOT NULL half is unchanged and its "not a publish gap" half is not.
  *
  * `lastUpdatedAt` is edit time: when anything on the record last changed. It
  * is not what freshness measures - that is `listing.confirmedAt` (H2-3), when

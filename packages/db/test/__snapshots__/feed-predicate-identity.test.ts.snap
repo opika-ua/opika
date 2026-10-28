@@ -27,6 +27,19 @@ exports[`feed.list generated SQL is unchanged by the shared-predicate extraction
 }
 `;
 
+exports[`feed.list generated SQL is unchanged by the shared-predicate extraction > a sex filter: one IN over sex 1`] = `
+{
+  "parameters": [
+    "published",
+    "reserved",
+    "verified",
+    "male",
+    "21",
+  ],
+  "query": "select "id", "shelter_id", "name", "species", "sex", "size", "coat_length", "age", "age_anchor_at", "wait_anchor_at", "last_confirmed_at", "first_published_at", "ever_served_at", "description_uk", "description_en_text", "description_en_provenance", "photos", "vaccination", "spay_neuter", "document_readiness", "temperament_traits", "temperament_custom_uk", "temperament_custom_en_text", "temperament_custom_en_provenance", "coat_colour", "coat_colour_custom_uk", "coat_colour_custom_en_text", "coat_colour_custom_en_provenance", "medical_notes_uk", "medical_notes_en_text", "medical_notes_en_provenance", "listing", "listing_kind", "public_location", "city_id", "created_at", "last_updated_at", "version" from "animals" where ("animals"."listing_kind" in ($1, $2) and "animals"."shelter_id" IN ( SELECT "shelters"."id" FROM "shelters" WHERE "shelters"."verification_status" in ($3) ) and "animals"."sex" in ($4)) order by "animals"."last_confirmed_at" desc, "animals"."id" limit $5",
+}
+`;
+
 exports[`feed.list generated SQL is unchanged by the shared-predicate extraction > a single age bucket, which takes the un-OR'd branch 1`] = `
 {
   "parameters": [

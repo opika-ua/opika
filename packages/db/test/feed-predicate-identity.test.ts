@@ -101,9 +101,10 @@ const ALL_FILTERS: FeedFilters = {
   ages: { kind: "oneOf", values: ["baby", "young"] as [AgeBucket, AgeBucket] },
   coatLengths: { kind: "any" },
   // "Every dimension" means every dimension that existed when these snapshots
-  // were recorded; fur, temperament and colour have cases of their own below.
+  // were recorded; fur, temperament, colour and sex have cases of their own below.
   temperaments: { kind: "any" },
   colours: { kind: "any" },
+  sexes: { kind: "any" },
 };
 
 describe("feed.list generated SQL is unchanged by the shared-predicate extraction", () => {
@@ -188,6 +189,19 @@ describe("feed.list generated SQL is unchanged by the shared-predicate extractio
     expect(
       await sqlFor({
         filters: { ...NO_FILTERS, colours: { kind: "oneOf", values: ["black", "tabby"] } },
+        cursor: null,
+        adopterId: null,
+      }),
+    ).toMatchSnapshot();
+  });
+
+  // The eighth dimension. A plain IN like species/size, not the null-admitting
+  // shape fur/temperament/colour have: `sex` is NOT NULL, so there is no
+  // "unrecorded" case to call out.
+  it("a sex filter: one IN over sex", async () => {
+    expect(
+      await sqlFor({
+        filters: { ...NO_FILTERS, sexes: { kind: "oneOf", values: ["male"] } },
         cursor: null,
         adopterId: null,
       }),

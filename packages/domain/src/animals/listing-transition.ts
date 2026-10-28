@@ -244,10 +244,15 @@ export const transitionListing = (
 /**
  * What can keep a draft from being published (K-Q5: "everything else and ≥1
  * photo to publish"), in form order, so a list of gaps reads in the order the
- * shelter fills them in. No `sex`: it starts «Не записано» and that is a
- * complete answer (D2).
+ * shelter fills them in.
+ *
+ * `sex` joined this list reversing D2 (SF-Q1): a *new* draft can no longer
+ * reach published with sex still «Не записано». Only gates a *new* publish -
+ * `shelter.animals.update` and onboarding still accept «Не записано» with no
+ * check of their own on an already-listed or onboarded animal, a real gap
+ * tracked as a follow-up (SF-F1), not fixed by this list.
  */
-export const PUBLISH_GAP_KINDS = ["size", "age", "description", "photo"] as const;
+export const PUBLISH_GAP_KINDS = ["sex", "size", "age", "description", "photo"] as const;
 
 /** One thing that keeps a draft from being published. */
 export const PublishGapSchema = z.object({ kind: z.enum(PUBLISH_GAP_KINDS) });
@@ -271,11 +276,18 @@ export type PublishReadiness =
  * this particular animal can make one.
  */
 export const publishReadinessOf = (draft: DraftAnimal): PublishReadiness => {
-  const { size, age, description } = draft;
-  if (size !== null && age !== null && description !== null && draft.photos.length > 0) {
+  const { size, age, description, sex } = draft;
+  if (
+    sex !== "unknown" &&
+    size !== null &&
+    age !== null &&
+    description !== null &&
+    draft.photos.length > 0
+  ) {
     return { kind: "ready", facts: { size, age, description } };
   }
   const missing: Record<PublishGap["kind"], boolean> = {
+    sex: sex === "unknown",
     size: size === null,
     age: age === null,
     description: description === null,

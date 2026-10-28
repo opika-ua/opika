@@ -2,6 +2,7 @@
 
 import type {
   AgeBucket,
+  AnimalSex,
   AnimalSpecies,
   CityId,
   CoatLength,
@@ -11,6 +12,7 @@ import type {
 } from "@opika/domain";
 import {
   AGE_BUCKETS,
+  ANIMAL_SEXES,
   ANIMAL_SPECIES,
   COAT_COLOURS,
   COAT_LENGTHS,
@@ -30,6 +32,7 @@ import {
   withToggledCity,
   withToggledCoat,
   withToggledColour,
+  withToggledSex,
   withToggledSize,
   withToggledSpecies,
   withToggledTemperament,
@@ -61,6 +64,11 @@ const AGE_LABEL: Record<AgeBucket, string> = {
 const COAT_LABEL: Record<CoatLength, string> = {
   short: uk.filters.coatShort,
   long: uk.filters.coatLong,
+};
+const SEX_LABEL: Record<AnimalSex, string> = {
+  male: uk.filters.sexMale,
+  female: uk.filters.sexFemale,
+  unknown: uk.filters.sexUnknown,
 };
 
 /**
@@ -238,20 +246,22 @@ function DropdownOption({
 
 /**
  * The gallery-v3 control block's real dropdowns – city, age, size, species,
- * fur, then temperament and colour (below). Figma `58:1617` shows four,
- * city/age/size/«Стать»; species and fur are added here per Oleksii's Tier 1
- * review decision GV3-Q1 (b), 2026-10-26, closing the gap the Tier 1 reviewer
- * found: without them, `desktop:` had no control at all for two of
- * `FeedFilters`' then five dimensions – `FilterSheet`'s own species/fur
- * checkboxes exist but that whole sheet is `desktop:hidden`.
+ * fur, temperament, colour, then sex (below, the eighth and last). Figma
+ * `58:1617` shows four, city/age/size/«Стать»; species and fur are added
+ * here per Oleksii's Tier 1 review decision GV3-Q1 (b), 2026-10-26, closing
+ * the gap the Tier 1 reviewer found: without them, `desktop:` had no
+ * control at all for two of `FeedFilters`' then five dimensions –
+ * `FilterSheet`'s own species/fur checkboxes exist but that whole sheet is
+ * `desktop:hidden`.
  *
- * **Still no «Стать» (sex) dropdown, unchanged reasoning:** `FeedFilters`
- * (`packages/domain`) has no sex dimension at all - no param, no toggle
- * helper, no DB predicate. Adding one is a schema/contract/domain/db
- * change, not a skin, and `docs/standing-constraints.md`'s STOP list names
- * exactly this case ("widening a schema for a temporary mode"). Shipping a
- * dropdown wired to nothing would be a control that claims to filter and
- * doesn't; a sex filter, if wanted, is its own follow-up phase.
+ * **«Стать» (sex) joined as the eighth dimension (sex-filter feature),
+ * reversing the earlier "no schema change for a dropdown" reasoning that
+ * used to sit here.** `FeedFilters` gained `sexes` (`feed-filters.ts`),
+ * `feed-predicate.ts` gained the `IN` clause, and this dropdown is its one
+ * caller beside the sheet - wired end to end, not a control that claims to
+ * filter and doesn't. Options are «Хлопчик»/«Дівчинка»/«Не записано»
+ * (`ANIMAL_SEXES`, a closed universe like species/size/age - "unknown" is a
+ * real, explicit value, not an absence).
  *
  * Species and fur mirror `FilterSheet.tsx`'s own `SPECIES_LABEL`/
  * `COAT_LABEL` maps (duplicated, not imported - same risk `FilterRail.tsx`,
@@ -337,6 +347,13 @@ export function GalleryFilterDropdowns({
         .map(colourFilterLabel)
         .join(", ")
     : uk.filters.colour;
+
+  const sexActive = filters.sexes.kind !== "any";
+  const sexLabel = sexActive
+    ? ANIMAL_SEXES.filter((sex) => isExplicitlySelected(filters.sexes, sex))
+        .map((sex) => SEX_LABEL[sex])
+        .join(", ")
+    : uk.filters.sex;
 
   return (
     <div
@@ -470,6 +487,23 @@ export function GalleryFilterDropdowns({
             href={galleryHref(withToggledColour(filters, colour), sort, citySlugs)}
           >
             {colourFilterLabel(colour)}
+          </DropdownOption>
+        ))}
+      </Dropdown>
+
+      <Dropdown
+        legend={uk.filters.sex}
+        active={sexActive}
+        label={sexLabel}
+        clearHref={galleryHref(relaxDimension(filters, "sexes"), sort, citySlugs)}
+      >
+        {ANIMAL_SEXES.map((sex) => (
+          <DropdownOption
+            key={sex}
+            active={isExplicitlySelected(filters.sexes, sex)}
+            href={galleryHref(withToggledSex(filters, sex), sort, citySlugs)}
+          >
+            {SEX_LABEL[sex]}
           </DropdownOption>
         ))}
       </Dropdown>
