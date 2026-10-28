@@ -4,8 +4,8 @@ import { uk } from "@opika/i18n";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { CircleButton } from "../animal-detail/CircleButton";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { CircleButton, circleButtonClass } from "../animal-detail/CircleButton";
 import { useModalFocus } from "../controls/useModalFocus";
 import { useScrollingClass } from "../controls/useScrollingClass";
 
@@ -42,11 +42,15 @@ import { useScrollingClass } from "../controls/useScrollingClass";
  * rule), is what actually matches the reference: no seam, because
  * there's only one blur pass to have one.
  *
- * `pt-16 desktop:pt-18` on `DIALOG` below replaces the vertical gap the
- * old `top-16`-offset backdrop used to provide for free - the header no
- * longer carves out its own space, so the dialog's own content has to
- * start that far down instead, to land the close button and the
- * prev/next row at the same place the reference shows.
+ * **Designer change (2026-10-28): the header now retracts, not just goes
+ * transparent.** `DIALOG` no longer reserves `pt-16 desktop:pt-18` to
+ * clear the header's own height - `globals.css`'s `:has()` rule now
+ * slides the header fully off the top of the viewport (`transform:
+ * translateY(-100%)`, a plain `transition` so it animates both ways for
+ * free), trading that height back to the panel for more vertical room.
+ * `TOP_BAR`'s own `py-6` is the only top clearance left, which is also
+ * what lands the close button at roughly the header's old position once
+ * it's gone ("controls at header level").
  *
  * Fill: the Figma frame's own tint layer is a real `backdrop-filter: blur`
  * over the live gallery, not a flat colour - confirmed against the Figma
@@ -82,6 +86,30 @@ const BACKDROP =
  */
 const OVERLAY_MARKER = "pet-card-overlay-open";
 /**
+ * A `window` property, not module scope: `NeighbourLink`/
+ * `useNeighbourArrowKeys` navigate between two different intercepted-route
+ * segments (`(.)[animalId]`), which Next.js remounts this whole component
+ * for - a plain module-level `let` was found live not to survive that (each
+ * segment can load through its own module instance, with its own copy of
+ * module scope), and a `useRef` inside the component would reset right
+ * along with everything else. `window` is the one thing guaranteed to be
+ * the same object regardless of how the route's code is chunked. Set to
+ * `true` immediately before either kind of neighbour navigation fires, read
+ * (and cleared) once by the next mount's `useState` initializer - so only a
+ * genuinely fresh open (from the gallery, or a reload) ever sees it unset
+ * and plays the entrance; walking prev/next skips it (his words: "animation
+ * is not needed every time we go next or prev").
+ */
+function skipNextEntranceAnimation(): void {
+  (window as { __skipOverlayEntrance?: boolean }).__skipOverlayEntrance = true;
+}
+function consumeSkipEntranceAnimation(): boolean {
+  const w = window as { __skipOverlayEntrance?: boolean };
+  const skip = w.__skipOverlayEntrance === true;
+  w.__skipOverlayEntrance = false;
+  return skip;
+}
+/**
  * `useModalFocus`'s Tab trap only ever looks inside `dialogRef`'s own
  * subtree (`dialogRef.current.querySelectorAll(FOCUSABLE)`) - so `role`,
  * `aria-modal` and the ref all sit on this one wrapper, around the close
@@ -91,24 +119,52 @@ const OVERLAY_MARKER = "pet-card-overlay-open";
  * "renders but doesn't work" class of bug `docs/standing-constraints.md`
  * exists to catch.
  */
-const DIALOG = "relative flex h-full flex-col pt-16 outline-none desktop:pt-18";
 /**
- * The close button and the «Попередній»/«Наступний» row sit directly on the
+ * `pt-16 desktop:pt-18` is gone (designer change, 2026-10-28): the header
+ * retracts now instead of just going transparent (`globals.css`), so there
+ * is nothing left for this dialog to clear. `animate-panel-up` (only on a
+ * genuinely fresh open - see `skipNextEntranceAnimation` above) is the
+ * matching entrance - the whole dialog (top bar and panel together) rises
+ * into the space the header leaves, rather than the panel alone, so the
+ * close/prev/next row and the card read as one piece arriving together.
+ */
+const DIALOG_BASE = "relative flex h-full flex-col outline-none";
+/**
+ * The close button and the prev/next circle buttons sit directly on the
  * peach backdrop (no separate dark strip, unlike batch A) - roughly one
  * horizontal band, matching the reference screenshot's vertical rhythm.
  *
+ * No *horizontal* padding (removed, 2026-10-28: his words, first "remove
+ * paddings added earlier", then, naming it precisely, "the extra spacing
+ * padding we added on left and right - left from left button and right
+ * from right") - the controls sit flush with the panel's own side edges.
+ *
+ * `pt-6 pb-6` live on `TOP_BAR_OFFSET` below, a separate wrapper, not here
+ * - found live, not assumed: padding on `TOP_BAR` itself misaligned the
+ * close button against prev/next by about half the padding. The close
+ * button is a normal flex child, centred in `TOP_BAR`'s *content* box
+ * (`items-center`); `NeighbourLink` is `position: absolute` with `top:
+ * 50%`, which resolves against `TOP_BAR`'s *padding* box instead (the
+ * containing block for an abspos descendant of a `position: relative`
+ * ancestor) - two different boxes to be "centred" in, the moment `TOP_BAR`
+ * carries its own padding. Keeping `TOP_BAR` padding-free and pushing the
+ * whole row's top *and bottom* clearance from outside it means both
+ * centring rules agree, and the panel below gets its own breathing room
+ * too - found live again: with `pb-6` left off, the row's controls sat
+ * flush against the panel's top edge, no gap at all.
+ *
  * `max-w-[1084px] mx-auto`: the Figma frame's own prev/next row
  * (`75:714`) is exactly as wide as the panel below it, not the full
- * viewport - a real screenshot caught the labels sitting far out past the
- * panel's own edges, near the viewport corners, which this row's earlier
- * full-width `justify-between` produced by construction. `NeighbourLink`'s
- * `left-0`/`right-0` resolve against this box's own padding edge, not the
- * viewport, once this is the box they're absolutely positioned inside.
+ * viewport - a real screenshot caught the controls sitting far out past
+ * the panel's own edges, near the viewport corners, which this row's
+ * earlier full-width `justify-between` produced by construction.
+ * `NeighbourLink`'s `left-0`/`right-0` resolve against this box's own
+ * edge directly now that it carries no horizontal padding to ignore (the
+ * abspos-ignores-parent-padding gotcha this file hit once already, when
+ * there was still padding on that axis to ignore).
  */
-const TOP_BAR =
-  "shrink-0 relative mx-auto flex w-full max-w-[1084px] items-center justify-center px-6 py-6 desktop:px-13";
-const NEIGHBOUR_LABEL =
-  "inline-flex min-h-target items-center px-4 text-[26px] font-semibold text-brand-plum focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-ink focus-visible:outline-offset-[3px]";
+const TOP_BAR_OFFSET = "shrink-0 pt-6 pb-6";
+const TOP_BAR = "relative mx-auto flex w-full max-w-[1084px] items-center justify-center";
 /**
  * Only the top corners are rounded (48px, the handoff's own number - no
  * existing token was this large, `--radius-brand-panel-lg` added for it);
@@ -185,6 +241,7 @@ export function AnimalOverlay({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const close = useCallback(() => router.back(), [router]);
   const scrollRef = useScrollingClass<HTMLDivElement>();
+  const [shouldAnimate] = useState(() => !consumeSkipEntranceAnimation());
 
   useModalFocus({ dialogRef, initialFocusRef: dialogRef, onClose: close });
   useReturnFocusToOpener(openerHref);
@@ -198,21 +255,23 @@ export function AnimalOverlay({
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}
-        className={DIALOG}
+        className={`${DIALOG_BASE} ${shouldAnimate ? "animate-panel-up" : ""}`}
       >
-        <div className={TOP_BAR}>
-          <NeighbourLink neighbour={neighbours.prev} align="left" />
-          <CircleButton aria-label={uk.preview.close} onClick={close}>
-            <Image
-              src="/pet-card/icon-close.svg"
-              alt=""
-              aria-hidden="true"
-              width={24}
-              height={24}
-              unoptimized
-            />
-          </CircleButton>
-          <NeighbourLink neighbour={neighbours.next} align="right" />
+        <div className={TOP_BAR_OFFSET}>
+          <div className={TOP_BAR}>
+            <NeighbourLink neighbour={neighbours.prev} align="left" />
+            <CircleButton aria-label={uk.preview.close} onClick={close}>
+              <Image
+                src="/pet-card/icon-close.svg"
+                alt=""
+                aria-hidden="true"
+                width={24}
+                height={24}
+                unoptimized
+              />
+            </CircleButton>
+            <NeighbourLink neighbour={neighbours.next} align="right" />
+          </div>
         </div>
         <div className={FRAME_CLIP}>
           <div ref={scrollRef} className={FRAME_SCROLL}>
@@ -225,13 +284,22 @@ export function AnimalOverlay({
 }
 
 /**
- * Prev/next labels absolutely positioned either side of the centred close
- * button, matching the reference screenshot's layout - a flex row would
- * push the close button off-centre whenever one side's label is longer
- * than the other's (or absent, at an end). `invisible`, not `hidden`, at an
- * end: owner decision B, "the label is hidden but keeps its space, so the
- * layout doesn't shift" - this is the shared row both the overlay and the
- * full page's own (always-both-null) row rely on for that guarantee.
+ * Prev/next, absolutely positioned either side of the centred close button -
+ * a flex row would push the close button off-centre whenever one side is
+ * absent (at an end). `invisible`, not `hidden`, at an end: owner decision
+ * B, "the control is hidden but keeps its space, so the layout doesn't
+ * shift" - this is the shared row both the overlay and the full page's own
+ * (always-both-null) row rely on for that guarantee.
+ *
+ * **Designer change (2026-10-28): circle buttons with a chevron, not text
+ * pills.** Same look as the close button (`circleButtonClass`) and the
+ * photo slider's own prev/next (`DetailPhotoGallery.tsx`), reusing the
+ * identical chevron asset and rotation those already settled on - a
+ * down-pointing icon rotated to point left (`rotate-90`) or right
+ * (`-rotate-90`). The accessible name still carries the neighbour's name
+ * (`aria-label`), unlike the icon-only visible content, so a screen reader
+ * hears exactly what it did before this change.
+ *
  * Prefetched (the one `/tvaryny` link in this codebase that is, unlike
  * every other gallery/animal link's `prefetch={false}` - proxy.ts's
  * per-IP-prefetch-budget reasoning those give doesn't apply here: the
@@ -245,21 +313,30 @@ function NeighbourLink({
   neighbour: OverlayNeighbour;
   align: "left" | "right";
 }) {
-  // NOT `left-0`/`right-0`: an absolutely positioned child's containing
-  // block is TOP_BAR's padding *box* (content+padding together), whose
-  // edges sit at TOP_BAR's own outer edge - an abspos child ignores its
-  // parent's padding entirely, a well-known CSS gotcha a real measurement
-  // caught (the label was flush with the viewport-ish edge, exactly
-  // `padding-right` too far out). Matching TOP_BAR's own `px-6
-  // desktop:px-13` directly is what actually lands the label at the
-  // padding edge, same as a normal-flow child would get for free.
-  const side = align === "left" ? "left-6 desktop:left-13" : "right-6 desktop:right-13";
+  // `left-0`/`right-0` now that TOP_BAR carries no padding of its own
+  // (removed 2026-10-28) - an absolutely positioned child's containing
+  // block is the parent's padding box, so with zero padding this already
+  // lands it exactly at TOP_BAR's own outer edge, no inset.
+  const side = align === "left" ? "left-0" : "right-0";
+  const chevronRotation = align === "left" ? "rotate-90" : "-rotate-90";
+  const chevron = (
+    <Image
+      src="/pet-card/icon-chevron-next.svg"
+      alt=""
+      aria-hidden="true"
+      width={24}
+      height={24}
+      unoptimized
+      className={chevronRotation}
+    />
+  );
   if (neighbour === null) {
     return (
-      <span aria-hidden="true" className={`invisible absolute top-1/2 -translate-y-1/2 ${side}`}>
-        <span className={NEIGHBOUR_LABEL}>
-          {align === "left" ? uk.detail.prev : uk.detail.next}
-        </span>
+      <span
+        aria-hidden="true"
+        className={`invisible absolute top-1/2 -translate-y-1/2 ${side} ${circleButtonClass()}`}
+      >
+        {chevron}
       </span>
     );
   }
@@ -267,11 +344,12 @@ function NeighbourLink({
     <Link
       href={neighbour.href}
       replace
+      onClick={skipNextEntranceAnimation}
       data-testid={align === "left" ? "overlay-prev" : "overlay-next"}
       aria-label={`${align === "left" ? uk.detail.prev : uk.detail.next}: ${neighbour.name}`}
-      className={`absolute top-1/2 -translate-y-1/2 ${side} ${NEIGHBOUR_LABEL}`}
+      className={`absolute top-1/2 -translate-y-1/2 ${side} ${circleButtonClass()}`}
     >
-      {align === "left" ? uk.detail.prev : uk.detail.next}
+      {chevron}
     </Link>
   );
 }
@@ -304,6 +382,7 @@ function useNeighbourArrowKeys(
       const target = event.key === "ArrowLeft" ? neighbours.prev : neighbours.next;
       if (target === null) return;
       event.preventDefault();
+      skipNextEntranceAnimation();
       router.replace(target.href, { scroll: false });
     };
     window.addEventListener("keydown", onKeyDown);
