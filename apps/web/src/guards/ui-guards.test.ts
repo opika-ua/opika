@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ARBITRARY_VALUES } from "./allowlist-arbitrary";
 import { CLIENT_FILES } from "./allowlist-client";
@@ -5,14 +7,13 @@ import { RAW_HEX, RAW_IMG } from "./allowlist-misc";
 import { TOKEN_CEILINGS } from "./allowlist-tokens";
 import { ARBITRARY, HEX, IMG, TOKEN_PATTERNS } from "./patterns";
 import { ceilingsOf, ratchetProblems } from "./ratchet";
-import { clientFiles, hitsByFile } from "./scan";
+import { clientFiles, hitsByFile, SRC_ROOT } from "./scan";
 
 /**
  * Source scans, not pixel checks ("Test logic, not looks"): they keep the UI
  * on one token set and one kit. Every allowlist is a ceiling per file that can
  * only go down (see `ratchet.ts`); the seed values are the 2026-10-28 state,
- * documented in `docs/ui/inventory-2026-10.md`. Kit coverage (every `src/ui`
- * export has a doc and a showcase entry) lands with the kit itself.
+ * documented in `docs/ui/inventory-2026-10.md`. Guard 7 (kit coverage) is the last block below.
  */
 
 function expectNoProblems(problems: string[]): void {
@@ -79,5 +80,47 @@ describe("guard 6: the client-component budget", () => {
       .filter(([, reason]) => reason.trim().length < 5)
       .map(([file]) => file);
     expect(empty).toEqual([]);
+  });
+});
+
+describe("guard 7: kit coverage", () => {
+  const uiDir = join(SRC_ROOT, "ui");
+  const docsDir = resolve(SRC_ROOT, "../../../docs/ui/components");
+  const showcaseDir = join(SRC_ROOT, "app/dev/ui");
+
+  const components = readdirSync(uiDir)
+    .filter((f) => f.endsWith(".tsx") && !f.endsWith(".test.tsx"))
+    .flatMap((f) =>
+      [
+        ...readFileSync(join(uiDir, f), "utf8").matchAll(
+          /^export (?:function|const) ([A-Z][a-z]\w*)/gm,
+        ),
+      ].map((m) => m[1] as string),
+    );
+  const showcase = readdirSync(showcaseDir)
+    .filter((f) => f.endsWith(".tsx"))
+    .map((f) => readFileSync(join(showcaseDir, f), "utf8"))
+    .join("\n");
+  const docs = new Set(readdirSync(docsDir));
+
+  it("finds the kit's components", () => {
+    expect(components.length).toBeGreaterThan(20);
+  });
+
+  it("every exported component has a doc under docs/ui/components", () => {
+    const missing = components.filter((name) => !docs.has(`${name}.md`));
+    expect(missing, `No docs/ui/components/<Name>.md for: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("every exported component is rendered in the /dev/ui showcase", () => {
+    const missing = components.filter((name) => !showcase.includes(`<${name}`));
+    expect(missing, `Not rendered in app/dev/ui: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("every doc names a component that still exists", () => {
+    const orphans = [...docs]
+      .map((f) => f.replace(/\.md$/, ""))
+      .filter((name) => !components.includes(name));
+    expect(orphans, `Doc without a component: ${orphans.join(", ")}`).toEqual([]);
   });
 });

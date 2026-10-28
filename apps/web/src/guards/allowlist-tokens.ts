@@ -22,7 +22,6 @@ export const TOKEN_CEILINGS: Readonly<
     "features/animal-detail/medical-labels.ts": 10,
     "features/chrome/Footer.tsx": 1,
     "features/chrome/RateLimitedScreen.tsx": 4,
-    "features/controls/controls.tsx": 45,
     "features/controls/ModalDialog.tsx": 7,
     "features/discovery/DeckScreen.tsx": 9,
     "features/discovery/SwipeCard.tsx": 16,

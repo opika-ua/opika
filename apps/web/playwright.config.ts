@@ -138,6 +138,8 @@ export default defineConfig({
       BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
       BETTER_AUTH_URL: ORIGIN,
       RATE_LIMIT_KEY_SECRET: HARNESS_RATE_LIMIT_KEY_SECRET,
+      // The kit showcase at /dev/ui is a 404 in a production build without this.
+      OPIKA_DEV_UI: "1",
     },
     stdout: "pipe",
     stderr: "pipe",

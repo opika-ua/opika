@@ -1,0 +1,89 @@
+# The UI kit
+
+The kit lives in `apps/web/src/ui`. Use it before writing any markup: if a component exists, use it;
+if not, compose from the kit; if the kit cannot express it, add a component here (with a doc and a
+showcase entry) rather than a one-off in a feature folder.
+
+Rules every component follows:
+
+- Variants are discriminated unions (`kind`/`variant`), never boolean flags.
+- `className` is for layout only (margin, width, aspect ratio), never restyling.
+- 48px touch target (`min-h-target`), visible focus (`focus-ring` utility from `globals.css`).
+- Works without JS where it can (links and forms first); server-component-safe unless it needs state.
+  Only Modal, Sheet and Popover are client components.
+- Tokens only: no `rg-`, no `brand-`, no raw hex, no arbitrary values. Type scale in `tokens.md`.
+- The kit holds no copy: every label, title and accessible name arrives as a prop.
+
+See the live kit at `/dev/ui` (404 in a production build unless `OPIKA_DEV_UI=1`; not indexed, not in
+the sitemap). Screenshot it at 360 and 1440 when you change a component. The harness spec
+`test/harness/dev-ui.harness.ts` loads it at both widths and fails on horizontal overflow.
+
+Guards (`src/guards/ui-guards.test.ts`): no raw hex, one token set, arbitrary values on an allowlist,
+no raw `<img>`, the client-file budget, and guard 7: every exported component in `src/ui` has a
+`docs/ui/components/<Name>.md` and is rendered in `/dev/ui`.
+
+## Overlays: one core, two shapes
+
+`Modal` and `Sheet` share `dialog-core.ts`: a native `<dialog>` opened with `showModal()`. The platform
+supplies the focus trap, Esc, the Android Back key, the top layer and focus return; the core adds the
+counted body scroll lock, initial focus on the title, backdrop click and a single `onClose`. Heights use
+`dvh`, sheets pad the bottom with `pb-safe` (the home indicator).
+
+What each of the five existing overlays needs to move over (done in its surface's PR, not here):
+
+| Overlay | Becomes | Needs |
+|---|---|---|
+| ModalDialog (kabinet) | Modal | Same props; its tests move to Modal's contract |
+| ContactRevealDialog | Modal | Stacks over the animal overlay (both in the top layer; last opened is on top); drop its own trap and hex backdrop |
+| AnimalOverlay | Modal | Route-driven: always `open`, `router.back()` in `onClose`; a full-screen variant if the design keeps it |
+| FilterSheet | Sheet | Keeps its GET form as children; its count line goes in children |
+| MobileNavMenu | Sheet | Nav links as children; hide the trigger from tablet via `triggerClassName` |
+
+## Legacy compatibility
+
+`features/controls/controls.tsx` is a temporary layer: it re-exports the old names (`TextField`,
+`SelectField`, `RadioOption`, `CheckboxOption`, `SegmentedControl`, `CONTROL`, `LABEL`...) from the kit and
+maps the old `Button` variants (`text` is the kit's `ghost`, `chip` is a toggle Chip). Delete it when the
+last consumer imports `src/ui` directly. `ModalDialog` is unchanged until the kabinet moves to `Modal`.
+
+## Catalog
+
+| Component | File (`apps/web/src/ui/`) | Purpose |
+|---|---|---|
+| [Button](components/Button.md) | `Button.tsx` | The one button. Replaces controls.Button, CircleButton, PillButton and the deck's ActionButton. |
+| [LinkButton](components/LinkButton.md) | `Button.tsx` | A link that looks like a Button, for navigation. |
+| [TextLink](components/TextLink.md) | `TextLink.tsx` | An inline link inside prose. |
+| [Icon](components/Icon.md) | `Icon.tsx` | The one inline-SVG icon set. |
+| [Heading](components/Heading.md) | `Heading.tsx` | Headings mapped to the type scale. |
+| [Text](components/Text.md) | `Text.tsx` | Body copy. |
+| [MetaLine](components/MetaLine.md) | `MetaLine.tsx` | Facts joined by a drawn separator: «Хлопчик · дорослий · середній». |
+| [Badge](components/Badge.md) | `Badge.tsx` | A small tag that sits on a photo. |
+| [Spinner](components/Spinner.md) | `Spinner.tsx` | Indeterminate progress. |
+| [Skeleton](components/Skeleton.md) | `Skeleton.tsx` | Loading placeholder shaped like the content. |
+| [Chip](components/Chip.md) | `Chip.tsx` | One chip, five kinds. |
+| [Card](components/Card.md) | `Card.tsx` | The 24px rounded container. |
+| [Panel](components/Panel.md) | `Panel.tsx` | A 20px box that groups content inside a page or card. |
+| [Photo](components/Photo.md) | `Photo.tsx` | The only image component. |
+| [Avatar](components/Avatar.md) | `Avatar.tsx` | A shelter's logo, or its initials. |
+| [Container](components/Container.md) | `Container.tsx` | Max width plus page gutters. |
+| [Section](components/Section.md) | `Container.tsx` | A vertical block of a page, named by its heading. |
+| [EmptyState](components/EmptyState.md) | `feedback.tsx` | Nothing to show yet. |
+| [ErrorState](components/ErrorState.md) | `feedback.tsx` | Something failed. |
+| [InlineStatus](components/InlineStatus.md) | `feedback.tsx` | A short message beside the thing it concerns. |
+| [FieldHint](components/FieldHint.md) | `form.tsx` | Helper text under a field. |
+| [FieldError](components/FieldError.md) | `form.tsx` | A field's error message. |
+| [TextField](components/TextField.md) | `form.tsx` | Label, input, hint and error as one unit. |
+| [TextArea](components/TextArea.md) | `form.tsx` | TextField for long text. |
+| [Select](components/Select.md) | `form.tsx` | A native select with the field frame. |
+| [Radio](components/Radio.md) | `form.tsx` | One option of a radio group; the whole row is the target. |
+| [Checkbox](components/Checkbox.md) | `form.tsx` | One option of a multi-choice group. |
+| [SegmentedControl](components/SegmentedControl.md) | `form.tsx` | A choice of a few, built from native radios. |
+| [Modal](components/Modal.md) | `Modal.tsx` | A modal dialog: bottom sheet on a phone, centred card from tablet. |
+| [Sheet](components/Sheet.md) | `Sheet.tsx` | A bottom sheet with its own trigger. |
+| [Popover](components/Popover.md) | `Popover.tsx` | A panel under a chip-styled trigger (the filter selectors). |
+
+## Not yet in the kit (PR 2b)
+
+Toast (needs a provider), CheckboxGroup and RadioGroup (fieldset wrappers), Toggle (two-option link
+switch), Pagination, Tabs, BottomNav, PrevNext, PhotoSlider. Until they land, the existing feature
+versions stay.
