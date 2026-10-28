@@ -435,13 +435,16 @@
   --text-label--line-height: 1.4;
   --text-label--font-weight: 600;
   --text-label--letter-spacing: 0;
-  --text-caption: 15px;
+  --text-caption: 14px;
   --text-caption--line-height: 1.4;
-  --text-caption--font-weight: 400;
+  --text-caption--font-weight: 600;
   --text-caption--letter-spacing: 0;
 
   /* The brand UI face is the page default; `font-sans` stays Commissioner for
    * the few elements that still ask for it by name. */
+  --font-display: var(--font-climate-crisis);
+  --font-ui: var(--font-bellota-text);
+
   --default-font-family: var(--font-bellota-text);
 }
 
@@ -472,6 +475,21 @@
  */
 @utility focus-ring {
   &:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 3px;
+  }
+}
+/* A native <dialog> sheet opened with no JS: the trigger is an <a href="#id"> (ui/Sheet). */
+dialog[data-hash-open]:target {
+  display: block;
+}
+
+/* Bottom safe-area inset (home indicator) for sheets; zero without viewport-fit=cover. */
+@utility pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 1.25rem);
+}
+@utility focus-ring-within {
+  &:has(:focus-visible) {
     outline: 3px solid var(--color-focus);
     outline-offset: 3px;
   }
