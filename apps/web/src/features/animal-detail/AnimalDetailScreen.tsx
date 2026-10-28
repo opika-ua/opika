@@ -145,7 +145,18 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
             plus save read as one small cluster of "do something with this
             listing" actions beside it.
           */}
-          <div className="flex flex-none items-center gap-4">
+          {/*
+            `flex-wrap`: found live, not assumed - fixing the save circle's
+            own squeeze (`circleButtonClass`'s new `shrink-0`, above) just
+            moved the deficit from "squeezed circle" to "row wider than the
+            viewport, nothing left to give" at narrow widths, since neither
+            text pill has anywhere to shrink to either. Wrapping these three
+            onto two lines costs nothing on desktop, where the row already
+            fits (unaffected either way), and keeps every control at its own
+            correct size on a phone instead of distorting one or overflowing
+            the page.
+          */}
+          <div className="flex flex-none flex-wrap items-center gap-4">
             <RevealFlow animalId={animal.id} animalName={animal.name} cityName={cityName} />
             <ShareButton animalId={animal.id} animalName={animal.name} />
             <SaveButton animalId={animal.id} animalName={animal.name} />
@@ -164,7 +175,7 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
               href={shelterPagePath(shelter.id)}
               prefetch={false}
               aria-label={fillTemplate(uk.detail.shelterRowLink, { name: shelter.displayName })}
-              className={`inline-flex items-center gap-3.5 rounded-brand-field ${FOCUS}`}
+              className={`inline-flex min-h-12 items-center gap-3.5 rounded-brand-field ${FOCUS}`}
             >
               <ShelterLogoAvatar logo={shelter.logo} displayName={shelter.displayName} />
               <span className="text-[20px] font-semibold text-brand-ink">
@@ -206,7 +217,7 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
             target="_blank"
             rel="noopener"
             data-testid="donate-link"
-            className={`inline-flex w-fit items-center gap-3 rounded-brand-field border-2 border-brand-line px-4 py-2 text-[16px] font-medium text-brand-ink ${FOCUS}`}
+            className={`inline-flex min-h-12 w-fit items-center gap-3 rounded-brand-field border-2 border-brand-line px-4 py-2 text-[16px] font-medium text-brand-ink ${FOCUS}`}
           >
             <span>{uk.detail.donateShelter}</span>
             <span className="text-brand-ink-2">{donationHost(shelter.donation)} ↗</span>
@@ -336,8 +347,12 @@ function MetaLine({ animal }: { animal: AnimalDetailView }) {
   );
 }
 
+// Same gap `PillButton.tsx` had: `h-13` (52px, already over the 48px floor - unchanged,
+// some chips here are plain non-interactive `<span>`s and some are `FilterableChipLink`s,
+// and the floor only ever governs the interactive ones) stays constant, but `px-4
+// text-[20px]` at every width read as desktop-sized on a phone. Smaller below `desktop:`.
 const CHIP =
-  "inline-flex h-13 items-center rounded-brand-field border-2 border-brand-line px-4 text-[20px] font-semibold text-brand-ink";
+  "inline-flex h-13 items-center rounded-brand-field border-2 border-brand-line px-3 text-[16px] font-semibold text-brand-ink desktop:px-4 desktop:text-[20px]";
 
 /** Coat length's own words, no longer read through `chipDisplayLabel` (gallery filter
  * restructure removed the fur filter, which that function served): the two words
