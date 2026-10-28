@@ -112,7 +112,8 @@ test.describe("kit behaviour in a real browser", () => {
     }
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
-    expect(await page.evaluate(() => document.body.style.overflow)).toBe("");
+    // The lock is released by React after the native close event, so wait for it, not the clock.
+    await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe("");
     await expect(opener).toBeFocused();
   });
 
