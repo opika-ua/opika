@@ -164,7 +164,7 @@ test.describe("the invitation link sets a password (PW-2)", () => {
       origin,
       referer: null,
     });
-    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
     expect(
       (await db.select().from(authMember)).filter((member) => member.userId === userId),
     ).toHaveLength(1);
@@ -193,7 +193,7 @@ test.describe("the invitation link sets a password (PW-2)", () => {
       page.waitForURL((url) => url.pathname === "/kabinet"),
       page.getByRole("button", { name: "Увійти", exact: true }).click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
     await context.close();
   });
 });

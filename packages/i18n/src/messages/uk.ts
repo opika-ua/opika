@@ -1414,10 +1414,20 @@ export const uk = {
      * K4's sections with every value as a label-value row (N10's pattern).
      */
     profile: {
-      pageTitle: "Профіль притулку",
-      title: "Профіль притулку",
-      /** The phone header's short page name (K4 360: «Профіль»). */
-      phoneTitle: "Профіль",
+      /**
+       * Притулок (kabinet redesign Phase 2 PR 1, renamed from «Профіль
+       * притулку»; owner-approved copy, 2026-10-28): the page moved off
+       * `SHELTER_HOME` to its own path, `SHELTER_PROFILE_PATH`, and Головна
+       * took the landing slot. `pageTitle` is the `<title>` tag's own
+       * template, filled with the shelter's name (his decision, verbatim:
+       * "The `<title>` on the shelter-profile page is «Притулок · {shelter}».");
+       * `title`/`phoneTitle` are the on-page heading and the nav label, both
+       * just «Притулок».
+       */
+      pageTitle: "Притулок · {shelter}",
+      title: "Притулок",
+      /** The phone header's short page name. */
+      phoneTitle: "Притулок",
       intro:
         "Дані притулку: те, що бачать ті, хто шукає тварину, і те, що встановлено під час перевірки.",
       role: "адміністратор притулку",
@@ -2098,9 +2108,14 @@ export const uk = {
         actionFailed: "Не вдалося. Перевірте зʼєднання і спробуйте ще раз.",
       },
     },
-    /** The kabinet's section nav (N2): «Тварини» · «Профіль притулку» (`profile.title`). */
+    /**
+     * The kabinet's section nav (N2, kabinet redesign Phase 2 PR 1):
+     * «Головна» · «Тварини» · «Притулок» (`profile.title`, renamed from
+     * «Профіль притулку»). Owner-approved copy, 2026-10-28.
+     */
     nav: {
       label: "Розділи кабінету",
+      home: "Головна",
       animals: "Тварини",
     },
     /**

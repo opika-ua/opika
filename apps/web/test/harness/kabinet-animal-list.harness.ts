@@ -144,7 +144,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
       page.waitForURL((url) => url.pathname === "/kabinet"),
       page.getByRole("button").click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
     await page.close();
   });
 
@@ -162,7 +162,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
 
   const rowOf = (page: Page, name: string): Locator => page.getByRole("listitem", { name });
 
-  test("from the profile's nav, «Тварини»: the list, its rows, and «Показати ці N» opening the stale cards", async () => {
+  test("from Головна's nav, «Тварини»: the list, its rows, and «Показати ці N» opening the stale cards", async () => {
     const page = await open("/kabinet");
     await page
       .getByRole("navigation", { name: "Розділи кабінету" })
