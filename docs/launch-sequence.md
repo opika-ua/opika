@@ -383,8 +383,8 @@ address counts as its whole /64.
 Each visitor's own limit, 30 shelters per 24 hours, is fixed in code and is not one of these.
 
 A value must be a positive whole number (`75`, not `75.0`, `0` or `-1`). Anything else, an
-empty value included, is ignored: the default applies and the instance logs one warning at
-startup, `{ event: "rate_limit_config_invalid", variable, using }`, naming the variable and the
+empty value included, is ignored: the default applies and a warning is logged at startup, and
+possibly once more when the API first serves (the two read the value separately), `{ event: "rate_limit_config_invalid", variable, using }`, naming the variable and the
 default, never the value. Unset means the default, with no warning.
 
 **To raise either:** Vercel → the project → Settings → Environment Variables → add or edit it for

@@ -80,7 +80,10 @@ export function perIpBudgetSizesFor(
   };
 }
 
-/** Read and validated once per instance; `instrumentation.ts` calls it at startup. */
+/**
+ * Read and validated once per module graph: `instrumentation.ts` at startup, and the route's
+ * bundle on its first request, so a bad value can warn twice per instance.
+ */
 let servedSizes: PerIpBudgetSizes | undefined;
 export function servedPerIpBudgetSizes(): PerIpBudgetSizes {
   servedSizes ??= perIpBudgetSizesFor(process.env);
