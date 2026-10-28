@@ -1,10 +1,6 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
-import {
-  inSentenceOperatorName,
-  type OperatorName,
-  standaloneOperatorName,
-} from "../../kabinet/operator";
+import { inSentenceOperatorName, type OperatorName } from "../../kabinet/operator";
 import type { ProfileEditing } from "./home";
 import { KabinetBrand, KabinetMark } from "./KabinetBrand";
 import { KabinetNav } from "./KabinetNav";
@@ -15,7 +11,6 @@ import { ProfileEditor } from "./profile-edit/ProfileEditor";
 import { animalListShownTo } from "./routes";
 import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
-import { VerificationDecision } from "./VerificationDecision";
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"; mock
@@ -36,6 +31,13 @@ import { VerificationDecision } from "./VerificationDecision";
  * policy, the sections become K4's editor (`ProfileEditor`): for every
  * shelter's own admins since PR 6. For a support view this stays the
  * read-only page, so it never offers a change the API would refuse.
+ *
+ * **Kabinet redesign Phase 2, PR 1:** this screen moved off `SHELTER_HOME`
+ * to its own path (`SHELTER_PROFILE_PATH`, «Притулок» in the nav - renamed
+ * from «Профіль притулку»). The rejected/suspended notice (`VerificationDecision`)
+ * and the pending-review note moved to the new Головна landing page, which
+ * now owns `SHELTER_HOME`: "what needs attention" belongs on the page a
+ * volunteer lands on, not on the page that edits the shelter's own data.
  */
 
 export type ShelterProfileProps = {
@@ -108,13 +110,13 @@ export function ShelterProfile({
         )}
       </header>
 
-      <div className="flex flex-col gap-3 px-4 pt-5 pb-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
+      <div className="flex flex-col gap-3 px-4 pt-5 pb-24 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
         {/*
-          K4's side nav: «Тварини» (K2, PR 5) where the list is shown to this
-          viewer (P1: writes open, or the support view), and «Профіль
-          притулку». The list is K3's entry point now («Додати тварину»), so
-          the «Нова тварина» link that stood in for it here until PR 5 is gone
-          (decision taken, reversible).
+          The shell nav: «Головна» · «Тварини» (K2, PR 5) where the list is
+          shown to this viewer (P1: writes open, or the support view) ·
+          «Притулок» (this page). Bottom padding above is clearance for the
+          nav's fixed mobile tab bar (kabinet redesign Phase 2 PR 1), unused
+          at desktop width where the nav sits in the side column instead.
         */}
         <KabinetNav current="profile" animalList={animalListShownTo(viewer, editing)} />
 
@@ -126,23 +128,6 @@ export function ShelterProfile({
             </h1>
             <p className={`hidden desktop:block ${CAPTION}`}>{t.intro}</p>
           </div>
-
-          {/* K5 (RU-Q7): a rejected or suspended shelter reads why, for its admins and the support view alike. */}
-          <VerificationDecision
-            verification={view.verification}
-            operatorName={standaloneOperatorName(operator)}
-          />
-
-          {/*
-            G3 (audit 2026-10-22): how verification goes and who acts next, for the shelter's
-            own admins while it waits. Not for the support view, where «я» would be the
-            operator speaking to themselves.
-          */}
-          {!support &&
-          (view.verification.status === "pending" ||
-            view.verification.status === "under_review") ? (
-            <p className={CAPTION}>{t.pendingNote}</p>
-          ) : null}
 
           {editing.kind === "open" && !support ? (
             <ProfileEditor

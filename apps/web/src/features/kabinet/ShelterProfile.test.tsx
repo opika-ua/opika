@@ -182,6 +182,26 @@ describe("ShelterProfile (K4, read-only)", () => {
     ).toBeTruthy();
   });
 
+  // Round-2 answer 6: no name configured, lower case mid-sentence - the
+  // locked note's own fallback, distinct from the decision's signature
+  // (capitalised, stands alone), which moved to `KabinetHome` (Головна) with
+  // `VerificationDecision.test.tsx`'s own fallback case.
+  it("with no operator name configured: the locked note keeps «адміністратор сайту»", () => {
+    render(
+      <ShelterProfile
+        view={view()}
+        cityName="Бровари"
+        viewer="admin"
+        operator={{ kind: "fallback" }}
+      />,
+    );
+    expect(
+      screen.getByText(
+        "Ці дані встановлює адміністратор сайту під час перевірки притулку. Тут вони лише для перегляду.",
+      ),
+    ).toBeTruthy();
+  });
+
   it("puts the status chip after the note, in K4 360's order", () => {
     renderProfile();
     const block = screen.getByRole("region", { name: t.lockedTitle });
@@ -237,60 +257,11 @@ describe("ShelterProfile (K4, read-only)", () => {
     },
   );
 
-  /**
-   * G3 (audit 2026-10-22), Oleksii's accepted text transcribed: how verification goes and who
-   * acts next, for the shelter's own admin while it waits. A claim about the operator's
-   * conduct, so it is shown to no other viewer and in no other state.
-   */
-  const PENDING_NOTE =
-    "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваших тварин бачите лише ви.";
-
-  it.each([
-    ["pending", { status: "pending", since: new Date("2025-03-14T10:00:00Z") }],
-    ["under_review", { status: "under_review", since: new Date("2025-03-14T10:00:00Z") }],
-  ] as const)("tells a %s shelter's admin how verification goes", (_status, verification) => {
-    renderProfile({ verification });
-    expect(screen.getByText(PENDING_NOTE)).toBeTruthy();
-  });
-
-  it.each([
-    ["verified", { status: "verified", since: new Date("2025-03-14T10:00:00Z") }],
-    [
-      "paused",
-      {
-        status: "paused",
-        since: new Date("2025-03-14T10:00:00Z"),
-        reason: { code: "relocation", note: null },
-      },
-    ],
-    [
-      "rejected",
-      {
-        status: "rejected",
-        at: new Date("2025-03-14T10:00:00Z"),
-        reason: { code: "spam", note: "Ні" },
-      },
-    ],
-    [
-      "suspended",
-      {
-        status: "suspended",
-        at: new Date("2025-03-14T10:00:00Z"),
-        reason: { code: "other", note: "Ні" },
-      },
-    ],
-  ] as const)("says nothing about verification to a %s shelter", (_status, verification) => {
-    renderProfile({ verification: verification as KabinetShelterView["verification"] });
-    expect(screen.queryByText(PENDING_NOTE)).toBeNull();
-  });
-
-  it("does not show the note in the support view, where «я» would be the operator talking to themselves", () => {
-    renderProfile(
-      { verification: { status: "pending", since: new Date("2025-03-14T10:00:00Z") } },
-      "support",
-    );
-    expect(screen.queryByText(PENDING_NOTE)).toBeNull();
-  });
+  // Kabinet redesign Phase 2 PR 1: the pending-review note (G3, audit
+  // 2026-10-22) moved to Головна (`KabinetHome.test.tsx`) along with the
+  // rejected/suspended notice (`VerificationDecision`) - this screen no
+  // longer renders either, since "what needs attention" now belongs on the
+  // landing page, not here.
 
   // Audit 2026-10-22 #13, transcribed: the page also holds the data set during verification.
   it("introduces the page as the shelter's data, public and from verification", () => {
@@ -466,25 +437,27 @@ describe("the section nav (K2)", () => {
     ["the admin with writes open", "admin", open],
     ["the support view", "support", { kind: "read_only" }],
   ] as const)(
-    "%s gets «Тварини», pointing at the list, before the current profile",
+    "%s gets «Головна», «Тварини» (pointing at the list) and the current «Притулок»",
     (_who, viewer, editing) => {
       const { unmount } = renderWith(viewer, editing);
       const links = within(nav()).getAllByRole("link");
-      expect(links.map((link) => link.textContent)).toEqual(["Тварини", "Профіль притулку"]);
-      expect(links[0]?.getAttribute("href")).toBe("/kabinet/tvaryny");
-      expect(links[1]?.getAttribute("aria-current")).toBe("page");
+      expect(links.map((link) => link.textContent)).toEqual(["Головна", "Тварини", "Притулок"]);
+      expect(links[0]?.getAttribute("href")).toBe("/kabinet");
+      expect(links[1]?.getAttribute("href")).toBe("/kabinet/tvaryny");
+      expect(links[2]?.getAttribute("href")).toBe("/kabinet/prytulok");
+      expect(links[2]?.getAttribute("aria-current")).toBe("page");
       expect(screen.queryByRole("link", { name: "Нова тварина" })).toBeNull();
       unmount();
     },
   );
 
-  it("a shelter whose writes are refused: the profile alone, no way to a list that 404s", () => {
+  it("a shelter whose writes are refused: no «Тварини», no way to a list that 404s", () => {
     renderWith("admin", { kind: "read_only" });
     expect(
       within(nav())
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Профіль притулку"]);
+    ).toEqual(["Головна", "Притулок"]);
     expect(screen.queryByRole("link", { name: "Тварини" })).toBeNull();
   });
 });

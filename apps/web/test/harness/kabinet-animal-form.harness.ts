@@ -133,7 +133,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       page.waitForURL((url) => url.pathname === "/kabinet"),
       page.getByRole("button").click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
     await page.close();
   });
 

@@ -539,9 +539,9 @@ export const en = {
         "There is no password yet. You can create one through «Forgot your password?» on the sign-in page.",
     },
     profile: {
-      pageTitle: "Shelter profile",
-      title: "Shelter profile",
-      phoneTitle: "Profile",
+      pageTitle: "Shelter · {shelter}",
+      title: "Shelter",
+      phoneTitle: "Shelter",
       intro: "What people looking for an animal see about you on every card.",
       role: "shelter administrator",
       signOut: "Sign out",
@@ -1004,6 +1004,7 @@ export const en = {
     },
     nav: {
       label: "Cabinet sections",
+      home: "Home",
       animals: "Animals",
     },
     deleteDraft: {

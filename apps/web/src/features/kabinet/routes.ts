@@ -9,8 +9,17 @@ export const OPERATOR_HOME = "/kabinet/prytulky";
 /** S2, «Новий притулок» (R-UI 2): the shell's nav, S1's button and its empty state link here. */
 export const NEW_SHELTER_PATH = `${OPERATOR_HOME}/novyi`;
 
-/** The shelter's home, K4's profile page. */
+/**
+ * The shelter's landing page, Головна (kabinet redesign Phase 2, PR 1): what
+ * needs attention – drafts, stale cards, a pending/rejected/suspended notice,
+ * the paused banner. It used to be K4's profile page; sign-in's redirect and
+ * every invite/magic-link/reset email link here unchanged, so an old link
+ * keeps working and now lands on Головна rather than the profile editor.
+ */
 export const SHELTER_HOME = "/kabinet";
+
+/** Притулок (renamed from «Профіль притулку»): K4's profile editor, moved off `SHELTER_HOME`. */
+export const SHELTER_PROFILE_PATH = "/kabinet/prytulok";
 
 /** K2, the shelter's animal list (PR 5): the nav's «Тварини» and K3's back link go here. */
 export const ANIMAL_LIST_PATH = "/kabinet/tvaryny";

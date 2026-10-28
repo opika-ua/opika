@@ -1702,6 +1702,9 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.add": "Додати тварину",
     "kabinet.animalList.addShort": "Додати",
     "kabinet.nav.label": "Розділи кабінету",
+    // Kabinet redesign Phase 2 PR 1 (owner-approved, 2026-10-28): the shell
+    // nav gained «Головна» as its new landing-page item.
+    "kabinet.nav.home": "Головна",
     "kabinet.nav.animals": "Тварини",
     "kabinet.animalList.filter.label": "Показати",
     "kabinet.animalList.filter.all": "Усі",

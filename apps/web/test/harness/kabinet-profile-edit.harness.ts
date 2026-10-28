@@ -3,6 +3,9 @@
  * text only (Oleksii, 2026-10-17: "Test logic, not looks ... a few Playwright
  * flow tests that query by role/label/text only; accessibility basics").
  *
+ * Kabinet redesign Phase 2 PR 1: this screen («Притулок») moved off
+ * `/kabinet`, which now serves Головна instead - see `profilePage()` below.
+ *
  * Writes go through the served route and its own write policy, which opens
  * every shelter's writes to its own admins (PR 6).
  * Nothing in the app is patched, and no environment variable opens anything.
@@ -40,7 +43,7 @@ const SEED_PHOTO = resolve(
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
-test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
+test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", () => {
   let server: SignInServer | undefined;
   let context: BrowserContext | undefined;
 
@@ -107,7 +110,8 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
       page.waitForURL((url) => url.pathname === "/kabinet"),
       page.getByRole("button").click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
+    // Kabinet redesign Phase 2 PR 1: sign-in lands on Головна, not the profile editor.
+    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
     await page.close();
   });
 
@@ -116,10 +120,12 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
     await server?.stop();
   });
 
+  // Притулок (renamed from «Профіль притулку», kabinet redesign Phase 2 PR 1):
+  // the editor moved off `/kabinet` (now Головна) to its own path.
   const profilePage = async (): Promise<Page> => {
     if (context === undefined) throw new Error("not signed in");
     const page = await context.newPage();
-    expect((await page.goto("/kabinet"))?.status()).toBe(200);
+    expect((await page.goto("/kabinet/prytulok"))?.status()).toBe(200);
     return page;
   };
 
