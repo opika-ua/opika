@@ -10,16 +10,26 @@ import { ArrowKeyGrid } from "../gallery/ArrowKeyGrid";
 import { cardCityId } from "../gallery/card-text";
 import type { CitySlugsById } from "../gallery/filter-url";
 import { GalleryCard } from "../gallery/GalleryCard";
-import { PaginationNav } from "../gallery/GalleryPagination";
 import { hasPagination } from "../gallery/gallery-pagination";
-import { SortLinks } from "../gallery/SortControl";
 import { ShelterLogoAvatar } from "./ShelterLogoAvatar";
+import { ShelterPageNav } from "./ShelterPageNav";
+import { ShelterSortToggle } from "./ShelterSortToggle";
 import type { ShelterPageView } from "./shelter-page-load";
-import { shelterPageHref } from "./shelter-url";
 import { shelterWordsOf } from "./shelter-words";
 
 const FOCUS =
   "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px]";
+
+/**
+ * A small fact pill (verification, animal count, the donation link) - design
+ * feedback on this PR's first screenshot round: the three facts read as "an
+ * ugly, unstructured" stack of plain right-aligned text in a box. Sized and
+ * bordered like the animal-detail panel's own filterable chips (`CHIP` in
+ * `AnimalDetailScreen.tsx`), scaled down for a secondary-facts row rather
+ * than that component's primary About-me chips.
+ */
+const FACT_PILL =
+  "inline-flex h-10 items-center gap-1.5 rounded-brand-pill border-2 border-brand-line px-3.5 text-[14px] font-semibold text-brand-ink";
 
 /** As the gallery: the first row's photos load eagerly (`tvaryny/page.tsx`'s own `PRIORITY_ROW_SIZE`). */
 const PRIORITY_ROW_SIZE = 2;
@@ -60,16 +70,29 @@ const EMPTY_CITY_SLUGS: CitySlugsById = new Map();
  * blur it, so this renders at 160px. A larger logo variant is a separate R2
  * pipeline change for later, not this PR's.
  *
- * **Decision taken:** the wireframe's sort box names `GallerySortToggle`,
- * which is being restyled concurrently by another PR and (per that PR's own
- * description) builds its hrefs rooted at `/tvaryny` - using it here would
- * both navigate a sort click off this shelter's page entirely and break
- * this screen's own pinned test ("offers the gallery's two date sorts, each
- * leading back to this shelter's page"). `SortLinks` (`SortControl.tsx`) is
- * kept instead: it is the sort control already wired to `shelterPageHref`,
- * unedited either way, and the one that actually keeps a sort change on
- * this shelter's own page. Flagged in the PR description for the filter
- * agent to weigh in on once its own PR lands.
+ * **Decision taken (revised after design feedback on the first screenshot
+ * round):** the sort and pagination controls are the gallery-v3 look
+ * (`ShelterSortToggle.tsx`, `ShelterPageNav.tsx`) now, not the pre-redesign
+ * `SortControl`/`GalleryPagination` this screen used until that feedback -
+ * the request was explicit that the shelter page should stop looking like
+ * the one surface still on the old visual system. Not a straight swap to
+ * `GallerySortToggle`/`GalleryPageNav` themselves, though: both build their
+ * hrefs with `galleryHref`/`galleryPageHref`, hardcoded to `/tvaryny` - using
+ * them here would navigate a sort or page click off this shelter's own page
+ * entirely and break this screen's own pinned tests ("each sort link leads
+ * back to this shelter's page", "keeps its pagination within this shelter").
+ * `ShelterSortToggle`/`ShelterPageNav` copy their markup, reuse their pure
+ * logic and icon, and swap only the href builder to `shelterPageHref`.
+ * `GallerySortToggle`, `GalleryPageNav`, `SortControl.tsx` and
+ * `GalleryPagination.tsx` are all unedited - per the coordinator's own
+ * caution, left in place rather than deleted, since `ReplaceNav.tsx` still
+ * imports `SortControl` for `/tvaryny` itself.
+ *
+ * **Decision taken:** the facts column (verification, animal count,
+ * donation) is three small pills (`FACT_PILL`, sized down from the
+ * animal-detail panel's own `CHIP`) in a wrapping row, replacing the first
+ * round's plain stacked text lines that read as "ugly and unstructured."
+ * No mock covers this exact box either way.
  */
 export function ShelterPageScreen({
   shelter,
@@ -84,8 +107,6 @@ export function ShelterPageScreen({
   const animalsHeadingId = useId();
   const wordsHeadingId = useId();
   const words = shelterWordsOf(shelter);
-  const hrefFor = (sort: typeof query.sort, page: number) =>
-    shelterPageHref(shelter.id, sort, page);
   const animalsCountText = fillTemplate(uk.shelterPage.animalsHeading, {
     count: String(animals.totalMatching),
   });
@@ -159,25 +180,26 @@ export function ShelterPageScreen({
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-col items-start gap-2 text-[15px]/[20px] font-medium text-brand-ink-2 desktop:w-70 desktop:items-end desktop:text-right">
+          <div className="flex shrink-0 flex-wrap items-start gap-2 desktop:w-70 desktop:justify-end">
             {shelter.verification === "verified" && (
-              <span data-testid="shelter-verified-badge">
+              <span data-testid="shelter-verified-badge" className={FACT_PILL}>
+                <span aria-hidden="true">✓</span>
                 {fillTemplate(uk.detail.shelterVerifiedYears, {
                   year: String(shelter.createdAt.getFullYear()),
                 })}
               </span>
             )}
-            {animals.totalMatching > 0 && <span>{animalsCountText}</span>}
+            {animals.totalMatching > 0 && <span className={FACT_PILL}>{animalsCountText}</span>}
             {shelter.donation && (
               <a
                 href={shelter.donation.url}
                 target="_blank"
                 rel="noopener"
                 data-testid="donate-link"
-                className={`inline-flex items-center gap-1 rounded-brand-field underline decoration-brand-line underline-offset-2 hover:text-brand-ink ${FOCUS}`}
+                className={`${FACT_PILL} hover:border-brand-accent hover:text-brand-accent ${FOCUS}`}
               >
                 <span>{uk.detail.donateShelter}</span>
-                <span>· {donationHost(shelter.donation)} ↗</span>
+                <span className="text-brand-ink-2">· {donationHost(shelter.donation)} ↗</span>
               </a>
             )}
           </div>
@@ -222,26 +244,8 @@ export function ShelterPageScreen({
             <h2 id={animalsHeadingId} className="text-[26px] font-bold text-brand-ink">
               {animalsCountText}
             </h2>
-            {/*
-              `SortLinks` (`SortControl.tsx`, unedited) carries `self-start`
-              and two `whitespace-nowrap` sentences, so at narrow widths its
-              own intrinsic content is wider than this row has room for -
-              measured, not assumed: `document.documentElement.scrollWidth`
-              exceeded `clientWidth` at 390px until this wrapper contained
-              it. A `w-full overflow-x-auto` wrapper keeps the overflow a
-              small scrollable region here rather than widening the whole
-              page; it is not a fix to the component itself, which this PR
-              doesn't own - flagged in the PR description for the filter
-              agent.
-            */}
             {animals.totalMatching > 0 && (
-              <div className="w-full overflow-x-auto">
-                <SortLinks
-                  sort={query.sort}
-                  hrefFor={(sort) => hrefFor(sort, 1)}
-                  visibility="flex"
-                />
-              </div>
+              <ShelterSortToggle shelterId={shelter.id} sort={query.sort} />
             )}
           </div>
 
@@ -277,10 +281,11 @@ export function ShelterPageScreen({
                 ))}
               </ArrowKeyGrid>
 
-              <PaginationNav
+              <ShelterPageNav
+                shelterId={shelter.id}
+                sort={query.sort}
                 page={animals.page}
                 totalPages={animals.totalPages}
-                pageHref={(page) => hrefFor(query.sort, page)}
               />
             </>
           )}
