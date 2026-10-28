@@ -34,7 +34,12 @@ Priority: speed with sensible quality.
 6. Comments: 1–3 lines, why only. Trim long ones in files you touch.
 7. Reports to the owner: ≤10 lines: done / needs Oleksii / next.
 8. Smoke sittings only for SQL PRs: fresh Neon child branch, `PROD_NEON_ENDPOINT` set, never
-   production. PowerShell, `Read-Secret`, one sitting file per day.
+   production - always, with no "no migration, so run it directly" exception (owner,
+   2026-10-28, after a sitting told him to do exactly that: `neon-smoke.ts`'s fixture writes are
+   disposable only on an actual child branch). PowerShell, `Read-Secret`, one sitting file per
+   day. Generate the command block with `pnpm --filter @opika/db smoke-sitting`
+   (`packages/db/src/tools/smoke-sitting.ts`), which refuses to render a sitting that says
+   otherwise, rather than writing the commands by hand.
 9. Fresh session per PR with a short brief; at most two local agents.
 10. If a PR's CI doesn't start, check for a merge conflict with `main` first.
 11. Never «—» (U+2014); use «–» where a dash is needed; «-» only inside words.
