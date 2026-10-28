@@ -10,7 +10,7 @@ Rules every component follows:
 - `className` is for layout only (margin, width, aspect ratio), never restyling.
 - 48px touch target (`min-h-target`), visible focus (`focus-ring` utility from `globals.css`).
 - Works without JS where it can (links and forms first); server-component-safe unless it needs state.
-  Only Modal, Sheet and Popover are client components.
+  Only Modal, Sheet, Popover, Tabs, PhotoSlider and Toast are client components.
 - Tokens only: no `rg-`, no `brand-`, no raw hex, no arbitrary values. Type scale in `tokens.md`.
 - The kit holds no copy: every label, title and accessible name arrives as a prop.
 
@@ -81,9 +81,13 @@ last consumer imports `src/ui` directly. `ModalDialog` is unchanged until the ka
 | [Modal](components/Modal.md) | `Modal.tsx` | A modal dialog: bottom sheet on a phone, centred card from tablet. |
 | [Sheet](components/Sheet.md) | `Sheet.tsx` | A bottom sheet with its own trigger. |
 | [Popover](components/Popover.md) | `Popover.tsx` | A panel under a chip-styled trigger (the filter selectors). |
-
-## Not yet in the kit (PR 2b)
-
-Toast (needs a provider), CheckboxGroup and RadioGroup (fieldset wrappers), Toggle (two-option link
-switch), Pagination, Tabs, BottomNav, PrevNext, PhotoSlider. Until they land, the existing feature
-versions stay.
+| [Toast](components/Toast.md) | `Toast.tsx` | One toast, presentational. `ToastProvider` renders these; it is exported for the showcase and tests. |
+| [ToastProvider](components/ToastProvider.md) | `Toast.tsx` | Holds the toast queue and the live region. Wrap the page once; call `useToast().show(message, tone)` from client components. |
+| [CheckboxGroup](components/CheckboxGroup.md) | `groups.tsx` | A question with several choices: fieldset, legend, hint, error. |
+| [RadioGroup](components/RadioGroup.md) | `groups.tsx` | A question with one choice: fieldset, legend, hint, error. |
+| [Toggle](components/Toggle.md) | `Toggle.tsx` | A two-option switch made of two real links (the gallery sort). |
+| [Pagination](components/Pagination.md) | `Pagination.tsx` | Numbered pages as links. |
+| [PrevNext](components/PrevNext.md) | `PrevNext.tsx` | Previous and next as icon links. |
+| [Tabs](components/Tabs.md) | `Tabs.tsx` | Tabs that switch panels in place (ARIA tabs pattern). |
+| [BottomNav](components/BottomNav.md) | `BottomNav.tsx` | A short top-level nav as a fixed bottom bar (the kabinet). |
+| [PhotoSlider](components/PhotoSlider.md) | `PhotoSlider.tsx` | Photos that scroll sideways and snap. |
