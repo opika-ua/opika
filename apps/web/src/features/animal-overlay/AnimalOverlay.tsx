@@ -163,7 +163,11 @@ const DIALOG_BASE = "relative flex h-full flex-col outline-none";
  * abspos-ignores-parent-padding gotcha this file hit once already, when
  * there was still padding on that axis to ignore).
  */
-const TOP_BAR_OFFSET = "shrink-0 pt-6 pb-6";
+// `max(1.5rem, env(safe-area-inset-top))`: on a non-notched device
+// `env(safe-area-inset-top)` is 0, so this resolves to the same `pt-6` as
+// before - only a notch/dynamic-island inset (iOS) can ever push it further,
+// never shrink it below the existing clearance.
+const TOP_BAR_OFFSET = "shrink-0 pt-[max(1.5rem,env(safe-area-inset-top))] pb-6";
 const TOP_BAR = "relative mx-auto flex w-full max-w-[1084px] items-center justify-center";
 /**
  * Only the top corners are rounded (48px, the handoff's own number - no
