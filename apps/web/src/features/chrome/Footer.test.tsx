@@ -10,26 +10,19 @@ describe("Footer", () => {
     expect(screen.getByText(uk.footer.fontCredit)).toBeTruthy();
   });
 
-  it("links to both secondary pages when rendered on neither", () => {
+  // 2026-10-28 responsive audit: both nav-echo links («Для притулків» /
+  // «Про проєкт») were removed - they duplicated SiteHeader's own nav and
+  // read as an accident, not a real footer. The footer is credit-only now.
+  it("carries no links - the attribution line only", () => {
     render(<Footer />);
 
-    expect(screen.getByRole("link", { name: uk.nav.about }).getAttribute("href")).toBe("/pro");
-    expect(screen.getByRole("link", { name: uk.nav.forShelters }).getAttribute("href")).toBe(
-      "/prytulkam",
-    );
+    expect(screen.queryByRole("link")).toBeNull();
   });
 
-  it("suppresses the /pro link when rendered on /pro - no self-link", () => {
+  it("ignores currentPage - kept on the type for the caller, has no effect", () => {
     render(<Footer currentPage="pro" />);
 
-    expect(screen.queryByRole("link", { name: uk.nav.about })).toBeNull();
-    expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
-  });
-
-  it("suppresses the /prytulkam link when rendered on /prytulkam - no self-link", () => {
-    render(<Footer currentPage="prytulkam" />);
-
-    expect(screen.queryByRole("link", { name: uk.nav.forShelters })).toBeNull();
-    expect(screen.getByRole("link", { name: uk.nav.about })).toBeTruthy();
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText(uk.footer.fontCredit)).toBeTruthy();
   });
 });
