@@ -203,7 +203,7 @@ function renderForm(
       editing={options.editing ?? OPEN}
       viewer={options.viewer ?? "admin"}
       shelterVisibility={options.shelterVisibility ?? "visible"}
-      back={{ href: "/kabinet", label: "← Профіль притулку" }}
+      back={{ href: "/kabinet/prytulok", label: "← Притулок" }}
       client={client}
       clock={options.clock ?? (() => NOW)}
       compress={options.compress ?? okJpeg}
@@ -759,8 +759,8 @@ describe("the unsaved-work warning and the saved-time line", () => {
       preventedAtNavigation = dispatchUnload().prevented;
     });
 
-    fireEvent.click(screen.getByRole("link", { name: "← Профіль притулку" }));
-    await waitFor(() => expect(assign).toHaveBeenCalledWith("/kabinet"));
+    fireEvent.click(screen.getByRole("link", { name: "← Притулок" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/kabinet/prytulok"));
 
     expect(preventedAtNavigation).toBe(false);
     assign.mockRestore();
@@ -880,7 +880,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
    * `location.assign` (happy-dom's own `assign` fires nothing).
    */
   describe("the back link's own leave", () => {
-    const backLink = () => screen.getByRole("link", { name: "← Профіль притулку" });
+    const backLink = () => screen.getByRole("link", { name: "← Притулок" });
     const description = () => screen.getByLabelText("Про тварину");
     const preventedAtNavigation = () => {
       const seen: boolean[] = [];

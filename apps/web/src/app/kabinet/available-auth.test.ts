@@ -3,6 +3,7 @@ import KabinetHomePage from "./page";
 import OperatorShelterPage from "./prytulky/[id]/page";
 import NewShelterPage from "./prytulky/novyi/page";
 import OperatorSheltersPage from "./prytulky/page";
+import ShelterProfilePage, { generateMetadata as shelterProfileMetadata } from "./prytulok/page";
 import AnimalEditPage, { generateMetadata as animalEditMetadata } from "./tvaryny/[id]/page";
 import NewAnimalPage from "./tvaryny/nova/page";
 import AnimalListPage from "./tvaryny/page";
@@ -43,6 +44,8 @@ const animalParams = () => ({ params: Promise.resolve({ id: crypto.randomUUID() 
  */
 describe.each([
   ["/kabinet", () => KabinetHomePage()],
+  ["/kabinet/prytulok", () => ShelterProfilePage()],
+  ["/kabinet/prytulok (its <title>)", () => shelterProfileMetadata()],
   ["/kabinet/vkhid", signIn({})],
   ["/kabinet/vkhid?zaproshennia=<id>", signIn({ zaproshennia: crypto.randomUUID() })],
   ["/kabinet/prytulky", operatorList],

@@ -2,16 +2,21 @@ import type { KabinetShelterView } from "@opika/contracts";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { OperatorName } from "../../kabinet/operator";
-import { ShelterProfile } from "./ShelterProfile";
+import { KabinetHome } from "./KabinetHome";
 
 /**
- * The shelter's side of a rejection or suspension on `/kabinet` (RU-Q7,
- * answer 7, and round-2 answer 2: "«Пояснення:», then my note verbatim, then
- * a signature line «— {operator}» (nominative, as in the emails)"), rendered
- * as the page renders it. Every string is Oleksii's, transcribed from
- * `rui-copy-uk.md` §3.4 and §3.2 (the code labels) and his round-2 answers 2
- * and 6, never read from `uk.ts`. The section's whole text is pinned, so
- * nothing else (no count, no adopter, commitment #2) can ride along in it.
+ * The shelter's side of a rejection or suspension (RU-Q7, answer 7, and
+ * round-2 answer 2: "«Пояснення:», then my note verbatim, then a signature
+ * line «— {operator}» (nominative, as in the emails)"), rendered as the page
+ * renders it. Since kabinet redesign Phase 2 PR 1 that page is Головна
+ * (`KabinetHome`, `SHELTER_HOME`) - it used to be `/kabinet`'s profile
+ * editor, which still renders the separate, unrelated locked block its own
+ * operator-name fallback test lives in `ShelterProfile.test.tsx` now.
+ *
+ * Every string here is Oleksii's, transcribed from `rui-copy-uk.md` §3.4 and
+ * §3.2 (the code labels) and his round-2 answers 2 and 6, never read from
+ * `uk.ts`. The section's whole text is pinned, so nothing else (no count, no
+ * adopter, commitment #2) can ride along in it.
  */
 
 const view = (verification: KabinetShelterView["verification"]): KabinetShelterView => ({
@@ -46,11 +51,14 @@ const renderAs = (
   operator: OperatorName = OLEKSII,
 ) =>
   render(
-    <ShelterProfile
+    <KabinetHome
       view={view(verification)}
-      cityName="Бровари"
       viewer={viewer}
       operator={operator}
+      draftCount={0}
+      staleCount={0}
+      animalListShown
+      canWrite
     />,
   );
 
@@ -130,11 +138,12 @@ describe("a suspended shelter reads the decision", () => {
 /**
  * No name configured: the signature stands alone, so it takes the capitalised
  * fallback, as both emails sign (round-2 answer 6: "capitalise it → «—
- * Адміністратор сайту»"), while the locked note on the same page keeps the
- * lower case mid-sentence. One page, two forms: each place gets its own.
+ * Адміністратор сайту»"). `ShelterProfile.test.tsx` has the locked note's own
+ * fallback case (lower case, mid-sentence) - a different component, on a
+ * different screen since kabinet redesign Phase 2 PR 1.
  */
 describe("with no operator name configured", () => {
-  it("signs «- Адміністратор сайту», and the locked note keeps «адміністратор сайту»", () => {
+  it("signs «- Адміністратор сайту»", () => {
     renderAs(
       { status: "suspended", at: AT, reason: { code: "other", note: "Чекаю на ваші фото." } },
       "admin",
@@ -142,11 +151,6 @@ describe("with no operator name configured", () => {
     );
     const section = screen.getByRole("region", { name: "Притулок тимчасово призупинено" });
     expect(section.textContent).toContain("Чекаю на ваші фото.- Адміністратор сайту");
-    expect(
-      screen.getByText(
-        "Ці дані встановлює адміністратор сайту під час перевірки притулку. Тут вони лише для перегляду.",
-      ),
-    ).toBeTruthy();
   });
 });
 
