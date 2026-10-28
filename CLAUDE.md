@@ -40,7 +40,9 @@ Priority: speed with sensible quality.
    day. Generate the command block with `pnpm --filter @opika/db smoke-sitting`
    (`packages/db/src/tools/smoke-sitting.ts`), which refuses to render a sitting that says
    otherwise, rather than writing the commands by hand.
-9. Fresh session per PR with a short brief; at most two local agents.
+9. Fresh session per PR with a short brief; at most four local agents, each with clearly
+   separate file ownership. (Owner, 2026-10-28 – raised from two, after a crash recovery ran
+   three at once with separate ownership and it worked fine.)
 10. If a PR's CI doesn't start, check for a merge conflict with `main` first.
 11. Never «—» (U+2014); use «–» where a dash is needed; «-» only inside words.
 
