@@ -107,11 +107,9 @@ export function Dropdown({
   label: string;
   /**
    * The "clear this dimension" href, shown as a ✕ in place of the chevron
-   * once `active`. Omitted entirely by `GallerySortToggle`'s own dropdown
-   * (gallery filter restructure): sort always carries a real value, so
-   * there is nothing to clear back to "any" - that control passes no
-   * `clearHref` and always sees the chevron instead, regardless of
-   * `active`.
+   * once `active`. Optional: a dimension with no "any" state to clear
+   * back to would pass none and always see the chevron - every current
+   * caller (city/age/size/sex) does pass one.
    */
   clearHref?: string;
   children: ReactNode;
@@ -243,28 +241,47 @@ export function DropdownOption({
 }
 
 /**
- * The species filter's own control (gallery filter restructure, decision
- * taken: no mock exists for this exact shape). A three-way segmented
- * toggle - «Усі» / «Собаки» / «Коти» - replacing the dropdown every other
- * dimension here still uses: exclusive choice, not the dropdown's
- * multi-select, so `withOnlySpecies` (`filter-url.ts`) writes the next
- * href rather than the toggle-add/remove every `withToggledX` helper uses.
+ * The species filter's own control (gallery filter restructure; restyled
+ * again per the owner's option-B sketch, `filter-row-option-B.png`). A
+ * three-way segmented toggle - «Усі» / «Собаки» / «Коти» - exclusive
+ * choice, not the dropdown's multi-select, so `withOnlySpecies`
+ * (`filter-url.ts`) writes the next href rather than toggle-add/remove.
  *
- * Visual language matches `GallerySortToggle`'s own pill (`rounded-brand-
- * pill`, ink/surface fill, the same focus-visible treatment), but as three
- * plain buttons rather than a sliding knob - a knob reads cleanly between
- * two positions; a third state ("any") has no natural slot on a two-ended
- * track.
+ * Field-shaped now, not pill-shaped (`rounded-brand-field`/`border-brand-
+ * line`/`h-13`, the same trio `Dropdown`'s own trigger button uses), with
+ * the same active/inactive border convention `Dropdown` already uses -
+ * accent border once anything but «Усі» is picked. The selected segment
+ * fills ink with `text-brand-on-ink`, this app's existing ink-fill/white-
+ * text pair (`GalleryCard.tsx`, `GalleryControlBlock.tsx`'s own «Фільтр»
+ * button), not `text-brand-surface` (a near-white page-background token,
+ * the wrong one - a pre-existing mismatch fixed here while this control
+ * was already being touched).
+ *
+ * Rendered twice on the real page now (`tvaryny/page.tsx`): once here,
+ * first in the desktop filter row (`className` defaults to `shrink-0`),
+ * and once standalone in the new mobile-only row above «Фільтр»/sort
+ * (`className="w-full"`, `testIdSuffix="-mobile"` so the two DOM copies -
+ * one hidden by CSS at any given width, same pattern every other
+ * responsive pair in this codebase already uses - don't collide on
+ * `data-testid`). `flex-1` on each segment only visibly stretches them
+ * when the container itself has a forced width (the mobile `w-full`
+ * copy); the desktop copy's auto-width container has no leftover space to
+ * distribute, so it still shrinks to content.
  */
-function SpeciesToggle({
+export function SpeciesToggle({
   filters,
   sort,
   citySlugs,
+  className = "shrink-0",
+  testIdSuffix = "",
 }: {
   filters: FeedFilters;
   sort: GallerySort;
   citySlugs: CitySlugsById;
+  className?: string;
+  testIdSuffix?: string;
 }) {
+  const active = filters.species.kind !== "any";
   const options: ReadonlyArray<{
     species: AnimalSpecies | null;
     label: string;
@@ -278,11 +295,13 @@ function SpeciesToggle({
   return (
     <fieldset
       aria-label={uk.filters.species}
-      data-testid="species-toggle"
-      className="flex shrink-0 items-center gap-1 rounded-brand-pill border-2 border-brand-line bg-brand-page p-1"
+      data-testid={`species-toggle${testIdSuffix}`}
+      className={`flex h-13 items-center gap-1 rounded-brand-field border-2 bg-brand-page px-1 ${
+        active ? "border-brand-accent" : "border-brand-line"
+      } ${className}`}
     >
       {options.map(({ species, label, testid }) => {
-        const active =
+        const segmentActive =
           species === null
             ? filters.species.kind === "any"
             : isExplicitlySelected(filters.species, species);
@@ -295,10 +314,10 @@ function SpeciesToggle({
             key={testid}
             prefetch={false}
             href={href}
-            aria-current={active ? "true" : undefined}
-            data-testid={testid}
-            className={`flex min-h-target min-w-11 items-center justify-center rounded-brand-pill px-3 text-[16px]/[1.2] font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
-              active ? "bg-brand-ink text-brand-surface" : "text-brand-muted"
+            aria-current={segmentActive ? "true" : undefined}
+            data-testid={`${testid}${testIdSuffix}`}
+            className={`flex h-full min-w-11 flex-1 items-center justify-center rounded-brand-field px-3 text-[16px]/[1.2] font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] ${
+              segmentActive ? "bg-brand-ink text-brand-on-ink" : "text-brand-muted"
             }`}
           >
             {label}
@@ -310,26 +329,14 @@ function SpeciesToggle({
 }
 
 /**
- * The gallery-v3 control block's real controls - city, age, size, a
- * species toggle, then sex (the four survivors, gallery filter
- * restructure). Figma `58:1617` shows four dropdowns, city/age/size/
- * «Стать»; fur, temperament and colour (added later, GV3-Q1 (b) and pet
- * card PR 1b) are gone again with this restructure - found harder to use
- * well than to use at all - and species moved from a dropdown to the
- * `SpeciesToggle` above, which this restructure's own text description
- * specified directly ("kind filter like dogs or cats becomes a toggle").
+ * The gallery-v3 control block's real controls, in the option-B order:
+ * species first, then city/age/size/sex (the four survivors of the
+ * gallery filter restructure - fur, temperament and colour are gone,
+ * found harder to use well than to use at all).
  *
- * **«Стать» (sex) stays a dropdown**, unaffected by the restructure except
- * for sitting at the deck's own filter-words header differently now that
- * it isn't the last dropdown added: `FeedFilters` carries `sexes`
- * (`feed-filters.ts`), `feed-predicate.ts` has the `IN` clause, and this
- * dropdown is its one caller beside the sheet - wired end to end, not a
- * control that claims to filter and doesn't. Options are «Хлопчик»/
- * «Дівчинка»/«Не записано» (`ANIMAL_SEXES`, a closed universe like
- * species/size/age - "unknown" is a real, explicit value, not an absence).
- *
- * Hidden below `desktop:` - "Below 1024px... Hide the dropdowns; «Фільтр»
- * opens the sheet" (`FilterSheet.tsx`, still wired at every width).
+ * Still hidden below `desktop:` - below 1024px this row doesn't render at
+ * all; `species-toggle-mobile` (`tvaryny/page.tsx`) and `FilterSheet`
+ * cover city/age/size/sex/species there instead.
  */
 export function GalleryFilterDropdowns({
   filters,
@@ -379,6 +386,8 @@ export function GalleryFilterDropdowns({
       // than stretched to fill its row.
       className="hidden min-w-0 flex-1 flex-wrap items-center gap-3 desktop:flex"
     >
+      <SpeciesToggle filters={filters} sort={sort} citySlugs={citySlugs} />
+
       <Dropdown
         legend={uk.filters.city}
         active={cityActive}
@@ -429,8 +438,6 @@ export function GalleryFilterDropdowns({
           </DropdownOption>
         ))}
       </Dropdown>
-
-      <SpeciesToggle filters={filters} sort={sort} citySlugs={citySlugs} />
 
       <Dropdown
         legend={uk.filters.sex}

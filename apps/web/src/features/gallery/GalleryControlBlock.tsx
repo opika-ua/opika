@@ -7,33 +7,48 @@ import { FilterIcon } from "./icons";
 
 /**
  * gallery-v3 (Figma `58:1617`) control block: «Фільтр» toggles the
- * dropdown row (city/age/size/species/fur/temperament/colour + sort) open or
- * closed – it does not open `FilterSheet`'s modal. Designer clarification
- * (verbatim, mid-build): "this Filters button shows that search filters below or hides if they
- * are shown." Desktop only for now — "we don't have [a] mobile section in
- * Figma yet, so do only desktop for now" — mobile/tablet keep the
- * pre-existing `FilterSheet` modal (rendered by the caller as `children`
- * of this component's row 1, where it stays `desktop:hidden` as before
- * this PR).
+ * dropdown row (city/age/size/species/sex + sort) open or closed – it
+ * does not open `FilterSheet`'s modal. Desktop only, unchanged by the
+ * option-B sketch's mobile layout below.
  *
  * A Client Component, not a `<details>`/`<summary>` disclosure: the
- * toggle's row 1 (title, `trailing`, the button itself) and row 2 (the
- * dropdowns) are two visually separate flex rows, not "a summary followed
- * by its own content" — the one shape `<details>` can express natively.
- * Defaults to **open** so a no-JS visitor still sees and can use every
- * filter (degraded, not broken - the same posture `ReplaceNav`'s own
- * comment states for its own JS enhancement); only the *collapsing*
- * ability needs JS.
+ * toggle's row 1 (title, the button itself) and row 2 (the dropdowns) are
+ * two visually separate flex rows, not "a summary followed by its own
+ * content" – the one shape `<details>` can express natively. Defaults to
+ * **open** so a no-JS visitor still sees and can use every filter
+ * (degraded, not broken); only the *collapsing* ability needs JS.
+ *
+ * Below 1024px (option-B sketch, `filter-row-option-B.png`): a third,
+ * mobile-only row sits between row 1 and row 2 - species full width, then
+ * `trailing` (`FilterSheet`'s trigger) and `mobileSort` side by side.
+ * Row 2 stays `desktop:`-only and untouched; this is a third row, not a
+ * rework of its grid-collapse animation - `trailing` moved out of row 1
+ * into it (option-B puts the title alone in row 1 below 1024px), and
+ * `mobileSpecies`/`mobileSort` are new, second DOM copies of controls row
+ * 2 already renders at `desktop:`, each hidden by CSS at the width the
+ * other owns - the same responsive pattern this file already uses for
+ * `trailing` vs. the toggle button below. **Decision taken** (no prior
+ * pattern in this codebase for a mobile-only row of its own): a new row
+ * rather than reworking row 2's own `hidden ... desktop:grid` to also
+ * serve mobile, since row 2's grid-rows collapse animation and `inert`
+ * wiring are desktop-specific (`gallery-filter-toggle`'s open/close
+ * state) and have no mobile equivalent to animate.
  */
 export function GalleryControlBlock({
   title,
   trailing,
+  mobileSpecies,
+  mobileSort,
   children,
 }: {
   title: ReactNode;
-  /** `FilterSheet`'s own trigger (at narrow widths - it's `desktop:hidden`) - rendered before the toggle button. */
+  /** `FilterSheet`'s own trigger - self-hides below `desktop:` via its own class; rendered in the mobile-only row now, not row 1. */
   trailing: ReactNode;
-  /** Row 2's content – the eight dropdowns and the sort toggle. */
+  /** The species toggle, full width, mobile-only row. A second DOM copy of row 2's own (desktop) instance. */
+  mobileSpecies?: ReactNode;
+  /** A second `GallerySortToggle` instance, mobile-only, beside `trailing`. */
+  mobileSort?: ReactNode;
+  /** Row 2's content (desktop only) – the dropdowns and the sort toggle. */
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(true);
@@ -76,19 +91,25 @@ export function GalleryControlBlock({
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         {title}
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-controls="gallery-filter-row"
+          data-testid="gallery-filter-toggle"
+          className="hidden h-13 cursor-pointer items-center gap-2 rounded-brand-field bg-brand-ink px-6 font-brand-ui text-[20px]/[1.2] font-semibold text-brand-on-ink tracking-[-0.2px] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] desktop:inline-flex"
+        >
+          <FilterIcon className="size-6" />
+          {uk.feed.filtersLabel}
+        </button>
+      </div>
+
+      {/* Mobile-only row (option-B sketch): species full width, then «Фільтр» + sort side by side. Gone entirely at desktop:, where row 2 below is the real filter row. */}
+      <div className="flex flex-col gap-3 desktop:hidden">
+        {mobileSpecies}
         <div className="flex items-center gap-3">
           {trailing}
-          <button
-            type="button"
-            onClick={() => setOpen((value) => !value)}
-            aria-expanded={open}
-            aria-controls="gallery-filter-row"
-            data-testid="gallery-filter-toggle"
-            className="hidden h-13 cursor-pointer items-center gap-2 rounded-brand-field bg-brand-ink px-6 font-brand-ui text-[20px]/[1.2] font-semibold text-brand-on-ink tracking-[-0.2px] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-brand-accent focus-visible:outline-offset-[3px] desktop:inline-flex"
-          >
-            <FilterIcon className="size-6" />
-            {uk.feed.filtersLabel}
-          </button>
+          {mobileSort}
         </div>
       </div>
 
