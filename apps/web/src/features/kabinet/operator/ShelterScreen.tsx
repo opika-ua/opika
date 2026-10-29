@@ -338,7 +338,7 @@ export function ShelterScreen({
   const joined = view.admins.filter((admin) => admin.invite.status === "accepted").length;
   return (
     <>
-      <TextLink href={OPERATOR_HOME} className="self-start">
+      <TextLink href={OPERATOR_HOME} placement="standalone" className="self-start">
         {t.shelter.back}
       </TextLink>
       <div className="flex flex-col gap-2">

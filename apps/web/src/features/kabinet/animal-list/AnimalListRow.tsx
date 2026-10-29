@@ -117,7 +117,7 @@ export function AnimalListRow({
               <Link
                 href={href}
                 prefetch={false}
-                className="focus-ring rounded-field underline-offset-4 hover:underline"
+                className="inline-flex min-h-target items-center focus-ring rounded-field underline-offset-4 hover:underline"
               >
                 {row.name}
               </Link>
