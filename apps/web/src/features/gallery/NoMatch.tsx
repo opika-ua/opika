@@ -20,6 +20,12 @@ interface NoMatchProps {
    * when an oblast is chosen; empty otherwise.
    */
   neighbourRegions?: ReadonlyArray<{ id: RegionId; label: string; count: number }>;
+  /**
+   * Whether the chosen oblasts hold no animal at all. True only when nothing but the oblast is
+   * constrained and its facet count is zero (the page decides, `regionHoldsNoAnimals`): with
+   * another filter set, "no animals here" would claim more than the count shows.
+   */
+  regionEmpty?: boolean;
 }
 
 /**
@@ -71,8 +77,8 @@ export function NoMatch({
   citySlugs,
   relaxations,
   neighbourRegions = [],
+  regionEmpty = false,
 }: NoMatchProps) {
-  const regionChosen = filters.regions.kind !== "any";
   return (
     <Panel
       padding="lg"
@@ -88,7 +94,7 @@ export function NoMatch({
           <Text look="body" className="text-ink-2 text-pretty">
             {uk.noMatch.reassurance}
           </Text>
-          {regionChosen && (
+          {regionEmpty && (
             <Text
               look="body"
               className="text-ink-2 text-pretty"

@@ -360,6 +360,7 @@ export async function renderGallery(
               citySlugs={citySlugs}
               relaxations={relaxations}
               neighbourRegions={neighbourRegions}
+              regionEmpty={regionHoldsNoAnimals(filters, facetCounts.regions)}
             />
           ) : (
             <>
@@ -451,6 +452,24 @@ function neighbourRegionsOf(
     .filter((entry) => entry.count > 0 && entry.label !== "")
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "uk"))
     .slice(0, 3);
+}
+
+/**
+ * True when the chosen oblasts have no animal at all: an oblast is chosen, nothing else is, and
+ * each chosen oblast has no row (or a zero count) in the facet counts. With any other filter set
+ * a zero only means "none matching these filters", which the sentence would overstate.
+ */
+function regionHoldsNoAnimals(
+  filters: FeedFilters,
+  counts: readonly { regionId: RegionId; count: number }[],
+): boolean {
+  if (filters.regions.kind !== "oneOf") return false;
+  const othersAny = (["cities", "species", "sizes", "ages", "sexes"] as const).every(
+    (dimension) => filters[dimension].kind === "any",
+  );
+  if (!othersAny) return false;
+  const countOf = new Map(counts.map((entry) => [entry.regionId, entry.count]));
+  return filters.regions.values.every((id) => (countOf.get(id) ?? 0) === 0);
 }
 
 /** Server Component. Next.js calls this with `{ searchParams }` - a Promise, per Next 16's App Router contract. */
