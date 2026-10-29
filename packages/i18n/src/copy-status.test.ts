@@ -581,13 +581,13 @@ describe("CB-Q2: his four rewrites of the CB-B2 drafts", () => {
   it("about.intro is his three sentences, the name a slot", () => {
     expect(
       uk.about.intro.startsWith(
-        "{site} – сайт, де тварини з притулків Київщини шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.",
+        "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.",
       ),
     ).toBe(true);
   });
   it("forShelters.whatThisIs is his sentence", () => {
     expect(uk.forShelters.whatThisIs).toBe(
-      "Opika – сайт, де тварини з перевірених притулків Київщини шукають дім, а кожен ваш підопічний отримує власну сторінку.",
+      "{site} – сайт, де тварини з перевірених притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку.",
     );
   });
   it("forShelters.money: no donations collected «через сайт»", () => {
@@ -887,7 +887,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.codes.rejection.identity_unverifiable":
       "Не вдалося підтвердити, хто стоїть за притулком",
     "operator.codes.rejection.duplicate_submission": "Повторна заявка",
-    "operator.codes.rejection.out_of_service_area": "Поза областю, де працює сайт",
+    "operator.codes.rejection.out_of_service_area": "Поза територією, де працює сайт",
     "operator.codes.rejection.spam": "Спам",
     "operator.codes.rejection.other": "Інше",
     "operator.codes.suspension.unresponsive": "Немає звʼязку з притулком",
@@ -2438,7 +2438,7 @@ describe("the copy audit of 2026-10-22", () => {
   // #33, #21 and #46: the name (and the year) are slots filled from app config, never typed here.
   it("#33, #46 and #21 carry {site} / {year} slots, and none of them types the site's name", () => {
     expect(uk.about.intro).toBe(
-      "{site} – сайт, де тварини з притулків Київщини шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.",
+      "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.",
     );
     expect(uk.kabinet.email.invite.intro).toBe(
       "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті {site}.",
@@ -2500,5 +2500,33 @@ describe("the copy audit of 2026-10-22", () => {
         .filter(([, text]) => straight.test(text))
         .map(([path]) => path),
     ).toEqual([]);
+  });
+});
+
+describe("nationwide copy (owner-approved table, N5)", () => {
+  it("the site is for Ukraine, not one oblast, in every public sentence that named it", () => {
+    expect(uk.firstRun.promise).toBe(
+      "Собаки й коти з перевірених притулків України шукають дім. Перегляньте список.",
+    );
+    expect(uk.forShelters.whatThisIs).toBe(
+      "{site} – сайт, де тварини з перевірених притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку.",
+    );
+    expect(uk.kabinet.operator.codes.rejection.out_of_service_area).toBe(
+      "Поза територією, де працює сайт",
+    );
+  });
+
+  it("the long city list, the codifier credit and the short hromada", () => {
+    expect(uk.filters.showAllOptions).toBe("Показати всі ({count})");
+    expect(uk.filters.findCity).toBe("Знайти місто");
+    expect(uk.place.hromadaShort).toBe("{name} громада");
+    expect(uk.footer.dataCredit).toBe(
+      "Перелік населених пунктів: Кодифікатор адміністративно-територіальних одиниць (Мінрозвитку), Creative Commons Attribution.",
+    );
+  });
+
+  it("the two dead exhausted keys are gone", () => {
+    expect(Object.keys(uk.exhausted)).not.toContain("addNearbyCities");
+    expect(Object.keys(uk.exhausted)).not.toContain("footnote");
   });
 });

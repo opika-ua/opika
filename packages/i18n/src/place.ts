@@ -31,6 +31,15 @@ function raionShort(raion: string): string {
 }
 
 /**
+ * «Броварська міська територіальна громада» -> «Броварська громада». A name that does not carry
+ * the «міська/селищна/сільська територіальна громада» tail is kept as is.
+ */
+export function hromadaShort(hromada: string): string {
+  const name = hromada.replace(/\s+(?:міська|селищна|сільська)\s+територіальна\s+громада$/u, "");
+  return name === hromada ? hromada : fillTemplate(uk.place.hromadaShort, { name });
+}
+
+/**
  * A settlement as a meta line prints it: the kind prefix and the name, then only as much of the
  * oblast and raion as the name needs to be unambiguous (`nameScope`, computed across the whole
  * settlement list at import). A card adds the oblast whenever the name is not unique in Ukraine;

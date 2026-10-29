@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type PlaceLabel, placeName, placeText } from "./place";
+import { hromadaShort, type PlaceLabel, placeName, placeText } from "./place";
 
 const label = (overrides: Partial<PlaceLabel> = {}): PlaceLabel => ({
   name: "Бровари",
@@ -59,5 +59,17 @@ describe("placeName", () => {
   it("is the bare name, with the oblast only where the name is ambiguous", () => {
     expect(placeName(label())).toBe("Бровари");
     expect(placeName(label({ nameScope: "unique_in_region" }))).toBe("Бровари, Київська обл.");
+  });
+});
+
+describe("hromadaShort", () => {
+  it("drops the kind and the «територіальна» tail", () => {
+    expect(hromadaShort("Броварська міська територіальна громада")).toBe("Броварська громада");
+    expect(hromadaShort("Чабанівська селищна територіальна громада")).toBe("Чабанівська громада");
+    expect(hromadaShort("Гірська сільська територіальна громада")).toBe("Гірська громада");
+  });
+
+  it("keeps a name that does not end that way", () => {
+    expect(hromadaShort("Броварська громада")).toBe("Броварська громада");
   });
 });
