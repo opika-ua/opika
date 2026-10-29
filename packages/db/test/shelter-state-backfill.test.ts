@@ -1,14 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { cityRepo } from "../src/repos/city-repo";
-import * as schema from "../src/schema/index";
 import { makeCity, setupTestDatabase } from "../src/test-utils/index";
 import { TEST_DATABASE_URL } from "../src/test-utils/setup";
-import { insertLegacyShelter } from "./legacy-rows";
+import { insertLegacyCity, insertLegacyShelter } from "./legacy-rows";
 
 /**
  * Migration 0007 (H2 S2b), tested against rows in the shape they had *before*
@@ -27,7 +24,6 @@ const MIGRATIONS_DIR = resolve(fileURLToPath(import.meta.url), "../../drizzle");
 const RESHAPE_TAG = "0007_lean_joshua_kane";
 
 const client = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
-const db = drizzle(client, { schema });
 
 afterAll(async () => {
   await (await setupTestDatabase()).cleanup();
@@ -110,7 +106,7 @@ describe("0007 shelter-state reshape", () => {
 
   it("turns every pausedBy into a moderator actor, including the one inside a suspended shelter's priorState", async () => {
     const city = makeCity();
-    await cityRepo(db).insert(city);
+    await insertLegacyCity(client, city);
     await insertLegacyShelter(client, {
       id: sid(1),
       cityId: city.id,
@@ -177,7 +173,7 @@ describe("0007 shelter-state reshape", () => {
   /** H2-13: each row keeps its own code; flattening to "other" would destroy real data. */
   it("wraps each withdrawal reason as { code, note: null }, keeping its own code", async () => {
     const city = makeCity();
-    await cityRepo(db).insert(city);
+    await insertLegacyCity(client, city);
     await insertLegacyShelter(client, {
       id: sid(1),
       cityId: city.id,
@@ -218,7 +214,7 @@ describe("0007 shelter-state reshape", () => {
 
   it("leaves a row already in the new shape exactly as it is", async () => {
     const city = makeCity();
-    await cityRepo(db).insert(city);
+    await insertLegacyCity(client, city);
     await insertLegacyShelter(client, {
       id: sid(1),
       cityId: city.id,
@@ -245,7 +241,7 @@ describe("0007 shelter-state reshape", () => {
   /** NULL NOT IN (...) is NULL, so without COALESCE a code-less reason would pass the guard. */
   it("aborts on a withdrawal reason with no code key or a null code", async () => {
     const city = makeCity();
-    await cityRepo(db).insert(city);
+    await insertLegacyCity(client, city);
     await insertLegacyShelter(client, { id: sid(1), cityId: city.id });
     await insertLegacyAnimal(
       aid(1),
@@ -269,7 +265,7 @@ describe("0007 shelter-state reshape", () => {
 
   it("aborts on a withdrawal code the domain doesn't know", async () => {
     const city = makeCity();
-    await cityRepo(db).insert(city);
+    await insertLegacyCity(client, city);
     await insertLegacyShelter(client, {
       id: sid(1),
       cityId: city.id,

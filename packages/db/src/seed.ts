@@ -49,6 +49,8 @@ import {
   type ModeratorId,
   type PublicLocation,
   publicLocationOf,
+  type RegionId,
+  type SettlementKind,
   type Shelter,
   type ShelterContact,
   type ShelterId,
@@ -67,6 +69,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import type { Database } from "./client";
+import { KYIV_CITY_REGION_ID, KYIV_OBLAST_REGION_ID } from "./geography/regions-data";
 import { assertProductionWriteAllowed, databaseTargetLine } from "./prod-guard";
 import { animalRepo } from "./repos/animal-repo";
 import { cityRepo } from "./repos/city-repo";
@@ -235,7 +238,7 @@ export async function insertSeedData(
   actor: ScriptActor,
 ): Promise<void> {
   console.log(`  Inserting ${data.cities.length} cities...`);
-  await cityRepo(db).insertMany(data.cities);
+  await cityRepo(db).upsertMany(data.cities);
   console.log(`  Inserting ${data.shelters.length} shelters...`);
   for (const shelter of data.shelters) {
     await insertShelterFromScript(db, shelter, actor);
@@ -406,38 +409,59 @@ function makeD6Photos(count: number): AnimalPhoto[] {
 // Cities - Kyiv oblast
 // ---------------------------------------------------------------------------
 
-const CITY_DATA: { name: LocalizedText; centroid: { lat: number; lng: number } }[] = [
+const CITY_DATA: {
+  name: LocalizedText;
+  centroid: { lat: number; lng: number };
+  regionId: RegionId;
+  kind: SettlementKind;
+}[] = [
   {
     name: { uk: "Київ", en: { text: "Kyiv", provenance: "human" } },
     centroid: { lat: 50.4501, lng: 30.5234 },
+    regionId: KYIV_CITY_REGION_ID,
+    kind: "special_status_city",
   },
   {
     name: { uk: "Бровари", en: { text: "Brovary", provenance: "human" } },
     centroid: { lat: 50.5114, lng: 30.79 },
+    regionId: KYIV_OBLAST_REGION_ID,
+    kind: "city",
   },
   {
     name: { uk: "Ірпінь", en: { text: "Irpin", provenance: "human" } },
     centroid: { lat: 50.5216, lng: 30.251 },
+    regionId: KYIV_OBLAST_REGION_ID,
+    kind: "city",
   },
   {
     name: { uk: "Буча", en: { text: "Bucha", provenance: "human" } },
     centroid: { lat: 50.5437, lng: 30.2114 },
+    regionId: KYIV_OBLAST_REGION_ID,
+    kind: "city",
   },
   {
     name: { uk: "Вишгород", en: { text: "Vyshhorod", provenance: "human" } },
     centroid: { lat: 50.586, lng: 30.487 },
+    regionId: KYIV_OBLAST_REGION_ID,
+    kind: "city",
   },
   {
     name: { uk: "Бориспіль", en: { text: "Boryspil", provenance: "human" } },
     centroid: { lat: 50.3498, lng: 30.9544 },
+    regionId: KYIV_OBLAST_REGION_ID,
+    kind: "city",
   },
   {
     name: { uk: "Фастів", en: { text: "Fastiv", provenance: "human" } },
     centroid: { lat: 50.0775, lng: 29.9186 },
+    regionId: KYIV_OBLAST_REGION_ID,
+    kind: "city",
   },
   {
     name: { uk: "Біла Церква", en: { text: "Bila Tserkva", provenance: "human" } },
     centroid: { lat: 49.7992, lng: 30.1157 },
+    regionId: KYIV_OBLAST_REGION_ID,
+    kind: "city",
   },
 ];
 
@@ -466,6 +490,14 @@ export function requireEnglishCityName(name: LocalizedText): TranslatedText {
   return name.en;
 }
 
+/** The seeded cities all carry a recorded centroid; a demo shelter is placed on it. */
+function requireRecordedCentroid(city: City): { lat: number; lng: number } {
+  if (city.centroid.kind !== "recorded") {
+    throw new Error(`City "${city.name.uk}" has no recorded centroid to place a demo shelter on.`);
+  }
+  return city.centroid.coordinates;
+}
+
 export function buildCities(): City[] {
   return CITY_DATA.map((c, i) => {
     const en = requireEnglishCityName(c.name);
@@ -473,7 +505,12 @@ export function buildCities(): City[] {
       id: cityId(i),
       slug: citySlugOf(en.text),
       name: { uk: c.name.uk, en },
-      centroid: c.centroid,
+      regionId: c.regionId,
+      kind: c.kind,
+      district: null,
+      hromada: null,
+      nameScope: "unique_in_ukraine",
+      centroid: { kind: "recorded", coordinates: c.centroid, source: "manual" },
     };
   });
 }
@@ -912,7 +949,7 @@ export function buildDemoShelters(cities: City[]): Shelter[] {
       ...shelter.exactAddress,
       line1: "вул. Демонстраційна, 1",
       line2: null,
-      coordinates: city.centroid,
+      coordinates: requireRecordedCentroid(city),
     };
 
     return {
@@ -1542,7 +1579,7 @@ export function buildDemoAnimals(
  * same statement.
  */
 export async function truncateForReseed(db: Database): Promise<void> {
-  await db.execute(sql`TRUNCATE reveals, swipes, animals, adopters, shelters, cities CASCADE`);
+  await db.execute(sql`TRUNCATE reveals, swipes, animals, adopters, shelters CASCADE`);
 }
 
 async function main(profile: SeedProfile) {

@@ -82,6 +82,7 @@ import {
   makeSwipe,
 } from "../src/test-utils/fixtures";
 import { type SmokeTarget, smokeTarget } from "../src/test-utils/smoke-target";
+import { runGeographySmoke } from "./neon-smoke-geography";
 
 /**
  * `pnpm --filter @opika/db db:neon-smoke --expect ep-…` (from a worktree:
@@ -2632,7 +2633,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   console.log(`Target host: ${target.host}`);
-  const outcomes = await runSmoke(createDatabase(url));
+  const database = createDatabase(url);
+  const outcomes = [...(await runSmoke(database)), ...(await runGeographySmoke(database))];
   for (const o of outcomes) console.log(`${o.ok ? "PASS" : "FAIL"}  ${o.name}: ${o.detail}`);
   const failed = outcomes.filter((o) => !o.ok).length;
   console.log(`${outcomes.length - failed} passed, ${failed} failed`);

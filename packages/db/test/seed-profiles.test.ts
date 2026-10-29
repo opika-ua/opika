@@ -125,7 +125,10 @@ describe("buildDemoShelters", () => {
       expect(shelter.exactAddress.line1).toBe("вул. Демонстраційна, 1");
       const city = cities.find((c) => c.id === shelter.exactAddress.cityId);
       expect(city).toBeDefined();
-      expect(shelter.exactAddress.coordinates).toEqual(city?.centroid);
+      expect(city?.centroid.kind).toBe("recorded");
+      if (city?.centroid.kind === "recorded") {
+        expect(shelter.exactAddress.coordinates).toEqual(city.centroid.coordinates);
+      }
     }
   });
 

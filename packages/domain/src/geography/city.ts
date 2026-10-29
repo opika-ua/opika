@@ -3,6 +3,7 @@ import { CoordinatesSchema } from "../primitives/coordinates";
 import { CityIdSchema } from "../primitives/ids";
 import { TranslatedTextSchema } from "../primitives/localized-text";
 import { CitySlugSchema } from "./city-slug";
+import { RegionIdSchema } from "./region";
 
 /**
  * Not `LocalizedTextSchema` - that type's `en` is nullable (an animal or
@@ -19,6 +20,37 @@ export const CityNameSchema = z.object({
   en: TranslatedTextSchema,
 });
 export type CityName = z.infer<typeof CityNameSchema>;
+
+export const SettlementKindSchema = z.enum(["special_status_city", "city", "selyshche", "village"]);
+export type SettlementKind = z.infer<typeof SettlementKindSchema>;
+
+/**
+ * What a display must add to the name to be unambiguous. Computed across the whole dataset at
+ * import, never typed by hand; the 8 seeded cities start at `unique_in_ukraine`.
+ */
+export const NameScopeSchema = z.enum([
+  "unique_in_ukraine",
+  "unique_in_region",
+  "unique_in_district",
+  "shared_in_district",
+]);
+export type NameScope = z.infer<typeof NameScopeSchema>;
+
+/**
+ * A union rather than a nullable pair: most settlements have no recorded centre until a feature
+ * reads one, and a fabricated fallback would claim precision that does not exist.
+ */
+export const CityCentroidSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("not_recorded") }),
+  z.object({
+    kind: z.literal("recorded"),
+    coordinates: CoordinatesSchema,
+    source: z.enum(["manual"]),
+  }),
+]);
+export type CityCentroid = z.infer<typeof CityCentroidSchema>;
+
+const AdministrativeNameSchema = z.object({ uk: z.string().min(1) });
 
 /**
  * Cities are a controlled list rather than free text on a shelter, because the
@@ -37,8 +69,14 @@ export type CityName = z.infer<typeof CityNameSchema>;
  */
 export const CitySchema = z.object({
   id: CityIdSchema,
+  regionId: RegionIdSchema,
+  kind: SettlementKindSchema,
   name: CityNameSchema,
-  centroid: CoordinatesSchema,
+  /** Null for Kyiv and Sevastopol, which have no raion. */
+  district: AdministrativeNameSchema.nullable(),
+  hromada: AdministrativeNameSchema.nullable(),
+  nameScope: NameScopeSchema,
+  centroid: CityCentroidSchema,
   slug: CitySlugSchema,
 });
 export type City = z.infer<typeof CitySchema>;
