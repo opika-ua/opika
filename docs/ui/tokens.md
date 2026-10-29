@@ -5,7 +5,7 @@ One set, defined in `apps/web/src/app/globals.css` (`@theme`). Class names have 
 
 | Group | Tokens | Use |
 |---|---|---|
-| Colour | `page`, `surface`, `ink`, `ink-2`, `muted`, `line`, `accent`, `accent-text`, `on-accent`, `on-ink`, `species-dog`, `species-cat`, `focus`, `success`, `warning`, `danger` | `ink` text and primary fills; `ink-2` secondary text and hints; `muted` placeholders only (not for text that carries meaning); `line` borders and quiet fills; `accent` the call to action (fill only; text on it is `on-accent`, orange as text or focus is `accent-text`) |
+| Colour | `page`, `surface`, `ink`, `ink-2`, `muted`, `line`, `accent`, `accent-text`, `on-ink`, `species-dog`, `species-cat`, `focus`, `success`, `warning`, `danger` | `ink` text and primary fills; `ink-2` secondary text and hints; `muted` placeholders only (not for text that carries meaning); `line` borders and quiet fills; `accent` the call to action (fill only; text on it is `on-ink`, white; orange as text on a light background, and the focus ring, is `accent-text`) |
 | Radius | `tag` 8, `field` 12, `panel` 20, `card` 24, `sheet` 48, `pill` | tags, inputs, grouped boxes, cards, tablet sheets, buttons and chips |
 | Shadow | `float` | floating layers only |
 | Motion | `--duration-quick/settle/reveal`, `--ease-standard` | all go to 0 under reduced motion |
@@ -34,9 +34,17 @@ derivative of Bellota Text (weights 300-700, the page default). Licence and prov
 Rules (owner, 2026-10-28; the UI face reads light at equal weights):
 
 - Minimum text size is 14px anywhere (hints, captions, meta). Body and labels are 16px.
-- Labels and field titles are weight 600; headings are 700. Do not use 500 for anything that must stand out.
+- Labels and field titles are weight 600; headings are 700; the large Button size sets its label at 700. Do not use 500 for anything that must stand out.
 - Hint and secondary text is `text-ink-2` (#735263, AA on `page` and on `line`), never lighter.
 - Never pick a size or weight by hand: use the utility or the `Heading`/`Text` component.
 
 The old `rg-`, `brand-` and Keeper's Voice token sets are gone (DS PR 4); the guards fail on any
 reintroduction.
+
+## Accepted contrast deviations
+
+| Pair | Ratio | Rule | Decision | Mitigation |
+|---|---|---|---|---|
+| White (`on-ink`) text on the `accent` fill #F26427 (accent Button, cat Badge, accent Chip) | 3.0:1 | Below WCAG 1.4.3 AA for normal text (4.5:1) | Accepted by the owner on 2026-10-29 as the brand design ("use white text on #F26427 everywhere, as in the design"). The fill is not darkened. | Large or bold text only: the large Button label is weight 700; Badge and Chip labels are 14px at weight 600. No body-size text on the fill. |
+
+Orange as text on a light background is not part of this deviation: it uses `accent-text` (#C2410C, 4.9:1), as does the focus ring.
