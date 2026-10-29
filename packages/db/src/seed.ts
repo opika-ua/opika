@@ -70,7 +70,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import type { Database } from "./client";
 import { KYIV_CITY_REGION_ID, KYIV_OBLAST_REGION_ID } from "./geography/regions-data";
-import { assertProductionWriteAllowed, databaseTargetLine } from "./prod-guard";
+import { assertNotProductionTarget, databaseTargetLine } from "./prod-guard";
 import { animalRepo } from "./repos/animal-repo";
 import { cityRepo } from "./repos/city-repo";
 import * as schema from "./schema/index";
@@ -238,7 +238,7 @@ export async function insertSeedData(
   actor: ScriptActor,
 ): Promise<void> {
   console.log(`  Inserting ${data.cities.length} cities...`);
-  await cityRepo(db).upsertMany(data.cities);
+  await cityRepo(db).insertMissing(data.cities);
   console.log(`  Inserting ${data.shelters.length} shelters...`);
   for (const shelter of data.shelters) {
     await insertShelterFromScript(db, shelter, actor);
@@ -1658,10 +1658,10 @@ async function main(profile: SeedProfile) {
 // Windows argv[1]/pathToFileURL reasoning).
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const profile = parseSeedProfile(process.argv);
-  // Production first (needs --prod), then the seed's own target rules
-  // (localhost, or `demo` with --force and a matching --db-name). Both
-  // must pass; neither flag substitutes for the other.
-  assertProductionWriteAllowed(DATABASE_URL, process.argv);
+  // Production is refused outright, `--prod` or not (nationwide N2: a reseed wipes shelters and
+  // animals, and production's cities are the importer's). Then the seed's own target rules
+  // (localhost, or `demo` with --force and a matching --db-name); neither substitutes for the other.
+  assertNotProductionTarget(DATABASE_URL, process.argv, "Seeding");
   assertSafeSeedTarget(DATABASE_URL, process.argv, profile);
   main(profile).catch((err) => {
     console.error("Seed failed:", err);

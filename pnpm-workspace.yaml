@@ -97,6 +97,9 @@ catalog:
   # Kept equal to next's own optional sharp (next@16.4.3: ^0.35.5), so one
   # native binary is installed, not two. Bump the two together.
   sharp: 0.35.5
+  # N2 importer: unzips the ministry's XLSX codifier. MIT, no dependencies; imported only by
+  # packages/db/src/import (the script and its tests), never by apps/web or a runtime path.
+  fflate: 0.8.3
   "@aws-sdk/client-s3": 3.1123.0
   # Phase 3, block 4 (launch-gate infra, docs/handoff-2026-10-04.md §3):
   # `apiRateLimiter` (apps/web/src/api/rate-limit.ts) is in-memory and does

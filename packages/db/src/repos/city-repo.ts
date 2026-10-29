@@ -22,17 +22,15 @@ export function cityRepo(db: Database) {
     },
 
     /**
-     * Idempotent write for reference data that must survive a reseed: `cities` is never
-     * truncated (the importer's rows and slug aliases live here), so the 8 seeded rows are
-     * updated in place, keyed on `id`.
+     * Inserts the cities that don't exist yet and leaves every existing row untouched, so a reseed
+     * can never undo the importer's work: it renamed `brovary` to `brovary-kyivska`, gave it a
+     * code, a raion and a hromada, and parked the old slug in `city_slug_aliases`. An update here
+     * would make `brovary` canonical again while the alias still points the other way (a 308
+     * loop) and wipe the imported fields. Conflicts on any unique key (id, slug, code) are skipped.
      */
-    async upsertMany(cityList: readonly City[]): Promise<void> {
+    async insertMissing(cityList: readonly City[]): Promise<void> {
       if (cityList.length === 0) return;
-      for (const city of cityList) {
-        const row = cityToRow(city);
-        const { id: _id, ...changes } = row;
-        await db.insert(cities).values(row).onConflictDoUpdate({ target: cities.id, set: changes });
-      }
+      await db.insert(cities).values(cityList.map(cityToRow)).onConflictDoNothing();
     },
 
     async insertMany(cityList: readonly City[]): Promise<void> {

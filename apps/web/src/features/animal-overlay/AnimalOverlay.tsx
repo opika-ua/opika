@@ -1,6 +1,6 @@
 "use client";
 
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button, buttonClass, LinkButton } from "../../ui/Button";

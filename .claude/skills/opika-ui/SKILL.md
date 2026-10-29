@@ -23,7 +23,7 @@ scale), `docs/ui/components/<Name>.md` (props, variants, do/don't, a11y). Do not
 - Unified tokens only: unprefixed names (`bg-surface`, `text-ink`, `rounded-card`). No `rg-`, `brand-`,
   bare Keeper's Voice tokens, `font-rg`, raw hex or arbitrary values (`text-[13px]`).
 - Type: use `text-display-*`, `text-title`, `text-body-l`, `text-body`, `text-label`, `text-caption` or
-  `Heading`/`Text`. Minimum text is 14px anywhere; body and labels are 16px. Labels weight 600,
+  `Heading`/`Text`. Minimum text is 14px anywhere; body and labels are 16px. Labels weight 600 (the large Button 700),
   headings 700, never 500 for anything that must stand out. Secondary and hint text is `text-ink-2`.
 - `className` on kit components is for layout (margin, width) only, never restyling.
 - 48px target (`min-h-target`) and `focus-ring` on every control. Variants are discriminated unions.

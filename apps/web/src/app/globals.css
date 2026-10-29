@@ -9,15 +9,17 @@
   --color-page: #faf7f6;
   --color-surface: #faf8f6;
   --color-ink: #270041;
-  --color-ink-2: #805f6e;
+  --color-ink-2: #735263;
   --color-muted: #b58fa0;
   --color-line: #e7dae0;
   --color-accent: #f26427;
+  /* Orange as text or as a focus ring: 4.9:1 on the page, 3.8:1 on `line`. The fill stays `accent`. */
+  --color-accent-text: #c2410c;
   --color-on-ink: #faf8f9;
   --color-species-dog: #794eba;
   /* Cats are shown in the accent colour today (`card-text.ts`). */
   --color-species-cat: var(--color-accent);
-  --color-focus: var(--color-accent);
+  --color-focus: var(--color-accent-text);
   /* Kabinet states. No screen uses these yet; values chosen for 4.5:1 text on
    * `surface`, to be confirmed by the first screen that renders them. */
   --color-success: #1f7a3d;

@@ -23,7 +23,7 @@ import {
   NO_FILTERS,
   SizeBucketSchema,
 } from "@opika/domain";
-import { fillTemplate, uk } from "@opika/i18n";
+import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 
 /**
  * The design's own URL example (`/tvaryny?misto=brovary&stor=1`,

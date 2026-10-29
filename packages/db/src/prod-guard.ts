@@ -5,7 +5,9 @@ import { parseEnv } from "node:util";
 
 /**
  * The one check every script that writes to a database runs before it
- * connects: `db:migrate`, `db:seed`, `onboard:shelter`.
+ * connects: `db:migrate`, `onboard:shelter` and the other writers. `db:seed` and
+ * `db:import-settlements` use `assertNotProductionTarget` instead: production is refused for them
+ * outright, `--prod` included.
  *
  * Production is identified by its Neon **compute endpoint id**
  * (`PROD_NEON_ENDPOINT=ep-…`), never by a connection string. The id is all the
@@ -452,6 +454,26 @@ export function checkProductionWrite(
       };
 }
 
+/**
+ * For scripts that may never touch production, with no override: a target is allowed only when it
+ * is local or provably a different Neon compute from `PROD_NEON_ENDPOINT`. `--prod` is stripped
+ * before the check, so it cannot open anything; with the production endpoint unknown a Neon target
+ * can't be shown not to be production, and is refused too (fail closed).
+ */
+export function checkNonProductionTarget(
+  targetUrl: string,
+  argv: readonly string[],
+  prodEndpoint: string | undefined,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): ProductionWriteCheck {
+  return checkProductionWrite(
+    targetUrl,
+    argv.filter((arg) => arg !== PROD_FLAG),
+    prodEndpoint,
+    env,
+  );
+}
+
 const REPO_ENV_LOCAL = resolve(fileURLToPath(import.meta.url), "../../../../.env.local");
 
 /**
@@ -496,6 +518,36 @@ export function assertProductionWriteAllowed(
     return;
   }
   console.error(refusalMessage(check));
+  process.exit(1);
+}
+
+/**
+ * The CLI form of `checkNonProductionTarget`: prints why and exits non-zero. `what` names the
+ * script's job in the refusal ("importing settlements", "seeding"); a production target gets its
+ * own message because `--prod` was typed on purpose and must be told it does nothing here.
+ */
+export function assertNotProductionTarget(
+  targetUrl: string,
+  argv: readonly string[],
+  what: string,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): void {
+  const check = checkNonProductionTarget(targetUrl, argv, productionEndpoint(env), env);
+  if (check.kind === "allowed") return;
+  if (check.reason === "production_without_flag") {
+    console.error(
+      `ERROR: this target is PRODUCTION (its Neon compute is ${PROD_ENDPOINT_ENV}). ${what} never ` +
+        `runs against production from this script, and ${PROD_FLAG} does not change that.`,
+    );
+  } else if (check.reason === "production_unknown") {
+    console.error(
+      `ERROR: ${PROD_ENDPOINT_ENV} is not set (environment or the root .env.local), so this ` +
+        `non-local target can't be shown not to be production, and ${what} never runs against ` +
+        `production. Set it; ${PROD_FLAG} does not change that.`,
+    );
+  } else {
+    console.error(refusalMessage(check));
+  }
   process.exit(1);
 }
 

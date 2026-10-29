@@ -1,4 +1,4 @@
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 
 /**
  * What a per-IP 429 shows on the reveal dialog and the deck's error card

@@ -1,7 +1,7 @@
 "use client";
 
 import type { AnimalId } from "@opika/domain";
-import { fillTemplate, uk } from "@opika/i18n";
+import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { useEffect, useState } from "react";
 import { Button } from "../../ui/Button";
 import {

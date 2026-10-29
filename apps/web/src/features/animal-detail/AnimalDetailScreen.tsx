@@ -132,7 +132,7 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
                   unoptimized
                 />
                 <span data-testid="shelter-city">
-                  <Text as="span" look="label" className="text-accent">
+                  <Text as="span" look="label" className="text-accent-text">
                     {cityName}
                   </Text>
                 </span>

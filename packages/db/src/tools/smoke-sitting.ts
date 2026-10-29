@@ -45,6 +45,20 @@ export interface SmokeSittingInput {
    * and the production migration (never a smoke) follows only once that smoke passed in full.
    */
   migration?: { tag: string };
+  /**
+   * A PR with the settlement import (nationwide N2): after the smoke, on the same child branch, the
+   * import runs as a dry run, with `--commit`, as a dry run again (all zeros), and again after a
+   * reseed. The import refuses a production target whatever flags it is given, so there is no
+   * production block. `expected` lines become the sitting's "# Expected" comments, one per step.
+   */
+  settlementImport?: {
+    /** Where the codifier is downloaded from, and the sha256 it must have (the importer pins it too). */
+    download: { url: string; sha256: string };
+    expectedFirstPlan: string;
+    expectedAfterCommit: string;
+    expectedRerun: string;
+    expectedAfterReseed: string;
+  };
 }
 
 const AGAINST_PRODUCTION = /against\s+production/i;
@@ -79,6 +93,36 @@ Remove-Item Env:PROD_NEON_ENDPOINT
   };
 }
 
+/** The import block: empty for a sitting without one. Uses the `$ep` the smoke block already set. */
+function importParts(settlementImport: SmokeSittingInput["settlementImport"]): string {
+  if (settlementImport === undefined) return "";
+  return `
+---- Settlement import, on the same child branch (the script refuses a production target outright) ----
+$xlsx = Join-Path $env:TEMP "kodifikator-07-07.xlsx"
+Invoke-WebRequest -Uri "${settlementImport.download.url}" -OutFile $xlsx
+$hash = (Get-FileHash -Algorithm SHA256 $xlsx).Hash.ToLower()
+$hash
+if ($hash -ne "${settlementImport.download.sha256}") { throw "STOP: the file's sha256 is not ${settlementImport.download.sha256}. Do not import it; paste this back." }
+# If the link has moved: download the file by hand and set $xlsx to its path instead, e.g.
+#   $xlsx = "C:\path\kodifikator-07-07.xlsx"   (strip the quotes from a "Copy as path" path). The checksum check above still applies. Do not commit the file.
+pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
+# Expected (dry run, writes nothing): ${settlementImport.expectedFirstPlan}
+pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx --commit
+# Expected: ${settlementImport.expectedAfterCommit}
+pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
+# Expected (rerun, dry): ${settlementImport.expectedRerun}
+$dbName = ([uri]$env:DATABASE_URL).AbsolutePath.TrimStart('/')
+pnpm --filter @opika/db db:seed --profile=demo --force --db-name=$dbName
+pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
+# Expected (after a reseed, dry): ${settlementImport.expectedAfterReseed}
+`;
+}
+
+function importPasteBack(settlementImport: SmokeSittingInput["settlementImport"]): string {
+  if (settlementImport === undefined) return "";
+  return " Also paste ALL FOUR import outputs (dry run, commit, rerun, rerun after the reseed) in full. A second-plan count of 1-8 means a legacy city's name differs from the codifier: paste it back, do not retry.";
+}
+
 function assembled(input: SmokeSittingInput): string {
   const worktreePath = `D:\\opika-worktrees\\${input.worktreeSlug}`;
   const m = migrationParts(input.migration);
@@ -106,7 +150,7 @@ $env:PROD_NEON_ENDPOINT = Read-Secret "Production Neon endpoint id (ep-..., so t
 $ep = ([uri]$env:DATABASE_URL).Host.Split('.')[0] -replace '-pooler$',''
 $ep
 ${m.childSteps}pnpm --filter @opika/db db:neon-smoke --expect $ep
-Remove-Item Env:DATABASE_URL
+${importParts(input.settlementImport)}Remove-Item Env:DATABASE_URL
 ${m.endpointRemovedAfterSmoke}${m.childExpected}# Expected: ${input.expectedTotal} passed, 0 failed (was ${input.previousTotal} before this PR;
 # ${input.newCheckDescription}). Any failure -> STOP, paste full output - this is new
 # information about how the driver handles the change, not a formality.
@@ -115,7 +159,7 @@ ${m.productionStep}
 cd D:\\Startup\\opika
 git worktree remove ${worktreePath}
 
-Paste back: the full neon-smoke output, or at minimum its last ~20 lines including the new check.${m.pasteBack}
+Paste back: the full neon-smoke output, or at minimum its last ~20 lines including the new check.${m.pasteBack}${importPasteBack(input.settlementImport)}
 `;
 }
 

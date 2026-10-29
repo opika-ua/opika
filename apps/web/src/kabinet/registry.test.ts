@@ -225,7 +225,7 @@ const createInput = () => {
 describe("without LOCATION_HMAC_SECRET", () => {
   it("answers 503 to every registry call, and leaves the shelter surface alone", async () => {
     const s = await shelter();
-    // Every one of the nineteen, by path: the route refuses before the input is read.
+    // Every one of the twenty, by path: the route refuses before the input is read.
     const paths = [
       "registry.shelters.list",
       "registry.shelters.byId",
@@ -245,6 +245,7 @@ describe("without LOCATION_HMAC_SECRET", () => {
       "registry.admins.remove",
       "registry.admins.blockedAddresses",
       "registry.history.list",
+      "registry.cities.search",
       "registry.support.enter",
     ];
     const statuses: Record<string, number> = {};

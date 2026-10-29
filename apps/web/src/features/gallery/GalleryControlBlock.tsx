@@ -1,6 +1,6 @@
 "use client";
 
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Button } from "../../ui/Button";

@@ -1,5 +1,5 @@
 import type { CoatColour } from "@opika/domain";
-import { uk } from "./messages/uk";
+import { ukPublic as uk } from "./messages/uk-public";
 import { fillTemplate } from "./template";
 
 /**

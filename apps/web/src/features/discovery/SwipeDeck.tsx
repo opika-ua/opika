@@ -2,7 +2,7 @@
 
 import type { FeedCardView } from "@opika/contracts";
 import type { AnimalId, CityId } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buttonClass } from "../controls/controls";

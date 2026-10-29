@@ -4,7 +4,7 @@ import {
   grammaticalGenderOf,
   type TemperamentTrait,
 } from "@opika/domain";
-import { uk } from "./messages/uk";
+import { ukPublic as uk } from "./messages/uk-public";
 
 /**
  * A `Record` over the domain's own trait type, not a `switch` with a
