@@ -1,7 +1,7 @@
 import type { apiErrors } from "@opika/contracts";
 import type { Database } from "@opika/db";
-import { revealRepo } from "@opika/db/repos";
-import type { AdopterId, ShelterId } from "@opika/domain";
+import { type RevealBudget, revealRepo } from "@opika/db/repos";
+import type { AdopterId, ContactReveal, ShelterId } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import { logRateLimited } from "./rate-limit-log";
 
@@ -52,6 +52,12 @@ const REVEAL_RATE_LIMIT = {
   windowSeconds: 24 * 3600, // 24 hours
 };
 
+/** The window and size at `now`, the same for the check and the guarded write. */
+const budgetAt = (now: Date): RevealBudget => ({
+  since: new Date(now.getTime() - REVEAL_RATE_LIMIT.windowSeconds * 1000),
+  maxShelters: REVEAL_RATE_LIMIT.maxReveals,
+});
+
 /** Whether a reveal that passed the check spends a unit (`new_shelter`) or not. */
 export type RevealBudgetUse = "free_re_reveal" | "new_shelter";
 
@@ -79,6 +85,9 @@ export type RevealBudgetUse = "free_re_reveal" | "new_shelter";
  * it belongs (standing check: repository boundary).
  *
  * Throws RATE_LIMITED if the limit is exceeded.
+ *
+ * A fast answer, not the guarantee: two reveals can both pass it before either
+ * writes (audit F8). `writeRevealWithinRateLimit` below is what holds the limit.
  */
 export async function checkRevealRateLimit(
   db: Database,
@@ -87,20 +96,45 @@ export async function checkRevealRateLimit(
   now: Date,
   errors: RevealRateLimitErrors,
 ): Promise<RevealBudgetUse> {
-  const cutoff = new Date(now.getTime() - REVEAL_RATE_LIMIT.windowSeconds * 1000);
+  const { since, maxShelters } = budgetAt(now);
   const reveals = revealRepo(db);
 
-  const alreadyRevealed = await reveals.hasRevealedShelterRecently(adopterId, shelterId, cutoff);
+  const alreadyRevealed = await reveals.hasRevealedShelterRecently(adopterId, shelterId, since);
   if (alreadyRevealed) return "free_re_reveal";
 
-  const distinctShelterCount = await reveals.countDistinctSheltersRecentByAdopter(
-    adopterId,
-    cutoff,
-  );
+  const distinctShelterCount = await reveals.countDistinctSheltersRecentByAdopter(adopterId, since);
 
-  if (distinctShelterCount >= REVEAL_RATE_LIMIT.maxReveals) {
+  if (distinctShelterCount >= maxShelters) {
     logRateLimited("reveal-adopter");
     throw errors.RATE_LIMITED();
   }
   return "new_shelter";
+}
+
+/**
+ * Writes the reveal under the same budget, atomically (audit F8): the adopter's
+ * row locked, then an insert guarded by the budget, in one transaction
+ * (`revealRepo.insertWithinShelterBudget`). A reveal that lost the race to
+ * another of this adopter's reveals answers as the check above would have:
+ * RATE_LIMITED past the budget, or the reveal already written for this animal.
+ */
+export async function writeRevealWithinRateLimit(
+  db: Database,
+  reveal: ContactReveal,
+  errors: RevealRateLimitErrors,
+): Promise<ContactReveal> {
+  const reveals = revealRepo(db);
+  const outcome = await reveals.insertWithinShelterBudget(reveal, budgetAt(reveal.revealedAt));
+  switch (outcome) {
+    case "inserted":
+      return reveal;
+    case "animal_already_revealed": {
+      const existing = await reveals.findByAdopterAndAnimal(reveal.adopterId, reveal.animalId);
+      if (existing === null) throw new Error("a refused reveal's existing row is gone");
+      return existing;
+    }
+    case "over_budget":
+      logRateLimited("reveal-adopter");
+      throw errors.RATE_LIMITED();
+  }
 }

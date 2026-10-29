@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { adopterRepo, sessionRepo } from "@opika/db/repos";
 import {
+  adopters as adopterRows,
+  sessions as adopterSessionRows,
   authInvitation,
   authOrganization,
   authSession,
@@ -10,7 +13,8 @@ import {
   authVerification,
   invitationCreatedUsers,
 } from "@opika/db/schema";
-import { setupTestDatabase, truncateAll } from "@opika/db/test";
+import { makeAdopter, setupTestDatabase, truncateAll } from "@opika/db/test";
+import type { AdopterId } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { handleAuthCleanup } from "./auth-cleanup";
@@ -36,6 +40,11 @@ const at = (ms: number) => new Date(NOW.getTime() + ms);
 const SECRET = "cron-secret-for-tests-0123456789abcdef";
 const EMAIL = "olena@example.org";
 const USER = "aaaaaaaa-0000-4000-8000-00000000000a";
+/** Audit F6: an adopter whose one session is 40 days old (past the 30-day cap), and a live one. */
+const LAPSED_ADOPTER = "bbbbbbbb-0000-4000-8000-00000000000b" as AdopterId;
+const LIVE_ADOPTER = "cccccccc-0000-4000-8000-00000000000c" as AdopterId;
+const LAPSED_HASH = "a".repeat(64);
+const LIVE_HASH = "b".repeat(64);
 
 beforeEach(async () => {
   await truncateAll(db);
@@ -72,6 +81,15 @@ beforeEach(async () => {
       verification("verification-expired", at(-1)),
       verification("verification-live", at(15 * 60_000)),
     ]);
+  for (const [id, tokenHash, createdAt] of [
+    [LAPSED_ADOPTER, LAPSED_HASH, at(-40 * 86_400_000)],
+    [LIVE_ADOPTER, LIVE_HASH, at(-86_400_000)],
+  ] as const) {
+    await adopterRepo(db).insert(
+      makeAdopter({ id, identity: { kind: "anonymous", deviceSessionId: tokenHash }, createdAt }),
+    );
+    await sessionRepo(db).insert({ tokenHash, adopterId: id, createdAt, lastSeenAt: createdAt });
+  }
 });
 
 const rows = async () => ({
@@ -79,10 +97,14 @@ const rows = async () => ({
   verifications: (await db.select({ id: authVerification.id }).from(authVerification))
     .map((r) => r.id)
     .sort(),
+  adopterSessions: (await db.select().from(adopterSessionRows)).map((r) => r.tokenHash).sort(),
+  adopters: (await db.select().from(adopterRows)).map((r) => r.id).sort(),
 });
 const ALL = {
   sessions: ["session-expired", "session-live"],
   verifications: ["verification-expired", "verification-live"],
+  adopterSessions: [LAPSED_HASH, LIVE_HASH],
+  adopters: [LAPSED_ADOPTER, LIVE_ADOPTER],
 };
 
 async function run(
@@ -105,10 +127,26 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       verifications: 1,
       sessions: 1,
       erasedInvitedUsers: 0,
+      adopterSessions: 1,
+      orphanedAdopters: 1,
     });
     expect(await rows()).toEqual({
       sessions: ["session-live"],
       verifications: ["verification-live"],
+      adopterSessions: [LIVE_HASH],
+      adopters: [LIVE_ADOPTER],
+    });
+  });
+
+  it("a second run straight after deletes nothing more (audit F6, idempotent)", async () => {
+    await run({ authorization: `Bearer ${SECRET}` });
+    const { response } = await run({ authorization: `Bearer ${SECRET}` });
+    expect(await response.json()).toEqual({
+      verifications: 0,
+      sessions: 0,
+      erasedInvitedUsers: 0,
+      adopterSessions: 0,
+      orphanedAdopters: 0,
     });
   });
 
@@ -121,8 +159,20 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       verifications: 1,
       sessions: 1,
       erasedInvitedUsers: 0,
+      adopterSessions: 1,
+      orphanedAdopters: 1,
     });
-    for (const secretish of [EMAIL, "olena", "token-of-", "hashed-", USER, "expired", SECRET]) {
+    for (const secretish of [
+      EMAIL,
+      "olena",
+      "token-of-",
+      "hashed-",
+      USER,
+      "expired",
+      SECRET,
+      LAPSED_ADOPTER,
+      LAPSED_HASH,
+    ]) {
       expect(lines[0]).not.toContain(secretish);
     }
   });

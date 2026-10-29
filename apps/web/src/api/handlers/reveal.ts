@@ -18,7 +18,7 @@ import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { perIpBudgetSpent, spendPerIpBudget } from "../per-ip-budgets";
-import { checkRevealRateLimit } from "../reveal-rate-limit";
+import { checkRevealRateLimit, writeRevealWithinRateLimit } from "../reveal-rate-limit";
 import { cityOnlyLocationOf } from "./public-location";
 
 type RevealInput = z.infer<typeof AnimalsRevealInputSchema>;
@@ -43,7 +43,8 @@ export type AnimalsRevealErrors = ORPCErrorConstructorMap<{
  * - Writes an immutable audit record with a denormalised shelter snapshot
  *   (exact address included, for the operator; `toView` leaves it out)
  * - Rate-limits per adopter via a Postgres counter (survives across instances),
- *   and per IP on top of it (audit F1)
+ *   held by a guarded write under a lock on the adopter's row (audit F8), and
+ *   per IP on top of it (audit F1)
  */
 export async function animalsReveal(
   input: RevealInput,
@@ -122,9 +123,8 @@ export async function animalsReveal(
     },
   };
 
-  await reveals.insert(reveal);
-
-  return toView(reveal, current);
+  // The check above can be passed by two reveals at once; this write holds the budget (audit F8).
+  return toView(await writeRevealWithinRateLimit(context.db, reveal, errors), current);
 }
 
 /**

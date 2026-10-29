@@ -10,17 +10,20 @@ import { handleKabinetRpc, KABINET_RPC_PREFIX, kabinetRpcHandler } from "./rpc-r
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
- * P-Q7: `/api/kabinet/*` reads at most `KABINET_MAX_BODY_BYTES`. A larger
- * body is 413 before any session is looked up, so an oversized upload costs
- * the server one bounded read and nothing else: no session, no database, no
- * sharp, no put.
+ * P-Q7: `/api/kabinet/*` reads at most `KABINET_MAX_BODY_BYTES`. A declared
+ * larger body is 413 before any session is looked up; an undeclared one is
+ * counted while read, and since audit F9's S3 cap (owner, 2026-10-29) its
+ * session is looked up once it passes 16 KB (`rpc-unverified-body.test.ts`),
+ * so a signed-in upload's 413 comes after that one lookup. Either way an
+ * oversized upload costs one bounded read: no sharp, no put.
  */
 
 const BASE = "https://opika.example";
 const ADD = `${BASE}/api/kabinet/shelter/photos/add`;
 const SENTINEL = "reached the session lookup";
 
-function deps() {
+/** `signedIn`: the lookup finds a session, so the body is read on to the ceiling. */
+function deps(lookup: "throws" | "signedIn" = "throws") {
   let resolved = 0;
   const puts: string[] = [];
   return {
@@ -36,7 +39,13 @@ function deps() {
       },
       resolve: async () => {
         resolved += 1;
-        throw new Error(SENTINEL);
+        if (lookup === "throws") throw new Error(SENTINEL);
+        return {
+          principal: { kind: "shelter_admin", shelterAdminId: "u-1", shelterId: "s-1" },
+          userId: "u-1",
+          db: {},
+          cursorSecret: "x",
+        };
       },
       limiters: {
         perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
@@ -102,8 +111,8 @@ describe("the kabinet body ceiling (P-Q7)", () => {
     expect(puts).toEqual([]);
   });
 
-  it("a chunked body (no Content-Length) over the ceiling: 413, no session, nothing stored", async () => {
-    const { deps: d, resolvedCount, puts } = deps();
+  it("a chunked body (no Content-Length) over the ceiling: 413 after one session lookup, nothing stored", async () => {
+    const { deps: d, resolvedCount, puts } = deps("signedIn");
     const request = new Request(ADD, {
       method: "POST",
       headers: {
@@ -117,12 +126,12 @@ describe("the kabinet body ceiling (P-Q7)", () => {
     expect(request.headers.get("content-length")).toBeNull();
     const response = await handleKabinetRpc(request, d);
     expect(response.status).toBe(413);
-    expect(resolvedCount()).toBe(0);
+    expect(resolvedCount()).toBe(1);
     expect(puts).toEqual([]);
   });
 
-  it("a small declared Content-Length followed by a larger body: 413, no session, nothing stored", async () => {
-    const { deps: d, resolvedCount, puts } = deps();
+  it("a small declared Content-Length followed by a larger body: 413 after one session lookup, nothing stored", async () => {
+    const { deps: d, resolvedCount, puts } = deps("signedIn");
     const request = new Request(ADD, {
       method: "POST",
       headers: {
@@ -138,12 +147,12 @@ describe("the kabinet body ceiling (P-Q7)", () => {
     expect(request.headers.get("content-length")).toBe("1024");
     const response = await handleKabinetRpc(request, d);
     expect(response.status).toBe(413);
-    expect(resolvedCount()).toBe(0);
+    expect(resolvedCount()).toBe(1);
     expect(puts).toEqual([]);
   });
 
   it("one byte over, counted while reading: 413", async () => {
-    const { deps: d, resolvedCount } = deps();
+    const { deps: d, resolvedCount } = deps("signedIn");
     const request = new Request(ADD, {
       method: "POST",
       headers: { origin: BASE, cookie: TEST_SESSION_COOKIE },
@@ -151,7 +160,7 @@ describe("the kabinet body ceiling (P-Q7)", () => {
       duplex: "half",
     } as RequestInit);
     expect((await handleKabinetRpc(request, d)).status).toBe(413);
-    expect(resolvedCount()).toBe(0);
+    expect(resolvedCount()).toBe(1);
   });
 
   it("exactly the ceiling goes on to the session lookup (the 413s above are about size)", async () => {
