@@ -8,10 +8,14 @@ import {
   type KabinetAnimalListClient,
   kabinetAnimalListBrowserClient,
 } from "../../../api/kabinet-browser-client";
-import { Button, buttonClass } from "../../controls/controls";
+import { Button, LinkButton } from "../../../ui/Button";
+import { Chip } from "../../../ui/Chip";
+import { EmptyState, InlineStatus } from "../../../ui/feedback";
+import { Heading } from "../../../ui/Heading";
+import { Panel } from "../../../ui/Panel";
+import { Text } from "../../../ui/Text";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
 import { missingSentence, shelterVisibilityOf } from "../animal-form/labels";
-import { BODY, CAPTION, CARD, ERROR_TEXT, PAGE_TITLE, STRONG } from "../profile-edit/styles";
 import { NEW_ANIMAL_PATH } from "../routes";
 import { AnimalListRow, moreButtonId } from "./AnimalListRow";
 import { AdoptDialog, DeleteDialog, type DialogResult, WithdrawDialog } from "./ListDialogs";
@@ -36,9 +40,12 @@ import {
 } from "./list-model";
 
 /**
- * K2 · the shelter's animal list (KABINET K2; `docs/k2-copy-sheet.md`), thin
- * and unstyled until the brand lands: every behaviour, the shared controls
- * and tokens, no layout work.
+ * K2 · the shelter's animal list (KABINET K2; `docs/k2-copy-sheet.md`), built from the kit.
+ *
+ * Hierarchy, top to bottom: the page's one filled call to action («Додати тварину»); what
+ * governs everything below (a paused or not-yet-shown shelter); the stale strip; the filters;
+ * the cards. Confirmations and refusals show in a notice that sticks to the top of the
+ * viewport, so a tap on a card far down the list is answered where the eye is.
  *
  * - **Filters** (N3): one chip per listing kind with its inventory count, or
  *   the stale cards (N5's «Показати ці N»), always the server's own filter
@@ -502,25 +509,51 @@ export function AnimalList({
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 id="animal-list-title" tabIndex={-1} className={PAGE_TITLE}>
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <Heading level={1} look="display-l" id="animal-list-title">
             {t.title}
-          </h1>
-          <p className={BODY}>{captionOf(shelter.displayName, counts)}</p>
+          </Heading>
+          <Text look="body" className="text-ink-2">
+            {captionOf(shelter.displayName, counts)}
+          </Text>
         </div>
         {editable ? (
-          <a href={NEW_ANIMAL_PATH} aria-label={t.add} className={buttonClass("primary")}>
+          <LinkButton href={NEW_ANIMAL_PATH} prefetch={false} aria-label={t.add}>
             <span className="tablet:hidden">{t.addShort}</span>
             <span className="hidden tablet:inline">{t.add}</span>
-          </a>
+          </LinkButton>
         ) : null}
       </header>
 
+      {/* One sticky live region per kind, always in the DOM so a change is announced; empty ones are hidden. */}
+      <div className="sticky top-3 z-(--z-header) flex flex-col gap-2">
+        <p
+          role="status"
+          className="rounded-field border-2 border-line bg-surface px-4 py-3 text-label text-ink shadow-float empty:hidden"
+        >
+          {notice?.kind === "status" ? notice.text : null}
+        </p>
+        <p
+          role="alert"
+          className="rounded-field border-2 border-danger bg-surface px-4 py-3 text-label text-ink shadow-float empty:hidden"
+        >
+          {notice?.kind === "alert" ? notice.text : null}
+        </p>
+      </div>
+
       {visibilityNotice.kind === "paused" ? (
-        <section aria-label={uk.kabinet.profileStatus.paused} className={`${CARD} items-start`}>
-          <p className={STRONG}>{visibilityNotice.line}</p>
-          <p className={BODY}>{t.paused.hidden}</p>
+        <Panel
+          as="section"
+          tone="outline"
+          padding="lg"
+          aria-labelledby="animal-list-paused"
+          className="flex flex-col items-start gap-3"
+        >
+          <Text look="label" id="animal-list-paused">
+            {visibilityNotice.line}
+          </Text>
+          <Text look="body">{t.paused.hidden}</Text>
           {editable ? (
             <Button
               variant="secondary"
@@ -530,26 +563,28 @@ export function AnimalList({
               {uk.kabinet.profileEdit.pause.resumeButton}
             </Button>
           ) : null}
-        </section>
+        </Panel>
       ) : visibilityNotice.kind === "line" ? (
-        <p className={STRONG}>{visibilityNotice.text}</p>
+        <Panel tone="outline" padding="md">
+          <Text look="label">{visibilityNotice.text}</Text>
+        </Panel>
       ) : null}
 
       {total === 0 && !stale ? (
-        <section aria-labelledby="animal-list-empty" className={`${CARD} items-start`}>
-          <h2 id="animal-list-empty" className="text-xl font-bold tracking-tight text-rg-ink">
-            {t.empty.title}
-          </h2>
-          {shown ? <p className={BODY}>{t.empty.body}</p> : null}
-          {editable ? (
-            <>
-              <a href={NEW_ANIMAL_PATH} className={buttonClass("primary")}>
-                {t.empty.add}
-              </a>
-              <p className={CAPTION}>{t.empty.caption}</p>
-            </>
-          ) : null}
-        </section>
+        <EmptyState
+          title={t.empty.title}
+          {...(shown ? { body: t.empty.body } : {})}
+          action={
+            editable ? (
+              <>
+                <LinkButton href={NEW_ANIMAL_PATH} prefetch={false}>
+                  {t.empty.add}
+                </LinkButton>
+                <Text look="hint">{t.empty.caption}</Text>
+              </>
+            ) : undefined
+          }
+        />
       ) : (
         <>
           {staleCount > 0 || stale ? (
@@ -557,34 +592,44 @@ export function AnimalList({
             // anything stale; with nothing left to count, only the way back
             // to every card remains, and a region would have no name to give.
             staleCount > 0 ? (
-              <section aria-labelledby="animal-list-stale" className={`${CARD} items-start`}>
-                <p id="animal-list-stale" className={STRONG}>
+              <Panel
+                as="section"
+                tone="sunken"
+                padding="lg"
+                aria-labelledby="animal-list-stale"
+                className="flex flex-col items-start gap-3"
+              >
+                <Text look="label" id="animal-list-stale">
                   {staleLineOf(staleCount)}
-                </p>
-                {shown ? <p className={CAPTION}>{t.stale.caption}</p> : null}
+                </Text>
+                {shown ? <Text look="hint">{t.stale.caption}</Text> : null}
                 {staleButton}
-              </section>
+              </Panel>
             ) : (
               <div className="flex">{staleButton}</div>
             )
           ) : null}
 
-          <fieldset className="flex flex-wrap items-center gap-2">
-            <legend className={`${CAPTION} mb-2`}>{t.filter.label}</legend>
-            {filterChipsOf(counts).map((chip) => (
-              <Button
-                key={chip.filter.kind === "listing" ? chip.filter.listing : chip.filter.kind}
-                variant="chip"
-                aria-pressed={sameFilter(chip.filter, filter)}
-                onClick={() => {
-                  if (!sameFilter(chip.filter, filter) || load.kind === "failed") {
-                    void loadFirst(chip.filter);
-                  }
-                }}
-              >
-                {chip.label}
-              </Button>
-            ))}
+          {/* One row that scrolls sideways on a phone (the chips stay 48px; wrapping took a third of the screen). */}
+          <fieldset className="min-w-0">
+            <legend className="sr-only">{t.filter.label}</legend>
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 tablet:mx-0 tablet:flex-wrap tablet:overflow-visible tablet:px-0">
+              {filterChipsOf(counts).map((chip) => (
+                <Chip
+                  key={chip.filter.kind === "listing" ? chip.filter.listing : chip.filter.kind}
+                  kind="toggle"
+                  pressed={sameFilter(chip.filter, filter)}
+                  className="shrink-0 whitespace-nowrap"
+                  onClick={() => {
+                    if (!sameFilter(chip.filter, filter) || load.kind === "failed") {
+                      void loadFirst(chip.filter);
+                    }
+                  }}
+                >
+                  {chip.label}
+                </Chip>
+              ))}
+            </div>
           </fieldset>
 
           <section
@@ -593,16 +638,16 @@ export function AnimalList({
             className="flex flex-col gap-3"
           >
             {load.kind === "loading" ? (
-              <p className={CAPTION}>{t.loading}</p>
+              <Text look="hint">{t.loading}</Text>
             ) : load.kind === "failed" ? (
-              <div role="alert" className="flex flex-col items-start gap-2">
-                <p className={ERROR_TEXT}>{t.loadFailed}</p>
+              <div className="flex flex-col items-start gap-3">
+                <InlineStatus tone="error">{t.loadFailed}</InlineStatus>
                 <Button variant="secondary" onClick={() => void loadFirst(filter)}>
                   {uk.kabinet.profileEdit.state.retry}
                 </Button>
               </div>
             ) : items.length === 0 ? (
-              <p className={BODY}>{t.filterEmpty}</p>
+              <Text look="body">{t.filterEmpty}</Text>
             ) : (
               <ul className="flex flex-col gap-3">
                 {items.map((row) => (
@@ -627,9 +672,7 @@ export function AnimalList({
           {load.kind === "idle" && cursor !== null ? (
             <div className="flex flex-col items-start gap-2">
               {more.kind === "failed" ? (
-                <p role="alert" className={ERROR_TEXT}>
-                  {t.loadFailed}
-                </p>
+                <InlineStatus tone="error">{t.loadFailed}</InlineStatus>
               ) : null}
               <Button
                 variant="secondary"
@@ -643,14 +686,7 @@ export function AnimalList({
         </>
       )}
 
-      <p className={CAPTION}>{t.orderNote}</p>
-
-      <p role="status" className={BODY}>
-        {notice?.kind === "status" ? notice.text : null}
-      </p>
-      <p role="alert" className={ERROR_TEXT}>
-        {notice?.kind === "alert" ? notice.text : null}
-      </p>
+      <Text look="hint">{t.orderNote}</Text>
 
       {dialog?.kind === "adopt" ? (
         <AdoptDialog

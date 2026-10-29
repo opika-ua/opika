@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Menu, MenuItem } from "./Menu";
 import { Modal } from "./Modal";
 import { Popover } from "./Popover";
 import { Sheet } from "./Sheet";
@@ -139,5 +140,75 @@ describe("Popover", () => {
     expect(screen.getByRole("link", { name: "Київ" })).toBeTruthy();
     fireEvent.pointerDown(screen.getByRole("button", { name: "Поза" }));
     expect(screen.queryByRole("link", { name: "Київ" })).toBeNull();
+  });
+});
+
+describe("Modal locked", () => {
+  it("ignores Esc, the backdrop and the close button while locked, and closes once unlocked", () => {
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <Modal open onClose={onClose} title="Заголовок" closeLabel="Закрити" locked>
+        <button type="button">Всередині</button>
+      </Modal>,
+    );
+    const dialog = screen.getByRole("dialog", { name: "Заголовок" }) as HTMLDialogElement;
+    const cancel = new Event("cancel", { cancelable: true });
+    dialog.dispatchEvent(cancel);
+    expect(cancel.defaultPrevented).toBe(true);
+    fireEvent.click(dialog);
+    fireEvent.click(screen.getByRole("button", { name: "Закрити" }));
+    expect(dialog.open).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+    rerender(
+      <Modal open onClose={onClose} title="Заголовок" closeLabel="Закрити">
+        <button type="button">Всередині</button>
+      </Modal>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Закрити" }));
+    expect(dialog.open).toBe(false);
+  });
+});
+
+function MenuHarness() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Menu open={open} onOpenChange={setOpen} label="Ще" triggerId="more">
+        <MenuItem>
+          <button type="button">Редагувати</button>
+        </MenuItem>
+      </Menu>
+      <button type="button">Поза меню</button>
+    </>
+  );
+}
+
+describe("Menu", () => {
+  it("is a disclosure: the trigger says whether it is open", () => {
+    render(<MenuHarness />);
+    const trigger = screen.getByRole("button", { name: "Ще" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Редагувати" })).toBeTruthy();
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("button", { name: "Редагувати" })).toBeNull();
+  });
+
+  it("Esc closes it and focus returns to the trigger", () => {
+    render(<MenuHarness />);
+    const trigger = screen.getByRole("button", { name: "Ще" });
+    fireEvent.click(trigger);
+    screen.getByRole("button", { name: "Редагувати" }).focus();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("a press outside closes it", () => {
+    render(<MenuHarness />);
+    fireEvent.click(screen.getByRole("button", { name: "Ще" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Поза меню" }));
+    expect(screen.getByRole("button", { name: "Ще" }).getAttribute("aria-expanded")).toBe("false");
   });
 });

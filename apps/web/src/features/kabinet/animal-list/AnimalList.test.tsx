@@ -1,5 +1,5 @@
 import type { KabinetAnimalView, KabinetCursor, KabinetShelterView } from "@opika/contracts";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { KabinetAnimalListClient } from "../../../api/kabinet-browser-client";
@@ -1271,5 +1271,49 @@ describe("«Ще» is a disclosure", () => {
         inRow("Рекс").getByRole("button", { name: label }).getAttribute("aria-describedby"),
       ).toContain(name.id);
     }
+  });
+});
+
+describe("the name is the way into the card's form, and «Ще» closes on a press outside", () => {
+  it("the name links to the card's form, and «Редагувати» stays under «Ще»", async () => {
+    renderList();
+    expect(inRow("Рекс").getByRole("link", { name: "Рекс" }).getAttribute("href")).toBe(
+      `/kabinet/tvaryny/${PUBLISHED.id}`,
+    );
+    await openMenu("Рекс");
+    expect(inRow("Рекс").getByRole("link", { name: "Редагувати" })).toBeTruthy();
+  });
+
+  it("a press outside the open «Ще» closes it", async () => {
+    renderList();
+    await openMenu("Рекс");
+    const more = inRow("Рекс").getByRole("button", { name: "Ще" });
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+    await userEvent.click(screen.getByRole("heading", { level: 1, name: "Тварини" }));
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
+describe("a dialog stays open while its call is in flight", () => {
+  it("Escape and the ✕ do nothing until the answer is in", async () => {
+    let answer: (value: unknown) => void = () => {};
+    renderList({
+      handlers: {
+        transition: () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      },
+    });
+    await userEvent.click(inRow("Мурка").getByRole("button", { name: "Уже вдома" }));
+    const dialog = screen.getByRole("dialog", { name: "Мурка уже вдома?" }) as HTMLDialogElement;
+    await userEvent.click(within(dialog).getByRole("button", { name: "Так, уже вдома" }));
+    const cancel = new Event("cancel", { cancelable: true });
+    dialog.dispatchEvent(cancel);
+    expect(cancel.defaultPrevented).toBe(true);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Закрити" }));
+    expect(dialog.open).toBe(true);
+    answer(viewOf(RESERVED, { kind: "adopted", adoptedAt: NOW }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });

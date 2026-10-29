@@ -21,10 +21,20 @@ export type ModalProps = {
   title: string;
   description?: string;
   closeLabel: string;
+  /** While true Esc, the backdrop and the close button do nothing (a save is in flight and must show its answer). */
+  locked?: boolean;
   children: ReactNode;
 };
 
-export function Modal({ open, onClose, title, description, closeLabel, children }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  closeLabel,
+  locked = false,
+  children,
+}: ModalProps) {
   const id = useId();
   const titleRef = useRef<HTMLHeadingElement | null>(null);
   const { ref, onBackdropClick } = useDialogCore({ open, onClose, initialFocusRef: titleRef });
@@ -35,7 +45,10 @@ export function Modal({ open, onClose, title, description, closeLabel, children 
       ref={ref}
       aria-labelledby={`${id}-title`}
       aria-describedby={description === undefined ? undefined : `${id}-desc`}
-      onClick={onBackdropClick}
+      onClick={locked ? undefined : onBackdropClick}
+      onCancel={(event) => {
+        if (locked) event.preventDefault();
+      }}
       className={cx(
         "fixed inset-x-0 bottom-0 top-auto m-0 w-full max-w-none overflow-y-auto rounded-t-panel border-0 bg-surface p-0 text-ink backdrop:bg-ink/40",
         "max-h-dvh tablet:inset-0 tablet:m-auto tablet:h-fit tablet:max-w-xl tablet:rounded-card",
@@ -49,7 +62,10 @@ export function Modal({ open, onClose, title, description, closeLabel, children 
           <button
             type="button"
             aria-label={closeLabel}
-            onClick={() => ref.current?.close()}
+            aria-disabled={locked || undefined}
+            onClick={() => {
+              if (!locked) ref.current?.close();
+            }}
             className="inline-flex size-target shrink-0 cursor-pointer items-center justify-center rounded-pill bg-page text-ink focus-ring"
           >
             <Icon name="close" />

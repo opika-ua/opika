@@ -3,12 +3,14 @@
 import { KABINET_WITHDRAWAL_CODES, WITHDRAWAL_NOTE_MAX_CHARACTERS } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
 import { type ReactNode, useId, useState } from "react";
-import { Button, SelectField, TextAreaField } from "../../controls/controls";
-import { ModalDialog } from "../../controls/ModalDialog";
-import { BODY, ERROR_TEXT, OPTIONAL } from "../profile-edit/styles";
+import { Button } from "../../../ui/Button";
+import { InlineStatus } from "../../../ui/feedback";
+import { Select, TextArea } from "../../../ui/form";
+import { Modal } from "../../../ui/Modal";
+import { Text } from "../../../ui/Text";
 
 /**
- * K2's three confirmations (N15, the shared `ModalDialog` frame): «Уже
+ * K2's three confirmations (N15, the kit's `Modal`; `locked` while a call is in flight): «Уже
  * вдома» and «Зняти з показу», the two moves that take an animal out of view
  * (KAB:155), and «Видалити чернетку». Each primary runs the call it names and
  * resolves to null when it went through (the list then closes the dialog), or
@@ -59,13 +61,16 @@ function DialogFrame({
     if (result !== null) setRefusal(result);
   };
   return (
-    <ModalDialog title={title} body={body} closeLabel={pause.close} onClose={close}>
+    <Modal
+      open
+      title={title}
+      description={body}
+      closeLabel={pause.close}
+      locked={busy}
+      onClose={close}
+    >
       {children}
-      {refusal !== null ? (
-        <p role="alert" className={ERROR_TEXT}>
-          {refusal}
-        </p>
-      ) : null}
+      {refusal !== null ? <InlineStatus tone="error">{refusal}</InlineStatus> : null}
       <div className="flex flex-col-reverse gap-2 tablet:flex-row tablet:justify-end">
         <Button variant="secondary" onClick={close}>
           {pause.cancel}
@@ -74,7 +79,7 @@ function DialogFrame({
           {confirmLabel}
         </Button>
       </div>
-    </ModalDialog>
+    </Modal>
   );
 }
 
@@ -142,8 +147,8 @@ export function WithdrawDialog({
       onConfirm={confirm}
       onClose={onClose}
     >
-      <p className={BODY}>{t.withdrawDialog.adoptedHint}</p>
-      <SelectField
+      <Text>{t.withdrawDialog.adoptedHint}</Text>
+      <Select
         id={reasonId}
         label={pause.reasonLabel}
         value={code}
@@ -162,13 +167,13 @@ export function WithdrawDialog({
             {t.withdrawReason[option]}
           </option>
         ))}
-      </SelectField>
-      <TextAreaField
+      </Select>
+      <TextArea
         id={`${id}-note`}
         label={
           <>
             {pause.noteLabel}{" "}
-            <span className={OPTIONAL}>{uk.kabinet.profileEdit.donation.optional}</span>
+            <span className="text-ink-2">{uk.kabinet.profileEdit.donation.optional}</span>
           </>
         }
         value={note}
@@ -205,7 +210,7 @@ export function DeleteDialog({
       onConfirm={onConfirm}
       onClose={onClose}
     >
-      {hasPhotos ? <p className={BODY}>{t.deleteDialog.photosStay}</p> : null}
+      {hasPhotos ? <Text>{t.deleteDialog.photosStay}</Text> : null}
     </DialogFrame>
   );
 }
