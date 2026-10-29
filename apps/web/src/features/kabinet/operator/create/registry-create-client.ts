@@ -4,8 +4,8 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { ContractRouterClient } from "@orpc/contract";
 
 /**
- * What S2 (`/kabinet/prytulky/novyi`) may call from the browser: create, and
- * resend from the success state. Picked, never the whole registry contract,
+ * What S2 (`/kabinet/prytulky/novyi`) may call from the browser: create, the settlement
+ * search, and resend from the success state. Picked, never the whole registry contract,
  * for the reason `api/browser-client.ts` gives: a procedure added to the
  * contract later isn't callable from this page's JavaScript by default.
  *
@@ -19,6 +19,7 @@ import type { ContractRouterClient } from "@orpc/contract";
 export const registryCreateBrowserContract = {
   registry: {
     shelters: { create: registryContract.registry.shelters.create },
+    cities: { search: registryContract.registry.cities.search },
     admins: { resendInvite: registryContract.registry.admins.resendInvite },
   },
 } as const;

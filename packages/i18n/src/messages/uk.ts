@@ -228,6 +228,22 @@ export const uk = {
   },
   kabinet: {
     /**
+     * The settlement picker (nationwide N4). The owner's approved rows of the Phase 0 copy table
+     * (2026-10-29): label «Населений пункт», «Оберіть населений пункт зі списку», «Пошук…».
+     */
+    cityPicker: {
+      placeholder: "Почніть вводити назву…",
+      empty: "Нічого не знайдено",
+      mustPick: "Оберіть населений пункт зі списку",
+      tooShort: "Введіть щонайменше дві літери",
+      loading: "Пошук…",
+      error: "Список не завантажився.",
+      retry: "Спробувати ще раз",
+      found: "Знайдено: {count}",
+      clear: "Очистити",
+      close: "Закрити",
+    },
+    /**
      * The operator's name when `KABINET_OPERATOR_DISPLAY_NAME` is unset
      * (RS-Q2), nominative, in two forms (`kabinet/operator.ts` picks). Oleksii's
      * R-UI answer 9, verbatim: "Role label «адміністратор сайту» (also replaces
@@ -1514,7 +1530,7 @@ export const uk = {
          */
         descriptionHint:
           "Короткий опис притулку. Він може бути публічним, тож не пишіть тут нічого приватного.",
-        city: "Місто",
+        city: "Населений пункт",
         address: {
           line1: "Вулиця, будинок",
           line2: "Корпус, приміщення · необовʼязково",
