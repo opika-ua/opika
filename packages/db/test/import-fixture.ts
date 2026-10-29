@@ -152,7 +152,7 @@ export const FIXTURE_ROWS: readonly Row[] = [
   s(LVIV, 1, 1, 2, "C", "Іванівка"),
   s(LVIV, 1, 1, 3, "C", "Миколаївка"),
 
-  // Crimea: kept, never offered.
+  // Crimea: imported and searched like every other region.
   o(CRIMEA, "Автономна Республіка Крим"),
   p(CRIMEA, 1, "Бахчисарайський район"),
   h(CRIMEA, 1, 1, "Бахчисарайська міська громада"),

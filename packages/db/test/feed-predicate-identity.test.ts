@@ -95,6 +95,7 @@ async function sqlFor(opts: {
 }
 
 const ALL_FILTERS: FeedFilters = {
+  regions: { kind: "any" },
   cities: { kind: "oneOf", values: [CITY_A, CITY_B] },
   species: { kind: "oneOf", values: ["dog"] as [AnimalSpecies] },
   sizes: { kind: "oneOf", values: ["small", "medium"] as [SizeBucket, SizeBucket] },

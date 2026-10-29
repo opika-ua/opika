@@ -1,13 +1,7 @@
 "use client";
 
-import type { GalleryFacetCounts } from "@opika/contracts";
-import type {
-  AnimalSpecies,
-  CityId,
-  FeedFilters,
-  FilterSelection,
-  GallerySort,
-} from "@opika/domain";
+import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
+import type { AnimalSpecies, FeedFilters, FilterSelection, GallerySort } from "@opika/domain";
 import { isExplicitlySelected, relaxDimension } from "@opika/domain";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
@@ -22,6 +16,7 @@ import {
   type FacetOption,
   facetAccessibleName,
   isUnavailable,
+  regionFacetOptions,
   selectionSummary,
   sexFacetOptions,
   sizeFacetOptions,
@@ -32,6 +27,7 @@ import {
   withOnlySpecies,
   withToggledAge,
   withToggledCity,
+  withToggledRegion,
   withToggledSex,
   withToggledSize,
 } from "./filter-url";
@@ -39,8 +35,11 @@ import {
 interface GalleryFilterDropdownsProps {
   filters: FeedFilters;
   sort: GallerySort;
-  cities: ReadonlyArray<{ id: CityId; name: string }>;
   citySlugs: CitySlugsById;
+  /** A name for every oblast: the filter always lists all 27. */
+  regionLabels: Readonly<Record<string, string>>;
+  /** The labels of the cities the URL names, so a chosen city with no animal stays clearable. */
+  selectedCities: readonly CityLabelView[];
   /** Per-option counts, the selector's own choice ignored (`gallery.facetCounts`). */
   counts: GalleryFacetCounts;
 }
@@ -199,8 +198,9 @@ export function SpeciesToggle({
 export function GalleryFilterDropdowns({
   filters,
   sort,
-  cities,
   citySlugs,
+  regionLabels,
+  selectedCities,
   counts,
 }: GalleryFilterDropdownsProps) {
   const router = useRouter();
@@ -212,7 +212,12 @@ export function GalleryFilterDropdowns({
       showOptimistically(next);
       router.replace(galleryHref(next, sort, citySlugs), { scroll: false });
     });
-  const clearHref = (dimension: "cities" | "ages" | "sizes" | "sexes") =>
+  // An oblast's cities, so deselecting the oblast also drops the cities that narrowed it.
+  const regionOfCity = new Map([
+    ...counts.cities.map((entry) => [entry.cityId, entry.label.regionId] as const),
+    ...selectedCities.map((city) => [city.id, city.regionId] as const),
+  ]);
+  const clearHref = (dimension: "regions" | "cities" | "ages" | "sizes" | "sexes") =>
     galleryHref(relaxDimension(filters, dimension), sort, citySlugs);
 
   return (
@@ -224,8 +229,15 @@ export function GalleryFilterDropdowns({
       <SpeciesToggle filters={filters} sort={sort} citySlugs={citySlugs} />
 
       <FacetSelector
+        label={uk.filters.region}
+        options={regionFacetOptions(counts, regionLabels, shown.regions)}
+        selection={shown.regions}
+        onToggle={(region) => apply(withToggledRegion(shown, region, regionOfCity))}
+        clearHref={clearHref("regions")}
+      />
+      <FacetSelector
         label={uk.filters.city}
-        options={cityFacetOptions(cities, counts)}
+        options={cityFacetOptions(counts, shown.regions, shown.cities, selectedCities)}
         selection={shown.cities}
         onToggle={(city) => apply(withToggledCity(shown, city))}
         clearHref={clearHref("cities")}

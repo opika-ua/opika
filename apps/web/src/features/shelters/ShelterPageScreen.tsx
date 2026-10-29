@@ -33,7 +33,7 @@ const EMPTY_CITY_SLUGS: CitySlugsById = new Map();
  */
 export function ShelterPageScreen({
   shelter,
-  cityName,
+  cityPlace,
   animals,
   cityNames,
   query,
@@ -83,7 +83,7 @@ export function ShelterPageScreen({
               >
                 {shelter.displayName}
               </Heading>
-              {cityName !== null && (
+              {cityPlace !== null && (
                 <span className="inline-flex items-center gap-2">
                   <Image
                     src="/pet-card/icon-location.svg"
@@ -94,7 +94,7 @@ export function ShelterPageScreen({
                     unoptimized
                   />
                   <span className="text-body-l font-semibold text-accent-text">
-                    {fillTemplate(uk.cardMeta.atShelter, { city: cityName })}
+                    {fillTemplate(uk.cardMeta.atShelter, { place: cityPlace })}
                   </span>
                 </span>
               )}

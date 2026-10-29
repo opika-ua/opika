@@ -1,7 +1,7 @@
 import type { NameScope, PlaceQuery, RegionId, SettlementKind } from "@opika/domain";
-import { and, isNull, notInArray, or, sql } from "drizzle-orm";
+import { and, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { PICKER_HIDDEN_REGION_IDS, REGIONS } from "../geography/regions-data";
+import { REGIONS } from "../geography/regions-data";
 import { cities } from "../schema/cities";
 
 /** The most rows one search returns; the contract caps its output at the same number. */
@@ -53,13 +53,85 @@ export function cyrillicTrigramsAvailable(db: Database): Promise<boolean> {
   return answer;
 }
 
+/**
+ * The search statement, unexecuted, so a sitting can `EXPLAIN` exactly what a search runs
+ * (`test/neon-smoke-timings.ts`); `search` is the only caller in the app.
+ */
+export function searchStatement(
+  db: Database,
+  query: Extract<PlaceQuery, { kind: "ok" }>,
+  options: { regionBias: RegionId | null },
+  useCyrillicTrigrams: boolean,
+) {
+  const limit = MAX_PLACE_RESULTS;
+  const { cyrillic, latin } = query;
+
+  const exact =
+    cyrillic === null
+      ? sql`(${cities.searchLatin} = ${latin})`
+      : sql`(${cities.searchName} = ${cyrillic} OR ${cities.searchLatin} = ${latin})`;
+  const prefix =
+    cyrillic === null
+      ? sql`(${cities.searchLatin} LIKE ${likePrefix(latin)})`
+      : sql`(${cities.searchName} LIKE ${likePrefix(cyrillic)} OR ${cities.searchLatin} LIKE ${likePrefix(latin)})`;
+  const trigramLatin = sql`(${cities.searchLatin} % ${latin} AND similarity(${cities.searchLatin}, ${latin}) >= 0.35)`;
+  const trigramCyrillic = useCyrillicTrigrams
+    ? sql`(${cities.searchName} % ${cyrillic} AND similarity(${cities.searchName}, ${cyrillic}) >= 0.35)`
+    : null;
+  const similarity = useCyrillicTrigrams
+    ? sql`greatest(similarity(${cities.searchName}, ${cyrillic}), similarity(${cities.searchLatin}, ${latin}))`
+    : sql`similarity(${cities.searchLatin}, ${latin})`;
+  const bias =
+    options.regionBias === null
+      ? sql`(0)::int`
+      : sql`(${cities.regionId} = ${options.regionBias})::int`;
+
+  return db
+    .select({
+      id: cities.id,
+      slug: cities.slug,
+      nameUk: cities.nameUk,
+      kind: cities.kind,
+      districtNameUk: cities.districtNameUk,
+      hromadaNameUk: cities.hromadaNameUk,
+      nameScope: cities.nameScope,
+      regionId: cities.regionId,
+      exact: sql<number>`${exact}::int`.mapWith(Number),
+      prefix: sql<number>`${prefix}::int`.mapWith(Number),
+      kindRank: sql<number>`${KIND_RANK}`.mapWith(Number),
+      bias: sql<number>`${bias}`.mapWith(Number),
+      similarity: sql<number>`${similarity}`.mapWith(Number),
+    })
+    .from(cities)
+    .where(
+      and(
+        isNull(cities.retiredInEdition),
+        or(
+          sql`${cities.searchLatin} LIKE ${likePrefix(latin)}`,
+          cyrillic === null ? undefined : sql`${cities.searchName} LIKE ${likePrefix(cyrillic)}`,
+          trigramLatin,
+          trigramCyrillic ?? undefined,
+        ),
+      ),
+    )
+    .orderBy(
+      sql`${exact}::int DESC`,
+      sql`${prefix}::int DESC`,
+      KIND_RANK,
+      sql`${bias} DESC`,
+      sql`${similarity} DESC`,
+      cities.id,
+    )
+    .limit(limit);
+}
+
 export function citySearchRepo(db: Database) {
   return {
     /**
      * Prefix on either key, or a trigram match on either key. Ranked exact, then prefix, then
      * trigram; within a tier by settlement kind (cities before villages), the caller's oblast, and
-     * similarity; the last tie by name in Ukrainian order. Settlements in the hidden regions and
-     * retired ones are never returned. `cyrillicTrigrams` is injectable for the fallback test;
+     * similarity; the last tie by name in Ukrainian order. Retired settlements are never
+     * returned; every region is searched alike. `cyrillicTrigrams` is injectable for the fallback test;
      * normally it is probed.
      */
     async search(
@@ -69,71 +141,10 @@ export function citySearchRepo(db: Database) {
         cyrillicTrigrams?: boolean;
       },
     ): Promise<PlaceMatch[]> {
-      const limit = MAX_PLACE_RESULTS;
-      const { cyrillic, latin } = query;
+      const { cyrillic } = query;
       const useCyrillicTrigrams =
         cyrillic !== null && (options.cyrillicTrigrams ?? (await cyrillicTrigramsAvailable(db)));
-
-      const exact =
-        cyrillic === null
-          ? sql`(${cities.searchLatin} = ${latin})`
-          : sql`(${cities.searchName} = ${cyrillic} OR ${cities.searchLatin} = ${latin})`;
-      const prefix =
-        cyrillic === null
-          ? sql`(${cities.searchLatin} LIKE ${likePrefix(latin)})`
-          : sql`(${cities.searchName} LIKE ${likePrefix(cyrillic)} OR ${cities.searchLatin} LIKE ${likePrefix(latin)})`;
-      const trigramLatin = sql`(${cities.searchLatin} % ${latin} AND similarity(${cities.searchLatin}, ${latin}) >= 0.35)`;
-      const trigramCyrillic = useCyrillicTrigrams
-        ? sql`(${cities.searchName} % ${cyrillic} AND similarity(${cities.searchName}, ${cyrillic}) >= 0.35)`
-        : null;
-      const similarity = useCyrillicTrigrams
-        ? sql`greatest(similarity(${cities.searchName}, ${cyrillic}), similarity(${cities.searchLatin}, ${latin}))`
-        : sql`similarity(${cities.searchLatin}, ${latin})`;
-      const bias =
-        options.regionBias === null
-          ? sql`(0)::int`
-          : sql`(${cities.regionId} = ${options.regionBias})::int`;
-
-      const rows = await db
-        .select({
-          id: cities.id,
-          slug: cities.slug,
-          nameUk: cities.nameUk,
-          kind: cities.kind,
-          districtNameUk: cities.districtNameUk,
-          hromadaNameUk: cities.hromadaNameUk,
-          nameScope: cities.nameScope,
-          regionId: cities.regionId,
-          exact: sql<number>`${exact}::int`.mapWith(Number),
-          prefix: sql<number>`${prefix}::int`.mapWith(Number),
-          kindRank: sql<number>`${KIND_RANK}`.mapWith(Number),
-          bias: sql<number>`${bias}`.mapWith(Number),
-          similarity: sql<number>`${similarity}`.mapWith(Number),
-        })
-        .from(cities)
-        .where(
-          and(
-            notInArray(cities.regionId, [...PICKER_HIDDEN_REGION_IDS]),
-            isNull(cities.retiredInEdition),
-            or(
-              sql`${cities.searchLatin} LIKE ${likePrefix(latin)}`,
-              cyrillic === null
-                ? undefined
-                : sql`${cities.searchName} LIKE ${likePrefix(cyrillic)}`,
-              trigramLatin,
-              trigramCyrillic ?? undefined,
-            ),
-          ),
-        )
-        .orderBy(
-          sql`${exact}::int DESC`,
-          sql`${prefix}::int DESC`,
-          KIND_RANK,
-          sql`${bias} DESC`,
-          sql`${similarity} DESC`,
-          cities.id,
-        )
-        .limit(limit);
+      const rows = await searchStatement(db, query, options, useCyrillicTrigrams);
 
       // Ties in everything above read in Ukrainian alphabetical order (a database collation would
       // sort Є, І, Ї and Ґ by code point); a stable sort leaves the SQL order for the rest.

@@ -34,6 +34,7 @@
     "admin:revoke": "tsx src/admin.ts revoke",
     "admin:sweep-invites": "tsx src/admin.ts sweep-invites",
     "db:neon-smoke": "tsx test/neon-smoke.ts",
+    "db:neon-smoke-timings": "tsx test/neon-smoke-timings.ts",
     "worktree:remove": "tsx src/tools/worktree-remove.ts",
     "db:prune-test-dbs": "tsx src/tools/prune-test-dbs.ts",
     "smoke-sitting": "tsx src/tools/smoke-sitting.ts",

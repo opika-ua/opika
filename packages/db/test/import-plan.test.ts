@@ -103,12 +103,13 @@ describe("planImport on an empty database", () => {
     expect(row("Бровари").nameEnProvenance).toBe("machine");
   });
 
-  it("keeps Crimea and Sevastopol in the plan and counts them as hidden", () => {
+  it("plans Crimea and Sevastopol like every other region, and reports no 'hidden' count", () => {
     const { inserts, report } = plan();
     expect(inserts.map((r) => r.nameUk)).toEqual(
       expect.arrayContaining(["Левітанівка", "Севастополь"]),
     );
-    expect(report.hiddenFromPicker).toBe(2);
+    expect(Object.keys(report)).not.toContain("hiddenFromPicker");
+    expect(report.perRegion).toMatchObject({ UA01: expect.any(Number), UA85: expect.any(Number) });
   });
 
   it("gives the same plan twice and every slug once", () => {

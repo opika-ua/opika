@@ -3,6 +3,7 @@ import { oc } from "@orpc/contract";
 import { z } from "zod";
 import { apiErrors } from "../errors";
 import { FeedCardViewSchema } from "../views/animal";
+import { CityLabelViewSchema } from "../views/shelter";
 import { FeedCursorSchema, pageSizeSchema } from "./pagination";
 
 /**
@@ -22,6 +23,8 @@ export const FeedListInputSchema = z.object({
 
 export const FeedListOutputSchema = z.object({
   items: z.array(FeedCardViewSchema).readonly(),
+  /** The cities of this page's cards, one label each (views carry only a `cityId`). */
+  cityLabels: z.array(CityLabelViewSchema).readonly(),
   /** Null means the feed is exhausted for these filters, not that it failed. */
   nextCursor: FeedCursorSchema.nullable(),
   /**

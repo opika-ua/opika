@@ -84,6 +84,7 @@ describe("AnimalDetailScreen – shelterVerifiedYears badge (retired, pet card P
         animal={makeAnimal()}
         shelter={makeShelter({ createdAt: new Date("2023-01-01T00:00:00.000Z") })}
         cityName="Бровари"
+        cityPlace="м. Бровари"
       />,
     );
     expect(screen.queryByText(/Перевірено вручну/)).toBeNull();
@@ -106,7 +107,14 @@ describe("AnimalDetailScreen – demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
     vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
 
-    render(<AnimalDetailScreen animal={makeAnimal()} shelter={makeShelter()} cityName="Бровари" />);
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+      />,
+    );
 
     expect(screen.getByTestId("detail-demo-banner").textContent).toBe(
       "На сайті поки немає справжніх притулків – усі картки тут демонстраційні.",
@@ -117,7 +125,14 @@ describe("AnimalDetailScreen – demo disclosure banner (REGISTRY_HAS_NO_REAL_SH
     vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
 
-    render(<AnimalDetailScreen animal={makeAnimal()} shelter={makeShelter()} cityName="Бровари" />);
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+      />,
+    );
 
     expect(screen.queryByTestId("detail-demo-banner")).toBeNull();
   });
@@ -140,6 +155,7 @@ describe("AnimalDetailScreen – the shelter row (designer round 1, S6)", () => 
         animal={makeAnimal()}
         shelter={makeShelter({ displayName: "Лапа допомоги" })}
         cityName="Бровари"
+        cityPlace="м. Бровари"
       />,
     );
     const link = screen.getByRole("link", { name: "Сторінка притулку «Лапа допомоги»" });
@@ -155,6 +171,7 @@ describe("AnimalDetailScreen – the shelter row (designer round 1, S6)", () => 
           donation: { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" },
         })}
         cityName="Бровари"
+        cityPlace="м. Бровари"
       />,
     );
     const donate = screen.getByTestId("donate-link");
@@ -182,7 +199,12 @@ describe("AnimalDetailScreen – a city name is printed literally (review findin
     vi.doMock("../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: true }));
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
     render(
-      <AnimalDetailScreen animal={makeAnimal()} shelter={makeShelter()} cityName="Місто $& $1" />,
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        cityName="Місто $& $1"
+        cityPlace="Місто $& $1"
+      />,
     );
     expect(screen.getByText("Місто $& $1")).toBeTruthy();
   });
@@ -202,6 +224,7 @@ describe("AnimalDetailScreen meta line, by sex", () => {
         animal={makeAnimal({ sex, ageBucket: "young" })}
         shelter={makeShelter()}
         cityName="Бровари"
+        cityPlace="м. Бровари"
       />,
     );
     // The sex word appears twice by design: the meta line ("Хлопчик · Молодий · Малий")
@@ -216,6 +239,7 @@ describe("AnimalDetailScreen meta line, by sex", () => {
         animal={makeAnimal({ sex: "unknown" })}
         shelter={makeShelter()}
         cityName="Бровари"
+        cityPlace="м. Бровари"
       />,
     );
     expect(screen.queryByText("Хлопчик")).toBeNull();
@@ -235,6 +259,7 @@ describe("AnimalDetailScreen meta line, by sex", () => {
         animal={makeAnimal({ sex: "male", ageBucket: "young" })}
         shelter={makeShelter()}
         cityName="Бровари"
+        cityPlace="м. Бровари"
       />,
     );
     const chip = screen.getByRole("link", { name: "Показати схожих котів: хлопчик" });
@@ -260,6 +285,7 @@ describe("AnimalDetailScreen – the coat length chip", () => {
         animal={makeAnimal({ coatLength })}
         shelter={makeShelter()}
         cityName="Бровари"
+        cityPlace="м. Бровари"
       />,
     );
   };
@@ -298,6 +324,7 @@ describe("AnimalDetailScreen – the medical fact chips always render (A3)", () 
         })}
         shelter={makeShelter()}
         cityName="Бровари"
+        cityPlace="м. Бровари"
       />,
     );
     expect(screen.getByText("Комплексне щеплення: Не записано")).toBeTruthy();
@@ -314,6 +341,7 @@ describe("AnimalDetailScreen – the medical fact chips always render (A3)", () 
         })}
         shelter={makeShelter()}
         cityName="Бровари"
+        cityPlace="м. Бровари"
       />,
     );
     expect(screen.getByText("Комплексне щеплення: Зроблено, за даними притулку")).toBeTruthy();
@@ -325,7 +353,14 @@ describe("AnimalDetailScreen – landmarks", () => {
   it("puts the animal page's heading in the main landmark", async () => {
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
 
-    render(<AnimalDetailScreen animal={makeAnimal()} shelter={makeShelter()} cityName="Бровари" />);
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+      />,
+    );
 
     const main = screen.getByRole("main");
     expect(within(main).getByRole("heading", { level: 1, name: "Мурчик" })).toBeTruthy();

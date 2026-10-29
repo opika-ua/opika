@@ -10,6 +10,7 @@ import { galleryRepo, shelterRepo } from "@opika/db/repos";
 import { ageBucketOf, canonicalizeFilters, primaryPhoto } from "@opika/domain";
 import type { z } from "zod";
 import type { AppContext } from "../context";
+import { cardCityIdOf, cityLabelOf, cityLabelsFor } from "./city-labels";
 import { discoverableListingKind } from "./discoverable-listing-kind";
 import { listingFreshness } from "./listing-freshness";
 import { cityOnlyLocationOf } from "./public-location";
@@ -92,8 +93,11 @@ export async function galleryList(
     })
     .filter((item): item is NonNullable<typeof item> => item !== null);
 
+  const cityLabels = await cityLabelsFor(context.db, items.map(cardCityIdOf));
+
   return {
     items,
+    cityLabels,
     totalMatching: page.totalMatching,
     totalShelters: page.totalShelters,
     totalPages: page.totalPages,
@@ -136,7 +140,12 @@ export async function galleryFacetCounts(
     now: context.now,
   });
   return {
-    cities: counts.cities.map(({ cityId, count }) => ({ cityId, count })),
+    cities: counts.cities.map(({ city, count }) => ({
+      cityId: city.id,
+      count,
+      label: cityLabelOf(city),
+    })),
+    regions: counts.regions.map(({ regionId, count }) => ({ regionId, count })),
     ages: { ...counts.ages },
     sizes: { ...counts.sizes },
     sexes: { ...counts.sexes },

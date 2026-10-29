@@ -3,6 +3,7 @@ export * from "./cities";
 export * from "./feed";
 export * from "./gallery";
 export * from "./pagination";
+export * from "./regions";
 export * from "./reveals";
 export * from "./session";
 export * from "./shelters";

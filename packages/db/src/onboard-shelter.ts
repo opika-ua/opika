@@ -262,6 +262,42 @@ export const OnboardInputSchema = z.object({
 
 type OnboardInput = z.infer<typeof OnboardInputSchema>;
 
+export type CitySlugLookup = (slug: string) => Promise<{ id: string } | null>;
+
+/**
+ * An input file may name the settlement by its slug (`exactAddress.citySlug`, the current or a
+ * former one) instead of a `cityId` UUID: with ~30k settlements nobody can be asked to copy a
+ * UUID, but the slug is in the URL of the city's page. Resolved to the id before the schema runs,
+ * so everything after sees only `cityId`. Both given, or neither, or a slug nothing answers to, is
+ * refused with a sentence saying which; the lookup is injected so this stays testable without a database.
+ */
+export async function withCityIdFromSlug(raw: unknown, lookup: CitySlugLookup): Promise<unknown> {
+  const address = (raw as { shelter?: { exactAddress?: Record<string, unknown> } } | null)?.shelter
+    ?.exactAddress;
+  if (!address || typeof address !== "object" || !("citySlug" in address)) return raw;
+
+  const { citySlug, ...rest } = address;
+  if ("cityId" in rest && rest["cityId"] !== undefined) {
+    throw new Error("exactAddress has both cityId and citySlug: give one of them.");
+  }
+  if (typeof citySlug !== "string" || citySlug.trim() === "") {
+    throw new Error("exactAddress.citySlug must be a non-empty string.");
+  }
+  const found = await lookup(citySlug.trim());
+  if (!found) {
+    throw new Error(
+      `no settlement answers to the slug "${citySlug}" (neither a current nor a former one). Check the slug in the city's address on the site.`,
+    );
+  }
+  return {
+    ...(raw as object),
+    shelter: {
+      ...(raw as { shelter: object }).shelter,
+      exactAddress: { ...rest, cityId: found.id },
+    },
+  };
+}
+
 export function refuseIfInsideRepo(inputPath: string): void {
   const resolved = canonicalPath(inputPath);
   if (resolved === REPO_ROOT || resolved.startsWith(`${REPO_ROOT}${sep}`)) {
@@ -544,7 +580,23 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const raw = JSON.parse(readFileSync(inputPath, "utf8"));
+  let raw: unknown = JSON.parse(readFileSync(inputPath, "utf8"));
+  try {
+    raw = await withCityIdFromSlug(raw, async (slug) => {
+      // Opened only when the file names its city by slug, and closed at once; the dry run
+      // otherwise touches no database. The same guard above already vetted `databaseUrl`.
+      const lookupSql = postgres(databaseUrl);
+      try {
+        const [token] = await cityRepo(createDatabaseWithClient(lookupSql)).resolveTokens([slug]);
+        return token?.city ?? null;
+      } finally {
+        await lookupSql.end();
+      }
+    });
+  } catch (error) {
+    console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
   const parsed = OnboardInputSchema.safeParse(raw);
   if (!parsed.success) {
     console.error("ERROR: input file does not match the expected shape.");

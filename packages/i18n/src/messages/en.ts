@@ -79,7 +79,9 @@ export const en = {
     sortLongestWaiting: "Longest waiting",
     sortFreshestShort: "New",
     sortLongestWaitingShort: "Waiting",
-    allCities: "All of Kyiv oblast",
+    allCities: "All cities",
+    region: "Region",
+    allRegions: "All regions",
     railFooter:
       "There's no \"only fresh cards\" filter. An animal nobody's written about in a while is still waiting.",
     clearDimension: "Clear {dimension}",
@@ -142,11 +144,11 @@ export const en = {
 
   // --- Location ---
   location: {
-    /** Template: "Living with a volunteer in {city}..." */
+    /** Template: "Living with a volunteer in {place}..." */
     fostered:
-      "Living with a volunteer in {city}. We don't know the exact address and won't invent one.",
-    lineFostered: "{city} · living with a volunteer",
-    lineAtShelter: "{city}",
+      "Living with a volunteer in {place}. We don't know the exact address and won't invent one.",
+    lineFostered: "{place} · living with a volunteer",
+    lineAtShelter: "{place}",
   },
 
   // --- Shelter page (designer round 1, S6) ---
@@ -302,8 +304,8 @@ export const en = {
     sizeSmall: "small",
     sizeMedium: "medium",
     sizeLarge: "large",
-    atShelter: "{city}",
-    fosteredHousing: "with a volunteer foster in {city}",
+    atShelter: "{place}",
+    fosteredHousing: "with a volunteer foster in {place}",
     sexMale: "boy",
     sexFemale: "girl",
   },
@@ -364,11 +366,23 @@ export const en = {
   },
 
   // --- Gallery no-match (B4) - see the uk key's own note ---
+  place: {
+    prefixCity: "city",
+    prefixSelyshche: "urban-type settlement",
+    prefixVillage: "village",
+    withRegion: "{place}, {region}",
+    withDistrictAndRegion: "{place}, {district}, {region}",
+    districtShort: "{name} district",
+  },
+
   noMatch: {
     heading: "Nobody matches these filters right now.",
     reassurance: "This isn't a search error.",
     removeDimension: "Remove “{dimension}” ({animalWord})",
     showAllCities: "Show every city ({animalWord})",
+    showAllRegions: "Show every region ({animalWord})",
+    regionEmpty: "No animals in the chosen regions yet.",
+    neighbourRegion: "Neighbouring region: {region} ({animalWord})",
     additionalAnimals: "+{count} {animalWord}",
     suggestionExplainer:
       "Each suggestion names how many animals it would add. An empty screen never says " +

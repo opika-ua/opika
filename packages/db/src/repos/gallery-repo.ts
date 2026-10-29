@@ -4,6 +4,7 @@ import {
   ANIMAL_SEXES,
   type AnimalId,
   type AnimalSex,
+  type City,
   type CityId,
   clampGalleryPage,
   type DiscoverableAnimal,
@@ -15,20 +16,22 @@ import {
   galleryPageCount,
   isConstrained,
   maxNavigablePage,
+  type RegionId,
   relaxDimension,
   SIZE_BUCKETS,
   type SizeBucket,
 } from "@opika/domain";
-import { and, asc, desc, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
+import { cities } from "../schema/cities";
 import {
   buildDiscoverabilityPredicate,
   buildFeedPredicate,
   buildFilterPredicate,
   buildScopePredicate,
 } from "./feed-predicate";
-import { rowToDiscoverableAnimal } from "./mappers";
+import { rowToCity, rowToDiscoverableAnimal } from "./mappers";
 
 export type GalleryPage = {
   readonly items: readonly DiscoverableAnimal[];
@@ -54,8 +57,19 @@ export type GalleryRelaxationCounts = {
 
 /** Matches per option of each filter selector, the selector's own choice ignored. */
 export type GalleryFacetCounts = {
-  /** Only cities with at least one discoverable animal; any other city counts zero. */
-  readonly cities: readonly { readonly cityId: CityId; readonly count: number }[];
+  /**
+   * Every city with at least one discoverable animal, nothing else: the city options are derived
+   * from the animals, so the full settlement list never leaves the database. `count` is the city's
+   * matches with both location dimensions relaxed (and every other filter applied), so it can be
+   * summed per oblast; it may be zero under the other filters.
+   */
+  readonly cities: readonly {
+    readonly cityId: CityId;
+    readonly city: City;
+    readonly count: number;
+  }[];
+  /** The same, rolled up per oblast over `cities`. */
+  readonly regions: readonly { readonly regionId: RegionId; readonly count: number }[];
   readonly ages: Readonly<Record<AgeBucket, number>>;
   readonly sizes: Readonly<Record<SizeBucket, number>>;
   readonly sexes: Readonly<Record<AnimalSex, number>>;
@@ -359,10 +373,13 @@ export function galleryRepo(db: Database) {
      *
      * One statement, one scan: a `COUNT(*) FILTER (...)` per option, each from
      * `buildFilterPredicate` over that option's filter set, so a count cannot
-     * disagree with the list it promises. Grouping by city gives the city
-     * selector its counts directly (city relaxed, the rest applied); the other
-     * selectors' counts are sums over the groups. A typed `.select()`, never a
-     * raw `db.execute()`, for the driver reason `relaxationCounts` gives.
+     * disagree with the list it promises. The scan is grouped by city first and
+     * joined to `cities` afterwards, so the join touches the few dozen cities that
+     * have animals (by primary key), never the whole settlement table. The location
+     * count relaxes cities and oblasts together: a city's count is its own column,
+     * an oblast's is the sum over its cities. The other selectors' counts are sums
+     * over the groups. A typed `.select()`, never a raw `db.execute()`, for the
+     * driver reason `relaxationCounts` gives.
      */
     async facetCounts(opts: { filters: FeedFilters; now: Date }): Promise<GalleryFacetCounts> {
       const counted: Record<string, SQL.Aliased<number>> = {};
@@ -370,7 +387,7 @@ export function galleryRepo(db: Database) {
         const where = and(...buildFilterPredicate(filters, opts.now)) ?? sql`TRUE`;
         counted[alias] = sql<number>`count(*) FILTER (WHERE ${where})`.mapWith(Number).as(alias);
       };
-      countWhere("n_city", relaxDimension(opts.filters, "cities"));
+      countWhere("n_loc", relaxDimension(relaxDimension(opts.filters, "cities"), "regions"));
       for (const age of AGE_BUCKETS)
         countWhere(`n_age_${age}`, { ...opts.filters, ages: only(age) });
       for (const size of SIZE_BUCKETS) {
@@ -379,12 +396,22 @@ export function galleryRepo(db: Database) {
       for (const sex of ANIMAL_SEXES)
         countWhere(`n_sex_${sex}`, { ...opts.filters, sexes: only(sex) });
 
-      const rows = await db
-        .select({ cityId: animals.cityId, n: counted })
+      const grouped = db
+        .select({ cityId: animals.cityId, ...counted })
         .from(animals)
         .where(and(...buildDiscoverabilityPredicate()))
         .groupBy(animals.cityId)
-        .orderBy(animals.cityId);
+        .as("grouped");
+      const counts = grouped as unknown as Record<string, SQL.Aliased<number>>;
+      const countColumns = Object.fromEntries(
+        Object.keys(counted).map((alias) => [alias, counts[alias] ?? sql<number>`0`]),
+      ) as Record<string, SQL.Aliased<number>>;
+
+      const rows = await db
+        .select({ city: getTableColumns(cities), n: countColumns })
+        .from(grouped)
+        .innerJoin(cities, eq(cities.id, grouped.cityId))
+        .orderBy(cities.id);
 
       const total = (alias: `n_${string}`): number =>
         rows.reduce((sum, row) => sum + (row.n[alias] ?? 0), 0);
@@ -394,8 +421,19 @@ export function galleryRepo(db: Database) {
           number
         >;
 
+      const perRegion = new Map<RegionId, number>();
+      for (const row of rows) {
+        const count = row.n["n_loc"] ?? 0;
+        perRegion.set(row.city.regionId, (perRegion.get(row.city.regionId) ?? 0) + count);
+      }
+
       return {
-        cities: rows.map((row) => ({ cityId: row.cityId, count: row.n["n_city"] ?? 0 })),
+        cities: rows.map((row) => ({
+          cityId: row.city.id,
+          city: rowToCity(row.city),
+          count: row.n["n_loc"] ?? 0,
+        })),
+        regions: [...perRegion].map(([regionId, count]) => ({ regionId, count })),
         ages: tally(AGE_BUCKETS, "age"),
         sizes: tally(SIZE_BUCKETS, "size"),
         sexes: tally(ANIMAL_SEXES, "sex"),

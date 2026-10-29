@@ -148,11 +148,11 @@ describe("registry.cities.search", () => {
     });
   });
 
-  it("never returns Crimea or Sevastopol, however the name is typed", async () => {
+  it("returns Crimea and Sevastopol like any other region, however the name is typed", async () => {
     for (const query of ["Левітанівка", "Левіт", "levitanivka", "Севастополь", "sevast"]) {
       const { status, body } = await search({ query, regionBias: null });
       expect(status).toBe(200);
-      expect(body).toEqual({ kind: "results", places: [] });
+      expect((body as { places: unknown[] }).places.length, query).toBeGreaterThan(0);
     }
   });
 

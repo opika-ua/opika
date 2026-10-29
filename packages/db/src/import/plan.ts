@@ -5,7 +5,7 @@ import {
   searchNameOf,
   transliterateUk,
 } from "@opika/domain";
-import { PICKER_HIDDEN_REGION_CODES, REGION_BY_CODE, REGIONS } from "../geography/regions-data";
+import { REGION_BY_CODE, REGIONS } from "../geography/regions-data";
 import { uuidV5 } from "../geography/uuid-v5";
 import type { Settlement, SettlementCategory } from "./codifier";
 
@@ -105,7 +105,6 @@ export type PlanReport = {
   readonly retired: number;
   readonly nameScopes: Readonly<Record<NameScope, number>>;
   readonly slugSuffixes: number;
-  readonly hiddenFromPicker: number;
   readonly perRegion: Readonly<Record<string, number>>;
   /** Rows with no code that are not one of the 8 (fixtures on a child branch): left alone. */
   readonly unmanagedRows: number;
@@ -393,12 +392,10 @@ export function planImport(input: {
   };
   const byCategory: Record<SettlementCategory, number> = { K: 0, M: 0, X: 0, C: 0 };
   const perRegion: Record<string, number> = {};
-  let hiddenFromPicker = 0;
   for (const s of sorted) {
     nameScopes[scopeOf(s)] += 1;
     byCategory[s.category] += 1;
     perRegion[s.regionCode] = (perRegion[s.regionCode] ?? 0) + 1;
-    if (PICKER_HIDDEN_REGION_CODES.includes(s.regionCode)) hiddenFromPicker += 1;
   }
 
   return {
@@ -421,7 +418,6 @@ export function planImport(input: {
       retired: retirements.length,
       nameScopes,
       slugSuffixes,
-      hiddenFromPicker,
       perRegion,
       unmanagedRows,
     },

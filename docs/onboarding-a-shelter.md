@@ -74,7 +74,7 @@ before anything is computed):
       "line1": "вул. Незалежності, 12",
       "line2": null,
       "postalCode": null,
-      "cityId": "<a real CityId from the seeded 8 cities — ask if unsure>",
+      "citySlug": "<the settlement's slug, as in its address on the site, e.g. brovary-kyivska; a former slug works too. Or give \"cityId\" (a CityId) instead, never both>",
       "district": null,
       "coordinates": { "lat": 50.5111, "lng": 30.7903 }
     },

@@ -6,13 +6,12 @@ import type { ReactNode } from "react";
 import { Button, LinkButton } from "../../ui/Button";
 import { Panel } from "../../ui/Panel";
 import { Skeleton } from "../../ui/Skeleton";
+import { cardCityId } from "../gallery/card-text";
 import type { CitySlugsById } from "../gallery/filter-url";
 import { GalleryCard } from "../gallery/GalleryCard";
 import { type SavedCardResult, useSavedCards } from "./useSavedCards";
 
 interface SavedCardsProps {
-  /** `cities.list`, resolved server-side - this island never fetches it itself. */
-  cityNames: Readonly<Record<string, string>>;
   /** The server-rendered title and note; the island adds its own storage warning beside them. */
   intro: ReactNode;
 }
@@ -48,8 +47,9 @@ const GRID = "grid grid-cols-1 gap-4 tablet:grid-cols-2 desktop:grid-cols-4 desk
  * sees it briefly before the skeleton, a rarer and shorter flash, traded on purpose.
  * `loading` shows an aria-live notice and the real count of skeleton cards, never the empty state.
  */
-export function SavedCards({ cityNames, intro }: SavedCardsProps) {
-  const { load, storageBlocked, removeSaved } = useSavedCards();
+export function SavedCards({ intro }: SavedCardsProps) {
+  // City names come with the cards (`animals.cardsByIds` carries a label per city), not from a list.
+  const { load, cityNames, storageBlocked, removeSaved } = useSavedCards();
   // S8-D2: an id that resolves to no animal and has no name has no honest sentence to show, so it
   // is dropped; the empty/grid decision uses this filtered list, not the raw result.
   const visible = load.kind === "ready" ? load.items.filter(hasSomethingToShow) : null;
@@ -97,7 +97,7 @@ export function SavedCards({ cityNames, intro }: SavedCardsProps) {
               {item.kind === "available" ? (
                 <GalleryCard
                   card={item.card}
-                  cityName={cityNames[item.card.publicLocation?.cityId ?? ""] ?? null}
+                  cityName={cityNames[cardCityId(item.card)] ?? null}
                   filters={NO_FILTERS}
                   sort={DEFAULT_GALLERY_SORT}
                   citySlugs={EMPTY_CITY_SLUGS}

@@ -62,7 +62,12 @@ function expectNoSentence(surface: string, root: HTMLElement) {
 describe("the shelter's sentence and «Слова притулку» show only on the shelter page", () => {
   it("the animal page: neither, and its day count stays", () => {
     const { container } = render(
-      <AnimalDetailScreen animal={animal} shelter={makeShelterPageShelter()} cityName="Бровари" />,
+      <AnimalDetailScreen
+        animal={animal}
+        shelter={makeShelterPageShelter()}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+      />,
     );
     expectNoSentence("the animal page", container);
     expect(container.textContent).toMatch(DAY_COUNT);
@@ -80,6 +85,7 @@ describe("the shelter's sentence and «Слова притулку» show only o
             animal={animal}
             shelter={makeShelterPageShelter()}
             cityName="Бровари"
+            cityPlace="м. Бровари"
           />
         </AnimalOverlay>
       </WithMockRouter>,

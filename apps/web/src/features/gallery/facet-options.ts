@@ -1,5 +1,12 @@
-import type { GalleryFacetCounts } from "@opika/contracts";
-import type { AgeBucket, AnimalSex, CityId, FilterSelection, SizeBucket } from "@opika/domain";
+import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
+import type {
+  AgeBucket,
+  AnimalSex,
+  CityId,
+  FilterSelection,
+  RegionId,
+  SizeBucket,
+} from "@opika/domain";
 import {
   AGE_BUCKETS,
   ANIMAL_SEXES,
@@ -7,7 +14,7 @@ import {
   pluralizeUk,
   SIZE_BUCKETS,
 } from "@opika/domain";
-import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
+import { fillTemplate, placeName, ukPublic as uk } from "@opika/i18n/public";
 
 /**
  * One option of a filter selector (desktop popup) or sheet group (mobile), shared by both so the
@@ -36,15 +43,65 @@ export const SEX_LABEL: Record<AnimalSex, string> = {
   unknown: uk.filters.sexUnknown,
 };
 
-/** Most animals first, then alphabetically; a city with none still listed, at zero. */
+const byCountThenLabel = <T extends string>(a: FacetOption<T>, b: FacetOption<T>): number =>
+  b.count - a.count || a.label.localeCompare(b.label, "uk");
+
+/**
+ * The city options are exactly the cities that have an animal (`counts.cities`, derived from the
+ * animals on the server), never the settlement list. Once oblasts are chosen only their cities
+ * are offered, plus any city that is itself chosen so it stays clearable. A chosen city with no
+ * animal at all (a stale link) comes from `selectedCities`, the labels the page resolved from the
+ * URL, at zero. A name shared by several settlements carries its oblast (`placeName`).
+ */
 export function cityFacetOptions(
-  cities: ReadonlyArray<{ id: CityId; name: string }>,
   counts: GalleryFacetCounts,
+  regions: FilterSelection<RegionId>,
+  cities: FilterSelection<CityId>,
+  selectedCities: readonly CityLabelView[] = [],
 ): FacetOption<CityId>[] {
-  const byCity = new Map(counts.cities.map((entry) => [entry.cityId, entry.count]));
-  return cities
-    .map((city) => ({ value: city.id, label: city.name, count: byCity.get(city.id) ?? 0 }))
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "uk"));
+  const inChosenRegion = (regionId: RegionId): boolean =>
+    regions.kind === "any" || regions.values.includes(regionId);
+
+  const options = new Map<CityId, FacetOption<CityId>>();
+  for (const entry of counts.cities) {
+    if (!inChosenRegion(entry.label.regionId) && !isExplicitlySelected(cities, entry.cityId)) {
+      continue;
+    }
+    options.set(entry.cityId, {
+      value: entry.cityId,
+      label: placeName(entry.label),
+      count: entry.count,
+    });
+  }
+  for (const label of selectedCities) {
+    if (!options.has(label.id) && isExplicitlySelected(cities, label.id)) {
+      options.set(label.id, { value: label.id, label: placeName(label), count: 0 });
+    }
+  }
+  return [...options.values()].sort(byCountThenLabel);
+}
+
+/**
+ * Every oblast, always: the list is the 27 regions, not the ones that happen to hold an animal.
+ * One with nothing to find shows at zero and is disabled (`isUnavailable`) but stays in its place,
+ * ordered like the rest; a chosen one stays clickable so it can be cleared. `labels` names every
+ * region (the page passes all 27); `counts` carries the roll-up for those that have animals.
+ */
+export function regionFacetOptions(
+  counts: GalleryFacetCounts,
+  labels: Readonly<Record<string, string>>,
+  selection: FilterSelection<RegionId>,
+): FacetOption<RegionId>[] {
+  const countOf = new Map(counts.regions.map((entry) => [entry.regionId as string, entry.count]));
+  const ids = new Set<string>([...Object.keys(labels), ...countOf.keys()]);
+  if (selection.kind === "oneOf") for (const id of selection.values) ids.add(id);
+  return [...ids]
+    .map((id) => ({
+      value: id as RegionId,
+      label: labels[id] ?? id,
+      count: countOf.get(id) ?? 0,
+    }))
+    .sort(byCountThenLabel);
 }
 
 /** The closed dimensions keep their natural order: young to old, small to large. */

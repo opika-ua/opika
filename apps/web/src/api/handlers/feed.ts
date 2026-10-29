@@ -13,6 +13,7 @@ import type { z } from "zod";
 import type { AppContext } from "../context";
 import { decodeFeedCursor, encodeFeedCursor } from "../cursor";
 import { requireEnv } from "../env";
+import { cardCityIdOf, cityLabelsFor } from "./city-labels";
 import { discoverableListingKind } from "./discoverable-listing-kind";
 import { listingFreshness } from "./listing-freshness";
 import { cityOnlyLocationOf } from "./public-location";
@@ -135,8 +136,11 @@ export async function feedList(
       ) as string)
     : null;
 
+  const cityLabels = await cityLabelsFor(context.db, items.map(cardCityIdOf));
+
   return {
     items,
+    cityLabels,
     nextCursor: nextCursor as FeedOutput["nextCursor"],
     reachableCount,
   };

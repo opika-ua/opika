@@ -89,7 +89,7 @@ describe("the full page", () => {
     it("drops the city segment rather than rendering an empty one when it doesn't resolve", async () => {
       // The animal's own location, not the shelter's, wins when both are set
       // (`loadAnimalPage`'s own fallback order) - a city id absent from the
-      // stub's one-city `cities.list` resolves to `cityName: null`.
+      // stub's one-city `cities.byIds` resolves to `cityName: null`.
       current = stubAnimalPageClient({
         kind: "answer",
         animal: makeDetailAnimal({ publicLocation: { cityId: "unknown-city-id" as never } }),

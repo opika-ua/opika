@@ -1310,7 +1310,8 @@ describe("designer round 1, S6 (his DR1-Q1 and shelter-page copy)", () => {
       uk.freshness.attribution,
       "Слова притулку",
     ],
-    ["cardMeta.atShelter (the city line, reused)", uk.cardMeta.atShelter, "м. {city}"],
+    // Nationwide copy table row 9 (owner-approved): «м. » moved into the kind-aware `{place}` text.
+    ["cardMeta.atShelter (the city line, reused)", uk.cardMeta.atShelter, "{place}"],
   ])("%s is his text", (_key, actual, his) => {
     expect(actual).toBe(his);
   });

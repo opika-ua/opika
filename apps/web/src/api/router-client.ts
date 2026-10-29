@@ -25,8 +25,8 @@ import { router } from "./router";
  * `swipes.record` both need an `adopterId` this path never has, so neither
  * belongs here either.
  *
- * Trimmed to what a real Server Component actually calls today - `cities.list`
- * (the home screen), `gallery.list` (the E1 grid), `gallery.relaxationCounts`
+ * Trimmed to what a real Server Component actually calls today - `cities.byIds` and
+ * `cities.resolveTokens` (place names and URL tokens, never the full list), `regions.list`, `gallery.list` (the E1 grid), `gallery.relaxationCounts`
  * (V2's no-match state, `apps/web/src/features/gallery/NoMatch.tsx`),
  * `animals.byId` and `shelters.byId` (F1's detail page, both read-only with
  * no `adopterId` involved) - not to what a later phase will eventually want.
@@ -57,7 +57,8 @@ import { router } from "./router";
  * safe as `relaxationCounts`: filters-only input, read-only, no cookie.
  */
 const serverComponentRouter = {
-  cities: { list: router.cities.list },
+  cities: { byIds: router.cities.byIds, resolveTokens: router.cities.resolveTokens },
+  regions: { list: router.regions.list },
   gallery: {
     list: router.gallery.list,
     relaxationCounts: router.gallery.relaxationCounts,

@@ -97,9 +97,12 @@ export function refusalOf(error: unknown): OperatorRefusal | null {
   return null;
 }
 
-/** City names by id, public data the rows name by id only. */
-async function cityNamesOf(deps: OperatorPageDeps): Promise<Record<string, string>> {
-  const cities = await cityRepo(deps.db).listAll();
+/** City names for the cities a page's rows name, by primary key (never the whole settlement list). */
+async function cityNamesOf(
+  deps: OperatorPageDeps,
+  rows: readonly { cityId: CityId }[],
+): Promise<Record<string, string>> {
+  const cities = await cityRepo(deps.db).findByIds(rows.map((row) => row.cityId));
   return Object.fromEntries(cities.map((city) => [city.id, city.name.uk]));
 }
 
@@ -141,7 +144,7 @@ export async function operatorShelterListOf(
     log(error);
     return { kind: "load_failed" };
   }
-  return { kind: "list", filters, page, cityNames: await cityNamesOf(deps) };
+  return { kind: "list", filters, page, cityNames: await cityNamesOf(deps, page.items) };
 }
 
 export type HistoryPage = {
