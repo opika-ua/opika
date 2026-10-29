@@ -146,3 +146,30 @@ describe("when the database yields no Cyrillic trigrams", () => {
     expect(await find("Зіркомір", { cyrillicTrigrams: false })).toEqual([]);
   });
 });
+
+describe("cyrillicTrigramsAvailable with a failing database", () => {
+  /** A stand-in whose probe query rejects on the first call and answers after that. */
+  const flaky = () => {
+    const calls = { n: 0 };
+    const fake = {
+      select: () => ({
+        from: () => {
+          calls.n += 1;
+          return calls.n === 1
+            ? Promise.reject(new Error("transient"))
+            : Promise.resolve([{ n: 5 }]);
+        },
+      }),
+    };
+    return { fake: fake as never, calls };
+  };
+
+  it("does not remember a failure, and remembers a success", async () => {
+    const { fake, calls } = flaky();
+    await expect(cyrillicTrigramsAvailable(fake)).rejects.toThrow("transient");
+    await Promise.resolve(); // let the cache drop the rejected probe
+    expect(await cyrillicTrigramsAvailable(fake)).toBe(true);
+    expect(await cyrillicTrigramsAvailable(fake)).toBe(true);
+    expect(calls.n).toBe(2);
+  });
+});

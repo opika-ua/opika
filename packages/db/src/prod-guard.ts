@@ -5,7 +5,9 @@ import { parseEnv } from "node:util";
 
 /**
  * The one check every script that writes to a database runs before it
- * connects: `db:migrate`, `db:seed`, `onboard:shelter`.
+ * connects: `db:migrate`, `onboard:shelter` and the other writers. `db:seed` and
+ * `db:import-settlements` use `assertNotProductionTarget` instead: production is refused for them
+ * outright, `--prod` included.
  *
  * Production is identified by its Neon **compute endpoint id**
  * (`PROD_NEON_ENDPOINT=ep-…`), never by a connection string. The id is all the

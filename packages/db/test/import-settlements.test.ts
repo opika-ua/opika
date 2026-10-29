@@ -171,6 +171,41 @@ describe("runImport", () => {
   });
 });
 
+describe("a run that dies half way", () => {
+  /** A database whose first UPDATE throws: the first legacy city is about to be renamed. */
+  const dyingAtFirstUpdate = new Proxy(() => db, {}) as unknown as () => typeof db;
+  const crashing = () =>
+    new Proxy(dyingAtFirstUpdate(), {
+      get(target, property) {
+        if (property === "update") {
+          return () => {
+            throw new Error("crash");
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+
+  it("still creates every legacy redirect when it is rerun", async () => {
+    await expect(
+      runImport({ db: crashing(), bytes, commit: true, editions: [pinFor(bytes)] }),
+    ).rejects.toThrow("crash");
+    // The old slugs are already recorded, while the cities still carry them.
+    expect(await db.select().from(citySlugAliases)).toHaveLength(7);
+    expect(await slugs()).toContain("brovary");
+
+    const rerun = committed(await run(true));
+    expect(rerun.stored?.aliases).toBe(7);
+    expect(rerun.remaining).toBe(0);
+    const canonical = await slugs();
+    expect(canonical).toContain("brovary-kyivska");
+    expect(canonical).not.toContain("brovary");
+    const aliases = (await db.select().from(citySlugAliases)).map((a) => a.slug);
+    for (const alias of aliases) expect(canonical).not.toContain(alias);
+  });
+});
+
 describe("db:seed after an import", () => {
   it("inserts only missing cities: an imported slug, its fields and its alias survive a reseed", async () => {
     await run(true);

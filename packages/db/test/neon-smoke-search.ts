@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { placeQueryOf, type RegionId } from "@opika/domain";
+import { sql } from "drizzle-orm";
 import type { Database } from "../src/client";
 import { REGION_BY_CODE } from "../src/geography/regions-data";
 import { cityRepo } from "../src/repos/city-repo";
@@ -33,20 +34,37 @@ export async function runSearchSmoke(db: Database): Promise<Outcome[]> {
       name: { uk, en: { text: en, provenance: "human" } },
     });
 
-  const trigrams = await cyrillicTrigramsAvailable(db);
+  // Fails if the probe itself errors or Latin has no trigrams (the fallback's own premise); it
+  // reports, without failing, whether Cyrillic has them.
+  let trigrams = false;
+  let probeError = "";
+  try {
+    trigrams = await cyrillicTrigramsAvailable(db);
+  } catch (error) {
+    probeError = error instanceof Error ? error.message : "unknown";
+  }
+  const [latinTrigrams] = await db
+    .select({ n: sql<number>`cardinality(show_trgm('mykolaivka'))::int` })
+    .from(sql`(SELECT 1) AS one`);
   check(
     "search probes whether Cyrillic trigrams exist (decides the Cyrillic typo branch)",
-    typeof trigrams === "boolean",
-    trigrams
-      ? "Cyrillic trigrams available: typo tolerance on both keys"
-      : "Cyrillic trigrams EMPTY: typo tolerance falls back to the Latin key",
+    probeError === "" && (latinTrigrams?.n ?? 0) > 0,
+    probeError !== ""
+      ? `probe failed: ${probeError}`
+      : trigrams
+        ? "Cyrillic trigrams available: typo tolerance on both keys"
+        : "Cyrillic trigrams EMPTY: typo tolerance falls back to the Latin key",
   );
 
   const exact = named("Смокова", "Smokova");
   const prefix = named("Смоковата", "Smokovata");
   const typo = named("Смоково", "Smokovo");
   await cityRepo(db).insertMissing([exact, prefix, typo]);
-  const ranked = (await search("Смокова")).map((r) => r.nameUk);
+  // Only our three rows are compared, so real neighbours on an imported branch cannot fail this.
+  const ours = new Set([exact.id, prefix.id, typo.id]);
+  const ranked = (await search("Смокова"))
+    .filter((r) => ours.has(r.id as never))
+    .map((r) => r.nameUk);
   check(
     "ranking: exact, then prefix, then trigram",
     JSON.stringify(ranked) === JSON.stringify(["Смокова", "Смоковата", "Смоково"]),
@@ -54,7 +72,7 @@ export async function runSearchSmoke(db: Database): Promise<Outcome[]> {
   );
 
   const latin = (await search("smokova")).map((r) => r.nameUk);
-  check("a Latin spelling finds the Cyrillic name", latin[0] === "Смокова", latin.join(", "));
+  check("a Latin spelling finds the Cyrillic name", latin.includes("Смокова"), latin.join(", "));
 
   const lookalike = named("Смокіївка", "Smokiivka");
   await cityRepo(db).insertMissing([lookalike]);

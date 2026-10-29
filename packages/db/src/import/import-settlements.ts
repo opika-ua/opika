@@ -65,6 +65,12 @@ function print(outcome: ImportOutcome): number {
     return 1;
   }
   for (const line of reportLines(outcome.plan.report)) console.log(line);
+  console.log(
+    `Names whose apostrophe was converted to U+02BC: ${n(outcome.source.apostropheConversions)}`,
+  );
+  console.log(
+    `Settlements with no raion or hromada name (parent has no row): ${n(outcome.source.withoutParentName)}`,
+  );
   if (outcome.kind === "planned") {
     console.log("Dry run: nothing was written. Pass --commit to write.");
     return 0;

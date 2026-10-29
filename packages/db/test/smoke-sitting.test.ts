@@ -116,6 +116,7 @@ describe("renderSmokeSitting with the settlement import (nationwide N2)", () => 
   const text = renderSmokeSitting({
     ...BASE,
     settlementImport: {
+      download: { url: "https://example.org/k.xlsx", sha256: "abc123" },
       expectedFirstPlan: "FIRST",
       expectedAfterCommit: "COMMIT",
       expectedRerun: "RERUN",
@@ -143,6 +144,20 @@ describe("renderSmokeSitting with the settlement import (nationwide N2)", () => 
     expect(text.match(/db:import-settlements/g)).toHaveLength(4);
     // Everything runs with the child branch's connection string, removed after the last step.
     expect(at("Remove-Item Env:DATABASE_URL")).toBeGreaterThan(at("RESEED"));
+  });
+
+  it("downloads the file, compares its sha256 and stops on a difference, before any import", () => {
+    expect(text).toContain('Invoke-WebRequest -Uri "https://example.org/k.xlsx"');
+    expect(text).toContain("Get-FileHash -Algorithm SHA256");
+    expect(text).toContain('if ($hash -ne "abc123") { throw "STOP');
+    expect(at("Get-FileHash")).toBeLessThan(at("db:import-settlements"));
+    expect(text).toContain('$xlsx = "C:\path\kodifikator-07-07.xlsx"');
+    expect(text).toContain('strip the quotes from a "Copy as path" path');
+  });
+
+  it("asks for all four import outputs and explains a second-plan count of 1-8", () => {
+    expect(text).toContain("ALL FOUR import outputs");
+    expect(text).toContain("1-8 means a legacy city's name differs");
   });
 
   it("leaves a sitting without an import unchanged", () => {

@@ -17,6 +17,8 @@ export type ImportOutcome =
       kind: "planned" | "committed";
       edition: PinnedEdition;
       plan: Plan;
+      /** Parser facts that only the real file can check: printed, never asserted. */
+      source: { apostropheConversions: number; withoutParentName: number };
       stored: Awaited<ReturnType<typeof summariseStored>> | null;
       /** After a commit: what a second plan still wants to change. Zero when the run converged. */
       remaining: number | null;
@@ -114,7 +116,11 @@ export async function runImport(input: {
     };
   }
 
-  if (!commit) return { kind: "planned", edition, plan, stored: null, remaining: null };
+  const source = {
+    apostropheConversions: parsed.apostropheConversions,
+    withoutParentName: parsed.withoutParentName,
+  };
+  if (!commit) return { kind: "planned", edition, plan, source, stored: null, remaining: null };
 
   await applyPlan(db, plan, edition.id);
   const after = await loadExisting(db);
@@ -128,6 +134,7 @@ export async function runImport(input: {
     kind: "committed",
     edition,
     plan,
+    source,
     stored: await summariseStored(db),
     remaining: remainingChanges(second),
   };

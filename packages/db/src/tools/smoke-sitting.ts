@@ -52,6 +52,8 @@ export interface SmokeSittingInput {
    * production block. `expected` lines become the sitting's "# Expected" comments, one per step.
    */
   settlementImport?: {
+    /** Where the codifier is downloaded from, and the sha256 it must have (the importer pins it too). */
+    download: { url: string; sha256: string };
     expectedFirstPlan: string;
     expectedAfterCommit: string;
     expectedRerun: string;
@@ -96,7 +98,13 @@ function importParts(settlementImport: SmokeSittingInput["settlementImport"]): s
   if (settlementImport === undefined) return "";
   return `
 ---- Settlement import, on the same child branch (the script refuses a production target outright) ----
-$xlsx = Read-Host "Path to the codifier .xlsx (kodifikator-07-07.xlsx; do not commit it)"
+$xlsx = Join-Path $env:TEMP "kodifikator-07-07.xlsx"
+Invoke-WebRequest -Uri "${settlementImport.download.url}" -OutFile $xlsx
+$hash = (Get-FileHash -Algorithm SHA256 $xlsx).Hash.ToLower()
+$hash
+if ($hash -ne "${settlementImport.download.sha256}") { throw "STOP: the file's sha256 is not ${settlementImport.download.sha256}. Do not import it; paste this back." }
+# If the link has moved: download the file by hand and set $xlsx to its path instead, e.g.
+#   $xlsx = "C:\path\kodifikator-07-07.xlsx"   (strip the quotes from a "Copy as path" path). The checksum check above still applies. Do not commit the file.
 pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
 # Expected (dry run, writes nothing): ${settlementImport.expectedFirstPlan}
 pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx --commit
@@ -108,6 +116,11 @@ pnpm --filter @opika/db db:seed --profile=demo --force --db-name=$dbName
 pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
 # Expected (after a reseed, dry): ${settlementImport.expectedAfterReseed}
 `;
+}
+
+function importPasteBack(settlementImport: SmokeSittingInput["settlementImport"]): string {
+  if (settlementImport === undefined) return "";
+  return " Also paste ALL FOUR import outputs (dry run, commit, rerun, rerun after the reseed) in full. A second-plan count of 1-8 means a legacy city's name differs from the codifier: paste it back, do not retry.";
 }
 
 function assembled(input: SmokeSittingInput): string {
@@ -146,7 +159,7 @@ ${m.productionStep}
 cd D:\\Startup\\opika
 git worktree remove ${worktreePath}
 
-Paste back: the full neon-smoke output, or at minimum its last ~20 lines including the new check.${m.pasteBack}
+Paste back: the full neon-smoke output, or at minimum its last ~20 lines including the new check.${m.pasteBack}${importPasteBack(input.settlementImport)}
 `;
 }
 

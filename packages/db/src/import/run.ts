@@ -95,11 +95,21 @@ const toValues = (row: ImportRow) => ({
 });
 
 /**
- * Carries the plan out. Each statement is atomic and the run idempotent (neon-http has no
- * interactive transactions, so nothing here pretends to one): a crash leaves rows that the next run
- * completes. Centroids are never written. Only query-builder shapes, no raw `db.execute`.
+ * Carries the plan out. neon-http has no interactive transactions, so each statement is atomic and
+ * the run is idempotent instead: a crash leaves rows the next run completes. That holds for slug
+ * renames only because their aliases are written first. Centroids are never written. Only
+ * query-builder shapes, no raw `db.execute`.
  */
 export async function applyPlan(db: Database, plan: Plan, edition: string): Promise<void> {
+  // Aliases first: a run that dies after a slug changed would otherwise rerun to "nothing to do"
+  // with the old URL lost. An alias written early is harmless (no foreign key to the slug), and
+  // the rerun finds it again and still performs the rename.
+  for (const batch of chunks(plan.aliases, BATCH_SIZE)) {
+    await db
+      .insert(citySlugAliases)
+      .values(batch.map((a) => ({ ...a, cityId: a.cityId as CityId })))
+      .onConflictDoNothing({ target: citySlugAliases.slug });
+  }
   for (const row of plan.adoptions) {
     await db
       .update(cities)
@@ -140,12 +150,6 @@ export async function applyPlan(db: Database, plan: Plan, edition: string): Prom
           retiredInEdition: sql`NULL`,
         },
       });
-  }
-  for (const batch of chunks(plan.aliases, BATCH_SIZE)) {
-    await db
-      .insert(citySlugAliases)
-      .values(batch.map((a) => ({ ...a, cityId: a.cityId as CityId })))
-      .onConflictDoNothing({ target: citySlugAliases.slug });
   }
   for (const batch of chunks(plan.retirements, BATCH_SIZE)) {
     await db

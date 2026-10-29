@@ -288,6 +288,12 @@ describe("a second run", () => {
     ).toThrow(/already points at a different city/);
   });
 
+  it("refuses an existing alias that is also a canonical slug (a 308 loop)", () => {
+    const { stored, aliases } = firstRun();
+    const looping = [...aliases, { slug: "kyiv", cityId: stored[0]?.id ?? "x" }];
+    expect(() => plan(stored, looping)).toThrow(/would be both canonical and an alias/);
+  });
+
   it("leaves a row with no code that is not one of the 8 alone, and says so", () => {
     const stray: ExistingCity = {
       ...(legacyRows()[0] as ExistingCity),

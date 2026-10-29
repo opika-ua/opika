@@ -38,14 +38,18 @@ const likePrefix = (key: string) => `${key.replace(/[\\%_]/gu, "\\$&")}%`;
  */
 const probed = new WeakMap<Database, Promise<boolean>>();
 export function cyrillicTrigramsAvailable(db: Database): Promise<boolean> {
-  let answer = probed.get(db);
-  if (answer === undefined) {
-    answer = db
-      .select({ n: sql<number>`cardinality(show_trgm('миколаївка'))::int` })
-      .from(sql`(SELECT 1) AS one`)
-      .then((rows) => (rows[0]?.n ?? 0) > 0);
-    probed.set(db, answer);
-  }
+  const known = probed.get(db);
+  if (known !== undefined) return known;
+  const answer = db
+    .select({ n: sql<number>`cardinality(show_trgm('миколаївка'))::int` })
+    .from(sql`(SELECT 1) AS one`)
+    .then((rows) => (rows[0]?.n ?? 0) > 0);
+  probed.set(db, answer);
+  // A failed probe is not remembered: one transient error must not break every search on this
+  // instance for the rest of its life.
+  answer.catch(() => {
+    if (probed.get(db) === answer) probed.delete(db);
+  });
   return answer;
 }
 
@@ -62,11 +66,10 @@ export function citySearchRepo(db: Database) {
       query: Extract<PlaceQuery, { kind: "ok" }>,
       options: {
         regionBias: RegionId | null;
-        limit?: number;
         cyrillicTrigrams?: boolean;
       },
     ): Promise<PlaceMatch[]> {
-      const limit = Math.min(options.limit ?? MAX_PLACE_RESULTS, MAX_PLACE_RESULTS);
+      const limit = MAX_PLACE_RESULTS;
       const { cyrillic, latin } = query;
       const useCyrillicTrigrams =
         cyrillic !== null && (options.cyrillicTrigrams ?? (await cyrillicTrigramsAvailable(db)));
