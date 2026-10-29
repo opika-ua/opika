@@ -100,8 +100,8 @@ export const apiErrors = {
   },
   /**
    * H2 kabinet. Authenticated, but not as an actor this procedure accepts,
-   * including a shelter admin acting on another shelter's animal or shelter
-   * (S3-Q2: cross-tenant is FORBIDDEN, by Oleksii's instruction).
+   * by role, never by resource: another shelter's animal id is NOT_FOUND, the
+   * same as a missing one (QA-2026-10-29; S3-Q2 had it FORBIDDEN).
    */
   FORBIDDEN: {
     status: 403,

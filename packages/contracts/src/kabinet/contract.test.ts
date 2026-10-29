@@ -173,10 +173,10 @@ describe("registry.donation.* compare-and-set on the version (RG-Q12)", () => {
 
 describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
   /**
-   * S3-Q2: shelter A's member acting on shelter B's animal or shelter is
-   * FORBIDDEN, confirm and undoConfirm included. The cross-tenant tests that
-   * prove a handler *raises* it belong to the handlers slice; this proves the
-   * contract lets it, since an undeclared error can't be thrown typed.
+   * FORBIDDEN is for role refusals (an actor a procedure doesn't accept).
+   * Another shelter's animal id is NOT_FOUND since QA-2026-10-29 (S3-Q2 had it
+   * FORBIDDEN); the cross-tenant tests live in apps/web. This proves the
+   * contract lets a handler raise FORBIDDEN, since an undeclared error can't be thrown typed.
    */
   it.each(all.map(([path]) => path))("%s declares FORBIDDEN with status 403", (path) => {
     expect(internals(path).errorMap.FORBIDDEN?.status).toBe(403);
