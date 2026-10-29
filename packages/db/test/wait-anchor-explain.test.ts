@@ -249,6 +249,7 @@ describe("longest-waiting EXPLAIN", () => {
     // §2 is explicit that waiving the no-Sort bar here, to save one index, sets
     // a worse precedent than the write amplification costs.
     const filters: FeedFilters = {
+      regions: { kind: "any" },
       cities: { kind: "oneOf", values: [filterCity] },
       species: { kind: "oneOf", values: ["dog"] },
       sizes: { kind: "oneOf", values: ["small"] },

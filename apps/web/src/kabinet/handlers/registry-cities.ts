@@ -5,8 +5,8 @@ import type { KabinetContext } from "../context";
 
 /**
  * `registry.cities.search`: the operator's place search. The query is normalised by the same
- * `placeQueryOf` the stored keys were built with; Crimea, Sevastopol and retired settlements are
- * excluded in the repository, so no handler can forget to. Every field of the answer is named
+ * `placeQueryOf` the stored keys were built with; retired settlements are excluded in the
+ * repository, so no handler can forget to; every region is searched alike. Every field of the answer is named
  * here, the way the view is `pick`ed.
  */
 export async function registryCitiesSearch(

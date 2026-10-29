@@ -1,15 +1,16 @@
-import type { CityId } from "@opika/domain";
-import { textIn } from "@opika/domain";
+import { placeName } from "@opika/i18n";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import { anonymousRouterClient } from "../../../api/server-client";
 import { DeckScreen } from "../../../features/discovery/DeckScreen";
 import {
+  cityTokensOf,
   filtersInWords,
   parseDeckQuery,
-  redirectHrefForLegacyCityIds,
+  redirectHrefForNonCanonicalCities,
   type SearchParams,
 } from "../../../features/gallery/filter-url";
+import { placeBookOf } from "../../../features/gallery/place-book";
 
 /**
  * `docs/design/README.md`'s "Gallery ↔ deck" section decides this directly:
@@ -46,9 +47,10 @@ export const dynamic = "force-dynamic";
 /**
  * A Server Component shell around `DeckScreen` (Client Component) for one
  * reason: `metadata` above requires it. Everything else here - resolving
- * city names for `filtersInWords` - could just as easily run in
- * `renderGallery`'s own Server Component, and does the same
- * `anonymousRouterClient().cities.list({})` call it does, independently.
+ * the URL's place tokens for `filtersInWords` - could just as easily run in
+ * `renderGallery`'s own Server Component, and does the same resolution it does,
+ * independently. No settlement list is read: the deck names a card's city from
+ * the labels each `feed.list` page carries.
  */
 export default async function GortatyPage({
   searchParams,
@@ -58,39 +60,32 @@ export default async function GortatyPage({
   const resolvedSearchParams = await searchParams;
   const client = anonymousRouterClient();
 
-  // Same reordering as `../page.tsx`, same reason: a `?misto=` token is now
-  // a slug, and resolving it needs the real city list before the URL can be
-  // parsed at all - see that file's own comment on the cost.
-  const cities = await client.cities.list({});
-  const cityNames = new Map<CityId, string>(
-    cities.map((city) => [city.id, textIn(city.name, "uk")]),
-  );
-  const citySlugs = new Map(cities.map((city) => [city.id, city.slug]));
-  const citiesBySlug = new Map(cities.map((city) => [city.slug, city.id]));
+  // Same ordering as `../page.tsx`, same reason: a `?misto=` token is a slug (or a former slug,
+  // or a legacy id) and resolving it needs a lookup before the URL can be parsed at all.
+  const cityTokens = cityTokensOf(resolvedSearchParams);
+  const [regions, resolutions] = await Promise.all([
+    client.regions.list({}),
+    cityTokens.length > 0 ? client.cities.resolveTokens({ tokens: cityTokens }) : [],
+  ]);
 
-  const legacyRedirect = redirectHrefForLegacyCityIds(
+  const legacyRedirect = redirectHrefForNonCanonicalCities(
     resolvedSearchParams,
     "/tvaryny/gortaty",
-    citySlugs,
+    resolutions,
   );
   if (legacyRedirect) permanentRedirect(legacyRedirect);
 
-  const { filters, total } = parseDeckQuery(resolvedSearchParams, citiesBySlug);
+  const book = placeBookOf(regions, [], resolutions);
+  const { filters, total } = parseDeckQuery(resolvedSearchParams, book.placeIds);
+  const cityNames = new Map([...book.cities].map(([id, label]) => [id, placeName(label)] as const));
+  const regionNames = new Map([...book.regions].map(([id, region]) => [id, region.label] as const));
 
   return (
     <DeckScreen
       filters={filters}
       total={total}
-      filtersLabel={filtersInWords(filters, cityNames)}
-      citySlugs={citySlugs}
-      // R3 (Phase R, `docs/build-plan.md`): the same lookup `filtersInWords`
-      // above already needed, handed to the deck's own reveal
-      // (`SwipeDeck.tsx`) so it can name the swiped animal's real city
-      // instead of omitting one - a plain object, not the `Map` itself:
-      // Client Components receive this across the server/client boundary,
-      // and an object needs no serialization format beyond what every
-      // other prop already uses.
-      cityNames={Object.fromEntries(cityNames)}
+      filtersLabel={filtersInWords(filters, cityNames, regionNames)}
+      citySlugs={book.slugs}
     />
   );
 }

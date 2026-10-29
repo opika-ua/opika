@@ -27,13 +27,18 @@ describe("anonymousRouterClient", () => {
     await cityRepo(h.db).insert(city);
 
     const client = anonymousRouterClient(h.db);
-    const cities = await client.cities.list({});
+    const cities = await client.cities.byIds({ ids: [city.id] });
 
     expect(cities).toHaveLength(1);
     expect(cities[0]).toEqual({
       id: city.id,
       slug: city.slug,
-      name: city.name,
+      kind: city.kind,
+      nameScope: city.nameScope,
+      regionId: city.regionId,
+      name: "Бровари",
+      regionShort: "Київська обл.",
+      raion: null,
     });
   });
 
@@ -41,8 +46,8 @@ describe("anonymousRouterClient", () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
 
-    const viaInProcess = await anonymousRouterClient(h.db).cities.list({});
-    const viaHttp = await h.call("cities.list", {});
+    const viaInProcess = await anonymousRouterClient(h.db).cities.byIds({ ids: [city.id] });
+    const viaHttp = await h.call("cities.byIds", { ids: [city.id] });
 
     expect(viaHttp.status).toBe(200);
     expect(viaInProcess).toEqual(viaHttp.body);

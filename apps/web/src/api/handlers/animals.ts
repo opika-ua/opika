@@ -18,6 +18,7 @@ import {
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
+import { cardCityIdOf, cityLabelsFor } from "./city-labels";
 import { discoverableListingKind } from "./discoverable-listing-kind";
 import { listingFreshness } from "./listing-freshness";
 import { cityOnlyLocationOf } from "./public-location";
@@ -107,7 +108,7 @@ export async function animalsCardsByIds(
   input: CardsByIdsInput,
   context: AppContext,
 ): Promise<CardsByIdsOutput> {
-  if (input.animalIds.length === 0) return { items: [] };
+  if (input.animalIds.length === 0) return { items: [], cityLabels: [] };
 
   const animalRows = await animalRepo(context.db).findByIds(input.animalIds);
   const animalById = new Map(animalRows.map((animal) => [animal.id, animal]));
@@ -184,7 +185,12 @@ export async function animalsCardsByIds(
     };
   });
 
-  return { items };
+  const cityLabels = await cityLabelsFor(
+    context.db,
+    items.flatMap((item) => (item.kind === "available" ? [cardCityIdOf(item.card)] : [])),
+  );
+
+  return { items, cityLabels };
 }
 
 type NeighboursInput = z.infer<typeof AnimalsNeighboursInputSchema>;

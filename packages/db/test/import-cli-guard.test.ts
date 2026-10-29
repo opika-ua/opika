@@ -138,13 +138,12 @@ describe("reportLines", () => {
         shared_in_district: 4,
       },
       slugSuffixes: 0,
-      hiddenFromPicker: 2,
       perRegion: { UA32: 10 },
       unmanagedRows: 0,
     }).join("\n");
     expect(text).toContain("insert 14, adopt 8");
     expect(text).toContain("7 aliases to add");
-    expect(text).toContain("Hidden from the picker (Crimea, Sevastopol): 2");
+    expect(text).not.toMatch(/hidden/i);
   });
 });
 

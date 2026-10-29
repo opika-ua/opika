@@ -1,16 +1,30 @@
-import type { CityView } from "@opika/contracts";
+import type {
+  CitiesByIdsInputSchema,
+  CitiesResolveTokensInputSchema,
+  CitiesResolveTokensOutputSchema,
+  CityLabelView,
+} from "@opika/contracts";
 import { cityRepo } from "@opika/db/repos";
+import type { z } from "zod";
 import type { AppContext } from "../context";
+import { cityLabelOf } from "./city-labels";
 
-export async function citiesList(
-  _input: Record<string, never>,
+export async function citiesByIds(
+  input: z.infer<typeof CitiesByIdsInputSchema>,
   context: AppContext,
-): Promise<readonly CityView[]> {
-  const cities = cityRepo(context.db);
-  const all = await cities.listAll();
-  return all.map((c) => ({
-    id: c.id,
-    slug: c.slug,
-    name: c.name,
+): Promise<readonly CityLabelView[]> {
+  const found = await cityRepo(context.db).findByIds(input.ids);
+  return found.map(cityLabelOf);
+}
+
+export async function citiesResolveTokens(
+  input: z.infer<typeof CitiesResolveTokensInputSchema>,
+  context: AppContext,
+): Promise<z.infer<typeof CitiesResolveTokensOutputSchema>> {
+  const resolved = await cityRepo(context.db).resolveTokens(input.tokens);
+  return resolved.map(({ token, city, via }) => ({
+    token,
+    city: city ? cityLabelOf(city) : null,
+    via,
   }));
 }

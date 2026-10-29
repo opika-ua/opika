@@ -1,6 +1,6 @@
 "use client";
 
-import { type CityId, DEFAULT_GALLERY_SORT, type FeedFilters } from "@opika/domain";
+import { DEFAULT_GALLERY_SORT, type FeedFilters } from "@opika/domain";
 import { ukPublic as uk } from "@opika/i18n/public";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -50,26 +50,22 @@ export function DeckScreen({
   total,
   filtersLabel,
   citySlugs,
-  cityNames = {},
 }: {
   filters: FeedFilters;
   total: number | null;
   filtersLabel: string | null;
   citySlugs: CitySlugsById;
-  /**
-   * R3 (Phase R, `docs/build-plan.md`): the same lookup `GortatyPage`
-   * already builds for its own `filtersInWords` call, handed down so the
-   * deck's own reveal (`SwipeDeck.tsx`) can name a real city instead of
-   * omitting one. Optional, defaulting to empty - `ContactRevealDialog`
-   * already degrades gracefully for a city it can't resolve, and most of
-   * this component's own tests exercise something unrelated to city
-   * names, so an empty lookup there is a deliberate "not this test's
-   * concern," not a silently missing prop.
-   */
-  cityNames?: Record<CityId, string>;
 }) {
-  const { state, onSwipe, onPrefetch, onRetry, shownCount, reachableCount, ensureSession } =
-    useFeedDeck(filters);
+  const {
+    state,
+    onSwipe,
+    onPrefetch,
+    onRetry,
+    shownCount,
+    reachableCount,
+    ensureSession,
+    cityNames,
+  } = useFeedDeck(filters);
   const exit = useDeckExit(filters, citySlugs);
   const listHref = galleryHref(filters, DEFAULT_GALLERY_SORT, citySlugs);
 

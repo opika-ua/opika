@@ -55,6 +55,7 @@ export function makeListOutput(cards: FeedCardView[], page = 1, totalPages = 1):
     totalShelters: cards.length > 0 ? 1 : 0,
     totalPages,
     page,
+    cityLabels: [],
   };
 }
 
@@ -62,6 +63,7 @@ export function makeShelterPageView(overrides: Partial<ShelterPageView> = {}): S
   return {
     shelter: makeShelterPageShelter(),
     cityName: "Бровари",
+    cityPlace: "м. Бровари",
     animals: makeListOutput([makeCardView(1), makeCardView(2)]),
     cityNames: new Map([[CITY_ID as never, "Бровари"]]),
     query: { sort: "freshest", page: 1 },
@@ -94,11 +96,16 @@ export function stubShelterPageClient(
     shelters: { byId: sheltersById },
     gallery: { list: galleryList },
     cities: {
-      list: vi.fn(async () => [
+      byIds: vi.fn(async () => [
         {
           id: CITY_ID,
           slug: "brovary",
-          name: { uk: "Бровари", en: { text: "Brovary", provenance: "human" } },
+          kind: "city",
+          nameScope: "unique_in_ukraine",
+          regionId: "814661e1-67de-532e-a38e-2216d8b521ff",
+          name: "Бровари",
+          regionShort: "Київська обл.",
+          raion: "Броварський район",
         },
       ]),
     },

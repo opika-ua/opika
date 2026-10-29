@@ -11,6 +11,7 @@ import { z } from "zod";
 import { apiErrors } from "../errors";
 import { AnimalDetailViewSchema, FeedCardViewSchema } from "../views/animal";
 import { ContactRevealViewSchema } from "../views/reveal";
+import { CityLabelViewSchema } from "../views/shelter";
 
 export const AnimalsByIdInputSchema = z.object({
   animalId: AnimalIdSchema,
@@ -75,6 +76,8 @@ export const SavedCardResultSchema = z.discriminatedUnion("kind", [
 
 export const AnimalsCardsByIdsOutputSchema = z.object({
   items: z.array(SavedCardResultSchema),
+  /** The cities of the available cards, one label each. */
+  cityLabels: z.array(CityLabelViewSchema).readonly(),
 });
 
 /**

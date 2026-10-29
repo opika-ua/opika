@@ -1,4 +1,4 @@
-import type { AnimalDetailView, CityView, PublicShelterView } from "@opika/contracts";
+import type { AnimalDetailView, CityLabelView, PublicShelterView } from "@opika/contracts";
 import { ORPCError } from "@orpc/server";
 import { vi } from "vitest";
 import type { AnimalPageClient } from "./animal-page-load";
@@ -62,10 +62,15 @@ export function makeDetailShelter(overrides: Partial<PublicShelterView> = {}): P
   };
 }
 
-const CITY: CityView = {
-  id: CITY_ID as CityView["id"],
-  slug: "brovary" as CityView["slug"],
-  name: { uk: "Бровари", en: { text: "Brovary", provenance: "human" } },
+export const CITY_LABEL: CityLabelView = {
+  id: CITY_ID as CityLabelView["id"],
+  slug: "brovary" as CityLabelView["slug"],
+  kind: "city",
+  nameScope: "unique_in_ukraine",
+  regionId: "814661e1-67de-532e-a38e-2216d8b521ff" as CityLabelView["regionId"],
+  name: "Бровари",
+  regionShort: "Київська обл.",
+  raion: "Броварський район",
 };
 
 /** What `animals.byId` does in a test: answer, or refuse with an oRPC code, or fail outright. */
@@ -88,7 +93,8 @@ export function stubAnimalPageClient(byId: ByIdBehaviour = { kind: "answer" }) {
   const client = {
     animals: { byId: animalsById },
     shelters: { byId: vi.fn(async () => makeDetailShelter()) },
-    cities: { list: vi.fn(async () => [CITY]) },
+    cities: { byIds: vi.fn(async () => [CITY_LABEL]) },
+    regions: { list: vi.fn(async () => []) },
   };
   return { client: client as unknown as AnimalPageClient, animalsById };
 }

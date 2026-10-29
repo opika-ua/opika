@@ -3,6 +3,7 @@ import type { CityId } from "@opika/domain";
 import {
   ageBucketLabel,
   ageWordFor,
+  fillTemplate,
   sexWordFor,
   sizeLabel,
   ukPublic as uk,
@@ -41,7 +42,7 @@ export function cardCityId(card: FeedCardView): CityId {
   return card.publicLocation?.cityId ?? card.shelter.publicLocation.cityId;
 }
 
-/** Exported for `AnimalCard`'s `hideCityInMeta`, which only suppresses a bare "м. {city}" - a fostered card's "на перетримці, м. {city}" says more than city alone, so it stays. */
+/** Exported for `AnimalCard`'s `hideCityInMeta`, which only suppresses a bare place - a fostered card's "на перетримці, м. Бровари" says more than the city alone, so it stays. */
 export function isFostered(card: FeedCardView): boolean {
   return card.publicLocation !== null;
 }
@@ -49,13 +50,13 @@ export function isFostered(card: FeedCardView): boolean {
 /**
  * "на перетримці, м. Бровари" or "м. Бровари" - the meta line's terse
  * housing+city fragment. `null` when the city name hasn't resolved (the
- * caller's `cities.list` lookup missed), so the meta line degrades to
+ * caller's place lookup missed), so the meta line degrades to
  * "молодий · мала" rather than showing a broken template.
  */
 export function housingCityLabel(card: FeedCardView, cityName: string | null): string | null {
   if (!cityName) return null;
   const template = isFostered(card) ? uk.cardMeta.fosteredHousing : uk.cardMeta.atShelter;
-  return template.replace("{city}", () => cityName);
+  return fillTemplate(template, { place: cityName });
 }
 
 /** "молодий · мала · на перетримці, м. Бровари" - the card's full meta line. */

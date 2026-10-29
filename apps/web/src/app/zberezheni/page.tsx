@@ -1,7 +1,5 @@
-import { textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
-import { anonymousRouterClient } from "../../api/server-client";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SavedPageScreen } from "../../features/likes/SavedPageScreen";
 
@@ -23,7 +21,7 @@ export const metadata: Metadata = {
 
 /**
  * `force-dynamic` for the same reason every other route here that reads
- * `cities.list` sets it (`../tvaryny/gortaty/page.tsx`'s own comment): a
+ * live data sets it (`../tvaryny/gortaty/page.tsx`'s own comment): a
  * build-time prerender would bake in a snapshot rather than a live read.
  * Nothing about this page is actually time-sensitive in the way the gallery
  * is, since its real content never leaves the client - kept for consistency
@@ -33,19 +31,12 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 /**
- * A Server Component shell around `SavedPageScreen` (Client Component), for
- * `metadata` and to resolve `cityNames` once, server-side - the same split
- * `app/tvaryny/gortaty/page.tsx` uses, and for the identical reason:
- * `AnimalCard` needs a city's display name, which `FeedCardView` carries
- * only as an id (`PublicCityLocationViewSchema`, city id only, EM-Q10).
+ * A Server Component shell around `SavedPageScreen` (Client Component), for `metadata` and the
+ * kabinet nav. City names come with the cards themselves (`animals.cardsByIds` carries a label per
+ * city), so this page reads no city lookup at all.
  */
 export default async function SavedPage() {
-  const client = anonymousRouterClient();
-  const [cities, kabinetSignedIn] = await Promise.all([
-    client.cities.list({}),
-    kabinetSessionCookiePresent(),
-  ]);
-  const cityNames = Object.fromEntries(cities.map((city) => [city.id, textIn(city.name, "uk")]));
+  const kabinetSignedIn = await kabinetSessionCookiePresent();
 
-  return <SavedPageScreen cityNames={cityNames} kabinetSignedIn={kabinetSignedIn} />;
+  return <SavedPageScreen kabinetSignedIn={kabinetSignedIn} />;
 }

@@ -33,8 +33,10 @@ const PANEL_WIDTH = "max-w-271";
 interface AnimalDetailScreenProps {
   animal: AnimalDetailView;
   shelter: PublicShelterView;
-  /** Resolved by the caller (`cities.list`), same pattern as the gallery's `AnimalCard` - this component never fetches. */
+  /** Resolved by the caller (`cities.byIds`), same pattern as the gallery's `AnimalCard` - this component never fetches. */
   cityName: string | null;
+  /** The place as a meta line prints it, for the contact reveal (kind prefix, oblast where ambiguous). */
+  cityPlace: string | null;
 }
 
 /**
@@ -77,7 +79,12 @@ export function AnimalDetailScreen({
 }
 
 /** The animal itself, with no page chrome: shared by the full page and the gallery overlay. */
-export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailScreenProps) {
+export function AnimalDetailContent({
+  animal,
+  shelter,
+  cityName,
+  cityPlace,
+}: AnimalDetailScreenProps) {
   const showDocuments =
     animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
   const customTemperament = animal.temperament.find((entry) => entry.kind === "custom");
@@ -95,7 +102,7 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
           </div>
           {/* Wraps onto two lines on a phone rather than overflowing; «Дати сімʼю» stays the one primary action. */}
           <div className="flex flex-none flex-wrap items-center gap-4">
-            <RevealFlow animalId={animal.id} animalName={animal.name} cityName={cityName} />
+            <RevealFlow animalId={animal.id} animalName={animal.name} cityName={cityPlace} />
             <ShareButton animalId={animal.id} animalName={animal.name} />
             <SaveButton animalId={animal.id} animalName={animal.name} />
           </div>

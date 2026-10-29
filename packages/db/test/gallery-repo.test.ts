@@ -353,6 +353,7 @@ describe("galleryRepo.list", () => {
     ]);
 
     const filters: FeedFilters = {
+      regions: { kind: "any" },
       cities: { kind: "oneOf", values: [kyiv.id] },
       species: { kind: "oneOf", values: ["dog"] },
       sizes: { kind: "oneOf", values: ["small"] },
@@ -745,6 +746,7 @@ describe("galleryRepo.relaxationCounts", () => {
 
     const counts = await galleryRepo(db).relaxationCounts({
       filters: {
+        regions: { kind: "any" },
         cities: { kind: "oneOf", values: [kyiv.id] },
         species: { kind: "oneOf", values: ["dog"] },
         sizes: { kind: "oneOf", values: ["small"] },
@@ -940,6 +942,7 @@ describe("galleryRepo.facetCounts", () => {
   it("gives every option exactly the total the list reports with that option chosen alone", async () => {
     const { kyiv, lviv, odesa } = await seedFacetCorpus();
     const filters: FeedFilters = {
+      regions: { kind: "any" },
       cities: { kind: "oneOf", values: [kyiv.id, lviv.id] },
       species: { kind: "oneOf", values: ["dog"] },
       sizes: { kind: "oneOf", values: ["small", "large"] },

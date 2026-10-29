@@ -1,29 +1,32 @@
 import type { GalleryFacetCounts } from "@opika/contracts";
-import { type CityId, CityIdSchema, type FeedFilters, NO_FILTERS } from "@opika/domain";
+import { CityIdSchema, type FeedFilters, NO_FILTERS } from "@opika/domain";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { GalleryFilterDropdowns } from "./GalleryFilterDropdowns";
+import { placeBookOf } from "./place-book";
+import {
+  cityLabel,
+  facetCity,
+  KYIV_OBL,
+  LVIV_OBL,
+  REGION_LABELS,
+  REGION_VIEWS,
+} from "./test-places";
 import { mockAppRouter, WithMockRouter } from "./test-router";
 
 const BROVARY = CityIdSchema.parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 const IRPIN = CityIdSchema.parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
-const BUCHA = CityIdSchema.parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
-const CITIES: ReadonlyArray<{ id: CityId; name: string }> = [
-  { id: BROVARY, name: "Бровари" },
-  { id: IRPIN, name: "Ірпінь" },
-  { id: BUCHA, name: "Буча" },
-];
-const CITY_SLUGS = new Map<CityId, never>([
-  [BROVARY, "brovary" as never],
-  [IRPIN, "irpin" as never],
-  [BUCHA, "bucha" as never],
-]);
+const BUCHA = CityIdSchema.parse("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+const LVIV = CityIdSchema.parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+const BROVARY_L = cityLabel(BROVARY, "brovary", "Бровари");
+const IRPIN_L = cityLabel(IRPIN, "irpin", "Ірпінь");
+const BUCHA_L = cityLabel(BUCHA, "bucha", "Буча");
+const LVIV_L = cityLabel(LVIV, "lviv", "Львів", LVIV_OBL);
+const SLUGS = placeBookOf(REGION_VIEWS, [BROVARY_L, IRPIN_L, BUCHA_L, LVIV_L]).slugs;
 const COUNTS: GalleryFacetCounts = {
-  // Ірпінь and Бровари tie, so the alphabet decides; Буча has none.
-  cities: [
-    { cityId: IRPIN, count: 14 },
-    { cityId: BROVARY, count: 14 },
-  ],
+  // Ірпінь and Бровари tie, so the alphabet decides; Буча has animals but none under these filters.
+  cities: [facetCity(IRPIN_L, 14), facetCity(BROVARY_L, 14), facetCity(BUCHA_L, 0)],
+  regions: [{ regionId: KYIV_OBL, count: 28 }],
   ages: { baby: 1, young: 3, adult: 22, senior: 0 },
   sizes: { small: 5, medium: 2, large: 1 },
   sexes: { male: 4, female: 6, unknown: 2 },
@@ -36,8 +39,9 @@ function renderRow(filters: FeedFilters = NO_FILTERS, counts: GalleryFacetCounts
       <GalleryFilterDropdowns
         filters={filters}
         sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
+        citySlugs={SLUGS}
+        regionLabels={REGION_LABELS}
+        selectedCities={[]}
         counts={counts}
       />
       <button type="button">Поза</button>
@@ -54,9 +58,15 @@ const pillNames = (group: HTMLElement) =>
     .map((pill) => pill.getAttribute("aria-label"));
 
 describe("GalleryFilterDropdowns", () => {
-  it("renders the four selectors - city, age, size, sex - after the species toggle", () => {
+  it("renders the five selectors - oblast, city, age, size, sex - after the species toggle", () => {
     renderRow();
-    for (const name of ["Місто: Місто", "Вік: Вік", "Розмір: Розмір", "Стать: Стать"]) {
+    for (const name of [
+      "Область: Область",
+      "Місто: Місто",
+      "Вік: Вік",
+      "Розмір: Розмір",
+      "Стать: Стать",
+    ]) {
       expect(trigger(name).getAttribute("aria-expanded")).toBe("false");
     }
     expect(screen.getByRole("group", { name: "Вид" })).toBe(screen.getByTestId("species-toggle"));
@@ -95,7 +105,7 @@ describe("GalleryFilterDropdowns", () => {
     expect(pill.getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("orders cities by count, most first, then alphabetically, keeping a city with none", () => {
+  it("orders cities by count, most first, then alphabetically, keeping a city with none left under the filters", () => {
     renderRow();
     fireEvent.click(trigger("Місто: Місто"));
     expect(pillNames(panel("Місто"))).toEqual([
@@ -223,5 +233,79 @@ describe("GalleryFilterDropdowns", () => {
     expect(screen.getByTestId("species-any").getAttribute("aria-current")).toBe("true");
     expect(screen.getByTestId("species-dog").getAttribute("aria-current")).toBeNull();
     expect(screen.getByTestId("species-cat").getAttribute("aria-current")).toBeNull();
+  });
+
+  describe("the oblast selector", () => {
+    const TWO_REGIONS: GalleryFacetCounts = {
+      ...COUNTS,
+      cities: [...COUNTS.cities, facetCity(LVIV_L, 5)],
+      regions: [
+        { regionId: KYIV_OBL, count: 28 },
+        { regionId: LVIV_OBL, count: 5 },
+      ],
+    };
+
+    it("lists every oblast with counts, a zero-count one disabled in place", () => {
+      renderRow(NO_FILTERS, TWO_REGIONS);
+      fireEvent.click(trigger("Область: Область"));
+      expect(pillNames(panel("Область"))).toEqual([
+        "Київська, 28 тварин",
+        "Львівська, 5 тварин",
+        "АР Крим, 0 тварин",
+      ]);
+      expect(
+        screen.getByRole("button", { name: "АР Крим, 0 тварин" }).getAttribute("aria-disabled"),
+      ).toBe("true");
+    });
+
+    it("a pill applies at once through the URL as `obl`, keeping the other filters", () => {
+      const router = renderRow(
+        { ...NO_FILTERS, sizes: { kind: "oneOf", values: ["large"] } },
+        TWO_REGIONS,
+      );
+      fireEvent.click(trigger("Область: Область"));
+      act(() => {
+        fireEvent.click(screen.getByRole("button", { name: "Львівська, 5 тварин" }));
+      });
+      expect(router.replace).toHaveBeenCalledWith("/tvaryny?obl=lvivska&rozmir=large", {
+        scroll: false,
+      });
+    });
+
+    it("narrows the city selector to the chosen oblast's cities", () => {
+      renderRow({ ...NO_FILTERS, regions: { kind: "oneOf", values: [LVIV_OBL] } }, TWO_REGIONS);
+      fireEvent.click(trigger("Місто: Місто"));
+      expect(pillNames(panel("Місто"))).toEqual(["Львів, 5 тварин"]);
+    });
+
+    it("deselecting an oblast also drops the cities that narrowed it", () => {
+      const router = renderRow(
+        {
+          ...NO_FILTERS,
+          regions: { kind: "oneOf", values: [KYIV_OBL, LVIV_OBL] },
+          cities: { kind: "oneOf", values: [BROVARY, LVIV] },
+        },
+        TWO_REGIONS,
+      );
+      fireEvent.click(trigger("Область: Київська, Львівська"));
+      act(() => {
+        fireEvent.click(screen.getByRole("button", { name: "Київська, 28 тварин" }));
+      });
+      // Brovary narrowed Kyiv oblast and goes with it; Lviv city (its oblast still chosen) stays.
+      expect(router.replace).toHaveBeenCalledWith("/tvaryny?obl=lvivska&misto=lviv", {
+        scroll: false,
+      });
+    });
+
+    it("offers a ✕ that clears only the oblast", () => {
+      renderRow({
+        ...NO_FILTERS,
+        regions: { kind: "oneOf", values: [KYIV_OBL] },
+        sizes: { kind: "oneOf", values: ["large"] },
+      });
+      expect(screen.getByRole("link", { name: "Скинути Область" }).getAttribute("href")).toBe(
+        "/tvaryny?rozmir=large",
+      );
+    });
   });
 });

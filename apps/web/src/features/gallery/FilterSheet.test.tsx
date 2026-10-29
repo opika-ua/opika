@@ -1,12 +1,26 @@
 import type { GalleryFacetCounts } from "@opika/contracts";
-import { type CityId, CityIdSchema, citySlugOf, type FeedFilters, NO_FILTERS } from "@opika/domain";
+import { type FeedFilters, NO_FILTERS } from "@opika/domain";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { FilterSheet } from "./FilterSheet";
+import {
+  BROVARY,
+  BROVARY_LABEL,
+  COUNTS,
+  facetCity,
+  KYIV,
+  KYIV_LABEL,
+  KYIV_OBL,
+  LVIV,
+  LVIV_LABEL,
+  LVIV_OBL,
+  PLACE_BOOK,
+  REGION_LABELS,
+} from "./test-places";
 import { mockAppRouter, WithMockRouter } from "./test-router";
 
 /**
- * `getByRole` for the submit button and the footer/Уся-Київщина links needs
+ * `getByRole` for the submit button and the footer/Усі-міста links needs
  * `{ hidden: true }`: this component's `<dialog>` never has `showModal()`
  * called on it in these tests (they're exercising form-submission logic,
  * not the open/close interaction), and content inside a closed `<dialog>`
@@ -16,23 +30,6 @@ import { mockAppRouter, WithMockRouter } from "./test-router";
  * `getByLabelText` for the checkboxes doesn't perform the same hidden-state
  * computation, which is why those queries below don't need it.
  */
-
-const BROVARY = CityIdSchema.parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
-const KYIV = CityIdSchema.parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
-const CITIES: ReadonlyArray<{ id: CityId; name: string; slug: ReturnType<typeof citySlugOf> }> = [
-  { id: BROVARY, name: "Бровари", slug: citySlugOf("Brovary") },
-  { id: KYIV, name: "Київ", slug: citySlugOf("Kyiv") },
-];
-const CITY_SLUGS = new Map(CITIES.map((city) => [city.id, city.slug]));
-const COUNTS: GalleryFacetCounts = {
-  cities: [
-    { cityId: BROVARY, count: 4 },
-    { cityId: KYIV, count: 9 },
-  ],
-  ages: { baby: 2, young: 3, adult: 5, senior: 1 },
-  sizes: { small: 1, medium: 3, large: 5 },
-  sexes: { male: 4, female: 6, unknown: 2 },
-};
 
 /** A facet pill's input is named with its count («Малий, 1 тварина»); match the label part. */
 const facet = (label: string) => new RegExp(`^${label}, `);
@@ -48,8 +45,10 @@ function renderSheet(
       <FilterSheet
         filters={filters}
         sort={sort}
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
+        placeIds={PLACE_BOOK.placeIds}
+        citySlugs={PLACE_BOOK.slugs}
+        regionLabels={REGION_LABELS}
+        selectedCities={[]}
         resultCount={12}
         shelterCount={5}
         counts={counts}
@@ -66,8 +65,10 @@ function renderSheet(
         <FilterSheet
           filters={nextFilters}
           sort={nextSort}
-          cities={CITIES}
-          citySlugs={CITY_SLUGS}
+          placeIds={PLACE_BOOK.placeIds}
+          citySlugs={PLACE_BOOK.slugs}
+          regionLabels={REGION_LABELS}
+          selectedCities={[]}
           resultCount={3}
           shelterCount={2}
           counts={counts}
@@ -131,13 +132,13 @@ describe("FilterSheet", () => {
     expect(href).not.toContain("sort=");
   });
 
-  it("'Уся Київщина' drops the city filter and keeps every other group - it is not a second 'Скинути'", () => {
+  it("'Усі міста' drops the city filter and keeps every other group - it is not a second 'Скинути'", () => {
     const { router } = renderSheet({
       ...NO_FILTERS,
       cities: { kind: "oneOf", values: [BROVARY] },
       species: { kind: "oneOf", values: ["dog"] },
     });
-    const allCities = screen.getByRole("link", { name: "Уся Київщина", hidden: true });
+    const allCities = screen.getByRole("link", { name: "Усі міста", hidden: true });
 
     // The href matters as much as the handler: with no JS this link is the
     // whole behaviour, and nothing intercepts it.
@@ -162,7 +163,7 @@ describe("FilterSheet", () => {
   it("a ticked box does not survive a filter change that came from somewhere else", () => {
     // Uncontrolled inputs keep their dirty checkedness across a re-render:
     // without the form's `key`, ticking "Собаки" and then reaching an
-    // unrelated filter state (back button, "Скинути", "Уся Київщина")
+    // unrelated filter state (back button, "Скинути", "Усі міста")
     // leaves the sheet showing a selection the URL does not have - hidden
     // client state outliving the single source of truth.
     const { applyFromElsewhere } = renderSheet();
@@ -242,29 +243,21 @@ describe("FilterSheet", () => {
   it("orders cities by count, most first, then alphabetically", () => {
     renderSheet(NO_FILTERS, "freshest", {
       ...COUNTS,
-      cities: [
-        { cityId: BROVARY, count: 2 },
-        { cityId: KYIV, count: 2 },
-      ],
+      cities: [facetCity(BROVARY_LABEL, 2), facetCity(KYIV_LABEL, 2)],
     });
     const group = within(screen.getByRole("group", { name: "Місто", hidden: true }));
     const names = group
       .getAllByRole("checkbox", { hidden: true })
       .map((box) => box.getAttribute("aria-label"));
     expect(names).toEqual(["Бровари, 2 тварини", "Київ, 2 тварини"]);
+  });
 
-    renderSheet(NO_FILTERS, "freshest", {
-      ...COUNTS,
-      cities: [{ cityId: KYIV, count: 1 }],
-    });
-    const second = within(
-      screen.getAllByRole("group", { name: "Місто", hidden: true })[1] as HTMLElement,
-    );
+  it("offers only the cities that have an animal, never a zero-count chip from a wider list", () => {
+    renderSheet(NO_FILTERS, "freshest", { ...COUNTS, cities: [facetCity(KYIV_LABEL, 1)] });
+    const group = within(screen.getByRole("group", { name: "Місто", hidden: true }));
     expect(
-      second
-        .getAllByRole("checkbox", { hidden: true })
-        .map((box) => box.getAttribute("aria-label")),
-    ).toEqual(["Київ, 1 тварина", "Бровари, 0 тварин"]);
+      group.getAllByRole("checkbox", { hidden: true }).map((box) => box.getAttribute("aria-label")),
+    ).toEqual(["Київ, 1 тварина"]);
   });
 
   it("disables an option with nothing to find, unless it is ticked and must stay clearable", () => {
@@ -278,5 +271,120 @@ describe("FilterSheet", () => {
     const ticked = sheet.getByLabelText("Великий, 0 тварин") as HTMLInputElement;
     expect(ticked.checked).toBe(true);
     expect(ticked.disabled).toBe(false);
+  });
+
+  describe("the oblast group", () => {
+    const COUNTS_TWO_REGIONS: GalleryFacetCounts = {
+      ...COUNTS,
+      cities: [facetCity(BROVARY_LABEL, 4), facetCity(KYIV_LABEL, 9), facetCity(LVIV_LABEL, 3)],
+      regions: [
+        { regionId: KYIV_OBL, count: 13 },
+        { regionId: LVIV_OBL, count: 3 },
+      ],
+    };
+    const cityNames = (): (string | null)[] =>
+      within(screen.getByRole("group", { name: "Місто", hidden: true }))
+        .getAllByRole("checkbox", { hidden: true })
+        .map((box) => box.getAttribute("aria-label"));
+
+    it("lists every oblast, those with animals first with their counts, the rest disabled in place", () => {
+      renderSheet(NO_FILTERS, "freshest", COUNTS_TWO_REGIONS);
+      const group = within(screen.getByRole("group", { name: "Область", hidden: true }));
+      expect(
+        group
+          .getAllByRole("checkbox", { hidden: true })
+          .map((box) => box.getAttribute("aria-label")),
+      ).toEqual(["Київська, 13 тварин", "Львівська, 3 тварини", "АР Крим, 0 тварин"]);
+      expect((group.getByLabelText("АР Крим, 0 тварин") as HTMLInputElement).disabled).toBe(true);
+      expect((group.getByLabelText("Київська, 13 тварин") as HTMLInputElement).disabled).toBe(
+        false,
+      );
+    });
+
+    it("submits the oblast's slug as `obl`", () => {
+      const { router } = renderSheet(NO_FILTERS, "freshest", COUNTS_TWO_REGIONS);
+      const sheet = within(screen.getByTestId("filter-sheet"));
+      fireEvent.click(sheet.getByLabelText("Львівська, 3 тварини"));
+      fireEvent.click(sheet.getByRole("button", { name: /Показати/, hidden: true }));
+
+      const [href] = router.replace.mock.calls[0] as [string];
+      const params = new URL(href, "http://x").searchParams;
+      expect(params.get("obl")).toBe("lvivska");
+      expect(params.get("misto")).toBeNull();
+    });
+
+    it("offers only the chosen oblast's cities once an oblast is chosen", () => {
+      renderSheet(
+        { ...NO_FILTERS, regions: { kind: "oneOf", values: [LVIV_OBL] } },
+        "freshest",
+        COUNTS_TWO_REGIONS,
+      );
+      expect(cityNames()).toEqual(["Львів, 3 тварини"]);
+    });
+
+    it("keeps a chosen city of another oblast clearable", () => {
+      renderSheet(
+        {
+          ...NO_FILTERS,
+          regions: { kind: "oneOf", values: [LVIV_OBL] },
+          cities: { kind: "oneOf", values: [KYIV] },
+        },
+        "freshest",
+        COUNTS_TWO_REGIONS,
+      );
+      expect(cityNames()).toEqual(["Київ, 9 тварин", "Львів, 3 тварини"]);
+    });
+
+    it("'Усі області' drops only the oblast filter", () => {
+      const { router } = renderSheet(
+        {
+          ...NO_FILTERS,
+          regions: { kind: "oneOf", values: [LVIV_OBL] },
+          species: { kind: "oneOf", values: ["dog"] },
+        },
+        "freshest",
+        COUNTS_TWO_REGIONS,
+      );
+      const all = screen.getByRole("link", { name: "Усі області", hidden: true });
+      expect(all.getAttribute("href")).toBe("/tvaryny?vyd=dog");
+      fireEvent.click(all);
+      expect(router.replace).toHaveBeenCalledWith("/tvaryny?vyd=dog", { scroll: false });
+    });
+
+    it("keeps a chosen oblast with no animal, so it can be cleared, at zero", () => {
+      renderSheet({ ...NO_FILTERS, regions: { kind: "oneOf", values: [LVIV_OBL] } });
+      const group = within(screen.getByRole("group", { name: "Область", hidden: true }));
+      const box = group.getByLabelText("Львівська, 0 тварин") as HTMLInputElement;
+      expect(box.checked).toBe(true);
+      expect(box.disabled).toBe(false);
+    });
+
+    it("tells two same-named settlements apart by their oblast", () => {
+      const twin = (id: typeof BROVARY, regionId: typeof KYIV_OBL, slug: string) =>
+        facetCity(
+          {
+            ...BROVARY_LABEL,
+            id,
+            slug: slug as typeof BROVARY_LABEL.slug,
+            name: "Миколаївка",
+            kind: "village",
+            nameScope: "unique_in_region",
+            regionId,
+            regionShort: regionId === LVIV_OBL ? "Львівська обл." : "Київська обл.",
+          },
+          1,
+        );
+      renderSheet(NO_FILTERS, "freshest", {
+        ...COUNTS_TWO_REGIONS,
+        cities: [
+          twin(BROVARY, KYIV_OBL, "mykolaivka-kyivska"),
+          twin(LVIV, LVIV_OBL, "mykolaivka-lvivska"),
+        ],
+      });
+      expect(cityNames()).toEqual([
+        "Миколаївка, Київська обл., 1 тварина",
+        "Миколаївка, Львівська обл., 1 тварина",
+      ]);
+    });
   });
 });

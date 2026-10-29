@@ -62,7 +62,7 @@ describe("animals.cardsByIds", () => {
   it("returns an empty list for an empty request", async () => {
     const res = await h.call("animals.cardsByIds", { animalIds: [] });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ items: [] });
+    expect(res.body).toEqual({ items: [], cityLabels: [] });
   });
 
   it("returns an available card for a published, verified animal", async () => {

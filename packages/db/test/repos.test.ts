@@ -56,18 +56,6 @@ describe("cityRepo", () => {
     expect(found).toEqual(city);
   });
 
-  it("lists all cities", async () => {
-    const cities = cityRepo(db);
-    const c1 = makeCity({ name: { uk: "Харків", en: { text: "Kharkiv", provenance: "human" } } });
-    const c2 = makeCity({ name: { uk: "Дніпро", en: { text: "Dnipro", provenance: "human" } } });
-
-    await cities.insertMany([c1, c2]);
-    const list = await cities.listAll();
-
-    expect(list).toHaveLength(2);
-    expect(list.map((c) => c.id).sort()).toEqual([c1.id, c2.id].sort());
-  });
-
   it("returns null for non-existent city", async () => {
     const cities = cityRepo(db);
     const found = await cities.findById("00000000-0000-0000-0000-000000000000" as never);

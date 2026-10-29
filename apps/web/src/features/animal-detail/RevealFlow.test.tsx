@@ -69,7 +69,7 @@ function revealFor(contact: ShelterContact): ContactRevealView {
 }
 
 function renderFlow() {
-  return render(<RevealFlow animalId={ANIMAL_ID} animalName="Ластівка" cityName="Бровари" />);
+  return render(<RevealFlow animalId={ANIMAL_ID} animalName="Ластівка" cityName="м. Бровари" />);
 }
 
 beforeEach(() => {

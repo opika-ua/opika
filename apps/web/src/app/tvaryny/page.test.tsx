@@ -176,3 +176,29 @@ describe("/tvaryny (renderGallery)", () => {
  * `REGISTRY_HAS_NO_REAL_SHELTERS` flag) is untouched and still covered by
  * `seo-flags.test.ts`.
  */
+
+/**
+ * A hand-edited place param must degrade to "no filter", as it did before the token lookup existed,
+ * never reach the contract as an invalid input and land on the error page. (The deck and the
+ * overlay read the same `cityTokensOf`, whose unit test is in `filter-url.test.ts`.)
+ */
+describe("/tvaryny (renderGallery) with a malformed place param", () => {
+  it.each([
+    ["an empty value", { misto: "" }],
+    ["a trailing comma", { misto: "unknown-city," }],
+    ["an empty token between commas", { misto: "a,,b" }],
+    ["a token over the length cap", { misto: "a".repeat(101) }],
+    [
+      "more tokens than the cap",
+      { misto: Array.from({ length: 45 }, (_, i) => `p${i}`).join(",") },
+    ],
+    [
+      "more oblast tokens than exist",
+      { obl: Array.from({ length: 40 }, (_, i) => `r${i}`).join(",") },
+    ],
+  ])("renders for %s", async (_what, params) => {
+    const element = await renderGallery(anonymousRouterClient(h.db), params);
+    render(<WithMockRouter>{element}</WithMockRouter>);
+    expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
+  });
+});

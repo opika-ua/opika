@@ -85,11 +85,11 @@ export async function runSearchSmoke(db: Database): Promise<Outcome[]> {
 
   const crimean = named("Смококримськ", "Smokokrymsk", "UA01");
   await cityRepo(db).insertMissing([crimean]);
-  const hidden = await search("Смококримськ");
+  const found = await search("Смококримськ");
   check(
-    "a settlement in Crimea is stored but never returned",
-    hidden.length === 0 && (await cityRepo(db).findById(crimean.id)) !== null,
-    `returned ${hidden.length}`,
+    "a settlement in Crimea is returned like any other",
+    found.some((r) => r.id === crimean.id),
+    `returned ${found.length}`,
   );
 
   const started = performance.now();

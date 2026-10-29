@@ -54,7 +54,7 @@ import { LoadErrorScreen } from "../../features/gallery/LoadErrorScreen";
  * Next.js error boundaries replace everything the failing Server
  * Component's render tree would have produced - and `page.tsx`'s header
  * and rail are inside that same tree, constructed only after
- * `Promise.all([cities.list(), gallery.list()])` resolves. When that
+ * the page's place lookup and `gallery.list()` resolve. When that
  * throws, nothing downstream of it - including the header and rail -
  * ever rendered in the first place, so there is no "existing chrome" for
  * this file to render the error card into.

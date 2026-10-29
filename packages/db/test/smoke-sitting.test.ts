@@ -151,7 +151,7 @@ describe("renderSmokeSitting with the settlement import (nationwide N2)", () => 
     expect(text).toContain("Get-FileHash -Algorithm SHA256");
     expect(text).toContain('if ($hash -ne "abc123") { throw "STOP');
     expect(at("Get-FileHash")).toBeLessThan(at("db:import-settlements"));
-    expect(text).toContain('$xlsx = "C:\path\kodifikator-07-07.xlsx"');
+    expect(text).toContain('$xlsx = "C:\\path\\kodifikator-07-07.xlsx"');
     expect(text).toContain('strip the quotes from a "Copy as path" path');
   });
 
@@ -162,5 +162,47 @@ describe("renderSmokeSitting with the settlement import (nationwide N2)", () => 
 
   it("leaves a sitting without an import unchanged", () => {
     expect(renderSmokeSitting(BASE)).not.toContain("db:import-settlements");
+  });
+});
+
+describe("renderSmokeSitting with the import and the timings step (nationwide N3)", () => {
+  const withTimings = renderSmokeSitting({
+    ...BASE,
+    settlementImport: {
+      download: { url: "https://example.org/k.xlsx", sha256: "abc123" },
+      expectedFirstPlan: "FIRST",
+      expectedAfterCommit: "COMMIT",
+      expectedRerun: "RERUN",
+      expectedAfterReseed: "RESEED",
+      timings: { expected: "TIMINGS" },
+    },
+  });
+  const at = (needle: string) => withTimings.indexOf(needle);
+
+  it("times after the import and the reseed, before the connection string is removed", () => {
+    const timings = at("db:neon-smoke-timings --expect $ep");
+    expect(timings).toBeGreaterThan(at("RESEED"));
+    expect(at("# Expected: TIMINGS")).toBeGreaterThan(timings);
+    expect(at("Remove-Item Env:DATABASE_URL")).toBeGreaterThan(timings);
+    expect(withTimings.match(/db:neon-smoke-timings/g)).toHaveLength(2); // the command and the paste-back line
+  });
+
+  it("asks for the whole timings output, and a sitting without it is unchanged", () => {
+    expect(withTimings).toContain("paste the whole db:neon-smoke-timings output");
+    const without = renderSmokeSitting({
+      ...BASE,
+      settlementImport: {
+        download: { url: "https://example.org/k.xlsx", sha256: "abc123" },
+        expectedFirstPlan: "FIRST",
+        expectedAfterCommit: "COMMIT",
+        expectedRerun: "RERUN",
+        expectedAfterReseed: "RESEED",
+      },
+    });
+    expect(without).not.toContain("neon-smoke-timings");
+  });
+
+  it("still has no production step", () => {
+    expect(withTimings).not.toContain("--prod");
   });
 });
