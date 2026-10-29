@@ -27,7 +27,7 @@ interface SaveButtonProps {
  * what the server sent. The button renders unsaved until that effect runs, which is correct -
  * nothing about `isAnimalSaved` is knowable before then.
  *
- * The kit's icon Button: the same white circle as the overlay's close button and the slider arrows.
+ * The kit's icon Button: the same edged circle as the overlay's close button and the slider arrows.
  */
 export function SaveButton({ animalId, animalName }: SaveButtonProps) {
   const [saved, setSaved] = useState(false);

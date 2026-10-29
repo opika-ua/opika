@@ -1,12 +1,14 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
 import { type OperatorName, standaloneOperatorName } from "../../kabinet/operator";
-import { buttonClass } from "../controls/controls";
+import { LinkButton } from "../../ui/Button";
+import { Heading } from "../../ui/Heading";
+import { Panel } from "../../ui/Panel";
+import { Text } from "../../ui/Text";
 import { staleLineOf } from "./animal-list/list-model";
 import { KabinetBrand, KabinetMark } from "./KabinetBrand";
 import { KabinetNav } from "./KabinetNav";
 import { PausedStatus } from "./profile-edit/PausedStatus";
-import { BODY, CARD, CARD_TITLE, PAGE_TITLE, STRONG } from "./profile-edit/styles";
 import { ANIMAL_LIST_PATH, NEW_ANIMAL_PATH } from "./routes";
 import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
@@ -48,13 +50,11 @@ import { VerificationDecision } from "./VerificationDecision";
  *   reasoning - revised here.) «Додати тварину» is last: it's the one
  *   always-available action, not a state that needs resolving, so it reads
  *   as a standing invitation rather than competing with the things that do.
- * - **Weight:** the shelter-wide status block takes `PAGE_TITLE`'s size
- *   (`VerificationDecision`'s own heading, and this component's own
- *   pending/paused headings below) - visibly larger than the routine
- *   `CARD_TITLE` cards for drafts and stale, since it is categorically more
- *   serious (it is never merely informational the way a draft count is).
- *   No colour carries this (the product's "never alarming" rule), so the
- *   distinction is made by size, order and position alone.
+ * - **Weight:** the shelter-wide status block takes the kit's `title` heading
+ *   (`VerificationDecision`'s own, and the pending/paused headings below) -
+ *   visibly larger than the routine `body-l` headings of the stale and draft
+ *   cards, since it is categorically more serious. No colour carries this (the
+ *   product's "never alarming" rule): size, order and position alone.
  */
 
 export type KabinetHomeProps = {
@@ -87,52 +87,46 @@ export function KabinetHome({
   return (
     <div
       className={
-        support ? "min-h-dvh outline-4 -outline-offset-4 outline-rg-ink outline-solid" : "min-h-dvh"
+        support ? "min-h-dvh outline-4 -outline-offset-4 outline-ink outline-solid" : "min-h-dvh"
       }
     >
       {support ? <SupportBanner shelterName={view.displayName} /> : null}
 
-      <header className="flex min-h-16 items-center gap-3 bg-rg-surface px-4 desktop:min-h-[72px] desktop:gap-5 desktop:px-8">
+      <header className="flex min-h-16 items-center gap-3 bg-surface px-4 desktop:gap-5 desktop:px-8">
         {/* Phone: the mark and the page's short name; desktop: the brand row (same pattern as K4/K2). */}
         <span className="flex items-center gap-2 desktop:hidden">
           <KabinetMark />
-          <span className="text-[19px] leading-6 font-bold tracking-[-0.02em] text-rg-ink">
-            {uk.kabinet.nav.home}
-          </span>
+          <span className="text-body-l font-bold text-ink">{uk.kabinet.nav.home}</span>
         </span>
         <span className="hidden desktop:block">
           <KabinetBrand />
         </span>
-        <span aria-hidden="true" className="hidden h-7 w-px bg-rg-page desktop:block" />
-        <span className="hidden text-[15px] leading-[22px] font-medium text-rg-ink desktop:block">
-          {view.displayName}
-        </span>
+        <span aria-hidden="true" className="hidden h-7 w-px bg-line desktop:block" />
+        <span className="hidden text-label text-ink desktop:block">{view.displayName}</span>
         <div className="flex-1" />
-        <span className="hidden text-[15px] leading-[22px] text-rg-ink-3 desktop:block">
+        <span className="hidden text-body text-ink-2 desktop:block">
           {support ? uk.kabinet.support.viewingAs : profile.role}
         </span>
         {support ? (
-          <span className="text-[15px] leading-[22px] text-rg-ink-3">
-            {uk.kabinet.support.signOutDisabled}
-          </span>
+          <span className="text-body text-ink-2">{uk.kabinet.support.signOutDisabled}</span>
         ) : (
           <SignOutButton />
         )}
       </header>
 
-      <div className="flex flex-col gap-3 px-4 pt-5 pb-24 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 pb-24 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
         {/* Bottom padding above clears the nav's fixed mobile tab bar; unused at desktop width. */}
         <KabinetNav current="home" animalList={animalListShown} />
 
-        <main className="flex min-w-0 max-w-[1080px] flex-1 flex-col gap-3 desktop:gap-6">
-          <h1 className="sr-only desktop:not-sr-only desktop:text-[44px] desktop:leading-[46px] desktop:font-bold desktop:tracking-[-0.035em] desktop:text-rg-ink">
+        <main className="flex min-w-0 flex-1 flex-col gap-4 desktop:gap-6">
+          <Heading level={1} look="display-l" className="sr-only desktop:not-sr-only">
             {uk.kabinet.nav.home}
-          </h1>
+          </Heading>
 
           {/*
             Tier 1, at most one of these three: the shelter-wide status.
             K5 (RU-Q7), moved from K4: a rejected or suspended shelter reads
-            why, with `VerificationDecision`'s own `PAGE_TITLE`-weight heading.
+            why, with `VerificationDecision`'s own title-weight heading.
           */}
           <VerificationDecision
             verification={view.verification}
@@ -141,54 +135,78 @@ export function KabinetHome({
 
           {/* G3 (audit 2026-10-22), moved from K4: not for the support view, where «я» would be the operator speaking to themselves. */}
           {!support && pending ? (
-            <section aria-labelledby="home-pending" className={CARD}>
-              <h2 id="home-pending" className={PAGE_TITLE}>
+            <Panel
+              as="section"
+              tone="outline"
+              padding="lg"
+              aria-labelledby="home-pending"
+              className="flex flex-col gap-4"
+            >
+              <Heading level={2} look="title" id="home-pending">
                 {uk.kabinet.profileStatus[view.verification.status as "pending" | "under_review"]}
-              </h2>
-              <p className={BODY}>{profile.pendingNote}</p>
-            </section>
+              </Heading>
+              <Text>{profile.pendingNote}</Text>
+            </Panel>
           ) : null}
 
           {view.verification.status === "paused" ? (
-            <section aria-labelledby="home-paused" className={CARD}>
-              <h2 id="home-paused" className={PAGE_TITLE}>
+            <Panel
+              as="section"
+              tone="outline"
+              padding="lg"
+              aria-labelledby="home-paused"
+              className="flex flex-col gap-4"
+            >
+              <Heading level={2} look="title" id="home-paused">
                 {uk.kabinet.profileStatus.paused}
-              </h2>
+              </Heading>
               <PausedStatus since={view.verification.since} reason={view.verification.reason} />
-            </section>
+            </Panel>
           ) : null}
 
           {/* Tier 2, routine: stale before drafts (already-public cards losing trust outrank unfinished ones). */}
           {animalListShown && staleCount > 0 ? (
-            <section aria-labelledby="home-stale" className={CARD}>
-              <p id="home-stale" className={STRONG}>
+            <Panel
+              as="section"
+              tone="outline"
+              padding="lg"
+              aria-labelledby="home-stale"
+              className="flex flex-col items-start gap-4"
+            >
+              <Heading level={2} look="body-l" id="home-stale">
                 {staleLineOf(staleCount)}
-              </p>
-              <a href={ANIMAL_LIST_PATH} className={`self-start ${buttonClass("secondary")}`}>
+              </Heading>
+              <LinkButton href={ANIMAL_LIST_PATH} variant="secondary">
                 {list.title}
-              </a>
-            </section>
+              </LinkButton>
+            </Panel>
           ) : null}
 
           {animalListShown && draftCount > 0 ? (
-            <section aria-labelledby="home-drafts" className={CARD}>
-              <p id="home-drafts" className={CARD_TITLE}>
+            <Panel
+              as="section"
+              tone="outline"
+              padding="lg"
+              aria-labelledby="home-drafts"
+              className="flex flex-col items-start gap-4"
+            >
+              <Heading level={2} look="body-l" id="home-drafts">
                 {fillTemplate(list.filter.withCount, {
                   label: list.filter.draft,
                   count: String(draftCount),
                 })}
-              </p>
-              <a href={ANIMAL_LIST_PATH} className={`self-start ${buttonClass("secondary")}`}>
+              </Heading>
+              <LinkButton href={ANIMAL_LIST_PATH} variant="secondary">
                 {list.title}
-              </a>
-            </section>
+              </LinkButton>
+            </Panel>
           ) : null}
 
           {/* The one standing, always-available action, last: not a state to resolve. */}
           {canWrite ? (
-            <a href={NEW_ANIMAL_PATH} className={`self-start ${buttonClass("primary")}`}>
+            <LinkButton href={NEW_ANIMAL_PATH} className="self-start">
               {list.add}
-            </a>
+            </LinkButton>
           ) : null}
         </main>
       </div>

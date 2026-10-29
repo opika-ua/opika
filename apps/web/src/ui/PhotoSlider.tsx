@@ -12,6 +12,8 @@ import { Photo } from "./Photo";
  * stepping by most of the visible width. The scroller is a named region and keyboard-focusable
  * (arrow keys scroll it natively). Slides use the kit's `Photo`: fixed aspect, R2 variants, `sizes`.
  */
+const SLIDE = { peek: "w-4/5 max-w-90", full: "w-full max-w-90" } as const;
+
 export type PhotoSliderItem = { src: string; alt: string };
 
 export type PhotoSliderProps = {
@@ -22,6 +24,10 @@ export type PhotoSliderProps = {
   label: string;
   prevLabel: string;
   nextLabel: string;
+  /** Photo proportions; `portrait` (4:5) by default, `tall` (3:4) for the pet card. */
+  aspect?: "portrait" | "tall";
+  /** `peek`: 80% wide so the next slide shows. `full`: one slide fills the row (still capped at 360px). */
+  slide?: "peek" | "full";
   className?: string;
 };
 
@@ -31,6 +37,8 @@ export function PhotoSlider({
   label,
   prevLabel,
   nextLabel,
+  aspect = "portrait",
+  slide = "peek",
   className,
 }: PhotoSliderProps) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -76,9 +84,9 @@ export function PhotoSlider({
             src={photo.src}
             alt={photo.alt}
             sizes={sizes}
-            aspect="portrait"
+            aspect={aspect}
             priority={index === 0}
-            className="w-4/5 max-w-90 flex-none snap-start rounded-card"
+            className={cx(SLIDE[slide], "flex-none snap-start rounded-card")}
           />
         ))}
       </section>

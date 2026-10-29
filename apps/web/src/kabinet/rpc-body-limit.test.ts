@@ -175,6 +175,48 @@ describe("the kabinet body ceiling (P-Q7)", () => {
     expect(resolvedCount()).toBe(1);
   });
 
+  // Literal 4 MiB on purpose: sized from the constant, the test would follow it when it moves.
+  const FOUR_MIB = 4 * 1024 * 1024;
+
+  it("the ceiling is 4 MiB", () => {
+    expect(KABINET_MAX_BODY_BYTES).toBe(FOUR_MIB);
+  });
+
+  it("a signed-in shelter admin's body of exactly 4 MiB is read whole: not 413", async () => {
+    const { deps: d, resolvedCount } = deps("signedIn");
+    let pulled = 0;
+    const lazy = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (pulled >= FOUR_MIB) return controller.close();
+        const size = Math.min(MiB, FOUR_MIB - pulled);
+        pulled += size;
+        controller.enqueue(new Uint8Array(size));
+      },
+    });
+    const request = new Request(ADD, {
+      method: "POST",
+      headers: { origin: BASE, cookie: TEST_SESSION_COOKIE },
+      body: lazy,
+      duplex: "half",
+    } as RequestInit);
+    const response = await handleKabinetRpc(request, d);
+    // Past the 16 KB cap and the ceiling check: the stream was drained to the last byte.
+    expect(pulled).toBe(FOUR_MIB);
+    expect(response.status).not.toBe(413);
+    expect(resolvedCount()).toBe(1);
+  });
+
+  it("a signed-in shelter admin's body of 4 MiB plus one byte: 413", async () => {
+    const { deps: d } = deps("signedIn");
+    const request = new Request(ADD, {
+      method: "POST",
+      headers: { origin: BASE, cookie: TEST_SESSION_COOKIE },
+      body: chunked(FOUR_MIB + 1),
+      duplex: "half",
+    } as RequestInit);
+    expect((await handleKabinetRpc(request, d)).status).toBe(413);
+  });
+
   it("the oRPC handler holds the same ceiling on its own (BodyLimitPlugin)", async () => {
     const request = new Request(ADD, {
       method: "POST",
