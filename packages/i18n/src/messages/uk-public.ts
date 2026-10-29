@@ -85,7 +85,7 @@ export const ukPublic = {
      * link-preview copy only, but still an accurate invitation to the page
      * it describes.
      */
-    promise: "Собаки й коти з перевірених притулків Київщини шукають дім. Перегляньте список.",
+    promise: "Собаки й коти з перевірених притулків України шукають дім. Перегляньте список.",
   },
 
   /**
@@ -261,9 +261,9 @@ export const ukPublic = {
     resultCount: "Знайдено {count} {animalWord}. Притулків у цьому місті: {shelterCount}.",
     /**
      * The sheet's `resultCount` above names "цьому місті", which only means
-     * something when a city is selected. With no city selected - "Уся
-     * Київщина" is the sheet's own default - `shelterCount` spans the whole
-     * oblast, and the sentence would claim a specific city that isn't
+     * something when a city is selected. With no city selected - "Усі
+     * міста" is the sheet's own default - `shelterCount` spans every
+     * city shown, and the sentence would claim a specific city that isn't
      * selected. This is that case: the same sentence as the rail's
      * `resultCountRail` below (one wording for it, `gallery-copy.ts` fills
      * both the same way), closed with a full stop for the sheet.
@@ -308,6 +308,16 @@ export const ukPublic = {
     /** The oblast filter's label and its «any» chip (rows 17 and 18 of the same table). */
     region: "Область",
     allRegions: "Усі області",
+    /**
+     * The long city list (nationwide table, rows 19 and 20): the button that reveals the cities
+     * past the first dozen, and the label of the small field narrowing the loaded ones.
+     * Template: "Показати всі ({count})".
+     */
+    showAllOptions: "Показати всі ({count})",
+    findCity: "Знайти місто",
+    /** The same wordings as the table's rows 34 and 28 (picker), reused for the field's result line. Template: "Знайдено: {count}". */
+    cityFound: "Знайдено: {count}",
+    cityNoMatch: "Нічого не знайдено",
     railFooter: "Фільтра за датою немає: тварина, про яку давно не писали, теж шукає дім.",
     /**
      * gallery-v3 (Figma `58:1617`): the dropdown row's own clear-all ✕,
@@ -658,24 +668,24 @@ export const ukPublic = {
     resolved: "Притулок каже: {name} уже вдома.",
   },
 
+  /**
+   * Nationwide table, row 38 (owner: ship the attribution whatever the licence version). The
+   * dataset page on data.gov.ua says «Creative Commons Attribution» with no version (unverified).
+   */
+  footer: {
+    dataCredit:
+      "Перелік населених пунктів: Кодифікатор адміністративно-територіальних одиниць (Мінрозвитку), Creative Commons Attribution.",
+  },
+
   // --- Exhausted (07) ---
   exhausted: {
     title: "Це всі, хто зараз підходить.",
     body: "Тих, кого ви пропустили через «Не зараз», режим «по одній» покаже знову через 30 днів. У списку видно всіх.",
     newAnimals: "Нові тварини зʼявляються, щойно притулки публікують картки.",
-    /**
-     * Template: "Уся Київщина (+{count})"
-     * Deviation from the original handoff's "Додати сусідні міста" (add
-     * neighbouring cities) - that promised real geographic adjacency the
-     * schema doesn't have. Reasoning: docs/gallery-contract-decisions.md §4.
-     */
-    addNearbyCities: "Уся Київщина (+{count})",
     changeFilters: "Змінити фільтри",
     /** G5 (audit 2026-10-22): the deck's end state, linking to `/tvaryny` with the deck's own filters. */
     toList: "Переглянути список",
     reviewAgain: "Переглянути ще раз спокійно",
-    footnote:
-      "Якщо ви знаєте притулок на Київщині, якого тут немає – напишіть нам, і ми з ним поговоримо.",
   },
 
   // --- Error states (08) ---
@@ -931,6 +941,8 @@ export const ukPublic = {
     withDistrictAndRegion: "{place}, {district}, {region}",
     /** Template: «Броварський район» -> «Броварський р-н». */
     districtShort: "{name} р-н",
+    /** Nationwide table, row 13. Template: «Броварська міська територіальна громада» -> «Броварська громада». */
+    hromadaShort: "{name} громада",
   },
 
   noMatch: {
@@ -1041,7 +1053,7 @@ export const ukPublic = {
   about: {
     title: "Про проєкт",
     intro:
-      "{site} – сайт, де тварини з притулків Київщини шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.",
+      "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.",
     free: "Сайт безкоштовний для притулків, без платних тарифів. Якщо це колись зміниться, кожен притулок дізнається про це заздалегідь, а не постфактум.",
     money:
       "Opika ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) – сайт лише показує посилання, гроші йдуть напряму, і видно, куди саме.",
