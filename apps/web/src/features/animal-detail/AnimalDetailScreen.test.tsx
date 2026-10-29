@@ -1,6 +1,6 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
 import { DEFAULT_FRESHNESS_POLICY, freshnessOf } from "@opika/domain";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -318,5 +318,16 @@ describe("AnimalDetailScreen – the medical fact chips always render (A3)", () 
     );
     expect(screen.getByText("Комплексне щеплення: Зроблено, за даними притулку")).toBeTruthy();
     expect(screen.queryByText(/Не записано/)).toBeNull();
+  });
+});
+
+describe("AnimalDetailScreen – landmarks", () => {
+  it("puts the animal page's heading in the main landmark", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+
+    render(<AnimalDetailScreen animal={makeAnimal()} shelter={makeShelter()} cityName="Бровари" />);
+
+    const main = screen.getByRole("main");
+    expect(within(main).getByRole("heading", { level: 1, name: "Мурчик" })).toBeTruthy();
   });
 });

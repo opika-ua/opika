@@ -19,7 +19,7 @@ export function ContentPageLayout({ kabinetSignedIn, title, children }: ContentP
     <div className="min-h-dvh bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
-      <Container className="py-8 desktop:py-14">
+      <Container as="main" className="py-8 desktop:py-14">
         <div className="mx-auto flex max-w-180 flex-col gap-8 rounded-t-sheet bg-surface p-6 tablet:p-10 desktop:p-14">
           <Heading level={1} look="display-l" className="desktop:text-display-xl">
             {title}

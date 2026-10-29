@@ -101,7 +101,7 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
     <div className="min-h-dvh bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
-      <Container className="flex flex-col gap-13 pt-10 pb-10 desktop:pb-14">
+      <Container as="main" className="flex flex-col gap-13 pt-10 pb-10 desktop:pb-14">
         <div className="flex flex-col gap-1">
           <Heading level={1} look="display-l" className="desktop:text-display-xl">
             {uk.likes.title}

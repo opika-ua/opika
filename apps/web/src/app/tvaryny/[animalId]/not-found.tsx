@@ -20,7 +20,7 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 export default function NotFound() {
   const copy = uk.detail.notFound;
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-page p-6">
+    <main className="flex min-h-dvh items-center justify-center bg-page p-6">
       <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">
         <Text look="hint" className="uppercase tracking-wider">
           {copy.eyebrow}
@@ -35,6 +35,6 @@ export default function NotFound() {
           {copy.action}
         </LinkButton>
       </Panel>
-    </div>
+    </main>
   );
 }
