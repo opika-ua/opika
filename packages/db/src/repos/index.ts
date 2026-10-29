@@ -9,6 +9,7 @@ export {
 export { authPasswordWriteRepo, type PasswordWrite } from "./auth-password-write-repo";
 export { authResetLinkRepo } from "./auth-reset-link-repo";
 export { cityRepo } from "./city-repo";
+export { citySearchRepo, MAX_PLACE_RESULTS, type PlaceMatch } from "./city-search-repo";
 export { type FeedCursorData, type FeedPage, feedRepo } from "./feed-repo";
 export { type GalleryPage, type GalleryRelaxationCounts, galleryRepo } from "./gallery-repo";
 export {

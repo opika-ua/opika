@@ -24,13 +24,13 @@ describe("truncateForReseed", () => {
     await db
       .insert(citySlugAliases)
       .values({ slug: "old-slug", cityId: imported.id, reason: "renamed" });
-    await cityRepo(db).upsertMany(buildCities());
+    await cityRepo(db).insertMissing(buildCities());
 
     await truncateForReseed(db);
 
     expect(await cityRepo(db).findById(imported.id)).not.toBeNull();
     expect(await db.select().from(citySlugAliases)).toHaveLength(1);
-    await cityRepo(db).upsertMany(buildCities());
+    await cityRepo(db).insertMissing(buildCities());
     expect(await db.select().from(cities)).toHaveLength(9);
     expect(await db.select().from(cities).where(eq(cities.slug, "kyiv"))).toHaveLength(1);
   });

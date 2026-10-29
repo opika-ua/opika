@@ -126,6 +126,7 @@ const REGISTRY_CALLS = (shelter: Shelter): [string, unknown][] => {
     ["registry.admins.remove", adminRef],
     ["registry.admins.blockedAddresses", ref],
     ["registry.history.list", { ...ref, cursor: null, limit: 10 }],
+    ["registry.cities.search", { query: "Бровари", regionBias: null }],
     ["registry.support.enter", ref],
   ];
 };
@@ -147,8 +148,8 @@ const NOT_OPERATORS: [string, KabinetPrincipal, number][] = [
 ];
 
 describe("registry.* refuses everyone but a super_admin", () => {
-  it("covers all nineteen registry procedures (not vacuous)", () => {
-    expect(REGISTRY_CALLS(makeShelter())).toHaveLength(19);
+  it("covers all twenty registry procedures (not vacuous)", () => {
+    expect(REGISTRY_CALLS(makeShelter())).toHaveLength(20);
   });
 
   for (const [who, principal, status] of NOT_OPERATORS) {

@@ -45,6 +45,18 @@ export interface SmokeSittingInput {
    * and the production migration (never a smoke) follows only once that smoke passed in full.
    */
   migration?: { tag: string };
+  /**
+   * A PR with the settlement import (nationwide N2): after the smoke, on the same child branch, the
+   * import runs as a dry run, with `--commit`, as a dry run again (all zeros), and again after a
+   * reseed. The import refuses a production target whatever flags it is given, so there is no
+   * production block. `expected` lines become the sitting's "# Expected" comments, one per step.
+   */
+  settlementImport?: {
+    expectedFirstPlan: string;
+    expectedAfterCommit: string;
+    expectedRerun: string;
+    expectedAfterReseed: string;
+  };
 }
 
 const AGAINST_PRODUCTION = /against\s+production/i;
@@ -79,6 +91,25 @@ Remove-Item Env:PROD_NEON_ENDPOINT
   };
 }
 
+/** The import block: empty for a sitting without one. Uses the `$ep` the smoke block already set. */
+function importParts(settlementImport: SmokeSittingInput["settlementImport"]): string {
+  if (settlementImport === undefined) return "";
+  return `
+---- Settlement import, on the same child branch (the script refuses a production target outright) ----
+$xlsx = Read-Host "Path to the codifier .xlsx (kodifikator-07-07.xlsx; do not commit it)"
+pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
+# Expected (dry run, writes nothing): ${settlementImport.expectedFirstPlan}
+pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx --commit
+# Expected: ${settlementImport.expectedAfterCommit}
+pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
+# Expected (rerun, dry): ${settlementImport.expectedRerun}
+$dbName = ([uri]$env:DATABASE_URL).AbsolutePath.TrimStart('/')
+pnpm --filter @opika/db db:seed --profile=demo --force --db-name=$dbName
+pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
+# Expected (after a reseed, dry): ${settlementImport.expectedAfterReseed}
+`;
+}
+
 function assembled(input: SmokeSittingInput): string {
   const worktreePath = `D:\\opika-worktrees\\${input.worktreeSlug}`;
   const m = migrationParts(input.migration);
@@ -106,7 +137,7 @@ $env:PROD_NEON_ENDPOINT = Read-Secret "Production Neon endpoint id (ep-..., so t
 $ep = ([uri]$env:DATABASE_URL).Host.Split('.')[0] -replace '-pooler$',''
 $ep
 ${m.childSteps}pnpm --filter @opika/db db:neon-smoke --expect $ep
-Remove-Item Env:DATABASE_URL
+${importParts(input.settlementImport)}Remove-Item Env:DATABASE_URL
 ${m.endpointRemovedAfterSmoke}${m.childExpected}# Expected: ${input.expectedTotal} passed, 0 failed (was ${input.previousTotal} before this PR;
 # ${input.newCheckDescription}). Any failure -> STOP, paste full output - this is new
 # information about how the driver handles the change, not a formality.

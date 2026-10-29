@@ -111,3 +111,41 @@ describe("renderSmokeSitting, for a PR with a migration", () => {
     ).toThrow(/against\s+production/i);
   });
 });
+
+describe("renderSmokeSitting with the settlement import (nationwide N2)", () => {
+  const text = renderSmokeSitting({
+    ...BASE,
+    settlementImport: {
+      expectedFirstPlan: "FIRST",
+      expectedAfterCommit: "COMMIT",
+      expectedRerun: "RERUN",
+      expectedAfterReseed: "RESEED",
+    },
+  });
+  const at = (needle: string) => text.indexOf(needle);
+
+  it("smokes first, then imports, then reruns, then reseeds and checks again, in that order", () => {
+    const smoke = at("db:neon-smoke --expect $ep");
+    const dry = at("db:import-settlements --expect $ep --file $xlsx\n");
+    const commit = at("--file $xlsx --commit");
+    const seed = at("db:seed --profile=demo --force --db-name=$dbName");
+    expect(smoke).toBeGreaterThan(-1);
+    expect(dry).toBeGreaterThan(smoke);
+    expect(commit).toBeGreaterThan(dry);
+    expect(at("# Expected (rerun, dry): RERUN")).toBeGreaterThan(commit);
+    expect(seed).toBeGreaterThan(at("RERUN"));
+    expect(at("RESEED")).toBeGreaterThan(seed);
+  });
+
+  it("has no production step and never passes --prod: the import refuses production", () => {
+    expect(text).not.toContain("--prod");
+    expect(text).not.toMatch(/against\s+production/i);
+    expect(text.match(/db:import-settlements/g)).toHaveLength(4);
+    // Everything runs with the child branch's connection string, removed after the last step.
+    expect(at("Remove-Item Env:DATABASE_URL")).toBeGreaterThan(at("RESEED"));
+  });
+
+  it("leaves a sitting without an import unchanged", () => {
+    expect(renderSmokeSitting(BASE)).not.toContain("db:import-settlements");
+  });
+});

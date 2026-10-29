@@ -11,6 +11,7 @@ import {
 } from "../api/cursor";
 import type { AccessDecision } from "./access";
 import type { KabinetContext } from "./context";
+import { registryCitiesSearch } from "./handlers/registry-cities";
 import { registryAdminsBlockedAddresses } from "./handlers/registry-email-status";
 import {
   registryAdminsInvite,
@@ -162,6 +163,12 @@ export const registryRouter = guarded.router({
           return registryAdminsBlockedAddresses(context, input, errors);
         },
       ),
+    },
+    cities: {
+      search: guarded.registry.cities.search.handler(({ context, input }) => {
+        operator(context.access);
+        return registryCitiesSearch(context, input);
+      }),
     },
     history: {
       list: guarded.registry.history.list.handler(({ context, input, errors }) => {

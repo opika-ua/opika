@@ -123,6 +123,7 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "registry.admins.remove": REGISTRY,
   "registry.admins.blockedAddresses": REGISTRY,
   "registry.history.list": REGISTRY,
+  "registry.cities.search": REGISTRY,
   "registry.support.enter": REGISTRY,
   "session.exitSupport": { surface: "support_exit" },
 };
