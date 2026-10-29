@@ -8,7 +8,7 @@ describe("web app manifest", () => {
   const m = manifest();
 
   it("names the app from brand.ts", () => {
-    expect(m.name).toBe("Собаки й коти з притулків Київщини – Opika");
+    expect(m.name).toBe("Собаки й коти з притулків України – Opika");
     expect(m.short_name).toBe("Opika");
   });
 
