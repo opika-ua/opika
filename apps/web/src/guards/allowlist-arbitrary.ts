@@ -6,17 +6,6 @@ import type { Reasoned } from "./ratchet";
  * migrations only lower the numbers.
  */
 export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
-  "app/pro/page.tsx": { max: 6, reason: "Content pages; burns down in DS PR 3d." },
-  "app/prytulkam/page.tsx": { max: 4, reason: "Content pages; burns down in DS PR 3d." },
-  "app/tvaryny/[animalId]/not-found.tsx": {
-    max: 7,
-    reason: "Gallery surface; burns down in DS PR 3a.",
-  },
-  "app/tvaryny/error.tsx": { max: 7, reason: "Gallery surface; burns down in DS PR 3a." },
-  "app/tvaryny/gortaty/error.tsx": {
-    max: 7,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
-  },
   "app/tvaryny/page.tsx": { max: 4, reason: "Gallery surface; burns down in DS PR 3a." },
   "features/animal-overlay/AnimalOverlay.tsx": {
     max: 1,
