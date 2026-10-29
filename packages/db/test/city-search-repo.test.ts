@@ -176,3 +176,20 @@ describe("cyrillicTrigramsAvailable with a failing database", () => {
     expect(calls.n).toBe(2);
   });
 });
+
+describe("cityRepo.findCurrentById", () => {
+  it("finds a current settlement and refuses a retired one", async () => {
+    const [offered] = await find("Фастів");
+    expect(await cityRepo(db).findCurrentById((offered?.id ?? "") as never)).not.toBeNull();
+
+    const without = buildXlsx(FIXTURE_ROWS.filter((r) => r[6] !== "Борова"));
+    const [retiring] = await find("Борова");
+    await runImport({
+      db,
+      bytes: without,
+      commit: true,
+      editions: [pinFor(without, { K: 2, M: 8, X: 0, C: 11 })],
+    });
+    expect(await cityRepo(db).findCurrentById((retiring?.id ?? "") as never)).toBeNull();
+  });
+});

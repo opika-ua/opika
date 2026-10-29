@@ -1,5 +1,5 @@
 import { type City, type CityId, CityIdSchema } from "@opika/domain";
-import { eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import type { Database } from "../client";
 import { cities } from "../schema/cities";
 import { citySlugAliases } from "../schema/city-slug-aliases";
@@ -20,10 +20,21 @@ export function cityRepo(db: Database) {
       return row ? rowToCity(row) : null;
     },
 
+    /** `findById`, but not a retired settlement (the picker never offers one either; regions are not special). */
+    async findCurrentById(id: CityId): Promise<City | null> {
+      const rows = await db
+        .select()
+        .from(cities)
+        .where(and(eq(cities.id, id), isNull(cities.retiredInEdition)))
+        .limit(1);
+      const row = rows[0];
+      return row ? rowToCity(row) : null;
+    },
+
     /**
      * The cities behind a handful of ids (a page's cards, a filter's picks), by primary key. The
-     * public pages read city names through this and never through `listAll`: with every
-     * settlement in the table, the full list is not something a page may ship.
+     * public pages read city names through this and never as a whole-table read: with
+     * every settlement in the table, the full list is not something a page may ship.
      */
     async findByIds(ids: readonly CityId[]): Promise<readonly City[]> {
       if (ids.length === 0) return [];
@@ -74,15 +85,6 @@ export function cityRepo(db: Database) {
         if (idRow) return { token, city: rowToCity(idRow), via: "id" };
         return { token, city: null, via: null };
       });
-    },
-
-    /**
-     * Every city. Only the operator's create form still reads this (its picker is replaced by the
-     * searchable one); deleted with that form's last reader. No public page may call it.
-     */
-    async listAll(): Promise<readonly City[]> {
-      const rows = await db.select().from(cities);
-      return rows.map(rowToCity);
     },
 
     async insert(city: City): Promise<void> {

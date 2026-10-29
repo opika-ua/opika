@@ -1,6 +1,7 @@
 import type { CreatedShelterView } from "@opika/contracts";
+import { REGIONS } from "@opika/db";
 import { cityRepo } from "@opika/db/repos";
-import { authUser, superAdmins } from "@opika/db/schema";
+import { authUser, cities, superAdmins } from "@opika/db/schema";
 import { makeCity, setupTestDatabase, truncateAll } from "@opika/db/test";
 import { type ModeratorId, testOnlyLocationPolicy } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -157,6 +158,23 @@ describe("the screen's input, as the server takes it", () => {
 describe("the server's refusals, as the screen reads them", () => {
   it("an unknown city", async () => {
     const { status, body } = await create(inputOf(initiative({ cityId: crypto.randomUUID() })));
+    expect(status).toBe(400);
+    expect(createRefusalOf(body)).toEqual({ kind: "unknown_city" });
+  });
+
+  it.each(["UA01", "UA85"])(
+    "accepts a settlement of region %s like any other region",
+    async (code) => {
+      const region = REGIONS.find((r) => r.code === code);
+      const city = makeCity({ regionId: region?.id as never });
+      await cityRepo(db).insert(city);
+      expect((await create(inputOf(initiative({ cityId: city.id })))).status).toBe(200);
+    },
+  );
+
+  it("a retired settlement is an unknown city", async () => {
+    await db.update(cities).set({ retiredInEdition: "2026-01" }); // the only city there is
+    const { status, body } = await create(inputOf(initiative()));
     expect(status).toBe(400);
     expect(createRefusalOf(body)).toEqual({ kind: "unknown_city" });
   });

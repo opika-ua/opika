@@ -474,6 +474,18 @@ export const en = {
     signInLink: `Sign in to the cabinet`,
   },
   kabinet: {
+    cityPicker: {
+      placeholder: "Start typing a name…",
+      empty: "Nothing found",
+      mustPick: "Choose a settlement from the list",
+      tooShort: "Type at least two letters",
+      loading: "Searching…",
+      error: "The list did not load.",
+      retry: "Try again",
+      found: "Found: {count}",
+      clear: "Clear",
+      close: "Close",
+    },
     /**
      * The operator's name when `KABINET_OPERATOR_DISPLAY_NAME` is unset
      * (RS-Q2): the English sense of the Ukrainian, standing alone (a signature
@@ -1273,7 +1285,7 @@ export const en = {
         description: "Shelter description",
         descriptionHint:
           "A short description of the shelter. It may be public, so don't write anything private here.",
-        city: "City",
+        city: "Settlement",
         address: {
           line1: "Street, building",
           line2: "Block, premises · optional",

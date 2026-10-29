@@ -23,7 +23,15 @@ import type { RegistryCreateClient } from "./registry-create-client";
 
 const SHELTER_ID = "51000000-0000-4000-8000-0000000000aa";
 const ADMIN_ID = "33000000-0000-4000-8000-0000000000bb";
-const CITY = { id: "c1000000-0000-4000-8000-000000000001", name: "Вишгород" };
+const CITY = {
+  id: "c1000000-0000-4000-8000-000000000001",
+  kind: "city",
+  slug: "vyshhorod",
+  name: "Вишгород",
+  district: "Вишгородський район",
+  hromada: null,
+  region: { id: "kyivska", ukShort: "Київська обл." },
+};
 /** 10:00 in Kyiv. */
 const NOW = new Date("2026-10-13T07:00:00.000Z");
 const createInputSchema = registrySheltersContract.create["~orpc"].inputSchema as z.ZodType;
@@ -60,6 +68,11 @@ const TELL =
 
 function fakeClient(create: (input: unknown) => Promise<CreatedShelterView>) {
   const fns = {
+    search: vi.fn(async (input: { query: string }) =>
+      input.query.length < 2
+        ? { kind: "too_short" as const }
+        : { kind: "results" as const, places: input.query.startsWith("Виш") ? [CITY] : [] },
+    ),
     create: vi.fn(create),
     resendInvite: vi.fn(async () => ({
       invitationEmail: { kind: "sent", blockCheck: "clear" } as EmailSendOutcome,
@@ -67,26 +80,36 @@ function fakeClient(create: (input: unknown) => Promise<CreatedShelterView>) {
     })),
   };
   const client = {
-    registry: { shelters: { create: fns.create }, admins: { resendInvite: fns.resendInvite } },
+    registry: {
+      shelters: { create: fns.create },
+      cities: { search: fns.search },
+      admins: { resendInvite: fns.resendInvite },
+    },
   } as unknown as RegistryCreateClient;
   return { fns, client };
 }
 
 function renderForm(create: (input: unknown) => Promise<CreatedShelterView>, now: Date = NOW) {
   const { fns, client } = fakeClient(create);
-  render(<CreateShelterForm cities={[CITY]} client={client} now={() => now} />);
+  render(<CreateShelterForm client={client} now={() => now} />);
   return fns;
 }
 
 /** No pause between keystrokes: the fill is long, and nothing here depends on typing speed. */
 const user = () => userEvent.setup({ delay: null });
 
+/** Types into the settlement picker and takes the offered place: the value is the option's id, never the typed text. */
+async function pickCity(u: ReturnType<typeof user>, typed: string) {
+  await u.type(screen.getByRole("combobox", { name: /Населений пункт/ }), typed);
+  await u.click(await screen.findByRole("option", { name: /м\. Вишгород/ }));
+}
+
 /** The rehearsal shelter (RU-B5): an unregistered initiative, a site visit and two references. */
 async function fillInitiative(visitedOn = "2026-10-12") {
   const u = user();
   await u.type(screen.getByLabelText("Назва притулку"), "Лапа Вишгорода");
   await u.type(screen.getByLabelText("Опис притулку"), "Волонтери з Вишгорода.");
-  await u.selectOptions(screen.getByLabelText("Місто"), "Вишгород");
+  await pickCity(u, "Виш");
   await u.type(screen.getByLabelText("Вулиця, будинок"), "вул. Мечникова, 4");
   await u.type(screen.getByLabelText("Координати"), "50.5843, 30.4890");
   await u.click(screen.getByRole("radio", { name: "Ініціатива без реєстрації" }));
@@ -478,6 +501,47 @@ describe("checked before anything is sent", () => {
     expect(document.activeElement).toBe(name);
     expect(screen.getAllByText("Це поле потрібне.").length).toBeGreaterThan(5);
     expect(screen.getByText("Залиште хоча б один спосіб звʼязку.")).toBeDefined();
+  });
+
+  it("offers settlements by prefixed name with district and oblast, and submits the chosen id", async () => {
+    const fns = renderForm(async () => createdView(null));
+    const u = await fillInitiative();
+    await u.click(submit());
+    const option = fns.search.mock.calls.at(-1)?.[0];
+    expect(option).toEqual({ query: "Виш", regionBias: null });
+    expect(fns.create).toHaveBeenCalledTimes(1);
+    const input = fns.create.mock.calls[0]?.[0] as { exactAddress: { cityId: string } };
+    expect(input.exactAddress.cityId).toBe(CITY.id);
+  });
+
+  it("shows the district and oblast under the name so same-named places differ", async () => {
+    renderForm(async () => createdView(null));
+    const u = user();
+    await u.type(screen.getByRole("combobox", { name: /Населений пункт/ }), "Виш");
+    const option = await screen.findByRole("option", { name: /м\. Вишгород/ });
+    expect(option.textContent).toContain("Вишгородський район · Київська обл.");
+  });
+
+  it("never commits typed text: leaving the picker restores the chosen place, and the id is still sent", async () => {
+    const fns = renderForm(async () => createdView(null));
+    const u = await fillInitiative();
+    const picker = screen.getByRole("combobox", { name: /Населений пункт/ }) as HTMLInputElement;
+    await u.clear(picker);
+    await u.type(picker, "Нема");
+    fireEvent.blur(picker);
+    expect(picker.value).toBe("м. Вишгород");
+    await u.click(submit());
+    const input = fns.create.mock.calls[0]?.[0] as { exactAddress: { cityId: string } };
+    expect(input.exactAddress.cityId).toBe(CITY.id);
+  });
+
+  it("asks for a pick from the list when no place was chosen", async () => {
+    const fns = renderForm(async () => createdView(null));
+    const u = user();
+    await u.type(screen.getByRole("combobox", { name: /Населений пункт/ }), "Нема");
+    await u.click(submit());
+    expect(fns.create).not.toHaveBeenCalled();
+    expect(screen.getByText("Оберіть населений пункт зі списку")).toBeDefined();
   });
 
   it("a site visit dated tomorrow in Kyiv is refused on the field; today just after Kyiv's midnight goes", async () => {

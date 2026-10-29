@@ -14,6 +14,7 @@ import {
   authSession,
   authUser,
   authVerification,
+  cities,
   superAdmins,
   supportSessions,
 } from "@opika/db/schema";
@@ -549,6 +550,19 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
       shelterId: s.id,
       expectedVersion: 0,
       change: { field: "exact_address", next: { ...s.exactAddress, cityId: crypto.randomUUID() } },
+    });
+    expect(result.status).toBe(400);
+    expect((await reload(s.id)).exactAddress).toEqual(s.exactAddress);
+  });
+
+  it("refuses an address in a retired settlement as a bad request, changing nothing", async () => {
+    const s = await shelter();
+    // Every city is retired, which is fine here: only the target's state is read.
+    await db.update(cities).set({ retiredInEdition: "2026-01" });
+    const result = await call("registry.shelters.updateVerifiedData", {
+      shelterId: s.id,
+      expectedVersion: 0,
+      change: { field: "exact_address", next: { ...s.exactAddress, cityId: otherCityId } },
     });
     expect(result.status).toBe(400);
     expect((await reload(s.id)).exactAddress).toEqual(s.exactAddress);
