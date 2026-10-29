@@ -40,6 +40,7 @@ import { Toast } from "../../../ui/Toast";
 import { Toggle } from "../../../ui/Toggle";
 import {
   ChoiceChipDemo,
+  ComboboxDemo,
   MenuDemo,
   ModalDemo,
   PopoverDemo,
@@ -482,6 +483,9 @@ export default function DevUiPage() {
           <SheetDemo />
         </Row>
         <PopoverDemo />
+        <Row label="Combobox (mock async source; a dialog below 600px)">
+          <ComboboxDemo />
+        </Row>
         <Row label="Menu (a row's «More»)">
           <MenuDemo />
         </Row>
