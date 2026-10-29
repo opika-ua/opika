@@ -1,3 +1,5 @@
+"use client";
+
 import type { Ref } from "react";
 import { Button } from "./Button";
 import { Panel } from "./Panel";

@@ -1,6 +1,6 @@
 # ErrorSummary
 
-File: `apps/web/src/ui/ErrorSummary.tsx`
+File: `apps/web/src/ui/ErrorSummary.tsx` (client: its buttons carry a click handler)
 
 **Purpose.** What a refused save says, once, at the top of a form: every problem as a button that takes you to its field.
 

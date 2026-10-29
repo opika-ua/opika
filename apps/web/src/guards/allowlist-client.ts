@@ -12,6 +12,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/Toast.tsx": "toast queue state, timers and context",
   "ui/Menu.tsx": "controlled open state, outside-press and Esc listeners",
   "ui/Modal.tsx": "controlled dialog; refs and the dialog core",
+  "ui/ErrorSummary.tsx":
+    "item buttons focus their field (click handler); ref is the form's focus target",
   "ui/Popover.tsx": "open state, outside-press and Esc listeners",
   "ui/StickyActionBar.tsx":
     "VisualViewport listeners (keyboard lift), ResizeObserver and a focus listener for scroll padding",
