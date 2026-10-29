@@ -5,7 +5,7 @@ One set, defined in `apps/web/src/app/globals.css` (`@theme`). Class names have 
 
 | Group | Tokens | Use |
 |---|---|---|
-| Colour | `page`, `surface`, `ink`, `ink-2`, `muted`, `line`, `accent`, `on-ink`, `species-dog`, `species-cat`, `focus`, `success`, `warning`, `danger` | `ink` text and primary fills; `ink-2` secondary text and hints; `muted` placeholders only (not for text that carries meaning); `line` borders and quiet fills; `accent` the call to action |
+| Colour | `page`, `surface`, `ink`, `ink-2`, `muted`, `line`, `accent`, `accent-text`, `on-accent`, `on-ink`, `species-dog`, `species-cat`, `focus`, `success`, `warning`, `danger` | `ink` text and primary fills; `ink-2` secondary text and hints; `muted` placeholders only (not for text that carries meaning); `line` borders and quiet fills; `accent` the call to action (fill only; text on it is `on-accent`, orange as text or focus is `accent-text`) |
 | Radius | `tag` 8, `field` 12, `panel` 20, `card` 24, `sheet` 48, `pill` | tags, inputs, grouped boxes, cards, tablet sheets, buttons and chips |
 | Shadow | `float` | floating layers only |
 | Motion | `--duration-quick/settle/reveal`, `--ease-standard` | all go to 0 under reduced motion |
@@ -35,7 +35,7 @@ Rules (owner, 2026-10-28; the UI face reads light at equal weights):
 
 - Minimum text size is 14px anywhere (hints, captions, meta). Body and labels are 16px.
 - Labels and field titles are weight 600; headings are 700. Do not use 500 for anything that must stand out.
-- Hint and secondary text is `text-ink-2` (#805F6E, AA contrast), never lighter.
+- Hint and secondary text is `text-ink-2` (#735263, AA on `page` and on `line`), never lighter.
 - Never pick a size or weight by hand: use the utility or the `Heading`/`Text` component.
 
 The old `rg-`, `brand-` and Keeper's Voice token sets are gone (DS PR 4); the guards fail on any

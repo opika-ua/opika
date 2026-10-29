@@ -15,7 +15,7 @@ const BASE =
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary: "rounded-pill bg-ink text-on-ink",
-  accent: "rounded-pill bg-accent text-on-ink",
+  accent: "rounded-pill bg-accent text-on-accent",
   secondary: "rounded-pill border-2 border-ink bg-transparent text-ink",
   ghost: "rounded-pill bg-transparent text-ink underline-offset-4 hover:underline",
   // The surface and page tokens are near-identical, so the shadow alone leaves the circle invisible on

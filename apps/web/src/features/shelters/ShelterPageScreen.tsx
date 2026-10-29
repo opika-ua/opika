@@ -96,7 +96,7 @@ export function ShelterPageScreen({
                     height={32}
                     unoptimized
                   />
-                  <span className="text-body-l font-semibold text-accent">
+                  <span className="text-body-l font-semibold text-accent-text">
                     {fillTemplate(uk.cardMeta.atShelter, { city: cityName })}
                   </span>
                 </span>
