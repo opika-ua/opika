@@ -102,7 +102,7 @@ function FacetSelector<T extends string>({
         href: clearHref,
         label: fillTemplate(uk.filters.clearDimension, { dimension: label }),
       }}
-      className="min-w-44 max-w-53 flex-initial"
+      className="min-w-36 max-w-40 flex-initial"
     >
       {body ? body(pill) : options.map(pill)}
     </Popover>
@@ -225,7 +225,7 @@ export function GalleryFilterDropdowns({
     <div
       data-testid="gallery-filter-dropdowns"
       // Wraps: five controls at their natural width don't fit the 912px a 1024px window leaves.
-      className="hidden min-w-0 flex-1 flex-wrap items-center gap-3 desktop:flex"
+      className="hidden min-w-0 flex-1 flex-wrap items-center gap-2 desktop:flex"
     >
       <SpeciesToggle filters={filters} sort={sort} citySlugs={citySlugs} />
 
