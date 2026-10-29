@@ -4,11 +4,12 @@ import type { KabinetShelterView } from "@opika/contracts";
 import type { FreshnessSentence } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useId, useState } from "react";
-import { TextAreaField } from "../../controls/controls";
+import { FormSection } from "../../../ui/FormSection";
+import { TextArea } from "../../../ui/form";
+import { Text } from "../../../ui/Text";
 import { ShelterWordsSection } from "../../shelters/ShelterWordsSection";
 import { SENTENCE_MAX, type SentenceError, sentenceCheck, sentenceLength } from "./fields";
 import { SaveBar, type SaveState } from "./SaveBar";
-import { CAPTION, CARD, CARD_TITLE, ERROR_TEXT } from "./styles";
 import { useUnsavedChanges } from "./unsaved-changes";
 import { sameStoredValue, type WriteResult } from "./write-result";
 
@@ -77,6 +78,7 @@ export function VoiceSection({
     if (checked.kind === "invalid") {
       setError(checked.error);
       setState({ kind: "idle" });
+      document.getElementById(`${id}-sentence`)?.focus();
       return;
     }
     setError(null);
@@ -123,11 +125,8 @@ export function VoiceSection({
   const counterId = `${id}-counter`;
 
   return (
-    <section aria-labelledby={`${id}-title`} className={CARD}>
-      <h2 id={`${id}-title`} className={CARD_TITLE}>
-        {uk.kabinet.profile.voiceTitle}
-      </h2>
-      <TextAreaField
+    <FormSection id="voice" title={uk.kabinet.profile.voiceTitle}>
+      <TextArea
         id={`${id}-sentence`}
         label={uk.kabinet.profile.voiceLabel}
         value={text}
@@ -145,7 +144,7 @@ export function VoiceSection({
         <p
           id={counterId}
           aria-live={over > -ANNOUNCE_WITHIN ? "polite" : "off"}
-          className={over > 0 ? ERROR_TEXT : CAPTION}
+          className={over > 0 ? "text-label text-ink" : "text-caption text-ink-2"}
         >
           {over > 0
             ? fillTemplate(t.voice.counterOver, { over: String(over) })
@@ -155,10 +154,10 @@ export function VoiceSection({
 
       <div className="flex flex-col gap-2" data-testid="voice-preview">
         {previewText === null ? (
-          <p className={CAPTION}>{t.voice.previewEmpty}</p>
+          <Text look="hint">{t.voice.previewEmpty}</Text>
         ) : (
           <>
-            <p className={CAPTION}>{t.voice.previewLabel}</p>
+            <Text look="hint">{t.voice.previewLabel}</Text>
             <ShelterWordsSection
               words={{ description: null, sentence: previewText }}
               headingLevel={3}
@@ -178,6 +177,6 @@ export function VoiceSection({
         }}
         onReload={onReload}
       />
-    </section>
+    </FormSection>
   );
 }

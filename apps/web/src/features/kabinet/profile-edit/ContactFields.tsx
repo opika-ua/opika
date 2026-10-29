@@ -2,7 +2,8 @@
 
 import { uk } from "@opika/i18n";
 import { useState } from "react";
-import { Button, SelectField, TextField } from "../../controls/controls";
+import { Button } from "../../../ui/Button";
+import { ERROR, LABEL, Select, TextField } from "../../../ui/form";
 import {
   ALL_KINDS,
   type ChannelKind,
@@ -11,7 +12,7 @@ import {
   MAX_OTHER_ROWS,
   NEW_OTHER_KINDS,
 } from "./fields";
-import { ERROR_TEXT, OPTIONAL, STRONG } from "./styles";
+import { Optional } from "./Optional";
 
 export type ContactsErrors = {
   phone: FieldError | null;
@@ -67,7 +68,7 @@ export function ContactFields({
   const message = (error: FieldError | null | undefined) =>
     error === null || error === undefined ? null : t.errors[error];
 
-  const optional = <span className={OPTIONAL}>{t.donation.optional}</span>;
+  const optional = <Optional />;
 
   return (
     <>
@@ -109,11 +110,14 @@ export function ContactFields({
       {form.others.map((row) => {
         const kinds: readonly ChannelKind[] = row.stored ? ALL_KINDS : NEW_OTHER_KINDS;
         return (
-          <fieldset key={row.id} className="flex min-w-0 flex-col gap-3">
-            <legend className={`${STRONG} mb-2`}>
+          <fieldset
+            key={row.id}
+            className="flex min-w-0 flex-col gap-3 rounded-panel border-2 border-line p-4"
+          >
+            <legend className={`${LABEL} px-1`}>
               {t.contacts.otherLabel} {optional}
             </legend>
-            <SelectField
+            <Select
               id={`${idPrefix}-${row.id}-kind`}
               label={t.contacts.otherKind}
               value={row.kind}
@@ -124,7 +128,7 @@ export function ContactFields({
                   {channel[kind]}
                 </option>
               ))}
-            </SelectField>
+            </Select>
             <TextField
               id={`${idPrefix}-${row.id}-value`}
               label={channel[row.kind]}
@@ -135,7 +139,7 @@ export function ContactFields({
               error={message(errors.others[row.id])}
             />
             <Button
-              variant="text"
+              variant="ghost"
               className="self-start"
               onClick={() =>
                 update((current) => ({
@@ -151,7 +155,7 @@ export function ContactFields({
       })}
       {form.others.length < MAX_OTHER_ROWS ? (
         <Button
-          variant="text"
+          variant="secondary"
           className="self-start"
           onClick={() => {
             update((current) => ({
@@ -168,7 +172,7 @@ export function ContactFields({
         </Button>
       ) : null}
       {errors.atLeastOne ? (
-        <p role="alert" className={ERROR_TEXT}>
+        <p role="alert" id={`${idPrefix}-at-least-one`} className={ERROR}>
           {t.contacts.atLeastOne}
         </p>
       ) : null}

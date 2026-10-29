@@ -3,12 +3,30 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { useId, useState } from "react";
+import { FormSection } from "../../../ui/FormSection";
 import { ContactFields, type ContactsErrors, NO_CONTACT_ERRORS } from "./ContactFields";
 import { type ContactsForm, contactOfForm, contactsFormOf, sameContactsForm } from "./fields";
 import { SaveBar, type SaveState } from "./SaveBar";
-import { CAPTION, CARD, CARD_TITLE } from "./styles";
 import { useUnsavedChanges } from "./unsaved-changes";
 import { sameStoredValue, type WriteResult } from "./write-result";
+
+/**
+ * A refused save moves focus to the first field that needs fixing (the form is short and the
+ * messages sit under their fields, so a separate summary would only repeat them). With no channel
+ * at all there is no one field to blame: the phone is where a person starts.
+ */
+function focusFirstProblem(prefix: string, form: ContactsForm, errors: ContactsErrors): void {
+  const otherId = form.others.find((row) => errors.others[row.id] !== undefined)?.id;
+  const target =
+    errors.phone !== null
+      ? `${prefix}-phone`
+      : errors.telegram !== null
+        ? `${prefix}-telegram`
+        : otherId !== undefined
+          ? `${prefix}-${otherId}-value`
+          : `${prefix}-phone`;
+  document.getElementById(target)?.focus();
+}
 
 /**
  * K4's contacts (N6 fields, answer 3; the fields themselves are
@@ -49,6 +67,7 @@ export function ContactsSection({
     if (checked.kind === "invalid") {
       setErrors(checked);
       setState({ kind: "idle" });
+      focusFirstProblem(id, form, checked);
       return;
     }
     setErrors(NO_CONTACT_ERRORS);
@@ -84,12 +103,12 @@ export function ContactsSection({
   };
 
   return (
-    <section aria-labelledby={`${id}-title`} className={CARD}>
-      <h2 id={`${id}-title`} className={CARD_TITLE}>
-        {uk.kabinet.profile.contactsTitle}
-      </h2>
+    <FormSection
+      id="contacts"
+      title={uk.kabinet.profile.contactsTitle}
+      description={uk.kabinet.profile.contactsNote}
+    >
       <ContactFields idPrefix={id} form={form} update={setForm} errors={errors} />
-      <p className={CAPTION}>{uk.kabinet.profile.contactsNote}</p>
       <SaveBar
         state={state}
         dirty={dirty}
@@ -101,6 +120,6 @@ export function ContactsSection({
         }}
         onReload={onReload}
       />
-    </section>
+    </FormSection>
   );
 }

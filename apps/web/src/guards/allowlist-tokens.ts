@@ -10,7 +10,6 @@ export const TOKEN_CEILINGS: Readonly<
   rg: {
     "app/kabinet/layout.tsx": 1,
     "app/kabinet/page.tsx": 1,
-    "app/kabinet/prytulok/page.tsx": 1,
     "app/kabinet/vkhid/novyi-parol/page.tsx": 1,
     "app/kabinet/vkhid/page.tsx": 1,
     "app/kabinet/vkhid/zabuly/page.tsx": 1,
@@ -31,10 +30,7 @@ export const TOKEN_CEILINGS: Readonly<
     "features/kabinet/operator/OperatorShell.tsx": 1,
     "features/kabinet/password/CardFrame.tsx": 5,
     "features/kabinet/password/ChangePasswordSection.tsx": 2,
-    "features/kabinet/profile-edit/DonationSection.tsx": 1,
     "features/kabinet/profile-edit/styles.ts": 16,
-    "features/kabinet/ProfileParts.tsx": 11,
-    "features/kabinet/ShelterProfile.tsx": 8,
     "features/kabinet/SignInCard.tsx": 17,
     "features/kabinet/SignOutButton.tsx": 2,
     "features/kabinet/SupportBanner.tsx": 3,
