@@ -40,12 +40,48 @@ export interface SmokeSittingInput {
   previousTotal: number;
   /** What's new since `previousTotal`, for the "Expected" comment. */
   newCheckDescription: string;
+  /**
+   * A PR with a migration, by its journal tag: the child branch is migrated before its smoke,
+   * and the production migration (never a smoke) follows only once that smoke passed in full.
+   */
+  migration?: { tag: string };
 }
 
 const AGAINST_PRODUCTION = /against\s+production/i;
 
+/** The migration variant's extra lines; empty strings leave a plain smoke sitting unchanged. */
+function migrationParts(migration: SmokeSittingInput["migration"]) {
+  if (migration === undefined) {
+    return {
+      childSteps: "",
+      endpointRemovedAfterSmoke: "Remove-Item Env:PROD_NEON_ENDPOINT\n",
+      childExpected: "",
+      productionStep: "",
+      pasteBack: "",
+    };
+  }
+  return {
+    childSteps:
+      "pnpm --filter @opika/db db:migrate --expect $ep\npnpm --filter @opika/db db:check-hashes\n",
+    // Kept until the production step: `--prod` identifies production by this id.
+    endpointRemovedAfterSmoke: "",
+    childExpected: `# Expected first: ${migration.tag} applied, then every hash "match" (${migration.tag} included).\n`,
+    productionStep: `
+---- Production migration (only after every check above passed; no smoke runs here) ----
+$env:DATABASE_URL = Read-Secret "Production connection string (for db:migrate and db:check-hashes only)"
+pnpm --filter @opika/db db:migrate --prod --expect (Read-Host "Type the production endpoint id again (ep-...)")
+pnpm --filter @opika/db db:check-hashes
+Remove-Item Env:DATABASE_URL
+Remove-Item Env:PROD_NEON_ENDPOINT
+# Expected: ${migration.tag} applied; every hash "match". Any refusal or failure -> STOP, paste it.
+`,
+    pasteBack: " Then the production migration's full output.",
+  };
+}
+
 function assembled(input: SmokeSittingInput): string {
   const worktreePath = `D:\\opika-worktrees\\${input.worktreeSlug}`;
+  const m = migrationParts(input.migration);
   return `${input.title} - merge sitting, ${input.date}. PowerShell.
 ${input.migrationNote}
 
@@ -69,18 +105,17 @@ $env:DATABASE_URL = Read-Secret "Child branch connection string (never productio
 $env:PROD_NEON_ENDPOINT = Read-Secret "Production Neon endpoint id (ep-..., so the script can refuse a target that matches it)"
 $ep = ([uri]$env:DATABASE_URL).Host.Split('.')[0] -replace '-pooler$',''
 $ep
-pnpm --filter @opika/db db:neon-smoke --expect $ep
+${m.childSteps}pnpm --filter @opika/db db:neon-smoke --expect $ep
 Remove-Item Env:DATABASE_URL
-Remove-Item Env:PROD_NEON_ENDPOINT
-# Expected: ${input.expectedTotal} passed, 0 failed (was ${input.previousTotal} before this PR;
+${m.endpointRemovedAfterSmoke}${m.childExpected}# Expected: ${input.expectedTotal} passed, 0 failed (was ${input.previousTotal} before this PR;
 # ${input.newCheckDescription}). Any failure -> STOP, paste full output - this is new
 # information about how the driver handles the change, not a formality.
-
+${m.productionStep}
 ---- Cleanup ----
 cd D:\\Startup\\opika
 git worktree remove ${worktreePath}
 
-Paste back: the full neon-smoke output, or at minimum its last ~20 lines including the new check.
+Paste back: the full neon-smoke output, or at minimum its last ~20 lines including the new check.${m.pasteBack}
 `;
 }
 
