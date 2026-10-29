@@ -8,8 +8,6 @@ export const TOKEN_CEILINGS: Readonly<
   Record<"rg" | "fontRg" | "brand" | "bare", Readonly<Record<string, number>>>
 > = {
   rg: {
-    "app/kabinet/layout.tsx": 1,
-    "app/kabinet/page.tsx": 1,
     "app/kabinet/prytulok/page.tsx": 1,
     "app/kabinet/vkhid/novyi-parol/page.tsx": 1,
     "app/kabinet/vkhid/page.tsx": 1,
@@ -18,9 +16,6 @@ export const TOKEN_CEILINGS: Readonly<
     "features/chrome/RateLimitedScreen.tsx": 4,
     "features/controls/ModalDialog.tsx": 7,
     "features/gallery/FilterSheet.tsx": 30,
-    "features/kabinet/JoinFailedCard.tsx": 6,
-    "features/kabinet/KabinetBrand.tsx": 3,
-    "features/kabinet/KabinetHome.tsx": 8,
     "features/kabinet/operator/actions/styles.ts": 4,
     "features/kabinet/operator/create/CreateShelterForm.tsx": 1,
     "features/kabinet/operator/evidence-editor/EvidenceEditor.tsx": 2,
@@ -32,8 +27,6 @@ export const TOKEN_CEILINGS: Readonly<
     "features/kabinet/ProfileParts.tsx": 11,
     "features/kabinet/ShelterProfile.tsx": 8,
     "features/kabinet/SignInCard.tsx": 17,
-    "features/kabinet/SignOutButton.tsx": 2,
-    "features/kabinet/SupportBanner.tsx": 3,
   },
   fontRg: {
     "features/chrome/RateLimitedScreen.tsx": 1,

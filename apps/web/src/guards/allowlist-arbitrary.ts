@@ -55,18 +55,6 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     max: 3,
     reason: "Gallery surface; burns down in DS PR 3a.",
   },
-  "features/kabinet/JoinFailedCard.tsx": {
-    max: 8,
-    reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
-  },
-  "features/kabinet/KabinetBrand.tsx": {
-    max: 6,
-    reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
-  },
-  "features/kabinet/KabinetHome.tsx": {
-    max: 13,
-    reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
-  },
   "features/kabinet/ProfileParts.tsx": {
     max: 14,
     reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
@@ -77,14 +65,6 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
   },
   "features/kabinet/SignInCard.tsx": {
     max: 13,
-    reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
-  },
-  "features/kabinet/SignOutButton.tsx": {
-    max: 4,
-    reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
-  },
-  "features/kabinet/SupportBanner.tsx": {
-    max: 7,
     reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
   },
   "features/reveal/ContactRevealDialog.tsx": {
