@@ -437,7 +437,7 @@ describe("refusals", () => {
     [
       "the city is unknown",
       new ORPCError("BAD_REQUEST", { status: 400, message: "Unknown city" }),
-      "Такого міста немає у списку.",
+      "Такого населеного пункту немає у списку.",
     ],
     [
       "the input refused for anything but the name's length",
