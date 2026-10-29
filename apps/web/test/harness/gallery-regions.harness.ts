@@ -100,3 +100,20 @@ test.describe("/tvaryny, the oblast filter without JavaScript", () => {
     await context.close();
   });
 });
+
+/**
+ * The gallery's HTML carries the filter options and their labels (RSC payload included). With the
+ * options derived from the animals it must stay small however many settlements exist; this keeps it
+ * from growing back into a list. Measured 168,762 bytes on the seeded corpus (eight cities, 24
+ * cards, 2026-10-29); the budget leaves room for the labels of a few dozen more cities and
+ * would be crossed by 29.7k chips many times over.
+ */
+const GALLERY_HTML_BUDGET_BYTES = 210_000;
+
+test("the gallery document stays small: the options come from the animals, not from a list", async ({
+  page,
+}) => {
+  const response = await page.goto(ROUTE, { waitUntil: "load" });
+  const bytes = Buffer.byteLength((await response?.text()) ?? "");
+  expect(bytes, `/tvaryny HTML is ${bytes} bytes`).toBeLessThan(GALLERY_HTML_BUDGET_BYTES);
+});
