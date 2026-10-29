@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
+import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../ui/Combobox";
 import { Icon } from "../../../ui/Icon";
 import { Menu, MenuItem } from "../../../ui/Menu";
 import { Modal } from "../../../ui/Modal";
@@ -177,5 +178,83 @@ export function ToastDemo() {
     <ToastProvider dismissLabel="Dismiss">
       <ToastButtons />
     </ToastProvider>
+  );
+}
+
+const MOCK_PLACES: readonly ComboboxOption[] = [
+  { value: "p1", label: "Springfield", detail: "North district, Alpha region" },
+  { value: "p2", label: "Springfield", detail: "East district, Beta region" },
+  { value: "p3", label: "Springfield", detail: "South district, Gamma region" },
+  { value: "p4", label: "Riverton", detail: "West district, Alpha region" },
+  { value: "p5", label: "Rivermouth", detail: "North district, Beta region" },
+  { value: "p6", label: "O'Brien Hill", detail: "Central district, Gamma region" },
+  { value: "p7", label: "Lakeside", detail: "East district, Alpha region" },
+  { value: "p8", label: "Lakeview", detail: "South district, Beta region" },
+];
+
+/** A fake server: waits, honours the abort signal, "fails" for the query "fail". */
+function mockSearch(query: string, signal: AbortSignal): Promise<ComboboxResult> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      if (query.toLowerCase() === "fail") {
+        reject(new Error("mock failure"));
+        return;
+      }
+      const q = query.toLowerCase();
+      resolve({
+        kind: "options",
+        options: MOCK_PLACES.filter((place) => place.label.toLowerCase().startsWith(q)),
+      });
+    }, 600);
+    signal.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(new DOMException("aborted", "AbortError"));
+    });
+  });
+}
+
+const COMBOBOX_MESSAGES = {
+  placeholder: "Start typing a place",
+  tooShort: "Type at least 2 letters",
+  loading: "Searching",
+  empty: "Nothing found",
+  error: "Search failed",
+  retry: "Try again",
+  found: (count: number) => `Found: ${count}`,
+  clear: "Clear",
+  close: "Close",
+};
+
+/** Mock source: try "spring" (three same names), "o'b", "zzz" (empty), "fail" (error). */
+export function ComboboxDemo() {
+  const [value, setValue] = useState<ComboboxOption | null>(null);
+  const [broken, setBroken] = useState(false);
+  return (
+    <div className="flex w-full max-w-md flex-col gap-6">
+      <Combobox
+        id="demo-combobox"
+        label="Place"
+        hint="Mock data: try spring, o'b, zzz or fail."
+        value={value}
+        onChange={setValue}
+        search={mockSearch}
+        suggestions={MOCK_PLACES.slice(3, 5)}
+        messages={COMBOBOX_MESSAGES}
+        error={broken ? "Pick a place from the list" : null}
+        required
+      />
+      <Button variant="secondary" onClick={() => setBroken((now) => !now)}>
+        Toggle invalid state
+      </Button>
+      <Combobox
+        id="demo-combobox-disabled"
+        label="Place (disabled)"
+        value={MOCK_PLACES[0] ?? null}
+        onChange={() => undefined}
+        search={mockSearch}
+        messages={COMBOBOX_MESSAGES}
+        disabled
+      />
+    </div>
   );
 }

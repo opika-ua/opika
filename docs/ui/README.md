@@ -83,6 +83,7 @@ last consumer imports `src/ui` directly. `ModalDialog` is unchanged until the ka
 | [Menu](components/Menu.md) | `Menu.tsx` | A short list of actions under a ghost button (a list row's «Ще»). |
 | [MenuItem](components/MenuItem.md) | `Menu.tsx` | One entry of a Menu. |
 | [Popover](components/Popover.md) | `Popover.tsx` | A panel under its trigger (the filter selectors): chip or field trigger, list or pills. |
+| [Combobox](components/Combobox.md) | `Combobox.tsx` | A select-only search field: async options, the value must come from the list; a list under the field, a full-screen dialog on phones. |
 | [Toast](components/Toast.md) | `Toast.tsx` | One toast, presentational. `ToastProvider` renders these; it is exported for the showcase and tests. |
 | [ToastProvider](components/ToastProvider.md) | `Toast.tsx` | Holds the toast queue and the live region. Wrap the page once; call `useToast().show(message, tone)` from client components. |
 | [CheckboxGroup](components/CheckboxGroup.md) | `groups.tsx` | A question with several choices: fieldset, legend, hint, error. |

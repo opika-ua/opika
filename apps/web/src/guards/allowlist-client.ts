@@ -14,6 +14,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/Modal.tsx": "controlled dialog; refs and the dialog core",
   "ui/ErrorSummary.tsx":
     "item buttons focus their field (click handler); ref is the form's focus target",
+  "ui/Combobox.tsx": "query state, debounce, abort, active option, dialog below tablet",
   "ui/Popover.tsx": "open state, outside-press and Esc listeners",
   "ui/StickyActionBar.tsx":
     "VisualViewport listeners (keyboard lift), ResizeObserver and a focus listener for scroll padding",

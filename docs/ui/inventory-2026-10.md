@@ -1,5 +1,7 @@
 # UI inventory, October 2026 (design system PR 0, read-only)
 
+> Dated snapshot (2026-10-28, before the migration PRs). Numbers and "duplicate of" findings are stale wherever a later PR touched the file; the live rules are in `README.md` and `tokens.md`.
+
 Measured on `main` at `f1981e8` (after #239, the hamburger menu), 2026-10-28. Nothing in the
 code was changed to produce this file. Every number below was produced by a command listed in
 "How it was counted" and re-run before writing.
