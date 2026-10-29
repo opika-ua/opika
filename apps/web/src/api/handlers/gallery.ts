@@ -7,7 +7,7 @@ import type {
   GalleryRelaxationCountsOutputSchema,
 } from "@opika/contracts";
 import { galleryRepo, shelterRepo } from "@opika/db/repos";
-import { ageBucketOf, primaryPhoto } from "@opika/domain";
+import { ageBucketOf, canonicalizeFilters, primaryPhoto } from "@opika/domain";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { discoverableListingKind } from "./discoverable-listing-kind";
@@ -43,7 +43,9 @@ export async function galleryList(
   context: AppContext,
 ): Promise<GalleryListOutput> {
   const page = await galleryRepo(context.db).list({
-    filters: input.filters,
+    // Deduped at the boundary: a filter list repeated thousands of times over
+    // /api/rpc would otherwise reach SQL as thousands of predicates (review of #250).
+    filters: canonicalizeFilters(input.filters),
     scope: input.scope,
     sort: input.sort,
     page: input.page,
@@ -127,8 +129,10 @@ export async function galleryFacetCounts(
   input: FacetCountsInput,
   context: AppContext,
 ): Promise<FacetCountsOutput> {
+  // Deduped first: each of the statement's count columns repeats every other
+  // filter, so a repeated value list multiplies there (review of #250, note 1).
   const counts = await galleryRepo(context.db).facetCounts({
-    filters: input.filters,
+    filters: canonicalizeFilters(input.filters),
     now: context.now,
   });
   return {

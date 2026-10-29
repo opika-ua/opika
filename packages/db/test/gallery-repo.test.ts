@@ -995,16 +995,35 @@ describe("galleryRepo.facetCounts", () => {
 
     expect(counts.sizes).toEqual({ small: 1, medium: 0, large: 1 });
     expect(counts.sexes).toEqual({ male: 0, female: 1, unknown: 1 });
+    // Only the cats' ages: the dogs would add a baby, an adult and a senior.
+    expect(counts.ages).toEqual({ baby: 1, young: 1, adult: 0, senior: 0 });
     expect(cityCounts(counts).get(kyiv.id)).toBe(1);
     expect(cityCounts(counts).has(odesa.id)).toBe(false);
   });
 
-  it("counts against the list's visibility rules: a draft counts nowhere", async () => {
+  it("counts against the list's visibility rules: a draft, or a shelter not yet verified, counts nowhere", async () => {
     const { kyiv } = await seedFacetCorpus();
+    const pending = makeShelter({
+      displayName: "Очікує",
+      publicLocation: {
+        cityId: kyiv.id,
+        district: null,
+        precision: "fuzzed_address",
+        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+      },
+      verification: {
+        status: "pending",
+        submittedAt: NOW,
+        evidence: { items: [], submittedAt: NOW },
+      },
+    });
+    await shelterRepo(db).insert(pending);
+    await animalRepo(db).insert(makeAnimal({ shelterId: pending.id, size: "small" }), kyiv.id);
 
     const counts = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
 
-    // Kyiv has four discoverable animals and one draft.
+    // Kyiv has four discoverable animals, one draft and one published at a
+    // pending shelter.
     expect(cityCounts(counts).get(kyiv.id)).toBe(4);
     expect(Object.values(counts.sizes).reduce((sum, n) => sum + n, 0)).toBe(6);
   });
