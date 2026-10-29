@@ -6,6 +6,7 @@ import { freshnessLabel } from "@opika/ui";
 import Image from "next/image";
 import type { RefCallback } from "react";
 import { verificationSuffix } from "../../seo-flags";
+import { Avatar } from "../../ui/Avatar";
 import { FreshnessPips } from "../../ui/FreshnessPips";
 
 /** The deck stays 390-420px centred at every viewport (docs/design/README.md,
@@ -229,7 +230,7 @@ export function SwipeCard({ card, gestureRef, dx, stackIndex, onTap }: SwipeCard
           `REGISTRY_HAS_NO_REAL_SHELTERS`.
         */}
         <div data-testid="shelter-line" className="flex items-center gap-1.5">
-          <ShelterMonogram name={card.shelter.displayName} />
+          <Avatar kind="initials" name={card.shelter.displayName} size="sm" />
           <span className="text-caption text-ink-2">
             {card.shelter.displayName}
             {verificationSuffix(card.shelter.verification)}
@@ -249,21 +250,6 @@ function formatMeta(card: FeedCardView): string {
   return parts.join(" · ");
 }
 
-function ShelterMonogram({ name }: { name: string }) {
-  const initials = name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0] ?? "")
-    .join("")
-    .toUpperCase();
-
-  return (
-    <div className="size-5 rounded-full bg-line flex items-center justify-center text-[9px] text-ink-2 shrink-0">
-      {initials}
-    </div>
-  );
-}
-
 function FreshnessBlock({ freshness }: { freshness: FeedCardView["freshness"] }) {
   const label = freshnessLabel(freshness);
 
@@ -279,7 +265,7 @@ function FreshnessBlock({ freshness }: { freshness: FeedCardView["freshness"] })
     // for its own 84-content-box value - this restates it for V2's 88.)
     <section
       data-testid="freshness-block"
-      className="bg-line rounded-panel p-4 flex flex-col gap-row min-h-30"
+      className="bg-line rounded-panel p-4 flex flex-col gap-2 min-h-30"
       aria-label={label}
     >
       <FreshnessPips kind={freshness.kind} label={label} />

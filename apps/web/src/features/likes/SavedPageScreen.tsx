@@ -7,7 +7,6 @@ import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
 import { Skeleton } from "../../ui/Skeleton";
-import { Footer } from "../chrome/Footer";
 import { SiteHeader } from "../chrome/SiteHeader";
 import type { CitySlugsById } from "../gallery/filter-url";
 import { GalleryCard } from "../gallery/GalleryCard";
@@ -171,10 +170,6 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
             ))}
           </ul>
         )}
-      </Container>
-
-      <Container className="pb-10">
-        <Footer />
       </Container>
     </div>
   );

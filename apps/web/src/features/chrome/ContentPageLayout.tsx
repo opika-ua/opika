@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
-import { Footer } from "./Footer";
 import { SiteHeader } from "./SiteHeader";
 
 /**
@@ -11,17 +10,11 @@ import { SiteHeader } from "./SiteHeader";
  */
 export interface ContentPageLayoutProps {
   readonly kabinetSignedIn: boolean;
-  readonly currentPage: "pro" | "prytulkam";
   readonly title: ReactNode;
   readonly children: ReactNode;
 }
 
-export function ContentPageLayout({
-  kabinetSignedIn,
-  currentPage,
-  title,
-  children,
-}: ContentPageLayoutProps) {
+export function ContentPageLayout({ kabinetSignedIn, title, children }: ContentPageLayoutProps) {
   return (
     <div className="min-h-dvh bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} />
@@ -32,7 +25,6 @@ export function ContentPageLayout({
             {title}
           </Heading>
           {children}
-          <Footer currentPage={currentPage} />
         </div>
       </Container>
     </div>

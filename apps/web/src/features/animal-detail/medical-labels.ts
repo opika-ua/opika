@@ -4,8 +4,6 @@ import { uk } from "@opika/i18n";
 export type MedicalRow = {
   label: string;
   statusText: string;
-  /** Tailwind class for the 4×16 source stripe - `docs/design/README.md`'s own legend: registry / shelter's words / not recorded. */
-  barClassName: "bg-rg-registry" | "bg-rg-ink-3" | "bg-rg-fill-strong";
 };
 
 /**
@@ -32,14 +30,12 @@ export function vaccinationRow(vaccination: VaccinationStatus): MedicalRow {
     return {
       label: uk.medical.vaccination,
       statusText: uk.medical.unknown,
-      barClassName: "bg-rg-fill-strong",
     };
   }
   if (vaccination.state === "in_progress") {
     return {
       label: uk.medical.vaccination,
       statusText: uk.medical.inProgress,
-      barClassName: "bg-rg-ink-3",
     };
   }
   // confirmed
@@ -47,13 +43,11 @@ export function vaccinationRow(vaccination: VaccinationStatus): MedicalRow {
     return {
       label: uk.medical.rabies,
       statusText: uk.medical.registry,
-      barClassName: "bg-rg-registry",
     };
   }
   return {
     label: uk.medical.vaccination,
     statusText: uk.medical.doneShelterDeclared,
-    barClassName: "bg-rg-ink-3",
   };
 }
 
@@ -63,19 +57,16 @@ export function spayNeuterRow(spayNeuter: SpayNeuterStatus): MedicalRow {
     return {
       label: uk.medical.spayNeuter,
       statusText: uk.medical.unknown,
-      barClassName: "bg-rg-fill-strong",
     };
   }
   if (spayNeuter.state === "in_progress") {
     return {
       label: uk.medical.spayNeuter,
       statusText: uk.medical.inProgress,
-      barClassName: "bg-rg-ink-3",
     };
   }
   return {
     label: uk.medical.spayNeuter,
     statusText: uk.medical.doneShelterDeclared,
-    barClassName: "bg-rg-ink-3",
   };
 }

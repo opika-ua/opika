@@ -40,7 +40,7 @@ describe("needs-check: which pull requests skip the full check", () => {
     ["Markdown under packages/i18n", ["packages/i18n/NOTES.md"]],
     // allowlist-removed.test.ts scans every .md under apps/ and packages/.
     ["Markdown anywhere under packages/", ["packages/db/README.md"]],
-    ["Markdown anywhere under apps/", ["apps/web/src/app/fonts/literata/README.md"]],
+    ["Markdown anywhere under apps/", ["apps/web/src/app/fonts/brand-ui/README.md"]],
     ["a served file under apps/web/public", ["apps/web/public/seed-photos/SOURCES.md"]],
     // biome lints docs/ outside docs/design.
     ["a non-Markdown file under docs/, outside docs/design", ["docs/proposal.json"]],

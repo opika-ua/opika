@@ -88,7 +88,7 @@ export default async function AboutPage() {
 /** The page body; exported so `page.test.tsx` can render it without a real request scope. */
 export function renderAboutPage(kabinetSignedIn: boolean) {
   return (
-    <ContentPageLayout kabinetSignedIn={kabinetSignedIn} currentPage="pro" title={uk.about.title}>
+    <ContentPageLayout kabinetSignedIn={kabinetSignedIn} title={uk.about.title}>
       <Text look="lead" className="text-ink-2">
         {INTRO}
       </Text>

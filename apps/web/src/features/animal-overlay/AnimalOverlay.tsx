@@ -60,7 +60,7 @@ const DIALOG_BASE = "relative flex h-full flex-col outline-none";
 // `env(safe-area-inset-top)` is 0, so this resolves to the same `pt-6` as
 // before - only a notch/dynamic-island inset (iOS) can ever push it further,
 // never shrink it below the existing clearance.
-const TOP_BAR_OFFSET = "shrink-0 pt-[max(1.5rem,env(safe-area-inset-top))] pb-6";
+const TOP_BAR_OFFSET = "shrink-0 pt-safe-top pb-6";
 const TOP_BAR = "relative mx-auto flex w-full max-w-271 items-center justify-center";
 /**
  * Only the top corners are rounded. Two boxes: Chrome's classic scrollbar is not reliably clipped

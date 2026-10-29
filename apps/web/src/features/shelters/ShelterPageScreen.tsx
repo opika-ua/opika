@@ -10,7 +10,6 @@ import { cx } from "../../ui/cx";
 import { Heading } from "../../ui/Heading";
 import { Pagination } from "../../ui/Pagination";
 import { Toggle } from "../../ui/Toggle";
-import { Footer } from "../chrome/Footer";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { ArrowKeyGrid } from "../gallery/ArrowKeyGrid";
 import { cardCityId } from "../gallery/card-text";
@@ -222,10 +221,6 @@ export function ShelterPageScreen({
             </>
           )}
         </section>
-      </Container>
-
-      <Container className="pb-10">
-        <Footer />
       </Container>
     </div>
   );
