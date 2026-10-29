@@ -9,6 +9,7 @@ const SIZE = {
   sm: { box: "size-8 text-caption", sizes: "32px" },
   md: { box: "size-10 text-label", sizes: "40px" },
   lg: { box: "size-14 text-title tablet:size-20", sizes: "80px" },
+  xl: { box: "size-24 text-title tablet:size-40", sizes: "160px" },
 } as const;
 
 const FIRST_LETTER = /[A-Za-zА-ЩЬЮЯЄІЇҐа-щьюяєіїґ]/;
