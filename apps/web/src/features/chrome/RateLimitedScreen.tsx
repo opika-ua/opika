@@ -25,7 +25,7 @@ export function RateLimitedScreen() {
       <Panel
         tone="sunken"
         padding="lg"
-        className="flex w-full max-w-xl flex-col items-start gap-4 text-ink"
+        className="flex w-full max-w-xl flex-col items-start gap-4 text-ink shadow-float"
       >
         <Heading level={1} look="title">
           {uk.detail.rateLimited}
