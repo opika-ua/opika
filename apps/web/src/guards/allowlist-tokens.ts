@@ -18,9 +18,6 @@ export const TOKEN_CEILINGS: Readonly<
     "features/animal-detail/medical-labels.ts": 10,
     "features/chrome/RateLimitedScreen.tsx": 4,
     "features/controls/ModalDialog.tsx": 7,
-    "features/discovery/DeckScreen.tsx": 9,
-    "features/discovery/SwipeCard.tsx": 16,
-    "features/discovery/SwipeDeck.tsx": 17,
     "features/gallery/FilterSheet.tsx": 30,
     "features/kabinet/JoinFailedCard.tsx": 6,
     "features/kabinet/KabinetBrand.tsx": 3,
@@ -38,16 +35,11 @@ export const TOKEN_CEILINGS: Readonly<
     "features/kabinet/SignInCard.tsx": 17,
     "features/kabinet/SignOutButton.tsx": 2,
     "features/kabinet/SupportBanner.tsx": 3,
-    "features/reveal/ContactRevealDialog.tsx": 36,
   },
   fontRg: {
     "features/animal-detail/AnimalPageStates.tsx": 1,
     "features/chrome/RateLimitedScreen.tsx": 1,
-    "features/discovery/DeckScreen.tsx": 1,
-    "features/discovery/SwipeCard.tsx": 4,
-    "features/discovery/SwipeDeck.tsx": 3,
     "features/gallery/FilterSheet.tsx": 3,
-    "features/reveal/ContactRevealDialog.tsx": 1,
   },
   brand: {
     "app/tvaryny/page.tsx": 7,
@@ -65,8 +57,5 @@ export const TOKEN_CEILINGS: Readonly<
     "features/gallery/NoMatch.tsx": 11,
     "features/gallery/OutOfRangeNotice.tsx": 6,
   },
-  bare: {
-    "features/discovery/DeckScreen.tsx": 1,
-    "features/discovery/SwipeDeck.tsx": 7,
-  },
+  bare: {},
 };

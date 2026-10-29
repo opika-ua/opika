@@ -28,17 +28,14 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     reason:
       "Legacy link classes keep `aria-[current=page]:` variants until the kabinet moves to src/ui.",
   },
-  "features/discovery/DeckScreen.tsx": {
-    max: 6,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
-  },
   "features/discovery/SwipeCard.tsx": {
-    max: 13,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
+    max: 1,
+    reason: "Two-letter monogram in a 20px circle; the 14px type floor would overflow it.",
   },
   "features/discovery/SwipeDeck.tsx": {
-    max: 15,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
+    max: 1,
+    reason:
+      "The not-a-judgement line hides below 360px, where it wraps to two lines and clips the deck.",
   },
   "features/gallery/FilterSheet.tsx": {
     max: 21,
@@ -102,7 +99,7 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
   },
   "features/reveal/ContactRevealDialog.tsx": {
-    max: 25,
-    reason: "Contact-reveal dialog; folds into the kit Modal (pet card, DS PR 3b).",
+    max: 1,
+    reason: "Dialog height cap of 85vh; no scale step. Folds into the kit Modal later.",
   },
 };

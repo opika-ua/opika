@@ -139,13 +139,9 @@ export function DeckScreen({
   }, [state.kind, effectiveTotal]);
 
   return (
-    // Same outer shape as the /discovery wrapper it replaces (max-w-97.5,
-    // h-dvh, p-group, box-border, overflow-hidden, font-sans) - the
-    // discovery-layout/gesture harnesses were measured against exactly
-    // this box and are migrated to this route, not rewritten, in the same
-    // phase. font-rg is scoped to the new header below, not this wrapper,
-    // so it can't shift the geometry those harnesses assert on.
-    <div className="max-w-97.5 mx-auto h-dvh bg-rg-page flex flex-col p-group box-border overflow-hidden font-sans">
+    // Same outer box as the /discovery wrapper it replaced (max-w-97.5, h-dvh, p-group,
+    // box-border, overflow-hidden); the deck's layout is tuned to it.
+    <div className="max-w-97.5 mx-auto h-dvh bg-page flex flex-col p-group box-border overflow-hidden">
       {/*
         `min-h-12` (48), not `min-h-11` (44): docs/design/README.md:200 sets 48
         as the minimum touch target *anywhere* and calls it a civic-trust
@@ -166,12 +162,12 @@ export function DeckScreen({
         The header's own floor follows the button rather than leading it - a
         44px floor under a 48px child was already doing nothing.
       */}
-      <header className="font-rg flex items-center gap-3 min-h-12">
+      <header className="flex items-center gap-3 min-h-12">
         <button
           type="button"
           onClick={exit}
           data-testid="deck-back-to-list"
-          className="min-h-12 inline-flex items-center gap-2 shrink-0 rounded-rg-button bg-rg-fill px-4 text-[13px] font-medium text-rg-ink focus-ring-registry"
+          className="min-h-12 inline-flex items-center gap-2 shrink-0 rounded-field bg-line px-4 text-caption text-ink focus-ring"
         >
           {uk.feed.backToList}
         </button>
@@ -186,18 +182,12 @@ export function DeckScreen({
          * `filtersLabel` it stands in for.
          */}
         {showDemoBanner ? (
-          <span
-            data-testid="deck-demo-banner"
-            className="truncate text-[13px] leading-[normal] text-rg-ink-2"
-          >
+          <span data-testid="deck-demo-banner" className="truncate text-caption text-ink-2">
             {uk.demo.deckLabel}
           </span>
         ) : (
           filtersLabel && (
-            <span
-              data-testid="deck-filters-label"
-              className="truncate text-[13px] leading-[normal] text-rg-ink-2"
-            >
+            <span data-testid="deck-filters-label" className="truncate text-caption text-ink-2">
               {filtersLabel}
             </span>
           )
@@ -205,7 +195,7 @@ export function DeckScreen({
 
         {showPosition && effectiveTotal !== null && (
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <span data-testid="deck-position" className="text-[12px] text-rg-ink-3">
+            <span data-testid="deck-position" className="text-caption text-ink-2">
               {position} з {effectiveTotal}
             </span>
             {/**
@@ -229,12 +219,12 @@ export function DeckScreen({
               aria-hidden="true"
               data-testid="deck-progress-bar"
               data-state={progressBarState}
-              className={`h-1.5 w-20 overflow-hidden rounded-full bg-rg-fill-strong ${
+              className={`h-1.5 w-20 overflow-hidden rounded-full bg-line ${
                 progressBarState === "hidden" ? "hidden" : "block"
               }`}
             >
               <div
-                className="h-full bg-rg-ink"
+                className="h-full bg-ink"
                 style={{ width: `${Math.min(100, (position / effectiveTotal) * 100)}%` }}
               />
             </div>
