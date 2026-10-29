@@ -8,6 +8,7 @@ import {
   deterministicId,
   OnboardInputSchema,
   refuseIfInsideRepo,
+  withCityIdFromSlug,
 } from "../src/onboard-shelter";
 
 const SECRET_A = "a".repeat(32);
@@ -400,5 +401,52 @@ describe("refuseIfInsideRepo", () => {
     });
     expect(() => refuseIfInsideRepo("/tmp/shelter-brovary.json")).not.toThrow();
     exitSpy.mockRestore();
+  });
+});
+
+describe("withCityIdFromSlug", () => {
+  const CITY_ID = "c1000000-0000-4000-8000-000000000001";
+  const withAddress = (address: Record<string, unknown>) => ({
+    shelter: { displayName: "x", exactAddress: address },
+    animals: [],
+  });
+  const lookup = async (slug: string) => (slug === "brovary-kyivska" ? { id: CITY_ID } : null);
+
+  it("leaves a file that names its city by id exactly as it was", async () => {
+    const raw = withAddress({ line1: "a", cityId: CITY_ID });
+    expect(await withCityIdFromSlug(raw, lookup)).toBe(raw);
+  });
+
+  it("replaces a slug by the id it resolves to, and drops the slug", async () => {
+    const resolved = (await withCityIdFromSlug(
+      withAddress({ line1: "a", citySlug: " brovary-kyivska " }),
+      lookup,
+    )) as { shelter: { exactAddress: Record<string, unknown> } };
+    expect(resolved.shelter.exactAddress).toEqual({ line1: "a", cityId: CITY_ID });
+  });
+
+  it("refuses a slug nothing answers to, naming it", async () => {
+    await expect(
+      withCityIdFromSlug(withAddress({ line1: "a", citySlug: "atlantis" }), lookup),
+    ).rejects.toThrow(/"atlantis"/);
+  });
+
+  it("refuses both an id and a slug, and an empty slug", async () => {
+    await expect(
+      withCityIdFromSlug(withAddress({ cityId: CITY_ID, citySlug: "brovary-kyivska" }), lookup),
+    ).rejects.toThrow(/both cityId and citySlug/);
+    await expect(withCityIdFromSlug(withAddress({ citySlug: "" }), lookup)).rejects.toThrow(
+      /non-empty/,
+    );
+  });
+
+  it("feeds the schema, which then accepts the file", async () => {
+    const resolved = await withCityIdFromSlug(
+      withAddress({ ...EXACT_ADDRESS, cityId: undefined, citySlug: "brovary-kyivska" }),
+      lookup,
+    );
+    const address = (resolved as { shelter: { exactAddress: { cityId: string } } }).shelter
+      .exactAddress;
+    expect(address.cityId).toBe(CITY_ID);
   });
 });

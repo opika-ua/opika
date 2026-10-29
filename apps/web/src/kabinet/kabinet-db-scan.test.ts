@@ -323,9 +323,9 @@ describe("the kabinet reaches the database only through kabinetDb()", () => {
       "app/api/cron/auth-cleanup/route.ts",
       "kabinet/runtime.ts",
       "proxy.ts",
-      // Outside the kabinet's folders: the walk follows helpers.
-      "api/router-client.ts",
-      "api/router.ts",
+      // Outside the kabinet's folders: the walk follows helpers. (`api/router.ts` and
+      // `api/router-client.ts` were witnesses here until the operator's create page stopped
+      // reading cities through the public router, N3.)
     ]) {
       expect([known, reachedKeys.has(known)]).toEqual([known, true]);
     }

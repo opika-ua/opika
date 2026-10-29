@@ -45,7 +45,7 @@ async function seedOneCityTwoDogsOneCat() {
 }
 
 describe("gallery.facetCounts", () => {
-  it("is on the Server Component path and answers option ids and counts only", async () => {
+  it("is on the Server Component path and answers option ids, counts and the cities' public labels only", async () => {
     const city = await seedOneCityTwoDogsOneCat();
 
     const counts = await anonymousRouterClient(h.db).gallery.facetCounts({
@@ -57,7 +57,23 @@ describe("gallery.facetCounts", () => {
     });
 
     expect(counts).toEqual({
-      cities: [{ cityId: city.id, count: 1 }],
+      cities: [
+        {
+          cityId: city.id,
+          count: 1,
+          label: {
+            id: city.id,
+            slug: city.slug,
+            kind: city.kind,
+            nameScope: city.nameScope,
+            regionId: city.regionId,
+            name: city.name.uk,
+            regionShort: "Київська обл.",
+            raion: null,
+          },
+        },
+      ],
+      regions: [{ regionId: city.regionId, count: 1 }],
       ages: { baby: 0, young: 1, adult: 0, senior: 0 },
       sizes: { small: 1, medium: 0, large: 1 },
       sexes: { male: 1, female: 0, unknown: 0 },

@@ -81,7 +81,8 @@ describe("SavedPageScreen", () => {
 
     render(<SavedPageScreen />);
 
-    expect(await screen.findByRole("link", { name: /Мурчик/ })).toBeTruthy();
+    // The city comes from the response's own labels, not from a list the page was given.
+    expect(await screen.findByRole("link", { name: /Мурчик.*Бровари/ })).toBeTruthy();
     expect(cardsByIds).toHaveBeenCalledWith({
       animalIds: ["00000001-0000-4000-8000-000000000000"],
     });
@@ -98,7 +99,7 @@ describe("SavedPageScreen", () => {
    */
   it("never shows the empty state while a saved item's fetch is still pending - only skeletons", async () => {
     toggleSavedAnimal("00000001-0000-4000-8000-000000000000", new Date());
-    let resolveFetch!: (value: { items: unknown[] }) => void;
+    let resolveFetch!: (value: { items: unknown[]; cityLabels: unknown[] }) => void;
     cardsByIds.mockReturnValue(
       new Promise((resolve) => {
         resolveFetch = resolve;
@@ -112,6 +113,7 @@ describe("SavedPageScreen", () => {
     expect(screen.queryByTestId("saved-empty")).toBeNull();
 
     resolveFetch({
+      cityLabels: [],
       items: [
         { kind: "available", animalId: "00000001-0000-4000-8000-000000000000", card: makeCard() },
       ],

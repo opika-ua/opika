@@ -12,7 +12,9 @@ const record = vi.fn();
 
 vi.mock("../../api/browser-client", () => ({
   feedBrowserClient: {
-    feed: { list: (...args: unknown[]) => list(...args) },
+    // A page without `cityLabels` stands for "no city to name" in the older tests below; the
+    // contract always sends the field.
+    feed: { list: async (...args: unknown[]) => ({ cityLabels: [], ...(await list(...args)) }) },
     session: { bootstrap: (...args: unknown[]) => bootstrap(...args) },
     swipes: { record: (...args: unknown[]) => record(...args) },
   },
@@ -48,6 +50,43 @@ describe("useFeedDeck", () => {
       { signal: expect.any(AbortSignal) },
     );
     expect(result.current.state).toEqual({ kind: "ready", cards });
+  });
+
+  it("names the cities of every page fetched so far, as the reveal prints them", async () => {
+    const label = (id: string, name: string, kind: "city" | "village" = "city") => ({
+      id,
+      slug: name,
+      kind,
+      nameScope: kind === "village" ? "unique_in_region" : "unique_in_ukraine",
+      regionId: "814661e1-67de-532e-a38e-2216d8b521ff",
+      name,
+      regionShort: "Київська обл.",
+      raion: null,
+    });
+    list
+      .mockResolvedValueOnce({
+        items: generateMockCards(1),
+        nextCursor: "c1",
+        cityLabels: [label("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "Бровари")],
+      })
+      .mockResolvedValueOnce({
+        items: generateMockCards(1),
+        nextCursor: null,
+        cityLabels: [label("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "Гора", "village")],
+      });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+    expect(result.current.cityNames).toEqual({
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa": "м. Бровари",
+    });
+
+    act(() => result.current.onPrefetch());
+    await waitFor(() => expect(Object.keys(result.current.cityNames)).toHaveLength(2));
+    expect(result.current.cityNames).toEqual({
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa": "м. Бровари",
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb": "с. Гора, Київська обл.",
+    });
   });
 
   /**

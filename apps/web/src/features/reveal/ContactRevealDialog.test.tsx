@@ -47,7 +47,7 @@ const renderOpen = (view: ContactRevealView, names = { animal: "Мурчик", c
  */
 describe("ContactRevealDialog prints names literally", () => {
   it("does not read $& or $1 in the animal or city name as replacement patterns", () => {
-    renderOpen(reveal, { animal: "Пес $& $1", city: "Місто $& $1" });
+    renderOpen(reveal, { animal: "Пес $& $1", city: "м. Місто $& $1" });
     expect(screen.getByText("Ви запитали про Пес $& $1.")).toBeTruthy();
     expect(screen.getByText("м. Місто $& $1 · ", { exact: false })).toBeTruthy();
   });

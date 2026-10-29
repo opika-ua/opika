@@ -19,22 +19,26 @@ const procedurePaths = (node: object, prefix = ""): readonly string[] =>
   });
 
 describe("the contract surface", () => {
-  it("exposes exactly the thirteen agreed procedures", () => {
+  it("exposes exactly the fifteen agreed procedures", () => {
     // Spelled out rather than counted, so adding a procedure is a deliberate
     // edit made while looking at the surface. `gallery.*` joined in Phase E0;
     // `animals.cardsByIds` (S8, the saved page's batch read) joined after it;
     // `animals.neighbours` (pet card PR 2) joined after that; `gallery.facetCounts`
-    // (the filter selectors' counts) after that.
+    // (the filter selectors' counts) after that. Nationwide N3 replaced the whole-settlement-list
+    // procedure (which no page may ship) with `cities.byIds` and `cities.resolveTokens`,
+    // and added `regions.list` (the 27 oblasts, from a constant).
     expect([...procedurePaths(contract)].sort()).toEqual([
       "animals.byId",
       "animals.cardsByIds",
       "animals.neighbours",
       "animals.reveal",
-      "cities.list",
+      "cities.byIds",
+      "cities.resolveTokens",
       "feed.list",
       "gallery.facetCounts",
       "gallery.list",
       "gallery.relaxationCounts",
+      "regions.list",
       "reveals.listMine",
       "session.bootstrap",
       "shelters.byId",
@@ -206,19 +210,38 @@ describe("feed pagination input", () => {
 
 describe("gallery facet counts output", () => {
   const CITY = "c1000000-0000-4000-8000-000000000001";
+  const REGION = "814661e1-67de-532e-a38e-2216d8b521ff";
+  const label = {
+    id: CITY,
+    slug: "brovary-kyivska",
+    kind: "city",
+    nameScope: "unique_in_ukraine",
+    regionId: REGION,
+    name: "Бровари",
+    regionShort: "Київська обл.",
+    raion: "Броварський район",
+  };
   const counts = {
-    cities: [{ cityId: CITY, count: 3 }],
+    cities: [{ cityId: CITY, count: 3, label }],
+    regions: [{ regionId: REGION, count: 3 }],
     ages: { baby: 1, young: 0, adult: 2, senior: 0 },
     sizes: { small: 1, medium: 1, large: 1 },
     sexes: { male: 2, female: 1, unknown: 0 },
   };
 
-  // Public view: only option ids and integers cross the wire, whatever the
-  // handler hands over - a city name or a shelter id rides along nowhere.
-  it("strips anything beyond option ids and counts", () => {
+  // Public view: option ids, integers and a city label cross the wire, whatever the handler hands
+  // over - a shelter id, a centroid or a KATOTTG code rides along nowhere.
+  it("strips anything beyond option ids, counts and the label", () => {
     const parsed = GalleryFacetCountsOutputSchema.parse({
       ...counts,
-      cities: [{ cityId: CITY, count: 3, name: "Київ", shelterId: "x" }],
+      cities: [
+        {
+          cityId: CITY,
+          count: 3,
+          shelterId: "x",
+          label: { ...label, katottgCode: "UA32000000000000000", centroid: { lat: 1, lng: 2 } },
+        },
+      ],
       totalShelters: 4,
     });
     expect(parsed).toEqual(counts);

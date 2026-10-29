@@ -21,7 +21,7 @@ export type OperatorCreatePage = OperatorRefusal | { kind: "create"; cities: Cit
  * but the operator outside support mode gets a 404.
  *
  * The cities: public data, read straight from the repository (the public
- * `cities.list` is gone, since no page may ship the settlement list).
+ * whole-list procedure is gone, since no page may ship the settlement list).
  *
  * **N4 DEBT (`Claude outputs/N3-full-list-reads.md`)**: this is the one remaining full-list read.
  * With ~30k settlements imported it would put every settlement in the page's `<select>`; the

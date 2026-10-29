@@ -25,6 +25,7 @@ const findByIdsMock = vi.fn();
 vi.mock("@opika/db/repos", () => ({
   feedRepo: () => ({ list: listMock, reachableCount: reachableCountMock }),
   shelterRepo: () => ({ findByIds: findByIdsMock }),
+  cityRepo: () => ({ findByIds: async () => [] }),
 }));
 
 process.env.CURSOR_HMAC_SECRET = "test-secret";
@@ -174,6 +175,40 @@ describe("feedList - a cursor is refused outside the exact filters it was issued
       ).toBe("INVALID_CURSOR");
     }
     expect(listMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a cursor issued before the oblast dimension, and one replayed under another oblast", async () => {
+    const oblast = (id: string) =>
+      ({ ...NO_FILTERS, regions: { kind: "oneOf", values: [id] } }) as never;
+    // The five-segment fingerprint every cursor carried before `regions` existed: refused once.
+    const before = encodeFeedCursor(position, "*|*|*|*|*", "test-secret") as FeedCursor;
+    expect(
+      await codeOf(feedList({ filters: NO_FILTERS, cursor: before, limit: 10 }, context, errors)),
+    ).toBe("INVALID_CURSOR");
+
+    const forLviv = encodeFeedCursor(
+      position,
+      filtersFingerprint(oblast("cccccccc-cccc-4ccc-8ccc-cccccccccccc")),
+      "test-secret",
+    ) as FeedCursor;
+    for (const filters of [oblast("dddddddd-dddd-4ddd-8ddd-dddddddddddd"), NO_FILTERS]) {
+      expect(
+        await codeOf(feedList({ filters, cursor: forLviv, limit: 10 }, context, errors)),
+        JSON.stringify(filters),
+      ).toBe("INVALID_CURSOR");
+    }
+    expect(listMock).not.toHaveBeenCalled();
+
+    // Same oblast: accepted.
+    expect(
+      await codeOf(
+        feedList(
+          { filters: oblast("cccccccc-cccc-4ccc-8ccc-cccccccccccc"), cursor: forLviv, limit: 10 },
+          context,
+          errors,
+        ),
+      ),
+    ).toBeNull();
   });
 
   it("accepts a cursor issued for the same filters, age and sex together", async () => {

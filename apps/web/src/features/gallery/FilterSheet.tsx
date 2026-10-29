@@ -188,7 +188,7 @@ export function FilterSheet({
       {/*
         `key` keeps the uncontrolled form honest: React writes a changed `defaultChecked` to the
         attribute only, so after a filter change that did not come from submitting this form
-        («Скинути», «Уся Київщина», the back button) a clicked box would go on showing what was
+        («Скинути», «Усі міста», the back button) a clicked box would go on showing what was
         last clicked while the URL says otherwise. Keying on the applied state remounts the
         inputs, so what is ticked is always what the address bar says.
       */}

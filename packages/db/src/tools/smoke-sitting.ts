@@ -58,6 +58,13 @@ export interface SmokeSittingInput {
     expectedAfterCommit: string;
     expectedRerun: string;
     expectedAfterReseed: string;
+    /**
+     * Nationwide N3: after the import, on the same child branch, a read-only step that prints the
+     * 20 search timings and the `EXPLAIN (ANALYZE, BUFFERS)` plans (`db:neon-smoke-timings`). It
+     * needs the imported table to mean anything, so it runs here and not inside the smoke, which
+     * runs first (the import renames the seeded slugs the earlier checks look for).
+     */
+    timings?: { expected: string };
   };
 }
 
@@ -104,7 +111,7 @@ $hash = (Get-FileHash -Algorithm SHA256 $xlsx).Hash.ToLower()
 $hash
 if ($hash -ne "${settlementImport.download.sha256}") { throw "STOP: the file's sha256 is not ${settlementImport.download.sha256}. Do not import it; paste this back." }
 # If the link has moved: download the file by hand and set $xlsx to its path instead, e.g.
-#   $xlsx = "C:\path\kodifikator-07-07.xlsx"   (strip the quotes from a "Copy as path" path). The checksum check above still applies. Do not commit the file.
+#   $xlsx = "C:\\path\\kodifikator-07-07.xlsx"   (strip the quotes from a "Copy as path" path). The checksum check above still applies. Do not commit the file.
 pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
 # Expected (dry run, writes nothing): ${settlementImport.expectedFirstPlan}
 pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx --commit
@@ -115,12 +122,26 @@ $dbName = ([uri]$env:DATABASE_URL).AbsolutePath.TrimStart('/')
 pnpm --filter @opika/db db:seed --profile=demo --force --db-name=$dbName
 pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
 # Expected (after a reseed, dry): ${settlementImport.expectedAfterReseed}
+${timingParts(settlementImport.timings)}`;
+}
+
+/** The timing block: empty unless the sitting asks for it. Runs on the imported child branch. */
+function timingParts(timings: { expected: string } | undefined): string {
+  if (timings === undefined) return "";
+  return `
+---- Timings and plans, same child branch, after the import (read-only; it prints and asserts nothing) ----
+pnpm --filter @opika/db db:neon-smoke-timings --expect $ep
+# Expected: ${timings.expected}
 `;
 }
 
 function importPasteBack(settlementImport: SmokeSittingInput["settlementImport"]): string {
   if (settlementImport === undefined) return "";
-  return " Also paste ALL FOUR import outputs (dry run, commit, rerun, rerun after the reseed) in full. A second-plan count of 1-8 means a legacy city's name differs from the codifier: paste it back, do not retry.";
+  const timings =
+    settlementImport.timings === undefined
+      ? ""
+      : " Also paste the whole db:neon-smoke-timings output (the probes and every plan).";
+  return ` Also paste ALL FOUR import outputs (dry run, commit, rerun, rerun after the reseed) in full. A second-plan count of 1-8 means a legacy city's name differs from the codifier: paste it back, do not retry.${timings}`;
 }
 
 function assembled(input: SmokeSittingInput): string {

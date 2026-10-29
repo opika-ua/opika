@@ -496,7 +496,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview des
     vi.resetModules();
     vi.doMock("./api/server-client", () => ({
       // The route reads its data through the animal page's one loader (S4b),
-      // which also asks for the shelter and the cities.
+      // which also asks for the shelter and its city.
       anonymousRouterClient: () => ({
         animals: { byId: async () => fakeAnimal },
         shelters: {
@@ -506,8 +506,20 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview des
           }),
         },
         cities: {
-          list: async () => [{ id: CITY_ID, slug: "brovary", name: { uk: "Бровари", en: null } }],
+          byIds: async () => [
+            {
+              id: CITY_ID,
+              slug: "brovary",
+              kind: "city",
+              nameScope: "unique_in_ukraine",
+              regionId: "814661e1-67de-532e-a38e-2216d8b521ff",
+              name: "Бровари",
+              regionShort: "Київська обл.",
+              raion: null,
+            },
+          ],
         },
+        regions: { list: async () => [] },
       }),
     }));
   });
