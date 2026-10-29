@@ -105,28 +105,8 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     max: 7,
     reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
   },
-  "features/likes/SavedCardSkeleton.tsx": {
-    max: 1,
-    reason: "Shelter and saved pages; burns down in DS PR 3c.",
-  },
-  "features/likes/SavedPageScreen.tsx": {
-    max: 12,
-    reason: "Shelter and saved pages; burns down in DS PR 3c.",
-  },
   "features/reveal/ContactRevealDialog.tsx": {
     max: 1,
     reason: "Dialog height cap of 85vh; no scale step. Folds into the kit Modal later.",
-  },
-  "features/shelters/ShelterPageNav.tsx": {
-    max: 3,
-    reason: "Shelter and saved pages; burns down in DS PR 3c.",
-  },
-  "features/shelters/ShelterPageScreen.tsx": {
-    max: 17,
-    reason: "Shelter and saved pages; burns down in DS PR 3c.",
-  },
-  "features/shelters/ShelterSortToggle.tsx": {
-    max: 6,
-    reason: "Shelter and saved pages; burns down in DS PR 3c.",
   },
 };

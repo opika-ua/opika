@@ -259,11 +259,12 @@ export default function DevUiPage() {
             className="w-full"
           />
         </Row>
-        <Row label="Avatar: logo, initials (sm, md, lg)">
+        <Row label="Avatar: logo, initials (sm, md, lg, xl)">
           <Avatar kind="logo" src="seed-photos/cat-4.jpg" />
           <Avatar kind="initials" name="Домівка друзів" size="sm" />
           <Avatar kind="initials" name="Домівка друзів" />
           <Avatar kind="initials" name="Домівка друзів" size="lg" />
+          <Avatar kind="initials" name="Домівка друзів" size="xl" />
         </Row>
       </Group>
 

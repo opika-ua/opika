@@ -1,5 +1,7 @@
 import { uk } from "@opika/i18n";
 import { useId } from "react";
+import { Heading } from "../../ui/Heading";
+import { Panel } from "../../ui/Panel";
 import type { ShelterWords } from "./shelter-words";
 
 /**
@@ -26,23 +28,19 @@ export function ShelterWordsSection({
 }) {
   const headingId = useId();
   if (words === null) return null;
-  const Heading = headingLevel === 2 ? "h2" : "h3";
   return (
-    <section
-      aria-labelledby={headingId}
-      className="flex flex-col gap-row rounded-rg-button bg-rg-fill p-group"
-    >
-      <Heading id={headingId} className="text-base font-medium text-rg-ink">
+    <Panel as="section" aria-labelledby={headingId} padding="lg" className="flex flex-col gap-3">
+      <Heading level={headingLevel} look="body-l" id={headingId}>
         {uk.freshness.attribution}
       </Heading>
       {words.description !== null && (
-        <p className="whitespace-pre-line text-base text-rg-ink">{words.description}</p>
+        <p className="whitespace-pre-line text-body-l text-ink-2">{words.description}</p>
       )}
       {words.sentence !== null && (
-        <p data-testid="shelter-freshness-sentence" className="text-base text-rg-ink">
+        <p data-testid="shelter-freshness-sentence" className="text-body-l text-ink-2">
           «{words.sentence}»
         </p>
       )}
-    </section>
+    </Panel>
   );
 }
