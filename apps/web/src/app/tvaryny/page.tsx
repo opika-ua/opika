@@ -46,7 +46,7 @@ export const dynamic = "force-dynamic";
  * runs through `title.template`, so it rendered brand-first ("Opika - тварини...")
  * rather than subject-first. Setting an explicit `title` here (the same subject,
  * `SITE_TITLE`) is what gets it templated, producing "Собаки й коти з притулків
- * Київщини – Opika".
+ * України – Opika".
  *
  * No `description` and no `openGraph` here, deliberately - found on review:
  * Next doesn't merge a child's `openGraph` into a parent's, it replaces the whole

@@ -19,7 +19,7 @@ export const en = {
   // Phase D (see uk.ts's own comment); promise survives as og:description ---
   firstRun: {
     promise:
-      "Animals from verified shelters across Kyiv oblast. Browse the list and see who's looking for a home.",
+      "Animals from verified shelters across Ukraine. Browse the list and see who's looking for a home.",
   },
 
   demo: {
@@ -83,6 +83,10 @@ export const en = {
     allCities: "All cities",
     region: "Region",
     allRegions: "All regions",
+    showAllOptions: "Show all ({count})",
+    findCity: "Find a city",
+    cityFound: "Found: {count}",
+    cityNoMatch: "Nothing found",
     railFooter:
       "There's no \"only fresh cards\" filter. An animal nobody's written about in a while is still waiting.",
     clearDimension: "Clear {dimension}",
@@ -225,22 +229,19 @@ export const en = {
     resolved: "The shelter says: {name} has found a home.",
   },
 
+  footer: {
+    dataCredit:
+      "List of settlements: Codifier of administrative-territorial units (Ministry of Development), Creative Commons Attribution.",
+  },
+
   // --- Exhausted (07) ---
   exhausted: {
     title: "That's everyone who fits right now.",
     body: "There aren't many shelters here, so the list is short – that's normal.",
     newAnimals: "New animals appear when shelters update their cards. Usually every few weeks.",
-    /**
-     * Template: "All of Kyiv oblast (+{count})"
-     * See the note on the uk key: deviation from the original "add
-     * neighbouring cities" handoff. docs/gallery-contract-decisions.md §4.
-     */
-    addNearbyCities: "All of Kyiv oblast (+{count})",
     changeFilters: "Change filters",
     toList: "Browse the list",
     reviewAgain: "Look through them again, no rush",
-    footnote:
-      "If you know a shelter in Kyiv oblast that isn't here – tell us, and we'll reach out to them.",
   },
 
   // --- Error states (08) ---
@@ -374,6 +375,7 @@ export const en = {
     withRegion: "{place}, {region}",
     withDistrictAndRegion: "{place}, {district}, {region}",
     districtShort: "{name} district",
+    hromadaShort: "{name} community",
   },
 
   noMatch: {
@@ -427,7 +429,7 @@ export const en = {
   about: {
     title: "About this project",
     intro:
-      "{site} is a site where animals from shelters in the Kyiv region look for a home. One person builds it – me, in my free time. There's no team and no investor.",
+      "{site} is a site where animals from shelters across Ukraine look for a home. One person builds it – me, in my free time. There's no team and no investor.",
     free: "The site is free for shelters, with no paid tiers. If that ever changes, every shelter will know well in advance, not after the fact.",
     money:
       'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) – the site only shows the link; the money goes directly, and you can see exactly where.',

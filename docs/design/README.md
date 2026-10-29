@@ -18,7 +18,7 @@
 > something to verify against this app's actual architecture before building, not as a given.
 
 ## What this is
-Opika is a pet-adoption platform for Kyiv oblast (Київщина), Ukrainian-first, mobile-heavy,
+Opika is a pet-adoption platform for shelters across Ukraine, Ukrainian-first, mobile-heavy,
 targeting mid-range Android on carrier networks. Adopters browse animals from manually verified
 shelters in a **responsive gallery** (the primary, indexed, shareable surface) and can enter a
 **one-at-a-time swipe deck** from it. The platform never handles money and requires no account.

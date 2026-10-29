@@ -6,10 +6,12 @@ import { isExplicitlySelected, relaxDimension } from "@opika/domain";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useOptimistic, useTransition } from "react";
 import { Chip } from "../../ui/Chip";
 import { cx } from "../../ui/cx";
 import { Popover } from "../../ui/Popover";
+import { CityFacetChoices } from "./CityFacetChoices";
 import {
   ageFacetOptions,
   cityFacetOptions,
@@ -61,14 +63,31 @@ function FacetSelector<T extends string>({
   selection,
   onToggle,
   clearHref,
+  body,
 }: {
   label: string;
   options: readonly FacetOption<T>[];
   selection: FilterSelection<T>;
   onToggle: (value: T) => void;
   clearHref: string;
+  /** Draws the panel's content from the option pill; the city list swaps in its own windowing. */
+  body?: (pill: (option: FacetOption<T>) => ReactNode) => ReactNode;
 }) {
   const summary = selectionSummary(options, selection, label);
+  const pill = (option: FacetOption<T>) => (
+    <Chip
+      key={option.value}
+      kind="choice"
+      control="button"
+      pressed={isExplicitlySelected(selection, option.value)}
+      disabled={isUnavailable(option, selection)}
+      count={option.count}
+      accessibleName={facetAccessibleName(option)}
+      onPress={() => onToggle(option.value)}
+    >
+      {option.label}
+    </Chip>
+  );
   return (
     <Popover
       variant="field"
@@ -84,20 +103,7 @@ function FacetSelector<T extends string>({
       }}
       className="min-w-44 max-w-53 flex-initial"
     >
-      {options.map((option) => (
-        <Chip
-          key={option.value}
-          kind="choice"
-          control="button"
-          pressed={isExplicitlySelected(selection, option.value)}
-          disabled={isUnavailable(option, selection)}
-          count={option.count}
-          accessibleName={facetAccessibleName(option)}
-          onPress={() => onToggle(option.value)}
-        >
-          {option.label}
-        </Chip>
-      ))}
+      {body ? body(pill) : options.map(pill)}
     </Popover>
   );
 }
@@ -217,6 +223,7 @@ export function GalleryFilterDropdowns({
     ...counts.cities.map((entry) => [entry.cityId, entry.label.regionId] as const),
     ...selectedCities.map((city) => [city.id, city.regionId] as const),
   ]);
+  const cityOptions = cityFacetOptions(counts, shown.regions, shown.cities, selectedCities);
   const clearHref = (dimension: "regions" | "cities" | "ages" | "sizes" | "sexes") =>
     galleryHref(relaxDimension(filters, dimension), sort, citySlugs);
 
@@ -237,10 +244,18 @@ export function GalleryFilterDropdowns({
       />
       <FacetSelector
         label={uk.filters.city}
-        options={cityFacetOptions(counts, shown.regions, shown.cities, selectedCities)}
+        options={cityOptions}
         selection={shown.cities}
         onToggle={(city) => apply(withToggledCity(shown, city))}
         clearHref={clearHref("cities")}
+        body={(pill) => (
+          <CityFacetChoices
+            idPrefix="rail"
+            options={cityOptions}
+            selection={shown.cities}
+            renderOption={pill}
+          />
+        )}
       />
       <FacetSelector
         label={uk.filters.age}

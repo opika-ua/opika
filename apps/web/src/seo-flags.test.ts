@@ -336,7 +336,7 @@ describe("/tvaryny/gortaty noindex – independent of both seo-flags constants",
 const DEMO_BANNER_NOTICE =
   "На сайті поки немає справжніх притулків – усі картки тут демонстраційні.";
 const REAL_PROMISE =
-  "Собаки й коти з перевірених притулків Київщини шукають дім. Перегляньте список.";
+  "Собаки й коти з перевірених притулків України шукають дім. Перегляньте список.";
 
 /**
  * D-2: a shared link's preview must not claim verified shelters exist while
@@ -422,7 +422,7 @@ describe("/prytulkam – description is its own opening sentence, never the demo
       const { metadata } = await import("./app/prytulkam/page");
 
       const whatThisIs =
-        "Opika – сайт, де тварини з перевірених притулків Київщини шукають дім, а кожен ваш підопічний отримує власну сторінку.";
+        "Opika – сайт, де тварини з перевірених притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку.";
       expect(metadata.description).toBe(whatThisIs);
       expect(metadata.openGraph?.description).toBe(whatThisIs);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
@@ -449,7 +449,7 @@ describe("/pro – description is its own opening sentence, never the demo swap"
       const { metadata } = await import("./app/pro/page");
 
       const intro =
-        "Opika – сайт, де тварини з притулків Київщини шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.";
+        "Opika – сайт, де тварини з притулків України шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.";
       expect(metadata.description).toBe(intro);
       expect(metadata.openGraph?.description).toBe(intro);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);

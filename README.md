@@ -1,7 +1,7 @@
 # Opika (Опіка)
 
-A swipe-based pet adoption platform connecting adopters with verified shelters in Kyiv
-oblast, Ukraine. "Opika" - Ukrainian for guardianship/care - is a working name, not final;
+A swipe-based pet adoption platform connecting adopters with verified shelters across
+Ukraine. "Opika" - Ukrainian for guardianship/care - is a working name, not final;
 see [`CLAUDE.md`](./CLAUDE.md) for what that means in practice.
 
 No accounts required to browse. The platform never touches money - donations are external
