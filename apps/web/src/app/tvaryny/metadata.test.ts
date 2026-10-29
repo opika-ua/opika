@@ -13,7 +13,7 @@ import { metadata } from "./page";
  */
 describe("/tvaryny's own metadata", () => {
   it("title is the subject alone - the root template appends the brand", () => {
-    expect(metadata.title).toBe("Собаки й коти з притулків Київщини");
+    expect(metadata.title).toBe("Собаки й коти з притулків України");
   });
 
   it("canonical is always the bare path, regardless of any filter/sort/page query", () => {

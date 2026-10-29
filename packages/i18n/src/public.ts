@@ -12,6 +12,6 @@ export {
 } from "./animal-labels";
 export { colourChipLabel, colourFilterLabel } from "./colour-labels";
 export { COPY_PENDING, R4_2_ANALYTICS_SENTENCE, ukPublic } from "./messages/uk-public";
-export { type PlaceLabel, placeName, placeText } from "./place";
+export { hromadaShort, type PlaceLabel, placeName, placeText } from "./place";
 export { temperamentFilterLabel, temperamentLabelFor } from "./temperament-labels";
 export { fillTemplate } from "./template";

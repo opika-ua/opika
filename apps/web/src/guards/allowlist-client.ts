@@ -27,6 +27,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/animal-overlay/AnimalOverlay.tsx":
     "intercepted-route modal: router.back, Esc, focus trap, scroll lock, entrance animation",
   "features/chrome/SiteAnalytics.tsx": "Vercel Analytics component",
+  "features/chrome/SiteFooterGate.tsx":
+    "usePathname: the one root-layout footer is left out of /kabinet (children stay server-rendered)",
   "features/controls/useModalFocus.ts": "hook: focus trap and restore",
   "features/controls/useScrollingClass.ts": "hook: scroll listener toggling a class",
   "features/discovery/DeckScreen.tsx": "swipe deck page shell: feed hook, keyboard, router",
@@ -36,6 +38,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     "pointer-event gesture engine, fetch of swipes, transform animation",
   "features/discovery/use-feed-deck.ts": "hook: feed paging through the browser oRPC client",
   "features/filters/use-feed-filters.ts": "hook: filter state persisted via window",
+  "features/gallery/CityFacetChoices.tsx":
+    "expanded and query state for the long city list (show all, local filter)",
   "features/gallery/ArrowKeyGrid.tsx": "2D arrow-key navigation over the card grid",
   "features/gallery/FilterSheet.tsx": "form submit and close through the router",
   "features/gallery/GalleryControlBlock.tsx":

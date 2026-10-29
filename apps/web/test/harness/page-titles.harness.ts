@@ -20,7 +20,7 @@ test("/tvaryny's title is the subject, then the owner's en-dash separator, then 
   await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
   const title = await page.title();
   expect(title.endsWith(EN_DASH_SEPARATOR)).toBe(true);
-  expect(title).toBe(`Собаки й коти з притулків Київщини${EN_DASH_SEPARATOR}`);
+  expect(title).toBe(`Собаки й коти з притулків України${EN_DASH_SEPARATOR}`);
   // The separator is the en dash, nothing else - a hyphen or an em dash is a regression.
   expect(title).not.toContain(" - Opika");
   expect(title).not.toContain(" — Opika");
