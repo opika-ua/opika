@@ -839,7 +839,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.errors.addressHasARole.invited_elsewhere":
       "На цю адресу вже надіслано чинне запрошення до іншого притулку.",
     "operator.create.errors.siteVisitInFuture": "Дата візиту не може бути в майбутньому.",
-    "operator.create.errors.unknownCity": "Такого міста немає у списку.",
+    "operator.create.errors.unknownCity": "Такого населеного пункту немає у списку.",
     "operator.create.errors.lostAnswer":
       "Відповідь не надійшла. Притулок міг створитися – перевірте список, перш ніж пробувати знову.",
     "operator.create.errors.failed": "Не вдалося створити притулок. Спробуйте ще раз.",

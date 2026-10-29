@@ -1330,7 +1330,7 @@ export const en = {
               "A live invitation to another shelter was already sent to this address.",
           },
           siteVisitInFuture: "The visit date can't be in the future.",
-          unknownCity: "That city isn't in the list.",
+          unknownCity: "That settlement isn't in the list.",
           lostAnswer:
             "No answer came back. The shelter may have been created: check the list before trying again.",
           failed: "The shelter couldn't be created. Try again.",
