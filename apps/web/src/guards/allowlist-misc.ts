@@ -10,17 +10,9 @@ export const RAW_HEX: Readonly<Record<string, Reasoned>> = {
     reason:
       "Serves a standalone HTML page from a route handler: inline <style>, no Tailwind, no tokens.",
   },
-  "features/reveal/ContactRevealDialog.tsx": {
-    max: 1,
-    reason: "Modal backdrop tint with no token; folds into the kit Modal (DS PR 3b).",
-  },
   "features/gallery/FilterSheet.tsx": {
     max: 1,
     reason: "Modal backdrop tint with no token; folds into the kit Sheet (DS PR 2/3a).",
-  },
-  "features/discovery/SwipeCard.tsx": {
-    max: 2,
-    reason: "Fill of the stacked cards behind the deck's top card; no token, deck is out of 3a-3d.",
   },
 };
 

@@ -13,10 +13,6 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     reason: "Gallery surface; burns down in DS PR 3a.",
   },
   "app/tvaryny/error.tsx": { max: 7, reason: "Gallery surface; burns down in DS PR 3a." },
-  "app/tvaryny/gortaty/error.tsx": {
-    max: 7,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
-  },
   "app/tvaryny/page.tsx": { max: 4, reason: "Gallery surface; burns down in DS PR 3a." },
   "features/animal-detail/AnimalDetailScreen.tsx": {
     max: 21,
@@ -39,17 +35,14 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     reason:
       "Legacy link classes keep `aria-[current=page]:` variants until the kabinet moves to src/ui.",
   },
-  "features/discovery/DeckScreen.tsx": {
-    max: 6,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
-  },
   "features/discovery/SwipeCard.tsx": {
-    max: 13,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
+    max: 1,
+    reason: "Two-letter monogram in a 20px circle; the 14px type floor would overflow it.",
   },
   "features/discovery/SwipeDeck.tsx": {
-    max: 15,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
+    max: 1,
+    reason:
+      "The not-a-judgement line hides below 360px, where it wraps to two lines and clips the deck.",
   },
   "features/gallery/FilterSheet.tsx": {
     max: 21,
@@ -121,8 +114,8 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     reason: "Shelter and saved pages; burns down in DS PR 3c.",
   },
   "features/reveal/ContactRevealDialog.tsx": {
-    max: 25,
-    reason: "Contact-reveal dialog; folds into the kit Modal (pet card, DS PR 3b).",
+    max: 1,
+    reason: "Dialog height cap of 85vh; no scale step. Folds into the kit Modal later.",
   },
   "features/shelters/ShelterPageNav.tsx": {
     max: 3,
