@@ -488,6 +488,10 @@ dialog[data-hash-open]:target {
 @utility pb-safe {
   padding-bottom: max(env(safe-area-inset-bottom), 1.25rem);
 }
+/* Bottom safe-area inset for a fixed bar (home indicator), with a small floor. */
+@utility pb-inset {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+}
 @utility focus-ring-within {
   &:has(:focus-visible) {
     outline: 3px solid var(--color-focus);
