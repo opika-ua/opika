@@ -124,7 +124,7 @@ export async function registryUpdateVerifiedData(
 ): Promise<RegistryShelterView> {
   if (
     input.change.field === "exact_address" &&
-    (await cityRepo(deps.db).findById(input.change.next.cityId as CityId)) === null
+    (await cityRepo(deps.db).findCurrentById(input.change.next.cityId as CityId)) === null
   ) {
     // As on create (RG-T5): a client fault, answered 400, never the FK's 500.
     throw new ORPCError("BAD_REQUEST", { status: 400, message: UNKNOWN_CITY_MESSAGE });

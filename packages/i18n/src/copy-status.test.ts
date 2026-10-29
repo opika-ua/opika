@@ -781,7 +781,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     // Narrowed by R-UI 4: the rename made «Після створення назву поки змінити не можна» false.
     "operator.create.nameHint": "Як притулок називає себе.",
     "operator.create.description": "Опис притулку",
-    "operator.create.city": "Місто",
+    "operator.create.city": "Населений пункт",
     "operator.create.address.line1": "Вулиця, будинок",
     "operator.create.address.line2": "Корпус, приміщення · необовʼязково",
     "operator.create.address.postalCode": "Індекс · необовʼязково",

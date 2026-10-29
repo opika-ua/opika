@@ -1,13 +1,14 @@
 "use client";
 
-import type { CreatedShelterView } from "@opika/contracts";
+import type { CreatedShelterView, PlaceOptionView } from "@opika/contracts";
 import { kyivCalendarDateOf } from "@opika/domain";
-import { fillTemplate, uk } from "@opika/i18n";
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { fillTemplate, placeLabel, uk } from "@opika/i18n";
+import { type FormEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Button, LinkButton } from "../../../../ui/Button";
 import { Card } from "../../../../ui/Card";
+import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../../ui/Combobox";
 import { FormSection } from "../../../../ui/FormSection";
-import { FieldError, Radio, Select, TextArea, TextField } from "../../../../ui/form";
+import { FieldError, Radio, TextArea, TextField } from "../../../../ui/form";
 import { Heading } from "../../../../ui/Heading";
 import { Panel } from "../../../../ui/Panel";
 import { Text } from "../../../../ui/Text";
@@ -30,7 +31,16 @@ import {
 import { type CreateRefusal, createRefusalOf, refusalMessage } from "./create-outcome";
 import { type RegistryCreateClient, registryCreateBrowserClient } from "./registry-create-client";
 
-export type CityOption = { id: string; name: string };
+/** A settlement as the picker prints it: the kind's prefix and name, then what tells namesakes apart. */
+function placeOptionOf(place: PlaceOptionView): ComboboxOption {
+  return {
+    value: place.id,
+    label: placeLabel(place.kind, place.name),
+    detail: [place.district, place.hromada, place.region.ukShort]
+      .filter((part): part is string => part !== null)
+      .join(" · "),
+  };
+}
 
 /** Where S2 stands. A submission is one request; nothing retries it (RU-T9). */
 type Phase =
@@ -62,11 +72,9 @@ const fieldMessage = (error: CreateFieldError | undefined): string | null => {
  * lost answer is never retried, because create is not idempotent.
  */
 export function CreateShelterForm({
-  cities,
   client = registryCreateBrowserClient,
   now = () => new Date(),
 }: {
-  cities: readonly CityOption[];
   client?: RegistryCreateClient;
   /** The clock, injectable so a test can stand at Kyiv's midnight. */
   now?: () => Date;
@@ -77,9 +85,35 @@ export function CreateShelterForm({
   const [errors, setErrors] = useState<CreateFormErrors>(noCreateErrors);
   const [phase, setPhase] = useState<Phase>({ kind: "editing", refusal: null });
   const [focusFirstError, setFocusFirstError] = useState(0);
+  const [city, setCity] = useState<ComboboxOption | null>(null);
   const inFlight = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const today = kyivCalendarDateOf(now());
+  const picker = uk.kabinet.cityPicker;
+  const cityMessages = useMemo(
+    () => ({
+      placeholder: picker.placeholder,
+      tooShort: picker.tooShort,
+      loading: picker.loading,
+      empty: picker.empty,
+      error: picker.error,
+      retry: picker.retry,
+      found: (count: number) => fillTemplate(picker.found, { count: String(count) }),
+      clear: picker.clear,
+      close: picker.close,
+    }),
+    [picker],
+  );
+  // The server stays the authority on what is too short and on which id exists (create checks it again).
+  const searchCities = useCallback(
+    async (query: string, signal: AbortSignal): Promise<ComboboxResult> => {
+      const answer = await client.registry.cities.search({ query, regionBias: null }, { signal });
+      return answer.kind === "too_short"
+        ? { kind: "too_short" }
+        : { kind: "options", options: answer.places.map(placeOptionOf) };
+    },
+    [client],
+  );
 
   useEffect(() => {
     if (focusFirstError === 0) return;
@@ -177,21 +211,20 @@ export function CreateShelterForm({
         </Card>
 
         <FormSection id={`${id}-address`} title={uk.kabinet.profile.address}>
-          <Select
+          <Combobox
             id={`${id}-city`}
             label={t.city}
+            name="cityId"
             required
-            value={form.cityId}
-            onChange={(event) => set("cityId", event.target.value)}
-            error={err("cityId")}
-          >
-            <option value="" />
-            {cities.map((city) => (
-              <option key={city.id} value={city.id}>
-                {city.name}
-              </option>
-            ))}
-          </Select>
+            value={city}
+            onChange={(next) => {
+              setCity(next);
+              set("cityId", next?.value ?? "");
+            }}
+            search={searchCities}
+            messages={cityMessages}
+            error={errors.fields.cityId === undefined ? null : picker.mustPick}
+          />
           <TextField
             id={`${id}-line1`}
             label={t.address.line1}

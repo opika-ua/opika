@@ -117,7 +117,12 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
 
     await page.getByLabel("Назва притулку").fill(displayName);
     await page.getByLabel("Опис притулку").fill("Волонтери, 18 собак і 6 котів.");
-    await page.getByLabel("Місто").selectOption({ label: city.name });
+    // Select-only search: type, then take the offered place (typed text alone never commits).
+    await page.getByRole("combobox", { name: /Населений пункт/ }).fill(city.name);
+    await page
+      .getByRole("option", { name: new RegExp(city.name) })
+      .first()
+      .click();
     await page.getByLabel("Вулиця, будинок").fill("вул. Мечникова, 4");
     await page.getByLabel("Координати").fill("50.5843, 30.4890");
     await page.getByRole("radio", { name: "Ініціатива без реєстрації" }).check();
