@@ -112,10 +112,6 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     max: 13,
     reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
   },
-  "features/kabinet/KabinetNav.tsx": {
-    max: 1,
-    reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
-  },
   "features/kabinet/ProfileParts.tsx": {
     max: 14,
     reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
