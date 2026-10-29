@@ -9,7 +9,7 @@ import type {
   GallerySort,
 } from "@opika/domain";
 import { isExplicitlySelected, relaxDimension } from "@opika/domain";
-import { fillTemplate, uk } from "@opika/i18n";
+import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOptimistic, useTransition } from "react";

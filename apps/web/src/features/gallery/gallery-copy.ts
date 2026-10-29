@@ -1,5 +1,5 @@
 import { pluralizeUk } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 
 /**
  * Composes the two result-count sentences `packages/i18n`'s templates

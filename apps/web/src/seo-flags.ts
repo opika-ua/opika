@@ -1,5 +1,5 @@
 import type { VerificationBadge } from "@opika/contracts";
-import { R4_2_ANALYTICS_SENTENCE, uk } from "@opika/i18n";
+import { R4_2_ANALYTICS_SENTENCE, ukPublic as uk } from "@opika/i18n/public";
 
 /**
  * Two facts, not one - `NOINDEX_EVERYTHING` (#43) originally collapsed

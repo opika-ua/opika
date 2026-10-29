@@ -1,6 +1,6 @@
 import type { Freshness, FreshnessKind } from "@opika/domain";
 import { formatFreshnessRelative } from "@opika/domain";
-import { uk as strings } from "@opika/i18n";
+import { ukPublic as strings } from "@opika/i18n/public";
 
 /**
  * Per-pip fill state for the freshness marker: three pips, always three, always in the same

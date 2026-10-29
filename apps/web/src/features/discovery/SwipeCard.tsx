@@ -1,7 +1,7 @@
 "use client";
 
 import type { FeedCardView } from "@opika/contracts";
-import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
+import { ageWordFor, sizeLabel, ukPublic as uk } from "@opika/i18n/public";
 import { freshnessLabel } from "@opika/ui";
 import Image from "next/image";
 import type { RefCallback } from "react";
