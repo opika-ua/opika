@@ -137,3 +137,28 @@ export function selectionSummary<T extends string>(
   const chosen = options.filter((option) => isExplicitlySelected(selection, option.value));
   return chosen.length > 0 ? chosen.map((option) => option.label).join(", ") : dimensionLabel;
 }
+
+/** A city list longer than this is cut to its first dozen (the most animals) behind «Показати всі». */
+export const CITY_LIST_COLLAPSED = 12;
+
+/**
+ * The cities to draw now. Up to `CITY_LIST_COLLAPSED` options, everything. Past it: the first dozen
+ * until the list is expanded; a typed query narrows to the labels containing it, on the whole list.
+ * A chosen city is always drawn so it stays clearable (and, in the sheet's form, stays submitted).
+ */
+export function narrowedCityOptions<T extends string>(
+  options: readonly FacetOption<T>[],
+  selection: FilterSelection<T>,
+  view: { expanded: boolean; query: string },
+): readonly FacetOption<T>[] {
+  if (options.length <= CITY_LIST_COLLAPSED) return options;
+  const query = view.query.trim().toLocaleLowerCase("uk");
+  const chosen = (option: FacetOption<T>) => isExplicitlySelected(selection, option.value);
+  if (query !== "") {
+    return options.filter(
+      (option) => option.label.toLocaleLowerCase("uk").includes(query) || chosen(option),
+    );
+  }
+  if (view.expanded) return options;
+  return options.filter((option, index) => index < CITY_LIST_COLLAPSED || chosen(option));
+}

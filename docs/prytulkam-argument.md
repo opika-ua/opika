@@ -40,7 +40,7 @@ thing this page exists to not have.
 ## 1. What this is - one sentence
 
 Establish, in a single sentence, that this is a register of animals from
-verified shelters in Kyiv oblast, and that a shelter's animals appear on it with
+verified shelters across Ukraine, and that a shelter's animals appear on it with
 their own page.
 
 Do not open with what it costs, what it does for them, or why it exists. One

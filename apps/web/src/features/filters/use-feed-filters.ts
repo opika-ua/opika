@@ -28,7 +28,7 @@ function sessionStorageOrNull(): Storage | null {
  * render, since Next.js server-renders this component and `sessionStorage`
  * doesn't exist there - then syncs to whatever's actually stored in an
  * effect once mounted. A first-time visitor sees no city selected
- * (the honest "Уся Київщина" reading) either way; a returning one with a
+ * (the honest "Усі міста" reading) either way; a returning one with a
  * stored preference sees it apply a moment after paint, not before.
  */
 export function useFeedFilters(): [FeedFilters, (next: FeedFilters) => void] {
