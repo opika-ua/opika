@@ -42,11 +42,11 @@ import { fromRpcBody, rpcRequestInit } from "./test-harness";
  *
  * Two kinds of procedure, because their inputs differ:
  * - **The nine that take an `animalId`** (six animal procedures, three photo
- *   ones) can name B's animal. That is FORBIDDEN, and B's animal is left
- *   exactly as it was; an upload to it stores nothing.
+ *   ones) can name B's animal. That is NOT_FOUND, the same as a missing id
+ *   (QA-2026-10-29), and B's animal is left exactly as it was; an upload to it stores nothing.
  * - **The ten that take no id** (profile, verification, list, createDraft)
  *   can't name B at all: `shelterId` is in no `shelter.*` input and comes
- *   from the actor. FORBIDDEN is impossible there by construction. Inputs
+ *   from the actor. A cross-tenant refusal is impossible there by construction. Inputs
  *   are strict (HS-T5, Oleksii), so A smuggling `shelterId: B` in is
  *   BAD_REQUEST, B is left untouched, and nothing of B's is in the answer.
  */
@@ -355,7 +355,13 @@ describe("coverage of animal-id procedures", () => {
     };
     walk(shelterKabinetContract.shelter, "shelter");
     expect(withAnimalId.length).toBeGreaterThan(0);
-    expect(animalIdCases.map(([path]) => path).sort()).toEqual([...withAnimalId].sort());
+    const inTable = animalIdCases.map(([path]) => path);
+    const missing = withAnimalId.filter((path) => !inTable.includes(path));
+    const stale = inTable.filter((path) => !withAnimalId.includes(path));
+    expect({ missingFromTable: missing, notInContract: stale }).toEqual({
+      missingFromTable: [],
+      notInContract: [],
+    });
   });
 
   /** Ownership has one door: handlers read an animal through `owned`, never the unscoped `findWithCity`. */
