@@ -41,16 +41,16 @@ export const en = {
   // --- Screen 03 · Filters ---
   filters: {
     title: "Filters",
-    city: "CITY",
-    species: "SPECIES",
+    city: "City",
+    species: "Species",
     speciesDogs: "Dogs",
     speciesCats: "Cats",
     speciesAny: "All",
-    size: "SIZE",
+    size: "Size",
     sizeSmall: "Small",
     sizeMedium: "Medium",
     sizeLarge: "Large",
-    age: "AGE",
+    age: "Age",
     ageBaby: "Baby",
     ageYoung: "Young",
     ageAdult: "Adult",
@@ -83,6 +83,8 @@ export const en = {
     railFooter:
       "There's no \"only fresh cards\" filter. An animal nobody's written about in a while is still waiting.",
     clearDimension: "Clear {dimension}",
+    /** Template: "{option}, {count} {animalWord}" - an option pill's accessible name. */
+    optionCount: "{option}, {count} {animalWord}",
   },
 
   // --- Swipe affordances ---

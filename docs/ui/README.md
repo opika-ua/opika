@@ -60,7 +60,7 @@ last consumer imports `src/ui` directly. `ModalDialog` is unchanged until the ka
 | [Badge](components/Badge.md) | `Badge.tsx` | A small tag that sits on a photo. |
 | [Spinner](components/Spinner.md) | `Spinner.tsx` | Indeterminate progress. |
 | [Skeleton](components/Skeleton.md) | `Skeleton.tsx` | Loading placeholder shaped like the content. |
-| [Chip](components/Chip.md) | `Chip.tsx` | One chip, five kinds. |
+| [Chip](components/Chip.md) | `Chip.tsx` | One chip, six kinds. |
 | [Card](components/Card.md) | `Card.tsx` | The 24px rounded container. |
 | [Panel](components/Panel.md) | `Panel.tsx` | A 20px box that groups content inside a page or card. |
 | [Photo](components/Photo.md) | `Photo.tsx` | The only image component. |
@@ -82,7 +82,7 @@ last consumer imports `src/ui` directly. `ModalDialog` is unchanged until the ka
 | [Sheet](components/Sheet.md) | `Sheet.tsx` | A bottom sheet with its own trigger. |
 | [Menu](components/Menu.md) | `Menu.tsx` | A short list of actions under a ghost button (a list row's «Ще»). |
 | [MenuItem](components/MenuItem.md) | `Menu.tsx` | One entry of a Menu. |
-| [Popover](components/Popover.md) | `Popover.tsx` | A panel under a chip-styled trigger (the filter selectors). |
+| [Popover](components/Popover.md) | `Popover.tsx` | A panel under its trigger (the filter selectors): chip or field trigger, list or pills. |
 | [Toast](components/Toast.md) | `Toast.tsx` | One toast, presentational. `ToastProvider` renders these; it is exported for the showcase and tests. |
 | [ToastProvider](components/ToastProvider.md) | `Toast.tsx` | Holds the toast queue and the live region. Wrap the page once; call `useToast().show(message, tone)` from client components. |
 | [CheckboxGroup](components/CheckboxGroup.md) | `groups.tsx` | A question with several choices: fieldset, legend, hint, error. |

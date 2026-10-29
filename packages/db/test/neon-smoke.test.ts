@@ -138,7 +138,7 @@ describe("runSmoke against the local database", () => {
     // tied pair broken by id, and the end-of-list/unknown-id null cases -
     // over neon-http's own timestamptz comparison and id tiebreak, not just
     // postgres-js's.
-    expect(outcomes.length).toBe(53);
+    expect(outcomes.length).toBe(54);
   });
 
   it("passes every statement over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
@@ -160,6 +160,6 @@ describe("runSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes.length).toBe(53);
+    expect(outcomes.length).toBe(54);
   });
 });

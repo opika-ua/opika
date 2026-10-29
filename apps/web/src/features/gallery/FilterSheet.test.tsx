@@ -1,3 +1,4 @@
+import type { GalleryFacetCounts } from "@opika/contracts";
 import { type CityId, CityIdSchema, citySlugOf, type FeedFilters, NO_FILTERS } from "@opika/domain";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -23,8 +24,24 @@ const CITIES: ReadonlyArray<{ id: CityId; name: string; slug: ReturnType<typeof 
   { id: KYIV, name: "Київ", slug: citySlugOf("Kyiv") },
 ];
 const CITY_SLUGS = new Map(CITIES.map((city) => [city.id, city.slug]));
+const COUNTS: GalleryFacetCounts = {
+  cities: [
+    { cityId: BROVARY, count: 4 },
+    { cityId: KYIV, count: 9 },
+  ],
+  ages: { baby: 2, young: 3, adult: 5, senior: 1 },
+  sizes: { small: 1, medium: 3, large: 5 },
+  sexes: { male: 4, female: 6, unknown: 2 },
+};
 
-function renderSheet(filters = NO_FILTERS, sort: "freshest" | "longest_waiting" = "freshest") {
+/** A facet pill's input is named with its count («Малий, 1 тварина»); match the label part. */
+const facet = (label: string) => new RegExp(`^${label}, `);
+
+function renderSheet(
+  filters = NO_FILTERS,
+  sort: "freshest" | "longest_waiting" = "freshest",
+  counts: GalleryFacetCounts = COUNTS,
+) {
   const router = mockAppRouter();
   const { rerender } = render(
     <WithMockRouter router={router}>
@@ -35,6 +52,7 @@ function renderSheet(filters = NO_FILTERS, sort: "freshest" | "longest_waiting" 
         citySlugs={CITY_SLUGS}
         resultCount={12}
         shelterCount={5}
+        counts={counts}
       />
     </WithMockRouter>,
   );
@@ -52,6 +70,7 @@ function renderSheet(filters = NO_FILTERS, sort: "freshest" | "longest_waiting" 
           citySlugs={CITY_SLUGS}
           resultCount={3}
           shelterCount={2}
+          counts={counts}
         />
       </WithMockRouter>,
     );
@@ -68,25 +87,28 @@ describe("FilterSheet", () => {
   it("checks no box when nothing is filtered - the same bug FilterRail's chips had", () => {
     renderSheet();
     const sheet = within(screen.getByTestId("filter-sheet"));
-    for (const label of ["Собаки", "Коти", "Малий", "Середній", "Великий", "Малюк"]) {
+    for (const label of ["Собаки", "Коти"]) {
       expect((sheet.getByLabelText(label) as HTMLInputElement).checked).toBe(false);
+    }
+    for (const label of ["Малий", "Середній", "Великий", "Малюк"]) {
+      expect((sheet.getByLabelText(facet(label)) as HTMLInputElement).checked).toBe(false);
     }
   });
 
   it("checks only the explicitly-selected box", () => {
     renderSheet({ ...NO_FILTERS, sizes: { kind: "oneOf", values: ["small"] } });
     const sheet = within(screen.getByTestId("filter-sheet"));
-    expect((sheet.getByLabelText("Малий") as HTMLInputElement).checked).toBe(true);
-    expect((sheet.getByLabelText("Середній") as HTMLInputElement).checked).toBe(false);
-    expect((sheet.getByLabelText("Великий") as HTMLInputElement).checked).toBe(false);
+    expect((sheet.getByLabelText(facet("Малий")) as HTMLInputElement).checked).toBe(true);
+    expect((sheet.getByLabelText(facet("Середній")) as HTMLInputElement).checked).toBe(false);
+    expect((sheet.getByLabelText(facet("Великий")) as HTMLInputElement).checked).toBe(false);
   });
 
   it("submitting with two boxes checked in one group sends both - not just the first", () => {
     const { router } = renderSheet();
     const sheet = within(screen.getByTestId("filter-sheet"));
 
-    fireEvent.click(sheet.getByLabelText("Малий"));
-    fireEvent.click(sheet.getByLabelText("Середній"));
+    fireEvent.click(sheet.getByLabelText(facet("Малий")));
+    fireEvent.click(sheet.getByLabelText(facet("Середній")));
     fireEvent.click(sheet.getByRole("button", { name: /Показати/, hidden: true }));
 
     expect(router.replace).toHaveBeenCalledTimes(1);
@@ -153,7 +175,7 @@ describe("FilterSheet", () => {
 
     const after = within(screen.getByTestId("filter-sheet"));
     expect((after.getByLabelText("Собаки") as HTMLInputElement).checked).toBe(false);
-    expect((after.getByLabelText("Малий") as HTMLInputElement).checked).toBe(true);
+    expect((after.getByLabelText(facet("Малий")) as HTMLInputElement).checked).toBe(true);
   });
 
   it("the ✕ falls through to its own href when the dialog was revealed by :target, not showModal()", () => {
@@ -186,7 +208,7 @@ describe("FilterSheet", () => {
   it("has a «Вид» group of radios, not checkboxes - exclusive, with an «Усі» option", () => {
     const { router } = renderSheet();
     const sheet = within(screen.getByTestId("filter-sheet"));
-    const group = within(sheet.getByRole("group", { name: "ВИД", hidden: true }));
+    const group = within(sheet.getByRole("group", { name: "Вид", hidden: true }));
     const radios = group.getAllByRole("radio", { hidden: true });
     expect(radios).toHaveLength(3);
     expect((group.getByLabelText("Усі") as HTMLInputElement).checked).toBe(true);
@@ -218,7 +240,7 @@ describe("FilterSheet", () => {
     const group = within(sheet.getByRole("group", { name: "Стать", hidden: true }));
     expect(group.getAllByRole("checkbox", { hidden: true })).toHaveLength(3);
 
-    fireEvent.click(group.getByLabelText("Дівчинка"));
+    fireEvent.click(group.getByLabelText(facet("Дівчинка")));
     fireEvent.click(sheet.getByRole("button", { name: /Показати/, hidden: true }));
 
     const [href] = router.replace.mock.calls[0] as [string];
@@ -228,7 +250,60 @@ describe("FilterSheet", () => {
   it("shows the applied sex selection as checked", () => {
     renderSheet({ ...NO_FILTERS, sexes: { kind: "oneOf", values: ["unknown"] } });
     const sheet = within(screen.getByTestId("filter-sheet"));
-    expect((sheet.getByLabelText("Не записано") as HTMLInputElement).checked).toBe(true);
-    expect((sheet.getByLabelText("Хлопчик") as HTMLInputElement).checked).toBe(false);
+    expect((sheet.getByLabelText(facet("Не записано")) as HTMLInputElement).checked).toBe(true);
+    expect((sheet.getByLabelText(facet("Хлопчик")) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("names each facet pill with its count, pluralised («1 тварина», «3 тварини», «5 тварин»)", () => {
+    renderSheet();
+    const sheet = within(screen.getByTestId("filter-sheet"));
+    expect(sheet.getByLabelText("Малий, 1 тварина")).toBeTruthy();
+    expect(sheet.getByLabelText("Середній, 3 тварини")).toBeTruthy();
+    expect(sheet.getByLabelText("Великий, 5 тварин")).toBeTruthy();
+    // The count is on the pill too, not only in the name.
+    expect(sheet.getByLabelText("Великий, 5 тварин").closest("label")?.textContent).toBe(
+      "Великий5",
+    );
+  });
+
+  it("orders cities by count, most first, then alphabetically", () => {
+    renderSheet(NO_FILTERS, "freshest", {
+      ...COUNTS,
+      cities: [
+        { cityId: BROVARY, count: 2 },
+        { cityId: KYIV, count: 2 },
+      ],
+    });
+    const group = within(screen.getByRole("group", { name: "Місто", hidden: true }));
+    const names = group
+      .getAllByRole("checkbox", { hidden: true })
+      .map((box) => box.getAttribute("aria-label"));
+    expect(names).toEqual(["Бровари, 2 тварини", "Київ, 2 тварини"]);
+
+    renderSheet(NO_FILTERS, "freshest", {
+      ...COUNTS,
+      cities: [{ cityId: KYIV, count: 1 }],
+    });
+    const second = within(
+      screen.getAllByRole("group", { name: "Місто", hidden: true })[1] as HTMLElement,
+    );
+    expect(
+      second
+        .getAllByRole("checkbox", { hidden: true })
+        .map((box) => box.getAttribute("aria-label")),
+    ).toEqual(["Київ, 1 тварина", "Бровари, 0 тварин"]);
+  });
+
+  it("disables an option with nothing to find, unless it is ticked and must stay clearable", () => {
+    renderSheet({ ...NO_FILTERS, sizes: { kind: "oneOf", values: ["large"] } }, "freshest", {
+      ...COUNTS,
+      sizes: { small: 0, medium: 2, large: 0 },
+    });
+    const sheet = within(screen.getByTestId("filter-sheet"));
+    expect((sheet.getByLabelText("Малий, 0 тварин") as HTMLInputElement).disabled).toBe(true);
+    expect((sheet.getByLabelText("Середній, 2 тварини") as HTMLInputElement).disabled).toBe(false);
+    const ticked = sheet.getByLabelText("Великий, 0 тварин") as HTMLInputElement;
+    expect(ticked.checked).toBe(true);
+    expect(ticked.disabled).toBe(false);
   });
 });

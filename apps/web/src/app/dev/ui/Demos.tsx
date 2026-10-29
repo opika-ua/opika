@@ -85,7 +85,67 @@ export function PopoverDemo() {
       <Popover label="Age: Adult" trigger="Adult" active className="w-52">
         <Text>Panel content</Text>
       </Popover>
+      <FieldPopoverDemo />
     </div>
+  );
+}
+
+/** The filter selector's shape: a field trigger, a ✕ when something is chosen, pills with counts. */
+function FieldPopoverDemo() {
+  const [chosen, setChosen] = useState<readonly string[]>(["Kyiv"]);
+  const options = [
+    { name: "Kyiv", count: 34 },
+    { name: "Brovary", count: 14 },
+    { name: "Bucha", count: 0 },
+  ];
+  const summary = chosen.length > 0 ? chosen.join(", ") : "City";
+  return (
+    <Popover
+      variant="field"
+      panel="pills"
+      label={`City: ${summary}`}
+      panelLabel="City"
+      trigger={summary}
+      active={chosen.length > 0}
+      clear={{ href: "/dev/ui", label: "Clear City" }}
+      className="w-53"
+    >
+      {options.map(({ name, count }) => {
+        const pressed = chosen.includes(name);
+        return (
+          <Chip
+            key={name}
+            kind="choice"
+            control="button"
+            pressed={pressed}
+            disabled={count === 0 && !pressed}
+            count={count}
+            accessibleName={`${name}, ${count} animals`}
+            onPress={() =>
+              setChosen((now) => (pressed ? now.filter((n) => n !== name) : [...now, name]))
+            }
+          >
+            {name}
+          </Chip>
+        );
+      })}
+    </Popover>
+  );
+}
+
+export function ChoiceChipDemo() {
+  const [on, setOn] = useState(false);
+  return (
+    <Chip
+      kind="choice"
+      control="button"
+      pressed={on}
+      count={34}
+      accessibleName="Choice, 34 animals"
+      onPress={() => setOn((value) => !value)}
+    >
+      Choice
+    </Chip>
   );
 }
 

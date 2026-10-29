@@ -133,6 +133,47 @@ describe("Popover", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it("opening moves focus to the panel's first usable control, past a disabled one", () => {
+    render(
+      <Popover label="Місто: будь-яке" trigger="Місто" variant="field" panel="pills">
+        <button type="button" aria-disabled="true">
+          Буча
+        </button>
+        <button type="button">Київ</button>
+      </Popover>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Місто: будь-яке" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Київ" }));
+  });
+
+  it("names the panel's group by panelLabel when the trigger's name says more", () => {
+    render(
+      <Popover label="Місто: Київ" panelLabel="Місто" trigger="Київ" active>
+        <button type="button">Київ</button>
+      </Popover>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Місто: Київ" }));
+    expect(screen.getByRole("group", { name: "Місто" })).toBeTruthy();
+  });
+
+  it("an active selector with `clear` offers a ✕ link beside the trigger; an inactive one doesn't", () => {
+    const clear = { href: "/tvaryny", label: "Скинути Місто" };
+    const { rerender } = render(
+      <Popover label="Місто: Київ" trigger="Київ" active clear={clear}>
+        <span>…</span>
+      </Popover>,
+    );
+    expect(screen.getByRole("link", { name: "Скинути Місто" }).getAttribute("href")).toBe(
+      "/tvaryny",
+    );
+    rerender(
+      <Popover label="Місто: Місто" trigger="Місто" clear={clear}>
+        <span>…</span>
+      </Popover>,
+    );
+    expect(screen.queryByRole("link", { name: "Скинути Місто" })).toBeNull();
+  });
+
   it("a press outside closes it; a press inside does not", () => {
     const trigger = renderPopover();
     fireEvent.click(trigger);

@@ -72,7 +72,7 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
   },
   "features/gallery/FilterSheet.tsx": {
-    max: 21,
+    max: 11,
     reason: "Gallery surface; burns down in DS PR 3a.",
   },
   "features/gallery/GalleryCard.tsx": {
@@ -84,7 +84,7 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     reason: "Gallery surface; burns down in DS PR 3a.",
   },
   "features/gallery/GalleryFilterDropdowns.tsx": {
-    max: 6,
+    max: 1,
     reason: "Gallery surface; burns down in DS PR 3a.",
   },
   "features/gallery/GalleryPageNav.tsx": {

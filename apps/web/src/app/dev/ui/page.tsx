@@ -34,7 +34,15 @@ import { Text } from "../../../ui/Text";
 import { TextLink } from "../../../ui/TextLink";
 import { Toast } from "../../../ui/Toast";
 import { Toggle } from "../../../ui/Toggle";
-import { MenuDemo, ModalDemo, PopoverDemo, SheetDemo, ToastDemo, ToggleChipDemo } from "./Demos";
+import {
+  ChoiceChipDemo,
+  MenuDemo,
+  ModalDemo,
+  PopoverDemo,
+  SheetDemo,
+  ToastDemo,
+  ToggleChipDemo,
+} from "./Demos";
 import { SegmentedDemo } from "./SegmentedDemo";
 
 /**
@@ -145,6 +153,15 @@ export default function DevUiPage() {
           </Chip>
           <Chip kind="option" type="radio" name="o3" value="c">
             Radio
+          </Chip>
+        </Row>
+        <Row label="choice (44px, 48px hit area; count; disabled stays focusable as a button)">
+          <ChoiceChipDemo />
+          <Chip kind="choice" control="checkbox" name="c1" value="a" count={9} defaultChecked>
+            Checkbox
+          </Chip>
+          <Chip kind="choice" control="checkbox" name="c2" value="b" count={0} disabled>
+            Disabled
           </Chip>
         </Row>
         <Row label="toggle (aria-pressed)">

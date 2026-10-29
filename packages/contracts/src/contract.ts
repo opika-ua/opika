@@ -6,7 +6,11 @@ import {
 } from "./procedures/animals";
 import { citiesListContract } from "./procedures/cities";
 import { feedListContract } from "./procedures/feed";
-import { galleryListContract, galleryRelaxationCountsContract } from "./procedures/gallery";
+import {
+  galleryFacetCountsContract,
+  galleryListContract,
+  galleryRelaxationCountsContract,
+} from "./procedures/gallery";
 import { revealsListMineContract } from "./procedures/reveals";
 import { sessionBootstrapContract } from "./procedures/session";
 import { sheltersByIdContract } from "./procedures/shelters";
@@ -33,6 +37,7 @@ export const contract = {
   gallery: {
     list: galleryListContract,
     relaxationCounts: galleryRelaxationCountsContract,
+    facetCounts: galleryFacetCountsContract,
   },
   animals: {
     byId: animalsByIdContract,

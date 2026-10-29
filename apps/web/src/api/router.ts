@@ -4,7 +4,7 @@ import type { AppContext } from "./context";
 import { animalsById, animalsCardsByIds, animalsNeighbours } from "./handlers/animals";
 import { citiesList } from "./handlers/cities";
 import { feedList } from "./handlers/feed";
-import { galleryList, galleryRelaxationCounts } from "./handlers/gallery";
+import { galleryFacetCounts, galleryList, galleryRelaxationCounts } from "./handlers/gallery";
 import { animalsReveal } from "./handlers/reveal";
 import { revealsListMine } from "./handlers/reveals-list";
 import { sessionBootstrap } from "./handlers/session";
@@ -36,6 +36,9 @@ export const router = impl.router({
     list: impl.gallery.list.handler(({ input, context }) => galleryList(input, context)),
     relaxationCounts: impl.gallery.relaxationCounts.handler(({ input, context }) =>
       galleryRelaxationCounts(input, context),
+    ),
+    facetCounts: impl.gallery.facetCounts.handler(({ input, context }) =>
+      galleryFacetCounts(input, context),
     ),
   },
   animals: {

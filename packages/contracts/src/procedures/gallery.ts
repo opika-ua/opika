@@ -1,10 +1,14 @@
 import {
+  AgeBucketSchema,
+  AnimalSexSchema,
+  CityIdSchema,
   DEFAULT_GALLERY_SORT,
   EVERYONE_SCOPE,
   FeedFilterDimensionSchema,
   FeedFiltersSchema,
   GalleryScopeSchema,
   GallerySortSchema,
+  SizeBucketSchema,
 } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
@@ -126,6 +130,35 @@ export const GalleryRelaxationCountsOutputSchema = z.object({
 export const galleryRelaxationCountsContract = oc
   .input(GalleryRelaxationCountsInputSchema)
   .output(GalleryRelaxationCountsOutputSchema)
+  .errors({
+    RATE_LIMITED: apiErrors.RATE_LIMITED,
+  });
+
+export const GalleryFacetCountsInputSchema = z.object({
+  filters: FeedFiltersSchema,
+});
+
+/**
+ * Per option of each filter selector: how many animals would match if that
+ * option alone were chosen on its dimension, with every other dimension's
+ * filters as given. The dimension's own selection is ignored, so the counts
+ * don't collapse as options are picked. Integers and option ids only.
+ *
+ * Species has no entry: it is a segmented control, not a selector with counts.
+ * A city absent from `cities` has no discoverable animal at all, so zero.
+ */
+export const GalleryFacetCountsOutputSchema = z.object({
+  cities: z.array(z.object({ cityId: CityIdSchema, count: countSchema })).readonly(),
+  ages: z.record(AgeBucketSchema, countSchema),
+  sizes: z.record(SizeBucketSchema, countSchema),
+  sexes: z.record(AnimalSexSchema, countSchema),
+});
+export type GalleryFacetCounts = z.infer<typeof GalleryFacetCountsOutputSchema>;
+
+/** One grouped scan for all four selectors, read with the page that renders them. */
+export const galleryFacetCountsContract = oc
+  .input(GalleryFacetCountsInputSchema)
+  .output(GalleryFacetCountsOutputSchema)
   .errors({
     RATE_LIMITED: apiErrors.RATE_LIMITED,
   });

@@ -26,14 +26,14 @@ const foundCount = async (page: import("@playwright/test").Page): Promise<number
 };
 
 test.describe("/tvaryny sex filter", () => {
-  test("the «Стать» dropdown: «Дівчинка» narrows the list, writes `stat=female`, and its own ✕ clears only it", async ({
+  test("the «Стать» selector: «Дівчинка» narrows the list, writes `stat=female`, and its own ✕ clears only it", async ({
     page,
   }) => {
     await openRoute(page, "/tvaryny", DESKTOP, { readySelector: CARD });
     const everyone = await foundCount(page);
 
     await page.getByRole("button", { name: "Стать: Стать" }).click();
-    await page.getByRole("link", { name: "Дівчинка" }).click();
+    await page.getByRole("button", { name: /^Дівчинка, / }).click();
     await page.waitForURL(/stat=female/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
     const females = await foundCount(page);

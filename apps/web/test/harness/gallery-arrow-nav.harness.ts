@@ -177,10 +177,10 @@ test.describe("/tvaryny arrow-key grid navigation (desktop, 4 columns)", () => {
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    // Any one of the five desktop dropdowns exercises "arrow nav survives a
+    // Any one of the four desktop selectors exercises "arrow nav survives a
     // filter-driven re-render"; size is as good as any other.
-    await page.getByRole("button", { name: "РОЗМІР" }).click();
-    await page.getByRole("link", { name: "Великий" }).click();
+    await page.getByRole("button", { name: "Розмір: Розмір" }).click();
+    await page.getByRole("button", { name: /^Великий, / }).click();
     await page.waitForURL(/rozmir=large/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
 

@@ -1,4 +1,6 @@
 import type {
+  GalleryFacetCountsInputSchema,
+  GalleryFacetCountsOutputSchema,
   GalleryListInputSchema,
   GalleryListOutputSchema,
   GalleryRelaxationCountsInputSchema,
@@ -16,6 +18,8 @@ type GalleryListInput = z.infer<typeof GalleryListInputSchema>;
 type GalleryListOutput = z.infer<typeof GalleryListOutputSchema>;
 type RelaxationInput = z.infer<typeof GalleryRelaxationCountsInputSchema>;
 type RelaxationOutput = z.infer<typeof GalleryRelaxationCountsOutputSchema>;
+type FacetCountsInput = z.infer<typeof GalleryFacetCountsInputSchema>;
+type FacetCountsOutput = z.infer<typeof GalleryFacetCountsOutputSchema>;
 
 /**
  * The gallery page, in the order the database returned it.
@@ -111,4 +115,26 @@ export async function galleryRelaxationCounts(
     filters: input.filters,
     now: context.now,
   });
+}
+
+/**
+ * The counts beside each option of the gallery's filter selectors. Read by the
+ * page beside `gallery.list` (in parallel, server-side), so the counts arrive
+ * with the HTML, work in the no-JS sheet, and need no fetch when a selector
+ * opens. Option ids and integers only, picked field by field.
+ */
+export async function galleryFacetCounts(
+  input: FacetCountsInput,
+  context: AppContext,
+): Promise<FacetCountsOutput> {
+  const counts = await galleryRepo(context.db).facetCounts({
+    filters: input.filters,
+    now: context.now,
+  });
+  return {
+    cities: counts.cities.map(({ cityId, count }) => ({ cityId, count })),
+    ages: { ...counts.ages },
+    sizes: { ...counts.sizes },
+    sexes: { ...counts.sexes },
+  };
 }
