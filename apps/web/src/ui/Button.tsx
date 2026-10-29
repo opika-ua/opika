@@ -25,13 +25,16 @@ const VARIANT: Record<ButtonVariant, string> = {
 const SIZE: Record<ButtonVariant, Record<ButtonSize, string>> = {
   primary: {
     md: "min-h-target px-6",
-    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l",
+    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l desktop:font-semibold",
   },
   accent: {
     md: "min-h-target px-6",
-    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l",
+    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l desktop:font-semibold",
   },
-  secondary: { md: "min-h-target px-6", lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11" },
+  secondary: {
+    md: "min-h-target px-6",
+    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l desktop:font-semibold",
+  },
   ghost: { md: "min-h-target px-3", lg: "min-h-13 px-4" },
   icon: { md: "size-target", lg: "size-13" },
 };

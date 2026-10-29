@@ -1,4 +1,6 @@
 import { uk } from "@opika/i18n";
+import { Heading } from "../../ui/Heading";
+import { Text } from "../../ui/Text";
 
 /**
  * What the gallery's overlay shows when it has no animal to show. The full
@@ -22,9 +24,7 @@ const NOTICE: Record<AnimalOverlayNotice, { title: string; body: string | null }
   failed: { title: uk.galleryError.title, body: uk.galleryError.body },
 };
 
-const NOTICE_FRAME = "font-rg flex flex-col gap-group p-group tablet:p-section";
-const TITLE = "text-2xl font-bold tracking-tight text-rg-ink";
-const BODY = "text-base text-rg-ink-2";
+const NOTICE_FRAME = "flex flex-col gap-4 p-4 tablet:p-6";
 
 /** The overlay's accessible name in this state. */
 export function overlayNoticeTitle(kind: AnimalOverlayNotice): string {
@@ -35,8 +35,8 @@ export function AnimalOverlayNoticeView({ kind }: { kind: AnimalOverlayNotice })
   const { title, body } = NOTICE[kind];
   return (
     <div className={NOTICE_FRAME}>
-      <h2 className={TITLE}>{title}</h2>
-      {body && <p className={BODY}>{body}</p>}
+      <Heading level={2}>{title}</Heading>
+      {body && <Text className="text-ink-2">{body}</Text>}
     </div>
   );
 }

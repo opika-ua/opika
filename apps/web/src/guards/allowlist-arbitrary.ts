@@ -7,21 +7,10 @@ import type { Reasoned } from "./ratchet";
  */
 export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
   "app/tvaryny/page.tsx": { max: 4, reason: "Gallery surface; burns down in DS PR 3a." },
-  "features/animal-detail/AnimalDetailScreen.tsx": {
-    max: 21,
-    reason: "Pet card surface; burns down in DS PR 3b.",
-  },
-  "features/animal-detail/DetailPhotoGallery.tsx": {
-    max: 3,
-    reason: "Pet card surface; burns down in DS PR 3b.",
-  },
-  "features/animal-detail/PillButton.tsx": {
-    max: 2,
-    reason: "Pet card surface; burns down in DS PR 3b.",
-  },
   "features/animal-overlay/AnimalOverlay.tsx": {
-    max: 3,
-    reason: "Pet card surface; burns down in DS PR 3b.",
+    max: 1,
+    reason:
+      "Overlay backdrop tint, safe-area top offset and rounded-corner clip-path have no token.",
   },
   "features/controls/controls.tsx": {
     max: 3,

@@ -69,6 +69,7 @@ function expectedSlugFor(visibleCityNameUk: string): string {
 
 const GALLERY_ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
+const PHOTO = "section[aria-label='Фотографії тварини'] img";
 
 /**
  * Discovered once per file run, not once per test: every test here already
@@ -111,7 +112,7 @@ async function openFirstAnimalDetail(
   const href = await discoverFirstAnimalHref(browser);
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await page.goto(href, { waitUntil: "load" });
-  await page.getByTestId("animal-name").waitFor({ state: "visible" });
+  await page.getByRole("heading", { level: 1 }).waitFor({ state: "visible" });
   return href;
 }
 
@@ -119,8 +120,8 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
   test("360 – name, photo, reveal trigger are real and visible", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_PHONE);
 
-    await expect(page.getByTestId("animal-name")).toBeVisible();
-    await expect(page.getByTestId("detail-photo").first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator(PHOTO).first()).toBeVisible();
     await expect(page.getByTestId("reveal-trigger")).toBeVisible();
   });
 
@@ -137,8 +138,8 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
   test("1920 – the shelter row names a real seeded city", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
 
-    await expect(page.getByTestId("animal-name")).toBeVisible();
-    await expect(page.getByTestId("detail-photo").first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator(PHOTO).first()).toBeVisible();
 
     const cityText = await page.getByTestId("shelter-city").textContent();
     expect(cityText?.trim().length ?? 0, "a real city name is shown").toBeGreaterThan(0);
@@ -346,7 +347,7 @@ test.describe("the detail page's freshness block is the day count only", () => {
     browser,
   }) => {
     await openRoute(page, await discoverFirstAnimalHref(browser), DETAIL_DESKTOP, {
-      readySelector: "[data-testid='detail-photo']",
+      readySelector: PHOTO,
     });
     await expect(page.getByTestId("freshness-block")).toContainText("Оновлено");
     await expect(page.getByText("Слова притулку")).toHaveCount(0);
@@ -370,7 +371,7 @@ test.describe("shelter-verified badge – suppressed while the registry holds no
     browser,
   }) => {
     await openRoute(page, await discoverFirstAnimalHref(browser), DETAIL_DESKTOP, {
-      readySelector: "[data-testid='detail-photo']",
+      readySelector: PHOTO,
     });
 
     await expect(page.getByText(/Перевірений вручну/)).toHaveCount(0);
@@ -387,7 +388,7 @@ test.describe("shelter-verified badge – suppressed while the registry holds no
 test.describe("the save toggle persists a save across a reload", () => {
   test("saving an animal, then reloading, shows it still saved", async ({ page, browser }) => {
     await openRoute(page, await discoverFirstAnimalHref(browser), DETAIL_DESKTOP, {
-      readySelector: "[data-testid='detail-photo']",
+      readySelector: PHOTO,
     });
 
     const save = page.getByRole("button", { name: "Зберегти" });
