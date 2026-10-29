@@ -46,6 +46,7 @@ import { kabinetInvitedUsersRepo } from "../src/repos/kabinet-invited-users-repo
 import { kabinetRegistryRepo } from "../src/repos/kabinet-registry-repo";
 import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
 import { kabinetSupportRepo, SUPPORT_IDLE_MS } from "../src/repos/kabinet-support-repo";
+import { revealToRow } from "../src/repos/mappers";
 import {
   afterDeleted,
   recordScan,
@@ -58,6 +59,7 @@ import { sessionRepo } from "../src/repos/session-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { superAdminRepo } from "../src/repos/super-admin-repo";
 import { swipeRepo } from "../src/repos/swipe-repo";
+import { adopters } from "../src/schema/adopters";
 import { animals } from "../src/schema/animals";
 import {
   authInvitation,
@@ -2531,14 +2533,17 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   };
 
   const s48One = await s48AdopterAt29();
-  const write = async (reveal: ContactReveal) =>
-    (await revealRepo(db).insertWithinShelterBudget(reveal, s48Budget)).kind;
+  const writeOutcome = (reveal: ContactReveal) =>
+    revealRepo(db).insertWithinShelterBudget(reveal, s48Budget);
+  const write = async (reveal: ContactReveal) => (await writeOutcome(reveal)).kind;
+  const s48First = s48RevealOf(s48One, 29);
   const s48Sequence = [
-    await write(s48RevealOf(s48One, 29)),
+    await write(s48First),
     await write(s48RevealOf(s48One, 30)),
     await write(s48RevealOf(s48One, 29, 1)),
-    await write(s48RevealOf(s48One, 29, 0)),
   ];
+  const s48Repeat = await writeOutcome(s48RevealOf(s48One, 29, 0));
+  s48Sequence.push(s48Repeat.kind);
   check(
     "reveal budget, one at a time: 30th inserted, 31st refused, free re-reveal, no duplicate",
     isDeepStrictEqual(s48Sequence, [
@@ -2549,19 +2554,66 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     ]) && (await s48Distinct(s48One)) === 30,
     `${JSON.stringify(s48Sequence)}; distinct shelters ${await s48Distinct(s48One)}`,
   );
-
-  // Two at once at 29, by another adopter: one HTTP request each, which may or may not overlap
-  // on the server (not a forced interleaving; that is the local suite's job). Either way exactly
-  // one may write.
-  const s48Two = await s48AdopterAt29();
-  const s48Pair = await Promise.all([
-    write(s48RevealOf(s48Two, 29)),
-    write(s48RevealOf(s48Two, 30)),
-  ]);
   check(
-    "reveal budget, two new shelters at once at 29: exactly one written",
-    [...s48Pair].sort().join(",") === "inserted,over_budget" && (await s48Distinct(s48Two)) === 30,
-    `${JSON.stringify(s48Pair)}; distinct shelters ${await s48Distinct(s48Two)}`,
+    "reveal budget, duplicate animal: answers with the stored row, not just the kind",
+    s48Repeat.kind === "animal_already_revealed" &&
+      s48Repeat.existing.id === s48First.id &&
+      s48Repeat.existing.adopterId === s48One &&
+      s48Repeat.existing.animalId === s48First.animalId &&
+      s48Repeat.existing.shelterId === s48First.shelterId,
+    s48Repeat.kind === "animal_already_revealed"
+      ? `stored id matches first write: ${s48Repeat.existing.id === s48First.id}`
+      : `kind ${s48Repeat.kind}`,
+  );
+
+  // A forced overlap at 29, by another adopter. A holder batch takes the adopter's row lock
+  // (the same statement the repo uses), sleeps inside its transaction, then writes the 30th
+  // shelter unconditionally. The racing reveal starts only once pg_stat_activity shows that
+  // sleep running, so it arrives while the lock is held. Without the lock it would count 29,
+  // write, and the holder's insert would make 31; with it, it waits, then sees 30 and is refused.
+  const s48Two = await s48AdopterAt29();
+  const s48SleepMs = 3000;
+  const s48Marker = `pg_sleep(${s48SleepMs / 1000})`;
+  const s48Holder = inOneTransaction(db, (tx) => [
+    tx
+      .select({ id: adopters.id })
+      .from(adopters)
+      .where(eq(adopters.id, s48Two))
+      .for("no key update"),
+    tx.select({ slept: sql<string>`${sql.raw(s48Marker)}::text` }).from(sql`(SELECT 1) AS one`),
+    tx.insert(reveals).values(revealToRow(s48RevealOf(s48Two, 29))),
+  ]);
+  const s48Sleeping = async () => {
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(sql`pg_stat_activity`)
+      .where(
+        sql`pid <> pg_backend_pid() AND state = 'active' AND query LIKE ${`%${s48Marker}::text%`}`,
+      );
+    return (row?.n ?? 0) > 0;
+  };
+  // A single-connection driver (the local suite's) queues the monitor behind the holder, so no
+  // overlap is possible there; that case is told apart by the first poll taking the whole sleep.
+  const s48PollStart = Date.now();
+  let s48SawHolder = false;
+  let s48Polls = 0;
+  for (; s48Polls < 40 && !s48SawHolder; s48Polls++) {
+    s48SawHolder = await s48Sleeping();
+    if (s48Polls === 0 && Date.now() - s48PollStart >= s48SleepMs / 2) break;
+    if (!s48SawHolder) await new Promise((r) => setTimeout(r, 100));
+  }
+  const s48Serialised = !s48SawHolder && Date.now() - s48PollStart >= s48SleepMs / 2;
+  const s48Started = Date.now();
+  const s48Racer =
+    s48SawHolder || s48Serialised ? await write(s48RevealOf(s48Two, 30)) : "holder_not_seen";
+  const s48Waited = Date.now() - s48Started;
+  await s48Holder;
+  check(
+    "reveal budget, forced overlap at 29: the racer waits for the lock, then is refused",
+    (s48SawHolder ? s48Waited >= 300 : s48Serialised) &&
+      s48Racer === "over_budget" &&
+      (await s48Distinct(s48Two)) === 30,
+    `holder seen ${s48SawHolder} (serialised driver ${s48Serialised}); racer ${s48Racer} after ${s48Waited} ms; distinct shelters ${await s48Distinct(s48Two)}`,
   );
 
   return out;
