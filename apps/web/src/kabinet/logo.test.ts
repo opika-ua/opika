@@ -19,6 +19,7 @@ import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { PHOTO_PROCESSING_BUDGET_MS, type PhotoUploads } from "./photo-uploads";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * `shelter.logo.*` (pet card PR 3b), through the served router: a real
@@ -98,7 +99,7 @@ async function call<T = KabinetShelterView>(
   const { body, headers } = rpcRequestInit(input);
   const request = new Request(`${ORIGIN}/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { ...headers, origin: ORIGIN },
+    headers: { ...headers, origin: ORIGIN, cookie: TEST_SESSION_COOKIE },
     body,
   });
   const response = await handleKabinetRpc(request, {

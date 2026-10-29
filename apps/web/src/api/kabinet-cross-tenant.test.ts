@@ -15,6 +15,7 @@ import type { KabinetPrincipal } from "../kabinet/actor";
 import { capturingInvitationSender } from "../kabinet/email-senders";
 import { capturingPasswordMail } from "../kabinet/password-mail";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
+import { TEST_SESSION_COOKIE } from "../kabinet/test-session-cookie";
 import { inMemoryRateLimiter } from "./rate-limit";
 import { fromRpcBody, rpcRequestInit } from "./test-harness";
 
@@ -95,7 +96,7 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
   const { body, headers } = rpcRequestInit(input);
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { ...headers, origin: "http://localhost" },
+    headers: { ...headers, origin: "http://localhost", cookie: TEST_SESSION_COOKIE },
     body,
   });
   const response = await handleKabinetRpc(request, {

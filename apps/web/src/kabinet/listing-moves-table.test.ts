@@ -39,6 +39,7 @@ import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "./photo-uploads";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * K2's listing moves as one exhaustive table (PR 5): every starting listing
@@ -201,7 +202,11 @@ async function call(path: string, input: unknown): Promise<Answer> {
   const response = await handleKabinetRpc(
     new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
       method: "POST",
-      headers: { "content-type": "application/json", origin: "http://localhost" },
+      headers: {
+        "content-type": "application/json",
+        origin: "http://localhost",
+        cookie: TEST_SESSION_COOKIE,
+      },
       body: JSON.stringify(toRpcBody(input)),
     }),
     {

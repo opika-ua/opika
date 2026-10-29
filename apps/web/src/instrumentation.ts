@@ -15,6 +15,9 @@ export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { validateEnv } = await import("./api/env");
     validateEnv();
+    // The per-IP budgets' sizes, validated once at startup (a bad value warns, never throws).
+    const { servedPerIpBudgetSizes } = await import("./api/per-ip-budgets");
+    servedPerIpBudgetSizes();
     const { assertDemoDiscoverabilityInvariant } = await import("./seo-flags");
     assertDemoDiscoverabilityInvariant();
   }
