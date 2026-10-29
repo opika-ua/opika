@@ -1,6 +1,6 @@
 import type { SettlementKind } from "@opika/domain";
 
-/** Owner decision (Phase 0, Q4): the prefix follows the settlement kind. Abbreviations pending a ДСТУ 3582:2013 check. */
+/** Owner decision (Q4): the prefix follows the settlement kind; «м.», «с-ще», «с.» confirmed, and there is no «смт» kind. */
 const PLACE_PREFIX: Record<SettlementKind, string> = {
   special_status_city: "м.",
   city: "м.",
