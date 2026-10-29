@@ -73,7 +73,7 @@ Route slugs are suggestions in the same transliteration style as `/tvaryny`; adj
 | fill-strong | `#DCDCD9` | | registry / focus | `#1B3A6B` |
 | modal backdrop | `#B9B9B5` | | | |
 
-- Type: e-Ukraine 400/500/700. Scale: 44/46·700·−0.035em · 34/38·700·−0.03em · 24/28·700·−0.02em ·
+- Type (as designed; superseded, see `docs/ui/tokens.md` for the shipped fonts): e-Ukraine 400/500/700. Scale: 44/46·700·−0.035em · 34/38·700·−0.03em · 24/28·700·−0.02em ·
   19/24·700 (section titles in kabinet) · 17/26 · 15/22 · 13/18 · label 12/16·500·0.08em uppercase.
 - Radii: 8 (pips, small tags) · 16 (buttons, fields, inner blocks, thumbnails) · 24 (cards, dialogs, sheet) · 999 (chips).
 - Spacing: 4 · 8 · 12 · 16 · 20 · 24 · 32 · 48. All vertical rhythm uses `gap`.

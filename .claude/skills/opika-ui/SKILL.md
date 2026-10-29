@@ -33,9 +33,10 @@ scale), `docs/ui/components/<Name>.md` (props, variants, do/don't, a11y). Do not
 
 ## Guards (`apps/web/src/guards/ui-guards.test.ts`)
 
-Raw hex, one token set, arbitrary values on an allowlist, raw `<img>`, client-file budget, kit coverage.
+Raw hex, one token set, arbitrary values, raw `<img>`, client-file budget, kit coverage.
 The allowlists (`apps/web/src/guards/allowlist-*.ts`) only shrink: never add an entry to get CI green;
-fix the code. If DS PR 4 has emptied them, any entry is a regression.
+fix the code. The arbitrary-value, token and raw-`<img>` tables are empty (DS PR 4) and stay as permanent
+tests, so any entry there is a regression; raw hex and client files have a few justified entries.
 
 ## Verify
 

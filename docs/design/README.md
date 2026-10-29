@@ -137,6 +137,9 @@ corrects - label these here so the same defect cannot be re-introduced by reusin
 
 ## Typeface
 
+> Superseded. e-Ukraine, Literata and Commissioner no longer ship. The site uses Climate Crisis (display)
+> and «Opika Variable» (UI), both OFL; see `docs/ui/tokens.md`. This section is the original handoff.
+
 **e-Ukraine** (Dmytro Rastvortsev, commissioned by the Ministry of Digital Transformation for Diia,
 free to use, full Cyrillic and Latin). It carries civic credibility in Ukraine that no neutral grotesk
 can buy, and it is the correct reference for a Дія-adjacent surface.

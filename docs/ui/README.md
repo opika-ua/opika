@@ -11,14 +11,15 @@ Rules every component follows:
 - 48px touch target (`min-h-target`), visible focus (`focus-ring` utility from `globals.css`).
 - Works without JS where it can (links and forms first); server-component-safe unless it needs state.
   Only Modal, Sheet, Popover, Menu, Tabs, PhotoSlider and Toast are client components.
-- Tokens only: no `rg-`, no `brand-`, no raw hex, no arbitrary values. Type scale in `tokens.md`.
+- Tokens only: no `rg-`, no `brand-`, no raw hex, no arbitrary values (the retired token sets are
+  guarded against coming back). Type scale and fonts in `tokens.md`.
 - The kit holds no copy: every label, title and accessible name arrives as a prop.
 
 See the live kit at `/dev/ui` (404 in a production build unless `OPIKA_DEV_UI=1`; not indexed, not in
 the sitemap). Screenshot it at 360 and 1440 when you change a component. The harness spec
 `test/harness/dev-ui.harness.ts` loads it at both widths and fails on horizontal overflow.
 
-Guards (`src/guards/ui-guards.test.ts`): no raw hex, one token set, arbitrary values on an allowlist,
+Guards (`src/guards/ui-guards.test.ts`): no raw hex, one token set (retired `rg-`/`brand-`/bare classes fail on any reintroduction), arbitrary values (the allowlist is empty and stays as a permanent test),
 no raw `<img>`, the client-file budget, and guard 7: every exported component in `src/ui` has a
 `docs/ui/components/<Name>.md` and is rendered in `/dev/ui`.
 
@@ -38,13 +39,6 @@ What each of the five existing overlays needs to move over (done in its surface'
 | AnimalOverlay | Modal | Route-driven: always `open`, `router.back()` in `onClose`; a full-screen variant if the design keeps it |
 | FilterSheet | Sheet | Keeps its GET form as children; its count line goes in children |
 | MobileNavMenu | Sheet | Nav links as children; hide the trigger from tablet via `triggerClassName` |
-
-## Legacy compatibility
-
-`features/controls/controls.tsx` is a temporary layer: it re-exports the old names (`TextField`,
-`SelectField`, `RadioOption`, `CheckboxOption`, `SegmentedControl`, `CONTROL`, `LABEL`...) from the kit and
-maps the old `Button` variants (`text` is the kit's `ghost`, `chip` is a toggle Chip). Delete it when the
-last consumer imports `src/ui` directly. `ModalDialog` is unchanged until the kabinet moves to `Modal`.
 
 ## Catalog
 
