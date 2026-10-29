@@ -38,6 +38,8 @@ export const ERROR_CLASS_NAMES = [
   "ProviderSendError",
   "EmptyRemovalTarget",
   "DemoRemovalDrift",
+  "CodifierError",
+  "PlanError",
 ] as const;
 
 const KNOWN: ReadonlySet<string> = new Set(ERROR_CLASS_NAMES);
