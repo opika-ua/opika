@@ -15,7 +15,7 @@ const BASE =
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary: "rounded-pill bg-ink text-on-ink",
-  accent: "rounded-pill bg-accent text-on-accent",
+  accent: "rounded-pill bg-accent text-on-ink",
   secondary: "rounded-pill border-2 border-ink bg-transparent text-ink",
   ghost: "rounded-pill bg-transparent text-ink underline-offset-4 hover:underline",
   // The surface and page tokens are near-identical, so the shadow alone leaves the circle invisible on
@@ -27,17 +27,17 @@ const VARIANT: Record<ButtonVariant, string> = {
 const SIZE: Record<ButtonVariant, Record<ButtonSize, string>> = {
   primary: {
     md: "min-h-target px-6",
-    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l desktop:font-semibold",
+    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 font-bold desktop:text-body-l",
   },
   accent: {
     md: "min-h-target px-6",
-    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l desktop:font-semibold",
+    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 font-bold desktop:text-body-l",
   },
   secondary: {
     md: "min-h-target px-6",
-    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l desktop:font-semibold",
+    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 font-bold desktop:text-body-l",
   },
-  ghost: { md: "min-h-target px-3", lg: "min-h-13 px-4" },
+  ghost: { md: "min-h-target px-3", lg: "min-h-13 px-4 font-bold" },
   icon: { md: "size-target", lg: "size-13" },
 };
 

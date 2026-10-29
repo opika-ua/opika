@@ -27,7 +27,7 @@ const INFO = {
 } as const;
 const STATUS = {
   ink: "bg-ink text-on-ink",
-  accent: "bg-accent text-on-accent",
+  accent: "bg-accent text-on-ink",
   success: "bg-success text-on-ink",
   warning: "bg-warning text-on-ink",
   danger: "bg-danger text-on-ink",
