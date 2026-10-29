@@ -103,7 +103,9 @@ describe("the shelter page", () => {
 
   it("offers the gallery's two date sorts, each leading back to this shelter's page", () => {
     renderScreen({ query: { sort: "freshest", page: 1 } });
-    const sorts = within(screen.getByTestId("sort-control")).getAllByRole("link");
+    const sorts = within(screen.getByRole("navigation", { name: "Сортування" })).getAllByRole(
+      "link",
+    );
     expect(sorts.map((link) => link.getAttribute("href"))).toEqual([
       PAGE,
       `${PAGE}?sort=longest_waiting`,
