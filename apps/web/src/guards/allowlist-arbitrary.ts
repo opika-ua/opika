@@ -34,7 +34,8 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
   },
   "features/discovery/SwipeDeck.tsx": {
     max: 1,
-    reason: "The not-a-judgement line hides below 360px, where it wraps to two lines and clips the deck.",
+    reason:
+      "The not-a-judgement line hides below 360px, where it wraps to two lines and clips the deck.",
   },
   "features/gallery/FilterSheet.tsx": {
     max: 21,

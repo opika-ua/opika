@@ -57,6 +57,5 @@ export const TOKEN_CEILINGS: Readonly<
     "features/gallery/NoMatch.tsx": 11,
     "features/gallery/OutOfRangeNotice.tsx": 6,
   },
-  bare: {
-  },
+  bare: {},
 };
