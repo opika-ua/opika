@@ -2,12 +2,12 @@
 
 import { uk } from "@opika/i18n";
 import { type Ref, useState } from "react";
-import { buttonClass, CONTROL, ERROR, HINT, INVALID, LABEL } from "../../controls/controls";
+import { Button } from "../../../ui/Button";
+import { CONTROL, ERROR, HINT, INVALID, LABEL } from "../../../ui/form";
 
 /**
  * A password field with its show/hide button (Oleksii's scope item 2:
- * "password + repeat, show/hide"), on the shared controls' tokens only, so a
- * rebrand restyles it with the rest. The button's name says what pressing it
+ * "password + repeat, show/hide"), on the kit's form tokens. The button's name says what pressing it
  * does («Показати пароль» / «Сховати пароль»), so a screen reader hears the
  * state from the name; the field keeps its value and focus either way.
  *
@@ -43,7 +43,7 @@ export function PasswordField({
       <label htmlFor={id} className={LABEL}>
         {label}
       </label>
-      <div className="flex min-w-0 gap-2">
+      <div className="flex min-w-0 flex-col gap-2 tablet:flex-row">
         <input
           id={id}
           ref={inputRef}
@@ -58,14 +58,14 @@ export function PasswordField({
           aria-describedby={describedBy.length > 0 ? describedBy.join(" ") : undefined}
           className={`${CONTROL} ${error ? INVALID : ""}`}
         />
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           aria-controls={id}
           onClick={() => setShown((now) => !now)}
-          className={`${buttonClass("secondary")} flex-none`}
+          className="w-full tablet:w-auto"
         >
           {shown ? uk.kabinet.signIn.hidePassword : uk.kabinet.signIn.showPassword}
-        </button>
+        </Button>
       </div>
       {error ? (
         <p id={`${id}-error`} className={ERROR}>

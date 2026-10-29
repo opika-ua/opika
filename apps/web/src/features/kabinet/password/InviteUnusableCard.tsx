@@ -1,11 +1,12 @@
 "use client";
 
 import { uk } from "@opika/i18n";
-import Link from "next/link";
 import type { Ref } from "react";
-import { linkClass } from "../../controls/controls";
+import { LinkButton } from "../../../ui/Button";
+import { Heading } from "../../../ui/Heading";
+import { Text } from "../../../ui/Text";
 import { SIGN_IN_PAGE_PATH } from "../routes";
-import { CARD_BODY, CARD_TITLE, CardFrame } from "./CardFrame";
+import { CardFrame } from "./CardFrame";
 import { useTokenOutOfAddressBar } from "./use-token-out-of-address-bar";
 
 /**
@@ -23,13 +24,15 @@ export function InviteUnusableCard({ titleRef }: { titleRef?: Ref<HTMLHeadingEle
   const copy = uk.kabinet.inviteLanding;
   return (
     <CardFrame titleId="invite-unusable-title">
-      <h1 id="invite-unusable-title" ref={titleRef} tabIndex={-1} className={CARD_TITLE}>
+      <Heading level={1} look="title" id="invite-unusable-title" ref={titleRef} tabIndex={-1}>
         {copy.unusableTitle}
-      </h1>
-      <p className={CARD_BODY}>{copy.expired}</p>
-      <Link href={SIGN_IN_PAGE_PATH} className={linkClass("text")}>
+      </Heading>
+      <Text look="body" className="text-ink-2">
+        {copy.expired}
+      </Text>
+      <LinkButton href={SIGN_IN_PAGE_PATH} variant="secondary" className="self-start">
         {copy.signIn}
-      </Link>
+      </LinkButton>
     </CardFrame>
   );
 }

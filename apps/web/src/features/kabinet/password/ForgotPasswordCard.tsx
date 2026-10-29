@@ -2,8 +2,11 @@
 
 import { fillTemplate, uk } from "@opika/i18n";
 import { type FormEvent, useId, useState } from "react";
-import { buttonClass, TextField } from "../../controls/controls";
-import { CARD_BODY, CARD_MESSAGE, CARD_TITLE, CardFrame } from "./CardFrame";
+import { Button } from "../../../ui/Button";
+import { TextField } from "../../../ui/form";
+import { Heading } from "../../../ui/Heading";
+import { Text } from "../../../ui/Text";
+import { CARD_MESSAGE, CardFrame } from "./CardFrame";
 import { type ForgotOutcome, forgotOutcomeOf, PASSWORD_ENDPOINTS, postJson } from "./password-api";
 
 /**
@@ -51,10 +54,12 @@ export function ForgotPasswordCard({
   return (
     <CardFrame titleId={`${id}-title`}>
       <div className="flex flex-col gap-2">
-        <h1 id={`${id}-title`} className={CARD_TITLE}>
+        <Heading level={1} look="title" id={`${id}-title`}>
           {uk.kabinet.forgot.title}
-        </h1>
-        <p className={CARD_BODY}>{uk.kabinet.forgot.intro}</p>
+        </Heading>
+        <Text look="body" className="text-ink-2">
+          {uk.kabinet.forgot.intro}
+        </Text>
       </div>
       <form onSubmit={onSubmit} className="flex flex-col gap-6">
         <TextField
@@ -67,9 +72,9 @@ export function ForgotPasswordCard({
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
-        <button type="submit" aria-disabled={busy || undefined} className={buttonClass("primary")}>
+        <Button type="submit" status={busy ? "loading" : "idle"} className="w-full">
           {uk.kabinet.forgot.submit}
-        </button>
+        </Button>
       </form>
       <p role="status" className={CARD_MESSAGE}>
         {message}
