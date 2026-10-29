@@ -48,8 +48,8 @@ export interface SmokeSittingInput {
   /**
    * A PR with the settlement import (nationwide N2): after the smoke, on the same child branch, the
    * import runs as a dry run, with `--commit`, as a dry run again (all zeros), and again after a
-   * reseed. The import refuses a production target whatever flags it is given, so there is no
-   * production block. `expected` lines become the sitting's "# Expected" comments, one per step.
+   * reseed. This block is the child-branch rehearsal and never passes `--prod`; the production
+   * import is its own part of `renderProductionImportSitting`. `expected` lines become the sitting's "# Expected" comments, one per step.
    */
   settlementImport?: {
     /** Where the codifier is downloaded from, and the sha256 it must have (the importer pins it too). */
@@ -104,7 +104,7 @@ Remove-Item Env:PROD_NEON_ENDPOINT
 function importParts(settlementImport: SmokeSittingInput["settlementImport"]): string {
   if (settlementImport === undefined) return "";
   return `
----- Settlement import, on the same child branch (the script refuses a production target outright) ----
+---- Settlement import, on the same child branch (the rehearsal: no production flag here) ----
 $xlsx = Join-Path $env:TEMP "kodifikator-07-07.xlsx"
 Invoke-WebRequest -Uri "${settlementImport.download.url}" -OutFile $xlsx
 $hash = (Get-FileHash -Algorithm SHA256 $xlsx).Hash.ToLower()
@@ -203,11 +203,184 @@ export function renderSmokeSitting(input: SmokeSittingInput): string {
   return text;
 }
 
+/**
+ * The combined sitting for the production settlement import: ONE file with two parts that run from
+ * two checkouts. Part 1 is an ordinary child-branch sitting (`rehearsal`, rendered by the same code
+ * as every other); Part 2 imports into production from the importing PR's own head, with a restore
+ * point and a typed confirmation before the only write. Never hand-written, for the same reason as
+ * the rest of this file.
+ */
+export interface ProductionImportSittingInput {
+  title: string;
+  date: string;
+  /** Part 1. Must carry `settlementImport` (with `timings`): the rehearsal is import-shaped. */
+  rehearsal: SmokeSittingInput;
+  production: {
+    prNumber: number;
+    branch: string;
+    /** The PR head Part 2 runs from; it holds the guard that allows `--prod --expect`. */
+    sha: string;
+    worktreeSlug: string;
+    download: { url: string; sha256: string };
+    /** The Neon branch the owner makes from production right before the commit. */
+    restoreBranchName: string;
+    /** The tag of the last migration that must already be on production. */
+    lastMigrationTag: string;
+    /** How many migrations the journal has, all of which must read "match". */
+    migrationCount: number;
+    expected: {
+      beforeReferences: string;
+      dryRun: string;
+      afterCommit: string;
+      rerun: string;
+      afterReferences: string;
+      site: string;
+    };
+  };
+}
+
+function productionPart(input: ProductionImportSittingInput): string {
+  const p = input.production;
+  const worktreePath = `D:\\opika-worktrees\\${p.worktreeSlug}`;
+  return `
+=====================================================================================
+PART 2: the production import. Runs from PR #${p.prNumber} (${p.branch}) @ ${p.sha}
+Only after Part 1 passed in full (the numbers it expects), and only after the session
+has confirmed this SHA is still the PR's head and the reviewer's verdict stands.
+=====================================================================================
+Migration kind: none. No schema change: the data import of the 2026-07-07 codifier into cities
+(29,703 settlements). It adopts the 8 legacy cities in place (their ids, so every shelter and animal
+reference, stay), writes slug aliases before any rename, and is idempotent: a crash is completed by
+rerunning the same command. The only write is the --commit step, behind a typed confirmation.
+
+---- Setup (paste once) ----
+nvm use 24
+cd D:\\Startup\\opika
+git fetch
+git worktree add --detach ${worktreePath} ${p.sha}
+cd ${worktreePath}
+git log -1 --oneline
+pnpm i
+function Read-Secret($p){ $s = Read-Host $p -AsSecureString; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) }
+
+---- The file (same download and checksum as Part 1) ----
+$xlsx = Join-Path $env:TEMP "kodifikator-07-07.xlsx"
+Invoke-WebRequest -Uri "${p.download.url}" -OutFile $xlsx
+$hash = (Get-FileHash -Algorithm SHA256 $xlsx).Hash.ToLower()
+$hash
+$hashOk = ($hash -eq "${p.download.sha256}")
+if (-not $hashOk) { Write-Host "STOP: the file's sha256 is not ${p.download.sha256}. Do not import it; paste this back. Nothing below will write." -ForegroundColor Red }
+# If the link has moved: download the file by hand and set $xlsx to its path instead, e.g.
+#   $xlsx = "C:\\path\\kodifikator-07-07.xlsx"   (strip the quotes from a "Copy as path" path), then rerun the two lines above that compute $hash and $hashOk. Do not commit the file.
+
+---- Production connection (read without echo; never printed) ----
+$env:DATABASE_URL = Read-Secret "PRODUCTION connection string"
+$env:PROD_NEON_ENDPOINT = Read-Secret "Production Neon endpoint id (ep-...)"
+$ep = ([uri]$env:DATABASE_URL).Host.Split('.')[0] -replace '-pooler$',''
+$ep
+$epOk = ($ep -eq ($env:PROD_NEON_ENDPOINT.Trim().ToLower() -replace '-pooler$',''))
+if (-not $epOk) { Write-Host "STOP: the connection string is not the production endpoint you typed. Nothing below will write." -ForegroundColor Red }
+
+---- Pre-flight (read-only) ----
+pnpm --filter @opika/db db:check-hashes
+# Expected: first line 'Target: Neon endpoint ' + the endpoint; all ${p.migrationCount} migrations 'match', through ${p.lastMigrationTag}; no 'not run', 'MISMATCH', 'SKIPPED' or 'UNKNOWN' line. Anything else -> STOP, paste it.
+pnpm --filter @opika/db db:city-references --prod --expect $ep
+# Expected: ${p.expected.beforeReferences}
+# SAVE the 'Reference fingerprint' line: the same command runs again after the commit and must print the same value.
+
+---- Dry run (writes nothing) ----
+pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx
+$dryExit = $LASTEXITCODE
+"import dry run exit code: $dryExit (expected 0)"
+# Expected: ${p.expected.dryRun}
+# Any refusal, any difference in the counts above, or a '!!! WARNING' line -> STOP, paste the output, do not continue.
+
+---- Restore point, then the typed confirmation and the commit: ONE block, paste it whole ----
+# In the Neon console first: create a branch of PRODUCTION right now (parent: production, current data), named ${p.restoreBranchName}
+# (Part 1's child branch is a rehearsal that now holds fixtures and the imported data: it is not a restore point).
+# The prompts and the write are inside one if-block on purpose: PowerShell reads the whole block before running
+# any of it, so Read-Host cannot swallow a pasted line, and --commit runs only when every check below is true.
+$go = $false
+if ($true) {
+  $named = Read-Host "Type the name of the restore branch you just created"
+  $typed = Read-Host "Type the production endpoint id ($ep) to confirm the write"
+  $go = $hashOk -and $epOk -and ($dryExit -eq 0) -and ($named.Trim() -eq "${p.restoreBranchName}") -and ($typed.Trim().ToLower() -eq $ep)
+  if (-not $go) {
+    Write-Host "STOP: not confirmed (file checksum, endpoint, dry run exit code 0, restore branch name and typed endpoint must all be right). NOTHING WAS WRITTEN. Paste this output and do nothing further." -ForegroundColor Red
+  } else {
+    pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx --commit
+    $commitExit = $LASTEXITCODE
+    "import --commit exit code: $commitExit (expected 0)"
+  }
+}
+# Expected (only if the block wrote): ${p.expected.afterCommit}
+# If the run dies part way: do not retry blindly. Paste the output; rerunning the same command completes it (idempotent), and the restore branch is the way back.
+
+---- Dry rerun (writes nothing) ----
+pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx
+"import dry rerun exit code: $LASTEXITCODE (expected 0)"
+# Expected: ${p.expected.rerun}
+
+---- Post-checks (read-only) ----
+pnpm --filter @opika/db db:city-references --prod --expect $ep
+# Expected: ${p.expected.afterReferences}
+$site = Read-Host "Production site base URL (https://...)"
+curl.exe -s -o NUL -w "%{http_code} %{redirect_url}\`n" "$site/tvaryny"
+curl.exe -s -o NUL -w "%{http_code} %{redirect_url}\`n" "$site/tvaryny?misto=brovary"
+# Expected: ${p.expected.site}
+
+---- Cleanup ----
+Remove-Item Env:DATABASE_URL
+Remove-Item Env:PROD_NEON_ENDPOINT
+Remove-Item $xlsx
+cd D:\\Startup\\opika
+git worktree remove ${worktreePath}
+
+Paste back (Part 2): every output above in full, from db:check-hashes to the curl status codes, including both 'Reference fingerprint' lines and the commit's search probes. If anything stopped the run, paste exactly where, and do nothing further.
+`;
+}
+
+/** Renders the combined production-import sitting; refuses the phrase every sitting refuses. */
+export function renderProductionImportSitting(input: ProductionImportSittingInput): string {
+  if (input.rehearsal.settlementImport === undefined) {
+    throw new Error("the rehearsal part must carry settlementImport (the import-shaped sitting)");
+  }
+  const r = input.rehearsal;
+  const p = input.production;
+  const text = `${input.title} - combined sitting, ${input.date}. PowerShell.
+TWO PARTS, TWO CHECKOUTS. Confirm BOTH SHAs with the session before running anything:
+  Part 1 (child-branch rehearsal, the cities.search UNION smoke): PR #${r.prNumber} ${r.branch} @ ${r.sha}
+  Part 2 (production import): PR #${p.prNumber} ${p.branch} @ ${p.sha}
+Part 1 runs from the not-yet-merged search PR on a FRESH child branch. Part 2 runs from the import
+PR's own head (the search PR only changes cities.search, which the import uses just for its probes).
+Both PRs are merged after this sitting, not before. Do Part 2 only if Part 1 passed in full.
+NOTE: the import's readiness scan checks the CHECKOUT, not the deployment. Before Part 2, confirm the Vercel
+production deployment is on main at 21f1185 (N4) or later: builds older than N3/N4 can serve open tabs for up
+to the 12 h skew-protection window and still read the full city list (payload only, no privacy issue).
+
+=====================================================================================
+PART 1: child-branch rehearsal. Runs from PR #${r.prNumber} (${r.branch}) @ ${r.sha}
+=====================================================================================
+${assembled(r)}${productionPart(input)}`;
+  const match = AGAINST_PRODUCTION.exec(text);
+  if (match !== null) {
+    throw new Error(
+      `renderProductionImportSitting refuses to produce a sitting containing "${match[0]}"; ` +
+        "smokes run on a child branch, and the production part says what it does to production.",
+    );
+  }
+  return text;
+}
+
 async function main(): Promise<void> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
-  const input = JSON.parse(Buffer.concat(chunks).toString("utf8")) as SmokeSittingInput;
-  process.stdout.write(renderSmokeSitting(input));
+  const input = JSON.parse(Buffer.concat(chunks).toString("utf8")) as
+    | SmokeSittingInput
+    | ProductionImportSittingInput;
+  process.stdout.write(
+    "rehearsal" in input ? renderProductionImportSitting(input) : renderSmokeSitting(input),
+  );
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

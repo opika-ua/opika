@@ -19,4 +19,7 @@ verified until a sitting has run against real Neon.
   `--prod` and `--expect ep-...` (`packages/db/src/prod-guard.ts`).
 - Migrations and SQL also get a separate reviewer (lean rule 1). The owner runs the production migration
   from the PR branch before the merge. State the migration kind in the PR: none, additive or destructive.
+- The production settlement import is the one sitting with a production part: generate it with the
+  `rehearsal` + `production` input shape (`renderProductionImportSitting`): a child-branch rehearsal first, then
+  the import behind `--prod --expect`, a Neon restore branch and a typed endpoint confirmation. Never a hand edit.
 - The owner runs the sitting; you prepare the file and the expected counts, and you do not merge before it.

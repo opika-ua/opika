@@ -1,12 +1,20 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { type ImportOutcome, runImport } from "../src/import/importer";
+import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { cities } from "../src/schema/cities";
 import { citySlugAliases } from "../src/schema/city-slug-aliases";
 import { buildCities } from "../src/seed";
-import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "../src/test-utils/index";
+import {
+  makeAnimal,
+  makeCity,
+  makeShelter,
+  setupTestDatabase,
+  truncateAll,
+} from "../src/test-utils/index";
+import { loadCityReferences, referenceFingerprint } from "../src/tools/city-references";
 import { buildXlsx, FIXTURE_ROWS, FIXTURE_SETTLEMENT_COUNTS, pinFor } from "./import-fixture";
 
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
@@ -85,6 +93,67 @@ describe("runImport", () => {
       hromadaNameUk: "Броварська міська громада",
       nameScope: "unique_in_region",
     });
+  });
+
+  it("keeps every shelter and animal pointing at the same city id, renamed city or not", async () => {
+    // One shelter and animal per legacy city: Kyiv keeps its slug, the other 7 are renamed.
+    for (const city of buildCities()) {
+      const shelter = makeShelter();
+      await shelterRepo(db).insert({
+        ...shelter,
+        publicLocation: { ...shelter.publicLocation, cityId: city.id },
+      });
+      await animalRepo(db).insert(makeAnimal({ shelterId: shelter.id }), city.id);
+    }
+    const before = await loadCityReferences(db);
+    expect(before.referenced).toHaveLength(8);
+    expect(before.referenced.every((r) => r.animals === 1 && r.shelters === 1)).toBe(true);
+
+    await run(true);
+    const after = await loadCityReferences(db);
+    expect(after.referenced.map((r) => r.slug)).not.toEqual(before.referenced.map((r) => r.slug));
+    expect(after.referenced.map((r) => [r.cityId, r.animals, r.shelters])).toEqual(
+      before.referenced.map((r) => [r.cityId, r.animals, r.shelters]),
+    );
+    expect(referenceFingerprint(after.referenced)).toBe(referenceFingerprint(before.referenced));
+    // And nothing was added to the references by a rerun.
+    await run(true);
+    expect(referenceFingerprint((await loadCityReferences(db)).referenced)).toBe(
+      referenceFingerprint(before.referenced),
+    );
+  });
+
+  it("reports the starting point before it plans: cities, codes and aliases it began with", async () => {
+    const dry = await run(false);
+    if (dry.kind !== "planned") throw new Error(`expected a plan, got ${dry.kind}`);
+    expect(dry.preflight).toEqual({ cities: 8, withCode: 0, withoutCode: 8, aliases: 0 });
+    const result = committed(await run(true));
+    expect(result.preflight).toEqual({ cities: 8, withCode: 0, withoutCode: 8, aliases: 0 });
+    const rerun = committed(await run(true));
+    expect(rerun.preflight).toEqual({ cities: 22, withCode: 22, withoutCode: 0, aliases: 7 });
+  });
+
+  it("refuses, writing nothing, when migration 0020's columns can't be read", async () => {
+    const without0020 = new Proxy(db, {
+      get(target, property) {
+        if (property === "select") {
+          return () => {
+            throw new Error("column does not exist");
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const outcome = await runImport({
+      db: without0020,
+      bytes,
+      commit: true,
+      editions: [pin],
+    });
+    expect(outcome.kind === "refused" && outcome.reasons.join()).toMatch(/migration 0020/);
+    expect(await slugs()).toContain("brovary");
+    expect(await db.select().from(citySlugAliases)).toHaveLength(0);
   });
 
   it("leaves every imported centroid null", async () => {

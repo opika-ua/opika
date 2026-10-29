@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { renderSmokeSitting, type SmokeSittingInput } from "../src/tools/smoke-sitting";
+import {
+  type ProductionImportSittingInput,
+  renderProductionImportSitting,
+  renderSmokeSitting,
+  type SmokeSittingInput,
+} from "../src/tools/smoke-sitting";
 
 const BASE: SmokeSittingInput = {
   title: "Sex-filter PR",
@@ -204,5 +209,167 @@ describe("renderSmokeSitting with the import and the timings step (nationwide N3
 
   it("still has no production step", () => {
     expect(withTimings).not.toContain("--prod");
+  });
+});
+
+describe("renderProductionImportSitting (the combined rehearsal + production sitting)", () => {
+  const REHEARSAL: SmokeSittingInput = {
+    ...BASE,
+    prNumber: 282,
+    branch: "perf/cities-search-union",
+    sha: "5ec7ea3dcf6fce38fbbf1df5c75366bc71c12e16",
+    settlementImport: {
+      download: { url: "https://example.org/k.xlsx", sha256: "abc123" },
+      expectedFirstPlan: "FIRST",
+      expectedAfterCommit: "COMMIT",
+      expectedRerun: "RERUN",
+      expectedAfterReseed: "RESEED",
+      timings: { expected: "TIMINGS" },
+    },
+  };
+  const INPUT: ProductionImportSittingInput = {
+    title: "Production settlement import",
+    date: "2026-10-29",
+    rehearsal: REHEARSAL,
+    production: {
+      prNumber: 290,
+      branch: "feat/prod-import-enable",
+      sha: "1111111111111111111111111111111111111111",
+      worktreeSlug: "prod-import-run",
+      download: { url: "https://example.org/k.xlsx", sha256: "abc123" },
+      restoreBranchName: "pre-import-restore",
+      lastMigrationTag: "0020_nationwide_geography_schema",
+      migrationCount: 21,
+      expected: {
+        beforeReferences: "BEFORE-REFS",
+        dryRun: "DRY",
+        afterCommit: "AFTER-COMMIT",
+        rerun: "AGAIN",
+        afterReferences: "AFTER-REFS",
+        site: "SITE",
+      },
+    },
+  };
+  const text = renderProductionImportSitting(INPUT);
+  const at = (needle: string, from = 0) => text.indexOf(needle, from);
+
+  it("names both SHAs up front and runs Part 1 from the rehearsal PR, Part 2 from the import PR", () => {
+    const header = text.slice(0, at("PART 1:"));
+    expect(header).toContain(REHEARSAL.sha);
+    expect(header).toContain(INPUT.production.sha);
+    expect(header).toContain("Confirm BOTH SHAs");
+    expect(
+      at("git worktree add --detach D:\\opika-worktrees\\sex-filter-smoke 5ec7ea3"),
+    ).toBeGreaterThan(-1);
+    expect(
+      at("git worktree add --detach D:\\opika-worktrees\\prod-import-run 1111111"),
+    ).toBeGreaterThan(at("PART 2:"));
+  });
+
+  it("contains Part 1 exactly as the ordinary child-branch sitting renders it", () => {
+    const part1 = renderSmokeSitting(REHEARSAL);
+    expect(text).toContain(part1);
+    const partOne = text.slice(at("PART 1:"), at("PART 2:"));
+    expect(partOne).not.toContain("--prod");
+  });
+
+  it("downloads and checks the file, then reads the production string, then pre-flights, in order", () => {
+    const part2 = at("PART 2:");
+    const order = [
+      "Invoke-WebRequest",
+      '$hashOk = ($hash -eq "abc123")',
+      '$env:DATABASE_URL = Read-Secret "PRODUCTION connection string"',
+      "$epOk = (",
+      "db:check-hashes",
+      "db:city-references --prod --expect $ep",
+      "db:import-settlements --prod --expect $ep --file $xlsx\n",
+    ].map((needle) => at(needle, part2));
+    expect(order.every((i) => i > -1)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(text).toContain("all 21 migrations 'match', through 0020_nationwide_geography_schema");
+  });
+
+  it("puts the restore prompt, the typed confirmation and the only --commit in ONE block, gated by every check", () => {
+    const part2 = at("PART 2:");
+    const dry = at("db:import-settlements --prod --expect $ep --file $xlsx\n", part2);
+    const open = at("if ($true) {", part2);
+    const restore = at("$named = Read-Host", part2);
+    const typed = at("$typed = Read-Host", part2);
+    const gate = at("$go = $hashOk -and $epOk -and ($dryExit -eq 0)", part2);
+    const refusal = at("if (-not $go) {", part2);
+    const commit = at("--file $xlsx --commit", part2);
+    const marks = [dry, open, restore, typed, gate, refusal, commit];
+    expect(marks.every((i) => i > -1)).toBe(true);
+    expect(marks).toEqual([...marks].sort((a, b) => a - b));
+    const block = text.slice(open, at("# Expected (only if the block wrote)", open));
+    expect(block).toContain('($named.Trim() -eq "pre-import-restore")');
+    expect(block).toContain("($typed.Trim().ToLower() -eq $ep)");
+    // The commit is in the else branch of the refusal: it cannot run when a check failed.
+    expect(block.indexOf("} else {")).toBeGreaterThan(block.indexOf("if (-not $go) {"));
+    expect(block.indexOf("--commit")).toBeGreaterThan(block.indexOf("} else {"));
+    // A `throw` stops only its own pasted line, so no write may rely on one.
+    expect(text.slice(part2)).not.toMatch(/\bthrow\b/);
+    // The one write in Part 2; Part 1's rehearsal commits to a child branch without --prod.
+    const writes = text
+      .slice(part2)
+      .split("\n")
+      .filter((l) => l.includes("--commit") && l.trim().startsWith("pnpm"));
+    expect(writes.map((l) => l.trim())).toEqual([
+      "pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx --commit",
+    ]);
+    expect(text.slice(part2).match(/db:import-settlements --prod --expect \$ep/g)).toHaveLength(3);
+  });
+
+  it("shows the exit code of every import command, expecting 0", () => {
+    const part2 = text.slice(at("PART 2:"));
+    expect(part2).toContain("$dryExit = $LASTEXITCODE");
+    expect(part2).toContain("$commitExit = $LASTEXITCODE");
+    expect(part2).toContain('"import dry rerun exit code: $LASTEXITCODE (expected 0)"');
+  });
+
+  it("prints the redirect target for the site checks, and the header says the scan checks the checkout", () => {
+    expect(text.match(/%\{http_code\} %\{redirect_url\}/g)).toHaveLength(2);
+    const header = text.slice(0, at("PART 1:"));
+    expect(header).toContain("checks the CHECKOUT, not the deployment");
+    expect(header).toContain("21f1185");
+  });
+
+  it("reruns dry after the commit, then checks references twice and the site, then cleans up", () => {
+    const commit = at("--file $xlsx --commit", at("PART 2:"));
+    const rerun = at("# Expected: AGAIN");
+    const refs = text.lastIndexOf("db:city-references --prod --expect $ep");
+    const curl = at("curl.exe", commit);
+    const cleanup = at("Remove-Item Env:DATABASE_URL", curl);
+    expect(rerun).toBeGreaterThan(commit);
+    expect(refs).toBeGreaterThan(rerun);
+    expect(text.match(/db:city-references --prod/g)).toHaveLength(2);
+    expect(curl).toBeGreaterThan(refs);
+    expect(cleanup).toBeGreaterThan(curl);
+    expect(text).toContain("# Expected: AFTER-REFS");
+    expect(text).toContain("# Expected: SITE");
+  });
+
+  it("never prints a secret: the connection string is only read, parsed for its host and removed", () => {
+    for (const line of text.split("\n").filter((l) => l.includes("$env:DATABASE_URL"))) {
+      expect(line, line).toMatch(/Read-Secret|\[uri\]/);
+    }
+    expect(text).not.toMatch(/Write-Host \$env|echo \$env|\$env:PROD_NEON_ENDPOINT\s*$/m);
+    expect(text).toContain("Remove-Item Env:PROD_NEON_ENDPOINT");
+  });
+
+  it("stays unable to say the one thing no sitting may say, and needs an import-shaped rehearsal", () => {
+    expect(text).not.toMatch(/against\s+production/i);
+    expect(() =>
+      renderProductionImportSitting({ ...INPUT, title: "run it against production" }),
+    ).toThrow(/against\s+production/i);
+    expect(() =>
+      renderProductionImportSitting({
+        ...INPUT,
+        production: { ...INPUT.production, restoreBranchName: "against  production" },
+      }),
+    ).toThrow(/against\s+production/i);
+    expect(() => renderProductionImportSitting({ ...INPUT, rehearsal: BASE })).toThrow(
+      /settlementImport/,
+    );
   });
 });

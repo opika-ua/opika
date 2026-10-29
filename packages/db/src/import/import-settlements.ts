@@ -2,19 +2,21 @@ import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { placeQueryOf } from "@opika/domain";
 import { createDatabase, type Database } from "../client";
-import { migrateTargetCheck, parseMigrateArgs } from "../migrate-args";
-import { assertNotProductionTarget, databaseTargetLine } from "../prod-guard";
+import { parseMigrateArgs } from "../migrate-args";
+import { databaseTargetLine } from "../prod-guard";
 import { citySearchRepo } from "../repos/city-search-repo";
-import { type ImportOutcome, runImport } from "./importer";
+import { decideImportTarget, type ImportScope } from "./import-target";
+import { type ImportOutcome, type Preflight, runImport } from "./importer";
 import type { PlanReport } from "./plan";
 
 /**
  * `pnpm --filter @opika/db db:import-settlements --file <codifier.xlsx> [--expect ep-...] [--commit]`
+ * Production: add `--prod --expect ep-...` (the production compute).
  *
- * Dry run by default; `--commit` writes. CHILD BRANCHES AND LOCAL DATABASES ONLY, until the gallery
- * and the pickers stop reading the full city list (nationwide N3 and N4): a production target is
- * refused whatever flags are given, `--prod` included. The production import is a later sitting
- * with its own change to this guard.
+ * Dry run by default; `--commit` writes. Local databases and child branches as before. Production is
+ * allowed only through `decideImportTarget` (`--prod`, a known `PROD_NEON_ENDPOINT`, `--expect`
+ * equal to it, and a clean readiness scan); the typed confirmation before `--commit` belongs to
+ * the smoke sitting. `db:seed` still refuses production outright.
  */
 export type ImportArgs =
   | { kind: "ok"; file: string; commit: boolean; expect: string | undefined }
@@ -43,6 +45,20 @@ export function parseImportArgs(argv: readonly string[]): ImportArgs {
 
 const n = (value: number) => value.toLocaleString("en-US");
 
+/** The starting point, printed before the plan so a pasted run shows what it began from. */
+export function preflightLines(pre: Preflight, report: PlanReport, scope: ImportScope): string[] {
+  const lines = [
+    "Pre-flight: migration 0020 present, regions equal the 27-row constant, file matches the pinned edition",
+    `Pre-flight: ${n(pre.cities)} cities now (${n(pre.withCode)} with a code, ${n(pre.withoutCode)} without), ${n(pre.aliases)} slug aliases; ${report.adopted} legacy cities to adopt in place (ids, and so every shelter and animal reference, are kept)`,
+  ];
+  if (scope === "production" && report.unmanagedRows > 0) {
+    lines.push(
+      `!!! WARNING: ${report.unmanagedRows} row(s) without a code are NOT the 8 legacy cities. Production should have none. They are left alone; stop and look before --commit !!!`,
+    );
+  }
+  return lines;
+}
+
 export function reportLines(report: PlanReport): string[] {
   const c = report.byCategory;
   return [
@@ -57,11 +73,14 @@ export function reportLines(report: PlanReport): string[] {
   ];
 }
 
-function print(outcome: ImportOutcome): number {
+function print(outcome: ImportOutcome, scope: ImportScope): number {
   if (outcome.kind === "refused") {
     console.error("REFUSED, nothing was written:");
     for (const reason of outcome.reasons) console.error(`- ${reason}`);
     return 1;
+  }
+  for (const line of preflightLines(outcome.preflight, outcome.plan.report, scope)) {
+    console.log(line);
   }
   for (const line of reportLines(outcome.plan.report)) console.log(line);
   console.log(
@@ -115,18 +134,28 @@ async function main(): Promise<void> {
     console.error(`ERROR: ${args.reason}.`);
     process.exit(1);
   }
-  // First, before anything is printed or read: production is refused with or without --prod.
-  assertNotProductionTarget(url, process.argv, "Importing settlements");
-  const expected = migrateTargetCheck(url, args.expect);
-  if (expected.kind === "refused") {
-    console.error(`ERROR: ${expected.reason}. Refusing (not printing the URL).`);
+  // First, before anything is printed or read.
+  const target = decideImportTarget({ url, argv: process.argv.slice(2), expect: args.expect });
+  if (target.kind === "refused") {
+    console.error(`ERROR: ${target.reason}. Nothing was connected (the URL is never printed).`);
     process.exit(1);
   }
   console.log(databaseTargetLine(url));
-  const bytes = new Uint8Array(readFileSync(args.file));
+  if (target.scope === "production") {
+    console.log(
+      `PRODUCTION target: --prod given, --expect equals the production compute, readiness scan clear (${n(target.filesScanned ?? 0)} source files, no full city list read). ${args.commit ? "--commit: WRITING." : "Dry run."}`,
+    );
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = new Uint8Array(readFileSync(args.file));
+  } catch {
+    console.error(`ERROR: cannot read --file ${JSON.stringify(args.file)}. Nothing was connected.`);
+    process.exit(1);
+  }
   const db = createDatabase(url);
   const outcome = await runImport({ db, bytes, commit: args.commit });
-  const code = print(outcome);
+  const code = print(outcome, target.scope);
   if (outcome.kind === "committed") await probeSearch(db);
   process.exit(code);
 }
