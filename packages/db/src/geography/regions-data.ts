@@ -52,7 +52,15 @@ export const REGIONS: readonly RegionRecord[] = [
     "Вінницька обл.",
     "Вінницька",
     "Vinnytsia Oblast",
-    ["khmelnytska", "zhytomyrska", "kyivska", "cherkaska", "kirovohradska", "odeska"],
+    [
+      "khmelnytska",
+      "zhytomyrska",
+      "kyivska",
+      "cherkaska",
+      "kirovohradska",
+      "odeska",
+      "chernivetska",
+    ],
   ),
   region(
     "UA07",
@@ -310,7 +318,7 @@ export const REGIONS: readonly RegionRecord[] = [
     "Чернівецька обл.",
     "Чернівецька",
     "Chernivtsi Oblast",
-    ["ivano-frankivska", "ternopilska", "khmelnytska"],
+    ["ivano-frankivska", "ternopilska", "khmelnytska", "vinnytska"],
   ),
   region(
     "UA74",

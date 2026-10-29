@@ -146,8 +146,8 @@ export async function runGeographySmoke(db: Database): Promise<Outcome[]> {
       sql`slug IN ('kyiv', 'brovary', 'irpin', 'bucha', 'vyshhorod', 'boryspil', 'fastiv', 'bila-tserkva')`,
     );
   check(
-    "every seeded city present was backfilled to its region and kind (a child branch of production holds all 8)",
-    wrongKyiv?.n === 0 && wrongOblast?.n === 0,
+    "all 8 seeded cities exist and were backfilled to their region and kind (look for: seeded cities present: 8, wrong: 0)",
+    seeded?.n === 8 && wrongKyiv?.n === 0 && wrongOblast?.n === 0,
     `seeded cities present: ${seeded?.n}, wrong: ${(wrongKyiv?.n ?? 0) + (wrongOblast?.n ?? 0)}`,
   );
 
