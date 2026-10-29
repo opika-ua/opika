@@ -2,6 +2,7 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { logRateLimited, type RateLimitedLog } from "./rate-limit-log";
 import { redisCredentialsOf } from "./redis-credentials";
+import { retryAfterSecondsOf } from "./retry-after";
 
 // ---------------------------------------------------------------------------
 // Generic per-IP rate limiter
@@ -43,6 +44,11 @@ import { redisCredentialsOf } from "./redis-credentials";
 export interface RateLimiter {
   /** Resolves true if the request is allowed, false if rate-limited. */
   check(key: string, now: Date): Promise<boolean>;
+  /**
+   * Whole seconds until a key refused by the last `check` can pass again, for the `Retry-After`
+   * header. Optional so a stub limiter needs only `check`; read it through `retryAfterSecondsOf`.
+   */
+  retryAfterSeconds?(key: string, now: Date): number;
 }
 
 type SlidingWindowEntry = { timestamps: number[] };
@@ -80,6 +86,11 @@ export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: numbe
 
       entry.timestamps.push(nowMs);
       return true;
+    },
+    // The oldest counted request leaving the window is what frees a slot.
+    retryAfterSeconds(key: string, now: Date): number {
+      const oldest = store.get(key)?.timestamps[0];
+      return oldest === undefined ? 1 : (oldest + opts.windowMs - now.getTime()) / 1000;
     },
   };
 }
@@ -192,10 +203,24 @@ export function upstashRateLimiter(opts: {
     timeout: UPSTASH_CHECK_TIMEOUT_MS,
   });
 
+  // `reset` of each key's last refusal (epoch ms), the end of the bucket that blocks it.
+  const resets = new Map<string, number>();
+  const MAX_TRACKED_REFUSALS = 10_000;
+
   return {
+    retryAfterSeconds(key: string, now: Date): number {
+      const reset = resets.get(key);
+      return reset === undefined ? windowSeconds : (reset - now.getTime()) / 1000;
+    },
     async check(key: string, _now: Date): Promise<boolean> {
       try {
         const result = await ratelimit.limit(key);
+        if (!result.success) {
+          if (resets.size >= MAX_TRACKED_REFUSALS) resets.clear();
+          resets.set(key, result.reset);
+        } else {
+          resets.delete(key);
+        }
         if (result.reason === "timeout") {
           console.error("apiRateLimiter: Upstash check timed out - failing closed (RL-1)");
           return false;
@@ -336,6 +361,7 @@ export function loggingRefusals(
       if (!allowed) logRateLimited(name, log);
       return allowed;
     },
+    retryAfterSeconds: (key: string, now: Date) => retryAfterSecondsOf(inner, key, now),
   };
 }
 

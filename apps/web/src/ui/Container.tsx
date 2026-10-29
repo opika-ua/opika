@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cx } from "./cx";
+import { MAIN_LANDMARK } from "./landmark";
 
 /**
  * Max width plus the page gutters (16 on a phone, 24 from tablet, 56 from desktop), centred. The one
@@ -15,7 +16,10 @@ export function Container({
   children: ReactNode;
 }) {
   return (
-    <Tag className={cx("mx-auto w-full max-w-350 px-4 tablet:px-6 desktop:px-14", className)}>
+    <Tag
+      {...(Tag === "main" ? MAIN_LANDMARK : {})}
+      className={cx("mx-auto w-full max-w-350 px-4 tablet:px-6 desktop:px-14", className)}
+    >
       {children}
     </Tag>
   );

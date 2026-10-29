@@ -161,7 +161,7 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
       "Запрошення надіслано. Перевірити, чи адреса не заблокована, не вдалося.",
     );
     await expect(page.getByText(/^Посилання діє до .+, \d\d:\d\d\.$/)).toBeVisible();
-    await expect(page.getByText(/^Повідомте притулок особисто: /)).toBeVisible();
+    await expect(page.getByText(/^Повідомте притулок особисто[:.] /)).toBeVisible();
     await expect(page.getByRole("button", { name: "Надіслати ще раз" })).toBeVisible();
     // The console sender's line: the invitation went to the address typed.
     expect(server.stdout()).toContain(`[kabinet] invitation for ${adminEmail}: `);

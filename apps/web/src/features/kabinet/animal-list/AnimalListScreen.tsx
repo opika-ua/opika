@@ -1,4 +1,5 @@
 import { uk } from "@opika/i18n";
+import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { KabinetBrand } from "../KabinetBrand";
 import { KabinetNav } from "../KabinetNav";
 import { SignOutButton } from "../SignOutButton";
@@ -42,7 +43,7 @@ export function AnimalListScreen({
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 pb-24 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
         {/* Only a viewer this page is shown to reaches here, so «Тварини» is always in its nav. */}
         <KabinetNav current="animals" animalList />
-        <main className="flex min-w-0 flex-1 flex-col gap-4">
+        <main {...MAIN_LANDMARK} className="flex min-w-0 flex-1 flex-col gap-4">
           <AnimalList
             shelter={page.shelter}
             first={page.first}

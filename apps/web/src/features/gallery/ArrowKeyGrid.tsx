@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
+import { MAIN_LANDMARK } from "../../ui/landmark";
 
 /**
  * The gallery's grid is its page's `<main>`; the shelter page (designer
@@ -132,7 +133,7 @@ export function ArrowKeyGrid(props: ArrowKeyGridProps) {
     );
   }
   return (
-    <main ref={ref} data-testid="gallery-grid" className={className}>
+    <main {...MAIN_LANDMARK} ref={ref} data-testid="gallery-grid" className={className}>
       {children}
     </main>
   );

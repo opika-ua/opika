@@ -3,6 +3,7 @@ import { fillTemplate, uk } from "@opika/i18n";
 import { type OperatorName, standaloneOperatorName } from "../../kabinet/operator";
 import { LinkButton } from "../../ui/Button";
 import { Heading } from "../../ui/Heading";
+import { MAIN_LANDMARK } from "../../ui/landmark";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
 import { staleLineOf } from "./animal-list/list-model";
@@ -118,7 +119,7 @@ export function KabinetHome({
         {/* Bottom padding above clears the nav's fixed mobile tab bar; unused at desktop width. */}
         <KabinetNav current="home" animalList={animalListShown} />
 
-        <main className="flex min-w-0 flex-1 flex-col gap-4 desktop:gap-6">
+        <main {...MAIN_LANDMARK} className="flex min-w-0 flex-1 flex-col gap-4 desktop:gap-6">
           <Heading level={1} look="display-l" className="sr-only desktop:not-sr-only">
             {uk.kabinet.nav.home}
           </Heading>
