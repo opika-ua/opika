@@ -1,8 +1,10 @@
 import { uk } from "@opika/i18n";
+import { buttonClass } from "../../ui/Button";
+import { Text } from "../../ui/Text";
 import { AnimalForm } from "./animal-form/AnimalForm";
 import type { KabinetAnimalPage } from "./animal-page";
 import { KabinetBrand } from "./KabinetBrand";
-import { CAPTION } from "./profile-edit/styles";
+import { KabinetNav } from "./KabinetNav";
 import { ANIMAL_LIST_PATH, animalListShownTo, SHELTER_PROFILE_PATH } from "./routes";
 import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
@@ -20,6 +22,11 @@ import { SupportBanner } from "./SupportBanner";
  * renamed from «Профіль притулку»), named by its own title; since PR 6
  * opened every shelter's writes, no shelter admin is one, and the branch
  * stays so the page, the nav and this link keep sharing one rule.
+ *
+ * **The shell** is the list's (kit tokens, the side nav from desktop). Below desktop the form
+ * hides the tab bar: the bottom edge belongs to the form's save bar, the back link above the
+ * title is the way out, and a task this long shouldn't offer three other destinations under the
+ * thumb (kabinet redesign Phase 2 PR 3, a decision taken; the bar is back on every other page).
  */
 export const BACK_TO_LIST = { href: ANIMAL_LIST_PATH, label: uk.kabinet.animalForm.backToList };
 export const BACK_TO_PROFILE = {
@@ -33,44 +40,48 @@ export function AnimalPage({
   page: Extract<KabinetAnimalPage, { kind: "form" | "missing" }>;
 }) {
   const support = page.viewer === "support";
-  const back = animalListShownTo(page.viewer, page.editing) ? BACK_TO_LIST : BACK_TO_PROFILE;
+  const listShown = animalListShownTo(page.viewer, page.editing);
+  const back = listShown ? BACK_TO_LIST : BACK_TO_PROFILE;
   return (
     <div
       className={
-        support ? "min-h-dvh outline-4 -outline-offset-4 outline-rg-ink outline-solid" : "min-h-dvh"
+        support ? "min-h-dvh outline-4 -outline-offset-4 outline-ink outline-solid" : "min-h-dvh"
       }
     >
       {support ? <SupportBanner shelterName={page.shelter.displayName} /> : null}
-      <header className="flex min-h-16 items-center gap-3 bg-rg-surface px-4 desktop:gap-5 desktop:px-8">
+      <header className="flex min-h-16 items-center gap-3 bg-surface px-4 desktop:gap-5 desktop:px-8">
         <KabinetBrand />
-        <span className="hidden text-base font-medium text-rg-ink desktop:block">
-          {page.shelter.displayName}
-        </span>
+        <span className="hidden text-label text-ink desktop:block">{page.shelter.displayName}</span>
         <div className="flex-1" />
         {support ? (
-          <span className="text-base text-rg-ink-3">{uk.kabinet.support.signOutDisabled}</span>
+          <span className="text-body text-ink-2">{uk.kabinet.support.signOutDisabled}</span>
         ) : (
           <SignOutButton />
         )}
       </header>
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 pb-6 desktop:px-8 desktop:pt-8 desktop:pb-14">
-        {page.kind === "form" ? (
-          <AnimalForm
-            initialView={page.view}
-            editing={page.editing}
-            viewer={page.viewer}
-            shelterVisibility={page.shelterVisibility}
-            back={back}
-          />
-        ) : (
-          <div className="flex flex-col gap-4">
-            <a href={back.href} className="self-start text-base text-rg-ink underline">
-              {back.label}
-            </a>
-            <p className={CAPTION}>{uk.kabinet.animalForm.errors.notFound}</p>
-          </div>
-        )}
-      </main>
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 pb-4 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
+        <div className="hidden desktop:contents">
+          <KabinetNav current="animals" animalList={listShown} />
+        </div>
+        <main className="flex min-w-0 flex-1 flex-col gap-4">
+          {page.kind === "form" ? (
+            <AnimalForm
+              initialView={page.view}
+              editing={page.editing}
+              viewer={page.viewer}
+              shelterVisibility={page.shelterVisibility}
+              back={back}
+            />
+          ) : (
+            <div className="flex flex-col gap-4">
+              <a href={back.href} className={`self-start ${buttonClass("ghost")}`}>
+                {back.label}
+              </a>
+              <Text look="body">{uk.kabinet.animalForm.errors.notFound}</Text>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,6 @@
-import type { FreshnessKind, ListingKind } from "@opika/domain";
+import type { ListingKind } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { Chip } from "../../../ui/Chip";
-import { cx } from "../../../ui/cx";
 
 /**
  * One status language for a card's state (draft, published, reserved, adopted, withdrawn). The
@@ -31,36 +30,5 @@ export function ListingStatusChip({ kind }: { kind: ListingKind }) {
     <Chip kind="info" tone={look.tone} className="self-start">
       {label}
     </Chip>
-  );
-}
-
-/**
- * The three freshness pips on the kit's tokens: filled counts how far the last confirmation has
- * travelled, never a colour of alarm. Mirrors `freshnessPips` in packages/ui (the deck's copy,
- * still on the old tokens); `RowParts.test.tsx` fails if the two ever disagree on how many pips
- * are filled. Hidden from screen readers: the day count beside it says the same in words.
- */
-const FILLED: Record<FreshnessKind, readonly ("success" | "muted" | "ink" | "empty")[]> = {
-  fresh: ["success", "empty", "empty"],
-  aging: ["muted", "muted", "empty"],
-  stale: ["muted", "muted", "ink"],
-};
-const PIP = {
-  success: "bg-success",
-  muted: "bg-ink-2",
-  ink: "bg-ink",
-  empty: "border-2 border-ink-2",
-} as const;
-
-export const filledPipCount = (kind: FreshnessKind): number =>
-  FILLED[kind].filter((fill) => fill !== "empty").length;
-
-export function FreshnessPips({ kind }: { kind: FreshnessKind }) {
-  return (
-    <span aria-hidden="true" className="flex shrink-0 gap-1">
-      {FILLED[kind].map((fill, index) => (
-        <span key={index} className={cx("size-3 rounded-pill", PIP[fill])} />
-      ))}
-    </span>
   );
 }
