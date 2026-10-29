@@ -1,3 +1,8 @@
+import type { AuthContext } from "@better-auth/core";
+import {
+  runWithEndpointContext,
+  tryGetCurrentAuthEndpointContext,
+} from "@better-auth/core/context";
 import { APIError, isAPIError } from "better-auth/api";
 import { maskAddress } from "./email-senders";
 import { errorClassNameOf } from "./error-class-name";
@@ -134,6 +139,30 @@ export function maskedAuthLogging(out: AuthLogConsole = console) {
     },
     onAPIError: { throw: true },
   };
+}
+
+/**
+ * `$context` for server-side callers, with its `internalAdapter` run inside an endpoint context.
+ * Better Auth's module-level logger (the Drizzle adapter's bad row count, a failed after-commit
+ * hook) writes through the logger of the endpoint context it is running in and, outside one, through
+ * a default that prints raw `where` clauses (session tokens) and error objects. A call inside a
+ * request already has the context; one from our own server code (the invite credentials) does not.
+ */
+export function inLoggerContext<C extends Pick<AuthContext, "internalAdapter">>(context: C): C {
+  const adapter = context.internalAdapter;
+  const wrapped = new Proxy(adapter, {
+    get(target, property, receiver) {
+      const member: unknown = Reflect.get(target, property, receiver);
+      if (typeof member !== "function") return member;
+      return (...args: unknown[]) =>
+        tryGetCurrentAuthEndpointContext() === undefined
+          ? runWithEndpointContext({ context: context as unknown as AuthContext }, () =>
+              member.apply(target, args),
+            )
+          : member.apply(target, args);
+    },
+  });
+  return Object.create(context, { internalAdapter: { value: wrapped } });
 }
 
 /**

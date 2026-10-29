@@ -14,7 +14,7 @@ packages:
 catalog:
   typescript: 7.0.2
   zod: 4.6.7
-  vitest: 4.1.10
+  vitest: 4.1.12
   "@biomejs/biome": 2.5.6
   "@types/node": 24.13.3
   "@types/react": 19.2.17
@@ -22,14 +22,14 @@ catalog:
   "@orpc/client": 1.14.14
   "@orpc/contract": 1.14.14
   "@orpc/server": 1.14.14
-  "@vitest/coverage-v8": 4.1.10
+  "@vitest/coverage-v8": 4.1.12
   # Browser-layer verification. Playwright drives the rendering harness
   # (apps/web/test/harness) and is the e2e dependency the build plan calls
   # for at M12; happy-dom + Testing Library give apps/web a DOM environment
   # so React components can be asserted on at all. See CLAUDE.md,
   # "How work is verified".
   "@playwright/test": 1.62.1
-  happy-dom: 20.11.1
+  happy-dom: 21.0.4
   "@testing-library/react": 16.3.2
   "@testing-library/user-event": 14.6.3
   # Styling. tailwindcss/@tailwindcss/postcss pinned at 4.3.3 (published
@@ -44,6 +44,9 @@ catalog:
   # an upgrade must pass the kabinet auth suites (apps/web/src/kabinet/*.test.ts)
   # and the Neon auth smoke. 1.7.14 since S1 (1.7.7+ clears GHSA-965c-763c-88jm).
   better-auth: 1.7.14
+  # Same version as better-auth, which depends on it: apps/web imports its `context` export
+  # (auth-log.ts) to run server-side adapter calls inside a logger-bearing context.
+  "@better-auth/core": 1.7.14
   drizzle-kit: 0.31.10
   # O-9, 2026-09-06 reprioritisation ("2.1"): production's DB-backed pages
   # plateau at a ~1s floor (reconfirmed against the live site before this
@@ -118,3 +121,11 @@ catalog:
 
 allowBuilds:
   esbuild: true
+
+# Transitive dev-tooling pins for audit advisories (vitest pulls vite, and
+# vite/magicast pull source-map-js; none is declared by us). Not catalog
+# entries because nothing depends on them directly. Drop each once vitest's
+# own resolution reaches the fixed version.
+overrides:
+  vite: 8.3.5
+  source-map-js: 1.2.2
