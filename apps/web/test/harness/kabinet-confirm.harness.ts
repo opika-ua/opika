@@ -124,9 +124,13 @@ test.describe("kabinet confirm page, in a real browser", () => {
       const pending: Promise<void>[] = [];
       context.on("request", (request) => {
         pending.push(
-          request.allHeaders().then((headers) => {
-            if (headers.referer !== undefined) referers.push(headers.referer);
-          }),
+          request
+            .allHeaders()
+            .then((headers) => {
+              if (headers.referer !== undefined) referers.push(headers.referer);
+            })
+            // A request the browser abandons (a link prefetch cut off by a navigation) has no headers to read.
+            .catch(() => {}),
         );
       });
       const page = await context.newPage();
