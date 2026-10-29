@@ -7,4 +7,5 @@ Regenerate: `pnpm --filter @opika/web run icons:generate` (`scripts/generate-pwa
 
 - `icon-192.png`, `icon-512.png`: purpose `any`
 - `icon-maskable-512.png`: purpose `maskable`, mark inside the central 60%
-- `apple-touch-icon.png`: 180x180, linked from the root layout's `icons.apple`
+- `src/app/apple-icon.png`: 180x180, the Next file convention (keeps `app/icon.svg`'s favicon link)
+- `src/pwa-colors.ts`: `--color-page` as RGB, written by the same script (no runtime file read)

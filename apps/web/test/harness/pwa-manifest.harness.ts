@@ -24,9 +24,18 @@ test.describe("web app manifest, against a real server", () => {
       expect(file.status(), icon.src).toBe(200);
       expect(file.headers()["content-type"], icon.src).toBe(icon.type);
     }
-    const apple = await request.get("/icons/apple-touch-icon.png");
+    const apple = await request.get("/apple-icon.png");
     expect(apple.status()).toBe(200);
     expect(apple.headers()["content-type"]).toBe("image/png");
+  });
+
+  test("the page head keeps the svg favicon and adds the apple touch icon", async ({ page }) => {
+    await page.goto("/tvaryny");
+    await expect(page.locator('link[rel="icon"][href*="/icon.svg"]')).toHaveCount(1);
+    await expect(page.locator('link[rel="apple-touch-icon"][href*="/apple-icon.png"]')).toHaveCount(
+      1,
+    );
+    await expect(page.locator('link[rel="manifest"]')).toHaveCount(1);
   });
 
   test("the gate still denies a page without a cookie", async ({ request }) => {

@@ -1,16 +1,15 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import manifest from "./app/manifest";
-import { SITE_TITLE, titled, WORDMARK } from "./brand";
 import { PAGE_COLOR, PWA_ICONS } from "./pwa";
 
 describe("web app manifest", () => {
   const m = manifest();
 
   it("names the app from brand.ts", () => {
-    expect(m.name).toBe(titled(SITE_TITLE));
-    expect(m.short_name).toBe(WORDMARK);
+    expect(m.name).toBe("Собаки й коти з притулків Київщини – Opika");
+    expect(m.short_name).toBe("Opika");
   });
 
   it("starts in the gallery, installs standalone, in Ukrainian", () => {
@@ -24,7 +23,7 @@ describe("web app manifest", () => {
 
   it("takes both colours from the page token", () => {
     const css = readFileSync(join(__dirname, "app/globals.css"), "utf8");
-    expect(css).toContain(`--color-page: ${PAGE_COLOR};`);
+    expect(/--color-page:\s*(#[0-9a-fA-F]{6})/.exec(css)?.[1]?.toLowerCase()).toBe(PAGE_COLOR);
     expect(m.theme_color).toBe(PAGE_COLOR);
     expect(m.background_color).toBe(PAGE_COLOR);
   });
@@ -42,8 +41,9 @@ describe("web app manifest", () => {
     }
   });
 
-  it("has an apple touch icon of 180x180", () => {
-    const png = readFileSync(join(__dirname, "../public/icons/apple-touch-icon.png"));
+  it("has an apple touch icon of 180x180 as a file convention, next to the svg favicon", () => {
+    expect(existsSync(join(__dirname, "app/icon.svg"))).toBe(true);
+    const png = readFileSync(join(__dirname, "app/apple-icon.png"));
     expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([180, 180]);
   });
 });
