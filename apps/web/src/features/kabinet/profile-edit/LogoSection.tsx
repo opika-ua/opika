@@ -7,10 +7,12 @@ import type {
   KabinetProfileClient,
   KabinetProfileClientContext,
 } from "../../../api/kabinet-browser-client";
-import { Button } from "../../controls/controls";
+import { Button } from "../../../ui/Button";
+import { FormSection } from "../../../ui/FormSection";
+import { InlineStatus } from "../../../ui/feedback";
+import { Text } from "../../../ui/Text";
 import { ShelterLogoAvatar } from "../../shelters/ShelterLogoAvatar";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
-import { CAPTION, CARD, CARD_TITLE, ERROR_TEXT } from "./styles";
 
 const t = uk.kabinet.profileEdit.logo;
 const photoErrors = uk.kabinet.animalForm.photoErrors;
@@ -127,23 +129,21 @@ export function LogoSection({
     }
   };
 
+  const working = state.kind === "preparing" || state.kind === "uploading";
   return (
-    <section aria-labelledby="logo-title" className={CARD}>
-      <h2 id="logo-title" className={CARD_TITLE}>
-        {t.title}
-      </h2>
-      <div className="flex items-center gap-3">
-        <ShelterLogoAvatar logo={logo} displayName={displayName} />
-        <div className="flex flex-col items-start gap-1">
+    <FormSection id="logo" title={t.title}>
+      <div className="flex items-center gap-4">
+        <ShelterLogoAvatar logo={logo} displayName={displayName} size="lg" />
+        <div className="flex min-w-0 flex-col items-start gap-1">
           <Button
             variant="secondary"
-            aria-busy={state.kind === "preparing" || state.kind === "uploading" || undefined}
+            status={working ? "loading" : "idle"}
             onClick={() => fileInput.current?.click()}
           >
             {logo === null ? t.add : t.change}
           </Button>
           {logo !== null ? (
-            <Button variant="text" onClick={() => void remove()}>
+            <Button variant="ghost" onClick={() => void remove()}>
               {t.remove}
             </Button>
           ) : null}
@@ -160,17 +160,11 @@ export function LogoSection({
           event.currentTarget.value = "";
         }}
       />
-      {state.kind === "preparing" || state.kind === "uploading" ? (
-        <p className={CAPTION}>{t.uploading}</p>
-      ) : null}
-      {state.kind === "failed" ? (
-        <p role="alert" className={ERROR_TEXT}>
-          {state.message}
-        </p>
-      ) : null}
-      <p role="status" className={CAPTION}>
+      {working ? <Text look="hint">{t.uploading}</Text> : null}
+      {state.kind === "failed" ? <InlineStatus tone="error">{state.message}</InlineStatus> : null}
+      <p role="status" className="text-caption text-ink-2">
         {status}
       </p>
-    </section>
+    </FormSection>
   );
 }

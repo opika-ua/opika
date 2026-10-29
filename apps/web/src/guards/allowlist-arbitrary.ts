@@ -55,14 +55,6 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     max: 3,
     reason: "Gallery surface; burns down in DS PR 3a.",
   },
-  "features/kabinet/ProfileParts.tsx": {
-    max: 14,
-    reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
-  },
-  "features/kabinet/ShelterProfile.tsx": {
-    max: 13,
-    reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
-  },
   "features/kabinet/SignInCard.tsx": {
     max: 13,
     reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",

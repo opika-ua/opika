@@ -583,10 +583,20 @@ describe("pause and resume (N21)", () => {
     expect(field.getAttribute("maxlength")).toBe("2000");
   });
 
+  // The kit's Modal is a native <dialog>: Esc is the platform's `cancel` event, then `close`. happy-dom
+  // fires neither on a key press, so the test sends the event the browser would and closes as it does.
+  const pressEscape = (): boolean => {
+    const dialog = screen.getByRole("dialog") as HTMLDialogElement;
+    const cancel = new Event("cancel", { cancelable: true });
+    dialog.dispatchEvent(cancel);
+    if (!cancel.defaultPrevented) act(() => dialog.close());
+    return cancel.defaultPrevented;
+  };
+
   it("Escape and ✕ close the dialog without pausing", async () => {
     const fns = renderEditor();
     await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
-    await userEvent.keyboard("{Escape}");
+    expect(pressEscape()).toBe(false);
     expect(screen.queryByRole("dialog")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
     await userEvent.click(screen.getByRole("button", { name: "Закрити" }));
@@ -627,7 +637,7 @@ describe("pause and resume (N21)", () => {
     const dialog = within(screen.getByRole("dialog", { name: "Призупинити прийом тварин?" }));
     await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Немає місця");
     await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
-    await userEvent.keyboard("{Escape}");
+    expect(pressEscape()).toBe(true);
     await userEvent.click(dialog.getByRole("button", { name: "Закрити" }));
     await userEvent.click(dialog.getByRole("button", { name: "Скасувати" }));
     expect(screen.getByRole("dialog", { name: "Призупинити прийом тварин?" })).toBeTruthy();
@@ -637,7 +647,7 @@ describe("pause and resume (N21)", () => {
       "Зараз не вийде поставити прийом на паузу: статус притулку змінився. Оновіть сторінку.",
     );
     // Answered, it closes again as before.
-    await userEvent.keyboard("{Escape}");
+    expect(pressEscape()).toBe(false);
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 

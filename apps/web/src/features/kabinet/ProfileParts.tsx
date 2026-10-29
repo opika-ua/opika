@@ -2,6 +2,10 @@ import type { KabinetShelterView } from "@opika/contracts";
 import type { ShelterFacingVerification } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import type { ReactNode } from "react";
+import { Card } from "../../ui/Card";
+import { Chip } from "../../ui/Chip";
+import { Heading } from "../../ui/Heading";
+import { Text } from "../../ui/Text";
 
 /**
  * Pieces the read-only profile and K4's editor share: the label-value row
@@ -10,21 +14,22 @@ import type { ReactNode } from "react";
  * block from its own state after a pause or resume changes the status chip.
  */
 
-const ROW_LABEL =
-  "text-[13px] leading-[18px] text-rg-ink-3 tablet:text-[15px] tablet:leading-[22px] tablet:text-rg-ink-2";
-const ROW_VALUE = "text-[15px] leading-[22px] font-medium text-rg-ink break-words";
-export const CARD = "flex flex-col gap-4 rounded-rg-card bg-rg-surface p-4 tablet:p-6";
-export const CARD_TITLE = "text-[19px] leading-6 font-bold tracking-[-0.02em] text-rg-ink";
-export const CAPTION = "text-[13px] leading-[18px] text-rg-ink-3";
-
-/** One fact: label above value on the phone (K4 360), a 200px label column from tablet up (K4 1440). */
+/**
+ * One fact: the label (quiet, ink-2) above the value (600) on a phone, label and value side by side
+ * from tablet. The value carries the weight because it is what the person came to read.
+ */
 export function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 py-0 tablet:grid tablet:grid-cols-[200px_minmax(0,1fr)] tablet:gap-4 tablet:py-3">
-      <dt className={ROW_LABEL}>{label}</dt>
-      <dd className={ROW_VALUE}>{children}</dd>
+    <div className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0 tablet:grid tablet:grid-cols-3 tablet:gap-4">
+      <dt className="text-caption text-ink-2">{label}</dt>
+      <dd className="text-label break-words text-ink tablet:col-span-2">{children}</dd>
     </div>
   );
+}
+
+/** A list of `Row`s, divided by quiet rules. */
+export function Facts({ children }: { children: ReactNode }) {
+  return <dl className="flex flex-col divide-y divide-line">{children}</dl>;
 }
 
 /**
@@ -71,7 +76,8 @@ export const groupEdrpou = (code: string): string =>
 
 /**
  * N10: what was set during verification, read-only in K4 as on the read-only
- * page. Dashed because in this design dashed means "not yours to edit".
+ * page. The quiet outlined card, not the white one every editable section
+ * uses, is how it reads as "not yours to edit"; the note says why in words.
  */
 export function LockedBlock({
   view,
@@ -89,39 +95,36 @@ export function LockedBlock({
     .filter((part): part is string => part !== null && part !== "")
     .join(", ");
   return (
-    <section
-      aria-labelledby="kabinet-locked"
-      className="flex flex-col gap-3 rounded-rg-card border-2 border-dashed border-rg-ink-3 p-4 tablet:grid tablet:grid-cols-[1fr_auto] tablet:p-6"
-    >
-      {/* Source order is K4 360's (title, note, chip); from tablet up
-          the grid lifts the chip beside the title, as K4 1440 draws it. */}
-      <h2 id="kabinet-locked" className={`${CARD_TITLE} tablet:self-center`}>
-        {t.lockedTitle}
-      </h2>
-      <p className={`${CAPTION} tablet:col-span-2`}>
-        {fillTemplate(t.lockedNote, { operator: operatorName })}
-      </p>
-      <span className="inline-flex min-h-8 items-center self-start rounded-rg-chip bg-rg-ink px-3 text-[13px] leading-[18px] font-medium whitespace-nowrap text-white tablet:col-start-2 tablet:row-start-1 tablet:self-center">
-        {uk.kabinet.profileStatus[view.verification.status]}
-      </span>
-      <dl className="flex flex-col gap-3 tablet:col-span-2 tablet:gap-0">
-        {legal.kind === "unregistered_initiative" ? (
-          <Row label={t.contactPerson}>{legal.contactPersonName}</Row>
-        ) : (
-          <>
-            <Row label={t.legalName}>{legal.legalName}</Row>
-            <Row label={t.edrpou}>{groupEdrpou(legal.edrpou)}</Row>
-          </>
-        )}
-        <Row label={t.registrationStatus}>
-          {fillTemplate(t.statusSince, {
-            status: uk.kabinet.profileStatus[view.verification.status],
-            date: formatDate(statusDate(view.verification)),
-          })}
-        </Row>
-        <Row label={t.address}>{address === "" ? notRecorded : address}</Row>
-      </dl>
-      <p className={`${CAPTION} tablet:col-span-2`}>{t.addressNote}</p>
-    </section>
+    <Card as="section" tone="outline" aria-labelledby="kabinet-locked">
+      <div className="flex flex-col gap-4 p-4 tablet:p-6 desktop:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Heading level={2} look="section" id="kabinet-locked">
+            {t.lockedTitle}
+          </Heading>
+          <Chip kind="status" tone="ink">
+            {uk.kabinet.profileStatus[view.verification.status]}
+          </Chip>
+        </div>
+        <Text look="hint">{fillTemplate(t.lockedNote, { operator: operatorName })}</Text>
+        <Facts>
+          {legal.kind === "unregistered_initiative" ? (
+            <Row label={t.contactPerson}>{legal.contactPersonName}</Row>
+          ) : (
+            <>
+              <Row label={t.legalName}>{legal.legalName}</Row>
+              <Row label={t.edrpou}>{groupEdrpou(legal.edrpou)}</Row>
+            </>
+          )}
+          <Row label={t.registrationStatus}>
+            {fillTemplate(t.statusSince, {
+              status: uk.kabinet.profileStatus[view.verification.status],
+              date: formatDate(statusDate(view.verification)),
+            })}
+          </Row>
+          <Row label={t.address}>{address === "" ? notRecorded : address}</Row>
+        </Facts>
+        <Text look="hint">{t.addressNote}</Text>
+      </div>
+    </Card>
   );
 }

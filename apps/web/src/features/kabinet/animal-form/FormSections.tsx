@@ -28,16 +28,9 @@ import {
   type VaccinationStatus,
 } from "@opika/domain";
 import { ageWordFor, colourFilterLabel, fillTemplate, temperamentLabelFor, uk } from "@opika/i18n";
-import type { ReactNode } from "react";
 import { Chip } from "../../../ui/Chip";
-import {
-  FieldHint,
-  LABEL,
-  type Segment,
-  SegmentedControl,
-  TextArea,
-  TextField,
-} from "../../../ui/form";
+import { type Segment, SegmentedControl, TextArea, TextField } from "../../../ui/form";
+import { ChipGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
@@ -164,38 +157,6 @@ const AGE_NAME: Record<(typeof AGE_BUCKETS)[number], string> = {
   adult: uk.filters.ageAdult,
   senior: uk.filters.ageSenior,
 };
-
-/** A named group of many choices as wrapping chips: a fieldset, its question as the legend. */
-function ChipChoice({
-  name,
-  legend,
-  hint,
-  disabled,
-  extra,
-  children,
-}: {
-  name: string;
-  legend: string;
-  hint?: ReactNode;
-  disabled: boolean;
-  /** What «Інше» opens: it stays inside the group, so the group still holds everything it asks. */
-  extra?: ReactNode;
-  children: ReactNode;
-}) {
-  const hintId = `${name}-hint`;
-  return (
-    <fieldset
-      disabled={disabled}
-      aria-describedby={hint === undefined ? undefined : hintId}
-      className="flex min-w-0 flex-col gap-2"
-    >
-      <legend className={`${LABEL} mb-2`}>{legend}</legend>
-      <div className="flex flex-wrap gap-2">{children}</div>
-      {extra}
-      {hint === undefined ? null : <FieldHint id={hintId}>{hint}</FieldHint>}
-    </fieldset>
-  );
-}
 
 /**
  * «Основне»: what a card cannot be published without, in the order a volunteer knows it: the
@@ -467,7 +428,7 @@ export function AboutFields({ values, set, problems, disabled }: SectionProps) {
         />
       </div>
 
-      <ChipChoice
+      <ChipGroup
         name="animal-temperament"
         legend={t.temperament.title}
         hint={t.temperament.hint}
@@ -510,7 +471,7 @@ export function AboutFields({ values, set, problems, disabled }: SectionProps) {
         >
           {t.temperament.other}
         </Chip>
-      </ChipChoice>
+      </ChipGroup>
 
       <SegmentedControl
         name="animal-coat"
@@ -521,7 +482,7 @@ export function AboutFields({ values, set, problems, disabled }: SectionProps) {
         onChange={(coat) => set({ coatLength: coat === "unknown" ? null : coat })}
       />
 
-      <ChipChoice
+      <ChipGroup
         name="animal-colour"
         legend={t.colour.title}
         disabled={disabled}
@@ -553,7 +514,7 @@ export function AboutFields({ values, set, problems, disabled }: SectionProps) {
             {colour.label}
           </Chip>
         ))}
-      </ChipChoice>
+      </ChipGroup>
     </>
   );
 }
