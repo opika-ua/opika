@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
 import { useOptimistic, useTransition } from "react";
 import { Chip } from "../../ui/Chip";
 import { cx } from "../../ui/cx";
-import { SEGMENT, SEGMENT_OFF, SEGMENT_ON, SEGMENT_TRACK } from "../../ui/form";
+import { SEGMENT, SEGMENT_HIT, SEGMENT_OFF, SEGMENT_ON, SEGMENT_TRACK } from "../../ui/form";
 import { Popover } from "../../ui/Popover";
 import { CityFacetChoices } from "./CityFacetChoices";
 import {
@@ -178,7 +178,12 @@ export function SpeciesToggle({
             href={href}
             aria-current={segmentActive ? "true" : undefined}
             data-testid={`${testid}${testIdSuffix}`}
-            className={cx(SEGMENT, "focus-ring", segmentActive ? SEGMENT_ON : SEGMENT_OFF)}
+            className={cx(
+              SEGMENT,
+              SEGMENT_HIT,
+              "focus-ring",
+              segmentActive ? SEGMENT_ON : SEGMENT_OFF,
+            )}
           >
             {label}
           </Link>

@@ -197,7 +197,9 @@ export type Segment<T extends string> = {
  */
 export const SEGMENT_TRACK = "flex min-h-13 gap-1 rounded-field border-2 bg-page p-0.5";
 export const SEGMENT =
-  "flex min-h-11 min-w-16 flex-1 items-center justify-center rounded-tag px-4 text-center text-label";
+  "relative flex min-h-11 min-w-16 flex-1 items-center justify-center rounded-tag px-4 text-center text-label";
+// A 48px hit area on a 44px segment: the pseudo-element reaches 2px into the track padding.
+export const SEGMENT_HIT = "before:absolute before:inset-x-0 before:-inset-y-0.5";
 export const SEGMENT_ON = "bg-ink text-on-ink";
 export const SEGMENT_OFF = "text-ink-2 hover:bg-line";
 
@@ -253,6 +255,7 @@ export function SegmentedControl<T extends string>({
             key={segment.value}
             className={cx(
               SEGMENT,
+              SEGMENT_HIT,
               "cursor-pointer flex-col focus-ring-within has-disabled:cursor-default tablet:flex-none",
               value === segment.value ? SEGMENT_ON : SEGMENT_OFF,
             )}

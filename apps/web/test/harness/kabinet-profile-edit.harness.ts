@@ -227,7 +227,11 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
           name: (label?.textContent ?? el.getAttribute("aria-label") ?? el.textContent ?? "")
             .replace(/\s+/g, " ")
             .trim(),
-          minHeight: Number.parseFloat(getComputedStyle(target).minHeight),
+          // A segment is 44px inside its 52px track: its hit area is the 48px+ ::before.
+          minHeight: Math.max(
+            Number.parseFloat(getComputedStyle(target).minHeight),
+            Number.parseFloat(getComputedStyle(target, "::before").height) || 0,
+          ),
         };
       });
       expect(minHeight, `computed min-height of «${name}» (${primitive})`).toBeGreaterThanOrEqual(
