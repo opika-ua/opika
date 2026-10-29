@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { useOptimistic, useTransition } from "react";
 import { Chip } from "../../ui/Chip";
 import { cx } from "../../ui/cx";
+import { SEGMENT, SEGMENT_OFF, SEGMENT_ON, SEGMENT_TRACK } from "../../ui/form";
 import { Popover } from "../../ui/Popover";
 import { CityFacetChoices } from "./CityFacetChoices";
 import {
@@ -159,11 +160,7 @@ export function SpeciesToggle({
       role="group"
       aria-label={uk.filters.species}
       data-testid={`species-toggle${testIdSuffix}`}
-      className={cx(
-        "flex h-13 items-stretch gap-1 rounded-field border-2 bg-page px-1",
-        active ? "border-accent" : "border-line",
-        className,
-      )}
+      className={cx(SEGMENT_TRACK, active ? "border-accent" : "border-line", className)}
     >
       {options.map(({ species, label, testid }) => {
         const segmentActive =
@@ -181,10 +178,7 @@ export function SpeciesToggle({
             href={href}
             aria-current={segmentActive ? "true" : undefined}
             data-testid={`${testid}${testIdSuffix}`}
-            className={cx(
-              "flex min-w-11 flex-1 items-center justify-center rounded-field px-3 text-label focus-ring",
-              segmentActive ? "bg-ink text-on-ink" : "text-ink-2",
-            )}
+            className={cx(SEGMENT, "focus-ring", segmentActive ? SEGMENT_ON : SEGMENT_OFF)}
           >
             {label}
           </Link>
