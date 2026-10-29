@@ -10,7 +10,7 @@ Rules every component follows:
 - `className` is for layout only (margin, width, aspect ratio), never restyling.
 - 48px touch target (`min-h-target`), visible focus (`focus-ring` utility from `globals.css`).
 - Works without JS where it can (links and forms first); server-component-safe unless it needs state.
-  Only Modal, Sheet, Popover, Tabs, PhotoSlider and Toast are client components.
+  Only Modal, Sheet, Popover, Menu, Tabs, PhotoSlider and Toast are client components.
 - Tokens only: no `rg-`, no `brand-`, no raw hex, no arbitrary values. Type scale in `tokens.md`.
 - The kit holds no copy: every label, title and accessible name arrives as a prop.
 
@@ -80,6 +80,8 @@ last consumer imports `src/ui` directly. `ModalDialog` is unchanged until the ka
 | [SegmentedControl](components/SegmentedControl.md) | `form.tsx` | A choice of a few, built from native radios. |
 | [Modal](components/Modal.md) | `Modal.tsx` | A modal dialog: bottom sheet on a phone, centred card from tablet. |
 | [Sheet](components/Sheet.md) | `Sheet.tsx` | A bottom sheet with its own trigger. |
+| [Menu](components/Menu.md) | `Menu.tsx` | A short list of actions under a ghost button (a list row's «Ще»). |
+| [MenuItem](components/MenuItem.md) | `Menu.tsx` | One entry of a Menu. |
 | [Popover](components/Popover.md) | `Popover.tsx` | A panel under a chip-styled trigger (the filter selectors). |
 | [Toast](components/Toast.md) | `Toast.tsx` | One toast, presentational. `ToastProvider` renders these; it is exported for the showcase and tests. |
 | [ToastProvider](components/ToastProvider.md) | `Toast.tsx` | Holds the toast queue and the live region. Wrap the page once; call `useToast().show(message, tone)` from client components. |

@@ -10,6 +10,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/PhotoSlider.tsx": "scroll position state and ResizeObserver for the prev/next buttons",
   "ui/Tabs.tsx": "selected-tab state and roving focus",
   "ui/Toast.tsx": "toast queue state, timers and context",
+  "ui/Menu.tsx": "controlled open state, outside-press and Esc listeners",
   "ui/Modal.tsx": "controlled dialog; refs and the dialog core",
   "ui/Popover.tsx": "open state, outside-press and Esc listeners",
   "ui/Sheet.tsx": "open state and hash-link upgrade to showModal; no-JS :target path stays",

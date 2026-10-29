@@ -34,7 +34,7 @@ import { Text } from "../../../ui/Text";
 import { TextLink } from "../../../ui/TextLink";
 import { Toast } from "../../../ui/Toast";
 import { Toggle } from "../../../ui/Toggle";
-import { ModalDemo, PopoverDemo, SheetDemo, ToastDemo, ToggleChipDemo } from "./Demos";
+import { MenuDemo, ModalDemo, PopoverDemo, SheetDemo, ToastDemo, ToggleChipDemo } from "./Demos";
 import { SegmentedDemo } from "./SegmentedDemo";
 
 /**
@@ -379,6 +379,9 @@ export default function DevUiPage() {
           <SheetDemo />
         </Row>
         <PopoverDemo />
+        <Row label="Menu (a row's «More»)">
+          <MenuDemo />
+        </Row>
       </Group>
 
       <Group id="g-feedback" title="Feedback">

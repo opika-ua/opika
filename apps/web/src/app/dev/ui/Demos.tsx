@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
 import { Icon } from "../../../ui/Icon";
+import { Menu, MenuItem } from "../../../ui/Menu";
 import { Modal } from "../../../ui/Modal";
 import { Popover } from "../../../ui/Popover";
 import { Sheet } from "../../../ui/Sheet";
@@ -49,6 +50,24 @@ export function SheetDemo() {
         Option A
       </Chip>
     </Sheet>
+  );
+}
+
+export function MenuDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Menu open={open} onOpenChange={setOpen} label="More">
+      <MenuItem>
+        <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
+          Edit
+        </Button>
+      </MenuItem>
+      <MenuItem>
+        <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
+          Withdraw
+        </Button>
+      </MenuItem>
+    </Menu>
   );
 }
 
