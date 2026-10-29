@@ -101,7 +101,7 @@ export function AnimalListRow({
         padding="lg"
         className="flex flex-col gap-4 desktop:flex-row desktop:items-center desktop:justify-between desktop:gap-8"
       >
-        <div className="flex min-w-0 gap-4">
+        <div className="flex min-w-0 gap-4 desktop:w-72 desktop:flex-none">
           <Link href={href} prefetch={false} tabIndex={-1} aria-hidden="true" className="shrink-0">
             <Photo
               src={row.coverPhoto?.storageKey ?? null}
@@ -126,7 +126,7 @@ export function AnimalListRow({
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-4 desktop:max-w-md desktop:flex-1">
+        <div className="flex min-w-0 flex-col gap-4 desktop:flex-1">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               {row.freshness !== null ? <FreshnessPips kind={row.freshness.kind} /> : null}
