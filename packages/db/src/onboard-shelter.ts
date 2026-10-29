@@ -27,7 +27,7 @@ import {
   normalizeFreshnessSentenceText,
   publicLocationOf,
   type Shelter,
-  ShelterContactSchema,
+  ShelterContactInputSchema,
   ShelterIdSchema,
   ShelterLegalEntitySchema,
   type ShelterVerification,
@@ -235,7 +235,7 @@ export const OnboardInputSchema = z.object({
     descriptionUk: z.string().min(1),
     legalEntity: ShelterLegalEntitySchema,
     exactAddress: ExactAddressSchema,
-    contact: ShelterContactSchema,
+    contact: ShelterContactInputSchema,
     donation: DonationLinkSchema.nullable(),
     /**
      * Required, not optional: this is the sentence the shelter writes in

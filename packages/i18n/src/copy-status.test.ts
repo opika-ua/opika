@@ -369,13 +369,14 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     "profileEdit.errors.illegalTransitionResume":
       "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
     // k4-copy-uk.md
-    "profileEdit.errors.phoneFormat": "Вкажіть номер із кодом країни, наприклад +380 67 123 45 67.",
+    "profileEdit.errors.phoneFormat":
+      "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
     // k4-copy-uk.md
     "profileEdit.errors.telegramFormat":
       "Імʼя користувача в Telegram: 5-32 латинські літери, цифри або підкреслення. @ можна не писати.",
     // k4-copy-uk.md
     "profileEdit.errors.viberFormat":
-      "Вкажіть номер Viber із кодом країни, наприклад +380 67 123 45 67.",
+      "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
     // k4-copy-uk.md
     "profileEdit.errors.emailFormat": "Схоже, це не адреса пошти.",
     // k4-copy-uk.md

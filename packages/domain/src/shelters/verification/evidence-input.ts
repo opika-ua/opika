@@ -5,7 +5,7 @@ import {
   kyivCalendarDateOf,
 } from "../../primitives/calendar-date";
 import { EdrpouSchema, type ModeratorId } from "../../primitives/ids";
-import { ContactChannelSchema } from "../contact";
+import { ContactChannelInputSchema } from "../contact";
 import {
   type EvidenceItem,
   ReferenceRelationshipSchema,
@@ -44,7 +44,7 @@ export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("reference_contact"),
     name: z.string().min(1),
-    channel: ContactChannelSchema,
+    channel: ContactChannelInputSchema,
     relationship: ReferenceRelationshipSchema,
   }),
   /**
