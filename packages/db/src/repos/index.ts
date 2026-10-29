@@ -1,5 +1,5 @@
 export { erasableIf, eraseUsersAndScrubHistory } from "./admin-erasure-repo";
-export { adopterRepo } from "./adopter-repo";
+export { adopterRepo, ORPHAN_ADOPTER_MIN_AGE_MS } from "./adopter-repo";
 export { animalRepo } from "./animal-repo";
 export {
   type AuthExpiryCounts,
@@ -68,8 +68,16 @@ export {
   stillUnreferenced,
   trackedUnreferencedObjects,
 } from "./r2-cleanup-repo";
-export { revealRepo } from "./reveal-repo";
-export { type SessionRow, sessionRepo } from "./session-repo";
+export { type RevealBudget, type RevealInsertOutcome, revealRepo } from "./reveal-repo";
+export {
+  ADOPTER_CLEANUP_BATCH,
+  ADOPTER_SESSION_POLICY,
+  type AdopterSessionPolicy,
+  adopterSessionCutoffs,
+  adopterSessionLapse,
+  type SessionRow,
+  sessionRepo,
+} from "./session-repo";
 export { shelterRepo } from "./shelter-repo";
 export {
   type BootstrapResult,

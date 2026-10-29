@@ -27,8 +27,6 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/animal-detail/ShareButton.tsx": "navigator.share / clipboard on click",
   "features/animal-overlay/AnimalOverlay.tsx":
     "intercepted-route modal: router.back, Esc, focus trap, scroll lock, entrance animation",
-  "features/chrome/MobileNavMenu.tsx":
-    "hamburger: dialog.showModal(), scroll lock, close on navigation",
   "features/chrome/SiteAnalytics.tsx": "Vercel Analytics component",
   "features/controls/ModalDialog.tsx": "focus trap/restore, Esc, backdrop click (useModalFocus)",
   "features/controls/useModalFocus.ts": "hook: focus trap and restore",

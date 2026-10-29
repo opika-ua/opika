@@ -1,5 +1,11 @@
 import type { Database } from "@opika/db";
-import { adopterRepo, sessionRepo } from "@opika/db/repos";
+import {
+  ADOPTER_SESSION_POLICY,
+  type AdopterSessionPolicy,
+  adopterRepo,
+  adopterSessionLapse,
+  sessionRepo,
+} from "@opika/db/repos";
 import type { AdopterId, AdopterProfile } from "@opika/domain";
 import { parseSessionToken } from "./cookie";
 import { hashesEqual, hashToken } from "./token";
@@ -13,16 +19,13 @@ import { hashesEqual, hashToken } from "./token";
  *
  * Idle: a session is rejected if the last request was more than this
  * many seconds ago. Catches abandoned devices.
+ *
+ * Defined in `@opika/db` beside the clean-up cron's delete (audit F6), so the
+ * refusal here and the deletion there are one rule.
  */
-export type SessionPolicy = {
-  absoluteExpirySeconds: number;
-  idleExpirySeconds: number;
-};
+export type SessionPolicy = AdopterSessionPolicy;
 
-export const DEFAULT_SESSION_POLICY: SessionPolicy = {
-  absoluteExpirySeconds: 30 * 24 * 3600, // 30 days
-  idleExpirySeconds: 7 * 24 * 3600, // 7 days
-};
+export const DEFAULT_SESSION_POLICY: SessionPolicy = ADOPTER_SESSION_POLICY;
 
 export type SessionResult =
   | { ok: true; adopterId: AdopterId; tokenHash: string }
@@ -58,16 +61,8 @@ export async function validateSession(
     return { ok: false, reason: "invalid" };
   }
 
-  // Absolute expiry
-  const ageMs = now.getTime() - row.createdAt.getTime();
-  if (ageMs > policy.absoluteExpirySeconds * 1000) {
-    await sessions.deleteByHash(hash);
-    return { ok: false, reason: "expired" };
-  }
-
-  // Idle expiry
-  const idleMs = now.getTime() - row.lastSeenAt.getTime();
-  if (idleMs > policy.idleExpirySeconds * 1000) {
+  // Absolute or idle expiry, the same test the clean-up cron deletes by.
+  if (adopterSessionLapse(row, now, policy) !== null) {
     await sessions.deleteByHash(hash);
     return { ok: false, reason: "expired" };
   }

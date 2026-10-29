@@ -17,7 +17,7 @@ import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 import { clientIp } from "../api/client-ip";
 import { ipRateLimitKey } from "../api/rate-limit-key";
-import { maskedAuthHandler, maskedAuthLogging } from "./auth-log";
+import { inLoggerContext, maskedAuthHandler, maskedAuthLogging } from "./auth-log";
 import { withQueryErrorsCleaned } from "./clean-query-errors";
 import { MAGIC_LINK_TTL_SECONDS, type MagicLinkSender } from "./magic-link-sender";
 import { PASSWORD_PATHS, passwordHooks } from "./password-hooks";
@@ -207,8 +207,9 @@ export const LIMITED_AUTH_PATHS: readonly string[] = [
  *   the Drizzle adapter runs statements one after another without them. So
  *   ending a user's sessions when their password is written, which must not
  *   fail on its own, is the database's job, in the write's own statement
- *   (PW1-F5, migration 0013's triggers), with Better Auth's revoke after it as
- *   a second line. A password sign-in that checked the old password before
+ *   (PW1-F5, migration 0013's triggers). Better Auth (1.7) revokes first and
+ *   writes after (a reset spends its link, revokes, writes; a change revokes,
+ *   writes, then opens the new session), so its revoke is a second line only. A password sign-in that checked the old password before
  *   such a write, and inserts its session after it, is caught by reading the
  *   credential before and after the sign-in instead, the second read waiting
  *   for a write still in flight (PW1-F6, `sign-in-race.ts`).
@@ -430,6 +431,8 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
   // Each caller of `auth.handler` (the route, the confirm page, the invite POST) gets the masked
   // error log and an empty 500 for a thrown error (`maskedAuthHandler`).
   auth.handler = maskedAuthHandler(auth.handler);
+  // Server-side `internalAdapter` calls print through the masked logger too (`inLoggerContext`).
+  auth.$context = auth.$context.then(inLoggerContext);
   return auth;
 }
 

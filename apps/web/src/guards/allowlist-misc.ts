@@ -25,9 +25,4 @@ export const RAW_HEX: Readonly<Record<string, Reasoned>> = {
 };
 
 /** Raw `<img>`. Photos go through `next/image` and its R2 loader (`ui/Photo` once it exists). */
-export const RAW_IMG: Readonly<Record<string, Reasoned>> = {
-  "features/chrome/BrandLogo.tsx": {
-    max: 1,
-    reason: "Static SVG logo; an SVG gains nothing from the image optimiser.",
-  },
-};
+export const RAW_IMG: Readonly<Record<string, Reasoned>> = {};

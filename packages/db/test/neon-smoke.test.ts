@@ -137,8 +137,11 @@ describe("runSmoke against the local database", () => {
     // scalar-subquery seek in animals.neighbours - list() order through a
     // tied pair broken by id, and the end-of-list/unknown-id null cases -
     // over neon-http's own timestamptz comparison and id tiebreak, not just
-    // postgres-js's.
-    expect(outcomes.length).toBe(54);
+    // postgres-js's. Then S3's five (audit F6, F8): 46 the adopter-session
+    // clean-up's batched delete, 47 the orphaned-adopter delete, 48 the reveal
+    // budget's transaction (its isolation, the boundary one at a time, and two
+    // new shelters at once). And 44c, the filter selectors' facet counts.
+    expect(outcomes.length).toBe(59);
   });
 
   it("passes every statement over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
@@ -160,6 +163,6 @@ describe("runSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes.length).toBe(54);
+    expect(outcomes.length).toBe(59);
   });
 });

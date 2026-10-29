@@ -26,10 +26,30 @@ export type SheetProps = {
   trigger: ReactNode;
   /** Layout classes for the trigger (width, margin, visibility per breakpoint). */
   triggerClassName?: string;
+  /**
+   * Breakpoint from which the sheet (and the :target reveal) is off. Set it together with the
+   * trigger's own hiding class: the hash reveal would otherwise show the sheet on a wide screen.
+   */
+  hideFrom?: keyof typeof HIDE_FROM;
+  /** Test hooks for the harness; the unit tests query by role. */
+  triggerTestId?: string;
+  dialogTestId?: string;
   children: ReactNode;
 };
 
-export function Sheet({ id, label, closeLabel, trigger, triggerClassName, children }: SheetProps) {
+const HIDE_FROM = { tablet: "tablet:hidden", desktop: "desktop:hidden" } as const;
+
+export function Sheet({
+  id,
+  label,
+  closeLabel,
+  trigger,
+  triggerClassName,
+  hideFrom,
+  triggerTestId,
+  dialogTestId,
+  children,
+}: SheetProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLAnchorElement | null>(null);
   const { ref, onBackdropClick } = useDialogCore({
@@ -73,6 +93,7 @@ export function Sheet({ id, label, closeLabel, trigger, triggerClassName, childr
         aria-haspopup="dialog"
         aria-controls={id}
         aria-expanded={open}
+        data-testid={triggerTestId}
         className={cx(
           "inline-flex min-h-target min-w-target cursor-pointer items-center justify-center gap-2 text-label text-ink focus-ring",
           triggerClassName,
@@ -85,9 +106,14 @@ export function Sheet({ id, label, closeLabel, trigger, triggerClassName, childr
         ref={ref}
         id={id}
         data-hash-open=""
+        data-hide-from={hideFrom}
+        data-testid={dialogTestId}
         aria-label={label}
         onClick={onBackdropClick}
-        className="fixed inset-x-0 bottom-0 top-auto m-0 max-h-dvh w-full max-w-none overflow-y-auto rounded-t-panel border-0 bg-surface p-0 text-ink backdrop:bg-ink/40 tablet:rounded-t-sheet"
+        className={cx(
+          "fixed inset-x-0 bottom-0 top-auto m-0 max-h-dvh w-full max-w-none overflow-y-auto rounded-t-panel border-0 bg-surface p-0 text-ink backdrop:bg-ink/40 tablet:rounded-t-sheet",
+          hideFrom && HIDE_FROM[hideFrom],
+        )}
       >
         <div className="flex flex-col gap-4 p-5 pb-safe">
           <div className="flex items-center justify-between gap-4">

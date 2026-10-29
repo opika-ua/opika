@@ -3,8 +3,11 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import {
+  type AdopterId,
   type Animal,
+  type AnimalId,
   type AnimalListingState,
+  type ContactReveal,
   DEFAULT_SEEN_SET_POLICY,
   EVERYONE_SCOPE,
   type FeedFilters,
@@ -20,11 +23,11 @@ import {
   testOnlyLocationPolicy,
   transitionListing,
 } from "@opika/domain";
-import { count, eq, inArray } from "drizzle-orm";
-import { createDatabase, type Database } from "../src/client";
+import { count, countDistinct, eq, inArray, sql } from "drizzle-orm";
+import { createDatabase, type Database, inOneTransaction } from "../src/client";
 import { variantObjectKey } from "../src/image-pipeline/variants";
 import { productionEndpoint } from "../src/prod-guard";
-import { adopterRepo } from "../src/repos/adopter-repo";
+import { adopterRepo, ORPHAN_ADOPTER_MIN_AGE_MS } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { authExpiryRepo, KABINET_SESSION_LIMITS } from "../src/repos/auth-expiry-repo";
 import { authRevokeRepo } from "../src/repos/auth-revoke-repo";
@@ -51,6 +54,7 @@ import {
   stillUnreferenced,
 } from "../src/repos/r2-cleanup-repo";
 import { revealRepo } from "../src/repos/reveal-repo";
+import { sessionRepo } from "../src/repos/session-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { superAdminRepo } from "../src/repos/super-admin-repo";
 import { swipeRepo } from "../src/repos/swipe-repo";
@@ -2383,6 +2387,181 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       nbUnknownNeighbours.prev === null &&
       nbUnknownNeighbours.next === null,
     `end.next: ${JSON.stringify(nbEndNeighbours.next)}; unknown: ${JSON.stringify(nbUnknownNeighbours)}`,
+  );
+
+  // 46-48: S3 (audit F6, F8). Last, because 46 and 47 delete: a lapsed adopter session or an
+  // orphaned adopter an earlier step made (or the branch copied) goes too, which nothing after
+  // them reads. On a disposable branch the deletes run to 0 in batches, then this run's own
+  // rows are checked by id. (`DAY` is K2's, above.)
+  const drain = async (run: () => Promise<number>) => {
+    let total = 0;
+    for (let i = 0; i < 100; i++) {
+      const n = await run();
+      total += n;
+      if (n === 0) break;
+    }
+    return total;
+  };
+
+  // 46. the adopter-session clean-up's batched DELETE (`sessionRepo.deleteLapsed`): `IN (SELECT
+  // … LIMIT)` and both limits strictly, through this driver's timestamptz comparison. Exactly at
+  // a limit stays (`validateSession` still accepts it).
+  const s46Adopter = makeAdopter({ id: randomUUID() as never, createdAt: later(-60 * DAY) });
+  await adopterRepo(db).insert(s46Adopter);
+  const s46 = {
+    pastAbsolute: [later(-30 * DAY - 1), later(-60_000)],
+    atAbsolute: [later(-30 * DAY), later(-60_000)],
+    pastIdle: [later(-10 * DAY), later(-7 * DAY - 1)],
+    atIdle: [later(-10 * DAY), later(-7 * DAY)],
+    live: [later(-DAY), later(-60_000)],
+  } as const;
+  const s46Hash = (label: string) => `${tag}${label}`.padEnd(64, "0").slice(0, 64);
+  for (const [label, [createdAt, lastSeenAt]] of Object.entries(s46)) {
+    await sessionRepo(db).insert({
+      tokenHash: s46Hash(label),
+      adopterId: s46Adopter.id,
+      createdAt,
+      lastSeenAt,
+    });
+  }
+  const s46Deleted = await drain(() => sessionRepo(db).deleteLapsed(NOW));
+  const s46Left = new Set<string>();
+  for (const label of Object.keys(s46)) {
+    if ((await sessionRepo(db).findByHash(s46Hash(label))) !== null) s46Left.add(label);
+  }
+  check(
+    "adopter-session clean-up: past either limit deleted, exactly at a limit and live kept",
+    s46Deleted >= 2 && [...s46Left].sort().join(",") === "atAbsolute,atIdle,live",
+    `deleted ${s46Deleted} (at least this run's 2); kept of this run's: ${[...s46Left].sort().join(",")}`,
+  );
+
+  // 47. the orphaned-adopter DELETE (`adopterRepo.deleteOrphaned`): three correlated NOT EXISTS
+  // in a batched `IN (SELECT … LIMIT)`. An old adopter with nothing goes; one with a swipe, one
+  // with a reveal and one exactly at the minimum age stay.
+  const s47Old = later(-ORPHAN_ADOPTER_MIN_AGE_MS - 1);
+  const s47 = {
+    orphan: makeAdopter({ id: randomUUID() as never, createdAt: s47Old }),
+    swiped: makeAdopter({ id: randomUUID() as never, createdAt: s47Old }),
+    revealed: makeAdopter({ id: randomUUID() as never, createdAt: s47Old }),
+    young: makeAdopter({ id: randomUUID() as never, createdAt: later(-ORPHAN_ADOPTER_MIN_AGE_MS) }),
+  };
+  for (const adopter of Object.values(s47)) await adopterRepo(db).insert(adopter);
+  const s47City = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(s47City);
+  const s47Shelter = makeShelter({
+    id: randomUUID() as ShelterId,
+    displayName: `Smoke ${tag} S3`,
+    exactAddress: { ...makeShelter().exactAddress, cityId: s47City.id },
+  });
+  await shelterRepo(db).insert(s47Shelter);
+  const s47Animal = makeAnimal({ id: randomUUID() as never, shelterId: s47Shelter.id });
+  await animalRepo(db).insert(s47Animal, s47City.id);
+  await swipeRepo(db).record(makeSwipe({ adopterId: s47.swiped.id, animalId: s47Animal.id }));
+  await revealRepo(db).insert(
+    makeReveal({
+      id: randomUUID() as never,
+      adopterId: s47.revealed.id,
+      animalId: s47Animal.id,
+      shelterId: s47Shelter.id,
+    }),
+  );
+  const s47Deleted = await drain(() => adopterRepo(db).deleteOrphaned(NOW));
+  const s47Left: string[] = [];
+  for (const [label, adopter] of Object.entries(s47)) {
+    if ((await adopterRepo(db).findById(adopter.id)) !== null) s47Left.push(label);
+  }
+  check(
+    "orphaned-adopter clean-up: nothing left goes; a swipe, a reveal or too young stays",
+    s47Deleted >= 1 && s47Left.sort().join(",") === "revealed,swiped,young",
+    `deleted ${s47Deleted} (at least this run's 1); kept of this run's: ${s47Left.sort().join(",")}`,
+  );
+
+  // 48. the reveal budget's atomic write (`revealRepo.insertWithinShelterBudget`): on this
+  // driver a batch, one HTTP transaction, READ COMMITTED as `createDatabase` sets it, the
+  // adopter's row locked by `FOR NO KEY UPDATE`, then an INSERT … SELECT … WHERE guard.
+  const [s48Isolation] = await inOneTransaction(db, (tx) => [
+    tx
+      .select({ level: sql<string>`current_setting('transaction_isolation')` })
+      .from(sql`(SELECT 1) AS one`),
+  ]);
+  check(
+    "inOneTransaction runs READ COMMITTED (each statement a fresh snapshot)",
+    s48Isolation[0]?.level === "read committed",
+    `transaction_isolation: ${s48Isolation[0]?.level ?? "none"}`,
+  );
+
+  const s48City = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(s48City);
+  const s48Spots: { shelterId: ShelterId; animals: AnimalId[] }[] = [];
+  for (let i = 0; i < 31; i++) {
+    const shelter = makeShelter({
+      id: randomUUID() as ShelterId,
+      exactAddress: { ...makeShelter().exactAddress, cityId: s48City.id },
+    });
+    await shelterRepo(db).insert(shelter);
+    const animals: AnimalId[] = [];
+    for (let a = 0; a < (i === 29 ? 2 : 1); a++) {
+      const animal = makeAnimal({ id: randomUUID() as never, shelterId: shelter.id });
+      await animalRepo(db).insert(animal, s48City.id);
+      animals.push(animal.id);
+    }
+    s48Spots.push({ shelterId: shelter.id, animals });
+  }
+  const s48Budget = { since: later(-DAY), maxShelters: 30 };
+  const s48RevealOf = (adopterId: AdopterId, spot: number, animal = 0) =>
+    makeReveal({
+      id: randomUUID() as never,
+      adopterId,
+      shelterId: s48Spots[spot]?.shelterId as ShelterId,
+      animalId: s48Spots[spot]?.animals[animal] as AnimalId,
+      revealedAt: NOW,
+    });
+  const s48AdopterAt29 = async () => {
+    const adopter = makeAdopter({ id: randomUUID() as never, createdAt: NOW });
+    await adopterRepo(db).insert(adopter);
+    for (let i = 0; i < 29; i++) await revealRepo(db).insert(s48RevealOf(adopter.id, i));
+    return adopter.id;
+  };
+  const s48Distinct = async (adopterId: AdopterId) => {
+    const [row] = await db
+      .select({ n: countDistinct(reveals.shelterId) })
+      .from(reveals)
+      .where(eq(reveals.adopterId, adopterId));
+    return row?.n ?? 0;
+  };
+
+  const s48One = await s48AdopterAt29();
+  const write = (reveal: ContactReveal) =>
+    revealRepo(db).insertWithinShelterBudget(reveal, s48Budget);
+  const s48Sequence = [
+    await write(s48RevealOf(s48One, 29)),
+    await write(s48RevealOf(s48One, 30)),
+    await write(s48RevealOf(s48One, 29, 1)),
+    await write(s48RevealOf(s48One, 29, 0)),
+  ];
+  check(
+    "reveal budget, one at a time: 30th inserted, 31st refused, free re-reveal, no duplicate",
+    isDeepStrictEqual(s48Sequence, [
+      "inserted",
+      "over_budget",
+      "inserted",
+      "animal_already_revealed",
+    ]) && (await s48Distinct(s48One)) === 30,
+    `${JSON.stringify(s48Sequence)}; distinct shelters ${await s48Distinct(s48One)}`,
+  );
+
+  // Two at once at 29, by another adopter: one HTTP request each, which may or may not overlap
+  // on the server (not a forced interleaving; that is the local suite's job). Either way exactly
+  // one may write.
+  const s48Two = await s48AdopterAt29();
+  const s48Pair = await Promise.all([
+    write(s48RevealOf(s48Two, 29)),
+    write(s48RevealOf(s48Two, 30)),
+  ]);
+  check(
+    "reveal budget, two new shelters at once at 29: exactly one written",
+    [...s48Pair].sort().join(",") === "inserted,over_budget" && (await s48Distinct(s48Two)) === 30,
+    `${JSON.stringify(s48Pair)}; distinct shelters ${await s48Distinct(s48Two)}`,
   );
 
   return out;

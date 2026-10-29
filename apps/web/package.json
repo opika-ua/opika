@@ -37,6 +37,7 @@
     "@upstash/redis": "catalog:",
     "@vercel/analytics": "catalog:",
     "@vercel/speed-insights": "catalog:",
+    "@better-auth/core": "catalog:",
     "better-auth": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
