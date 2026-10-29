@@ -8,6 +8,7 @@ import { Modal } from "../../../ui/Modal";
 import { Popover } from "../../../ui/Popover";
 import { Sheet } from "../../../ui/Sheet";
 import { Text } from "../../../ui/Text";
+import { ToastProvider, useToast } from "../../../ui/Toast";
 
 /** The interactive kit pieces (state lives here so the page itself stays a server component). */
 
@@ -75,5 +76,27 @@ export function ToggleChipDemo() {
     <Chip kind="toggle" pressed={on} onClick={() => setOn((value) => !value)}>
       Toggle chip
     </Chip>
+  );
+}
+
+function ToastButtons() {
+  const { show } = useToast();
+  return (
+    <>
+      <Button variant="secondary" onClick={() => show("Saved", "success")}>
+        Show toast
+      </Button>
+      <Button variant="secondary" onClick={() => show("Could not save", "error")}>
+        Show error toast
+      </Button>
+    </>
+  );
+}
+
+export function ToastDemo() {
+  return (
+    <ToastProvider dismissLabel="Dismiss">
+      <ToastButtons />
+    </ToastProvider>
   );
 }

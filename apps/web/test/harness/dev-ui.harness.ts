@@ -51,6 +51,8 @@ for (const viewport of [PHONE_360, DESKTOP_1440]) {
         for (const el of targets) {
           // Inside a closed dialog: not laid out, not a target.
           if (el.getClientRects().length === 0) continue;
+          // Decorative and out of the tab order (the Toggle's track).
+          if (el.closest('[aria-hidden="true"]')) continue;
           // Prose links sit inside a text block, and a chip's input is inside its 48px label.
           if (el.closest("p, span.text-body, [data-inline-link]")) continue;
           if (el.matches("input[type=radio], input[type=checkbox]")) continue;
@@ -149,5 +151,22 @@ test.describe("kit behaviour in a real browser", () => {
     await page.keyboard.press("Escape");
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
     await expect(trigger).toBeFocused();
+  });
+
+  test("Tabs switch panel with the arrow keys; a Toast announces and can be dismissed", async ({
+    page,
+  }) => {
+    await openRoute(page, ROUTE, PHONE_360, { readySelector: READY });
+    const first = page.getByRole("tab", { name: "One" });
+    await first.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByRole("tab", { name: "Two" })).toBeFocused();
+    await expect(page.getByRole("tabpanel", { name: "Two" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Show toast", exact: true }).click();
+    const toast = page.locator('[aria-live="polite"]').getByText("Saved");
+    await expect(toast).toBeVisible();
+    await page.locator('[aria-live="polite"]').getByRole("button", { name: "Dismiss" }).click();
+    await expect(toast).toBeHidden();
   });
 });

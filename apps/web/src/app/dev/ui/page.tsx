@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Avatar } from "../../../ui/Avatar";
 import { Badge } from "../../../ui/Badge";
+import { BottomNav } from "../../../ui/BottomNav";
 import { Button, LinkButton } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
 import { Chip } from "../../../ui/Chip";
@@ -17,16 +18,23 @@ import {
   TextArea,
   TextField,
 } from "../../../ui/form";
+import { CheckboxGroup, RadioGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
 import { ICON_NAMES, Icon } from "../../../ui/Icon";
 import { MetaLine } from "../../../ui/MetaLine";
+import { Pagination } from "../../../ui/Pagination";
 import { Panel } from "../../../ui/Panel";
 import { Photo } from "../../../ui/Photo";
+import { PhotoSlider } from "../../../ui/PhotoSlider";
+import { PrevNext } from "../../../ui/PrevNext";
 import { Skeleton } from "../../../ui/Skeleton";
 import { Spinner } from "../../../ui/Spinner";
+import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
 import { TextLink } from "../../../ui/TextLink";
-import { ModalDemo, PopoverDemo, SheetDemo, ToggleChipDemo } from "./Demos";
+import { Toast } from "../../../ui/Toast";
+import { Toggle } from "../../../ui/Toggle";
+import { ModalDemo, PopoverDemo, SheetDemo, ToastDemo, ToggleChipDemo } from "./Demos";
 import { SegmentedDemo } from "./SegmentedDemo";
 
 /**
@@ -231,6 +239,20 @@ export default function DevUiPage() {
           />
           <Photo src={null} alt="" sizes={SIZES} aspect="portrait" className="w-32 rounded-panel" />
         </Row>
+        <Row label="PhotoSlider (scroll-snap, prev/next when it overflows)">
+          <PhotoSlider
+            photos={[
+              { src: "seed-photos/cat-1.jpg", alt: "" },
+              { src: "seed-photos/cat-2.jpg", alt: "" },
+              { src: "seed-photos/cat-3.jpg", alt: "" },
+            ]}
+            sizes="(max-width: 599px) 80vw, 360px"
+            label="Photos"
+            prevLabel="Previous photo"
+            nextLabel="Next photo"
+            className="w-full"
+          />
+        </Row>
         <Row label="Avatar: logo, initials (sm, md, lg)">
           <Avatar kind="logo" src="seed-photos/cat-4.jpg" />
           <Avatar kind="initials" name="Домівка друзів" size="sm" />
@@ -253,8 +275,102 @@ export default function DevUiPage() {
           <Checkbox name="c" label="Checkbox option" />
         </fieldset>
         <SegmentedDemo />
+        <RadioGroup
+          name="rg"
+          legend="Radio group"
+          defaultValue="b"
+          hint="A fieldset with a legend; submits with a plain form."
+          options={[
+            { value: "a", label: "Option A" },
+            { value: "b", label: "Option B" },
+          ]}
+        />
+        <CheckboxGroup
+          name="cg"
+          legend="Checkbox group"
+          defaultValue={["a"]}
+          error="Pick at least two."
+          options={[
+            { value: "a", label: "Option A" },
+            { value: "b", label: "Option B" },
+          ]}
+        />
         <FieldHint id="h1">FieldHint on its own.</FieldHint>
         <FieldError id="e1">FieldError on its own.</FieldError>
+      </Group>
+
+      <Group id="g-navigation" title="Navigation">
+        <Row label="Pagination (page 5 of 83, and page 1 of 3)">
+          <Pagination
+            page={5}
+            totalPages={83}
+            hrefFor={(n) => `/dev/ui?page=${n}`}
+            navLabel="Pages"
+            prevLabel="Previous page"
+            nextLabel="Next page"
+            pageLabel="Page {page}"
+            currentLabel="current"
+            ofTotalLabel="of 83"
+          />
+          <Pagination
+            page={1}
+            totalPages={3}
+            hrefFor={(n) => `/dev/ui?page=${n}`}
+            navLabel="Few pages"
+            prevLabel="Previous page"
+            nextLabel="Next page"
+            pageLabel="Page {page}"
+            currentLabel="current"
+          />
+        </Row>
+        <Row label="Toggle (two links)">
+          <Toggle
+            label="Sort"
+            current={0}
+            options={[
+              {
+                label: "Newest",
+                href: "/dev/ui?sort=new",
+                ariaLabel: "Newest. Freshest cards first",
+              },
+              {
+                label: "Waiting",
+                href: "/dev/ui?sort=wait",
+                ariaLabel: "Waiting. Longest wait first",
+              },
+            ]}
+          />
+        </Row>
+        <Row label="PrevNext">
+          <PrevNext
+            prev={{ href: "/dev/ui?a=1", label: "Previous animal" }}
+            next={{ href: "/dev/ui?a=3", label: "Next animal" }}
+          />
+        </Row>
+        <Row label="Tabs">
+          <Tabs
+            label="Sections"
+            className="w-full"
+            tabs={[
+              { id: "one", label: "One", panel: <Text>First panel</Text> },
+              { id: "two", label: "Two", panel: <Text>Second panel</Text> },
+              { id: "three", label: "Three", panel: <Text>Third panel</Text> },
+            ]}
+          />
+        </Row>
+        <Row label="BottomNav (a fixed bar; contained here)">
+          <div className="relative h-20 w-full transform-gpu overflow-hidden rounded-panel border-2 border-line">
+            <BottomNav
+              label="Cabinet"
+              current="animals"
+              items={[
+                { key: "home", href: "/dev/ui?n=home", label: "Home" },
+                { key: "animals", href: "/dev/ui?n=animals", label: "Animals" },
+                { key: "profile", href: "/dev/ui?n=profile", label: "Shelter" },
+              ]}
+            />
+          </div>
+        </Row>
       </Group>
 
       <Group id="g-overlays" title="Overlays">
@@ -284,6 +400,12 @@ export default function DevUiPage() {
           action={<LinkButton href="/dev/ui">Go back</LinkButton>}
         />
         <ErrorState title="Something went wrong" body="Error state, announced to screen readers." />
+        <Row label="Toast (info, success, error) and a live demo">
+          <Toast tone="info" message="Info toast" dismissLabel="Dismiss" />
+          <Toast tone="success" message="Saved" dismissLabel="Dismiss" />
+          <Toast tone="error" message="Could not save" dismissLabel="Dismiss" />
+          <ToastDemo />
+        </Row>
       </Group>
 
       <Group id="g-icons" title="Icons">
