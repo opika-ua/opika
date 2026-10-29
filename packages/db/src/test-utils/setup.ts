@@ -75,7 +75,9 @@ export async function setupTestDatabase() {
     DROP TABLE IF EXISTS animals CASCADE;
     DROP TABLE IF EXISTS adopters CASCADE;
     DROP TABLE IF EXISTS shelters CASCADE;
+    DROP TABLE IF EXISTS city_slug_aliases CASCADE;
     DROP TABLE IF EXISTS cities CASCADE;
+    DROP TABLE IF EXISTS regions CASCADE;
     -- Outlives its tables otherwise; dropped so each run proves migration 0013 creates it.
     DROP FUNCTION IF EXISTS auth_account_password_revokes_sessions() CASCADE;
     DROP SCHEMA IF EXISTS drizzle CASCADE;
@@ -100,6 +102,9 @@ export async function setupTestDatabase() {
  */
 const ALL_TABLES = [...FULL_RESET_TABLES, ...RESET_EXCLUDED_TABLES.map((entry) => entry.table)];
 
+/** Migration data, not test data: `cities.region_id` needs these 27 rows to exist in every test. */
+const KEPT_BETWEEN_TESTS = new Set(["regions"]);
+
 /**
  * Truncate all tables between tests. Faster than dropping/recreating and
  * preserves the schema. `CASCADE` is fine here, unlike `full-reset.ts`'s own
@@ -107,6 +112,8 @@ const ALL_TABLES = [...FULL_RESET_TABLES, ...RESET_EXCLUDED_TABLES.map((entry) =
  * there is nothing outside the list for `CASCADE` to reach.
  */
 export async function truncateAll(db: ReturnType<typeof drizzle<typeof schema>>) {
-  const list = ALL_TABLES.map((table) => `"${table}"`).join(", ");
+  const list = ALL_TABLES.filter((table) => !KEPT_BETWEEN_TESTS.has(table))
+    .map((table) => `"${table}"`)
+    .join(", ");
   await db.execute(sql.raw(`TRUNCATE ${list} CASCADE`));
 }

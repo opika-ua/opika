@@ -22,6 +22,8 @@ import {
   confirmationAnchorOf,
   type DiscoverableAnimal,
   isDiscoverableAnimal,
+  searchLatinOf,
+  searchNameOf,
   temperamentTraitsOf,
   waitAnchorOf,
 } from "@opika/domain";
@@ -133,14 +135,24 @@ function columnsToColour(
 // accepting a null `en` the type no longer permits.
 
 export function cityToRow(city: City): CityInsert {
+  const centroid = city.centroid;
   return {
     id: city.id,
     slug: city.slug,
     nameUk: city.name.uk,
     nameEnText: city.name.en.text,
     nameEnProvenance: city.name.en.provenance,
-    centroidLat: city.centroid.lat,
-    centroidLng: city.centroid.lng,
+    regionId: city.regionId,
+    kind: city.kind,
+    districtNameUk: city.district?.uk ?? null,
+    hromadaNameUk: city.hromada?.uk ?? null,
+    nameScope: city.nameScope,
+    // Derived here so no writer can store a key that disagrees with the name.
+    searchName: searchNameOf(city.name.uk),
+    searchLatin: searchLatinOf(city.name.uk),
+    centroidLat: centroid.kind === "recorded" ? centroid.coordinates.lat : null,
+    centroidLng: centroid.kind === "recorded" ? centroid.coordinates.lng : null,
+    centroidSource: centroid.kind === "recorded" ? centroid.source : null,
   };
 }
 
@@ -148,11 +160,23 @@ export function rowToCity(row: CityRow): City {
   return {
     id: row.id,
     slug: CitySlugSchema.parse(row.slug),
+    regionId: row.regionId,
+    kind: row.kind,
     name: {
       uk: row.nameUk,
       en: { text: row.nameEnText, provenance: row.nameEnProvenance },
     },
-    centroid: { lat: row.centroidLat, lng: row.centroidLng },
+    district: row.districtNameUk === null ? null : { uk: row.districtNameUk },
+    hromada: row.hromadaNameUk === null ? null : { uk: row.hromadaNameUk },
+    nameScope: row.nameScope,
+    centroid:
+      row.centroidLat !== null && row.centroidLng !== null && row.centroidSource !== null
+        ? {
+            kind: "recorded",
+            coordinates: { lat: row.centroidLat, lng: row.centroidLng },
+            source: row.centroidSource,
+          }
+        : { kind: "not_recorded" },
   };
 }
 

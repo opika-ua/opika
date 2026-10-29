@@ -23,6 +23,7 @@ import {
   testOnlyLocationPolicy,
   UNKNOWN_DOCUMENT_READINESS,
 } from "@opika/domain";
+import { KYIV_OBLAST_REGION_ID } from "../geography/regions-data";
 
 const policy = testOnlyLocationPolicy();
 
@@ -66,8 +67,17 @@ export function makeCity(overrides: Partial<City> = {}): City {
     // The `c-` prefix makes this fixture's default provably never collide
     // with that shape.
     slug: CitySlugSchema.parse(`c-${id}`),
+    regionId: KYIV_OBLAST_REGION_ID,
+    kind: "city",
     name: { uk: "Тест", en: { text: "Test", provenance: "human" } },
-    centroid: { lat: 50.45, lng: 30.52 },
+    district: null,
+    hromada: null,
+    nameScope: "unique_in_ukraine",
+    centroid: {
+      kind: "recorded",
+      coordinates: { lat: 50.45, lng: 30.52 },
+      source: "manual",
+    },
     ...overrides,
   };
 }

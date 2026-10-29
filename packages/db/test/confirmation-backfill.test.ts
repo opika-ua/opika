@@ -6,12 +6,11 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { cityRepo } from "../src/repos/city-repo";
 import { animals } from "../src/schema/animals";
 import * as schema from "../src/schema/index";
 import { makeCity, makeShelter, setupTestDatabase } from "../src/test-utils/index";
 import { TEST_DATABASE_URL } from "../src/test-utils/setup";
-import { insertLegacyShelter } from "./legacy-rows";
+import { insertLegacyCity, insertLegacyShelter } from "./legacy-rows";
 
 /**
  * The `last_confirmed_at` backfill (H2-3, H2-14), tested against rows shaped
@@ -192,7 +191,7 @@ const INVISIBLE: readonly LegacyAnimal[] = [
 
 async function seed(rows: readonly LegacyAnimal[]): Promise<void> {
   const city = makeCity();
-  await cityRepo(db).insert(city);
+  await insertLegacyCity(client, city);
   const shelter = makeShelter();
   await insertLegacyShelter(client, { id: shelter.id, cityId: city.id });
   for (const row of rows) await insertLegacyAnimal(row, shelter.id, city.id);

@@ -1,14 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { cityRepo } from "../src/repos/city-repo";
-import * as schema from "../src/schema/index";
 import { makeCity, setupTestDatabase } from "../src/test-utils/index";
 import { TEST_DATABASE_URL } from "../src/test-utils/setup";
-import { insertLegacyAnimal, insertLegacyShelter } from "./legacy-rows";
+import { insertLegacyAnimal, insertLegacyCity, insertLegacyShelter } from "./legacy-rows";
 
 /**
  * Migration 0010 (HS-Q9): `animals.first_published_at`, backfilled. The
@@ -20,7 +17,6 @@ const MIGRATIONS_DIR = resolve(fileURLToPath(import.meta.url), "../../drizzle");
 const TAG = "0010_clear_bastion";
 
 const client = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
-const db = drizzle(client, { schema });
 
 afterAll(async () => {
   await (await setupTestDatabase()).cleanup();
@@ -67,7 +63,7 @@ const aid = (n: number) => `a0000000-0000-4000-8000-${String(n).padStart(12, "0"
 
 async function seedShelter(): Promise<string> {
   const city = makeCity();
-  await cityRepo(db).insert(city);
+  await insertLegacyCity(client, city);
   await insertLegacyShelter(client, { id: SHELTER, cityId: city.id });
   return city.id;
 }

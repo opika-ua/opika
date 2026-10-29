@@ -101,6 +101,16 @@ export const RESET_EXCLUDED_TABLES: ReadonlyArray<{ table: string; why: string }
       "onboarded without it already existing, and it carries nothing personal " +
       "or user-generated",
   },
+  {
+    table: "regions",
+    why: "the 27 first-level units, inserted by migration 0020; reference data, nothing personal",
+  },
+  {
+    table: "city_slug_aliases",
+    why:
+      "former public slugs of cities; kept with `cities`, because the import's rows and the " +
+      "links already shared outlive a reset",
+  },
 ];
 
 export type FullResetCounts = Record<FullResetTable, number>;

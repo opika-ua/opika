@@ -91,3 +91,16 @@ export async function insertLegacyAnimal(
       ${animal.cityId}, ${at}::timestamptz, ${at}::timestamptz
     )`;
 }
+
+/**
+ * A city row in the shape every migration before 0020 accepts. `cityRepo.insert` writes the
+ * current schema (region, kind and search keys), which an earlier schema does not have.
+ */
+export async function insertLegacyCity(
+  client: postgres.Sql,
+  city: { id: string; slug: string; name: { uk: string; en: { text: string } } },
+): Promise<void> {
+  await client`
+    INSERT INTO cities (id, slug, name_uk, name_en_text, name_en_provenance, centroid_lat, centroid_lng)
+    VALUES (${city.id}, ${city.slug}, ${city.name.uk}, ${city.name.en.text}, 'human', ${50.45}, ${30.52})`;
+}

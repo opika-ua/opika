@@ -13,7 +13,9 @@ export {
   supportSessions,
 } from "./auth";
 export { cities } from "./cities";
+export { citySlugAliases } from "./city-slug-aliases";
 export { r2UnreferencedObjects } from "./r2-cleanup";
+export { regions } from "./regions";
 export { reveals } from "./reveals";
 export { sessions } from "./sessions";
 export { shelterHistory } from "./shelter-history";
