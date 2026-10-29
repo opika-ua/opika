@@ -4,6 +4,7 @@ import {
   type CityReferences,
   referenceFingerprint,
   referenceLines,
+  targetIsProduction,
 } from "../src/tools/city-references";
 
 const ROWS: CityReferenceRow[] = [
@@ -45,5 +46,23 @@ describe("referenceLines", () => {
     expect(text).toContain("a  kyiv: 10 animals, 2 shelters");
     expect(text).toContain("Animals pointing at a city: 14; shelters: 3");
     expect(text).toContain(`Reference fingerprint: ${referenceFingerprint(refs.referenced)}`);
+  });
+});
+
+describe("targetIsProduction (what lets --prod mean something)", () => {
+  const NO_FILE = { PROD_GUARD_ENV_FILE: "does-not-exist.env" };
+  const ENV = { PROD_NEON_ENDPOINT: "ep-quiet-lake-a1b2c3", ...NO_FILE };
+  const PROD = "postgresql://u:p@ep-quiet-lake-a1b2c3-pooler.eu-central-1.aws.neon.tech/neondb";
+  const CHILD = "postgresql://u:p@ep-other-hill-d4e5f6-pooler.eu-central-1.aws.neon.tech/neondb";
+
+  it("is true only for the production compute with --prod", () => {
+    expect(targetIsProduction(PROD, ["--prod"], ENV)).toBe(true);
+    expect(targetIsProduction(PROD, [], ENV)).toBe(false);
+  });
+
+  it("is false for a child branch, a local database, and when production is unknown", () => {
+    expect(targetIsProduction(CHILD, ["--prod"], ENV)).toBe(false);
+    expect(targetIsProduction("postgres://u:p@localhost:5433/db", ["--prod"], ENV)).toBe(false);
+    expect(targetIsProduction(PROD, ["--prod"], NO_FILE)).toBe(false);
   });
 });

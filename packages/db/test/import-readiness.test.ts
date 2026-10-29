@@ -78,13 +78,17 @@ describe("scanFullListReads", () => {
     expect(scan).toMatchObject({ kind: "clear" });
   });
 
-  it("does not follow a symlink out of the tree", () => {
+  it("does not follow a symlink out of the tree", (context) => {
     const outside = tree({ "packages/leak.ts": `${LIST_ALL}();\n` });
     const inside = tree({});
     try {
       symlinkSync(resolve(outside, "packages"), resolve(inside, "apps/link"), "junction");
-    } catch {
-      return; // creating a link needs a privilege some machines lack; nothing to assert there
+    } catch (error) {
+      // Creating a link needs a privilege some machines lack. Reported as SKIPPED with this
+      // reason, never as a pass.
+      context.skip(
+        `cannot create a symlink here: ${error instanceof Error ? error.message : error}`,
+      );
     }
     expect(scanFullListReads(inside)).toMatchObject({ kind: "clear" });
   });

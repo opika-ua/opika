@@ -4,7 +4,13 @@ import { fileURLToPath } from "node:url";
 import { count, isNotNull } from "drizzle-orm";
 import { createDatabase, type Database } from "../client";
 import { migrateTargetCheck, parseMigrateArgs } from "../migrate-args";
-import { assertProductionWriteAllowed, databaseTargetLine } from "../prod-guard";
+import {
+  assertProductionWriteAllowed,
+  checkProductionWrite,
+  databaseTargetLine,
+  PROD_FLAG,
+  productionEndpoint,
+} from "../prod-guard";
 import { animals } from "../schema/animals";
 import { cities } from "../schema/cities";
 import { citySlugAliases } from "../schema/city-slug-aliases";
@@ -99,6 +105,18 @@ export function referenceLines(refs: CityReferences): string[] {
   ];
 }
 
+/** Whether the guard reads this target as production with `--prod` given (so `--prod` means something). */
+export function targetIsProduction(
+  url: string,
+  argv: readonly string[],
+  env: Readonly<Record<string, string | undefined>>,
+): boolean {
+  const prod = productionEndpoint(env);
+  if (prod === undefined) return false; // unknown production: nothing can be shown to be it
+  const check = checkProductionWrite(url, argv, prod, env);
+  return check.kind === "allowed" && check.reason === "production_flagged";
+}
+
 async function main(): Promise<void> {
   const url = process.env.DATABASE_URL;
   if (!url) {
@@ -112,6 +130,14 @@ async function main(): Promise<void> {
   }
   // It reads no animal or shelter row, but it is aimed at production, so production needs --prod.
   assertProductionWriteAllowed(url, process.argv.slice(2), process.env, "read");
+  // And --prod on anything else is a mistake to stop, as the importer does.
+  if (
+    process.argv.includes(PROD_FLAG) &&
+    !targetIsProduction(url, process.argv.slice(2), process.env)
+  ) {
+    console.error("ERROR: --prod was given but this target is not production. Nothing was run.");
+    process.exit(1);
+  }
   const expected = migrateTargetCheck(url, args.expect);
   if (expected.kind === "refused") {
     console.error(`ERROR: ${expected.reason}. Refusing (not printing the URL).`);

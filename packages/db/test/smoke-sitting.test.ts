@@ -277,9 +277,9 @@ describe("renderProductionImportSitting (the combined rehearsal + production sit
     const part2 = at("PART 2:");
     const order = [
       "Invoke-WebRequest",
-      'if ($hash -ne "abc123") { throw "STOP',
+      '$hashOk = ($hash -eq "abc123")',
       '$env:DATABASE_URL = Read-Secret "PRODUCTION connection string"',
-      'throw "STOP: the connection string is not the production endpoint you typed',
+      "$epOk = (",
       "db:check-hashes",
       "db:city-references --prod --expect $ep",
       "db:import-settlements --prod --expect $ep --file $xlsx\n",
@@ -289,25 +289,49 @@ describe("renderProductionImportSitting (the combined rehearsal + production sit
     expect(text).toContain("all 21 migrations 'match', through 0020_nationwide_geography_schema");
   });
 
-  it("puts a restore point and a typed confirmation between the dry run and the only --commit", () => {
+  it("puts the restore prompt, the typed confirmation and the only --commit in ONE block, gated by every check", () => {
     const part2 = at("PART 2:");
     const dry = at("db:import-settlements --prod --expect $ep --file $xlsx\n", part2);
-    const restore = at('if ($named.Trim() -ne "pre-import-restore") { throw', part2);
-    const typed = at("if ($typed.Trim().ToLower() -ne $ep) { throw", part2);
+    const open = at("if ($true) {", part2);
+    const restore = at("$named = Read-Host", part2);
+    const typed = at("$typed = Read-Host", part2);
+    const gate = at("$go = $hashOk -and $epOk -and ($dryExit -eq 0)", part2);
+    const refusal = at("if (-not $go) {", part2);
     const commit = at("--file $xlsx --commit", part2);
-    expect(dry).toBeGreaterThan(-1);
-    expect(restore).toBeGreaterThan(dry);
-    expect(typed).toBeGreaterThan(restore);
-    expect(commit).toBeGreaterThan(typed);
+    const marks = [dry, open, restore, typed, gate, refusal, commit];
+    expect(marks.every((i) => i > -1)).toBe(true);
+    expect(marks).toEqual([...marks].sort((a, b) => a - b));
+    const block = text.slice(open, at("# Expected (only if the block wrote)", open));
+    expect(block).toContain('($named.Trim() -eq "pre-import-restore")');
+    expect(block).toContain("($typed.Trim().ToLower() -eq $ep)");
+    // The commit is in the else branch of the refusal: it cannot run when a check failed.
+    expect(block.indexOf("} else {")).toBeGreaterThan(block.indexOf("if (-not $go) {"));
+    expect(block.indexOf("--commit")).toBeGreaterThan(block.indexOf("} else {"));
+    // A `throw` stops only its own pasted line, so no write may rely on one.
+    expect(text.slice(part2)).not.toMatch(/\bthrow\b/);
     // The one write in Part 2; Part 1's rehearsal commits to a child branch without --prod.
     const writes = text
       .slice(part2)
       .split("\n")
-      .filter((l) => l.startsWith("pnpm") && l.includes("--commit"));
-    expect(writes).toEqual([
+      .filter((l) => l.includes("--commit") && l.trim().startsWith("pnpm"));
+    expect(writes.map((l) => l.trim())).toEqual([
       "pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx --commit",
     ]);
     expect(text.slice(part2).match(/db:import-settlements --prod --expect \$ep/g)).toHaveLength(3);
+  });
+
+  it("shows the exit code of every import command, expecting 0", () => {
+    const part2 = text.slice(at("PART 2:"));
+    expect(part2).toContain("$dryExit = $LASTEXITCODE");
+    expect(part2).toContain("$commitExit = $LASTEXITCODE");
+    expect(part2).toContain('"import dry rerun exit code: $LASTEXITCODE (expected 0)"');
+  });
+
+  it("prints the redirect target for the site checks, and the header says the scan checks the checkout", () => {
+    expect(text.match(/%\{http_code\} %\{redirect_url\}/g)).toHaveLength(2);
+    const header = text.slice(0, at("PART 1:"));
+    expect(header).toContain("checks the CHECKOUT, not the deployment");
+    expect(header).toContain("21f1185");
   });
 
   it("reruns dry after the commit, then checks references twice and the site, then cleans up", () => {

@@ -268,16 +268,18 @@ $xlsx = Join-Path $env:TEMP "kodifikator-07-07.xlsx"
 Invoke-WebRequest -Uri "${p.download.url}" -OutFile $xlsx
 $hash = (Get-FileHash -Algorithm SHA256 $xlsx).Hash.ToLower()
 $hash
-if ($hash -ne "${p.download.sha256}") { throw "STOP: the file's sha256 is not ${p.download.sha256}. Do not import it; paste this back." }
+$hashOk = ($hash -eq "${p.download.sha256}")
+if (-not $hashOk) { Write-Host "STOP: the file's sha256 is not ${p.download.sha256}. Do not import it; paste this back. Nothing below will write." -ForegroundColor Red }
 # If the link has moved: download the file by hand and set $xlsx to its path instead, e.g.
-#   $xlsx = "C:\\path\\kodifikator-07-07.xlsx"   (strip the quotes from a "Copy as path" path). The checksum check above still applies. Do not commit the file.
+#   $xlsx = "C:\\path\\kodifikator-07-07.xlsx"   (strip the quotes from a "Copy as path" path), then rerun the two lines above that compute $hash and $hashOk. Do not commit the file.
 
 ---- Production connection (read without echo; never printed) ----
 $env:DATABASE_URL = Read-Secret "PRODUCTION connection string"
 $env:PROD_NEON_ENDPOINT = Read-Secret "Production Neon endpoint id (ep-...)"
 $ep = ([uri]$env:DATABASE_URL).Host.Split('.')[0] -replace '-pooler$',''
 $ep
-if ($ep -ne ($env:PROD_NEON_ENDPOINT.Trim().ToLower() -replace '-pooler$','')) { throw "STOP: the connection string is not the production endpoint you typed. Nothing was run." }
+$epOk = ($ep -eq ($env:PROD_NEON_ENDPOINT.Trim().ToLower() -replace '-pooler$',''))
+if (-not $epOk) { Write-Host "STOP: the connection string is not the production endpoint you typed. Nothing below will write." -ForegroundColor Red }
 
 ---- Pre-flight (read-only) ----
 pnpm --filter @opika/db db:check-hashes
@@ -288,32 +290,43 @@ pnpm --filter @opika/db db:city-references --prod --expect $ep
 
 ---- Dry run (writes nothing) ----
 pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx
+$dryExit = $LASTEXITCODE
+"import dry run exit code: $dryExit (expected 0)"
 # Expected: ${p.expected.dryRun}
 # Any refusal, any difference in the counts above, or a '!!! WARNING' line -> STOP, paste the output, do not continue.
 
----- Restore point, then the typed confirmation (the only way past this is typing the endpoint again) ----
-# In the Neon console: create a branch of PRODUCTION right now (parent: production, current data), named ${p.restoreBranchName}
+---- Restore point, then the typed confirmation and the commit: ONE block, paste it whole ----
+# In the Neon console first: create a branch of PRODUCTION right now (parent: production, current data), named ${p.restoreBranchName}
 # (Part 1's child branch is a rehearsal that now holds fixtures and the imported data: it is not a restore point).
-$named = Read-Host "Type the name of the restore branch you just created"
-if ($named.Trim() -ne "${p.restoreBranchName}") { throw "STOP: make the restore branch first. Nothing was written." }
-$typed = Read-Host "Type the production endpoint id ($ep) to confirm the write"
-if ($typed.Trim().ToLower() -ne $ep) { throw "STOP: not confirmed. Nothing was written." }
-
----- Commit (the write; aliases are written before any rename, 500-row statements, as the child branch run did) ----
-pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx --commit
-# Expected: ${p.expected.afterCommit}
+# The prompts and the write are inside one if-block on purpose: PowerShell reads the whole block before running
+# any of it, so Read-Host cannot swallow a pasted line, and --commit runs only when every check below is true.
+$go = $false
+if ($true) {
+  $named = Read-Host "Type the name of the restore branch you just created"
+  $typed = Read-Host "Type the production endpoint id ($ep) to confirm the write"
+  $go = $hashOk -and $epOk -and ($dryExit -eq 0) -and ($named.Trim() -eq "${p.restoreBranchName}") -and ($typed.Trim().ToLower() -eq $ep)
+  if (-not $go) {
+    Write-Host "STOP: not confirmed (file checksum, endpoint, dry run exit code 0, restore branch name and typed endpoint must all be right). NOTHING WAS WRITTEN. Paste this output and do nothing further." -ForegroundColor Red
+  } else {
+    pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx --commit
+    $commitExit = $LASTEXITCODE
+    "import --commit exit code: $commitExit (expected 0)"
+  }
+}
+# Expected (only if the block wrote): ${p.expected.afterCommit}
 # If the run dies part way: do not retry blindly. Paste the output; rerunning the same command completes it (idempotent), and the restore branch is the way back.
 
 ---- Dry rerun (writes nothing) ----
 pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx
+"import dry rerun exit code: $LASTEXITCODE (expected 0)"
 # Expected: ${p.expected.rerun}
 
 ---- Post-checks (read-only) ----
 pnpm --filter @opika/db db:city-references --prod --expect $ep
 # Expected: ${p.expected.afterReferences}
 $site = Read-Host "Production site base URL (https://...)"
-curl.exe -s -o NUL -w "%{http_code}\`n" "$site/tvaryny"
-curl.exe -s -o NUL -w "%{http_code}\`n" "$site/tvaryny?misto=brovary"
+curl.exe -s -o NUL -w "%{http_code} %{redirect_url}\`n" "$site/tvaryny"
+curl.exe -s -o NUL -w "%{http_code} %{redirect_url}\`n" "$site/tvaryny?misto=brovary"
 # Expected: ${p.expected.site}
 
 ---- Cleanup ----
@@ -341,6 +354,9 @@ TWO PARTS, TWO CHECKOUTS. Confirm BOTH SHAs with the session before running anyt
 Part 1 runs from the not-yet-merged search PR on a FRESH child branch. Part 2 runs from the import
 PR's own head (the search PR only changes cities.search, which the import uses just for its probes).
 Both PRs are merged after this sitting, not before. Do Part 2 only if Part 1 passed in full.
+NOTE: the import's readiness scan checks the CHECKOUT, not the deployment. Before Part 2, confirm the Vercel
+production deployment is on main at 21f1185 (N4) or later: builds older than N3/N4 can serve open tabs for up
+to the 12 h skew-protection window and still read the full city list (payload only, no privacy issue).
 
 =====================================================================================
 PART 1: child-branch rehearsal. Runs from PR #${r.prNumber} (${r.branch}) @ ${r.sha}
