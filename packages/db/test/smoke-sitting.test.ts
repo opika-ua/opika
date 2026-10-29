@@ -70,4 +70,44 @@ describe("renderSmokeSitting", () => {
   it("a clean input with no mention of the phrase at all still renders", () => {
     expect(() => renderSmokeSitting(BASE)).not.toThrow();
   });
+
+  it("a sitting without a migration runs no migration anywhere", () => {
+    expect(renderSmokeSitting(BASE)).not.toContain("db:migrate");
+  });
+});
+
+describe("renderSmokeSitting, for a PR with a migration", () => {
+  const TAG = "0019_sessions_adopter_id_index";
+  const WITH_MIGRATION: SmokeSittingInput = { ...BASE, migration: { tag: TAG } };
+  const text = renderSmokeSitting(WITH_MIGRATION);
+  const at = (needle: string) => text.indexOf(needle);
+
+  it("migrates and checks the child branch, then smokes it, then migrates production", () => {
+    const childMigrate = at("db:migrate --expect $ep");
+    const childHashes = at("db:check-hashes");
+    const smoke = at("db:neon-smoke --expect $ep");
+    const productionMigrate = at("db:migrate --prod --expect");
+    expect(childMigrate).toBeGreaterThan(-1);
+    expect(childHashes).toBeGreaterThan(childMigrate);
+    expect(smoke).toBeGreaterThan(childHashes);
+    expect(productionMigrate).toBeGreaterThan(smoke);
+    expect(text.lastIndexOf("db:check-hashes")).toBeGreaterThan(productionMigrate);
+    expect(text).toContain(`${TAG} applied`);
+  });
+
+  it("runs the smoke once, on the child branch only", () => {
+    expect(text.match(/db:neon-smoke/g)).toHaveLength(1);
+    expect(at("db:neon-smoke")).toBeLessThan(at("Production connection string"));
+  });
+
+  it("keeps the production endpoint id set until the production migration, which needs it", () => {
+    expect(text.match(/Remove-Item Env:PROD_NEON_ENDPOINT/g)).toHaveLength(1);
+    expect(at("Remove-Item Env:PROD_NEON_ENDPOINT")).toBeGreaterThan(at("db:migrate --prod"));
+  });
+
+  it("still refuses the phrase in free text", () => {
+    expect(() =>
+      renderSmokeSitting({ ...WITH_MIGRATION, migrationNote: "migrate against production" }),
+    ).toThrow(/against\s+production/i);
+  });
 });

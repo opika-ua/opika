@@ -23,8 +23,12 @@ export type RevealBudget = { since: Date; maxShelters: number };
 /**
  * What `insertWithinShelterBudget` did. Only `inserted` wrote anything; the other two are the
  * guard's refusals, told apart afterwards by whether this adopter's reveal of the animal exists.
+ * That row travels with the refusal, so the caller answers with it without reading it again.
  */
-export type RevealInsertOutcome = "inserted" | "animal_already_revealed" | "over_budget";
+export type RevealInsertOutcome =
+  | { kind: "inserted" }
+  | { kind: "animal_already_revealed"; existing: ContactReveal }
+  | { kind: "over_budget" };
 
 export function revealRepo(db: Database) {
   const ofAdopterSince = (adopterId: AdopterId, since: Date) =>
@@ -177,10 +181,11 @@ export function revealRepo(db: Database) {
           )
           .returning({ id: reveals.id }),
       ]);
-      if (inserted.length > 0) return "inserted";
-      return (await findByAdopterAndAnimal(reveal.adopterId, reveal.animalId)) === null
-        ? "over_budget"
-        : "animal_already_revealed";
+      if (inserted.length > 0) return { kind: "inserted" };
+      const existing = await findByAdopterAndAnimal(reveal.adopterId, reveal.animalId);
+      return existing === null
+        ? { kind: "over_budget" }
+        : { kind: "animal_already_revealed", existing };
     },
   };
 }

@@ -7,7 +7,7 @@ import { createDatabase, createDatabaseWithClient, type Database } from "../src/
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
-import { type RevealBudget, revealRepo } from "../src/repos/reveal-repo";
+import { type RevealBudget, type RevealInsertOutcome, revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { reveals } from "../src/schema/reveals";
 import {
@@ -120,11 +120,15 @@ describe("revealRepo.insertWithinShelterBudget, one reveal at a time", () => {
     const thirtyFirst = await shelterWith();
 
     const at30 = revealOf(me, thirtieth);
-    expect(await revealRepo(db).insertWithinShelterBudget(at30, BUDGET)).toBe("inserted");
+    expect(await revealRepo(db).insertWithinShelterBudget(at30, BUDGET)).toEqual({
+      kind: "inserted",
+    });
     expect(await revealRepo(db).findById(at30.id)).toEqual(at30);
 
     const at31 = revealOf(me, thirtyFirst);
-    expect(await revealRepo(db).insertWithinShelterBudget(at31, BUDGET)).toBe("over_budget");
+    expect(await revealRepo(db).insertWithinShelterBudget(at31, BUDGET)).toEqual({
+      kind: "over_budget",
+    });
     expect(await revealRepo(db).findById(at31.id)).toBeNull();
     expect(await distinctShelters(me)).toBe(30);
   });
@@ -134,18 +138,24 @@ describe("revealRepo.insertWithinShelterBudget, one reveal at a time", () => {
     const spots = await revealed(me, 30);
     const counted = spots[7] as Spot;
     const again = revealOf(me, counted, 1);
-    expect(await revealRepo(db).insertWithinShelterBudget(again, BUDGET)).toBe("inserted");
+    expect(await revealRepo(db).insertWithinShelterBudget(again, BUDGET)).toEqual({
+      kind: "inserted",
+    });
     expect(await distinctShelters(me)).toBe(30);
   });
 
-  it("the same animal again is never a second row, at any count", async () => {
+  it("the same animal again is never a second row, and answers with the stored one", async () => {
     const me = await adopter();
     const [spot] = await revealed(me, 1);
+    const animalId = (spot as Spot).animalIds[0] as AnimalId;
+    const stored = await revealRepo(db).findByAdopterAndAnimal(me, animalId);
     const duplicate = revealOf(me, spot as Spot, 0);
-    expect(await revealRepo(db).insertWithinShelterBudget(duplicate, BUDGET)).toBe(
-      "animal_already_revealed",
-    );
-    expect(await rowsOf(me, (spot as Spot).animalIds[0] as AnimalId)).toBe(1);
+    expect(stored?.id).not.toBe(duplicate.id);
+    expect(await revealRepo(db).insertWithinShelterBudget(duplicate, BUDGET)).toEqual({
+      kind: "animal_already_revealed",
+      existing: stored,
+    });
+    expect(await rowsOf(me, animalId)).toBe(1);
   });
 
   it("counts only this adopter's reveals, and only inside the window", async () => {
@@ -156,10 +166,14 @@ describe("revealRepo.insertWithinShelterBudget, one reveal at a time", () => {
     await revealed(me, 29);
     // 29 inside the window: another adopter's 30 and my own reveal at the window's edge don't count.
     const thirtieth = revealOf(me, await shelterWith());
-    expect(await revealRepo(db).insertWithinShelterBudget(thirtieth, BUDGET)).toBe("inserted");
+    expect(await revealRepo(db).insertWithinShelterBudget(thirtieth, BUDGET)).toEqual({
+      kind: "inserted",
+    });
     // At 30, the shelter revealed only before the window is new again, not free.
     const outside = revealOf(me, old as Spot, 1);
-    expect(await revealRepo(db).insertWithinShelterBudget(outside, BUDGET)).toBe("over_budget");
+    expect(await revealRepo(db).insertWithinShelterBudget(outside, BUDGET)).toEqual({
+      kind: "over_budget",
+    });
   });
 });
 
@@ -215,13 +229,13 @@ describe("two reveals by one adopter at once, at the boundary (audit F8)", () =>
         ? revealOf(me, await shelterWith())
         : revealOf(me, firstSpot, kind === "same_shelter" ? 1 : 0);
 
-    let secondOutcome: Promise<string> | undefined;
+    let secondOutcome: Promise<RevealInsertOutcome> | undefined;
     await db.transaction(async (tx) => {
       const [self] = await tx.execute<{ pid: number }>(sql`SELECT pg_backend_pid() AS pid`);
       // The first reveal writes the 30th shelter and stays uncommitted, its lock held.
       expect(
         await revealRepo(tx as unknown as Database).insertWithinShelterBudget(first, BUDGET),
-      ).toBe("inserted");
+      ).toEqual({ kind: "inserted" });
       // The second passed any check made before this point; its write now meets the first's.
       secondOutcome = revealRepo(second).insertWithinShelterBudget(secondReveal, BUDGET);
       expect(
@@ -229,7 +243,12 @@ describe("two reveals by one adopter at once, at the boundary (audit F8)", () =>
         "the second reveal's write must wait for the first's transaction, not run past it",
       ).toBe(true);
     });
-    expect(await secondOutcome).toBe(expected);
+    // The loser of the same-animal race answers with the winner's row, not its own refused one.
+    expect(await secondOutcome).toEqual(
+      expected === "animal_already_revealed"
+        ? { kind: expected, existing: first }
+        : { kind: expected },
+    );
     expect(await distinctShelters(me)).toBe(finalShelters);
     expect(await rowsOf(me, first.animalId)).toBe(1);
   });

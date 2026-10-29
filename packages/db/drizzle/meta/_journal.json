@@ -134,6 +134,13 @@
       "when": 1793084512369,
       "tag": "0018_shelter_logo",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793269236728,
+      "tag": "0019_sessions_adopter_id_index",
+      "breakpoints": true
     }
   ]
 }

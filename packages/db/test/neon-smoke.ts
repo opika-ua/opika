@@ -2505,8 +2505,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   };
 
   const s48One = await s48AdopterAt29();
-  const write = (reveal: ContactReveal) =>
-    revealRepo(db).insertWithinShelterBudget(reveal, s48Budget);
+  const write = async (reveal: ContactReveal) =>
+    (await revealRepo(db).insertWithinShelterBudget(reveal, s48Budget)).kind;
   const s48Sequence = [
     await write(s48RevealOf(s48One, 29)),
     await write(s48RevealOf(s48One, 30)),
