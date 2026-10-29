@@ -125,14 +125,11 @@ export async function writeRevealWithinRateLimit(
 ): Promise<ContactReveal> {
   const reveals = revealRepo(db);
   const outcome = await reveals.insertWithinShelterBudget(reveal, budgetAt(reveal.revealedAt));
-  switch (outcome) {
+  switch (outcome.kind) {
     case "inserted":
       return reveal;
-    case "animal_already_revealed": {
-      const existing = await reveals.findByAdopterAndAnimal(reveal.adopterId, reveal.animalId);
-      if (existing === null) throw new Error("a refused reveal's existing row is gone");
-      return existing;
-    }
+    case "animal_already_revealed":
+      return outcome.existing;
     case "over_budget":
       logRateLimited("reveal-adopter");
       throw errors.RATE_LIMITED();
