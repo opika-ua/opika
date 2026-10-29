@@ -46,6 +46,30 @@ export async function loadExisting(
   return { cities: rows, aliases: aliasRows };
 }
 
+/**
+ * Whether migration 0020's columns and tables can be read at all, asked with the query builder (a
+ * missing column throws). The reason carries no error text: a driver error can quote the statement.
+ */
+export async function migration0020Present(db: Database): Promise<boolean> {
+  try {
+    await db
+      .select({
+        code: cities.katottgCode,
+        region: cities.regionId,
+        edition: cities.sourceEdition,
+        retired: cities.retiredInEdition,
+        search: cities.searchName,
+      })
+      .from(cities)
+      .limit(1);
+    await db.select({ slug: citySlugAliases.slug }).from(citySlugAliases).limit(1);
+    await db.select({ id: regions.id }).from(regions).limit(1);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** The regions table is written by migration 0020, never by the importer: it must equal the constant. */
 export async function regionsMatchConstant(db: Database): Promise<boolean> {
   const rows = await db.select({ id: regions.id, code: regions.code }).from(regions);

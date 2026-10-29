@@ -160,8 +160,10 @@ pnpm --filter @opika/db run db:seed
 pnpm --filter @opika/db run onboard:shelter
 
 # Writing to production (Neon) needs an explicit --prod on db:migrate and onboard:shelter
-# (packages/db/src/prod-guard.ts). db:seed and db:import-settlements refuse a production target
-# outright, --prod or not (assertNotProductionTarget). Production is identified by its Neon
+# (packages/db/src/prod-guard.ts). db:seed refuses a production target outright, --prod or not
+# (assertNotProductionTarget). db:import-settlements takes --prod --expect ep-… (the production
+# compute) and also refuses while the source tree reads the full city list (import/readiness.ts).
+# Production is identified by its Neon
 # endpoint id only (PROD_NEON_ENDPOINT=ep-…, never a URL), read from the environment or,
 # for that one key, from the root .env.local. With it unset every non-local target is
 # refused (fail closed). Test database setup is local-only with no override.

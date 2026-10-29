@@ -5,6 +5,7 @@ import { type Plan, PlanError, planImport } from "./plan";
 import {
   applyPlan,
   loadExisting,
+  migration0020Present,
   referencedAmong,
   regionsMatchConstant,
   summariseStored,
@@ -19,10 +20,19 @@ export type ImportOutcome =
       plan: Plan;
       /** Parser facts that only the real file can check: printed, never asserted. */
       source: { apostropheConversions: number; withoutParentName: number };
+      /** What the table held before this run: printed first, so a paste shows the starting point. */
+      preflight: Preflight;
       stored: Awaited<ReturnType<typeof summariseStored>> | null;
       /** After a commit: what a second plan still wants to change. Zero when the run converged. */
       remaining: number | null;
     };
+
+export type Preflight = {
+  cities: number;
+  withCode: number;
+  withoutCode: number;
+  aliases: number;
+};
 
 const remainingChanges = (plan: Plan) =>
   plan.inserts.length +
@@ -83,6 +93,14 @@ export async function runImport(input: {
     };
   }
 
+  if (!(await migration0020Present(db))) {
+    return {
+      kind: "refused",
+      reasons: [
+        "migration 0020's columns or tables (cities.katottg_code and the other settlement columns, city_slug_aliases, regions) could not be read: it is not applied, or the database is unreachable",
+      ],
+    };
+  }
   if (!(await regionsMatchConstant(db))) {
     return {
       kind: "refused",
@@ -93,6 +111,13 @@ export async function runImport(input: {
   }
 
   const existing = await loadExisting(db);
+  const withCode = existing.cities.filter((c) => c.katottgCode !== null).length;
+  const preflight: Preflight = {
+    cities: existing.cities.length,
+    withCode,
+    withoutCode: existing.cities.length - withCode,
+    aliases: existing.aliases.length,
+  };
   let plan: Plan;
   try {
     plan = planImport({
@@ -120,7 +145,9 @@ export async function runImport(input: {
     apostropheConversions: parsed.apostropheConversions,
     withoutParentName: parsed.withoutParentName,
   };
-  if (!commit) return { kind: "planned", edition, plan, source, stored: null, remaining: null };
+  if (!commit) {
+    return { kind: "planned", edition, plan, source, preflight, stored: null, remaining: null };
+  }
 
   await applyPlan(db, plan, edition.id);
   const after = await loadExisting(db);
@@ -135,6 +162,7 @@ export async function runImport(input: {
     edition,
     plan,
     source,
+    preflight,
     stored: await summariseStored(db),
     remaining: remainingChanges(second),
   };

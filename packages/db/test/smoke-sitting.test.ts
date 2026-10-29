@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { renderSmokeSitting, type SmokeSittingInput } from "../src/tools/smoke-sitting";
+import {
+  type ProductionImportSittingInput,
+  renderProductionImportSitting,
+  renderSmokeSitting,
+  type SmokeSittingInput,
+} from "../src/tools/smoke-sitting";
 
 const BASE: SmokeSittingInput = {
   title: "Sex-filter PR",
@@ -204,5 +209,143 @@ describe("renderSmokeSitting with the import and the timings step (nationwide N3
 
   it("still has no production step", () => {
     expect(withTimings).not.toContain("--prod");
+  });
+});
+
+describe("renderProductionImportSitting (the combined rehearsal + production sitting)", () => {
+  const REHEARSAL: SmokeSittingInput = {
+    ...BASE,
+    prNumber: 282,
+    branch: "perf/cities-search-union",
+    sha: "5ec7ea3dcf6fce38fbbf1df5c75366bc71c12e16",
+    settlementImport: {
+      download: { url: "https://example.org/k.xlsx", sha256: "abc123" },
+      expectedFirstPlan: "FIRST",
+      expectedAfterCommit: "COMMIT",
+      expectedRerun: "RERUN",
+      expectedAfterReseed: "RESEED",
+      timings: { expected: "TIMINGS" },
+    },
+  };
+  const INPUT: ProductionImportSittingInput = {
+    title: "Production settlement import",
+    date: "2026-10-29",
+    rehearsal: REHEARSAL,
+    production: {
+      prNumber: 290,
+      branch: "feat/prod-import-enable",
+      sha: "1111111111111111111111111111111111111111",
+      worktreeSlug: "prod-import-run",
+      download: { url: "https://example.org/k.xlsx", sha256: "abc123" },
+      restoreBranchName: "pre-import-restore",
+      lastMigrationTag: "0020_nationwide_geography_schema",
+      migrationCount: 21,
+      expected: {
+        beforeReferences: "BEFORE-REFS",
+        dryRun: "DRY",
+        afterCommit: "AFTER-COMMIT",
+        rerun: "AGAIN",
+        afterReferences: "AFTER-REFS",
+        site: "SITE",
+      },
+    },
+  };
+  const text = renderProductionImportSitting(INPUT);
+  const at = (needle: string, from = 0) => text.indexOf(needle, from);
+
+  it("names both SHAs up front and runs Part 1 from the rehearsal PR, Part 2 from the import PR", () => {
+    const header = text.slice(0, at("PART 1:"));
+    expect(header).toContain(REHEARSAL.sha);
+    expect(header).toContain(INPUT.production.sha);
+    expect(header).toContain("Confirm BOTH SHAs");
+    expect(
+      at("git worktree add --detach D:\\opika-worktrees\\sex-filter-smoke 5ec7ea3"),
+    ).toBeGreaterThan(-1);
+    expect(
+      at("git worktree add --detach D:\\opika-worktrees\\prod-import-run 1111111"),
+    ).toBeGreaterThan(at("PART 2:"));
+  });
+
+  it("contains Part 1 exactly as the ordinary child-branch sitting renders it", () => {
+    const part1 = renderSmokeSitting(REHEARSAL);
+    expect(text).toContain(part1);
+    const partOne = text.slice(at("PART 1:"), at("PART 2:"));
+    expect(partOne).not.toContain("--prod");
+  });
+
+  it("downloads and checks the file, then reads the production string, then pre-flights, in order", () => {
+    const part2 = at("PART 2:");
+    const order = [
+      "Invoke-WebRequest",
+      'if ($hash -ne "abc123") { throw "STOP',
+      '$env:DATABASE_URL = Read-Secret "PRODUCTION connection string"',
+      'throw "STOP: the connection string is not the production endpoint you typed',
+      "db:check-hashes",
+      "db:city-references --prod --expect $ep",
+      "db:import-settlements --prod --expect $ep --file $xlsx\n",
+    ].map((needle) => at(needle, part2));
+    expect(order.every((i) => i > -1)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(text).toContain("all 21 migrations 'match', through 0020_nationwide_geography_schema");
+  });
+
+  it("puts a restore point and a typed confirmation between the dry run and the only --commit", () => {
+    const part2 = at("PART 2:");
+    const dry = at("db:import-settlements --prod --expect $ep --file $xlsx\n", part2);
+    const restore = at('if ($named.Trim() -ne "pre-import-restore") { throw', part2);
+    const typed = at("if ($typed.Trim().ToLower() -ne $ep) { throw", part2);
+    const commit = at("--file $xlsx --commit", part2);
+    expect(dry).toBeGreaterThan(-1);
+    expect(restore).toBeGreaterThan(dry);
+    expect(typed).toBeGreaterThan(restore);
+    expect(commit).toBeGreaterThan(typed);
+    // The one write in Part 2; Part 1's rehearsal commits to a child branch without --prod.
+    const writes = text
+      .slice(part2)
+      .split("\n")
+      .filter((l) => l.startsWith("pnpm") && l.includes("--commit"));
+    expect(writes).toEqual([
+      "pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx --commit",
+    ]);
+    expect(text.slice(part2).match(/db:import-settlements --prod --expect \$ep/g)).toHaveLength(3);
+  });
+
+  it("reruns dry after the commit, then checks references twice and the site, then cleans up", () => {
+    const commit = at("--file $xlsx --commit", at("PART 2:"));
+    const rerun = at("# Expected: AGAIN");
+    const refs = text.lastIndexOf("db:city-references --prod --expect $ep");
+    const curl = at("curl.exe", commit);
+    const cleanup = at("Remove-Item Env:DATABASE_URL", curl);
+    expect(rerun).toBeGreaterThan(commit);
+    expect(refs).toBeGreaterThan(rerun);
+    expect(text.match(/db:city-references --prod/g)).toHaveLength(2);
+    expect(curl).toBeGreaterThan(refs);
+    expect(cleanup).toBeGreaterThan(curl);
+    expect(text).toContain("# Expected: AFTER-REFS");
+    expect(text).toContain("# Expected: SITE");
+  });
+
+  it("never prints a secret: the connection string is only read, parsed for its host and removed", () => {
+    for (const line of text.split("\n").filter((l) => l.includes("$env:DATABASE_URL"))) {
+      expect(line, line).toMatch(/Read-Secret|\[uri\]/);
+    }
+    expect(text).not.toMatch(/Write-Host \$env|echo \$env|\$env:PROD_NEON_ENDPOINT\s*$/m);
+    expect(text).toContain("Remove-Item Env:PROD_NEON_ENDPOINT");
+  });
+
+  it("stays unable to say the one thing no sitting may say, and needs an import-shaped rehearsal", () => {
+    expect(text).not.toMatch(/against\s+production/i);
+    expect(() =>
+      renderProductionImportSitting({ ...INPUT, title: "run it against production" }),
+    ).toThrow(/against\s+production/i);
+    expect(() =>
+      renderProductionImportSitting({
+        ...INPUT,
+        production: { ...INPUT.production, restoreBranchName: "against  production" },
+      }),
+    ).toThrow(/against\s+production/i);
+    expect(() => renderProductionImportSitting({ ...INPUT, rehearsal: BASE })).toThrow(
+      /settlementImport/,
+    );
   });
 });
