@@ -8,6 +8,8 @@ import { Button, LinkButton } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
 import { Chip } from "../../../ui/Chip";
 import { Container, Section } from "../../../ui/Container";
+import { FormSection, FormSteps } from "../../../ui/FormSection";
+import { FreshnessPips } from "../../../ui/FreshnessPips";
 import { EmptyState, ErrorState, InlineStatus } from "../../../ui/feedback";
 import {
   Checkbox,
@@ -29,6 +31,7 @@ import { PhotoSlider } from "../../../ui/PhotoSlider";
 import { PrevNext } from "../../../ui/PrevNext";
 import { Skeleton } from "../../../ui/Skeleton";
 import { Spinner } from "../../../ui/Spinner";
+import { StickyActionBar } from "../../../ui/StickyActionBar";
 import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
 import { TextLink } from "../../../ui/TextLink";
@@ -92,6 +95,9 @@ export default function DevUiPage() {
           Display L
         </Heading>
         <Heading level={2}>Title 26 / 700</Heading>
+        <Heading level={2} look="section">
+          Section: 20 on a phone, 26 from tablet
+        </Heading>
         <Heading level={3}>Body L heading 20 / 700</Heading>
         <Text look="lead">Lead 20</Text>
         <Text>Body 16, the default for reading.</Text>
@@ -370,6 +376,51 @@ export default function DevUiPage() {
               ]}
             />
           </div>
+        </Row>
+      </Group>
+
+      <Group id="g-form-layout" title="Long forms">
+        <Row label="FormSteps (anchors to the sections below)">
+          <FormSteps
+            labelledBy="g-form-layout"
+            steps={[
+              { id: "demo-basics", label: "Basics" },
+              { id: "demo-photos", label: "Photos" },
+              { id: "demo-about", label: "About" },
+            ]}
+          />
+        </Row>
+        <FormSection
+          id="demo-basics"
+          title="Basics"
+          step={1}
+          description="One quiet line under the title."
+        >
+          <TextField id="demo-name" label="Name" />
+        </FormSection>
+        <FormSection id="demo-photos" title="Photos" step={2}>
+          <Text look="hint">A section without fields.</Text>
+        </FormSection>
+        <FormSection id="demo-about" title="About">
+          <Text look="hint">An unnumbered section.</Text>
+        </FormSection>
+        <Row label="StickyActionBar (sticks to the screen's bottom edge on a real form; in the flow here)">
+          <div className="w-full">
+            <StickyActionBar>
+              <Text look="hint">Draft saved at 12:00</Text>
+              <div className="flex gap-2">
+                <Button variant="secondary" className="flex-1">
+                  Save
+                </Button>
+                <Button className="flex-1">Publish</Button>
+              </div>
+            </StickyActionBar>
+          </div>
+        </Row>
+        <Row label="FreshnessPips (fresh, aging, stale)">
+          <FreshnessPips kind="fresh" label="Updated today" />
+          <FreshnessPips kind="aging" label="Updated 12 days ago" />
+          <FreshnessPips kind="stale" label="Updated 45 days ago" />
         </Row>
       </Group>
 
