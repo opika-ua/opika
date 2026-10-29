@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOptimistic, useTransition } from "react";
 import { Chip } from "../../ui/Chip";
+import { cx } from "../../ui/cx";
 import { Popover } from "../../ui/Popover";
 import {
   ageFacetOptions,
@@ -109,15 +110,8 @@ function FacetSelector<T extends string>({
  * choice, not the dropdown's multi-select, so `withOnlySpecies`
  * (`filter-url.ts`) writes the next href rather than toggle-add/remove.
  *
- * Field-shaped now, not pill-shaped (`rounded-brand-field`/`border-brand-
- * line`/`h-13`, the same trio `Dropdown`'s own trigger button uses), with
- * the same active/inactive border convention `Dropdown` already uses -
- * accent border once anything but «Усі» is picked. The selected segment
- * fills ink with `text-brand-on-ink`, this app's existing ink-fill/white-
- * text pair (`GalleryCard.tsx`, `GalleryControlBlock.tsx`'s own «Фільтр»
- * button), not `text-brand-surface` (a near-white page-background token,
- * the wrong one - a pre-existing mismatch fixed here while this control
- * was already being touched).
+ * Field-shaped, like the selectors' triggers: accent border once anything
+ * but «Усі» is picked; the selected segment fills ink.
  *
  * Rendered twice on the real page now (`tvaryny/page.tsx`): once here,
  * first in the desktop filter row (`className` defaults to `shrink-0`),
@@ -155,12 +149,16 @@ export function SpeciesToggle({
   ];
 
   return (
-    <fieldset
+    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> does not stretch its flex children to its own height.
+    <div
+      role="group"
       aria-label={uk.filters.species}
       data-testid={`species-toggle${testIdSuffix}`}
-      className={`flex h-13 items-center gap-1 rounded-brand-field border-2 bg-brand-page px-1 ${
-        active ? "border-brand-accent" : "border-brand-line"
-      } ${className}`}
+      className={cx(
+        "flex h-13 items-stretch gap-1 rounded-field border-2 bg-page px-1",
+        active ? "border-accent" : "border-line",
+        className,
+      )}
     >
       {options.map(({ species, label, testid }) => {
         const segmentActive =
@@ -178,15 +176,16 @@ export function SpeciesToggle({
             href={href}
             aria-current={segmentActive ? "true" : undefined}
             data-testid={`${testid}${testIdSuffix}`}
-            className={`flex h-full min-w-11 flex-1 items-center justify-center rounded-brand-field px-3 text-[16px]/[1.2] font-semibold transition-colors focus-ring ${
-              segmentActive ? "bg-brand-ink text-brand-on-ink" : "text-brand-muted"
-            }`}
+            className={cx(
+              "flex min-w-11 flex-1 items-center justify-center rounded-field px-3 text-label focus-ring",
+              segmentActive ? "bg-ink text-on-ink" : "text-ink-2",
+            )}
           >
             {label}
           </Link>
         );
       })}
-    </fieldset>
+    </div>
   );
 }
 

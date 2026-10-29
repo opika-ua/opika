@@ -28,6 +28,8 @@ import { hasPagination } from "../../features/gallery/gallery-pagination";
 import { NoMatch } from "../../features/gallery/NoMatch";
 import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
+import { Container } from "../../ui/Container";
+import { Heading } from "../../ui/Heading";
 
 /**
  * Same reasoning as `../page.tsx`: without this, `next build` would try to
@@ -194,7 +196,7 @@ export async function renderGallery(
       : [];
 
   return (
-    <div className="font-brand-ui min-h-dvh bg-brand-page">
+    <div className="min-h-dvh bg-page">
       {/*
         gallery-v3 (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`): the
         header is in the frame and is re-skinned in `SiteHeader.tsx` itself
@@ -232,7 +234,7 @@ export async function renderGallery(
         pre-existing padding (`px-4`/`px-6`) - "below 1024px... keep the
         existing column counts and breakpoints."
       */}
-      <div className="mx-auto max-w-[1400px] px-4 tablet:px-6 desktop:px-14 pt-10 desktop:pb-14 pb-10">
+      <Container className="pt-10 pb-10 desktop:pb-14">
         {/* 52px between the control block, the grid and the pagination - the frame's own number. */}
         <div className="flex flex-col gap-13">
           {/*
@@ -252,9 +254,13 @@ export async function renderGallery(
             // the row to itself there; `min-w-0`/`break-words` stay as a
             // defensive floor either way.
             title={
-              <h1 className="min-w-0 break-words font-brand-display text-[48px] leading-none text-brand-ink">
+              <Heading
+                level={1}
+                look="display-l"
+                className="min-w-0 break-words tablet:text-display-xl"
+              >
                 {uk.feed.galleryTitle}
-              </h1>
+              </Heading>
             }
             trailing={
               // Oleksii, mid-build: "let's hide access to Гортати по одній
@@ -359,7 +365,7 @@ export async function renderGallery(
                 <a
                   href="#pagination"
                   data-testid="pagination-skip-link"
-                  className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-12 focus:items-center focus:rounded-brand-field focus:bg-brand-ink focus:px-4 focus:text-[15px] focus:text-brand-on-ink focus-ring"
+                  className="sr-only focus:not-sr-only focus:mb-3 focus:inline-flex focus:min-h-target focus:items-center focus:rounded-pill focus:bg-ink focus:px-4 focus:text-label focus:text-on-ink focus-ring"
                 >
                   {uk.pagination.skipLink}
                 </a>
@@ -372,7 +378,7 @@ export async function renderGallery(
                 column counts and breakpoints"). No max-width on the grid
                 itself: the page wrapper above already caps content at 1400.
               */}
-              <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-4 gap-4 desktop:gap-[30px]">
+              <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-4 gap-4 desktop:gap-7.5">
                 {page.items.map((item, index) => (
                   <GalleryCard
                     key={item.id}
@@ -396,7 +402,7 @@ export async function renderGallery(
             </>
           )}
         </div>
-      </div>
+      </Container>
     </div>
   );
 }

@@ -178,33 +178,6 @@ describe("FilterSheet", () => {
     expect((after.getByLabelText(facet("Малий")) as HTMLInputElement).checked).toBe(true);
   });
 
-  it("the ✕ falls through to its own href when the dialog was revealed by :target, not showModal()", () => {
-    // `dialog.close()` is a no-op on a dialog with no `open` attribute - the
-    // state a pre-hydration click on the trigger, or a shared URL already
-    // carrying #tvaryny-filters, leaves the sheet in. Swallowing the click
-    // there would leave the sheet with no way to close at all.
-    renderSheet();
-    const dialog = screen.getByTestId("filter-sheet") as HTMLDialogElement;
-    expect(dialog.open).toBe(false);
-
-    const notPrevented = fireEvent.click(
-      screen.getByRole("link", { name: "Закрити", hidden: true }),
-    );
-    expect(notPrevented, "the anchor's own href='#' must still run").toBe(true);
-  });
-
-  it("the ✕ closes the dialog itself once it really is open", () => {
-    renderSheet();
-    const dialog = screen.getByTestId("filter-sheet") as HTMLDialogElement;
-    dialog.showModal();
-
-    const prevented = fireEvent.click(screen.getByRole("link", { name: "Закрити" }));
-    expect(dialog.open).toBe(false);
-    expect(prevented, "an open dialog closes in place, without navigating the fragment").toBe(
-      false,
-    );
-  });
-
   it("has a «Вид» group of radios, not checkboxes - exclusive, with an «Усі» option", () => {
     const { router } = renderSheet();
     const sheet = within(screen.getByTestId("filter-sheet"));

@@ -1,12 +1,7 @@
 "use client";
 
 import { uk } from "@opika/i18n";
-import { useEffect, useRef } from "react";
-import { Button, buttonClass } from "../../../ui/Button";
-import { cx } from "../../../ui/cx";
-import { Heading } from "../../../ui/Heading";
-import { Panel } from "../../../ui/Panel";
-import { Text } from "../../../ui/Text";
+import { LoadErrorScreen } from "../../../features/gallery/LoadErrorScreen";
 
 /**
  * E5, found by re-investigating `/tvaryny`'s own `error.tsx` rationale
@@ -41,60 +36,16 @@ export default function GortatyError({
   reset: () => void;
   retry: () => void;
 }) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-
-  useEffect(() => {
-    headingRef.current?.focus();
-  }, []);
-
   return (
-    <>
-      {/* PR B, the SEO review of page titles - see `/tvaryny/error.tsx`'s own comment
-          on this same tag for why it's here rather than a `metadata` export. */}
-      <meta name="robots" content="noindex, nofollow" />
-      <div className="flex min-h-dvh items-center justify-center bg-page p-4">
-        <Panel padding="lg" className="animate-fade-in w-full max-w-140">
-          <div
-            role="alert"
-            aria-live="assertive"
-            data-testid="gortaty-error"
-            className="flex flex-col items-start gap-4"
-          >
-            <Text look="hint" className="uppercase tracking-wider">
-              {uk.errors.loadFailed.eyebrow}
-            </Text>
-            <Heading
-              level={1}
-              look="display-l"
-              ref={headingRef}
-              tabIndex={-1}
-              className="outline-none"
-            >
-              {uk.errors.loadFailed.title}
-            </Heading>
-            <Text look="lead" className="text-ink-2">
-              {uk.errors.loadFailed.body}
-            </Text>
-            <div className="flex flex-wrap items-center gap-4">
-              <Button type="button" data-testid="gortaty-error-retry" onClick={retry}>
-                {uk.errors.loadFailed.action}
-              </Button>
-              {/* A genuine `<a href>`, not `next/link`'s `Link` - same reason
-              as `/tvaryny/error.tsx`'s own escape hatch: a `Link` click
-              inside an active error boundary soft-navigates within the
-              segment Next already knows just errored, and doesn't
-              actually leave. */}
-              <a
-                href="/tvaryny"
-                data-testid="gortaty-error-back-to-list"
-                className={cx(buttonClass("ghost"), "underline")}
-              >
-                {uk.feed.backToList}
-              </a>
-            </div>
-          </div>
-        </Panel>
-      </div>
-    </>
+    <LoadErrorScreen
+      eyebrow={uk.errors.loadFailed.eyebrow}
+      title={uk.errors.loadFailed.title}
+      body={uk.errors.loadFailed.body}
+      retryLabel={uk.errors.loadFailed.action}
+      onRetry={retry}
+      escapeLabel={uk.feed.backToList}
+      testIdPrefix="gortaty-error"
+      escapeTestId="gortaty-error-back-to-list"
+    />
   );
 }

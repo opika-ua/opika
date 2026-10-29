@@ -6,7 +6,6 @@ import {
   cardAccessibleName,
   cardFactsParts,
   cardMetaLine,
-  cardSpeciesBadgeTone,
   housingCityLabel,
   isReserved,
 } from "./card-text";
@@ -121,15 +120,6 @@ describe("cardFactsParts", () => {
       publicLocation: { cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never },
     });
     expect(cardFactsParts(card).join(" ")).not.toContain("перетримці");
-  });
-});
-
-describe("cardSpeciesBadgeTone", () => {
-  it.each([
-    ["dog", "bg-brand-dog"],
-    ["cat", "bg-brand-accent"],
-  ] as const)("%s → %s", (species, tone) => {
-    expect(cardSpeciesBadgeTone(species)).toBe(tone);
   });
 });
 

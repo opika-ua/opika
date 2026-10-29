@@ -10,22 +10,10 @@ export const TOKEN_CEILINGS: Readonly<
   rg: {
     "features/animal-detail/medical-labels.ts": 10,
     "features/chrome/RateLimitedScreen.tsx": 4,
-    "features/gallery/FilterSheet.tsx": 18,
   },
   fontRg: {
     "features/chrome/RateLimitedScreen.tsx": 1,
-    "features/gallery/FilterSheet.tsx": 2,
   },
-  brand: {
-    "app/tvaryny/page.tsx": 7,
-    "features/gallery/card-text.ts": 6,
-    "features/gallery/GalleryCard.tsx": 16,
-    "features/gallery/GalleryControlBlock.tsx": 4,
-    "features/gallery/GalleryFilterDropdowns.tsx": 8,
-    "features/gallery/GalleryPageNav.tsx": 13,
-    "features/gallery/GallerySortToggle.tsx": 11,
-    "features/gallery/NoMatch.tsx": 11,
-    "features/gallery/OutOfRangeNotice.tsx": 6,
-  },
+  brand: {},
   bare: {},
 };
