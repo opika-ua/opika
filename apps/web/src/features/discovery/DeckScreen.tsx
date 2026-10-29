@@ -5,6 +5,8 @@ import { ukPublic as uk } from "@opika/i18n/public";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
+import { Heading } from "../../ui/Heading";
+import { MAIN_LANDMARK } from "../../ui/landmark";
 import type { CitySlugsById } from "../gallery/filter-url";
 import { galleryHref } from "../gallery/filter-url";
 import { consumeEnteredFromGalleryMarker } from "./deck-entry-marker";
@@ -137,7 +139,13 @@ export function DeckScreen({
   return (
     // Same outer box as the /discovery wrapper it replaced (max-w-97.5, h-dvh, p-4,
     // box-border, overflow-hidden); the deck's layout is tuned to it.
-    <main className="max-w-97.5 mx-auto h-dvh bg-page flex flex-col p-4 box-border overflow-hidden">
+    <main
+      {...MAIN_LANDMARK}
+      className="max-w-97.5 mx-auto h-dvh bg-page flex flex-col p-4 box-border overflow-hidden"
+    >
+      <Heading level={1} look="title" className="sr-only">
+        {uk.feed.deckHeading}
+      </Heading>
       {/*
         `min-h-12` (48), not `min-h-11` (44): docs/design/README.md:200 sets 48
         as the minimum touch target *anywhere* and calls it a civic-trust

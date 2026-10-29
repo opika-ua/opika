@@ -173,6 +173,8 @@ export const ukPublic = {
     /** The deck's own header, exit control - docs/design/README.md "Deck chrome and the mode switch." */
     backToList: "← До списку",
     /** Screen-reader announcement on entering the deck, template: "Тварина {position} з {total}." */
+    /** QA 2026-10-29, owner text: the deck's visually hidden page heading. */
+    deckHeading: "Тварини по одній",
     deckEntryAnnouncement: "Режим по одній. Тварина {position} з {total}.",
     /**
      * gallery-v3 (Figma `58:1617`): the card's pill. Was "Усиновити" until
@@ -622,8 +624,8 @@ export const ukPublic = {
 
   // --- Contact reveal (05) ---
   reveal: {
-    /** Template: "Ви запитали про {name}." */
-    youAskedAbout: "Ви запитали про {name}.",
+    /** Template: "Ви запитали про тварину на імʼя {name}." */
+    youAskedAbout: "Ви запитали про тварину на імʼя {name}.",
     title: "Ось як звʼязатися з притулком.",
     subtitle:
       "Притулок не знає про цей запит, поки ви не напишете самі. Нічого не сталося автоматично.",
@@ -1041,6 +1043,16 @@ export const ukPublic = {
      * toggle's accessible name, below `tablet:` - the standard Ukrainian word for a site's
      * navigation menu, same register as this file's other short UI labels. */
     menu: "Меню",
+    /** QA 2026-10-29, owner text: the first Tab stop on every page, visible on focus only. */
+    skipToContent: "Перейти до вмісту",
+  },
+
+  /** QA 2026-10-29, owner text: the root 404 for any address that is not a page. The eyebrow is stored in sentence case; CSS uppercases it. */
+  siteNotFound: {
+    eyebrow: "Не знайдено",
+    title: "Такої сторінки немає.",
+    body: "Можливо, посилання застаріло або в адресі помилка.",
+    action: "На головну",
   },
 
   /**

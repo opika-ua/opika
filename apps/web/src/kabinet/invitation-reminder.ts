@@ -14,9 +14,11 @@ import { uk } from "@opika/i18n";
  * nothing reached the provider to point anyone at.
  *
  * `{sender}` is the configured From address, never typed into the copy (the
- * name is not final). Where nothing really sends (development's console),
- * there is no address, and the placeholder stays visible rather than blank.
+ * name is not final). With no address configured the sender clause is dropped
+ * whole, so the raw placeholder never reaches the operator (QA 2026-10-29).
  */
+const SENDER_CLAUSE = /: [^.]*\{sender\}\./;
+
 export function invitationReminderOf(
   outcome: EmailSendOutcome,
   fromAddress: string | null,
@@ -25,6 +27,9 @@ export function invitationReminderOf(
   const template = uk.kabinet.registry.inviteSent.tellPersonally;
   return {
     kind: "tell_personally",
-    text: fromAddress === null ? template : template.replaceAll("{sender}", () => fromAddress),
+    text:
+      fromAddress === null
+        ? template.replace(SENDER_CLAUSE, ".")
+        : template.replaceAll("{sender}", () => fromAddress),
   };
 }

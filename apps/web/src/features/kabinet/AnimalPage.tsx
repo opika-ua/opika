@@ -1,5 +1,6 @@
 import { uk } from "@opika/i18n";
 import { buttonClass } from "../../ui/Button";
+import { MAIN_LANDMARK } from "../../ui/landmark";
 import { Text } from "../../ui/Text";
 import { AnimalForm } from "./animal-form/AnimalForm";
 import type { KabinetAnimalPage } from "./animal-page";
@@ -63,7 +64,7 @@ export function AnimalPage({
         <div className="hidden desktop:contents">
           <KabinetNav current="animals" animalList={listShown} />
         </div>
-        <main className="flex min-w-0 flex-1 flex-col gap-4">
+        <main {...MAIN_LANDMARK} className="flex min-w-0 flex-1 flex-col gap-4">
           {page.kind === "form" ? (
             <AnimalForm
               initialView={page.view}

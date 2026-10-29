@@ -68,6 +68,16 @@ describe("DeckScreen", () => {
     });
   });
 
+  it("has one level-1 heading, «Тварини по одній» (QA 2026-10-29)", () => {
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel="" citySlugs={CITY_SLUGS} />
+      </WithMockRouter>,
+    );
+    const headings = screen.getAllByRole("heading", { level: 1 });
+    expect(headings.map((h) => h.textContent)).toEqual(["Тварини по одній"]);
+  });
+
   it("renders the filters phrase and the position/progress, position 1-indexed", () => {
     useFeedDeckMock.mockReturnValue({
       state: { kind: "ready", cards: generateMockCards(1) },

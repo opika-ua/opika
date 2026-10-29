@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { MAIN_LANDMARK } from "../../ui/landmark";
 import { KabinetBrand } from "./KabinetBrand";
 
 /**
@@ -11,7 +12,10 @@ export function AuthPage({ children }: { children: ReactNode }) {
       <header className="flex min-h-16 items-center px-4 tablet:p-8">
         <KabinetBrand />
       </header>
-      <main className="flex flex-1 flex-col px-4 pt-2 pb-6 tablet:items-center tablet:justify-center tablet:px-8 tablet:pt-8 tablet:pb-24">
+      <main
+        {...MAIN_LANDMARK}
+        className="flex flex-1 flex-col px-4 pt-2 pb-6 tablet:items-center tablet:justify-center tablet:px-8 tablet:pt-8 tablet:pb-24"
+      >
         {children}
       </main>
     </div>

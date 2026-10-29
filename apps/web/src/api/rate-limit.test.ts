@@ -33,6 +33,25 @@ describe("inMemoryRateLimiter", () => {
     expect(await limiter.check("k", afterWindow)).toBe(true);
   });
 
+  it("says how long until the oldest counted request leaves the window (Retry-After)", async () => {
+    const { inMemoryRateLimiter } = await import("./rate-limit");
+    const { retryAfterSecondsOf } = await import("./retry-after");
+    const limiter = inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 1 });
+    const t0 = new Date("2026-01-01T00:00:00Z");
+    await limiter.check("k", t0);
+    const t20 = new Date(t0.getTime() + 20_000);
+    expect(await limiter.check("k", t20)).toBe(false);
+    expect(retryAfterSecondsOf(limiter, "k", t20)).toBe(40);
+    // 40.2 s left rounds up: never tell a client to come back too early.
+    expect(retryAfterSecondsOf(limiter, "k", new Date(t0.getTime() + 19_800))).toBe(41);
+  });
+
+  it("uses the 60 s window when a limiter cannot say", async () => {
+    const { retryAfterSecondsOf } = await import("./retry-after");
+    const stub = { check: async () => false };
+    expect(retryAfterSecondsOf(stub, "k", new Date())).toBe(60);
+  });
+
   it("tracks separate keys independently", async () => {
     const { inMemoryRateLimiter } = await import("./rate-limit");
     const limiter = inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 1 });

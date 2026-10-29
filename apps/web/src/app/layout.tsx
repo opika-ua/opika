@@ -4,6 +4,7 @@ import "./globals.css";
 import { SITE_ORIGIN, SITE_TITLE, TITLE_TEMPLATE, titled, WORDMARK } from "../brand";
 import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
 import { SiteFooter } from "../features/chrome/SiteFooter";
+import { SkipLink } from "../features/chrome/SkipLink";
 import { PAGE_COLOR } from "../pwa";
 import { JsonLd } from "../seo/json-ld";
 import { organizationJsonLd } from "../seo/json-ld-builders";
@@ -94,6 +95,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         test/harness/discovery-layout.harness.ts.
       */}
       <body style={{ margin: 0 }}>
+        <SkipLink />
         <JsonLd data={organizationJsonLd()} />
         {children}
         <SiteFooter />

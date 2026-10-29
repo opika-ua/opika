@@ -146,9 +146,23 @@ describe("the /api/rpc body ceiling (audit F3)", () => {
     const body = untouched();
     const request = post("/api/rpc/cities/list", { body: body.stream, duplex: "half" });
     const refused = { ...d, apiLimiter: { check: async () => false } };
-    expect((await handlePublicRpc(request, refused)).status).toBe(429);
+    const response = await handlePublicRpc(request, refused);
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("60");
     expect(body.pulls()).toBe(0);
     expect(dbCalls()).toBe(0);
+  });
+
+  it("a refusal's Retry-After comes from the limiter's own state", async () => {
+    const { deps: d } = deps();
+    const limiter = {
+      check: async () => false,
+      retryAfterSeconds: () => 17.2,
+    };
+    const request = post("/api/rpc/cities/list", { body: "{}" });
+    const response = await handlePublicRpc(request, { ...d, apiLimiter: limiter });
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("18");
   });
 });
 

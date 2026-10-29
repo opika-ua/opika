@@ -1,4 +1,4 @@
-import { MAX_CITY_TOKENS } from "@opika/contracts";
+import { MAX_CITY_TOKENS, MAX_GALLERY_PAGE } from "@opika/contracts";
 import {
   ANY,
   type AnimalId,
@@ -127,6 +127,17 @@ describe("parseGalleryQuery", () => {
 
   it("parses a valid non-default sort", () => {
     expect(parseGalleryQuery({ sort: "longest_waiting" }, NO_SLUGS).sort).toBe("longest_waiting");
+  });
+
+  it("clamps a huge valid page number instead of producing one the contract rejects", () => {
+    for (const stor of ["1e21", "999999999999999999999", "1e999", "9007199254740993", "2001"]) {
+      expect(parseGalleryQuery({ stor }, NO_SLUGS).page, stor).toBe(MAX_GALLERY_PAGE);
+    }
+    expect(parseGalleryQuery({ stor: "2000" }, NO_SLUGS).page).toBe(MAX_GALLERY_PAGE);
+    expect(parseGalleryQuery({ stor: "1999" }, NO_SLUGS).page).toBe(MAX_GALLERY_PAGE - 1);
+    for (const stor of ["", "1.5", "1e-3", "NaN", "-1e21", "0x10", " "]) {
+      expect(parseGalleryQuery({ stor }, NO_SLUGS).page, stor).toBe(1);
+    }
   });
 
   it("falls back to page 1 on a non-numeric or out-of-range page", () => {

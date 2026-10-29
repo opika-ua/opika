@@ -2,6 +2,7 @@ import { uk } from "@opika/i18n";
 import type { ReactNode } from "react";
 import { type OperatorName, standaloneOperatorName } from "../../../kabinet/operator";
 import { BottomNav } from "../../../ui/BottomNav";
+import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { Text } from "../../../ui/Text";
 import { KabinetBrand } from "../KabinetBrand";
 import { NEW_SHELTER_PATH, OPERATOR_HOME } from "../routes";
@@ -58,7 +59,9 @@ export function OperatorShell({
             { key: "new_shelter", href: NEW_SHELTER_PATH, label: t.nav.newShelter },
           ]}
         />
-        <main className="flex min-w-0 flex-1 flex-col gap-4 desktop:gap-6">{children}</main>
+        <main {...MAIN_LANDMARK} className="flex min-w-0 flex-1 flex-col gap-4 desktop:gap-6">
+          {children}
+        </main>
       </div>
     </div>
   );
