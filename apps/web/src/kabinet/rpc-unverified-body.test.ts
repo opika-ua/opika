@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { rpcRequestInit } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
+import type { KabinetPrincipal } from "./actor";
 import {
   handleKabinetRpc,
   KABINET_ANONYMOUS_PATHS,
@@ -26,7 +27,20 @@ const INVITE = `${BASE}/api/kabinet/invitation/acceptWithPassword`;
 const LOOKUP = "reached the session lookup";
 const PAST_BODY = "read the body and went on, past the per-user limit";
 
-type Lookup = "throws" | "fails" | "signed_in";
+type Lookup = "throws" | "fails" | "signed_in" | KabinetPrincipal["kind"];
+
+/** What the lookup finds for each signed-in principal kind; `signed_in` is a shelter admin. */
+const PRINCIPALS: Record<Exclude<KabinetPrincipal["kind"], "anonymous">, KabinetPrincipal> = {
+  shelter_admin: {
+    kind: "shelter_admin",
+    shelterAdminId: "u-1" as never,
+    shelterId: "s-1" as never,
+  },
+  super_admin: { kind: "super_admin", moderatorId: "u-1" as never },
+  support_view: { kind: "support_view", moderatorId: "u-1" as never, shelterId: "s-1" as never },
+  no_role: { kind: "no_role" },
+  conflicting_roles: { kind: "conflicting_roles" },
+};
 
 function deps(lookup: Lookup) {
   let resolved = 0;
@@ -43,14 +57,12 @@ function deps(lookup: Lookup) {
       resolve: async () => {
         resolved += 1;
         if (lookup === "throws") throw new Error(LOOKUP);
-        return lookup === "fails"
-          ? { principal: { kind: "anonymous" }, userId: null, db: {}, cursorSecret: "x" }
-          : {
-              principal: { kind: "shelter_admin", shelterAdminId: "u-1", shelterId: "s-1" },
-              userId: "u-1",
-              db: {},
-              cursorSecret: "x",
-            };
+        if (lookup === "fails" || lookup === "anonymous") {
+          return { principal: { kind: "anonymous" }, userId: null, db: {}, cursorSecret: "x" };
+        }
+        const kind = lookup === "signed_in" ? "shelter_admin" : lookup;
+        // A real Better Auth session in every case below: a user id, whatever the role.
+        return { principal: PRINCIPALS[kind], userId: "u-1", db: {}, cursorSecret: "x" };
       },
       limiters: {
         perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
@@ -231,4 +243,58 @@ describe("any other call with a session cookie: past 16 KB, the lookup first", (
     expect(body.cancelled()).toBe(true);
     expect(resolvedCount()).toBe(1);
   });
+});
+
+/**
+ * The owner's decision on #249: a real session with no role is held to 16 KB exactly like an
+ * unauthenticated caller; only a role that legitimately needs more (the shelter admin's uploads,
+ * the operator's unbounded registry texts) keeps 4 MB. A support view writes nothing, so it is
+ * held too.
+ */
+describe("past 16 KB, only a role that needs it reads on", () => {
+  it.each([["no_role"], ["conflicting_roles"], ["support_view"]] as const)(
+    "a signed-in %s session: 401 after at most 16 KB, the rest never read",
+    async (kind) => {
+      const { deps: d, resolvedCount } = deps(kind);
+      const body = meteredBody(1024 * KB);
+      const request = post(PROFILE, { cookie: TEST_SESSION_COOKIE }, body.stream);
+      const response = await handleKabinetRpc(request, d);
+      expect(response.status).toBe(401);
+      expect(body.pulled()).toBeLessThanOrEqual(16 * KB + CHUNK);
+      expect(body.cancelled()).toBe(true);
+      expect(resolvedCount()).toBe(1);
+    },
+  );
+
+  it("a signed-in session with no role and a declared length over 16 KB: 401, nothing read", async () => {
+    const { deps: d } = deps("no_role");
+    const body = meteredBody(1024 * KB);
+    const request = post(
+      PROFILE,
+      { cookie: TEST_SESSION_COOKIE, "content-length": String(1024 * KB) },
+      body.stream,
+    );
+    expect((await handleKabinetRpc(request, d)).status).toBe(401);
+    expect(body.pulled()).toBe(0);
+  });
+
+  it("a session with no role and 16 KB or less: read whole and goes on, as before", async () => {
+    const { deps: d } = deps("no_role");
+    const body = meteredBody(16 * KB);
+    const request = post(PROFILE, { cookie: TEST_SESSION_COOKIE }, body.stream);
+    await expect(handleKabinetRpc(request, d)).rejects.toThrow(PAST_BODY);
+    expect(body.pulled()).toBe(16 * KB);
+  });
+
+  it.each([["shelter_admin"], ["super_admin"]] as const)(
+    "a %s session keeps the ceiling: the whole 1 MB is read and goes on",
+    async (kind) => {
+      const { deps: d, resolvedCount } = deps(kind);
+      const body = meteredBody(1024 * KB);
+      const request = post(PROFILE, { cookie: TEST_SESSION_COOKIE }, body.stream);
+      await expect(handleKabinetRpc(request, d)).rejects.toThrow(PAST_BODY);
+      expect(body.pulled()).toBe(1024 * KB);
+      expect(resolvedCount()).toBe(1);
+    },
+  );
 });

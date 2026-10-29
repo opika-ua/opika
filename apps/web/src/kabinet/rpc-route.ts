@@ -39,9 +39,29 @@ export const KABINET_RPC_PREFIX = "/api/kabinet";
  * Audit F9 (owner, S3 scope, 2026-10-29): the most read for a caller no session has vouched
  * for: the invitation link always, and any other call until its session cookie has been looked
  * up. Far above any such call's real input (`invitation.acceptWithPassword`'s is a token and a
- * password); a signed-in caller keeps `KABINET_MAX_BODY_BYTES`.
+ * password); only `mayExceedUnverifiedCap`'s roles keep `KABINET_MAX_BODY_BYTES`.
  */
 export const KABINET_UNVERIFIED_MAX_BODY_BYTES = 16 * 1024;
+
+/**
+ * Who may send past `KABINET_UNVERIFIED_MAX_BODY_BYTES` (owner, #249): only a principal whose own
+ * procedures can need it. A shelter admin uploads photos and a logo; the operator's registry
+ * inputs carry free text no schema bounds (a shelter's description). Everyone else is held to
+ * 16 KB like an unauthenticated caller: no_role and conflicting_roles are nobody the kabinet
+ * serves, and a support view writes nothing.
+ */
+function mayExceedUnverifiedCap(principal: KabinetPrincipal): boolean {
+  switch (principal.kind) {
+    case "shelter_admin":
+    case "super_admin":
+      return true;
+    case "anonymous":
+    case "no_role":
+    case "conflicting_roles":
+    case "support_view":
+      return false;
+  }
+}
 
 const tooMany = () => new Response("Too Many Requests", { status: 429 });
 const tooLarge = () => new Response("Payload Too Large", { status: 413 });
@@ -151,8 +171,8 @@ export async function handleKabinetRpc(
     return unauthorized();
   }
   // Audit F9 (S3): an unverified caller gets 16 KB. Past that, the session is looked up before
-  // reading on, and only a real one gets the rest of the ceiling (P-Q7). A failed lookup is the
-  // cookie-less 401; an invitation-link body past 16 KB is 413.
+  // reading on, and only a role that needs it gets the rest of the ceiling (P-Q7). Anyone else
+  // gets the cookie-less 401; an invitation-link body past 16 KB is 413.
   let identity: Awaited<ReturnType<typeof deps.resolve>> | undefined;
   let bounded: Request;
   if (invitationLink) {
@@ -165,7 +185,7 @@ export async function handleKabinetRpc(
       bounded = head.request;
     } else {
       identity = await deps.resolve();
-      if (identity.userId === null) {
+      if (!mayExceedUnverifiedCap(identity.principal)) {
         await head.discard();
         return unauthorized();
       }
