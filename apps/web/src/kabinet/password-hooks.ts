@@ -191,15 +191,13 @@ const AFTER_PHRASE = {
  * response, to keep that moment short.
  *
  * It never fails the reset or the change, and never holds one past
- * `VOID_RESET_LINKS_TIMEOUT_MS`: on a reset Better Auth awaits `onPasswordReset` and only then
- * runs its own session revoke, so a throw here would answer an error for a password already
- * set and skip that revoke, and a stall would hold the answer. Since PW1-F5 neither leaves
- * alive a session that existed when the password was written: the write itself ended every one
- * of them, in its own statement (migration 0013's triggers). Better Auth's revoke is the second
- * line, and it also catches a session inserted between the write and its own delete, which a
- * skipped revoke would leave. A sign-in racing the write (one that checked the old password
- * before it) keeps no session without that revoke: inserted before the write's statement, the
- * trigger deletes it; after, its own after-hook's second read, which waits for a write in
+ * `VOID_RESET_LINKS_TIMEOUT_MS`: Better Auth (1.7) spends the link, revokes the user's sessions,
+ * writes the password, and only then awaits `onPasswordReset`, so a throw here would answer an
+ * error for a password already set, and a stall would hold the answer. Since PW1-F5 the write
+ * itself ends every session that existed (migration 0013's triggers); Better Auth's revoke runs
+ * before the write, so it cannot catch a session inserted after it. A sign-in racing the write
+ * (one that checked the old password before it) keeps no session: inserted before the write's
+ * statement, the trigger deletes it; after, its own after-hook's second read, which waits for a write in
  * flight (`FOR SHARE`), sees the write and deletes it (PW1-F6, `sign-in-race.ts`). A failure or
  * a timeout is one line at error level, masked (his PW1-F1
  * answer, verbatim excerpt: "A failure is logged at error level, masked. The links die within

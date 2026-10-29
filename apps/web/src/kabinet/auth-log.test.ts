@@ -1,4 +1,10 @@
 import { inspect } from "node:util";
+import type { AuthContext } from "@better-auth/core";
+import {
+  queueAfterTransactionHook,
+  runWithEndpointContext,
+  runWithTransaction,
+} from "@better-auth/core/context";
 import { authUser } from "@opika/db/schema";
 import {
   failingDriverDatabase,
@@ -305,5 +311,59 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
       "Failed to query fallback join for model auth_account: INTERNAL_ERROR 23505 2026-10-20 " +
       "verification_token відновлення-пароля-сьогодні 1729450000000";
     expect(maskedLogText(text)).toBe(text);
+  });
+});
+
+describe("Better Auth's module-level logger, for server-side adapter calls (outside a request)", () => {
+  const options = {
+    sender: capturingSender(),
+    schedule: () => {},
+    baseURL: BASE,
+    secret: "test-only-secret-that-is-long-enough-0123456789",
+    secureCookies: false,
+    passwordLimiters: generousPasswordLimiters(),
+    passwordMail: capturingPasswordMail(),
+    limiters: { perUser: unlimited(), perIp: unlimited() },
+    log: () => {},
+    logError: () => {},
+  };
+
+  it("the Drizzle adapter's non-finite row count: one masked line, no `where` (a session token's user), no raw result", async () => {
+    // A driver that answers a delete with a count that is not a number (the neon-http shape
+    // question the S1 review raised); the adapter prints `{ result, model, where }` for it.
+    const badCount = new Proxy(db, {
+      get: (target, property, receiver) =>
+        property === "delete"
+          ? () => ({ where: () => Promise.resolve({ rowCount: Number.NaN }) })
+          : Reflect.get(target, property, receiver),
+    });
+    const { internalAdapter } = await createKabinetAuth({ ...options, db: badCount }).$context;
+    await expect(internalAdapter.deleteUserSessions(TOKEN)).rejects.toThrow();
+    expectNothingLeaked();
+    expect(lines).toEqual([
+      "error: [kabinet] Better Auth error: [Drizzle Adapter] The result of the deleteMany operation is not a finite number. This is likely a bug in the adapter. Please report this issue to the Better Auth team. · [object]",
+    ]);
+  });
+
+  it("a failed after-commit hook (Better Auth's transaction module): one masked line, the error by name and SQLSTATE only", async () => {
+    // Our instance has no transaction (`transaction: false`), so this is forced at the module that
+    // prints: work that fails after queueing a hook whose own query also fails, run in the
+    // endpoint context a request would give it.
+    const context = await createKabinetAuth({ ...options, db }).$context;
+    const hookError = await realQueryError();
+    await expect(
+      runWithEndpointContext({ context: context as unknown as AuthContext }, () =>
+        runWithTransaction(context.adapter, async () => {
+          await queueAfterTransactionHook(async () => {
+            throw hookError;
+          });
+          throw new Error("the work failed");
+        }),
+      ),
+    ).rejects.toThrow("the work failed");
+    expectNothingLeaked();
+    expect(lines).toEqual([
+      "error: [kabinet] Better Auth error: Failed to run an after-commit hook for work that could not roll back · Error (42703)",
+    ]);
   });
 });
