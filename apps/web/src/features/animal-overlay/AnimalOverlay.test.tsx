@@ -110,10 +110,10 @@ describe("the gallery's animal overlay", () => {
     // (`CoatFact`, deleted) into a chip using the filter dropdown's own
     // plural word.
     expect(inside.getByText("Довгошерсті")).toBeTruthy();
-    // Two photos (the fixture's `a.jpg`/`b.jpg`) means the slider's own
-    // "next" button renders (`DetailPhotoGallery.tsx`: hidden entirely for
-    // a single photo).
-    expect(inside.getByRole("button", { name: "Наступне фото" })).toBeTruthy();
+    // The fixture's two photos (`a.jpg`/`b.jpg`) are both in the card's photo region.
+    expect(
+      inside.getByRole("region", { name: "Фотографії тварини" }).querySelectorAll("img"),
+    ).toHaveLength(2);
     expect(inside.getByText("Оновлено 5 днів тому")).toBeTruthy();
   });
 

@@ -16,12 +16,6 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/Sheet.tsx": "open state and hash-link upgrade to showModal; no-JS :target path stays",
   "app/tvaryny/error.tsx": "Next error boundary (must be client); retry button, focus on mount",
   "app/tvaryny/gortaty/error.tsx": "Next error boundary (must be client); retry button",
-  "features/animal-detail/CircleButton.tsx":
-    "SERVER CANDIDATE (directive removable (callers that pass handlers are client files anyway)): none found: no hooks or handlers of its own, only forwards button props",
-  "features/animal-detail/DetailPhotoGallery.tsx":
-    "scroll-snap slider tracks active slide, prev/next scrolling",
-  "features/animal-detail/PillButton.tsx":
-    "SERVER CANDIDATE (directive removable): none found: forwards button props only",
   "features/animal-detail/RevealFlow.tsx":
     "contact-reveal button + dialog open state, calls reveal",
   "features/animal-detail/ShareButton.tsx": "navigator.share / clipboard on click",

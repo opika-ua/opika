@@ -3,9 +3,9 @@
 import type { AnimalId } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useCallback, useRef } from "react";
+import { Button } from "../../ui/Button";
 import { ContactRevealDialog } from "../reveal/ContactRevealDialog";
 import { useReveal } from "../reveal/useReveal";
-import { PillButton } from "./PillButton";
 
 interface RevealFlowProps {
   animalId: AnimalId;
@@ -66,15 +66,16 @@ export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) 
 
   return (
     <>
-      <PillButton
+      <Button
         ref={triggerRef}
-        tone="accent"
+        variant="accent"
+        size="lg"
         data-testid="reveal-trigger"
         disabled={state.kind === "loading"}
         onClick={openThisAnimal}
       >
         {uk.detail.giveHome}
-      </PillButton>
+      </Button>
 
       {(state.kind === "error" || state.kind === "open") && (
         <ContactRevealDialog

@@ -3,7 +3,7 @@
 import type { AnimalId } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useEffect, useState } from "react";
-import { CircleButton } from "../animal-detail/CircleButton";
+import { Button } from "../../ui/Button";
 import {
   isAnimalSaved,
   MAX_LIKES,
@@ -28,9 +28,8 @@ interface SaveButtonProps {
  * nothing about `isAnimalSaved` is knowable before then.
  *
  * Pet card PR 5: restyled off `buttonClass("icon")` (the old `rg-*` boxed-fill look, a visible
- * leftover from the previous design) onto `CircleButton`, the same white-circle shape the
- * overlay's close button and the photo slider's prev/next already use - one consistent button
- * language for the panel instead of one surface in the old system.
+ * leftover from the previous design) onto the kit's icon `Button`, the same white circle the
+ * overlay's close button and the photo slider's prev/next use.
  */
 export function SaveButton({ animalId, animalName }: SaveButtonProps) {
   const [saved, setSaved] = useState(false);
@@ -60,16 +59,15 @@ export function SaveButton({ animalId, animalName }: SaveButtonProps) {
 
   return (
     <>
-      <CircleButton
-        size="sm"
+      <Button
+        variant="icon"
         onClick={toggle}
         aria-pressed={saved}
         aria-label={saved ? uk.likes.saved : uk.likes.save}
         data-testid="save-button"
-        className="text-brand-ink"
       >
         <BookmarkIcon filled={saved} />
-      </CircleButton>
+      </Button>
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>
