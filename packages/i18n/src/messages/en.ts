@@ -391,12 +391,6 @@ export const en = {
     backToFirst: "Back to the first page",
   },
 
-  // --- Footer - see the uk key's own note ---
-  footer: {
-    fontCredit:
-      "e-Ukraine typeface – Ukraine's Ministry of Digital Transformation (thedigital.gov.ua/fonts), Dmytro Rastvortsev / Fedoriv, CC BY 4.0.",
-  },
-
   // --- Site-wide header links (Phase T) - see the uk key's own note ---
   nav: {
     about: "About",

@@ -3,43 +3,27 @@ import { formatFreshnessRelative } from "@opika/domain";
 import { uk as strings } from "@opika/i18n";
 
 /**
- * Per-pip fill state for the freshness marker - the «Реєстр» visual
- * system's values (V2, `docs/design/README.md` "The freshness marker").
- * Both of this function's callers (`AnimalCard`, `SwipeCard`) are in V2's
- * scope, so this returns the new system's tokens directly rather than
- * keeping a parallel old/new version of a three-line function.
+ * Per-pip fill state for the freshness marker: three pips, always three, always in the same
+ * position; the filled ones count how far the last confirmation has travelled.
  *
- * The design specifies three pips, always three, always in the same
- * position. Filled pips count how far the last confirmation has
- * travelled:
+ *   fresh  (<=7d):  1 filled, 2 empty
+ *   aging  (8-30d): 2 filled, 1 empty
+ *   stale  (30d+):  3 filled (the last in the strongest tone)
  *
- *   fresh  (<=7d):  1 filled registry, 2 empty
- *   aging  (8-30d): 2 filled ink-3,    1 empty
- *   stale  (30d+):  2 filled ink-3 + 1 filled ink  (all three filled)
- *
- * `"empty"` is a deliberate WCAG 1.4.11 fix, not the mock's original
- * value - see `docs/design/README.md`'s own note under "The freshness
- * marker" for the full reasoning and the measured contrast ratios (the
- * mock's original `#DCDCD9` fill measured 1.16-1.37:1 against every
- * background it appears on, failing the 3:1 requirement by a wide
- * margin; the design was subsequently updated to specify the outline
- * directly, so this is the current spec, not a standing deviation from
- * it). The caller renders `"empty"` as a transparent fill with a
- * border in the same colour as `"bg-rg-ink-3"`, not as its own fill colour
- * - kept as a fourth named variant here, not spelled out as classes,
- * for the same reason the three fills are: a closed union turns a typo
- * into a compile error instead of a pip that silently renders unstyled.
+ * `"empty"` is drawn as an outline, not a pale fill (WCAG 1.4.11: the fill measured 1.16-1.37:1,
+ * `docs/design/README.md`, "The freshness marker"). A closed union, so a typo is a compile
+ * error. The tone names are the kit's (`apps/web/src/ui/FreshnessPips.tsx` maps them to tokens).
  */
-export type PipFill = "bg-rg-registry" | "bg-rg-ink-3" | "bg-rg-ink" | "empty";
+export type PipFill = "success" | "muted" | "ink" | "empty";
 
 export function freshnessPips(kind: FreshnessKind): [PipFill, PipFill, PipFill] {
   switch (kind) {
     case "fresh":
-      return ["bg-rg-registry", "empty", "empty"];
+      return ["success", "empty", "empty"];
     case "aging":
-      return ["bg-rg-ink-3", "bg-rg-ink-3", "empty"];
+      return ["muted", "muted", "empty"];
     case "stale":
-      return ["bg-rg-ink-3", "bg-rg-ink-3", "bg-rg-ink"];
+      return ["muted", "muted", "ink"];
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = kind;

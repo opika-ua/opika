@@ -6,7 +6,7 @@ import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
 import { JsonLd } from "../seo/json-ld";
 import { organizationJsonLd } from "../seo/json-ld-builders";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
-import { brandDisplay, brandUi, commissioner, eUkraine, literata } from "./fonts";
+import { brandDisplay, brandUi } from "./fonts";
 
 /**
  * Phase T. This was `title: "Adoption Platform"` - a generic English
@@ -79,10 +79,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="uk"
-      className={`${literata.variable} ${commissioner.variable} ${eUkraine.variable} ${brandDisplay.variable} ${brandUi.variable}`}
-    >
+    <html lang="uk" className={`${brandDisplay.variable} ${brandUi.variable}`}>
       {/*
         The user agent's default 8px body margin is not decoration: combined
         with content-box padding on a full-height page it pushed the deck

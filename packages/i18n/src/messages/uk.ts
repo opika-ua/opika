@@ -883,8 +883,8 @@ export const uk = {
   // that text would be a WCAG 2.5.3 accessible-name mismatch, an earlier
   // draft of this component had exactly that bug. Unlike the V1 mock this
   // superseded, V2's own pagination row carries no monospace styling on
-  // the numbers at all - they render in the same e-Ukraine (`font-rg`)
-  // as the rest of the row, no IBM-Plex-Mono exception to reason about.
+  // the numbers at all - they render in the same face as the rest of
+  // the row, no IBM-Plex-Mono exception to reason about.
   pagination: {
     navLabel: "Сторінки",
     prev: "← Назад",
@@ -977,16 +977,6 @@ export const uk = {
      * ordinal form that might be wrong. */
     showingLast: "Це сторінка {total}, остання. Нічого не загубилося.",
     backToFirst: "На першу сторінку",
-  },
-
-  // --- Footer ---
-  footer: {
-    /** e-Ukraine's CC BY 4.0 attribution requirement - the user-reachable
-     * credit `apps/web/src/app/fonts/e-ukraine/LICENSE.txt` and
-     * `docs/design/README.md`'s V2 definition-of-done both call for.
-     * Verbatim text from the licence file; do not paraphrase. */
-    fontCredit:
-      "Шрифт e-Ukraine – Міністерство цифрової трансформації України (thedigital.gov.ua/fonts), Дмитро Растворцев / Fedoriv, CC BY 4.0.",
   },
 
   /**

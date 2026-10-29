@@ -25,8 +25,8 @@
   ```
   The intermediate static TTF (1,095,004 bytes) is not vendored — only the woff2 ships, same
   policy as the UI font in `../brand-ui/README.md`.
-- **Not subset.** Unsubset, same reasoning and same open item as every other family in this
-  app (`../../fonts.ts`'s notes on Literata, Commissioner and e-Ukraine): subsetting waits for
+- **Not subset.** Unsubset, same reasoning and same open item as the UI family
+  (`../../fonts.ts`): subsetting waits for
   `docs/build-plan.md`'s H3.5, once the Ukrainian copy for the new surfaces is final.
 - **One static weight, 400** — the only weight the Figma frame's title uses
   (`docs/design/README.md`'s gallery-v3 type scale, "Title «Каталог»": brand-display 400).

@@ -18,9 +18,9 @@ import { buttonClass } from "../controls/controls";
  */
 export function RateLimitedScreen() {
   return (
-    <main className="font-rg flex min-h-dvh items-center justify-center bg-rg-page p-section">
-      <div className="flex w-full max-w-xl flex-col items-start gap-group rounded-rg-card bg-rg-surface p-screen">
-        <h1 className="text-2xl font-bold tracking-tight text-rg-ink">{uk.detail.rateLimited}</h1>
+    <main className="flex min-h-dvh items-center justify-center bg-page p-6">
+      <div className="flex w-full max-w-xl flex-col items-start gap-4 rounded-card bg-surface p-10">
+        <h1 className="text-title text-ink">{uk.detail.rateLimited}</h1>
         <a href="/tvaryny" className={buttonClass("primary")}>
           {uk.detail.notFound.action}
         </a>
