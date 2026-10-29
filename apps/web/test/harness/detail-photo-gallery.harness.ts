@@ -36,7 +36,7 @@ test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
 const GALLERY_ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
-const DETAIL_READY = "[data-testid='detail-photo']";
+const DETAIL_READY = "section[aria-label='Фотографії тварини'] img";
 const MAX_CANDIDATES = 8;
 
 /**
@@ -61,12 +61,12 @@ async function discoverMultiPhotoAnimalHref(
     for (const href of realHrefs.slice(0, MAX_CANDIDATES)) {
       await page.goto(href, { waitUntil: "load" });
       await page.locator(DETAIL_READY).first().waitFor({ state: "visible" });
-      // 3, not 2: at the panel's own desktop width (max-w-[1084px], p-10), 2 photos
-      // (2*360 + 24 = 744px) fit inside the ~1004px content area with nothing to
+      // 3, not 2: at the panel's own desktop width (max-w-271, p-10), 2 photos
+      // (2*360 + 16 = 736px) fit inside the ~1004px content area with nothing to
       // scroll - `scrollBy` is a no-op and the prev button never appears. 3 photos
-      // (3*360 + 48 = 1128px) genuinely overflow, which is what this file's own prev-
+      // (3*360 + 32 = 1112px) genuinely overflow, which is what this file's own prev-
       // button test needs a real animal for.
-      const photoCount = await page.getByTestId("detail-photo").count();
+      const photoCount = await page.locator(DETAIL_READY).count();
       if (photoCount >= 3) {
         cachedMultiPhotoHref = href;
         return href;
@@ -89,7 +89,7 @@ test.describe("detail page photo gallery – keyboard reachability", () => {
 
     await expectReachableByTab(page, {
       label: "photo-next button",
-      locator: page.getByTestId("detail-photo-next"),
+      locator: page.getByRole("button", { name: "Наступне фото" }),
     });
   });
 
@@ -105,9 +105,9 @@ test.describe("detail page photo gallery – keyboard reachability", () => {
     const href = await discoverMultiPhotoAnimalHref(browser);
     await openRoute(page, href, DETAIL_DESKTOP, { readySelector: DETAIL_READY });
 
-    await expect(page.getByTestId("detail-photo-prev")).toHaveCount(0);
-    await page.getByTestId("detail-photo-next").click();
-    const prev = page.getByTestId("detail-photo-prev");
+    await expect(page.getByRole("button", { name: "Попереднє фото" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Наступне фото" }).click();
+    const prev = page.getByRole("button", { name: "Попереднє фото" });
     await expect(prev).toBeVisible();
     await expectReachableByTab(page, { label: "photo-prev button", locator: prev });
   });

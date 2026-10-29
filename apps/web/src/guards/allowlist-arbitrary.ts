@@ -6,50 +6,25 @@ import type { Reasoned } from "./ratchet";
  * migrations only lower the numbers.
  */
 export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
-  "app/pro/page.tsx": { max: 6, reason: "Content pages; burns down in DS PR 3d." },
-  "app/prytulkam/page.tsx": { max: 4, reason: "Content pages; burns down in DS PR 3d." },
-  "app/tvaryny/[animalId]/not-found.tsx": {
-    max: 7,
-    reason: "Gallery surface; burns down in DS PR 3a.",
-  },
-  "app/tvaryny/error.tsx": { max: 7, reason: "Gallery surface; burns down in DS PR 3a." },
-  "app/tvaryny/gortaty/error.tsx": {
-    max: 7,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
-  },
   "app/tvaryny/page.tsx": { max: 4, reason: "Gallery surface; burns down in DS PR 3a." },
-  "features/animal-detail/AnimalDetailScreen.tsx": {
-    max: 21,
-    reason: "Pet card surface; burns down in DS PR 3b.",
-  },
-  "features/animal-detail/DetailPhotoGallery.tsx": {
-    max: 3,
-    reason: "Pet card surface; burns down in DS PR 3b.",
-  },
-  "features/animal-detail/PillButton.tsx": {
-    max: 2,
-    reason: "Pet card surface; burns down in DS PR 3b.",
-  },
   "features/animal-overlay/AnimalOverlay.tsx": {
-    max: 3,
-    reason: "Pet card surface; burns down in DS PR 3b.",
+    max: 1,
+    reason:
+      "Overlay backdrop tint, safe-area top offset and rounded-corner clip-path have no token.",
   },
   "features/controls/controls.tsx": {
     max: 3,
     reason:
       "Legacy link classes keep `aria-[current=page]:` variants until the kabinet moves to src/ui.",
   },
-  "features/discovery/DeckScreen.tsx": {
-    max: 6,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
-  },
   "features/discovery/SwipeCard.tsx": {
-    max: 13,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
+    max: 1,
+    reason: "Two-letter monogram in a 20px circle; the 14px type floor would overflow it.",
   },
   "features/discovery/SwipeDeck.tsx": {
-    max: 15,
-    reason: "Deck: hand-tuned swipe-card geometry, not in DS PR 3a-3d; migrates with the deck.",
+    max: 1,
+    reason:
+      "The not-a-judgement line hides below 360px, where it wraps to two lines and clips the deck.",
   },
   "features/gallery/FilterSheet.tsx": {
     max: 21,
@@ -93,7 +68,7 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
   },
   "features/reveal/ContactRevealDialog.tsx": {
-    max: 25,
-    reason: "Contact-reveal dialog; folds into the kit Modal (pet card, DS PR 3b).",
+    max: 1,
+    reason: "Dialog height cap of 85vh; no scale step. Folds into the kit Modal later.",
   },
 };

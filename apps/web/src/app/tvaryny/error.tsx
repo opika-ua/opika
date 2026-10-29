@@ -2,6 +2,11 @@
 
 import { uk } from "@opika/i18n";
 import { useEffect, useRef } from "react";
+import { Button, buttonClass } from "../../ui/Button";
+import { cx } from "../../ui/cx";
+import { Heading } from "../../ui/Heading";
+import { Panel } from "../../ui/Panel";
+import { Text } from "../../ui/Text";
 
 /**
  * E4, `docs/design/README.md`'s "Whole-list error (E1/E2)" - and, per that
@@ -134,34 +139,34 @@ export default function GalleryError({
         real document head the same as a Server Component's `robots` would.
       */}
       <meta name="robots" content="noindex, nofollow" />
-      <div className="font-rg min-h-dvh bg-rg-page flex items-center justify-center p-4">
-        <div
-          role="alert"
-          aria-live="assertive"
-          data-testid="gallery-error"
-          className="animate-fade-in w-full max-w-140 bg-rg-surface rounded-rg-card p-8 flex flex-col gap-4 items-start"
-        >
-          <span className="text-[12px]/[16px] font-medium tracking-[0.08em] uppercase text-rg-ink-3">
-            {uk.galleryError.eyebrow}
-          </span>
-          <h1
-            ref={headingRef}
-            tabIndex={-1}
-            className="text-[34px]/[38px] font-bold tracking-[-0.03em] text-rg-ink text-pretty outline-none"
+      <div className="flex min-h-dvh items-center justify-center bg-page p-4">
+        <Panel padding="lg" className="animate-fade-in w-full max-w-140">
+          <div
+            role="alert"
+            aria-live="assertive"
+            data-testid="gallery-error"
+            className="flex flex-col items-start gap-4"
           >
-            {uk.galleryError.title}
-          </h1>
-          <p className="text-[17px]/[26px] text-rg-ink-2 text-pretty">{uk.galleryError.body}</p>
-          <div className="flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              data-testid="gallery-error-retry"
-              onClick={retry}
-              className="min-h-14 px-6 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-ring-registry"
+            <Text look="hint" className="uppercase tracking-wider">
+              {uk.galleryError.eyebrow}
+            </Text>
+            <Heading
+              level={1}
+              look="display-l"
+              ref={headingRef}
+              tabIndex={-1}
+              className="outline-none"
             >
-              {uk.galleryError.action}
-            </button>
-            {/*
+              {uk.galleryError.title}
+            </Heading>
+            <Text look="lead" className="text-ink-2">
+              {uk.galleryError.body}
+            </Text>
+            <div className="flex flex-wrap items-center gap-4">
+              <Button type="button" data-testid="gallery-error-retry" onClick={retry}>
+                {uk.galleryError.action}
+              </Button>
+              {/*
             E5's actual escape hatch - see this file's own top comment for
             why a filter rail here would not be one. A genuine `<a href>`,
             not `next/link`'s `Link`: confirmed by the harness, not
@@ -173,15 +178,16 @@ export default function GalleryError({
             entirely, at the unavoidable cost of a full reload instead of
             a transition.
           */}
-            <a
-              href="/tvaryny"
-              data-testid="gallery-error-show-all"
-              className="min-h-14 inline-flex items-center px-6 rounded-rg-button text-rg-ink font-medium text-[15px] underline underline-offset-2 focus-ring-registry"
-            >
-              {uk.galleryError.showAll}
-            </a>
+              <a
+                href="/tvaryny"
+                data-testid="gallery-error-show-all"
+                className={cx(buttonClass("ghost"), "underline")}
+              >
+                {uk.galleryError.showAll}
+              </a>
+            </div>
           </div>
-        </div>
+        </Panel>
       </div>
     </>
   );

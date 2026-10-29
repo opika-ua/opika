@@ -54,6 +54,8 @@ type LinkChip = {
   href: string;
   current?: boolean;
   prefetch?: boolean;
+  /** When the visible text is shorter than the link's purpose («Хлопчик» vs «Показати схожих»). */
+  "aria-label"?: string;
   children: ReactNode;
 };
 
@@ -102,6 +104,7 @@ export function Chip(props: ChipProps) {
           href={props.href}
           {...(props.prefetch === undefined ? {} : { prefetch: props.prefetch })}
           aria-current={props.current ? "page" : undefined}
+          aria-label={props["aria-label"]}
           className={cx(chipClass(props.current === true), "focus-ring", props.className)}
         >
           {props.children}

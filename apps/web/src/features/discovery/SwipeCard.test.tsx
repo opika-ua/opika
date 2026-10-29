@@ -69,11 +69,9 @@ describe("SwipeCard freshness marker", () => {
   ] as const)("renders three pips for %s, filled per the design table", (kind, days, expected) => {
     renderCard(makeCard({ freshness: makeFreshness(kind, days) }));
 
-    const pips = screen.getAllByTestId("freshness-pip");
-    expect(pips).toHaveLength(3);
-    expect(pips.map((p) => p.getAttribute("data-filled"))).toEqual(
-      expected.map((fill) => (fill === "empty" ? "false" : "true")),
-    );
+    const fills = document.querySelector("[data-fill]")?.getAttribute("data-fill")?.split(" ");
+    expect(fills).toHaveLength(3);
+    expect(fills?.map((fill) => (fill === "empty" ? "empty" : "filled"))).toEqual(expected);
   });
 
   /**

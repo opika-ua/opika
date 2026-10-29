@@ -12,17 +12,23 @@ import { freshnessLabel } from "@opika/ui";
 import Image from "next/image";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
+import { Avatar } from "../../ui/Avatar";
+import { LinkButton } from "../../ui/Button";
+import { Chip } from "../../ui/Chip";
+import { Heading } from "../../ui/Heading";
+import { MetaLine } from "../../ui/MetaLine";
+import { Text } from "../../ui/Text";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { chipDisplayLabel, similarAnimalsHref, similarAnimalsLabel } from "../gallery/filter-url";
 import { SaveButton } from "../likes/SaveButton";
-import { ShelterLogoAvatar } from "../shelters/ShelterLogoAvatar";
 import { shelterPagePath } from "../shelters/shelter-url";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
 import { ShareButton } from "./ShareButton";
 
-const FOCUS = "focus-ring";
+// The Figma panel's 1084px on the spacing scale (271 x 4px).
+const PANEL_WIDTH = "max-w-271";
 
 interface AnimalDetailScreenProps {
   animal: AnimalDetailView;
@@ -32,67 +38,31 @@ interface AnimalDetailScreenProps {
 }
 
 /**
- * Pet card PR 5 (Figma `75:425`/`88:1929`), replacing the pre-redesign
- * `docs/design/README.md` addendum layout wholesale. `AnimalDetailScreen`
- * (full-page chrome: `SiteHeader`, the demo banner) and `AnimalDetailContent`
- * (the shared panel body, rendered by both this full page and the gallery's
- * overlay, `AnimalOverlay.tsx`) stay the two exports batch A split this file
- * into (2026-10-23) - minimising blast radius for their two callers - but
- * `AnimalDetailContent`'s own internals are a full rewrite, not a restyle.
+ * Full-page chrome (header, demo banner) around `AnimalDetailContent`, which the gallery's
+ * overlay (`AnimalOverlay.tsx`) renders too. Prev/next lives only in the overlay: the full page
+ * never fetches neighbours, and shows no back-link row (owner decision B).
  *
- * **The old "← Усі тварини" back-link row is gone entirely** (owner decision
- * B's reasoning: "whoever lands [on the full page] didn't come from the
- * gallery," and the Figma page reference shows nothing between the header
- * and the panel at all - no back link, no placeholder row kept only for
- * spacing). `backToGalleryHref`/`uk.detail.backToListIn` left with it;
- * `uk.feed.backToList` stays, still used by the deck and its own error page.
- *
- * **Prev/next now lives entirely in `AnimalOverlay.tsx`**, not here - this
- * screen renders no prev/next row at all, matching "hide prev/next entirely"
- * literally rather than keeping an always-invisible row for spacing parity
- * with the overlay. The full page genuinely never fetches neighbours
- * (`animal-page-load.ts` is unchanged by this PR), so there is no data this
- * screen could render even if it wanted to.
- *
- * Real deviations from the Figma frame, recorded rather than silently
- * resolved - see the PR body for the full account, including the
- * "Contrast deviations (owner override)" list (decision 10):
- * 1. The meta line shows the age *bucket*, not "N років" (owner decision 3 -
- *    the contract only carries `ageBucket`).
- * 2. The freshness tag reuses `freshnessLabel` verbatim ("Оновлено N днів
- *    тому"), not the Figma mock's literal "Оновлено: N днів тому" with a
- *    colon (owner decision 2 - follows the gallery's own mechanism exactly).
- * 3. The backdrop/tint behind the overlay is an approximated flat colour,
- *    not a literal two-layer composite - see `AnimalOverlay.tsx`'s own
- *    comment.
+ * Deviations from the Figma frame (full list in the pet card PR 5 body): the meta line shows the
+ * age bucket, not "N років" (the contract carries only the bucket); the freshness tag reuses
+ * `freshnessLabel` verbatim, without the mock's colon.
  */
 export function AnimalDetailScreen({
-  // Defaulted here (not in `SiteHeader`, which stays strict) purely so the
-  // many existing tests exercising this screen's own content don't all need
-  // a prop they aren't testing; the one real caller (`app/tvaryny/[animalId]/page.tsx`)
-  // always passes the computed value explicitly.
+  // Defaulted so the tests of this screen's own content don't all need a prop they aren't
+  // testing; the one real caller (`app/tvaryny/[animalId]/page.tsx`) always passes it.
   kabinetSignedIn = false,
   ...content
 }: AnimalDetailScreenProps & { kabinetSignedIn?: boolean }) {
   return (
-    <div className="font-brand-ui min-h-dvh bg-brand-page">
+    <div className="min-h-dvh bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
-      {/*
-        The gallery's own visible carrier of the D-2 demo disclosure
-        (`tvaryny/page.tsx`) needed the identical fix here - found by the
-        reviewer, not caught in the first pass: this route is the one
-        `/prytulkam` itself tells a shelter to expect shared into Telegram,
-        so a visitor reaching it directly (not via the gallery) saw no demo
-        disclosure at all, same gap, same reason (`description`/
-        `og:description` are metadata, never page body). See `seo-flags.ts`'s
-        own correction comment on `REGISTRY_HAS_NO_REAL_SHELTERS` for the
-        full history.
-      */}
+      {/* The demo disclosure must be in the page body, not only in metadata: this route is the one shelters share into Telegram. */}
       {REGISTRY_HAS_NO_REAL_SHELTERS && (
         <div className="p-4 tablet:p-6 desktop:px-14">
-          <span data-testid="detail-demo-banner" className="text-[13px]/[18px] text-brand-ink-2">
-            {uk.demo.bannerNotice}
+          <span data-testid="detail-demo-banner">
+            <Text as="span" look="hint">
+              {uk.demo.bannerNotice}
+            </Text>
           </span>
         </div>
       )}
@@ -104,57 +74,24 @@ export function AnimalDetailScreen({
   );
 }
 
-/**
- * The gallery overlay and the full page both render exactly this: everything
- * the Figma panel specifies for the animal itself, with no page chrome - no
- * header, no demo banner, both of which the full page supplies around it
- * above, and the overlay's own backdrop/close-button/prev-next row supplies
- * instead (`AnimalOverlay.tsx`). No `neighbours` concept here at all - prev/
- * next is navigation chrome, not animal content, so it lives one level up in
- * whichever of the two callers actually has it.
- */
+/** The animal itself, with no page chrome: shared by the full page and the gallery overlay. */
 export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailScreenProps) {
   const showDocuments =
     animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
   const customTemperament = animal.temperament.find((entry) => entry.kind === "custom");
 
   return (
-    <div className="mx-auto flex max-w-[1084px] flex-col gap-13 p-4 tablet:p-6 desktop:p-10">
+    <div className={`mx-auto flex ${PANEL_WIDTH} flex-col gap-13 p-4 tablet:p-6 desktop:p-10`}>
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-6 desktop:flex-row desktop:items-start desktop:justify-between">
           <div className="flex min-w-0 flex-col gap-1">
-            <h1
-              data-testid="animal-name"
-              className="text-[48px]/[1.15] font-bold tracking-[-0.01em] text-brand-ink"
-            >
+            <Heading level={1} look="display-l" className="desktop:text-display-xl">
               {animal.name}
-            </h1>
-            <MetaLine animal={animal} />
+            </Heading>
+            <MetaLine parts={metaParts(animal)} />
           </div>
-          {/*
-            Pet card PR 5 follow-up: the save toggle moved here from beside
-            the name, where it crowded the one piece of text that names the
-            animal - the Figma reference has no save affordance to place at
-            all, so this is a reversible UX call, not a deviation from a
-            spec. Grouped with the two secondary/utility actions (share,
-            same shape as `RevealFlow`/`ShareButton`'s own pills) rather
-            than with the name (identity) or alone in a corner - «Дати
-            сімʼю» stays the one unmistakably primary action, and «Поділитись»
-            plus save read as one small cluster of "do something with this
-            listing" actions beside it.
-          */}
-          {/*
-            `flex-wrap`: found live, not assumed - fixing the save circle's
-            own squeeze (`circleButtonClass`'s new `shrink-0`, above) just
-            moved the deficit from "squeezed circle" to "row wider than the
-            viewport, nothing left to give" at narrow widths, since neither
-            text pill has anywhere to shrink to either. Wrapping these three
-            onto two lines costs nothing on desktop, where the row already
-            fits (unaffected either way), and keeps every control at its own
-            correct size on a phone instead of distorting one or overflowing
-            the page.
-          */}
+          {/* Wraps onto two lines on a phone rather than overflowing; «Дати сімʼю» stays the one primary action. */}
           <div className="flex flex-none flex-wrap items-center gap-4">
             <RevealFlow animalId={animal.id} animalName={animal.name} cityName={cityName} />
             <ShareButton animalId={animal.id} animalName={animal.name} />
@@ -163,23 +100,24 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <span
-            data-testid="freshness-block"
-            className="inline-flex h-8 items-center rounded-[10px] bg-brand-line px-3 text-[16px] font-semibold text-brand-ink"
-          >
-            {freshnessLabel(animal.freshness)}
+          <span data-testid="freshness-block">
+            <Chip kind="info">{freshnessLabel(animal.freshness)}</Chip>
           </span>
-          <div className="flex flex-wrap items-center gap-[30px]">
+          <div className="flex flex-wrap items-center gap-8">
             <Link
               href={shelterPagePath(shelter.id)}
               prefetch={false}
               aria-label={fillTemplate(uk.detail.shelterRowLink, { name: shelter.displayName })}
-              className={`inline-flex min-h-12 items-center gap-3.5 rounded-brand-field ${FOCUS}`}
+              className="inline-flex min-h-target items-center gap-3 rounded-field focus-ring"
             >
-              <ShelterLogoAvatar logo={shelter.logo} displayName={shelter.displayName} />
-              <span className="text-[20px] font-semibold text-brand-ink">
+              {shelter.logo === null ? (
+                <Avatar kind="initials" name={shelter.displayName} />
+              ) : (
+                <Avatar kind="logo" src={shelter.logo.storageKey} />
+              )}
+              <Text as="span" look="label">
                 {shelter.displayName}
-              </span>
+              </Text>
             </Link>
             {cityName && (
               <span className="inline-flex items-center gap-2">
@@ -191,36 +129,28 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
                   height={32}
                   unoptimized
                 />
-                <span
-                  data-testid="shelter-city"
-                  className="text-[20px] font-semibold text-brand-accent"
-                >
-                  {cityName}
+                <span data-testid="shelter-city">
+                  <Text as="span" look="label" className="text-accent">
+                    {cityName}
+                  </Text>
                 </span>
               </span>
             )}
           </div>
         </div>
-        {/*
-          Commitment 5 (`docs/standing-constraints.md`): donations are external links to the
-          shelter's own payment page, domain visible before the tap. No frame in the Figma
-          reference shows this state (its mock shelter carries no donation link), so keeping it
-          is a decision taken, not a deviation from the design - a visual redesign was never
-          asked to drop a real feature it just doesn't happen to mock. Placed under the header
-          row rather than inside it, since the Figma header has no slot for it.
-          `data-testid="donate-link"` unchanged for continuity with its existing test.
-        */}
+        {/* Commitment 5: donations are external links to the shelter's own payment page, domain visible before the tap. */}
         {shelter.donation && (
-          <a
+          <LinkButton
+            variant="secondary"
             href={shelter.donation.url}
             target="_blank"
             rel="noopener"
             data-testid="donate-link"
-            className={`inline-flex min-h-12 w-fit items-center gap-3 rounded-brand-field border-2 border-brand-line px-4 py-2 text-[16px] font-medium text-brand-ink ${FOCUS}`}
+            className="w-fit"
           >
             <span>{uk.detail.donateShelter}</span>
-            <span className="text-brand-ink-2">{donationHost(shelter.donation)} ↗</span>
-          </a>
+            <span className="text-ink-2">{donationHost(shelter.donation)} ↗</span>
+          </LinkButton>
         )}
       </div>
 
@@ -229,7 +159,7 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
 
       {/* Про мене */}
       <div className="flex flex-col gap-4">
-        <h2 className="text-[26px] font-bold text-brand-ink">{uk.detail.aboutMeHeading}</h2>
+        <Heading level={2}>{uk.detail.aboutMeHeading}</Heading>
         <div className="flex flex-wrap gap-4">
           <FilterableChipLink species={animal.species} dimension="ages" value={animal.ageBucket} />
           <SexChip species={animal.species} sex={animal.sex} />
@@ -267,23 +197,17 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
       {/* Моя історія / Медичний стан */}
       <div className="flex flex-col gap-13 desktop:flex-row">
         <div className="flex flex-1 flex-col gap-3">
-          <h2 className="text-[26px] font-bold text-brand-ink">{uk.detail.myStoryHeading}</h2>
-          {/*
-            Decision 10 (contrast deviations, owner override): `brand-muted`
-            is 2.66:1 on white, failing AA for body text. Shipped as designed
-            anyway, per his instruction - see the PR body's own "Contrast
-            deviations" list, which recommends `brand-ink-2` (5.4:1) as the fix.
-          */}
-          <p className="text-[20px]/[1.4] tracking-[0.2px] text-brand-muted">
+          <Heading level={2}>{uk.detail.myStoryHeading}</Heading>
+          <Text look="lead" className="text-ink-2">
             {textIn(animal.description, "uk")}
-          </p>
+          </Text>
         </div>
         {animal.medicalNotes !== null && (
           <div className="flex flex-1 flex-col gap-3">
-            <h2 className="text-[26px] font-bold text-brand-ink">{uk.detail.medicalHeading}</h2>
-            <p className="text-[20px]/[1.4] tracking-[0.2px] text-brand-muted">
+            <Heading level={2}>{uk.detail.medicalHeading}</Heading>
+            <Text look="lead" className="text-ink-2">
               {textIn(animal.medicalNotes, "uk")}
-            </p>
+            </Text>
           </div>
         )}
       </div>
@@ -322,36 +246,14 @@ export function AnimalDetailContent({ animal, shelter, cityName }: AnimalDetailS
   );
 }
 
-/** "Хлопчик · 5 років · середній" - sex, age bucket (owner decision 3 - the contract only
- * carries the bucket, never "N років") and size, the same three facts (and the same
- * gender-neutral age-bucket word) `cardFactsParts` already composes for the gallery card's
- * own meta line, just inlined here rather than coerced through `FeedCardView`'s shape. */
-function MetaLine({ animal }: { animal: AnimalDetailView }) {
-  const parts = [
+/** Sex, age bucket and size: the gallery card's three facts, composed here from the detail view. */
+function metaParts(animal: AnimalDetailView): string[] {
+  return [
     sexWordFor(animal.sex),
     chipDisplayLabel({ dimension: "ages", value: animal.ageBucket }),
     sizeLabel(animal.size),
   ].filter((part): part is string => Boolean(part));
-  return (
-    <span className="flex items-center gap-3 text-[20px]/[1.4] font-medium text-brand-ink-2">
-      {parts.map((part, index) => (
-        <span key={part} className="flex items-center gap-3">
-          {index > 0 && (
-            <span aria-hidden="true" className="h-1 w-[1.5px] shrink-0 bg-brand-ink-2" />
-          )}
-          {part}
-        </span>
-      ))}
-    </span>
-  );
 }
-
-// Same gap `PillButton.tsx` had: `h-13` (52px, already over the 48px floor - unchanged,
-// some chips here are plain non-interactive `<span>`s and some are `FilterableChipLink`s,
-// and the floor only ever governs the interactive ones) stays constant, but `px-4
-// text-[20px]` at every width read as desktop-sized on a phone. Smaller below `desktop:`.
-const CHIP =
-  "inline-flex h-13 items-center rounded-brand-field border-2 border-brand-line px-3 text-[16px] font-semibold text-brand-ink desktop:px-4 desktop:text-[20px]";
 
 /** Coat length's own words, no longer read through `chipDisplayLabel` (gallery filter
  * restructure removed the fur filter, which that function served): the two words
@@ -364,17 +266,14 @@ const COAT_WORDS: Record<NonNullable<AnimalDetailView["coatLength"]>, string> = 
 
 /** A non-filterable fact, as plain text (A6 - custom «Інше» values and the medical facts). */
 function PlainChip({ text }: { text: string }) {
-  return <span className={CHIP}>{text}</span>;
+  return (
+    <Chip kind="info" tone="outline">
+      {text}
+    </Chip>
+  );
 }
 
-/** The sex chip: filterable since the gallery filter restructure, which reverses SF-D5
- * ("left non-filterable as a separate, unaddressed product question") - sex is one of
- * the four dimensions that restructure keeps as a real filter, so its chip joins
- * ages/sizes as a `FilterableChipLink`, same pattern, same species-plus-one-fact
- * question. Still omitted entirely for "unknown" - unaffected by filterability, the
- * same no-word-for-unknown contract `sexWordFor` already has (unlike `ageWordFor`,
- * which always has some word to fall back to) - a chip reading "more like this: not
- * recorded" would answer a question nobody asked. */
+/** The sex chip joins ages/sizes as a filterable chip; omitted for "unknown" (no word to show, and "more like this: not recorded" answers nothing). */
 function SexChip({
   species,
   sex,
@@ -394,7 +293,7 @@ function MedicalChip({ row }: { row: ReturnType<typeof vaccinationRow> }) {
   return <PlainChip text={`${row.label}: ${row.statusText}`} />;
 }
 
-/** A filterable chip (A6): a `<Link>` to the gallery filtered to the animal's species plus this
+/** A filterable chip (A6): a link to the gallery filtered to the animal's species plus this
  * one fact, accessible name via `similarAnimalsLabel`. `visibleText` overrides the default
  * (`chipDisplayLabel`) for temperament, whose visible chip uses the sex-matched singular form,
  * not the plural the accessible name reads. */
@@ -411,13 +310,13 @@ function FilterableChipLink<D extends Parameters<typeof chipDisplayLabel>[0]["di
 }) {
   const chip = { dimension, value } as Parameters<typeof chipDisplayLabel>[0];
   return (
-    <Link
+    <Chip
+      kind="link"
       href={similarAnimalsHref(species, chip)}
       prefetch={false}
       aria-label={similarAnimalsLabel(species, chip)}
-      className={`${CHIP} ${FOCUS}`}
     >
       {visibleText ?? chipDisplayLabel(chip)}
-    </Link>
+    </Chip>
   );
 }
