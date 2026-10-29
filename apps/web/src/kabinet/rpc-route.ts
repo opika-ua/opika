@@ -2,9 +2,11 @@ import { KABINET_MAX_BODY_BYTES } from "@opika/contracts";
 import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
+import { boundedBody } from "../api/bounded-body";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
+import { kabinetCookieName } from "./auth";
 import type { KabinetAuthAvailability } from "./auth-route";
 import { isSameOriginPost } from "./confirm-route";
 import { invitationRouter } from "./invitation-router";
@@ -35,43 +37,43 @@ export const KABINET_RPC_PREFIX = "/api/kabinet";
 
 const tooMany = () => new Response("Too Many Requests", { status: 429 });
 const tooLarge = () => new Response("Payload Too Large", { status: 413 });
+const unauthorized = () => new Response("Unauthorized", { status: 401 });
 
 /**
- * The request with its body read into memory, or `too_large` as soon as it
- * is known to exceed `KABINET_MAX_BODY_BYTES` (P-Q7): by a declared
- * `Content-Length` without reading a byte, or, for a body without one
- * (chunked), by counting while reading and stopping at the first byte over.
- * Either way before any session is looked up or any database touched, so an
- * oversized upload costs a read of at most the ceiling and nothing else.
- *
- * A declared length is not trusted to be honest: the count runs on every
- * body, so one that claims less than it sends is refused all the same.
+ * The paths a caller with no session may use: the `invitation_link` procedures
+ * (PW-2), whose token is the credential. Read from the served router's own
+ * access meta, so a new anonymous procedure can't be forgotten here.
  */
-async function boundedBody(request: Request): Promise<Request | "too_large"> {
-  const declared = request.headers.get("content-length");
-  if (declared !== null && Number(declared) > KABINET_MAX_BODY_BYTES) return "too_large";
-  if (request.body === null) return request;
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > KABINET_MAX_BODY_BYTES) {
-      await reader.cancel();
-      return "too_large";
-    }
-    chunks.push(value);
+function anonymousPathsOf(node: unknown, path: readonly string[] = []): string[] {
+  if (typeof node !== "object" || node === null) return [];
+  if ("~orpc" in node) {
+    const meta = (node as { "~orpc": { meta?: { access?: { surface?: string } | null } } })["~orpc"]
+      .meta;
+    return meta?.access?.surface === "invitation_link"
+      ? [`${KABINET_RPC_PREFIX}/${path.join("/")}`]
+      : [];
   }
-  const headers = new Headers(request.headers);
-  // The buffered body sets its own length; a chunked framing header no longer applies.
-  headers.delete("content-length");
-  headers.delete("transfer-encoding");
-  return new Request(request.url, {
-    method: request.method,
-    headers,
-    body: Buffer.concat(chunks),
+  return Object.entries(node).flatMap(([key, child]) => anonymousPathsOf(child, [...path, key]));
+}
+
+export const KABINET_ANONYMOUS_PATHS: ReadonlySet<string> = new Set(
+  anonymousPathsOf(kabinetRouter),
+);
+
+const SESSION_COOKIE_NAMES: ReadonlySet<string> = new Set([
+  kabinetCookieName("session_token", true),
+  kabinetCookieName("session_token", false),
+]);
+
+/** Whether a non-empty kabinet session cookie is present. Presence only: `resolve` checks it. */
+function hasSessionCookie(cookieHeader: string | null): boolean {
+  return (cookieHeader ?? "").split(";").some((pair) => {
+    const at = pair.indexOf("=");
+    return (
+      at > 0 &&
+      SESSION_COOKIE_NAMES.has(pair.slice(0, at).trim()) &&
+      pair.slice(at + 1).trim() !== ""
+    );
   });
 }
 
@@ -130,11 +132,21 @@ export async function handleKabinetRpc(
   if (!isSameOriginPost(request.headers.get("origin"), deps.availability.baseURL)) {
     return new Response("Forbidden", { status: 403 });
   }
-  const bounded = await boundedBody(request);
+  // P-Q7: an oversized declared body is refused first, before anything is read.
+  const declared = request.headers.get("content-length");
+  if (declared !== null && Number(declared) > KABINET_MAX_BODY_BYTES) return tooLarge();
+  // Audit F9 (owner, 2026-10-28): no session cookie, no body read and no database,
+  // except on the invitation link. The real session lookup stays below.
+  const path = new URL(request.url).pathname;
+  if (!KABINET_ANONYMOUS_PATHS.has(path) && !hasSessionCookie(request.headers.get("cookie"))) {
+    return unauthorized();
+  }
+  // P-Q7: before any session is looked up or any database touched, so an
+  // oversized upload costs a read of at most the ceiling and nothing else.
+  const bounded = await boundedBody(request, KABINET_MAX_BODY_BYTES);
   if (bounded === "too_large") return tooLarge();
   // RG-Q10: without the location key the registry can't create a shelter or
   // move one honestly, so all of it is unavailable rather than half of it.
-  const path = new URL(bounded.url).pathname;
   if (deps.locationPolicy === null && path.startsWith(`${KABINET_RPC_PREFIX}/registry/`)) {
     return new Response("Registry is not available", { status: 503 });
   }

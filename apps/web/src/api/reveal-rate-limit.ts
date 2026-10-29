@@ -3,6 +3,7 @@ import type { Database } from "@opika/db";
 import { revealRepo } from "@opika/db/repos";
 import type { AdopterId, ShelterId } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
+import { logRateLimited } from "./rate-limit-log";
 
 /**
  * Narrower than `AnimalsRevealErrors` (`handlers/reveal.ts`) on purpose:
@@ -51,6 +52,9 @@ const REVEAL_RATE_LIMIT = {
   windowSeconds: 24 * 3600, // 24 hours
 };
 
+/** Whether a reveal that passed the check spends a unit (`new_shelter`) or not. */
+export type RevealBudgetUse = "free_re_reveal" | "new_shelter";
+
 /**
  * Check whether revealing `shelterId` would exceed the adopter's reveal
  * rate limit, and throw if so.
@@ -82,12 +86,12 @@ export async function checkRevealRateLimit(
   shelterId: ShelterId,
   now: Date,
   errors: RevealRateLimitErrors,
-): Promise<void> {
+): Promise<RevealBudgetUse> {
   const cutoff = new Date(now.getTime() - REVEAL_RATE_LIMIT.windowSeconds * 1000);
   const reveals = revealRepo(db);
 
   const alreadyRevealed = await reveals.hasRevealedShelterRecently(adopterId, shelterId, cutoff);
-  if (alreadyRevealed) return;
+  if (alreadyRevealed) return "free_re_reveal";
 
   const distinctShelterCount = await reveals.countDistinctSheltersRecentByAdopter(
     adopterId,
@@ -95,6 +99,8 @@ export async function checkRevealRateLimit(
   );
 
   if (distinctShelterCount >= REVEAL_RATE_LIMIT.maxReveals) {
+    logRateLimited("reveal-adopter");
     throw errors.RATE_LIMITED();
   }
+  return "new_shelter";
 }

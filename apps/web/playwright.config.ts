@@ -138,6 +138,9 @@ export default defineConfig({
       BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
       BETTER_AUTH_URL: ORIGIN,
       RATE_LIMIT_KEY_SECRET: HARNESS_RATE_LIMIT_KEY_SECRET,
+      // Every spec mints its adopters from 127.0.0.1, far past the per-IP caps (audit F1,
+      // `api/per-ip-budgets.ts`). Ignored on Vercel and wherever the shared store is set.
+      HARNESS_LIFTS_PER_IP_BUDGETS: "1",
       // The kit showcase at /dev/ui is a 404 in a production build without this.
       OPIKA_DEV_UI: "1",
     },

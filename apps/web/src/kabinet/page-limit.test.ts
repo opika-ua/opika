@@ -6,6 +6,7 @@ import { isChargedKabinetPageLoad, isKabinetPagePath, kabinetPageLoadAllowed } f
 import { capturingPasswordMail } from "./password-mail";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * KH-Q8 (KS-Q3): `/kabinet` page loads draw on the kabinet API's limiters.
@@ -108,7 +109,11 @@ describe("a page load and an API call share one allowance", () => {
     const response = await handleKabinetRpc(
       new Request("http://localhost/api/kabinet/shelter/profile/get", {
         method: "POST",
-        headers: { "content-type": "application/json", origin: "http://localhost" },
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          cookie: TEST_SESSION_COOKIE,
+        },
         body: JSON.stringify({ json: {} }),
       }),
       {

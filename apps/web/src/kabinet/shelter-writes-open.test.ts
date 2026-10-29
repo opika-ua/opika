@@ -11,6 +11,7 @@ import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc, kabinetRouter } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * PR 6 of the K milestone: every `shelter.*` write is open to the shelter's
@@ -82,7 +83,11 @@ beforeEach(async () => {
 async function call(path: string, input: unknown, principal: KabinetPrincipal) {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { "content-type": "application/json", origin: "http://localhost" },
+    headers: {
+      "content-type": "application/json",
+      origin: "http://localhost",
+      cookie: TEST_SESSION_COOKIE,
+    },
     body: JSON.stringify(toRpcBody(input)),
   });
   const response = await handleKabinetRpc(request, {

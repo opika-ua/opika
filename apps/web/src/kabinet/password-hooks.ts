@@ -5,6 +5,7 @@ import { APIError, isAPIError } from "better-auth/api";
 import { z } from "zod";
 import { clientIp } from "../api/client-ip";
 import { addressRateLimitKey, ipRateLimitKey } from "../api/rate-limit-key";
+import { logRateLimited } from "../api/rate-limit-log";
 import { linkTo, RESET_LINK } from "./email-links";
 import { field, stringField } from "./fields";
 import { shelterPasswordVerdictOf } from "./password-checks";
@@ -354,7 +355,10 @@ export function passwordHooks(deps: PasswordHookDeps) {
           const email = stringField(ctx.body, "email");
           if (!isEmail(email)) return undefined; // Better Auth's own 400
           const attempt = await chargeAttempt(email, now);
-          if (attempt.kind === "wait") throw delayed(attempt.minutes);
+          if (attempt.kind === "wait") {
+            logRateLimited("kabinet-sign-in-delay");
+            throw delayed(attempt.minutes);
+          }
           await race.begin(ctx.context, email);
           if (await actors.operatorGrantForEmail(email)) {
             // PW1-F7: Better Auth's own two reads, through its own call, before the hash, so the

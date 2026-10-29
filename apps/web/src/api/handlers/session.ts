@@ -8,6 +8,7 @@ import {
   NO_FILTERS,
 } from "@opika/domain";
 import type { AppContext } from "../context";
+import { perIpBudgetSpent, spendPerIpBudget } from "../per-ip-budgets";
 import {
   DEFAULT_SESSION_POLICY,
   hashToken,
@@ -35,6 +36,11 @@ export async function sessionBootstrap(
         serverTime: context.now,
       };
     }
+  }
+
+  // Audit F1: only a mint spends the per-IP budget; returning a session above is free.
+  if (!(await spendPerIpBudget(context.caller, "adopterMints", context.now))) {
+    throw perIpBudgetSpent();
   }
 
   // Mint a new anonymous session

@@ -7,6 +7,7 @@ import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetContext } from "./context";
 import { PHOTO_PROCESSING_BUDGET_MS, PHOTO_UPLOADS_NOT_CONFIGURED } from "./photo-uploads";
 import { handleKabinetRpc, KABINET_RPC_PREFIX, kabinetRpcHandler } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * P-Q7: `/api/kabinet/*` reads at most `KABINET_MAX_BODY_BYTES`. A larger
@@ -105,7 +106,11 @@ describe("the kabinet body ceiling (P-Q7)", () => {
     const { deps: d, resolvedCount, puts } = deps();
     const request = new Request(ADD, {
       method: "POST",
-      headers: { origin: BASE, "content-type": "multipart/form-data; boundary=x" },
+      headers: {
+        origin: BASE,
+        cookie: TEST_SESSION_COOKIE,
+        "content-type": "multipart/form-data; boundary=x",
+      },
       body: chunked(5 * MiB),
       duplex: "half",
     } as RequestInit);
@@ -122,6 +127,7 @@ describe("the kabinet body ceiling (P-Q7)", () => {
       method: "POST",
       headers: {
         origin: BASE,
+        cookie: TEST_SESSION_COOKIE,
         "content-type": "multipart/form-data; boundary=x",
         "content-length": "1024",
       },
@@ -140,7 +146,7 @@ describe("the kabinet body ceiling (P-Q7)", () => {
     const { deps: d, resolvedCount } = deps();
     const request = new Request(ADD, {
       method: "POST",
-      headers: { origin: BASE },
+      headers: { origin: BASE, cookie: TEST_SESSION_COOKIE },
       body: chunked(KABINET_MAX_BODY_BYTES + 1),
       duplex: "half",
     } as RequestInit);
@@ -152,7 +158,7 @@ describe("the kabinet body ceiling (P-Q7)", () => {
     const { deps: d, resolvedCount } = deps();
     const request = new Request(ADD, {
       method: "POST",
-      headers: { origin: BASE },
+      headers: { origin: BASE, cookie: TEST_SESSION_COOKIE },
       body: chunked(KABINET_MAX_BODY_BYTES),
       duplex: "half",
     } as RequestInit);

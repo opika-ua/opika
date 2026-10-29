@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { rateLimitKeySecretProblem } from "./build-env";
+import { rateLimitSubjectOf } from "./rate-limit-subject";
 
 /**
  * The one way a client IP becomes a rate-limiter key: `ip:` and an
@@ -21,9 +22,12 @@ import { rateLimitKeySecretProblem } from "./build-env";
  * Every limiter call site goes through this (`rate-limit-key.test.ts` scans
  * for a hand-built `ip:` key anywhere else). The kabinet's per-user keys are
  * not IPs and stay as they are; per-address keys are HMAC'd too, below.
+ *
+ * The address is reduced first (`rateLimitSubjectOf`, audit F2): an IPv6
+ * caller is keyed on its /64, so every per-IP budget is per subscriber.
  */
 export const ipKeyWith = (secret: string, ip: string): string =>
-  `ip:${createHmac("sha256", secret).update(ip, "utf8").digest("base64url")}`;
+  `ip:${createHmac("sha256", secret).update(rateLimitSubjectOf(ip), "utf8").digest("base64url")}`;
 
 /**
  * The one way an email address becomes a rate-limiter key: `address:` and an

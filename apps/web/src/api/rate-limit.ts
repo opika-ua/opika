@@ -1,5 +1,7 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { logRateLimited, type RateLimitedLog } from "./rate-limit-log";
+import { redisCredentialsOf } from "./redis-credentials";
 
 // ---------------------------------------------------------------------------
 // Generic per-IP rate limiter
@@ -317,20 +319,28 @@ export function upstashRateLimiter(opts: {
  * observability RL-1 calls for - rather than silently racing the SDK's own
  * `timeout` option to a close no one can see happen.
  */
-const KV_URL = process.env.KV_REST_API_URL;
-const KV_TOKEN = process.env.KV_REST_API_TOKEN;
-const UPSTASH_NATIVE_URL = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_NATIVE_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-const [RESOLVED_REDIS_URL, RESOLVED_REDIS_TOKEN]: [string, string] | [undefined, undefined] =
-  KV_URL && KV_TOKEN
-    ? [KV_URL, KV_TOKEN]
-    : UPSTASH_NATIVE_URL && UPSTASH_NATIVE_TOKEN
-      ? [UPSTASH_NATIVE_URL, UPSTASH_NATIVE_TOKEN]
-      : [undefined, undefined];
+const CREDENTIALS = redisCredentialsOf(process.env);
+const RESOLVED_REDIS_URL = CREDENTIALS?.url;
+const RESOLVED_REDIS_TOKEN = CREDENTIALS?.token;
 const VERCEL_ENV = process.env.VERCEL_ENV || "unknown";
 
-export const apiRateLimiter: RateLimiter =
+/** `inner`, logging each refusal by `name` only (`rate-limit-log.ts`). */
+export function loggingRefusals(
+  name: string,
+  inner: RateLimiter,
+  log?: RateLimitedLog,
+): RateLimiter {
+  return {
+    async check(key: string, now: Date): Promise<boolean> {
+      const allowed = await inner.check(key, now);
+      if (!allowed) logRateLimited(name, log);
+      return allowed;
+    },
+  };
+}
+
+export const apiRateLimiter: RateLimiter = loggingRefusals(
+  "api",
   RESOLVED_REDIS_URL && RESOLVED_REDIS_TOKEN
     ? upstashRateLimiter({
         redis: new Redis({
@@ -345,14 +355,24 @@ export const apiRateLimiter: RateLimiter =
     : inMemoryRateLimiter({
         windowMs: 60_000,
         maxRequests: 100,
-      });
+      }),
+);
 
 /**
  * Another limiter on the same backing store as `apiRateLimiter`: Upstash when
  * it's configured, in-memory otherwise. `name` becomes part of the key prefix,
- * so each limiter keeps its own budget in the one shared database.
+ * so each limiter keeps its own budget in the one shared database, and each
+ * refusal is logged under it.
  */
 export function sharedRateLimiter(opts: {
+  name: string;
+  windowMs: number;
+  maxRequests: number;
+}): RateLimiter {
+  return loggingRefusals(opts.name, sharedStoreLimiter(opts));
+}
+
+function sharedStoreLimiter(opts: {
   name: string;
   windowMs: number;
   maxRequests: number;

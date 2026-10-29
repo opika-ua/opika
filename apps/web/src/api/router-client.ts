@@ -92,6 +92,7 @@ export function routerClientOver(db: Database) {
       adopterId: null,
       tokenHash: null,
       now: new Date(),
+      caller: { kind: "in_process" },
       setCookies: [],
     }),
   });
