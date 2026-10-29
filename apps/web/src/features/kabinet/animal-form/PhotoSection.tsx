@@ -8,17 +8,23 @@ import {
   PHOTO_MAX_EDGE_PX,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
-import { Button } from "../../controls/controls";
+import { Badge } from "../../../ui/Badge";
+import { Button } from "../../../ui/Button";
+import { Card } from "../../../ui/Card";
+import { cx } from "../../../ui/cx";
+import { InlineStatus } from "../../../ui/feedback";
+import { Icon } from "../../../ui/Icon";
+import { Photo } from "../../../ui/Photo";
+import { Text } from "../../../ui/Text";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
-import { CAPTION, CARD, CARD_TITLE, ERROR_TEXT } from "../profile-edit/styles";
 import { type ShelterVisibility, uploadProgressText } from "./labels";
 
 /**
- * K3's «Фото» section (N9): the photos as tiles in their order (the first is
- * the cover, P-Q9), an add tile, and one tile per photo on its way up.
+ * K3's «Фото» section body (N9), inside a `FormSection`: the photos as tiles in their order (the
+ * first is the cover, P-Q9), an add tile, and one tile per photo on its way up. A failed upload
+ * is a full-width row, not a tile: its sentence has to be readable on a phone.
  *
  * Every photo goes through `compressPhoto` on the device first (K-Q2: 2000 px,
  * re-encoded, which also drops its location data), then up over
@@ -259,200 +265,217 @@ export function PhotoSection({
 
   const lastPhotoNoteId = `${animal.id}-last-photo`;
   const total = photos.length;
+  const failed = uploads.filter((upload) => upload.state.kind === "failed");
+  const inProgress = uploads.filter((upload) => upload.state.kind !== "failed");
 
   return (
-    <section aria-labelledby="photos-title" className={CARD}>
-      <h2 id="photos-title" className={CARD_TITLE}>
-        {t.photos.title}
-      </h2>
-      <p className={CAPTION}>{t.photos.ratioNote}</p>
-      <ul className="grid grid-cols-3 gap-3 tablet:grid-cols-4">
+    <>
+      <ul className="grid grid-cols-2 items-start gap-3 tablet:grid-cols-3 desktop:grid-cols-4">
         {photos.map((photo, index) => (
           <li
             key={photo.storageKey}
             data-photo-index={index}
-            className={`flex min-w-0 flex-col gap-2 rounded-rg-photo ${dragOver === index ? "ring-2 ring-rg-ink" : ""}`}
+            className={cx("min-w-0 rounded-card", dragOver === index && "ring-4 ring-ink")}
           >
-            <fieldset
-              aria-label={fillTemplate(t.photos.tileLabel, {
-                n: integer.format(index + 1),
-                total: integer.format(total),
-              })}
-              className="flex min-w-0 flex-col gap-2"
-              disabled={!editable || writing}
-            >
-              <div
-                className={`relative aspect-4/5 overflow-hidden rounded-rg-photo bg-rg-fill-strong ${editable ? "cursor-grab touch-none" : ""}`}
-                onPointerDown={(event) => {
-                  if (!editable || writing || event.button !== 0) return;
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  drag.current = { from: index, x: event.clientX, y: event.clientY, moved: false };
-                }}
-                onPointerMove={(event) => {
-                  const current = drag.current;
-                  if (current === null) return;
-                  if (
-                    !current.moved &&
-                    Math.hypot(event.clientX - current.x, event.clientY - current.y) < 8
-                  ) {
-                    return;
-                  }
-                  current.moved = true;
-                  setDragOver(tileAt(event.clientX, event.clientY));
-                }}
-                onPointerUp={(event) => {
-                  const current = drag.current;
-                  drag.current = null;
-                  setDragOver(null);
-                  if (current === null || !current.moved) return;
-                  const to = tileAt(event.clientX, event.clientY);
-                  if (to !== null) move(current.from, to);
-                }}
-                onPointerCancel={() => {
-                  drag.current = null;
-                  setDragOver(null);
-                }}
+            <Card tone="outline">
+              <fieldset
+                aria-label={fillTemplate(t.photos.tileLabel, {
+                  n: integer.format(index + 1),
+                  total: integer.format(total),
+                })}
+                className="flex min-w-0 flex-col"
+                disabled={!editable || writing}
               >
-                <Image
-                  src={photo.storageKey}
-                  alt=""
-                  fill
-                  sizes="(min-width: 600px) 148px, 94px"
-                  className="pointer-events-none object-cover"
-                  draggable={false}
-                />
-                {index === 0 ? (
-                  <span className="absolute top-2 left-2 rounded-rg-chip bg-rg-surface px-3 py-1 text-sm font-medium text-rg-ink">
-                    {t.photos.cover}
-                  </span>
-                ) : null}
-              </div>
-              {editable ? (
-                <div className="flex flex-col items-start gap-1">
-                  {index > 0 ? (
-                    <Button variant="text" onClick={() => move(index, 0)}>
-                      {t.photos.makeCover}
-                    </Button>
-                  ) : null}
-                  {index > 0 ? (
-                    <Button variant="text" onClick={() => move(index, index - 1)}>
-                      {t.photos.moveEarlier}
-                    </Button>
-                  ) : null}
-                  {index < total - 1 ? (
-                    <Button variant="text" onClick={() => move(index, index + 1)}>
-                      {t.photos.moveLater}
-                    </Button>
-                  ) : null}
-                  <Button
-                    variant="text"
-                    aria-disabled={lastPhotoLocked || undefined}
-                    aria-describedby={lastPhotoLocked ? lastPhotoNoteId : undefined}
-                    onClick={() => {
-                      if (!lastPhotoLocked) void remove(photo);
+                <div className="relative">
+                  {/* biome-ignore lint/a11y/noStaticElementInteractions: the drag is the pointer's way to reorder; the keyboard's is the tile's own buttons */}
+                  <div
+                    className={editable ? "cursor-grab touch-none" : undefined}
+                    // The browser's own image drag would cancel the pointer drag below.
+                    onDragStart={(event) => event.preventDefault()}
+                    onPointerDown={(event) => {
+                      if (!editable || writing || event.button !== 0) return;
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                      drag.current = {
+                        from: index,
+                        x: event.clientX,
+                        y: event.clientY,
+                        moved: false,
+                      };
+                    }}
+                    onPointerMove={(event) => {
+                      const current = drag.current;
+                      if (current === null) return;
+                      if (
+                        !current.moved &&
+                        Math.hypot(event.clientX - current.x, event.clientY - current.y) < 8
+                      ) {
+                        return;
+                      }
+                      current.moved = true;
+                      setDragOver(tileAt(event.clientX, event.clientY));
+                    }}
+                    onPointerUp={(event) => {
+                      const current = drag.current;
+                      drag.current = null;
+                      setDragOver(null);
+                      if (current === null || !current.moved) return;
+                      const to = tileAt(event.clientX, event.clientY);
+                      if (to !== null) move(current.from, to);
+                    }}
+                    onPointerCancel={() => {
+                      drag.current = null;
+                      setDragOver(null);
                     }}
                   >
-                    {fillTemplate(t.photos.remove, { n: integer.format(index + 1) })}
-                  </Button>
+                    <Photo
+                      src={photo.storageKey}
+                      alt=""
+                      aspect="portrait"
+                      sizes="(min-width: 1024px) 160px, (min-width: 600px) 200px, 50vw"
+                    />
+                  </div>
+                  {index === 0 ? (
+                    <Badge tone="ink" className="absolute bottom-2 left-2">
+                      {t.photos.cover}
+                    </Badge>
+                  ) : null}
+                  {editable ? (
+                    <Button
+                      variant="icon"
+                      className="absolute top-2 right-2"
+                      aria-label={fillTemplate(t.photos.remove, { n: integer.format(index + 1) })}
+                      aria-disabled={lastPhotoLocked || undefined}
+                      aria-describedby={lastPhotoLocked ? lastPhotoNoteId : undefined}
+                      onClick={() => {
+                        if (!lastPhotoLocked) void remove(photo);
+                      }}
+                    >
+                      <Icon name="close" />
+                    </Button>
+                  ) : null}
                 </div>
-              ) : null}
-            </fieldset>
+                {editable && total > 1 ? (
+                  <div className="flex flex-col items-start p-1">
+                    <div className="flex">
+                      {index > 0 ? (
+                        <Button
+                          variant="ghost"
+                          aria-label={t.photos.moveEarlier}
+                          onClick={() => move(index, index - 1)}
+                        >
+                          <Icon name="chevron-left" />
+                        </Button>
+                      ) : null}
+                      {index < total - 1 ? (
+                        <Button
+                          variant="ghost"
+                          aria-label={t.photos.moveLater}
+                          onClick={() => move(index, index + 1)}
+                        >
+                          <Icon name="chevron-right" />
+                        </Button>
+                      ) : null}
+                    </div>
+                    {index > 0 ? (
+                      <Button variant="ghost" onClick={() => move(index, 0)}>
+                        {t.photos.makeCover}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </fieldset>
+            </Card>
           </li>
         ))}
-        {uploads.map((upload) => (
-          <li key={`upload-${upload.id}`} className="flex min-w-0 flex-col gap-2">
-            <div
-              className={`flex aspect-4/5 flex-col justify-end gap-2 rounded-rg-photo p-2 ${upload.state.kind === "failed" ? "bg-rg-fill ring-2 ring-rg-ink ring-inset" : "bg-rg-fill-strong"}`}
-            >
+        {inProgress.map((upload) => (
+          <li key={`upload-${upload.id}`} className="min-w-0">
+            <Card tone="outline" className="flex aspect-4/5 flex-col justify-end gap-2 p-3">
               {upload.state.kind === "preparing" ? (
-                <p className={CAPTION}>{t.photos.preparing}</p>
+                <Text look="hint">{t.photos.preparing}</Text>
               ) : null}
               {upload.state.kind === "uploading" ? (
                 <>
                   <progress
-                    className="h-1.5 w-full accent-rg-ink"
+                    className="h-2 w-full accent-ink"
                     max={upload.state.progress?.total ?? 1}
                     value={upload.state.progress?.sent ?? undefined}
                     aria-label={t.photos.uploading}
                   />
-                  <p className={CAPTION}>
+                  <Text look="hint">
                     {upload.state.progress === null
                       ? t.photos.uploading
                       : uploadProgressText(upload.state.progress.sent, upload.state.progress.total)}
-                  </p>
+                  </Text>
                 </>
               ) : null}
-              {upload.state.kind === "failed" ? (
-                <p role="alert" className={ERROR_TEXT}>
-                  {upload.state.message}
-                </p>
-              ) : null}
-            </div>
-            {upload.state.kind === "failed" ? (
-              <div className="flex flex-col items-start gap-1">
+            </Card>
+          </li>
+        ))}
+        {editable && room > 0 ? (
+          <li className="min-w-0">
+            <Card tone="outline" className="flex aspect-4/5 items-center justify-center p-3">
+              <Button variant="secondary" onClick={() => fileInput.current?.click()}>
+                {t.photos.add}
+              </Button>
+            </Card>
+          </li>
+        ) : null}
+        {failed.map((upload) =>
+          upload.state.kind === "failed" ? (
+            <li key={`upload-${upload.id}`} className="col-span-full flex flex-col gap-2">
+              <InlineStatus tone="error">{upload.state.message}</InlineStatus>
+              <div className="flex flex-wrap gap-2">
                 {upload.state.retryable ? (
-                  <Button variant="text" onClick={() => enqueue(upload)}>
+                  <Button variant="secondary" onClick={() => enqueue(upload)}>
                     {uk.kabinet.profileEdit.state.retry}
                   </Button>
                 ) : null}
                 <Button
-                  variant="text"
+                  variant="ghost"
                   aria-label={t.photos.dismissFailedName}
                   onClick={() => patchUpload(upload.id, null)}
                 >
                   {t.photos.dismissFailed}
                 </Button>
               </div>
-            ) : null}
-          </li>
-        ))}
-        {editable ? (
-          <li className="flex min-w-0 flex-col gap-2">
-            {room > 0 ? (
-              <>
-                <Button
-                  variant="secondary"
-                  className="aspect-4/5 w-full rounded-rg-photo border-2 border-dashed border-rg-ink-3"
-                  onClick={() => fileInput.current?.click()}
-                >
-                  {t.photos.add}
-                </Button>
-                <p className={CAPTION}>{t.photos.addHint}</p>
-              </>
-            ) : (
-              <p className={CAPTION}>
-                {fillTemplate(t.photos.capReached, { max: integer.format(MAX_ANIMAL_PHOTOS) })}
-              </p>
-            )}
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/*"
-              multiple
-              hidden
-              data-testid="photo-file-input"
-              onChange={(event) => {
-                choose(event.currentTarget.files);
-                event.currentTarget.value = "";
-              }}
-            />
-          </li>
-        ) : null}
+            </li>
+          ) : null,
+        )}
       </ul>
-      {editable && lastPhotoLocked ? (
-        <p id={lastPhotoNoteId} className={CAPTION}>
-          {lastPhotoText}
-        </p>
+      {editable ? (
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          data-testid="photo-file-input"
+          onChange={(event) => {
+            choose(event.currentTarget.files);
+            event.currentTarget.value = "";
+          }}
+        />
       ) : null}
-      <p className={CAPTION}>
+      {editable && room > 0 ? <Text look="hint">{t.photos.addHint}</Text> : null}
+      {editable && room <= 0 ? (
+        <Text look="hint">
+          {fillTemplate(t.photos.capReached, { max: integer.format(MAX_ANIMAL_PHOTOS) })}
+        </Text>
+      ) : null}
+      {editable && lastPhotoLocked ? (
+        <Text look="hint" id={lastPhotoNoteId}>
+          {lastPhotoText}
+        </Text>
+      ) : null}
+      <Text look="hint">
         {fillTemplate(t.photos.howItWorks, { px: integer.format(PHOTO_MAX_EDGE_PX) })}
-      </p>
-      <p className={CAPTION}>{t.photos.privacyNote}</p>
-      {visibleListing ? <p className={CAPTION}>{t.photos.dateMoves}</p> : null}
-      {removedOnce ? <p className={CAPTION}>{t.photos.removedStillReachable}</p> : null}
-      <p role="status" className={CAPTION}>
+      </Text>
+      <Text look="hint">{t.photos.privacyNote}</Text>
+      {visibleListing ? <Text look="hint">{t.photos.dateMoves}</Text> : null}
+      {removedOnce ? <Text look="hint">{t.photos.removedStillReachable}</Text> : null}
+      <p role="status" className="text-caption text-ink-2 empty:sr-only">
         {status}
       </p>
-    </section>
+    </>
   );
 }

@@ -1623,6 +1623,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         "kabinet.animalForm.validation.medicalNotesTooLong",
         // The sex-filter feature's one new gap word, pinned in its own block below.
         ...Object.keys(SEX_FILTER_COPY).filter((path) => path.startsWith("kabinet.animalForm.")),
+        // The form's section names (Phase 2 PR 3), pinned in their own block below.
+        ...Object.keys(FORM_SECTIONS_COPY),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -2190,6 +2192,35 @@ const SEX_FILTER_COPY: Record<string, string> = {
   "filters.sexUnknown": "Не записано",
   "kabinet.animalForm.publish.gap.sex": "стать",
 };
+
+/**
+ * The animal form's four section names (kabinet redesign Phase 2 PR 3), the owner's own words,
+ * 2026-10-28/29: "copy approved: «Основне», «Про тварину», «Здоровʼя» (ʼ U+02BC), «Публікація»".
+ * The photos section keeps `photos.title`.
+ */
+const FORM_SECTIONS_COPY: Record<string, string> = {
+  "kabinet.animalForm.sections.basics": "Основне",
+  "kabinet.animalForm.sections.about": "Про тварину",
+  "kabinet.animalForm.sections.health": "Здоровʼя",
+  "kabinet.animalForm.sections.publication": "Публікація",
+};
+
+describe("animal form section names", () => {
+  it.each(Object.entries(FORM_SECTIONS_COPY))("%s is the approved text, exactly", (path, text) => {
+    const found = path
+      .split(".")
+      .slice(1)
+      .reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+        uk.kabinet,
+      );
+    expect(found).toBe(text);
+  });
+
+  it("writes the apostrophe as U+02BC", () => {
+    expect(uk.kabinet.animalForm.sections.health).toContain(String.fromCodePoint(0x2bc));
+  });
+});
 
 describe("sex-filter copy", () => {
   const atRoot = (path: string): unknown =>
