@@ -253,6 +253,21 @@ export default function DevUiPage() {
             className="w-full"
           />
         </Row>
+        <Row label="PhotoSlider (tall 3:4, one full slide: the pet card)">
+          <PhotoSlider
+            photos={[
+              { src: "seed-photos/cat-1.jpg", alt: "" },
+              { src: "seed-photos/cat-2.jpg", alt: "" },
+            ]}
+            sizes="(max-width: 392px) calc(100vw - 32px), 360px"
+            label="Photos"
+            prevLabel="Previous photo"
+            nextLabel="Next photo"
+            aspect="tall"
+            slide="full"
+            className="w-full"
+          />
+        </Row>
         <Row label="Avatar: logo, initials (sm, md, lg)">
           <Avatar kind="logo" src="seed-photos/cat-4.jpg" />
           <Avatar kind="initials" name="Домівка друзів" size="sm" />

@@ -13,6 +13,7 @@ const ASPECT = {
   square: "aspect-square",
   wide: "aspect-3/2",
   portrait: "aspect-4/5",
+  tall: "aspect-3/4",
 } as const;
 
 export type PhotoProps = {
