@@ -191,8 +191,22 @@ export type Segment<T extends string> = {
 };
 
 /**
+ * Shared look of a segmented track and its segments (the radio control below and the gallery's link
+ * species toggle). The 4px inset all round is the 2px border plus 2px padding, so a 44px segment fills
+ * the 52px track and its 8px radius follows the 12px outer curve.
+ */
+export const SEGMENT_TRACK = "flex min-h-13 gap-1 rounded-field border-2 bg-page p-0.5";
+export const SEGMENT =
+  "relative flex min-h-11 min-w-16 flex-1 items-center justify-center rounded-tag px-4 text-center text-label";
+// A 48px hit area on a 44px segment: the pseudo-element reaches 2px into the track padding, under the label text.
+export const SEGMENT_HIT = "before:absolute before:inset-x-0 before:-inset-y-0.5 *:relative";
+export const SEGMENT_ON = "bg-ink text-on-ink";
+export const SEGMENT_OFF = "text-ink-2 hover:bg-line";
+
+/**
  * A segmented control built from native radio buttons: arrow keys move the choice and a screen reader
- * announces "1 of 3", with nothing re-implemented. Segments wrap onto more lines when they do not fit.
+ * announces "1 of 3", with nothing re-implemented. Full width on a phone, shrink-to-fit from `tablet:`;
+ * segments wrap onto more lines when they do not fit.
  * `value` null means nothing chosen yet, which shows no segment selected.
  */
 export function SegmentedControl<T extends string>({
@@ -229,11 +243,22 @@ export function SegmentedControl<T extends string>({
       aria-invalid={error ? true : undefined}
     >
       <legend className={cx(LABEL, "mb-2")}>{legend}</legend>
-      <div className={cx("flex flex-wrap gap-1 rounded-field bg-line p-1", error ? INVALID : "")}>
+      <div
+        className={cx(
+          SEGMENT_TRACK,
+          "w-full flex-wrap border-line tablet:w-fit",
+          error ? INVALID : "",
+        )}
+      >
         {segments.map((segment) => (
           <label
             key={segment.value}
-            className="flex min-h-target min-w-0 flex-auto cursor-pointer flex-col items-center justify-center rounded-field px-2 py-1 text-center text-label text-ink focus-ring-within has-checked:bg-ink has-checked:text-on-ink has-disabled:cursor-default tablet:px-4"
+            className={cx(
+              SEGMENT,
+              SEGMENT_HIT,
+              "cursor-pointer flex-col focus-ring-within has-disabled:cursor-default tablet:flex-none",
+              value === segment.value ? SEGMENT_ON : SEGMENT_OFF,
+            )}
           >
             <input
               type="radio"

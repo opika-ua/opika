@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { useOptimistic, useTransition } from "react";
 import { Chip } from "../../ui/Chip";
 import { cx } from "../../ui/cx";
+import { SEGMENT, SEGMENT_HIT, SEGMENT_OFF, SEGMENT_ON, SEGMENT_TRACK } from "../../ui/form";
 import { Popover } from "../../ui/Popover";
 import { CityFacetChoices } from "./CityFacetChoices";
 import {
@@ -101,7 +102,7 @@ function FacetSelector<T extends string>({
         href: clearHref,
         label: fillTemplate(uk.filters.clearDimension, { dimension: label }),
       }}
-      className="min-w-44 max-w-53 flex-initial"
+      className="min-w-36 max-w-40 flex-initial"
     >
       {body ? body(pill) : options.map(pill)}
     </Popover>
@@ -159,11 +160,7 @@ export function SpeciesToggle({
       role="group"
       aria-label={uk.filters.species}
       data-testid={`species-toggle${testIdSuffix}`}
-      className={cx(
-        "flex h-13 items-stretch gap-1 rounded-field border-2 bg-page px-1",
-        active ? "border-accent" : "border-line",
-        className,
-      )}
+      className={cx(SEGMENT_TRACK, active ? "border-accent" : "border-line", className)}
     >
       {options.map(({ species, label, testid }) => {
         const segmentActive =
@@ -182,8 +179,10 @@ export function SpeciesToggle({
             aria-current={segmentActive ? "true" : undefined}
             data-testid={`${testid}${testIdSuffix}`}
             className={cx(
-              "flex min-w-11 flex-1 items-center justify-center rounded-field px-3 text-label focus-ring",
-              segmentActive ? "bg-ink text-on-ink" : "text-ink-2",
+              SEGMENT,
+              SEGMENT_HIT,
+              "focus-ring",
+              segmentActive ? SEGMENT_ON : SEGMENT_OFF,
             )}
           >
             {label}
@@ -231,7 +230,7 @@ export function GalleryFilterDropdowns({
     <div
       data-testid="gallery-filter-dropdowns"
       // Wraps: five controls at their natural width don't fit the 912px a 1024px window leaves.
-      className="hidden min-w-0 flex-1 flex-wrap items-center gap-3 desktop:flex"
+      className="hidden min-w-0 flex-1 flex-wrap items-center gap-2 desktop:flex"
     >
       <SpeciesToggle filters={filters} sort={sort} citySlugs={citySlugs} />
 
