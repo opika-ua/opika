@@ -72,6 +72,9 @@ catalogs:
     drizzle-orm:
       specifier: 0.45.2
       version: 0.45.2
+    fflate:
+      specifier: 0.8.3
+      version: 0.8.3
     happy-dom:
       specifier: 21.0.4
       version: 21.0.4
@@ -260,6 +263,9 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(kysely@0.29.6)(postgres@3.4.9)
+      fflate:
+        specifier: 'catalog:'
+        version: 0.8.3
       postgres:
         specifier: 'catalog:'
         version: 3.4.9
@@ -2117,6 +2123,9 @@ packages:
       picomatch:
         optional: true
 
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
+
   fsevents@2.3.2:
     resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -3973,6 +3982,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
       picomatch: 4.0.7
+
+  fflate@0.8.3: {}
 
   fsevents@2.3.2:
     optional: true

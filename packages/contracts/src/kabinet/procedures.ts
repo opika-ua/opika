@@ -25,6 +25,7 @@ import {
   normalizeFreshnessSentenceText,
   PauseCodeSchema,
   type PauseReason,
+  RegionIdSchema,
   RejectionCodeSchema,
   ShelterAdminIdSchema,
   ShelterContactSchema,
@@ -62,6 +63,8 @@ import {
   KabinetAnimalRowViewSchema,
   KabinetAnimalViewSchema,
   KabinetShelterViewSchema,
+  PLACE_SEARCH_MAX_QUERY_LENGTH,
+  PlaceSearchResultSchema,
   RegistryShelterRowViewSchema,
   RegistryShelterViewSchema,
   ShelterHistoryItemViewSchema,
@@ -962,4 +965,24 @@ export const kabinetInvitationContract = {
       RATE_LIMITED: apiErrors.RATE_LIMITED,
       FORBIDDEN: apiErrors.FORBIDDEN,
     }),
+};
+
+/**
+ * The place search behind the operator's city picker (nationwide N2). A kabinet POST like every
+ * other call, so it sits behind the session, the same-origin check and the kabinet's per-user and
+ * per-IP limits; a public GET would have needed a hole in the pre-launch gate. The query is capped,
+ * the answer is capped (`PLACE_SEARCH_MAX_RESULTS`), and `regionBias` ranks an oblast first
+ * without ever filtering.
+ */
+export const registryCitiesContract = {
+  search: kabinet
+    .$meta(registry)
+    .input(
+      z.strictObject({
+        query: z.string().max(PLACE_SEARCH_MAX_QUERY_LENGTH),
+        regionBias: RegionIdSchema.nullable(),
+      }),
+    )
+    .output(PlaceSearchResultSchema)
+    .errors({ UNAUTHENTICATED: apiErrors.UNAUTHENTICATED, FORBIDDEN: apiErrors.FORBIDDEN }),
 };

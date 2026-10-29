@@ -19,6 +19,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx src/seed.ts",
+    "db:import-settlements": "tsx src/import/import-settlements.ts",
     "onboard:shelter": "tsx src/onboard-shelter.ts",
     "test-db:ensure": "tsx src/test-utils/ensure-test-database.ts",
     "test-db:reset": "tsx src/test-utils/reset-test-database.ts",
@@ -43,6 +44,7 @@
     "@neondatabase/serverless": "catalog:",
     "@opika/domain": "workspace:*",
     "drizzle-orm": "catalog:",
+    "fflate": "catalog:",
     "postgres": "catalog:",
     "sharp": "catalog:",
     "zod": "catalog:"

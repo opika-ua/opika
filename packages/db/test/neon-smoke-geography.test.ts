@@ -15,7 +15,7 @@ describe("runGeographySmoke against the local database", () => {
 
   it("passes every check, and there are 10", async () => {
     // A child branch of production already holds these 8; the local database starts empty.
-    await cityRepo(db).upsertMany(buildCities());
+    await cityRepo(db).insertMissing(buildCities());
     const outcomes = await runGeographySmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
     expect(outcomes).toHaveLength(10);
