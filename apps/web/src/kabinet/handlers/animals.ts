@@ -61,7 +61,6 @@ export type AnimalDeps = Pick<KabinetContext, "db" | "now" | "newId">;
 
 export type OwnErrors = ORPCErrorConstructorMap<{
   NOT_FOUND: typeof apiErrors.NOT_FOUND;
-  FORBIDDEN: typeof apiErrors.FORBIDDEN;
 }>;
 type MoveErrors = OwnErrors &
   ORPCErrorConstructorMap<{ ILLEGAL_TRANSITION: typeof apiErrors.ILLEGAL_TRANSITION }>;
@@ -139,11 +138,10 @@ export function kabinetAnimalRowOf(animal: Animal, now: Date): KabinetAnimalRowV
 }
 
 /**
- * The ownership check every animal procedure starts with (S3-Q2, Oleksii): an
- * id that exists nowhere is NOT_FOUND; one that belongs to another shelter is
- * FORBIDDEN. The trade accepted there: FORBIDDEN confirms an id exists
- * elsewhere, but animal ids are public on every feed card and draft ids are
- * unguessable UUIDs.
+ * The ownership check every animal procedure starts with. Another shelter's id
+ * is NOT_FOUND, indistinguishable from an id that exists nowhere (QA-2026-10-29:
+ * the earlier FORBIDDEN confirmed an id existed). Id and shelter are one query,
+ * so both cases take the same path; the answer never depends on adopter activity.
  */
 export async function owned(
   deps: AnimalDeps,
@@ -151,9 +149,8 @@ export async function owned(
   animalId: AnimalId,
   errors: OwnErrors,
 ): Promise<{ animal: Animal; cityId: CityId; firstPublishedAt: Date | null }> {
-  const found = await kabinetAnimalRepo(deps.db).findWithCity(animalId);
+  const found = await kabinetAnimalRepo(deps.db).findOwnedWithCity(animalId, scope.shelterId);
   if (found === null) throw errors.NOT_FOUND();
-  if (found.animal.shelterId !== scope.shelterId) throw errors.FORBIDDEN();
   return found;
 }
 

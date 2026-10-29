@@ -16,6 +16,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
+    "icons:generate": "node scripts/generate-pwa-icons.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:harness": "node ./test/run-harness.mjs",
@@ -47,6 +48,7 @@
   "devDependencies": {
     "@playwright/test": "catalog:",
     "@tailwindcss/postcss": "catalog:",
+    "sharp": "catalog:",
     "@testing-library/react": "catalog:",
     "@testing-library/user-event": "catalog:",
     "@types/node": "catalog:",

@@ -1,9 +1,20 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { shelterKabinetContract } from "@opika/contracts";
-import { animalRepo, cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
 import {
+  adopterRepo,
+  animalRepo,
+  cityRepo,
+  kabinetShelterRepo,
+  shelterRepo,
+  swipeRepo,
+} from "@opika/db/repos";
+import {
+  makeAdopter,
   makeAnimal,
   makeCity,
   makeShelter,
+  makeSwipe,
   setupTestDatabase,
   testJpeg,
   truncateAll,
@@ -20,8 +31,9 @@ import { inMemoryRateLimiter } from "./rate-limit";
 import { fromRpcBody, rpcRequestInit } from "./test-harness";
 
 /**
- * S3-Q2 (Oleksii): shelter A's member acting on shelter B's animal or shelter
- * gets FORBIDDEN, for every shelter-scoped procedure, confirm and undoConfirm
+ * S3-Q2 (Oleksii), revised by QA-2026-10-29: shelter A's member acting on
+ * shelter B's animal gets NOT_FOUND (a foreign id is a missing id), where a
+ * shelter-level input is simply absent; for every shelter-scoped procedure, confirm and undoConfirm
  * included. PR #85 merges only with all sixteen as real tests over real
  * handlers (S3-Q3), so these go through the served router: a real `Request`,
  * the access middleware, the handler, real Postgres. Only identity is
@@ -30,11 +42,11 @@ import { fromRpcBody, rpcRequestInit } from "./test-harness";
  *
  * Two kinds of procedure, because their inputs differ:
  * - **The nine that take an `animalId`** (six animal procedures, three photo
- *   ones) can name B's animal. That is FORBIDDEN, and B's animal is left
- *   exactly as it was; an upload to it stores nothing.
+ *   ones) can name B's animal. That is NOT_FOUND, the same as a missing id
+ *   (QA-2026-10-29), and B's animal is left exactly as it was; an upload to it stores nothing.
  * - **The ten that take no id** (profile, verification, list, createDraft)
  *   can't name B at all: `shelterId` is in no `shelter.*` input and comes
- *   from the actor. FORBIDDEN is impossible there by construction. Inputs
+ *   from the actor. A cross-tenant refusal is impossible there by construction. Inputs
  *   are strict (HS-T5, Oleksii), so A smuggling `shelterId: B` in is
  *   BAD_REQUEST, B is left untouched, and nothing of B's is in the answer.
  */
@@ -153,65 +165,80 @@ async function snapshotOfB() {
 
 const errorCode = (body: unknown) => (body as { json?: { code?: string }; code?: string })?.code;
 
-describe("cross-tenant: an animalId from another shelter is FORBIDDEN", () => {
-  const cases: [string, () => unknown][] = [
-    ["shelter.animals.byId", () => ({ animalId: bPublished.id })],
-    [
-      "shelter.animals.update",
-      () => ({
-        animalId: bPublished.id,
-        expectedVersion: bPublished.version,
-        patch: { name: "Чужий" },
-      }),
-    ],
-    ["shelter.animals.transition", () => ({ animalId: bPublished.id, event: { type: "reserve" } })],
-    ["shelter.animals.confirm", () => ({ animalId: bPublished.id })],
-    ["shelter.animals.undoConfirm", () => ({ animalId: bPublished.id })],
-    ["shelter.animals.deleteDraft", () => ({ animalId: bDraft.id })],
-    [
-      "shelter.photos.add",
-      async () => ({
-        animalId: bPublished.id,
-        file: new File([new Uint8Array(await testJpeg())], "b.jpg", { type: "image/jpeg" }),
-      }),
-    ],
-    [
-      "shelter.photos.reorder",
-      () => ({
-        animalId: bPublished.id,
-        expectedPhotoKeys: ["animals/b/one"],
-        nextPhotoKeys: ["animals/b/one"],
-      }),
-    ],
-    [
-      "shelter.photos.remove",
-      () => ({
-        animalId: bPublished.id,
-        expectedPhotoKeys: ["animals/b/one"],
-        storageKey: "animals/b/one",
-      }),
-    ],
-  ];
+/**
+ * QA-2026-10-29: another shelter's animal answers exactly what a missing id
+ * answers, so the API is no oracle for which ids exist. Each procedure is
+ * called twice, once with B's id and once with a random UUID, and the two
+ * responses must be deeply equal (status, code, message, body shape).
+ */
+const animalIdCases: [string, (id: string) => unknown | Promise<unknown>][] = [
+  ["shelter.animals.byId", (id) => ({ animalId: id })],
+  [
+    "shelter.animals.update",
+    (id) => ({ animalId: id, expectedVersion: bPublished.version, patch: { name: "Чужий" } }),
+  ],
+  ["shelter.animals.transition", (id) => ({ animalId: id, event: { type: "reserve" } })],
+  ["shelter.animals.confirm", (id) => ({ animalId: id })],
+  ["shelter.animals.undoConfirm", (id) => ({ animalId: id })],
+  ["shelter.animals.deleteDraft", (id) => ({ animalId: id })],
+  [
+    "shelter.photos.add",
+    async (id) => ({
+      animalId: id,
+      file: new File([new Uint8Array(await testJpeg())], "b.jpg", { type: "image/jpeg" }),
+    }),
+  ],
+  [
+    "shelter.photos.reorder",
+    (id) => ({
+      animalId: id,
+      expectedPhotoKeys: ["animals/b/one"],
+      nextPhotoKeys: ["animals/b/one"],
+    }),
+  ],
+  [
+    "shelter.photos.remove",
+    (id) => ({
+      animalId: id,
+      expectedPhotoKeys: ["animals/b/one"],
+      storageKey: "animals/b/one",
+    }),
+  ],
+];
 
-  for (const [procedure, input] of cases) {
-    it(`cross-tenant: ${procedure}`, async () => {
-      const before = await snapshotOfB();
-      stored.length = 0;
-      const result = await call(procedure, await input());
-      expect(result.status).toBe(403);
-      expect(errorCode(result.body)).toBe("FORBIDDEN");
-      expect(await snapshotOfB()).toEqual(before);
-      expect(stored).toEqual([]);
-    });
+describe("cross-tenant: an animalId from another shelter is NOT_FOUND, same as a missing one", () => {
+  for (const [procedure, input] of animalIdCases) {
+    for (const [label, foreignId] of [
+      ["a published animal", () => bPublished.id],
+      ["a draft", () => bDraft.id],
+    ] as const) {
+      it(`${procedure}: ${label}`, async () => {
+        const before = await snapshotOfB();
+        stored.length = 0;
+        const foreign = await call(procedure, await input(foreignId()));
+        const missing = await call(procedure, await input(crypto.randomUUID()));
+        expect(foreign.status).toBe(404);
+        expect(errorCode(foreign.body)).toBe("NOT_FOUND");
+        expect(foreign).toEqual(missing);
+        const serialized = JSON.stringify(foreign.body);
+        expect(serialized).not.toContain(bPublished.id);
+        expect(serialized).not.toContain(bDraft.id);
+        expect(await snapshotOfB()).toEqual(before);
+        expect(stored).toEqual([]);
+      });
+    }
   }
 
-  /** The other half of S3-Q2's rule: an id that exists nowhere is NOT_FOUND, not FORBIDDEN. */
-  it("an animalId that exists nowhere is NOT_FOUND", async () => {
-    const result = await call("shelter.animals.byId", { animalId: crypto.randomUUID() });
-    expect(result.status).toBe(404);
+  it("the answer doesn't vary with adopter activity on the foreign animal (commitment #2)", async () => {
+    const before = await call("shelter.animals.byId", { animalId: bPublished.id });
+    const adopter = makeAdopter();
+    await adopterRepo(db).insert(adopter);
+    await swipeRepo(db).record(makeSwipe({ adopterId: adopter.id, animalId: bPublished.id }));
+    const after = await call("shelter.animals.byId", { animalId: bPublished.id });
+    expect(after).toEqual(before);
   });
 
-  it("the same call on A's own animal succeeds (the 403 above is about the owner, not the call)", async () => {
+  it("the same call on A's own animal succeeds (the 404 above is about the owner, not the call)", async () => {
     const result = await call("shelter.animals.confirm", { animalId: aPublished.id });
     expect(result.status).toBe(200);
   });
@@ -307,6 +334,51 @@ describe("cross-tenant: history", () => {
     expect(result.status).toBe(200);
     expect((result.body as { items: unknown[] }).items).toEqual([]);
     expect(JSON.stringify(result.body)).not.toContain("Тільки Б");
+  });
+});
+
+describe("coverage of animal-id procedures", () => {
+  /** A new `shelter.*` procedure whose input names an animal must join `animalIdCases`, or this fails. */
+  it("every contract procedure whose input has an animalId is in the foreign-vs-missing table", () => {
+    const withAnimalId: string[] = [];
+    const walk = (node: object, prefix: string) => {
+      for (const [key, value] of Object.entries(node)) {
+        const path = `${prefix}.${key}`;
+        if (value !== null && Object.getPrototypeOf(value) === Object.prototype) {
+          walk(value as object, path);
+          continue;
+        }
+        const schema = (value as { "~orpc"?: { inputSchema?: { shape?: object } } })["~orpc"]
+          ?.inputSchema;
+        if (schema?.shape && "animalId" in schema.shape) withAnimalId.push(path);
+      }
+    };
+    walk(shelterKabinetContract.shelter, "shelter");
+    expect(withAnimalId.length).toBeGreaterThan(0);
+    const inTable = animalIdCases.map(([path]) => path);
+    const missing = withAnimalId.filter((path) => !inTable.includes(path));
+    const stale = inTable.filter((path) => !withAnimalId.includes(path));
+    expect({ missingFromTable: missing, notInContract: stale }).toEqual({
+      missingFromTable: [],
+      notInContract: [],
+    });
+  });
+
+  /** Ownership has one door: handlers read an animal through `owned`, never the unscoped `findWithCity`. */
+  it("no kabinet handler or page reads an animal by id without the shelter in the query", () => {
+    const root = join(__dirname, "..");
+    const offenders: string[] = [];
+    const visit = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) visit(full);
+        else if (/\.(ts|tsx)$/.test(entry.name) && !/\.test\./.test(entry.name)) {
+          if (/\.findWithCity\(/.test(readFileSync(full, "utf8"))) offenders.push(full);
+        }
+      }
+    };
+    for (const sub of ["kabinet", "features/kabinet", "app/kabinet"]) visit(join(root, sub));
+    expect(offenders).toEqual([]);
   });
 });
 

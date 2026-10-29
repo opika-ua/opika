@@ -217,6 +217,9 @@ importers:
       postcss:
         specifier: 'catalog:'
         version: 8.5.25
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.5(@types/node@24.13.3)
       tailwindcss:
         specifier: 'catalog:'
         version: 4.3.3

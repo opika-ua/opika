@@ -81,8 +81,8 @@ import {
  *
  * `shelterId` never appears in a `shelter.*` input. It comes from the actor,
  * so a shelter admin has no field to put another shelter's id in. Animal ids
- * do appear, and a handler that finds one belonging to another shelter answers
- * FORBIDDEN (S3-Q2), which is why every shelter-scoped procedure declares it.
+ * do appear, and one belonging to another shelter answers NOT_FOUND, the same
+ * as a missing id (QA-2026-10-29). FORBIDDEN stays declared for role refusals.
  */
 
 /** Opaque and signed, like the feed's: the handler binds it to its list and filters. */
