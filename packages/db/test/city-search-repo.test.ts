@@ -174,17 +174,10 @@ describe("cyrillicTrigramsAvailable with a failing database", () => {
   });
 });
 
-describe("cityRepo.findPickableById", () => {
-  it("finds what the picker offers, and refuses Crimea, Sevastopol and retired settlements", async () => {
+describe("cityRepo.findCurrentById", () => {
+  it("finds a current settlement and refuses a retired one", async () => {
     const [offered] = await find("Фастів");
-    expect(await cityRepo(db).findPickableById((offered?.id ?? "") as never)).not.toBeNull();
-
-    for (const code of ["UA01", "UA85"]) {
-      const hidden = makeCity({ regionId: regionId(code) });
-      await cityRepo(db).insert(hidden);
-      expect(await cityRepo(db).findPickableById(hidden.id)).toBeNull();
-      expect(await cityRepo(db).findById(hidden.id)).not.toBeNull();
-    }
+    expect(await cityRepo(db).findCurrentById((offered?.id ?? "") as never)).not.toBeNull();
 
     const without = buildXlsx(FIXTURE_ROWS.filter((r) => r[6] !== "Борова"));
     const [retiring] = await find("Борова");
@@ -194,6 +187,6 @@ describe("cityRepo.findPickableById", () => {
       commit: true,
       editions: [pinFor(without, { K: 2, M: 8, X: 0, C: 11 })],
     });
-    expect(await cityRepo(db).findPickableById((retiring?.id ?? "") as never)).toBeNull();
+    expect(await cityRepo(db).findCurrentById((retiring?.id ?? "") as never)).toBeNull();
   });
 });

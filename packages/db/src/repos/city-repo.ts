@@ -1,8 +1,7 @@
 import type { City, CityId } from "@opika/domain";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "../client";
 import { cities } from "../schema/cities";
-import { pickableCity } from "./city-search-repo";
 import { cityToRow, rowToCity } from "./mappers";
 
 export function cityRepo(db: Database) {
@@ -13,12 +12,12 @@ export function cityRepo(db: Database) {
       return row ? rowToCity(row) : null;
     },
 
-    /** `findById`, but only a settlement the picker may offer: never Crimea, Sevastopol or a retired one. */
-    async findPickableById(id: CityId): Promise<City | null> {
+    /** `findById`, but not a retired settlement (the picker never offers one either; regions are not special). */
+    async findCurrentById(id: CityId): Promise<City | null> {
       const rows = await db
         .select()
         .from(cities)
-        .where(and(eq(cities.id, id), pickableCity))
+        .where(and(eq(cities.id, id), isNull(cities.retiredInEdition)))
         .limit(1);
       const row = rows[0];
       return row ? rowToCity(row) : null;

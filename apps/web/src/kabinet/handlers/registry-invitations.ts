@@ -218,7 +218,7 @@ export async function registrySheltersCreate(
   if (accepted.kind === "refused") {
     throw errors.INVALID_EVIDENCE({ data: { reason: accepted.reason } });
   }
-  if ((await cityRepo(deps.db).findPickableById(input.exactAddress.cityId as CityId)) === null) {
+  if ((await cityRepo(deps.db).findCurrentById(input.exactAddress.cityId as CityId)) === null) {
     // A client fault (the form offers known cities only), not one of the
     // contract's typed refusals; answered as a bad request, never a 500.
     throw new ORPCError("BAD_REQUEST", { status: 400, message: UNKNOWN_CITY_MESSAGE });
