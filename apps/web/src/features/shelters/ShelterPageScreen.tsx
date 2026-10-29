@@ -22,9 +22,6 @@ import type { ShelterPageView } from "./shelter-page-load";
 import { shelterPageHref } from "./shelter-url";
 import { shelterWordsOf } from "./shelter-words";
 
-/** As the gallery: the first row's photos load eagerly (`tvaryny/page.tsx`'s own `PRIORITY_ROW_SIZE`). */
-const PRIORITY_ROW_SIZE = 2;
-
 /** The shelter page parses no filters, so `GalleryCard`'s href gets the "never consulted" pair (as the saved page). */
 const EMPTY_CITY_SLUGS: CitySlugsById = new Map();
 
@@ -188,12 +185,11 @@ export function ShelterPageScreen({
                 labelledBy={animalsHeadingId}
                 className="grid grid-cols-1 gap-4 tablet:grid-cols-2 desktop:grid-cols-4 desktop:gap-7.5"
               >
-                {animals.items.map((card, index) => (
+                {animals.items.map((card) => (
                   <li key={card.id} className="flex flex-col">
                     <GalleryCard
                       card={card}
                       cityName={cityNames.get(cardCityId(card)) ?? null}
-                      priority={index < PRIORITY_ROW_SIZE}
                       filters={NO_FILTERS}
                       sort={query.sort}
                       citySlugs={EMPTY_CITY_SLUGS}
