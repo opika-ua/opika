@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { statisticsLine } from "../src/import/import-settlements";
 import { type ImportOutcome, runImport } from "../src/import/importer";
+import { maintenanceLines } from "../src/import/post-import-maintenance";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
@@ -300,51 +300,101 @@ describe("db:seed after an import", () => {
   });
 });
 
-describe("planner statistics after a commit", () => {
-  /** The real database, with every `db.execute` recorded and, optionally, ANALYZE made to fail. */
-  const watched = (failAnalyze = false) => {
-    const executed: string[] = [];
+describe("planner statistics and GIN pending lists after a commit", () => {
+  const FAST = { attempts: 2, waitMs: 5 };
+  type Seen = { text: string; codedCitiesThen: number };
+  /** The real database; every `db.execute` recorded with how many imported cities existed at that moment. */
+  const watched = (
+    options: { swallowAnalyze?: boolean; failOn?: string; failAnalyze?: boolean } = {},
+  ) => {
+    const seen: Seen[] = [];
     const proxy = new Proxy(db, {
       get(target, prop, receiver) {
         if (prop !== "execute") return Reflect.get(target, prop, receiver);
-        return (query: { queryChunks?: unknown }) => {
+        return async (query: { queryChunks?: unknown }) => {
           const text = JSON.stringify(query.queryChunks ?? "");
-          executed.push(text);
-          if (failAnalyze && text.includes("ANALYZE")) return Promise.reject(new Error("boom"));
+          const [{ n } = { n: 0 }] = await db
+            .select({ n: sql<number>`count(*)::int` })
+            .from(cities)
+            .where(isNotNull(cities.katottgCode));
+          seen.push({ text, codedCitiesThen: n });
+          if (options.failAnalyze && text.includes("ANALYZE cities")) throw new Error("boom");
+          if (options.failOn && text.includes(options.failOn)) throw new Error("no permission");
+          if (options.swallowAnalyze && text.includes("ANALYZE cities")) return [];
           return (target.execute as (q: unknown) => unknown)(query);
         };
       },
     });
-    return { db: proxy, analyzed: () => executed.filter((t) => t.includes("ANALYZE cities")) };
+    const of = (needle: string) => seen.filter((e) => e.text.includes(needle));
+    return {
+      db: proxy,
+      analyzed: () => of("ANALYZE cities"),
+      cleaned: () => of("gin_clean_pending_list"),
+    };
   };
+  const go = (w: { db: typeof db }, commit = true, editions = [pin]) =>
+    runImport({ db: w.db, bytes, commit, editions, verify: FAST });
 
-  it("analyzes cities once, after a commit", async () => {
+  it("analyzes once and merges both trigram pending lists, one statement each, after a commit", async () => {
     const w = watched();
-    const outcome = committed(await runImport({ db: w.db, bytes, commit: true, editions: [pin] }));
+    const outcome = committed(await go(w));
     expect(w.analyzed()).toHaveLength(1);
-    expect(outcome.statistics).toEqual({ kind: "refreshed" });
+    expect(w.cleaned()).toHaveLength(2);
+    expect(
+      w
+        .cleaned()
+        .map((e) => e.text)
+        .join(),
+    ).toContain("cities_search_name_trgm_idx");
+    expect(
+      w
+        .cleaned()
+        .map((e) => e.text)
+        .join(),
+    ).toContain("cities_search_latin_trgm_idx");
+    expect(outcome.maintenance?.statistics).toEqual({ kind: "refreshed" });
+    expect(outcome.maintenance?.pendingLists.map((p) => p.kind)).toEqual(["merged", "merged"]);
+    expect(maintenanceLines(outcome.maintenance).join(" | ")).toMatch(
+      /Planner statistics refreshed: ANALYZE cities[\s\S]*cities_search_name_trgm_idx, \d+ pages cleaned[\s\S]*cities_search_latin_trgm_idx, \d+ pages cleaned/,
+    );
   });
 
-  it("does not analyze on a dry run", async () => {
+  it("runs both AFTER the data is applied, never before", async () => {
     const w = watched();
-    const outcome = await runImport({ db: w.db, bytes, commit: false, editions: [pin] });
-    expect(outcome.kind).toBe("planned");
-    expect(w.analyzed()).toHaveLength(0);
-    expect(outcome.kind === "planned" && outcome.statistics).toBeNull();
+    await go(w);
+    // 'codedCitiesThen' counts imported rows at the moment each statement ran: zero would mean it
+    // ran before applyPlan.
+    for (const step of [...w.analyzed(), ...w.cleaned()]) {
+      expect(step.codedCitiesThen).toBeGreaterThan(0);
+    }
   });
 
-  it("does not analyze when the run is refused", async () => {
-    const w = watched();
-    const outcome = await runImport({ db: w.db, bytes, commit: true, editions: [] });
-    expect(outcome.kind).toBe("refused");
-    expect(w.analyzed()).toHaveLength(0);
+  it("does neither on a dry run or a refusal", async () => {
+    const dry = watched();
+    const planned = await go(dry, false);
+    expect(planned.kind).toBe("planned");
+    expect(planned.kind === "planned" && planned.maintenance).toBeNull();
+    const refused = watched();
+    expect((await go(refused, true, [])).kind).toBe("refused");
+    for (const w of [dry, refused]) {
+      expect(w.analyzed()).toHaveLength(0);
+      expect(w.cleaned()).toHaveLength(0);
+    }
   });
 
-  it("a failed ANALYZE leaves the committed data in place and is reported, not thrown", async () => {
-    const w = watched(true);
-    const outcome = committed(await runImport({ db: w.db, bytes, commit: true, editions: [pin] }));
-    expect(outcome.statistics).toEqual({ kind: "failed", message: "boom" });
+  it("a failing ANALYZE or cleanup is a value and leaves the committed data in place", async () => {
+    const w = watched({ failAnalyze: true, failOn: "cities_search_latin_trgm_idx" });
+    const outcome = committed(await go(w));
+    expect(outcome.maintenance?.statistics).toEqual({ kind: "failed", message: "boom" });
+    expect(outcome.maintenance?.pendingLists).toEqual([
+      expect.objectContaining({ index: "cities_search_name_trgm_idx", kind: "merged" }),
+      { index: "cities_search_latin_trgm_idx", kind: "failed", message: "no permission" },
+    ]);
     expect(outcome.remaining).toBe(0);
+    const text = maintenanceLines(outcome.maintenance).join(" | ");
+    expect(text).toMatch(/WARNING: .*ANALYZE cities did not take effect/);
+    expect(text).toMatch(/WARNING: .*cities_search_latin_trgm_idx failed/);
+    expect(text).not.toMatch(/refreshed/);
     const [{ n } = { n: 0 }] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(cities)
@@ -352,10 +402,13 @@ describe("planner statistics after a commit", () => {
     expect(n).toBeGreaterThan(0);
   });
 
-  it("the CLI says so either way", () => {
-    expect(statisticsLine({ kind: "refreshed" })[0]).toBe(
-      "Planner statistics refreshed: ANALYZE cities",
-    );
-    expect(statisticsLine({ kind: "failed", message: "boom" })[0]).toMatch(/^WARNING: .*boom/);
+  it("does not claim 'refreshed' when ANALYZE returns but the role was not allowed to run it", async () => {
+    // Postgres only WARNs for a non-owner; the stand-in swallows the statement, so last_analyze
+    // stays where it was.
+    await db.execute(sql`SELECT pg_stat_reset_single_table_counters('cities'::regclass)`);
+    const w = watched({ swallowAnalyze: true });
+    const outcome = committed(await go(w));
+    expect(outcome.maintenance?.statistics.kind).toBe("failed");
+    expect(maintenanceLines(outcome.maintenance).join(" | ")).not.toContain("refreshed");
   });
 });

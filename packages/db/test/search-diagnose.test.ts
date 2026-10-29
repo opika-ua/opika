@@ -2,8 +2,10 @@ import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { placeQueryOf } from "@opika/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AMBIENT_CONNECTION_VARIABLES } from "../src/prod-guard";
+import { searchStatement } from "../src/repos/city-search-repo";
 import { setupTestDatabase, testDatabaseUrl } from "../src/test-utils/index";
 import {
   assertReadOnly,
@@ -29,60 +31,87 @@ const PROD = "postgresql://u:secret@ep-quiet-lake-a1b2c3-pooler.eu-central-1.aws
 const CHILD = "postgresql://u:secret@ep-other-hill-d4e5f6-pooler.eu-central-1.aws.neon.tech/neondb";
 const LOCAL = "postgres://opika:opika@localhost:5433/opika";
 
-describe("diagnoseTarget", () => {
+describe("diagnoseTarget (the importer's own decision)", () => {
+  const NO_FILE = resolve(tmpdir(), "opika-prod-guard-test-no-such-file.env");
+  const env = (endpoint?: string) => ({
+    PROD_GUARD_ENV_FILE: NO_FILE,
+    ...(endpoint === undefined ? {} : { PROD_NEON_ENDPOINT: endpoint }),
+  });
+  const CHILD_EP = "ep-other-hill-d4e5f6";
+
   it("lets a local database through without --expect", () => {
-    expect(diagnoseTarget(LOCAL, [], undefined, {})).toEqual({ kind: "ok" });
+    expect(diagnoseTarget(LOCAL, [], env())).toEqual({ kind: "ok" });
   });
 
   it("needs --expect on a child branch, and it must be that compute", () => {
-    expect(diagnoseTarget(CHILD, [], PROD_ENDPOINT, {}).kind).toBe("refused");
-    expect(diagnoseTarget(CHILD, ["--expect", "ep-someone-else-000"], PROD_ENDPOINT, {}).kind).toBe(
-      "refused",
-    );
-    expect(diagnoseTarget(CHILD, ["--expect", "ep-other-hill-d4e5f6"], PROD_ENDPOINT, {})).toEqual({
+    expect(diagnoseTarget(CHILD, [], env(PROD_ENDPOINT)).kind).toBe("refused");
+    expect(
+      diagnoseTarget(CHILD, ["--expect", "ep-someone-else-000"], env(PROD_ENDPOINT)).kind,
+    ).toBe("refused");
+    expect(diagnoseTarget(CHILD, ["--expect", CHILD_EP], env(PROD_ENDPOINT))).toEqual({
       kind: "ok",
     });
-    expect(diagnoseTarget(CHILD, ["--expect=ep-other-hill-d4e5f6"], PROD_ENDPOINT, {})).toEqual({
+    expect(diagnoseTarget(CHILD, [`--expect=${CHILD_EP}`], env(PROD_ENDPOINT))).toEqual({
       kind: "ok",
     });
   });
 
-  it("refuses a Neon target when production is unknown and --prod is absent (fail closed)", () => {
-    const refused = diagnoseTarget(CHILD, ["--expect", "ep-other-hill-d4e5f6"], undefined, {});
-    expect(refused).toMatchObject({ kind: "refused" });
-    expect(JSON.stringify(refused)).toContain("PROD_NEON_ENDPOINT");
+  it("refuses --prod on a child branch and on a local database", () => {
+    expect(
+      diagnoseTarget(CHILD, ["--prod", "--expect", CHILD_EP], env(PROD_ENDPOINT)),
+    ).toMatchObject({
+      kind: "refused",
+      reason: expect.stringContaining("not production"),
+    });
+    expect(diagnoseTarget(LOCAL, ["--prod"], env(PROD_ENDPOINT)).kind).toBe("refused");
   });
 
-  it("reads production only with --prod AND --expect", () => {
-    expect(diagnoseTarget(PROD, ["--expect", PROD_ENDPOINT], PROD_ENDPOINT, {}).kind).toBe(
+  it("refuses a Neon target when production is unknown, with or without --prod (fail closed)", () => {
+    for (const argv of [
+      ["--expect", CHILD_EP],
+      ["--prod", "--expect", CHILD_EP],
+    ]) {
+      const refused = diagnoseTarget(CHILD, argv, env());
+      expect(refused.kind).toBe("refused");
+      expect(JSON.stringify(refused)).toContain("PROD_NEON_ENDPOINT");
+    }
+    expect(diagnoseTarget(PROD, ["--prod", "--expect", PROD_ENDPOINT], env()).kind).toBe("refused");
+  });
+
+  it("reads production only with --prod, a known endpoint AND the matching --expect", () => {
+    expect(diagnoseTarget(PROD, ["--expect", PROD_ENDPOINT], env(PROD_ENDPOINT)).kind).toBe(
       "refused",
     );
-    expect(diagnoseTarget(PROD, ["--prod"], PROD_ENDPOINT, {}).kind).toBe("refused");
-    expect(diagnoseTarget(PROD, ["--prod", "--expect", PROD_ENDPOINT], PROD_ENDPOINT, {})).toEqual({
-      kind: "ok",
-    });
+    expect(diagnoseTarget(PROD, ["--prod"], env(PROD_ENDPOINT)).kind).toBe("refused");
+    expect(diagnoseTarget(PROD, ["--prod", "--expect", CHILD_EP], env(PROD_ENDPOINT)).kind).toBe(
+      "refused",
+    );
+    expect(diagnoseTarget(PROD, ["--prod", "--expect", PROD_ENDPOINT], env(PROD_ENDPOINT))).toEqual(
+      { kind: "ok" },
+    );
   });
 
   it("refuses connection settings in the environment, a non-Neon remote host and a bad URL", () => {
-    expect(diagnoseTarget(LOCAL, [], undefined, { PGHOST: "x" }).kind).toBe("refused");
-    expect(diagnoseTarget("postgres://u:p@10.0.0.5/db", ["--prod"], PROD_ENDPOINT, {}).kind).toBe(
+    expect(diagnoseTarget(LOCAL, [], { ...env(), PGHOST: "x" }).kind).toBe("refused");
+    expect(diagnoseTarget("postgres://u:p@10.0.0.5/db", ["--prod"], env(PROD_ENDPOINT)).kind).toBe(
       "refused",
     );
-    expect(diagnoseTarget("not a url", [], PROD_ENDPOINT, {}).kind).toBe("refused");
+    expect(diagnoseTarget("not a url", [], env(PROD_ENDPOINT)).kind).toBe("refused");
   });
 
   it("never echoes the URL or its password", () => {
     for (const url of [PROD, CHILD, "not a url secret"]) {
-      expect(JSON.stringify(diagnoseTarget(url, [], PROD_ENDPOINT, {}))).not.toContain("secret");
+      expect(JSON.stringify(diagnoseTarget(url, [], env(PROD_ENDPOINT)))).not.toContain("secret");
     }
   });
 });
 
-describe("assertReadOnly", () => {
+describe("assertReadOnly (an exact allowlist)", () => {
   const sent = [
     ...Object.values(CATALOG_STATEMENTS),
     PENDING_LIST_STATEMENT,
     { text: "SELECT set_config('enable_seqscan', 'off', true)", params: [] },
+    { text: "SELECT set_config('statement_timeout', '30000', true)", params: [] },
     ...DIAGNOSE_PROBES.flatMap((raw) => {
       const keys = searchKeysOf(raw);
       return keys === null ? [] : branchStatements().map((b) => explainStatement(b.where, keys));
@@ -95,17 +124,34 @@ describe("assertReadOnly", () => {
   });
 
   it.each([
-    "INSERT INTO cities VALUES (1)",
-    "ANALYZE cities",
-    "VACUUM cities",
-    "SELECT gin_clean_pending_list('x'); SELECT 1",
-    "EXPLAIN (ANALYZE, BUFFERS) DELETE FROM cities",
-    "EXPLAIN (ANALYZE, BUFFERS) SELECT 1 FROM cities; DROP TABLE cities",
-    "CREATE INDEX i ON cities (id)",
-    "WITH d AS (DELETE FROM cities RETURNING 1) SELECT * FROM d",
-    "SELECT 1 /* */ ; ALTER TABLE cities DROP COLUMN id",
-  ])("refuses %s", (text) => {
-    expect(() => assertReadOnly({ text, params: [] })).toThrow(/only sends SELECT/);
+    ["a function that writes", "SELECT gin_clean_pending_list('cities_search_latin_trgm_idx')"],
+    ["a backend kill", "SELECT pg_terminate_backend(pg_backend_pid())"],
+    ["SELECT INTO", "SELECT 1 INTO t"],
+    ["a locking read", "SELECT id FROM cities FOR SHARE"],
+    ["a locking read for update", "SELECT id FROM cities FOR UPDATE"],
+    ["another set_config", "SELECT set_config('default_transaction_read_only', 'off', true)"],
+    ["a set_config made non-local", "SELECT set_config('enable_seqscan', 'off', false)"],
+    ["an INSERT", "INSERT INTO cities VALUES (1)"],
+    ["ANALYZE", "ANALYZE cities"],
+    ["VACUUM", "VACUUM cities"],
+    ["a second statement", "SELECT 1; DROP TABLE cities"],
+    ["EXPLAIN of a delete", "EXPLAIN (ANALYZE, BUFFERS) DELETE FROM cities"],
+    ["a CTE delete", "WITH d AS (DELETE FROM cities RETURNING 1) SELECT * FROM d"],
+    ["a plain read", "SELECT 1"],
+  ])("refuses %s", (_name, text) => {
+    expect(() => assertReadOnly({ text, params: [] })).toThrow(/only sends its own/);
+  });
+
+  it("matches the text exactly: a trailing comment is a different statement", () => {
+    for (const statement of sent) {
+      expect(() => assertReadOnly({ ...statement, text: `${statement.text} -- x` })).toThrow();
+    }
+  });
+
+  it("holds no writing function among the statements it allows", () => {
+    const writing =
+      /gin_clean_pending_list|pg_terminate_backend|pg_cancel_backend|pg_reload_conf|pg_advisory|nextval|setval|lo_|pg_switch_wal|\bINTO\b|\bFOR (SHARE|UPDATE)\b/i;
+    for (const statement of sent) expect(statement.text).not.toMatch(writing);
   });
 
   it("sends the search keys as parameters, never spliced into the text", () => {
@@ -205,8 +251,9 @@ describe("diagnose, with a recording runner", () => {
 
 describe("against the local test database", () => {
   let cleanup: () => Promise<void>;
+  let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
   beforeAll(async () => {
-    ({ cleanup } = await setupTestDatabase());
+    ({ db, cleanup } = await setupTestDatabase());
   });
   afterAll(async () => cleanup?.());
 
@@ -224,17 +271,27 @@ describe("against the local test database", () => {
     expect(formatReport(result, true).join("\n")).toContain("branch 2 full plan, default");
   });
 
-  it("the server itself refuses a write in the runner's transaction", async () => {
-    // Bypasses assertReadOnly on purpose: the READ ONLY transaction is the second lock.
-    const postgres = (await import("postgres")).default;
-    const sql = postgres(testDatabaseUrl("test"), { max: 1 });
-    try {
-      await expect(
-        sql.begin("read only", (tx) => tx.unsafe("CREATE TEMP TABLE t (a int)")),
-      ).rejects.toThrow(/read-only/);
-    } finally {
-      await sql.end();
-    }
+  it("the server refuses a write sent through connect(), whatever the validator would say", async () => {
+    // The validator is switched off on purpose: this proves the READ ONLY transaction, the second
+    // lock. Dropping "read only" from connect() lets these statements through and turns it red.
+    const unchecked = connect(testDatabaseUrl("test"), () => undefined);
+    await expect(unchecked([{ text: "CREATE TEMP TABLE t (a int)", params: [] }])).rejects.toThrow(
+      /read-only/,
+    );
+    await expect(
+      unchecked([{ text: "SELECT id FROM cities FOR SHARE", params: [] }]),
+    ).rejects.toThrow(/read-only/);
+  });
+
+  it("the branch conditions are the ones city-search-repo's UNION runs", () => {
+    // Drift would make the diagnosis describe a query nobody runs.
+    const query = placeQueryOf("Миколаї");
+    if (query.kind !== "ok") throw new Error("probe too short");
+    const repoSql = normalised(searchStatement(db, query, { regionBias: null }, true).toSQL().sql);
+    const mine = branchStatements().map((b) => normalised(b.where));
+    expect(mine).toHaveLength(4);
+    for (const where of mine) expect(repoSql).toContain(where);
+    expect(repoSql.match(/ limit /g)?.length).toBeGreaterThanOrEqual(5);
   });
 });
 
@@ -305,3 +362,13 @@ describe("verdictOf", () => {
     expect(text.indexOf("VERDICT")).toBeLessThan(text.indexOf("--- settings"));
   });
 });
+
+/** Quoting, parameter numbers and case differ between the two spellings; the conditions do not. */
+function normalised(sqlText: string): string {
+  return sqlText
+    .replaceAll('"cities".', "")
+    .replaceAll('"', "")
+    .replace(/\$\d+/g, "?")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}

@@ -6,8 +6,9 @@ import { parseMigrateArgs } from "../migrate-args";
 import { databaseTargetLine } from "../prod-guard";
 import { citySearchRepo } from "../repos/city-search-repo";
 import { decideImportTarget, type ImportScope } from "./import-target";
-import { type ImportOutcome, type Preflight, runImport, type StatisticsRefresh } from "./importer";
+import { type ImportOutcome, type Preflight, runImport } from "./importer";
 import type { PlanReport } from "./plan";
+import { maintenanceLines } from "./post-import-maintenance";
 
 /**
  * `pnpm --filter @opika/db db:import-settlements --file <codifier.xlsx> [--expect ep-...] [--commit]`
@@ -73,14 +74,6 @@ export function reportLines(report: PlanReport): string[] {
   ];
 }
 
-/** The data commit stands either way; a failed ANALYZE is a warning, not a failed import. */
-export function statisticsLine(statistics: StatisticsRefresh | null): [string] {
-  if (statistics?.kind === "refreshed") return ["Planner statistics refreshed: ANALYZE cities"];
-  return [
-    `WARNING: the data is committed, but ANALYZE cities failed (${statistics?.message ?? "not run"}). Run it by hand: the trigram search may Seq Scan until the table is analyzed.`,
-  ];
-}
-
 function print(outcome: ImportOutcome, scope: ImportScope): number {
   if (outcome.kind === "refused") {
     console.error("REFUSED, nothing was written:");
@@ -106,7 +99,7 @@ function print(outcome: ImportOutcome, scope: ImportScope): number {
     `Stored: ${n(stored?.withCode ?? 0)} rows with a code, ${stored?.withoutCode ?? 0} without, ${stored?.aliases ?? 0} slug aliases, ${stored?.retired ?? 0} retired`,
   );
   console.log(`A second plan wants to change: ${outcome.remaining} rows (expected 0)`);
-  console.log(...statisticsLine(outcome.statistics));
+  for (const line of maintenanceLines(outcome.maintenance)) console.log(line);
   return outcome.remaining === 0 ? 0 : 1;
 }
 

@@ -1,8 +1,12 @@
-import { sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { CodifierError, parseCodifier } from "./codifier";
 import { PINNED_EDITIONS, type PinnedEdition, sha256Of } from "./editions";
 import { type Plan, PlanError, planImport } from "./plan";
+import {
+  type PostImportMaintenance,
+  runPostImportMaintenance,
+  type VerifyTiming,
+} from "./post-import-maintenance";
 import {
   applyPlan,
   loadExisting,
@@ -26,26 +30,9 @@ export type ImportOutcome =
       stored: Awaited<ReturnType<typeof summariseStored>> | null;
       /** After a commit: what a second plan still wants to change. Zero when the run converged. */
       remaining: number | null;
-      /** After a commit: whether the planner statistics were refreshed. Null on a dry run. */
-      statistics: StatisticsRefresh | null;
+      /** After a commit: ANALYZE and the GIN pending-list merge, each a value. Null on a dry run. */
+      maintenance: PostImportMaintenance | null;
     };
-
-/** Failure is a value: the data commit stands, and the CLI prints a WARNING instead of exiting non-zero. */
-export type StatisticsRefresh = { kind: "refreshed" } | { kind: "failed"; message: string };
-
-/**
- * A bulk import leaves `cities` without statistics until autovacuum gets to it, and the planner
- * then costs the trigram search wrongly. `ANALYZE` only samples the table: it changes no data, and
- * it is one statement on its own (neon-http runs it as a single request, outside any batch).
- */
-async function refreshStatistics(db: Database): Promise<StatisticsRefresh> {
-  try {
-    await db.execute(sql`ANALYZE cities`);
-    return { kind: "refreshed" };
-  } catch (error) {
-    return { kind: "failed", message: error instanceof Error ? error.message : "unknown error" };
-  }
-}
 
 export type Preflight = {
   cities: number;
@@ -72,6 +59,8 @@ export async function runImport(input: {
   commit: boolean;
   /** The pins to check against; tests pass their own, because the real file is never in the repo. */
   editions?: readonly PinnedEdition[];
+  /** How long the ANALYZE check waits for the statistics to show; tests shorten it. */
+  verify?: VerifyTiming;
 }): Promise<ImportOutcome> {
   const { db, bytes, commit } = input;
   const digest = sha256Of(bytes);
@@ -174,12 +163,14 @@ export async function runImport(input: {
       preflight,
       stored: null,
       remaining: null,
-      statistics: null,
+      maintenance: null,
     };
   }
 
   await applyPlan(db, plan, edition.id);
-  const statistics = await refreshStatistics(db);
+  // After the data is committed, never before: the statistics and the index lists must describe the
+  // imported table, and a failure here must not undo the commit.
+  const maintenance = await runPostImportMaintenance(db, input.verify);
   const after = await loadExisting(db);
   const second = planImport({
     edition: edition.id,
@@ -195,6 +186,6 @@ export async function runImport(input: {
     preflight,
     stored: await summariseStored(db),
     remaining: remainingChanges(second),
-    statistics,
+    maintenance,
   };
 }

@@ -4,13 +4,8 @@ import { neon } from "@neondatabase/serverless";
 import { placeQueryOf } from "@opika/domain";
 import postgres from "postgres";
 import { isNeonHost } from "../client";
-import {
-  checkProductionWrite,
-  databaseTargetLine,
-  expectedTargetOf,
-  HOST_AMBIGUITY_TEXT,
-  productionEndpoint,
-} from "../prod-guard";
+import { decideImportTarget } from "../import/import-target";
+import { databaseTargetLine } from "../prod-guard";
 
 /**
  * `pnpm --filter @opika/db db:neon-search-diagnose --expect ep-…` (add `--prod` for production):
@@ -19,10 +14,14 @@ import {
  * `EXPLAIN (ANALYZE, BUFFERS)` with default settings and again with `enable_seqscan = off`, plus
  * the settings, statistics and index state a planner decision rests on.
  *
- * Read-only by construction, three layers: every statement is checked by `assertReadOnly` before
- * it is sent; each batch runs in a `READ ONLY` transaction (the server refuses a write whatever
- * the text says); and the planner setting is `set_config(..., is_local => true)`, gone at the
- * transaction's end. No ANALYZE, no VACUUM, no DDL. `EXPLAIN ANALYZE` runs its SELECT, nothing else.
+ * Read-only, in two layers that cover different things. (1) `assertReadOnly` sends nothing but the
+ * tool's own constant statements (an exact-text allowlist, so no other function call, `SELECT ...
+ * INTO`, `FOR SHARE/UPDATE` or `set_config` can be added by accident). (2) Each batch runs in a
+ * `READ ONLY` transaction, which the server enforces for data and DDL writes (INSERT, CREATE, a
+ * locking read); it does NOT stop every side-effecting function (`gin_clean_pending_list` and
+ * `pg_terminate_backend` run inside one), which is why layer 1 is an allowlist and not a keyword
+ * list. The planner switch is `set_config(..., is_local => true)`, gone at the transaction's end.
+ * `EXPLAIN ANALYZE` runs its SELECT, nothing else. No ANALYZE, no VACUUM, no DDL.
  *
  * The branch SQL below mirrors the four branches of the UNION in `city-search-repo.ts`
  * (prefix and trigram on each key, ranking columns included); it is spelled out here so the tool
@@ -34,23 +33,41 @@ export const DIAGNOSE_PROBES: readonly string[] = ["Миколаї", "Брова
 export type Statement = { text: string; params: readonly string[] };
 type Row = Record<string, unknown>;
 
-/** Anything but a read is refused before it is sent; the READ ONLY transaction is the second lock. */
+let allowedTexts: ReadonlySet<string> | undefined;
+function allowlist(): ReadonlySet<string> {
+  allowedTexts ??= new Set([
+    GUARD_TIMEOUT.text,
+    SEQSCAN_OFF.text,
+    PENDING_LIST_STATEMENT.text,
+    ...Object.values(CATALOG_STATEMENTS).map((s) => s.text),
+    // The text does not depend on the search keys (they are bound parameters), so any keys do.
+    ...branchStatements().map(
+      (b) =>
+        explainStatement(b.where, {
+          raw: "",
+          cyrillic: "",
+          cyrillicLike: "",
+          latin: "",
+          latinLike: "",
+        }).text,
+    ),
+  ]);
+  return allowedTexts;
+}
+
+/** Only the exact statements this tool builds may be sent; anything else throws before it leaves. */
 export function assertReadOnly(statement: Statement): void {
-  const text = statement.text.trim();
-  const explainOnlySelect = /^EXPLAIN \(ANALYZE, BUFFERS\) SELECT\b/.test(text);
-  const plainRead = /^(SELECT|SHOW)\b/.test(text);
-  const write =
-    /\b(INSERT|UPDATE|DELETE|TRUNCATE|DROP|ALTER|CREATE|VACUUM|ANALYZE\s+\w|REINDEX|GRANT|COPY|CALL|DO)\b/i;
-  // `ANALYZE` inside the EXPLAIN option list is the one allowed use of the word.
-  const checked = explainOnlySelect ? text.replace("EXPLAIN (ANALYZE, BUFFERS)", "EXPLAIN") : text;
-  if (!(explainOnlySelect || plainRead) || write.test(checked) || text.includes(";")) {
-    throw new Error(
-      "search-diagnose only sends SELECT, SHOW and EXPLAIN (ANALYZE, BUFFERS) SELECT",
-    );
+  if (!allowlist().has(statement.text)) {
+    throw new Error("search-diagnose only sends its own constant read statements");
   }
 }
 
-/** The guard: the production write guard's reading (incl. `--prod`), plus `--expect` off-local. */
+/**
+ * The guard is the importer's own decision (`decideImportTarget`, minus its source-tree readiness
+ * scan, which is about the app's code and not about this target): production needs `--prod`, a
+ * known `PROD_NEON_ENDPOINT` and a matching `--expect`; a child branch needs `--expect` and refuses
+ * `--prod`; local takes neither.
+ */
 export type DiagnoseTarget = { kind: "ok" } | { kind: "refused"; reason: string };
 
 export function expectOf(argv: readonly string[]): string | undefined {
@@ -62,26 +79,16 @@ export function expectOf(argv: readonly string[]): string | undefined {
 export function diagnoseTarget(
   url: string,
   argv: readonly string[],
-  prodEndpoint: string | undefined,
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): DiagnoseTarget {
-  const check = checkProductionWrite(url, argv, prodEndpoint, env);
-  if (check.kind === "refused") {
-    const why =
-      check.reason === "ambiguous_host"
-        ? `the URL can't be read as exactly one host: ${HOST_AMBIGUITY_TEXT[check.cause]}`
-        : check.reason === "ambient_settings"
-          ? `connection settings in the environment (${check.variables.join(", ")})`
-          : check.reason === "production_without_flag"
-            ? "this target is production: pass --prod if that is meant"
-            : check.reason === "production_unknown"
-              ? "PROD_NEON_ENDPOINT is not set, so the target can't be shown not to be production: set it (ep-… only) or pass --prod for production"
-              : check.reason;
-    return { kind: "refused", reason: why };
-  }
-  if (check.reason === "local") return { kind: "ok" };
-  const expected = expectedTargetOf(url, expectOf(argv));
-  return expected.kind === "ok" ? { kind: "ok" } : expected;
+  const decision = decideImportTarget({
+    url,
+    argv,
+    expect: expectOf(argv),
+    env,
+    scan: () => ({ kind: "clear", filesScanned: 0 }),
+  });
+  return decision.kind === "ok" ? { kind: "ok" } : decision;
 }
 
 // ---- statements -------------------------------------------------------------------------------
@@ -240,11 +247,14 @@ const planLines = (rows: readonly Row[]): string[] => rows.map((r) => String(Obj
 /** One READ ONLY transaction per call; the results are the statements' rows, in order. */
 export type ReadOnlyRunner = (statements: readonly Statement[]) => Promise<Row[][]>;
 
-export function connect(url: string): ReadOnlyRunner {
+export function connect(
+  url: string,
+  validate: (s: Statement) => void = assertReadOnly,
+): ReadOnlyRunner {
   if (isNeonHost(url)) {
     const sql = neon(url);
     return async (statements) => {
-      for (const s of statements) assertReadOnly(s);
+      for (const s of statements) validate(s);
       const results = await sql.transaction(
         (txn) => statements.map((s) => txn.query(s.text, [...s.params])),
         { readOnly: true },
@@ -254,7 +264,7 @@ export function connect(url: string): ReadOnlyRunner {
   }
   const sql = postgres(url, { max: 1 });
   return async (statements) => {
-    for (const s of statements) assertReadOnly(s);
+    for (const s of statements) validate(s);
     const out = await sql.begin("read only", async (tx) => {
       const rows: Row[][] = [];
       for (const s of statements) rows.push([...(await tx.unsafe(s.text, [...s.params]))] as Row[]);
@@ -417,7 +427,7 @@ async function main(): Promise<void> {
     console.error("ERROR: DATABASE_URL is not set.");
     process.exit(1);
   }
-  const target = diagnoseTarget(url, process.argv, productionEndpoint());
+  const target = diagnoseTarget(url, process.argv);
   if (target.kind === "refused") {
     console.error(`REFUSED: ${target.reason}. Nothing was run.`);
     process.exit(1);
