@@ -46,7 +46,7 @@ export interface SiteHeaderProps {
  */
 const NAV_LINK_CLASS =
   "inline-flex min-h-target shrink-0 items-center whitespace-nowrap text-body-l font-semibold " +
-  "text-ink transition-colors duration-(--duration-quick) hover:text-accent focus-ring";
+  "text-ink transition-colors duration-(--duration-quick) hover:text-accent-text focus-ring";
 
 /** `sr-only`: the logo image is decorative and already draws the word, this keeps the accessible name. */
 function WordmarkText() {

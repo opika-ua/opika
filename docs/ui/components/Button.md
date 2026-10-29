@@ -4,7 +4,7 @@ File: `apps/web/src/ui/Button.tsx`
 
 **Purpose.** The one button. Replaces controls.Button, CircleButton, PillButton and the deck's ActionButton.
 
-**Props and variants.** `variant`: primary (ink), accent, secondary (outline), ghost, icon (circle with a 1px ink-2 edge, because the surface fill is near-identical to the page and the edge keeps the shape above 3:1; needs `aria-label`). `size`: md (48) or lg (52, 64 from desktop). `status`: idle or loading (aria-busy, presses ignored, stays focusable). `disabled` works as native. `className` for layout only.
+**Props and variants.** `variant`: primary (ink), accent (orange fill, `on-accent` ink text: white fails 4.5:1 there), secondary (outline), ghost, icon (circle with a 1px ink-2 edge, because the surface fill is near-identical to the page and the edge keeps the shape above 3:1; needs `aria-label`). `size`: md (48) or lg (52, 64 from desktop). `status`: idle or loading (aria-busy, presses ignored, stays focusable). `disabled` works as native. `className` for layout only.
 
 **Accessibility.** Real `<button>`, `type=button` by default. Icon variant requires an accessible name by type. Visible focus from `focus-ring`.
 

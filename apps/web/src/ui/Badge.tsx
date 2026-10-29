@@ -7,7 +7,7 @@ import { cx } from "./cx";
  */
 const TONE = {
   dog: "bg-species-dog text-on-ink",
-  cat: "bg-species-cat text-on-ink",
+  cat: "bg-species-cat text-on-accent",
   ink: "bg-ink text-on-ink",
   neutral: "bg-line text-ink",
 } as const;
