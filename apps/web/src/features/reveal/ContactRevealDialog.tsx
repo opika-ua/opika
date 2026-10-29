@@ -2,7 +2,7 @@
 
 import type { ContactRevealView } from "@opika/contracts";
 import { allChannels, type ContactChannel } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import { useLayoutEffect, useRef } from "react";
 import { lockBodyScroll } from "../controls/body-scroll-lock";
 import { THROTTLED_COPY } from "./throttled-copy";

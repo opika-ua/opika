@@ -1,4 +1,4 @@
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { WORDMARK } from "../../brand";

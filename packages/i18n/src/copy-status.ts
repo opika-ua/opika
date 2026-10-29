@@ -1,4 +1,4 @@
-import { COPY_PENDING } from "./messages/uk";
+import { COPY_PENDING } from "./messages/uk-public";
 
 /**
  * Which strings in a catalogue group are still placeholders.
