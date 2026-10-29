@@ -149,7 +149,7 @@ export function SpeciesToggle({
   ];
 
   return (
-    // A div, not a <fieldset>: a fieldset does not stretch its flex children to its own height.
+    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> does not stretch its flex children to its own height.
     <div
       role="group"
       aria-label={uk.filters.species}
