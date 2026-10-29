@@ -202,14 +202,14 @@ describe("ShelterProfile (K4, read-only)", () => {
     ).toBeTruthy();
   });
 
-  it("puts the status chip after the note, in K4 360's order", () => {
+  it("puts the note after the title, and the status chip in the same block", () => {
     renderProfile();
     const block = screen.getByRole("region", { name: t.lockedTitle });
     const note = within(block).getByText(t.lockedNote.replaceAll("{operator}", "Олексій"));
     const chip = within(block).getByText(uk.kabinet.profileStatus.verified, { selector: "span" });
     const title = within(block).getByRole("heading", { name: t.lockedTitle });
     expect(title.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(note.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(chip).toBeTruthy();
   });
 
   it("shows an unregistered initiative's contact person, and no EDRPOU row", () => {

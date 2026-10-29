@@ -126,3 +126,30 @@ export function CheckboxGroup({
     </Frame>
   );
 }
+
+/**
+ * A question answered by wrapping chips (many short options: temperaments, colours): a fieldset with
+ * the question as its legend. The chips are the children (`Chip kind="option"`, checkbox or radio);
+ * `extra` is what an "other" chip opens, kept inside the group so the group still holds everything it
+ * asks. `disabled` disables every chip at once.
+ */
+export function ChipGroup({
+  name,
+  legend,
+  hint,
+  error,
+  disabled,
+  extra,
+  className,
+  children,
+}: Pick<GroupBase, "name" | "legend" | "hint" | "error" | "disabled" | "className"> & {
+  extra?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <Frame {...{ name, legend, hint, error, disabled, className }}>
+      <div className="flex flex-wrap gap-2">{children}</div>
+      {extra}
+    </Frame>
+  );
+}

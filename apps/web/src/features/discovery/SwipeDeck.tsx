@@ -306,7 +306,7 @@ export function SwipeDeck({
           it existed only as an interim fix, never a permanent third
           direction - leaving the two real decisions the design's mock
           frame never itself updated to show. */}
-        <div data-testid="action-row" className="font-rg flex gap-2 mt-row shrink-0">
+        <div data-testid="action-row" className="flex gap-2 mt-row shrink-0">
           <ActionButton
             label={uk.actions.notNow}
             variant="outlined"
@@ -373,7 +373,7 @@ export function SwipeDeck({
         */}
         <span
           data-testid="not-a-judgement-notice"
-          className="hidden min-[360px]:block font-sans text-[13px]/[18px] text-rg-ink-3 text-center mt-label shrink-0"
+          className="hidden min-[360px]:block text-caption text-ink-2 text-center mt-label shrink-0"
         >
           {uk.actions.notAJudgementNotice}
         </span>
@@ -442,7 +442,7 @@ function ActionButton({
   // with its focus-visible styling and a test" rules out shipping either
   // without the other.
   const base =
-    "min-h-14 rounded-rg-button text-[15px] leading-none cursor-pointer disabled:cursor-not-allowed focus-ring-registry disabled:opacity-60";
+    "min-h-14 rounded-field text-label cursor-pointer disabled:cursor-not-allowed focus-ring disabled:opacity-60";
 
   if (variant === "primary") {
     return (
@@ -450,7 +450,7 @@ function ActionButton({
         ref={ref}
         type="button"
         disabled={disabled}
-        className={`${base} bg-rg-ink text-rg-surface font-medium ${className ?? ""}`}
+        className={`${base} bg-ink text-on-ink ${className ?? ""}`}
         onClick={onClick}
       >
         {label}
@@ -463,7 +463,7 @@ function ActionButton({
       ref={ref}
       type="button"
       disabled={disabled}
-      className={`${base} bg-rg-surface text-rg-ink font-medium ${className ?? ""}`}
+      className={`${base} bg-line text-ink ${className ?? ""}`}
       onClick={onClick}
     >
       {label}
@@ -473,17 +473,12 @@ function ActionButton({
 
 function LoadingState() {
   return (
-    <div className="flex-1 flex items-center justify-center font-rg text-sm leading-[normal] text-rg-ink-3">
+    <div className="flex-1 flex items-center justify-center text-caption text-ink-2">
       {/* Simple loading indicator. 0.8s, not Tailwind's built-in 1s
           `animate-spin` - see `--animate-spin-fast` in globals.css. Track
-          and fill reuse `DeckScreen`'s own progress-bar pair (`rg-fill-
-          strong` / `rg-ink`) rather than `rg-registry` - that blue is a
-          reserved meaning, "confirmed by the state registry"
-          (`docs/design/README.md:51`, the colour rule; `:107-108`, "never
-          used as a button fill... otherwise it stops meaning 'registry'"),
-          not a generic accent, so a plain loading spinner doesn't borrow it
-          (DLE-2, `docs/decisions-inbox/feat-deck-loading-error-v2.md`). */}
-      <div className="size-6 rounded-full border-2 border-rg-fill-strong border-t-rg-ink animate-spin-fast" />
+          and fill reuse `DeckScreen`'s progress-bar pair (`line` / `ink`), not `accent`:
+          the spinner is no call to action. */}
+      <div className="size-6 rounded-full border-2 border-line border-t-ink animate-spin-fast" />
     </div>
   );
 }
@@ -512,19 +507,13 @@ function ErrorState({
   // recorded Tier 2 decision: DLE-1,
   // `docs/decisions-inbox/feat-deck-loading-error-v2.md`.
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-group p-section font-rg">
-      <div className="bg-rg-surface rounded-rg-card p-group flex flex-col gap-row w-full max-w-89.5">
-        {/* tracking-[0.12em] carries the "eyebrow" identity on its own; the
+    <div className="flex-1 flex flex-col items-center justify-center gap-group p-section ">
+      <div className="bg-surface rounded-card p-group flex flex-col gap-row w-full max-w-89.5">
+        {/* carries the "eyebrow" identity on its own; the
             source string is already uppercase. */}
-        {"eyebrow" in copy && (
-          <div className="text-[11px] leading-[normal] tracking-[0.12em] text-rg-ink-3 font-medium">
-            {copy.eyebrow}
-          </div>
-        )}
-        <div className="text-[17px]/[24.65px] text-rg-ink">{copy.title}</div>
-        {"body" in copy && (
-          <div className="text-[13px] leading-[normal] text-rg-ink-2">{copy.body}</div>
-        )}
+        {"eyebrow" in copy && <div className="text-caption text-ink-2">{copy.eyebrow}</div>}
+        <div className="text-body text-ink">{copy.title}</div>
+        {"body" in copy && <div className="text-caption text-ink-2">{copy.body}</div>}
         {/*
           56px, not 44 - `docs/design/README.md:200`'s touch-target table
           gives primary actions 56px, not the 48px floor "anywhere" else gets,
@@ -538,16 +527,14 @@ function ErrorState({
           which reaches this state by refusing the deck's own `feed.list`
           request - the state had no harness coverage of any kind before,
           which is how a 44px target with no focus ring survived every gate.
-          The ring is `rg-registry` because that is the ring every other
-          focusable element in the app has (README:201) - not a claim this
-          button is itself registry-related.
+          The ring is the shared `focus-ring`, like every other focusable element.
         */}
         {onRetry && "action" in copy && (
           <button
             type="button"
             onClick={onRetry}
             data-testid="deck-error-retry"
-            className="min-h-14 rounded-rg-button bg-rg-ink text-rg-surface text-[15px] font-medium leading-[normal] cursor-pointer mt-row focus-ring-registry"
+            className="min-h-14 rounded-field bg-ink text-on-ink text-label cursor-pointer mt-row focus-ring"
           >
             {copy.action}
           </button>
@@ -567,15 +554,11 @@ function ExhaustedState({
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-section p-section text-center">
-      <div
-        ref={headingRef}
-        tabIndex={-1}
-        className="font-serif font-medium text-[26px]/[30px] text-legacy-ink outline-none"
-      >
+      <div ref={headingRef} tabIndex={-1} className="text-title text-ink outline-none">
         {uk.exhausted.title}
       </div>
-      <div className="font-sans text-[15px]/[23px] text-legacy-ink-2">{uk.exhausted.body}</div>
-      <div className="font-sans text-sm leading-[normal] text-ink-3">{uk.exhausted.newAnimals}</div>
+      <div className="text-body text-ink-2">{uk.exhausted.body}</div>
+      <div className="text-caption text-ink-2">{uk.exhausted.newAnimals}</div>
       {/* Not prefetched: each prefetch of a `/tvaryny` URL is charged to the per-IP budget (`proxy.ts`). */}
       {listHref !== undefined && (
         <Link

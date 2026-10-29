@@ -220,6 +220,22 @@ const formStatus = () => {
   return last;
 };
 
+/**
+ * A refusal a person asked for (a save or publish pressed) is written twice: under its field and
+ * in the error summary that takes focus. The wording is the same string; this finds both.
+ */
+const expectRefusedInlineAndInSummary = (text: string | RegExp) => {
+  const found = screen.getAllByText(text);
+  expect(
+    found.some((element) => element.id.endsWith("-error")),
+    "under its field",
+  ).toBe(true);
+  expect(
+    found.some((element) => element.closest('[role="alert"]') !== null),
+    "in the error summary",
+  ).toBe(true);
+};
+
 const SAVE_DRAFT = "Зберегти чернетку";
 const MISSING_ALL = "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.";
 const PUBLISH_DONE = "Опубліковано. Тепер картку бачать ті, хто шукає тварину.";
@@ -270,11 +286,9 @@ describe("/nova: a name and a species make a draft (K-Q5)", () => {
     expect(client.calls.createDraft).toHaveBeenCalledWith({ name: "Ластівка", species: "dog" });
     expect(await screen.findByRole("heading", { level: 1, name: "Ластівка" })).toBeTruthy();
     expect(window.location.pathname).toBe(`/kabinet/tvaryny/${ID}`);
-    expect(
-      screen.getByText(
-        /Чернетку збережено о 12:00 · Ті, хто шукає тварину, цю чернетку не бачать\./,
-      ),
-    ).toBeTruthy();
+    // The bar says when it was saved; «Публікація» says who can see it.
+    expect(screen.getByText("Чернетку збережено о 12:00")).toBeTruthy();
+    expect(screen.getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeTruthy();
     expect(screen.getByText("Чернетка")).toBeTruthy();
     expect(screen.getByText("Створено сьогодні · ще не в галереї")).toBeTruthy();
     // The draft exists now, so its photos can be added.
@@ -304,7 +318,7 @@ describe("/nova: a name and a species make a draft (K-Q5)", () => {
     const client = renderForm(null);
     await user.type(screen.getByLabelText("Імʼя"), "Ластівка");
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(screen.getByText("Виберіть, собака це чи кіт, щоб зберегти чернетку.")).toBeTruthy();
+    expectRefusedInlineAndInSummary("Виберіть, собака це чи кіт, щоб зберегти чернетку.");
     expect(client.calls.createDraft).not.toHaveBeenCalled();
   });
 
@@ -313,7 +327,7 @@ describe("/nova: a name and a species make a draft (K-Q5)", () => {
     const client = renderForm(null);
     await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Кіт"));
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(screen.getByText("Щоб зберегти чернетку, потрібне імʼя.")).toBeTruthy();
+    expectRefusedInlineAndInSummary("Щоб зберегти чернетку, потрібне імʼя.");
     expect(client.calls.createDraft).not.toHaveBeenCalled();
   });
 
@@ -362,7 +376,7 @@ describe("a draft saves itself (T6)", () => {
 
   it("when a field is left, at once", async () => {
     const client = renderForm(draft());
-    const description = screen.getByLabelText("Про тварину");
+    const description = screen.getByLabelText("Опис");
     fireEvent.change(description, { target: { value: "Лагідна." } });
     await act(async () => {
       fireEvent.blur(description);
@@ -384,7 +398,7 @@ describe("a draft saves itself (T6)", () => {
   it("emptying a draft's description clears it (null), which only a draft accepts", async () => {
     const user = userEvent.setup();
     const client = renderForm(draft({ description: { uk: "Було.", en: null } }));
-    await user.clear(screen.getByLabelText("Про тварину"));
+    await user.clear(screen.getByLabelText("Опис"));
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { description: null } });
   });
@@ -394,7 +408,7 @@ describe("a draft saves itself (T6)", () => {
     const client = fakeClient(draft());
     client.calls.update.mockRejectedValueOnce(apiError("CONFLICT"));
     renderForm(draft(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+    fireEvent.change(screen.getByLabelText("Опис"), { target: { value: "Лагідна." } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(
       await screen.findByText(
@@ -403,7 +417,7 @@ describe("a draft saves itself (T6)", () => {
     ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Показати поточну версію" }));
     expect(client.calls.byId).toHaveBeenCalledWith({ animalId: ID });
-    expect((screen.getByLabelText("Про тварину") as HTMLTextAreaElement).value).toBe("");
+    expect((screen.getByLabelText("Опис") as HTMLTextAreaElement).value).toBe("");
   });
 
   it("a lost connection keeps what was typed, says so, and retries on request", async () => {
@@ -411,14 +425,14 @@ describe("a draft saves itself (T6)", () => {
     const client = fakeClient(draft());
     client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     renderForm(draft(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+    fireEvent.change(screen.getByLabelText("Опис"), { target: { value: "Лагідна." } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(
       await screen.findByText(
         "Чернетку не збережено. Перевірте зʼєднання – усе, що ви ввели, лишається тут.",
       ),
     ).toBeTruthy();
-    expect((screen.getByLabelText("Про тварину") as HTMLTextAreaElement).value).toBe("Лагідна.");
+    expect((screen.getByLabelText("Опис") as HTMLTextAreaElement).value).toBe("Лагідна.");
     await user.click(screen.getByRole("button", { name: "Спробувати ще раз" }));
     expect(client.calls.update).toHaveBeenCalledTimes(2);
     expect(await screen.findByText(/Чернетку збережено о 12:00/)).toBeTruthy();
@@ -430,7 +444,7 @@ describe("a draft saves itself (T6)", () => {
     client.calls.update.mockRejectedValueOnce(apiError("CONFLICT"));
     client.calls.byId.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     renderForm(draft(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+    fireEvent.change(screen.getByLabelText("Опис"), { target: { value: "Лагідна." } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     await user.click(await screen.findByRole("button", { name: "Показати поточну версію" }));
     expect(
@@ -443,7 +457,7 @@ describe("a draft saves itself (T6)", () => {
     const client = fakeClient(draft());
     client.calls.update.mockRejectedValueOnce(apiError("REGISTRY_CONFIRMED"));
     renderForm(draft(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+    fireEvent.change(screen.getByLabelText("Опис"), { target: { value: "Лагідна." } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(
       await screen.findByText("Це підтверджено державним реєстром тварин, тут змінити не можна."),
@@ -525,7 +539,7 @@ describe("a draft saves itself (T6)", () => {
     );
     fireEvent.change(screen.getByLabelText("Станом на"), { target: { value: "2026-10-18" } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(screen.getByText("Дата «Станом на» не може бути в майбутньому.")).toBeTruthy();
+    expectRefusedInlineAndInSummary("Дата «Станом на» не може бути в майбутньому.");
     expect(client.calls.update).not.toHaveBeenCalled();
   });
 
@@ -540,9 +554,9 @@ describe("a draft saves itself (T6)", () => {
     const birth = screen.getByLabelText("Дата народження");
     fireEvent.change(birth, { target: { value: "2026-10-18" } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(screen.getByText("Дата народження не може бути в майбутньому.")).toBeTruthy();
+    expectRefusedInlineAndInSummary("Дата народження не може бути в майбутньому.");
     fireEvent.change(birth, { target: { value: "1996-10-16" } });
-    expect(screen.getByText("Ця дата надто давня – понад 30 років тому.")).toBeTruthy();
+    expectRefusedInlineAndInSummary("Ця дата надто давня – понад 30 років тому.");
     expect(client.calls.update).not.toHaveBeenCalled();
     // Exactly thirty years back is allowed, and saves as the birth date chosen.
     fireEvent.change(birth, { target: { value: "1996-10-17" } });
@@ -563,6 +577,8 @@ describe("a draft saves itself (T6)", () => {
       within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText(/Дорослий/),
     );
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    // The refusal may come from the autosave the radio's blur starts, which must not pull
+    // focus to a summary: it lands under the field either way.
     expect(await screen.findByText("Ця дата надто давня – понад 30 років тому.")).toBeTruthy();
   });
 
@@ -586,13 +602,17 @@ describe("a draft saves itself (T6)", () => {
 
   it("counts the description as a reader does, and names the excess past 1,500", () => {
     renderForm(draft());
-    const description = screen.getByLabelText("Про тварину");
+    const description = screen.getByLabelText("Опис");
     fireEvent.change(description, { target: { value: "👍🏽".repeat(3) } });
     expect(screen.getByText(/^3 з 1\s?500 символів$/)).toBeTruthy();
     fireEvent.change(description, { target: { value: "а".repeat(1_502) } });
     expect(screen.getByText("Зайвих символів: 2")).toBeTruthy();
     fireEvent.blur(description);
-    expect(screen.getByText(/^Опис довший за 1\s?500 символів\.$/)).toBeTruthy();
+    // Left but not yet tried: under the field only, no summary.
+    expect(screen.getByText(/^Опис довший за 1\s?500 символів\.$/).id).toBe(
+      "animal-description-error",
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("a registry-confirmed vaccination is read-only, with the state register named", () => {
@@ -664,8 +684,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
       name: "a draft",
       view: () => draft(),
       saveLabel: SAVE_DRAFT,
-      savedLineText: (time: string) =>
-        `Чернетку збережено о ${time} · Ті, хто шукає тварину, цю чернетку не бачать.`,
+      savedLineText: (time: string) => `Чернетку збережено о ${time}`,
     },
     {
       name: "a listed card",
@@ -688,7 +707,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
 
       // Typing without leaving the field: `dirty` alone turns the warning
       // on, before any save is even attempted.
-      fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+      fireEvent.change(screen.getByLabelText("Опис"), { target: { value: "Лагідна." } });
       expect(dispatchUnload().prevented).toBe(true);
       expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
 
@@ -706,7 +725,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
       // Type again: `save.kind` is still "saved" from the last success, but
       // the new, unblurred edit alone must hide the line and re-warn -
       // "saved" is no longer true of the form's current content.
-      fireEvent.change(screen.getByLabelText("Про тварину"), {
+      fireEvent.change(screen.getByLabelText("Опис"), {
         target: { value: "Лагідна, грається." },
       });
       expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
@@ -752,7 +771,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
   it("an intentional back-link leave, after the save it triggers succeeds, never warns", async () => {
     const client = fakeClient(draft());
     renderForm(draft(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+    fireEvent.change(screen.getByLabelText("Опис"), { target: { value: "Лагідна." } });
 
     let preventedAtNavigation: boolean | null = null;
     const assign = vi.spyOn(window.location, "assign").mockImplementation(() => {
@@ -775,8 +794,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
   it.each([
     [
       "a description",
-      () =>
-        fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } }),
+      () => fireEvent.change(screen.getByLabelText("Опис"), { target: { value: "Лагідна." } }),
     ],
     ["a name", () => fireEvent.change(screen.getByLabelText("Імʼя"), { target: { value: "Л" } })],
   ] as const)(
@@ -800,7 +818,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
     const stored = draft({ description: { uk: "Було.", en: null } } as Partial<KabinetAnimalView>);
     const client = fakeClient(stored);
     renderForm(stored, { client });
-    const description = screen.getByLabelText("Про тварину");
+    const description = screen.getByLabelText("Опис");
 
     fireEvent.change(description, { target: { value: "Зараз." } });
     expect(dispatchUnload().prevented).toBe(true);
@@ -868,7 +886,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
     renderForm(draft());
     expect(confirmLeave(() => true)).toBe(true); // nothing unsaved: goes ahead, never asks
 
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+    fireEvent.change(screen.getByLabelText("Опис"), { target: { value: "Лагідна." } });
     const confirm = vi.fn(() => false);
     expect(confirmLeave(confirm)).toBe(false);
     expect(confirm).toHaveBeenCalledWith("Зміни не збережено. Все одно вийти?");
@@ -881,7 +899,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
    */
   describe("the back link's own leave", () => {
     const backLink = () => screen.getByRole("link", { name: "← Притулок" });
-    const description = () => screen.getByLabelText("Про тварину");
+    const description = () => screen.getByLabelText("Опис");
     const preventedAtNavigation = () => {
       const seen: boolean[] = [];
       const assign = vi
@@ -971,7 +989,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
 
   it("/nova with nothing typed never warns, and typing then clearing doesn't either", () => {
     renderForm(null);
-    const description = screen.getByLabelText("Про тварину");
+    const description = screen.getByLabelText("Опис");
     expect(dispatchUnload().prevented).toBe(false);
     fireEvent.change(description, { target: { value: "а" } });
     expect(dispatchUnload().prevented).toBe(true);
@@ -1360,11 +1378,9 @@ describe("a listed animal saves only when asked (T8)", () => {
   it("an emptied description is refused inline and not sent", async () => {
     const user = userEvent.setup();
     const client = renderForm(published());
-    await user.clear(screen.getByLabelText("Про тварину"));
+    await user.clear(screen.getByLabelText("Опис"));
     await user.click(screen.getByRole("button", { name: "Зберегти" }));
-    expect(
-      screen.getByText("Картку вже публікували, тож опис не може бути порожнім."),
-    ).toBeTruthy();
+    expectRefusedInlineAndInSummary("Картку вже публікували, тож опис не може бути порожнім.");
     expect(client.calls.update).not.toHaveBeenCalled();
   });
 
@@ -1375,11 +1391,11 @@ describe("a listed animal saves only when asked (T8)", () => {
       apiError("LISTING_FACT_REQUIRED", { field: "description" }),
     );
     renderForm(published(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Інший опис." } });
+    fireEvent.change(screen.getByLabelText("Опис"), { target: { value: "Інший опис." } });
     await user.click(screen.getByRole("button", { name: "Зберегти" }));
-    expect(
-      await screen.findByText("Картку вже публікували, тож опис не може бути порожнім."),
-    ).toBeTruthy();
+    await waitFor(() =>
+      expectRefusedInlineAndInSummary("Картку вже публікували, тож опис не може бути порожнім."),
+    );
   });
 
   it("on a visible card, the photo section says a photo change updates «Оновлено»", () => {
@@ -1652,7 +1668,8 @@ describe("temperament", () => {
 
 describe("colour", () => {
   const group = () => within(screen.getByRole("group", { name: "Забарвлення" }));
-  const checked = (label: string) => (group().getByLabelText(label) as HTMLInputElement).checked;
+  const checked = (label: string) =>
+    (group().getByRole("radio", { name: label }) as HTMLInputElement).checked;
 
   it("is a labelled radio group of the ten colours, «Інше» and «Не вказано», starting on «Не вказано»", () => {
     renderForm(null);
@@ -1844,7 +1861,7 @@ describe("who may change what", () => {
 
   it("a shelter whose writes are refused sees the same read-only page", () => {
     renderForm(published(), { editing: { kind: "read_only" } });
-    expect((screen.getByLabelText("Про тварину") as HTMLTextAreaElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Опис") as HTMLTextAreaElement).disabled).toBe(true);
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
   });
 
@@ -1936,4 +1953,85 @@ describe("who may change what", () => {
       ).toBe(note.id);
     },
   );
+});
+
+describe("sections, steps and the error summary (kabinet redesign PR 3)", () => {
+  it("names the five sections in the order a volunteer fills them, each reachable from the steps", () => {
+    renderForm(draft());
+    const steps = within(screen.getByRole("navigation", { name: "Ластівка" }));
+    expect(steps.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "#basics",
+      "#photos",
+      "#about",
+      "#health",
+      "#publication",
+    ]);
+    const headings = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((heading) => heading.textContent);
+    expect(headings).toEqual(["Основне", "Фото", "Про тварину", "Здоровʼя", "Публікація"]);
+    // Each link points at a section that exists, so it works with no script.
+    for (const id of ["basics", "photos", "about", "health", "publication"]) {
+      expect(document.getElementById(id)).not.toBeNull();
+    }
+  });
+
+  it("a read-only view has no «Публікація» section and no step for it", () => {
+    renderForm(draft(), { viewer: "support", editing: { kind: "read_only" } });
+    expect(screen.queryByRole("heading", { level: 2, name: "Публікація" })).toBeNull();
+    expect(document.querySelector('a[href="#publication"]')).toBeNull();
+  });
+
+  it("on /nova the photos section is there, without a way to add one yet", () => {
+    renderForm(null);
+    expect(screen.getByRole("heading", { level: 2, name: "Фото" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "+ Фото" })).toBeNull();
+  });
+
+  it("a refused save someone pressed puts focus on a summary that lists the problem and goes to the field", async () => {
+    const user = userEvent.setup();
+    renderForm(null);
+    await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Кіт"));
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    const summary = screen.getByRole("alert");
+    await waitFor(() => expect(document.activeElement).toBe(summary));
+    const item = within(summary).getByRole("button", {
+      name: "Щоб зберегти чернетку, потрібне імʼя.",
+    });
+    await user.click(item);
+    expect(document.activeElement).toBe(screen.getByLabelText("Імʼя"));
+  });
+
+  it("leaving a field with a problem shows it under the field only: no summary, no focus pulled", async () => {
+    const user = userEvent.setup();
+    renderForm(null);
+    await user.type(screen.getByLabelText("Імʼя"), "Бу{{}");
+    await user.tab();
+    expect(screen.getByText("В імені не може бути фігурних дужок.")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(document.activeElement).not.toBeNull();
+    expect(document.activeElement?.getAttribute("role")).not.toBe("alert");
+  });
+
+  it("the disabled «Опублікувати» sends focus to «Публікація», where each gap is a link to its section", async () => {
+    const user = userEvent.setup();
+    renderForm(draft({ sex: "male" } as Partial<KabinetAnimalView>));
+    await user.click(screen.getByRole("button", { name: "Опублікувати" }));
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Публікація" }));
+    const gaps = within(
+      screen.getByRole("navigation", { name: /Щоб опублікувати, ще потрібно/ }),
+    ).getAllByRole("link");
+    expect(gaps.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["розмір", "#basics"],
+      ["вік", "#basics"],
+      ["опис", "#about"],
+      ["фото", "#photos"],
+    ]);
+  });
+
+  it("a ready draft lists no gaps; a published card says who sees it, in «Публікація»", () => {
+    renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>));
+    expect(screen.queryByText(/Щоб опублікувати, ще потрібно/)).toBeNull();
+    expect(screen.getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeTruthy();
+  });
 });

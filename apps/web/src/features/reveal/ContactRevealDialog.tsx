@@ -153,7 +153,7 @@ interface ContactRevealDialogProps {
  * full-screen) - `Opika Registry Frames.dc.html`, opened directly. One
  * overlay tree for both breakpoints: the mobile card is `w-full h-full` (a
  * true full-screen takeover, matching R2's own frame), the desktop card is
- * a centred `max-w-[640px]` box over a visible backdrop, matching R1.
+ * a centred `max-w-160` box over a visible backdrop, matching R1.
  */
 export function ContactRevealDialog({
   state,
@@ -244,7 +244,7 @@ export function ContactRevealDialog({
   return (
     <div
       data-testid="reveal-overlay"
-      className="fixed inset-0 z-50 flex items-start desktop:items-center justify-center desktop:bg-[#B9B9B5]/90 desktop:p-8"
+      className="fixed inset-0 z-(--z-modal) flex items-start desktop:items-center justify-center desktop:bg-line/90 desktop:p-8"
     >
       <div
         ref={dialogRef}
@@ -252,7 +252,7 @@ export function ContactRevealDialog({
         aria-modal="true"
         aria-labelledby="reveal-heading"
         data-testid="reveal-dialog"
-        className="font-rg w-full h-full desktop:h-auto desktop:max-w-[640px] desktop:max-h-[85vh] overflow-y-auto bg-rg-surface desktop:rounded-rg-card p-6 desktop:shadow-[0_24px_48px_-32px_rgba(16,17,18,0.4)] flex flex-col gap-6"
+        className="w-full h-full desktop:h-auto desktop:max-w-160 desktop:max-h-[85vh] overflow-y-auto bg-surface desktop:rounded-card p-6 desktop:shadow-float flex flex-col gap-6"
       >
         {state.kind === "error" && (
           <RevealError
@@ -306,27 +306,23 @@ function RevealError({
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-2">
-          {"eyebrow" in copy && (
-            <span className="text-[11px] font-medium tracking-[0.12em] text-rg-ink-3">
-              {copy.eyebrow}
-            </span>
-          )}
+          {"eyebrow" in copy && <span className="text-caption text-ink-2">{copy.eyebrow}</span>}
           <h2
             ref={headingRef}
             id="reveal-heading"
             tabIndex={-1}
-            className="text-[26px]/[30px] font-bold text-rg-ink outline-none"
+            className="text-title text-ink outline-none"
           >
             {copy.title}
           </h2>
-          {"body" in copy && <span className="text-[15px]/[22px] text-rg-ink-2">{copy.body}</span>}
+          {"body" in copy && <span className="text-body text-ink-2">{copy.body}</span>}
         </div>
         <button
           type="button"
           onClick={onClose}
           aria-label={uk.preview.close}
           data-testid="reveal-close"
-          className="size-12 flex-none rounded-rg-button bg-rg-fill text-[17px] text-rg-ink-2 focus-ring-registry"
+          className="size-12 flex-none rounded-field bg-line text-body text-ink-2 focus-ring"
         >
           ✕
         </button>
@@ -349,7 +345,7 @@ function RevealError({
           type="button"
           onClick={onRetry}
           data-testid="reveal-retry"
-          className="min-h-14 rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-ring-registry"
+          className="min-h-14 rounded-field bg-ink text-label text-on-ink focus-ring"
         >
           {copy.action}
         </button>
@@ -384,57 +380,55 @@ function RevealContent({
     <>
       <div className="flex items-start gap-4">
         <div className="flex-1 flex flex-col gap-2">
-          <span className="text-[15px]/[22px] text-rg-ink-3">
+          <span className="text-body text-ink-2">
             {uk.reveal.youAskedAbout.replace("{name}", () => animalName)}
           </span>
           <h2
             ref={headingRef}
             id="reveal-heading"
             tabIndex={-1}
-            className="text-[34px]/[38px] font-bold tracking-[-0.03em] text-rg-ink outline-none"
+            className="text-display-l text-ink outline-none"
           >
             {uk.reveal.title}
           </h2>
-          <span className="text-[17px]/[26px] text-rg-ink-2">{uk.reveal.subtitle}</span>
+          <span className="text-body text-ink-2">{uk.reveal.subtitle}</span>
         </div>
         <button
           type="button"
           onClick={onClose}
           aria-label={uk.preview.close}
           data-testid="reveal-close"
-          className="size-12 flex-none rounded-rg-button bg-rg-fill text-[17px] text-rg-ink-2 focus-ring-registry"
+          className="size-12 flex-none rounded-field bg-line text-body text-ink-2 focus-ring"
         >
           ✕
         </button>
       </div>
 
       <div className="flex flex-col desktop:flex-row gap-4">
-        <div className="flex-1 min-w-0 bg-rg-fill rounded-rg-button p-4 flex flex-col gap-2">
-          <span className="text-[15px]/[22px] font-medium text-rg-ink">{displayName}</span>
+        <div className="flex-1 min-w-0 bg-line rounded-field p-4 flex flex-col gap-2">
+          <span className="text-body text-ink">{displayName}</span>
           {allChannels(contact).map((channel) => (
             <span
               key={`${channel.kind}:${contactChannelText(channel)}`}
               data-testid="reveal-contact-row"
-              className="flex items-center min-h-14 px-4 rounded-rg-button bg-rg-surface text-[17px] text-rg-ink break-all"
+              className="flex items-center min-h-14 px-4 rounded-field bg-surface text-body text-ink break-all"
             >
               {contactChannelText(channel)}
             </span>
           ))}
-          <span className="flex items-center min-h-14 px-4 text-[15px]/[22px] text-rg-ink-2">
+          <span className="flex items-center min-h-14 px-4 text-body text-ink-2">
             {cityName
               ? `${uk.location.lineAtShelter.replace("{city}", () => cityName)} · ${uk.reveal.meetingPlace}`
               : uk.reveal.meetingPlace}
           </span>
-          {footnote !== null && (
-            <span className="text-[13px]/[18px] text-rg-ink-3">{footnote}</span>
-          )}
+          {footnote !== null && <span className="text-caption text-ink-2">{footnote}</span>}
         </div>
 
-        <div className="flex-1 min-w-0 bg-rg-fill rounded-rg-button p-4 flex flex-col gap-3">
-          <span className="text-[17px]/[26px] text-rg-ink">{uk.reveal.reflectionHeading}</span>
-          <span className="text-[15px]/[22px] text-rg-ink-2">{uk.reveal.reflection1}</span>
-          <span className="text-[15px]/[22px] text-rg-ink-2">{uk.reveal.reflection2}</span>
-          <span className="text-[15px]/[22px] text-rg-ink-2">{uk.reveal.reflection3}</span>
+        <div className="flex-1 min-w-0 bg-line rounded-field p-4 flex flex-col gap-3">
+          <span className="text-body text-ink">{uk.reveal.reflectionHeading}</span>
+          <span className="text-body text-ink-2">{uk.reveal.reflection1}</span>
+          <span className="text-body text-ink-2">{uk.reveal.reflection2}</span>
+          <span className="text-body text-ink-2">{uk.reveal.reflection3}</span>
         </div>
       </div>
 
@@ -445,7 +439,7 @@ function RevealContent({
             target={primaryAction.external ? "_blank" : undefined}
             rel={primaryAction.external ? "noopener" : undefined}
             data-testid="reveal-primary-action"
-            className="min-h-14 flex-1 flex items-center justify-center rounded-rg-button bg-rg-ink text-[15px] font-medium text-rg-surface focus-ring-registry"
+            className="min-h-14 flex-1 flex items-center justify-center rounded-field bg-ink text-label text-on-ink focus-ring"
           >
             {primaryAction.label}
           </a>
@@ -455,7 +449,7 @@ function RevealContent({
             type="button"
             onClick={secondaryAction.onClick}
             data-testid="reveal-back-to-gallery"
-            className="min-h-14 text-[15px] text-rg-ink-2 underline focus-ring-registry rounded-rg-button"
+            className="min-h-14 text-label text-ink-2 underline focus-ring rounded-field"
           >
             {secondaryAction.label}
           </button>

@@ -2,15 +2,16 @@
 
 import { DEFAULT_GALLERY_SORT, NO_FILTERS } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import Link from "next/link";
+import { Button, LinkButton } from "../../ui/Button";
+import { Container } from "../../ui/Container";
+import { Heading } from "../../ui/Heading";
+import { Panel } from "../../ui/Panel";
+import { Skeleton } from "../../ui/Skeleton";
 import { Footer } from "../chrome/Footer";
 import { SiteHeader } from "../chrome/SiteHeader";
 import type { CitySlugsById } from "../gallery/filter-url";
 import { GalleryCard } from "../gallery/GalleryCard";
-import { SavedCardSkeleton } from "./SavedCardSkeleton";
 import { type SavedCardResult, useSavedCards } from "./useSavedCards";
-
-const FOCUS = "focus-ring";
 
 interface SavedPageScreenProps {
   /** `cities.list`, resolved server-side - this screen never fetches it itself. */
@@ -37,22 +38,8 @@ function hasSomethingToShow(item: SavedCardResult): item is VisibleSavedCardResu
  */
 const EMPTY_CITY_SLUGS: CitySlugsById = new Map();
 
-function EmptyState() {
-  return (
-    <div
-      data-testid="saved-empty"
-      className="flex flex-col items-start gap-4 rounded-brand-panel bg-brand-surface px-8 py-12"
-    >
-      <p className="text-[16px]/[1.4] text-brand-ink-2 text-pretty">{uk.likes.empty}</p>
-      <Link
-        href="/tvaryny"
-        className={`inline-flex min-h-13 items-center rounded-brand-pill bg-brand-ink px-6 text-[16px] font-semibold text-brand-on-ink ${FOCUS}`}
-      >
-        {uk.likes.emptyLink}
-      </Link>
-    </div>
-  );
-}
+/** One grid for loading and loaded, so a skeleton swapping for its card moves nothing. */
+const GRID = "grid grid-cols-1 gap-4 tablet:grid-cols-2 desktop:grid-cols-4 desktop:gap-7.5";
 
 /**
  * S8, the saved page (`/zberezheni`). Client-rendered end to end: the list
@@ -112,26 +99,17 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
   const visible = load.kind === "ready" ? load.items.filter(hasSomethingToShow) : null;
 
   return (
-    <div className="font-brand-ui min-h-dvh bg-brand-page">
+    <div className="min-h-dvh bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-13 px-4 pt-10 pb-10 tablet:px-6 desktop:px-14 desktop:pb-14">
+      <Container className="flex flex-col gap-13 pt-10 pb-10 desktop:pb-14">
         <div className="flex flex-col gap-1">
-          {/*
-            Responsive audit Phase 2 (2026-10-28): «Збережені» alone measures
-            389px at a flat 48px display font - wider than the ~328px column
-            at 360-390px, so it rendered as a real horizontal overflow (not a
-            wrap problem; it already wraps between words, one word just
-            doesn't fit on its own line). Same fix `/pro`/`/prytulkam`'s own
-            h1 already uses (`ContentPageLayout.tsx`): scale down below
-            `desktop:` instead of a flat size.
-          */}
-          <h1 className="font-brand-display text-[34px]/[1.1] desktop:text-[48px]/[1.1] text-brand-ink">
+          <Heading level={1} look="display-l" className="desktop:text-display-xl">
             {uk.likes.title}
-          </h1>
-          <p className="text-[15px]/[20px] text-brand-ink-2">{uk.likes.deviceOnly}</p>
+          </Heading>
+          <p className="text-caption text-ink-2">{uk.likes.deviceOnly}</p>
           {storageBlocked && (
-            <p className="text-[15px]/[20px] text-brand-ink-2" data-testid="saved-storage-blocked">
+            <p className="text-caption text-ink-2" data-testid="saved-storage-blocked">
               {uk.likes.storageBlocked}
             </p>
           )}
@@ -144,13 +122,10 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
         )}
 
         {load.kind === "loading" && (
-          <ul
-            data-testid="saved-skeletons"
-            className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-4 gap-4 desktop:gap-[30px]"
-          >
+          <ul data-testid="saved-skeletons" aria-busy="true" className={GRID}>
             {Array.from({ length: load.count }, (_, index) => (
               <li key={index}>
-                <SavedCardSkeleton />
+                <Skeleton shape="block" className="aspect-328/480" />
               </li>
             ))}
           </ul>
@@ -158,10 +133,15 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
 
         {(load.kind === "unknown" ||
           load.kind === "empty" ||
-          (visible !== null && visible.length === 0)) && <EmptyState />}
+          (visible !== null && visible.length === 0)) && (
+          <Panel padding="lg" data-testid="saved-empty" className="flex flex-col items-start gap-4">
+            <p className="text-body text-ink-2 text-pretty">{uk.likes.empty}</p>
+            <LinkButton href="/tvaryny">{uk.likes.emptyLink}</LinkButton>
+          </Panel>
+        )}
 
         {visible !== null && visible.length > 0 && (
-          <ul className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-4 gap-4 desktop:gap-[30px]">
+          <ul className={GRID}>
             {visible.map((item) => (
               <li key={item.animalId} className="flex flex-col gap-3">
                 {item.kind === "available" ? (
@@ -173,32 +153,29 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
                     citySlugs={EMPTY_CITY_SLUGS}
                   />
                 ) : (
-                  <div
-                    data-testid="saved-unavailable"
-                    className="rounded-brand-panel bg-brand-surface p-4 text-[16px]/[1.4] text-brand-ink-2"
-                  >
-                    {fillTemplate(uk.likes.unavailable, { name: item.name })}
+                  <div data-testid="saved-unavailable">
+                    <Panel className="text-body text-ink-2">
+                      {fillTemplate(uk.likes.unavailable, { name: item.name })}
+                    </Panel>
                   </div>
                 )}
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   onClick={() => removeSaved(item.animalId)}
                   data-testid="saved-remove"
-                  // `min-h-12` (48px floor, responsive audit Phase 2): was
-                  // `min-h-11` (44px), under the touch-target minimum.
-                  className={`inline-flex min-h-12 w-fit items-center rounded-brand-field border-2 border-brand-line px-4 text-[15px] font-medium text-brand-ink hover:bg-brand-line ${FOCUS}`}
+                  className="w-fit"
                 >
                   {uk.likes.remove}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </Container>
 
-      <div className="mx-auto max-w-[1400px] px-4 pb-10 tablet:px-6 desktop:px-14">
+      <Container className="pb-10">
         <Footer />
-      </div>
+      </Container>
     </div>
   );
 }

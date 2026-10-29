@@ -28,24 +28,25 @@ import {
   type VaccinationStatus,
 } from "@opika/domain";
 import { ageWordFor, colourFilterLabel, fillTemplate, temperamentLabelFor, uk } from "@opika/i18n";
+import { Chip } from "../../../ui/Chip";
+import { type Segment, SegmentedControl, TextArea, TextField } from "../../../ui/form";
+import { ChipGroup } from "../../../ui/groups";
+import { Heading } from "../../../ui/Heading";
+import { Panel } from "../../../ui/Panel";
+import { Text } from "../../../ui/Text";
 import { vaccinationRow } from "../../animal-detail/medical-labels";
-import {
-  CheckboxOption,
-  type Segment,
-  SegmentedControl,
-  TextAreaField,
-  TextField,
-} from "../../controls/controls";
-import { CAPTION, CARD, CARD_TITLE, INNER } from "../profile-edit/styles";
 import type { AgeMode, FieldProblem, FormValues } from "./form-values";
 import { ageInputOf } from "./form-values";
 import { bucketRange, dateEndingSentenceOf, sizeHint } from "./labels";
 
 /**
- * K3's four field sections (KABINET K3: one page, not a wizard), each a card
- * with a heading that names its region. Presentational: the form owns the
- * values and passes a setter; a section only says what changed. Styled only
- * through the shared controls and tokens (Test logic, not looks).
+ * The form's fields, grouped the way a volunteer thinks about the animal (kabinet redesign
+ * Phase 2 PR 3): «Основне» (what makes a card publishable), «Про тварину» (how to describe it),
+ * «Здоровʼя». Each group is the body of a `FormSection`; the photos have their own file.
+ * Presentational: the form owns the values and passes a setter; a group only says what changed.
+ * Built from the kit: few choices (up to four) are a segmented control, many (the ten
+ * temperaments, the twelve colours) are chips that wrap, so an optional field never costs a
+ * screen of 48px rows.
  */
 
 const t = uk.kabinet.animalForm;
@@ -59,7 +60,8 @@ export type SectionProps = {
   disabled: boolean;
 };
 
-const problemText = (
+/** A problem's message, in his words; also what the error summary lists. */
+export const problemText = (
   problems: readonly FieldProblem[],
   field: FieldProblem["field"],
 ): string | null => {
@@ -142,8 +144,8 @@ const COAT: readonly Segment<CoatSegment>[] = [
  * colour an animal is, so each option is the filter's word (`colourFilterLabel`).
  * «Інше» opens the shelter's own words; «Не вказано» stands for null, as fur's.
  */
-type ColourSegment = CoatColour | "other" | "unknown";
-const COLOUR: readonly Segment<ColourSegment>[] = [
+type ColourChoice = CoatColour | "other" | "unknown";
+const COLOUR: readonly { value: ColourChoice; label: string }[] = [
   ...COAT_COLOURS.map((colour) => ({ value: colour, label: colourFilterLabel(colour) })),
   { value: "other", label: t.colour.other },
   { value: "unknown", label: t.colour.unknown },
@@ -156,86 +158,12 @@ const AGE_NAME: Record<(typeof AGE_BUCKETS)[number], string> = {
   senior: uk.filters.ageSenior,
 };
 
-export function WhoSection({ values, set, problems, disabled }: SectionProps) {
-  return (
-    <section aria-labelledby="who-title" className={CARD}>
-      <h2 id="who-title" className={CARD_TITLE}>
-        {t.who.title}
-      </h2>
-      <TextField
-        id="animal-name"
-        label={t.who.nameLabel}
-        hint={t.who.nameHint}
-        placeholder={t.who.namePlaceholder}
-        value={values.name}
-        error={problemText(problems, "name")}
-        disabled={disabled}
-        autoComplete="off"
-        onChange={(event) => set({ name: event.currentTarget.value })}
-      />
-      <SegmentedControl
-        name="animal-species"
-        legend={t.who.speciesLabel}
-        segments={SPECIES}
-        value={values.species}
-        error={problemText(problems, "species")}
-        disabled={disabled}
-        onChange={(species) => set({ species })}
-      />
-      <SegmentedControl
-        name="animal-sex"
-        legend={t.who.sexLabel}
-        segments={SEX}
-        value={values.sex}
-        disabled={disabled}
-        onChange={(sex) => set({ sex })}
-      />
-      <SegmentedControl
-        name="animal-size"
-        legend={t.who.sizeLabel}
-        segments={SIZE_BUCKETS.map((size) => ({
-          value: size,
-          label: SIZE_NAME[size],
-          hint: sizeHint(size),
-        }))}
-        value={values.size}
-        hint={t.who.sizeNote}
-        disabled={disabled}
-        onChange={(size) => set({ size })}
-      />
-      <SegmentedControl
-        name="animal-coat"
-        legend={t.coat.label}
-        segments={COAT}
-        value={values.coatLength ?? "unknown"}
-        disabled={disabled}
-        onChange={(coat) => set({ coatLength: coat === "unknown" ? null : coat })}
-      />
-      <SegmentedControl
-        name="animal-colour"
-        legend={t.colour.title}
-        segments={COLOUR}
-        value={values.colour ?? "unknown"}
-        disabled={disabled}
-        onChange={(colour) => set({ colour: colour === "unknown" ? null : colour })}
-      />
-      {values.colour === "other" ? (
-        <CustomTextField
-          id="animal-colour-custom"
-          label={t.colour.other}
-          placeholder={t.colour.customPlaceholder}
-          value={values.colourCustom}
-          max={COAT_COLOUR_CUSTOM_MAX_CHARACTERS}
-          error={problemText(problems, "colourCustom")}
-          disabled={disabled}
-          onChange={(colourCustom) => set({ colourCustom })}
-        />
-      ) : null}
-    </section>
-  );
-}
-
-export function AgeSection({
+/**
+ * «Основне»: what a card cannot be published without, in the order a volunteer knows it: the
+ * name, the kind of animal, sex, size, age. The first four are quick taps; age is the one that
+ * needs a decision, so it sits last, in its own outlined block.
+ */
+export function BasicsFields({
   values,
   set,
   problems,
@@ -285,70 +213,113 @@ export function AgeSection({
     storedAge.kind === "declared_bucket" &&
     isAgeEstimateUncertain(storedAge, now);
   return (
-    <section aria-labelledby="age-title" className={CARD}>
-      <h2 id="age-title" className={CARD_TITLE}>
-        {t.age.title}
-      </h2>
-      <SegmentedControl
-        name="animal-age-mode"
-        legend={t.age.modeLabel}
-        segments={modes}
-        value={values.ageMode}
-        hint={t.age.modeNote}
+    <>
+      <TextField
+        id="animal-name"
+        label={t.who.nameLabel}
+        hint={t.who.nameHint}
+        placeholder={t.who.namePlaceholder}
+        value={values.name}
+        error={problemText(problems, "name")}
         disabled={disabled}
-        onChange={(ageMode) => set({ ageMode })}
+        autoComplete="off"
+        onChange={(event) => set({ name: event.currentTarget.value })}
       />
-      {values.ageMode === "birth_date" ? (
-        <TextField
-          id="animal-birth-date"
-          type="date"
-          label={t.age.birthDateLabel}
-          value={values.birthDate}
-          error={problemText(problems, "birthDate")}
+      <SegmentedControl
+        name="animal-species"
+        legend={t.who.speciesLabel}
+        segments={SPECIES}
+        value={values.species}
+        error={problemText(problems, "species")}
+        disabled={disabled}
+        onChange={(species) => set({ species })}
+      />
+      <SegmentedControl
+        name="animal-sex"
+        legend={t.who.sexLabel}
+        segments={SEX}
+        value={values.sex}
+        disabled={disabled}
+        onChange={(sex) => set({ sex })}
+      />
+      <SegmentedControl
+        name="animal-size"
+        legend={t.who.sizeLabel}
+        segments={SIZE_BUCKETS.map((size) => ({
+          value: size,
+          label: SIZE_NAME[size],
+          hint: sizeHint(size),
+        }))}
+        value={values.size}
+        hint={t.who.sizeNote}
+        disabled={disabled}
+        onChange={(size) => set({ size })}
+      />
+      <Panel tone="outline" padding="lg" className="flex flex-col gap-5">
+        <Heading level={3} look="body-l">
+          {t.age.title}
+        </Heading>
+        <SegmentedControl
+          name="animal-age-mode"
+          legend={t.age.modeLabel}
+          segments={modes}
+          value={values.ageMode}
+          hint={t.age.modeNote}
           disabled={disabled}
-          onChange={(event) => set({ birthDate: event.currentTarget.value })}
+          onChange={(ageMode) => set({ ageMode })}
         />
-      ) : (
-        <div className={`flex flex-col gap-4 ${INNER}`}>
-          <SegmentedControl
-            name="animal-age-bucket"
-            legend={t.age.bucketLabel}
-            segments={AGE_BUCKETS.map((bucket) => ({
-              value: bucket,
-              label: `${AGE_NAME[bucket]} · ${bucketRange(bucket)}`,
-            }))}
-            value={values.bucket}
-            disabled={disabled}
-            onChange={(bucket) => set({ bucket })}
-          />
+        {values.ageMode === "birth_date" ? (
           <TextField
-            id="animal-as-of"
+            id="animal-birth-date"
             type="date"
-            label={t.age.asOfLabel}
-            hint={t.age.asOfHint}
-            value={values.asOf}
-            error={problemText(problems, "asOf")}
+            label={t.age.birthDateLabel}
+            value={values.birthDate}
+            error={problemText(problems, "birthDate")}
             disabled={disabled}
-            onChange={(event) => set({ asOf: event.currentTarget.value })}
+            onChange={(event) => set({ birthDate: event.currentTarget.value })}
           />
-        </div>
-      )}
-      {label !== null ? (
-        <p className={CAPTION}>{fillTemplate(t.age.adopterSees, { label })}</p>
-      ) : null}
-      {uncertain &&
-      stored !== null &&
-      storedAge !== null &&
-      storedAge.kind === "declared_bucket" ? (
-        <p className={CAPTION}>
-          {fillTemplate(t.age.uncertain, {
-            when: dateEndingSentenceOf(storedAge.declaredAt),
-            // «Тепер на картці»: the saved card, so the saved sex, not the form's unsaved one.
-            label: ageWordFor(ageBucketOf(storedAge, now), stored.sex),
-          })}
-        </p>
-      ) : null}
-    </section>
+        ) : (
+          <>
+            <SegmentedControl
+              name="animal-age-bucket"
+              legend={t.age.bucketLabel}
+              segments={AGE_BUCKETS.map((bucket) => ({
+                value: bucket,
+                label: `${AGE_NAME[bucket]} · ${bucketRange(bucket)}`,
+              }))}
+              value={values.bucket}
+              disabled={disabled}
+              onChange={(bucket) => set({ bucket })}
+            />
+            <TextField
+              id="animal-as-of"
+              type="date"
+              label={t.age.asOfLabel}
+              hint={t.age.asOfHint}
+              value={values.asOf}
+              error={problemText(problems, "asOf")}
+              disabled={disabled}
+              onChange={(event) => set({ asOf: event.currentTarget.value })}
+            />
+          </>
+        )}
+        {label !== null ? (
+          <Text look="hint">{fillTemplate(t.age.adopterSees, { label })}</Text>
+        ) : null}
+        {uncertain &&
+        stored !== null &&
+        storedAge !== null &&
+        storedAge.kind === "declared_bucket" ? (
+          <Text look="hint">
+            {fillTemplate(t.age.uncertain, {
+              when: dateEndingSentenceOf(storedAge.declaredAt),
+              // «Тепер на картці»: the saved card, so the saved sex, not the form's unsaved one.
+              label: ageWordFor(ageBucketOf(storedAge, now), stored.sex),
+            })}
+          </Text>
+        ) : null}
+      </Panel>
+    </>
   );
 }
 
@@ -383,9 +354,9 @@ function CharacterCounter({ text, max }: { text: string; max: number }) {
 /**
  * A short text in the shelter's own words, under its own cap: «Інше» for a
  * colour or a temperament. Its accessible name is «Інше – Своїми словами»,
- * two approved strings: the checkbox or radio that opens it is already
- * «Інше», and a screen reader would otherwise announce two controls with one
- * name. The visible label stays in the name (WCAG 2.5.3, label in name).
+ * two approved strings: the chip that opens it is already «Інше», and a
+ * screen reader would otherwise announce two controls with one name. The
+ * visible label stays in the name (WCAG 2.5.3, label in name).
  */
 function CustomTextField({
   id,
@@ -422,75 +393,12 @@ function CustomTextField({
   );
 }
 
-export function DescriptionSection({ values, set, problems, disabled }: SectionProps) {
-  return (
-    <section aria-labelledby="description-title" className={CARD}>
-      <h2 id="description-title" className={CARD_TITLE}>
-        {t.description.title}
-      </h2>
-      <p className={CAPTION}>{t.description.prompt}</p>
-      <TextAreaField
-        id="animal-description"
-        label={t.description.label}
-        value={values.description}
-        error={problemText(problems, "description")}
-        disabled={disabled}
-        hint={
-          <>
-            <span>{t.description.hint}</span>
-            <CharacterCounter text={values.description} max={ANIMAL_DESCRIPTION_MAX_CHARACTERS} />
-          </>
-        }
-        onChange={(event) => set({ description: event.currentTarget.value })}
-      />
-    </section>
-  );
-}
-
 /**
- * «Медичний стан» on the public pet card (pet card PR 5, A3) - a free-text
- * note distinct from the structured vaccination/spay-neuter facts
- * (`HealthSection` above), which stay exactly as they were and still feed
- * the «Про мене» chip row on the public page, not this field. Mirrors
- * `DescriptionSection` above field for field: optional (no
- * `requiredOnceListed`-equivalent problem - A3 says never required to
- * publish), reuses the description's own character cap
- * (`MEDICAL_NOTES_MAX_CHARACTERS === ANIMAL_DESCRIPTION_MAX_CHARACTERS`,
- * `packages/domain/src/animals/animal.ts`'s own comment on that constant).
- * His own two strings (title, hint), given directly, 2026-10-27.
+ * «Про тварину»: the description first (it is the one field here a card cannot be published
+ * without), then the optional words people read and filter by: temperament, fur, colour. The
+ * description's label is «Опис» because the section is already «Про тварину».
  */
-export function MedicalNotesSection({ values, set, problems, disabled }: SectionProps) {
-  return (
-    <section aria-labelledby="medical-notes-title" className={CARD}>
-      <h2 id="medical-notes-title" className={CARD_TITLE}>
-        {t.medicalNotes.title}
-      </h2>
-      <TextAreaField
-        id="animal-medical-notes"
-        label={t.medicalNotes.title}
-        value={values.medicalNotes}
-        error={problemText(problems, "medicalNotes")}
-        disabled={disabled}
-        hint={
-          <>
-            <span>{t.medicalNotes.hint}</span>
-            <CharacterCounter text={values.medicalNotes} max={MEDICAL_NOTES_MAX_CHARACTERS} />
-          </>
-        }
-        onChange={(event) => set({ medicalNotes: event.currentTarget.value })}
-      />
-    </section>
-  );
-}
-
-/**
- * «Характер»: any of the presets, in the order ticked, plus at most one entry
- * in the shelter's own words. Each preset reads in the form the card will
- * show for the sex chosen above, so the words change as the sex does (the
- * age word's rule: female → feminine, male and «Не записано» → masculine).
- * Optional, never a publish gap.
- */
-export function TemperamentSection({ values, set, problems, disabled }: SectionProps) {
+export function AboutFields({ values, set, problems, disabled }: SectionProps) {
   const toggle = (trait: TemperamentTrait, on: boolean) =>
     set({
       temperamentTraits: on
@@ -498,43 +406,116 @@ export function TemperamentSection({ values, set, problems, disabled }: SectionP
         : values.temperamentTraits.filter((ticked) => ticked !== trait),
     });
   return (
-    <fieldset className={CARD} disabled={disabled} aria-describedby="temperament-hint">
-      <legend className={`${CARD_TITLE} mb-4`}>{t.temperament.title}</legend>
-      <p id="temperament-hint" className={CAPTION}>
-        {t.temperament.hint}
-      </p>
-      <div className="flex min-w-0 flex-col gap-2">
-        {TEMPERAMENT_TRAITS.map((trait) => (
-          <CheckboxOption
-            key={trait}
-            name="animal-temperament"
-            value={trait}
-            label={temperamentLabelFor(trait, values.sex)}
-            checked={values.temperamentTraits.includes(trait)}
-            onChange={(event) => toggle(trait, event.currentTarget.checked)}
-          />
-        ))}
-        <CheckboxOption
-          name="animal-temperament"
-          value="other"
-          label={t.temperament.other}
-          checked={values.temperamentOther}
-          onChange={(event) => set({ temperamentOther: event.currentTarget.checked })}
+    <>
+      <div className="flex flex-col gap-2">
+        <Text look="hint" id="animal-description-prompt">
+          {t.description.prompt}
+        </Text>
+        <TextArea
+          id="animal-description"
+          label={t.description.title}
+          value={values.description}
+          error={problemText(problems, "description")}
+          disabled={disabled}
+          describedBy={["animal-description-prompt"]}
+          hint={
+            <>
+              <span>{t.description.hint}</span>
+              <CharacterCounter text={values.description} max={ANIMAL_DESCRIPTION_MAX_CHARACTERS} />
+            </>
+          }
+          onChange={(event) => set({ description: event.currentTarget.value })}
         />
       </div>
-      {values.temperamentOther ? (
-        <CustomTextField
-          id="animal-temperament-custom"
-          label={t.temperament.other}
-          placeholder={t.temperament.customPlaceholder}
-          value={values.temperamentCustom}
-          max={TEMPERAMENT_CUSTOM_MAX_CHARACTERS}
-          error={problemText(problems, "temperamentCustom")}
-          disabled={disabled}
-          onChange={(temperamentCustom) => set({ temperamentCustom })}
-        />
-      ) : null}
-    </fieldset>
+
+      <ChipGroup
+        name="animal-temperament"
+        legend={t.temperament.title}
+        hint={t.temperament.hint}
+        disabled={disabled}
+        extra={
+          values.temperamentOther ? (
+            <CustomTextField
+              id="animal-temperament-custom"
+              label={t.temperament.other}
+              placeholder={t.temperament.customPlaceholder}
+              value={values.temperamentCustom}
+              max={TEMPERAMENT_CUSTOM_MAX_CHARACTERS}
+              error={problemText(problems, "temperamentCustom")}
+              disabled={disabled}
+              onChange={(temperamentCustom) => set({ temperamentCustom })}
+            />
+          ) : null
+        }
+      >
+        {TEMPERAMENT_TRAITS.map((trait) => (
+          <Chip
+            key={trait}
+            kind="option"
+            type="checkbox"
+            name="animal-temperament"
+            value={trait}
+            checked={values.temperamentTraits.includes(trait)}
+            onChange={(event) => toggle(trait, event.currentTarget.checked)}
+          >
+            {temperamentLabelFor(trait, values.sex)}
+          </Chip>
+        ))}
+        <Chip
+          kind="option"
+          type="checkbox"
+          name="animal-temperament"
+          value="other"
+          checked={values.temperamentOther}
+          onChange={(event) => set({ temperamentOther: event.currentTarget.checked })}
+        >
+          {t.temperament.other}
+        </Chip>
+      </ChipGroup>
+
+      <SegmentedControl
+        name="animal-coat"
+        legend={t.coat.label}
+        segments={COAT}
+        value={values.coatLength ?? "unknown"}
+        disabled={disabled}
+        onChange={(coat) => set({ coatLength: coat === "unknown" ? null : coat })}
+      />
+
+      <ChipGroup
+        name="animal-colour"
+        legend={t.colour.title}
+        disabled={disabled}
+        extra={
+          values.colour === "other" ? (
+            <CustomTextField
+              id="animal-colour-custom"
+              label={t.colour.other}
+              placeholder={t.colour.customPlaceholder}
+              value={values.colourCustom}
+              max={COAT_COLOUR_CUSTOM_MAX_CHARACTERS}
+              error={problemText(problems, "colourCustom")}
+              disabled={disabled}
+              onChange={(colourCustom) => set({ colourCustom })}
+            />
+          ) : null
+        }
+      >
+        {COLOUR.map((colour) => (
+          <Chip
+            key={colour.value}
+            kind="option"
+            type="radio"
+            name="animal-colour"
+            value={colour.value}
+            checked={(values.colour ?? "unknown") === colour.value}
+            onChange={() => set({ colour: colour.value === "unknown" ? null : colour.value })}
+          >
+            {colour.label}
+          </Chip>
+        ))}
+      </ChipGroup>
+    </>
   );
 }
 
@@ -544,24 +525,30 @@ const MEDICAL: readonly Segment<MedicalState>[] = [
   { value: "confirmed", label: t.health.confirm },
 ];
 
-export function HealthSection({
+/**
+ * «Здоровʼя»: the two structured facts (vaccination, spay/neuter) that feed the public chip row,
+ * then the shelter's own free-text note, which the public page shows under «Медичний стан». All
+ * optional; «Не записано» is an honest answer, never an error.
+ */
+export function HealthFields({
   values,
   set,
+  problems,
   disabled,
   vaccination,
-}: Omit<SectionProps, "problems"> & { vaccination: VaccinationStatus | null }) {
+}: SectionProps & { vaccination: VaccinationStatus | null }) {
   const registry = vaccination?.source === "registry" ? vaccinationRow(vaccination) : null;
   return (
-    <section aria-labelledby="health-title" className={CARD}>
-      <h2 id="health-title" className={CARD_TITLE}>
+    <>
+      <Heading level={3} look="body-l">
         {t.health.title}
-      </h2>
+      </Heading>
       {registry !== null ? (
         // N19: a registry fact renders read-only, with the public row's own treatment.
         <div className="flex flex-col gap-1">
-          <p className="text-base font-medium text-rg-ink">{registry.label}</p>
-          <p className={CAPTION}>{registry.statusText}</p>
-          <p className={CAPTION}>{t.health.registryReadOnly}</p>
+          <Text look="label">{registry.label}</Text>
+          <Text look="hint">{registry.statusText}</Text>
+          <Text look="hint">{t.health.registryReadOnly}</Text>
         </div>
       ) : (
         <SegmentedControl
@@ -581,7 +568,21 @@ export function HealthSection({
         disabled={disabled}
         onChange={(state) => set({ spayNeuter: state })}
       />
-      <p className={CAPTION}>{t.health.unknownNote}</p>
-    </section>
+      <Text look="hint">{t.health.unknownNote}</Text>
+      <TextArea
+        id="animal-medical-notes"
+        label={t.medicalNotes.title}
+        value={values.medicalNotes}
+        error={problemText(problems, "medicalNotes")}
+        disabled={disabled}
+        hint={
+          <>
+            <span>{t.medicalNotes.hint}</span>
+            <CharacterCounter text={values.medicalNotes} max={MEDICAL_NOTES_MAX_CHARACTERS} />
+          </>
+        }
+        onChange={(event) => set({ medicalNotes: event.currentTarget.value })}
+      />
+    </>
   );
 }

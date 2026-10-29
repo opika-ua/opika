@@ -28,5 +28,5 @@ export const dynamic = "force-dynamic";
 
 export default function KabinetLayout({ children }: { children: ReactNode }) {
   if (kabinetAuthAvailability(process.env).kind === "unavailable") notFound();
-  return <div className="min-h-dvh bg-rg-page">{children}</div>;
+  return <div className="min-h-dvh bg-page">{children}</div>;
 }

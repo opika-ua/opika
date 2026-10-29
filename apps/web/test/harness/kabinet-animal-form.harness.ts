@@ -170,11 +170,8 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await expect(page).toHaveURL(/\/kabinet\/tvaryny\/[0-9a-f-]{36}$/);
     draftId = page.url().split("/").at(-1) as AnimalId;
     await expect(page.getByRole("heading", { level: 1, name: "Харнес" })).toBeVisible();
-    await expect(
-      page.getByText(
-        /^Чернетку збережено о \d\d:\d\d · Ті, хто шукає тварину, цю чернетку не бачать\.$/,
-      ),
-    ).toBeVisible();
+    await expect(page.getByText(/^Чернетку збережено о \d\d:\d\d$/)).toBeVisible();
+    await expect(page.getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeVisible();
     await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
     const missing = page.getByText(
       "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.",
@@ -234,7 +231,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       .getByText(/^Молодий/)
       .click();
     await expect(page.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeVisible();
-    await page.getByLabel("Про тварину").fill("Спокійний, любить гуляти в парку.");
+    await page.getByLabel("Опис", { exact: true }).fill("Спокійний, любить гуляти в парку.");
     await page.getByRole("button", { name: "Зберегти чернетку" }).click();
     // Held: a save has been asked for and none has landed, yet the gap list
     // already reads the form's own state.
@@ -246,11 +243,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     ).toEqual({ letThrough: 0, landed: 0 });
 
     releaseSaves();
-    await expect(
-      page.getByText(
-        /^Чернетку збережено о \d\d:\d\d · Ті, хто шукає тварину, цю чернетку не бачать\.$/,
-      ),
-    ).toBeVisible();
+    await expect(page.getByText(/^Чернетку збережено о \d\d:\d\d$/)).toBeVisible();
     await expect
       .poll(() => savesUnfinished, { message: "a save was still in flight before the reload" })
       .toBe(0);

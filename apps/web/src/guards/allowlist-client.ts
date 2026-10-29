@@ -12,16 +12,14 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/Toast.tsx": "toast queue state, timers and context",
   "ui/Menu.tsx": "controlled open state, outside-press and Esc listeners",
   "ui/Modal.tsx": "controlled dialog; refs and the dialog core",
+  "ui/ErrorSummary.tsx":
+    "item buttons focus their field (click handler); ref is the form's focus target",
   "ui/Popover.tsx": "open state, outside-press and Esc listeners",
+  "ui/StickyActionBar.tsx":
+    "VisualViewport listeners (keyboard lift), ResizeObserver and a focus listener for scroll padding",
   "ui/Sheet.tsx": "open state and hash-link upgrade to showModal; no-JS :target path stays",
   "app/tvaryny/error.tsx": "Next error boundary (must be client); retry button, focus on mount",
   "app/tvaryny/gortaty/error.tsx": "Next error boundary (must be client); retry button",
-  "features/animal-detail/CircleButton.tsx":
-    "SERVER CANDIDATE (directive removable (callers that pass handlers are client files anyway)): none found: no hooks or handlers of its own, only forwards button props",
-  "features/animal-detail/DetailPhotoGallery.tsx":
-    "scroll-snap slider tracks active slide, prev/next scrolling",
-  "features/animal-detail/PillButton.tsx":
-    "SERVER CANDIDATE (directive removable): none found: forwards button props only",
   "features/animal-detail/RevealFlow.tsx":
     "contact-reveal button + dialog open state, calls reveal",
   "features/animal-detail/ShareButton.tsx": "navigator.share / clipboard on click",

@@ -1734,6 +1734,17 @@ export const uk = {
       header: {
         createdNotPublished: "Створено {when} · ще не в галереї",
       },
+      /**
+       * The form's section names (kabinet redesign Phase 2 PR 3). Owner-approved
+       * 2026-10-28/29 ("copy approved: «Основне», «Про тварину», «Здоровʼя»,
+       * «Публікація»"). The photos section keeps `photos.title`.
+       */
+      sections: {
+        basics: "Основне",
+        about: "Про тварину",
+        health: "Здоровʼя",
+        publication: "Публікація",
+      },
       who: {
         title: "Хто це",
         nameLabel: "Імʼя",

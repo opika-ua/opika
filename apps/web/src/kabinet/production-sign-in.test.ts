@@ -318,7 +318,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // (confirmed directly in chat, pinned in copy-status.test.ts's `SEX_FILTER_COPY`).
     // 666 with the kabinet redesign Phase 2 PR 1's one new key, `kabinet.nav.home`
     // («Головна», owner-approved 2026-10-28, pinned in copy-status.test.ts's K2_FINAL).
-    expect(pending.length + written.length).toBe(666);
+    // 670 with the animal form's four section names, `animalForm.sections.*` (owner-approved
+    // 2026-10-28/29, pinned in copy-status.test.ts's FORM_SECTIONS_COPY).
+    expect(pending.length + written.length).toBe(670);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

@@ -18,20 +18,25 @@ const VARIANT: Record<ButtonVariant, string> = {
   accent: "rounded-pill bg-accent text-on-ink",
   secondary: "rounded-pill border-2 border-ink bg-transparent text-ink",
   ghost: "rounded-pill bg-transparent text-ink underline-offset-4 hover:underline",
-  icon: "rounded-pill bg-surface text-ink shadow-float",
+  // The surface and page tokens are near-identical, so the shadow alone leaves the circle invisible on
+  // the page; the ink-2 edge keeps it above 3:1 (WCAG 1.4.11) on a page and on a photo alike.
+  icon: "rounded-pill border border-ink-2 bg-surface text-ink shadow-float",
 };
 
 // md is 48px (the target floor); lg is 64px on desktop and stays 52px on a phone.
 const SIZE: Record<ButtonVariant, Record<ButtonSize, string>> = {
   primary: {
     md: "min-h-target px-6",
-    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l",
+    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l desktop:font-semibold",
   },
   accent: {
     md: "min-h-target px-6",
-    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l",
+    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l desktop:font-semibold",
   },
-  secondary: { md: "min-h-target px-6", lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11" },
+  secondary: {
+    md: "min-h-target px-6",
+    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 desktop:text-body-l desktop:font-semibold",
+  },
   ghost: { md: "min-h-target px-3", lg: "min-h-13 px-4" },
   icon: { md: "size-target", lg: "size-13" },
 };

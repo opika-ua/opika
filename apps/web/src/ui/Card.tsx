@@ -13,9 +13,22 @@ export type CardProps = {
   tone?: keyof typeof TONE;
   /** Layout only: margin, width, aspect ratio. */
   className?: string;
+  /** A named region: `id` for an anchor, `aria-labelledby` for the heading that names it. */
+  id?: string;
+  "aria-labelledby"?: string;
   children: ReactNode;
 };
 
-export function Card({ as: Tag = "div", tone = "surface", className, children }: CardProps) {
-  return <Tag className={cx("overflow-clip rounded-card", TONE[tone], className)}>{children}</Tag>;
+export function Card({
+  as: Tag = "div",
+  tone = "surface",
+  className,
+  children,
+  ...attributes
+}: CardProps) {
+  return (
+    <Tag className={cx("overflow-clip rounded-card", TONE[tone], className)} {...attributes}>
+      {children}
+    </Tag>
+  );
 }

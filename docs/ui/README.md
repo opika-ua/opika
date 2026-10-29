@@ -86,6 +86,8 @@ last consumer imports `src/ui` directly. `ModalDialog` is unchanged until the ka
 | [Toast](components/Toast.md) | `Toast.tsx` | One toast, presentational. `ToastProvider` renders these; it is exported for the showcase and tests. |
 | [ToastProvider](components/ToastProvider.md) | `Toast.tsx` | Holds the toast queue and the live region. Wrap the page once; call `useToast().show(message, tone)` from client components. |
 | [CheckboxGroup](components/CheckboxGroup.md) | `groups.tsx` | A question with several choices: fieldset, legend, hint, error. |
+| [ChipGroup](components/ChipGroup.md) | `groups.tsx` | A question with many short answers as wrapping chips, in a fieldset. |
+| [ErrorSummary](components/ErrorSummary.md) | `ErrorSummary.tsx` | A refused save listed once at the top; each problem takes you to its field. |
 | [RadioGroup](components/RadioGroup.md) | `groups.tsx` | A question with one choice: fieldset, legend, hint, error. |
 | [Toggle](components/Toggle.md) | `Toggle.tsx` | A two-option switch made of two real links (the gallery sort). |
 | [Pagination](components/Pagination.md) | `Pagination.tsx` | Numbered pages as links. |
@@ -93,3 +95,7 @@ last consumer imports `src/ui` directly. `ModalDialog` is unchanged until the ka
 | [Tabs](components/Tabs.md) | `Tabs.tsx` | Tabs that switch panels in place (ARIA tabs pattern). |
 | [BottomNav](components/BottomNav.md) | `BottomNav.tsx` | A short top-level nav as a fixed bottom bar (the kabinet). |
 | [PhotoSlider](components/PhotoSlider.md) | `PhotoSlider.tsx` | Photos that scroll sideways and snap. |
+| [FormSection](components/FormSection.md) | `FormSection.tsx` | One named section of a long form, with an optional step number. |
+| [FormSteps](components/FormSteps.md) | `FormSection.tsx` | The form's sections as a row of anchor links. |
+| [StickyActionBar](components/StickyActionBar.md) | `StickyActionBar.tsx` | The save / publish bar: sticky, safe-area aware, lifted above the on-screen keyboard. |
+| [FreshnessPips](components/FreshnessPips.md) | `FreshnessPips.tsx` | Three pips plus the day count in words. |

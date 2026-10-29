@@ -1,5 +1,8 @@
 import type { AdopterId, AdopterProfile, CityId, ShelterId } from "@opika/domain";
+import { eq } from "drizzle-orm";
+import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { createDatabaseWithClient } from "../src/client";
 import { adopterRepo, ORPHAN_ADOPTER_MIN_AGE_MS } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
@@ -21,6 +24,7 @@ import {
   setupTestDatabase,
   truncateAll,
 } from "../src/test-utils/index";
+import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 
 /**
  * Audit F6, the owner's S3 scope (2026-10-29): the clean-up cron deletes anonymous sessions past
@@ -96,6 +100,45 @@ describe("sessionRepo.deleteLapsed", () => {
     for (let i = 0; i < 4; i++) runs.push(await sessionRepo(db).deleteLapsed(NOW, 2));
     expect(runs).toEqual([2, 2, 1, 0]);
     expect(await sessionHashes()).toEqual([live.tokenHash]);
+  });
+});
+
+describe("sessionRepo.deleteLapsed against a concurrent touch", () => {
+  /**
+   * The comment on `deleteLapsed` says a session a request touches while the clean-up runs is kept.
+   * Forced, not raced: the touch holds the row's lock in an open transaction, the clean-up (on a
+   * second connection) is confirmed blocked on it, then the touch commits. The batch subquery
+   * already chose the row on its old `last_seen_at`; only the lapse test on the DELETE itself
+   * keeps it.
+   */
+  it("keeps a session touched between the batch's pick and its delete", async () => {
+    const adopter = await adopterWith(at(-60 * DAY));
+    const row = await sessionOf(adopter, at(-DAY), at(-IDLE_MS - 1));
+    const secondClient = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
+    const watcherClient = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
+    try {
+      let cleanupRun: Promise<number> = Promise.resolve(-1);
+      await db.transaction(async (tx) => {
+        await tx
+          .update(sessions)
+          .set({ lastSeenAt: at(-60_000) })
+          .where(eq(sessions.tokenHash, row.tokenHash));
+        cleanupRun = sessionRepo(createDatabaseWithClient(secondClient)).deleteLapsed(NOW);
+        // Wait until the clean-up really is blocked on the touch's row lock, not merely started.
+        for (let waited = 0; ; waited += 50) {
+          const [r] = await watcherClient<{ waiting: number }[]>`
+            SELECT count(*)::int AS waiting FROM pg_locks WHERE NOT granted`;
+          if (Number(r?.waiting) > 0) break;
+          if (waited > 5000) throw new Error("the clean-up never waited on the touch");
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+      });
+      expect(await cleanupRun).toBe(0);
+      expect(await sessionHashes()).toEqual([row.tokenHash]);
+    } finally {
+      await watcherClient.end();
+      await secondClient.end();
+    }
   });
 });
 

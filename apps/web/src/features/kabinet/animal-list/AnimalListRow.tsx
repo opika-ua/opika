@@ -4,6 +4,7 @@ import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
 import { useId } from "react";
 import { Button, type ButtonVariant, LinkButton } from "../../../ui/Button";
+import { FreshnessPips } from "../../../ui/FreshnessPips";
 import { Heading } from "../../../ui/Heading";
 import { Menu, MenuItem } from "../../../ui/Menu";
 import { Panel } from "../../../ui/Panel";
@@ -20,7 +21,7 @@ import {
   rowActionsOf,
   statusLineOf,
 } from "./list-model";
-import { FreshnessPips, ListingStatusChip } from "./RowParts";
+import { ListingStatusChip } from "./RowParts";
 
 const t = uk.kabinet.animalList;
 
@@ -128,10 +129,11 @@ export function AnimalListRow({
 
         <div className="flex min-w-0 flex-col gap-4 desktop:flex-1">
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              {row.freshness !== null ? <FreshnessPips kind={row.freshness.kind} /> : null}
+            {row.freshness !== null ? (
+              <FreshnessPips kind={row.freshness.kind} label={statusLineOf(row, now)} />
+            ) : (
               <Text look="body">{statusLineOf(row, now)}</Text>
-            </div>
+            )}
             {unready ? (
               <Text look="hint" id={gapsId}>
                 {missingSentence(row.publishGaps)}

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
+import { Text } from "../../ui/Text";
 
 /**
  * `about.intro` names the site with a `{site}` slot (audit 2026-10-22 #33): the
@@ -88,19 +89,27 @@ export default async function AboutPage() {
 export function renderAboutPage(kabinetSignedIn: boolean) {
   return (
     <ContentPageLayout kabinetSignedIn={kabinetSignedIn} currentPage="pro" title={uk.about.title}>
-      <p className="text-[20px]/[1.4] text-brand-ink-2">{INTRO}</p>
-      <p className="text-[20px]/[1.4] text-brand-ink-2">{uk.about.free}</p>
-      <p className="text-[20px]/[1.4] text-brand-ink-2">{uk.about.money}</p>
+      <Text look="lead" className="text-ink-2">
+        {INTRO}
+      </Text>
+      <Text look="lead" className="text-ink-2">
+        {uk.about.free}
+      </Text>
+      <Text look="lead" className="text-ink-2">
+        {uk.about.money}
+      </Text>
       {/* Four paragraphs in one catalogue string (audit 2026-10-22 #45), split on the blank line. */}
       {uk.about.data.split("\n\n").map((paragraph) => (
-        <p key={paragraph} className="text-[20px]/[1.4] text-brand-ink-2">
+        <Text key={paragraph} look="lead" className="text-ink-2">
           {paragraph}
-        </p>
+        </Text>
       ))}
-      <p className="text-[20px]/[1.4] text-brand-ink-2">{uk.about.analytics}</p>
-      <p className="border-t border-brand-line pt-6 text-[20px]/[1.4] text-brand-ink-2">
+      <Text look="lead" className="text-ink-2">
+        {uk.about.analytics}
+      </Text>
+      <Text look="lead" className="border-t border-line pt-6 text-ink-2">
         {uk.about.contact.replace("{contact}", "hello@opika.org.ua")}
-      </p>
+      </Text>
     </ContentPageLayout>
   );
 }

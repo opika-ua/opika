@@ -720,6 +720,12 @@ export const en = {
       header: {
         createdNotPublished: "Created {when} · not in the gallery yet",
       },
+      sections: {
+        basics: "Basics",
+        about: "About the animal",
+        health: "Health",
+        publication: "Publishing",
+      },
       who: {
         title: "Who this is",
         nameLabel: "Name",

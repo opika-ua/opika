@@ -22,8 +22,9 @@ import { runWrite } from "./write-result";
  * trips over its own version bump (answer 1). Each section keeps its own
  * draft; a write elsewhere changes only the version under it.
  *
- * Same layout as the read-only page (contacts and fundraising, then the voice
- * and the locked block), with pause/resume (N21) after the locked block.
+ * One column, in the order a shelter's admin works through it: how people reach
+ * the shelter (contacts), its own words, the fundraising link, the logo, then
+ * the read-only verified block and, last and quietest, pause/resume (N21).
  */
 export function ProfileEditor({
   initialView,
@@ -58,46 +59,42 @@ export function ProfileEditor({
   }, [profile]);
 
   return (
-    <div className="grid grid-cols-1 items-start gap-3 desktop:grid-cols-2 desktop:gap-4">
-      <div className="flex min-w-0 flex-col gap-3 desktop:gap-4">
-        <ContactsSection
-          contact={view.contact}
-          save={(contact) =>
-            write(() => profile.updateContact({ contact, expectedVersion: view.version }))
-          }
-          reload={reload}
-        />
-        <DonationSection
-          donation={view.donation}
-          pendingDonation={view.pendingDonation}
-          declined={donationDeclined}
-          propose={(url) => write(() => profile.proposeDonation({ url }))}
-          cancel={() => write(() => profile.cancelDonationProposal({}))}
-        />
-        <LogoSection
-          logo={view.logo}
-          displayName={view.displayName}
-          onView={setView}
-          client={client}
-        />
-      </div>
-      <div className="flex min-w-0 flex-col gap-3 desktop:gap-4">
-        <VoiceSection
-          sentence={view.freshnessSentence}
-          save={(freshnessSentence) =>
-            write(() =>
-              profile.updateFreshnessSentence({ freshnessSentence, expectedVersion: view.version }),
-            )
-          }
-          reload={reload}
-        />
-        <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />
-        <PauseControl
-          verification={view.verification}
-          pause={(reason) => write(() => profile.pause({ reason }))}
-          resume={() => write(() => profile.resume({}))}
-        />
-      </div>
+    <div className="flex min-w-0 flex-col gap-4 desktop:gap-6">
+      <ContactsSection
+        contact={view.contact}
+        save={(contact) =>
+          write(() => profile.updateContact({ contact, expectedVersion: view.version }))
+        }
+        reload={reload}
+      />
+      <VoiceSection
+        sentence={view.freshnessSentence}
+        save={(freshnessSentence) =>
+          write(() =>
+            profile.updateFreshnessSentence({ freshnessSentence, expectedVersion: view.version }),
+          )
+        }
+        reload={reload}
+      />
+      <DonationSection
+        donation={view.donation}
+        pendingDonation={view.pendingDonation}
+        declined={donationDeclined}
+        propose={(url) => write(() => profile.proposeDonation({ url }))}
+        cancel={() => write(() => profile.cancelDonationProposal({}))}
+      />
+      <LogoSection
+        logo={view.logo}
+        displayName={view.displayName}
+        onView={setView}
+        client={client}
+      />
+      <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />
+      <PauseControl
+        verification={view.verification}
+        pause={(reason) => write(() => profile.pause({ reason }))}
+        resume={() => write(() => profile.resume({}))}
+      />
     </div>
   );
 }
