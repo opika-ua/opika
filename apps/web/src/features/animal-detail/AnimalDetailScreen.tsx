@@ -58,20 +58,22 @@ export function AnimalDetailScreen({
     <div className="min-h-dvh bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
-      {/* The demo disclosure must be in the page body, not only in metadata: this route is the one shelters share into Telegram. */}
-      {REGISTRY_HAS_NO_REAL_SHELTERS && (
-        <div className="p-4 tablet:p-6 desktop:px-14">
-          <span data-testid="detail-demo-banner">
-            <Text as="span" look="hint">
-              {uk.demo.bannerNotice}
-            </Text>
-          </span>
-        </div>
-      )}
+      <main>
+        {/* The demo disclosure must be in the page body, not only in metadata: this route is the one shelters share into Telegram. */}
+        {REGISTRY_HAS_NO_REAL_SHELTERS && (
+          <div className="p-4 tablet:p-6 desktop:px-14">
+            <span data-testid="detail-demo-banner">
+              <Text as="span" look="hint">
+                {uk.demo.bannerNotice}
+              </Text>
+            </span>
+          </div>
+        )}
 
-      <div className="pt-6 desktop:pt-10">
-        <AnimalDetailContent {...content} />
-      </div>
+        <div className="pt-6 desktop:pt-10">
+          <AnimalDetailContent {...content} />
+        </div>
+      </main>
     </div>
   );
 }

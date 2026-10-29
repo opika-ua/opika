@@ -102,4 +102,18 @@ describe("DetailPhotoGallery", () => {
     expect(screen.queryByRole("button", { name: "Наступне фото" })).toBeNull();
     expect(screen.getByRole("button", { name: "Попереднє фото" })).toBeTruthy();
   });
+  it("jumps instead of gliding when the visitor asked for reduced motion", () => {
+    stubWidths(360, 1128);
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query) => ({ matches: query.includes("reduce"), media: query }) as MediaQueryList,
+    );
+    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    const scroller = screen.getByRole("region", REGION);
+    const scrollBy = vi.fn();
+    Object.defineProperty(scroller, "scrollBy", { value: scrollBy, configurable: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Наступне фото" }));
+
+    expect(scrollBy.mock.calls[0]?.[0].behavior).toBe("auto");
+  });
 });

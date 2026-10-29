@@ -137,7 +137,7 @@ export function DeckScreen({
   return (
     // Same outer box as the /discovery wrapper it replaced (max-w-97.5, h-dvh, p-4,
     // box-border, overflow-hidden); the deck's layout is tuned to it.
-    <div className="max-w-97.5 mx-auto h-dvh bg-page flex flex-col p-4 box-border overflow-hidden">
+    <main className="max-w-97.5 mx-auto h-dvh bg-page flex flex-col p-4 box-border overflow-hidden">
       {/*
         `min-h-12` (48), not `min-h-11` (44): docs/design/README.md:200 sets 48
         as the minimum touch target *anywhere* and calls it a civic-trust
@@ -246,6 +246,6 @@ export function DeckScreen({
         cityNames={cityNames}
         listHref={listHref}
       />
-    </div>
+    </main>
   );
 }

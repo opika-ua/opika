@@ -1,6 +1,6 @@
 import type { ContactRevealView } from "@opika/contracts";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { type ReactNode, Suspense, use } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderAnimalOverlay } from "../../app/tvaryny/@preview/(.)[animalId]/page";
 import { AnimalDetailScreen } from "../animal-detail/AnimalDetailScreen";
@@ -12,6 +12,7 @@ import {
   stubAnimalPageClient,
 } from "../animal-detail/test-fixtures";
 import { mockAppRouter, WithMockRouter } from "../gallery/test-router";
+import { AnimalOverlay } from "./AnimalOverlay";
 
 /**
  * The gallery's animal overlay (designer round 1, §2, S4b), by role, label
@@ -167,6 +168,64 @@ describe("the gallery's animal overlay", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(screen.getByRole("link", { name: "Мурчик" }));
     expect(document.body.style.overflow, "no scroll lock left behind").toBe("");
+  });
+});
+
+/**
+ * Designer change, 2026-10-28: the entrance animation plays on a fresh open only, never on a
+ * prev/next step. React can render the next overlay more than once before showing it (here a
+ * suspended render, retried), and every attempt must still know it is a step.
+ */
+describe("the entrance animation", () => {
+  const ENTRANCE = /animate-panel-up/;
+  const NEXT = { name: "Мілка", href: "/tvaryny/next" };
+
+  function overlay(label: string, children: ReactNode, next: typeof NEXT | null = null) {
+    return (
+      <AnimalOverlay
+        label={label}
+        openerHref={`/tvaryny/${label}`}
+        neighbours={{ prev: null, next }}
+      >
+        {children}
+      </AnimalOverlay>
+    );
+  }
+
+  it("plays on a fresh open, not on the step to the next animal even when that render is retried, and plays again on the next fresh open", async () => {
+    const router = mockAppRouter();
+    const first = render(
+      <WithMockRouter router={router}>{overlay("Боня", "Боня", NEXT)}</WithMockRouter>,
+    );
+    expect(screen.getByRole("dialog", { name: "Боня" }).className).toMatch(ENTRANCE);
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(router.replace).toHaveBeenCalledWith(NEXT.href, { scroll: false });
+    first.unmount();
+
+    let arrive = () => {};
+    const content = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    function NextAnimal() {
+      use(content);
+      return "Мілка";
+    }
+    // An awaited `act`: React keeps a render suspended inside `act` for the scope to retry.
+    const step = await act(async () =>
+      render(
+        <WithMockRouter router={router}>
+          <Suspense fallback={null}>{overlay("Мілка", <NextAnimal />)}</Suspense>
+        </WithMockRouter>,
+      ),
+    );
+    expect(screen.queryByRole("dialog"), "still waiting for the next animal").toBeNull();
+    await act(async () => arrive());
+    expect(screen.getByRole("dialog", { name: "Мілка" }).className).not.toMatch(ENTRANCE);
+    step.unmount();
+
+    render(<WithMockRouter router={router}>{overlay("Персик", "Персик")}</WithMockRouter>);
+    expect(screen.getByRole("dialog", { name: "Персик" }).className).toMatch(ENTRANCE);
   });
 });
 

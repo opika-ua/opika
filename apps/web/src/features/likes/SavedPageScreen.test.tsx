@@ -215,3 +215,12 @@ describe("SavedPageScreen", () => {
     getItemSpy.mockRestore();
   });
 });
+
+describe("SavedPageScreen – landmarks", () => {
+  it("puts the page title in the main landmark", () => {
+    render(<SavedPageScreen cityNames={CITY_NAMES} />);
+
+    const main = screen.getByRole("main");
+    expect(main.querySelector("h1")).not.toBeNull();
+  });
+});
