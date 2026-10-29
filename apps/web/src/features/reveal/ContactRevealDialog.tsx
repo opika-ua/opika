@@ -252,7 +252,7 @@ export function ContactRevealDialog({
         aria-modal="true"
         aria-labelledby="reveal-heading"
         data-testid="reveal-dialog"
-        className="w-full h-full desktop:h-auto desktop:max-w-160 desktop:max-h-[85vh] overflow-y-auto bg-surface desktop:rounded-card p-6 desktop:shadow-float flex flex-col gap-6"
+        className="w-full h-full desktop:h-auto desktop:max-w-160 desktop:max-h-full overflow-y-auto bg-surface desktop:rounded-card p-6 desktop:shadow-float flex flex-col gap-6"
       >
         {state.kind === "error" && (
           <RevealError

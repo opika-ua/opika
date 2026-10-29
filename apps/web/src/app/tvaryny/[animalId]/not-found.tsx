@@ -13,7 +13,7 @@ import { Text } from "../../../ui/Text";
  * generic error card `/tvaryny/error.tsx` already owns for genuine
  * failures. No mock frame covers this exact state; copy matches the
  * established eyebrow/title/body/action pattern from the gallery's own
- * error card (`docs/design/README.md`'s "Whole-list error").
+ * error card (`docs/ui/README.md`).
  */
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 

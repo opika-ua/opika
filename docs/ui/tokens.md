@@ -26,12 +26,17 @@ One set, defined in `apps/web/src/app/globals.css` (`@theme`). Class names have 
 | `text-label` | 16 / 1.4 | 600 | labels, field titles, buttons |
 | `text-caption` | 14 / 1.4 | 600 | hints, captions, tags |
 
-Rules (owner, 2026-10-28; Bellota reads lighter than Commissioner at equal weights):
+Fonts (self-hosted through `next/font/local` in `app/fonts.ts`, both SIL OFL 1.1, no on-page credit):
+Climate Crisis is the display face (`font-display`, headings only); the UI face is «Opika Variable», an OFL
+derivative of Bellota Text (weights 300-700, the page default). Licence and provenance sit beside each file in
+`app/fonts/`. Role names map to them in `globals.css`.
+
+Rules (owner, 2026-10-28; the UI face reads light at equal weights):
 
 - Minimum text size is 14px anywhere (hints, captions, meta). Body and labels are 16px.
 - Labels and field titles are weight 600; headings are 700. Do not use 500 for anything that must stand out.
 - Hint and secondary text is `text-ink-2` (#805F6E, AA contrast), never lighter.
 - Never pick a size or weight by hand: use the utility or the `Heading`/`Text` component.
 
-Not yet retired (DS PR 4): the `rg-`, `brand-` and bare tokens still exist as aliases for old screens; the
-guards stop new uses.
+The old `rg-`, `brand-` and Keeper's Voice token sets are gone (DS PR 4); the guards fail on any
+reintroduction.

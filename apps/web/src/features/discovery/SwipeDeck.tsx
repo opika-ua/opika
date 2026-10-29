@@ -275,7 +275,7 @@ export function SwipeDeck({
       // inside the stack container, which put it *on top of* the card and over
       // the shelter line - invisible to any check that reads the markup, since
       // both elements are present and correct in the DOM.
-      <div className="flex-1 flex flex-col mt-group min-h-0">
+      <div className="flex-1 flex flex-col mt-4 min-h-0">
         {/* min-h-0: flex items default to min-height:auto, which lets the stack
             refuse to shrink and push the action row back off the bottom of the
             screen. */}
@@ -306,7 +306,7 @@ export function SwipeDeck({
           it existed only as an interim fix, never a permanent third
           direction - leaving the two real decisions the design's mock
           frame never itself updated to show. */}
-        <div data-testid="action-row" className="flex gap-2 mt-row shrink-0">
+        <div data-testid="action-row" className="flex gap-2 mt-2 shrink-0">
           <ActionButton
             label={uk.actions.notNow}
             variant="outlined"
@@ -343,8 +343,8 @@ export function SwipeDeck({
           because the deck had nowhere to put it without squeezing the
           header (`docs/design/README.md`'s Phase D deviation note). Same
           typography and text as that interim placement - recovered copy,
-          not redrafted. `mt-label` (4px), not `mt-group` (16px) or even
-          `mt-row` (8px): this is a secondary disclaimer under two
+          not redrafted. `mt-1` (4px), not `mt-4` (16px) or even
+          `mt-2` (8px): this is a secondary disclaimer under two
           already-labelled buttons, not a new content block, and the deck's
           vertical budget is genuinely tight (`SwipeCard.tsx`'s own
           elastic-photo comment) - the card stack above is `flex-1 min-h-0`,
@@ -352,7 +352,7 @@ export function SwipeDeck({
           elastic slack, the same mechanism that already absorbs the action
           row's height.
 
-          `hidden min-[360px]:block`, measured, not guessed: at 320px
+          `hidden compact:block`, measured, not guessed: at 320px
           (`NARROW_PHONE`, its own doc comment calls it "the narrowest width
           still worth calling a real device," not this product's stated
           target) the shelter line's own bottom margin measured a real 12px
@@ -373,7 +373,7 @@ export function SwipeDeck({
         */}
         <span
           data-testid="not-a-judgement-notice"
-          className="hidden min-[360px]:block text-caption text-ink-2 text-center mt-label shrink-0"
+          className="hidden compact:block text-caption text-ink-2 text-center mt-1 shrink-0"
         >
           {uk.actions.notAJudgementNotice}
         </span>
@@ -507,8 +507,8 @@ function ErrorState({
   // recorded Tier 2 decision: DLE-1,
   // `docs/decisions-inbox/feat-deck-loading-error-v2.md`.
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-group p-section ">
-      <div className="bg-surface rounded-card p-group flex flex-col gap-row w-full max-w-89.5">
+    <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 ">
+      <div className="bg-surface rounded-card p-4 flex flex-col gap-2 w-full max-w-89.5">
         {/* carries the "eyebrow" identity on its own; the
             source string is already uppercase. */}
         {"eyebrow" in copy && <div className="text-caption text-ink-2">{copy.eyebrow}</div>}
@@ -534,7 +534,7 @@ function ErrorState({
             type="button"
             onClick={onRetry}
             data-testid="deck-error-retry"
-            className="min-h-14 rounded-field bg-ink text-on-ink text-label cursor-pointer mt-row focus-ring"
+            className="min-h-14 rounded-field bg-ink text-on-ink text-label cursor-pointer mt-2 focus-ring"
           >
             {copy.action}
           </button>
@@ -553,7 +553,7 @@ function ExhaustedState({
   listHref: string | undefined;
 }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-section p-section text-center">
+    <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6 text-center">
       <div ref={headingRef} tabIndex={-1} className="text-title text-ink outline-none">
         {uk.exhausted.title}
       </div>

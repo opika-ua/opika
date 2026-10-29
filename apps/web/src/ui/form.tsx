@@ -36,7 +36,7 @@ export function FieldError({ id, children }: { id: string; children: ReactNode }
   );
 }
 
-type FieldSlots = {
+export type FieldSlots = {
   id: string;
   label: ReactNode;
   /** Shown under the control and linked with `aria-describedby`. */
@@ -47,7 +47,7 @@ type FieldSlots = {
   describedBy?: readonly string[] | undefined;
 };
 
-function fieldA11y({ id, hint, error, describedBy = [] }: FieldSlots) {
+export function fieldA11y({ id, hint, error, describedBy = [] }: FieldSlots) {
   const ids = [
     ...(hint !== undefined ? [`${id}-hint`] : []),
     ...describedBy,

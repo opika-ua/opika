@@ -46,8 +46,8 @@ export type LinkVariant = "text" | "nav" | "chip";
 
 const LINK: Record<LinkVariant, string> = {
   text: "text-body text-ink underline",
-  nav: "rounded-field px-4 text-label text-ink aria-[current=page]:bg-surface",
-  chip: "rounded-pill border-2 border-line bg-page px-4 text-label text-ink aria-[current=page]:bg-ink aria-[current=page]:text-on-ink",
+  nav: "rounded-field px-4 text-label text-ink current:bg-surface",
+  chip: "rounded-pill border-2 border-line bg-page px-4 text-label text-ink current:bg-ink current:text-on-ink",
 };
 
 export const linkClass = (variant: LinkVariant): string =>

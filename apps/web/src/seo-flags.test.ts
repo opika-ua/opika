@@ -22,7 +22,7 @@ const LANDED_ANALYTICS_COPY = `${INCOMPLETE_ANALYTICS_COPY} ${R4_2_ANALYTICS_SEN
  * Every family is self-hosted now, so `next/font/google` needs no mock.
  */
 vi.mock("next/font/local", () => ({
-  default: () => ({ variable: "--font-e-ukraine" }),
+  default: () => ({ variable: "--font-brand" }),
 }));
 
 /**
