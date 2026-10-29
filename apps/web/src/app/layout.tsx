@@ -1,10 +1,11 @@
 import { uk } from "@opika/i18n";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SITE_ORIGIN, SITE_TITLE, TITLE_TEMPLATE, titled, WORDMARK } from "../brand";
 import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
 import { SiteFooter } from "../features/chrome/SiteFooter";
 import { SkipLink } from "../features/chrome/SkipLink";
+import { PAGE_COLOR } from "../pwa";
 import { JsonLd } from "../seo/json-ld";
 import { organizationJsonLd } from "../seo/json-ld-builders";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
@@ -51,6 +52,8 @@ import { brandDisplay, brandUi } from "./fonts";
 const linkPreviewDescription = REGISTRY_HAS_NO_REAL_SHELTERS
   ? uk.demo.bannerNotice
   : uk.firstRun.promise;
+
+export const viewport: Viewport = { themeColor: PAGE_COLOR };
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),

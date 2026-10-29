@@ -8,6 +8,7 @@ import { retryAfterSecondsOf } from "./api/retry-after";
 import { kabinetLimiters } from "./kabinet/limiters";
 import { isChargedKabinetPageLoad, kabinetPageLoadAllowed } from "./kabinet/page-limit";
 import { isTokenPage, TOKEN_PAGE_HEADERS } from "./kabinet/token-pages";
+import { PWA_PUBLIC_PATHS } from "./pwa";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
 
 /**
@@ -65,7 +66,8 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     !SITE_IS_PUBLICLY_DISCOVERABLE &&
     !isGateExemptPath(request.nextUrl.pathname) &&
     !isCronPath(request.nextUrl.pathname) &&
-    !isGateExemptExactPath(request.nextUrl.pathname)
+    !isGateExemptExactPath(request.nextUrl.pathname) &&
+    !isInstallAssetRequest(request.method, request.nextUrl.pathname)
   ) {
     const decision = evaluatePrelaunchGate(
       request.headers.get("cookie"),
@@ -192,6 +194,12 @@ export function isCronPath(pathname: string): boolean {
  * `docs/decisions-inbox.md` (S8-D1, folded from `feat-dr1-s8-saved-page.md` at #186's merge).
  */
 const GATE_EXEMPT_EXACT_PATHS: readonly string[] = ["/api/rpc/animals/cardsByIds"];
+
+// The manifest and install icons are fetched by the browser without the gate cookie and carry
+// no listing data. Read-only methods only, so anything else on those paths stays refused.
+export function isInstallAssetRequest(method: string, pathname: string): boolean {
+  return (method === "GET" || method === "HEAD") && PWA_PUBLIC_PATHS.includes(pathname);
+}
 
 export function isGateExemptExactPath(pathname: string): boolean {
   return GATE_EXEMPT_EXACT_PATHS.includes(pathname);

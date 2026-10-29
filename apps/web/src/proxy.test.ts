@@ -231,6 +231,32 @@ describe("proxy", () => {
       expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
     });
 
+    it.each([
+      "/manifest.webmanifest",
+      "/icons/icon-192.png",
+      "/icons/icon-512.png",
+      "/icons/icon-maskable-512.png",
+      "/apple-icon.png",
+    ])("lets the install assets through the gate without a cookie: %s", async (path) => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(request(`https://opika.example${path}`));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("set-cookie")).toBeNull();
+    });
+
+    it.each(["POST", "PUT", "DELETE"])("still refuses %s on an install asset", async (method) => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(
+        new NextRequest("https://opika.example/manifest.webmanifest", { method }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it("still gates a sibling of the install assets", async () => {
+      const { proxy } = await import("./proxy");
+      expect((await proxy(request("https://opika.example/icons/other.png"))).status).toBe(403);
+    });
+
     it("carries no user-agent carve-out: a Telegram-bot-shaped user agent is denied identically", async () => {
       const { proxy } = await import("./proxy");
       const response = await proxy(
