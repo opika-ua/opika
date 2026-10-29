@@ -10,4 +10,13 @@ describe("invitationReminderOf", () => {
       text: "Повідомте притулок особисто: запрошення надіслано з a$&$1@example.org. Якщо листа не видно – хай перевірить вкладку «Промоакції».",
     });
   });
+
+  it("drops the sender clause when no From address is configured", () => {
+    const reminder = invitationReminderOf({ kind: "sent", blockCheck: "unknown" }, null);
+    expect(reminder).toEqual({
+      kind: "tell_personally",
+      text: "Повідомте притулок особисто. Якщо листа не видно – хай перевірить вкладку «Промоакції».",
+    });
+    expect(reminder?.text).not.toContain("{");
+  });
 });

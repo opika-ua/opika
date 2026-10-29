@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { LinkButton } from "../../../ui/Button";
 import { Container } from "../../../ui/Container";
 import { Heading } from "../../../ui/Heading";
+import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { Panel } from "../../../ui/Panel";
 
 /**
@@ -15,7 +16,7 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-dvh items-center bg-page">
+    <main {...MAIN_LANDMARK} className="flex min-h-dvh items-center bg-page">
       <Container className="max-w-xl">
         <Panel padding="lg" className="flex flex-col items-start gap-4">
           <Heading level={1} look="title">

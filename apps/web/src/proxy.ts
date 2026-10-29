@@ -4,6 +4,7 @@ import { clientIp } from "./api/client-ip";
 import { evaluatePrelaunchGate, PRELAUNCH_GATE_QUERY_PARAM } from "./api/prelaunch-gate";
 import { apiRateLimiter } from "./api/rate-limit";
 import { ipRateLimitKey } from "./api/rate-limit-key";
+import { retryAfterSecondsOf } from "./api/retry-after";
 import { kabinetLimiters } from "./kabinet/limiters";
 import { isChargedKabinetPageLoad, kabinetPageLoadAllowed } from "./kabinet/page-limit";
 import { isTokenPage, TOKEN_PAGE_HEADERS } from "./kabinet/token-pages";
@@ -85,11 +86,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
 async function respectingRateLimit(request: NextRequest): Promise<NextResponse> {
   const now = new Date();
-  if (
-    isDiscoveryPagePath(request.nextUrl.pathname) &&
-    !(await apiRateLimiter.check(ipRateLimitKey(clientIp(request)), now))
-  ) {
-    return discoveryRateLimitedResponse();
+  if (isDiscoveryPagePath(request.nextUrl.pathname)) {
+    const ipKey = ipRateLimitKey(clientIp(request));
+    if (!(await apiRateLimiter.check(ipKey, now))) {
+      return discoveryRateLimitedResponse(request, retryAfterSecondsOf(apiRateLimiter, ipKey, now));
+    }
   }
   // KH-Q8: `/kabinet` pages draw on the kabinet API's own budgets (never the
   // adopter one, HS-Q10). Here rather than in the pages because a page
@@ -197,31 +198,29 @@ export function isGateExemptExactPath(pathname: string): boolean {
 }
 
 /**
- * RL-F1: the per-IP refusal on `/tvaryny` pages (and, since S6, the shelter
- * page under `/prytulky`), which is the rate limit a
- * visitor actually meets on the animal page and the gallery's overlay (the
- * overlay's request is the same URL; Next's router, given a response that
- * isn't its own, loads the URL as a document and gets this). Oleksii,
- * 2026-10-20, verbatim: "gives the rate-limited case its own state on both
- * the full page and the drawer, using the existing «Забагато запитів.
- * Спробуйте ще раз пізніше.». It never shows «Це не помилка…» for a rate
- * limit." So a small Ukrainian page with his sentence, still a 429, not
- * indexed, instead of the English plain text this answered before.
+ * RL-F1: the per-IP refusal on `/tvaryny` pages (and, since S6, the shelter page under
+ * `/prytulky`). Oleksii, 2026-10-20, verbatim: "gives the rate-limited case its own state on both
+ * the full page and the drawer, using the existing «Забагато запитів. Спробуйте ще раз пізніше.».
+ * It never shows «Це не помилка…» for a rate limit."
  *
- * The catalogue is imported here, on a refusal only, for the same reason
- * `kabinet/runtime` is imported lazily below: the proxy runs on every
- * request, and its cold start shouldn't parse every message for the rare
- * one that is refused.
+ * A proxy can't render React, and a rewrite to a page keeps the page's 200 (verified: the status
+ * in the rewrite's init is ignored), so the refusal is a rewrite to `/rate-limited`, a route handler
+ * that serves the branded `RateLimitedScreen` as a 429. `Retry-After` is set here from the limiter's
+ * own state (QA 2026-10-29).
  */
-async function discoveryRateLimitedResponse(): Promise<NextResponse> {
-  const { uk } = await import("@opika/i18n");
-  const sentence = uk.detail.rateLimited;
-  const html = `<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${sentence}</title></head><body><main><h1>${sentence}</h1></main></body></html>`;
-  return new NextResponse(html, {
+function discoveryRateLimitedResponse(
+  request: NextRequest,
+  retryAfterSeconds: number,
+): NextResponse {
+  const target = request.nextUrl.clone();
+  target.pathname = RATE_LIMITED_PATH;
+  return NextResponse.rewrite(target, {
     status: 429,
-    headers: { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex" },
+    headers: { "retry-after": String(retryAfterSeconds), "x-robots-tag": "noindex" },
   });
 }
+
+const RATE_LIMITED_PATH = "/rate-limited";
 
 /**
  * The public pages that read listings on every load: the gallery, the deck,

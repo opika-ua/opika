@@ -251,7 +251,7 @@ describe("SwipeDeck reveal", () => {
     expect(revealBootstrap).not.toHaveBeenCalled();
     expect(revealCallOrder).toEqual(["animals.reveal"]);
     expect(revealCall).toHaveBeenCalledWith({ animalId: topCard.id });
-    expect(screen.getByText(`Ви запитали про ${topCard.name}.`)).toBeTruthy();
+    expect(screen.getByText(`Ви запитали про тварину на імʼя ${topCard.name}.`)).toBeTruthy();
 
     // R1's own recording is unchanged - R3 adds the reveal on top of it,
     // not instead of it.

@@ -6,7 +6,7 @@ File: `apps/web/src/ui/Container.tsx`
 
 **Props and variants.** `as`: div, main, header, footer, nav.
 
-**Accessibility.** Use `main` once per page.
+**Accessibility.** Use `main` once per page. `as="main"` carries the shared `id="main-content"` and `tabIndex={-1}` (`ui/landmark.ts`), the skip link's target.
 
 **Responsive.** Gutters 16 / 24 / 56 at phone / tablet / desktop; max 1400.
 

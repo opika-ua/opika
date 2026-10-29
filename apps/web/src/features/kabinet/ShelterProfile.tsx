@@ -5,6 +5,7 @@ import { buttonClass } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { FormSection } from "../../ui/FormSection";
 import { Heading } from "../../ui/Heading";
+import { MAIN_LANDMARK } from "../../ui/landmark";
 import { Text } from "../../ui/Text";
 import type { ProfileEditing } from "./home";
 import { KabinetBrand } from "./KabinetBrand";
@@ -121,7 +122,10 @@ export function ShelterProfile({
         */}
         {editorOpen ? <div className="hidden desktop:contents">{nav}</div> : nav}
 
-        <main className="flex min-w-0 max-w-176 flex-1 flex-col gap-4 desktop:gap-6">
+        <main
+          {...MAIN_LANDMARK}
+          className="flex min-w-0 max-w-176 flex-1 flex-col gap-4 desktop:gap-6"
+        >
           <header className="flex flex-col gap-3">
             {editorOpen ? (
               <a

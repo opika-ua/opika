@@ -33,6 +33,7 @@ export const en = {
     enterDeck: "Swipe one at a time",
     enterDeckShort: "Swipe",
     backToList: "← Back to the list",
+    deckHeading: "Animals one at a time",
     deckEntryAnnouncement: "One-at-a-time mode. Animal {position} of {total}.",
     adoptPill: "Adopt",
     galleryTitle: "Catalogue",
@@ -198,8 +199,8 @@ export const en = {
 
   // --- Contact reveal (05) ---
   reveal: {
-    /** Template: "You asked about {name}." */
-    youAskedAbout: "You asked about {name}.",
+    /** Template: "You asked about the animal named {name}." */
+    youAskedAbout: "You asked about the animal named {name}.",
     title: "Here's how to reach the shelter.",
     subtitle:
       "They won't know you asked until you write to them yourself. Nothing happened automatically.",
@@ -412,6 +413,14 @@ export const en = {
     saved: "Saved",
     kabinet: "Cabinet",
     menu: "Menu",
+    skipToContent: "Skip to content",
+  },
+
+  siteNotFound: {
+    eyebrow: "Not found",
+    title: "There is no such page.",
+    body: "The link may be out of date, or there is a typo in the address.",
+    action: "To the home page",
   },
 
   // --- About page - see the uk key's own note ---
