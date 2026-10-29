@@ -844,6 +844,191 @@ describe("galleryRepo.relaxationCounts", () => {
   });
 });
 
+describe("galleryRepo.facetCounts", () => {
+  const declared = (bucket: "baby" | "young" | "adult" | "senior") => ({
+    kind: "declared_bucket" as const,
+    bucket,
+    declaredAt: NOW,
+  });
+
+  /**
+   * Kyiv: small male baby dog, large female adult dog, small female young cat,
+   * medium male senior dog. Lviv: small male adult dog, large cat of unrecorded
+   * sex, a baby. Odesa: nothing. Plus a Kyiv draft that must count nowhere.
+   */
+  async function seedFacetCorpus() {
+    const kyiv = makeCity();
+    const lviv = makeCity();
+    const odesa = makeCity();
+    for (const city of [kyiv, lviv, odesa]) await cityRepo(db).insert(city);
+    const shelter = await makeShelterInCity(kyiv.id);
+    const animal = (fields: {
+      species: "dog" | "cat";
+      size: "small" | "medium" | "large";
+      sex: "male" | "female" | "unknown";
+      age: ReturnType<typeof declared>;
+    }) => makeAnimal({ shelterId: shelter.id, ...fields });
+    await animalRepo(db).insertMany([
+      {
+        animal: animal({ species: "dog", size: "small", sex: "male", age: declared("baby") }),
+        cityId: kyiv.id,
+      },
+      {
+        animal: animal({ species: "dog", size: "large", sex: "female", age: declared("adult") }),
+        cityId: kyiv.id,
+      },
+      {
+        animal: animal({ species: "cat", size: "small", sex: "female", age: declared("young") }),
+        cityId: kyiv.id,
+      },
+      {
+        animal: animal({ species: "dog", size: "medium", sex: "male", age: declared("senior") }),
+        cityId: kyiv.id,
+      },
+      {
+        animal: animal({ species: "dog", size: "small", sex: "male", age: declared("adult") }),
+        cityId: lviv.id,
+      },
+      {
+        animal: animal({ species: "cat", size: "large", sex: "unknown", age: declared("baby") }),
+        cityId: lviv.id,
+      },
+      {
+        animal: makeAnimal({
+          shelterId: shelter.id,
+          species: "dog",
+          size: "small",
+          sex: "male",
+          listing: { kind: "draft" },
+        }),
+        cityId: kyiv.id,
+      },
+    ]);
+    return { kyiv, lviv, odesa };
+  }
+
+  const cityCounts = (counts: { cities: readonly { cityId: CityId; count: number }[] }) =>
+    new Map(counts.cities.map((entry) => [entry.cityId, entry.count]));
+
+  it("ignores each selector's own choice and applies every other filter", async () => {
+    const { kyiv, lviv } = await seedFacetCorpus();
+
+    const counts = await galleryRepo(db).facetCounts({
+      filters: {
+        ...NO_FILTERS,
+        cities: { kind: "oneOf", values: [kyiv.id] },
+        sizes: { kind: "oneOf", values: ["small"] },
+      },
+      now: NOW,
+    });
+
+    // Cities: the Kyiv choice ignored, small applied - Lviv still offers one.
+    expect(cityCounts(counts)).toEqual(
+      new Map([
+        [kyiv.id, 2],
+        [lviv.id, 1],
+      ]),
+    );
+    // Sizes: the small choice ignored, Kyiv applied - so medium and large are
+    // not collapsed to zero by the size already picked.
+    expect(counts.sizes).toEqual({ small: 2, medium: 1, large: 1 });
+    // Ages and sexes: Kyiv and small both applied.
+    expect(counts.ages).toEqual({ baby: 1, young: 1, adult: 0, senior: 0 });
+    expect(counts.sexes).toEqual({ male: 1, female: 1, unknown: 0 });
+  });
+
+  it("gives every option exactly the total the list reports with that option chosen alone", async () => {
+    const { kyiv, lviv, odesa } = await seedFacetCorpus();
+    const filters: FeedFilters = {
+      cities: { kind: "oneOf", values: [kyiv.id, lviv.id] },
+      species: { kind: "oneOf", values: ["dog"] },
+      sizes: { kind: "oneOf", values: ["small", "large"] },
+      ages: { kind: "any" },
+      sexes: { kind: "oneOf", values: ["male"] },
+    };
+    const counts = await galleryRepo(db).facetCounts({ filters, now: NOW });
+
+    const listTotal = async (narrowed: FeedFilters) =>
+      (
+        await galleryRepo(db).list({
+          filters: narrowed,
+          scope: EVERYONE_SCOPE,
+          sort: "freshest",
+          page: 1,
+          pageSize: PAGE_SIZE,
+          now: NOW,
+        })
+      ).totalMatching;
+
+    const cities = cityCounts(counts);
+    for (const city of [kyiv, lviv, odesa]) {
+      expect(cities.get(city.id) ?? 0, `city ${city.id}`).toBe(
+        await listTotal({ ...filters, cities: { kind: "oneOf", values: [city.id] } }),
+      );
+    }
+    for (const age of ["baby", "young", "adult", "senior"] as const) {
+      expect(counts.ages[age], `age ${age}`).toBe(
+        await listTotal({ ...filters, ages: { kind: "oneOf", values: [age] } }),
+      );
+    }
+    for (const size of ["small", "medium", "large"] as const) {
+      expect(counts.sizes[size], `size ${size}`).toBe(
+        await listTotal({ ...filters, sizes: { kind: "oneOf", values: [size] } }),
+      );
+    }
+    for (const sex of ["male", "female", "unknown"] as const) {
+      expect(counts.sexes[sex], `sex ${sex}`).toBe(
+        await listTotal({ ...filters, sexes: { kind: "oneOf", values: [sex] } }),
+      );
+    }
+    // Not vacuous: the corpus gives this filter set non-zero counts to compare.
+    expect(counts.sizes.small).toBe(2);
+  });
+
+  it("counts zero where nothing matches, and leaves out a city with no animals at all", async () => {
+    const { kyiv, odesa } = await seedFacetCorpus();
+
+    const counts = await galleryRepo(db).facetCounts({
+      filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
+      now: NOW,
+    });
+
+    expect(counts.sizes).toEqual({ small: 1, medium: 0, large: 1 });
+    expect(counts.sexes).toEqual({ male: 0, female: 1, unknown: 1 });
+    // Only the cats' ages: the dogs would add a baby, an adult and a senior.
+    expect(counts.ages).toEqual({ baby: 1, young: 1, adult: 0, senior: 0 });
+    expect(cityCounts(counts).get(kyiv.id)).toBe(1);
+    expect(cityCounts(counts).has(odesa.id)).toBe(false);
+  });
+
+  it("counts against the list's visibility rules: a draft, or a shelter not yet verified, counts nowhere", async () => {
+    const { kyiv } = await seedFacetCorpus();
+    const pending = makeShelter({
+      displayName: "Очікує",
+      publicLocation: {
+        cityId: kyiv.id,
+        district: null,
+        precision: "fuzzed_address",
+        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+      },
+      verification: {
+        status: "pending",
+        submittedAt: NOW,
+        evidence: { items: [], submittedAt: NOW },
+      },
+    });
+    await shelterRepo(db).insert(pending);
+    await animalRepo(db).insert(makeAnimal({ shelterId: pending.id, size: "small" }), kyiv.id);
+
+    const counts = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
+
+    // Kyiv has four discoverable animals, one draft and one published at a
+    // pending shelter.
+    expect(cityCounts(counts).get(kyiv.id)).toBe(4);
+    expect(Object.values(counts.sizes).reduce((sum, n) => sum + n, 0)).toBe(6);
+  });
+});
+
 describe("galleryRepo.neighbours", () => {
   it.each<GallerySort>(["freshest", "longest_waiting"])(
     "walks in exactly %s's own list order, with null at both ends",

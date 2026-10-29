@@ -173,7 +173,13 @@ export async function renderGallery(
   if (legacyRedirect) permanentRedirect(legacyRedirect);
 
   const { filters, sort, page: pageNumber } = parseGalleryQuery(rawSearchParams, citiesBySlug);
-  const page = await client.gallery.list({ filters, sort, page: pageNumber });
+  // The selectors' counts ride with the page rather than a fetch when a selector opens: one
+  // grouped scan, in parallel with the page's own, so they cost no extra wait and reach the
+  // no-JS sheet too (measured and argued in the filter selectors PR).
+  const [page, facetCounts] = await Promise.all([
+    client.gallery.list({ filters, sort, page: pageNumber }),
+    client.gallery.facetCounts({ filters }),
+  ]);
 
   /**
    * docs/design/README.md, "Gallery states" > "No match". Only queried when
@@ -266,6 +272,7 @@ export async function renderGallery(
                 citySlugs={citySlugs}
                 resultCount={page.totalMatching}
                 shelterCount={page.totalShelters}
+                counts={facetCounts}
               />
             }
             mobileSpecies={
@@ -291,6 +298,7 @@ export async function renderGallery(
                 sort={sort}
                 cities={cityList}
                 citySlugs={citySlugs}
+                counts={facetCounts}
               />
             </ReplaceNav>
             <ReplaceNav>

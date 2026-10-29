@@ -52,10 +52,17 @@ import { router } from "./router";
  * animal overlay (`app/tvaryny/@preview/(.)[animalId]/page.tsx`, itself a
  * Server Component): the same shape of safe as `byId`/`relaxationCounts` -
  * filters/sort input only, no `adopterId`, nothing written.
+ *
+ * `gallery.facetCounts` (the filter selectors' counts) is the same shape of
+ * safe as `relaxationCounts`: filters-only input, read-only, no cookie.
  */
 const serverComponentRouter = {
   cities: { list: router.cities.list },
-  gallery: { list: router.gallery.list, relaxationCounts: router.gallery.relaxationCounts },
+  gallery: {
+    list: router.gallery.list,
+    relaxationCounts: router.gallery.relaxationCounts,
+    facetCounts: router.gallery.facetCounts,
+  },
   animals: { byId: router.animals.byId, neighbours: router.animals.neighbours },
   shelters: { byId: router.shelters.byId },
 } as const;

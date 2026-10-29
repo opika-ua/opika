@@ -40,7 +40,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/gallery/FilterSheet.tsx": "dialog.showModal(), form submit to router, scroll lock",
   "features/gallery/GalleryControlBlock.tsx":
     "filter-row disclosure: open state, matchMedia, outside click",
-  "features/gallery/GalleryFilterDropdowns.tsx": "popover state, pointer-outside, keyboard",
+  "features/gallery/GalleryFilterDropdowns.tsx":
+    "selector pills: router.replace in a transition, useOptimistic pressed state",
   "features/gallery/ReplaceNav.tsx": "router.replace on filter link click (no history entry)",
   "features/kabinet/SignInCard.tsx": "sign-in form, fetch, resend timer",
   "features/kabinet/SignOutButton.tsx": "POST sign-out then navigate",

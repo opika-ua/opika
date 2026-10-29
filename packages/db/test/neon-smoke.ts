@@ -2269,6 +2269,32 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `male: ${JSON.stringify(males)}; female: ${JSON.stringify(females)}; unknown: ${JSON.stringify(unknownSex)}`,
   );
 
+  // 44c. The filter selectors' counts (`gallery.facetCounts`) over the same
+  // corpus: one grouped statement of `COUNT(*) FILTER` columns, nested in a
+  // typed select and summed over the city groups - the shape this driver has
+  // to map exactly as postgres-js does. With «male» chosen in this city the
+  // sex counts ignore that choice (1 male, 1 female, 2 unrecorded); the city
+  // count applies it (1); sizes and ages, with both applied, sum to 1.
+  const pcFacets = await galleryRepo(db).facetCounts({
+    filters: {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf", values: [pcCity.id] },
+      sexes: { kind: "oneOf", values: ["male"] },
+    },
+    now: NOW,
+  });
+  const sumOf = (counts: Readonly<Record<string, number>>) =>
+    Object.values(counts).reduce((sum, n) => sum + n, 0);
+  const pcCityFacet = pcFacets.cities.find((entry) => entry.cityId === pcCity.id)?.count;
+  check(
+    "gallery facet counts (grouped COUNT FILTER columns, own selection ignored, the rest applied)",
+    isDeepStrictEqual(pcFacets.sexes, { male: 1, female: 1, unknown: 2 }) &&
+      pcCityFacet === 1 &&
+      sumOf(pcFacets.sizes) === 1 &&
+      sumOf(pcFacets.ages) === 1,
+    `sexes ${JSON.stringify(pcFacets.sexes)}, this city ${pcCityFacet ?? "absent"}, sizes ${JSON.stringify(pcFacets.sizes)}, ages ${JSON.stringify(pcFacets.ages)}`,
+  );
+
   // Pet card PR 2: animals.neighbours. Two of the three cards share one
   // confirmedAt - the scalar-subquery seek (gallery-repo.ts's
   // `seekCondition`) only reads correctly on neon-http if its timestamptz

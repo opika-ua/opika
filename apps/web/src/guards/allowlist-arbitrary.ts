@@ -27,7 +27,7 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
       "The not-a-judgement line hides below 360px, where it wraps to two lines and clips the deck.",
   },
   "features/gallery/FilterSheet.tsx": {
-    max: 21,
+    max: 11,
     reason: "Gallery surface; burns down in DS PR 3a.",
   },
   "features/gallery/GalleryCard.tsx": {
@@ -39,7 +39,7 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     reason: "Gallery surface; burns down in DS PR 3a.",
   },
   "features/gallery/GalleryFilterDropdowns.tsx": {
-    max: 6,
+    max: 1,
     reason: "Gallery surface; burns down in DS PR 3a.",
   },
   "features/gallery/GalleryPageNav.tsx": {

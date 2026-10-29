@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { contract } from "./contract";
 import { FeedListInputSchema } from "./procedures/feed";
-import { GalleryListInputSchema } from "./procedures/gallery";
+import { GalleryFacetCountsOutputSchema, GalleryListInputSchema } from "./procedures/gallery";
 import {
   DEFAULT_PAGE_SIZE,
   GALLERY_PAGE_SIZE,
@@ -19,11 +19,12 @@ const procedurePaths = (node: object, prefix = ""): readonly string[] =>
   });
 
 describe("the contract surface", () => {
-  it("exposes exactly the twelve agreed procedures", () => {
+  it("exposes exactly the thirteen agreed procedures", () => {
     // Spelled out rather than counted, so adding a procedure is a deliberate
     // edit made while looking at the surface. `gallery.*` joined in Phase E0;
     // `animals.cardsByIds` (S8, the saved page's batch read) joined after it;
-    // `animals.neighbours` (pet card PR 2) joined after that.
+    // `animals.neighbours` (pet card PR 2) joined after that; `gallery.facetCounts`
+    // (the filter selectors' counts) after that.
     expect([...procedurePaths(contract)].sort()).toEqual([
       "animals.byId",
       "animals.cardsByIds",
@@ -31,6 +32,7 @@ describe("the contract surface", () => {
       "animals.reveal",
       "cities.list",
       "feed.list",
+      "gallery.facetCounts",
       "gallery.list",
       "gallery.relaxationCounts",
       "reveals.listMine",
@@ -199,5 +201,41 @@ describe("feed pagination input", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("gallery facet counts output", () => {
+  const CITY = "c1000000-0000-4000-8000-000000000001";
+  const counts = {
+    cities: [{ cityId: CITY, count: 3 }],
+    ages: { baby: 1, young: 0, adult: 2, senior: 0 },
+    sizes: { small: 1, medium: 1, large: 1 },
+    sexes: { male: 2, female: 1, unknown: 0 },
+  };
+
+  // Public view: only option ids and integers cross the wire, whatever the
+  // handler hands over - a city name or a shelter id rides along nowhere.
+  it("strips anything beyond option ids and counts", () => {
+    const parsed = GalleryFacetCountsOutputSchema.parse({
+      ...counts,
+      cities: [{ cityId: CITY, count: 3, name: "Київ", shelterId: "x" }],
+      totalShelters: 4,
+    });
+    expect(parsed).toEqual(counts);
+  });
+
+  it("refuses a missing option and a negative or fractional count", () => {
+    const { senior: _senior, ...threeAges } = counts.ages;
+    expect(GalleryFacetCountsOutputSchema.safeParse({ ...counts, ages: threeAges }).success).toBe(
+      false,
+    );
+    expect(
+      GalleryFacetCountsOutputSchema.safeParse({ ...counts, sizes: { ...counts.sizes, small: -1 } })
+        .success,
+    ).toBe(false);
+    expect(
+      GalleryFacetCountsOutputSchema.safeParse({ ...counts, sexes: { ...counts.sexes, male: 1.5 } })
+        .success,
+    ).toBe(false);
   });
 });

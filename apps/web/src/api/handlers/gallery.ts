@@ -1,11 +1,13 @@
 import type {
+  GalleryFacetCountsInputSchema,
+  GalleryFacetCountsOutputSchema,
   GalleryListInputSchema,
   GalleryListOutputSchema,
   GalleryRelaxationCountsInputSchema,
   GalleryRelaxationCountsOutputSchema,
 } from "@opika/contracts";
 import { galleryRepo, shelterRepo } from "@opika/db/repos";
-import { ageBucketOf, primaryPhoto } from "@opika/domain";
+import { ageBucketOf, canonicalizeFilters, primaryPhoto } from "@opika/domain";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { discoverableListingKind } from "./discoverable-listing-kind";
@@ -16,6 +18,8 @@ type GalleryListInput = z.infer<typeof GalleryListInputSchema>;
 type GalleryListOutput = z.infer<typeof GalleryListOutputSchema>;
 type RelaxationInput = z.infer<typeof GalleryRelaxationCountsInputSchema>;
 type RelaxationOutput = z.infer<typeof GalleryRelaxationCountsOutputSchema>;
+type FacetCountsInput = z.infer<typeof GalleryFacetCountsInputSchema>;
+type FacetCountsOutput = z.infer<typeof GalleryFacetCountsOutputSchema>;
 
 /**
  * The gallery page, in the order the database returned it.
@@ -39,7 +43,9 @@ export async function galleryList(
   context: AppContext,
 ): Promise<GalleryListOutput> {
   const page = await galleryRepo(context.db).list({
-    filters: input.filters,
+    // Deduped at the boundary: a filter list repeated thousands of times over
+    // /api/rpc would otherwise reach SQL as thousands of predicates (review of #250).
+    filters: canonicalizeFilters(input.filters),
     scope: input.scope,
     sort: input.sort,
     page: input.page,
@@ -111,4 +117,28 @@ export async function galleryRelaxationCounts(
     filters: input.filters,
     now: context.now,
   });
+}
+
+/**
+ * The counts beside each option of the gallery's filter selectors. Read by the
+ * page beside `gallery.list` (in parallel, server-side), so the counts arrive
+ * with the HTML, work in the no-JS sheet, and need no fetch when a selector
+ * opens. Option ids and integers only, picked field by field.
+ */
+export async function galleryFacetCounts(
+  input: FacetCountsInput,
+  context: AppContext,
+): Promise<FacetCountsOutput> {
+  // Deduped first: each of the statement's count columns repeats every other
+  // filter, so a repeated value list multiplies there (review of #250, note 1).
+  const counts = await galleryRepo(context.db).facetCounts({
+    filters: canonicalizeFilters(input.filters),
+    now: context.now,
+  });
+  return {
+    cities: counts.cities.map(({ cityId, count }) => ({ cityId, count })),
+    ages: { ...counts.ages },
+    sizes: { ...counts.sizes },
+    sexes: { ...counts.sexes },
+  };
 }

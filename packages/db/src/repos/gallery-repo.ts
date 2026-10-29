@@ -1,5 +1,10 @@
 import {
+  AGE_BUCKETS,
+  type AgeBucket,
+  ANIMAL_SEXES,
   type AnimalId,
+  type AnimalSex,
+  type CityId,
   clampGalleryPage,
   type DiscoverableAnimal,
   FEED_FILTER_DIMENSIONS,
@@ -11,6 +16,8 @@ import {
   isConstrained,
   maxNavigablePage,
   relaxDimension,
+  SIZE_BUCKETS,
+  type SizeBucket,
 } from "@opika/domain";
 import { and, asc, desc, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
@@ -43,6 +50,15 @@ export type GalleryRelaxationCounts = {
     readonly dimension: FeedFilterDimension;
     readonly additional: number;
   }[];
+};
+
+/** Matches per option of each filter selector, the selector's own choice ignored. */
+export type GalleryFacetCounts = {
+  /** Only cities with at least one discoverable animal; any other city counts zero. */
+  readonly cities: readonly { readonly cityId: CityId; readonly count: number }[];
+  readonly ages: Readonly<Record<AgeBucket, number>>;
+  readonly sizes: Readonly<Record<SizeBucket, number>>;
+  readonly sexes: Readonly<Record<AnimalSex, number>>;
 };
 
 export type NeighbourRow = { readonly id: AnimalId; readonly name: string };
@@ -336,6 +352,57 @@ export function galleryRepo(db: Database) {
     },
 
     /**
+     * The count beside each option in the filter selectors: how many animals
+     * `list` would match with that option alone chosen on its dimension and
+     * every other dimension as given. The dimension's own selection is
+     * replaced, not added to, so picking options never shrinks their siblings.
+     *
+     * One statement, one scan: a `COUNT(*) FILTER (...)` per option, each from
+     * `buildFilterPredicate` over that option's filter set, so a count cannot
+     * disagree with the list it promises. Grouping by city gives the city
+     * selector its counts directly (city relaxed, the rest applied); the other
+     * selectors' counts are sums over the groups. A typed `.select()`, never a
+     * raw `db.execute()`, for the driver reason `relaxationCounts` gives.
+     */
+    async facetCounts(opts: { filters: FeedFilters; now: Date }): Promise<GalleryFacetCounts> {
+      const counted: Record<string, SQL.Aliased<number>> = {};
+      const countWhere = (alias: `n_${string}`, filters: FeedFilters) => {
+        const where = and(...buildFilterPredicate(filters, opts.now)) ?? sql`TRUE`;
+        counted[alias] = sql<number>`count(*) FILTER (WHERE ${where})`.mapWith(Number).as(alias);
+      };
+      countWhere("n_city", relaxDimension(opts.filters, "cities"));
+      for (const age of AGE_BUCKETS)
+        countWhere(`n_age_${age}`, { ...opts.filters, ages: only(age) });
+      for (const size of SIZE_BUCKETS) {
+        countWhere(`n_size_${size}`, { ...opts.filters, sizes: only(size) });
+      }
+      for (const sex of ANIMAL_SEXES)
+        countWhere(`n_sex_${sex}`, { ...opts.filters, sexes: only(sex) });
+
+      const rows = await db
+        .select({ cityId: animals.cityId, n: counted })
+        .from(animals)
+        .where(and(...buildDiscoverabilityPredicate()))
+        .groupBy(animals.cityId)
+        .orderBy(animals.cityId);
+
+      const total = (alias: `n_${string}`): number =>
+        rows.reduce((sum, row) => sum + (row.n[alias] ?? 0), 0);
+      const tally = <T extends string>(values: readonly T[], prefix: string) =>
+        Object.fromEntries(values.map((value) => [value, total(`n_${prefix}_${value}`)])) as Record<
+          T,
+          number
+        >;
+
+      return {
+        cities: rows.map((row) => ({ cityId: row.cityId, count: row.n["n_city"] ?? 0 })),
+        ages: tally(AGE_BUCKETS, "age"),
+        sizes: tally(SIZE_BUCKETS, "size"),
+        sexes: tally(ANIMAL_SEXES, "sex"),
+      };
+    },
+
+    /**
      * Prev/next for the pet card overlay, under the same `(filters, sort,
      * scope)` as `list` - same predicate builders, same `orderingFor`/
      * `reverseOrderingFor`, so the two can't drift apart.
@@ -417,6 +484,9 @@ function getAnimalColumns() {
     version: animals.version,
   };
 }
+
+/** A one-value selection: the filter set `list` would get with only `value` chosen. */
+const only = <T>(value: T): { kind: "oneOf"; values: [T] } => ({ kind: "oneOf", values: [value] });
 
 async function countMatching(db: Database, where: SQL | undefined): Promise<number> {
   const rows = await db

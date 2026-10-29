@@ -1,27 +1,29 @@
 "use client";
 
+import type { GalleryFacetCounts } from "@opika/contracts";
 import type {
-  AgeBucket,
-  AnimalSex,
   AnimalSpecies,
   CityId,
   CitySlug,
   FeedFilters,
+  FilterSelection,
   GallerySort,
-  SizeBucket,
 } from "@opika/domain";
-import {
-  AGE_BUCKETS,
-  ANIMAL_SEXES,
-  ANIMAL_SPECIES,
-  ANY,
-  DEFAULT_GALLERY_SORT,
-  isExplicitlySelected,
-  SIZE_BUCKETS,
-} from "@opika/domain";
+import { ANIMAL_SPECIES, ANY, DEFAULT_GALLERY_SORT, isExplicitlySelected } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
+import { Chip, choiceClass } from "../../ui/Chip";
+import { cx } from "../../ui/cx";
+import {
+  ageFacetOptions,
+  cityFacetOptions,
+  type FacetOption,
+  facetAccessibleName,
+  isUnavailable,
+  sexFacetOptions,
+  sizeFacetOptions,
+} from "./facet-options";
 import type { CitySlugsById } from "./filter-url";
 import {
   GALLERY_PARAM,
@@ -43,41 +45,65 @@ interface FilterSheetProps {
   resultCount: number;
   /** For the sheet's own "Підходить N тварин у M притулках." sentence - `Opika Registry System.dc.html`'s B6 frame, same sentence the rail's closing box shows. */
   shelterCount: number;
+  /**
+   * Per-option counts for the applied filters (`gallery.facetCounts`), like `resultCount`: a box
+   * ticked but not yet submitted doesn't move them.
+   */
+  counts: GalleryFacetCounts;
 }
 
 const SPECIES_LABEL: Record<AnimalSpecies, string> = {
   dog: uk.filters.speciesDogs,
   cat: uk.filters.speciesCats,
 };
-const SIZE_LABEL: Record<SizeBucket, string> = {
-  small: uk.filters.sizeSmall,
-  medium: uk.filters.sizeMedium,
-  large: uk.filters.sizeLarge,
-};
-const AGE_LABEL: Record<AgeBucket, string> = {
-  baby: uk.filters.ageBaby,
-  young: uk.filters.ageYoung,
-  adult: uk.filters.ageAdult,
-  senior: uk.filters.ageSenior,
-};
-const SEX_LABEL: Record<AnimalSex, string> = {
-  male: uk.filters.sexMale,
-  female: uk.filters.sexFemale,
-  unknown: uk.filters.sexUnknown,
-};
+
+const LEGEND = "font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase";
 
 /**
- * `has-[:focus-visible]:` is not a nicety here: the real `<input>` is
- * `sr-only` (1x1, clipped), so the focus ring the browser draws on it is
- * drawn on a pixel nobody can see. Without lifting that ring onto the
- * visible `<label>`, a keyboard user tabbing through the sheet has no
- * indication of where they are - docs/design/README.md's "Keyboard" table
- * routes Tab through these controls, and its focus-visible rule
- * (`outline: 2px solid #4F6B3A; outline-offset: 2px`) is stated as "never
- * removed", which drawing it where nobody can see it is a way of removing.
+ * One group of choice pills with counts: real checkboxes, so the GET form submits them with no
+ * JS (the kit chip lifts the hidden input's focus ring onto the pill). An option with nothing to
+ * find is disabled unless ticked, when it must stay clearable.
  */
-const CHIP_LABEL_BASE =
-  "min-h-12 inline-flex items-center rounded-rg-chip px-5 font-rg text-[15px] leading-none cursor-pointer transition-colors duration-[120ms] ease-rg has-[:checked]:bg-rg-ink has-[:checked]:text-rg-surface has-[:checked]:font-medium bg-rg-fill text-rg-ink focus-ring-within-registry";
+function FacetGroup<T extends string>({
+  legend,
+  name,
+  options,
+  selection,
+  submitValue = (value) => value,
+  leading,
+}: {
+  legend: string;
+  name: string;
+  options: readonly FacetOption<T>[];
+  selection: FilterSelection<T>;
+  /** The submitted value when it isn't the option's id (a city submits its slug). */
+  submitValue?: (value: T) => string;
+  leading?: ReactNode;
+}) {
+  return (
+    <fieldset className="flex flex-col gap-3">
+      <legend className={LEGEND}>{legend}</legend>
+      <div className="flex flex-wrap gap-3">
+        {leading}
+        {options.map((option) => (
+          <Chip
+            key={option.value}
+            kind="choice"
+            control="checkbox"
+            name={name}
+            value={submitValue(option.value)}
+            defaultChecked={isExplicitlySelected(selection, option.value)}
+            disabled={isUnavailable(option, selection)}
+            count={option.count}
+            accessibleName={facetAccessibleName(option)}
+          >
+            {option.label}
+          </Chip>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 /**
  * docs/design/README.md, "03 · Фільтри" + "Rail, count, sort": "Below
@@ -105,6 +131,7 @@ export function FilterSheet({
   citySlugs,
   resultCount,
   shelterCount,
+  counts,
 }: FilterSheetProps) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -117,6 +144,7 @@ export function FilterSheet({
    * itself was built from at the call site, so the two can never disagree.
    */
   const citiesBySlug = new Map(cities.map((city) => [city.slug, city.id]));
+  const slugOf = (id: CityId): string => citySlugs.get(id) ?? id;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -307,167 +335,103 @@ export function FilterSheet({
             </a>
           </div>
 
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.city}
-            </legend>
-            <div className="flex flex-wrap gap-2">
+          <FacetGroup
+            legend={uk.filters.city}
+            name={GALLERY_PARAM.city}
+            options={cityFacetOptions(cities, counts)}
+            selection={filters.cities}
+            submitValue={slugOf}
+            leading={
               <a
                 href={allCitiesHref}
                 onClick={onAllCitiesClick}
-                className={`${CHIP_LABEL_BASE} ${filters.cities.kind === "any" ? "bg-rg-ink text-rg-surface font-medium" : ""}`}
+                className={cx(
+                  choiceClass(filters.cities.kind === "any" ? "on" : "off"),
+                  "focus-ring",
+                )}
               >
                 {uk.filters.allCities}
               </a>
-              {cities.map((city) => (
-                <label key={city.id} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="checkbox"
-                    name={GALLERY_PARAM.city}
-                    value={city.slug}
-                    defaultChecked={isExplicitlySelected(filters.cities, city.id)}
-                    className="sr-only"
-                  />
-                  {city.name}
-                </label>
-              ))}
-            </div>
-          </fieldset>
+            }
+          />
 
           {/*
-            Radio, not checkbox (gallery filter restructure): species
-            becomes an exclusive choice everywhere, matching the desktop
-            toggle's own semantics - mirrors the sort fieldset's own radio
-            group below, including its "any" option, which has no checkbox
-            equivalent elsewhere in this form since every other dimension
-            here really is multi-select. The "any" radio's empty value
-            submits `vyd=` on check, which `AnimalSpeciesSchema` refuses to
-            parse - `filter-url.ts`'s own "unrecognised tokens are dropped
-            silently" rule then collapses that to `{kind: "any"}`, the same
-            way an absent param already does.
+            Radio, not checkbox (gallery filter restructure): species is an
+            exclusive choice everywhere, like the desktop toggle. The "any"
+            radio submits `vyd=`, which `parseGalleryQuery` drops as an
+            unrecognised token - the same "any" an absent param gives.
           */}
           <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.species}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              <label className={CHIP_LABEL_BASE}>
-                <input
-                  type="radio"
-                  name={GALLERY_PARAM.species}
-                  value=""
-                  defaultChecked={filters.species.kind === "any"}
-                  className="sr-only"
-                />
+            <legend className={LEGEND}>{uk.filters.species}</legend>
+            <div className="flex flex-wrap gap-3">
+              <Chip
+                kind="choice"
+                control="radio"
+                name={GALLERY_PARAM.species}
+                value=""
+                defaultChecked={filters.species.kind === "any"}
+              >
                 {uk.filters.speciesAny}
-              </label>
+              </Chip>
               {ANIMAL_SPECIES.map((species) => (
-                <label key={species} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="radio"
-                    name={GALLERY_PARAM.species}
-                    value={species}
-                    defaultChecked={isExplicitlySelected(filters.species, species)}
-                    className="sr-only"
-                  />
+                <Chip
+                  key={species}
+                  kind="choice"
+                  control="radio"
+                  name={GALLERY_PARAM.species}
+                  value={species}
+                  defaultChecked={isExplicitlySelected(filters.species, species)}
+                >
                   {SPECIES_LABEL[species]}
-                </label>
+                </Chip>
               ))}
             </div>
           </fieldset>
 
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.size}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {SIZE_BUCKETS.map((size) => (
-                <label key={size} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="checkbox"
-                    name={GALLERY_PARAM.size}
-                    value={size}
-                    defaultChecked={isExplicitlySelected(filters.sizes, size)}
-                    className="sr-only"
-                  />
-                  {SIZE_LABEL[size]}
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <FacetGroup
+            legend={uk.filters.size}
+            name={GALLERY_PARAM.size}
+            options={sizeFacetOptions(counts)}
+            selection={filters.sizes}
+          />
+
+          <FacetGroup
+            legend={uk.filters.age}
+            name={GALLERY_PARAM.age}
+            options={ageFacetOptions(counts)}
+            selection={filters.ages}
+          />
+
+          {/* Pet card PR 1b (Oleksii, 2026-10-26: "phones need a control for these filters."); sex is
+              the one survivor of that trio, and the sheet is the only filter control below 1024px. */}
+          <FacetGroup
+            legend={uk.filters.sex}
+            name={GALLERY_PARAM.sex}
+            options={sexFacetOptions(counts)}
+            selection={filters.sexes}
+          />
 
           <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.age}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {AGE_BUCKETS.map((age) => (
-                <label key={age} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="checkbox"
-                    name={GALLERY_PARAM.age}
-                    value={age}
-                    defaultChecked={isExplicitlySelected(filters.ages, age)}
-                    className="sr-only"
-                  />
-                  {AGE_LABEL[age]}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          {/* Pet card PR 1b added this group after age and before sort
-              (Oleksii, 2026-10-26, verbatim as relayed: "keeping the two new
-              filter groups there is approved; phones need a control for these
-              filters."; inbox PC1b-T15). Its sibling groups, temperament and
-              colour, were removed by the gallery filter restructure - sex is
-              the one survivor below 1024px, where the sheet is the only
-              filter control. */}
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.sex}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {ANIMAL_SEXES.map((sex) => (
-                <label key={sex} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="checkbox"
-                    name={GALLERY_PARAM.sex}
-                    value={sex}
-                    defaultChecked={isExplicitlySelected(filters.sexes, sex)}
-                    className="sr-only"
-                  />
-                  {SEX_LABEL[sex]}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.sortLabel}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              <label className={CHIP_LABEL_BASE}>
-                <input
-                  type="radio"
-                  name={GALLERY_PARAM.sort}
-                  value="freshest"
-                  defaultChecked={sort === DEFAULT_GALLERY_SORT}
-                  className="sr-only"
-                />
+            <legend className={LEGEND}>{uk.filters.sortLabel}</legend>
+            <div className="flex flex-wrap gap-3">
+              <Chip
+                kind="choice"
+                control="radio"
+                name={GALLERY_PARAM.sort}
+                value="freshest"
+                defaultChecked={sort === DEFAULT_GALLERY_SORT}
+              >
                 {uk.filters.sortFreshest}
-              </label>
-              <label className={CHIP_LABEL_BASE}>
-                <input
-                  type="radio"
-                  name={GALLERY_PARAM.sort}
-                  value="longest_waiting"
-                  defaultChecked={sort === "longest_waiting"}
-                  className="sr-only"
-                />
+              </Chip>
+              <Chip
+                kind="choice"
+                control="radio"
+                name={GALLERY_PARAM.sort}
+                value="longest_waiting"
+                defaultChecked={sort === "longest_waiting"}
+              >
                 {uk.filters.sortLongestWaiting}
-              </label>
+              </Chip>
             </div>
           </fieldset>
 

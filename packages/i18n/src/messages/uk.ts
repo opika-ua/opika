@@ -195,8 +195,13 @@ export const uk = {
   // --- Screen 03 · Filters ---
   filters: {
     title: "Фільтри",
-    city: "МІСТО",
-    species: "ВИД",
+    /**
+     * Sentence case (filter selectors PR): the same approved words as the
+     * kabinet's own field labels («Місто», «Вид», «Розмір», «Вік»), their own
+     * keys here (PC1b-T2: the gallery reads no kabinet.* string).
+     */
+    city: "Місто",
+    species: "Вид",
     speciesDogs: "Собаки",
     speciesCats: "Коти",
     /**
@@ -208,11 +213,11 @@ export const uk = {
      * separate public-namespace string, not a cross-namespace reuse.
      */
     speciesAny: "Усі",
-    size: "РОЗМІР",
+    size: "Розмір",
     sizeSmall: "Малий",
     sizeMedium: "Середній",
     sizeLarge: "Великий",
-    age: "ВІК",
+    age: "Вік",
     ageBaby: "Малюк",
     ageYoung: "Молодий",
     ageAdult: "Дорослий",
@@ -304,7 +309,7 @@ export const uk = {
      * gallery-v3 (Figma `58:1617`): the dropdown row's own clear-all ✕,
      * Oleksii mid-build ("replacing chevron icon with X to clear all
      * filters [in] 1 click"). Template: "{dimension}" -> the dropdown's own
-     * legend (e.g. "Скинути МІСТО").
+     * legend (e.g. "Скинути Місто").
      *
      * Shipped as the builder's own draft (not `[COPY PENDING]` - that
      * sentinel wasn't an option here: `open-writes-copy-gate.test.ts`'s
@@ -317,6 +322,12 @@ export const uk = {
      * reasoning the draft comment originally gave.
      */
     clearDimension: "Скинути {dimension}",
+    /**
+     * Template: an option pill's accessible name in the filter selectors,
+     * the handoff's own example «Київ, 34 тварини». `{animalWord}` is
+     * `animalWord` (nominative), pluralised by the caller.
+     */
+    optionCount: "{option}, {count} {animalWord}",
   },
 
   // --- Swipe affordances ---

@@ -107,10 +107,10 @@ test.describe("/tvaryny filters – URL is the single source of truth", () => {
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    // Any one of the five dropdowns exercises the same URL-as-source-of-truth
+    // Any one of the four selectors exercises the same URL-as-source-of-truth
     // path; size is as good as any other.
-    await page.getByRole("button", { name: "РОЗМІР" }).click();
-    await page.getByRole("link", { name: "Великий" }).click();
+    await page.getByRole("button", { name: "Розмір: Розмір" }).click();
+    await page.getByRole("button", { name: /^Великий, / }).click();
     await page.waitForURL(/rozmir=large/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
 
@@ -161,8 +161,8 @@ test.describe("/tvaryny filters – URL is the single source of truth", () => {
     await page.goto("/pro", { waitUntil: "load" });
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await page.getByRole("button", { name: "РОЗМІР" }).click();
-    await page.getByRole("link", { name: "Малий" }).click();
+    await page.getByRole("button", { name: "Розмір: Розмір" }).click();
+    await page.getByRole("button", { name: /^Малий, / }).click();
     await page.waitForURL(/rozmir=small/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
     const namesAfterFiltering = await cardNames(page);
@@ -209,11 +209,9 @@ test.describe("/tvaryny legacy city-id links redirect to their real slug", () =>
       /\/tvaryny\?misto=brovary$/,
     );
     await page.locator(CARD).first().waitFor({ state: "visible" });
-    // gallery-v3: the city dropdown's own button shows the selected
-    // value's label instead of the placeholder once a city is set
-    // (`GalleryFilterDropdowns.tsx`'s `cityLabel`) - the rail's
-    // `aria-current` chip this test used to read is gone with the rail.
-    await expect(page.getByRole("button", { name: "МІСТО" })).toHaveText("Бровари");
+    // The city selector's trigger names the chosen city in place of the
+    // dimension once one is set (`GalleryFilterDropdowns.tsx`).
+    await expect(page.getByRole("button", { name: "Місто: Бровари" })).toHaveText("Бровари");
   });
 
   test("the redirect is a real, permanent 308, not a 200 that merely renders the same content", async ({

@@ -40,6 +40,59 @@ describe("Chip", () => {
     expect(button.getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("choice button: aria-pressed, the count in the pill, the full name from accessibleName", () => {
+    const onPress = vi.fn();
+    render(
+      <Chip
+        kind="choice"
+        control="button"
+        pressed={false}
+        count={34}
+        accessibleName="Київ, 34 тварини"
+        onPress={onPress}
+      >
+        Київ
+      </Chip>,
+    );
+    const pill = screen.getByRole("button", { name: "Київ, 34 тварини" });
+    expect(pill.getAttribute("aria-pressed")).toBe("false");
+    expect(pill.textContent).toBe("Київ34");
+    fireEvent.click(pill);
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it("choice button, disabled: stays focusable, says so, and ignores a press", () => {
+    const onPress = vi.fn();
+    render(
+      <Chip kind="choice" control="button" pressed={false} count={0} disabled onPress={onPress}>
+        Буча
+      </Chip>,
+    );
+    const pill = screen.getByRole("button", { name: /^Буча/ });
+    expect(pill.getAttribute("aria-disabled")).toBe("true");
+    expect(pill.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(pill);
+    expect(onPress).not.toHaveBeenCalled();
+  });
+
+  it("choice checkbox: a real input a GET form submits; disabled natively, so it never is", () => {
+    render(
+      <>
+        <Chip kind="choice" control="checkbox" name="rozmir" value="small" count={5} defaultChecked>
+          Малий
+        </Chip>
+        <Chip kind="choice" control="checkbox" name="rozmir" value="large" count={0} disabled>
+          Великий
+        </Chip>
+      </>,
+    );
+    const small = screen.getByRole("checkbox", { name: /^Малий/ }) as HTMLInputElement;
+    expect([small.name, small.value, small.checked]).toEqual(["rozmir", "small", true]);
+    expect((screen.getByRole("checkbox", { name: /^Великий/ }) as HTMLInputElement).disabled).toBe(
+      true,
+    );
+  });
+
   it("link: marks the current page", () => {
     render(
       <>

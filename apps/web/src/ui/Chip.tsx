@@ -10,7 +10,10 @@ import { cx } from "./cx";
  * - `link`: navigates; the current one is marked with `aria-current`.
  * - `info`: a fact, not interactive (age, size, medical).
  * - `status`: a short state with a tone (reserved, adopted).
- * Interactive chips are 48px tall; info and status are not controls.
+ * - `choice`: an option pill with an optional count (the filter selectors and the filter sheet),
+ *   as a toggle button or a real checkbox/radio.
+ * Interactive chips are 48px tall; info and status are not controls. A choice pill is 44px to the
+ * eye, with its hit area stretched to 48px by a pseudo-element.
  */
 const SHAPE = "inline-flex items-center rounded-pill px-5 text-label";
 const CONTROL = `${SHAPE} min-h-target cursor-pointer border-2`;
@@ -32,6 +35,20 @@ const STATUS = {
 
 export function chipClass(selected: boolean): string {
   return cx(CONTROL, selected ? ON : OFF);
+}
+
+// 44px drawn, 48px to the pointer: `before:` overhangs 2px above and below (the
+// rows' 12px gap leaves room), and a click on it is a click on the chip. Behind
+// the text (`isolate` + `-z-10`), so the label's own text stays on top.
+const CHOICE =
+  "relative isolate inline-flex h-11 cursor-pointer items-center gap-2 rounded-pill border px-5 text-label before:absolute before:inset-x-0 before:-inset-y-0.5 before:-z-10";
+const CHOICE_OFF = "border-line bg-surface text-ink";
+const CHOICE_ON = "border-ink bg-ink text-on-ink";
+const CHOICE_DISABLED = "cursor-not-allowed border-line bg-surface text-ink-2";
+
+/** A choice pill's look for something that isn't a button or an input (a link beside the pills). */
+export function choiceClass(state: "off" | "on"): string {
+  return cx(CHOICE, state === "on" ? CHOICE_ON : CHOICE_OFF);
 }
 
 type OptionChip = {
@@ -59,10 +76,39 @@ type LinkChip = {
   children: ReactNode;
 };
 
+/**
+ * Disabled means "nothing to choose here": a button stays focusable (`aria-disabled`) so a
+ * keyboard user still hears it; an input is natively `disabled` so the no-JS form can't submit it.
+ */
+type ChoiceChip = {
+  kind: "choice";
+  /** After the label, in ink-2 (on-ink when selected). */
+  count?: number;
+  /** The full accessible name when the visible text abbreviates it («Київ, 34 тварини»). */
+  accessibleName?: string;
+  disabled?: boolean;
+  children: ReactNode;
+} & (
+  | { control: "button"; pressed: boolean; onPress: () => void }
+  | {
+      control: "checkbox" | "radio";
+      name: string;
+      value: string;
+      defaultChecked?: boolean;
+    }
+);
+
 type InfoChip = { kind: "info"; tone?: keyof typeof INFO; children: ReactNode };
 type StatusChip = { kind: "status"; tone: keyof typeof STATUS; children: ReactNode };
 
-export type ChipProps = (OptionChip | ToggleChip | LinkChip | InfoChip | StatusChip) & {
+export type ChipProps = (
+  | OptionChip
+  | ToggleChip
+  | LinkChip
+  | ChoiceChip
+  | InfoChip
+  | StatusChip
+) & {
   /** Layout only. */
   className?: string;
 };
@@ -110,6 +156,8 @@ export function Chip(props: ChipProps) {
           {props.children}
         </Link>
       );
+    case "choice":
+      return <ChoiceChipView {...props} />;
     case "info":
       return (
         <span className={cx(SHAPE, "py-1", INFO[props.tone ?? "neutral"], props.className)}>
@@ -123,4 +171,69 @@ export function Chip(props: ChipProps) {
         </span>
       );
   }
+}
+
+function ChoiceChipView(props: ChoiceChip & { className?: string }) {
+  const count =
+    props.count === undefined ? null : (
+      <span
+        className={
+          props.control === "button"
+            ? props.pressed
+              ? "text-on-ink"
+              : "text-ink-2"
+            : "text-ink-2 group-has-checked:text-on-ink"
+        }
+      >
+        {props.count}
+      </span>
+    );
+
+  if (props.control === "button") {
+    const { pressed, disabled = false } = props;
+    return (
+      <button
+        type="button"
+        aria-pressed={pressed}
+        aria-disabled={disabled ? true : undefined}
+        aria-label={props.accessibleName}
+        onClick={() => {
+          if (!disabled) props.onPress();
+        }}
+        className={cx(
+          CHOICE,
+          pressed ? CHOICE_ON : disabled ? CHOICE_DISABLED : CHOICE_OFF,
+          "focus-ring",
+          props.className,
+        )}
+      >
+        <span>{props.children}</span>
+        {count}
+      </button>
+    );
+  }
+
+  return (
+    <label
+      className={cx(
+        CHOICE,
+        "group",
+        props.disabled ? CHOICE_DISABLED : CHOICE_OFF,
+        "has-checked:border-ink has-checked:bg-ink has-checked:text-on-ink focus-ring-within",
+        props.className,
+      )}
+    >
+      <input
+        type={props.control}
+        name={props.name}
+        value={props.value}
+        defaultChecked={props.defaultChecked}
+        disabled={props.disabled}
+        aria-label={props.accessibleName}
+        className="sr-only"
+      />
+      <span>{props.children}</span>
+      {count}
+    </label>
+  );
 }

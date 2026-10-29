@@ -1,323 +1,227 @@
-import { NO_FILTERS } from "@opika/domain";
-import { uk } from "@opika/i18n";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import type { GalleryFacetCounts } from "@opika/contracts";
+import { type CityId, CityIdSchema, type FeedFilters, NO_FILTERS } from "@opika/domain";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { GalleryFilterDropdowns } from "./GalleryFilterDropdowns";
+import { mockAppRouter, WithMockRouter } from "./test-router";
 
-const BROVARY_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never;
-const CITIES = [
-  { id: BROVARY_ID, name: "Бровари" },
-  { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never, name: "Ірпінь" },
+const BROVARY = CityIdSchema.parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+const IRPIN = CityIdSchema.parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+const BUCHA = CityIdSchema.parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+const CITIES: ReadonlyArray<{ id: CityId; name: string }> = [
+  { id: BROVARY, name: "Бровари" },
+  { id: IRPIN, name: "Ірпінь" },
+  { id: BUCHA, name: "Буча" },
 ];
-const CITY_SLUGS = new Map([
-  ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never, "brovary" as never],
-  ["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never, "irpin" as never],
+const CITY_SLUGS = new Map<CityId, never>([
+  [BROVARY, "brovary" as never],
+  [IRPIN, "irpin" as never],
+  [BUCHA, "bucha" as never],
 ]);
+const COUNTS: GalleryFacetCounts = {
+  // Ірпінь and Бровари tie, so the alphabet decides; Буча has none.
+  cities: [
+    { cityId: IRPIN, count: 14 },
+    { cityId: BROVARY, count: 14 },
+  ],
+  ages: { baby: 1, young: 3, adult: 22, senior: 0 },
+  sizes: { small: 5, medium: 2, large: 1 },
+  sexes: { male: 4, female: 6, unknown: 2 },
+};
+
+function renderRow(filters: FeedFilters = NO_FILTERS, counts: GalleryFacetCounts = COUNTS) {
+  const router = mockAppRouter();
+  render(
+    <WithMockRouter router={router}>
+      <GalleryFilterDropdowns
+        filters={filters}
+        sort="freshest"
+        cities={CITIES}
+        citySlugs={CITY_SLUGS}
+        counts={counts}
+      />
+      <button type="button">Поза</button>
+    </WithMockRouter>,
+  );
+  return router;
+}
+
+const trigger = (name: string) => screen.getByRole("button", { name });
+const panel = (name: string) => screen.getByRole("group", { name });
+const pillNames = (group: HTMLElement) =>
+  within(group)
+    .getAllByRole("button")
+    .map((pill) => pill.getAttribute("aria-label"));
 
 describe("GalleryFilterDropdowns", () => {
-  it("renders exactly four dropdown triggers - city, age, size, sex (gallery filter restructure)", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={NO_FILTERS}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    expect(screen.getAllByRole("button")).toHaveLength(4);
-    expect(screen.getByLabelText(`${uk.filters.sex}: ${uk.filters.sex}`)).toBeTruthy();
+  it("renders the four selectors - city, age, size, sex - after the species toggle", () => {
+    renderRow();
+    for (const name of ["Місто: Місто", "Вік: Вік", "Розмір: Розмір", "Стать: Стать"]) {
+      expect(trigger(name).getAttribute("aria-expanded")).toBe("false");
+    }
+    expect(screen.getByTestId("species-toggle").tagName).toBe("FIELDSET");
   });
 
-  it("renders the species toggle's three segments as links, not dropdown buttons", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={NO_FILTERS}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    const toggle = screen.getByTestId("species-toggle");
-    expect(toggle.tagName).toBe("FIELDSET");
-    expect(screen.getByTestId("species-any")).toBeTruthy();
-    expect(screen.getByTestId("species-dog")).toBeTruthy();
-    expect(screen.getByTestId("species-cat")).toBeTruthy();
+  it("names the trigger by the dimension while nothing is chosen", () => {
+    renderRow();
+    expect(trigger("Місто: Місто").textContent).toBe("Місто");
   });
 
-  it("shows the group name as a muted placeholder when nothing is selected", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={NO_FILTERS}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    const cityButton = screen.getByLabelText(`${uk.filters.city}: ${uk.filters.city}`);
-    expect(cityButton.textContent).toContain(uk.filters.city);
-    expect(cityButton.className).toContain("text-brand-muted");
+  it("names the chosen options on the trigger in the panel's order, joined by «, »", () => {
+    renderRow({ ...NO_FILTERS, cities: { kind: "oneOf", values: [IRPIN, BROVARY] } });
+    // Бровари first: 14 each, then the alphabet - the order the pills have.
+    expect(trigger("Місто: Бровари, Ірпінь").textContent).toBe("Бровари, Ірпінь");
   });
 
-  it("shows the selected value's own label, not the placeholder, once set", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={{ ...NO_FILTERS, cities: { kind: "oneOf", values: [BROVARY_ID] } }}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    const cityButton = screen.getByLabelText(`${uk.filters.city}: Бровари`);
-    expect(cityButton.textContent).toBe("Бровари");
-    expect(cityButton.className).toContain("text-brand-ink");
+  it("opens a labelled group of pills and moves focus into it", () => {
+    renderRow();
+    fireEvent.click(trigger("Розмір: Розмір"));
+
+    expect(trigger("Розмір: Розмір").getAttribute("aria-expanded")).toBe("true");
+    const group = panel("Розмір");
+    expect(pillNames(group)).toEqual([
+      "Малий, 5 тварин",
+      "Середній, 2 тварини",
+      "Великий, 1 тварина",
+    ]);
+    expect(document.activeElement).toBe(within(group).getAllByRole("button")[0]);
   });
 
-  it("options are hidden until the trigger is clicked, then appear as real full-width links", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={NO_FILTERS}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    expect(screen.queryByRole("link", { name: "Бровари" })).toBeNull();
-
-    fireEvent.click(screen.getByLabelText(`${uk.filters.city}: ${uk.filters.city}`));
-    const option = screen.getByRole("link", { name: "Бровари" });
-    expect(option).toBeTruthy();
-    expect(option.className).toContain("w-full");
-    expect(option.getAttribute("href")).toBe("/tvaryny?misto=brovary");
+  it("puts the count in each pill's name and on the pill itself", () => {
+    renderRow();
+    fireEvent.click(trigger("Вік: Вік"));
+    const pill = screen.getByRole("button", { name: "Дорослий, 22 тварини" });
+    expect(pill.textContent).toBe("Дорослий22");
+    expect(pill.getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("clicking outside the open dropdown closes it", () => {
-    render(
-      <div>
-        <GalleryFilterDropdowns
-          filters={NO_FILTERS}
-          sort="freshest"
-          cities={CITIES}
-          citySlugs={CITY_SLUGS}
-        />
-        <div data-testid="outside">outside</div>
-      </div>,
-    );
-
-    fireEvent.click(screen.getByLabelText(`${uk.filters.city}: ${uk.filters.city}`));
-    expect(screen.getByRole("link", { name: "Бровари" })).toBeTruthy();
-
-    fireEvent.pointerDown(screen.getByTestId("outside"));
-    expect(screen.queryByRole("link", { name: "Бровари" })).toBeNull();
+  it("orders cities by count, most first, then alphabetically, keeping a city with none", () => {
+    renderRow();
+    fireEvent.click(trigger("Місто: Місто"));
+    expect(pillNames(panel("Місто"))).toEqual([
+      "Бровари, 14 тварин",
+      "Ірпінь, 14 тварин",
+      "Буча, 0 тварин",
+    ]);
   });
 
-  it("pressing Escape closes the open dropdown and returns focus to its trigger", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={NO_FILTERS}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
+  it("keeps the other dimensions in their natural order whatever the counts", () => {
+    renderRow();
+    fireEvent.click(trigger("Стать: Стать"));
+    expect(pillNames(panel("Стать"))).toEqual([
+      "Хлопчик, 4 тварини",
+      "Дівчинка, 6 тварин",
+      "Не записано, 2 тварини",
+    ]);
+  });
 
-    const trigger = screen.getByLabelText(`${uk.filters.city}: ${uk.filters.city}`);
-    fireEvent.click(trigger);
-    expect(screen.getByRole("link", { name: "Бровари" })).toBeTruthy();
+  it("marks the chosen pill pressed", () => {
+    renderRow({ ...NO_FILTERS, ages: { kind: "oneOf", values: ["young"] } });
+    fireEvent.click(trigger("Вік: Молодий"));
+    expect(
+      screen.getByRole("button", { name: "Молодий, 3 тварини" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("button", { name: "Малюк, 1 тварина" }).getAttribute("aria-pressed"),
+    ).toBe("false");
+  });
 
+  it("a pill applies at once through the URL, and the panel stays open for the next", () => {
+    const router = renderRow({ ...NO_FILTERS, sizes: { kind: "oneOf", values: ["large"] } });
+    fireEvent.click(trigger("Місто: Місто"));
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Ірпінь, 14 тварин" }));
+    });
+
+    expect(router.replace).toHaveBeenCalledWith("/tvaryny?misto=irpin&rozmir=large", {
+      scroll: false,
+    });
+    expect(panel("Місто")).toBeTruthy();
+  });
+
+  it("offers an option with nothing to find as disabled, and ignores a press on it", () => {
+    const router = renderRow();
+    fireEvent.click(trigger("Місто: Місто"));
+    const empty = screen.getByRole("button", { name: "Буча, 0 тварин" });
+
+    expect(empty.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(empty);
+    expect(router.replace).not.toHaveBeenCalled();
+    // Focus skipped it on open: the first pill that can do something has it.
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Бровари, 14 тварин" }));
+  });
+
+  it("keeps a chosen option with nothing to find usable, so it can be cleared", () => {
+    const router = renderRow({ ...NO_FILTERS, cities: { kind: "oneOf", values: [BUCHA] } });
+    fireEvent.click(trigger("Місто: Буча"));
+    const chosen = screen.getByRole("button", { name: "Буча, 0 тварин" });
+
+    expect(chosen.getAttribute("aria-disabled")).toBeNull();
+    expect(chosen.getAttribute("aria-pressed")).toBe("true");
+    act(() => {
+      fireEvent.click(chosen);
+    });
+    expect(router.replace).toHaveBeenCalledWith("/tvaryny", { scroll: false });
+  });
+
+  it("Escape closes it and returns focus to the trigger", () => {
+    renderRow();
+    fireEvent.click(trigger("Вік: Вік"));
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.queryByRole("link", { name: "Бровари" })).toBeNull();
-    expect(document.activeElement).toBe(trigger);
+
+    expect(screen.queryByRole("group", { name: "Вік" })).toBeNull();
+    expect(document.activeElement).toBe(trigger("Вік: Вік"));
   });
 
-  it("the trigger's accessible name includes the visible selected value (WCAG 2.5.3)", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={{ ...NO_FILTERS, cities: { kind: "oneOf", values: [BROVARY_ID] } }}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    const cityButton = screen.getByRole("button", { name: `${uk.filters.city}: Бровари` });
-    expect(cityButton.textContent).toContain("Бровари");
+  it("the trigger closes it again", () => {
+    renderRow();
+    fireEvent.click(trigger("Вік: Вік"));
+    fireEvent.click(trigger("Вік: Вік"));
+    expect(screen.queryByRole("group", { name: "Вік" })).toBeNull();
+    expect(trigger("Вік: Вік").getAttribute("aria-expanded")).toBe("false");
   });
 
-  /**
-   * Oleksii, mid-build, verbatim: "replacing chevron icon with X to clear
-   * all filters [in] 1 click... if multiple filters are chosen its hard
-   * to reset all of them because it requires tons of clicks." One click
-   * on the ✕ drops the whole dimension back to `ANY`, not just the last
-   * toggled value.
-   */
-  it("shows a clear-all ✕ once a value is set, which resets the whole dimension in one click", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={{ ...NO_FILTERS, cities: { kind: "oneOf", values: [BROVARY_ID] } }}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    const clearButtons = screen.getAllByTestId("dropdown-clear");
-    expect(clearButtons).toHaveLength(1);
-    expect(clearButtons[0]?.getAttribute("href")).toBe("/tvaryny");
-  });
+  it("a press outside closes it; a press inside does not", () => {
+    renderRow();
+    fireEvent.click(trigger("Стать: Стать"));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Хлопчик, 4 тварини" }));
+    expect(panel("Стать")).toBeTruthy();
 
-  it("shows no clear-all ✕ while a dimension is unconstrained", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={NO_FILTERS}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    expect(screen.queryByTestId("dropdown-clear")).toBeNull();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Поза" }));
+    expect(screen.queryByRole("group", { name: "Стать" })).toBeNull();
   });
 
   /**
-   * Tier 1 review finding (2881bc2): every key `relaxDimension` takes is a
-   * `FeedFilterDimension`, so a dropdown's own ✕ silently clearing the
-   * *wrong* dimension still type-checks - nothing catches it but a test
-   * that sets two dimensions at once and checks each ✕ by its own href.
+   * Oleksii, on the dropdown this replaces, verbatim: "replacing chevron icon with X to clear
+   * all filters [in] 1 click". Each ✕ clears only its own dimension.
    */
-  it("each dropdown's own ✕ clears only its own dimension, not another one active at the same time", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={{
-          ...NO_FILTERS,
-          sizes: { kind: "oneOf", values: ["large"] },
-          ages: { kind: "oneOf", values: ["young"] },
-          sexes: { kind: "oneOf", values: ["male"] },
-        }}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
+  it("offers a ✕ per chosen dimension that clears only that dimension", () => {
+    renderRow({
+      ...NO_FILTERS,
+      sizes: { kind: "oneOf", values: ["large"] },
+      ages: { kind: "oneOf", values: ["young"] },
+      sexes: { kind: "oneOf", values: ["male"] },
+    });
+    expect(screen.getByRole("link", { name: "Скинути Розмір" }).getAttribute("href")).toBe(
+      "/tvaryny?vik=young&stat=male",
     );
-
-    const sizeClear = screen.getByLabelText(
-      uk.filters.clearDimension.replace("{dimension}", uk.filters.size),
+    expect(screen.getByRole("link", { name: "Скинути Вік" }).getAttribute("href")).toBe(
+      "/tvaryny?rozmir=large&stat=male",
     );
-    expect(sizeClear.getAttribute("href")).toBe("/tvaryny?vik=young&stat=male");
-
-    const ageClear = screen.getByLabelText(
-      uk.filters.clearDimension.replace("{dimension}", uk.filters.age),
-    );
-    expect(ageClear.getAttribute("href")).toBe("/tvaryny?rozmir=large&stat=male");
+    expect(screen.queryByRole("link", { name: "Скинути Місто" })).toBeNull();
   });
 
-  it("marks the selected option with aria-current", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={{ ...NO_FILTERS, ages: { kind: "oneOf", values: ["young"] } }}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    fireEvent.click(screen.getByLabelText(`${uk.filters.age}: ${uk.filters.ageYoung}`));
-    const option = screen.getByRole("link", { name: /Молодий/ });
-    expect(option.getAttribute("aria-current")).toBe("true");
-  });
-
-  /**
-   * The species toggle's own wiring (gallery filter restructure): exclusive
-   * choice (selecting one species replaces, not adds to, any prior one),
-   * tapping the active segment clears back to "any", and the inactive
-   * segments are always present as real links regardless of filter state -
-   * unlike a `Dropdown`, the toggle has no open/closed disclosure to drive.
-   */
-  it("the species toggle writes vyd=cat for the cat segment", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={NO_FILTERS}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    const catOption = screen.getByTestId("species-cat");
-    expect(catOption.getAttribute("href")).toBe("/tvaryny?vyd=cat");
-    expect(catOption.getAttribute("aria-current")).toBeNull();
-  });
-
-  it("the species toggle marks the active segment aria-current and replaces it with the other, exclusively", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={{ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } }}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
+  it("the species toggle writes vyd=cat for the cat segment, exclusively", () => {
+    renderRow({ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } });
     expect(screen.getByTestId("species-dog").getAttribute("aria-current")).toBe("true");
-    expect(screen.getByTestId("species-any").getAttribute("aria-current")).toBeNull();
-    // Selecting cat replaces dog - never both, unlike the dropdowns' own multi-select.
     expect(screen.getByTestId("species-cat").getAttribute("href")).toBe("/tvaryny?vyd=cat");
-  });
-
-  it("the species toggle marks «Усі» active when no species is selected, and only «Усі»", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={NO_FILTERS}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    expect(screen.getByTestId("species-any").getAttribute("aria-current")).toBe("true");
-    expect(screen.getByTestId("species-dog").getAttribute("aria-current")).toBeNull();
-    expect(screen.getByTestId("species-cat").getAttribute("aria-current")).toBeNull();
-  });
-
-  it("the species toggle's «Усі» segment clears the species filter entirely", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={{ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } }}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
     expect(screen.getByTestId("species-any").getAttribute("href")).toBe("/tvaryny");
   });
 
-  it("the sex dropdown lists male, female and unrecorded, and «Дівчинка» writes stat=female", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={NO_FILTERS}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    fireEvent.click(screen.getByLabelText(`${uk.filters.sex}: ${uk.filters.sex}`));
-    // Scoped to the sex dropdown's own open panel (an ARIA group named by
-    // its legend) - the species toggle's own three links are always on the
-    // page too, now that it's a toggle rather than a closed-by-default
-    // dropdown, and would otherwise show up in a page-wide link query.
-    const panel = screen.getByRole("group", { name: uk.filters.sex });
-    expect(
-      within(panel)
-        .getAllByRole("link")
-        .map((link) => link.textContent),
-    ).toEqual(["Хлопчик", "Дівчинка", "Не записано"]);
-    expect(screen.getByRole("link", { name: "Дівчинка" }).getAttribute("href")).toBe(
-      "/tvaryny?stat=female",
-    );
-  });
-
-  it("an active sex selection shows its value on the trigger and clears with its own ✕", () => {
-    render(
-      <GalleryFilterDropdowns
-        filters={{ ...NO_FILTERS, sexes: { kind: "oneOf", values: ["male"] } }}
-        sort="freshest"
-        cities={CITIES}
-        citySlugs={CITY_SLUGS}
-      />,
-    );
-    expect(screen.getByRole("button", { name: "Стать: Хлопчик" }).textContent).toBe("Хлопчик");
-    expect(screen.getByLabelText("Скинути Стать").getAttribute("href")).toBe("/tvaryny");
+  it("the species toggle marks «Усі» active when no species is chosen, and only «Усі»", () => {
+    renderRow();
+    expect(screen.getByTestId("species-any").getAttribute("aria-current")).toBe("true");
+    expect(screen.getByTestId("species-dog").getAttribute("aria-current")).toBeNull();
+    expect(screen.getByTestId("species-cat").getAttribute("aria-current")).toBeNull();
   });
 });
