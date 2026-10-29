@@ -33,6 +33,7 @@ import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * What each shelter procedure does for its own shelter, through the served
@@ -83,7 +84,11 @@ async function call<T = Record<string, unknown>>(
 ): Promise<{ status: number; body: T }> {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { "content-type": "application/json", origin: "http://localhost" },
+    headers: {
+      "content-type": "application/json",
+      origin: "http://localhost",
+      cookie: TEST_SESSION_COOKIE,
+    },
     body: JSON.stringify(toRpcBody(input)),
   });
   const response = await handleKabinetRpc(request, {

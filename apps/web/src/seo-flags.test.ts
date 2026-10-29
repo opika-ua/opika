@@ -85,6 +85,10 @@ it("metadataBase is the fixed SITE_ORIGIN constant, never left unset", async () 
  * render (`DeckScreen.test.tsx`, `animal-detail.harness.ts`) rather than
  * here, since neither's markup is reachable from this file's imports.
  */
+/** The `headers()` entries carrying X-Robots-Tag; the security headers (audit F5) are on every route either way. */
+const robotsTagEntries = (entries: { headers: { key: string }[] }[] | undefined) =>
+  (entries ?? []).filter((entry) => entry.headers.some((h) => h.key === "X-Robots-Tag"));
+
 describe("SITE_IS_PUBLICLY_DISCOVERABLE – single source for noindex behaviour", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -101,7 +105,7 @@ describe("SITE_IS_PUBLICLY_DISCOVERABLE – single source for noindex behaviour"
     const nextConfig = (await import("../next.config")).default;
 
     expect(metadata.robots).toEqual({ index: false, follow: false });
-    expect(await nextConfig.headers?.()).toEqual([
+    expect(robotsTagEntries(await nextConfig.headers?.())).toEqual([
       { source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ]);
   });
@@ -117,7 +121,7 @@ describe("SITE_IS_PUBLICLY_DISCOVERABLE – single source for noindex behaviour"
     const nextConfig = (await import("../next.config")).default;
 
     expect(metadata.robots).toEqual({ index: false, follow: false });
-    expect(await nextConfig.headers?.()).toEqual([
+    expect(robotsTagEntries(await nextConfig.headers?.())).toEqual([
       { source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ]);
   });
@@ -133,7 +137,7 @@ describe("SITE_IS_PUBLICLY_DISCOVERABLE – single source for noindex behaviour"
     const nextConfig = (await import("../next.config")).default;
 
     expect(metadata.robots).toEqual({ index: true, follow: true });
-    expect(await nextConfig.headers?.()).toEqual([]);
+    expect(robotsTagEntries(await nextConfig.headers?.())).toEqual([]);
   });
 });
 

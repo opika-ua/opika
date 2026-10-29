@@ -52,6 +52,7 @@ describe("feedList - reachableCount wiring", () => {
       adopterId,
       tokenHash: null,
       now: new Date("2026-09-09T12:00:00Z"),
+      caller: { kind: "in_process" },
       setCookies: [],
     };
   }
@@ -128,6 +129,7 @@ describe("feedList - a cursor is refused outside the exact filters it was issued
     adopterId: null,
     tokenHash: null,
     now: new Date("2026-10-20T12:00:00Z"),
+    caller: { kind: "in_process" },
     setCookies: [],
   };
   const position = { at: new Date("2026-10-01T00:00:00Z"), id: "some-animal-id" };

@@ -2,6 +2,9 @@ import { setupTestDatabase, truncateAll } from "@opika/db/test";
 import { StandardRPCJsonSerializer, StandardRPCSerializer } from "@orpc/client/standard";
 import { RPCHandler } from "@orpc/server/fetch";
 import type { AppContext } from "./context";
+import type { PerIpBudgets } from "./per-ip-budgets";
+import type { RateLimiter } from "./rate-limit";
+import { ipKeyWith } from "./rate-limit-key";
 import { router } from "./router";
 import { validateSession } from "./session/index";
 
@@ -90,6 +93,15 @@ export function rpcRequestInit(input: unknown): {
   return { body: JSON.stringify(serialized), headers: { "content-type": "application/json" } };
 }
 
+/** Budgets no test spends by accident; a test of the per-IP limits passes its own (`call`'s `budgets`). */
+const ALWAYS_ALLOWS: RateLimiter = { check: async () => true };
+const UNSPENDABLE_BUDGETS: PerIpBudgets = {
+  adopterMints: ALWAYS_ALLOWS,
+  newShelterReveals: ALWAYS_ALLOWS,
+};
+const HARNESS_IP = "203.0.113.1";
+const HARNESS_IP_KEY_SECRET = "test-rate-limit-key-secret-for-api-harness-0123";
+
 /**
  * Test harness for the oRPC router.
  *
@@ -109,7 +121,7 @@ export async function createTestHarness() {
   async function call(
     path: string,
     body: unknown,
-    opts: { cookie?: string; now?: Date } = {},
+    opts: { cookie?: string; now?: Date; ip?: string; budgets?: PerIpBudgets } = {},
   ): Promise<{ status: number; body: unknown; headers: Headers; raw: string }> {
     const now = opts.now ?? new Date("2026-08-01T12:00:00Z");
 
@@ -122,6 +134,11 @@ export async function createTestHarness() {
       adopterId: session.ok ? session.adopterId : null,
       tokenHash: session.ok ? session.tokenHash : null,
       now,
+      caller: {
+        kind: "http",
+        ipKey: ipKeyWith(HARNESS_IP_KEY_SECRET, opts.ip ?? HARNESS_IP),
+        budgets: opts.budgets ?? UNSPENDABLE_BUDGETS,
+      },
       setCookies,
     };
 

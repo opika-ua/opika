@@ -20,6 +20,7 @@ import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { PHOTO_PROCESSING_BUDGET_MS, type PhotoUploads } from "./photo-uploads";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 type Pipeline = typeof import("@opika/db/image-pipeline/server");
 
@@ -132,7 +133,11 @@ async function call<T = KabinetAnimalView>(
   const { body, headers } = rpcRequestInit(input);
   const request = new Request(`${ORIGIN}/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { ...headers, ...(opts.origin === null ? {} : { origin: opts.origin ?? ORIGIN }) },
+    headers: {
+      ...headers,
+      cookie: TEST_SESSION_COOKIE,
+      ...(opts.origin === null ? {} : { origin: opts.origin ?? ORIGIN }),
+    },
     body,
   });
   const response = await handleKabinetRpc(request, {

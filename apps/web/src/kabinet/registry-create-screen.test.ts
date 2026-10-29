@@ -18,6 +18,7 @@ import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * S2's two halves against each other, through the served router: what the
@@ -64,7 +65,11 @@ const limiters = {
 async function create(input: RegistryCreateInput, now: Date = NOW) {
   const request = new Request("http://localhost/api/kabinet/registry/shelters/create", {
     method: "POST",
-    headers: { "content-type": "application/json", origin: "http://localhost" },
+    headers: {
+      "content-type": "application/json",
+      origin: "http://localhost",
+      cookie: TEST_SESSION_COOKIE,
+    },
     body: JSON.stringify(toRpcBody(input)),
   });
   const response = await handleKabinetRpc(request, {

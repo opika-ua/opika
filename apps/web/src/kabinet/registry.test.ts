@@ -61,6 +61,7 @@ import {
 } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * The operator's registry (`registry.*`, `session.exitSupport`) through the
@@ -124,7 +125,7 @@ async function call<T = Record<string, unknown>>(
   } = {},
 ): Promise<Result<T>> {
   const headers: Record<string, string> = { "content-type": "application/json" };
-  if (opts.cookie !== undefined) headers.cookie = opts.cookie;
+  headers.cookie = [TEST_SESSION_COOKIE, opts.cookie].filter(Boolean).join("; ");
   headers.origin ??= "http://localhost";
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
@@ -611,6 +612,9 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
 
 // ─── the rename (R-UI 4) ────────────────────────────────────────────────────
 
+const ALLOWS = { check: async () => true };
+const UNSPENT = { adopterMints: ALLOWS, newShelterReveals: ALLOWS };
+
 /**
  * A public procedure through the adopter API's own router, as a browser
  * reaches it; `adopterId` stands for a session an adopter already holds.
@@ -628,7 +632,15 @@ async function publicCall<T>(
     }),
     {
       prefix: "/api/rpc",
-      context: { db, adopterId: opts.adopterId ?? null, tokenHash: null, now: NOW, setCookies: [] },
+      context: {
+        db,
+        adopterId: opts.adopterId ?? null,
+        tokenHash: null,
+        now: NOW,
+        // The per-IP budgets (audit F1) aren't what this file tests.
+        caller: { kind: "http", ipKey: "ip:registry-test", budgets: UNSPENT },
+        setCookies: [],
+      },
     },
   );
   if (!result.matched) throw new Error(`No public procedure at ${path}`);
