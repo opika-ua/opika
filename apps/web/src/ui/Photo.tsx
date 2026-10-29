@@ -6,7 +6,8 @@ import { cx } from "./cx";
  * (`image-loader.ts`) turns it into the nearest pre-generated variant, never Vercel's optimiser.
  * `sizes` is required: a missing one makes the browser fetch the largest variant. A skeleton sits
  * behind the image so a slow photo (or none) never leaves a blank hole, and the box's aspect ratio
- * is fixed so nothing shifts on load. Mark the one above-the-fold (LCP) image `priority`.
+ * is fixed so nothing shifts on load. Mark the one above-the-fold (LCP) image `priority`: it
+ * is preloaded and fetched at high priority, so mark one per page, never a row.
  */
 const ASPECT = {
   card: "aspect-328/480",
@@ -36,6 +37,7 @@ export function Photo({ src, alt, sizes, aspect, priority = false, className }: 
           fill
           sizes={sizes}
           priority={priority}
+          fetchPriority={priority ? "high" : undefined}
           className="object-cover"
         />
       )}
