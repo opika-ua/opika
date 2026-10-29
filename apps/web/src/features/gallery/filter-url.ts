@@ -1,4 +1,4 @@
-import { MAX_CITY_TOKEN_LENGTH, MAX_CITY_TOKENS } from "@opika/contracts";
+import { MAX_CITY_TOKEN_LENGTH, MAX_CITY_TOKENS, MAX_GALLERY_PAGE } from "@opika/contracts";
 import type {
   AgeBucket,
   AnimalId,
@@ -129,6 +129,18 @@ function parseSelection<T extends string>(
 }
 
 /**
+ * The contract rejects a page above `MAX_GALLERY_PAGE` (and any non-safe integer such as `1e21`), and
+ * a rejected input is a 500. So a valid but absurd page number clamps to that ceiling, where the repo
+ * then clamps to the real last page, exactly as `?stor=500` already does. Anything that is not a whole
+ * number of at least 1 is garbage and reads as page 1. Never throws.
+ */
+function parsePageParam(raw: string | undefined): number {
+  if (raw === undefined || !/^\d+(e\+?\d+)?$/i.test(raw)) return 1;
+  const n = Number(raw);
+  return n >= 1 ? Math.min(n, MAX_GALLERY_PAGE) : 1;
+}
+
+/**
  * What the URL's slugs mean, resolved by the page before it parses: a city token through
  * `cities.resolveTokens` (so a former slug and a legacy id land on their city), an oblast token
  * against the 27 regions. There is no "all cities" lookup behind this: it holds only the cities
@@ -236,8 +248,7 @@ export function parseGalleryQuery(
   const sortResult = GallerySortSchema.safeParse(firstValue(searchParams[SORT_PARAM]));
   const sort: GallerySort = sortResult.success ? sortResult.data : DEFAULT_GALLERY_SORT;
 
-  const pageRaw = Number(firstValue(searchParams[PAGE_PARAM]));
-  const page = Number.isInteger(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
+  const page = parsePageParam(firstValue(searchParams[PAGE_PARAM]));
 
   return { filters, sort, page };
 }

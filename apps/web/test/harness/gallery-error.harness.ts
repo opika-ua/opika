@@ -12,14 +12,13 @@
 
 import { MAX_GALLERY_PAGE } from "@opika/contracts";
 import { expect, test } from "@playwright/test";
-import { expectReachableByTab, openRoute } from "./harness";
+import { openRoute } from "./harness";
 import { DESKTOP } from "./viewports";
 
 const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
 const NOTICE = "[data-testid='gallery-out-of-range-notice']";
 const ERROR_CARD = "[data-testid='gallery-error']";
-const RETRY = "[data-testid='gallery-error-retry']";
 
 /**
  * TEST-NET-2 (198.51.100.0/24), `.26` - the next unused address in this
@@ -59,114 +58,22 @@ test.describe("/tvaryny out-of-range page", () => {
   });
 
   /**
-   * Beyond `MAX_GALLERY_PAGE` (2000), oRPC's own input-schema validation
-   * rejects the request before `gallery.list`'s handler runs at all - a
-   * genuinely different case from a page beyond `totalPages`, which
-   * clamps. This one throws, and lands in `error.tsx`, not the notice.
+   * Beyond `MAX_GALLERY_PAGE` (2000) the contract's input validation used to throw into `error.tsx`
+   * (a 500 for a hostile URL, QA 2026-10-29). The page parser now clamps any huge number to that
+   * ceiling and the repo clamps on to the last page: the same notice as `?stor=50`, never an error.
+   * The error card itself keeps its unit coverage (`app/tvaryny/error.test.tsx`); no URL reaches it now.
    */
-  test(`?stor=${MAX_GALLERY_PAGE + 1} (beyond MAX_GALLERY_PAGE) is an error, not a notice`, async ({
-    page,
-  }) => {
-    await openRoute(page, `${ROUTE}?stor=${MAX_GALLERY_PAGE + 1}`, DESKTOP, {
-      readySelector: ERROR_CARD,
+  for (const stor of [String(MAX_GALLERY_PAGE + 1), "1e21", "999999999999999999999"]) {
+    test(`?stor=${stor} clamps to the last page with the notice, not an error`, async ({
+      page,
+    }) => {
+      const response = await page.goto(`${ROUTE}?stor=${stor}`, { waitUntil: "load" });
+      expect(response?.status()).toBe(200);
+      await expect(page.locator(CARD).first()).toBeVisible();
+      await expect(page.locator(NOTICE)).toBeVisible();
+      await expect(page.locator(ERROR_CARD)).toHaveCount(0);
     });
-
-    await expect(page.locator(ERROR_CARD)).toBeVisible();
-    await expect(page.locator(NOTICE)).toHaveCount(0);
-    await expect(page.locator(CARD)).toHaveCount(0);
-
-    /**
-     * `Opika Registry Frames.dc.html`'s E1 frame's own literal text
-     * (eyebrow, retry label) - not `uk.galleryError`'s own constant,
-     * `docs/standing-constraints.md`: "A test may not compare output
-     * against the same constant the code renders." The heading/body are
-     * NOT asserted here on purpose - they're this phase's own adapted
-     * copy (`docs/design/README.md`'s "Deviation, E4" note), not the
-     * mock's literal text, so pinning them against the mock would be
-     * asserting a value the code correctly does NOT render.
-     */
-    await expect(page.locator(ERROR_CARD)).toContainText("НЕ ЗАВАНТАЖИЛОСЯ");
-    await expect(page.locator(RETRY)).toHaveText("Спробувати ще раз");
-  });
-
-  /**
-   * E5's real escape hatch (see `error.tsx`'s own top comment for why a
-   * filter rail here would not be one): a plain link to the bare,
-   * unfiltered gallery. Asserted end to end - following it actually
-   * lands on a working page with real cards and no leftover filter, not
-   * just that the href string looks right.
-   */
-  test("the 'show all animals' link recovers to a real, unfiltered gallery", async ({ page }) => {
-    await openRoute(page, `${ROUTE}?vyd=dog&stor=${MAX_GALLERY_PAGE + 1}`, DESKTOP, {
-      readySelector: ERROR_CARD,
-    });
-
-    await page.getByTestId("gallery-error-show-all").click();
-
-    await page.waitForURL((url) => url.pathname === "/tvaryny" && url.search === "");
-    await expect(page.locator(CARD).first()).toBeVisible();
-    await expect(page.locator(ERROR_CARD)).toHaveCount(0);
-  });
-
-  /**
-   * Keyboard operation: retry and the "show all animals" link are the only
-   * two interactive elements on this card, and both are in the tab order.
-   */
-  test("retry and the 'show all animals' link are both reachable by Tab", async ({ page }) => {
-    await openRoute(page, `${ROUTE}?stor=${MAX_GALLERY_PAGE + 1}`, DESKTOP, {
-      readySelector: ERROR_CARD,
-    });
-
-    await expectReachableByTab(page, {
-      label: "retry button",
-      locator: page.locator(RETRY),
-    });
-    await expectReachableByTab(page, {
-      label: "show-all-animals link",
-      locator: page.getByTestId("gallery-error-show-all"),
-    });
-  });
-});
-
-test.describe("/tvaryny error state", () => {
-  /**
-   * History worth keeping: this test originally tried to prove retry
-   * issues a fresh network request and gave up, twice - once trying to
-   * force a *transient* failure by aborting a client-side RSC fetch (Next's
-   * client router doesn't reliably surface an aborted client-side
-   * navigation fetch to the nearest error boundary the way a genuine
-   * server-side throw does), and once because clicking retry produced no
-   * observable request at all within 2 seconds of logging every request.
-   *
-   * The second one had a real cause, found by round-2 review: `error.tsx`
-   * was calling `reset()` instead of `retry()`. Next passes both, and only
-   * `retry()` calls `router.refresh()` - `reset()` alone clears the
-   * boundary's local state without re-running anything, so of course no
-   * request fired; there was nothing left to observe. Fixed, and this test
-   * now asserts the request that was missing every time before.
-   */
-  test("retry actually re-fetches, and the filter already in the URL survives it", async ({
-    page,
-  }) => {
-    const url = `${ROUTE}?vyd=dog&stor=${MAX_GALLERY_PAGE + 1}`;
-    await openRoute(page, url, DESKTOP, { readySelector: ERROR_CARD });
-
-    expect(page.url()).toContain("vyd=dog");
-
-    const refetch = page.waitForRequest(
-      (req) => req.url().includes(`stor=${MAX_GALLERY_PAGE + 1}`) && req.url().includes("_rsc="),
-    );
-    await page.locator(RETRY).click();
-    await refetch;
-
-    // Deterministic failure - retrying the exact same invalid page number
-    // fails again, correctly. What matters here is that it failed against
-    // the SAME state, not a different one: the filter is still in the URL,
-    // and it's still the error card, not a silent fall-through to
-    // something else.
-    await expect(page.locator(ERROR_CARD)).toBeVisible();
-    expect(page.url()).toContain("vyd=dog");
-  });
+  }
 });
 
 test.describe("/tvaryny no-match – relaxation counts are real numbers", () => {

@@ -4,6 +4,7 @@ import type { LocationPrivacyPolicy } from "@opika/domain";
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
 import { boundedBody, readBodyHead } from "../api/bounded-body";
 import { ipRateLimitKey } from "../api/rate-limit-key";
+import { retryAfterSecondsOf } from "../api/retry-after";
 import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { kabinetCookieName } from "./auth";
@@ -63,7 +64,11 @@ function mayExceedUnverifiedCap(principal: KabinetPrincipal): boolean {
   }
 }
 
-const tooMany = () => new Response("Too Many Requests", { status: 429 });
+const tooMany = (retryAfterSeconds: number) =>
+  new Response("Too Many Requests", {
+    status: 429,
+    headers: { "Retry-After": String(retryAfterSeconds) },
+  });
 const tooLarge = () => new Response("Payload Too Large", { status: 413 });
 const unauthorized = () => new Response("Unauthorized", { status: 401 });
 
@@ -147,7 +152,10 @@ export async function handleKabinetRpc(
     invitePasswords?: () => InvitePasswords;
   },
 ): Promise<Response> {
-  if (!(await deps.limiters.perIp.check(ipRateLimitKey(deps.ip), deps.now))) return tooMany();
+  const ipKey = ipRateLimitKey(deps.ip);
+  if (!(await deps.limiters.perIp.check(ipKey, deps.now))) {
+    return tooMany(retryAfterSecondsOf(deps.limiters.perIp, ipKey, deps.now));
+  }
   if (deps.availability.kind === "unavailable") {
     return new Response("Kabinet is not available", { status: 503 });
   }
@@ -200,8 +208,11 @@ export async function handleKabinetRpc(
     return new Response("Registry is not available", { status: 503 });
   }
   const { principal, userId, db, cursorSecret } = identity ?? (await deps.resolve());
-  if (userId !== null && !(await deps.limiters.perUser.check(kabinetUserKey(userId), deps.now))) {
-    return tooMany();
+  if (userId !== null) {
+    const userKey = kabinetUserKey(userId);
+    if (!(await deps.limiters.perUser.check(userKey, deps.now))) {
+      return tooMany(retryAfterSecondsOf(deps.limiters.perUser, userKey, deps.now));
+    }
   }
   const setCookies: string[] = [];
   const result = await kabinetRpcHandler.handle(bounded, {

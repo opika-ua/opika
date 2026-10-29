@@ -20,6 +20,7 @@ import {
   standaloneOperatorName,
 } from "../../../kabinet/operator";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
+import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "../available-auth";
 
 type Loaded =
@@ -95,7 +96,10 @@ export default async function ShelterProfilePage() {
         <header className="flex min-h-16 items-center bg-surface px-4 tablet:min-h-0 tablet:bg-transparent tablet:p-8">
           <KabinetBrand />
         </header>
-        <main className="flex flex-1 flex-col px-4 pt-5 pb-6 tablet:items-center tablet:justify-center tablet:px-8 tablet:pt-8 tablet:pb-24">
+        <main
+          {...MAIN_LANDMARK}
+          className="flex flex-1 flex-col px-4 pt-5 pb-6 tablet:items-center tablet:justify-center tablet:px-8 tablet:pt-8 tablet:pb-24"
+        >
           <JoinFailedCard />
         </main>
       </div>

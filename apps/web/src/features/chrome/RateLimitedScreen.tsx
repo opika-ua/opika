@@ -1,6 +1,7 @@
 import { uk } from "@opika/i18n";
 import { buttonClass } from "../../ui/Button";
 import { Heading } from "../../ui/Heading";
+import { MAIN_LANDMARK } from "../../ui/landmark";
 import { Panel } from "../../ui/Panel";
 
 /**
@@ -20,7 +21,10 @@ import { Panel } from "../../ui/Panel";
  */
 export function RateLimitedScreen() {
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-page p-4 tablet:p-6">
+    <main
+      {...MAIN_LANDMARK}
+      className="flex min-h-dvh items-center justify-center bg-page p-4 tablet:p-6"
+    >
       {/* Sunken: surface is near-identical to the page, so only the fill makes the card visible. Ink text, since ink-2 is 4.1:1 on it. */}
       <Panel
         tone="sunken"

@@ -6,6 +6,7 @@ import type { AppContext } from "./context";
 import type { PerIpBudgets } from "./per-ip-budgets";
 import type { RateLimiter } from "./rate-limit";
 import { ipRateLimitKey } from "./rate-limit-key";
+import { retryAfterSecondsOf } from "./retry-after";
 import { router } from "./router";
 import { validateSession } from "./session/index";
 
@@ -28,7 +29,11 @@ export const publicRpcHandler = new RPCHandler(router, {
  */
 export const CARDS_BY_IDS_PATH = `${PUBLIC_RPC_PREFIX}/animals/cardsByIds`;
 
-const tooMany = () => new Response("Too Many Requests", { status: 429 });
+const tooMany = (retryAfterSeconds: number) =>
+  new Response("Too Many Requests", {
+    status: 429,
+    headers: { "Retry-After": String(retryAfterSeconds) },
+  });
 const tooLarge = () => new Response("Payload Too Large", { status: 413 });
 
 export type PublicRpcDeps = {
@@ -49,7 +54,9 @@ export async function handlePublicRpc(request: Request, deps: PublicRpcDeps): Pr
 
   // Keyed on an HMAC of the address's /64 or IPv4 (`ipKeyWith`), never the address (EM-Q11).
   const ipKey = ipRateLimitKey(deps.ip);
-  if (!(await deps.apiLimiter.check(ipKey, deps.now))) return tooMany();
+  if (!(await deps.apiLimiter.check(ipKey, deps.now))) {
+    return tooMany(retryAfterSecondsOf(deps.apiLimiter, ipKey, deps.now));
+  }
 
   const bounded = await boundedBody(request, PUBLIC_RPC_MAX_BODY_BYTES);
   if (bounded === "too_large") return tooLarge();

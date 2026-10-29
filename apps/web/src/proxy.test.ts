@@ -324,12 +324,27 @@ describe("proxy", () => {
       let last = await load();
       for (let i = 0; i < 100; i++) last = await load();
       expect(last.status).toBe(429);
-      expect(await last.text()).toContain("Забагато запитів. Спробуйте ще раз пізніше.");
+      expect(last.headers.get("x-middleware-rewrite")).toContain("/rate-limited");
     });
 
-    it("answers that 429 with his sentence in Ukrainian, not the not-found copy (RL-F1)", async () => {
-      // The limiter stubbed to refuse: the refusal's body is under test, not
-      // the counting (the test above), so no budget is spent to reach it.
+    it("rewrites that 429 to the branded screen, noindex, with Retry-After from the limiter's state (RL-F1, QA 2026-10-29)", async () => {
+      // The page itself is rendered by `RateLimitedScreen` (its own test and the harness spec);
+      // here only the proxy's answer: status, target, and the header's number.
+      const { proxy } = await import("./proxy");
+      const load = () =>
+        proxy(request("https://opika.example/tvaryny", { "x-forwarded-for": "8.8.4.4" }));
+      let last = await load();
+      for (let i = 0; i < 100; i++) last = await load();
+      expect(last.status).toBe(429);
+      expect(last.headers.get("x-middleware-rewrite")).toBe("https://opika.example/rate-limited");
+      expect(last.headers.get("x-robots-tag")).toBe("noindex");
+      const seconds = Number(last.headers.get("retry-after"));
+      expect(Number.isInteger(seconds)).toBe(true);
+      expect(seconds).toBeGreaterThanOrEqual(1);
+      expect(seconds).toBeLessThanOrEqual(60);
+    });
+
+    it("falls back to the window length when the limiter cannot say when it frees up", async () => {
       vi.doMock("./api/rate-limit", async (importOriginal) => ({
         ...(await importOriginal<typeof import("./api/rate-limit")>()),
         apiRateLimiter: { check: async () => false },
@@ -337,17 +352,11 @@ describe("proxy", () => {
       const { proxy } = await import("./proxy");
       const refused = await proxy(
         request("https://opika.example/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc", {
-          "x-forwarded-for": "8.8.4.4",
+          "x-forwarded-for": "8.8.4.5",
         }),
       );
       expect(refused.status).toBe(429);
-      expect(refused.headers.get("content-type")).toBe("text/html; charset=utf-8");
-      expect(refused.headers.get("x-robots-tag")).toBe("noindex");
-      const body = await refused.text();
-      // His words, transcribed from his message, not read from the catalogue.
-      expect(body).toContain("Забагато запитів. Спробуйте ще раз пізніше.");
-      expect(body).not.toContain("Це не помилка");
-      expect(body).not.toContain("більше немає");
+      expect(refused.headers.get("retry-after")).toBe("60");
     });
 
     it("429s a /kabinet page load past the kabinet's per-IP limit (KH-Q8)", async () => {

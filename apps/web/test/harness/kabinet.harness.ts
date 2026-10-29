@@ -131,11 +131,13 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
     return context.newPage();
   };
 
-  test("sign-out is the first Tab stop", async () => {
+  test("sign-out is the first Tab stop after the skip link", async () => {
     const page = await signedInPage();
     await page.goto("/kabinet");
     // Transcribed: K4's «Вийти» (`kabinet.profile.signOut`).
     const signOut = page.getByRole("button", { name: "Вийти" });
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("link", { name: "Перейти до вмісту" })).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(signOut).toBeFocused();
     await page.close();

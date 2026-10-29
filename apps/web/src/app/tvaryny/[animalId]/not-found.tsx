@@ -2,6 +2,7 @@ import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { LinkButton } from "../../../ui/Button";
 import { Heading } from "../../../ui/Heading";
+import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 
@@ -20,7 +21,7 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 export default function NotFound() {
   const copy = uk.detail.notFound;
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-page p-6">
+    <main {...MAIN_LANDMARK} className="flex min-h-dvh items-center justify-center bg-page p-6">
       <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">
         <Text look="hint" className="uppercase tracking-wider">
           {copy.eyebrow}

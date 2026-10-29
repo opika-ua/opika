@@ -110,7 +110,8 @@ export function GalleryControlBlock({
       {/* Mobile-only row (option-B sketch): species full width, then «Фільтр» + sort side by side. Gone entirely at desktop:, where row 2 below is the real filter row. */}
       <div className="flex flex-col gap-3 desktop:hidden">
         {mobileSpecies}
-        <div className="flex items-center gap-3">
+        {/* `flex-wrap`: at 320 the button and the sort toggle (which never shrinks) are wider than the 288px column, so the toggle drops to its own line there. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {trailing}
           {mobileSort}
         </div>

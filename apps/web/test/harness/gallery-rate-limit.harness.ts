@@ -45,11 +45,13 @@ test.describe("gallery rate limiting", () => {
     const routeWithGate = `${ROUTE}?${PRELAUNCH_GATE_QUERY_PARAM}=${HARNESS_PRELAUNCH_GATE_SECRET}`;
 
     let lastStatus = 0;
+    let last: Awaited<ReturnType<typeof request.get>> | undefined;
     for (let i = 0; i < BUDGET + 1; i++) {
       const response = await request.get(routeWithGate, {
         headers: { "x-forwarded-for": testIp },
       });
       lastStatus = response.status();
+      last = response;
 
       if (i < BUDGET) {
         expect(
@@ -65,5 +67,16 @@ test.describe("gallery rate limiting", () => {
       `request ${BUDGET + 1} to the bare ${ROUTE} was not rate-limited. Either the matcher ` +
         `does not cover the bare path (only a subpath), or the limiter did not fire.`,
     ).toBe(429);
+
+    // QA 2026-10-29: the refusal is the branded screen, not a bare line, and says when to retry.
+    const refused = last;
+    expect(refused).toBeDefined();
+    const body = (await refused?.text()) ?? "";
+    expect(body).toContain("Забагато запитів. Спробуйте ще раз пізніше.");
+    expect(body).toContain("Усі тварини");
+    const retryAfter = Number(refused?.headers()["retry-after"]);
+    expect(Number.isInteger(retryAfter)).toBe(true);
+    expect(retryAfter).toBeGreaterThanOrEqual(1);
+    expect(retryAfter).toBeLessThanOrEqual(60);
   });
 });
