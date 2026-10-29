@@ -64,7 +64,12 @@ export function PhotoSlider({
   const step = (direction: 1 | -1) => {
     const node = scrollerRef.current;
     if (!node) return;
-    node.scrollBy({ left: direction * node.clientWidth * 0.9, behavior: "smooth" });
+    // A jump, not a glide, for visitors who asked the system for less motion.
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollBy({
+      left: direction * node.clientWidth * 0.9,
+      behavior: reduced ? "auto" : "smooth",
+    });
   };
 
   if (photos.length === 0) return null;
@@ -76,7 +81,7 @@ export function PhotoSlider({
         aria-label={label}
         // biome-ignore lint/a11y/noNoninteractiveTabindex: a scroll container must be focusable so a keyboard user can scroll it.
         tabIndex={0}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth rounded-card focus-ring [scrollbar-width:none]"
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto motion-safe:scroll-smooth rounded-card focus-ring [scrollbar-width:none]"
       >
         {photos.map((photo, index) => (
           <Photo

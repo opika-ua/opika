@@ -643,3 +643,23 @@ describe("DeckScreen - demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
     expect(screen.getByTestId("deck-progress-bar").getAttribute("data-state")).toBe("shown");
   });
 });
+
+describe("DeckScreen – landmarks", () => {
+  it("is the page's main landmark, so the deck is not content outside every landmark", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={3} filtersLabel="" citySlugs={CITY_SLUGS} />
+      </WithMockRouter>,
+    );
+
+    expect(screen.getByRole("main").querySelector("[data-testid='deck-position']")).not.toBeNull();
+  });
+});
