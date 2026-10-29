@@ -1,9 +1,11 @@
 "use client";
 
 import { uk } from "@opika/i18n";
-import Link from "next/link";
 import { type FormEvent, useId, useState } from "react";
-import { buttonClass, linkClass } from "../../controls/controls";
+import { Button } from "../../../ui/Button";
+import { Heading } from "../../../ui/Heading";
+import { Text } from "../../../ui/Text";
+import { TextLink } from "../../../ui/TextLink";
 import { FORGOT_PATH } from "../routes";
 import { CARD_MESSAGE } from "./CardFrame";
 import { NewPasswordFields } from "./NewPasswordFields";
@@ -99,9 +101,9 @@ export function ChangePasswordSection({
 
   return (
     <section aria-labelledby={`${id}-title`} className="flex flex-col gap-4">
-      <h2 id={`${id}-title`} className="text-xl font-bold text-rg-ink">
+      <Heading level={2} look="section" id={`${id}-title`}>
         {uk.kabinet.changePassword.title}
-      </h2>
+      </Heading>
       {hasPassword ? (
         <form onSubmit={onSubmit} className="flex flex-col gap-6">
           <PasswordField
@@ -123,13 +125,9 @@ export function ChangePasswordSection({
             refusal={feedback.kind === "refused" ? feedback.message : null}
             mismatch={feedback.kind === "mismatch"}
           />
-          <button
-            type="submit"
-            aria-disabled={busy || undefined}
-            className={buttonClass("primary")}
-          >
+          <Button type="submit" status={busy ? "loading" : "idle"} className="w-full tablet:w-auto">
             {uk.kabinet.changePassword.submit}
-          </button>
+          </Button>
           <p role="status" className={CARD_MESSAGE}>
             {feedback.kind === "done"
               ? uk.kabinet.changePassword.done
@@ -139,13 +137,11 @@ export function ChangePasswordSection({
           </p>
         </form>
       ) : (
-        <p className="text-lg text-rg-ink-2">
+        <Text look="body" className="text-ink-2">
           {noteBefore}
-          <Link href={FORGOT_PATH} className={linkClass("text")}>
-            {uk.kabinet.signIn.forgot}
-          </Link>
+          <TextLink href={FORGOT_PATH}>{uk.kabinet.signIn.forgot}</TextLink>
           {noteAfter}
-        </p>
+        </Text>
       )}
     </section>
   );

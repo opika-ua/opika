@@ -1,11 +1,12 @@
 "use client";
 
 import { uk } from "@opika/i18n";
-import Link from "next/link";
 import { type FormEvent, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { buttonClass, linkClass } from "../../controls/controls";
+import { Button, LinkButton } from "../../../ui/Button";
+import { Heading } from "../../../ui/Heading";
+import { TextLink } from "../../../ui/TextLink";
 import { FORGOT_PATH, SIGN_IN_PAGE_PATH } from "../routes";
-import { CARD_MESSAGE, CARD_TITLE, CardFrame } from "./CardFrame";
+import { CARD_MESSAGE, CardFrame } from "./CardFrame";
 import { NewPasswordFields } from "./NewPasswordFields";
 import { PASSWORD_ENDPOINTS, postJson, type ResetOutcome, resetOutcomeOf } from "./password-api";
 import { refusalMessage } from "./password-copy";
@@ -123,9 +124,9 @@ export function ResetPasswordCard({
   }
 
   const title = (
-    <h1 id={`${id}-title`} ref={titleRef} tabIndex={-1} className={CARD_TITLE}>
+    <Heading level={1} look="title" id={`${id}-title`} ref={titleRef} tabIndex={-1}>
       {uk.kabinet.reset.title}
-    </h1>
+    </Heading>
   );
 
   if (state.kind === "done") {
@@ -133,9 +134,9 @@ export function ResetPasswordCard({
       <CardFrame titleId={`${id}-title`}>
         {title}
         <p className={CARD_MESSAGE}>{uk.kabinet.reset.done}</p>
-        <Link href={SIGN_IN_PAGE_PATH} className={linkClass("text")}>
+        <LinkButton href={SIGN_IN_PAGE_PATH} variant="secondary" className="self-start">
           {uk.kabinet.inviteLanding.signIn}
-        </Link>
+        </LinkButton>
       </CardFrame>
     );
   }
@@ -147,9 +148,7 @@ export function ResetPasswordCard({
         {title}
         <p className={CARD_MESSAGE}>
           {before}
-          <Link href={FORGOT_PATH} className={linkClass("text")}>
-            {uk.kabinet.reset.invalidLinkText}
-          </Link>
+          <TextLink href={FORGOT_PATH}>{uk.kabinet.reset.invalidLinkText}</TextLink>
           {after}
         </p>
       </CardFrame>
@@ -170,9 +169,9 @@ export function ResetPasswordCard({
           refusal={state.refusal}
           mismatch={state.mismatch}
         />
-        <button type="submit" aria-disabled={busy || undefined} className={buttonClass("primary")}>
+        <Button type="submit" status={busy ? "loading" : "idle"} className="w-full">
           {uk.kabinet.reset.submit}
-        </button>
+        </Button>
       </form>
       <p role="alert" className={CARD_MESSAGE}>
         {state.message}

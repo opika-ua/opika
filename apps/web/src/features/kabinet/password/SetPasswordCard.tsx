@@ -2,9 +2,11 @@
 
 import { fillTemplate, uk } from "@opika/i18n";
 import { type FormEvent, useId, useLayoutEffect, useRef, useState } from "react";
-import { buttonClass } from "../../controls/controls";
+import { Button } from "../../../ui/Button";
+import { Heading } from "../../../ui/Heading";
+import { Text } from "../../../ui/Text";
 import { SHELTER_HOME, SIGN_IN_PAGE_PATH } from "../routes";
-import { CARD_BODY, CARD_MESSAGE, CARD_TITLE, CardFrame } from "./CardFrame";
+import { CARD_MESSAGE, CardFrame } from "./CardFrame";
 import { InviteUnusableCard } from "./InviteUnusableCard";
 import { acceptWithPassword, type SetPasswordOutcome } from "./invitation-client";
 import { NewPasswordFields } from "./NewPasswordFields";
@@ -133,12 +135,12 @@ export function SetPasswordCard({
 
   return (
     <CardFrame titleId={`${id}-title`}>
-      <h1 id={`${id}-title`} ref={titleRef} tabIndex={-1} className={CARD_TITLE}>
+      <Heading level={1} look="title" id={`${id}-title`} ref={titleRef} tabIndex={-1}>
         {uk.kabinet.setPassword.title}
-      </h1>
-      <p className={CARD_BODY}>
+      </Heading>
+      <Text look="body" className="text-ink-2">
         {fillTemplate(uk.kabinet.setPassword.intro, { shelter: shelterName, email: maskedEmail })}
-      </p>
+      </Text>
       <form onSubmit={onSubmit} className="flex flex-col gap-6">
         <input type="hidden" name={TOKEN_FIELD} value={token} />
         <NewPasswordFields
@@ -150,9 +152,9 @@ export function SetPasswordCard({
           refusal={state.refusal}
           mismatch={state.mismatch}
         />
-        <button type="submit" aria-disabled={busy || undefined} className={buttonClass("primary")}>
+        <Button type="submit" status={busy ? "loading" : "idle"} className="w-full">
           {uk.kabinet.setPassword.submit}
-        </button>
+        </Button>
       </form>
       <p role="alert" className={CARD_MESSAGE}>
         {state.message}
