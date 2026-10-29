@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
-import { drizzle as drizzleNeonHttp } from "drizzle-orm/neon-http";
+import type { BatchItem, BatchResponse } from "drizzle-orm/batch";
+import { drizzle as drizzleNeonHttp, NeonHttpDatabase } from "drizzle-orm/neon-http";
 import { drizzle as drizzlePostgresJs, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema/index";
@@ -77,7 +78,8 @@ export type Database = PostgresJsDatabase<typeof schema>;
  * `packages/db/src/repos` calls `.transaction()` today (verified: `grep
  * -rn "\.transaction(" packages/db/src/repos` is empty) - if that ever
  * changes, it will typecheck cleanly and crash only against Neon in
- * production, never locally against postgres-js. The narrower claim this
+ * production, never locally against postgres-js. `inOneTransaction` below is
+ * the one sanctioned way to run statements together on both. The narrower claim this
  * cast actually rests on: nothing reads the raw `TQueryResult` shape that
  * genuinely differs between adapters (a `RowList` array for postgres-js vs a
  * `{ rows, fields, … }` object for neon-http,
@@ -107,7 +109,9 @@ export type Database = PostgresJsDatabase<typeof schema>;
  */
 export function createDatabase(connectionString: string): Database {
   if (isNeonHost(connectionString)) {
-    return drizzleNeonHttp(neon(connectionString), { schema }) as unknown as Database;
+    // Batches only (`inOneTransaction`): stated, not left to the server's default.
+    const client = neon(connectionString, { isolationLevel: "ReadCommitted" });
+    return drizzleNeonHttp(client, { schema }) as unknown as Database;
   }
   const sql = postgres(connectionString);
   return drizzlePostgresJs(sql, { schema });
@@ -115,4 +119,30 @@ export function createDatabase(connectionString: string): Database {
 
 export function createDatabaseWithClient(sql: postgres.Sql): Database {
   return drizzlePostgresJs(sql, { schema });
+}
+
+/**
+ * Runs `statements` in order inside one transaction, on either driver: neon-http's
+ * non-interactive batch (one HTTP request, one transaction) or a postgres-js transaction.
+ * Every statement is built before any runs, so none may depend on an earlier one's result in
+ * JS; a guard belongs in the SQL. READ COMMITTED on both (neon-http's set in `createDatabase`),
+ * so each statement gets a fresh snapshot: what lets a lock taken by one make the next see what
+ * the lock waited for. Under REPEATABLE READ the snapshot would predate the wait.
+ */
+export async function inOneTransaction<
+  const T extends readonly [BatchItem<"pg">, ...BatchItem<"pg">[]],
+>(db: Database, statements: (db: Database) => T): Promise<BatchResponse<T>> {
+  if ((db as unknown) instanceof NeonHttpDatabase) {
+    return (db as unknown as NeonHttpDatabase<typeof schema>).batch(statements(db));
+  }
+  return db.transaction(
+    async (tx) => {
+      const results: unknown[] = [];
+      for (const statement of statements(tx as unknown as Database)) {
+        results.push(await statement);
+      }
+      return results as BatchResponse<T>;
+    },
+    { isolationLevel: "read committed" },
+  );
 }

@@ -2,7 +2,7 @@ import { KABINET_MAX_BODY_BYTES } from "@opika/contracts";
 import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
-import { boundedBody } from "../api/bounded-body";
+import { boundedBody, readBodyHead } from "../api/bounded-body";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
@@ -34,6 +34,34 @@ export const kabinetRpcHandler = new RPCHandler(kabinetRouter, {
 });
 
 export const KABINET_RPC_PREFIX = "/api/kabinet";
+
+/**
+ * Audit F9 (owner, S3 scope, 2026-10-29): the most read for a caller no session has vouched
+ * for: the invitation link always, and any other call until its session cookie has been looked
+ * up. Far above any such call's real input (`invitation.acceptWithPassword`'s is a token and a
+ * password); only `mayExceedUnverifiedCap`'s roles keep `KABINET_MAX_BODY_BYTES`.
+ */
+export const KABINET_UNVERIFIED_MAX_BODY_BYTES = 16 * 1024;
+
+/**
+ * Who may send past `KABINET_UNVERIFIED_MAX_BODY_BYTES` (owner, #249): only a principal whose own
+ * procedures can need it. A shelter admin uploads photos and a logo; the operator's registry
+ * inputs carry free text no schema bounds (a shelter's description). Everyone else is held to
+ * 16 KB like an unauthenticated caller: no_role and conflicting_roles are nobody the kabinet
+ * serves, and a support view writes nothing.
+ */
+function mayExceedUnverifiedCap(principal: KabinetPrincipal): boolean {
+  switch (principal.kind) {
+    case "shelter_admin":
+    case "super_admin":
+      return true;
+    case "anonymous":
+    case "no_role":
+    case "conflicting_roles":
+    case "support_view":
+      return false;
+  }
+}
 
 const tooMany = () => new Response("Too Many Requests", { status: 429 });
 const tooLarge = () => new Response("Payload Too Large", { status: 413 });
@@ -132,25 +160,46 @@ export async function handleKabinetRpc(
   if (!isSameOriginPost(request.headers.get("origin"), deps.availability.baseURL)) {
     return new Response("Forbidden", { status: 403 });
   }
-  // P-Q7: an oversized declared body is refused first, before anything is read.
+  // P-Q7: an oversized declared body is refused first, before anything is read or looked up.
   const declared = request.headers.get("content-length");
   if (declared !== null && Number(declared) > KABINET_MAX_BODY_BYTES) return tooLarge();
   // Audit F9 (owner, 2026-10-28): no session cookie, no body read and no database,
-  // except on the invitation link. The real session lookup stays below.
+  // except on the invitation link.
   const path = new URL(request.url).pathname;
-  if (!KABINET_ANONYMOUS_PATHS.has(path) && !hasSessionCookie(request.headers.get("cookie"))) {
+  const invitationLink = KABINET_ANONYMOUS_PATHS.has(path);
+  if (!invitationLink && !hasSessionCookie(request.headers.get("cookie"))) {
     return unauthorized();
   }
-  // P-Q7: before any session is looked up or any database touched, so an
-  // oversized upload costs a read of at most the ceiling and nothing else.
-  const bounded = await boundedBody(request, KABINET_MAX_BODY_BYTES);
-  if (bounded === "too_large") return tooLarge();
+  // Audit F9 (S3): an unverified caller gets 16 KB. Past that, the session is looked up before
+  // reading on, and only a role that needs it gets the rest of the ceiling (P-Q7). Anyone else
+  // gets the cookie-less 401; an invitation-link body past 16 KB is 413.
+  let identity: Awaited<ReturnType<typeof deps.resolve>> | undefined;
+  let bounded: Request;
+  if (invitationLink) {
+    const small = await boundedBody(request, KABINET_UNVERIFIED_MAX_BODY_BYTES);
+    if (small === "too_large") return tooLarge();
+    bounded = small;
+  } else {
+    const head = await readBodyHead(request, KABINET_UNVERIFIED_MAX_BODY_BYTES);
+    if (head.kind === "whole") {
+      bounded = head.request;
+    } else {
+      identity = await deps.resolve();
+      if (!mayExceedUnverifiedCap(identity.principal)) {
+        await head.discard();
+        return unauthorized();
+      }
+      const whole = await head.readRest(KABINET_MAX_BODY_BYTES);
+      if (whole === "too_large") return tooLarge();
+      bounded = whole;
+    }
+  }
   // RG-Q10: without the location key the registry can't create a shelter or
   // move one honestly, so all of it is unavailable rather than half of it.
   if (deps.locationPolicy === null && path.startsWith(`${KABINET_RPC_PREFIX}/registry/`)) {
     return new Response("Registry is not available", { status: 503 });
   }
-  const { principal, userId, db, cursorSecret } = await deps.resolve();
+  const { principal, userId, db, cursorSecret } = identity ?? (await deps.resolve());
   if (userId !== null && !(await deps.limiters.perUser.check(kabinetUserKey(userId), deps.now))) {
     return tooMany();
   }
