@@ -1,25 +1,30 @@
 "use client";
 
 import type { KabinetAnimalView } from "@opika/contracts";
-import { isDiscoverable, kyivCalendarDateOf, type PublishGap } from "@opika/domain";
+import {
+  isDiscoverable,
+  kyivCalendarDateOf,
+  PHOTO_MAX_EDGE_PX,
+  type PublishGap,
+} from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type KabinetAnimalClient,
   kabinetAnimalBrowserClient,
 } from "../../../api/kabinet-browser-client";
-import { Button, buttonClass } from "../../controls/controls";
+import { Button, buttonClass, LinkButton } from "../../../ui/Button";
+import { Chip } from "../../../ui/Chip";
+import { FormSection, FormSteps } from "../../../ui/FormSection";
+import { InlineStatus } from "../../../ui/feedback";
+import { Heading } from "../../../ui/Heading";
+import { StickyActionBar } from "../../../ui/StickyActionBar";
+import { Text } from "../../../ui/Text";
+import { ListingStatusChip } from "../animal-list/RowParts";
 import type { CompressedPhoto } from "../photos/compress-photo";
-import { CAPTION, ERROR_TEXT } from "../profile-edit/styles";
 import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../profile-edit/unsaved-changes";
-import {
-  AgeSection,
-  DescriptionSection,
-  HealthSection,
-  MedicalNotesSection,
-  TemperamentSection,
-  WhoSection,
-} from "./FormSections";
+import { ErrorSummary } from "./ErrorSummary";
+import { AboutFields, BasicsFields, HealthFields } from "./FormSections";
 import {
   ageInputOf,
   emptyValues,
@@ -149,6 +154,10 @@ export function AnimalForm({
   const [announcement, setAnnouncement] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
+  // Bumped when a person's own save or publish is refused for what is in a field, so the error
+  // summary takes focus. Never for an autosave, which must not pull focus from the typing.
+  const [summaryFocus, setSummaryFocus] = useState(0);
+  const summaryRef = useRef<HTMLDivElement | null>(null);
   const inFlight = useRef<Promise<SaveOutcome> | null>(null);
   // How many `saveNow` calls are pending or queued right now: incremented
   // the instant a call is made, decremented only once that call's own
@@ -251,6 +260,7 @@ export function AnimalForm({
       if (wrote) setSave({ kind: "saved", at: clock() });
       return { kind: wrote ? "saved" : "nothing", view: current };
     } catch (error) {
+      let refusedForAField = false;
       switch (codeOf(error)) {
         case "CONFLICT":
           setSave({ kind: "conflict" });
@@ -259,11 +269,13 @@ export function AnimalForm({
           setSave({ kind: "registry_confirmed" });
           break;
         case "LISTING_FACT_REQUIRED":
+          refusedForAField = true;
           setServerProblems([{ field: "description", key: "requiredOnceListed" }]);
           setAttempted(true);
           setSave({ kind: "idle" });
           break;
         case "AGE_DATE_OUT_OF_RANGE": {
+          refusedForAField = true;
           const problem = (dataOf(error) as { problem?: string } | undefined)?.problem;
           const birth = values.ageMode === "birth_date";
           setServerProblems([
@@ -280,7 +292,7 @@ export function AnimalForm({
         default:
           setSave({ kind: "failed" });
       }
-      return { kind: "refused", view: current };
+      return { kind: refusedForAField ? "invalid" : "refused", view: current };
     }
   }, [client, clock, editable]);
 
@@ -304,6 +316,17 @@ export function AnimalForm({
   }, [runSave]);
 
   const autosaving = editable && isDraft && creatable && save.kind !== "conflict";
+
+  // The error summary mounts in the same render that bumps the counter.
+  useEffect(() => {
+    if (summaryFocus > 0) summaryRef.current?.focus();
+  }, [summaryFocus]);
+
+  /** A person's own request to save: a refusal for a field sends focus to the summary. */
+  const saveFromButton = useCallback(async () => {
+    const outcome = await saveNow();
+    if (outcome.kind === "invalid") setSummaryFocus((count) => count + 1);
+  }, [saveNow]);
 
   // A draft: 10 s after the last change (T6). Each change restarts the wait:
   // `values` is a dependency for that alone (a new object on every change),
@@ -357,11 +380,14 @@ export function AnimalForm({
     if (!editable || publishing) return;
     if (gaps.length > 0) {
       setAnnouncement(missingSentence(gaps));
+      // The gaps are written in «Публікація», next to the links that lead to each.
+      document.getElementById("publication-title")?.focus();
       return;
     }
     setPublishing(true);
     try {
       const saved = await saveNow();
+      if (saved.kind === "invalid") setSummaryFocus((count) => count + 1);
       if (saved.kind === "invalid" || saved.kind === "refused" || saved.view === null) return;
       const next = await client.shelter.animals.transition({
         animalId: saved.view.id,
@@ -418,33 +444,47 @@ export function AnimalForm({
     if (!isDraft && dirty && !confirmLeave()) event.preventDefault();
   };
 
+  const steps = [
+    { id: "basics", label: uk.kabinet.animalForm.sections.basics },
+    { id: "photos", label: uk.kabinet.animalForm.photos.title },
+    { id: "about", label: uk.kabinet.animalForm.sections.about },
+    { id: "health", label: uk.kabinet.animalForm.sections.health },
+    ...(editable ? [{ id: "publication", label: uk.kabinet.animalForm.sections.publication }] : []),
+  ];
+  const stepOf = (id: string): number => steps.findIndex((step) => step.id === id) + 1;
+
   return (
-    <div className="flex min-w-0 flex-col gap-4 desktop:gap-6">
-      <header className="flex flex-col gap-2">
-        <a href={back.href} className={`self-start ${buttonClass("secondary")}`} onClick={leave}>
+    <div className="flex w-full min-w-0 max-w-176 flex-col gap-4 desktop:gap-6">
+      <header className="flex flex-col gap-3">
+        {/* A plain link, not next/link: leaving runs the unsaved-work save first (`leave`). */}
+        <a href={back.href} className={`self-start ${buttonClass("ghost")}`} onClick={leave}>
           {back.label}
         </a>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-rg-ink">{heading}</h1>
-          {view !== null ? (
-            <span className="rounded-rg-chip bg-rg-fill px-3 py-1 text-sm font-medium text-rg-ink-2">
-              {uk.kabinet.listingStatus[view.listing.kind]}
-            </span>
-          ) : null}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Heading level={1} look="display-l" id="animal-form-title" className="break-words">
+            {heading}
+          </Heading>
+          {view !== null ? <ListingStatusChip kind={view.listing.kind} /> : null}
         </div>
         {view !== null && view.listing.kind === "draft" ? (
-          <p className={CAPTION}>
+          <Text look="hint">
             {fillTemplate(t.header.createdNotPublished, { when: createdWhen(view.createdAt, now) })}
-          </p>
+          </Text>
         ) : null}
       </header>
 
+      {summaryFocus > 0 && shownProblems.length > 0 ? (
+        <ErrorSummary problems={shownProblems} ref={summaryRef} />
+      ) : null}
+
+      <FormSteps labelledBy="animal-form-title" steps={steps} />
+
       <form
-        className="grid grid-cols-1 items-start gap-3 desktop:grid-cols-2 desktop:gap-4"
+        className="flex flex-col gap-4 desktop:gap-6"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          void saveNow();
+          void saveFromButton();
         }}
         onBlur={(event) => {
           const field = fieldOfTarget(event.target);
@@ -452,9 +492,8 @@ export function AnimalForm({
           if (autosaving && dirty) void saveNow();
         }}
       >
-        <div className="flex min-w-0 flex-col gap-3 desktop:gap-4">
-          <WhoSection values={values} set={set} problems={shownProblems} disabled={!editable} />
-          <AgeSection
+        <FormSection id="basics" title={t.sections.basics} step={stepOf("basics")}>
+          <BasicsFields
             values={values}
             set={set}
             problems={shownProblems}
@@ -462,20 +501,14 @@ export function AnimalForm({
             stored={view}
             now={now}
           />
-          <DescriptionSection
-            values={values}
-            set={set}
-            problems={shownProblems}
-            disabled={!editable}
-          />
-          <TemperamentSection
-            values={values}
-            set={set}
-            problems={shownProblems}
-            disabled={!editable}
-          />
-        </div>
-        <div className="flex min-w-0 flex-col gap-3 desktop:gap-4">
+        </FormSection>
+
+        <FormSection
+          id="photos"
+          title={t.photos.title}
+          step={stepOf("photos")}
+          description={t.photos.ratioNote}
+        >
           {view !== null ? (
             <PhotoSection
               animal={view}
@@ -486,61 +519,81 @@ export function AnimalForm({
               reload={reload}
               {...(compress === undefined ? {} : { compress })}
             />
-          ) : null}
-          <HealthSection
-            values={values}
-            set={set}
-            disabled={!editable}
-            vaccination={view?.vaccination ?? null}
-          />
-          <MedicalNotesSection
+          ) : (
+            // Photos belong to a saved draft: say what makes one, in his words.
+            <Text look="hint">
+              {creatable
+                ? fillTemplate(t.photos.howItWorks, {
+                    px: new Intl.NumberFormat("uk").format(PHOTO_MAX_EDGE_PX),
+                  })
+                : t.draft.notSavedYet}
+            </Text>
+          )}
+        </FormSection>
+
+        <FormSection id="about" title={t.sections.about} step={stepOf("about")}>
+          <AboutFields values={values} set={set} problems={shownProblems} disabled={!editable} />
+        </FormSection>
+
+        <FormSection id="health" title={t.sections.health} step={stepOf("health")}>
+          <HealthFields
             values={values}
             set={set}
             problems={shownProblems}
             disabled={!editable}
+            vaccination={view?.vaccination ?? null}
           />
-        </div>
+        </FormSection>
+
+        {editable ? (
+          <FormSection id="publication" title={t.sections.publication} step={stepOf("publication")}>
+            {isDraft ? (
+              <DraftPublication gaps={gaps} />
+            ) : (
+              <ListedPublication
+                visible={visibleListing}
+                // True since K2's «Ще шукає» (P10): on the cards that carry the date.
+                dateUnchanged={view !== null && isDiscoverable(view.listing)}
+              />
+            )}
+            {published && shelterShown && view !== null ? (
+              <LinkButton variant="secondary" href={`/tvaryny/${view.id}`} className="self-start">
+                {t.publish.viewPublic}
+              </LinkButton>
+            ) : null}
+          </FormSection>
+        ) : null}
       </form>
 
       {editable ? (
-        <footer className="flex flex-col gap-3 rounded-rg-card bg-rg-surface p-4 tablet:p-6">
+        <StickyActionBar>
+          <p role="status" className="text-caption text-ink-2 empty:sr-only">
+            {announcement}
+          </p>
           {isDraft ? (
-            <DraftFooter
+            <DraftActions
               save={save}
-              created={view !== null}
-              creatable={creatable}
               dirty={dirty}
               gaps={gaps}
               publishing={publishing}
-              onSave={() => void saveNow()}
+              onSave={() => void saveFromButton()}
               onPublish={() => void publish()}
               onReload={() => void reload()}
             />
           ) : (
-            <ListedFooter
+            <ListedActions
               save={save}
               dirty={dirty}
-              visible={visibleListing}
-              onSave={() => void saveNow()}
+              onSave={() => void saveFromButton()}
               onReload={() => void reload()}
-              // True since K2's «Ще шукає» (P10): on the cards that carry the date.
-              dateUnchanged={
-                view !== null && isDiscoverable(view.listing) ? (
-                  <p className={CAPTION}>{t.listed.dateUnchanged}</p>
-                ) : null
-              }
             />
           )}
-          {published && shelterShown && view !== null ? (
-            <a href={`/tvaryny/${view.id}`} className={`self-start ${buttonClass("text")}`}>
-              {t.publish.viewPublic}
-            </a>
-          ) : null}
-        </footer>
-      ) : null}
-      <p role="status" className={CAPTION}>
-        {announcement}
-      </p>
+        </StickyActionBar>
+      ) : (
+        <p role="status" className="text-caption text-ink-2 empty:sr-only">
+          {announcement}
+        </p>
+      )}
     </div>
   );
 }
@@ -560,6 +613,62 @@ const fieldOfTarget = (target: EventTarget): FieldProblem["field"] | null => {
   return null;
 };
 
+/** Where each gap is filled in: the section that holds the field. */
+const GAP_SECTION: Record<PublishGap["kind"], string> = {
+  sex: "basics",
+  size: "basics",
+  age: "basics",
+  description: "about",
+  photo: "photos",
+};
+
+/**
+ * «Публікація» on a draft: who sees it (nobody yet) and what is still missing, the way the
+ * disabled «Опублікувати» is described. Each gap is a chip that jumps to its section, so the
+ * list is a route, not just a sentence.
+ */
+function DraftPublication({ gaps }: { gaps: readonly PublishGap[] }) {
+  return (
+    <>
+      <Text look="hint">{t.draft.notVisible}</Text>
+      {gaps.length > 0 ? (
+        <>
+          <Text id="publish-missing" look="label">
+            {missingSentence(gaps)}
+          </Text>
+          <nav aria-labelledby="publish-missing">
+            <ul className="flex flex-wrap gap-2">
+              {gaps.map((gap) => (
+                <li key={gap.kind}>
+                  <Chip kind="link" href={`#${GAP_SECTION[gap.kind]}`} prefetch={false}>
+                    {t.publish.gap[gap.kind]}
+                  </Chip>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+/** «Публікація» on a listed card: whether people see it, and what an edit does to its date. */
+function ListedPublication({
+  visible,
+  dateUnchanged,
+}: {
+  visible: boolean;
+  dateUnchanged: boolean;
+}) {
+  return (
+    <>
+      <Text look="label">{visible ? t.listed.liveOnSave : t.listed.notShownNow}</Text>
+      {dateUnchanged ? <Text look="hint">{t.listed.dateUnchanged}</Text> : null}
+    </>
+  );
+}
+
 function SaveProblems({
   save,
   onSave,
@@ -573,37 +682,36 @@ function SaveProblems({
   switch (save.kind) {
     case "conflict":
       return (
-        <div role="alert" className="flex flex-col items-start gap-2">
-          <p className={ERROR_TEXT}>{t.errors.conflict}</p>
-          <Button variant="text" onClick={onReload}>
+        <InlineStatus tone="error" className="flex flex-col items-start gap-2">
+          <span>{t.errors.conflict}</span>
+          <Button variant="secondary" onClick={onReload}>
             {e.errors.conflictReload}
           </Button>
-        </div>
+        </InlineStatus>
       );
     case "registry_confirmed":
-      return (
-        <p role="alert" className={ERROR_TEXT}>
-          {t.errors.registryConfirmed}
-        </p>
-      );
+      return <InlineStatus tone="error">{t.errors.registryConfirmed}</InlineStatus>;
     case "failed":
       return (
-        <div role="alert" className="flex flex-col items-start gap-2">
-          <p className={ERROR_TEXT}>{t.draft.saveFailed}</p>
-          <Button variant="text" onClick={onSave}>
+        <InlineStatus tone="error" className="flex flex-col items-start gap-2">
+          <span>{t.draft.saveFailed}</span>
+          <Button variant="secondary" onClick={onSave}>
             {e.state.retry}
           </Button>
-        </div>
+        </InlineStatus>
       );
     default:
       return null;
   }
 }
 
-function DraftFooter({
+/**
+ * The draft's bar: «Опублікувати» is the one filled button (the move that changes what people
+ * see), «Зберегти» the outlined one beside it. While anything is missing the filled button stays
+ * focusable with `aria-disabled`, described by the gap sentence in «Публікація» (KAB:93).
+ */
+function DraftActions({
   save,
-  created,
-  creatable,
   dirty,
   gaps,
   publishing,
@@ -612,8 +720,6 @@ function DraftFooter({
   onReload,
 }: {
   save: SaveState;
-  created: boolean;
-  creatable: boolean;
   dirty: boolean;
   gaps: readonly PublishGap[];
   publishing: boolean;
@@ -623,7 +729,7 @@ function DraftFooter({
 }) {
   // «Чернетку збережено о …» names a moment that is only still true while
   // nothing has changed since (the same `save.kind === "saved" && !dirty`
-  // rule `ListedFooter` already uses below) - a value typed since then, or
+  // rule `ListedActions` uses below) - a value typed since then, or
   // a save still pending or queued, keeps it hidden rather than naming a
   // time that no longer describes the draft's current content.
   const status =
@@ -631,18 +737,13 @@ function DraftFooter({
       ? uk.kabinet.profileEdit.state.saving
       : save.kind === "saved" && !dirty
         ? fillTemplate(t.draft.savedAt, { time: timeOf(save.at) })
-        : !created && !creatable
-          ? t.draft.notSavedYet
-          : null;
+        : null;
   const unready = gaps.length > 0;
   return (
     <>
-      <p className={CAPTION}>
-        {status !== null ? `${status} · ` : null}
-        {t.draft.notVisible}
-      </p>
+      {status !== null ? <Text look="hint">{status}</Text> : null}
       <SaveProblems save={save} onSave={onSave} onReload={onReload} />
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex gap-2 tablet:justify-end">
         {/*
           The phone shows «Зберегти», wider screens «Зберегти чернетку»; the
           accessible name is always the full one, which begins with the short
@@ -650,6 +751,7 @@ function DraftFooter({
         */}
         <Button
           variant="secondary"
+          className="flex-1 tablet:flex-none"
           aria-label={t.draft.save}
           aria-busy={save.kind === "saving" || undefined}
           onClick={onSave}
@@ -659,6 +761,7 @@ function DraftFooter({
         </Button>
         <Button
           variant="primary"
+          className="flex-1 tablet:flex-none"
           aria-disabled={unready || undefined}
           aria-describedby={unready ? "publish-missing" : undefined}
           aria-busy={publishing || undefined}
@@ -667,39 +770,33 @@ function DraftFooter({
           {t.publish.button}
         </Button>
       </div>
-      {unready ? (
-        <p id="publish-missing" className={CAPTION}>
-          {missingSentence(gaps)}
-        </p>
-      ) : null}
     </>
   );
 }
 
-function ListedFooter({
+/** A listed card has one action, «Зберегти», so it is the filled one. */
+function ListedActions({
   save,
   dirty,
-  visible,
   onSave,
   onReload,
-  dateUnchanged,
 }: {
   save: SaveState;
   dirty: boolean;
-  visible: boolean;
   onSave: () => void;
   onReload: () => void;
-  dateUnchanged: ReactNode;
 }) {
   const e = uk.kabinet.profileEdit;
   return (
     <>
-      <p className={CAPTION}>{visible ? t.listed.liveOnSave : t.listed.notShownNow}</p>
-      {dateUnchanged}
+      {save.kind === "saved" && !dirty ? (
+        <Text look="hint">{fillTemplate(e.state.savedAt, { time: timeOf(save.at) })}</Text>
+      ) : null}
       <SaveProblems save={save} onSave={onSave} onReload={onReload} />
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex gap-2 tablet:justify-end">
         <Button
           variant="primary"
+          className="flex-1 tablet:flex-none"
           aria-disabled={!dirty || undefined}
           aria-busy={save.kind === "saving" || undefined}
           onClick={() => {
@@ -709,9 +806,6 @@ function ListedFooter({
           {save.kind === "saving" ? e.state.saving : e.actions.save}
         </Button>
       </div>
-      {save.kind === "saved" && !dirty ? (
-        <p className={CAPTION}>{fillTemplate(e.state.savedAt, { time: timeOf(save.at) })}</p>
-      ) : null}
     </>
   );
 }

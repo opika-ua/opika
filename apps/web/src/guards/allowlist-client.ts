@@ -13,6 +13,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/Menu.tsx": "controlled open state, outside-press and Esc listeners",
   "ui/Modal.tsx": "controlled dialog; refs and the dialog core",
   "ui/Popover.tsx": "open state, outside-press and Esc listeners",
+  "ui/StickyActionBar.tsx":
+    "VisualViewport listeners (keyboard lift), ResizeObserver and a focus listener for scroll padding",
   "ui/Sheet.tsx": "open state and hash-link upgrade to showModal; no-JS :target path stays",
   "app/tvaryny/error.tsx": "Next error boundary (must be client); retry button, focus on mount",
   "app/tvaryny/gortaty/error.tsx": "Next error boundary (must be client); retry button",

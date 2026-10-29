@@ -93,3 +93,7 @@ last consumer imports `src/ui` directly. `ModalDialog` is unchanged until the ka
 | [Tabs](components/Tabs.md) | `Tabs.tsx` | Tabs that switch panels in place (ARIA tabs pattern). |
 | [BottomNav](components/BottomNav.md) | `BottomNav.tsx` | A short top-level nav as a fixed bottom bar (the kabinet). |
 | [PhotoSlider](components/PhotoSlider.md) | `PhotoSlider.tsx` | Photos that scroll sideways and snap. |
+| [FormSection](components/FormSection.md) | `FormSection.tsx` | One named section of a long form, with an optional step number. |
+| [FormSteps](components/FormSteps.md) | `FormSection.tsx` | The form's sections as a row of anchor links. |
+| [StickyActionBar](components/StickyActionBar.md) | `StickyActionBar.tsx` | The save / publish bar: sticky, safe-area aware, lifted above the on-screen keyboard. |
+| [FreshnessPips](components/FreshnessPips.md) | `FreshnessPips.tsx` | Three pips plus the day count in words. |

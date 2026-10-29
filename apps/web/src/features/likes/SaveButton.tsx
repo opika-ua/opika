@@ -27,9 +27,7 @@ interface SaveButtonProps {
  * what the server sent. The button renders unsaved until that effect runs, which is correct -
  * nothing about `isAnimalSaved` is knowable before then.
  *
- * Pet card PR 5: restyled off `buttonClass("icon")` (the old `rg-*` boxed-fill look, a visible
- * leftover from the previous design) onto the kit's icon `Button`, the same white circle the
- * overlay's close button and the photo slider's prev/next use.
+ * The kit's icon Button: the same white circle as the overlay's close button and the slider arrows.
  */
 export function SaveButton({ animalId, animalName }: SaveButtonProps) {
   const [saved, setSaved] = useState(false);
