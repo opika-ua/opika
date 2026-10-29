@@ -21,6 +21,17 @@ const bytes = buildXlsx();
 const named = (uk: string, en: string) =>
   makeCity({ name: { uk, en: { text: en, provenance: "human" } } });
 
+const KINDS = ["village", "city", "selyshche"] as const;
+const REGION_CYCLE = ["UA46", "UA51", "UA32"].map(
+  (c) => (REGION_BY_CODE.get(c)?.id ?? "") as RegionId,
+);
+const mixed = (uk: string, en: string, i: number, varyKind: boolean) =>
+  makeCity({
+    name: { uk, en: { text: en, provenance: "human" } },
+    kind: varyKind ? (KINDS[i % 3] ?? "village") : "village",
+    regionId: REGION_CYCLE[i % 3] as RegionId,
+  });
+
 beforeEach(async () => {
   await truncateAll(db);
   await cityRepo(db).insertMissing(buildCities());
@@ -30,6 +41,10 @@ beforeEach(async () => {
     ...Array.from({ length: 130 }, (_, i) => named(`Тестове${i}`, `Testove${i}`)),
     ...Array.from({ length: 90 }, (_, i) => named(`Лозовата${i}`, `Lozovata${i}`)),
     named("Лозова", "Lozova"),
+    // Over-limit sets whose settlement type and region are mixed, with ids unrelated to either:
+    // the branch cut must keep the city rows and the biased region's rows, not an arbitrary 50.
+    ...Array.from({ length: 130 }, (_, i) => mixed(`Мішане${i}`, `Mishane${i}`, i, true)),
+    ...Array.from({ length: 130 }, (_, i) => mixed(`Узорне${i}`, `Uzorne${i}`, i, false)),
     named("Камʼянське-Тест", "Kamianske-Test"),
   ]);
 });
@@ -145,6 +160,7 @@ describe("cities.search as a union of index branches equals the single-OR query"
       it(`gives the same ranked ids on ${PROBES.length} probes (bias ${regionBias === null ? "none" : "Lviv"}, Cyrillic trigrams ${cyrillicTrigrams})`, async () => {
         for (const raw of PROBES) {
           const query = placeQueryOf(raw);
+          expect(query.kind, `${raw} must be a runnable query`).toBe("ok");
           if (query.kind !== "ok") continue;
           const useCyr = query.cyrillic !== null && cyrillicTrigrams;
           const expected = await oldQuery(query, regionBias, useCyr).ids();
@@ -157,6 +173,30 @@ describe("cities.search as a union of index branches equals the single-OR query"
       });
     }
   }
+
+  it("keeps the right rows when mixed types and regions overflow a branch, with and without a bias", async () => {
+    for (const regionBias of [null, lviv] as const) {
+      for (const raw of ["Мішане", "Узорне", "Mishane"]) {
+        const query = placeQueryOf(raw);
+        if (query.kind !== "ok") throw new Error(raw);
+        const old = oldQuery(query, regionBias, true);
+        const [counted] = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(cities)
+          .where(old.where);
+        expect(counted?.n, `${raw} must overflow a branch`).toBeGreaterThan(BRANCH_LIMIT);
+        const found = await citySearchRepo(db).search(query, { regionBias });
+        expect(
+          found.map((r) => r.id),
+          `${raw} bias ${regionBias}`,
+        ).toEqual(await old.ids());
+        if (raw === "Мішане") expect(found.every((r) => r.kind === "city")).toBe(true);
+        if (raw === "Узорне" && regionBias !== null) {
+          expect(found.every((r) => r.regionId === regionBias)).toBe(true);
+        }
+      }
+    }
+  });
 
   it("keeps the top 20 when a branch is cut at its limit", async () => {
     for (const raw of ["Тестове", "Testove", "Лозовт", "Лозовата"]) {
