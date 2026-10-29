@@ -15,6 +15,7 @@ import {
 } from "../../../api/kabinet-browser-client";
 import { Button, buttonClass, LinkButton } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
+import { ErrorSummary } from "../../../ui/ErrorSummary";
 import { FormSection, FormSteps } from "../../../ui/FormSection";
 import { InlineStatus } from "../../../ui/feedback";
 import { Heading } from "../../../ui/Heading";
@@ -23,7 +24,7 @@ import { Text } from "../../../ui/Text";
 import { ListingStatusChip } from "../animal-list/RowParts";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../profile-edit/unsaved-changes";
-import { ErrorSummary } from "./ErrorSummary";
+import { summaryItemsOf } from "./error-summary-items";
 import { AboutFields, BasicsFields, HealthFields } from "./FormSections";
 import {
   ageInputOf,
@@ -474,7 +475,7 @@ export function AnimalForm({
       </header>
 
       {summaryFocus > 0 && shownProblems.length > 0 ? (
-        <ErrorSummary problems={shownProblems} ref={summaryRef} />
+        <ErrorSummary items={summaryItemsOf(shownProblems)} ref={summaryRef} />
       ) : null}
 
       <FormSteps labelledBy="animal-form-title" steps={steps} />

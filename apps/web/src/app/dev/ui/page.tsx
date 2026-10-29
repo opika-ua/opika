@@ -8,6 +8,7 @@ import { Button, LinkButton } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
 import { Chip } from "../../../ui/Chip";
 import { Container, Section } from "../../../ui/Container";
+import { ErrorSummary } from "../../../ui/ErrorSummary";
 import { FormSection, FormSteps } from "../../../ui/FormSection";
 import { FreshnessPips } from "../../../ui/FreshnessPips";
 import { EmptyState, ErrorState, InlineStatus } from "../../../ui/feedback";
@@ -20,7 +21,7 @@ import {
   TextArea,
   TextField,
 } from "../../../ui/form";
-import { CheckboxGroup, RadioGroup } from "../../../ui/groups";
+import { CheckboxGroup, ChipGroup, RadioGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
 import { ICON_NAMES, Icon } from "../../../ui/Icon";
 import { MetaLine } from "../../../ui/MetaLine";
@@ -300,6 +301,24 @@ export default function DevUiPage() {
           options={[
             { value: "a", label: "Option A" },
             { value: "b", label: "Option B" },
+          ]}
+        />
+        <ChipGroup name="chg" legend="Chip group" hint="Many short options as wrapping chips.">
+          <Chip kind="option" type="checkbox" name="chg" value="a" defaultChecked>
+            Option A
+          </Chip>
+          <Chip kind="option" type="checkbox" name="chg" value="b">
+            Option B
+          </Chip>
+          <Chip kind="option" type="checkbox" name="chg" value="c">
+            Option C
+          </Chip>
+        </ChipGroup>
+        <ErrorSummary
+          ref={null}
+          items={[
+            { key: "a", message: "Enter a name.", target: "#chg-first" },
+            { key: "b", message: "Pick a kind.", target: "#chg-first" },
           ]}
         />
         <FieldHint id="h1">FieldHint on its own.</FieldHint>
