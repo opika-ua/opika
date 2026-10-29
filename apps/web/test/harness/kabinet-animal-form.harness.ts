@@ -231,7 +231,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       .getByText(/^Молодий/)
       .click();
     await expect(page.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeVisible();
-    await page.getByLabel("Опис").fill("Спокійний, любить гуляти в парку.");
+    await page.getByLabel("Опис", { exact: true }).fill("Спокійний, любить гуляти в парку.");
     await page.getByRole("button", { name: "Зберегти чернетку" }).click();
     // Held: a save has been asked for and none has landed, yet the gap list
     // already reads the form's own state.
