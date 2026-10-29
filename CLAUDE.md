@@ -85,7 +85,7 @@ Rationale: `docs/dev-notes.md`.
 
 | Layer            | Choice                                                                                                                                                                                                                   |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Client           | Next.js 16.4 App Router, PWA (Serwist), React 19.2, React Compiler pinned exact                                                                                                                                          |
+| Client           | Next.js 16.4 App Router, PWA (manifest now; Serwist offline later), React 19.2, React Compiler pinned exact                                                                                                                                          |
 | Swipe deck       | Hand-rolled `PointerEvent` + `transform` (no gesture library)                                                                                                                                                            |
 | API contract     | oRPC (`@orpc/contract`) in contract-first mode, Zod 4. Settled on the stable 1.x line (tRPC v11 is only the documented fallback)                                                                                                                   |
 | Server runtime   | Node 24 LTS, inside Next.js route handlers; domain logic framework-free                                                                                                                                                  |

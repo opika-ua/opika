@@ -7,6 +7,7 @@ import { ipRateLimitKey } from "./api/rate-limit-key";
 import { kabinetLimiters } from "./kabinet/limiters";
 import { isChargedKabinetPageLoad, kabinetPageLoadAllowed } from "./kabinet/page-limit";
 import { isTokenPage, TOKEN_PAGE_HEADERS } from "./kabinet/token-pages";
+import { PWA_PUBLIC_PATHS } from "./pwa";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
 
 /**
@@ -190,7 +191,12 @@ export function isCronPath(pathname: string): boolean {
  * no-store`; nothing logged about which ids were asked for. Full record:
  * `docs/decisions-inbox.md` (S8-D1, folded from `feat-dr1-s8-saved-page.md` at #186's merge).
  */
-const GATE_EXEMPT_EXACT_PATHS: readonly string[] = ["/api/rpc/animals/cardsByIds"];
+// The manifest and install icons are fetched by the browser without the gate cookie and
+// carry no listing data, so they must not 403 before launch.
+const GATE_EXEMPT_EXACT_PATHS: readonly string[] = [
+  "/api/rpc/animals/cardsByIds",
+  ...PWA_PUBLIC_PATHS,
+];
 
 export function isGateExemptExactPath(pathname: string): boolean {
   return GATE_EXEMPT_EXACT_PATHS.includes(pathname);

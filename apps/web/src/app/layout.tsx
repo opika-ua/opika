@@ -1,8 +1,9 @@
 import { uk } from "@opika/i18n";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SITE_ORIGIN, SITE_TITLE, TITLE_TEMPLATE, titled, WORDMARK } from "../brand";
 import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
+import { APPLE_TOUCH_ICON, PAGE_COLOR } from "../pwa";
 import { JsonLd } from "../seo/json-ld";
 import { organizationJsonLd } from "../seo/json-ld-builders";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
@@ -50,6 +51,8 @@ const linkPreviewDescription = REGISTRY_HAS_NO_REAL_SHELTERS
   ? uk.demo.bannerNotice
   : uk.firstRun.promise;
 
+export const viewport: Viewport = { themeColor: PAGE_COLOR };
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
   title: {
@@ -72,6 +75,7 @@ export const metadata: Metadata = {
    * already carries the same flag; this is the HTML-level copy of that same
    * decision, not a second source of truth for it.
    */
+  icons: { apple: APPLE_TOUCH_ICON },
   robots: SITE_IS_PUBLICLY_DISCOVERABLE
     ? { index: true, follow: true }
     : { index: false, follow: false },
