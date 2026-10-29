@@ -34,16 +34,18 @@ const OVERLAY_FOCUS = "focus-ring-ink";
 /**
  * A `window` property, not module scope: prev/next moves between two intercepted-route segments,
  * which remount this component, and module scope did not survive that. Set just before a neighbour
- * navigation and read once by the next mount, so only a fresh open plays the entrance animation.
+ * navigation and cleared once the next mount commits, so only a fresh open plays the entrance.
+ * Only read during render: React may render a mount more than once before committing it.
  */
+type EntranceSkip = { __skipOverlayEntrance?: boolean };
 function skipNextEntranceAnimation(): void {
-  (window as { __skipOverlayEntrance?: boolean }).__skipOverlayEntrance = true;
+  (window as EntranceSkip).__skipOverlayEntrance = true;
 }
-function consumeSkipEntranceAnimation(): boolean {
-  const w = window as { __skipOverlayEntrance?: boolean };
-  const skip = w.__skipOverlayEntrance === true;
-  w.__skipOverlayEntrance = false;
-  return skip;
+function entranceSkipRequested(): boolean {
+  return (window as EntranceSkip).__skipOverlayEntrance === true;
+}
+function clearEntranceSkip(): void {
+  (window as EntranceSkip).__skipOverlayEntrance = false;
 }
 /**
  * `role`, `aria-modal` and the ref sit on one wrapper around the close row and the panel:
@@ -121,7 +123,8 @@ export function AnimalOverlay({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const close = useCallback(() => router.back(), [router]);
   const scrollRef = useScrollingClass<HTMLDivElement>();
-  const [shouldAnimate] = useState(() => !consumeSkipEntranceAnimation());
+  const [shouldAnimate] = useState(() => !entranceSkipRequested());
+  useEffect(clearEntranceSkip, []);
 
   useModalFocus({ dialogRef, initialFocusRef: dialogRef, onClose: close });
   useReturnFocusToOpener(openerHref);
