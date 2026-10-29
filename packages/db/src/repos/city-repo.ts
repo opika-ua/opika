@@ -1,13 +1,25 @@
 import type { City, CityId } from "@opika/domain";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Database } from "../client";
 import { cities } from "../schema/cities";
+import { pickableCity } from "./city-search-repo";
 import { cityToRow, rowToCity } from "./mappers";
 
 export function cityRepo(db: Database) {
   return {
     async findById(id: CityId): Promise<City | null> {
       const rows = await db.select().from(cities).where(eq(cities.id, id)).limit(1);
+      const row = rows[0];
+      return row ? rowToCity(row) : null;
+    },
+
+    /** `findById`, but only a settlement the picker may offer: never Crimea, Sevastopol or a retired one. */
+    async findPickableById(id: CityId): Promise<City | null> {
+      const rows = await db
+        .select()
+        .from(cities)
+        .where(and(eq(cities.id, id), pickableCity))
+        .limit(1);
       const row = rows[0];
       return row ? rowToCity(row) : null;
     },

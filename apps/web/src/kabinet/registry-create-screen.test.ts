@@ -1,6 +1,7 @@
 import type { CreatedShelterView } from "@opika/contracts";
+import { REGIONS } from "@opika/db";
 import { cityRepo } from "@opika/db/repos";
-import { authUser, superAdmins } from "@opika/db/schema";
+import { authUser, cities, superAdmins } from "@opika/db/schema";
 import { makeCity, setupTestDatabase, truncateAll } from "@opika/db/test";
 import { type ModeratorId, testOnlyLocationPolicy } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -36,6 +37,8 @@ beforeAll(async () => {
 });
 afterAll(async () => cleanup?.());
 
+/** Crimea and Sevastopol (`PICKER_HIDDEN_REGION_CODES`, restated so the test does not echo the code under test). */
+const HIDDEN_REGION_CODES: readonly string[] = ["UA01", "UA85"];
 const OPERATOR = "0ec0ec0e-0000-4000-8000-000000000001";
 const asOperator: KabinetPrincipal = { kind: "super_admin", moderatorId: OPERATOR as ModeratorId };
 /** 10:00 in Kyiv. */
@@ -157,6 +160,25 @@ describe("the screen's input, as the server takes it", () => {
 describe("the server's refusals, as the screen reads them", () => {
   it("an unknown city", async () => {
     const { status, body } = await create(inputOf(initiative({ cityId: crypto.randomUUID() })));
+    expect(status).toBe(400);
+    expect(createRefusalOf(body)).toEqual({ kind: "unknown_city" });
+  });
+
+  // Same predicate as the picker's search: a hidden region or a retired settlement is "unknown" here.
+  it.each(REGIONS.filter((r) => HIDDEN_REGION_CODES.includes(r.code)).map((r) => [r.id]))(
+    "a settlement in a hidden region (%s) is an unknown city",
+    async (regionId) => {
+      const hidden = makeCity({ regionId });
+      await cityRepo(db).insert(hidden);
+      const { status, body } = await create(inputOf(initiative({ cityId: hidden.id })));
+      expect(status).toBe(400);
+      expect(createRefusalOf(body)).toEqual({ kind: "unknown_city" });
+    },
+  );
+
+  it("a retired settlement is an unknown city", async () => {
+    await db.update(cities).set({ retiredInEdition: "2026-01" }); // the only city there is
+    const { status, body } = await create(inputOf(initiative()));
     expect(status).toBe(400);
     expect(createRefusalOf(body)).toEqual({ kind: "unknown_city" });
   });

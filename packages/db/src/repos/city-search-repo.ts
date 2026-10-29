@@ -26,6 +26,16 @@ export type PlaceMatch = {
 const KIND_RANK = sql`CASE ${cities.kind}
   WHEN 'special_status_city' THEN 0 WHEN 'city' THEN 1 WHEN 'selyshche' THEN 2 ELSE 3 END`;
 
+/**
+ * What a settlement must satisfy to be offered by the picker, and to be accepted as a shelter's
+ * address: not in a hidden region (Crimea, Sevastopol), not retired. One predicate, so the search
+ * and the write-path check cannot drift apart.
+ */
+export const pickableCity = and(
+  notInArray(cities.regionId, [...PICKER_HIDDEN_REGION_IDS]),
+  isNull(cities.retiredInEdition),
+);
+
 /** A LIKE pattern from user text: `%`, `_` and the escape character mean themselves. */
 const likePrefix = (key: string) => `${key.replace(/[\\%_]/gu, "\\$&")}%`;
 
@@ -113,8 +123,7 @@ export function citySearchRepo(db: Database) {
         .from(cities)
         .where(
           and(
-            notInArray(cities.regionId, [...PICKER_HIDDEN_REGION_IDS]),
-            isNull(cities.retiredInEdition),
+            pickableCity,
             or(
               sql`${cities.searchLatin} LIKE ${likePrefix(latin)}`,
               cyrillic === null

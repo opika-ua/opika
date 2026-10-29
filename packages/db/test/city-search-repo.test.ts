@@ -173,3 +173,27 @@ describe("cyrillicTrigramsAvailable with a failing database", () => {
     expect(calls.n).toBe(2);
   });
 });
+
+describe("cityRepo.findPickableById", () => {
+  it("finds what the picker offers, and refuses Crimea, Sevastopol and retired settlements", async () => {
+    const [offered] = await find("Фастів");
+    expect(await cityRepo(db).findPickableById((offered?.id ?? "") as never)).not.toBeNull();
+
+    for (const code of ["UA01", "UA85"]) {
+      const hidden = makeCity({ regionId: regionId(code) });
+      await cityRepo(db).insert(hidden);
+      expect(await cityRepo(db).findPickableById(hidden.id)).toBeNull();
+      expect(await cityRepo(db).findById(hidden.id)).not.toBeNull();
+    }
+
+    const without = buildXlsx(FIXTURE_ROWS.filter((r) => r[6] !== "Борова"));
+    const [retiring] = await find("Борова");
+    await runImport({
+      db,
+      bytes: without,
+      commit: true,
+      editions: [pinFor(without, { K: 2, M: 8, X: 0, C: 11 })],
+    });
+    expect(await cityRepo(db).findPickableById((retiring?.id ?? "") as never)).toBeNull();
+  });
+});
