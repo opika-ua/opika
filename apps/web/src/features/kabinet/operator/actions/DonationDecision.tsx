@@ -3,7 +3,7 @@
 import type { RegistryShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { useState } from "react";
-import { Button } from "../../../controls/controls";
+import { Button } from "../../../../ui/Button";
 import { useOperatorActions } from "./operator-actions";
 import { ACTIONS, NOTICE } from "./styles";
 

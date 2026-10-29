@@ -13,18 +13,12 @@ import {
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import type { ReactNode } from "react";
-import { linkClass } from "../../controls/controls";
+import { Chip } from "../../../ui/Chip";
+import { Heading } from "../../../ui/Heading";
+import { Panel } from "../../../ui/Panel";
+import { Text } from "../../../ui/Text";
+import { TextLink } from "../../../ui/TextLink";
 import { channelValue, groupEdrpou } from "../ProfileParts";
-import {
-  BODY,
-  CAPTION,
-  CARD,
-  CARD_TITLE,
-  INNER,
-  PAGE_TITLE,
-  STATUS_CHIP,
-  STRONG,
-} from "../profile-edit/styles";
 import { OPERATOR_HOME } from "../routes";
 import { formatDate, formatTime } from "./format";
 import { HistoryList } from "./HistoryList";
@@ -37,20 +31,20 @@ const notRecorded = uk.kabinet.profileNotRecorded;
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <dt className={CAPTION}>{label}</dt>
-      <dd className={`${STRONG} break-words`}>{children}</dd>
+      <dt className="text-caption text-ink-2">{label}</dt>
+      <dd className="text-label break-words text-ink">{children}</dd>
     </div>
   );
 }
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    <section aria-labelledby={id} className={CARD}>
-      <h2 id={id} className={CARD_TITLE}>
+    <Panel as="section" aria-labelledby={id} padding="lg" className="flex min-w-0 flex-col gap-4">
+      <Heading level={2} look="body-l" id={id}>
         {title}
-      </h2>
+      </Heading>
       {children}
-    </section>
+    </Panel>
   );
 }
 
@@ -78,34 +72,35 @@ function EvidenceCard({ view }: { view: RegistryShelterView }) {
   return (
     <Section id="operator-evidence" title={e.title}>
       {evidence.items.length === 0 ? (
-        <p className={BODY}>{e.empty}</p>
+        <Text>{e.empty}</Text>
       ) : (
         <ul className="flex flex-col gap-3">
           {evidence.items.map((item, index) => (
             <li
               // Evidence items have no id; their order is the record's.
               key={`${item.kind}-${index}`}
-              className={`${INNER} flex flex-col gap-3`}
             >
-              <p className={STRONG}>
-                {e.kind[item.kind]}{" "}
-                <span className={CAPTION}>
-                  {fillTemplate(e.added, { date: formatDate(evidence.submittedAt) })}
-                </span>
-              </p>
-              <EvidenceFacts item={item} />
+              <Panel tone="sunken" className="flex flex-col gap-3">
+                <Text look="label">
+                  {e.kind[item.kind]}{" "}
+                  <Text as="span" look="hint">
+                    {fillTemplate(e.added, { date: formatDate(evidence.submittedAt) })}
+                  </Text>
+                </Text>
+                <EvidenceFacts item={item} />
+              </Panel>
             </li>
           ))}
         </ul>
       )}
       {gaps.map((gap) => (
-        <p key={gap.kind} className={STRONG}>
+        <Text key={gap.kind} look="label">
           {fillTemplate(e.gaps, {
             kind: e.kind[gap.kind],
             provided: String(gap.provided),
             minimum: String(gap.minimum),
           })}
-        </p>
+        </Text>
       ))}
     </Section>
   );
@@ -119,14 +114,14 @@ function EvidenceFacts({ item }: { item: EvidenceItem }) {
         <dl className="flex flex-col gap-2">
           <Fact label={uk.kabinet.profile.edrpou}>{groupEdrpou(item.edrpou)}</Fact>
           <Fact label={f.registeredName}>{item.registeredName}</Fact>
-          {item.documentKey === null ? <p className={CAPTION}>{t.evidence.noDocument}</p> : null}
+          {item.documentKey === null ? <Text look="hint">{t.evidence.noDocument}</Text> : null}
         </dl>
       );
     case "bank_account_holder":
       return (
         <dl className="flex flex-col gap-2">
           <Fact label={f.holderName}>{item.holderName}</Fact>
-          {item.documentKey === null ? <p className={CAPTION}>{t.evidence.noDocument}</p> : null}
+          {item.documentKey === null ? <Text look="hint">{t.evidence.noDocument}</Text> : null}
         </dl>
       );
     case "reference_contact":
@@ -165,7 +160,7 @@ function LegalCard({ view }: { view: RegistryShelterView }) {
   const legal = view.legalEntity;
   return (
     <Section id="operator-legal" title={t.create.legalTitle}>
-      <p className={BODY}>{t.create.legalKind[legal.kind]}</p>
+      <Text>{t.create.legalKind[legal.kind]}</Text>
       <dl className="flex flex-col gap-3">
         {legal.kind === "unregistered_initiative" ? (
           <Fact label={p.contactPerson}>{legal.contactPersonName}</Fact>
@@ -179,7 +174,7 @@ function LegalCard({ view }: { view: RegistryShelterView }) {
           </>
         )}
       </dl>
-      <p className={CAPTION}>{t.shelter.legalNote}</p>
+      <Text look="hint">{t.shelter.legalNote}</Text>
     </Section>
   );
 }
@@ -197,7 +192,7 @@ function AddressCard({ view, cityName }: { view: RegistryShelterView; cityName: 
           {address.coordinates.lat}, {address.coordinates.lng}
         </Fact>
       </dl>
-      <p className={CAPTION}>{uk.kabinet.profile.addressNote}</p>
+      <Text look="hint">{uk.kabinet.profile.addressNote}</Text>
     </Section>
   );
 }
@@ -224,8 +219,8 @@ function DonationCard({ view, decision }: { view: RegistryShelterView; decision:
         <Fact label={d.live}>{view.donation?.url ?? d.none}</Fact>
       </dl>
       {view.pendingDonation !== null ? (
-        <div className={`${INNER} flex flex-col gap-2`}>
-          <p className={STRONG}>
+        <Panel tone="sunken" className="flex flex-col gap-2">
+          <Text look="label">
             {
               // The date ends in «р.», and the sentence's own full stop follows
               // it: one stop serves both, as Ukrainian writes an abbreviation at
@@ -235,9 +230,9 @@ function DonationCard({ view, decision }: { view: RegistryShelterView; decision:
                 date: formatDate(view.pendingDonation.proposedAt),
               }).replace(" р.. ", " р. ")
             }
-          </p>
-          <p className={`${BODY} break-words`}>{view.pendingDonation.link.url}</p>
-        </div>
+          </Text>
+          <Text className="break-words">{view.pendingDonation.link.url}</Text>
+        </Panel>
       ) : null}
       {decision}
     </Section>
@@ -261,17 +256,17 @@ export function BlockedCard({ blocked }: { blocked: BlockedAddressesView }) {
   return (
     <Section id="operator-blocked" title={b.title}>
       {blocked.kind === "unknown" ? (
-        <p className={BODY}>{b.unknown[blocked.why]}</p>
+        <Text>{b.unknown[blocked.why]}</Text>
       ) : (
         <>
           {blocked.kind === "checked" && blocked.blocked.length === 0 ? (
-            <p className={BODY}>{b.none}</p>
+            <Text>{b.none}</Text>
           ) : null}
-          {blocked.kind === "incomplete" ? <p className={BODY}>{b.incomplete}</p> : null}
+          {blocked.kind === "incomplete" ? <Text>{b.incomplete}</Text> : null}
           {shown.length > 0 ? (
             <ul className="flex flex-col gap-2">
               {shown.map((entry) => (
-                <li key={entry.email} className={`${STRONG} break-words`}>
+                <li key={entry.email} className="text-label break-words text-ink">
                   {fillTemplate(b.line, {
                     email: entry.email,
                     reason: blockReasonOf(entry.reason),
@@ -280,10 +275,10 @@ export function BlockedCard({ blocked }: { blocked: BlockedAddressesView }) {
               ))}
             </ul>
           ) : null}
-          <p className={CAPTION}>{fillTemplate(b.asOf, { time: formatTime(blocked.asOf) })}</p>
+          <Text look="hint">{fillTemplate(b.asOf, { time: formatTime(blocked.asOf) })}</Text>
         </>
       )}
-      {shown.length > 0 ? <p className={CAPTION}>{b.manualUnblock}</p> : null}
+      {shown.length > 0 ? <Text look="hint">{b.manualUnblock}</Text> : null}
     </Section>
   );
 }
@@ -343,24 +338,28 @@ export function ShelterScreen({
   const joined = view.admins.filter((admin) => admin.invite.status === "accepted").length;
   return (
     <>
-      <a href={OPERATOR_HOME} className={`${linkClass("text")} self-start`}>
+      <TextLink href={OPERATOR_HOME} className="self-start">
         {t.shelter.back}
-      </a>
+      </TextLink>
       <div className="flex flex-col gap-2">
-        <h1 className={PAGE_TITLE}>{view.displayName}</h1>
-        <p className={BODY}>
+        <Heading level={1} look="title" className="break-words">
+          {view.displayName}
+        </Heading>
+        <Text>
           {fillTemplate(t.shelter.meta, {
             city: cityName ?? notRecorded,
             admins: fillTemplate(t.list.admins, { count: String(joined) }),
           })}
-        </p>
+        </Text>
         <p className="flex flex-wrap items-center gap-2">
-          <span className={STATUS_CHIP}>{uk.kabinet.profileStatus[view.verification.status]}</span>
-          <span className={BODY}>
+          <Chip kind="status" tone="ink">
+            {uk.kabinet.profileStatus[view.verification.status]}
+          </Chip>
+          <Text as="span">
             {fillTemplate(t.shelter.timeInState, {
               date: formatDate(enteredAt(view.verification)),
             })}
-          </span>
+          </Text>
         </p>
         {actions.supportEntry}
         {actions.rename}
@@ -372,7 +371,7 @@ export function ShelterScreen({
           <AddressCard view={view} cityName={cityName} />
           <ContactsCard view={view} />
           <Section id="operator-description" title={t.shelter.descriptionTitle}>
-            <p className={`${BODY} whitespace-pre-line break-words`}>{view.description.uk}</p>
+            <Text className="whitespace-pre-line break-words">{view.description.uk}</Text>
           </Section>
         </div>
         <div className="flex min-w-0 flex-col gap-4">

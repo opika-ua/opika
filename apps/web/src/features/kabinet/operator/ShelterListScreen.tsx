@@ -1,7 +1,10 @@
 import { VERIFICATION_STATUSES, type VerificationStatus } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import { buttonClass, linkClass, TextField } from "../../controls/controls";
-import { BODY, CAPTION, ERROR_TEXT, PAGE_TITLE } from "../profile-edit/styles";
+import { LinkButton } from "../../../ui/Button";
+import { Chip } from "../../../ui/Chip";
+import { TextField } from "../../../ui/form";
+import { Heading } from "../../../ui/Heading";
+import { Text } from "../../../ui/Text";
 import { NEW_SHELTER_PATH, OPERATOR_HOME } from "../routes";
 import { isFiltered, LIST_PARAMS, listHrefOf, type ShelterListFilters } from "./list-params";
 import type { ShelterListPage } from "./pages";
@@ -44,15 +47,13 @@ export function ShelterListScreen({
     <>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className={PAGE_TITLE}>{t.title}</h1>
-          {total !== null ? (
-            <p className={BODY}>{fillTemplate(t.total, { count: String(total) })}</p>
-          ) : null}
-          <p className={CAPTION}>{t.orderNote}</p>
+          <Heading level={1} look="title" className="break-words">
+            {t.title}
+          </Heading>
+          {total !== null ? <Text>{fillTemplate(t.total, { count: String(total) })}</Text> : null}
+          <Text look="hint">{t.orderNote}</Text>
         </div>
-        <a href={NEW_SHELTER_PATH} className={buttonClass("primary")}>
-          {t.create}
-        </a>
+        <LinkButton href={NEW_SHELTER_PATH}>{t.create}</LinkButton>
       </div>
 
       <search>
@@ -75,20 +76,20 @@ export function ShelterListScreen({
 
       {content.kind === "load_failed" ? (
         <div role="alert" className="flex flex-col items-start gap-2">
-          <p className={ERROR_TEXT}>{t.loadFailed}</p>
-          <a href={listHrefOf(filters)} className={buttonClass("secondary")}>
+          <Text look="label">{t.loadFailed}</Text>
+          <LinkButton href={listHrefOf(filters)} variant="secondary">
             {uk.kabinet.profileEdit.state.retry}
-          </a>
+          </LinkButton>
         </div>
       ) : content.page.items.length === 0 ? (
         isFiltered(filters) ? (
-          <p className={BODY}>{t.noMatch}</p>
+          <Text>{t.noMatch}</Text>
         ) : (
           <div className="flex flex-col items-start gap-2">
-            <p className={BODY}>{t.empty}</p>
-            <a href={NEW_SHELTER_PATH} className={buttonClass("secondary")}>
+            <Text>{t.empty}</Text>
+            <LinkButton href={NEW_SHELTER_PATH} variant="secondary">
               {t.create}
-            </a>
+            </LinkButton>
           </div>
         )
       ) : (
@@ -127,13 +128,13 @@ function StatusFilter({
     <ul className="flex flex-wrap gap-2">
       {options.map((option) => (
         <li key={option.status ?? "all"}>
-          <a
+          <Chip
+            kind="link"
             href={listHrefOf({ search: filters.search, status: option.status })}
-            aria-current={option.status === filters.status ? "page" : undefined}
-            className={linkClass("chip")}
+            current={option.status === filters.status}
           >
             {option.label}
-          </a>
+          </Chip>
         </li>
       ))}
     </ul>

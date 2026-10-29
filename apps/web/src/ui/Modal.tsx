@@ -10,8 +10,8 @@ import { Icon } from "./Icon";
  * with `open`, and update your state in `onClose`. The title names it, the optional description is
  * its accessible description; the close button's name is yours (the kit holds no copy).
  *
- * Built on the same core as Sheet (`dialog-core.ts`). What each existing dialog needs to migrate:
- * ModalDialog (kabinet): nothing extra, same props. ContactRevealDialog: stacking over the animal
+ * Built on the same core as Sheet (`dialog-core.ts`). What a dialog still to migrate needs:
+ * ContactRevealDialog: stacking over the animal
  * overlay works because both are in the top layer, last opened on top. AnimalOverlay: route-driven,
  * so pass `open` always and call `router.back()` in `onClose`.
  */

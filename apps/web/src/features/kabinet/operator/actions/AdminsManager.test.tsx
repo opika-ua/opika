@@ -1,5 +1,5 @@
 import type { RegistryShelterView, ShelterAdminView } from "@opika/contracts";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AdminsManager } from "./AdminsManager";
@@ -154,7 +154,8 @@ describe("remove asks first", () => {
       client: { admins: { remove } },
     });
     await userEvent.click(row("Олена").getByRole("button", { name: "Прибрати" }));
-    await userEvent.keyboard("{Escape}");
+    // Esc on a native modal <dialog> is the browser's close; happy-dom doesn't send it.
+    act(() => (screen.getByRole("dialog") as HTMLDialogElement).close());
     expect(screen.queryByRole("dialog")).toBeNull();
     await userEvent.click(row("Олена").getByRole("button", { name: "Прибрати" }));
     await userEvent.click(screen.getByRole("button", { name: "Закрити" }));

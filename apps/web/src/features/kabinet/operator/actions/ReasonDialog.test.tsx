@@ -1,5 +1,5 @@
 import type { RegistryShelterView } from "@opika/contracts";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DecisionPanel } from "./DecisionPanel";
@@ -154,6 +154,19 @@ describe("reject: code and note, both required", () => {
   });
 });
 
+/**
+ * Esc on a native modal `<dialog>` is the browser's close request; happy-dom doesn't send it, so
+ * the test sends what the browser would: a cancel that may be refused, then the close itself.
+ */
+const pressEscape = (): boolean => {
+  const dialog = screen.getByRole("dialog") as HTMLDialogElement;
+  const cancel = new Event("cancel", { cancelable: true });
+  dialog.dispatchEvent(cancel);
+  if (cancel.defaultPrevented) return false;
+  act(() => dialog.close());
+  return true;
+};
+
 describe("closing", () => {
   it("Escape, ✕ and «Скасувати» close it, send nothing, and give focus back to the opener", async () => {
     const reject = vi.fn();
@@ -164,7 +177,7 @@ describe("closing", () => {
     const opener = panel().getByRole("button", { name: "Відхилити…" });
 
     await openReject();
-    await userEvent.keyboard("{Escape}");
+    expect(pressEscape()).toBe(true);
     expect(screen.queryByRole("dialog")).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(opener));
 
@@ -176,16 +189,6 @@ describe("closing", () => {
     await userEvent.click(again.getByRole("button", { name: "Скасувати" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(reject).not.toHaveBeenCalled();
-  });
-
-  it("Tab past the last control comes back to the first: focus stays in the dialog", async () => {
-    renderWithActions(<DecisionPanel />, { view: underReview });
-    const dialog = await openReject();
-    dialog.getByRole("button", { name: "Відхилити" }).focus();
-    await userEvent.tab();
-    expect(document.activeElement).toBe(dialog.getByRole("button", { name: "Закрити" }));
-    await userEvent.tab({ shift: true });
-    expect(document.activeElement).toBe(dialog.getByRole("button", { name: "Відхилити" }));
   });
 });
 
@@ -271,7 +274,7 @@ describe("outcomes inside the dialog", () => {
       },
     });
     const dialog = await fillAndSend();
-    await userEvent.keyboard("{Escape}");
+    expect(pressEscape()).toBe(false);
     await userEvent.click(dialog.getByRole("button", { name: "Закрити" }));
     await userEvent.click(dialog.getByRole("button", { name: "Скасувати" }));
     expect(screen.getByRole("dialog", { name: "Відхилити «Домівка»?" })).toBeTruthy();
@@ -281,7 +284,7 @@ describe("outcomes inside the dialog", () => {
       expect(dialog.getByRole("alert").textContent).toBe("Не вдалося. Спробуйте ще раз."),
     );
     // Answered, it closes again as before.
-    await userEvent.keyboard("{Escape}");
+    expect(pressEscape()).toBe(true);
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 

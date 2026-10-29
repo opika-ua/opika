@@ -3,25 +3,15 @@
 import type { CreatedShelterView } from "@opika/contracts";
 import { kyivCalendarDateOf } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import Link from "next/link";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
-import {
-  Button,
-  buttonClass,
-  RadioOption,
-  SelectField,
-  TextAreaField,
-  TextField,
-} from "../../../controls/controls";
+import { Button, LinkButton } from "../../../../ui/Button";
+import { Card } from "../../../../ui/Card";
+import { FormSection } from "../../../../ui/FormSection";
+import { FieldError, Radio, Select, TextArea, TextField } from "../../../../ui/form";
+import { Heading } from "../../../../ui/Heading";
+import { Panel } from "../../../../ui/Panel";
+import { Text } from "../../../../ui/Text";
 import { ContactFields, NO_CONTACT_ERRORS } from "../../profile-edit/ContactFields";
-import {
-  BODY,
-  CAPTION,
-  CARD,
-  CARD_TITLE,
-  DIALOG_TITLE,
-  ERROR_TEXT,
-} from "../../profile-edit/styles";
 import { OPERATOR_HOME } from "../../routes";
 import { nameTooLongMessage } from "../display-name";
 import { EvidenceEditor } from "../evidence-editor/EvidenceEditor";
@@ -155,38 +145,39 @@ export function CreateShelterForm({
         className="flex min-w-0 flex-col gap-4 desktop:col-span-2"
       >
         <div className="flex flex-col gap-2">
-          <h1 className={DIALOG_TITLE}>{t.title}</h1>
-          <p className={BODY}>{t.intro}</p>
+          <Heading level={1} look="title">
+            {t.title}
+          </Heading>
+          <Text>{t.intro}</Text>
         </div>
 
-        <div className={CARD}>
-          <TextField
-            id={`${id}-name`}
-            label={t.name}
-            hint={t.nameHint}
-            type="text"
-            autoComplete="off"
-            required
-            value={form.displayName}
-            onChange={(event) => set("displayName", event.target.value)}
-            error={err("displayName")}
-          />
-          <TextAreaField
-            id={`${id}-description`}
-            label={t.description}
-            hint={t.descriptionHint}
-            required
-            value={form.description}
-            onChange={(event) => set("description", event.target.value)}
-            error={err("description")}
-          />
-        </div>
+        <Card>
+          <div className="flex flex-col gap-4 p-4 tablet:p-6">
+            <TextField
+              id={`${id}-name`}
+              label={t.name}
+              hint={t.nameHint}
+              type="text"
+              autoComplete="off"
+              required
+              value={form.displayName}
+              onChange={(event) => set("displayName", event.target.value)}
+              error={err("displayName")}
+            />
+            <TextArea
+              id={`${id}-description`}
+              label={t.description}
+              hint={t.descriptionHint}
+              required
+              value={form.description}
+              onChange={(event) => set("description", event.target.value)}
+              error={err("description")}
+            />
+          </div>
+        </Card>
 
-        <section aria-labelledby={`${id}-address-title`} className={CARD}>
-          <h2 id={`${id}-address-title`} className={CARD_TITLE}>
-            {uk.kabinet.profile.address}
-          </h2>
-          <SelectField
+        <FormSection id={`${id}-address`} title={uk.kabinet.profile.address}>
+          <Select
             id={`${id}-city`}
             label={t.city}
             required
@@ -200,7 +191,7 @@ export function CreateShelterForm({
                 {city.name}
               </option>
             ))}
-          </SelectField>
+          </Select>
           <TextField
             id={`${id}-line1`}
             label={t.address.line1}
@@ -239,16 +230,17 @@ export function CreateShelterForm({
             onChange={(event) => set("coordinates", event.target.value)}
             error={err("coordinates")}
           />
-        </section>
+        </FormSection>
 
-        <fieldset
-          className={CARD}
-          aria-describedby={legalKindError !== null ? `${id}-legal-error` : undefined}
-        >
-          <legend className={`${CARD_TITLE} mb-4`}>{t.legalTitle}</legend>
-          <div className="flex min-w-0 flex-col gap-2">
+        <FormSection id={`${id}-legal`} title={t.legalTitle}>
+          <div
+            role="radiogroup"
+            aria-labelledby={`${id}-legal-title`}
+            aria-describedby={legalKindError !== null ? `${id}-legal-error` : undefined}
+            className="flex min-w-0 flex-col gap-2"
+          >
             {LEGAL_KINDS.map((kind) => (
-              <RadioOption
+              <Radio
                 key={kind}
                 label={t.legalKind[kind]}
                 name={`${id}-legal-kind`}
@@ -260,9 +252,7 @@ export function CreateShelterForm({
             ))}
           </div>
           {legalKindError !== null ? (
-            <p id={`${id}-legal-error`} className={ERROR_TEXT}>
-              {legalKindError}
-            </p>
+            <FieldError id={`${id}-legal-error`}>{legalKindError}</FieldError>
           ) : null}
           {legal.kind === "registered_ngo" || legal.kind === "sole_proprietor" ? (
             <>
@@ -313,12 +303,9 @@ export function CreateShelterForm({
               error={err("contactPersonName")}
             />
           ) : null}
-        </fieldset>
+        </FormSection>
 
-        <section aria-labelledby={`${id}-contacts-title`} className={CARD}>
-          <h2 id={`${id}-contacts-title`} className={CARD_TITLE}>
-            {uk.kabinet.profile.contactsTitle}
-          </h2>
+        <FormSection id={`${id}-contacts`} title={uk.kabinet.profile.contactsTitle}>
           <ContactFields
             idPrefix={`${id}-contacts`}
             form={form.contacts}
@@ -327,12 +314,9 @@ export function CreateShelterForm({
             }
             errors={errors.contacts ?? NO_CONTACT_ERRORS}
           />
-        </section>
+        </FormSection>
 
-        <section aria-labelledby={`${id}-evidence-title`} className={CARD}>
-          <h2 id={`${id}-evidence-title`} className={CARD_TITLE}>
-            {uk.kabinet.operator.evidence.title}
-          </h2>
+        <FormSection id={`${id}-evidence`} title={uk.kabinet.operator.evidence.title}>
           <EvidenceEditor
             idPrefix={`${id}-evidence`}
             rows={form.evidence}
@@ -342,15 +326,9 @@ export function CreateShelterForm({
             errors={errors.evidence}
             today={today}
           />
-        </section>
+        </FormSection>
 
-        <section aria-labelledby={`${id}-admin-title`} className={CARD}>
-          <div className="flex flex-col gap-1">
-            <h2 id={`${id}-admin-title`} className={CARD_TITLE}>
-              {t.firstAdminTitle}
-            </h2>
-            <p className={CAPTION}>{t.firstAdminHint}</p>
-          </div>
+        <FormSection id={`${id}-admin`} title={t.firstAdminTitle} description={t.firstAdminHint}>
           <TextField
             id={`${id}-admin-name`}
             label={t.adminName}
@@ -372,10 +350,10 @@ export function CreateShelterForm({
             onChange={(event) => set("adminEmail", event.target.value)}
             error={err("adminEmail")}
           />
-        </section>
+        </FormSection>
 
         {refusal !== null ? (
-          <p role="alert" className={ERROR_TEXT}>
+          <p role="alert" className="text-label text-ink">
             {refusalMessage(refusal)}
           </p>
         ) : null}
@@ -384,17 +362,23 @@ export function CreateShelterForm({
             {/* K4's word for a write in flight, so the press shows on screen, not only to a screen reader. */}
             {submitting ? uk.kabinet.profileEdit.state.saving : t.submit}
           </Button>
-          <Link href={OPERATOR_HOME} className={buttonClass("text")}>
+          <LinkButton href={OPERATOR_HOME} variant="ghost">
             {t.cancel}
-          </Link>
+          </LinkButton>
         </div>
       </form>
 
-      <aside aria-labelledby={`${id}-next-title`} className={`${CARD} bg-rg-fill`}>
-        <h2 id={`${id}-next-title`} className={CARD_TITLE}>
+      <Panel
+        as="aside"
+        tone="sunken"
+        padding="lg"
+        aria-labelledby={`${id}-next-title`}
+        className="flex min-w-0 flex-col gap-4"
+      >
+        <Heading level={2} look="body-l" id={`${id}-next-title`}>
           {t.whatHappens.title}
-        </h2>
-        <ol className={`flex list-decimal flex-col gap-2 pl-5 ${BODY}`}>
+        </Heading>
+        <ol className="flex list-decimal flex-col gap-2 pl-5 text-body text-ink">
           <li>{t.whatHappens.step1}</li>
           {/* His sentence starts with the first admin's name, and there is no wording for
               before one is typed, so the step joins the list once there is a name to put in it. */}
@@ -403,7 +387,7 @@ export function CreateShelterForm({
           ) : null}
           <li>{t.whatHappens.step3}</li>
         </ol>
-      </aside>
+      </Panel>
     </div>
   );
 }
