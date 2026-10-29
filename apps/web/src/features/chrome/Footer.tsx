@@ -41,7 +41,7 @@ export function Footer(_props: FooterProps) {
   return (
     <footer
       data-testid="site-footer"
-      className="mt-8 flex flex-wrap items-center gap-4 text-[13px]/[18px] text-rg-ink-3"
+      className="mt-8 flex flex-wrap items-center gap-4 text-caption font-normal text-ink-2"
     >
       <span>{uk.footer.fontCredit}</span>
     </footer>

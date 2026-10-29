@@ -483,6 +483,17 @@
 dialog[data-hash-open]:target {
   display: block;
 }
+/* A sheet that hides from a breakpoint (ui/Sheet `hideFrom`): the :target reveal must not outlive it. */
+@media (min-width: 600px) {
+  dialog[data-hash-open][data-hide-from="tablet"]:target {
+    display: none;
+  }
+}
+@media (min-width: 1024px) {
+  dialog[data-hash-open][data-hide-from="desktop"]:target {
+    display: none;
+  }
+}
 
 /* Bottom safe-area inset (home indicator) for sheets; zero without viewport-fit=cover. */
 @utility pb-safe {
@@ -614,24 +625,6 @@ dialog[data-hash-open]:target {
  */
 @media (max-width: 1023px) {
   #tvaryny-filters:target {
-    display: block;
-  }
-}
-
-/*
- * MobileNavMenu's own no-JS reveal - same mechanism as FilterSheet's rule
- * just above, same reason: a <dialog> with no `open` attribute is
- * `display: none` by default, and this ID-scoped override is the only
- * thing that makes `<a href="#site-nav-menu">` (zero JS) actually show the
- * drawer. `max-width: 599px` matches the trigger/dialog's own
- * `tablet:hidden` class (`--breakpoint-tablet: 600px`), for the identical
- * reason FilterSheet's rule is wrapped the same way: an ID selector's
- * specificity would otherwise beat a media-queried class at `tablet:` and
- * up, for anyone who reached the fragment at a narrow width and then
- * resized, or opened a shared/bookmarked URL carrying it directly.
- */
-@media (max-width: 599px) {
-  #site-nav-menu:target {
     display: block;
   }
 }
