@@ -318,10 +318,40 @@ export async function diagnose(run: ReadOnlyRunner): Promise<Diagnosis> {
 const cell = (v: unknown) => (v === null || v === undefined ? "-" : String(v));
 const when = (v: unknown) => (v instanceof Date ? v.toISOString() : cell(v));
 
+/** One word for a reader in a hurry: the planner's choice under default settings. */
+export function verdictOf(plan: PlanSummary): string {
+  const text = plan.nodes.join(" | ");
+  const ms = plan.executionMs === null ? "?" : `${plan.executionMs} ms`;
+  if (text.includes("Seq Scan")) return `SEQ SCAN (${ms})`;
+  const index = /(?:Bitmap Index Scan|Index Scan|Index Only Scan) (\S+)/.exec(text)?.[1];
+  return index ? `USES INDEX ${index} (${ms})` : `UNKNOWN PLAN (${ms})`;
+}
+
 export function formatReport(d: Diagnosis, full: boolean): string[] {
   const out: string[] = [];
   const one = (name: string) => d.catalog[name]?.[0];
-  out.push(String(one("version")?.version ?? "").replace(/ on .*/, ""));
+  const t = one("table");
+  out.push("--- cities: statistics first (was it analyzed since the import?)");
+  if (t) {
+    out.push(
+      `rows: actual ${cell(t.actual_rows)}, n_live_tup ${cell(t.n_live_tup)}, reltuples ${cell(t.reltuples)}, relpages ${cell(t.relpages)}, dead ${cell(t.n_dead_tup)}`,
+      `modified since analyze: ${cell(t.n_mod_since_analyze)}, inserted since vacuum: ${cell(t.n_ins_since_vacuum)}`,
+      `last_analyze ${when(t.last_analyze)} | last_autoanalyze ${when(t.last_autoanalyze)}`,
+      `last_vacuum ${when(t.last_vacuum)} | last_autovacuum ${when(t.last_autovacuum)}`,
+    );
+  } else out.push("no statistics row for cities");
+
+  out.push(
+    "",
+    "--- VERDICT: does the Latin trigram branch (2) use cities_search_latin_trgm_idx, default settings?",
+  );
+  for (const probe of d.probes) {
+    const two = probe.branches.find((x) => x.label.startsWith("2"));
+    out.push(
+      `${JSON.stringify(probe.raw)}: ${two ? verdictOf(summarisePlan(two.plans.default)) : "no plan"}`,
+    );
+  }
+  out.push("", String(one("version")?.version ?? "").replace(/ on .*/, ""));
   const ext = (d.catalog.extensions ?? []).map((r) => r.extname).join(", ");
   out.push(
     `extensions: ${ext || "none of pg_trgm/pgstattuple"}; cyrillic trigrams per word: ${cell(one("cyrillicTrigrams")?.trigrams)}`,
@@ -335,17 +365,6 @@ export function formatReport(d: Diagnosis, full: boolean): string[] {
     out.push(
       `${cell(r.name)} = ${cell(r.setting)}${r.unit ? ` ${r.unit}` : ""} [${cell(r.source)}]`,
     );
-
-  const t = one("table");
-  out.push("", "--- cities");
-  if (t) {
-    out.push(
-      `rows: actual ${cell(t.actual_rows)}, n_live_tup ${cell(t.n_live_tup)}, reltuples ${cell(t.reltuples)}, relpages ${cell(t.relpages)}, dead ${cell(t.n_dead_tup)}`,
-      `modified since analyze: ${cell(t.n_mod_since_analyze)}, inserted since vacuum: ${cell(t.n_ins_since_vacuum)}`,
-      `last_analyze ${when(t.last_analyze)} | last_autoanalyze ${when(t.last_autoanalyze)}`,
-      `last_vacuum ${when(t.last_vacuum)} | last_autovacuum ${when(t.last_autovacuum)}`,
-    );
-  } else out.push("no statistics row for cities");
 
   out.push("", "--- search indexes (valid/ready, size, reloptions)");
   for (const r of d.catalog.indexes ?? [])
@@ -378,7 +397,7 @@ export function formatReport(d: Diagnosis, full: boolean): string[] {
       const o = summarisePlan(b.plans.seqscan_off);
       const show = (s: PlanSummary) =>
         `${s.executionMs ?? "?"} ms [${s.nodes.join("; ") || "no scan node"}] ${s.topBuffers}`;
-      out.push(`${b.label}`, `  default: ${show(a)}`, `  seqscan off: ${show(o)}`);
+      out.push(`${b.label}: ${verdictOf(a)}`, `  default: ${show(a)}`, `  seqscan off: ${show(o)}`);
     }
     if (full) {
       for (const b of probe.branches.filter((x) => x.label.startsWith("2"))) {

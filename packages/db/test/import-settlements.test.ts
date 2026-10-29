@@ -1,5 +1,6 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { statisticsLine } from "../src/import/import-settlements";
 import { type ImportOutcome, runImport } from "../src/import/importer";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
@@ -296,5 +297,65 @@ describe("db:seed after an import", () => {
     await db.delete(cities).where(eq(cities.slug, "kyiv"));
     await cityRepo(db).insertMissing(buildCities());
     expect(await slugs()).toContain("kyiv");
+  });
+});
+
+describe("planner statistics after a commit", () => {
+  /** The real database, with every `db.execute` recorded and, optionally, ANALYZE made to fail. */
+  const watched = (failAnalyze = false) => {
+    const executed: string[] = [];
+    const proxy = new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop !== "execute") return Reflect.get(target, prop, receiver);
+        return (query: { queryChunks?: unknown }) => {
+          const text = JSON.stringify(query.queryChunks ?? "");
+          executed.push(text);
+          if (failAnalyze && text.includes("ANALYZE")) return Promise.reject(new Error("boom"));
+          return (target.execute as (q: unknown) => unknown)(query);
+        };
+      },
+    });
+    return { db: proxy, analyzed: () => executed.filter((t) => t.includes("ANALYZE cities")) };
+  };
+
+  it("analyzes cities once, after a commit", async () => {
+    const w = watched();
+    const outcome = committed(await runImport({ db: w.db, bytes, commit: true, editions: [pin] }));
+    expect(w.analyzed()).toHaveLength(1);
+    expect(outcome.statistics).toEqual({ kind: "refreshed" });
+  });
+
+  it("does not analyze on a dry run", async () => {
+    const w = watched();
+    const outcome = await runImport({ db: w.db, bytes, commit: false, editions: [pin] });
+    expect(outcome.kind).toBe("planned");
+    expect(w.analyzed()).toHaveLength(0);
+    expect(outcome.kind === "planned" && outcome.statistics).toBeNull();
+  });
+
+  it("does not analyze when the run is refused", async () => {
+    const w = watched();
+    const outcome = await runImport({ db: w.db, bytes, commit: true, editions: [] });
+    expect(outcome.kind).toBe("refused");
+    expect(w.analyzed()).toHaveLength(0);
+  });
+
+  it("a failed ANALYZE leaves the committed data in place and is reported, not thrown", async () => {
+    const w = watched(true);
+    const outcome = committed(await runImport({ db: w.db, bytes, commit: true, editions: [pin] }));
+    expect(outcome.statistics).toEqual({ kind: "failed", message: "boom" });
+    expect(outcome.remaining).toBe(0);
+    const [{ n } = { n: 0 }] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(cities)
+      .where(isNotNull(cities.katottgCode));
+    expect(n).toBeGreaterThan(0);
+  });
+
+  it("the CLI says so either way", () => {
+    expect(statisticsLine({ kind: "refreshed" })[0]).toBe(
+      "Planner statistics refreshed: ANALYZE cities",
+    );
+    expect(statisticsLine({ kind: "failed", message: "boom" })[0]).toMatch(/^WARNING: .*boom/);
   });
 });

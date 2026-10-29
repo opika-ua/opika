@@ -20,6 +20,7 @@ import {
   type ReadOnlyRunner,
   searchKeysOf,
   summarisePlan,
+  verdictOf,
 } from "../src/tools/search-diagnose";
 
 /** Fake endpoints only. Nothing here resolves. */
@@ -280,5 +281,27 @@ describe("the CLI refuses before it connects", () => {
     expect(result.stderr).toContain("Nothing was run");
     expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
     expect(result.stdout).not.toContain("Target:");
+  });
+});
+
+describe("verdictOf", () => {
+  it("names a Seq Scan and an index use in one word", () => {
+    const seq = summarisePlan([
+      "  ->  Seq Scan on cities  (cost=0.00..944.60 rows=1 width=148) (actual time=0.049..27.487 rows=1994 loops=1)",
+      "Execution Time: 28.3 ms",
+    ]);
+    const idx = summarisePlan([
+      "  ->  Bitmap Heap Scan on cities  (cost=1.00..2.00 rows=7 width=67) (actual time=0.1..0.2 rows=9 loops=1)",
+      "        ->  Bitmap Index Scan on cities_search_latin_trgm_idx  (cost=0.00..1.00 rows=2 width=0) (actual time=0.1..0.1 rows=2 loops=1)",
+      "Execution Time: 4.5 ms",
+    ]);
+    expect(verdictOf(seq)).toBe("SEQ SCAN (28.3 ms)");
+    expect(verdictOf(idx)).toBe("USES INDEX cities_search_latin_trgm_idx (4.5 ms)");
+  });
+
+  it("puts the analyze state and the branch 2 verdict before the settings", () => {
+    const text = formatReport({ catalog: {}, pending: null, probes: [] }, false).join("\n");
+    expect(text.indexOf("statistics first")).toBeLessThan(text.indexOf("VERDICT"));
+    expect(text.indexOf("VERDICT")).toBeLessThan(text.indexOf("--- settings"));
   });
 });
