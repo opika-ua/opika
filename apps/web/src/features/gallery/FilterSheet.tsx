@@ -18,6 +18,7 @@ import { Chip, choiceClass } from "../../ui/Chip";
 import { cx } from "../../ui/cx";
 import { Sheet } from "../../ui/Sheet";
 import { Text } from "../../ui/Text";
+import { CityFacetChoices } from "./CityFacetChoices";
 import {
   ageFacetOptions,
   cityFacetOptions,
@@ -78,6 +79,7 @@ function FacetGroup<T extends string>({
   selection,
   submitValue = (value) => value,
   leading,
+  windowed,
 }: {
   legend: string;
   name: string;
@@ -86,27 +88,39 @@ function FacetGroup<T extends string>({
   /** The submitted value when it isn't the option's id (a city submits its slug). */
   submitValue?: (value: T) => string;
   leading?: ReactNode;
+  /** The city group: windows a long list (first dozen, show all, local filter) instead of drawing every option. */
+  windowed?: { idPrefix: string };
 }) {
+  const chip = (option: FacetOption<T>) => (
+    <Chip
+      key={option.value}
+      kind="choice"
+      control="checkbox"
+      name={name}
+      value={submitValue(option.value)}
+      defaultChecked={isExplicitlySelected(selection, option.value)}
+      disabled={isUnavailable(option, selection)}
+      count={option.count}
+      accessibleName={facetAccessibleName(option)}
+    >
+      {option.label}
+    </Chip>
+  );
   return (
     <fieldset className="flex flex-col gap-3">
       <legend className={LEGEND}>{legend}</legend>
       <div className="flex flex-wrap gap-3">
         {leading}
-        {options.map((option) => (
-          <Chip
-            key={option.value}
-            kind="choice"
-            control="checkbox"
-            name={name}
-            value={submitValue(option.value)}
-            defaultChecked={isExplicitlySelected(selection, option.value)}
-            disabled={isUnavailable(option, selection)}
-            count={option.count}
-            accessibleName={facetAccessibleName(option)}
-          >
-            {option.label}
-          </Chip>
-        ))}
+        {windowed ? (
+          <CityFacetChoices
+            idPrefix={windowed.idPrefix}
+            options={options}
+            selection={selection}
+            renderOption={chip}
+          />
+        ) : (
+          options.map(chip)
+        )}
       </div>
     </fieldset>
   );
@@ -225,6 +239,7 @@ export function FilterSheet({
           options={cityFacetOptions(counts, filters.regions, filters.cities, selectedCities)}
           selection={filters.cities}
           submitValue={slugOf}
+          windowed={{ idPrefix: "sheet" }}
           leading={
             <a
               href={allCitiesHref}

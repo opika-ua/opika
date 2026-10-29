@@ -17,9 +17,9 @@ const shelterWordLocative = (count: number) => pluralizeUk(count, uk.filters.she
 /**
  * "Знайдено {count} тварин. Притулків у цьому місті: {shelterCount}." when
  * a city is selected - design's own screen 03 sentence, written for exactly
- * that case. With no city constrained (`cityConstrained: false` - "Уся
- * Київщина", the sheet's own default), `shelterCount` spans the whole
- * oblast and "у цьому місті" would name a city that isn't selected; falls
+ * that case. With no city constrained (`cityConstrained: false` - "Усі
+ * міста", the sheet's own default), `shelterCount` spans every
+ * city shown and "у цьому місті" would name a city that isn't selected; falls
  * back to the rail's locative shelter phrasing instead.
  */
 export function sheetResultCount(

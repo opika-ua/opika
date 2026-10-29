@@ -1,4 +1,4 @@
-import { uk } from "@opika/i18n";
+import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
@@ -34,15 +34,17 @@ import { Text } from "../../ui/Text";
  * having failed the same way once (PR #53 review, caught by rebuilding and
  * diffing the served `og:title`, not by inspection).
  */
+const WHAT_THIS_IS = fillTemplate(uk.forShelters.whatThisIs, { site: WORDMARK });
+
 export const metadata: Metadata = {
   title: uk.forShelters.title,
-  description: uk.forShelters.whatThisIs,
+  description: WHAT_THIS_IS,
   alternates: { canonical: "/prytulkam" },
   openGraph: {
     type: "website",
     siteName: WORDMARK,
     locale: "uk_UA",
-    description: uk.forShelters.whatThisIs,
+    description: WHAT_THIS_IS,
   },
 };
 
@@ -150,7 +152,7 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
       </LinkButton>
 
       <Section heading={h.whatThisIs}>
-        <Body>{uk.forShelters.whatThisIs}</Body>
+        <Body>{WHAT_THIS_IS}</Body>
       </Section>
       <Section heading={h.cost}>
         <Body>{uk.forShelters.cost}</Body>

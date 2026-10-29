@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SITE_ORIGIN, SITE_TITLE, TITLE_TEMPLATE, titled, WORDMARK } from "../brand";
 import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
+import { SiteFooter } from "../features/chrome/SiteFooter";
 import { PAGE_COLOR } from "../pwa";
 import { JsonLd } from "../seo/json-ld";
 import { organizationJsonLd } from "../seo/json-ld-builders";
@@ -95,6 +96,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body style={{ margin: 0 }}>
         <JsonLd data={organizationJsonLd()} />
         {children}
+        <SiteFooter />
         {/*
           Cookieless, no-op without JS - aggregate page views (Analytics)
           and real Core Web Vitals from actual devices (Speed Insights),

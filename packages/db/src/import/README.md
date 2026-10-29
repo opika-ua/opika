@@ -9,8 +9,9 @@ The XLSX is not in this repository; the owner downloads it and passes its path.
 - Source page: mininfra.gov.ua, "Кодифікатор адміністративно-територіальних одиниць та територій
   територіальних громад".
 - Licence: the ministry page states none. The data.gov.ua record says "Creative Commons
-  Attribution" with no version and was last modified in 2021, so treat it as stale. Attribute the
-  source anyway (a line on the shelter-facing or about page, N5) so a CC BY reading is covered.
+  Attribution" with no version (unverified) and was last modified in 2021, so treat it as stale.
+  The source is credited anyway, whatever the version: the site footer carries
+  `footer.dataCredit` (the codifier, Мінрозвитку, «Creative Commons Attribution»).
 - Re-import: quarterly, and when a rename affects a listed shelter.
 
 ```
