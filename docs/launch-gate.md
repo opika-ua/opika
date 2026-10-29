@@ -63,6 +63,7 @@ execution is still open.
 |---|---|---|---|---|
 | **O-19** - touch-target/keyboard enforcement mechanism | Local agent, when picked up | **OPEN, filed-not-designed** by Oleksii's own instruction | A shared Playwright helper + a sweep, strategy undecided | not scheduled |
 | **Sitemap scale** | Local agent | **OPEN, follow-up** (owner accepted #241's limits for launch) | Sitemap: when listed animals pass ~1,500, switch to a sitemap index with keyset-paginated chunks and a dedicated shelters listing (needs SQL + smoke). | not scheduled |
+| **Unauthenticated body cap on Vercel** | Local agent | **OPEN, not now** (S3 review note 4) | On a Vercel preview deployment, send a request larger than 16 KB to `/api/kabinet/*` without a session cookie and confirm the platform delivers the body in chunks, so the 16 KB-plus-one-chunk memory bound holds (proven so far only on a test stream). | before launch |
 
 ## Items from the 2026-10-24 brief, not yet rows in `docs/build-plan.md`
 
