@@ -287,14 +287,18 @@ describe("FilterSheet", () => {
         .getAllByRole("checkbox", { hidden: true })
         .map((box) => box.getAttribute("aria-label"));
 
-    it("lists the oblasts that have animals with their counts, most first", () => {
+    it("lists every oblast, those with animals first with their counts, the rest disabled in place", () => {
       renderSheet(NO_FILTERS, "freshest", COUNTS_TWO_REGIONS);
       const group = within(screen.getByRole("group", { name: "Область", hidden: true }));
       expect(
         group
           .getAllByRole("checkbox", { hidden: true })
           .map((box) => box.getAttribute("aria-label")),
-      ).toEqual(["Київська, 13 тварин", "Львівська, 3 тварини"]);
+      ).toEqual(["Київська, 13 тварин", "Львівська, 3 тварини", "АР Крим, 0 тварин"]);
+      expect((group.getByLabelText("АР Крим, 0 тварин") as HTMLInputElement).disabled).toBe(true);
+      expect((group.getByLabelText("Київська, 13 тварин") as HTMLInputElement).disabled).toBe(
+        false,
+      );
     });
 
     it("submits the oblast's slug as `obl`", () => {

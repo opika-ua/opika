@@ -112,14 +112,21 @@ describe("gallery.facetCounts", () => {
     );
   });
 
-  // Cities have no fixed universe, so dedupe can't shrink distinct ids; what
-  // the 64 KB body cap admits (~1,600 ids) stays far under the parameter limit.
-  it("answers 2,000 distinct unknown cities without a 500", async () => {
+  // Cities have no fixed universe, so dedupe can't shrink distinct ids: the contract caps the
+  // list at 30 (each facet column repeats the predicate), and refuses more with a 4xx, not a 500.
+  it("answers 30 distinct unknown cities, and refuses 31 without a 500", async () => {
     await seedOneCityTwoDogsOneCat();
-    const cities = Array.from({ length: 2_000 }, () => randomUUID());
-    const res = await h.call("gallery.facetCounts", {
-      filters: { ...NO_FILTERS, cities: { kind: "oneOf", values: cities } },
-    });
+    const ask = (n: number) =>
+      h.call("gallery.facetCounts", {
+        filters: {
+          ...NO_FILTERS,
+          cities: { kind: "oneOf", values: Array.from({ length: n }, () => randomUUID()) },
+        },
+      });
+    const tooMany = await ask(31);
+    expect(tooMany.status).toBeGreaterThanOrEqual(400);
+    expect(tooMany.status).toBeLessThan(500);
+    const res = await ask(30);
     expect(res.status).toBe(200);
     expect((res.body as { sizes: Record<string, number> }).sizes).toEqual({
       small: 0,

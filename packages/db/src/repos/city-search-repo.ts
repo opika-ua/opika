@@ -1,7 +1,7 @@
 import type { NameScope, PlaceQuery, RegionId, SettlementKind } from "@opika/domain";
-import { and, isNull, notInArray, or, sql } from "drizzle-orm";
+import { and, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { PICKER_HIDDEN_REGION_IDS, REGIONS } from "../geography/regions-data";
+import { REGIONS } from "../geography/regions-data";
 import { cities } from "../schema/cities";
 
 /** The most rows one search returns; the contract caps its output at the same number. */
@@ -105,7 +105,6 @@ export function searchStatement(
     .from(cities)
     .where(
       and(
-        notInArray(cities.regionId, [...PICKER_HIDDEN_REGION_IDS]),
         isNull(cities.retiredInEdition),
         or(
           sql`${cities.searchLatin} LIKE ${likePrefix(latin)}`,
@@ -131,8 +130,8 @@ export function citySearchRepo(db: Database) {
     /**
      * Prefix on either key, or a trigram match on either key. Ranked exact, then prefix, then
      * trigram; within a tier by settlement kind (cities before villages), the caller's oblast, and
-     * similarity; the last tie by name in Ukrainian order. Settlements in the hidden regions and
-     * retired ones are never returned. `cyrillicTrigrams` is injectable for the fallback test;
+     * similarity; the last tie by name in Ukrainian order. Retired settlements are never
+     * returned; every region is searched alike. `cyrillicTrigrams` is injectable for the fallback test;
      * normally it is probed.
      */
     async search(

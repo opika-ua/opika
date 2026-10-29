@@ -20,8 +20,8 @@ import { smokeTarget } from "../src/test-utils/smoke-target";
  * `pnpm --filter @opika/db db:neon-smoke-timings --expect ep-…`: the timed part of the nationwide
  * sitting, run on a child branch AFTER the settlement import (the 8 seeded cities alone say
  * nothing about a 29.7k-row table). It prints, and asserts nothing: 20 `cities.search` probes
- * with rows and milliseconds, three `EXPLAIN (ANALYZE, BUFFERS)` plans of the search statement,
- * the oblast predicate and the grouped facet scan, and a few timed gallery reads. Whoever runs the
+ * with rows and milliseconds, three `EXPLAIN (ANALYZE, BUFFERS)` plans of the search statement
+ * and one of the oblast predicate, and a few timed gallery reads (the facet scan is timed, not explained). Whoever runs the
  * sitting reads the plans and the numbers; nothing here decides pass or fail, because a latency
  * figure measured once on a shared child branch is not a limit (standing constraints).
  *

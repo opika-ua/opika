@@ -366,12 +366,3 @@ export const KYIV_CITY_REGION_ID = "f421e743-f9dd-5198-86bd-8a05911ec75b" as Reg
 export const REGION_BY_CODE: ReadonlyMap<string, RegionRecord> = new Map(
   REGIONS.map((r) => [r.code, r]),
 );
-
-/**
- * Occupied in full since 2014 (owner decision Q3): settlements here are kept in `cities` but never
- * offered by search or accepted for a shelter. A rule on the region, not a list of places.
- */
-export const PICKER_HIDDEN_REGION_CODES: readonly string[] = ["UA01", "UA85"];
-export const PICKER_HIDDEN_REGION_IDS: readonly RegionId[] = REGIONS.filter((r) =>
-  PICKER_HIDDEN_REGION_CODES.includes(r.code),
-).map((r) => r.id);

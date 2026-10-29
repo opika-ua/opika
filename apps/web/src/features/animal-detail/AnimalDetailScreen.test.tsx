@@ -353,7 +353,14 @@ describe("AnimalDetailScreen – landmarks", () => {
   it("puts the animal page's heading in the main landmark", async () => {
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
 
-    render(<AnimalDetailScreen animal={makeAnimal()} shelter={makeShelter()} cityName="Бровари" />);
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+      />,
+    );
 
     const main = screen.getByRole("main");
     expect(within(main).getByRole("heading", { level: 1, name: "Мурчик" })).toBeTruthy();

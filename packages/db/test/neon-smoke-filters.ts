@@ -22,7 +22,7 @@ const NOW = new Date();
 /**
  * Nationwide track N3: the oblast filter, the facet roll-up and the token resolver, through
  * neon-http (`neon-smoke.ts` calls this from `main`, after the search steps; no earlier step is
- * edited). Fixtures live in Zakarpattia (UA21), Lviv (UA46) and Crimea (UA01), regions no seeded
+ * edited). Fixtures live in Zakarpattia (UA21), Lviv (UA46) and Crimea (UA01, treated like any region), regions no seeded
  * or production test city is in, so every count below is exact on a child branch of production.
  * Statements are query-builder shapes only (a raw `db.execute` returns a different shape on
  * neon-http). Rows stay on the child branch, which is thrown away; a second run on the same
@@ -150,8 +150,8 @@ export async function runFiltersSmoke(db: Database): Promise<Outcome[]> {
   const yaltaOffered = counts.cities.some((c) => c.cityId === yalta.id);
   const crimeaOffered = counts.regions.some((r) => r.regionId === CRIMEA);
   check(
-    "Crimea is never offered as an option, even with an animal in it",
-    !yaltaOffered && !crimeaOffered,
+    "Crimea is offered like any region when it has an animal",
+    yaltaOffered && crimeaOffered,
     `city offered: ${yaltaOffered}, oblast offered: ${crimeaOffered}`,
   );
 

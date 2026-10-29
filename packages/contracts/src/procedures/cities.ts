@@ -12,6 +12,7 @@ import { CityLabelViewSchema } from "../views/shelter";
  */
 export const MAX_CITY_LABEL_IDS = 50;
 export const MAX_CITY_TOKENS = 30;
+export const MAX_CITY_TOKEN_LENGTH = 100;
 
 export const CitiesByIdsInputSchema = z.object({
   ids: z.array(CityIdSchema).max(MAX_CITY_LABEL_IDS),
@@ -25,7 +26,7 @@ export const citiesByIdsContract = oc
   });
 
 export const CitiesResolveTokensInputSchema = z.object({
-  tokens: z.array(z.string().min(1).max(100)).max(MAX_CITY_TOKENS),
+  tokens: z.array(z.string().min(1).max(MAX_CITY_TOKEN_LENGTH)).max(MAX_CITY_TOKENS),
 });
 
 /**

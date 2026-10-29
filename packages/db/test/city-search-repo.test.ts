@@ -85,16 +85,19 @@ describe("citySearchRepo.search", () => {
     ]);
   });
 
-  it("never returns a settlement of Crimea or Sevastopol, by any spelling", async () => {
-    for (const query of [
-      "Левітанівка",
-      "Левіт",
-      "Левітанівк",
-      "levitanivka",
-      "Севастополь",
-      "sevastopol",
-    ]) {
-      expect(await find(query)).toEqual([]);
+  it("returns a settlement of Crimea or Sevastopol like any other, by any spelling", async () => {
+    for (const [query, name] of [
+      ["Левітанівка", "Левітанівка"],
+      ["Левіт", "Левітанівка"],
+      ["Левітанівк", "Левітанівка"],
+      ["levitanivka", "Левітанівка"],
+      ["Севастополь", "Севастополь"],
+      ["sevastopol", "Севастополь"],
+    ] as const) {
+      expect(
+        (await find(query)).map((r) => r.nameUk),
+        query,
+      ).toContain(name);
     }
   });
 

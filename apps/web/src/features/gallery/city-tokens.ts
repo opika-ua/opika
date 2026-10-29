@@ -1,8 +1,5 @@
-import type { CityLabelView } from "@opika/contracts";
+import type { CitiesResolveTokensOutputSchema } from "@opika/contracts";
+import type { z } from "zod";
 
 /** `cities.resolveTokens`' answer for one `misto` token. */
-export type CityTokenResolution = {
-  readonly token: string;
-  readonly city: CityLabelView | null;
-  readonly via: "slug" | "alias" | "id" | null;
-};
+export type CityTokenResolution = z.infer<typeof CitiesResolveTokensOutputSchema>[number];

@@ -189,15 +189,10 @@ export async function renderGallery(
   );
   const citySlugs = book.slugs;
   const cityNames = new Map([...book.cities].map(([id, label]) => [id, placeName(label)] as const));
-  // Only the oblasts the options can print: those with an animal, and the chosen ones.
-  const regionLabels: Record<string, string> = {};
-  for (const id of [
-    ...facetCounts.regions.map((entry) => entry.regionId),
-    ...(filters.regions.kind === "oneOf" ? filters.regions.values : []),
-  ]) {
-    const region = book.regions.get(id);
-    if (region) regionLabels[id] = region.label;
-  }
+  // The oblast filter always lists all 27 (one with no animal is shown disabled).
+  const regionLabels: Record<string, string> = Object.fromEntries(
+    [...book.regions].map(([id, region]) => [id, region.label]),
+  );
 
   /**
    * docs/design/README.md, "Gallery states" > "No match". Only queried when

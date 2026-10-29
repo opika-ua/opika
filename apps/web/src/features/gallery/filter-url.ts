@@ -1,3 +1,4 @@
+import { MAX_CITY_TOKEN_LENGTH, MAX_CITY_TOKENS } from "@opika/contracts";
 import type {
   AgeBucket,
   AnimalId,
@@ -147,13 +148,23 @@ export const NO_PLACE_IDS: PlaceIdsBySlug = { cities: new Map(), regions: new Ma
  */
 export type CitySlugsById = ReadonlyMap<CityId | RegionId, string>;
 
-/** The most `misto` tokens (and `obl` tokens: 27 regions exist) a request resolves; extras are dropped. */
-export const MAX_CITY_TOKENS = 30;
+/** The most `obl` tokens a request reads: 27 regions exist. City tokens share the contract's cap. */
 const MAX_REGION_TOKENS = 27;
 
-/** The city tokens of a request, capped, for the page to resolve before it parses. */
+/**
+ * The city tokens of a request, ready for `cities.resolveTokens`: empty ones (`?misto=`, a trailing
+ * comma, `a,,b`) and ones over the contract's length are dropped, the rest deduplicated and capped
+ * at the contract's count. A hand-edited URL therefore degrades to "no city filter" as it always did,
+ * instead of failing the contract's validation and landing on the error page.
+ */
 export const cityTokensOf = (searchParams: SearchParams): string[] =>
-  tokensOf(searchParams[CITY_PARAM]).slice(0, MAX_CITY_TOKENS);
+  [
+    ...new Set(
+      tokensOf(searchParams[CITY_PARAM])
+        .map((token) => token.trim())
+        .filter((token) => token.length > 0 && token.length <= MAX_CITY_TOKEN_LENGTH),
+    ),
+  ].slice(0, MAX_CITY_TOKENS);
 
 function parseCitySelection(
   raw: string | string[] | undefined,

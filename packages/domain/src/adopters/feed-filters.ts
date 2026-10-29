@@ -28,14 +28,31 @@ export type FilterSelection<T> = { kind: "any" } | { kind: "oneOf"; values: read
  * array, so the emptiness the union is designed to exclude would come back at
  * the type level. `z.tuple([value], value)` keeps both halves of the guarantee.
  */
-const filterSelectionSchema = <S extends z.ZodType>(value: S) =>
+const filterSelectionSchema = <S extends z.ZodType>(value: S, maxValues?: number) =>
   z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("any") }),
     z.object({
       kind: z.literal("oneOf"),
-      values: z.tuple([value], value).readonly(),
+      values:
+        maxValues === undefined
+          ? z.tuple([value], value).readonly()
+          : z
+              .tuple([value], value)
+              .readonly()
+              .refine((values) => (values as readonly unknown[]).length <= maxValues, {
+                message: `at most ${maxValues} values`,
+              }),
     }),
   ]);
+
+/**
+ * Bounds for the two location dimensions, which have no closed universe: there are 27 oblasts, and
+ * the URL reads at most 30 city tokens. Without them a request could repeat the list thousands of
+ * times and, since the facet scan repeats the predicate per option, approach Postgres's
+ * 65,535-parameter limit.
+ */
+export const MAX_FILTER_REGIONS = 27;
+export const MAX_FILTER_CITIES = 30;
 
 export const ANY: FilterSelection<never> = { kind: "any" };
 
@@ -45,8 +62,8 @@ export const FeedFiltersSchema = z.object({
    * filter". Semantics with `cities` are a union of scopes (`buildFilterPredicate`): an oblast
    * means all of its cities unless some of its cities are also picked, in which case only those.
    */
-  regions: filterSelectionSchema(RegionIdSchema).default({ kind: "any" }),
-  cities: filterSelectionSchema(CityIdSchema),
+  regions: filterSelectionSchema(RegionIdSchema, MAX_FILTER_REGIONS).default({ kind: "any" }),
+  cities: filterSelectionSchema(CityIdSchema, MAX_FILTER_CITIES),
   species: filterSelectionSchema(AnimalSpeciesSchema),
   sizes: filterSelectionSchema(SizeBucketSchema),
   ages: filterSelectionSchema(AgeBucketSchema),

@@ -349,6 +349,17 @@ describe("regions", () => {
     expect(current.every((print) => print.split("|").length === 6)).toBe(true);
   });
 
+  it("refuses more than 27 oblasts and more than 30 cities", () => {
+    const ids = (n: number) =>
+      Array.from({ length: n }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
+    const regions = (n: number) => ({ ...NO_FILTERS, regions: { kind: "oneOf", values: ids(n) } });
+    const cities = (n: number) => ({ ...NO_FILTERS, cities: { kind: "oneOf", values: ids(n) } });
+    expect(FeedFiltersSchema.safeParse(regions(27)).success).toBe(true);
+    expect(FeedFiltersSchema.safeParse(regions(28)).success).toBe(false);
+    expect(FeedFiltersSchema.safeParse(cities(30)).success).toBe(true);
+    expect(FeedFiltersSchema.safeParse(cities(31)).success).toBe(false);
+  });
+
   it("relaxes like any other dimension", () => {
     expect(relaxDimension(byRegion(LVIV), "regions")).toEqual(NO_FILTERS);
     expect(isConstrained(byRegion(LVIV), "regions")).toBe(true);

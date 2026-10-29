@@ -22,7 +22,7 @@ import {
 } from "../src/test-utils/index";
 
 /**
- * The oblast dimension: the union-of-scopes rule, the facet roll-up, the Crimea cut and the
+ * The oblast dimension: the union-of-scopes rule, the facet roll-up, Crimea handled like every region, and the
  * token resolver. `feed-predicate-identity.test.ts` pins that cities alone still generate the
  * SQL they did before.
  */
@@ -166,7 +166,7 @@ describe("the oblast filter (union of scopes)", () => {
 
 describe("galleryRepo.facetCounts, location facets", () => {
   it("offers only the cities that have animals, with their labels, and rolls them up per oblast", async () => {
-    const { brovary, irpin, lviv, empty } = await corpus();
+    const { brovary, irpin, lviv, yalta, empty } = await corpus();
     const counts = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
 
     const byCity = new Map(counts.cities.map((c) => [c.cityId, c.count]));
@@ -175,6 +175,7 @@ describe("galleryRepo.facetCounts, location facets", () => {
         [brovary.id, 2],
         [irpin.id, 1],
         [lviv.id, 3],
+        [yalta.id, 1],
       ]),
     );
     expect(byCity.has(empty.id)).toBe(false);
@@ -183,15 +184,17 @@ describe("galleryRepo.facetCounts, location facets", () => {
       new Map([
         [KYIV_OBL, 3],
         [LVIV_OBL, 3],
+        [CRIMEA, 1],
       ]),
     );
   });
 
-  it("never offers Crimea as an option, yet still counts its animals in the tallies", async () => {
-    await corpus();
+  it("offers Crimea like any region, and its animals count in the tallies and the list alike", async () => {
+    const { yalta } = await corpus();
     const counts = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
-    expect(counts.regions.some((r) => r.regionId === CRIMEA)).toBe(false);
-    expect(counts.cities.some((c) => c.city.regionId === CRIMEA)).toBe(false);
+    expect(counts.regions.find((r) => r.regionId === CRIMEA)?.count).toBe(1);
+    expect(counts.cities.find((c) => c.cityId === yalta.id)?.count).toBe(1);
+    expect(await total({ ...NO_FILTERS, regions: regionsOf(CRIMEA) })).toBe(1);
     // Seven discoverable animals in all, and the size tally agrees with what the list shows.
     expect(Object.values(counts.sizes).reduce((sum, n) => sum + n, 0)).toBe(7);
     expect(await total(NO_FILTERS)).toBe(7);

@@ -82,29 +82,26 @@ export function cityFacetOptions(
 }
 
 /**
- * The oblasts that have an animal, with the roll-up count, plus any chosen oblast with none so it
- * stays clearable. `labels` holds a name for every oblast the page may print (the ones in the
- * counts and the ones in the URL), so the 27-row list is never shipped whole.
+ * Every oblast, always: the list is the 27 regions, not the ones that happen to hold an animal.
+ * One with nothing to find shows at zero and is disabled (`isUnavailable`) but stays in its place,
+ * ordered like the rest; a chosen one stays clickable so it can be cleared. `labels` names every
+ * region (the page passes all 27); `counts` carries the roll-up for those that have animals.
  */
 export function regionFacetOptions(
   counts: GalleryFacetCounts,
   labels: Readonly<Record<string, string>>,
   selection: FilterSelection<RegionId>,
 ): FacetOption<RegionId>[] {
-  const options = new Map<RegionId, FacetOption<RegionId>>();
-  for (const entry of counts.regions) {
-    options.set(entry.regionId, {
-      value: entry.regionId,
-      label: labels[entry.regionId] ?? entry.regionId,
-      count: entry.count,
-    });
-  }
-  if (selection.kind === "oneOf") {
-    for (const id of selection.values) {
-      if (!options.has(id)) options.set(id, { value: id, label: labels[id] ?? id, count: 0 });
-    }
-  }
-  return [...options.values()].sort(byCountThenLabel);
+  const countOf = new Map(counts.regions.map((entry) => [entry.regionId as string, entry.count]));
+  const ids = new Set<string>([...Object.keys(labels), ...countOf.keys()]);
+  if (selection.kind === "oneOf") for (const id of selection.values) ids.add(id);
+  return [...ids]
+    .map((id) => ({
+      value: id as RegionId,
+      label: labels[id] ?? id,
+      count: countOf.get(id) ?? 0,
+    }))
+    .sort(byCountThenLabel);
 }
 
 /** The closed dimensions keep their natural order: young to old, small to large. */

@@ -26,4 +26,4 @@ only inserts cities that are missing.
 Rules: identity is the КАТОТТГ code; a slug is assigned once and frozen; the 8 seeded cities are
 adopted in place (7 renamed to `{name}-kyivska`, old slug kept as a `legacy` alias); a vanished code
 is retired, never deleted, and refused while a shelter or animal points at it; centroids are never
-written; Crimea and Sevastopol are stored but never offered.
+written. Every region is treated alike, Crimea and Sevastopol included.

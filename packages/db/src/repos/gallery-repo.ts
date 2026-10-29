@@ -23,7 +23,6 @@ import {
 } from "@opika/domain";
 import { and, asc, desc, eq, getTableColumns, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { PICKER_HIDDEN_REGION_IDS } from "../geography/regions-data";
 import { animals } from "../schema/animals";
 import { cities } from "../schema/cities";
 import {
@@ -422,18 +421,14 @@ export function galleryRepo(db: Database) {
           number
         >;
 
-      // Crimea and Sevastopol are never offered as an option, the same rule the operator's picker
-      // applies. Only the option lists are cut: the age/size/sex tallies above still count every
-      // discoverable animal, so they keep agreeing with `list`.
-      const offered = rows.filter((row) => !PICKER_HIDDEN_REGION_IDS.includes(row.city.regionId));
       const perRegion = new Map<RegionId, number>();
-      for (const row of offered) {
+      for (const row of rows) {
         const count = row.n["n_loc"] ?? 0;
         perRegion.set(row.city.regionId, (perRegion.get(row.city.regionId) ?? 0) + count);
       }
 
       return {
-        cities: offered.map((row) => ({
+        cities: rows.map((row) => ({
           cityId: row.city.id,
           city: rowToCity(row.city),
           count: row.n["n_loc"] ?? 0,

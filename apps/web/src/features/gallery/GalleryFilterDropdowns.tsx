@@ -36,7 +36,7 @@ interface GalleryFilterDropdownsProps {
   filters: FeedFilters;
   sort: GallerySort;
   citySlugs: CitySlugsById;
-  /** A name for every oblast the options may print (the ones that have animals, and the chosen ones). */
+  /** A name for every oblast: the filter always lists all 27. */
   regionLabels: Readonly<Record<string, string>>;
   /** The labels of the cities the URL names, so a chosen city with no animal stays clearable. */
   selectedCities: readonly CityLabelView[];

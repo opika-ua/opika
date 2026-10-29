@@ -66,4 +66,10 @@ export const COUNTS: GalleryFacetCounts = {
 
 /** The slug maps a page builds from its labels. */
 export const PLACE_BOOK = placeBookOf(REGION_VIEWS, [BROVARY_LABEL, KYIV_LABEL, LVIV_LABEL]);
-export const REGION_LABELS = { [KYIV_OBL]: "Київська", [LVIV_OBL]: "Львівська" };
+/** Crimea has no animals in these fixtures: it is listed all the same, like every region. */
+export const CRIMEA_REGION = RegionIdSchema.parse("30756d7b-1a9e-598f-afc1-598613672165");
+export const REGION_LABELS = {
+  [KYIV_OBL]: "Київська",
+  [LVIV_OBL]: "Львівська",
+  [CRIMEA_REGION]: "АР Крим",
+};

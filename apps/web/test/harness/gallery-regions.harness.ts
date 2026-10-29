@@ -46,6 +46,19 @@ test.describe("/tvaryny, the oblast filter", () => {
     await page.locator(CARD).first().waitFor({ state: "visible" });
   });
 
+  test("the oblast selector lists all 27, an empty one disabled in place", async ({ page }) => {
+    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
+
+    await page.getByRole("button", { name: "Область: Область" }).click();
+    const pills = page.getByRole("group", { name: "Область" }).getByRole("button");
+    expect(await pills.count()).toBe(27);
+    // Crimea is listed like any other region; with no animal it is disabled, not removed.
+    await expect(page.getByRole("button", { name: "АР Крим, 0 тварин" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
   test("an oblast with no animals says so and offers the next-door oblast that has some", async ({
     page,
   }) => {

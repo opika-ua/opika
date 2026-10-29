@@ -1,3 +1,4 @@
+import { MAX_CITY_TOKENS } from "@opika/contracts";
 import {
   ANY,
   type AnimalId,
@@ -17,7 +18,6 @@ import {
   filtersInWords,
   galleryHref,
   galleryPageHref,
-  MAX_CITY_TOKENS,
   NO_PLACE_IDS,
   type PlaceIdsBySlug,
   parseDeckQuery,
@@ -513,6 +513,20 @@ describe("the oblast filter in the URL", () => {
       { cities: new Map(), regions: regionSlugs },
     );
     expect(filters.regions.kind === "oneOf" && filters.regions.values).toHaveLength(27);
+  });
+
+  it("drops empty, over-long and repeated city tokens before they can reach the contract", () => {
+    for (const misto of ["", ",", "brovary,", "a,,b", `x,${"a".repeat(101)}`]) {
+      const tokens = cityTokensOf({ misto });
+      expect(
+        tokens.every((t) => t.length > 0 && t.length <= 100),
+        misto,
+      ).toBe(true);
+    }
+    expect(cityTokensOf({ misto: "a,,b" })).toEqual(["a", "b"]);
+    expect(cityTokensOf({ misto: "brovary," })).toEqual(["brovary"]);
+    expect(cityTokensOf({ misto: "" })).toEqual([]);
+    expect(cityTokensOf({ misto: ["a", "a,b"] })).toEqual(["a", "b"]);
   });
 
   it("names the chosen oblasts first in the deck header", () => {

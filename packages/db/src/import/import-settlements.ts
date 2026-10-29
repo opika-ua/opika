@@ -50,7 +50,6 @@ export function reportLines(report: PlanReport): string[] {
     `Plan: insert ${n(report.inserted)}, adopt ${report.adopted} legacy, update ${n(report.updated)}, unchanged ${n(report.unchanged)}, retire ${report.retired}`,
     `Slugs: ${report.renamedSlugs} renamed, ${report.aliasesAdded} aliases to add, ${report.slugSuffixes} numeric suffixes`,
     `Name scope: unique_in_ukraine ${n(report.nameScopes.unique_in_ukraine)}, unique_in_region ${n(report.nameScopes.unique_in_region)}, unique_in_district ${n(report.nameScopes.unique_in_district)}, shared_in_district ${n(report.nameScopes.shared_in_district)}`,
-    `Hidden from the picker (Crimea, Sevastopol): ${n(report.hiddenFromPicker)}`,
     `Rows without a code that are not the 8 legacy cities (left alone): ${report.unmanagedRows}`,
     `Per region: ${Object.entries(report.perRegion)
       .map(([code, count]) => `${code} ${n(count)}`)

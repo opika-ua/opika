@@ -245,10 +245,17 @@ describe("GalleryFilterDropdowns", () => {
       ],
     };
 
-    it("lists the oblasts that have animals, with counts", () => {
+    it("lists every oblast with counts, a zero-count one disabled in place", () => {
       renderRow(NO_FILTERS, TWO_REGIONS);
       fireEvent.click(trigger("Область: Область"));
-      expect(pillNames(panel("Область"))).toEqual(["Київська, 28 тварин", "Львівська, 5 тварин"]);
+      expect(pillNames(panel("Область"))).toEqual([
+        "Київська, 28 тварин",
+        "Львівська, 5 тварин",
+        "АР Крим, 0 тварин",
+      ]);
+      expect(
+        screen.getByRole("button", { name: "АР Крим, 0 тварин" }).getAttribute("aria-disabled"),
+      ).toBe("true");
     });
 
     it("a pill applies at once through the URL as `obl`, keeping the other filters", () => {
