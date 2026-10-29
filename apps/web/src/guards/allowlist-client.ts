@@ -37,7 +37,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/discovery/use-feed-deck.ts": "hook: feed paging through the browser oRPC client",
   "features/filters/use-feed-filters.ts": "hook: filter state persisted via window",
   "features/gallery/ArrowKeyGrid.tsx": "2D arrow-key navigation over the card grid",
-  "features/gallery/FilterSheet.tsx": "dialog.showModal(), form submit to router, scroll lock",
+  "features/gallery/FilterSheet.tsx": "form submit and close through the router",
   "features/gallery/GalleryControlBlock.tsx":
     "filter-row disclosure: open state, matchMedia, outside click",
   "features/gallery/GalleryFilterDropdowns.tsx":

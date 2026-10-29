@@ -54,9 +54,7 @@ test.describe("/tvaryny out-of-range page", () => {
     // The clamp actually happened, not just the notice: real cards render,
     // and the pagination nav (if present) agrees this is page 10.
     await expect(page.locator(CARD).first()).toBeVisible();
-    const activePage = page
-      .getByTestId("pagination-page")
-      .and(page.locator('[data-active="true"]'));
+    const activePage = page.locator("[data-testid='gallery-pagination'] [aria-current='page']");
     await expect(activePage).toContainText("10");
   });
 

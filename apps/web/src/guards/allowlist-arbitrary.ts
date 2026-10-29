@@ -6,7 +6,6 @@ import type { Reasoned } from "./ratchet";
  * migrations only lower the numbers.
  */
 export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
-  "app/tvaryny/page.tsx": { max: 4, reason: "Gallery surface; burns down in DS PR 3a." },
   "features/animal-overlay/AnimalOverlay.tsx": {
     max: 1,
     reason:
@@ -25,39 +24,6 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     max: 1,
     reason:
       "The not-a-judgement line hides below 360px, where it wraps to two lines and clips the deck.",
-  },
-  "features/gallery/FilterSheet.tsx": {
-    max: 11,
-    reason: "Gallery surface; burns down in DS PR 3a.",
-  },
-  "features/gallery/GalleryCard.tsx": {
-    max: 8,
-    reason: "Gallery surface; burns down in DS PR 3a.",
-  },
-  "features/gallery/GalleryControlBlock.tsx": {
-    max: 5,
-    reason: "Gallery surface; burns down in DS PR 3a.",
-  },
-  "features/gallery/GalleryFilterDropdowns.tsx": {
-    max: 1,
-    reason: "Gallery surface; burns down in DS PR 3a.",
-  },
-  "features/gallery/GalleryPageNav.tsx": {
-    max: 3,
-    reason: "Gallery surface; burns down in DS PR 3a.",
-  },
-  "features/gallery/GallerySortToggle.tsx": {
-    max: 6,
-    reason: "Gallery surface; burns down in DS PR 3a.",
-  },
-  "features/gallery/NoMatch.tsx": { max: 5, reason: "Gallery surface; burns down in DS PR 3a." },
-  "features/gallery/OutOfRangeNotice.tsx": {
-    max: 3,
-    reason: "Gallery surface; burns down in DS PR 3a.",
-  },
-  "features/kabinet/SignInCard.tsx": {
-    max: 13,
-    reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
   },
   "features/reveal/ContactRevealDialog.tsx": {
     max: 1,

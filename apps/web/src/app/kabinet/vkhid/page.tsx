@@ -2,8 +2,8 @@ import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { AuthPage } from "../../../features/kabinet/AuthPage";
 import { leavesSignIn } from "../../../features/kabinet/home";
-import { KabinetBrand } from "../../../features/kabinet/KabinetBrand";
 import { InviteUnusableCard } from "../../../features/kabinet/password/InviteUnusableCard";
 import { SetPasswordCard } from "../../../features/kabinet/password/SetPasswordCard";
 import { SignInCard } from "../../../features/kabinet/SignInCard";
@@ -97,14 +97,5 @@ export default async function SignInPage({
         <InviteUnusableCard />
       );
   }
-  return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="flex min-h-16 items-center bg-rg-surface px-4 tablet:min-h-0 tablet:bg-transparent tablet:p-8">
-        <KabinetBrand />
-      </header>
-      <main className="flex flex-1 flex-col px-4 pt-5 pb-6 tablet:items-center tablet:justify-center tablet:px-8 tablet:pt-8 tablet:pb-24">
-        {card}
-      </main>
-    </div>
-  );
+  return <AuthPage>{card}</AuthPage>;
 }

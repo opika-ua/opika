@@ -111,7 +111,7 @@ export function Sheet({
         aria-label={label}
         onClick={onBackdropClick}
         className={cx(
-          "fixed inset-x-0 bottom-0 top-auto m-0 max-h-dvh w-full max-w-none overflow-y-auto rounded-t-panel border-0 bg-surface p-0 text-ink backdrop:bg-ink/40 tablet:rounded-t-sheet",
+          "fixed inset-x-0 bottom-0 top-auto z-(--z-sheet) m-0 max-h-dvh w-full max-w-none overflow-y-auto rounded-t-panel border-0 bg-surface p-0 text-ink backdrop:bg-ink/40 tablet:rounded-t-sheet",
           hideFrom && HIDE_FROM[hideFrom],
         )}
       >

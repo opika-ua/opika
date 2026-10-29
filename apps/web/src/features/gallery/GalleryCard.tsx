@@ -2,9 +2,13 @@ import type { FeedCardView } from "@opika/contracts";
 import type { FeedFilters, GallerySort } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
-import Image from "next/image";
 import Link from "next/link";
-import { cardAccessibleName, cardFactsParts, cardSpeciesBadgeTone, isReserved } from "./card-text";
+import { Badge } from "../../ui/Badge";
+import { buttonClass } from "../../ui/Button";
+import { cx } from "../../ui/cx";
+import { MetaLine } from "../../ui/MetaLine";
+import { Photo } from "../../ui/Photo";
+import { cardAccessibleName, cardFactsParts, isReserved } from "./card-text";
 import { animalPageHref, type CitySlugsById } from "./filter-url";
 
 /**
@@ -58,10 +62,6 @@ import { animalPageHref, type CitySlugsById } from "./filter-url";
 const SIZES =
   "(max-width: 599px) calc(100vw - 32px), (max-width: 1023px) calc(50vw - 32px), (max-width: 1511px) calc(25vw - 50.5px), 328px";
 
-const META_SEPARATOR = (
-  <span aria-hidden="true" className="h-1 w-[1.5px] shrink-0 bg-brand-ink-2" />
-);
-
 interface GalleryCardProps {
   card: FeedCardView;
   /** Pre-resolved by the caller (`cities.list`) - the card never fetches. */
@@ -94,81 +94,41 @@ export function GalleryCard({
   return (
     <Link
       href={animalPageHref(card.id, filters, sort, citySlugs)}
-      // Off, same reasoning as every other gallery link (`AnimalCard.tsx`'s
-      // own comment): the overlay's prefetch-per-visible-card cost against
-      // proxy.ts's per-IP budget.
+      // Off: the overlay's prefetch per visible card would eat proxy.ts's per-IP budget.
       prefetch={false}
       aria-label={cardAccessibleName(card, cityName)}
       data-testid="animal-card"
-      className="relative block aspect-[328/480] overflow-clip rounded-brand-card font-brand-ui focus-ring"
+      className="relative block overflow-clip rounded-card focus-ring"
     >
-      {/*
-        A pulsating skeleton (Figma node `87:1747`, a flat rounded-rect the
-        same shape as this card - a static reference frame, so the pulse
-        itself is this PR's own addition, "a common approach... skeletons
-        pulsating," Oleksii's words mid-build). Sits behind the photo, not
-        swapped in by a loading state: the photo covers it the instant it
-        paints, and it stays visible for the rare animal with no photo at
-        all (`photo` null) rather than leaving that case a blank void,
-        which a real scroll-into-view test against the seeded corpus
-        actually hit - a photo several rows down was still decoding when
-        first screenshotted, with nothing behind it in the pre-skeleton
-        build.
-      */}
-      <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-brand-line" />
-
-      {photo && (
-        <Image
-          src={photo.storageKey}
-          alt=""
-          fill
-          sizes={SIZES}
-          priority={priority}
-          className="object-cover"
-        />
-      )}
+      <Photo
+        src={photo?.storageKey ?? null}
+        alt=""
+        sizes={SIZES}
+        aspect="card"
+        priority={priority}
+      />
 
       <div className="absolute top-4 left-4 flex items-center gap-2">
-        <span
-          data-testid="freshness-badge"
-          className={`inline-flex items-center rounded-brand-tag px-2 py-1 text-[15px]/[1.2] font-medium text-brand-on-ink ${cardSpeciesBadgeTone(card.species)}`}
-        >
-          {freshnessLabel(card.freshness)}
+        <span data-testid="freshness-badge" className="contents">
+          <Badge tone={card.species}>{freshnessLabel(card.freshness)}</Badge>
         </span>
         {reserved && (
-          <span
-            data-testid="reserved-badge"
-            className="inline-flex items-center rounded-brand-tag bg-brand-ink px-2 py-1 text-[15px]/[1.2] font-medium text-brand-on-ink"
-          >
-            {uk.reserved.badge}
+          <span data-testid="reserved-badge" className="contents">
+            <Badge tone="ink">{uk.reserved.badge}</Badge>
           </span>
         )}
       </div>
 
-      <div className="absolute inset-x-3 bottom-3 flex flex-col gap-4 rounded-brand-panel bg-brand-surface pt-4 pr-5 pb-5 pl-5">
+      <div className="absolute inset-x-3 bottom-3 flex flex-col gap-4 rounded-panel bg-surface p-5">
         <div className="flex flex-col gap-2">
-          <span
-            data-testid="card-name"
-            className="truncate text-[26px]/[1.2] font-bold text-brand-ink"
-          >
+          <span data-testid="card-name" className="truncate text-title text-ink">
             {card.name}
           </span>
-          <span
-            data-testid="card-meta"
-            className="flex items-center gap-2 text-[16px]/[1.4] font-medium tracking-[0.16px] text-brand-ink-2"
-          >
-            {facts.map((part, index) => (
-              <span key={part} className="flex items-center gap-2">
-                {index > 0 && META_SEPARATOR}
-                {part}
-              </span>
-            ))}
+          <span data-testid="card-meta" className="contents">
+            <MetaLine parts={facts} />
           </span>
         </div>
-        <span
-          aria-hidden="true"
-          className="inline-flex min-h-11 w-fit items-center rounded-brand-pill bg-brand-ink px-5 text-[16px]/[1.2] font-semibold text-brand-on-ink"
-        >
+        <span aria-hidden="true" className={cx(buttonClass("primary"), "w-fit")}>
           {uk.feed.adoptPill}
         </span>
       </div>

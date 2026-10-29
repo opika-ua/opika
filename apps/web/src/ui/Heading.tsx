@@ -25,7 +25,7 @@ export type HeadingProps = {
    * to) without adding it to the tab order; 0 puts it in the tab order and is rarely right.
    */
   tabIndex?: -1 | 0;
-  ref?: Ref<HTMLHeadingElement>;
+  ref?: Ref<HTMLHeadingElement> | undefined;
   className?: string;
   children: ReactNode;
 };

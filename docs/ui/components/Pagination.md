@@ -8,7 +8,7 @@ File: `apps/web/src/ui/Pagination.tsx`
 
 **Accessibility.** Named nav; page links named by `pageLabel`; the current page is `aria-current=page` and read with `currentLabel`; nothing renders for one page. Works without JS.
 
-**Responsive.** Hit areas 48px, visible circle 44; wraps on a narrow screen.
+**Responsive.** Hit areas 48px, visible circle 44. Below tablet the gaps drop out and «з N» is hidden so prev, numbers and next fit one row at 360; it wraps only if the window is wider.
 
 **Example.**
 
