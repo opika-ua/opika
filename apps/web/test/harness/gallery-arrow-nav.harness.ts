@@ -298,7 +298,7 @@ test.describe("/tvaryny arrow-key grid navigation – page boundaries never trig
     // page 2's own edges.
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await page.getByTestId("pagination-next").click();
+    await page.getByRole("link", { name: "Далі →" }).click();
     await page.waitForURL(/stor=2/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
     const urlOnPage2 = page.url();

@@ -2,7 +2,10 @@ import type { GalleryRelaxation } from "@opika/contracts";
 import type { FeedFilterDimension, FeedFilters, GallerySort } from "@opika/domain";
 import { pluralizeUk, relaxDimension } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import Link from "next/link";
+import { LinkButton } from "../../ui/Button";
+import { Heading } from "../../ui/Heading";
+import { Panel } from "../../ui/Panel";
+import { Text } from "../../ui/Text";
 import type { CitySlugsById } from "./filter-url";
 import { galleryHref } from "./filter-url";
 
@@ -52,38 +55,43 @@ function suggestionLabel({ dimension, additional }: GalleryRelaxation): string {
  */
 export function NoMatch({ filters, sort, citySlugs, relaxations }: NoMatchProps) {
   return (
-    <div
-      data-testid="gallery-no-match"
-      className="font-brand-ui bg-brand-surface rounded-brand-card py-12 px-8 flex flex-col items-start gap-8"
+    <Panel
+      padding="lg"
+      className="flex flex-col items-start gap-8 py-12"
+      aria-labelledby="gallery-no-match-heading"
+      as="section"
     >
-      <div className="flex flex-col gap-3">
-        <h2 className="text-[34px]/[38px] font-bold tracking-[-0.03em] text-brand-ink text-pretty">
-          {uk.noMatch.heading}
-        </h2>
-        <p className="text-[17px]/[26px] text-brand-ink-2 text-pretty">{uk.noMatch.reassurance}</p>
-      </div>
+      <div data-testid="gallery-no-match" className="flex w-full flex-col items-start gap-8">
+        <div className="flex flex-col gap-3">
+          <Heading level={2} look="display-l" id="gallery-no-match-heading" className="text-pretty">
+            {uk.noMatch.heading}
+          </Heading>
+          <Text look="body" className="text-ink-2 text-pretty">
+            {uk.noMatch.reassurance}
+          </Text>
+        </div>
 
-      {relaxations.length > 0 && (
-        <>
-          <div className="flex flex-col gap-2 w-full">
-            {relaxations.map((suggestion, index) => (
-              <Link
-                key={suggestion.dimension}
-                href={galleryHref(relaxDimension(filters, suggestion.dimension), sort, citySlugs)}
-                data-testid="no-match-suggestion"
-                className={`min-h-14 flex items-center justify-center rounded-brand-field font-medium text-[15px] focus-ring ${
-                  index === 0 ? "bg-brand-ink text-brand-on-ink" : "bg-brand-line text-brand-ink"
-                }`}
-              >
-                {suggestionLabel(suggestion)}
-              </Link>
-            ))}
-          </div>
-          <p className="text-[13px]/[18px] text-brand-muted text-pretty">
-            {uk.noMatch.suggestionExplainer}
-          </p>
-        </>
-      )}
-    </div>
+        {relaxations.length > 0 && (
+          <>
+            <div className="flex w-full flex-col gap-2">
+              {relaxations.map((suggestion, index) => (
+                <LinkButton
+                  key={suggestion.dimension}
+                  variant={index === 0 ? "primary" : "secondary"}
+                  href={galleryHref(relaxDimension(filters, suggestion.dimension), sort, citySlugs)}
+                  data-testid="no-match-suggestion"
+                  className="w-full"
+                >
+                  {suggestionLabel(suggestion)}
+                </LinkButton>
+              ))}
+            </div>
+            <Text look="hint" className="text-pretty">
+              {uk.noMatch.suggestionExplainer}
+            </Text>
+          </>
+        )}
+      </div>
+    </Panel>
   );
 }

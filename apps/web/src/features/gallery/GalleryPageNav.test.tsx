@@ -28,8 +28,10 @@ describe("GalleryPageNav", () => {
         totalPages={3}
       />,
     );
-    expect(screen.queryByTestId("pagination-prev")).toBeNull();
-    expect(screen.getByTestId("pagination-next").getAttribute("href")).toBe("/tvaryny?stor=2");
+    expect(screen.queryByRole("link", { name: uk.pagination.prev })).toBeNull();
+    expect(screen.getByRole("link", { name: uk.pagination.next }).getAttribute("href")).toBe(
+      "/tvaryny?stor=2",
+    );
   });
 
   it("next is absent on the last page; prev is a real link", () => {
@@ -42,8 +44,10 @@ describe("GalleryPageNav", () => {
         totalPages={3}
       />,
     );
-    expect(screen.queryByTestId("pagination-next")).toBeNull();
-    expect(screen.getByTestId("pagination-prev").getAttribute("href")).toBe("/tvaryny?stor=2");
+    expect(screen.queryByRole("link", { name: uk.pagination.next })).toBeNull();
+    expect(screen.getByRole("link", { name: uk.pagination.prev }).getAttribute("href")).toBe(
+      "/tvaryny?stor=2",
+    );
   });
 
   /**
@@ -62,8 +66,8 @@ describe("GalleryPageNav", () => {
         totalPages={3}
       />,
     );
-    const prev = screen.getByTestId("pagination-prev");
-    const next = screen.getByTestId("pagination-next");
+    const prev = screen.getByRole("link", { name: uk.pagination.prev });
+    const next = screen.getByRole("link", { name: uk.pagination.next });
     expect(prev.textContent).toBe("");
     expect(next.textContent).toBe("");
     expect(prev.getAttribute("aria-label")).toBe(uk.pagination.prev);
@@ -80,8 +84,7 @@ describe("GalleryPageNav", () => {
         totalPages={3}
       />,
     );
-    const pages = screen.getAllByTestId("pagination-page");
-    const current = pages.find((p) => p.getAttribute("data-active") === "true");
+    const current = document.querySelector("[aria-current='page']");
     expect(current?.tagName).toBe("SPAN");
     expect(current?.getAttribute("aria-current")).toBe("page");
     expect(current?.textContent).toContain("2");

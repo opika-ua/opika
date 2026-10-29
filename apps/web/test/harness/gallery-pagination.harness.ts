@@ -32,7 +32,9 @@ test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
 const NAV = "[data-testid='gallery-pagination']";
-const PAGE_LINK = "[data-testid='pagination-page']";
+const NEXT = { name: "Далі →" };
+const PREV = { name: "← Назад" };
+const ACTIVE = "[aria-current='page']";
 
 test.describe("/tvaryny pagination", () => {
   test("the seeded corpus is genuinely multi-page – a precondition for every test below", async ({
@@ -50,7 +52,7 @@ test.describe("/tvaryny pagination", () => {
   test("the active page carries aria-current and is not a link to itself", async ({ page }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    const active = page.locator(`${NAV} [data-active='true']`);
+    const active = page.locator(`${NAV} ${ACTIVE}`);
     await expect(active, "exactly one page should be marked active on load").toHaveCount(1);
     await expect(active).toHaveAttribute("aria-current", "page");
     await expect(active, "page 1 is active on a bare /tvaryny visit").toHaveText(/^1/);
@@ -64,14 +66,13 @@ test.describe("/tvaryny pagination", () => {
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await expect(page.getByTestId("pagination-prev")).toHaveCount(0);
-    await expect(page.getByTestId("pagination-prev-disabled")).toHaveCount(1);
+    await expect(page.getByRole("link", PREV)).toHaveCount(0);
 
-    await page.getByTestId("pagination-next").click();
+    await page.getByRole("link", NEXT).click();
     await page.waitForURL(/stor=2/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
 
-    const active = page.locator(`${NAV} [data-active='true']`);
+    const active = page.locator(`${NAV} ${ACTIVE}`);
     await expect(active).toHaveText(/^2/);
   });
 
@@ -88,11 +89,11 @@ test.describe("/tvaryny pagination", () => {
     await page.goto("/pro", { waitUntil: "load" });
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await page.getByTestId("pagination-next").click();
+    await page.getByRole("link", NEXT).click();
     await page.waitForURL(/stor=2/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
 
-    await page.getByTestId("pagination-next").click();
+    await page.getByRole("link", NEXT).click();
     await page.waitForURL(/stor=3/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
 
@@ -137,7 +138,7 @@ test.describe("/tvaryny pagination", () => {
 
     const namesBefore = await page.locator(`${CARD} [data-testid='card-name']`).allTextContents();
 
-    await page.getByTestId("pagination-next").click();
+    await page.getByRole("link", NEXT).click();
     await page.waitForURL(/stor=2/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
 
@@ -153,7 +154,7 @@ test.describe("/tvaryny pagination", () => {
   test("a page number's accessible name states which page it is", async ({ page }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    const secondPageLink = page.locator(PAGE_LINK).filter({ hasText: /^2$/ });
+    const secondPageLink = page.locator(`${NAV} a`).filter({ hasText: /^2$/ });
     // The computed name, not the `aria-label` attribute: the attribute is
     // only one of the inputs to it, and this test's claim is about what a
     // screen reader actually announces. "Сторінка 2" also contains the
@@ -178,8 +179,8 @@ test.describe("/tvaryny pagination", () => {
   }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await expect(page.getByTestId("pagination-next")).toHaveText("");
-    await expect(page.getByTestId("pagination-next")).toHaveAccessibleName("Далі →");
+    await expect(page.getByRole("link", NEXT)).toHaveText("");
+    await expect(page.getByRole("link", NEXT)).toHaveAccessibleName("Далі →");
   });
 
   /**

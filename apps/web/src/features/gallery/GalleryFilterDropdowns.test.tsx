@@ -59,7 +59,7 @@ describe("GalleryFilterDropdowns", () => {
     for (const name of ["Місто: Місто", "Вік: Вік", "Розмір: Розмір", "Стать: Стать"]) {
       expect(trigger(name).getAttribute("aria-expanded")).toBe("false");
     }
-    expect(screen.getByTestId("species-toggle").tagName).toBe("FIELDSET");
+    expect(screen.getByRole("group", { name: "Вид" })).toBe(screen.getByTestId("species-toggle"));
   });
 
   it("names the trigger by the dimension while nothing is chosen", () => {

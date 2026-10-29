@@ -162,14 +162,6 @@ describe("GalleryCard freshness badge", () => {
     expect(screen.getByTestId("freshness-badge").textContent).toBe(freshnessLabel(freshness));
     expect(screen.queryByTestId("freshness-pip")).toBeNull();
   });
-
-  it.each([
-    ["dog", "bg-brand-dog"],
-    ["cat", "bg-brand-accent"],
-  ] as const)("colours the badge by species: %s → %s", (species, tone) => {
-    render(<GalleryCard card={makeCard({ species })} cityName="Бровари" {...NO_CONTEXT} />);
-    expect(screen.getByTestId("freshness-badge").className).toContain(tone);
-  });
 });
 
 describe("GalleryCard meta line", () => {

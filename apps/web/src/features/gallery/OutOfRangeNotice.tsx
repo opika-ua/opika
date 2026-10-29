@@ -1,6 +1,8 @@
 import type { FeedFilters, GallerySort } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import Link from "next/link";
+import { Panel } from "../../ui/Panel";
+import { Text } from "../../ui/Text";
+import { TextLink } from "../../ui/TextLink";
 import type { CitySlugsById } from "./filter-url";
 import { galleryPageHref } from "./filter-url";
 
@@ -13,10 +15,8 @@ import { galleryPageHref } from "./filter-url";
  * component only renders when the caller (`page.tsx`) detects the
  * requested page and the resolved page differ.
  *
- * `#F2F2F0` fill / radius 16 / two 15px lines / an underlined text link
- * (navigation, not an operation - a `<Link>`, never a `<button>`) are the
- * mock's own literal values, and so is the layout split the frames don't
- * share: P1 (desktop, `Opika Registry Frames.dc.html`) is a row -
+ * An underlined text link (navigation, not an operation - a link, never a
+ * `<button>`), and the layout split the mock's two frames don't share: P1 (desktop, `Opika Registry Frames.dc.html`) is a row -
  * `align-items: center; gap: 16px; padding: 16px 20px` - text block and
  * link side by side; P2 (mobile) is a column - `gap: 8px; padding: 16px`
  * - all three lines stacked, link included. Renders server-side, no
@@ -37,28 +37,28 @@ export function OutOfRangeNotice({
   citySlugs: CitySlugsById;
 }) {
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      data-testid="gallery-out-of-range-notice"
-      className="font-brand-ui bg-brand-line rounded-brand-field p-4 desktop:py-4 desktop:px-5 flex flex-col gap-2 desktop:flex-row desktop:items-center desktop:gap-4 mb-4"
+    <Panel
+      tone="sunken"
+      className="mb-4 flex flex-col gap-2 desktop:flex-row desktop:items-center desktop:gap-4"
     >
-      <div className="flex flex-col gap-1 desktop:flex-1">
-        <span className="text-[15px]/[22px] font-medium text-brand-ink">
+      <div
+        role="status"
+        aria-live="polite"
+        data-testid="gallery-out-of-range-notice"
+        className="flex flex-col gap-1 desktop:flex-1"
+      >
+        <Text as="span" look="label">
           {uk.outOfRangePage.notFound
             .replace("{requested}", String(requestedPage))
             .replace("{total}", String(totalPages))}
-        </span>
-        <span className="text-[15px]/[22px] text-brand-ink-2">
+        </Text>
+        <Text as="span" look="body" className="text-ink-2">
           {uk.outOfRangePage.showingLast.replace("{total}", String(totalPages))}
-        </span>
+        </Text>
       </div>
-      <Link
-        href={galleryPageHref(filters, sort, 1, citySlugs)}
-        className="text-[15px] text-brand-ink underline underline-offset-2 focus-ring"
-      >
+      <TextLink href={galleryPageHref(filters, sort, 1, citySlugs)}>
         {uk.outOfRangePage.backToFirst}
-      </Link>
-    </div>
+      </TextLink>
+    </Panel>
   );
 }
