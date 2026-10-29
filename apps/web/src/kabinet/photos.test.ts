@@ -548,7 +548,7 @@ describe("who may upload", () => {
     expect(result.status).toBe(401);
   });
 
-  it("another shelter's animal: 403 FORBIDDEN, nothing stored, its photos untouched", async () => {
+  it("another shelter's animal: 404 NOT_FOUND like a missing id, nothing stored, its photos untouched", async () => {
     const theirs = await animal({ photos: [photo(1)] }, other);
     const { uploads, puts } = uploadsOn();
     for (const [path, input] of [
@@ -571,8 +571,8 @@ describe("who may upload", () => {
       ],
     ] as const) {
       const result = await call(path, input, { uploads });
-      expect(result.status, path).toBe(403);
-      expect(errorOf(result.body).code, path).toBe("FORBIDDEN");
+      expect(result.status, path).toBe(404);
+      expect(errorOf(result.body).code, path).toBe("NOT_FOUND");
     }
     expect(puts).toEqual([]);
     expect((await reload(theirs.id)).photos).toEqual([photo(1)]);
