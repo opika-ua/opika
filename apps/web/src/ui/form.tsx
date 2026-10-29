@@ -198,8 +198,8 @@ export type Segment<T extends string> = {
 export const SEGMENT_TRACK = "flex min-h-13 gap-1 rounded-field border-2 bg-page p-0.5";
 export const SEGMENT =
   "relative flex min-h-11 min-w-16 flex-1 items-center justify-center rounded-tag px-4 text-center text-label";
-// A 48px hit area on a 44px segment: the pseudo-element reaches 2px into the track padding.
-export const SEGMENT_HIT = "before:absolute before:inset-x-0 before:-inset-y-0.5";
+// A 48px hit area on a 44px segment: the pseudo-element reaches 2px into the track padding, under the label text.
+export const SEGMENT_HIT = "before:absolute before:inset-x-0 before:-inset-y-0.5 *:relative";
 export const SEGMENT_ON = "bg-ink text-on-ink";
 export const SEGMENT_OFF = "text-ink-2 hover:bg-line";
 
