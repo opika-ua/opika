@@ -34,26 +34,6 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     max: 3,
     reason: "Pet card surface; burns down in DS PR 3b.",
   },
-  "features/chrome/BrandLogo.tsx": {
-    max: 2,
-    reason: "Site header and footer; moves onto the kit with the first public surface migrated.",
-  },
-  "features/chrome/ContentPageLayout.tsx": {
-    max: 3,
-    reason: "Site header and footer; moves onto the kit with the first public surface migrated.",
-  },
-  "features/chrome/Footer.tsx": {
-    max: 1,
-    reason: "Site header and footer; moves onto the kit with the first public surface migrated.",
-  },
-  "features/chrome/MobileNavMenu.tsx": {
-    max: 2,
-    reason: "Site header and footer; moves onto the kit with the first public surface migrated.",
-  },
-  "features/chrome/SiteHeader.tsx": {
-    max: 2,
-    reason: "Site header and footer; moves onto the kit with the first public surface migrated.",
-  },
   "features/controls/controls.tsx": {
     max: 3,
     reason:
