@@ -303,7 +303,11 @@ export const uk = {
      */
     sortFreshestShort: "Нові",
     sortLongestWaitingShort: "Зачекались",
-    allCities: "Уся Київщина",
+    /** The city group's «any» chip. Owner-approved nationwide copy table, row 5. */
+    allCities: "Усі міста",
+    /** The oblast filter's label and its «any» chip (rows 17 and 18 of the same table). */
+    region: "Область",
+    allRegions: "Усі області",
     railFooter: "Фільтра за датою немає: тварина, про яку давно не писали, теж шукає дім.",
     /**
      * gallery-v3 (Figma `58:1617`): the dropdown row's own clear-all ✕,
@@ -455,8 +459,8 @@ export const uk = {
 
   // --- Location ---
   location: {
-    /** Template: "м. {city} · у домі волонтерки" */
-    fostered: "Живе у волонтерки, м. {city}. Точної адреси ми не знаємо і не показуємо.",
+    /** Template: "{place} · у домі волонтерки"; `{place}` is the kind-aware text from `placeText`. */
+    fostered: "Живе у волонтерки, {place}. Точної адреси ми не знаємо і не показуємо.",
     /**
      * Pet card PR 5 dropped the detail screen's own "Де живе" explanatory
      * block (`heading`/`noMapExplanation`, used only there): the new panel
@@ -470,8 +474,8 @@ export const uk = {
      * today - the gallery card's own meta line uses
      * `cardMeta.fosteredHousing`/`atShelter` instead.
      */
-    lineFostered: "м. {city} · на перетримці",
-    lineAtShelter: "м. {city}",
+    lineFostered: "{place} · на перетримці",
+    lineAtShelter: "{place}",
   },
 
   // --- Shelter page (designer round 1, S6) ---
@@ -775,8 +779,8 @@ export const uk = {
      * not the fuller sentence in location.fostered, which carries the
      * detail page's own address disclaimer the card has no room for.
      */
-    atShelter: "м. {city}",
-    fosteredHousing: "на перетримці, м. {city}",
+    atShelter: "{place}",
+    fosteredHousing: "на перетримці, {place}",
     /**
      * gallery-v3 (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`): the
      * redesigned card's meta line names sex as its own word instead of
@@ -911,6 +915,24 @@ export const uk = {
   // (unlike the relaxation counts themselves, `gallery.relaxationCounts`
   // already built and tested in E2), so it's not reproduced here; the two
   // suggestion buttons below carry the actual per-filter numbers instead.
+  /**
+   * A settlement named on a card or a page (nationwide table, rows 9 to 12). `{place}` is the kind
+   * prefix plus the name; the region and raion follow only when the name alone is ambiguous
+   * (`placeText`, `packages/i18n/src/place.ts`). «м.» for a city, «с-ще» for a selyshche, «с.» for
+   * a village.
+   */
+  place: {
+    prefixCity: "м.",
+    prefixSelyshche: "с-ще",
+    prefixVillage: "с.",
+    /** Template: "{place}, {region}", e.g. «с. Миколаївка, Одеська обл.» */
+    withRegion: "{place}, {region}",
+    /** Template: "{place}, {district}, {region}", for a name shared inside its oblast. */
+    withDistrictAndRegion: "{place}, {district}, {region}",
+    /** Template: «Броварський район» -> «Броварський р-н». */
+    districtShort: "{name} р-н",
+  },
+
   noMatch: {
     heading: "Під ці фільтри зараз нікого немає.",
     reassurance: "Це не помилка пошуку.",
@@ -924,6 +946,12 @@ export const uk = {
      * mock's own flavour text for its one example, kept generic to describe
      * what the button actually does for any city selection. */
     showAllCities: "Показати всі міста ({animalWord})",
+    /** Template: the oblast relaxation, same shape as `showAllCities` (nationwide table, row 25). */
+    showAllRegions: "Показати всі області ({animalWord})",
+    /** Nationwide table, row 23: shown when the chosen oblasts hold no animals under the other filters. */
+    regionEmpty: "У вибраних областях поки немає тварин.",
+    /** Nationwide table, row 24. Template: "Сусідня область: {region} ({animalWord})", no declension needed. */
+    neighbourRegion: "Сусідня область: {region} ({animalWord})",
     /** Template: "+{count} тварин" - the number every suggestion names,
      * never a suggestion with none (docs/design/README.md: "no suggestion
      * without a number"). */

@@ -7,6 +7,7 @@ import {
   AnimalSpeciesSchema,
 } from "../animals/animal";
 import { SIZE_BUCKETS, SizeBucketSchema } from "../animals/size";
+import { RegionIdSchema } from "../geography/region";
 import { CityIdSchema } from "../primitives/ids";
 
 /**
@@ -39,6 +40,12 @@ const filterSelectionSchema = <S extends z.ZodType>(value: S) =>
 export const ANY: FilterSelection<never> = { kind: "any" };
 
 export const FeedFiltersSchema = z.object({
+  /**
+   * Defaulted so a saved filter set from before the oblast dimension still parses, as "no oblast
+   * filter". Semantics with `cities` are a union of scopes (`buildFilterPredicate`): an oblast
+   * means all of its cities unless some of its cities are also picked, in which case only those.
+   */
+  regions: filterSelectionSchema(RegionIdSchema).default({ kind: "any" }),
   cities: filterSelectionSchema(CityIdSchema),
   species: filterSelectionSchema(AnimalSpeciesSchema),
   sizes: filterSelectionSchema(SizeBucketSchema),
@@ -54,6 +61,7 @@ export const FeedFiltersSchema = z.object({
 export type FeedFilters = z.infer<typeof FeedFiltersSchema>;
 
 export const NO_FILTERS: FeedFilters = {
+  regions: { kind: "any" },
   cities: { kind: "any" },
   species: { kind: "any" },
   sizes: { kind: "any" },
@@ -115,8 +123,8 @@ export const isExplicitlySelected = <T>(selection: FilterSelection<T>, value: T)
  * which is exactly the cursor mismatch this function exists to prevent. Sorting
  * alone does not catch it.
  *
- * Cities have no static universe, so they are ordered but never collapsed; the
- * city list is data and does not belong in this package.
+ * Cities and regions have no universe here, so they are ordered but never collapsed; the
+ * lists are data and do not belong in this package.
  */
 const canonicalizeSelection = <T extends string>(
   selection: FilterSelection<T>,
@@ -152,6 +160,7 @@ const canonicalizeSelection = <T extends string>(
  * do.
  */
 export const canonicalizeFilters = (filters: FeedFilters): FeedFilters => ({
+  regions: canonicalizeSelection(filters.regions, null),
   cities: canonicalizeSelection(filters.cities, null),
   species: canonicalizeSelection(filters.species, ANIMAL_SPECIES),
   sizes: canonicalizeSelection(filters.sizes, SIZE_BUCKETS),
@@ -192,5 +201,8 @@ export const filtersFingerprint = (filters: FeedFilters): string => {
     encode(canonical.sizes),
     encode(canonical.ages),
     encode(canonical.sexes),
+    // Appended last: every fingerprint issued before the oblast dimension has one segment fewer,
+    // so a cursor from before it is refused once (INVALID_CURSOR), never read against the wrong filters.
+    encode(canonical.regions),
   ].join("|");
 };

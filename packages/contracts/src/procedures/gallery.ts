@@ -8,12 +8,14 @@ import {
   FeedFiltersSchema,
   GalleryScopeSchema,
   GallerySortSchema,
+  RegionIdSchema,
   SizeBucketSchema,
 } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 import { apiErrors } from "../errors";
 import { FeedCardViewSchema } from "../views/animal";
+import { CityLabelViewSchema } from "../views/shelter";
 import { galleryPageSchema, galleryPageSizeSchema } from "./pagination";
 
 const countSchema = z.int().nonnegative();
@@ -51,6 +53,12 @@ export const GalleryListOutputSchema = z.object({
    * would be a second thing to keep in step with `AnimalSchema`.
    */
   items: z.array(FeedCardViewSchema).readonly(),
+
+  /**
+   * The cities the page's cards are in, one label each: views carry only a `cityId`, and the page
+   * names the place from here instead of from a settlement list.
+   */
+  cityLabels: z.array(CityLabelViewSchema).readonly(),
 
   /**
    * Every animal matching the filters, not just this page, and truthful past
@@ -145,10 +153,17 @@ export const GalleryFacetCountsInputSchema = z.object({
  * don't collapse as options are picked. Integers and option ids only.
  *
  * Species has no entry: it is a segmented control, not a selector with counts.
- * A city absent from `cities` has no discoverable animal at all, so zero.
+ *
+ * `cities` is every city that has a discoverable animal, and no other (the options are derived
+ * from the animals, never from the settlement list), each with its label so a chip can print the
+ * kind-aware name and tell two same-named settlements apart. Its `count` and `regions`' are the
+ * matches with both location dimensions relaxed, so an oblast's count is the sum of its cities'.
  */
 export const GalleryFacetCountsOutputSchema = z.object({
-  cities: z.array(z.object({ cityId: CityIdSchema, count: countSchema })).readonly(),
+  cities: z
+    .array(z.object({ cityId: CityIdSchema, count: countSchema, label: CityLabelViewSchema }))
+    .readonly(),
+  regions: z.array(z.object({ regionId: RegionIdSchema, count: countSchema })).readonly(),
   ages: z.record(AgeBucketSchema, countSchema),
   sizes: z.record(SizeBucketSchema, countSchema),
   sexes: z.record(AnimalSexSchema, countSchema),

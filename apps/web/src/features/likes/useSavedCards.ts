@@ -1,4 +1,6 @@
-import type { AnimalId } from "@opika/domain";
+import type { CityLabelView } from "@opika/contracts";
+import type { AnimalId, CityId } from "@opika/domain";
+import { placeName } from "@opika/i18n";
 import { useCallback, useEffect, useState } from "react";
 import { savedBrowserClient } from "../../api/browser-client";
 import {
@@ -40,6 +42,8 @@ export function savedCardsLoadStateOf(
 
 export interface SavedCardsState {
   readonly load: SavedCardsLoadState;
+  /** A name for each city the available cards are in (`cardsByIds` carries one label per city). */
+  readonly cityNames: Readonly<Record<CityId, string>>;
   readonly storageBlocked: boolean;
   removeSaved(animalId: AnimalId): void;
 }
@@ -68,6 +72,7 @@ export interface SavedCardsState {
 export function useSavedCards(): SavedCardsState {
   const [ids, setIds] = useState<readonly string[] | null>(null);
   const [items, setItems] = useState<readonly SavedCardResult[] | null>(null);
+  const [cityLabels, setCityLabels] = useState<readonly CityLabelView[]>([]);
   const [storageBlocked, setStorageBlocked] = useState(false);
 
   const readIds = useCallback(() => {
@@ -91,7 +96,9 @@ export function useSavedCards(): SavedCardsState {
     savedBrowserClient.animals
       .cardsByIds({ animalIds: ids as AnimalId[] })
       .then((res) => {
-        if (!cancelled) setItems(res.items);
+        if (cancelled) return;
+        setItems(res.items);
+        setCityLabels(res.cityLabels);
       })
       .catch(() => {
         // Offline, or the per-IP limit - the page keeps its last known
@@ -119,5 +126,6 @@ export function useSavedCards(): SavedCardsState {
     [readIds],
   );
 
-  return { load: savedCardsLoadStateOf(ids, items), storageBlocked, removeSaved };
+  const cityNames = Object.fromEntries(cityLabels.map((city) => [city.id, placeName(city)]));
+  return { load: savedCardsLoadStateOf(ids, items), cityNames, storageBlocked, removeSaved };
 }

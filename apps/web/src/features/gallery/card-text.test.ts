@@ -48,16 +48,16 @@ describe("isReserved", () => {
 });
 
 describe("housingCityLabel", () => {
-  it("reads 'м. {city}' for an animal at its shelter (publicLocation null)", () => {
+  it("reads the place as given for an animal at its shelter (publicLocation null)", () => {
     const card = makeCard({ publicLocation: null });
-    expect(housingCityLabel(card, "Бровари")).toBe("м. Бровари");
+    expect(housingCityLabel(card, "м. Бровари")).toBe("м. Бровари");
   });
 
   it("reads the fostered sentence for an animal with its own city-precision location", () => {
     const card = makeCard({
       publicLocation: { cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never },
     });
-    expect(housingCityLabel(card, "Ірпінь")).toBe("на перетримці, м. Ірпінь");
+    expect(housingCityLabel(card, "м. Ірпінь")).toBe("на перетримці, м. Ірпінь");
   });
 
   it("degrades to null, not a broken template, when the city name hasn't resolved", () => {
@@ -65,7 +65,7 @@ describe("housingCityLabel", () => {
   });
 
   it("prints a city name carrying replacement patterns ($&, $1) literally", () => {
-    expect(housingCityLabel(makeCard({ publicLocation: null }), "Місто $& $1")).toBe(
+    expect(housingCityLabel(makeCard({ publicLocation: null }), "м. Місто $& $1")).toBe(
       "м. Місто $& $1",
     );
   });
@@ -74,7 +74,7 @@ describe("housingCityLabel", () => {
 describe("cardMetaLine", () => {
   it("joins age, size and housing+city with the deck's own separator", () => {
     const card = makeCard({ ageBucket: "young", size: "small", publicLocation: null });
-    expect(cardMetaLine(card, "Бровари")).toBe("молодий · мала · м. Бровари");
+    expect(cardMetaLine(card, "м. Бровари")).toBe("молодий · мала · м. Бровари");
   });
 
   it("drops the housing+city segment rather than leaving a dangling separator", () => {

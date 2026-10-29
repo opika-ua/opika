@@ -8,13 +8,12 @@ import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
 import { Skeleton } from "../../ui/Skeleton";
 import { SiteHeader } from "../chrome/SiteHeader";
+import { cardCityId } from "../gallery/card-text";
 import type { CitySlugsById } from "../gallery/filter-url";
 import { GalleryCard } from "../gallery/GalleryCard";
 import { type SavedCardResult, useSavedCards } from "./useSavedCards";
 
 interface SavedPageScreenProps {
-  /** `cities.list`, resolved server-side - this screen never fetches it itself. */
-  cityNames: Readonly<Record<string, string>>;
   /** Designer feedback batch D: whether to show the role-aware header's kabinet nav. Defaulted, like `AnimalDetailScreen`'s - the real caller (`app/zberezheni/page.tsx`) always passes it explicitly. */
   kabinetSignedIn?: boolean;
 }
@@ -44,7 +43,8 @@ const GRID = "grid grid-cols-1 gap-4 tablet:grid-cols-2 desktop:grid-cols-4 desk
  * S8, the saved page (`/zberezheni`). Client-rendered end to end: the list
  * of ids lives in `localStorage`, which does not exist on the server, so
  * there is nothing for a server render to do here beyond the shell in
- * `app/zberezheni/page.tsx` (metadata, and resolving `cityNames` once).
+ * `app/zberezheni/page.tsx` (metadata and the kabinet nav). City names come from
+ * `animals.cardsByIds`, one label per city, never from a settlement list.
  *
  * No mock exists for this screen (`docs/designer-round-1.md` §4: "No mock
  * frame"), so its layout is the builder's call, listed under "Decisions
@@ -85,8 +85,8 @@ const GRID = "grid grid-cols-1 gap-4 tablet:grid-cols-2 desktop:grid-cols-4 desk
  * just fixed - traded deliberately for the fresh-visitor fix, not an
  * oversight.
  */
-export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPageScreenProps) {
-  const { load, storageBlocked, removeSaved } = useSavedCards();
+export function SavedPageScreen({ kabinetSignedIn = false }: SavedPageScreenProps) {
+  const { load, cityNames, storageBlocked, removeSaved } = useSavedCards();
   // S8-D2: a saved id that resolves to no animal at all has no honest sentence to
   // show (inventing one isn't the builder's call, and `[COPY PENDING]` can never
   // ship live in this catalogue - Q-B, 2026-10-19 - since it turns production
@@ -146,7 +146,7 @@ export function SavedPageScreen({ cityNames, kabinetSignedIn = false }: SavedPag
                 {item.kind === "available" ? (
                   <GalleryCard
                     card={item.card}
-                    cityName={cityNames[item.card.publicLocation?.cityId ?? ""] ?? null}
+                    cityName={cityNames[cardCityId(item.card)] ?? null}
                     filters={NO_FILTERS}
                     sort={DEFAULT_GALLERY_SORT}
                     citySlugs={EMPTY_CITY_SLUGS}

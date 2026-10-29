@@ -1,20 +1,25 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
-import { AnimalIdSchema, DEFAULT_GALLERY_SORT, NO_FILTERS, textIn } from "@opika/domain";
+import { AnimalIdSchema, DEFAULT_GALLERY_SORT, NO_FILTERS } from "@opika/domain";
+import { placeName, placeText } from "@opika/i18n";
 import { pageRefusalOf } from "../../api/page-refusal";
 import { anonymousRouterClient } from "../../api/server-client";
 import { galleryHref } from "../gallery/filter-url";
+import { placeBookOf } from "../gallery/place-book";
 
 /** The procedures the animal page reads; a test passes a stub of just these. */
 export type AnimalPageClient = Pick<
   ReturnType<typeof anonymousRouterClient>,
-  "animals" | "shelters" | "cities"
+  "animals" | "shelters" | "cities" | "regions"
 >;
 
 /** Everything `AnimalDetailScreen` is given except `now`, which is read at render. */
 export interface AnimalPageView {
   animal: AnimalDetailView;
   shelter: PublicShelterView;
+  /** The place as a title or a chip names it: the bare name, with its oblast where the name repeats. */
   cityName: string | null;
+  /** The place as a meta line prints it («м. Бровари», «с. Миколаївка, Березівський р-н, Одеська обл.»). */
+  cityPlace: string | null;
   backToGalleryHref: string;
 }
 
@@ -46,10 +51,7 @@ export async function loadAnimalPage(
   if (!parsedId.success) return { kind: "not_found" };
 
   try {
-    const [animal, cities] = await Promise.all([
-      client.animals.byId({ animalId: parsedId.data }),
-      client.cities.list({}),
-    ]);
+    const animal = await client.animals.byId({ animalId: parsedId.data });
     // `shelters.byId` answers NOT_FOUND when the shelter stopped being
     // verified between the two calls; the card is then gone for the same
     // reason `animals.byId` would have said so a moment later.
@@ -58,22 +60,26 @@ export async function loadAnimalPage(
     const cityId = animal.publicLocation
       ? animal.publicLocation.cityId
       : shelter.publicLocation.cityId;
-    const city = cities.find((c) => c.id === cityId) ?? null;
+    // One city by id, never the settlement list.
+    const [regions, found] = await Promise.all([
+      client.regions.list({}),
+      client.cities.byIds({ ids: [cityId] }),
+    ]);
+    const city = found.find((c) => c.id === cityId) ?? null;
 
     /**
      * O-12 (`docs/observations.md`): «← Усі тварини у Бровари» has to
      * actually return to Brovary, not the unfiltered gallery: the link's
      * own text is a claim about where it goes. Built through `galleryHref`,
      * the one URL scheme every city link uses. `/tvaryny` unfiltered only
-     * when the city isn't in `cities.list` (never expected: every animal's
-     * location resolves to a real seeded city).
+     * when the city doesn't resolve (never expected: every animal's
+     * location is a real city).
      */
-    const citySlugs = new Map(cities.map((c) => [c.id, c.slug]));
     const backToGalleryHref = city
       ? galleryHref(
           { ...NO_FILTERS, cities: { kind: "oneOf", values: [city.id] } },
           DEFAULT_GALLERY_SORT,
-          citySlugs,
+          placeBookOf(regions, [city]).slugs,
         )
       : "/tvaryny";
 
@@ -82,7 +88,8 @@ export async function loadAnimalPage(
       view: {
         animal,
         shelter,
-        cityName: city ? textIn(city.name, "uk") : null,
+        cityName: city ? placeName(city) : null,
+        cityPlace: city ? placeText(city, "full") : null,
         backToGalleryHref,
       },
     };

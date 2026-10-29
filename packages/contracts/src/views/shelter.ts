@@ -1,4 +1,4 @@
-import { CitySchema, ShelterSchema } from "@opika/domain";
+import { CitySchema, RegionIdSchema, RegionSchema, ShelterSchema } from "@opika/domain";
 import { z } from "zod";
 import { PublicCityLocationViewSchema } from "./location";
 
@@ -69,3 +69,37 @@ export const CityViewSchema = CitySchema.pick({
   slug: true,
 });
 export type CityView = z.infer<typeof CityViewSchema>;
+
+/**
+ * What a surface needs to print a place without the settlement list: the name, the kind (for «м.»
+ * / «с-ще» / «с.»), how much of the oblast and raion must follow to be unambiguous, and the slug a
+ * URL uses. Built with `pick` like every public view. The raion is `raion`, not `district`, so the
+ * pre-reveal walk (`pre-reveal-location.test.ts`) keeps its key list free of exemptions; it names
+ * the administrative area a settlement belongs to, never an address.
+ *
+ * `regionShort` is the oblast's short form from the regions constant, carried here so a card can
+ * print "Миколаївка, Одеська обл." without a second lookup.
+ */
+export const CityLabelViewSchema = CitySchema.pick({
+  id: true,
+  slug: true,
+  kind: true,
+  nameScope: true,
+  regionId: true,
+}).extend({
+  name: z.string().min(1),
+  regionShort: z.string().min(1),
+  raion: z.string().min(1).nullable(),
+});
+export type CityLabelView = z.infer<typeof CityLabelViewSchema>;
+
+/** An oblast as a filter option or a card suffix. From a constant, no query behind it. */
+export const RegionViewSchema = RegionSchema.pick({ id: true, slug: true }).extend({
+  /** The pill label: «Київська», «АР Крим». */
+  label: z.string().min(1),
+  /** The card suffix form: «Київська обл.». */
+  short: z.string().min(1),
+  /** Next-door oblasts, for the empty state's suggestions. */
+  neighbours: z.array(RegionIdSchema).readonly(),
+});
+export type RegionView = z.infer<typeof RegionViewSchema>;

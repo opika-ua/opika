@@ -64,7 +64,7 @@ const SIZES =
 
 interface GalleryCardProps {
   card: FeedCardView;
-  /** Pre-resolved by the caller (`cities.list`) - the card never fetches. */
+  /** Pre-resolved by the caller (from `cityLabels`) - the card never fetches. */
   cityName: string | null;
   priority?: boolean;
   /**

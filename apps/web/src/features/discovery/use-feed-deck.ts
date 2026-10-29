@@ -1,7 +1,8 @@
 "use client";
 
 import { DEFAULT_PAGE_SIZE, type FeedCursor } from "@opika/contracts";
-import { type AnimalId, type FeedFilters, filtersFingerprint } from "@opika/domain";
+import { type AnimalId, type CityId, type FeedFilters, filtersFingerprint } from "@opika/domain";
+import { placeText } from "@opika/i18n";
 import { isDefinedError, safe } from "@orpc/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { feedBrowserClient } from "../../api/browser-client";
@@ -47,6 +48,13 @@ export function useFeedDeck(filters: FeedFilters) {
    * first swipe.
    */
   const [reachableCount, setReachableCount] = useState<number | null>(null);
+
+  /**
+   * The places of the cards fetched so far, as the reveal prints them (kind prefix, name, and the
+   * oblast where the name is ambiguous). Fed by each page's `cityLabels`, so the deck needs no
+   * settlement list; it only ever grows, and a label is never wrong for a city that has one.
+   */
+  const [cityNames, setCityNames] = useState<Readonly<Record<CityId, string>>>({});
 
   /**
    * Bumped by anything that starts a *new* feed from scratch (a filter
@@ -117,6 +125,10 @@ export function useFeedDeck(filters: FeedFilters) {
       }
 
       cursorRef.current = result.nextCursor;
+      setCityNames((prev) => ({
+        ...prev,
+        ...Object.fromEntries(result.cityLabels.map((city) => [city.id, placeText(city, "full")])),
+      }));
       setState((prev) => {
         const priorCards = mode === "append" && prev.kind === "ready" ? prev.cards : [];
         const cards = [...priorCards, ...result.items];
@@ -280,6 +292,7 @@ export function useFeedDeck(filters: FeedFilters) {
     onRetry,
     shownCount: swipedCountRef.current,
     reachableCount,
+    cityNames,
     /**
      * R3 (Phase R, `docs/build-plan.md`) - exposed so `SwipeDeck.tsx`'s own
      * reveal (`useReveal.ts`) can share this exact memoised bootstrap

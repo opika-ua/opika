@@ -1,4 +1,4 @@
-import { routerClientOver } from "../../../../api/router-client";
+import { cityRepo } from "@opika/db/repos";
 import type { KabinetPrincipal } from "../../../../kabinet/actor";
 import { registryRouter } from "../../../../kabinet/registry-router";
 import { accessOrThrow } from "../../../../kabinet/router";
@@ -20,8 +20,13 @@ export type OperatorCreatePage = OperatorRefusal | { kind: "create"; cities: Cit
  * R-UI 1's pages (`refusalOf`): no session goes to sign-in, anyone signed in
  * but the operator outside support mode gets a 404.
  *
- * The cities: public data, from the public `cities.list` (the same procedure
- * the gallery's filters read), never a registry call.
+ * The cities: public data, read straight from the repository (the public
+ * `cities.list` is gone, since no page may ship the settlement list).
+ *
+ * **N4 DEBT (`Claude outputs/N3-full-list-reads.md`)**: this is the one remaining full-list read.
+ * With ~30k settlements imported it would put every settlement in the page's `<select>`; the
+ * searchable picker (`cities.search`) replaces it and `cityRepo.listAll` is deleted with it. The
+ * production import waits for that.
  */
 export async function operatorCreatePageOf(
   principal: KabinetPrincipal,
@@ -37,7 +42,7 @@ export async function operatorCreatePageOf(
     if (refusal !== null) return refusal;
     throw error;
   }
-  const cities = await routerClientOver(deps.db).cities.list({});
+  const cities = await cityRepo(deps.db).listAll();
   return {
     kind: "create",
     cities: cities.map((city) => ({ id: city.id, name: city.name.uk })),

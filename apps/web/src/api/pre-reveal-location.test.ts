@@ -93,7 +93,7 @@ function expectCityOnly(name: string, res: { status: number; raw: string }) {
 }
 
 describe("served pre-reveal responses carry the city only (EM-Q10)", () => {
-  it("feed.list, gallery.list (both scopes), animals.byId, shelters.byId and cities.list", async () => {
+  it("feed.list, gallery.list (both scopes), animals.byId, shelters.byId and the city and region lookups", async () => {
     const { city, shelter, atShelter, fostered } = await seed();
 
     const feed = await h.call("feed.list", { filters: NO_FILTERS, cursor: null, limit: 20 });
@@ -112,7 +112,18 @@ describe("served pre-reveal responses carry the city only (EM-Q10)", () => {
       expectCityOnly("animals.byId", await h.call("animals.byId", { animalId: animal.id }));
     }
     expectCityOnly("shelters.byId", await h.call("shelters.byId", { shelterId: shelter.id }));
-    expectCityOnly("cities.list", await h.call("cities.list", {}));
+    // A city label names the settlement and its raion (as `raion`, an administrative area, not an
+    // address) and nothing finer: the same scan holds it to the same key list as every other output.
+    expectCityOnly("cities.byIds", await h.call("cities.byIds", { ids: [city.id] }));
+    expectCityOnly(
+      "cities.resolveTokens",
+      await h.call("cities.resolveTokens", { tokens: [city.slug, city.id] }),
+    );
+    expectCityOnly("regions.list", await h.call("regions.list", {}));
+    expectCityOnly(
+      "gallery.facetCounts",
+      await h.call("gallery.facetCounts", { filters: NO_FILTERS }),
+    );
 
     // The city itself does arrive, for both kinds of animal: the check above
     // is not passing on an empty or failed response.

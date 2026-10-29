@@ -199,6 +199,7 @@ describe("the reveal from the overlay and from the page", () => {
         animal={makeDetailAnimal()}
         shelter={makeDetailShelter()}
         cityName="Бровари"
+        cityPlace="м. Бровари"
       />,
     );
 

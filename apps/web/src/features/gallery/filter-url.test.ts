@@ -1,42 +1,66 @@
-import { ANY, type AnimalId, type CityId, citySlugOf, NO_FILTERS } from "@opika/domain";
+import {
+  ANY,
+  type AnimalId,
+  type CityId,
+  citySlugOf,
+  NO_FILTERS,
+  type RegionId,
+} from "@opika/domain";
 import { describe, expect, it } from "vitest";
+import type { CityTokenResolution } from "./city-tokens";
 import {
   animalPageHref,
-  type CityIdsBySlug,
   type CitySlugsById,
   chipDisplayLabel,
+  cityTokensOf,
   deckEntryHref,
   filtersInWords,
   galleryHref,
   galleryPageHref,
+  MAX_CITY_TOKENS,
+  NO_PLACE_IDS,
+  type PlaceIdsBySlug,
   parseDeckQuery,
   parseGalleryQuery,
-  redirectHrefForLegacyCityIds,
+  redirectHrefForNonCanonicalCities,
   resetFiltersHref,
   similarAnimalsHref,
   similarAnimalsLabel,
   withOnlySpecies,
   withToggledAge,
   withToggledCity,
+  withToggledRegion,
   withToggledSex,
   withToggledSize,
 } from "./filter-url";
+import { cityLabel, KYIV_OBL, LVIV_OBL } from "./test-places";
 
 const CITY_A = "11111111-1111-4111-8111-111111111111" as CityId;
 const CITY_B = "22222222-2222-4222-8222-222222222222" as CityId;
 const SLUG_A = citySlugOf("Brovary");
 const SLUG_B = citySlugOf("Kyiv");
 
-const CITY_SLUGS: CitySlugsById = new Map([
+const SLUG_KYIVSKA = "kyivska";
+const SLUG_LVIVSKA = "lvivska";
+
+const CITY_SLUGS: CitySlugsById = new Map<CityId | RegionId, string>([
   [CITY_A, SLUG_A],
   [CITY_B, SLUG_B],
+  [KYIV_OBL, SLUG_KYIVSKA],
+  [LVIV_OBL, SLUG_LVIVSKA],
 ]);
-const CITIES_BY_SLUG: CityIdsBySlug = new Map([
-  [SLUG_A, CITY_A],
-  [SLUG_B, CITY_B],
-]);
+const CITIES_BY_SLUG: PlaceIdsBySlug = {
+  cities: new Map([
+    [SLUG_A, CITY_A],
+    [SLUG_B, CITY_B],
+  ]),
+  regions: new Map([
+    [SLUG_KYIVSKA, KYIV_OBL],
+    [SLUG_LVIVSKA, LVIV_OBL],
+  ]),
+};
 const NO_CITIES: CitySlugsById = new Map();
-const NO_SLUGS: CityIdsBySlug = new Map();
+const NO_SLUGS = NO_PLACE_IDS;
 
 describe("parseGalleryQuery", () => {
   it("defaults to no filters, the default sort, and page 1 when nothing is present", () => {
@@ -321,26 +345,51 @@ describe("filtersInWords", () => {
   });
 });
 
-describe("redirectHrefForLegacyCityIds", () => {
+/** What `cities.resolveTokens` answers for a token, by how it was written. */
+const resolveToken = (token: string): CityTokenResolution => {
+  const known = [
+    { id: CITY_A, slug: SLUG_A, name: "Бровари", alias: "brovary-old" },
+    { id: CITY_B, slug: SLUG_B, name: "Київ", alias: "kyiv-old" },
+  ].find((c) => [c.slug, c.alias, c.id].includes(token));
+  if (!known) return { token, city: null, via: null };
+  const city = cityLabel(known.id, known.slug, known.name);
+  const via = token === known.slug ? "slug" : token === known.alias ? "alias" : "id";
+  return { token, city, via };
+};
+const resolved = (...tokens: string[]) => tokens.map(resolveToken);
+
+describe("redirectHrefForNonCanonicalCities", () => {
   it("is a no-op when there is no city param at all", () => {
-    expect(redirectHrefForLegacyCityIds({}, "/tvaryny", CITY_SLUGS)).toBeNull();
+    expect(redirectHrefForNonCanonicalCities({}, "/tvaryny", [])).toBeNull();
   });
 
-  it("is a no-op when the city param is already a slug", () => {
-    expect(redirectHrefForLegacyCityIds({ misto: SLUG_A }, "/tvaryny", CITY_SLUGS)).toBeNull();
+  it("is a no-op when the city param is already a current slug", () => {
+    expect(
+      redirectHrefForNonCanonicalCities({ misto: SLUG_A }, "/tvaryny", resolved(SLUG_A)),
+    ).toBeNull();
   });
 
   it("rewrites a raw CityId to its slug", () => {
-    expect(redirectHrefForLegacyCityIds({ misto: CITY_A }, "/tvaryny", CITY_SLUGS)).toBe(
+    expect(redirectHrefForNonCanonicalCities({ misto: CITY_A }, "/tvaryny", resolved(CITY_A))).toBe(
       `/tvaryny?misto=${SLUG_A}`,
     );
   });
 
-  it("rewrites every legacy id when the slug map resolves all of them", () => {
-    const href = redirectHrefForLegacyCityIds(
-      { misto: `${CITY_A},${CITY_B}` },
+  it("rewrites a former slug to the current one (the renamed Kyiv-oblast cities)", () => {
+    expect(
+      redirectHrefForNonCanonicalCities(
+        { misto: "brovary-old" },
+        "/tvaryny",
+        resolved("brovary-old"),
+      ),
+    ).toBe(`/tvaryny?misto=${SLUG_A}`);
+  });
+
+  it("rewrites every legacy id and former slug when the lookup resolves all of them", () => {
+    const href = redirectHrefForNonCanonicalCities(
+      { misto: `${CITY_A},kyiv-old` },
       "/tvaryny",
-      CITY_SLUGS,
+      resolved(CITY_A, "kyiv-old"),
     );
     const url = new URL(href ?? "", "http://x");
     expect(url.pathname).toBe("/tvaryny");
@@ -348,43 +397,172 @@ describe("redirectHrefForLegacyCityIds", () => {
   });
 
   it("preserves an already-slugged city alongside a rewritten legacy id, rather than dropping it", () => {
-    const href = redirectHrefForLegacyCityIds(
+    const href = redirectHrefForNonCanonicalCities(
       { misto: `${CITY_A},${SLUG_B}` },
       "/tvaryny",
-      CITY_SLUGS,
+      resolved(CITY_A, SLUG_B),
     );
     const url = new URL(href ?? "", "http://x");
     expect(url.searchParams.get("misto")).toBe(`${SLUG_A},${SLUG_B}`);
   });
 
-  it("does not redirect at all when a legacy id has no entry in the slug map - dropping it would change the result set, and this redirect is permanent", () => {
-    const NO_ENTRY_FOR_B: CitySlugsById = new Map([[CITY_A, SLUG_A]]);
+  it("does not redirect at all when a legacy id resolves to nothing - dropping it would change the result set, and this redirect is permanent", () => {
+    const unknownId = "33333333-3333-4333-8333-333333333333";
     expect(
-      redirectHrefForLegacyCityIds({ misto: `${CITY_A},${CITY_B}` }, "/tvaryny", NO_ENTRY_FOR_B),
+      redirectHrefForNonCanonicalCities(
+        { misto: `${CITY_A},${unknownId}` },
+        "/tvaryny",
+        resolved(CITY_A, unknownId),
+      ),
     ).toBeNull();
   });
 
   it("does not redirect on an unresolvable id even when it's the only city token", () => {
-    expect(redirectHrefForLegacyCityIds({ misto: CITY_B }, "/tvaryny", NO_CITIES)).toBeNull();
+    expect(redirectHrefForNonCanonicalCities({ misto: CITY_B }, "/tvaryny", [])).toBeNull();
+  });
+
+  it("leaves an unknown slug alone: it degrades to no city constraint, it is not a redirect", () => {
+    expect(
+      redirectHrefForNonCanonicalCities({ misto: "nowhere" }, "/tvaryny", resolved("nowhere")),
+    ).toBeNull();
   });
 
   it("preserves every other param byte-for-byte, including repeated ones", () => {
-    const href = redirectHrefForLegacyCityIds(
-      { misto: CITY_A, vyd: ["dog", "cat"], stor: "3" },
+    const href = redirectHrefForNonCanonicalCities(
+      { misto: CITY_A, obl: SLUG_KYIVSKA, vyd: ["dog", "cat"], stor: "3" },
       "/tvaryny",
-      CITY_SLUGS,
+      resolved(CITY_A),
     );
     const url = new URL(href ?? "", "http://x");
     expect(url.pathname).toBe("/tvaryny");
     expect(url.searchParams.getAll("vyd")).toEqual(["dog", "cat"]);
     expect(url.searchParams.get("stor")).toBe("3");
+    expect(url.searchParams.get("obl")).toBe(SLUG_KYIVSKA);
     expect(url.searchParams.get("misto")).toBe(SLUG_A);
   });
 
   it("uses the given path - the deck's own route, not the gallery's", () => {
-    expect(redirectHrefForLegacyCityIds({ misto: CITY_A }, "/tvaryny/gortaty", CITY_SLUGS)).toBe(
-      `/tvaryny/gortaty?misto=${SLUG_A}`,
+    expect(
+      redirectHrefForNonCanonicalCities({ misto: CITY_A }, "/tvaryny/gortaty", resolved(CITY_A)),
+    ).toBe(`/tvaryny/gortaty?misto=${SLUG_A}`);
+  });
+});
+
+describe("the oblast filter in the URL", () => {
+  it("parses `obl` slugs to region ids, dropping unknown ones", () => {
+    const { filters } = parseGalleryQuery({ obl: `${SLUG_KYIVSKA},atlantis` }, CITIES_BY_SLUG);
+    expect(filters.regions).toEqual({ kind: "oneOf", values: [KYIV_OBL] });
+    expect(parseGalleryQuery({ obl: "atlantis" }, CITIES_BY_SLUG).filters.regions).toEqual(ANY);
+  });
+
+  it("reads the repeated-key shape a native GET form produces", () => {
+    const { filters } = parseGalleryQuery({ obl: [SLUG_KYIVSKA, SLUG_LVIVSKA] }, CITIES_BY_SLUG);
+    expect(filters.regions).toEqual({
+      kind: "oneOf",
+      values: [KYIV_OBL, LVIV_OBL].sort(),
+    });
+  });
+
+  it("keeps an oblast slug and a city slug apart even when they are spelt the same (kyiv)", () => {
+    // Kyiv is both a city and (as a special-status region) an oblast-level unit: `?obl=kyiv` and
+    // `?misto=kyiv` are different questions that resolve through different maps.
+    const both: PlaceIdsBySlug = {
+      cities: new Map([["kyiv", CITY_B]]),
+      regions: new Map([["kyiv", LVIV_OBL]]),
+    };
+    const { filters } = parseGalleryQuery({ obl: "kyiv", misto: "kyiv" }, both);
+    expect(filters.regions).toEqual({ kind: "oneOf", values: [LVIV_OBL] });
+    expect(filters.cities).toEqual({ kind: "oneOf", values: [CITY_B] });
+  });
+
+  it("writes `obl` before `misto`, and round-trips through the parser", () => {
+    const filters = {
+      ...NO_FILTERS,
+      regions: { kind: "oneOf", values: [KYIV_OBL] },
+      cities: { kind: "oneOf", values: [CITY_A] },
+    } as const;
+    const href = galleryHref(filters, "freshest", CITY_SLUGS);
+    expect(href).toBe(`/tvaryny?obl=${SLUG_KYIVSKA}&misto=${SLUG_A}`);
+    const reparsed = parseGalleryQuery(
+      Object.fromEntries(new URL(href, "http://x").searchParams),
+      CITIES_BY_SLUG,
     );
+    expect(reparsed.filters).toEqual(filters);
+  });
+
+  it("carries the oblast onto page links, card links and the deck entry", () => {
+    const filters = { ...NO_FILTERS, regions: { kind: "oneOf", values: [LVIV_OBL] } } as const;
+    expect(galleryPageHref(filters, "freshest", 3, CITY_SLUGS)).toBe(
+      `/tvaryny?obl=${SLUG_LVIVSKA}&stor=3`,
+    );
+    expect(animalPageHref("a" as AnimalId, filters, "freshest", CITY_SLUGS)).toBe(
+      `/tvaryny/a?obl=${SLUG_LVIVSKA}`,
+    );
+    expect(deckEntryHref(filters, 5, CITY_SLUGS)).toBe(
+      `/tvaryny/gortaty?obl=${SLUG_LVIVSKA}&total=5`,
+    );
+  });
+
+  it("resolves at most 30 city tokens and 27 oblast tokens: the rest are dropped", () => {
+    const many = Array.from({ length: 40 }, (_, i) => `place-${i}`);
+    expect(cityTokensOf({ misto: many.join(",") })).toHaveLength(MAX_CITY_TOKENS);
+    expect(cityTokensOf({ misto: many })).toHaveLength(MAX_CITY_TOKENS);
+    const regionSlugs = new Map(many.map((slug, i) => [slug, `r${i}` as RegionId]));
+    const { filters } = parseGalleryQuery(
+      { obl: many.join(",") },
+      { cities: new Map(), regions: regionSlugs },
+    );
+    expect(filters.regions.kind === "oneOf" && filters.regions.values).toHaveLength(27);
+  });
+
+  it("names the chosen oblasts first in the deck header", () => {
+    const filters = {
+      ...NO_FILTERS,
+      regions: { kind: "oneOf", values: [KYIV_OBL] },
+      species: { kind: "oneOf", values: ["dog"] },
+    } as const;
+    expect(filtersInWords(filters, new Map(), new Map([[KYIV_OBL, "Київська"]]))).toBe(
+      "Київська · собаки",
+    );
+  });
+});
+
+describe("withToggledRegion", () => {
+  const regionOfCity = new Map<CityId, RegionId>([
+    [CITY_A, KYIV_OBL],
+    [CITY_B, LVIV_OBL],
+  ]);
+
+  it("selecting an oblast keeps the cities picked elsewhere", () => {
+    const filters = { ...NO_FILTERS, cities: { kind: "oneOf", values: [CITY_B] } } as const;
+    const next = withToggledRegion(filters, KYIV_OBL, regionOfCity);
+    expect(next.regions).toEqual({ kind: "oneOf", values: [KYIV_OBL] });
+    expect(next.cities).toEqual({ kind: "oneOf", values: [CITY_B] });
+  });
+
+  it("deselecting an oblast drops its cities and keeps the rest", () => {
+    const filters = {
+      ...NO_FILTERS,
+      regions: { kind: "oneOf", values: [KYIV_OBL, LVIV_OBL] },
+      cities: { kind: "oneOf", values: [CITY_A, CITY_B] },
+    } as const;
+    const next = withToggledRegion(filters, KYIV_OBL, regionOfCity);
+    expect(next.regions).toEqual({ kind: "oneOf", values: [LVIV_OBL] });
+    expect(next.cities).toEqual({ kind: "oneOf", values: [CITY_B] });
+  });
+
+  it("deselecting the last oblast returns to any, and keeps a city whose oblast is unknown", () => {
+    const filters = {
+      ...NO_FILTERS,
+      regions: { kind: "oneOf", values: [KYIV_OBL] },
+      cities: { kind: "oneOf", values: [CITY_A, "99999999-9999-4999-8999-999999999999" as CityId] },
+    } as const;
+    const next = withToggledRegion(filters, KYIV_OBL, regionOfCity);
+    expect(next.regions).toEqual(ANY);
+    expect(next.cities).toEqual({
+      kind: "oneOf",
+      values: ["99999999-9999-4999-8999-999999999999"],
+    });
   });
 });
 

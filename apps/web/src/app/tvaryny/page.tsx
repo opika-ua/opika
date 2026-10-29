@@ -1,6 +1,5 @@
-import type { CityId } from "@opika/domain";
-import { textIn } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import type { FeedFilters, RegionId } from "@opika/domain";
+import { placeName, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import { anonymousRouterClient } from "../../api/server-client";
@@ -11,8 +10,9 @@ import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
 import { cardCityId } from "../../features/gallery/card-text";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
 import {
+  cityTokensOf,
   parseGalleryQuery,
-  redirectHrefForLegacyCityIds,
+  redirectHrefForNonCanonicalCities,
   type SearchParams,
 } from "../../features/gallery/filter-url";
 import { GalleryCard } from "../../features/gallery/GalleryCard";
@@ -27,6 +27,7 @@ import { railResultCount } from "../../features/gallery/gallery-copy";
 import { hasPagination } from "../../features/gallery/gallery-pagination";
 import { NoMatch } from "../../features/gallery/NoMatch";
 import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
+import { placeBookOf } from "../../features/gallery/place-book";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
@@ -153,28 +154,30 @@ export async function renderGallery(
   kabinetSignedIn = false,
 ) {
   /**
-   * Cities have to be fetched before the URL can be parsed at all now - a
-   * city token in `?misto=` is a slug, and resolving a slug to a `CityId`
-   * needs the real city list, not just a shape check the way a raw UUID
-   * did. This costs the parallel `Promise.all` with `gallery.list` this file
-   * used to have (O-6/O-12, `docs/build-plan.md`'s Phase S) - a real,
-   * accepted latency tradeoff: `cities.list` is an 8-row, unfiltered table
-   * scan, not a cost in the same league as the O-9 work this follows.
+   * The URL's place tokens are resolved before it can be parsed: an oblast slug against the 27
+   * regions (a constant, no query), a city token through `cities.resolveTokens` (a current slug, a
+   * former slug or a legacy id, only when `misto` is present). The page never reads a settlement
+   * list: with every settlement imported it would be ~30k rows. Everything else the page names
+   * comes back with its own responses (the cards' cities, the cities that have an animal).
    */
-  const cities = await client.cities.list({});
-  const cityList = cities.map((city) => ({
-    id: city.id,
-    slug: city.slug,
-    name: textIn(city.name, "uk"),
-  }));
-  const cityNames = new Map<CityId, string>(cityList.map((city) => [city.id, city.name]));
-  const citySlugs = new Map(cityList.map((city) => [city.id, city.slug]));
-  const citiesBySlug = new Map(cityList.map((city) => [city.slug, city.id]));
+  const cityTokens = cityTokensOf(rawSearchParams);
+  const [regions, resolutions] = await Promise.all([
+    client.regions.list({}),
+    cityTokens.length > 0 ? client.cities.resolveTokens({ tokens: cityTokens }) : [],
+  ]);
 
-  const legacyRedirect = redirectHrefForLegacyCityIds(rawSearchParams, "/tvaryny", citySlugs);
+  const legacyRedirect = redirectHrefForNonCanonicalCities(
+    rawSearchParams,
+    "/tvaryny",
+    resolutions,
+  );
   if (legacyRedirect) permanentRedirect(legacyRedirect);
 
-  const { filters, sort, page: pageNumber } = parseGalleryQuery(rawSearchParams, citiesBySlug);
+  const {
+    filters,
+    sort,
+    page: pageNumber,
+  } = parseGalleryQuery(rawSearchParams, placeBookOf(regions, [], resolutions).placeIds);
   // The selectors' counts ride with the page rather than a fetch when a selector opens: one
   // grouped scan, in parallel with the page's own, so they cost no extra wait and reach the
   // no-JS sheet too (measured and argued in the filter selectors PR).
@@ -182,6 +185,26 @@ export async function renderGallery(
     client.gallery.list({ filters, sort, page: pageNumber }),
     client.gallery.facetCounts({ filters }),
   ]);
+
+  // Labels for every link the page writes: the cities with an animal (the filter's options), the
+  // cards' cities, and the cities the URL names (which may have no animal).
+  const selectedCities = resolutions.flatMap(({ city }) => (city ? [city] : []));
+  const book = placeBookOf(
+    regions,
+    [...facetCounts.cities.map((entry) => entry.label), ...page.cityLabels],
+    resolutions,
+  );
+  const citySlugs = book.slugs;
+  const cityNames = new Map([...book.cities].map(([id, label]) => [id, placeName(label)] as const));
+  // Only the oblasts the options can print: those with an animal, and the chosen ones.
+  const regionLabels: Record<string, string> = {};
+  for (const id of [
+    ...facetCounts.regions.map((entry) => entry.regionId),
+    ...(filters.regions.kind === "oneOf" ? filters.regions.values : []),
+  ]) {
+    const region = book.regions.get(id);
+    if (region) regionLabels[id] = region.label;
+  }
 
   /**
    * docs/design/README.md, "Gallery states" > "No match". Only queried when
@@ -194,6 +217,8 @@ export async function renderGallery(
     page.totalMatching === 0
       ? (await client.gallery.relaxationCounts({ filters })).relaxations
       : [];
+  const neighbourRegions =
+    page.totalMatching === 0 ? neighbourRegionsOf(filters.regions, book, facetCounts.regions) : [];
 
   return (
     <div className="min-h-dvh bg-page">
@@ -274,8 +299,10 @@ export async function renderGallery(
               <FilterSheet
                 filters={filters}
                 sort={sort}
-                cities={cityList}
+                placeIds={book.placeIds}
                 citySlugs={citySlugs}
+                regionLabels={regionLabels}
+                selectedCities={selectedCities}
                 resultCount={page.totalMatching}
                 shelterCount={page.totalShelters}
                 counts={facetCounts}
@@ -302,8 +329,9 @@ export async function renderGallery(
               <GalleryFilterDropdowns
                 filters={filters}
                 sort={sort}
-                cities={cityList}
                 citySlugs={citySlugs}
+                regionLabels={regionLabels}
+                selectedCities={selectedCities}
                 counts={facetCounts}
               />
             </ReplaceNav>
@@ -338,6 +366,7 @@ export async function renderGallery(
               sort={sort}
               citySlugs={citySlugs}
               relaxations={relaxations}
+              neighbourRegions={neighbourRegions}
             />
           ) : (
             <>
@@ -405,6 +434,30 @@ export async function renderGallery(
       </Container>
     </div>
   );
+}
+
+/**
+ * Up to three next-door oblasts of the chosen ones that have animals under the other filters,
+ * most first. The facet counts' location count ignores the chosen oblasts and cities, so it is
+ * the right number for "what would you see there". Chosen oblasts are never suggested back.
+ */
+function neighbourRegionsOf(
+  chosen: FeedFilters["regions"],
+  book: ReturnType<typeof placeBookOf>,
+  counts: readonly { regionId: RegionId; count: number }[],
+) {
+  if (chosen.kind === "any") return [];
+  const countOf = new Map(counts.map((entry) => [entry.regionId, entry.count]));
+  const candidates = new Set<RegionId>();
+  for (const id of chosen.values) {
+    for (const neighbour of book.regions.get(id)?.neighbours ?? []) candidates.add(neighbour);
+  }
+  for (const id of chosen.values) candidates.delete(id);
+  return [...candidates]
+    .map((id) => ({ id, label: book.regions.get(id)?.label ?? "", count: countOf.get(id) ?? 0 }))
+    .filter((entry) => entry.count > 0 && entry.label !== "")
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "uk"))
+    .slice(0, 3);
 }
 
 /** Server Component. Next.js calls this with `{ searchParams }` - a Promise, per Next 16's App Router contract. */

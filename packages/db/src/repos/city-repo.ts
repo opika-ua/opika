@@ -1,8 +1,16 @@
-import type { City, CityId } from "@opika/domain";
-import { eq } from "drizzle-orm";
+import { type City, type CityId, CityIdSchema } from "@opika/domain";
+import { eq, inArray, or } from "drizzle-orm";
 import type { Database } from "../client";
 import { cities } from "../schema/cities";
+import { citySlugAliases } from "../schema/city-slug-aliases";
 import { cityToRow, rowToCity } from "./mappers";
+
+/** How a `?misto=` token reached its city: the current slug, a former slug, or a pre-slug id. */
+export type CityTokenResolution = {
+  readonly token: string;
+  readonly city: City | null;
+  readonly via: "slug" | "alias" | "id" | null;
+};
 
 export function cityRepo(db: Database) {
   return {
@@ -12,6 +20,66 @@ export function cityRepo(db: Database) {
       return row ? rowToCity(row) : null;
     },
 
+    /**
+     * The cities behind a handful of ids (a page's cards, a filter's picks), by primary key. The
+     * public pages read city names through this and never through `listAll`: with every
+     * settlement in the table, the full list is not something a page may ship.
+     */
+    async findByIds(ids: readonly CityId[]): Promise<readonly City[]> {
+      if (ids.length === 0) return [];
+      const rows = await db
+        .select()
+        .from(cities)
+        .where(inArray(cities.id, [...new Set(ids)]));
+      return rows.map(rowToCity);
+    },
+
+    /**
+     * Resolves URL tokens in one round trip's worth of queries: a current slug, a former slug from
+     * `city_slug_aliases`, or a well-formed legacy id. An unknown token resolves to null (a stale
+     * link degrades, it is never an error). The caller bounds how many tokens it passes.
+     */
+    async resolveTokens(tokens: readonly string[]): Promise<readonly CityTokenResolution[]> {
+      if (tokens.length === 0) return [];
+      const unique = [...new Set(tokens)];
+      const idTokens = unique.filter((token) => CityIdSchema.safeParse(token).success);
+
+      const [direct, aliased] = await Promise.all([
+        db
+          .select()
+          .from(cities)
+          .where(
+            idTokens.length > 0
+              ? or(inArray(cities.slug, unique), inArray(cities.id, idTokens as CityId[]))
+              : inArray(cities.slug, unique),
+          ),
+        db
+          .select({ alias: citySlugAliases.slug, city: cities })
+          .from(citySlugAliases)
+          .innerJoin(cities, eq(cities.id, citySlugAliases.cityId))
+          .where(inArray(citySlugAliases.slug, unique)),
+      ]);
+
+      const bySlug = new Map(direct.map((row) => [row.slug, row]));
+      const byId = new Map(direct.map((row) => [row.id as string, row]));
+      const byAlias = new Map(aliased.map((row) => [row.alias, row.city]));
+
+      return unique.map((token): CityTokenResolution => {
+        // A current slug beats an alias beats an id; the importer keeps slugs and aliases disjoint.
+        const slugRow = bySlug.get(token);
+        if (slugRow) return { token, city: rowToCity(slugRow), via: "slug" };
+        const aliasRow = byAlias.get(token);
+        if (aliasRow) return { token, city: rowToCity(aliasRow), via: "alias" };
+        const idRow = byId.get(token);
+        if (idRow) return { token, city: rowToCity(idRow), via: "id" };
+        return { token, city: null, via: null };
+      });
+    },
+
+    /**
+     * Every city. Only the operator's create form still reads this (its picker is replaced by the
+     * searchable one); deleted with that form's last reader. No public page may call it.
+     */
     async listAll(): Promise<readonly City[]> {
       const rows = await db.select().from(cities);
       return rows.map(rowToCity);

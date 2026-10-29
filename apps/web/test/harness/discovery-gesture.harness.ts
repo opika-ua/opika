@@ -25,7 +25,7 @@ const CARD = "[data-testid='swipe-card']";
 /**
  * TEST-NET-2 (198.51.100.0/24), `.27` - `/tvaryny/gortaty` sits under
  * `proxy.ts`'s per-IP page-render limiter same as every other `/tvaryny`
- * route (its own server-side `cities.list()` call), and separately drives
+ * route (its own server-side place lookup), and separately drives
  * real `feed.list()` traffic client-side. `.21`-`.26` are already claimed by
  * the other `/tvaryny` harness files.
  */

@@ -7,7 +7,7 @@ import { LoadErrorScreen } from "../../../features/gallery/LoadErrorScreen";
  * E5, found by re-investigating `/tvaryny`'s own `error.tsx` rationale
  * rather than trusting it: Next.js error boundaries nest by segment, and
  * `/tvaryny/gortaty` has no `error.tsx` of its own - so without this file,
- * a failure in `GortatyPage`'s own server-side `cities.list()` call (needed
+ * a failure in `GortatyPage`'s own server-side place lookup (needed
  * for the deck header's inherited-filters phrase) would be caught by the
  * *gallery's* `error.tsx` instead, rendering gallery-specific copy
  * («Ваші фільтри збережені») for a deck failure that has nothing to do
@@ -25,9 +25,9 @@ import { LoadErrorScreen } from "../../../features/gallery/LoadErrorScreen";
  * `retry()`, not `reset()` - same finding as `/tvaryny/error.tsx`'s own
  * comment: `reset()` alone clears the boundary without re-running
  * `GortatyPage`'s Server Component, so it cannot recover from the
- * server-side `cities.list()` failure that reaches this file. `retry()`
+ * server-side lookup failure that reaches this file. `retry()`
  * calls `router.refresh()` first, which is what actually gives a working
- * `cities.list()` on the next attempt a chance to render.
+ * lookup on the next attempt a chance to render.
  */
 export default function GortatyError({
   retry,

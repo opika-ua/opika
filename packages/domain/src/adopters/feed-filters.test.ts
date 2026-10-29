@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { RegionIdSchema } from "../geography/region";
 import { CityIdSchema } from "../primitives/ids";
 import {
   canonicalizeFilters,
@@ -171,6 +172,7 @@ describe("filter dimensions", () => {
 
   it("relaxes exactly one dimension and leaves the rest alone", () => {
     const narrow: FeedFilters = {
+      regions: { kind: "any" },
       cities: { kind: "oneOf", values: [KHARKIV] },
       species: { kind: "oneOf", values: ["dog"] },
       sizes: { kind: "oneOf", values: ["small"] },
@@ -295,5 +297,61 @@ describe("the sex dimension", () => {
     expect(relaxDimension(narrow, "sexes")).toEqual({ ...narrow, sexes: { kind: "any" } });
     expect(isConstrained(narrow, "sexes")).toBe(true);
     expect(FEED_FILTER_DIMENSIONS).toContain("sexes");
+  });
+});
+
+/**
+ * The oblast dimension. The URL slug, the fingerprint segment and the saved-filter default are
+ * the three places a new dimension silently goes wrong.
+ */
+describe("regions", () => {
+  const LVIV = RegionIdSchema.parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+  const KYIV = RegionIdSchema.parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+  const byRegion = (...values: [typeof LVIV, ...(typeof LVIV)[]]): FeedFilters => ({
+    ...NO_FILTERS,
+    regions: { kind: "oneOf", values },
+  });
+
+  it("reads a filter set stored before this dimension as no oblast filter", () => {
+    const stored = {
+      cities: { kind: "any" },
+      species: { kind: "any" },
+      sizes: { kind: "any" },
+      ages: { kind: "any" },
+      sexes: { kind: "any" },
+    };
+    expect(FeedFiltersSchema.parse(stored).regions).toEqual({ kind: "any" });
+  });
+
+  it("canonicalizes order and duplicates, and never collapses to any", () => {
+    expect(canonicalizeFilters(byRegion(LVIV, KYIV, LVIV)).regions).toEqual({
+      kind: "oneOf",
+      values: [LVIV, KYIV].sort(),
+    });
+    // Whatever the list, regions are data: selecting every oblast stays an explicit selection.
+    expect(canonicalizeFilters(byRegion(LVIV)).regions.kind).toBe("oneOf");
+  });
+
+  it("gives each selection its own fingerprint, with the oblast segment last", () => {
+    const prints = [NO_FILTERS, byRegion(LVIV), byRegion(KYIV), byRegion(LVIV, KYIV)].map(
+      filtersFingerprint,
+    );
+    expect(new Set(prints).size).toBe(4);
+    expect(filtersFingerprint(NO_FILTERS)).toBe("*|*|*|*|*|*");
+    expect(filtersFingerprint(byRegion(LVIV)).endsWith(`|${LVIV}`)).toBe(true);
+  });
+
+  it("never reproduces a fingerprint from before this dimension existed", () => {
+    // Five segments, as every cursor was issued under before: a cursor from then is refused once.
+    const legacy = "*|*|*|*|*";
+    const current = [NO_FILTERS, byRegion(LVIV)].map(filtersFingerprint);
+    expect(current).not.toContain(legacy);
+    expect(current.every((print) => print.split("|").length === 6)).toBe(true);
+  });
+
+  it("relaxes like any other dimension", () => {
+    expect(relaxDimension(byRegion(LVIV), "regions")).toEqual(NO_FILTERS);
+    expect(isConstrained(byRegion(LVIV), "regions")).toBe(true);
+    expect(FEED_FILTER_DIMENSIONS).toContain("regions");
   });
 });

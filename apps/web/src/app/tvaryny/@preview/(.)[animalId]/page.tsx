@@ -16,7 +16,12 @@ import {
   type OverlayNeighbour,
 } from "../../../../features/animal-overlay/AnimalOverlay";
 import type { SearchParams } from "../../../../features/gallery/filter-url";
-import { animalPageHref, parseGalleryQuery } from "../../../../features/gallery/filter-url";
+import {
+  animalPageHref,
+  cityTokensOf,
+  parseGalleryQuery,
+} from "../../../../features/gallery/filter-url";
+import { placeBookOf } from "../../../../features/gallery/place-book";
 
 /** Same reasoning as the full page: the overlay reads live listing data. */
 export const dynamic = "force-dynamic";
@@ -105,11 +110,11 @@ export async function renderAnimalOverlay(
  * The gallery's current filter and sort, parsed from the same query scheme
  * `animalPageHref` writes it in, then `animals.neighbours` (PR #217,
  * already fully implemented server-side) walks the identical result set
- * `gallery.list` would. A city lookup of its own (`cities.list`), since this
- * route - unlike `loadAnimalPage`, which already makes its own call for the
- * city *name* - has no other reason to fetch cities today; not threaded
- * through `loadAnimalPage` to avoid coupling that shared loader (also used
- * by the full page, which never needs this) to the overlay's own concern.
+ * `gallery.list` would. Its own place lookup (the URL's city tokens through `cities.resolveTokens`,
+ * the 27 oblasts from `regions.list`), since this route - unlike `loadAnimalPage`, which makes
+ * its own call for the city *name* - has no other reason to fetch places; not threaded through
+ * `loadAnimalPage` to avoid coupling that shared loader (also used by the full page, which never
+ * needs this) to the overlay's own concern.
  */
 async function neighboursOf(
   client: AnimalPageClient,
@@ -117,10 +122,14 @@ async function neighboursOf(
   rawSearchParams: SearchParams,
 ): Promise<{ prev: OverlayNeighbour; next: OverlayNeighbour }> {
   try {
-    const cities = await client.cities.list({});
-    const citySlugs = new Map(cities.map((city) => [city.id, city.slug]));
-    const citiesBySlug = new Map(cities.map((city) => [city.slug, city.id]));
-    const { filters, sort } = parseGalleryQuery(rawSearchParams, citiesBySlug);
+    const cityTokens = cityTokensOf(rawSearchParams);
+    const [regions, resolutions] = await Promise.all([
+      client.regions.list({}),
+      cityTokens.length > 0 ? client.cities.resolveTokens({ tokens: cityTokens }) : [],
+    ]);
+    const book = placeBookOf(regions, [], resolutions);
+    const citySlugs = book.slugs;
+    const { filters, sort } = parseGalleryQuery(rawSearchParams, book.placeIds);
 
     const { prev, next } = await client.animals.neighbours({ animalId, filters, sort });
     return {

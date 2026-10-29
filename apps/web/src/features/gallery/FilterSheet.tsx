@@ -1,13 +1,13 @@
 "use client";
 
-import type { GalleryFacetCounts } from "@opika/contracts";
+import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
 import type {
   AnimalSpecies,
   CityId,
-  CitySlug,
   FeedFilters,
   FilterSelection,
   GallerySort,
+  RegionId,
 } from "@opika/domain";
 import { ANIMAL_SPECIES, ANY, DEFAULT_GALLERY_SORT, isExplicitlySelected } from "@opika/domain";
 import { uk } from "@opika/i18n";
@@ -24,10 +24,11 @@ import {
   type FacetOption,
   facetAccessibleName,
   isUnavailable,
+  regionFacetOptions,
   sexFacetOptions,
   sizeFacetOptions,
 } from "./facet-options";
-import type { CitySlugsById } from "./filter-url";
+import type { CitySlugsById, PlaceIdsBySlug } from "./filter-url";
 import {
   GALLERY_PARAM,
   galleryHref,
@@ -42,8 +43,14 @@ const SHEET_ID = "tvaryny-filters";
 interface FilterSheetProps {
   filters: FeedFilters;
   sort: GallerySort;
-  cities: ReadonlyArray<{ id: CityId; name: string; slug: CitySlug }>;
+  /** Slug to id for the form's own submit (`parseGalleryQuery`): the 27 oblasts and the cities on this page. */
+  placeIds: PlaceIdsBySlug;
+  /** Id to slug for every link and checkbox value, cities and oblasts both. */
   citySlugs: CitySlugsById;
+  /** A name for every oblast the options may print (the ones that have animals, and the chosen ones). */
+  regionLabels: Readonly<Record<string, string>>;
+  /** The labels of the cities the URL names, so a chosen city with no animal stays clearable. */
+  selectedCities: readonly CityLabelView[];
   /** What a submit right now would show, from the applied filters; a ticked but unsubmitted box does not move it. */
   resultCount: number;
   /** For the sentence «Підходить N тварин у M притулках.» */
@@ -115,18 +122,17 @@ function FacetGroup<T extends string>({
 export function FilterSheet({
   filters,
   sort,
-  cities,
+  placeIds,
   citySlugs,
+  regionLabels,
+  selectedCities,
   resultCount,
   shelterCount,
   counts,
 }: FilterSheetProps) {
   const router = useRouter();
 
-  // The reverse of `citySlugs`: `onSubmit` reads the form back through `parseGalleryQuery`, which
-  // resolves a city token by slug.
-  const citiesBySlug = new Map(cities.map((city) => [city.slug, city.id]));
-  const slugOf = (id: CityId): string => citySlugs.get(id) ?? id;
+  const slugOf = (id: CityId | RegionId): string => citySlugs.get(id) ?? id;
 
   // `router.replace`, not the push a real `<a>`/GET produces: ten filter changes should not be ten
   // history entries (same reasoning as `ReplaceNav`). Closing the dialog fires the Sheet's own
@@ -136,13 +142,18 @@ export function FilterSheet({
     router.replace(href, { scroll: false });
   };
 
-  // «Уся Київщина» drops the city constraint and nothing else; it is a city-group chip, not a
-  // second «Скинути», so choices made in the other groups survive it.
+  // «Усі міста» and «Усі області» each drop their own group's constraint and nothing else; they
+  // are group chips, not a second «Скинути», so choices made in the other groups survive them.
   const allCitiesHref = galleryHref({ ...filters, cities: ANY }, sort, citySlugs);
+  const allRegionsHref = galleryHref({ ...filters, regions: ANY }, sort, citySlugs);
 
   const onAllCitiesClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     navigateWithJs(event.currentTarget, allCitiesHref);
+  };
+  const onAllRegionsClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    navigateWithJs(event.currentTarget, allRegionsHref);
   };
 
   const onResetClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -158,7 +169,7 @@ export function FilterSheet({
     event.preventDefault();
     const submitted = parseGalleryQuery(
       searchParamsFromFormData(new FormData(event.currentTarget)),
-      citiesBySlug,
+      placeIds,
     );
     navigateWithJs(event.currentTarget, galleryHref(submitted.filters, submitted.sort, citySlugs));
   };
@@ -189,9 +200,29 @@ export function FilterSheet({
         className="flex flex-col gap-7"
       >
         <FacetGroup
+          legend={uk.filters.region}
+          name={GALLERY_PARAM.region}
+          options={regionFacetOptions(counts, regionLabels, filters.regions)}
+          selection={filters.regions}
+          submitValue={slugOf}
+          leading={
+            <a
+              href={allRegionsHref}
+              onClick={onAllRegionsClick}
+              className={cx(
+                choiceClass(filters.regions.kind === "any" ? "on" : "off"),
+                "focus-ring",
+              )}
+            >
+              {uk.filters.allRegions}
+            </a>
+          }
+        />
+
+        <FacetGroup
           legend={uk.filters.city}
           name={GALLERY_PARAM.city}
-          options={cityFacetOptions(cities, counts)}
+          options={cityFacetOptions(counts, filters.regions, filters.cities, selectedCities)}
           selection={filters.cities}
           submitValue={slugOf}
           leading={

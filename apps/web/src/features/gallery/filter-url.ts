@@ -4,10 +4,10 @@ import type {
   AnimalSex,
   AnimalSpecies,
   CityId,
-  CitySlug,
   FeedFilters,
   FilterSelection,
   GallerySort,
+  RegionId,
   SizeBucket,
 } from "@opika/domain";
 import {
@@ -24,6 +24,7 @@ import {
   SizeBucketSchema,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
+import type { CityTokenResolution } from "./city-tokens";
 
 /**
  * The design's own URL example (`/tvaryny?misto=brovary&stor=1`,
@@ -38,7 +39,7 @@ import { fillTemplate, uk } from "@opika/i18n";
  * between `CityId` (what `FeedFilters` and every domain/contract type carry)
  * and `CitySlug` (what the URL carries) - cities are seed/admin data, not
  * something these pure functions can fetch themselves, so the lookup always
- * arrives as a parameter built once by the caller (`cities.list`), the same
+ * arrives as a parameter built once by the caller (`place-book.ts`, from the labels the page holds), the same
  * pattern `filtersInWords`'s own `cityNames` map already established below.
  *
  * `stat` (sex) follows the same transliteration convention for «Стать» -
@@ -53,6 +54,7 @@ import { fillTemplate, uk } from "@opika/i18n";
  * opens the gallery, just without that constraint.
  */
 const CITY_PARAM = "misto";
+const REGION_PARAM = "obl";
 const SPECIES_PARAM = "vyd";
 const SIZE_PARAM = "rozmir";
 const AGE_PARAM = "vik";
@@ -61,7 +63,7 @@ const SORT_PARAM = "sort";
 const PAGE_PARAM = "stor";
 
 /**
- * The same seven names, exported for the one caller that cannot go through
+ * The same eight names, exported for the one caller that cannot go through
  * `galleryHref`: `FilterSheet`'s `<form method="GET">`, whose field `name`
  * attributes ARE the query keys the browser submits with no JS running.
  * Spelling them as literals there would be a second, uncompiled copy of
@@ -70,6 +72,7 @@ const PAGE_PARAM = "stor";
  * constraint didn't apply."
  */
 export const GALLERY_PARAM = {
+  region: REGION_PARAM,
   city: CITY_PARAM,
   species: SPECIES_PARAM,
   size: SIZE_PARAM,
@@ -124,30 +127,65 @@ function parseSelection<T extends string>(
   return { kind: "oneOf", values: [first, ...rest] };
 }
 
-/** The two directions every city-param function below needs - built once by
- * the caller from `cities.list`, never fetched by these pure functions. */
-export type CitySlugsById = ReadonlyMap<CityId, CitySlug>;
-export type CityIdsBySlug = ReadonlyMap<CitySlug, CityId>;
+/**
+ * What the URL's slugs mean, resolved by the page before it parses: a city token through
+ * `cities.resolveTokens` (so a former slug and a legacy id land on their city), an oblast token
+ * against the 27 regions. There is no "all cities" lookup behind this: it holds only the cities
+ * the URL names, and a token it does not know degrades to "that constraint did not apply".
+ */
+export type PlaceIdsBySlug = {
+  readonly cities: ReadonlyMap<string, CityId>;
+  readonly regions: ReadonlyMap<string, RegionId>;
+};
+export const NO_PLACE_IDS: PlaceIdsBySlug = { cities: new Map(), regions: new Map() };
 
 /**
- * A city token gets two chances, not one: the current slug form via
- * `citiesBySlug`, and - for a link already in circulation before slugs
- * existed - the raw `CityId` form, accepted only when it's a well-formed
- * UUID (not looked up against `citiesBySlug`'s values; an unknown-but-valid
- * id degrades the same "stale link, not an error" way an unknown slug does,
- * matching this file's existing tolerance for a since-removed city).
- * `redirectHrefForLegacyCityIds`, not this function, decides whether a
- * request using the second form gets redirected to the first.
+ * The slug a URL writes for a city or an oblast, by id. One map for both kinds: the ids are
+ * UUIDs from disjoint sources (regions are fixed `uuidV5(code)` constants, cities random or
+ * `uuidV5(katottg_code)`), so a lookup can never answer for the wrong kind. Built by the page from
+ * the labels it already holds; an id it has no slug for is dropped from the link it writes.
  */
+export type CitySlugsById = ReadonlyMap<CityId | RegionId, string>;
+
+/** The most `misto` tokens (and `obl` tokens: 27 regions exist) a request resolves; extras are dropped. */
+export const MAX_CITY_TOKENS = 30;
+const MAX_REGION_TOKENS = 27;
+
+/** The city tokens of a request, capped, for the page to resolve before it parses. */
+export const cityTokensOf = (searchParams: SearchParams): string[] =>
+  tokensOf(searchParams[CITY_PARAM]).slice(0, MAX_CITY_TOKENS);
+
 function parseCitySelection(
   raw: string | string[] | undefined,
-  citiesBySlug: CityIdsBySlug,
+  citiesBySlug: ReadonlyMap<string, CityId>,
 ): FilterSelection<CityId> {
+  // A token resolves through the page's lookup (current slug, former slug, legacy id). An id the
+  // lookup does not know is still honoured when well-formed: an unknown-but-valid id degrades the
+  // same "stale link, not an error" way an unknown slug does.
   const values = [
     ...new Set(
       tokensOf(raw)
-        .map((token) => citiesBySlug.get(token as CitySlug) ?? CityIdSchema.safeParse(token).data)
+        .slice(0, MAX_CITY_TOKENS)
+        .map((token) => citiesBySlug.get(token) ?? CityIdSchema.safeParse(token).data)
         .filter((id): id is CityId => id !== undefined),
+    ),
+  ];
+
+  const [first, ...rest] = values;
+  if (first === undefined) return ANY;
+  return { kind: "oneOf", values: [first, ...rest] };
+}
+
+function parseRegionSelection(
+  raw: string | string[] | undefined,
+  regionsBySlug: ReadonlyMap<string, RegionId>,
+): FilterSelection<RegionId> {
+  const values = [
+    ...new Set(
+      tokensOf(raw)
+        .slice(0, MAX_REGION_TOKENS)
+        .map((token) => regionsBySlug.get(token))
+        .filter((id): id is RegionId => id !== undefined),
     ),
   ];
 
@@ -173,10 +211,11 @@ function parseCitySelection(
  */
 export function parseGalleryQuery(
   searchParams: SearchParams,
-  citiesBySlug: CityIdsBySlug,
+  placeIds: PlaceIdsBySlug,
 ): GalleryQuery {
   const filters = canonicalizeFilters({
-    cities: parseCitySelection(searchParams[CITY_PARAM], citiesBySlug),
+    regions: parseRegionSelection(searchParams[REGION_PARAM], placeIds.regions),
+    cities: parseCitySelection(searchParams[CITY_PARAM], placeIds.cities),
     species: parseSelection<AnimalSpecies>(searchParams[SPECIES_PARAM], AnimalSpeciesSchema),
     sizes: parseSelection<SizeBucket>(searchParams[SIZE_PARAM], SizeBucketSchema),
     ages: parseSelection<AgeBucket>(searchParams[AGE_PARAM], AgeBucketSchema),
@@ -193,62 +232,47 @@ export function parseGalleryQuery(
 }
 
 /**
- * A pre-slug link (`?misto=<uuid>`) still has to work - dropping support
- * outright would break every link already shared - but it should not stay
- * the canonical form once a slug exists for it. `parseGalleryQuery` already
- * accepts either form; this is the other half, called once by each page-level
- * route before it renders: null means either the URL is already canonical
- * (or has no city param at all), or it contains a raw id this function
- * cannot confidently rewrite (see below) - a string means "308 here
- * instead."
+ * A link that names a city by a former slug (`?misto=brovary`, renamed to `brovary-kyivska`) or by
+ * a pre-slug id (`?misto=<uuid>`) still has to work, but should not stay the canonical form: this
+ * is the other half of `parseGalleryQuery`, called once by each page-level route before it
+ * renders. `cities` is `cities.resolveTokens`' answer for the request's `misto` tokens. Null
+ * means the URL is already canonical (or has no city param at all), or contains a raw id nothing
+ * resolved; a string means "308 here instead."
  *
- * Rewrites only the value of the city param - every other param's value
- * (`stor`, `sort`, `vyd`, `rozmir`, `vik`, `stat`, or anything this file
- * doesn't recognise) survives unchanged once re-parsed, never dropped or
- * altered.
- * Not literally byte-for-byte: `URLSearchParams` re-serialises the whole
- * query string, so `misto` always ends up last regardless of where it sat
- * originally, and a value containing characters `URLSearchParams` encodes
- * differently than the source URL did (spaces, `+`, non-ASCII) comes out
- * re-encoded, not copied verbatim - the *value*, decoded, is what's
- * guaranteed, not the query string's literal text. A
- * token already in slug form (not UUID-shaped) is likewise carried through
- * unchanged - a `?misto=<uuid>,brovary` link rewrites only the id half, it
- * does not lose the city that was already canonical.
+ * Rewrites only the value of the city param. Every other param survives unchanged once re-parsed,
+ * never dropped or altered. Not literally byte-for-byte: `URLSearchParams` re-serialises the whole
+ * query string, so `misto` always ends up last and a value `URLSearchParams` encodes differently
+ * than the source URL did comes out re-encoded; the decoded *value* is what is guaranteed. A token
+ * that is already a current slug (or unknown, and not UUID-shaped) is carried through unchanged.
  *
- * A `CityId`-shaped token with no entry in `citySlugs` (a since-deleted
- * city, or a malformed id that merely happens to parse) does **not** get
- * silently dropped here the way an unrecognised token does elsewhere in
- * this file - dropping it would change what the link shows (from "no
- * matches for this city" to "every city," a materially different result)
- * and this redirect is permanent (308, cached by the browser). Rather than
- * ship a wrong cached redirect, this bails out to `null` entirely: the
- * request falls through to the normal render path, where
- * `parseGalleryQuery`'s own tolerant parsing handles the id exactly as it
- * always did.
+ * An id-shaped token nothing resolved does **not** get silently dropped (that would change what
+ * the link shows from "no matches for this city" to "every city", and this redirect is permanent
+ * and cached by the browser): this bails out to `null` and the request falls through to the
+ * normal render, where `parseGalleryQuery`'s tolerant parsing handles the id as it always did.
  */
-export function redirectHrefForLegacyCityIds(
+export function redirectHrefForNonCanonicalCities(
   searchParams: SearchParams,
   path: string,
-  citySlugs: CitySlugsById,
+  cities: readonly CityTokenResolution[],
 ): string | null {
   const cityTokens = tokensOf(searchParams[CITY_PARAM]);
   if (cityTokens.length === 0) return null;
 
+  const resolved = new Map(cities.map((entry) => [entry.token, entry]));
   const rewritten: string[] = [];
-  let sawResolvableLegacyId = false;
+  let sawRewrite = false;
   for (const token of cityTokens) {
-    const parsedId = CityIdSchema.safeParse(token);
-    if (!parsedId.success) {
+    const entry = resolved.get(token);
+    if (entry?.city && (entry.via === "alias" || entry.via === "id")) {
+      sawRewrite = true;
+      rewritten.push(entry.city.slug);
+    } else if (!entry?.city && CityIdSchema.safeParse(token).success) {
+      return null;
+    } else {
       rewritten.push(token);
-      continue;
     }
-    const slug = citySlugs.get(parsedId.data);
-    if (slug === undefined) return null;
-    sawResolvableLegacyId = true;
-    rewritten.push(slug);
   }
-  if (!sawResolvableLegacyId) return null;
+  if (!sawRewrite) return null;
 
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(searchParams)) {
@@ -297,6 +321,30 @@ export const withToggledCity = (filters: FeedFilters, cityId: CityId): FeedFilte
   canonicalizeFilters({ ...filters, cities: toggle(filters.cities, cityId) });
 
 /**
+ * Selecting an oblast keeps the cities picked elsewhere; deselecting it drops the cities that
+ * belong to it (their meaning was "narrow this oblast", which no longer exists). `regionOfCity`
+ * comes from the labels the page already holds; a picked city it does not know is kept.
+ */
+export function withToggledRegion(
+  filters: FeedFilters,
+  regionId: RegionId,
+  regionOfCity: ReadonlyMap<CityId, RegionId>,
+): FeedFilters {
+  const regions = toggle(filters.regions, regionId);
+  if (isExplicitlySelected(regions, regionId)) {
+    return canonicalizeFilters({ ...filters, regions });
+  }
+  const kept =
+    filters.cities.kind === "oneOf"
+      ? filters.cities.values.filter((id) => regionOfCity.get(id) !== regionId)
+      : [];
+  const [first, ...rest] = kept;
+  const cities: FilterSelection<CityId> =
+    first === undefined ? ANY : { kind: "oneOf", values: [first, ...rest] };
+  return canonicalizeFilters({ ...filters, regions, cities });
+}
+
+/**
  * The species toggle's own write (gallery filter restructure): exclusive
  * choice, not the multi-select every other dimension above uses - tapping
  * "Cats" while "Dogs" is selected replaces it, it doesn't add to it.
@@ -320,12 +368,11 @@ export const withToggledAge = (filters: FeedFilters, age: AgeBucket): FeedFilter
 export const withToggledSex = (filters: FeedFilters, sex: AnimalSex): FeedFilters =>
   canonicalizeFilters({ ...filters, sexes: toggle(filters.sexes, sex) });
 
-/** Any `CityId` the map has no slug for is dropped - see `parseCitySelection`'s
- * own comment on the same "unmappable degrades silently" posture. In
- * practice every id in `filters.cities` came from `cities.list` in the first
- * place, so this is a safety net, not an expected path. */
-function citySlugsOf(ids: readonly CityId[], citySlugs: CitySlugsById): string[] {
-  return ids.map((id) => citySlugs.get(id)).filter((slug): slug is CitySlug => slug !== undefined);
+/** Any id the map has no slug for is dropped from the link. In practice every id in the filters
+ * came from the page's own labels (the URL's resolved tokens, the facet options), so this is a
+ * safety net, not an expected path. */
+function slugsOf(ids: readonly (CityId | RegionId)[], slugs: CitySlugsById): string[] {
+  return ids.map((id) => slugs.get(id)).filter((slug): slug is string => slug !== undefined);
 }
 
 /**
@@ -337,8 +384,12 @@ function filterParams(filters: FeedFilters, citySlugs: CitySlugsById): URLSearch
   const canonical = canonicalizeFilters(filters);
   const params = new URLSearchParams();
 
+  if (canonical.regions.kind === "oneOf") {
+    const slugs = slugsOf(canonical.regions.values, citySlugs);
+    if (slugs.length > 0) params.set(REGION_PARAM, slugs.join(","));
+  }
   if (canonical.cities.kind === "oneOf") {
-    const slugs = citySlugsOf(canonical.cities.values, citySlugs);
+    const slugs = slugsOf(canonical.cities.values, citySlugs);
     if (slugs.length > 0) params.set(CITY_PARAM, slugs.join(","));
   }
   if (canonical.species.kind === "oneOf") {
@@ -599,8 +650,8 @@ const MAX_PLAUSIBLE_DECK_TOTAL = 1_000_000;
  * parsing already gives out-of-range input, rather than rendering
  * whatever number was typed.
  */
-export function parseDeckQuery(searchParams: SearchParams, citiesBySlug: CityIdsBySlug): DeckQuery {
-  const { filters } = parseGalleryQuery(searchParams, citiesBySlug);
+export function parseDeckQuery(searchParams: SearchParams, placeIds: PlaceIdsBySlug): DeckQuery {
+  const { filters } = parseGalleryQuery(searchParams, placeIds);
 
   const totalRaw = Number(firstValue(searchParams[TOTAL_PARAM]));
   // > 0, not >= 0: deckEntryHref is only ever built when the gallery found
@@ -654,10 +705,17 @@ const SEX_WORDS: Record<AnimalSex, string> = {
 export function filtersInWords(
   filters: FeedFilters,
   cityNames: ReadonlyMap<CityId, string>,
+  regionNames: ReadonlyMap<RegionId, string> = new Map(),
 ): string | null {
   const canonical = canonicalizeFilters(filters);
   const parts: string[] = [];
 
+  if (canonical.regions.kind === "oneOf") {
+    const names = canonical.regions.values
+      .map((id) => regionNames.get(id))
+      .filter((name): name is string => Boolean(name));
+    if (names.length > 0) parts.push(names.join("/"));
+  }
   if (canonical.cities.kind === "oneOf") {
     const names = canonical.cities.values
       .map((id) => cityNames.get(id))

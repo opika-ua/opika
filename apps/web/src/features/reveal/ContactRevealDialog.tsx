@@ -2,7 +2,7 @@
 
 import type { ContactRevealView } from "@opika/contracts";
 import { allChannels, type ContactChannel } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { fillTemplate, uk } from "@opika/i18n";
 import { useLayoutEffect, useRef } from "react";
 import { lockBodyScroll } from "../controls/body-scroll-lock";
 import { THROTTLED_COPY } from "./throttled-copy";
@@ -418,7 +418,7 @@ function RevealContent({
           ))}
           <span className="flex items-center min-h-14 px-4 text-body text-ink-2">
             {cityName
-              ? `${uk.location.lineAtShelter.replace("{city}", () => cityName)} · ${uk.reveal.meetingPlace}`
+              ? `${fillTemplate(uk.location.lineAtShelter, { place: cityName })} · ${uk.reveal.meetingPlace}`
               : uk.reveal.meetingPlace}
           </span>
           {footnote !== null && <span className="text-caption text-ink-2">{footnote}</span>}

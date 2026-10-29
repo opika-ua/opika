@@ -7,6 +7,7 @@ import {
 } from "@opika/domain";
 import { and, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import { animals } from "../schema/animals";
+import { cities } from "../schema/cities";
 import { shelters } from "../schema/shelters";
 
 /**
@@ -56,6 +57,35 @@ export function buildDiscoverabilityPredicate(): SQL[] {
 }
 
 /**
+ * Oblast and city together, as a union of scopes: an animal matches when its city is a picked
+ * city, or its oblast is picked and none of that oblast's cities is. So "Київська" alone is the
+ * whole oblast, "Київська" + "Бровари" is Brovary only, and "Бровари" + "Львівська" is Brovary
+ * plus all of Lviv oblast. Cities alone stay a bare `city_id IN (...)`, byte-identical to before
+ * the oblast dimension (`feed-predicate-identity.test.ts`).
+ */
+function buildLocationCondition(filters: FeedFilters): SQL | null {
+  const cityIds = filters.cities.kind === "oneOf" ? [...filters.cities.values] : null;
+  if (filters.regions.kind !== "oneOf") {
+    return cityIds ? inArray(animals.cityId, cityIds) : null;
+  }
+
+  const regionIds = [...filters.regions.values];
+  const inRegions = cityIds
+    ? sql`${animals.cityId} IN (
+        SELECT ${cities.id} FROM ${cities}
+        WHERE ${inArray(cities.regionId, regionIds)}
+          AND ${cities.regionId} NOT IN (
+            SELECT picked.region_id FROM ${cities} AS picked WHERE ${inArray(sql`picked.id`, cityIds)}
+          )
+      )`
+    : sql`${animals.cityId} IN (
+        SELECT ${cities.id} FROM ${cities} WHERE ${inArray(cities.regionId, regionIds)}
+      )`;
+
+  return cityIds ? sql`(${inArray(animals.cityId, cityIds)} OR ${inRegions})` : inRegions;
+}
+
+/**
  * Only what the adopter asked for. Empty when nothing is constrained, which is
  * why `{ kind: "any" }` exists as a distinct variant rather than an empty list.
  *
@@ -66,9 +96,8 @@ export function buildDiscoverabilityPredicate(): SQL[] {
 export function buildFilterPredicate(filters: FeedFilters, now: Date): SQL[] {
   const conditions: SQL[] = [];
 
-  if (filters.cities.kind === "oneOf") {
-    conditions.push(inArray(animals.cityId, [...filters.cities.values]));
-  }
+  const location = buildLocationCondition(filters);
+  if (location) conditions.push(location);
   if (filters.species.kind === "oneOf") {
     conditions.push(inArray(animals.species, [...filters.species.values]));
   }

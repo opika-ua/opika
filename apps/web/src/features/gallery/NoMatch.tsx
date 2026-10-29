@@ -1,7 +1,7 @@
 import type { GalleryRelaxation } from "@opika/contracts";
-import type { FeedFilterDimension, FeedFilters, GallerySort } from "@opika/domain";
-import { pluralizeUk, relaxDimension } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import type { FeedFilterDimension, FeedFilters, GallerySort, RegionId } from "@opika/domain";
+import { ANY, pluralizeUk, relaxDimension } from "@opika/domain";
+import { fillTemplate, uk } from "@opika/i18n";
 import { LinkButton } from "../../ui/Button";
 import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
@@ -14,6 +14,12 @@ interface NoMatchProps {
   sort: GallerySort;
   citySlugs: CitySlugsById;
   relaxations: readonly GalleryRelaxation[];
+  /**
+   * Next-door oblasts that do have animals under the other filters, most first (the page picks
+   * them from the facet counts, whose location count ignores the chosen oblasts). Only passed
+   * when an oblast is chosen; empty otherwise.
+   */
+  neighbourRegions?: ReadonlyArray<{ id: RegionId; label: string; count: number }>;
 }
 
 /**
@@ -25,6 +31,7 @@ interface NoMatchProps {
  * of them with no per-dimension exception left to carry.
  */
 const DIMENSION_LABEL: Record<FeedFilterDimension, string> = {
+  regions: uk.filters.region.toLowerCase(),
   cities: uk.filters.city.toLowerCase(),
   species: uk.filters.species.toLowerCase(),
   sizes: uk.filters.size.toLowerCase(),
@@ -37,7 +44,12 @@ function suggestionLabel({ dimension, additional }: GalleryRelaxation): string {
     .replace("{count}", String(additional))
     .replace("{animalWord}", pluralizeUk(additional, uk.filters.animalWord));
 
-  const template = dimension === "cities" ? uk.noMatch.showAllCities : uk.noMatch.removeDimension;
+  const template =
+    dimension === "cities"
+      ? uk.noMatch.showAllCities
+      : dimension === "regions"
+        ? uk.noMatch.showAllRegions
+        : uk.noMatch.removeDimension;
   return template
     .replace("{dimension}", DIMENSION_LABEL[dimension])
     .replace("{animalWord}", animalWord);
@@ -53,7 +65,14 @@ function suggestionLabel({ dimension, additional }: GalleryRelaxation): string {
  * useful suggestion first" (the contract's own words) without this
  * component re-sorting anything.
  */
-export function NoMatch({ filters, sort, citySlugs, relaxations }: NoMatchProps) {
+export function NoMatch({
+  filters,
+  sort,
+  citySlugs,
+  relaxations,
+  neighbourRegions = [],
+}: NoMatchProps) {
+  const regionChosen = filters.regions.kind !== "any";
   return (
     <Panel
       padding="lg"
@@ -69,7 +88,42 @@ export function NoMatch({ filters, sort, citySlugs, relaxations }: NoMatchProps)
           <Text look="body" className="text-ink-2 text-pretty">
             {uk.noMatch.reassurance}
           </Text>
+          {regionChosen && (
+            <Text
+              look="body"
+              className="text-ink-2 text-pretty"
+              data-testid="no-match-region-empty"
+            >
+              {uk.noMatch.regionEmpty}
+            </Text>
+          )}
         </div>
+
+        {neighbourRegions.length > 0 && (
+          <div className="flex w-full flex-col gap-2">
+            {neighbourRegions.map((neighbour) => (
+              <LinkButton
+                key={neighbour.id}
+                variant="secondary"
+                href={galleryHref(
+                  { ...filters, regions: { kind: "oneOf", values: [neighbour.id] }, cities: ANY },
+                  sort,
+                  citySlugs,
+                )}
+                data-testid="no-match-neighbour-region"
+                className="w-full"
+              >
+                {fillTemplate(uk.noMatch.neighbourRegion, {
+                  region: neighbour.label,
+                  animalWord: fillTemplate(uk.noMatch.additionalAnimals, {
+                    count: String(neighbour.count),
+                    animalWord: pluralizeUk(neighbour.count, uk.filters.animalWord),
+                  }),
+                })}
+              </LinkButton>
+            ))}
+          </div>
+        )}
 
         {relaxations.length > 0 && (
           <>

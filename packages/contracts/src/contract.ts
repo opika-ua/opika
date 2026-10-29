@@ -4,13 +4,14 @@ import {
   animalsNeighboursContract,
   animalsRevealContract,
 } from "./procedures/animals";
-import { citiesListContract } from "./procedures/cities";
+import { citiesByIdsContract, citiesResolveTokensContract } from "./procedures/cities";
 import { feedListContract } from "./procedures/feed";
 import {
   galleryFacetCountsContract,
   galleryListContract,
   galleryRelaxationCountsContract,
 } from "./procedures/gallery";
+import { regionsListContract } from "./procedures/regions";
 import { revealsListMineContract } from "./procedures/reveals";
 import { sessionBootstrapContract } from "./procedures/session";
 import { sheltersByIdContract } from "./procedures/shelters";
@@ -29,7 +30,11 @@ export const contract = {
     bootstrap: sessionBootstrapContract,
   },
   cities: {
-    list: citiesListContract,
+    byIds: citiesByIdsContract,
+    resolveTokens: citiesResolveTokensContract,
+  },
+  regions: {
+    list: regionsListContract,
   },
   feed: {
     list: feedListContract,

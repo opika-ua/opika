@@ -18,7 +18,16 @@ vi.mock("../../api/browser-client", () => ({
 }));
 
 const CITY_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const CITY_NAMES = { [CITY_ID]: "Бровари" };
+const BROVARY_LABEL = {
+  id: CITY_ID,
+  slug: "brovary-kyivska",
+  kind: "city",
+  nameScope: "unique_in_ukraine",
+  regionId: "814661e1-67de-532e-a38e-2216d8b521ff",
+  name: "Бровари",
+  regionShort: "Київська обл.",
+  raion: null,
+};
 
 function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
   return {
@@ -50,7 +59,7 @@ beforeEach(() => {
 
 describe("SavedPageScreen", () => {
   it("shows the empty state when nothing is saved", async () => {
-    render(<SavedPageScreen cityNames={CITY_NAMES} />);
+    render(<SavedPageScreen />);
     expect(await screen.findByTestId("saved-empty")).toBeTruthy();
     expect(screen.getByText(/Тут поки нічого немає/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "До галереї" }).getAttribute("href")).toBe("/tvaryny");
@@ -60,6 +69,7 @@ describe("SavedPageScreen", () => {
   it("fetches and shows an available saved animal as a card", async () => {
     toggleSavedAnimal("00000001-0000-4000-8000-000000000000", new Date());
     cardsByIds.mockResolvedValue({
+      cityLabels: [BROVARY_LABEL],
       items: [
         {
           kind: "available",
@@ -69,7 +79,7 @@ describe("SavedPageScreen", () => {
       ],
     });
 
-    render(<SavedPageScreen cityNames={CITY_NAMES} />);
+    render(<SavedPageScreen />);
 
     expect(await screen.findByRole("link", { name: /Мурчик/ })).toBeTruthy();
     expect(cardsByIds).toHaveBeenCalledWith({
@@ -95,7 +105,7 @@ describe("SavedPageScreen", () => {
       }),
     );
 
-    render(<SavedPageScreen cityNames={CITY_NAMES} />);
+    render(<SavedPageScreen />);
 
     await screen.findByTestId("saved-skeletons");
     expect(screen.getAllByTestId("saved-skeletons").length).toBeGreaterThan(0);
@@ -112,12 +122,13 @@ describe("SavedPageScreen", () => {
   it("shows an unavailable item with its name, not as a card", async () => {
     toggleSavedAnimal("00000002-0000-4000-8000-000000000000", new Date());
     cardsByIds.mockResolvedValue({
+      cityLabels: [BROVARY_LABEL],
       items: [
         { kind: "unavailable", animalId: "00000002-0000-4000-8000-000000000000", name: "Рекс" },
       ],
     });
 
-    render(<SavedPageScreen cityNames={CITY_NAMES} />);
+    render(<SavedPageScreen />);
 
     expect(await screen.findByText("Рекс більше не показується на сайті.")).toBeTruthy();
     expect(screen.queryByRole("link", { name: /Рекс/ })).toBeNull();
@@ -126,12 +137,13 @@ describe("SavedPageScreen", () => {
   it("drops an item with no name at all - nothing honest to show, and no copy to invent (S8-D2)", async () => {
     toggleSavedAnimal("00000003-0000-4000-8000-000000000000", new Date());
     cardsByIds.mockResolvedValue({
+      cityLabels: [BROVARY_LABEL],
       items: [
         { kind: "unavailable", animalId: "00000003-0000-4000-8000-000000000000", name: null },
       ],
     });
 
-    render(<SavedPageScreen cityNames={CITY_NAMES} />);
+    render(<SavedPageScreen />);
 
     expect(await screen.findByTestId("saved-empty")).toBeTruthy();
     expect(screen.queryByTestId("saved-unavailable")).toBeNull();
@@ -141,10 +153,11 @@ describe("SavedPageScreen", () => {
     const animalId = "00000001-0000-4000-8000-000000000000" as AnimalId;
     toggleSavedAnimal(animalId, new Date());
     cardsByIds.mockResolvedValue({
+      cityLabels: [BROVARY_LABEL],
       items: [{ kind: "available", animalId, card: makeCard() }],
     });
 
-    render(<SavedPageScreen cityNames={CITY_NAMES} />);
+    render(<SavedPageScreen />);
     await screen.findByRole("link", { name: /Мурчик/ });
     expect(cardsByIds).toHaveBeenCalledTimes(1);
 
@@ -162,17 +175,19 @@ describe("SavedPageScreen", () => {
     toggleSavedAnimal(second, new Date("2026-10-20T00:00:00.000Z"));
     toggleSavedAnimal(first, new Date("2026-10-21T00:00:00.000Z"));
     cardsByIds.mockResolvedValue({
+      cityLabels: [BROVARY_LABEL],
       items: [
         { kind: "available", animalId: first, card: makeCard({ id: first }) },
         { kind: "available", animalId: second, card: makeCard({ id: second, name: "Рекс" }) },
       ],
     });
 
-    render(<SavedPageScreen cityNames={CITY_NAMES} />);
+    render(<SavedPageScreen />);
     await screen.findByRole("link", { name: /Мурчик/ });
     expect(cardsByIds).toHaveBeenLastCalledWith({ animalIds: [first, second] });
 
     cardsByIds.mockResolvedValue({
+      cityLabels: [BROVARY_LABEL],
       items: [
         { kind: "available", animalId: second, card: makeCard({ id: second, name: "Рекс" }) },
       ],
@@ -187,9 +202,12 @@ describe("SavedPageScreen", () => {
     const getItemSpy = vi.spyOn(window.localStorage, "getItem").mockImplementation(() => {
       throw new DOMException("blocked");
     });
-    cardsByIds.mockResolvedValue({ items: [] });
+    cardsByIds.mockResolvedValue({
+      cityLabels: [BROVARY_LABEL],
+      items: [],
+    });
 
-    render(<SavedPageScreen cityNames={CITY_NAMES} />);
+    render(<SavedPageScreen />);
 
     expect(await screen.findByTestId("saved-storage-blocked")).toBeTruthy();
     getItemSpy.mockRestore();
