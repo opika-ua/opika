@@ -4,7 +4,7 @@ import { authAccount, authUser } from "../schema/auth";
 import { CREDENTIAL_PROVIDER_ID } from "./kabinet-actor-repo";
 
 /**
- * One credential of a user, as its last password write left it (PW1-F6). Better Auth 1.6.33
+ * One credential of a user, as its last password write left it (PW1-F6). Better Auth 1.7.14
  * moves both on every password write, and `apps/web/src/kabinet/password-flows.test.ts` pins
  * that against Better Auth itself:
  *

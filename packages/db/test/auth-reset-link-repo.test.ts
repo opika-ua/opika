@@ -6,7 +6,7 @@ import { setupTestDatabase, truncateAll } from "../src/test-utils/index";
 
 /**
  * PW1-F1's delete against Postgres, with one row of every shape Better Auth writes to
- * `auth_verification` (Better Auth 1.6.33; the shapes are pinned against Better Auth itself in
+ * `auth_verification` (Better Auth 1.7.14; the shapes are pinned against Better Auth itself in
  * `apps/web/src/kabinet/password-flows.test.ts`). Only the user's reset links may go.
  */
 
@@ -63,16 +63,23 @@ describe("authResetLinkRepo.deleteUnused (PW1-F1)", () => {
       row("olena-reset-1", hashed("reset-password:first-token-0123456789ab"), OLENA),
       row("olena-reset-2", hashed("reset-password:second-token-0123456789a"), OLENA),
       row("olena-reset-expired", hashed("reset-password:old-token-0123456789abc"), OLENA, at(-1)),
-      // Olena's magic link: hashed too, but its value is JSON.
+      // Olena's magic link: `magic-link:` before the hash, and a JSON value.
       row(
         "olena-magic-link",
-        hashed("magic-token-0123456789abcdefghijkl"),
-        JSON.stringify({ email: "olena@example.org" }),
+        `magic-link:${hashed("magic-token-0123456789abcdefghijkl")}`,
+        JSON.stringify({ type: "magic-link", email: "olena@example.org" }),
       ),
+      // The lock a magic link holds while it promotes an unverified user (Better Auth 1.7,
+      // `revokeUnprovenAccountAccess`): her id as the value, under a plain identifier.
+      row("olena-unproven-lock", `revoke-unproven-account-access:${OLENA}`, OLENA, at(5_000)),
       // A delete-account confirmation, were it ever turned on: her id, a plain identifier.
       row("olena-delete-account", "delete-account-0123456789abcdefghijklmnopqrstuv", OLENA),
       // OAuth state, were social sign-in ever added: plain identifier, JSON value.
-      row("oauth-state", "0123456789abcdefghijklmnopqrstuv", JSON.stringify({ userId: OLENA })),
+      row(
+        "oauth-state",
+        "auth-state:0123456789abcdefghijklmnopqrstuv",
+        JSON.stringify({ userId: OLENA }),
+      ),
       // Petro's reset link.
       row("petro-reset", hashed("reset-password:petro-token-0123456789ab"), PETRO),
     ]);
@@ -84,6 +91,7 @@ describe("authResetLinkRepo.deleteUnused (PW1-F1)", () => {
       "oauth-state",
       "olena-delete-account",
       "olena-magic-link",
+      "olena-unproven-lock",
       "petro-reset",
     ]);
   });
@@ -101,6 +109,7 @@ describe("authResetLinkRepo.deleteUnused (PW1-F1)", () => {
     expect(left).toContain("olena-delete-account");
     expect(left).toContain("oauth-state");
     expect(left).toContain("olena-magic-link");
+    expect(left).toContain("olena-unproven-lock");
   });
 
   it("is a no-op when the user holds none, or is nobody", async () => {

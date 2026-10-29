@@ -4,7 +4,7 @@ import { authVerification } from "../schema/auth";
 
 /**
  * What an identifier Better Auth stored hashed looks like: SHA-256, base64url,
- * no padding, so 43 characters of `A-Z a-z 0-9 - _` (Better Auth 1.6.33,
+ * no padding, so 43 characters of `A-Z a-z 0-9 - _` (Better Auth 1.7.14,
  * `db/verification-token-storage.mjs`, `defaultKeyHasher`). Written out here,
  * not imported from Better Auth, so an upgrade that changes the encoding fails
  * the storage-format pin in `apps/web/src/kabinet/password-flows.test.ts`
@@ -17,20 +17,23 @@ const HASHED_IDENTIFIER = "^[A-Za-z0-9_-]{43}$";
  * (PW1-F1). Each link is one `auth_verification` row: `identifier` is SHA-256
  * (base64url) of `reset-password:<token>` (the kabinet's `storeIdentifier`
  * override, `apps/web/src/kabinet/auth.ts`), so neither the token nor the
- * prefix is in the row, and `value` is the user's id (Better Auth 1.6.33,
+ * prefix is in the row, and `value` is the user's id (Better Auth 1.7.14,
  * `api/routes/password.mjs`, `requestPasswordReset`).
  *
  * **Why both conditions pick a reset link and nothing else.** In this config
- * Better Auth writes `auth_verification` from four places, and only the reset
- * has both a hashed identifier and a user id for a value:
- * - a magic link (`plugins/magic-link/index.mjs`): a hashed identifier
- *   (`storeToken: "hashed"`), but the value is JSON (`{"email":…}`), never a
- *   user id;
+ * Better Auth writes `auth_verification` from five places, and only the reset
+ * has both a bare hashed identifier and a user id for a value:
+ * - a magic link (`plugins/magic-link/index.mjs`): `magic-link:` before the
+ *   hash (`storeToken: "hashed"`), and the value is JSON
+ *   (`{"type":"magic-link","email":…}`), never a user id;
+ * - the lock a magic link holds while it promotes an unverified user
+ *   (`db/revoke-unproven-account-access.mjs`): the value is a user id, but the
+ *   identifier is plain (`revoke-unproven-account-access:<user id>`);
  * - a delete-account confirmation (`api/routes/update-user.mjs`): the value is
  *   a user id, but the identifier is stored plain (`delete-account-<token>`,
  *   47 characters), and the kabinet never turns `user.deleteUser` on anyway;
- * - OAuth state (`state.mjs`): a plain identifier and a JSON value, and the
- *   kabinet has no social sign-in.
+ * - OAuth state (`state.mjs`): a plain identifier (`auth-state:<state>`) and a
+ *   JSON value, and the kabinet has no social sign-in.
  * Invitations live in `auth_invitation`; since PW-2 each invitation's link is a
  * row here too (`kabinetInviteTokenRepo`), with a hashed identifier but a value
  * of `invitation:<id>`, which never equals a user id. Another user's links carry

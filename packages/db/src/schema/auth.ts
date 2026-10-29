@@ -11,8 +11,8 @@ import { shelters } from "./shelters";
  * organization plugin's three), so `auth_session` can't be mistaken for the
  * adopter `sessions` table in a query, a migration or an incident.
  *
- * The shapes are Better Auth 1.6.33's own (`getSchema` with this app's
- * options), written by hand so every column is reviewed. JS keys are Better
+ * The shapes are Better Auth 1.7.14's own (`getSchema` with this app's
+ * options, unchanged from 1.6.33), written by hand so every column is reviewed. JS keys are Better
  * Auth's field names, which its Drizzle adapter looks up; SQL names are this
  * repo's snake_case. Ids are text holding UUIDs (`generateId: "uuid"`), so
  * they parse as `ModeratorId`/`ShelterAdminId` (proposal §2).

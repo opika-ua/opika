@@ -45,7 +45,7 @@ import { APIError, isAPIError } from "better-auth/api";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
-import { maskedAuthLogging } from "./auth-log";
+import { maskedAuthHandler } from "./auth-log";
 import { CleanedQueryError, cleanedQueryError, withQueryErrorsCleaned } from "./clean-query-errors";
 import { capturingSender } from "./magic-link-sender";
 import { kabinetPageLoadAllowed } from "./page-limit";
@@ -478,21 +478,24 @@ describe("our callers read the cleaned error exactly as they read the raw one", 
   });
 
   it("23505 in Better Auth: a duplicate user write rejects with the same SQLSTATE and constraint through its adapter over the raw handle as through the served instance (the cleaned one)", async () => {
-    // Better Auth 1.6.33 inspects no SQLSTATE itself: a unique violation in its own write
+    // Better Auth 1.7.14 inspects no SQLSTATE itself: a unique violation in its own write
     // propagates to its caller. The raw side is Better Auth's adapter built directly over the
     // raw handle (`rawAuthOver`); the cleaned side is the served instance, which wraps its handle.
     type UserWrite = { email: string; name: string; emailVerified: boolean };
+    type Source = { method: string };
     const duplicateThrough = async (
-      context: Promise<{ internalAdapter: { createUser: (user: UserWrite) => Promise<unknown> } }>,
+      context: Promise<{
+        internalAdapter: { createUser: (user: UserWrite, source: Source) => Promise<unknown> };
+      }>,
     ) => {
       await truncateAll(db);
       await db.insert(authUser).values(userRow(randomUUID(), ADDRESS));
       const error = await failureOf(
-        (await context).internalAdapter.createUser({
-          email: ADDRESS,
-          name: "Олена",
-          emailVerified: true,
-        }),
+        (await context).internalAdapter.createUser(
+          { email: ADDRESS, name: "Олена", emailVerified: true },
+          // Read only by `validateUserInfo`, unset here (Better Auth 1.7).
+          { method: "operator-invite" },
+        ),
       );
       const pg = (
         error as { cause?: { code?: string; constraint_name?: string; constraint?: string } }
@@ -880,18 +883,15 @@ describe("a transaction on the cleaned handle (F8-F1, the PW1-F8 review's note 1
       expect(escaped).toBeInstanceOf(CleanedQueryError);
       expect([(escaped as Error).name, isAPIError(escaped)]).toEqual(["Error", false]);
       expect(leaks([shown(escaped), String(escaped)])).toEqual(none());
-      // Better Auth's error path (our onAPIError, then better-call's answer to what it throws).
+      // Better Auth's error path: thrown back out of its handler, logged and answered there.
       const logged: string[] = [];
       const capture = (line: string) => logged.push(line);
-      let answered: unknown;
-      try {
-        maskedAuthLogging({ error: capture, warn: capture, log: capture }).onAPIError.onError(
-          escaped,
-        );
-      } catch (error) {
-        answered = error;
-      }
-      const response = toResponse(answered);
+      const response = await maskedAuthHandler(
+        async () => {
+          throw escaped;
+        },
+        { error: capture, warn: capture, log: capture },
+      )(new Request("http://localhost/"));
       expect([response.status, logged]).toEqual([
         500,
         ["[kabinet] Better Auth error: API error · Error (23505)"],
@@ -1029,13 +1029,13 @@ describe("a transaction on the cleaned handle (F8-F1, the PW1-F8 review's note 1
       expectBare(escaped, [ADDRESS, TOKEN, "Failed query"]);
       const logged: string[] = [];
       const capture = (line: string) => logged.push(line);
-      try {
-        maskedAuthLogging({ error: capture, warn: capture, log: capture }).onAPIError.onError(
-          escaped,
-        );
-      } catch {
-        // Its answer is the plain 500 the D9 test above checks; the line is what's checked here.
-      }
+      // Its answer is the plain 500 the D9 test above checks; the line is what's checked here.
+      await maskedAuthHandler(
+        async () => {
+          throw escaped;
+        },
+        { error: capture, warn: capture, log: capture },
+      )(new Request("http://localhost/"));
       expect(logged).toEqual(["[kabinet] Better Auth error: API error · Error (23505)"]);
 
       // Twenty links down, still within the walk's limit: the same facts.

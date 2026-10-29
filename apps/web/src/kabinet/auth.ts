@@ -17,7 +17,7 @@ import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 import { clientIp } from "../api/client-ip";
 import { ipRateLimitKey } from "../api/rate-limit-key";
-import { maskedAuthLogging } from "./auth-log";
+import { maskedAuthHandler, maskedAuthLogging } from "./auth-log";
 import { withQueryErrorsCleaned } from "./clean-query-errors";
 import { MAGIC_LINK_TTL_SECONDS, type MagicLinkSender } from "./magic-link-sender";
 import { PASSWORD_PATHS, passwordHooks } from "./password-hooks";
@@ -239,8 +239,9 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
     baseURL: deps.baseURL,
     basePath: "/api/auth",
     secret: deps.secret,
-    // Every line Better Auth logs, and its log of an error escaping an endpoint or a hook, go
-    // through the masking (PW1-F8, `auth-log.ts`): a failed query's message names the address.
+    // Every line Better Auth logs goes through the masking (PW1-F8, `auth-log.ts`): a failed
+    // query's message names the address. An error escaping an endpoint is thrown back to
+    // `auth.handler`, wrapped below.
     ...maskedAuthLogging(),
     database: drizzleAdapter(db, {
       provider: "pg",
@@ -268,7 +269,7 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
     verification: {
       modelName: "auth_verification",
       // Oleksii's scope item 6: "single-use token, 1h, stored hashed". The row
-      // keeps SHA-256 of `reset-password:<token>` (Better Auth 1.6.33's
+      // keeps SHA-256 of `reset-password:<token>` (Better Auth 1.7.14's
       // `storeIdentifier`), never the token; magic-link rows are hashed by the
       // plugin itself (`storeToken`), so the default stays plain for them.
       storeIdentifier: { default: "plain", overrides: { "reset-password:": "hashed" } },
@@ -288,15 +289,15 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       maxPasswordLength: PASSWORD_MAX_CHARACTERS,
       resetPasswordTokenExpiresIn: RESET_PASSWORD_TTL_SECONDS,
       // Scope item 6: "On reset: all other sessions are revoked." Better Auth
-      // deletes every session of the user; the reset itself holds none. A
-      // second line since PW1-F5: the password write has already ended every
-      // session that existed then, in its own statement (migration 0013), so a
-      // failure here leaves none of those. This revoke still catches a session
-      // inserted between the write and it. A sign-in racing the write (one
-      // that checked the old password before it) keeps no session without it:
-      // inserted before the write's statement, the trigger deletes it; after,
-      // its own after-hook's second read, which waits for a write in flight
-      // (`FOR SHARE`), sees the write and deletes it (PW1-F6, `sign-in-race.ts`).
+      // (1.7) deletes every session of the user before it writes the password,
+      // so a failed revoke leaves the old password, never a new one beside live
+      // sessions. The write then ends every session again in its own statement
+      // (PW1-F5, migration 0013), catching one inserted between the two. A
+      // sign-in racing the write (one that checked the old password before it)
+      // keeps no session: inserted before the write's statement, the trigger
+      // deletes it; after, its own after-hook's second read, which waits for a
+      // write in flight (`FOR SHARE`), sees the write and deletes it (PW1-F6,
+      // `sign-in-race.ts`).
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: (input) => passwords.sendResetPassword(input),
       // Voids the user's other reset links (PW1-F1), then the notice. The change does the same
@@ -377,8 +378,8 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       // here would mean every test ran a less safe product than production
       // (reviewer, row 3, finding 2).
       disableOriginCheck: false,
-      // KH-Q6: no client IP on the session row. Better Auth 1.6.33 then
-      // writes `ip_address = ''` (its `getIp(...) || ""`), never an address.
+      // KH-Q6: no client IP on the session row. Better Auth 1.7.14 then
+      // writes `ip_address = ''` (its `getIP(...) || ""`), never an address.
       // The same switch turns off Better Auth's own built-in rate limiter
       // (`resolveRateLimitConfig` returns null without an IP). Every limit
       // here is ours, keyed on the request's IP in the limiter store, never
@@ -426,6 +427,9 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       }),
     ],
   });
+  // Each caller of `auth.handler` (the route, the confirm page, the invite POST) gets the masked
+  // error log and an empty 500 for a thrown error (`maskedAuthHandler`).
+  auth.handler = maskedAuthHandler(auth.handler);
   return auth;
 }
 
