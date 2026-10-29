@@ -1,6 +1,7 @@
 # Superseded CLAUDE.md sections (pre DS PR 5)
 
 The old intro, repo layout and engineering principles, moved verbatim when CLAUDE.md was slimmed. Current versions are in CLAUDE.md (shorter); the long dash-rule history is also in docs/standing-constraints.md.
+Note: `docs/design/README.md` named below is the retired «Реєстр» spec (history); the current design docs are `docs/ui/`.
 
 Read this before doing anything else in this repo. It exists so a future
 session (or a future you) doesn't have to re-derive decisions that are

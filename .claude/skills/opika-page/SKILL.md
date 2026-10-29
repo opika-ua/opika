@@ -38,3 +38,27 @@ A new state with new Ukrainian text needs copy approval first.
 4. Tests: logic and flows; add or extend a Playwright harness spec in `apps/web/test/harness/`, found by
    role, label or text only (no geometry).
 5. `pnpm check` (typecheck, lint, test, build:web, harness).
+
+## Not-found and error pages
+
+There is no root `app/not-found.tsx`; each segment owns its own. Existing files:
+
+- `app/tvaryny/[animalId]/not-found.tsx` (animal 404) and `app/prytulky/[shelterId]/not-found.tsx` (shelter 404).
+- `app/tvaryny/error.tsx` (gallery error boundary, renders the shared `features/gallery/LoadErrorScreen.tsx`)
+  and `app/tvaryny/gortaty/error.tsx` (deck).
+
+**Canonical reference: `app/tvaryny/[animalId]/not-found.tsx`.** It is built only from the kit (`Panel`,
+`Heading`, `Text`, `LinkButton`), has no arbitrary values, and takes copy from `uk.detail.notFound`. Copy
+its shape for a new variant (check `docs/ui/inventory-2026-10.md` only as a dated snapshot; it predates
+the migration).
+
+Rules for a new variant:
+
+- Call `notFound()` from the page (or segment) that cannot resolve; Next then serves the 404 status with
+  your `not-found.tsx`. Do not render a "not found" screen from a normal page, it would return 200.
+- Export `metadata` with `robots: { index: false, follow: false }` from the file itself (see skill `opika-seo`).
+- Unit test: follow `app/tvaryny/animal-surfaces.test.tsx` (render the component, assert the title,
+  body and action link by text/role, and that `metadata.robots` is noindex).
+- Harness: follow `test/harness/animal-detail.harness.ts` ("an unknown or malformed id 404s on-brand"):
+  open the route, assert the status and the title/action by role or text, and `expectReachableByTab` for
+  the action. No geometry.

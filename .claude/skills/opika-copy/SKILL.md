@@ -5,6 +5,7 @@ description: Use for any Ukrainian or English user-facing text in Opika (labels,
 
 # Opika copy
 
+- **Check first:** look for an existing key before proposing copy (for example `uk.detail.notFound.*`, `uk.gallery.*`); reuse beats a new approval.
 - **Where:** every string lives in `packages/i18n/src/messages/uk.ts` (and `en.ts`), never in the kit, the
   domain or contracts. The product name only through app-level config (`apps/web/src/brand.ts`).
 - **Approval gate (lean rule 4):** new Ukrainian copy is one table at the start of the task, asked once

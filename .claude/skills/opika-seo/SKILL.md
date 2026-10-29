@@ -18,6 +18,7 @@ The code is the source of truth: read it before changing anything.
   helpers exist for animal and shelter pages.
 - **Sitemap:** `app/sitemap.ts` over `seo/sitemap-entries.ts` (50,000 URL limit). A new indexable route type
   gets entries and a test; noindex routes (`/dev/ui`, kabinet, error pages) never appear.
+- **Error and not-found pages** also export their own `robots: { index: false, follow: false }` metadata (for example `app/tvaryny/[animalId]/not-found.tsx`), not only the `X-Robots-Tag` header.
 - **Robots:** `app/robots.ts` always allows crawling; noindex is carried by the `X-Robots-Tag` header and the
   root `robots` metadata. Do not disallow crawling, it would hide the noindex.
 - **Pre-launch flags:** `apps/web/src/seo-flags.ts` keeps "registry holds no real shelters" and "site is
