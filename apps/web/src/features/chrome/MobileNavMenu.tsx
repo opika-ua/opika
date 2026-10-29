@@ -1,4 +1,4 @@
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import type { ReactNode } from "react";
 import { Icon } from "../../ui/Icon";
 import { Sheet } from "../../ui/Sheet";

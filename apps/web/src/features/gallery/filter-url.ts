@@ -23,7 +23,7 @@ import {
   NO_FILTERS,
   SizeBucketSchema,
 } from "@opika/domain";
-import { fillTemplate, uk } from "@opika/i18n";
+import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import type { CityTokenResolution } from "./city-tokens";
 
 /**

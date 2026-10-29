@@ -14,7 +14,7 @@ import {
   pluralizeUk,
   SIZE_BUCKETS,
 } from "@opika/domain";
-import { fillTemplate, placeName, uk } from "@opika/i18n";
+import { fillTemplate, placeName, ukPublic as uk } from "@opika/i18n/public";
 
 /**
  * One option of a filter selector (desktop popup) or sheet group (mobile), shared by both so the

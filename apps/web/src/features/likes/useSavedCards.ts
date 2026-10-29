@@ -1,6 +1,6 @@
 import type { CityLabelView } from "@opika/contracts";
 import type { AnimalId, CityId } from "@opika/domain";
-import { placeName } from "@opika/i18n";
+import { placeName } from "@opika/i18n/public";
 import { useCallback, useEffect, useState } from "react";
 import { savedBrowserClient } from "../../api/browser-client";
 import {

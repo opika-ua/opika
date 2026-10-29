@@ -1,6 +1,6 @@
 /**
  * Every file that starts with a `"use client"` directive, and why. A new client file has to be added
- * here with a one-line reason; `SERVER CANDIDATE` marks the five that could shrink or go server-side
+ * here with a one-line reason; `SERVER CANDIDATE` marks the ones that could shrink or go server-side
  * (`docs/ui/inventory-2026-10.md`, section 4). Remove an entry when the directive goes.
  */
 export const CLIENT_FILES: Readonly<Record<string, string>> = {
@@ -96,8 +96,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/profile-edit/VoiceSection.tsx": "sentence form with live announce",
   "features/likes/SaveButton.tsx": "toggles saved state in localStorage",
   "features/likes/SavedNavLink.tsx": "reads saved count from localStorage after hydration",
-  "features/likes/SavedPageScreen.tsx":
-    "SERVER CANDIDATE (server shell (header, footer, skeletons) + one client list island): whole /zberezheni screen reads localStorage and renders from it",
+  "features/likes/SavedCards.tsx":
+    "the saved list: reads localStorage after hydration, remove buttons",
   "features/reveal/ContactRevealDialog.tsx": "own modal: focus, Esc, scroll lock, reveal call",
   "features/reveal/useReveal.ts": "hook: reveal call via the browser client",
   "image-loader.ts":

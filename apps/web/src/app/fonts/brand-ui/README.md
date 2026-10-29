@@ -1,9 +1,10 @@
 # UI font: «Opika Variable» (self-hosted)
 
-- **File:** `OpikaVariable-wght.woff2` (92,160 bytes, SHA-256
-  `38afb1a2f6e1fe096f94e5d9d53ab9199fa7f247e88efbd34af55adb0fdbdb8e`). Supplied directly by
+- **File:** `OpikaVariable-wght.woff2` (58,412 bytes, SHA-256
+  `48bf7a954e610577408eee651c65ad1eae37d360f575d5d77ff138560f674bfa`, subset as described below; as
+  supplied it was 92,160 bytes, SHA-256 `38afb1a2f6e1fe096f94e5d9d53ab9199fa7f247e88efbd34af55adb0fdbdb8e`). Supplied directly by
   Oleksii on 2026-10-25 (`D:\opika-worktrees\_incoming\fonts\ui\`), already converted to woff2;
-  copied byte for byte.
+  copied byte for byte before the subset below.
 - **What it is:** a renamed build of **Bellota Text** by Kemie Guaida (Bellota Project, 2019).
   The font's own name table says so: "derived from Bellota Text (Kemie Guaida)", version 5.003.
   The source variable TTF it was converted from, `OpikaVariablewght.ttf`, has SHA-256
@@ -19,8 +20,10 @@
   500, 600 and 700 weights (`docs/design/README.md`'s type-scale table) from one file.
 - **Glyph coverage:** 903 glyphs. Nothing is missing from the Ukrainian alphabet (А–я, Єє, Іі,
   Її, Ґґ), and U+02BC ʼ, « », „ ", ', — and № are all present.
-- **Not subset,** same reasoning as every other family in this app: subsetting waits for
-  `docs/build-plan.md`'s H3.5.
+- **Subset by alphabet range (mobile performance pass, 2026-10-29),** with the same range list and
+  command as `../brand-display/README.md` (450 glyphs of 903; the `wght` 300-700 axis is kept).
+  Ranges, not today's words, so later copy needs no re-run. The supplied 92,160-byte file is
+  recoverable from Oleksii's original supply and by its SHA-256 above.
 - **Only the variable file ships.** The static instances Oleksii also supplied
   (`Opika-{Light,Regular,Medium,SemiBold,Bold}.ttf`) are not vendored — three static weights
   would cost more than the one variable file, and `next/font/local`'s `weight: "300 700"` range

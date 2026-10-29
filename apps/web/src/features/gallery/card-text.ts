@@ -1,6 +1,13 @@
 import type { FeedCardView } from "@opika/contracts";
 import type { CityId } from "@opika/domain";
-import { ageBucketLabel, ageWordFor, fillTemplate, sexWordFor, sizeLabel, uk } from "@opika/i18n";
+import {
+  ageBucketLabel,
+  ageWordFor,
+  fillTemplate,
+  sexWordFor,
+  sizeLabel,
+  ukPublic as uk,
+} from "@opika/i18n/public";
 import { freshnessLabel } from "@opika/ui";
 
 /**

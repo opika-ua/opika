@@ -71,17 +71,10 @@ export const metadata: Metadata = {
 };
 
 /**
- * Not the `wide` breakpoint's column count (4) - that was tried first and
- * rejected on review: at a 360px phone (1 column), it means 3 of the 4
- * "priority" preloads compete with the real LCP image for bandwidth on
- * exactly the audience (Ukrainian mobile, carrier networks) this matters
- * most for, while nothing is even on screen to show for two of them. `2` is
- * the tablet breakpoint's column count - still 1 wasted preload at phone
- * width (unavoidable without threading the breakpoint into this Server
- * Component), but half the waste this had before, and exactly right at
- * tablet and a reasonable partial win at desktop/wide.
+ * Only the first card is the LCP image (preloaded, fetchpriority high). A second preload would
+ * compete with it for a phone's bandwidth while off screen; the rest load lazily.
  */
-const PRIORITY_ROW_SIZE = 2;
+const PRIORITY_CARD_COUNT = 1;
 
 /**
  * E1's grid, E2's filters + sort, E3's numbered pagination.
@@ -413,7 +406,7 @@ export async function renderGallery(
                     key={item.id}
                     card={item}
                     cityName={cityNames.get(cardCityId(item)) ?? null}
-                    priority={index < PRIORITY_ROW_SIZE}
+                    priority={index < PRIORITY_CARD_COUNT}
                     filters={filters}
                     sort={sort}
                     citySlugs={citySlugs}

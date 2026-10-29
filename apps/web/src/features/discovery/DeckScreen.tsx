@@ -1,7 +1,7 @@
 "use client";
 
 import { DEFAULT_GALLERY_SORT, type FeedFilters } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";

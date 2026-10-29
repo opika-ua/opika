@@ -10,7 +10,7 @@ import type {
   RegionId,
 } from "@opika/domain";
 import { ANIMAL_SPECIES, ANY, DEFAULT_GALLERY_SORT, isExplicitlySelected } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { Button, LinkButton } from "../../ui/Button";

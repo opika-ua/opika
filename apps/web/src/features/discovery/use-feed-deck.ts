@@ -2,7 +2,7 @@
 
 import { DEFAULT_PAGE_SIZE, type FeedCursor } from "@opika/contracts";
 import { type AnimalId, type CityId, type FeedFilters, filtersFingerprint } from "@opika/domain";
-import { placeText } from "@opika/i18n";
+import { placeText } from "@opika/i18n/public";
 import { isDefinedError, safe } from "@orpc/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { feedBrowserClient } from "../../api/browser-client";

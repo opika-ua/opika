@@ -1,6 +1,6 @@
 "use client";
 
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { readLikesStore, subscribeToLikesChanges } from "./likes-store";

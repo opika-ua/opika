@@ -1,7 +1,7 @@
 "use client";
 
 import type { AnimalId } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import { useCallback, useRef } from "react";
 import { Button } from "../../ui/Button";
 import { ContactRevealDialog } from "../reveal/ContactRevealDialog";

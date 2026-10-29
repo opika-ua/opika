@@ -1,6 +1,6 @@
 "use client";
 
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import { LoadErrorScreen } from "../../../features/gallery/LoadErrorScreen";
 
 /**

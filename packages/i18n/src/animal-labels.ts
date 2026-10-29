@@ -6,7 +6,7 @@ import {
   grammaticalGenderOf,
   type SizeBucket,
 } from "@opika/domain";
-import { uk } from "./messages/uk";
+import { ukPublic as uk } from "./messages/uk-public";
 
 /**
  * Both maps are `Record`s over the domain's own bucket types, not a

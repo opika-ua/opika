@@ -1,6 +1,6 @@
 import type { FeedCardView } from "@opika/contracts";
 import type { FeedFilters, GallerySort } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import { freshnessLabel } from "@opika/ui";
 import Link from "next/link";
 import { Badge } from "../../ui/Badge";
