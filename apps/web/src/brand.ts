@@ -33,7 +33,7 @@ export const SITE_ORIGIN = "https://opika.org.ua";
  * job manually for the one place that bypasses the template entirely: `openGraph.title`,
  * which Next never auto-templates when it's set explicitly.
  */
-export const SITE_TITLE = "Собаки й коти з притулків Київщини";
+export const SITE_TITLE = "Собаки й коти з притулків України";
 
 /**
  * `%s` is Next's title-template slot. The separator is an en dash (U+2013) – an instance

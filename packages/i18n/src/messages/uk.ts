@@ -67,7 +67,7 @@ export const uk = {
     },
     /** §1 - one sentence. What this is. Nothing else. */
     whatThisIs:
-      "Opika – сайт, де тварини з перевірених притулків Київщини шукають дім, а кожен ваш підопічний отримує власну сторінку.",
+      "{site} – сайт, де тварини з перевірених притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку.",
     /** §2 - free now and later. Early, because it is what they are bracing for. */
     cost: "Це безкоштовно, сьогодні і далі. Якщо це колись зміниться, ви дізнаєтеся заздалегідь, а не з рахунку.",
     /**
@@ -1639,7 +1639,7 @@ export const uk = {
           insufficient_evidence: "Недостатньо доказів",
           identity_unverifiable: "Не вдалося підтвердити, хто стоїть за притулком",
           duplicate_submission: "Повторна заявка",
-          out_of_service_area: "Поза областю, де працює сайт",
+          out_of_service_area: "Поза територією, де працює сайт",
           spam: "Спам",
           other: "Інше",
         },

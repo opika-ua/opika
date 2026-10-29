@@ -12,7 +12,7 @@ describe("AboutPage", () => {
 
     expect(screen.getByRole("heading", { name: "Про проєкт" })).toBeTruthy();
     expect(
-      screen.getByText(/Opika – сайт, де тварини з притулків Київщини шукають дім\./),
+      screen.getByText(/Opika – сайт, де тварини з притулків України шукають дім\./),
     ).toBeTruthy();
     expect(screen.getByText(/Сайт безкоштовний для притулків, без платних тарифів/)).toBeTruthy();
     expect(screen.getByText(/Opika ніколи не бере участі в грошах/)).toBeTruthy();
