@@ -9,8 +9,9 @@ import {
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useId, useState } from "react";
-import { Button, SelectField, TextAreaField } from "../../../controls/controls";
-import { ModalDialog } from "../../../controls/ModalDialog";
+import { Button } from "../../../../ui/Button";
+import { Select, TextArea } from "../../../../ui/form";
+import { Modal } from "../../../../ui/Modal";
 import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { useOperatorActions } from "./operator-actions";
 import { NOTICE } from "./styles";
@@ -41,7 +42,7 @@ const holdsReason = (
  * the note verbatim on its own page (answer 7, `VerificationDecision`), which
  * is what the body sentence promises.
  *
- * Esc and ✕ close it, as «Скасувати» does (`ModalDialog`), except while its
+ * Esc and ✕ close it, as «Скасувати» does (the kit's `Modal`), except while its
  * request is in flight: closed then, the dialog would be gone when the answer
  * came, and a failure would be shown nowhere. A refusal that keeps the move
  * possible (`failed`, or a lost answer that didn't land) keeps the dialog open
@@ -122,15 +123,17 @@ export function ReasonDialog({
   };
 
   return (
-    <ModalDialog
+    <Modal
+      open
       title={fillTemplate(kind === "reject" ? t.rejectTitle : t.suspendTitle, {
         shelter: view.displayName,
       })}
-      body={kind === "reject" ? t.rejectBody : t.suspendBody}
+      description={kind === "reject" ? t.rejectBody : t.suspendBody}
       closeLabel={pause.close}
+      locked={mine}
       onClose={close}
     >
-      <SelectField
+      <Select
         id={`${id}-code`}
         label={t.codeLabel}
         value={code}
@@ -145,8 +148,8 @@ export function ReasonDialog({
             {codeLabel(option)}
           </option>
         ))}
-      </SelectField>
-      <TextAreaField
+      </Select>
+      <TextArea
         id={`${id}-note`}
         label={t.reasonLabel}
         value={note}
@@ -177,6 +180,6 @@ export function ReasonDialog({
           {kind === "reject" ? t.confirmReject : t.confirmSuspend}
         </Button>
       </div>
-    </ModalDialog>
+    </Modal>
   );
 }

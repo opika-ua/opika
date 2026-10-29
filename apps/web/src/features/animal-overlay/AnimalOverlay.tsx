@@ -94,7 +94,7 @@ export type OverlayNeighbour = { name: string; href: string } | null;
  * all, can never accidentally show a prev/next row - the invariant lives in
  * the type, not a runtime flag.
  *
- * The modal behaviour is `useModalFocus`, shared with `ModalDialog`. Focus
+ * The modal behaviour is `useModalFocus`, shared with the reveal dialog. Focus
  * starts on the dialog itself (the page inside has its own `h1`, which this
  * component doesn't reach into), and goes back to the gallery card that
  * opened it when it closes. The contact reveal can open over this overlay;

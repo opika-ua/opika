@@ -13,7 +13,7 @@ const FOCUSABLE =
   'button:not([disabled]), select:not([disabled]), textarea:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
 /**
- * The modal behaviour shared by `ModalDialog` and the gallery's animal
+ * The modal behaviour shared by the reveal dialog and the gallery's animal
  * overlay (designer round 1, DR1-D6: one trap, not one per dialog): focus to
  * the title on open, Tab and Shift+Tab cycle inside the dialog, Escape calls
  * `onClose`, and the page behind doesn't scroll while it is open.

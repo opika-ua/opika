@@ -3,7 +3,8 @@
 import { kyivCalendarDateOf } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useEffect, useId, useRef, useState } from "react";
-import { Button } from "../../../controls/controls";
+import { Button } from "../../../../ui/Button";
+import { Heading } from "../../../../ui/Heading";
 import { EvidenceEditor } from "../evidence-editor/EvidenceEditor";
 import {
   type EvidenceRow,
@@ -13,7 +14,7 @@ import {
 import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { useOperatorActions } from "./operator-actions";
 import { resubmitRowsOf } from "./resubmit-evidence";
-import { NOTICE, SUBTITLE } from "./styles";
+import { NOTICE } from "./styles";
 
 const NO_ROW_ERRORS: Readonly<Record<string, EvidenceRowErrors>> = {};
 
@@ -109,9 +110,9 @@ export function ResubmitPanel({
   return (
     <div ref={containerRef} className="flex min-w-0 flex-col gap-3">
       <section aria-labelledby={`${id}-resubmit-title`} className="flex min-w-0 flex-col gap-3">
-        <h3 id={`${id}-resubmit-title`} className={SUBTITLE}>
+        <Heading level={3} look="body-l" id={`${id}-resubmit-title`}>
           {t.evidence.title}
-        </h3>
+        </Heading>
         <EvidenceEditor
           idPrefix={`${id}-resubmit`}
           rows={rows}

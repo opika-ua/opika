@@ -3,7 +3,8 @@
 import { isShelterDisplayNameTooLong } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useEffect, useId, useRef, useState } from "react";
-import { Button, TextField } from "../../../controls/controls";
+import { Button } from "../../../../ui/Button";
+import { TextField } from "../../../../ui/form";
 import { nameTooLongMessage } from "../display-name";
 import { useOperatorActions } from "./operator-actions";
 import { ACTIONS, NOTICE } from "./styles";
@@ -191,7 +192,7 @@ export function RenameForm() {
       {notice.kind === "failed" ? (
         <div role="alert" className="flex flex-col items-start gap-2">
           <p className={NOTICE}>{t.errors.failed}</p>
-          <Button variant="text" onClick={() => void save()}>
+          <Button variant="ghost" onClick={() => void save()}>
             {edit.state.retry}
           </Button>
         </div>

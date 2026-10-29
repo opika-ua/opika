@@ -2,8 +2,10 @@
 
 import type { RegistryShelterRowView } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
-import { Button, buttonClass } from "../../controls/controls";
-import { CAPTION, CARD, CARD_TITLE, ERROR_TEXT, STRONG } from "../profile-edit/styles";
+import { Button, LinkButton } from "../../../ui/Button";
+import { Card } from "../../../ui/Card";
+import { Heading } from "../../../ui/Heading";
+import { Text } from "../../../ui/Text";
 import { SHELTERS_PAGE, type ShelterListFilters, shelterPath } from "./list-params";
 import { type RegistryReadClient, registryReadBrowserClient } from "./registry-browser-client";
 import { type Page, reloadPage, useMore } from "./use-more";
@@ -34,24 +36,27 @@ export function ShelterRow({
   const nameId = `shelter-${row.id}-name`;
   const openId = `shelter-${row.id}-open`;
   return (
-    <li className={CARD}>
-      <h2 id={nameId} className={CARD_TITLE}>
-        {row.displayName}
-      </h2>
-      <p className={STRONG}>
-        {uk.kabinet.profileStatus[row.status]} · {cityName ?? uk.kabinet.profileNotRecorded}
-      </p>
-      <p className={CAPTION}>{adminsLineOf(row.admins)}</p>
-      {row.donationPending ? <p className={STRONG}>{t.donationPending}</p> : null}
-      <a
-        id={openId}
-        href={shelterPath(row.id)}
-        aria-labelledby={`${openId} ${nameId}`}
-        className={`${buttonClass("secondary")} self-start`}
-      >
-        {t.open}
-      </a>
-    </li>
+    <Card as="li">
+      <div className="flex min-w-0 flex-col gap-3 p-4 tablet:p-6">
+        <Heading level={2} look="body-l" id={nameId} className="break-words">
+          {row.displayName}
+        </Heading>
+        <Text look="label">
+          {uk.kabinet.profileStatus[row.status]} · {cityName ?? uk.kabinet.profileNotRecorded}
+        </Text>
+        <Text look="hint">{adminsLineOf(row.admins)}</Text>
+        {row.donationPending ? <Text look="label">{t.donationPending}</Text> : null}
+        <LinkButton
+          id={openId}
+          href={shelterPath(row.id)}
+          variant="secondary"
+          aria-labelledby={`${openId} ${nameId}`}
+          className="self-start"
+        >
+          {t.open}
+        </LinkButton>
+      </div>
+    </Card>
   );
 }
 
@@ -94,7 +99,7 @@ export function ShelterRows({
       </ul>
       {state.kind === "failed" ? (
         <div role="alert" className="flex flex-col items-start gap-2">
-          <p className={ERROR_TEXT}>{t.loadFailed}</p>
+          <Text look="label">{t.loadFailed}</Text>
           <Button variant="secondary" onClick={more}>
             {uk.kabinet.profileEdit.state.retry}
           </Button>

@@ -10,12 +10,6 @@ export const TOKEN_CEILINGS: Readonly<
   rg: {
     "features/animal-detail/medical-labels.ts": 10,
     "features/chrome/RateLimitedScreen.tsx": 4,
-    "features/controls/ModalDialog.tsx": 7,
-    "features/kabinet/operator/actions/styles.ts": 4,
-    "features/kabinet/operator/create/CreateShelterForm.tsx": 1,
-    "features/kabinet/operator/evidence-editor/EvidenceEditor.tsx": 2,
-    "features/kabinet/operator/OperatorShell.tsx": 1,
-    "features/kabinet/profile-edit/styles.ts": 16,
   },
   fontRg: {
     "features/chrome/RateLimitedScreen.tsx": 1,

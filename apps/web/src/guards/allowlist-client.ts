@@ -26,7 +26,6 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/animal-overlay/AnimalOverlay.tsx":
     "intercepted-route modal: router.back, Esc, focus trap, scroll lock, entrance animation",
   "features/chrome/SiteAnalytics.tsx": "Vercel Analytics component",
-  "features/controls/ModalDialog.tsx": "focus trap/restore, Esc, backdrop click (useModalFocus)",
   "features/controls/useModalFocus.ts": "hook: focus trap and restore",
   "features/controls/useScrollingClass.ts": "hook: scroll listener toggling a class",
   "features/discovery/DeckScreen.tsx": "swipe deck page shell: feed hook, keyboard, router",
@@ -64,7 +63,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/operator/actions/DonationDecision.tsx": "approve/reject donation link buttons",
   "features/kabinet/operator/actions/OperatorActionsRoot.tsx":
     "router.refresh wrapper around the provider",
-  "features/kabinet/operator/actions/ReasonDialog.tsx": "reason textarea inside ModalDialog",
+  "features/kabinet/operator/actions/ReasonDialog.tsx": "reason textarea inside the kit Modal",
   "features/kabinet/operator/actions/RenameForm.tsx": "inline rename form, focus management",
   "features/kabinet/operator/actions/ResubmitPanel.tsx": "resubmit evidence panel with state",
   "features/kabinet/operator/actions/SupportEntry.tsx": "start-support-view button",

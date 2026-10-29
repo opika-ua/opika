@@ -2,10 +2,12 @@
 
 import type { CreatedShelterView, EmailSendOutcome, InvitationReminder } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Button, buttonClass } from "../../../controls/controls";
-import { BODY, CARD, CARD_TITLE, ERROR_TEXT, STATUS_CHIP } from "../../profile-edit/styles";
+import { Button, LinkButton } from "../../../../ui/Button";
+import { Chip } from "../../../../ui/Chip";
+import { Heading } from "../../../../ui/Heading";
+import { Panel } from "../../../../ui/Panel";
+import { Text } from "../../../../ui/Text";
 import { shelterPath } from "../list-params";
 import {
   createRefusalOf,
@@ -108,26 +110,29 @@ export function CreatedShelter({
   const validUntil = sent && invitation?.validUntil ? kyivDateAndTime(invitation.validUntil) : null;
 
   return (
-    <section aria-labelledby="created-shelter-fact" className={`${CARD} self-start`}>
-      <span className={`${STATUS_CHIP} self-start`}>
+    <Panel
+      as="section"
+      aria-labelledby="created-shelter-fact"
+      padding="lg"
+      className="flex min-w-0 flex-col gap-4 self-start"
+    >
+      <Chip kind="status" tone="ink" className="self-start">
         {uk.kabinet.profileStatus[view.verification.status]}
-      </span>
-      <h1 id="created-shelter-fact" ref={factRef} tabIndex={-1} className={CARD_TITLE}>
+      </Chip>
+      <Heading level={1} look="title" id="created-shelter-fact" ref={factRef} tabIndex={-1}>
         {invitation === null ? t.createdNoInvite : t.created}
-      </h1>
+      </Heading>
       {invitation !== null ? (
         <div className="flex flex-col gap-2">
-          <p role="status" className={BODY}>
+          <p role="status" className="text-body text-ink">
             {emailOutcomeMessage(invitation.outcome, invitation.email)}
           </p>
-          {validUntil !== null ? (
-            <p className={BODY}>{fillTemplate(t.inviteValidUntil, validUntil)}</p>
-          ) : null}
-          {invitation.reminder !== null ? <p className={BODY}>{invitation.reminder.text}</p> : null}
+          {validUntil !== null ? <Text>{fillTemplate(t.inviteValidUntil, validUntil)}</Text> : null}
+          {invitation.reminder !== null ? <Text>{invitation.reminder.text}</Text> : null}
         </div>
       ) : null}
       {resend.kind === "failed" ? (
-        <p role="alert" className={ERROR_TEXT}>
+        <p role="alert" className="text-label text-ink">
           {resend.message}
         </p>
       ) : null}
@@ -141,10 +146,8 @@ export function CreatedShelter({
             {t.resend}
           </Button>
         ) : null}
-        <Link href={shelterPath(view.id)} className={buttonClass("primary")}>
-          {t.openShelter}
-        </Link>
+        <LinkButton href={shelterPath(view.id)}>{t.openShelter}</LinkButton>
       </div>
-    </section>
+    </Panel>
   );
 }

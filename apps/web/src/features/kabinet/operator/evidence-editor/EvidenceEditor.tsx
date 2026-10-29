@@ -3,10 +3,11 @@
 import type { ReferenceRelationship } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useEffect, useState } from "react";
-import { Button, SelectField, TextAreaField, TextField } from "../../../controls/controls";
+import { Button } from "../../../../ui/Button";
+import { Select, TextArea, TextField } from "../../../../ui/form";
+import { Text } from "../../../../ui/Text";
 import { inputModeOf } from "../../profile-edit/ContactFields";
 import type { ChannelKind } from "../../profile-edit/fields";
-import { CAPTION, STRONG } from "../../profile-edit/styles";
 import {
   EDITABLE_EVIDENCE_KINDS,
   type EditableEvidenceKind,
@@ -130,7 +131,7 @@ export function EvidenceEditor({
         </ul>
       ) : null}
       <div className="flex min-w-0 flex-col gap-3">
-        <SelectField
+        <Select
           id={pickerId}
           label={t.typePicker}
           value={kind}
@@ -141,7 +142,7 @@ export function EvidenceEditor({
               {t.kind[option]}
             </option>
           ))}
-        </SelectField>
+        </Select>
         <Button variant="secondary" className="self-start" onClick={add}>
           {t.add}
         </Button>
@@ -184,8 +185,8 @@ function EvidenceCard({
   );
 
   return (
-    <fieldset className="flex min-w-0 flex-col gap-3 rounded-rg-card bg-rg-fill p-4">
-      <legend className={`${STRONG} mb-2`}>{t.kind[row.kind]}</legend>
+    <fieldset className="flex min-w-0 flex-col gap-3 rounded-panel bg-line p-4">
+      <legend className="mb-2 text-label text-ink">{t.kind[row.kind]}</legend>
       {row.kind === "edrpou_registration" ? (
         <>
           <TextField
@@ -204,21 +205,21 @@ function EvidenceCard({
             t.field.registeredName,
             errors.registeredName,
           )}
-          <p className={CAPTION}>{t.noDocument}</p>
+          <Text look="hint">{t.noDocument}</Text>
         </>
       ) : null}
       {row.kind === "bank_account_holder" ? (
         <>
           {field("holderName", row.holderName, t.field.holderName, errors.holderName)}
-          <p className={CAPTION}>{t.noDocument}</p>
+          <Text look="hint">{t.noDocument}</Text>
         </>
       ) : null}
       {row.kind === "reference_contact" ? (
         <>
           {field("name", row.name, t.field.who, errors.name)}
           <fieldset className="flex min-w-0 flex-col gap-3">
-            <legend className={`${STRONG} mb-2`}>{t.field.channel}</legend>
-            <SelectField
+            <legend className="mb-2 text-label text-ink">{t.field.channel}</legend>
+            <Select
               id={id("channelKind")}
               label={uk.kabinet.profileEdit.contacts.otherKind}
               value={row.channelKind}
@@ -229,7 +230,7 @@ function EvidenceCard({
                   {uk.kabinet.profileChannel[kind]}
                 </option>
               ))}
-            </SelectField>
+            </Select>
             <TextField
               id={id("channelValue")}
               label={uk.kabinet.profileChannel[row.channelKind]}
@@ -241,7 +242,7 @@ function EvidenceCard({
               error={evidenceFieldMessage(errors.channelValue)}
             />
           </fieldset>
-          <SelectField
+          <Select
             id={id("relationship")}
             label={t.field.relationship}
             value={row.relationship}
@@ -256,7 +257,7 @@ function EvidenceCard({
                 {t.relationship[relationship]}
               </option>
             ))}
-          </SelectField>
+          </Select>
         </>
       ) : null}
       {row.kind === "site_visit" ? (
@@ -272,7 +273,7 @@ function EvidenceCard({
             hint={errors.visitedOn === undefined ? t.siteVisitDateHint : undefined}
             error={evidenceFieldMessage(errors.visitedOn)}
           />
-          <TextAreaField
+          <TextArea
             id={id("notes")}
             label={t.field.notes}
             value={row.notes}
@@ -281,7 +282,7 @@ function EvidenceCard({
           />
         </>
       ) : null}
-      <Button variant="text" className="self-start" onClick={remove}>
+      <Button variant="ghost" className="self-start" onClick={remove}>
         {t.remove}
       </Button>
     </fieldset>
