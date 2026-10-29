@@ -1,10 +1,13 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SIGN_IN_PAGE_PATH } from "../../features/kabinet/routes";
+import { LinkButton } from "../../ui/Button";
+import { Heading } from "../../ui/Heading";
+import { Panel } from "../../ui/Panel";
+import { Text } from "../../ui/Text";
 
 /**
  * The subject. The root layout's `title.template` («%s - Opika») appends
@@ -79,7 +82,7 @@ export const metadata: Metadata = {
  * describe at all. Composed rather than invented: the page shell, width,
  * type scale and spacing are «Про проєкт»'s (`app/pro/page.tsx`), which is
  * itself the design's own established treatment for a static text page; the
- * one emphasised block reuses the `bg-brand-line` surface the freshness block
+ * one emphasised block reuses the sunken Panel surface the freshness block
  * and filter chips already use. No new visual idiom is introduced here.
  *
  * Section headings are deliberately absent rather than invented: headings are
@@ -95,26 +98,29 @@ const h = uk.forShelters.headings;
  * of loss `messages.test.ts`'s parity check exists to catch and cannot see
  * inside a single string.
  */
-const BODY = "text-[20px]/[1.4] text-brand-ink-2 whitespace-pre-line";
+function Body({ children }: { children: React.ReactNode }) {
+  return (
+    <Text look="lead" className="whitespace-pre-line text-ink-2">
+      {children}
+    </Text>
+  );
+}
 
 /**
  * A real `<h2>` under the page's `<h1>`, not a styled paragraph - the whole
  * value of the headings is to a reader who is not reading linearly, and a
  * screen-reader user navigating by heading gets nothing from a bold `<p>`.
- * 26px bold, the pet card panel's own section-heading style.
  */
 function Section({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[26px] font-bold text-brand-ink">{heading}</h2>
+      <Heading level={2} look="title">
+        {heading}
+      </Heading>
       {children}
     </section>
   );
 }
-
-/** «Увійти в кабінет»: the gallery's secondary-pill button look. */
-const SIGN_IN_LINK_CLASS =
-  "self-start inline-flex min-h-12 items-center rounded-brand-pill bg-brand-line px-6 text-[16px] font-semibold text-brand-ink hover:text-brand-accent focus-ring";
 
 /**
  * Designer feedback batch D (2026-10-23): same trade as `/pro`'s own
@@ -143,29 +149,29 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
         PW-2, his scope item 1: «Увійти в кабінет» → /kabinet/vkhid. Under the title, so a shelter
         already in the kabinet, sent here again, finds the way in without reading the page.
       */}
-      <Link href={SIGN_IN_PAGE_PATH} className={SIGN_IN_LINK_CLASS}>
+      <LinkButton href={SIGN_IN_PAGE_PATH} variant="secondary" className="self-start">
         {uk.forShelters.signInLink}
-      </Link>
+      </LinkButton>
 
       <Section heading={h.whatThisIs}>
-        <p className="text-[20px]/[1.4] text-brand-ink-2">{uk.forShelters.whatThisIs}</p>
+        <Body>{uk.forShelters.whatThisIs}</Body>
       </Section>
       <Section heading={h.cost}>
-        <p className={BODY}>{uk.forShelters.cost}</p>
+        <Body>{uk.forShelters.cost}</Body>
       </Section>
       <Section heading={h.whatHappensToAnimals}>
-        <p className={BODY}>{uk.forShelters.whatHappensToAnimals}</p>
+        <Body>{uk.forShelters.whatHappensToAnimals}</Body>
       </Section>
       <Section heading={h.whoContactsWhom}>
-        <p className={BODY}>{uk.forShelters.whoContactsWhom}</p>
-        <p className={BODY}>{uk.forShelters.noObligation}</p>
+        <Body>{uk.forShelters.whoContactsWhom}</Body>
+        <Body>{uk.forShelters.noObligation}</Body>
       </Section>
       <Section heading={h.money}>
-        <p className={BODY}>{uk.forShelters.money}</p>
+        <Body>{uk.forShelters.money}</Body>
       </Section>
       <Section heading={h.verification}>
-        <p className={BODY}>{uk.forShelters.verification}</p>
-        <p className={BODY}>{uk.forShelters.verificationOpenToVolunteers}</p>
+        <Body>{uk.forShelters.verification}</Body>
+        <Body>{uk.forShelters.verificationOpenToVolunteers}</Body>
       </Section>
       {/*
           §6 ends on «Ваш другий номер телефону - не рекомендація» - the only
@@ -176,7 +182,7 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
           these two adjacent.
         */}
       <Section heading={h.whatToPrepare}>
-        <p className={BODY}>{uk.forShelters.whatToPrepare}</p>
+        <Body>{uk.forShelters.whatToPrepare}</Body>
       </Section>
 
       {/*
@@ -184,19 +190,16 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
           care - no shelter has been asked for a freshness sentence before, so
           the reason has to land or the request reads as strange. Given the
           page's one piece of emphasis for that reason, using the same
-          `bg-brand-line` block the freshness display itself uses, so the
+          sunken Panel the freshness display itself uses, so the
           explanation and the thing it explains share a surface.
         */}
       <Section heading={h.whyThatSentence}>
-        <div
-          data-testid="why-that-sentence"
-          className="bg-brand-line rounded-brand-field p-4 flex flex-col gap-2"
-        >
-          <p className={BODY}>{uk.forShelters.whyThatSentence}</p>
-        </div>
+        <Panel tone="sunken" className="flex flex-col gap-2">
+          <Body>{uk.forShelters.whyThatSentence}</Body>
+        </Panel>
       </Section>
       <Section heading={h.whenAnimalFindsHome}>
-        <p className={BODY}>{uk.forShelters.whenAnimalFindsHome}</p>
+        <Body>{uk.forShelters.whenAnimalFindsHome}</Body>
       </Section>
       {/*
           The largest unspoken objection on the page, and previously unanswered
@@ -206,10 +209,10 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
           project can say.
         */}
       <Section heading={h.howToLeave}>
-        <p className={BODY}>{uk.forShelters.howToLeave}</p>
+        <Body>{uk.forShelters.howToLeave}</Body>
       </Section>
       <Section heading={h.whoIsBehindThis}>
-        <p className={BODY}>{uk.forShelters.whoIsBehindThis}</p>
+        <Body>{uk.forShelters.whoIsBehindThis}</Body>
       </Section>
 
       {/*
@@ -221,9 +224,7 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
           the address bounces. That gate is satisfied, not outstanding.
         */}
       <Section heading={h.howToStart}>
-        <p className={BODY}>
-          {uk.forShelters.howToStart.replace("{contact}", "hello@opika.org.ua")}
-        </p>
+        <Body>{uk.forShelters.howToStart.replace("{contact}", "hello@opika.org.ua")}</Body>
       </Section>
     </ContentPageLayout>
   );

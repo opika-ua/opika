@@ -15,9 +15,6 @@ export const TOKEN_CEILINGS: Readonly<
     "app/kabinet/vkhid/page.tsx": 1,
     "app/kabinet/vkhid/zabuly/page.tsx": 1,
     "app/prytulky/[shelterId]/not-found.tsx": 4,
-    "app/tvaryny/[animalId]/not-found.tsx": 9,
-    "app/tvaryny/error.tsx": 11,
-    "app/tvaryny/gortaty/error.tsx": 11,
     "features/animal-detail/AnimalPageStates.tsx": 2,
     "features/animal-detail/medical-labels.ts": 10,
     "features/chrome/RateLimitedScreen.tsx": 4,
@@ -48,9 +45,6 @@ export const TOKEN_CEILINGS: Readonly<
   },
   fontRg: {
     "app/prytulky/[shelterId]/not-found.tsx": 1,
-    "app/tvaryny/[animalId]/not-found.tsx": 1,
-    "app/tvaryny/error.tsx": 1,
-    "app/tvaryny/gortaty/error.tsx": 1,
     "features/animal-detail/AnimalPageStates.tsx": 1,
     "features/chrome/RateLimitedScreen.tsx": 1,
     "features/discovery/DeckScreen.tsx": 1,
@@ -60,8 +54,6 @@ export const TOKEN_CEILINGS: Readonly<
     "features/reveal/ContactRevealDialog.tsx": 1,
   },
   brand: {
-    "app/pro/page.tsx": 7,
-    "app/prytulkam/page.tsx": 9,
     "app/tvaryny/page.tsx": 7,
     "features/animal-detail/AnimalDetailScreen.tsx": 23,
     "features/animal-detail/CircleButton.tsx": 1,
