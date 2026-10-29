@@ -56,7 +56,7 @@ describe("create's refusals", () => {
   it("an unknown city: the server's undeclared 400 with its own message", () => {
     const error = fromBody({ code: "BAD_REQUEST", status: 400, message: "Unknown city" });
     expect(createRefusalOf(error)).toEqual({ kind: "unknown_city" });
-    expect(message(error)).toBe("Такого міста немає у списку.");
+    expect(message(error)).toBe("Такого населеного пункту немає у списку.");
   });
 
   it("an input-validation 400 is not an unknown city", () => {

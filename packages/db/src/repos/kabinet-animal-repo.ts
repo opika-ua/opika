@@ -139,10 +139,11 @@ export type ListingWriteGuard =
   | { kind: "publish"; expectedVersion: number };
 
 /**
- * The kabinet's animal reads and writes. Ownership is the handler's check (it
- * must answer NOT_FOUND for a missing id and FORBIDDEN for another shelter's,
- * S3-Q2), so `findWithCity` returns any animal and the handler compares
- * `shelterId`; every list here is scoped to one shelter by construction.
+ * The kabinet's animal reads and writes. A handler's ownership check is
+ * `findOwnedWithCity` (id and shelter in one WHERE), so another shelter's id
+ * and a missing one are the same null (QA-2026-10-29: a FORBIDDEN confirmed an
+ * id exists); `findWithCity` returns any animal and is not for handlers. Every
+ * list here is scoped to one shelter by construction.
  *
  * Two kinds of write, on disjoint columns (HS-T8):
  * - **Edits** (`writeEditIf`) compare-and-set on the integer `version` the form
@@ -186,6 +187,25 @@ export function kabinetAnimalRepo(db: Database) {
       id: AnimalId,
     ): Promise<{ animal: Animal; cityId: CityId; firstPublishedAt: Date | null } | null> {
       const [row] = await db.select().from(animals).where(eq(animals.id, id)).limit(1);
+      return row
+        ? {
+            animal: rowToAnimal(row),
+            cityId: row.cityId as CityId,
+            firstPublishedAt: row.firstPublishedAt,
+          }
+        : null;
+    },
+
+    /** The animal only if it is this shelter's: a foreign id is null, exactly like a missing one. */
+    async findOwnedWithCity(
+      id: AnimalId,
+      shelterId: ShelterId,
+    ): Promise<{ animal: Animal; cityId: CityId; firstPublishedAt: Date | null } | null> {
+      const [row] = await db
+        .select()
+        .from(animals)
+        .where(and(eq(animals.id, id), eq(animals.shelterId, shelterId)))
+        .limit(1);
       return row
         ? {
             animal: rowToAnimal(row),
