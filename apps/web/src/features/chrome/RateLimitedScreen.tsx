@@ -1,5 +1,7 @@
 import { uk } from "@opika/i18n";
-import { buttonClass } from "../controls/controls";
+import { buttonClass } from "../../ui/Button";
+import { Heading } from "../../ui/Heading";
+import { Panel } from "../../ui/Panel";
 
 /**
  * RL-F1: a public page whose read was refused for rate, the animal page's
@@ -18,13 +20,20 @@ import { buttonClass } from "../controls/controls";
  */
 export function RateLimitedScreen() {
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-page p-6">
-      <div className="flex w-full max-w-xl flex-col items-start gap-4 rounded-card bg-surface p-10">
-        <h1 className="text-title text-ink">{uk.detail.rateLimited}</h1>
+    <main className="flex min-h-dvh items-center justify-center bg-page p-4 tablet:p-6">
+      {/* Sunken: surface is near-identical to the page, so only the fill makes the card visible. Ink text, since ink-2 is 4.1:1 on it. */}
+      <Panel
+        tone="sunken"
+        padding="lg"
+        className="flex w-full max-w-xl flex-col items-start gap-4 text-ink"
+      >
+        <Heading level={1} look="title">
+          {uk.detail.rateLimited}
+        </Heading>
         <a href="/tvaryny" className={buttonClass("primary")}>
           {uk.detail.notFound.action}
         </a>
-      </div>
+      </Panel>
     </main>
   );
 }
