@@ -1,158 +1,100 @@
-import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
-import { CityIdSchema, type FeedFilters, NO_FILTERS } from "@opika/domain";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import type { FilterSelection } from "@opika/domain";
+import { type CityId, CityIdSchema, NO_FILTERS } from "@opika/domain";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { FilterSheet } from "./FilterSheet";
-import { GalleryFilterDropdowns } from "./GalleryFilterDropdowns";
-import { placeBookOf } from "./place-book";
-import { cityLabel, facetCity, REGION_LABELS, REGION_VIEWS } from "./test-places";
-import { mockAppRouter, WithMockRouter } from "./test-router";
+import { CityFacetChoices } from "./CityFacetChoices";
+import type { FacetOption } from "./facet-options";
 
-/** Fifteen cities with an animal each, "Місто 01" first (most animals), so the order is fixed. */
-const nth = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
-const LABELS: CityLabelView[] = Array.from({ length: 15 }, (_, i) =>
-  cityLabel(
-    CityIdSchema.parse(nth(i + 1)),
-    `misto-${i + 1}`,
-    `Місто ${String(i + 1).padStart(2, "0")}`,
-  ),
-);
-const BOOK = placeBookOf(REGION_VIEWS, LABELS);
-const countsOf = (labels: readonly CityLabelView[]): GalleryFacetCounts => ({
-  cities: labels.map((label, i) => facetCity(label, 20 - i)),
-  regions: [],
-  ages: { baby: 0, young: 0, adult: 0, senior: 0 },
-  sizes: { small: 0, medium: 0, large: 0 },
-  sexes: { male: 0, female: 0, unknown: 0 },
-});
+/** Fifteen cities, "Місто 01" first (most animals), so the order is fixed. */
+const nth = (n: number) =>
+  CityIdSchema.parse(`00000000-0000-4000-8000-${String(n).padStart(12, "0")}`);
+const OPTIONS: FacetOption<CityId>[] = Array.from({ length: 15 }, (_, i) => ({
+  value: nth(i + 1),
+  label: `Місто ${String(i + 1).padStart(2, "0")}`,
+  count: 20 - i,
+}));
 
-function renderRow(labels = LABELS, filters: FeedFilters = NO_FILTERS) {
-  const router = mockAppRouter();
+function renderChoices(options = OPTIONS, selection: FilterSelection<CityId> = NO_FILTERS.cities) {
   render(
-    <WithMockRouter router={router}>
-      <GalleryFilterDropdowns
-        filters={filters}
-        sort="freshest"
-        citySlugs={BOOK.slugs}
-        regionLabels={REGION_LABELS}
-        selectedCities={[]}
-        counts={countsOf(labels)}
-      />
-    </WithMockRouter>,
+    <CityFacetChoices
+      idPrefix="t"
+      options={options}
+      selection={selection}
+      renderOption={(option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={selection.kind === "oneOf" && selection.values.includes(option.value)}
+        >
+          {option.label}
+        </button>
+      )}
+    />,
   );
-  fireEvent.click(screen.getByRole("button", { name: /^Місто: / }));
-  return { router, panel: screen.getByRole("group", { name: "Місто" }) };
 }
 
-const pillNames = (group: HTMLElement) =>
-  within(group)
+const names = () =>
+  screen
     .getAllByRole("button")
-    .map((pill) => pill.getAttribute("aria-label"))
-    .filter((name) => name !== null);
+    .map((button) => button.textContent)
+    .filter((text) => text !== null && !text.startsWith("Показати всі"));
 
-describe("the city filter on a long list (desktop panel)", () => {
+/** The no-JS fallback of the filter sheet and the only user of this windowed list now. */
+describe("the windowed city list", () => {
   it("shows the first twelve, a «Показати всі (15)» button and a labelled field", () => {
-    const { panel } = renderRow();
-    expect(pillNames(panel)).toHaveLength(12);
-    expect(pillNames(panel)[0]).toBe("Місто 01, 20 тварин");
-    expect(within(panel).getByRole("button", { name: "Показати всі (15)" })).toBeTruthy();
-    expect(within(panel).getByLabelText("Знайти місто")).toBeTruthy();
+    renderChoices();
+    expect(names()).toHaveLength(12);
+    expect(screen.getByRole("button", { name: "Показати всі (15)" })).toBeTruthy();
+    expect(screen.getByLabelText("Знайти місто")).toBeTruthy();
   });
 
-  it("«Показати всі» draws every city with its count and goes away; the URL is untouched", () => {
-    const { router, panel } = renderRow();
-    fireEvent.click(within(panel).getByRole("button", { name: "Показати всі (15)" }));
-    expect(pillNames(panel)).toHaveLength(15);
-    expect(pillNames(panel)[14]).toBe("Місто 15, 6 тварин");
-    expect(within(panel).queryByRole("button", { name: /Показати всі/ })).toBeNull();
-    expect(router.replace).not.toHaveBeenCalled();
+  it("«Показати всі» draws every city and goes away", () => {
+    renderChoices();
+    fireEvent.click(screen.getByRole("button", { name: "Показати всі (15)" }));
+    expect(names()).toHaveLength(15);
+    expect(screen.queryByRole("button", { name: /Показати всі/ })).toBeNull();
   });
 
   it("the field narrows the whole list locally and announces the number found", () => {
-    const { router, panel } = renderRow();
-    fireEvent.change(within(panel).getByLabelText("Знайти місто"), {
-      target: { value: "місто 1" },
-    });
-    // «Місто 10» to «Місто 15» contain the query; «Місто 01» does not.
-    expect(pillNames(panel)).toEqual([
-      "Місто 10, 11 тварин",
-      "Місто 11, 10 тварин",
-      "Місто 12, 9 тварин",
-      "Місто 13, 8 тварин",
-      "Місто 14, 7 тварин",
-      "Місто 15, 6 тварин",
+    renderChoices();
+    fireEvent.change(screen.getByLabelText("Знайти місто"), { target: { value: "місто 1" } });
+    expect(names()).toEqual([
+      "Місто 10",
+      "Місто 11",
+      "Місто 12",
+      "Місто 13",
+      "Місто 14",
+      "Місто 15",
     ]);
-    expect(within(panel).getByRole("status").textContent).toBe("Знайдено: 6");
-    expect(within(panel).queryByRole("button", { name: /Показати всі/ })).toBeNull();
-    expect(router.replace).not.toHaveBeenCalled();
+    expect(screen.getByRole("status").textContent).toBe("Знайдено: 6");
   });
 
   it("says so when nothing matches", () => {
-    const { panel } = renderRow();
-    fireEvent.change(within(panel).getByLabelText("Знайти місто"), { target: { value: "zzz" } });
-    expect(within(panel).getByText("Нічого не знайдено")).toBeTruthy();
-    expect(within(panel).getByRole("status").textContent).toBe("Знайдено: 0");
+    renderChoices();
+    fireEvent.change(screen.getByLabelText("Знайти місто"), { target: { value: "zzz" } });
+    expect(screen.getByText("Нічого не знайдено")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe("Знайдено: 0");
   });
 
-  it("keeps a chosen city past the twelfth visible, pressed, while collapsed and while filtering", () => {
-    const chosen = LABELS[14];
-    if (!chosen) throw new Error("fixture");
-    const { panel } = renderRow(LABELS, {
-      ...NO_FILTERS,
-      cities: { kind: "oneOf", values: [chosen.id] },
-    });
+  it("keeps a chosen city past the twelfth visible while collapsed and while filtering", () => {
+    const chosen = nth(15);
+    renderChoices(OPTIONS, { kind: "oneOf", values: [chosen] });
     const pressed = () =>
-      within(panel)
-        .getByRole("button", { name: "Місто 15, 6 тварин" })
-        .getAttribute("aria-pressed");
+      screen.getByRole("button", { name: "Місто 15" }).getAttribute("aria-pressed");
     expect(pressed()).toBe("true");
-    fireEvent.change(within(panel).getByLabelText("Знайти місто"), { target: { value: "01" } });
+    fireEvent.change(screen.getByLabelText("Знайти місто"), { target: { value: "01" } });
     expect(pressed()).toBe("true");
   });
 
   it("has neither field nor button when the list fits in twelve", () => {
-    const { panel } = renderRow(LABELS.slice(0, 12));
-    expect(pillNames(panel)).toHaveLength(12);
-    expect(within(panel).queryByLabelText("Знайти місто")).toBeNull();
-    expect(within(panel).queryByRole("button", { name: /Показати всі/ })).toBeNull();
-  });
-});
-
-describe("the city filter on a long list (filter sheet)", () => {
-  function renderSheet() {
-    render(
-      <WithMockRouter router={mockAppRouter()}>
-        <FilterSheet
-          filters={NO_FILTERS}
-          sort="freshest"
-          placeIds={BOOK.placeIds}
-          citySlugs={BOOK.slugs}
-          regionLabels={REGION_LABELS}
-          selectedCities={[]}
-          resultCount={12}
-          shelterCount={5}
-          counts={countsOf(LABELS)}
-        />
-      </WithMockRouter>,
-    );
-    return screen.getByRole("group", { name: "Місто", hidden: true });
-  }
-  const boxes = (group: HTMLElement) => within(group).getAllByRole("checkbox", { hidden: true });
-
-  it("lists twelve checkboxes, expands on «Показати всі», and filters with the field", () => {
-    const group = renderSheet();
-    expect(boxes(group)).toHaveLength(12);
-    fireEvent.click(within(group).getByRole("button", { name: "Показати всі (15)", hidden: true }));
-    expect(boxes(group)).toHaveLength(15);
-    fireEvent.change(within(group).getByLabelText("Знайти місто"), {
-      target: { value: "Місто 02" },
-    });
-    expect(boxes(group)).toHaveLength(1);
+    renderChoices(OPTIONS.slice(0, 12));
+    expect(names()).toHaveLength(12);
+    expect(screen.queryByLabelText("Знайти місто")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Показати всі/ })).toBeNull();
   });
 
-  it("Enter in the field does not submit the filter form", () => {
-    const group = renderSheet();
-    const field = within(group).getByLabelText("Знайти місто");
-    expect(fireEvent.keyDown(field, { key: "Enter" })).toBe(false);
+  it("Enter in the field does not submit a surrounding form", () => {
+    renderChoices();
+    expect(fireEvent.keyDown(screen.getByLabelText("Знайти місто"), { key: "Enter" })).toBe(false);
   });
 });

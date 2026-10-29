@@ -22,7 +22,7 @@ test.describe("/tvaryny, the oblast filter", () => {
   test("?obl= narrows to the oblast and the selector names it", async ({ page }) => {
     await openRoute(page, `${ROUTE}?obl=kyivska`, DESKTOP, { readySelector: CARD });
 
-    await expect(page.getByRole("button", { name: "Область: Київська" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Область: Київська" })).toBeVisible();
     expect(await page.locator(CARD).count()).toBeGreaterThan(0);
   });
 
@@ -34,14 +34,14 @@ test.describe("/tvaryny, the oblast filter", () => {
 
     await openRoute(page, `${ROUTE}?obl=atlantis`, DESKTOP, { readySelector: CARD });
     expect(await page.locator(CARD).count()).toBe(unfiltered);
-    await expect(page.getByRole("button", { name: "Область: Область" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Область" })).toBeVisible();
   });
 
   test("picking an oblast in the desktop selector writes it to the URL", async ({ page }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await page.getByRole("button", { name: "Область: Область" }).click();
-    await page.getByRole("button", { name: /^Київська, / }).click();
+    await page.getByRole("combobox", { name: "Область" }).click();
+    await page.getByRole("option", { name: /^Київська, / }).click();
     await page.waitForURL(/obl=kyivska/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
   });
@@ -49,11 +49,11 @@ test.describe("/tvaryny, the oblast filter", () => {
   test("the oblast selector lists all 27, an empty one disabled in place", async ({ page }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await page.getByRole("button", { name: "Область: Область" }).click();
-    const pills = page.getByRole("group", { name: "Область" }).getByRole("button");
-    expect(await pills.count()).toBe(27);
+    await page.getByRole("combobox", { name: "Область" }).click();
+    const rows = page.getByRole("listbox", { name: "Область" }).getByRole("option");
+    expect(await rows.count()).toBe(27);
     // Crimea is listed like any other region; with no animal it is disabled, not removed.
-    await expect(page.getByRole("button", { name: "АР Крим, 0 тварин" })).toHaveAttribute(
+    await expect(page.getByRole("option", { name: "АР Крим, 0 тварин" })).toHaveAttribute(
       "aria-disabled",
       "true",
     );
@@ -79,8 +79,8 @@ test.describe("/tvaryny, the oblast filter", () => {
   test("the city selector offers only cities that have an animal", async ({ page }) => {
     await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
 
-    await page.getByRole("button", { name: "Місто: Місто" }).click();
-    const options = page.getByRole("group", { name: "Місто" }).getByRole("button");
+    await page.getByRole("combobox", { name: "Місто" }).click();
+    const options = page.getByRole("listbox", { name: "Місто" }).getByRole("option");
     const names = await options.evaluateAll((nodes) =>
       nodes.map((node) => node.getAttribute("aria-label") ?? ""),
     );

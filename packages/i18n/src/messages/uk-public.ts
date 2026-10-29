@@ -344,6 +344,28 @@ export const ukPublic = {
      * `animalWord` (nominative), pluralised by the caller.
      */
     optionCount: "{option}, {count} {animalWord}",
+    /**
+     * Filters v2 (owner-approved copy table, 2026-10-30): the searchable Область and Місто fields on
+     * desktop and the full-screen filter sheet below 1024px. Template where it has `{…}`.
+     */
+    findCityField: "Пошук міста",
+    findRegionField: "Пошук області",
+    clearSelection: "Очистити",
+    /** Template: "Вибрано: {count}"; also the accessible name of the count badge on a filled field. */
+    selectedCount: "Вибрано: {count}",
+    groupHasAnimals: "Є тварини",
+    groupNoAnimals: "Поки без тварин",
+    cityNoMatchHint: "Тут лише міста, де зараз є тварини.",
+    /** Template: "Показати {count} {animalWord}"; `{animalWord}` is `animalWordAccusative`. */
+    showAnimals: "Показати {count} {animalWord}",
+    done: "Готово",
+    anyValue: "Усі",
+    back: "Назад",
+    /** Template: "Прибрати фільтр {name}", `{name}` in the nominative as the chip shows it. */
+    removeFilter: "Прибрати фільтр {name}",
+    close: "Закрити",
+    /** Template: "Активних фільтрів: {count}", the accessible name of the badge on the «Фільтри» pill. */
+    activeCount: "Активних фільтрів: {count}",
   },
 
   // --- Swipe affordances ---

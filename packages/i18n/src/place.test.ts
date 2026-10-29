@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hromadaShort, type PlaceLabel, placeName, placeText } from "./place";
+import { hromadaShort, type PlaceLabel, placeHint, placeName, placeText } from "./place";
 
 const label = (overrides: Partial<PlaceLabel> = {}): PlaceLabel => ({
   name: "Бровари",
@@ -59,6 +59,25 @@ describe("placeName", () => {
   it("is the bare name, with the oblast only where the name is ambiguous", () => {
     expect(placeName(label())).toBe("Бровари");
     expect(placeName(label({ nameScope: "unique_in_region" }))).toBe("Бровари, Київська обл.");
+  });
+});
+
+describe("placeHint", () => {
+  it("is null for a name that is unique in Ukraine, so a row prints no hint", () => {
+    expect(placeHint(label())).toBeNull();
+  });
+
+  it("is the oblast alone where the oblast tells same-named places apart", () => {
+    expect(placeHint(label({ nameScope: "unique_in_region" }))).toBe("Київська обл.");
+  });
+
+  it("adds the raion where the oblast does not, and falls back to the oblast without one", () => {
+    expect(placeHint(label({ nameScope: "unique_in_district", raion: "Броварський район" }))).toBe(
+      "Броварський р-н, Київська обл.",
+    );
+    expect(placeHint(label({ nameScope: "unique_in_district", raion: null }))).toBe(
+      "Київська обл.",
+    );
   });
 });
 

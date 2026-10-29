@@ -4,9 +4,11 @@ import { useState } from "react";
 import { Button } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
 import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../ui/Combobox";
+import { ComboboxMulti } from "../../../ui/ComboboxMulti";
 import { Icon } from "../../../ui/Icon";
 import { Menu, MenuItem } from "../../../ui/Menu";
 import { Modal } from "../../../ui/Modal";
+import type { MultiSelectRow } from "../../../ui/MultiSelectRows";
 import { Popover } from "../../../ui/Popover";
 import { Sheet } from "../../../ui/Sheet";
 import { Text } from "../../../ui/Text";
@@ -254,6 +256,76 @@ export function ComboboxDemo() {
         search={mockSearch}
         messages={COMBOBOX_MESSAGES}
         disabled
+      />
+    </div>
+  );
+}
+
+const MULTI_OPTIONS = [
+  { value: "brovary", label: "Brovary", count: 3, detail: null },
+  { value: "irpin", label: "Irpin", count: 8, detail: null },
+  { value: "mykolaivka-k", label: "Mykolaivka", count: 1, detail: "Brovary district, Kyiv obl." },
+  {
+    value: "mykolaivka-o",
+    label: "Mykolaivka",
+    count: 2,
+    detail: "Berezivka district, Odesa obl.",
+  },
+  { value: "bucha", label: "Bucha", count: 1, detail: null },
+  { value: "odesa", label: "Odesa", count: 0, detail: null },
+] as const;
+
+/** Local data, no request: type «br» (match in the hint too), tick several, Backspace removes the last. */
+export function ComboboxMultiDemo() {
+  const [selected, setSelected] = useState<string[]>([]);
+  const labelOf = (value: string) => MULTI_OPTIONS.find((o) => o.value === value)?.label ?? value;
+  const rowsFor = (query: string, pinned: ReadonlySet<string>): MultiSelectRow[] => {
+    const needle = query.trim().toLowerCase();
+    return MULTI_OPTIONS.filter(
+      (o) =>
+        needle === "" ||
+        o.label.toLowerCase().includes(needle) ||
+        (o.detail?.toLowerCase().includes(needle) ?? false),
+    )
+      .map((o) => ({
+        value: o.value,
+        label: [o.label, "", ""] as const,
+        detail: o.detail === null ? null : ([o.detail, "", ""] as const),
+        count: o.count,
+        checked: selected.includes(o.value),
+        disabled: o.count === 0 && !selected.includes(o.value),
+        name: `${o.label}, ${o.count}`,
+        group: null,
+      }))
+      .sort(
+        (a, b) =>
+          Number(pinned.has(b.value)) - Number(pinned.has(a.value)) ||
+          (b.count ?? 0) - (a.count ?? 0),
+      );
+  };
+  return (
+    <div className="w-full max-w-xs">
+      <ComboboxMulti
+        id="demo-combobox-multi"
+        label="City"
+        summary={selected.map(labelOf).join(", ")}
+        selectedValues={selected}
+        rows={rowsFor}
+        onToggle={(value) =>
+          setSelected((now) =>
+            now.includes(value) ? now.filter((v) => v !== value) : [...now, value],
+          )
+        }
+        onClear={() => setSelected([])}
+        messages={{
+          search: "Search for a city",
+          clear: "Clear",
+          selectedCount: (n) => `Selected: ${n}`,
+          found: (n) => `Found: ${n}`,
+          noMatch: "Nothing found",
+          noMatchHint: "Only cities with animals are listed.",
+          clearField: "Clear City",
+        }}
       />
     </div>
   );

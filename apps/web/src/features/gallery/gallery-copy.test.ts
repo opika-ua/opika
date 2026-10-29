@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { railResultCount, sheetResultCount, showCountLabel } from "./gallery-copy";
+import {
+  railResultCount,
+  sheetResultCount,
+  showAnimalsLabel,
+  showCountLabel,
+} from "./gallery-copy";
 
 /**
  * Audit 2026-10-22 #29 (Oleksii: "#29 must agree for 1, 2, 5, 11, 21 and 22, with tests"):
@@ -59,5 +64,18 @@ describe("railResultCount", () => {
 describe("showCountLabel", () => {
   it("substitutes the count", () => {
     expect(showCountLabel(12)).toBe("Показати 12");
+  });
+});
+
+describe("showAnimalsLabel", () => {
+  it.each([
+    [1, "Показати 1 тварину"],
+    [2, "Показати 2 тварини"],
+    [5, "Показати 5 тварин"],
+    [11, "Показати 11 тварин"],
+    [21, "Показати 21 тварину"],
+    [22, "Показати 22 тварини"],
+  ])("%i reads «%s»", (count, expected) => {
+    expect(showAnimalsLabel(count)).toBe(expected);
   });
 });

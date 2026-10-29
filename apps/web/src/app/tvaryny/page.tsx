@@ -6,13 +6,16 @@ import { anonymousRouterClient } from "../../api/server-client";
 import { SITE_TITLE } from "../../brand";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
+import { ActiveFilterChips } from "../../features/gallery/ActiveFilterChips";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
+import { activeFilterChips } from "../../features/gallery/active-filters";
 import { cardCityId } from "../../features/gallery/card-text";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
 import {
   cityTokensOf,
   parseGalleryQuery,
   redirectHrefForNonCanonicalCities,
+  resetFiltersHref,
   type SearchParams,
 } from "../../features/gallery/filter-url";
 import { GalleryCard } from "../../features/gallery/GalleryCard";
@@ -292,7 +295,6 @@ export async function renderGallery(
                 regionLabels={regionLabels}
                 selectedCities={selectedCities}
                 resultCount={page.totalMatching}
-                shelterCount={page.totalShelters}
                 counts={facetCounts}
               />
             }
@@ -311,6 +313,26 @@ export async function renderGallery(
               <ReplaceNav>
                 <GallerySortToggle filters={filters} sort={sort} citySlugs={citySlugs} />
               </ReplaceNav>
+            }
+            mobileChips={
+              <ReplaceNav>
+                <ActiveFilterChips
+                  chips={activeFilterChips({
+                    filters,
+                    sort,
+                    citySlugs,
+                    regionLabels,
+                    selectedCities,
+                    counts: facetCounts,
+                  })}
+                  resetHref={resetFiltersHref(sort)}
+                />
+              </ReplaceNav>
+            }
+            mobileCount={
+              <p aria-hidden="true" className="text-label text-ink-2">
+                {railResultCount(page.totalMatching, page.totalShelters)}
+              </p>
             }
           >
             <ReplaceNav>

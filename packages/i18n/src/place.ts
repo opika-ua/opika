@@ -58,6 +58,21 @@ export function placeName(place: PlaceLabel): string {
   return qualify(place.name, place, "card");
 }
 
+/**
+ * The second line of a list row, only for a name that is not unique in Ukraine: «Броварський р-н,
+ * Київська обл.» (raion and oblast), or the oblast alone when the raion does not tell it apart.
+ * `null` for a unique name, so a row never prints a hint that says nothing.
+ */
+export function placeHint(place: PlaceLabel): string | null {
+  if (place.nameScope === "unique_in_ukraine") return null;
+  const needsRaion =
+    place.raion !== null &&
+    (place.nameScope === "unique_in_district" || place.nameScope === "shared_in_district");
+  return needsRaion && place.raion !== null
+    ? `${raionShort(place.raion)}, ${place.regionShort}`
+    : place.regionShort;
+}
+
 function qualify(base: string, place: PlaceLabel, context: "card" | "full"): string {
   if (place.nameScope === "unique_in_ukraine") return base;
   const needsRaion =
