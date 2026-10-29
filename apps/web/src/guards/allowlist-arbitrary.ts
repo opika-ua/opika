@@ -6,13 +6,6 @@ import type { Reasoned } from "./ratchet";
  * migrations only lower the numbers.
  */
 export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
-  "app/pro/page.tsx": { max: 6, reason: "Content pages; burns down in DS PR 3d." },
-  "app/prytulkam/page.tsx": { max: 4, reason: "Content pages; burns down in DS PR 3d." },
-  "app/tvaryny/[animalId]/not-found.tsx": {
-    max: 7,
-    reason: "Gallery surface; burns down in DS PR 3a.",
-  },
-  "app/tvaryny/error.tsx": { max: 7, reason: "Gallery surface; burns down in DS PR 3a." },
   "app/tvaryny/page.tsx": { max: 4, reason: "Gallery surface; burns down in DS PR 3a." },
   "features/animal-detail/AnimalDetailScreen.tsx": {
     max: 21,
@@ -41,8 +34,7 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
   },
   "features/discovery/SwipeDeck.tsx": {
     max: 1,
-    reason:
-      "The not-a-judgement line hides below 360px, where it wraps to two lines and clips the deck.",
+    reason: "The not-a-judgement line hides below 360px, where it wraps to two lines and clips the deck.",
   },
   "features/gallery/FilterSheet.tsx": {
     max: 21,

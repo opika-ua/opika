@@ -1,6 +1,9 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { LinkButton } from "../../../ui/Button";
+import { Heading } from "../../../ui/Heading";
+import { Panel } from "../../../ui/Panel";
+import { Text } from "../../../ui/Text";
 
 /**
  * Next's own 404 mechanism (`notFound()`, called from `page.tsx` in this
@@ -17,23 +20,21 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 export default function NotFound() {
   const copy = uk.detail.notFound;
   return (
-    <div className="font-rg min-h-dvh bg-rg-page flex items-center justify-center p-6">
-      <div className="bg-rg-surface rounded-rg-card p-8 flex flex-col gap-4 items-start max-w-[560px] w-full">
-        <span className="text-[11px] font-medium tracking-[0.12em] text-rg-ink-3">
+    <div className="flex min-h-dvh items-center justify-center bg-page p-6">
+      <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">
+        <Text look="hint" className="uppercase tracking-wider">
           {copy.eyebrow}
-        </span>
-        <span className="text-[34px]/[38px] font-bold tracking-[-0.03em] text-rg-ink">
+        </Text>
+        <Heading level={1} look="display-l">
           {copy.title}
-        </span>
-        <span className="text-[17px]/[26px] text-rg-ink-2">{copy.body}</span>
-        <Link
-          href="/tvaryny"
-          data-testid="not-found-action"
-          className="min-h-14 inline-flex items-center rounded-rg-button bg-rg-ink px-6 text-[15px] font-medium text-rg-surface focus-ring-registry"
-        >
+        </Heading>
+        <Text look="lead" className="text-ink-2">
+          {copy.body}
+        </Text>
+        <LinkButton href="/tvaryny" data-testid="not-found-action">
           {copy.action}
-        </Link>
-      </div>
+        </LinkButton>
+      </Panel>
     </div>
   );
 }
