@@ -1,9 +1,12 @@
 "use client";
 
 import { uk } from "@opika/i18n";
-import Link from "next/link";
 import { type FormEvent, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { buttonClass, linkClass, TextField } from "../controls/controls";
+import { Button, LinkButton } from "../../ui/Button";
+import { Card } from "../../ui/Card";
+import { TextField } from "../../ui/form";
+import { Heading } from "../../ui/Heading";
+import { Text } from "../../ui/Text";
 import { PasswordField } from "./password/PasswordField";
 import {
   PASSWORD_ENDPOINTS,
@@ -38,23 +41,13 @@ import { FORGOT_PATH, SHELTER_HOME } from "./routes";
  *   address is config (`EMAIL_REPLY_TO`, the same inbox every email's
  *   Reply-To names), passed in by the page, never typed into the copy.
  *
- * The form is built on the shared controls, theme tokens only ("Test logic,
- * not looks"); the «sent» state keeps the classes it shipped with.
+ * Built on the kit (Button, TextField, Heading, Card) and the unified tokens only.
  */
 
 export const RESEND_LOCKOUT_SECONDS = 60;
 export const SIGN_IN_PATH = "/api/auth/sign-in/magic-link";
 /** Where the link lands after verification, and where a password sign-in goes: the cabinet's home. */
 export const SIGN_IN_CALLBACK = SHELTER_HOME;
-
-const FOCUS = "focus-ring-registry";
-const SECONDARY_DISABLED = `inline-flex min-h-14 flex-1 items-center justify-center rounded-rg-button bg-rg-fill px-6 text-[15px] whitespace-nowrap text-rg-ink-3 tablet:flex-none ${FOCUS}`;
-const SECONDARY = `inline-flex min-h-14 flex-1 items-center justify-center rounded-rg-button bg-rg-fill px-6 text-[15px] whitespace-nowrap text-rg-ink tablet:flex-none ${FOCUS}`;
-const TEXT_BUTTON = `inline-flex min-h-14 items-center justify-center px-2 text-[15px] whitespace-nowrap text-rg-ink underline ${FOCUS}`;
-const TITLE =
-  "text-2xl leading-7 font-bold tracking-[-0.02em] text-rg-ink tablet:text-[34px] tablet:leading-[38px] tablet:tracking-[-0.03em]";
-const BODY = "text-[17px] leading-[26px] text-rg-ink-2";
-const CAPTION = "text-[13px] leading-[18px] text-rg-ink-3";
 
 const countdown = (seconds: number): string =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -204,22 +197,21 @@ export function SignInCard({
   }
 
   return (
-    <section
+    <Card
+      as="section"
+      tone="outline"
       aria-labelledby={`${emailId}-title`}
-      className="flex w-full flex-col gap-4 rounded-rg-card bg-rg-surface p-5 tablet:max-w-lg tablet:p-8"
+      className="flex w-full flex-col gap-4 p-5 tablet:w-120 tablet:p-8"
     >
       {state.kind === "entering" ? (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <h1
-              id={`${emailId}-title`}
-              ref={titleRef}
-              tabIndex={-1}
-              className="text-2xl font-bold text-rg-ink tablet:text-3xl"
-            >
+            <Heading level={1} look="title" id={`${emailId}-title`} ref={titleRef} tabIndex={-1}>
               {uk.kabinet.signIn.title}
-            </h1>
-            <p className="text-lg text-rg-ink-2">{uk.kabinet.signIn.intro}</p>
+            </Heading>
+            <Text look="body" className="text-ink-2">
+              {uk.kabinet.signIn.intro}
+            </Text>
           </div>
           <form onSubmit={onSubmit} className="flex flex-col gap-6">
             <TextField
@@ -241,80 +233,74 @@ export function SignInCard({
               autoComplete="current-password"
             />
             {state.error !== null ? (
-              <p role="alert" className="text-base font-medium text-rg-ink">
+              <p role="alert" className="text-label text-ink">
                 {state.error}
               </p>
             ) : null}
-            <button
-              type="submit"
-              aria-disabled={busy || undefined}
-              className={buttonClass("primary")}
-            >
+            <Button type="submit" status={busy ? "loading" : "idle"} className="w-full">
               {uk.kabinet.signIn.submitPassword}
-            </button>
-            <Link href={FORGOT_PATH} className={linkClass("text")}>
+            </Button>
+            <LinkButton href={FORGOT_PATH} variant="ghost" className="self-start">
               {uk.kabinet.signIn.forgot}
-            </Link>
+            </LinkButton>
           </form>
           <div className="flex flex-col gap-2">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={onSendLink}
-              aria-disabled={busy || undefined}
-              className={buttonClass("secondary")}
+              status={busy ? "loading" : "idle"}
+              className="w-full"
             >
               {uk.kabinet.signIn.useLink}
-            </button>
-            <p className="text-sm text-rg-ink-3">{uk.kabinet.signIn.addressNote}</p>
+            </Button>
+            <Text look="hint">{uk.kabinet.signIn.addressNote}</Text>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <h1 id={`${emailId}-title`} ref={titleRef} tabIndex={-1} className={TITLE}>
+          <Heading level={1} look="title" id={`${emailId}-title`} ref={titleRef} tabIndex={-1}>
             {uk.kabinet.signIn.sentTitle}
-          </h1>
-          <p className={BODY}>
+          </Heading>
+          <Text look="body" className="text-ink-2">
             {uk.kabinet.signIn.sentBody.split("{email}").map((part, index) =>
               index === 0 ? (
                 part
               ) : (
                 <span key="email">
-                  <strong className="font-medium">{state.email}</strong>
+                  <strong className="font-semibold text-ink">{state.email}</strong>
                   {part}
                 </span>
               ),
             )}
-          </p>
-          <div className="h-2" />
-          <p className={CAPTION}>{uk.kabinet.signIn.spamNote}</p>
+          </Text>
+          <Text look="hint">{uk.kabinet.signIn.spamNote}</Text>
           {contact !== null ? (
-            <p className={CAPTION}>
+            <Text look="hint">
               {uk.kabinet.signInCard.notArrived.replaceAll("{contact}", () => contact)}
-            </p>
+            </Text>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={onResend}
               aria-disabled={state.lockedFor > 0 || busy || undefined}
-              className={state.lockedFor > 0 ? SECONDARY_DISABLED : SECONDARY}
             >
               {state.lockedFor > 0
                 ? uk.kabinet.signIn.resendIn.replace("{time}", countdown(state.lockedFor))
                 : uk.kabinet.signIn.resend}
-            </button>
-            <button type="button" onClick={onOtherAddress} className={TEXT_BUTTON}>
+            </Button>
+            <Button variant="ghost" onClick={onOtherAddress}>
               {uk.kabinet.signIn.otherAddress}
-            </button>
+            </Button>
           </div>
           {state.resendFailed ? (
-            <p role="alert" className="text-[15px] leading-[22px] font-medium text-rg-ink">
+            <p role="alert" className="text-label text-ink">
               {uk.kabinet.signIn.sendFailed}
             </p>
           ) : null}
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 

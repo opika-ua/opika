@@ -25,10 +25,6 @@ export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
     reason:
       "The not-a-judgement line hides below 360px, where it wraps to two lines and clips the deck.",
   },
-  "features/kabinet/SignInCard.tsx": {
-    max: 13,
-    reason: "Kabinet one-offs; replaced by kit components in Kabinet Phase 2 (after DS PR 2).",
-  },
   "features/reveal/ContactRevealDialog.tsx": {
     max: 1,
     reason: "Dialog height cap of 85vh; no scale step. Folds into the kit Modal later.",

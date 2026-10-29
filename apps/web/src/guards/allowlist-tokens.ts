@@ -8,9 +8,6 @@ export const TOKEN_CEILINGS: Readonly<
   Record<"rg" | "fontRg" | "brand" | "bare", Readonly<Record<string, number>>>
 > = {
   rg: {
-    "app/kabinet/vkhid/novyi-parol/page.tsx": 1,
-    "app/kabinet/vkhid/page.tsx": 1,
-    "app/kabinet/vkhid/zabuly/page.tsx": 1,
     "features/animal-detail/medical-labels.ts": 10,
     "features/chrome/RateLimitedScreen.tsx": 4,
     "features/controls/ModalDialog.tsx": 7,
@@ -18,10 +15,7 @@ export const TOKEN_CEILINGS: Readonly<
     "features/kabinet/operator/create/CreateShelterForm.tsx": 1,
     "features/kabinet/operator/evidence-editor/EvidenceEditor.tsx": 2,
     "features/kabinet/operator/OperatorShell.tsx": 1,
-    "features/kabinet/password/CardFrame.tsx": 5,
-    "features/kabinet/password/ChangePasswordSection.tsx": 2,
     "features/kabinet/profile-edit/styles.ts": 16,
-    "features/kabinet/SignInCard.tsx": 17,
   },
   fontRg: {
     "features/chrome/RateLimitedScreen.tsx": 1,

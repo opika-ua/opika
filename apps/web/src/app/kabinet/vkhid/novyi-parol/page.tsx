@@ -1,6 +1,6 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
-import { KabinetBrand } from "../../../../features/kabinet/KabinetBrand";
+import { AuthPage } from "../../../../features/kabinet/AuthPage";
 import { ResetPasswordCard } from "../../../../features/kabinet/password/ResetPasswordCard";
 import { RESET_LINK } from "../../../../kabinet/email-links";
 import { TOKEN_PAGE_HEADERS } from "../../../../kabinet/token-pages";
@@ -37,13 +37,8 @@ export default async function ResetPasswordPage({
   const value = (await searchParams)[RESET_LINK.param];
   const token = typeof value === "string" ? value : "";
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="flex min-h-16 items-center bg-rg-surface px-4 tablet:min-h-0 tablet:bg-transparent tablet:p-8">
-        <KabinetBrand />
-      </header>
-      <main className="flex flex-1 flex-col px-4 pt-5 pb-6 tablet:items-center tablet:justify-center tablet:px-8 tablet:pt-8 tablet:pb-24">
-        <ResetPasswordCard token={token} />
-      </main>
-    </div>
+    <AuthPage>
+      <ResetPasswordCard token={token} />
+    </AuthPage>
   );
 }

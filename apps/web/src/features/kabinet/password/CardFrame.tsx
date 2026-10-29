@@ -1,23 +1,22 @@
 import type { ReactNode } from "react";
+import { Card } from "../../../ui/Card";
 
 /**
- * The card the sign-in pages share (`/kabinet/vkhid/zabuly`,
- * `/kabinet/vkhid/novyi-parol`): K1's card, on theme tokens only.
+ * The card the sign-in pages share (`/kabinet/vkhid/zabuly`, `/kabinet/vkhid/novyi-parol`): a kit
+ * Card, so the sign-in, forgot and reset screens read as one family.
  */
 export function CardFrame({ titleId, children }: { titleId: string; children: ReactNode }) {
   return (
-    <section
+    <Card
+      as="section"
+      tone="outline"
       aria-labelledby={titleId}
-      className="flex w-full flex-col gap-6 rounded-rg-card bg-rg-surface p-5 tablet:max-w-lg tablet:p-8"
+      className="flex w-full flex-col gap-6 p-5 tablet:w-120 tablet:p-8"
     >
       {children}
-    </section>
+    </Card>
   );
 }
 
-/** The card's heading: one `h1` per page, focusable so a state change can move focus to it. */
-export const CARD_TITLE = "text-2xl font-bold text-rg-ink tablet:text-3xl";
-/** A paragraph of the card. */
-export const CARD_BODY = "text-lg text-rg-ink-2";
 /** A form-level message (sent, done, refused), announced when it appears. */
-export const CARD_MESSAGE = "text-base font-medium text-rg-ink";
+export const CARD_MESSAGE = "text-label text-ink";
