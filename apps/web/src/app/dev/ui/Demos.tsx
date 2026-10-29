@@ -34,6 +34,26 @@ export function ModalDemo() {
   );
 }
 
+export function ModalHeaderDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        Open modal with header
+      </Button>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Title below the header row"
+        closeLabel="Close"
+        header={<Text>Lead in the close button's row</Text>}
+      >
+        <Button onClick={() => setOpen(false)}>Done</Button>
+      </Modal>
+    </>
+  );
+}
+
 export function SheetDemo() {
   return (
     <Sheet

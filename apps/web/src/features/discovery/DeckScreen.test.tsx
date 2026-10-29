@@ -6,7 +6,7 @@ import {
   ShelterIdSchema,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CitySlugsById } from "../gallery/filter-url";
 import { mockAppRouter, WithMockRouter } from "../gallery/test-router";
@@ -560,7 +560,11 @@ describe("DeckScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: uk.actions.write }));
     await screen.findByTestId("reveal-dialog");
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    // What a browser does on Esc inside a modal dialog: the key reaches the page unhandled, and
+    // the dialog then closes itself. The deck's exit must not take the same key.
+    const dialog = screen.getByTestId("reveal-dialog") as HTMLDialogElement;
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    act(() => dialog.close());
 
     expect(screen.queryByTestId("reveal-dialog")).toBeNull();
     expect(router.back).not.toHaveBeenCalled();

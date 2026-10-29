@@ -18,7 +18,7 @@
 import { uk } from "@opika/i18n";
 import { expect, type Page, type Request, test } from "@playwright/test";
 import { openRoute } from "./harness";
-import { DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
+import { ANDROID_PHONE, ANDROID_PHONE_TALL, DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
 
 const ipHeaders = (lastOctet: number) => ({ "x-forwarded-for": `198.51.100.${lastOctet}` });
 
@@ -401,8 +401,115 @@ test.describe("the gallery's animal overlay", () => {
       // The reveal answered (the per-day limit counted it like the page's):
       // the contact, not a refusal.
       await expect(
-        page.getByTestId("reveal-dialog").getByText("Ось як звʼязатися з притулком."),
+        page
+          .getByTestId("reveal-dialog")
+          .getByRole("heading", { name: "Як звʼязатися з притулком" }),
       ).toBeVisible();
     });
   });
 });
+
+/**
+ * Reveal redesign: the reveal is a native modal dialog in the top layer, so the overlay's own
+ * controls behind it are inert. Bug before: the overlay's ✕ and prev/next stayed above the
+ * backdrop and clickable. Found by role and by what a pointer or Tab can reach, never by position.
+ */
+test.describe("the contact reveal is the top layer over the animal overlay", () => {
+  test.use({ extraHTTPHeaders: ipHeaders(62) });
+
+  test("the overlay's ✕ and prev/next can be neither clicked nor tabbed to while the reveal is open", async ({
+    page,
+  }) => {
+    await openGallery(page);
+    const { href, dialog } = await openOverlayFrom(page, 1);
+    const overlayClose = dialog.getByRole("button", { name: uk.preview.close });
+    const overlayNext = dialog.getByTestId("overlay-next");
+    await expect(overlayClose).toBeVisible();
+    // Where the overlay's controls sit, read before the reveal covers them.
+    const closeBox = await overlayClose.boundingBox();
+    const nextBox = await overlayNext.boundingBox();
+    if (closeBox === null || nextBox === null) throw new Error("overlay controls have no box");
+    // Held before the reveal opens: the reveal sits inside the overlay's DOM, with a ✕ of its own.
+    const behind = [await overlayClose.elementHandle(), await overlayNext.elementHandle()];
+
+    await dialog.getByRole("button", { name: uk.detail.giveHome }).click();
+    const reveal = page.getByTestId("reveal-dialog");
+    await expect(reveal).toBeVisible();
+
+    // What a pointer hits at those points is the reveal's dialog or its backdrop, never the overlay's control.
+    for (const box of [closeBox, nextBox]) {
+      const hitOverlayControl = await page.evaluate(
+        ({ x, y }) => {
+          const hit = document.elementFromPoint(x, y);
+          return hit?.closest('[data-testid="pet-card-overlay-open"] [role="dialog"]') != null;
+        },
+        { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+      );
+      expect(hitOverlayControl, "a pointer cannot reach the overlay behind the reveal").toBe(false);
+    }
+
+    // Tab never reaches the overlay's controls: the reveal's own stops cycle (then the browser's
+    // own UI), and none of them is the overlay's ✕ or prev/next, however many presses.
+    for (let i = 0; i < 20; i += 1) {
+      await page.keyboard.press("Tab");
+      const onOverlayControl = await page.evaluate(
+        (controls) => controls.some((control) => control === document.activeElement),
+        behind,
+      );
+      expect(onOverlayControl, `Tab stop ${i + 1} is not an overlay control`).toBe(false);
+    }
+
+    // A click on the backdrop closes the reveal only; the overlay and its URL stay.
+    // A click where the overlay's ✕ sits must not reach it: the overlay and its URL stay either way.
+    await page.mouse.click(closeBox.x + closeBox.width / 2, closeBox.y + closeBox.height / 2);
+    await expect(dialog).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe(href);
+    // A click on the backdrop closes the reveal only.
+    await page.mouse.click(20, 540);
+    await expect(reveal).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe(href);
+    await expect(dialog.getByRole("button", { name: uk.detail.giveHome })).toBeFocused();
+  });
+
+  test("Esc and the reveal's ✕ close only the reveal", async ({ page }) => {
+    await openGallery(page);
+    const { href, dialog } = await openOverlayFrom(page, 2);
+
+    await dialog.getByRole("button", { name: uk.detail.giveHome }).click();
+    const reveal = page.getByTestId("reveal-dialog");
+    await expect(reveal).toBeVisible();
+    await reveal.getByRole("button", { name: uk.preview.close }).click();
+    await expect(reveal).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe(href);
+    await expect(dialog.getByRole("button", { name: uk.detail.giveHome })).toBeFocused();
+  });
+});
+
+/** A phone gets a bottom sheet whose contacts are on screen without scrolling (a visibility check, not a measurement). */
+for (const phone of [ANDROID_PHONE, ANDROID_PHONE_TALL]) {
+  test.describe(`the contact reveal as a sheet at ${phone.name}`, () => {
+    test.use({ extraHTTPHeaders: ipHeaders(63) });
+
+    test("every contact row is in view without scrolling, and the reflection list starts collapsed", async ({
+      page,
+    }) => {
+      await openGallery(page, phone);
+      const { dialog } = await openOverlayFrom(page, 0);
+      await dialog.getByRole("button", { name: uk.detail.giveHome }).click();
+      const reveal = page.getByTestId("reveal-dialog");
+      await expect(reveal).toBeVisible();
+
+      const rows = reveal.getByTestId("reveal-contact-row");
+      const count = await rows.count();
+      expect(count, "the shelter's contacts are listed").toBeGreaterThan(0);
+      for (let i = 0; i < count; i += 1) {
+        await expect(rows.nth(i)).toBeInViewport({ ratio: 1 });
+      }
+      await expect(reveal.getByText("Це роки разом, а не вихідні.")).toBeHidden();
+      await reveal.getByText("Перед тим як писати – три речі").click();
+      await expect(reveal.getByText("Це роки разом, а не вихідні.")).toBeVisible();
+    });
+  });
+}

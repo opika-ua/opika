@@ -11,6 +11,7 @@ interface RevealFlowProps {
   animalId: AnimalId;
   animalName: string;
   cityName: string | null;
+  cityLabel?: string | null | undefined;
 }
 
 /**
@@ -45,13 +46,13 @@ interface RevealFlowProps {
  * `uk.actions.writeShelter` ("Написати притулку") to `uk.detail.giveHome`.
  * The dialog it opens, `secondaryAction` included, is untouched.
  */
-export function RevealFlow({ animalId, animalName, cityName }: RevealFlowProps) {
+export function RevealFlow({ animalId, animalName, cityName, cityLabel }: RevealFlowProps) {
   const { state, open, close: closeReveal } = useReveal();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const openThisAnimal = useCallback(
-    () => open({ animalId, animalName, cityName }),
-    [open, animalId, animalName, cityName],
+    () => open({ animalId, animalName, cityName, cityLabel }),
+    [open, animalId, animalName, cityName, cityLabel],
   );
 
   // Memoised - caught on review: an inline arrow here re-created a new

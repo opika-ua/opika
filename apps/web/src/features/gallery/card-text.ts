@@ -1,7 +1,6 @@
 import type { FeedCardView } from "@opika/contracts";
 import type { CityId } from "@opika/domain";
 import {
-  ageBucketLabel,
   ageWordFor,
   fillTemplate,
   sexWordFor,
@@ -81,12 +80,12 @@ export function cardMetaLine(card: FeedCardView, cityName: string | null): strin
  * `cardAccessibleName`, never visible on the card itself - a new function
  * rather than editing `cardMetaLine` above, which the old `AnimalCard`
  * shared with the shelter and saved pages still uses unchanged). Age uses
- * `ageBucketLabel` (the bare, gender-neutral word), not `ageWordFor`,
- * because the sex word now carries that information on its own. An
- * `"unknown"` sex drops the segment rather than guessing.
+ * `ageWordFor`: the age word agrees with the animal's sex («Дівчинка · доросла»), the
+ * same function every other card surface uses. An `"unknown"` sex drops the sex segment
+ * rather than guessing, and the age word then reads masculine.
  */
 export function cardFactsParts(card: FeedCardView): readonly string[] {
-  return [sexWordFor(card.sex), ageBucketLabel(card.ageBucket), sizeLabel(card.size)].filter(
+  return [sexWordFor(card.sex), ageWordFor(card.ageBucket, card.sex), sizeLabel(card.size)].filter(
     (part): part is string => Boolean(part),
   );
 }

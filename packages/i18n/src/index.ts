@@ -1,5 +1,6 @@
 export {
   ageBucketLabel,
+  ageChipWordFor,
   ageWordFor,
   sexWordFor,
   sizeLabel,

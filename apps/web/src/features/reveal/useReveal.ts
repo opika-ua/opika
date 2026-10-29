@@ -17,6 +17,8 @@ export interface RevealSnapshot {
   animalId: AnimalId;
   animalName: string;
   cityName: string | null;
+  /** The bare city for the dialog's header line; absent where `cityName` already is bare (the deck). */
+  cityLabel?: string | null | undefined;
 }
 
 /**

@@ -73,10 +73,13 @@ export function DeckScreen({
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      // An Escape the reveal dialog already handled closed the dialog; the
-      // deck survives a reveal, so the same press must not also leave it
+      // The deck survives a reveal, so the Escape that closes it must not also leave the deck
       // (RF-F2, `ContactRevealDialog.tsx`).
-      if (event.key === "Escape" && !event.defaultPrevented) exit();
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      // The reveal is a native modal dialog and closes itself on Esc without marking the key
+      // handled; a press from inside it must not also leave the deck.
+      if (event.target instanceof Element && event.target.closest("dialog[open]")) return;
+      exit();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

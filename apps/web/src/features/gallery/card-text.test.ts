@@ -105,9 +105,22 @@ describe("cardFactsParts", () => {
     expect(cardFactsParts(card)).toEqual(["Хлопчик", "молодий", "мала"]);
   });
 
-  it("uses the gender-neutral age word, not the sex-agreeing one cardMetaLine uses", () => {
-    const card = makeCard({ sex: "female", ageBucket: "young", size: "small" });
-    expect(cardFactsParts(card)).toEqual(["Дівчинка", "молодий", "мала"]);
+  it.each([
+    ["male", "baby", "малюк"],
+    ["male", "young", "молодий"],
+    ["male", "adult", "дорослий"],
+    ["male", "senior", "літній"],
+    ["female", "baby", "малючка"],
+    ["female", "young", "молода"],
+    ["female", "adult", "доросла"],
+    ["female", "senior", "літня"],
+    ["unknown", "baby", "малюк"],
+    ["unknown", "young", "молодий"],
+    ["unknown", "adult", "дорослий"],
+    ["unknown", "senior", "літній"],
+  ] as const)("the age word agrees with sex: %s, %s → «%s»", (sex, bucket, word) => {
+    const card = makeCard({ sex, ageBucket: bucket, size: "small" });
+    expect(cardFactsParts(card)).toContain(word);
   });
 
   it("drops the sex part for an unknown sex rather than guessing", () => {

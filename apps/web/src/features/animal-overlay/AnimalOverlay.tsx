@@ -213,7 +213,7 @@ function NeighbourLink({
 /**
  * ← and → walk the overlay's own prev/next (owner decision B), except while
  * focus is in a text field or the reveal dialog is open - a direct DOM
- * check for the dialog (`[data-testid="reveal-dialog"]`), the same kind of
+ * check for an open native `<dialog>` (the reveal), the same kind of
  * query `useReturnFocusToOpener` below already makes, rather than threading
  * `useReveal`'s state up through a component that has no other reason to
  * know about it. `router.replace` (not `push`), matching the visible
@@ -233,7 +233,7 @@ function useNeighbourArrowKeys(
         active instanceof HTMLTextAreaElement ||
         (active instanceof HTMLElement && active.isContentEditable);
       if (inTextInput) return;
-      if (document.querySelector('[data-testid="reveal-dialog"]')) return;
+      if (document.querySelector("dialog[open]")) return;
 
       const target = event.key === "ArrowLeft" ? neighbours.prev : neighbours.next;
       if (target === null) return;
@@ -266,6 +266,12 @@ function useReturnFocusToOpener(href: string) {
           ? opener
           : document.querySelector<HTMLElement>(`a[href="${href}"]`);
       target?.focus();
+      // A reveal unmounting with the overlay closes its native dialog, which hands focus back
+      // to «Дати сімʼю» - a node about to be removed, leaving focus on <body>. Once the commit has
+      // settled, put it on the card if it landed nowhere.
+      queueMicrotask(() => {
+        if (target?.isConnected && document.activeElement === document.body) target.focus();
+      });
     };
   }, [href]);
 }
