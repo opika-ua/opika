@@ -5,9 +5,10 @@ import { parseEnv } from "node:util";
 
 /**
  * The one check every script that writes to a database runs before it
- * connects: `db:migrate`, `onboard:shelter` and the other writers. `db:seed` and
- * `db:import-settlements` use `assertNotProductionTarget` instead: production is refused for them
- * outright, `--prod` included.
+ * connects: `db:migrate`, `onboard:shelter` and the other writers. `db:seed` uses
+ * `assertNotProductionTarget` instead: production is refused for it outright, `--prod` included.
+ * `db:import-settlements` has its own `decideImportTarget` (import/import-target.ts), which also
+ * demands `--expect` and a clean readiness scan before it lets production through.
  *
  * Production is identified by its Neon **compute endpoint id**
  * (`PROD_NEON_ENDPOINT=ep-…`), never by a connection string. The id is all the
@@ -523,7 +524,7 @@ export function assertProductionWriteAllowed(
 
 /**
  * The CLI form of `checkNonProductionTarget`: prints why and exits non-zero. `what` names the
- * script's job in the refusal ("importing settlements", "seeding"); a production target gets its
+ * script's job in the refusal ("seeding"); a production target gets its
  * own message because `--prod` was typed on purpose and must be told it does nothing here.
  */
 export function assertNotProductionTarget(
@@ -557,7 +558,7 @@ export const ambientSettingsText = (variables: readonly AmbientConnectionVariabl
   "alongside DATABASE_URL, the only connection setting the guard checks. Unset " +
   `${variables.length === 1 ? "it" : "them"} and put everything in DATABASE_URL`;
 
-function refusalMessage(check: Extract<ProductionWriteCheck, { kind: "refused" }>): string {
+export function refusalMessage(check: Extract<ProductionWriteCheck, { kind: "refused" }>): string {
   switch (check.reason) {
     case "ambient_settings":
       return `ERROR: ${ambientSettingsText(check.variables)}. Refusing (not printing any value).`;

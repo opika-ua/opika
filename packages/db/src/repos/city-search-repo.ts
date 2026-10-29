@@ -1,5 +1,6 @@
 import type { NameScope, PlaceQuery, RegionId, SettlementKind } from "@opika/domain";
-import { and, isNull, or, sql } from "drizzle-orm";
+import { and, isNull, sql } from "drizzle-orm";
+import { union } from "drizzle-orm/pg-core";
 import type { Database } from "../client";
 import { REGIONS } from "../geography/regions-data";
 import { cities } from "../schema/cities";
@@ -53,9 +54,21 @@ export function cyrillicTrigramsAvailable(db: Database): Promise<boolean> {
   return answer;
 }
 
+/** Rows each index-friendly branch may contribute; the final answer is `MAX_PLACE_RESULTS`. */
+export const BRANCH_LIMIT = 50;
+
 /**
  * The search statement, unexecuted, so a sitting can `EXPLAIN` exactly what a search runs
  * (`test/neon-smoke-timings.ts`); `search` is the only caller in the app.
+ *
+ * One `OR` over four conditions defeats every index (a Seq Scan over ~29.7k rows), so each
+ * condition is its own branch: a prefix on each key (btree `text_pattern_ops`) and a trigram match
+ * on each key (GIN). Every branch carries the full ranking columns and its own ORDER BY ... LIMIT
+ * 50 on the same ranking as the final one, so the global top 20 is always inside the union of the
+ * branch tops: a row in the top 20 has fewer than 20 rows above it anywhere, hence fewer than 50
+ * in its own branch. The rewrite therefore returns what the single-`OR` query returned.
+ * `UNION` (not `UNION ALL`) dedupes a row several branches found; those copies are identical
+ * because every column is computed the same way in each branch.
  */
 export function searchStatement(
   db: Database,
@@ -63,7 +76,6 @@ export function searchStatement(
   options: { regionBias: RegionId | null },
   useCyrillicTrigrams: boolean,
 ) {
-  const limit = MAX_PLACE_RESULTS;
   const { cyrillic, latin } = query;
 
   const exact =
@@ -74,10 +86,6 @@ export function searchStatement(
     cyrillic === null
       ? sql`(${cities.searchLatin} LIKE ${likePrefix(latin)})`
       : sql`(${cities.searchName} LIKE ${likePrefix(cyrillic)} OR ${cities.searchLatin} LIKE ${likePrefix(latin)})`;
-  const trigramLatin = sql`(${cities.searchLatin} % ${latin} AND similarity(${cities.searchLatin}, ${latin}) >= 0.35)`;
-  const trigramCyrillic = useCyrillicTrigrams
-    ? sql`(${cities.searchName} % ${cyrillic} AND similarity(${cities.searchName}, ${cyrillic}) >= 0.35)`
-    : null;
   const similarity = useCyrillicTrigrams
     ? sql`greatest(similarity(${cities.searchName}, ${cyrillic}), similarity(${cities.searchLatin}, ${latin}))`
     : sql`similarity(${cities.searchLatin}, ${latin})`;
@@ -86,43 +94,65 @@ export function searchStatement(
       ? sql`(0)::int`
       : sql`(${cities.regionId} = ${options.regionBias})::int`;
 
-  return db
-    .select({
-      id: cities.id,
-      slug: cities.slug,
-      nameUk: cities.nameUk,
-      kind: cities.kind,
-      districtNameUk: cities.districtNameUk,
-      hromadaNameUk: cities.hromadaNameUk,
-      nameScope: cities.nameScope,
-      regionId: cities.regionId,
-      exact: sql<number>`${exact}::int`.mapWith(Number),
-      prefix: sql<number>`${prefix}::int`.mapWith(Number),
-      kindRank: sql<number>`${KIND_RANK}`.mapWith(Number),
-      bias: sql<number>`${bias}`.mapWith(Number),
-      similarity: sql<number>`${similarity}`.mapWith(Number),
-    })
-    .from(cities)
-    .where(
-      and(
-        isNull(cities.retiredInEdition),
-        or(
-          sql`${cities.searchLatin} LIKE ${likePrefix(latin)}`,
-          cyrillic === null ? undefined : sql`${cities.searchName} LIKE ${likePrefix(cyrillic)}`,
-          trigramLatin,
-          trigramCyrillic ?? undefined,
+  const branch = (match: ReturnType<typeof sql>) =>
+    db
+      .select({
+        id: cities.id,
+        slug: cities.slug,
+        nameUk: cities.nameUk,
+        kind: cities.kind,
+        districtNameUk: cities.districtNameUk,
+        hromadaNameUk: cities.hromadaNameUk,
+        nameScope: cities.nameScope,
+        regionId: cities.regionId,
+        exact: sql<number>`${exact}::int`.mapWith(Number).as("exact"),
+        prefix: sql<number>`${prefix}::int`.mapWith(Number).as("prefix"),
+        kindRank: sql<number>`${KIND_RANK}`.mapWith(Number).as("kind_rank"),
+        bias: sql<number>`${bias}`.mapWith(Number).as("bias"),
+        similarity: sql<number>`${similarity}`.mapWith(Number).as("similarity"),
+      })
+      .from(cities)
+      .where(and(isNull(cities.retiredInEdition), match))
+      .orderBy(
+        sql`${exact}::int DESC`,
+        sql`${prefix}::int DESC`,
+        KIND_RANK,
+        sql`${bias} DESC`,
+        sql`${similarity} DESC`,
+        cities.id,
+      )
+      .limit(BRANCH_LIMIT);
+
+  const branches = [
+    branch(sql`${cities.searchLatin} LIKE ${likePrefix(latin)}`),
+    branch(
+      sql`(${cities.searchLatin} % ${latin} AND similarity(${cities.searchLatin}, ${latin}) >= 0.35)`,
+    ),
+  ];
+  if (cyrillic !== null) {
+    branches.push(branch(sql`${cities.searchName} LIKE ${likePrefix(cyrillic)}`));
+    if (useCyrillicTrigrams) {
+      branches.push(
+        branch(
+          sql`(${cities.searchName} % ${cyrillic} AND similarity(${cities.searchName}, ${cyrillic}) >= 0.35)`,
         ),
-      ),
-    )
+      );
+    }
+  }
+  const [first, second, ...rest] = branches;
+  if (first === undefined || second === undefined) throw new Error("search has two branches");
+
+  const col = (name: string) => sql.identifier(name);
+  return union(first, second, ...rest)
     .orderBy(
-      sql`${exact}::int DESC`,
-      sql`${prefix}::int DESC`,
-      KIND_RANK,
-      sql`${bias} DESC`,
-      sql`${similarity} DESC`,
-      cities.id,
+      sql`${col("exact")} DESC`,
+      sql`${col("prefix")} DESC`,
+      sql`${col("kind_rank")}`,
+      sql`${col("bias")} DESC`,
+      sql`${col("similarity")} DESC`,
+      sql`${col("id")}`,
     )
-    .limit(limit);
+    .limit(MAX_PLACE_RESULTS);
 }
 
 export function citySearchRepo(db: Database) {
