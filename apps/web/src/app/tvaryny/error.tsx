@@ -1,12 +1,7 @@
 "use client";
 
 import { uk } from "@opika/i18n";
-import { useEffect, useRef } from "react";
-import { Button, buttonClass } from "../../ui/Button";
-import { cx } from "../../ui/cx";
-import { Heading } from "../../ui/Heading";
-import { Panel } from "../../ui/Panel";
-import { Text } from "../../ui/Text";
+import { LoadErrorScreen } from "../../features/gallery/LoadErrorScreen";
 
 /**
  * E4, `docs/design/README.md`'s "Whole-list error (E1/E2)" - and, per that
@@ -119,76 +114,16 @@ export default function GalleryError({
   reset: () => void;
   retry: () => void;
 }) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-
-  // "focus moves to the heading" (docs/design/README.md, E1/E2). tabIndex
-  // -1: programmatic-only focus target, never a Tab stop of its own.
-  useEffect(() => {
-    headingRef.current?.focus();
-  }, []);
-
   return (
-    <>
-      {/*
-        PR B, the SEO review of page titles - corrected on review: a Client Component
-        (error boundaries must be one) can't export `metadata`/`robots`, but it isn't
-        true that there's "no code path" to noindex it, as an earlier draft of this
-        file's own comment claimed. React hoists a `<title>`/`<meta>` rendered anywhere
-        in the tree up to `<head>` (Next's own error.md names exactly this as the
-        Client-Component alternative to a `metadata` export), so this tag reaches the
-        real document head the same as a Server Component's `robots` would.
-      */}
-      <meta name="robots" content="noindex, nofollow" />
-      <div className="flex min-h-dvh items-center justify-center bg-page p-4">
-        <Panel padding="lg" className="animate-fade-in w-full max-w-140">
-          <div
-            role="alert"
-            aria-live="assertive"
-            data-testid="gallery-error"
-            className="flex flex-col items-start gap-4"
-          >
-            <Text look="hint" className="uppercase tracking-wider">
-              {uk.galleryError.eyebrow}
-            </Text>
-            <Heading
-              level={1}
-              look="display-l"
-              ref={headingRef}
-              tabIndex={-1}
-              className="outline-none"
-            >
-              {uk.galleryError.title}
-            </Heading>
-            <Text look="lead" className="text-ink-2">
-              {uk.galleryError.body}
-            </Text>
-            <div className="flex flex-wrap items-center gap-4">
-              <Button type="button" data-testid="gallery-error-retry" onClick={retry}>
-                {uk.galleryError.action}
-              </Button>
-              {/*
-            E5's actual escape hatch - see this file's own top comment for
-            why a filter rail here would not be one. A genuine `<a href>`,
-            not `next/link`'s `Link`: confirmed by the harness, not
-            assumed - a `Link` click here changes the URL bar but leaves
-            this same error boundary on screen, because it soft-navigates
-            within the segment Next already knows just errored, and only
-            `retry()` (the retry button above) or a real navigation
-            actually retries it. A hard navigation sidesteps that
-            entirely, at the unavoidable cost of a full reload instead of
-            a transition.
-          */}
-              <a
-                href="/tvaryny"
-                data-testid="gallery-error-show-all"
-                className={cx(buttonClass("ghost"), "underline")}
-              >
-                {uk.galleryError.showAll}
-              </a>
-            </div>
-          </div>
-        </Panel>
-      </div>
-    </>
+    <LoadErrorScreen
+      eyebrow={uk.galleryError.eyebrow}
+      title={uk.galleryError.title}
+      body={uk.galleryError.body}
+      retryLabel={uk.galleryError.action}
+      onRetry={retry}
+      escapeLabel={uk.galleryError.showAll}
+      testIdPrefix="gallery-error"
+      escapeTestId="gallery-error-show-all"
+    />
   );
 }

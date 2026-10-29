@@ -10,10 +10,6 @@ export const RAW_HEX: Readonly<Record<string, Reasoned>> = {
     reason:
       "Serves a standalone HTML page from a route handler: inline <style>, no Tailwind, no tokens.",
   },
-  "features/gallery/FilterSheet.tsx": {
-    max: 1,
-    reason: "Modal backdrop tint with no token; folds into the kit Sheet (DS PR 2/3a).",
-  },
 };
 
 /** Raw `<img>`. Photos go through `next/image` and its R2 loader (`ui/Photo` once it exists). */

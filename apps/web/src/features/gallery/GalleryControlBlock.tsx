@@ -3,7 +3,8 @@
 import { uk } from "@opika/i18n";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { FilterIcon } from "./icons";
+import { Button } from "../../ui/Button";
+import { Icon } from "../../ui/Icon";
 
 /**
  * gallery-v3 (Figma `58:1617`) control block: «Фільтр» toggles the
@@ -91,17 +92,19 @@ export function GalleryControlBlock({
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         {title}
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          aria-expanded={open}
-          aria-controls="gallery-filter-row"
-          data-testid="gallery-filter-toggle"
-          className="hidden h-13 cursor-pointer items-center gap-2 rounded-brand-field bg-brand-ink px-6 font-brand-ui text-[20px]/[1.2] font-semibold text-brand-on-ink tracking-[-0.2px] focus-ring desktop:inline-flex"
-        >
-          <FilterIcon className="size-6" />
-          {uk.feed.filtersLabel}
-        </button>
+        <div className="hidden desktop:block">
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={() => setOpen((value) => !value)}
+            aria-expanded={open}
+            aria-controls="gallery-filter-row"
+            data-testid="gallery-filter-toggle"
+          >
+            <Icon name="filter" />
+            {uk.feed.filtersLabel}
+          </Button>
+        </div>
       </div>
 
       {/* Mobile-only row (option-B sketch): species full width, then «Фільтр» + sort side by side. Gone entirely at desktop:, where row 2 below is the real filter row. */}
@@ -159,9 +162,12 @@ export function GalleryControlBlock({
         onTransitionEnd={(event) => {
           if (event.propertyName === "grid-template-rows" && open) setExpanded(true);
         }}
-        className={`hidden grid-cols-1 transition-[grid-template-rows] duration-300 ease-out motion-reduce:duration-0 desktop:grid ${
-          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-        }`}
+        // Inline: a 0fr/1fr track has no token class, and the duration token goes to 0 under reduced motion.
+        style={{
+          gridTemplateRows: open ? "1fr" : "0fr",
+          transition: "grid-template-rows var(--duration-settle) var(--ease-standard)",
+        }}
+        className="hidden grid-cols-1 desktop:grid"
       >
         <div className={expanded ? "overflow-visible" : "overflow-hidden"}>
           {/*

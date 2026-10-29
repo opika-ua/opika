@@ -12,9 +12,12 @@ import type {
 import { ANIMAL_SPECIES, ANY, DEFAULT_GALLERY_SORT, isExplicitlySelected } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useRef } from "react";
+import type { ReactNode } from "react";
+import { Button, LinkButton } from "../../ui/Button";
 import { Chip, choiceClass } from "../../ui/Chip";
 import { cx } from "../../ui/cx";
+import { Sheet } from "../../ui/Sheet";
+import { Text } from "../../ui/Text";
 import {
   ageFacetOptions,
   cityFacetOptions,
@@ -41,14 +44,11 @@ interface FilterSheetProps {
   sort: GallerySort;
   cities: ReadonlyArray<{ id: CityId; name: string; slug: CitySlug }>;
   citySlugs: CitySlugsById;
-  /** The count a submit right now would show - matches the design's live preview, computed from the *current* (already-applied) filters, same value the rail's result line uses. A checkbox ticked but not yet submitted does not change this number; only a real submission does. */
+  /** What a submit right now would show, from the applied filters; a ticked but unsubmitted box does not move it. */
   resultCount: number;
-  /** For the sheet's own "Підходить N тварин у M притулках." sentence - `Opika Registry System.dc.html`'s B6 frame, same sentence the rail's closing box shows. */
+  /** For the sentence «Підходить N тварин у M притулках.» */
   shelterCount: number;
-  /**
-   * Per-option counts for the applied filters (`gallery.facetCounts`), like `resultCount`: a box
-   * ticked but not yet submitted doesn't move them.
-   */
+  /** Per-option counts for the applied filters (`gallery.facetCounts`); like `resultCount`, unsubmitted ticks don't move them. */
   counts: GalleryFacetCounts;
 }
 
@@ -57,7 +57,7 @@ const SPECIES_LABEL: Record<AnimalSpecies, string> = {
   cat: uk.filters.speciesCats,
 };
 
-const LEGEND = "font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase";
+const LEGEND = "text-label text-ink";
 
 /**
  * One group of choice pills with counts: real checkboxes, so the GET form submits them with no
@@ -106,23 +106,11 @@ function FacetGroup<T extends string>({
 }
 
 /**
- * docs/design/README.md, "03 · Фільтри" + "Rail, count, sort": "Below
- * 1024 it collapses into the existing 03 sheet, extended with sort."
- *
- * A native `<dialog>`, server-rendered without `open`, made visible with
- * **zero JS** via `:target` (`globals.css`, `#tvaryny-filters:target`) -
- * the trigger is a plain `<a href="#tvaryny-filters">`, an ordinary
- * anchor jump. The `<form method="GET">` inside needs no JS either:
- * checkboxes/radios sharing a `name` are exactly the native primitive a
- * GET submission turns into repeated query params, which
- * `filter-url.ts`'s `parseGalleryQuery` reads directly.
- *
- * JS, when present, upgrades the same markup rather than replacing it:
- * the trigger's click is intercepted to call `showModal()` instead of
- * navigating the hash (real focus trap, real Esc-to-close, a backdrop -
- * all native `<dialog>` behaviour, not hand-rolled), and this component
- * adds only what `showModal()` doesn't provide for free: locking
- * background scroll, and returning focus to the trigger on close.
+ * docs/design/README.md, "03 · Фільтри" + "Rail, count, sort": below 1024px the filters live in a
+ * sheet. The kit `Sheet` supplies the trigger, the no-JS `:target` reveal and the native modal
+ * `<dialog>` (focus trap, Esc, scroll lock, focus return); this component is its content: a
+ * `<form method="GET">` that needs no JS either, because checkboxes and radios sharing a `name`
+ * are what a GET turns into the repeated query params `parseGalleryQuery` reads.
  */
 export function FilterSheet({
   filters,
@@ -134,334 +122,189 @@ export function FilterSheet({
   counts,
 }: FilterSheetProps) {
   const router = useRouter();
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const triggerRef = useRef<HTMLAnchorElement>(null);
 
-  /**
-   * The reverse of `citySlugs`, needed only here: `onSubmit` reads the
-   * form's own submission back through `parseGalleryQuery`, which resolves a
-   * city token by slug. Derived from the same `cities` prop `citySlugs`
-   * itself was built from at the call site, so the two can never disagree.
-   */
+  // The reverse of `citySlugs`: `onSubmit` reads the form back through `parseGalleryQuery`, which
+  // resolves a city token by slug.
   const citiesBySlug = new Map(cities.map((city) => [city.slug, city.id]));
   const slugOf = (id: CityId): string => citySlugs.get(id) ?? id;
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    const onClose = () => {
-      document.body.style.overflow = "";
-      triggerRef.current?.focus();
-      // Clear the fragment left by the no-JS path (or by showModal() having
-      // been triggered from a #tvaryny-filters link) so a reload doesn't
-      // immediately re-show the sheet.
-      if (window.location.hash === `#${SHEET_ID}`) {
-        history.replaceState(null, "", window.location.pathname + window.location.search);
-      }
-    };
-    dialog.addEventListener("close", onClose);
-    return () => dialog.removeEventListener("close", onClose);
-  }, []);
-
-  const openWithJs = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    event.preventDefault();
-    document.body.style.overflow = "hidden";
-    dialog.showModal();
-  };
-
-  /**
-   * Two ways this sheet can be on screen, and only one of them has an
-   * `open` attribute. `showModal()` sets it; the no-JS `:target` reveal
-   * (`globals.css`) does not - and `HTMLDialogElement.close()` on a dialog
-   * without `open` returns immediately, firing no `close` event. So when
-   * the sheet was revealed by the fragment - a click on the trigger before
-   * hydration finished, or a shared/bookmarked URL already carrying
-   * `#tvaryny-filters` - swallowing this anchor's own navigation would
-   * leave the ✕ dead and the sheet unclosable. Falling through to the
-   * plain `href="#"` clears the fragment, which is exactly what closes it
-   * in that state, with or without JS.
-   */
-  const closeWithJs = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    const dialog = dialogRef.current;
-    if (!dialog?.open) return;
-    event.preventDefault();
-    dialog.close();
-  };
-
-  /**
-   * `router.replace`, not the default push a real `<a>`/form GET produces
-   * - same "ten clicks, ten history entries" reasoning as `ReplaceNav`
-   * (`apps/web/src/features/gallery/ReplaceNav.tsx`), applied here instead
-   * of wrapping this component in it: `FilterSheet` is already a Client
-   * Component with its own dialog-close bookkeeping, so a second layer of
-   * click interception would just be two mechanisms doing the same job.
-   */
-  const navigateWithJs = (href: string) => {
-    dialogRef.current?.close();
+  // `router.replace`, not the push a real `<a>`/GET produces: ten filter changes should not be ten
+  // history entries (same reasoning as `ReplaceNav`). Closing the dialog fires the Sheet's own
+  // close handling (scroll lock, focus return, fragment cleanup).
+  const navigateWithJs = (from: Element, href: string) => {
+    from.closest("dialog")?.close();
     router.replace(href, { scroll: false });
   };
 
-  /**
-   * "Уся Київщина" drops the city constraint and nothing else - the same
-   * href the rail's own chip carries (`FilterRail`), and what
-   * docs/design/README.md's deviation note says the string means: "what
-   * the button actually does today, which is drop the city filter
-   * entirely." It is a МІСТО-group chip, not a second "Скинути": clearing
-   * species/size/age from here would silently discard choices the adopter
-   * made in three other groups.
-   */
+  // «Уся Київщина» drops the city constraint and nothing else; it is a city-group chip, not a
+  // second «Скинути», so choices made in the other groups survive it.
   const allCitiesHref = galleryHref({ ...filters, cities: ANY }, sort, citySlugs);
 
   const onAllCitiesClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    navigateWithJs(allCitiesHref);
+    navigateWithJs(event.currentTarget, allCitiesHref);
   };
 
   const onResetClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    navigateWithJs(resetFiltersHref(sort));
+    navigateWithJs(event.currentTarget, resetFiltersHref(sort));
   };
 
-  /**
-   * The submitted form is read back through the same `parseGalleryQuery` a
-   * cold request goes through and written out through the same
-   * `galleryHref` the rail's chips use, rather than assembling a URL of
-   * its own - so the same state reached through the sheet and through the
-   * rail produces the same URL, not two equivalent-but-different-looking
-   * ones. Two things that would otherwise need restating here come free
-   * with that: a radio group always submits, so a native submission always
-   * carries `sort` even at its default, and `galleryHref` already omits a
-   * default sort; and a group with every value checked canonicalizes back
-   * to "unconstrained" instead of spelling out the universe.
-   *
-   * The no-JS path is untouched by this - the browser submits the form
-   * itself and the server reads the repeated params through the same
-   * parser. This enhances that path; it does not replace it.
-   */
+  // The submitted form goes back through the same parser and `galleryHref` the rail's chips use,
+  // so the same state reached either way yields the same URL (a default sort is omitted, a group
+  // with every value ticked collapses to unconstrained). Without JS the browser submits the form
+  // itself and the server reads the same params.
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const submitted = parseGalleryQuery(
       searchParamsFromFormData(new FormData(event.currentTarget)),
       citiesBySlug,
     );
-    navigateWithJs(galleryHref(submitted.filters, submitted.sort, citySlugs));
+    navigateWithJs(event.currentTarget, galleryHref(submitted.filters, submitted.sort, citySlugs));
   };
 
   return (
-    <>
+    <Sheet
+      id={SHEET_ID}
+      label={uk.filters.title}
+      closeLabel={uk.preview.close}
+      hideFrom="desktop"
+      trigger={uk.feed.filtersLabel}
+      triggerClassName="desktop:hidden rounded-pill border-2 border-ink px-5"
+      triggerTestId="filter-sheet-trigger"
+      dialogTestId="filter-sheet"
+    >
       {/*
-        gallery-v3 (Figma `58:1617`): unchanged by this PR, after a
-        designer clarification mid-build. «Фільтр» at >=1024 now toggles
-        `GalleryControlBlock`'s own dropdown row, not this sheet - and
-        there is no mobile Figma section yet ("do only desktop for now"),
-        so this component keeps its pre-existing `desktop:hidden` trigger
-        and dialog, its original styling, and its original role: the
-        mobile/tablet filter UI, exactly as before this PR. Only
-        `uk.feed.filtersLabel`'s value changed (plural → singular, the
-        hand-off's own pre-approved word, its one reader).
+        `key` keeps the uncontrolled form honest: React writes a changed `defaultChecked` to the
+        attribute only, so after a filter change that did not come from submitting this form
+        («Скинути», «Уся Київщина», the back button) a clicked box would go on showing what was
+        last clicked while the URL says otherwise. Keying on the applied state remounts the
+        inputs, so what is ticked is always what the address bar says.
       */}
-      <a
-        ref={triggerRef}
-        href={`#${SHEET_ID}`}
-        onClick={openWithJs}
-        data-testid="filter-sheet-trigger"
-        className="font-rg desktop:hidden min-h-12 inline-flex items-center rounded-rg-button bg-rg-fill px-4 text-[15px] text-rg-ink focus-ring-registry"
+      <form
+        key={galleryHref(filters, sort, citySlugs)}
+        method="GET"
+        action="/tvaryny"
+        onSubmit={onSubmit}
+        className="flex flex-col gap-7"
       >
-        {uk.feed.filtersLabel}
-      </a>
-
-      <dialog
-        ref={dialogRef}
-        id={SHEET_ID}
-        aria-label={uk.filters.title}
-        data-testid="filter-sheet"
-        // Fixed positioning is stated explicitly rather than left to the
-        // <dialog>'s native top-layer centering: showModal() DOES apply its
-        // own default centered placement, but this component also has to
-        // render as a real, correctly-positioned overlay with no JS at all
-        // (revealed only by :target, never entering the top layer), where
-        // nothing but this component's own CSS positions it. Relying on
-        // showModal()'s defaults for the JS path and something else for the
-        // no-JS path would be two different layouts to keep in sync;
-        // stating it once here covers both by construction.
-        //
-        // `z-50` is load-bearing, not decorative: `position: fixed` alone
-        // does not guarantee paint order over later DOM siblings unless a
-        // stacking context is established - without an explicit z-index,
-        // the gallery grid (which comes after this element in the tree)
-        // painted its cards' photos through the sheet in the no-JS path,
-        // caught by an actual browser render, not by reasoning about it.
-        className="font-rg desktop:hidden fixed inset-x-0 bottom-0 top-auto z-50 m-0 w-full max-w-none max-h-[85vh] overflow-y-auto rounded-t-[24px] rounded-b-none border-0 bg-rg-surface p-0 shadow-rg-card backdrop:bg-[#B9B9B5]/80"
-      >
-        {/*
-          `key` is what keeps this form honest. Its inputs are uncontrolled
-          (`defaultChecked`), and React writes a changed `defaultChecked`
-          to the *attribute* only - an input the adopter has actually
-          clicked keeps its own dirty checkedness regardless. So after any
-          filter change that did NOT come from submitting this form
-          ("Скинути", "Уся Київщина", the back button), the boxes would go
-          on showing what was last clicked while the URL says something
-          else: hidden client state outliving the URL that is supposed to
-          be the only source of truth. Keying the subtree on the applied
-          state remounts the inputs whenever it changes, so what is ticked
-          is always what the address bar says.
-        */}
-        <form
-          key={galleryHref(filters, sort, citySlugs)}
-          method="GET"
-          action="/tvaryny"
-          onSubmit={onSubmit}
-          className="flex flex-col gap-7 pt-4 px-5 pb-6"
-        >
-          <div className="flex items-center justify-between">
-            <span
-              aria-hidden="true"
-              className="mx-auto h-[5px] w-12 rounded-rg-chip bg-rg-fill-strong absolute top-4 left-1/2 -translate-x-1/2"
-            />
-            <h2 className="text-[24px]/[28px] font-bold tracking-[-0.02em] text-rg-ink">
-              {uk.filters.title}
-            </h2>
-            {/* biome-ignore lint/a11y/useValidAnchor: real navigation, not a disguised button - without JS this is the only way to clear #tvaryny-filters and make the :target rule hide the sheet again; a <button> cannot change the URL fragment on its own. */}
+        <FacetGroup
+          legend={uk.filters.city}
+          name={GALLERY_PARAM.city}
+          options={cityFacetOptions(cities, counts)}
+          selection={filters.cities}
+          submitValue={slugOf}
+          leading={
             <a
-              href="#"
-              onClick={closeWithJs}
-              aria-label={uk.preview.close}
-              className="min-h-12 min-w-12 inline-flex items-center justify-center rounded-rg-button text-rg-ink-3 focus-ring-registry"
+              href={allCitiesHref}
+              onClick={onAllCitiesClick}
+              className={cx(
+                choiceClass(filters.cities.kind === "any" ? "on" : "off"),
+                "focus-ring",
+              )}
             >
-              ✕
+              {uk.filters.allCities}
             </a>
-          </div>
+          }
+        />
 
-          <FacetGroup
-            legend={uk.filters.city}
-            name={GALLERY_PARAM.city}
-            options={cityFacetOptions(cities, counts)}
-            selection={filters.cities}
-            submitValue={slugOf}
-            leading={
-              <a
-                href={allCitiesHref}
-                onClick={onAllCitiesClick}
-                className={cx(
-                  choiceClass(filters.cities.kind === "any" ? "on" : "off"),
-                  "focus-ring",
-                )}
-              >
-                {uk.filters.allCities}
-              </a>
-            }
-          />
-
-          {/*
-            Radio, not checkbox (gallery filter restructure): species is an
-            exclusive choice everywhere, like the desktop toggle. The "any"
-            radio submits `vyd=`, which `parseGalleryQuery` drops as an
-            unrecognised token - the same "any" an absent param gives.
-          */}
-          <fieldset className="flex flex-col gap-3">
-            <legend className={LEGEND}>{uk.filters.species}</legend>
-            <div className="flex flex-wrap gap-3">
+        {/*
+          Radio, not checkbox: species is an exclusive choice, like the desktop toggle. The «any»
+          radio submits `vyd=`, which `parseGalleryQuery` drops as unrecognised, the same «any» an
+          absent param gives.
+        */}
+        <fieldset className="flex flex-col gap-3">
+          <legend className={LEGEND}>{uk.filters.species}</legend>
+          <div className="flex flex-wrap gap-3">
+            <Chip
+              kind="choice"
+              control="radio"
+              name={GALLERY_PARAM.species}
+              value=""
+              defaultChecked={filters.species.kind === "any"}
+            >
+              {uk.filters.speciesAny}
+            </Chip>
+            {ANIMAL_SPECIES.map((species) => (
               <Chip
+                key={species}
                 kind="choice"
                 control="radio"
                 name={GALLERY_PARAM.species}
-                value=""
-                defaultChecked={filters.species.kind === "any"}
+                value={species}
+                defaultChecked={isExplicitlySelected(filters.species, species)}
               >
-                {uk.filters.speciesAny}
+                {SPECIES_LABEL[species]}
               </Chip>
-              {ANIMAL_SPECIES.map((species) => (
-                <Chip
-                  key={species}
-                  kind="choice"
-                  control="radio"
-                  name={GALLERY_PARAM.species}
-                  value={species}
-                  defaultChecked={isExplicitlySelected(filters.species, species)}
-                >
-                  {SPECIES_LABEL[species]}
-                </Chip>
-              ))}
-            </div>
-          </fieldset>
-
-          <FacetGroup
-            legend={uk.filters.size}
-            name={GALLERY_PARAM.size}
-            options={sizeFacetOptions(counts)}
-            selection={filters.sizes}
-          />
-
-          <FacetGroup
-            legend={uk.filters.age}
-            name={GALLERY_PARAM.age}
-            options={ageFacetOptions(counts)}
-            selection={filters.ages}
-          />
-
-          {/* Pet card PR 1b (Oleksii, 2026-10-26: "phones need a control for these filters."); sex is
-              the one survivor of that trio, and the sheet is the only filter control below 1024px. */}
-          <FacetGroup
-            legend={uk.filters.sex}
-            name={GALLERY_PARAM.sex}
-            options={sexFacetOptions(counts)}
-            selection={filters.sexes}
-          />
-
-          <fieldset className="flex flex-col gap-3">
-            <legend className={LEGEND}>{uk.filters.sortLabel}</legend>
-            <div className="flex flex-wrap gap-3">
-              <Chip
-                kind="choice"
-                control="radio"
-                name={GALLERY_PARAM.sort}
-                value="freshest"
-                defaultChecked={sort === DEFAULT_GALLERY_SORT}
-              >
-                {uk.filters.sortFreshest}
-              </Chip>
-              <Chip
-                kind="choice"
-                control="radio"
-                name={GALLERY_PARAM.sort}
-                value="longest_waiting"
-                defaultChecked={sort === "longest_waiting"}
-              >
-                {uk.filters.sortLongestWaiting}
-              </Chip>
-            </div>
-          </fieldset>
-
-          {/* docs/design/README.md, "Sheet": the same closing sentence pair
-            the rail's own box shows, immediately above the footer buttons
-            here rather than in its own filled block - `Opika Registry
-            System.dc.html`'s B6 frame nests both directly in the form's
-            own flow, not in a separate fill. */}
-          <div className="flex flex-col gap-3">
-            <p className="text-[15px]/[22px] text-rg-ink-2">
-              {sheetResultCount(resultCount, shelterCount, filters.cities.kind !== "any")}
-            </p>
-            <div className="flex gap-2">
-              <a
-                href={resetFiltersHref(sort)}
-                onClick={onResetClick}
-                className="min-h-14 flex items-center justify-center rounded-rg-button bg-rg-fill text-rg-ink font-medium text-[15px] px-6 focus-ring-registry"
-              >
-                {uk.filters.reset}
-              </a>
-              <button
-                type="submit"
-                className="min-h-14 flex-1 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-ring-registry"
-              >
-                {showCountLabel(resultCount)}
-              </button>
-            </div>
+            ))}
           </div>
-        </form>
-      </dialog>
-    </>
+        </fieldset>
+
+        <FacetGroup
+          legend={uk.filters.size}
+          name={GALLERY_PARAM.size}
+          options={sizeFacetOptions(counts)}
+          selection={filters.sizes}
+        />
+
+        <FacetGroup
+          legend={uk.filters.age}
+          name={GALLERY_PARAM.age}
+          options={ageFacetOptions(counts)}
+          selection={filters.ages}
+        />
+
+        {/* Sex is the one survivor of the removed fur/temperament/colour trio (pet card PR 1b). */}
+        <FacetGroup
+          legend={uk.filters.sex}
+          name={GALLERY_PARAM.sex}
+          options={sexFacetOptions(counts)}
+          selection={filters.sexes}
+        />
+
+        <fieldset className="flex flex-col gap-3">
+          <legend className={LEGEND}>{uk.filters.sortLabel}</legend>
+          <div className="flex flex-wrap gap-3">
+            <Chip
+              kind="choice"
+              control="radio"
+              name={GALLERY_PARAM.sort}
+              value="freshest"
+              defaultChecked={sort === DEFAULT_GALLERY_SORT}
+            >
+              {uk.filters.sortFreshest}
+            </Chip>
+            <Chip
+              kind="choice"
+              control="radio"
+              name={GALLERY_PARAM.sort}
+              value="longest_waiting"
+              defaultChecked={sort === "longest_waiting"}
+            >
+              {uk.filters.sortLongestWaiting}
+            </Chip>
+          </div>
+        </fieldset>
+
+        <div className="flex flex-col gap-3">
+          <Text look="body" className="text-ink-2">
+            {sheetResultCount(resultCount, shelterCount, filters.cities.kind !== "any")}
+          </Text>
+          <div className="flex gap-2">
+            <LinkButton
+              variant="secondary"
+              href={resetFiltersHref(sort)}
+              onClick={onResetClick}
+              prefetch={false}
+            >
+              {uk.filters.reset}
+            </LinkButton>
+            <Button type="submit" className="flex-1">
+              {showCountLabel(resultCount)}
+            </Button>
+          </div>
+        </div>
+      </form>
+    </Sheet>
   );
 }

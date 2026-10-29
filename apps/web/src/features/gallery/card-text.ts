@@ -1,5 +1,5 @@
 import type { FeedCardView } from "@opika/contracts";
-import type { AnimalSpecies, CityId } from "@opika/domain";
+import type { CityId } from "@opika/domain";
 import { ageBucketLabel, ageWordFor, sexWordFor, sizeLabel, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 
@@ -82,23 +82,6 @@ export function cardFactsParts(card: FeedCardView): readonly string[] {
   return [sexWordFor(card.sex), ageBucketLabel(card.ageBucket), sizeLabel(card.size)].filter(
     (part): part is string => Boolean(part),
   );
-}
-
-const SPECIES_BADGE_TONE: Record<AnimalSpecies, "bg-brand-dog" | "bg-brand-accent"> = {
-  dog: "bg-brand-dog",
-  cat: "bg-brand-accent",
-};
-
-/**
- * The gallery-v3 freshness badge's fill, by species (owner decision,
- * 2026-10-25 - inferred from the Figma frame: every dog card is purple,
- * every cat card orange). A `Record` over the domain's own closed species
- * union, not a ternary - CLAUDE.md decision #8 keeps `species` closed at
- * `dog | cat`, and a third literal added there becomes a compile error
- * here rather than a silently uncoloured badge.
- */
-export function cardSpeciesBadgeTone(species: AnimalSpecies): "bg-brand-dog" | "bg-brand-accent" {
-  return SPECIES_BADGE_TONE[species];
 }
 
 /**

@@ -7,7 +7,7 @@ import { paginationWindow } from "./pagination-window";
  * Numbered pages as real links (so it works without JS and every page has a URL). Prev and next are
  * icon-only and named by `prevLabel`/`nextLabel`; each page link is named by `pageLabel` with `{page}`
  * replaced. The current page is `aria-current="page"` and is read out with `currentLabel`. A missing
- * prev or next keeps its space so the numbers do not jump. Hit areas are 48px; the visible circle is 44.
+ * prev or next keeps its space so the numbers do not jump. Hit areas are 48px; the visible circle is 44. On a phone the gaps drop out and «з N» is dropped so prev, numbers and next stay on one row.
  * Nothing renders for a single page.
  */
 export type PaginationProps = {
@@ -46,7 +46,7 @@ export function Pagination({
   return (
     <nav
       aria-label={navLabel}
-      className={cx("flex flex-wrap items-center justify-center gap-4", className)}
+      className={cx("flex flex-wrap items-center justify-center gap-0 tablet:gap-4", className)}
     >
       {page > 1 ? (
         <Link
@@ -61,7 +61,7 @@ export function Pagination({
         <span aria-hidden="true" className="min-h-target min-w-target" />
       )}
 
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-0 tablet:gap-2">
         {items.map((item, index) =>
           item === "ellipsis" ? (
             <span key={`gap-${index}`} aria-hidden="true" className="px-1 text-ink-2">
@@ -93,7 +93,7 @@ export function Pagination({
           ),
         )}
         {ofTotalLabel !== undefined && items.includes("ellipsis") ? (
-          <span className="text-caption text-ink-2">{ofTotalLabel}</span>
+          <span className="hidden text-caption text-ink-2 tablet:inline">{ofTotalLabel}</span>
         ) : null}
       </div>
 
