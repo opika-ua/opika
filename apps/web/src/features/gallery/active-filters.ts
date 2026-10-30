@@ -46,8 +46,10 @@ export function activeFilterChips(input: {
   regionLabels: Readonly<Record<string, string>>;
   selectedCities: readonly CityLabelView[];
   counts: GalleryFacetCounts;
+  /** The page the links lead back to; the gallery by default. */
+  basePath?: string | undefined;
 }): ActiveFilterChip[] {
-  const { filters, sort, citySlugs, regionLabels, selectedCities, counts } = input;
+  const { filters, sort, citySlugs, regionLabels, selectedCities, counts, basePath } = input;
   const cityLabels = new Map<CityId, CityLabelView>([
     ...counts.cities.map((entry) => [entry.cityId, entry.label] as const),
     ...selectedCities.map((city) => [city.id, city] as const),
@@ -56,7 +58,7 @@ export function activeFilterChips(input: {
   const chip = (key: string, name: string, next: FeedFilters): ActiveFilterChip => ({
     key,
     name,
-    href: galleryHref(next, sort, citySlugs),
+    href: galleryHref(next, sort, citySlugs, basePath),
     removeLabel: fillTemplate(uk.filters.removeFilter, { name }),
   });
 

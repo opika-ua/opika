@@ -27,6 +27,7 @@ import {
 import type { CitySlugsById, PlaceIdsBySlug } from "./filter-url";
 import {
   GALLERY_PARAM,
+  GALLERY_PATH,
   galleryHref,
   parseGalleryQuery,
   resetFiltersHref,
@@ -58,6 +59,8 @@ interface FilterSheetProps {
   resultCount: number;
   /** Per-option counts for the applied filters (`gallery.facetCounts`). */
   counts: GalleryFacetCounts;
+  /** A shelter page: its own path for every link and the form, and no Область/Місто rows. */
+  scope?: { basePath: string };
 }
 
 const LEGEND = "text-label text-ink";
@@ -171,7 +174,9 @@ export function FilterSheet({
   selectedCities,
   resultCount,
   counts,
+  scope,
 }: FilterSheetProps) {
+  const basePath = scope?.basePath;
   const router = useRouter();
   const [js, setJs] = useState(false);
   useEffect(() => setJs(true), []);
@@ -205,7 +210,7 @@ export function FilterSheet({
     return () => dialog.removeEventListener("cancel", onCancel);
   }, []);
 
-  const appliedKey = galleryHref(filters, sort, citySlugs);
+  const appliedKey = galleryHref(filters, sort, citySlugs, basePath);
   const slugOf = (id: CityId | RegionId): string => citySlugs.get(id) ?? id;
 
   // `router.replace`, not the push a real `<a>`/GET produces: ten filter changes should not be ten
@@ -218,7 +223,7 @@ export function FilterSheet({
 
   const onResetClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    navigateWithJs(event.currentTarget, resetFiltersHref(sort));
+    navigateWithJs(event.currentTarget, resetFiltersHref(sort, basePath));
   };
 
   // The submitted form goes back through the same parser and `galleryHref` the rail's chips use,
@@ -231,7 +236,7 @@ export function FilterSheet({
       searchParamsFromFormData(new FormData(event.currentTarget)),
       placeIds,
     );
-    navigateWithJs(event.currentTarget, galleryHref(submitted.filters, submitted.sort, citySlugs));
+    navigateWithJs(event.currentTarget, galleryHref(submitted.filters, submitted.sort, citySlugs, basePath));
   };
 
   const regionOfCity = new Map<CityId, RegionId>([
@@ -264,7 +269,7 @@ export function FilterSheet({
     <form
       key={`${appliedKey}-${discards}`}
       method="GET"
-      action="/tvaryny"
+      action={basePath ?? GALLERY_PATH}
       onSubmit={onSubmit}
       onChange={(event) =>
         setTicked(
@@ -294,7 +299,7 @@ export function FilterSheet({
           {close}
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-5 pb-6">
-          {js ? (
+          {scope ? null : js ? (
             <div className="flex flex-col divide-y-2 divide-line">
               <DrillRow
                 label={uk.filters.region}
@@ -371,7 +376,7 @@ export function FilterSheet({
         <div className="flex gap-2 border-t-2 border-line px-5 pt-3 pb-safe">
           <LinkButton
             variant="secondary"
-            href={resetFiltersHref(sort)}
+            href={resetFiltersHref(sort, basePath)}
             onClick={onResetClick}
             prefetch={false}
           >

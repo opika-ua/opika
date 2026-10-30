@@ -51,6 +51,8 @@ interface GalleryFilterDropdownsProps {
   selectedCities: readonly CityLabelView[];
   /** Per-option counts, the selector's own choice ignored (`gallery.facetCounts`). */
   counts: GalleryFacetCounts;
+  /** A shelter page: its own path for every link, no Область/Місто fields (one shelter, one place), and the species switch only when it has both. */
+  scope?: { basePath: string; showSpecies: boolean };
 }
 
 const SPECIES_LABEL: Record<AnimalSpecies, string> = {
@@ -188,12 +190,14 @@ export function SpeciesToggle({
   citySlugs,
   className = "shrink-0",
   testIdSuffix = "",
+  basePath,
 }: {
   filters: FeedFilters;
   sort: GallerySort;
   citySlugs: CitySlugsById;
   className?: string;
   testIdSuffix?: string;
+  basePath?: string | undefined;
 }) {
   const active = filters.species.kind !== "any";
   const options: ReadonlyArray<{
@@ -221,8 +225,8 @@ export function SpeciesToggle({
             : isExplicitlySelected(filters.species, species);
         const href =
           species === null
-            ? galleryHref(relaxDimension(filters, "species"), sort, citySlugs)
-            : galleryHref(withOnlySpecies(filters, species), sort, citySlugs);
+            ? galleryHref(relaxDimension(filters, "species"), sort, citySlugs, basePath)
+            : galleryHref(withOnlySpecies(filters, species), sort, citySlugs, basePath);
         return (
           <Link
             key={testid}
@@ -259,7 +263,9 @@ export function GalleryFilterDropdowns({
   regionLabels,
   selectedCities,
   counts,
+  scope,
 }: GalleryFilterDropdownsProps) {
+  const basePath = scope?.basePath;
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [shown, showOptimistically] = useOptimistic(filters);
@@ -267,7 +273,7 @@ export function GalleryFilterDropdowns({
   const apply = (next: FeedFilters) =>
     startTransition(() => {
       showOptimistically(next);
-      router.replace(galleryHref(next, sort, citySlugs), { scroll: false });
+      router.replace(galleryHref(next, sort, citySlugs, basePath), { scroll: false });
     });
   // An oblast's cities, so deselecting the oblast also drops the cities that narrowed it.
   const regionOfCity = new Map([
@@ -275,22 +281,30 @@ export function GalleryFilterDropdowns({
     ...selectedCities.map((city) => [city.id, city.regionId] as const),
   ]);
   const clearHref = (dimension: "regions" | "cities" | "ages" | "sizes" | "sexes") =>
-    galleryHref(relaxDimension(filters, dimension), sort, citySlugs);
+    galleryHref(relaxDimension(filters, dimension), sort, citySlugs, basePath);
 
   return (
     <div
       data-testid="gallery-filter-dropdowns"
       // Six controls plus the sort need ~1270px: one line from `wide:`, below it a three-column grid
       // (species, oblast, city / age, size, sex) so a wrap lands on the grid, never an orphan.
-      className="hidden min-w-0 max-w-168 flex-1 grid-cols-3 items-center gap-2 desktop:grid wide:flex wide:max-w-none"
+      className={cx(
+        "hidden min-w-0 max-w-168 flex-1 items-center gap-2 desktop:grid wide:flex wide:max-w-none",
+        scope === undefined ? "grid-cols-3" : scope.showSpecies ? "grid-cols-4" : "grid-cols-3",
+      )}
     >
-      <SpeciesToggle
-        filters={filters}
-        sort={sort}
-        citySlugs={citySlugs}
-        className="w-full wide:w-auto wide:shrink-0"
-      />
+      {(scope === undefined || scope.showSpecies) && (
+        <SpeciesToggle
+          filters={filters}
+          sort={sort}
+          citySlugs={citySlugs}
+          basePath={basePath}
+          className="w-full wide:w-auto wide:shrink-0"
+        />
+      )}
 
+      {scope === undefined && (
+        <>
       <SearchField
         id="gallery-region-field"
         label={uk.filters.region}
@@ -312,6 +326,8 @@ export function GalleryFilterDropdowns({
         onToggle={(city) => apply(withToggledCity(shown, city as CityId))}
         onClear={() => apply(relaxDimension(shown, "cities"))}
       />
+        </>
+      )}
       <FacetSelector
         label={uk.filters.age}
         options={ageFacetOptions(counts)}

@@ -26,6 +26,8 @@ interface NoMatchProps {
    * another filter set, "no animals here" would claim more than the count shows.
    */
   regionEmpty?: boolean;
+  /** A shelter page: the links stay on its own path. */
+  basePath?: string | undefined;
 }
 
 /**
@@ -78,6 +80,7 @@ export function NoMatch({
   relaxations,
   neighbourRegions = [],
   regionEmpty = false,
+  basePath,
 }: NoMatchProps) {
   return (
     <Panel
@@ -115,6 +118,7 @@ export function NoMatch({
                   { ...filters, regions: { kind: "oneOf", values: [neighbour.id] }, cities: ANY },
                   sort,
                   citySlugs,
+                  basePath,
                 )}
                 data-testid="no-match-neighbour-region"
                 className="w-full"
@@ -138,7 +142,12 @@ export function NoMatch({
                 <LinkButton
                   key={suggestion.dimension}
                   variant={index === 0 ? "primary" : "secondary"}
-                  href={galleryHref(relaxDimension(filters, suggestion.dimension), sort, citySlugs)}
+                  href={galleryHref(
+                    relaxDimension(filters, suggestion.dimension),
+                    sort,
+                    citySlugs,
+                    basePath,
+                  )}
                   data-testid="no-match-suggestion"
                   className="w-full"
                 >
