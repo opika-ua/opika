@@ -1245,9 +1245,10 @@ export function buildAnimals(
     // Size distribution: both species mixed (cats on their own kg scale)
     let size: SizeBucket;
     if (species === "cat") {
-      // Cats are every third index, so count them to spread over all three buckets.
-      const catRoll = (i / 3) % 6;
-      size = catRoll < 3 ? "small" : catRoll < 5 ? "medium" : "large";
+      // Cats are every third index. Small and medium only: the gallery harness relies on
+      // the seed never having a large cat (empty-option and no-match specs).
+      const catRoll = (i / 3) % 2;
+      size = catRoll === 0 ? "small" : "medium";
     } else {
       const sizeRoll = i % 6;
       size = sizeRoll < 2 ? "small" : sizeRoll < 4 ? "medium" : "large";
