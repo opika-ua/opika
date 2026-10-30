@@ -1,4 +1,4 @@
-import { type GallerySort, textIn } from "@opika/domain";
+import { type FeedFilters, type GallerySort, textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -69,13 +69,13 @@ export function renderShelterPage(load: ShelterPageLoad, kabinetSignedIn: boolea
  * both need the shelter. Keyed on primitives (the id, the sort and the page),
  * since `cache` compares arguments by identity, so the two calls share one load.
  */
-const loadOnce = cache((shelterId: string, sort: GallerySort, page: number) =>
-  loadShelterPage(shelterId, { sort, page }),
+const loadOnce = cache((shelterId: string, sort: GallerySort, page: number, filtersJson: string) =>
+  loadShelterPage(shelterId, { sort, page, filters: JSON.parse(filtersJson) as FeedFilters }),
 );
 
 function loadShelterPageOnce(shelterId: string, searchParams: SearchParams) {
-  const { sort, page } = parseShelterPageQuery(searchParams);
-  return loadOnce(shelterId, sort, page);
+  const { sort, page, filters } = parseShelterPageQuery(searchParams);
+  return loadOnce(shelterId, sort, page, JSON.stringify(filters));
 }
 
 /**

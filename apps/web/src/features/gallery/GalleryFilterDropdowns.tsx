@@ -305,27 +305,27 @@ export function GalleryFilterDropdowns({
 
       {scope === undefined && (
         <>
-      <SearchField
-        id="gallery-region-field"
-        label={uk.filters.region}
-        searchLabel={uk.filters.findRegionField}
-        options={regionPickerOptions(counts, regionLabels, shown.regions)}
-        values={shown.regions.kind === "oneOf" ? shown.regions.values : []}
-        grouped
-        onToggle={(region) => apply(withToggledRegion(shown, region as RegionId, regionOfCity))}
-        onClear={() => apply(relaxDimension(shown, "regions"))}
-      />
-      <SearchField
-        id="gallery-city-field"
-        label={uk.filters.city}
-        searchLabel={uk.filters.findCityField}
-        options={cityPickerOptions(counts, shown.regions, shown.cities, selectedCities)}
-        values={shown.cities.kind === "oneOf" ? shown.cities.values : []}
-        grouped={false}
-        noMatchHint={uk.filters.cityNoMatchHint}
-        onToggle={(city) => apply(withToggledCity(shown, city as CityId))}
-        onClear={() => apply(relaxDimension(shown, "cities"))}
-      />
+          <SearchField
+            id="gallery-region-field"
+            label={uk.filters.region}
+            searchLabel={uk.filters.findRegionField}
+            options={regionPickerOptions(counts, regionLabels, shown.regions)}
+            values={shown.regions.kind === "oneOf" ? shown.regions.values : []}
+            grouped
+            onToggle={(region) => apply(withToggledRegion(shown, region as RegionId, regionOfCity))}
+            onClear={() => apply(relaxDimension(shown, "regions"))}
+          />
+          <SearchField
+            id="gallery-city-field"
+            label={uk.filters.city}
+            searchLabel={uk.filters.findCityField}
+            options={cityPickerOptions(counts, shown.regions, shown.cities, selectedCities)}
+            values={shown.cities.kind === "oneOf" ? shown.cities.values : []}
+            grouped={false}
+            noMatchHint={uk.filters.cityNoMatchHint}
+            onToggle={(city) => apply(withToggledCity(shown, city as CityId))}
+            onClear={() => apply(relaxDimension(shown, "cities"))}
+          />
         </>
       )}
       <FacetSelector

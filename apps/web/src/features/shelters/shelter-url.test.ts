@@ -1,3 +1,4 @@
+import { type FeedFilters, NO_FILTERS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { parseShelterPageQuery, shelterPageHref } from "./shelter-url";
 
@@ -20,6 +21,7 @@ describe("the shelter page's own URL", () => {
     expect(parseShelterPageQuery({ sort: "longest_waiting", stor: "2" })).toEqual({
       sort: "longest_waiting",
       page: 2,
+      filters: NO_FILTERS,
     });
   });
 
@@ -27,13 +29,26 @@ describe("the shelter page's own URL", () => {
     expect(parseShelterPageQuery({ sort: "random", stor: "-4" })).toEqual({
       sort: "freshest",
       page: 1,
+      filters: NO_FILTERS,
     });
   });
 
-  it("ignores the gallery's filter params: the shelter page has none (DR1-D3)", () => {
-    expect(parseShelterPageQuery({ vyd: "cat", misto: "brovary" })).toEqual({
-      sort: "freshest",
-      page: 1,
+  it("reads the gallery's filter params, with the same keys, and drops oblast and city", () => {
+    const query = parseShelterPageQuery({
+      vyd: "cat",
+      rozmir: "small",
+      obl: "kyivska",
+      misto: "brovary",
     });
+    expect(query.filters.species).toEqual({ kind: "oneOf", values: ["cat"] });
+    expect(query.filters.regions).toEqual({ kind: "any" });
+    expect(query.filters.cities).toEqual({ kind: "any" });
+  });
+
+  it("writes filters back on the shelter's own path, and the bare path when there are none", () => {
+    const filters: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } };
+    expect(shelterPageHref(ID, "freshest", 1, filters)).toBe(`/prytulky/${ID}?vyd=cat`);
+    expect(shelterPageHref(ID, "freshest", 2, filters)).toBe(`/prytulky/${ID}?vyd=cat&stor=2`);
+    expect(shelterPageHref(ID, "freshest", 1, NO_FILTERS)).toBe(`/prytulky/${ID}`);
   });
 });

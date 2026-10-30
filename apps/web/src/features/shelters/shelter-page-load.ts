@@ -1,5 +1,16 @@
-import type { CityLabelView, PublicShelterView } from "@opika/contracts";
-import { type CityId, NO_FILTERS, ShelterIdSchema } from "@opika/domain";
+import type {
+  CityLabelView,
+  GalleryFacetCounts,
+  GalleryRelaxation,
+  PublicShelterView,
+} from "@opika/contracts";
+import {
+  type CityId,
+  FEED_FILTER_DIMENSIONS,
+  isConstrained,
+  NO_FILTERS,
+  ShelterIdSchema,
+} from "@opika/domain";
 import { fillTemplate, placeName, placeText, uk } from "@opika/i18n";
 import { pageRefusalOf } from "../../api/page-refusal";
 import { anonymousRouterClient } from "../../api/server-client";
@@ -23,6 +34,22 @@ export interface ShelterPageView {
   /** Card city names (a fostered animal's city can differ from the shelter's). */
   cityNames: ReadonlyMap<CityId, string>;
   query: ShelterPageQuery;
+  /** The filter controls' data; null while the shelter has {@link SHELTER_FILTERS_ABOVE} animals or fewer and no filter is on. */
+  filterUi: ShelterFilterUi | null;
+}
+
+/** Above this many discoverable animals a shelter page offers filters; at or below it, only the sort. */
+export const SHELTER_FILTERS_ABOVE = 12;
+
+export interface ShelterFilterUi {
+  /** Per-option counts for the filters in force, scoped to this shelter. */
+  counts: GalleryFacetCounts;
+  /** All of the shelter's discoverable animals, whatever the filters (the heading's number). */
+  total: number;
+  /** The species switch shows only when both are present. */
+  hasBothSpecies: boolean;
+  /** Suggestions for a no-match page; empty otherwise. */
+  relaxations: readonly GalleryRelaxation[];
 }
 
 /** Kyiv and Sevastopol are cities with a region's status: their name already is the region. */
@@ -76,12 +103,34 @@ export async function loadShelterPage(
     const shelter = await client.shelters.byId({ shelterId });
     // The cards' cities ride with the list (`cityLabels`); the shelter's own city is one more id,
     // read by primary key. The settlement list is never read.
+    const scope = { kind: "shelter", shelterId } as const;
     const animals = await client.gallery.list({
-      filters: NO_FILTERS,
+      filters: query.filters,
       sort: query.sort,
       page: query.page,
-      scope: { kind: "shelter", shelterId },
+      scope,
     });
+    // Filters appear above 12 animals, or whenever one is already in the URL (so it can be undone).
+    const filtersOn = FEED_FILTER_DIMENSIONS.some((dimension) =>
+      isConstrained(query.filters, dimension),
+    );
+    let filterUi: ShelterFilterUi | null = null;
+    if (filtersOn || animals.totalMatching > SHELTER_FILTERS_ABOVE) {
+      const counts = await client.gallery.facetCounts({ filters: query.filters, scope });
+      const all = filtersOn
+        ? await client.gallery.facetCounts({ filters: NO_FILTERS, scope })
+        : counts;
+      const relaxations =
+        animals.totalMatching === 0
+          ? (await client.gallery.relaxationCounts({ filters: query.filters, scope })).relaxations
+          : [];
+      filterUi = {
+        counts,
+        total: all.species.dog + all.species.cat,
+        hasBothSpecies: all.species.dog > 0 && all.species.cat > 0,
+        relaxations,
+      };
+    }
     const shelterCityId = shelter.publicLocation.cityId;
     const shelterCity =
       animals.cityLabels.find((city) => city.id === shelterCityId) ??
@@ -101,6 +150,7 @@ export async function loadShelterPage(
         animals,
         cityNames,
         query,
+        filterUi,
       },
     };
   } catch (error) {

@@ -1,4 +1,5 @@
-import type { FeedCardView, PublicShelterView } from "@opika/contracts";
+import type { FeedCardView, GalleryFacetCounts, PublicShelterView } from "@opika/contracts";
+import { NO_FILTERS } from "@opika/domain";
 import { ORPCError } from "@orpc/server";
 import { vi } from "vitest";
 import { makeDetailShelter } from "../animal-detail/test-fixtures";
@@ -66,7 +67,8 @@ export function makeShelterPageView(overrides: Partial<ShelterPageView> = {}): S
     cityPlace: "м. Бровари",
     animals: makeListOutput([makeCardView(1), makeCardView(2)]),
     cityNames: new Map([[CITY_ID as never, "Бровари"]]),
-    query: { sort: "freshest", page: 1 },
+    query: { sort: "freshest", page: 1, filters: NO_FILTERS },
+    filterUi: null,
     ...overrides,
   };
 }
@@ -92,9 +94,11 @@ export function stubShelterPageClient(
     }
   });
   const galleryList = vi.fn(async () => list);
+  const facetCounts = vi.fn(async () => makeFacetCounts());
+  const relaxationCounts = vi.fn(async () => ({ current: 0, relaxations: [] }));
   const client = {
     shelters: { byId: sheltersById },
-    gallery: { list: galleryList },
+    gallery: { list: galleryList, facetCounts, relaxationCounts },
     cities: {
       byIds: vi.fn(async () => [
         {
@@ -110,5 +114,24 @@ export function stubShelterPageClient(
       ]),
     },
   };
-  return { client: client as unknown as ShelterPageClient, sheltersById, galleryList };
+  return {
+    client: client as unknown as ShelterPageClient,
+    sheltersById,
+    galleryList,
+    facetCounts,
+    relaxationCounts,
+  };
+}
+
+/** A shelter's facet counts: dogs and cats, enough to show the filters. */
+export function makeFacetCounts(overrides: Partial<GalleryFacetCounts> = {}): GalleryFacetCounts {
+  return {
+    cities: [],
+    regions: [],
+    ages: { baby: 2, young: 3, adult: 6, senior: 2 },
+    sizes: { small: 4, medium: 6, large: 3 },
+    sexes: { male: 7, female: 6, unknown: 0 },
+    species: { dog: 8, cat: 5 },
+    ...overrides,
+  };
 }

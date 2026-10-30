@@ -236,7 +236,10 @@ export function FilterSheet({
       searchParamsFromFormData(new FormData(event.currentTarget)),
       placeIds,
     );
-    navigateWithJs(event.currentTarget, galleryHref(submitted.filters, submitted.sort, citySlugs, basePath));
+    navigateWithJs(
+      event.currentTarget,
+      galleryHref(submitted.filters, submitted.sort, citySlugs, basePath),
+    );
   };
 
   const regionOfCity = new Map<CityId, RegionId>([
