@@ -10,6 +10,8 @@ const SIZE = {
   md: { box: "size-10 text-label", sizes: "40px" },
   lg: { box: "size-14 text-title tablet:size-20", sizes: "80px" },
   xl: { box: "size-24 text-title tablet:size-40", sizes: "160px" },
+  /** The shelter page identity: 64px beside the name on a phone, 132px from `desktop`. */
+  identity: { box: "size-16 text-label desktop:size-33 desktop:text-title", sizes: "132px" },
 } as const;
 
 const FIRST_LETTER = /[A-Za-zА-ЩЬЮЯЄІЇҐа-щьюяєіїґ]/;

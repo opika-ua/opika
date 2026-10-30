@@ -525,6 +525,8 @@ export const ukPublic = {
     /** `{count}` is the number of the shelter's animals adopters can see. */
     animalsHeading: "Шукають дім: {count}",
     noAnimals: "Зараз тут немає тварин, які шукають дім.",
+    /** The trust line of a shelter that is not verified: only the year, never a claim of checking. `{year}` as in `detail.shelterVerifiedYears`. */
+    sinceYear: "на сайті з {year} року",
   },
 
   // --- Detail screen (04) ---

@@ -1308,6 +1308,7 @@ describe("designer round 1, S6 (his DR1-Q1 and shelter-page copy)", () => {
     ],
     ["shelterPage.animalsHeading", uk.shelterPage.animalsHeading, "Шукають дім: {count}"],
     ["shelterPage.noAnimals", uk.shelterPage.noAnimals, "Зараз тут немає тварин, які шукають дім."],
+    ["shelterPage.sinceYear", uk.shelterPage.sinceYear, "на сайті з {year} року"],
     ["detail.shelterRowLink", uk.detail.shelterRowLink, "Сторінка притулку «{name}»"],
     [
       "freshness.attribution (the section heading, reused)",

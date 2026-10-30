@@ -66,7 +66,7 @@ test.describe("from an animal to its shelter's page", () => {
     const list = page.getByRole("list", { name: ANIMALS_LIST });
     await expect(list).toBeVisible();
     await expect(list.locator(`a[href="${animal.href}"]`)).toHaveCount(1);
-    // The sentence and «Слова притулку» are here, under their heading, and the
+    // The sentence and «Слова притулку» are here, under their (screen-reader) heading, and the
     // animal page this came from showed neither (pinned in the unit suite).
     await expect(page.getByRole("heading", { level: 2, name: "Слова притулку" })).toBeVisible();
   });

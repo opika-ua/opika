@@ -175,6 +175,7 @@ export const en = {
   shelterPage: {
     animalsHeading: "Looking for a home: {count}",
     noAnimals: "No animals here are looking for a home right now.",
+    sinceYear: "on the site since {year}",
   },
 
   // --- Detail screen (04) ---
