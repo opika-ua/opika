@@ -137,9 +137,19 @@ export function AnimalDetailContent({
         </div>
 
         <div className="flex flex-col gap-4 desktop:flex-row desktop:flex-wrap desktop:items-center desktop:justify-between">
-          <span data-testid="freshness-block" className="w-fit">
-            <Chip kind="info">{freshnessLabel(animal.freshness)}</Chip>
-          </span>
+          {/* Wraps the reserved chip below the freshness one when there is no room. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span data-testid="freshness-block" className="w-fit">
+              <Chip kind="info">{freshnessLabel(animal.freshness)}</Chip>
+            </span>
+            {animal.listingKind === "reserved" && (
+              <span data-testid="reserved-badge" className="w-fit">
+                <Chip kind="status" tone="reserved">
+                  {uk.reserved.badge}
+                </Chip>
+              </span>
+            )}
+          </div>
           <div className="flex min-w-0 items-center justify-between gap-3 desktop:flex-wrap desktop:justify-start desktop:gap-8">
             <Link
               href={shelterPagePath(shelter.id)}

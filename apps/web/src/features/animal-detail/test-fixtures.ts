@@ -36,6 +36,7 @@ export function makeDetailAnimal(overrides: Partial<AnimalDetailView> = {}): Ani
     medicalNotes: null,
     ageBucket: "young",
     freshness: { kind: "aging", confirmedAt: AT, ageDays: 5 },
+    listingKind: "published",
     shelter: {
       id: SHELTER_ID as AnimalDetailView["shelter"]["id"],
       displayName: "Тестовий притулок «Домівка»",

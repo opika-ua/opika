@@ -92,5 +92,9 @@ export const AnimalDetailViewSchema = ListedAnimalSchema.pick({
   .extend(derivedAnimalFacts)
   .extend({
     shelter: ShelterSummaryViewSchema,
+    // The kind only, never the listing state itself: `since`/`publishedAt` would tell how long
+    // an animal has waited or when it was reserved. Reflects the shelter's own state, so it
+    // cannot vary with adopter activity (commitment 2).
+    listingKind: FeedCardListingKindSchema,
   });
 export type AnimalDetailView = z.infer<typeof AnimalDetailViewSchema>;

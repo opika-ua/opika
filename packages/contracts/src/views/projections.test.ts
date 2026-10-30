@@ -111,6 +111,7 @@ describe("animal views expose exactly their intended fields", () => {
       "documentReadiness",
       "freshness",
       "id",
+      "listingKind",
       "medicalNotes",
       "name",
       "photos",
@@ -123,6 +124,33 @@ describe("animal views expose exactly their intended fields", () => {
       "temperament",
       "vaccination",
     ]);
+  });
+
+  it("AnimalDetailView carries the listing kind only: no state object, no timestamps, no non-public kind", () => {
+    const base = { ...animal, ...derived, shelter: shelterSummary };
+    expect(AnimalDetailViewSchema.parse({ ...base, listingKind: "reserved" }).listingKind).toBe(
+      "reserved",
+    );
+    for (const leaky of [
+      { kind: "reserved", since: AT, publishedAt: AT },
+      "draft",
+      "adopted",
+      "withdrawn",
+      null,
+    ]) {
+      expect(
+        AnimalDetailViewSchema.safeParse({ ...base, listingKind: leaky }).success,
+        JSON.stringify(leaky),
+      ).toBe(false);
+    }
+    const parsed = AnimalDetailViewSchema.parse({
+      ...base,
+      listingKind: "reserved",
+      listing: { kind: "reserved", since: AT, publishedAt: AT },
+      reservedSince: AT,
+    });
+    expect(parsed).not.toHaveProperty("listing");
+    expect(parsed).not.toHaveProperty("reservedSince");
   });
 
   /**
