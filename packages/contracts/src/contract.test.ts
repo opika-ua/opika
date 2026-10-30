@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { contract } from "./contract";
 import { FeedListInputSchema } from "./procedures/feed";
-import { GalleryFacetCountsOutputSchema, GalleryListInputSchema } from "./procedures/gallery";
+import {
+  GalleryFacetCountsInputSchema,
+  GalleryFacetCountsOutputSchema,
+  GalleryListInputSchema,
+} from "./procedures/gallery";
 import {
   DEFAULT_PAGE_SIZE,
   GALLERY_PAGE_SIZE,
@@ -116,6 +120,24 @@ describe("gallery scope input (the shelter page, DR1-D4)", () => {
     const parsed = GalleryListInputSchema.parse({ filters: ANY_FILTERS });
 
     expect(parsed.scope).toEqual({ kind: "everyone" });
+  });
+
+  it("gives gallery.facetCounts the same default and the same scope shapes", () => {
+    expect(GalleryFacetCountsInputSchema.parse({ filters: ANY_FILTERS }).scope).toEqual({
+      kind: "everyone",
+    });
+    expect(
+      GalleryFacetCountsInputSchema.parse({
+        filters: ANY_FILTERS,
+        scope: { kind: "shelter", shelterId: SHELTER_ID },
+      }).scope,
+    ).toEqual({ kind: "shelter", shelterId: SHELTER_ID });
+    expect(
+      GalleryFacetCountsInputSchema.safeParse({
+        filters: ANY_FILTERS,
+        scope: { kind: "shelter", shelterId: "42" },
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts one shelter by id", () => {

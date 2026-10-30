@@ -8,6 +8,7 @@ import {
   type CityId,
   clampGalleryPage,
   type DiscoverableAnimal,
+  EVERYONE_SCOPE,
   FEED_FILTER_DIMENSIONS,
   type FeedFilterDimension,
   type FeedFilters,
@@ -381,7 +382,16 @@ export function galleryRepo(db: Database) {
      * over the groups. A typed `.select()`, never a raw `db.execute()`, for the
      * driver reason `relaxationCounts` gives.
      */
-    async facetCounts(opts: { filters: FeedFilters; now: Date }): Promise<GalleryFacetCounts> {
+    /**
+     * `scope` narrows the counted rows exactly as `list`'s does (the same `buildScopePredicate`), so
+     * a shelter page's counts are its own animals'. Optional here, unlike in `list`: everyone is the
+     * default, as in the contract.
+     */
+    async facetCounts(opts: {
+      filters: FeedFilters;
+      now: Date;
+      scope?: GalleryScope;
+    }): Promise<GalleryFacetCounts> {
       const counted: Record<string, SQL.Aliased<number>> = {};
       const countWhere = (alias: `n_${string}`, filters: FeedFilters) => {
         const where = and(...buildFilterPredicate(filters, opts.now)) ?? sql`TRUE`;
@@ -399,7 +409,12 @@ export function galleryRepo(db: Database) {
       const grouped = db
         .select({ cityId: animals.cityId, ...counted })
         .from(animals)
-        .where(and(...buildDiscoverabilityPredicate()))
+        .where(
+          and(
+            ...buildDiscoverabilityPredicate(),
+            ...buildScopePredicate(opts.scope ?? EVERYONE_SCOPE),
+          ),
+        )
         .groupBy(animals.cityId)
         .as("grouped");
       const counts = grouped as unknown as Record<string, SQL.Aliased<number>>;

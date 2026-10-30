@@ -144,6 +144,11 @@ export const galleryRelaxationCountsContract = oc
 
 export const GalleryFacetCountsInputSchema = z.object({
   filters: FeedFiltersSchema,
+  /**
+   * The same scope as `gallery.list`: `{ kind: "shelter" }` counts one shelter's animals only (its
+   * page's filters). Defaults to everyone, so every caller that predates it is unchanged.
+   */
+  scope: GalleryScopeSchema.default(EVERYONE_SCOPE),
 });
 
 /**

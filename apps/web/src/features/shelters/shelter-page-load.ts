@@ -1,6 +1,6 @@
-import type { PublicShelterView } from "@opika/contracts";
+import type { CityLabelView, PublicShelterView } from "@opika/contracts";
 import { type CityId, NO_FILTERS, ShelterIdSchema } from "@opika/domain";
-import { placeName, placeText } from "@opika/i18n";
+import { fillTemplate, placeName, placeText, uk } from "@opika/i18n";
 import { pageRefusalOf } from "../../api/page-refusal";
 import { anonymousRouterClient } from "../../api/server-client";
 import type { ShelterPageQuery } from "./shelter-url";
@@ -16,13 +16,30 @@ export interface ShelterPageView {
   shelter: PublicShelterView;
   /** The shelter's city as a title names it (bare, with its oblast where the name repeats); null only if its id does not resolve. */
   cityName: string | null;
-  /** The same city as the page's meta line prints it («м. Бровари», raion and oblast where needed). */
+  /** The same city as the page's location line prints it («м. Бровари, Київська обл.»; Kyiv and Sevastopol bare). */
   cityPlace: string | null;
   /** One page of the shelter's discoverable animals, in the requested date sort. */
   animals: Awaited<ReturnType<ShelterPageClient["gallery"]["list"]>>;
   /** Card city names (a fostered animal's city can differ from the shelter's). */
   cityNames: ReadonlyMap<CityId, string>;
   query: ShelterPageQuery;
+}
+
+/** Kyiv and Sevastopol are cities with a region's status: their name already is the region. */
+const CITY_REGION_IDS: ReadonlySet<string> = new Set([
+  "f421e743-f9dd-5198-86bd-8a05911ec75b",
+  "c45a68e7-2bf8-52b5-99ac-b10752d86025",
+]);
+
+/**
+ * The shelter page's location line: the settlement and its oblast, even for a name that is unique
+ * (it is the shelter's address line). A name shared elsewhere already carries its oblast in
+ * `placeText`, and Kyiv and Sevastopol have none to add.
+ */
+export function shelterLocationText(city: CityLabelView): string {
+  const place = placeText(city, "full");
+  if (city.nameScope !== "unique_in_ukraine" || CITY_REGION_IDS.has(city.regionId)) return place;
+  return fillTemplate(uk.place.withRegion, { place, region: city.regionShort });
 }
 
 /**
@@ -80,7 +97,7 @@ export async function loadShelterPage(
       view: {
         shelter,
         cityName: shelterCity ? placeName(shelterCity) : null,
-        cityPlace: shelterCity ? placeText(shelterCity, "full") : null,
+        cityPlace: shelterCity ? shelterLocationText(shelterCity) : null,
         animals,
         cityNames,
         query,
