@@ -2,6 +2,8 @@ services:
   db:
     image: postgis/postgis:17-3.5
     restart: unless-stopped
+    # The image's default CMD is just ["postgres"] (verified), so these flags replace nothing.
+    command: ["postgres", "-c", "idle_in_transaction_session_timeout=60s", "-c", "max_connections=200"]
     environment:
       POSTGRES_USER: opika
       POSTGRES_PASSWORD: opika

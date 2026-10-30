@@ -182,6 +182,7 @@ pnpm --filter @opika/web test:harness:install   # downloads Chromium
 
 docker compose up -d      # local Postgres+PostGIS (postgis/postgis:17-3.5)
 docker compose down       # stop it; add -v to also drop the volume
+docker compose up -d --force-recreate db   # apply changed db flags in docker-compose.yml (volume stays)
 
 pnpm db:prune-test-dbs        # local only, dry run: lists them, says which checkouts are gone
 pnpm db:prune-test-dbs --yes  # drops only those whose recorded checkout no longer exists
