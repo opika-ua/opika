@@ -42,6 +42,7 @@ export {
 } from "./stepped-database";
 export {
   assertDisposableTestDatabase,
+  DEFAULT_MAINTENANCE_LIMITS,
   disposeTestDatabaseAfterRun,
   dropTestDatabase,
   ensureTestDatabase,

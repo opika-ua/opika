@@ -56,6 +56,9 @@ export default defineConfig({
           include: ["src/api/**/*.test.ts", "src/kabinet/**/*.test.ts", "src/proxy.test.ts"],
           testTimeout: 15_000,
           fileParallelism: false,
+          // setupTestDatabase can wait up to the maintenance lock wait (25 s) before it creates and
+          // migrates; vitest's 10 s default cut that wait off. Pinned by test-database-teardown.test.ts.
+          hookTimeout: 60_000,
           globalSetup: [TEST_DATABASE_TEARDOWN],
         },
       },
@@ -80,6 +83,9 @@ export default defineConfig({
           // project, and this suite is fast enough that the cost is real
           // but small.
           fileParallelism: false,
+          // setupTestDatabase can wait up to the maintenance lock wait (25 s) before it creates and
+          // migrates; vitest's 10 s default cut that wait off. Pinned by test-database-teardown.test.ts.
+          hookTimeout: 60_000,
           globalSetup: [TEST_DATABASE_TEARDOWN],
         },
       },
