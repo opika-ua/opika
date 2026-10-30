@@ -5,6 +5,7 @@ import {
   GalleryFacetCountsInputSchema,
   GalleryFacetCountsOutputSchema,
   GalleryListInputSchema,
+  GalleryRelaxationCountsInputSchema,
 } from "./procedures/gallery";
 import {
   DEFAULT_PAGE_SIZE,
@@ -138,6 +139,18 @@ describe("gallery scope input (the shelter page, DR1-D4)", () => {
         scope: { kind: "shelter", shelterId: "42" },
       }).success,
     ).toBe(false);
+  });
+
+  it("gives gallery.relaxationCounts the same default and scope", () => {
+    expect(GalleryRelaxationCountsInputSchema.parse({ filters: ANY_FILTERS }).scope).toEqual({
+      kind: "everyone",
+    });
+    expect(
+      GalleryRelaxationCountsInputSchema.parse({
+        filters: ANY_FILTERS,
+        scope: { kind: "shelter", shelterId: SHELTER_ID },
+      }).scope,
+    ).toEqual({ kind: "shelter", shelterId: SHELTER_ID });
   });
 
   it("accepts one shelter by id", () => {

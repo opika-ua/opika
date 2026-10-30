@@ -321,8 +321,12 @@ export function galleryRepo(db: Database) {
     async relaxationCounts(opts: {
       filters: FeedFilters;
       now: Date;
+      scope?: GalleryScope;
     }): Promise<GalleryRelaxationCounts> {
-      const base = and(...buildDiscoverabilityPredicate());
+      const base = and(
+        ...buildDiscoverabilityPredicate(),
+        ...buildScopePredicate(opts.scope ?? EVERYONE_SCOPE),
+      );
       const currentFilter = and(...buildFilterPredicate(opts.filters, opts.now)) ?? sql`TRUE`;
 
       const constrained = FEED_FILTER_DIMENSIONS.filter((dimension) =>
@@ -380,12 +384,9 @@ export function galleryRepo(db: Database) {
      * count relaxes cities and oblasts together: a city's count is its own column,
      * an oblast's is the sum over its cities. The other selectors' counts are sums
      * over the groups. A typed `.select()`, never a raw `db.execute()`, for the
-     * driver reason `relaxationCounts` gives.
-     */
-    /**
-     * `scope` narrows the counted rows exactly as `list`'s does (the same `buildScopePredicate`), so
-     * a shelter page's counts are its own animals'. Optional here, unlike in `list`: everyone is the
-     * default, as in the contract.
+     * driver reason `relaxationCounts` gives. `scope` narrows the counted rows as `list`'s does
+     * (the same `buildScopePredicate`); optional here, unlike in `list`: everyone is the default,
+     * as in the contract.
      */
     async facetCounts(opts: {
       filters: FeedFilters;

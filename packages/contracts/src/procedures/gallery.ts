@@ -117,6 +117,8 @@ export type GalleryRelaxation = z.infer<typeof GalleryRelaxationSchema>;
 
 export const GalleryRelaxationCountsInputSchema = z.object({
   filters: FeedFiltersSchema,
+  /** As on `gallery.list`: one shelter's animals for its page, everyone by default. */
+  scope: GalleryScopeSchema.default(EVERYONE_SCOPE),
 });
 
 export const GalleryRelaxationCountsOutputSchema = z.object({
