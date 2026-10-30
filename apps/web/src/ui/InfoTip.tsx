@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useAnchored } from "./anchored";
 import { cx } from "./cx";
 import { Icon } from "./Icon";
 
@@ -78,22 +79,20 @@ export function InfoTip({ label, closeLabel, children, className }: InfoTipProps
     }
   }, [open]);
 
-  // Before paint, and again when the page scrolls or resizes under an open card.
-  useLayoutEffect(() => {
-    const trigger = buttonRef.current;
-    if (!open || !trigger) {
-      setBox(null);
-      return;
-    }
-    const update = () => setBox(place(trigger, panelRef.current));
-    update();
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
-    };
+  useEffect(() => {
+    if (!open) setBox(null);
   }, [open]);
+  useAnchored(
+    open,
+    buttonRef,
+    (trigger) => setBox(place(trigger, panelRef.current)),
+    // Like Esc, but the «?» is off screen: focus goes back only if it was in the card, without scrolling.
+    () => {
+      const focusInside = panelRef.current?.contains(document.activeElement) === true;
+      setOpen(false);
+      if (focusInside) buttonRef.current?.focus({ preventScroll: true });
+    },
+  );
 
   useEffect(() => {
     if (open) closeRef.current?.focus();

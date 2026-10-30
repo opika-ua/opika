@@ -172,6 +172,19 @@
 }
 
 /*
+ * Height of the sticky site header (ui/anchored.ts reads it to close a popover whose trigger slides
+ * under the header). SiteHeader's row takes its min-height from it. Same breakpoints as `tablet`/`desktop`.
+ */
+:root {
+  --sticky-header-h: 4rem;
+}
+@media (min-width: 1024px) {
+  :root {
+    --sticky-header-h: 4.5rem;
+  }
+}
+
+/*
  * Stacking order, as `z-(--z-<name>)`. Tailwind has no z-index theme
  * namespace, so these are plain custom properties.
  */
