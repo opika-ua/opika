@@ -291,3 +291,45 @@ describe("the reveal from the overlay and from the page", () => {
     expect(fromOverlay).toEqual(fromPage);
   });
 });
+
+describe("the overlay's controls on a phone", () => {
+  it("at both ends of the list the ‹ › pair keeps its place, greyed and not a link", async () => {
+    const { dialog } = await openOverlay();
+    expect(within(dialog).queryByTestId("overlay-prev")).toBeNull();
+    expect(within(dialog).queryByTestId("overlay-next")).toBeNull();
+    expect(within(dialog).getByTestId("overlay-prev-end")).toBeTruthy();
+    expect(within(dialog).getByTestId("overlay-next-end")).toBeTruthy();
+  });
+
+  it("shows the animal's name in the compact bar only once the photo has scrolled away", async () => {
+    let notify: (entries: unknown[]) => void = () => {};
+    class FakeObserver {
+      constructor(callback: (entries: unknown[]) => void) {
+        notify = callback;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("IntersectionObserver", FakeObserver);
+    try {
+      const { dialog } = await openOverlay();
+      const barName = () => dialog.querySelector("span.truncate");
+      expect(barName()).toBeNull();
+      act(() =>
+        notify([
+          { isIntersecting: false, boundingClientRect: { top: -10 }, rootBounds: { top: 0 } },
+        ]),
+      );
+      expect(barName()?.textContent).toBe("Мурчик");
+      act(() =>
+        notify([
+          { isIntersecting: true, boundingClientRect: { top: 200 }, rootBounds: { top: 0 } },
+        ]),
+      );
+      expect(barName()).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

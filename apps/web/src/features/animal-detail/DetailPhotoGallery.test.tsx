@@ -51,10 +51,27 @@ describe("DetailPhotoGallery", () => {
     ).toBe(false);
   });
 
-  it("renders nothing at all for an animal with no photos", () => {
-    const { container } = render(<DetailPhotoGallery photos={[]} altFallback="Мурчик" />);
+  it("an animal with no photos gets the phone's placeholder text and no slider", () => {
+    render(<DetailPhotoGallery photos={[]} altFallback="Мурчик" />);
 
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByText("Фото немає – притулок ще не надіслав")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Фотографії тварини" })).toBeNull();
+  });
+
+  it("two photos get a counter whose accessible name says which one is showing", () => {
+    stubWidths(400, 800);
+    render(<DetailPhotoGallery photos={[photo("/a.jpg"), photo("/b.jpg")]} altFallback="Мурчик" />);
+
+    expect(screen.getByRole("status").textContent).toBe("Фото 1 з 2");
+    expect(screen.getByText("1/2")).toBeTruthy();
+  });
+
+  it("one photo has no counter", () => {
+    stubWidths(400, 400);
+    render(<DetailPhotoGallery photos={[photo("/only.jpg")]} altFallback="Мурчик" />);
+
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText("1/1")).toBeNull();
   });
 
   it("no slider buttons for a single photo", () => {
