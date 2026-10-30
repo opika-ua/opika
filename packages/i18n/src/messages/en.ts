@@ -176,6 +176,7 @@ export const en = {
     animalsHeading: "Looking for a home: {count}",
     noAnimals: "No animals here are looking for a home right now.",
     sinceYear: "on the site since {year}",
+    countLine: "Found {count} {animalWord}",
   },
 
   // --- Detail screen (04) ---

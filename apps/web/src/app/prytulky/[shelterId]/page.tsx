@@ -1,4 +1,4 @@
-import { type GallerySort, textIn } from "@opika/domain";
+import { type FeedFilters, type GallerySort, textIn } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -69,13 +69,13 @@ export function renderShelterPage(load: ShelterPageLoad, kabinetSignedIn: boolea
  * both need the shelter. Keyed on primitives (the id, the sort and the page),
  * since `cache` compares arguments by identity, so the two calls share one load.
  */
-const loadOnce = cache((shelterId: string, sort: GallerySort, page: number) =>
-  loadShelterPage(shelterId, { sort, page }),
+const loadOnce = cache((shelterId: string, sort: GallerySort, page: number, filtersJson: string) =>
+  loadShelterPage(shelterId, { sort, page, filters: JSON.parse(filtersJson) as FeedFilters }),
 );
 
 function loadShelterPageOnce(shelterId: string, searchParams: SearchParams) {
-  const { sort, page } = parseShelterPageQuery(searchParams);
-  return loadOnce(shelterId, sort, page);
+  const { sort, page, filters } = parseShelterPageQuery(searchParams);
+  return loadOnce(shelterId, sort, page, JSON.stringify(filters));
 }
 
 /**
@@ -94,10 +94,10 @@ function loadShelterPageOnce(shelterId: string, searchParams: SearchParams) {
  * already use this), so "og:title matches the page's title" holds without hand-typing
  * the city and brand suffix here too.
  *
- * `alternates.canonical` is always the bare shelter URL, with no `?sort=`/`?page=` -
+ * `alternates.canonical` is always the bare shelter URL, with no `?sort=`/`?stor=` or filter params (`?vyd=`, `?rozmir=`, ...) -
  * the same policy the gallery's own filter/sort/page variants use (owner, PR B), for
  * the same reason: at this corpus size, one shelter's few animals paginated or
- * re-sorted have no unique indexable value over the shelter's own unparameterised page.
+ * re-sorted or filtered have no unique indexable value over the shelter's own unparameterised page.
  */
 export async function generateMetadata({
   params,

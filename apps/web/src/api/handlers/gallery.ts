@@ -119,6 +119,7 @@ export async function galleryRelaxationCounts(
 ): Promise<RelaxationOutput> {
   return galleryRepo(context.db).relaxationCounts({
     filters: input.filters,
+    scope: input.scope,
     now: context.now,
   });
 }
@@ -137,6 +138,7 @@ export async function galleryFacetCounts(
   // filter, so a repeated value list multiplies there (review of #250, note 1).
   const counts = await galleryRepo(context.db).facetCounts({
     filters: canonicalizeFilters(input.filters),
+    scope: input.scope,
     now: context.now,
   });
   return {
@@ -149,5 +151,6 @@ export async function galleryFacetCounts(
     ages: { ...counts.ages },
     sizes: { ...counts.sizes },
     sexes: { ...counts.sexes },
+    species: { ...counts.species },
   };
 }

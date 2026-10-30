@@ -1,7 +1,7 @@
-import type { GallerySort, ShelterId } from "@opika/domain";
-import { DEFAULT_GALLERY_SORT } from "@opika/domain";
+import type { FeedFilters, GallerySort, ShelterId } from "@opika/domain";
+import { ANY, NO_FILTERS } from "@opika/domain";
 import {
-  GALLERY_PARAM,
+  galleryPageHref,
   NO_PLACE_IDS,
   parseGalleryQuery,
   type SearchParams,
@@ -10,28 +10,29 @@ import {
 /** The shelter page's address (designer round 1, decision DR1-D2: by id, not a slug). */
 export const shelterPagePath = (shelterId: ShelterId): string => `/prytulky/${shelterId}`;
 
-/** Where the shelter page's list is: its sort and page, nothing else (DR1-D3: no filters). */
-export type ShelterPageQuery = { sort: GallerySort; page: number };
+/** Where the shelter page's list is: its sort, page and filters (the gallery's, minus place). */
+export type ShelterPageQuery = { sort: GallerySort; page: number; filters: FeedFilters };
 
 /**
- * The gallery's own parser, so `?sort=` and `?stor=` mean exactly what they
- * mean on `/tvaryny` and an invalid value degrades the same way (default sort,
- * page 1). Any filter param in the URL is ignored: the shelter page has none.
+ * The gallery's own parser, so every param means exactly what it means on `/tvaryny` and an invalid
+ * value degrades the same way. Oblast and city params are dropped: one shelter has one place, and
+ * the page shows no field for them.
  */
 export function parseShelterPageQuery(searchParams: SearchParams): ShelterPageQuery {
-  const { sort, page } = parseGalleryQuery(searchParams, NO_PLACE_IDS);
-  return { sort, page };
+  const { sort, page, filters } = parseGalleryQuery(searchParams, NO_PLACE_IDS);
+  return { sort, page, filters: { ...filters, regions: ANY, cities: ANY } };
 }
 
 /**
- * A link within one shelter's page: the gallery's param names and its
- * "the default is the absent param" convention, so page 1 in the default sort
- * is the bare path. A sort link passes page 1: a new order is a new list.
+ * A link within one shelter's page: the gallery's param names and its "the default is the absent
+ * param" convention, so page 1 unfiltered in the default sort is the bare path. A sort or filter
+ * link passes page 1: a new order or result set is a new list.
  */
-export function shelterPageHref(shelterId: ShelterId, sort: GallerySort, page: number): string {
-  const params = new URLSearchParams();
-  if (sort !== DEFAULT_GALLERY_SORT) params.set(GALLERY_PARAM.sort, sort);
-  if (page > 1) params.set(GALLERY_PARAM.page, String(page));
-  const qs = params.toString();
-  return qs ? `${shelterPagePath(shelterId)}?${qs}` : shelterPagePath(shelterId);
+export function shelterPageHref(
+  shelterId: ShelterId,
+  sort: GallerySort,
+  page: number,
+  filters: FeedFilters = NO_FILTERS,
+): string {
+  return galleryPageHref(filters, sort, page, new Map(), shelterPagePath(shelterId));
 }

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { contract } from "./contract";
 import { FeedListInputSchema } from "./procedures/feed";
-import { GalleryFacetCountsOutputSchema, GalleryListInputSchema } from "./procedures/gallery";
+import {
+  GalleryFacetCountsInputSchema,
+  GalleryFacetCountsOutputSchema,
+  GalleryListInputSchema,
+  GalleryRelaxationCountsInputSchema,
+} from "./procedures/gallery";
 import {
   DEFAULT_PAGE_SIZE,
   GALLERY_PAGE_SIZE,
@@ -118,6 +123,36 @@ describe("gallery scope input (the shelter page, DR1-D4)", () => {
     expect(parsed.scope).toEqual({ kind: "everyone" });
   });
 
+  it("gives gallery.facetCounts the same default and the same scope shapes", () => {
+    expect(GalleryFacetCountsInputSchema.parse({ filters: ANY_FILTERS }).scope).toEqual({
+      kind: "everyone",
+    });
+    expect(
+      GalleryFacetCountsInputSchema.parse({
+        filters: ANY_FILTERS,
+        scope: { kind: "shelter", shelterId: SHELTER_ID },
+      }).scope,
+    ).toEqual({ kind: "shelter", shelterId: SHELTER_ID });
+    expect(
+      GalleryFacetCountsInputSchema.safeParse({
+        filters: ANY_FILTERS,
+        scope: { kind: "shelter", shelterId: "42" },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("gives gallery.relaxationCounts the same default and scope", () => {
+    expect(GalleryRelaxationCountsInputSchema.parse({ filters: ANY_FILTERS }).scope).toEqual({
+      kind: "everyone",
+    });
+    expect(
+      GalleryRelaxationCountsInputSchema.parse({
+        filters: ANY_FILTERS,
+        scope: { kind: "shelter", shelterId: SHELTER_ID },
+      }).scope,
+    ).toEqual({ kind: "shelter", shelterId: SHELTER_ID });
+  });
+
   it("accepts one shelter by id", () => {
     const parsed = GalleryListInputSchema.parse({
       filters: ANY_FILTERS,
@@ -227,6 +262,7 @@ describe("gallery facet counts output", () => {
     ages: { baby: 1, young: 0, adult: 2, senior: 0 },
     sizes: { small: 1, medium: 1, large: 1 },
     sexes: { male: 2, female: 1, unknown: 0 },
+    species: { dog: 2, cat: 1 },
   };
 
   // Public view: option ids, integers and a city label cross the wire, whatever the handler hands

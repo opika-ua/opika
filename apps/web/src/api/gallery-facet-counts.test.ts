@@ -77,7 +77,61 @@ describe("gallery.facetCounts", () => {
       ages: { baby: 0, young: 1, adult: 0, senior: 0 },
       sizes: { small: 1, medium: 0, large: 1 },
       sexes: { male: 1, female: 0, unknown: 0 },
+      species: { dog: 1, cat: 1 },
     });
+  });
+
+  it("with a shelter scope counts that shelter's animals only, over the HTTP route too", async () => {
+    const city = await seedOneCityTwoDogsOneCat();
+    const other = makeShelter({
+      publicLocation: {
+        precision: "fuzzed_address",
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+      },
+    });
+    await shelterRepo(h.db).insert(other);
+    await animalRepo(h.db).insert(
+      makeAnimal({ shelterId: other.id, species: "cat", size: "large" }),
+      city.id,
+    );
+    const input = { filters: NO_FILTERS, scope: { kind: "shelter", shelterId: other.id } };
+
+    const viaHttp = await h.call("gallery.facetCounts", input);
+    const everyone = await anonymousRouterClient(h.db).gallery.facetCounts({ filters: NO_FILTERS });
+
+    expect(viaHttp.status).toBe(200);
+    expect((viaHttp.body as { sizes: unknown }).sizes).toEqual({ small: 0, medium: 0, large: 1 });
+    expect(everyone.sizes).toEqual({ small: 2, medium: 0, large: 2 });
+  });
+
+  it("gallery.relaxationCounts under a shelter scope counts that shelter's animals only (goes red if the handler drops the scope)", async () => {
+    const city = await seedOneCityTwoDogsOneCat();
+    const other = makeShelter({
+      publicLocation: {
+        precision: "fuzzed_address",
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+      },
+    });
+    await shelterRepo(h.db).insert(other);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: other.id, species: "cat" }), city.id);
+    const filters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } } as const;
+
+    const scoped = await h.call("gallery.relaxationCounts", {
+      filters,
+      scope: { kind: "shelter", shelterId: other.id },
+    });
+    const everyone = await anonymousRouterClient(h.db).gallery.relaxationCounts({ filters });
+
+    expect(scoped.status).toBe(200);
+    expect(scoped.body).toEqual({
+      current: 0,
+      relaxations: [{ dimension: "species", additional: 1 }],
+    });
+    expect(everyone.current).toBe(2);
   });
 
   it("serves the same answer over the public HTTP route", async () => {

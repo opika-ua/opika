@@ -285,6 +285,20 @@ async function dispatchStamped(
   }
 }
 
+/** True when the page does not scroll sideways (an accessibility floor, not a look). Used by the shelter and gallery-card specs; dev-ui and gallery-filters-v2 still read it inline. */
+export function noSidewaysScroll(page: Page): Promise<boolean> {
+  return page.evaluate(
+    () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+  );
+}
+
+/** The touch-target floor: the control's box is at least 48px tall. */
+export async function expectMinTargetHeight(locator: Locator, minimum = 48): Promise<void> {
+  const box = await locator.boundingBox();
+  if (box === null) throw new Error("the control has no box (not rendered or hidden)");
+  if (box.height < minimum) throw new Error(`target height ${box.height}px is under ${minimum}px`);
+}
+
 /**
  * What every tab row must keep (tabs-polish): at most 48px tall, no vertical scroll, a pointer on
  * every tab, and the keyboard focus ring of the first tab inside the row's clip.

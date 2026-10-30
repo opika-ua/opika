@@ -1,9 +1,12 @@
+import { NO_FILTERS } from "@opika/domain";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { WithMockRouter } from "../gallery/test-router";
 import { ShelterPageScreen } from "./ShelterPageScreen";
 import {
   DESCRIPTION,
   makeCardView,
+  makeFacetCounts,
   makeListOutput,
   makeShelterPageShelter,
   makeShelterPageView,
@@ -20,7 +23,11 @@ const WORDS_HEADING = "Слова притулку";
 const PAGE = `/prytulky/${SHELTER_ID}`;
 
 function renderScreen(overrides: Parameters<typeof makeShelterPageView>[0] = {}) {
-  render(<ShelterPageScreen {...makeShelterPageView(overrides)} />);
+  render(
+    <WithMockRouter>
+      <ShelterPageScreen {...makeShelterPageView(overrides)} />
+    </WithMockRouter>,
+  );
 }
 
 describe("the shelter page", () => {
@@ -102,7 +109,7 @@ describe("the shelter page", () => {
   });
 
   it("offers the gallery's two date sorts, each leading back to this shelter's page", () => {
-    renderScreen({ query: { sort: "freshest", page: 1 } });
+    renderScreen({ query: { sort: "freshest", page: 1, filters: NO_FILTERS } });
     const sorts = within(screen.getByRole("navigation", { name: "Сортування" })).getAllByRole(
       "link",
     );
@@ -115,7 +122,7 @@ describe("the shelter page", () => {
 
   it("keeps its pagination within this shelter, in the chosen sort", () => {
     renderScreen({
-      query: { sort: "longest_waiting", page: 2 },
+      query: { sort: "longest_waiting", page: 2, filters: NO_FILTERS },
       animals: makeListOutput([makeCardView(25)], 2, 3),
     });
     const pagination = screen.getByRole("navigation", { name: "Сторінки" });
@@ -172,5 +179,101 @@ describe("the shelter page, states", () => {
   it("shows no card text beyond the card, and no per-card button", () => {
     renderScreen({ animals: makeListOutput([makeCardView(1)]) });
     expect(screen.queryByText("Познайомитися")).toBeNull();
+  });
+});
+
+describe("the shelter page, filters", () => {
+  const UI = { counts: makeFacetCounts(), total: 41, hasBothSpecies: true, relaxations: [] };
+  const many = makeListOutput([makeCardView(1), makeCardView(2)]);
+
+  it("shows no filter controls without filterUi", () => {
+    renderScreen({ animals: many });
+    expect(screen.queryByRole("button", { name: /Фільтри/ })).toBeNull();
+    expect(screen.queryByTestId("species-toggle-mobile")).toBeNull();
+  });
+
+  it("with filterUi: the species switch, the «Фільтри» sheet and the desktop selectors, but no Область or Місто", () => {
+    renderScreen({ animals: many, filterUi: UI });
+    expect(screen.getByTestId("species-toggle-mobile")).toBeTruthy();
+    expect(screen.getByTestId("filter-sheet-trigger")).toBeTruthy();
+    const desktop = screen.getByTestId("gallery-filter-dropdowns");
+    expect(within(desktop).getByRole("button", { name: /^Вік/ })).toBeTruthy();
+    expect(within(desktop).queryByRole("combobox", { name: /Область|Місто/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Область|Місто/ })).toBeNull();
+    // The heading carries the shelter's whole count, not the filtered one.
+    expect(screen.getByRole("heading", { level: 2, name: "Шукають дім: 41" })).toBeTruthy();
+  });
+
+  it("shows the species switch only when the shelter has both species", () => {
+    renderScreen({ animals: many, filterUi: { ...UI, hasBothSpecies: false } });
+    expect(screen.queryByTestId("species-toggle-mobile")).toBeNull();
+    expect(screen.queryByTestId("species-toggle")).toBeNull();
+  });
+
+  it("keeps the links on this shelter's page: species and sort stay on its path", () => {
+    renderScreen({
+      animals: many,
+      filterUi: UI,
+      query: {
+        sort: "freshest",
+        page: 1,
+        filters: { ...NO_FILTERS, ages: { kind: "oneOf", values: ["baby"] } },
+      },
+    });
+    const hrefs = screen.getAllByRole("link").map((link) => link.getAttribute("href") ?? "");
+    const species = hrefs.filter((href) => href.includes("vyd="));
+    expect(species.length).toBeGreaterThan(0);
+    for (const href of species) expect(href.startsWith(PAGE)).toBe(true);
+    for (const href of hrefs.filter((h) => h.includes("sort=longest_waiting"))) {
+      expect(href.startsWith(PAGE)).toBe(true);
+    }
+  });
+
+  it("with a filter on: chips with «Скинути» back to the bare shelter page, and the count line", () => {
+    renderScreen({
+      animals: makeListOutput([makeCardView(1)]),
+      filterUi: UI,
+      query: {
+        sort: "freshest",
+        page: 1,
+        filters: { ...NO_FILTERS, ages: { kind: "oneOf", values: ["baby"] } },
+      },
+    });
+    expect(screen.getByRole("link", { name: /Прибрати фільтр/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Скинути" }).getAttribute("href")).toBe(PAGE);
+    expect(screen.getAllByText("Знайдено 1 тварину").length).toBeGreaterThan(0);
+  });
+
+  it("with no match: the gallery's no-match block, no list", () => {
+    renderScreen({
+      animals: makeListOutput([]),
+      filterUi: { ...UI, relaxations: [{ dimension: "ages", additional: 7 }] },
+      query: {
+        sort: "freshest",
+        page: 1,
+        filters: { ...NO_FILTERS, ages: { kind: "oneOf", values: ["senior"] } },
+      },
+    });
+    expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
+    expect(screen.queryByRole("list", { name: /Шукають дім/ })).toBeNull();
+    const suggestion = screen.getByTestId("no-match-suggestion");
+    expect(suggestion.getAttribute("href")?.startsWith(PAGE)).toBe(true);
+    expect(screen.queryByTestId("shelter-no-animals")).toBeNull();
+  });
+
+  it("a one-species shelter with ?vyd= shows a species chip, «Скинути» and the count line, though there is no switch", () => {
+    renderScreen({
+      animals: makeListOutput([makeCardView(1), makeCardView(2)]),
+      filterUi: { ...UI, hasBothSpecies: false },
+      query: {
+        sort: "freshest",
+        page: 1,
+        filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
+      },
+    });
+    expect(screen.queryByTestId("species-toggle-mobile")).toBeNull();
+    expect(screen.getByRole("link", { name: "Прибрати фільтр Коти" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Скинути" }).getAttribute("href")).toBe(PAGE);
+    expect(screen.getAllByText("Знайдено 2 тварини").length).toBeGreaterThan(0);
   });
 });

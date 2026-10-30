@@ -453,10 +453,14 @@ export function galleryHref(
   filters: FeedFilters,
   sort: GallerySort,
   citySlugs: CitySlugsById,
+  basePath: string = GALLERY_PATH,
 ): string {
   const qs = filterAndSortParams(filters, sort, citySlugs).toString();
-  return qs ? `/tvaryny?${qs}` : "/tvaryny";
+  return qs ? `${basePath}?${qs}` : basePath;
 }
+
+/** The gallery's own path; a shelter page passes its own as `basePath` to reuse the same links. */
+export const GALLERY_PATH = "/tvaryny";
 
 /**
  * A page link, unlike `galleryHref` above: filters and sort are carried
@@ -471,6 +475,7 @@ export function galleryPageHref(
   sort: GallerySort,
   page: number,
   citySlugs: CitySlugsById,
+  basePath: string = GALLERY_PATH,
 ): string {
   const params = filterAndSortParams(filters, sort, citySlugs);
   if (page > 1) {
@@ -478,7 +483,7 @@ export function galleryPageHref(
   }
 
   const qs = params.toString();
-  return qs ? `/tvaryny?${qs}` : "/tvaryny";
+  return qs ? `${basePath}?${qs}` : basePath;
 }
 
 /**
@@ -509,8 +514,8 @@ export function animalPageHref(
  * this call - threading a map through that is provably always unused would
  * be surface for its own sake.
  */
-export const resetFiltersHref = (sort: GallerySort): string =>
-  galleryHref(NO_FILTERS, sort, NO_CITY_SLUGS);
+export const resetFiltersHref = (sort: GallerySort, basePath: string = GALLERY_PATH): string =>
+  galleryHref(NO_FILTERS, sort, NO_CITY_SLUGS, basePath);
 
 /** Passed to `galleryHref` only by `resetFiltersHref` above and
  * `similarAnimalsHref` below, where the city dimension is always `ANY` and the

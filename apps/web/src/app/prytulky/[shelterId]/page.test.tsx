@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { animalRepo, cityRepo, shelterRepo } from "@opika/db/repos";
 import { makeAnimal, makeCity, makeShelter } from "@opika/db/test";
-import type { ShelterVerification } from "@opika/domain";
+import { NO_FILTERS, type ShelterVerification } from "@opika/domain";
 import { render, screen } from "@testing-library/react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { anonymousRouterClient } from "../../../api/server-client";
@@ -18,7 +18,7 @@ import { renderShelterPage } from "./page";
  * handlers and the repository actually answer, not what a stub says.
  */
 const HIS_SENTENCE = "Забагато запитів. Спробуйте ще раз пізніше.";
-const FIRST_PAGE = { sort: "freshest", page: 1 } as const;
+const FIRST_PAGE = { sort: "freshest", page: 1, filters: NO_FILTERS } as const;
 
 /** Next's `notFound()` throws this digest; the route's `not-found.tsx` renders. */
 const isNotFound = (error: unknown) =>
@@ -69,7 +69,11 @@ describe("the route's outcomes, with shelters.byId stubbed", () => {
 
   it("reads its list through gallery.list scoped to this shelter, in the requested sort and page", async () => {
     const { client, galleryList } = stubShelterPageClient();
-    await loadShelterPage(SHELTER_ID, { sort: "longest_waiting", page: 2 }, client);
+    await loadShelterPage(
+      SHELTER_ID,
+      { sort: "longest_waiting", page: 2, filters: NO_FILTERS },
+      client,
+    );
     expect(galleryList).toHaveBeenCalledWith(
       expect.objectContaining({
         scope: { kind: "shelter", shelterId: SHELTER_ID },
@@ -146,8 +150,10 @@ describe("the shelter page's data, through the real router", () => {
     return { shelter, ids };
   }
 
-  const load = (shelterId: string, query: { sort: "freshest" | "longest_waiting"; page: number }) =>
-    loadShelterPage(shelterId, query, anonymousRouterClient(h.db));
+  const load = (
+    shelterId: string,
+    query: { sort: "freshest" | "longest_waiting"; page: number; filters: typeof NO_FILTERS },
+  ) => loadShelterPage(shelterId, query, anonymousRouterClient(h.db));
 
   it("lists this shelter's animals and no other shelter's", async () => {
     const mine = await seedShelter(3);
@@ -161,8 +167,16 @@ describe("the shelter page's data, through the real router", () => {
 
   it("both date sorts, each its own order", async () => {
     const mine = await seedShelter(3);
-    const freshest = await load(mine.shelter.id, { sort: "freshest", page: 1 });
-    const longest = await load(mine.shelter.id, { sort: "longest_waiting", page: 1 });
+    const freshest = await load(mine.shelter.id, {
+      sort: "freshest",
+      page: 1,
+      filters: NO_FILTERS,
+    });
+    const longest = await load(mine.shelter.id, {
+      sort: "longest_waiting",
+      page: 1,
+      filters: NO_FILTERS,
+    });
     if (freshest.kind !== "shelter" || longest.kind !== "shelter") throw new Error("not a page");
     expect(freshest.view.animals.items.map((a) => a.id)).toEqual(mine.ids);
     expect(longest.view.animals.items.map((a) => a.id)).toEqual([...mine.ids].reverse());
@@ -171,7 +185,7 @@ describe("the shelter page's data, through the real router", () => {
   it("a second page holds the rest of this shelter's animals, and only them", async () => {
     const mine = await seedShelter(26);
     await seedShelter(3);
-    const page2 = await load(mine.shelter.id, { sort: "freshest", page: 2 });
+    const page2 = await load(mine.shelter.id, { sort: "freshest", page: 2, filters: NO_FILTERS });
     if (page2.kind !== "shelter") throw new Error(page2.kind);
     expect(page2.view.animals.page).toBe(2);
     expect(page2.view.animals.totalPages).toBe(2);

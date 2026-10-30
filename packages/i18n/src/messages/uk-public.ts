@@ -527,6 +527,8 @@ export const ukPublic = {
     noAnimals: "Зараз тут немає тварин, які шукають дім.",
     /** The trust line of a shelter that is not verified: only the year, never a claim of checking. `{year}` as in `detail.shelterVerifiedYears`. */
     sinceYear: "на сайті з {year} року",
+    /** Template: the shelter page's filtered count; `{animalWord}` is `filters.animalWordAccusative` («Знайдено 1 тварину», «Знайдено 6 тварин»). */
+    countLine: "Знайдено {count} {animalWord}",
   },
 
   // --- Detail screen (04) ---

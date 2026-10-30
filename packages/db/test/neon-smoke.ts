@@ -2619,6 +2619,81 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `holder seen ${s48SawHolder} (serialised driver ${s48Serialised}); racer ${s48Racer} after ${s48Waited} ms; distinct shelters ${await s48Distinct(s48Two)}`,
   );
 
+  // 49-50: the shelter page's filters (`scope` on `facetCounts` and `relaxationCounts`). Appended
+  // last, after step 48; nothing above is touched. One fresh city holds two shelters, so every
+  // count is exact on a child branch whatever else the branch holds: A has a small male dog, a
+  // small female cat and a large male dog; B has one large female cat.
+  const s49City = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(s49City);
+  const s49Shelter = async (name: string) => {
+    const base = makeShelter({ id: randomUUID() as ShelterId, displayName: name });
+    const address = { ...base.exactAddress, cityId: s49City.id };
+    const shelter = {
+      ...base,
+      exactAddress: address,
+      publicLocation: publicLocationOf(base.id, address, policy),
+    };
+    await insertShelterFromScript(db, shelter, by);
+    return shelter;
+  };
+  const s49A = await s49Shelter("Smoke scope A");
+  const s49B = await s49Shelter("Smoke scope B");
+  const s49Animal = (
+    shelterId: ShelterId,
+    name: string,
+    species: "dog" | "cat",
+    size: "small" | "large",
+    sex: "male" | "female",
+  ) =>
+    makeAnimal({
+      id: randomUUID() as never,
+      shelterId,
+      name,
+      species,
+      size,
+      sex,
+      listing: nbListing(new Date(NOW.getTime() - DAY), new Date(NOW.getTime() - 30 * DAY)),
+    });
+  for (const animal of [
+    s49Animal(s49A.id, "ScopeA1", "dog", "small", "male"),
+    s49Animal(s49A.id, "ScopeA2", "cat", "small", "female"),
+    s49Animal(s49A.id, "ScopeA3", "dog", "large", "male"),
+    s49Animal(s49B.id, "ScopeB1", "cat", "large", "female"),
+  ]) {
+    await animalRepo(db).insert(animal, s49City.id);
+  }
+  const s49Mine = { kind: "shelter", shelterId: s49A.id } as const;
+  const s49Scoped = await galleryRepo(db).facetCounts({
+    filters: NO_FILTERS,
+    scope: s49Mine,
+    now: NOW,
+  });
+  const s49Everyone = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
+  const s49CityOf = (counts: typeof s49Scoped) =>
+    counts.cities.find((entry) => entry.cityId === s49City.id)?.count;
+  check(
+    "facet counts with a shelter scope: only that shelter's animals (sizes, sexes, species, its city), unscoped sees both",
+    isDeepStrictEqual(s49Scoped.sizes, { small: 2, medium: 0, large: 1 }) &&
+      isDeepStrictEqual(s49Scoped.sexes, { male: 2, female: 1, unknown: 0 }) &&
+      isDeepStrictEqual(s49Scoped.species, { dog: 2, cat: 1 }) &&
+      s49CityOf(s49Scoped) === 3 &&
+      s49CityOf(s49Everyone) === 4,
+    `scoped sizes ${JSON.stringify(s49Scoped.sizes)}, sexes ${JSON.stringify(s49Scoped.sexes)}, species ${JSON.stringify(s49Scoped.species)}, city ${s49CityOf(s49Scoped) ?? "absent"} (unscoped ${s49CityOf(s49Everyone) ?? "absent"})`,
+  );
+
+  const s49Dogs: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
+  const s49Relax = await galleryRepo(db).relaxationCounts({
+    filters: s49Dogs,
+    scope: s49Mine,
+    now: NOW,
+  });
+  check(
+    "relaxation counts with a shelter scope: dogs of shelter A are 2, dropping the species filter gains its 1 cat (not B's)",
+    s49Relax.current === 2 &&
+      isDeepStrictEqual(s49Relax.relaxations, [{ dimension: "species", additional: 1 }]),
+    `current ${s49Relax.current}, relaxations ${JSON.stringify(s49Relax.relaxations)}`,
+  );
+
   return out;
 }
 

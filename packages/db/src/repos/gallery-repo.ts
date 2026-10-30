@@ -2,12 +2,15 @@ import {
   AGE_BUCKETS,
   type AgeBucket,
   ANIMAL_SEXES,
+  ANIMAL_SPECIES,
   type AnimalId,
   type AnimalSex,
+  type AnimalSpecies,
   type City,
   type CityId,
   clampGalleryPage,
   type DiscoverableAnimal,
+  EVERYONE_SCOPE,
   FEED_FILTER_DIMENSIONS,
   type FeedFilterDimension,
   type FeedFilters,
@@ -73,6 +76,8 @@ export type GalleryFacetCounts = {
   readonly ages: Readonly<Record<AgeBucket, number>>;
   readonly sizes: Readonly<Record<SizeBucket, number>>;
   readonly sexes: Readonly<Record<AnimalSex, number>>;
+  /** The species switch has no counts of its own; a shelter page reads these to show it only when both species are there. */
+  readonly species: Readonly<Record<AnimalSpecies, number>>;
 };
 
 export type NeighbourRow = { readonly id: AnimalId; readonly name: string };
@@ -320,8 +325,12 @@ export function galleryRepo(db: Database) {
     async relaxationCounts(opts: {
       filters: FeedFilters;
       now: Date;
+      scope?: GalleryScope;
     }): Promise<GalleryRelaxationCounts> {
-      const base = and(...buildDiscoverabilityPredicate());
+      const base = and(
+        ...buildDiscoverabilityPredicate(),
+        ...buildScopePredicate(opts.scope ?? EVERYONE_SCOPE),
+      );
       const currentFilter = and(...buildFilterPredicate(opts.filters, opts.now)) ?? sql`TRUE`;
 
       const constrained = FEED_FILTER_DIMENSIONS.filter((dimension) =>
@@ -379,9 +388,15 @@ export function galleryRepo(db: Database) {
      * count relaxes cities and oblasts together: a city's count is its own column,
      * an oblast's is the sum over its cities. The other selectors' counts are sums
      * over the groups. A typed `.select()`, never a raw `db.execute()`, for the
-     * driver reason `relaxationCounts` gives.
+     * driver reason `relaxationCounts` gives. `scope` narrows the counted rows as `list`'s does
+     * (the same `buildScopePredicate`); optional here, unlike in `list`: everyone is the default,
+     * as in the contract.
      */
-    async facetCounts(opts: { filters: FeedFilters; now: Date }): Promise<GalleryFacetCounts> {
+    async facetCounts(opts: {
+      filters: FeedFilters;
+      now: Date;
+      scope?: GalleryScope;
+    }): Promise<GalleryFacetCounts> {
       const counted: Record<string, SQL.Aliased<number>> = {};
       const countWhere = (alias: `n_${string}`, filters: FeedFilters) => {
         const where = and(...buildFilterPredicate(filters, opts.now)) ?? sql`TRUE`;
@@ -395,11 +410,18 @@ export function galleryRepo(db: Database) {
       }
       for (const sex of ANIMAL_SEXES)
         countWhere(`n_sex_${sex}`, { ...opts.filters, sexes: only(sex) });
+      for (const species of ANIMAL_SPECIES)
+        countWhere(`n_species_${species}`, { ...opts.filters, species: only(species) });
 
       const grouped = db
         .select({ cityId: animals.cityId, ...counted })
         .from(animals)
-        .where(and(...buildDiscoverabilityPredicate()))
+        .where(
+          and(
+            ...buildDiscoverabilityPredicate(),
+            ...buildScopePredicate(opts.scope ?? EVERYONE_SCOPE),
+          ),
+        )
         .groupBy(animals.cityId)
         .as("grouped");
       const counts = grouped as unknown as Record<string, SQL.Aliased<number>>;
@@ -437,6 +459,7 @@ export function galleryRepo(db: Database) {
         ages: tally(AGE_BUCKETS, "age"),
         sizes: tally(SIZE_BUCKETS, "size"),
         sexes: tally(ANIMAL_SEXES, "sex"),
+        species: tally(ANIMAL_SPECIES, "species"),
       };
     },
 
