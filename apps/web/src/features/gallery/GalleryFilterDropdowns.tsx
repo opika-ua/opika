@@ -105,7 +105,7 @@ function FacetSelector<T extends string>({
         href: clearHref,
         label: fillTemplate(uk.filters.clearDimension, { dimension: label }),
       }}
-      className="min-w-36 max-w-40 flex-initial"
+      className="w-full wide:w-34"
     >
       {options.map(pill)}
     </Popover>
@@ -156,7 +156,7 @@ function SearchField({
         noMatchHint,
         clearField: fillTemplate(uk.filters.clearDimension, { dimension: label }),
       }}
-      className="min-w-40 max-w-52 flex-initial"
+      className="w-full wide:w-44"
     />
   );
 }
@@ -280,10 +280,16 @@ export function GalleryFilterDropdowns({
   return (
     <div
       data-testid="gallery-filter-dropdowns"
-      // Wraps: five controls at their natural width don't fit the 912px a 1024px window leaves.
-      className="hidden min-w-0 flex-1 flex-wrap items-center gap-2 desktop:flex"
+      // Six controls plus the sort need ~1270px: one line from `wide:`, below it a three-column grid
+      // (species, oblast, city / age, size, sex) so a wrap lands on the grid, never an orphan.
+      className="hidden min-w-0 max-w-168 flex-1 grid-cols-3 items-center gap-2 desktop:grid wide:flex wide:max-w-none"
     >
-      <SpeciesToggle filters={filters} sort={sort} citySlugs={citySlugs} />
+      <SpeciesToggle
+        filters={filters}
+        sort={sort}
+        citySlugs={citySlugs}
+        className="w-full wide:w-auto wide:shrink-0"
+      />
 
       <SearchField
         id="gallery-region-field"
