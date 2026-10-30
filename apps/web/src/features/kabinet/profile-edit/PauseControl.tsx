@@ -10,9 +10,9 @@ import { InlineStatus } from "../../../ui/feedback";
 import { Select, TextArea } from "../../../ui/form";
 import { Modal } from "../../../ui/Modal";
 import { Panel } from "../../../ui/Panel";
+import type { WriteResult } from "../shared/write-result";
 import { Optional } from "./Optional";
 import { PausedStatus } from "./PausedStatus";
-import type { WriteResult } from "./write-result";
 
 type Notice =
   | { kind: "none" }

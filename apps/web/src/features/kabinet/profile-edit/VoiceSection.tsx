@@ -8,11 +8,11 @@ import { FormSection } from "../../../ui/FormSection";
 import { TextArea } from "../../../ui/form";
 import { Text } from "../../../ui/Text";
 import { ShelterWordsSection } from "../../shelters/ShelterWordsSection";
+import { useSectionControls } from "../shared/page-save";
+import { type SaveState, SectionStatus } from "../shared/SaveBar";
+import { useUnsavedChanges } from "../shared/unsaved-changes";
+import { sameStoredValue, type WriteResult } from "../shared/write-result";
 import { SENTENCE_MAX, type SentenceError, sentenceCheck, sentenceLength } from "./fields";
-import { useSectionControls } from "./page-save";
-import { type SaveState, SectionStatus } from "./SaveBar";
-import { useUnsavedChanges } from "./unsaved-changes";
-import { sameStoredValue, type WriteResult } from "./write-result";
 
 /** The counter becomes a live region this close to the limit, not on every keystroke. */
 export const ANNOUNCE_WITHIN = 20;

@@ -10,9 +10,9 @@ import { TextField } from "../../../ui/form";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 import { formatDate } from "../ProfileParts";
+import type { WriteResult } from "../shared/write-result";
 import { linkProblem } from "./fields";
 import { Optional } from "./Optional";
-import type { WriteResult } from "./write-result";
 
 /** The host people are shown before they tap (hard constraint 5), from a link that parses. */
 const hostOf = (url: string): string | null => {

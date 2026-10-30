@@ -10,7 +10,12 @@ import { cx } from "./cx";
  * rendered and the inactive ones hidden, so their content stays in the DOM (and in a no-JS render the
  * first panel is the visible one).
  */
-export type TabItem = { id: string; label: string; panel: ReactNode };
+export type TabItem = {
+  id: string;
+  /** Text, or text with a small status mark (a feature composite; keep an accessible name in it). */
+  label: ReactNode;
+  panel: ReactNode;
+};
 
 export type TabsProps = {
   /** Names the tab list. */

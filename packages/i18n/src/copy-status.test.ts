@@ -1507,7 +1507,6 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.health.registryReadOnly":
       "Підтверджено державним реєстром тварин. Тут цей рядок змінити не можна.",
     "kabinet.animalForm.photos.title": "Фото",
-    "kabinet.animalForm.photos.ratioNote": "Формат 4:5, перше фото – обкладинка.",
     "kabinet.animalForm.photos.add": "+ Фото",
     "kabinet.animalForm.photos.addHint": "Будь-яке фото, яке відкриває цей телефон чи браузер.",
     "kabinet.animalForm.photos.howItWorks":
@@ -1632,6 +1631,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(SEX_FILTER_COPY).filter((path) => path.startsWith("kabinet.animalForm.")),
         // The form's section names (Phase 2 PR 3), pinned in their own block below.
         ...Object.keys(FORM_SECTIONS_COPY),
+        // The editor tabs' words (animal editor PR 2), pinned in their own block below.
+        ...Object.keys(EDITOR_TABS_COPY),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -2212,6 +2213,33 @@ const FORM_SECTIONS_COPY: Record<string, string> = {
   "kabinet.animalForm.sections.health": "Здоровʼя",
   "kabinet.animalForm.sections.publication": "Публікація",
 };
+
+/**
+ * The animal editor's tab strip and missing-items panel: the owner approved the PR 2 section of the
+ * editor copy table "as proposed" (2026-10-31).
+ */
+const EDITOR_TABS_COPY: Record<string, string> = {
+  "kabinet.animalForm.sections.tabsLabel": "Розділи картки",
+  "kabinet.animalForm.sections.badgeComplete": "усе потрібне заповнено",
+  "kabinet.animalForm.sections.badgeIncomplete": "потрібно доповнити",
+  "kabinet.animalForm.publish.requiredTag": "потрібно для публікації",
+  "kabinet.animalForm.publish.missingTitle": "Щоб опублікувати, ще потрібно:",
+  "kabinet.animalForm.publish.missingItem": "{field} ({tab})",
+  "kabinet.animalForm.publish.allSet": "Усе потрібне заповнено. Можна публікувати.",
+};
+
+describe("animal editor tabs copy", () => {
+  it.each(Object.entries(EDITOR_TABS_COPY))("%s is the approved text, exactly", (path, text) => {
+    const found = path
+      .split(".")
+      .slice(1)
+      .reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+        uk.kabinet,
+      );
+    expect(found).toBe(text);
+  });
+});
 
 describe("animal form section names", () => {
   it.each(Object.entries(FORM_SECTIONS_COPY))("%s is the approved text, exactly", (path, text) => {

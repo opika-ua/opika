@@ -12,14 +12,14 @@ import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
 import { LockedBlock } from "../ProfileParts";
 import { publicShelterPath } from "../routes";
+import { PageSave } from "../shared/page-save";
+import { runWrite } from "../shared/write-result";
 import { ContactsSection } from "./ContactsSection";
 import { DonationSection } from "./DonationSection";
 import { LogoSection } from "./LogoSection";
 import { PauseControl } from "./PauseControl";
-import { PageSave } from "./page-save";
 import { type ProfileTab, profileTabOf } from "./profile-tabs";
 import { VoiceSection } from "./VoiceSection";
-import { runWrite } from "./write-result";
 
 /** Which tab holds each section that can refuse a save, so a refusal shows the tab it is on. */
 const SECTION_TAB: Record<string, ProfileTab> = { contacts: "kontakty", voice: "profil" };

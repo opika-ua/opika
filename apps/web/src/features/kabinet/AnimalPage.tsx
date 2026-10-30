@@ -3,6 +3,7 @@ import { buttonClass } from "../../ui/Button";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { Text } from "../../ui/Text";
 import { AnimalForm } from "./animal-form/AnimalForm";
+import type { AnimalTab } from "./animal-form/animal-tabs";
 import type { KabinetAnimalPage } from "./animal-page";
 import { KabinetHeader } from "./KabinetHeader";
 import { KabinetNav } from "./KabinetNav";
@@ -36,8 +37,11 @@ export const BACK_TO_PROFILE = {
 
 export function AnimalPage({
   page,
+  tab = "osnovne",
 }: {
   page: Extract<KabinetAnimalPage, { kind: "form" | "missing" }>;
+  /** From `?tab=`, read by the server page. */
+  tab?: AnimalTab;
 }) {
   const support = page.viewer === "support";
   const listShown = animalListShownTo(page.viewer, page.editing);
@@ -62,6 +66,7 @@ export function AnimalPage({
               viewer={page.viewer}
               shelterVisibility={page.shelterVisibility}
               back={back}
+              initialTab={tab}
             />
           ) : (
             <div className="flex flex-col gap-4">

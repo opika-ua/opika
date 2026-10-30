@@ -20,6 +20,7 @@ import {
   isAgeEstimateUncertain,
   MEDICAL_NOTES_MAX_CHARACTERS,
   type MedicalState,
+  type PublishGap,
   SIZE_BUCKETS,
   type SizeBucket,
   TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
@@ -52,12 +53,29 @@ import { bucketRange, dateEndingSentenceOf, sizeHint } from "./labels";
 const t = uk.kabinet.animalForm;
 const integer = new Intl.NumberFormat("uk");
 
+/** «· потрібно для публікації» after a label, while its field is empty (the caller decides when). */
+export const withTag = (label: string, tagged: boolean) =>
+  tagged ? (
+    <>
+      {label}
+      <RequiredTag />
+    </>
+  ) : (
+    label
+  );
+
+export function RequiredTag() {
+  return <span className="text-caption text-ink-2"> · {t.publish.requiredTag}</span>;
+}
+
 export type SectionProps = {
   values: FormValues;
   set: (change: Partial<FormValues>) => void;
   /** The problems to show now (after a field is left, or a save is tried). */
   problems: readonly FieldProblem[];
   disabled: boolean;
+  /** Publish gaps whose label wears the «потрібно для публікації» tag (empty on a card already published). */
+  required?: readonly PublishGap["kind"][];
 };
 
 /** A problem's message, in his words; also what the error summary lists. */
@@ -168,6 +186,7 @@ export function BasicsFields({
   set,
   problems,
   disabled,
+  required = [],
   stored,
   now,
 }: SectionProps & { stored: Pick<KabinetAnimalView, "age" | "sex"> | null; now: Date }) {
@@ -236,7 +255,7 @@ export function BasicsFields({
       />
       <SegmentedControl
         name="animal-sex"
-        legend={t.who.sexLabel}
+        legend={withTag(t.who.sexLabel, required.includes("sex"))}
         segments={SEX}
         value={values.sex}
         disabled={disabled}
@@ -244,7 +263,7 @@ export function BasicsFields({
       />
       <SegmentedControl
         name="animal-size"
-        legend={t.who.sizeLabel}
+        legend={withTag(t.who.sizeLabel, required.includes("size"))}
         segments={SIZE_BUCKETS.map((size) => ({
           value: size,
           label: SIZE_NAME[size],
@@ -258,7 +277,7 @@ export function BasicsFields({
       />
       <Panel tone="outline" padding="lg" className="flex flex-col gap-5">
         <Heading level={3} look="body-l">
-          {t.age.title}
+          {withTag(t.age.title, required.includes("age"))}
         </Heading>
         <SegmentedControl
           name="animal-age-mode"
@@ -399,7 +418,7 @@ function CustomTextField({
  * without), then the optional words people read and filter by: temperament, fur, colour. The
  * description's label is «Опис» because the section is already «Про тварину».
  */
-export function AboutFields({ values, set, problems, disabled }: SectionProps) {
+export function AboutFields({ values, set, problems, disabled, required = [] }: SectionProps) {
   const toggle = (trait: TemperamentTrait, on: boolean) =>
     set({
       temperamentTraits: on
@@ -414,7 +433,7 @@ export function AboutFields({ values, set, problems, disabled }: SectionProps) {
         </Text>
         <TextArea
           id="animal-description"
-          label={t.description.title}
+          label={withTag(t.description.title, required.includes("description"))}
           value={values.description}
           error={problemText(problems, "description")}
           disabled={disabled}

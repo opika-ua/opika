@@ -727,6 +727,10 @@ export const uk = {
         about: "Про тварину",
         health: "Здоровʼя",
         publication: "Публікація",
+        tabsLabel: "Розділи картки",
+        /** Accessible names of the ✓ and ! on a tab: derived from the publish rules, never a second list. */
+        badgeComplete: "усе потрібне заповнено",
+        badgeIncomplete: "потрібно доповнити",
       },
       who: {
         title: "Хто це",
@@ -833,7 +837,6 @@ export const uk = {
       },
       photos: {
         title: "Фото",
-        ratioNote: "Формат 4:5, перше фото – обкладинка.",
         add: "+ Фото",
         addHint: "Будь-яке фото, яке відкриває цей телефон чи браузер.",
         /** `{px}` is `PHOTO_MAX_EDGE_PX`; true because `compressPhoto` scales every photo to it on the device. */
@@ -918,6 +921,12 @@ export const uk = {
       publish: {
         button: "Опублікувати",
         missing: "Щоб опублікувати, ще потрібно: {list}.",
+        /** Beside a required field's label while it is empty (after a middle dot). */
+        requiredTag: "потрібно для публікації",
+        missingTitle: "Щоб опублікувати, ще потрібно:",
+        /** `{field}` is the field's own label, `{tab}` the tab that holds it; the whole item is the link. */
+        missingItem: "{field} ({tab})",
+        allSet: "Усе потрібне заповнено. Можна публікувати.",
         gap: {
           // Sex-filter feature, reversing D2: the same word as `filters.sex`
           // («Стать»), lowercase, in this list's own register (every other

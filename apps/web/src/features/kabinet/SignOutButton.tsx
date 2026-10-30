@@ -4,7 +4,7 @@ import { uk } from "@opika/i18n";
 import { useState } from "react";
 import { Button } from "../../ui/Button";
 import { Text } from "../../ui/Text";
-import { confirmLeave as defaultConfirmLeave } from "./profile-edit/unsaved-changes";
+import { confirmLeave as defaultConfirmLeave } from "./shared/unsaved-changes";
 
 /** Better Auth's sign-out, one of the four forwarded auth paths (`FORWARDED_AUTH_PATHS`). */
 export const SIGN_OUT_PATH = "/api/auth/sign-out";

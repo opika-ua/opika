@@ -117,7 +117,7 @@ describe("SignOutButton with unsaved K4 edits (answer 1)", () => {
 
 describe("confirmLeave", () => {
   it("asks nothing with no section dirty, and his question with one dirty", async () => {
-    const { confirmLeave, useUnsavedChanges } = await import("./profile-edit/unsaved-changes");
+    const { confirmLeave, useUnsavedChanges } = await import("./shared/unsaved-changes");
     const ask = vi.fn(() => true);
     expect(confirmLeave(ask)).toBe(true);
     expect(ask).not.toHaveBeenCalled();

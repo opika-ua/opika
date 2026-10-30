@@ -150,6 +150,10 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
   };
 
   const publishButton = (page: Page) => page.getByRole("button", { name: "Опублікувати" });
+  const openTab = (page: Page, name: string | RegExp) => page.getByRole("tab", { name }).click();
+  /** The links of the missing-items panel in «Публікація». */
+  const missingLinks = (page: Page) =>
+    page.getByRole("navigation", { name: "Щоб опублікувати, ще потрібно:" }).getByRole("link");
 
   // K2 (PR 5) is the form's entry point: the list's «Додати тварину», reached from the nav.
   test("from the list, «Додати тварину»: a name and a species save a draft; publish stays disabled with every gap written", async () => {
@@ -171,14 +175,18 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     draftId = page.url().split("/").at(-1) as AnimalId;
     await expect(page.getByRole("heading", { level: 1, name: "Харнес" })).toBeVisible();
     await expect(page.getByText(/^Чернетку збережено о \d\d:\d\d$/)).toBeVisible();
+    await openTab(page, "Публікація");
     await expect(page.getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeVisible();
     await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
-    const missing = page.getByText(
-      "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.",
-    );
-    await expect(missing).toBeVisible();
+    await expect(missingLinks(page)).toHaveText([
+      "Стать (Основне)",
+      "Розмір (Основне)",
+      "Вік (Основне)",
+      "Опис (Про тварину)",
+      "Фото (Фото)",
+    ]);
     await expect(publishButton(page)).toHaveAccessibleDescription(
-      "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.",
+      /^Щоб опублікувати, ще потрібно:.*Стать \(Основне\).*Фото \(Фото\)$/,
     );
 
     // Stored: the draft's own address shows it after a reload, still a draft.
@@ -231,12 +239,15 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       .getByText(/^Молодий/)
       .click();
     await expect(page.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeVisible();
-    await page.getByLabel("Опис", { exact: true }).fill("Спокійний, любить гуляти в парку.");
+    // Switching tabs keeps what was chosen on the first one.
+    await openTab(page, /^Про тварину/);
+    await page.getByLabel(/^Опис/).fill("Спокійний, любить гуляти в парку.");
     await page.getByRole("button", { name: "Зберегти чернетку" }).click();
     // Held: a save has been asked for and none has landed, yet the gap list
     // already reads the form's own state.
     await expect.poll(() => savesHeld, { message: "no save reached the route" }).toBeGreaterThan(0);
-    await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
+    await openTab(page, "Публікація");
+    await expect(missingLinks(page)).toHaveText(["Фото (Фото)"]);
     expect(
       { letThrough: savesHeld - savesParked, landed: savesHeld - savesUnfinished },
       "a save was let through, or landed, before the held check",
@@ -247,11 +258,12 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await expect
       .poll(() => savesUnfinished, { message: "a save was still in flight before the reload" })
       .toBe(0);
-    await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
+    await expect(missingLinks(page)).toHaveText(["Фото (Фото)"]);
     await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
 
+    // The address keeps the tab: a reload opens «Публікація» again.
     await page.reload();
-    await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
+    await expect(missingLinks(page)).toHaveText(["Фото (Фото)"]);
     await page.close();
   });
 
@@ -288,6 +300,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       await route.continue();
     });
 
+    await openTab(page, /^Фото/);
     const chooser = page.waitForEvent("filechooser");
     await page.getByRole("button", { name: "+ Фото" }).click();
     await (await chooser).setFiles({ name: "IMG_4000.png", mimeType: "image/png", buffer: png });
@@ -327,9 +340,12 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     );
 
     const page = await open(`/kabinet/tvaryny/${draftId}`);
+    await openTab(page, /^Фото/);
     await expect(page.getByRole("group", { name: "Фото 1 з 1" })).toBeVisible();
     await expect(page.getByText("Обкладинка", { exact: true })).toBeVisible();
-    await expect(page.getByText(/^Щоб опублікувати, ще потрібно/)).toHaveCount(0);
+    await openTab(page, "Публікація");
+    await expect(page.getByText("Усе потрібне заповнено. Можна публікувати.")).toBeVisible();
+    await expect(missingLinks(page)).toHaveCount(0);
     await expect(publishButton(page)).not.toHaveAttribute("aria-disabled", "true");
     await page.close();
   });

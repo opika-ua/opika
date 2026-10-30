@@ -4,12 +4,12 @@ import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { useId, useState } from "react";
 import { FormSection } from "../../../ui/FormSection";
+import { useSectionControls } from "../shared/page-save";
+import { type SaveState, SectionStatus } from "../shared/SaveBar";
+import { useUnsavedChanges } from "../shared/unsaved-changes";
+import { sameStoredValue, type WriteResult } from "../shared/write-result";
 import { ContactFields, type ContactsErrors, NO_CONTACT_ERRORS } from "./ContactFields";
 import { type ContactsForm, contactOfForm, contactsFormOf, sameContactsForm } from "./fields";
-import { useSectionControls } from "./page-save";
-import { type SaveState, SectionStatus } from "./SaveBar";
-import { useUnsavedChanges } from "./unsaved-changes";
-import { sameStoredValue, type WriteResult } from "./write-result";
 
 /**
  * A refused save moves focus to the first field that needs fixing (the form is short and the
