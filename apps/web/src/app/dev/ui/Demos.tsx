@@ -39,7 +39,7 @@ export function ModalHeaderDemo() {
   return (
     <>
       <Button variant="secondary" onClick={() => setOpen(true)}>
-        Open modal with header
+        Header variant
       </Button>
       <Modal
         open={open}
