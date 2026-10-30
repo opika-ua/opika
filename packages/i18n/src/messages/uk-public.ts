@@ -704,15 +704,6 @@ export const ukPublic = {
     resolved: "Притулок каже: {name} уже вдома.",
   },
 
-  /**
-   * Nationwide table, row 38 (owner: ship the attribution whatever the licence version). The
-   * dataset page on data.gov.ua says «Creative Commons Attribution» with no version (unverified).
-   */
-  footer: {
-    dataCredit:
-      "Перелік населених пунктів: Кодифікатор адміністративно-територіальних одиниць (Мінрозвитку), Creative Commons Attribution.",
-  },
-
   // --- Exhausted (07) ---
   exhausted: {
     title: "Це всі, хто зараз підходить.",
@@ -1143,5 +1134,16 @@ export const ukPublic = {
     analytics:
       "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами.",
     contact: "Написати мені: {contact}",
+    /** Owner-approved 2026-10-30 (attribution copy table); the licence wording is the dataset record's, no version. */
+    sources: {
+      heading: "Джерела даних",
+      intro:
+        "Перелік населених пунктів узято з «Кодифікатора адміністративно-територіальних одиниць та територій територіальних громад» (Мінрозвитку).",
+      datasetLink: "Набір даних на data.gov.ua",
+      edition: "Редакція від 7 липня 2026 року (наказ № 1321).",
+      licenceLink: "Ліцензія Creative Commons Attribution",
+      changes:
+        "Зміни: додано латинську транслітерацію, ключі пошуку й адреси сторінок, апострофи приведено до єдиного вигляду, райони великих міст не включено.",
+    },
   },
 } as const;

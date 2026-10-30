@@ -33,8 +33,6 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/animal-overlay/AnimalOverlay.tsx":
     "intercepted-route modal: router.back, Esc, focus trap, scroll lock, entrance animation",
   "features/chrome/SiteAnalytics.tsx": "Vercel Analytics component",
-  "features/chrome/SiteFooterGate.tsx":
-    "usePathname: the one root-layout footer is left out of /kabinet (children stay server-rendered)",
   "features/controls/useModalFocus.ts": "hook: focus trap and restore",
   "features/controls/useScrollingClass.ts": "hook: scroll listener toggling a class",
   "features/discovery/DeckScreen.tsx": "swipe deck page shell: feed hook, keyboard, router",
