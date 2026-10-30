@@ -594,13 +594,13 @@ export const ukPublic = {
      */
     photoGalleryLabel: "Фотографії тварини",
     /**
-     * Pet card PR 5, builder's own draft (not his words - flagged in the PR
-     * for confirm-or-replace, same low-risk mechanical-label reasoning as
-     * `kabinet.animalForm.validation.medicalNotesTooLong`). The slider's own
+     * Owner-approved 2026-10-30 (pet card on phones). The slider's own
      * prev/next buttons' accessible names.
      */
     photoNext: "Наступне фото",
     photoPrev: "Попереднє фото",
+    /** The phone photo counter's accessible name; the visible text is «1/4». Owner-approved with photoPrev/photoNext (2026-10-30). */
+    photoCounter: "Фото {n} з {total}",
     /**
      * Pet card PR 5 (Figma `75:425`/`88:1929`). The prev/next labels above
      * the panel, the two header pills, the three section headings and the

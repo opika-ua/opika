@@ -17,6 +17,7 @@ import { Avatar } from "../../ui/Avatar";
 import { LinkButton } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
 import { Heading } from "../../ui/Heading";
+import { Icon } from "../../ui/Icon";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { MetaLine } from "../../ui/MetaLine";
 import { Text } from "../../ui/Text";
@@ -29,8 +30,9 @@ import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
 import { ShareButton } from "./ShareButton";
 
-// The Figma panel's 1084px on the spacing scale (271 x 4px).
-const PANEL_WIDTH = "max-w-271";
+// The Figma panel's 1084px on the spacing scale (271 x 4px). Below desktop the panel is a single
+// column of at most 640px (centred on a tablet, the whole width on a phone).
+const PANEL_WIDTH = "max-w-160 desktop:max-w-271";
 
 interface AnimalDetailScreenProps {
   animal: AnimalDetailView;
@@ -54,8 +56,9 @@ export function AnimalDetailScreen({
   // Defaulted so the tests of this screen's own content don't all need a prop they aren't
   // testing; the one real caller (`app/tvaryny/[animalId]/page.tsx`) always passes it.
   kabinetSignedIn = false,
+  backToGalleryHref = "/tvaryny",
   ...content
-}: AnimalDetailScreenProps & { kabinetSignedIn?: boolean }) {
+}: AnimalDetailScreenProps & { kabinetSignedIn?: boolean; backToGalleryHref?: string }) {
   return (
     <div className="min-h-dvh bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} />
@@ -72,7 +75,18 @@ export function AnimalDetailScreen({
           </div>
         )}
 
-        <div className="pt-6 desktop:pt-10">
+        {/* Below desktop the full page has no ✕ and no prev/next (those belong to the overlay), so the way out is this link. */}
+        <div className="mx-auto w-full max-w-160 px-4 tablet:px-6 desktop:hidden">
+          <Link
+            href={backToGalleryHref}
+            prefetch={false}
+            className="inline-flex min-h-target items-center gap-1 rounded-field text-label focus-ring"
+          >
+            <Icon name="chevron-left" size="sm" />
+            {uk.detail.notFound.action}
+          </Link>
+        </div>
+        <div className="desktop:pt-10">
           <AnimalDetailContent {...content} />
         </div>
       </main>
@@ -92,7 +106,9 @@ export function AnimalDetailContent({
   const customTemperament = animal.temperament.find((entry) => entry.kind === "custom");
 
   return (
-    <div className={`mx-auto flex ${PANEL_WIDTH} flex-col gap-13 p-4 tablet:p-6 desktop:p-10`}>
+    <div
+      className={`mx-auto flex ${PANEL_WIDTH} flex-col gap-4 px-4 pb-4 tablet:px-6 tablet:pb-6 desktop:gap-13 desktop:p-10`}
+    >
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-6 desktop:flex-row desktop:items-start desktop:justify-between">
@@ -115,28 +131,28 @@ export function AnimalDetailContent({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <span data-testid="freshness-block">
+        <div className="flex flex-col gap-4 desktop:flex-row desktop:flex-wrap desktop:items-center desktop:justify-between">
+          <span data-testid="freshness-block" className="w-fit">
             <Chip kind="info">{freshnessLabel(animal.freshness)}</Chip>
           </span>
-          <div className="flex flex-wrap items-center gap-8">
+          <div className="flex min-w-0 items-center justify-between gap-3 desktop:flex-wrap desktop:justify-start desktop:gap-8">
             <Link
               href={shelterPagePath(shelter.id)}
               prefetch={false}
               aria-label={fillTemplate(uk.detail.shelterRowLink, { name: shelter.displayName })}
-              className="inline-flex min-h-target items-center gap-3 rounded-field focus-ring"
+              className="inline-flex min-h-target min-w-0 items-center gap-3 rounded-field focus-ring"
             >
               {shelter.logo === null ? (
                 <Avatar kind="initials" name={shelter.displayName} />
               ) : (
                 <Avatar kind="logo" src={shelter.logo.storageKey} />
               )}
-              <Text as="span" look="label">
+              <Text as="span" look="label" className="min-w-0 max-desktop:truncate">
                 {shelter.displayName}
               </Text>
             </Link>
             {cityName && (
-              <span className="inline-flex items-center gap-2">
+              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap desktop:gap-2">
                 <Image
                   src="/pet-card/icon-location.svg"
                   alt=""
@@ -144,6 +160,7 @@ export function AnimalDetailContent({
                   width={32}
                   height={32}
                   unoptimized
+                  className="size-6 desktop:size-8"
                 />
                 <span data-testid="shelter-city">
                   <Text as="span" look="label" className="text-accent-text">
@@ -174,7 +191,7 @@ export function AnimalDetailContent({
       <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} />
 
       {/* Про мене */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 max-desktop:pt-2">
         <Heading level={2}>{uk.detail.aboutMeHeading}</Heading>
         <div className="flex flex-wrap gap-4">
           <FilterableChipLink

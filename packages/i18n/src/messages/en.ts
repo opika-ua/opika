@@ -198,6 +198,7 @@ export const en = {
     photoGalleryLabel: "Animal photos",
     photoNext: "Next photo",
     photoPrev: "Previous photo",
+    photoCounter: "Photo {n} of {total}",
     prev: "Previous",
     next: "Next",
     giveHome: "Give a home",

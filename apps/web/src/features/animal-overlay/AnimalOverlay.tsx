@@ -2,7 +2,15 @@
 
 import { ukPublic as uk } from "@opika/i18n/public";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Button, buttonClass, LinkButton } from "../../ui/Button";
 import { Icon } from "../../ui/Icon";
 import { useModalFocus } from "../controls/useModalFocus";
@@ -53,6 +61,7 @@ function clearEntranceSkip(): void {
  * retracting header leaves (`animate-panel-up`, only on a fresh open).
  */
 const DIALOG_BASE = "relative flex h-full flex-col outline-none";
+/** The photo is the top of the card on a phone: the page background fills the whole screen under it. */
 /**
  * The close and prev/next buttons sit on the backdrop, flush with the panel's side edges. The
  * row's vertical clearance lives on a separate wrapper (`TOP_BAR_OFFSET`): padding on the row
@@ -62,15 +71,20 @@ const DIALOG_BASE = "relative flex h-full flex-col outline-none";
 // `env(safe-area-inset-top)` is 0, so this resolves to the same `pt-6` as
 // before - only a notch/dynamic-island inset (iOS) can ever push it further,
 // never shrink it below the existing clearance.
-const TOP_BAR_OFFSET = "shrink-0 pt-safe-top pb-6";
-const TOP_BAR = "relative mx-auto flex w-full max-w-271 items-center justify-center";
+// Desktop: a row above the sheet. Below it: one layer over the photo (✕ left, ‹ › right), which
+// turns into the 60px compact bar once the photo has scrolled out of view.
+const TOP_BAR_OFFSET =
+  "absolute inset-x-0 top-0 z-10 desktop:static desktop:z-auto desktop:shrink-0 desktop:pt-safe-top desktop:pb-6";
+const TOP_BAR_COMPACT = "max-desktop:border-b max-desktop:border-line max-desktop:bg-page";
+const TOP_BAR =
+  "relative mx-auto flex w-full max-w-160 items-center gap-2 px-4 pt-inset-top pb-3 tablet:px-6 desktop:max-w-271 desktop:justify-center desktop:p-0";
 /**
  * Only the top corners are rounded. Two boxes: Chrome's classic scrollbar is not reliably clipped
  * by a scroller's own `border-radius`, so `FRAME_CLIP` clips with both `overflow-hidden` and
  * `clip-path` at the same radius, and `FRAME_SCROLL` owns the scrolling.
  */
 const FRAME_CLIP =
-  "relative flex-1 mx-auto w-full max-w-271 overflow-hidden bg-surface rounded-t-sheet [clip-path:inset(0_round_var(--radius-sheet)_var(--radius-sheet)_0_0)]";
+  "relative flex-1 mx-auto w-full max-w-160 overflow-hidden bg-surface desktop:max-w-271 desktop:rounded-t-sheet desktop:[clip-path:inset(0_round_var(--radius-sheet)_var(--radius-sheet)_0_0)]";
 const FRAME_SCROLL = "h-full overflow-y-auto overscroll-contain brand-scrollbar";
 
 export type OverlayNeighbour = { name: string; href: string } | null;
@@ -123,6 +137,7 @@ export function AnimalOverlay({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const close = useCallback(() => router.back(), [router]);
   const scrollRef = useScrollingClass<HTMLDivElement>();
+  const compact = usePhotoScrolledAway(scrollRef, label);
   const [shouldAnimate] = useState(() => !entranceSkipRequested());
   useEffect(clearEntranceSkip, []);
 
@@ -140,18 +155,20 @@ export function AnimalOverlay({
         tabIndex={-1}
         className={`${DIALOG_BASE} ${shouldAnimate ? "animate-panel-up" : ""}`}
       >
-        <div className={TOP_BAR_OFFSET}>
+        <div className={`${TOP_BAR_OFFSET} ${compact ? TOP_BAR_COMPACT : ""}`}>
           <div className={TOP_BAR}>
-            <NeighbourLink neighbour={neighbours.prev} align="left" />
             <Button
               variant="icon"
-              size="lg"
               aria-label={uk.preview.close}
               onClick={close}
-              className={OVERLAY_FOCUS}
+              className={`${OVERLAY_FOCUS} desktop:size-13`}
             >
               <Icon name="close" />
             </Button>
+            {compact && (
+              <span className="min-w-0 flex-1 truncate text-label desktop:hidden">{label}</span>
+            )}
+            <NeighbourLink neighbour={neighbours.prev} align="left" first />
             <NeighbourLink neighbour={neighbours.next} align="right" />
           </div>
         </div>
@@ -174,21 +191,31 @@ export function AnimalOverlay({
 function NeighbourLink({
   neighbour,
   align,
+  first = false,
 }: {
   neighbour: OverlayNeighbour;
   align: "left" | "right";
+  /** The first of the phone's ‹ › pair: it takes the free space to its left. */
+  first?: boolean;
 }) {
   // `left-0`/`right-0` now that TOP_BAR carries no padding of its own
   // (removed 2026-10-28) - an absolutely positioned child's containing
   // block is the parent's padding box, so with zero padding this already
   // lands it exactly at TOP_BAR's own outer edge, no inset.
-  const side = align === "left" ? "left-0" : "right-0";
+  const side =
+    align === "left"
+      ? "desktop:absolute desktop:top-1/2 desktop:left-0 desktop:-translate-y-1/2"
+      : "desktop:absolute desktop:top-1/2 desktop:right-0 desktop:-translate-y-1/2";
+  // On a phone the pair sits right; with the name shown it is the name that takes the free space.
+  const phoneSlot = first ? "max-desktop:ml-auto" : "";
   const chevron = <Icon name={align === "left" ? "chevron-left" : "chevron-right"} />;
   if (neighbour === null) {
+    // Disabled, not hidden, on a phone so the pair never shifts; invisible on desktop as before.
     return (
       <span
         aria-hidden="true"
-        className={`invisible absolute top-1/2 -translate-y-1/2 ${side} ${buttonClass("icon", "lg")}`}
+        data-testid={align === "left" ? "overlay-prev-end" : "overlay-next-end"}
+        className={`opacity-40 desktop:invisible ${side} ${phoneSlot} ${buttonClass("icon", "md")} desktop:size-13`}
       >
         {chevron}
       </span>
@@ -197,13 +224,12 @@ function NeighbourLink({
   return (
     <LinkButton
       variant="icon"
-      size="lg"
       href={neighbour.href}
       replace
       onClick={skipNextEntranceAnimation}
       data-testid={align === "left" ? "overlay-prev" : "overlay-next"}
       aria-label={`${align === "left" ? uk.detail.prev : uk.detail.next}: ${neighbour.name}`}
-      className={`absolute top-1/2 -translate-y-1/2 ${side} ${OVERLAY_FOCUS}`}
+      className={`desktop:size-13 ${side} ${phoneSlot} ${OVERLAY_FOCUS}`}
     >
       {chevron}
     </LinkButton>
@@ -274,4 +300,32 @@ function useReturnFocusToOpener(href: string) {
       });
     };
   }, [href]);
+}
+
+/**
+ * True once the photo's bottom edge (`[data-photo-end]`, set by the photo gallery) has scrolled
+ * out of the overlay's scroll, so the floating controls can become the compact bar. One
+ * IntersectionObserver; its top margin is the bar's own height, so the swap happens as the photo
+ * slides under where the bar will be. Re-armed per animal, since the content is replaced.
+ */
+function usePhotoScrolledAway(scrollRef: RefObject<HTMLDivElement | null>, animalKey: string) {
+  const [away, setAway] = useState(false);
+  useEffect(() => {
+    const root = scrollRef.current;
+    const marker = root?.querySelector("[data-photo-end]");
+    setAway(false);
+    if (!root || !marker || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        setAway(
+          !entry.isIntersecting && entry.boundingClientRect.top < (entry.rootBounds?.top ?? 0),
+        );
+      },
+      { root, rootMargin: "-60px 0px 0px 0px" },
+    );
+    observer.observe(marker);
+    return () => observer.disconnect();
+  }, [scrollRef, animalKey]);
+  return away;
 }
