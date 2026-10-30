@@ -198,7 +198,7 @@ describe("GalleryCard names no shelter", () => {
 });
 
 describe("GalleryCard on a phone (text under the photo)", () => {
-  it("shows the freshness in words beside a decorative dot, in either layout", () => {
+  it("shows the freshness in words as text, in either layout", () => {
     const freshness = makeFreshness("fresh", 12);
     for (const layout of ["responsive", "stacked"] as const) {
       const { unmount } = render(
@@ -210,9 +210,6 @@ describe("GalleryCard on a phone (text under the photo)", () => {
         />,
       );
       expect(screen.getAllByText(freshnessLabel(freshness))).toHaveLength(1);
-      expect(
-        screen.getByTestId("freshness-badge").querySelector("[aria-hidden='true']"),
-      ).not.toBeNull();
       unmount();
     }
   });

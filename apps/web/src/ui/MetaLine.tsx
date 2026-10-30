@@ -9,25 +9,22 @@ export function MetaLine({
   parts,
   size = "label",
   className,
+  testId,
 }: {
   parts: readonly string[];
   size?: "label" | "caption";
   className?: string;
+  /** Lets a card name its meta line for tests without a wrapper element. */
+  testId?: string;
 }) {
   return (
     <span
-      className={cx(
-        "flex flex-wrap items-center gap-x-2 text-ink-2",
-        size === "caption" ? "text-caption" : "text-label",
-        className,
-      )}
+      data-testid={testId}
+      className={cx("meta-line", size === "caption" ? "text-caption" : "text-label", className)}
     >
-      {parts.map((part, index) => (
-        <span key={part} className="flex items-center gap-2 whitespace-nowrap">
+      {parts.map((part) => (
+        <span key={part} className="meta-part">
           {part}
-          {index < parts.length - 1 ? (
-            <span aria-hidden="true" className="h-1 w-0.5 shrink-0 bg-ink-2" />
-          ) : null}
         </span>
       ))}
     </span>

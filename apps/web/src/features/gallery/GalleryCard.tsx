@@ -4,7 +4,6 @@ import { ukPublic as uk } from "@opika/i18n/public";
 import { freshnessLabel } from "@opika/ui";
 import Link from "next/link";
 import { Badge } from "../../ui/Badge";
-import { buttonLookClass } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { MetaLine } from "../../ui/MetaLine";
 import { Photo } from "../../ui/Photo";
@@ -40,13 +39,13 @@ import { animalPageHref, type CitySlugsById } from "./filter-url";
  */
 const SIZES = {
   responsive:
-    "(max-width: 599px) calc(50vw - 22px), (max-width: 1023px) calc(50vw - 32px), (max-width: 1511px) calc(25vw - 50.5px), 328px",
+    "(max-width:599px) calc(50vw - 22px),(max-width:1023px) calc(50vw - 32px),(max-width:1511px) calc(25vw - 50.5px),328px",
   stacked:
-    "(max-width: 599px) calc(50vw - 22px), (max-width: 1023px) calc(34vw - 26px), (max-width: 1511px) calc(25vw - 50.5px), 328px",
+    "(max-width:599px) calc(50vw - 22px),(max-width:1023px) calc(34vw - 26px),(max-width:1511px) calc(25vw - 50.5px),328px",
 } as const;
 
-const SPECIES_DOT = { dog: "bg-species-dog", cat: "bg-species-cat" } as const;
-const SPECIES_BADGE = { dog: "tablet:bg-species-dog", cat: "tablet:bg-species-cat" } as const;
+// Sets `--dot`: the phone's dot and, from tablet, the badge fill.
+const SPECIES = { dog: "gcard-dog", cat: "gcard-cat" } as const;
 
 interface GalleryCardProps {
   card: FeedCardView;
@@ -91,10 +90,7 @@ export function GalleryCard({
       prefetch={false}
       aria-label={cardAccessibleName(card, cityName)}
       data-testid="animal-card"
-      className={cx(
-        "relative flex flex-col gap-3 focus-ring",
-        !stacked && "tablet:block tablet:overflow-clip tablet:rounded-card",
-      )}
+      className={stacked ? "gcard-st" : "gcard"}
     >
       <Photo
         src={photo?.storageKey ?? null}
@@ -102,36 +98,19 @@ export function GalleryCard({
         sizes={SIZES[layout]}
         aspect={stacked ? "portrait" : "cardStacked"}
         priority={priority}
-        className="rounded-card tablet:rounded-none"
+        className={stacked ? "rounded-card tablet:rounded-none" : ""}
       />
       {/* `contents` on a phone: the badge floats on the photo, the freshness joins the text column
           (order-last). From `tablet` the same two elements sit in one row on the photo. */}
-      <div
-        className={cx(
-          "contents",
-          !stacked &&
-            "tablet:absolute tablet:inset-x-4 tablet:top-4 tablet:flex tablet:flex-wrap tablet:items-start tablet:gap-2",
-        )}
-      >
+      <div className={stacked ? "contents" : "gcard-badges"}>
         <span
           data-testid="freshness-badge"
-          className={cx(
-            "order-last flex items-center gap-2 text-caption text-ink-2",
-            !stacked &&
-              cx(
-                "tablet:order-none tablet:inline-flex tablet:whitespace-nowrap tablet:rounded-tag tablet:px-2 tablet:py-1 tablet:text-on-ink",
-                SPECIES_BADGE[card.species],
-              ),
-          )}
+          className={
+            stacked
+              ? cx("gcard-fresh-st", SPECIES[card.species])
+              : cx("gcard-fresh", SPECIES[card.species])
+          }
         >
-          <span
-            aria-hidden="true"
-            className={cx(
-              "size-2 shrink-0 rounded-pill",
-              SPECIES_DOT[card.species],
-              !stacked && "tablet:hidden",
-            )}
-          />
           {freshnessLabel(card.freshness)}
         </span>
         {reserved && (
@@ -143,31 +122,15 @@ export function GalleryCard({
         )}
       </div>
 
-      <div
-        className={cx(
-          "flex flex-col gap-1",
-          !stacked &&
-            "tablet:absolute tablet:inset-x-3 tablet:bottom-3 tablet:gap-2 tablet:rounded-panel tablet:bg-surface tablet:p-5",
-        )}
-      >
-        <span
-          data-testid="card-name"
-          className={cx(
-            "line-clamp-2 break-words text-label text-ink",
-            !stacked && "tablet:line-clamp-1 tablet:text-title",
-          )}
-        >
+      <div className={stacked ? "gcard-info-st" : "gcard-info"}>
+        <span data-testid="card-name" className={stacked ? "gcard-name-st" : "gcard-name"}>
           {card.name}
         </span>
-        <span data-testid="card-meta" className="contents">
-          <MetaLine parts={facts} size="caption" />
-        </span>
+        <MetaLine parts={facts} size="caption" testId="card-meta" />
         {!stacked && (
-          <div className="hidden tablet:mt-2 tablet:block">
-            <span aria-hidden="true" className={cx(buttonLookClass("primary"), "w-fit")}>
-              {uk.feed.adoptPill}
-            </span>
-          </div>
+          <span aria-hidden="true" className="gcard-pill">
+            {uk.feed.adoptPill}
+          </span>
         )}
       </div>
     </Link>
