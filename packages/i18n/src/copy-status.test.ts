@@ -1473,7 +1473,7 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.who.sizeNote":
       "Ваги немає навмисно: розмір на око точніший, ніж торішня цифра.",
     "kabinet.animalForm.who.sizeHintUpTo": "до {max} кг",
-    "kabinet.animalForm.who.sizeHintRange": "{min}-{max} кг",
+    "kabinet.animalForm.who.sizeHintRange": "{min}–{max} кг",
     "kabinet.animalForm.who.sizeHintFrom": "від {min} кг",
     "kabinet.animalForm.age.title": "Вік",
     "kabinet.animalForm.age.modeLabel": "Що відомо про вік",

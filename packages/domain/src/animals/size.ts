@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { AnimalSpecies } from "./animal";
 
 export const SizeBucketSchema = z.enum(["small", "medium", "large"]);
 export type SizeBucket = z.infer<typeof SizeBucketSchema>;
@@ -11,13 +12,22 @@ export const SIZE_BUCKETS = ["small", "medium", "large"] as const satisfies read
  * as a number reads as a fact, and nothing in the product needs more resolution
  * than the bucket.
  *
+ * Per species (2026-10-30): one dog scale left nearly every cat in `small`.
+ * The labels and the stored bucket are shared; only the kilograms differ.
  * `maxKg: null` on `large` because the bucket is open-ended.
  */
 export const SIZE_BUCKET_WEIGHT_HINTS_KG: Record<
-  SizeBucket,
-  { minKg: number; maxKg: number | null }
+  AnimalSpecies,
+  Record<SizeBucket, { minKg: number; maxKg: number | null }>
 > = {
-  small: { minKg: 0, maxKg: 10 },
-  medium: { minKg: 10, maxKg: 25 },
-  large: { minKg: 25, maxKg: null },
+  dog: {
+    small: { minKg: 0, maxKg: 10 },
+    medium: { minKg: 10, maxKg: 25 },
+    large: { minKg: 25, maxKg: null },
+  },
+  cat: {
+    small: { minKg: 0, maxKg: 3 },
+    medium: { minKg: 3, maxKg: 5 },
+    large: { minKg: 5, maxKg: null },
+  },
 };

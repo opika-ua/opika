@@ -817,7 +817,7 @@ export const en = {
         sizeNote:
           "There is no weight on purpose: a size judged by eye is more accurate than last year's number.",
         sizeHintUpTo: "up to {max} kg",
-        sizeHintRange: "{min}-{max} kg",
+        sizeHintRange: "{min}–{max} kg",
         sizeHintFrom: "from {min} kg",
       },
       coat: {

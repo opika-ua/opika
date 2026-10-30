@@ -1242,10 +1242,13 @@ export function buildAnimals(
       name = sex === "female" ? pick(CAT_NAMES_F, i * 11 + 5) : pick(CAT_NAMES, i * 17 + 2);
     }
 
-    // Size distribution: cats mostly small, dogs mixed
+    // Size distribution: both species mixed (cats on their own kg scale)
     let size: SizeBucket;
     if (species === "cat") {
-      size = i % 10 === 0 ? "medium" : "small";
+      // Cats are every third index. Small and medium only: the gallery harness relies on
+      // the seed never having a large cat (empty-option and no-match specs).
+      const catRoll = (i / 3) % 2;
+      size = catRoll === 0 ? "small" : "medium";
     } else {
       const sizeRoll = i % 6;
       size = sizeRoll < 2 ? "small" : sizeRoll < 4 ? "medium" : "large";

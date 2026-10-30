@@ -21,6 +21,11 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    (<10kg / 10-25kg / 25kg+) exists purely as guidance for whoever fills in
    the listing. _(Superseded the earlier 4-tier `giant` variant - that tier
    is gone, deliberately, not by oversight.)_
+   **Override 2026-10-30 (Oleksii):** the hints are now per species, so
+   cats do not all land in `small`. Dogs keep <10 / 10-25 / 25+ kg; cats are
+   <3 / 3-5 / 5+ kg. Labels and the stored bucket are unchanged (no
+   migration, no contract change). This replaces "one weight scale for dogs
+   and cats", here and in decision 8.
 4. **Age buckets:** 4-tier, Petfinder-style - `baby` (<1yr) / `young`
    (1-3yr) / `adult` (3-8yr) / `senior` (8yr+). **The bucket is derived, not
    stored.** `Animal.age` holds an `AgeEstimate` (a birth date, or a bucket

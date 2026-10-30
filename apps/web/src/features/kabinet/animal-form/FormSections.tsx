@@ -248,7 +248,8 @@ export function BasicsFields({
         segments={SIZE_BUCKETS.map((size) => ({
           value: size,
           label: SIZE_NAME[size],
-          hint: sizeHint(size),
+          // Which kilograms a size means depends on the species: none until one is chosen.
+          ...(values.species === null ? {} : { hint: sizeHint(values.species, size) }),
         }))}
         value={values.size}
         hint={t.who.sizeNote}
