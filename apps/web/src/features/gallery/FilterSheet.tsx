@@ -458,7 +458,7 @@ function DrillDown({
   const chosen = options.filter((option) => option.selected).length;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="grid grid-cols-[3rem_1fr_3rem] items-center gap-2 px-5 pt-3 pb-2">
+      <div className="flex items-center justify-between gap-2 px-5 pt-3 pb-2">
         <button
           type="button"
           onClick={onBack}
@@ -467,7 +467,7 @@ function DrillDown({
         >
           <Icon name="chevron-left" />
         </button>
-        <h2 className="text-center text-title text-ink">{title}</h2>
+        <h2 className="min-w-0 flex-1 text-center text-title text-ink">{title}</h2>
         {close}
       </div>
       <div className="px-5 pb-3">

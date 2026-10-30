@@ -8,7 +8,11 @@ import { ComboboxMulti } from "../../../ui/ComboboxMulti";
 import { Icon } from "../../../ui/Icon";
 import { Menu, MenuItem } from "../../../ui/Menu";
 import { Modal } from "../../../ui/Modal";
-import type { MultiSelectRow } from "../../../ui/MultiSelectRows";
+import {
+  MultiSelectChecklist,
+  MultiSelectListbox,
+  type MultiSelectRow,
+} from "../../../ui/MultiSelectRows";
 import { Popover } from "../../../ui/Popover";
 import { Sheet } from "../../../ui/Sheet";
 import { Text } from "../../../ui/Text";
@@ -327,6 +331,64 @@ export function ComboboxMultiDemo() {
           clearField: "Clear City",
         }}
       />
+    </div>
+  );
+}
+
+const STATIC_ROWS: MultiSelectRow[] = [
+  {
+    value: "a",
+    label: ["Br", "ov", "ary"],
+    detail: null,
+    count: 3,
+    checked: true,
+    disabled: false,
+    name: "Brovary, 3",
+    group: { id: "has", label: "Has animals" },
+  },
+  {
+    value: "b",
+    label: ["Irpin", "", ""],
+    detail: ["Kyiv obl.", "", ""],
+    count: 8,
+    checked: false,
+    disabled: false,
+    name: "Irpin, 8",
+    group: { id: "has", label: "Has animals" },
+  },
+  {
+    value: "c",
+    label: ["Odesa", "", ""],
+    detail: null,
+    count: 0,
+    checked: false,
+    disabled: true,
+    name: "Odesa, 0",
+    group: { id: "none", label: "No animals yet" },
+  },
+];
+
+/** The two row lists on their own: the combobox's listbox and the phone's checklist (matched part bold, empty row disabled). */
+export function MultiSelectRowsDemo() {
+  return (
+    <div className="flex w-full flex-wrap gap-8">
+      <div className="w-72">
+        <MultiSelectListbox
+          rows={STATIC_ROWS}
+          idPrefix="demo-listbox"
+          activeValue="b"
+          onToggle={() => undefined}
+          label="Listbox"
+        />
+      </div>
+      <div className="w-72">
+        <MultiSelectChecklist
+          rows={STATIC_ROWS}
+          idPrefix="demo-checklist"
+          onToggle={() => undefined}
+          label="Checklist"
+        />
+      </div>
     </div>
   );
 }

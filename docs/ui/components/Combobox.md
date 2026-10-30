@@ -24,14 +24,4 @@ File: `apps/web/src/ui/Combobox.tsx`
 <Combobox id="city" name="cityId" label={t.city} value={city} onChange={setCity} search={searchCities} messages={t.combobox} />
 ```
 
-## Multi-select mode
-
-File: `apps/web/src/ui/ComboboxMulti.tsx` (rows: `MultiSelectRows.tsx`). Demo: `/dev/ui`, "Combobox, multi-select mode". The single-value async `Combobox` above is unchanged; this is a sibling in the same family, for a list the caller already holds (no request, no loading state).
-
-**Props.** `id`, `label` (the closed field's text while nothing is chosen, and the list's name), `summary` (the chosen names, joined), `selectedValues` (in the order chosen), `rows(query, pinned)`, `onToggle(value)`, `onClear()`, `messages` (`search`, `clear`, `selectedCount(n)`, `found(n)`, `noMatch`, `noMatchHint?`, `clearField`). The caller owns matching, order and the matched part of the text (each row's `label`/`detail` are `[before, matched, after]`); `pinned` is the set of values chosen when the list opened, so a row ticked now does not jump away under the pointer.
-
-**Behaviour.** Closed it shows the label, or the chosen names (ellipsised) with a count badge from two choices and a ✕. Focus or a click opens a text input over a listbox in the top layer (`popover="manual"`, never clipped by a container), at least 320px wide, below the field and clamped to the viewport. A row is a checkbox, the name, an optional second line, and the count at the right in tabular numbers (48px tall). Toggling applies at once and the list stays open. Typed text is never a value: blur or Esc drops it. Keys: ↓/↑ move over usable rows, Enter toggles, Space toggles on an empty field (and types once there is a query), Esc closes and keeps focus, Backspace on an empty field removes the last chosen value.
-
-**Accessibility.** `role="combobox"` with `aria-expanded`, `aria-controls`, `aria-activedescendant`; a `role="listbox"` with `aria-multiselectable`; options carry `aria-selected`, `aria-disabled` and an accessible name that includes the count. Groups are `role="group"` with a name. The badge is an image with the «Вибрано: N» name; a live region announces the number found.
-
-**Phone.** The same rows are drawn as `MultiSelectChecklist` (buttons with `role="checkbox"`, each a Tab stop) inside the gallery's filter sheet; no combobox there, so the on-screen keyboard only appears when the search field is tapped.
+**Multi-select mode** (several values from a list already held, a count badge, a top-layer list): see [ComboboxMulti](ComboboxMulti.md).

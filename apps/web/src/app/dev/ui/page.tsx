@@ -44,6 +44,7 @@ import {
   ComboboxMultiDemo,
   MenuDemo,
   ModalDemo,
+  MultiSelectRowsDemo,
   PopoverDemo,
   SheetDemo,
   ToastDemo,
@@ -489,6 +490,9 @@ export default function DevUiPage() {
         </Row>
         <Row label="Combobox, multi-select mode (local options, count badge, ✕, top-layer list)">
           <ComboboxMultiDemo />
+        </Row>
+        <Row label="Multi-select rows: listbox (combobox) and checklist (phone sheet)">
+          <MultiSelectRowsDemo />
         </Row>
         <Row label="Menu (a row's «More»)">
           <MenuDemo />

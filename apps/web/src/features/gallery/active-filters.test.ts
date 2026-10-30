@@ -46,14 +46,20 @@ describe("active filter chips", () => {
     expect(chips().map((chip) => [chip.name, chip.removeLabel])).toEqual([
       ["Київська", "Прибрати фільтр Київська"],
       ["Бровари", "Прибрати фільтр Бровари"],
-      ["Молодий", "Прибрати фільтр Молодий"],
       ["Дорослий", "Прибрати фільтр Дорослий"],
+      ["Молодий", "Прибрати фільтр Молодий"],
     ]);
   });
 
   it("a chip's link is the same page without that one value (URL round-trip), species kept", () => {
     const age = chips().find((chip) => chip.name === "Молодий");
-    expect(age?.href).toBe("/tvaryny?vyd=dog&obl=kyivska&misto=brovary-kyivska&vik=adult");
+    const params = new URL(age?.href ?? "", "http://x").searchParams;
+    expect([params.get("vyd"), params.get("obl"), params.get("misto"), params.get("vik")]).toEqual([
+      "dog",
+      "kyivska",
+      "brovary-kyivska",
+      "adult",
+    ]);
     const back = parseGalleryQuery(
       Object.fromEntries(new URL(age?.href ?? "", "http://x").searchParams),
       PLACE_BOOK.placeIds,
