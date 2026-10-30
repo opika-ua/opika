@@ -26,6 +26,7 @@ import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, makeAnimal, testDatabaseUrl } from "@opika/db/test";
 import type { ShelterId } from "@opika/domain";
 import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
+import { expectTabRowSound } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.37";
@@ -279,39 +280,10 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
       await page.close();
     });
 
-    test(`the status tabs row has no vertical scrollbar at ${size.width}px`, async () => {
+    test(`the status tabs row at ${size.width}px: at most 48px tall, no vertical scroll, a pointer on every tab, the focus ring inside the row`, async () => {
       const page = await open("/kabinet/tvaryny");
       await page.setViewportSize(size);
-      const overflow = await page
-        .getByRole("tablist")
-        .evaluate((row) => row.scrollHeight - row.clientHeight);
-      expect(overflow).toBeLessThanOrEqual(0);
-
-      // The focus ring of a focused tab lies inside the row's clip, so none of it is cut off.
-      await page.keyboard.press("Shift");
-      const tab = page.getByRole("tab").first();
-      await tab.focus();
-      const fit = await page.getByRole("tablist").evaluate((row) => {
-        const tabEl = row.querySelector<HTMLElement>('[role="tab"]');
-        if (tabEl === null) throw new Error("no tab");
-        const style = getComputedStyle(tabEl);
-        const reach =
-          Number.parseFloat(style.outlineWidth) + Number.parseFloat(style.outlineOffset);
-        const rowStyle = getComputedStyle(row);
-        const clip = row.getBoundingClientRect();
-        const box = tabEl.getBoundingClientRect();
-        return {
-          reach,
-          top: box.top - reach - (clip.top + Number.parseFloat(rowStyle.borderTopWidth)),
-          bottom:
-            clip.bottom - Number.parseFloat(rowStyle.borderBottomWidth) - (box.bottom + reach),
-          left: box.left - reach - clip.left,
-        };
-      });
-      expect(fit.reach).toBeGreaterThan(0);
-      expect(fit.top).toBeGreaterThanOrEqual(0);
-      expect(fit.bottom).toBeGreaterThanOrEqual(0);
-      expect(fit.left).toBeGreaterThanOrEqual(0);
+      await expectTabRowSound(page, page.getByRole("tablist"));
       await page.close();
     });
   }
