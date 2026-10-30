@@ -61,8 +61,8 @@ export interface SmokeSittingInput {
     /**
      * Nationwide N3: after the import, on the same child branch, a read-only step that prints the
      * 20 search timings and the `EXPLAIN (ANALYZE, BUFFERS)` plans (`db:neon-smoke-timings`). It
-     * needs the imported table to mean anything, so it runs here and not inside the smoke, which
-     * runs first (the import renames the seeded slugs the earlier checks look for).
+     * needs the imported table (the 29,703-row import) to mean anything, so it runs after it,
+     * on the same branch (see neon-smoke-timings.ts).
      */
     timings?: { expected: string };
   };

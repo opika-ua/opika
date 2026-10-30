@@ -1,5 +1,6 @@
 import { eq, ne } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { KYIV_CITY_REGION_ID, KYIV_OBLAST_REGION_ID } from "../src/geography/regions-data";
 import { cityRepo } from "../src/repos/city-repo";
 import { cities } from "../src/schema/cities";
 import { citySlugAliases } from "../src/schema/city-slug-aliases";
@@ -58,9 +59,38 @@ describe("runGeographySmoke against the local database", () => {
     expect(outcomes.at(-1)?.ok).toBe(true);
   });
 
-  it("still flags a renamed city in the wrong region", async () => {
+  it("still flags a renamed city of the wrong kind", async () => {
     await renameLikeImport();
     await db.update(cities).set({ kind: "village" }).where(eq(cities.slug, "brovary-kyivska"));
+    const last = (await runGeographySmoke(db)).at(-1);
+    expect(last?.ok).toBe(false);
+    expect(last?.detail).toBe("seeded cities present: 8, wrong: 1");
+  });
+
+  it("flags a renamed city in the wrong region", async () => {
+    await renameLikeImport();
+    await db
+      .update(cities)
+      .set({ regionId: KYIV_CITY_REGION_ID })
+      .where(eq(cities.slug, "brovary-kyivska"));
+    const last = (await runGeographySmoke(db)).at(-1);
+    expect(last?.ok).toBe(false);
+    expect(last?.detail).toBe("seeded cities present: 8, wrong: 1");
+  });
+
+  it("flags Kyiv in the wrong region", async () => {
+    await truncateAll(db);
+    await cityRepo(db).insertMissing(buildCities());
+    await db.update(cities).set({ regionId: KYIV_OBLAST_REGION_ID }).where(eq(cities.slug, "kyiv"));
+    const last = (await runGeographySmoke(db)).at(-1);
+    expect(last?.ok).toBe(false);
+    expect(last?.detail).toBe("seeded cities present: 8, wrong: 1");
+  });
+
+  it("flags Kyiv of the wrong kind", async () => {
+    await truncateAll(db);
+    await cityRepo(db).insertMissing(buildCities());
+    await db.update(cities).set({ kind: "city" }).where(eq(cities.slug, "kyiv"));
     const last = (await runGeographySmoke(db)).at(-1);
     expect(last?.ok).toBe(false);
     expect(last?.detail).toBe("seeded cities present: 8, wrong: 1");
