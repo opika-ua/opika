@@ -1,10 +1,11 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import { useState } from "react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useEffect, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Menu, MenuItem } from "./Menu";
 import { Modal } from "./Modal";
 import { Popover } from "./Popover";
 import { Sheet } from "./Sheet";
+import { pressEscapeWhenShown } from "./test-dialog";
 
 afterEach(() => {
   document.body.style.overflow = "";
@@ -76,6 +77,35 @@ describe("Modal", () => {
     // The browser's close request ends in dialog.close(); that is the contract the core relies on.
     act(() => dialog.close());
     expect(document.body.style.overflow).toBe("");
+  });
+
+  // The flaky reveal Escape tests (#295, #297): mounted open by a response and closed before React's
+  // passive effects ran, the dialog stayed in the page with `onClose` never called.
+  it("mounted open by a response and closed before React's effects ran, it still reaches onClose", async () => {
+    const onClose = vi.fn();
+    function MountsOnResponse() {
+      const [open, setOpen] = useState(false);
+      useEffect(() => {
+        void Promise.resolve().then(() => setOpen(true));
+      }, []);
+      const close = () => {
+        onClose();
+        setOpen(false);
+      };
+      // Mounted only once open, as the reveal is: the dialog and its listeners arrive in one commit.
+      return open ? (
+        <Modal open onClose={close} title="Заголовок" closeLabel="Закрити">
+          <span>Тіло</span>
+        </Modal>
+      ) : null;
+    }
+    const escapePressedIn = pressEscapeWhenShown();
+    render(<MountsOnResponse />);
+
+    const dialog = await waitFor(escapePressedIn);
+    expect(dialog.open).toBe(false);
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(document.body.style.overflow, "the scroll lock is released").toBe("");
   });
 });
 
