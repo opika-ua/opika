@@ -699,6 +699,46 @@ describe("galleryRepo.list, scoped to one shelter", () => {
 });
 
 describe("galleryRepo.relaxationCounts", () => {
+  it("with a shelter scope measures gains within that shelter's animals only", async () => {
+    const kyiv = makeCity();
+    await cityRepo(db).insert(kyiv);
+    const mine = await makeShelterInCity(kyiv.id);
+    const other = await makeShelterInCity(kyiv.id);
+    await animalRepo(db).insertMany([
+      {
+        animal: makeAnimal({ shelterId: mine.id, species: "dog", size: "small" }),
+        cityId: kyiv.id,
+      },
+      {
+        animal: makeAnimal({ shelterId: mine.id, species: "cat", size: "small" }),
+        cityId: kyiv.id,
+      },
+      {
+        animal: makeAnimal({ shelterId: other.id, species: "cat", size: "small" }),
+        cityId: kyiv.id,
+      },
+      {
+        animal: makeAnimal({ shelterId: other.id, species: "cat", size: "small" }),
+        cityId: kyiv.id,
+      },
+    ]);
+    const filters: FeedFilters = {
+      ...NO_FILTERS,
+      species: { kind: "oneOf", values: ["dog"] },
+    };
+
+    const scoped = await galleryRepo(db).relaxationCounts({
+      filters,
+      now: NOW,
+      scope: { kind: "shelter", shelterId: mine.id },
+    });
+    const everyone = await galleryRepo(db).relaxationCounts({ filters, now: NOW });
+
+    expect(scoped.current).toBe(1);
+    expect(scoped.relaxations).toEqual([{ dimension: "species", additional: 1 }]);
+    expect(everyone.relaxations).toEqual([{ dimension: "species", additional: 3 }]);
+  });
+
   it("counts only the dimensions actually constrained, as gains over the current match", async () => {
     const kyiv = makeCity();
     const lviv = makeCity();

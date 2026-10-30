@@ -119,6 +119,7 @@ export async function galleryRelaxationCounts(
 ): Promise<RelaxationOutput> {
   return galleryRepo(context.db).relaxationCounts({
     filters: input.filters,
+    scope: input.scope,
     now: context.now,
   });
 }
