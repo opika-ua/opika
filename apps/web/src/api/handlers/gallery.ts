@@ -151,5 +151,6 @@ export async function galleryFacetCounts(
     ages: { ...counts.ages },
     sizes: { ...counts.sizes },
     sexes: { ...counts.sexes },
+    species: { ...counts.species },
   };
 }

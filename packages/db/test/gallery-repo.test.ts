@@ -1114,6 +1114,8 @@ describe("galleryRepo.facetCounts", () => {
     expect(sum(everyone.sizes)).toBeGreaterThan(1);
     expect(scoped.sizes).toEqual({ small: 0, medium: 0, large: 1 });
     expect(scoped.sexes).toEqual({ male: 0, female: 1, unknown: 0 });
+    expect(scoped.species).toEqual({ dog: 0, cat: 1 });
+    expect(everyone.species.dog).toBeGreaterThan(0);
     expect(cityCounts(scoped)).toEqual(new Map([[kyiv.id, 1]]));
 
     const unlisted = await galleryRepo(db).facetCounts({

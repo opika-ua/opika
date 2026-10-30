@@ -62,6 +62,7 @@ export const COUNTS: GalleryFacetCounts = {
   ages: { baby: 2, young: 3, adult: 5, senior: 1 },
   sizes: { small: 1, medium: 3, large: 5 },
   sexes: { male: 4, female: 6, unknown: 2 },
+  species: { dog: 7, cat: 5 },
 };
 
 /** The slug maps a page builds from its labels. */

@@ -1,6 +1,7 @@
 import {
   AgeBucketSchema,
   AnimalSexSchema,
+  AnimalSpeciesSchema,
   CityIdSchema,
   DEFAULT_GALLERY_SORT,
   EVERYONE_SCOPE,
@@ -159,7 +160,7 @@ export const GalleryFacetCountsInputSchema = z.object({
  * filters as given. The dimension's own selection is ignored, so the counts
  * don't collapse as options are picked. Integers and option ids only.
  *
- * Species has no entry: it is a segmented control, not a selector with counts.
+ * Species is a segmented control with no counts beside its options; `species` is there for a page that needs to know whether more than one is present.
  *
  * `cities` is every city that has a discoverable animal, and no other (the options are derived
  * from the animals, never from the settlement list), each with its label so a chip can print the
@@ -174,6 +175,8 @@ export const GalleryFacetCountsOutputSchema = z.object({
   ages: z.record(AgeBucketSchema, countSchema),
   sizes: z.record(SizeBucketSchema, countSchema),
   sexes: z.record(AnimalSexSchema, countSchema),
+  /** The species switch's own counts (its choice ignored); a shelter page shows the switch only when both are above zero. */
+  species: z.record(AnimalSpeciesSchema, countSchema),
 });
 export type GalleryFacetCounts = z.infer<typeof GalleryFacetCountsOutputSchema>;
 

@@ -77,6 +77,7 @@ describe("gallery.facetCounts", () => {
       ages: { baby: 0, young: 1, adult: 0, senior: 0 },
       sizes: { small: 1, medium: 0, large: 1 },
       sexes: { male: 1, female: 0, unknown: 0 },
+      species: { dog: 1, cat: 1 },
     });
   });
 
