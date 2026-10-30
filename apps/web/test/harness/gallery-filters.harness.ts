@@ -53,50 +53,27 @@ async function cardNames(page: {
 }
 
 /**
- * gallery-v3 (Figma `58:1617`): `FilterRail` is retired and «Фільтр» at
- * >=1024 now toggles `GalleryControlBlock`'s own dropdown row
- * (`gallery-filter-row`), not `FilterSheet`'s modal - designer
- * clarification mid-build. The breakpoint split that used to hold between
- * the rail and the sheet now holds between this toggleable row and the
- * sheet instead.
+ * Filters v2: from 1024px the page shows the field row (Область and Місто as search fields, no
+ * «Фільтр» button); below it the «Фільтри» sheet trigger. Found by role and name, not by class.
  */
 test.describe("/tvaryny filter row vs sheet – mutually exclusive by breakpoint", () => {
-  test("at >=1024, the toggle button is visible and the sheet trigger is not", async ({ page }) => {
-    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
-
-    const toggleBox = await page.getByTestId("gallery-filter-toggle").boundingBox();
-    expect(
-      toggleBox,
-      "gallery-filter-toggle should have a real bounding box at desktop width",
-    ).not.toBeNull();
-    expect(toggleBox?.width, "gallery-filter-toggle should have non-zero width").toBeGreaterThan(0);
-
-    const triggerBox = await page.getByTestId("filter-sheet-trigger").boundingBox();
-    expect(
-      triggerBox,
-      "filter-sheet-trigger should have no bounding box (display:none) at desktop width – " +
-        "the toggle row owns filtering there, not the sheet",
-    ).toBeNull();
-  });
-
-  test("below 1024, the sheet trigger is visible and the toggle button is not", async ({
+  test("at >=1024, the fields are there and neither the sheet trigger nor a «Фільтр» button is", async ({
     page,
   }) => {
+    await openRoute(page, ROUTE, DESKTOP, { readySelector: CARD });
+
+    await expect(page.getByRole("combobox", { name: "Область" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Місто" })).toBeVisible();
+    await expect(page.getByTestId("filter-sheet-trigger")).toBeHidden();
+    await expect(page.getByRole("button", { name: "Фільтр", exact: true })).toHaveCount(0);
+  });
+
+  test("below 1024, the sheet trigger is visible and the fields are not", async ({ page }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
 
-    const triggerBox = await page.getByTestId("filter-sheet-trigger").boundingBox();
-    expect(
-      triggerBox,
-      "filter-sheet-trigger should have a real bounding box at phone width",
-    ).not.toBeNull();
-    expect(triggerBox?.width, "filter-sheet-trigger should have non-zero width").toBeGreaterThan(0);
-
-    const toggleBox = await page.getByTestId("gallery-filter-toggle").boundingBox();
-    expect(
-      toggleBox,
-      "gallery-filter-toggle should have no bounding box (display:none) at phone width – the " +
-        "sheet owns filtering there, no mobile Figma section exists yet",
-    ).toBeNull();
+    await expect(page.getByTestId("filter-sheet-trigger")).toBeVisible();
+    await expect(page.getByTestId("filter-sheet-trigger")).toHaveText("Фільтри");
+    await expect(page.getByRole("combobox", { name: "Місто" })).toBeHidden();
   });
 });
 
@@ -211,7 +188,10 @@ test.describe("/tvaryny legacy city-id links redirect to their real slug", () =>
     await page.locator(CARD).first().waitFor({ state: "visible" });
     // The city selector's trigger names the chosen city in place of the
     // dimension once one is set (`GalleryFilterDropdowns.tsx`).
-    await expect(page.getByRole("button", { name: "Місто: Бровари" })).toHaveText("Бровари");
+    await expect(page.getByRole("combobox", { name: "Місто: Бровари" })).toHaveAttribute(
+      "placeholder",
+      "Бровари",
+    );
   });
 
   test("the redirect is a real, permanent 308, not a 200 that merely renders the same content", async ({
@@ -252,21 +232,15 @@ test.describe("/tvaryny filters – work with JavaScript disabled", () => {
       page.locator(SHEET),
       "the <dialog> should be revealed by the :target rule alone, with no JS",
     ).toBeVisible();
-    // A radio, not a checkbox (gallery filter restructure: species is
-    // exclusive-choice now), but the name/value scheme and the sr-only/
-    // wrapping-<label> pattern are unchanged.
-    const speciesRadio = page.locator(`${SHEET} input[name="vyd"][value="dog"]`);
-    await expect(speciesRadio, "the species radio should be reachable without JS").toBeAttached();
-    // The input itself is visually `sr-only` (1x1, clipped) - its wrapping
-    // <label> is what a real tap actually lands on and what native <label>
-    // semantics forward the click to, exactly like every other chip in
-    // this UI. Clicking the tiny input directly is a test artifact, not
-    // how anyone - mouse or screen reader - actually operates this control.
-    await speciesRadio.locator("xpath=..").click();
-    await expect(speciesRadio, "clicking the label should check the radio it wraps").toBeChecked();
+    // Species has its own switch on the page now; the sheet's checkboxes are what a no-JS visitor ticks.
+    // The input is visually sr-only: its wrapping <label> is what a real tap lands on.
+    const sizeBox = page.locator(`${SHEET} input[name="rozmir"][value="large"]`);
+    await expect(sizeBox, "a size checkbox should be reachable without JS").toBeAttached();
+    await sizeBox.locator("xpath=..").click();
+    await expect(sizeBox, "clicking the label should check the box it wraps").toBeChecked();
     await page.locator(`${SHEET} button[type="submit"]`).click();
 
-    await page.waitForURL(/vyd=dog/);
+    await page.waitForURL(/rozmir=large/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
 
     const namesAfter = await cardNames(page);

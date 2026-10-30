@@ -31,40 +31,38 @@ const nameAndCount = (accessibleName: string | null): [string, number] => {
 };
 
 test.describe("/tvaryny filter selectors", () => {
-  test("a selector opens pills with counts, focus goes in, a pill applies at once, Esc returns focus", async ({
+  test("the city field opens a list with counts, a row applies at once, Esc closes and keeps focus", async ({
     page,
   }) => {
     await openRoute(page, "/tvaryny", DESKTOP, { readySelector: CARD });
-    const trigger = page.getByRole("button", { name: "Місто: Місто" });
+    const field = page.getByRole("combobox", { name: "Місто" });
 
-    await trigger.click();
-    await expect(trigger).toHaveAttribute("aria-expanded", "true");
-    const group = page.getByRole("group", { name: "Місто" });
-    await expect(group).toBeVisible();
-    // Focus moved into the panel, onto a pill that can do something.
-    const focused = group.locator(":focus");
-    await expect(focused).toHaveCount(1);
-    await expect(focused).toHaveAttribute("aria-pressed", "false");
-    await expect(focused).not.toHaveAttribute("aria-disabled", "true");
+    await field.click();
+    await expect(field).toHaveAttribute("aria-expanded", "true");
+    const list = page.getByRole("listbox", { name: "Місто" });
+    await expect(list).toBeVisible();
 
-    const [city, count] = nameAndCount(await focused.getAttribute("aria-label"));
-    await focused.click();
+    // Keyboard: the first usable row is reached with the down arrow and ticked with Enter.
+    await page.keyboard.press("ArrowDown");
+    const active = list.locator("[data-active='true']");
+    await expect(active).toHaveCount(1);
+    const [city, count] = nameAndCount(await active.getAttribute("aria-label"));
+    await page.keyboard.press("Enter");
     await page.waitForURL(/misto=/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
 
-    // Applied with no Apply button; the panel stayed open; the pill is pressed.
-    await expect(group).toBeVisible();
-    await expect(group.getByRole("button", { name: new RegExp(`^${city}, `) })).toHaveAttribute(
-      "aria-pressed",
+    // Applied with no Apply button; the list stayed open; the row is selected.
+    await expect(list).toBeVisible();
+    await expect(list.getByRole("option", { name: new RegExp(`^${city}, `) })).toHaveAttribute(
+      "aria-selected",
       "true",
     );
-    await expect(page.getByRole("button", { name: `Місто: ${city}` })).toBeVisible();
-    // The count the pill promised is the count the list found.
+    // The count the row promised is the count the list found.
     expect(await foundCount(page)).toBe(count);
 
     await page.keyboard.press("Escape");
-    await expect(group).toBeHidden();
-    await expect(page.getByRole("button", { name: `Місто: ${city}` })).toBeFocused();
+    await expect(list).toBeHidden();
+    await expect(page.getByRole("combobox", { name: `Місто: ${city}` })).toBeFocused();
   });
 
   /** The seed never buckets a cat as large (`gallery-error.harness.ts` relies on the same fact). */
