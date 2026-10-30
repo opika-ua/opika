@@ -77,6 +77,7 @@ export async function animalsById(
     medicalNotes: animal.medicalNotes,
     ageBucket: ageBucketOf(animal.age, context.now),
     freshness: listingFreshness(animal.listing, context.now),
+    listingKind: discoverableListingKind(animal.listing),
     shelter: {
       id: shelter.id,
       displayName: shelter.displayName,

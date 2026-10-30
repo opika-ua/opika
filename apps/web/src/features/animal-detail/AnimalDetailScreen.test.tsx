@@ -38,6 +38,7 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
     medicalNotes: null,
     ageBucket: "young",
     freshness: freshnessOf(AT, NOW, DEFAULT_FRESHNESS_POLICY),
+    listingKind: "published",
     shelter: {
       id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as AnimalDetailView["shelter"]["id"],
       displayName: "Тестовий притулок",
@@ -426,5 +427,30 @@ describe("AnimalDetailScreen – the full page on a phone (pet card on phones, S
     expect(screen.queryByRole("button", { name: "Закрити" })).toBeNull();
     expect(screen.queryByTestId("overlay-prev")).toBeNull();
     expect(screen.queryByTestId("overlay-next")).toBeNull();
+  });
+});
+
+describe("AnimalDetailScreen – reserved chip", () => {
+  const renderKind = async (listingKind: AnimalDetailView["listingKind"]) => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal({ listingKind })}
+        shelter={makeShelter()}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+      />,
+    );
+  };
+
+  it("a reserved animal shows «Уже домовляються» beside the freshness chip", async () => {
+    await renderKind("reserved");
+    expect(screen.getByText("Уже домовляються")).toBeTruthy();
+    expect(screen.getByTestId("freshness-block")).toBeTruthy();
+  });
+
+  it("a published animal shows no reserved chip", async () => {
+    await renderKind("published");
+    expect(screen.queryByText("Уже домовляються")).toBeNull();
   });
 });
