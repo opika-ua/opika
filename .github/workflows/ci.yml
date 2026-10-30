@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # GitHub's merge queue runs the same check on the queued merge commit (owner, 2026-10-30).
+  merge_group:
 
 # One run per pull request: a new push cancels that PR's run in progress (Oleksii, 2026-10-19:
 # "Superseded runs: add concurrency with cancel-in-progress: true per PR"). On the default branch
