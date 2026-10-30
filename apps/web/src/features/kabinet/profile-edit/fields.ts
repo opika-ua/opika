@@ -14,7 +14,7 @@ import {
  * normalised (K4 sheet, answer 4, Oleksii, verbatim: "Yes: accept @handle,
  * t.me/handle, spaced/dashed numbers; normalise silently."), and which of his
  * messages a field gets. No React, no I/O: the components call these, and the
- * server checks everything again (`ShelterContactSchema`,
+ * server checks everything again (`ShelterContactInputSchema`,
  * `FreshnessSentenceInputSchema`), so these exist to tell a person what to fix
  * before a round trip, never to decide what is stored.
  */

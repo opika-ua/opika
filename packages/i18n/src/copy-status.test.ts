@@ -368,13 +368,13 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // k4-copy-uk.md
     "profileEdit.errors.illegalTransitionResume":
       "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
-    // k4-copy-uk.md
+    // Owner, 2026-10-29 (kabinet UX round 2, replaces k4-copy-uk.md's sentence; the Viber one is the same).
     "profileEdit.errors.phoneFormat":
       "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
     // k4-copy-uk.md
     "profileEdit.errors.telegramFormat":
       "Імʼя користувача в Telegram: 5-32 латинські літери, цифри або підкреслення. @ можна не писати.",
-    // k4-copy-uk.md
+    // Owner, 2026-10-29 (same sentence as phoneFormat).
     "profileEdit.errors.viberFormat":
       "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
     // k4-copy-uk.md

@@ -2,8 +2,11 @@ import { z } from "zod";
 
 const E164Schema = z.string().regex(/^\+[1-9]\d{7,14}$/);
 
-/** The Ukrainian shape: +380 and nine digits. Spaces, dashes, dots and brackets are not part of it. */
-const UA_PHONE = /^\+380\d{9}$/;
+/**
+ * The Ukrainian shape: +380 and nine digits, the first of them 1-9 (no national number starts with
+ * 0). Spaces, dashes, dots and brackets are not part of it.
+ */
+const UA_PHONE = /^\+380[1-9]\d{8}$/;
 
 /**
  * What a person typed as a Ukrainian number, as +380XXXXXXXXX, or null when it is not one.
@@ -23,7 +26,7 @@ export function normalizeUaPhone(raw: string): string | null {
       : digits.startsWith("0")
         ? digits.slice(1)
         : null;
-  return national !== null && /^\d{9}$/.test(national) ? `+380${national}` : null;
+  return national !== null && /^[1-9]\d{8}$/.test(national) ? `+380${national}` : null;
 }
 
 /**

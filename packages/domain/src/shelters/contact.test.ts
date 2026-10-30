@@ -22,6 +22,9 @@ describe("normalizeUaPhone", () => {
     "+48600100200",
     "671234567",
     "+380 67 abc 45 67",
+    "0012345678",
+    "+380012345678",
+    "380012345678",
     "",
   ])("%s is not a Ukrainian number", (typed) => expect(normalizeUaPhone(typed)).toBeNull());
 });
