@@ -68,6 +68,11 @@ Priority: speed with sensible quality.
 12. Never answer a permission prompt on the owner's behalf. If blocked, park the step and ask.
 13. Merge a green PR without updating it from `main` unless GitHub reports a conflict.
 14. If `main` CI is red, fix it before any other merge.
+15. Before reporting done, every agent stops every process it started (dev or start servers, vitest, Playwright,
+    browsers), kills the whole tree, and checks that no running node process references its worktree path.
+16. After a PR merges, remove its worktree (`git worktree remove`, never `--force` without the owner's OK), then run
+    `pnpm db:prune-test-dbs --yes`.
+17. Never restart a server inside a merged PR's worktree.
 
 
 ## What this is
