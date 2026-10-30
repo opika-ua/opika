@@ -223,6 +223,17 @@ dialog[data-hash-open]:target {
 @utility pb-safe {
   padding-bottom: max(env(safe-area-inset-bottom), 1.25rem);
 }
+/* The pet card's hero photo cap: 55% of the viewport height on a phone, 520px from tablet. */
+@utility max-h-photo {
+  max-height: 55dvh;
+  @media (min-width: 600px) {
+    max-height: 32.5rem;
+  }
+}
+/* Clearance for the pet card's floating controls: the notch inset, or 0.75rem. */
+@utility pt-inset-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
 /* Top clearance for a bar under the notch: 1.5rem, or the inset if that is larger. */
 @utility pt-safe-top {
   padding-top: max(1.5rem, env(safe-area-inset-top));

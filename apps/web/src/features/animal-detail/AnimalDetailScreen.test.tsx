@@ -403,3 +403,28 @@ describe("AnimalDetailScreen – landmarks", () => {
     expect(within(main).getByRole("heading", { level: 1, name: "Мурчик" })).toBeTruthy();
   });
 });
+
+describe("AnimalDetailScreen – the full page on a phone (pet card on phones, S6)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("has «Усі тварини» back to the gallery, and no ✕ and no prev/next (those are the overlay's)", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+        backToGalleryHref="/tvaryny?misto=brovary"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe(
+      "/tvaryny?misto=brovary",
+    );
+    expect(screen.queryByRole("button", { name: "Закрити" })).toBeNull();
+    expect(screen.queryByTestId("overlay-prev")).toBeNull();
+    expect(screen.queryByTestId("overlay-next")).toBeNull();
+  });
+});
