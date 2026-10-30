@@ -3,7 +3,6 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SITE_ORIGIN, SITE_TITLE, TITLE_TEMPLATE, titled, WORDMARK } from "../brand";
 import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
-import { SiteFooter } from "../features/chrome/SiteFooter";
 import { SkipLink } from "../features/chrome/SkipLink";
 import { PAGE_COLOR } from "../pwa";
 import { JsonLd } from "../seo/json-ld";
@@ -98,7 +97,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SkipLink />
         <JsonLd data={organizationJsonLd()} />
         {children}
-        <SiteFooter />
         {/*
           Cookieless, no-op without JS - aggregate page views (Analytics)
           and real Core Web Vitals from actual devices (Speed Insights),

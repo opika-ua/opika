@@ -252,11 +252,6 @@ export const en = {
     resolved: "The shelter says: {name} has found a home.",
   },
 
-  footer: {
-    dataCredit:
-      "List of settlements: Codifier of administrative-territorial units (Ministry of Development), Creative Commons Attribution.",
-  },
-
   // --- Exhausted (07) ---
   exhausted: {
     title: "That's everyone who fits right now.",
@@ -461,6 +456,16 @@ export const en = {
       "The site collects basic visit statistics – how many people visit and how fast the pages load – with no advertising.",
     /** Template: "Get in touch: {contact}" */
     contact: "Get in touch: {contact}",
+    sources: {
+      heading: "Data sources",
+      intro:
+        "The list of settlements is taken from the codifier of administrative-territorial units and territories of territorial communities (Ministry of Development).",
+      datasetLink: "Dataset on data.gov.ua",
+      edition: "Edition of 7 July 2026 (order No. 1321).",
+      licenceLink: "Creative Commons Attribution licence",
+      changes:
+        "Changes: Latin transliteration, search keys and page addresses added, apostrophes made uniform, city districts not included.",
+    },
   },
 
   /**
