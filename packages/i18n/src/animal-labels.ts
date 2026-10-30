@@ -52,6 +52,15 @@ export function ageWordFor(bucket: AgeBucket, sex: AnimalSex): string {
   return gender === "feminine" ? FEMININE_AGE_BUCKET_LABELS[bucket] : AGE_BUCKET_LABELS[bucket];
 }
 
+/**
+ * `ageWordFor` with a capital first letter, for the pet card's meta line and «Про мене» chip,
+ * which are capitalised like the other chips («Доросла» for a girl, «Дорослий» otherwise).
+ */
+export function ageChipWordFor(bucket: AgeBucket, sex: AnimalSex): string {
+  const word = ageWordFor(bucket, sex);
+  return word.charAt(0).toLocaleUpperCase("uk") + word.slice(1);
+}
+
 const SPECIES_WORD_LABELS: Record<AnimalSpecies, string> = {
   dog: uk.detail.speciesDogMale,
   cat: uk.detail.speciesCat,

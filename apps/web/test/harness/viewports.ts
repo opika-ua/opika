@@ -36,6 +36,13 @@ export const SHORT_PHONE: Viewport = { name: "390x640 short phone", width: 390, 
  */
 export const ANDROID_PHONE: Viewport = { name: "360x640 android phone", width: 360, height: 640 };
 
+/** 360x740 - a taller budget Android, the other size the reveal sheet is checked at. */
+export const ANDROID_PHONE_TALL: Viewport = {
+  name: "360x740 android phone",
+  width: 360,
+  height: 740,
+};
+
 /**
  * 320x640 - the narrowest width still worth calling a real device (iPhone SE
  * 1st gen, small budget Androids).

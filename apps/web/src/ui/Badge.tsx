@@ -18,7 +18,7 @@ export function Badge({ tone, className, children }: BadgeProps) {
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-tag px-2 py-1 text-caption",
+        "inline-flex items-center whitespace-nowrap rounded-tag px-2 py-1 text-caption",
         TONE[tone],
         className,
       )}
