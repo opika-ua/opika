@@ -28,4 +28,13 @@ describe("gallery test-only failure hook", () => {
       ),
     ).not.toThrow();
   });
+
+  it("is a no-op whenever the env var is unset, on any platform", () => {
+    for (const platform of [{}, { VERCEL: "1" }, { VERCEL_ENV: "preview" }]) {
+      for (const params of [ASK, {}]) {
+        expect(galleryTestFailureRequested(platform, params)).toBe(false);
+        expect(() => throwIfGalleryTestFailure(platform, params)).not.toThrow();
+      }
+    }
+  });
 });
