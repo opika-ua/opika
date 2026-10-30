@@ -7,15 +7,15 @@ import { FormSection } from "../../ui/FormSection";
 import { Heading } from "../../ui/Heading";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { Text } from "../../ui/Text";
+import { BACK_TO_LIST } from "./AnimalPage";
 import type { ProfileEditing } from "./home";
-import { KabinetBrand } from "./KabinetBrand";
+import { KabinetHeader } from "./KabinetHeader";
 import { KabinetNav } from "./KabinetNav";
 import { channelValue, Facts, LockedBlock, Row } from "./ProfileParts";
 import { ChangePasswordSection, type PasswordState } from "./password/ChangePasswordSection";
 import { PausedStatus } from "./profile-edit/PausedStatus";
 import { ProfileEditor } from "./profile-edit/ProfileEditor";
-import { animalListShownTo, SHELTER_HOME } from "./routes";
-import { SignOutButton } from "./SignOutButton";
+import { animalListShownTo } from "./routes";
 import { SupportBanner } from "./SupportBanner";
 
 /**
@@ -95,19 +95,7 @@ export function ShelterProfile({
     >
       {support ? <SupportBanner shelterName={view.displayName} /> : null}
 
-      <header className="flex min-h-16 items-center gap-3 bg-surface px-4 desktop:gap-5 desktop:px-8">
-        <KabinetBrand />
-        <span className="hidden text-label text-ink desktop:block">{view.displayName}</span>
-        <div className="flex-1" />
-        <span className="hidden text-body text-ink-2 desktop:block">
-          {support ? uk.kabinet.support.viewingAs : t.role}
-        </span>
-        {support ? (
-          <span className="text-body text-ink-2">{uk.kabinet.support.signOutDisabled}</span>
-        ) : (
-          <SignOutButton />
-        )}
-      </header>
+      <KabinetHeader shelterName={view.displayName} viewer={viewer} />
 
       <div
         className={`mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14 ${
@@ -129,10 +117,10 @@ export function ShelterProfile({
           <header className="flex flex-col gap-3">
             {editorOpen ? (
               <a
-                href={SHELTER_HOME}
+                href={BACK_TO_LIST.href}
                 className={`self-start desktop:hidden ${buttonClass("ghost")}`}
               >
-                {`← ${uk.kabinet.nav.home}`}
+                {BACK_TO_LIST.label}
               </a>
             ) : null}
             <Heading level={1} look="display-l" className="break-words">

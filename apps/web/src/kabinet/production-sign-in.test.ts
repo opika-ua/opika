@@ -322,7 +322,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 2026-10-28/29, pinned in copy-status.test.ts's FORM_SECTIONS_COPY).
     // 680 with the settlement picker's ten strings, `cityPicker.*` (owner-approved Phase 0 table,
     // 2026-10-29, nationwide N4).
-    expect(pending.length + written.length).toBe(680);
+    // 681 with kabinet UX round 2: less `nav.home` (no Головна tab), plus `shell.viewSite` and
+    // `shell.newTab` (owner-approved 2026-10-29).
+    expect(pending.length + written.length).toBe(681);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

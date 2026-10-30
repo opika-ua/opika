@@ -285,7 +285,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
   test("view as the shelter from S4, then leave: back on the list", async () => {
     const page = await shelterPage();
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button", { name: "Переглянути як притулок · лише читання" }).click(),
     ]);
     const banner = page.getByRole("region", { name: /^Ви переглядаєте кабінет притулку «/ });

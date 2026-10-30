@@ -113,11 +113,11 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
     // rendered (#120's run 39144246376; the same fix as b598d93's for K4). Each test's own
     // `goto("/kabinet")` asserts 200.
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button").click(),
     ]);
-    // Kabinet redesign Phase 2 PR 1: /kabinet is now Головна, not the profile editor.
-    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
+    // Kabinet redesign Phase 2 PR 1: /kabinet now lands on Тварини.
+    await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
     await page.close();
   });
 
@@ -131,13 +131,18 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
     return context.newPage();
   };
 
-  test("sign-out is the first Tab stop after the skip link", async () => {
+  test("after the skip link the header's Tab stops are «Переглянути сайт» (a new tab), then «Вийти»", async () => {
     const page = await signedInPage();
     await page.goto("/kabinet");
     // Transcribed: K4's «Вийти» (`kabinet.profile.signOut`).
     const signOut = page.getByRole("button", { name: "Вийти" });
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Перейти до вмісту" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    const viewSite = page.getByRole("link", { name: /^Переглянути сайт/ });
+    await expect(viewSite).toBeFocused();
+    await expect(viewSite).toHaveAttribute("target", "_blank");
+    await expect(viewSite).toHaveAttribute("rel", /noopener/);
     await page.keyboard.press("Tab");
     await expect(signOut).toBeFocused();
     await page.close();

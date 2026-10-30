@@ -509,7 +509,9 @@ export const en = {
     operatorFallbackName: "Site administrator",
     operatorFallbackNameInSentence: "site administrator",
     shell: {
-      label: "cabinet",
+      label: "Cabinet",
+      viewSite: "View site",
+      newTab: "(opens in a new tab)",
     },
     signIn: {
       pageTitle: "Sign in to the cabinet",
@@ -1050,7 +1052,6 @@ export const en = {
     },
     nav: {
       label: "Cabinet sections",
-      home: "Home",
       animals: "Animals",
     },
     deleteDraft: {

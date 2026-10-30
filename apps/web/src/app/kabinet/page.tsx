@@ -6,8 +6,11 @@ import { requireEnv } from "../../api/env";
 import { kabinetDashboardOf } from "../../features/kabinet/dashboard";
 import { JoinFailedCard } from "../../features/kabinet/JoinFailedCard";
 import { KabinetBrand } from "../../features/kabinet/KabinetBrand";
-import { KabinetHome } from "../../features/kabinet/KabinetHome";
-import { OPERATOR_HOME } from "../../features/kabinet/routes";
+import {
+  ANIMAL_LIST_PATH,
+  OPERATOR_HOME,
+  SHELTER_PROFILE_PATH,
+} from "../../features/kabinet/routes";
 import { SHELTER_WRITE_POLICY } from "../../kabinet/access";
 import { invitationAccepter, selfHealingIdentity } from "../../kabinet/invitation-accept";
 import { kabinetDb } from "../../kabinet/kabinet-db";
@@ -17,24 +20,15 @@ import { MAIN_LANDMARK } from "../../ui/landmark";
 import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "./available-auth";
 
 export const metadata: Metadata = {
-  title: uk.kabinet.nav.home,
+  title: uk.kabinet.nav.animals,
 };
 
 /**
- * Головна (kabinet redesign Phase 2 PR 1): `SHELTER_HOME`, where the magic
- * link lands (KS-T2), and where sign-in's redirect, every invite/reset email
- * link, and an old `/kabinet` bookmark all land - unchanged URL, new content.
- * It used to serve K4's read-only "your shelter" page (KS-Q1); that screen
- * moved to its own path (`app/kabinet/prytulok/page.tsx`, «Притулок» in the
- * nav), and this page took the landing slot with "what needs attention"
- * instead (`KabinetHome`; the research proposal,
- * `Claude outputs\KABINET-IA-2026-10-28.md` §4). While sign-in is
- * unavailable it answers its own 404 before touching auth or the database.
- * Who sees what is `kabinetDashboardOf`'s decision, the same access matrix
- * `kabinetHomeOf` and `kabinetAnimalListPageOf` already apply.
- *
- * A signed-in user with no role first gets the automatic invitation accept
- * again (IN-Q12): if it failed on «Увійти», this load is the retry.
+ * `SHELTER_HOME`, where the magic link lands (KS-T2) and where sign-in's redirect and every
+ * invite and reset email link point. Since kabinet UX round 2 it renders nothing: it settles the
+ * session (the automatic invitation accept runs again here, IN-Q12: if it failed on «Увійти», this
+ * load is the retry), shows the join_failed card when that fails, sends the operator to their list
+ * and a shelter on to Тварини. Who sees what is `kabinetDashboardOf`'s decision.
  */
 export default async function KabinetHomePage() {
   const auth = kabinetAuthOrNotFound();
@@ -88,17 +82,10 @@ export default async function KabinetHomePage() {
       redirect(OPERATOR_HOME);
       break;
     case "shelter":
-      return (
-        <KabinetHome
-          view={dashboard.view}
-          viewer={dashboard.viewer}
-          operator={operator}
-          draftCount={dashboard.draftCount}
-          staleCount={dashboard.staleCount}
-          animalListShown={dashboard.animalListShown}
-          canWrite={dashboard.canWrite}
-        />
-      );
+      // No screen of its own: Тварини is the landing (kabinet UX round 2). The self-heal, the
+      // join_failed card and the operator branch above all run first.
+      redirect(dashboard.animalListShown ? ANIMAL_LIST_PATH : SHELTER_PROFILE_PATH);
+      break;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
       const unreachable: never = dashboard;

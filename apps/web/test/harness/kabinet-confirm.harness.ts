@@ -152,7 +152,8 @@ test.describe("kabinet confirm page, in a real browser", () => {
       );
       const landingResponse = page.waitForResponse(
         (response) =>
-          response.request().method() === "GET" && new URL(response.url()).pathname === "/kabinet",
+          response.request().method() === "GET" &&
+          new URL(response.url()).pathname === "/kabinet/tvaryny",
       );
       await page.getByRole("button").click();
       const posted = await postResponse;
@@ -176,7 +177,8 @@ test.describe("kabinet confirm page, in a real browser", () => {
       expect(session?.httpOnly).toBe(true);
 
       // The redirect lands on the signed-in shelter's own page, not a 404.
-      expect(landing.status(), "/kabinet after sign-in").toBe(200);
+      // `/kabinet` redirects on to Тварини, which is the page that answers 200.
+      expect(landing.status(), "/kabinet/tvaryny after sign-in").toBe(200);
 
       // The session is real, not just a cookie: Better Auth resolves it.
       const me = await page.request.get(`${origin}/api/auth/get-session`);

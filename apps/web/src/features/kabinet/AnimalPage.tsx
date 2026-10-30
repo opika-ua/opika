@@ -4,10 +4,9 @@ import { MAIN_LANDMARK } from "../../ui/landmark";
 import { Text } from "../../ui/Text";
 import { AnimalForm } from "./animal-form/AnimalForm";
 import type { KabinetAnimalPage } from "./animal-page";
-import { KabinetBrand } from "./KabinetBrand";
+import { KabinetHeader } from "./KabinetHeader";
 import { KabinetNav } from "./KabinetNav";
 import { ANIMAL_LIST_PATH, animalListShownTo, SHELTER_PROFILE_PATH } from "./routes";
-import { SignOutButton } from "./SignOutButton";
 import { SupportBanner } from "./SupportBanner";
 
 /**
@@ -50,16 +49,7 @@ export function AnimalPage({
       }
     >
       {support ? <SupportBanner shelterName={page.shelter.displayName} /> : null}
-      <header className="flex min-h-16 items-center gap-3 bg-surface px-4 desktop:gap-5 desktop:px-8">
-        <KabinetBrand />
-        <span className="hidden text-label text-ink desktop:block">{page.shelter.displayName}</span>
-        <div className="flex-1" />
-        {support ? (
-          <span className="text-body text-ink-2">{uk.kabinet.support.signOutDisabled}</span>
-        ) : (
-          <SignOutButton />
-        )}
-      </header>
+      <KabinetHeader shelterName={page.shelter.displayName} viewer={page.viewer} />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 pb-4 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
         <div className="hidden desktop:contents">
           <KabinetNav current="animals" animalList={listShown} />
