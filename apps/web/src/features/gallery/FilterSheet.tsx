@@ -5,7 +5,7 @@ import type { CityId, FeedFilters, FilterSelection, GallerySort, RegionId } from
 import { ANIMAL_SPECIES, ANY, isExplicitlySelected } from "@opika/domain";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button, LinkButton } from "../../ui/Button";
 import { Chip, choiceClass } from "../../ui/Chip";
 import { cx } from "../../ui/cx";
@@ -35,6 +35,7 @@ import {
   withToggledRegion,
 } from "./filter-url";
 import { showAnimalsLabel } from "./gallery-copy";
+import { liveResultCount } from "./live-count";
 import { cityPickerOptions, pickerRows, pickerSummary, regionPickerOptions } from "./picker-model";
 
 const SHEET_ID = "tvaryny-filters";
@@ -180,9 +181,29 @@ export function FilterSheet({
   const [query, setQuery] = useState("");
   // Bumped when the dialog closes, so the uncontrolled pill checkboxes forget unsaved ticks.
   const [discards, setDiscards] = useState(0);
+  // The pill groups' ticks, read from the form on every change (they are uncontrolled inputs).
+  const [ticked, setTicked] = useState<FeedFilters | null>(null);
 
   // A change that did not come from this form (a chip's ✕, the desktop fields) is the new baseline.
-  useEffect(() => setDraft(filters), [filters]);
+  useEffect(() => {
+    setDraft(filters);
+    setTicked(null);
+  }, [filters]);
+
+  // Escape inside a drill-down steps back to the sheet's main screen; Escape there closes the sheet.
+  const viewRef = useRef<View>("main");
+  viewRef.current = view;
+  useEffect(() => {
+    const dialog = document.getElementById(SHEET_ID);
+    if (!dialog) return;
+    const onCancel = (event: Event) => {
+      if (viewRef.current === "main") return;
+      event.preventDefault();
+      setView("main");
+    };
+    dialog.addEventListener("cancel", onCancel);
+    return () => dialog.removeEventListener("cancel", onCancel);
+  }, []);
 
   const appliedKey = galleryHref(filters, sort, citySlugs);
   const slugOf = (id: CityId | RegionId): string => citySlugs.get(id) ?? id;
@@ -230,6 +251,12 @@ export function FilterSheet({
     setView(next);
   };
 
+  const live: FeedFilters = {
+    ...(ticked ?? filters),
+    regions: draft.regions,
+    cities: draft.cities,
+  };
+  const shownCount = js ? liveResultCount(filters, live, counts, resultCount) : resultCount;
   const activeCount = activeFilterCount(filters);
   const species = ANIMAL_SPECIES.find((value) => isExplicitlySelected(filters.species, value));
 
@@ -239,6 +266,12 @@ export function FilterSheet({
       method="GET"
       action="/tvaryny"
       onSubmit={onSubmit}
+      onChange={(event) =>
+        setTicked(
+          parseGalleryQuery(searchParamsFromFormData(new FormData(event.currentTarget)), placeIds)
+            .filters,
+        )
+      }
       className="flex min-h-0 flex-1 flex-col"
     >
       {/* Species and sort have their own controls on the page; a GET submit must carry them along. */}
@@ -345,7 +378,7 @@ export function FilterSheet({
             {uk.filters.reset}
           </LinkButton>
           <Button type="submit" className="flex-1">
-            {showAnimalsLabel(resultCount)}
+            {shownCount === null ? uk.filters.showResults : showAnimalsLabel(shownCount)}
           </Button>
         </div>
       </div>
@@ -397,6 +430,7 @@ export function FilterSheet({
         setView("main");
         setQuery("");
         setDraft(filters);
+        setTicked(null);
         setDiscards((count) => count + 1);
       }}
       trigger={

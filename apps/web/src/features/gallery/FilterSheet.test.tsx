@@ -71,7 +71,7 @@ function renderSheet(
 }
 
 const sheet = () => within(screen.getByTestId("filter-sheet"));
-const submit = () => sheet().getByRole("button", { name: /^Показати \d+ /, hidden: true });
+const submit = () => sheet().getByRole("button", { name: /^Показати/, hidden: true });
 const hrefOf = (router: ReturnType<typeof mockAppRouter>) =>
   new URL((router.replace.mock.calls[0] as [string])[0], "http://x");
 const openDrill = (name: string) => {
@@ -307,6 +307,49 @@ describe("FilterSheet: the Область / Місто screens", () => {
     openDrill("Область, Усі");
     const search = sheet().getByRole("searchbox", { name: "Пошук області", hidden: true });
     expect(fireEvent.keyDown(search, { key: "Enter" })).toBe(false);
+  });
+});
+
+describe("FilterSheet: the live count and Escape", () => {
+  it("follows a single-dimension draft from the facet counts", () => {
+    renderSheet();
+    openDrill("Область, Усі");
+    fireEvent.click(sheet().getByRole("checkbox", { name: "Львівська, 3 тварини", hidden: true }));
+    fireEvent.click(sheet().getByRole("button", { name: "Готово", hidden: true }));
+    expect(submit().textContent).toBe("Показати 3 тварини");
+  });
+
+  it("follows ticked pills too", () => {
+    renderSheet();
+    fireEvent.click(sheet().getByLabelText(facet("Малий")));
+    expect(submit().textContent).toBe("Показати 1 тварину");
+  });
+
+  it("drops the number, not guesses one, when two dimensions changed", () => {
+    renderSheet();
+    fireEvent.click(sheet().getByLabelText(facet("Малий")));
+    openDrill("Область, Усі");
+    fireEvent.click(sheet().getByRole("checkbox", { name: "Львівська, 3 тварини", hidden: true }));
+    fireEvent.click(sheet().getByRole("button", { name: "Готово", hidden: true }));
+    expect(submit().textContent).toBe("Показати");
+  });
+
+  it("Escape inside a drill-down returns to the main screen; on the main screen it is left to close the sheet", () => {
+    renderSheet();
+    openDrill("Область, Усі");
+    const dialog = screen.getByTestId("filter-sheet");
+    const inDrill = new Event("cancel", { cancelable: true });
+    act(() => {
+      dialog.dispatchEvent(inDrill);
+    });
+    expect(inDrill.defaultPrevented).toBe(true);
+    expect(sheet().getByRole("button", { name: "Область, Усі", hidden: true })).toBeTruthy();
+
+    const onMain = new Event("cancel", { cancelable: true });
+    act(() => {
+      dialog.dispatchEvent(onMain);
+    });
+    expect(onMain.defaultPrevented).toBe(false);
   });
 });
 

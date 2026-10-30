@@ -359,6 +359,8 @@ export const ukPublic = {
     /** Template: "Показати {count} {animalWord}"; `{animalWord}` is `animalWordAccusative`. */
     showAnimals: "Показати {count} {animalWord}",
     done: "Готово",
+    /** NEW, awaiting the owner: the button's label when a count for the unapplied choices cannot be stood behind. */
+    showResults: "Показати",
     anyValue: "Усі",
     back: "Назад",
     /** Template: "Прибрати фільтр {name}", `{name}` in the nominative as the chip shows it. */

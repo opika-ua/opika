@@ -78,6 +78,7 @@ export const en = {
     cityNoMatchHint: "Only cities that currently have animals are listed here.",
     showAnimals: "Show {count} {animalWord}",
     done: "Done",
+    showResults: "Show",
     anyValue: "All",
     back: "Back",
     removeFilter: "Remove filter {name}",
