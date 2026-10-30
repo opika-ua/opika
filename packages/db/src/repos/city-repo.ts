@@ -12,6 +12,12 @@ export type CityTokenResolution = {
   readonly via: "slug" | "alias" | "id" | null;
 };
 
+/** A slug (current or former) or id token, resolved and then held to the same "current" rule as `findCurrentById`. */
+export type CurrentCityResolution =
+  | { readonly kind: "current"; readonly city: City }
+  | { readonly kind: "retired"; readonly city: City }
+  | { readonly kind: "unknown" };
+
 export function cityRepo(db: Database) {
   return {
     async findById(id: CityId): Promise<City | null> {
@@ -29,6 +35,19 @@ export function cityRepo(db: Database) {
         .limit(1);
       const row = rows[0];
       return row ? rowToCity(row) : null;
+    },
+
+    /**
+     * One token through `resolveTokens` (alias-aware, so a renamed settlement's old slug lands on
+     * the current row), then through `findCurrentById`, so the retired rule has one definition.
+     */
+    async resolveCurrent(token: string): Promise<CurrentCityResolution> {
+      const [resolved] = await this.resolveTokens([token]);
+      const city = resolved?.city;
+      if (!city) return { kind: "unknown" };
+      return (await this.findCurrentById(city.id))
+        ? { kind: "current", city }
+        : { kind: "retired", city };
     },
 
     /**
