@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { type ReactNode, Suspense, use } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderAnimalOverlay } from "../../app/tvaryny/@preview/(.)[animalId]/page";
+import { pressEscapeWhenShown } from "../../ui/test-dialog";
 import { AnimalDetailScreen } from "../animal-detail/AnimalDetailScreen";
 import {
   ANIMAL_ID,
@@ -153,6 +154,23 @@ describe("the gallery's animal overlay", () => {
     fireEvent.keyDown(revealDialog, { key: "Escape" });
     act(() => revealDialog.close());
     await waitFor(() => expect(screen.queryByTestId("reveal-dialog")).toBeNull());
+    expect(router.back, "the overlay stays open").not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Дати сімʼю" }));
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(router.back).toHaveBeenCalledTimes(1);
+  });
+
+  // The test above, with Esc forced into the moment it flaked on (#296, #297): the reveal shown by
+  // the response, React's effects for that commit not yet run.
+  it("an Escape the moment the reveal appears still closes only the reveal, focus on «Дати сімʼю»", async () => {
+    const { router, dialog } = await openOverlay();
+    const escapePressedIn = pressEscapeWhenShown();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Дати сімʼю" }));
+
+    const revealDialog = await waitFor(escapePressedIn);
+    await waitFor(() => expect(revealDialog.isConnected, "the reveal unmounts").toBe(false));
+    expect(screen.queryByTestId("reveal-dialog")).toBeNull();
     expect(router.back, "the overlay stays open").not.toHaveBeenCalled();
     expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Дати сімʼю" }));
 
