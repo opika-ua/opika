@@ -1,13 +1,11 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { inSentenceOperatorName, type OperatorName } from "../../kabinet/operator";
-import { buttonClass } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { FormSection } from "../../ui/FormSection";
 import { Heading } from "../../ui/Heading";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { Text } from "../../ui/Text";
-import { BACK_TO_LIST } from "./AnimalPage";
 import type { ProfileEditing } from "./home";
 import { KabinetHeader } from "./KabinetHeader";
 import { KabinetNav } from "./KabinetNav";
@@ -102,9 +100,7 @@ export function ShelterProfile({
       <KabinetHeader shelterName={view.displayName} viewer={viewer} />
 
       <div
-        className={`mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14 ${
-          editorOpen ? "pb-4" : "pb-24"
-        }`}
+        className={`mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14 pb-24`}
       >
         {/*
           The shell nav: «Головна» · «Тварини» (K2, PR 5) where the list is shown to this viewer
@@ -112,21 +108,13 @@ export function ShelterProfile({
           clearance for the nav's fixed mobile tab bar, unused at desktop width where the nav sits
           in the side column, and unused while the editor hides the bar.
         */}
-        {editorOpen ? <div className="hidden desktop:contents">{nav}</div> : nav}
+        {nav}
 
         <main
           {...MAIN_LANDMARK}
           className="flex min-w-0 max-w-176 flex-1 flex-col gap-4 desktop:gap-6"
         >
           <header className="flex flex-col gap-3">
-            {editorOpen ? (
-              <a
-                href={BACK_TO_LIST.href}
-                className={`self-start desktop:hidden ${buttonClass("ghost")}`}
-              >
-                {BACK_TO_LIST.label}
-              </a>
-            ) : null}
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <Heading level={1} look="display-l" className="break-words">
                 {t.title}

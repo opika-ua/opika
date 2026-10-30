@@ -113,7 +113,7 @@ export function PageSave({
       {children}
       {dirty || phase === "saving" ? (
         <StickyActionBar tone="ink">
-          <p role={phase === "failed" ? "alert" : undefined} className="min-w-0 flex-1 text-label">
+          <p role={phase === "failed" ? "alert" : undefined} className="min-w-40 flex-1 text-label">
             {phase === "failed" ? t.state.failed : t.saveBar.unsaved}
           </p>
           <div className="flex items-center gap-2">

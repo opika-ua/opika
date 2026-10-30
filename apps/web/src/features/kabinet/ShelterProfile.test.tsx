@@ -460,3 +460,49 @@ describe("the section nav (K2)", () => {
     expect(screen.queryByRole("link", { name: "Тварини" })).toBeNull();
   });
 });
+
+describe("Притулок: the public page link and the sub-tabs", () => {
+  const open = { kind: "open", previewAnimal: null, donationDeclined: false } as const;
+  const renderOpen = (tab?: string) =>
+    render(
+      <ShelterProfile
+        view={view()}
+        cityName="Бровари"
+        viewer="admin"
+        operator={{ kind: "configured", name: "Олексій" }}
+        editing={open}
+        {...(tab !== undefined ? { tab } : {})}
+      />,
+    );
+
+  it("«Сторінка притулку на сайті» opens the public shelter page in a new tab", () => {
+    renderOpen();
+    const link = screen.getByRole("link", { name: /^Сторінка притулку на сайті/ });
+    expect(link.getAttribute("href")).toBe(`/prytulky/${view().id}`);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+    expect(link.textContent).toContain("(відкриється в новій вкладці)");
+  });
+
+  it("the five sub-tabs are there, and ?tab= picks the one shown (an unknown value: the first)", () => {
+    const { unmount } = renderOpen("kontakty");
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Профіль",
+      "Контакти",
+      "Збір коштів",
+      "Перевірка",
+      "Акаунт",
+    ]);
+    expect(screen.getByRole("tab", { name: "Контакти" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    unmount();
+    renderOpen("nonsense");
+    expect(screen.getByRole("tab", { name: "Профіль" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("the nav stays on a phone while the editor is open (no back link needed)", () => {
+    renderOpen();
+    expect(screen.getByRole("navigation", { name: "Розділи кабінету" })).toBeTruthy();
+  });
+});
