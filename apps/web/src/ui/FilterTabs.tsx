@@ -17,7 +17,7 @@ export type FilterTab = {
  * One row of underline tabs that filter one list (a count after each name). ARIA tabs with
  * automatic activation: one tab stop (the selected tab), Left/Right/Home/End move and select. The
  * page owns the panel: give it `role="tabpanel"` and `aria-labelledby={tabId(id)}` of the selected
- * tab. Scrolls sideways on a phone and keeps the 48px target; focus-visible on every tab.
+ * tab. Scrolls sideways on a phone and keeps the 48px target; focus-visible on every tab. `overflow-y-hidden` and the top padding keep a stray vertical scrollbar off the row (a tab used to hang 2px below the scroll box) and leave room for the focus ring above the tabs.
  */
 export const filterTabId = (prefix: string, id: string): string => `${prefix}-tab-${id}`;
 
@@ -60,7 +60,7 @@ export function FilterTabs({
     <div
       role="tablist"
       aria-label={label}
-      className="-mx-4 flex gap-6 overflow-x-auto border-b-2 border-line px-4 tablet:mx-0 tablet:px-0"
+      className="-mx-4 flex gap-6 overflow-x-auto overflow-y-hidden border-b-2 border-line px-4 pt-2 tablet:mx-0 tablet:px-0"
     >
       {tabs.map((tab, index) => {
         const selected = tab.id === value;
@@ -80,7 +80,7 @@ export function FilterTabs({
             onClick={() => onChange(tab.id)}
             onKeyDown={(event) => move(event, index)}
             className={cx(
-              "-mb-0.5 inline-flex min-h-target shrink-0 items-center gap-1 whitespace-nowrap border-b-4 px-1 text-label focus-ring",
+              "inline-flex min-h-target shrink-0 items-center gap-1 whitespace-nowrap border-b-4 px-1 text-label focus-ring",
               selected ? "border-ink text-ink" : "border-transparent text-ink-2",
             )}
           >

@@ -24,7 +24,7 @@ import {
 import { CheckboxGroup, ChipGroup, RadioGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
 import { ICON_NAMES, Icon } from "../../../ui/Icon";
-import { InfoToggle } from "../../../ui/InfoToggle";
+import { InfoTip } from "../../../ui/InfoTip";
 import { MetaLine } from "../../../ui/MetaLine";
 import { Pagination } from "../../../ui/Pagination";
 import { Panel } from "../../../ui/Panel";
@@ -545,10 +545,37 @@ export default function DevUiPage() {
         <Row label="FilterTabs">
           <FilterTabsDemo />
         </Row>
-        <Row label="InfoToggle">
-          <InfoToggle label="How the list is ordered">
-            By date: the freshest cards first.
-          </InfoToggle>
+        <Row label="InfoTip (short text, the long kabinet text, near the right edge)">
+          <div className="flex w-full items-center justify-between gap-4">
+            <span className="flex items-center">
+              Short
+              <InfoTip label="How the list is ordered" closeLabel="Close">
+                By date: the freshest cards first.
+              </InfoTip>
+            </span>
+            <span className="flex items-center">
+              Long
+              <InfoTip label="How the list is ordered (long)" closeLabel="Close">
+                Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті,
+                хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут
+                порядок змінити не можна, і просування немає.
+              </InfoTip>
+            </span>
+            <span className="flex items-center">
+              Right edge
+              <InfoTip label="At the right edge" closeLabel="Close">
+                This card is shifted left to stay inside the screen; the arrow still points at the
+                trigger.
+              </InfoTip>
+            </span>
+          </div>
+        </Row>
+        <Row label="InfoTip (near the bottom of the screen: opens above)">
+          <div className="flex min-h-dvh w-full items-end">
+            <InfoTip label="Near the bottom" closeLabel="Close">
+              There is no room below, so this card opens above the trigger.
+            </InfoTip>
+          </div>
         </Row>
       </Group>
 
