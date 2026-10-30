@@ -209,9 +209,10 @@ describe("GalleryCard on a phone (text under the photo)", () => {
           {...NO_CONTEXT}
         />,
       );
-      const line = screen.getByTestId("card-freshness");
-      expect(line.textContent).toBe(freshnessLabel(freshness));
-      expect(line.querySelector("[aria-hidden='true']")).not.toBeNull();
+      const line = screen
+        .getAllByText(freshnessLabel(freshness))
+        .find((element) => element.querySelector("[aria-hidden='true']") !== null);
+      expect(line?.textContent).toBe(freshnessLabel(freshness));
       unmount();
     }
   });

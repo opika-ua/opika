@@ -95,28 +95,26 @@ export function GalleryCard({
         !stacked && "tablet:block tablet:overflow-clip tablet:rounded-card",
       )}
     >
-      <div className="relative">
-        <Photo
-          src={photo?.storageKey ?? null}
-          alt=""
-          sizes={SIZES[layout]}
-          aspect={stacked ? "portrait" : "cardStacked"}
-          priority={priority}
-          className="rounded-card tablet:rounded-none"
-        />
-        {/* Only «Домовляються» stays on the photo on a phone; the freshness moved under it. */}
-        <div className="absolute inset-x-2 top-2 flex flex-wrap items-start gap-2 tablet:inset-x-4 tablet:top-4">
-          {!stacked && (
-            <span data-testid="freshness-badge" className="hidden tablet:contents">
-              <Badge tone={card.species}>{freshnessLabel(card.freshness)}</Badge>
-            </span>
-          )}
-          {reserved && (
-            <span data-testid="reserved-badge" className="contents">
-              <Badge tone="ink">{uk.reserved.badge}</Badge>
-            </span>
-          )}
-        </div>
+      <Photo
+        src={photo?.storageKey ?? null}
+        alt=""
+        sizes={SIZES[layout]}
+        aspect={stacked ? "portrait" : "cardStacked"}
+        priority={priority}
+        className="rounded-card tablet:rounded-none"
+      />
+      {/* Only «Домовляються» stays on the photo on a phone; the freshness moved under it. */}
+      <div className="absolute inset-x-2 top-2 flex flex-wrap items-start gap-2 tablet:inset-x-4 tablet:top-4">
+        {!stacked && (
+          <span data-testid="freshness-badge" className="hidden tablet:contents">
+            <Badge tone={card.species}>{freshnessLabel(card.freshness)}</Badge>
+          </span>
+        )}
+        {reserved && (
+          <span data-testid="reserved-badge" className="contents">
+            <Badge tone="ink">{uk.reserved.badge}</Badge>
+          </span>
+        )}
       </div>
 
       <div
@@ -141,7 +139,6 @@ export function GalleryCard({
           </span>
         </div>
         <span
-          data-testid="card-freshness"
           className={cx(
             "flex items-center gap-2 text-caption text-ink-2",
             !stacked && "tablet:hidden",
