@@ -11,7 +11,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/Tabs.tsx": "selected-tab state and roving focus",
   "ui/Toast.tsx": "toast queue state, timers and context",
   "ui/FilterTabs.tsx": "roving focus and arrow-key handling of the tab row",
-  "features/kabinet/profile-edit/page-save.tsx":
+  "features/kabinet/shared/page-save.tsx":
     "registry of dirty sections and the save-all state of the page bar",
   "ui/Menu.tsx": "controlled open state, outside-press and Esc listeners",
   "ui/Modal.tsx": "controlled dialog; refs and the dialog core",
@@ -98,7 +98,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/profile-edit/LogoSection.tsx": "logo upload via browser client",
   "features/kabinet/profile-edit/PauseControl.tsx": "pause/unpause dialog",
   "features/kabinet/profile-edit/ProfileEditor.tsx": "editor shell: section states, browser client",
-  "features/kabinet/profile-edit/SaveBar.tsx":
+  "features/kabinet/shared/SaveBar.tsx":
     "Low value to change (only used inside client sections): save/cancel/reload buttons (props-driven)",
   "features/kabinet/profile-edit/VoiceSection.tsx": "sentence form with live announce",
   "features/likes/SaveButton.tsx": "toggles saved state in localStorage",

@@ -15,3 +15,5 @@ File: `apps/web/src/ui/ErrorSummary.tsx` (client: its buttons carry a click hand
 ```tsx
 {refused ? <ErrorSummary ref={summaryRef} items={[{ key: "name", message: "Вкажіть імʼя", target: "#animal-name" }]} /> : null}
 ```
+
+**`onSelect`.** Optional per item. When the field may sit in a hidden tab, give the item `onSelect` and the page switches the tab and focuses the field itself; without it the button just focuses `target`.

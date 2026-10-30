@@ -328,7 +328,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // `orderInfoLabel`, `row.menuLabel`; owner-approved 2026-10-29).
     // 693 with kabinet UX round 2's Притулок sub-tabs and save bar: `profile.viewOnSite`, six
     // `profileTabs.*` and two `profileEdit.saveBar.*` (owner-approved 2026-10-29).
-    expect(pending.length + written.length).toBe(693);
+    // 699 with the animal editor's tabs (PR 2): seven new keys (`sections.tabsLabel`, two badge
+    // names, `publish.requiredTag`, `missingTitle`, `missingItem`, `allSet`; owner-approved
+    // 2026-10-31, pinned in copy-status.test.ts's EDITOR_TABS_COPY) less `photos.ratioNote`.
+    expect(pending.length + written.length).toBe(699);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

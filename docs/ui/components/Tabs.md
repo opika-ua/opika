@@ -4,7 +4,7 @@ File: `apps/web/src/ui/Tabs.tsx`
 
 **Purpose.** Tabs that switch panels in place (ARIA tabs pattern).
 
-**Props and variants.** `label`, `tabs` ({id, label, panel}), `defaultId?`, `selectedId?` + `onSelect?` (controlled: the page keeps the selection, e.g. in `?tab=`), `look?` (`segmented`, the default: one track of equal tabs; `pills`: separate outlined pills that scroll sideways on a phone). Client component.
+**Props and variants.** `label`, `tabs` ({id, label, panel}; `label` is text, or text with a status mark such as the animal editor's ✓ and !, which must carry its own accessible name), `defaultId?`, `selectedId?` + `onSelect?` (controlled: the page keeps the selection, e.g. in `?tab=`), `look?` (`segmented`, the default: one track of equal tabs; `pills`: separate outlined pills that scroll sideways on a phone). Client component.
 
 **Accessibility.** One tab stop; Left/Right/Home/End move and select; `aria-selected`, `aria-controls`; inactive panels `hidden`. For page navigation use links, not Tabs.
 

@@ -802,6 +802,9 @@ export const en = {
         about: "About the animal",
         health: "Health",
         publication: "Publishing",
+        tabsLabel: "Card sections",
+        badgeComplete: "everything needed is filled in",
+        badgeIncomplete: "needs more",
       },
       who: {
         title: "Who this is",
@@ -880,7 +883,6 @@ export const en = {
       },
       photos: {
         title: "Photos",
-        ratioNote: "4:5 format; the first photo is the cover.",
         add: "+ Photo",
         addHint: "Any photo this phone or browser can open.",
         howItWorks:
@@ -939,6 +941,10 @@ export const en = {
       publish: {
         button: "Publish",
         missing: "To publish, this still needs: {list}.",
+        requiredTag: "needed to publish",
+        missingTitle: "To publish, this still needs:",
+        missingItem: "{field} ({tab})",
+        allSet: "Everything needed is filled in. Ready to publish.",
         gap: {
           sex: "sex",
           size: "size",

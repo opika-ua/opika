@@ -11,6 +11,8 @@ export type ErrorSummaryItem = {
   message: string;
   /** A CSS selector for the field the item takes you to; a radio group names its first radio. */
   target: string;
+  /** When the field can be out of sight (a hidden tab), the page brings it into view and focuses it itself. */
+  onSelect?: () => void;
 };
 
 const focusTarget = (selector: string) => {
@@ -44,7 +46,9 @@ export function ErrorSummary({
               <Button
                 variant="ghost"
                 className="w-full justify-start text-left"
-                onClick={() => focusTarget(item.target)}
+                onClick={() =>
+                  item.onSelect === undefined ? focusTarget(item.target) : item.onSelect()
+                }
               >
                 {item.message}
               </Button>

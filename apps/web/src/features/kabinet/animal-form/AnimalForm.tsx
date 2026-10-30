@@ -14,21 +14,21 @@ import {
   kabinetAnimalBrowserClient,
 } from "../../../api/kabinet-browser-client";
 import { Button, buttonClass, LinkButton } from "../../../ui/Button";
-import { Chip } from "../../../ui/Chip";
 import { ErrorSummary } from "../../../ui/ErrorSummary";
-import { FormSection, FormSteps } from "../../../ui/FormSection";
+import { FormSection } from "../../../ui/FormSection";
 import { InlineStatus } from "../../../ui/feedback";
 import { Heading } from "../../../ui/Heading";
 import { StickyActionBar } from "../../../ui/StickyActionBar";
+import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
 import type { CompressedPhoto } from "../photos/compress-photo";
-import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../profile-edit/unsaved-changes";
 import { publicAnimalPath } from "../routes";
 import { ListingStatusChip } from "../StatusChips";
+import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../shared/unsaved-changes";
+import { ANIMAL_TABS, type AnimalTab } from "./animal-tabs";
 import { summaryItemsOf } from "./error-summary-items";
-import { AboutFields, BasicsFields, HealthFields } from "./FormSections";
+import { AboutFields, BasicsFields, HealthFields, withTag } from "./FormSections";
 import {
-  ageInputOf,
   emptyValues,
   type FieldProblem,
   type FormValues,
@@ -44,15 +44,16 @@ import {
   type ShelterVisibility,
   timeOf,
 } from "./labels";
+import { MissingPanel, TAB_LABEL } from "./MissingPanel";
 import { PhotoSection } from "./PhotoSection";
+import { GAP_TAB, GAP_TARGET, gapsOf, tabStatusOf } from "./publish-gaps";
+import { TabLabel } from "./TabLabel";
 
 /**
- * K3 · add / edit animal (KABINET K3; `docs/k3-copy-sheet.md`). One page,
- * not a wizard: «Хто це», «Вік», «Опис», «Характер», then «Фото», «Медичний
- * стан» (the structured facts - vaccination, spay/neuter) and, pet card PR
- * 5, the shelter's own free-text health note (`MedicalNotesSection`,
- * placed beside `HealthSection` as the right column's second
- * health-adjacent card - a reversible layout call, not a mock's).
+ * K3 · add / edit animal (KABINET K3; `docs/k3-copy-sheet.md`). One form in five tabs (`?tab=`):
+ * «Основне», «Фото», «Про тварину», «Здоровʼя», «Публікація». Every panel stays mounted, so an
+ * unsaved value survives a tab switch. The ✓ and ! on a tab come from `gapsOf` (the publish rules),
+ * never a list of their own.
  *
  * **A draft saves itself** (KAB:179): 10 seconds after the last change and
  * when a field is left (decision taken T6, so a typing session writes a few
@@ -111,21 +112,13 @@ const dirtyOf = (
 ): boolean =>
   view === null ? !valuesEqual(values, initialValues) : patchOf(view, values) !== null;
 
-/** What still keeps the form's current content from publishing, in form order (K-Q5, as `publishReadinessOf`). */
-const gapsOf = (values: FormValues, photoCount: number): PublishGap[] => [
-  ...(values.sex === "unknown" ? [{ kind: "sex" } as const] : []),
-  ...(values.size === null ? [{ kind: "size" } as const] : []),
-  ...(ageInputOf(values) === null ? [{ kind: "age" } as const] : []),
-  ...(values.description.trim() === "" ? [{ kind: "description" } as const] : []),
-  ...(photoCount === 0 ? [{ kind: "photo" } as const] : []),
-];
-
 export function AnimalForm({
   initialView,
   editing,
   viewer,
   shelterVisibility,
   back,
+  initialTab = "osnovne",
   client = kabinetAnimalBrowserClient,
   clock = () => new Date(),
   compress,
@@ -137,6 +130,8 @@ export function AnimalForm({
   /** Where the shelter's cards stand with the public (`shelterVisibilityOf`). */
   shelterVisibility: ShelterVisibility;
   back: { href: string; label: string };
+  /** The tab `?tab=` named; «Публікація» is only there for a shelter that can write. */
+  initialTab?: AnimalTab;
   client?: KabinetAnimalClient;
   clock?: () => Date;
   compress?: (file: File) => Promise<CompressedPhoto>;
@@ -144,6 +139,12 @@ export function AnimalForm({
   const editable = editing.kind === "open" && viewer === "admin";
 
   const [view, setView] = useState<KabinetAnimalView | null>(initialView);
+  const [tab, setTab] = useState<AnimalTab>(
+    initialTab === "publikatsiia" && !editable ? "osnovne" : initialTab,
+  );
+  // Where focus goes once the tab it lives on is showing (a hidden panel cannot take focus).
+  const pendingFocus = useRef<string | null>(null);
+  const [focusTick, setFocusTick] = useState(0);
   const [values, setValues] = useState<FormValues>(() =>
     initialView === null
       ? emptyValues(kyivCalendarDateOf(clock()))
@@ -208,6 +209,34 @@ export function AnimalForm({
   const hasUnsavedWork = dirty || savePending || publishing;
   useUnsavedChanges("animal-form", editable && hasUnsavedWork);
 
+  const show = useCallback((next: AnimalTab) => {
+    setTab(next);
+    const url = new URL(window.location.href);
+    if (next === "osnovne") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", next);
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
+
+  /** Shows `next` and then focuses `selector` on it. */
+  const goTo = useCallback(
+    (next: AnimalTab, selector: string) => {
+      pendingFocus.current = selector;
+      show(next);
+      setFocusTick((count) => count + 1);
+    },
+    [show],
+  );
+
+  // `tab` and `focusTick` say the panel is showing; the target is read off the ref.
+  useEffect(() => {
+    const selector = pendingFocus.current;
+    if (selector === null) return;
+    pendingFocus.current = null;
+    const target = document.querySelector<HTMLElement>(selector);
+    target?.scrollIntoView({ block: "center" });
+    target?.focus({ preventScroll: true });
+  }, [tab, focusTick]);
+
   const set = useCallback((change: Partial<FormValues>) => {
     setValues((current) => ({ ...current, ...change }));
     setServerProblems((current) =>
@@ -243,7 +272,11 @@ export function AnimalForm({
         );
         wrote = true;
         // The draft now has an address of its own; keep this page, change the URL.
-        window.history.replaceState(null, "", `/kabinet/tvaryny/${saved.id}`);
+        window.history.replaceState(
+          null,
+          "",
+          `/kabinet/tvaryny/${saved.id}${window.location.search}`,
+        );
       } else {
         saved = current;
       }
@@ -383,7 +416,7 @@ export function AnimalForm({
     if (gaps.length > 0) {
       setAnnouncement(missingSentence(gaps));
       // The gaps are written in «Публікація», next to the links that lead to each.
-      document.getElementById("publication-title")?.focus();
+      goTo("publikatsiia", "#publication-title");
       return;
     }
     setPublishing(true);
@@ -446,14 +479,91 @@ export function AnimalForm({
     if (!isDraft && dirty && !confirmLeave()) event.preventDefault();
   };
 
-  const steps = [
-    { id: "basics", label: uk.kabinet.animalForm.sections.basics },
-    { id: "photos", label: uk.kabinet.animalForm.photos.title },
-    { id: "about", label: uk.kabinet.animalForm.sections.about },
-    { id: "health", label: uk.kabinet.animalForm.sections.health },
-    ...(editable ? [{ id: "publication", label: uk.kabinet.animalForm.sections.publication }] : []),
-  ];
-  const stepOf = (id: string): number => steps.findIndex((step) => step.id === id) + 1;
+  // A draft's empty required fields wear «потрібно для публікації»; a card already listed never does.
+  const required = isDraft ? gaps.map((gap) => gap.kind) : [];
+
+  const panels: Record<AnimalTab, React.ReactNode> = {
+    osnovne: (
+      <FormSection id="basics" title={t.sections.basics}>
+        <BasicsFields
+          values={values}
+          set={set}
+          problems={shownProblems}
+          disabled={!editable}
+          required={required}
+          stored={view}
+          now={now}
+        />
+      </FormSection>
+    ),
+    foto: (
+      <FormSection id="photos" title={withTag(t.photos.title, required.includes("photo"))}>
+        {view !== null ? (
+          <PhotoSection
+            animal={view}
+            editable={editable}
+            shelterVisibility={shelterVisibility}
+            client={client}
+            onView={onPhotoView}
+            reload={reload}
+            {...(compress === undefined ? {} : { compress })}
+          />
+        ) : (
+          // Photos belong to a saved draft: say what makes one, in his words.
+          <Text look="hint">
+            {creatable
+              ? fillTemplate(t.photos.howItWorks, {
+                  px: new Intl.NumberFormat("uk").format(PHOTO_MAX_EDGE_PX),
+                })
+              : t.draft.notSavedYet}
+          </Text>
+        )}
+      </FormSection>
+    ),
+    "pro-tvarynu": (
+      <FormSection id="about" title={t.sections.about}>
+        <AboutFields
+          values={values}
+          set={set}
+          problems={shownProblems}
+          disabled={!editable}
+          required={required}
+        />
+      </FormSection>
+    ),
+    zdorovia: (
+      <FormSection id="health" title={t.sections.health}>
+        <HealthFields
+          values={values}
+          set={set}
+          problems={shownProblems}
+          disabled={!editable}
+          vaccination={view?.vaccination ?? null}
+        />
+      </FormSection>
+    ),
+    publikatsiia: (
+      <FormSection id="publication" title={t.sections.publication}>
+        {isDraft ? (
+          <DraftPublication
+            gaps={gaps}
+            onGo={(gap) => goTo(GAP_TAB[gap.kind], GAP_TARGET[gap.kind])}
+          />
+        ) : (
+          <ListedPublication
+            visible={visibleListing}
+            // True since K2's «Ще шукає» (P10): on the cards that carry the date.
+            dateUnchanged={view !== null && isDiscoverable(view.listing)}
+          />
+        )}
+        {published && shelterShown && view !== null ? (
+          <LinkButton variant="secondary" href={`/tvaryny/${view.id}`} className="self-start">
+            {t.publish.viewPublic}
+          </LinkButton>
+        ) : null}
+      </FormSection>
+    ),
+  };
 
   return (
     <div className="flex w-full min-w-0 max-w-176 flex-col gap-4 desktop:gap-6">
@@ -476,10 +586,8 @@ export function AnimalForm({
       </header>
 
       {summaryFocus > 0 && shownProblems.length > 0 ? (
-        <ErrorSummary items={summaryItemsOf(shownProblems)} ref={summaryRef} />
+        <ErrorSummary items={summaryItemsOf(shownProblems, goTo)} ref={summaryRef} />
       ) : null}
-
-      <FormSteps labelledBy="animal-form-title" steps={steps} />
 
       <form
         className="flex flex-col gap-4 desktop:gap-6"
@@ -494,77 +602,17 @@ export function AnimalForm({
           if (autosaving && dirty) void saveNow();
         }}
       >
-        <FormSection id="basics" title={t.sections.basics} step={stepOf("basics")}>
-          <BasicsFields
-            values={values}
-            set={set}
-            problems={shownProblems}
-            disabled={!editable}
-            stored={view}
-            now={now}
-          />
-        </FormSection>
-
-        <FormSection
-          id="photos"
-          title={t.photos.title}
-          step={stepOf("photos")}
-          description={t.photos.ratioNote}
-        >
-          {view !== null ? (
-            <PhotoSection
-              animal={view}
-              editable={editable}
-              shelterVisibility={shelterVisibility}
-              client={client}
-              onView={onPhotoView}
-              reload={reload}
-              {...(compress === undefined ? {} : { compress })}
-            />
-          ) : (
-            // Photos belong to a saved draft: say what makes one, in his words.
-            <Text look="hint">
-              {creatable
-                ? fillTemplate(t.photos.howItWorks, {
-                    px: new Intl.NumberFormat("uk").format(PHOTO_MAX_EDGE_PX),
-                  })
-                : t.draft.notSavedYet}
-            </Text>
-          )}
-        </FormSection>
-
-        <FormSection id="about" title={t.sections.about} step={stepOf("about")}>
-          <AboutFields values={values} set={set} problems={shownProblems} disabled={!editable} />
-        </FormSection>
-
-        <FormSection id="health" title={t.sections.health} step={stepOf("health")}>
-          <HealthFields
-            values={values}
-            set={set}
-            problems={shownProblems}
-            disabled={!editable}
-            vaccination={view?.vaccination ?? null}
-          />
-        </FormSection>
-
-        {editable ? (
-          <FormSection id="publication" title={t.sections.publication} step={stepOf("publication")}>
-            {isDraft ? (
-              <DraftPublication gaps={gaps} />
-            ) : (
-              <ListedPublication
-                visible={visibleListing}
-                // True since K2's «Ще шукає» (P10): on the cards that carry the date.
-                dateUnchanged={view !== null && isDiscoverable(view.listing)}
-              />
-            )}
-            {published && shelterShown && view !== null ? (
-              <LinkButton variant="secondary" href={`/tvaryny/${view.id}`} className="self-start">
-                {t.publish.viewPublic}
-              </LinkButton>
-            ) : null}
-          </FormSection>
-        ) : null}
+        <Tabs
+          look="pills"
+          label={t.sections.tabsLabel}
+          selectedId={tab}
+          onSelect={(id) => show(id as AnimalTab)}
+          tabs={ANIMAL_TABS.filter((id) => id !== "publikatsiia" || editable).map((id) => ({
+            id,
+            label: <TabLabel label={TAB_LABEL[id]} status={tabStatusOf(id, gaps)} />,
+            panel: panels[id],
+          }))}
+        />
       </form>
 
       {editable ? (
@@ -619,42 +667,22 @@ const fieldOfTarget = (target: EventTarget): FieldProblem["field"] | null => {
   return null;
 };
 
-/** Where each gap is filled in: the section that holds the field. */
-const GAP_SECTION: Record<PublishGap["kind"], string> = {
-  sex: "basics",
-  size: "basics",
-  age: "basics",
-  description: "about",
-  photo: "photos",
-};
-
 /**
  * «Публікація» on a draft: who sees it (nobody yet) and what is still missing, the way the
- * disabled «Опублікувати» is described. Each gap is a chip that jumps to its section, so the
- * list is a route, not just a sentence.
+ * disabled «Опублікувати» is described. Each gap is a link that switches to its tab and focuses
+ * the field, so the list is a route, not just a sentence.
  */
-function DraftPublication({ gaps }: { gaps: readonly PublishGap[] }) {
+function DraftPublication({
+  gaps,
+  onGo,
+}: {
+  gaps: readonly PublishGap[];
+  onGo: (gap: PublishGap) => void;
+}) {
   return (
     <>
       <Text look="hint">{t.draft.notVisible}</Text>
-      {gaps.length > 0 ? (
-        <>
-          <Text id="publish-missing" look="label">
-            {missingSentence(gaps)}
-          </Text>
-          <nav aria-labelledby="publish-missing">
-            <ul className="flex flex-wrap gap-2">
-              {gaps.map((gap) => (
-                <li key={gap.kind}>
-                  <Chip kind="link" href={`#${GAP_SECTION[gap.kind]}`} prefetch={false}>
-                    {t.publish.gap[gap.kind]}
-                  </Chip>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </>
-      ) : null}
+      <MissingPanel gaps={gaps} onGo={onGo} />
     </>
   );
 }
@@ -769,7 +797,7 @@ function DraftActions({
           variant="primary"
           className="flex-1 tablet:flex-none"
           aria-disabled={unready || undefined}
-          aria-describedby={unready ? "publish-missing" : undefined}
+          aria-describedby={unready ? "publish-missing publish-missing-list" : undefined}
           aria-busy={publishing || undefined}
           onClick={onPublish}
         >
