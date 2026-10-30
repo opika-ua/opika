@@ -32,6 +32,7 @@ import { NoMatch } from "../../features/gallery/NoMatch";
 import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
 import { placeBookOf } from "../../features/gallery/place-book";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
+import { throwIfGalleryTestFailure } from "../../features/gallery/test-only-failure";
 import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
 
@@ -495,5 +496,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
     searchParams,
     kabinetSessionCookiePresent(),
   ]);
+  throwIfGalleryTestFailure(process.env, rawSearchParams);
   return renderGallery(anonymousRouterClient(), rawSearchParams, kabinetSignedIn);
 }

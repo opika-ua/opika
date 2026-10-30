@@ -143,6 +143,9 @@ export default defineConfig({
       HARNESS_LIFTS_PER_IP_BUDGETS: "1",
       // The kit showcase at /dev/ui is a 404 in a production build without this.
       OPIKA_DEV_UI: "1",
+      // Arms the gallery's test-only failure hook (features/gallery/test-only-failure.ts); it still
+      // needs ?opika_test_fail=1 on the request, which only gallery-error.harness.ts sends.
+      OPIKA_TEST_FAIL_GALLERY: "1",
     },
     stdout: "pipe",
     stderr: "pipe",
