@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { cx } from "./cx";
 import { Icon } from "./Icon";
 import { MultiSelectListbox, type MultiSelectRow, rowId } from "./MultiSelectRows";
@@ -131,7 +132,8 @@ export function ComboboxMulti({
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) closeList();
+      const target = event.target as Node;
+      if (!rootRef.current?.contains(target) && !panelRef.current?.contains(target)) closeList();
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
@@ -145,7 +147,16 @@ export function ComboboxMulti({
     const target = usable[next];
     if (!target) return;
     setActiveValue(target.value);
-    document.getElementById(rowId(idPrefix, target.value))?.scrollIntoView?.({ block: "nearest" });
+    // Scrolls the list only: `scrollIntoView` on a row of a fixed panel can scroll the page behind it.
+    const row = document.getElementById(rowId(idPrefix, target.value));
+    const scroller = row?.closest<HTMLElement>("[data-multi-scroll]");
+    if (row && scroller) {
+      const top = row.offsetTop - scroller.offsetTop;
+      if (top < scroller.scrollTop) scroller.scrollTop = top;
+      else if (top + row.offsetHeight > scroller.scrollTop + scroller.clientHeight) {
+        scroller.scrollTop = top + row.offsetHeight - scroller.clientHeight;
+      }
+    }
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -204,7 +215,8 @@ export function ComboboxMulti({
       ref={rootRef}
       className={cx("relative min-w-0", className)}
       onBlur={(event) => {
-        if (rootRef.current?.contains(event.relatedTarget as Node | null)) return;
+        const next = event.relatedTarget as Node | null;
+        if (rootRef.current?.contains(next) || panelRef.current?.contains(next)) return;
         closeList();
       }}
     >
@@ -276,54 +288,57 @@ export function ComboboxMulti({
         )}
       </div>
 
-      {open ? (
-        <div
-          ref={panelRef}
-          popover="manual"
-          style={
-            box
-              ? { top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight }
-              : undefined
-          }
-          className="fixed inset-auto m-0 flex flex-col overflow-hidden rounded-panel border-2 border-line bg-surface p-0 text-ink shadow-float"
-        >
-          {noRows ? (
-            <div className="flex flex-col gap-1 px-5 py-4 text-body text-ink-2">
-              <span>{messages.noMatch}</span>
-              {messages.noMatchHint ? <span>{messages.noMatchHint}</span> : null}
-            </div>
-          ) : (
-            <>
-              <div className="min-h-0 flex-1 overflow-y-auto p-2">
-                <MultiSelectListbox
-                  rows={rows}
-                  idPrefix={idPrefix}
-                  activeValue={activeValue}
-                  onToggle={onToggle}
-                  label={label}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-3 border-t-2 border-line px-5 py-1">
-                <button
-                  type="button"
-                  disabled={!hasSelection}
-                  onPointerDown={(event) => event.preventDefault()}
-                  onClick={onClear}
-                  className="inline-flex min-h-target cursor-pointer items-center text-label text-ink underline focus-ring disabled:cursor-not-allowed disabled:text-ink-2 disabled:no-underline"
-                >
-                  {messages.clear}
-                </button>
-                <span className="text-caption text-ink-2">
-                  {messages.selectedCount(selectedCount)}
-                </span>
-              </div>
-            </>
-          )}
-          <span role="status" className="sr-only">
-            {query.trim() === "" ? "" : noRows ? messages.noMatch : messages.found(rows.length)}
-          </span>
-        </div>
-      ) : null}
+      {open
+        ? createPortal(
+            <div
+              ref={panelRef}
+              popover="manual"
+              style={
+                box
+                  ? { top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight }
+                  : undefined
+              }
+              className="fixed inset-auto m-0 flex flex-col overflow-hidden rounded-panel border-2 border-line bg-surface p-0 text-ink shadow-float"
+            >
+              {noRows ? (
+                <div className="flex flex-col gap-1 px-5 py-4 text-body text-ink-2">
+                  <span>{messages.noMatch}</span>
+                  {messages.noMatchHint ? <span>{messages.noMatchHint}</span> : null}
+                </div>
+              ) : (
+                <>
+                  <div data-multi-scroll="" className="relative min-h-0 flex-1 overflow-y-auto p-2">
+                    <MultiSelectListbox
+                      rows={rows}
+                      idPrefix={idPrefix}
+                      activeValue={activeValue}
+                      onToggle={onToggle}
+                      label={label}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 border-t-2 border-line px-5 py-1">
+                    <button
+                      type="button"
+                      disabled={!hasSelection}
+                      onPointerDown={(event) => event.preventDefault()}
+                      onClick={onClear}
+                      className="inline-flex min-h-target cursor-pointer items-center text-label text-ink underline focus-ring disabled:cursor-not-allowed disabled:text-ink-2 disabled:no-underline"
+                    >
+                      {messages.clear}
+                    </button>
+                    <span className="text-caption text-ink-2">
+                      {messages.selectedCount(selectedCount)}
+                    </span>
+                  </div>
+                </>
+              )}
+              <span role="status" className="sr-only">
+                {query.trim() === "" ? "" : noRows ? messages.noMatch : messages.found(rows.length)}
+              </span>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
