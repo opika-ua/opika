@@ -74,7 +74,7 @@ export function Tabs({
         aria-label={label}
         className={
           look === "pills"
-            ? "-mx-4 flex gap-2 overflow-x-auto px-4 py-1 tablet:mx-0 tablet:px-0"
+            ? "-mx-4 my-1 flex gap-2 overflow-x-auto overflow-y-hidden px-4 tablet:mx-0 tablet:px-0"
             : "flex gap-1 rounded-pill bg-line p-1"
         }
       >
@@ -96,12 +96,12 @@ export function Tabs({
               onClick={() => setSelected(tab.id)}
               onKeyDown={(event) => move(event, index)}
               className={cx(
-                "min-h-target cursor-pointer rounded-pill text-label focus-ring",
+                "min-h-target cursor-pointer rounded-pill text-label focus-ring-inset",
                 look === "pills" ? "shrink-0 whitespace-nowrap border-2 px-5" : "flex-1 px-4",
                 look === "pills"
                   ? isSelected
                     ? "border-ink bg-ink text-on-ink"
-                    : "border-line bg-surface text-ink"
+                    : "border-line bg-surface text-ink hover:border-ink"
                   : isSelected
                     ? "bg-ink text-on-ink"
                     : "text-ink",

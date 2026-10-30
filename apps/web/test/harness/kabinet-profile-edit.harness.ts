@@ -27,6 +27,7 @@ import { kabinetInvitationRepo } from "@opika/db/repos";
 import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { expectTabRowSound } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.35";
@@ -130,6 +131,18 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
     expect((await page.goto(path))?.status()).toBe(200);
     return page;
   };
+
+  for (const size of [
+    { width: 360, height: 800 },
+    { width: 1440, height: 900 },
+  ]) {
+    test(`the Притулок sub-tabs at ${size.width}px: at most 48px tall, no vertical scroll, a pointer on every tab, the focus ring inside the row`, async () => {
+      const page = await profilePage();
+      await page.setViewportSize(size);
+      await expectTabRowSound(page, page.getByRole("tablist"));
+      await page.close();
+    });
+  }
 
   test("edit the phone, save, see «Збережено.», and the new value after a reload", async () => {
     const page = await profilePage("kontakty");

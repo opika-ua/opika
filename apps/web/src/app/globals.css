@@ -201,6 +201,13 @@
     outline-offset: 3px;
   }
 }
+/* The same ring drawn inside the control, for a control in a row that clips (tab rows): never cut off. */
+@utility focus-ring-inset {
+  &:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: -3px;
+  }
+}
 /* The skip link's target takes programmatic focus only; it is not a control, so no outline. */
 main:focus {
   outline: none;
