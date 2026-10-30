@@ -646,9 +646,7 @@ export const ukPublic = {
 
   // --- Contact reveal (05) ---
   reveal: {
-    /** Template: "Ви запитали про тварину на імʼя {name}." */
-    youAskedAbout: "Ви запитали про тварину на імʼя {name}.",
-    title: "Ось як звʼязатися з притулком.",
+    title: "Як звʼязатися з притулком",
     subtitle:
       "Притулок не знає про цей запит, поки ви не напишете самі. Нічого не сталося автоматично.",
     /**
@@ -660,7 +658,7 @@ export const ukPublic = {
      */
     contactsFootnote: "Контакти такі, якими були {date}, коли ви їх відкрили.",
     meetingPlace: "місце узгодите в листуванні",
-    reflectionHeading: "Перед тим як писати – три речі, про які варто подумати спокійно:",
+    reflectionHeading: "Перед тим як писати – три речі",
     reflection1: "Це роки разом, а не вихідні.",
     reflection2: "Корм, ветеринар, перевезення – щомісячні витрати.",
     reflection3: "Чи згодні всі, хто живе з вами.",
@@ -674,6 +672,16 @@ export const ukPublic = {
      */
     call: "Подзвонити",
     writeEmail: "Написати листа",
+    /** Viber and website rows (reveal redesign, owner-approved wording). */
+    writeViber: "Написати у Viber",
+    openWebsite: "Відкрити сайт",
+    /** Desktop only: the visible label of each row's copy button; the aria-labels name the channel (WCAG 2.5.3). */
+    copy: "Копіювати",
+    copied: "Скопійовано.",
+    copyPhoneLabel: "Копіювати номер телефону",
+    copyTelegramLabel: "Копіювати нікнейм у Telegram",
+    copyViberLabel: "Копіювати номер у Viber",
+    copyEmailLabel: "Копіювати адресу пошти",
     /**
      * The mock (R1/R2) says «Повернутися до галереї», but on the animal page
      * and in the gallery's overlay this button only closes the dialog

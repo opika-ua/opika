@@ -247,6 +247,43 @@ describe("AnimalDetailScreen meta line, by sex", () => {
   });
 
   /**
+   * The age word agrees with the animal's sex on the meta line and in the «Про мене» chip (Q9,
+   * the same `ageWordFor` as the gallery card), capitalised like the other chips; the chip's link
+   * and accessible name stay the filter's own («Показати схожих…: дорослий»). Every sex × bucket.
+   */
+  it.each([
+    ["male", "baby", "Малюк", "малюк"],
+    ["male", "young", "Молодий", "молодий"],
+    ["male", "adult", "Дорослий", "дорослий"],
+    ["male", "senior", "Літній", "літній"],
+    ["female", "baby", "Малючка", "малюк"],
+    ["female", "young", "Молода", "молодий"],
+    ["female", "adult", "Доросла", "дорослий"],
+    ["female", "senior", "Літня", "літній"],
+    ["unknown", "baby", "Малюк", "малюк"],
+    ["unknown", "young", "Молодий", "молодий"],
+    ["unknown", "adult", "Дорослий", "дорослий"],
+    ["unknown", "senior", "Літній", "літній"],
+  ] as const)(
+    "%s, %s: the age chip and meta line read «%s»; the chip's link name keeps «%s»",
+    async (sex, ageBucket, word, filterWord) => {
+      const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+      render(
+        <AnimalDetailScreen
+          animal={makeAnimal({ sex, ageBucket })}
+          shelter={makeShelter()}
+          cityName="Бровари"
+          cityPlace="м. Бровари"
+        />,
+      );
+      // Meta line and chip row: two places.
+      expect(screen.getAllByText(word).length).toBeGreaterThanOrEqual(2);
+      const chip = screen.getByRole("link", { name: new RegExp(`${filterWord}$`) });
+      expect(chip.textContent).toBe(word);
+    },
+  );
+
+  /**
    * The sex chip's own filterable link (gallery filter restructure
    * reverses SF-D5): same `FilterableChipLink` pattern age/size already
    * use, writing `stat=` rather than a `filters.sex*`-worded href for any

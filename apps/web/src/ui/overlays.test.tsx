@@ -28,6 +28,24 @@ describe("Modal", () => {
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Заголовок" }));
   });
 
+  it("with a header, the header shares the close button's row and the title sits below it", () => {
+    render(
+      <Modal
+        open
+        onClose={() => {}}
+        title="Заголовок"
+        closeLabel="Закрити"
+        header={<span>Ведучий</span>}
+      >
+        <span>Тіло</span>
+      </Modal>,
+    );
+    expect(screen.getByRole("dialog", { name: "Заголовок" })).toBeTruthy();
+    expect(screen.getByText("Ведучий")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Закрити" })).toHaveLength(1);
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(1);
+  });
+
   it("locks page scroll while open and releases it on close", () => {
     document.body.style.overflow = "auto";
     render(<ModalHarness />);

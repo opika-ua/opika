@@ -8,6 +8,7 @@ import { citySearchRepo } from "../repos/city-search-repo";
 import { decideImportTarget, type ImportScope } from "./import-target";
 import { type ImportOutcome, type Preflight, runImport } from "./importer";
 import type { PlanReport } from "./plan";
+import { maintenanceLines } from "./post-import-maintenance";
 
 /**
  * `pnpm --filter @opika/db db:import-settlements --file <codifier.xlsx> [--expect ep-...] [--commit]`
@@ -98,6 +99,7 @@ function print(outcome: ImportOutcome, scope: ImportScope): number {
     `Stored: ${n(stored?.withCode ?? 0)} rows with a code, ${stored?.withoutCode ?? 0} without, ${stored?.aliases ?? 0} slug aliases, ${stored?.retired ?? 0} retired`,
   );
   console.log(`A second plan wants to change: ${outcome.remaining} rows (expected 0)`);
+  for (const line of maintenanceLines(outcome.maintenance)) console.log(line);
   return outcome.remaining === 0 ? 0 : 1;
 }
 
