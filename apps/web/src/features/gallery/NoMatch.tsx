@@ -7,7 +7,7 @@ import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
 import type { CitySlugsById } from "./filter-url";
-import { galleryHref } from "./filter-url";
+import { galleryHref, resetFiltersHref } from "./filter-url";
 
 interface NoMatchProps {
   filters: FeedFilters;
@@ -82,6 +82,9 @@ export function NoMatch({
   regionEmpty = false,
   basePath,
 }: NoMatchProps) {
+  // A removal that would add nothing is no suggestion ("no suggestion without a number" means a useful one).
+  const offered = relaxations.filter((suggestion) => suggestion.additional > 0);
+  const nothingToOffer = offered.length === 0 && neighbourRegions.length === 0;
   return (
     <Panel
       padding="lg"
@@ -135,10 +138,21 @@ export function NoMatch({
           </div>
         )}
 
-        {relaxations.length > 0 && (
+        {nothingToOffer && (
+          <LinkButton
+            variant="secondary"
+            href={resetFiltersHref(sort, basePath)}
+            data-testid="no-match-reset"
+            className="w-full"
+          >
+            {uk.filters.reset}
+          </LinkButton>
+        )}
+
+        {offered.length > 0 && (
           <>
             <div className="flex w-full flex-col gap-2">
-              {relaxations.map((suggestion, index) => (
+              {offered.map((suggestion, index) => (
                 <LinkButton
                   key={suggestion.dimension}
                   variant={index === 0 ? "primary" : "secondary"}
