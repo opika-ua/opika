@@ -276,4 +276,18 @@ describe("the shelter page, filters", () => {
     expect(screen.getByRole("link", { name: "Скинути" }).getAttribute("href")).toBe(PAGE);
     expect(screen.getAllByText("Знайдено 2 тварини").length).toBeGreaterThan(0);
   });
+
+  it("no match with only zero-gain suggestions: none shown, «Скинути» back to the bare shelter page", () => {
+    renderScreen({
+      animals: makeListOutput([]),
+      filterUi: { ...UI, relaxations: [{ dimension: "species", additional: 0 }] },
+      query: {
+        sort: "freshest",
+        page: 1,
+        filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
+      },
+    });
+    expect(screen.queryByTestId("no-match-suggestion")).toBeNull();
+    expect(screen.getByTestId("no-match-reset").getAttribute("href")).toBe(PAGE);
+  });
 });

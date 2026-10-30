@@ -73,4 +73,56 @@ describe("NoMatch: an empty oblast", () => {
     const link = screen.getByRole("link", { name: "Показати всі області (+12 тварин)" });
     expect(link.getAttribute("href")).toBe("/tvaryny");
   });
+
+  it("never offers a removal that would add nothing", () => {
+    render(
+      <NoMatch
+        filters={{ ...filters, species: { kind: "oneOf", values: ["dog"] } }}
+        sort="freshest"
+        citySlugs={slugs}
+        relaxations={[
+          { dimension: "regions", additional: 12 },
+          { dimension: "species", additional: 0 },
+        ]}
+      />,
+    );
+    expect(screen.getAllByTestId("no-match-suggestion")).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Показати всі області (+12 тварин)" })).toBeTruthy();
+    expect(screen.queryByText(/\+0/)).toBeNull();
+    expect(screen.queryByTestId("no-match-reset")).toBeNull();
+  });
+
+  it("with only zero-gain removals: no suggestion, no explainer, and «Скинути» to every filter off", () => {
+    render(
+      <NoMatch
+        filters={{ ...filters, species: { kind: "oneOf", values: ["dog"] } }}
+        sort="longest_waiting"
+        citySlugs={slugs}
+        relaxations={[
+          { dimension: "regions", additional: 0 },
+          { dimension: "species", additional: 0 },
+        ]}
+      />,
+    );
+    expect(screen.queryByTestId("no-match-suggestion")).toBeNull();
+    expect(screen.queryByText(/\+0/)).toBeNull();
+    expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
+    const reset = screen.getByRole("link", { name: "Скинути" });
+    expect(reset.getAttribute("href")).toBe("/tvaryny?sort=longest_waiting");
+  });
+
+  it("keeps «Скинути» on a shelter page's own path", () => {
+    render(
+      <NoMatch
+        filters={{ ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } }}
+        sort="freshest"
+        citySlugs={slugs}
+        relaxations={[{ dimension: "species", additional: 0 }]}
+        basePath="/prytulky/abc"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Скинути" }).getAttribute("href")).toBe(
+      "/prytulky/abc",
+    );
+  });
 });
