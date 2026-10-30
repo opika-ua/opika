@@ -158,6 +158,9 @@ async function onServer<T>(
     max: 1,
     onnotice: () => {},
     connect_timeout: limits.connectTimeoutSeconds,
+    // Only utility statements run here; the type-fetch query would itself hit a tiny statement_timeout
+    // and surface as an unhandled rejection.
+    fetch_types: false,
     connection: { statement_timeout: limits.statementTimeoutMs },
   });
   try {
