@@ -32,6 +32,8 @@ corepack` first. In CI, prefer `corepack enable && corepack install`
   interactive download-confirmation prompt, which doesn't reliably
   suppress via `COREPACK_ENABLE_DOWNLOAD_PROMPT=0` on every Corepack
   version. See `.github/workflows/ci.yml` for the pattern in practice.
+- **Biome crash:** Biome 2.5.6 `biome check .` can crash with 0xC0000005 on Windows over the whole repo (not
+  reproducible in CI); lint the changed files instead.
 
 ## Module resolution (why `pnpm typecheck` is not enough)
 

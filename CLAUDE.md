@@ -75,6 +75,10 @@ Priority: speed with sensible quality.
 17. Never restart a server inside a merged PR's worktree.
 18. Merge through the queue: `gh pr merge <n> --auto` (no strategy flag; the queue sets squash), on the exact reviewed head
     (`--match-head-commit <sha>`). Never bypass the queue.
+19. Run `pnpm check` locally before opening or updating any PR; paste the summary in the PR body. At most two full
+    runs at once on the machine, and serialise DB-heavy ones (parallel runs contend on the test database). If Biome
+    segfaults on the whole repo (Windows), lint the changed files with `--diagnostic-level=error` and say so in the
+    PR body; CI lints the whole repo. CI is the source of truth.
 
 
 ## What this is
