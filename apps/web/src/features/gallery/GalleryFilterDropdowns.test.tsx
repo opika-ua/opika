@@ -52,6 +52,11 @@ function renderRow(filters: FeedFilters = NO_FILTERS, counts: GalleryFacetCounts
 
 const trigger = (name: string) => screen.getByRole("button", { name });
 const panel = (name: string) => screen.getByRole("group", { name });
+const field = (name: string) => screen.getByRole("combobox", { name });
+const optionNames = () =>
+  within(screen.getByRole("listbox"))
+    .getAllByRole("option")
+    .map((option) => option.getAttribute("aria-label"));
 const pillNames = (group: HTMLElement) =>
   within(group)
     .getAllByRole("button")
@@ -60,27 +65,24 @@ const pillNames = (group: HTMLElement) =>
 describe("GalleryFilterDropdowns", () => {
   it("renders the five selectors - oblast, city, age, size, sex - after the species toggle", () => {
     renderRow();
-    for (const name of [
-      "Область: Область",
-      "Місто: Місто",
-      "Вік: Вік",
-      "Розмір: Розмір",
-      "Стать: Стать",
-    ]) {
+    for (const name of ["Область", "Місто"]) {
+      expect(field(name).getAttribute("aria-expanded")).toBe("false");
+    }
+    for (const name of ["Вік: Вік", "Розмір: Розмір", "Стать: Стать"]) {
       expect(trigger(name).getAttribute("aria-expanded")).toBe("false");
     }
     expect(screen.getByRole("group", { name: "Вид" })).toBe(screen.getByTestId("species-toggle"));
   });
 
-  it("names the trigger by the dimension while nothing is chosen", () => {
+  it("names the field by the dimension while nothing is chosen", () => {
     renderRow();
-    expect(trigger("Місто: Місто").textContent).toBe("Місто");
+    expect(field("Місто").getAttribute("placeholder")).toBe("Місто");
   });
 
-  it("names the chosen options on the trigger in the panel's order, joined by «, »", () => {
+  it("names the chosen options on the field in the order they were chosen, joined by «, »", () => {
     renderRow({ ...NO_FILTERS, cities: { kind: "oneOf", values: [IRPIN, BROVARY] } });
-    // Бровари first: 14 each, then the alphabet - the order the pills have.
-    expect(trigger("Місто: Бровари, Ірпінь").textContent).toBe("Бровари, Ірпінь");
+    expect(field("Місто: Ірпінь, Бровари").getAttribute("placeholder")).toBe("Ірпінь, Бровари");
+    expect(screen.getByRole("img", { name: "Вибрано: 2" }).textContent).toBe("2");
   });
 
   it("opens a labelled group of pills and moves focus into it", () => {
@@ -105,14 +107,13 @@ describe("GalleryFilterDropdowns", () => {
     expect(pill.getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("orders cities by count, most first, then alphabetically, keeping a city with none left under the filters", () => {
+  it("orders cities by count, most first, then alphabetically, a city with none left last and disabled", () => {
     renderRow();
-    fireEvent.click(trigger("Місто: Місто"));
-    expect(pillNames(panel("Місто"))).toEqual([
-      "Бровари, 14 тварин",
-      "Ірпінь, 14 тварин",
-      "Буча, 0 тварин",
-    ]);
+    fireEvent.click(field("Місто"));
+    expect(optionNames()).toEqual(["Бровари, 14 тварин", "Ірпінь, 14 тварин", "Буча, 0 тварин"]);
+    expect(
+      screen.getByRole("option", { name: "Буча, 0 тварин" }).getAttribute("aria-disabled"),
+    ).toBe("true");
   });
 
   it("keeps the other dimensions in their natural order whatever the counts", () => {
@@ -136,38 +137,33 @@ describe("GalleryFilterDropdowns", () => {
     ).toBe("false");
   });
 
-  it("a pill applies at once through the URL, and the panel stays open for the next", () => {
+  it("a row applies at once through the URL, and the list stays open for the next", () => {
     const router = renderRow({ ...NO_FILTERS, sizes: { kind: "oneOf", values: ["large"] } });
-    fireEvent.click(trigger("Місто: Місто"));
+    fireEvent.click(field("Місто"));
     act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "Ірпінь, 14 тварин" }));
+      fireEvent.click(screen.getByRole("option", { name: "Ірпінь, 14 тварин" }));
     });
 
     expect(router.replace).toHaveBeenCalledWith("/tvaryny?misto=irpin&rozmir=large", {
       scroll: false,
     });
-    expect(panel("Місто")).toBeTruthy();
+    expect(screen.getByRole("listbox", { name: "Місто" })).toBeTruthy();
   });
 
-  it("offers an option with nothing to find as disabled, and ignores a press on it", () => {
+  it("ignores a press on a row with nothing to find", () => {
     const router = renderRow();
-    fireEvent.click(trigger("Місто: Місто"));
-    const empty = screen.getByRole("button", { name: "Буча, 0 тварин" });
-
-    expect(empty.getAttribute("aria-disabled")).toBe("true");
-    fireEvent.click(empty);
+    fireEvent.click(field("Місто"));
+    fireEvent.click(screen.getByRole("option", { name: "Буча, 0 тварин" }));
     expect(router.replace).not.toHaveBeenCalled();
-    // Focus skipped it on open: the first pill that can do something has it.
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Бровари, 14 тварин" }));
   });
 
-  it("keeps a chosen option with nothing to find usable, so it can be cleared", () => {
+  it("keeps a chosen row with nothing to find usable, so it can be cleared", () => {
     const router = renderRow({ ...NO_FILTERS, cities: { kind: "oneOf", values: [BUCHA] } });
-    fireEvent.click(trigger("Місто: Буча"));
-    const chosen = screen.getByRole("button", { name: "Буча, 0 тварин" });
+    fireEvent.click(field("Місто: Буча"));
+    const chosen = screen.getByRole("option", { name: "Буча, 0 тварин" });
 
     expect(chosen.getAttribute("aria-disabled")).toBeNull();
-    expect(chosen.getAttribute("aria-pressed")).toBe("true");
+    expect(chosen.getAttribute("aria-selected")).toBe("true");
     act(() => {
       fireEvent.click(chosen);
     });
@@ -235,7 +231,7 @@ describe("GalleryFilterDropdowns", () => {
     expect(screen.getByTestId("species-cat").getAttribute("aria-current")).toBeNull();
   });
 
-  describe("the oblast selector", () => {
+  describe("the oblast field", () => {
     const TWO_REGIONS: GalleryFacetCounts = {
       ...COUNTS,
       cities: [...COUNTS.cities, facetCity(LVIV_L, 5)],
@@ -245,37 +241,39 @@ describe("GalleryFilterDropdowns", () => {
       ],
     };
 
-    it("lists every oblast with counts, a zero-count one disabled in place", () => {
+    it("lists every oblast with counts in two groups, a zero-count one disabled in place", () => {
       renderRow(NO_FILTERS, TWO_REGIONS);
-      fireEvent.click(trigger("Область: Область"));
-      expect(pillNames(panel("Область"))).toEqual([
+      fireEvent.click(field("Область"));
+      expect(optionNames()).toEqual([
         "Київська, 28 тварин",
         "Львівська, 5 тварин",
         "АР Крим, 0 тварин",
       ]);
+      expect(screen.getByRole("group", { name: "Є тварини" })).toBeTruthy();
+      expect(screen.getByRole("group", { name: "Поки без тварин" })).toBeTruthy();
       expect(
-        screen.getByRole("button", { name: "АР Крим, 0 тварин" }).getAttribute("aria-disabled"),
+        screen.getByRole("option", { name: "АР Крим, 0 тварин" }).getAttribute("aria-disabled"),
       ).toBe("true");
     });
 
-    it("a pill applies at once through the URL as `obl`, keeping the other filters", () => {
+    it("a row applies at once through the URL as `obl`, keeping the other filters", () => {
       const router = renderRow(
         { ...NO_FILTERS, sizes: { kind: "oneOf", values: ["large"] } },
         TWO_REGIONS,
       );
-      fireEvent.click(trigger("Область: Область"));
+      fireEvent.click(field("Область"));
       act(() => {
-        fireEvent.click(screen.getByRole("button", { name: "Львівська, 5 тварин" }));
+        fireEvent.click(screen.getByRole("option", { name: "Львівська, 5 тварин" }));
       });
       expect(router.replace).toHaveBeenCalledWith("/tvaryny?obl=lvivska&rozmir=large", {
         scroll: false,
       });
     });
 
-    it("narrows the city selector to the chosen oblast's cities", () => {
+    it("narrows the city field to the chosen oblast's cities", () => {
       renderRow({ ...NO_FILTERS, regions: { kind: "oneOf", values: [LVIV_OBL] } }, TWO_REGIONS);
-      fireEvent.click(trigger("Місто: Місто"));
-      expect(pillNames(panel("Місто"))).toEqual(["Львів, 5 тварин"]);
+      fireEvent.click(field("Місто"));
+      expect(optionNames()).toEqual(["Львів, 5 тварин"]);
     });
 
     it("deselecting an oblast also drops the cities that narrowed it", () => {
@@ -287,9 +285,9 @@ describe("GalleryFilterDropdowns", () => {
         },
         TWO_REGIONS,
       );
-      fireEvent.click(trigger("Область: Київська, Львівська"));
+      fireEvent.click(field("Область: Київська, Львівська"));
       act(() => {
-        fireEvent.click(screen.getByRole("button", { name: "Київська, 28 тварин" }));
+        fireEvent.click(screen.getByRole("option", { name: "Київська, 28 тварин" }));
       });
       // Brovary narrowed Kyiv oblast and goes with it; Lviv city (its oblast still chosen) stays.
       expect(router.replace).toHaveBeenCalledWith("/tvaryny?obl=lvivska&misto=lviv", {
@@ -298,14 +296,15 @@ describe("GalleryFilterDropdowns", () => {
     });
 
     it("offers a ✕ that clears only the oblast", () => {
-      renderRow({
+      const router = renderRow({
         ...NO_FILTERS,
         regions: { kind: "oneOf", values: [KYIV_OBL] },
         sizes: { kind: "oneOf", values: ["large"] },
       });
-      expect(screen.getByRole("link", { name: "Скинути Область" }).getAttribute("href")).toBe(
-        "/tvaryny?rozmir=large",
-      );
+      act(() => {
+        fireEvent.click(screen.getByRole("button", { name: "Скинути Область" }));
+      });
+      expect(router.replace).toHaveBeenCalledWith("/tvaryny?rozmir=large", { scroll: false });
     });
   });
 });

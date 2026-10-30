@@ -48,3 +48,10 @@ export function railResultCount(count: number, shelterCount: number): string {
 export function showCountLabel(count: number): string {
   return uk.filters.showCount.replace("{count}", String(count));
 }
+
+/** "Показати 14 тварин": the sheet's apply button; `{animalWord}` is the accusative the sentences above use. */
+export function showAnimalsLabel(count: number): string {
+  return uk.filters.showAnimals
+    .replace("{count}", String(count))
+    .replace("{animalWord}", animalWordAccusative(count));
+}

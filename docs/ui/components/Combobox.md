@@ -23,3 +23,5 @@ File: `apps/web/src/ui/Combobox.tsx`
 ```tsx
 <Combobox id="city" name="cityId" label={t.city} value={city} onChange={setCity} search={searchCities} messages={t.combobox} />
 ```
+
+**Multi-select mode** (several values from a list already held, a count badge, a top-layer list): see [ComboboxMulti](ComboboxMulti.md).

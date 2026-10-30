@@ -19,8 +19,12 @@ import { Icon } from "./Icon";
 export type SheetProps = {
   /** The dialog id and the hash the trigger links to. */
   id: string;
-  /** The accessible name of both the trigger and the sheet. */
+  /** The accessible name of the sheet, and of the trigger unless `triggerLabel` says otherwise. */
   label: string;
+  /** The trigger's own accessible name, when it carries more than the sheet's (a count of active filters). */
+  triggerLabel?: string;
+  /** Fires once the dialog has closed however it closed (✕, Esc, backdrop, Back), e.g. to drop unsaved edits. */
+  onClosed?: () => void;
   closeLabel: string;
   /** What the trigger shows (usually an Icon and/or text). */
   trigger: ReactNode;
@@ -34,7 +38,14 @@ export type SheetProps = {
   /** Test hooks for the harness; the unit tests query by role. */
   triggerTestId?: string;
   dialogTestId?: string;
-  children: ReactNode;
+  /**
+   * `bottom` (default): a bottom sheet with its own title bar. `screen`: full-screen below `tablet`
+   * and a centred dialog (up to 560px) from it, with no title bar: `children` is a function that
+   * draws its own header and gets the close control to place in it, and fills the dialog's height
+   * (a sticky footer stays put while the body scrolls).
+   */
+  presentation?: "bottom" | "screen";
+  children: ReactNode | ((slots: { close: ReactNode }) => ReactNode);
 };
 
 const HIDE_FROM = { tablet: "tablet:hidden", desktop: "desktop:hidden" } as const;
@@ -42,12 +53,15 @@ const HIDE_FROM = { tablet: "tablet:hidden", desktop: "desktop:hidden" } as cons
 export function Sheet({
   id,
   label,
+  triggerLabel,
+  onClosed,
   closeLabel,
   trigger,
   triggerClassName,
   hideFrom,
   triggerTestId,
   dialogTestId,
+  presentation = "bottom",
   children,
 }: SheetProps) {
   const [open, setOpen] = useState(false);
@@ -56,6 +70,7 @@ export function Sheet({
     open,
     onClose: () => {
       setOpen(false);
+      onClosed?.();
       // Clear the fragment left by the no-JS path so a reload does not re-show the sheet.
       if (window.location.hash === `#${id}`) {
         history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -83,13 +98,25 @@ export function Sheet({
     ref.current.close();
   };
 
+  const closeLink = (
+    // biome-ignore lint/a11y/useValidAnchor: real navigation; without JS this is the only way to clear the :target fragment and hide the sheet.
+    <a
+      href="#"
+      onClick={closeWithJs}
+      aria-label={closeLabel}
+      className="inline-flex size-target shrink-0 cursor-pointer items-center justify-center rounded-pill text-ink focus-ring"
+    >
+      <Icon name="close" />
+    </a>
+  );
+
   return (
     <>
       <a
         ref={triggerRef}
         href={`#${id}`}
         onClick={openWithJs}
-        aria-label={label}
+        aria-label={triggerLabel ?? label}
         aria-haspopup="dialog"
         aria-controls={id}
         aria-expanded={open}
@@ -111,25 +138,25 @@ export function Sheet({
         aria-label={label}
         onClick={onBackdropClick}
         className={cx(
-          "fixed inset-x-0 bottom-0 top-auto z-(--z-sheet) m-0 max-h-dvh w-full max-w-none overflow-y-auto rounded-t-panel border-0 bg-surface p-0 text-ink backdrop:bg-ink/40 tablet:rounded-t-sheet",
+          presentation === "screen"
+            ? "fixed inset-0 z-(--z-sheet) m-0 h-dvh max-h-dvh w-full max-w-none overflow-hidden rounded-none border-0 bg-surface p-0 text-ink backdrop:bg-ink/40 tablet:inset-auto tablet:m-auto tablet:h-auto tablet:max-h-dvh tablet:max-w-140 tablet:rounded-panel"
+            : "fixed inset-x-0 bottom-0 top-auto z-(--z-sheet) m-0 max-h-dvh w-full max-w-none overflow-y-auto rounded-t-panel border-0 bg-surface p-0 text-ink backdrop:bg-ink/40 tablet:rounded-t-sheet",
           hideFrom && HIDE_FROM[hideFrom],
         )}
       >
-        <div className="flex flex-col gap-4 p-5 pb-safe">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-label text-ink-2">{label}</span>
-            {/* biome-ignore lint/a11y/useValidAnchor: real navigation; without JS this is the only way to clear the :target fragment and hide the sheet. */}
-            <a
-              href="#"
-              onClick={closeWithJs}
-              aria-label={closeLabel}
-              className="inline-flex size-target cursor-pointer items-center justify-center rounded-pill text-ink focus-ring"
-            >
-              <Icon name="close" />
-            </a>
+        {presentation === "screen" ? (
+          <div className="flex h-dvh max-h-dvh flex-col tablet:h-175 tablet:max-h-dvh">
+            {typeof children === "function" ? children({ close: closeLink }) : children}
           </div>
-          {children}
-        </div>
+        ) : (
+          <div className="flex flex-col gap-4 p-5 pb-safe">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-label text-ink-2">{label}</span>
+              {closeLink}
+            </div>
+            {typeof children === "function" ? children({ close: closeLink }) : children}
+          </div>
+        )}
       </dialog>
     </>
   );

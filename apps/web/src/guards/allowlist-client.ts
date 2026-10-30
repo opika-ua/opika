@@ -17,6 +17,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/ErrorSummary.tsx":
     "item buttons focus their field (click handler); ref is the form's focus target",
   "ui/Combobox.tsx": "query state, debounce, abort, active option, dialog below tablet",
+  "ui/ComboboxMulti.tsx":
+    "open state, query, active row, top-layer popover positioning, key handling",
   "ui/Popover.tsx": "open state, outside-press and Esc listeners",
   "ui/StickyActionBar.tsx":
     "VisualViewport listeners (keyboard lift), ResizeObserver and a focus listener for scroll padding",
@@ -43,9 +45,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/gallery/CityFacetChoices.tsx":
     "expanded and query state for the long city list (show all, local filter)",
   "features/gallery/ArrowKeyGrid.tsx": "2D arrow-key navigation over the card grid",
-  "features/gallery/FilterSheet.tsx": "form submit and close through the router",
-  "features/gallery/GalleryControlBlock.tsx":
-    "filter-row disclosure: open state, matchMedia, outside click",
+  "features/gallery/FilterSheet.tsx":
+    "draft state, drill-down views, form submit and close through the router",
   "features/gallery/GalleryFilterDropdowns.tsx":
     "selector pills: router.replace in a transition, useOptimistic pressed state",
   "features/gallery/ReplaceNav.tsx": "router.replace on filter link click (no history entry)",
