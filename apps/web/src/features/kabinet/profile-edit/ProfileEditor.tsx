@@ -17,14 +17,9 @@ import { DonationSection } from "./DonationSection";
 import { LogoSection } from "./LogoSection";
 import { PauseControl } from "./PauseControl";
 import { PageSave } from "./page-save";
+import { type ProfileTab, profileTabOf } from "./profile-tabs";
 import { VoiceSection } from "./VoiceSection";
 import { runWrite } from "./write-result";
-
-/** The sub-tabs and their `?tab=` values (Latin slugs, like the routes). The first is the default. */
-export const PROFILE_TABS = ["profil", "kontakty", "zbir", "perevirka", "akaunt"] as const;
-export type ProfileTab = (typeof PROFILE_TABS)[number];
-export const profileTabOf = (raw: string | undefined): ProfileTab =>
-  PROFILE_TABS.find((tab) => tab === raw) ?? "profil";
 
 /** Which tab holds each section that can refuse a save, so a refusal shows the tab it is on. */
 const SECTION_TAB: Record<string, ProfileTab> = { contacts: "kontakty", voice: "profil" };

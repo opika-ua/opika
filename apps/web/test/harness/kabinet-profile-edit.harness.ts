@@ -122,22 +122,26 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
 
   // Притулок (renamed from «Профіль притулку», kabinet redesign Phase 2 PR 1):
   // the editor moved off `/kabinet` (now Головна) to its own path.
-  const profilePage = async (): Promise<Page> => {
+  // Kabinet UX round 2: the editor is sub-tabs, addressable as `?tab=`.
+  const profilePage = async (tab?: string): Promise<Page> => {
     if (context === undefined) throw new Error("not signed in");
     const page = await context.newPage();
-    expect((await page.goto("/kabinet/prytulok"))?.status()).toBe(200);
+    const path = tab === undefined ? "/kabinet/prytulok" : `/kabinet/prytulok?tab=${tab}`;
+    expect((await page.goto(path))?.status()).toBe(200);
     return page;
   };
 
   test("edit the phone, save, see «Збережено.», and the new value after a reload", async () => {
-    const page = await profilePage();
+    const page = await profilePage("kontakty");
     const contacts = page.getByRole("region", { name: "Контакти" });
     const phone = contacts.getByLabel(/^Телефон/);
     const before = await phone.inputValue();
 
     await phone.fill("+380 50 111-22-33");
-    await contacts.getByRole("button", { name: "Зберегти" }).click();
+    // The one page save bar appears only now that something is unsaved.
+    await page.getByRole("button", { name: "Зберегти" }).click();
     await expect(contacts.getByRole("status")).toHaveText("Збережено.");
+    await expect(page.getByRole("button", { name: "Зберегти" })).toHaveCount(0);
 
     await page.reload();
     await expect(page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/)).toHaveValue(
@@ -148,14 +152,14 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
     const again = page.getByRole("region", { name: "Контакти" });
     await again.getByLabel(/^Телефон/).fill(before);
     if (before !== "+380501112233") {
-      await again.getByRole("button", { name: "Зберегти" }).click();
+      await page.getByRole("button", { name: "Зберегти" }).click();
       await expect(again.getByRole("status")).toHaveText("Збережено.");
     }
     await page.close();
   });
 
   test("pause with a reason, then resume", async () => {
-    const page = await profilePage();
+    const page = await profilePage("akaunt");
     await page.getByRole("button", { name: "Призупинити прийом тварин" }).click();
     const dialog = page.getByRole("dialog", { name: "Призупинити прийом тварин?" });
     await dialog.getByLabel("Причина").selectOption({ label: "Сезонна перерва" });
@@ -209,17 +213,28 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
     const form = await context.newPage();
     expect((await form.goto("/kabinet/tvaryny/nova"))?.status()).toBe(200);
     const controls = [
-      ["TextField", page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/)],
+      [
+        "TextField",
+        "Контакти",
+        page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/),
+      ],
       [
         "TextAreaField",
+        "Профіль",
         page
           .getByRole("region", { name: "Голос притулку" })
           .getByLabel("Ваші слова на сторінці притулку"),
       ],
-      ["Button, secondary", page.getByRole("button", { name: "Призупинити прийом тварин" })],
-      ["SegmentedControl", form.getByRole("radio", { name: "Собака" })],
+      [
+        "Button, secondary",
+        "Акаунт",
+        page.getByRole("button", { name: "Призупинити прийом тварин" }),
+      ],
+      ["SegmentedControl", null, form.getByRole("radio", { name: "Собака" })],
     ] as const;
-    for (const [primitive, control] of controls) {
+    for (const [primitive, tab, control] of controls) {
+      // Each control sits in its sub-tab; only the active panel is visible.
+      if (tab !== null) await page.getByRole("tab", { name: tab }).click();
       const { name, minHeight } = await control.evaluate((el) => {
         const label = (el as HTMLInputElement).labels?.[0];
         const target = (el as HTMLInputElement).type === "radio" && label ? label : el;
@@ -248,7 +263,7 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
    * tabbing), never its appearance").
    */
   test("tabbing to a control shows a focus indicator", async () => {
-    const page = await profilePage();
+    const page = await profilePage("kontakty");
     const phone = page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/);
     let reached = false;
     for (let i = 0; i < 20 && !reached; i += 1) {

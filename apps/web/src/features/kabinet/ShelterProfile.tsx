@@ -14,7 +14,8 @@ import { KabinetNav } from "./KabinetNav";
 import { channelValue, Facts, LockedBlock, Row } from "./ProfileParts";
 import { ChangePasswordSection, type PasswordState } from "./password/ChangePasswordSection";
 import { PausedStatus } from "./profile-edit/PausedStatus";
-import { ProfileEditor, profileTabOf } from "./profile-edit/ProfileEditor";
+import { ProfileEditor } from "./profile-edit/ProfileEditor";
+import { profileTabOf } from "./profile-edit/profile-tabs";
 import { animalListShownTo, publicShelterPath } from "./routes";
 import { SupportBanner } from "./SupportBanner";
 
