@@ -156,7 +156,7 @@ test.describe("the invitation link sets a password (PW-2)", () => {
         new URL(request.url()).pathname === "/api/kabinet/invitation/acceptWithPassword",
     );
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button", { name: "Зберегти й увійти" }).click(),
     ]);
     const headers = await (await posted).allHeaders();
@@ -164,7 +164,7 @@ test.describe("the invitation link sets a password (PW-2)", () => {
       origin,
       referer: null,
     });
-    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
     expect(
       (await db.select().from(authMember)).filter((member) => member.userId === userId),
     ).toHaveLength(1);
@@ -190,10 +190,10 @@ test.describe("the invitation link sets a password (PW-2)", () => {
     await page.getByLabel("Електронна пошта").fill(email);
     await page.getByLabel("Пароль", { exact: true }).fill(PASSWORD);
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button", { name: "Увійти", exact: true }).click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
     await context.close();
   });
 });

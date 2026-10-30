@@ -141,10 +141,10 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     // «Увійти», then signed in once the page is the cabinet: waited on by the URL and the
     // heading, never by the GET's response event (AW-H2, the K3 and K4 specs' fix).
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button").click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
     await page.close();
   });
 
@@ -162,7 +162,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
 
   const rowOf = (page: Page, name: string): Locator => page.getByRole("listitem", { name });
 
-  test("from Головна's nav, «Тварини»: the list, its rows, and «Показати ці N» opening the stale cards", async () => {
+  test("from the landing, «Тварини»: the list, its rows, and «Показати ці N» opening the stale cards", async () => {
     const page = await open("/kabinet");
     await page
       .getByRole("navigation", { name: "Розділи кабінету" })

@@ -13,13 +13,13 @@ import {
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import type { ReactNode } from "react";
-import { Chip } from "../../../ui/Chip";
 import { Heading } from "../../../ui/Heading";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 import { TextLink } from "../../../ui/TextLink";
 import { channelValue, groupEdrpou } from "../ProfileParts";
 import { OPERATOR_HOME } from "../routes";
+import { VerificationStatusChip } from "../StatusChips";
 import { formatDate, formatTime } from "./format";
 import { HistoryList } from "./HistoryList";
 import type { HistoryPage } from "./pages";
@@ -352,9 +352,7 @@ export function ShelterScreen({
           })}
         </Text>
         <p className="flex flex-wrap items-center gap-2">
-          <Chip kind="status" tone="ink">
-            {uk.kabinet.profileStatus[view.verification.status]}
-          </Chip>
+          <VerificationStatusChip status={view.verification.status} />
           <Text as="span">
             {fillTemplate(t.shelter.timeInState, {
               date: formatDate(enteredAt(view.verification)),

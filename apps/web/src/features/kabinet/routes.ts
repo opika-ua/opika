@@ -10,13 +10,14 @@ export const OPERATOR_HOME = "/kabinet/prytulky";
 export const NEW_SHELTER_PATH = `${OPERATOR_HOME}/novyi`;
 
 /**
- * The shelter's landing page, Головна (kabinet redesign Phase 2, PR 1): what
- * needs attention – drafts, stale cards, a pending/rejected/suspended notice,
- * the paused banner. It used to be K4's profile page; sign-in's redirect and
- * every invite/magic-link/reset email link here unchanged, so an old link
- * keeps working and now lands on Головна rather than the profile editor.
+ * Where sign-in and every invite, magic-link and reset email link end up. It has no screen of its
+ * own since kabinet UX round 2: the page settles the session and sends a shelter on to the animal
+ * list (Тварини is the landing; what Головна showed moved to the top of that list).
  */
 export const SHELTER_HOME = "/kabinet";
+
+/** The public gallery, for the header's «Переглянути сайт» (opened in a new tab). */
+export const PUBLIC_GALLERY_PATH = "/tvaryny";
 
 /** Притулок (renamed from «Профіль притулку»): K4's profile editor, moved off `SHELTER_HOME`. */
 export const SHELTER_PROFILE_PATH = "/kabinet/prytulok";

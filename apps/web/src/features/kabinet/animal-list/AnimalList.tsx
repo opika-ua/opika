@@ -3,7 +3,7 @@
 import type { KabinetAnimalListFilter, KabinetCursor, KabinetShelterView } from "@opika/contracts";
 import { UNDO_SHOWN_MS } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
   type KabinetAnimalListClient,
   kabinetAnimalListBrowserClient,
@@ -129,6 +129,7 @@ export function AnimalList({
   editing,
   client = kabinetAnimalListBrowserClient,
   clock = () => new Date(),
+  attention = null,
 }: {
   shelter: KabinetShelterView;
   first: AnimalListPageData;
@@ -136,6 +137,8 @@ export function AnimalList({
   editing: AnimalFormEditing;
   client?: KabinetAnimalListClient;
   clock?: () => Date;
+  /** Server-rendered notices that govern everything below (rejected, suspended, pending), shown under the title. */
+  attention?: ReactNode;
 }) {
   const editable = editing.kind === "open" && viewer === "admin";
   const [verification, setVerification] = useState(shelter.verification);
@@ -525,6 +528,8 @@ export function AnimalList({
           </LinkButton>
         ) : null}
       </header>
+
+      {attention}
 
       {/* One sticky live region per kind, always in the DOM so a change is announced; empty ones are hidden. */}
       <div className="sticky top-3 z-(--z-header) flex flex-col gap-2">

@@ -4,10 +4,10 @@ import type { CreatedShelterView, EmailSendOutcome, InvitationReminder } from "@
 import { fillTemplate, uk } from "@opika/i18n";
 import { useEffect, useRef, useState } from "react";
 import { Button, LinkButton } from "../../../../ui/Button";
-import { Chip } from "../../../../ui/Chip";
 import { Heading } from "../../../../ui/Heading";
 import { Panel } from "../../../../ui/Panel";
 import { Text } from "../../../../ui/Text";
+import { VerificationStatusChip } from "../../StatusChips";
 import { shelterPath } from "../list-params";
 import {
   createRefusalOf,
@@ -116,9 +116,9 @@ export function CreatedShelter({
       padding="lg"
       className="flex min-w-0 flex-col gap-4 self-start"
     >
-      <Chip kind="status" tone="ink" className="self-start">
-        {uk.kabinet.profileStatus[view.verification.status]}
-      </Chip>
+      <span className="self-start">
+        <VerificationStatusChip status={view.verification.status} />
+      </span>
       <Heading level={1} look="title" id="created-shelter-fact" ref={factRef} tabIndex={-1}>
         {invitation === null ? t.createdNoInvite : t.created}
       </Heading>

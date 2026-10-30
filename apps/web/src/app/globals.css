@@ -25,6 +25,16 @@
   --color-success: #1f7a3d;
   --color-warning: #8a5a00;
   --color-danger: #b3261e;
+  /* Status chips of a card and of a shelter: a soft tint with its own text colour, every pair AA
+   * (docs/ui/tokens.md lists the measured ratios). Not warnings: nothing here is alarming. */
+  --color-status-published: #ede6f7;
+  --color-status-published-ink: #5b3a96;
+  --color-status-reserved: #fde6d8;
+  --color-status-reserved-ink: #9a3412;
+  --color-status-adopted: #e9ddec;
+  --color-status-adopted-ink: #270041;
+  --color-status-withdrawn: #e8e5e6;
+  --color-status-withdrawn-ink: #735263;
 
   /* Fixed radius scale. */
   --radius-tag: 8px;

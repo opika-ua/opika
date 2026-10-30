@@ -3,9 +3,9 @@ import type { ShelterFacingVerification } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import type { ReactNode } from "react";
 import { Card } from "../../ui/Card";
-import { Chip } from "../../ui/Chip";
 import { Heading } from "../../ui/Heading";
 import { Text } from "../../ui/Text";
+import { VerificationStatusChip } from "./StatusChips";
 
 /**
  * Pieces the read-only profile and K4's editor share: the label-value row
@@ -101,9 +101,7 @@ export function LockedBlock({
           <Heading level={2} look="section" id="kabinet-locked">
             {t.lockedTitle}
           </Heading>
-          <Chip kind="status" tone="ink">
-            {uk.kabinet.profileStatus[view.verification.status]}
-          </Chip>
+          <VerificationStatusChip status={view.verification.status} />
         </div>
         <Text look="hint">{fillTemplate(t.lockedNote, { operator: operatorName })}</Text>
         <Facts>

@@ -209,6 +209,18 @@ export default function DevUiPage() {
           <Chip kind="status" tone="danger">
             Danger
           </Chip>
+          <Chip kind="status" tone="published">
+            Published
+          </Chip>
+          <Chip kind="status" tone="reserved">
+            Reserved
+          </Chip>
+          <Chip kind="status" tone="adopted">
+            Adopted
+          </Chip>
+          <Chip kind="status" tone="withdrawn">
+            Withdrawn
+          </Chip>
         </Row>
         <Row label="Badge">
           <Badge tone="dog">Dog</Badge>
