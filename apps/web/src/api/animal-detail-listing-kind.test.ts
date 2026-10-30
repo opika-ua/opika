@@ -23,7 +23,7 @@ async function seed(animals: ReturnType<typeof makeAnimal>[]) {
   return { shelter, city };
 }
 
-const AT = new Date("2026-10-01T00:00:00.000Z").toISOString();
+const AT = new Date("2026-10-01T00:00:00.000Z");
 
 describe("animals.byId carries the listing kind and nothing else of the listing", () => {
   it("a published animal answers published, a reserved one reserved", async () => {
@@ -36,7 +36,7 @@ describe("animals.byId carries the listing kind and nothing else of the listing"
         publishedAt: AT,
         confirmedAt: AT,
         undoable: null,
-      } as never,
+      },
     });
     await seed([published, reserved]);
 
@@ -52,11 +52,11 @@ describe("animals.byId carries the listing kind and nothing else of the listing"
     const reserved = makeAnimal({
       listing: {
         kind: "reserved",
-        since: "2026-09-17T08:30:00.000Z",
-        publishedAt: "2026-08-03T07:45:00.000Z",
+        since: new Date("2026-09-17T08:30:00.000Z"),
+        publishedAt: new Date("2026-08-03T07:45:00.000Z"),
         confirmedAt: AT,
         undoable: null,
-      } as never,
+      },
     });
     await seed([reserved]);
     const res = await h.call("animals.byId", { animalId: reserved.id });
