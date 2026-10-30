@@ -137,6 +137,7 @@ export async function galleryFacetCounts(
   // filter, so a repeated value list multiplies there (review of #250, note 1).
   const counts = await galleryRepo(context.db).facetCounts({
     filters: canonicalizeFilters(input.filters),
+    scope: input.scope,
     now: context.now,
   });
   return {

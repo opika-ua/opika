@@ -1030,6 +1030,60 @@ describe("galleryRepo.facetCounts", () => {
     expect(cityCounts(counts).get(kyiv.id)).toBe(4);
     expect(Object.values(counts.sizes).reduce((sum, n) => sum + n, 0)).toBe(6);
   });
+
+  it("with a shelter scope counts only that shelter's animals, and an unlisted shelter's nothing", async () => {
+    const { kyiv } = await seedFacetCorpus();
+    const other = await makeShelterInCity(kyiv.id);
+    await animalRepo(db).insert(
+      makeAnimal({ shelterId: other.id, species: "cat", size: "large", sex: "female" }),
+      kyiv.id,
+    );
+    const pending = makeShelter({
+      publicLocation: {
+        cityId: kyiv.id,
+        district: null,
+        precision: "fuzzed_address",
+        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+      },
+      exactAddress: {
+        line1: "вул. Тестова 2",
+        line2: null,
+        postalCode: "01001",
+        cityId: kyiv.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+      verification: {
+        status: "pending",
+        submittedAt: NOW,
+        evidence: { items: [], submittedAt: NOW },
+      },
+    });
+    await shelterRepo(db).insert(pending);
+    await animalRepo(db).insert(makeAnimal({ shelterId: pending.id, size: "small" }), kyiv.id);
+
+    const everyone = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
+    const scoped = await galleryRepo(db).facetCounts({
+      filters: NO_FILTERS,
+      now: NOW,
+      scope: { kind: "shelter", shelterId: other.id },
+    });
+    const sum = (record: Record<string, number>) =>
+      Object.values(record).reduce((total, n) => total + n, 0);
+
+    expect(sum(everyone.sizes)).toBeGreaterThan(1);
+    expect(scoped.sizes).toEqual({ small: 0, medium: 0, large: 1 });
+    expect(scoped.sexes).toEqual({ male: 0, female: 1, unknown: 0 });
+    expect(cityCounts(scoped)).toEqual(new Map([[kyiv.id, 1]]));
+
+    const unlisted = await galleryRepo(db).facetCounts({
+      filters: NO_FILTERS,
+      now: NOW,
+      scope: { kind: "shelter", shelterId: pending.id },
+    });
+    expect(unlisted.cities).toEqual([]);
+    expect(sum(unlisted.sizes)).toBe(0);
+  });
 });
 
 describe("galleryRepo.neighbours", () => {

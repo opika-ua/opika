@@ -80,6 +80,31 @@ describe("gallery.facetCounts", () => {
     });
   });
 
+  it("with a shelter scope counts that shelter's animals only, over the HTTP route too", async () => {
+    const city = await seedOneCityTwoDogsOneCat();
+    const other = makeShelter({
+      publicLocation: {
+        precision: "fuzzed_address",
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+      },
+    });
+    await shelterRepo(h.db).insert(other);
+    await animalRepo(h.db).insert(
+      makeAnimal({ shelterId: other.id, species: "cat", size: "large" }),
+      city.id,
+    );
+    const input = { filters: NO_FILTERS, scope: { kind: "shelter", shelterId: other.id } };
+
+    const viaHttp = await h.call("gallery.facetCounts", input);
+    const everyone = await anonymousRouterClient(h.db).gallery.facetCounts({ filters: NO_FILTERS });
+
+    expect(viaHttp.status).toBe(200);
+    expect((viaHttp.body as { sizes: unknown }).sizes).toEqual({ small: 0, medium: 0, large: 1 });
+    expect(everyone.sizes).toEqual({ small: 2, medium: 0, large: 2 });
+  });
+
   it("serves the same answer over the public HTTP route", async () => {
     await seedOneCityTwoDogsOneCat();
     const input = { filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } } };
