@@ -167,7 +167,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       registry: keysOf(uk.kabinet.registry.inviteSent),
       history: keysOf(uk.kabinet.history),
     }).toEqual({
-      shell: ["label"],
+      shell: ["label", "newTab", "viewSite"],
       // PW-1: `send` (the magic-link button) gave way to his `useLink`; the password keys are his §A.
       signIn: [
         "addressNote",
@@ -1705,9 +1705,6 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.add": "Додати тварину",
     "kabinet.animalList.addShort": "Додати",
     "kabinet.nav.label": "Розділи кабінету",
-    // Kabinet redesign Phase 2 PR 1 (owner-approved, 2026-10-28): the shell
-    // nav gained «Головна» as its new landing-page item.
-    "kabinet.nav.home": "Головна",
     "kabinet.nav.animals": "Тварини",
     "kabinet.animalList.filter.label": "Показати",
     "kabinet.animalList.filter.all": "Усі",

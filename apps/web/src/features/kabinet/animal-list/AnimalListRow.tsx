@@ -12,6 +12,7 @@ import { Photo } from "../../../ui/Photo";
 import { Text } from "../../../ui/Text";
 import { missingSentence } from "../animal-form/labels";
 import { animalPath } from "../routes";
+import { ListingStatusChip } from "../StatusChips";
 import {
   type AnimalRow,
   actionLabelOf,
@@ -21,7 +22,6 @@ import {
   rowActionsOf,
   statusLineOf,
 } from "./list-model";
-import { ListingStatusChip } from "./RowParts";
 
 const t = uk.kabinet.animalList;
 

@@ -130,10 +130,10 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     // rendered (the same fix as b598d93 for K4 and #120's for KS-T3; AW-H2). Each test's own
     // `goto("/kabinet")` asserts 200.
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button").click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
     await page.close();
   });
 

@@ -46,7 +46,7 @@ export function SignOutButton({
   return (
     <span className="inline-flex flex-col items-end">
       <Button
-        variant="ghost"
+        variant="secondary"
         aria-busy={busy}
         onClick={async () => {
           if (busy) return;
@@ -62,7 +62,7 @@ export function SignOutButton({
           }
           navigate(SIGNED_OUT_DESTINATION);
         }}
-        className="whitespace-nowrap underline"
+        className="whitespace-nowrap"
       >
         {uk.kabinet.profile.signOut}
       </Button>
