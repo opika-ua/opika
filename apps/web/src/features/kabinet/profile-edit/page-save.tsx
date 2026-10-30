@@ -7,6 +7,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -44,7 +45,9 @@ export function useSectionControls(id: string, dirty: boolean, controls: Control
     registry.register(id, ref);
     return () => registry.unregister(id);
   }, [registry, id]);
-  useEffect(() => {
+  // A layout effect: a save's answer commits outside any event, and React paints before passive
+  // effects, so the bar stayed up beside «Збережено.» for a frame.
+  useLayoutEffect(() => {
     registry.setDirty(id, dirty);
   }, [registry, id, dirty]);
 }
