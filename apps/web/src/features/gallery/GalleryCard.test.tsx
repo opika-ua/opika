@@ -196,3 +196,48 @@ describe("GalleryCard names no shelter", () => {
     expect(link.textContent).not.toContain("перевірений");
   });
 });
+
+describe("GalleryCard on a phone (text under the photo)", () => {
+  it("shows the freshness in words beside a decorative dot, in either layout", () => {
+    const freshness = makeFreshness("fresh", 12);
+    for (const layout of ["responsive", "stacked"] as const) {
+      const { unmount } = render(
+        <GalleryCard
+          card={makeCard({ freshness })}
+          cityName="Бровари"
+          layout={layout}
+          {...NO_CONTEXT}
+        />,
+      );
+      expect(screen.getAllByText(freshnessLabel(freshness))).toHaveLength(1);
+      expect(
+        screen.getByTestId("freshness-badge").querySelector("[aria-hidden='true']"),
+      ).not.toBeNull();
+      unmount();
+    }
+  });
+
+  it("the stacked layout has no pill, and the freshness text is rendered once", () => {
+    render(
+      <GalleryCard
+        card={makeCard({ listingKind: "reserved" })}
+        cityName="Бровари"
+        layout="stacked"
+        {...NO_CONTEXT}
+      />,
+    );
+    expect(screen.queryByText("Познайомитися")).toBeNull();
+    expect(screen.getByTestId("reserved-badge").textContent).toBe("Уже домовляються");
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getAllByText(freshnessLabel(makeFreshness("fresh", 3)))).toHaveLength(1);
+  });
+
+  it("keeps a long name whole in the accessible name while the visible name is the same text", () => {
+    const name = "Принцеса Маргарита Велика Київська та всієї Русі";
+    render(
+      <GalleryCard card={makeCard({ name })} cityName="Бровари" layout="stacked" {...NO_CONTEXT} />,
+    );
+    expect(screen.getByRole("link").getAttribute("aria-label")?.startsWith(`${name},`)).toBe(true);
+    expect(screen.getByTestId("card-name").textContent).toBe(name);
+  });
+});

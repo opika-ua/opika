@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ShelterPageScreen } from "./ShelterPageScreen";
 import {
@@ -126,5 +126,51 @@ describe("the shelter page", () => {
     for (const href of hrefs) expect(href?.startsWith(`${PAGE}?sort=longest_waiting`)).toBe(true);
     expect(hrefs).toContain(`${PAGE}?sort=longest_waiting&stor=3`);
     expect(hrefs).toContain(`${PAGE}?sort=longest_waiting`);
+  });
+});
+
+describe("the shelter page, states", () => {
+  it("a verified shelter reads «Перевірено вручну · на сайті з {year} року» as plain text", () => {
+    renderScreen({ shelter: makeShelterPageShelter({ verification: "verified" }) });
+    expect(screen.getByTestId("shelter-trust-line").textContent).toContain(
+      "Перевірено вручну · на сайті з 2023 року",
+    );
+  });
+
+  it("an unverified shelter reads only «на сайті з {year} року»", () => {
+    renderScreen({ shelter: makeShelterPageShelter({ verification: "unverified" }) });
+    const line = screen.getByTestId("shelter-trust-line").textContent ?? "";
+    expect(line).toBe("на сайті з 2023 року");
+    expect(line).not.toContain("Перевірено");
+  });
+
+  it("has no «Шукають дім» count chip: the heading is the only place the count shows", () => {
+    renderScreen({ animals: makeListOutput([makeCardView(1), makeCardView(2)]) });
+    expect(screen.getAllByText("Шукають дім: 2")).toHaveLength(1);
+  });
+
+  it("hides the sort at one animal and shows it from two", () => {
+    renderScreen({ animals: makeListOutput([makeCardView(1)]) });
+    expect(screen.queryByRole("navigation", { name: "Сортування" })).toBeNull();
+    expect(screen.getByRole("heading", { level: 2, name: "Шукають дім: 1" })).toBeTruthy();
+    cleanup();
+    renderScreen({ animals: makeListOutput([makeCardView(1), makeCardView(2)]) });
+    expect(screen.getByRole("navigation", { name: "Сортування" })).toBeTruthy();
+  });
+
+  it("with no animals: no animals heading, no sort, the sentence and a link to all animals", () => {
+    renderScreen({ animals: makeListOutput([]) });
+    expect(screen.queryByRole("heading", { level: 2, name: /Шукають дім/ })).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Сортування" })).toBeNull();
+    const note = screen.getByTestId("shelter-no-animals");
+    expect(within(note).getByText("Зараз тут немає тварин, які шукають дім.")).toBeTruthy();
+    expect(within(note).getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe(
+      "/tvaryny",
+    );
+  });
+
+  it("shows no card text beyond the card, and no per-card button", () => {
+    renderScreen({ animals: makeListOutput([makeCardView(1)]) });
+    expect(screen.queryByText("Познайомитися")).toBeNull();
   });
 });

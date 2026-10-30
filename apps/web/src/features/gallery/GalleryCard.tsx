@@ -4,7 +4,7 @@ import { ukPublic as uk } from "@opika/i18n/public";
 import { freshnessLabel } from "@opika/ui";
 import Link from "next/link";
 import { Badge } from "../../ui/Badge";
-import { buttonClass } from "../../ui/Button";
+import { buttonLookClass } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { MetaLine } from "../../ui/MetaLine";
 import { Photo } from "../../ui/Photo";
@@ -26,47 +26,38 @@ import { animalPageHref, type CitySlugsById } from "./filter-url";
  * (`cardAccessibleName`) so none of this card's visible text - the pill
  * included - needs to agree with or extend the accessible name.
  *
- * Unlike `AnimalCard`, there is only one layout at every breakpoint: the
- * design states "cards keep the frame's aspect ratio 328:480 at every
- * width," so there is no separate tablet-horizontal variant to switch to —
- * the reserved tag therefore never needs the short-label/full-label pair
- * `AnimalCard`'s own reserved badge carries for that now-absent case.
+ * Two layouts of one DOM (`layout`): on a phone the text sits under the photo with the freshness as
+ * a species-coloured dot plus its words; from `tablet` the gallery keeps the Figma panel over the
+ * photo. The pill is decorative and exists only in that panel.
  */
 
 /**
- * Derived, not guessed, from the page's own layout
- * (`app/tvaryny/page.tsx`'s main wrapper and this file's grid):
- *
- * Phone (<600, 1 column, no page rail): page padding 16px a side
- * (`px-4`), no card-level inset (the photo fills the card edge to edge in
- * this design, unlike `AnimalCard`'s own padded box) → `100vw - 32px`.
- *
- * Tablet (600-1023, 2 columns): page padding 24px a side (`px-6`), the
- * grid's own gap stays this app's pre-existing 16px here (`gap-4`) - only
- * `desktop:` picks up the frame's new 30px value, per "below 1024px, keep
- * the existing column counts and breakpoints" — so one 16px gap between
- * the two columns → `(100vw - 48 - 16) / 2` = `50vw - 32px`.
- *
- * Desktop+ (>=1024, 4 columns, gap 30, content capped at max-width 1400
- * centred): page padding 56px a side (`px-14`, this PR's own decision -
- * the frame gives the header that gutter and nothing states the main
- * content's, so it reuses the header's number for a consistent column
- * edge). Below the point the 1400 cap binds - `100vw - 112 < 1400`, i.e.
- * viewports under 1512px (the frame's own stated width) - the grid is
- * fluid: `column = (100vw - 112 - 90) / 4` = `25vw - 50.5px`. At and above
- * 1512, the cap binds and a column is a flat `(1400 - 90) / 4` = `327.5px`,
- * rounded up to 328 - matching the aspect-ratio's own first number, which
- * is this derivation's own check on itself, not a coincidence stated
- * without proof.
+ * `sizes` per layout (page padding 16px phone / 24px tablet / 56px desktop, content capped at 1400).
+ * Phone: two columns with a 12px gap, so a column is `(100vw - 32 - 12) / 2` = `50vw - 22px`.
+ * Tablet: the gallery keeps two columns (16px gap, `50vw - 32px`); the shelter page uses three
+ * (`33.4vw - 26px`, rounded up). Desktop: four columns, 30px gap, fluid `25vw - 50.5px` until the
+ * 1400 cap binds at 1512px, then a flat 328px.
  */
-const SIZES =
-  "(max-width: 599px) calc(100vw - 32px), (max-width: 1023px) calc(50vw - 32px), (max-width: 1511px) calc(25vw - 50.5px), 328px";
+const SIZES = {
+  responsive:
+    "(max-width: 599px) calc(50vw - 22px), (max-width: 1023px) calc(50vw - 32px), (max-width: 1511px) calc(25vw - 50.5px), 328px",
+  stacked:
+    "(max-width: 599px) calc(50vw - 22px), (max-width: 1023px) calc(34vw - 26px), (max-width: 1511px) calc(25vw - 50.5px), 328px",
+} as const;
+
+const SPECIES_DOT = { dog: "bg-species-dog", cat: "bg-species-cat" } as const;
+const SPECIES_BADGE = { dog: "tablet:bg-species-dog", cat: "tablet:bg-species-cat" } as const;
 
 interface GalleryCardProps {
   card: FeedCardView;
   /** Pre-resolved by the caller (from `cityLabels`) - the card never fetches. */
   cityName: string | null;
   priority?: boolean;
+  /**
+   * `responsive` (the gallery): the text sits under the photo on a phone and in a panel over it
+   * from `tablet`. `stacked` (the shelter page): under the photo at every width.
+   */
+  layout?: "responsive" | "stacked";
   /**
    * Pet card PR 5, decision B: the gallery's own current filter and sort,
    * carried on every card's own href so the overlay (opened by clicking this
@@ -83,6 +74,7 @@ export function GalleryCard({
   card,
   cityName,
   priority = false,
+  layout = "responsive",
   filters,
   sort,
   citySlugs,
@@ -90,6 +82,7 @@ export function GalleryCard({
   const photo = card.primaryPhoto;
   const reserved = isReserved(card.listingKind);
   const facts = cardFactsParts(card);
+  const stacked = layout === "stacked";
 
   return (
     <Link
@@ -98,39 +91,84 @@ export function GalleryCard({
       prefetch={false}
       aria-label={cardAccessibleName(card, cityName)}
       data-testid="animal-card"
-      className="relative block overflow-clip rounded-card focus-ring"
+      className={cx(
+        "relative flex flex-col gap-3 focus-ring",
+        !stacked && "tablet:block tablet:overflow-clip tablet:rounded-card",
+      )}
     >
       <Photo
         src={photo?.storageKey ?? null}
         alt=""
-        sizes={SIZES}
-        aspect="card"
+        sizes={SIZES[layout]}
+        aspect={stacked ? "portrait" : "cardStacked"}
         priority={priority}
+        className="rounded-card tablet:rounded-none"
       />
-
-      <div className="absolute inset-x-4 top-4 flex flex-wrap items-start gap-2">
-        <span data-testid="freshness-badge" className="contents">
-          <Badge tone={card.species}>{freshnessLabel(card.freshness)}</Badge>
+      {/* `contents` on a phone: the badge floats on the photo, the freshness joins the text column
+          (order-last). From `tablet` the same two elements sit in one row on the photo. */}
+      <div
+        className={cx(
+          "contents",
+          !stacked &&
+            "tablet:absolute tablet:inset-x-4 tablet:top-4 tablet:flex tablet:flex-wrap tablet:items-start tablet:gap-2",
+        )}
+      >
+        <span
+          data-testid="freshness-badge"
+          className={cx(
+            "order-last flex items-center gap-2 text-caption text-ink-2",
+            !stacked &&
+              cx(
+                "tablet:order-none tablet:inline-flex tablet:whitespace-nowrap tablet:rounded-tag tablet:px-2 tablet:py-1 tablet:text-on-ink",
+                SPECIES_BADGE[card.species],
+              ),
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className={cx(
+              "size-2 shrink-0 rounded-pill",
+              SPECIES_DOT[card.species],
+              !stacked && "tablet:hidden",
+            )}
+          />
+          {freshnessLabel(card.freshness)}
         </span>
         {reserved && (
           <span data-testid="reserved-badge" className="contents">
-            <Badge tone="ink">{uk.reserved.badge}</Badge>
+            <Badge tone="ink" className="absolute top-2 left-2 tablet:static">
+              {uk.reserved.badge}
+            </Badge>
           </span>
         )}
       </div>
 
-      <div className="absolute inset-x-3 bottom-3 flex flex-col gap-4 rounded-panel bg-surface p-5">
-        <div className="flex flex-col gap-2">
-          <span data-testid="card-name" className="truncate text-title text-ink">
-            {card.name}
-          </span>
-          <span data-testid="card-meta" className="contents">
-            <MetaLine parts={facts} />
-          </span>
-        </div>
-        <span aria-hidden="true" className={cx(buttonClass("primary"), "w-fit")}>
-          {uk.feed.adoptPill}
+      <div
+        className={cx(
+          "flex flex-col gap-1",
+          !stacked &&
+            "tablet:absolute tablet:inset-x-3 tablet:bottom-3 tablet:gap-2 tablet:rounded-panel tablet:bg-surface tablet:p-5",
+        )}
+      >
+        <span
+          data-testid="card-name"
+          className={cx(
+            "line-clamp-2 break-words text-label text-ink",
+            !stacked && "tablet:line-clamp-1 tablet:text-title",
+          )}
+        >
+          {card.name}
         </span>
+        <span data-testid="card-meta" className="contents">
+          <MetaLine parts={facts} size="caption" />
+        </span>
+        {!stacked && (
+          <div className="hidden tablet:mt-2 tablet:block">
+            <span aria-hidden="true" className={cx(buttonLookClass("primary"), "w-fit")}>
+              {uk.feed.adoptPill}
+            </span>
+          </div>
+        )}
       </div>
     </Link>
   );

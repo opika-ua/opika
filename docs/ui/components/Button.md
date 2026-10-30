@@ -15,3 +15,5 @@ File: `apps/web/src/ui/Button.tsx`
 ```tsx
 <Button variant="accent" size="lg">Дати сімʼю</Button>
 ```
+
+`buttonLookClass(variant, size)` is the look without the behaviour classes (cursor, focus ring, disabled), for a decorative `aria-hidden` span that only resembles a button, such as the gallery card pill.

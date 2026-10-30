@@ -4,7 +4,7 @@ File: `apps/web/src/ui/Photo.tsx`
 
 **Purpose.** The only image component.
 
-**Props and variants.** `src` (storage key or path, null for none), `alt`, `sizes` (required), `aspect`: card, square, wide, portrait, tall (3:4), `priority` for the one LCP image.
+**Props and variants.** `src` (storage key or path, null for none), `alt`, `sizes` (required), `aspect`: card, cardStacked (4:5, then the card frame from tablet), square, wide, portrait, tall (3:4), `priority` for the one LCP image.
 
 **Accessibility.** Empty `alt` marks it decorative.
 

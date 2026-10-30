@@ -17,17 +17,40 @@ import type { ShelterWords } from "./shelter-words";
  * `docs/design/README.md` ("The shelter's sentence") specifies.
  *
  * `headingLevel`: a section of its page (2), or of the kabinet card that
- * previews it (3).
+ * previews it (3). `variant` "quote" (the shelter page): a quote block with an accent edge, the
+ * heading kept only for assistive tech; "panel" (the kabinet preview): the panel with its visible heading.
  */
 export function ShelterWordsSection({
   words,
   headingLevel,
+  variant = "panel",
 }: {
   words: ShelterWords | null;
   headingLevel: 2 | 3;
+  variant?: "panel" | "quote";
 }) {
   const headingId = useId();
   if (words === null) return null;
+  if (variant === "quote") {
+    return (
+      <section
+        aria-labelledby={headingId}
+        className="flex max-w-160 flex-col gap-3 border-l-3 border-accent pl-4"
+      >
+        <Heading level={headingLevel} look="body-l" id={headingId} className="sr-only">
+          {uk.freshness.attribution}
+        </Heading>
+        {words.description !== null && (
+          <p className="whitespace-pre-line text-body text-ink-2">{words.description}</p>
+        )}
+        {words.sentence !== null && (
+          <p data-testid="shelter-freshness-sentence" className="text-body text-ink-2">
+            «{words.sentence}»
+          </p>
+        )}
+      </section>
+    );
+  }
   return (
     <Panel as="section" aria-labelledby={headingId} padding="lg" className="flex flex-col gap-3">
       <Heading level={headingLevel} look="body-l" id={headingId}>

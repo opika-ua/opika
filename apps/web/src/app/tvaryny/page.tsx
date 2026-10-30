@@ -252,8 +252,8 @@ export async function renderGallery(
         existing column counts and breakpoints."
       */}
       <Container className="pt-10 pb-10 desktop:pb-14">
-        {/* 52px between the control block, the grid and the pagination - the frame's own number. */}
-        <div className="flex flex-col gap-13">
+        {/* 52px from `desktop:` (the frame's own number); 32px on a phone so four cards fit the first screen. */}
+        <div className="flex flex-col gap-8 desktop:gap-13">
           {/*
             «Фільтр» toggles row 2 (the dropdowns + sort) open/closed at
             desktop - see `GalleryControlBlock.tsx`'s own comment for that
@@ -412,14 +412,8 @@ export async function renderGallery(
                 </a>
               )}
 
-              {/*
-                4 columns at `desktop:`, gap 30 (the frame's own numbers) -
-                below that, this PR keeps the pre-existing 1/2-column,
-                16px-gap breakpoints ("below 1024px... keep the existing
-                column counts and breakpoints"). No max-width on the grid
-                itself: the page wrapper above already caps content at 1400.
-              */}
-              <ArrowKeyGrid className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-4 gap-4 desktop:gap-7.5">
+              {/* 2 columns on phones (12px/16px gaps) and tablets, 4 from `desktop:` (gap 30); the page wrapper caps content at 1400. */}
+              <ArrowKeyGrid className="grid grid-cols-2 gap-x-3 gap-y-4 tablet:gap-4 desktop:grid-cols-4 desktop:gap-7.5">
                 {page.items.map((item, index) => (
                   <GalleryCard
                     key={item.id}

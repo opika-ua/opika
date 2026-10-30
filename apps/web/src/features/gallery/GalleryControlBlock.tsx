@@ -36,7 +36,8 @@ export function GalleryControlBlock({
 
       <div className="flex flex-col gap-3 desktop:hidden">
         {mobileSpecies}
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        {/* One row at every phone width (filters v2 M1): the pill and the sort never wrap. */}
+        <div className="flex items-center justify-between gap-x-3">
           {trailing}
           {mobileSort}
         </div>

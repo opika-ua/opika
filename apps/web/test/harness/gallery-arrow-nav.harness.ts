@@ -213,9 +213,9 @@ test.describe("/tvaryny arrow-key grid navigation – the column count is read l
     await page.keyboard.press("ArrowDown");
     expect(
       await focusedIndex(page),
-      "after the resize the grid is 1 column, so ArrowDown must step by 1 – a column count " +
+      "after the resize the grid is 2 columns, so ArrowDown must step by 2 – a column count " +
         "cached at mount would still step by 4 and land on 8",
-    ).toBe(5);
+    ).toBe(6);
   });
 });
 
@@ -329,27 +329,24 @@ test.describe("/tvaryny arrow-key grid navigation – page boundaries never trig
   });
 });
 
-test.describe("/tvaryny arrow-key grid navigation (phone, 1 column)", () => {
-  test("ArrowRight/ArrowLeft do nothing – a single column has no horizontal neighbour", async ({
+test.describe("/tvaryny arrow-key grid navigation (phone, 2 columns)", () => {
+  test("ArrowRight moves to the neighbour in the row, and stops at the row's end", async ({
     page,
   }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
     await page.locator(CARD).first().focus();
 
     await page.keyboard.press("ArrowRight");
-    expect(
-      await focusedIndex(page),
-      "at 1 column, every card is its own row – ArrowRight has no horizontal neighbour to move to",
-    ).toBe(0);
+    expect(await focusedIndex(page)).toBe(1);
+    await page.keyboard.press("ArrowRight");
+    expect(await focusedIndex(page), "the right column's card has no right neighbour").toBe(1);
   });
 
-  test("ArrowDown moves to the next card – equivalent to reading order at 1 column", async ({
-    page,
-  }) => {
+  test("ArrowDown steps by the two columns", async ({ page }) => {
     await openRoute(page, ROUTE, PHONE, { readySelector: CARD });
     await page.locator(CARD).first().focus();
 
     await page.keyboard.press("ArrowDown");
-    expect(await focusedIndex(page)).toBe(1);
+    expect(await focusedIndex(page)).toBe(2);
   });
 });

@@ -26,7 +26,7 @@ function OptionLink({ option, isCurrent }: { option: ToggleOption; isCurrent: bo
       aria-label={option.ariaLabel}
       aria-current={isCurrent ? "true" : undefined}
       className={cx(
-        "flex min-h-target items-center rounded-pill px-2 text-body-l font-semibold focus-ring",
+        "flex min-h-target items-center rounded-pill px-1 text-body font-semibold focus-ring tablet:px-2 tablet:text-body-l",
         isCurrent ? "text-ink" : "text-ink-2",
       )}
     >
@@ -38,7 +38,10 @@ function OptionLink({ option, isCurrent }: { option: ToggleOption; isCurrent: bo
 export function Toggle({ label, options, current, className }: ToggleProps) {
   const other = options[current === 0 ? 1 : 0];
   return (
-    <nav aria-label={label} className={cx("flex min-h-13 shrink-0 items-center gap-3", className)}>
+    <nav
+      aria-label={label}
+      className={cx("flex min-h-13 shrink-0 items-center gap-2 tablet:gap-3", className)}
+    >
       <OptionLink option={options[0]} isCurrent={current === 0} />
       <Link
         prefetch={false}

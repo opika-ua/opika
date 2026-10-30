@@ -446,7 +446,7 @@ export function FilterSheet({
           ) : null}
         </>
       }
-      triggerClassName="desktop:hidden rounded-pill border-2 border-ink px-5"
+      triggerClassName="desktop:hidden shrink-0 rounded-pill border-2 border-ink px-4 tablet:px-5"
       triggerTestId="filter-sheet-trigger"
       dialogTestId="filter-sheet"
     >
