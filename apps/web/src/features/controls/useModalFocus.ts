@@ -26,9 +26,9 @@ const FOCUSABLE =
  * still scrolls. A layout effect locks it in the commit that inserts the
  * dialog.
  *
- * A key a dialog stacked above this one already handled (`defaultPrevented`)
- * is left alone: the contact reveal opens over the gallery's animal
- * overlay, and its Escape, caught in the capture phase, must close the
+ * A key a dialog stacked above this one already handled (`defaultPrevented`),
+ * or one pressed inside an open native `<dialog>` (the contact reveal, which opens over
+ * the gallery's animal overlay), is left alone: its Escape must close the
  * reveal only, not the overlay under it as well.
  *
  * Giving focus back to whatever opened the dialog stays with the caller:
@@ -58,6 +58,10 @@ export function useModalFocus({
     const releaseScroll = lockBodyScroll();
     function onKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented) return;
+      // A native modal dialog opened above this one (the contact reveal) owns Esc and Tab: the
+      // platform closes it on Esc without marking the key handled, so a key from inside it must
+      // not also close this overlay or drag focus back into it.
+      if (event.target instanceof Element && event.target.closest("dialog[open]")) return;
       if (event.key === "Escape") {
         onCloseRef.current();
         return;

@@ -404,6 +404,7 @@ export function SwipeDeck({
               animalId: revealState.animalId,
               animalName: revealState.animalName,
               cityName: revealState.cityName,
+              cityLabel: revealState.cityLabel,
             })
           }
         />

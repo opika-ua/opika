@@ -277,8 +277,9 @@ test.describe("/tvaryny/[animalId] contact reveal – before, after, and close",
 
     const dialog = page.getByTestId("reveal-dialog");
     await expect(dialog).toBeVisible();
-    await expect(dialog).toHaveAttribute("role", "dialog");
-    await expect(dialog).toHaveAttribute("aria-modal", "true");
+    // A native modal dialog (kit Modal): open, in the top layer, named by its title.
+    await expect(dialog).toHaveJSProperty("open", true);
+    await expect(page.getByRole("dialog", { name: "Як звʼязатися з притулком" })).toBeVisible();
 
     // Real data, not a placeholder - the shelter's actual name from the
     // seeded database appears inside the dialog once the reveal resolves.
@@ -291,7 +292,7 @@ test.describe("/tvaryny/[animalId] contact reveal – before, after, and close",
     await page.getByTestId("reveal-trigger").click();
     await page.getByTestId("reveal-dialog").waitFor({ state: "visible" });
 
-    const heading = page.locator("#reveal-heading");
+    const heading = page.getByRole("heading", { level: 2, name: "Як звʼязатися з притулком" });
     await expect(heading).toBeFocused();
   });
 
@@ -323,7 +324,12 @@ test.describe("/tvaryny/[animalId] contact reveal – before, after, and close",
 
     const activeIsInsideDialog = await page.evaluate(() => {
       const dialogEl = document.querySelector('[data-testid="reveal-dialog"]');
-      return dialogEl?.contains(document.activeElement) ?? false;
+      // A native modal dialog hands Tab on to the browser's own UI at its ends (focus then reads as
+      // <body>); what must never happen is a stop on the page behind it.
+      return (
+        (dialogEl?.contains(document.activeElement) ?? false) ||
+        document.activeElement === document.body
+      );
     });
     expect(activeIsInsideDialog, "focus should stay inside the dialog after repeated Tab").toBe(
       true,

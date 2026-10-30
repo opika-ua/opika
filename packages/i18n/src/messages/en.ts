@@ -203,21 +203,27 @@ export const en = {
 
   // --- Contact reveal (05) ---
   reveal: {
-    /** Template: "You asked about the animal named {name}." */
-    youAskedAbout: "You asked about the animal named {name}.",
-    title: "Here's how to reach the shelter.",
+    title: "How to reach the shelter",
     subtitle:
       "They won't know you asked until you write to them yourself. Nothing happened automatically.",
     /** Template: "Contact details saved as they are today · {date}" */
     contactsFootnote: "Contact details saved as they are today · {date}",
     meetingPlace: "you'll agree on a place when you message",
-    reflectionHeading: "Before you write – three things worth thinking through calmly:",
+    reflectionHeading: "Before you write – three things",
     reflection1: "This is 10-15 years together, not a weekend.",
     reflection2: "Food, the vet, transport – monthly costs.",
     reflection3: "Whether everyone you live with agrees.",
     writeTelegram: "Message on Telegram",
     call: "Call",
     writeEmail: "Send an email",
+    writeViber: "Message on Viber",
+    openWebsite: "Open the website",
+    copy: "Copy",
+    copied: "Copied.",
+    copyPhoneLabel: "Copy the phone number",
+    copyTelegramLabel: "Copy the Telegram username",
+    copyViberLabel: "Copy the Viber number",
+    copyEmailLabel: "Copy the email address",
     backToFeed: "Back to the gallery",
   },
 

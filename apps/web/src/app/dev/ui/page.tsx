@@ -43,6 +43,7 @@ import {
   ComboboxDemo,
   MenuDemo,
   ModalDemo,
+  ModalHeaderDemo,
   PopoverDemo,
   SheetDemo,
   ToastDemo,
@@ -492,6 +493,7 @@ export default function DevUiPage() {
       <Group id="g-overlays" title="Overlays">
         <Row label="Modal, Sheet (hash-openable), Popover">
           <ModalDemo />
+          <ModalHeaderDemo />
           <SheetDemo />
         </Row>
         <PopoverDemo />

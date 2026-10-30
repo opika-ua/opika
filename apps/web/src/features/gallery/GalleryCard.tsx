@@ -108,7 +108,7 @@ export function GalleryCard({
         priority={priority}
       />
 
-      <div className="absolute top-4 left-4 flex items-center gap-2">
+      <div className="absolute inset-x-4 top-4 flex flex-wrap items-start gap-2">
         <span data-testid="freshness-badge" className="contents">
           <Badge tone={card.species}>{freshnessLabel(card.freshness)}</Badge>
         </span>

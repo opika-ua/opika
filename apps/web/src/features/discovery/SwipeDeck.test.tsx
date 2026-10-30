@@ -8,7 +8,7 @@ import {
   ShelterIdSchema,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateMockCards } from "./mock-data";
@@ -213,6 +213,11 @@ describe("SwipeDeck action row", () => {
  * requirement is "no exit back to the gallery," so unlike the detail
  * page's dialog there is no `reveal-back-to-gallery` link here at all.
  */
+/** The platform's Esc ends in `dialog.close()`; happy-dom has no key handling of its own. */
+function closeRevealLikeEsc() {
+  act(() => (document.querySelector('[data-testid="reveal-dialog"]') as HTMLDialogElement).close());
+}
+
 describe("SwipeDeck reveal", () => {
   function renderDeckForReveal() {
     const cards = generateMockCards(5);
@@ -251,7 +256,7 @@ describe("SwipeDeck reveal", () => {
     expect(revealBootstrap).not.toHaveBeenCalled();
     expect(revealCallOrder).toEqual(["animals.reveal"]);
     expect(revealCall).toHaveBeenCalledWith({ animalId: topCard.id });
-    expect(screen.getByText(`Ви запитали про тварину на імʼя ${topCard.name}.`)).toBeTruthy();
+    expect(within(screen.getByTestId("reveal-dialog")).getByText(topCard.name)).toBeTruthy();
 
     // R1's own recording is unchanged - R3 adds the reveal on top of it,
     // not instead of it.
@@ -294,7 +299,7 @@ describe("SwipeDeck reveal", () => {
     fireEvent.click(writeButton);
     await screen.findByTestId("reveal-dialog");
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    closeRevealLikeEsc();
     await new Promise((r) => setTimeout(r, 0));
 
     expect(screen.queryByTestId("reveal-dialog")).toBeNull();
@@ -307,43 +312,6 @@ describe("SwipeDeck reveal", () => {
     // detail page's own `RevealFlow` already returns focus to its
     // trigger on close, and the deck's reveal was missing the same
     // contract until this fix.
-    expect(document.activeElement).toBe(writeButton);
-  });
-
-  /**
-   * RF-F2: the test above flaked in CI (`expected <body> to be <button>`).
-   * The dialog mounts only after an awaited `animals.reveal` resolves, so a
-   * passive effect of its mount runs after the commit, not inside it. An
-   * Escape delivered in that gap refocused «Написати», and then the late
-   * heading-focus effect pulled focus back into the dialog that was about to
-   * unmount, leaving it on `<body>`. The `MutationObserver` delivers Escape at
-   * the exact moment the dialog node is inserted (after the commit's layout
-   * effects, before any later-scheduled passive effect), which is the
-   * ordering CI only hit sometimes.
-   */
-  it("returns focus to «Написати» even when Escape arrives the instant the dialog is inserted", async () => {
-    const { cards } = renderDeckForReveal();
-    const topCard = cards[0];
-    if (!topCard) throw new Error("generateMockCards(5) must return at least one card");
-    revealCall.mockResolvedValue(
-      revealFor(topCard.id, { primary: { kind: "phone", e164: "+380671234567" }, additional: [] }),
-    );
-
-    let escapeSent = false;
-    const observer = new MutationObserver(() => {
-      if (escapeSent || !document.querySelector('[data-testid="reveal-dialog"]')) return;
-      escapeSent = true;
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    const writeButton = screen.getByRole("button", { name: uk.actions.write });
-    fireEvent.click(writeButton);
-    await waitFor(() => expect(escapeSent).toBe(true));
-    observer.disconnect();
-    await waitFor(() => expect(screen.queryByTestId("reveal-dialog")).toBeNull());
-    await new Promise((r) => setTimeout(r, 0));
-
     expect(document.activeElement).toBe(writeButton);
   });
 
@@ -423,7 +391,7 @@ describe("SwipeDeck reveal", () => {
       />,
     );
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    closeRevealLikeEsc();
     await new Promise((r) => setTimeout(r, 0));
 
     expect(screen.queryByTestId("reveal-dialog")).toBeNull();
@@ -542,7 +510,8 @@ describe("SwipeDeck reveal", () => {
     fireEvent.click(screen.getByRole("button", { name: uk.actions.write }));
     await screen.findByTestId("reveal-dialog");
 
-    expect(screen.getByText(/Бровари/)).toBeTruthy();
+    // In the header line and in the location line.
+    expect(screen.getAllByText(/Бровари/).length).toBeGreaterThan(0);
   });
 });
 

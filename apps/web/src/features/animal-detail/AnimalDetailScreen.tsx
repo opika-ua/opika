@@ -1,6 +1,7 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
 import { donationHost, hasAnyDocumentEvidence, textIn } from "@opika/domain";
 import {
+  ageChipWordFor,
   colourChipLabel,
   fillTemplate,
   sexWordFor,
@@ -103,7 +104,12 @@ export function AnimalDetailContent({
           </div>
           {/* Wraps onto two lines on a phone rather than overflowing; «Дати сімʼю» stays the one primary action. */}
           <div className="flex flex-none flex-wrap items-center gap-4">
-            <RevealFlow animalId={animal.id} animalName={animal.name} cityName={cityPlace} />
+            <RevealFlow
+              animalId={animal.id}
+              animalName={animal.name}
+              cityName={cityPlace}
+              cityLabel={cityName}
+            />
             <ShareButton animalId={animal.id} animalName={animal.name} />
             <SaveButton animalId={animal.id} animalName={animal.name} />
           </div>
@@ -171,7 +177,12 @@ export function AnimalDetailContent({
       <div className="flex flex-col gap-4">
         <Heading level={2}>{uk.detail.aboutMeHeading}</Heading>
         <div className="flex flex-wrap gap-4">
-          <FilterableChipLink species={animal.species} dimension="ages" value={animal.ageBucket} />
+          <FilterableChipLink
+            species={animal.species}
+            dimension="ages"
+            value={animal.ageBucket}
+            visibleText={ageChipWordFor(animal.ageBucket, animal.sex)}
+          />
           <SexChip species={animal.species} sex={animal.sex} />
           <FilterableChipLink species={animal.species} dimension="sizes" value={animal.size} />
           {animal.temperament
@@ -260,7 +271,7 @@ export function AnimalDetailContent({
 function metaParts(animal: AnimalDetailView): string[] {
   return [
     sexWordFor(animal.sex),
-    chipDisplayLabel({ dimension: "ages", value: animal.ageBucket }),
+    ageChipWordFor(animal.ageBucket, animal.sex),
     sizeLabel(animal.size),
   ].filter((part): part is string => Boolean(part));
 }

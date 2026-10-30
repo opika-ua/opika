@@ -175,7 +175,7 @@ describe("GalleryCard meta line", () => {
     );
     const meta = screen.getByTestId("card-meta");
     expect(meta.textContent).toContain("Дівчинка");
-    expect(meta.textContent).toContain("літній");
+    expect(meta.textContent).toContain("літня");
     expect(meta.textContent).toContain("велика");
     expect(meta.textContent).not.toContain("Бровари");
   });
