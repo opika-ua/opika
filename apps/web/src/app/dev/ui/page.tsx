@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { Avatar } from "../../../ui/Avatar";
 import { Badge } from "../../../ui/Badge";
 import { BottomNav } from "../../../ui/BottomNav";
-import { InfoToggle } from "../../../ui/InfoToggle";
 import { Button, LinkButton } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
 import { Chip } from "../../../ui/Chip";
@@ -25,6 +24,7 @@ import {
 import { CheckboxGroup, ChipGroup, RadioGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
 import { ICON_NAMES, Icon } from "../../../ui/Icon";
+import { InfoToggle } from "../../../ui/InfoToggle";
 import { MetaLine } from "../../../ui/MetaLine";
 import { Pagination } from "../../../ui/Pagination";
 import { Panel } from "../../../ui/Panel";
@@ -509,7 +509,9 @@ export default function DevUiPage() {
           <MenuIconDemo />
         </Row>
         <Row label="InfoToggle">
-          <InfoToggle label="How the list is ordered">By date: the freshest cards first.</InfoToggle>
+          <InfoToggle label="How the list is ordered">
+            By date: the freshest cards first.
+          </InfoToggle>
         </Row>
       </Group>
 

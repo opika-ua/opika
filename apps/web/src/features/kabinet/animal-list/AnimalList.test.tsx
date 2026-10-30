@@ -192,7 +192,7 @@ function renderList({
 const rowOf = (name: string) => screen.getByRole("listitem", { name });
 const inRow = (name: string) => within(rowOf(name));
 const openMenu = async (name: string) => {
-  await userEvent.click(inRow(name).getByRole("button", { name: "Ще" }));
+  await userEvent.click(inRow(name).getByRole("button", { name: /^Дії з карткою/ }));
 };
 const statusText = () => screen.getByRole("status").textContent;
 const alertText = () =>
@@ -206,18 +206,22 @@ afterEach(() => {
 });
 
 describe("the page: header, rows, order note", () => {
-  it("the title, the caption counting every card, and «Додати тварину» to K3's create page", () => {
+  it("the title, the caption counting every card, and «Додати тварину» to K3's create page", async () => {
     renderList();
     expect(screen.getByRole("heading", { level: 1, name: "Тварини" })).toBeTruthy();
     expect(screen.getByText("Притулок «Домівка» · 6 карток")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Додати тварину" }).getAttribute("href")).toBe(
       "/kabinet/tvaryny/nova",
     );
-    expect(
-      screen.getByText(
-        "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.",
-      ),
-    ).toBeTruthy();
+    // The order note sits behind a «?» button, closed until pressed.
+    const NOTE =
+      "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.";
+    expect(screen.queryByText(NOTE)).toBeNull();
+    const info = screen.getByRole("button", { name: "Як впорядковано список" });
+    expect(info.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.click(info);
+    expect(info.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText(NOTE)).toBeTruthy();
   });
 
   it("each row: the name, the status chip, the meta line and the line that says where it stands", () => {
@@ -407,6 +411,7 @@ describe("listing moves: each request, and its refusal", () => {
           }),
       },
     });
+    await openMenu("Рекс");
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Почали домовлятися" }));
     expect(calls.transition).toHaveBeenCalledWith({
       animalId: PUBLISHED.id,
@@ -423,6 +428,7 @@ describe("listing moves: each request, and its refusal", () => {
     renderList({
       handlers: { transition: async () => Promise.reject(apiError("ILLEGAL_TRANSITION")) },
     });
+    await openMenu("Рекс");
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Почали домовлятися" }));
     expect(alertText()).toContain(
       "Картка змінилася в іншому вікні. Оновіть сторінку, щоб побачити поточну версію.",
@@ -564,6 +570,7 @@ describe("«Уже вдома» (his answer 8a)", () => {
     const calls = renderList({
       handlers: { transition: async () => viewOf(RESERVED, { kind: "adopted", adoptedAt: NOW }) },
     });
+    await openMenu("Мурка");
     await userEvent.click(inRow("Мурка").getByRole("button", { name: "Уже вдома" }));
     const dialog = screen.getByRole("dialog", { name: "Мурка уже вдома?" });
     expect(
@@ -596,6 +603,7 @@ describe("«Уже вдома» (his answer 8a)", () => {
 
   it("«Скасувати» closes it with nothing sent", async () => {
     const calls = renderList();
+    await openMenu("Мурка");
     await userEvent.click(inRow("Мурка").getByRole("button", { name: "Уже вдома" }));
     await userEvent.click(screen.getByRole("button", { name: "Скасувати" }));
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -1231,12 +1239,12 @@ describe("the support view (S5): everything visible, nothing writes", () => {
     expect(screen.queryByRole("link", { name: "Додати тварину" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Відновити прийом тварин" })).toBeNull();
     const confirm = inRow("Рекс").getByRole("button", { name: "Ще шукає" });
-    const reserve = inRow("Рекс").getByRole("button", { name: "Почали домовлятися" });
-    for (const button of [confirm, reserve]) {
-      expect(button.getAttribute("aria-disabled")).toBe("true");
-      await userEvent.click(button);
-    }
+    expect(confirm.getAttribute("aria-disabled")).toBe("true");
+    await userEvent.click(confirm);
     await openMenu("Рекс");
+    const reserve = inRow("Рекс").getByRole("button", { name: "Почали домовлятися" });
+    expect(reserve.getAttribute("aria-disabled")).toBe("true");
+    await userEvent.click(reserve);
     const withdraw = inRow("Рекс").getByRole("button", { name: "Зняти з показу" });
     expect(withdraw.getAttribute("aria-disabled")).toBe("true");
     await userEvent.click(withdraw);
@@ -1252,7 +1260,7 @@ describe("the support view (S5): everything visible, nothing writes", () => {
 describe("«Ще» is a disclosure", () => {
   it("opens and closes, says so, and Escape closes it with focus back on «Ще»", async () => {
     renderList();
-    const more = inRow("Рекс").getByRole("button", { name: "Ще" });
+    const more = inRow("Рекс").getByRole("button", { name: /^Дії з карткою/ });
     expect(more.getAttribute("aria-expanded")).toBe("false");
     await userEvent.click(more);
     expect(more.getAttribute("aria-expanded")).toBe("true");
@@ -1266,11 +1274,11 @@ describe("«Ще» is a disclosure", () => {
   it("the row's repeated buttons are described by the animal's name (P4)", () => {
     renderList();
     const name = inRow("Рекс").getByRole("heading", { name: "Рекс" });
-    for (const label of ["Ще", "Ще шукає", "Почали домовлятися"]) {
-      expect(
-        inRow("Рекс").getByRole("button", { name: label }).getAttribute("aria-describedby"),
-      ).toContain(name.id);
-    }
+    expect(
+      inRow("Рекс").getByRole("button", { name: "Ще шукає" }).getAttribute("aria-describedby"),
+    ).toContain(name.id);
+    // The ⋯ button carries the name in its own accessible name instead.
+    expect(inRow("Рекс").getByRole("button", { name: "Дії з карткою Рекс" })).toBeTruthy();
   });
 });
 
@@ -1287,7 +1295,7 @@ describe("the name is the way into the card's form, and «Ще» closes on a pre
   it("a press outside the open «Ще» closes it", async () => {
     renderList();
     await openMenu("Рекс");
-    const more = inRow("Рекс").getByRole("button", { name: "Ще" });
+    const more = inRow("Рекс").getByRole("button", { name: /^Дії з карткою/ });
     expect(more.getAttribute("aria-expanded")).toBe("true");
     await userEvent.click(screen.getByRole("heading", { level: 1, name: "Тварини" }));
     expect(more.getAttribute("aria-expanded")).toBe("false");
@@ -1305,6 +1313,7 @@ describe("a dialog stays open while its call is in flight", () => {
           }),
       },
     });
+    await openMenu("Мурка");
     await userEvent.click(inRow("Мурка").getByRole("button", { name: "Уже вдома" }));
     const dialog = screen.getByRole("dialog", { name: "Мурка уже вдома?" }) as HTMLDialogElement;
     await userEvent.click(within(dialog).getByRole("button", { name: "Так, уже вдома" }));
@@ -1315,5 +1324,40 @@ describe("a dialog stays open while its call is in flight", () => {
     expect(dialog.open).toBe(true);
     answer(viewOf(RESERVED, { kind: "adopted", adoptedAt: NOW }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+});
+
+describe("the ⋯ menu: the public page, and the danger entry last", () => {
+  it.each(["Рекс", "Мурка"])(
+    "%s (public): «Переглянути на сайті» opens the public page in a new tab",
+    async (name) => {
+      renderList();
+      await openMenu(name);
+      const link = inRow(name).getByRole("link", { name: /^Переглянути на сайті/ });
+      expect(link.getAttribute("href")).toMatch(/^\/tvaryny\/[0-9a-f-]+$/);
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toContain("noopener");
+      expect(link.textContent).toContain("(відкриється в новій вкладці)");
+    },
+  );
+
+  it.each(["Сірко", "Бім", "Дуся"])(
+    "%s (draft, adopted, withdrawn): no public link",
+    async (name) => {
+      renderList();
+      await openMenu(name);
+      expect(inRow(name).queryByRole("link", { name: /Переглянути на сайті/ })).toBeNull();
+    },
+  );
+
+  it("«Зняти з показу» comes after a separator, as the last entry", async () => {
+    renderList();
+    await openMenu("Рекс");
+    const items = [
+      ...(rowOf("Рекс").querySelector("ul[id]") as HTMLElement).querySelectorAll("li"),
+    ];
+    const names = items.map((item) => item.textContent ?? "");
+    expect(names.at(-1)).toContain("Зняти з показу");
+    expect(items.at(-2)?.getAttribute("role")).toBe("separator");
   });
 });

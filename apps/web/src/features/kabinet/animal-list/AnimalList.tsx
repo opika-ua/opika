@@ -12,6 +12,7 @@ import { Button, LinkButton } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
 import { EmptyState, InlineStatus } from "../../../ui/feedback";
 import { Heading } from "../../../ui/Heading";
+import { InfoToggle } from "../../../ui/InfoToggle";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
@@ -517,9 +518,12 @@ export function AnimalList({
           <Heading level={1} look="display-l" id="animal-list-title">
             {t.title}
           </Heading>
-          <Text look="body" className="text-ink-2">
-            {captionOf(shelter.displayName, counts)}
-          </Text>
+          <div className="flex flex-wrap items-center gap-x-1">
+            <Text look="body" className="text-ink-2">
+              {captionOf(shelter.displayName, counts)}
+            </Text>
+            <InfoToggle label={t.orderInfoLabel}>{t.orderNote}</InfoToggle>
+          </div>
         </div>
         {editable ? (
           <LinkButton href={NEW_ANIMAL_PATH} prefetch={false} aria-label={t.add}>
@@ -690,8 +694,6 @@ export function AnimalList({
           ) : null}
         </>
       )}
-
-      <Text look="hint">{t.orderNote}</Text>
 
       {dialog?.kind === "adopt" ? (
         <AdoptDialog
