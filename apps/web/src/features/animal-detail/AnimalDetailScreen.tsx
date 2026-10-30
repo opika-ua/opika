@@ -76,7 +76,7 @@ export function AnimalDetailScreen({
         )}
 
         {/* Below desktop the full page has no ✕ and no prev/next (those belong to the overlay), so the way out is this link. */}
-        <div className="mx-auto max-w-160 px-4 tablet:px-6 desktop:hidden">
+        <div className="mx-auto w-full max-w-160 px-4 tablet:px-6 desktop:hidden">
           <Link
             href={backToGalleryHref}
             prefetch={false}
