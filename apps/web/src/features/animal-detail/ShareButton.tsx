@@ -2,9 +2,10 @@
 
 import type { AnimalId } from "@opika/domain";
 import { ukPublic as uk } from "@opika/i18n/public";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SITE_ORIGIN } from "../../brand";
 import { Button } from "../../ui/Button";
+import { Icon } from "../../ui/Icon";
 
 /**
  * Pet card PR 5, owner decision 5: «Поділитись» (the panel header's own
@@ -49,14 +50,48 @@ export function ShareButton({ animalId, animalName }: { animalId: AnimalId; anim
     }
   };
 
+  // The phone's visible toast goes away by itself; the screen-reader announcement stays put.
+  const [toast, setToast] = useState(false);
+  useEffect(() => {
+    if (announcement === "") return;
+    setToast(true);
+    const timer = setTimeout(() => setToast(false), 2500);
+    return () => clearTimeout(timer);
+  }, [announcement]);
+
   return (
     <>
-      <Button size="lg" data-testid="share-button" onClick={() => void share()}>
+      {/* Two looks of one action: the ink pill from desktop, an icon circle in the phone's action bar. */}
+      <Button
+        size="lg"
+        data-testid="share-button"
+        onClick={() => void share()}
+        className="max-desktop:hidden"
+      >
         {uk.detail.share}
+      </Button>
+      <Button
+        variant="icon"
+        size="lg"
+        aria-label={uk.detail.share}
+        data-testid="share-button-icon"
+        onClick={() => void share()}
+        className="desktop:hidden"
+      >
+        <Icon name="share" />
       </Button>
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>
+      {toast && announcement !== "" && (
+        <span
+          aria-hidden="true"
+          data-testid="share-toast"
+          className="absolute inset-x-4 bottom-full mb-2 flex min-h-12 items-center rounded-card bg-ink px-4 text-body text-on-ink shadow-float desktop:hidden"
+        >
+          {announcement}
+        </span>
+      )}
     </>
   );
 }

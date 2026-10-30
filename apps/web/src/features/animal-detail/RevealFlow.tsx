@@ -71,6 +71,7 @@ export function RevealFlow({ animalId, animalName, cityName, cityLabel }: Reveal
         ref={triggerRef}
         variant="accent"
         size="lg"
+        className="max-desktop:flex-1"
         data-testid="reveal-trigger"
         disabled={state.kind === "loading"}
         onClick={openThisAnimal}
