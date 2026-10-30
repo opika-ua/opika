@@ -35,7 +35,9 @@ const rowOf = (item: EvidenceItem, id: string): EvidenceRow | null => {
       return { id, kind: item.kind, holderName: item.holderName };
     case "reference_contact":
       // The channel as the shelter's own contact fields show it (K4's
-      // `channelText`), which `parseChannel` reads back to the same channel.
+      // `channelText`), which `parseChannel` reads back to the same channel for a Ukrainian
+      // phone or Viber number. A stored non-Ukrainian one no longer parses (writes need +380 and
+      // nine digits), so a resubmit with it is refused until the operator edits that card.
       return {
         id,
         kind: item.kind,

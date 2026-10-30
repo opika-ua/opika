@@ -24,6 +24,7 @@ import {
 import { CheckboxGroup, ChipGroup, RadioGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
 import { ICON_NAMES, Icon } from "../../../ui/Icon";
+import { InfoToggle } from "../../../ui/InfoToggle";
 import { MetaLine } from "../../../ui/MetaLine";
 import { Pagination } from "../../../ui/Pagination";
 import { Panel } from "../../../ui/Panel";
@@ -42,7 +43,9 @@ import {
   ChoiceChipDemo,
   ComboboxDemo,
   ComboboxMultiDemo,
+  FilterTabsDemo,
   MenuDemo,
+  MenuIconDemo,
   ModalDemo,
   ModalHeaderDemo,
   MultiSelectRowsDemo,
@@ -510,6 +513,17 @@ export default function DevUiPage() {
         </Row>
         <Row label="Menu (a row's «More»)">
           <MenuDemo />
+        </Row>
+        <Row label="Menu (⋯ trigger, divider, danger item)">
+          <MenuIconDemo />
+        </Row>
+        <Row label="FilterTabs">
+          <FilterTabsDemo />
+        </Row>
+        <Row label="InfoToggle">
+          <InfoToggle label="How the list is ordered">
+            By date: the freshest cards first.
+          </InfoToggle>
         </Row>
       </Group>
 

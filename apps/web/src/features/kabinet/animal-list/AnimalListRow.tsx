@@ -2,21 +2,22 @@
 
 import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
-import { useId } from "react";
+import { Fragment, useId } from "react";
 import { Button, type ButtonVariant, LinkButton } from "../../../ui/Button";
 import { FreshnessPips } from "../../../ui/FreshnessPips";
 import { Heading } from "../../../ui/Heading";
-import { Menu, MenuItem } from "../../../ui/Menu";
+import { Menu, MenuDivider, MenuItem } from "../../../ui/Menu";
 import { Panel } from "../../../ui/Panel";
 import { Photo } from "../../../ui/Photo";
 import { Text } from "../../../ui/Text";
 import { missingSentence } from "../animal-form/labels";
-import { animalPath } from "../routes";
+import { animalPath, publicAnimalPath } from "../routes";
 import { ListingStatusChip } from "../StatusChips";
 import {
   type AnimalRow,
   actionLabelOf,
   confirmLabelOf,
+  DANGER_ENTRIES,
   metaLineOf,
   type RowAction,
   rowActionsOf,
@@ -85,6 +86,7 @@ export function AnimalListRow({
   const gapsId = `${id}-gaps`;
   const kind = row.listing.kind;
   const { forward, menu } = rowActionsOf(kind);
+  const firstDanger = menu.find((entry) => DANGER_ENTRIES.has(entry));
   const confirmLabel = confirmLabelOf(kind);
   const unready = kind === "draft" && row.publishGaps.length > 0;
   const inert = !editable || busy;
@@ -191,33 +193,48 @@ export function AnimalListRow({
             <Menu
               open={menuOpen}
               onOpenChange={onToggleMenu}
-              label={t.row.more}
+              trigger="icon"
+              label={fillTemplate(t.row.menuLabel, { name: row.name })}
               triggerId={moreButtonId(row.id)}
-              describedBy={nameId}
               className="ml-auto"
             >
               {menu.map((action) => (
-                <MenuItem key={action}>
-                  {action === "edit" ? (
-                    <LinkButton
-                      variant="ghost"
-                      href={href}
-                      prefetch={false}
-                      className="w-full justify-start"
-                    >
-                      {actionLabelOf(action)}
-                    </LinkButton>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
-                      aria-disabled={inert || undefined}
-                      onClick={() => act(action)}
-                    >
-                      {actionLabelOf(action)}
-                    </Button>
-                  )}
-                </MenuItem>
+                <Fragment key={action}>
+                  {DANGER_ENTRIES.has(action) && action === firstDanger ? <MenuDivider /> : null}
+                  <MenuItem tone={DANGER_ENTRIES.has(action) ? "danger" : "default"}>
+                    {action === "edit" ? (
+                      <LinkButton
+                        variant="ghost"
+                        href={href}
+                        prefetch={false}
+                        className="w-full justify-start"
+                      >
+                        {actionLabelOf(action)}
+                      </LinkButton>
+                    ) : action === "viewOnSite" ? (
+                      <LinkButton
+                        variant="ghost"
+                        href={publicAnimalPath(row.id)}
+                        target="_blank"
+                        rel="noopener"
+                        prefetch={false}
+                        className="w-full justify-start"
+                      >
+                        {actionLabelOf(action)}
+                        <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
+                      </LinkButton>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        aria-disabled={inert || undefined}
+                        onClick={() => act(action)}
+                      >
+                        {actionLabelOf(action)}
+                      </Button>
+                    )}
+                  </MenuItem>
+                </Fragment>
               ))}
             </Menu>
           </div>

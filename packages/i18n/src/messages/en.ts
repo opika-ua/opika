@@ -78,7 +78,7 @@ export const en = {
     cityNoMatchHint: "Only cities that currently have animals are listed here.",
     showAnimals: "Show {count} {animalWord}",
     done: "Done",
-    showResults: "Show",
+    showResults: "Show results",
     anyValue: "All",
     back: "Back",
     removeFilter: "Remove filter {name}",
@@ -670,10 +670,12 @@ export const en = {
           "Intake can't be paused right now: the shelter's status has changed. Reload the page.",
         illegalTransitionResume:
           "Intake can't be resumed from here right now: the shelter's status has changed. Write to me.",
-        phoneFormat: "Enter the number with the country code, for example +380 67 123 45 67.",
+        phoneFormat:
+          "Enter a Ukrainian number: +380 and 9 more digits, for example +380 67 123 45 67.",
         telegramFormat:
           "A Telegram username: 5-32 Latin letters, digits or underscores. The @ is optional.",
-        viberFormat: "Enter the Viber number with the country code, for example +380 67 123 45 67.",
+        viberFormat:
+          "Enter a Ukrainian number: +380 and 9 more digits, for example +380 67 123 45 67.",
         emailFormat: "That doesn't look like an email address.",
         httpsOnly: "Only links that start with https://.",
         notAUrl: "That doesn't look like a link.",
@@ -977,8 +979,11 @@ export const en = {
         adoptedSince: "Home since {date}",
         withdrawnOn: "Withdrawn from display {date} · {reason}",
         more: "More",
+        menuLabel: "Actions for the card {name}",
       },
+      orderInfoLabel: "How the list is ordered",
       actions: {
+        viewOnSite: "View on the site",
         edit: "Edit",
         reserve: "Started arranging",
         release: "Didn't work out: looking again",

@@ -545,10 +545,10 @@ export const uk = {
           "Зараз не вийде поставити прийом на паузу: статус притулку змінився. Оновіть сторінку.",
         illegalTransitionResume:
           "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
-        phoneFormat: "Вкажіть номер із кодом країни, наприклад +380 67 123 45 67.",
+        phoneFormat: "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
         telegramFormat:
           "Імʼя користувача в Telegram: 5-32 латинські літери, цифри або підкреслення. @ можна не писати.",
-        viberFormat: "Вкажіть номер Viber із кодом країни, наприклад +380 67 123 45 67.",
+        viberFormat: "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
         emailFormat: "Схоже, це не адреса пошти.",
         httpsOnly: "Лише посилання, що починаються з https://.",
         notAUrl: "Це не схоже на посилання.",
@@ -1012,9 +1012,14 @@ export const uk = {
         adoptedSince: "Удома з {date}",
         withdrawnOn: "Знято з показу {date} · {reason}",
         more: "Ще",
+        /** The ⋯ button's accessible name; `{name}` is the animal's name as stored (nominative, never inflected). */
+        menuLabel: "Дії з карткою {name}",
       },
+      /** The ordering note moved behind a «?» button; this is that button's accessible name. */
+      orderInfoLabel: "Як впорядковано список",
       actions: {
         edit: "Редагувати",
+        viewOnSite: "Переглянути на сайті",
         reserve: "Почали домовлятися",
         release: "Не домовилися – знову шукає",
         adopt: "Уже вдома",

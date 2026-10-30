@@ -198,6 +198,29 @@ describe("shelter.profile", () => {
     ]);
   });
 
+  it("updateContact refuses a +380 number with extra digits and writes nothing", async () => {
+    const bad = { primary: { kind: "phone", e164: "+380670000002213" }, additional: [] };
+    const result = await call("shelter.profile.updateContact", {
+      contact: bad,
+      expectedVersion: 0,
+    });
+    expect(result.status).toBe(400);
+    expect((await shelterRepo(db).findById(shelter.id))?.contact).toEqual(shelter.contact);
+  });
+
+  it("updateContact stores a local-form number as +380XXXXXXXXX", async () => {
+    const typed = { primary: { kind: "phone", e164: "(067) 123-45-67" }, additional: [] };
+    const result = await call("shelter.profile.updateContact", {
+      contact: typed,
+      expectedVersion: 0,
+    });
+    expect(result.status).toBe(200);
+    expect((await shelterRepo(db).findById(shelter.id))?.contact.primary).toEqual({
+      kind: "phone",
+      e164: "+380671234567",
+    });
+  });
+
   it("updateContact from a stale form is CONFLICT and writes nothing", async () => {
     const next = { primary: { kind: "telegram", handle: "lapa_shelter" }, additional: [] };
     expect(

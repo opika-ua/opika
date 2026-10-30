@@ -60,10 +60,10 @@ export function AnimalDetailScreen({
   ...content
 }: AnimalDetailScreenProps & { kabinetSignedIn?: boolean; backToGalleryHref?: string }) {
   return (
-    <div className="min-h-dvh bg-page">
+    <div className="flex min-h-dvh flex-col bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
-      <main {...MAIN_LANDMARK} {...MAIN_LANDMARK}>
+      <main {...MAIN_LANDMARK} className="flex flex-1 flex-col">
         {/* The demo disclosure must be in the page body, not only in metadata: this route is the one shelters share into Telegram. */}
         {REGISTRY_HAS_NO_REAL_SHELTERS && (
           <div className="p-4 tablet:p-6 desktop:px-14">
@@ -86,7 +86,7 @@ export function AnimalDetailScreen({
             {uk.detail.notFound.action}
           </Link>
         </div>
-        <div className="desktop:pt-10">
+        <div className="flex flex-1 flex-col desktop:pt-10">
           <AnimalDetailContent {...content} />
         </div>
       </main>
@@ -107,11 +107,12 @@ export function AnimalDetailContent({
 
   return (
     <div
-      className={`mx-auto flex ${PANEL_WIDTH} flex-col gap-4 px-4 pb-4 tablet:px-6 tablet:pb-6 desktop:gap-13 desktop:p-10`}
+      className={`mx-auto flex w-full flex-1 max-desktop:min-h-full ${PANEL_WIDTH} flex-col gap-4 px-4 pb-0 tablet:px-6 desktop:gap-13 desktop:p-10`}
     >
-      {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-6 desktop:flex-row desktop:items-start desktop:justify-between">
+      {/* Header. Below desktop its wrappers dissolve (`contents`) so the action bar can stick to the
+          bottom of the whole panel, not of the header. */}
+      <div className="flex flex-col gap-4 max-desktop:contents">
+        <div className="flex flex-col gap-6 desktop:flex-row desktop:items-start desktop:justify-between max-desktop:contents">
           <div className="flex min-w-0 flex-col gap-1">
             <Heading level={1} look="display-l" className="desktop:text-display-xl">
               {animal.name}
@@ -119,7 +120,11 @@ export function AnimalDetailContent({
             <MetaLine parts={metaParts(animal)} />
           </div>
           {/* Wraps onto two lines on a phone rather than overflowing; «Дати сімʼю» stays the one primary action. */}
-          <div className="flex flex-none flex-wrap items-center gap-4">
+          {/* Phone: the bar that is always on screen (sticky to the bottom of the panel's scroll), «Дати сімʼю» taking the width and two 52px circles; from desktop, the header's own row. */}
+          <div
+            data-testid="action-bar"
+            className="sticky bottom-0 z-10 order-last -mx-4 mt-auto flex items-center gap-2.5 border-line border-t bg-surface px-4 pt-3 pb-inset tablet:-mx-6 tablet:px-6 desktop:static desktop:order-none desktop:m-0 desktop:flex-none desktop:flex-wrap desktop:gap-4 desktop:border-0 desktop:bg-transparent desktop:p-0"
+          >
             <RevealFlow
               animalId={animal.id}
               animalName={animal.name}

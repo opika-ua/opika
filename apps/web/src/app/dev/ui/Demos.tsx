@@ -5,8 +5,9 @@ import { Button } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
 import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../ui/Combobox";
 import { ComboboxMulti } from "../../../ui/ComboboxMulti";
+import { FilterTabs, filterTabId } from "../../../ui/FilterTabs";
 import { Icon } from "../../../ui/Icon";
-import { Menu, MenuItem } from "../../../ui/Menu";
+import { Menu, MenuDivider, MenuItem } from "../../../ui/Menu";
 import { Modal } from "../../../ui/Modal";
 import {
   MultiSelectChecklist,
@@ -90,6 +91,46 @@ export function MenuDemo() {
         </Button>
       </MenuItem>
       <MenuItem>
+        <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
+          Withdraw
+        </Button>
+      </MenuItem>
+    </Menu>
+  );
+}
+
+export function FilterTabsDemo() {
+  const [value, setValue] = useState("all");
+  return (
+    <div className="w-full">
+      <FilterTabs
+        label="Show"
+        idPrefix="demo"
+        panelId="demo-panel"
+        value={value}
+        onChange={setValue}
+        tabs={[
+          { id: "all", label: "All", count: 48, accessibleName: "All · 48" },
+          { id: "draft", label: "Drafts", count: 5, accessibleName: "Drafts · 5" },
+          { id: "live", label: "Published", count: 34, accessibleName: "Published · 34" },
+        ]}
+      />
+      <div id="demo-panel" role="tabpanel" aria-labelledby={filterTabId("demo", value)} />
+    </div>
+  );
+}
+
+export function MenuIconDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Menu open={open} onOpenChange={setOpen} label="Actions for the card Murka" trigger="icon">
+      <MenuItem>
+        <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
+          Edit
+        </Button>
+      </MenuItem>
+      <MenuDivider />
+      <MenuItem tone="danger">
         <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
           Withdraw
         </Button>

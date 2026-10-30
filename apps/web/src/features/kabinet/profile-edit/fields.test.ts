@@ -79,7 +79,7 @@ describe("contactOfForm", () => {
   it("names the message for each bad field, by row", () => {
     const result = contactOfForm(
       form({
-        phone: "067 123 45 67",
+        phone: "+380670000002213",
         telegram: "@abc",
         others: [
           { id: "n1", kind: "email", value: "not-an-email", stored: false },
@@ -94,6 +94,30 @@ describe("contactOfForm", () => {
       others: { n1: "emailFormat", n2: "httpsOnly" },
       atLeastOne: false,
     });
+  });
+
+  it("saves the Ukrainian local and international forms as +380XXXXXXXXX", () => {
+    for (const typed of [
+      "067 123 45 67",
+      "(067) 123-45-67",
+      "0671234567",
+      "380671234567",
+      "+380 67 123 45 67",
+    ]) {
+      expect(contactOfForm(form({ phone: typed }))).toEqual({
+        kind: "ok",
+        contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
+      });
+    }
+  });
+
+  it("refuses a Viber number with extra digits or another country code", () => {
+    for (const typed of ["+380670000002213", "+48 600 100 200", "067123456"]) {
+      const result = contactOfForm(
+        form({ others: [{ id: "n1", kind: "viber", value: typed, stored: false }] }),
+      );
+      expect(result).toMatchObject({ kind: "invalid", others: { n1: "viberFormat" } });
+    }
   });
 
   it("a stored row of any kind is checked as that kind (fix 3)", () => {

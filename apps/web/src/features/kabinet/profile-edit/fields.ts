@@ -1,10 +1,11 @@
 import {
   type ContactChannel,
-  ContactChannelSchema,
+  ContactChannelInputSchema,
   characterCount,
   DonationLinkSchema,
   FRESHNESS_SENTENCE_MAX_CHARACTERS,
   normalizeFreshnessSentenceText,
+  normalizeUaPhone,
   type ShelterContact,
 } from "@opika/domain";
 
@@ -13,7 +14,7 @@ import {
  * normalised (K4 sheet, answer 4, Oleksii, verbatim: "Yes: accept @handle,
  * t.me/handle, spaced/dashed numbers; normalise silently."), and which of his
  * messages a field gets. No React, no I/O: the components call these, and the
- * server checks everything again (`ShelterContactSchema`,
+ * server checks everything again (`ShelterContactInputSchema`,
  * `FreshnessSentenceInputSchema`), so these exist to tell a person what to fix
  * before a round trip, never to decide what is stored.
  */
@@ -121,8 +122,8 @@ export type ParsedChannel =
   | { kind: "ok"; channel: ContactChannel }
   | { kind: "error"; error: FieldError };
 
-/** Spaces, dashes, dots and brackets go; the digits and the leading + stay. */
-const normalizePhone = (raw: string): string => raw.replace(/[\s\-.()]/g, "");
+/** Ukrainian forms (+380, 380, 0XX; spaces, dashes, brackets) become +380XXXXXXXXX; anything else stays as typed, so the schema refuses it. */
+const normalizePhone = (raw: string): string => normalizeUaPhone(raw) ?? raw.trim();
 
 /** «@handle», «t.me/handle» and «https://t.me/handle» all mean the handle. */
 const normalizeTelegram = (raw: string): string =>
@@ -155,7 +156,7 @@ export function linkProblem(raw: string): "httpsOnly" | "notAUrl" | null {
  */
 export function parseChannel(kind: ChannelKind, raw: string): ParsedChannel {
   const checked = (candidate: ContactChannel, error: FieldError): ParsedChannel =>
-    ContactChannelSchema.safeParse(candidate).success
+    ContactChannelInputSchema.safeParse(candidate).success
       ? { kind: "ok", channel: candidate }
       : { kind: "error", error };
   switch (kind) {

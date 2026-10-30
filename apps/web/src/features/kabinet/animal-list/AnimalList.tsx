@@ -9,9 +9,10 @@ import {
   kabinetAnimalListBrowserClient,
 } from "../../../api/kabinet-browser-client";
 import { Button, LinkButton } from "../../../ui/Button";
-import { Chip } from "../../../ui/Chip";
+import { FilterTabs, filterTabId } from "../../../ui/FilterTabs";
 import { EmptyState, InlineStatus } from "../../../ui/feedback";
 import { Heading } from "../../../ui/Heading";
+import { InfoToggle } from "../../../ui/InfoToggle";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
@@ -517,9 +518,12 @@ export function AnimalList({
           <Heading level={1} look="display-l" id="animal-list-title">
             {t.title}
           </Heading>
-          <Text look="body" className="text-ink-2">
-            {captionOf(shelter.displayName, counts)}
-          </Text>
+          <div className="flex flex-wrap items-center gap-x-1">
+            <Text look="body" className="text-ink-2">
+              {captionOf(shelter.displayName, counts)}
+            </Text>
+            <InfoToggle label={t.orderInfoLabel}>{t.orderNote}</InfoToggle>
+          </div>
         </div>
         {editable ? (
           <LinkButton href={NEW_ANIMAL_PATH} prefetch={false} aria-label={t.add}>
@@ -615,30 +619,36 @@ export function AnimalList({
             )
           ) : null}
 
-          {/* One row that scrolls sideways on a phone (the chips stay 48px; wrapping took a third of the screen). */}
-          <fieldset className="min-w-0">
-            <legend className="sr-only">{t.filter.label}</legend>
-            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 tablet:mx-0 tablet:flex-wrap tablet:overflow-visible tablet:px-0">
-              {filterChipsOf(counts).map((chip) => (
-                <Chip
-                  key={chip.filter.kind === "listing" ? chip.filter.listing : chip.filter.kind}
-                  kind="toggle"
-                  pressed={sameFilter(chip.filter, filter)}
-                  className="shrink-0 whitespace-nowrap"
-                  onClick={() => {
-                    if (!sameFilter(chip.filter, filter) || load.kind === "failed") {
-                      void loadFirst(chip.filter);
-                    }
-                  }}
-                >
-                  {chip.label}
-                </Chip>
-              ))}
-            </div>
-          </fieldset>
+          <FilterTabs
+            label={t.filter.label}
+            idPrefix="animal-list"
+            panelId="animal-list-panel"
+            value={stale ? "stale" : filter.kind === "listing" ? filter.listing : "all"}
+            tabs={filterChipsOf(counts).map((chip) => ({
+              id: chip.id,
+              label: chip.text,
+              count: chip.count,
+              accessibleName: chip.label,
+            }))}
+            onChange={(id) => {
+              const chip = filterChipsOf(counts).find((candidate) => candidate.id === id);
+              if (
+                chip !== undefined &&
+                (!sameFilter(chip.filter, filter) || load.kind === "failed")
+              ) {
+                void loadFirst(chip.filter);
+              }
+            }}
+          />
 
           <section
-            aria-labelledby="animal-list-title"
+            id="animal-list-panel"
+            role="tabpanel"
+            aria-labelledby={
+              stale
+                ? "animal-list-title"
+                : filterTabId("animal-list", filter.kind === "listing" ? filter.listing : "all")
+            }
             aria-busy={load.kind === "loading" || undefined}
             className="flex flex-col gap-3"
           >
@@ -690,8 +700,6 @@ export function AnimalList({
           ) : null}
         </>
       )}
-
-      <Text look="hint">{t.orderNote}</Text>
 
       {dialog?.kind === "adopt" ? (
         <AdoptDialog

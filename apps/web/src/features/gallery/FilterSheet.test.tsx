@@ -331,7 +331,7 @@ describe("FilterSheet: the live count and Escape", () => {
     openDrill("Область, Усі");
     fireEvent.click(sheet().getByRole("checkbox", { name: "Львівська, 3 тварини", hidden: true }));
     fireEvent.click(sheet().getByRole("button", { name: "Готово", hidden: true }));
-    expect(submit().textContent).toBe("Показати");
+    expect(submit().textContent).toBe("Показати результати");
   });
 
   it("Escape inside a drill-down returns to the main screen; on the main screen it is left to close the sheet", () => {
