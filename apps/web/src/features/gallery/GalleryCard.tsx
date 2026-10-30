@@ -4,7 +4,7 @@ import { ukPublic as uk } from "@opika/i18n/public";
 import { freshnessLabel } from "@opika/ui";
 import Link from "next/link";
 import { Badge } from "../../ui/Badge";
-import { buttonClass } from "../../ui/Button";
+import { buttonLookClass } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { MetaLine } from "../../ui/MetaLine";
 import { Photo } from "../../ui/Photo";
@@ -164,7 +164,7 @@ export function GalleryCard({
         </span>
         {!stacked && (
           <div className="hidden tablet:mt-2 tablet:block">
-            <span aria-hidden="true" className={cx(buttonClass("primary"), "w-fit")}>
+            <span aria-hidden="true" className={cx(buttonLookClass("primary"), "w-fit")}>
               {uk.feed.adoptPill}
             </span>
           </div>

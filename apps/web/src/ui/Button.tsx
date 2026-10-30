@@ -10,8 +10,8 @@ export type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "icon
 export type ButtonSize = "md" | "lg";
 export type ButtonStatus = "idle" | "loading";
 
-const BASE =
-  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 text-label focus-ring disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
+const LOOK = "inline-flex shrink-0 items-center justify-center gap-2 text-label";
+const BASE = `${LOOK} cursor-pointer focus-ring disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60`;
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary: "rounded-pill bg-ink text-on-ink",
@@ -44,6 +44,11 @@ const SIZE: Record<ButtonVariant, Record<ButtonSize, string>> = {
 /** The class string, for the rare element that cannot be a Button or LinkButton. */
 export function buttonClass(variant: ButtonVariant, size: ButtonSize = "md"): string {
   return cx(BASE, VARIANT[variant], SIZE[variant][size]);
+}
+
+/** A button's look with none of its behaviour classes, for a decorative `<span aria-hidden>` that only looks like one (a card's pill); fewer classes per card. */
+export function buttonLookClass(variant: ButtonVariant, size: ButtonSize = "md"): string {
+  return cx(LOOK, VARIANT[variant], SIZE[variant][size]);
 }
 
 type Common = {
