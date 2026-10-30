@@ -54,10 +54,13 @@ export function VoiceSection({
   sentence,
   save,
   reload,
+  viewHref,
 }: {
   sentence: FreshnessSentence;
   save: (next: FreshnessSentence) => Promise<WriteResult>;
   reload: () => Promise<KabinetShelterView | null>;
+  /** The public shelter page, for the «Переглянути» link after a save. */
+  viewHref?: string;
 }) {
   const t = uk.kabinet.profileEdit;
   const id = useId();
@@ -181,6 +184,7 @@ export function VoiceSection({
         caption={t.actions.liveOnSave.voice}
         onSave={() => void onSave()}
         onReload={onReload}
+        {...(viewHref !== undefined ? { viewHref } : {})}
       />
     </FormSection>
   );

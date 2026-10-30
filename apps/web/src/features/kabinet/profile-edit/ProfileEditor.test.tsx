@@ -1,5 +1,5 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { KabinetProfileClient } from "../../../api/kabinet-browser-client";
@@ -111,23 +111,27 @@ function renderEditor(
   return fns;
 }
 
-const section = (name: string) => screen.getByRole("region", { name });
-const contacts = () => section("Контакти");
-const voice = () => section("Голос притулку");
-const donation = () => section("Збір коштів");
+/** Selects the sub-tab (every panel stays mounted, only the active one is visible), then the section. */
+const inTab = (tab: string, name: string) => {
+  fireEvent.click(screen.getByRole("tab", { name: tab }));
+  return screen.getByRole("region", { name });
+};
+const contacts = () => inTab("Контакти", "Контакти");
+const voice = () => inTab("Профіль", "Голос притулку");
+const donation = () => inTab("Збір коштів", "Збір коштів");
 
 describe("contacts (answer 3, answer 4)", () => {
   it("offers save and cancel only once something changed, and cancel puts the stored values back", async () => {
     renderEditor();
     const c = within(contacts());
-    expect(c.queryByRole("button", { name: "Зберегти" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
     const phone = c.getByLabelText(/^Телефон/);
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380 50 111-22-33");
-    expect(c.getByRole("button", { name: "Зберегти" })).toBeTruthy();
-    await userEvent.click(c.getByRole("button", { name: "Скасувати зміни" }));
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Скасувати" }));
     expect((phone as HTMLInputElement).value).toBe("+380671234567");
-    expect(c.queryByRole("button", { name: "Зберегти" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
   });
 
   it("normalises silently and saves with the version it read, then says «Збережено.»", async () => {
@@ -139,7 +143,7 @@ describe("contacts (answer 3, answer 4)", () => {
     const telegram = c.getByLabelText(/^Telegram/);
     await userEvent.clear(telegram);
     await userEvent.type(telegram, "t.me/lapa_shelter");
-    await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(fns.updateContact).toHaveBeenCalledWith({
       contact: {
         primary: { kind: "phone", e164: "+380501112233" },
@@ -157,7 +161,7 @@ describe("contacts (answer 3, answer 4)", () => {
     const phone = c.getByLabelText(/^Телефон/);
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380670000002213");
-    await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(
       c.getByText("Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67."),
     ).toBeTruthy();
@@ -170,7 +174,7 @@ describe("contacts (answer 3, answer 4)", () => {
     const c = within(contacts());
     await userEvent.clear(c.getByLabelText(/^Телефон/));
     await userEvent.clear(c.getByLabelText(/^Telegram/));
-    await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     // K4-B4, answer 3: his U+02BC apostrophe.
     expect(c.getByRole("alert").textContent).toBe("Залиште хоча б один спосіб звʼязку.");
     expect(fns.updateContact).not.toHaveBeenCalled();
@@ -193,7 +197,7 @@ describe("contacts (answer 3, answer 4)", () => {
     const phone = c.getByLabelText(/^Телефон/);
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380501112233");
-    await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(
       c.getByText(
         "Профіль змінили після того, як ви його відкрили. Ваші зміни не збережено. Ось поточна версія – внесіть зміни ще раз.",
@@ -215,7 +219,7 @@ describe("contacts (answer 3, answer 4)", () => {
     const phone = c.getByLabelText(/^Телефон/);
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380501112233");
-    await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(
       c.getByText(
         "Не збереглося – на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
@@ -275,10 +279,10 @@ describe("per-section saves share one version (answer 1)", () => {
     const phone = c.getByLabelText(/^Телефон/);
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380501112233");
-    await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     const v = within(voice());
     await userEvent.type(v.getByLabelText("Ваші слова на сторінці притулку"), " Пишіть.");
-    await userEvent.click(v.getByRole("button", { name: "Зберегти" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(fns.updateFreshnessSentence).toHaveBeenCalledWith(
       expect.objectContaining({ expectedVersion: 4 }),
     );
@@ -345,7 +349,7 @@ describe("the voice sentence (N11)", () => {
     const fns = renderEditor({ view: baseView({ freshnessSentence: null }) });
     await userEvent.click(textarea());
     await userEvent.paste(typed);
-    await userEvent.click(within(voice()).getByRole("button", { name: "Зберегти" }));
+    await userEvent.click((voice(), screen.getByRole("button", { name: "Зберегти" })));
     expect(within(voice()).getByText(message)).toBeTruthy();
     expect(textarea().getAttribute("aria-invalid")).toBe("true");
     expect(fns.updateFreshnessSentence).not.toHaveBeenCalled();
@@ -375,7 +379,7 @@ describe("the voice sentence (N11)", () => {
     });
     expect(textarea().value).toBe("Чи {імʼя} ще з нами?");
     await userEvent.type(textarea(), " Пишіть.");
-    await userEvent.click(within(voice()).getByRole("button", { name: "Зберегти" }));
+    await userEvent.click((voice(), screen.getByRole("button", { name: "Зберегти" })));
     expect(
       within(voice()).getByText(
         "Тепер речення показується на сторінці притулку, тому {імʼя} у ньому не використовується. Приберіть його й збережіть ще раз.",
@@ -387,7 +391,7 @@ describe("the voice sentence (N11)", () => {
   it("sends the stored English back with the new Ukrainian (the server clears it, answer 13)", async () => {
     const fns = renderEditor();
     await userEvent.type(textarea(), " Пишіть.");
-    await userEvent.click(within(voice()).getByRole("button", { name: "Зберегти" }));
+    await userEvent.click((voice(), screen.getByRole("button", { name: "Зберегти" })));
     expect(fns.updateFreshnessSentence).toHaveBeenCalledWith({
       freshnessSentence: {
         uk: "Оновлюємо картки щосуботи. Пишіть.",
@@ -400,7 +404,7 @@ describe("the voice sentence (N11)", () => {
   it("an emptied sentence is saved as no sentence", async () => {
     const fns = renderEditor();
     await userEvent.clear(textarea());
-    await userEvent.click(within(voice()).getByRole("button", { name: "Зберегти" }));
+    await userEvent.click((voice(), screen.getByRole("button", { name: "Зберегти" })));
     expect(fns.updateFreshnessSentence).toHaveBeenCalledWith({
       freshnessSentence: null,
       expectedVersion: 3,
@@ -534,11 +538,19 @@ describe("the donation link (N20)", () => {
   });
 });
 
+const openTab = (name: string) => fireEvent.click(screen.getByRole("tab", { name }));
+/** Pause and resume live in the Акаунт tab. */
+const renderInAccount = (options: Parameters<typeof renderEditor>[0] = {}) => {
+  const fns = renderEditor(options);
+  openTab("Акаунт");
+  return fns;
+};
+
 describe("pause and resume (N21)", () => {
   const REASONS = ["Сезонна перерва", "Переїзд", "Немає місця", "Брак людей", "Інше"];
 
   it("pauses through the reason dialog, which needs a reason; the note is optional", async () => {
-    const fns = renderEditor();
+    const fns = renderInAccount();
     await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
     const dialog = within(screen.getByRole("dialog", { name: "Призупинити прийом тварин?" }));
     expect(
@@ -573,7 +585,7 @@ describe("pause and resume (N21)", () => {
   });
 
   it("shows his note hint under the note field (K4-B4, answer 2)", async () => {
-    renderEditor();
+    renderInAccount();
     await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
     const dialog = within(screen.getByRole("dialog"));
     const hint = dialog.getByText(
@@ -596,7 +608,7 @@ describe("pause and resume (N21)", () => {
   };
 
   it("Escape and ✕ close the dialog without pausing", async () => {
-    const fns = renderEditor();
+    const fns = renderInAccount();
     await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
     expect(pressEscape()).toBe(false);
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -607,7 +619,7 @@ describe("pause and resume (N21)", () => {
   });
 
   it("ILLEGAL_TRANSITION on pause: his message, in the dialog", async () => {
-    renderEditor({
+    renderInAccount({
       overrides: {
         pause: vi.fn(async () => {
           throw apiError("ILLEGAL_TRANSITION");
@@ -625,7 +637,7 @@ describe("pause and resume (N21)", () => {
 
   it("while the pause is in flight, Escape, ✕ and «Скасувати» don't close the dialog, so a refusal is still shown", async () => {
     let answer: (error: unknown) => void = () => {};
-    renderEditor({
+    renderInAccount({
       overrides: {
         pause: vi.fn(
           () =>
@@ -663,7 +675,7 @@ describe("pause and resume (N21)", () => {
     });
 
   it("resumes with no confirmation", async () => {
-    const fns = renderEditor({ view: paused() });
+    const fns = renderInAccount({ view: paused() });
     // The stored note, under the paused line (K4-B4, answer 2).
     expect(screen.getByText("Повні вольєри").previousElementSibling?.textContent).toBe("Коментар");
     await userEvent.click(screen.getByRole("button", { name: "Відновити прийом тварин" }));
@@ -673,7 +685,7 @@ describe("pause and resume (N21)", () => {
   });
 
   it("ILLEGAL_TRANSITION on resume: his message", async () => {
-    renderEditor({
+    renderInAccount({
       view: paused(),
       overrides: {
         resume: vi.fn(async () => {
@@ -688,14 +700,18 @@ describe("pause and resume (N21)", () => {
   });
 
   it.each(["pending", "under_review"] as const)("offers neither while %s", (status) => {
-    renderEditor({ view: baseView({ verification: { status, since: new Date() } }) });
+    renderInAccount({ view: baseView({ verification: { status, since: new Date() } }) });
     expect(screen.queryByRole("button", { name: /прийом тварин/ })).toBeNull();
   });
 
   it("the locked block's chip follows the pause", async () => {
     renderEditor();
-    const locked = () => screen.getByRole("region", { name: "Встановлено під час перевірки" });
+    const locked = () => {
+      openTab("Перевірка");
+      return screen.getByRole("region", { name: "Встановлено під час перевірки" });
+    };
     expect(within(locked()).getAllByText("Перевірено").length).toBeGreaterThan(0);
+    openTab("Акаунт");
     await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
     const dialog = within(screen.getByRole("dialog"));
     await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Переїзд");
@@ -735,7 +751,7 @@ describe("a save whose answer is lost (K4-T16)", () => {
     const phone = c.getByLabelText(/^Телефон/);
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380501112233");
-    await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(fns.updateContact).toHaveBeenCalledWith({ contact: saved, expectedVersion: 3 });
     expect(fns.get).toHaveBeenCalledOnce();
     expect(c.getByRole("status").textContent).toBe("Збережено.");
@@ -748,7 +764,7 @@ describe("a save whose answer is lost (K4-T16)", () => {
     const phone = c.getByLabelText(/^Телефон/);
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380501112233");
-    await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(fns.get).toHaveBeenCalledOnce();
     expect(c.getByText(FAILED)).toBeTruthy();
     expect(c.getByRole("status").textContent).toBe("");
@@ -768,7 +784,7 @@ describe("a save whose answer is lost (K4-T16)", () => {
     });
     const v = within(voice());
     await userEvent.type(v.getByLabelText("Ваші слова на сторінці притулку"), " Пишіть.");
-    await userEvent.click(v.getByRole("button", { name: "Зберегти" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(fns.get).toHaveBeenCalledOnce();
     expect(v.getByRole("status").textContent).toBe("Збережено.");
   });
@@ -785,8 +801,113 @@ describe("a save whose answer is lost (K4-T16)", () => {
     const phone = c.getByLabelText(/^Телефон/);
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380 50 111 22 33");
-    await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(c.getByText(FAILED)).toBeTruthy();
     expect(fns.get).not.toHaveBeenCalled();
+  });
+});
+
+describe("the page's one save bar and the sub-tabs", () => {
+  const dirtyPhone = async () => {
+    const c = within(contacts());
+    const phone = c.getByLabelText(/^Телефон/);
+    await userEvent.clear(phone);
+    await userEvent.type(phone, "+380 50 111-22-33");
+  };
+  const dirtySentence = async () => {
+    await userEvent.type(
+      within(voice()).getByLabelText("Ваші слова на сторінці притулку"),
+      " Пишіть.",
+    );
+  };
+
+  it("shows no bar until something is unsaved, announces it politely, and hides it after a save", async () => {
+    renderEditor();
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
+    await dirtyPhone();
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeTruthy();
+    // The polite live region exists from the start and gains the message; focus stays in the field.
+    const live = screen
+      .getAllByRole("status")
+      .find((node) => node.textContent === "Є незбережені зміни");
+    expect(live).toBeTruthy();
+    expect(document.activeElement?.tagName).toBe("INPUT");
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
+  });
+
+  it("an edit survives a tab switch, and the bar stays while it is unsaved", async () => {
+    renderEditor();
+    await dirtyPhone();
+    fireEvent.click(screen.getByRole("tab", { name: "Збір коштів" }));
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Контакти" }));
+    expect((within(contacts()).getByLabelText(/^Телефон/) as HTMLInputElement).value).toBe(
+      "+380 50 111-22-33",
+    );
+  });
+
+  it("one press of «Зберегти» saves every unsaved section in turn, each with the fresh version", async () => {
+    const fns = renderEditor();
+    await dirtyPhone();
+    await dirtySentence();
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    // Page order: the sentence (Профіль) first with the version read, then the contacts with the one it returned.
+    expect(fns.updateFreshnessSentence).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedVersion: 3 }),
+    );
+    expect(fns.updateContact).toHaveBeenCalledWith(expect.objectContaining({ expectedVersion: 4 }));
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
+  });
+
+  it("«Скасувати» puts every unsaved section back and hides the bar", async () => {
+    renderEditor();
+    await dirtyPhone();
+    await dirtySentence();
+    await userEvent.click(screen.getByRole("button", { name: "Скасувати" }));
+    expect((within(contacts()).getByLabelText(/^Телефон/) as HTMLInputElement).value).toBe(
+      "+380671234567",
+    );
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
+  });
+
+  it("a refused save keeps the bar and shows the tab that holds the problem", async () => {
+    const fns = renderEditor();
+    fireEvent.click(screen.getByRole("tab", { name: "Контакти" }));
+    const phone = within(contacts()).getByLabelText(/^Телефон/);
+    await userEvent.clear(phone);
+    await userEvent.type(phone, "+380670000002213");
+    fireEvent.click(screen.getByRole("tab", { name: "Збір коштів" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(fns.updateContact).not.toHaveBeenCalled();
+    expect(screen.getByRole("tab", { name: "Контакти" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeTruthy();
+  });
+
+  it("the tab is in the URL as ?tab= (not for the first), and a sub-tab list is keyboard-operable", async () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole("tab", { name: "Збір коштів" }));
+    expect(window.location.search).toBe("?tab=zbir");
+    fireEvent.click(screen.getByRole("tab", { name: "Профіль" }));
+    expect(window.location.search).toBe("");
+    screen.getByRole("tab", { name: "Профіль" }).focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Контакти" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(window.location.search).toBe("?tab=kontakty");
+  });
+
+  it("after a save, «Переглянути» opens the public shelter page in a new tab", async () => {
+    renderEditor();
+    await dirtySentence();
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    const link = within(voice()).getByRole("link", { name: /^Переглянути/ });
+    expect(link.getAttribute("href")).toBe(`/prytulky/${baseView().id}`);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+    expect(link.textContent).toContain("(відкриється в новій вкладці)");
   });
 });

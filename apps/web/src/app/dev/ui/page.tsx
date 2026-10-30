@@ -33,7 +33,7 @@ import { PhotoSlider } from "../../../ui/PhotoSlider";
 import { PrevNext } from "../../../ui/PrevNext";
 import { Skeleton } from "../../../ui/Skeleton";
 import { Spinner } from "../../../ui/Spinner";
-import { StickyActionBar } from "../../../ui/StickyActionBar";
+import { BarButton, StickyActionBar } from "../../../ui/StickyActionBar";
 import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
 import { TextLink } from "../../../ui/TextLink";
@@ -433,6 +433,20 @@ export default function DevUiPage() {
             ]}
           />
         </Row>
+        <Row label="Tabs (pills look, sideways scroll on a phone)">
+          <Tabs
+            label="Shelter sections"
+            look="pills"
+            className="w-full"
+            tabs={[
+              { id: "profile", label: "Profile", panel: <Text>Profile panel</Text> },
+              { id: "contacts", label: "Contacts", panel: <Text>Contacts panel</Text> },
+              { id: "fund", label: "Fundraising", panel: <Text>Fundraising panel</Text> },
+              { id: "check", label: "Verification", panel: <Text>Verification panel</Text> },
+              { id: "account", label: "Account", panel: <Text>Account panel</Text> },
+            ]}
+          />
+        </Row>
         <Row label="BottomNav (a fixed bar; contained here)">
           <div className="relative h-20 w-full transform-gpu overflow-hidden rounded-panel border-2 border-line">
             <BottomNav
@@ -482,6 +496,17 @@ export default function DevUiPage() {
                   Save
                 </Button>
                 <Button className="flex-1">Publish</Button>
+              </div>
+            </StickyActionBar>
+          </div>
+        </Row>
+        <Row label="StickyActionBar tone=ink with BarButtons (the page save bar)">
+          <div className="w-full">
+            <StickyActionBar tone="ink">
+              <p className="min-w-0 flex-1 text-label">You have unsaved changes</p>
+              <div className="flex items-center gap-2">
+                <BarButton kind="text">Cancel</BarButton>
+                <BarButton kind="pill">Save</BarButton>
               </div>
             </StickyActionBar>
           </div>

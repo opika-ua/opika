@@ -36,6 +36,7 @@ export function SectionStatus({
   caption,
   onSave,
   onReload,
+  viewHref,
 }: {
   state: SaveState;
   dirty: boolean;
@@ -43,6 +44,8 @@ export function SectionStatus({
   caption: string | null;
   onSave: () => void;
   onReload: () => void;
+  /** The public page the change shows on; after a save a «Переглянути» link opens it in a new tab. */
+  viewHref?: string;
 }) {
   const t = uk.kabinet.profileEdit;
   const saved = state.kind === "saved" && !dirty;
@@ -71,6 +74,17 @@ export function SectionStatus({
       </p>
       {saved ? (
         <Text look="hint">{fillTemplate(t.state.savedAt, { time: timeOf(state.at) })}</Text>
+      ) : null}
+      {saved && viewHref !== undefined ? (
+        <a
+          href={viewHref}
+          target="_blank"
+          rel="noopener"
+          className="inline-flex min-h-target items-center self-start rounded-field text-label text-ink underline underline-offset-4 focus-ring"
+        >
+          {uk.kabinet.profileTabs.view}
+          <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
+        </a>
       ) : null}
       {problem}
     </div>

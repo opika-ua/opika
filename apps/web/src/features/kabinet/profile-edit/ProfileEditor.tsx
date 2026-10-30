@@ -11,6 +11,7 @@ import { Heading } from "../../../ui/Heading";
 import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
 import { LockedBlock } from "../ProfileParts";
+import { publicShelterPath } from "../routes";
 import { ContactsSection } from "./ContactsSection";
 import { DonationSection } from "./DonationSection";
 import { LogoSection } from "./LogoSection";
@@ -124,6 +125,7 @@ export function ProfileEditor({
               )
             }
             reload={reload}
+            viewHref={publicShelterPath(view.id)}
           />
         </div>
       ),
@@ -138,6 +140,7 @@ export function ProfileEditor({
             write(() => profile.updateContact({ contact, expectedVersion: versionRef.current }))
           }
           reload={reload}
+          viewHref={publicShelterPath(view.id)}
         />
       ),
     },

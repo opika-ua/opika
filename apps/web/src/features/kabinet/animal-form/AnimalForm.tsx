@@ -23,6 +23,7 @@ import { StickyActionBar } from "../../../ui/StickyActionBar";
 import { Text } from "../../../ui/Text";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../profile-edit/unsaved-changes";
+import { publicAnimalPath } from "../routes";
 import { ListingStatusChip } from "../StatusChips";
 import { summaryItemsOf } from "./error-summary-items";
 import { AboutFields, BasicsFields, HealthFields } from "./FormSections";
@@ -585,6 +586,10 @@ export function AnimalForm({
             <ListedActions
               save={save}
               dirty={dirty}
+              {...(view !== null &&
+              (view.listing.kind === "published" || view.listing.kind === "reserved")
+                ? { viewHref: publicAnimalPath(view.id) }
+                : {})}
               onSave={() => void saveFromButton()}
               onReload={() => void reload()}
             />
@@ -781,9 +786,12 @@ function ListedActions({
   dirty,
   onSave,
   onReload,
+  viewHref,
 }: {
   save: SaveState;
   dirty: boolean;
+  /** The card's public page (published and reserved only), opened in a new tab after a save. */
+  viewHref?: string;
   onSave: () => void;
   onReload: () => void;
 }) {
@@ -792,6 +800,17 @@ function ListedActions({
     <>
       {save.kind === "saved" && !dirty ? (
         <Text look="hint">{fillTemplate(e.state.savedAt, { time: timeOf(save.at) })}</Text>
+      ) : null}
+      {save.kind === "saved" && !dirty && viewHref !== undefined ? (
+        <a
+          href={viewHref}
+          target="_blank"
+          rel="noopener"
+          className="inline-flex min-h-target items-center self-start rounded-field text-label text-ink underline underline-offset-4 focus-ring"
+        >
+          {uk.kabinet.profileTabs.view}
+          <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
+        </a>
       ) : null}
       <SaveProblems save={save} onSave={onSave} onReload={onReload} />
       <div className="flex gap-2 tablet:justify-end">
