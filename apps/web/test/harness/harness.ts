@@ -284,3 +284,17 @@ async function dispatchStamped(
     await cdp.detach();
   }
 }
+
+/** True when the page does not scroll sideways (an accessibility floor, not a look); the one place every spec reads it. */
+export function noSidewaysScroll(page: Page): Promise<boolean> {
+  return page.evaluate(
+    () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+  );
+}
+
+/** The touch-target floor: the control's box is at least 48px tall. */
+export async function expectMinTargetHeight(locator: Locator, minimum = 48): Promise<void> {
+  const box = await locator.boundingBox();
+  if (box === null) throw new Error("the control has no box (not rendered or hidden)");
+  if (box.height < minimum) throw new Error(`target height ${box.height}px is under ${minimum}px`);
+}

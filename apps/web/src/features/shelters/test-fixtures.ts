@@ -99,6 +99,24 @@ export function stubShelterPageClient(
   const client = {
     shelters: { byId: sheltersById },
     gallery: { list: galleryList, facetCounts, relaxationCounts },
+    regions: {
+      list: vi.fn(async () => [
+        {
+          id: "814661e1-67de-532e-a38e-2216d8b521ff",
+          slug: "kyivska",
+          label: "Київська",
+          short: "Київська обл.",
+          neighbours: [],
+        },
+        {
+          id: "f421e743-f9dd-5198-86bd-8a05911ec75b",
+          slug: "kyiv",
+          label: "Київ",
+          short: "м. Київ",
+          neighbours: [],
+        },
+      ]),
+    },
     cities: {
       byIds: vi.fn(async () => [
         {

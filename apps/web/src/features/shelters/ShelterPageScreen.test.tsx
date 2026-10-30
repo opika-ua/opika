@@ -260,4 +260,20 @@ describe("the shelter page, filters", () => {
     expect(suggestion.getAttribute("href")?.startsWith(PAGE)).toBe(true);
     expect(screen.queryByTestId("shelter-no-animals")).toBeNull();
   });
+
+  it("a one-species shelter with ?vyd= shows a species chip, «Скинути» and the count line, though there is no switch", () => {
+    renderScreen({
+      animals: makeListOutput([makeCardView(1), makeCardView(2)]),
+      filterUi: { ...UI, hasBothSpecies: false },
+      query: {
+        sort: "freshest",
+        page: 1,
+        filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
+      },
+    });
+    expect(screen.queryByTestId("species-toggle-mobile")).toBeNull();
+    expect(screen.getByRole("link", { name: "Прибрати фільтр Коти" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Скинути" }).getAttribute("href")).toBe(PAGE);
+    expect(screen.getAllByText("Знайдено 2 тварини").length).toBeGreaterThan(0);
+  });
 });

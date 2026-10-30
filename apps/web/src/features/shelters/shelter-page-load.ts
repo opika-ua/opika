@@ -3,6 +3,7 @@ import type {
   GalleryFacetCounts,
   GalleryRelaxation,
   PublicShelterView,
+  RegionView,
 } from "@opika/contracts";
 import {
   type CityId,
@@ -19,7 +20,7 @@ import type { ShelterPageQuery } from "./shelter-url";
 /** The procedures the shelter page reads; a test passes a stub of just these. */
 export type ShelterPageClient = Pick<
   ReturnType<typeof anonymousRouterClient>,
-  "shelters" | "gallery" | "cities"
+  "shelters" | "gallery" | "cities" | "regions"
 >;
 
 /** Everything `ShelterPageScreen` is given. */
@@ -53,19 +54,21 @@ export interface ShelterFilterUi {
 }
 
 /** Kyiv and Sevastopol are cities with a region's status: their name already is the region. */
-const CITY_REGION_IDS: ReadonlySet<string> = new Set([
-  "f421e743-f9dd-5198-86bd-8a05911ec75b",
-  "c45a68e7-2bf8-52b5-99ac-b10752d86025",
-]);
+const CITY_REGION_SLUGS: ReadonlySet<string> = new Set(["kyiv", "sevastopol"]);
 
 /**
  * The shelter page's location line: the settlement and its oblast, even for a name that is unique
  * (it is the shelter's address line). A name shared elsewhere already carries its oblast in
- * `placeText`, and Kyiv and Sevastopol have none to add.
+ * `placeText`, and a city-region (`regions`' own slugs, not hard-coded ids) has none to add.
  */
-export function shelterLocationText(city: CityLabelView): string {
+export function shelterLocationText(
+  city: CityLabelView,
+  regions: readonly Pick<RegionView, "id" | "slug">[],
+): string {
   const place = placeText(city, "full");
-  if (city.nameScope !== "unique_in_ukraine" || CITY_REGION_IDS.has(city.regionId)) return place;
+  const regionSlug = regions.find((region) => region.id === city.regionId)?.slug;
+  if (city.nameScope !== "unique_in_ukraine" || CITY_REGION_SLUGS.has(regionSlug ?? ""))
+    return place;
   return fillTemplate(uk.place.withRegion, { place, region: city.regionShort });
 }
 
@@ -138,6 +141,8 @@ export async function loadShelterPage(
         (city) => city.id === shelterCityId,
       ) ??
       null;
+    // The 27 regions are a constant (no query behind it); read only to tell a city-region from an oblast.
+    const regions = await client.regions.list({});
     const cityNames = new Map<CityId, string>(
       animals.cityLabels.map((city) => [city.id, placeName(city)]),
     );
@@ -146,7 +151,7 @@ export async function loadShelterPage(
       view: {
         shelter,
         cityName: shelterCity ? placeName(shelterCity) : null,
-        cityPlace: shelterCity ? shelterLocationText(shelterCity) : null,
+        cityPlace: shelterCity ? shelterLocationText(shelterCity, regions) : null,
         animals,
         cityNames,
         query,

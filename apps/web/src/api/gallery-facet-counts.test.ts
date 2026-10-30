@@ -106,6 +106,34 @@ describe("gallery.facetCounts", () => {
     expect(everyone.sizes).toEqual({ small: 2, medium: 0, large: 2 });
   });
 
+  it("gallery.relaxationCounts under a shelter scope counts that shelter's animals only (goes red if the handler drops the scope)", async () => {
+    const city = await seedOneCityTwoDogsOneCat();
+    const other = makeShelter({
+      publicLocation: {
+        precision: "fuzzed_address",
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
+      },
+    });
+    await shelterRepo(h.db).insert(other);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: other.id, species: "cat" }), city.id);
+    const filters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } } as const;
+
+    const scoped = await h.call("gallery.relaxationCounts", {
+      filters,
+      scope: { kind: "shelter", shelterId: other.id },
+    });
+    const everyone = await anonymousRouterClient(h.db).gallery.relaxationCounts({ filters });
+
+    expect(scoped.status).toBe(200);
+    expect(scoped.body).toEqual({
+      current: 0,
+      relaxations: [{ dimension: "species", additional: 1 }],
+    });
+    expect(everyone.current).toBe(2);
+  });
+
   it("serves the same answer over the public HTTP route", async () => {
     await seedOneCityTwoDogsOneCat();
     const input = { filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } } };

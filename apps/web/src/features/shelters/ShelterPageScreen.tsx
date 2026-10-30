@@ -242,6 +242,7 @@ export function ShelterPageScreen({
                         selectedCities: [],
                         counts: filterUi.counts,
                         basePath,
+                        speciesChip: !filterUi.hasBothSpecies,
                       })}
                       resetHref={resetFiltersHref(query.sort, basePath)}
                     />

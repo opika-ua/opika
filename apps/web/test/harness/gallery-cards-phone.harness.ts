@@ -7,8 +7,8 @@
 import { createDatabase } from "@opika/db";
 import { shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
-import { expect, type Page, test } from "@playwright/test";
-import { openRoute } from "./harness";
+import { expect, test } from "@playwright/test";
+import { expectMinTargetHeight, noSidewaysScroll, openRoute } from "./harness";
 import type { Viewport } from "./viewports";
 
 /** TEST-NET-2, `.63`: unclaimed by the sibling harness files. */
@@ -18,9 +18,6 @@ const CARD = "[data-testid='animal-card']";
 const P360: Viewport = { name: "360x740 phone", width: 360, height: 740 };
 const P393: Viewport = { name: "393x852 phone", width: 393, height: 852 };
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
-
-const noSidewaysScroll = (page: Page) =>
-  page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
 for (const viewport of [P360, P393]) {
   test.describe(`gallery at ${viewport.name}`, () => {
@@ -76,8 +73,7 @@ test.describe("a shelter page on phones", () => {
       await openRoute(page, `/prytulky/${verified.id}`, viewport, { readySelector: CARD });
       expect(await noSidewaysScroll(page)).toBe(true);
       await expect(page.getByTestId("shelter-trust-line")).toBeVisible();
-      const back = await page.getByTestId("shelter-back-link").boundingBox();
-      expect(back?.height ?? 0).toBeGreaterThanOrEqual(48);
+      await expectMinTargetHeight(page.getByTestId("shelter-back-link"));
     });
   }
 });

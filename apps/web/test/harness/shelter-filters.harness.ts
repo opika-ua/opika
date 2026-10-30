@@ -8,7 +8,7 @@ import { createDatabase } from "@opika/db";
 import { shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { expect, type Page, test } from "@playwright/test";
-import { openRoute } from "./harness";
+import { expectMinTargetHeight, noSidewaysScroll, openRoute } from "./harness";
 import type { Viewport } from "./viewports";
 
 /** TEST-NET-2, `.64`: unclaimed by the sibling harness files. */
@@ -19,9 +19,6 @@ const P360: Viewport = { name: "360x740 phone", width: 360, height: 740 };
 const P393: Viewport = { name: "393x852 phone", width: 393, height: 852 };
 const D1440: Viewport = { name: "1440x900 desktop", width: 1440, height: 900 };
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
-
-const noSidewaysScroll = (page: Page) =>
-  page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
 /** A seeded verified shelter with more than 12 animals  (the seeded shelters each hold one species, so the switch itself is covered by unit tests); at 12 or fewer the loader's unit tests apply. */
 async function shelterPaths(page: Page) {
@@ -53,7 +50,7 @@ for (const viewport of [P360, P393]) {
     await openRoute(page, `/prytulky/${many}`, viewport, { readySelector: CARD });
     expect(await noSidewaysScroll(page)).toBe(true);
     const trigger = page.getByTestId("filter-sheet-trigger");
-    expect((await trigger.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(48);
+    await expectMinTargetHeight(trigger);
     await trigger.click();
     const sheet = page.getByRole("dialog", { name: "Фільтри" });
     await expect(sheet).toBeVisible();

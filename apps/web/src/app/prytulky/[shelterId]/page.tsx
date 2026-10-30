@@ -94,10 +94,10 @@ function loadShelterPageOnce(shelterId: string, searchParams: SearchParams) {
  * already use this), so "og:title matches the page's title" holds without hand-typing
  * the city and brand suffix here too.
  *
- * `alternates.canonical` is always the bare shelter URL, with no `?sort=`/`?page=` -
+ * `alternates.canonical` is always the bare shelter URL, with no `?sort=`/`?stor=` or filter params (`?vyd=`, `?rozmir=`, ...) -
  * the same policy the gallery's own filter/sort/page variants use (owner, PR B), for
  * the same reason: at this corpus size, one shelter's few animals paginated or
- * re-sorted have no unique indexable value over the shelter's own unparameterised page.
+ * re-sorted or filtered have no unique indexable value over the shelter's own unparameterised page.
  */
 export async function generateMetadata({
   params,

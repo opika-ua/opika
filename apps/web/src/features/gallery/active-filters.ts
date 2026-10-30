@@ -1,5 +1,13 @@
 import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
-import type { CityId, FeedFilters, FilterSelection, GallerySort, RegionId } from "@opika/domain";
+import type {
+  AnimalSpecies,
+  CityId,
+  FeedFilters,
+  FilterSelection,
+  GallerySort,
+  RegionId,
+} from "@opika/domain";
+import { relaxDimension } from "@opika/domain";
 import { fillTemplate, placeName, ukPublic as uk } from "@opika/i18n/public";
 import { AGE_LABEL, SEX_LABEL, SIZE_LABEL } from "./facet-options";
 import {
@@ -48,8 +56,11 @@ export function activeFilterChips(input: {
   counts: GalleryFacetCounts;
   /** The page the links lead back to; the gallery by default. */
   basePath?: string | undefined;
+  /** A page with no species switch (a one-species shelter) lists the species as a chip, so it can be undone. */
+  speciesChip?: boolean;
 }): ActiveFilterChip[] {
-  const { filters, sort, citySlugs, regionLabels, selectedCities, counts, basePath } = input;
+  const { filters, sort, citySlugs, regionLabels, selectedCities, counts, basePath, speciesChip } =
+    input;
   const cityLabels = new Map<CityId, CityLabelView>([
     ...counts.cities.map((entry) => [entry.cityId, entry.label] as const),
     ...selectedCities.map((city) => [city.id, city] as const),
@@ -63,6 +74,15 @@ export function activeFilterChips(input: {
   });
 
   return [
+    ...(speciesChip
+      ? values(filters.species).map((species: AnimalSpecies) =>
+          chip(
+            `species-${species}`,
+            species === "dog" ? uk.filters.speciesDogs : uk.filters.speciesCats,
+            relaxDimension(filters, "species"),
+          ),
+        )
+      : []),
     ...values(filters.regions).map((id: RegionId) =>
       chip(`region-${id}`, regionLabels[id] ?? id, withToggledRegion(filters, id, regionOfCity)),
     ),

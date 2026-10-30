@@ -262,6 +262,7 @@ describe("gallery facet counts output", () => {
     ages: { baby: 1, young: 0, adult: 2, senior: 0 },
     sizes: { small: 1, medium: 1, large: 1 },
     sexes: { male: 2, female: 1, unknown: 0 },
+    species: { dog: 2, cat: 1 },
   };
 
   // Public view: option ids, integers and a city label cross the wire, whatever the handler hands
