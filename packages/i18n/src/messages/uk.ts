@@ -740,7 +740,7 @@ export const uk = {
         sizeLabel: "Розмір",
         sizeNote: "Ваги немає навмисно: розмір на око точніший, ніж торішня цифра.",
         sizeHintUpTo: "до {max} кг",
-        sizeHintRange: "{min}-{max} кг",
+        sizeHintRange: "{min}–{max} кг",
         sizeHintFrom: "від {min} кг",
       },
       /** DR1 (S3), his text (2026-10-20). Optional, and clearable back to «Не вказано». */

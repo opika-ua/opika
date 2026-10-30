@@ -2,6 +2,7 @@ import {
   AGE_BUCKET_MAX_YEARS,
   AGE_BUCKET_MIN_YEARS,
   type AgeBucket,
+  type AnimalSpecies,
   FEED_VISIBLE_VERIFICATION_STATUSES,
   KYIV_TIME_ZONE,
   kyivCalendarDateOf,
@@ -98,8 +99,8 @@ export const missingSentence = (gaps: readonly PublishGap[]): string =>
 const integer = new Intl.NumberFormat("uk");
 
 /** The weight hint under each size segment (decision #3: guidance only, never stored). */
-export const sizeHint = (size: SizeBucket): string => {
-  const { minKg, maxKg } = SIZE_BUCKET_WEIGHT_HINTS_KG[size];
+export const sizeHint = (species: AnimalSpecies, size: SizeBucket): string => {
+  const { minKg, maxKg } = SIZE_BUCKET_WEIGHT_HINTS_KG[species][size];
   if (minKg === 0 && maxKg !== null)
     return fillTemplate(t.who.sizeHintUpTo, { max: integer.format(maxKg) });
   if (maxKg === null) return fillTemplate(t.who.sizeHintFrom, { min: integer.format(minKg) });

@@ -265,6 +265,30 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("size hints follow the species", () => {
+  const sizeGroup = () => screen.getByRole("group", { name: "Розмір" });
+  const species = (name: "Собака" | "Кіт") =>
+    within(screen.getByRole("group", { name: "Вид" })).getByLabelText(name);
+
+  it("shows labels only until a species is chosen, then the kilograms of that species, live", async () => {
+    const user = userEvent.setup();
+    renderForm(null);
+    expect(within(sizeGroup()).queryByText(/кг/)).toBeNull();
+    await user.click(species("Кіт"));
+    for (const hint of ["до 3 кг", "3–5 кг", "від 5 кг"])
+      expect(within(sizeGroup()).getByText(hint)).toBeTruthy();
+    await user.click(species("Собака"));
+    for (const hint of ["до 10 кг", "10–25 кг", "від 25 кг"])
+      expect(within(sizeGroup()).getByText(hint)).toBeTruthy();
+    expect(within(sizeGroup()).queryByText("до 3 кг")).toBeNull();
+  });
+
+  it("an existing cat opens with the cat kilograms", () => {
+    renderForm(draft({ species: "cat" }));
+    expect(within(sizeGroup()).getByText("3–5 кг")).toBeTruthy();
+  });
+});
+
 describe("/nova: a name and a species make a draft (K-Q5)", () => {
   it("says what a draft needs, and lists every publish gap next to the disabled button", () => {
     renderForm(null);

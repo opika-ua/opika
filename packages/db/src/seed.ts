@@ -1242,10 +1242,12 @@ export function buildAnimals(
       name = sex === "female" ? pick(CAT_NAMES_F, i * 11 + 5) : pick(CAT_NAMES, i * 17 + 2);
     }
 
-    // Size distribution: cats mostly small, dogs mixed
+    // Size distribution: both species mixed (cats on their own kg scale)
     let size: SizeBucket;
     if (species === "cat") {
-      size = i % 10 === 0 ? "medium" : "small";
+      // Cats are every third index, so count them to spread over all three buckets.
+      const catRoll = (i / 3) % 6;
+      size = catRoll < 3 ? "small" : catRoll < 5 ? "medium" : "large";
     } else {
       const sizeRoll = i % 6;
       size = sizeRoll < 2 ? "small" : sizeRoll < 4 ? "medium" : "large";
