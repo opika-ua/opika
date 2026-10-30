@@ -73,6 +73,8 @@ Priority: speed with sensible quality.
 16. After a PR merges, remove its worktree (`git worktree remove`, never `--force` without the owner's OK), then run
     `pnpm db:prune-test-dbs --yes`.
 17. Never restart a server inside a merged PR's worktree.
+18. Merge through the queue: `gh pr merge <n> --auto` (no strategy flag; the queue sets squash), on the exact reviewed head
+    (`--match-head-commit <sha>`). Never bypass the queue.
 
 
 ## What this is
