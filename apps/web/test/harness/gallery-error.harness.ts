@@ -12,7 +12,7 @@
 
 import { MAX_GALLERY_PAGE } from "@opika/contracts";
 import { expect, test } from "@playwright/test";
-import { openRoute } from "./harness";
+import { expectReachableByTab, openRoute } from "./harness";
 import { DESKTOP } from "./viewports";
 
 const ROUTE = "/tvaryny";
@@ -61,7 +61,7 @@ test.describe("/tvaryny out-of-range page", () => {
    * Beyond `MAX_GALLERY_PAGE` (2000) the contract's input validation used to throw into `error.tsx`
    * (a 500 for a hostile URL, QA 2026-10-29). The page parser now clamps any huge number to that
    * ceiling and the repo clamps on to the last page: the same notice as `?stor=50`, never an error.
-   * The error card itself keeps its unit coverage (`app/tvaryny/error.test.tsx`); no URL reaches it now.
+   * The error card is reached in a browser only through the test-only hook, below.
    */
   for (const stor of [String(MAX_GALLERY_PAGE + 1), "1e21", "999999999999999999999"]) {
     test(`?stor=${stor} clamps to the last page with the notice, not an error`, async ({
@@ -74,6 +74,41 @@ test.describe("/tvaryny out-of-range page", () => {
       await expect(page.locator(ERROR_CARD)).toHaveCount(0);
     });
   }
+});
+
+test.describe("/tvaryny error card", () => {
+  /**
+   * The only way into `app/tvaryny/error.tsx` in a real browser: the test-only hook
+   * (`features/gallery/test-only-failure.ts`) makes the page throw for `?opika_test_fail=1`.
+   * Flow only: the card, its approved copy, Tab reach and both actions.
+   */
+  test("renders the error card; retry and the show-all link are reachable by Tab and work", async ({
+    page,
+  }) => {
+    await page.goto(`${ROUTE}?opika_test_fail=1`, { waitUntil: "load" });
+
+    const card = page.getByRole("alert").filter({ has: page.getByRole("heading", { level: 1 }) });
+    await expect(card).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Сторінку не вдалося завантажити.",
+    );
+    await expect(card).toContainText("Це не ваша помилка і не помилка притулку.");
+
+    const retry = page.getByRole("button", { name: "Спробувати ще раз" });
+    const showAll = page.getByRole("link", { name: "Показати всіх тварин" });
+    await expectReachableByTab(page, { label: "retry button", locator: retry });
+    await expectReachableByTab(page, { label: "show-all link", locator: showAll });
+
+    // The failure is still requested, so retry re-asks the server and lands on the card again.
+    await retry.click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Сторінку не вдалося завантажити.",
+    );
+
+    await page.getByRole("link", { name: "Показати всіх тварин" }).click();
+    await expect(page.locator(CARD).first()).toBeVisible();
+    await expect(page.locator(ERROR_CARD)).toHaveCount(0);
+  });
 });
 
 test.describe("/tvaryny no-match – relaxation counts are real numbers", () => {
