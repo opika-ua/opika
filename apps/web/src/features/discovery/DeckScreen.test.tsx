@@ -6,8 +6,9 @@ import {
   ShelterIdSchema,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { pressEscapeWhenShown } from "../../ui/test-dialog";
 import type { CitySlugsById } from "../gallery/filter-url";
 import { mockAppRouter, WithMockRouter } from "../gallery/test-router";
 import { DeckScreen } from "./DeckScreen";
@@ -511,16 +512,8 @@ describe("DeckScreen", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  /**
-   * RF-F2: the reveal dialog and this screen both listen for Escape on
-   * `window`, and this screen's listener was registered first, so an Escape
-   * meant only for the dialog also left the deck (R3: "the deck session must
-   * survive a reveal - no exit back to the gallery"). The harness saw it as
-   * a flake, «Написати» missing after Escape, whenever the gallery
-   * navigation won the race against its assertions; here the router is a
-   * mock, so the exit is observed synchronously, every time.
-   */
-  it("Escape inside the deck's reveal dialog closes the dialog and does not leave the deck", async () => {
+  /** The deck with one card, and a reveal for it that answers with a shelter's phone. */
+  function renderDeckWithReveal() {
     sessionStorage.setItem(FROM_GALLERY_KEY, "1");
     const router = mockAppRouter();
     const [card] = generateMockCards(2);
@@ -556,6 +549,20 @@ describe("DeckScreen", () => {
         <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
       </WithMockRouter>,
     );
+    return router;
+  }
+
+  /**
+   * RF-F2: the reveal dialog and this screen both listen for Escape on
+   * `window`, and this screen's listener was registered first, so an Escape
+   * meant only for the dialog also left the deck (R3: "the deck session must
+   * survive a reveal - no exit back to the gallery"). The harness saw it as
+   * a flake, «Написати» missing after Escape, whenever the gallery
+   * navigation won the race against its assertions; here the router is a
+   * mock, so the exit is observed synchronously, every time.
+   */
+  it("Escape inside the deck's reveal dialog closes the dialog and does not leave the deck", async () => {
+    const router = renderDeckWithReveal();
 
     fireEvent.click(screen.getByRole("button", { name: uk.actions.write }));
     await screen.findByTestId("reveal-dialog");
@@ -571,6 +578,23 @@ describe("DeckScreen", () => {
     expect(router.push).not.toHaveBeenCalled();
 
     // The deck's own Escape still works once the dialog is gone.
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(router.back).toHaveBeenCalledTimes(1);
+  });
+
+  // The test above, with Esc forced into the moment it flaked on (#295): the reveal shown by the
+  // response, React's effects for that commit not yet run.
+  it("an Escape the moment the deck's reveal appears closes the dialog and does not leave the deck", async () => {
+    const router = renderDeckWithReveal();
+    const escapePressedIn = pressEscapeWhenShown();
+    fireEvent.click(screen.getByRole("button", { name: uk.actions.write }));
+
+    const dialog = await waitFor(escapePressedIn);
+    await waitFor(() => expect(dialog.isConnected, "the reveal unmounts").toBe(false));
+    expect(screen.queryByTestId("reveal-dialog")).toBeNull();
+    expect(router.back).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+
     fireEvent.keyDown(window, { key: "Escape" });
     expect(router.back).toHaveBeenCalledTimes(1);
   });

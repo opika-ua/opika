@@ -1,6 +1,6 @@
 "use client";
 
-import { type MouseEvent, type RefObject, useEffect, useLayoutEffect, useRef } from "react";
+import { type MouseEvent, type RefObject, useLayoutEffect, useRef } from "react";
 import { lockBodyScroll } from "./body-scroll-lock";
 
 /**
@@ -30,7 +30,9 @@ export function useDialogCore({
     onCloseRef.current = onClose;
   });
 
-  useEffect(() => {
+  // A layout effect, ahead of `showModal()` below: a dialog mounted open (the reveal, on a response)
+  // can close before passive effects run, and a `close` with no listener left it mounted for good.
+  useLayoutEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
     const fire = () => onCloseRef.current();
