@@ -13,7 +13,6 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/FilterTabs.tsx": "roving focus and arrow-key handling of the tab row",
   "features/kabinet/profile-edit/page-save.tsx":
     "registry of dirty sections and the save-all state of the page bar",
-  "ui/InfoToggle.tsx": "open state of the disclosure, Esc on the button",
   "ui/Menu.tsx": "controlled open state, outside-press and Esc listeners",
   "ui/Modal.tsx": "controlled dialog; refs and the dialog core",
   "ui/ErrorSummary.tsx":
@@ -22,6 +21,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/ComboboxMulti.tsx":
     "open state, query, active row, top-layer popover positioning, key handling",
   "ui/Popover.tsx": "open state, outside-press and Esc listeners",
+  "ui/InfoTip.tsx": "open state, outside-press, Esc and focus listeners, top-layer positioning",
   "ui/StickyActionBar.tsx":
     "VisualViewport listeners (keyboard lift), ResizeObserver and a focus listener for scroll padding",
   "ui/Sheet.tsx": "open state and hash-link upgrade to showModal; no-JS :target path stays",

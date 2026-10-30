@@ -18,6 +18,9 @@ export type FilterTab = {
  * automatic activation: one tab stop (the selected tab), Left/Right/Home/End move and select. The
  * page owns the panel: give it `role="tabpanel"` and `aria-labelledby={tabId(id)}` of the selected
  * tab. Scrolls sideways on a phone and keeps the 48px target; focus-visible on every tab.
+ * The row clips vertically (no stray scrollbar) and pads 8px above and below the tabs so the 6px
+ * focus ring fits inside the clip; negative margins give that padding back to the layout, and the
+ * underline is a pseudo-element on the row's bottom edge.
  */
 export const filterTabId = (prefix: string, id: string): string => `${prefix}-tab-${id}`;
 
@@ -60,7 +63,7 @@ export function FilterTabs({
     <div
       role="tablist"
       aria-label={label}
-      className="-mx-4 flex gap-6 overflow-x-auto border-b-2 border-line px-4 tablet:mx-0 tablet:px-0"
+      className="-mx-4 -mt-2 -mb-2.5 flex gap-6 overflow-x-auto overflow-y-hidden border-b-2 border-line px-4 pt-2 pb-2 tablet:-mx-2 tablet:px-2"
     >
       {tabs.map((tab, index) => {
         const selected = tab.id === value;
@@ -80,8 +83,10 @@ export function FilterTabs({
             onClick={() => onChange(tab.id)}
             onKeyDown={(event) => move(event, index)}
             className={cx(
-              "-mb-0.5 inline-flex min-h-target shrink-0 items-center gap-1 whitespace-nowrap border-b-4 px-1 text-label focus-ring",
-              selected ? "border-ink text-ink" : "border-transparent text-ink-2",
+              "relative inline-flex min-h-target shrink-0 items-center gap-1 whitespace-nowrap px-1 text-label focus-ring",
+              selected
+                ? "text-ink after:absolute after:inset-x-0 after:-bottom-2 after:h-1 after:bg-ink"
+                : "text-ink-2",
             )}
           >
             {tab.label}

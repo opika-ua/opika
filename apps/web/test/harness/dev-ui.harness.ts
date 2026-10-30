@@ -170,3 +170,24 @@ test.describe("kit behaviour in a real browser", () => {
     await expect(toast).toBeHidden();
   });
 });
+
+test("an InfoTip opened near the bottom of the screen opens above its trigger", async ({
+  page,
+}) => {
+  await openRoute(page, ROUTE, PHONE_360, { readySelector: READY });
+  const trigger = page.getByRole("button", { name: "Near the bottom" });
+  // Scrolled until the trigger is 8px from the bottom edge, whatever the page below it.
+  await trigger.evaluate((node) => {
+    node.scrollIntoView({ block: "end" });
+    window.scrollBy(0, node.getBoundingClientRect().bottom - (window.innerHeight - 8));
+  });
+  // A script click: Playwright's own click would scroll the trigger back to the middle.
+  await trigger.evaluate((node) => (node as HTMLElement).click());
+  const card = page.getByRole("note", { name: "Near the bottom" });
+  await expect(card).toBeVisible();
+  const cardBox = await card.boundingBox();
+  const triggerBox = await trigger.boundingBox();
+  // The card may touch the trigger's 10px of empty hit area, never the circle itself.
+  expect((cardBox?.y ?? 0) + (cardBox?.height ?? 0)).toBeLessThanOrEqual((triggerBox?.y ?? 0) + 10);
+  expect(cardBox?.y).toBeGreaterThanOrEqual(0);
+});
