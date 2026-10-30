@@ -192,6 +192,71 @@
 }
 
 /*
+ * The gallery card and the meta line, as named utilities: 24+ cards per page repeat these class
+ * strings in the HTML and again in the RSC payload. Same token utilities, composed once here.
+ */
+@utility gcard {
+  @apply relative flex flex-col gap-3 focus-ring tablet:block tablet:overflow-clip tablet:rounded-card;
+}
+@utility gcard-st {
+  @apply relative flex flex-col gap-3 focus-ring;
+}
+@utility gcard-photo {
+  @apply aspect-4/5 rounded-card tablet:aspect-328/480 tablet:rounded-none;
+}
+@utility gcard-badges {
+  @apply contents tablet:absolute tablet:inset-x-4 tablet:top-4 tablet:flex tablet:flex-wrap tablet:items-start tablet:gap-2;
+}
+/* The species dot is a pseudo-element in `--dot` (set by gcard-dog / gcard-cat). */
+@utility gcard-fresh-st {
+  @apply order-last flex items-center gap-2 text-caption text-ink-2;
+  &::before {
+    content: "";
+    @apply size-2 shrink-0 rounded-pill bg-(--dot);
+  }
+}
+/* From tablet the dot goes and the badge itself takes the species colour. */
+@utility gcard-fresh {
+  @apply gcard-fresh-st tablet:order-none tablet:inline-flex tablet:whitespace-nowrap tablet:rounded-tag tablet:bg-(--dot) tablet:px-2 tablet:py-1 tablet:text-on-ink;
+  &::before {
+    @apply tablet:hidden;
+  }
+}
+@utility gcard-dog {
+  --dot: var(--color-species-dog);
+}
+@utility gcard-cat {
+  --dot: var(--color-species-cat);
+}
+@utility gcard-info-st {
+  @apply flex flex-col gap-1;
+}
+@utility gcard-info {
+  @apply gcard-info-st tablet:absolute tablet:inset-x-3 tablet:bottom-3 tablet:gap-2 tablet:rounded-panel tablet:bg-surface tablet:p-5;
+}
+@utility gcard-name-st {
+  @apply line-clamp-2 break-words text-label text-ink;
+}
+@utility gcard-name {
+  @apply gcard-name-st tablet:line-clamp-1 tablet:text-title;
+}
+/* A look-alike of the primary Button (ui/Button.tsx), shown from tablet only; aria-hidden in the card. */
+@utility gcard-pill {
+  @apply hidden w-fit shrink-0 items-center justify-center gap-2 rounded-pill bg-ink px-6 text-label min-h-target text-on-ink tablet:mt-2 tablet:inline-flex;
+}
+@utility meta-line {
+  @apply flex flex-wrap items-center gap-x-2 text-ink-2;
+}
+/* The separator trails its part (and wraps with it) and is a pseudo-element, so screen readers never meet it. */
+@utility meta-part {
+  @apply flex items-center gap-2 whitespace-nowrap;
+  &:not(:last-child)::after {
+    content: "";
+    @apply h-1 w-0.5 shrink-0 bg-ink-2;
+  }
+}
+
+/*
  * The one focus ring: 3px, 3px offset, drawn only for keyboard focus; `-ink` is for
  * accent-coloured surfaces where the accent ring would vanish.
  */

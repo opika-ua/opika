@@ -11,8 +11,8 @@ import { cx } from "./cx";
  */
 const ASPECT = {
   card: "aspect-328/480",
-  /** The gallery card: 4:5 with the text under it on a phone, the 328:480 frame from `tablet`. */
-  cardStacked: "aspect-4/5 tablet:aspect-328/480",
+  /** The gallery card: 4:5 with the text under it on a phone, the 328:480 frame from `tablet`; the utility also carries its rounding. */
+  cardStacked: "gcard-photo",
   square: "aspect-square",
   wide: "aspect-3/2",
   portrait: "aspect-4/5",

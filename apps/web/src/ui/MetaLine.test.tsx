@@ -1,21 +1,21 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MetaLine } from "./MetaLine";
 
 describe("MetaLine", () => {
-  it("attaches each separator to the part before it, so a wrapped line never starts with one", () => {
-    const { container } = render(<MetaLine parts={["Хлопчик", "дорослий", "середній"]} />);
-    const items = Array.from(container.querySelectorAll(":scope > span > span"));
-    expect(items.map((item) => item.textContent)).toEqual(["Хлопчик", "дорослий", "середній"]);
-    const separatorsAfterText = items.map((item) =>
-      item.lastElementChild?.getAttribute("aria-hidden"),
-    );
-    expect(separatorsAfterText).toEqual(["true", "true", undefined]);
-    for (const item of items) expect(item.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+  it("reads as its parts alone: the separators are drawn, not text", () => {
+    render(<MetaLine parts={["Хлопчик", "дорослий", "середній"]} testId="meta" />);
+    const meta = screen.getByTestId("meta");
+    expect(Array.from(meta.children).map((part) => part.textContent)).toEqual([
+      "Хлопчик",
+      "дорослий",
+      "середній",
+    ]);
+    expect(meta.textContent).toBe("Хлопчикдорослийсередній");
   });
 
-  it("draws no separator for a single part", () => {
-    const { container } = render(<MetaLine parts={["Малий"]} />);
-    expect(container.querySelector("[aria-hidden]")).toBeNull();
+  it("renders a single part on its own", () => {
+    render(<MetaLine parts={["Малий"]} testId="meta" />);
+    expect(screen.getByTestId("meta").textContent).toBe("Малий");
   });
 });
