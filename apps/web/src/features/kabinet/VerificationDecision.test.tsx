@@ -1,15 +1,15 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { OperatorName } from "../../kabinet/operator";
-import { KabinetHome } from "./KabinetHome";
+import { type OperatorName, standaloneOperatorName } from "../../kabinet/operator";
+import { VerificationDecision } from "./VerificationDecision";
 
 /**
  * The shelter's side of a rejection or suspension (RU-Q7, answer 7, and
  * round-2 answer 2: "«Пояснення:», then my note verbatim, then a signature
  * line «— {operator}» (nominative, as in the emails)"), rendered as the page
  * renders it. Since kabinet redesign Phase 2 PR 1 that page is Головна
- * (`KabinetHome`, `SHELTER_HOME`) - it used to be `/kabinet`'s profile
+ * (the top of Тварини) - it used to be `/kabinet`'s profile
  * editor, which still renders the separate, unrelated locked block its own
  * operator-name fallback test lives in `ShelterProfile.test.tsx` now.
  *
@@ -47,18 +47,13 @@ const OLEKSII: OperatorName = { kind: "configured", name: "Олексій Кол
 
 const renderAs = (
   verification: KabinetShelterView["verification"],
-  viewer: "admin" | "support" = "admin",
+  _viewer: "admin" | "support" = "admin",
   operator: OperatorName = OLEKSII,
 ) =>
   render(
-    <KabinetHome
-      view={view(verification)}
-      viewer={viewer}
-      operator={operator}
-      draftCount={0}
-      staleCount={0}
-      animalListShown
-      canWrite
+    <VerificationDecision
+      verification={view(verification).verification}
+      operatorName={standaloneOperatorName(operator)}
     />,
   );
 

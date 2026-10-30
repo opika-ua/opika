@@ -21,9 +21,9 @@ import { InlineStatus } from "../../../ui/feedback";
 import { Heading } from "../../../ui/Heading";
 import { StickyActionBar } from "../../../ui/StickyActionBar";
 import { Text } from "../../../ui/Text";
-import { ListingStatusChip } from "../animal-list/RowParts";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../profile-edit/unsaved-changes";
+import { ListingStatusChip } from "../StatusChips";
 import { summaryItemsOf } from "./error-summary-items";
 import { AboutFields, BasicsFields, HealthFields } from "./FormSections";
 import {

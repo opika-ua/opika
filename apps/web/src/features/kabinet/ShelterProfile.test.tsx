@@ -437,15 +437,14 @@ describe("the section nav (K2)", () => {
     ["the admin with writes open", "admin", open],
     ["the support view", "support", { kind: "read_only" }],
   ] as const)(
-    "%s gets «Головна», «Тварини» (pointing at the list) and the current «Притулок»",
+    "%s gets «Тварини» (pointing at the list) and the current «Притулок»",
     (_who, viewer, editing) => {
       const { unmount } = renderWith(viewer, editing);
       const links = within(nav()).getAllByRole("link");
-      expect(links.map((link) => link.textContent)).toEqual(["Головна", "Тварини", "Притулок"]);
-      expect(links[0]?.getAttribute("href")).toBe("/kabinet");
-      expect(links[1]?.getAttribute("href")).toBe("/kabinet/tvaryny");
-      expect(links[2]?.getAttribute("href")).toBe("/kabinet/prytulok");
-      expect(links[2]?.getAttribute("aria-current")).toBe("page");
+      expect(links.map((link) => link.textContent)).toEqual(["Тварини", "Притулок"]);
+      expect(links[0]?.getAttribute("href")).toBe("/kabinet/tvaryny");
+      expect(links[1]?.getAttribute("href")).toBe("/kabinet/prytulok");
+      expect(links[1]?.getAttribute("aria-current")).toBe("page");
       expect(screen.queryByRole("link", { name: "Нова тварина" })).toBeNull();
       unmount();
     },
@@ -457,7 +456,7 @@ describe("the section nav (K2)", () => {
       within(nav())
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Головна", "Притулок"]);
+    ).toEqual(["Притулок"]);
     expect(screen.queryByRole("link", { name: "Тварини" })).toBeNull();
   });
 });

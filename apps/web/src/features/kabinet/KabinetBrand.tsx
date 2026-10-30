@@ -1,37 +1,22 @@
 import { uk } from "@opika/i18n";
-import { WORDMARK } from "../chrome/SiteHeader";
+import { WORDMARK } from "../../brand";
+import { Chip } from "../../ui/Chip";
+import { BrandLogo } from "../chrome/BrandLogo";
 
 /**
- * The kabinet's brand row: the «Поріг · Межа» mark, the wordmark and the «кабінет» label.
- * Not the site header's: the kabinet never shows the site's nav (it is a different product surface).
+ * The kabinet's brand row: the public site's logo, then a «Кабінет» tag so the surface is named
+ * without a second logo. The logo is decorative; the wordmark text carries the accessible name.
  */
 export function KabinetBrand() {
   return (
-    <div className="flex items-center gap-2">
-      <KabinetMark />
-      <span className="text-body-l font-bold text-ink">{WORDMARK}</span>
-      <span className="text-body text-ink-2">{uk.kabinet.shell.label}</span>
+    <div className="flex min-w-0 items-center gap-2 desktop:gap-3">
+      <span className="inline-flex min-h-target shrink-0 items-center">
+        <BrandLogo />
+        <span className="sr-only">{WORDMARK}</span>
+      </span>
+      <Chip kind="info" tone="neutral">
+        {uk.kabinet.shell.label}
+      </Chip>
     </div>
-  );
-}
-
-/** The «Поріг · Межа» mark alone: the phone header pairs it with the page name, not the wordmark. */
-export function KabinetMark() {
-  return (
-    <svg
-      viewBox="0 0 96 96"
-      fill="none"
-      aria-hidden="true"
-      className="size-6 shrink-0 text-ink desktop:size-7"
-    >
-      <path
-        d="M22 70V46a26 26 0 0 1 52 0v24"
-        stroke="currentColor"
-        strokeWidth={12}
-        strokeLinecap="round"
-      />
-      <path d="M14 88h68" stroke="currentColor" strokeWidth={12} strokeLinecap="round" />
-      <circle cx="48" cy="79" r="7" fill="currentColor" />
-    </svg>
   );
 }

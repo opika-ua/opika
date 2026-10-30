@@ -265,8 +265,12 @@ export const uk = {
      * pins the load-bearing strings against his text, transcribed.
      */
     shell: {
-      /** Next to the wordmark in the header (K1, N2). */
-      label: "кабінет",
+      /** The tag chip next to the logo in the header (K1, N2). */
+      label: "Кабінет",
+      /** Header link to the public gallery; opens in a new tab so unsaved kabinet work is not lost. */
+      viewSite: "Переглянути сайт",
+      /** Hidden text after a link that opens a new tab, for screen readers. */
+      newTab: "(відкриється в новій вкладці)",
     },
     /**
      * K1 · sign-in (N1), both states. Since the passwords build (PW-1,
@@ -1099,12 +1103,11 @@ export const uk = {
     },
     /**
      * The kabinet's section nav (N2, kabinet redesign Phase 2 PR 1):
-     * «Головна» · «Тварини» · «Притулок» (`profile.title`, renamed from
+     * «Тварини» · «Притулок» (`profile.title`, renamed from
      * «Профіль притулку»). Owner-approved copy, 2026-10-28.
      */
     nav: {
       label: "Розділи кабінету",
-      home: "Головна",
       animals: "Тварини",
     },
     /**

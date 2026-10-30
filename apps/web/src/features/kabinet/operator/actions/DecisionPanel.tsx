@@ -5,10 +5,10 @@ import type { EvidenceGap, InterruptedState } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useId, useRef, useState } from "react";
 import { Button } from "../../../../ui/Button";
-import { Chip } from "../../../../ui/Chip";
 import { Heading } from "../../../../ui/Heading";
 import { Panel } from "../../../../ui/Panel";
 import { Text } from "../../../../ui/Text";
+import { VerificationStatusChip } from "../../StatusChips";
 import { formatDate } from "../format";
 import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { type OfferedAction, offeredActionsOf } from "./offered-actions";
@@ -378,9 +378,7 @@ function SuspendedDetails({
         <div className="flex flex-col gap-2">
           <dt className="text-caption text-ink-2">{t.priorLabel}</dt>
           <dd className="flex flex-col items-start gap-1">
-            <Chip kind="status" tone="ink">
-              {uk.kabinet.profileStatus[prior.status]}
-            </Chip>
+            <VerificationStatusChip status={prior.status} />
             <span className="text-caption text-ink-2">
               {prior.status === "paused"
                 ? fillTemplate(t.priorPausedSince, { date: formatDate(prior.pausedAt) })

@@ -14,6 +14,17 @@ One set, defined in `apps/web/src/app/globals.css` (`@theme`). Class names have 
 | Spacing | Tailwind's 4px steps; `target` = 48px | `min-h-target`, `size-target` |
 | Utilities | `focus-ring`, `focus-ring-within`, `pb-safe` (sheets), `pb-inset` (fixed bars) | every control; chips with a hidden input; sheets and fixed bars |
 
+## Status chip tints
+
+A card's or a shelter's state, as a soft tint with its own text colour (`Chip kind="status"`, tones `published`, `reserved`, `adopted`, `withdrawn`; a draft is the outline info chip). Used on the kabinet's animal list and the operator's shelter screens. Never a warning colour. Ratios measured with the WCAG relative-luminance formula:
+
+| Tone | Fill | Text | Contrast |
+|---|---|---|---|
+| `published` | `status-published` #EDE6F7 | `status-published-ink` #5B3A96 | 6.9:1 |
+| `reserved` | `status-reserved` #FDE6D8 | `status-reserved-ink` #9A3412 | 6.1:1 |
+| `adopted` | `status-adopted` #E9DDEC | `status-adopted-ink` #270041 | 13.8:1 |
+| `withdrawn` | `status-withdrawn` #E8E5E6 | `status-withdrawn-ink` #735263 | 5.4:1 |
+
 ## Type scale
 
 | Utility | Size / line | Weight | Use |

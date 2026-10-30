@@ -136,10 +136,10 @@ test.describe("shelter passwords, end to end (PW-1)", () => {
     // The right one: the cabinet.
     await page.getByLabel("Пароль", { exact: true }).fill(FIRST);
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button", { name: "Увійти", exact: true }).click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
 
     // «Змінити пароль» lives on Притулок (kabinet redesign Phase 2 PR 1), not Головна.
     await page.goto("/kabinet/prytulok");

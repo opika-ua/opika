@@ -2,6 +2,7 @@ import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { AnimalListScreen } from "../../../features/kabinet/animal-list/AnimalListScreen";
+import { operatorNameOf, standaloneOperatorName } from "../../../kabinet/operator";
 import { loadKabinetAnimalListPage } from "./load";
 
 export const metadata: Metadata = { title: uk.kabinet.animalList.pageTitle };
@@ -22,7 +23,16 @@ export default async function AnimalListPage() {
       notFound();
       break;
     case "list":
-      return <AnimalListScreen page={page} />;
+      return (
+        <AnimalListScreen
+          page={page}
+          operatorName={standaloneOperatorName(
+            operatorNameOf({
+              KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,
+            }),
+          )}
+        />
+      );
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
       const unreachable: never = page;

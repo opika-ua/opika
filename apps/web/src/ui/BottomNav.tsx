@@ -20,7 +20,7 @@ export type BottomNavProps = {
 const LAYOUT = {
   bar: "",
   "bar-then-rail":
-    "desktop:static desktop:inset-auto desktop:z-auto desktop:w-55 desktop:flex-none desktop:flex-col desktop:bg-transparent desktop:p-0",
+    "desktop:static desktop:border-t-0 desktop:inset-auto desktop:z-auto desktop:w-55 desktop:flex-none desktop:flex-col desktop:bg-transparent desktop:p-0",
 } as const;
 
 export function BottomNav({ label, items, current, layout = "bar" }: BottomNavProps) {

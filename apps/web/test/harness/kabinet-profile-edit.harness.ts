@@ -107,11 +107,11 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
     // 39065612577), the event never matched; a URL already reached still
     // satisfies `waitForURL`. Each test's own `goto("/kabinet")` asserts 200.
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button").click(),
     ]);
-    // Kabinet redesign Phase 2 PR 1: sign-in lands on Головна, not the profile editor.
-    await expect(page.getByRole("heading", { level: 1, name: "Головна" })).toBeVisible();
+    // Kabinet redesign Phase 2 PR 1: sign-in lands on Тварини.
+    await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
     await page.close();
   });
 

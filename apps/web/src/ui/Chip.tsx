@@ -31,6 +31,10 @@ const STATUS = {
   success: "bg-success text-on-ink",
   warning: "bg-warning text-on-ink",
   danger: "bg-danger text-on-ink",
+  published: "bg-status-published text-status-published-ink",
+  reserved: "bg-status-reserved text-status-reserved-ink",
+  adopted: "bg-status-adopted text-status-adopted-ink",
+  withdrawn: "bg-status-withdrawn text-status-withdrawn-ink",
 } as const;
 
 export function chipClass(selected: boolean): string {
