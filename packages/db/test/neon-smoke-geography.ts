@@ -127,24 +127,40 @@ export async function runGeographySmoke(db: Database): Promise<Outcome[]> {
     `${alias?.cityId}`,
   );
 
+  // After the production settlement import 7 of the 8 were renamed and keep their old slug as a
+  // 'legacy' alias, so each is resolved by its current slug or that alias (pre-import: slug only).
+  const resolved = (slugs: string[]) => {
+    const list = sql.join(
+      slugs.map((s) => sql`${s}`),
+      sql`, `,
+    );
+    return sql`id IN (SELECT id FROM cities WHERE slug IN (${list}) UNION SELECT city_id FROM city_slug_aliases WHERE reason = 'legacy' AND slug IN (${list}))`;
+  };
+  const oblastSlugs = [
+    "brovary",
+    "irpin",
+    "bucha",
+    "vyshhorod",
+    "boryspil",
+    "fastiv",
+    "bila-tserkva",
+  ];
   const [wrongKyiv] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(sql`cities`)
     .where(
-      sql`slug = 'kyiv' AND NOT (region_id = ${KYIV_CITY_REGION_ID} AND kind = 'special_status_city')`,
+      sql`${resolved(["kyiv"])} AND NOT (region_id = ${KYIV_CITY_REGION_ID} AND kind = 'special_status_city')`,
     );
   const [wrongOblast] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(sql`cities`)
     .where(
-      sql`slug IN ('brovary', 'irpin', 'bucha', 'vyshhorod', 'boryspil', 'fastiv', 'bila-tserkva') AND NOT (region_id = ${KYIV_OBLAST_REGION_ID} AND kind = 'city')`,
+      sql`${resolved(oblastSlugs)} AND NOT (region_id = ${KYIV_OBLAST_REGION_ID} AND kind = 'city')`,
     );
   const [seeded] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(sql`cities`)
-    .where(
-      sql`slug IN ('kyiv', 'brovary', 'irpin', 'bucha', 'vyshhorod', 'boryspil', 'fastiv', 'bila-tserkva')`,
-    );
+    .where(resolved(["kyiv", ...oblastSlugs]));
   check(
     "all 8 seeded cities exist and were backfilled to their region and kind (look for: seeded cities present: 8, wrong: 0)",
     seeded?.n === 8 && wrongKyiv?.n === 0 && wrongOblast?.n === 0,

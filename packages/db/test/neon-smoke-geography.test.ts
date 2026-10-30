@@ -1,5 +1,8 @@
+import { eq, ne } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { cityRepo } from "../src/repos/city-repo";
+import { cities } from "../src/schema/cities";
+import { citySlugAliases } from "../src/schema/city-slug-aliases";
 import { buildCities } from "../src/seed";
 import { setupTestDatabase, truncateAll } from "../src/test-utils/index";
 import { runGeographySmoke } from "./neon-smoke-geography";
@@ -28,5 +31,38 @@ describe("runGeographySmoke against the local database", () => {
     const last = outcomes.at(-1);
     expect(last?.ok).toBe(false);
     expect(last?.detail).toBe("seeded cities present: 0, wrong: 0");
+  });
+
+  // The shape of a production copy after the settlement import.
+  const renameLikeImport = async () => {
+    await truncateAll(db);
+    await cityRepo(db).insertMissing(buildCities());
+    const list = await db
+      .select({ id: cities.id, slug: cities.slug })
+      .from(cities)
+      .where(ne(cities.slug, "kyiv"));
+    for (const r of list) {
+      await db.insert(citySlugAliases).values({ slug: r.slug, cityId: r.id, reason: "legacy" });
+      await db
+        .update(cities)
+        .set({ slug: `${r.slug}-kyivska` })
+        .where(eq(cities.id, r.id));
+    }
+    return list.length;
+  };
+
+  it("finds the 7 renamed cities through their legacy aliases", async () => {
+    expect(await renameLikeImport()).toBe(7);
+    const outcomes = await runGeographySmoke(db);
+    expect(outcomes.at(-1)?.detail).toBe("seeded cities present: 8, wrong: 0");
+    expect(outcomes.at(-1)?.ok).toBe(true);
+  });
+
+  it("still flags a renamed city in the wrong region", async () => {
+    await renameLikeImport();
+    await db.update(cities).set({ kind: "village" }).where(eq(cities.slug, "brovary-kyivska"));
+    const last = (await runGeographySmoke(db)).at(-1);
+    expect(last?.ok).toBe(false);
+    expect(last?.detail).toBe("seeded cities present: 8, wrong: 1");
   });
 });
