@@ -181,8 +181,8 @@ describe("which actions a row offers (sheet §4, his answers 7 and 8)", () => {
   /** Written out state by state, not derived. */
   const EXPECTED: Record<ListingKind, { forward: string | null; menu: string[] }> = {
     draft: { forward: "publish", menu: ["edit", "deleteDraft"] },
-    published: { forward: "reserve", menu: ["edit", "adopt", "withdraw"] },
-    reserved: { forward: "adopt", menu: ["edit", "release", "withdraw"] },
+    published: { forward: null, menu: ["edit", "reserve", "adopt", "viewOnSite", "withdraw"] },
+    reserved: { forward: null, menu: ["edit", "release", "adopt", "viewOnSite", "withdraw"] },
     adopted: { forward: null, menu: ["edit"] },
     withdrawn: { forward: "restore", menu: ["edit"] },
   };

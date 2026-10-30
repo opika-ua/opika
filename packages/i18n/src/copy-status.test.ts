@@ -1748,6 +1748,10 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.withdrawReason.listing_error": "додано помилково",
     "kabinet.animalList.withdrawReason.other": "інша причина",
     "kabinet.animalList.actions.restore": "Повернути в чернетки",
+    // Kabinet UX round 2 (owner-approved, 2026-10-29).
+    "kabinet.animalList.actions.viewOnSite": "Переглянути на сайті",
+    "kabinet.animalList.orderInfoLabel": "Як впорядковано список",
+    "kabinet.animalList.row.menuLabel": "Дії з карткою {name}",
     "kabinet.animalList.moved.reserved": "{name}: почали домовлятися.",
     "kabinet.animalList.moved.released": "{name}: знову шукає дім.",
     "kabinet.animalList.moved.adopted": "{name}: уже вдома.",

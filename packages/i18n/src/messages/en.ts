@@ -962,8 +962,11 @@ export const en = {
         adoptedSince: "Home since {date}",
         withdrawnOn: "Withdrawn from display {date} · {reason}",
         more: "More",
+        menuLabel: "Actions for the card {name}",
       },
+      orderInfoLabel: "How the list is ordered",
       actions: {
+        viewOnSite: "View on the site",
         edit: "Edit",
         reserve: "Started arranging",
         release: "Didn't work out: looking again",

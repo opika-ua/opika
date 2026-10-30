@@ -1012,9 +1012,14 @@ export const uk = {
         adoptedSince: "Удома з {date}",
         withdrawnOn: "Знято з показу {date} · {reason}",
         more: "Ще",
+        /** The ⋯ button's accessible name; `{name}` is the animal's name as stored (nominative, never inflected). */
+        menuLabel: "Дії з карткою {name}",
       },
+      /** The ordering note moved behind a «?» button; this is that button's accessible name. */
+      orderInfoLabel: "Як впорядковано список",
       actions: {
         edit: "Редагувати",
+        viewOnSite: "Переглянути на сайті",
         reserve: "Почали домовлятися",
         release: "Не домовилися – знову шукає",
         adopt: "Уже вдома",
