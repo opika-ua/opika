@@ -41,6 +41,8 @@
   --radius-field: 12px;
   --radius-panel: 20px;
   --radius-card: 24px;
+  /* The page save bar (kabinet Притулок): the owner's 16px, between `field` and `panel`. */
+  --radius-bar: 16px;
   --radius-sheet: 48px;
   --radius-pill: 999px;
 
@@ -228,6 +230,11 @@ dialog[data-hash-open]:target {
   padding-top: max(1.5rem, env(safe-area-inset-top));
 }
 /* Bottom safe-area inset for a fixed bar (home indicator), with a small floor. */
+/* Offset for a bar that sticks above the kabinet's bottom nav on a phone: the nav's height (2px rule,
+ * 8px top padding, 48px tabs, the home-indicator inset with its 8px floor) plus an 8px gap. */
+@utility bottom-above-nav {
+  bottom: calc(4.5rem + max(env(safe-area-inset-bottom), 0.5rem));
+}
 @utility pb-inset {
   padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
 }
@@ -236,6 +243,13 @@ dialog[data-hash-open]:target {
 @utility focus-ring-within {
   &:has(:focus-visible) {
     outline: 3px solid var(--color-focus);
+    outline-offset: 3px;
+  }
+}
+/* Focus ring for a control on an ink surface (the page save bar): white, since the orange ring is below 3:1 on ink. */
+@utility focus-ring-on-ink {
+  &:focus-visible {
+    outline: 3px solid var(--color-on-ink);
     outline-offset: 3px;
   }
 }

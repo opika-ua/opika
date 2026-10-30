@@ -414,6 +414,8 @@ export const uk = {
         "Дані притулку: те, що бачать ті, хто шукає тварину, і те, що встановлено під час перевірки.",
       role: "адміністратор притулку",
       signOut: "Вийти",
+      /** Next to the title: the shelter's public page, in a new tab (owner-approved 2026-10-29). */
+      viewOnSite: "Сторінка притулку на сайті",
       signOutFailed:
         "Вийти не вдалося – ви досі в кабінеті. Перевірте зʼєднання і спробуйте ще раз.",
       contactsTitle: "Контакти",
@@ -509,7 +511,21 @@ export const uk = {
      * so a Cyrillic name in braces can never match one, and a filled value is
      * never scanned again (a `{token}` value of «{max}» stays as typed).
      */
+    /** The Притулок page's sub-tabs (owner-approved 2026-10-29); «Контакти» and «Збір коштів» are `profile.contactsTitle` and `profile.donationTitle`. */
+    profileTabs: {
+      label: "Розділи притулку",
+      profile: "Профіль",
+      verification: "Перевірка",
+      account: "Акаунт",
+      profileNote: "Те, що бачать на сторінці притулку.",
+      /** The confirmation's link to the public page, in a new tab. */
+      view: "Переглянути",
+    },
     profileEdit: {
+      saveBar: {
+        unsaved: "Є незбережені зміни",
+        cancel: "Скасувати",
+      },
       actions: {
         save: "Зберегти",
         cancel: "Скасувати зміни",
