@@ -160,6 +160,8 @@ export type PruneOptions = {
   env: PruneEnvironment;
   list: (serverUrl: string) => Promise<ListedDatabase[]>;
   drop: (serverUrl: string, name: string) => Promise<void>;
+  /** Per-drop bound; a drop that outlives it counts as failed (default: a little over the drop's own timeouts). */
+  dropTimeoutMs?: number;
   log: (line: string) => void;
 };
 
@@ -185,6 +187,23 @@ function localServer(
   // server as a startup parameter (`?database=` replaces the path's database).
   if (url.search !== "" || url.hash !== "") return { kind: "refused", message: LOCAL_ONLY };
   return { kind: "ok", url };
+}
+
+const DEFAULT_DROP_TIMEOUT_MS = 60_000;
+
+/** Settles when `work` does, or fails after `ms`, so a promise that never settles can't end the process with exit 13. */
+async function bounded(work: Promise<void>, ms: number): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function pruneTestDatabases(options: PruneOptions): Promise<number> {
@@ -221,7 +240,10 @@ export async function pruneTestDatabases(options: PruneOptions): Promise<number>
   let failed = 0;
   for (const db of doomed) {
     try {
-      await options.drop(server.toString(), db.name);
+      await bounded(
+        options.drop(server.toString(), db.name),
+        options.dropTimeoutMs ?? DEFAULT_DROP_TIMEOUT_MS,
+      );
       log(`Dropped ${db.name}.`);
     } catch (error) {
       failed += 1;
@@ -234,7 +256,12 @@ export async function pruneTestDatabases(options: PruneOptions): Promise<number>
 
 /** Every database a test run could have made, named or not as the current code names them. */
 export async function listTestDatabases(serverUrl: string): Promise<ListedDatabase[]> {
-  const sql = postgres(serverUrl, { max: 1, onnotice: () => {} });
+  const sql = postgres(serverUrl, {
+    max: 1,
+    onnotice: () => {},
+    connect_timeout: 10,
+    connection: { statement_timeout: 30_000 },
+  });
   try {
     return await sql<ListedDatabase[]>`
       SELECT datname AS name, shobj_description(oid, 'pg_database') AS comment
@@ -242,7 +269,7 @@ export async function listTestDatabases(serverUrl: string): Promise<ListedDataba
       WHERE datname ~ '^opika_(test|harness)'
       ORDER BY datname`;
   } finally {
-    await sql.end();
+    await sql.end({ timeout: 5 });
   }
 }
 
@@ -256,7 +283,10 @@ export async function listTestDatabases(serverUrl: string): Promise<ListedDataba
 export async function dropListedDatabase(serverUrl: string, name: string): Promise<void> {
   const url = new URL(serverUrl);
   url.pathname = `/${name}`;
-  await dropTestDatabase(url.toString(), "force");
+  const result = await dropTestDatabase(url.toString(), "force");
+  if (result.kind === "skipped") {
+    throw new Error("the maintenance lock stayed busy (another drop is running); try again later");
+  }
 }
 
 export const pathStatus = (path: string): PathStatus => {
@@ -302,8 +332,8 @@ export function localPruneEnvironment(
   };
 }
 
-async function main(): Promise<void> {
-  const code = await pruneTestDatabases({
+async function main(): Promise<number> {
+  return await pruneTestDatabases({
     // Where this checkout's tests put their databases: the vitest override's
     // server if one is set, the local `docker compose` server otherwise.
     serverUrl: process.env.TEST_DATABASE_URL ?? LOCAL_TEST_SERVER,
@@ -313,9 +343,20 @@ async function main(): Promise<void> {
     drop: dropListedDatabase,
     log: (line) => console.log(line),
   });
-  process.exit(code);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await main();
+  // Always exits with a code: a throw anywhere is logged and exits 1 (an
+  // unsettled top-level await would otherwise exit 13 silently, 2026-10-30).
+  // The hard timer is the last resort if some connection never settles.
+  setTimeout(() => {
+    console.log("ERROR: db:prune-test-dbs timed out; nothing more will be dropped.");
+    process.exit(1);
+  }, 10 * 60_000);
+  try {
+    process.exit(await main());
+  } catch (error) {
+    console.log(`ERROR: db:prune-test-dbs failed: ${(error as Error).message}`);
+    process.exit(1);
+  }
 }

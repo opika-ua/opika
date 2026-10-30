@@ -135,3 +135,24 @@ pins a version one patch behind npm's absolute latest, that's usually
 why - it's the newest version that's already cleared quarantine. Don't
 "fix" this by bumping to `latest` and adding a `minimumReleaseAgeExclude`
 entry; wait a day, or pick the next-newest cleared version instead.
+
+
+## Test-DB drops: the ProcSignalBarrier pile-up (2026-10-30)
+
+Symptom: with several agents running DB tests at once, `DROP DATABASE` statements sat on
+`wait_event = ProcSignalBarrier` in the `postgres` maintenance DB (50+ stuck sessions), the local
+server saturated, and `pnpm db:prune-test-dbs --yes` exited 13 (an unsettled top-level await)
+after listing. It was not open connections: `WITH (FORCE)` did not help and `lock_timeout` does
+not cover the barrier wait.
+
+What the code does now (`packages/db/src/test-utils/test-database.ts`):
+- CREATE / COMMENT / DROP DATABASE all run under one session advisory lock
+  (`TEST_DB_MAINTENANCE_LOCK_KEY`) on the maintenance connection, so test processes drop one
+  database at a time. The wait is polled (`pg_try_advisory_lock`, 25 s bound); closing the
+  connection also releases the lock, so a crashed holder cannot block anyone for long.
+- The maintenance connection has `statement_timeout = 30s` and `connect_timeout = 10s`.
+- The after-run teardown never throws or hangs: a busy lock, a 57014 timeout, a 57P01 terminated
+  connection or a down server logs the database name and continues; `db:prune-test-dbs` sweeps it
+  later. Prune bounds every drop (60 s), always exits with a code, and logs a failure as a line.
+- `docker-compose.yml` sets `idle_in_transaction_session_timeout=60s` and `max_connections=200`;
+  apply with `docker compose up -d --force-recreate db` (the volume stays).
