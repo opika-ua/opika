@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useAnchored } from "./anchored";
 import { cx } from "./cx";
 import { Icon } from "./Icon";
 import { MultiSelectListbox, type MultiSelectRow, rowId } from "./MultiSelectRows";
@@ -115,19 +116,7 @@ export function ComboboxMulti({
     }
   }, [open]);
 
-  // Positioned from the field, and again when the page scrolls or resizes under an open list.
-  useLayoutEffect(() => {
-    const field = fieldRef.current;
-    if (!open || !field) return;
-    const update = () => setBox(placePanel(field));
-    update();
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
-    };
-  }, [open]);
+  useAnchored(open, fieldRef, (field) => setBox(placePanel(field)), closeList);
 
   useEffect(() => {
     if (!open) return;
