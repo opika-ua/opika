@@ -249,6 +249,15 @@ describe("OnboardInputSchema's text rules", () => {
       animals: [{ ...ANIMAL_INPUT, ...animal }],
     });
 
+  it("refuses a +380 phone with extra digits and stores a typed local number as +380XXXXXXXXX", () => {
+    const withPhone = (e164: string) =>
+      parse({ contact: { primary: { kind: "phone", e164 }, additional: [] } });
+    expect(withPhone("+380670000002213").success).toBe(false);
+    const parsed = withPhone("(067) 123-45-67");
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.shelter.contact.primary).toEqual({ kind: "phone", e164: "+380671234567" });
+  });
+
   it("trims the freshness sentence", () => {
     const parsed = parse({ freshnessSentenceUk: " Оновлюємо щосуботи. " });
     expect(parsed.success).toBe(true);

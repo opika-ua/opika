@@ -324,7 +324,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 2026-10-29, nationwide N4).
     // 681 with kabinet UX round 2: less `nav.home` (no Головна tab), plus `shell.viewSite` and
     // `shell.newTab` (owner-approved 2026-10-29).
-    expect(pending.length + written.length).toBe(681);
+    // 684 with kabinet UX round 2's list strings (`animalList.actions.viewOnSite`,
+    // `orderInfoLabel`, `row.menuLabel`; owner-approved 2026-10-29).
+    expect(pending.length + written.length).toBe(684);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

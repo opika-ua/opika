@@ -209,6 +209,9 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
 
   test("«Уже вдома»: the dialog says it can't be undone, and the card is home", async () => {
     const page = await open("/kabinet/tvaryny");
+    await rowOf(page, ARRANGING)
+      .getByRole("button", { name: /^Дії з карткою/ })
+      .click();
     await rowOf(page, ARRANGING).getByRole("button", { name: "Уже вдома" }).click();
     const dialog = page.getByRole("dialog", { name: `${ARRANGING} уже вдома?` });
     await expect(dialog.getByText(/Скасувати це не можна/)).toBeVisible();
@@ -226,7 +229,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
   test("«Зняти з показу» with a reason and a note: the card is withdrawn, and its row says why", async () => {
     const page = await open("/kabinet/tvaryny");
     const row = rowOf(page, LEAVING);
-    await row.getByRole("button", { name: "Ще", exact: true }).click();
+    await row.getByRole("button", { name: /^Дії з карткою/ }).click();
     await row.getByRole("button", { name: "Зняти з показу" }).click();
     const dialog = page.getByRole("dialog", { name: `Зняти з показу: ${LEAVING}?` });
     await dialog.getByLabel("Причина").selectOption({ label: "додано помилково" });

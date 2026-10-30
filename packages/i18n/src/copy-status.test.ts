@@ -368,14 +368,15 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // k4-copy-uk.md
     "profileEdit.errors.illegalTransitionResume":
       "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
-    // k4-copy-uk.md
-    "profileEdit.errors.phoneFormat": "Вкажіть номер із кодом країни, наприклад +380 67 123 45 67.",
+    // Owner, 2026-10-29 (kabinet UX round 2, replaces k4-copy-uk.md's sentence; the Viber one is the same).
+    "profileEdit.errors.phoneFormat":
+      "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
     // k4-copy-uk.md
     "profileEdit.errors.telegramFormat":
       "Імʼя користувача в Telegram: 5-32 латинські літери, цифри або підкреслення. @ можна не писати.",
-    // k4-copy-uk.md
+    // Owner, 2026-10-29 (same sentence as phoneFormat).
     "profileEdit.errors.viberFormat":
-      "Вкажіть номер Viber із кодом країни, наприклад +380 67 123 45 67.",
+      "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
     // k4-copy-uk.md
     "profileEdit.errors.emailFormat": "Схоже, це не адреса пошти.",
     // k4-copy-uk.md
@@ -1748,6 +1749,10 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.withdrawReason.listing_error": "додано помилково",
     "kabinet.animalList.withdrawReason.other": "інша причина",
     "kabinet.animalList.actions.restore": "Повернути в чернетки",
+    // Kabinet UX round 2 (owner-approved, 2026-10-29).
+    "kabinet.animalList.actions.viewOnSite": "Переглянути на сайті",
+    "kabinet.animalList.orderInfoLabel": "Як впорядковано список",
+    "kabinet.animalList.row.menuLabel": "Дії з карткою {name}",
     "kabinet.animalList.moved.reserved": "{name}: почали домовлятися.",
     "kabinet.animalList.moved.released": "{name}: знову шукає дім.",
     "kabinet.animalList.moved.adopted": "{name}: уже вдома.",

@@ -16,7 +16,7 @@ describe("ShareButton - navigator.share present", () => {
     vi.stubGlobal("navigator", { ...navigator, share });
 
     render(<ShareButton animalId={ANIMAL_ID} animalName="Мурчик" />);
-    await userEvent.click(screen.getByRole("button", { name: "Поділитись" }));
+    await userEvent.click(screen.getByTestId("share-button"));
 
     expect(share).toHaveBeenCalledTimes(1);
     expect(share).toHaveBeenCalledWith({
@@ -31,7 +31,7 @@ describe("ShareButton - navigator.share present", () => {
     vi.stubGlobal("navigator", { ...navigator, share, clipboard: { writeText } });
 
     render(<ShareButton animalId={ANIMAL_ID} animalName="Мурчик" />);
-    await userEvent.click(screen.getByRole("button", { name: "Поділитись" }));
+    await userEvent.click(screen.getByTestId("share-button"));
 
     expect(writeText).not.toHaveBeenCalled();
   });
@@ -41,7 +41,7 @@ describe("ShareButton - navigator.share present", () => {
     vi.stubGlobal("navigator", { ...navigator, share });
 
     render(<ShareButton animalId={ANIMAL_ID} animalName="Мурчик" />);
-    await userEvent.click(screen.getByRole("button", { name: "Поділитись" }));
+    await userEvent.click(screen.getByTestId("share-button"));
     await waitFor(() => expect(share).toHaveBeenCalled());
 
     expect(screen.getByRole("status").textContent).toBe("");
@@ -58,7 +58,7 @@ describe("ShareButton - fallback (no navigator.share)", () => {
     });
 
     render(<ShareButton animalId={ANIMAL_ID} animalName="Мурчик" />);
-    await userEvent.click(screen.getByRole("button", { name: "Поділитись" }));
+    await userEvent.click(screen.getByTestId("share-button"));
 
     expect(writeText).toHaveBeenCalledWith(`https://opika.org.ua/tvaryny/${ANIMAL_ID}`);
     await waitFor(() =>
@@ -78,8 +78,24 @@ describe("ShareButton - fallback (no navigator.share)", () => {
     vi.stubGlobal("navigator", { ...navigator, share: undefined, clipboard: undefined });
 
     render(<ShareButton animalId={ANIMAL_ID} animalName="Мурчик" />);
-    await userEvent.click(screen.getByRole("button", { name: "Поділитись" }));
+    await userEvent.click(screen.getByTestId("share-button"));
 
     expect(screen.getByRole("status").textContent).toBe("");
+  });
+});
+
+describe("ShareButton - the phone's icon circle", () => {
+  it("is named «Поділитись», shares the same URL, and shows the toast when it falls back to copying", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, share: undefined, clipboard: { writeText } });
+
+    render(<ShareButton animalId={ANIMAL_ID} animalName="Мурчик" />);
+    expect(screen.queryByTestId("share-toast")).toBeNull();
+    await userEvent.click(screen.getByTestId("share-button-icon"));
+
+    expect(writeText).toHaveBeenCalledWith(`https://opika.org.ua/tvaryny/${ANIMAL_ID}`);
+    await waitFor(() =>
+      expect(screen.getByTestId("share-toast").textContent).toBe("Посилання скопійовано."),
+    );
   });
 });

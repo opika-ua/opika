@@ -2097,3 +2097,79 @@ describe("registry.admins.blockedAddresses: which of a shelter's addresses the p
     expect(result.status).toBe(404);
   });
 });
+
+/**
+ * The Ukrainian-phone rule on every operator write path that carries a contact: the shelter's
+ * contact on create and on updateProfile, and the evidence's reference contact on create and on
+ * resubmit. Each refuses `+380670000002213` and stores a typed local number as +380XXXXXXXXX.
+ */
+describe("Ukrainian phone rule on the operator's write paths", () => {
+  const TOO_LONG = "+380670000002213";
+  const LOCAL = "(067) 123-45-67";
+  const NORMALISED = "+380671234567";
+
+  it("create: a contact phone with extra digits is refused, a local number is stored normalised", async () => {
+    const bad = createInput();
+    bad.contact = { primary: { kind: "phone", e164: TOO_LONG }, additional: [] } as never;
+    expect((await call("registry.shelters.create", bad)).status).toBe(400);
+
+    const local = createInput();
+    local.contact = { primary: { kind: "phone", e164: LOCAL }, additional: [] } as never;
+    const created = await call<RegistryShelterView>("registry.shelters.create", local);
+    expect(created.status).toBe(200);
+    expect((await reload(created.body.id)).contact.primary).toEqual({
+      kind: "phone",
+      e164: NORMALISED,
+    });
+  });
+
+  it("create: a reference contact with extra digits is refused, a local one is stored normalised", async () => {
+    const withChannel = (e164: string) => {
+      const input = createInput();
+      input.evidence[2] = {
+        kind: "reference_contact",
+        name: "Ветклініка",
+        channel: { kind: "viber", e164 },
+        relationship: "veterinary_clinic",
+      } as never;
+      return input;
+    };
+    expect((await call("registry.shelters.create", withChannel(TOO_LONG))).status).toBe(400);
+    const created = await call<RegistryShelterView>("registry.shelters.create", withChannel(LOCAL));
+    expect(created.status).toBe(200);
+    expect((await reload(created.body.id)).verification.evidence.items).toContainEqual(
+      expect.objectContaining({
+        kind: "reference_contact",
+        channel: { kind: "viber", e164: NORMALISED },
+      }),
+    );
+  });
+
+  it("updateProfile: extra digits are refused and change nothing, a local number is stored normalised", async () => {
+    const s = await shelter();
+    const send = (e164: string) =>
+      call<RegistryShelterView>("registry.shelters.updateProfile", {
+        shelterId: s.id,
+        expectedVersion: 0,
+        contact: { primary: { kind: "phone", e164 }, additional: [] },
+      });
+    expect((await send(TOO_LONG)).status).toBe(400);
+    expect((await reload(s.id)).contact).toEqual(s.contact);
+    expect((await send(LOCAL)).status).toBe(200);
+    expect((await reload(s.id)).contact.primary).toEqual({ kind: "phone", e164: NORMALISED });
+  });
+
+  it("resubmit: a reference contact with extra digits is refused", async () => {
+    const s = await shelter({ verification: STATES.under_review });
+    const evidence = createInput().evidence;
+    evidence[2] = {
+      kind: "reference_contact",
+      name: "Ветклініка",
+      channel: { kind: "phone", e164: TOO_LONG },
+      relationship: "veterinary_clinic",
+    } as never;
+    expect(
+      (await call("registry.verification.resubmit", { shelterId: s.id, evidence })).status,
+    ).toBe(400);
+  });
+});

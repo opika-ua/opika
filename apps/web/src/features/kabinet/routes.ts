@@ -31,6 +31,9 @@ export const NEW_ANIMAL_PATH = `${ANIMAL_LIST_PATH}/nova`;
 /** The public page of a shelter (the Притулок page's link to it, a new tab). */
 export const publicShelterPath = (shelterId: string): string => `/prytulky/${shelterId}`;
 
+/** The public page of one animal (the ⋯ menu's «Переглянути на сайті», a new tab). */
+export const publicAnimalPath = (animalId: string): string => `/tvaryny/${animalId}`;
+
 /** K3's page for one animal: K2's «Редагувати». */
 export const animalPath = (animalId: string): string => `${ANIMAL_LIST_PATH}/${animalId}`;
 

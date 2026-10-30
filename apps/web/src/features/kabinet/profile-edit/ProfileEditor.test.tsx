@@ -156,9 +156,11 @@ describe("contacts (answer 3, answer 4)", () => {
     const c = within(contacts());
     const phone = c.getByLabelText(/^Телефон/);
     await userEvent.clear(phone);
-    await userEvent.type(phone, "067 123 45 67");
+    await userEvent.type(phone, "+380670000002213");
     await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
-    expect(c.getByText("Вкажіть номер із кодом країни, наприклад +380 67 123 45 67.")).toBeTruthy();
+    expect(
+      c.getByText("Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67."),
+    ).toBeTruthy();
     expect(phone.getAttribute("aria-invalid")).toBe("true");
     expect(fns.updateContact).not.toHaveBeenCalled();
   });
@@ -780,7 +782,9 @@ describe("a save whose answer is lost (K4-T16)", () => {
       },
     });
     const c = within(contacts());
-    await userEvent.type(c.getByLabelText(/^Телефон/), "8");
+    const phone = c.getByLabelText(/^Телефон/);
+    await userEvent.clear(phone);
+    await userEvent.type(phone, "+380 50 111 22 33");
     await userEvent.click(c.getByRole("button", { name: "Зберегти" }));
     expect(c.getByText(FAILED)).toBeTruthy();
     expect(fns.get).not.toHaveBeenCalled();
