@@ -1,7 +1,8 @@
-import type { GallerySort, ShelterId } from "@opika/domain";
-import { DEFAULT_GALLERY_SORT } from "@opika/domain";
+import type { FeedFilters, GallerySort, ShelterId } from "@opika/domain";
+import { ANY_FILTER_SELECTION, NO_FILTERS } from "@opika/domain";
 import {
-  GALLERY_PARAM,
+  type CitySlugsById,
+  galleryPageHref,
   NO_PLACE_IDS,
   parseGalleryQuery,
   type SearchParams,

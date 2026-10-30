@@ -51,6 +51,8 @@ interface GalleryFilterDropdownsProps {
   selectedCities: readonly CityLabelView[];
   /** Per-option counts, the selector's own choice ignored (`gallery.facetCounts`). */
   counts: GalleryFacetCounts;
+  /** A shelter page: its own path for every link, and no Область/Місто fields (one shelter has one place). */
+  scope?: { basePath: string; showSpecies: boolean };
 }
 
 const SPECIES_LABEL: Record<AnimalSpecies, string> = {
@@ -188,12 +190,14 @@ export function SpeciesToggle({
   citySlugs,
   className = "shrink-0",
   testIdSuffix = "",
+  basePath,
 }: {
   filters: FeedFilters;
   sort: GallerySort;
   citySlugs: CitySlugsById;
   className?: string;
   testIdSuffix?: string;
+  basePath?: string | undefined;
 }) {
   const active = filters.species.kind !== "any";
   const options: ReadonlyArray<{
@@ -221,8 +225,8 @@ export function SpeciesToggle({
             : isExplicitlySelected(filters.species, species);
         const href =
           species === null
-            ? galleryHref(relaxDimension(filters, "species"), sort, citySlugs)
-            : galleryHref(withOnlySpecies(filters, species), sort, citySlugs);
+            ? galleryHref(relaxDimension(filters, "species"), sort, citySlugs, basePath)
+            : galleryHref(withOnlySpecies(filters, species), sort, citySlugs, basePath);
         return (
           <Link
             key={testid}
@@ -259,7 +263,9 @@ export function GalleryFilterDropdowns({
   regionLabels,
   selectedCities,
   counts,
+  scope,
 }: GalleryFilterDropdownsProps) {
+  const basePath = scope?.basePath;
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [shown, showOptimistically] = useOptimistic(filters);
@@ -267,7 +273,7 @@ export function GalleryFilterDropdowns({
   const apply = (next: FeedFilters) =>
     startTransition(() => {
       showOptimistically(next);
-      router.replace(galleryHref(next, sort, citySlugs), { scroll: false });
+      router.replace(galleryHref(next, sort, citySlugs, basePath), { scroll: false });
     });
   // An oblast's cities, so deselecting the oblast also drops the cities that narrowed it.
   const regionOfCity = new Map([
@@ -275,7 +281,7 @@ export function GalleryFilterDropdowns({
     ...selectedCities.map((city) => [city.id, city.regionId] as const),
   ]);
   const clearHref = (dimension: "regions" | "cities" | "ages" | "sizes" | "sexes") =>
-    galleryHref(relaxDimension(filters, dimension), sort, citySlugs);
+    galleryHref(relaxDimension(filters, dimension), sort, citySlugs, basePath);
 
   return (
     <div
@@ -283,8 +289,12 @@ export function GalleryFilterDropdowns({
       // Wraps: five controls at their natural width don't fit the 912px a 1024px window leaves.
       className="hidden min-w-0 flex-1 flex-wrap items-center gap-2 desktop:flex"
     >
-      <SpeciesToggle filters={filters} sort={sort} citySlugs={citySlugs} />
+      {(scope === undefined || scope.showSpecies) && (
+        <SpeciesToggle filters={filters} sort={sort} citySlugs={citySlugs} basePath={basePath} />
+      )}
 
+      {scope === undefined && (
+        <>
       <SearchField
         id="gallery-region-field"
         label={uk.filters.region}
@@ -306,6 +316,8 @@ export function GalleryFilterDropdowns({
         onToggle={(city) => apply(withToggledCity(shown, city as CityId))}
         onClear={() => apply(relaxDimension(shown, "cities"))}
       />
+        </>
+      )}
       <FacetSelector
         label={uk.filters.age}
         options={ageFacetOptions(counts)}
