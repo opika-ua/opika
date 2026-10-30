@@ -6,13 +6,13 @@ One set, defined in `apps/web/src/app/globals.css` (`@theme`). Class names have 
 | Group | Tokens | Use |
 |---|---|---|
 | Colour | `page`, `surface`, `ink`, `ink-2`, `muted`, `line`, `accent`, `accent-text`, `on-ink`, `species-dog`, `species-cat`, `focus`, `success`, `warning`, `danger` | `ink` text and primary fills; `ink-2` secondary text and hints; `muted` placeholders only (not for text that carries meaning); `line` borders and quiet fills; `accent` the call to action (fill only; text on it is `on-ink`, white; orange as text on a light background, and the focus ring, is `accent-text`) |
-| Radius | `tag` 8, `field` 12, `panel` 20, `card` 24, `sheet` 48, `pill` | tags, inputs, grouped boxes, cards, tablet sheets, buttons and chips |
+| Radius | `tag` 8, `field` 12, `bar` 16 (the page save bar only), `panel` 20, `card` 24, `sheet` 48, `pill` | tags, inputs, grouped boxes, cards, tablet sheets, buttons and chips |
 | Shadow | `float` | floating layers only |
 | Motion | `--duration-quick/settle/reveal`, `--ease-standard` | all go to 0 under reduced motion |
 | Z-index | `--z-header/popover/sheet/modal/toast` | use `z-(--z-popover)`; dialogs use the top layer |
 | Breakpoints | `tablet` 600, `desktop` 1024, `wide` 1440, `ultrawide` 2000 | mobile first |
 | Spacing | Tailwind's 4px steps; `target` = 48px | `min-h-target`, `size-target` |
-| Utilities | `focus-ring`, `focus-ring-within`, `pb-safe` (sheets), `pb-inset` (fixed bars) | every control; chips with a hidden input; sheets and fixed bars |
+| Utilities | `focus-ring`, `focus-ring-within`, `focus-ring-on-ink` (white ring on an ink surface), `pb-safe` (sheets), `pb-inset` (fixed bars), `bottom-above-nav` (a bar that sticks above the kabinet's phone nav) | every control; chips with a hidden input; sheets and fixed bars |
 
 ## Status chip tints
 

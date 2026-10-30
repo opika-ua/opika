@@ -1,13 +1,11 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { inSentenceOperatorName, type OperatorName } from "../../kabinet/operator";
-import { buttonClass } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { FormSection } from "../../ui/FormSection";
 import { Heading } from "../../ui/Heading";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { Text } from "../../ui/Text";
-import { BACK_TO_LIST } from "./AnimalPage";
 import type { ProfileEditing } from "./home";
 import { KabinetHeader } from "./KabinetHeader";
 import { KabinetNav } from "./KabinetNav";
@@ -15,7 +13,8 @@ import { channelValue, Facts, LockedBlock, Row } from "./ProfileParts";
 import { ChangePasswordSection, type PasswordState } from "./password/ChangePasswordSection";
 import { PausedStatus } from "./profile-edit/PausedStatus";
 import { ProfileEditor } from "./profile-edit/ProfileEditor";
-import { animalListShownTo } from "./routes";
+import { profileTabOf } from "./profile-edit/profile-tabs";
+import { animalListShownTo, publicShelterPath } from "./routes";
 import { SupportBanner } from "./SupportBanner";
 
 /**
@@ -70,6 +69,8 @@ export type ShelterProfileProps = {
    * view, whose session is the operator's: the operator never has a password).
    */
   password?: PasswordState | null;
+  /** The `?tab=` of the page (the editor's sub-tab); anything unknown is the first tab. */
+  tab?: string | undefined;
 };
 
 export function ShelterProfile({
@@ -79,6 +80,7 @@ export function ShelterProfile({
   operator,
   editing = { kind: "read_only" },
   password = null,
+  tab,
 }: ShelterProfileProps) {
   const t = uk.kabinet.profile;
   const operatorName = inSentenceOperatorName(operator);
@@ -98,9 +100,7 @@ export function ShelterProfile({
       <KabinetHeader shelterName={view.displayName} viewer={viewer} />
 
       <div
-        className={`mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14 ${
-          editorOpen ? "pb-4" : "pb-24"
-        }`}
+        className={`mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14 pb-24`}
       >
         {/*
           The shell nav: «Головна» · «Тварини» (K2, PR 5) where the list is shown to this viewer
@@ -108,24 +108,27 @@ export function ShelterProfile({
           clearance for the nav's fixed mobile tab bar, unused at desktop width where the nav sits
           in the side column, and unused while the editor hides the bar.
         */}
-        {editorOpen ? <div className="hidden desktop:contents">{nav}</div> : nav}
+        {nav}
 
         <main
           {...MAIN_LANDMARK}
           className="flex min-w-0 max-w-176 flex-1 flex-col gap-4 desktop:gap-6"
         >
           <header className="flex flex-col gap-3">
-            {editorOpen ? (
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <Heading level={1} look="display-l" className="break-words">
+                {t.title}
+              </Heading>
               <a
-                href={BACK_TO_LIST.href}
-                className={`self-start desktop:hidden ${buttonClass("ghost")}`}
+                href={publicShelterPath(view.id)}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex min-h-target items-center rounded-field text-label text-ink underline underline-offset-4 focus-ring"
               >
-                {BACK_TO_LIST.label}
+                {t.viewOnSite}
+                <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
               </a>
-            ) : null}
-            <Heading level={1} look="display-l" className="break-words">
-              {t.title}
-            </Heading>
+            </div>
             <Text look="hint" className="hidden tablet:block">
               {t.intro}
             </Text>
@@ -137,6 +140,16 @@ export function ShelterProfile({
               cityName={cityName}
               operatorName={operatorName}
               donationDeclined={editing.donationDeclined}
+              initialTab={profileTabOf(tab)}
+              account={
+                password !== null ? (
+                  <Card>
+                    <div className="p-4 tablet:p-6">
+                      <ChangePasswordSection password={password} />
+                    </div>
+                  </Card>
+                ) : null
+              }
             />
           ) : (
             <div className="flex min-w-0 flex-col gap-4 desktop:gap-6">
@@ -187,7 +200,7 @@ export function ShelterProfile({
             </div>
           )}
 
-          {password !== null && !support ? (
+          {!editorOpen && password !== null && !support ? (
             <Card>
               <div className="p-4 tablet:p-6">
                 <ChangePasswordSection password={password} />

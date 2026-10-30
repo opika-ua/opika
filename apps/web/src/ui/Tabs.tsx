@@ -17,12 +17,30 @@ export type TabsProps = {
   label: string;
   tabs: readonly TabItem[];
   defaultId?: string;
+  /** Controlled selection: when given, `onSelect` is called instead of the tabs keeping their own state. */
+  selectedId?: string;
+  onSelect?: (id: string) => void;
+  /** `segmented` (default): one pill track, equal-width tabs. `pills`: separate outlined pills that scroll sideways. */
+  look?: "segmented" | "pills";
   className?: string;
 };
 
-export function Tabs({ label, tabs, defaultId, className }: TabsProps) {
+export function Tabs({
+  label,
+  tabs,
+  defaultId,
+  selectedId,
+  onSelect,
+  look = "segmented",
+  className,
+}: TabsProps) {
   const base = useId();
-  const [selected, setSelected] = useState(defaultId ?? tabs[0]?.id);
+  const [own, setOwn] = useState(defaultId ?? tabs[0]?.id);
+  const selected = selectedId ?? own;
+  const setSelected = (id: string) => {
+    setOwn(id);
+    onSelect?.(id);
+  };
   const refs = useRef(new Map<string, HTMLButtonElement>());
 
   const move = (event: KeyboardEvent, index: number) => {
@@ -51,7 +69,15 @@ export function Tabs({ label, tabs, defaultId, className }: TabsProps) {
 
   return (
     <div className={className}>
-      <div role="tablist" aria-label={label} className="flex gap-1 rounded-pill bg-line p-1">
+      <div
+        role="tablist"
+        aria-label={label}
+        className={
+          look === "pills"
+            ? "-mx-4 flex gap-2 overflow-x-auto px-4 py-1 tablet:mx-0 tablet:px-0"
+            : "flex gap-1 rounded-pill bg-line p-1"
+        }
+      >
         {tabs.map((tab, index) => {
           const isSelected = tab.id === selected;
           return (
@@ -70,8 +96,15 @@ export function Tabs({ label, tabs, defaultId, className }: TabsProps) {
               onClick={() => setSelected(tab.id)}
               onKeyDown={(event) => move(event, index)}
               className={cx(
-                "min-h-target flex-1 cursor-pointer rounded-pill px-4 text-label focus-ring",
-                isSelected ? "bg-ink text-on-ink" : "text-ink",
+                "min-h-target cursor-pointer rounded-pill text-label focus-ring",
+                look === "pills" ? "shrink-0 whitespace-nowrap border-2 px-5" : "flex-1 px-4",
+                look === "pills"
+                  ? isSelected
+                    ? "border-ink bg-ink text-on-ink"
+                    : "border-line bg-surface text-ink"
+                  : isSelected
+                    ? "bg-ink text-on-ink"
+                    : "text-ink",
               )}
             >
               {tab.label}

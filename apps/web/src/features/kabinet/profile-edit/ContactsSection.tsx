@@ -6,7 +6,8 @@ import { useId, useState } from "react";
 import { FormSection } from "../../../ui/FormSection";
 import { ContactFields, type ContactsErrors, NO_CONTACT_ERRORS } from "./ContactFields";
 import { type ContactsForm, contactOfForm, contactsFormOf, sameContactsForm } from "./fields";
-import { SaveBar, type SaveState } from "./SaveBar";
+import { useSectionControls } from "./page-save";
+import { type SaveState, SectionStatus } from "./SaveBar";
 import { useUnsavedChanges } from "./unsaved-changes";
 import { sameStoredValue, type WriteResult } from "./write-result";
 
@@ -42,10 +43,13 @@ export function ContactsSection({
   contact,
   save,
   reload,
+  viewHref,
 }: {
   contact: KabinetShelterView["contact"];
   save: (next: KabinetShelterView["contact"]) => Promise<WriteResult>;
   reload: () => Promise<KabinetShelterView | null>;
+  /** The public shelter page, for the «Переглянути» link after a save. */
+  viewHref?: string;
 }) {
   const t = uk.kabinet.profileEdit;
   const id = useId();
@@ -62,13 +66,13 @@ export function ContactsSection({
     setErrors(NO_CONTACT_ERRORS);
   };
 
-  const onSave = async () => {
+  const onSave = async (): Promise<boolean> => {
     const checked = contactOfForm(form);
     if (checked.kind === "invalid") {
       setErrors(checked);
       setState({ kind: "idle" });
       focusFirstProblem(id, form, checked);
-      return;
+      return false;
     }
     setErrors(NO_CONTACT_ERRORS);
     setState({ kind: "saving" });
@@ -76,21 +80,29 @@ export function ContactsSection({
     if (result.kind === "ok") {
       reset(result.view.contact);
       setState({ kind: "saved", at: new Date() });
+      return true;
     } else if (result.kind === "no_answer") {
       // The answer was lost; read what is stored now (inbox K4-T16).
       const view = await reload();
       if (view !== null && sameStoredValue(view.contact, checked.contact)) {
         reset(view.contact);
         setState({ kind: "saved", at: new Date() });
-      } else {
-        setState({ kind: "failed" });
+        return true;
       }
+      setState({ kind: "failed" });
     } else if (result.kind === "illegal_transition") {
       setState({ kind: "failed" });
     } else {
       setState(result);
     }
+    return false;
   };
+
+  const onCancel = () => {
+    reset(base);
+    setState({ kind: "idle" });
+  };
+  useSectionControls("contacts", dirty, { save: onSave, cancel: onCancel });
 
   const onReload = async () => {
     const view = await reload();
@@ -109,16 +121,13 @@ export function ContactsSection({
       description={uk.kabinet.profile.contactsNote}
     >
       <ContactFields idPrefix={id} form={form} update={setForm} errors={errors} />
-      <SaveBar
+      <SectionStatus
         state={state}
         dirty={dirty}
         caption={t.actions.liveOnSave.contacts}
-        onSave={onSave}
-        onCancel={() => {
-          reset(base);
-          setState({ kind: "idle" });
-        }}
+        onSave={() => void onSave()}
         onReload={onReload}
+        {...(viewHref !== undefined ? { viewHref } : {})}
       />
     </FormSection>
   );

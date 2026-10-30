@@ -28,6 +28,9 @@ export const ANIMAL_LIST_PATH = "/kabinet/tvaryny";
 /** K3's create page: K2's «Додати тварину» and its empty state link here. */
 export const NEW_ANIMAL_PATH = `${ANIMAL_LIST_PATH}/nova`;
 
+/** The public page of a shelter (the Притулок page's link to it, a new tab). */
+export const publicShelterPath = (shelterId: string): string => `/prytulky/${shelterId}`;
+
 /** The public page of one animal (the ⋯ menu's «Переглянути на сайті», a new tab). */
 export const publicAnimalPath = (animalId: string): string => `/tvaryny/${animalId}`;
 

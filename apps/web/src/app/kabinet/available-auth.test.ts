@@ -44,7 +44,7 @@ const animalParams = () => ({ params: Promise.resolve({ id: crypto.randomUUID() 
  */
 describe.each([
   ["/kabinet", () => KabinetHomePage()],
-  ["/kabinet/prytulok", () => ShelterProfilePage()],
+  ["/kabinet/prytulok", () => ShelterProfilePage({ searchParams: Promise.resolve({}) })],
   ["/kabinet/prytulok (its <title>)", () => shelterProfileMetadata()],
   ["/kabinet/vkhid", signIn({})],
   ["/kabinet/vkhid?zaproshennia=<id>", signIn({ zaproshennia: crypto.randomUUID() })],

@@ -694,6 +694,38 @@ describe("the unsaved-work warning and the saved-time line", () => {
     },
   ] as const;
 
+  it("after a save, a published card offers «Переглянути» (its public page, a new tab); a draft does not", async () => {
+    const listed = published();
+    const client = fakeClient(listed);
+    renderForm(listed, { client, clock: () => NOW });
+    expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
+    fireEvent.change(screen.getByLabelText("Опис"), { target: { value: "Лагідна." } });
+    client.calls.update.mockResolvedValueOnce({
+      ...listed,
+      description: { uk: "Лагідна.", en: null },
+    } as KabinetAnimalView);
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    const link = await screen.findByRole("link", { name: /^Переглянути/ });
+    expect(link.getAttribute("href")).toBe(`/tvaryny/${listed.id}`);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+    expect(link.textContent).toContain("(відкриється в новій вкладці)");
+  });
+
+  it("a saved draft has no «Переглянути» link (it is not public)", async () => {
+    const card = draft();
+    const client = fakeClient(card);
+    renderForm(card, { client, clock: () => NOW });
+    fireEvent.change(screen.getByLabelText("Опис"), { target: { value: "Лагідна." } });
+    client.calls.update.mockResolvedValueOnce({
+      ...card,
+      description: { uk: "Лагідна.", en: null },
+    } as KabinetAnimalView);
+    fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await screen.findByText(/^Чернетку збережено о /);
+    expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
+  });
+
   it.each(CASES)(
     "$name: typing (unblurred) hides the line and warns; settling shows it with the new time and clears the warning; a failed save re-hides it and re-warns",
     async ({ view, saveLabel, savedLineText }) => {

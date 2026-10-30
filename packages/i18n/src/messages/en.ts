@@ -603,6 +603,7 @@ export const en = {
       intro: "What people looking for an animal see about you on every card.",
       role: "shelter administrator",
       signOut: "Sign out",
+      viewOnSite: "Shelter page on the site",
       signOutFailed:
         "Sign-out didn't go through, so you are still signed in. Check the connection and try again.",
       contactsTitle: "Contacts",
@@ -644,7 +645,19 @@ export const en = {
       website: "Website",
     },
     profileNotRecorded: "Not recorded",
+    profileTabs: {
+      label: "Shelter sections",
+      profile: "Profile",
+      verification: "Verification",
+      account: "Account",
+      profileNote: "What people see on the shelter's page.",
+      view: "View",
+    },
     profileEdit: {
+      saveBar: {
+        unsaved: "You have unsaved changes",
+        cancel: "Cancel",
+      },
       actions: {
         save: "Save",
         cancel: "Discard changes",
