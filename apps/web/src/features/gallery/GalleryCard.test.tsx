@@ -209,15 +209,15 @@ describe("GalleryCard on a phone (text under the photo)", () => {
           {...NO_CONTEXT}
         />,
       );
-      const line = screen
-        .getAllByText(freshnessLabel(freshness))
-        .find((element) => element.querySelector("[aria-hidden='true']") !== null);
-      expect(line?.textContent).toBe(freshnessLabel(freshness));
+      expect(screen.getAllByText(freshnessLabel(freshness))).toHaveLength(1);
+      expect(
+        screen.getByTestId("freshness-badge").querySelector("[aria-hidden='true']"),
+      ).not.toBeNull();
       unmount();
     }
   });
 
-  it("the stacked layout has no pill and no freshness badge on the photo, only the reserved one", () => {
+  it("the stacked layout has no pill, and the freshness text is rendered once", () => {
     render(
       <GalleryCard
         card={makeCard({ listingKind: "reserved" })}
@@ -227,9 +227,9 @@ describe("GalleryCard on a phone (text under the photo)", () => {
       />,
     );
     expect(screen.queryByText("Познайомитися")).toBeNull();
-    expect(screen.queryByTestId("freshness-badge")).toBeNull();
     expect(screen.getByTestId("reserved-badge").textContent).toBe("Уже домовляються");
     expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getAllByText(freshnessLabel(makeFreshness("fresh", 3)))).toHaveLength(1);
   });
 
   it("keeps a long name whole in the accessible name while the visible name is the same text", () => {

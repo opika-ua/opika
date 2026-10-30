@@ -46,6 +46,7 @@ const SIZES = {
 } as const;
 
 const SPECIES_DOT = { dog: "bg-species-dog", cat: "bg-species-cat" } as const;
+const SPECIES_BADGE = { dog: "tablet:bg-species-dog", cat: "tablet:bg-species-cat" } as const;
 
 interface GalleryCardProps {
   card: FeedCardView;
@@ -103,16 +104,41 @@ export function GalleryCard({
         priority={priority}
         className="rounded-card tablet:rounded-none"
       />
-      {/* Only «Домовляються» stays on the photo on a phone; the freshness moved under it. */}
-      <div className="absolute inset-x-2 top-2 flex flex-wrap items-start gap-2 tablet:inset-x-4 tablet:top-4">
-        {!stacked && (
-          <span data-testid="freshness-badge" className="hidden tablet:contents">
-            <Badge tone={card.species}>{freshnessLabel(card.freshness)}</Badge>
-          </span>
+      {/* `contents` on a phone: the badge floats on the photo, the freshness joins the text column
+          (order-last). From `tablet` the same two elements sit in one row on the photo. */}
+      <div
+        className={cx(
+          "contents",
+          !stacked &&
+            "tablet:absolute tablet:inset-x-4 tablet:top-4 tablet:flex tablet:flex-wrap tablet:items-start tablet:gap-2",
         )}
+      >
+        <span
+          data-testid="freshness-badge"
+          className={cx(
+            "order-last flex items-center gap-2 text-caption text-ink-2",
+            !stacked &&
+              cx(
+                "tablet:order-none tablet:inline-flex tablet:whitespace-nowrap tablet:rounded-tag tablet:px-2 tablet:py-1 tablet:text-on-ink",
+                SPECIES_BADGE[card.species],
+              ),
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className={cx(
+              "size-2 shrink-0 rounded-pill",
+              SPECIES_DOT[card.species],
+              !stacked && "tablet:hidden",
+            )}
+          />
+          {freshnessLabel(card.freshness)}
+        </span>
         {reserved && (
           <span data-testid="reserved-badge" className="contents">
-            <Badge tone="ink">{uk.reserved.badge}</Badge>
+            <Badge tone="ink" className="absolute top-2 left-2 tablet:static">
+              {uk.reserved.badge}
+            </Badge>
           </span>
         )}
       </div>
@@ -121,37 +147,23 @@ export function GalleryCard({
         className={cx(
           "flex flex-col gap-1",
           !stacked &&
-            "tablet:absolute tablet:inset-x-3 tablet:bottom-3 tablet:gap-4 tablet:rounded-panel tablet:bg-surface tablet:p-5",
+            "tablet:absolute tablet:inset-x-3 tablet:bottom-3 tablet:gap-2 tablet:rounded-panel tablet:bg-surface tablet:p-5",
         )}
       >
-        <div className={cx("flex flex-col gap-1", !stacked && "tablet:gap-2")}>
-          <span
-            data-testid="card-name"
-            className={cx(
-              "line-clamp-2 break-words text-label text-ink",
-              !stacked && "tablet:line-clamp-1 tablet:text-title",
-            )}
-          >
-            {card.name}
-          </span>
-          <span data-testid="card-meta" className="contents">
-            <MetaLine parts={facts} size="caption" />
-          </span>
-        </div>
         <span
+          data-testid="card-name"
           className={cx(
-            "flex items-center gap-2 text-caption text-ink-2",
-            !stacked && "tablet:hidden",
+            "line-clamp-2 break-words text-label text-ink",
+            !stacked && "tablet:line-clamp-1 tablet:text-title",
           )}
         >
-          <span
-            aria-hidden="true"
-            className={cx("size-2 shrink-0 rounded-pill", SPECIES_DOT[card.species])}
-          />
-          {freshnessLabel(card.freshness)}
+          {card.name}
+        </span>
+        <span data-testid="card-meta" className="contents">
+          <MetaLine parts={facts} size="caption" />
         </span>
         {!stacked && (
-          <div className="hidden tablet:block">
+          <div className="hidden tablet:mt-2 tablet:block">
             <span aria-hidden="true" className={cx(buttonClass("primary"), "w-fit")}>
               {uk.feed.adoptPill}
             </span>
