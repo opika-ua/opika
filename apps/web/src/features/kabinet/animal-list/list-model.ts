@@ -62,20 +62,34 @@ export const captionOf = (shelterName: string, counts: AnimalListCounts): string
 /** The chips in N3's order: every card, then one per listing kind, each with its inventory count. */
 export const filterChipsOf = (
   counts: AnimalListCounts,
-): { filter: KabinetAnimalListFilter; label: string }[] => [
+): {
+  id: string;
+  filter: KabinetAnimalListFilter;
+  /** The accessible name: «Усі · 48». */
+  label: string;
+  /** The visible name, and its count beside it. */
+  text: string;
+  count: number;
+}[] => [
   {
+    id: "all",
     filter: { kind: "all" },
     label: fillTemplate(t.filter.withCount, {
       label: t.filter.all,
       count: integer.format(totalOf(counts)),
     }),
+    text: t.filter.all,
+    count: totalOf(counts),
   },
   ...LISTING_KINDS.map((kind) => ({
+    id: kind,
     filter: { kind: "listing", listing: kind } as const,
     label: fillTemplate(t.filter.withCount, {
       label: t.filter[kind],
       count: integer.format(counts[kind]),
     }),
+    text: t.filter[kind],
+    count: counts[kind],
   })),
 ];
 

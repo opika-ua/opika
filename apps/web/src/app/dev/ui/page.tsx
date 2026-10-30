@@ -42,6 +42,7 @@ import { Toggle } from "../../../ui/Toggle";
 import {
   ChoiceChipDemo,
   ComboboxDemo,
+  FilterTabsDemo,
   MenuDemo,
   MenuIconDemo,
   ModalDemo,
@@ -507,6 +508,9 @@ export default function DevUiPage() {
         </Row>
         <Row label="Menu (⋯ trigger, divider, danger item)">
           <MenuIconDemo />
+        </Row>
+        <Row label="FilterTabs">
+          <FilterTabsDemo />
         </Row>
         <Row label="InfoToggle">
           <InfoToggle label="How the list is ordered">

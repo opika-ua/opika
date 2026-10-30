@@ -256,10 +256,10 @@ describe("the row's thumbnail", () => {
 });
 
 describe("filters and counts (N3)", () => {
-  it("one chip per kind with its inventory count, «Усі» pressed", () => {
+  it("one tab per kind with its inventory count, «Усі» selected", () => {
     renderList();
-    const chips = within(screen.getByRole("group", { name: "Показати" })).getAllByRole("button");
-    expect(chips.map((chip) => chip.textContent)).toEqual([
+    const chips = within(screen.getByRole("tablist", { name: "Показати" })).getAllByRole("tab");
+    expect(chips.map((chip) => chip.getAttribute("aria-label"))).toEqual([
       "Усі · 6",
       "Чернетки · 2",
       "Опубліковано · 1",
@@ -267,7 +267,7 @@ describe("filters and counts (N3)", () => {
       "Удома · 1",
       "Знято з показу · 1",
     ]);
-    expect(chips.map((chip) => chip.getAttribute("aria-pressed"))).toEqual([
+    expect(chips.map((chip) => chip.getAttribute("aria-selected"))).toEqual([
       "true",
       "false",
       "false",
@@ -283,13 +283,13 @@ describe("filters and counts (N3)", () => {
         list: async () => ({ ...FIRST, items: [READY_DRAFT, GAPPY_DRAFT] }),
       },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Чернетки · 2" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Чернетки · 2" }));
     expect(calls.list).toHaveBeenCalledWith({
       filter: { kind: "listing", listing: "draft" },
       cursor: null,
       limit: 50,
     });
-    expect(screen.getByRole("button", { name: "Чернетки · 2" }).getAttribute("aria-pressed")).toBe(
+    expect(screen.getByRole("tab", { name: "Чернетки · 2" }).getAttribute("aria-selected")).toBe(
       "true",
     );
     expect(screen.queryByRole("listitem", { name: "Рекс" })).toBeNull();
@@ -298,7 +298,7 @@ describe("filters and counts (N3)", () => {
 
   it("a group with no cards says so", async () => {
     renderList({ handlers: { list: async () => ({ ...FIRST, items: [] }) } });
-    await userEvent.click(screen.getByRole("button", { name: "Удома · 1" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Удома · 1" }));
     expect(screen.getByText("У цій групі поки немає карток.")).toBeTruthy();
   });
 
@@ -315,8 +315,8 @@ describe("filters and counts (N3)", () => {
             : Promise.resolve({ ...FIRST, items: [PUBLISHED] }),
       } as Handlers,
     });
-    await userEvent.click(screen.getByRole("button", { name: "Чернетки · 2" }));
-    await userEvent.click(screen.getByRole("button", { name: "Опубліковано · 1" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Чернетки · 2" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Опубліковано · 1" }));
     expect(rowOf("Рекс")).toBeTruthy();
     await act(async () => {
       draftsAnswer({ ...FIRST, items: [READY_DRAFT, GAPPY_DRAFT] });
@@ -324,7 +324,7 @@ describe("filters and counts (N3)", () => {
     expect(rowOf("Рекс")).toBeTruthy();
     expect(screen.queryByRole("listitem", { name: "Ластівка" })).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Опубліковано · 1" }).getAttribute("aria-pressed"),
+      screen.getByRole("tab", { name: "Опубліковано · 1" }).getAttribute("aria-selected"),
     ).toBe("true");
   });
 
@@ -338,7 +338,7 @@ describe("filters and counts (N3)", () => {
         },
       },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Опубліковано · 1" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Опубліковано · 1" }));
     expect(
       screen.getByText("Список не завантажився. Перевірте зʼєднання і спробуйте ще раз."),
     ).toBeTruthy();
@@ -1060,7 +1060,7 @@ describe("keyset «Показати ще»", () => {
       } as Handlers,
     });
     await userEvent.click(screen.getByRole("button", { name: "Показати ще" }));
-    await userEvent.click(screen.getByRole("button", { name: "Чернетки · 2" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Чернетки · 2" }));
     expect(calls.list).toHaveBeenLastCalledWith({
       filter: { kind: "listing", listing: "draft" },
       cursor: null,
@@ -1071,7 +1071,7 @@ describe("keyset «Показати ще»", () => {
       lateMore({ ...FIRST, items: [ADOPTED, WITHDRAWN], nextCursor: "c2" as KabinetCursor });
     });
     expect(
-      within(screen.getByRole("region", { name: "Тварини" }))
+      within(screen.getByRole("tabpanel"))
         .getAllByRole("heading", { level: 2 })
         .map((heading) => heading.textContent),
     ).toEqual(["Ластівка", "Сірко"]);

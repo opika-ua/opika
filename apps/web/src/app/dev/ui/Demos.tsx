@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
 import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../ui/Combobox";
+import { FilterTabs, filterTabId } from "../../../ui/FilterTabs";
 import { Icon } from "../../../ui/Icon";
 import { Menu, MenuDivider, MenuItem } from "../../../ui/Menu";
 import { Modal } from "../../../ui/Modal";
@@ -89,6 +90,27 @@ export function MenuDemo() {
         </Button>
       </MenuItem>
     </Menu>
+  );
+}
+
+export function FilterTabsDemo() {
+  const [value, setValue] = useState("all");
+  return (
+    <div className="w-full">
+      <FilterTabs
+        label="Show"
+        idPrefix="demo"
+        panelId="demo-panel"
+        value={value}
+        onChange={setValue}
+        tabs={[
+          { id: "all", label: "All", count: 48, accessibleName: "All · 48" },
+          { id: "draft", label: "Drafts", count: 5, accessibleName: "Drafts · 5" },
+          { id: "live", label: "Published", count: 34, accessibleName: "Published · 34" },
+        ]}
+      />
+      <div id="demo-panel" role="tabpanel" aria-labelledby={filterTabId("demo", value)} />
+    </div>
   );
 }
 
