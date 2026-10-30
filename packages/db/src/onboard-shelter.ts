@@ -49,6 +49,7 @@ import {
 import { productionLocationPolicy } from "./location-policy";
 import { assertProductionWriteAllowed } from "./prod-guard";
 import { animalRepo, cityRepo, shelterRepo } from "./repos";
+import type { CurrentCityResolution } from "./repos/city-repo";
 import { insertShelterFromScript, recordAnimalsImported, type ScriptActor } from "./script-history";
 
 /**
@@ -262,7 +263,10 @@ export const OnboardInputSchema = z.object({
 
 type OnboardInput = z.infer<typeof OnboardInputSchema>;
 
-export type CitySlugLookup = (slug: string) => Promise<{ id: string } | null>;
+const RETIRED_CITY_MESSAGE =
+  "that settlement is retired (no longer in the current settlement register); a shelter cannot be onboarded there. Use its current settlement.";
+
+export type CitySlugLookup = (slug: string) => Promise<CurrentCityResolution>;
 
 /**
  * An input file may name the settlement by its slug (`exactAddress.citySlug`, the current or a
@@ -284,16 +288,17 @@ export async function withCityIdFromSlug(raw: unknown, lookup: CitySlugLookup): 
     throw new Error("exactAddress.citySlug must be a non-empty string.");
   }
   const found = await lookup(citySlug.trim());
-  if (!found) {
+  if (found.kind === "unknown") {
     throw new Error(
       `no settlement answers to the slug "${citySlug}" (neither a current nor a former one). Check the slug in the city's address on the site.`,
     );
   }
+  if (found.kind === "retired") throw new Error(RETIRED_CITY_MESSAGE);
   return {
     ...(raw as object),
     shelter: {
       ...(raw as { shelter: object }).shelter,
-      exactAddress: { ...rest, cityId: found.id },
+      exactAddress: { ...rest, cityId: found.city.id },
     },
   };
 }
@@ -587,8 +592,7 @@ async function main(): Promise<void> {
       // otherwise touches no database. The same guard above already vetted `databaseUrl`.
       const lookupSql = postgres(databaseUrl);
       try {
-        const [token] = await cityRepo(createDatabaseWithClient(lookupSql)).resolveTokens([slug]);
-        return token?.city ?? null;
+        return await cityRepo(createDatabaseWithClient(lookupSql)).resolveCurrent(slug);
       } finally {
         await lookupSql.end();
       }
@@ -733,10 +737,13 @@ async function main(): Promise<void> {
   const scriptActor = { moderatorId: FOUNDER_MODERATOR_ID, now };
 
   const cityId = input.shelter.exactAddress.cityId;
-  const city = await cities.findById(cityId);
+  const city = await cities.findCurrentById(cityId);
   if (!city) {
+    const existing = await cities.findById(cityId);
     console.error(
-      `ERROR: city ${cityId} does not exist. Cities are seeded once and not created here.`,
+      existing
+        ? `ERROR: city ${cityId} is retired. ${RETIRED_CITY_MESSAGE}`
+        : `ERROR: city ${cityId} does not exist. Cities are seeded once and not created here.`,
     );
     process.exit(1);
   }

@@ -419,7 +419,13 @@ describe("withCityIdFromSlug", () => {
     shelter: { displayName: "x", exactAddress: address },
     animals: [],
   });
-  const lookup = async (slug: string) => (slug === "brovary-kyivska" ? { id: CITY_ID } : null);
+  const city = { id: CITY_ID } as never;
+  const lookup = async (slug: string) =>
+    slug === "brovary-kyivska"
+      ? ({ kind: "current", city } as const)
+      : slug === "old-town"
+        ? ({ kind: "retired", city } as const)
+        : ({ kind: "unknown" } as const);
 
   it("leaves a file that names its city by id exactly as it was", async () => {
     const raw = withAddress({ line1: "a", cityId: CITY_ID });
@@ -438,6 +444,12 @@ describe("withCityIdFromSlug", () => {
     await expect(
       withCityIdFromSlug(withAddress({ line1: "a", citySlug: "atlantis" }), lookup),
     ).rejects.toThrow(/"atlantis"/);
+  });
+
+  it("refuses a retired settlement, saying so", async () => {
+    await expect(
+      withCityIdFromSlug(withAddress({ line1: "a", citySlug: "old-town" }), lookup),
+    ).rejects.toThrow(/retired/);
   });
 
   it("refuses both an id and a slug, and an empty slug", async () => {
