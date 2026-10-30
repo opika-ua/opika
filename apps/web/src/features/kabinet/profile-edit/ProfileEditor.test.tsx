@@ -820,6 +820,16 @@ describe("the page's one save bar and the sub-tabs", () => {
       " Пишіть.",
     );
   };
+  /** Resolves a microtask after the commit that makes `node` read `text`: the first frame showing it. */
+  const whenReads = (node: HTMLElement, text: string) =>
+    new Promise<void>((resolve) => {
+      const observer = new MutationObserver(() => {
+        if (node.textContent !== text) return;
+        observer.disconnect();
+        resolve();
+      });
+      observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+    });
 
   it("shows no bar until something is unsaved, announces it politely, and hides it after a save", async () => {
     renderEditor();
@@ -858,6 +868,20 @@ describe("the page's one save bar and the sub-tabs", () => {
     );
     expect(fns.updateContact).toHaveBeenCalledWith(expect.objectContaining({ expectedVersion: 4 }));
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
+  });
+
+  // The save tests above, checked at the moment they flaked (#299's merge, #308): the answers
+  // commit outside any event, and the bar must not outlive them by a frame.
+  it("the bar is gone in the same frame the last section says «Збережено.»", async () => {
+    renderEditor();
+    await dirtyPhone();
+    await dirtySentence();
+    // The contacts save last (page order), so their «Збережено.» means every save has landed.
+    const saved = whenReads(within(contacts()).getByRole("status"), "Збережено.");
+    const click = userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    await saved;
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
+    await click;
   });
 
   it("«Скасувати» puts every unsaved section back and hides the bar", async () => {
