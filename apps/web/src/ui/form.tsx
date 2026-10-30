@@ -8,7 +8,7 @@ import type {
 import { cx } from "./cx";
 
 /**
- * Form controls, absorbed from `features/controls/controls.tsx`. Plain components with no hooks, so a
+ * Form controls. Plain components with no hooks, so a
  * server page and a client form can both use them. Every control is 48px tall, 16px text (iOS does not
  * zoom on focus), labelled, and linked to its hint and error with `aria-describedby`. Invalid is an
  * inset ink ring plus the error's words, never a colour alone.

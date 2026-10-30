@@ -5,7 +5,7 @@ import type { AnimalId, CityId } from "@opika/domain";
 import { ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { buttonClass } from "../controls/controls";
+import { buttonClass } from "../../ui/Button";
 import { cardCityId } from "../gallery/card-text";
 import { ContactRevealDialog } from "../reveal/ContactRevealDialog";
 import { THROTTLED_COPY } from "../reveal/throttled-copy";
