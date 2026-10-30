@@ -42,11 +42,13 @@ import { Toggle } from "../../../ui/Toggle";
 import {
   ChoiceChipDemo,
   ComboboxDemo,
+  ComboboxMultiDemo,
   FilterTabsDemo,
   MenuDemo,
   MenuIconDemo,
   ModalDemo,
   ModalHeaderDemo,
+  MultiSelectRowsDemo,
   PopoverDemo,
   SheetDemo,
   ToastDemo,
@@ -527,6 +529,12 @@ export default function DevUiPage() {
         <PopoverDemo />
         <Row label="Combobox (mock async source; a dialog below 600px)">
           <ComboboxDemo />
+        </Row>
+        <Row label="Combobox, multi-select mode (local options, count badge, ✕, top-layer list)">
+          <ComboboxMultiDemo />
+        </Row>
+        <Row label="Multi-select rows: listbox (combobox) and checklist (phone sheet)">
+          <MultiSelectRowsDemo />
         </Row>
         <Row label="Menu (a row's «More»)">
           <MenuDemo />

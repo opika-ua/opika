@@ -1,29 +1,34 @@
 "use client";
 
 import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
-import type { AnimalSpecies, FeedFilters, FilterSelection, GallerySort } from "@opika/domain";
+import type {
+  AnimalSpecies,
+  CityId,
+  FeedFilters,
+  FilterSelection,
+  GallerySort,
+  RegionId,
+} from "@opika/domain";
 import { isExplicitlySelected, relaxDimension } from "@opika/domain";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
 import { useOptimistic, useTransition } from "react";
 import { Chip } from "../../ui/Chip";
+import { ComboboxMulti } from "../../ui/ComboboxMulti";
 import { cx } from "../../ui/cx";
 import { SEGMENT, SEGMENT_HIT, SEGMENT_OFF, SEGMENT_ON, SEGMENT_TRACK } from "../../ui/form";
 import { Popover } from "../../ui/Popover";
-import { CityFacetChoices } from "./CityFacetChoices";
 import {
   ageFacetOptions,
-  cityFacetOptions,
   type FacetOption,
   facetAccessibleName,
   isUnavailable,
-  regionFacetOptions,
   selectionSummary,
   sexFacetOptions,
   sizeFacetOptions,
 } from "./facet-options";
+import type { PickerOption } from "./filter-search";
 import type { CitySlugsById } from "./filter-url";
 import {
   galleryHref,
@@ -34,6 +39,7 @@ import {
   withToggledSex,
   withToggledSize,
 } from "./filter-url";
+import { cityPickerOptions, pickerRows, pickerSummary, regionPickerOptions } from "./picker-model";
 
 interface GalleryFilterDropdownsProps {
   filters: FeedFilters;
@@ -64,15 +70,12 @@ function FacetSelector<T extends string>({
   selection,
   onToggle,
   clearHref,
-  body,
 }: {
   label: string;
   options: readonly FacetOption<T>[];
   selection: FilterSelection<T>;
   onToggle: (value: T) => void;
   clearHref: string;
-  /** Draws the panel's content from the option pill; the city list swaps in its own windowing. */
-  body?: (pill: (option: FacetOption<T>) => ReactNode) => ReactNode;
 }) {
   const summary = selectionSummary(options, selection, label);
   const pill = (option: FacetOption<T>) => (
@@ -104,8 +107,57 @@ function FacetSelector<T extends string>({
       }}
       className="min-w-36 max-w-40 flex-initial"
     >
-      {body ? body(pill) : options.map(pill)}
+      {options.map(pill)}
     </Popover>
+  );
+}
+
+/**
+ * Область and Місто (filters v2): a searchable multi-select field over the loaded options, applied
+ * at once like the pills it replaces. Only the city list has no empty rows to show; the oblast list
+ * always lists all 27 in two groups.
+ */
+function SearchField({
+  id,
+  label,
+  searchLabel,
+  options,
+  values,
+  grouped,
+  noMatchHint,
+  onToggle,
+  onClear,
+}: {
+  id: string;
+  label: string;
+  searchLabel: string;
+  options: readonly PickerOption[];
+  values: readonly string[];
+  grouped: boolean;
+  noMatchHint?: string;
+  onToggle: (value: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <ComboboxMulti
+      id={id}
+      label={label}
+      summary={pickerSummary(options, values)}
+      selectedValues={values}
+      rows={(query, pinned) => pickerRows(options, { query, pinned, grouped })}
+      onToggle={onToggle}
+      onClear={onClear}
+      messages={{
+        search: searchLabel,
+        clear: uk.filters.clearSelection,
+        selectedCount: (count) => fillTemplate(uk.filters.selectedCount, { count: String(count) }),
+        found: (count) => fillTemplate(uk.filters.cityFound, { count: String(count) }),
+        noMatch: uk.filters.cityNoMatch,
+        noMatchHint,
+        clearField: fillTemplate(uk.filters.clearDimension, { dimension: label }),
+      }}
+      className="min-w-40 max-w-52 flex-initial"
+    />
   );
 }
 
@@ -222,7 +274,6 @@ export function GalleryFilterDropdowns({
     ...counts.cities.map((entry) => [entry.cityId, entry.label.regionId] as const),
     ...selectedCities.map((city) => [city.id, city.regionId] as const),
   ]);
-  const cityOptions = cityFacetOptions(counts, shown.regions, shown.cities, selectedCities);
   const clearHref = (dimension: "regions" | "cities" | "ages" | "sizes" | "sexes") =>
     galleryHref(relaxDimension(filters, dimension), sort, citySlugs);
 
@@ -234,27 +285,26 @@ export function GalleryFilterDropdowns({
     >
       <SpeciesToggle filters={filters} sort={sort} citySlugs={citySlugs} />
 
-      <FacetSelector
+      <SearchField
+        id="gallery-region-field"
         label={uk.filters.region}
-        options={regionFacetOptions(counts, regionLabels, shown.regions)}
-        selection={shown.regions}
-        onToggle={(region) => apply(withToggledRegion(shown, region, regionOfCity))}
-        clearHref={clearHref("regions")}
+        searchLabel={uk.filters.findRegionField}
+        options={regionPickerOptions(counts, regionLabels, shown.regions)}
+        values={shown.regions.kind === "oneOf" ? shown.regions.values : []}
+        grouped
+        onToggle={(region) => apply(withToggledRegion(shown, region as RegionId, regionOfCity))}
+        onClear={() => apply(relaxDimension(shown, "regions"))}
       />
-      <FacetSelector
+      <SearchField
+        id="gallery-city-field"
         label={uk.filters.city}
-        options={cityOptions}
-        selection={shown.cities}
-        onToggle={(city) => apply(withToggledCity(shown, city))}
-        clearHref={clearHref("cities")}
-        body={(pill) => (
-          <CityFacetChoices
-            idPrefix="rail"
-            options={cityOptions}
-            selection={shown.cities}
-            renderOption={pill}
-          />
-        )}
+        searchLabel={uk.filters.findCityField}
+        options={cityPickerOptions(counts, shown.regions, shown.cities, selectedCities)}
+        values={shown.cities.kind === "oneOf" ? shown.cities.values : []}
+        grouped={false}
+        noMatchHint={uk.filters.cityNoMatchHint}
+        onToggle={(city) => apply(withToggledCity(shown, city as CityId))}
+        onClear={() => apply(relaxDimension(shown, "cities"))}
       />
       <FacetSelector
         label={uk.filters.age}
