@@ -84,10 +84,10 @@ the donation is a separate propose action. Whether K4 saves per section or once 
 | `profileEdit.errors.illegalTransitionPause` | Intake can't be paused right now: the shelter's status has changed. Reload the page to see it. | `ILLEGAL_TRANSITION` on `pause` (e.g. the operator suspended the shelter meanwhile) | - | no draft |
 | `profileEdit.errors.illegalTransitionResume` | Intake can't be resumed from here right now: the shelter's status has changed. | `ILLEGAL_TRANSITION` on `resume` (e.g. now suspended; only the operator can reinstate) | - | no draft |
 | `profileEdit.errors.notAvailable` | Changes from the cabinet aren't available yet. | `SHELTER_WRITES_NOT_YET_AVAILABLE` (403): every shelter except the allowlisted test shelter, until PR 6 (K-Q4) | - | no draft |
-| `profileEdit.errors.phoneFormat` | Enter the number with the country code, e.g. +380 67 123 45 67. | phone field (`E164Schema`: `+`, 8-15 digits; spaces/dashes normalised before checking) | - | no draft; example number from MOCK:30 |
+| `profileEdit.errors.phoneFormat` | Enter a Ukrainian number: +380 and 9 more digits, e.g. +380 67 123 45 67. (owner, 2026-10-29; replaces the country-code sentence) | phone field (writes use `ContactChannelInputSchema`: `+380` and nine digits, the first 1-9; spaces, dashes and brackets, and the 380 and 0XX forms, are normalised before checking; stored rows keep `E164Schema`) | - | no draft; example number from MOCK:30 |
 | `profileEdit.errors.phoneRequired` | (if the phone is the required primary channel) Add a phone number. | phone field | - | no draft (depends on Q3) |
 | `profileEdit.errors.telegramFormat` | A Telegram username: 5-32 Latin letters, digits or underscores. The @ is optional. | Telegram field (`^[A-Za-z0-9_]{5,32}$`; leading `@` / `t.me/` stripped first) | - | no draft; mock shows «@domivka_brovary» (MOCK:30) |
-| `profileEdit.errors.viberFormat` | As phone, for a Viber number. | other-contact field, kind = viber | - | no draft |
+| `profileEdit.errors.viberFormat` | The same sentence as phone (owner, 2026-10-29). | other-contact field, kind = viber | - | no draft |
 | `profileEdit.errors.emailFormat` | That doesn't look like an email address. | other-contact field, kind = email | - | no draft |
 | `profileEdit.errors.httpsOnly` | Only https:// links. | website field and donation field (`z.url({ protocol: /^https$/ })`) | - | no draft; hint «Лише https.» exists in `donationNote` |
 | `profileEdit.errors.notAUrl` | That isn't a web address. | website and donation fields, unparseable input | - | no draft |

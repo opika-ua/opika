@@ -866,3 +866,71 @@ describe("the K2 list's filter", () => {
     }
   });
 });
+
+/**
+ * The Ukrainian-phone rule on every contract input that carries a contact, parsed through the
+ * procedure's own input schema (no database): `+380670000002213` is refused and a typed local
+ * number comes out as +380XXXXXXXXX.
+ */
+describe("the Ukrainian phone rule on every write that carries a contact", () => {
+  const SHELTER = "51000000-0000-4000-8000-000000000001";
+  const TOO_LONG = "+380670000002213";
+  const LOCAL = "(067) 123-45-67";
+  const NORMALISED = "+380671234567";
+  const phone = (e164: string) => ({ kind: "phone", e164 });
+  const contactOf = (e164: string) => ({ primary: phone(e164), additional: [] });
+  const reference = (e164: string) => ({
+    kind: "reference_contact",
+    name: "Ветклініка",
+    channel: { kind: "viber", e164 },
+    relationship: "veterinary_clinic",
+  });
+  const create = (contact: unknown, evidence: unknown[] = []) => ({
+    displayName: "Лапа допомоги",
+    description: { uk: "Опис", en: null },
+    legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" },
+    exactAddress: {
+      line1: "вул. Київська, 300",
+      line2: null,
+      postalCode: "07400",
+      cityId: "c1000000-0000-4000-8000-000000000001",
+      district: null,
+      coordinates: { lat: 50.5, lng: 30.8 },
+    },
+    contact,
+    freshnessSentence: null,
+    evidence,
+    firstAdmin: { name: "Олена", email: "olena@example.org" },
+  });
+  const paths = {
+    "shelter.profile.updateContact": (e164: string) => ({
+      contact: contactOf(e164),
+      expectedVersion: 0,
+    }),
+    "registry.shelters.create (contact)": (e164: string) => create(contactOf(e164)),
+    "registry.shelters.create (reference contact)": (e164: string) =>
+      create(contactOf("+380501112233"), [reference(e164)]),
+    "registry.shelters.updateProfile": (e164: string) => ({
+      shelterId: SHELTER,
+      expectedVersion: 0,
+      contact: contactOf(e164),
+    }),
+    "registry.verification.resubmit (reference contact)": (e164: string) => ({
+      shelterId: SHELTER,
+      evidence: [reference(e164)],
+    }),
+  } as const;
+
+  it.each(Object.entries(paths))(
+    "%s refuses extra digits and normalises a local number",
+    (name, build) => {
+      const path = name.replace(/ \(.*\)$/, "");
+      const input = internals(path).inputSchema;
+      expect(input?.safeParse(build(TOO_LONG)).success).toBe(false);
+      const parsed = input?.safeParse(build(LOCAL));
+      expect(parsed?.success).toBe(true);
+      expect(JSON.stringify(parsed?.data)).toContain(NORMALISED);
+      expect(JSON.stringify(parsed?.data)).not.toContain(LOCAL);
+    },
+  );
+});

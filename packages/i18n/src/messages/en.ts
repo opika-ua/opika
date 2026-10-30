@@ -655,10 +655,12 @@ export const en = {
           "Intake can't be paused right now: the shelter's status has changed. Reload the page.",
         illegalTransitionResume:
           "Intake can't be resumed from here right now: the shelter's status has changed. Write to me.",
-        phoneFormat: "Enter the number with the country code, for example +380 67 123 45 67.",
+        phoneFormat:
+          "Enter a Ukrainian number: +380 and 9 more digits, for example +380 67 123 45 67.",
         telegramFormat:
           "A Telegram username: 5-32 Latin letters, digits or underscores. The @ is optional.",
-        viberFormat: "Enter the Viber number with the country code, for example +380 67 123 45 67.",
+        viberFormat:
+          "Enter a Ukrainian number: +380 and 9 more digits, for example +380 67 123 45 67.",
         emailFormat: "That doesn't look like an email address.",
         httpsOnly: "Only links that start with https://.",
         notAUrl: "That doesn't look like a link.",

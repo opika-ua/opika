@@ -28,7 +28,7 @@ import {
   RegionIdSchema,
   RejectionCodeSchema,
   ShelterAdminIdSchema,
-  ShelterContactSchema,
+  ShelterContactInputSchema,
   ShelterDisplayNameInputSchema,
   ShelterIdSchema,
   ShelterLegalEntitySchema,
@@ -345,7 +345,7 @@ const shelterProfileWrite = shelterWriteProcedure.output(KabinetShelterViewSchem
 export const shelterProfileContract = {
   get: shelterProfileRead.input(empty).errors(shelterScopedErrors),
   updateContact: shelterProfileWrite
-    .input(z.strictObject({ contact: ShelterContactSchema, expectedVersion }))
+    .input(z.strictObject({ contact: ShelterContactInputSchema, expectedVersion }))
     .errors(shelterCasErrors),
   updateFreshnessSentence: shelterProfileWrite
     .input(z.strictObject({ freshnessSentence: FreshnessSentenceInputSchema, expectedVersion }))
@@ -753,7 +753,7 @@ export const registrySheltersContract = {
         description: LocalizedTextSchema,
         legalEntity: ShelterLegalEntitySchema,
         exactAddress: ExactAddressSchema,
-        contact: ShelterContactSchema,
+        contact: ShelterContactInputSchema,
         freshnessSentence: FreshnessSentenceInputSchema,
         evidence: z.array(EvidenceItemInputSchema).readonly(),
         firstAdmin: z.strictObject({ name: humanName, email: z.email() }),
@@ -797,7 +797,7 @@ export const registrySheltersContract = {
           shelterId: ShelterIdSchema,
           expectedVersion,
           displayName: ShelterDisplayNameInputSchema.optional(),
-          contact: ShelterContactSchema.optional(),
+          contact: ShelterContactInputSchema.optional(),
           description: LocalizedTextSchema.optional(),
           freshnessSentence: FreshnessSentenceInputSchema.optional(),
         })
