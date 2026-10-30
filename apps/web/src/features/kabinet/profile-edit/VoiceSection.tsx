@@ -10,7 +10,7 @@ import { Text } from "../../../ui/Text";
 import { ShelterWordsSection } from "../../shelters/ShelterWordsSection";
 import { SENTENCE_MAX, type SentenceError, sentenceCheck, sentenceLength } from "./fields";
 import { useSectionControls } from "./page-save";
-import { SectionStatus, type SaveState } from "./SaveBar";
+import { type SaveState, SectionStatus } from "./SaveBar";
 import { useUnsavedChanges } from "./unsaved-changes";
 import { sameStoredValue, type WriteResult } from "./write-result";
 

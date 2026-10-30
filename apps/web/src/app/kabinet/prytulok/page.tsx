@@ -88,7 +88,12 @@ export async function generateMetadata(): Promise<Metadata> {
     : {};
 }
 
-export default async function ShelterProfilePage() {
+export default async function ShelterProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
+  const { tab } = await searchParams;
   const result = await load();
   if (result.kind === "join_failed") {
     return (
@@ -127,6 +132,7 @@ export default async function ShelterProfilePage() {
           operator={operator}
           editing={home.editing}
           password={password}
+          tab={Array.isArray(tab) ? tab[0] : tab}
         />
       );
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */

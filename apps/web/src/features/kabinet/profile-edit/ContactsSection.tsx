@@ -7,7 +7,7 @@ import { FormSection } from "../../../ui/FormSection";
 import { ContactFields, type ContactsErrors, NO_CONTACT_ERRORS } from "./ContactFields";
 import { type ContactsForm, contactOfForm, contactsFormOf, sameContactsForm } from "./fields";
 import { useSectionControls } from "./page-save";
-import { SectionStatus, type SaveState } from "./SaveBar";
+import { type SaveState, SectionStatus } from "./SaveBar";
 import { useUnsavedChanges } from "./unsaved-changes";
 import { sameStoredValue, type WriteResult } from "./write-result";
 

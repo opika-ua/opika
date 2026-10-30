@@ -97,9 +97,7 @@ export function Tabs({
               onKeyDown={(event) => move(event, index)}
               className={cx(
                 "min-h-target cursor-pointer rounded-pill text-label focus-ring",
-                look === "pills"
-                  ? "shrink-0 whitespace-nowrap border-2 px-5"
-                  : "flex-1 px-4",
+                look === "pills" ? "shrink-0 whitespace-nowrap border-2 px-5" : "flex-1 px-4",
                 look === "pills"
                   ? isSelected
                     ? "border-ink bg-ink text-on-ink"

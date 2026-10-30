@@ -14,8 +14,8 @@ import { LockedBlock } from "../ProfileParts";
 import { ContactsSection } from "./ContactsSection";
 import { DonationSection } from "./DonationSection";
 import { LogoSection } from "./LogoSection";
-import { PageSave } from "./page-save";
 import { PauseControl } from "./PauseControl";
+import { PageSave } from "./page-save";
 import { VoiceSection } from "./VoiceSection";
 import { runWrite } from "./write-result";
 

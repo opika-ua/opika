@@ -88,7 +88,9 @@ export function StickyActionBar({
       style={inset > 0 ? { transform: `translateY(-${inset}px)` } : undefined}
       className={cx(
         "sticky z-(--z-header)",
-        tone === "ink" ? "bottom-above-nav pt-2 desktop:bottom-0 desktop:pb-inset" : "bottom-0 pt-2 pb-inset",
+        tone === "ink"
+          ? "bottom-above-nav pt-2 desktop:bottom-0 desktop:pb-inset"
+          : "bottom-0 pt-2 pb-inset",
         className,
       )}
     >
@@ -113,7 +115,10 @@ export function BarButton({
   kind,
   children,
   ...props
-}: { kind: "text" | "pill"; children: ReactNode } & Omit<ComponentProps<"button">, "className" | "children">) {
+}: { kind: "text" | "pill"; children: ReactNode } & Omit<
+  ComponentProps<"button">,
+  "className" | "children"
+>) {
   return (
     <button
       type="button"

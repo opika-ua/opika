@@ -14,8 +14,8 @@ import { KabinetNav } from "./KabinetNav";
 import { channelValue, Facts, LockedBlock, Row } from "./ProfileParts";
 import { ChangePasswordSection, type PasswordState } from "./password/ChangePasswordSection";
 import { PausedStatus } from "./profile-edit/PausedStatus";
-import { ProfileEditor } from "./profile-edit/ProfileEditor";
-import { animalListShownTo } from "./routes";
+import { ProfileEditor, profileTabOf } from "./profile-edit/ProfileEditor";
+import { animalListShownTo, publicShelterPath } from "./routes";
 import { SupportBanner } from "./SupportBanner";
 
 /**
@@ -70,6 +70,8 @@ export type ShelterProfileProps = {
    * view, whose session is the operator's: the operator never has a password).
    */
   password?: PasswordState | null;
+  /** The `?tab=` of the page (the editor's sub-tab); anything unknown is the first tab. */
+  tab?: string | undefined;
 };
 
 export function ShelterProfile({
@@ -79,6 +81,7 @@ export function ShelterProfile({
   operator,
   editing = { kind: "read_only" },
   password = null,
+  tab,
 }: ShelterProfileProps) {
   const t = uk.kabinet.profile;
   const operatorName = inSentenceOperatorName(operator);
@@ -123,9 +126,20 @@ export function ShelterProfile({
                 {BACK_TO_LIST.label}
               </a>
             ) : null}
-            <Heading level={1} look="display-l" className="break-words">
-              {t.title}
-            </Heading>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <Heading level={1} look="display-l" className="break-words">
+                {t.title}
+              </Heading>
+              <a
+                href={publicShelterPath(view.id)}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex min-h-target items-center rounded-field text-label text-ink underline underline-offset-4 focus-ring"
+              >
+                {t.viewOnSite}
+                <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
+              </a>
+            </div>
             <Text look="hint" className="hidden tablet:block">
               {t.intro}
             </Text>
@@ -137,6 +151,16 @@ export function ShelterProfile({
               cityName={cityName}
               operatorName={operatorName}
               donationDeclined={editing.donationDeclined}
+              initialTab={profileTabOf(tab)}
+              account={
+                password !== null ? (
+                  <Card>
+                    <div className="p-4 tablet:p-6">
+                      <ChangePasswordSection password={password} />
+                    </div>
+                  </Card>
+                ) : null
+              }
             />
           ) : (
             <div className="flex min-w-0 flex-col gap-4 desktop:gap-6">
@@ -187,7 +211,7 @@ export function ShelterProfile({
             </div>
           )}
 
-          {password !== null && !support ? (
+          {!editorOpen && password !== null && !support ? (
             <Card>
               <div className="p-4 tablet:p-6">
                 <ChangePasswordSection password={password} />
