@@ -203,4 +203,51 @@ describe("ComboboxMulti", () => {
         .every((o) => o.getAttribute("aria-selected") === "false"),
     ).toBe(true);
   });
+
+  describe("the whole field is the click target", () => {
+    const chevron = () => {
+      const el = input().parentElement?.querySelector<HTMLElement>("[aria-hidden='true']");
+      if (!el) throw new Error("no chevron");
+      return el;
+    };
+
+    it("a click on the chevron opens the list and focuses the input; a second click closes it", () => {
+      render(<Harness />);
+      fireEvent.click(chevron());
+      expect(input().getAttribute("aria-expanded")).toBe("true");
+      expect(document.activeElement).toBe(input());
+      fireEvent.click(chevron());
+      expect(input().getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("a click on the field's own padding does the same", () => {
+      render(<Harness />);
+      const field = input().parentElement as HTMLElement;
+      fireEvent.click(field);
+      expect(input().getAttribute("aria-expanded")).toBe("true");
+      fireEvent.click(field);
+      expect(input().getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("pressing the chevron keeps focus in the input (no blur that would close the list first)", () => {
+      render(<Harness />);
+      expect(fireEvent.pointerDown(chevron())).toBe(false);
+    });
+
+    it("the ✕ only clears: it neither opens a closed list nor closes an open one", () => {
+      render(<Harness />);
+      fireEvent.focus(input());
+      fireEvent.click(screen.getByRole("option", { name: "Буча, 1" }));
+      fireEvent.keyDown(input(), { key: "Escape" });
+      expect(input().getAttribute("aria-expanded")).toBe("false");
+      fireEvent.click(screen.getByRole("button", { name: "Скинути Місто" }));
+      expect(input().getAttribute("aria-expanded")).toBe("false");
+      expect(screen.queryByRole("button", { name: "Скинути Місто" })).toBeNull();
+
+      fireEvent.focus(input());
+      fireEvent.click(screen.getByRole("option", { name: "Буча, 1" }));
+      fireEvent.click(screen.getByRole("button", { name: "Скинути Місто" }));
+      expect(input().getAttribute("aria-expanded")).toBe("true");
+    });
+  });
 });

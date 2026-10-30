@@ -86,6 +86,7 @@ export function ComboboxMulti({
   const [box, setBox] = useState<PanelBox | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const listId = useId();
   const idPrefix = `${id}-${listId}`;
@@ -190,6 +191,18 @@ export function ComboboxMulti({
     }
   };
 
+  // The whole field is the target, the decorative chevron included. The input and the ✕ keep their own.
+  const ownsPress = (target: EventTarget) =>
+    target instanceof Element && target.closest("input, button") !== null;
+  const toggleFromField = () => {
+    if (open) {
+      closeList();
+      return;
+    }
+    openList();
+    inputRef.current?.focus();
+  };
+
   const hasSelection = selectedCount > 0;
   const accessibleName = hasSelection ? `${label}: ${summary}` : label;
   const noRows = open && rows.length === 0;
@@ -209,14 +222,23 @@ export function ComboboxMulti({
         closeList();
       }}
     >
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: a pointer shortcut; the keyboard path is the input inside. */}
       <div
         ref={fieldRef}
+        // Focus stays in the input: pressing the field must not blur (and so close) the list first.
+        onPointerDown={(event) => {
+          if (!ownsPress(event.target)) event.preventDefault();
+        }}
+        onClick={(event) => {
+          if (!ownsPress(event.target)) toggleFromField();
+        }}
         className={cx(
-          "flex h-13 w-full min-w-0 items-center gap-2 rounded-field border-2 bg-surface pr-1 pl-5 text-label text-ink",
+          "flex h-13 w-full cursor-pointer min-w-0 items-center gap-2 rounded-field border-2 bg-surface pr-1 pl-5 text-label text-ink",
           hasSelection ? "border-ink" : open ? "border-accent" : "border-line",
         )}
       >
         <input
+          ref={inputRef}
           id={id}
           type="text"
           role="combobox"
@@ -268,7 +290,7 @@ export function ComboboxMulti({
           <span
             aria-hidden="true"
             className={cx(
-              "inline-flex size-target shrink-0 items-center justify-center",
+              "pointer-events-none inline-flex size-target shrink-0 items-center justify-center",
               open && "rotate-180",
             )}
           >
