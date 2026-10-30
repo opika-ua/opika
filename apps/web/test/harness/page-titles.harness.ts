@@ -14,6 +14,13 @@ const CARD = "[data-testid='animal-card']";
 /** The owner's exact separator (PR B, verbatim: "The title separator is « – » (U+2013)"). */
 const EN_DASH_SEPARATOR = " – Opika";
 
+// One address per repetition (TEST-NET-1, as in gallery-animal-overlay): the limiter is per IP,
+// and `--repeat-each`, which is how a flake here is shown gone, outruns it.
+test.beforeEach(async ({ page }, testInfo) => {
+  const lastOctet = 1 + (testInfo.repeatEachIndex % 254);
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": `192.0.2.${lastOctet}` });
+});
+
 test("/tvaryny's title is the subject, then the owner's en-dash separator, then the brand", async ({
   page,
 }) => {
@@ -43,13 +50,17 @@ test("the shelter page's title is the shelter's name, then its city, then the br
   await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
   const href = await page.locator(CARD).first().getAttribute("href");
   await page.goto(href as string);
+  const animalTitle = await page.title();
   const shelterLink = page.getByRole("link", { name: /^Сторінка притулку «.+»$/ });
   await shelterLink.click();
   await page.waitForURL(/\/prytulky\//);
-  // A soft (client-side) navigation's `document.title` update can land a tick after
-  // `waitForURL` resolves - waiting for the shelter page's own heading first avoids
-  // reading the title mid-transition.
   await page.getByRole("heading", { level: 1 }).waitFor();
+  // Next streams `generateMetadata` apart from the body, so the soft navigation can commit the
+  // shelter page with no `<title>` yet ("" in CI run 41051822696): wait for its own to land.
+  await page.waitForFunction(
+    (previous) => document.title !== "" && document.title !== previous,
+    animalTitle,
+  );
   const title = await page.title();
   expect(title.endsWith(EN_DASH_SEPARATOR)).toBe(true);
   const subject = title.slice(0, -EN_DASH_SEPARATOR.length);
