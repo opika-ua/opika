@@ -61,6 +61,8 @@ export function SaveButton({ animalId, animalName }: SaveButtonProps) {
         variant="icon"
         onClick={toggle}
         aria-pressed={saved}
+        // Phone action bar: a 52px circle that fills with ink once saved.
+        className="max-desktop:size-13 max-desktop:aria-pressed:bg-ink max-desktop:aria-pressed:text-on-ink"
         aria-label={saved ? uk.likes.saved : uk.likes.save}
         data-testid="save-button"
       >
