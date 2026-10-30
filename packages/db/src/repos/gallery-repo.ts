@@ -2,8 +2,10 @@ import {
   AGE_BUCKETS,
   type AgeBucket,
   ANIMAL_SEXES,
+  ANIMAL_SPECIES,
   type AnimalId,
   type AnimalSex,
+  type AnimalSpecies,
   type City,
   type CityId,
   clampGalleryPage,
@@ -74,6 +76,8 @@ export type GalleryFacetCounts = {
   readonly ages: Readonly<Record<AgeBucket, number>>;
   readonly sizes: Readonly<Record<SizeBucket, number>>;
   readonly sexes: Readonly<Record<AnimalSex, number>>;
+  /** The species switch has no counts of its own; a shelter page reads these to show it only when both species are there. */
+  readonly species: Readonly<Record<AnimalSpecies, number>>;
 };
 
 export type NeighbourRow = { readonly id: AnimalId; readonly name: string };
@@ -406,6 +410,8 @@ export function galleryRepo(db: Database) {
       }
       for (const sex of ANIMAL_SEXES)
         countWhere(`n_sex_${sex}`, { ...opts.filters, sexes: only(sex) });
+      for (const species of ANIMAL_SPECIES)
+        countWhere(`n_species_${species}`, { ...opts.filters, species: only(species) });
 
       const grouped = db
         .select({ cityId: animals.cityId, ...counted })
@@ -453,6 +459,7 @@ export function galleryRepo(db: Database) {
         ages: tally(AGE_BUCKETS, "age"),
         sizes: tally(SIZE_BUCKETS, "size"),
         sexes: tally(ANIMAL_SEXES, "sex"),
+        species: tally(ANIMAL_SPECIES, "species"),
       };
     },
 
