@@ -1358,6 +1358,6 @@ describe("the ⋯ menu: the public page, and the danger entry last", () => {
     ];
     const names = items.map((item) => item.textContent ?? "");
     expect(names.at(-1)).toContain("Зняти з показу");
-    expect(items.at(-2)?.getAttribute("role")).toBe("separator");
+    expect(items.at(-2)?.getAttribute("aria-hidden")).toBe("true");
   });
 });

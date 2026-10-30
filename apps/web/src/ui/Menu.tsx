@@ -134,5 +134,5 @@ export function MenuItem({
 
 /** A thin rule between groups of entries (the safe moves, then the destructive one). */
 export function MenuDivider() {
-  return <li role="separator" className="my-1 h-0.5 bg-line" />;
+  return <li aria-hidden="true" className="my-1 h-0.5 bg-line" />;
 }

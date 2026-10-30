@@ -209,7 +209,9 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
 
   test("«Уже вдома»: the dialog says it can't be undone, and the card is home", async () => {
     const page = await open("/kabinet/tvaryny");
-    await rowOf(page, ARRANGING).getByRole("button", { name: /^Дії з карткою/ }).click();
+    await rowOf(page, ARRANGING)
+      .getByRole("button", { name: /^Дії з карткою/ })
+      .click();
     await rowOf(page, ARRANGING).getByRole("button", { name: "Уже вдома" }).click();
     const dialog = page.getByRole("dialog", { name: `${ARRANGING} уже вдома?` });
     await expect(dialog.getByText(/Скасувати це не можна/)).toBeVisible();

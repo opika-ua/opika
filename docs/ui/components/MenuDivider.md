@@ -6,7 +6,7 @@ File: `apps/web/src/ui/Menu.tsx`
 
 **Props and variants.** None.
 
-**Accessibility.** A `li` with `role="separator"`; not focusable.
+**Accessibility.** A decorative `li` (`aria-hidden`); not focusable.
 
 **Responsive.** Full width of the panel.
 
