@@ -26,6 +26,7 @@ import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, makeAnimal, testDatabaseUrl } from "@opika/db/test";
 import type { ShelterId } from "@opika/domain";
 import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
+import { expectTabRowSound } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.37";
@@ -247,4 +248,43 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     ).toBeVisible();
     await page.close();
   });
+
+  for (const size of [
+    { width: 360, height: 800 },
+    { width: 1440, height: 900 },
+  ]) {
+    test(`the «?» note opens in a card of its own at ${size.width}px: the tabs don't move, the card stays on screen, the targets are 44px`, async () => {
+      const page = await open("/kabinet/tvaryny");
+      await page.setViewportSize(size);
+      const tabs = page.getByRole("tablist");
+      const before = await tabs.boundingBox();
+      const trigger = page.getByRole("button", { name: "Як впорядковано список" });
+      const triggerBox = await trigger.boundingBox();
+      expect(triggerBox?.width).toBeGreaterThanOrEqual(44);
+      expect(triggerBox?.height).toBeGreaterThanOrEqual(44);
+
+      await trigger.click();
+      const card = page.getByRole("note", { name: "Як впорядковано список" });
+      await expect(card).toBeVisible();
+      expect(await tabs.boundingBox()).toEqual(before);
+      const box = await card.boundingBox();
+      expect(box?.x).toBeGreaterThanOrEqual(16);
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(size.width - 16);
+      const close = await card.getByRole("button", { name: "Закрити" }).boundingBox();
+      expect(close?.width).toBeGreaterThanOrEqual(44);
+      expect(close?.height).toBeGreaterThanOrEqual(44);
+
+      await page.keyboard.press("Escape");
+      await expect(card).toHaveCount(0);
+      await expect(trigger).toBeFocused();
+      await page.close();
+    });
+
+    test(`the status tabs row at ${size.width}px: at most 48px tall, no vertical scroll, a pointer on every tab, the focus ring inside the row`, async () => {
+      const page = await open("/kabinet/tvaryny");
+      await page.setViewportSize(size);
+      await expectTabRowSound(page, page.getByRole("tablist"));
+      await page.close();
+    });
+  }
 });

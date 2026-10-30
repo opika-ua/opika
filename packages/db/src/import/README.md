@@ -8,10 +8,9 @@ The XLSX is not in this repository; the owner downloads it and passes its path.
   checksum is not pinned is refused; a new edition is pinned by hand after reading its dry run.
 - Source page: mininfra.gov.ua, "Кодифікатор адміністративно-територіальних одиниць та територій
   територіальних громад".
-- Licence: the ministry page states none. The data.gov.ua record says "Creative Commons
-  Attribution" with no version (unverified) and was last modified in 2021, so treat it as stale.
-  The source is credited anyway, whatever the version: the site footer carries
-  `footer.dataCredit` (the codifier, Мінрозвитку, «Creative Commons Attribution»).
+- Licence: the ministry page states none. The data.gov.ua record says "Creative Commons Attribution"
+  with no version and was last modified in 2021. The credit, with the record's own licence link, is the
+  «Джерела даних» section of `/pro#dzherela-danykh` (`about.sources`); the footer carries none.
 - Re-import: quarterly, and when a rename affects a listed shelter.
 
 ```

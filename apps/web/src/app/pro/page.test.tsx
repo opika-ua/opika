@@ -7,6 +7,37 @@ describe("AboutPage", () => {
     expect(metadata.alternates?.canonical).toBe("/pro");
   });
 
+  it("credits the codifier in «Джерела даних», with both links named", () => {
+    const { container } = render(renderAboutPage(false));
+    const heading = screen.getByRole("heading", { level: 2, name: "Джерела даних" });
+    expect(heading.closest("section")?.id).toBe("dzherela-danykh");
+    expect(container.querySelector("#dzherela-danykh")).not.toBeNull();
+    expect(screen.getByText(/^Перелік населених пунктів узято з «Кодифікатора/).textContent).toBe(
+      "Перелік населених пунктів узято з «Кодифікатора адміністративно-територіальних одиниць та територій територіальних громад» (Мінрозвитку).",
+    );
+    expect(
+      screen.getByRole("link", { name: "Набір даних на data.gov.ua" }).getAttribute("href"),
+    ).toBe("https://data.gov.ua/dataset/43c2a113-a032-4c8a-a409-3b5e1660bb38");
+    expect(
+      screen
+        .getByRole("link", { name: "Ліцензія Creative Commons Attribution" })
+        .getAttribute("href"),
+    ).toBe("http://www.opendefinition.org/licenses/cc-by");
+    expect(screen.getByText("Редакція від 7 липня 2026 року (наказ № 1321).")).toBeTruthy();
+    expect(screen.getByText(/^Зміни: додано латинську транслітерацію/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/CC BY 4\.0/);
+  });
+
+  it("the section comes after the analytics paragraph and before the contact line", () => {
+    render(renderAboutPage(false));
+    const order = (el: HTMLElement) => el.compareDocumentPosition.bind(el);
+    const analytics = screen.getByText(/^Сайт збирає базову статистику/);
+    const heading = screen.getByRole("heading", { name: "Джерела даних" });
+    const contact = screen.getByText(/^Написати мені:/);
+    expect(order(analytics)(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(order(heading)(contact) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("renders the required subjects, including the analytics disclosure", () => {
     render(renderAboutPage(false));
 

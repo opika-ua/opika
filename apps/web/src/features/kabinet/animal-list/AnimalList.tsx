@@ -12,7 +12,7 @@ import { Button, LinkButton } from "../../../ui/Button";
 import { FilterTabs, filterTabId } from "../../../ui/FilterTabs";
 import { EmptyState, InlineStatus } from "../../../ui/feedback";
 import { Heading } from "../../../ui/Heading";
-import { InfoToggle } from "../../../ui/InfoToggle";
+import { InfoTip } from "../../../ui/InfoTip";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
@@ -500,6 +500,12 @@ export function AnimalList({
     return seconds > 0 ? seconds : null;
   };
 
+  const caption = captionOf(shelter.displayName, counts);
+  const captionSplit = caption.lastIndexOf(" · ") + 3;
+  const captionHead = caption.slice(0, captionSplit);
+  const captionTail = caption.slice(captionSplit);
+  const closeLabel = uk.kabinet.profileEdit.pause.close;
+
   const stale = filter.kind === "stale";
   const staleButton = stale ? (
     <Button variant="secondary" onClick={() => void loadFirst({ kind: "all" })}>
@@ -518,11 +524,15 @@ export function AnimalList({
           <Heading level={1} look="display-l" id="animal-list-title">
             {t.title}
           </Heading>
-          <div className="flex flex-wrap items-center gap-x-1">
-            <Text look="body" className="text-ink-2">
-              {captionOf(shelter.displayName, counts)}
-            </Text>
-            <InfoToggle label={t.orderInfoLabel}>{t.orderNote}</InfoToggle>
+          {/* «N карток ?» never splits; the shelter's name may wrap before it. */}
+          <div className="flex flex-wrap items-center gap-x-1 text-body text-ink-2">
+            <span>{captionHead}</span>
+            <span className="inline-flex items-center whitespace-nowrap">
+              {captionTail}
+              <InfoTip label={t.orderInfoLabel} closeLabel={closeLabel}>
+                {t.orderNote}
+              </InfoTip>
+            </span>
           </div>
         </div>
         {editable ? (

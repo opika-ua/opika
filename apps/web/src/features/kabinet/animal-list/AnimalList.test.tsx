@@ -209,7 +209,8 @@ describe("the page: header, rows, order note", () => {
   it("the title, the caption counting every card, and «Додати тварину» to K3's create page", async () => {
     renderList();
     expect(screen.getByRole("heading", { level: 1, name: "Тварини" })).toBeTruthy();
-    expect(screen.getByText("Притулок «Домівка» · 6 карток")).toBeTruthy();
+    expect(screen.getByText("Притулок «Домівка» ·")).toBeTruthy();
+    expect(screen.getByText("6 карток")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Додати тварину" }).getAttribute("href")).toBe(
       "/kabinet/tvaryny/nova",
     );
@@ -222,6 +223,8 @@ describe("the page: header, rows, order note", () => {
     await userEvent.click(info);
     expect(info.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText(NOTE)).toBeTruthy();
+    // It opens in a card of its own, not in the page's flow.
+    expect(screen.getByText(NOTE).closest("header")).toBeNull();
   });
 
   it("each row: the name, the status chip, the meta line and the line that says where it stands", () => {

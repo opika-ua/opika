@@ -285,7 +285,7 @@ async function dispatchStamped(
   }
 }
 
-/** True when the page does not scroll sideways (an accessibility floor, not a look); the one place every spec reads it. */
+/** True when the page does not scroll sideways (an accessibility floor, not a look). Used by the shelter and gallery-card specs; dev-ui and gallery-filters-v2 still read it inline. */
 export function noSidewaysScroll(page: Page): Promise<boolean> {
   return page.evaluate(
     () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
@@ -297,4 +297,48 @@ export async function expectMinTargetHeight(locator: Locator, minimum = 48): Pro
   const box = await locator.boundingBox();
   if (box === null) throw new Error("the control has no box (not rendered or hidden)");
   if (box.height < minimum) throw new Error(`target height ${box.height}px is under ${minimum}px`);
+}
+
+/**
+ * What every tab row must keep (tabs-polish): at most 48px tall, no vertical scroll, a pointer on
+ * every tab, and the keyboard focus ring of the first tab inside the row's clip.
+ */
+export async function expectTabRowSound(page: Page, row: Locator): Promise<void> {
+  const measured = await row.evaluate((node) => {
+    const tabs = [...node.querySelectorAll<HTMLElement>('[role="tab"]')];
+    const first = tabs[0];
+    if (first === undefined) throw new Error("no tab");
+    return {
+      height: node.getBoundingClientRect().height,
+      overflow: node.scrollHeight - node.clientHeight,
+      cursors: tabs.map((tab) => getComputedStyle(tab).cursor),
+    };
+  });
+  expect(measured.height).toBeLessThanOrEqual(48);
+  expect(measured.overflow).toBeLessThanOrEqual(0);
+  expect(measured.cursors.length).toBeGreaterThan(0);
+  for (const cursor of measured.cursors) expect(cursor).toBe("pointer");
+
+  // A key press first, so the programmatic focus counts as keyboard focus.
+  await page.keyboard.press("Shift");
+  await row.getByRole("tab").first().focus();
+  const ring = await row.evaluate((node) => {
+    const tab = node.querySelector<HTMLElement>('[role="tab"]');
+    if (tab === null) throw new Error("no tab");
+    const style = getComputedStyle(tab);
+    const rowStyle = getComputedStyle(node);
+    const reach = Number.parseFloat(style.outlineWidth) + Number.parseFloat(style.outlineOffset);
+    const clip = node.getBoundingClientRect();
+    const box = tab.getBoundingClientRect();
+    return {
+      drawn: style.outlineStyle !== "none" && Number.parseFloat(style.outlineWidth) > 0,
+      top: box.top - reach - (clip.top + Number.parseFloat(rowStyle.borderTopWidth)),
+      bottom: clip.bottom - Number.parseFloat(rowStyle.borderBottomWidth) - (box.bottom + reach),
+      left: box.left - reach - clip.left,
+    };
+  });
+  expect(ring.drawn).toBe(true);
+  expect(ring.top).toBeGreaterThanOrEqual(0);
+  expect(ring.bottom).toBeGreaterThanOrEqual(0);
+  expect(ring.left).toBeGreaterThanOrEqual(0);
 }

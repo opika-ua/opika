@@ -415,7 +415,12 @@ test.describe("the gallery's animal overlay", () => {
  * backdrop and clickable. Found by role and by what a pointer or Tab can reach, never by position.
  */
 test.describe("the contact reveal is the top layer over the animal overlay", () => {
-  test.use({ extraHTTPHeaders: ipHeaders(62) });
+  // One address per repetition (TEST-NET-1): the limiter is per IP, and `--repeat-each`, which is
+  // how a flake here is shown gone, loads the gallery thirty times a minute.
+  test.beforeEach(async ({ page }, testInfo) => {
+    const lastOctet = 1 + (testInfo.repeatEachIndex % 254);
+    await page.setExtraHTTPHeaders({ "x-forwarded-for": `192.0.2.${lastOctet}` });
+  });
 
   test("the overlay's ✕ and prev/next can be neither clicked nor tabbed to while the reveal is open", async ({
     page,
@@ -425,27 +430,42 @@ test.describe("the contact reveal is the top layer over the animal overlay", () 
     const overlayClose = dialog.getByRole("button", { name: uk.preview.close });
     const overlayNext = dialog.getByTestId("overlay-next");
     await expect(overlayClose).toBeVisible();
-    // Where the overlay's controls sit, read before the reveal covers them.
+    // The overlay rises in (`animate-panel-up`): a box read before that ends is a point the ✕ only
+    // passes through (538px down on #310's merge run, inside the reveal once it opened).
+    await dialog.evaluate((node) =>
+      Promise.all(node.getAnimations().map((animation) => animation.finished)).then(() => {}),
+    );
     const closeBox = await overlayClose.boundingBox();
-    const nextBox = await overlayNext.boundingBox();
-    if (closeBox === null || nextBox === null) throw new Error("overlay controls have no box");
+    if (closeBox === null) throw new Error("the overlay's ✕ has no box");
     // Held before the reveal opens: the reveal sits inside the overlay's DOM, with a ✕ of its own.
     const behind = [await overlayClose.elementHandle(), await overlayNext.elementHandle()];
 
     await dialog.getByRole("button", { name: uk.detail.giveHome }).click();
     const reveal = page.getByTestId("reveal-dialog");
-    await expect(reveal).toBeVisible();
+    await expect(reveal).toHaveAttribute("open", "");
+    expect(await reveal.evaluate((node) => node.matches(":modal")), "the reveal is modal").toBe(
+      true,
+    );
+    const revealDialog = await reveal.elementHandle();
 
-    // What a pointer hits at those points is the reveal's dialog or its backdrop, never the overlay's control.
-    for (const box of [closeBox, nextBox]) {
-      const hitOverlayControl = await page.evaluate(
-        ({ x, y }) => {
-          const hit = document.elementFromPoint(x, y);
-          return hit?.closest('[data-testid="pet-card-overlay-open"] [role="dialog"]') != null;
+    // At each overlay control's own centre a pointer hits the reveal or its backdrop, never the page
+    // behind. Behind a modal dialog nothing is hit-testable, so the backdrop reads as no element.
+    for (const control of behind) {
+      const hit = await page.evaluate(
+        ([target, top]) => {
+          const box = target.getBoundingClientRect();
+          const found = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+          if (found === null) return "the reveal's backdrop";
+          return top.contains(found)
+            ? "the reveal"
+            : `the page behind: ${found.outerHTML.slice(0, 80)}`;
         },
-        { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+        [control, revealDialog] as const,
       );
-      expect(hitOverlayControl, "a pointer cannot reach the overlay behind the reveal").toBe(false);
+      expect(
+        ["the reveal's backdrop", "the reveal"],
+        "a pointer cannot reach the overlay behind the reveal",
+      ).toContain(hit);
     }
 
     // Tab never reaches the overlay's controls: the reveal's own stops cycle (then the browser's
@@ -459,17 +479,20 @@ test.describe("the contact reveal is the top layer over the animal overlay", () 
       expect(onOverlayControl, `Tab stop ${i + 1} is not an overlay control`).toBe(false);
     }
 
-    // A click on the backdrop closes the reveal only; the overlay and its URL stay.
-    // A click where the overlay's ✕ sits must not reach it: the overlay and its URL stay either way.
-    await page.mouse.click(closeBox.x + closeBox.width / 2, closeBox.y + closeBox.height / 2);
-    await expect(dialog).toBeVisible();
-    expect(new URL(page.url()).pathname).toBe(href);
-    // A click on the backdrop closes the reveal only.
+    // A click on the backdrop closes the reveal only; the overlay, its URL and focus stay.
     await page.mouse.click(20, 540);
     await expect(reveal).toHaveCount(0);
     await expect(dialog).toBeVisible();
     expect(new URL(page.url()).pathname).toBe(href);
     await expect(dialog.getByRole("button", { name: uk.detail.giveHome })).toBeFocused();
+
+    // With the reveal open again, a click where the overlay's ✕ sits lands on the reveal or its
+    // backdrop, never on the ✕: the overlay and its URL stay. It may close the reveal, so it is last.
+    await dialog.getByRole("button", { name: uk.detail.giveHome }).click();
+    await expect(reveal).toHaveAttribute("open", "");
+    await page.mouse.click(closeBox.x + closeBox.width / 2, closeBox.y + closeBox.height / 2);
+    await expect(dialog).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe(href);
   });
 
   test("Esc and the reveal's ✕ close only the reveal", async ({ page }) => {

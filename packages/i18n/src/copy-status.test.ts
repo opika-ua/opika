@@ -2523,13 +2523,10 @@ describe("nationwide copy (owner-approved table, N5)", () => {
     );
   });
 
-  it("the long city list, the codifier credit and the short hromada", () => {
+  it("the long city list and the short hromada", () => {
     expect(uk.filters.showAllOptions).toBe("Показати всі ({count})");
     expect(uk.filters.findCity).toBe("Знайти місто");
     expect(uk.place.hromadaShort).toBe("{name} громада");
-    expect(uk.footer.dataCredit).toBe(
-      "Перелік населених пунктів: Кодифікатор адміністративно-територіальних одиниць (Мінрозвитку), Creative Commons Attribution.",
-    );
   });
 
   it("the two dead exhausted keys are gone", () => {
