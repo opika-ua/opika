@@ -148,13 +148,38 @@ describe("the gallery's animal overlay", () => {
     const { router, dialog } = await openOverlay();
     await openReveal(dialog);
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    // A browser's Esc inside a modal dialog: the key reaches the page unhandled, then the dialog closes.
+    const revealDialog = screen.getByTestId("reveal-dialog") as HTMLDialogElement;
+    fireEvent.keyDown(revealDialog, { key: "Escape" });
+    act(() => revealDialog.close());
     await waitFor(() => expect(screen.queryByTestId("reveal-dialog")).toBeNull());
     expect(router.back, "the overlay stays open").not.toHaveBeenCalled();
     expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Дати сімʼю" }));
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(router.back).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Reveal redesign: the reveal is a native modal dialog above the overlay, so the overlay's own
+   * keyboard handling must not act on keys pressed inside it. (That the overlay's ✕ and prev/next
+   * are inert and unreachable in a real browser is `gallery-animal-overlay.harness.ts`'s.)
+   */
+  it("with the reveal open, the overlay's arrows and Tab trap ignore keys pressed inside the reveal", async () => {
+    const { router, dialog } = await openOverlay();
+    const revealDialog = await openReveal(dialog);
+    const inside = within(revealDialog).getAllByRole("link")[0] as HTMLElement;
+    inside.focus();
+
+    fireEvent.keyDown(inside, { key: "ArrowRight" });
+    expect(router.replace, "no neighbour navigation behind the reveal").not.toHaveBeenCalled();
+
+    const tab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    inside.dispatchEvent(tab);
+    expect(tab.defaultPrevented, "the overlay's trap does not pull focus out of the reveal").toBe(
+      false,
+    );
+    expect(document.activeElement).toBe(inside);
   });
 
   it("back with the reveal open closes both: focus on the card, the page scrolls, no dialog left", async () => {

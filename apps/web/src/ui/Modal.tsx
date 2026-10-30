@@ -10,10 +10,11 @@ import { Icon } from "./Icon";
  * with `open`, and update your state in `onClose`. The title names it, the optional description is
  * its accessible description; the close button's name is yours (the kit holds no copy).
  *
- * Built on the same core as Sheet (`dialog-core.ts`). What a dialog still to migrate needs:
- * ContactRevealDialog: stacking over the animal
- * overlay works because both are in the top layer, last opened on top. AnimalOverlay: route-driven,
- * so pass `open` always and call `router.back()` in `onClose`.
+ * Built on the same core as Sheet (`dialog-core.ts`). `header` puts the dialog's lead (e.g. a
+ * thumbnail and a name) in the close button's row, with the title below it; the close button stays
+ * the only one. Stacking over the animal overlay works because both are in the top layer: the page
+ * behind, the overlay's own controls included, goes inert. AnimalOverlay is still to migrate:
+ * route-driven, so pass `open` always and call `router.back()` in `onClose`.
  */
 export type ModalProps = {
   open: boolean;
@@ -23,6 +24,11 @@ export type ModalProps = {
   closeLabel: string;
   /** While true Esc, the backdrop and the close button do nothing (a save is in flight and must show its answer). */
   locked?: boolean;
+  /** Replaces the title's place in the close button's row; the title then sits below that row. */
+  header?: ReactNode;
+  /** Harness hooks, as on Sheet. */
+  dialogTestId?: string;
+  closeTestId?: string;
   children: ReactNode;
 };
 
@@ -33,6 +39,9 @@ export function Modal({
   description,
   closeLabel,
   locked = false,
+  header,
+  dialogTestId,
+  closeTestId,
   children,
 }: ModalProps) {
   const id = useId();
@@ -43,6 +52,7 @@ export function Modal({
     // biome-ignore lint/a11y/useKeyWithClickEvents: Esc is native on a modal <dialog>; the click only handles the backdrop.
     <dialog
       ref={ref}
+      data-testid={dialogTestId}
       aria-labelledby={`${id}-title`}
       aria-describedby={description === undefined ? undefined : `${id}-desc`}
       onClick={locked ? undefined : onBackdropClick}
@@ -55,14 +65,23 @@ export function Modal({
       )}
     >
       <div className="flex flex-col gap-5 p-5 pb-safe tablet:p-8">
+        <span
+          aria-hidden="true"
+          className="mx-auto -mt-2 h-1 w-10 rounded-pill bg-muted tablet:hidden"
+        />
         <div className="flex items-start justify-between gap-4">
-          <h2 id={`${id}-title`} ref={titleRef} tabIndex={-1} className="text-title text-ink">
-            {title}
-          </h2>
+          {header === undefined ? (
+            <h2 id={`${id}-title`} ref={titleRef} tabIndex={-1} className="text-title text-ink">
+              {title}
+            </h2>
+          ) : (
+            <div className="min-w-0 flex-1">{header}</div>
+          )}
           <button
             type="button"
             aria-label={closeLabel}
             aria-disabled={locked || undefined}
+            data-testid={closeTestId}
             onClick={() => {
               if (!locked) ref.current?.close();
             }}
@@ -71,6 +90,11 @@ export function Modal({
             <Icon name="close" />
           </button>
         </div>
+        {header === undefined ? null : (
+          <h2 id={`${id}-title`} ref={titleRef} tabIndex={-1} className="text-title text-ink">
+            {title}
+          </h2>
+        )}
         {description === undefined ? null : (
           <p id={`${id}-desc`} className="text-body text-ink">
             {description}

@@ -52,8 +52,7 @@ test.describe(`${ROUTE} inline reveal`, () => {
 
     const dialog = page.getByTestId("reveal-dialog");
     await expect(dialog).toBeVisible();
-    await expect(dialog).toHaveAttribute("role", "dialog");
-    await expect(dialog).toHaveAttribute("aria-modal", "true");
+    await expect(dialog).toHaveJSProperty("open", true);
 
     // Real data, not a placeholder - the shelter's actual seeded name
     // appears once the reveal resolves.
@@ -67,8 +66,8 @@ test.describe(`${ROUTE} inline reveal`, () => {
 
     // The dialog names the animal that was actually on top when «Написати»
     // was activated, transcribed from the design's own template
-    // (`uk.reveal.youAskedAbout`), not compared against the constant.
-    await expect(dialog.getByText(`Ви запитали про тварину на імʼя ${cardName}.`)).toBeVisible();
+    // (the header row's bold name), not compared against the constant.
+    await expect(dialog.getByText(cardName ?? "", { exact: true })).toBeVisible();
 
     // Real end-to-end proof that `cityNames` actually reaches the deck's
     // own reveal, not just that the prop compiles: `GortatyPage`'s server
@@ -194,8 +193,8 @@ test.describe(`${ROUTE} inline reveal`, () => {
 
     const dialog = page.getByTestId("reveal-dialog");
     await expect(dialog).toBeVisible();
-    await expect(dialog).toHaveAttribute("role", "dialog");
-    await expect(dialog.getByText(`Ви запитали про тварину на імʼя ${cardName}.`)).toBeVisible();
+    await expect(dialog).toHaveJSProperty("open", true);
+    await expect(dialog.getByText(cardName ?? "", { exact: true })).toBeVisible();
     // Real data, not a placeholder.
     await expect(dialog.locator("text=/Притулок/").first()).toBeVisible();
   });
@@ -302,9 +301,7 @@ test.describe(`${ROUTE} inline reveal`, () => {
     await expect(dialog).toBeVisible();
     // The dialog names the *first* card - the only reveal that was ever
     // actually allowed to start.
-    await expect(
-      dialog.getByText(`Ви запитали про тварину на імʼя ${firstCardName}.`),
-    ).toBeVisible();
+    await expect(dialog.getByText(firstCardName, { exact: true })).toBeVisible();
 
     expect(
       revealRequests,

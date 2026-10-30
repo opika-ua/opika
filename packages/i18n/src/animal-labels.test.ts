@@ -1,6 +1,13 @@
 import { AGE_BUCKETS, SIZE_BUCKETS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { ageBucketLabel, ageWordFor, sexWordFor, sizeLabel, speciesWordFor } from "./animal-labels";
+import {
+  ageBucketLabel,
+  ageChipWordFor,
+  ageWordFor,
+  sexWordFor,
+  sizeLabel,
+  speciesWordFor,
+} from "./animal-labels";
 
 describe("ageBucketLabel", () => {
   it("returns a distinct, non-empty word for every bucket", () => {
@@ -47,6 +54,26 @@ describe("ageWordFor, each sex × bucket", () => {
 
   it("the masculine words are the card's long-standing ones, unchanged", () => {
     expect(AGE_BUCKETS.map(ageBucketLabel)).toEqual(["малюк", "молодий", "дорослий", "літній"]);
+  });
+});
+
+/** The pet card's chip: the same agreement as `ageWordFor`, capitalised. Every sex × bucket. */
+describe("ageChipWordFor, each sex × bucket", () => {
+  it.each([
+    ["male", "baby", "Малюк"],
+    ["male", "young", "Молодий"],
+    ["male", "adult", "Дорослий"],
+    ["male", "senior", "Літній"],
+    ["female", "baby", "Малючка"],
+    ["female", "young", "Молода"],
+    ["female", "adult", "Доросла"],
+    ["female", "senior", "Літня"],
+    ["unknown", "baby", "Малюк"],
+    ["unknown", "young", "Молодий"],
+    ["unknown", "adult", "Дорослий"],
+    ["unknown", "senior", "Літній"],
+  ] as const)("%s, %s → «%s»", (sex, bucket, word) => {
+    expect(ageChipWordFor(bucket, sex)).toBe(word);
   });
 });
 

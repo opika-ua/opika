@@ -7,7 +7,7 @@ import {
   ShelterIdSchema,
 } from "@opika/domain";
 import { ORPCError } from "@orpc/client";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RevealFlow } from "./RevealFlow";
 
@@ -129,8 +129,10 @@ describe("RevealFlow's contact rows", () => {
     // Frames.dc.html` show "+380 67 123 45 67" above "@domivka_brovary").
     // Every seeded shelter has exactly this shape, so a regression here is
     // invisible to any test that only checks "some contact appeared".
-    const rows = screen.getAllByTestId("reveal-contact-row").map((row) => row.textContent);
-    expect(rows).toEqual(["+380671234567", "@domivka_brovary"]);
+    const rows = screen
+      .getAllByTestId("reveal-contact-row")
+      .map((row) => row.querySelector("a")?.textContent);
+    expect(rows).toEqual(["Подзвонити+380671234567", "Написати в Telegram@domivka_brovary"]);
   });
 
   it("still shows the details for a shelter whose primary channel has no action button", async () => {
@@ -147,9 +149,21 @@ describe("RevealFlow's contact rows", () => {
     // The reveal has already been spent against the adopter's 30-per-day
     // limit by this point. A dialog with no contact details in it would be
     // the worst possible outcome of that trade.
-    const rows = screen.getAllByTestId("reveal-contact-row").map((row) => row.textContent);
-    expect(rows).toEqual(["https://domivka.example", "Viber · +380671234567"]);
-    expect(screen.queryByTestId("reveal-primary-action")).toBeNull();
+    const rows = screen
+      .getAllByTestId("reveal-contact-row")
+      .map((row) => row.querySelector("a")?.textContent);
+    expect(rows).toEqual(["Відкрити сайтhttps://domivka.example", "Написати у Viber+380671234567"]);
+    // Viber opens the app's own chat; a website is opened, not copied (no copy button on that row).
+    const [websiteRow, viberRow] = screen.getAllByTestId("reveal-contact-row");
+    expect(
+      within(viberRow as HTMLElement)
+        .getByRole("link")
+        .getAttribute("href"),
+    ).toBe("viber://chat?number=%2B380671234567");
+    expect(within(websiteRow as HTMLElement).queryByRole("button")).toBeNull();
+    expect(
+      within(viberRow as HTMLElement).getByRole("button", { name: "Копіювати номер у Viber" }),
+    ).toBeTruthy();
   });
 
   it("offers a tel: action for a phone-primary shelter and a t.me link for a Telegram-primary one", async () => {
@@ -162,7 +176,7 @@ describe("RevealFlow's contact rows", () => {
 
     const call = screen.getByTestId("reveal-primary-action");
     expect(call.getAttribute("href")).toBe("tel:+380671234567");
-    expect(call.textContent).toBe("Подзвонити");
+    expect(within(call).getByText("Подзвонити")).toBeTruthy();
     phoneOnly.unmount();
 
     revealCall.mockResolvedValue(
@@ -175,7 +189,7 @@ describe("RevealFlow's contact rows", () => {
     const write = screen.getByTestId("reveal-primary-action");
     expect(write.getAttribute("href")).toBe("https://t.me/domivka_brovary");
     // Transcribed from the mock's R1 frame, not read back from `uk.reveal`.
-    expect(write.textContent).toBe("Написати в Telegram");
+    expect(within(write).getByText("Написати в Telegram")).toBeTruthy();
   });
 });
 
@@ -228,9 +242,11 @@ describe("RevealFlow's dialog semantics", () => {
     fireEvent.click(screen.getByTestId("reveal-trigger"));
     await screen.findByTestId("reveal-dialog");
 
-    const dialog = screen.getByRole("dialog", { name: "Ось як звʼязатися з притулком." });
+    const dialog = screen.getByRole("dialog", { name: "Як звʼязатися з притулком" });
     expect(dialog).toBeTruthy();
-    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("heading", { level: 2 })),
+    );
   });
 
   it("names the dialog and moves focus into it in the error state too", async () => {
@@ -243,7 +259,9 @@ describe("RevealFlow's dialog semantics", () => {
     // `aria-labelledby` dangles: an unnamed modal, with focus left on the
     // trigger button behind the overlay.
     expect(screen.getByRole("dialog", { name: "Збій на боці сайту." })).toBeTruthy();
-    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("heading", { level: 2 })),
+    );
   });
 
   /**
@@ -271,7 +289,9 @@ describe("RevealFlow's dialog semantics", () => {
       ),
     ).toBeTruthy();
     expect(screen.queryByTestId("reveal-retry")).toBeNull();
-    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("heading", { level: 2 })),
+    );
   });
 
   /**
@@ -303,7 +323,9 @@ describe("RevealFlow's dialog semantics", () => {
     expect(screen.queryByText("Це не ваша помилка і не помилка притулку.")).toBeNull();
     const retry = screen.getByTestId("reveal-retry");
     expect(retry.textContent).toBe("Спробувати ще раз");
-    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("heading", { level: 2 })),
+    );
   });
 
   /**
@@ -358,7 +380,8 @@ describe("RevealFlow's dialog semantics", () => {
     await screen.findByTestId("reveal-dialog");
     expect(document.body.style.overflow).toBe("hidden");
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    // The platform's Esc ends in dialog.close() (happy-dom has no key handling of its own).
+    act(() => (screen.getByTestId("reveal-dialog") as HTMLDialogElement).close());
 
     await waitFor(() => expect(screen.queryByTestId("reveal-dialog")).toBeNull());
     expect(document.activeElement).toBe(trigger);
@@ -398,23 +421,5 @@ describe("RevealFlow's dialog semantics", () => {
     observer.disconnect();
 
     expect(overflowAtFirstSight).toBe("hidden");
-  });
-
-  it("wraps Shift+Tab from the heading back to the last control instead of leaking to the page behind", async () => {
-    revealCall.mockResolvedValue(
-      revealFor({ primary: { kind: "phone", e164: "+380671234567" }, additional: [] }),
-    );
-    renderFlow();
-    fireEvent.click(screen.getByTestId("reveal-trigger"));
-    await screen.findByTestId("reveal-dialog");
-    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
-
-    // The heading carries tabindex="-1", so it is not in the trap's own
-    // focusable list: comparing the active element against `first` alone
-    // matched nothing here and let the browser walk backwards out of the
-    // dialog onto the trigger button.
-    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
-
-    expect(document.activeElement).toBe(screen.getByTestId("reveal-back-to-gallery"));
   });
 });
