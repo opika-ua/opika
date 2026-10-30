@@ -114,7 +114,7 @@ export function AnimalDetailContent({
       <div className="flex flex-col gap-4 max-desktop:contents">
         <div className="flex flex-col gap-6 desktop:flex-row desktop:items-start desktop:justify-between max-desktop:contents">
           <div className="flex min-w-0 flex-col gap-1">
-            <Heading level={1} look="display-l" className="desktop:text-display-xl">
+            <Heading level={1} look="display-l" className="break-words desktop:text-display-xl">
               {animal.name}
             </Heading>
             <MetaLine parts={metaParts(animal)} />
