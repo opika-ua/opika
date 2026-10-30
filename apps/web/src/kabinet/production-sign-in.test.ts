@@ -326,7 +326,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // `shell.newTab` (owner-approved 2026-10-29).
     // 684 with kabinet UX round 2's list strings (`animalList.actions.viewOnSite`,
     // `orderInfoLabel`, `row.menuLabel`; owner-approved 2026-10-29).
-    expect(pending.length + written.length).toBe(684);
+    // 693 with kabinet UX round 2's Притулок sub-tabs and save bar: `profile.viewOnSite`, six
+    // `profileTabs.*` and two `profileEdit.saveBar.*` (owner-approved 2026-10-29).
+    expect(pending.length + written.length).toBe(693);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

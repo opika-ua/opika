@@ -210,7 +210,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       // 25 with addressNote back (row 57, his replacement, 2026-10-14): deleted as
       // a false claim (a map no adopter sees), restored once adopters receive
       // the city only (EM-Q10).
-      profile: 26,
+      profile: 27,
       profileStatus: ["paused", "pending", "rejected", "suspended", "under_review", "verified"],
       profileChannel: ["email", "phone", "telegram", "viber", "website"],
       support: ["body", "exit", "exitFailed", "signOutDisabled", "title", "viewingAs"],
@@ -344,6 +344,9 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
   const K4_FINAL: Record<string, string> = {
     // k4-copy-uk.md
     "profileEdit.actions.save": "Зберегти",
+    // Kabinet UX round 2 (owner-approved, 2026-10-29): the page save bar.
+    "profileEdit.saveBar.unsaved": "Є незбережені зміни",
+    "profileEdit.saveBar.cancel": "Скасувати",
     // k4-copy-uk.md
     "profileEdit.actions.cancel": "Скасувати зміни",
     // k4-copy-uk.md
@@ -1425,7 +1428,7 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
     // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
     // logo.* section (his final text, 2026-10-27).
-    expect(k4.length).toBe(84);
+    expect(k4.length).toBe(86);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });
@@ -2530,5 +2533,23 @@ describe("nationwide copy (owner-approved table, N5)", () => {
   it("the two dead exhausted keys are gone", () => {
     expect(Object.keys(uk.exhausted)).not.toContain("addNearbyCities");
     expect(Object.keys(uk.exhausted)).not.toContain("footnote");
+  });
+});
+
+/** Kabinet UX round 2 (owner-approved, 2026-10-29): the Притулок sub-tabs and links, transcribed. */
+describe("kabinet UX round 2 copy (the owner's text)", () => {
+  it.each([
+    [uk.kabinet.profileTabs.label, "Розділи притулку"],
+    [uk.kabinet.profileTabs.profile, "Профіль"],
+    [uk.kabinet.profileTabs.verification, "Перевірка"],
+    [uk.kabinet.profileTabs.account, "Акаунт"],
+    [uk.kabinet.profileTabs.profileNote, "Те, що бачать на сторінці притулку."],
+    [uk.kabinet.profileTabs.view, "Переглянути"],
+    [uk.kabinet.profile.viewOnSite, "Сторінка притулку на сайті"],
+    [uk.kabinet.shell.viewSite, "Переглянути сайт"],
+    [uk.kabinet.shell.newTab, "(відкриється в новій вкладці)"],
+    [uk.kabinet.shell.label, "Кабінет"],
+  ])("%s", (actual, expected) => {
+    expect(actual).toBe(expected);
   });
 });
