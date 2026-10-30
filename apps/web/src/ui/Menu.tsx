@@ -15,8 +15,10 @@ import { Icon } from "./Icon";
 export type MenuProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The trigger's visible text; a chevron is added. */
+  /** The trigger's visible text (a chevron is added), or, with `trigger="icon"`, its accessible name. */
   label: string;
+  /** `text` (default): the label and a chevron. `icon`: a ⋯ button, 48px square, named by `label`. */
+  trigger?: "text" | "icon";
   /** Id of the trigger, so the page can return focus to it. */
   triggerId?: string;
   /** Ids that give the trigger its context (a screen reader hears whose «Ще» it is). */
@@ -33,6 +35,7 @@ export function Menu({
   open,
   onOpenChange,
   label,
+  trigger = "text",
   triggerId,
   describedBy,
   align = "end",
@@ -81,14 +84,24 @@ export function Menu({
         aria-controls={open ? panelId : undefined}
         aria-describedby={describedBy}
         onClick={() => onOpenChange(!open)}
-        className={buttonClass("ghost")}
+        aria-label={trigger === "icon" ? label : undefined}
+        className={trigger === "icon" ? buttonClass("icon") : buttonClass("ghost")}
       >
-        {label}
-        <Icon
-          name="chevron-down"
-          size="md"
-          className={cx("transition-transform duration-(--duration-quick)", open && "rotate-180")}
-        />
+        {trigger === "icon" ? (
+          <Icon name="more" size="md" />
+        ) : (
+          <>
+            {label}
+            <Icon
+              name="chevron-down"
+              size="md"
+              className={cx(
+                "transition-transform duration-(--duration-quick)",
+                open && "rotate-180",
+              )}
+            />
+          </>
+        )}
       </button>
       {open ? (
         <ul
@@ -105,7 +118,21 @@ export function Menu({
   );
 }
 
-/** One entry of a Menu: put a ghost Button or LinkButton inside with `className="w-full justify-start"`. */
-export function MenuItem({ children }: { children: ReactNode }) {
-  return <li>{children}</li>;
+/**
+ * One entry of a Menu: put a ghost Button or LinkButton inside with `className="w-full justify-start"`.
+ * `tone="danger"` colours it with the danger token (the one destructive entry, after a divider).
+ */
+export function MenuItem({
+  children,
+  tone = "default",
+}: {
+  children: ReactNode;
+  tone?: "default" | "danger";
+}) {
+  return <li className={tone === "danger" ? "[&>*]:text-danger" : undefined}>{children}</li>;
+}
+
+/** A thin rule between groups of entries (the safe moves, then the destructive one). */
+export function MenuDivider() {
+  return <li role="separator" className="my-1 h-0.5 bg-line" />;
 }

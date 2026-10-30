@@ -76,6 +76,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [Sheet](components/Sheet.md) | `Sheet.tsx` | A bottom sheet with its own trigger. |
 | [Menu](components/Menu.md) | `Menu.tsx` | A short list of actions under a ghost button (a list row's «Ще»). |
 | [MenuItem](components/MenuItem.md) | `Menu.tsx` | One entry of a Menu. |
+| [InfoToggle](components/InfoToggle.md) | `InfoToggle.tsx` | A «?» button that reveals a short explanation in the flow. |
 | [Popover](components/Popover.md) | `Popover.tsx` | A panel under its trigger (the filter selectors): chip or field trigger, list or pills. |
 | [Combobox](components/Combobox.md) | `Combobox.tsx` | A select-only search field: async options, the value must come from the list; a list under the field, a full-screen dialog on phones. |
 | [Toast](components/Toast.md) | `Toast.tsx` | One toast, presentational. `ToastProvider` renders these; it is exported for the showcase and tests. |

@@ -5,7 +5,7 @@ import { Button } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
 import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../ui/Combobox";
 import { Icon } from "../../../ui/Icon";
-import { Menu, MenuItem } from "../../../ui/Menu";
+import { Menu, MenuDivider, MenuItem } from "../../../ui/Menu";
 import { Modal } from "../../../ui/Modal";
 import { Popover } from "../../../ui/Popover";
 import { Sheet } from "../../../ui/Sheet";
@@ -84,6 +84,25 @@ export function MenuDemo() {
         </Button>
       </MenuItem>
       <MenuItem>
+        <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
+          Withdraw
+        </Button>
+      </MenuItem>
+    </Menu>
+  );
+}
+
+export function MenuIconDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Menu open={open} onOpenChange={setOpen} label="Actions for the card Murka" trigger="icon">
+      <MenuItem>
+        <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
+          Edit
+        </Button>
+      </MenuItem>
+      <MenuDivider />
+      <MenuItem tone="danger">
         <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
           Withdraw
         </Button>
