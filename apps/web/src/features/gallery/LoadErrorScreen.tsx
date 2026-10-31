@@ -60,7 +60,7 @@ export function LoadErrorScreen({
               look="display-l"
               ref={headingRef}
               tabIndex={-1}
-              className="break-words"
+              className="wrap-anywhere"
             >
               {title}
             </Heading>
