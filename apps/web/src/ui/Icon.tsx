@@ -15,16 +15,6 @@ const PATHS = {
       <circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none" />
     </>
   ),
-  /** Six dots: a drag handle. */
-  grip: (
-    <>
-      {[9, 15].flatMap((x) =>
-        [5, 12, 19].map((y) => (
-          <circle key={`${x}-${y}`} cx={x} cy={y} r="1.5" fill="currentColor" stroke="none" />
-        )),
-      )}
-    </>
-  ),
   close: <path d="M6 6L18 18M18 6L6 18" />,
   check: <path d="M5 12.5L10 17.5L19 7" />,
   plus: <path d="M12 5V19M5 12H19" />,

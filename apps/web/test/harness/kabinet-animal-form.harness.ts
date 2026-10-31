@@ -350,7 +350,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await page.close();
   });
 
-  test("the photo manager at 360: controls are at least 44 px, nothing overflows sideways, the ⋯ menu opens", async () => {
+  const withThreePhotos = async () => {
     if (draftId === undefined) throw new Error("no draft from the first test");
     const id = draftId;
     const draft = await animalRepo(db).findById(id);
@@ -370,15 +370,86 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       },
       row.cityId as CityId,
     );
+  };
 
+  /** Set `PHOTO_SCREENSHOT_DIR` to keep the pictures for a PR; unset, nothing is written. */
+  const shot = async (page: Page, name: string) => {
+    const dir = process.env.PHOTO_SCREENSHOT_DIR;
+    if (dir !== undefined && dir !== "") await page.screenshot({ path: `${dir}/${name}.png` });
+  };
+
+  test("the photo manager at 1440: no drag handle, tiles at least 150 px wide, all in one row", async () => {
+    await withThreePhotos();
     const page = await open(`/kabinet/tvaryny/${draftId}`);
-    await page.setViewportSize({ width: 360, height: 800 });
+    await page.setViewportSize({ width: 1440, height: 900 });
     await openTab(page, /^Фото/);
-    for (const name of ["Дії з фото 2", "Перетягнути фото 2"]) {
-      const box = await page.getByRole("button", { name }).boundingBox();
+    await expect(page.getByRole("button", { name: /^Перетягнути фото/ })).toHaveCount(0);
+    await expect(page.getByText("Перетягніть, щоб змінити порядок.")).toBeVisible();
+    for (const n of [1, 2, 3]) {
+      const box = await page.locator(`[data-photo-slot="${n - 1}"]`).boundingBox();
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(150);
+    }
+    const firstRow = await page.locator("[data-photo-slot]").evaluateAll((tiles) => {
+      const tops = tiles.map((tile) => Math.round(tile.getBoundingClientRect().top));
+      return tops.filter((top) => top === tops[0]).length;
+    });
+    expect(firstRow).toBe(3);
+    await shot(page, "photo-manager-1440");
+    await page.close();
+  });
+
+  test("the photo manager at 393: ⋯ targets are 44 px, a held finger lifts a photo, a quick swipe does not", async () => {
+    await withThreePhotos();
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    await page.setViewportSize({ width: 393, height: 852 });
+    await openTab(page, /^Фото/);
+    for (const n of [1, 2, 3]) {
+      const box = await page.getByRole("button", { name: `Дії з фото ${n}` }).boundingBox();
       expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     }
+    await shot(page, "photo-manager-393");
+
+    const tile = await page.getByRole("group", { name: "Фото 1 з 3" }).boundingBox();
+    if (tile === null) throw new Error("no tile");
+    const x = tile.x + tile.width / 2;
+    const y = tile.y + tile.height / 2;
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (
+      type: "touchStart" | "touchMove" | "touchEnd",
+      point: { x: number; y: number } | null,
+    ) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: point === null ? [] : [point],
+      });
+    const status = page.getByRole("status").filter({ hasText: /підняте|скасовано/ });
+
+    // A swipe moves first, so the page scrolls and the photo stays down.
+    await touch("touchStart", { x, y });
+    await touch("touchMove", { x, y: y - 40 });
+    await page.waitForTimeout(500);
+    await touch("touchEnd", null);
+    await expect(status).toHaveCount(0);
+
+    // A hold lifts it; the lift is announced, and letting go where it started changes nothing.
+    await touch("touchStart", { x, y });
+    await expect(status).toContainText("Фото 1 підняте", { timeout: 3000 });
+    await touch("touchMove", { x: x + 40, y: y + 20 });
+    await shot(page, "photo-manager-393-lifted");
+    await touch("touchEnd", null);
+    await expect(status).toContainText("Переміщення скасовано.");
+    await page.close();
+  });
+
+  test("the photo manager at 360: nothing overflows sideways and the ⋯ menu opens", async () => {
+    await withThreePhotos();
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    await page.setViewportSize({ width: 360, height: 800 });
+    await openTab(page, /^Фото/);
+    const box = await page.getByRole("button", { name: "Дії з фото 2" }).boundingBox();
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );

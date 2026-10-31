@@ -4,7 +4,7 @@ File: `apps/web/src/ui/FormSection.tsx`
 
 **Purpose.** One named section of a long form: a card with a heading, an optional step number and an optional one-line description. Every section stays on the page, so the form reads as plain anchored content without JS.
 
-**Props and variants.** `id` (the anchor; the heading is `${id}-title`), `title`, `step` (1-based number badge, decoration only), `description`, `className` (layout only).
+**Props and variants.** `id` (the anchor; the heading is `${id}-title`), `title`, `step` (1-based number badge, decoration only), `titleExtra` (an InfoTip or a counter beside the heading, outside it so the heading keeps its name), `description`, `className` (layout only).
 
 **Accessibility.** A `section` named by its heading (a region landmark). The heading has `tabindex=-1` so a page can send focus to it (after a failed submit, or a jump from `FormSteps`). The step number is `aria-hidden`: the order in the document is the order of the steps.
 

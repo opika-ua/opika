@@ -5,7 +5,6 @@ import {
   isDiscoverable,
   kyivCalendarDateOf,
   MAX_ANIMAL_PHOTOS,
-  PHOTO_MAX_EDGE_PX,
   type PublishGap,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
@@ -19,6 +18,7 @@ import { ErrorSummary } from "../../../ui/ErrorSummary";
 import { FormSection } from "../../../ui/FormSection";
 import { InlineStatus } from "../../../ui/feedback";
 import { Heading } from "../../../ui/Heading";
+import { InfoTip } from "../../../ui/InfoTip";
 import { StickyActionBar } from "../../../ui/StickyActionBar";
 import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
@@ -51,6 +51,7 @@ import { MissingPanel, TAB_LABEL } from "./MissingPanel";
 import { PhotoSection } from "./PhotoSection";
 import { GAP_TAB, GAP_TARGET, gapsOf, tabStatusOf } from "./publish-gaps";
 import { TabLabel } from "./TabLabel";
+import { useFinePointer } from "./use-fine-pointer";
 
 /**
  * K3 · add / edit animal (KABINET K3; `docs/k3-copy-sheet.md`). One form in five tabs (`?tab=`):
@@ -201,6 +202,7 @@ export function AnimalForm({
   const isDraft = listingKind === "new" || listingKind === "draft";
   const problems = [...problemsOf(values, listingKind, now), ...serverProblems];
   const shownProblems = attempted ? problems : problems.filter((p) => touched.has(p.field));
+  const finePointer = useFinePointer();
   const creatable = values.name.trim() !== "" && values.species !== null;
   const dirty = dirtyOf(view, values, initialValuesRef.current);
   const gaps = gapsOf(values, view?.photos.length ?? 0);
@@ -560,21 +562,29 @@ export function AnimalForm({
     foto: (
       <FormSection
         id="photos"
-        title={
-          <>
-            {withTag(t.photos.title, required.includes("photo"))}
-            {view === null ? null : (
-              <span className="text-caption font-normal text-ink-2">
-                {" "}
+        title={withTag(t.photos.title, required.includes("photo"))}
+        titleExtra={
+          view === null ? undefined : (
+            <>
+              <InfoTip label={t.photos.infoLabel} closeLabel={uk.kabinet.profileEdit.pause.close}>
+                {t.photos.infoText}
+              </InfoTip>
+              <span className="text-body text-ink-2">
                 {fillTemplate(t.photos.counter, {
                   n: new Intl.NumberFormat("uk").format(view.photos.length),
                   max: new Intl.NumberFormat("uk").format(MAX_ANIMAL_PHOTOS),
                 })}
               </span>
-            )}
-          </>
+            </>
+          )
         }
-        description={view === null ? undefined : t.photos.orderHint}
+        description={
+          view === null
+            ? undefined
+            : finePointer
+              ? t.photos.orderHintMouse
+              : t.photos.orderHintTouch
+        }
       >
         {view !== null ? (
           <PhotoSection
@@ -586,15 +596,9 @@ export function AnimalForm({
             reload={reload}
             {...(compress === undefined ? {} : { compress })}
           />
-        ) : (
-          // Photos belong to a saved draft: say what makes one, in his words.
-          <Text look="hint">
-            {creatable
-              ? fillTemplate(t.photos.howItWorks, {
-                  px: new Intl.NumberFormat("uk").format(PHOTO_MAX_EDGE_PX),
-                })
-              : t.draft.notSavedYet}
-          </Text>
+        ) : // Photos belong to a saved draft: say what makes one, in his words.
+        creatable ? null : (
+          <Text look="hint">{t.draft.notSavedYet}</Text>
         )}
       </FormSection>
     ),

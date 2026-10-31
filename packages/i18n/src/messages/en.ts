@@ -892,20 +892,19 @@ export const en = {
       photos: {
         title: "Photos",
         counter: "{n} of {max}",
-        orderHint: "The first photo is the cover. Drag to change the order.",
+        orderHintMouse: "Drag to change the order.",
+        orderHintTouch: "Press and hold a photo to drag it.",
+        infoLabel: "About photos",
+        infoText:
+          "Any photo from a phone or computer will do. Large photos are compressed before they are sent, so less mobile data is used. The place the photo was taken and other hidden data are removed automatically.",
         addTile: "Add a photo",
         addLeft: "{left} more",
         addDrop: "you can drop files here",
         menuLabel: "Actions for photo {n}",
-        dragHandle: "Drag photo {n}",
         dragPickUp: "Photo {n} picked up. Position {pos} of {total}.",
         dragMove: "Position {pos} of {total}.",
         dragDrop: "Photo {n} at position {pos} of {total}.",
         dragCancel: "Move cancelled.",
-        addHint: "Any photo this phone or browser can open.",
-        howItWorks:
-          "The first photo is the cover; drag a photo to change the order. At least one is needed to publish. Large photos are shrunk on the device to {px} pixels before sending, which saves mobile data.",
-        privacyNote: "Location data and other hidden data are removed from photos.",
         preparing: "Preparing the photo…",
         uploading: "Uploading the photo…",
         uploadingProgress: "Uploading · {percent} · {sent} of {total} MB",
@@ -929,7 +928,8 @@ export const en = {
         conflict: "The photos changed in another window. Here is the current set; try again.",
         removedStillReachable:
           "The photo is gone from the card. The file itself isn't deleted right away; if it needs to go completely, write to me.",
-        dateMoves: "On a card people can see, any photo change updates the «Updated» date.",
+        dateNote:
+          "Every change to the photos updates the date on the card, and it moves back among the freshest.",
       },
       photoErrors: {
         heicUnsupported:
