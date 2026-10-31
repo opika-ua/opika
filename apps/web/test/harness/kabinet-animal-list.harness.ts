@@ -213,7 +213,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     await rowOf(page, ARRANGING)
       .getByRole("button", { name: /^Дії з карткою/ })
       .click();
-    await rowOf(page, ARRANGING).getByRole("button", { name: "Уже вдома" }).click();
+    await page.getByRole("button", { name: "Уже вдома" }).click();
     const dialog = page.getByRole("dialog", { name: `${ARRANGING} уже вдома?` });
     await expect(dialog.getByText(/Скасувати це не можна/)).toBeVisible();
     await dialog.getByRole("button", { name: "Так, уже вдома" }).click();
@@ -231,7 +231,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     const page = await open("/kabinet/tvaryny");
     const row = rowOf(page, LEAVING);
     await row.getByRole("button", { name: /^Дії з карткою/ }).click();
-    await row.getByRole("button", { name: "Зняти з показу" }).click();
+    await page.getByRole("button", { name: "Зняти з показу" }).click();
     const dialog = page.getByRole("dialog", { name: `Зняти з показу: ${LEAVING}?` });
     await dialog.getByLabel("Причина").selectOption({ label: "додано помилково" });
     await dialog.getByLabel(/Коментар/).fill("дубль картки");
