@@ -156,11 +156,14 @@ export const en = {
     inProgress: "In progress",
     registryConfirmed: "Confirmed by the national pet registry",
     shelterDeclared: "The shelter's data",
-    doneShelterDeclared: "Done, according to the shelter's data",
+    statusDone: "Done",
+    statusNotDone: "Not done",
+    statusUnknown: "Unknown",
+    sourceShelter: "According to the shelter",
     rabies: "Rabies",
     vaccination: "Core vaccination",
     spayNeuter: "Spay/neuter",
-    registry: "The national pet registry",
+    registry: "According to the national pet registry",
   },
 
   // --- Location ---

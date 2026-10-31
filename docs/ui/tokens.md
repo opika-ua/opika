@@ -48,6 +48,7 @@ A card's or a shelter's state, as a soft tint with its own text colour (`Chip ki
 | `text-body-l` | 20 / 1.4 | 400 | lead text; bold for h3 |
 | `text-body` | 16 / 1.4 | 400 | body |
 | `text-label` | 16 / 1.4 | 600 | labels, field titles, buttons |
+| `text-chip` | 15 / 1.4 | 600 | the pet card's fact chips |
 | `text-caption` | 14 / 1.4 | 600 | hints, captions, tags |
 
 Fonts (self-hosted through `next/font/local` in `app/fonts.ts`, both SIL OFL 1.1, no on-page credit):

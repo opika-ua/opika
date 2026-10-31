@@ -97,6 +97,10 @@
   --text-label--line-height: 1.4;
   --text-label--font-weight: 600;
   --text-label--letter-spacing: 0;
+  --text-chip: 15px;
+  --text-chip--line-height: 1.4;
+  --text-chip--font-weight: 600;
+  --text-chip--letter-spacing: 0;
   --text-caption: 14px;
   --text-caption--line-height: 1.4;
   --text-caption--font-weight: 600;

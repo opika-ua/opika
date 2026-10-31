@@ -344,46 +344,124 @@ describe("AnimalDetailScreen – the coat length chip", () => {
   });
 });
 
+const REGISTRY = {
+  source: "registry",
+  state: "confirmed",
+  registryRef: "UA-1",
+  verifiedAt: AT,
+} as const;
+
+async function renderAnimal(overrides: Partial<AnimalDetailView>) {
+  const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+  return render(
+    <AnimalDetailScreen
+      animal={makeAnimal(overrides)}
+      shelter={makeShelter()}
+      cityName="Бровари"
+      cityPlace="м. Бровари"
+    />,
+  );
+}
+
+function medicalBlock() {
+  const heading = screen.getByRole("heading", { level: 2, name: "Медичний стан" });
+  return heading.parentElement as HTMLElement;
+}
+
 /**
- * Pet card PR 5, owner decision A3: the medical fact chips (vaccination,
- * spay/neuter) keep the «Не записано» rule - unlike every other chip in
- * the «Про мене» row, which simply doesn't render for an unrecorded fact,
- * these two always render, even unknown, never hidden and never shown as
- * "no" (`docs/standing-constraints.md`'s own product rule).
+ * «Медичний стан»: one row per stored health fact, value beside the label, always rendered
+ * (the «Не записано» rule, now «Невідомо»); the facts are no longer chips in «Про мене».
  */
-describe("AnimalDetailScreen – the medical fact chips always render (A3)", () => {
-  it("an unknown vaccination/spay-neuter state reads «Не записано», not hidden", async () => {
-    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
-    render(
-      <AnimalDetailScreen
-        animal={makeAnimal({
-          vaccination: { source: "shelter_declared", state: "unknown", declaredAt: AT },
-          spayNeuter: { source: "shelter_declared", state: "unknown", declaredAt: AT },
-        })}
-        shelter={makeShelter()}
-        cityName="Бровари"
-        cityPlace="м. Бровари"
-      />,
-    );
-    expect(screen.getByText("Комплексне щеплення: Не записано")).toBeTruthy();
-    expect(screen.getByText("Стерилізація: Не записано")).toBeTruthy();
+describe("AnimalDetailScreen – the medical status rows", () => {
+  it("there are no vaccination or sterilisation chips in «Про мене»", async () => {
+    await renderAnimal({});
+    expect(screen.queryByText(/Комплексне щеплення:/)).toBeNull();
+    expect(screen.queryByText(/Стерилізація:/)).toBeNull();
   });
 
-  it("a confirmed, shelter-declared state reads the real status, not «Не записано»", async () => {
-    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
-    render(
-      <AnimalDetailScreen
-        animal={makeAnimal({
-          vaccination: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
-          spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
-        })}
-        shelter={makeShelter()}
-        cityName="Бровари"
-        cityPlace="м. Бровари"
-      />,
-    );
-    expect(screen.getByText("Комплексне щеплення: Зроблено, за даними притулку")).toBeTruthy();
-    expect(screen.queryByText(/Не записано/)).toBeNull();
+  it.each([
+    ["unknown", "Невідомо"],
+    ["in_progress", "Не зроблено"],
+    ["confirmed", "Зроблено"],
+  ] as const)("a %s fact reads «%s», on its own labelled row", async (state, text) => {
+    await renderAnimal({
+      vaccination: { source: "shelter_declared", state, declaredAt: AT },
+      spayNeuter: { source: "shelter_declared", state, declaredAt: AT },
+    });
+    const block = within(medicalBlock());
+    expect(block.getByText("Комплексне щеплення").closest("dl > div")?.textContent).toContain(text);
+    expect(block.getByText("Стерилізація").closest("dl > div")?.textContent).toContain(text);
+  });
+
+  it("all shelter-declared: the source is said once, under the rows", async () => {
+    await renderAnimal({});
+    expect(within(medicalBlock()).getAllByText("За даними притулку")).toHaveLength(1);
+  });
+
+  it("mixed source: no shared line, each row names its own source", async () => {
+    await renderAnimal({ vaccination: REGISTRY });
+    const block = within(medicalBlock());
+    const rabies = block.getByText("Щеплення від сказу").closest("dl > div") as HTMLElement;
+    const spay = block.getByText("Стерилізація").closest("dl > div") as HTMLElement;
+    expect(rabies.textContent).toContain("За даними державного реєстру тварин");
+    expect(rabies.textContent).toContain("Зроблено");
+    expect(spay.textContent).toContain("За даними притулку");
+    expect(block.getAllByText("За даними притулку")).toHaveLength(1);
+  });
+
+  it("no medical notes: nothing below the rows, no empty text", async () => {
+    await renderAnimal({ medicalNotes: null });
+    const block = medicalBlock();
+    expect(block.querySelector("p.border-t")).toBeNull();
+  });
+
+  it("notes are shown in full, never clamped, up to the 1 500-character limit", async () => {
+    const long = `${"Лікувальний корм двічі на день. ".repeat(48)}`.slice(0, 1499).concat(".");
+    await renderAnimal({ medicalNotes: { uk: long, en: null } });
+    const note = within(medicalBlock()).getByText(long);
+    expect(note.textContent).toHaveLength(1500);
+    expect(note.className).not.toContain("line-clamp");
+  });
+});
+
+/** The size chip agrees with the animal's sex like the age chip: Мала / Середня / Велика. */
+describe("AnimalDetailScreen – the size chip agrees with sex", () => {
+  it.each([
+    ["male", "small", "Малий"],
+    ["male", "medium", "Середній"],
+    ["male", "large", "Великий"],
+    ["female", "small", "Мала"],
+    ["female", "medium", "Середня"],
+    ["female", "large", "Велика"],
+    ["unknown", "small", "Малий"],
+    ["unknown", "medium", "Середній"],
+    ["unknown", "large", "Великий"],
+  ] as const)("%s, %s: the chip reads «%s»", async (sex, size, word) => {
+    await renderAnimal({ sex, size });
+    const chip = screen.getByRole("link", {
+      name: /^Показати схожих котів: (малий|середній|великий)$/,
+    });
+    expect(chip.textContent).toBe(word);
+  });
+
+  it("«Про мене» order: age, sex, size, temperament, colour, coat", async () => {
+    await renderAnimal({
+      sex: "female",
+      size: "medium",
+      ageBucket: "adult",
+      temperament: [{ kind: "preset", trait: "calm" }],
+      colour: { kind: "custom", text: { uk: "Димчасто-кремова", en: null } },
+      coatLength: "short",
+    });
+    const row = screen.getByRole("link", { name: /котів: доросл/ }).parentElement as HTMLElement;
+    expect(Array.from(row.children).map((c) => c.textContent)).toEqual([
+      "Доросла",
+      "Дівчинка",
+      "Середня",
+      "Спокійна",
+      "Димчасто-кремова",
+      "Короткошерсті",
+    ]);
   });
 });
 

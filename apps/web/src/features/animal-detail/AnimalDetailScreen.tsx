@@ -5,6 +5,7 @@ import {
   colourChipLabel,
   fillTemplate,
   sexWordFor,
+  sizeChipWordFor,
   sizeLabel,
   temperamentLabelFor,
   uk,
@@ -26,6 +27,7 @@ import { chipDisplayLabel, similarAnimalsHref, similarAnimalsLabel } from "../ga
 import { SaveButton } from "../likes/SaveButton";
 import { shelterPagePath } from "../shelters/shelter-url";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
+import { MedicalStatus } from "./MedicalStatus";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
 import { ShareButton } from "./ShareButton";
@@ -208,7 +210,7 @@ export function AnimalDetailContent({
       {/* Про мене */}
       <div className="flex flex-col gap-4 max-desktop:pt-2">
         <Heading level={2}>{uk.detail.aboutMeHeading}</Heading>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-2">
           <FilterableChipLink
             species={animal.species}
             dimension="ages"
@@ -216,7 +218,12 @@ export function AnimalDetailContent({
             visibleText={ageChipWordFor(animal.ageBucket, animal.sex)}
           />
           <SexChip species={animal.species} sex={animal.sex} />
-          <FilterableChipLink species={animal.species} dimension="sizes" value={animal.size} />
+          <FilterableChipLink
+            species={animal.species}
+            dimension="sizes"
+            value={animal.size}
+            visibleText={sizeChipWordFor(animal.size, animal.sex)}
+          />
           {animal.temperament
             .filter((entry) => entry.kind === "preset")
             .map((entry) => (
@@ -232,8 +239,6 @@ export function AnimalDetailContent({
             <PlainChip text={textIn(animal.colour.text, "uk")} />
           )}
           {animal.coatLength && <PlainChip text={COAT_WORDS[animal.coatLength]} />}
-          <MedicalChip row={vaccinationRow(animal.vaccination)} />
-          <MedicalChip row={spayNeuterRow(animal.spayNeuter)} />
           {showDocuments && animal.documentReadiness.kind === "tracked" && (
             <>
               {animal.documentReadiness.microchip.kind === "present" && (
@@ -255,14 +260,10 @@ export function AnimalDetailContent({
             {textIn(animal.description, "uk")}
           </Text>
         </div>
-        {animal.medicalNotes !== null && (
-          <div className="flex flex-1 flex-col gap-3">
-            <Heading level={2}>{uk.detail.medicalHeading}</Heading>
-            <Text look="lead" className="text-ink-2">
-              {textIn(animal.medicalNotes, "uk")}
-            </Text>
-          </div>
-        )}
+        <MedicalStatus
+          rows={[vaccinationRow(animal.vaccination), spayNeuterRow(animal.spayNeuter)]}
+          notes={animal.medicalNotes === null ? null : textIn(animal.medicalNotes, "uk")}
+        />
       </div>
 
       {/* Footer divider */}
@@ -319,11 +320,7 @@ const COAT_WORDS: Record<NonNullable<AnimalDetailView["coatLength"]>, string> = 
 
 /** A non-filterable fact, as plain text (A6 - custom «Інше» values and the medical facts). */
 function PlainChip({ text }: { text: string }) {
-  return (
-    <Chip kind="info" tone="outline">
-      {text}
-    </Chip>
-  );
+  return <Chip kind="fact">{text}</Chip>;
 }
 
 /** The sex chip joins ages/sizes as a filterable chip; omitted for "unknown" (no word to show, and "more like this: not recorded" answers nothing). */
@@ -338,12 +335,6 @@ function SexChip({
   return word === null ? null : (
     <FilterableChipLink species={species} dimension="sexes" value={sex} visibleText={word} />
   );
-}
-
-/** A medical fact chip (owner decision A3): always rendered, even unknown - the «Не записано»
- * rule applies to this fact specifically, unlike the other, omit-when-absent chips below. */
-function MedicalChip({ row }: { row: ReturnType<typeof vaccinationRow> }) {
-  return <PlainChip text={`${row.label}: ${row.statusText}`} />;
 }
 
 /** A filterable chip (A6): a link to the gallery filtered to the animal's species plus this
@@ -364,9 +355,8 @@ function FilterableChipLink<D extends Parameters<typeof chipDisplayLabel>[0]["di
   const chip = { dimension, value } as Parameters<typeof chipDisplayLabel>[0];
   return (
     <Chip
-      kind="link"
+      kind="fact"
       href={similarAnimalsHref(species, chip)}
-      prefetch={false}
       aria-label={similarAnimalsLabel(species, chip)}
     >
       {visibleText ?? chipDisplayLabel(chip)}

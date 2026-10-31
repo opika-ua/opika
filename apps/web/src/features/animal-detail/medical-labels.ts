@@ -1,72 +1,56 @@
 import type { SpayNeuterStatus, VaccinationStatus } from "@opika/domain";
 import { uk } from "@opika/i18n";
 
+/** The three words a status row can show; there is no fourth. */
+export type MedicalValue = "done" | "not_done" | "unknown";
+
 export type MedicalRow = {
   label: string;
-  statusText: string;
+  value: MedicalValue;
+  source: "shelter" | "registry";
 };
 
 /**
- * `AnimalSchema.vaccination` is a single field, but the mock's D1 frame
- * shows two visually distinct rows - "Сказ" (rabies) with a registry badge,
- * "Комплексне щеплення" (combo) with a shelter's-words badge. There is no
- * second domain field to source a real second row from (`vaccination` is
- * one union, not two), so this renders exactly one row, whose LABEL
- * switches on `source`: a registry-confirmed vaccination in Ukraine's real
- * pet registry specifically means rabies (`attestation.ts`'s own comment:
- * "Ukraine's pet registry holds animal identification and rabies
- * vaccination data"), so `source: "registry"` reads as "Сказ"; a shelter's
- * own claim is read as the general "Комплексне щеплення" instead. Recorded
- * as a deviation from the mock's three-row example
- * (`docs/design/README.md`'s "Whole-list error" section neighbours this
- * kind of note; see this phase's PR body for the full account) - not a
- * silent drop, since seed data today never produces the registry variant
- * at all (verified: no `source: "registry"` anywhere in
- * `packages/db/src/seed.ts`), so this only ever shows the shelter-declared
- * label in practice until real registry data exists.
+ * `in_progress` reads «Не зроблено»: the card says only whether it is done. A registry-confirmed
+ * vaccination in Ukraine's pet registry means rabies specifically (`attestation.ts`), so that
+ * row's label switches to «Щеплення від сказу».
  */
+function medicalValueOf(state: "unknown" | "in_progress" | "confirmed"): MedicalValue {
+  if (state === "confirmed") return "done";
+  return state === "in_progress" ? "not_done" : "unknown";
+}
+
 export function vaccinationRow(vaccination: VaccinationStatus): MedicalRow {
-  if (vaccination.state === "unknown") {
-    return {
-      label: uk.medical.vaccination,
-      statusText: uk.medical.unknown,
-    };
-  }
-  if (vaccination.state === "in_progress") {
-    return {
-      label: uk.medical.vaccination,
-      statusText: uk.medical.inProgress,
-    };
-  }
-  // confirmed
   if (vaccination.source === "registry") {
-    return {
-      label: uk.medical.rabies,
-      statusText: uk.medical.registry,
-    };
+    return { label: uk.medical.rabies, value: "done", source: "registry" };
   }
   return {
     label: uk.medical.vaccination,
-    statusText: uk.medical.doneShelterDeclared,
+    value: medicalValueOf(vaccination.state),
+    source: "shelter",
   };
 }
 
 /** `SpayNeuterStatus` is shelter-declared only - see that schema's own comment for why. */
 export function spayNeuterRow(spayNeuter: SpayNeuterStatus): MedicalRow {
-  if (spayNeuter.state === "unknown") {
-    return {
-      label: uk.medical.spayNeuter,
-      statusText: uk.medical.unknown,
-    };
-  }
-  if (spayNeuter.state === "in_progress") {
-    return {
-      label: uk.medical.spayNeuter,
-      statusText: uk.medical.inProgress,
-    };
-  }
   return {
     label: uk.medical.spayNeuter,
-    statusText: uk.medical.doneShelterDeclared,
+    value: medicalValueOf(spayNeuter.state),
+    source: "shelter",
   };
+}
+
+export const MEDICAL_VALUE_TEXT: Record<MedicalValue, string> = {
+  done: uk.medical.statusDone,
+  not_done: uk.medical.statusNotDone,
+  unknown: uk.medical.statusUnknown,
+};
+
+/** Every row shelter-declared: one line under the rows. Any registry row: each row says its own. */
+export function sharedSource(rows: readonly MedicalRow[]): string | null {
+  return rows.every((row) => row.source === "shelter") ? uk.medical.sourceShelter : null;
+}
+
+export function rowSource(row: MedicalRow): string {
+  return row.source === "registry" ? uk.medical.registry : uk.medical.sourceShelter;
 }

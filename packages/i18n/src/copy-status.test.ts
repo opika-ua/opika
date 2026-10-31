@@ -1296,11 +1296,11 @@ describe("designer round 1, S6 (his DR1-Q1 and shelter-page copy)", () => {
     ["medical.shelterDeclared", uk.medical.shelterDeclared, "Дані притулку"],
     // The copy audit of 2026-10-22 (Oleksii: "#14 and every key S6 rewrites: apply them on
     // `feat/dr1-s6-shelter-page` as a separate commit"): #16 and #14, transcribed from the audit.
-    [
-      "medical.doneShelterDeclared (#16)",
-      uk.medical.doneShelterDeclared,
-      "Зроблено, за даними притулку",
-    ],
+    // Pet card chips + health PR (his table, 2026-10-31): the status rows' words.
+    ["medical.statusDone", uk.medical.statusDone, "Зроблено"],
+    ["medical.statusNotDone", uk.medical.statusNotDone, "Не зроблено"],
+    ["medical.statusUnknown", uk.medical.statusUnknown, "Невідомо"],
+    ["medical.sourceShelter", uk.medical.sourceShelter, "За даними притулку"],
     [
       "kabinet.profile.voiceLabel (#14)",
       uk.kabinet.profile.voiceLabel,
@@ -1648,8 +1648,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
    * Never «реєстр» alone."
    */
   it("the public registry keys name the state register (Q5)", () => {
-    // audit 2026-10-22 #17: the row's status line says it was done, and by whom
-    expect(uk.medical.registry).toBe("Зроблено, за даними державного реєстру тварин");
+    // pet card health PR: the row's own source line (the value says «Зроблено»)
+    expect(uk.medical.registry).toBe("За даними державного реєстру тварин");
     expect(uk.medical.registryConfirmed).toBe("Підтверджено державним реєстром тварин");
   });
 

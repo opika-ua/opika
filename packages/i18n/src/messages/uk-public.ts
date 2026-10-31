@@ -483,16 +483,17 @@ export const ukPublic = {
      * is a word of its own.
      */
     shelterDeclared: "Дані притулку",
-    /**
-     * Copy audit 2026-10-22 #16: the vaccination and sterilisation rows' status line.
-     * «Дані притулку» names the source and never says the thing was done; this says both.
-     * A key of its own so `shelterDeclared` stays the reusable source label.
-     */
-    doneShelterDeclared: "Зроблено, за даними притулку",
+    /** The pet card's status rows: the value beside each label, and the source said under them. */
+    statusDone: "Зроблено",
+    statusNotDone: "Не зроблено",
+    statusUnknown: "Невідомо",
+    /** One line under the rows when every row is the shelter's word; a row's own line otherwise. */
+    sourceShelter: "За даними притулку",
     rabies: "Щеплення від сказу",
     vaccination: "Комплексне щеплення",
     spayNeuter: "Стерилізація",
-    registry: "Зроблено, за даними державного реєстру тварин",
+    /** A row's own source line when that row comes from the state animal registry (Q5 wording). */
+    registry: "За даними державного реєстру тварин",
   },
 
   // --- Location ---
