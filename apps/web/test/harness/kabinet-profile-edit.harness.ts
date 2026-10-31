@@ -173,26 +173,33 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
   });
 
   /**
-   * Save bar A. From 600px a floating pill whose right edge is the form column's; on a phone a
-   * full-width bar with two equal 48px buttons that never covers the last field and never makes
-   * the page scroll sideways. Opened with an edit, left unsaved (the page is closed).
+   * Save bar A. From 600px a floating pill centred on the viewport; on a phone a full-width bar
+   * with two equal 48px buttons that never covers the last field and never makes the page scroll
+   * sideways. Opened with an edit, left unsaved (the page is closed).
    */
-  test("the save pill sits on the form column's right edge at 1440", async () => {
-    const page = await profilePage("kontakty");
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page
-      .getByRole("region", { name: "Контакти" })
-      .getByLabel(/^Телефон/)
-      .fill("+380 50 111-22-33");
-    const pill = page.locator("[data-save-pill]");
-    await expect(pill).toBeVisible();
-    const column = await page.getByRole("tablist").locator("xpath=..").boundingBox();
-    const box = await pill.boundingBox();
-    if (column === null || box === null) throw new Error("no layout");
-    expect(Math.abs(box.x + box.width - (column.x + column.width))).toBeLessThanOrEqual(2);
-    expect(box.height).toBeGreaterThanOrEqual(56 - 1);
-    await page.close();
-  });
+  for (const width of [1024, 1280, 1440, 1920]) {
+    test(`the save pill is centred on the viewport at ${width}`, async () => {
+      const page = await profilePage("kontakty");
+      await page.setViewportSize({ width, height: 900 });
+      await page
+        .getByRole("region", { name: "Контакти" })
+        .getByLabel(/^Телефон/)
+        .fill("+380 50 111-22-33");
+      const pill = page.locator("[data-save-pill]");
+      await expect(pill).toBeVisible();
+      const box = await pill.boundingBox();
+      if (box === null) throw new Error("no layout");
+      expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThanOrEqual(1);
+      expect(box.height).toBeGreaterThanOrEqual(56 - 1);
+      if (width === 1024) {
+        // A hugging pill must clear the side nav's content.
+        const nav = await page.getByRole("navigation", { name: "Розділи кабінету" }).boundingBox();
+        if (nav === null) throw new Error("no nav layout");
+        expect(box.x).toBeGreaterThanOrEqual(nav.x + nav.width);
+      }
+      await page.close();
+    });
+  }
 
   test("the save bar at 393: equal 48px buttons, no sideways scroll, the last field stays clear", async () => {
     const page = await profilePage("kontakty");
