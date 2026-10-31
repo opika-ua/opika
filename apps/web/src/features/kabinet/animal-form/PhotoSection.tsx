@@ -301,7 +301,7 @@ export function PhotoSection({
 
   return (
     <>
-      <ul className="grid grid-cols-2 items-start gap-3 tablet:grid-cols-3 desktop:grid-cols-4">
+      <ul className="photo-grid items-start gap-3">
         {order.map(({ photo, index }, slot) => {
           const key = photo.storageKey;
           if (drag !== null && index === drag.from) {

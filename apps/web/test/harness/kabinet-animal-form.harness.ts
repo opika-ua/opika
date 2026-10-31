@@ -378,23 +378,37 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     if (dir !== undefined && dir !== "") await page.screenshot({ path: `${dir}/${name}.png` });
   };
 
-  test("the photo manager at 1440: no drag handle, tiles at least 150 px wide, all in one row", async () => {
+  test("the photo manager tiles are at least 180 px wide at 1024, 1280 and 1440, and the panel aligns with the tabs", async () => {
     await withThreePhotos();
     const page = await open(`/kabinet/tvaryny/${draftId}`);
-    await page.setViewportSize({ width: 1440, height: 900 });
     await openTab(page, /^Фото/);
-    await expect(page.getByRole("button", { name: /^Перетягнути фото/ })).toHaveCount(0);
-    await expect(page.getByText("Перетягніть, щоб змінити порядок.")).toBeVisible();
-    for (const n of [1, 2, 3]) {
-      const box = await page.locator(`[data-photo-slot="${n - 1}"]`).boundingBox();
-      expect(box?.width ?? 0).toBeGreaterThanOrEqual(150);
+    for (const width of [1024, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(page.getByRole("button", { name: /^Перетягнути фото/ })).toHaveCount(0);
+      for (const n of [1, 2, 3]) {
+        const box = await page.locator(`[data-photo-slot="${n - 1}"]`).boundingBox();
+        expect(box?.width ?? 0).toBeGreaterThanOrEqual(180);
+      }
+      await shot(page, `photo-manager-${width}`);
     }
-    const firstRow = await page.locator("[data-photo-slot]").evaluateAll((tiles) => {
-      const tops = tiles.map((tile) => Math.round(tile.getBoundingClientRect().top));
-      return tops.filter((top) => top === tops[0]).length;
-    });
-    expect(firstRow).toBe(3);
-    await shot(page, "photo-manager-1440");
+    await expect(page.getByText("Перетягніть, щоб змінити порядок.")).toBeVisible();
+    await page.close();
+  });
+
+  test("every tab's content starts at the tabs row's left edge, at 393 and 1280", async () => {
+    await withThreePhotos();
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    for (const width of [393, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const name of [/^Фото/, /^Про тварину/, /^Основне/]) {
+        await openTab(page, name);
+        const tabLeft = (await page.getByRole("tab").first().boundingBox())?.x ?? -1;
+        const panelLeft =
+          (await page.locator('[role="tabpanel"]:not([hidden]) h2').first().boundingBox())?.x ?? -2;
+        expect(Math.abs(panelLeft - tabLeft)).toBeLessThanOrEqual(1);
+      }
+      await shot(page, `tab-alignment-${width}`);
+    }
     await page.close();
   });
 
@@ -404,6 +418,8 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await page.setViewportSize({ width: 393, height: 852 });
     await openTab(page, /^Фото/);
     for (const n of [1, 2, 3]) {
+      const tile = await page.locator(`[data-photo-slot="${n - 1}"]`).boundingBox();
+      expect(tile?.width ?? 0).toBeGreaterThanOrEqual(140);
       const box = await page.getByRole("button", { name: `Дії з фото ${n}` }).boundingBox();
       expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -447,6 +463,8 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     const page = await open(`/kabinet/tvaryny/${draftId}`);
     await page.setViewportSize({ width: 360, height: 800 });
     await openTab(page, /^Фото/);
+    const tile360 = await page.locator('[data-photo-slot="0"]').boundingBox();
+    expect(tile360?.width ?? 0).toBeGreaterThanOrEqual(140);
     const box = await page.getByRole("button", { name: "Дії з фото 2" }).boundingBox();
     expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
