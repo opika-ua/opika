@@ -501,6 +501,7 @@ export function AnimalForm({
     ),
     foto: (
       <FormSection
+        framing="flush"
         id="photos"
         title={withTag(t.photos.title, required.includes("photo"))}
         titleExtra={
