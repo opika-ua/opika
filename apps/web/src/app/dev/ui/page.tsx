@@ -44,6 +44,7 @@ import {
   ComboboxDemo,
   ComboboxMultiDemo,
   FilterTabsDemo,
+  MenuClippedDemo,
   MenuDemo,
   MenuIconDemo,
   ModalDemo,
@@ -541,6 +542,9 @@ export default function DevUiPage() {
         </Row>
         <Row label="Menu (⋯ trigger, divider, danger item)">
           <MenuIconDemo />
+        </Row>
+        <Row label="Menu in a box that clips (top layer)">
+          <MenuClippedDemo />
         </Row>
         <Row label="FilterTabs">
           <FilterTabsDemo />

@@ -1,7 +1,7 @@
 import type { PublishGap } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import { buttonClass } from "../../../ui/Button";
 import { Text } from "../../../ui/Text";
+import { TextLink } from "../../../ui/TextLink";
 import type { AnimalTab } from "./animal-tabs";
 import { GAP_TAB } from "./publish-gaps";
 
@@ -45,9 +45,9 @@ export function MissingPanel({
       <ul id="publish-missing-list" className="flex flex-col items-start">
         {gaps.map((gap) => (
           <li key={gap.kind}>
-            <a
+            <TextLink
               href={`?tab=${GAP_TAB[gap.kind]}`}
-              className={buttonClass("ghost")}
+              placement="standalone"
               onClick={(event) => {
                 event.preventDefault();
                 onGo(gap);
@@ -57,7 +57,7 @@ export function MissingPanel({
                 field: FIELD_LABEL[gap.kind],
                 tab: TAB_LABEL[GAP_TAB[gap.kind]],
               })}
-            </a>
+            </TextLink>
           </li>
         ))}
       </ul>

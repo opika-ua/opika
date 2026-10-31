@@ -302,7 +302,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
 
     await openTab(page, /^Фото/);
     const chooser = page.waitForEvent("filechooser");
-    await page.getByRole("button", { name: "+ Фото" }).click();
+    await page.getByRole("button", { name: /^Додати фото/ }).click();
     await (await chooser).setFiles({ name: "IMG_4000.png", mimeType: "image/png", buffer: png });
 
     await expect(page.getByText("На цій версії сайту фото завантажити не можна.")).toBeVisible({
@@ -347,6 +347,48 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await expect(page.getByText("Усе потрібне заповнено. Можна публікувати.")).toBeVisible();
     await expect(missingLinks(page)).toHaveCount(0);
     await expect(publishButton(page)).not.toHaveAttribute("aria-disabled", "true");
+    await page.close();
+  });
+
+  test("the photo manager at 360: controls are at least 44 px, nothing overflows sideways, the ⋯ menu opens", async () => {
+    if (draftId === undefined) throw new Error("no draft from the first test");
+    const id = draftId;
+    const draft = await animalRepo(db).findById(id);
+    const row = (await db.select({ id: animals.id, cityId: animals.cityId }).from(animals)).find(
+      (candidate) => candidate.id === id,
+    );
+    if (draft === null || row === undefined) throw new Error("the draft isn't stored");
+    await animalRepo(db).update(
+      {
+        ...draft,
+        photos: [1, 2, 3].map((n) => ({
+          storageKey: `seed-photos/dog-${n}.jpg`,
+          width: 1200,
+          height: 1500,
+          alt: null,
+        })),
+      },
+      row.cityId as CityId,
+    );
+
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    await page.setViewportSize({ width: 360, height: 800 });
+    await openTab(page, /^Фото/);
+    for (const name of ["Дії з фото 2", "Перетягнути фото 2"]) {
+      const box = await page.getByRole("button", { name }).boundingBox();
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+
+    await page.getByRole("button", { name: "Дії з фото 2" }).click();
+    await expect(page.getByRole("button", { name: "Посунути раніше" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Прибрати" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Посунути раніше" })).toBeHidden();
     await page.close();
   });
 });

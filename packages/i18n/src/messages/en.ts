@@ -883,7 +883,17 @@ export const en = {
       },
       photos: {
         title: "Photos",
-        add: "+ Photo",
+        counter: "{n} of {max}",
+        orderHint: "The first photo is the cover. Drag to change the order.",
+        addTile: "Add a photo",
+        addLeft: "{left} more",
+        addDrop: "you can drop files here",
+        menuLabel: "Actions for photo {n}",
+        dragHandle: "Drag photo {n}",
+        dragPickUp: "Photo {n} picked up. Position {pos} of {total}.",
+        dragMove: "Position {pos} of {total}.",
+        dragDrop: "Photo {n} at position {pos} of {total}.",
+        dragCancel: "Move cancelled.",
         addHint: "Any photo this phone or browser can open.",
         howItWorks:
           "The first photo is the cover; drag a photo to change the order. At least one is needed to publish. Large photos are shrunk on the device to {px} pixels before sending, which saves mobile data.",
@@ -900,7 +910,7 @@ export const en = {
         makeCover: "Make it the cover",
         moveEarlier: "Move earlier",
         moveLater: "Move later",
-        remove: "Remove photo {n}",
+        remove: "Remove",
         capReached: "That's the maximum: {max} photos.",
         lastPhotoKept: "People can see this card, so one photo has to stay.",
         lastPhotoKeptNotShown:

@@ -79,7 +79,7 @@ export function Tabs({
         aria-label={label}
         className={
           look === "pills"
-            ? "-mx-4 my-1 flex gap-2 overflow-x-auto overflow-y-hidden px-4 tablet:mx-0 tablet:px-0"
+            ? "relative -mx-4 my-1 flex gap-2 overflow-x-auto overflow-y-hidden px-4 tablet:mx-0 tablet:px-0"
             : "flex gap-1 rounded-pill bg-line p-1"
         }
       >

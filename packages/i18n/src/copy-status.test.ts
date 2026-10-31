@@ -1507,7 +1507,6 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.health.registryReadOnly":
       "Підтверджено державним реєстром тварин. Тут цей рядок змінити не можна.",
     "kabinet.animalForm.photos.title": "Фото",
-    "kabinet.animalForm.photos.add": "+ Фото",
     "kabinet.animalForm.photos.addHint": "Будь-яке фото, яке відкриває цей телефон чи браузер.",
     "kabinet.animalForm.photos.howItWorks":
       "Перше фото – обкладинка; щоб змінити порядок, перетягніть фото. Для публікації потрібне хоча б одне. Великі фото зменшуються на пристрої до {px} пікселів перед відправкою – так менше мобільного трафіку.",
@@ -1522,9 +1521,6 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.photos.dismissFailed": "Прибрати",
     "kabinet.animalForm.photos.tileLabel": "Фото {n} з {total}",
     "kabinet.animalForm.photos.makeCover": "Зробити обкладинкою",
-    "kabinet.animalForm.photos.moveEarlier": "Перемістити вперед",
-    "kabinet.animalForm.photos.moveLater": "Перемістити назад",
-    "kabinet.animalForm.photos.remove": "Прибрати фото {n}",
     "kabinet.animalForm.photos.capReached": "Це максимум – {max} фото.",
     "kabinet.animalForm.photos.lastPhotoKept": "Цю картку бачать люди, тож одне фото має лишитися.",
     "kabinet.animalForm.photos.lastPhotoKeptNotShown":
@@ -1633,6 +1629,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(FORM_SECTIONS_COPY),
         // The editor tabs' words (animal editor PR 2), pinned in their own block below.
         ...Object.keys(EDITOR_TABS_COPY),
+        // The photo manager's words (animal editor PR 3), pinned in their own block below.
+        ...Object.keys(PHOTO_MANAGER_COPY),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -2227,6 +2225,42 @@ const EDITOR_TABS_COPY: Record<string, string> = {
   "kabinet.animalForm.publish.missingItem": "{field} ({tab})",
   "kabinet.animalForm.publish.allSet": "Усе потрібне заповнено. Можна публікувати.",
 };
+
+/**
+ * The photo manager (animal editor PR 3): the owner approved the PR 3 section of the editor copy
+ * table "as proposed" (2026-10-31). `moveEarlier`, `moveLater` and `remove` replace K3's older
+ * «Перемістити вперед/назад» and «Прибрати фото {n}»; `photos.add` is retired.
+ */
+const PHOTO_MANAGER_COPY: Record<string, string> = {
+  "kabinet.animalForm.photos.counter": "{n} з {max}",
+  "kabinet.animalForm.photos.orderHint":
+    "Перше фото – обкладинка. Перетягніть, щоб змінити порядок.",
+  "kabinet.animalForm.photos.addTile": "Додати фото",
+  "kabinet.animalForm.photos.addLeft": "Ще {left}",
+  "kabinet.animalForm.photos.addDrop": "можна перетягнути файли сюди",
+  "kabinet.animalForm.photos.moveEarlier": "Посунути раніше",
+  "kabinet.animalForm.photos.moveLater": "Посунути пізніше",
+  "kabinet.animalForm.photos.remove": "Прибрати",
+  "kabinet.animalForm.photos.menuLabel": "Дії з фото {n}",
+  "kabinet.animalForm.photos.dragHandle": "Перетягнути фото {n}",
+  "kabinet.animalForm.photos.dragPickUp": "Фото {n} підняте. Позиція {pos} з {total}.",
+  "kabinet.animalForm.photos.dragMove": "Позиція {pos} з {total}.",
+  "kabinet.animalForm.photos.dragDrop": "Фото {n} на позиції {pos} з {total}.",
+  "kabinet.animalForm.photos.dragCancel": "Переміщення скасовано.",
+};
+
+describe("animal editor photo manager copy", () => {
+  it.each(Object.entries(PHOTO_MANAGER_COPY))("%s is the approved text, exactly", (path, text) => {
+    const found = path
+      .split(".")
+      .slice(1)
+      .reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+        uk.kabinet,
+      );
+    expect(found).toBe(text);
+  });
+});
 
 describe("animal editor tabs copy", () => {
   it.each(Object.entries(EDITOR_TABS_COPY))("%s is the approved text, exactly", (path, text) => {

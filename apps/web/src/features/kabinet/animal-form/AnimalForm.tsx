@@ -4,6 +4,7 @@ import type { KabinetAnimalView } from "@opika/contracts";
 import {
   isDiscoverable,
   kyivCalendarDateOf,
+  MAX_ANIMAL_PHOTOS,
   PHOTO_MAX_EDGE_PX,
   type PublishGap,
 } from "@opika/domain";
@@ -497,7 +498,24 @@ export function AnimalForm({
       </FormSection>
     ),
     foto: (
-      <FormSection id="photos" title={withTag(t.photos.title, required.includes("photo"))}>
+      <FormSection
+        id="photos"
+        title={
+          <>
+            {withTag(t.photos.title, required.includes("photo"))}
+            {view === null ? null : (
+              <span className="text-caption font-normal text-ink-2">
+                {" "}
+                {fillTemplate(t.photos.counter, {
+                  n: new Intl.NumberFormat("uk").format(view.photos.length),
+                  max: new Intl.NumberFormat("uk").format(MAX_ANIMAL_PHOTOS),
+                })}
+              </span>
+            )}
+          </>
+        }
+        description={view === null ? undefined : t.photos.orderHint}
+      >
         {view !== null ? (
           <PhotoSection
             animal={view}
