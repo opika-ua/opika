@@ -14,6 +14,7 @@ import {
   expectReachableByTab,
   nameOnceSettled,
   openRoute,
+  topCardName,
 } from "./harness";
 import { PHONE } from "./viewports";
 
@@ -25,13 +26,6 @@ const CARD = "[data-testid='swipe-card']";
  * through `.31` are already claimed by the other harness files.
  */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.32" } });
-
-/** The name on the currently-top card - same helper as `discovery-gesture.harness.ts`. */
-async function topCardName(page: import("@playwright/test").Page): Promise<string> {
-  const label = await page.getByTestId("swipe-card").getAttribute("aria-label");
-  expect(label, "the top card should expose its animal name as aria-label").not.toBeNull();
-  return label ?? "";
-}
 
 test.describe(`${ROUTE} inline reveal`, () => {
   test.beforeEach(async ({ page }) => {

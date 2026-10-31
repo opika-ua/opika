@@ -5,17 +5,14 @@
  */
 
 import { expect, type Page, test } from "@playwright/test";
-import { openRoute } from "./harness";
+import { openRoute, useClientAddressPerRepetition } from "./harness";
 import type { Viewport } from "./viewports";
 
 const WIDE: Viewport = { name: "1440x900 desktop", width: 1440, height: 900 };
 const CARD = "[data-testid='animal-card']";
 
 // One TEST-NET-1 address per repetition: `/tvaryny` is rate-limited per IP and `--repeat-each` loads it often.
-test.beforeEach(async ({ page }, testInfo) => {
-  const lastOctet = 1 + (testInfo.repeatEachIndex % 254);
-  await page.setExtraHTTPHeaders({ "x-forwarded-for": `192.0.2.${lastOctet}` });
-});
+test.beforeEach(({ page }, testInfo) => useClientAddressPerRepetition(page, testInfo));
 
 const scrollTo = (page: Page, y: number) => page.evaluate((top) => window.scrollTo(0, top), y);
 
