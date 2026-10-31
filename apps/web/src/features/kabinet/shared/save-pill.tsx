@@ -191,7 +191,7 @@ export function SavePill({
           oneRow ? "flex-row items-center justify-between gap-2" : "flex-col gap-2",
           // From tablet: a pill that hugs its content, centred on the viewport (the wrapper keeps
           // the flow space, so the page is padded by the pill's height only while it shows).
-          "tablet:fixed tablet:left-1/2 tablet:-translate-x-1/2 tablet:bottom-above-nav desktop:bottom-pill tablet:mx-0 tablet:w-max tablet:max-w-[calc(100vw-2rem)] tablet:flex-row tablet:items-center tablet:gap-3 tablet:rounded-pill tablet:border tablet:py-1 tablet:pr-1 tablet:pl-5 tablet:shadow-float",
+          "tablet:fixed tablet:left-1/2 tablet:-translate-x-1/2 tablet:bottom-above-nav desktop:bottom-pill tablet:mx-0 tablet:w-max tablet:max-w-screen tablet:flex-row tablet:items-center tablet:gap-3 tablet:rounded-pill tablet:border tablet:py-1 tablet:pr-1 tablet:pl-5 tablet:shadow-float",
           blocked ? "tablet:min-h-14" : "tablet:h-14",
         )}
       >
