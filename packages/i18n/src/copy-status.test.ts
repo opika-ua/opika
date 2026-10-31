@@ -347,6 +347,13 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // Kabinet UX round 2 (owner-approved, 2026-10-29): the page save bar.
     "profileEdit.saveBar.unsaved": "Є незбережені зміни",
     "profileEdit.saveBar.cancel": "Скасувати",
+    // Save bar A (owner-approved 2026-10-31, `SAVEBAR-A-copy-table.md`).
+    "profileEdit.saveBar.allSaved": "Усі зміни збережено",
+    "profileEdit.saveBar.checkFields.one": "Перевірте {n} поле",
+    "profileEdit.saveBar.checkFields.few": "Перевірте {n} поля",
+    "profileEdit.saveBar.checkFields.many": "Перевірте {n} полів",
+    "profileEdit.saveBar.show": "Показати",
+    "profileEdit.saveBar.failed": "Не вдалося зберегти",
     // k4-copy-uk.md
     "profileEdit.actions.cancel": "Скасувати зміни",
     // k4-copy-uk.md
@@ -1429,8 +1436,8 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
     // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
-    // logo.* section (his final text, 2026-10-27).
-    expect(k4.length).toBe(86);
+    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms).
+    expect(k4.length).toBe(92);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

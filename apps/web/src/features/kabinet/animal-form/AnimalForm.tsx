@@ -25,6 +25,8 @@ import { Text } from "../../../ui/Text";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { publicAnimalPath } from "../routes";
 import { ListingStatusChip } from "../StatusChips";
+import { SavePill, SaveStatusLine } from "../shared/save-pill";
+import { type SaveBarState, saveBarTextOf } from "../shared/save-state";
 import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../shared/unsaved-changes";
 import { ANIMAL_TABS, type AnimalTab } from "./animal-tabs";
 import { summaryItemsOf } from "./error-summary-items";
@@ -155,6 +157,8 @@ export function AnimalForm({
   const [attempted, setAttempted] = useState(false);
   const [serverProblems, setServerProblems] = useState<FieldProblem[]>([]);
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
+  // The pill's 4 s confirmation after a successful save; a new edit replaces it at once.
+  const [savedShown, setSavedShown] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
@@ -293,7 +297,10 @@ export function AnimalForm({
         );
         wrote = true;
       }
-      if (wrote) setSave({ kind: "saved", at: clock() });
+      if (wrote) {
+        setSave({ kind: "saved", at: clock() });
+        setSavedShown(true);
+      }
       return { kind: wrote ? "saved" : "nothing", view: current };
     } catch (error) {
       let refusedForAField = false;
@@ -400,6 +407,59 @@ export function AnimalForm({
           } as KabinetAnimalView),
     );
   }, []);
+
+  /** «Скасувати»: back to what is saved. */
+  const cancelEdits = () => {
+    if (view === null) return;
+    setValues(valuesOf(view, kyivCalendarDateOf(clock())));
+    setServerProblems([]);
+    setAttempted(false);
+    setTouched(new Set());
+    setSave({ kind: "idle" });
+  };
+
+  const summaryItems = summaryItemsOf(problems, goTo);
+  const viewHref =
+    view !== null && (view.listing.kind === "published" || view.listing.kind === "reserved")
+      ? publicAnimalPath(view.id)
+      : undefined;
+  // The save pill is for a saved card only: a draft saves itself and never shows one (S7).
+  let pill: SaveBarState | null = null;
+  if (editable && !isDraft) {
+    if (save.kind === "saving") pill = { kind: "saving" };
+    else if (save.kind === "conflict")
+      pill = {
+        kind: "blocked",
+        message: t.errors.conflict,
+        action: {
+          label: uk.kabinet.profileEdit.errors.conflictReload,
+          onPress: () => void reload(),
+        },
+      };
+    else if (save.kind === "registry_confirmed")
+      pill = { kind: "blocked", message: t.errors.registryConfirmed };
+    else if (save.kind === "failed") pill = { kind: "failed" };
+    else if (attempted && summaryItems.length > 0)
+      pill = { kind: "invalid", count: summaryItems.length };
+    else if (dirty) pill = { kind: "unsaved" };
+    else if (save.kind === "saved" && savedShown)
+      pill = { kind: "saved", at: save.at, ...(viewHref === undefined ? {} : { viewHref }) };
+  }
+  // The line under the tabs: the pill's message, or the quiet state (a draft's autosave status).
+  let statusMessage: string | null = null;
+  if (editable) {
+    if (pill !== null) statusMessage = saveBarTextOf(pill);
+    else if (isDraft) {
+      statusMessage =
+        save.kind === "saving"
+          ? uk.kabinet.profileEdit.state.saving
+          : save.kind === "saved" && !dirty
+            ? fillTemplate(t.draft.savedAt, { time: timeOf(save.at) })
+            : null;
+    } else if (save.kind === "saved") {
+      statusMessage = fillTemplate(uk.kabinet.profileEdit.state.savedAt, { time: timeOf(save.at) });
+    } else statusMessage = uk.kabinet.profileEdit.saveBar.allSaved;
+  }
 
   const heading = view === null ? t.titleNew : view.name;
   const shelterShown = shelterVisibility === "visible";
@@ -622,6 +682,7 @@ export function AnimalForm({
       >
         <Tabs
           look="pills"
+          {...(editable ? { status: <SaveStatusLine message={statusMessage} state={pill} /> } : {})}
           label={t.sections.tabsLabel}
           selectedId={tab}
           onSelect={(id) => show(id as AnimalTab)}
@@ -633,39 +694,35 @@ export function AnimalForm({
         />
       </form>
 
-      {editable ? (
+      {editable && isDraft ? (
         <StickyActionBar>
           <p role="status" className="text-caption text-ink-2 empty:sr-only">
             {announcement}
           </p>
-          {isDraft ? (
-            <DraftActions
-              save={save}
-              dirty={dirty}
-              gaps={gaps}
-              publishing={publishing}
-              onSave={() => void saveFromButton()}
-              onPublish={() => void publish()}
-              onReload={() => void reload()}
-            />
-          ) : (
-            <ListedActions
-              save={save}
-              dirty={dirty}
-              {...(view !== null &&
-              (view.listing.kind === "published" || view.listing.kind === "reserved")
-                ? { viewHref: publicAnimalPath(view.id) }
-                : {})}
-              onSave={() => void saveFromButton()}
-              onReload={() => void reload()}
-            />
-          )}
+          <DraftActions
+            save={save}
+            gaps={gaps}
+            publishing={publishing}
+            onSave={() => void saveFromButton()}
+            onPublish={() => void publish()}
+            onReload={() => void reload()}
+          />
         </StickyActionBar>
       ) : (
         <p role="status" className="text-caption text-ink-2 empty:sr-only">
           {announcement}
         </p>
       )}
+      {editable && !isDraft ? (
+        <SavePill
+          state={pill}
+          onSave={() => void saveFromButton()}
+          onRetry={() => void saveFromButton()}
+          onCancel={cancelEdits}
+          onShow={() => summaryItems[0]?.onSelect?.()}
+          onSavedElapsed={() => setSavedShown(false)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -764,7 +821,6 @@ function SaveProblems({
  */
 function DraftActions({
   save,
-  dirty,
   gaps,
   publishing,
   onSave,
@@ -772,28 +828,15 @@ function DraftActions({
   onReload,
 }: {
   save: SaveState;
-  dirty: boolean;
   gaps: readonly PublishGap[];
   publishing: boolean;
   onSave: () => void;
   onPublish: () => void;
   onReload: () => void;
 }) {
-  // «Чернетку збережено о …» names a moment that is only still true while
-  // nothing has changed since (the same `save.kind === "saved" && !dirty`
-  // rule `ListedActions` uses below) - a value typed since then, or
-  // a save still pending or queued, keeps it hidden rather than naming a
-  // time that no longer describes the draft's current content.
-  const status =
-    save.kind === "saving"
-      ? uk.kabinet.profileEdit.state.saving
-      : save.kind === "saved" && !dirty
-        ? fillTemplate(t.draft.savedAt, { time: timeOf(save.at) })
-        : null;
   const unready = gaps.length > 0;
   return (
     <>
-      {status !== null ? <Text look="hint">{status}</Text> : null}
       <SaveProblems save={save} onSave={onSave} onReload={onReload} />
       <div className="flex gap-2 tablet:justify-end">
         {/*
@@ -820,56 +863,6 @@ function DraftActions({
           onClick={onPublish}
         >
           {t.publish.button}
-        </Button>
-      </div>
-    </>
-  );
-}
-
-/** A listed card has one action, «Зберегти», so it is the filled one. */
-function ListedActions({
-  save,
-  dirty,
-  onSave,
-  onReload,
-  viewHref,
-}: {
-  save: SaveState;
-  dirty: boolean;
-  /** The card's public page (published and reserved only), opened in a new tab after a save. */
-  viewHref?: string;
-  onSave: () => void;
-  onReload: () => void;
-}) {
-  const e = uk.kabinet.profileEdit;
-  return (
-    <>
-      {save.kind === "saved" && !dirty ? (
-        <Text look="hint">{fillTemplate(e.state.savedAt, { time: timeOf(save.at) })}</Text>
-      ) : null}
-      {save.kind === "saved" && !dirty && viewHref !== undefined ? (
-        <a
-          href={viewHref}
-          target="_blank"
-          rel="noopener"
-          className="inline-flex min-h-target items-center self-start rounded-field text-label text-ink underline underline-offset-4 focus-ring"
-        >
-          {uk.kabinet.profileTabs.view}
-          <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
-        </a>
-      ) : null}
-      <SaveProblems save={save} onSave={onSave} onReload={onReload} />
-      <div className="flex gap-2 tablet:justify-end">
-        <Button
-          variant="primary"
-          className="flex-1 tablet:flex-none"
-          aria-disabled={!dirty || undefined}
-          aria-busy={save.kind === "saving" || undefined}
-          onClick={() => {
-            if (dirty) onSave();
-          }}
-        >
-          {save.kind === "saving" ? e.state.saving : e.actions.save}
         </Button>
       </div>
     </>

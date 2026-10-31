@@ -134,7 +134,7 @@ describe("contacts (answer 3, answer 4)", () => {
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
   });
 
-  it("normalises silently and saves with the version it read, then says «Збережено.»", async () => {
+  it("normalises silently and saves with the version it read, then confirms with the time", async () => {
     const fns = renderEditor();
     const c = within(contacts());
     const phone = c.getByLabelText(/^Телефон/);
@@ -151,8 +151,8 @@ describe("contacts (answer 3, answer 4)", () => {
       },
       expectedVersion: 3,
     });
-    expect(c.getByRole("status").textContent).toBe("Збережено.");
-    expect(c.getByText(/^Збережено о \d\d:\d\d$/)).toBeTruthy();
+    // The confirmation is in the pill and repeated in the status line under the tabs.
+    expect(screen.getAllByText(/^Збережено о \d\d:\d\d$/)).toHaveLength(2);
   });
 
   it("names the bad field with his message and sends nothing", async () => {
@@ -180,7 +180,7 @@ describe("contacts (answer 3, answer 4)", () => {
     expect(fns.updateContact).not.toHaveBeenCalled();
   });
 
-  it("CONFLICT: says so, keeps nothing saved, and shows the current version on request", async () => {
+  it("CONFLICT: says so in the bar, keeps nothing saved, and shows the current version on request", async () => {
     const current = baseView({
       version: 9,
       contact: { primary: { kind: "phone", e164: "+380509999999" }, additional: [] },
@@ -199,17 +199,17 @@ describe("contacts (answer 3, answer 4)", () => {
     await userEvent.type(phone, "+380501112233");
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(
-      c.getByText(
+      screen.getAllByText(
         "Профіль змінили після того, як ви його відкрили. Ваші зміни не збережено. Ось поточна версія – внесіть зміни ще раз.",
       ),
-    ).toBeTruthy();
-    await userEvent.click(c.getByRole("button", { name: "Показати поточну версію" }));
+    ).toHaveLength(2);
+    await userEvent.click(screen.getByRole("button", { name: "Показати поточну версію" }));
     expect(fns.get).toHaveBeenCalledOnce();
     expect((c.getByLabelText(/^Телефон/) as HTMLInputElement).value).toBe("+380509999999");
     expect((c.getByLabelText(/^Telegram/) as HTMLInputElement).value).toBe("");
   });
 
-  it("a lost connection: his failure text and a retry that sends again", async () => {
+  it("a lost connection: the short failure in the bar and a retry that sends again", async () => {
     const updateContact = vi
       .fn()
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
@@ -220,13 +220,12 @@ describe("contacts (answer 3, answer 4)", () => {
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380501112233");
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
-    expect(
-      c.getByText(
-        "Не збереглося – на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
-      ),
-    ).toBeTruthy();
-    await userEvent.click(c.getByRole("button", { name: "Спробувати ще раз" }));
+    expect(screen.getAllByText("Не вдалося зберегти")).toHaveLength(2);
+    // The longer text never shows beside the short one.
+    expect(screen.queryByText(/^Не збереглося/)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Спробувати ще раз" }));
     expect(updateContact).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Не вдалося зберегти")).toBeNull();
   });
 
   it("stored contacts that don't fit show as editable «other» rows of any kind; adding stops at two rows", async () => {
@@ -729,14 +728,13 @@ describe("pause and resume (N21)", () => {
  * anything else his failure text. A server refusal is never re-read.
  */
 describe("a save whose answer is lost (K4-T16)", () => {
-  const FAILED =
-    "Не збереглося – на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.";
+  const FAILED = "Не вдалося зберегти";
   const lost = () =>
     vi.fn(async () => {
       throw new TypeError("Failed to fetch");
     });
 
-  it("contacts: the re-read shows the saved value, so «Збережено.»", async () => {
+  it("contacts: the re-read shows the saved value, so it counts as saved", async () => {
     const saved = { primary: { kind: "phone" as const, e164: "+380501112233" }, additional: [] };
     // jsonb hands keys back in its own order; the comparison must not care.
     const stored = baseView({
@@ -754,11 +752,11 @@ describe("a save whose answer is lost (K4-T16)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(fns.updateContact).toHaveBeenCalledWith({ contact: saved, expectedVersion: 3 });
     expect(fns.get).toHaveBeenCalledOnce();
-    expect(c.getByRole("status").textContent).toBe("Збережено.");
-    expect(c.queryByText(FAILED)).toBeNull();
+    expect(screen.getAllByText(/^Збережено о \d\d:\d\d$/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(FAILED)).toBeNull();
   });
 
-  it("contacts: the re-read shows the old value, so his failure text", async () => {
+  it("contacts: the re-read shows the old value, so the failure shows", async () => {
     const fns = renderEditor({ overrides: { updateContact: lost() } });
     const c = within(contacts());
     const phone = c.getByLabelText(/^Телефон/);
@@ -766,11 +764,10 @@ describe("a save whose answer is lost (K4-T16)", () => {
     await userEvent.type(phone, "+380501112233");
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(fns.get).toHaveBeenCalledOnce();
-    expect(c.getByText(FAILED)).toBeTruthy();
-    expect(c.getByRole("status").textContent).toBe("");
+    expect(screen.getAllByText(FAILED).length).toBeGreaterThan(0);
   });
 
-  it("voice: the re-read shows the new sentence (English dropped by the server), so «Збережено.»", async () => {
+  it("voice: the re-read shows the new sentence (English dropped by the server), so it counts as saved", async () => {
     const fns = renderEditor({
       overrides: {
         updateFreshnessSentence: lost(),
@@ -786,10 +783,10 @@ describe("a save whose answer is lost (K4-T16)", () => {
     await userEvent.type(v.getByLabelText("Ваші слова на сторінці притулку"), " Пишіть.");
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(fns.get).toHaveBeenCalledOnce();
-    expect(v.getByRole("status").textContent).toBe("Збережено.");
+    expect(screen.getAllByText(/^Збережено о \d\d:\d\d$/).length).toBeGreaterThan(0);
   });
 
-  it("a server refusal is not re-read: his failure text at once", async () => {
+  it("a server refusal is not re-read: the failure shows at once", async () => {
     const fns = renderEditor({
       overrides: {
         updateContact: vi.fn(async () => {
@@ -802,7 +799,7 @@ describe("a save whose answer is lost (K4-T16)", () => {
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380 50 111 22 33");
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
-    expect(c.getByText(FAILED)).toBeTruthy();
+    expect(screen.getAllByText(FAILED).length).toBeGreaterThan(0);
     expect(fns.get).not.toHaveBeenCalled();
   });
 });
@@ -821,10 +818,10 @@ describe("the page's one save bar and the sub-tabs", () => {
     );
   };
   /** Resolves a microtask after the commit that makes `node` read `text`: the first frame showing it. */
-  const whenReads = (node: HTMLElement, text: string) =>
+  const whenReads = (node: HTMLElement, text: RegExp) =>
     new Promise<void>((resolve) => {
       const observer = new MutationObserver(() => {
-        if (node.textContent !== text) return;
+        if (!text.test(node.textContent ?? "")) return;
         observer.disconnect();
         resolve();
       });
@@ -872,12 +869,13 @@ describe("the page's one save bar and the sub-tabs", () => {
 
   // The save tests above, checked at the moment they flaked (#299's merge, #308): the answers
   // commit outside any event, and the bar must not outlive them by a frame.
-  it("the bar is gone in the same frame the last section says «Збережено.»", async () => {
+  it("the unsaved bar is gone in the same frame the last save lands", async () => {
     renderEditor();
     await dirtyPhone();
     await dirtySentence();
-    // The contacts save last (page order), so their «Збережено.» means every save has landed.
-    const saved = whenReads(within(contacts()).getByRole("status"), "Збережено.");
+    // The status line under the tabs reads the time only once every save has landed.
+    const line = screen.getAllByText("Є незбережені зміни")[0]?.closest('[role="status"]');
+    const saved = whenReads(line as HTMLElement, /^Збережено о \d\d:\d\d$/);
     const click = userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     await saved;
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
@@ -928,10 +926,108 @@ describe("the page's one save bar and the sub-tabs", () => {
     renderEditor();
     await dirtySentence();
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
-    const link = within(voice()).getByRole("link", { name: /^Переглянути/ });
+    const link = screen.getByRole("link", { name: /^Переглянути/ });
     expect(link.getAttribute("href")).toBe(`/prytulky/${baseView().id}`);
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toContain("noopener");
     expect(link.textContent).toContain("(відкриється в новій вкладці)");
+  });
+});
+
+describe("the save pill on the shelter page", () => {
+  const dirtySentence = async () => {
+    await userEvent.type(
+      within(voice()).getByLabelText("Ваші слова на сторінці притулку"),
+      " Пишіть.",
+    );
+  };
+
+  it("S1: nothing to act on shows no pill, only the quiet line under the tabs", () => {
+    renderEditor();
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
+    expect(screen.getAllByText("Усі зміни збережено")).toHaveLength(1);
+  });
+
+  it("S5: counts the fields to fix, and «Показати» brings the first one into view and focuses it", async () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole("tab", { name: "Контакти" }));
+    const phone = within(contacts()).getByLabelText(/^Телефон/);
+    await userEvent.clear(phone);
+    await userEvent.type(phone, "+380670000002213");
+    fireEvent.click(screen.getByRole("tab", { name: "Збір коштів" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(screen.getAllByText("Перевірте 1 поле")).toHaveLength(2);
+    // Move away again, then ask the pill to show the problem.
+    fireEvent.click(screen.getByRole("tab", { name: "Збір коштів" }));
+    await userEvent.click(screen.getByRole("button", { name: "Показати" }));
+    expect(screen.getByRole("tab", { name: "Контакти" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(document.activeElement).toBe(within(contacts()).getByLabelText(/^Телефон/));
+  });
+
+  it("S6: a failed save shows only the short failure, never the long one, and the retry repeats it", async () => {
+    const updateFreshnessSentence = vi
+      .fn()
+      .mockRejectedValueOnce(apiError("INTERNAL_SERVER_ERROR"))
+      .mockResolvedValueOnce(baseView({ version: 4 }));
+    renderEditor({ overrides: { updateFreshnessSentence } });
+    await dirtySentence();
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(screen.getAllByText("Не вдалося зберегти")).toHaveLength(2);
+    expect(screen.queryByText(/^Не збереглося/)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Спробувати ще раз" }));
+    expect(updateFreshnessSentence).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Не вдалося зберегти")).toBeNull();
+  });
+
+  it("S3: both buttons are inert while saving", async () => {
+    let finish: (view: KabinetShelterView) => void = () => {};
+    const updateFreshnessSentence = vi.fn(
+      () =>
+        new Promise<KabinetShelterView>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    renderEditor({ overrides: { updateFreshnessSentence } });
+    await dirtySentence();
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(screen.getAllByText("Збереження…")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Зберегти" }).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Скасувати" }).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+    await act(async () => finish(baseView({ version: 4 })));
+    expect(screen.getAllByText(/^Збережено о \d\d:\d\d$/)).toHaveLength(2);
+  });
+
+  it("S4 leaves after 4 s and the line keeps the time; hover holds it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderEditor();
+      await dirtySentence();
+      await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+      const link = screen.getByRole("link", { name: /^Переглянути/ });
+      const bar = link.parentElement?.parentElement as HTMLElement;
+      act(() => {
+        fireEvent.mouseEnter(bar);
+      });
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(screen.getByRole("link", { name: /^Переглянути/ })).toBeTruthy();
+      act(() => {
+        fireEvent.mouseLeave(bar);
+      });
+      act(() => {
+        vi.advanceTimersByTime(4000);
+      });
+      expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
+      expect(screen.getAllByText(/^Збережено о \d\d:\d\d$/)).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

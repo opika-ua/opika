@@ -27,6 +27,8 @@ export type TabsProps = {
   onSelect?: (id: string) => void;
   /** `segmented` (default): one pill track, equal-width tabs. `pills`: separate outlined pills that scroll sideways. */
   look?: "segmented" | "pills";
+  /** A quiet line between the tab list and the panels (the kabinet's save status). */
+  status?: ReactNode;
   className?: string;
 };
 
@@ -37,6 +39,7 @@ export function Tabs({
   selectedId,
   onSelect,
   look = "segmented",
+  status,
   className,
 }: TabsProps) {
   const base = useId();
@@ -117,6 +120,7 @@ export function Tabs({
           );
         })}
       </div>
+      {status === undefined ? null : <div className="pt-3">{status}</div>}
       {tabs.map((tab) => (
         <div
           key={tab.id}

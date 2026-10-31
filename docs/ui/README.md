@@ -95,6 +95,5 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [PhotoSlider](components/PhotoSlider.md) | `PhotoSlider.tsx` | Photos that scroll sideways and snap. |
 | [FormSection](components/FormSection.md) | `FormSection.tsx` | One named section of a long form, with an optional step number. |
 | [FormSteps](components/FormSteps.md) | `FormSection.tsx` | The form's sections as a row of anchor links. |
-| [BarButton](components/BarButton.md) | `StickyActionBar.tsx` | A button for the ink save bar. |
 | [StickyActionBar](components/StickyActionBar.md) | `StickyActionBar.tsx` | The save / publish bar: sticky, safe-area aware, lifted above the on-screen keyboard. |
 | [FreshnessPips](components/FreshnessPips.md) | `FreshnessPips.tsx` | Three pips plus the day count in words. |
