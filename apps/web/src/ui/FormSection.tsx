@@ -20,6 +20,8 @@ export type FormSectionProps = {
   titleExtra?: ReactNode;
   /** One quiet line under the title: what this section is for. */
   description?: ReactNode;
+  /** `card` (default) is a white card with inner padding; `flush` has no frame or side padding, so its content shares the left edge of whatever sits above it (tabs). */
+  framing?: "card" | "flush";
   /** Layout only. */
   className?: string;
   children: ReactNode;
@@ -31,13 +33,25 @@ export function FormSection({
   step,
   titleExtra,
   description,
+  framing = "card",
   className,
   children,
 }: FormSectionProps) {
   const titleId = `${id}-title`;
   return (
-    <Card as="section" id={id} aria-labelledby={titleId} className={cx("scroll-mt-4", className)}>
-      <div className="flex flex-col gap-5 p-4 tablet:gap-6 tablet:p-6 desktop:p-8">
+    <Card
+      as="section"
+      id={id}
+      aria-labelledby={titleId}
+      tone={framing === "flush" ? "page" : "surface"}
+      className={cx("scroll-mt-4", className)}
+    >
+      <div
+        className={cx(
+          "flex flex-col gap-5 tablet:gap-6",
+          framing === "flush" ? "py-4 tablet:py-6" : "p-4 tablet:p-6 desktop:p-8",
+        )}
+      >
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             {step === undefined ? null : (

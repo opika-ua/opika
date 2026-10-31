@@ -224,6 +224,14 @@
  * The gallery card and the meta line, as named utilities: 24+ cards per page repeat these class
  * strings in the HTML and again in the RSC payload. Same token utilities, composed once here.
  */
+/* Photo manager grid: tiles never narrower than 180px on desktop, 140px (two columns) on a phone. */
+@utility photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  @media (min-width: 600px) {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
 @utility gcard {
   @apply relative flex flex-col gap-3 focus-ring tablet:block tablet:overflow-clip tablet:rounded-card;
 }

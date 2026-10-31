@@ -487,7 +487,7 @@ export function AnimalForm({
 
   const panels: Record<AnimalTab, React.ReactNode> = {
     osnovne: (
-      <FormSection id="basics" title={t.sections.basics}>
+      <FormSection framing="flush" id="basics" title={t.sections.basics}>
         <BasicsFields
           values={values}
           set={set}
@@ -501,6 +501,7 @@ export function AnimalForm({
     ),
     foto: (
       <FormSection
+        framing="flush"
         id="photos"
         title={withTag(t.photos.title, required.includes("photo"))}
         titleExtra={
@@ -543,7 +544,7 @@ export function AnimalForm({
       </FormSection>
     ),
     "pro-tvarynu": (
-      <FormSection id="about" title={t.sections.about}>
+      <FormSection framing="flush" id="about" title={t.sections.about}>
         <AboutFields
           values={values}
           set={set}
@@ -554,7 +555,7 @@ export function AnimalForm({
       </FormSection>
     ),
     zdorovia: (
-      <FormSection id="health" title={t.sections.health}>
+      <FormSection framing="flush" id="health" title={t.sections.health}>
         <HealthFields
           values={values}
           set={set}
@@ -565,7 +566,7 @@ export function AnimalForm({
       </FormSection>
     ),
     publikatsiia: (
-      <FormSection id="publication" title={t.sections.publication}>
+      <FormSection framing="flush" id="publication" title={t.sections.publication}>
         {isDraft ? (
           <DraftPublication
             gaps={gaps}
