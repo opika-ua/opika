@@ -154,6 +154,12 @@ export function PopoverDemo() {
         <Text>Panel content</Text>
       </Popover>
       <FieldPopoverDemo />
+      {/* Top layer: the panel is not clipped by this overflow-hidden box. */}
+      <div className="h-14 w-52 overflow-hidden rounded-panel border-2 border-line p-1">
+        <Popover label="Clipped parent" trigger="Inside overflow-hidden" className="w-full">
+          <Text>Not clipped</Text>
+        </Popover>
+      </div>
     </div>
   );
 }

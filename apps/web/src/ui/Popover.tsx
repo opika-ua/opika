@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useAnchored } from "./anchored";
 import { chipClass } from "./Chip";
 import { cx } from "./cx";
 import { Icon } from "./Icon";
@@ -10,7 +12,9 @@ import { Icon } from "./Icon";
  * A small panel anchored under its trigger (the filter selectors). Opening moves focus to the
  * panel's first usable control. Light dismiss: Esc and the trigger (focus returns to the trigger),
  * a click or tap outside, or focus leaving the panel with Tab. Not a modal: the page behind stays
- * usable, so there is no scroll lock and no focus trap.
+ * usable, so there is no scroll lock and no focus trap. The panel sits in the top layer (a manual
+ * popover), so no overflow container clips it; it follows the trigger on scroll and closes when the
+ * trigger scrolls out of view (`useAnchored`), like Menu.
  *
  * `children` is the panel's content - links, checkboxes or choice chips.
  */
@@ -45,10 +49,34 @@ const TRIGGER = {
 } as const;
 
 const PANEL = {
-  list: "mt-2 min-w-full flex-col gap-1 border-2 border-line p-2",
+  list: "flex-col gap-1 border-2 border-line p-2",
   // A 1px line the design (drawn over a dark backdrop) doesn't need, but this light page does.
-  pills: "mt-4 w-max min-w-full max-w-102.5 flex-wrap gap-3 border border-line p-5",
+  pills: "max-w-102.5 flex-wrap gap-3 border border-line p-5",
 } as const;
+
+const GAP = { list: 8, pills: 16 } as const;
+const EDGE = 8;
+
+type Box = { top: number; left: number; minWidth: number };
+
+// Fixed coordinates under the trigger; `start` flips to the far edge when it would pass the viewport.
+function place(
+  trigger: HTMLElement,
+  panel: HTMLElement | null,
+  align: "start" | "end",
+  gap: number,
+): Box {
+  const rect = trigger.getBoundingClientRect();
+  const viewport = document.documentElement.clientWidth;
+  const width = Math.max(panel?.offsetWidth ?? 0, rect.width);
+  const flip = align === "end" || rect.left + width > viewport;
+  const left = flip ? rect.right - width : rect.left;
+  return {
+    top: rect.bottom + gap,
+    left: Math.max(EDGE, Math.min(left, viewport - EDGE - width)),
+    minWidth: rect.width,
+  };
+}
 
 /** A control in the panel that can take focus and isn't marked unusable. */
 const USABLE =
@@ -67,17 +95,42 @@ export function Popover({
   children,
 }: PopoverProps) {
   const [open, setOpen] = useState(false);
-  const [flipped, setFlipped] = useState(false);
+  const [box, setBox] = useState<Box | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLFieldSetElement | null>(null);
   const panelId = useId();
   const showClear = active && clear !== undefined;
 
+  const inside = (node: Node) =>
+    rootRef.current?.contains(node) === true || panelRef.current?.contains(node) === true;
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!open || !panel) return;
+    if (typeof panel.showPopover === "function" && !panel.matches(":popover-open")) {
+      panel.showPopover();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) setBox(null);
+  }, [open]);
+  useAnchored(
+    open,
+    buttonRef,
+    (trigger) => setBox(place(trigger, panelRef.current, align, GAP[panel])),
+    () => {
+      const focusInside = panelRef.current?.contains(document.activeElement) === true;
+      setOpen(false);
+      if (focusInside) buttonRef.current?.focus({ preventScroll: true });
+    },
+  );
+
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!inside(event.target as Node)) setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -85,7 +138,7 @@ export function Popover({
       buttonRef.current?.focus();
     };
     const onFocusIn = (event: FocusEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!inside(event.target as Node)) setOpen(false);
     };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -97,26 +150,12 @@ export function Popover({
     };
   }, [open]);
 
-  // Before paint, so the panel never shows past the viewport's edge for a frame.
-  useLayoutEffect(() => {
-    if (!open) {
-      setFlipped(false);
-      return;
-    }
-    const box = panelRef.current?.getBoundingClientRect();
-    if (align === "start" && box && box.right > document.documentElement.clientWidth) {
-      setFlipped(true);
-    }
-  }, [open, align]);
-
   useEffect(() => {
     if (!open) return;
     const content = panelRef.current;
     const first = content?.querySelector<HTMLElement>(USABLE) ?? content?.querySelector("button");
-    first?.focus();
+    first?.focus({ preventScroll: true });
   }, [open]);
-
-  const alignEnd = align === "end" || flipped;
 
   return (
     <div ref={rootRef} className={cx("relative", className)}>
@@ -156,20 +195,28 @@ export function Popover({
           <Icon name="close" size="md" />
         </Link>
       ) : null}
-      {open ? (
-        <fieldset
-          ref={panelRef}
-          id={panelId}
-          className={cx(
-            "absolute top-full z-(--z-popover) flex rounded-panel bg-surface shadow-float",
-            PANEL[panel],
-            alignEnd ? "right-0" : "left-0",
-          )}
-        >
-          <legend className="sr-only">{panelLabel}</legend>
-          {children}
-        </fieldset>
-      ) : null}
+      {open
+        ? createPortal(
+            <fieldset
+              ref={panelRef}
+              id={panelId}
+              popover="manual"
+              style={
+                box
+                  ? { top: box.top, left: box.left, minWidth: box.minWidth }
+                  : { top: 0, left: 0, visibility: "hidden" }
+              }
+              className={cx(
+                "fixed inset-auto m-0 flex w-max overflow-visible rounded-panel bg-surface text-ink shadow-float",
+                PANEL[panel],
+              )}
+            >
+              <legend className="sr-only">{panelLabel}</legend>
+              {children}
+            </fieldset>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
