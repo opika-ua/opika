@@ -93,6 +93,12 @@ const writeRaw = (store: LikesStoreV1): void => {
 /** Whether this page's save control is running on the in-memory fallback, for the saved page's own notice. */
 export const likesStorageIsBlocked = (): boolean => storageIsBlocked;
 
+/** Test seam: drops the in-memory fallback so one test's blocked storage cannot leak into the next. */
+export const resetLikesStoreMemoryForTests = (): void => {
+  memoryFallback = undefined;
+  storageIsBlocked = false;
+};
+
 export const readLikesStore = (): LikesStoreV1 => readRaw();
 
 export const isAnimalSaved = (animalId: string): boolean =>

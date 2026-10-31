@@ -3,7 +3,7 @@ import type { AnimalId } from "@opika/domain";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { toggleSavedAnimal } from "./likes-store";
+import { resetLikesStoreMemoryForTests, toggleSavedAnimal } from "./likes-store";
 import { SavedPageScreen } from "./SavedPageScreen";
 
 const cardsByIds = vi.fn();
@@ -53,6 +53,7 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
 }
 
 beforeEach(() => {
+  resetLikesStoreMemoryForTests();
   window.localStorage.clear();
   cardsByIds.mockReset();
 });
