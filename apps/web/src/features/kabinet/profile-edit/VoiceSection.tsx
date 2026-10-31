@@ -8,8 +8,7 @@ import { FormSection } from "../../../ui/FormSection";
 import { TextArea } from "../../../ui/form";
 import { Text } from "../../../ui/Text";
 import { ShelterWordsSection } from "../../shelters/ShelterWordsSection";
-import { useSectionControls } from "../shared/page-save";
-import { type SaveState, SectionStatus } from "../shared/SaveBar";
+import { type SectionResult, useSectionControls } from "../shared/page-save";
 import { useUnsavedChanges } from "../shared/unsaved-changes";
 import { sameStoredValue, type WriteResult } from "../shared/write-result";
 import { SENTENCE_MAX, type SentenceError, sentenceCheck, sentenceLength } from "./fields";
@@ -54,20 +53,16 @@ export function VoiceSection({
   sentence,
   save,
   reload,
-  viewHref,
 }: {
   sentence: FreshnessSentence;
   save: (next: FreshnessSentence) => Promise<WriteResult>;
   reload: () => Promise<KabinetShelterView | null>;
-  /** The public shelter page, for the «Переглянути» link after a save. */
-  viewHref?: string;
 }) {
   const t = uk.kabinet.profileEdit;
   const id = useId();
   const [base, setBase] = useState(sentence);
   const [text, setText] = useState(sentence?.uk ?? "");
   const [error, setError] = useState<SentenceError | null>(null);
-  const [state, setState] = useState<SaveState>({ kind: "idle" });
   const dirty = text !== (base?.uk ?? "");
   useUnsavedChanges("voice", dirty);
 
@@ -77,56 +72,47 @@ export function VoiceSection({
     setError(null);
   };
 
-  const onSave = async (): Promise<boolean> => {
+  const focusSentence = () => document.getElementById(`${id}-sentence`)?.focus();
+
+  const onSave = async (): Promise<SectionResult> => {
     const checked = sentenceCheck(text);
     if (checked.kind === "invalid") {
       setError(checked.error);
-      setState({ kind: "idle" });
-      document.getElementById(`${id}-sentence`)?.focus();
-      return false;
+      focusSentence();
+      return { kind: "invalid", count: 1 };
     }
     setError(null);
-    setState({ kind: "saving" });
     const next: FreshnessSentence =
       checked.text === null ? null : { uk: checked.text, en: base?.en ?? null };
     const result = await save(next);
     if (result.kind === "ok") {
       reset(result.view.freshnessSentence);
-      setState({ kind: "saved", at: new Date() });
-      return true;
-    } else if (result.kind === "no_answer") {
+      return { kind: "ok" };
+    }
+    if (result.kind === "no_answer") {
       // The answer was lost; read what is stored now (inbox K4-T16). The
       // Ukrainian decides: the server may have dropped the English (answer 13).
       const view = await reload();
       if (view !== null && sameStoredValue(view.freshnessSentence?.uk ?? null, next?.uk ?? null)) {
         reset(view.freshnessSentence);
-        setState({ kind: "saved", at: new Date() });
-        return true;
+        return { kind: "ok" };
       }
-      setState({ kind: "failed" });
-    } else if (result.kind === "illegal_transition") {
-      setState({ kind: "failed" });
-    } else {
-      setState(result);
+      return { kind: "failed" };
     }
-    return false;
+    return result.kind === "conflict" ? { kind: "conflict" } : { kind: "failed" };
   };
 
-  const onCancel = () => {
-    reset(base);
-    setState({ kind: "idle" });
-  };
-  useSectionControls("voice", dirty, { save: onSave, cancel: onCancel });
-
+  const onCancel = () => reset(base);
   const onReload = async () => {
     const view = await reload();
-    if (view === null) {
-      setState({ kind: "failed" });
-      return;
-    }
-    reset(view.freshnessSentence);
-    setState({ kind: "idle" });
+    if (view !== null) reset(view.freshnessSentence);
   };
+  useSectionControls("voice", dirty, {
+    save: onSave,
+    cancel: onCancel,
+    reload: () => void onReload(),
+    focusProblem: focusSentence,
+  });
 
   const length = sentenceLength(text);
   const over = length - SENTENCE_MAX;
@@ -178,14 +164,7 @@ export function VoiceSection({
         )}
       </div>
 
-      <SectionStatus
-        state={state}
-        dirty={dirty}
-        caption={t.actions.liveOnSave.voice}
-        onSave={() => void onSave()}
-        onReload={onReload}
-        {...(viewHref !== undefined ? { viewHref } : {})}
-      />
+      <Text look="hint">{t.actions.liveOnSave.voice}</Text>
     </FormSection>
   );
 }

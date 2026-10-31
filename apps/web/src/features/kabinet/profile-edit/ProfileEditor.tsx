@@ -12,7 +12,7 @@ import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
 import { LockedBlock } from "../ProfileParts";
 import { publicShelterPath } from "../routes";
-import { PageSave } from "../shared/page-save";
+import { PageSave, PageSaveStatus } from "../shared/page-save";
 import { runWrite } from "../shared/write-result";
 import { ContactsSection } from "./ContactsSection";
 import { DonationSection } from "./DonationSection";
@@ -120,7 +120,6 @@ export function ProfileEditor({
               )
             }
             reload={reload}
-            viewHref={publicShelterPath(view.id)}
           />
         </div>
       ),
@@ -135,7 +134,6 @@ export function ProfileEditor({
             write(() => profile.updateContact({ contact, expectedVersion: versionRef.current }))
           }
           reload={reload}
-          viewHref={publicShelterPath(view.id)}
         />
       ),
     },
@@ -174,12 +172,16 @@ export function ProfileEditor({
   ];
 
   return (
-    <PageSave onProblem={(id) => show(SECTION_TAB[id] ?? "profil")}>
+    <PageSave
+      onProblem={(id) => show(SECTION_TAB[id] ?? "profil")}
+      viewHref={publicShelterPath(view.id)}
+    >
       <Tabs
         look="pills"
         label={t.label}
         tabs={panels}
         selectedId={tab}
+        status={<PageSaveStatus />}
         onSelect={(id) => show(profileTabOf(id))}
       />
     </PageSave>

@@ -525,6 +525,18 @@ export const uk = {
       saveBar: {
         unsaved: "Є незбережені зміни",
         cancel: "Скасувати",
+        /** The quiet status line when nothing is waiting to be saved. */
+        allSaved: "Усі зміни збережено",
+        /** `{n}` fields still need fixing; one form per `Intl.PluralRules("uk")` category. */
+        checkFields: {
+          one: "Перевірте {n} поле",
+          few: "Перевірте {n} поля",
+          many: "Перевірте {n} полів",
+        },
+        /** Jumps to the first field that needs fixing. */
+        show: "Показати",
+        /** The pill's short status; the retry button is `state.retry`. */
+        failed: "Не вдалося зберегти",
       },
       actions: {
         save: "Зберегти",

@@ -4,8 +4,8 @@ import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { useId, useState } from "react";
 import { FormSection } from "../../../ui/FormSection";
-import { useSectionControls } from "../shared/page-save";
-import { type SaveState, SectionStatus } from "../shared/SaveBar";
+import { Text } from "../../../ui/Text";
+import { type SectionResult, useSectionControls } from "../shared/page-save";
 import { useUnsavedChanges } from "../shared/unsaved-changes";
 import { sameStoredValue, type WriteResult } from "../shared/write-result";
 import { ContactFields, type ContactsErrors, NO_CONTACT_ERRORS } from "./ContactFields";
@@ -43,20 +43,16 @@ export function ContactsSection({
   contact,
   save,
   reload,
-  viewHref,
 }: {
   contact: KabinetShelterView["contact"];
   save: (next: KabinetShelterView["contact"]) => Promise<WriteResult>;
   reload: () => Promise<KabinetShelterView | null>;
-  /** The public shelter page, for the «Переглянути» link after a save. */
-  viewHref?: string;
 }) {
   const t = uk.kabinet.profileEdit;
   const id = useId();
   const [base, setBase] = useState(contact);
   const [form, setForm] = useState<ContactsForm>(() => contactsFormOf(contact));
   const [errors, setErrors] = useState<ContactsErrors>(NO_CONTACT_ERRORS);
-  const [state, setState] = useState<SaveState>({ kind: "idle" });
   const dirty = !sameContactsForm(form, contactsFormOf(base));
   useUnsavedChanges("contacts", dirty);
 
@@ -66,53 +62,46 @@ export function ContactsSection({
     setErrors(NO_CONTACT_ERRORS);
   };
 
-  const onSave = async (): Promise<boolean> => {
+  const onSave = async (): Promise<SectionResult> => {
     const checked = contactOfForm(form);
     if (checked.kind === "invalid") {
       setErrors(checked);
-      setState({ kind: "idle" });
       focusFirstProblem(id, form, checked);
-      return false;
+      const count =
+        (checked.phone === null ? 0 : 1) +
+        (checked.telegram === null ? 0 : 1) +
+        Object.keys(checked.others).length;
+      return { kind: "invalid", count: Math.max(count, 1) };
     }
     setErrors(NO_CONTACT_ERRORS);
-    setState({ kind: "saving" });
     const result = await save(checked.contact);
     if (result.kind === "ok") {
       reset(result.view.contact);
-      setState({ kind: "saved", at: new Date() });
-      return true;
-    } else if (result.kind === "no_answer") {
+      return { kind: "ok" };
+    }
+    if (result.kind === "no_answer") {
       // The answer was lost; read what is stored now (inbox K4-T16).
       const view = await reload();
       if (view !== null && sameStoredValue(view.contact, checked.contact)) {
         reset(view.contact);
-        setState({ kind: "saved", at: new Date() });
-        return true;
+        return { kind: "ok" };
       }
-      setState({ kind: "failed" });
-    } else if (result.kind === "illegal_transition") {
-      setState({ kind: "failed" });
-    } else {
-      setState(result);
+      return { kind: "failed" };
     }
-    return false;
+    return result.kind === "conflict" ? { kind: "conflict" } : { kind: "failed" };
   };
 
-  const onCancel = () => {
-    reset(base);
-    setState({ kind: "idle" });
-  };
-  useSectionControls("contacts", dirty, { save: onSave, cancel: onCancel });
-
+  const onCancel = () => reset(base);
   const onReload = async () => {
     const view = await reload();
-    if (view === null) {
-      setState({ kind: "failed" });
-      return;
-    }
-    reset(view.contact);
-    setState({ kind: "idle" });
+    if (view !== null) reset(view.contact);
   };
+  useSectionControls("contacts", dirty, {
+    save: onSave,
+    cancel: onCancel,
+    reload: () => void onReload(),
+    focusProblem: () => focusFirstProblem(id, form, errors),
+  });
 
   return (
     <FormSection
@@ -121,14 +110,7 @@ export function ContactsSection({
       description={uk.kabinet.profile.contactsNote}
     >
       <ContactFields idPrefix={id} form={form} update={setForm} errors={errors} />
-      <SectionStatus
-        state={state}
-        dirty={dirty}
-        caption={t.actions.liveOnSave.contacts}
-        onSave={() => void onSave()}
-        onReload={onReload}
-        {...(viewHref !== undefined ? { viewHref } : {})}
-      />
+      <Text look="hint">{t.actions.liveOnSave.contacts}</Text>
     </FormSection>
   );
 }

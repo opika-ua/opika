@@ -739,12 +739,17 @@ describe("the unsaved-work warning and the saved-time line", () => {
       view: () => draft(),
       saveLabel: SAVE_DRAFT,
       savedLineText: (time: string) => `Чернетку збережено о ${time}`,
+      failureText: FAILURE,
+      retryLabel: SAVE_DRAFT,
     },
     {
       name: "a listed card",
       view: () => published(),
       saveLabel: "Зберегти",
       savedLineText: (time: string) => `Збережено о ${time}`,
+      // A saved card's failure is the pill's short line, repeated under the tabs.
+      failureText: "Не вдалося зберегти",
+      retryLabel: "Спробувати ще раз",
     },
   ] as const;
 
@@ -782,7 +787,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
 
   it.each(CASES)(
     "$name: typing (unblurred) hides the line and warns; settling shows it with the new time and clears the warning; a failed save re-hides it and re-warns",
-    async ({ view, saveLabel, savedLineText }) => {
+    async ({ view, saveLabel, savedLineText, failureText, retryLabel }) => {
       let now = NOW;
       const client = fakeClient(view());
       renderForm(view(), { client, clock: () => now });
@@ -805,7 +810,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
       await act(async () =>
         release1({ ...view(), description: { uk: "Лагідна.", en: null } } as KabinetAnimalView),
       );
-      await screen.findByText(savedLineText(FIRST_TIME));
+      await screen.findAllByText(savedLineText(FIRST_TIME));
       expect(dispatchUnload()).toEqual({ prevented: false, returnValue: undefined });
 
       // Type again: `save.kind` is still "saved" from the last success, but
@@ -822,7 +827,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
       // hidden and the warning stays on.
       client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
       fireEvent.click(screen.getByRole("button", { name: saveLabel }));
-      await screen.findByText(FAILURE);
+      await screen.findAllByText(failureText);
       expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
       expect(dispatchUnload().prevented).toBe(true);
 
@@ -831,14 +836,14 @@ describe("the unsaved-work warning and the saved-time line", () => {
       // first one's.
       now = SECOND_NOW;
       const release2 = deferredUpdate(client);
-      fireEvent.click(screen.getByRole("button", { name: saveLabel }));
+      fireEvent.click(screen.getByRole("button", { name: retryLabel }));
       await act(async () =>
         release2({
           ...view(),
           description: { uk: "Лагідна, грається.", en: null },
         } as KabinetAnimalView),
       );
-      await screen.findByText(savedLineText(SECOND_TIME));
+      await screen.findAllByText(savedLineText(SECOND_TIME));
       expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
       expect(dispatchUnload()).toEqual({ prevented: false, returnValue: undefined });
     },
@@ -1911,10 +1916,8 @@ describe("temperament", () => {
     expect((group().getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement).value).toBe(
       "Гризе капці",
     );
-    // Nothing changed yet: the stored order is the form's, so no patch is due.
-    expect(screen.getByRole("button", { name: "Зберегти" }).getAttribute("aria-disabled")).toBe(
-      "true",
-    );
+    // Nothing changed yet: the stored order is the form's, so no patch is due and no bar shows.
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
     fireEvent.click(box("Соромʼязливий"));
     fireEvent.click(box("Грайливий"));
     fireEvent.click(box("Інше"));
@@ -2309,5 +2312,209 @@ describe("sections, steps and the error summary (kabinet redesign PR 3)", () => 
     renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>));
     expect(screen.queryByText(/Щоб опублікувати, ще потрібно/)).toBeNull();
     expect(screen.getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeTruthy();
+  });
+});
+
+/**
+ * Save bar A: a saved card's floating pill (a bar on a phone) exists only while there is something
+ * to act on (S2–S6), the line under the tabs carries the quiet states, and a draft never shows one.
+ */
+describe("the save pill", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+  const edit = (text = "Лагідна.") =>
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: text } });
+  const pillButton = (name: string) => screen.queryByRole("button", { name });
+  const deferred = (client: FakeClient) => {
+    let release: (view: KabinetAnimalView) => void = () => {};
+    client.calls.update.mockImplementationOnce(
+      () =>
+        new Promise<KabinetAnimalView>((resolve) => {
+          release = resolve;
+        }),
+    );
+    return (view: KabinetAnimalView) => release(view);
+  };
+
+  it("S1 to S2 to S3 to S4, then leaves after 4 s while the line keeps the time", async () => {
+    vi.useFakeTimers();
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    // S1: no pill, the quiet line says everything is saved.
+    expect(pillButton("Зберегти")).toBeNull();
+    expect(screen.getAllByText("Усі зміни збережено")).toHaveLength(1);
+
+    // S2
+    edit();
+    expect(screen.getAllByText("Є незбережені зміни")).toHaveLength(2);
+    expect(pillButton("Скасувати")).not.toBeNull();
+
+    // S3: both buttons are inert but stay in place.
+    const release = deferred(client);
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(screen.getAllByText("Збереження…")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Зберегти" }).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Скасувати" }).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+
+    // S4
+    await act(async () =>
+      release({ ...card, description: { uk: "Лагідна.", en: null } } as KabinetAnimalView),
+    );
+    expect(screen.getAllByText("Збережено о 12:00")).toHaveLength(2);
+    expect(screen.getByRole("link", { name: /^Переглянути/ })).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(3999);
+    });
+    expect(screen.getAllByText("Збережено о 12:00")).toHaveLength(2);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // Back to S1 with the time kept in the line.
+    expect(screen.getAllByText("Збережено о 12:00")).toHaveLength(1);
+    expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
+  });
+
+  it("holds the confirmation while focus is inside it, and gives it its time again on leaving", async () => {
+    vi.useFakeTimers();
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit();
+    const release = deferred(client);
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    await act(async () =>
+      release({ ...card, description: { uk: "Лагідна.", en: null } } as KabinetAnimalView),
+    );
+    const link = screen.getByRole("link", { name: /^Переглянути/ });
+    act(() => {
+      fireEvent.focusIn(link);
+    });
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByRole("link", { name: /^Переглянути/ })).toBeTruthy();
+    act(() => {
+      fireEvent.focusOut(link);
+    });
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
+    expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
+  });
+
+  it("a new edit replaces the confirmation with S2 at once", async () => {
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit();
+    client.calls.update.mockResolvedValueOnce({
+      ...card,
+      description: { uk: "Лагідна.", en: null },
+    } as KabinetAnimalView);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(screen.getAllByText("Збережено о 12:00")).toHaveLength(2);
+    edit("Лагідна, грається.");
+    expect(screen.getAllByText("Є незбережені зміни")).toHaveLength(2);
+    expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
+  });
+
+  it("S3 to S5: a refused save says how many fields to check, and «Показати» focuses the first", async () => {
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit("");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(client.calls.update).not.toHaveBeenCalled();
+    expect(screen.getAllByText("Перевірте 1 поле")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Показати" }));
+    });
+    expect(document.activeElement).toBe(screen.getByLabelText(/^Опис/));
+  });
+
+  it("S3 to S6: a failed save says so once, keeps the edit, and «Спробувати ще раз» repeats it", async () => {
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit();
+    client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(screen.getAllByText("Не вдалося зберегти")).toHaveLength(2);
+    // The longer failure text of the profile editor never joins it.
+    expect(screen.queryByText(/^Не збереглося/)).toBeNull();
+    expect(pillButton("Скасувати")).not.toBeNull();
+    client.calls.update.mockResolvedValueOnce({
+      ...card,
+      description: { uk: "Лагідна.", en: null },
+    } as KabinetAnimalView);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Спробувати ще раз" }));
+    });
+    expect(client.calls.update).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Не вдалося зберегти")).toBeNull();
+    expect(screen.getAllByText("Збережено о 12:00")).toHaveLength(2);
+  });
+
+  it("a conflict shows the existing conflict message and action, not the failure text", async () => {
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit();
+    client.calls.update.mockRejectedValueOnce(apiError("CONFLICT"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(screen.queryByText("Не вдалося зберегти")).toBeNull();
+    expect(screen.getByRole("button", { name: "Показати поточну версію" })).toBeTruthy();
+  });
+
+  it("«Скасувати» puts the saved values back and the pill goes", () => {
+    const card = published();
+    renderForm(card);
+    edit();
+    fireEvent.click(screen.getByRole("button", { name: "Скасувати" }));
+    expect((screen.getByLabelText(/^Опис/) as HTMLTextAreaElement).value).toBe(
+      "Спокійна, любить гуляти.",
+    );
+    expect(pillButton("Зберегти")).toBeNull();
+    expect(screen.getAllByText("Усі зміни збережено")).toHaveLength(1);
+  });
+
+  it("Esc does nothing to the pill", () => {
+    renderForm(published());
+    edit();
+    fireEvent.keyDown(screen.getByRole("button", { name: "Зберегти" }), { key: "Escape" });
+    expect(screen.getAllByText("Є незбережені зміни")).toHaveLength(2);
+  });
+
+  it("a draft never shows the pill: its status is only the line under the tabs", async () => {
+    const card = draft();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit();
+    expect(screen.queryByText("Є незбережені зміни")).toBeNull();
+    client.calls.update.mockResolvedValueOnce({
+      ...card,
+      description: { uk: "Лагідна.", en: null },
+    } as KabinetAnimalView);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    });
+    expect(screen.getAllByText("Чернетку збережено о 12:00")).toHaveLength(1);
+    expect(screen.queryByText("Збережено о 12:00")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { cx } from "./cx";
 import { keyboardInsetOf, revealAboveBar } from "./sticky-bar";
 
@@ -26,11 +26,11 @@ export function StickyActionBar({
   /** Layout only. */
   className?: string;
   /**
-   * `surface` (default): a bordered card with a stacked layout. `ink`: the kabinet's page save bar,
-   * a dark 16px-radius strip with the message left and the buttons right (`BarButton`s), which on a
-   * phone sticks above the bottom nav (`bottom-above-nav`) instead of at the screen edge.
+   * `surface` (default): a bordered card with a stacked layout. `float`: only the sticky placement
+   * for the kabinet's save pill / bar (`SavePill` draws it): above the bottom nav on a phone, 16px
+   * above the bottom edge from `desktop`, and full width of the column's right-aligned content.
    */
-  tone?: "surface" | "ink";
+  tone?: "surface" | "float";
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [inset, setInset] = useState(0);
@@ -88,47 +88,17 @@ export function StickyActionBar({
       style={inset > 0 ? { transform: `translateY(-${inset}px)` } : undefined}
       className={cx(
         "sticky z-(--z-header)",
-        tone === "ink"
-          ? "bottom-above-nav pt-2 desktop:bottom-0 desktop:pb-inset"
-          : "bottom-0 pt-2 pb-inset",
+        tone === "float" ? "bottom-above-nav desktop:bottom-4" : "bottom-0 pt-2 pb-inset",
         className,
       )}
     >
-      {tone === "ink" ? (
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 rounded-bar bg-ink py-2.5 pr-2.5 pl-6 text-on-ink shadow-float">
-          {children}
-        </div>
+      {tone === "float" ? (
+        children
       ) : (
         <div className="flex flex-col gap-2 rounded-card border-2 border-line bg-surface p-3 shadow-float tablet:p-4">
           {children}
         </div>
       )}
     </div>
-  );
-}
-
-/**
- * A button for the ink bar: `text` is white text on the bar («Скасувати»), `pill` a white pill with
- * ink text («Зберегти»). 44px drawn, 48px to the pointer (a `before:` overhang, as the choice chips).
- */
-export function BarButton({
-  kind,
-  children,
-  ...props
-}: { kind: "text" | "pill"; children: ReactNode } & Omit<
-  ComponentProps<"button">,
-  "className" | "children"
->) {
-  return (
-    <button
-      type="button"
-      {...props}
-      className={cx(
-        "relative inline-flex h-11 cursor-pointer items-center justify-center whitespace-nowrap rounded-pill text-label focus-ring-on-ink before:absolute before:inset-x-0 before:-inset-y-0.5",
-        kind === "pill" ? "bg-on-ink px-6 text-ink" : "px-4 text-on-ink",
-      )}
-    >
-      {children}
-    </button>
   );
 }

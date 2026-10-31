@@ -34,7 +34,7 @@ import { PhotoSlider } from "../../../ui/PhotoSlider";
 import { PrevNext } from "../../../ui/PrevNext";
 import { Skeleton } from "../../../ui/Skeleton";
 import { Spinner } from "../../../ui/Spinner";
-import { BarButton, StickyActionBar } from "../../../ui/StickyActionBar";
+import { StickyActionBar } from "../../../ui/StickyActionBar";
 import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
 import { TextLink } from "../../../ui/TextLink";
@@ -512,17 +512,6 @@ export default function DevUiPage() {
                   Save
                 </Button>
                 <Button className="flex-1">Publish</Button>
-              </div>
-            </StickyActionBar>
-          </div>
-        </Row>
-        <Row label="StickyActionBar tone=ink with BarButtons (the page save bar)">
-          <div className="w-full">
-            <StickyActionBar tone="ink">
-              <p className="min-w-0 flex-1 text-label">You have unsaved changes</p>
-              <div className="flex items-center gap-2">
-                <BarButton kind="text">Cancel</BarButton>
-                <BarButton kind="pill">Save</BarButton>
               </div>
             </StickyActionBar>
           </div>

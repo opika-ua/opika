@@ -153,7 +153,8 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
     await phone.fill("+380 50 111-22-33");
     // The one page save bar appears only now that something is unsaved.
     await page.getByRole("button", { name: "Зберегти" }).click();
-    await expect(contacts.getByRole("status")).toHaveText("Збережено.");
+    // The confirmation: the pill's «Збережено о …», repeated in the line under the tabs.
+    await expect(page.getByText(/^Збережено о \d\d:\d\d$/).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Зберегти" })).toHaveCount(0);
 
     await page.reload();
@@ -166,8 +167,60 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
     await again.getByLabel(/^Телефон/).fill(before);
     if (before !== "+380501112233") {
       await page.getByRole("button", { name: "Зберегти" }).click();
-      await expect(again.getByRole("status")).toHaveText("Збережено.");
+      await expect(page.getByText(/^Збережено о \d\d:\d\d$/).first()).toBeVisible();
     }
+    await page.close();
+  });
+
+  /**
+   * Save bar A. From 600px a floating pill whose right edge is the form column's; on a phone a
+   * full-width bar with two equal 48px buttons that never covers the last field and never makes
+   * the page scroll sideways. Opened with an edit, left unsaved (the page is closed).
+   */
+  test("the save pill sits on the form column's right edge at 1440", async () => {
+    const page = await profilePage("kontakty");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page
+      .getByRole("region", { name: "Контакти" })
+      .getByLabel(/^Телефон/)
+      .fill("+380 50 111-22-33");
+    const pill = page.locator("[data-save-pill]");
+    await expect(pill).toBeVisible();
+    const column = await page.getByRole("tablist").locator("xpath=..").boundingBox();
+    const box = await pill.boundingBox();
+    if (column === null || box === null) throw new Error("no layout");
+    expect(Math.abs(box.x + box.width - (column.x + column.width))).toBeLessThanOrEqual(2);
+    expect(box.height).toBeGreaterThanOrEqual(56 - 1);
+    await page.close();
+  });
+
+  test("the save bar at 393: equal 48px buttons, no sideways scroll, the last field stays clear", async () => {
+    const page = await profilePage("kontakty");
+    await page.setViewportSize({ width: 393, height: 800 });
+    const contacts = page.getByRole("region", { name: "Контакти" });
+    await contacts.getByLabel(/^Телефон/).fill("+380 50 111-22-33");
+    const bar = page.locator("[data-save-pill]");
+    await expect(bar).toBeVisible();
+    const buttons = bar.getByRole("button");
+    await expect(buttons).toHaveCount(2);
+    const [first, second] = [
+      await buttons.nth(0).boundingBox(),
+      await buttons.nth(1).boundingBox(),
+    ];
+    if (first === null || second === null) throw new Error("no layout");
+    expect(Math.abs(first.width - second.width)).toBeLessThanOrEqual(1);
+    expect(first.height).toBeGreaterThanOrEqual(48);
+    expect(second.height).toBeGreaterThanOrEqual(48);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const fields = contacts.locator("input:visible");
+    const last = await fields.last().boundingBox();
+    const barBox = await bar.boundingBox();
+    if (last === null || barBox === null) throw new Error("no layout");
+    expect(last.y + last.height).toBeLessThanOrEqual(barBox.y);
     await page.close();
   });
 

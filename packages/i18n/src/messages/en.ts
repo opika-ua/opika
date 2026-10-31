@@ -668,6 +668,14 @@ export const en = {
       saveBar: {
         unsaved: "You have unsaved changes",
         cancel: "Cancel",
+        allSaved: "All changes saved",
+        checkFields: {
+          one: "Check {n} field",
+          few: "Check {n} fields",
+          many: "Check {n} fields",
+        },
+        show: "Show",
+        failed: "Could not save",
       },
       actions: {
         save: "Save",
