@@ -3,6 +3,7 @@ export {
   ageChipWordFor,
   ageWordFor,
   sexWordFor,
+  sizeChipWordFor,
   sizeLabel,
   speciesWordFor,
 } from "./animal-labels";

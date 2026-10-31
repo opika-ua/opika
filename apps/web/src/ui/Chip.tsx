@@ -3,12 +3,13 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react
 import { cx } from "./cx";
 
 /**
- * One chip, five jobs (the inventory counted about eight hand-built recipes):
+ * One chip, six jobs (the inventory counted about eight hand-built recipes):
  * - `option`: a checkbox or radio you choose from (filter sheet). A real input inside a label, so it
  *   submits with a plain GET form and works without JS.
  * - `toggle`: a button that acts in place, state in `aria-pressed` (also a Popover's trigger).
  * - `link`: navigates; the current one is marked with `aria-current`.
  * - `info`: a fact, not interactive (age, size, medical).
+ * - `fact`: one fact on the animal page (36px, one size, truncates with the full text as its name).
  * - `status`: a short state with a tone (reserved, adopted).
  * - `choice`: an option pill with an optional count (the filter selectors and the filter sheet),
  *   as a toggle button or a real checkbox/radio.
@@ -20,6 +21,9 @@ const CONTROL = `${SHAPE} min-h-target cursor-pointer border-2`;
 // Whole sets, never layered: two colour utilities on one element is decided by stylesheet order.
 const OFF = "border-line bg-page text-ink";
 const ON = "border-ink bg-ink text-on-ink";
+
+const FACT =
+  "inline-flex h-9 items-center rounded-pill border-2 px-3.5 text-chip whitespace-nowrap";
 
 const INFO = {
   neutral: "bg-line text-ink",
@@ -102,6 +106,19 @@ type ChoiceChip = {
     }
 );
 
+/**
+ * A fact about one animal (the pet card's «Про мене»): the only chip size there. 36px drawn, never
+ * wraps its own text; one wider than its column ellipsises, the full text kept as the accessible
+ * name. With `href` it links (a 48px hit area stretched by `before:`), otherwise it is plain.
+ */
+type FactChip = {
+  kind: "fact";
+  href?: string;
+  /** When the visible text is shorter than the link's purpose, or truncated. */
+  "aria-label"?: string;
+  children: string;
+};
+
 type InfoChip = { kind: "info"; tone?: keyof typeof INFO; children: ReactNode };
 type StatusChip = { kind: "status"; tone: keyof typeof STATUS; children: ReactNode };
 
@@ -111,6 +128,7 @@ export type ChipProps = (
   | LinkChip
   | ChoiceChip
   | InfoChip
+  | FactChip
   | StatusChip
 ) & {
   /** Layout only. */
@@ -162,6 +180,32 @@ export function Chip(props: ChipProps) {
       );
     case "choice":
       return <ChoiceChipView {...props} />;
+    case "fact": {
+      const look = cx(
+        FACT,
+        "min-w-0 max-w-full border-line bg-transparent text-ink",
+        props.className,
+      );
+      if (props.href !== undefined) {
+        return (
+          <Link
+            href={props.href}
+            aria-label={props["aria-label"] ?? props.children}
+            className={cx(
+              look,
+              "relative cursor-pointer before:absolute before:inset-x-0 before:-inset-y-1.5 focus-ring",
+            )}
+          >
+            <span className="min-w-0 overflow-hidden text-ellipsis">{props.children}</span>
+          </Link>
+        );
+      }
+      return (
+        <span className={look}>
+          <span className="min-w-0 overflow-hidden text-ellipsis">{props.children}</span>
+        </span>
+      );
+    }
     case "info":
       return (
         <span className={cx(SHAPE, "py-1", INFO[props.tone ?? "neutral"], props.className)}>

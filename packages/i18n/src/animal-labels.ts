@@ -26,6 +26,12 @@ const SIZE_LABELS: Record<SizeBucket, string> = {
   large: uk.cardMeta.sizeLarge,
 };
 
+const MASCULINE_SIZE_CHIP_WORDS: Record<SizeBucket, string> = {
+  small: uk.filters.sizeSmall,
+  medium: uk.filters.sizeMedium,
+  large: uk.filters.sizeLarge,
+};
+
 /** The age word in a card's meta line, e.g. "молодий" in "молодий · мала". */
 export function ageBucketLabel(bucket: AgeBucket): string {
   return AGE_BUCKET_LABELS[bucket];
@@ -34,6 +40,16 @@ export function ageBucketLabel(bucket: AgeBucket): string {
 /** The size word in a card's meta line, e.g. "мала" in "молодий · мала". */
 export function sizeLabel(size: SizeBucket): string {
   return SIZE_LABELS[size];
+}
+
+/**
+ * The pet card's size chip: agrees with the animal's sex like the age word (female «Мала»,
+ * male and «Не записано» «Малий»). The masculine words are the filter's own, already capitalised.
+ */
+export function sizeChipWordFor(size: SizeBucket, sex: AnimalSex): string {
+  if (grammaticalGenderOf(sex) === "masculine") return MASCULINE_SIZE_CHIP_WORDS[size];
+  const word = SIZE_LABELS[size];
+  return word.charAt(0).toLocaleUpperCase("uk") + word.slice(1);
 }
 
 const FEMININE_AGE_BUCKET_LABELS: Record<AgeBucket, string> = {

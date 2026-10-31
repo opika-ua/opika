@@ -35,7 +35,7 @@ import { ChipGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
-import { vaccinationRow } from "../../animal-detail/medical-labels";
+import { MEDICAL_VALUE_TEXT, rowSource, vaccinationRow } from "../../animal-detail/medical-labels";
 import type { AgeMode, FieldProblem, FormValues } from "./form-values";
 import { ageInputOf } from "./form-values";
 import { bucketRange, dateEndingSentenceOf, sizeHint } from "./labels";
@@ -567,7 +567,8 @@ export function HealthFields({
         // N19: a registry fact renders read-only, with the public row's own treatment.
         <div className="flex flex-col gap-1">
           <Text look="label">{registry.label}</Text>
-          <Text look="hint">{registry.statusText}</Text>
+          <Text look="hint">{MEDICAL_VALUE_TEXT[registry.value]}</Text>
+          <Text look="hint">{rowSource(registry)}</Text>
           <Text look="hint">{t.health.registryReadOnly}</Text>
         </div>
       ) : (

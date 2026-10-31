@@ -5,6 +5,7 @@ import {
   ageChipWordFor,
   ageWordFor,
   sexWordFor,
+  sizeChipWordFor,
   sizeLabel,
   speciesWordFor,
 } from "./animal-labels";
@@ -74,6 +75,23 @@ describe("ageChipWordFor, each sex × bucket", () => {
     ["unknown", "senior", "Літній"],
   ] as const)("%s, %s → «%s»", (sex, bucket, word) => {
     expect(ageChipWordFor(bucket, sex)).toBe(word);
+  });
+});
+
+/** The pet card's size chip agrees with sex like the age chip. Every size × sex. */
+describe("sizeChipWordFor, each sex × size", () => {
+  it.each([
+    ["male", "small", "Малий"],
+    ["male", "medium", "Середній"],
+    ["male", "large", "Великий"],
+    ["female", "small", "Мала"],
+    ["female", "medium", "Середня"],
+    ["female", "large", "Велика"],
+    ["unknown", "small", "Малий"],
+    ["unknown", "medium", "Середній"],
+    ["unknown", "large", "Великий"],
+  ] as const)("%s, %s → «%s»", (sex, size, word) => {
+    expect(sizeChipWordFor(size, sex)).toBe(word);
   });
 });
 

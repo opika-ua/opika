@@ -122,4 +122,18 @@ describe("Chip", () => {
     expect(screen.getByText("Середній")).toBeTruthy();
     expect(screen.getByText("Резерв")).toBeTruthy();
   });
+
+  it("fact: plain text, or a link whose accessible name is the aria-label", () => {
+    render(
+      <>
+        <Chip kind="fact">Спокійний</Chip>
+        <Chip kind="fact" href="/tvaryny?stat=male" aria-label="Показати схожих котів: хлопчик">
+          Хлопчик
+        </Chip>
+      </>,
+    );
+    expect(screen.getByText("Спокійний").closest("a")).toBeNull();
+    const link = screen.getByRole("link", { name: "Показати схожих котів: хлопчик" });
+    expect(link.textContent).toBe("Хлопчик");
+  });
 });
