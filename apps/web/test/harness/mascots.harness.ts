@@ -21,7 +21,7 @@ const PHONE_393: Viewport = { name: "393x852", width: 393, height: 852 };
 const PHONE_320: Viewport = { name: "320x640", width: 320, height: 640 };
 const PHONE_360: Viewport = { name: "360x740", width: 360, height: 740 };
 
-test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.61" } });
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.65" } });
 
 const MOMENT = "[data-mascot-group], [data-mascot]:not([data-mascot-group] [data-mascot])";
 
