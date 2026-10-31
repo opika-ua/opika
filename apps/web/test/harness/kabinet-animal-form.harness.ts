@@ -402,6 +402,8 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       await page.setViewportSize({ width, height: 900 });
       for (const name of [/^Фото/, /^Про тварину/, /^Основне/]) {
         await openTab(page, name);
+        // The pill row scrolls sideways on a phone and scrolls the chosen tab into view.
+        await page.getByRole("tablist").evaluate((row) => row.scrollTo({ left: 0 }));
         const tabLeft = (await page.getByRole("tab").first().boundingBox())?.x ?? -1;
         const panelLeft =
           (await page.locator('[role="tabpanel"]:not([hidden]) h2').first().boundingBox())?.x ?? -2;
