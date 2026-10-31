@@ -28,7 +28,7 @@ export function StickyActionBar({
   /**
    * `surface` (default): a bordered card with a stacked layout. `float`: only the sticky placement
    * for the kabinet's save pill / bar (`SavePill` draws it): above the bottom nav on a phone, 16px
-   * above the bottom edge from `desktop`, and full width of the column's right-aligned content.
+   * above the bottom edge from `desktop`. From `tablet` the pill itself is fixed and centred on the viewport; this wrapper only reserves its 56px of flow space.
    */
   tone?: "surface" | "float";
 }) {
@@ -88,7 +88,9 @@ export function StickyActionBar({
       style={inset > 0 ? { transform: `translateY(-${inset}px)` } : undefined}
       className={cx(
         "sticky z-(--z-header)",
-        tone === "float" ? "bottom-above-nav desktop:bottom-4" : "bottom-0 pt-2 pb-inset",
+        tone === "float"
+          ? "bottom-above-nav tablet:h-14 desktop:bottom-4"
+          : "bottom-0 pt-2 pb-inset",
         className,
       )}
     >
