@@ -53,6 +53,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [MetaLine](components/MetaLine.md) | `MetaLine.tsx` | Facts joined by a drawn separator: «Хлопчик · дорослий · середній». |
 | [Badge](components/Badge.md) | `Badge.tsx` | A small tag that sits on a photo. |
 | [Spinner](components/Spinner.md) | `Spinner.tsx` | Indeterminate progress. |
+| [Mascot](components/Mascot.md) | `Mascot.tsx` | Decorative cat and dog, inline SVG, perches on an edge. `MascotPerch` seats a pair. |
 | [Skeleton](components/Skeleton.md) | `Skeleton.tsx` | Loading placeholder shaped like the content. |
 | [Chip](components/Chip.md) | `Chip.tsx` | One chip, six kinds. |
 | [Card](components/Card.md) | `Card.tsx` | The 24px rounded container. |

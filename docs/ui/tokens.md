@@ -14,6 +14,19 @@ One set, defined in `apps/web/src/app/globals.css` (`@theme`). Class names have 
 | Spacing | Tailwind's 4px steps; `target` = 48px | `min-h-target`, `size-target` |
 | Utilities | `focus-ring`, `focus-ring-within`, `focus-ring-on-ink` (white ring on an ink surface), `pb-safe` (sheets), `pb-inset` (fixed bars), `bottom-above-nav` (a bar that sticks above the kabinet's phone nav) | every control; chips with a hidden input; sheets and fixed bars |
 
+## Mascot colours
+
+The mascots (`Mascot`, `docs/ui/components/Mascot.md`) reuse `accent` (orange), `species-dog` (the dog's dark patch) and `on-ink` (eyes). Four tokens exist only for them, declared `@theme static` because the SVG reads them through `var()`:
+
+| Token | Value | Use |
+|---|---|---|
+| `mascot-dog` | #A469FB | the dog's body |
+| `mascot-dog-light` | #DBC3FD | the dog's muzzle |
+| `mascot-cat-stripe` | #A04300 | the cat's stripes and collar |
+| `mascot-tag` | #F1D692 | the collar tag and paws |
+
+Decorative only: never text or a fill that carries meaning.
+
 ## Status chip tints
 
 A card's or a shelter's state, as a soft tint with its own text colour (`Chip kind="status"`, tones `published`, `reserved`, `adopted`, `withdrawn`; a draft is the outline info chip). Used on the kabinet's animal list and the operator's shelter screens. Never a warning colour. Ratios measured with the WCAG relative-luminance formula:

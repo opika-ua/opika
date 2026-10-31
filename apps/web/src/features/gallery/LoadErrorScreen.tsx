@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { Button, buttonClass } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { Heading } from "../../ui/Heading";
+import { Mascot } from "../../ui/Mascot";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
 
@@ -50,10 +51,17 @@ export function LoadErrorScreen({
             data-testid={testIdPrefix}
             className="flex flex-col items-start gap-4"
           >
+            <Mascot kind="cat" pose="sit" variant="collar" size={64} />
             <Text look="hint" className="uppercase tracking-wider">
               {eyebrow}
             </Text>
-            <Heading level={1} look="display-l" ref={headingRef} tabIndex={-1}>
+            <Heading
+              level={1}
+              look="display-l"
+              ref={headingRef}
+              tabIndex={-1}
+              className="break-words"
+            >
               {title}
             </Heading>
             <Text look="lead" className="text-ink-2">
