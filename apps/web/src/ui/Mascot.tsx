@@ -1,8 +1,14 @@
 import type { ReactNode } from "react";
 import { cx } from "./cx";
+import {
+  COMPACT_HEIGHT_CLASS,
+  COMPACT_LEFT_CLASS,
+  COMPACT_RIGHT_CLASS,
+  compactOffset,
+} from "./mascot-fit";
 import { MASCOT_SHAPES, type MascotShapeKey } from "./mascot-shapes";
 
-/** Heights in px; a phone uses the next step down (32 stays 32). */
+/** Heights in px; a phone uses the next step down (32 stays 32); `mascot-fit.ts` steps again below 360px. */
 const HEIGHT = { 32: "h-8", 48: "h-12", 64: "h-16", 96: "h-24" } as const;
 const HEIGHT_PHONE = {
   32: "max-tablet:h-8",
@@ -51,9 +57,11 @@ export type MascotProps = MascotPose & {
 };
 
 function perchClass(perch: "top-left" | "top-right", offset: MascotOffset): string {
+  const compact = compactOffset(offset) as keyof typeof COMPACT_LEFT_CLASS;
   return cx(
     "absolute bottom-full",
     perch === "top-left" ? OFFSET_LEFT[offset] : OFFSET_RIGHT[offset],
+    perch === "top-left" ? COMPACT_LEFT_CLASS[compact] : COMPACT_RIGHT_CLASS[compact],
   );
 }
 
@@ -71,7 +79,10 @@ export function MascotPerch({
     <div
       aria-hidden="true"
       data-mascot-group=""
-      className={cx("pointer-events-none flex items-end gap-2", perchClass(perch, offset))}
+      className={cx(
+        "pointer-events-none flex max-w-full items-end gap-2",
+        perchClass(perch, offset),
+      )}
     >
       {children}
     </div>
@@ -100,6 +111,7 @@ export function Mascot({ size, perch, offset = 0, className, ...pose }: MascotPr
         "pointer-events-none block w-auto shrink-0 select-none",
         HEIGHT[size],
         HEIGHT_PHONE[size],
+        COMPACT_HEIGHT_CLASS[size],
         perch && perchClass(perch, offset),
         className,
       )}

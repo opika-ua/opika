@@ -24,7 +24,7 @@ over photos. No motion, no recolouring on dark surfaces. Never carries meaning: 
 
 **Accessibility.** `aria-hidden`, `focusable=false`, `pointer-events: none`: never in the tab order, never takes a click.
 
-**Responsive.** One height step smaller below `tablet`; keep a perched mascot inside the 16px gutter.
+**Responsive.** One height step smaller below `tablet`, one more below 360px (floor 32); below 360px a perch inset is capped at 16 (`mascot-fit.ts`), so a perched mascot stays inside the 16px gutter.
 
 **Example.**
 
