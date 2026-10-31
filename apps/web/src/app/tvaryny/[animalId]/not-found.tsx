@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { LinkButton } from "../../../ui/Button";
 import { Heading } from "../../../ui/Heading";
 import { MAIN_LANDMARK } from "../../../ui/landmark";
+import { Mascot } from "../../../ui/Mascot";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 
@@ -23,6 +24,7 @@ export default function NotFound() {
   return (
     <main {...MAIN_LANDMARK} className="flex min-h-dvh items-center justify-center bg-page p-6">
       <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">
+        <Mascot kind="cat" pose="sit" variant="collar" size={64} />
         <Text look="hint" className="uppercase tracking-wider">
           {copy.eyebrow}
         </Text>

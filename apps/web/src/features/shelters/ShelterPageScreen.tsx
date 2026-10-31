@@ -7,6 +7,7 @@ import { buttonClass, LinkButton } from "../../ui/Button";
 import { Container } from "../../ui/Container";
 import { cx } from "../../ui/cx";
 import { Heading } from "../../ui/Heading";
+import { Mascot } from "../../ui/Mascot";
 import { Pagination } from "../../ui/Pagination";
 import { Toggle } from "../../ui/Toggle";
 import { SiteHeader } from "../chrome/SiteHeader";
@@ -186,8 +187,17 @@ export function ShelterPageScreen({
         {animals.totalMatching === 0 && filterUi === null ? (
           <div
             data-testid="shelter-no-animals"
-            className="flex flex-col items-center gap-3 rounded-card border-2 border-dashed border-line px-4 py-8 text-center"
+            className="relative mt-8 flex flex-col items-center gap-3 rounded-card border-2 border-dashed border-line px-4 py-8 text-center"
           >
+            {/* No animal to read a species from, so the default cat. */}
+            <Mascot
+              kind="cat"
+              pose="sit"
+              variant="collar"
+              size={64}
+              perch="top-right"
+              offset={24}
+            />
             <p className="text-body-l text-ink-2">{uk.shelterPage.noAnimals}</p>
             <LinkButton href="/tvaryny" variant="ghost">
               {uk.detail.notFound.action}

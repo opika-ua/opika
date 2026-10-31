@@ -5,6 +5,7 @@ import { SiteHeader } from "../features/chrome/SiteHeader";
 import { LinkButton } from "../ui/Button";
 import { Container } from "../ui/Container";
 import { Heading } from "../ui/Heading";
+import { Mascot } from "../ui/Mascot";
 import { Panel } from "../ui/Panel";
 import { Text } from "../ui/Text";
 
@@ -23,6 +24,7 @@ export default async function NotFound() {
       <SiteHeader kabinetSignedIn={await kabinetSessionCookiePresent()} />
       <Container as="main" className="flex justify-center py-8 desktop:py-14">
         <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">
+          <Mascot kind="cat" pose="sit" variant="collar" size={64} />
           <Text look="hint" className="uppercase tracking-wider">
             {copy.eyebrow}
           </Text>

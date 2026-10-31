@@ -192,6 +192,8 @@ export const ukPublic = {
      * mid-build - owner-approved final copy, not [COPY PENDING].
      */
     galleryTitle: "Шукають дім",
+    /** Under the closing line of the last gallery page (the mascot walks on the line). */
+    listEnd: "Це всі тварини за цими фільтрами.",
   },
 
   // --- Screen 03 · Filters ---

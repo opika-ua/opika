@@ -4,6 +4,7 @@ import { LinkButton } from "../../../ui/Button";
 import { Container } from "../../../ui/Container";
 import { Heading } from "../../../ui/Heading";
 import { MAIN_LANDMARK } from "../../../ui/landmark";
+import { Mascot } from "../../../ui/Mascot";
 import { Panel } from "../../../ui/Panel";
 
 /**
@@ -19,6 +20,7 @@ export default function NotFound() {
     <main {...MAIN_LANDMARK} className="flex min-h-dvh items-center bg-page">
       <Container className="max-w-xl">
         <Panel padding="lg" className="flex flex-col items-start gap-4">
+          <Mascot kind="cat" pose="sit" variant="collar" size={64} />
           <Heading level={1} look="title">
             {uk.detail.notFound.eyebrow}
           </Heading>

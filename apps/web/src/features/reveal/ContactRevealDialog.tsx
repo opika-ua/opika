@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { Icon, type IconName } from "../../ui/Icon";
+import { Mascot } from "../../ui/Mascot";
 import { Modal } from "../../ui/Modal";
 import { Photo } from "../../ui/Photo";
 import { THROTTLED_COPY } from "./throttled-copy";
@@ -293,6 +294,12 @@ function RevealContent({
       closeLabel={uk.preview.close}
       dialogTestId="reveal-dialog"
       closeTestId="reveal-close"
+      perched={
+        <>
+          <Mascot kind="cat" pose="sit" variant="collar" size={48} />
+          <Mascot kind="dog" pose="sit" size={48} />
+        </>
+      }
       header={
         <div className="flex items-center gap-4">
           <Photo

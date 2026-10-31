@@ -37,6 +37,7 @@ export const en = {
     deckEntryAnnouncement: "One-at-a-time mode. Animal {position} of {total}.",
     adoptPill: "Adopt",
     galleryTitle: "Catalogue",
+    listEnd: "That is every animal for these filters.",
   },
 
   // --- Screen 03 · Filters ---

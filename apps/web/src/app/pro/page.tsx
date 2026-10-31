@@ -4,6 +4,7 @@ import { WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { Heading } from "../../ui/Heading";
+import { Mascot, MascotPerch } from "../../ui/Mascot";
 import { Text } from "../../ui/Text";
 import { TextLink } from "../../ui/TextLink";
 
@@ -113,6 +114,13 @@ export function renderAboutPage(kabinetSignedIn: boolean) {
       <Text look="lead" className="text-ink-2">
         {uk.about.analytics}
       </Text>
+      {/* Decorative divider; the one mascot moment on this page. */}
+      <div aria-hidden="true" className="relative mt-8 border-t border-line">
+        <MascotPerch perch="top-left" offset={24}>
+          <Mascot kind="cat" pose="lie" size={48} />
+          <Mascot kind="dog" pose="sit" size={48} />
+        </MascotPerch>
+      </div>
       <section id="dzherela-danykh" className="flex scroll-mt-24 flex-col gap-3">
         <Heading level={2} look="title">
           {uk.about.sources.heading}
