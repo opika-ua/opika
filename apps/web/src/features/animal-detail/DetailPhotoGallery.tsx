@@ -2,9 +2,6 @@ import type { AnimalPhoto } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { PhotoSlider } from "../../ui/PhotoSlider";
 
-/** The card shows at most three photos (owner decision 7: native scroll-snap, no library). */
-const MAX_PHOTOS = 3;
-
 /**
  * Edge to edge below desktop: the panel pads its content, so the photo pulls back out by the same
  * amount, and comes first on a phone whatever its place in the markup (`order-first`).
@@ -43,7 +40,7 @@ export function DetailPhotoGallery({
   return (
     <div className={`${BLEED} relative`}>
       <PhotoSlider
-        photos={photos.slice(0, MAX_PHOTOS).map((photo) => ({
+        photos={photos.map((photo) => ({
           src: photo.storageKey,
           alt: photo.alt?.uk ?? altFallback,
         }))}

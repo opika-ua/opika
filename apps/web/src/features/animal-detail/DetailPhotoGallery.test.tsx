@@ -1,4 +1,4 @@
-import type { AnimalPhoto } from "@opika/domain";
+import { type AnimalPhoto, MAX_ANIMAL_PHOTOS } from "@opika/domain";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
@@ -25,7 +25,7 @@ describe("DetailPhotoGallery", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders every photo (capped at 3) in one named region, falling back to the animal's name for alt", () => {
+  it("renders every photo in one named region, falling back to the animal's name for alt", () => {
     render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
 
     const imgs = imagesIn(screen.getByRole("region", REGION));
@@ -41,14 +41,15 @@ describe("DetailPhotoGallery", () => {
     expect(screen.getByRole("img", { name: "Мурчик спить" })).toBeTruthy();
   });
 
-  it("a 4th photo never renders", () => {
-    render(<DetailPhotoGallery photos={[...THREE_PHOTOS, photo("/d.jpg")]} altFallback="Мурчик" />);
+  it.each([1, 5, MAX_ANIMAL_PHOTOS])("shows all %i photos, in order", (count) => {
+    const photos = Array.from({ length: count }, (_, i) => photo(`/p${i}.jpg`));
+    render(<DetailPhotoGallery photos={photos} altFallback="Мурчик" />);
 
     const imgs = imagesIn(screen.getByRole("region", REGION));
-    expect(imgs).toHaveLength(3);
-    expect(
-      imgs.some((img) => img.getAttribute("src")?.includes(encodeURIComponent("/d.jpg"))),
-    ).toBe(false);
+    expect(imgs).toHaveLength(count);
+    imgs.forEach((img, i) => {
+      expect(img.getAttribute("src")).toContain(encodeURIComponent(`/p${i}.jpg`));
+    });
   });
 
   it("an animal with no photos gets the phone's placeholder text and no slider", () => {
