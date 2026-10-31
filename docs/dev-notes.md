@@ -34,6 +34,9 @@ corepack` first. In CI, prefer `corepack enable && corepack install`
   version. See `.github/workflows/ci.yml` for the pattern in practice.
 - **Biome crash:** Biome 2.5.6 `biome check .` can crash with 0xC0000005 on Windows over the whole repo (not
   reproducible in CI); lint the changed files instead.
+- **Biome warning ratchet:** `pnpm lint` runs `tooling/biome-ratchet.mjs`: `biome check .`, then fails unless the
+  warning count equals `tooling/biome-warning-baseline.json`. More warnings: fix them. Fewer: run
+  `pnpm run lint:ratchet-update` and commit the file, so the baseline always equals reality.
 
 ## Module resolution (why `pnpm typecheck` is not enough)
 
