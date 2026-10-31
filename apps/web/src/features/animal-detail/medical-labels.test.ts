@@ -20,7 +20,7 @@ const registry = {
 describe("vaccinationRow", () => {
   it.each([
     ["unknown", "unknown"],
-    ["in_progress", "not_done"],
+    ["in_progress", "in_progress"],
     ["confirmed", "done"],
   ] as const)(
     "shelter-declared %s reads as %s, labelled as the combo vaccination",
@@ -42,7 +42,7 @@ describe("vaccinationRow", () => {
 describe("spayNeuterRow", () => {
   it.each([
     ["unknown", "unknown"],
-    ["in_progress", "not_done"],
+    ["in_progress", "in_progress"],
     ["confirmed", "done"],
   ] as const)("%s reads as %s, always the shelter's word", (state, value) => {
     expect(spayNeuterRow(declared(state))).toEqual({
@@ -72,7 +72,7 @@ describe("literal strings match i18n", () => {
   it("medical labels", () => {
     expect(MEDICAL_VALUE_TEXT).toEqual({
       done: "Зроблено",
-      not_done: "Не зроблено",
+      in_progress: "У процесі",
       unknown: "Невідомо",
     });
     expect(uk.medical.rabies).toBe("Щеплення від сказу");

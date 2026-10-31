@@ -485,7 +485,6 @@ export const ukPublic = {
     shelterDeclared: "Дані притулку",
     /** The pet card's status rows: the value beside each label, and the source said under them. */
     statusDone: "Зроблено",
-    statusNotDone: "Не зроблено",
     statusUnknown: "Невідомо",
     /** One line under the rows when every row is the shelter's word; a row's own line otherwise. */
     sourceShelter: "За даними притулку",

@@ -88,7 +88,7 @@ for (const viewport of [PHONE_393, DESKTOP_1440]) {
       await expect(long).toHaveText(/довше за будь-який екран телефона$/);
     });
 
-    test("status values: Зроблено, Не зроблено and Невідомо each show on their row", async ({
+    test("status values: Зроблено, У процесі and Невідомо each show on their row", async ({
       page,
     }) => {
       await open(page, viewport);
@@ -97,7 +97,7 @@ for (const viewport of [PHONE_393, DESKTOP_1440]) {
       const mixed = page.getByTestId("case-unknown");
       await expect(
         mixed.locator("dl > div").filter({ hasText: "Комплексне щеплення" }),
-      ).toContainText("Не зроблено");
+      ).toContainText("У процесі");
       await expect(mixed.locator("dl > div").filter({ hasText: "Стерилізація" })).toContainText(
         "Невідомо",
       );
