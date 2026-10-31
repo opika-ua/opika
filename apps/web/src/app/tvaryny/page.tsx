@@ -24,6 +24,7 @@ import {
   GalleryFilterDropdowns,
   SpeciesToggle,
 } from "../../features/gallery/GalleryFilterDropdowns";
+import { GalleryListEnd } from "../../features/gallery/GalleryListEnd";
 import { GalleryPageNav } from "../../features/gallery/GalleryPageNav";
 import { GallerySortToggle } from "../../features/gallery/GallerySortToggle";
 import { railResultCount } from "../../features/gallery/gallery-copy";
@@ -35,6 +36,8 @@ import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { throwIfGalleryTestFailure } from "../../features/gallery/test-only-failure";
 import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
+import { Mascot } from "../../ui/Mascot";
+import { mascotKindFor } from "../../ui/mascot-species";
 
 /**
  * Same reasoning as `../page.tsx`: without this, `next build` would try to
@@ -212,6 +215,8 @@ export async function renderGallery(
   const neighbourRegions =
     page.totalMatching === 0 ? neighbourRegionsOf(filters.regions, book, facetCounts.regions) : [];
 
+  const mascotKind = mascotKindFor(filters.species);
+
   return (
     <div className="min-h-dvh bg-page">
       {/*
@@ -271,13 +276,19 @@ export async function renderGallery(
             // the row to itself there; `min-w-0`/`break-words` stay as a
             // defensive floor either way.
             title={
-              <Heading
-                level={1}
-                look="display-l"
-                className="min-w-0 break-words tablet:text-display-xl"
-              >
-                {uk.feed.galleryTitle}
-              </Heading>
+              // The mascot sits on the title only while there are cards: the no-match block has its own.
+              <div className="relative tablet:mt-2">
+                {page.totalMatching > 0 && (
+                  <Mascot kind={mascotKind} pose="lie" size={48} perch="top-left" offset={32} />
+                )}
+                <Heading
+                  level={1}
+                  look="display-l"
+                  className="min-w-0 break-words tablet:text-display-xl"
+                >
+                  {uk.feed.galleryTitle}
+                </Heading>
+              </div>
             }
             trailing={
               // Oleksii, mid-build: "let's hide access to Гортати по одній
@@ -434,6 +445,11 @@ export async function renderGallery(
                 page={page.page}
                 totalPages={page.totalPages}
               />
+
+              {/* Only a paginated list has a "last page"; a single page keeps the hero's mascot alone on screen. */}
+              {page.totalPages > 1 && page.page === page.totalPages && (
+                <GalleryListEnd mascotKind={mascotKind} />
+              )}
             </>
           )}
         </div>

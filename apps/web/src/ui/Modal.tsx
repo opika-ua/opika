@@ -4,6 +4,7 @@ import { type ReactNode, useId, useRef } from "react";
 import { cx } from "./cx";
 import { useDialogCore } from "./dialog-core";
 import { Icon } from "./Icon";
+import { MascotPerch } from "./Mascot";
 
 /**
  * A modal dialog: a bottom sheet on a phone, a centred card from tablet up. Controlled: render it
@@ -26,6 +27,11 @@ export type ModalProps = {
   locked?: boolean;
   /** Replaces the title's place in the close button's row; the title then sits below that row. */
   header?: ReactNode;
+  /**
+   * Mascots sitting on the dialog's top edge, right side. The dialog then stops clipping and the
+   * content box scrolls instead, so only a dialog that sets this pays for the change.
+   */
+  perched?: ReactNode;
   /** Harness hooks, as on Sheet. */
   dialogTestId?: string;
   closeTestId?: string;
@@ -40,6 +46,7 @@ export function Modal({
   closeLabel,
   locked = false,
   header,
+  perched,
   dialogTestId,
   closeTestId,
   children,
@@ -60,11 +67,22 @@ export function Modal({
         if (locked) event.preventDefault();
       }}
       className={cx(
-        "fixed inset-x-0 bottom-0 top-auto m-0 w-full max-w-none overflow-y-auto rounded-t-panel border-0 bg-surface p-0 text-ink backdrop:bg-ink/40",
+        "fixed inset-x-0 bottom-0 top-auto m-0 w-full max-w-none rounded-t-panel border-0 bg-surface p-0 text-ink backdrop:bg-ink/40",
+        perched === undefined ? "overflow-y-auto" : "overflow-visible",
         "max-h-dvh tablet:inset-0 tablet:m-auto tablet:h-fit tablet:max-w-xl tablet:rounded-card",
       )}
     >
-      <div className="flex flex-col gap-5 p-5 pb-safe tablet:p-8">
+      {perched === undefined ? null : (
+        <MascotPerch perch="top-right" offset={24}>
+          {perched}
+        </MascotPerch>
+      )}
+      <div
+        className={cx(
+          "flex flex-col gap-5 p-5 pb-safe tablet:p-8",
+          perched !== undefined && "max-h-dvh overflow-y-auto rounded-t-panel tablet:rounded-card",
+        )}
+      >
         <span
           aria-hidden="true"
           className="mx-auto -mt-2 h-1 w-10 rounded-pill bg-muted tablet:hidden"

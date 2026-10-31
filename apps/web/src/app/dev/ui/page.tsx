@@ -25,6 +25,7 @@ import { CheckboxGroup, ChipGroup, RadioGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
 import { ICON_NAMES, Icon } from "../../../ui/Icon";
 import { InfoTip } from "../../../ui/InfoTip";
+import { Mascot, MascotPerch, type MascotPose } from "../../../ui/Mascot";
 import { MetaLine } from "../../../ui/MetaLine";
 import { Pagination } from "../../../ui/Pagination";
 import { Panel } from "../../../ui/Panel";
@@ -93,6 +94,18 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
     </div>
   );
 }
+
+const MASCOTS: readonly MascotPose[] = [
+  { kind: "cat", pose: "sit", variant: "collar" },
+  { kind: "cat", pose: "sit" },
+  { kind: "cat", pose: "lie" },
+  { kind: "cat", pose: "stand" },
+  { kind: "cat", pose: "stand", variant: "tail" },
+  { kind: "dog", pose: "sit" },
+  { kind: "dog", pose: "lie" },
+  { kind: "dog", pose: "stand" },
+];
+const MASCOT_SIZES = [32, 48, 64, 96] as const;
 
 const SIZES = "(max-width: 599px) 100vw, 328px";
 
@@ -596,6 +609,34 @@ export default function DevUiPage() {
           <Toast tone="success" message="Saved" dismissLabel="Dismiss" />
           <Toast tone="error" message="Could not save" dismissLabel="Dismiss" />
           <ToastDemo />
+        </Row>
+      </Group>
+
+      <Group id="g-mascots" title="Mascots">
+        {MASCOT_SIZES.map((size) => (
+          <Row key={size} label={`Every pose at ${size}px (a phone shows one step smaller)`}>
+            {MASCOTS.map((pose) => (
+              <Mascot
+                key={`${pose.kind}-${pose.pose}-${pose.variant ?? ""}`}
+                {...pose}
+                size={size}
+              />
+            ))}
+          </Row>
+        ))}
+        <Row label="Perch: top-left, top-right, and a pair on one edge">
+          <div className="relative mt-14 h-20 w-48 rounded-card border-2 border-dashed border-line">
+            <Mascot kind="cat" pose="lie" size={48} perch="top-left" offset={16} />
+          </div>
+          <div className="relative mt-14 h-20 w-48 rounded-card border-2 border-dashed border-line">
+            <Mascot kind="dog" pose="sit" size={48} perch="top-right" offset={16} />
+          </div>
+          <div className="relative mt-14 h-20 w-48 rounded-card border-2 border-dashed border-line">
+            <MascotPerch perch="top-left" offset={8}>
+              <Mascot kind="cat" pose="sit" variant="collar" size={32} />
+              <Mascot kind="dog" pose="sit" size={32} />
+            </MascotPerch>
+          </div>
         </Row>
       </Group>
 

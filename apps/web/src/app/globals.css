@@ -35,7 +35,19 @@
   --color-status-adopted-ink: #270041;
   --color-status-withdrawn: #e8e5e6;
   --color-status-withdrawn-ink: #735263;
+}
 
+/* Mascot colours the brand palette has no semantic role for. `static`: they are read only through
+ * `var()` in the inline SVG, which Tailwind's usage scan would otherwise drop. Orange is `accent`, the dog's
+ * dark patch is `species-dog`, eyes are `on-ink`. */
+@theme static {
+  --color-mascot-dog: #a469fb;
+  --color-mascot-dog-light: #dbc3fd;
+  --color-mascot-cat-stripe: #a04300;
+  --color-mascot-tag: #f1d692;
+}
+
+@theme {
   /* Fixed radius scale. */
   --radius-tag: 8px;
   --radius-field: 12px;
