@@ -1,6 +1,7 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { Mascot } from "./Mascot";
+import { Mascot, MascotPerch } from "./Mascot";
+import { compactOffset } from "./mascot-fit";
 import { MASCOT_SHAPES } from "./mascot-shapes";
 import { mascotKindFor } from "./mascot-species";
 
@@ -72,5 +73,47 @@ describe("mascotKindFor", () => {
     expect(mascotKindFor({ kind: "oneOf", values: ["dog", "cat"] })).toBe("cat");
     expect(mascotKindFor({ kind: "any" })).toBe("cat");
     expect(mascotKindFor({ kind: "oneOf", values: [] })).toBe("cat");
+  });
+});
+
+describe("Mascot below 360px", () => {
+  it("steps the height down once more and never goes under 32", () => {
+    for (const [size, cls] of [
+      [32, "max-compact:h-8"],
+      [48, "max-compact:h-8"],
+      [64, "max-compact:h-8"],
+      [96, "max-compact:h-12"],
+    ] as const) {
+      expect(svgOf(<Mascot kind="cat" pose="sit" size={size} />).getAttribute("class")).toContain(
+        cls,
+      );
+      cleanup();
+    }
+  });
+
+  it("caps the perch inset at 16 and keeps smaller insets", () => {
+    expect(compactOffset(32)).toBe(16);
+    expect(compactOffset(24)).toBe(16);
+    expect(compactOffset(16)).toBe(16);
+    expect(compactOffset(8)).toBe(8);
+    expect(compactOffset(4)).toBe(4);
+    expect(compactOffset(0)).toBe(0);
+    const left = svgOf(<Mascot kind="dog" pose="sit" size={48} perch="top-left" offset={32} />);
+    expect(left.getAttribute("class")).toContain("left-8");
+    expect(left.getAttribute("class")).toContain("max-compact:left-4");
+    cleanup();
+    const right = svgOf(<Mascot kind="dog" pose="sit" size={48} perch="top-right" offset={24} />);
+    expect(right.getAttribute("class")).toContain("max-compact:right-4");
+  });
+
+  it("keeps a seated group inside its parent", () => {
+    const { container } = render(
+      <MascotPerch perch="top-right" offset={24}>
+        <Mascot kind="cat" pose="sit" size={48} />
+      </MascotPerch>,
+    );
+    const group = container.querySelector("[data-mascot-group]");
+    expect(group?.getAttribute("class")).toContain("max-w-full");
+    expect(group?.getAttribute("class")).toContain("max-compact:right-4");
   });
 });

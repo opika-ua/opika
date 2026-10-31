@@ -36,8 +36,8 @@ export function GalleryControlBlock({
 
       <div className="flex flex-col gap-3 desktop:hidden">
         {mobileSpecies}
-        {/* One row at every phone width (filters v2 M1): the pill and the sort never wrap. */}
-        <div className="flex items-center justify-between gap-x-3">
+        {/* One row at every phone width (filters v2 M1): the pill and the sort never wrap, except below 360px where they would overflow. */}
+        <div className="flex items-center justify-between gap-x-3 max-compact:flex-wrap max-compact:gap-y-2">
           {trailing}
           {mobileSort}
         </div>

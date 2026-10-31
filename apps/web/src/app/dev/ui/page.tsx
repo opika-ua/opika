@@ -614,7 +614,10 @@ export default function DevUiPage() {
 
       <Group id="g-mascots" title="Mascots">
         {MASCOT_SIZES.map((size) => (
-          <Row key={size} label={`Every pose at ${size}px (a phone shows one step smaller)`}>
+          <Row
+            key={size}
+            label={`Every pose at ${size}px (a phone shows one step smaller, below 360px one more)`}
+          >
             {MASCOTS.map((pose) => (
               <Mascot
                 key={`${pose.kind}-${pose.pose}-${pose.variant ?? ""}`}
