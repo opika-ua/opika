@@ -21,8 +21,11 @@ export type MenuProps = {
   onOpenChange: (open: boolean) => void;
   /** The trigger's visible text (a chevron is added), or, with `trigger="icon"`, its accessible name. */
   label: string;
-  /** `text` (default): the label and a chevron. `icon`: a ⋯ button, 48px square, named by `label`. */
-  trigger?: "text" | "icon";
+  /**
+   * `text` (default): the label and a chevron. `icon`: a ⋯ button, 48px square, named by `label`.
+   * `icon-compact`: a 32px circle inside a 44px target, for a button laid over a photo.
+   */
+  trigger?: "text" | "icon" | "icon-compact";
   /** Id of the trigger, so the page can return focus to it. */
   triggerId?: string;
   /** Ids that give the trigger its context (a screen reader hears whose «Ще» it is). */
@@ -134,11 +137,24 @@ export function Menu({
         aria-controls={open ? panelId : undefined}
         aria-describedby={describedBy}
         onClick={() => onOpenChange(!open)}
-        aria-label={trigger === "icon" ? label : undefined}
-        className={trigger === "icon" ? buttonClass("icon") : buttonClass("ghost")}
+        aria-label={trigger === "text" ? undefined : label}
+        className={
+          trigger === "icon"
+            ? buttonClass("icon")
+            : trigger === "icon-compact"
+              ? "inline-flex size-11 items-center justify-center rounded-pill focus-ring"
+              : buttonClass("ghost")
+        }
       >
         {trigger === "icon" ? (
           <Icon name="more" size="md" />
+        ) : trigger === "icon-compact" ? (
+          <span
+            aria-hidden="true"
+            className="grid size-8 place-items-center rounded-pill border border-ink-2 bg-surface text-ink shadow-float"
+          >
+            <Icon name="more" size="sm" />
+          </span>
         ) : (
           <>
             {label}

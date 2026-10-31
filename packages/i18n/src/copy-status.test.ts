@@ -1507,11 +1507,6 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.health.registryReadOnly":
       "Підтверджено державним реєстром тварин. Тут цей рядок змінити не можна.",
     "kabinet.animalForm.photos.title": "Фото",
-    "kabinet.animalForm.photos.addHint": "Будь-яке фото, яке відкриває цей телефон чи браузер.",
-    "kabinet.animalForm.photos.howItWorks":
-      "Перше фото – обкладинка; щоб змінити порядок, перетягніть фото. Для публікації потрібне хоча б одне. Великі фото зменшуються на пристрої до {px} пікселів перед відправкою – так менше мобільного трафіку.",
-    "kabinet.animalForm.photos.privacyNote":
-      "З фото прибираються дані про місце зйомки та інші приховані дані.",
     "kabinet.animalForm.photos.preparing": "Фото готується…",
     "kabinet.animalForm.photos.uploading": "Фото завантажується…",
     "kabinet.animalForm.photos.uploadingProgress": "Завантаження · {percent} · {sent} з {total} МБ",
@@ -1532,8 +1527,6 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
       "Фото змінилися в іншому вікні. Тут – поточний набір, спробуйте ще раз.",
     "kabinet.animalForm.photos.removedStillReachable":
       "Фото зникло з картки. Сам файл не видаляється одразу – якщо його треба прибрати зовсім, напишіть мені.",
-    "kabinet.animalForm.photos.dateMoves":
-      "На картці, яку бачать люди, будь-яка зміна фото оновлює дату «Оновлено».",
     "kabinet.animalForm.photoErrors.heicUnsupported":
       "Цей телефон чи браузер не відкриває фото у форматі HEIC. Виберіть, будь ласка, JPG або PNG.",
     "kabinet.animalForm.photoErrors.unreadable": "Цей файл не вдалося відкрити як фото.",
@@ -2233,8 +2226,13 @@ const EDITOR_TABS_COPY: Record<string, string> = {
  */
 const PHOTO_MANAGER_COPY: Record<string, string> = {
   "kabinet.animalForm.photos.counter": "{n} з {max}",
-  "kabinet.animalForm.photos.orderHint":
-    "Перше фото – обкладинка. Перетягніть, щоб змінити порядок.",
+  "kabinet.animalForm.photos.orderHintMouse": "Перетягніть, щоб змінити порядок.",
+  "kabinet.animalForm.photos.orderHintTouch": "Утримуйте фото, щоб перетягнути.",
+  "kabinet.animalForm.photos.infoLabel": "Про фото",
+  "kabinet.animalForm.photos.infoText":
+    "Підійде будь-яке фото з телефона чи компʼютера. Великі знімки стискаються ще до відправлення, тож мобільного трафіку піде менше. Місце зйомки та інші приховані дані з фото прибираються автоматично.",
+  "kabinet.animalForm.photos.dateNote":
+    "Кожна зміна у фото оновлює дату на картці, і вона знову зʼявляється серед найсвіжіших.",
   "kabinet.animalForm.photos.addTile": "Додати фото",
   "kabinet.animalForm.photos.addLeft": "Ще {left}",
   "kabinet.animalForm.photos.addDrop": "можна перетягнути файли сюди",
@@ -2242,7 +2240,6 @@ const PHOTO_MANAGER_COPY: Record<string, string> = {
   "kabinet.animalForm.photos.moveLater": "Посунути пізніше",
   "kabinet.animalForm.photos.remove": "Прибрати",
   "kabinet.animalForm.photos.menuLabel": "Дії з фото {n}",
-  "kabinet.animalForm.photos.dragHandle": "Перетягнути фото {n}",
   "kabinet.animalForm.photos.dragPickUp": "Фото {n} підняте. Позиція {pos} з {total}.",
   "kabinet.animalForm.photos.dragMove": "Позиція {pos} з {total}.",
   "kabinet.animalForm.photos.dragDrop": "Фото {n} на позиції {pos} з {total}.",

@@ -838,22 +838,20 @@ export const uk = {
       photos: {
         title: "Фото",
         counter: "{n} з {max}",
-        orderHint: "Перше фото – обкладинка. Перетягніть, щоб змінити порядок.",
+        /** Shown once, chosen by pointer capability: a mouse drags, a finger holds. */
+        orderHintMouse: "Перетягніть, щоб змінити порядок.",
+        orderHintTouch: "Утримуйте фото, щоб перетягнути.",
+        infoLabel: "Про фото",
+        infoText:
+          "Підійде будь-яке фото з телефона чи компʼютера. Великі знімки стискаються ще до відправлення, тож мобільного трафіку піде менше. Місце зйомки та інші приховані дані з фото прибираються автоматично.",
         addTile: "Додати фото",
         addLeft: "Ще {left}",
         addDrop: "можна перетягнути файли сюди",
         menuLabel: "Дії з фото {n}",
-        dragHandle: "Перетягнути фото {n}",
         dragPickUp: "Фото {n} підняте. Позиція {pos} з {total}.",
         dragMove: "Позиція {pos} з {total}.",
         dragDrop: "Фото {n} на позиції {pos} з {total}.",
         dragCancel: "Переміщення скасовано.",
-        addHint: "Будь-яке фото, яке відкриває цей телефон чи браузер.",
-        /** `{px}` is `PHOTO_MAX_EDGE_PX`; true because `compressPhoto` scales every photo to it on the device. */
-        howItWorks:
-          "Перше фото – обкладинка; щоб змінити порядок, перетягніть фото. Для публікації потрібне хоча б одне. Великі фото зменшуються на пристрої до {px} пікселів перед відправкою – так менше мобільного трафіку.",
-        /** Answer 11 ("Both are true"): the device re-encodes every photo, and the server strips all metadata. */
-        privacyNote: "З фото прибираються дані про місце зйомки та інші приховані дані.",
         preparing: "Фото готується…",
         uploading: "Фото завантажується…",
         uploadingProgress: "Завантаження · {percent} · {sent} з {total} МБ",
@@ -892,8 +890,9 @@ export const uk = {
         conflict: "Фото змінилися в іншому вікні. Тут – поточний набір, спробуйте ще раз.",
         removedStillReachable:
           "Фото зникло з картки. Сам файл не видаляється одразу – якщо його треба прибрати зовсім, напишіть мені.",
-        /** True with RH-B7 (D4 option (i)), which ships in this PR. Published and reserved only. */
-        dateMoves: "На картці, яку бачать люди, будь-яка зміна фото оновлює дату «Оновлено».",
+        /** True with RH-B7 (D4 option (i)). Shown for a published or reserved card only. */
+        dateNote:
+          "Кожна зміна у фото оновлює дату на картці, і вона знову зʼявляється серед найсвіжіших.",
       },
       photoErrors: {
         heicUnsupported:
