@@ -9,6 +9,7 @@ import {
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useCallback, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
 import { Badge } from "../../../ui/Badge";
 import { Button } from "../../../ui/Button";
@@ -16,10 +17,12 @@ import { Card } from "../../../ui/Card";
 import { cx } from "../../../ui/cx";
 import { InlineStatus } from "../../../ui/feedback";
 import { Icon } from "../../../ui/Icon";
+import { Menu, MenuDivider, MenuItem } from "../../../ui/Menu";
 import { Photo } from "../../../ui/Photo";
 import { Text } from "../../../ui/Text";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
 import { type ShelterVisibility, uploadProgressText } from "./labels";
+import { usePhotoDrag } from "./use-photo-drag";
 
 /**
  * K3's «Фото» section body (N9), inside a `FormSection`: the photos as tiles in their order (the
@@ -31,9 +34,8 @@ import { type ShelterVisibility, uploadProgressText } from "./labels";
  * `XMLHttpRequest`, so the tile can say how much has gone (answer 12). Uploads
  * run one after another: a budget phone decodes one large photo at a time.
  *
- * The order changes by dragging a photo (pointer events, mouse and touch
- * alike) or with each tile's own buttons, which are the keyboard's way in
- * (drag alone isn't operable without a pointer). Photo writes go one at a
+ * The order changes by dragging a photo (pointer events, `use-photo-drag`) or with each tile's ⋯
+ * menu, which is the keyboard's and screen reader's way in (drag alone isn't operable without a pointer). Photo writes go one at a
  * time: the server compare-and-sets on the list the screen shows (P-Q3), so
  * a second write planned on the same list would only come back CONFLICT.
  */
@@ -114,11 +116,13 @@ export function PhotoSection({
   const [writing, setWriting] = useState(false);
   const [status, setStatus] = useState("");
   const [removedOnce, setRemovedOnce] = useState(false);
-  const [dragOver, setDragOver] = useState<number | null>(null);
+  const [announce, setAnnounce] = useState("");
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState(false);
+  const tileIds = useRef(new Map<string, number>());
   const fileInput = useRef<HTMLInputElement>(null);
   const nextId = useRef(1);
   const queue = useRef<Promise<void>>(Promise.resolve());
-  const drag = useRef<{ from: number; x: number; y: number; moved: boolean } | null>(null);
 
   const visibleListing = isDiscoverable(animal.listing);
   const lastPhotoLocked = visibleListing && photos.length === 1;
@@ -224,14 +228,15 @@ export function PhotoSection({
     }
   };
 
+  // Every reorder, from the menu or a drag, is this one call; «Зробити обкладинкою» is move(i, 0).
   const move = (from: number, to: number) => {
-    if (from === to || to < 0 || to >= photos.length) return;
+    if (from === to || to < 0 || to >= photos.length) return Promise.resolve(false);
     const keys = photos.map((photo) => photo.storageKey);
     const next = [...keys];
     const [moved] = next.splice(from, 1);
-    if (moved === undefined) return;
+    if (moved === undefined) return Promise.resolve(false);
     next.splice(to, 0, moved);
-    void writePhotos(
+    return writePhotos(
       () =>
         client.shelter.photos.reorder({
           animalId: animal.id,
@@ -255,138 +260,178 @@ export function PhotoSection({
     if (removed) setRemovedOnce(true);
   };
 
-  // Dragging: the pointer's own events, captured on the tile it started on;
-  // the tile under the pointer at release is where the photo goes.
-  const tileAt = (x: number, y: number): number | null => {
-    const tile = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-photo-index]");
-    const index = tile?.dataset.photoIndex;
-    return index === undefined ? null : Number(index);
+  const total = photos.length;
+  const where = (pos: number) => ({ pos: integer.format(pos + 1), total: integer.format(total) });
+  const { drag, start } = usePhotoDrag(total, {
+    onPickUp: (from) =>
+      setAnnounce(
+        fillTemplate(t.photos.dragPickUp, { n: integer.format(from + 1), ...where(from) }),
+      ),
+    onMove: (over) => setAnnounce(fillTemplate(t.photos.dragMove, where(over))),
+    onDrop: (from, to) => {
+      setAnnounce(fillTemplate(t.photos.dragDrop, { n: integer.format(from + 1), ...where(to) }));
+      void move(from, to);
+    },
+    onCancel: () => setAnnounce(t.photos.dragCancel),
+  });
+  const canDrag = editable && !writing && total > 1;
+  // While dragging, the others reflow around the slot where the photo would land.
+  const order = photos.map((photo, index) => ({ photo, index }));
+  if (drag !== null) {
+    const [lifted] = order.splice(drag.from, 1);
+    if (lifted !== undefined) order.splice(drag.over, 0, lifted);
+  }
+  const triggerIdOf = (key: string) => {
+    let id = tileIds.current.get(key);
+    if (id === undefined) {
+      id = tileIds.current.size + 1;
+      tileIds.current.set(key, id);
+    }
+    return `${animal.id}-photo-menu-${id}`;
+  };
+  // The menu closes first; focus then goes back to the tile's ⋯ (gone after a removal: no-op).
+  const runFromMenu = async (key: string, action: () => Promise<unknown>) => {
+    setOpenMenu(null);
+    await action();
+    document.getElementById(triggerIdOf(key))?.focus();
   };
 
   const lastPhotoNoteId = `${animal.id}-last-photo`;
-  const total = photos.length;
   const failed = uploads.filter((upload) => upload.state.kind === "failed");
   const inProgress = uploads.filter((upload) => upload.state.kind !== "failed");
+  const sizes = "(min-width: 600px) 200px, 50vw";
+  const lifted = drag === null ? undefined : photos[drag.from];
+  const menuItem = "w-full justify-start";
 
   return (
     <>
-      <ul className="grid grid-cols-2 items-start gap-3 tablet:grid-cols-3 desktop:grid-cols-4">
-        {photos.map((photo, index) => (
-          <li
-            key={photo.storageKey}
-            data-photo-index={index}
-            className={cx("min-w-0 rounded-card", dragOver === index && "ring-4 ring-ink")}
-          >
-            <Card tone="outline">
-              <fieldset
-                aria-label={fillTemplate(t.photos.tileLabel, {
-                  n: integer.format(index + 1),
-                  total: integer.format(total),
-                })}
-                className="flex min-w-0 flex-col"
-                disabled={!editable || writing}
-              >
-                <div className="relative">
-                  {/* biome-ignore lint/a11y/noStaticElementInteractions: the drag is the pointer's way to reorder; the keyboard's is the tile's own buttons */}
-                  <div
-                    className={editable ? "cursor-grab touch-none" : undefined}
-                    // The browser's own image drag would cancel the pointer drag below.
-                    onDragStart={(event) => event.preventDefault()}
-                    onPointerDown={(event) => {
-                      if (!editable || writing || event.button !== 0) return;
-                      event.currentTarget.setPointerCapture(event.pointerId);
-                      drag.current = {
-                        from: index,
-                        x: event.clientX,
-                        y: event.clientY,
-                        moved: false,
-                      };
-                    }}
-                    onPointerMove={(event) => {
-                      const current = drag.current;
-                      if (current === null) return;
-                      if (
-                        !current.moved &&
-                        Math.hypot(event.clientX - current.x, event.clientY - current.y) < 8
-                      ) {
-                        return;
-                      }
-                      current.moved = true;
-                      setDragOver(tileAt(event.clientX, event.clientY));
-                    }}
-                    onPointerUp={(event) => {
-                      const current = drag.current;
-                      drag.current = null;
-                      setDragOver(null);
-                      if (current === null || !current.moved) return;
-                      const to = tileAt(event.clientX, event.clientY);
-                      if (to !== null) move(current.from, to);
-                    }}
-                    onPointerCancel={() => {
-                      drag.current = null;
-                      setDragOver(null);
-                    }}
-                  >
-                    <Photo
-                      src={photo.storageKey}
-                      alt=""
-                      aspect="portrait"
-                      sizes="(min-width: 1024px) 160px, (min-width: 600px) 200px, 50vw"
-                    />
-                  </div>
-                  {index === 0 ? (
-                    <Badge tone="ink" className="absolute bottom-2 left-2">
-                      {t.photos.cover}
-                    </Badge>
-                  ) : null}
-                  {editable ? (
-                    <Button
-                      variant="icon"
-                      className="absolute top-2 right-2"
-                      aria-label={fillTemplate(t.photos.remove, { n: integer.format(index + 1) })}
-                      aria-disabled={lastPhotoLocked || undefined}
-                      aria-describedby={lastPhotoLocked ? lastPhotoNoteId : undefined}
-                      onClick={() => {
-                        if (!lastPhotoLocked) void remove(photo);
+      <ul className="grid grid-cols-2 items-start gap-3 tablet:grid-cols-3 desktop:grid-cols-5">
+        {order.map(({ photo, index }, slot) => {
+          const key = photo.storageKey;
+          if (drag !== null && index === drag.from) {
+            return (
+              <li
+                key={key}
+                data-photo-slot={slot}
+                aria-hidden="true"
+                className="aspect-4/5 min-w-0 rounded-card border-2 border-species-dog bg-status-published"
+              />
+            );
+          }
+          const n = integer.format(slot + 1);
+          return (
+            <li key={key} data-photo-slot={slot} className="min-w-0">
+              <Card tone="outline">
+                <fieldset
+                  aria-label={fillTemplate(t.photos.tileLabel, { n, total: integer.format(total) })}
+                  className="flex min-w-0 flex-col"
+                  disabled={!editable || writing}
+                >
+                  <div className="relative">
+                    {/* biome-ignore lint/a11y/noStaticElementInteractions: a mouse can drag the photo itself; everyone else has the handle and the menu */}
+                    <div
+                      className={canDrag ? "cursor-grab select-none" : undefined}
+                      // The browser's own image drag would cancel the pointer drag.
+                      onDragStart={(event) => event.preventDefault()}
+                      onPointerDown={(event) => {
+                        if (!canDrag || event.pointerType !== "mouse" || event.button !== 0) return;
+                        if ((event.target as Element).closest("button")) return;
+                        start(slot, event);
                       }}
                     >
-                      <Icon name="close" />
-                    </Button>
-                  ) : null}
-                </div>
-                {editable && total > 1 ? (
-                  <div className="flex flex-col items-start p-1">
-                    <div className="flex">
-                      {index > 0 ? (
-                        <Button
-                          variant="ghost"
-                          aria-label={t.photos.moveEarlier}
-                          onClick={() => move(index, index - 1)}
-                        >
-                          <Icon name="chevron-left" />
-                        </Button>
-                      ) : null}
-                      {index < total - 1 ? (
-                        <Button
-                          variant="ghost"
-                          aria-label={t.photos.moveLater}
-                          onClick={() => move(index, index + 1)}
-                        >
-                          <Icon name="chevron-right" />
-                        </Button>
-                      ) : null}
+                      <Photo src={key} alt="" aspect="portrait" sizes={sizes} />
                     </div>
-                    {index > 0 ? (
-                      <Button variant="ghost" onClick={() => move(index, 0)}>
-                        {t.photos.makeCover}
-                      </Button>
+                    <Badge tone="ink" className="pointer-events-none absolute top-2 left-2">
+                      <span aria-hidden="true">{n}</span>
+                    </Badge>
+                    {slot === 0 ? (
+                      <Badge tone="ink" className="pointer-events-none absolute bottom-14 left-2">
+                        {t.photos.cover}
+                      </Badge>
+                    ) : null}
+                    {editable ? (
+                      <>
+                        <div className="absolute top-1 right-1">
+                          <Menu
+                            open={openMenu === key}
+                            onOpenChange={(open) => setOpenMenu(open ? key : null)}
+                            trigger="icon"
+                            label={fillTemplate(t.photos.menuLabel, { n })}
+                            triggerId={triggerIdOf(key)}
+                          >
+                            {slot > 0 ? (
+                              <MenuItem>
+                                <Button
+                                  variant="ghost"
+                                  className={menuItem}
+                                  onClick={() => void runFromMenu(key, () => move(slot, 0))}
+                                >
+                                  {t.photos.makeCover}
+                                </Button>
+                              </MenuItem>
+                            ) : null}
+                            {slot > 0 ? (
+                              <MenuItem>
+                                <Button
+                                  variant="ghost"
+                                  className={menuItem}
+                                  onClick={() => void runFromMenu(key, () => move(slot, slot - 1))}
+                                >
+                                  {t.photos.moveEarlier}
+                                </Button>
+                              </MenuItem>
+                            ) : null}
+                            {slot < total - 1 ? (
+                              <MenuItem>
+                                <Button
+                                  variant="ghost"
+                                  className={menuItem}
+                                  onClick={() => void runFromMenu(key, () => move(slot, slot + 1))}
+                                >
+                                  {t.photos.moveLater}
+                                </Button>
+                              </MenuItem>
+                            ) : null}
+                            {total > 1 ? <MenuDivider /> : null}
+                            <MenuItem tone="danger">
+                              <Button
+                                variant="ghost"
+                                className={menuItem}
+                                aria-disabled={lastPhotoLocked || undefined}
+                                aria-describedby={lastPhotoLocked ? lastPhotoNoteId : undefined}
+                                onClick={() => {
+                                  if (!lastPhotoLocked) void runFromMenu(key, () => remove(photo));
+                                }}
+                              >
+                                {t.photos.remove}
+                              </Button>
+                            </MenuItem>
+                          </Menu>
+                        </div>
+                        {total > 1 ? (
+                          <div className="absolute right-1 bottom-1 touch-none">
+                            <Button
+                              variant="icon"
+                              tabIndex={-1}
+                              className="cursor-grab"
+                              aria-label={fillTemplate(t.photos.dragHandle, { n })}
+                              onPointerDown={(event) => {
+                                if (!canDrag || event.button !== 0) return;
+                                start(slot, event);
+                              }}
+                            >
+                              <Icon name="grip" />
+                            </Button>
+                          </div>
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
-                ) : null}
-              </fieldset>
-            </Card>
-          </li>
-        ))}
+                </fieldset>
+              </Card>
+            </li>
+          );
+        })}
         {inProgress.map((upload) => (
           <li key={`upload-${upload.id}`} className="min-w-0">
             <Card tone="outline" className="flex aspect-4/5 flex-col justify-end gap-2 p-3">
@@ -411,37 +456,80 @@ export function PhotoSection({
             </Card>
           </li>
         ))}
-        {editable && room > 0 ? (
-          <li className="min-w-0">
-            <Card tone="outline" className="flex aspect-4/5 items-center justify-center p-3">
-              <Button variant="secondary" onClick={() => fileInput.current?.click()}>
-                {t.photos.add}
-              </Button>
-            </Card>
-          </li>
-        ) : null}
         {failed.map((upload) =>
           upload.state.kind === "failed" ? (
-            <li key={`upload-${upload.id}`} className="col-span-full flex flex-col gap-2">
-              <InlineStatus tone="error">{upload.state.message}</InlineStatus>
-              <div className="flex flex-wrap gap-2">
-                {upload.state.retryable ? (
-                  <Button variant="secondary" onClick={() => enqueue(upload)}>
-                    {uk.kabinet.profileEdit.state.retry}
+            <li key={`upload-${upload.id}`} className="min-w-0">
+              <Card tone="outline" className="flex aspect-4/5 flex-col justify-between gap-2 p-3">
+                <InlineStatus tone="error">{upload.state.message}</InlineStatus>
+                <div className="flex flex-col items-start">
+                  {upload.state.retryable ? (
+                    <Button variant="secondary" onClick={() => enqueue(upload)}>
+                      {uk.kabinet.profileEdit.state.retry}
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    aria-label={t.photos.dismissFailedName}
+                    onClick={() => patchUpload(upload.id, null)}
+                  >
+                    {t.photos.dismissFailed}
                   </Button>
-                ) : null}
-                <Button
-                  variant="ghost"
-                  aria-label={t.photos.dismissFailedName}
-                  onClick={() => patchUpload(upload.id, null)}
-                >
-                  {t.photos.dismissFailed}
-                </Button>
-              </div>
+                </div>
+              </Card>
             </li>
           ) : null,
         )}
+        {editable && room > 0 ? (
+          <li className="min-w-0">
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              onDragOver={(event) => {
+                if (!event.dataTransfer.types.includes("Files")) return;
+                event.preventDefault();
+                setDropTarget(true);
+              }}
+              onDragLeave={() => setDropTarget(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDropTarget(false);
+                choose(event.dataTransfer.files);
+              }}
+              className={cx(
+                "flex aspect-4/5 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-card border-2 border-dashed p-3 text-center focus-ring",
+                dropTarget ? "border-species-dog bg-status-published" : "border-line bg-surface",
+              )}
+            >
+              <Icon name="plus" />
+              <span className="text-label text-ink">{t.photos.addTile}</span>
+              <span className="text-caption text-ink-2">
+                {fillTemplate(t.photos.addLeft, { left: integer.format(room) })}
+                <span className="hidden pointer-fine:inline"> · {t.photos.addDrop}</span>
+              </span>
+            </button>
+          </li>
+        ) : null}
       </ul>
+      {drag !== null && lifted !== undefined
+        ? createPortal(
+            <div
+              aria-hidden="true"
+              style={{
+                left: drag.x - drag.dx,
+                top: drag.y - drag.dy,
+                width: drag.width,
+                height: drag.height,
+              }}
+              className="pointer-events-none fixed z-(--z-popover) scale-105 overflow-clip rounded-card shadow-float motion-reduce:scale-100 motion-reduce:shadow-none"
+            >
+              <Photo src={lifted.storageKey} alt="" aspect="portrait" sizes={sizes} />
+            </div>,
+            document.body,
+          )
+        : null}
+      <p role="status" className="sr-only">
+        {announce}
+      </p>
       {editable ? (
         <input
           ref={fileInput}

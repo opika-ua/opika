@@ -837,7 +837,17 @@ export const uk = {
       },
       photos: {
         title: "Фото",
-        add: "+ Фото",
+        counter: "{n} з {max}",
+        orderHint: "Перше фото – обкладинка. Перетягніть, щоб змінити порядок.",
+        addTile: "Додати фото",
+        addLeft: "Ще {left}",
+        addDrop: "можна перетягнути файли сюди",
+        menuLabel: "Дії з фото {n}",
+        dragHandle: "Перетягнути фото {n}",
+        dragPickUp: "Фото {n} підняте. Позиція {pos} з {total}.",
+        dragMove: "Позиція {pos} з {total}.",
+        dragDrop: "Фото {n} на позиції {pos} з {total}.",
+        dragCancel: "Переміщення скасовано.",
         addHint: "Будь-яке фото, яке відкриває цей телефон чи браузер.",
         /** `{px}` is `PHOTO_MAX_EDGE_PX`; true because `compressPhoto` scales every photo to it on the device. */
         howItWorks:
@@ -855,9 +865,9 @@ export const uk = {
         dismissFailedName: "Прибрати фото, яке не завантажилось",
         tileLabel: "Фото {n} з {total}",
         makeCover: "Зробити обкладинкою",
-        moveEarlier: "Перемістити вперед",
-        moveLater: "Перемістити назад",
-        remove: "Прибрати фото {n}",
+        moveEarlier: "Посунути раніше",
+        moveLater: "Посунути пізніше",
+        remove: "Прибрати",
         capReached: "Це максимум – {max} фото.",
         /**
          * Also `PHOTOS_REQUIRED_WHILE_VISIBLE`'s message (his answer: "same

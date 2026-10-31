@@ -453,3 +453,25 @@ export function MultiSelectRowsDemo() {
     </div>
   );
 }
+
+/** The menu inside a box that clips its content: the panel is in the top layer, so it is not cut off. */
+export function MenuClippedDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="h-14 w-40 overflow-hidden rounded-card border-2 border-line p-1">
+      <Menu open={open} onOpenChange={setOpen} label="Actions for the photo" trigger="icon">
+        <MenuItem>
+          <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
+            Make cover
+          </Button>
+        </MenuItem>
+        <MenuDivider />
+        <MenuItem tone="danger">
+          <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
+            Remove
+          </Button>
+        </MenuItem>
+      </Menu>
+    </div>
+  );
+}

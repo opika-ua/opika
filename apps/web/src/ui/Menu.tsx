@@ -1,6 +1,8 @@
 "use client";
 
-import { type ReactNode, useEffect, useId, useRef } from "react";
+import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useAnchored } from "./anchored";
 import { buttonClass } from "./Button";
 import { cx } from "./cx";
 import { Icon } from "./Icon";
@@ -11,6 +13,8 @@ import { Icon } from "./Icon";
  * tab order, so nothing needs arrow keys. Controlled, because the page often needs to know which
  * menu is open (one at a time) and to focus the trigger when something it opened closes.
  * Light dismiss as Popover: Esc (focus returns to the trigger), a press outside, focus leaving.
+ * The panel sits in the top layer (a manual popover), so no container clips it; it follows the
+ * trigger on scroll and closes when the trigger scrolls out of view (`useAnchored`).
  */
 export type MenuProps = {
   open: boolean;
@@ -31,6 +35,25 @@ export type MenuProps = {
   children: ReactNode;
 };
 
+const EDGE = 8;
+const GAP = 4;
+
+type Box = { top: number; left?: number; right?: number; minWidth: number };
+
+function place(trigger: HTMLElement, panel: HTMLElement | null, align: "start" | "end"): Box {
+  const rect = trigger.getBoundingClientRect();
+  const viewport = document.documentElement.clientWidth;
+  const height = panel?.offsetHeight ?? 0;
+  const below = rect.bottom + GAP;
+  const above = height > window.innerHeight - below - EDGE && rect.top > window.innerHeight - below;
+  const top = above ? Math.max(EDGE, rect.top - GAP - height) : below;
+  const minWidth = 192;
+  if (align === "start") {
+    return { top, left: Math.max(EDGE, Math.min(rect.left, viewport - EDGE - minWidth)), minWidth };
+  }
+  return { top, right: Math.max(EDGE, viewport - rect.right), minWidth };
+}
+
 export function Menu({
   open,
   onOpenChange,
@@ -44,17 +67,44 @@ export function Menu({
 }: MenuProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLUListElement | null>(null);
+  const [box, setBox] = useState<Box | null>(null);
   const panelId = useId();
   const onOpenChangeRef = useRef(onOpenChange);
   useEffect(() => {
     onOpenChangeRef.current = onOpenChange;
   });
 
+  const inside = (node: Node) =>
+    rootRef.current?.contains(node) === true || panelRef.current?.contains(node) === true;
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!open || !panel) return;
+    if (typeof panel.showPopover === "function" && !panel.matches(":popover-open")) {
+      panel.showPopover();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) setBox(null);
+  }, [open]);
+  useAnchored(
+    open,
+    buttonRef,
+    (trigger) => setBox(place(trigger, panelRef.current, align)),
+    () => {
+      const focusInside = panelRef.current?.contains(document.activeElement) === true;
+      onOpenChangeRef.current(false);
+      if (focusInside) buttonRef.current?.focus({ preventScroll: true });
+    },
+  );
+
   useEffect(() => {
     if (!open) return;
     const close = () => onOpenChangeRef.current(false);
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) close();
+      if (!inside(event.target as Node)) close();
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -62,7 +112,7 @@ export function Menu({
       buttonRef.current?.focus();
     };
     const onFocusIn = (event: FocusEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) close();
+      if (!inside(event.target as Node)) close();
     };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -103,17 +153,24 @@ export function Menu({
           </>
         )}
       </button>
-      {open ? (
-        <ul
-          id={panelId}
-          className={cx(
-            "absolute top-full z-(--z-popover) mt-2 flex w-max max-w-xs min-w-48 flex-col gap-1 rounded-panel border-2 border-line bg-surface p-2 shadow-float",
-            align === "start" ? "left-0" : "right-0",
-          )}
-        >
-          {children}
-        </ul>
-      ) : null}
+      {open
+        ? createPortal(
+            <ul
+              ref={panelRef}
+              id={panelId}
+              popover="manual"
+              style={
+                box
+                  ? { top: box.top, left: box.left, right: box.right, minWidth: box.minWidth }
+                  : { top: 0, left: 0, visibility: "hidden" }
+              }
+              className="fixed inset-auto m-0 flex w-max max-w-xs flex-col gap-1 overflow-visible rounded-panel border-2 border-line bg-surface p-2 text-ink shadow-float"
+            >
+              {children}
+            </ul>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
