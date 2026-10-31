@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAnchored } from "./anchored";
 import { InfoTip } from "./InfoTip";
+import { Popover } from "./Popover";
 
 type Observer = {
   cb: IntersectionObserverCallback;
@@ -103,5 +104,43 @@ describe("InfoTip when its trigger is hidden", () => {
     // focus leaving already closes the card; reopen state is not needed, only that focus stays put.
     report(false);
     expect(document.activeElement).toBe(other);
+  });
+});
+
+describe("Popover when its trigger is hidden", () => {
+  it("closes and returns focus to the trigger when focus was inside the panel", async () => {
+    render(
+      <Popover label="Місто" trigger="Місто">
+        <button type="button">Київ</button>
+      </Popover>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Місто" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Київ" }));
+    report(false);
+    expect(screen.queryByRole("button", { name: "Київ" })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Місто" }));
+  });
+
+  it("stays open while the trigger is visible", async () => {
+    render(
+      <Popover label="Місто" trigger="Місто">
+        <button type="button">Київ</button>
+      </Popover>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Місто" }));
+    report(true);
+    expect(screen.getByRole("button", { name: "Київ" })).toBeTruthy();
+  });
+
+  it("renders the panel outside the trigger's container, so no overflow parent clips it", async () => {
+    const { container } = render(
+      <div style={{ overflow: "hidden" }}>
+        <Popover label="Місто" trigger="Місто">
+          <button type="button">Київ</button>
+        </Popover>
+      </div>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Місто" }));
+    expect(container.contains(screen.getByRole("button", { name: "Київ" }))).toBe(false);
   });
 });

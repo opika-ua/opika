@@ -85,3 +85,29 @@ test("an InfoTip follows its «?» on scroll, then closes when the «?» leaves 
   await expect(card).toHaveCount(0);
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
 });
+
+test("a filter Popover (Вік) follows its field on scroll, then closes when the field goes under the header", async ({
+  page,
+}) => {
+  await openRoute(page, "/tvaryny", WIDE, { readySelector: CARD });
+  const trigger = page.getByRole("button", { name: /^Вік:/ });
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  const panel = page.getByRole("group", { name: "Вік" });
+  await expect(panel).toBeVisible();
+
+  const gap = async () => {
+    const t = await trigger.boundingBox();
+    const p = await panel.boundingBox();
+    return (p?.y ?? -1000) - ((t?.y ?? 0) + (t?.height ?? 0));
+  };
+  const atRest = await gap();
+  await scrollTo(page, 40);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(40);
+  expect(Math.abs((await gap()) - atRest)).toBeLessThanOrEqual(2);
+
+  const field = await docBox(page, "button[aria-label^='Вік:']");
+  await scrollTo(page, field.bottom - 10);
+  await expect(panel).toHaveCount(0);
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+});
