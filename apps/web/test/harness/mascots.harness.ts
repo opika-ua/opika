@@ -1,7 +1,7 @@
 /**
  * Brand mascots: decorative accents that must never get in the way. Behaviour only: a mascot never
  * takes a click, never overflows a 360px phone, and no screen shows two mascot moments at once.
- * Set MASCOT_SHOTS_DIR to also save the review screenshots (1440 and 393, every placement).
+ * Set MASCOT_SHOTS_DIR to also save the review screenshots (1440, 393, 360 and 320, every placement).
  */
 
 import { mkdirSync } from "node:fs";
@@ -10,7 +10,7 @@ import { createDatabase } from "@opika/db";
 import { shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { expect, type Page, test } from "@playwright/test";
-import { openRoute } from "./harness";
+import { noSidewaysScroll, openRoute } from "./harness";
 import type { Viewport } from "./viewports";
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
@@ -18,9 +18,10 @@ const SHOTS_DIR = process.env["MASCOT_SHOTS_DIR"];
 
 const DESKTOP_1440: Viewport = { name: "1440x900", width: 1440, height: 900 };
 const PHONE_393: Viewport = { name: "393x852", width: 393, height: 852 };
+const PHONE_320: Viewport = { name: "320x640", width: 320, height: 640 };
 const PHONE_360: Viewport = { name: "360x740", width: 360, height: 740 };
 
-test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.61" } });
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.65" } });
 
 const MOMENT = "[data-mascot-group], [data-mascot]:not([data-mascot-group] [data-mascot])";
 
@@ -34,6 +35,9 @@ async function moments(page: Page) {
       return {
         top,
         width: box.width,
+        left: box.left,
+        right: box.right,
+        viewportWidth: window.innerWidth,
         key: node.getAttribute("data-mascot") ?? "group",
         // Off screen, elementFromPoint is null: a click can only be taken where the mascot is shown.
         onScreen: box.bottom > 0 && box.top < window.innerHeight,
@@ -59,10 +63,18 @@ async function expectWellBehaved(page: Page, viewport: Viewport) {
       "two mascot moments never share a screen",
     ).toBeGreaterThanOrEqual(viewport.height);
   }
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow, `no horizontal overflow at ${viewport.name}`).toBeLessThanOrEqual(0);
+  expect(await noSidewaysScroll(page), `no horizontal overflow at ${viewport.name}`).toBe(true);
+  // A mascot stays inside the 16px content gutter, whatever the width (clipped overflow hides).
+  for (const mascot of found) {
+    expect(
+      mascot.left,
+      `${mascot.key} inside the left gutter at ${viewport.name}`,
+    ).toBeGreaterThanOrEqual(16);
+    expect(
+      mascot.viewportWidth - mascot.right,
+      `${mascot.key} inside the right gutter at ${viewport.name}`,
+    ).toBeGreaterThanOrEqual(16);
+  }
   return found;
 }
 
@@ -145,7 +157,7 @@ const PLACEMENTS: readonly Placement[] = [
   { name: "7-about", route: "/pro", ready: "main", expected: ["group"] },
 ];
 
-for (const viewport of [DESKTOP_1440, PHONE_393, PHONE_360]) {
+for (const viewport of [DESKTOP_1440, PHONE_393, PHONE_360, PHONE_320]) {
   test.describe(`mascots at ${viewport.name}`, () => {
     for (const placement of PLACEMENTS) {
       test(`${placement.name}: shows exactly its mascots, takes no click, no overflow`, async ({
