@@ -16,7 +16,13 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { dragHorizontally, flickWithTimestamps, nameOnceSettled, openRoute } from "./harness";
+import {
+  dragHorizontally,
+  flickWithTimestamps,
+  nameOnceSettled,
+  openRoute,
+  topCardName,
+} from "./harness";
 import { PHONE } from "./viewports";
 
 const ROUTE = "/tvaryny/gortaty";
@@ -30,13 +36,6 @@ const CARD = "[data-testid='swipe-card']";
  * the other `/tvaryny` harness files.
  */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.27" } });
-
-/** The name on the currently-top card. */
-async function topCardName(page: import("@playwright/test").Page): Promise<string> {
-  const label = await page.getByTestId("swipe-card").getAttribute("aria-label");
-  expect(label, "the top card should expose its animal name as aria-label").not.toBeNull();
-  return label ?? "";
-}
 
 test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
   test.beforeEach(async ({ page }) => {

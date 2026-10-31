@@ -17,7 +17,7 @@
 
 import { uk } from "@opika/i18n";
 import { expect, type Page, type Request, test } from "@playwright/test";
-import { openRoute } from "./harness";
+import { openRoute, useClientAddressPerRepetition } from "./harness";
 import { ANDROID_PHONE, ANDROID_PHONE_TALL, DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
 
 const ipHeaders = (lastOctet: number) => ({ "x-forwarded-for": `198.51.100.${lastOctet}` });
@@ -417,10 +417,7 @@ test.describe("the gallery's animal overlay", () => {
 test.describe("the contact reveal is the top layer over the animal overlay", () => {
   // One address per repetition (TEST-NET-1): the limiter is per IP, and `--repeat-each`, which is
   // how a flake here is shown gone, loads the gallery thirty times a minute.
-  test.beforeEach(async ({ page }, testInfo) => {
-    const lastOctet = 1 + (testInfo.repeatEachIndex % 254);
-    await page.setExtraHTTPHeaders({ "x-forwarded-for": `192.0.2.${lastOctet}` });
-  });
+  test.beforeEach(({ page }, testInfo) => useClientAddressPerRepetition(page, testInfo));
 
   test("the overlay's ✕ and prev/next can be neither clicked nor tabbed to while the reveal is open", async ({
     page,

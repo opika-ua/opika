@@ -5,7 +5,7 @@
  */
 
 import { expect, type Page, test } from "@playwright/test";
-import { openRoute } from "./harness";
+import { noSidewaysScroll, openRoute } from "./harness";
 import { ANDROID_PHONE, type Viewport } from "./viewports";
 
 /** TEST-NET-2, `.62`: the next address no other harness file claims (see `gallery-filters.harness.ts`). */
@@ -115,10 +115,7 @@ test.describe("/tvaryny filters: touch targets and no sideways scroll", () => {
     }) => {
       for (const route of [ROUTE, `${ROUTE}?obl=kyivska&vik=adult`]) {
         await openRoute(page, route, viewport, { readySelector: CARD });
-        const overflow = await page.evaluate(
-          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        );
-        expect(overflow, `${route} scrolls sideways by ${overflow}px`).toBeLessThanOrEqual(0);
+        expect(await noSidewaysScroll(page), `${route} scrolls sideways`).toBe(true);
       }
     });
   }

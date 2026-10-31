@@ -285,11 +285,30 @@ async function dispatchStamped(
   }
 }
 
-/** True when the page does not scroll sideways (an accessibility floor, not a look). Used by the shelter and gallery-card specs; dev-ui and gallery-filters-v2 still read it inline. */
+/** True when the page does not scroll sideways (an accessibility floor, not a look). Used by every spec that checks the page does not overflow. */
 export function noSidewaysScroll(page: Page): Promise<boolean> {
   return page.evaluate(
     () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
   );
+}
+
+/** The name on the currently-top swipe card (its aria-label). */
+export async function topCardName(page: Page): Promise<string> {
+  const label = await page.getByTestId("swipe-card").getAttribute("aria-label");
+  expect(label, "the top card should expose its animal name as aria-label").not.toBeNull();
+  return label ?? "";
+}
+
+/**
+ * One TEST-NET-1 client address per repetition: the gallery is rate-limited per IP and
+ * `--repeat-each` loads it often. Call inside a `beforeEach` hook.
+ */
+export async function useClientAddressPerRepetition(
+  page: Page,
+  testInfo: { readonly repeatEachIndex: number },
+): Promise<void> {
+  const lastOctet = 1 + (testInfo.repeatEachIndex % 254);
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": `192.0.2.${lastOctet}` });
 }
 
 /** The touch-target floor: the control's box is at least 48px tall. */

@@ -7,8 +7,8 @@
  * pointed at the kit's own primitives, per CLAUDE.md "Test logic, not looks".
  */
 
-import { expect, type Page, test } from "@playwright/test";
-import { openRoute } from "./harness";
+import { expect, test } from "@playwright/test";
+import { noSidewaysScroll, openRoute } from "./harness";
 import type { Viewport } from "./viewports";
 
 const PHONE_360: Viewport = { name: "360x800 phone", width: 360, height: 800 };
@@ -18,12 +18,6 @@ const ROUTE = "/dev/ui";
 const READY = "h1";
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.51" } });
-
-async function horizontalOverflow(page: Page): Promise<number> {
-  return page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-}
 
 for (const viewport of [PHONE_360, DESKTOP_1440]) {
   test.describe(`kit showcase at ${viewport.name}`, () => {
@@ -38,7 +32,7 @@ for (const viewport of [PHONE_360, DESKTOP_1440]) {
       ]) {
         await expect(page.getByRole("heading", { level: 2, name: group })).toBeVisible();
       }
-      expect(await horizontalOverflow(page), "horizontal overflow in px").toBeLessThanOrEqual(0);
+      expect(await noSidewaysScroll(page), "the page scrolls sideways").toBe(true);
     });
 
     test("every button, link, chip and field is at least 48px tall", async ({ page }) => {
