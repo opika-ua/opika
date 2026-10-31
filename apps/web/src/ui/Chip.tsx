@@ -190,6 +190,7 @@ export function Chip(props: ChipProps) {
         return (
           <Link
             href={props.href}
+            prefetch={false}
             aria-label={props["aria-label"] ?? props.children}
             className={cx(
               look,

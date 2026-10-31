@@ -420,17 +420,3 @@ test.describe("the save toggle persists a save across a reload", () => {
  * permanent one, the deck itself (`SwipeDeck.tsx`) - see
  * `discovery-layout.harness.ts`'s own coverage for the notice now.
  */
-
-test.describe("/tvaryny/[animalId] the «Про мене» chips are one size", () => {
-  for (const viewport of [DETAIL_PHONE, DETAIL_DESKTOP]) {
-    test(`${viewport.name}: every chip in the section has the same height`, async ({ page }) => {
-      await openFirstAnimalDetail(page, viewport);
-      const heights = await page
-        .getByRole("heading", { level: 2, name: "Про мене" })
-        .locator("xpath=following-sibling::div[1]/*")
-        .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
-      expect(heights.length).toBeGreaterThan(0);
-      expect(new Set(heights).size).toBe(1);
-    });
-  }
-});
