@@ -334,7 +334,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 709 with the photo manager (PR 3): eleven new keys (counter, orderHint, addTile, addLeft,
     // addDrop, menuLabel, dragHandle and four drag announcements; owner-approved 2026-10-31,
     // pinned in copy-status.test.ts's PHOTO_MANAGER_COPY) less `photos.add`.
-    expect(pending.length + written.length).toBe(709);
+    // 708 with the photo manager fixes: less orderHint, dragHandle, addHint, howItWorks,
+    // privacyNote, dateMoves; plus orderHintMouse, orderHintTouch, infoLabel, infoText, dateNote
+    // (owner-approved 2026-10-31, pinned in copy-status.test.ts's PHOTO_MANAGER_COPY).
+    expect(pending.length + written.length).toBe(708);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

@@ -1328,21 +1328,45 @@ describe("photos", () => {
     const slotUnderPointer = (slot: number) => {
       document.elementFromPoint = () => document.querySelector(`[data-photo-slot="${slot}"]`);
     };
-    const pickUp = (n: number) => {
-      fireEvent.pointerDown(screen.getByRole("button", { name: `Перетягнути фото ${n}` }), {
+    const surface = (n: number) =>
+      screen.getByRole("group", { name: `Фото ${n} з 3` }).querySelector("[data-photo-surface]");
+    const press = (n: number, pointerType: "mouse" | "touch") =>
+      fireEvent.pointerDown(surface(n) as Element, {
         button: 0,
+        pointerId: 1,
+        pointerType,
         clientX: 10,
-        clientY: 10,
+        clientY: 300,
       });
-      fireEvent.pointerMove(window, { clientX: 30, clientY: 30 });
+    const moveTo = (x: number, y: number, pointerType: "mouse" | "touch" = "mouse") =>
+      fireEvent.pointerMove(window, { pointerId: 1, pointerType, clientX: x, clientY: y });
+    const release = () => fireEvent.pointerUp(window, { pointerId: 1, clientX: 60, clientY: 330 });
+    const pickUpWithMouse = (n: number) => {
+      press(n, "mouse");
+      moveTo(30, 330);
     };
+    const three = () => renderForm(draft({ photos: photos10(3) } as Partial<KabinetAnimalView>));
 
-    it("one drop makes one reorder call with the new order", async () => {
-      const client = renderForm(draft({ photos: photos10(3) } as Partial<KabinetAnimalView>));
-      pickUp(1);
+    const elementFromPoint = document.elementFromPoint;
+    afterEach(() => {
+      document.elementFromPoint = elementFromPoint;
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    });
+
+    it("there is no drag handle: the tile itself is the target, ⋯ is the only button on it", () => {
+      three();
+      expect(screen.queryByRole("button", { name: /^Перетягнути фото/ })).toBeNull();
+      const tile = screen.getByRole("group", { name: "Фото 1 з 3" });
+      expect(within(tile).getAllByRole("button")).toHaveLength(1);
+    });
+
+    it("a mouse drag makes one reorder call with the new order", async () => {
+      const client = three();
+      pickUpWithMouse(1);
       slotUnderPointer(2);
-      fireEvent.pointerMove(window, { clientX: 60, clientY: 30 });
-      fireEvent.pointerUp(window, { clientX: 60, clientY: 30 });
+      moveTo(60, 330);
+      release();
       await waitFor(() => expect(client.calls.reorder).toHaveBeenCalledTimes(1));
       expect(client.calls.reorder).toHaveBeenCalledWith({
         animalId: ID,
@@ -1351,42 +1375,131 @@ describe("photos", () => {
       });
     });
 
-    it("Esc cancels: nothing is written, and the screen reader hears it", () => {
-      const client = renderForm(draft({ photos: photos10(3) } as Partial<KabinetAnimalView>));
-      pickUp(1);
+    it("a mouse press that moves only a little is a click, not a drag", () => {
+      const client = three();
+      press(1, "mouse");
+      moveTo(13, 302);
       slotUnderPointer(2);
-      fireEvent.pointerMove(window, { clientX: 60, clientY: 30 });
+      release();
+      expect(client.calls.reorder).not.toHaveBeenCalled();
+      expect(screen.queryByText(/підняте/)).toBeNull();
+    });
+
+    it("Esc cancels: nothing is written, and the screen reader hears it", () => {
+      const client = three();
+      pickUpWithMouse(1);
+      slotUnderPointer(2);
+      moveTo(60, 330);
       fireEvent.keyDown(document, { key: "Escape" });
-      fireEvent.pointerUp(window, { clientX: 60, clientY: 30 });
+      release();
       expect(client.calls.reorder).not.toHaveBeenCalled();
       expect(screen.getByText("Переміщення скасовано.")).toBeTruthy();
       expect(screen.getByRole("group", { name: "Фото 1 з 3" })).toBeTruthy();
     });
 
-    it("a press on the handle that does not move is not a drag", () => {
-      const client = renderForm(draft({ photos: photos10(3) } as Partial<KabinetAnimalView>));
-      fireEvent.pointerDown(screen.getByRole("button", { name: "Перетягнути фото 1" }), {
-        button: 0,
-        clientX: 10,
-        clientY: 10,
+    it("a long press lifts the photo, then a drag reorders with one call", async () => {
+      vi.useFakeTimers({
+        toFake: ["setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame"],
       });
-      fireEvent.pointerUp(window, { clientX: 10, clientY: 10 });
+      const vibrate = vi.fn();
+      vi.stubGlobal("navigator", { ...navigator, vibrate });
+      const client = three();
+      press(1, "touch");
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.queryByText(/підняте/)).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.getByText(/^Фото 1 підняте/)).toBeTruthy();
+      expect(vibrate).toHaveBeenCalledWith(10);
+      slotUnderPointer(2);
+      moveTo(60, 330, "touch");
+      release();
+      vi.useRealTimers();
+      await waitFor(() => expect(client.calls.reorder).toHaveBeenCalledTimes(1));
+    });
+
+    it("a quick swipe is a scroll: the photo is never lifted and nothing is written", () => {
+      vi.useFakeTimers({
+        toFake: ["setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame"],
+      });
+      const client = three();
+      press(1, "touch");
+      moveTo(10, 340, "touch");
+      slotUnderPointer(2);
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      release();
+      expect(screen.queryByText(/підняте/)).toBeNull();
+      expect(client.calls.reorder).not.toHaveBeenCalled();
+    });
+
+    it("a second finger puts a lifted photo back", () => {
+      vi.useFakeTimers({
+        toFake: ["setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame"],
+      });
+      const client = three();
+      press(1, "touch");
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+      expect(screen.getByText(/^Фото 1 підняте/)).toBeTruthy();
+      fireEvent.pointerDown(surface(2) as Element, {
+        button: 0,
+        pointerId: 2,
+        pointerType: "touch",
+      });
+      expect(screen.getByText("Переміщення скасовано.")).toBeTruthy();
+      slotUnderPointer(2);
+      release();
       expect(client.calls.reorder).not.toHaveBeenCalled();
     });
   });
 
-  it("captions: the on-device resize to 2000 px and the metadata stripping, both true of the pipeline", () => {
-    renderForm(draft());
+  it("the hint says what to do once, by input: a mouse drags, a finger holds", () => {
+    renderForm(draft({ photos: photos10(2) } as Partial<KabinetAnimalView>));
+    expect(screen.getByText("Перетягніть, щоб змінити порядок.")).toBeTruthy();
+    expect(screen.queryByText("Утримуйте фото, щоб перетягнути.")).toBeNull();
+  });
+
+  it("on a touch screen the hint says to hold the photo", () => {
+    const real = window.matchMedia;
+    window.matchMedia = ((media: string) => ({
+      media,
+      matches: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof real;
+    try {
+      renderForm(draft({ photos: photos10(2) } as Partial<KabinetAnimalView>));
+      expect(screen.getByText("Утримуйте фото, щоб перетягнути.")).toBeTruthy();
+      expect(screen.queryByText("Перетягніть, щоб змінити порядок.")).toBeNull();
+    } finally {
+      window.matchMedia = real;
+    }
+  });
+
+  it("the photo notes: one line about the date, the info card holds the rest, and the old paragraphs are gone", async () => {
+    const user = userEvent.setup();
+    renderForm(published({ photos: photos10(2) }));
     expect(
       screen.getByText(
-        /^Перше фото – обкладинка; щоб змінити порядок, перетягніть фото\. Для публікації потрібне хоча б одне\. Великі фото зменшуються на пристрої до 2\s?000 пікселів перед відправкою – так менше мобільного трафіку\.$/,
+        "Кожна зміна у фото оновлює дату на картці, і вона знову зʼявляється серед найсвіжіших.",
       ),
     ).toBeTruthy();
-    expect(
-      screen.getByText("З фото прибираються дані про місце зйомки та інші приховані дані."),
-    ).toBeTruthy();
-    // A draft carries no «Оновлено» date for a photo change to move (RH-B7).
-    expect(screen.queryByText(/будь-яка зміна фото оновлює дату/)).toBeNull();
+    expect(screen.queryByText(/Будь-яке фото/)).toBeNull();
+    expect(screen.queryByText(/щоб змінити порядок, перетягніть фото/)).toBeNull();
+    expect(screen.queryByText(/З фото прибираються/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Про фото" }));
+    expect(screen.getByText(/^Підійде будь-яке фото з телефона чи компʼютера\./)).toBeTruthy();
+  });
+
+  it("a draft carries no «Оновлено» date for a photo change to move (RH-B7)", () => {
+    renderForm(draft({ photos: photos10(2) } as Partial<KabinetAnimalView>));
+    expect(screen.queryByText(/Кожна зміна у фото/)).toBeNull();
   });
 });
 
@@ -1563,11 +1676,13 @@ describe("a listed animal saves only when asked (T8)", () => {
     );
   });
 
-  it("on a visible card, the photo section says a photo change updates «Оновлено»", async () => {
+  it("on a visible card, the photo section says a photo change moves the card among the freshest", async () => {
     renderForm(published());
     await openPhotoMenu(userEvent.setup(), 1);
     expect(
-      screen.getByText("На картці, яку бачать люди, будь-яка зміна фото оновлює дату «Оновлено»."),
+      screen.getByText(
+        "Кожна зміна у фото оновлює дату на картці, і вона знову зʼявляється серед найсвіжіших.",
+      ),
     ).toBeTruthy();
     expect(screen.getByText("Цю картку бачать люди, тож одне фото має лишитися.")).toBeTruthy();
     expect(menuEntry("Прибрати")?.getAttribute("aria-disabled")).toBe("true");

@@ -1,12 +1,7 @@
 "use client";
 
 import type { KabinetAnimalView } from "@opika/contracts";
-import {
-  type AnimalPhoto,
-  isDiscoverable,
-  MAX_ANIMAL_PHOTOS,
-  PHOTO_MAX_EDGE_PX,
-} from "@opika/domain";
+import { type AnimalPhoto, isDiscoverable, MAX_ANIMAL_PHOTOS } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -34,8 +29,8 @@ import { usePhotoDrag } from "./use-photo-drag";
  * `XMLHttpRequest`, so the tile can say how much has gone (answer 12). Uploads
  * run one after another: a budget phone decodes one large photo at a time.
  *
- * The order changes by dragging a photo (pointer events, `use-photo-drag`) or with each tile's ⋯
- * menu, which is the keyboard's and screen reader's way in (drag alone isn't operable without a pointer). Photo writes go one at a
+ * The order changes by dragging the tile (pointer events, `use-photo-drag`: a mouse drags, a held
+ * finger lifts) or with each tile's ⋯ menu, the keyboard's and screen reader's way in. Photo writes go one at a
  * time: the server compare-and-sets on the list the screen shows (P-Q3), so
  * a second write planned on the same list would only come back CONFLICT.
  */
@@ -119,6 +114,7 @@ export function PhotoSection({
   const [announce, setAnnounce] = useState("");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState(false);
+  const pointerType = useRef("mouse");
   const tileIds = useRef(new Map<string, number>());
   const fileInput = useRef<HTMLInputElement>(null);
   const nextId = useRef(1);
@@ -305,7 +301,7 @@ export function PhotoSection({
 
   return (
     <>
-      <ul className="grid grid-cols-2 items-start gap-3 tablet:grid-cols-3 desktop:grid-cols-5">
+      <ul className="grid grid-cols-2 items-start gap-3 tablet:grid-cols-3 desktop:grid-cols-4">
         {order.map(({ photo, index }, slot) => {
           const key = photo.storageKey;
           if (drag !== null && index === drag.from) {
@@ -328,34 +324,41 @@ export function PhotoSection({
                   disabled={!editable || writing}
                 >
                   <div className="relative">
-                    {/* biome-ignore lint/a11y/noStaticElementInteractions: a mouse can drag the photo itself; everyone else has the handle and the menu */}
-                    <div
-                      className={canDrag ? "cursor-grab select-none" : undefined}
-                      // The browser's own image drag would cancel the pointer drag.
-                      onDragStart={(event) => event.preventDefault()}
-                      onPointerDown={(event) => {
-                        if (!canDrag || event.pointerType !== "mouse" || event.button !== 0) return;
-                        if ((event.target as Element).closest("button")) return;
-                        start(slot, event);
-                      }}
-                    >
-                      <Photo src={key} alt="" aspect="portrait" sizes={sizes} />
-                    </div>
+                    <Photo src={key} alt="" aspect="portrait" sizes={sizes} />
+                    {canDrag ? (
+                      // The whole tile is the drag target: a mouse drags, a held finger lifts the
+                      // photo. The menu is the keyboard's and screen reader's way to every move.
+                      // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only layer over the photo
+                      <div
+                        className="absolute inset-0 cursor-grab select-none"
+                        data-photo-surface=""
+                        onDragStart={(event) => event.preventDefault()}
+                        onContextMenu={(event) => {
+                          if (pointerType.current !== "mouse") event.preventDefault();
+                        }}
+                        onPointerDown={(event) => {
+                          pointerType.current = event.pointerType;
+                          if (event.button !== 0) return;
+                          if ((event.target as Element).closest("button")) return;
+                          start(slot, event);
+                        }}
+                      />
+                    ) : null}
                     <Badge tone="ink" className="pointer-events-none absolute top-2 left-2">
                       <span aria-hidden="true">{n}</span>
                     </Badge>
                     {slot === 0 ? (
-                      <Badge tone="ink" className="pointer-events-none absolute bottom-14 left-2">
+                      <Badge tone="ink" className="pointer-events-none absolute bottom-2 left-2">
                         {t.photos.cover}
                       </Badge>
                     ) : null}
                     {editable ? (
                       <>
-                        <div className="absolute top-1 right-1">
+                        <div className="absolute top-0.5 right-0.5">
                           <Menu
                             open={openMenu === key}
                             onOpenChange={(open) => setOpenMenu(open ? key : null)}
-                            trigger="icon"
+                            trigger="icon-compact"
                             label={fillTemplate(t.photos.menuLabel, { n })}
                             triggerId={triggerIdOf(key)}
                           >
@@ -408,22 +411,6 @@ export function PhotoSection({
                             </MenuItem>
                           </Menu>
                         </div>
-                        {total > 1 ? (
-                          <div className="absolute right-1 bottom-1 touch-none">
-                            <Button
-                              variant="icon"
-                              tabIndex={-1}
-                              className="cursor-grab"
-                              aria-label={fillTemplate(t.photos.dragHandle, { n })}
-                              onPointerDown={(event) => {
-                                if (!canDrag || event.button !== 0) return;
-                                start(slot, event);
-                              }}
-                            >
-                              <Icon name="grip" />
-                            </Button>
-                          </div>
-                        ) : null}
                       </>
                     ) : null}
                   </div>
@@ -544,7 +531,6 @@ export function PhotoSection({
           }}
         />
       ) : null}
-      {editable && room > 0 ? <Text look="hint">{t.photos.addHint}</Text> : null}
       {editable && room <= 0 ? (
         <Text look="hint">
           {fillTemplate(t.photos.capReached, { max: integer.format(MAX_ANIMAL_PHOTOS) })}
@@ -555,11 +541,7 @@ export function PhotoSection({
           {lastPhotoText}
         </Text>
       ) : null}
-      <Text look="hint">
-        {fillTemplate(t.photos.howItWorks, { px: integer.format(PHOTO_MAX_EDGE_PX) })}
-      </Text>
-      <Text look="hint">{t.photos.privacyNote}</Text>
-      {visibleListing ? <Text look="hint">{t.photos.dateMoves}</Text> : null}
+      {visibleListing ? <Text look="hint">{t.photos.dateNote}</Text> : null}
       {removedOnce ? <Text look="hint">{t.photos.removedStillReachable}</Text> : null}
       <p role="status" className="text-caption text-ink-2 empty:sr-only">
         {status}

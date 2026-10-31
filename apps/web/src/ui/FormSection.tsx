@@ -16,6 +16,8 @@ export type FormSectionProps = {
   title: ReactNode;
   /** The section's 1-based place in the form; omit for an unnumbered section. */
   step?: number;
+  /** Sits in the title row after the heading, outside it (an InfoTip, a counter), so the heading's name stays the title. */
+  titleExtra?: ReactNode;
   /** One quiet line under the title: what this section is for. */
   description?: ReactNode;
   /** Layout only. */
@@ -27,6 +29,7 @@ export function FormSection({
   id,
   title,
   step,
+  titleExtra,
   description,
   className,
   children,
@@ -48,6 +51,7 @@ export function FormSection({
             <Heading level={2} look="section" id={titleId} tabIndex={-1}>
               {title}
             </Heading>
+            {titleExtra}
           </div>
           {description === undefined ? null : (
             <p className="text-caption text-ink-2">{description}</p>
