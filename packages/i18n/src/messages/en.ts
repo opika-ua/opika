@@ -157,7 +157,6 @@ export const en = {
     registryConfirmed: "Confirmed by the national pet registry",
     shelterDeclared: "The shelter's data",
     statusDone: "Done",
-    statusNotDone: "Not done",
     statusUnknown: "Unknown",
     sourceShelter: "According to the shelter",
     rabies: "Rabies",

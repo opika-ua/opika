@@ -233,6 +233,24 @@ describe("AnimalDetailScreen meta line, by sex", () => {
     expect(screen.getAllByText(word).length).toBeGreaterThan(0);
   });
 
+  it.each([
+    ["male", "small", "Малий"],
+    ["male", "medium", "Середній"],
+    ["male", "large", "Великий"],
+    ["female", "small", "Мала"],
+    ["female", "medium", "Середня"],
+    ["female", "large", "Велика"],
+    ["unknown", "small", "Малий"],
+    ["unknown", "medium", "Середній"],
+    ["unknown", "large", "Великий"],
+  ] as const)("%s, %s: the meta line's size word reads «%s»", async (sex, size, word) => {
+    await renderAnimal({ sex, size });
+    const parts = Array.from(
+      document.querySelector(".meta-line")?.querySelectorAll(".meta-part") ?? [],
+    ).map((part) => part.textContent);
+    expect(parts.at(-1)).toBe(word);
+  });
+
   it("an unrecorded sex shows no sex chip at all (sexWordFor's own null-for-unknown contract)", async () => {
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
     render(
@@ -381,7 +399,7 @@ describe("AnimalDetailScreen – the medical status rows", () => {
 
   it.each([
     ["unknown", "Невідомо"],
-    ["in_progress", "Не зроблено"],
+    ["in_progress", "У процесі"],
     ["confirmed", "Зроблено"],
   ] as const)("a %s fact reads «%s», on its own labelled row", async (state, text) => {
     await renderAnimal({

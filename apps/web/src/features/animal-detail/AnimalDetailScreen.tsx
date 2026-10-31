@@ -6,7 +6,6 @@ import {
   fillTemplate,
   sexWordFor,
   sizeChipWordFor,
-  sizeLabel,
   temperamentLabelFor,
   uk,
 } from "@opika/i18n";
@@ -305,7 +304,7 @@ function metaParts(animal: AnimalDetailView): string[] {
   return [
     sexWordFor(animal.sex),
     ageChipWordFor(animal.ageBucket, animal.sex),
-    sizeLabel(animal.size),
+    sizeChipWordFor(animal.size, animal.sex),
   ].filter((part): part is string => Boolean(part));
 }
 

@@ -1305,7 +1305,6 @@ describe("designer round 1, S6 (his DR1-Q1 and shelter-page copy)", () => {
     // `feat/dr1-s6-shelter-page` as a separate commit"): #16 and #14, transcribed from the audit.
     // Pet card chips + health PR (his table, 2026-10-31): the status rows' words.
     ["medical.statusDone", uk.medical.statusDone, "Зроблено"],
-    ["medical.statusNotDone", uk.medical.statusNotDone, "Не зроблено"],
     ["medical.statusUnknown", uk.medical.statusUnknown, "Невідомо"],
     ["medical.sourceShelter", uk.medical.sourceShelter, "За даними притулку"],
     [

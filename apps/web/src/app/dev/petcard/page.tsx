@@ -51,10 +51,10 @@ const CASES: Case[] = [
   },
   {
     id: "unknown",
-    title: "Not done and unknown, with notes",
+    title: "In progress and unknown, with notes",
     chips: SHORT,
     story: "Знайшли біля траси, швидко звикає до людей.",
-    rows: [SHELTER("not_done", VACC), SHELTER("unknown", SPAY)],
+    rows: [SHELTER("in_progress", VACC), SHELTER("unknown", SPAY)],
     notes: "Щеплення заплановане на наступний тиждень. Після нього можна забирати.",
   },
   {
@@ -69,7 +69,7 @@ const CASES: Case[] = [
       "Довгошерсті",
     ],
     story: "Жила в сім’ї 8 років.",
-    rows: [SHELTER("done", VACC), SHELTER("not_done", SPAY)],
+    rows: [SHELTER("done", VACC), SHELTER("in_progress", SPAY)],
     notes: null,
   },
   {
@@ -106,7 +106,7 @@ const CASES: Case[] = [
     story: "Знайшли біля траси.",
     rows: [
       { label: "Щеплення від сказу", value: "done", source: "registry" },
-      SHELTER("not_done", SPAY),
+      SHELTER("in_progress", SPAY),
     ],
     notes: "Стерилізацію заплановано на наступний місяць.",
   },

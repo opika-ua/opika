@@ -11,7 +11,7 @@ import {
 
 const VALUE_DOT: Record<MedicalValue, string> = {
   done: "bg-species-dog",
-  not_done: "bg-accent",
+  in_progress: "bg-accent",
   unknown: "bg-muted",
 };
 

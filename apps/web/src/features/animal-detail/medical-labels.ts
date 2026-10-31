@@ -2,7 +2,7 @@ import type { SpayNeuterStatus, VaccinationStatus } from "@opika/domain";
 import { uk } from "@opika/i18n";
 
 /** The three words a status row can show; there is no fourth. */
-export type MedicalValue = "done" | "not_done" | "unknown";
+export type MedicalValue = "done" | "in_progress" | "unknown";
 
 export type MedicalRow = {
   label: string;
@@ -11,13 +11,14 @@ export type MedicalRow = {
 };
 
 /**
- * `in_progress` reads «Не зроблено»: the card says only whether it is done. A registry-confirmed
+ * One word per domain state, no fourth: confirmed «Зроблено», in progress «У процесі», unknown
+ * «Невідомо». A registry-confirmed
  * vaccination in Ukraine's pet registry means rabies specifically (`attestation.ts`), so that
  * row's label switches to «Щеплення від сказу».
  */
 function medicalValueOf(state: "unknown" | "in_progress" | "confirmed"): MedicalValue {
   if (state === "confirmed") return "done";
-  return state === "in_progress" ? "not_done" : "unknown";
+  return state;
 }
 
 export function vaccinationRow(vaccination: VaccinationStatus): MedicalRow {
@@ -42,7 +43,7 @@ export function spayNeuterRow(spayNeuter: SpayNeuterStatus): MedicalRow {
 
 export const MEDICAL_VALUE_TEXT: Record<MedicalValue, string> = {
   done: uk.medical.statusDone,
-  not_done: uk.medical.statusNotDone,
+  in_progress: uk.medical.inProgress,
   unknown: uk.medical.statusUnknown,
 };
 
