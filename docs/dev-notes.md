@@ -89,11 +89,11 @@ is not the same claim as "I ran it and here is the output."
 # given a CLI --reporter (it replaces the dropping reporter), and while another session
 # still uses it (the drop is never forced). The next run reuses it; the prune clears it.
 
-## The name is not final - keep it out of the domain
+## The name is final - keep it out of the domain
 
 "Opika" (Опіка - Ukrainian for guardianship/care, same word as Polish
-"opieka") is a **working name**. It is used as the npm workspace scope
-(`@opika/contracts`, `@opika/domain`) and nowhere else that matters.
+"opieka") is the **final name** (owner, 2026-11-01, MK-9). It is also the npm workspace scope
+(`@opika/contracts`, `@opika/domain`). It still lives only in app-level config/i18n.
 
 `docs/standing-constraints.md`'s "no brand strings" rule means, concretely:
 no `"Opika"` in error messages, schema descriptions, default values, or
