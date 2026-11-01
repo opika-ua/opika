@@ -19,6 +19,7 @@ import { clientIp } from "../api/client-ip";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import { inLoggerContext, maskedAuthHandler, maskedAuthLogging } from "./auth-log";
 import { withQueryErrorsCleaned } from "./clean-query-errors";
+import { kabinetCookieName } from "./cookie-names";
 import { MAGIC_LINK_TTL_SECONDS, type MagicLinkSender } from "./magic-link-sender";
 import { PASSWORD_PATHS, passwordHooks } from "./password-hooks";
 import type { PasswordLimiters } from "./password-limits";
@@ -81,9 +82,7 @@ export const KABINET_SESSION = {
  * `session`. Better Auth's own `__Secure-` prefixing is switched off so the
  * two prefixes never stack.
  */
-export function kabinetCookieName(base: "session_token" | "dont_remember", secure: boolean) {
-  return `${secure ? "__Host-" : ""}kabinet.${base}`;
-}
+export { kabinetCookieName };
 
 export type KabinetAuthDeps = {
   db: Database;

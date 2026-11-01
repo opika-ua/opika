@@ -59,15 +59,17 @@ export async function kabinetIdentityOf(
  * limits, checked again here as a second line under `hooks.before`, which
  * deletes a lapsed session before Better Auth reads it. Only the session read, no role lookup: what the per-user rate
  * limit keys on (HS-Q10), and all a `/kabinet` page load needs before it is
- * charged against that budget (KH-Q8).
+ * charged against that budget (KH-Q8). `refresh: false` reads without extending the session:
+ * for callers outside the kabinet (a public reveal), where a read must not count as a visit (PW1-Q2).
  */
 export async function kabinetSessionUserIdOf(
   auth: KabinetAuth,
   db: Database,
   headers: Headers,
   now: Date,
+  options: { refresh: boolean } = { refresh: true },
 ): Promise<string | null> {
-  const session = await sessionOf(auth, headers);
+  const session = await sessionOf(auth, headers, options.refresh);
   if (session === null) return null;
   const userId = session.user.id;
   const lapsed = await sessionHasLapsed(session.session, now, () =>
@@ -83,9 +85,12 @@ export async function kabinetSessionUserIdOf(
  * `hooks.before` reads through it); this catch is the second line, for anything thrown that
  * didn't come from that handle. An `APIError` is an answer with fixed text and passes as it is.
  */
-async function sessionOf(auth: KabinetAuth, headers: Headers) {
+async function sessionOf(auth: KabinetAuth, headers: Headers, refresh: boolean) {
   try {
-    return await auth.api.getSession({ headers });
+    return await auth.api.getSession({
+      headers,
+      ...(refresh ? {} : { query: { disableRefresh: true } }),
+    });
   } catch (error) {
     throw isAPIError(error) ? error : cleanedQueryError(error);
   }

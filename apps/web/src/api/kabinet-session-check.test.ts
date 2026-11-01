@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const pageUserId = vi.fn();
-vi.mock("../kabinet/runtime", () => ({ kabinetPageUserId: pageUserId }));
+vi.mock("../kabinet/runtime", () => ({ kabinetViewerUserId: pageUserId }));
 
 const { hasKabinetCookie, kabinetSessionCheckFor } = await import("./kabinet-session-check");
 

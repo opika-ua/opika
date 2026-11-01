@@ -1,5 +1,4 @@
-import { kabinetCookieName } from "../kabinet/auth";
-import { kabinetPageUserId } from "../kabinet/runtime";
+import { kabinetCookieName } from "../kabinet/cookie-names";
 
 const KABINET_COOKIE_NAMES: ReadonlySet<string> = new Set([
   kabinetCookieName("session_token", true),
@@ -26,7 +25,9 @@ export function kabinetSessionCheckFor(
   if (!hasKabinetCookie(headers.get("cookie"))) return undefined;
   return async () => {
     try {
-      return (await kabinetPageUserId(headers, now)) !== null;
+      // Lazy: Better Auth stays out of every /api/rpc cold start (see proxy.ts).
+      const { kabinetViewerUserId } = await import("../kabinet/runtime");
+      return (await kabinetViewerUserId(headers, now)) !== null;
     } catch {
       return false;
     }

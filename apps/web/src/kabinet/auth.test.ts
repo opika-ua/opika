@@ -651,6 +651,32 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
       expect(await getSession(cookie)).toBeNull();
     });
 
+    /**
+     * A public reveal reads the session to decide, and a read there is not a visit to the kabinet
+     * (PW1-Q2, and the privacy text «діє 30 днів від останнього відвідування»). Fails if the
+     * non-refreshing read starts refreshing.
+     */
+    it("a non-refreshing read tells the user but never moves updated_at or expiresAt", async () => {
+      const user = await createUser("olena@example.org");
+      const cookie = await signIn("olena@example.org");
+      await age({ created: 10 * day, updated: 10 * day });
+      const [before] = await db.select().from(authSession);
+      const headers = new Headers({ cookie });
+
+      const now = new Date();
+      expect(await kabinetSessionUserIdOf(auth, db, headers, now, { refresh: false })).toBe(
+        user.id,
+      );
+      const [after] = await db.select().from(authSession);
+      expect(after?.updatedAt).toEqual(before?.updatedAt);
+      expect(after?.expiresAt).toEqual(before?.expiresAt);
+
+      // The default read, a kabinet request, does refresh: the two differ only by this option.
+      expect(await kabinetSessionUserIdOf(auth, db, headers, now)).toBe(user.id);
+      const [refreshed] = await db.select().from(authSession);
+      expect(refreshed?.updatedAt.getTime()).toBeGreaterThan(before?.updatedAt.getTime() ?? 0);
+    });
+
     it("the operator's session: gone past 7 days idle or 30 days, enforced by role", async () => {
       const operator = await createUser("op@example.org");
       await db
