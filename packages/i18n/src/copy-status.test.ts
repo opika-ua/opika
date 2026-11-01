@@ -1284,6 +1284,15 @@ describe("/pro about.data (his PR 6 text, and PW-1's two sentences)", () => {
     expect(uk.about.data).not.toContain("наближену");
   });
 
+  // H5 (Sentry): the owner's English sentence, exactly, closing the paragraph (2026-11-02).
+  it("ends the English /pro data paragraph with his Sentry sentence, word for word", () => {
+    expect(
+      en.about.data.endsWith(
+        "If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
+      ),
+    ).toBe(true);
+  });
+
   /** His Q1 answer (2026-10-18): both sentences, one after the other. */
   it("says what history records, and that «Ще шукає» / «Ще домовляються» are not in it", () => {
     expect(uk.about.data).toContain(

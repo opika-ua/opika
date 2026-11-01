@@ -185,7 +185,14 @@ Errors only, no tracing, no replay, no profiling, no feedback widget. Code: `app
   with no client headers or address.
 - **Trigger one test error after a deploy.** `POST /api/monitoring/test` with `Authorization: Bearer
   $CRON_SECRET` throws on purpose (the server error then arrives through `onRequestError`). It answers 404
-  to anyone without that header and when no DSN is set, so it is not a public endpoint. In PowerShell,
-  with the secret read by `Read-Secret`:
-  `curl.exe -X POST -H "Authorization: Bearer $secret" https://<host>/api/monitoring/test`
-  (the path is exempt from the pre-launch gate; it needs `CRON_SECRET` set on that deployment).
+  to anyone without that header and when no DSN or secret is set, and 429 past 5 calls a minute per address
+  (checked before the secret), so it is not a public endpoint; the thrown message is fixed. The path is
+  exempt from the pre-launch gate. Windows PowerShell 5.1, the secret typed into `Read-Secret`, only the
+  status printed (500 means the error was thrown):
+  ```powershell
+  $secret = Read-Secret "CRON_SECRET (production)"
+  try { $r = Invoke-WebRequest -UseBasicParsing -Method Post -Uri "https://<production-host>/api/monitoring/test" -Headers @{ Authorization = "Bearer $secret" }; $code = [int]$r.StatusCode } catch { $code = [int]$_.Exception.Response.StatusCode }
+  Remove-Variable secret; "HTTP $code"
+  ```
+  In Sentry (Issues, the project, environment `production`): an issue titled "Error: Sentry test error:
+  thrown on purpose by POST /api/monitoring/test", with a stack, no user, no request data.
