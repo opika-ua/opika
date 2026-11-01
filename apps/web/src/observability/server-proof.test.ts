@@ -183,4 +183,22 @@ describe("the full config (SDK collection and scrubber)", () => {
     expect(sent.itemTypes().length).toBeGreaterThan(0);
     expect(sent.itemTypes().every((type) => type === "event")).toBe(true);
   });
+
+  it("runs none of the integrations that send sessions, process data or local variables", () => {
+    const sent = recordingTransport();
+    initServerSentry(DSN, { transport: sent.transport });
+    const names =
+      Sentry.getClient()
+        ?.getOptions()
+        .integrations.map((i) => i.name) ?? [];
+    expect(names.length).toBeGreaterThan(0);
+    for (const forbidden of [
+      "ProcessSession",
+      "LocalVariables",
+      "LocalVariablesAsync",
+      "Console",
+    ]) {
+      expect(names).not.toContain(forbidden);
+    }
+  });
 });

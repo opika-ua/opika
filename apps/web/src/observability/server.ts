@@ -5,7 +5,14 @@ import { baseSentryOptions, type SentryTestKnobs } from "./options";
  * Node runtime (the edge one is `edge.ts`). Local variables, console capture and request bodies
  * stay off; the integrations that exist only to add data are filtered out of the defaults.
  */
-const DROPPED_INTEGRATIONS = new Set(["LocalVariables", "Console", "OnUncaughtException"]);
+const DROPPED_INTEGRATIONS = new Set([
+  "LocalVariables",
+  "LocalVariablesAsync",
+  "Console",
+  "OnUncaughtException",
+  // Release-health sessions are their own envelope type and carry the scope user's id.
+  "ProcessSession",
+]);
 
 export function initServerSentry(
   dsn: string,
