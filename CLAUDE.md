@@ -79,6 +79,8 @@ Priority: speed with sensible quality.
     runs at once on the machine, and serialise DB-heavy ones (parallel runs contend on the test database). If Biome
     segfaults on the whole repo (Windows), lint the changed files with `--diagnostic-level=error` and say so in the
     PR body; CI lints the whole repo. CI is the source of truth.
+20. Scratch files (logs, PR bodies, copy exports) go inside the agent's own worktree or `Claude outputs\`, never the
+    root of `D:\opika-worktrees` (owner, 2026-11-01, after ~90 loose files piled up there).
 
 
 ## What this is
