@@ -314,6 +314,23 @@
 main:focus {
   outline: none;
 }
+/*
+ * A mascot perched on a word of a display heading (ui/Mascot `perch="word"`): centred on the word, its
+ * feet on the letters. --cap-offset is the gap between the top of the display face's line box and the
+ * top of its lowercase letters (1.07em ascent - 0.62em x-height, measured on Climate Crisis; its
+ * capitals reach 0.75em, so a capital pokes 0.13em above the feet). Re-measure if the face changes.
+ * The 1px overlap keeps the feet on the letters instead of hovering over them.
+ */
+:root {
+  --cap-offset: 0.45em;
+}
+.mascot-word-perch {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(100% - var(--cap-offset) - 1px);
+}
+
 /* A native <dialog> sheet opened with no JS: the trigger is an <a href="#id"> (ui/Sheet). */
 dialog[data-hash-open]:target {
   display: block;

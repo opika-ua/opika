@@ -3,10 +3,12 @@ import type { FeedFilterDimension, FeedFilters, GallerySort, RegionId } from "@o
 import { ANY, pluralizeUk, relaxDimension } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { LinkButton } from "../../ui/Button";
+import { cx } from "../../ui/cx";
 import { Heading } from "../../ui/Heading";
-import { Mascot } from "../../ui/Mascot";
+import { MASCOT_RESERVE_CLASS, Mascot } from "../../ui/Mascot";
 import { mascotKindFor } from "../../ui/mascot-species";
 import { Panel } from "../../ui/Panel";
+import { PerchedWords } from "../../ui/PerchedWords";
 import { Text } from "../../ui/Text";
 import type { CitySlugsById } from "./filter-url";
 import { galleryHref, resetFiltersHref } from "./filter-url";
@@ -90,21 +92,25 @@ export function NoMatch({
   return (
     <Panel
       padding="lg"
-      className="relative flex flex-col items-start gap-8 py-12"
+      className="flex flex-col items-start gap-8 py-12"
       aria-labelledby="gallery-no-match-heading"
       as="section"
     >
-      <Mascot
-        kind={mascotKindFor(filters.species)}
-        pose="lie"
-        size={48}
-        perch="top-left"
-        offset={16}
-      />
       <div data-testid="gallery-no-match" className="flex w-full flex-col items-start gap-8">
         <div className="flex flex-col gap-3">
-          <Heading level={2} look="display-l" id="gallery-no-match-heading" className="text-pretty">
-            {uk.noMatch.heading}
+          <Heading
+            level={2}
+            look="display-l"
+            id="gallery-no-match-heading"
+            className={cx("text-pretty", MASCOT_RESERVE_CLASS[48])}
+          >
+            <PerchedWords
+              text={uk.noMatch.heading}
+              initial={2}
+              mascot={
+                <Mascot kind={mascotKindFor(filters.species)} pose="lie" size={48} perch="word" />
+              }
+            />
           </Heading>
           <Text look="body" className="text-ink-2 text-pretty">
             {uk.noMatch.reassurance}

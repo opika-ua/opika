@@ -1,6 +1,6 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { Mascot, MascotPerch } from "./Mascot";
+import { MASCOT_RESERVE_CLASS, Mascot, MascotPerch } from "./Mascot";
 import { compactOffset } from "./mascot-fit";
 import { MASCOT_SHAPES } from "./mascot-shapes";
 import { mascotKindFor } from "./mascot-species";
@@ -53,6 +53,20 @@ describe("Mascot", () => {
     cleanup();
     const right = svgOf(<Mascot kind="dog" pose="sit" size={64} perch="top-right" />);
     expect(right.getAttribute("class")).toContain("right-0");
+  });
+
+  it("perches on a word through the shared cap-line class, with no per-placement offset", () => {
+    const svg = svgOf(<Mascot kind="cat" pose="lie" size={48} perch="word" />);
+    const cls = svg.getAttribute("class") ?? "";
+    expect(cls).toContain("mascot-word-perch");
+    expect(cls).not.toMatch(/(left|right)-[0-9]/);
+  });
+
+  it("reserves as much room above a heading as the mascot is tall, step for step", () => {
+    expect(MASCOT_RESERVE_CLASS[48]).toBe("pt-8 tablet:pt-12");
+    expect(svgOf(<Mascot kind="cat" pose="lie" size={48} />).getAttribute("class")).toContain(
+      "h-12",
+    );
   });
 
   it("uses a smaller height step on a phone", () => {

@@ -111,7 +111,9 @@ describe("/tvaryny (renderGallery)", () => {
 
     expect(screen.queryByTestId("gallery-grid")).toBeNull();
     expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
-    expect(screen.getByText("Під ці фільтри зараз нікого немає.")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Під ці фільтри зараз нікого немає." }),
+    ).toBeTruthy();
   });
 
   /**
