@@ -249,6 +249,10 @@
 @utility gcard-badges {
   @apply contents tablet:absolute tablet:inset-x-4 tablet:top-4 tablet:flex tablet:flex-wrap tablet:items-start tablet:gap-2;
 }
+/* The saved page puts a 44px bookmark in the photo's top-right corner; the badges stop short of it. */
+@utility gcard-badges-saved {
+  @apply gcard-badges tablet:right-16;
+}
 /* The species dot is a pseudo-element in `--dot` (set by gcard-dog / gcard-cat). */
 @utility gcard-fresh-st {
   @apply order-last flex items-center gap-2 text-caption text-ink-2;
@@ -285,6 +289,21 @@
 /* A look-alike of the primary Button (ui/Button.tsx), shown from tablet only; aria-hidden in the card. */
 @utility gcard-pill {
   @apply hidden w-fit shrink-0 items-center justify-center gap-2 rounded-pill bg-ink px-6 text-label min-h-target text-on-ink tablet:mt-2 tablet:inline-flex;
+}
+/* The saved page's card leaving: its row collapses to nothing in 200 ms (none under reduced motion, where the island skips it). */
+@utility saved-item {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 200ms,
+    opacity 200ms;
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+@utility saved-item-leaving {
+  grid-template-rows: 0fr;
+  opacity: 0;
 }
 @utility meta-line {
   @apply flex flex-wrap items-center gap-x-2 text-ink-2;

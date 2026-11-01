@@ -56,6 +56,7 @@ import {
   SheetDemo,
   ToastDemo,
   ToggleChipDemo,
+  TooltipDemo,
 } from "./Demos";
 import { SegmentedDemo } from "./SegmentedDemo";
 
@@ -610,6 +611,9 @@ export default function DevUiPage() {
           <Toast tone="success" message="Saved" dismissLabel="Dismiss" />
           <Toast tone="error" message="Could not save" dismissLabel="Dismiss" />
           <ToastDemo />
+        </Row>
+        <Row label="Tooltip (hover or focus the bookmark)">
+          <TooltipDemo />
         </Row>
       </Group>
 

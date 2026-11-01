@@ -67,6 +67,8 @@ interface GalleryCardProps {
   filters: FeedFilters;
   sort: GallerySort;
   citySlugs: CitySlugsById;
+  /** The saved page lays a bookmark button over the photo's top-right corner: the badges leave it free. */
+  cornerControl?: boolean;
 }
 
 export function GalleryCard({
@@ -77,6 +79,7 @@ export function GalleryCard({
   filters,
   sort,
   citySlugs,
+  cornerControl = false,
 }: GalleryCardProps) {
   const photo = card.primaryPhoto;
   const reserved = isReserved(card.listingKind);
@@ -102,7 +105,7 @@ export function GalleryCard({
       />
       {/* `contents` on a phone: the badge floats on the photo, the freshness joins the text column
           (order-last). From `tablet` the same two elements sit in one row on the photo. */}
-      <div className={stacked ? "contents" : "gcard-badges"}>
+      <div className={stacked ? "contents" : cornerControl ? "gcard-badges-saved" : "gcard-badges"}>
         <span
           data-testid="freshness-badge"
           className={

@@ -18,6 +18,7 @@ import { Popover } from "../../../ui/Popover";
 import { Sheet } from "../../../ui/Sheet";
 import { Text } from "../../../ui/Text";
 import { ToastProvider, useToast } from "../../../ui/Toast";
+import { Tooltip } from "../../../ui/Tooltip";
 
 /** The interactive kit pieces (state lives here so the page itself stays a server component). */
 
@@ -242,7 +243,32 @@ function ToastButtons() {
       <Button variant="secondary" onClick={() => show("Could not save", "error")}>
         Show error toast
       </Button>
+      <Button
+        variant="secondary"
+        onClick={() =>
+          show("Removed from saved", "info", {
+            durationMs: 6000,
+            action: { label: "Undo", onAction: () => show("Put back", "success") },
+          })
+        }
+      >
+        Show toast with an action
+      </Button>
     </>
+  );
+}
+
+export function TooltipDemo() {
+  return (
+    <Tooltip text="Remove from saved">
+      <button
+        type="button"
+        aria-label="Remove from saved"
+        className="inline-flex size-11 cursor-pointer items-center justify-center rounded-pill border border-line focus-ring"
+      >
+        <Icon name="bookmark" size="md" className="fill-current" />
+      </button>
+    </Tooltip>
   );
 }
 

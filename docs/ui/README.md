@@ -10,7 +10,7 @@ Rules every component follows:
 - `className` is for layout only (margin, width, aspect ratio), never restyling.
 - 48px touch target (`min-h-target`), visible focus (`focus-ring` utility from `globals.css`).
 - Works without JS where it can (links and forms first); server-component-safe unless it needs state.
-  Only Modal, Sheet, Popover, InfoTip, Menu, Tabs, PhotoSlider and Toast are client components.
+  Only Modal, Sheet, Popover, InfoTip, Tooltip, Menu, Tabs, PhotoSlider and Toast are client components.
 - Tokens only: no `rg-`, no `brand-`, no raw hex, no arbitrary values (the retired token sets are
   guarded against coming back). Type scale and fonts in `tokens.md`.
 - The kit holds no copy: every label, title and accessible name arrives as a prop.
@@ -81,10 +81,11 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [FilterTabs](components/FilterTabs.md) | `FilterTabs.tsx` | One row of underline tabs with counts that filter one list. |
 | [MenuDivider](components/MenuDivider.md) | `Menu.tsx` | A rule between groups of a Menu. |
 | [InfoTip](components/InfoTip.md) | `InfoTip.tsx` | A «?» button that opens a short explanation in a small card in the top layer (no layout shift). |
+| [Tooltip](components/Tooltip.md) | `Tooltip.tsx` | The name of an icon-only control in a small bubble on mouse hover and keyboard focus, in the top layer. |
 | [Popover](components/Popover.md) | `Popover.tsx` | A panel under its trigger (the filter selectors): chip or field trigger, list or pills. |
 | [Combobox](components/Combobox.md) | `Combobox.tsx`, `ComboboxMulti.tsx` | A select-only search field: async options, the value must come from the list; a list under the field, a full-screen dialog on phones. Multi-select mode: several values from a list already held, a count badge, a top-layer list. |
-| [Toast](components/Toast.md) | `Toast.tsx` | One toast, presentational. `ToastProvider` renders these; it is exported for the showcase and tests. |
-| [ToastProvider](components/ToastProvider.md) | `Toast.tsx` | Holds the toast queue and the live region. Wrap the page once; call `useToast().show(message, tone)` from client components. |
+| [Toast](components/Toast.md) | `Toast.tsx` | One toast, presentational, with an optional action button (an undo). `ToastProvider` renders these; it is exported for the showcase and tests. |
+| [ToastProvider](components/ToastProvider.md) | `Toast.tsx` | Holds the toast queue and the live region. Wrap the page once; call `useToast().show(message, tone, { action?, durationMs? })` from client components. |
 | [CheckboxGroup](components/CheckboxGroup.md) | `groups.tsx` | A question with several choices: fieldset, legend, hint, error. |
 | [ChipGroup](components/ChipGroup.md) | `groups.tsx` | A question with many short answers as wrapping chips, in a fieldset. |
 | [ErrorSummary](components/ErrorSummary.md) | `ErrorSummary.tsx` | A refused save listed once at the top; each problem takes you to its field. |

@@ -25,6 +25,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/ComboboxMulti.tsx":
     "open state, query, active row, top-layer popover positioning, key handling",
   "ui/Popover.tsx": "open state, outside-press and Esc listeners",
+  "ui/Tooltip.tsx": "hover and focus state, Esc listener, top-layer positioning",
   "ui/InfoTip.tsx": "open state, outside-press, Esc and focus listeners, top-layer positioning",
   "ui/StickyActionBar.tsx":
     "VisualViewport listeners (keyboard lift), ResizeObserver and a focus listener for scroll padding",
