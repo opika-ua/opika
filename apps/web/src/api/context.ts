@@ -29,4 +29,9 @@ export type AppContext = {
    * written by the route handler after the oRPC handler returns.
    */
   setCookies: string[];
+  /**
+   * Present only when the request carries a kabinet session cookie; true for a valid, live
+   * shelter session (`animals.reveal` neither records nor budgets those). Absent: a visitor.
+   */
+  isKabinetSession?: (() => Promise<boolean>) | undefined;
 };

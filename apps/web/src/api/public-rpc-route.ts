@@ -3,6 +3,7 @@ import type { Database } from "@opika/db";
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
 import { boundedBody } from "./bounded-body";
 import type { AppContext } from "./context";
+import { kabinetSessionCheckFor } from "./kabinet-session-check";
 import type { PerIpBudgets } from "./per-ip-budgets";
 import type { RateLimiter } from "./rate-limit";
 import { ipRateLimitKey } from "./rate-limit-key";
@@ -77,6 +78,7 @@ export async function handlePublicRpc(request: Request, deps: PublicRpcDeps): Pr
     now: deps.now,
     caller: { kind: "http", ipKey, budgets: deps.perIp },
     setCookies,
+    isKabinetSession: kabinetSessionCheckFor(bounded.headers, deps.now),
   };
 
   const result = await publicRpcHandler.handle(bounded, { prefix: PUBLIC_RPC_PREFIX, context });

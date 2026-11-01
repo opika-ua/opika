@@ -40,3 +40,12 @@ export async function kabinetPageUserId(headers: Headers, now: Date): Promise<st
   if (kabinetAuthAvailability(process.env).kind === "unavailable") return null;
   return kabinetSessionUserIdOf(kabinetAuth(), kabinetDb(), headers, now);
 }
+
+/**
+ * Whether the request holds a live kabinet session, read without refreshing it: for public
+ * routes, where use of the site is not a visit to the kabinet (PW1-Q2).
+ */
+export async function kabinetViewerUserId(headers: Headers, now: Date): Promise<string | null> {
+  if (kabinetAuthAvailability(process.env).kind === "unavailable") return null;
+  return kabinetSessionUserIdOf(kabinetAuth(), kabinetDb(), headers, now, { refresh: false });
+}
