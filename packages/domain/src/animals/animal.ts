@@ -1,11 +1,16 @@
 import { z } from "zod";
 import { AnimalIdSchema, ShelterIdSchema } from "../primitives/ids";
 import { LocalizedTextSchema } from "../primitives/localized-text";
+import { ANIMAL_DESCRIPTION_MAX_CHARACTERS } from "../shelters/freshness-sentence";
 import { PublicLocationSchema } from "../shelters/location";
+import { isPubliclyVerified, type ShelterVerification } from "../shelters/verification";
 import { AgeEstimateSchema } from "./age";
 import { SpayNeuterStatusSchema, VaccinationStatusSchema } from "./attestation";
+import { CoatLengthSchema } from "./coat";
+import { AnimalColourSchema } from "./colour";
 import { DocumentReadinessSchema } from "./document-readiness";
 import {
+  type AnimalListingState,
   type DiscoverableListing,
   DraftListingSchema,
   isDiscoverable,
@@ -13,6 +18,7 @@ import {
 } from "./listing";
 import { type AnimalPhoto, AnimalPhotoSchema, MAX_ANIMAL_PHOTOS } from "./photo";
 import { SizeBucketSchema } from "./size";
+import { TemperamentSchema } from "./temperament";
 
 /**
  * Closed at dog and cat. Adding a species later is an additive change the
@@ -29,15 +35,28 @@ export const AnimalSexSchema = z.enum(["male", "female", "unknown"]);
 export type AnimalSex = z.infer<typeof AnimalSexSchema>;
 
 /**
+ * A closed universe, like `ANIMAL_SPECIES` - "unknown" is a real, stored
+ * value (the never-null default), not an absence the way `coatLength`'s
+ * `null` is. The sex filter can therefore collapse "every option ticked" to
+ * "any" the same way species/size/age do (`canonicalizeFilters`), rather
+ * than following fur/temperament/colour's null-admitting asymmetry.
+ */
+export const ANIMAL_SEXES = ["male", "female", "unknown"] as const satisfies readonly AnimalSex[];
+
+/**
  * What every animal has from the moment it exists (K-Q5, Oleksii: "name +
  * species to create; everything else and ≥1 photo to publish").
  *
  * `sex` is never missing: a new animal starts at "unknown" («Не записано»),
  * the way its medical facts start unknown (D2, Oleksii: "sex defaults to
  * "unknown" («Не записано»). Sex stays NOT NULL and is not a publish gap.").
+ * The default stands - reversed is only whether that default can stay
+ * through a *new* publish: the sex-filter feature's SF-Q1 makes "unknown"
+ * a publish gap (`listing-transition.ts`'s `PUBLISH_GAP_KINDS`), so D2's
+ * NOT NULL half is unchanged and its "not a publish gap" half is not.
  *
  * `lastUpdatedAt` is edit time: when anything on the record last changed. It
- * is not what freshness measures — that is `listing.confirmedAt` (H2-3), when
+ * is not what freshness measures - that is `listing.confirmedAt` (H2-3), when
  * the shelter last said the animal is still looking, which a form edit never
  * moves. Kept required because the kabinet shows it ("Чернетку збережено …").
  */
@@ -47,23 +66,46 @@ const animalCoreShape = {
   name: z.string().min(1),
   species: AnimalSpeciesSchema,
   sex: AnimalSexSchema,
+  /**
+   * Null is «Не записано» on drafts and listed animals alike (DR1-D10): fur is
+   * not a `ListingFacts` requirement, so no published animal needs it to stay
+   * editable, and no backfill invents it for one.
+   */
+  coatLength: CoatLengthSchema.nullable(),
   photos: z.array(AnimalPhotoSchema).max(MAX_ANIMAL_PHOTOS).readonly(),
   vaccination: VaccinationStatusSchema,
   spayNeuter: SpayNeuterStatusSchema,
   documentReadiness: DocumentReadinessSchema,
+  /** [] = not recorded. Never a publish gap, never a scoring/completeness input (same as coatLength). */
+  temperament: TemperamentSchema,
+  /** null = not recorded, same as coatLength. */
+  colour: AnimalColourSchema.nullable(),
+  /** Free text for the card's «Медичний стан» column; null omits that column (full-width «Моя історія» instead). */
+  medicalNotes: LocalizedTextSchema.nullable(),
   /**
    * When an animal is fostered away from its shelter, it has its own public
    * location at `city` precision (city + district, no coordinates). When
    * null, the animal is at the shelter and inherits the shelter's
    * `fuzzed_address`-precision public location.
    *
-   * No exact foster address is ever stored — a foster home is a private
+   * No exact foster address is ever stored - a foster home is a private
    * residence. The city centroid is `City.centroid`, honestly labelled as
    * such, rather than posing as the animal's position (not served to
    * adopters since 2026-10-14: EM-Q10 sends the city only). Built via
    * `animalPublicLocationOf(cityId, district)`.
    */
   publicLocation: PublicLocationSchema.nullable(),
+  /**
+   * The first instant this exact row was both discoverable and its shelter
+   * publicly verified - the only precise answer to "was this card ever
+   * actually rendered to an adopter" (S8-F5). Set once, never cleared: a
+   * card withdrawn and restored to draft keeps the fact that it was shown
+   * before, which is the whole point of "ever". Approximating this from
+   * `hasBeenVerified(shelter.verification)` alone is what S8-F5 was -
+   * "the shelter was verified at some point" isn't "this listing was live
+   * while it was".
+   */
+  everServedAt: z.date().nullable(),
   createdAt: z.date(),
   lastUpdatedAt: z.date(),
   /**
@@ -77,6 +119,15 @@ const animalCoreShape = {
    */
   version: z.int().nonnegative(),
 };
+
+/**
+ * The description's cap, by reference rather than a second 1500: the note is
+ * the same kind of free text, and its kabinet field (PR 5) is to reuse the
+ * description's counter, whose noun («символів») is pinned to the
+ * description's number (`copy-plural-pins.test.ts`). One constant keeps the
+ * two caps moving together.
+ */
+export const MEDICAL_NOTES_MAX_CHARACTERS = ANIMAL_DESCRIPTION_MAX_CHARACTERS;
 
 /**
  * What a listing must carry before anyone can see it (K-Q5: "everything else
@@ -142,3 +193,20 @@ export const isDiscoverableAnimal = (animal: Animal): animal is DiscoverableAnim
   isDiscoverable(animal.listing);
 
 export const primaryPhoto = (animal: Animal): AnimalPhoto | null => animal.photos[0] ?? null;
+
+/**
+ * The `everServedAt` an animal's own row should carry after a write that
+ * could newly satisfy `buildDiscoverabilityPredicate` (`packages/db/src/
+ * repos/feed-predicate.ts` - the actual query every adopter-facing surface
+ * runs, which this mirrors exactly: `isDiscoverable(listing) &&
+ * isPubliclyVerified(verification)`). Monotonic by construction: once set,
+ * `current` always wins, so a later withdraw or suspension can't un-ring
+ * this bell.
+ */
+export const everServedAtAfter = (
+  current: Date | null,
+  listing: AnimalListingState,
+  verification: ShelterVerification,
+  now: Date,
+): Date | null =>
+  current ?? (isDiscoverable(listing) && isPubliclyVerified(verification) ? now : null);

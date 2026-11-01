@@ -1,5 +1,4 @@
 import { headers } from "next/headers";
-import { getDb } from "../../../api/db";
 import { requireEnv } from "../../../api/env";
 import {
   type KabinetAnimalListPage,
@@ -12,6 +11,7 @@ import {
 } from "../../../features/kabinet/animal-page";
 import type { KabinetHomeDeps } from "../../../features/kabinet/home";
 import { SHELTER_WRITE_POLICY } from "../../../kabinet/access";
+import { kabinetDb } from "../../../kabinet/kabinet-db";
 import { operatorDisplayName } from "../../../kabinet/operator";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
 import { kabinetAuthOrNotFound, kabinetAvailabilityOrNotFound } from "../available-auth";
@@ -30,7 +30,7 @@ async function requestOf(): Promise<{
   const auth = kabinetAuthOrNotFound();
   const { invites, baseURL } = kabinetAvailabilityOrNotFound();
   const now = new Date();
-  const db = getDb();
+  const db = kabinetDb();
   const identity = await kabinetIdentityOf(
     auth,
     db,

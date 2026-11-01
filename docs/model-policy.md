@@ -14,7 +14,7 @@ places where a plausible-looking wrong answer costs weeks.
 
 **If the failure mode is "obviously broken immediately" → Sonnet.** Config, wiring,
 CRUD screens, seed data, fixtures, docs, mechanical refactors. A mistake here fails
-loudly on the first run, so the cheaper, faster model is strictly better — you are not
+loudly on the first run, so the cheaper, faster model is strictly better - you are not
 buying judgement, you are buying typing.
 
 **When genuinely unsure → Opus.** A wasted Opus session costs tokens. A subtly wrong
@@ -34,7 +34,7 @@ foundation costs a rewrite, and on a ten-hour week a rewrite costs a month.
 | M4 anonymous session | **Opus** | Identity and abuse surface |
 | M5 swipe deck | **Opus** | Gesture physics and pointer capture. The product's core interaction, and hard to review by reading |
 | M6 filters, profile, reveal | Sonnet | UI over settled contracts |
-| M6 reveal rate limiting | **Opus** | Abuse surface — shelter contact details are scrapeable |
+| M6 reveal rate limiting | **Opus** | Abuse surface - shelter contact details are scrapeable |
 | M7 image pipeline | **Opus** | Presigned uploads and untrusted input handling |
 | M8 internal admin | Sonnet | CRUD |
 | M9 i18n | Sonnet | Wiring, with the correctness already tested in M1 |
@@ -45,13 +45,13 @@ foundation costs a rewrite, and on a ten-hour week a rewrite costs a month.
 
 ## Subagents
 
-- **reviewer** — Opus, always. It is the last gate before a pull request and there is
+- **reviewer** - Opus, always. It is the last gate before a merge and there is
   no second human reviewer. Reviewing well is harder than implementing.
-- **debugger** — Opus. Root-causing is exactly the "subtly wrong" category; a cheap
+- **debugger** - Opus. Root-causing is exactly the "subtly wrong" category; a cheap
   wrong diagnosis produces a fix that hides the bug rather than removing it.
 
 ## Note
 
-Within a `/milestone` run, tasks may use different models — the milestone-level
+Within a `/milestone` run, tasks may use different models - the milestone-level
 assignment above is the default, not a ceiling. State the per-task choice in the Phase 1
 plan so it is visible before the work happens rather than inferred afterwards.

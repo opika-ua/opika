@@ -9,7 +9,7 @@ VERDICT: STOP (blocks the PR, not the commit). One decision only: HS-Q11. Every 
 | FK mapping on the neon-http shape: ran `deleteDraftIf` on a fake db that throws `DrizzleQueryError(cause: NeonDbError{code:"23503"})` → `{kind:"referenced"}`; the same with 23505 → rethrown | That a real Neon HTTP 400 fills in `NeonDbError.code` (the bundle copies `code` from the response; never run against Neon) |
 | Never cleared on every write path. Read: `writeEditIf` whitelists columns, `writeListingIf` and `animalRepo.update` COALESCE, seed and onboard only insert, the only raw SQL writing `animals` is in migrations and tests | That production holds no non-draft row whose `listing` lacks its timestamp. If one exists, the guard aborts, which is safe |
 | Limiter prefixes differ (`opika-kabinet-user-…`, `opika-kabinet-ip-…`), keys are `user:`/`ip:`, and `proxy.ts` only limits `/tvaryny*`, so the adopter budget isn't shared | |
-| 0010 journal and snapshot chain correctly (prevId = 0009's id, `when` increases). drizzle-kit runs the migration in a transaction, so a guard abort rolls back the ADD COLUMN (0004–0008 use the same pattern) | |
+| 0010 journal and snapshot chain correctly (prevId = 0009's id, `when` increases). drizzle-kit runs the migration in a transaction, so a guard abort rolls back the ADD COLUMN (0004-0008 use the same pattern) | |
 
 ## Findings
 

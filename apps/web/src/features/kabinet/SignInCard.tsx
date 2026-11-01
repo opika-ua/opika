@@ -2,15 +2,36 @@
 
 import { uk } from "@opika/i18n";
 import { type FormEvent, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { Button, LinkButton } from "../../ui/Button";
+import { Card } from "../../ui/Card";
+import { TextField } from "../../ui/form";
+import { Heading } from "../../ui/Heading";
+import { Text } from "../../ui/Text";
+import { PasswordField } from "./password/PasswordField";
+import {
+  PASSWORD_ENDPOINTS,
+  postJson,
+  type SignInOutcome,
+  signInOutcomeOf,
+} from "./password/password-api";
+import { throttledMessage } from "./password/password-copy";
+import { FORGOT_PATH, SHELTER_HOME } from "./routes";
 
 /**
  * K1 · sign-in (KABINET N1; mock `Opika Kabinet.dc.html`, frames «K1 Вхід»
- * and «K1 Посилання надіслано», 1440 and 360). Two states only: the address,
- * then «check your email». No password, no "forgot password", no sign-up.
+ * and «K1 Посилання надіслано», 1440 and 360), with the password since PW-1
+ * (Oleksii's scope item 3, verbatim: "Sign-in page: email + password as the
+ * primary form; «Надіслати посилання для входу» (existing magic link) stays as
+ * a secondary option; «Забули пароль?» link."). Two states: the form, then
+ * «check your email» once a link is asked for. No sign-up.
  *
- * - The response is the same for a known and an unknown address: the route
- *   answers success either way (`handleKabinetAuth`), so this card can't tell
- *   them apart and never tries to.
+ * - **The password** gets one sentence for every failure (§5,
+ *   `signIn.wrongCredentials`), whatever the cause, and the delay's sentence,
+ *   the same for every address, when the server says to wait. A success loads
+ *   the cabinet's home.
+ * - **The link** gets the same answer for a known and an unknown address: the
+ *   route answers success either way (`handleKabinetAuth`), so this card
+ *   can't tell them apart and never tries to.
  * - Resend is locked for 60s, the countdown in the label. The disabled button
  *   stays focusable (`aria-disabled`, never `disabled`) and the reason is
  *   written next to it, not in a tooltip (KABINET "Buttons").
@@ -19,37 +40,35 @@ import { type FormEvent, useEffect, useId, useLayoutEffect, useRef, useState } f
  *   which addresses exist, so the fallback is a human, not an error. The
  *   address is config (`EMAIL_REPLY_TO`, the same inbox every email's
  *   Reply-To names), passed in by the page, never typed into the copy.
+ *
+ * Built on the kit (Button, TextField, Heading, Card) and the unified tokens only.
  */
 
 export const RESEND_LOCKOUT_SECONDS = 60;
 export const SIGN_IN_PATH = "/api/auth/sign-in/magic-link";
-/** Where the link lands after verification: the cabinet's home. */
-export const SIGN_IN_CALLBACK = "/kabinet";
-
-const FOCUS =
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
-const PRIMARY = `inline-flex min-h-14 w-full items-center justify-center rounded-rg-button bg-rg-ink px-6 text-[15px] font-medium whitespace-nowrap text-white ${FOCUS}`;
-const SECONDARY_DISABLED = `inline-flex min-h-14 flex-1 items-center justify-center rounded-rg-button bg-rg-fill px-6 text-[15px] whitespace-nowrap text-rg-ink-3 tablet:flex-none ${FOCUS}`;
-const SECONDARY = `inline-flex min-h-14 flex-1 items-center justify-center rounded-rg-button bg-rg-fill px-6 text-[15px] whitespace-nowrap text-rg-ink tablet:flex-none ${FOCUS}`;
-const TEXT_BUTTON = `inline-flex min-h-14 items-center justify-center px-2 text-[15px] whitespace-nowrap text-rg-ink underline ${FOCUS}`;
-const TITLE =
-  "text-2xl leading-7 font-bold tracking-[-0.02em] text-rg-ink tablet:text-[34px] tablet:leading-[38px] tablet:tracking-[-0.03em]";
-const BODY = "text-[17px] leading-[26px] text-rg-ink-2";
-const CAPTION = "text-[13px] leading-[18px] text-rg-ink-3";
+/** Where the link lands after verification, and where a password sign-in goes: the cabinet's home. */
+export const SIGN_IN_CALLBACK = SHELTER_HOME;
 
 const countdown = (seconds: number): string =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
 type State =
-  | { kind: "entering"; failed: boolean }
+  /** `error`: the one sentence the form shows after a try, or null. */
+  | { kind: "entering"; error: string | null }
   | { kind: "sent"; email: string; lockedFor: number; resendFailed: boolean };
 
 export function SignInCard({
   send = defaultSend,
+  signIn = defaultSignIn,
+  onSignedIn = defaultSignedIn,
   contact,
 }: {
-  /** Injected so tests drive the real component without a network. */
+  /** The magic link; injected so tests drive the real component without a network. */
   send?: (email: string) => Promise<boolean>;
+  /** The password sign-in; injected so tests drive the real component without a network. */
+  signIn?: (email: string, password: string) => Promise<SignInOutcome>;
+  /** After a password sign-in: the cabinet's home. Injected so tests can see it called. */
+  onSignedIn?: () => void;
   /**
    * Where to write if no email arrives (`kabinet.signInCard.notArrived`'s
    * `{contact}`). Null only where it isn't configured, which production
@@ -59,12 +78,13 @@ export function SignInCard({
   contact: string | null;
 }) {
   const [email, setEmail] = useState("");
-  const [state, setState] = useState<State>({ kind: "entering", failed: false });
+  const [password, setPassword] = useState("");
+  const [state, setState] = useState<State>({ kind: "entering", error: null });
   const [busy, setBusy] = useState(false);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const emailId = useId();
-  const errorId = useId();
+  const passwordId = useId();
   const lockedFor = state.kind === "sent" ? state.lockedFor : 0;
   /** Where focus goes after a state change the user didn't navigate to, set only by such changes. */
   const pendingFocus = useRef<"title" | "email" | null>(null);
@@ -105,9 +125,47 @@ export function SignInCard({
     }
   }
 
+  /** The primary form: the password. */
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
+    setBusy(true);
+    let outcome: SignInOutcome;
+    try {
+      outcome = await signIn(email.trim(), password);
+    } finally {
+      setBusy(false);
+    }
+    switch (outcome.kind) {
+      case "signed_in":
+        onSignedIn();
+        return;
+      case "wrong":
+        setState({ kind: "entering", error: uk.kabinet.signIn.wrongCredentials });
+        return;
+      case "throttled":
+        setState({ kind: "entering", error: throttledMessage(outcome.minutes) });
+        return;
+      case "no_answer":
+        setState({ kind: "entering", error: uk.kabinet.signIn.failed });
+        return;
+      case "failed":
+        setState({ kind: "entering", error: uk.kabinet.animalList.errors.actionFailed });
+        return;
+      /* v8 ignore next 4 -- exists so the compiler rejects an unhandled outcome; unreachable at runtime */
+      default: {
+        const unreachable: never = outcome;
+        return unreachable;
+      }
+    }
+  }
+
+  /** The secondary way in: the magic link, to the address in the field. */
+  async function onSendLink() {
+    if (busy) return;
+    // The address is all a link needs: the browser says what is wrong with
+    // it, as it would for the form's own submit.
+    if (emailRef.current !== null && !emailRef.current.reportValidity()) return;
     const address = email.trim();
     if (await request(address)) {
       pendingFocus.current = "title";
@@ -118,7 +176,7 @@ export function SignInCard({
         resendFailed: false,
       });
     } else {
-      setState({ kind: "entering", failed: true });
+      setState({ kind: "entering", error: uk.kabinet.signIn.sendFailed });
     }
   }
 
@@ -135,101 +193,118 @@ export function SignInCard({
 
   function onOtherAddress() {
     pendingFocus.current = "email";
-    setState({ kind: "entering", failed: false });
+    setState({ kind: "entering", error: null });
   }
 
   return (
-    <section
+    <Card
+      as="section"
+      tone="outline"
       aria-labelledby={`${emailId}-title`}
-      className="flex w-full flex-col gap-4 rounded-rg-card bg-rg-surface p-5 tablet:w-[480px] tablet:p-8"
+      className="flex w-full flex-col gap-4 p-5 tablet:w-120 tablet:p-8"
     >
       {state.kind === "entering" ? (
-        <form onSubmit={onSubmit} className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <h1 id={`${emailId}-title`} ref={titleRef} tabIndex={-1} className={TITLE}>
+            <Heading level={1} look="title" id={`${emailId}-title`} ref={titleRef} tabIndex={-1}>
               {uk.kabinet.signIn.title}
-            </h1>
-            <p className={BODY}>{uk.kabinet.signIn.intro}</p>
+            </Heading>
+            <Text look="body" className="text-ink-2">
+              {uk.kabinet.signIn.intro}
+            </Text>
           </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor={emailId} className="text-[15px] leading-[22px] font-medium text-rg-ink">
-              {uk.kabinet.signIn.emailLabel}
-            </label>
-            <input
+          <form onSubmit={onSubmit} className="flex flex-col gap-6">
+            <TextField
               id={emailId}
               ref={emailRef}
+              label={uk.kabinet.signIn.emailLabel}
               type="email"
               name="email"
               autoComplete="email"
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              aria-describedby={state.failed ? errorId : undefined}
-              aria-invalid={state.failed || undefined}
-              className={`min-h-14 rounded-rg-button bg-rg-fill px-4 text-[17px] leading-[26px] text-rg-ink ${state.failed ? "shadow-[inset_0_0_0_2px_var(--color-rg-ink)]" : ""} ${FOCUS}`}
             />
-            {state.failed ? (
-              <p id={errorId} className="text-[15px] leading-[22px] font-medium text-rg-ink">
-                {uk.kabinet.signIn.sendFailed}
+            <PasswordField
+              id={passwordId}
+              label={uk.kabinet.signIn.passwordLabel}
+              value={password}
+              onChange={setPassword}
+              autoComplete="current-password"
+            />
+            {state.error !== null ? (
+              <p role="alert" className="text-label text-ink">
+                {state.error}
               </p>
             ) : null}
+            <Button type="submit" status={busy ? "loading" : "idle"} className="w-full">
+              {uk.kabinet.signIn.submitPassword}
+            </Button>
+            <LinkButton href={FORGOT_PATH} variant="ghost" className="self-start">
+              {uk.kabinet.signIn.forgot}
+            </LinkButton>
+          </form>
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="secondary"
+              onClick={onSendLink}
+              status={busy ? "loading" : "idle"}
+              className="w-full"
+            >
+              {uk.kabinet.signIn.useLink}
+            </Button>
+            <Text look="hint">{uk.kabinet.signIn.addressNote}</Text>
           </div>
-          <button type="submit" aria-disabled={busy || undefined} className={PRIMARY}>
-            {uk.kabinet.signIn.send}
-          </button>
-          <p className={CAPTION}>{uk.kabinet.signIn.addressNote}</p>
-        </form>
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <h1 id={`${emailId}-title`} ref={titleRef} tabIndex={-1} className={TITLE}>
+          <Heading level={1} look="title" id={`${emailId}-title`} ref={titleRef} tabIndex={-1}>
             {uk.kabinet.signIn.sentTitle}
-          </h1>
-          <p className={BODY}>
+          </Heading>
+          <Text look="body" className="text-ink-2">
             {uk.kabinet.signIn.sentBody.split("{email}").map((part, index) =>
               index === 0 ? (
                 part
               ) : (
                 <span key="email">
-                  <strong className="font-medium">{state.email}</strong>
+                  <strong className="font-semibold text-ink">{state.email}</strong>
                   {part}
                 </span>
               ),
             )}
-          </p>
-          <div className="h-2" />
-          <p className={CAPTION}>{uk.kabinet.signIn.spamNote}</p>
+          </Text>
+          <Text look="hint">{uk.kabinet.signIn.spamNote}</Text>
           {contact !== null ? (
-            <p className={CAPTION}>
+            <Text look="hint">
               {uk.kabinet.signInCard.notArrived.replaceAll("{contact}", () => contact)}
-            </p>
+            </Text>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={onResend}
               aria-disabled={state.lockedFor > 0 || busy || undefined}
-              className={state.lockedFor > 0 ? SECONDARY_DISABLED : SECONDARY}
             >
               {state.lockedFor > 0
                 ? uk.kabinet.signIn.resendIn.replace("{time}", countdown(state.lockedFor))
                 : uk.kabinet.signIn.resend}
-            </button>
-            <button type="button" onClick={onOtherAddress} className={TEXT_BUTTON}>
+            </Button>
+            <Button variant="ghost" onClick={onOtherAddress}>
               {uk.kabinet.signIn.otherAddress}
-            </button>
+            </Button>
           </div>
           {state.resendFailed ? (
-            <p role="alert" className="text-[15px] leading-[22px] font-medium text-rg-ink">
+            <p role="alert" className="text-label text-ink">
               {uk.kabinet.signIn.sendFailed}
             </p>
           ) : null}
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 
-/** The real request: the kabinet's own auth route, which answers 200 for any address. */
+/** The magic link: the kabinet's own auth route, which answers 200 for any address. */
 async function defaultSend(email: string): Promise<boolean> {
   try {
     const response = await fetch(SIGN_IN_PATH, {
@@ -241,4 +316,14 @@ async function defaultSend(email: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** The password sign-in through the kabinet's auth route (`/api/auth/sign-in/email`). */
+async function defaultSignIn(email: string, password: string): Promise<SignInOutcome> {
+  return signInOutcomeOf(await postJson(PASSWORD_ENDPOINTS.signIn, { email, password }));
+}
+
+/** A full load of the cabinet's home, carrying the session cookie the answer set. */
+function defaultSignedIn() {
+  window.location.assign(SIGN_IN_CALLBACK);
 }

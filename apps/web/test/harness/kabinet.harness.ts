@@ -7,9 +7,12 @@
  * `/api/kabinet/*` answers 503 (fail closed, IN-R2). A Preview gets the same
  * answer for its own reason.
  *
- * **Signed in** (KS-T3's specs, `test.fixme` until the wiring commit): the
- * read-only profile at `/kabinet` (KS-Q1) at 360 and 1440, and its sign-out
- * target. Production sign-in needs a real email provider, which the harness
+ * **Signed in** (KS-T3's specs, `test.fixme` until the wiring commit):
+ * Головна at `/kabinet` (kabinet redesign Phase 2 PR 1 - the landing page,
+ * replacing K4's read-only profile in that slot, KS-Q1) and its sign-out.
+ * (Its sideways overflow at 360 and 1440 and the sign-out's 48px box and
+ * outline were measured here until 2026-10-20, removed with the other
+ * UI-measuring tests.) Production sign-in needs a real email provider, which the harness
  * must never reach, so these run on a second server on the same build with
  * sign-in available through the development console sender
  * (`sign-in-server.ts`, the confirm spec's pattern). The admin signs in the
@@ -39,6 +42,9 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
 for (const path of [
   "/kabinet",
   "/kabinet/vkhid",
+  // PW-1: «Забули пароль?» and the reset link's page.
+  "/kabinet/vkhid/zabuly",
+  "/kabinet/vkhid/novyi-parol",
   "/kabinet/prytulky",
   "/kabinet/prytulky/00000000-0000-4000-8000-000000000000",
 ]) {
@@ -107,10 +113,11 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
     // rendered (#120's run 39144246376; the same fix as b598d93's for K4). Each test's own
     // `goto("/kabinet")` asserts 200.
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button").click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
+    // Kabinet redesign Phase 2 PR 1: /kabinet now lands on Тварини.
+    await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
     await page.close();
   });
 
@@ -124,42 +131,20 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
     return context.newPage();
   };
 
-  for (const viewport of [
-    { width: 360, height: 800 },
-    { width: 1440, height: 900 },
-  ]) {
-    test(`at ${viewport.width}px: no horizontal scroll, every row's value fits its card`, async () => {
-      const page = await signedInPage();
-      await page.setViewportSize(viewport);
-      const response = await page.goto("/kabinet");
-      expect(response?.status()).toBe(200);
-      const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth - window.innerWidth,
-      );
-      expect(overflow).toBeLessThanOrEqual(0);
-      const values = await page.locator("dd").all();
-      // The profile has rows to measure; an empty page must not pass the loop below.
-      expect(values.length).toBeGreaterThan(3);
-      for (const value of values) {
-        const box = await value.boundingBox();
-        expect(box?.width ?? 0).toBeGreaterThan(0);
-        expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport.width);
-      }
-      await page.close();
-    });
-  }
-
-  test("sign-out is a 48px target with a visible focus ring", async () => {
+  test("after the skip link the header's Tab stops are «Переглянути сайт» (a new tab), then «Вийти»", async () => {
     const page = await signedInPage();
     await page.goto("/kabinet");
     // Transcribed: K4's «Вийти» (`kabinet.profile.signOut`).
     const signOut = page.getByRole("button", { name: "Вийти" });
-    const box = await signOut.boundingBox();
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(48);
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("link", { name: "Перейти до вмісту" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    const viewSite = page.getByRole("link", { name: /^Переглянути сайт/ });
+    await expect(viewSite).toBeFocused();
+    await expect(viewSite).toHaveAttribute("target", "_blank");
+    await expect(viewSite).toHaveAttribute("rel", /noopener/);
     await page.keyboard.press("Tab");
     await expect(signOut).toBeFocused();
-    const outline = await signOut.evaluate((el) => getComputedStyle(el).outlineStyle);
-    expect(outline).not.toBe("none");
     await page.close();
   });
 

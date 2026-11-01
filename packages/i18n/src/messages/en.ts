@@ -1,5 +1,5 @@
 /**
- * English UI strings — mirrors uk.ts key-for-key.
+ * English UI strings - mirrors uk.ts key-for-key.
  *
  * Machine-translated in the design's established voice (plain, warm, never
  * alarming), not a native-speaker pass. Eleven keys use the literal English
@@ -7,7 +7,7 @@
  * "КОПІЯ · UK / EN"): freshness.attribution, swipe.left/right,
  * medical.unknown/registryConfirmed, location.fostered, reveal.title,
  * exhausted.title/body, reserved.badge/action. Everything else is new
- * content in that register, not literally specified anywhere — flag any
+ * content in that register, not literally specified anywhere - flag any
  * mistranslation rather than trusting it silently; this hasn't had a
  * native-speaker read yet, and next-intl isn't wired until H3, so nothing
  * here is user-visible in production today.
@@ -15,68 +15,123 @@
 import { COPY_PENDING } from "./uk";
 
 export const en = {
-  // --- 01 First run — was a band above the gallery grid, removed in
+  // --- 01 First run - was a band above the gallery grid, removed in
   // Phase D (see uk.ts's own comment); promise survives as og:description ---
   firstRun: {
     promise:
-      "Animals from verified shelters across Kyiv oblast. Browse the list and see who's looking for a home.",
+      "Animals from verified shelters across Ukraine. Browse the list and see who's looking for a home.",
   },
 
   demo: {
-    bannerNotice: "The site doesn't hold any real shelters yet — every card here is a demo.",
+    bannerNotice: "The site doesn't hold any real shelters yet – every card here is a demo.",
     deckLabel: "Demo",
   },
 
   // --- Screen 02 · Feed / deck ---
   feed: {
-    filtersLabel: "Filters",
+    filtersLabel: "Filter",
     enterDeck: "Swipe one at a time",
     enterDeckShort: "Swipe",
     backToList: "← Back to the list",
+    deckHeading: "Animals one at a time",
     deckEntryAnnouncement: "One-at-a-time mode. Animal {position} of {total}.",
+    adoptPill: "Adopt",
+    galleryTitle: "Catalogue",
+    listEnd: "That is every animal for these filters.",
   },
 
   // --- Screen 03 · Filters ---
   filters: {
     title: "Filters",
-    city: "CITY",
-    species: "SPECIES",
+    city: "City",
+    species: "Species",
     speciesDogs: "Dogs",
     speciesCats: "Cats",
-    size: "SIZE",
+    speciesAny: "All",
+    size: "Size",
     sizeSmall: "Small",
     sizeMedium: "Medium",
     sizeLarge: "Large",
-    age: "AGE",
+    age: "Age",
     ageBaby: "Baby",
     ageYoung: "Young",
     ageAdult: "Adult",
     ageSenior: "Senior",
-    /** Template: "{count} {animalWord} match. Shelters in this city — {shelterCount}." */
-    resultCount: "{count} {animalWord} match. Shelters in this city — {shelterCount}.",
-    /** Template: "{count} {animalWord} match, across {shelterCount} {shelterWord}." — used when no city is selected, see uk.ts's note. */
+    coatShort: "Short-haired",
+    coatLong: "Long-haired",
+    sex: "Sex",
+    sexMale: "Boy",
+    sexFemale: "Girl",
+    sexUnknown: "Not recorded",
+    /** Template: "{count} {animalWord} match. Shelters in this city - {shelterCount}." */
+    resultCount: "{count} {animalWord} match. Shelters in this city – {shelterCount}.",
+    /** Template: "{count} {animalWord} match, across {shelterCount} {shelterWord}." - used when no city is selected, see uk.ts's note. */
     resultCountAnyCity: "{count} {animalWord} match, across {shelterCount} {shelterWord}.",
     reset: "Reset",
     /** Template: "Show {count}" */
     showCount: "Show {count}",
+    findCityField: "Search for a city",
+    findRegionField: "Search for an oblast",
+    clearSelection: "Clear",
+    selectedCount: "Selected: {count}",
+    groupHasAnimals: "Has animals",
+    groupNoAnimals: "No animals yet",
+    cityNoMatchHint: "Only cities that currently have animals are listed here.",
+    showAnimals: "Show {count} {animalWord}",
+    done: "Done",
+    showResults: "Show results",
+    anyValue: "All",
+    back: "Back",
+    removeFilter: "Remove filter {name}",
+    close: "Close",
+    activeCount: "Active filters: {count}",
     /** Template: "Found {count} {animalWord} across {shelterCount} {shelterWord}" */
     resultCountRail: "Found {count} {animalWord} across {shelterCount} {shelterWord}",
     animalWord: { one: "animal", few: "animals", many: "animals" },
-    /** English has no case system, so this is `animalWord` again — it exists for key-shape parity with uk.ts, where the rail's "Знайдено" governs a different form than the sheet's "Підходить". */
+    /** English has no case system, so this is `animalWord` again - it exists for key-shape parity with uk.ts, where the rail's "Знайдено" governs a different form than the sheet's "Підходить". */
     animalWordAccusative: { one: "animal", few: "animals", many: "animals" },
     shelterWordLocative: { one: "shelter", few: "shelters", many: "shelters" },
     sortLabel: "Sort",
     sortFreshest: "Freshest cards first",
     sortLongestWaiting: "Longest waiting",
-    allCities: "All of Kyiv oblast",
+    sortFreshestShort: "New",
+    sortLongestWaitingShort: "Waiting",
+    allCities: "All cities",
+    region: "Region",
+    allRegions: "All regions",
+    showAllOptions: "Show all ({count})",
+    findCity: "Find a city",
+    cityFound: "Found: {count}",
+    cityNoMatch: "Nothing found",
     railFooter:
       "There's no \"only fresh cards\" filter. An animal nobody's written about in a while is still waiting.",
+    clearDimension: "Clear {dimension}",
+    /** Template: "{option}, {count} {animalWord}" - an option pill's accessible name. */
+    optionCount: "{option}, {count} {animalWord}",
   },
 
   // --- Swipe affordances ---
   swipe: {
     left: "Not right now",
     right: "Ask about them",
+  },
+
+  // --- Saved animals (designer round 1, S7/S8) ---
+  likes: {
+    save: "Save",
+    saved: "Saved",
+    added: "{name}: added to saved",
+    removed: "{name}: removed from saved",
+    full: "The list is full – it can hold at most {max} animals. To add a new one, remove one first.",
+    title: "Saved animals",
+    deviceOnly:
+      "The list is kept only in this browser: it won't be there on another device or browser.",
+    empty: "Nothing here yet. Save animals from the gallery to come back to them later.",
+    emptyLink: "To the gallery",
+    unavailable: "{name} is no longer shown on the site.",
+    remove: "Remove from the list",
+    storageBlocked: "This browser won't let the site keep your list.",
+    loading: "Loading the list…",
   },
 
   // --- Action buttons ---
@@ -100,62 +155,96 @@ export const en = {
     unknown: "Not recorded",
     inProgress: "In progress",
     registryConfirmed: "Confirmed by the national pet registry",
-    shelterDeclared: "The shelter's own words",
+    shelterDeclared: "The shelter's data",
+    statusDone: "Done",
+    statusUnknown: "Unknown",
+    sourceShelter: "According to the shelter",
     rabies: "Rabies",
     vaccination: "Core vaccination",
     spayNeuter: "Spay/neuter",
-    registry: "The national pet registry",
+    registry: "According to the national pet registry",
   },
 
   // --- Location ---
   location: {
-    heading: "Where they live",
-    /** Template: "Living with a volunteer in {city}..." */
+    /** Template: "Living with a volunteer in {place}..." */
     fostered:
-      "Living with a volunteer in {city}. We don't know the exact address and won't invent one.",
-    noMapExplanation:
-      "There's no map here: we don't know the exact address, and we won't make one up. You'll agree on a meeting place with the shelter.",
-    lineFostered: "{city} · living with a volunteer",
-    lineAtShelter: "{city}",
+      "Living with a volunteer in {place}. We don't know the exact address and won't invent one.",
+    lineFostered: "{place} · living with a volunteer",
+    lineAtShelter: "{place}",
+  },
+
+  // --- Shelter page (designer round 1, S6) ---
+  shelterPage: {
+    animalsHeading: "Looking for a home: {count}",
+    noAnimals: "No animals here are looking for a home right now.",
+    sinceYear: "on the site since {year}",
+    countLine: "Found {count} {animalWord}",
   },
 
   // --- Detail screen (04) ---
   detail: {
-    /** Template: "Manually verified · {years} on Opika" — brand string lives here, not in domain */
-    shelterVerifiedYears: "Manually verified · {years} on Opika",
+    /** Template: "Manually verified · on the site since {year}" - `{year}` is the year the shelter's record was created. */
+    shelterVerifiedYears: "Manually verified · on the site since {year}",
     donateShelter: "Support the shelter",
-    /** Template: "← All animals in {city}" */
-    backToListIn: "← All animals in {city}",
+    shelterRowLink: "The shelter's page: «{name}»",
     speciesDog: "Dog",
     speciesCat: "Cat",
+    /** English has no sex-specific noun the way `speciesWordFor` needs for Ukrainian - both reuse the plain word. */
+    speciesDogMale: "Dog",
+    speciesCatFemale: "Cat",
     notFound: {
       eyebrow: "NOT FOUND",
       title: "This listing is gone.",
-      body: "The animal is no longer on the site or the link is out of date. This isn't an error — the listing is simply no longer here.",
+      body: "The animal is no longer on the site or the link is out of date. This isn't an error – the listing is simply no longer here.",
       action: "All animals",
     },
+    rateLimited: "Too many requests. Please try again later.",
     photoGalleryLabel: "Animal photos",
-    photoGalleryDot: "Photo {n}",
-    photoGalleryThumbnail: "View photo {n}",
+    photoNext: "Next photo",
+    photoPrev: "Previous photo",
+    photoCounter: "Photo {n} of {total}",
+    prev: "Previous",
+    next: "Next",
+    giveHome: "Give a home",
+    share: "Share",
+    shareCopied: "Link copied.",
+    aboutMeHeading: "About me",
+    myStoryHeading: "My story",
+    medicalHeading: "Medical",
+    chipLinkName: "Show similar {species}: {value}",
+    chipSpeciesCat: "cats",
+    chipSpeciesDog: "dogs",
+  },
+
+  // --- The gallery's animal overlay ---
+  preview: {
+    close: "Close",
   },
 
   // --- Contact reveal (05) ---
   reveal: {
-    /** Template: "You asked about {name}." */
-    youAskedAbout: "You asked about {name}.",
-    title: "Here's how to reach the shelter.",
+    title: "How to reach the shelter",
     subtitle:
       "They won't know you asked until you write to them yourself. Nothing happened automatically.",
     /** Template: "Contact details saved as they are today · {date}" */
     contactsFootnote: "Contact details saved as they are today · {date}",
     meetingPlace: "you'll agree on a place when you message",
-    reflectionHeading: "Before you write — three things worth thinking through calmly:",
-    reflection1: "This is 10–15 years together, not a weekend.",
-    reflection2: "Food, the vet, transport — monthly costs.",
+    reflectionHeading: "Before you write – three things",
+    reflection1: "This is 10-15 years together, not a weekend.",
+    reflection2: "Food, the vet, transport – monthly costs.",
     reflection3: "Whether everyone you live with agrees.",
     writeTelegram: "Message on Telegram",
     call: "Call",
     writeEmail: "Send an email",
+    writeViber: "Message on Viber",
+    openWebsite: "Open the website",
+    copy: "Copy",
+    copied: "Copied.",
+    copyPhoneLabel: "Copy the phone number",
+    copyTelegramLabel: "Copy the Telegram username",
+    copyViberLabel: "Copy the Viber number",
+    copyEmailLabel: "Copy the email address",
     backToFeed: "Back to the gallery",
   },
 
@@ -170,18 +259,11 @@ export const en = {
   // --- Exhausted (07) ---
   exhausted: {
     title: "That's everyone who fits right now.",
-    body: "There aren't many shelters here, so the list is short — that's normal.",
+    body: "There aren't many shelters here, so the list is short – that's normal.",
     newAnimals: "New animals appear when shelters update their cards. Usually every few weeks.",
-    /**
-     * Template: "All of Kyiv oblast (+{count})"
-     * See the note on the uk key: deviation from the original "add
-     * neighbouring cities" handoff. docs/gallery-contract-decisions.md §4.
-     */
-    addNearbyCities: "All of Kyiv oblast (+{count})",
     changeFilters: "Change filters",
+    toList: "Browse the list",
     reviewAgain: "Look through them again, no rush",
-    footnote:
-      "If you know a shelter in Kyiv oblast that isn't here — tell us, and we'll reach out to them.",
   },
 
   // --- Error states (08) ---
@@ -202,13 +284,13 @@ export const en = {
       title: "We've started the feed over.",
       action: "To the feed",
     },
-    /** Mirrors uk.ts's rateLimited key-for-key — machine-translated like the rest of this file, not a native pass; see this file's own top comment. */
+    /** Mirrors uk.ts's rateLimited key-for-key - machine-translated like the rest of this file, not a native pass; see this file's own top comment. */
     rateLimited: {
       title: "You've revealed the contacts of many shelters today.",
-      body: "The next ones — tomorrow.",
+      body: "The next ones – tomorrow.",
     },
     photoMissing: {
-      placeholder: "No photo yet — the shelter hasn't sent one",
+      placeholder: "No photo yet – the shelter hasn't sent one",
     },
   },
 
@@ -219,7 +301,7 @@ export const en = {
     action: "Ask to be second in line",
   },
 
-  // --- Resolved card variant — see the uk key's own note ---
+  // --- Resolved card variant - see the uk key's own note ---
   resolved: {
     sentence: "The shelter says: {name} is already home.",
   },
@@ -233,7 +315,7 @@ export const en = {
   // --- Animal card meta line ---
   // See the note on the uk key: English adjectives don't inflect for
   // gender, so the mismatch that motivates that note doesn't reproduce
-  // here — this set exists only for key-shape parity with uk.ts.
+  // here - this set exists only for key-shape parity with uk.ts.
   cardMeta: {
     ageBaby: "baby",
     ageYoung: "young",
@@ -246,8 +328,54 @@ export const en = {
     sizeSmall: "small",
     sizeMedium: "medium",
     sizeLarge: "large",
-    atShelter: "{city}",
-    fosteredHousing: "with a volunteer foster in {city}",
+    atShelter: "{place}",
+    fosteredHousing: "with a volunteer foster in {place}",
+    sexMale: "boy",
+    sexFemale: "girl",
+  },
+
+  // --- The pet card's temperament (English drafts; see the uk keys) ---
+  // English adjectives don't inflect, so the three forms only differ where
+  // the verb does.
+  temperament: {
+    playful: { masculine: "Playful", feminine: "Playful", plural: "Playful" },
+    calm: { masculine: "Calm", feminine: "Calm", plural: "Calm" },
+    affectionate: { masculine: "Affectionate", feminine: "Affectionate", plural: "Affectionate" },
+    energetic: { masculine: "Energetic", feminine: "Energetic", plural: "Energetic" },
+    independent: { masculine: "Independent", feminine: "Independent", plural: "Independent" },
+    shy: { masculine: "Shy", feminine: "Shy", plural: "Shy" },
+    good_with_kids: {
+      masculine: "Gets on with children",
+      feminine: "Gets on with children",
+      plural: "Get on with children",
+    },
+    good_with_cats: {
+      masculine: "Gets on with cats",
+      feminine: "Gets on with cats",
+      plural: "Get on with cats",
+    },
+    good_with_dogs: {
+      masculine: "Gets on with dogs",
+      feminine: "Gets on with dogs",
+      plural: "Get on with dogs",
+    },
+  },
+
+  // --- The pet card's coat colour (English drafts) ---
+  coatColour: {
+    names: {
+      black: "Black",
+      white: "White",
+      grey: "Grey",
+      ginger: "Ginger",
+      brown: "Brown",
+      cream: "Cream",
+      black_white: "Black and white",
+      tricolour: "Tricolour",
+      tabby: "Tabby",
+      spotted: "Spotted",
+    },
+    chip: "{label} coat",
   },
 
   // --- Pagination footer (E3) ---
@@ -261,19 +389,32 @@ export const en = {
     skipLink: "Skip to pages",
   },
 
-  // --- Gallery no-match (B4) — see the uk key's own note ---
+  // --- Gallery no-match (B4) - see the uk key's own note ---
+  place: {
+    prefixCity: "city",
+    prefixSelyshche: "urban-type settlement",
+    prefixVillage: "village",
+    withRegion: "{place}, {region}",
+    withDistrictAndRegion: "{place}, {district}, {region}",
+    districtShort: "{name} district",
+    hromadaShort: "{name} community",
+  },
+
   noMatch: {
     heading: "Nobody matches these filters right now.",
     reassurance: "This isn't a search error.",
     removeDimension: "Remove “{dimension}” ({animalWord})",
     showAllCities: "Show every city ({animalWord})",
+    showAllRegions: "Show every region ({animalWord})",
+    regionEmpty: "No animals in the chosen regions yet.",
+    neighbourRegion: "Neighbouring region: {region} ({animalWord})",
     additionalAnimals: "+{count} {animalWord}",
     suggestionExplainer:
       "Each suggestion names how many animals it would add. An empty screen never says " +
       '"try something else" without a number.',
   },
 
-  // --- Gallery error — see the uk key's own note ---
+  // --- Gallery error - see the uk key's own note ---
   galleryError: {
     eyebrow: "DIDN'T LOAD",
     title: "The page couldn't be loaded.",
@@ -282,42 +423,57 @@ export const en = {
     showAll: "Show all animals",
   },
 
-  // --- Gallery out-of-range page notice — see the uk key's own note ---
+  // --- Gallery out-of-range page notice - see the uk key's own note ---
   outOfRangePage: {
-    notFound: "Page {requested} doesn't exist — there are only {total}.",
-    showingLast: "Showing page {total} — the last one. Nothing was lost.",
+    notFound: "Page {requested} doesn't exist – there are only {total}.",
+    showingLast: "Showing page {total} – the last one. Nothing was lost.",
     backToFirst: "Back to the first page",
   },
 
-  // --- Footer — see the uk key's own note ---
-  footer: {
-    fontCredit:
-      "e-Ukraine typeface — Ukraine's Ministry of Digital Transformation (thedigital.gov.ua/fonts), Dmytro Rastvortsev / Fedoriv, CC BY 4.0.",
-  },
-
-  // --- Site-wide header links (Phase T) — see the uk key's own note ---
+  // --- Site-wide header links (Phase T) - see the uk key's own note ---
   nav: {
     about: "About",
     forShelters: "For shelters",
+    saved: "Saved",
+    kabinet: "Cabinet",
+    menu: "Menu",
+    skipToContent: "Skip to content",
   },
 
-  // --- About page — see the uk key's own note ---
+  siteNotFound: {
+    eyebrow: "Not found",
+    title: "There is no such page.",
+    body: "The link may be out of date, or there is a typo in the address.",
+    action: "To the home page",
+  },
+
+  // --- About page - see the uk key's own note ---
   about: {
     title: "About this project",
     intro:
-      "Opika is a site where animals from shelters in the Kyiv region look for a home. I build it on my own, outside of a day job. There's no team, no investor — just someone who believes finding an animal a home shouldn't depend on whether a shelter knows how to run an outdated spreadsheet.",
-    free: 'The site is free for shelters today and will stay free. No paid tiers, no "free for the first three months." If that were ever to change, every shelter would know well in advance, not after the fact.',
+      "{site} is a site where animals from shelters across Ukraine look for a home. One person builds it – me, in my free time. There's no team and no investor.",
+    free: "The site is free for shelters, with no paid tiers. If that ever changes, every shelter will know well in advance, not after the fact.",
     money:
-      'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) — the site only shows the link; the money goes directly, and you can see exactly where.',
-    data: "Data a shelter enters — address, contact details, animal listings — belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. IP addresses are not stored. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks.",
+      'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) – the site only shows the link; the money goes directly, and you can see exactly where.',
+    data: "Data a shelter enters – address, contact details, animal listings – belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks.",
     analytics:
-      "The site collects basic visit statistics — how many people visit and how fast the pages load — with no advertising.",
+      "The site collects basic visit statistics – how many people visit and how fast the pages load – with no advertising.",
     /** Template: "Get in touch: {contact}" */
     contact: "Get in touch: {contact}",
+    sources: {
+      heading: "Data sources",
+      intro:
+        "The list of settlements is taken from the codifier of administrative-territorial units and territories of territorial communities (Ministry of Development).",
+      datasetLink: "Dataset on data.gov.ua",
+      edition: "Edition of 7 July 2026 (order No. 1321).",
+      licenceLink: "Creative Commons Attribution licence",
+      changes:
+        "Changes: Latin transliteration, search keys and page addresses added, apostrophes made uniform, city districts not included.",
+    },
   },
 
   /**
-   * «Для притулків» (Phase T) — see the uk key's own note.
+   * «Для притулків» (Phase T) - see the uk key's own note.
    *
    * ⚠ Pending in BOTH locales, deliberately. The Ukrainian is written first,
    * from `docs/prytulkam-argument.md`; the English is written from the
@@ -327,7 +483,7 @@ export const en = {
    */
   forShelters: {
     title: "For shelters",
-    /** Real copy in both locales — see the uk key's own note. */
+    /** Real copy in both locales - see the uk key's own note. */
     headings: {
       whatThisIs: "What this is",
       cost: "What it costs",
@@ -342,22 +498,35 @@ export const en = {
       whoIsBehindThis: "Who is behind this",
       howToStart: "How to start",
     },
-    whatThisIs: `${COPY_PENDING} 1. What this is — one sentence.`,
-    cost: `${COPY_PENDING} 2. What it costs — nothing, now and later.`,
+    whatThisIs: `${COPY_PENDING} 1. What this is – one sentence.`,
+    cost: `${COPY_PENDING} 2. What it costs – nothing, now and later.`,
     whatHappensToAnimals: `${COPY_PENDING} 3. What happens to their animals.`,
     whoContactsWhom: `${COPY_PENDING} 4. Who contacts whom.`,
     noObligation: `${COPY_PENDING} 4b. No lead queue, nothing to answer.`,
-    money: `${COPY_PENDING} 5. Money — never touched.`,
+    money: `${COPY_PENDING} 5. Money – never touched.`,
     verification: `${COPY_PENDING} 6. What "verified" means.`,
     verificationOpenToVolunteers: `${COPY_PENDING} 6b. Open to unregistered volunteer groups.`,
     whatToPrepare: `${COPY_PENDING} 7. What to prepare.`,
     whyThatSentence: `${COPY_PENDING} 8. Why we ask for the freshness sentence.`,
     whenAnimalFindsHome: `${COPY_PENDING} 9. When an animal finds a home.`,
-    howToLeave: `${COPY_PENDING} 9b. How to leave — write, and everything is removed, no conditions.`,
+    howToLeave: `${COPY_PENDING} 9b. How to leave – write, and everything is removed, no conditions.`,
     whoIsBehindThis: `${COPY_PENDING} 10. Who is behind this.`,
-    howToStart: `${COPY_PENDING} 11. How to start — write to {contact}.`,
+    howToStart: `${COPY_PENDING} 11. How to start – write to {contact}.`,
+    signInLink: `Sign in to the cabinet`,
   },
   kabinet: {
+    cityPicker: {
+      placeholder: "Start typing a name…",
+      empty: "Nothing found",
+      mustPick: "Choose a settlement from the list",
+      tooShort: "Type at least two letters",
+      loading: "Searching…",
+      error: "The list did not load.",
+      retry: "Try again",
+      found: "Found: {count}",
+      clear: "Clear",
+      close: "Close",
+    },
     /**
      * The operator's name when `KABINET_OPERATOR_DISPLAY_NAME` is unset
      * (RS-Q2): the English sense of the Ukrainian, standing alone (a signature
@@ -366,17 +535,28 @@ export const en = {
     operatorFallbackName: "Site administrator",
     operatorFallbackNameInSentence: "site administrator",
     shell: {
-      label: "cabinet",
+      label: "Cabinet",
+      viewSite: "View site",
+      newTab: "(opens in a new tab)",
     },
     signIn: {
       pageTitle: "Sign in to the cabinet",
       title: "Sign in to the cabinet",
       intro:
-        "For shelters and the site administrator. There is no password: a sign-in link arrives by email.",
+        "For shelters and the site administrator. Sign in with a password or with a link that arrives by email.",
       emailLabel: "Email address",
-      send: "Send the link",
+      passwordLabel: "Password",
+      showPassword: "Show password",
+      hidePassword: "Hide password",
+      submitPassword: "Sign in",
+      useLink: "Send a sign-in link",
+      forgot: "Forgot your password?",
+      wrongCredentials:
+        "Couldn't sign in. Check the address and password, or send yourself a sign-in link.",
+      throttled: "Too many sign-in attempts. Try again in {minutes} min.",
       addressNote:
         "I add your address when I invite your shelter. If the address is not on the list no email arrives, and this page does not say so, so that it never reveals who is registered.",
+      failed: "Could not reach the site. Check your connection and try again.",
       sendFailed: "The link could not be sent. Check your connection and try again.",
       sentTitle: "Check your email",
       sentBody:
@@ -386,13 +566,54 @@ export const en = {
       resendIn: "Send again · {time}",
       otherAddress: "A different address",
     },
+    setPassword: {
+      title: "Create a password",
+      intro: "The password for the cabinet of «{shelter}». You sign in as: {email}.",
+      newLabel: "Password",
+      repeatLabel: "Repeat the password",
+      hint: "Characters: {count} of {min}",
+      submit: "Save and sign in",
+    },
+    password: {
+      tooShort: "The password is too short. Minimum characters: {min}.",
+      tooLong: "The password is too long. Maximum characters: {max}.",
+      common: "This password is too easy to guess. Choose another.",
+      personal:
+        "The password can't contain your email address (even the part before the @), the shelter's name or the site's name.",
+      mismatch: "The passwords don't match.",
+    },
+    forgot: {
+      title: "Forgot your password?",
+      intro: "Enter the email address you sign in to the cabinet with.",
+      submit: "Send the link",
+      sent: "If this is a shelter cabinet administrator's address, a link for a new password has been sent to it. It works for {minutes} min.",
+      throttled: "Too many requests. Try again later.",
+    },
+    reset: {
+      title: "New password",
+      submit: "Save the password",
+      done: "Password changed, and you have been signed out on every device. Sign in with the new password.",
+      invalidLink: "The link has expired or has already been used. {link}",
+      invalidLinkText: "Get a new link",
+    },
+    changePassword: {
+      title: "Change password",
+      currentLabel: "Current password",
+      newLabel: "New password",
+      submit: "Change password",
+      done: "Password changed. Other devices have been signed out; you stay in the cabinet here.",
+      wrongCurrent: "The current password is wrong.",
+      noPasswordYet:
+        "There is no password yet. You can create one through «Forgot your password?» on the sign-in page.",
+    },
     profile: {
-      pageTitle: "Shelter profile",
-      title: "Shelter profile",
-      phoneTitle: "Profile",
+      pageTitle: "Shelter · {shelter}",
+      title: "Shelter",
+      phoneTitle: "Shelter",
       intro: "What people looking for an animal see about you on every card.",
       role: "shelter administrator",
       signOut: "Sign out",
+      viewOnSite: "Shelter page on the site",
       signOutFailed:
         "Sign-out didn't go through, so you are still signed in. Check the connection and try again.",
       contactsTitle: "Contacts",
@@ -403,8 +624,10 @@ export const en = {
       donationNote: "https only. No money passes through the site: this is an external link.",
       donationPending: "The proposed link is waiting for me to check it.",
       voiceTitle: "The shelter's voice",
-      voiceLabel: "Your words on the cards",
+      voiceLabel: "Your words on the shelter page",
       voiceNote: "One sentence in the first person, written by you.",
+      pendingNote:
+        "I carry out the verification myself: I will write or call to arrange it. Until it is finished, only you can see your animals.",
       lockedTitle: "Set during verification",
       lockedNote:
         "{operator} sets these details while verifying the shelter. Here they are read-only.",
@@ -432,15 +655,34 @@ export const en = {
       website: "Website",
     },
     profileNotRecorded: "Not recorded",
+    profileTabs: {
+      label: "Shelter sections",
+      profile: "Profile",
+      verification: "Verification",
+      account: "Account",
+      profileNote: "What people see on the shelter's page.",
+      view: "View",
+    },
     profileEdit: {
+      saveBar: {
+        unsaved: "You have unsaved changes",
+        cancel: "Cancel",
+        allSaved: "All changes saved",
+        checkFields: {
+          one: "Check {n} field",
+          few: "Check {n} fields",
+          many: "Check {n} fields",
+        },
+        show: "Show",
+        failed: "Could not save",
+      },
       actions: {
         save: "Save",
         cancel: "Discard changes",
         liveOnSave: {
           contacts:
             "People see the new contacts as soon as you save, when they tap «Write to the shelter».",
-          voice:
-            "The new sentence appears in the deck and on the animals' pages as soon as you save.",
+          voice: "The new sentence appears on the shelter page as soon as you save.",
         },
         unsavedLeave: "Your changes aren't saved. Leave anyway?",
       },
@@ -459,16 +701,21 @@ export const en = {
           "Intake can't be paused right now: the shelter's status has changed. Reload the page.",
         illegalTransitionResume:
           "Intake can't be resumed from here right now: the shelter's status has changed. Write to me.",
-        phoneFormat: "Enter the number with the country code, for example +380 67 123 45 67.",
+        phoneFormat:
+          "Enter a Ukrainian number: +380 and 9 more digits, for example +380 67 123 45 67.",
         telegramFormat:
-          "A Telegram username: 5–32 Latin letters, digits or underscores. The @ is optional.",
-        viberFormat: "Enter the Viber number with the country code, for example +380 67 123 45 67.",
+          "A Telegram username: 5-32 Latin letters, digits or underscores. The @ is optional.",
+        viberFormat:
+          "Enter a Ukrainian number: +380 and 9 more digits, for example +380 67 123 45 67.",
         emailFormat: "That doesn't look like an email address.",
         httpsOnly: "Only links that start with https://.",
         notAUrl: "That doesn't look like a link.",
         sentenceTooLong: "The sentence is longer than {max} characters.",
         unknownToken: "Only {імʼя} is filled in. Remove «{token}», or write it without braces.",
-        dateTokenGone: "The date is already shown above your sentence, so {дата} isn't needed.",
+        dateTokenGone:
+          "Every card shows when it was updated, so {дата} isn't needed in the sentence.",
+        nameTokenGone:
+          "The sentence now shows on the shelter page, so {імʼя} isn't used in it. Remove it and save again.",
         strayBrace: "A brace without its pair. Braces are only for {імʼя}.",
       },
       contacts: {
@@ -481,17 +728,13 @@ export const en = {
         atLeastOne: "Keep at least one way to reach you.",
       },
       voice: {
-        hint: "One sentence in the first person, in your own words. On the card, only the animal's name is filled in, where you write {імʼя}. Nothing else changes.",
-        nameStaysHint:
-          "The name goes in as it is: Rex, Murka. It isn't declined, so write the sentence so it reads naturally, for example «{імʼя} is still looking for a home».",
-        insertName: "Insert {імʼя}",
+        hint: "One sentence in the first person, in your own words, about how often you update your cards. It shows on the shelter page.",
         counter: "{count} / {max}",
         counterOver: "Characters over: {over}",
-        emptyMeans: "Leave it empty and the cards show only “Updated … ago”.",
-        previewLabel: "This is how it looks on the animal's page: {name}",
-        previewNoAnimals:
-          "The preview appears once you have an animal: it shows how the sentence will look on its page.",
-        previewEmpty: "No sentence: the card shows only “Updated … ago”.",
+        emptyMeans:
+          "Leave it empty and the shelter page has no sentence; the cards still show “Updated … ago”.",
+        previewLabel: "This is how it looks on the shelter page:",
+        previewEmpty: "No sentence: the shelter page won't show one.",
       },
       donation: {
         optional: "· optional",
@@ -535,6 +778,20 @@ export const en = {
         paused: "Intake paused.",
         resumed: "Intake resumed. Your animals are shown again.",
       },
+      logo: {
+        title: "Shelter logo",
+        add: "Add logo",
+        change: "Change logo",
+        remove: "Remove logo",
+        uploading: "Uploading…",
+        updated: "Logo updated.",
+        removed: "Logo removed.",
+        removeFailed: "Couldn't remove the logo. Check your connection and try again.",
+        rejected: "This file doesn't work as a logo. Try a different image.",
+        rateLimited: "Too many attempts in a short time. Try again shortly.",
+        uploadsUnavailable: "Logo uploads aren't available on this version of the site.",
+        failed: "The logo didn't upload. Check your connection and try again.",
+      },
     },
     listingStatus: {
       draft: "Draft",
@@ -550,6 +807,15 @@ export const en = {
       backToList: "← Animals",
       header: {
         createdNotPublished: "Created {when} · not in the gallery yet",
+      },
+      sections: {
+        basics: "Basics",
+        about: "About the animal",
+        health: "Health",
+        publication: "Publishing",
+        tabsLabel: "Card sections",
+        badgeComplete: "everything needed is filled in",
+        badgeIncomplete: "needs more",
       },
       who: {
         title: "Who this is",
@@ -568,6 +834,18 @@ export const en = {
         sizeHintRange: "{min}–{max} kg",
         sizeHintFrom: "from {min} kg",
       },
+      coat: {
+        label: "Fur",
+        short: "Short",
+        long: "Long",
+        unknown: "Not given",
+      },
+      colour: {
+        title: "Coat colour",
+        unknown: "Not given",
+        other: "Other",
+        customPlaceholder: "In your own words",
+      },
       age: {
         title: "Age",
         modeLabel: "What is known about the age",
@@ -580,7 +858,7 @@ export const en = {
         birthDateLabel: "Birth date",
         bucketLabel: "Age on that date",
         bucketRangeUnder: "under {max}",
-        bucketRange: "{min}–{max}",
+        bucketRange: "{min}-{max}",
         bucketRangeFrom: "{min}+",
         asOfLabel: "As of",
         asOfHint: "When you made this estimate. Usually the day the animal came to the shelter.",
@@ -596,6 +874,12 @@ export const en = {
         counter: "{count} of {max} characters",
         counterOver: "Characters over the limit: {over}",
       },
+      temperament: {
+        title: "Temperament",
+        hint: "You can choose several. Optional.",
+        other: "Other",
+        customPlaceholder: "In your own words",
+      },
       health: {
         title: "Medical",
         confirm: "Done",
@@ -604,14 +888,26 @@ export const en = {
         registryReadOnly:
           "Confirmed by the state animal registry. This line can't be changed here.",
       },
+      medicalNotes: {
+        title: "Anything else worth knowing about their health",
+        hint: "Optional. People looking for an animal will see this text under «Medical».",
+      },
       photos: {
         title: "Photos",
-        ratioNote: "4:5 format; the first photo is the cover.",
-        add: "+ Photo",
-        addHint: "Any photo this phone or browser can open.",
-        howItWorks:
-          "The first photo is the cover; drag a photo to change the order. At least one is needed to publish. Large photos are shrunk on the device to {px} pixels before sending, which saves mobile data.",
-        privacyNote: "Location data and other hidden data are removed from photos.",
+        counter: "{n} of {max}",
+        orderHintMouse: "Drag to change the order.",
+        orderHintTouch: "Press and hold a photo to drag it.",
+        infoLabel: "About photos",
+        infoText:
+          "Any photo from a phone or computer will do. Large photos are compressed before they are sent, so less mobile data is used. The place the photo was taken and other hidden data are removed automatically.",
+        addTile: "Add a photo",
+        addLeft: "{left} more",
+        addDrop: "you can drop files here",
+        menuLabel: "Actions for photo {n}",
+        dragPickUp: "Photo {n} picked up. Position {pos} of {total}.",
+        dragMove: "Position {pos} of {total}.",
+        dragDrop: "Photo {n} at position {pos} of {total}.",
+        dragCancel: "Move cancelled.",
         preparing: "Preparing the photo…",
         uploading: "Uploading the photo…",
         uploadingProgress: "Uploading · {percent} · {sent} of {total} MB",
@@ -624,7 +920,7 @@ export const en = {
         makeCover: "Make it the cover",
         moveEarlier: "Move earlier",
         moveLater: "Move later",
-        remove: "Remove photo {n}",
+        remove: "Remove",
         capReached: "That's the maximum: {max} photos.",
         lastPhotoKept: "People can see this card, so one photo has to stay.",
         lastPhotoKeptNotShown:
@@ -635,7 +931,8 @@ export const en = {
         conflict: "The photos changed in another window. Here is the current set; try again.",
         removedStillReachable:
           "The photo is gone from the card. The file itself isn't deleted right away; if it needs to go completely, write to me.",
-        dateMoves: "On a card people can see, any photo change updates the «Updated» date.",
+        dateNote:
+          "Every change to the photos updates the date on the card, and it moves back among the freshest.",
       },
       photoErrors: {
         heicUnsupported:
@@ -665,7 +962,12 @@ export const en = {
       publish: {
         button: "Publish",
         missing: "To publish, this still needs: {list}.",
+        requiredTag: "needed to publish",
+        missingTitle: "To publish, this still needs:",
+        missingItem: "{field} ({tab})",
+        allSet: "Everything needed is filled in. Ready to publish.",
         gap: {
+          sex: "sex",
           size: "size",
           age: "age",
           description: "description",
@@ -693,6 +995,7 @@ export const en = {
         nameBrace: "A name can't contain curly braces.",
         nameTooLong: "The name is longer than {max} characters.",
         descriptionTooLong: "The description is longer than {max} characters.",
+        medicalNotesTooLong: "The health note is longer than {max} characters.",
         birthDateFuture: "The birth date can't be in the future.",
         asOfFuture: "The «As of» date can't be in the future.",
         dateTooOld: "That date is too far back: more than {years} years ago.",
@@ -723,8 +1026,11 @@ export const en = {
         adoptedSince: "Home since {date}",
         withdrawnOn: "Withdrawn from display {date} · {reason}",
         more: "More",
+        menuLabel: "Actions for the card {name}",
       },
+      orderInfoLabel: "How the list is ordered",
       actions: {
+        viewOnSite: "View on the site",
         edit: "Edit",
         reserve: "Started arranging",
         release: "Didn't work out: looking again",
@@ -830,23 +1136,35 @@ export const en = {
       viewingAs: "as the shelter administrator",
       signOutDisabled: "Sign-out disabled",
     },
-    /** The English sense of uk.ts's final Ukrainian (2026-10-14); both emails are signed `— {operator}`. */
+    /** The English sense of uk.ts's final Ukrainian (2026-10-14); both emails are signed `- {operator}`. */
     email: {
       signIn: {
         subject: `A sign-in link for the shelter's cabinet`,
         intro: `Hello. A sign-in link for the shelter's cabinet was requested for this address.`,
         action: `Open the sign-in page`,
         expiry: `The link works once and expires in {minutes} minutes.`,
-        notYou: `If you didn't ask for this, just ignore the email: nothing happens without the link.\n— {operator}`,
+        notYou: `If you didn't ask for this, just ignore the email: nothing happens without the link.\n- {operator}`,
       },
       invite: {
         subject: `Your access to the shelter's cabinet`,
-        intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» on the site for this address.`,
-        what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on your cards and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
-        whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on your cards and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
+        intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» on the site {site} for this address.`,
+        what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
+        whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
-        notYou: `If you weren't expecting this email, just ignore it: nobody gets access without signing in from this address.\n— {operator}`,
+        notYou: `If you weren't expecting this email, just ignore it and don't forward it to anyone: while the invitation is valid, this link lets someone create a password for this address, once.\n- {operator}`,
+      },
+      reset: {
+        subject: `A new password for the shelter's cabinet`,
+        intro: `A new password for the shelter's cabinet was requested for this address.`,
+        action: `Create a new password`,
+        expiry: `The link works once and expires in {minutes} min.`,
+        notYou: `If you didn't make this request, just ignore this email: your password stays the same.\n- {operator}`,
+      },
+      passwordChanged: {
+        subject: `Shelter cabinet: password changed`,
+        body: `The password to the shelter's cabinet for this address has just been changed. Other devices have been signed out.`,
+        notYou: `If this wasn't you, write to me: {contact}\n- {operator}`,
       },
     },
     signInCard: {
@@ -855,15 +1173,9 @@ export const en = {
     /** The invite landing (IN-Q11, KS-Q2 A); see the Ukrainian catalogue. */
     inviteLanding: {
       pageTitle: `Invitation to the cabinet`,
-      title: `An invitation to administer «{shelter}»`,
-      sent: `We've sent a sign-in link to {email}. It works once and expires in {minutes} minutes; signing in with it accepts the invitation.`,
       unusableTitle: `This invitation can't be used`,
-      expired: `This invitation is no longer valid; write to me and I'll send a new one.`,
-      alreadyAccepted: `This invitation was already accepted; sign in as usual.`,
-      rateLimited: `Too many links were requested for this invitation; try again later.`,
+      expired: `The link no longer works. If you've already created a password, sign in. If not, write to me and I'll send a new invitation.`,
       signIn: `Go to sign-in`,
-      ready: `The sign-in link will go to the address this invitation reached you at.`,
-      send: `Send the link`,
     },
     /** The operator's reminder after an invite (IN-E13); see the Ukrainian catalogue. */
     registry: {
@@ -1031,8 +1343,9 @@ export const en = {
         admin_removed: "Access closed: {name}",
         admin_removed_pending: "Invitation withdrawn: {name}",
         contact_changed: "Contacts changed",
-        freshness_sentence_changed: "Card sentence changed",
+        freshness_sentence_changed: "Shelter page sentence changed",
         description_changed: "Shelter description changed",
+        logo_changed: "Shelter logo changed",
         donation_proposed: "Fundraising link proposed: {host}",
         donation_proposal_cancelled: "Link proposal withdrawn",
         donation_approved: "Fundraising link approved",
@@ -1056,7 +1369,7 @@ export const en = {
         description: "Shelter description",
         descriptionHint:
           "A short description of the shelter. It may be public, so don't write anything private here.",
-        city: "City",
+        city: "Settlement",
         address: {
           line1: "Street, building",
           line2: "Block, premises · optional",
@@ -1101,7 +1414,7 @@ export const en = {
               "A live invitation to another shelter was already sent to this address.",
           },
           siteVisitInFuture: "The visit date can't be in the future.",
-          unknownCity: "That city isn't in the list.",
+          unknownCity: "That settlement isn't in the list.",
           lostAnswer:
             "No answer came back. The shelter may have been created: check the list before trying again.",
           failed: "The shelter couldn't be created. Try again.",
@@ -1205,7 +1518,7 @@ export const en = {
       suspendedTitle: "The shelter is temporarily suspended",
       reason: "Reason: {code}.",
       noteLabel: "Explanation:",
-      signature: "— {operator}",
+      signature: "- {operator}",
       contact: "If you have questions, write to me.",
       suspendedEffect: "While the shelter is suspended, its animals aren't in the gallery.",
       rejectedEffect: "The shelter's animals won't be in the gallery until verification is passed.",
@@ -1227,6 +1540,10 @@ export const en = {
         age: "Age",
         description: "Description",
         photos: "Photos",
+        coatLength: "Fur",
+        temperament: "Temperament",
+        colour: "Coat colour",
+        medicalNotes: "Medical",
       },
     },
   },

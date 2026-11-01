@@ -1,5 +1,5 @@
-import { getDb } from "../../../../api/db";
 import { handleAuthCleanup } from "../../../../kabinet/auth-cleanup";
+import { kabinetDb } from "../../../../kabinet/kabinet-db";
 
 /**
  * Vercel's cron (`apps/web/vercel.json`, `crons`, every 6 hours) calls this
@@ -9,7 +9,7 @@ import { handleAuthCleanup } from "../../../../kabinet/auth-cleanup";
 export async function GET(request: Request): Promise<Response> {
   return handleAuthCleanup(request, {
     cronSecret: process.env.CRON_SECRET,
-    db: getDb,
+    db: kabinetDb,
     now: new Date(),
     log: (line) => console.info(line),
   });

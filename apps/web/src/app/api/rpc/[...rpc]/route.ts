@@ -1,51 +1,18 @@
-import { RPCHandler } from "@orpc/server/fetch";
 import { clientIp } from "../../../../api/client-ip";
-import type { AppContext } from "../../../../api/context";
 import { getDb } from "../../../../api/db";
+import { servedPerIpBudgets } from "../../../../api/per-ip-budgets";
+import { handlePublicRpc } from "../../../../api/public-rpc-route";
 import { apiRateLimiter } from "../../../../api/rate-limit";
-import { ipRateLimitKey } from "../../../../api/rate-limit-key";
-import { router } from "../../../../api/router";
-import { validateSession } from "../../../../api/session/index";
 
-const handler = new RPCHandler(router);
-
+// Every limiter here is Upstash-backed on Vercel, in-memory elsewhere (rate-limit.ts).
 async function handleRequest(request: Request): Promise<Response> {
-  const db = getDb();
-  const now = new Date();
-
-  // Per-IP rate limit — Upstash-backed in production, in-memory otherwise
-  // (see rate-limit.ts). Keyed on an HMAC of the IP, never the IP (EM-Q11).
-  if (!(await apiRateLimiter.check(ipRateLimitKey(clientIp(request)), now))) {
-    return new Response("Too Many Requests", { status: 429 });
-  }
-
-  // Validate session from cookie (get-or-reject, never get-or-create)
-  const session = await validateSession(db, request.headers.get("cookie"), now);
-
-  const setCookies: string[] = [];
-  const context: AppContext = {
-    db,
-    adopterId: session.ok ? session.adopterId : null,
-    tokenHash: session.ok ? session.tokenHash : null,
-    now,
-    setCookies,
-  };
-
-  const result = await handler.handle(request, {
-    prefix: "/api/rpc",
-    context,
+  return handlePublicRpc(request, {
+    db: getDb,
+    ip: clientIp(request),
+    now: new Date(),
+    apiLimiter: apiRateLimiter,
+    perIp: servedPerIpBudgets(),
   });
-
-  if (!result.matched) {
-    return new Response("Not Found", { status: 404 });
-  }
-
-  // Attach any Set-Cookie headers accumulated during the request
-  for (const cookie of setCookies) {
-    result.response.headers.append("Set-Cookie", cookie);
-  }
-
-  return result.response;
 }
 
 export const GET = handleRequest;

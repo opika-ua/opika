@@ -117,7 +117,12 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
 
     await page.getByLabel("Назва притулку").fill(displayName);
     await page.getByLabel("Опис притулку").fill("Волонтери, 18 собак і 6 котів.");
-    await page.getByLabel("Місто").selectOption({ label: city.name });
+    // Select-only search: type, then take the offered place (typed text alone never commits).
+    await page.getByRole("combobox", { name: /Населений пункт/ }).fill(city.name);
+    await page
+      .getByRole("option", { name: new RegExp(city.name) })
+      .first()
+      .click();
     await page.getByLabel("Вулиця, будинок").fill("вул. Мечникова, 4");
     await page.getByLabel("Координати").fill("50.5843, 30.4890");
     await page.getByRole("radio", { name: "Ініціатива без реєстрації" }).check();
@@ -151,12 +156,12 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
     await page.getByRole("button", { name: "Створити й надіслати запрошення" }).click();
 
     await expect(page.getByRole("heading", { name: "Притулок створено." })).toBeVisible();
-    await expect(page.getByText("Очікує", { exact: true })).toBeVisible();
+    await expect(page.getByText("Очікує перевірки", { exact: true })).toBeVisible();
     await expect(page.getByRole("status")).toHaveText(
       "Запрошення надіслано. Перевірити, чи адреса не заблокована, не вдалося.",
     );
     await expect(page.getByText(/^Посилання діє до .+, \d\d:\d\d\.$/)).toBeVisible();
-    await expect(page.getByText(/^Повідомте притулок особисто: /)).toBeVisible();
+    await expect(page.getByText(/^Повідомте притулок особисто[:.] /)).toBeVisible();
     await expect(page.getByRole("button", { name: "Надіслати ще раз" })).toBeVisible();
     // The console sender's line: the invitation went to the address typed.
     expect(server.stdout()).toContain(`[kabinet] invitation for ${adminEmail}: `);
@@ -166,7 +171,7 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
       page.getByRole("link", { name: "Відкрити притулок" }).click(),
     ]);
     await expect(page.getByRole("heading", { level: 1, name: displayName })).toBeVisible();
-    await expect(page.getByText("Очікує", { exact: true })).toBeVisible();
+    await expect(page.getByText("Очікує перевірки", { exact: true })).toBeVisible();
     await page.close();
   });
 });

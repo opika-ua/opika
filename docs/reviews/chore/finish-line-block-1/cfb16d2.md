@@ -1,4 +1,4 @@
-# Review: cfb16d2 — round 2 of the "offline reveal" row (delta since b22b7c1)
+# Review: cfb16d2 - round 2 of the "offline reveal" row (delta since b22b7c1)
 
 Tier 2, asynchronous, re-review. Reviewer: opika-reviewer.
 
@@ -7,7 +7,7 @@ VERDICT: PASS WITH NOTES
 
 VERIFIED                                          | TAKEN ON TRUST
 useReveal.ts: no-ensureSession branch now keeps   | typecheck / lint / build:web green (prose summary
-  `[error]` from safe(bootstrap) into             |   in the body, not pasted output — same as round 1)
+  `[error]` from safe(bootstrap) into             |   in the body, not pasted output - same as round 1)
   bootstrapError; `!ready` branch maps            | DB suites and test:harness (builder says not run;
   `instanceof TypeError` -> "offline", else       |   unrelated to this diff)
   "loadFailed". Read the code, not the message.   |

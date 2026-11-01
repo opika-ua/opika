@@ -1,89 +1,137 @@
-import type { AnimalPhoto } from "@opika/domain";
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { type AnimalPhoto, MAX_ANIMAL_PHOTOS } from "@opika/domain";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
 
-function photo(storageKey: string): AnimalPhoto {
-  return { storageKey, width: 1200, height: 900, alt: null };
+function photo(storageKey: string, alt: string | null = null): AnimalPhoto {
+  return { storageKey, width: 1200, height: 900, alt: alt === null ? null : { uk: alt, en: null } };
 }
 
 const THREE_PHOTOS = [photo("/a.jpg"), photo("/b.jpg"), photo("/c.jpg")];
+const REGION = { name: "Фотографії тварини" };
+
+/** happy-dom has no layout: give the scroller real-looking widths before it mounts. */
+function stubWidths(clientWidth: number, scrollWidth: number) {
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(clientWidth);
+  vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockReturnValue(scrollWidth);
+}
+
+function imagesIn(region: HTMLElement): HTMLImageElement[] {
+  return Array.from(region.querySelectorAll("img"));
+}
 
 describe("DetailPhotoGallery", () => {
-  it("shows the first photo active, with all three photos as clickable thumbnails", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renders every photo in one named region, falling back to the animal's name for alt", () => {
     render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
 
-    const main = within(screen.getByTestId("detail-photo")).getByRole("img");
-    expect(main.getAttribute("src")).toContain(encodeURIComponent("/a.jpg"));
-
-    // All three, not "the other two" — the mock's own D1 frame shows the
-    // active photo *inside* the thumbnail strip, ringed, not excluded from it.
-    const thumbnails = screen.getAllByTestId("detail-photo-thumbnail");
-    expect(thumbnails).toHaveLength(3);
-    expect(thumbnails[0]?.getAttribute("aria-pressed")).toBe("true");
-    expect(thumbnails[1]?.getAttribute("aria-pressed")).toBe("false");
+    const imgs = imagesIn(screen.getByRole("region", REGION));
+    expect(imgs).toHaveLength(3);
+    expect(imgs[0]?.getAttribute("src")).toContain(encodeURIComponent("/a.jpg"));
+    expect(imgs[2]?.getAttribute("src")).toContain(encodeURIComponent("/c.jpg"));
+    expect(imgs.every((img) => img.getAttribute("alt") === "Мурчик")).toBe(true);
   });
 
-  it("clicking a thumbnail makes it the active photo — it stays in the strip, ringed, rather than swapping out", () => {
-    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+  it("uses a photo's own alt text when it has one", () => {
+    render(<DetailPhotoGallery photos={[photo("/a.jpg", "Мурчик спить")]} altFallback="Мурчик" />);
 
-    const thumbnails = screen.getAllByTestId("detail-photo-thumbnail");
-    const second = thumbnails[1];
-    if (!second) throw new Error("expected a second thumbnail");
-    fireEvent.click(second);
-
-    const main = within(screen.getByTestId("detail-photo")).getByRole("img");
-    expect(main.getAttribute("src")).toContain(encodeURIComponent("/b.jpg"));
-
-    // Still three thumbnails, same three photos, just a different one ringed.
-    const thumbnailsAfter = screen.getAllByTestId("detail-photo-thumbnail");
-    expect(thumbnailsAfter).toHaveLength(3);
-    expect(thumbnailsAfter[0]?.getAttribute("aria-pressed")).toBe("false");
-    expect(thumbnailsAfter[1]?.getAttribute("aria-pressed")).toBe("true");
-    const srcs = thumbnailsAfter.map((el) => el.querySelector("img")?.getAttribute("src"));
-    expect(srcs.some((src) => src?.includes(encodeURIComponent("/a.jpg")))).toBe(true);
-    expect(srcs.some((src) => src?.includes(encodeURIComponent("/b.jpg")))).toBe(true);
-    expect(srcs.some((src) => src?.includes(encodeURIComponent("/c.jpg")))).toBe(true);
+    expect(screen.getByRole("img", { name: "Мурчик спить" })).toBeTruthy();
   });
 
-  it("clicking a dot activates the same photo a thumbnail click would, on mobile", () => {
-    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+  it.each([1, 5, MAX_ANIMAL_PHOTOS])("shows all %i photos, in order", (count) => {
+    const photos = Array.from({ length: count }, (_, i) => photo(`/p${i}.jpg`));
+    render(<DetailPhotoGallery photos={photos} altFallback="Мурчик" />);
 
-    const dots = screen.getAllByTestId("detail-photo-dot");
-    expect(dots).toHaveLength(3);
-    const third = dots[2];
-    if (!third) throw new Error("expected a third dot");
-    fireEvent.click(third);
-
-    const main = within(screen.getByTestId("detail-photo")).getByRole("img");
-    expect(main.getAttribute("src")).toContain(encodeURIComponent("/c.jpg"));
-    expect(dots[2]?.getAttribute("aria-selected")).toBe("true");
-    expect(dots[0]?.getAttribute("aria-selected")).toBe("false");
+    const imgs = imagesIn(screen.getByRole("region", REGION));
+    expect(imgs).toHaveLength(count);
+    imgs.forEach((img, i) => {
+      expect(img.getAttribute("src")).toContain(encodeURIComponent(`/p${i}.jpg`));
+    });
   });
 
-  it("caps at 3 photos — a 4th never becomes a thumbnail, dot, or reachable active photo", () => {
-    render(<DetailPhotoGallery photos={[...THREE_PHOTOS, photo("/d.jpg")]} altFallback="Мурчик" />);
-
-    expect(screen.getAllByTestId("detail-photo-thumbnail")).toHaveLength(3);
-    expect(screen.getAllByTestId("detail-photo-dot")).toHaveLength(3);
-    const allSrcs = Array.from(document.querySelectorAll("img")).map((el) =>
-      el.getAttribute("src"),
-    );
-    expect(allSrcs.some((src) => src?.includes(encodeURIComponent("/d.jpg")))).toBe(false);
-  });
-
-  it("renders no dots or thumbnails for a single-photo animal", () => {
-    render(<DetailPhotoGallery photos={[photo("/only.jpg")]} altFallback="Мурчик" />);
-
-    expect(screen.queryByTestId("detail-photo-dot")).toBeNull();
-    expect(screen.queryByTestId("detail-photo-thumbnail")).toBeNull();
-    expect(within(screen.getByTestId("detail-photo")).getByRole("img")).toBeTruthy();
-  });
-
-  it("renders nothing in the photo box for an animal with no photos at all, without throwing", () => {
+  it("an animal with no photos gets the phone's placeholder text and no slider", () => {
     render(<DetailPhotoGallery photos={[]} altFallback="Мурчик" />);
 
-    expect(screen.queryByRole("img")).toBeNull();
-    expect(screen.getByTestId("detail-photo")).toBeTruthy();
+    expect(screen.getByText("Фото немає – притулок ще не надіслав")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Фотографії тварини" })).toBeNull();
+  });
+
+  it("two photos get a counter whose accessible name says which one is showing", () => {
+    stubWidths(400, 800);
+    render(<DetailPhotoGallery photos={[photo("/a.jpg"), photo("/b.jpg")]} altFallback="Мурчик" />);
+
+    expect(screen.getByRole("status").textContent).toBe("Фото 1 з 2");
+    expect(screen.getByText("1/2")).toBeTruthy();
+  });
+
+  it("one photo has no counter", () => {
+    stubWidths(400, 400);
+    render(<DetailPhotoGallery photos={[photo("/only.jpg")]} altFallback="Мурчик" />);
+
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText("1/1")).toBeNull();
+  });
+
+  it("no slider buttons for a single photo", () => {
+    stubWidths(1000, 1000);
+    render(<DetailPhotoGallery photos={[photo("/only.jpg")]} altFallback="Мурчик" />);
+
+    expect(screen.queryByRole("button", { name: "Наступне фото" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Попереднє фото" })).toBeNull();
+  });
+
+  it("no slider buttons when the photos already fit", () => {
+    stubWidths(1000, 1000);
+    render(<DetailPhotoGallery photos={[photo("/a.jpg"), photo("/b.jpg")]} altFallback="Мурчик" />);
+
+    expect(screen.queryByRole("button", { name: "Наступне фото" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Попереднє фото" })).toBeNull();
+  });
+
+  it("when the photos overflow: next shows and scrolls forward, prev appears once scrolled", () => {
+    stubWidths(360, 1128);
+    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    const scroller = screen.getByRole("region", REGION);
+    const scrollBy = vi.fn();
+    Object.defineProperty(scroller, "scrollBy", { value: scrollBy, configurable: true });
+
+    expect(screen.queryByRole("button", { name: "Попереднє фото" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Наступне фото" }));
+    expect(scrollBy).toHaveBeenCalledTimes(1);
+    expect(scrollBy.mock.calls[0]?.[0].left).toBeGreaterThan(0);
+
+    Object.defineProperty(scroller, "scrollLeft", { value: 300, configurable: true });
+    fireEvent.scroll(scroller);
+    fireEvent.click(screen.getByRole("button", { name: "Попереднє фото" }));
+    expect(scrollBy.mock.calls[1]?.[0].left).toBeLessThan(0);
+  });
+
+  it("next disappears once scrolled to the end - no wrap-around", () => {
+    stubWidths(360, 1128);
+    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    const scroller = screen.getByRole("region", REGION);
+
+    Object.defineProperty(scroller, "scrollLeft", { value: 768, configurable: true });
+    fireEvent.scroll(scroller);
+
+    expect(screen.queryByRole("button", { name: "Наступне фото" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Попереднє фото" })).toBeTruthy();
+  });
+  it("jumps instead of gliding when the visitor asked for reduced motion", () => {
+    stubWidths(360, 1128);
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query) => ({ matches: query.includes("reduce"), media: query }) as MediaQueryList,
+    );
+    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    const scroller = screen.getByRole("region", REGION);
+    const scrollBy = vi.fn();
+    Object.defineProperty(scroller, "scrollBy", { value: scrollBy, configurable: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Наступне фото" }));
+
+    expect(scrollBy.mock.calls[0]?.[0].behavior).toBe("auto");
   });
 });

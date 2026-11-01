@@ -5,7 +5,7 @@ import {
   kyivCalendarDateOf,
 } from "../../primitives/calendar-date";
 import { EdrpouSchema, type ModeratorId } from "../../primitives/ids";
-import { ContactChannelSchema } from "../contact";
+import { ContactChannelInputSchema } from "../contact";
 import {
   type EvidenceItem,
   ReferenceRelationshipSchema,
@@ -44,13 +44,13 @@ export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("reference_contact"),
     name: z.string().min(1),
-    channel: ContactChannelSchema,
+    channel: ContactChannelInputSchema,
     relationship: ReferenceRelationshipSchema,
   }),
   /**
    * `visitedOn` is required (H2-9): stamping the visit with the moment it is
    * *recorded* is false whenever the visit happened before the data entry,
-   * which is almost always. A calendar date, not an instant — the operator
+   * which is almost always. A calendar date, not an instant - the operator
    * knows the day they went, not the minute.
    */
   z.object({

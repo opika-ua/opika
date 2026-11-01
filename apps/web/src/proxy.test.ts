@@ -17,12 +17,12 @@ function request(url: string, headers: Record<string, string> = {}): NextRequest
  * already established (and the same reason: the module cache must be torn
  * down between tests, or the second test to run would silently import the
  * first test's mock). `./proxy` reads `SITE_IS_PUBLICLY_DISCOVERABLE` as a
- * plain imported binding — not a function closing over another module's own
- * copy of it — so mocking `./seo-flags` and re-importing `./proxy` fresh is
+ * plain imported binding - not a function closing over another module's own
+ * copy of it - so mocking `./seo-flags` and re-importing `./proxy` fresh is
  * enough; no closure gotcha to work around here.
  *
  * `proxy` is async as of Phase 3, block 4 (`apiRateLimiter.check` is a
- * `Promise<boolean>` once a shared Upstash store can back it) — every call
+ * `Promise<boolean>` once a shared Upstash store can back it) - every call
  * below is awaited now. No Upstash env vars are set anywhere in this file,
  * so `apiRateLimiter` resolves to the in-memory implementation
  * (`rate-limit.ts`'s own module-scope branch), the same one these tests
@@ -36,6 +36,7 @@ describe("proxy", () => {
 
   afterEach(() => {
     vi.doUnmock("./seo-flags");
+    vi.doUnmock("./api/rate-limit");
     vi.unstubAllEnvs();
   });
 
@@ -136,7 +137,7 @@ describe("proxy", () => {
       expect(response.headers.get("set-cookie")).toBeNull();
     });
 
-    it("denies a request to a route outside /tvaryny just the same — the gate covers the whole site", async () => {
+    it("denies a request to a route outside /tvaryny just the same - the gate covers the whole site", async () => {
       const { proxy } = await import("./proxy");
       const response = await proxy(request("https://opika.example/prytulkam"));
       expect(response.status).toBe(403);
@@ -192,6 +193,70 @@ describe("proxy", () => {
       expect(response.status).toBe(403);
     });
 
+    /**
+     * S8: `animals.cardsByIds` is built to send no cookie at all
+     * (`credentials: "omit"`, DR1-Q2), so it can never carry the gate's own
+     * cookie either. Without this exact-path exemption it would 403 on every
+     * call before launch - found running the saved-page harness for real,
+     * not inferred from the gate's code. Oleksii's own answer (S8-D1, not a
+     * builder default), recorded in `docs/decisions-inbox.md` (folded from
+     * `feat-dr1-s8-saved-page.md` at #186's merge).
+     */
+    it("exempts animals.cardsByIds, the one RPC path built to carry no cookie (S8)", async () => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(request("https://opika.example/api/rpc/animals/cardsByIds"));
+      expect(response.status).toBe(200);
+    });
+
+    it("mints no gate cookie on that exempt RPC path either, even with the gate parameter", async () => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(
+        request(`https://opika.example/api/rpc/animals/cardsByIds?gate=${SECRET}`),
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("set-cookie")).toBeNull();
+    });
+
+    it.each([
+      "/api/rpc/animals",
+      "/api/rpc/animals/",
+      "/api/rpc/animals/cardsbyids",
+      "/api/rpc/animals/cardsByIdsx",
+      "/api/rpc/animals/cardsByIds/",
+      "/api/rpc/animals/cardsByIds/extra",
+      "/api/rpc/animal/cardsByIds",
+      "/api/rpc/gallery/cardsByIds",
+    ])("still gates %s: the exemption is that one exact path", async (path) => {
+      const { proxy } = await import("./proxy");
+      expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
+    });
+
+    it.each([
+      "/manifest.webmanifest",
+      "/icons/icon-192.png",
+      "/icons/icon-512.png",
+      "/icons/icon-maskable-512.png",
+      "/apple-icon.png",
+    ])("lets the install assets through the gate without a cookie: %s", async (path) => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(request(`https://opika.example${path}`));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("set-cookie")).toBeNull();
+    });
+
+    it.each(["POST", "PUT", "DELETE"])("still refuses %s on an install asset", async (method) => {
+      const { proxy } = await import("./proxy");
+      const response = await proxy(
+        new NextRequest("https://opika.example/manifest.webmanifest", { method }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it("still gates a sibling of the install assets", async () => {
+      const { proxy } = await import("./proxy");
+      expect((await proxy(request("https://opika.example/icons/other.png"))).status).toBe(403);
+    });
+
     it("carries no user-agent carve-out: a Telegram-bot-shaped user agent is denied identically", async () => {
       const { proxy } = await import("./proxy");
       const response = await proxy(
@@ -215,15 +280,15 @@ describe("proxy", () => {
     });
 
     /**
-     * `proxy` is async now — an async function never throws synchronously
+     * `proxy` is async now - an async function never throws synchronously
      * even if its body does (the throw surfaces as a rejected Promise
      * instead), so `expect(() => proxy(...)).not.toThrow()` would pass
      * trivially regardless of whether the call actually succeeds. Asserting
      * against the resolved Promise is what keeps this test capable of
-     * failing — would have let a reintroduced read of
+     * failing - would have let a reintroduced read of
      * `PRELAUNCH_GATE_SECRET` on this path go undetected.
      */
-    it("never reads PRELAUNCH_GATE_SECRET at all — an unset secret does not break a launched site", async () => {
+    it("never reads PRELAUNCH_GATE_SECRET at all - an unset secret does not break a launched site", async () => {
       vi.unstubAllEnvs();
       const { proxy } = await import("./proxy");
       await expect(proxy(request("https://opika.example/tvaryny"))).resolves.toBeDefined();
@@ -246,6 +311,52 @@ describe("proxy", () => {
         );
       }
       expect(last.status).toBe(429);
+    });
+
+    it("429s a shelter page past the same per-IP limit (designer round 1, S6)", async () => {
+      const { proxy } = await import("./proxy");
+      const load = () =>
+        proxy(
+          request("https://opika.example/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd", {
+            "x-forwarded-for": "9.9.9.10",
+          }),
+        );
+      let last = await load();
+      for (let i = 0; i < 100; i++) last = await load();
+      expect(last.status).toBe(429);
+      expect(last.headers.get("x-middleware-rewrite")).toContain("/rate-limited");
+    });
+
+    it("rewrites that 429 to the branded screen, noindex, with Retry-After from the limiter's state (RL-F1, QA 2026-10-29)", async () => {
+      // The page itself is rendered by `RateLimitedScreen` (its own test and the harness spec);
+      // here only the proxy's answer: status, target, and the header's number.
+      const { proxy } = await import("./proxy");
+      const load = () =>
+        proxy(request("https://opika.example/tvaryny", { "x-forwarded-for": "8.8.4.4" }));
+      let last = await load();
+      for (let i = 0; i < 100; i++) last = await load();
+      expect(last.status).toBe(429);
+      expect(last.headers.get("x-middleware-rewrite")).toBe("https://opika.example/rate-limited");
+      expect(last.headers.get("x-robots-tag")).toBe("noindex");
+      const seconds = Number(last.headers.get("retry-after"));
+      expect(Number.isInteger(seconds)).toBe(true);
+      expect(seconds).toBeGreaterThanOrEqual(1);
+      expect(seconds).toBeLessThanOrEqual(60);
+    });
+
+    it("falls back to the window length when the limiter cannot say when it frees up", async () => {
+      vi.doMock("./api/rate-limit", async (importOriginal) => ({
+        ...(await importOriginal<typeof import("./api/rate-limit")>()),
+        apiRateLimiter: { check: async () => false },
+      }));
+      const { proxy } = await import("./proxy");
+      const refused = await proxy(
+        request("https://opika.example/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc", {
+          "x-forwarded-for": "8.8.4.5",
+        }),
+      );
+      expect(refused.status).toBe(429);
+      expect(refused.headers.get("retry-after")).toBe("60");
     });
 
     it("429s a /kabinet page load past the kabinet's per-IP limit (KH-Q8)", async () => {
@@ -791,7 +902,7 @@ void (async () => { await import("./kabinet/runtime"); })();
 
   it("the check itself sees one: kabinet/runtime.ts does import both", () => {
     expect(heavyImports(closure(join(SRC, "kabinet/runtime.ts")))).toEqual(
-      expect.arrayContaining(["kabinet/runtime.ts: ../api/db", "kabinet/auth.ts: better-auth"]),
+      expect.arrayContaining(["kabinet/kabinet-db.ts: ../api/db", "kabinet/auth.ts: better-auth"]),
     );
   });
 });

@@ -7,7 +7,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SHELTER_WRITE_POLICY } from "../kabinet/access";
 import type { KabinetPrincipal } from "../kabinet/actor";
 import { capturingInvitationSender } from "../kabinet/email-senders";
+import { capturingPasswordMail } from "../kabinet/password-mail";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
+import { TEST_SESSION_COOKIE } from "../kabinet/test-session-cookie";
 import { inMemoryRateLimiter } from "./rate-limit";
 import { fromRpcBody, toRpcBody } from "./test-harness";
 
@@ -48,12 +50,17 @@ const limiters = {
 async function call(path: string, input: unknown, principal: KabinetPrincipal) {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { "content-type": "application/json", origin: "http://localhost" },
+    headers: {
+      "content-type": "application/json",
+      origin: "http://localhost",
+      cookie: TEST_SESSION_COOKIE,
+    },
     body: JSON.stringify(toRpcBody(input)),
   });
   const response = await handleKabinetRpc(request, {
     availability: {
       kind: "available",
+      passwordMail: capturingPasswordMail(),
       sender: { send: async () => {} },
       invites: capturingInvitationSender(),
       secret: "x",
@@ -119,6 +126,7 @@ const REGISTRY_CALLS = (shelter: Shelter): [string, unknown][] => {
     ["registry.admins.remove", adminRef],
     ["registry.admins.blockedAddresses", ref],
     ["registry.history.list", { ...ref, cursor: null, limit: 10 }],
+    ["registry.cities.search", { query: "Бровари", regionBias: null }],
     ["registry.support.enter", ref],
   ];
 };
@@ -140,8 +148,8 @@ const NOT_OPERATORS: [string, KabinetPrincipal, number][] = [
 ];
 
 describe("registry.* refuses everyone but a super_admin", () => {
-  it("covers all nineteen registry procedures (not vacuous)", () => {
-    expect(REGISTRY_CALLS(makeShelter())).toHaveLength(19);
+  it("covers all twenty registry procedures (not vacuous)", () => {
+    expect(REGISTRY_CALLS(makeShelter())).toHaveLength(20);
   });
 
   for (const [who, principal, status] of NOT_OPERATORS) {

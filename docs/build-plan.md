@@ -1,114 +1,114 @@
-# Opika — Build Plan
+# Opika - Build Plan
 
 **The single plan.** This document, `docs/standing-constraints.md` (the rules that apply
 to every phase) and `docs/design/README.md` (the design, now including the gallery and
 desktop breakpoints) are the three documents `.claude/commands/phase.md` reads before
 starting any phase.
 
-`docs/course-correction.md` is now a pointer to this document — its reasoning (why the
+`docs/course-correction.md` is now a pointer to this document - its reasoning (why the
 gallery became primary, the pattern behind three verification failures) is worth reading
 once; its plan content lived here from the moment this rewrite landed.
 
-**Capacity:** ~10 h/week solo, ~8 h/week of it code, ~2 h/week shelter recruitment — the
+**Capacity:** ~10 h/week solo, ~8 h/week of it code, ~2 h/week shelter recruitment - the
 actual gate on launch date, unaffected by anything below.
 
-**`pnpm check` wall time:** **2m46s** (166s), measured 2026-09-10/11 on the dev machine —
+**`pnpm check` wall time:** **2m46s** (166s), measured 2026-09-10/11 on the dev machine -
 `{ time pnpm check ; }` wrapping the whole pipeline (typecheck → lint → test → build:web →
 test:harness), warm `node_modules`, warm Postgres via `docker compose`, cold Next.js build
 cache. Supersedes the 119s figure below: that number came from a run contaminated by a second
-`pnpm check` running concurrently against the same local Postgres and the same harness port —
+`pnpm check` running concurrently against the same local Postgres and the same harness port -
 two processes racing the same database mid-migration produced a real, silent skew, not a typo.
-This number is from an isolated run, nothing else touching the DB or ports 3100–3200
-simultaneously — see `docs/standing-constraints.md`'s "Local Postgres and Neon are not the
+This number is from an isolated run, nothing else touching the DB or ports 3100-3200
+simultaneously - see `docs/standing-constraints.md`'s "Local Postgres and Neon are not the
 same database" for the adjacent, not identical, lesson (two *different* databases disagreeing
 vs. two runs against the *same* one colliding). Not remeasuring this again unless the pipeline
-itself changes shape — per Oleksii, it isn't the bottleneck.
+itself changes shape - per Oleksii, it isn't the bottleneck.
 
-~~119 seconds, measured 2026-09-09~~ (superseded above) — `date +%s` before/after rather than
+~~119 seconds, measured 2026-09-09~~ (superseded above) - `date +%s` before/after rather than
 `time`, and not isolated from concurrent runs the way the figure above was.
 
 ---
 
-## Part 1 — History: M0 through M5
+## Part 1 - History: M0 through M5
 
-What was originally a milestone-by-milestone plan (M0–M12) is now two things: this
-history section, recording what M0–M5 actually delivered against what was originally
-scoped, and Part 2, the phases that replace the original M6–M12 — restructured once,
+What was originally a milestone-by-milestone plan (M0-M12) is now two things: this
+history section, recording what M0-M5 actually delivered against what was originally
+scoped, and Part 2, the phases that replace the original M6-M12 - restructured once,
 after an audit found the original plan phone-only and unaware that the gallery is now
 the primary surface.
 
-Full detail on individual decisions from this era — the verification FSM edges, the
-evidence-item shape, the anonymous-session design — stays in `CLAUDE.md`'s decision
+Full detail on individual decisions from this era - the verification FSM edges, the
+evidence-item shape, the anonymous-session design - stays in `CLAUDE.md`'s decision
 lists; nothing here duplicates those.
 
 | Milestone | Scoped | Delivered |
 |---|---|---|
-| **M0** — repo & tooling | pnpm workspace, strict TS, Biome, Docker Postgres, CI skeleton | Done. `pnpm i && pnpm check` on a clean clone is the standing bar — restated here because M0 once reported it green without having been run at all (see `docs/standing-constraints.md`) |
-| **M1** — contracts + domain | Branded IDs, `Shelter` + verification FSM, `Animal` unions, `Freshness`, `scoreAnimal`, 8-procedure oRPC contract | Done. Zero non-Zod dependencies in `packages/domain`; exhaustive FSM transition table; freshness correct at all uk plural boundaries. 252 tests |
-| **M2** — persistence | Drizzle schema, repositories, keyset feed query, HMAC location fuzzing | Done. `packages/db/test/feed-explain.test.ts` asserts the feed query's `EXPLAIN` plan has no `Sort` node and uses the partial index — mutation-checked (temporarily dropping the index makes the test fail) during this rewrite, closing an open contradiction from the pause brief: an earlier audit claimed nothing verified index usage; the test existed, ran, and was correct. The audit was wrong, not the test. 31 tests |
-| **M3** — seed data | 300+ animals, realistic distributions | Done. 320 animals, 8 shelters, shaped freshness and vaccination distributions, fostered animals, real photos. `db:seed` itself has not been re-run in a verification pass since — still merely asserted, not a live gap this rewrite closes. 27 Biome console warnings in the seed script are known and deliberately deferred — a dev-only script, not shipped code |
-| **M4** — minimal API | oRPC router, anonymous session, rate limiting | Done, and hardened beyond the original scope: hand-rolled anonymous device session (not Better Auth — that's deferred to shelter accounts), HMAC-signed cursors bound to a filters fingerprint, split rate limiting (per-IP sliding window; Postgres-persisted reveal limit). Session security properties — timing-safe comparison, `__Host-` cookie in production, 30-day/7-day expiry — are implemented but still merely asserted: no test currently exercises them end to end |
-| **M5** — swipe deck | `PointerEvent` + `transform`, release physics, deck component | Done, but this is the milestone the process failures cluster around. "`/discovery` renders" was originally verified by fetching HTML and grepping for card text, while an action row sat on top of the card and the gesture was dead. The rendering harness (`apps/web/test/harness`, Playwright) and the fixes it verifies — six of them, each now locked by a harness assertion or a unit test — are what actually closed this. Visual properties that aren't geometry (the 6° rotation cap, the 0.03deg/px factor, the 40px affordance ramp) still have no assertion; `onPointerCancel` ignoring `prefers-reduced-motion` is a known, deliberately deferred gap; iOS Safari's swipe failure has never reproduced on any other engine and — now that the deck is a mode entered from the gallery, not the front door — is off the critical path |
+| **M0** - repo & tooling | pnpm workspace, strict TS, Biome, Docker Postgres, CI skeleton | Done. `pnpm i && pnpm check` on a clean clone is the standing bar - restated here because M0 once reported it green without having been run at all (see `docs/standing-constraints.md`) |
+| **M1** - contracts + domain | Branded IDs, `Shelter` + verification FSM, `Animal` unions, `Freshness`, `scoreAnimal`, 8-procedure oRPC contract | Done. Zero non-Zod dependencies in `packages/domain`; exhaustive FSM transition table; freshness correct at all uk plural boundaries. 252 tests |
+| **M2** - persistence | Drizzle schema, repositories, keyset feed query, HMAC location fuzzing | Done. `packages/db/test/feed-explain.test.ts` asserts the feed query's `EXPLAIN` plan has no `Sort` node and uses the partial index - mutation-checked (temporarily dropping the index makes the test fail) during this rewrite, closing an open contradiction from the pause brief: an earlier audit claimed nothing verified index usage; the test existed, ran, and was correct. The audit was wrong, not the test. 31 tests |
+| **M3** - seed data | 300+ animals, realistic distributions | Done. 320 animals, 8 shelters, shaped freshness and vaccination distributions, fostered animals, real photos. `db:seed` itself has not been re-run in a verification pass since - still merely asserted, not a live gap this rewrite closes. 27 Biome console warnings in the seed script are known and deliberately deferred - a dev-only script, not shipped code |
+| **M4** - minimal API | oRPC router, anonymous session, rate limiting | Done, and hardened beyond the original scope: hand-rolled anonymous device session (not Better Auth - that's deferred to shelter accounts), HMAC-signed cursors bound to a filters fingerprint, split rate limiting (per-IP sliding window; Postgres-persisted reveal limit). Session security properties - timing-safe comparison, `__Host-` cookie in production, 30-day/7-day expiry - are implemented but still merely asserted: no test currently exercises them end to end |
+| **M5** - swipe deck | `PointerEvent` + `transform`, release physics, deck component | Done, but this is the milestone the process failures cluster around. "`/discovery` renders" was originally verified by fetching HTML and grepping for card text, while an action row sat on top of the card and the gesture was dead. The rendering harness (`apps/web/test/harness`, Playwright) and the fixes it verifies - six of them, each now locked by a harness assertion or a unit test - are what actually closed this. Visual properties that aren't geometry (the 6° rotation cap, the 0.03deg/px factor, the 40px affordance ramp) still have no assertion; `onPointerCancel` ignoring `prefers-reduced-motion` is a known, deliberately deferred gap; iOS Safari's swipe failure has never reproduced on any other engine and - now that the deck is a mode entered from the gallery, not the front door - is off the critical path |
 
 **Test counts at the end of M5:** 307 vitest (domain 252, contracts 24, db 31), 0 harness.
 
 ### What M5's audit changed, and why the plan restructured
 
 Two things landed at once: a build failure that had been invisible to CI (`tsc` accepts
-`./x.js` relative imports under every resolution mode; the bundler doesn't — `next build`
+`./x.js` relative imports under every resolution mode; the bundler doesn't - `next build`
 had never run), and a new, correct requirement that the original plan never carried:
 **the app must work on desktop, and animals must be browsable as a gallery, not only as a
 swipe deck.**
 
-The gallery becomes the **primary surface**, not the deck — it's what search engines
+The gallery becomes the **primary surface**, not the deck - it's what search engines
 index, what gets pasted into a Telegram group, what a grant reviewer or shelter director
 opens on a laptop. The deck remains the differentiator and still ships, but as a mode
-entered from the gallery, and off the critical path for launch. Full reasoning —
+entered from the gallery, and off the critical path for launch. Full reasoning -
 including the pattern behind the three verification incidents, now generalised into
-`docs/standing-constraints.md` rather than restated per-document — is in
+`docs/standing-constraints.md` rather than restated per-document - is in
 `docs/course-correction.md`.
 
 **Consolidation work that followed the audit, before any gallery code:**
 
 | Landed | What |
 |---|---|
-| PR #15 | Verification gate — the Playwright harness, `next build` gated in CI, happy-dom + Testing Library, the six M5 fixes restored and locked |
-| PR #16 | Tailwind migration, `next/font` typography (Literata + Commissioner; IBM Plex Mono measured and dropped — 11.2% of font payload for one rarely-seen label), the `implement(contract)` security lock (`handlers-implement-contract.test.ts`), measurable margin enforcement in the harness |
-| PR #17 | Design handoff v2 landed at `docs/design/` (same path v1 was at — never a folder move), prototyping-runtime cleanup |
+| PR #15 | Verification gate - the Playwright harness, `next build` gated in CI, happy-dom + Testing Library, the six M5 fixes restored and locked |
+| PR #16 | Tailwind migration, `next/font` typography (Literata + Commissioner; IBM Plex Mono measured and dropped - 11.2% of font payload for one rarely-seen label), the `implement(contract)` security lock (`handlers-implement-contract.test.ts`), measurable margin enforcement in the harness |
+| PR #17 | Design handoff v2 landed at `docs/design/` (same path v1 was at - never a folder move), prototyping-runtime cleanup |
 | PR #18 | This plan rewrite, `docs/gallery-contract-decisions.md`'s five decisions, `docs/standing-constraints.md` |
-| C4 + C7 (this branch) | `packages/ui`/`packages/i18n` extracted, `en.ts` added, the real home page (Screen 01) replacing `page.tsx`'s placeholder — Phase C fully closed out |
+| C4 + C7 (this branch) | `packages/ui`/`packages/i18n` extracted, `en.ts` added, the real home page (Screen 01) replacing `page.tsx`'s placeholder - Phase C fully closed out |
 
 **Test counts now:** 409 vitest, 17 harness.
 
 ---
 
-## Part 2 — The phases
+## Part 2 - The phases
 
-Five phases replace the original M6–M12. Each has an id `.claude/commands/phase.md` can
+Five phases replace the original M6-M12. Each has an id `.claude/commands/phase.md` can
 be invoked with (`/phase C4`, `/phase E`, a bare phase letter or a specific task within
 it), its tasks, an hour estimate, a definition of done, and the decisions that phase must
 surface before or during implementation.
 
-A sixth thing from the original course correction — **design pass 2** (desktop
-breakpoints, the gallery) — is not a phase here because it is already done: v2 of
+A sixth thing from the original course correction - **design pass 2** (desktop
+breakpoints, the gallery) - is not a phase here because it is already done: v2 of
 `docs/design/README.md` (34.5 KB, "Breakpoints & Surfaces", "The Gallery", "Desktop
 Breakpoints for the Eight Screens") is in the repository. It is folded into Part 1's
 history rather than carried forward as live work.
 
-### Phase C — Consolidate and unblock
+### Phase C - Consolidate and unblock
 
 **Nothing new is built until the foundation supports two form factors and the process
 can tell truth from shape.** All seven tasks are done.
 
 | # | Task | h | Status |
 |---|---|---|---|
-| C1 | Merge everything — one `main`, one truth | 3 | **Done.** M4 follow-up, M5, the bundler fix, PRs #15–#17 are all on `main` |
-| C2 | Verification gate — harness in CI, `next build` gated, markup-inspection ruled out as evidence | 6 | **Done** (PR #15), and generalised into `docs/standing-constraints.md` |
-| C3 | Tailwind migration — `tokens.ts` → Tailwind `@theme`, deck converted from inline styles | 8 | **Done** (PR #16). Pixel parity verified by screenshot diff, not assumed |
-| C4 | Extract `packages/ui` and `packages/i18n` — primitives out of `features/discovery`; strings out with them; add the English file the design's string table implies | 8 | **Done.** `freshness-display.ts` moved to `packages/ui` as the one genuinely cross-feature primitive; `tokens.ts` stayed put — `layout.stackLayers` is deck-only, and C3 had already moved the real design tokens into `globals.css`'s `@theme`, so there was less here to extract than the task line assumed. `strings.uk.ts` moved to `packages/i18n`, `en.ts` added (key-parity tested against `uk.ts`) |
-| C5 | Wire the typography — `next/font`, Cyrillic + Latin subsets, measure the payload | 2 | **Done** (PR #16) |
-| C6 | Component test infrastructure — RTL + happy-dom, real tests proving the setup | 4 | **Done** (PR #15) |
-| C7 | A real `page.tsx` | 3 | **Done**, on a corrected done-when — see below |
+| C1 | Merge everything - one `main`, one truth | 3 | **Done.** M4 follow-up, M5, the bundler fix, PRs #15-#17 are all on `main` |
+| C2 | Verification gate - harness in CI, `next build` gated, markup-inspection ruled out as evidence | 6 | **Done** (PR #15), and generalised into `docs/standing-constraints.md` |
+| C3 | Tailwind migration - `tokens.ts` → Tailwind `@theme`, deck converted from inline styles | 8 | **Done** (PR #16). Pixel parity verified by screenshot diff, not assumed |
+| C4 | Extract `packages/ui` and `packages/i18n` - primitives out of `features/discovery`; strings out with them; add the English file the design's string table implies | 8 | **Done.** `freshness-display.ts` moved to `packages/ui` as the one genuinely cross-feature primitive; `tokens.ts` stayed put - `layout.stackLayers` is deck-only, and C3 had already moved the real design tokens into `globals.css`'s `@theme`, so there was less here to extract than the task line assumed. `strings.uk.ts` moved to `packages/i18n`, `en.ts` added (key-parity tested against `uk.ts`) |
+| C5 | Wire the typography - `next/font`, Cyrillic + Latin subsets, measure the payload | 2 | **Done** (PR #16) |
+| C6 | Component test infrastructure - RTL + happy-dom, real tests proving the setup | 4 | **Done** (PR #15) |
+| C7 | A real `page.tsx` | 3 | **Done**, on a corrected done-when - see below |
 
 **Done when:** the home page is a real entry point (Screen 01, on-design, not "API-only at
 this milestone"), design tokens and shared strings live in `packages/ui`/`packages/i18n`
@@ -116,114 +116,114 @@ this milestone"), design tokens and shared strings live in `packages/ui`/`packag
 throughout.
 
 **Correction to C7's original scope, made while implementing it:** the task line called
-for "a view-mode switch with a persisted preference" — unbuildable this phase, since the
+for "a view-mode switch with a persisted preference" - unbuildable this phase, since the
 gallery it would switch to doesn't exist until Phase E. Screen 01 gives `page.tsx` a real,
 fully-specified entry point on its own (wordmark, promise, disclaimer, city chips, CTA),
-so C7 delivers that and routes the CTA to `/discovery` — today's only real destination.
+so C7 delivers that and routes the CTA to `/discovery` - today's only real destination.
 The view-mode switch, and its `sessionStorage` persistence, move to Phase E's task list
 (below), where the gallery shell it belongs to actually gets built. This is the same
-"plan conflict" the `/phase` gate exists to catch — caught and resolved before building
+"plan conflict" the `/phase` gate exists to catch - caught and resolved before building
 the wrong thing, not discovered after.
 
 **Decisions this phase surfaced:**
 - Whether `packages/ui` takes any dependency beyond what's already justified in the
-  catalog — **no.** It holds pure TS (`freshnessPips`/`freshnessLabel`), depending only on
+  catalog - **no.** It holds pure TS (`freshnessPips`/`freshnessLabel`), depending only on
   `@opika/domain` and `@opika/i18n`, both internal workspace packages, not new external
   ones.
-- Where the new, still-mobile-shaped Screen 01 gets its real `CityId`s from — the
+- Where the new, still-mobile-shaped Screen 01 gets its real `CityId`s from - the
   existing `cities.list` procedure, called in-process (`anonymousRouterClient`,
   `docs/gallery-contract-decisions.md` §5), rather than a client-side fetch that would
   have needed `@orpc/client` as a new dependency. This is that mechanism's first real use,
   pulled forward from Phase E because Screen 01 needed real IDs, not because Phase E's own
   work started early.
-- City-filter storage — `sessionStorage`, extending the design's one explicit storage
+- City-filter storage - `sessionStorage`, extending the design's one explicit storage
   precedent (the gallery/deck view-mode memory) to the filter state Phase E's rail will
   also read. Reuses `@opika/domain`'s existing `FeedFilters`/`NO_FILTERS` directly, not a
   parallel shape, so Phase E needs no migration.
 
-### Phase E — Gallery
+### Phase E - Gallery
 
 **Do this after Phase C.** `docs/gallery-contract-decisions.md`'s five decisions are
-settled (owner sign-off, 2026-08-07) — the gate this note used to describe is closed;
+settled (owner sign-off, 2026-08-07) - the gate this note used to describe is closed;
 what's below already reflects the decided shape, not an open question. Building gallery
 UI ahead of the contracts it needs would still be the M5 mistake (grep for card text,
-ship a dead gesture) in a different shape — the gate just isn't a *decision* gate
+ship a dead gesture) in a different shape - the gate just isn't a *decision* gate
 anymore, it's an *implementation-order* one.
 
 | # | Task | h |
 |---|---|---|
-| E0 | Contract + schema reconciliation — `gallery.list` (OFFSET), `gallery.relaxationCounts`, `wait_anchor_at` column + both indexes (unfiltered and filtered) + `waitAnchorOf`, `reserved` gains `publishedAt` (`packages/domain` type change + a backfill across the 320 seeded rows), `buildFeedPredicate` factored out of `feedRepo.list`, both new procedures added to `packages/contracts`' `contract` export | 12 |
-| E1 | Gallery grid over `gallery.list` — responsive columns (1/2/3/4 per the design's breakpoint table), `AnimalCard`, freshness marker reused from the deck | 10 |
-| E1.5 | Image resolution stub — `storageKey` resolves to a real URL through one function H1 later replaces; licence-clean placeholder photos in the repo; seed wired deterministically. Makes E2–E5 visually reviewable and gives shelter outreach something to show. Not the real pipeline — no R2, no upload, no variants | 3 |
-| E2 | Filters as a visible rail (≥1024) / the existing sheet (<1024), extended with sort. Filter and sort state in the URL — shareable, back-button-correct | 6 |
-| E2.5 | 2D arrow-key navigation across the gallery grid (`docs/design/README.md`'s "Keyboard" table — ← ↑ → ↓ move focus by column count, edges don't wrap; Home/End jump to first/last card), independent of ARIA role. Runs before E3/E4 so page-boundary and zero-result focus behaviour are inherited already-settled, not invented per-phase. Tab order deliberately untouched — every card keeps its native tab stop and arrow keys are a purely additive client-side shortcut. Issue #28's own roving-tabindex constraint was dropped on review: it contradicts the same ticket's "Tab order unaffected: still header → rail → sort → cards in reading order → pagination" requirement, which `docs/design/README.md`'s Keyboard table states too and therefore wins (see `ArrowKeyGrid`'s doc comment). The harness asserts the arrow behaviour (JS on, by definition) and the unchanged Tab order (JS on and JS off) separately | 3 |
-| E3 | Numbered pagination — `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram). **Definition of done includes** a skip link above the grid, visible on focus, jumping straight to the pagination controls — dropping E2.5's roving tabindex means a keyboard user now tabs through all 24 cards to reach "next page," and this is the fix, not a follow-up. Arrow-key behaviour at a page boundary (Right on the last card, Left on the first) is this phase's to decide and record — see `docs/gallery-contract-decisions.md` §8 | 4 |
-| V1 | Design handoff intake — replace `docs/design/` with the new handoff, verify it covers every surface, confirm the four product rules survive | 2 |
-| V2 | Implementation — new tokens through `packages/ui` and the Tailwind config, every existing surface re-skinned including E3's pagination, harness assertions repointed to the new design's values. **Static visual language only** — colour, type, radii, card treatment. The deck's gesture *physics* (release spring, motion timings on the drag itself) are explicitly out of scope here — see G4 | 10 |
-| E4 | Empty (no-match, already built in V2 — this row is the remainder), error (**one state**, not the design's stated whole-list/next-page pair — pagination is plain link navigation per `docs/gallery-contract-decisions.md` §7, so a failed next page and a failed first load are the same event to this app's router; the "Next-page error" frame is marked NOT REACHABLE, not deferred, in `docs/design/README.md`), out-of-range page (200, last valid page, **the note must actually render** — see the phase's own done-when below, not just the copy existing) states — built in the «Реєстр» language directly (`docs/design/README.md`'s "States and remaining screens", frames E1/E2, P1/P2). Loading (L1/L2) was investigated and NOT built this phase — Next's route-level `loading.tsx` puts the whole route into streaming SSR unconditionally, and the inline script that swaps the hidden real content in for the fallback is itself JavaScript, so a no-JS visitor never sees the swap and is stuck on the skeleton permanently; four no-JS harness tests failing on the attempt confirmed it. A correct version is client-driven (`useLinkStatus`/`useTransition` around the existing link-interception points, never a Suspense boundary) — real new scope, tracked against E5, not this row's remaining hours | 4 |
-| E5 | Gallery ↔ deck view-mode switch — moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. Real scope turned out much larger than "chrome": no browser-side oRPC client existed yet, `/discovery` still ran entirely on mock data, and no gallery-side entry control existed at all. Built: `/tvaryny/gortaty` as the deck's real, `noindex` route on real `feed.list` data (browser-side oRPC client, cursor/prefetch, `useFeedDeck`); the gallery's own entry control (desktop header + mobile row, hidden when there are zero matches); exit ("До списку" / Esc / browser back — genuinely one mechanism, `router.back()` when a same-tab marker confirms it's safe, else a fresh gallery link) with scroll-restore coming from the browser's own history mechanism, not custom bookkeeping; the inherited-filters header phrase and position/progress counter (carried-over total, since `feed.list` has no count of its own). Also investigated and resolved: the E4-carried "header/rail stay usable during an error" gap — found the guessed fix (a `layout.tsx` split) structurally impossible (layouts can't read `searchParams`) and, separately, not actually useful (a filter rail doesn't help when the failure is backend-side); shipped a real escape hatch instead (a link to the bare, unfiltered gallery) — see `docs/design/README.md`'s "Whole-list error" section. A second, sibling gap found during review and fixed the same way: `/tvaryny/gortaty` had no `error.tsx` of its own, so a failure in its own `cities.list()` call fell through to the *gallery's* error boundary and rendered filter-specific copy for a deck failure — given its own `error.tsx` now, reusing the deck's existing `uk.errors.loadFailed` copy. The client-driven pending indicator (`useLinkStatus`/`useTransition`) this row's earlier text also carried over from E4 was **not built** — real scope of its own, still a follow-up, not folded in here. Also not built, recorded as deviations rather than dropped — see `docs/design/README.md`'s "Gallery ↔ deck" section: the `sessionStorage`-persisted "last mode" this row originally named (**unmet definition-of-done, with a product decision recorded, not a deferred nice-to-have** — see that section), and full filter-*and*-sort inheritance (`feed.list` has no `sort` parameter today — a missing contract field E5 chose not to add, not an architectural block; see that section for why the header's omission of sort is clean rather than misleading) | 3 |
+| E0 | Contract + schema reconciliation - `gallery.list` (OFFSET), `gallery.relaxationCounts`, `wait_anchor_at` column + both indexes (unfiltered and filtered) + `waitAnchorOf`, `reserved` gains `publishedAt` (`packages/domain` type change + a backfill across the 320 seeded rows), `buildFeedPredicate` factored out of `feedRepo.list`, both new procedures added to `packages/contracts`' `contract` export | 12 |
+| E1 | Gallery grid over `gallery.list` - responsive columns (1/2/3/4 per the design's breakpoint table), `AnimalCard`, freshness marker reused from the deck | 10 |
+| E1.5 | Image resolution stub - `storageKey` resolves to a real URL through one function H1 later replaces; licence-clean placeholder photos in the repo; seed wired deterministically. Makes E2-E5 visually reviewable and gives shelter outreach something to show. Not the real pipeline - no R2, no upload, no variants | 3 |
+| E2 | Filters as a visible rail (≥1024) / the existing sheet (<1024), extended with sort. Filter and sort state in the URL - shareable, back-button-correct | 6 |
+| E2.5 | 2D arrow-key navigation across the gallery grid (`docs/design/README.md`'s "Keyboard" table - ← ↑ → ↓ move focus by column count, edges don't wrap; Home/End jump to first/last card), independent of ARIA role. Runs before E3/E4 so page-boundary and zero-result focus behaviour are inherited already-settled, not invented per-phase. Tab order deliberately untouched - every card keeps its native tab stop and arrow keys are a purely additive client-side shortcut. Issue #28's own roving-tabindex constraint was dropped on review: it contradicts the same ticket's "Tab order unaffected: still header → rail → sort → cards in reading order → pagination" requirement, which `docs/design/README.md`'s Keyboard table states too and therefore wins (see `ArrowKeyGrid`'s doc comment). The harness asserts the arrow behaviour (JS on, by definition) and the unchanged Tab order (JS on and JS off) separately | 3 |
+| E3 | Numbered pagination - `?stor=N`, prev/next, active page leaf-filled, all targets 44px. Not infinite scroll (`docs/design/README.md` "Pagination — not infinite scroll" gives the reasoning: indexed URLs, working back button, shareable into Telegram). **Definition of done includes** a skip link above the grid, visible on focus, jumping straight to the pagination controls - dropping E2.5's roving tabindex means a keyboard user now tabs through all 24 cards to reach "next page," and this is the fix, not a follow-up. Arrow-key behaviour at a page boundary (Right on the last card, Left on the first) is this phase's to decide and record - see `docs/gallery-contract-decisions.md` §8 | 4 |
+| V1 | Design handoff intake - replace `docs/design/` with the new handoff, verify it covers every surface, confirm the four product rules survive | 2 |
+| V2 | Implementation - new tokens through `packages/ui` and the Tailwind config, every existing surface re-skinned including E3's pagination, harness assertions repointed to the new design's values. **Static visual language only** - colour, type, radii, card treatment. The deck's gesture *physics* (release spring, motion timings on the drag itself) are explicitly out of scope here - see G4 | 10 |
+| E4 | Empty (no-match, already built in V2 - this row is the remainder), error (**one state**, not the design's stated whole-list/next-page pair - pagination is plain link navigation per `docs/gallery-contract-decisions.md` §7, so a failed next page and a failed first load are the same event to this app's router; the "Next-page error" frame is marked NOT REACHABLE, not deferred, in `docs/design/README.md`), out-of-range page (200, last valid page, **the note must actually render** - see the phase's own done-when below, not just the copy existing) states - built in the «Реєстр» language directly (`docs/design/README.md`'s "States and remaining screens", frames E1/E2, P1/P2). Loading (L1/L2) was investigated and NOT built this phase - Next's route-level `loading.tsx` puts the whole route into streaming SSR unconditionally, and the inline script that swaps the hidden real content in for the fallback is itself JavaScript, so a no-JS visitor never sees the swap and is stuck on the skeleton permanently; four no-JS harness tests failing on the attempt confirmed it. A correct version is client-driven (`useLinkStatus`/`useTransition` around the existing link-interception points, never a Suspense boundary) - real new scope, tracked against E5, not this row's remaining hours | 4 |
+| E5 | Gallery ↔ deck view-mode switch - moved here from C7 (`docs/build-plan.md`'s Phase C correction): a control with only one working destination isn't buildable before this phase. Real scope turned out much larger than "chrome": no browser-side oRPC client existed yet, `/discovery` still ran entirely on mock data, and no gallery-side entry control existed at all. Built: `/tvaryny/gortaty` as the deck's real, `noindex` route on real `feed.list` data (browser-side oRPC client, cursor/prefetch, `useFeedDeck`); the gallery's own entry control (desktop header + mobile row, hidden when there are zero matches); exit ("До списку" / Esc / browser back - genuinely one mechanism, `router.back()` when a same-tab marker confirms it's safe, else a fresh gallery link) with scroll-restore coming from the browser's own history mechanism, not custom bookkeeping; the inherited-filters header phrase and position/progress counter (carried-over total, since `feed.list` has no count of its own). Also investigated and resolved: the E4-carried "header/rail stay usable during an error" gap - found the guessed fix (a `layout.tsx` split) structurally impossible (layouts can't read `searchParams`) and, separately, not actually useful (a filter rail doesn't help when the failure is backend-side); shipped a real escape hatch instead (a link to the bare, unfiltered gallery) - see `docs/design/README.md`'s "Whole-list error" section. A second, sibling gap found during review and fixed the same way: `/tvaryny/gortaty` had no `error.tsx` of its own, so a failure in its own `cities.list()` call fell through to the *gallery's* error boundary and rendered filter-specific copy for a deck failure - given its own `error.tsx` now, reusing the deck's existing `uk.errors.loadFailed` copy. The client-driven pending indicator (`useLinkStatus`/`useTransition`) this row's earlier text also carried over from E4 was **not built** - real scope of its own, still a follow-up, not folded in here. Also not built, recorded as deviations rather than dropped - see `docs/design/README.md`'s "Gallery ↔ deck" section: the `sessionStorage`-persisted "last mode" this row originally named (**unmet definition-of-done, with a product decision recorded, not a deferred nice-to-have** - see that section), and full filter-*and*-sort inheritance (`feed.list` has no `sort` parameter today - a missing contract field E5 chose not to add, not an architectural block; see that section for why the header's omission of sort is clean rather than misleading) | 3 |
 
 **Total: ~57 h.**
 
 **Why E1.5 exists as its own task rather than waiting for H1:** every phase from E2 on is
-reviewed against what the gallery actually looks like — filter and sort results, empty and
-loading states, the pagination footer. Building E2–E4 against a grid of broken image icons
+reviewed against what the gallery actually looks like - filter and sort results, empty and
+loading states, the pagination footer. Building E2-E4 against a grid of broken image icons
 repeats exactly the retrofit pattern this course correction exists to stop: the visual
 problems surface all at once, in one lump, the day real photos finally arrive at H1,
 instead of being caught phase by phase as they're introduced.
 
 **Why E2.5 exists as its own task rather than folding into E2 or E3:** it was found during
-E1.5's own residue check (closed, incorrectly, as won't-do — see
+E1.5's own residue check (closed, incorrectly, as won't-do - see
 `docs/standing-constraints.md`, "An accessibility technicality never closes a design
 requirement") and confirmed as real, unbuilt scope once `docs/design/README.md`'s own
 "Keyboard" table was actually read rather than inferred from ARIA semantics. It sits
 between E2 and E3 specifically because keyboard behaviour at a page boundary (E3) and
 focus behaviour against zero results (E4) are exactly the kind of thing each phase would
 otherwise invent independently if arrow-key navigation didn't already exist to answer them
-first — issue #28 records both of its build-time constraints in full, of which only the
+first - issue #28 records both of its build-time constraints in full, of which only the
 ordering one survived the build: its roving-tabindex constraint was dropped because that
 mechanism contradicts the same ticket's own "Tab order unaffected" requirement, and arrow
 keys ship instead as a shortcut layered over an untouched Tab order.
 
 **Why Phase V sits between E3 and E4, not before E3:** a new visual-language handoff
 replaces `docs/design/` (V1 intakes and verifies it; V2 re-skins). E3 shipped first, so V2's
-re-skin is now scoped to include E3's pagination alongside everything E0–E2.5 already
-built — one re-skin pass over the whole gallery surface built so far, rather than E3
+re-skin is now scoped to include E3's pagination alongside everything E0-E2.5 already
+built - one re-skin pass over the whole gallery surface built so far, rather than E3
 building against a design that's about to be replaced. It sits before E4/E5 so those two
 build against the final visual language once, instead of shipping against the old one and
 absorbing a second re-skin pass later.
 
 **Why there's no Phase V3.** V2's own scope (`docs/design/Opika Registry System.dc.html`)
-had no mock for E4's four states, E5's deck chrome, or F's screens 04–07 — those surfaces
+had no mock for E4's four states, E5's deck chrome, or F's screens 04-07 - those surfaces
 were unbuilt code, not existing UI to re-skin, so V2 skipped them. The plan on the table at
 the time was that E4/E5/F would build them on the old tokens regardless, and a follow-up
-phase — referred to informally as "V3" — would re-skin them later once a mock existed, the
-same way V2 itself re-skinned E0–E3. That follow-up phase is not needed: a design addendum
+phase - referred to informally as "V3" - would re-skin them later once a mock existed, the
+same way V2 itself re-skinned E0-E3. That follow-up phase is not needed: a design addendum
 (`docs/design/intake-report-v3.md`) shipped a real, dual-viewport mock for every one of
-those surfaces — `docs/design/Opika Registry Frames.dc.html`, 18 frames — before E4, E5, or
+those surfaces - `docs/design/Opika Registry Frames.dc.html`, 18 frames - before E4, E5, or
 F started. Each phase builds its own surfaces in the «Реєстр» language directly instead,
 per the frame citations on E4/E5 above and F below. No hours are being removed from this
-ledger for the cancelled follow-up phase, because none were ever allocated to it — "V3" was
+ledger for the cancelled follow-up phase, because none were ever allocated to it - "V3" was
 a name for anticipated future work, not a scoped, written phase with its own line in Part 3.
 The only real change to this ledger is F6, below, which **is** new: screen 07 (the deck's
 exhausted state) had no owner at all before the addendum, old-tokens or otherwise.
 
 **V2's definition of done, beyond "re-skinned":**
 - **Pagination's "з N" count is a behaviour change, not a restyle, and needs its own test.**
-  The new handoff makes it conditional — it renders only when the page-number list is
+  The new handoff makes it conditional - it renders only when the page-number list is
   truncated with an ellipsis (`docs/design/README.md`, "Pagination — not infinite scroll";
   confirmed against the mock, `docs/design/intake-report.md` §C). E3's `GalleryPagination`
-  renders it unconditionally. Truncation logic doesn't get verified by looking at it — a
+  renders it unconditionally. Truncation logic doesn't get verified by looking at it - a
   harness test asserting the count is absent at a small page count and present once the
   window truncates is required, separate from any visual/colour assertion on the same
   element.
 - **e-Ukraine attribution ships as part of this phase, not deferred.** CC BY 4.0 + self-
-  hosting the files is distribution, which triggers the licence's attribution requirement —
+  hosting the files is distribution, which triggers the licence's attribution requirement -
   the handoff itself states this wrong ("free to use", no attribution mentioned; verified
   independently, `docs/design/intake-report.md` §E). Required: a licence file alongside the
   font files in the repo, and a user-reachable credit (footer colophon or `/about`). Also
   added to H5's legal-pages list below.
-- **e-Ukraine subsetting is a tracked follow-up, not a V2 done-when criterion — see H3.5
+- **e-Ukraine subsetting is a tracked follow-up, not a V2 done-when criterion - see H3.5
   below.** The three vendored files (`apps/web/src/app/fonts/e-ukraine/`) ship at the
   mirror's full character set for now, deliberately: subsetting picks a glyph set, and the
   glyph set can't be finalised until H3 lands the English strings and the native-speaker
@@ -232,13 +232,13 @@ exhausted state) had no owner at all before the addendum, old-tokens or otherwis
   construction, and this one explicitly isn't required to close V2.
 - **Deck gesture physics is explicitly excluded.** The release spring, drag motion timings,
   and easing curve values the new handoff specifies for the deck move to Phase G (G4,
-  below) — not V2. G already owns the deck's unresolved iOS investigation, which touches
+  below) - not V2. G already owns the deck's unresolved iOS investigation, which touches
   the same constants (`use-swipe-gesture.ts`) and would otherwise mean changing them twice.
   V2's own deck work is limited to the card's static visual treatment (colour, type, radii)
   under the existing physics.
 - **Every harness assertion V2 repoints gets a one-line note saying which design value
   changed and to what**, so a reviewer can confirm each change tracks a real design value
-  rather than a quietly relaxed assertion — a redesign is exactly the kind of cover that
+  rather than a quietly relaxed assertion - a redesign is exactly the kind of cover that
   makes that hard to tell apart from a distance.
 - **Skin, not skeleton.** Breakpoints, column counts, the 960/1320 containers, the rail/sheet
   split at 1024, the URL scheme, and the information architecture do not move. If the new
@@ -252,26 +252,26 @@ not placeholders.
 **One case in that "reproduces exactly" claim needs its own check, not just its own
 copy.** E0's out-of-range clamp (`docs/gallery-contract-decisions.md` §3, "Rate limiting"
 neighbour note aside) means a stale `?stor=50` against a shrunk corpus now serves page 10
-with a 200 — correctly, per the decided behaviour, but a URL that no longer shows what it
+with a 200 - correctly, per the decided behaviour, but a URL that no longer shows what it
 once did **without saying so** is exactly the silent-divergence failure this same "done
 when" line exists to rule out for every other case. E4 is done only when that note
-actually renders on the clamped page — verified by loading a URL past the true last page
+actually renders on the clamped page - verified by loading a URL past the true last page
 and seeing it, not by the copy existing in `docs/design/README.md` and being assumed
 wired in.
 
 **Decisions this phase implements, already settled** (`docs/gallery-contract-decisions.md`,
 restated so the answer isn't re-litigated mid-implementation):
-- `reserved` carries `publishedAt` forward (§2) — yes. Domain type change + backfill, E0.
-- The "сусідні міста" copy (§4) — changed to "Уся Київщина," recorded as a deviation in
+- `reserved` carries `publishedAt` forward (§2) - yes. Domain type change + backfill, E0.
+- The "сусідні міста" copy (§4) - changed to "Уся Київщина," recorded as a deviation in
   `docs/design/README.md` directly. No adjacency schema.
-- The 2,000-row OFFSET boundary (§1) — kept at 2,000; confirm it hasn't already been
+- The 2,000-row OFFSET boundary (§1) - kept at 2,000; confirm it hasn't already been
   reached by the time this phase starts (it won't have been; the check costs one query).
-- Out-of-range gallery page (§3) — clamp to the last valid page server-side, 200, not an
+- Out-of-range gallery page (§3) - clamp to the last valid page server-side, 200, not an
   error, not a redirect. Copy written, in `docs/design/README.md`.
-- The second, filtered `wait_anchor_at` index (§2) — build it, E0. No `Sort`-node
+- The second, filtered `wait_anchor_at` index (§2) - build it, E0. No `Sort`-node
   exemption.
 
-### Phase F — Detail & Reveal
+### Phase F - Detail & Reveal
 
 The former M6, responsive from the start rather than retrofitted, and now the SEO path
 the acquisition argument depends on (`docs/course-correction.md`, "The strategic
@@ -279,12 +279,12 @@ call": no marketing budget, so shared links and indexed pages are the growth mec
 
 | # | Task | h |
 |---|---|---|
-| F1 | Animal detail page, both form factors, in the «Реєстр» language — desktop per `docs/design/README.md` "04 Detail" / frames D1/D2 (sticky left column, fluid right, footer action pair moves up under the freshness block); mobile is the existing 04, re-specified at frame D2 | 10 |
-| F2 | `generateMetadata` / Open Graph on the detail page, via the same in-process router call `docs/gallery-contract-decisions.md` §5 establishes — never more than the public contract already permits a client to see | 3 |
-| F3 | Contact reveal, in the «Реєстр» language — desktop modal (640-wide, focus-trapped, animal's URL stays in the address bar) over the existing full-screen mobile 05, per frames R1/R2 | 4 |
-| F4 | "My reveals" list, both form factors, in the «Реєстр» language — frames M1/M2 | 3 |
-| F5 | Donation link — external, destination domain visible, `rel="noopener"` | 2 |
-| F6 | **Addition** — screen 07, the deck's exhausted state (`ExhaustedState` in `SwipeDeck.tsx`), in the «Реєстр» language directly per frames X1/X2. Had no mock and no owning phase before the addendum — deliberately excluded from V2 (`docs/design/README.md`'s V2 commit note: "screens without a V2 mock — old tokens, deferred") and never picked up anywhere else. `LoadingState`/`ErrorState` in the same file stay deferred — the addendum's frames cover the gallery's loading/error states (E4), not the deck's. **`LoadingState`/`ErrorState` done, 2026-10-06, `feat/deck-loading-error-v2` (reviewed, PASS WITH NOTES, `docs/reviews/feat-deck-loading-error-v2/4aa7f6d.md`):** no deck-specific mock existed for either, so both are synthesised from the gallery's own already-shipped E4 error card (`apps/web/src/app/tvaryny/error.tsx`) rather than invented — `font-rg`, `rg-ink`/`rg-ink-2`/`rg-ink-3`, `rg-surface`, `rg-fill-strong`, `rounded-rg-card`/`rounded-rg-button`. One judgement call recorded as a Tier 2 decision (DLE-1, `docs/decisions-inbox/feat-deck-loading-error-v2.md`): the retry button takes the primary (`bg-rg-ink`) treatment, since the deck's error state has only the one action, unlike the gallery's primary+secondary pair. Review caught the primary button had kept its old secondary-sized `min-h-12`/`text-sm` instead of README:200's 56px primary-action size — fixed to `min-h-14`/`text-[15px]`, matching the deck's own `ActionButton` and the gallery's reference retry. **Known gap, not fixed here:** the eyebrow is still 11px on `rg-ink-3`, where README:105 restricts `ink-3` to 13px+ — pre-existing (the old pre-V2 code was 11px too), carried forward rather than fixed, since resizing text is a step past a token migration absent a mock to size it against. `ExhaustedState` (this row's own original scope) is untouched and still pre-V2. | 2 |
+| F1 | Animal detail page, both form factors, in the «Реєстр» language - desktop per `docs/design/README.md` "04 Detail" / frames D1/D2 (sticky left column, fluid right, footer action pair moves up under the freshness block); mobile is the existing 04, re-specified at frame D2 | 10 |
+| F2 | `generateMetadata` / Open Graph on the detail page, via the same in-process router call `docs/gallery-contract-decisions.md` §5 establishes - never more than the public contract already permits a client to see | 3 |
+| F3 | Contact reveal, in the «Реєстр» language - desktop modal (640-wide, focus-trapped, animal's URL stays in the address bar) over the existing full-screen mobile 05, per frames R1/R2 | 4 |
+| F4 | "My reveals" list, both form factors, in the «Реєстр» language - frames M1/M2 | 3 |
+| F5 | Donation link - external, destination domain visible, `rel="noopener"` | 2 |
+| F6 | **Addition** - screen 07, the deck's exhausted state (`ExhaustedState` in `SwipeDeck.tsx`), in the «Реєстр» language directly per frames X1/X2. Had no mock and no owning phase before the addendum - deliberately excluded from V2 (`docs/design/README.md`'s V2 commit note: "screens without a V2 mock — old tokens, deferred") and never picked up anywhere else. `LoadingState`/`ErrorState` in the same file stay deferred - the addendum's frames cover the gallery's loading/error states (E4), not the deck's. **`LoadingState`/`ErrorState` done, 2026-10-06, `feat/deck-loading-error-v2` (reviewed, PASS WITH NOTES, `docs/reviews/feat-deck-loading-error-v2/4aa7f6d.md`):** no deck-specific mock existed for either, so both are synthesised from the gallery's own already-shipped E4 error card (`apps/web/src/app/tvaryny/error.tsx`) rather than invented - `font-rg`, `rg-ink`/`rg-ink-2`/`rg-ink-3`, `rg-surface`, `rg-fill-strong`, `rounded-rg-card`/`rounded-rg-button`. One judgement call recorded as a Tier 2 decision (DLE-1, `docs/decisions-inbox/feat-deck-loading-error-v2.md`): the retry button takes the primary (`bg-rg-ink`) treatment, since the deck's error state has only the one action, unlike the gallery's primary+secondary pair. Review caught the primary button had kept its old secondary-sized `min-h-12`/`text-sm` instead of README:200's 56px primary-action size - fixed to `min-h-14`/`text-[15px]`, matching the deck's own `ActionButton` and the gallery's reference retry. **Known gap, not fixed here:** the eyebrow is still 11px on `rg-ink-3`, where README:105 restricts `ink-3` to 13px+ - pre-existing (the old pre-V2 code was 11px too), carried forward rather than fixed, since resizing text is a step past a token migration absent a mock to size it against. `ExhaustedState` (this row's own original scope) is untouched and still pre-V2. | 2 |
 
 **Total: ~24 h.**
 
@@ -293,67 +293,67 @@ the reveal modal traps focus and restores it on close, "my reveals" renders iden
 substance on a phone and a 1440px desktop, and the deck's exhausted state matches frames
 X1/X2 rather than the old tokens it shipped with through Phase G.
 
-**F4/F6 status (verified 2026-10-04, `docs/handoff-2026-10-04.md` block 0 — this table carried
+**F4/F6 status (verified 2026-10-04, `docs/handoff-2026-10-04.md` block 0 - this table carried
 neither before now):**
-- **F4 — API layer exists, UI does not.** `revealsListMineContract`
+- **F4 - API layer exists, UI does not.** `revealsListMineContract`
   (`packages/contracts/src/procedures/reveals.ts`) and its handler
   (`apps/web/src/api/handlers/reveals-list.ts`) are built. No route, no component, nowhere
   under `apps/web/src/app/` or `apps/web/src/features/` consumes it. `SiteHeader.tsx:49`'s own
   comment names the UI explicitly as not started: "My Reveals and i18n are later phases."
-- **F6 — partially built.** `ExhaustedState` exists and is fully wired into the deck's state
+- **F6 - partially built.** `ExhaustedState` exists and is fully wired into the deck's state
   machine (`SwipeDeck.tsx`, the `"exhausted"` union member and its render branch), covered by
   `SwipeDeck.test.tsx`, `DeckScreen.test.tsx` and `use-feed-deck.test.tsx`. It fails this row's
   own done-when line, though: its classes are the pre-V2 token set (`text-ink`, `font-serif`),
-  not the `rg-`-prefixed tokens V2-migrated components use — built, not re-skinned to frames
+  not the `rg-`-prefixed tokens V2-migrated components use - built, not re-skinned to frames
   X1/X2.
 
 **Decisions this phase must surface:** whether the Open Graph image is a static per-animal
-render or generated at request time (cost/freshness trade-off — the image pipeline this
+render or generated at request time (cost/freshness trade-off - the image pipeline this
 depends on is Phase H's M7-equivalent work, so this may block on that, not before).
 
-### Phase G — Deck completion
+### Phase G - Deck completion
 
-**Off the critical path — ships when it works, does not block launch.** The deck is a
+**Off the critical path - ships when it works, does not block launch.** The deck is a
 mode entered from the gallery now, not the front door.
 
 | # | Task | h |
 |---|---|---|
-| G1 | iOS Safari investigation, restarting from scratch — the prior investigation notes were lost with the rest of the uncommitted M5 work (the incident behind `docs/standing-constraints.md`'s "commit after each task" rule) and are deliberately not being reconstructed; the failure has never reproduced on any other engine | 4 |
-| G2 | Device testing on real hardware — Android and iOS, not simulators | 3 |
-| ~~G3~~ | ~~Promote the deck from `/discovery` to its real route...~~ **Done — built by E5, not G**, found while E5 checked what "the deck's own entry/exit chrome" actually required rather than assuming G3 owned the route. `/tvaryny/gortaty` (`noindex`), the gallery's entry control, and exit (`router.back()` when safe, else a fresh gallery link, scroll position coming from the browser's own history mechanism) are all real and shipped. **Filters inherited, sort is not** — `feed.list` has no `sort` parameter, recorded as a deviation in `docs/design/README.md`'s "Gallery ↔ deck" section. Not a G3 pickup either way: not because there's no sort concept to receive, but because adding one is a `packages/contracts` change (a gate stop), and no phase currently owns deciding whether it's worth making. | ~~3~~ |
-| G4 | Deck gesture-physics re-skin — the new handoff's motion values (`docs/design/README.md`, "Geometry, density, elevation, motion": quick 120ms / settle 220ms / reveal 280ms, `cubic-bezier(0.3, 0, 0, 1)`; release spring stiffness 280 / damping 30, no overshoot) applied to `use-swipe-gesture.ts`'s own constants — moved out of V2 deliberately (`docs/build-plan.md`'s Phase E table, V2 row) so these values change once, alongside whatever G1's iOS investigation also touches in the same file, not twice. **Partially done, 2026-10-06, feat/g4-deck-easing-exit-ms (reviewed twice, both PASS WITH NOTES: `docs/reviews/feat-g4-deck-easing-exit-ms/b7dace6.md`, `.../3ec0e42.md`):** the fixed-timeline half landed on Sonnet — exit 300ms→280ms, `EXIT_EASE` (`cubic-bezier(0.3, 0, 0, 1)`) split out from the pre-existing spring-back curve for the committed-exit and reduced-motion paths, pinned by unit assertions (2 new tests plus 1 extended, none in the harness) on the real rendered `transition` string for every pointerup path except `onPointerCancel` (see the known gap below). Mutation-tested: reverting `EXIT_EASE`→the old curve on either exit path fails its own test with the exact expected/received strings. **Known gap:** `onPointerCancel`'s snap-back always runs the 300ms transform transition regardless of `prefersReducedMotion`, contradicting README:204's "the stack does not move" — pre-existing, not introduced here, folded into the Opus follow-up below rather than fixed as a timing/easing split. **Still open, assigned Opus per `docs/model-policy.md`:** the real spring (stiffness 280/damping 30, no overshoot). `SPRING_BACK_MS`/`EASE` are still the old CSS-transition approximation — see that file's own doc comment for the starting point. The two tests pinning `300ms cubic-bezier(0.16, 1, 0.3, 1)` against the current approximation are meant to be *replaced*, not kept, once the real spring lands. **Done, 2026-10-07, feat/g4-deck-spring (Opus):** the return is a real spring (`features/discovery/spring.ts`, closed form, 280/30/mass 1, overshoot clamped — 280/30 alone is underdamped, ζ≈0.90), driven per frame from the release position and velocity; `onPointerCancel` now shares the same path, so the reduced-motion gap is closed. Verified: unit tests (no rendered frame past origin over a 56-release grid; ODE residual; mid-flight transform; cancel ± reduced motion), 5 mutations recorded in the commit. Asserted: feel on a real device (no manual device test yet). Follow-up `G4-1` (inbox). | 3 |
+| G1 | iOS Safari investigation, restarting from scratch - the prior investigation notes were lost with the rest of the uncommitted M5 work (the incident behind `docs/standing-constraints.md`'s "commit after each task" rule) and are deliberately not being reconstructed; the failure has never reproduced on any other engine | 4 |
+| G2 | Device testing on real hardware - Android and iOS, not simulators | 3 |
+| ~~G3~~ | ~~Promote the deck from `/discovery` to its real route...~~ **Done - built by E5, not G**, found while E5 checked what "the deck's own entry/exit chrome" actually required rather than assuming G3 owned the route. `/tvaryny/gortaty` (`noindex`), the gallery's entry control, and exit (`router.back()` when safe, else a fresh gallery link, scroll position coming from the browser's own history mechanism) are all real and shipped. **Filters inherited, sort is not** - `feed.list` has no `sort` parameter, recorded as a deviation in `docs/design/README.md`'s "Gallery ↔ deck" section. Not a G3 pickup either way: not because there's no sort concept to receive, but because adding one is a `packages/contracts` change (a gate stop), and no phase currently owns deciding whether it's worth making. | ~~3~~ |
+| G4 | Deck gesture-physics re-skin - the new handoff's motion values (`docs/design/README.md`, "Geometry, density, elevation, motion": quick 120ms / settle 220ms / reveal 280ms, `cubic-bezier(0.3, 0, 0, 1)`; release spring stiffness 280 / damping 30, no overshoot) applied to `use-swipe-gesture.ts`'s own constants - moved out of V2 deliberately (`docs/build-plan.md`'s Phase E table, V2 row) so these values change once, alongside whatever G1's iOS investigation also touches in the same file, not twice. **Partially done, 2026-10-06, feat/g4-deck-easing-exit-ms (reviewed twice, both PASS WITH NOTES: `docs/reviews/feat-g4-deck-easing-exit-ms/b7dace6.md`, `.../3ec0e42.md`):** the fixed-timeline half landed on Sonnet - exit 300ms→280ms, `EXIT_EASE` (`cubic-bezier(0.3, 0, 0, 1)`) split out from the pre-existing spring-back curve for the committed-exit and reduced-motion paths, pinned by unit assertions (2 new tests plus 1 extended, none in the harness) on the real rendered `transition` string for every pointerup path except `onPointerCancel` (see the known gap below). Mutation-tested: reverting `EXIT_EASE`→the old curve on either exit path fails its own test with the exact expected/received strings. **Known gap:** `onPointerCancel`'s snap-back always runs the 300ms transform transition regardless of `prefersReducedMotion`, contradicting README:204's "the stack does not move" - pre-existing, not introduced here, folded into the Opus follow-up below rather than fixed as a timing/easing split. **Still open, assigned Opus per `docs/model-policy.md`:** the real spring (stiffness 280/damping 30, no overshoot). `SPRING_BACK_MS`/`EASE` are still the old CSS-transition approximation - see that file's own doc comment for the starting point. The two tests pinning `300ms cubic-bezier(0.16, 1, 0.3, 1)` against the current approximation are meant to be *replaced*, not kept, once the real spring lands. **Done, 2026-10-07, feat/g4-deck-spring (Opus):** the return is a real spring (`features/discovery/spring.ts`, closed form, 280/30/mass 1, overshoot clamped - 280/30 alone is underdamped, ζ≈0.90), driven per frame from the release position and velocity; `onPointerCancel` now shares the same path, so the reduced-motion gap is closed. Verified: unit tests (no rendered frame past origin over a 56-release grid; ODE residual; mid-flight transform; cancel ± reduced motion), 5 mutations recorded in the commit. Asserted: feel on a real device (no manual device test yet). Follow-up `G4-1` (inbox). | 3 |
 
-**Total: ~10 h** (13 h original, minus G3's 3 h — already spent as part of E5's own overage, not double-counted here; see `docs/build-plan.md`'s Part 3 ledger).
+**Total: ~10 h** (13 h original, minus G3's 3 h - already spent as part of E5's own overage, not double-counted here; see `docs/build-plan.md`'s Part 3 ledger).
 
 **Done when:** 30 uninterrupted swipes on a real mid-range Android and a real iPhone,
 entered from and returning to the gallery at the same scroll position and card, on the new
 motion values.
 
-**Decisions this phase must surface:** none anticipated for G1–G2 — flag if the iOS
+**Decisions this phase must surface:** none anticipated for G1-G2 - flag if the iOS
 investigation turns up a fix that touches `packages/domain` or the gesture's pure decision
 function, per the standing stop-gate. G4 is gesture-physics work
-(`docs/model-policy.md`: "M5 swipe deck | Opus | Gesture physics and pointer capture") —
+(`docs/model-policy.md`: "M5 swipe deck | Opus | Gesture physics and pointer capture") -
 model it Opus, not Sonnet, regardless of what the rest of G uses.
 
-### Phase H — Remainder to launch
+### Phase H - Remainder to launch
 
-The former M7–M12, unchanged in substance, two additions here. The original course
+The former M7-M12, unchanged in substance, two additions here. The original course
 correction listed two; its second (the count queries) moved into Phase E's E0, folded
 into `gallery.list`'s output per `docs/gallery-contract-decisions.md` §3.
 
 | # | Task | h |
 |---|---|---|
-| H1 | Image pipeline — R2, presigned upload, `sharp` variants, CDN. Replaces E1.5's `apps/web/src/image-loader.ts` stub — the app's single `next/image` loader — with real R2/CDN URL construction, which is a change to that one file and not to any call site in `AnimalCard`/`SwipeCard`, and retires E1.5's committed placeholder photos | 10 |
-| H2 | Internal admin — animal/shelter CRUD, CSV import, **desktop layouts** (addition — the original plan assumed a single admin form factor). ⚠ **Read `docs/standing-constraints.md`'s "Commitments the «Для притулків» page makes" first.** `/prytulkam` tells shelters they will never be told that someone looked at a card. `reveals` already stores `(adopter_id, animal_id, shelter_id, revealed_at)` **indexed on `shelter_id`**, so an engagement tile here is one query, not a migration — this is the row where that commitment breaks by accident. **Done-criteria, confirmed against `docs/marketing/adopter-launch-plan.md`'s "What changes if H2 ships" (2026-10-06):** `docs/handoff-2026-10-04.md` §3.1 already states commitment #6's copy rewrite and commitment #7's obligations as done-criteria for this row — nothing new there, just confirmed still accurate. The one genuinely new addition: no reveal or swipe data — counts, aggregates, "views" — on any shelter-facing surface (commitment #2) must be pinned by a test over the shelter-facing router's own output schemas, not left to review alone. When `last_confirmed_at` lands, the BR-6 pip decision is re-read against it too. **Status 2026-10-07:** contract/domain shapes proposed in `docs/h2-contract-proposal.md` (Opus), awaiting Oleksii's answers to its Q1–Q10. Answered 2026-10-07 (inbox H2-1..H2-14). **Slice S1 (confirmation date, branch `feat/h2-confirmation-date`):** freshness, deck keyset and gallery `freshest` read `listing.confirmedAt`/`last_confirmed_at` (migration 0006, backfilled from `last_updated_at`, guard: 0 rows needed GREATEST locally); listing FSM `transitionListing` + `publishGaps`. Verified locally (backfill test against pre-0006 rows, 35-pair table, 7 mutations); **0006 applied to production Neon 2026-10-07** (only branch, test data, Oleksii's standing OK): guard 0 rows, 256/256 discoverable confirmed = last_updated_at, 0 before publishedAt, both feed indexes on last_confirmed_at. S1 merged (#81). **S2a (evidence, `feat/h2-evidence`):** `registeredName` required (no backfill needed: seeded evidence lists are empty); shared `EvidenceItemInputSchema`/`toVerificationEvidence` with required `visitedOn`, used by `onboard-shelter.ts` (which refuses typed `documentKey`s until H2-6's private bucket exists); reseed question reopened as H2-17. Carried to the kabinet S2 handler: accept only `documentKey`s it issued itself. The schema's `.default(null)` makes the key omittable but enforces no provenance. S2a merged (#82); prod write guard merged (#83). **Prod reseeded to the demo profile 2026-10-12** (handoff §1.3, H2-17; backup branch `pre-demo-reseed`): 2 shelters, 18 animals, Oleksii's read-only checks as expected. **S2b (`feat/h2-shelter-state`):** `ShelterActor` on pause/resume/resubmit, `Shelter.pendingDonation` + `donationProviderOf`, withdrawal reason `{code, note}`, history entry union (shape only; table ships with its first writer); migration 0007. S2b merged (#84); **0007 applied to production 2026-10-12** by Oleksii (`--prod`), post-check 2 / 0 / 0 (pending_donation present; no old-shape pausedBy or reasons). **S3 + handlers slice (`feat/h2-kabinet-contracts`, PR #85, ready for review 2026-10-13):** S3 contracts (`shelterKabinetContract` 16 / `registryContract` 19, strict inputs, listing undo, `Shelter.version`) and the 16 `shelter.*` handlers with Better Auth magic-link sign-in, access middleware, audited writes, kabinet rate limits. Verified: `pnpm check` 1486 unit + harness 217 at 6a2fada; Tier 1 review per code commit (`docs/reviews/feat-h2-kabinet-contracts/`); 16 real cross-tenant tests; 0008 and 0009 on production: rehearsal skipped, post-hoc prod check passed (HS-T12, Oleksii). 0010 is the first rehearsed migration (rehearsal-0010, checks passed); 0010 then applied to production; Oleksii's read-only check on main: 11 migrations, draft 2/0, published 14/14, reserved 2/2, 0 mismatches. Asserted: all neon-http paths (carried to the invite PR, HS-Q12). Not built: `admin:grant`/`admin:revoke` (HS-Q4), a **merge blocker on the registry PR** (HS-T11, Oleksii). Follow-ups: HS-T4/T4b (invite PR), S3-T6 (`animals.version` in the next migration, rehearsed), copy E2/E3 / A1–A3 / B1 gate (HS-Q3). Done in #86: HS-T9, HS-T10; HS-T3 accepted, no work | 12 |
-| H3 | i18n — next-intl wiring, uk + en message files, full-ICU boot assertion. Also: native-speaker review of `pluralizeUk`'s output (`packages/domain/src/primitives/plural.ts`, added E2) across every noun form it composes — verified mechanically (`Intl.PluralRules('uk')` boundaries, tested at 1/2/5/11/21/22) but not by a native speaker, and animate feminine nouns plus accusative government under case-governing verbs ("Знайдено" vs "Підходить") is not something rule-reasoning alone reliably gets right | 4 |
-| H3.5 | Perf pass — **addition**, sits here rather than V2 or its own phase because all three items bundle naturally once H3 lands: e-Ukraine subsetting (and Literata's and Commissioner's, self-hosted unsubset since chore/literata and chore/commissioner — same reason; Cyrillic + Latin basic + punctuation; deferred from V2 specifically because the glyph set isn't final until H3's English strings and native-speaker Ukrainian pass exist — and stays generous even then, since a shelter's free-text `freshnessSentence` isn't a set anyone controls, so this subsets to a wide net rather than a tight one), ~~the `next/image` `sizes` attribute overshoot~~ (**done** — H1's real-R2 verification pass measured it as a live 2.1× overfetch on phones rather than a theoretical overshoot, and it was fixed in #48 and #50 with a variant-selection harness lock; nothing left here), and the image-loading priority heuristic. 95 KB across three weights isn't worth a dedicated pass on its own; bundled with the other two, it is | 3 |
-| H4 | PWA — Serwist, manifest, offline shell, Lighthouse pass. **Plus brand icons, merged from `docs/marketing/brand-improvements.md` #4 (2026-10-06):** no favicon, `icon`, `apple-icon` or manifest exists in `apps/web` today (checked). Next's file conventions, no dependency: favicon 16/32 without the dot, `icon` 192/512 and `apple-icon` 180 with it, plus a Telegram-avatar export with the mark at ~60 % of the diameter so the circle crop doesn't clip the threshold. The icon half has no Serwist dependency and lands ahead of the rest — BR-7 needs the mark. **Re-check stale clients (Oleksii, 2026-10-18):** skew protection keeps a client on its own deployment for at most 12 h, and an installed app can stay open longer; check what an older client does when a response shape has changed since (e.g. RUI4-F1's reveal view: an empty name line, no crash) | 8 |
-| H5 | Observability + legal — Sentry, PostHog, privacy policy (GDPR), consent handling, e-Ukraine's CC BY 4.0 attribution (licence file + user-reachable credit — should already exist from V2; this is the launch-readiness check that it's still there and still correct, not the first time it's added). Vercel Analytics + Speed Insights landed early, in Phase F — see `docs/stack-decision.md`'s "Amendment, Phase F" note; this row still owns the privacy policy and consent handling that should have accompanied them | 10 |
-| H6 | Real shelter data + soft launch — onboard 5–10 shelters, verify each through the FSM, spot-check every listing. H6-era, not before: the shelter leaflet, the "how to share a link" note, Opika's Telegram channel, the one press angle — `docs/marketing/brand-improvements.md` §8–9, `docs/marketing/adopter-launch-plan.md` | 12 |
+| H1 | Image pipeline - R2, presigned upload, `sharp` variants, CDN. Replaces E1.5's `apps/web/src/image-loader.ts` stub - the app's single `next/image` loader - with real R2/CDN URL construction, which is a change to that one file and not to any call site in `AnimalCard`/`SwipeCard`, and retires E1.5's committed placeholder photos | 10 |
+| H2 | Internal admin - animal/shelter CRUD, CSV import, **desktop layouts** (addition - the original plan assumed a single admin form factor). ⚠ **Read `docs/standing-constraints.md`'s "Commitments the «Для притулків» page makes" first.** `/prytulkam` tells shelters they will never be told that someone looked at a card. `reveals` already stores `(adopter_id, animal_id, shelter_id, revealed_at)` **indexed on `shelter_id`**, so an engagement tile here is one query, not a migration - this is the row where that commitment breaks by accident. **Done-criteria, confirmed against `docs/marketing/adopter-launch-plan.md`'s "What changes if H2 ships" (2026-10-06):** `docs/handoff-2026-10-04.md` §3.1 already states commitment #6's copy rewrite and commitment #7's obligations as done-criteria for this row - nothing new there, just confirmed still accurate. The one genuinely new addition: no reveal or swipe data - counts, aggregates, "views" - on any shelter-facing surface (commitment #2) must be pinned by a test over the shelter-facing router's own output schemas, not left to review alone. When `last_confirmed_at` lands, the BR-6 pip decision is re-read against it too. **Status 2026-10-07:** contract/domain shapes proposed in `docs/h2-contract-proposal.md` (Opus), awaiting Oleksii's answers to its Q1-Q10. Answered 2026-10-07 (inbox H2-1..H2-14). **Slice S1 (confirmation date, branch `feat/h2-confirmation-date`):** freshness, deck keyset and gallery `freshest` read `listing.confirmedAt`/`last_confirmed_at` (migration 0006, backfilled from `last_updated_at`, guard: 0 rows needed GREATEST locally); listing FSM `transitionListing` + `publishGaps`. Verified locally (backfill test against pre-0006 rows, 35-pair table, 7 mutations); **0006 applied to production Neon 2026-10-07** (only branch, test data, Oleksii's standing OK): guard 0 rows, 256/256 discoverable confirmed = last_updated_at, 0 before publishedAt, both feed indexes on last_confirmed_at. S1 merged (#81). **S2a (evidence, `feat/h2-evidence`):** `registeredName` required (no backfill needed: seeded evidence lists are empty); shared `EvidenceItemInputSchema`/`toVerificationEvidence` with required `visitedOn`, used by `onboard-shelter.ts` (which refuses typed `documentKey`s until H2-6's private bucket exists); reseed question reopened as H2-17. Carried to the kabinet S2 handler: accept only `documentKey`s it issued itself. The schema's `.default(null)` makes the key omittable but enforces no provenance. S2a merged (#82); prod write guard merged (#83). **Prod reseeded to the demo profile 2026-10-12** (handoff §1.3, H2-17; backup branch `pre-demo-reseed`): 2 shelters, 18 animals, Oleksii's read-only checks as expected. **S2b (`feat/h2-shelter-state`):** `ShelterActor` on pause/resume/resubmit, `Shelter.pendingDonation` + `donationProviderOf`, withdrawal reason `{code, note}`, history entry union (shape only; table ships with its first writer); migration 0007. S2b merged (#84); **0007 applied to production 2026-10-12** by Oleksii (`--prod`), post-check 2 / 0 / 0 (pending_donation present; no old-shape pausedBy or reasons). **S3 + handlers slice (`feat/h2-kabinet-contracts`, PR #85, ready for review 2026-10-13):** S3 contracts (`shelterKabinetContract` 16 / `registryContract` 19, strict inputs, listing undo, `Shelter.version`) and the 16 `shelter.*` handlers with Better Auth magic-link sign-in, access middleware, audited writes, kabinet rate limits. Verified: `pnpm check` 1486 unit + harness 217 at 6a2fada; Tier 1 review per code commit (`docs/reviews/feat-h2-kabinet-contracts/`); 16 real cross-tenant tests; 0008 and 0009 on production: rehearsal skipped, post-hoc prod check passed (HS-T12, Oleksii). 0010 is the first rehearsed migration (rehearsal-0010, checks passed); 0010 then applied to production; Oleksii's read-only check on main: 11 migrations, draft 2/0, published 14/14, reserved 2/2, 0 mismatches. Asserted: all neon-http paths (carried to the invite PR, HS-Q12). Not built: `admin:grant`/`admin:revoke` (HS-Q4), a **merge blocker on the registry PR** (HS-T11, Oleksii). Follow-ups: HS-T4/T4b (invite PR), S3-T6 (`animals.version` in the next migration, rehearsed), copy E2/E3 / A1-A3 / B1 gate (HS-Q3). Done in #86: HS-T9, HS-T10; HS-T3 accepted, no work | 12 |
+| H3 | i18n - next-intl wiring, uk + en message files, full-ICU boot assertion. Also: native-speaker review of `pluralizeUk`'s output (`packages/domain/src/primitives/plural.ts`, added E2) across every noun form it composes - verified mechanically (`Intl.PluralRules('uk')` boundaries, tested at 1/2/5/11/21/22) but not by a native speaker, and animate feminine nouns plus accusative government under case-governing verbs ("Знайдено" vs "Підходить") is not something rule-reasoning alone reliably gets right | 4 |
+| H3.5 | Perf pass - **addition**, sits here rather than V2 or its own phase because all three items bundle naturally once H3 lands: e-Ukraine subsetting (and Literata's and Commissioner's, self-hosted unsubset since chore/literata and chore/commissioner - same reason; Cyrillic + Latin basic + punctuation; deferred from V2 specifically because the glyph set isn't final until H3's English strings and native-speaker Ukrainian pass exist - and stays generous even then, since a shelter's free-text `freshnessSentence` isn't a set anyone controls, so this subsets to a wide net rather than a tight one), ~~the `next/image` `sizes` attribute overshoot~~ (**done** - H1's real-R2 verification pass measured it as a live 2.1× overfetch on phones rather than a theoretical overshoot, and it was fixed in #48 and #50 with a variant-selection harness lock; nothing left here), and the image-loading priority heuristic. 95 KB across three weights isn't worth a dedicated pass on its own; bundled with the other two, it is | 3 |
+| H4 | PWA - Serwist, manifest, offline shell, Lighthouse pass. **Plus brand icons, merged from `docs/marketing/brand-improvements.md` #4 (2026-10-06):** no favicon, `icon`, `apple-icon` or manifest exists in `apps/web` today (checked). Next's file conventions, no dependency: favicon 16/32 without the dot, `icon` 192/512 and `apple-icon` 180 with it, plus a Telegram-avatar export with the mark at ~60 % of the diameter so the circle crop doesn't clip the threshold. The icon half has no Serwist dependency and lands ahead of the rest - BR-7 needs the mark. **Re-check stale clients (Oleksii, 2026-10-18):** skew protection keeps a client on its own deployment for at most 12 h, and an installed app can stay open longer; check what an older client does when a response shape has changed since (e.g. RUI4-F1's reveal view: an empty name line, no crash) | 8 |
+| H5 | Observability + legal - Sentry, PostHog, privacy policy (GDPR), consent handling, e-Ukraine's CC BY 4.0 attribution (licence file + user-reachable credit - should already exist from V2; this is the launch-readiness check that it's still there and still correct, not the first time it's added). Vercel Analytics + Speed Insights landed early, in Phase F - see `docs/stack-decision.md`'s "Amendment, Phase F" note; this row still owns the privacy policy and consent handling that should have accompanied them | 10 |
+| H6 | Real shelter data + soft launch - onboard 5-10 shelters, verify each through the FSM, spot-check every listing. H6-era, not before: the shelter leaflet, the "how to share a link" note, Opika's Telegram channel, the one press angle - `docs/marketing/brand-improvements.md` §8-9, `docs/marketing/adopter-launch-plan.md` | 12 |
 
 **Total: ~59 h** (50 h original + the admin desktop-layout addition + the H3.5 perf pass).
 
-**Done when:** matches the original M7–M12 definitions of done, unchanged — one uploaded
+**Done when:** matches the original M7-M12 definitions of done, unchanged - one uploaded
 photo produces all variants and renders through the CDN; a shelter and its animals can be
 added and verified without touching SQL; locale switch preserves route and state; the app
 installs on Android with Lighthouse ≥90; a thrown error appears in Sentry within a minute;
@@ -361,12 +361,12 @@ installs on Android with Lighthouse ≥90; a thrown error appears in Sentry with
 
 ---
 
-### Phase T — Trust and wayfinding
+### Phase T - Trust and wayfinding
 
 Added after the post-Phase F design and copy critiques (`docs/design-critique.md`,
 `docs/copy-and-ia-critique.md`). Not a polish phase, and the distinction is the whole
 reason it exists: of eighteen findings across both documents, almost nothing that was
-*built* is wrong — the reveal modal matches its mock down to the shadow value, touch-target
+*built* is wrong - the reveal modal matches its mock down to the shadow value, touch-target
 spacing is clean, register is consistent, every error state pairs what happened with what to
 do. The findings that matter are about **surfaces that do not exist**. This phase builds
 them.
@@ -376,11 +376,11 @@ volunteer is emailed a link, and T2 below is the page that link goes to.
 
 | # | Task | h |
 |---|---|---|
-| T1 | A header on every user-facing surface except the deck, carrying the wordmark and links to «Про проєкт» and «Для притулків». Closes critique E5 (the about page was linked from exactly one place in the whole app), E1 (a shared detail-page link arrived with no brand and no route to context), B2 (the detail header dropped the wordmark, contradicting mock D1) and E7. Takes the header to the design's own 64/88 heights in the same component (A2). **Deliberately not the deck** — `docs/design/README.md:589` states the deck's header replaces the gallery's, "never two navigations at once" | 3 |
-| T2 | «Для притулків» — the first surface in this project written for shelters rather than adopters, and the page an outreach message links to. Closes E3. Structure and argument in `docs/prytulkam-argument.md`; the Ukrainian is written from that structure, not translated from it | 4 |
-| T3 | A1 — reset the gallery card name to display-s (24/28) at desktop and wide. The compact 22/26 belongs to the 600–1023 horizontal card only, and was never un-set | 0.5 |
-| T4 | D1 — remove `pagination.footnote`, the product explaining its own engineering to an adopter who did not ask. `noMatch.suggestionExplainer` was **kept**: the critique described both as stray doc-comment text, but that one is verbatim mock copy (`Opika Registry System.dc.html:275`, frame B4), so cutting it would have been a design override rather than a copy fix | 0.5 |
-| T5 | C1 — one 25+ character animal name and one long shelter name in the seed corpus, so truncation is exercised near its limit permanently rather than by a manual check nobody repeats | 0.5 |
+| T1 | A header on every user-facing surface except the deck, carrying the wordmark and links to «Про проєкт» and «Для притулків». Closes critique E5 (the about page was linked from exactly one place in the whole app), E1 (a shared detail-page link arrived with no brand and no route to context), B2 (the detail header dropped the wordmark, contradicting mock D1) and E7. Takes the header to the design's own 64/88 heights in the same component (A2). **Deliberately not the deck** - `docs/design/README.md:589` states the deck's header replaces the gallery's, "never two navigations at once" | 3 |
+| T2 | «Для притулків» - the first surface in this project written for shelters rather than adopters, and the page an outreach message links to. Closes E3. Structure and argument in `docs/prytulkam-argument.md`; the Ukrainian is written from that structure, not translated from it | 4 |
+| T3 | A1 - reset the gallery card name to display-s (24/28) at desktop and wide. The compact 22/26 belongs to the 600-1023 horizontal card only, and was never un-set | 0.5 |
+| T4 | D1 - remove `pagination.footnote`, the product explaining its own engineering to an adopter who did not ask. `noMatch.suggestionExplainer` was **kept**: the critique described both as stray doc-comment text, but that one is verbatim mock copy (`Opika Registry System.dc.html:275`, frame B4), so cutting it would have been a design override rather than a copy fix | 0.5 |
+| T5 | C1 - one 25+ character animal name and one long shelter name in the seed corpus, so truncation is exercised near its limit permanently rather than by a manual check nobody repeats | 0.5 |
 
 **Total: ~8.5 h.**
 
@@ -390,63 +390,63 @@ involves, what verification means, and what to prepare, without emailing first; 
 name is 24/28 on every vertical card; and the seed corpus contains a name long enough to
 make `truncate` engage.
 
-**Explicitly not in this phase, accepted rather than deferred** — recorded so they are not
+**Explicitly not in this phase, accepted rather than deferred** - recorded so they are not
 rediscovered as new findings: A4 (0.2px of tracking at 44px), A3 (desktop padding 60px vs
-the spec's 32px — document whether it was intentional, then leave it), B1 (grid row-stretch
-whitespace, an observation), B3 (the first-run band above a zero-result state — revisit if
+the spec's 32px - document whether it was intentional, then leave it), B1 (grid row-stretch
+whitespace, an observation), B3 (the first-run band above a zero-result state - revisit if
 the no-match state is touched), C4 (the Ukrainian "11" plural boundary was unreachable on
 the live corpus; `packages/domain`'s own tests cover it), D3 (`freshness.attribution`'s
-middot-joined fragments — folds into H3's native-speaker pass), E4 (no report-a-stale-listing
+middot-joined fragments - folds into H3's native-speaker pass), E4 (no report-a-stale-listing
 path; with five shelters the maintainer *is* the reporting channel), E2 (downstream of E1).
 
-**Checked, not fixed, and paired with real work rather than manufactured:** C6 — the detail
+**Checked, not fixed, and paired with real work rather than manufactured:** C6 - the detail
 page's photo crop against real source aspect ratios. It concerns photographs of animals,
 which is the product, and it is genuinely unverified. It becomes checkable the moment a real
 shelter's photos land, so it belongs to the first onboarding (H6), not to a pass that would
 need invented test images.
 
-**Not in this phase, pending a measurement:** C7 — dark mode is fully specified in
+**Not in this phase, pending a measurement:** C7 - dark mode is fully specified in
 `docs/design/README.md` (8 tokens, each with a measured contrast ratio) and entirely
 unimplemented; there is no `prefers-color-scheme` or `dark:` rule anywhere in `globals.css`.
 The critique established that the media query never fires, which is *not* the same as
 establishing severity: Android Chrome's Auto Dark Theme does not read that query, it
 actively rewrites colours on pages that do not declare dark support, and it handles a warm
-cream ground (`#ECECEA`) worst of all. So the real question — "some users see a light page"
-versus "some users see a mangled page" — is unanswered until it is checked on real Android
+cream ground (`#ECECEA`) worst of all. So the real question - "some users see a light page"
+versus "some users see a mangled page" - is unanswered until it is checked on real Android
 hardware with forced dark mode on. That check gates whether this is a phase or a shrug.
 
 ---
 
-### Phase D — Demo honesty
+### Phase D - Demo honesty
 
 Production is publicly reachable and holds 320 fabricated animals from fabricated shelters,
 unlabelled, while `/prytulkam` opens with «реєстр тварин із перевірених притулків». A shelter
 volunteer can open the site before replying to an outreach message and see a registry of
-animals that do not exist. This phase does not remove the demo data — it labels it,
+animals that do not exist. This phase does not remove the demo data - it labels it,
 de-indexes it, and makes the seeded corpus varied enough to actually test the surfaces it
 exercises, rather than remaining a well-behaved fiction that never breaks anything.
 
 Planned in a working session whose transcript, not this document, was its only record until
-now — written down here per `docs/standing-constraints.md`'s "check a document's claims
+now - written down here per `docs/standing-constraints.md`'s "check a document's claims
 before relying on them" and "one document per subject," after `opika-reviewer` correctly
 flagged every `D-#` code comment referencing a plan that didn't exist in `docs/`. Hours were
 not estimated per row in the original brief; none are given below rather than invented.
 
 Three rows (DECK-1 through DECK-3) were carved out first and already shipped, because D-2's
-banner needs a deck with spare height budget and the deck had none — see their own commit
+banner needs a deck with spare height budget and the deck had none - see their own commit
 messages and `docs/design/README.md`'s text-scaling-gap section for the full record.
 
-**Reprioritised, 2026-09-06 — reduced scope, recorded as a decision, not drift.** This
+**Reprioritised, 2026-09-06 - reduced scope, recorded as a decision, not drift.** This
 phase's opening paragraph argues from a shelter volunteer opening the site before being
 told what it is. That premise no longer holds: Oleksii has decided no outreach happens
 until the MVP gate, and the site is `noindex`ed and not publicly discoverable
 (`SITE_IS_PUBLICLY_DISCOVERABLE = false`, Part 5's "Before any route is indexed"). Nobody
-arrives. The disclosure work that actually answered the original argument — the demo
+arrives. The disclosure work that actually answered the original argument - the demo
 banner, the metadata swap, the two-constant flag split, `robots.ts` allowing crawl so the
-`noindex` can be seen at all — is done, on PR #53, D-1/D-2/D-3. What remained splits into
+`noindex` can be seen at all - is done, on PR #53, D-1/D-2/D-3. What remained splits into
 three different kinds of work, and only two of them earn time before the gate:
 
-- **Data protection** (D-9) is real regardless of who can see the site — a stray
+- **Data protection** (D-9) is real regardless of who can see the site - a stray
   `pnpm db:seed --force` truncating a database that by then holds a real onboarded shelter
   is unrecoverable, and that risk doesn't wait for launch. **Kept, reduced.** The marker
   column + migration this row originally specified is dropped; the same protection is
@@ -454,17 +454,17 @@ three different kinds of work, and only two of them earn time before the gate:
   migration. See the row below for the exact mechanism.
 - **UI test data** (D-4, D-6) makes rendering problems visible *now*, while the product is
   still being judged and iterated on. The current corpus is well-behaved, which is
-  precisely why it never breaks in front of Oleksii — a hostile corpus and real awkward
+  precisely why it never breaks in front of Oleksii - a hostile corpus and real awkward
   photographs are the actual finding-generator D-4/D-6 always were, independent of who is
   or isn't looking at production. **Kept, reframed as local-only.** Nothing here runs
   against a production connection string; `pnpm db:seed` already refuses a non-localhost
   target (and D-9 below hardens exactly that check), so this was never at risk of touching
   production, but it's stated here explicitly rather than left implicit.
 - **Paperwork for a transition that is weeks away** (D-5's placeholder-contact format, D-7's
-  transition procedure) has no audience to protect yet — a fake phone number on a page
+  transition procedure) has no audience to protect yet - a fake phone number on a page
   nobody but the maintainer can reach harms no one. Writing it now would be effort spent
   against a target that will have moved by the time it matters (D-5's own placeholder
-  *format* is a real open design decision — see below — and deciding it eight weeks before
+  *format* is a real open design decision - see below - and deciding it eight weeks before
   it's load-bearing risks deciding it twice). **Both deferred**, not dropped: moved to a
   single build-plan row each, due in the hour before `SITE_IS_PUBLICLY_DISCOVERABLE` is
   flipped (Part 5), so the obligation is recorded rather than quietly lost. See D-5 and D-7
@@ -484,35 +484,35 @@ its own due point, not met by this phase.
 
 | # | Task | Status |
 |---|---|---|
-| DECK-1 | Invert what the deck's card yields under height pressure — the photo shrinks (to a documented floor), never the shelter-line text. Recovered −22px (320×640) and 0px (360×640) margins to 12px everywhere | **Done** — #52 |
-| DECK-2 | The deck's three 44px touch targets (back-to-list, gallery's mobile deck-entry, error-state retry) raised to 48px, plus the retry button's missing focus ring. Cost lands on photo height (DECK-1's slack) at every 640-tall viewport; at 390×844 the photo is already pinned at its `max-h-99` ceiling and can't absorb, so there the 4px comes off the shelter-line margin instead (20 → 16, still clear of that viewport's floor) | **Done** — #52 |
-| DECK-3 | Record, not assert, that Android text-scaling is unverifiable in the Playwright harness (`-webkit-text-size-adjust` has no effect in desktop Chromium) | **Done** — #52 |
-| D-0 | Remove the production `DATABASE_URL` from Oleksii's persistent Windows environment. **Blocks:** nothing in this phase as of the 2026-09-06 reprioritisation (see above) — D-6 is local-only, D-9 is verified against a local DB, D-7 is deferred past this phase | Open — Oleksii's, off the critical path |
-| D-1 | Two constants, not one: `REGISTRY_HAS_NO_REAL_SHELTERS` (drives the demo banner, `firstRun.promise` swap, `shelterVerifiedYears` badge suppression — all D-2) and `SITE_IS_PUBLICLY_DISCOVERABLE` (drives `X-Robots-Tag` and, since D-3, the root-layout `robots` metadata — `robots.ts` itself no longer reads either flag), plus `assertDemoDiscoverabilityInvariant`, thrown only if both are true and permitting the launch-gate window below where real shelters predate public discoverability. The real day-to-day gate is `seo-flags.test.ts` catching that combination in CI on the real constants before either reaches a deploy; the runtime call from `instrumentation.ts` is defense-in-depth, not a verified hard boot refusal — a throw there follows `validateEnv()`'s own documented behaviour (`apps/web/src/api/env.ts`: per-request 500s, not a stop). A single flag shipped first (#43) and was reverted here after `docs/standing-constraints.md`'s "two facts" entry — see that entry and this row's own history for why | Done |
-| D-3 | Add `robots` to root-layout metadata; drop `Disallow: /` from `robots.ts`. `Disallow: /` stops a crawler fetching pages at all, so it never reads a page's own `noindex` meta or the `X-Robots-Tag` header — an already-indexed URL can't be de-indexed without the crawler visiting it, which `Disallow: /` itself prevents. Root-layout metadata avoids that trap. **Depends on:** D-1 | Done |
-| D-2 | Compact demo notice inside the deck's existing header row (replace, don't add — zero new height) plus the `firstRun.promise` swap and `shelterVerifiedYears` badge suppression. Ukrainian ships real text, pinned empty of `[COPY PENDING]` by `copy-status.test.ts`. **Depends on:** D-1 | **Done, 2026-09-06 — Ukrainian landed, nothing renders a marker anywhere.** Decided (Oleksii, Phase D decisions): the deck notice (`uk.demo.deckLabel`, «Демо») replaces only `filtersLabel` — the position count stays (demo mode is the whole testing period; a deck missing the count for weeks isn't the deck being tested); the progress bar degrades instead, hidden unconditionally whenever the notice shows, which is what buys it its width. Recorded as a Phase D deviation in `docs/design/README.md`'s deck-chrome section. Width budget measured before the copy landed, bar hidden: tightest at 320px (~107px available), a 12-character label fits, 14 clips — «Демо» (4 characters) is nowhere near that ceiling; geometry re-asserted since at four viewports by the harness against the real shipped string (`discovery-layout.harness.ts`'s "demo banner" block). **Amendment to the original `og:description` decision:** it said omit entirely rather than render `[COPY PENDING]` — a fallback for having no honest string. With `uk.demo.bannerNotice` real, the root layout defaults to it as the description while the flag is true; the detail page's not-a-judgement notice (recovered verbatim, «просто» included, from the deleted `firstRun.disclaimer` — not this document's own D-3 row, an unrelated robots-metadata task — see `docs/observations.md`) is also real and live now. **Provenance:** `uk.demo.bannerNotice`/`uk.demo.deckLabel` (renamed from `promise`/`bannerNotice` on 2026-09-06 — the original names described each other's contents, not their own) were drafted by Claude from an English sense; Oleksii selected these from offered options on 2026-09-05. The notice's «просто» clause was briefly dropped by an unapproved Claude edit and reverted; the shipped sentence is Oleksii's own pre-existing copy, reproduced verbatim, needing no fresh approval. Full record in `docs/observations.md`'s O-3 section. **Route scope (Option B, 2026-09-06):** the root layout's description swap is a default every route inherits unless it overrides — `/tvaryny/[animalId]` overrides with its own per-animal swap (its `generateMetadata` didn't inherit the root's default at all; Next overrides route metadata rather than merging it, so this was fixed in the same pass, asserted in `seo-flags.test.ts` for both flag states); `/prytulkam` and `/pro` override with their own existing opening sentences (`uk.forShelters.whatThisIs`, `uk.about.intro`) instead of the demo swap — that disclosure was never meant to reach those two specifically. **Badge positive control (PR #53 review):** the harness only ever checked the badge's suppressed state, an absence check with no proof the assertion would catch the badge's JSX being deleted outright rather than gated — `AnimalDetailScreen.test.tsx` (new) exercises both flag states directly, mutation-confirmed both directions (deleting the badge, and inverting the condition) |
-| D-8 | Make the image path honest in dev/test: no `.env.local`/R2 credentials, every route still renders. **Blocks:** D-4, D-6 | **Done, 2026-09-06 — already true of the shipped H1 code, verified rather than assumed.** `image-loader.ts`'s `isRealPhotoKey` gate only routes the `animals/` namespace through the R2 CDN URL; `packages/db/src/seed.ts`'s fictional corpus stores plain `seed-photos/*.jpg` keys, which fall through to the pre-H1 root-relative path unconditionally — already unit-tested in `image-loader.test.ts`. What hadn't been checked with a real build: `apps/web/.env.local` was renamed aside (no R2 var anywhere in the shell either), then `pnpm build:web` and the full `pnpm test:harness` (171/171, every route including `/tvaryny/[animalId]`) were run against that real build and passed — `.env.local` restored unread afterward. CI already exercises this on every run without knowing it: no workflow secret ever sets an R2 var and no `.env.local` exists in a checkout, so `build:web`/`test:harness` going green in CI *is* this row's regression guard going forward, not merely an accident of the sandbox this was checked in |
-| D-9 | **Reduced, 2026-09-06 (see above) — no marker column, no migration.** `seed.ts`'s `assertSafeSeedTarget` refuses any non-localhost target outright, full stop; the only override is `--force` **and** `--db-name=<name>` together, the name read out of `DATABASE_URL` itself and matched exactly — `--force` alone is no longer sufficient. Same protection against truncating a database holding a real shelter as the original marker-column design, in a function instead of a migration and a backfill. **Verified against a real local database, not by reading the code:** `localtest.me` (public DNS, resolves to `127.0.0.1`) reaches the same local Postgres without textually matching localhost — proved refused-then-allowed against it, animal count checked before and after each run. **Mutation-tested**, not just unit-tested: the guard's body was temporarily neutered (a one-line `return;`, via `sed`, never through the linted `Edit` path, reverted immediately after) and the exact previously-refused command was re-run — it proceeded and truncated, confirming the guard itself was what had been stopping it. **`opika-reviewer` caught a real hole in the first version, not a style note:** the initial `isLocalhost` check tested `/localhost\|127\.0\.0\.1\|0\.0\.0\.0/` against the *whole connection string*, a substring test satisfiable from inside a password, database name, or query parameter — the reviewer constructed `postgres://opika:pass_localhost_x@db.neon.tech/opika_prod` and confirmed it truncated a real database with **zero flags**. Fixed to an exact match on `new URL(databaseUrl).hostname`; re-verified with the reviewer's own exploit string against the real local database (refused, exit 1, row count unchanged) before this row was marked done. Also fixed: an empty `--db-name=` no longer trivially matches a pathless `DATABASE_URL`'s own empty database name. **Round 2 of review** found the first fix for that second issue left one of its two length checks unmutation-pinned (removing `actualDbName.length > 0` alone still passed all 11 tests); simplified to the single clause that's actually load-bearing and confirmed by deleting it that the exact test built to catch this now goes red. 11 unit tests (`packages/db/test/seed-safety.test.ts`) cover the full matrix, including the reviewer's hostname-substring exploit as a permanent regression test. **One low-severity item accepted, not fixed:** a malformed multi-host `DATABASE_URL` (e.g. `postgres://a:5433,b:5432/db`) throws an unhandled `TypeError` from `new URL()` instead of the guard's own error message — fails closed (nothing truncates, since the throw happens before any connection is opened), message quality only, not pursued further per the loop's two-review-round cap | Done |
-| D-5 | **Deferred, 2026-09-06 (see above) — dropped from this phase, not from the plan.** Every demo shelter's contact is a clearly-marked placeholder sentinel; no invented phone number or handle anywhere in the corpus. Moved to Part 5's launch gate as its own row, due in the hour before `SITE_IS_PUBLICLY_DISCOVERABLE` is flipped — see that section. The exact placeholder *format* (an obviously-fake number pattern vs. a real-shaped number with a visible marker suffix vs. something else) is still an open design decision, deliberately not settled here: deciding it now, weeks before it's load-bearing, risks deciding it twice | Deferred to Part 5, before public discoverability |
-| D-4 | Hostile corpus: registered/unregistered legal forms, with/without donation link, a wrapping shelter name, no freshness sentence, 0/1/6-photo animals, a wrapping animal name, no description, unknown vaccination, one reserved-and-listed, freshness anchors spanning all three pip states on one page. **Reframed, 2026-09-06:** this is UI test data, not demo hygiene — it makes rendering problems visible now, independent of who can reach the site. Local-only; no production connection string ever touched. **Depends on:** D-9 (safety-ordering only — D-4 runs against the same local DB D-9 hardens, not a hard blocker); D-5 dropped as a dependency (contact-format honesty is unrelated to corpus shape). **Audited against the shipped corpus before writing anything** — most of this list was already true: donation-link variance, no-freshness-sentence, the wrapping shelter/animal names (Phase T, C1), and unknown vaccination (30% of animals, `roll >= 7`) all pre-existed, but **had zero test coverage anywhere** (caught on review — see below). "Reserved-and-listed" is structural, not seed-data — decision #16 keeps every reserved animal in the feed by construction, nothing to add. What was genuinely missing, built and **verified against the real local database, not by reading the code**: (1) legal-entity variance — every one of 8 shelters was `registered_ngo`; one (`Притулок «Вірний друг»`) is now `unregistered_initiative`, `ShelterLegalEntitySchema`'s third variant. **Narrowed on review:** this does *not* exercise CLAUDE.md decision #6's verification-policy pathway — `buildVerification` constructs every shelter's `verified` status directly with an empty `evidence.items`, never consulting `meetsEvidenceRequirements`, and nothing in `packages/contracts`/`apps/web` reads `legalEntity` at all today (`PublicShelterViewSchema` omits it). What's true, no more: the corpus holds a non-registered legal entity for the first time, ready as a fixture for whenever onboarding/H2 work needs one — `select legal_entity->>'kind', count(*) from shelters group by 1` confirmed 1/7 after reseeding; (2) a *published* (non-draft) animal with 0 photos and one with 6 — the old formula gave 0 photos only to drafts and capped at 5; two fixed indices (`ZERO_PHOTO_PUBLISHED_INDEX`/`SIX_PHOTO_INDEX`) override it, confirmed present by a direct `jsonb_array_length(photos)` query (the six-photo animal is a dog and `DOG_PHOTOS` has 5 entries, so it's a duplicate-photo case too, noted in the comment rather than padding the pool to hide it); (3) a minimal one-line description ("Опис відсутній.") on one animal — `Animal.description` is `LocalizedTextSchema`, `uk: z.string().min(1)` required, so a genuinely empty description isn't a constructable `Animal` at all; this is the closest honest domain-valid representation of "no description," not a schema change nobody asked for. **Freshness-anchors-on-one-page was checked, not assumed, and turned out to already be true**: filtering by city (Вишгород, index 4 — a real, reachable `?misto=` filter, not an invented mechanism) yields discoverable animals (published + reserved, verified shelters only — the real feed predicate, not a stand-in) spanning fresh/aging/stale simultaneously, well under one gallery page — found by querying the real per-city freshness-bucket breakdown before writing any new code. **Two review rounds caught real issues, both fixed:** round 1 — the legal-entity construction was a ternary chain defaulting silently to `registered_ngo` for any unhandled kind, and `legalEntityKind` was a hand-copied literal union rather than `ShelterLegalEntity["kind"]` itself, so the "exhaustive switch" it was rewritten into (matching `buildVerification`'s own compiler-guided switch) wasn't actually exhaustive against the real schema — confirmed both ways by round 2: adding a fourth schema variant now fails this file's own build (`Type '"municipal_shelter"' is not assignable to type 'never'`), reverted after confirming. Also round 1: four of the five already-true items (no freshness sentence, no donation link, unknown vaccination, the long shelter name) had zero test coverage anywhere. **Correction from round 2:** the fifth, the long animal name, already had real coverage — `apps/web/test/harness/site-header.harness.ts`'s "a name long enough to need it exists in the corpus and is actually clipped" dynamically finds it across 10 gallery pages and asserts both existence and clipping, stronger than a corpus-level presence check. Its new unit-test pin here is a deliberate, faster-failing duplicate (1s, no database, no build), not new coverage — kept for that reason, not because the coverage gap was real. All of it — the 4 built cases, the 1 discovered case, and the 5 already-true items (4 newly pinned, 1 already covered by the harness and now double-pinned) — sits in `packages/db/test/seed-corpus.test.ts`, 10 fast unit tests calling `buildShelters`/`buildAnimals` directly, no database, so a future formula change can't silently break any of them | Done |
-| D-6 | 5–6 real CC0/public-domain photographs through the R2 pipeline, provenance recorded per file, no operator-identifying EXIF/IPTC, at deliberately awkward ratios (9:16 screenshot, 16:9, EXIF-rotated, ~400px, ~4000px) — feeds O-10 and critique-item C6 (detail-page photo crop; see Part 2's Phase T, "checked not fixed" — not build-plan's own, unrelated C6 in Phase C). **Reframed, 2026-09-06: local-only, D-0 dropped as a dependency** — the corpus and the Postgres side of this run entirely against a local DB. Licensing discipline unchanged: strict CC0/public domain, provenance recorded per file, EXIF **and** IPTC stripped and verified with `exiftool`; if a licence can't be established from the source page itself, the image is discarded. **Real open gap, not yet resolved:** the actual R2 upload step needs write credentials (`R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET_NAME`), which by `.env.example`'s own section 2 policy are never saved to a file and belong to an operator's own machine — there is no separate dev/demo bucket documented anywhere, only the one bucket `onboard-shelter.ts` targets. Sourcing, provenance recording, and EXIF/IPTC stripping can all happen without them; the upload itself needs either Oleksii running it with his own credentials against the prepared image set, or a deliberate decision to provision a second bucket so demo photos never share storage with a future real shelter's. **Depends on:** D-9 (safety-ordering only) | **Sourcing, download, stripping and seed-wiring done, 2026-10-06** (`feat/d-6-detail-photo-gallery`) — see below for the original candidate list. All 6 downloaded; `exiftool` was unavailable on the machine (no admin rights), so `sharp` (already a `packages/db` dependency) did the EXIF/IPTC/XMP stripping and verification instead, metadata presence checked directly via `sharp(...).metadata()` before and after rather than assumed — full account in `apps/web/public/seed-photos/d6-real/SOURCES.md`. 4 of the 6 (dog-only; the EXIF-rotated file and the bonus photo are cats, see SOURCES.md) are wired into `packages/db/src/seed.ts`'s `SIX_PHOTO_INDEX` animal via `D6_REAL_DOG_PHOTOS`/`makeD6Photos`. **Round-2 review correction, 2026-10-06:** `DetailPhotoGallery.tsx`'s gallery caps at 3 photos, so only 3 of these 4 are ever visible through it — `D6_REAL_DOG_PHOTOS` is ordered tall/wide/large so the two most extreme ratios and the largest pixel dimensions are the ones a visitor actually sees, with the near-square small photo last (never reachable via this gallery, though still present in `animal.photos`). **Still open:** the R2 upload itself (unchanged from the original gap noted above — an operator's own credentials, Tier 1). D6-1 (the small-photo candidate's human-forearm content) is in `docs/decisions-inbox/feat-d-6-detail-photo-gallery.md`, awaiting Oleksii. |
-| D-7 | Write the demo-to-real transition into `docs/standing-constraints.md` and the onboarding checklist: wipe before the first `onboard-shelter --commit`; the banner (`REGISTRY_HAS_NO_REAL_SHELTERS`) comes down when the wipe happens, separately from noindex (`SITE_IS_PUBLICLY_DISCOVERABLE`), which stays down through the launch-gate window until the site is actually meant to be found — the two do **not** come down together, that is the whole point of D-1's two constants; why `robots.txt` allowing crawl is deliberate; the coexistence window named as the point of maximum danger. **Deferred, 2026-09-06 (see above)** — paperwork for a transition weeks away; moved to Part 5's launch gate alongside D-5, both due in the hour before the flip, not before. **Depends on:** D-0 | Deferred to Part 5, before public discoverability |
+| DECK-1 | Invert what the deck's card yields under height pressure - the photo shrinks (to a documented floor), never the shelter-line text. Recovered −22px (320×640) and 0px (360×640) margins to 12px everywhere | **Done** - #52 |
+| DECK-2 | The deck's three 44px touch targets (back-to-list, gallery's mobile deck-entry, error-state retry) raised to 48px, plus the retry button's missing focus ring. Cost lands on photo height (DECK-1's slack) at every 640-tall viewport; at 390×844 the photo is already pinned at its `max-h-99` ceiling and can't absorb, so there the 4px comes off the shelter-line margin instead (20 → 16, still clear of that viewport's floor) | **Done** - #52 |
+| DECK-3 | Record, not assert, that Android text-scaling is unverifiable in the Playwright harness (`-webkit-text-size-adjust` has no effect in desktop Chromium) | **Done** - #52 |
+| D-0 | Remove the production `DATABASE_URL` from Oleksii's persistent Windows environment. **Blocks:** nothing in this phase as of the 2026-09-06 reprioritisation (see above) - D-6 is local-only, D-9 is verified against a local DB, D-7 is deferred past this phase | Open - Oleksii's, off the critical path |
+| D-1 | Two constants, not one: `REGISTRY_HAS_NO_REAL_SHELTERS` (drives the demo banner, `firstRun.promise` swap, `shelterVerifiedYears` badge suppression - all D-2) and `SITE_IS_PUBLICLY_DISCOVERABLE` (drives `X-Robots-Tag` and, since D-3, the root-layout `robots` metadata - `robots.ts` itself no longer reads either flag), plus `assertDemoDiscoverabilityInvariant`, thrown only if both are true and permitting the launch-gate window below where real shelters predate public discoverability. The real day-to-day gate is `seo-flags.test.ts` catching that combination in CI on the real constants before either reaches a deploy; the runtime call from `instrumentation.ts` is defense-in-depth, not a verified hard boot refusal - a throw there follows `validateEnv()`'s own documented behaviour (`apps/web/src/api/env.ts`: per-request 500s, not a stop). A single flag shipped first (#43) and was reverted here after `docs/standing-constraints.md`'s "two facts" entry - see that entry and this row's own history for why | Done |
+| D-3 | Add `robots` to root-layout metadata; drop `Disallow: /` from `robots.ts`. `Disallow: /` stops a crawler fetching pages at all, so it never reads a page's own `noindex` meta or the `X-Robots-Tag` header - an already-indexed URL can't be de-indexed without the crawler visiting it, which `Disallow: /` itself prevents. Root-layout metadata avoids that trap. **Depends on:** D-1 | Done |
+| D-2 | Compact demo notice inside the deck's existing header row (replace, don't add - zero new height) plus the `firstRun.promise` swap and `shelterVerifiedYears` badge suppression. Ukrainian ships real text, pinned empty of `[COPY PENDING]` by `copy-status.test.ts`. **Depends on:** D-1 | **Done, 2026-09-06 - Ukrainian landed, nothing renders a marker anywhere.** Decided (Oleksii, Phase D decisions): the deck notice (`uk.demo.deckLabel`, «Демо») replaces only `filtersLabel` - the position count stays (demo mode is the whole testing period; a deck missing the count for weeks isn't the deck being tested); the progress bar degrades instead, hidden unconditionally whenever the notice shows, which is what buys it its width. Recorded as a Phase D deviation in `docs/design/README.md`'s deck-chrome section. Width budget measured before the copy landed, bar hidden: tightest at 320px (~107px available), a 12-character label fits, 14 clips - «Демо» (4 characters) is nowhere near that ceiling; geometry re-asserted since at four viewports by the harness against the real shipped string (`discovery-layout.harness.ts`'s "demo banner" block). **Amendment to the original `og:description` decision:** it said omit entirely rather than render `[COPY PENDING]` - a fallback for having no honest string. With `uk.demo.bannerNotice` real, the root layout defaults to it as the description while the flag is true; the detail page's not-a-judgement notice (recovered verbatim, «просто» included, from the deleted `firstRun.disclaimer` - not this document's own D-3 row, an unrelated robots-metadata task - see `docs/observations.md`) is also real and live now. **Provenance:** `uk.demo.bannerNotice`/`uk.demo.deckLabel` (renamed from `promise`/`bannerNotice` on 2026-09-06 - the original names described each other's contents, not their own) were drafted by Claude from an English sense; Oleksii selected these from offered options on 2026-09-05. The notice's «просто» clause was briefly dropped by an unapproved Claude edit and reverted; the shipped sentence is Oleksii's own pre-existing copy, reproduced verbatim, needing no fresh approval. Full record in `docs/observations.md`'s O-3 section. **Route scope (Option B, 2026-09-06):** the root layout's description swap is a default every route inherits unless it overrides - `/tvaryny/[animalId]` overrides with its own per-animal swap (its `generateMetadata` didn't inherit the root's default at all; Next overrides route metadata rather than merging it, so this was fixed in the same pass, asserted in `seo-flags.test.ts` for both flag states); `/prytulkam` and `/pro` override with their own existing opening sentences (`uk.forShelters.whatThisIs`, `uk.about.intro`) instead of the demo swap - that disclosure was never meant to reach those two specifically. **Badge positive control (PR #53 review):** the harness only ever checked the badge's suppressed state, an absence check with no proof the assertion would catch the badge's JSX being deleted outright rather than gated - `AnimalDetailScreen.test.tsx` (new) exercises both flag states directly, mutation-confirmed both directions (deleting the badge, and inverting the condition) |
+| D-8 | Make the image path honest in dev/test: no `.env.local`/R2 credentials, every route still renders. **Blocks:** D-4, D-6 | **Done, 2026-09-06 - already true of the shipped H1 code, verified rather than assumed.** `image-loader.ts`'s `isRealPhotoKey` gate only routes the `animals/` namespace through the R2 CDN URL; `packages/db/src/seed.ts`'s fictional corpus stores plain `seed-photos/*.jpg` keys, which fall through to the pre-H1 root-relative path unconditionally - already unit-tested in `image-loader.test.ts`. What hadn't been checked with a real build: `apps/web/.env.local` was renamed aside (no R2 var anywhere in the shell either), then `pnpm build:web` and the full `pnpm test:harness` (171/171, every route including `/tvaryny/[animalId]`) were run against that real build and passed - `.env.local` restored unread afterward. CI already exercises this on every run without knowing it: no workflow secret ever sets an R2 var and no `.env.local` exists in a checkout, so `build:web`/`test:harness` going green in CI *is* this row's regression guard going forward, not merely an accident of the sandbox this was checked in |
+| D-9 | **Reduced, 2026-09-06 (see above) - no marker column, no migration.** `seed.ts`'s `assertSafeSeedTarget` refuses any non-localhost target outright, full stop; the only override is `--force` **and** `--db-name=<name>` together, the name read out of `DATABASE_URL` itself and matched exactly - `--force` alone is no longer sufficient. Same protection against truncating a database holding a real shelter as the original marker-column design, in a function instead of a migration and a backfill. **Verified against a real local database, not by reading the code:** `localtest.me` (public DNS, resolves to `127.0.0.1`) reaches the same local Postgres without textually matching localhost - proved refused-then-allowed against it, animal count checked before and after each run. **Mutation-tested**, not just unit-tested: the guard's body was temporarily neutered (a one-line `return;`, via `sed`, never through the linted `Edit` path, reverted immediately after) and the exact previously-refused command was re-run - it proceeded and truncated, confirming the guard itself was what had been stopping it. **`opika-reviewer` caught a real hole in the first version, not a style note:** the initial `isLocalhost` check tested `/localhost\|127\.0\.0\.1\|0\.0\.0\.0/` against the *whole connection string*, a substring test satisfiable from inside a password, database name, or query parameter - the reviewer constructed `postgres://opika:pass_localhost_x@db.neon.tech/opika_prod` and confirmed it truncated a real database with **zero flags**. Fixed to an exact match on `new URL(databaseUrl).hostname`; re-verified with the reviewer's own exploit string against the real local database (refused, exit 1, row count unchanged) before this row was marked done. Also fixed: an empty `--db-name=` no longer trivially matches a pathless `DATABASE_URL`'s own empty database name. **Round 2 of review** found the first fix for that second issue left one of its two length checks unmutation-pinned (removing `actualDbName.length > 0` alone still passed all 11 tests); simplified to the single clause that's actually load-bearing and confirmed by deleting it that the exact test built to catch this now goes red. 11 unit tests (`packages/db/test/seed-safety.test.ts`) cover the full matrix, including the reviewer's hostname-substring exploit as a permanent regression test. **One low-severity item accepted, not fixed:** a malformed multi-host `DATABASE_URL` (e.g. `postgres://a:5433,b:5432/db`) throws an unhandled `TypeError` from `new URL()` instead of the guard's own error message - fails closed (nothing truncates, since the throw happens before any connection is opened), message quality only, not pursued further per the loop's two-review-round cap | Done |
+| D-5 | **Deferred, 2026-09-06 (see above) - dropped from this phase, not from the plan.** Every demo shelter's contact is a clearly-marked placeholder sentinel; no invented phone number or handle anywhere in the corpus. Moved to Part 5's launch gate as its own row, due in the hour before `SITE_IS_PUBLICLY_DISCOVERABLE` is flipped - see that section. The exact placeholder *format* (an obviously-fake number pattern vs. a real-shaped number with a visible marker suffix vs. something else) is still an open design decision, deliberately not settled here: deciding it now, weeks before it's load-bearing, risks deciding it twice | **This row (the full `test`-profile corpus, live in production today): dropped, Oleksii, 2026-10-24** - his reasoning: the launch order wipes that corpus (`demo:remove`) before `SITE_IS_PUBLICLY_DISCOVERABLE` ever flips, so no demo contact from it is ever indexed. **Correction to how that was first written up (caught on review):** the wipe happens *after* the first real shelter is onboarded, not before one exists at all (DR-Q2) - what actually protects this row's concern is the wipe landing before the *discoverability flip*, a later, separate step in the same launch order, not before the real shelter record itself. **Superseded the same day by his own full-reset pivot:** `docs/launch-sequence.md` empties every table - the full corpus this row describes included - before any real or rehearsal data exists at all, closing the concern by construction rather than by timing; the "wipe after onboarding, before the flip" ordering above is the superseded plan. **A related but distinct item exists and is not closed by either:** `docs/handoff-2026-10-04.md` §3 row 3 pulled a *version* of this same concern forward into Phase 3 for the separate, two-shelter `demo` seed profile (shown to real people during the dress rehearsal/preview deploy, not the full corpus this row describes) - built (`seed.ts`'s `.invalid` email, all-zero phone, no donation link, a fictional address) and pinned (`seed-profiles.test.ts`), but its own format decision (SP-1, `docs/decisions-inbox.md`) is still "default-taken," not his confirmed answer |
+| D-4 | Hostile corpus: registered/unregistered legal forms, with/without donation link, a wrapping shelter name, no freshness sentence, 0/1/6-photo animals, a wrapping animal name, no description, unknown vaccination, one reserved-and-listed, freshness anchors spanning all three pip states on one page. **Reframed, 2026-09-06:** this is UI test data, not demo hygiene - it makes rendering problems visible now, independent of who can reach the site. Local-only; no production connection string ever touched. **Depends on:** D-9 (safety-ordering only - D-4 runs against the same local DB D-9 hardens, not a hard blocker); D-5 dropped as a dependency (contact-format honesty is unrelated to corpus shape). **Audited against the shipped corpus before writing anything** - most of this list was already true: donation-link variance, no-freshness-sentence, the wrapping shelter/animal names (Phase T, C1), and unknown vaccination (30% of animals, `roll >= 7`) all pre-existed, but **had zero test coverage anywhere** (caught on review - see below). "Reserved-and-listed" is structural, not seed-data - decision #16 keeps every reserved animal in the feed by construction, nothing to add. What was genuinely missing, built and **verified against the real local database, not by reading the code**: (1) legal-entity variance - every one of 8 shelters was `registered_ngo`; one (`Притулок «Вірний друг»`) is now `unregistered_initiative`, `ShelterLegalEntitySchema`'s third variant. **Narrowed on review:** this does *not* exercise CLAUDE.md decision #6's verification-policy pathway - `buildVerification` constructs every shelter's `verified` status directly with an empty `evidence.items`, never consulting `meetsEvidenceRequirements`, and nothing in `packages/contracts`/`apps/web` reads `legalEntity` at all today (`PublicShelterViewSchema` omits it). What's true, no more: the corpus holds a non-registered legal entity for the first time, ready as a fixture for whenever onboarding/H2 work needs one - `select legal_entity->>'kind', count(*) from shelters group by 1` confirmed 1/7 after reseeding; (2) a *published* (non-draft) animal with 0 photos and one with 6 - the old formula gave 0 photos only to drafts and capped at 5; two fixed indices (`ZERO_PHOTO_PUBLISHED_INDEX`/`SIX_PHOTO_INDEX`) override it, confirmed present by a direct `jsonb_array_length(photos)` query (the six-photo animal is a dog and `DOG_PHOTOS` has 5 entries, so it's a duplicate-photo case too, noted in the comment rather than padding the pool to hide it); (3) a minimal one-line description ("Опис відсутній.") on one animal - `Animal.description` is `LocalizedTextSchema`, `uk: z.string().min(1)` required, so a genuinely empty description isn't a constructable `Animal` at all; this is the closest honest domain-valid representation of "no description," not a schema change nobody asked for. **Freshness-anchors-on-one-page was checked, not assumed, and turned out to already be true**: filtering by city (Вишгород, index 4 - a real, reachable `?misto=` filter, not an invented mechanism) yields discoverable animals (published + reserved, verified shelters only - the real feed predicate, not a stand-in) spanning fresh/aging/stale simultaneously, well under one gallery page - found by querying the real per-city freshness-bucket breakdown before writing any new code. **Two review rounds caught real issues, both fixed:** round 1 - the legal-entity construction was a ternary chain defaulting silently to `registered_ngo` for any unhandled kind, and `legalEntityKind` was a hand-copied literal union rather than `ShelterLegalEntity["kind"]` itself, so the "exhaustive switch" it was rewritten into (matching `buildVerification`'s own compiler-guided switch) wasn't actually exhaustive against the real schema - confirmed both ways by round 2: adding a fourth schema variant now fails this file's own build (`Type '"municipal_shelter"' is not assignable to type 'never'`), reverted after confirming. Also round 1: four of the five already-true items (no freshness sentence, no donation link, unknown vaccination, the long shelter name) had zero test coverage anywhere. **Correction from round 2:** the fifth, the long animal name, already had real coverage - `apps/web/test/harness/site-header.harness.ts`'s "a name long enough to need it exists in the corpus and is actually clipped" dynamically finds it across 10 gallery pages and asserts both existence and clipping, stronger than a corpus-level presence check. Its new unit-test pin here is a deliberate, faster-failing duplicate (1s, no database, no build), not new coverage - kept for that reason, not because the coverage gap was real. All of it - the 4 built cases, the 1 discovered case, and the 5 already-true items (4 newly pinned, 1 already covered by the harness and now double-pinned) - sits in `packages/db/test/seed-corpus.test.ts`, 10 fast unit tests calling `buildShelters`/`buildAnimals` directly, no database, so a future formula change can't silently break any of them | Done |
+| D-6 | 5-6 real CC0/public-domain photographs through the R2 pipeline, provenance recorded per file, no operator-identifying EXIF/IPTC, at deliberately awkward ratios (9:16 screenshot, 16:9, EXIF-rotated, ~400px, ~4000px) - feeds O-10 and critique-item C6 (detail-page photo crop; see Part 2's Phase T, "checked not fixed" - not build-plan's own, unrelated C6 in Phase C). **Reframed, 2026-09-06: local-only, D-0 dropped as a dependency** - the corpus and the Postgres side of this run entirely against a local DB. Licensing discipline unchanged: strict CC0/public domain, provenance recorded per file, EXIF **and** IPTC stripped and verified with `exiftool`; if a licence can't be established from the source page itself, the image is discarded. **Real open gap, not yet resolved:** the actual R2 upload step needs write credentials (`R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET_NAME`), which by `.env.example`'s own section 2 policy are never saved to a file and belong to an operator's own machine - there is no separate dev/demo bucket documented anywhere, only the one bucket `onboard-shelter.ts` targets. Sourcing, provenance recording, and EXIF/IPTC stripping can all happen without them; the upload itself needs either Oleksii running it with his own credentials against the prepared image set, or a deliberate decision to provision a second bucket so demo photos never share storage with a future real shelter's. **Depends on:** D-9 (safety-ordering only) | **Sourcing, download, stripping and seed-wiring done, 2026-10-06** (`feat/d-6-detail-photo-gallery`) - see below for the original candidate list. All 6 downloaded; `exiftool` was unavailable on the machine (no admin rights), so `sharp` (already a `packages/db` dependency) did the EXIF/IPTC/XMP stripping and verification instead, metadata presence checked directly via `sharp(...).metadata()` before and after rather than assumed - full account in `apps/web/public/seed-photos/d6-real/SOURCES.md`. 4 of the 6 (dog-only; the EXIF-rotated file and the bonus photo are cats, see SOURCES.md) are wired into `packages/db/src/seed.ts`'s `SIX_PHOTO_INDEX` animal via `D6_REAL_DOG_PHOTOS`/`makeD6Photos`. **Round-2 review correction, 2026-10-06:** `DetailPhotoGallery.tsx`'s gallery caps at 3 photos, so only 3 of these 4 are ever visible through it - `D6_REAL_DOG_PHOTOS` is ordered tall/wide/large so the two most extreme ratios and the largest pixel dimensions are the ones a visitor actually sees, with the near-square small photo last (never reachable via this gallery, though still present in `animal.photos`). **Still open:** the R2 upload itself (unchanged from the original gap noted above - an operator's own credentials, Tier 1). D6-1 (the small-photo candidate's human-forearm content) is in `docs/decisions-inbox/feat-d-6-detail-photo-gallery.md`, awaiting Oleksii. |
+| D-7 | Write the demo-to-real transition into `docs/standing-constraints.md` and the onboarding checklist: wipe before the first `onboard-shelter --commit`; the banner (`REGISTRY_HAS_NO_REAL_SHELTERS`) comes down when the wipe happens, separately from noindex (`SITE_IS_PUBLICLY_DISCOVERABLE`), which stays down through the launch-gate window until the site is actually meant to be found - the two do **not** come down together, that is the whole point of D-1's two constants; why `robots.txt` allowing crawl is deliberate; the coexistence window named as the point of maximum danger. **Deferred, 2026-09-06 (see above)** - paperwork for a transition weeks away; moved to Part 5's launch gate alongside D-5, both due in the hour before the flip, not before. **Depends on:** D-0 | **Done, different scope, 2026-10-24** - `docs/launch-sequence.md`, a fifteen-step runbook across two reset cycles, built on Oleksii's own full-reset pivot, same day; corrected 2026-10-25 on the reset's order (before the rehearsal, run twice). See Part 5's own D-7 section below |
 
-**D-6 candidate list, 2026-09-12 — sourcing only, nothing downloaded, matching the row's own
+**D-6 candidate list, 2026-09-12 - sourcing only, nothing downloaded, matching the row's own
 "do not download anything" instruction.** All six from Wikimedia Commons, each file's *own* page
 carrying an explicit CC0 statement quoted below verbatim, not a site-wide claim. Pixel dimensions
 and EXIF read from the same page. Actual download, EXIF/IPTC stripping and verification with
-`exiftool`, and the R2 upload itself are all still open — this is the candidate list the row's
+`exiftool`, and the R2 upload itself are all still open - this is the candidate list the row's
 own text calls for before any of that.
 
 | Slot | Proposed filename | Source | Dimensions | Species | Notes |
 |---|---|---|---|---|---|
 | 9:16 tall | `dog-tall-9x16-sugarbelle.jpg` | [File:Sugarbelle_the_Dog.jpg](https://commons.wikimedia.org/wiki/File:Sugarbelle_the_Dog.jpg) | 665×1182 (ratio 0.5626, essentially exact) | dog | Single-subject outdoor portrait, own work, 2017. No humans/text on the page. |
 | 16:9 wide | `dogs-wide-16x9-bulldogs-lifejackets.jpg` | [File:Two_French_bulldogs_swimming_in_life_jackets.jpg](https://commons.wikimedia.org/wiki/File:Two_French_bulldogs_swimming_in_life_jackets.jpg) | 3999×2249 (ratio 1.778, exact) | dog ×2 | French bulldogs in life jackets, Sandvik beach, Sweden, Aug 2017. No humans/branding/signage per page. |
-| EXIF-rotated | `cat-exif-rotated-william-blanket.jpg` | [File:WilliamInHisBlanket.jpg](https://commons.wikimedia.org/wiki/File:WilliamInHisBlanket.jpg) | 2250×4000, EXIF Orientation "Rotated 90° CCW" | cat | The stored orientation tag is the mismatch this slot needs — a viewer ignoring EXIF renders it sideways. Also incidentally ~9:16 and ~4000px if a duplicate is ever needed for either of those slots instead. |
-| ~400px small | `dog-small-400px-joydogs.jpg` | [File:Joy_dogs.jpg](https://commons.wikimedia.org/wiki/File:Joy_dogs.jpg) | 393×387 (near-square) | dog | Closest true small match found after checking multiple size-filtered searches. Uploaded via PhotoScape — worth a visual check before use in case of a baked-in decorative border; page text gives no indication of one. |
-| ~4000px large | `dog-large-4000px-chihuahua.jpg` | [File:Chihuahua_wikipedia.jpg](https://commons.wikimedia.org/wiki/File:Chihuahua_wikipedia.jpg) | 3000×4000 (longest side exactly 4000) | dog | Close-up portrait. EXIF Orientation reads raw "0" (non-standard/incomplete tag) rather than "Normal" or a real rotation value — flagged, but the stated 3000×4000 portrait dimensions already match the described content, so this looks like a zeroed tag, not a genuine mismatch like the EXIF-rotated slot's own file. |
-| Bonus (species balance) | `cat-bonus-muchi.jpg` | [File:Muchi_Cat.jpg](https://commons.wikimedia.org/wiki/File:Muchi_Cat.jpg) | 3072×4080 (EXIF Orientation: Normal) | cat | Brings the 6-photo set to 2 cats / 4 dogs instead of 1/5. Page description is thin (just "Small cat") — presence/absence of humans or text in the actual frame not confirmable from the page alone; visual check recommended before use. Can substitute for the large-slot Chihuahua if a cat is preferred there instead. |
+| EXIF-rotated | `cat-exif-rotated-william-blanket.jpg` | [File:WilliamInHisBlanket.jpg](https://commons.wikimedia.org/wiki/File:WilliamInHisBlanket.jpg) | 2250×4000, EXIF Orientation "Rotated 90° CCW" | cat | The stored orientation tag is the mismatch this slot needs - a viewer ignoring EXIF renders it sideways. Also incidentally ~9:16 and ~4000px if a duplicate is ever needed for either of those slots instead. |
+| ~400px small | `dog-small-400px-joydogs.jpg` | [File:Joy_dogs.jpg](https://commons.wikimedia.org/wiki/File:Joy_dogs.jpg) | 393×387 (near-square) | dog | Closest true small match found after checking multiple size-filtered searches. Uploaded via PhotoScape - worth a visual check before use in case of a baked-in decorative border; page text gives no indication of one. |
+| ~4000px large | `dog-large-4000px-chihuahua.jpg` | [File:Chihuahua_wikipedia.jpg](https://commons.wikimedia.org/wiki/File:Chihuahua_wikipedia.jpg) | 3000×4000 (longest side exactly 4000) | dog | Close-up portrait. EXIF Orientation reads raw "0" (non-standard/incomplete tag) rather than "Normal" or a real rotation value - flagged, but the stated 3000×4000 portrait dimensions already match the described content, so this looks like a zeroed tag, not a genuine mismatch like the EXIF-rotated slot's own file. |
+| Bonus (species balance) | `cat-bonus-muchi.jpg` | [File:Muchi_Cat.jpg](https://commons.wikimedia.org/wiki/File:Muchi_Cat.jpg) | 3072×4080 (EXIF Orientation: Normal) | cat | Brings the 6-photo set to 2 cats / 4 dogs instead of 1/5. Page description is thin (just "Small cat") - presence/absence of humans or text in the actual frame not confirmable from the page alone; visual check recommended before use. Can substitute for the large-slot Chihuahua if a cat is preferred there instead. |
 
 Every license quoted above is the CC0 1.0 Universal Public Domain Dedication text from that
 specific file's own Commons page (either "This file is made available under the Creative
@@ -537,69 +537,69 @@ procedure rather than a manual judgment call.
 
 **Done when (reduced, 2026-09-06):** the first criterion is met (D-1/D-2/D-3, PR #53) and the
 second is being pursued locally (D-4/D-6, no production exposure either way now that the site
-is noindexed). The third criterion — a documented, guarded transition procedure — is
+is noindexed). The third criterion - a documented, guarded transition procedure - is
 deliberately not this phase's to close; it's D-7's, deferred to Part 5, due before the
 procedure is actually needed rather than before this phase closes.
 
-### Phase R — Deck memory, two actions, inline reveal
+### Phase R - Deck memory, two actions, inline reveal
 
-Not a Phase D fix — an unbuilt feature on the product's namesake surface. Two product decisions
+Not a Phase D fix - an unbuilt feature on the product's namesake surface. Two product decisions
 from Oleksii (`docs/observations.md`, "Decisions 1 & 2", 2026-09-05), reached after
 O-15's diagnosis found the deck's «Написати» button never invoked the reveal path at all (it
 called the same handler as a skip) and no swipe was ever persisted. Scoped as its own row set
 per Oleksii's explicit instruction; **not started before Phase D finishes.**
 
-**Sequencing, 2026-09-06 reprioritisation:** this is step "2.2" of the post-Phase-D order —
+**Sequencing, 2026-09-06 reprioritisation:** this is step "2.2" of the post-Phase-D order -
 after Phase D's reduced scope (D-9, D-4, D-6) and after O-9's DB connection fix (Part 5,
 "Before the MVP gate"), which every DB-backed page including this one pays today. See Phase
 D's own reprioritisation note for the full reasoning (`docs/build-plan.md`, Phase D).
 
 | # | Task | Status |
 |---|---|---|
-| R0 | **Verify first, added 2026-09-06 — before touching R1–R3's code:** (1) whether `feedBrowserClient`'s exclusion of `session.bootstrap`/`animals.reveal` (R3's blocker) was a deliberate scope cut or an oversight — report with evidence (the PR/commit that shipped `feedBrowserClient`, and what it says); (2) what cookies the site actually sets today, checked against `/pro`'s «без кукі» claim — if a cookie is already being set, that claim is currently false and is its own finding, independent of R1–R3; (3) whether the anonymous session identity is stable across a page reload and a full browser restart — R1's device-scoped persistence claim depends on this being true, and it has not been checked | Untouched |
-| R1 | Wire `swipes.record` from the deck (drag commit and the skip button), keyed on the existing anonymous session. A skip excludes that animal from the deck's own re-serving, **device-scoped, not session-scoped** — persists across reload and later visits, not just the current tab. **Deck-only**: the gallery's `feed`/`gallery` query is unaffected; a skipped animal stays fully reachable by direct link and in the gallery list. Does **not** feed `scoreAnimal` — ordering inputs stay filters + freshness + completeness, unchanged, so `/prytulkam` §1 stays true. **Built, client-side only — the seen-set exclusion was already fully implemented server-side at M2** (`packages/db/src/repos/feed-repo.ts`'s `buildSeenExclusion`, reading `context.adopterId`, itself already resolved from the session cookie on every request by `apps/web/src/app/api/rpc/[...rpc]/route.ts`). `use-feed-deck.ts`'s `onSwipe` now bootstraps the anonymous session once per page load (memoised, not once per swipe — swiping is high-frequency, unlike the detail page's one-shot reveal) and calls `swipes.record` fire-and-forget after the local UI advance, never blocking it. **Verified two ways, not just unit-tested**: 22 unit tests in `use-feed-deck.test.tsx` (mocked client) plus 12 in `SwipeDeck.test.tsx`, plus 4 real-Postgres integration tests for `feedRepo.hasActiveSeenSet` in `packages/db/test/repos.test.ts`, and a real end-to-end check against the actual running dev server + real local Postgres (a throwaway Node script driving the same `createORPCClient`/`RPCLink` the browser uses) confirming an animal present in `feed.list` becomes excluded after `session.bootstrap` + `swipes.record(pass)` with the same cookie, stays excluded across a second `session.bootstrap` call with that cookie (get-or-return — what a reload/later-visit looks like), and is NOT excluded for a fresh request with no cookie at all (no cross-session leak) — script deleted, DB reseeded to a clean state afterward. **Two reviewer rounds, neither returning PASS outright.** Round 1 returned STOP — three findings are real product/copy decisions, not implementation bugs, and are not mine to resolve; see the STOP note below. Round 1's other findings (a session-bootstrap failure permanently poisoning later swipes; «Далі»/↓ silently persisting a 30-day exclusion for a non-decision, since it shared `handleCommit("left")` with the real skip button; a stale design-doc claim of "for the rest of the deck session" instead of the actual 30-day device-scoped policy) were fixed. Round 2 (PASS WITH NOTES) caught that the «Далі» fix had no test at its actual defect site — the hook-level tests only pinned what the hook does with a direction it's *given*, not that the button hands it the right one; reverting the button's own handler back to the pre-fix bug left every other test in both files green. Fixed: `SwipeDeck.test.tsx` now clicks «Далі» directly and asserts the direction it produces, mutation-confirmed. Round 2 also caught `use-feed-deck.ts` duplicating the `CommitDirection` union as an inline literal instead of importing it — R2's own removal of `"advance"` from the exported type would otherwise typecheck against the stale copy instead of failing the build; fixed. **All three STOP decisions resolved by Oleksii, 2026-09-09 — see below.** Round 3 (PASS WITH NOTES) on the STOP-resolution diff caught a blocking defect in `feedRepo.hasActiveSeenSet`'s first implementation: a raw `db.execute(sql\`...EXISTS...\`)` call whose result shape differs between this repo's two Drizzle adapters (a `RowList` array for postgres-js, `{ rows: T[] }` for neon-http, `packages/db/src/client.ts`'s own comment) — the method would have silently returned `false` in production (Neon) regardless of the real answer, the exact bug the row exists to fix. Fixed by replacing it with a typed `.select().limit(1)` chain, which Drizzle normalises identically across both adapters (the same guarantee every other query in this repo already relies on); 4 new integration tests added directly against real Postgres. Round 3 also caught the field conflating "not computed" (a prefetch call) with "computed, and empty" into one `false` — widened to `z.boolean().nullable()` in the contract, with the handler and hook updated to match | **Resolved.** |
-| R2 | Two-action deck: drop «Далі» (`SwipeDeck.tsx`'s third button and its keyboard binding). «Не зараз» skips (R1). «Написати» reveals. **Permanent home for the "«Не зараз» is a filter, not a judgement" sentence** (`docs/standing-constraints.md`, "The swipe is filtering, not judging") — an interim placement lives on the detail page (Phase D) until this row builds the deck with the height designed in for it, rather than squeezed into the existing header | **UI half done, 2026-09-09.** `SwipeDeck.tsx`'s third button (and the now-unused `"advance"` `CommitDirection` variant, `ActionButton`'s `"quiet"` variant) removed. The not-a-judgement notice moved from its interim detail-page home to its permanent one, directly under the deck's action row — `AnimalDetailScreen.tsx` no longer renders it (the rule is about what a *swipe* means, and that page's own «Не зараз» was never a swipe — see `docs/design/README.md`'s updated deviation notes). Real geometry work, measured not assumed: adding the notice's line broke the shelter-line margin at `NARROW_PHONE` (320, a real clip, -22px against an 8px floor) and the canonical `PHONE` frame's exact 396px photo-area assertion — recovered ~12px via two legitimate spacing reclaims (the action row's own card-to-button margin, and the notice's own margin above it), then hid the notice below 360px width (`min-[360px]:block`) rather than let the shelter line clip at the one width narrower than this product's stated audience (`docs/stack-decision.md`'s "budget Android," `ANDROID_PHONE`/360, passes clean). `discovery-layout.harness.ts`'s exact-396 assertion updated to 386 with the same justification this file's own prior V2 repoints used — a real, deliberate content change, not an accidental shift. New harness coverage: notice visible + correctly placed at every viewport at or above 360, hidden (with the shelter line provably intact) at 320. R3 (below) has since wired the real reveal onto this same «Написати» commit — this row's own "UI half" is now the whole thing. **Done, 2026-09-09 (both halves — see R3's row).** |
-| R3 | Inline reveal: wire `session.bootstrap` + `animals.reveal` into the deck's own browser client (today `feedBrowserClient` exposes only `feed.list` — see V1, `docs/observations.md`) and open the contact in a sheet over the deck, per `docs/design/README.md`'s frame 05 (Contact reveal). The deck session must survive a reveal — no exit back to the gallery | **Done, 2026-09-09.** `RevealFlow.tsx`'s dialog (overlay, focus trap, Esc, body-scroll-lock, contact rows, primary action) and its bootstrap-then-reveal state machine extracted into `apps/web/src/features/reveal/` (`ContactRevealDialog.tsx`, `useReveal.ts`) so the deck opens the identical component rather than a second implementation — `RevealFlow.test.tsx`'s 10 tests pass unchanged against the extraction, proving detail-page behaviour didn't move. `SwipeDeck.tsx`'s `handleCommit("right")` (the button and the equivalent drag gesture, both — "every gesture has a button," neither is a second path) snapshots the top card's id/name before `onSwipe` advances the deck underneath it, opens the reveal, and keeps recording the swipe exactly as R1 already did — the reveal is additive, not a replacement. Dialog renders as a sibling of the deck's own state-based content, not nested inside the "ready" branch, specifically so a swipe that exhausts the deck doesn't unmount the dialog mid-reveal — mutation-confirmed (nesting it inside "ready" makes the "keeps the reveal dialog open... exhausts the deck" test fail). No `secondaryAction` (no "back to gallery" link) — the deck's own requirement is no exit at all; mutation-confirmed. **The reveal names a real city, not `null`** — an earlier version of this row passed `cityName: null` unconditionally, justified by a claim (caught wrong on review) that no `cityId -> name` lookup existed anywhere in the deck; `GortatyPage`'s server component already built exactly that map for its own `filtersInWords` call and discarded it after. Now converted to a plain object and threaded through `DeckScreen.tsx` into `SwipeDeck.tsx`, which resolves the real city via `cardCityId` (`../gallery/card-text.ts`, the same helper the gallery's own cards already use) — `?? null` only for a city genuinely missing from the lookup, a data gap rather than a design choice; `ContactRevealDialog`'s existing graceful-degradation path still covers that case, unchanged |
-| R4 | **Reduced scope, 2026-09-09 (Oleksii's decision on R1's STOP) — restores two sentences rather than fixing two false ones.** Both `/prytulkam` §3's «Обидва способи показують усіх» and `/pro`'s «без кукі» were already deleted outright on R1's own branch (per the new standing constraint, "Removing a false claim is not the same gate as adding one" — a deletion needs no Phase 0 gate; the fuller replacement still does). Neither claim is false anymore; both pages are simply narrower than before. R4 is now: write the fuller, accurate Ukrainian for both — §3's English sense already drafted in `docs/observations.md`'s commitments-register note ("the list shows everyone; the deck does not re-serve what you skipped; nothing is hidden from you that you did not hide yourself"), `/pro`'s sense per Oleksii's own framing ("one session cookie, set only when you act, and what it is for"). Neither is pinned by `copy-status.test.ts` — both false sentences were *deleted*, not replaced with a `[COPY_PENDING]` placeholder, so there's no marker for that test to catch; this row is the only thing tracking that the fuller sentences still need writing. Smaller and less urgent than before — no live page is currently wrong. **R4-1 landed, 2026-10-06 — Oleksii's own Ukrainian, verbatim, inserted into `whatHappensToAnimals`.** Verified against `packages/domain/src/discovery/seen-set.ts` before landing (his own condition, per his STOP-if-wrong instruction); matched. `docs/standing-constraints.md`'s commitments register row 8 updated to drop "temporarily narrowed". **R4-2 answered but deliberately not yet landed, per Oleksii's own two conditions, 2026-10-06** — his Ukrainian is in hand (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`), verified against `session.bootstrap`'s call sites, but «одне кукі» is false while the pre-launch gate is live (a second, undisclosed cookie). **Land together with the gate's removal** — checked, not assumed, that this is the same step as `SITE_IS_PUBLICLY_DISCOVERABLE`'s flip today: `proxy.ts:54`'s `if (!SITE_IS_PUBLICLY_DISCOVERABLE)` *is* the gate's whole on/off switch, and `seo-flags.ts`'s own comment on that flag says so explicitly. If a future change ever decouples "gate removed" from this flag, move the condition below to whatever the new signal is. **Tripwire landed, 2026-10-06, separate commit:** `seo-flags.ts`'s `assertAnalyticsCopyMatchesGateState`, test-time only (not a boot-time throw — a missing sentence shouldn't take production down the way indexing fictional data would), throws if `SITE_IS_PUBLICLY_DISCOVERABLE` goes `true` while `uk.about.analytics` still doesn't mention cookies — mutation-tested against the real constants (flipping the real flag without landing R4-2 fails the real-defaults test with the exact message), not just hand-built strings. Neither sentence shipped as a `[COPY_PENDING]` placeholder — both pages are already live and complete, so a placeholder would regress a finished page | R4-1 done. R4-2's text is in hand and the tripwire is live; the sentence itself lands with the gate's removal. |
-| R5 | **Filed, 2026-09-09 (Oleksii's decision on R1's STOP item 3) — the proper fix for the deck counter, deliberately not built at R1.** R1 suppresses «N з M» and the progress bar once the seen-set is non-empty, rather than show a number that might overstate what the deck can reach. This row is the fuller fix: a real matching-count field reporting how many animals the *current caller* can still reach, restoring an accurate «N з M» for a returning visitor instead of suppressing it. **Design investigated and handed off to Opus, 2026-10-06** (`docs/model-policy.md`'s explicit seen-set-exclusion/keyset-query assignment) **before any contract or repo code was written** — full findings, proposed shape and open questions in `docs/r5-reachable-count-design.md`, not duplicated here. **Opus resolution proposed, 2026-10-07:** all three open questions answered in that doc's own new section (snapshot per fresh feed; gated on session; Neon branch check), plus an existing announcement bug found. R5-1 approved by Oleksii 2026-10-07 (inbox). **Implemented 2026-10-07 (PR #79):** `feed.list` returns `reachableCount` (snapshot per fresh feed, session-gated), replacing `hasActiveSeenSet`; deck header and entry announcement use it. Verified: local-Postgres repo tests (count == what the feed serves; == gallery total when nothing excluded), hook/screen tests, 6 mutations. **Verified on Neon 2026-10-07 (R5-2), on production `main`, read-only** (the URL was production, not a branch as first recorded; corrected per Oleksii). Via the real `neon-http` path, `reachableCount` matched what `feed.list` serves for 4 adopters × 2 filter sets (e.g. 212/212, 71/71), returned a JS `number`, and equalled the gallery total (220, 74) for an adopter with no swipes | Implemented and verified (local + Neon). **Depends on:** R1 |
+| R0 | **Verify first, added 2026-09-06 - before touching R1-R3's code:** (1) whether `feedBrowserClient`'s exclusion of `session.bootstrap`/`animals.reveal` (R3's blocker) was a deliberate scope cut or an oversight - report with evidence (the PR/commit that shipped `feedBrowserClient`, and what it says); (2) what cookies the site actually sets today, checked against `/pro`'s «без кукі» claim - if a cookie is already being set, that claim is currently false and is its own finding, independent of R1-R3; (3) whether the anonymous session identity is stable across a page reload and a full browser restart - R1's device-scoped persistence claim depends on this being true, and it has not been checked | Untouched |
+| R1 | Wire `swipes.record` from the deck (drag commit and the skip button), keyed on the existing anonymous session. A skip excludes that animal from the deck's own re-serving, **device-scoped, not session-scoped** - persists across reload and later visits, not just the current tab. **Deck-only**: the gallery's `feed`/`gallery` query is unaffected; a skipped animal stays fully reachable by direct link and in the gallery list. Does **not** feed `scoreAnimal` - ordering inputs stay filters + freshness + completeness, unchanged, so `/prytulkam` §1 stays true. **Built, client-side only - the seen-set exclusion was already fully implemented server-side at M2** (`packages/db/src/repos/feed-repo.ts`'s `buildSeenExclusion`, reading `context.adopterId`, itself already resolved from the session cookie on every request by `apps/web/src/app/api/rpc/[...rpc]/route.ts`). `use-feed-deck.ts`'s `onSwipe` now bootstraps the anonymous session once per page load (memoised, not once per swipe - swiping is high-frequency, unlike the detail page's one-shot reveal) and calls `swipes.record` fire-and-forget after the local UI advance, never blocking it. **Verified two ways, not just unit-tested**: 22 unit tests in `use-feed-deck.test.tsx` (mocked client) plus 12 in `SwipeDeck.test.tsx`, plus 4 real-Postgres integration tests for `feedRepo.hasActiveSeenSet` in `packages/db/test/repos.test.ts`, and a real end-to-end check against the actual running dev server + real local Postgres (a throwaway Node script driving the same `createORPCClient`/`RPCLink` the browser uses) confirming an animal present in `feed.list` becomes excluded after `session.bootstrap` + `swipes.record(pass)` with the same cookie, stays excluded across a second `session.bootstrap` call with that cookie (get-or-return - what a reload/later-visit looks like), and is NOT excluded for a fresh request with no cookie at all (no cross-session leak) - script deleted, DB reseeded to a clean state afterward. **Two reviewer rounds, neither returning PASS outright.** Round 1 returned STOP - three findings are real product/copy decisions, not implementation bugs, and are not mine to resolve; see the STOP note below. Round 1's other findings (a session-bootstrap failure permanently poisoning later swipes; «Далі»/↓ silently persisting a 30-day exclusion for a non-decision, since it shared `handleCommit("left")` with the real skip button; a stale design-doc claim of "for the rest of the deck session" instead of the actual 30-day device-scoped policy) were fixed. Round 2 (PASS WITH NOTES) caught that the «Далі» fix had no test at its actual defect site - the hook-level tests only pinned what the hook does with a direction it's *given*, not that the button hands it the right one; reverting the button's own handler back to the pre-fix bug left every other test in both files green. Fixed: `SwipeDeck.test.tsx` now clicks «Далі» directly and asserts the direction it produces, mutation-confirmed. Round 2 also caught `use-feed-deck.ts` duplicating the `CommitDirection` union as an inline literal instead of importing it - R2's own removal of `"advance"` from the exported type would otherwise typecheck against the stale copy instead of failing the build; fixed. **All three STOP decisions resolved by Oleksii, 2026-09-09 - see below.** Round 3 (PASS WITH NOTES) on the STOP-resolution diff caught a blocking defect in `feedRepo.hasActiveSeenSet`'s first implementation: a raw `db.execute(sql\`...EXISTS...\`)` call whose result shape differs between this repo's two Drizzle adapters (a `RowList` array for postgres-js, `{ rows: T[] }` for neon-http, `packages/db/src/client.ts`'s own comment) - the method would have silently returned `false` in production (Neon) regardless of the real answer, the exact bug the row exists to fix. Fixed by replacing it with a typed `.select().limit(1)` chain, which Drizzle normalises identically across both adapters (the same guarantee every other query in this repo already relies on); 4 new integration tests added directly against real Postgres. Round 3 also caught the field conflating "not computed" (a prefetch call) with "computed, and empty" into one `false` - widened to `z.boolean().nullable()` in the contract, with the handler and hook updated to match | **Resolved.** |
+| R2 | Two-action deck: drop «Далі» (`SwipeDeck.tsx`'s third button and its keyboard binding). «Не зараз» skips (R1). «Написати» reveals. **Permanent home for the "«Не зараз» is a filter, not a judgement" sentence** (`docs/standing-constraints.md`, "The swipe is filtering, not judging") - an interim placement lives on the detail page (Phase D) until this row builds the deck with the height designed in for it, rather than squeezed into the existing header | **UI half done, 2026-09-09.** `SwipeDeck.tsx`'s third button (and the now-unused `"advance"` `CommitDirection` variant, `ActionButton`'s `"quiet"` variant) removed. The not-a-judgement notice moved from its interim detail-page home to its permanent one, directly under the deck's action row - `AnimalDetailScreen.tsx` no longer renders it (the rule is about what a *swipe* means, and that page's own «Не зараз» was never a swipe - see `docs/design/README.md`'s updated deviation notes). Real geometry work, measured not assumed: adding the notice's line broke the shelter-line margin at `NARROW_PHONE` (320, a real clip, -22px against an 8px floor) and the canonical `PHONE` frame's exact 396px photo-area assertion - recovered ~12px via two legitimate spacing reclaims (the action row's own card-to-button margin, and the notice's own margin above it), then hid the notice below 360px width (`min-[360px]:block`) rather than let the shelter line clip at the one width narrower than this product's stated audience (`docs/stack-decision.md`'s "budget Android," `ANDROID_PHONE`/360, passes clean). `discovery-layout.harness.ts`'s exact-396 assertion updated to 386 with the same justification this file's own prior V2 repoints used - a real, deliberate content change, not an accidental shift. New harness coverage: notice visible + correctly placed at every viewport at or above 360, hidden (with the shelter line provably intact) at 320. R3 (below) has since wired the real reveal onto this same «Написати» commit - this row's own "UI half" is now the whole thing. **Done, 2026-09-09 (both halves - see R3's row).** |
+| R3 | Inline reveal: wire `session.bootstrap` + `animals.reveal` into the deck's own browser client (today `feedBrowserClient` exposes only `feed.list` - see V1, `docs/observations.md`) and open the contact in a sheet over the deck, per `docs/design/README.md`'s frame 05 (Contact reveal). The deck session must survive a reveal - no exit back to the gallery | **Done, 2026-09-09.** `RevealFlow.tsx`'s dialog (overlay, focus trap, Esc, body-scroll-lock, contact rows, primary action) and its bootstrap-then-reveal state machine extracted into `apps/web/src/features/reveal/` (`ContactRevealDialog.tsx`, `useReveal.ts`) so the deck opens the identical component rather than a second implementation - `RevealFlow.test.tsx`'s 10 tests pass unchanged against the extraction, proving detail-page behaviour didn't move. `SwipeDeck.tsx`'s `handleCommit("right")` (the button and the equivalent drag gesture, both - "every gesture has a button," neither is a second path) snapshots the top card's id/name before `onSwipe` advances the deck underneath it, opens the reveal, and keeps recording the swipe exactly as R1 already did - the reveal is additive, not a replacement. Dialog renders as a sibling of the deck's own state-based content, not nested inside the "ready" branch, specifically so a swipe that exhausts the deck doesn't unmount the dialog mid-reveal - mutation-confirmed (nesting it inside "ready" makes the "keeps the reveal dialog open... exhausts the deck" test fail). No `secondaryAction` (no "back to gallery" link) - the deck's own requirement is no exit at all; mutation-confirmed. **The reveal names a real city, not `null`** - an earlier version of this row passed `cityName: null` unconditionally, justified by a claim (caught wrong on review) that no `cityId -> name` lookup existed anywhere in the deck; `GortatyPage`'s server component already built exactly that map for its own `filtersInWords` call and discarded it after. Now converted to a plain object and threaded through `DeckScreen.tsx` into `SwipeDeck.tsx`, which resolves the real city via `cardCityId` (`../gallery/card-text.ts`, the same helper the gallery's own cards already use) - `?? null` only for a city genuinely missing from the lookup, a data gap rather than a design choice; `ContactRevealDialog`'s existing graceful-degradation path still covers that case, unchanged |
+| R4 | **Reduced scope, 2026-09-09 (Oleksii's decision on R1's STOP) - restores two sentences rather than fixing two false ones.** Both `/prytulkam` §3's «Обидва способи показують усіх» and `/pro`'s «без кукі» were already deleted outright on R1's own branch (per the new standing constraint, "Removing a false claim is not the same gate as adding one" - a deletion needs no Phase 0 gate; the fuller replacement still does). Neither claim is false anymore; both pages are simply narrower than before. R4 is now: write the fuller, accurate Ukrainian for both - §3's English sense already drafted in `docs/observations.md`'s commitments-register note ("the list shows everyone; the deck does not re-serve what you skipped; nothing is hidden from you that you did not hide yourself"), `/pro`'s sense per Oleksii's own framing ("one session cookie, set only when you act, and what it is for"). Neither is pinned by `copy-status.test.ts` - both false sentences were *deleted*, not replaced with a `[COPY_PENDING]` placeholder, so there's no marker for that test to catch; this row is the only thing tracking that the fuller sentences still need writing. Smaller and less urgent than before - no live page is currently wrong. **R4-1 landed, 2026-10-06 - Oleksii's own Ukrainian, verbatim, inserted into `whatHappensToAnimals`.** Verified against `packages/domain/src/discovery/seen-set.ts` before landing (his own condition, per his STOP-if-wrong instruction); matched. `docs/standing-constraints.md`'s commitments register row 8 updated to drop "temporarily narrowed". **R4-2 answered but deliberately not yet landed, per Oleksii's own two conditions, 2026-10-06** - his Ukrainian is in hand, verified against `session.bootstrap`'s call sites, but «одне кукі» is false while the pre-launch gate is live (a second, undisclosed cookie). **Correction, 2026-10-24: the text has moved since this row was written** - it now lives only in `PENDING_R4_2_ANALYTICS_SENTENCE` (`packages/i18n/src/messages/uk.ts`), not in the 2026-10-06 inbox file linked above, which is stale. PR #186 (S8) appended a saved-list sentence to the constant, and this pass fixed the right-swipe word to «Написати» only, matching copy audit #19 (PR #183, 2026-10-22) - «Запитати» no longer names anything live. Land the *constant's current value*, whatever it is when the gate's removal PR is written, not this row's or the linked file's older text. **Land together with the gate's removal** - checked, not assumed, that this is the same step as `SITE_IS_PUBLICLY_DISCOVERABLE`'s flip today: `proxy.ts:54`'s `if (!SITE_IS_PUBLICLY_DISCOVERABLE)` *is* the gate's whole on/off switch, and `seo-flags.ts`'s own comment on that flag says so explicitly. If a future change ever decouples "gate removed" from this flag, move the condition below to whatever the new signal is. **Tripwire landed, 2026-10-06, separate commit:** `seo-flags.ts`'s `assertAnalyticsCopyMatchesGateState`, test-time only (not a boot-time throw - a missing sentence shouldn't take production down the way indexing fictional data would), throws if `SITE_IS_PUBLICLY_DISCOVERABLE` goes `true` while `uk.about.analytics` still doesn't mention cookies - mutation-tested against the real constants (flipping the real flag without landing R4-2 fails the real-defaults test with the exact message), not just hand-built strings. Neither sentence shipped as a `[COPY_PENDING]` placeholder - both pages are already live and complete, so a placeholder would regress a finished page | R4-1 done. R4-2's text is in hand and the tripwire is live; the sentence itself lands with the gate's removal. |
+| R5 | **Filed, 2026-09-09 (Oleksii's decision on R1's STOP item 3) - the proper fix for the deck counter, deliberately not built at R1.** R1 suppresses «N з M» and the progress bar once the seen-set is non-empty, rather than show a number that might overstate what the deck can reach. This row is the fuller fix: a real matching-count field reporting how many animals the *current caller* can still reach, restoring an accurate «N з M» for a returning visitor instead of suppressing it. **Design investigated and handed off to Opus, 2026-10-06** (`docs/model-policy.md`'s explicit seen-set-exclusion/keyset-query assignment) **before any contract or repo code was written** - full findings, proposed shape and open questions in `docs/r5-reachable-count-design.md`, not duplicated here. **Opus resolution proposed, 2026-10-07:** all three open questions answered in that doc's own new section (snapshot per fresh feed; gated on session; Neon branch check), plus an existing announcement bug found. R5-1 approved by Oleksii 2026-10-07 (inbox). **Implemented 2026-10-07 (PR #79):** `feed.list` returns `reachableCount` (snapshot per fresh feed, session-gated), replacing `hasActiveSeenSet`; deck header and entry announcement use it. Verified: local-Postgres repo tests (count == what the feed serves; == gallery total when nothing excluded), hook/screen tests, 6 mutations. **Verified on Neon 2026-10-07 (R5-2), on production `main`, read-only** (the URL was production, not a branch as first recorded; corrected per Oleksii). Via the real `neon-http` path, `reachableCount` matched what `feed.list` serves for 4 adopters × 2 filter sets (e.g. 212/212, 71/71), returned a JS `number`, and equalled the gallery total (220, 74) for an adopter with no swipes | Implemented and verified (local + Neon). **Depends on:** R1 |
 
-**STOP raised on R1's own review, 2026-09-09 — three decisions for Oleksii, resolved same day.**
+**STOP raised on R1's own review, 2026-09-09 - three decisions for Oleksii, resolved same day.**
 Committed and pushed per the working loop's amendment (a STOP blocks the merge, not the commit)
 while awaiting the decisions below; all three came back and are now implemented on this branch.
 
 1. **`/prytulkam` §3's «Обидва способи показують усіх» was literally false** the moment a real
    adopter skips an animal and returns later. **Resolved: delete the sentence, not hold the PR.**
-   A deletion needs no new Ukrainian and no `[COPY PENDING]` — §3 is true again immediately, with
+   A deletion needs no new Ukrainian and no `[COPY PENDING]` - §3 is true again immediately, with
    the commitment temporarily narrowed rather than dropped (`docs/standing-constraints.md`'s new
    "Removing a claim never requires the approval that adding one does," and the commitments
-   register's row 8). R4 restores the fuller, accurate version once its Ukrainian is written —
+   register's row 8). R4 restores the fuller, accurate version once its Ukrainian is written -
    smaller and less urgent now, since no live page is currently wrong.
 2. **`/pro`'s «без кукі» sentence (`uk.about.analytics`) read more true than it was.** The
    trigger widened from "tapped «Написати притулку» on the detail page" to "swiped once, in
    either direction, on the deck" — swiping is the deck's primary interaction, so in practice any
    deck user gets a session cookie immediately, disprovable in DevTools in five seconds on the
    page whose job is being trustworthy. **Resolved: delete «без кукі», keep «без реклами».** Two
-   words removed makes the sentence true today; R4 adds the honest fuller sentence — one session
+   words removed makes the sentence true today; R4 adds the honest fuller sentence - one session
    cookie, set only when you act, and what it's for.
 3. **The deck's «N з M» counter and progress bar could show a number the deck can't honour**,
    since both are computed from the gallery's own unfiltered total (`DeckScreen.tsx`), which has
-   no seen-set exclusion. **Resolved: suppress on the seen-set, not the session** — condition is
+   no seen-set exclusion. **Resolved: suppress on the seen-set, not the session** - condition is
    `!hasActiveSeenSet`, true only once the seen-set is non-empty, not merely because a session
    exists. A first-time visitor keeps the accurate count the design doc specifies; the number
    never appears once it could overstate what the deck can actually reach. Implemented as a new
    `hasActiveSeenSet: boolean | null` on `feed.list`'s output (`null` on a prefetch call, where
-   it's not computed at all — only a fresh fetch pays for the real check) rather than a
-   matching-count field — the real fix (`feed.list` reporting how many
+   it's not computed at all - only a fresh fetch pays for the real check) rather than a
+   matching-count field - the real fix (`feed.list` reporting how many
    cards actually remain reachable, not just whether any are excluded) is deliberately deferred to
    its own future row, not built here, and the contract is not widened beyond this one boolean for
    it.
 
-**STOP-list items 4-8 from the same review round were fixed on this branch, not escalated** —
+**STOP-list items 4-8 from the same review round were fixed on this branch, not escalated** -
 each was a real implementation bug or missing test, not a product/copy decision: a
 session-bootstrap failure permanently poisoning later swipes (the memoised-promise cache didn't
 distinguish success from failure); «Далі»/↓ silently persisting a 30-day exclusion for a
 non-decision, because it shared `handleCommit("left")` with the real skip button (fixed with a
-narrow, temporary third `"advance"` commit type — R2 removes this button and the distinction
+narrow, temporary third `"advance"` commit type - R2 removes this button and the distinction
 entirely); a stale `docs/design/README.md` claim of "for the rest of the deck session" instead of
 the actual 30-day device-scoped policy; and the missing regression tests for both bugs, now added.
 
@@ -608,61 +608,61 @@ without appearing in the gallery's exclusion; the gallery's own count and listin
 unaffected by any skip; «Написати» opens contact info in a sheet without leaving the deck; and
 `/prytulkam` §3's Ukrainian is no longer `[COPY PENDING]`.
 
-### Phase P — Detail photos ("2.3")
+### Phase P - Detail photos ("2.3")
 
-O-10 (detail page has no real photo gallery — only the primary photo is viewable at size, the
+O-10 (detail page has no real photo gallery - only the primary photo is viewable at size, the
 rest are small thumbnails on a design that wastes large-screen space) built together with
-critique-item C6 (`docs/design-critique.md` — the detail carousel's crop against real source
+critique-item C6 (`docs/design-critique.md` - the detail carousel's crop against real source
 aspect ratios; **not** build-plan's own C6, Phase C's "component test infrastructure," a
 naming collision between the two documents worth noting so a future reader doesn't conflate
-them). One component, one session — `docs/observations.md`'s O-10 entry explicitly says not to
+them). One component, one session - `docs/observations.md`'s O-10 entry explicitly says not to
 split them. **Depends on:** D-6 (needs the real, deliberately awkward-ratio photographs to crop
-against — a mock or invented image would leave C6 exactly as unverified as it already is).
+against - a mock or invented image would leave C6 exactly as unverified as it already is).
 
-Scoped in full — task breakdown, hours, done-when — when this phase is actually picked up, per
+Scoped in full - task breakdown, hours, done-when - when this phase is actually picked up, per
 `/phase`'s own Phase 1 planning step, not invented here ahead of the work it plans.
 
-### Phase S — City slugs ("2.4")
+### Phase S - City slugs ("2.4")
 
-O-6 (city filter URLs expose raw UUIDs — unreadable when shared, meaningless to a recipient,
+O-6 (city filter URLs expose raw UUIDs - unreadable when shared, meaningless to a recipient,
 bad for search) and O-12 (the detail page's «← Усі тварини у Бровари» returns to the
-*unfiltered* gallery, not to Brovary — the link's text makes a claim the navigation doesn't
+*unfiltered* gallery, not to Brovary - the link's text makes a claim the navigation doesn't
 honour) scheduled as one row per `docs/observations.md`'s own note on both entries ("same
 missing thing... never two [rows]"). Cities gain a stable public slug, URLs become
 `?misto=brovary`, and the detail page's back-link returns to the filtered list it names.
 Redirect the UUID form for links already shared, so nothing already in circulation breaks.
 
-**2026-09-09 — done.** `City` (`packages/domain`) gains a `slug: CitySlug` field — stored, not
+**2026-09-09 - done.** `City` (`packages/domain`) gains a `slug: CitySlug` field - stored, not
 derived from `name` at read time, the same reasoning as decision #16's `wait_anchor_at`: a name
 typo-fix must never silently change a URL already in circulation. `citySlugOf`
 (`packages/domain/src/geography/city-slug.ts`) implements the official Ukrainian National
-transliteration table (КМУ Resolution №55, 2010) as a pure function — verified by hand against
+transliteration table (КМУ Resolution №55, 2010) as a pure function - verified by hand against
 all 8 seeded cities before writing it (`Київ` → `kyiv`, `Бориспіль` → `boryspil`, `Біла Церква`
 → `bila-tserkva`, etc., each matching `seed.ts`'s own pre-existing English spellings), not just
 internally consistent with itself. `CityViewSchema` (`packages/contracts`) picks `slug`;
 `cities` (`packages/db/src/schema`) gains a `slug text not null unique` column via migration
-`0005_nervous_shinko_yamashiro`, hand-edited rather than drizzle-kit's plain generated form —
+`0005_nervous_shinko_yamashiro`, hand-edited rather than drizzle-kit's plain generated form -
 the reviewer caught the real risk here, and it isn't dialect: `ADD COLUMN ... NOT NULL` with no
 default fails outright against any `cities` table that already has rows, which is the actual
 state of the one database that matters (Neon holds the same 8 seeded cities O-9 measured
-against). Rewritten to match 0004's own precedent exactly — add nullable, backfill by `id`
+against). Rewritten to match 0004's own precedent exactly - add nullable, backfill by `id`
 against the 8 known seeded city ids (slugs computed by running `citySlugOf` itself, not
 hand-transcribed), assert zero rows still `NULL` before setting `NOT NULL`, so a row this
 migration doesn't recognise (an already-onboarded real city, H2) aborts the migration loudly
 instead of guessing or shipping a broken constraint. `packages/db/test/
 city-slug-backfill.test.ts` proves this against local Postgres seeded with the real pre-migration
 shape (raw-SQL inserts of the 8 real ids/names, the same technique
-`wait-anchor-backfill.test.ts` uses for 0004) — including the abort path, run and confirmed
+`wait-anchor-backfill.test.ts` uses for 0004) - including the abort path, run and confirmed
 red-then-green, not merely reasoned about. Still genuinely unverified: whether Neon's actual
-`cities` table today holds exactly these 8 rows and nothing else — the migration's own assertion
+`cities` table today holds exactly these 8 rows and nothing else - the migration's own assertion
 is what makes that an aborted migration rather than corrupted data if the assumption is wrong,
 but confirming the assumption itself needs a real Neon read, which stays parked for Oleksii.
 
-**2026-09-12 — Neon verified, and the derivation source corrected, Oleksii's own instruction.**
+**2026-09-12 - Neon verified, and the derivation source corrected, Oleksii's own instruction.**
 The cities query came back: exactly 8 rows, ids `c1000000-…-000000000000` through `…007`,
 matching the seed set exactly. The migration-verification procedure above is resolved; the
 production assumption held. In the same response, `citySlugOf` stopped transliterating `name.uk`
-and now derives the slug directly from `name.en.text` (lowercase, spaces to hyphens) —
+and now derives the slug directly from `name.en.text` (lowercase, spaces to hyphens) -
 `cities` already stores a human-authored English name for exactly this purpose, and computing
 the same city's Latin spelling a second, independent way (an algorithm run against the Ukrainian
 name) meant one city had two candidate spellings that were correct only for as long as they
@@ -670,20 +670,20 @@ happened to agree; "happened to agree for all 8 seeded cities" was the finding t
 the correction, not evidence the transliteration table was right. The Ukrainian transliteration
 table (letter map, digraph rule, word-initial exceptions) is deleted from the codebase, not
 merely unused. `LocalizedText.en` is nullable at the schema level, so every caller now must
-resolve and reject a missing English name itself before calling `citySlugOf` — `seed.ts`'s new
+resolve and reject a missing English name itself before calling `citySlugOf` - `seed.ts`'s new
 `requireEnglishCityName` is the current, only real caller's guard, proven by a dedicated test
 (`seed-corpus.test.ts`). The migration's own hardcoded backfill values were already verified to
-match `name_en_text` for all 8 cities (see above), so the literal slugs it writes are unchanged —
+match `name_en_text` for all 8 cities (see above), so the literal slugs it writes are unchanged -
 only the migration's own comment describing where they came from. Full reasoning:
 `docs/decisions-pending-review.md`'s "Phase S — English name over transliteration."
 
-**Same day, follow-up instruction — `name_en_text`/`name_en_provenance` tightened to `NOT NULL`
+**Same day, follow-up instruction - `name_en_text`/`name_en_provenance` tightened to `NOT NULL`
 in the same migration.** A required value (`slug`) cannot honestly depend on an optional one, and
 Oleksii's own cities-query confirmed all 8 real Neon rows already carry both fields. `0005` gains
 a new first block, before `slug` is even added: an independent `DO $$ ... RAISE EXCEPTION` check
 (same abort-loudly posture as `slug`'s own backfill assertion, applied to a claim instead of a
 computation), then the two `ALTER COLUMN ... SET NOT NULL` statements. Tightened together, not
-`name_en_text` alone — `packages/db/src/repos/mappers.ts`'s `columnsToLocalizedText` already
+`name_en_text` alone - `packages/db/src/repos/mappers.ts`'s `columnsToLocalizedText` already
 requires both fields non-null before it treats a city as having a real English name, so leaving
 `name_en_provenance` nullable would have left the identical "required value depending on an
 optional one" gap one column over, invisible to a `NOT NULL` constraint that only watches its own
@@ -691,10 +691,10 @@ column. The now-obsolete "backfill succeeds even with `name_en_text` null" test 
 one proving the migration now aborts over that exact gap instead. Full reasoning:
 `docs/decisions-pending-review.md`'s "Phase S — English name over transliteration."
 
-`?misto=` now carries the slug, not the raw id — `filter-url.ts`'s `galleryHref`/
+`?misto=` now carries the slug, not the raw id - `filter-url.ts`'s `galleryHref`/
 `galleryPageHref`/`deckEntryHref` all take a new required `citySlugs: ReadonlyMap<CityId,
 CitySlug>` parameter (built once per request from `cities.list`, threaded down as a prop the
-same way `filtersInWords`'s pre-existing `cityNames` map already was) — `resetFiltersHref` does
+same way `filtersInWords`'s pre-existing `cityNames` map already was) - `resetFiltersHref` does
 not: it always forwards `NO_FILTERS`, whose `cities` is provably always `ANY`, so a reviewer
 round correctly caught the map as dead weight there and it was dropped. And
 `parseGalleryQuery`/`parseDeckQuery` take the reverse map to resolve a slug back to a `CityId`.
@@ -705,12 +705,12 @@ canonical slug URL, rewriting only the city param and preserving every other que
 byte-for-byte. O-12: `tvaryny/[animalId]/page.tsx` now builds a real `backToGalleryHref` through
 `galleryHref` (the same URL scheme every other city link uses) instead of three hardcoded
 `href="/tvaryny"` literals; scoped to the city alone, not the adopter's full incoming filter
-state — see `docs/decisions-pending-review.md`'s "Phase S — back-link scope: city only" for why
+state - see `docs/decisions-pending-review.md`'s "Phase S — back-link scope: city only" for why
 that's not a narrower fix than what O-12 actually asks for.
 
 Accepted cost, not hidden: `cities.list` now has to resolve before `parseGalleryQuery` can run
 at all (a slug can't be resolved to an id without the real city list), so the gallery and deck
-pages lost their previous `Promise.all([cities.list(), gallery.list()])` parallelism — an 8-row
+pages lost their previous `Promise.all([cities.list(), gallery.list()])` parallelism - an 8-row
 unfiltered scan now blocks the main query rather than running alongside it. Real, not measured
 against a live deployment; logged as its own decision (`docs/decisions-pending-review.md`) since
 reversing it means building a cache, not reverting a diff.
@@ -720,27 +720,27 @@ reversing it means building a cache, not reverting a diff.
 Playwright harness tests, all against local Postgres.
 
 **Reviewer round 1: STOP**, on the generated migration's real, missing-default `NOT NULL` risk
-against a non-empty `cities` table — resolved (see `docs/decisions-pending-review.md`) by
+against a non-empty `cities` table - resolved (see `docs/decisions-pending-review.md`) by
 hand-editing the migration to match `0004`'s own precedent, with a new regression test
 (`packages/db/test/city-slug-backfill.test.ts`) proving it against a locally-reproduced copy of
 Neon's real pre-migration shape. The same round also caught and fixed: a real transliteration
-gap (the `зг`→`zgh` digraph, Note 2 of the same KMU resolution — `Розгон` was rendering
+gap (the `зг`→`zgh` digraph, Note 2 of the same KMU resolution - `Розгон` was rendering
 indistinguishably from a name containing `ж`); a real correctness bug in the legacy-id redirect
 (`?misto=<uuid>,brovary` was dropping the already-canonical `brovary` half, and a well-formed
-but unresolvable id was 308-redirecting to "no city filter" — a materially different, permanently
+but unresolvable id was 308-redirecting to "no city filter" - a materially different, permanently
 cached result); O-12's fix being asserted only by inspection, not a real test; a test-fixture
 collision (`makeCity()`'s default slug colliding under the corpus's new unique constraint); and a
 cross-file test-isolation bug this round's own new migration test exposed
 (`wait-anchor-backfill.test.ts` and `city-slug-backfill.test.ts` both leave `drizzle`'s own
 migration-tracking schema dropped when they finish, which broke the harness's subsequent real
-`drizzle-kit migrate` step the one time this file happened to run last — both now restore it via
+`drizzle-kit migrate` step the one time this file happened to run last - both now restore it via
 `setupTestDatabase()` in `afterAll`).
 
 **Reviewer round 2: PASS WITH NOTES.** Confirmed round 1's STOP genuinely resolved (migration
 order-of-operations correct, abort path mutation-tested) and every other round-1 fix real, not
-cosmetic — then found the O-12 test itself was gameable (membership in the known-slugs list
+cosmetic - then found the O-12 test itself was gameable (membership in the known-slugs list
 alone doesn't prove the link names *this* animal's city; a mutation swapping in a hardcoded city
-still passed), fixed by cross-checking the link's own visible city name against its href's slug —
+still passed), fixed by cross-checking the link's own visible city name against its href's slug -
 two independently-computed fields that catch the two disagreeing (one side swapped onto a
 different city than the other), though **not** both being wrong the *same* way (a `page.tsx`
 lookup resolving a consistently-wrong `city` for both props); that residual gap needs a database
@@ -750,89 +750,89 @@ read this harness test doesn't have, and is recorded rather than papered over. A
 compared against itself); three doc inaccuracies (`resetFiltersHref` no longer takes
 `citySlugs` after this round's own simplification; a "measured" latency claim that wasn't;
 overstated language about param *order* preservation, when only param *values* are actually
-guaranteed); and a debt item accepted as-is rather than fixed in this row — the redirect's real
+guaranteed); and a debt item accepted as-is rather than fixed in this row - the redirect's real
 308 behaviour now has its own end-to-end test (`gallery-filters.harness.ts`, a real
 `?misto=<uuid>` link followed through a real 308 to its canonical slug), but the
 `animal-detail.harness.ts` file itself sits at a hard per-file request-budget ceiling where the
 next test anyone adds risks breaking a *different*, unrelated test with a failure pointing
-nowhere near the actual cause — noted as debt for a future session (a second spoofed IP for a
+nowhere near the actual cause - noted as debt for a future session (a second spoofed IP for a
 second describe block would remove it), not fixed here.
 
-**Reviewer round 3: PASS WITH NOTES.** Confirmed rounds 1–2 held, then caught round 2's own fix
+**Reviewer round 3: PASS WITH NOTES.** Confirmed rounds 1-2 held, then caught round 2's own fix
 comment overclaiming what the O-12 cross-check actually catches (corrected above and in the
 harness file's own comment) and a self-comparison reintroduced in the very `DeckScreen` test that
 fixed a different self-comparison two rounds earlier (`citySlugOf("Бровари")` compared against
-itself again) — fixed with the same literal-string pattern `FilterRail`'s equivalent fix already
+itself again) - fixed with the same literal-string pattern `FilterRail`'s equivalent fix already
 used. Both are one-line corrections, not new test logic. Full findings and fixes across all three
 rounds: this row's own PR.
 
-### Phase K — Polish batch ("2.5")
+### Phase K - Polish batch ("2.5")
 
-O-1 (header is a text wordmark, no logo — check the Claude Design export for what was actually
+O-1 (header is a text wordmark, no logo - check the Claude Design export for what was actually
 specified before assuming a logo belongs there; if the wordmark was a deliberate choice, this
-is a decision change, not a defect), O-4 (filter-label-to-pill spacing too tight — open the
+is a decision change, not a defect), O-4 (filter-label-to-pill spacing too tight - open the
 mock before changing anything), O-5 (card grid gains columns above a breakpoint on wide
-screens — **recreates F-1's exact preconditions**: recompute the `sizes` attribute from
+screens - **recreates F-1's exact preconditions**: recompute the `sizes` attribute from
 measured box widths at each breakpoint and assert the variant actually fetched, don't port the
 existing clauses forward), O-8 (detail-page breadcrumb moves out of the header, below it,
-left-aligned — same "never two navigations at once" direction as `docs/design/README.md:589`),
-O-11 (a footer — secondary links and a home for credits), O-13 (e-Ukraine font attribution
-moves into that footer, or `/pro` — the attribution itself is non-negotiable under CC BY 4.0,
+left-aligned - same "never two navigations at once" direction as `docs/design/README.md:589`),
+O-11 (a footer - secondary links and a home for credits), O-13 (e-Ukraine font attribution
+moves into that footer, or `/pro` - the attribution itself is non-negotiable under CC BY 4.0,
 only its placement is open), O-14 (informative pages' text column stays at its deliberate
-~65-character measure; what changes is the composition around it, not the line length —
+~65-character measure; what changes is the composition around it, not the line length -
 **superseding that entry's own "schedule after the MVP gate" note**: Oleksii's 2026-09-06
 reprioritisation places it in this batch, before the gate, superseding the earlier schedule).
 
 As one batch, not one row at a time, per Oleksii's explicit instruction. Scoped in full when
 picked up, as above.
 
-**2026-09-10 — five of seven done, one checked-and-closed with no code change, one parked.**
+**2026-09-10 - five of seven done, one checked-and-closed with no code change, one parked.**
 
 - **O-1, done.** The header now draws the real «Поріг · Межа» mark (`SiteHeader.tsx`'s new
-  `LogoMark`) from `docs/design/README.md`'s own SVG path geometry — arch, threshold, dot, ink
+  `LogoMark`) from `docs/design/README.md`'s own SVG path geometry - arch, threshold, dot, ink
   `#101112` only, 30px desktop / 26px mobile, gap to the wordmark = the dot's own height. Not an
   invented asset: the design doc names the exact path data, so drawing it is following the spec
   the file's own prior comment recorded as unmet. Not built: the 16/24px dot-dropped variant and
   the favicon (a separate asset pipeline, `app/icon.*`, not a header-lockup concern).
 - **O-8, done.** The detail page's back-link moved out of `SiteHeader`'s `leading` slot (removed
-  entirely — nothing else used it) into its own left-aligned element between the header and the
+  entirely - nothing else used it) into its own left-aligned element between the header and the
   content, horizontally aligned with the content column below it. `SiteHeader`'s own `order-last`
-  logic (specific to the `leading` slot) went with it; `flex-wrap` itself stays — see the second
+  logic (specific to the `leading` slot) went with it; `flex-wrap` itself stays - see the second
   regression below, which is exactly a reviewer round catching a first draft of this bullet
   claiming it was gone too.
 - **O-11 + O-13, done together, one component.** A new shared `Footer` (`apps/web/src/features/
   chrome/Footer.tsx`) replaces the one-off `<footer>` fragment that used to live only on the
-  gallery page — now rendered on every route that carries `SiteHeader` (gallery, `/pro`,
+  gallery page - now rendered on every route that carries `SiteHeader` (gallery, `/pro`,
   `/prytulkam`, detail; never the deck, same reasoning as the header itself). Carries
   `uk.footer.fontCredit` verbatim (unchanged, per that key's own doc comment) plus both existing
-  nav links (`uk.nav.forShelters`/`uk.nav.about`) — new placement, not new copy. Suppresses the
+  nav links (`uk.nav.forShelters`/`uk.nav.about`) - new placement, not new copy. Suppresses the
   matching link on the page it would point at (`currentPage` prop), the same self-link avoidance
   `SiteHeader.wordmarkIsCurrentPage` already does.
-- **O-4, checked, not a defect — no code change.** `Opika Registry System.dc.html`'s own
+- **O-4, checked, not a defect - no code change.** `Opika Registry System.dc.html`'s own
   computed style for a label+chip-row group is `gap: 12px`, exactly what `FilterRail.tsx`/
   `FilterSheet.tsx` already render. The implementation has not drifted from the design system;
   the design system's own number is what reads as tight. Widening it would be a real deviation
-  from a mock-specified value, not a bug fix — not done without sign-off. Full reasoning:
+  from a mock-specified value, not a bug fix - not done without sign-off. Full reasoning:
   `docs/observations.md`'s O-4 entry.
 - **O-5, done.** A new breakpoint (`--breakpoint-ultrawide: 2000px`) and a 6th-of-24 column count
-  above it, capped at a new `max-w-[1992px]` — `docs/design/README.md`'s grid table amended with
+  above it, capped at a new `max-w-[1992px]` - `docs/design/README.md`'s grid table amended with
   the new row (not a replacement of the existing 1024-1439/1440+ rows), per the decision's own
   instruction. Column width (312px) deliberately matches the existing wide bracket's own, so the
   card does not visually resize at the new boundary. New viewports (`GALLERY_ULTRAWIDE`/
   `_ROOMY`) and new harness cases in `gallery-layout.harness.ts` and `gallery-photo-sizes.
-  harness.ts` — not a port of the old 4-column assertions, per the decision's own explicit
+  harness.ts` - not a port of the old 4-column assertions, per the decision's own explicit
   warning about F-1's preconditions. **A real, previously-latent bug found in the process, not
   hidden:** the first attempt at a new photo-sizes case (at a boundary-clear-but-fluid 2200px
-  viewport) measured a real photo box of 250.66px against a declared 288px — the grid had not
+  viewport) measured a real photo box of 250.66px against a declared 288px - the grid had not
   yet reached its new ceiling at that width. Root cause and full scope (the same gap already
   existed, untested, in the desktop and wide brackets) filed as `docs/observations.md`'s new
-  O-18, not fixed in this row — the new case was moved to the cap-reached 2560px viewport
+  O-18, not fixed in this row - the new case was moved to the cap-reached 2560px viewport
   instead, matching the existing (if similarly incomplete) pattern the wide bracket's own case
   already set at 1920px.
-- **O-14, parked — the *what*, not the *whether*.** The footer half (above) is done, which is
+- **O-14, parked - the *what*, not the *whether*.** The footer half (above) is done, which is
   already a small step toward "not alone on an empty field." The rest needs an actual
   composition decision with no mock to open (`docs/design/README.md` has no section for `/pro`
-  or `/prytulkam` at all) — `docs/standing-constraints.md`'s "ambiguous design with no mock" is
+  or `/prytulkam` at all) - `docs/standing-constraints.md`'s "ambiguous design with no mock" is
   on the working loop's own stop-and-ask list regardless of what a reviewer would say, so this
   wasn't decided unilaterally. Two concrete directions recorded in `docs/observations.md`'s O-14
   entry, with a recommendation, for Oleksii to choose from rather than a default silently
@@ -841,13 +841,13 @@ picked up, as above.
 **A second real regression caught by the harness, not assumed safe:** removing `SiteHeader`'s
 `flex-wrap` (reasoned, at the time, to be dead weight once O-8 removed its only real user, the
 `leading` slot) broke real horizontal-overflow assertions at 360px on both the gallery and
-detail pages — the mark's own ~38px (26px + 12px gap) was enough on its own to push the
+detail pages - the mark's own ~38px (26px + 12px gap) was enough on its own to push the
 wordmark+nav row past 360px, independent of `leading` ever existing. Restored, with the doc
 comment corrected to explain why it's still load-bearing.
 
 **A third, this one self-inflicted during the branch move:** this row was implemented on top of
 `feat/city-slugs` (Phase S, PR #56, not yet merged) and then moved to its own branch off `main`
-per "one PR per queue item" — the `AnimalDetailScreen.tsx` merge conflict that move produced was
+per "one PR per queue item" - the `AnimalDetailScreen.tsx` merge conflict that move produced was
 resolved by hand, and the first resolution left two `<SiteHeader />` calls where one belonged,
 caught immediately by the same horizontal-overflow assertion (two wordmarks, two nav pairs, the
 `getByTestId` locator strict-mode-violating rather than silently picking one). Fixed before this
@@ -857,16 +857,16 @@ row's own `pnpm check` was ever called green.
 design-doc sections and mock file rather than trusting the summary, ran the actual test suites,
 mutation-tested the flex-wrap and duplicate-header fixes) and found four real issues, all fixed:
 the polish-batch commit itself hadn't actually been made yet when first reviewed (the duplicate-
-header fix was sitting uncommitted — fixed by committing before any PR, this paragraph included);
+header fix was sitting uncommitted - fixed by committing before any PR, this paragraph included);
 the new footer's two links rendered at 18px tall against the 48px touch-target floor
 (`docs/design/README.md:200`), the exact defect class this same batch's own O-1/O-8 work already
-found twice elsewhere — fixed (`min-h-12` added), and pinned with a new, mutation-confirmed
+found twice elsewhere - fixed (`min-h-12` added), and pinned with a new, mutation-confirmed
 harness assertion (`site-header.harness.ts`, run at exactly 18px before the fix to prove it
 catches the real number, not just some regression); this file's own O-8 bullet and
 `SiteHeader.tsx`'s top comment both claimed `flex-wrap` was removed, when the very next paragraph
-(this one's predecessor) already said it was restored — both corrected; and a test claiming to
+(this one's predecessor) already said it was restored - both corrected; and a test claiming to
 guard the logo mark's `aria-hidden` attribute never actually asserted it, passing unchanged when
-`aria-hidden` was deleted entirely — rewritten to assert the attribute directly, plus a comment
+`aria-hidden` was deleted entirely - rewritten to assert the attribute directly, plus a comment
 correction admitting the mark-to-wordmark gap is a rounded practical value, not a literal
 render of the design doc's stated "dot's height" (which scales to under 4px at this lockup size).
 
@@ -875,42 +875,42 @@ still-open Phase S PR): 833 workspace unit tests (291 domain + 20 i18n + 29 cont
 135 db + 348 apps/web), `build:web`, and 184 Playwright harness tests, all against local Postgres.
 
 **Rebased onto `main` after R2 (PR #54) merged, 2026-09-10.** R2 touched the same file this row's
-own O-8 work does (`AnimalDetailScreen.tsx`) for an unrelated reason — removing the not-a-
-judgement notice block R2 relocated to the deck — which put this branch in real conflict with
+own O-8 work does (`AnimalDetailScreen.tsx`) for an unrelated reason - removing the not-a-
+judgement notice block R2 relocated to the deck - which put this branch in real conflict with
 `main`, not merely stale. Rebased rather than merged, per the standing preference for a clean
 history; `docs/decisions-pending-review.md`'s add/add conflict (both branches had their own copy)
 was reconciled by hand into one file, exactly as that file's own header note said it would need
 to be once either sibling branch landed first. The `AnimalDetailScreen.tsx` conflict itself
-auto-merged correctly with no manual intervention — confirmed by reading the result, not assumed.
+auto-merged correctly with no manual intervention - confirmed by reading the result, not assumed.
 Full `pnpm check` re-run after the rebase, numbers above reflect that run, not the pre-rebase one.
 
-### Phase BR — Brand and launch-readiness items from the marketing docs (2026-10-06)
+### Phase BR - Brand and launch-readiness items from the marketing docs (2026-10-06)
 
 Folded from `docs/marketing/` (`brand-review.md`, `brand-improvements.md`,
 `adopter-launch-plan.md`). Every claim was checked against the code before its row was written;
 where a doc was wrong about the code, the row says so. Ordering stays with
-`docs/handoff-2026-10-04.md` §3's ledger — each row names the block it sits beside. Ukrainian is
+`docs/handoff-2026-10-04.md` §3's ledger - each row names the block it sits beside. Ukrainian is
 Oleksii's: copy rows are asks in the decisions inbox (`MK-n`), never `uk.ts` text written here.
 Elsewhere: icons merged into H4; H2's obligations are in H2's row; leaflet, channel and press
 under H6; the name and `noindex` timing are inbox decisions (MK-9, MK-10), not rows.
 
 | # | Task | Status |
 |---|---|---|
-| BR-1 | Copy asks, brand-review C1–C4. C1 `reveal.reflection1` («10–15 років») renders unconditionally (`ContactRevealDialog.tsx:370`), senior bucket included (MK-1). C2 `location.lineFostered` / `cardMeta.fosteredHousing` assert a female carer the model doesn't store; dormant `location.fostered` is fixed or deleted with them (MK-2). C3 `exhausted.newAnimals`' second sentence is an unmeasured frequency claim — a pure deletion, so no copy gate (MK-3). C4 `about.free`'s «лишиться безкоштовним» contradicts its own next clause (MK-4). C5 is block 1's RATE_LIMITED row, inbox B1-1 — not repeated. **Ledger:** beside block 1 | Open — C1/C2/C4 await Ukrainian; C3 can land now |
-| BR-2 | Dormant keys, fix or delete. `reserved.action` («Стати другим у черзі»): delete — no queue exists in schema or domain, nothing renders it. `exhausted.footnote` («напишіть нам, і ми…» against commitment #6's «я»; nothing renders it, F6 included): delete by default, rewrite only if Oleksii wants it wired (MK-5). Deletions need no copy gate. **Ledger:** beside block 1 | Open |
-| BR-3 | `detail.shelterVerifiedYears` («{years} на Opika») floors to «0 років» for every shelter's first year (`yearsOnOpika`, `AnimalDetailScreen.tsx:48`), hidden today only by `REGISTRY_HAS_NO_REAL_SHELTERS`. Replace with a since-date (MK-6). **Correction to the proposal:** `Intl.DateTimeFormat('uk', {month:'long', year:'numeric'})` returns the nominative «жовтень 2026 р.» (checked), not the genitive «з жовтня 2026» — the template is written around the real output and the test pins it. **Must land before that flag flips** (Part 5). Removes BR-4's plural forms | Open — awaits MK-6 |
-| BR-4 | Strings outside the catalogue into `uk.ts`, verbatim, no new copy: `layout.tsx`'s title default/template and `openGraph` `siteName`/title; `seo-flags.ts:94`'s «· перевірений»; `FilterSheet.tsx:285`'s `aria-label="Закрити"`; `AnimalDetailScreen.tsx:116`'s рік/роки/років (dropped instead if BR-3 lands first). Tests assert the literals, not the moved keys. Tier 2 — it moves rendered strings. **Sequence:** after BR-3 | Open |
-| BR-5 | Non-affiliation line (brand-improvements #1): one `footer.*` key rendered by `Footer.tsx`, a `Footer.test.tsx` case against the approved literal; ships `[COPY PENDING]` until MK-7 is answered. **Correction to "every page":** `Footer` renders on `/tvaryny`, the detail page, `/pro` and `/prytulkam` — not the deck (`/tvaryny/gortaty`, no footer by design). Deck placement has no mock, so it is a question in MK-7, not a default. **Ledger:** beside block 1 | Open |
-| BR-6 | Fresh pip blue vs commitment #7 (brand-improvements #3): `freshnessPips` gives `fresh` `bg-rg-registry` (`packages/ui/src/freshness-display.ts:38`), and `docs/design/README.md:273` says that blue means "someone confirmed this". Oleksii's decision, no default (MK-8). Either option is one function plus `freshness-pip-contrast.harness.ts` and the README (the doc's "two call sites" is three consumers — gallery card, deck card, detail — all through that function) | Blocked on MK-8 |
-| BR-7 | OG images (brand-improvements #5) via `next/og`'s `ImageResponse` — no new dependency. Site default in the root layout (its "no default `openGraph.images`" comment changes with it); per-animal card replaces the raw photo in `tvaryny/[animalId]/page.tsx`. Nothing in an image can change: no relative date, no reserved badge. Age bucket (derived at read time, CLAUDE.md #4) is the same risk, but whether to omit it or accept the staleness is Oleksii's call, not decided here (MK-11). Demo gate: the per-animal card carries the `uk.demo.*` disclosure while the flag is true (MK-12); both flag states tested. **Correction:** e-Ukraine is in the repo as woff2 only, which Satori can't read (TTF/OTF/WOFF) — adding another format is an asset-licensing step (Tier 1). **Depends on:** H4's icon half. **Ledger:** before block 10 — the rehearsal checks Telegram/Viber previews | Open |
-| BR-8 | Measurement baseline (adopter-launch-plan 0.6–0.7). (a) Saved SQL for §7's metrics, as files, not an admin UI — DEFAULT `packages/db/metrics/*.sql`, never imported by `apps/web`, never on a shelter-facing surface (commitment #2): reveals total / per animal / per shelter / per city (`animals.city_id`), distinct `adopter_id`, reveals per published animal, freshness distribution (tested against `freshnessOf`'s buckets, not re-typed thresholds), adopted count (no adoption timestamp exists — the file says so). Each runs in a test against the seeded local DB, and once against a non-production Neon branch (never the live `DATABASE_URL`); running any of these against production is Oleksii's own call, not this row's. (b) Check whether Vercel Web Analytics groups page views by `?misto=`; record the answer — if not, per-city is the DB-side query. **Ledger:** before block 10 | Open |
+| BR-1 | Copy asks, brand-review C1-C4. C1 `reveal.reflection1` («10–15 років») renders unconditionally (`ContactRevealDialog.tsx:370`), senior bucket included (MK-1). C2 `location.lineFostered` / `cardMeta.fosteredHousing` assert a female carer the model doesn't store; dormant `location.fostered` is fixed or deleted with them (MK-2). C3 `exhausted.newAnimals`' second sentence is an unmeasured frequency claim - a pure deletion, so no copy gate (MK-3). C4 `about.free`'s «лишиться безкоштовним» contradicts its own next clause (MK-4). C5 is block 1's RATE_LIMITED row, inbox B1-1 - not repeated. **Ledger:** beside block 1 | Open - C1/C2/C4 await Ukrainian; C3 can land now |
+| BR-2 | Dormant keys, fix or delete. `reserved.action` («Стати другим у черзі»): delete - no queue exists in schema or domain, nothing renders it. `exhausted.footnote` («напишіть нам, і ми…» against commitment #6's «я»; nothing renders it, F6 included): delete by default, rewrite only if Oleksii wants it wired (MK-5). Deletions need no copy gate. **Ledger:** beside block 1 | Open |
+| BR-3 | `detail.shelterVerifiedYears` («{years} на Opika») floors to «0 років» for every shelter's first year (`yearsOnOpika`, `AnimalDetailScreen.tsx:48`), hidden today only by `REGISTRY_HAS_NO_REAL_SHELTERS`. Replace with a since-date (MK-6). **Correction to the proposal:** `Intl.DateTimeFormat('uk', {month:'long', year:'numeric'})` returns the nominative «жовтень 2026 р.» (checked), not the genitive «з жовтня 2026» - the template is written around the real output and the test pins it. **Must land before that flag flips** (Part 5). Removes BR-4's plural forms | Open - awaits MK-6 |
+| BR-4 | Strings outside the catalogue into `uk.ts`, verbatim, no new copy: `layout.tsx`'s title default/template and `openGraph` `siteName`/title; `seo-flags.ts:94`'s «· перевірений»; `FilterSheet.tsx:285`'s `aria-label="Закрити"`; `AnimalDetailScreen.tsx:116`'s рік/роки/років (dropped instead if BR-3 lands first). Tests assert the literals, not the moved keys. Tier 2 - it moves rendered strings. **Sequence:** after BR-3 | Open |
+| BR-5 | Non-affiliation line (brand-improvements #1): one `footer.*` key rendered by `Footer.tsx`, a `Footer.test.tsx` case against the approved literal; ships `[COPY PENDING]` until MK-7 is answered. **Correction to "every page":** `Footer` renders on `/tvaryny`, the detail page, `/pro` and `/prytulkam` - not the deck (`/tvaryny/gortaty`, no footer by design). Deck placement has no mock, so it is a question in MK-7, not a default. **Ledger:** beside block 1 | Open |
+| BR-6 | Fresh pip blue vs commitment #7 (brand-improvements #3): `freshnessPips` gives `fresh` `bg-rg-registry` (`packages/ui/src/freshness-display.ts:38`), and `docs/design/README.md:273` says that blue means "someone confirmed this". Oleksii's decision, no default (MK-8). Either option is one function plus `freshness-pip-contrast.harness.ts` and the README (the doc's "two call sites" is three consumers - gallery card, deck card, detail - all through that function) | Blocked on MK-8 |
+| BR-7 | OG images (brand-improvements #5) via `next/og`'s `ImageResponse` - no new dependency. Site default in the root layout (its "no default `openGraph.images`" comment changes with it); per-animal card replaces the raw photo in `tvaryny/[animalId]/page.tsx`. Nothing in an image can change: no relative date, no reserved badge. Age bucket (derived at read time, CLAUDE.md #4) is the same risk, but whether to omit it or accept the staleness is Oleksii's call, not decided here (MK-11). Demo gate: the per-animal card carries the `uk.demo.*` disclosure while the flag is true (MK-12); both flag states tested. **Correction:** e-Ukraine is in the repo as woff2 only, which Satori can't read (TTF/OTF/WOFF) - adding another format is an asset-licensing step (Tier 1). **Depends on:** H4's icon half. **Ledger:** before block 10 - the rehearsal checks Telegram/Viber previews | Open |
+| BR-8 | Measurement baseline (adopter-launch-plan 0.6-0.7). (a) Saved SQL for §7's metrics, as files, not an admin UI - DEFAULT `packages/db/metrics/*.sql`, never imported by `apps/web`, never on a shelter-facing surface (commitment #2): reveals total / per animal / per shelter / per city (`animals.city_id`), distinct `adopter_id`, reveals per published animal, freshness distribution (tested against `freshnessOf`'s buckets, not re-typed thresholds), adopted count (no adoption timestamp exists - the file says so). Each runs in a test against the seeded local DB, and once against a non-production Neon branch (never the live `DATABASE_URL`); running any of these against production is Oleksii's own call, not this row's. (b) Check whether Vercel Web Analytics groups page views by `?misto=`; record the answer - if not, per-city is the DB-side query. **Ledger:** before block 10 | Open |
 
 ---
 
-### R-UI — Operator screens (planned 2026-10-17, RU-B2)
+### R-UI - Operator screens (planned 2026-10-17, RU-B2)
 
 Status: planned; waiting on Oleksii's answers (RU-Q1..RU-Q9) and the copy (`docs/r-ui-copy-sheet.md`)
-before any UI. Plan: `docs/r-ui-plan.md`. Three Tier 1 PRs, one open at a time beside PR 4–6:
+before any UI. Plan: `docs/r-ui-plan.md`. Three Tier 1 PRs, one open at a time beside PR 4-6:
 R-UI 1 (operator entry, list, shelter page read-only, history; one contract gap, the admins count),
 R-UI 2 (create shelter), R-UI 3 (verification, donation and admin actions). Merges before the dress rehearsal (RU-B4).
 
@@ -925,71 +925,71 @@ RUI4-F1: built on `feat/rui4-f1-reveal-name` (Tier 1, PR pending). The reveal vi
 `pnpm check` at `2e224df` (local Node 22: 4,527 workspace unit tests, 244 harness), served, end-to-end, contract and
 dialog tests, mutations. Asserted only: real Neon (no SQL change, F1-T4). Decisions: F1-T1..T5.
 
-## Part 3 — Timeline
+## Part 3 - Timeline
 
 The **Hours** column is a relative-complexity signal, not a schedule. These figures were estimated
-as solo human effort at 8–10 h/week; phases are landing in a fraction of that wall-clock time.
-What sets the calendar is review bandwidth and shelter recruitment — not the hour totals.
+as solo human effort at 8-10 h/week; phases are landing in a fraction of that wall-clock time.
+What sets the calendar is review bandwidth and shelter recruitment - not the hour totals.
 
 | Phase | Weeks | Hours |
 |---|---|---|
-| C — Consolidate | — | 0 (done) |
-| E — Gallery | 4–5 | 57 |
-| F — Detail & reveal | 3 | 24 |
-| G — Deck completion | off critical path | 13 |
-| H — Remainder to launch | 7 | 59 |
+| C - Consolidate | - | 0 (done) |
+| E - Gallery | 4-5 | 57 |
+| F - Detail & reveal | 3 | 24 |
+| G - Deck completion | off critical path | 13 |
+| H - Remainder to launch | 7 | 59 |
 | **Total from this rewrite** | **~16 weeks** | **~153 h** |
 
 At 8 h/week of code and 2 h/week of shelter recruitment, **soft launch still lands early
-February 2027** — the total dropped from ~135 h to ~127 h (C fully closed out, E gaining
+February 2027** - the total dropped from ~135 h to ~127 h (C fully closed out, E gaining
 E5's 3 h), but ~1 week at this pace doesn't move a ~16-week estimate expressed in weeks.
 The arithmetic: the course correction's 148 h, minus the ~34 h of Consolidate now fully
-spent and landed (C1–C7, all seven tasks) and the 8 h design pass 2, plus the ~21 h this
-rewrite and its implementation add (E0's contract and schema work — including the
+spent and landed (C1-C7, all seven tasks) and the 8 h design pass 2, plus the ~21 h this
+rewrite and its implementation add (E0's contract and schema work - including the
 `reserved`/`publishedAt` domain change and backfill and the second wait-anchor index, both
-settled during the gallery-contract decision round — E5's view-mode switch moved in from
-C7, and the admin desktop layouts) — 127 h. E1.5's addition (3 h, see Phase E above) brings
-this to 130 h, and E2.5's addition (3 h, also Phase E above) brings it to 133 h — same
+settled during the gallery-contract decision round - E5's view-mode switch moved in from
+C7, and the admin desktop layouts) - 127 h. E1.5's addition (3 h, see Phase E above) brings
+this to 130 h, and E2.5's addition (3 h, also Phase E above) brings it to 133 h - same
 reasoning both times: ~16 weeks at this cadence absorbs a few extra hours without moving
 the week count.
 
 **Phase V's addition (12 h, V1+V2 above) does not fit that same "absorbed, week count
 unmoved" reasoning, and is not claimed here as if it did.** 12 h at 8 h/week of code is
-~1.5 weeks — the two prior 3 h additions were each ~0.4 week, comfortably inside a "~16
+~1.5 weeks - the two prior 3 h additions were each ~0.4 week, comfortably inside a "~16
 weeks" figure's own rounding; 1.5 weeks is not. **145 h ÷ 8 h/week ≈ 18.1 weeks of code
-time alone** for the critical path (C+E+F+H — G stays off it, per its own header, both
+time alone** for the critical path (C+E+F+H - G stays off it, per its own header, both
 before and after G4), before the same rough-estimate slack the rest of this document
 carries. G4's own 3 h (deck gesture-physics re-skin, moved out of V2) brings the grand
 total including the off-critical-path phase to 148 h, but doesn't change that 18.1-week
-figure — G was already excluded from the critical-path week math, and stays excluded.
+figure - G was already excluded from the critical-path week math, and stays excluded.
 Whether the 12 h Phase V addition actually moves the project's week estimate past "~16
 weeks" — and if so, by
-how much — is a real re-plan question this document is not settling here; V1's intake
+how much - is a real re-plan question this document is not settling here; V1's intake
 report is the next input into that question, not this arithmetic update.
 
-**H3.5's addition (3 h, Phase H above — the e-Ukraine subsetting/`sizes`/priority-heuristic
+**H3.5's addition (3 h, Phase H above - the e-Ukraine subsetting/`sizes`/priority-heuristic
 perf pass, moved out of V2 for the reason recorded there) brings the critical path to
 148 h ÷ 8 h/week ≈ 18.5 weeks, and the grand total including G to 151 h.** Same reasoning
 as E1.5/E2.5's additions: absorbed inside the existing rough-estimate slack, not a figure
 this document claims moves the ~16-week estimate on its own.
 
-**F6's addition (2 h, Phase F above — screen 07's exhausted state, newly owned now that the
+**F6's addition (2 h, Phase F above - screen 07's exhausted state, newly owned now that the
 addendum gives it a mock; see "Why there's no Phase V3" in Phase E) brings the critical path
 to 150 h ÷ 8 h/week ≈ 18.75 weeks, and the grand total including G to 153 h.** Same
 reasoning again: this is new scope the addendum surfaced, not scope moving from a
-Phase V3 that never had its own hour line to begin with — there is nothing to subtract
+Phase V3 that never had its own hour line to begin with - there is nothing to subtract
 elsewhere in this ledger to offset it.
 
-**E5's real cost was ~18 h against its own 3 h line — a +15 h overage, and like Phase V's
+**E5's real cost was ~18 h against its own 3 h line - a +15 h overage, and like Phase V's
 12 h, this does not fit the "absorbed, week count unmoved" reasoning either.** Phase 0
 investigation found the 3 h estimate priced "chrome" against a deck that was already
 reachable; the real state was that `/discovery` still ran on `generateMockCards` entirely,
 no browser-side oRPC client existed anywhere in the repo, and no gallery-side entry control
-existed at all — wiring real data, a real route, and a real entry point was the actual
+existed at all - wiring real data, a real route, and a real entry point was the actual
 scope once that was checked, not assumed. Stopped and reported before starting, and the
 resulting scope questions went back to the user rather than being decided in-session. Brings
 the critical path to 165 h ÷ 8 h/week ≈ 20.6 weeks, and the grand total including G to
-168 h. Whether this — on top of Phase V's already-unresolved 12 h — actually moves the
+168 h. Whether this - on top of Phase V's already-unresolved 12 h - actually moves the
 project's week estimate past "~16 weeks," and by how much, remains the same open re-plan
 question Phase V's own paragraph raised; this entry doesn't re-settle it, only adds its
 number to the pile waiting on that question.
@@ -997,39 +997,39 @@ number to the pile waiting on that question.
 **Correction: that stop was not the 150%-hours gate condition firing, even though the
 number it should have fired on was already visible.** `.claude/commands/phase.md`'s gate
 checks an estimate against 150% of the plan's hours; E5's investigation crossed that line
-immediately — 3 h planned, and Phase 0 alone had already found enough missing (no browser
+immediately - 3 h planned, and Phase 0 alone had already found enough missing (no browser
 client, no real route, mock data throughout) to put the real number several times past
 4.5 h. The stop that happened was driven by two separate architecture questions (could the
 gallery's header survive a `layout.tsx` split; should the deck get real data at all) framed
 and asked on their own terms, not by naming the hours condition explicitly. The outcome was
-the same — work paused and went back to the user before implementation — but a gate that
+the same - work paused and went back to the user before implementation - but a gate that
 gets satisfied by coincidence rather than by being invoked isn't a gate a future overrun can
 rely on; the next one might cross 150% without also raising an architecture question
 someone happens to stop and ask about. Worth watching in Phase F: when Phase 0 turns up
-scope beyond the plan's number, say so in those terms — "this trips the 150% condition" —
+scope beyond the plan's number, say so in those terms - "this trips the 150% condition" -
 before moving on to whatever question prompted the check.
 
-**The actual gate on launch date has not moved and is not code:** 5–10 verified shelters
+**The actual gate on launch date has not moved and is not code:** 5-10 verified shelters
 in Kyiv oblast with photographed, described animals, each shelter having written its own
 `freshnessSentence`. Shelter #1 fully verified with ten photographed animals was a week-6
 milestone in the original plan and remains outstanding.
 
 ---
 
-## Part 4 — Standing decision points
+## Part 4 - Standing decision points
 
 Carried forward from the original plan, still undecided by design (decide at the stated
 moment, not now):
 
 | Decision | Decide at | Default if you don't |
 |---|---|---|
-| oRPC 1.x → 2.0 migration | When 2.0 hits stable and you're between phases | Stay on 1.x — all contracts live in one package, so migration stays a one-package job |
+| oRPC 1.x → 2.0 migration | When 2.0 hits stable and you're between phases | Stay on 1.x - all contracts live in one package, so migration stays a one-package job |
 | Add Turborepo | When CI exceeds ~3 min | Stay on plain pnpm workspaces |
 | Enable PostGIS | When real city-adjacency or radius search is needed (see `docs/gallery-contract-decisions.md` §4) | `city_id` FK + centroid only |
 | Extract `apps/partner` from `apps/web` | When a shelter asks for dashboard access **and** ≥15 shelters | Route group inside `apps/web` |
 | Adopter accounts | When someone asks for reveal history across devices | Anonymous session, upgradeable (Better Auth deferred to shelter accounts) |
 | Redis for the seen-set | When the array-column query shows up in slow logs | Postgres array column |
-| Move Vercel from Hobby to Pro | **Done 2026-10-18**: Oleksii upgraded to Pro, with a spend limit set. The ads/partners phase (Phase 2) is no longer blocked on the plan (it was, under Hobby's non-commercial rule: P-Q7, 2026-10-17) | — |
+| Move Vercel from Hobby to Pro | **Done 2026-10-18**: Oleksii upgraded to Pro, with a spend limit set. The ads/partners phase (Phase 2) is no longer blocked on the plan (it was, under Hobby's non-commercial rule: P-Q7, 2026-10-17) | - |
 
 **Never cut, regardless of schedule pressure:** the exhaustive FSM test, the freshness
 display, keyset pagination for the deck, seed-data volume, the verification gate
@@ -1037,14 +1037,56 @@ display, keyset pagination for the deck, seed-data volume, the verification gate
 
 ---
 
-## Part 5 — Launch gate
+## Part 5 - Launch gate
 
-Standing conditions, not phase-scoped work — checked at the specific moment each names, not
+Standing conditions, not phase-scoped work - checked at the specific moment each names, not
 bundled into one "before launch" deadline. Two different triggers live in this list:
 onboarding the first real shelter is the nearer one, and can arrive days after a deploy, not
 weeks.
 
 ### Before the first real shelter or animal record is inserted
+
+- [ ] **PG-F3 merged: a hard item.** Oleksii, 2026-10-19, verbatim: "Add PG-F3 to the launch gate as
+  a hard item: no real shelters before it's merged." `db:migrate` could reach a database the
+  production guard never checked (drizzle-kit's own config file and env-file loading). The fix is
+  parked on `fix/pgf3-migrate-bypass` (WIP, unreviewed, tests missing; handoff in its inbox file):
+  he writes its tests, then it gets the full Tier 1 review. No real shelter is onboarded before it
+  merges.
+- [x] **PW1-F5 merged.** Done. PR #158 (`fix/pw1-f5-atomic-session-revoke`) merged 2026-10-20
+  (`f490ae6`): an additive migration, `0013`, one function and two triggers on `auth_account`.
+  His rehearsal (`9013a35` on child `ep-mute-darkness-b1imydip`: migrate ok, smoke 13/13) and his
+  production migration (`ep-dawn-pond-b1dz515g`, 2026-10-20: "migrations applied successfully",
+  hashes clean before and after) are both quoted verbatim in the PR body. Review: PASS WITH NOTES,
+  notes fixed in the follow-up commit. The branch's own inbox rows were never folded into
+  `docs/decisions-inbox.md`'s shared table - folded in the same pass as this checkbox.
+- [x] **PW1-F6 merged.** Done. PR #159 (`61da308`) merged 2026-10-20: "a password sign-in that
+  raced a password write keeps no session". Our sign-in hooks read the credential's `updated_at`
+  and hash before Better Auth's own read, and again after its insert with `FOR SHARE`; any
+  difference refuses the sign-in with the wrong-password answer and deletes the session it just
+  created. No migration (Better Auth's own `updatedAt` stamp is pinned by a test against real
+  Better Auth). Oleksii's real-Neon smoke at `c1e184c`: 14 passed, step 14 is the raced sign-in.
+  Closed the known gap this row used to describe. Inbox:
+  `docs/decisions-inbox/docs-pw1-f6-known-gap.md`, `fix-pw1-f6-signin-race.md` - neither folded
+  into the shared table yet; folded in the same pass as this checkbox.
+- [ ] **S8-F5 merged: a hard item.** Oleksii, 2026-10-23, verbatim: "S8-F5 (a never-shown card's
+  name coming back) goes on the launch-gate list as a hard item. It must be fixed before the
+  first real shelter." The gap (`docs/decisions-inbox.md`'s S8-F5 row, folded from
+  `feat-dr1-s8-saved-page.md` at #186's merge; from the review of 3fce3b7): `animals.cardsByIds`'s
+  `wasEverPublic` check approximates "was this row ever shown" with "has the shelter ever been
+  verified," which aren't the same fact. **Two distinct windows, not one** (S8-D1-F1 finding 1
+  corrected an earlier draft of this row that named only the first): a shelter that *was*
+  verified once, is now paused or suspended, and publishes-then-withdraws a *new* card entirely
+  inside that window still has that card's name returned; *and* a shelter still
+  pending/under_review that publishes-then-withdraws a card before it's ever reached `verified`
+  at all has the same thing happen the first time that shelter is later approved. Neither card
+  was ever actually rendered on any public page. Closing it precisely needs a
+  stored "was this ever actually served" fact per listing, which doesn't exist today - real
+  product/schema work, not a quick check tweak. Until it merges, record the gap as known.
+  **Needs a migration** (additive: the new per-listing fact, a nullable `ever_served_at`
+  timestamp column, defaulting to unknown/never for existing rows). Same flow as
+  `0013`/`0014`: his rehearsal on a child branch with the real-Neon smoke, then his production
+  migration from the PR branch, then the merge - his steps written in PowerShell form, per
+  `docs/onboarding-a-shelter.md`'s existing pattern.
 
 **Launch order** (Oleksii, 2026-10-17, inbox RH-B5, RU-B4):
 1. **Built and merged:** PR 4 (K3 form) → PR 5 (K2 list) → PR 6 (writes open for everyone, the
@@ -1076,7 +1118,7 @@ verbatim: "remove all test shelters (demo + mine) before the first real shelter"
   runbook "Removing your own test shelters"). Their R2 photos stay, listed by the dry run for
   deletion by hand (DR-F3, open).
 
-This is the sharp one. It is not "before launch" — shelter onboarding can happen the moment
+This is the sharp one. It is not "before launch" - shelter onboarding can happen the moment
 someone says yes to an outreach email, independent of whatever else is or isn't ready.
 
 - [ ] **DMARC to `p=quarantine`** (Oleksii, 2026-10-19, verbatim: "Launch-gate checklist
@@ -1089,9 +1131,9 @@ someone says yes to an outreach email, independent of whatever else is or isn't 
   then check the next reports before `p=reject`.
 - [ ] **Google Postmaster Tools for `mail.opika.org.ua`** (Oleksii, 2026-10-19, verbatim: "Launch
   gate: add Google Postmaster Tools for mail.opika.org.ua. I add the verification TXT."). His step:
-  add the domain in Postmaster Tools, and its verification TXT in Cloudflare DNS. The reason: the
-  delivery test of 2026-10-19 put the sign-in email in Gmail's Promotions tab although it
-  authenticated (SPF, aligned DKIM, DMARC pass, TLS 1.3). No email headers change, and no
+  add the domain in Postmaster Tools, and its verification TXT in Cloudflare DNS. The reason, his
+  report of the delivery test, verbatim: "Gmail sorted the sign-in email into Promotions in the
+  delivery test (it authenticated fine)." (SPF, aligned DKIM and DMARC passed, over TLS 1.3: EA-B8.) No email headers change, and no
   List-Unsubscribe on auth emails (his words: "No headers or other email changes. Don't add
   List-Unsubscribe to auth emails.").
 - **Follow-up, decided after the first real sends, not now:** consider `kabinet@` instead of
@@ -1099,7 +1141,7 @@ someone says yes to an outreach email, independent of whatever else is or isn't 
   address", "to be decided after the first real sends, not now").
 
 **Location fuzzing.** `packages/db/src/seed.ts` computes every seeded `publicLocation` with
-`testOnlyLocationPolicy("seed")` — deterministic, unkeyed, and reversible by anyone reading
+`testOnlyLocationPolicy("seed")` - deterministic, unkeyed, and reversible by anyone reading
 the source. Correct for fictional seed data; would defeat the entire point of location
 fuzzing the moment a real foster carer's exact address used the same path.
 
@@ -1108,59 +1150,91 @@ Two guards now shipped, so this can no longer happen silently:
 1. `testOnlyLocationPolicy` itself throws if constructed with `NODE_ENV=production`
    (`packages/domain/src/primitives/coordinates.ts`, mutation-tested,
    `coordinates.test.ts`'s "refuses to construct in production"). Not opt-in the way
-   `assertProductionLocationPolicy` is — it fires the moment the insecure policy is
+   `assertProductionLocationPolicy` is - it fires the moment the insecure policy is
    constructed at all, not only if some later step remembers to check the value.
 2. `publicLocationOf` (`packages/domain/src/shelters/location.ts`) already took `policy` as
-   a required, no-default parameter before this check — verified, not assumed; there is no
+   a required, no-default parameter before this check - verified, not assumed; there is no
    second, laxer path into a `Shelter`'s `publicLocation` (`shelterRepo.insert` takes an
    already-fully-formed `Shelter`, computed nowhere but `publicLocationOf`). No change was
    needed here.
 
-**Still open, and this is the actual remaining gate:** nothing yet calls
-`productionLocationPolicy` (`packages/db/src/location-policy.ts`) from a real handler — the
-only caller anywhere is `seed.ts`, and it deliberately uses the test-only policy. Before the
-first real address is inserted:
+**Done, landed with the registry PR (RG-Q10).** `productionLocationPolicy` is now the only
+policy any real handler uses: `app/api/kabinet/[...rpc]/route.ts`'s `locationPolicy()` builds it
+once per process from `LOCATION_HMAC_SECRET` and the route answers 503 without the secret rather
+than fuzzing with a weak or missing key; `registry.shelters.create` (`registry-invitations.ts`)
+and a shelter's address change (`registry-writes.ts`) both call `publicLocationOf` with that one
+policy. `onboard-shelter.ts` (the operator's bulk-import script) always uses
+`productionLocationPolicy` too, with no test-only fallback. **Correction (caught on review):**
+`seed.ts` and the test fixtures are not the *only* remaining `testOnlyLocationPolicy` callers -
+`neon-auth-smoke.ts` (inserts a smoke-test shelter) and `demo-remove.ts`/`verify-locations.ts`
+(verification/clean-up tooling) also construct it, all correctly fictional/test-scoped, none of
+them a real-shelter write path. The substance holds - the 503 above still gates every real
+*registry* write - this just states the full set rather than an undercount of it.
+Animal records don't yet have a second, laxer path either: `animals.ts`'s kabinet handler
+hardcodes a new animal's `publicLocation: null`, so every real animal inherits its shelter's
+already-fuzzed location rather than computing its own; `animalPublicLocationOf` (the
+foster-city-precision path) has no real caller yet because the kabinet doesn't expose setting a
+foster location at all - a missing feature, not an unguarded path.
 
-- Wire `productionLocationPolicy` into whatever creates a real shelter or animal record.
-- Add `LOCATION_HMAC_SECRET` to `apps/web/src/api/env.ts`'s `RequiredProductionEnvSchema` in
-  that same change — not before (nothing to validate yet) and not separately (the two must
-  land together or the requirement and its consumer can drift apart again, the way the seed
-  path already did once).
+**The secret requirement landed differently than this row originally specified, and more
+precisely:** not in `RequiredProductionEnvSchema` (that schema applies to every
+`NODE_ENV=production` instance, Previews included, and a Preview never signs in or reaches the
+registry), but in `locationSecretProblem` (`build-env.ts`), checked by `validateEnv` and gated
+on `VERCEL_ENV === "production"` only - the same pattern `CRON_SECRET` uses. Rollout order per
+RG-Q10: Oleksii set the value in Vercel Production first, `location:verify --prod` reported 0
+mismatches, then this check landed.
 
-**BR-3 before the banner comes down.** `detail.shelterVerifiedYears` is hidden only by
-`REGISTRY_HAS_NO_REAL_SHELTERS`; the day that flag goes false (D-7's wipe, ahead of the first
-real shelter), every shelter's badge would read «0 років на Opika». BR-3 lands first.
+**BR-3: done.** PR #183 (copy audit 2026-10-22) changed `detail.shelterVerifiedYears` to
+«Перевірено вручну · на сайті з {year} року» - a since-date sentence, not a year count, so it no
+longer floors to «0 років» in a shelter's first year. No wording decision left pending.
 
-### Before any route is indexed (and, one hour earlier, before the same flip): D-5 and D-7
+### Before any route is indexed: D-7 (D-5 dropped, 2026-10-24)
 
-Both deferred from Phase D on 2026-09-06 — see that phase's reprioritisation note for the full
-reasoning. Neither is urgent while the site is `noindex`ed and no outreach has happened; both
-become load-bearing in the same hour `SITE_IS_PUBLICLY_DISCOVERABLE` flips, so both are due
-just before it, not before.
+Deferred from Phase D on 2026-09-06 - see that phase's reprioritisation note for the full
+original reasoning.
 
-- **D-5.** Every demo shelter's contact becomes a clearly-marked placeholder sentinel — no
-  invented phone number or handle anywhere in the corpus. The placeholder *format* is still
-  undecided (obviously-fake number pattern vs. a real-shaped number with a visible marker vs.
-  something else) and needs a decision when this row is actually picked up, not before.
+**This row's own concern (the full `test`-profile corpus, live in production today): dropped,
+Oleksii, 2026-10-24.** His instruction, directly: "Drop D-5: demo data is wiped before any real
+data, and the flip needs real shelters with the demo gone, so no demo contact is ever indexed."
+Checked against the actual launch order above: the wipe (`demo:remove`) happens *after* the
+first real shelter is onboarded, not before one exists (DR-Q2) - what actually closes this
+row's concern is the wipe landing before the *discoverability flip*, a later, separate step in
+the same order, not before the real shelter record itself. On that corrected reading his
+instruction still holds: no demo contact from the full corpus is ever live while the site is
+indexable. **A related but distinct item isn't closed by this:** `docs/handoff-2026-10-04.md`
+§3 pulled a version of this same concern forward into Phase 3, for the separate, two-shelter
+`demo` seed profile shown during the dress rehearsal - already built and pinned
+(`seed-profiles.test.ts`), with its placeholder-format choice (SP-1, `docs/decisions-inbox.md`)
+still a default, not his confirmed answer.
+
 - **D-7.** Write the demo-to-real transition into `docs/standing-constraints.md` and the
   onboarding checklist: wipe before the first `onboard-shelter --commit`; the banner
   (`REGISTRY_HAS_NO_REAL_SHELTERS`) comes down when the wipe happens, separately from noindex
   (`SITE_IS_PUBLICLY_DISCOVERABLE`) below, which stays down through the launch-gate window
-  until the site is actually meant to be found — the two do **not** come down together, that
+  until the site is actually meant to be found - the two do **not** come down together, that
   is the whole point of D-1's two constants; why `robots.txt` allowing crawl is deliberate;
-  the coexistence window named as the point of maximum danger.
+  the coexistence window named as the point of maximum danger. **Done, different scope,
+  2026-10-24:** `docs/launch-sequence.md` is this write-up - a full runbook, fifteen steps
+  across two reset cycles, rather than a `docs/standing-constraints.md` section, built on
+  Oleksii's own full-reset pivot the same day (a complete reset, not a demo-only wipe, run
+  twice, before the dress rehearsal and again right after it, before any real shelter exists
+  - superseding this row's and D-5's own "wipe after onboarding, before the flip" timing with
+  "wipe before any real or demo data exists at all"; corrected 2026-10-25 on the order itself,
+  which an earlier pass of this write-up had backwards). The two-constants distinction this row
+  describes is unchanged by that pivot and is still named explicitly in that document's own
+  steps 13-14 and its closing section.
 
 ### Before any route is indexed
 
 **Flip `SITE_IS_PUBLICLY_DISCOVERABLE` (`apps/web/src/seo-flags.ts`) on, or replace it with
 per-route logic.** This is a separate fact from `REGISTRY_HAS_NO_REAL_SHELTERS` in the same
-file — the two constants exist specifically because this paragraph's window collapses to
+file - the two constants exist specifically because this paragraph's window collapses to
 nothing if they don't: a real shelter can exist in the database, verified and reachable by
 direct link, before the site is meant to be publicly discoverable at all.
 `REGISTRY_HAS_NO_REAL_SHELTERS` may already be `false` by this point (the demo corpus
 wiped, real shelters onboarded); `SITE_IS_PUBLICLY_DISCOVERABLE` is the later, separate
 gate. Indexing while the registry still holds no real shelters would put fictional animals
-in front of a real adopter — caught in CI by `seo-flags.test.ts`'s own assertion on the real
+in front of a real adopter - caught in CI by `seo-flags.test.ts`'s own assertion on the real
 constants before either ever reaches a deploy. `assertDemoDiscoverabilityInvariant`
 (`instrumentation.ts`) is the second, runtime layer of the same check: defense in depth for
 a build that reached a running instance without that test having run, not the mechanism
@@ -1169,63 +1243,76 @@ earlier.
 
 **The pre-launch access gate (`proxy.ts`'s `evaluatePrelaunchGate`, added 2026-09-13,
 `docs/decisions-pending-review.md`) is tied to `SITE_IS_PUBLICLY_DISCOVERABLE` specifically, and
-comes down in the same change that flips it — not before, and not left in place after.** It
+comes down in the same change that flips it - not before, and not left in place after.** It
 exists only to make the site unreachable while that flag is false; leaving it active past the
 flip would mean a real, launched visitor without the gate secret gets a 403 instead of the site.
-Remove the gate check from `proxy.ts` (or let it no-op — either way, verify with a real
+Remove the gate check from `proxy.ts` (or let it no-op - either way, verify with a real
 unauthenticated request against the flipped build, not by reading the code) in the same change,
 and drop `PRELAUNCH_GATE_SECRET` from `apps/web/src/api/env.ts`'s `RequiredProductionEnvSchema`
 at the same time, since nothing will read it anymore.
 
-**Resolved, 2026-09-13 — Oleksii's own correction of his prior instruction.** An earlier draft
+**Resolved, 2026-09-13 - Oleksii's own correction of his prior instruction.** An earlier draft
 of this row described the gate as coming down "alongside the banner." Wrong, by his own words:
 "D-7 deliberately separates the banner (removed at first real shelter onboarding) from the
 `SITE_IS_PUBLICLY_DISCOVERABLE` flip (launch). The gate correctly reads the FLAG." The gate ties
-to the flag alone, as this section already implements — not to `REGISTRY_HAS_NO_REAL_SHELTERS`,
+to the flag alone, as this section already implements - not to `REGISTRY_HAS_NO_REAL_SHELTERS`,
 and not simultaneously with D-7's banner removal.
 
-**The window this creates is where the gate matters most, not an edge case to route around —
+**The window this creates is where the gate matters most, not an edge case to route around -
 say what "matters most" means here precisely, since this gate is a bot shutter, not a security
 boundary (`apps/web/src/api/prelaunch-gate.ts`'s own top comment; do not read the paragraph below
 as contradicting that).** Between D-7's banner coming down (a real shelter's data now live) and
 this flag actually flipping (the site meant to be found), a real shelter's real listing exists
-behind a deploy that is still not meant to be publicly discoverable — precisely the state
+behind a deploy that is still not meant to be publicly discoverable - precisely the state
 `docs/standing-constraints.md`'s "two facts that happen to be true at the same time are not one
 fact" entry names. Nothing about that window is a data-exposure risk on its own:
 `PublicShelterSchema`'s own `pick`-based stripping (unrelated to this gate) is what keeps an
 exact address or phone number out of any response, launched or not, gate or no gate. What the
 window *does* create, absent the gate, is the same low-cost, high-volume automated traffic this
 whole row exists because of, now hitting real rows instead of fabricated ones for no reason
-anyone chose — noise and Neon transfer cost, not a data leak. The gate's presence through this
+anyone chose - noise and Neon transfer cost, not a data leak. The gate's presence through this
 window, tied to the flag and not the banner, is what keeps that noise off a real shelter's own
-listing for as long as this launch-gate window lasts — a cost-and-timing concern, the same one
+listing for as long as this launch-gate window lasts - a cost-and-timing concern, the same one
 `docs/decisions-pending-review.md`'s original investigation was about, not a new security claim.
 
 **A deliberate second use, not a workaround:** a direct `?gate=<secret>` link is how the first
-onboarded shelter is shown their own real listing before launch — the gate is the mechanism that
+onboarded shelter is shown their own real listing before launch - the gate is the mechanism that
 makes that preview possible at all while the site stays unreachable to everyone else. Record this
 as a feature of the design, per Oleksii's own instruction, not as an incidental side door.
 
-### Before any route is indexed — the in-memory rate limiter is a launch-gate blocker, not a nicety
+**`sitemap.ts` must list every animal page before this flip, not just the handful of static
+routes (owner, PR B, the SEO review of page titles).** No `app/sitemap.ts` exists in this repo
+yet - PR B's own scope explicitly excluded building it, proposing its shape only as a follow-up.
+The animal page (`/tvaryny/{id}`) is the one surface the gallery's own `alternates.canonical`
+policy (canonicalising every filter/sort/page variant to the bare `/tvaryny`) deliberately keeps
+out of a crawler's reach via links alone - a sitemap is what actually gets each animal indexed
+once this flag flips, not merely a nice-to-have.
 
-**Move the in-memory rate limiter (`apps/web/src/api/rate-limit.ts`) to a shared store**
-(Redis/Upstash/Vercel KV). Already documented in that file's own comment as a known gap:
-each serverless instance holds its own counter, so the effective per-IP ceiling is `limit ×
-instance count`, not the stated limit.
+### Done, 2026-10-06 - the rate limiter is backed by a shared store (PR #70, RL-1 through RL-4)
 
-**Reclassified, 2026-09-13 — no longer "not urgent."** ~100 req/min of sustained,
-unidentified traffic against the noindexed, pre-launch site (investigated the same day —
-`docs/decisions-pending-review.md`) sailed through this limiter without a single 429 in six
-hours of Edge Requests data. That traffic is being stopped at the pre-launch gate
-(`proxy.ts`'s `evaluatePrelaunchGate`, same date) instead, which is a separate mechanism —
-the gate closes off *unauthenticated* traffic entirely; it does nothing for a legitimate,
-gate-holding visitor's own request rate once the gate itself comes down at launch. Real
-launch traffic, or any crawler let in after `SITE_IS_PUBLICLY_DISCOVERABLE` flips, would
-reproduce today's demonstration exactly. **Must be backed by a shared store before
-`SITE_IS_PUBLICLY_DISCOVERABLE` is ever flipped** — filed as a hard gate row, not a
-"before real traffic" aspiration.
+This row described a real gap as of 2026-09-13 (below, kept as history) and was closed the
+same month, well before this launch-gate pass - found stale on 2026-10-24 and corrected here.
+`apps/web/src/api/rate-limit.ts`'s `upstashRateLimiter` is live; `apiRateLimiter` and
+`sharedRateLimiter` both select it whenever Upstash/KV credentials are present, and `validateEnv`
+requires those credentials the moment a real Vercel deployment is detected (RL-2), so every
+production and Preview instance gets the shared store, never the in-memory fallback. Provisioned
+via Vercel's Marketplace (RL-4): one Upstash database, both environments connected, region
+`iad1` to match the Vercel function region. Per-environment budget isolation via a
+`VERCEL_ENV`-keyed prefix, not two databases (RL-3). Store-outage handling: a 1s bounded timeout
+and a `catch` around `ratelimit.limit()`, both resolving `false` rather than hanging the request
+open to the SDK's own multi-second default retry/backoff (RL-1). The file's own comments no
+longer describe this as a gap anywhere. No further action needed before the flip.
 
-### Before the MVP gate — a real touch-target/keyboard enforcement mechanism (O-19)
+**History, as originally written (2026-09-13), for context only - not a live instruction:**
+"Move the in-memory rate limiter (`apps/web/src/api/rate-limit.ts`) to a shared store
+(Redis/Upstash/Vercel KV)... ~100 req/min of sustained, unidentified traffic against the
+noindexed, pre-launch site... sailed through this limiter without a single 429 in six hours of
+Edge Requests data. That traffic is being stopped at the pre-launch gate instead, which does
+nothing for a legitimate, gate-holding visitor's own request rate once the gate comes down at
+launch. Must be backed by a shared store before `SITE_IS_PUBLICLY_DISCOVERABLE` is ever
+flipped."
+
+### Before the MVP gate - a real touch-target/keyboard enforcement mechanism (O-19)
 
 **Scheduled here by Oleksii's own instruction (2026-09-10 status call), not filed-and-forgotten:**
 "the MVP gate requires 48px targets and keyboard-only on every surface; three hand-copied
@@ -1236,49 +1323,49 @@ correctly everywhere it's checked, but as three independent, hand-copied local c
 (`discovery-layout.harness.ts`, `gallery-filters.harness.ts`, `site-header.harness.ts`), each
 applied only to the specific elements that file's author remembered to write a case for. A new
 interactive element ships with no assertion covering it until someone happens to add one by
-name — exactly how `Footer.tsx` shipped its two links at 18px, caught by `opika-reviewer`, not by
+name - exactly how `Footer.tsx` shipped its two links at 18px, caught by `opika-reviewer`, not by
 the test suite that already existed to catch it.
 
 **What this row needs to build, when picked up:** a single shared Playwright helper (something
 like `assertMinTouchTarget(page, selector)`) that new harness files reach for by construction,
-replacing the three duplicated consts, *plus* — the part that actually closes the gap, not just
-tidies it — one harness case per user-facing surface that sweeps every real interactive element
+replacing the three duplicated consts, *plus* - the part that actually closes the gap, not just
+tidies it - one harness case per user-facing surface that sweeps every real interactive element
 on that surface (every `getByRole("link")`/`getByRole("button")` result, not a hand-picked
 subset), so a new button or link is covered the moment it exists. The same shape of gap likely
 exists for keyboard reachability (a focus-visible check exists per-component today, same as the
-touch-target one) — the MVP gate's "keyboard-only on every surface" requirement is the same
+touch-target one) - the MVP gate's "keyboard-only on every surface" requirement is the same
 argument applied to a second property, and should be scoped into this row rather than left as a
 second, later rediscovery of the identical mechanism gap.
 
 Exact sweep strategy (walk the accessibility tree vs. enumerate roles vs. something else) not
-decided — `docs/observations.md`'s O-19 says so explicitly ("filed, not designed. Do not build
+decided - `docs/observations.md`'s O-19 says so explicitly ("filed, not designed. Do not build
 it now") and that instruction stands; this entry only fixes *when*, not *how*.
 
-**2026-09-12 — the shared helper half done, the sweep half deliberately not attempted.**
+**2026-09-12 - the shared helper half done, the sweep half deliberately not attempted.**
 `expectMinTouchTarget(locator, label)` (`apps/web/test/harness/harness.ts`, beside `rectOf`,
 which it wraps) replaces all three hand-copied `const MIN_TOUCH_TARGET_PX = 48` +
 `expect(rect.height, ...).toBeGreaterThanOrEqual(...)` pairs in
-`discovery-layout.harness.ts`/`gallery-filters.harness.ts`/`site-header.harness.ts` — one call
+`discovery-layout.harness.ts`/`gallery-filters.harness.ts`/`site-header.harness.ts` - one call
 site, one message format, one place a future edit to the 48px figure itself has to land. Every
 existing case (back-to-list button, retry button, deck-entry link, both nav links, both footer
 links) now calls it; nothing about which elements get checked changed, only that they now share
 one mechanism instead of three independent hand-copies of the same three lines.
 
-**The sweep — "every interactive element gets this check by construction, not by someone
+**The sweep - "every interactive element gets this check by construction, not by someone
 remembering to write a case for it by name" — is the part that actually closes O-19's own gap,
 and it is deliberately not attempted here.** The exact strategy is a real, undecided design
 question (walk the accessibility tree? enumerate `getByRole("link")`/`getByRole("button")`
-across a page and exclude known-decorative ones? something else?), not a mechanical refactor —
+across a page and exclude known-decorative ones? something else?), not a mechanical refactor -
 inventing an answer unilaterally, under this row's own "do not build it now" standing next to a
 still-open design question, is exactly the kind of scope creep this project's standing
 constraints warn against. What's shipped removes the three-copies problem the helper alone can
 fix; what's still open is recorded as open, not quietly narrowed into "helper exists, therefore
 O-19 is done." The same applies to O-19's second half (keyboard reachability swept the same
-way) — untouched, same reasoning.
+way) - untouched, same reasoning.
 
-### Before the MVP gate — DB connection strategy (O-9) — "2.1" in the 2026-09-06 reprioritisation
+### Before the MVP gate - DB connection strategy (O-9) - "2.1" in the 2026-09-06 reprioritisation
 
-Unlike the rate limiter above, **this one is already live at today's near-zero traffic** —
+Unlike the rate limiter above, **this one is already live at today's near-zero traffic** -
 `docs/observations.md`'s O-9 measured every DB-backed production page plateauing at a
 ~1s floor that repeated warm requests don't reduce, while the identical code against a local
 Postgres runs in ~130ms. No Vercel function region is pinned anywhere in the repo
@@ -1288,55 +1375,55 @@ executing in `iad1` (US East) against Neon's `aws-eu-central-1` (Frankfurt).
 rather than the pooled/HTTP path `docs/stack-decision.md:145` names as Neon Launch's own answer
 to serverless connection cost.
 
-**Own row, scheduled after Phase D and before this gate — not a mid-D patch:** fix
+**Own row, scheduled after Phase D and before this gate - not a mid-D patch:** fix
 `packages/db/src/client.ts`'s connection strategy (pooled connection string and/or Neon's HTTP
 driver), informed by Oleksii's own Network-tab timing of the actual reveal click (still pending
 as of O-9's diagnosis) to confirm how much of the reveal flow's latency this actually closes.
 
-**2026-09-09 — diagnosis reconfirmed today, driver fix built and reviewed.** Before touching any
+**2026-09-09 - diagnosis reconfirmed today, driver fix built and reviewed.** Before touching any
 code, the ~1s floor was re-measured against the live site (not trusted from four-day-old notes):
-`/tvaryny` 1.05–1.10s warm (3.65s cold), `/tvaryny/[id]` 0.85–0.95s warm, `/prytulkam` (non-DB)
-0.10–0.28s warm — same shape as the original diagnosis, still true. `X-Vercel-Id` still reads
-`iad1`. The prior session's decisive test (query count doesn't explain it — a 1-query endpoint
+`/tvaryny` 1.05-1.10s warm (3.65s cold), `/tvaryny/[id]` 0.85-0.95s warm, `/prytulkam` (non-DB)
+0.10-0.28s warm - same shape as the original diagnosis, still true. `X-Vercel-Id` still reads
+`iad1`. The prior session's decisive test (query count doesn't explain it - a 1-query endpoint
 was *slower* than a 2-query one) was not re-run against production (constructing the raw oRPC
 call by hand risked a malformed request against production for a result already established four
 days earlier with clear methodology); the page-level reconfirmation above stands in for it.
 
 **Fix:** `createDatabase` (`packages/db/src/client.ts`) now branches on the connection string's
-own hostname — a real Neon host (`*.neon.tech`, matched case-insensitively) gets
+own hostname - a real Neon host (`*.neon.tech`, matched case-insensitively) gets
 `@neondatabase/serverless` + `drizzle-orm/neon-http` (one HTTP fetch per query, no TCP+TLS
 handshake to repeat); everything else, including every local dev and test run against
 docker-compose Postgres, keeps the existing `postgres`/postgres-js TCP driver, which the HTTP
 driver has no way to reach at all. `createDatabaseWithClient` (`onboard-shelter.ts`'s own direct
-Neon connection, and every test's local client) is untouched — it never goes through the new
+Neon connection, and every test's local client) is untouched - it never goes through the new
 branch. `@neondatabase/serverless@1.1.0` added to the catalog, justified on its own terms (MIT,
 zero transitive dependencies, the only way to reach Neon over HTTP), not as something
-`docs/stack-decision.md`'s ADR specifically pre-approved — that line is a vendor-feature bullet,
+`docs/stack-decision.md`'s ADR specifically pre-approved - that line is a vendor-feature bullet,
 not a decision record for this row.
 
-**Did not close this gate on its own, at the point this paragraph was written — only the
+**Did not close this gate on its own, at the point this paragraph was written - only the
 connection-overhead half of the diagnosis was addressed then.** The `iad1`-vs-`aws-eu-central-1`
 region mismatch was untouched at that point. **Corrected, 2026-09-13**: commit `f966242`
 ("perf(web): O-9 continued — pin function region to fra1, near Neon", merged the same day via PR
 #53 / squash commit `61183b2`) pinned `apps/web/vercel.json`'s `regions` to `fra1`, closing the
 other half the same day. Left stale here
-until an unrelated bot-traffic investigation found it — same defect class `packages/db/src/client.ts`'s
+until an unrelated bot-traffic investigation found it - same defect class `packages/db/src/client.ts`'s
 own comment had, corrected there in the same pass.
 
 **Two review rounds, both real findings:**
 - Round 1: a real union return type (`PostgresJsDatabase | NeonHttpDatabase`) broke
   `swipeRepo.record`'s `.onConflictDoUpdate(...).returning(...)` call (a TypeScript
   overload-resolution artifact confirmed by the same call typechecking cleanly against each
-  adapter in isolation, not a real behavioural gap) — resolved by annotating `Database` as
+  adapter in isolation, not a real behavioural gap) - resolved by annotating `Database` as
   `PostgresJsDatabase` and casting the Neon branch to it, justified narrowly: nothing in
   `packages/db/src/repos` calls `.execute()` (the one place the two adapters' raw result shapes
   genuinely differ) or `.transaction()` (which `neon-http` doesn't support at all and would only
-  fail against real Neon in production, never locally — the comment says so explicitly rather
+  fail against real Neon in production, never locally - the comment says so explicitly rather
   than claiming the two adapter classes are interchangeable).
 - Round 2: `isNeonHost` was case-sensitive (`postgres:` isn't a WHATWG special scheme, so `URL`
-  never lowercases the host — an uppercased hostname in a real `DATABASE_URL` would have silently
+  never lowercases the host - an uppercased hostname in a real `DATABASE_URL` would have silently
   kept the slow driver, nothing red anywhere) and a malformed connection string's parse error
-  leaked the whole string, password included, via `input`. Both fixed and mutation-tested — the
+  leaked the whole string, password included, via `input`. Both fixed and mutation-tested - the
   case-sensitivity fix reverted via `sed` (not the linted `Edit` path) and confirmed the new test
   goes red without it. `apps/web/src/api/db.ts`'s memoisation comment, which said "reuses a single
   pool" — no longer true on the Neon branch, which holds no pool at all — corrected. 9 new unit
@@ -1344,21 +1431,21 @@ own comment had, corrected there in the same pass.
   hosts, local hosts, an uppercased Neon host, `neon.tech` appearing outside the hostname, a
   malformed URL not leaking its password) plus one offline-checkable structural test that
   `createDatabase` actually returns a different driver class per branch (via Drizzle's own
-  `entityKind` symbol, not `constructor.name`) — mutation-confirmed by inverting the branch and
+  `entityKind` symbol, not `constructor.name`) - mutation-confirmed by inverting the branch and
   watching it fail.
 
 **Real Vercel preview timing, obtained via `vercel curl` (the CLI's authenticated path through
-Deployment Protection — plain `curl` gets a 302 to a login page) against this branch's own PR #53
+Deployment Protection - plain `curl` gets a 302 to a login page) against this branch's own PR #53
 preview, same region as production (`X-Vercel-Id` confirmed `iad1` on both):**
 
 | Page | Before (production, unchanged code, contemporaneous samples) | After (this preview, warmed) |
 |---|---|---|
-| `/tvaryny` (gallery) | median ~1.10s (9 samples, range 1.02–1.23s) | median ~0.90s (14 samples, range 0.78–1.12s) |
-| `/tvaryny/[id]` (detail) | median ~0.88s (8 samples, range 0.84–0.96s) | median ~0.70s (8 samples, range 0.65–0.92s, clear downward trend as it warmed) |
+| `/tvaryny` (gallery) | median ~1.10s (9 samples, range 1.02-1.23s) | median ~0.90s (14 samples, range 0.78-1.12s) |
+| `/tvaryny/[id]` (detail) | median ~0.88s (8 samples, range 0.84-0.96s) | median ~0.70s (8 samples, range 0.65-0.92s, clear downward trend as it warmed) |
 
-**Honest reading: real improvement, ~18–20%, not the dramatic fix "the one-second floor" might
+**Honest reading: real improvement, ~18-20%, not the dramatic fix "the one-second floor" might
 suggest, and this row does not close the gate on its own.** The gallery page's samples overlap
-production's range more than the detail page's do — plausibly because its query is heavier (a
+production's range more than the detail page's do - plausibly because its query is heavier (a
 scan, per the earlier decisive test), so query execution time is a larger share of its total and
 the connection-overhead saving is a smaller fraction of the whole. The detail page's samples show
 a real downward trend across 8 warm hits (0.92s → 0.65s), consistent with `neon-http`'s
@@ -1367,23 +1454,23 @@ one open, the same way the old TCP driver's connections could in principle reuse
 but empirically weren't (the original diagnosis's own working hypothesis).
 
 **What this result implies about the diagnosis, stated plainly:** switching from TCP to HTTPS
-does not eliminate a handshake — HTTPS pays its own TCP+TLS handshake. What it removes is the
-*Postgres-protocol* handshake layered on top (SSL negotiation, startup packet, auth exchange) —
-worth perhaps one fewer round trip, which is consistent with an 18–20% cut rather than the
+does not eliminate a handshake - HTTPS pays its own TCP+TLS handshake. What it removes is the
+*Postgres-protocol* handshake layered on top (SSL negotiation, startup packet, auth exchange) -
+worth perhaps one fewer round trip, which is consistent with an 18-20% cut rather than the
 order-of-magnitude one might hope for. The dominant remaining cost is almost certainly the
-transatlantic round trip itself (`iad1` ↔ `aws-eu-central-1`), which no driver choice removes —
+transatlantic round trip itself (`iad1` ↔ `aws-eu-central-1`), which no driver choice removes -
 only the region-pin named as this row's unaddressed other half would.
 
-**2026-09-09, continued — region pin actioned.** `apps/web/vercel.json` now sets
-`"regions": ["fra1"]` (Frankfurt, Vercel's region code nearest Neon's `aws-eu-central-1`) —
+**2026-09-09, continued - region pin actioned.** `apps/web/vercel.json` now sets
+`"regions": ["fra1"]` (Frankfurt, Vercel's region code nearest Neon's `aws-eu-central-1`) -
 confirmed against Vercel's own current docs that `regions` is the correct, non-deprecated
 top-level key (not `functionFailoverRegions`, which is a separate, Enterprise-only failover
 mechanism) and that pinning a single region is available at the Pro tier this project is already
-on. Confirmed static routes (`/pro`, `/prytulkam`, `/robots.txt`) are unaffected — `pnpm build:web`
+on. Confirmed static routes (`/pro`, `/prytulkam`, `/robots.txt`) are unaffected - `pnpm build:web`
 produces a byte-identical route table with and without the config, and Vercel's own CDN serves
 static content from the region closest to the *visitor* regardless of the function region setting.
 **Accepted, not fixed:** dropping `iad1` from `regions` entirely (rather than listing
-`["iad1", "fra1"]`) removes US-region execution as a fallback — real failover
+`["iad1", "fra1"]`) removes US-region execution as a fallback - real failover
 (`functionFailoverRegions`) is Enterprise-only, and listing two regions in `regions` itself would
 route by proximity to the *visitor*, not act as failover, which would put US traffic back through
 `iad1` and undo this fix for exactly the visitors it's least needed for (a Ukrainian-oblast
@@ -1392,11 +1479,11 @@ than silently accepted.
 
 **Stray artefacts from this session's own investigation, cleaned up, not shipped:** the `.gitignore`
 addition from linking this project locally (`vercel link`, needed to run `vercel curl` against
-protected preview deployments — see the timing table above) originally added a bare `.env*` line,
+protected preview deployments - see the timing table above) originally added a bare `.env*` line,
 which silently overrode the pre-existing `!.env.example` negation three lines above it (gitignore
-resolves by last-matching-pattern) — a real, if latent, bug: `apps/web/.env.example` or any future
+resolves by last-matching-pattern) - a real, if latent, bug: `apps/web/.env.example` or any future
 `*.env.example` would have been silently git-ignored, never shipped, with nothing red anywhere.
-Fixed by removing the redundant line entirely — `.env`/`.env.local` were already covered by the
+Fixed by removing the redundant line entirely - `.env`/`.env.local` were already covered by the
 file's existing patterns, confirmed via `git check-ignore` both before and after. Several other
 stray local files (curl/fetch output redirected to short filenames during this investigation) were
 found untracked and deleted before committing, not left for a future `git add -A` to catch.
@@ -1406,33 +1493,33 @@ confirmed `fra1` on this deployment):**
 
 | Page | Before (unfixed production) | After driver fix alone (previous preview, `iad1`) | After driver + region pin (this preview, `fra1`) |
 |---|---|---|---|
-| `/tvaryny` (gallery) | median ~1.10s | median ~0.90s | median ~0.42s (6 samples, range 0.27–0.55s) |
-| `/tvaryny/[id]` (detail) | median ~0.88s | median ~0.70s | median ~0.24s (6 samples, range 0.21–0.33s) |
-| `/prytulkam` (non-DB, unchanged) | ~0.10–0.28s | — | ~0.11–0.27s |
+| `/tvaryny` (gallery) | median ~1.10s | median ~0.90s | median ~0.42s (6 samples, range 0.27-0.55s) |
+| `/tvaryny/[id]` (detail) | median ~0.88s | median ~0.70s | median ~0.24s (6 samples, range 0.21-0.33s) |
+| `/prytulkam` (non-DB, unchanged) | ~0.10-0.28s | - | ~0.11-0.27s |
 
-**This is the real result, and it's the dramatic one the diagnosis pointed at all along — the
+**This is the real result, and it's the dramatic one the diagnosis pointed at all along - the
 region mismatch, not the driver, was the dominant cost.** ~62% off `/tvaryny`, ~72% off
-`/tvaryny/[id]`, both landing within roughly 2–3× of the non-DB baseline instead of 8–10×. The
+`/tvaryny/[id]`, both landing within roughly 2-3× of the non-DB baseline instead of 8-10×. The
 "one-second floor" this row set out to explain is gone on both measured pages. The driver fix's
-own, separately-measured ~18–20% (previous table) is still real and still worth having on its own
-terms (it's what made the region pin's improvement this clean — without it, some of this gain
+own, separately-measured ~18-20% (previous table) is still real and still worth having on its own
+terms (it's what made the region pin's improvement this clean - without it, some of this gain
 would have been masked by the Postgres-protocol handshake still riding on every request), but the
 region pin is unambiguously where most of the win came from.
 
-**This row is now done — both the connection-overhead half and the region-mismatch half of O-9's
+**This row is now done - both the connection-overhead half and the region-mismatch half of O-9's
 diagnosis are addressed and verified.** Remaining, explicitly out of this row's scope: a genuinely
-cold start against the fixed code (not measured — every sample above is warm), and the reveal
+cold start against the fixed code (not measured - every sample above is warm), and the reveal
 flow's own two-round-trip structural cost (`session.bootstrap` then `animals.reveal`), which
 neither fix touches.
 
 **Still cannot be verified from this position:** a genuinely cold start for the fixed code (every
-sample above came from an already-warmed preview instance — the original diagnosis's 3.65–4.33s
+sample above came from an already-warmed preview instance - the original diagnosis's 3.65-4.33s
 cold figures have no post-fix counterpart here), and the reveal flow's own two-round-trip cost
 (`session.bootstrap` then `animals.reveal`, O-9's other named structural multiplier), which this
 row doesn't touch at all. `pnpm check` is green (807 tests total in the final commit, `build:web`,
 and the full harness, all against local Postgres via the unchanged postgres-js path).
 
-**Amendment, 2026-09-09 (Phase R, new standing constraint) — what "verified" actually covers
+**Amendment, 2026-09-09 (Phase R, new standing constraint) - what "verified" actually covers
 here.** `pnpm check`'s local suite exercises the `postgres-js` branch only; it cannot and does
 not verify `createDatabase`'s `neon-http` branch, which is what production actually runs. What
 *was* verified against real Neon: `isNeonHost`/`createDatabase`'s branch-selection logic (the
@@ -1442,9 +1529,9 @@ correct driver class is selected), and the driver class identity itself
 reach" a real Neon instance). What was *not* independently re-verified per query: whether every
 individual repo method's result shape is actually adapter-agnostic, which `client.ts`'s own
 comment claims but which only holds so long as nothing in the repo layer calls raw `.execute()`
-— R1 found and fixed exactly one violation (`feedRepo.hasActiveSeenSet`, which silently returned
+- R1 found and fixed exactly one violation (`feedRepo.hasActiveSeenSet`, which silently returned
 `false` in production regardless of the real answer; see the standing constraint this amendment
 references). As of that fix, `grep -rn "\.execute(" packages/db/src/` returns nothing in the
-repo layer (only comments, `seed.ts`, and `test-utils/setup.ts` — neither of the latter two runs
+repo layer (only comments, `seed.ts`, and `test-utils/setup.ts` - neither of the latter two runs
 against Neon in production). O-9's own connection-selection change is not the source of open
 risk; the general class of risk it makes possible is what the standing constraint now names.

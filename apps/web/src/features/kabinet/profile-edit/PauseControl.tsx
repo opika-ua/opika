@@ -5,11 +5,14 @@ import { PAUSE_NOTE_MAX_CHARACTERS } from "@opika/contracts";
 import { type PauseCode, PauseCodeSchema, type PauseReason } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useId, useRef, useState } from "react";
-import { Button, SelectField, TextAreaField } from "../../controls/controls";
-import { ModalDialog } from "../../controls/ModalDialog";
+import { Button } from "../../../ui/Button";
+import { InlineStatus } from "../../../ui/feedback";
+import { Select, TextArea } from "../../../ui/form";
+import { Modal } from "../../../ui/Modal";
+import { Panel } from "../../../ui/Panel";
+import type { WriteResult } from "../shared/write-result";
+import { Optional } from "./Optional";
 import { PausedStatus } from "./PausedStatus";
-import { BODY, CARD, ERROR_TEXT, OPTIONAL } from "./styles";
-import type { WriteResult } from "./write-result";
 
 type Notice =
   | { kind: "none" }
@@ -38,6 +41,7 @@ export function PauseControl({
 }) {
   const t = uk.kabinet.profileEdit.pause;
   const errors = uk.kabinet.profileEdit.errors;
+  const id = useId();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>({ kind: "none" });
@@ -62,14 +66,21 @@ export function PauseControl({
   };
 
   return (
-    <section
-      aria-label={verification.status === "paused" ? t.resumeButton : t.button}
-      className={`${CARD} items-start`}
+    <Panel
+      as="section"
+      tone="outline"
+      padding="lg"
+      aria-labelledby={`${id}-title`}
+      className="flex flex-col items-start gap-4"
     >
+      {/* The section is named by the action it holds. */}
+      <h2 id={`${id}-title`} className="sr-only">
+        {verification.status === "paused" ? t.resumeButton : t.button}
+      </h2>
       {verification.status === "paused" ? (
         <>
           <PausedStatus since={verification.since} reason={verification.reason} />
-          <Button variant="secondary" aria-busy={busy || undefined} onClick={onResume}>
+          <Button variant="secondary" status={busy ? "loading" : "idle"} onClick={onResume}>
             {t.resumeButton}
           </Button>
         </>
@@ -85,18 +96,14 @@ export function PauseControl({
           {t.button}
         </Button>
       )}
-      <p role="status" className={BODY}>
+      <p role="status" className="text-body text-ink">
         {notice.kind === "paused" ? t.paused : notice.kind === "resumed" ? t.resumed : null}
       </p>
       {notice.kind === "illegal_resume" ? (
-        <p role="alert" className={ERROR_TEXT}>
-          {errors.illegalTransitionResume}
-        </p>
+        <InlineStatus tone="error">{errors.illegalTransitionResume}</InlineStatus>
       ) : null}
       {notice.kind === "failed" ? (
-        <p role="alert" className={ERROR_TEXT}>
-          {uk.kabinet.profileEdit.state.failed}
-        </p>
+        <InlineStatus tone="error">{uk.kabinet.profileEdit.state.failed}</InlineStatus>
       ) : null}
       {dialogOpen ? (
         <PauseDialog
@@ -111,7 +118,7 @@ export function PauseControl({
           }}
         />
       ) : null}
-    </section>
+    </Panel>
   );
 }
 
@@ -121,7 +128,7 @@ type DialogError = { kind: "none" } | { kind: "reason" } | { kind: "illegal" } |
  * N15's reason-dialog template: modal over the page, the five pause codes as
  * a select (a reason is required), an optional note, black primary. The
  * frame (focus to the title on open, Tab cycling inside, Esc and ✕ closing)
- * is the shared `ModalDialog`; «Скасувати» closes it too. None of the three
+ * is the kit `Modal`, `locked` while the pause is in flight; «Скасувати» closes it too. None of the three
  * closes it while the pause is in flight: closed then, a refusal would land
  * on a dialog that is gone and be shown nowhere (the same rule as the
  * operator's `ReasonDialog`).
@@ -173,10 +180,17 @@ function PauseDialog({
   };
 
   return (
-    <ModalDialog title={t.dialogTitle} body={t.dialogBody} closeLabel={t.close} onClose={close}>
+    <Modal
+      open
+      title={t.dialogTitle}
+      description={t.dialogBody}
+      closeLabel={t.close}
+      locked={busy}
+      onClose={close}
+    >
       {/* No message key exists for a missing reason: the select is marked
             invalid and focused, and its placeholder already says «Оберіть причину». */}
-      <SelectField
+      <Select
         id={reasonId}
         label={t.reasonLabel}
         value={code}
@@ -195,13 +209,12 @@ function PauseDialog({
             {t.reason[option]}
           </option>
         ))}
-      </SelectField>
-      <TextAreaField
+      </Select>
+      <TextArea
         id={`${id}-note`}
         label={
           <>
-            {t.noteLabel}{" "}
-            <span className={OPTIONAL}>{uk.kabinet.profileEdit.donation.optional}</span>
+            {t.noteLabel} <Optional />
           </>
         }
         value={note}
@@ -210,23 +223,21 @@ function PauseDialog({
         hint={<p>{t.noteHint}</p>}
       />
       {error.kind === "illegal" ? (
-        <p role="alert" className={ERROR_TEXT}>
+        <InlineStatus tone="error">
           {uk.kabinet.profileEdit.errors.illegalTransitionPause}
-        </p>
+        </InlineStatus>
       ) : null}
       {error.kind === "failed" ? (
-        <p role="alert" className={ERROR_TEXT}>
-          {uk.kabinet.profileEdit.state.failed}
-        </p>
+        <InlineStatus tone="error">{uk.kabinet.profileEdit.state.failed}</InlineStatus>
       ) : null}
       <div className="flex flex-col-reverse gap-2 tablet:flex-row tablet:justify-end">
         <Button variant="secondary" onClick={close}>
           {t.cancel}
         </Button>
-        <Button variant="primary" aria-busy={busy || undefined} onClick={onConfirm}>
+        <Button variant="primary" status={busy ? "loading" : "idle"} onClick={onConfirm}>
           {t.confirm}
         </Button>
       </div>
-    </ModalDialog>
+    </Modal>
   );
 }

@@ -1,197 +1,110 @@
 @import "tailwindcss";
 
-/**
- * Design tokens for the discovery flow, as a Tailwind v4 CSS theme.
- *
- * This is the port of `features/discovery/tokens.ts` — colours, radii,
- * shadow, motion, and the five-step spacing scale — required to move
- * SwipeCard/SwipeDeck/the discovery page off inline `style` objects.
- * Inline styles cannot express a media query, which made responsive layout
- * (the work this migration exists to unblock) impossible.
- *
- * `tokens.ts` itself is not deleted: `layout.stackLayers` is array-slicing
- * logic, not a style, and stays there; the swipe gesture's own motion
- * constants live in `use-swipe-gesture.ts` and are intentionally NOT wired
- * to the values below (see the note under Motion).
+/*
+ * The one token set. Colour, radius, shadow, motion and the type scale are semantic names with no
+ * prefix; spacing is Tailwind's stock 4px steps. New UI uses these and the kit in `src/ui`
+ * (`ui-guards.test.ts` fails on anything else).
  */
 @theme {
-  /* ---- Colour — docs/design/README.md, "Colour — light ('warm paper')" ---- */
-  --color-paper: #fbf7f0;
-  --color-paper-alt: #f4ecdf;
-  --color-sunken-deep: #efe6d6;
-  --color-line: #e8decb;
-  --color-line-strong: #e0d4bf;
-  --color-line-heavy: #c9bca2;
-  --color-ink: #2a2118;
-  --color-ink-2: #4a3d2c;
-  --color-ink-3: #6e5c44;
-  --color-ink-4: #85735a;
-  --color-leaf: #4f6b3a;
-  --color-leaf-press: #3e5529;
-  --color-leaf-hover: #445b32;
-  --color-avatar-bg: #e3d6c0;
+  --color-page: #faf7f6;
+  --color-surface: #faf8f6;
+  --color-ink: #270041;
+  --color-ink-2: #735263;
+  --color-muted: #b58fa0;
+  --color-line: #e7dae0;
+  --color-accent: #f26427;
+  /* Orange as text or as a focus ring: 4.9:1 on the page, 3.8:1 on `line`. The fill stays `accent`. */
+  --color-accent-text: #c2410c;
+  --color-on-ink: #faf8f9;
+  --color-species-dog: #794eba;
+  /* Cats are shown in the accent colour today (`card-text.ts`). */
+  --color-species-cat: var(--color-accent);
+  --color-focus: var(--color-accent-text);
+  /* Kabinet states. No screen uses these yet; values chosen for 4.5:1 text on
+   * `surface`, to be confirmed by the first screen that renders them. */
+  --color-success: #1f7a3d;
+  --color-warning: #8a5a00;
+  --color-danger: #b3261e;
+  /* Status chips of a card and of a shelter: a soft tint with its own text colour, every pair AA
+   * (docs/ui/tokens.md lists the measured ratios). Not warnings: nothing here is alarming. */
+  --color-status-published: #ede6f7;
+  --color-status-published-ink: #5b3a96;
+  --color-status-reserved: #fde6d8;
+  --color-status-reserved-ink: #9a3412;
+  --color-status-adopted: #e9ddec;
+  --color-status-adopted-ink: #270041;
+  --color-status-withdrawn: #e8e5e6;
+  --color-status-withdrawn-ink: #735263;
+}
+
+/* Mascot colours the brand palette has no semantic role for. `static`: they are read only through
+ * `var()` in the inline SVG, which Tailwind's usage scan would otherwise drop. Orange is `accent`, the dog's
+ * dark patch is `species-dog`, eyes are `on-ink`. */
+@theme static {
+  --color-mascot-dog: #a469fb;
+  --color-mascot-dog-light: #dbc3fd;
+  --color-mascot-cat-stripe: #a04300;
+  --color-mascot-tag: #f1d692;
+}
+
+@theme {
+  /* Fixed radius scale. */
+  --radius-tag: 8px;
+  --radius-field: 12px;
+  --radius-panel: 20px;
+  --radius-card: 24px;
+  /* The page save bar (kabinet Притулок): the owner's 16px, between `field` and `panel`. */
+  --radius-bar: 16px;
+  --radius-sheet: 48px;
+  --radius-pill: 999px;
+
+  /* The one shadow, for floating layers. */
+  --shadow-float: 0 24px 48px -32px rgba(16, 17, 18, 0.4);
+
+  /* Motion: one easing, three durations. Durations are zeroed under
+   * prefers-reduced-motion (see the media query after this block). */
+  --ease-standard: cubic-bezier(0.3, 0, 0, 1);
+  --duration-quick: 120ms;
+  --duration-settle: 220ms;
+  --duration-reveal: 280ms;
 
   /*
-   * ---- Radius ----
-   * `photo`, `button` and `freshness` all happen to be 12px today. Kept as
-   * three names, not one, because that is tokens.ts's own choice — each
-   * names what it rounds, not the number, so changing e.g. only the button
-   * radius later is a one-line edit instead of a search for which 12s mean
-   * "button".
+   * Type scale: `text-<name>` sets size, line height, weight and tracking.
+   * The display sizes are set in `font-display`; add that class beside
+   * them (a Tailwind text utility cannot carry a font family).
    */
-  --radius-card: 20px;
-  --radius-photo: 12px;
-  --radius-button: 12px;
-  --radius-freshness: 12px;
-  --radius-chip: 999px;
-
-  /* ---- Shadow — the deck's top card only; the design's other elevation
-   * step ("sm", the lower stack cards) was never implemented in tokens.ts
-   * and is out of scope here — porting tokens.ts, not the full doc. ---- */
-  --shadow-card: 0 18px 40px -24px rgba(60, 44, 24, 0.45);
-
-  /*
-   * ---- Motion — durations and easing, ported for documentation and for
-   * any future CSS-driven transition. ----
-   * quick 160ms · settle 300ms · reveal 340ms · exit 300ms · reducedExit 120ms
-   * Tailwind's `duration-<n>` utility takes a bare millisecond number and
-   * needs no theme entry (`duration-300` already works); only the easing
-   * curve is non-default and gets a name.
-   *
-   * NOT wired to the swipe gesture. `use-swipe-gesture.ts` writes
-   * `node.style.transition` imperatively — CLAUDE.md's "hand-rolled
-   * PointerEvent + transform (no gesture library)" decision — because the
-   * duration differs under `prefers-reduced-motion` and the transition must
-   * be "none" while dragging and re-enabled only on release. A static
-   * Tailwind class cannot express that, so the gesture hook keeps its own
-   * copy of these same numbers rather than reading this theme.
-   */
-  --ease-keeper: cubic-bezier(0.16, 1, 0.3, 1);
-
-  /*
-   * ==== «Реєстр» visual system (V2) — a second, parallel token set ====
-   *
-   * V2 re-skins only the surfaces `docs/design/intake-report.md` confirmed
-   * the new handoff actually specifies with a mock (gallery grid, the three
-   * card variants, filter rail/sheet, sort, pagination, the no-match state,
-   * the deck's static visual language) — not the whole app. The tokens
-   * above this block (`--color-paper` etc.) keep their exact names and
-   * values, unmodified, because every surface V2 does NOT touch (the home
-   * screen, the deck's dynamic gesture chrome, every E4 state without a
-   * mock) still reads them by those names. Renaming or overwriting them
-   * would re-skin those surfaces by accident.
-   *
-   * `rg-` (Реєстр/"Registry", the new system's own name) prefixes every
-   * token below for exactly one reason: three of its role names — `ink`,
-   * `ink-2`, `ink-3` — collide with existing token names above at
-   * different hex values, and CSS custom properties are a single global
-   * namespace. Prefixing the whole new set, not just the three that
-   * collide, keeps one rule ("new tokens are rg-, old tokens are bare")
-   * instead of two. Deliberately temporary: once a future phase finishes
-   * re-skinning every remaining surface, the old block above this comment
-   * is deleted and the `rg-` prefix comes off everything below — until
-   * then, greppable as one unit.
-   */
-  --color-rg-page: #ececea;
-  --color-rg-surface: #ffffff;
-  --color-rg-fill: #f2f2f0;
-  --color-rg-fill-strong: #dcdcd9;
-  --color-rg-ink: #101112;
-  --color-rg-ink-2: #45484b;
-  --color-rg-ink-3: #63676b;
-  --color-rg-registry: #1b3a6b;
-
-  /* `#FFFFFF -> #F7F7F5`, 120ms — docs/design/README.md, "Geometry, density,
-   * elevation, motion": "Hover: Card fill #FFFFFF -> #F7F7F5, 120ms. No
-   * lift, no shadow, and no underline on the name." */
-  --color-rg-surface-hover: #f7f7f5;
-
-  /*
-   * The empty freshness pip is the one deliberate departure from the mock
-   * in this whole block — `docs/design/README.md`, "The freshness marker"
-   * has the full reasoning and the measured contrast ratios (owner-approved
-   * after the mock's own `#DCDCD9` fill measured 1.16-1.37:1 against every
-   * background it appears on, failing WCAG 1.4.11's 3:1 by a wide margin).
-   * Reuses `--color-rg-ink-3` as a border colour rather than a new token,
-   * since it's the same value `aging`'s filled pips already use.
-   */
-
-  /*
-   * Radii: 8 (pips, small tags) · 16 (buttons, fields, inner blocks, photo
-   * inside a card) · 24 (cards, rail, sheet, modal) · 999 (chips) —
-   * `docs/design/README.md`, "Geometry, density, elevation, motion".
-   * `-photo`/`-button`/`-freshness` share the 16 value today the same way
-   * the old block's three 12px names did (see that block's own comment):
-   * named for what they round, not the number, so a future divergence is
-   * a one-line edit.
-   */
-  --radius-rg-tag: 8px;
-  --radius-rg-button: 16px;
-  --radius-rg-photo: 16px;
-  --radius-rg-freshness: 16px;
-  --radius-rg-card: 24px;
-  --radius-rg-chip: 999px;
-
-  /* One step, two places only: the deck's top card and the sheet
-   * (`docs/design/README.md`). Nothing else in the new system casts a
-   * shadow. */
-  --shadow-rg-card: 0 24px 48px -32px rgba(16, 17, 18, 0.4);
-
-  /*
-   * quick 120ms · settle 220ms · reveal 280ms, all on this one curve —
-   * `docs/design/README.md` is explicit that the new system uses a single
-   * easing throughout ("short and dry; no springiness in the interface"),
-   * unlike the old `--ease-keeper` above. Durations stay bare Tailwind
-   * `duration-<n>` utilities, same reasoning as the old block: only the
-   * curve is non-default.
-   */
-  --ease-rg: cubic-bezier(0.3, 0, 0, 1);
-
-  /*
-   * No new spacing tokens. The new 7-step scale — 4 · 8 · 12 · 16 · 24 ·
-   * 32 · 48 (`docs/design/README.md`) — maps exactly onto Tailwind's stock
-   * numeric spacing scale (`--spacing: 0.25rem`, so `gap-1`=4px through
-   * `gap-12`=48px), with no custom name needed for any of the seven steps.
-   * The old block's `--spacing-*` tokens exist because the old design
-   * wanted names ("what it separates, not its pixel value"); the new
-   * handoff gives its steps no names of its own, and inventing five new
-   * ones the source design doesn't have would be adding vocabulary, not
-   * porting it. In-scope components use bare `gap-3`/`p-6`/etc. directly.
-   */
-
-  /*
-   * ---- Spacing — docs/design/README.md, "Spacing — exactly five steps" ----
-   * Every vertical distance in the design is one of these five, named for
-   * what it separates rather than its pixel value:
-   *   label  (4)  label -> value
-   *   row    (8)  rows within a group
-   *   group  (16) group -> group; the design also says "card padding" here
-   *   section(24) section -> section
-   *   screen (40) screen top; above the primary action
-   * These sit in Tailwind's unified `--spacing-*` scale, which every
-   * spacing/sizing utility (p-*, m-*, gap-*, inset-*, w-*, h-*, top-*, ...)
-   * draws from — so `gap-group`, `p-group`, `pt-screen` etc. all work.
-   *
-   * NOTE — a pre-existing deviation, not something this migration changes:
-   * tokens.ts's actual `layout.cardPadding` is 12px, not the 16px the design
-   * doc states for "card padding". This port keeps the codebase's existing
-   * 12px (arbitrary `p-[12px]` at the point of use, in SwipeCard.tsx) rather
-   * than silently correcting it to the doc's 16 — correcting it would change
-   * a rendered pixel, which this migration must not do. Flagged for the PR,
-   * not fixed here.
-   *
-   * One-off pixel geometry specific to the swipe deck (photo height, stack
-   * offsets, touch-target heights) is NOT part of this five-step system and
-   * is expressed as literal Tailwind arbitrary values (`h-[396px]`) at the
-   * point of use, each with the same explanatory comment tokens.ts carried —
-   * see SwipeCard.tsx and SwipeDeck.tsx. `layout.cardWidth` (358) is dropped
-   * entirely: it had no consumer anywhere in the codebase before this change.
-   */
-  --spacing-label: 4px;
-  --spacing-row: 8px;
-  --spacing-group: 16px;
-  --spacing-section: 24px;
-  --spacing-screen: 40px;
+  --text-display-xl: 48px;
+  --text-display-xl--line-height: 1.1;
+  --text-display-xl--font-weight: 400;
+  --text-display-xl--letter-spacing: 0;
+  --text-display-l: 32px;
+  --text-display-l--line-height: 1.15;
+  --text-display-l--font-weight: 400;
+  --text-display-l--letter-spacing: 0;
+  --text-title: 26px;
+  --text-title--line-height: 1.2;
+  --text-title--font-weight: 700;
+  --text-title--letter-spacing: 0;
+  --text-body-l: 20px;
+  --text-body-l--line-height: 1.4;
+  --text-body-l--font-weight: 400;
+  --text-body-l--letter-spacing: 0;
+  --text-body: 16px;
+  --text-body--line-height: 1.4;
+  --text-body--font-weight: 400;
+  --text-body--letter-spacing: 0;
+  --text-label: 16px;
+  --text-label--line-height: 1.4;
+  --text-label--font-weight: 600;
+  --text-label--letter-spacing: 0;
+  --text-chip: 15px;
+  --text-chip--line-height: 1.4;
+  --text-chip--font-weight: 600;
+  --text-chip--letter-spacing: 0;
+  --text-caption: 14px;
+  --text-caption--line-height: 1.4;
+  --text-caption--font-weight: 600;
+  --text-caption--letter-spacing: 0;
 
   /*
    * ---- Touch target (K4, 2026-10-17) ----
@@ -207,41 +120,6 @@
   --spacing-target: 48px;
 
   /*
-   * ---- Typography — font families ----
-   * `next/font/local` (apps/web/src/app/fonts.ts, both families self-hosted)
-   * generates these two CSS custom
-   * properties and applies them on <html> in layout.tsx. The
-   * metric-matched fallback is already inside each generated variable, not
-   * written here: next/font emits
-   * `--font-literata: "literata", "literata Fallback"` (the family name comes
-   * from the variable; CSS family names ignore case) and the same shape for
-   * Commissioner, where the "Fallback" face is a font-metrics-adjusted local
-   * face Next computes at build time so the *fallback itself* is sized like
-   * the web font — which is what keeps first paint from visibly reflowing
-   * when the real font arrives (`display: swap`'s usual cost). So there is
-   * deliberately nothing after the `var()` below: appending a generic would
-   * only ever be reached if the variable were undefined entirely, which
-   * means the root layout stopped applying the class and is a bug to fix
-   * rather than to paper over.
-   *
-   * No `--font-mono` override: IBM Plex Mono was measured and dropped —
-   * see fonts.ts. `font-mono` now falls through to Tailwind's own default
-   * monospace stack, which is fine because nothing in this codebase uses
-   * the `font-mono` utility any more.
-   */
-  --font-serif: var(--font-literata);
-  --font-sans: var(--font-commissioner);
-
-  /*
-   * `next/font/local` (fonts.ts's `eUkraine`), for the «Реєстр» visual
-   * system (V2) — a distinct utility (`font-rg`), not a redefinition of
-   * `--font-sans` above, because V2 re-skins only some surfaces (see the
-   * `--color-rg-*` block below for the same reasoning applied to colour).
-   * `literata`/`commissioner` keep serving every surface V2 doesn't touch.
-   */
-  --font-rg: var(--font-e-ukraine);
-
-  /*
    * ---- Breakpoints — docs/design/README.md, "Breakpoints & Surfaces" ----
    * Named for the gallery layout each one turns on, not for a device class:
    * `tablet` is where the card switches from vertical to horizontal, not
@@ -253,6 +131,8 @@
    * a separate, still-open gap (`docs/build-plan.md` G3), not something this
    * addition changes.
    */
+  /* compact: where the smallest budget phones start; hide-below-this is the use. */
+  --breakpoint-compact: 360px;
   --breakpoint-tablet: 600px;
   --breakpoint-desktop: 1024px;
   --breakpoint-wide: 1440px;
@@ -285,8 +165,224 @@
    * rule ("short and dry; no springiness") applies here too.
    */
   --animate-fade-in: fade-in 220ms ease-out;
+
+  /*
+   * ---- Pet card overlay entrance (designer change, 2026-10-28; timing
+   * revised twice the same day: first "250-300ms and ease-in", then "even
+   * faster") ----
+   * 120ms, this system's own "quick" step (above) - the fastest named
+   * duration already in the motion scale, rather than inventing a new one.
+   * The panel slides up from below as the overlay opens, timed to match the
+   * header's own 120ms retraction (`:has()` rule below) so the two motions
+   * - header leaving, panel rising into the space it left - read as one
+   * coordinated opening. Only plays on a fresh open, never on prev/next
+   * inside the overlay (`AnimalOverlay.tsx`'s `skipNextEntranceAnimation`).
+   */
+  --animate-panel-up: panel-up 120ms ease-in;
+
+  /* The brand UI face is the page default; the display face is for headings (`font-display`). */
+  --font-display: var(--font-climate-crisis);
+  --font-ui: var(--font-bellota-text);
+
+  --default-font-family: var(--font-bellota-text);
 }
 
+/*
+ * Height of the sticky site header (ui/anchored.ts reads it to close a popover whose trigger slides
+ * under the header). SiteHeader's row takes its min-height from it. Same breakpoints as `tablet`/`desktop`.
+ */
+:root {
+  --sticky-header-h: 4rem;
+}
+@media (min-width: 1024px) {
+  :root {
+    --sticky-header-h: 4.5rem;
+  }
+}
+
+/*
+ * Stacking order, as `z-(--z-<name>)`. Tailwind has no z-index theme
+ * namespace, so these are plain custom properties.
+ */
+:root {
+  --z-header: 30;
+  --z-popover: 40;
+  --z-sheet: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-quick: 0ms;
+    --duration-settle: 0ms;
+    --duration-reveal: 0ms;
+  }
+}
+
+/*
+ * The gallery card and the meta line, as named utilities: 24+ cards per page repeat these class
+ * strings in the HTML and again in the RSC payload. Same token utilities, composed once here.
+ */
+/* Photo manager grid: tiles never narrower than 180px on desktop, 140px (two columns) on a phone. */
+@utility photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  @media (min-width: 600px) {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+@utility gcard {
+  @apply relative flex flex-col gap-3 focus-ring tablet:block tablet:overflow-clip tablet:rounded-card;
+}
+@utility gcard-st {
+  @apply relative flex flex-col gap-3 focus-ring;
+}
+@utility gcard-photo {
+  @apply aspect-4/5 rounded-card tablet:aspect-328/480 tablet:rounded-none;
+}
+@utility gcard-badges {
+  @apply contents tablet:absolute tablet:inset-x-4 tablet:top-4 tablet:flex tablet:flex-wrap tablet:items-start tablet:gap-2;
+}
+/* The species dot is a pseudo-element in `--dot` (set by gcard-dog / gcard-cat). */
+@utility gcard-fresh-st {
+  @apply order-last flex items-center gap-2 text-caption text-ink-2;
+  &::before {
+    content: "";
+    @apply size-2 shrink-0 rounded-pill bg-(--dot);
+  }
+}
+/* From tablet the dot goes and the badge itself takes the species colour. */
+@utility gcard-fresh {
+  @apply gcard-fresh-st tablet:order-none tablet:inline-flex tablet:whitespace-nowrap tablet:rounded-tag tablet:bg-(--dot) tablet:px-2 tablet:py-1 tablet:text-on-ink;
+  &::before {
+    @apply tablet:hidden;
+  }
+}
+@utility gcard-dog {
+  --dot: var(--color-species-dog);
+}
+@utility gcard-cat {
+  --dot: var(--color-species-cat);
+}
+@utility gcard-info-st {
+  @apply flex flex-col gap-1;
+}
+@utility gcard-info {
+  @apply gcard-info-st tablet:absolute tablet:inset-x-3 tablet:bottom-3 tablet:gap-2 tablet:rounded-panel tablet:bg-surface tablet:p-5;
+}
+@utility gcard-name-st {
+  @apply line-clamp-2 break-words text-label text-ink;
+}
+@utility gcard-name {
+  @apply gcard-name-st tablet:line-clamp-1 tablet:text-title;
+}
+/* A look-alike of the primary Button (ui/Button.tsx), shown from tablet only; aria-hidden in the card. */
+@utility gcard-pill {
+  @apply hidden w-fit shrink-0 items-center justify-center gap-2 rounded-pill bg-ink px-6 text-label min-h-target text-on-ink tablet:mt-2 tablet:inline-flex;
+}
+@utility meta-line {
+  @apply flex flex-wrap items-center gap-x-2 text-ink-2;
+}
+/* The separator trails its part (and wraps with it) and is a pseudo-element, so screen readers never meet it. */
+@utility meta-part {
+  @apply flex items-center gap-2 whitespace-nowrap;
+  &:not(:last-child)::after {
+    content: "";
+    @apply h-1 w-0.5 shrink-0 bg-ink-2;
+  }
+}
+
+/*
+ * The one focus ring: 3px, 3px offset, drawn only for keyboard focus; `-ink` is for
+ * accent-coloured surfaces where the accent ring would vanish.
+ */
+@utility focus-ring {
+  &:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 3px;
+  }
+}
+/* The same ring drawn inside the control, for a control in a row that clips (tab rows): never cut off. */
+@utility focus-ring-inset {
+  &:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: -3px;
+  }
+}
+/* The skip link's target takes programmatic focus only; it is not a control, so no outline. */
+main:focus {
+  outline: none;
+}
+/* A native <dialog> sheet opened with no JS: the trigger is an <a href="#id"> (ui/Sheet). */
+dialog[data-hash-open]:target {
+  display: block;
+}
+/* A sheet that hides from a breakpoint (ui/Sheet `hideFrom`): the :target reveal must not outlive it. */
+@media (min-width: 600px) {
+  dialog[data-hash-open][data-hide-from="tablet"]:target {
+    display: none;
+  }
+}
+@media (min-width: 1024px) {
+  dialog[data-hash-open][data-hide-from="desktop"]:target {
+    display: none;
+  }
+}
+
+/* Bottom safe-area inset (home indicator) for sheets; zero without viewport-fit=cover. */
+@utility pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 1.25rem);
+}
+/* The pet card's hero photo cap: 55% of the viewport height on a phone, 520px from tablet. */
+@utility max-h-photo {
+  max-height: 55dvh;
+  @media (min-width: 600px) {
+    max-height: 32.5rem;
+  }
+}
+/* Clearance for the pet card's floating controls: the notch inset, or 0.75rem. */
+@utility pt-inset-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+/* Top clearance for a bar under the notch: 1.5rem, or the inset if that is larger. */
+@utility pt-safe-top {
+  padding-top: max(1.5rem, env(safe-area-inset-top));
+}
+/* Bottom safe-area inset for a fixed bar (home indicator), with a small floor. */
+/* Offset for a bar that sticks above the kabinet's bottom nav on a phone: the nav's height (2px rule,
+ * 8px top padding, 48px tabs, the home-indicator inset with its 8px floor) plus an 8px gap. */
+@utility bottom-above-nav {
+  bottom: calc(4.5rem + max(env(safe-area-inset-bottom), 0.5rem));
+}
+/* A fixed pill 16px above the bottom edge, or the home-indicator inset if larger. */
+@utility bottom-pill {
+  bottom: max(env(safe-area-inset-bottom), 1rem);
+}
+@utility pb-inset {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+}
+/* The current page's link or chip (`aria-current="page"`): `current:bg-ink`. */
+@custom-variant current (&[aria-current="page"]);
+@utility focus-ring-within {
+  &:has(:focus-visible) {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 3px;
+  }
+}
+/* Focus ring for a control on an ink surface (the page save bar): white, since the orange ring is below 3:1 on ink. */
+@utility focus-ring-on-ink {
+  &:focus-visible {
+    outline: 3px solid var(--color-on-ink);
+    outline-offset: 3px;
+  }
+}
+@utility focus-ring-ink {
+  &:focus-visible {
+    outline: 3px solid var(--color-ink);
+    outline-offset: 3px;
+  }
+}
 @keyframes spin-fast {
   to {
     transform: rotate(360deg);
@@ -299,62 +395,124 @@
   }
 }
 
-/*
- * The diagonal-hatch placeholder standing in for shelter photography.
- * `#F6EFE3` is not a tokens.ts colour — it was already a one-off hex inline
- * before this migration; kept as one here rather than promoted to a named
- * theme colour it never was.
- */
-@utility bg-photo-placeholder {
-  background: repeating-linear-gradient(135deg, var(--color-sunken-deep) 0 10px, #f6efe3 10px 20px);
-}
-
-/*
- * V2's own placeholder stripes — docs/design/README.md, "Assets": standard
- * is `#DCDCD9 0 10px, #EFEFED 10px 20px`; the resolved card variant darkens
- * to its own hatch, `#CFCFCB 0 10px, #E0E0DD 10px 20px` (both decorative-only,
- * "Decorative-only values" in the same doc — never reused outside this
- * gradient). `#EFEFED` has no named token, same precedent as
- * `bg-photo-placeholder` above keeping its own second stripe colour a
- * literal hex rather than inventing a token that is never used anywhere else.
- */
-@utility bg-rg-photo-placeholder {
-  background: repeating-linear-gradient(
-    135deg,
-    var(--color-rg-fill-strong) 0 10px,
-    #efefed 10px 20px
-  );
-}
-@utility bg-rg-photo-placeholder-resolved {
-  background: repeating-linear-gradient(135deg, #cfcfcb 0 10px, #e0e0dd 10px 20px);
-}
-
-/*
- * FilterSheet's no-JS reveal. A <dialog> with no `open` attribute is
- * `display: none` by the UA stylesheet's own `dialog:not([open])` rule —
- * this ID-scoped, higher-specificity override is the ONLY thing that makes
- * `<a href="#tvaryny-filters">` (a plain anchor jump, zero JS) actually
- * show the sheet. Scoped to this one ID rather than a general `dialog:target`
- * rule because there is exactly one filter sheet on the page and a general
- * rule would silently apply to any future <dialog> that happens to be
- * link-targeted for an unrelated reason.
- *
- * Wrapped in the same max-width the sheet's own `desktop:hidden` class
- * uses: an ID selector's specificity beats a media-queried *class*
- * selector regardless of source order, so without this the sheet would
- * reappear at >=1024 for anyone who reached #tvaryny-filters at a narrow
- * width and then resized (or opened a bookmarked/shared URL carrying the
- * fragment directly at desktop width) — exactly the width the rail, not
- * the sheet, owns.
- *
- * Deliberately NOT also gated on `:not([open])`: when JS calls
- * `showModal()`, the browser sets `open` itself and renders the dialog in
- * the top layer using its own default (non-`:target`) styling — this rule
- * only needs to cover the case that default styling doesn't, which is
- * "no JS ran, but the fragment matches."
- */
-@media (max-width: 1023px) {
-  #tvaryny-filters:target {
-    display: block;
+@keyframes panel-up {
+  from {
+    transform: translateY(100%);
   }
+}
+
+/*
+ * Reduced-motion guard for the overlay's entrance (`--animate-panel-up`,
+ * used as `.animate-panel-up`) and the header's own retraction (`header`'s
+ * bare `transition` rule, below) - found live: the deck's own swipe gesture
+ * already checks `matchMedia('(prefers-reduced-motion: reduce)')`
+ * (`use-swipe-gesture.ts`), but these two, both from #224/the designer round,
+ * had no equivalent. Unlayered, like the rules it overrides, so it wins the
+ * cascade over Tailwind's own utilities layer regardless of source order.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-panel-up {
+    animation: none;
+  }
+}
+
+/*
+ * Designer change (2026-10-28): the header slides fully out of the
+ * viewport while the overlay is open, trading its own height back to the
+ * panel for "a more vertical space" - `AnimalOverlay.tsx`'s `DIALOG` no
+ * longer reserves `pt-16/pt-18` to clear it, since there is nothing left to
+ * clear once this finishes.
+ *
+ * The transition lives on the bare `header` selector (lower specificity),
+ * ahead of the `:has()` rule below that actually moves it (higher
+ * specificity) - descending-specificity ordering, not the reverse, is what
+ * keeps a later, more specific override from fighting an earlier one; a
+ * plain `transition`, not a one-shot `@keyframes` animation, because the
+ * `:has()` match itself toggles on open and off, so `transform` already
+ * animates both ways for free - up and away on open, back down on close -
+ * with no second, reversed keyframe to keep in sync. `header` always
+ * carries the transition (not only while the marker matches), so the very
+ * first open animates instead of snapping; nothing else on the site ever
+ * changes this header's transform, so the rule is inert everywhere else.
+ *
+ * 120ms, ease-in: revised twice same day, "make animation shorter 250-300ms
+ * and ease-in", then "even faster" - this system's own "quick" step
+ * (`--duration-quick`), matching `--animate-panel-up`'s timing.
+ */
+header {
+  transition: transform 120ms ease-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  header {
+    transition: none;
+  }
+}
+
+/*
+ * Pet card PR 5 (Figma `75:425`): the gallery's own `SiteHeader` has no
+ * fill in the reference once the animal overlay is open - the peach
+ * backdrop's own blur shows straight through it. `:has()` reaches across
+ * the two components with no prop threaded between them, and matches
+ * nothing on every other route, where the marker never exists.
+ *
+ * Plain `transparent`, not a second tint-plus-blur of the header's own:
+ * two separate elements each blurring only what's directly behind their
+ * own box produced a visible seam at the shared edge between them, found
+ * live (a real screenshot, not assumed) - a Gaussian blur can't pull
+ * context across a boundary neither element's box extends past. Fixed by
+ * making `AnimalOverlay.tsx`'s own backdrop cover the *entire* viewport,
+ * under the header in stacking order (`z-20` under the header's `z-30`),
+ * so there is exactly one blur pass for the whole screen and the header
+ * simply rides on top of it with no fill of its own - see that file's
+ * `BACKDROP` comment for the full account, including why covering the
+ * header no longer breaks click-through for the controls below it.
+ * `SiteHeader` still has to stay fully opaque on every *other* route,
+ * where it's `sticky` over the grid scrolling under it with no overlay
+ * open - this rule only ever applies while the marker exists. The slide
+ * (above) rides along on the same marker.
+ */
+body:has([data-testid="pet-card-overlay-open"]) header {
+  background-color: transparent;
+  transform: translateY(-100%);
+}
+
+/*
+ * The pet card panel's own vertical scroll (`AnimalOverlay.tsx`'s `FRAME`)
+ * is a real nested scroll region, not the document - the platform's default
+ * scrollbar for one of those is a boxed, arrowed relic next to the rest of
+ * this design (found live, not assumed: a real screenshot of the panel
+ * scrolled). `scrollbar-width`/`scrollbar-color` cover Firefox; the
+ * `::-webkit-scrollbar*` rules cover Chromium/WebKit, which ignore the
+ * standard property pair entirely as of this writing.
+ *
+ * Invisible at rest, shown on hover or while `useScrollingClass` has added
+ * `is-scrolling` - even correctly clipped to the panel's own curve
+ * (`AnimalOverlay.tsx`'s `FRAME_CLIP`), a permanent track butting straight
+ * up against a 48px radius still read as an odd, "stuck on" line next to
+ * it (his own call, not assumed). A scrollbar with nothing to show at
+ * rest has nothing to look odd about.
+ */
+.brand-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.brand-scrollbar:hover,
+.brand-scrollbar.is-scrolling {
+  scrollbar-color: var(--color-line) transparent;
+}
+.brand-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.brand-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.brand-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+  transition: background-color 200ms ease;
+}
+.brand-scrollbar:hover::-webkit-scrollbar-thumb,
+.brand-scrollbar.is-scrolling::-webkit-scrollbar-thumb {
+  background-color: var(--color-line);
 }

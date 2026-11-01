@@ -32,17 +32,17 @@ export const submitForVerification = (
  *
  * Two edges are open that a narrower reading would close:
  *
- * `pending -> rejected` — a rejection is always made by a moderator who looked
+ * `pending -> rejected` - a rejection is always made by a moderator who looked
  * at the submission, and the event carries their id either way. Requiring a
  * formal `start_review` first on obvious spam models a click, not a lifecycle.
  *
- * `suspended -> rejected` — without it, `suspended` means both "paused, may
+ * `suspended -> rejected` - without it, `suspended` means both "paused, may
  * return" and "banned, never returning", which is one state carrying two
  * meanings.
  *
  * `verified <-> paused` is the non-punitive exit. Suspension used to be the
  * only way out of `verified`, so a shelter closing for the season or moving
- * premises was recorded as suspended with a moderation reason — punitive in the
+ * premises was recorded as suspended with a moderation reason - punitive in the
  * admin UI, and conflating "we stopped them" with "they stopped themselves".
  *
  * `paused -> suspended` is open because a complaint does not wait for a shelter
@@ -51,17 +51,17 @@ export const submitForVerification = (
  *
  * Three edges stay closed on purpose:
  *
- * `under_review -> suspended` — suspension is something that happens to a live
+ * `under_review -> suspended` - suspension is something that happens to a live
  * shelter, and a shelter under review is not in the feed. If a complaint
  * arrives mid-review, rejection is the available action.
  *
- * `verified -> under_review` — a verified shelter moved back to review would
+ * `verified -> under_review` - a verified shelter moved back to review would
  * silently vanish from the feed with no record that it had ever been verified,
  * which is the exact failure `priorState` was added to prevent. Periodic
  * re-verification belongs in a future `re_review` state that carries its prior
  * state, not in an overload of the first-time review state.
  *
- * `paused -> rejected` — banning a shelter that was already accepted is an
+ * `paused -> rejected` - banning a shelter that was already accepted is an
  * escalation, and the audit trail should show the suspension that preceded it.
  * This is a deliberate asymmetry with `pending -> rejected`, which is open:
  * refusing an applicant needs no prior state, removing an accepted shelter

@@ -26,6 +26,7 @@ import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, makeAnimal, testDatabaseUrl } from "@opika/db/test";
 import type { ShelterId } from "@opika/domain";
 import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
+import { expectTabRowSound } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.37";
@@ -141,10 +142,10 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     // «Увійти», then signed in once the page is the cabinet: waited on by the URL and the
     // heading, never by the GET's response event (AW-H2, the K3 and K4 specs' fix).
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button").click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
     await page.close();
   });
 
@@ -162,7 +163,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
 
   const rowOf = (page: Page, name: string): Locator => page.getByRole("listitem", { name });
 
-  test("from the profile's nav, «Тварини»: the list, its rows, and «Показати ці N» opening the stale cards", async () => {
+  test("from the landing, «Тварини»: the list, its rows, and «Показати ці N» opening the stale cards", async () => {
     const page = await open("/kabinet");
     await page
       .getByRole("navigation", { name: "Розділи кабінету" })
@@ -209,7 +210,10 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
 
   test("«Уже вдома»: the dialog says it can't be undone, and the card is home", async () => {
     const page = await open("/kabinet/tvaryny");
-    await rowOf(page, ARRANGING).getByRole("button", { name: "Уже вдома" }).click();
+    await rowOf(page, ARRANGING)
+      .getByRole("button", { name: /^Дії з карткою/ })
+      .click();
+    await page.getByRole("button", { name: "Уже вдома" }).click();
     const dialog = page.getByRole("dialog", { name: `${ARRANGING} уже вдома?` });
     await expect(dialog.getByText(/Скасувати це не можна/)).toBeVisible();
     await dialog.getByRole("button", { name: "Так, уже вдома" }).click();
@@ -226,8 +230,8 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
   test("«Зняти з показу» with a reason and a note: the card is withdrawn, and its row says why", async () => {
     const page = await open("/kabinet/tvaryny");
     const row = rowOf(page, LEAVING);
-    await row.getByRole("button", { name: "Ще", exact: true }).click();
-    await row.getByRole("button", { name: "Зняти з показу" }).click();
+    await row.getByRole("button", { name: /^Дії з карткою/ }).click();
+    await page.getByRole("button", { name: "Зняти з показу" }).click();
     const dialog = page.getByRole("dialog", { name: `Зняти з показу: ${LEAVING}?` });
     await dialog.getByLabel("Причина").selectOption({ label: "додано помилково" });
     await dialog.getByLabel(/Коментар/).fill("дубль картки");
@@ -244,4 +248,43 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     ).toBeVisible();
     await page.close();
   });
+
+  for (const size of [
+    { width: 360, height: 800 },
+    { width: 1440, height: 900 },
+  ]) {
+    test(`the «?» note opens in a card of its own at ${size.width}px: the tabs don't move, the card stays on screen, the targets are 44px`, async () => {
+      const page = await open("/kabinet/tvaryny");
+      await page.setViewportSize(size);
+      const tabs = page.getByRole("tablist");
+      const before = await tabs.boundingBox();
+      const trigger = page.getByRole("button", { name: "Як впорядковано список" });
+      const triggerBox = await trigger.boundingBox();
+      expect(triggerBox?.width).toBeGreaterThanOrEqual(44);
+      expect(triggerBox?.height).toBeGreaterThanOrEqual(44);
+
+      await trigger.click();
+      const card = page.getByRole("note", { name: "Як впорядковано список" });
+      await expect(card).toBeVisible();
+      expect(await tabs.boundingBox()).toEqual(before);
+      const box = await card.boundingBox();
+      expect(box?.x).toBeGreaterThanOrEqual(16);
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(size.width - 16);
+      const close = await card.getByRole("button", { name: "Закрити" }).boundingBox();
+      expect(close?.width).toBeGreaterThanOrEqual(44);
+      expect(close?.height).toBeGreaterThanOrEqual(44);
+
+      await page.keyboard.press("Escape");
+      await expect(card).toHaveCount(0);
+      await expect(trigger).toBeFocused();
+      await page.close();
+    });
+
+    test(`the status tabs row at ${size.width}px: at most 48px tall, no vertical scroll, a pointer on every tab, the focus ring inside the row`, async () => {
+      const page = await open("/kabinet/tvaryny");
+      await page.setViewportSize(size);
+      await expectTabRowSound(page, page.getByRole("tablist"));
+      await page.close();
+    });
+  }
 });

@@ -1,10 +1,13 @@
 import type { KabinetAnimalView } from "@opika/contracts";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { ANIMAL_DESCRIPTION_MAX_CHARACTERS } from "@opika/domain";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
 import type { CompressedPhoto } from "../photos/compress-photo";
+import { confirmLeave } from "../shared/unsaved-changes";
 import { AnimalForm, type AnimalFormEditing } from "./AnimalForm";
+import type { AnimalTab } from "./animal-tabs";
 import type { ShelterVisibility } from "./labels";
 
 /**
@@ -32,9 +35,13 @@ const draft = (overrides: Partial<KabinetAnimalView> = {}): KabinetAnimalView =>
     species: "dog",
     sex: "unknown",
     size: null,
+    coatLength: null,
     age: null,
     description: null,
     photos: [],
+    temperament: [],
+    colour: null,
+    medicalNotes: null,
     vaccination: unknown,
     spayNeuter: unknown,
     documentReadiness: { kind: "unknown" },
@@ -47,6 +54,7 @@ const draft = (overrides: Partial<KabinetAnimalView> = {}): KabinetAnimalView =>
   }) as KabinetAnimalView;
 
 const complete = {
+  sex: "male",
   size: "medium",
   age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date("2026-09-01T00:00:00Z") },
   description: { uk: "Спокійна, любить гуляти.", en: null },
@@ -91,6 +99,10 @@ function fakeClient(start: KabinetAnimalView | null): FakeClient {
         ...(patch.species !== undefined ? { species: patch.species } : {}),
         ...(patch.sex !== undefined ? { sex: patch.sex } : {}),
         ...(patch.size !== undefined ? { size: patch.size } : {}),
+        ...(patch.coatLength !== undefined ? { coatLength: patch.coatLength } : {}),
+        ...(patch.temperament !== undefined ? { temperament: patch.temperament } : {}),
+        ...(patch.colour !== undefined ? { colour: patch.colour } : {}),
+        ...(patch.medicalNotes !== undefined ? { medicalNotes: patch.medicalNotes } : {}),
         ...(patch.description !== undefined ? { description: patch.description } : {}),
         ...(patch.age !== undefined
           ? {
@@ -182,6 +194,10 @@ function renderForm(
     shelterVisibility?: ShelterVisibility;
     compress?: (file: File) => Promise<CompressedPhoto>;
     client?: FakeClient;
+    clock?: () => Date;
+    initialTab?: AnimalTab;
+    /** False to keep the tabs as they are, with only the selected panel showing. */
+    reveal?: boolean;
   } = {},
 ) {
   const client = options.client ?? fakeClient(view);
@@ -191,12 +207,20 @@ function renderForm(
       editing={options.editing ?? OPEN}
       viewer={options.viewer ?? "admin"}
       shelterVisibility={options.shelterVisibility ?? "visible"}
-      back={{ href: "/kabinet", label: "← Профіль притулку" }}
+      back={{ href: "/kabinet/prytulok", label: "← Притулок" }}
       client={client}
-      clock={() => NOW}
+      clock={options.clock ?? (() => NOW)}
       compress={options.compress ?? okJpeg}
+      {...(options.initialTab === undefined ? {} : { initialTab: options.initialTab })}
     />,
   );
+  // Every panel stays mounted under the tabs. Most tests here are about one field or one save, not
+  // about which tab shows, so they see all panels; `animal-tabs.test.tsx` runs the real tabs.
+  if (options.reveal !== false) {
+    for (const panel of document.querySelectorAll('[role="tabpanel"]')) {
+      panel.removeAttribute("hidden");
+    }
+  }
   return client;
 }
 
@@ -208,8 +232,37 @@ const formStatus = () => {
   return last;
 };
 
+/**
+ * A refusal a person asked for (a save or publish pressed) is written twice: under its field and
+ * in the error summary that takes focus. The wording is the same string; this finds both.
+ */
+const expectRefusedInlineAndInSummary = (text: string | RegExp) => {
+  const found = screen.getAllByText(text);
+  expect(
+    found.some((element) => element.id.endsWith("-error")),
+    "under its field",
+  ).toBe(true);
+  expect(
+    found.some((element) => element.closest('[role="alert"]') !== null),
+    "in the error summary",
+  ).toBe(true);
+};
+
 const SAVE_DRAFT = "Зберегти чернетку";
-const MISSING_ALL = "Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.";
+const MISSING_ALL = "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.";
+const MISSING_ITEMS_ALL = [
+  "Стать (Основне)",
+  "Розмір (Основне)",
+  "Вік (Основне)",
+  "Опис (Про тварину)",
+  "Фото (Фото)",
+];
+
+/** The links of the missing-items panel in «Публікація», as written. */
+const missingItems = () =>
+  within(screen.getByRole("navigation", { name: /Щоб опублікувати, ще потрібно/ }))
+    .getAllByRole("link")
+    .map((link) => link.textContent);
 const PUBLISH_DONE = "Опубліковано. Тепер картку бачать ті, хто шукає тварину.";
 // His final text for a shelter that hasn't passed verification (round 2b, answer 3).
 const PUBLISHED_NOT_SHOWN =
@@ -228,13 +281,37 @@ const WRITE_GRANTS = [["open writes", { kind: "open" }]] as const satisfies read
   AnimalFormEditing,
 ])[];
 const LAST_PHOTO_KEPT_NOT_SHOWN =
-  "Картка опублікована, тож одне фото має лишитися — навіть поки її ще не бачать.";
+  "Картка опублікована, тож одне фото має лишитися – навіть поки її ще не бачать.";
 
 beforeEach(() => {
   window.history.replaceState(null, "", "/kabinet/tvaryny/nova");
 });
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe("size hints follow the species", () => {
+  const sizeGroup = () => screen.getByRole("group", { name: /^Розмір/ });
+  const species = (name: "Собака" | "Кіт") =>
+    within(screen.getByRole("group", { name: "Вид" })).getByLabelText(name);
+
+  it("shows labels only until a species is chosen, then the kilograms of that species, live", async () => {
+    const user = userEvent.setup();
+    renderForm(null);
+    expect(within(sizeGroup()).queryByText(/кг/)).toBeNull();
+    await user.click(species("Кіт"));
+    for (const hint of ["до 3 кг", "3–5 кг", "від 5 кг"])
+      expect(within(sizeGroup()).getByText(hint)).toBeTruthy();
+    await user.click(species("Собака"));
+    for (const hint of ["до 10 кг", "10–25 кг", "від 25 кг"])
+      expect(within(sizeGroup()).getByText(hint)).toBeTruthy();
+    expect(within(sizeGroup()).queryByText("до 3 кг")).toBeNull();
+  });
+
+  it("an existing cat opens with the cat kilograms", () => {
+    renderForm(draft({ species: "cat" }));
+    expect(within(sizeGroup()).getByText("3–5 кг")).toBeTruthy();
+  });
 });
 
 describe("/nova: a name and a species make a draft (K-Q5)", () => {
@@ -244,9 +321,12 @@ describe("/nova: a name and a species make a draft (K-Q5)", () => {
     expect(screen.getByText(/Щоб зберегти чернетку, потрібні імʼя та вид\./)).toBeTruthy();
     const publish = screen.getByRole("button", { name: "Опублікувати" });
     expect(publish.getAttribute("aria-disabled")).toBe("true");
-    const missing = screen.getByText(MISSING_ALL);
-    // Written next to the button and named as its description (KAB:93: no tooltip).
-    expect(publish.getAttribute("aria-describedby")).toBe(missing.id);
+    expect(missingItems()).toEqual(MISSING_ITEMS_ALL);
+    // Written in «Публікація» and named as the button's description (KAB:93: no tooltip).
+    expect(publish.getAttribute("aria-describedby")).toBe("publish-missing publish-missing-list");
+    expect(document.getElementById("publish-missing")?.textContent).toBe(
+      "Щоб опублікувати, ще потрібно:",
+    );
   });
 
   it("«Зберегти чернетку» with a name and a species creates the draft and takes its address", async () => {
@@ -258,28 +338,28 @@ describe("/nova: a name and a species make a draft (K-Q5)", () => {
     expect(client.calls.createDraft).toHaveBeenCalledWith({ name: "Ластівка", species: "dog" });
     expect(await screen.findByRole("heading", { level: 1, name: "Ластівка" })).toBeTruthy();
     expect(window.location.pathname).toBe(`/kabinet/tvaryny/${ID}`);
-    expect(
-      screen.getByText(
-        /Чернетку збережено о 12:00 · Ті, хто шукає тварину, цю чернетку не бачать\./,
-      ),
-    ).toBeTruthy();
+    // The bar says when it was saved; «Публікація» says who can see it.
+    expect(screen.getByText("Чернетку збережено о 12:00")).toBeTruthy();
+    expect(screen.getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeTruthy();
     expect(screen.getByText("Чернетка")).toBeTruthy();
     expect(screen.getByText("Створено сьогодні · ще не в галереї")).toBeTruthy();
     // The draft exists now, so its photos can be added.
-    expect(screen.getByRole("button", { name: "+ Фото" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Додати фото/ })).toBeTruthy();
   });
 
   it("before the draft exists there is no photo section to add to", () => {
     renderForm(null);
-    expect(screen.queryByRole("button", { name: "+ Фото" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Додати фото/ })).toBeNull();
   });
 
   it("the sex starts on «Не записано» (D2), and nothing else is chosen for the person", () => {
     renderForm(null);
-    const sex = within(screen.getByRole("group", { name: "Стать" }));
+    const sex = within(screen.getByRole("group", { name: /^Стать/ }));
     expect((sex.getByLabelText("Не записано") as HTMLInputElement).checked).toBe(true);
     for (const group of ["Вид", "Розмір", "Вік на ту дату"]) {
-      const radios = within(screen.getByRole("group", { name: group })).getAllByRole("radio");
+      const radios = within(
+        screen.getByRole("group", { name: new RegExp(`^${group}`) }),
+      ).getAllByRole("radio");
       expect(
         radios.some((radio) => (radio as HTMLInputElement).checked),
         group,
@@ -292,7 +372,7 @@ describe("/nova: a name and a species make a draft (K-Q5)", () => {
     const client = renderForm(null);
     await user.type(screen.getByLabelText("Імʼя"), "Ластівка");
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(screen.getByText("Виберіть, собака це чи кіт, щоб зберегти чернетку.")).toBeTruthy();
+    expectRefusedInlineAndInSummary("Виберіть, собака це чи кіт, щоб зберегти чернетку.");
     expect(client.calls.createDraft).not.toHaveBeenCalled();
   });
 
@@ -301,7 +381,7 @@ describe("/nova: a name and a species make a draft (K-Q5)", () => {
     const client = renderForm(null);
     await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Кіт"));
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(screen.getByText("Щоб зберегти чернетку, потрібне імʼя.")).toBeTruthy();
+    expectRefusedInlineAndInSummary("Щоб зберегти чернетку, потрібне імʼя.");
     expect(client.calls.createDraft).not.toHaveBeenCalled();
   });
 
@@ -326,12 +406,12 @@ describe("a draft saves itself (T6)", () => {
   it("10 seconds after the last change, each change restarting the wait, sending only what changed", async () => {
     vi.useFakeTimers();
     const client = renderForm(draft());
-    fireEvent.click(within(screen.getByRole("group", { name: "Розмір" })).getByLabelText(/Малий/));
+    fireEvent.click(within(screen.getByRole("group", { name: /^Розмір/ })).getByLabelText(/Малий/));
     await act(async () => {
       vi.advanceTimersByTime(6_000);
     });
     fireEvent.click(
-      within(screen.getByRole("group", { name: "Стать" })).getByLabelText("Дівчинка"),
+      within(screen.getByRole("group", { name: /^Стать/ })).getByLabelText("Дівчинка"),
     );
     await act(async () => {
       vi.advanceTimersByTime(9_999);
@@ -350,7 +430,7 @@ describe("a draft saves itself (T6)", () => {
 
   it("when a field is left, at once", async () => {
     const client = renderForm(draft());
-    const description = screen.getByLabelText("Про тварину");
+    const description = screen.getByLabelText(/^Опис/);
     fireEvent.change(description, { target: { value: "Лагідна." } });
     await act(async () => {
       fireEvent.blur(description);
@@ -372,7 +452,7 @@ describe("a draft saves itself (T6)", () => {
   it("emptying a draft's description clears it (null), which only a draft accepts", async () => {
     const user = userEvent.setup();
     const client = renderForm(draft({ description: { uk: "Було.", en: null } }));
-    await user.clear(screen.getByLabelText("Про тварину"));
+    await user.clear(screen.getByLabelText(/^Опис/));
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { description: null } });
   });
@@ -382,16 +462,16 @@ describe("a draft saves itself (T6)", () => {
     const client = fakeClient(draft());
     client.calls.update.mockRejectedValueOnce(apiError("CONFLICT"));
     renderForm(draft(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(
       await screen.findByText(
-        "Хтось змінив цю картку після того, як ви її відкрили. Ваші останні зміни не збережено. Ось поточна версія — внесіть їх ще раз.",
+        "Хтось змінив цю картку після того, як ви її відкрили. Ваші останні зміни не збережено. Ось поточна версія – внесіть їх ще раз.",
       ),
     ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Показати поточну версію" }));
     expect(client.calls.byId).toHaveBeenCalledWith({ animalId: ID });
-    expect((screen.getByLabelText("Про тварину") as HTMLTextAreaElement).value).toBe("");
+    expect((screen.getByLabelText(/^Опис/) as HTMLTextAreaElement).value).toBe("");
   });
 
   it("a lost connection keeps what was typed, says so, and retries on request", async () => {
@@ -399,14 +479,14 @@ describe("a draft saves itself (T6)", () => {
     const client = fakeClient(draft());
     client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     renderForm(draft(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(
       await screen.findByText(
-        "Чернетку не збережено. Перевірте зʼєднання — усе, що ви ввели, лишається тут.",
+        "Чернетку не збережено. Перевірте зʼєднання – усе, що ви ввели, лишається тут.",
       ),
     ).toBeTruthy();
-    expect((screen.getByLabelText("Про тварину") as HTMLTextAreaElement).value).toBe("Лагідна.");
+    expect((screen.getByLabelText(/^Опис/) as HTMLTextAreaElement).value).toBe("Лагідна.");
     await user.click(screen.getByRole("button", { name: "Спробувати ще раз" }));
     expect(client.calls.update).toHaveBeenCalledTimes(2);
     expect(await screen.findByText(/Чернетку збережено о 12:00/)).toBeTruthy();
@@ -418,7 +498,7 @@ describe("a draft saves itself (T6)", () => {
     client.calls.update.mockRejectedValueOnce(apiError("CONFLICT"));
     client.calls.byId.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     renderForm(draft(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     await user.click(await screen.findByRole("button", { name: "Показати поточну версію" }));
     expect(
@@ -431,7 +511,7 @@ describe("a draft saves itself (T6)", () => {
     const client = fakeClient(draft());
     client.calls.update.mockRejectedValueOnce(apiError("REGISTRY_CONFIRMED"));
     renderForm(draft(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Лагідна." } });
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(
       await screen.findByText("Це підтверджено державним реєстром тварин, тут змінити не можна."),
@@ -453,7 +533,7 @@ describe("a draft saves itself (T6)", () => {
   it("the age line follows the form's sex, as the card does (Q9)", async () => {
     const user = userEvent.setup();
     renderForm(draft());
-    const sex = within(screen.getByRole("group", { name: "Стать" }));
+    const sex = within(screen.getByRole("group", { name: /^Стать/ }));
     await user.click(
       within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText(/Молодий/),
     );
@@ -492,10 +572,10 @@ describe("a draft saves itself (T6)", () => {
     } as Partial<KabinetAnimalView>);
     renderForm(outgrown);
     const onCard = (word: string) =>
-      `Вік указано станом на 1 вересня 2024 р. Тепер на картці — «${word}». Якщо тварина вже старша, оновіть вік.`;
+      `Вік указано станом на 1 вересня 2024 р. Тепер на картці – «${word}». Якщо тварина вже старша, оновіть вік.`;
     expect(screen.getByText(onCard("молода"))).toBeTruthy();
     await user.click(
-      within(screen.getByRole("group", { name: "Стать" })).getByLabelText("Хлопчик"),
+      within(screen.getByRole("group", { name: /^Стать/ })).getByLabelText("Хлопчик"),
     );
     // The form's line says what people will see once saved; the card hasn't changed yet.
     expect(screen.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeTruthy();
@@ -513,7 +593,7 @@ describe("a draft saves itself (T6)", () => {
     );
     fireEvent.change(screen.getByLabelText("Станом на"), { target: { value: "2026-10-18" } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(screen.getByText("Дата «Станом на» не може бути в майбутньому.")).toBeTruthy();
+    expectRefusedInlineAndInSummary("Дата «Станом на» не може бути в майбутньому.");
     expect(client.calls.update).not.toHaveBeenCalled();
   });
 
@@ -528,9 +608,9 @@ describe("a draft saves itself (T6)", () => {
     const birth = screen.getByLabelText("Дата народження");
     fireEvent.change(birth, { target: { value: "2026-10-18" } });
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(screen.getByText("Дата народження не може бути в майбутньому.")).toBeTruthy();
+    expectRefusedInlineAndInSummary("Дата народження не може бути в майбутньому.");
     fireEvent.change(birth, { target: { value: "1996-10-16" } });
-    expect(screen.getByText("Ця дата надто давня — понад 30 років тому.")).toBeTruthy();
+    expectRefusedInlineAndInSummary("Ця дата надто давня – понад 30 років тому.");
     expect(client.calls.update).not.toHaveBeenCalled();
     // Exactly thirty years back is allowed, and saves as the birth date chosen.
     fireEvent.change(birth, { target: { value: "1996-10-17" } });
@@ -551,7 +631,9 @@ describe("a draft saves itself (T6)", () => {
       within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText(/Дорослий/),
     );
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expect(await screen.findByText("Ця дата надто давня — понад 30 років тому.")).toBeTruthy();
+    // The refusal may come from the autosave the radio's blur starts, which must not pull
+    // focus to a summary: it lands under the field either way.
+    expect(await screen.findByText("Ця дата надто давня – понад 30 років тому.")).toBeTruthy();
   });
 
   it("an old bucket the animal may have outgrown asks for a new age", () => {
@@ -567,20 +649,24 @@ describe("a draft saves itself (T6)", () => {
     expect(
       // One full stop after «р.», not two.
       screen.getByText(
-        "Вік указано станом на 1 вересня 2024 р. Тепер на картці — «молодий». Якщо тварина вже старша, оновіть вік.",
+        "Вік указано станом на 1 вересня 2024 р. Тепер на картці – «молодий». Якщо тварина вже старша, оновіть вік.",
       ),
     ).toBeTruthy();
   });
 
   it("counts the description as a reader does, and names the excess past 1,500", () => {
     renderForm(draft());
-    const description = screen.getByLabelText("Про тварину");
+    const description = screen.getByLabelText(/^Опис/);
     fireEvent.change(description, { target: { value: "👍🏽".repeat(3) } });
     expect(screen.getByText(/^3 з 1\s?500 символів$/)).toBeTruthy();
     fireEvent.change(description, { target: { value: "а".repeat(1_502) } });
     expect(screen.getByText("Зайвих символів: 2")).toBeTruthy();
     fireEvent.blur(description);
-    expect(screen.getByText(/^Опис довший за 1\s?500 символів\.$/)).toBeTruthy();
+    // Left but not yet tried: under the field only, no summary.
+    expect(screen.getByText(/^Опис довший за 1\s?500 символів\.$/).id).toBe(
+      "animal-description-error",
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("a registry-confirmed vaccination is read-only, with the state register named", () => {
@@ -602,11 +688,422 @@ describe("a draft saves itself (T6)", () => {
   });
 });
 
+/**
+ * One rule for a draft and a listed card alike (Oleksii, 2026-10-19,
+ * verbatim): "warn while there are unsaved edits or a save pending or
+ * queued ... 'Unsaved' includes text typed into a field that hasn't been
+ * blurred or saved yet. Don't warn when everything is saved." And, on his
+ * correction to the line itself: "Hide «Чернетку збережено о …» while
+ * there are unsaved edits, the same as listed cards" — so a failed save
+ * (the view never changed) leaves both the warning and the hidden line
+ * exactly where an unsaved edit already leaves them, with no separate
+ * "undo on failure" branch. Every save below is a controlled promise, so
+ * the test - never a sleep - decides exactly when it settles.
+ */
+describe("the unsaved-work warning and the saved-time line", () => {
+  const FAILURE = "Чернетку не збережено. Перевірте зʼєднання – усе, що ви ввели, лишається тут.";
+  // Kyiv is UTC+3 in October (before the last-Sunday-of-October change):
+  // NOW ("2026-10-17T09:00:00.000Z") reads 12:00, and 15 minutes later reads
+  // 12:15 - transcribed by hand, never computed with the code's own `timeOf`
+  // (a test may not compare output against the same constant the code
+  // renders).
+  const FIRST_TIME = "12:00";
+  const SECOND_TIME = "12:15";
+  const SECOND_NOW = new Date(NOW.getTime() + 15 * 60_000);
+
+  /** Dispatches `beforeunload` on `window` and reports what the listener, if any, did to it. */
+  const dispatchUnload = (): { prevented: boolean; returnValue: unknown } => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return {
+      prevented: event.defaultPrevented,
+      returnValue: (event as unknown as { returnValue: unknown }).returnValue,
+    };
+  };
+
+  /** The next `update` call hangs until the test calls the returned function. */
+  const deferredUpdate = (client: FakeClient) => {
+    let release: (view: KabinetAnimalView) => void = () => {};
+    client.calls.update.mockImplementationOnce(
+      () =>
+        new Promise<KabinetAnimalView>((resolve) => {
+          release = resolve;
+        }),
+    );
+    return (view: KabinetAnimalView) => release(view);
+  };
+
+  const CASES = [
+    {
+      name: "a draft",
+      view: () => draft(),
+      saveLabel: SAVE_DRAFT,
+      savedLineText: (time: string) => `Чернетку збережено о ${time}`,
+      failureText: FAILURE,
+      retryLabel: SAVE_DRAFT,
+    },
+    {
+      name: "a listed card",
+      view: () => published(),
+      saveLabel: "Зберегти",
+      savedLineText: (time: string) => `Збережено о ${time}`,
+      // A saved card's failure is the pill's short line, repeated under the tabs.
+      failureText: "Не вдалося зберегти",
+      retryLabel: "Спробувати ще раз",
+    },
+  ] as const;
+
+  it("after a save, a published card offers «Переглянути» (its public page, a new tab); a draft does not", async () => {
+    const listed = published();
+    const client = fakeClient(listed);
+    renderForm(listed, { client, clock: () => NOW });
+    expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
+    client.calls.update.mockResolvedValueOnce({
+      ...listed,
+      description: { uk: "Лагідна.", en: null },
+    } as KabinetAnimalView);
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    const link = await screen.findByRole("link", { name: /^Переглянути/ });
+    expect(link.getAttribute("href")).toBe(`/tvaryny/${listed.id}`);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+    expect(link.textContent).toContain("(відкриється в новій вкладці)");
+  });
+
+  it("a saved draft has no «Переглянути» link (it is not public)", async () => {
+    const card = draft();
+    const client = fakeClient(card);
+    renderForm(card, { client, clock: () => NOW });
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
+    client.calls.update.mockResolvedValueOnce({
+      ...card,
+      description: { uk: "Лагідна.", en: null },
+    } as KabinetAnimalView);
+    fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await screen.findByText(/^Чернетку збережено о /);
+    expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
+  });
+
+  it.each(CASES)(
+    "$name: typing (unblurred) hides the line and warns; settling shows it with the new time and clears the warning; a failed save re-hides it and re-warns",
+    async ({ view, saveLabel, savedLineText, failureText, retryLabel }) => {
+      let now = NOW;
+      const client = fakeClient(view());
+      renderForm(view(), { client, clock: () => now });
+
+      // Nothing typed, nothing saved yet: no warning, no line.
+      expect(dispatchUnload().prevented).toBe(false);
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+
+      // Typing without leaving the field: `dirty` alone turns the warning
+      // on, before any save is even attempted.
+      fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
+      expect(dispatchUnload().prevented).toBe(true);
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+
+      const release1 = deferredUpdate(client);
+      fireEvent.click(screen.getByRole("button", { name: saveLabel }));
+      expect(dispatchUnload().prevented).toBe(true); // still pending
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+
+      await act(async () =>
+        release1({ ...view(), description: { uk: "Лагідна.", en: null } } as KabinetAnimalView),
+      );
+      await screen.findAllByText(savedLineText(FIRST_TIME));
+      expect(dispatchUnload()).toEqual({ prevented: false, returnValue: undefined });
+
+      // Type again: `save.kind` is still "saved" from the last success, but
+      // the new, unblurred edit alone must hide the line and re-warn -
+      // "saved" is no longer true of the form's current content.
+      fireEvent.change(screen.getByLabelText(/^Опис/), {
+        target: { value: "Лагідна, грається." },
+      });
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+      expect(dispatchUnload().prevented).toBe(true);
+
+      // Now let this save fail: the edits are still unsaved (the view the
+      // patch was computed against never changed), so the line stays
+      // hidden and the warning stays on.
+      client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      fireEvent.click(screen.getByRole("button", { name: saveLabel }));
+      await screen.findAllByText(failureText);
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+      expect(dispatchUnload().prevented).toBe(true);
+
+      // A successful retry, 15 minutes later: idle and fully saved again -
+      // no warning, and the line names *this* save's own time, not the
+      // first one's.
+      now = SECOND_NOW;
+      const release2 = deferredUpdate(client);
+      fireEvent.click(screen.getByRole("button", { name: retryLabel }));
+      await act(async () =>
+        release2({
+          ...view(),
+          description: { uk: "Лагідна, грається.", en: null },
+        } as KabinetAnimalView),
+      );
+      await screen.findAllByText(savedLineText(SECOND_TIME));
+      expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
+      expect(dispatchUnload()).toEqual({ prevented: false, returnValue: undefined });
+    },
+  );
+
+  /**
+   * Blocker 1 (2026-10-19 review of UW-B2): `window.location.assign` fires
+   * `beforeunload` synchronously, in a real browser, before React ever gets
+   * a chance to re-render and run the effect that would otherwise remove
+   * the listener - so the probe has to check at that exact instant, inside
+   * the `assign` call itself, not after. (happy-dom's own `assign` doesn't
+   * fire `beforeunload` or stop the test's event loop, so checking only
+   * after an `await` would pass either way - on `main` included - without
+   * ever exercising the race.)
+   */
+  it("an intentional back-link leave, after the save it triggers succeeds, never warns", async () => {
+    const client = fakeClient(draft());
+    renderForm(draft(), { client });
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
+
+    let preventedAtNavigation: boolean | null = null;
+    const assign = vi.spyOn(window.location, "assign").mockImplementation(() => {
+      preventedAtNavigation = dispatchUnload().prevented;
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: "← Притулок" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/kabinet/prytulok"));
+
+    expect(preventedAtNavigation).toBe(false);
+    assign.mockRestore();
+  });
+
+  /**
+   * Blocker 2: on `/nova`, `dirty` used to be `creatable` (a name AND a
+   * species), so anything typed before both existed gave no warning at all
+   * - including a whole typed description. "Unsaved" must include any
+   * value that differs from the empty starting form, name/species or not.
+   */
+  it.each([
+    [
+      "a description",
+      () => fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } }),
+    ],
+    ["a name", () => fireEvent.change(screen.getByLabelText("Імʼя"), { target: { value: "Л" } })],
+  ] as const)(
+    "/nova: typing only %s, before a name and a species both exist, still warns",
+    (_field, type) => {
+      renderForm(null);
+      type();
+      expect(dispatchUnload().prevented).toBe(true);
+    },
+  );
+
+  /**
+   * Blocker 3: `dirty` diffs the CURRENT fields against the server's LAST
+   * KNOWN view, which a save in flight hasn't changed yet - so reverting a
+   * field back to that stored value, while the save for the edit it
+   * replaces is still in flight, used to read as "nothing unsaved" and
+   * silently drop the warning. "Pending or queued" is its own term,
+   * independent of what the fields currently say (UW-T2).
+   */
+  it("reverting a field to its stored value keeps the warning on while that edit's save is still in flight", async () => {
+    const stored = draft({ description: { uk: "Було.", en: null } } as Partial<KabinetAnimalView>);
+    const client = fakeClient(stored);
+    renderForm(stored, { client });
+    const description = screen.getByLabelText(/^Опис/);
+
+    fireEvent.change(description, { target: { value: "Зараз." } });
+    expect(dispatchUnload().prevented).toBe(true);
+
+    const release = deferredUpdate(client);
+    fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(dispatchUnload().prevented).toBe(true); // the save for "Зараз." is in flight
+
+    // Revert to the value still on the server: `dirty` alone now reads
+    // false, but the in-flight save hasn't settled.
+    fireEvent.change(description, { target: { value: "Було." } });
+    expect(dispatchUnload().prevented).toBe(true);
+
+    await act(async () =>
+      release(draft({ description: { uk: "Зараз.", en: null } } as Partial<KabinetAnimalView>)),
+    );
+    // Settled - and the revert now genuinely diverges from what the server
+    // actually holds, so the warning is still correctly on, for `dirty`'s
+    // own reason this time.
+    expect(dispatchUnload().prevented).toBe(true);
+  });
+
+  /**
+   * The first review's own recommendation on its blocker 3 (whether a
+   * publish request in flight counts), taken here as a builder decision -
+   * his words say nothing about this. `publish()` saves first (covered by
+   * `savePending` above), then makes its own, separate `transition` call -
+   * by the time that one is in flight, the save it depended on has already
+   * settled, so neither `dirty` nor `savePending` is still true; only
+   * `publishing` is.
+   */
+  it("a publish request in flight keeps the warning on, after its own save already settled", async () => {
+    const ready = draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>);
+    const client = fakeClient(ready);
+    let releaseTransition: (view: KabinetAnimalView) => void = () => {};
+    client.calls.transition.mockImplementationOnce(
+      () =>
+        new Promise<KabinetAnimalView>((resolve) => {
+          releaseTransition = resolve;
+        }),
+    );
+    renderForm(ready, { client });
+
+    fireEvent.click(screen.getByRole("button", { name: "Опублікувати" }));
+    await waitFor(() => expect(client.calls.transition).toHaveBeenCalled());
+
+    expect(dispatchUnload().prevented).toBe(true); // nothing left to save, but not published yet
+
+    await act(async () =>
+      releaseTransition({
+        ...ready,
+        listing: { kind: "published", publishedAt: NOW, confirmedAt: NOW, undoable: null },
+      } as KabinetAnimalView),
+    );
+    expect(dispatchUnload().prevented).toBe(false);
+  });
+
+  /**
+   * UW-T7: reusing `useUnsavedChanges` for drafts (UW-T1) puts a dirty
+   * draft in the same shared `dirtySections` a listed card already used -
+   * so «Вийти» (the header's own sign-out, `SignOutButton`'s `confirmLeave`)
+   * now asks before leaving a dirty draft too, not only a dirty listed card.
+   */
+  it("a dirty draft also makes «Вийти» ask before signing out", () => {
+    renderForm(draft());
+    expect(confirmLeave(() => true)).toBe(true); // nothing unsaved: goes ahead, never asks
+
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
+    const confirm = vi.fn(() => false);
+    expect(confirmLeave(confirm)).toBe(false);
+    expect(confirm).toHaveBeenCalledWith("Зміни не збережено. Все одно вийти?");
+  });
+
+  /**
+   * The second review's probes, kept as tests (UW-T4, UW-T8, UW-T9): the back link's own
+   * navigation is checked at the instant a real browser fires `beforeunload`, inside a spy on
+   * `location.assign` (happy-dom's own `assign` fires nothing).
+   */
+  describe("the back link's own leave", () => {
+    const backLink = () => screen.getByRole("link", { name: "← Притулок" });
+    const description = () => screen.getByLabelText(/^Опис/);
+    const preventedAtNavigation = () => {
+      const seen: boolean[] = [];
+      const assign = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => void seen.push(dispatchUnload().prevented));
+      return { seen, assign };
+    };
+    const holdNext = (client: FakeClient, call: "update" | "transition") => {
+      let release: (view: KabinetAnimalView) => void = () => {};
+      client.calls[call].mockImplementationOnce(
+        () =>
+          new Promise<KabinetAnimalView>((resolve) => {
+            release = resolve;
+          }),
+      );
+      return (view: KabinetAnimalView) => release(view);
+    };
+    const savedDescription = (uk: string) =>
+      draft({ description: { uk, en: null }, version: 1 } as Partial<KabinetAnimalView>);
+
+    it("typing more while its save is in flight still warns when it navigates", async () => {
+      const client = fakeClient(draft());
+      const release = holdNext(client, "update");
+      renderForm(draft(), { client });
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Лагідна." } });
+      fireEvent.click(backLink());
+      fireEvent.change(description(), { target: { value: "Лагідна, грається." } });
+      await act(async () => release(savedDescription("Лагідна.")));
+      await waitFor(() => expect(assign).toHaveBeenCalled());
+      expect(seen).toEqual([true]);
+      assign.mockRestore();
+    });
+
+    it("a failed save still warns when it navigates: the edits are unsaved", async () => {
+      const client = fakeClient(draft());
+      renderForm(draft(), { client });
+      client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Лагідна." } });
+      fireEvent.click(backLink());
+      await waitFor(() => expect(assign).toHaveBeenCalled());
+      expect(seen).toEqual([true]);
+      assign.mockRestore();
+    });
+
+    it("a double click saves once and never warns once everything is saved", async () => {
+      const client = fakeClient(draft());
+      const release = holdNext(client, "update");
+      renderForm(draft(), { client });
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Лагідна." } });
+      fireEvent.click(backLink());
+      fireEvent.click(backLink());
+      await act(async () => release(savedDescription("Лагідна.")));
+      await waitFor(() => expect(assign).toHaveBeenCalledTimes(2));
+      expect({ seen, updates: client.calls.update.mock.calls.length }).toEqual({
+        seen: [false, false],
+        updates: 1,
+      });
+      assign.mockRestore();
+    });
+
+    it("a publish still in flight warns when it navigates", async () => {
+      const ready = draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>);
+      const client = fakeClient(ready);
+      const release = holdNext(client, "transition");
+      renderForm(ready, { client });
+      fireEvent.click(screen.getByRole("button", { name: "Опублікувати" }));
+      await waitFor(() => expect(client.calls.transition).toHaveBeenCalled());
+      expect(dispatchUnload().prevented).toBe(true);
+      const { seen, assign } = preventedAtNavigation();
+      fireEvent.change(description(), { target: { value: "Спокійна, любить гуляти. Ще." } });
+      fireEvent.click(backLink());
+      await waitFor(() => expect(assign).toHaveBeenCalled());
+      const atNavigation = seen.slice();
+      await act(async () =>
+        release({
+          ...ready,
+          listing: { kind: "published", publishedAt: NOW, confirmedAt: NOW, undoable: null },
+        } as KabinetAnimalView),
+      );
+      expect(atNavigation).toEqual([true]);
+      assign.mockRestore();
+    });
+  });
+
+  it("/nova with nothing typed never warns, and typing then clearing doesn't either", () => {
+    renderForm(null);
+    const description = screen.getByLabelText(/^Опис/);
+    expect(dispatchUnload().prevented).toBe(false);
+    fireEvent.change(description, { target: { value: "а" } });
+    expect(dispatchUnload().prevented).toBe(true);
+    fireEvent.change(description, { target: { value: "" } });
+    expect(dispatchUnload().prevented).toBe(false);
+  });
+});
+
+/** The tile's ⋯ menu for photo `n` (1-based): its entries are then found by name on the screen. */
+const openPhotoMenu = async (user: ReturnType<typeof userEvent.setup>, n: number) =>
+  user.click(screen.getByRole("button", { name: `Дії з фото ${n}` }));
+const menuEntry = (name: string) => screen.queryByRole("button", { name });
+const photos10 = (count: number) =>
+  Array.from({ length: count }, (_, index) => ({
+    ...PHOTO,
+    storageKey: `/photos/${index + 1}.jpg`,
+  }));
+
 describe("photos", () => {
   it("an upload shows its progress, then the photo; the gap list loses «фото»", async () => {
     const user = userEvent.setup();
     const client = renderForm(draft({ ...complete } as Partial<KabinetAnimalView>));
-    expect(screen.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeTruthy();
+    expect(missingItems()).toEqual(["Фото (Фото)"]);
     let release: () => void = () => {};
     client.calls.add.mockImplementationOnce(async (_input, options) => {
       options?.context?.onUploadProgress?.({ sent: 655_360, total: 1_048_576 });
@@ -713,15 +1210,13 @@ describe("photos", () => {
     expect(client.calls.add).toHaveBeenCalledTimes(2);
   });
 
-  it("reorders with the tile's buttons: «Зробити обкладинкою» sends the new order", async () => {
+  it("the ⋯ menu: «Зробити обкладинкою» sends the new order in one reorder call", async () => {
     const user = userEvent.setup();
     const second = { ...PHOTO, storageKey: "/photos/2.jpg" };
     const client = renderForm(published({ photos: [PHOTO, second] }));
-    await user.click(
-      within(screen.getByRole("group", { name: "Фото 2 з 2" })).getByRole("button", {
-        name: "Зробити обкладинкою",
-      }),
-    );
+    await openPhotoMenu(user, 2);
+    await user.click(menuEntry("Зробити обкладинкою") as HTMLElement);
+    expect(client.calls.reorder).toHaveBeenCalledTimes(1);
     expect(client.calls.reorder).toHaveBeenCalledWith({
       animalId: ID,
       expectedPhotoKeys: ["/photos/1.jpg", "/photos/2.jpg"],
@@ -730,31 +1225,36 @@ describe("photos", () => {
     expect(await screen.findByText("Порядок змінено.")).toBeTruthy();
   });
 
-  it("«Перемістити вперед» and «Перемістити назад» move one place", async () => {
+  it("«Посунути раніше» and «Посунути пізніше» move one place", async () => {
     const user = userEvent.setup();
-    const [a, b, c] = ["/photos/1.jpg", "/photos/2.jpg", "/photos/3.jpg"].map((storageKey) => ({
-      ...PHOTO,
-      storageKey,
-    }));
-    const client = renderForm(draft({ photos: [a, b, c] } as Partial<KabinetAnimalView>));
-    await user.click(
-      within(screen.getByRole("group", { name: "Фото 1 з 3" })).getByRole("button", {
-        name: "Перемістити назад",
-      }),
-    );
+    const client = renderForm(draft({ photos: photos10(3) } as Partial<KabinetAnimalView>));
+    await openPhotoMenu(user, 1);
+    await user.click(menuEntry("Посунути пізніше") as HTMLElement);
     expect(client.calls.reorder.mock.calls[0]?.[0]).toMatchObject({
       nextPhotoKeys: ["/photos/2.jpg", "/photos/1.jpg", "/photos/3.jpg"],
     });
     await screen.findByText("Порядок змінено.");
-    await user.click(
-      within(screen.getByRole("group", { name: "Фото 3 з 3" })).getByRole("button", {
-        name: "Перемістити вперед",
-      }),
-    );
+    await openPhotoMenu(user, 3);
+    await user.click(menuEntry("Посунути раніше") as HTMLElement);
     expect(client.calls.reorder.mock.calls[1]?.[0]).toMatchObject({
       expectedPhotoKeys: ["/photos/2.jpg", "/photos/1.jpg", "/photos/3.jpg"],
       nextPhotoKeys: ["/photos/2.jpg", "/photos/3.jpg", "/photos/1.jpg"],
     });
+  });
+
+  it("the menu hides what makes no sense at the ends", async () => {
+    const user = userEvent.setup();
+    renderForm(draft({ photos: photos10(3) } as Partial<KabinetAnimalView>));
+    await openPhotoMenu(user, 1);
+    expect(menuEntry("Зробити обкладинкою")).toBeNull();
+    expect(menuEntry("Посунути раніше")).toBeNull();
+    expect(menuEntry("Посунути пізніше")).toBeTruthy();
+    expect(menuEntry("Прибрати")).toBeTruthy();
+    await user.keyboard("{Escape}");
+    await openPhotoMenu(user, 3);
+    expect(menuEntry("Посунути пізніше")).toBeNull();
+    expect(menuEntry("Зробити обкладинкою")).toBeTruthy();
+    expect(menuEntry("Посунути раніше")).toBeTruthy();
   });
 
   it("a removal says the photo is off the card and the file isn't deleted at once", async () => {
@@ -762,7 +1262,8 @@ describe("photos", () => {
     const second = { ...PHOTO, storageKey: "/photos/2.jpg" };
     const client = renderForm(published({ photos: [PHOTO, second] }));
     expect(screen.queryByText(/Сам файл не видаляється одразу/)).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Прибрати фото 2" }));
+    await openPhotoMenu(user, 2);
+    await user.click(menuEntry("Прибрати") as HTMLElement);
     expect(client.calls.remove).toHaveBeenCalledWith({
       animalId: ID,
       expectedPhotoKeys: ["/photos/1.jpg", "/photos/2.jpg"],
@@ -771,7 +1272,7 @@ describe("photos", () => {
     expect(await screen.findByText("Фото прибрано.")).toBeTruthy();
     expect(
       screen.getByText(
-        "Фото зникло з картки. Сам файл не видаляється одразу — якщо його треба прибрати зовсім, напишіть мені.",
+        "Фото зникло з картки. Сам файл не видаляється одразу – якщо його треба прибрати зовсім, напишіть мені.",
       ),
     ).toBeTruthy();
   });
@@ -782,10 +1283,11 @@ describe("photos", () => {
     const client = renderForm(published({ photos: [PHOTO, second] }));
     client.calls.reorder.mockRejectedValueOnce(apiError("CONFLICT"));
     client.calls.byId.mockResolvedValueOnce(published({ photos: [second] }));
-    await user.click(screen.getByRole("button", { name: "Зробити обкладинкою" }));
+    await openPhotoMenu(user, 2);
+    await user.click(menuEntry("Зробити обкладинкою") as HTMLElement);
     expect(
       await screen.findByText(
-        "Фото змінилися в іншому вікні. Тут — поточний набір, спробуйте ще раз.",
+        "Фото змінилися в іншому вікні. Тут – поточний набір, спробуйте ще раз.",
       ),
     ).toBeTruthy();
     expect(await screen.findByRole("group", { name: "Фото 1 з 1" })).toBeTruthy();
@@ -796,36 +1298,213 @@ describe("photos", () => {
     const second = { ...PHOTO, storageKey: "/photos/2.jpg" };
     const client = renderForm(published({ photos: [PHOTO, second] }));
     client.calls.reorder.mockRejectedValueOnce(new TypeError("Failed to fetch"));
-    await user.click(screen.getByRole("button", { name: "Зробити обкладинкою" }));
+    await openPhotoMenu(user, 2);
+    await user.click(menuEntry("Зробити обкладинкою") as HTMLElement);
     expect(
       await screen.findByText(
-        "Не збереглося — на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
+        "Не збереглося – на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
       ),
     ).toBeTruthy();
   });
 
   it("at the cap the add tile gives way to his sentence", () => {
-    const photos = Array.from({ length: 10 }, (_, index) => ({
-      ...PHOTO,
-      storageKey: `/photos/${index + 1}.jpg`,
-    }));
-    renderForm(draft({ photos } as Partial<KabinetAnimalView>));
-    expect(screen.queryByRole("button", { name: "+ Фото" })).toBeNull();
-    expect(screen.getByText("Це максимум — 10 фото.")).toBeTruthy();
+    renderForm(draft({ photos: photos10(10) } as Partial<KabinetAnimalView>));
+    expect(screen.queryByRole("button", { name: /^Додати фото/ })).toBeNull();
+    expect(screen.getByText("Це максимум – 10 фото.")).toBeTruthy();
+    expect(screen.getByText(/10 з 10/)).toBeTruthy();
   });
 
-  it("captions: the on-device resize to 2000 px and the metadata stripping, both true of the pipeline", () => {
-    renderForm(draft());
+  it("at nine photos the counter says so and the add tile says one is left", () => {
+    renderForm(draft({ photos: photos10(9) } as Partial<KabinetAnimalView>));
+    expect(screen.getByText(/9 з 10/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Додати фото/ }).textContent).toContain("Ще 1");
+  });
+
+  it("dropping files on the add tile uploads them through the same path", async () => {
+    const client = renderForm(draft({ photos: photos10(1) } as Partial<KabinetAnimalView>));
+    const file = new File(["x"], "a.jpg", { type: "image/jpeg" });
+    fireEvent.drop(screen.getByRole("button", { name: /^Додати фото/ }), {
+      dataTransfer: { files: [file], types: ["Files"] },
+    });
+    await waitFor(() => expect(client.calls.add).toHaveBeenCalledTimes(1));
+  });
+
+  describe("drag to reorder", () => {
+    const slotUnderPointer = (slot: number) => {
+      document.elementFromPoint = () => document.querySelector(`[data-photo-slot="${slot}"]`);
+    };
+    const surface = (n: number) =>
+      screen.getByRole("group", { name: `Фото ${n} з 3` }).querySelector("[data-photo-surface]");
+    const press = (n: number, pointerType: "mouse" | "touch") =>
+      fireEvent.pointerDown(surface(n) as Element, {
+        button: 0,
+        pointerId: 1,
+        pointerType,
+        clientX: 10,
+        clientY: 300,
+      });
+    const moveTo = (x: number, y: number, pointerType: "mouse" | "touch" = "mouse") =>
+      fireEvent.pointerMove(window, { pointerId: 1, pointerType, clientX: x, clientY: y });
+    const release = () => fireEvent.pointerUp(window, { pointerId: 1, clientX: 60, clientY: 330 });
+    const pickUpWithMouse = (n: number) => {
+      press(n, "mouse");
+      moveTo(30, 330);
+    };
+    const three = () => renderForm(draft({ photos: photos10(3) } as Partial<KabinetAnimalView>));
+
+    const elementFromPoint = document.elementFromPoint;
+    afterEach(() => {
+      document.elementFromPoint = elementFromPoint;
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    });
+
+    it("there is no drag handle: the tile itself is the target, ⋯ is the only button on it", () => {
+      three();
+      expect(screen.queryByRole("button", { name: /^Перетягнути фото/ })).toBeNull();
+      const tile = screen.getByRole("group", { name: "Фото 1 з 3" });
+      expect(within(tile).getAllByRole("button")).toHaveLength(1);
+    });
+
+    it("a mouse drag makes one reorder call with the new order", async () => {
+      const client = three();
+      pickUpWithMouse(1);
+      slotUnderPointer(2);
+      moveTo(60, 330);
+      release();
+      await waitFor(() => expect(client.calls.reorder).toHaveBeenCalledTimes(1));
+      expect(client.calls.reorder).toHaveBeenCalledWith({
+        animalId: ID,
+        expectedPhotoKeys: ["/photos/1.jpg", "/photos/2.jpg", "/photos/3.jpg"],
+        nextPhotoKeys: ["/photos/2.jpg", "/photos/3.jpg", "/photos/1.jpg"],
+      });
+    });
+
+    it("a mouse press that moves only a little is a click, not a drag", () => {
+      const client = three();
+      press(1, "mouse");
+      moveTo(13, 302);
+      slotUnderPointer(2);
+      release();
+      expect(client.calls.reorder).not.toHaveBeenCalled();
+      expect(screen.queryByText(/підняте/)).toBeNull();
+    });
+
+    it("Esc cancels: nothing is written, and the screen reader hears it", () => {
+      const client = three();
+      pickUpWithMouse(1);
+      slotUnderPointer(2);
+      moveTo(60, 330);
+      fireEvent.keyDown(document, { key: "Escape" });
+      release();
+      expect(client.calls.reorder).not.toHaveBeenCalled();
+      expect(screen.getByText("Переміщення скасовано.")).toBeTruthy();
+      expect(screen.getByRole("group", { name: "Фото 1 з 3" })).toBeTruthy();
+    });
+
+    it("a long press lifts the photo, then a drag reorders with one call", async () => {
+      vi.useFakeTimers({
+        toFake: ["setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame"],
+      });
+      const vibrate = vi.fn();
+      vi.stubGlobal("navigator", { ...navigator, vibrate });
+      const client = three();
+      press(1, "touch");
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.queryByText(/підняте/)).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.getByText(/^Фото 1 підняте/)).toBeTruthy();
+      expect(vibrate).toHaveBeenCalledWith(10);
+      slotUnderPointer(2);
+      moveTo(60, 330, "touch");
+      release();
+      vi.useRealTimers();
+      await waitFor(() => expect(client.calls.reorder).toHaveBeenCalledTimes(1));
+    });
+
+    it("a quick swipe is a scroll: the photo is never lifted and nothing is written", () => {
+      vi.useFakeTimers({
+        toFake: ["setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame"],
+      });
+      const client = three();
+      press(1, "touch");
+      moveTo(10, 340, "touch");
+      slotUnderPointer(2);
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      release();
+      expect(screen.queryByText(/підняте/)).toBeNull();
+      expect(client.calls.reorder).not.toHaveBeenCalled();
+    });
+
+    it("a second finger puts a lifted photo back", () => {
+      vi.useFakeTimers({
+        toFake: ["setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame"],
+      });
+      const client = three();
+      press(1, "touch");
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+      expect(screen.getByText(/^Фото 1 підняте/)).toBeTruthy();
+      fireEvent.pointerDown(surface(2) as Element, {
+        button: 0,
+        pointerId: 2,
+        pointerType: "touch",
+      });
+      expect(screen.getByText("Переміщення скасовано.")).toBeTruthy();
+      slotUnderPointer(2);
+      release();
+      expect(client.calls.reorder).not.toHaveBeenCalled();
+    });
+  });
+
+  it("the hint says what to do once, by input: a mouse drags, a finger holds", () => {
+    renderForm(draft({ photos: photos10(2) } as Partial<KabinetAnimalView>));
+    expect(screen.getByText("Перетягніть, щоб змінити порядок.")).toBeTruthy();
+    expect(screen.queryByText("Утримуйте фото, щоб перетягнути.")).toBeNull();
+  });
+
+  it("on a touch screen the hint says to hold the photo", () => {
+    const real = window.matchMedia;
+    window.matchMedia = ((media: string) => ({
+      media,
+      matches: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof real;
+    try {
+      renderForm(draft({ photos: photos10(2) } as Partial<KabinetAnimalView>));
+      expect(screen.getByText("Утримуйте фото, щоб перетягнути.")).toBeTruthy();
+      expect(screen.queryByText("Перетягніть, щоб змінити порядок.")).toBeNull();
+    } finally {
+      window.matchMedia = real;
+    }
+  });
+
+  it("the photo notes: one line about the date, the info card holds the rest, and the old paragraphs are gone", async () => {
+    const user = userEvent.setup();
+    renderForm(published({ photos: photos10(2) }));
     expect(
       screen.getByText(
-        /^Перше фото — обкладинка; щоб змінити порядок, перетягніть фото\. Для публікації потрібне хоча б одне\. Великі фото зменшуються на пристрої до 2\s?000 пікселів перед відправкою — так менше мобільного трафіку\.$/,
+        "Кожна зміна у фото оновлює дату на картці, і вона знову зʼявляється серед найсвіжіших.",
       ),
     ).toBeTruthy();
-    expect(
-      screen.getByText("З фото прибираються дані про місце зйомки та інші приховані дані."),
-    ).toBeTruthy();
-    // A draft carries no «Оновлено» date for a photo change to move (RH-B7).
-    expect(screen.queryByText(/будь-яка зміна фото оновлює дату/)).toBeNull();
+    expect(screen.queryByText(/Будь-яке фото/)).toBeNull();
+    expect(screen.queryByText(/щоб змінити порядок, перетягніть фото/)).toBeNull();
+    expect(screen.queryByText(/З фото прибираються/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Про фото" }));
+    expect(screen.getByText(/^Підійде будь-яке фото з телефона чи компʼютера\./)).toBeTruthy();
+  });
+
+  it("a draft carries no «Оновлено» date for a photo change to move (RH-B7)", () => {
+    renderForm(draft({ photos: photos10(2) } as Partial<KabinetAnimalView>));
+    expect(screen.queryByText(/Кожна зміна у фото/)).toBeNull();
   });
 });
 
@@ -965,7 +1644,7 @@ describe("a listed animal saves only when asked (T8)", () => {
     vi.useFakeTimers();
     const client = renderForm(published());
     fireEvent.click(
-      within(screen.getByRole("group", { name: "Розмір" })).getByLabelText(/Великий/),
+      within(screen.getByRole("group", { name: /^Розмір/ })).getByLabelText(/Великий/),
     );
     await act(async () => {
       vi.advanceTimersByTime(30_000);
@@ -982,11 +1661,9 @@ describe("a listed animal saves only when asked (T8)", () => {
   it("an emptied description is refused inline and not sent", async () => {
     const user = userEvent.setup();
     const client = renderForm(published());
-    await user.clear(screen.getByLabelText("Про тварину"));
+    await user.clear(screen.getByLabelText(/^Опис/));
     await user.click(screen.getByRole("button", { name: "Зберегти" }));
-    expect(
-      screen.getByText("Картку вже публікували, тож опис не може бути порожнім."),
-    ).toBeTruthy();
+    expectRefusedInlineAndInSummary("Картку вже публікували, тож опис не може бути порожнім.");
     expect(client.calls.update).not.toHaveBeenCalled();
   });
 
@@ -997,22 +1674,23 @@ describe("a listed animal saves only when asked (T8)", () => {
       apiError("LISTING_FACT_REQUIRED", { field: "description" }),
     );
     renderForm(published(), { client });
-    fireEvent.change(screen.getByLabelText("Про тварину"), { target: { value: "Інший опис." } });
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Інший опис." } });
     await user.click(screen.getByRole("button", { name: "Зберегти" }));
-    expect(
-      await screen.findByText("Картку вже публікували, тож опис не може бути порожнім."),
-    ).toBeTruthy();
+    await waitFor(() =>
+      expectRefusedInlineAndInSummary("Картку вже публікували, тож опис не може бути порожнім."),
+    );
   });
 
-  it("on a visible card, the photo section says a photo change updates «Оновлено»", () => {
+  it("on a visible card, the photo section says a photo change moves the card among the freshest", async () => {
     renderForm(published());
+    await openPhotoMenu(userEvent.setup(), 1);
     expect(
-      screen.getByText("На картці, яку бачать люди, будь-яка зміна фото оновлює дату «Оновлено»."),
+      screen.getByText(
+        "Кожна зміна у фото оновлює дату на картці, і вона знову зʼявляється серед найсвіжіших.",
+      ),
     ).toBeTruthy();
     expect(screen.getByText("Цю картку бачать люди, тож одне фото має лишитися.")).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Прибрати фото 1" }).getAttribute("aria-disabled"),
-    ).toBe("true");
+    expect(menuEntry("Прибрати")?.getAttribute("aria-disabled")).toBe("true");
   });
 
   it.each(NOT_VISIBLE_KINDS)(
@@ -1033,6 +1711,425 @@ describe("a listed animal saves only when asked (T8)", () => {
   });
 });
 
+/**
+ * DR1 (S3): fur, his words «Шерсть», «Коротка», «Довга», «Не вказано»
+ * (2026-10-20). Optional for publishing, and the only fact that can go back
+ * to unknown once chosen.
+ */
+describe("fur", () => {
+  const coatGroup = () => within(screen.getByRole("group", { name: "Шерсть" }));
+  const checked = (label: string) =>
+    (coatGroup().getByLabelText(label) as HTMLInputElement).checked;
+
+  it("is a labelled radio group, starting on «Не вказано» on /nova", () => {
+    renderForm(null);
+    expect(
+      coatGroup()
+        .getAllByRole("radio")
+        .map((radio) => radio.closest("label")?.textContent),
+    ).toEqual(["Коротка", "Довга", "Не вказано"]);
+    expect(checked("Не вказано")).toBe(true);
+  });
+
+  it("isn't one of the publish gaps", () => {
+    renderForm(null);
+    expect(missingItems()).toEqual(MISSING_ITEMS_ALL);
+  });
+
+  it("is chosen with the keyboard and saved on a draft as the one changed field", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    // Space chooses the focused radio, as a keyboard user does.
+    coatGroup().getByLabelText("Довга").focus();
+    await user.keyboard(" ");
+    expect(checked("Довга")).toBe(true);
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update).toHaveBeenCalledWith({
+      animalId: ID,
+      expectedVersion: 0,
+      patch: { coatLength: "long" },
+    });
+  });
+
+  it("shows the stored value, and «Не вказано» clears it on a published card", async () => {
+    const client = renderForm(published({ coatLength: "short" }));
+    expect(checked("Коротка")).toBe(true);
+    fireEvent.click(coatGroup().getByLabelText("Не вказано"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { coatLength: null } });
+    expect(checked("Не вказано")).toBe(true);
+  });
+
+  it("on /nova, the draft is made from a name and a species, and fur follows in the next save", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(null);
+    await user.type(screen.getByLabelText("Імʼя"), "Ластівка");
+    await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Собака"));
+    await user.click(coatGroup().getByLabelText("Довга"));
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.createDraft).toHaveBeenCalledWith({ name: "Ластівка", species: "dog" });
+    await waitFor(() =>
+      expect(client.calls.update).toHaveBeenCalledWith({
+        animalId: ID,
+        expectedVersion: 0,
+        patch: { coatLength: "long" },
+      }),
+    );
+  });
+});
+
+/**
+ * The pet card's temperament and colour; the medical note has no field yet
+ * (below). Words transcribed here, never read from `uk.ts`: the trait words
+ * as Oleksii wrote them and the colour words as he confirmed them (both
+ * quoted at `uk.ts`'s `temperament` and `coatColour`), and the form's kabinet
+ * strings as he approved them (quoted in `copy-status.test.ts`), all on
+ * 2026-10-26. Optional, never a publish gap, each clearable.
+ */
+
+/** The «Інше» text field's own name: «Інше» stays the checkbox's and the radio's. */
+const OTHER_FIELD = "Інше – Своїми словами";
+
+describe("temperament", () => {
+  const group = () => within(screen.getByRole("group", { name: "Характер" }));
+  const box = (label: string) => group().getByRole("checkbox", { name: label }) as HTMLInputElement;
+
+  it("lists the nine presets and «Інше», in the masculine while the sex is «Не записано»", () => {
+    renderForm(null);
+    expect(
+      group()
+        .getAllByRole("checkbox")
+        .map((checkbox) => checkbox.closest("label")?.textContent),
+    ).toEqual([
+      "Грайливий",
+      "Спокійний",
+      "Ласкавий",
+      "Енергійний",
+      "Самостійний",
+      "Соромʼязливий",
+      "Ладнає з дітьми",
+      "Ладнає з котами",
+      "Ладнає з собаками",
+      "Інше",
+    ]);
+    expect(screen.getByText("Можна обрати кілька. Необовʼязково.")).toBeTruthy();
+  });
+
+  it("follows the sex chosen above: «Дівчинка» turns the words feminine, at once", async () => {
+    const user = userEvent.setup();
+    renderForm(draft());
+    await user.click(
+      within(screen.getByRole("group", { name: /^Стать/ })).getByLabelText("Дівчинка"),
+    );
+    expect(box("Грайлива")).toBeTruthy();
+    expect(box("Соромʼязлива")).toBeTruthy();
+    expect(box("Ладнає з котами")).toBeTruthy();
+    expect(group().queryByRole("checkbox", { name: "Грайливий" })).toBeNull();
+  });
+
+  // A published card, which saves only when asked: a draft also saves each
+  // time a field is left, which would split this into one save per box.
+  it("saves the presets in the order ticked, as the one changed field", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(published());
+    await user.click(box("Спокійний"));
+    // Space ticks the focused checkbox, as a keyboard user does.
+    box("Ладнає з дітьми").focus();
+    await user.keyboard(" ");
+    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(client.calls.update).toHaveBeenCalledTimes(1);
+    expect(client.calls.update).toHaveBeenCalledWith({
+      animalId: ID,
+      expectedVersion: 0,
+      patch: {
+        temperament: [
+          { kind: "preset", trait: "calm" },
+          { kind: "preset", trait: "good_with_kids" },
+        ],
+      },
+    });
+  });
+
+  it("«Інше» opens a field for the shelter's own words, sent last after the presets", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(published());
+    expect(group().queryByRole("textbox")).toBeNull();
+    await user.click(box("Інше"));
+    const field = group().getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement;
+    expect(field.placeholder).toBe("Своїми словами");
+    await user.type(field, "  Боїться грози ");
+    await user.click(box("Ласкавий"));
+    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
+      patch: {
+        temperament: [
+          { kind: "preset", trait: "affectionate" },
+          { kind: "custom", text: { uk: "Боїться грози", en: null } },
+        ],
+      },
+    });
+  });
+
+  it("«Інше» and the field it opens are two controls with two names", async () => {
+    const user = userEvent.setup();
+    renderForm(published());
+    await user.click(box("Інше"));
+    // Exact names: «Інше» is the checkbox alone, the field has its own.
+    expect(group().getAllByRole("checkbox", { name: "Інше" })).toHaveLength(1);
+    expect(group().queryByRole("textbox", { name: "Інше" })).toBeNull();
+    const field = group().getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement;
+    expect(field).not.toBe(box("Інше"));
+    // What a sighted person reads beside the field is still the start of its
+    // name (label in name), so «Інше» spoken to voice control reaches it.
+    expect(field.labels?.[0]?.textContent).toBe("Інше");
+  });
+
+  it("counts the custom words against 40, and a save over it sends nothing", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.click(box("Інше"));
+    const field = group().getByRole("textbox", { name: OTHER_FIELD });
+    fireEvent.change(field, { target: { value: "я".repeat(40) } });
+    expect(group().getByText("40 з 40 символів")).toBeTruthy();
+    fireEvent.change(field, { target: { value: "я".repeat(41) } });
+    expect(group().getByText("Зайвих символів: 1")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update).not.toHaveBeenCalled();
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("loads a stored temperament in its order, and clearing every box sends []", async () => {
+    const client = renderForm(
+      published({
+        temperament: [
+          { kind: "preset", trait: "shy" },
+          { kind: "preset", trait: "playful" },
+          { kind: "custom", text: { uk: "Гризе капці", en: null } },
+        ],
+      } as Partial<KabinetAnimalView>),
+    );
+    expect(box("Соромʼязливий").checked).toBe(true);
+    expect(box("Грайливий").checked).toBe(true);
+    expect(box("Інше").checked).toBe(true);
+    expect((group().getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement).value).toBe(
+      "Гризе капці",
+    );
+    // Nothing changed yet: the stored order is the form's, so no patch is due and no bar shows.
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
+    fireEvent.click(box("Соромʼязливий"));
+    fireEvent.click(box("Грайливий"));
+    fireEvent.click(box("Інше"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { temperament: [] } });
+  });
+
+  it("keeps the custom entry's English when only a preset changes", async () => {
+    const custom = {
+      kind: "custom",
+      text: { uk: "Гризе капці", en: { text: "Chews slippers", provenance: "human" } },
+    } as const;
+    const client = renderForm(published({ temperament: [custom] } as Partial<KabinetAnimalView>));
+    fireEvent.click(box("Спокійний"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
+      patch: { temperament: [{ kind: "preset", trait: "calm" }, custom] },
+    });
+  });
+
+  it("isn't one of the publish gaps", () => {
+    renderForm(null);
+    expect(missingItems()).toEqual(MISSING_ITEMS_ALL);
+  });
+});
+
+describe("colour", () => {
+  const group = () => within(screen.getByRole("group", { name: "Забарвлення" }));
+  const checked = (label: string) =>
+    (group().getByRole("radio", { name: label }) as HTMLInputElement).checked;
+
+  it("is a labelled radio group of the ten colours, «Інше» and «Не вказано», starting on «Не вказано»", () => {
+    renderForm(null);
+    expect(
+      group()
+        .getAllByRole("radio")
+        .map((radio) => radio.closest("label")?.textContent),
+    ).toEqual([
+      "Чорне",
+      "Біле",
+      "Сіре",
+      "Руде",
+      "Коричневе",
+      "Кремове",
+      "Чорно-біле",
+      "Триколірне",
+      "Смугасте",
+      "Плямисте",
+      "Інше",
+      "Не вказано",
+    ]);
+    expect(checked("Не вказано")).toBe(true);
+  });
+
+  it("saves a preset colour on a draft as the one changed field", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.click(group().getByLabelText("Смугасте"));
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update).toHaveBeenCalledWith({
+      animalId: ID,
+      expectedVersion: 0,
+      patch: { colour: { kind: "preset", colour: "tabby" } },
+    });
+  });
+
+  it("«Інше» and the field it opens are two controls with two names", async () => {
+    const user = userEvent.setup();
+    renderForm(published());
+    await user.click(group().getByLabelText("Інше"));
+    expect(screen.getAllByRole("radio", { name: "Інше" })).toHaveLength(1);
+    expect(screen.queryByRole("textbox", { name: "Інше" })).toBeNull();
+    const field = screen.getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement;
+    expect(field.labels?.[0]?.textContent).toBe("Інше");
+  });
+
+  it("«Інше» takes the shelter's own words, counted against 30", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.click(group().getByLabelText("Інше"));
+    const field = screen.getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement;
+    expect(field.placeholder).toBe("Своїми словами");
+    await user.type(field, "Димчасте");
+    expect(screen.getByText("8 з 30 символів")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
+      patch: { colour: { kind: "custom", text: { uk: "Димчасте", en: null } } },
+    });
+  });
+
+  it("refuses to save a custom colour over 30 characters", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.click(group().getByLabelText("Інше"));
+    fireEvent.change(screen.getByRole("textbox", { name: OTHER_FIELD }), {
+      target: { value: "я".repeat(31) },
+    });
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update).not.toHaveBeenCalled();
+  });
+
+  it("shows the stored colour, and «Не вказано» clears it on a published card", async () => {
+    const client = renderForm(
+      published({ colour: { kind: "preset", colour: "ginger" } } as Partial<KabinetAnimalView>),
+    );
+    expect(checked("Руде")).toBe(true);
+    fireEvent.click(group().getByLabelText("Не вказано"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { colour: null } });
+  });
+
+  it("loads a stored custom colour as «Інше» with its words", () => {
+    renderForm(
+      published({
+        colour: { kind: "custom", text: { uk: "Палеве", en: null } },
+      } as Partial<KabinetAnimalView>),
+    );
+    expect(checked("Інше")).toBe(true);
+    expect((screen.getByRole("textbox", { name: OTHER_FIELD }) as HTMLInputElement).value).toBe(
+      "Палеве",
+    );
+  });
+});
+
+/**
+ * The medical note's field, pet card PR 5: his two strings (title, hint),
+ * given directly, 2026-10-27, transcribed here rather than read from
+ * `uk.ts`. Mirrors `description`'s own blank↔null pattern and reuses its
+ * character cap (`MEDICAL_NOTES_MAX_CHARACTERS === ANIMAL_DESCRIPTION_MAX_CHARACTERS`).
+ * Never a publish gap (A3) - unlike `description`, a blank note is never
+ * `requiredOnceListed`.
+ */
+describe("medical note", () => {
+  const TITLE = "Що ще варто знати про здоровʼя";
+  const HINT =
+    "Необовʼязково. Ті, хто шукає тварину, побачать цей текст у розділі «Медичний стан».";
+  // `getByRole("textbox", ...)`, not `getByLabelText`: the section wrapping this field
+  // shares its own `aria-labelledby` text with the field's label (both read `TITLE`, since
+  // his approval gave only one string, not a separate heading/label pair the way
+  // `description` has `description.title`/`description.label`), so `getByLabelText` would
+  // match both the section and the field.
+  const field = () => screen.getByRole("textbox", { name: TITLE }) as HTMLTextAreaElement;
+
+  it("has its own labelled field with his hint, starting empty", () => {
+    renderForm(null);
+    expect(field().value).toBe("");
+    expect(screen.getByText(HINT)).toBeTruthy();
+  });
+
+  it("loads a stored note", () => {
+    renderForm(
+      published({
+        medicalNotes: { uk: "Потребує дієти.", en: null },
+      } as Partial<KabinetAnimalView>),
+    );
+    expect(field().value).toBe("Потребує дієти.");
+  });
+
+  it("saves a typed note on a draft as the one changed field", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.type(field(), "Алергія на курку.");
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update).toHaveBeenCalledWith({
+      animalId: ID,
+      expectedVersion: 0,
+      patch: { medicalNotes: { uk: "Алергія на курку.", en: null } },
+    });
+  });
+
+  it("clearing a stored note sends null, as the one changed field", async () => {
+    const client = renderForm(
+      published({
+        medicalNotes: { uk: "Потребує дієти.", en: null },
+      } as Partial<KabinetAnimalView>),
+    );
+    fireEvent.change(field(), { target: { value: "" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
+      patch: { medicalNotes: null },
+    });
+  });
+
+  it("counts against the description's own cap, and a save over it sends nothing", async () => {
+    const client = renderForm(draft());
+    fireEvent.change(field(), {
+      target: { value: "я".repeat(ANIMAL_DESCRIPTION_MAX_CHARACTERS + 1) },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    });
+    expect(client.calls.update).not.toHaveBeenCalled();
+    expect(field().getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("isn't one of the publish gaps, unlike description", () => {
+    // `MISSING_ALL` (`"...розмір, вік, опис і фото."`) is the exact gap list a fresh form
+    // shows - A3: an empty medical note never adds itself to it, the way an empty
+    // description does.
+    renderForm(null);
+    expect(missingItems()).toEqual(MISSING_ITEMS_ALL);
+  });
+});
+
 describe("who may change what", () => {
   it("a support view sees the animal read-only: fields disabled, no save, publish or photo controls", () => {
     renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>), {
@@ -1041,12 +2138,12 @@ describe("who may change what", () => {
     expect((screen.getByLabelText("Імʼя") as HTMLInputElement).disabled).toBe(true);
     expect(screen.queryByRole("button", { name: "Опублікувати" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Зберегти/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "+ Фото" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Додати фото/ })).toBeNull();
   });
 
   it("a shelter whose writes are refused sees the same read-only page", () => {
     renderForm(published(), { editing: { kind: "read_only" } });
-    expect((screen.getByLabelText("Про тварину") as HTMLTextAreaElement).disabled).toBe(true);
+    expect((screen.getByLabelText(/^Опис/) as HTMLTextAreaElement).disabled).toBe(true);
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
   });
 
@@ -1129,13 +2226,295 @@ describe("who may change what", () => {
     ),
   )(
     "while a shelter %s has its cards hidden (writes open by %s), the last-photo note doesn't say people see the card",
-    (_who, _grant, visibility, editing) => {
+    async (_who, _grant, visibility, editing) => {
       renderForm(published(), { shelterVisibility: visibility, editing });
+      await openPhotoMenu(userEvent.setup(), 1);
       expect(screen.queryByText("Цю картку бачать люди, тож одне фото має лишитися.")).toBeNull();
       const note = screen.getByText(LAST_PHOTO_KEPT_NOT_SHOWN);
-      expect(
-        screen.getByRole("button", { name: "Прибрати фото 1" }).getAttribute("aria-describedby"),
-      ).toBe(note.id);
+      expect(menuEntry("Прибрати")?.getAttribute("aria-describedby")).toBe(note.id);
     },
   );
+});
+
+describe("sections, steps and the error summary (kabinet redesign PR 3)", () => {
+  it("names the five sections in the order a volunteer fills them, as tabs", () => {
+    renderForm(draft());
+    const tabs = within(screen.getByRole("tablist", { name: "Розділи картки" })).getAllByRole(
+      "tab",
+    );
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      expect.stringMatching(/^Основне/),
+      expect.stringMatching(/^Фото/),
+      expect.stringMatching(/^Про тварину/),
+      "Здоровʼя",
+      "Публікація",
+    ]);
+    const headings = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((heading) => heading.textContent?.split(" · ")[0]);
+    expect(headings).toEqual(["Основне", "Фото", "Про тварину", "Здоровʼя", "Публікація"]);
+  });
+
+  it("a read-only view has no «Публікація» section and no tab for it", () => {
+    renderForm(draft(), { viewer: "support", editing: { kind: "read_only" } });
+    expect(screen.queryByRole("heading", { level: 2, name: "Публікація" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Публікація" })).toBeNull();
+  });
+
+  it("on /nova the photos section is there, without a way to add one yet", () => {
+    renderForm(null);
+    expect(screen.getByRole("heading", { level: 2, name: /^Фото/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Додати фото/ })).toBeNull();
+  });
+
+  it("a refused save someone pressed puts focus on a summary that lists the problem and goes to the field", async () => {
+    const user = userEvent.setup();
+    renderForm(null);
+    await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Кіт"));
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    const summary = screen.getByRole("alert");
+    await waitFor(() => expect(document.activeElement).toBe(summary));
+    const item = within(summary).getByRole("button", {
+      name: "Щоб зберегти чернетку, потрібне імʼя.",
+    });
+    await user.click(item);
+    expect(document.activeElement).toBe(screen.getByLabelText("Імʼя"));
+  });
+
+  it("leaving a field with a problem shows it under the field only: no summary, no focus pulled", async () => {
+    const user = userEvent.setup();
+    renderForm(null);
+    await user.type(screen.getByLabelText("Імʼя"), "Бу{{}");
+    await user.tab();
+    expect(screen.getByText("В імені не може бути фігурних дужок.")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(document.activeElement).not.toBeNull();
+    expect(document.activeElement?.getAttribute("role")).not.toBe("alert");
+  });
+
+  it("the disabled «Опублікувати» opens «Публікація», where each gap is a link to its tab", async () => {
+    const user = userEvent.setup();
+    renderForm(draft({ sex: "male" } as Partial<KabinetAnimalView>), { reveal: false });
+    await user.click(screen.getByRole("button", { name: "Опублікувати" }));
+    expect(screen.getByRole("tab", { name: "Публікація" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Публікація" }));
+    expect(missingItems()).toEqual([
+      "Розмір (Основне)",
+      "Вік (Основне)",
+      "Опис (Про тварину)",
+      "Фото (Фото)",
+    ]);
+  });
+
+  it("a ready draft lists no gaps; a published card says who sees it, in «Публікація»", () => {
+    renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>));
+    expect(screen.queryByText(/Щоб опублікувати, ще потрібно/)).toBeNull();
+    expect(screen.getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeTruthy();
+  });
+});
+
+/**
+ * Save bar A: a saved card's floating pill (a bar on a phone) exists only while there is something
+ * to act on (S2–S6), the line under the tabs carries the quiet states, and a draft never shows one.
+ */
+describe("the save pill", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+  const edit = (text = "Лагідна.") =>
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: text } });
+  const pillButton = (name: string) => screen.queryByRole("button", { name });
+  const deferred = (client: FakeClient) => {
+    let release: (view: KabinetAnimalView) => void = () => {};
+    client.calls.update.mockImplementationOnce(
+      () =>
+        new Promise<KabinetAnimalView>((resolve) => {
+          release = resolve;
+        }),
+    );
+    return (view: KabinetAnimalView) => release(view);
+  };
+
+  it("S1 to S2 to S3 to S4, then leaves after 4 s while the line keeps the time", async () => {
+    vi.useFakeTimers();
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    // S1: no pill, the quiet line says everything is saved.
+    expect(pillButton("Зберегти")).toBeNull();
+    expect(screen.getAllByText("Усі зміни збережено")).toHaveLength(1);
+
+    // S2
+    edit();
+    expect(screen.getAllByText("Є незбережені зміни")).toHaveLength(2);
+    expect(pillButton("Скасувати")).not.toBeNull();
+
+    // S3: both buttons are inert but stay in place.
+    const release = deferred(client);
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(screen.getAllByText("Збереження…")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Зберегти" }).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Скасувати" }).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+
+    // S4
+    await act(async () =>
+      release({ ...card, description: { uk: "Лагідна.", en: null } } as KabinetAnimalView),
+    );
+    expect(screen.getAllByText("Збережено о 12:00")).toHaveLength(2);
+    expect(screen.getByRole("link", { name: /^Переглянути/ })).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(3999);
+    });
+    expect(screen.getAllByText("Збережено о 12:00")).toHaveLength(2);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // Back to S1 with the time kept in the line.
+    expect(screen.getAllByText("Збережено о 12:00")).toHaveLength(1);
+    expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
+  });
+
+  it("holds the confirmation while focus is inside it, and gives it its time again on leaving", async () => {
+    vi.useFakeTimers();
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit();
+    const release = deferred(client);
+    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    await act(async () =>
+      release({ ...card, description: { uk: "Лагідна.", en: null } } as KabinetAnimalView),
+    );
+    const link = screen.getByRole("link", { name: /^Переглянути/ });
+    act(() => {
+      fireEvent.focusIn(link);
+    });
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByRole("link", { name: /^Переглянути/ })).toBeTruthy();
+    act(() => {
+      fireEvent.focusOut(link);
+    });
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
+    expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
+  });
+
+  it("a new edit replaces the confirmation with S2 at once", async () => {
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit();
+    client.calls.update.mockResolvedValueOnce({
+      ...card,
+      description: { uk: "Лагідна.", en: null },
+    } as KabinetAnimalView);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(screen.getAllByText("Збережено о 12:00")).toHaveLength(2);
+    edit("Лагідна, грається.");
+    expect(screen.getAllByText("Є незбережені зміни")).toHaveLength(2);
+    expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
+  });
+
+  it("S3 to S5: a refused save says how many fields to check, and «Показати» focuses the first", async () => {
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit("");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(client.calls.update).not.toHaveBeenCalled();
+    expect(screen.getAllByText("Перевірте 1 поле")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Показати" }));
+    });
+    expect(document.activeElement).toBe(screen.getByLabelText(/^Опис/));
+  });
+
+  it("S3 to S6: a failed save says so once, keeps the edit, and «Спробувати ще раз» repeats it", async () => {
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit();
+    client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(screen.getAllByText("Не вдалося зберегти")).toHaveLength(2);
+    // The longer failure text of the profile editor never joins it.
+    expect(screen.queryByText(/^Не збереглося/)).toBeNull();
+    expect(pillButton("Скасувати")).not.toBeNull();
+    client.calls.update.mockResolvedValueOnce({
+      ...card,
+      description: { uk: "Лагідна.", en: null },
+    } as KabinetAnimalView);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Спробувати ще раз" }));
+    });
+    expect(client.calls.update).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Не вдалося зберегти")).toBeNull();
+    expect(screen.getAllByText("Збережено о 12:00")).toHaveLength(2);
+  });
+
+  it("a conflict shows the existing conflict message and action, not the failure text", async () => {
+    const card = published();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit();
+    client.calls.update.mockRejectedValueOnce(apiError("CONFLICT"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    });
+    expect(screen.queryByText("Не вдалося зберегти")).toBeNull();
+    expect(screen.getByRole("button", { name: "Показати поточну версію" })).toBeTruthy();
+  });
+
+  it("«Скасувати» puts the saved values back and the pill goes", () => {
+    const card = published();
+    renderForm(card);
+    edit();
+    fireEvent.click(screen.getByRole("button", { name: "Скасувати" }));
+    expect((screen.getByLabelText(/^Опис/) as HTMLTextAreaElement).value).toBe(
+      "Спокійна, любить гуляти.",
+    );
+    expect(pillButton("Зберегти")).toBeNull();
+    expect(screen.getAllByText("Усі зміни збережено")).toHaveLength(1);
+  });
+
+  it("Esc does nothing to the pill", () => {
+    renderForm(published());
+    edit();
+    fireEvent.keyDown(screen.getByRole("button", { name: "Зберегти" }), { key: "Escape" });
+    expect(screen.getAllByText("Є незбережені зміни")).toHaveLength(2);
+  });
+
+  it("a draft never shows the pill: its status is only the line under the tabs", async () => {
+    const card = draft();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    edit();
+    expect(screen.queryByText("Є незбережені зміни")).toBeNull();
+    client.calls.update.mockResolvedValueOnce({
+      ...card,
+      description: { uk: "Лагідна.", en: null },
+    } as KabinetAnimalView);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    });
+    expect(screen.getAllByText("Чернетку збережено о 12:00")).toHaveLength(1);
+    expect(screen.queryByText("Збережено о 12:00")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
+  });
 });

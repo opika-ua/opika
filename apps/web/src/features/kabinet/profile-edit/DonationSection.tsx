@@ -3,10 +3,16 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useId, useState } from "react";
-import { Button, TextField } from "../../controls/controls";
+import { Button } from "../../../ui/Button";
+import { FormSection } from "../../../ui/FormSection";
+import { InlineStatus } from "../../../ui/feedback";
+import { TextField } from "../../../ui/form";
+import { Panel } from "../../../ui/Panel";
+import { Text } from "../../../ui/Text";
+import { formatDate } from "../ProfileParts";
+import type { WriteResult } from "../shared/write-result";
 import { linkProblem } from "./fields";
-import { BODY, CAPTION, CARD, CARD_TITLE, ERROR_TEXT, INNER, OPTIONAL, STRONG } from "./styles";
-import type { WriteResult } from "./write-result";
+import { Optional } from "./Optional";
 
 /** The host people are shown before they tap (hard constraint 5), from a link that parses. */
 const hostOf = (url: string): string | null => {
@@ -16,14 +22,6 @@ const hostOf = (url: string): string | null => {
     return null;
   }
 };
-
-const formatDate = (date: Date): string =>
-  new Intl.DateTimeFormat("uk-UA", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/Kyiv",
-  }).format(date);
 
 type Notice = { kind: "none" } | { kind: "proposed" } | { kind: "cancelled" } | { kind: "failed" };
 
@@ -79,6 +77,7 @@ export function DonationSection({
     const problem = linkProblem(trimmed);
     if (problem !== null) {
       setError(problem);
+      document.getElementById(`${id}-url`)?.focus();
       return;
     }
     setError(null);
@@ -103,15 +102,12 @@ export function DonationSection({
   const pendingHost = pendingDonation === null ? null : hostOf(pendingDonation.link.url);
 
   return (
-    <section aria-labelledby={`${id}-title`} className={CARD}>
-      <h2 id={`${id}-title`} className={CARD_TITLE}>
-        {profile.donationTitle}
-      </h2>
+    <FormSection id="donation" title={profile.donationTitle}>
       <TextField
         id={`${id}-url`}
         label={
           <>
-            {profile.donationLink} <span className={OPTIONAL}>{t.donation.optional}</span>
+            {profile.donationLink} <Optional />
           </>
         }
         type="url"
@@ -125,52 +121,55 @@ export function DonationSection({
 
       {previewHost !== null ? (
         <div className="flex flex-col gap-2">
-          <p className={CAPTION}>{t.donation.previewLabel}</p>
+          <Text look="hint">{t.donation.previewLabel}</Text>
           {/* What the animal page shows (`AnimalDetailScreen`): a row, not a link here. */}
-          <div className={`${INNER} flex flex-wrap items-center justify-between gap-2 ${STRONG}`}>
+          <Panel
+            tone="sunken"
+            className="flex flex-wrap items-center justify-between gap-2 text-label text-ink"
+          >
             <span>{uk.detail.donateShelter}</span>
-            <span className="break-all text-rg-ink-2">
+            <span className="break-all text-ink-2">
               {fillTemplate(t.donation.previewHost, { host: previewHost })}
             </span>
-          </div>
+          </Panel>
         </div>
       ) : null}
 
       {offerPropose ? (
         <div className="flex flex-col items-start gap-2">
-          <p className={CAPTION}>{t.donation.proposeNote}</p>
-          {pendingDonation !== null ? <p className={CAPTION}>{t.donation.replaceNote}</p> : null}
-          <Button variant="primary" aria-busy={busy || undefined} onClick={onPropose}>
+          <Text look="hint">{t.donation.proposeNote}</Text>
+          {pendingDonation !== null ? <Text look="hint">{t.donation.replaceNote}</Text> : null}
+          <Button variant="primary" status={busy ? "loading" : "idle"} onClick={onPropose}>
             {t.donation.propose}
           </Button>
         </div>
       ) : null}
 
       {pendingDonation !== null ? (
-        <div className={`${INNER} flex flex-col items-start gap-1`}>
-          <p className={STRONG}>{t.donation.pendingTitle}</p>
-          <p className={`${BODY} break-all`}>
+        <Panel tone="sunken" className="flex flex-col items-start gap-1">
+          <p className="text-label text-ink">{t.donation.pendingTitle}</p>
+          <Text look="body" className="break-all">
             {fillTemplate(t.donation.pendingHost, {
               host: pendingHost ?? pendingDonation.link.url,
             })}
-          </p>
-          <p className={CAPTION}>
+          </Text>
+          <Text look="hint">
             {fillTemplate(t.donation.pendingSince, {
               date: formatDate(pendingDonation.proposedAt),
             })}
-          </p>
-          <Button variant="text" aria-busy={busy || undefined} onClick={onCancel}>
+          </Text>
+          <Button variant="ghost" status={busy ? "loading" : "idle"} onClick={onCancel}>
             {t.donation.cancelProposal}
           </Button>
-        </div>
+        </Panel>
       ) : null}
 
       {showDeclined && pendingDonation === null ? (
-        <p className={BODY}>{t.donation.declined}</p>
+        <Text look="body">{t.donation.declined}</Text>
       ) : null}
 
       {/* Always in the tree, so a screen reader hears the line it gains. */}
-      <p role="status" className={CAPTION}>
+      <p role="status" className="text-caption text-ink-2">
         {notice.kind === "proposed"
           ? t.donation.proposed
           : notice.kind === "cancelled"
@@ -178,10 +177,8 @@ export function DonationSection({
             : null}
       </p>
       {notice.kind === "failed" ? (
-        <p role="alert" className={ERROR_TEXT}>
-          {t.donation.failed}
-        </p>
+        <InlineStatus tone="error">{t.donation.failed}</InlineStatus>
       ) : null}
-    </section>
+    </FormSection>
   );
 }

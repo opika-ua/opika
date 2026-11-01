@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type {
-  Animal,
-  AnimalListingState,
-  ShelterAdminId,
-  ShelterHistoryEntry,
+import {
+  type Animal,
+  type AnimalListingState,
+  type Shelter,
+  type ShelterAdminId,
+  type ShelterHistoryEntry,
+  transitionListing,
 } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { adopterRepo } from "../src/repos/adopter-repo";
@@ -36,7 +38,7 @@ beforeAll(async () => {
 afterAll(async () => cleanup?.());
 beforeEach(async () => truncateAll(db));
 
-async function seeded(): Promise<{ animal: Animal; cityId: string }> {
+async function seeded(): Promise<{ animal: Animal; cityId: string; shelter: Shelter }> {
   const city = makeCity();
   await cityRepo(db).insert(city);
   const shelter = makeShelter({
@@ -45,7 +47,7 @@ async function seeded(): Promise<{ animal: Animal; cityId: string }> {
   await shelterRepo(db).insert(shelter);
   const animal = makeAnimal({ shelterId: shelter.id });
   await animalRepo(db).insert(animal, city.id);
-  return { animal, cityId: city.id };
+  return { animal, cityId: city.id, shelter };
 }
 
 const ACTOR = {
@@ -53,6 +55,7 @@ const ACTOR = {
   shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
 } as const;
 const AT = new Date("2026-10-13T09:00:00.000Z");
+const LATER = new Date("2026-10-13T11:00:00.000Z");
 
 const historyOf = (animal: Animal): Promise<ShelterHistoryEntry[]> =>
   kabinetShelterRepo(db).historyOf(animal.shelterId);
@@ -109,7 +112,7 @@ describe("kabinetAnimalRepo.writeListingIf", () => {
     const at = new Date("2026-10-13T10:00:00.000Z");
     const next = { ...animal.listing, confirmedAt: at, undoable: null } as AnimalListingState;
     expect(
-      await kabinetAnimalRepo(db).writeListingIf(animal.id, next, animal.listing, CONFIRMATION),
+      await kabinetAnimalRepo(db).writeListingIf(animal.id, next, animal.listing, AT, CONFIRMATION),
     ).toEqual({
       kind: "ok",
     });
@@ -127,14 +130,20 @@ describe("kabinetAnimalRepo.writeListingIf", () => {
       ...animal.listing,
       confirmedAt: new Date("2026-10-13T10:00:00.000Z"),
     } as AnimalListingState;
-    await kabinetAnimalRepo(db).writeListingIf(animal.id, first, animal.listing, CONFIRMATION);
+    await kabinetAnimalRepo(db).writeListingIf(animal.id, first, animal.listing, AT, CONFIRMATION);
 
     const stale = {
       ...animal.listing,
       confirmedAt: new Date("2026-10-13T11:00:00.000Z"),
     } as AnimalListingState;
     expect(
-      await kabinetAnimalRepo(db).writeListingIf(animal.id, stale, animal.listing, CONFIRMATION),
+      await kabinetAnimalRepo(db).writeListingIf(
+        animal.id,
+        stale,
+        animal.listing,
+        AT,
+        CONFIRMATION,
+      ),
     ).toEqual({
       kind: "conflict",
     });
@@ -151,7 +160,13 @@ describe("kabinetAnimalRepo.writeEditIf", () => {
       ...animal.listing,
       confirmedAt: new Date("2026-10-13T10:00:00.000Z"),
     } as AnimalListingState;
-    await kabinetAnimalRepo(db).writeListingIf(animal.id, confirmed, animal.listing, CONFIRMATION);
+    await kabinetAnimalRepo(db).writeListingIf(
+      animal.id,
+      confirmed,
+      animal.listing,
+      AT,
+      CONFIRMATION,
+    );
 
     const edited: Animal = {
       ...animal,
@@ -291,6 +306,7 @@ describe("first_published_at is never cleared (HS-Q9)", () => {
       animal.id,
       { kind: "draft" },
       animal.listing,
+      AT,
       movedLine(animal, "published", "draft"),
     );
     expect(await firstPublishedOf(animal.id)).toEqual(published);
@@ -312,6 +328,7 @@ describe("kabinetAnimalRepo.deleteDraftIf (HS-Q9)", () => {
       animal.id,
       { kind: "draft" },
       animal.listing,
+      AT,
       movedLine(animal, "published", "draft"),
     );
     expect(
@@ -381,6 +398,7 @@ describe("a shelter animal write and its history line are one statement (K-Q7)",
         animal.id,
         { kind: "draft" },
         animal.listing,
+        AT,
         line,
       ),
     ).toEqual({ kind: "ok" });
@@ -391,6 +409,7 @@ describe("a shelter animal write and its history line are one statement (K-Q7)",
       animal.id,
       { kind: "draft" },
       animal.listing,
+      AT,
       movedLine(animal, "published", "draft"),
     );
     expect(conflict).toEqual({ kind: "conflict" });
@@ -402,7 +421,7 @@ describe("a shelter animal write and its history line are one statement (K-Q7)",
     const { animal } = await seeded();
     const next = { ...animal.listing, confirmedAt: AT, undoable: null } as AnimalListingState;
     expect(
-      await kabinetAnimalRepo(db).writeListingIf(animal.id, next, animal.listing, CONFIRMATION),
+      await kabinetAnimalRepo(db).writeListingIf(animal.id, next, animal.listing, AT, CONFIRMATION),
     ).toEqual({ kind: "ok" });
     const after = await animalRepo(db).findById(animal.id);
     expect(after && confirmedAt(after.listing)).toEqual(AT);
@@ -425,6 +444,7 @@ describe("a shelter animal write and its history line are one statement (K-Q7)",
       animal.id,
       { kind: "draft" },
       animal.listing,
+      AT,
       CONFIRMATION,
     );
     expect(
@@ -588,5 +608,168 @@ describe("kabinetAnimalRepo.listPage, countsByKind and staleCount (K2)", () => {
       adopted: 1,
       withdrawn: 1,
     });
+  });
+});
+
+/**
+ * S8-F5, hook 1: `writeListingIf` is the only place `listing_kind` moves
+ * out of `draft`. A publish stamps `everServedAt` immediately if the
+ * shelter is already verified; if not, it's left for hook 2
+ * (`kabinetShelterRepo.applyAuditedMany`) to stamp whenever that shelter
+ * later actually becomes verified.
+ */
+describe("S8-F5: everServedAt (hook 1, writeListingIf's publish)", () => {
+  const PENDING = {
+    status: "pending" as const,
+    submittedAt: new Date("2026-08-01T00:00:00.000Z"),
+    evidence: { items: [], submittedAt: new Date("2026-08-01T00:00:00.000Z") },
+  };
+
+  async function draftAt(
+    verification: typeof PENDING | ReturnType<typeof makeShelter>["verification"],
+  ) {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = makeShelter({
+      verification,
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
+    });
+    await shelterRepo(db).insert(shelter);
+    const draft = makeAnimal({
+      shelterId: shelter.id,
+      listing: { kind: "draft" },
+      everServedAt: null,
+      photos: [{ storageKey: "animals/s8f5/a", width: 800, height: 1000, alt: null }],
+    });
+    await animalRepo(db).insert(draft, city.id);
+    return { shelter, draft, cityId: city.id };
+  }
+
+  it("publishing at an already-verified shelter stamps everServedAt immediately", async () => {
+    const { draft } = await draftAt(makeShelter().verification);
+    const published = transitionListing(draft.listing, { type: "publish", at: AT });
+    if (published.kind !== "ok") throw new Error("publish refused");
+    await kabinetAnimalRepo(db).writeListingIf(
+      draft.id,
+      published.next,
+      draft.listing,
+      AT,
+      movedLine(draft, "draft", "published"),
+      { kind: "publish", expectedVersion: draft.version },
+    );
+    expect((await animalRepo(db).findById(draft.id))?.everServedAt).toEqual(AT);
+  });
+
+  it("publishing at a pending (not yet verified) shelter leaves everServedAt null", async () => {
+    const { draft } = await draftAt(PENDING);
+    const published = transitionListing(draft.listing, { type: "publish", at: AT });
+    if (published.kind !== "ok") throw new Error("publish refused");
+    await kabinetAnimalRepo(db).writeListingIf(
+      draft.id,
+      published.next,
+      draft.listing,
+      AT,
+      movedLine(draft, "draft", "published"),
+      { kind: "publish", expectedVersion: draft.version },
+    );
+    expect((await animalRepo(db).findById(draft.id))?.everServedAt).toBeNull();
+  });
+
+  it("a later move at the same still-unverified shelter doesn't retroactively set it", async () => {
+    const { draft } = await draftAt(PENDING);
+    const published = transitionListing(draft.listing, { type: "publish", at: AT });
+    if (published.kind !== "ok") throw new Error("publish refused");
+    await kabinetAnimalRepo(db).writeListingIf(
+      draft.id,
+      published.next,
+      draft.listing,
+      AT,
+      movedLine(draft, "draft", "published"),
+      { kind: "publish", expectedVersion: draft.version },
+    );
+    const afterPublish = await animalRepo(db).findById(draft.id);
+    if (!afterPublish) throw new Error("vanished");
+    const confirmed = {
+      ...afterPublish.listing,
+      confirmedAt: LATER,
+      undoable: null,
+    } as AnimalListingState;
+    await kabinetAnimalRepo(db).writeListingIf(
+      draft.id,
+      confirmed,
+      afterPublish.listing,
+      LATER,
+      CONFIRMATION,
+    );
+    expect((await animalRepo(db).findById(draft.id))?.everServedAt).toBeNull();
+  });
+
+  /**
+   * Mutation (Tier 1 review finding 6, PR #196): dropping the COALESCE around
+   * hook 1's EXISTS check left every existing test green, because none of
+   * them moved a listing again after a shelter that had already served it
+   * went unverified. This is that case: once set, a later move must never
+   * clear it, even while the shelter is currently paused.
+   */
+  it("never clears an already-set everServedAt when a later move happens while paused", async () => {
+    const { shelter, draft } = await draftAt(makeShelter().verification);
+    const published = transitionListing(draft.listing, { type: "publish", at: AT });
+    if (published.kind !== "ok") throw new Error("publish refused");
+    await kabinetAnimalRepo(db).writeListingIf(
+      draft.id,
+      published.next,
+      draft.listing,
+      AT,
+      movedLine(draft, "draft", "published"),
+      { kind: "publish", expectedVersion: draft.version },
+    );
+    const servedAt = (await animalRepo(db).findById(draft.id))?.everServedAt;
+    expect(servedAt).toEqual(AT);
+
+    await kabinetShelterRepo(db).applyAudited({
+      shelterId: shelter.id,
+      expectedVersion: shelter.version,
+      change: {
+        kind: "verification",
+        verification: {
+          status: "paused",
+          verifiedAt: AT,
+          verifiedBy: "mod-1" as never,
+          pausedAt: LATER,
+          pausedBy: { kind: "shelter_admin", shelterAdminId: "admin-1" as ShelterAdminId },
+          reason: { code: "other", note: null },
+          evidence: { items: [], submittedAt: AT },
+        } as never,
+      },
+      entry: {
+        kind: "verification",
+        event: {
+          type: "pause",
+          at: LATER,
+          actor: { kind: "shelter_admin", shelterAdminId: "admin-1" as ShelterAdminId },
+          reason: { code: "other", note: null },
+        },
+        from: "verified",
+        to: "paused",
+      },
+      historyId: randomUUID(),
+      now: LATER,
+    });
+
+    const afterPause = await animalRepo(db).findById(draft.id);
+    if (!afterPause) throw new Error("vanished");
+    const confirmed = {
+      ...afterPause.listing,
+      confirmedAt: LATER,
+      undoable: null,
+    } as AnimalListingState;
+    await kabinetAnimalRepo(db).writeListingIf(
+      draft.id,
+      confirmed,
+      afterPause.listing,
+      LATER,
+      CONFIRMATION,
+    );
+    expect((await animalRepo(db).findById(draft.id))?.everServedAt).toEqual(servedAt);
   });
 });

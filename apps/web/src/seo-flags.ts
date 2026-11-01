@@ -1,63 +1,63 @@
 import type { VerificationBadge } from "@opika/contracts";
-import { PENDING_R4_2_ANALYTICS_SENTENCE, uk } from "@opika/i18n";
+import { R4_2_ANALYTICS_SENTENCE, ukPublic as uk } from "@opika/i18n/public";
 
 /**
- * Two facts, not one — `NOINDEX_EVERYTHING` (#43) originally collapsed
+ * Two facts, not one - `NOINDEX_EVERYTHING` (#43) originally collapsed
  * these into a single flag, unreviewed, on the reasoning that flipping it
  * later would be "one change, not two to keep in sync". `docs/build-
- * plan.md`'s "Before any route is indexed" launch-gate paragraph — which
+ * plan.md`'s "Before any route is indexed" launch-gate paragraph - which
  * reserves a real state where the two facts disagree, a shelter verified
  * and reachable by direct link before the site is meant to be publicly
- * discoverable at all — was written one PR later (#44) and did not exist
+ * discoverable at all - was written one PR later (#44) and did not exist
  * yet to be checked against. One flag cannot express "registry has real
  * data" and "not yet indexable" as different facts, so keeping a single
  * boolean would have forced that later paragraph to either delete the
  * window it describes (bad) or mis-name itself (worse). Two facts that
- * happen to be true at the same time today are not one fact — see
+ * happen to be true at the same time today are not one fact - see
  * `docs/standing-constraints.md`.
  */
 
 /**
  * Does the registry currently hold zero real shelters. Drives the deck's
  * demo label (`DeckScreen.tsx`), the root layout's default `description`
- * swap (`app/layout.tsx` — `/prytulkam` and `/pro` override this default
+ * swap (`app/layout.tsx` - `/prytulkam` and `/pro` override this default
  * with their own opening sentences instead, Option B, see
- * `docs/observations.md`), and `verificationSuffix` below — everything that
+ * `docs/observations.md`), and `verificationSuffix` below - everything that
  * would otherwise assert something true about a fictional shelter to a
  * visitor. All are D-2.
  *
  * This is a fact about *data*, not about *reach*. It goes `false` the
- * moment the demo corpus is wiped and the first real shelter is onboarded —
+ * moment the demo corpus is wiped and the first real shelter is onboarded -
  * which per Phase D's D-7 happens before the site is necessarily meant to
  * be publicly discoverable. See `SITE_IS_PUBLICLY_DISCOVERABLE` below for
  * that separate fact, and `assertDemoDiscoverabilityInvariant`'s doc
  * comment for the one relationship the two constants are allowed to have.
  *
- * **Correction, 2026-09-10 — the enumeration above was wrong twice, found
+ * **Correction, 2026-09-10 - the enumeration above was wrong twice, found
  * by Oleksii, not by any test; the reviewer then found this correction's
  * own first draft wrong on two more points, below.** (1) The gallery page
  * (`/tvaryny`) had no *visible* disclosure at all: `og:description`/
  * `description` (this flag's `linkPreviewDescription` swap in `layout.tsx`)
- * are invisible to a normal visitor — they render in a shared-link preview
+ * are invisible to a normal visitor - they render in a shared-link preview
  * or a search snippet, never in the page body. **Not a restoration**, on
  * inspection of the actual deleted component (`git show`, not assumed):
- * `FirstRunBand` never rendered `uk.demo.bannerNotice` at all — it rendered
+ * `FirstRunBand` never rendered `uk.demo.bannerNotice` at all - it rendered
  * `firstRun.promise` and `firstRun.disclaimer`, two different sentences,
  * and O-3 deleted it in Phase D for unrelated reasons (duplicated the
  * filter rail, delayed the content). The gallery's body has never carried
- * `bannerNotice` before this row — this is new placement of an
+ * `bannerNotice` before this row - this is new placement of an
  * already-approved string that previously lived only in metadata, not
  * copy recovered from a deleted component. `/tvaryny/gortaty` still gets
- * this by construction (`DeckScreen.tsx`'s own header label — `uk.demo.
+ * this by construction (`DeckScreen.tsx`'s own header label - `uk.demo.
  * deckLabel`, a different, shorter string for a different slot).
  * **Still incomplete as shipped, found by the reviewer:** `/tvaryny/
- * {animalId}` — the URL `/prytulkam` itself tells a shelter to paste into
- * Telegram — has exactly the same gap (disclosure in `generateMetadata`
+ * {animalId}` - the URL `/prytulkam` itself tells a shelter to paste into
+ * Telegram - has exactly the same gap (disclosure in `generateMetadata`
  * only) and needs the same fix; tracked to close in the same row, not
  * deferred. (2) Both `AnimalCard.tsx` and `SwipeCard.tsx` rendered a
  * card's "· перевірений" suffix straight off `shelter.verification ===
  * "verified"`, with **no** reference to this flag at all. `verificationSuffix`
- * below unifies *that one duplicated pattern* — it is not, contrary to an
+ * below unifies *that one duplicated pattern* - it is not, contrary to an
  * earlier draft of this comment, a claim that every surface asserting
  * shelter verification calls it: `AnimalDetailScreen.tsx`'s
  * `shelterVerifiedYears` badge and the gallery/detail banners below each
@@ -70,16 +70,18 @@ export const REGISTRY_HAS_NO_REAL_SHELTERS = true;
 
 /**
  * The "· перевірений" suffix a card appends next to a verified shelter's
- * name. The one gate for that claim — `AnimalCard.tsx` and `SwipeCard.tsx`
- * both call this rather than each carrying its own copy of the check, so
- * a future card surface inherits the suppression rather than needing to
- * remember `REGISTRY_HAS_NO_REAL_SHELTERS` exists. Not sourced from
+ * name. The one gate for that claim - `SwipeCard.tsx` calls this rather
+ * than carrying its own copy of the check, so a future card surface
+ * inherits the suppression rather than needing to remember
+ * `REGISTRY_HAS_NO_REAL_SHELTERS` exists. (`AnimalCard.tsx` carries no
+ * shelter name at all since S1 - "No shelter name on the gallery card" -
+ * so it has no verified-suffix call to make.) Not sourced from
  * `packages/i18n`: the literal predates this fix and moving it into the
  * catalogue is a separate, unrelated cleanup this row doesn't scope-creep
- * into — the string itself is unchanged, only where the check lives.
+ * into - the string itself is unchanged, only where the check lives.
  *
  * `registryHasNoRealShelters` defaulted to the real constant, not read from
- * the module binding inside the body — same reasoning as
+ * the module binding inside the body - same reasoning as
  * `assertDemoDiscoverabilityInvariant`'s own doc comment: `vi.doMock`
  * builds a new module namespace for the *exported* binding, but a function
  * copied into that namespace via `...importOriginal()` still closes over
@@ -98,36 +100,36 @@ export function verificationSuffix(
 /**
  * Is this deploy meant to be found by a search engine or crawled at all.
  * Drives `next.config.ts`'s `X-Robots-Tag` header and the root layout's
- * `robots` metadata (`app/layout.tsx`) — both are read this way, rather
+ * `robots` metadata (`app/layout.tsx`) - both are read this way, rather
  * than `app/robots.ts` disallowing crawling, because of the "removal
  * trap" D-3 fixed: `Disallow: /` stops a crawler fetching pages at all,
- * so it never sees a `noindex` meta tag or the `X-Robots-Tag` header — a
+ * so it never sees a `noindex` meta tag or the `X-Robots-Tag` header - a
  * URL already indexed before this flag flips would stay indexed, since
  * de-indexing needs the crawler to *visit* the page and read the
  * exclusion, not merely be told not to. `app/robots.ts` now always
  * allows crawling, so a crawler can actually reach the header and the
  * metadata this flag drives.
  *
- * **This reasoning is currently inoperative, not wrong — recorded here so
+ * **This reasoning is currently inoperative, not wrong - recorded here so
  * the next reader doesn't have to rediscover why.** `proxy.ts`'s pre-launch
  * gate (added 2026-09-13, `docs/decisions-pending-review.md`) 403s every
  * request while this flag is false, including a crawler's request for
- * `robots.txt` or any page — so nothing actually reaches the header or the
+ * `robots.txt` or any page - so nothing actually reaches the header or the
  * metadata described above today. The paragraph is still correct about
  * *why `robots.ts` allows crawling rather than disallowing it*, and that
  * reasoning becomes load-bearing again the moment the gate is removed,
  * which happens in the same change that flips this flag (see `proxy.ts`
- * and `docs/build-plan.md`'s launch-gate section) — before this flag can
+ * and `docs/build-plan.md`'s launch-gate section) - before this flag can
  * ever be `true` while the gate still exists.
  *
  * Independent of `REGISTRY_HAS_NO_REAL_SHELTERS`: a verified real shelter
  * can exist in the database, reachable by direct link, while this is still
- * `false` — `docs/build-plan.md`'s launch-gate paragraph reserves exactly
+ * `false` - `docs/build-plan.md`'s launch-gate paragraph reserves exactly
  * that window on purpose. Flipping this to `true` is the actual launch
  * gate, not a flag to flip casually. See `docs/build-plan.md`'s launch-gate
  * list.
  *
- * `/tvaryny/gortaty` does NOT read this flag — its own `noindex` metadata
+ * `/tvaryny/gortaty` does NOT read this flag - its own `noindex` metadata
  * (`app/tvaryny/gortaty/page.tsx`) is permanent regardless of launch state,
  * because it is a non-canonical sibling of `/tvaryny`'s SEO surface, not a
  * demo-data concern. See that file's own comment.
@@ -138,24 +140,24 @@ export const SITE_IS_PUBLICLY_DISCOVERABLE = false;
  * The one relationship these two constants are allowed to have: the
  * registry can never simultaneously hold no real shelters AND be publicly
  * discoverable. That combination would let a search engine index a corpus
- * of fictional animals from fictional shelters — indexing demo data — which
+ * of fictional animals from fictional shelters - indexing demo data - which
  * is the one outcome no launch-gate window may ever produce, unlike the
  * reverse (real shelters present, not yet discoverable), which
  * `docs/build-plan.md`'s launch-gate paragraph explicitly permits.
  *
  * One-way on purpose: real shelters present while the site is not yet
  * discoverable is legal (the launch-gate window). No real shelters and
- * fully discoverable is not — there would be nothing true to discover.
+ * fully discoverable is not - there would be nothing true to discover.
  *
  * Called from `instrumentation.ts`'s `register()`, which is the one place
  * in this app an eager boot-time check runs without making `next build`
- * require it — see that file's own comment for why.
+ * require it - see that file's own comment for why.
  *
  * Takes both facts as parameters, defaulted to the real constants, rather
  * than reading the module bindings directly inside the body: `vi.doMock`
  * builds a *different* module namespace for the mocked import, but this
  * function (imported unchanged alongside it, e.g. via `importOriginal`)
- * still runs its own original module instance's body — mocking the
+ * still runs its own original module instance's body - mocking the
  * exported names doesn't rewrite what that instance's code reads.
  * Confirmed by trying exactly that and getting a false pass. Parameters
  * make every combination directly callable, no module mocking required.
@@ -168,7 +170,7 @@ export function assertDemoDiscoverabilityInvariant(
     throw new Error(
       "Invariant violated: REGISTRY_HAS_NO_REAL_SHELTERS and SITE_IS_PUBLICLY_DISCOVERABLE " +
         "are both true (apps/web/src/seo-flags.ts). The registry would be publicly " +
-        "discoverable while holding no real shelters — indexing fictional data. See " +
+        "discoverable while holding no real shelters - indexing fictional data. See " +
         "docs/build-plan.md's 'Before any route is indexed' launch-gate paragraph.",
     );
   }
@@ -177,23 +179,23 @@ export function assertDemoDiscoverabilityInvariant(
 /**
  * R4-2 (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`): `/pro`'s
  * `uk.about.analytics` can't honestly say "one cookie" while the pre-launch
- * gate still 403s every request — a real visitor reaching the page through
+ * gate still 403s every request - a real visitor reaching the page through
  * the gate link already carries a second, undisclosed cookie
  * (`__Host-prelaunch-gate`, `apps/web/src/api/prelaunch-gate.ts`). Oleksii's
- * own R4-2 Ukrainian is drafted and held in `PENDING_R4_2_ANALYTICS_SENTENCE`
+ * own R4-2 Ukrainian is drafted and held in `R4_2_ANALYTICS_SENTENCE`
  * (`packages/i18n/src/messages/uk.ts`), not yet appended to
- * `uk.about.analytics` — `docs/build-plan.md`'s R4 row. The current sentence
+ * `uk.about.analytics` - `docs/build-plan.md`'s R4 row. The current sentence
  * isn't false, only incomplete, so this is a test-time tripwire, not a
  * `[COPY_PENDING]` marker or a boot-time throw like
- * `assertDemoDiscoverabilityInvariant` above — a missing copy sentence
+ * `assertDemoDiscoverabilityInvariant` above - a missing copy sentence
  * shouldn't be able to take a production boot down the way indexing
  * fictional data would.
  *
  * Two-sided, not one: the gate down with the sentence still missing is one
  * violation, but the sentence landed while the gate is still up is the
- * *other* half of the same invariant — «одне кукі» would be false for
+ * *other* half of the same invariant - «одне кукі» would be false for
  * exactly the reason this whole tripwire exists, the moment the sentence
- * ships early. Checked against `PENDING_R4_2_ANALYTICS_SENTENCE` itself,
+ * ships early. Checked against `R4_2_ANALYTICS_SENTENCE` itself,
  * not a loose keyword like "кукі", so a reworded or partially-landed
  * version of the sentence still trips this rather than passing on a
  * coincidental substring match.
@@ -201,10 +203,10 @@ export function assertDemoDiscoverabilityInvariant(
  * Checks `SITE_IS_PUBLICLY_DISCOVERABLE`, not a separate "is the gate
  * removed" signal, because today they are the same code change: `proxy.ts`
  * only runs the gate `if (!SITE_IS_PUBLICLY_DISCOVERABLE)`, and this file's
- * own comment on that flag says so explicitly — "[the gate] comes down in
+ * own comment on that flag says so explicitly - "[the gate] comes down in
  * the same change that flips this flag." **This reads a compile-time
  * constant** (`SITE_IS_PUBLICLY_DISCOVERABLE` is a literal `false` in this
- * file's source, not a runtime read) — **if the gate's own switch ever
+ * file's source, not a runtime read) - **if the gate's own switch ever
  * moves to an env var or other runtime config, or gate removal and this
  * flag's flip are ever decoupled, this check has to move with it**;
  * checking the wrong signal would make this tripwire silently stop meaning
@@ -220,22 +222,22 @@ export function assertAnalyticsCopyMatchesGateState(
   analyticsText: string = uk.about.analytics,
   siteIsPubliclyDiscoverable: boolean = SITE_IS_PUBLICLY_DISCOVERABLE,
 ): void {
-  const hasR42Sentence = analyticsText.includes(PENDING_R4_2_ANALYTICS_SENTENCE);
+  const hasR42Sentence = analyticsText.includes(R4_2_ANALYTICS_SENTENCE);
 
   if (siteIsPubliclyDiscoverable && !hasR42Sentence) {
     throw new Error(
       "Invariant violated: SITE_IS_PUBLICLY_DISCOVERABLE is true (the pre-launch gate is " +
         "down, apps/web/src/seo-flags.ts) but uk.about.analytics (packages/i18n/src/" +
         "messages/uk.ts) still doesn't carry R4-2's sentence " +
-        "(PENDING_R4_2_ANALYTICS_SENTENCE). It needs to land before launch.",
+        "(R4_2_ANALYTICS_SENTENCE). It needs to land before launch.",
     );
   }
 
   if (!siteIsPubliclyDiscoverable && hasR42Sentence) {
     throw new Error(
       "Invariant violated: uk.about.analytics already carries R4-2's 'одне кукі' sentence " +
-        "(PENDING_R4_2_ANALYTICS_SENTENCE) but SITE_IS_PUBLICLY_DISCOVERABLE is still false " +
-        "(apps/web/src/seo-flags.ts) — the pre-launch gate's __Host-prelaunch-gate cookie " +
+        "(R4_2_ANALYTICS_SENTENCE) but SITE_IS_PUBLICLY_DISCOVERABLE is still false " +
+        "(apps/web/src/seo-flags.ts) - the pre-launch gate's __Host-prelaunch-gate cookie " +
         "makes 'one cookie' false while the gate still exists. Either hold the sentence back " +
         "until the gate comes down, or the gate removal shipped without this flag.",
     );

@@ -1,6 +1,14 @@
-import { CityIdSchema, citySlugOf, NO_FILTERS } from "@opika/domain";
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  CityIdSchema,
+  citySlugOf,
+  NO_FILTERS,
+  RevealIdSchema,
+  ShelterIdSchema,
+} from "@opika/domain";
+import { uk } from "@opika/i18n";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { pressEscapeWhenShown } from "../../ui/test-dialog";
 import type { CitySlugsById } from "../gallery/filter-url";
 import { mockAppRouter, WithMockRouter } from "../gallery/test-router";
 import { DeckScreen } from "./DeckScreen";
@@ -26,11 +34,23 @@ vi.mock("../../seo-flags", async (importOriginal) => ({
   REGISTRY_HAS_NO_REAL_SHELTERS: false,
 }));
 
+/**
+ * Only the Escape-in-the-reveal test below opens a reveal; mocked at the
+ * module boundary the same way `SwipeDeck.test.tsx` does.
+ */
+const revealCall = vi.fn();
+vi.mock("../../api/browser-client", () => ({
+  revealBrowserClient: {
+    session: { bootstrap: () => Promise.resolve({}) },
+    animals: { reveal: (...args: unknown[]) => revealCall(...args) },
+  },
+}));
+
 const FROM_GALLERY_KEY = "opika:deck-entered-from-gallery";
 const CITY_SLUGS: CitySlugsById = new Map();
 
 /**
- * `useFeedDeck` is mocked here — its own real fetch/cursor/error behaviour
+ * `useFeedDeck` is mocked here - its own real fetch/cursor/error behaviour
  * is `use-feed-deck.test.tsx`'s job. This file is about what `DeckScreen`
  * itself owns: the header (position, progress, inherited-filters phrase)
  * and the exit control (button, Esc, and which of `router.back()` vs a
@@ -47,6 +67,16 @@ describe("DeckScreen", () => {
       onRetry: vi.fn(),
       shownCount: 0,
     });
+  });
+
+  it("has one level-1 heading, «Тварини по одній» (QA 2026-10-29)", () => {
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={34} filtersLabel="" citySlugs={CITY_SLUGS} />
+      </WithMockRouter>,
+    );
+    const headings = screen.getAllByRole("heading", { level: 1 });
+    expect(headings.map((h) => h.textContent)).toEqual(["Тварини по одній"]);
   });
 
   it("renders the filters phrase and the position/progress, position 1-indexed", () => {
@@ -70,13 +100,13 @@ describe("DeckScreen", () => {
     );
 
     expect(screen.getByTestId("deck-filters-label").textContent).toBe("Бровари · собаки");
-    // shownCount 5 means 5 cards already swiped past — the 6th is on screen.
+    // shownCount 5 means 5 cards already swiped past - the 6th is on screen.
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
   });
 
   /**
    * R5: once the starting fetch counted against a session, its
-   * `reachableCount` is the total — not the gallery's, which has no
+   * `reachableCount` is the total - not the gallery's, which has no
    * seen-set exclusion. Position and progress bar share the one total
    * (`DeckScreen.tsx`'s `effectiveTotal`), so both are asserted.
    */
@@ -97,14 +127,14 @@ describe("DeckScreen", () => {
     );
 
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 20");
-    // Position 6 of 20 — a literal, not the component's own formula.
+    // Position 6 of 20 - a literal, not the component's own formula.
     const fill = screen.getByTestId("deck-progress-bar").firstElementChild as HTMLElement;
     expect(fill.style.width).toBe("30%");
   });
 
   /**
    * No session at the starting fetch means nothing was excluded, so the
-   * gallery's total is the honest snapshot — and stays shown after swipes,
+   * gallery's total is the honest snapshot - and stays shown after swipes,
    * which R1 used to suppress from the very first one.
    */
   it("falls back to the gallery's total when the starting fetch had no session, and keeps it", () => {
@@ -124,7 +154,7 @@ describe("DeckScreen", () => {
     );
 
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
-    expect(screen.getByTestId("deck-progress-bar")).toBeTruthy();
+    expect(screen.getByTestId("deck-progress-bar").getAttribute("data-state")).toBe("shown");
   });
 
   it("numbers against reachableCount even when the deck was entered with no gallery total", () => {
@@ -183,7 +213,7 @@ describe("DeckScreen", () => {
     expect(screen.queryByTestId("deck-position")).toBeNull();
   });
 
-  it("hides the position once the deck errors — there's no card to number", () => {
+  it("hides the position once the deck errors - there's no card to number", () => {
     useFeedDeckMock.mockReturnValue({
       state: { kind: "error", reason: "loadFailed" },
       onSwipe: vi.fn(),
@@ -201,7 +231,7 @@ describe("DeckScreen", () => {
     expect(screen.queryByTestId("deck-position")).toBeNull();
   });
 
-  it("hides the position while loading — no fetch has resolved yet to confirm a first card exists", () => {
+  it("hides the position while loading - no fetch has resolved yet to confirm a first card exists", () => {
     useFeedDeckMock.mockReturnValue({
       state: { kind: "loading" },
       onSwipe: vi.fn(),
@@ -219,7 +249,7 @@ describe("DeckScreen", () => {
     expect(screen.queryByTestId("deck-position")).toBeNull();
   });
 
-  it("hides the position once exhausted — numbering a card past the last one is a real off-by-one, not shown", () => {
+  it("hides the position once exhausted - numbering a card past the last one is a real off-by-one, not shown", () => {
     useFeedDeckMock.mockReturnValue({
       state: { kind: "exhausted", seenCount: 3 },
       onSwipe: vi.fn(),
@@ -247,7 +277,7 @@ describe("DeckScreen", () => {
     expect(screen.getByRole("status").textContent).toBe("Режим по одній. Тварина 1 з 34.");
 
     // A later render with a higher shownCount (as if the user had swiped
-    // several cards) must not re-announce — docs/design/README.md's
+    // several cards) must not re-announce - docs/design/README.md's
     // announcement is about *entering* the deck, not a running commentary,
     // and a live region whose text keeps changing re-announces on every
     // change (aria-live's own contract), talking over SwipeDeck's own
@@ -282,7 +312,7 @@ describe("DeckScreen", () => {
 
   /**
    * R5: the announcement used to be written at mount from the gallery's
-   * total — before any fetch — and promised a returning visitor a number
+   * total - before any fetch - and promised a returning visitor a number
    * their seen-set had already made unreachable. It now waits for the
    * first "ready" and uses the same total as the header.
    */
@@ -364,7 +394,7 @@ describe("DeckScreen", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("clears the marker after reading it — a second mount doesn't get a free pass", () => {
+  it("clears the marker after reading it - a second mount doesn't get a free pass", () => {
     sessionStorage.setItem(FROM_GALLERY_KEY, "1");
 
     render(
@@ -394,7 +424,7 @@ describe("DeckScreen", () => {
   /**
    * The bare-`NO_FILTERS` case above passes even if `citySlugs` were wired
    * up wrong (an empty or garbage map produces the same "/tvaryny" either
-   * way, since there is no city to translate) — this is the case that
+   * way, since there is no city to translate) - this is the case that
    * actually exercises the threading: a real city filter, a real map,
    * asserted against the real slug, not just "some string came back."
    */
@@ -415,10 +445,40 @@ describe("DeckScreen", () => {
 
     fireEvent.click(screen.getByTestId("deck-back-to-list"));
 
-    // Literal, not `citySlugOf("Brovary")` — `citySlugs` above is built from
+    // Literal, not `citySlugOf("Brovary")` - `citySlugs` above is built from
     // the same call, so comparing against it again would pass even if
     // citySlugOf itself were broken, as long as it were broken consistently.
     expect(router.push).toHaveBeenCalledWith("/tvaryny?misto=brovary");
+  });
+
+  /**
+   * G5 (audit 2026-10-22): the deck's end state links to the list with the deck's own
+   * filters, the same href the exit button's fallback builds. A real city filter and a real
+   * slug map, asserted against the literal URL, for the reason the test above gives.
+   */
+  it("its end state links to the list with the same filters", () => {
+    const BROVARY = CityIdSchema.parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    const filters = {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf" as const, values: [BROVARY] as const },
+    };
+    const citySlugs = new Map([[BROVARY, citySlugOf("Brovary")]]);
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "exhausted", seenCount: 4 },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 4,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={filters} total={null} filtersLabel={null} citySlugs={citySlugs} />
+      </WithMockRouter>,
+    );
+
+    const link = screen.getByRole("link", { name: "Переглянути список" });
+    expect(link.getAttribute("href")).toBe("/tvaryny?misto=brovary");
   });
 
   it("Escape triggers the same exit as the back-to-list button", () => {
@@ -451,19 +511,106 @@ describe("DeckScreen", () => {
     expect(router.back).not.toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalled();
   });
+
+  /** The deck with one card, and a reveal for it that answers with a shelter's phone. */
+  function renderDeckWithReveal() {
+    sessionStorage.setItem(FROM_GALLERY_KEY, "1");
+    const router = mockAppRouter();
+    const [card] = generateMockCards(2);
+    if (!card) throw new Error("generateMockCards(2) must return a card");
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(2) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+      ensureSession: () => Promise.resolve(true),
+    });
+    revealCall.mockResolvedValue({
+      id: RevealIdSchema.parse("bbbbbbbb-cccc-4ddd-8eee-ffffffffffff"),
+      animalId: card.id,
+      revealedAt: new Date("2026-08-08T10:00:00Z"),
+      shelterContact: {
+        source: "current",
+        displayName: "Притулок «Домівка»",
+        contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
+      },
+      shelterAtFirstReveal: {
+        shelterId: ShelterIdSchema.parse("66666666-7777-4888-8999-aaaaaaaaaaaa"),
+        publicLocation: { cityId: CityIdSchema.parse("12121212-3434-4565-8787-909090909090") },
+        verificationStatusAtReveal: "verified",
+        donation: null,
+      },
+      animalSnapshot: { name: card.name, primaryPhoto: null },
+    });
+
+    render(
+      <WithMockRouter router={router}>
+        <DeckScreen filters={NO_FILTERS} total={null} filtersLabel={null} citySlugs={CITY_SLUGS} />
+      </WithMockRouter>,
+    );
+    return router;
+  }
+
+  /**
+   * RF-F2: the reveal dialog and this screen both listen for Escape on
+   * `window`, and this screen's listener was registered first, so an Escape
+   * meant only for the dialog also left the deck (R3: "the deck session must
+   * survive a reveal - no exit back to the gallery"). The harness saw it as
+   * a flake, «Написати» missing after Escape, whenever the gallery
+   * navigation won the race against its assertions; here the router is a
+   * mock, so the exit is observed synchronously, every time.
+   */
+  it("Escape inside the deck's reveal dialog closes the dialog and does not leave the deck", async () => {
+    const router = renderDeckWithReveal();
+
+    fireEvent.click(screen.getByRole("button", { name: uk.actions.write }));
+    await screen.findByTestId("reveal-dialog");
+
+    // What a browser does on Esc inside a modal dialog: the key reaches the page unhandled, and
+    // the dialog then closes itself. The deck's exit must not take the same key.
+    const dialog = screen.getByTestId("reveal-dialog") as HTMLDialogElement;
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    act(() => dialog.close());
+
+    expect(screen.queryByTestId("reveal-dialog")).toBeNull();
+    expect(router.back).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+
+    // The deck's own Escape still works once the dialog is gone.
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(router.back).toHaveBeenCalledTimes(1);
+  });
+
+  // The test above, with Esc forced into the moment it flaked on (#295): the reveal shown by the
+  // response, React's effects for that commit not yet run.
+  it("an Escape the moment the deck's reveal appears closes the dialog and does not leave the deck", async () => {
+    const router = renderDeckWithReveal();
+    const escapePressedIn = pressEscapeWhenShown();
+    fireEvent.click(screen.getByRole("button", { name: uk.actions.write }));
+
+    const dialog = await waitFor(escapePressedIn);
+    await waitFor(() => expect(dialog.isConnected, "the reveal unmounts").toBe(false));
+    expect(screen.queryByTestId("reveal-dialog")).toBeNull();
+    expect(router.back).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(router.back).toHaveBeenCalledTimes(1);
+  });
 });
 
 /**
  * D-1/D-2 (Oleksii, Phase D decisions): exercises the branch the top-level
- * `vi.mock` above hides from every other test in this file —
+ * `vi.mock` above hides from every other test in this file -
  * `REGISTRY_HAS_NO_REAL_SHELTERS: true`, which is the real, live value on
  * production today. `vi.doMock` + `vi.resetModules` + a dynamic re-import of
  * `DeckScreen`, not the statically-imported one, because the static import
  * already bound to the file-level mock's `false`. `uk.demo.deckLabel`
- * ("Демо") is real Ukrainian, landed 2026-09-06 — no i18n mocking needed to
+ * ("Демо") is real Ukrainian, landed 2026-09-06 - no i18n mocking needed to
  * exercise this branch.
  */
-describe("DeckScreen — demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
+describe("DeckScreen - demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
   beforeEach(() => {
     vi.resetModules();
     useFeedDeckMock.mockReset();
@@ -504,17 +651,10 @@ describe("DeckScreen — demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
     // period, so a deck missing the position count for weeks is not the
     // deck being tested.
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
-    // Degrades instead of the count (Oleksii, D-1): the bar only duplicates
-    // what the count already says, and giving up its width is what lets a
-    // short demo label fit at 320px. jsdom doesn't apply real CSS, so this
-    // asserts the Tailwind toggle class directly rather than computed
-    // visibility — the harness (`discovery-layout.harness.ts`) is what
-    // proves this actually renders hidden in a real browser. Split on
-    // whitespace, not a substring check — `overflow-hidden` already
-    // contains "hidden".
-    const barClasses = screen.getByTestId("deck-progress-bar").className.split(/\s+/);
-    expect(barClasses).toContain("hidden");
-    expect(barClasses).not.toContain("block");
+    // The bar degrades instead of the count (Oleksii, D-1). Its state is read
+    // here; that the state really hides it is asserted in a real browser
+    // (`discovery-layout.harness.ts`), since happy-dom applies no CSS.
+    expect(screen.getByTestId("deck-progress-bar").getAttribute("data-state")).toBe("hidden");
   });
 
   it("shows the real filters phrase, position, and progress bar once the flag is false, same DeckScreen module", async () => {
@@ -538,8 +678,26 @@ describe("DeckScreen — demo banner (REGISTRY_HAS_NO_REAL_SHELTERS)", () => {
     expect(screen.queryByTestId("deck-demo-banner")).toBeNull();
     expect(screen.getByTestId("deck-filters-label").textContent).toBe("Бровари · собаки");
     expect(screen.getByTestId("deck-position").textContent).toBe("6 з 34");
-    const barClasses = screen.getByTestId("deck-progress-bar").className.split(/\s+/);
-    expect(barClasses).toContain("block");
-    expect(barClasses).not.toContain("hidden");
+    expect(screen.getByTestId("deck-progress-bar").getAttribute("data-state")).toBe("shown");
+  });
+});
+
+describe("DeckScreen – landmarks", () => {
+  it("is the page's main landmark, so the deck is not content outside every landmark", () => {
+    useFeedDeckMock.mockReturnValue({
+      state: { kind: "ready", cards: generateMockCards(1) },
+      onSwipe: vi.fn(),
+      onPrefetch: vi.fn(),
+      onRetry: vi.fn(),
+      shownCount: 0,
+    });
+
+    render(
+      <WithMockRouter>
+        <DeckScreen filters={NO_FILTERS} total={3} filtersLabel="" citySlugs={CITY_SLUGS} />
+      </WithMockRouter>,
+    );
+
+    expect(screen.getByRole("main").querySelector("[data-testid='deck-position']")).not.toBeNull();
   });
 });

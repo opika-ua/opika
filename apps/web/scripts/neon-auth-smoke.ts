@@ -1,17 +1,31 @@
-import { randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { inspect } from "node:util";
 import { createDatabase, type Database } from "@opika/db";
-import { cityRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
+import { cityRepo, kabinetActorRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
 import {
+  authAccount,
   authInvitation,
   authMember,
   authSession,
   authUser,
   authVerification,
   invitationCreatedUsers,
+  shelters,
+  superAdmins,
 } from "@opika/db/schema";
-import { makeCity, makeShelter, productionEndpoint, smokeTarget } from "@opika/db/test";
+import {
+  makeCity,
+  makeShelter,
+  passwordRevokeCatalog,
+  passwordRevokeIsInPlace,
+  productionEndpoint,
+  smokeTarget,
+  statementName,
+  steppedDatabase,
+  writeCredentialPassword,
+} from "@opika/db/test";
 import {
   type ModeratorId,
   publicLocationOf,
@@ -19,13 +33,26 @@ import {
   testOnlyLocationPolicy,
 } from "@opika/domain";
 import { inMemoryRateLimiter } from "../src/api/rate-limit";
+import { fromRpcBody, toRpcBody } from "../src/api/test-harness";
+import { SHELTER_WRITE_POLICY } from "../src/kabinet/access";
 import { createKabinetAuth, kabinetCookieName } from "../src/kabinet/auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "../src/kabinet/auth-route";
+import { withQueryErrorsCleaned } from "../src/kabinet/clean-query-errors";
 import { handleKabinetConfirm } from "../src/kabinet/confirm-route";
 import { capturingInvitationSender } from "../src/kabinet/email-senders";
 import { invitationAccepter } from "../src/kabinet/invitation-accept";
+import {
+  inviteCredentialsOf,
+  invitePasswordLandingOf,
+  newInviteToken,
+} from "../src/kabinet/invite-password";
+import { inviteTokensOf } from "../src/kabinet/invite-tokens";
+import { kabinetDbOver } from "../src/kabinet/kabinet-db";
 import { capturingSender } from "../src/kabinet/magic-link-sender";
+import { generousPasswordLimiters } from "../src/kabinet/password-limits";
+import { capturingPasswordMail } from "../src/kabinet/password-mail";
 import { kabinetIdentityOf } from "../src/kabinet/principal";
+import { handleKabinetRpc } from "../src/kabinet/rpc-route";
 
 /**
  * Better Auth's own write paths on real Neon, through the production driver
@@ -45,7 +72,52 @@ import { kabinetIdentityOf } from "../src/kabinet/principal";
  *      Better Auth's accept-invitation;
  *   4. getSession: Better Auth reading the session back, and the principal
  *      the kabinet resolves from it;
- *   5. sign-out: the session row deleted.
+ *   5. sign-out: the session row deleted;
+ *   6-9. PW-1: «Забули пароль?» (the reset token stored hashed), the reset (the token
+ *      consumed, a credential account created), the password sign-in, and «Змінити пароль»
+ *      (the hash updated, other sessions revoked).
+ *   10-11. PW1-F1: a reset, then a change, each deleting the user's other reset links (our
+ *      DELETE, right after Better Auth's write) and nothing else: the user's own sign-in link
+ *      row stays, and the statement names only this run's user, so no other row on the
+ *      branch is touched.
+ *   12-13. PW1-F5: migration 0013's function and both triggers are in place and enabled; then
+ *      our own UPDATE of this run's user's password hash, over this driver and with no Better
+ *      Auth call at all, ends every session of theirs in that statement (the new password then
+ *      signs in). Steps 7, 9, 10 and 11 above already run with the triggers in place: step 9's
+ *      one renewed session is the change keeping the caller signed in.
+ *   14. PW1-F6: a password sign-in held at its session insert (a second auth instance over a
+ *      stepped database: by order, never by timing) while our own statement writes the password
+ *      (as step 13's does, whose trigger ends the sessions there are); released, it inserts after
+ *      that revoke, and its own after-hook deletes that session and answers what a wrong
+ *      password gets. Every password sign-in from step 8 on also runs PW1-F6's two reads over
+ *      this driver, the second with `FOR SHARE`; the last sign-in here is the check's success
+ *      path. The forced case (a write held uncommitted) needs a transaction held open, which
+ *      neon-http doesn't have: it is tested locally (`password-flows.test.ts`, "forced: …").
+ *   15. PW1-F7: the operator's password sign-in (a grant for this run's fixture operator) is
+ *      refused with a wrong password's answer, after the same statements in the same order:
+ *      the guard's own call of Better Auth's two reads, over this driver.
+ *   16. PW1-F8: through the cleaned handle (`withQueryErrorsCleaned`, the one Better Auth is
+ *      given), one constraint violation (this run's own address again: `auth_user_email_unique`)
+ *      and one failing query (a word bound to an integer column: `22P02`, whose driver message
+ *      quotes the value), each over this driver: the error keeps its name, SQLSTATE and constraint, and
+ *      carries no message text, no parameters and no SQL. Neither statement writes a row.
+ *   17. PW-2: the invitation link's «Створіть пароль». A second invitation, on this run's
+ *      shelter for a second address, gets a link the way the registry issues one (our
+ *      delete-and-insert in one statement); the link's page reads it twice (our join, with its
+ *      three EXISTS) and nothing changes; the form's POST through the RPC route uses it up (our
+ *      DELETE … RETURNING), and Better Auth marks the address verified, writes the credential
+ *      and signs in, then the automatic accept runs. A second POST is the one unusable answer.
+ *   18. PW-2 review finding 1: three more invitations whose addresses may not take a password
+ *      this way (one holds a credential, one is an operator, one is a member already): the
+ *      link's read gives each its own EXISTS true and the other two false, over this driver,
+ *      and the page and the POST answer unusable for all three.
+ *   19. PW-2 review finding 4: the POST with the credential's insert failed (forced, unsent):
+ *      the address is verified, no password, the link used; the invitation's resend and a new
+ *      link (as the registry issues one) then set the password, sign in and accept.
+ *   20. F8-F1: a /kabinet page's reads through the handle every kabinet page and route now uses
+ *      (`kabinetDbOver(db)`, the rule `kabinetDb()` applies to the served database): the principal and the
+ *      password status for step 19's signed-in user, then a relational read Postgres refuses
+ *      (`22P02`), which comes back cleaned: name and SQLSTATE, no message, parameters or SQL.
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -108,21 +180,30 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
   }
 
   const sender = capturingSender();
+  const passwordMail = capturingPasswordMail();
   const scheduled: Promise<void>[] = [];
   const unlimited = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 });
-  const auth = createKabinetAuth({
-    db,
-    sender,
-    schedule: (work) => {
-      scheduled.push(work());
-    },
-    baseURL: BASE,
-    secret: randomUUID() + randomUUID(),
-    secureCookies: true,
-    limiters: { perUser: unlimited(), perIp: unlimited() },
-  });
+  // One secret for both instances (step 14's second one too), so a cookie signed for a session
+  // by either reads the same through `auth`.
+  const secret = randomUUID() + randomUUID();
+  const authOver = (database: Database) =>
+    createKabinetAuth({
+      db: database,
+      sender,
+      schedule: (work) => {
+        scheduled.push(work());
+      },
+      baseURL: BASE,
+      secret,
+      secureCookies: true,
+      passwordLimiters: generousPasswordLimiters(),
+      passwordMail,
+      limiters: { perUser: unlimited(), perIp: unlimited() },
+    });
+  const auth = authOver(db);
   const availability: KabinetAuthAvailability = {
     kind: "available",
+    passwordMail,
     sender,
     invites: capturingInvitationSender(),
     secret: "unused-here",
@@ -265,6 +346,778 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
     "sign-out (session row deleted)",
     signedOut.status === 200 && left.length === 0,
     `status ${signedOut.status}, sessions left ${left.length}`,
+  );
+
+  // PW-1's write paths (docs/shelter-passwords.md §8, "Neon smoke (new SQL paths: credential
+  // create, reset-token consume)"), driven through the route as the browser drives them.
+  const route = async (path: string, body: unknown, cookie = "", via = auth) => {
+    const response = await handleKabinetAuth(
+      new Request(`${BASE}${path}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: BASE,
+          "x-forwarded-for": "198.51.100.77",
+          ...(cookie === "" ? {} : { cookie }),
+        },
+        body: JSON.stringify(body),
+      }),
+      {
+        availability,
+        auth: () => via,
+        limiters: { perAddress: unlimited(), perIp: unlimited() },
+        now,
+      },
+    );
+    await Promise.all(scheduled);
+    return response;
+  };
+  const cookieOf = (response: Response) =>
+    response.headers
+      .getSetCookie()
+      .find((cookie) => cookie.startsWith(`${cookieName}=`))
+      ?.split(";")[0] ?? "";
+  // Fictional passwords, generated per run; never printed.
+  const firstPassword = `smoke-${randomUUID()}`;
+  const secondPassword = `smoke-${randomUUID()}`;
+
+  // 6. «Забули пароль?»: the reset token, written hashed (`storeIdentifier`), and the reset email.
+  const asked = await route("/api/auth/request-password-reset", { email });
+  const resetMail = passwordMail.sent.find((m) => m.kind === "reset" && m.email === email);
+  const resetToken =
+    resetMail?.kind === "reset" ? (new URL(resetMail.url).searchParams.get("token") ?? "") : "";
+  const hashedIdentifier = createHash("sha256")
+    .update(`reset-password:${resetToken}`)
+    .digest("base64url");
+  const identifiers = async () =>
+    (await db.select({ identifier: authVerification.identifier }).from(authVerification)).map(
+      (row) => row.identifier,
+    );
+  const hashedRows = async () => (await identifiers()).filter((id) => id === hashedIdentifier);
+  const plainRows = (await identifiers()).filter(
+    (id) => resetToken !== "" && id.includes(resetToken),
+  );
+  const stored = await hashedRows();
+  check(
+    "forgot password (the reset token stored hashed, the email captured)",
+    asked.status === 200 && resetToken !== "" && stored.length === 1 && plainRows.length === 0,
+    `status ${asked.status}, email captured ${resetToken !== ""}, hashed rows ${stored.length}, plain rows ${plainRows.length}`,
+  );
+
+  // 7. the reset: the token consumed, a credential account created through Better Auth's adapter.
+  const reset = await route("/api/auth/reset-password", {
+    token: resetToken,
+    newPassword: firstPassword,
+  });
+  const credentials = user
+    ? (
+        await db
+          .select({
+            userId: authAccount.userId,
+            providerId: authAccount.providerId,
+            password: authAccount.password,
+          })
+          .from(authAccount)
+      ).filter((row) => row.userId === user.id && row.providerId === "credential")
+    : [];
+  const hash = credentials[0]?.password ?? null;
+  const hasPassword = user ? await kabinetActorRepo(db).hasPassword(user.id) : false;
+  const tokenRowsLeft = (await hashedRows()).length;
+  check(
+    "reset (token consumed, credential created with a hash, the notice captured)",
+    reset.status === 200 &&
+      tokenRowsLeft === 0 &&
+      credentials.length === 1 &&
+      hash !== null &&
+      !hash.includes(firstPassword) &&
+      hasPassword &&
+      passwordMail.sent.some((m) => m.kind === "changed" && m.email === email),
+    `status ${reset.status}, token rows left ${tokenRowsLeft}, credentials ${credentials.length}, hasPassword ${hasPassword}`,
+  );
+
+  // 8. sign in with the password (the operator-grant join runs on every attempt), twice.
+  const first = await route("/api/auth/sign-in/email", { email, password: firstPassword });
+  const second = await route("/api/auth/sign-in/email", { email, password: firstPassword });
+  const signedInSessions = user ? await sessionsOf(user.id) : [];
+  const firstBody = await first.clone().text();
+  check(
+    "password sign-in (session created, no token in the body)",
+    first.status === 200 &&
+      cookieOf(first) !== "" &&
+      firstBody === '{"status":true}' &&
+      second.status === 200 &&
+      signedInSessions.length === 2,
+    `status ${first.status}/${second.status}, cookie ${cookieOf(first) !== ""}, sessions ${signedInSessions.length}`,
+  );
+
+  // 9. «Змінити пароль»: the hash updated, the other session revoked, this one renewed.
+  const changed = await route(
+    "/api/auth/change-password",
+    { currentPassword: firstPassword, newPassword: secondPassword },
+    cookieOf(first),
+  );
+  const afterChange = user ? await sessionsOf(user.id) : [];
+  const oldRefused = await route("/api/auth/sign-in/email", { email, password: firstPassword });
+  check(
+    "change password (hash updated, other sessions revoked, one renewed session)",
+    changed.status === 200 &&
+      cookieOf(changed) !== "" &&
+      afterChange.length === 1 &&
+      oldRefused.status === 401,
+    `status ${changed.status}, sessions after ${afterChange.length}, old password ${oldRefused.status}`,
+  );
+
+  // 10-11. PW1-F1: a new password voids the user's other reset links. Fresh tokens are read
+  // from the captured mail, never printed; a row is found by its hash, as in step 6.
+  const thirdPassword = `smoke-${randomUUID()}`;
+  const fourthPassword = `smoke-${randomUUID()}`;
+  const resetTokensSince = (from: number) =>
+    passwordMail.sent
+      .slice(from)
+      .flatMap((m) =>
+        m.kind === "reset" && m.email === email
+          ? [new URL(m.url).searchParams.get("token") ?? ""]
+          : [],
+      );
+  const rowsOfToken = async (resetLink: string) => {
+    const hashed = createHash("sha256").update(`reset-password:${resetLink}`).digest("base64url");
+    return (await identifiers()).filter((id) => id === hashed).length;
+  };
+
+  // 10. two reset links and a sign-in link; the first reset link used: the second is refused
+  // and its row gone, the sign-in link's row kept.
+  const beforeTwo = passwordMail.sent.length;
+  await route("/api/auth/request-password-reset", { email });
+  await route("/api/auth/request-password-reset", { email });
+  const [linkA = "", linkB = ""] = resetTokensSince(beforeTwo);
+  await route("/api/auth/sign-in/magic-link", { email });
+  const signInRowsBefore = (await verificationRows()).length;
+  const otherRowsBefore = linkB === "" ? 0 : await rowsOfToken(linkB);
+  const usedA = await route("/api/auth/reset-password", {
+    token: linkA,
+    newPassword: thirdPassword,
+  });
+  const otherRowsAfter = linkB === "" ? -1 : await rowsOfToken(linkB);
+  const refusedB = await route("/api/auth/reset-password", {
+    token: linkB,
+    newPassword: fourthPassword,
+  });
+  const signInRowsAfter = (await verificationRows()).length;
+  check(
+    "reset voids the other reset links (the other link refused, the sign-in link's row kept)",
+    linkA !== "" &&
+      linkB !== "" &&
+      linkA !== linkB &&
+      otherRowsBefore === 1 &&
+      usedA.status === 200 &&
+      otherRowsAfter === 0 &&
+      refusedB.status === 400 &&
+      signInRowsBefore === 1 &&
+      signInRowsAfter === 1,
+    `links captured ${linkA !== "" && linkB !== ""}, reset ${usedA.status}, other link rows ${otherRowsBefore} then ${otherRowsAfter}, other link ${refusedB.status}, sign-in link rows ${signInRowsBefore} then ${signInRowsAfter}`,
+  );
+
+  // 11. a reset link asked for before a change: refused after it, its row gone; the sign-in
+  // link's row still kept.
+  const signedInAgain = await route("/api/auth/sign-in/email", { email, password: thirdPassword });
+  const beforeOne = passwordMail.sent.length;
+  await route("/api/auth/request-password-reset", { email });
+  const [linkC = ""] = resetTokensSince(beforeOne);
+  const earlierRowsBefore = linkC === "" ? 0 : await rowsOfToken(linkC);
+  const changedAgain = await route(
+    "/api/auth/change-password",
+    { currentPassword: thirdPassword, newPassword: fourthPassword },
+    cookieOf(signedInAgain),
+  );
+  const earlierRowsAfter = linkC === "" ? -1 : await rowsOfToken(linkC);
+  const refusedC = await route("/api/auth/reset-password", {
+    token: linkC,
+    newPassword: thirdPassword,
+  });
+  const signInRowsAtEnd = (await verificationRows()).length;
+  check(
+    "change voids the reset links (a link asked for before it refused after it, the sign-in link's row kept)",
+    signedInAgain.status === 200 &&
+      linkC !== "" &&
+      earlierRowsBefore === 1 &&
+      changedAgain.status === 200 &&
+      earlierRowsAfter === 0 &&
+      refusedC.status === 400 &&
+      signInRowsAtEnd === 1,
+    `sign-in ${signedInAgain.status}, link captured ${linkC !== ""}, change ${changedAgain.status}, earlier link rows ${earlierRowsBefore} then ${earlierRowsAfter}, earlier link ${refusedC.status}, sign-in link rows ${signInRowsAtEnd}`,
+  );
+
+  // 12. PW1-F5: the catalog, read through the query builder (the same shape on both drivers).
+  const catalog = await passwordRevokeCatalog(db);
+  check(
+    "password-write revoke in place (the function and both triggers, enabled)",
+    passwordRevokeIsInPlace(catalog),
+    `function ${catalog.functions.map((f) => f.security).join(", ") || "missing"}, triggers ${catalog.triggers.map((t) => `${t.name} ${t.enabled}`).join(", ") || "none"}`,
+  );
+
+  // 13. Two more sessions, then the hash written by our own statement: no Better Auth revoke runs.
+  const fifthPassword = `smoke-${randomUUID()}`;
+  const phone = await route("/api/auth/sign-in/email", { email, password: fourthPassword });
+  const laptop = await route("/api/auth/sign-in/email", { email, password: fourthPassword });
+  const sessionsBeforeWrite = user ? (await sessionsOf(user.id)).length : 0;
+  if (user) {
+    const hasher = (await auth.$context).password;
+    await writeCredentialPassword(db, user.id, await hasher.hash(fifthPassword), new Date());
+  }
+  const sessionsAfterWrite = user ? (await sessionsOf(user.id)).length : -1;
+  const phoneRead = await auth.handler(
+    new Request(`${BASE}/api/auth/get-session`, {
+      headers: new Headers({
+        cookie: cookieOf(phone),
+        origin: BASE,
+        "x-forwarded-for": "198.51.100.77",
+      }),
+    }),
+  );
+  const phoneBody = (await phoneRead.json().catch(() => null)) as { user?: unknown } | null;
+  const phoneSignedIn = phoneBody?.user !== undefined;
+  const newPassword = await route("/api/auth/sign-in/email", { email, password: fifthPassword });
+  check(
+    "own password write ends every session in its statement (no Better Auth revoke)",
+    phone.status === 200 &&
+      laptop.status === 200 &&
+      sessionsBeforeWrite >= 2 &&
+      sessionsAfterWrite === 0 &&
+      !phoneSignedIn &&
+      newPassword.status === 200,
+    `sign-ins ${phone.status}/${laptop.status}, sessions ${sessionsBeforeWrite} then ${sessionsAfterWrite}, a device still signed in ${phoneSignedIn}, new password ${newPassword.status}`,
+  );
+
+  // 14. PW1-F6: a sign-in held at its session insert while our own statement writes the password.
+  const sixthPassword = `smoke-${randomUUID()}`;
+  const wrong = await route("/api/auth/sign-in/email", {
+    email,
+    password: `smoke-${randomUUID()}`,
+  });
+  const wrongBody = await wrong.clone().text();
+  const stepped = steppedDatabase(db, {
+    holdWhen: (statement) => statementName(statement) === "insert:auth_session",
+  });
+  const racingAuth = authOver(stepped.db);
+  const raceName =
+    "a sign-in racing a password write keeps no session (deleted after its insert; a wrong password's answer)";
+  const signingIn = route(
+    "/api/auth/sign-in/email",
+    { email, password: fifthPassword },
+    "",
+    racingAuth,
+  );
+  // A sign-in that answers (or fails) before its insert is never held: the step fails rather
+  // than wait for a hold that can't come.
+  const heldOrNot = await Promise.race([
+    stepped.hold.reached.then(() => "held"),
+    signingIn.then(
+      (response) => `answered ${response.status} before its insert`,
+      () => "failed before its insert",
+    ),
+  ]);
+  if (heldOrNot !== "held") {
+    check(raceName, false, `the sign-in ${heldOrNot}, so the race never ran`);
+    return out;
+  }
+  if (user) {
+    const hasher = (await auth.$context).password;
+    await writeCredentialPassword(db, user.id, await hasher.hash(sixthPassword), new Date());
+  }
+  const sessionsAtTheWrite = user ? (await sessionsOf(user.id)).length : -1;
+  stepped.hold.release();
+  const raced = await signingIn;
+  const racedBody = await raced.clone().text();
+  // The sessions the stepped instance inserted, found by what it wrote: the raced one is in no
+  // response, which is the point. Never printed.
+  const insertedTokens = () =>
+    stepped.trace
+      .filter((statement) => statementName(statement) === "insert:auth_session")
+      .map((statement) => (statement.values as { token?: unknown }).token)
+      .filter((value): value is string => typeof value === "string");
+  const [racedToken = ""] = insertedTokens();
+  const signedCookieFor = (value: string) =>
+    `${cookieName}=${encodeURIComponent(
+      `${value}.${createHmac("sha256", secret).update(value).digest("base64")}`,
+    )}`;
+  const racedRead = await auth.handler(
+    new Request(`${BASE}/api/auth/get-session`, {
+      headers: new Headers({
+        cookie: racedToken === "" ? "" : signedCookieFor(racedToken),
+        origin: BASE,
+        "x-forwarded-for": "198.51.100.77",
+      }),
+    }),
+  );
+  const racedReadBody = (await racedRead.json().catch(() => null)) as { user?: unknown } | null;
+  const racedSignedIn = racedReadBody?.user !== undefined;
+  const sessionsAfterRace = user ? (await sessionsOf(user.id)).length : -1;
+  // The check's success path, through the same instance (its hold is spent): and the cookie
+  // built above is the one Better Auth sets, so the raced session's null read is a real one.
+  const afterRace = await route(
+    "/api/auth/sign-in/email",
+    { email, password: sixthPassword },
+    "",
+    racingAuth,
+  );
+  const [, afterToken = ""] = insertedTokens();
+  const builtCookieMatches =
+    afterToken !== "" && signedCookieFor(afterToken) === cookieOf(afterRace);
+  const racedCookies = raced.headers.getSetCookie().length;
+  check(
+    raceName,
+    wrong.status === 401 &&
+      raced.status === 401 &&
+      racedBody === wrongBody &&
+      racedCookies === 0 &&
+      racedToken !== "" &&
+      sessionsAtTheWrite === 0 &&
+      !racedSignedIn &&
+      sessionsAfterRace === 0 &&
+      afterRace.status === 200 &&
+      builtCookieMatches,
+    `status ${raced.status}, a wrong password's answer ${racedBody === wrongBody}, cookies set ${racedCookies}, session inserted ${racedToken !== ""}, sessions at the write ${sessionsAtTheWrite} then ${sessionsAfterRace}, raced session signed in ${racedSignedIn}, new password ${afterRace.status}, built cookie matches ${builtCookieMatches}`,
+  );
+
+  // 15. PW1-F7: the operator's password sign-in, refused, runs a wrong password's statements in
+  // the same order (its guard makes Better Auth's two reads itself), over this driver. The grant
+  // is this run's fixture operator's, on the disposable branch, as its user is.
+  await db.insert(superAdmins).values({ id: randomUUID(), userId: operator, grantedAt: now });
+  const traced = async (to: string, password: string) => {
+    const tracing = steppedDatabase(db);
+    const answer = await route(
+      "/api/auth/sign-in/email",
+      { email: to, password },
+      "",
+      authOver(tracing.db),
+    );
+    return { answer, body: await answer.clone().text(), names: tracing.trace.map(statementName) };
+  };
+  const wrongTraced = await traced(email, `smoke-${randomUUID()}`);
+  const operatorTraced = await traced(
+    `auth-smoke-operator-${tag}@example.invalid`,
+    `smoke-${randomUUID()}`,
+  );
+  const sameWork =
+    operatorTraced.names.length === wrongTraced.names.length &&
+    operatorTraced.names.every((name, i) => name === wrongTraced.names[i]);
+  const operatorCookies = operatorTraced.answer.headers.getSetCookie().length;
+  check(
+    "the operator's refused sign-in does a wrong password's work (the same statements, in order; the same answer)",
+    wrongTraced.answer.status === 401 &&
+      operatorTraced.answer.status === 401 &&
+      operatorTraced.body === wrongTraced.body &&
+      operatorCookies === 0 &&
+      sameWork,
+    `status ${operatorTraced.answer.status}, a wrong password's answer ${operatorTraced.body === wrongTraced.body}, cookies set ${operatorCookies}, statements ${operatorTraced.names.length} against ${wrongTraced.names.length}, the same in order ${sameWork}`,
+  );
+
+  // 16. PW1-F8: query errors through the cleaned handle, over this driver. Only names, codes,
+  // the constraint's name and booleans are printed; the marker and the address never are.
+  const cleanDb = withQueryErrorsCleaned(db);
+  const marker = `auth-smoke-${tag}-${randomUUID()}`;
+  const failureOf = async (work: Promise<unknown>): Promise<unknown> => {
+    try {
+      await work;
+      return null;
+    } catch (error) {
+      return error;
+    }
+  };
+  const duplicate = await failureOf(
+    cleanDb.insert(authUser).values({
+      id: randomUUID(),
+      name: marker,
+      email,
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
+    }),
+  );
+  // A word bound to an integer column: Postgres refuses the parameter itself (22P02, its message
+  // quoting the value) before the row is built, on either driver.
+  const badValue = await failureOf(
+    cleanDb.insert(shelters).values({ id: randomUUID(), version: marker } as never),
+  );
+  type Facts = { name?: unknown; message?: unknown; code?: unknown; constraint?: unknown };
+  const factsOf = (error: unknown) => {
+    const outer = (typeof error === "object" && error !== null ? error : {}) as Facts & {
+      cause?: Facts;
+    };
+    const kept = inspect(error, { depth: 8, showHidden: true });
+    return {
+      name: `${String(outer.name)}/${String(outer.cause?.name)}`,
+      code: String(outer.code),
+      constraint: String(outer.constraint),
+      noText: outer.message === "" && outer.cause?.message === "",
+      noValues:
+        !kept.includes(marker) &&
+        !kept.includes(email) &&
+        !/params|insert into|"auth_user"|"shelters"/i.test(kept) &&
+        !["query", "params", "detail", "where"].some(
+          (key) => Object.hasOwn(outer, key) || Object.hasOwn(outer.cause ?? {}, key),
+        ),
+    };
+  };
+  const duplicateFacts = factsOf(duplicate);
+  const badValueFacts = factsOf(badValue);
+  check(
+    "query errors through the cleaned handle keep name, SQLSTATE and constraint, and no message, parameters or SQL",
+    duplicate !== null &&
+      badValue !== null &&
+      duplicateFacts.code === "23505" &&
+      duplicateFacts.constraint === "auth_user_email_unique" &&
+      badValueFacts.code === "22P02" &&
+      duplicateFacts.noText &&
+      badValueFacts.noText &&
+      duplicateFacts.noValues &&
+      badValueFacts.noValues,
+    `duplicate ${duplicateFacts.name} ${duplicateFacts.code} ${duplicateFacts.constraint}, bad value ${badValueFacts.name} ${badValueFacts.code}, no message text ${duplicateFacts.noText && badValueFacts.noText}, no values or SQL ${duplicateFacts.noValues && badValueFacts.noValues}`,
+  );
+
+  // 17. PW-2: the invitation link sets a password, signs in and accepts.
+  const inviteeEmail = `auth-smoke-invitee-${tag}@example.invalid`;
+  const secondInvite = await kabinetInvitationRepo(db).invite({
+    shelterId: base.id,
+    email: inviteeEmail,
+    name: "Auth smoke invitee",
+    inviterUserId: operator,
+    ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+    now: new Date(),
+    history: {
+      id: randomUUID(),
+      entry: {
+        kind: "admin_invited",
+        at: new Date(),
+        moderatorId: operator as ModeratorId,
+        email: inviteeEmail,
+      },
+    },
+  });
+  const inviteName =
+    "invitation link (issued hashed, read twice with nothing changed, used up by the POST: credential, verified, signed in, accepted; a second POST unusable)";
+  if (secondInvite.kind !== "invited") {
+    check(inviteName, false, `invitation not written: ${secondInvite.kind}`);
+    return out;
+  }
+  const inviteToken = newInviteToken();
+  const tokens = inviteTokensOf(db);
+  await tokens.issue({
+    id: randomUUID(),
+    invitationId: secondInvite.invitationId,
+    token: inviteToken,
+    expiresAt: secondInvite.expiresAt,
+    now: new Date(),
+  });
+  const linkRows = async () =>
+    (await db.select({ value: authVerification.value }).from(authVerification)).filter(
+      (row) => row.value === `invitation:${secondInvite.invitationId}`,
+    ).length;
+  const lookup = { lookup: (value: string) => tokens.landingOf(value), now: new Date() };
+  const shownOnce = await invitePasswordLandingOf(inviteToken, lookup);
+  const shownTwice = await invitePasswordLandingOf(inviteToken, lookup);
+  const rowsAfterOpening = await linkRows();
+  const invitePassword = `${randomUUID()}-${randomUUID()}`;
+  /** The form's POST through the RPC route, Better Auth's two writes and sign-in on `over`. */
+  const acceptWith = async (linkToken: string, password: string, over = auth) => {
+    const request = new Request(`${BASE}/api/kabinet/invitation/acceptWithPassword`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: BASE,
+        "x-forwarded-for": "198.51.100.77",
+      },
+      body: JSON.stringify(toRpcBody({ token: linkToken, password })),
+    });
+    const response = await handleKabinetRpc(request, {
+      availability,
+      resolve: async () => ({
+        ...(await kabinetIdentityOf(auth, db, request.headers, new Date(), true)),
+        db,
+        cursorSecret: "auth-smoke-cursor-secret",
+      }),
+      limiters: { perUser: unlimited(), perIp: unlimited() },
+      ip: "198.51.100.77",
+      now: new Date(),
+      newId: () => randomUUID(),
+      operatorDisplayName: "Auth smoke",
+      locationPolicy: null,
+      production: true,
+      shelterWrites: SHELTER_WRITE_POLICY,
+      invitePasswords: () => ({
+        kind: "on",
+        perIp: unlimited(),
+        ip: "198.51.100.77",
+        credentials: inviteCredentialsOf(over, BASE, request.headers),
+      }),
+    });
+    await Promise.all(scheduled);
+    const text = await response.text();
+    let body: unknown = null;
+    try {
+      body = fromRpcBody(JSON.parse(text));
+    } catch {
+      body = null;
+    }
+    return { status: response.status, body, cookie: cookieOf(response) };
+  };
+  const acceptOnce = () => acceptWith(inviteToken, invitePassword);
+  const firstUse = await acceptOnce();
+  const inviteeRead = await auth.handler(
+    new Request(`${BASE}/api/auth/get-session`, {
+      headers: new Headers({
+        cookie: firstUse.cookie,
+        origin: BASE,
+        "x-forwarded-for": "198.51.100.77",
+      }),
+    }),
+  );
+  const inviteeSignedIn =
+    ((await inviteeRead.json().catch(() => null)) as { user?: { email?: unknown } } | null)?.user
+      ?.email === inviteeEmail;
+  const inviteeUser = (
+    await db
+      .select({ id: authUser.id, email: authUser.email, emailVerified: authUser.emailVerified })
+      .from(authUser)
+  ).find((row) => row.email === inviteeEmail);
+  const inviteeCredential =
+    inviteeUser === undefined
+      ? false
+      : (
+          await db
+            .select({ userId: authAccount.userId, providerId: authAccount.providerId })
+            .from(authAccount)
+        ).some((row) => row.userId === inviteeUser.id && row.providerId === "credential");
+  const inviteeMember =
+    inviteeUser === undefined
+      ? false
+      : (await db.select({ userId: authMember.userId }).from(authMember)).some(
+          (row) => row.userId === inviteeUser.id,
+        );
+  const secondUse = await acceptOnce();
+  check(
+    inviteName,
+    shownOnce.kind === "form" &&
+      shownTwice.kind === "form" &&
+      rowsAfterOpening === 1 &&
+      firstUse.status === 200 &&
+      (firstUse.body as { kind?: unknown } | null)?.kind === "signed_in" &&
+      inviteeSignedIn &&
+      inviteeUser?.emailVerified === true &&
+      inviteeCredential &&
+      inviteeMember &&
+      (await linkRows()) === 0 &&
+      secondUse.status === 410,
+    `page ${shownOnce.kind} then ${shownTwice.kind}, link rows after opening ${rowsAfterOpening}, POST ${firstUse.status}, signed in ${inviteeSignedIn}, verified ${inviteeUser?.emailVerified === true}, credential ${inviteeCredential}, member ${inviteeMember}, link rows after ${await linkRows()}, second POST ${secondUse.status}`,
+  );
+
+  /** One more invitation on this run's shelter, for `label`'s own address, with a link issued. */
+  const inviteWithLink = async (label: string) => {
+    const to = `auth-smoke-${label}-${tag}@example.invalid`;
+    const made = await kabinetInvitationRepo(db).invite({
+      shelterId: base.id,
+      email: to,
+      name: `Auth smoke ${label}`,
+      inviterUserId: operator,
+      ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+      now: new Date(),
+      history: {
+        id: randomUUID(),
+        entry: {
+          kind: "admin_invited",
+          at: new Date(),
+          moderatorId: operator as ModeratorId,
+          email: to,
+        },
+      },
+    });
+    if (made.kind !== "invited") return null;
+    const linkToken = newInviteToken();
+    await tokens.issue({
+      id: randomUUID(),
+      invitationId: made.invitationId,
+      token: linkToken,
+      expiresAt: made.expiresAt,
+      now: new Date(),
+    });
+    return { email: to, token: linkToken, ...made };
+  };
+  const authContext = await auth.$context;
+
+  // 18. PW-2 review finding 1: the three refusal flags read true over this driver, each for its
+  // own case and only there, and the page and the POST then refuse.
+  const flagsName =
+    "invitation link refused for a password holder, an operator and a member (each EXISTS true over this driver; page and POST unusable)";
+  const holder = await inviteWithLink("has-password");
+  const operatorLater = await inviteWithLink("operator-later");
+  const memberAlready = await inviteWithLink("member");
+  if (holder === null || operatorLater === null || memberAlready === null) {
+    check(flagsName, false, "an invitation was not written");
+    return out;
+  }
+  await authContext.internalAdapter.createAccount({
+    userId: holder.userId,
+    providerId: "credential",
+    accountId: holder.userId,
+    password: await authContext.password.hash(`smoke-${randomUUID()}`),
+  });
+  await db
+    .insert(superAdmins)
+    .values({ id: randomUUID(), userId: operatorLater.userId, grantedAt: new Date() });
+  const memberOrganization = (
+    await db
+      .select({ id: authInvitation.id, organizationId: authInvitation.organizationId })
+      .from(authInvitation)
+  ).find((row) => row.id === memberAlready.invitationId)?.organizationId;
+  if (memberOrganization !== undefined) {
+    await db.insert(authMember).values({
+      id: randomUUID(),
+      organizationId: memberOrganization,
+      userId: memberAlready.userId,
+      role: "admin",
+      createdAt: new Date(),
+    });
+  }
+  const flagsOf = async (linkToken: string) => {
+    const row = await tokens.landingOf(linkToken);
+    return `${row?.hasPassword}/${row?.operator}/${row?.member}`;
+  };
+  const refusedLink = async (linkToken: string) => ({
+    flags: await flagsOf(linkToken),
+    page: (await invitePasswordLandingOf(linkToken, { ...lookup, now: new Date() })).kind,
+    post: (await acceptWith(linkToken, `${randomUUID()}-${randomUUID()}`)).status,
+  });
+  const refused = {
+    hasPassword: await refusedLink(holder.token),
+    operator: await refusedLink(operatorLater.token),
+    member: await refusedLink(memberAlready.token),
+  };
+  check(
+    flagsName,
+    memberOrganization !== undefined &&
+      refused.hasPassword.flags === "true/false/false" &&
+      refused.operator.flags === "false/true/false" &&
+      refused.member.flags === "false/false/true" &&
+      Object.values(refused).every((link) => link.page === "unusable" && link.post === 410),
+    `flags (password/operator/member): holder ${refused.hasPassword.flags}, operator ${refused.operator.flags}, member ${refused.member.flags}; page ${Object.values(
+      refused,
+    )
+      .map((link) => link.page)
+      .join("/")}; POST ${Object.values(refused)
+      .map((link) => link.post)
+      .join("/")}`,
+  );
+
+  // 19. PW-2 review finding 4: the address is marked verified before the credential is written.
+  // The credential's insert fails (forced, unsent), so the POST stops between the two writes:
+  // the address is verified, there is no password and the link is used. The operator's resend
+  // (the invitation's resend and a new link, as the registry does) then sets the password, signs
+  // in and accepts.
+  const orderName =
+    "invitation POST marks the address verified before the password (a failure between leaves no password; a resend's link then signs in)";
+  const stranded = await inviteWithLink("stranded");
+  if (stranded === null) {
+    check(orderName, false, "the invitation was not written");
+    return out;
+  }
+  const failingCredential = steppedDatabase(db, {
+    failWhen: (statement) =>
+      statementName(statement) === "insert:auth_account"
+        ? new Error("forced: the credential's insert")
+        : undefined,
+  });
+  const strandedPassword = `${randomUUID()}-${randomUUID()}`;
+  const failedUse = await acceptWith(
+    stranded.token,
+    strandedPassword,
+    authOver(failingCredential.db),
+  );
+  const strandedUser = async () =>
+    (
+      await db.select({ id: authUser.id, emailVerified: authUser.emailVerified }).from(authUser)
+    ).find((row) => row.id === stranded.userId);
+  const credentialOf = async (userId: string) =>
+    (
+      await db
+        .select({ userId: authAccount.userId, providerId: authAccount.providerId })
+        .from(authAccount)
+    ).some((row) => row.userId === userId && row.providerId === "credential");
+  const verifiedBetween = (await strandedUser())?.emailVerified === true;
+  const credentialBetween = await credentialOf(stranded.userId);
+  const sameLinkAgain = (await acceptWith(stranded.token, strandedPassword)).status;
+  const resent = await kabinetInvitationRepo(db).resend(stranded.invitationId, new Date(), {
+    id: randomUUID(),
+    shelterId: base.id,
+    entry: {
+      kind: "admin_invitation_resent",
+      at: new Date(),
+      moderatorId: operator as ModeratorId,
+      email: stranded.email,
+    },
+  });
+  const resentToken = newInviteToken();
+  if (resent.kind === "resent") {
+    await tokens.issue({
+      id: randomUUID(),
+      invitationId: stranded.invitationId,
+      token: resentToken,
+      expiresAt: resent.expiresAt,
+      now: new Date(),
+    });
+  }
+  const resentPage = (await invitePasswordLandingOf(resentToken, { ...lookup, now: new Date() }))
+    .kind;
+  const finished = await acceptWith(resentToken, strandedPassword);
+  const finishedMember = (await db.select({ userId: authMember.userId }).from(authMember)).some(
+    (row) => row.userId === stranded.userId,
+  );
+  const credentialAfter = await credentialOf(stranded.userId);
+  check(
+    orderName,
+    failedUse.status === 500 &&
+      verifiedBetween &&
+      !credentialBetween &&
+      sameLinkAgain === 410 &&
+      resent.kind === "resent" &&
+      resentPage === "form" &&
+      finished.status === 200 &&
+      (finished.body as { kind?: unknown } | null)?.kind === "signed_in" &&
+      finished.cookie !== "" &&
+      (await strandedUser())?.emailVerified === true &&
+      credentialAfter &&
+      finishedMember,
+    `forced POST ${failedUse.status}; between: verified ${verifiedBetween}, credential ${credentialBetween}, same link ${sameLinkAgain}; resend ${resent.kind}, page ${resentPage}, POST ${finished.status}, cookie ${finished.cookie !== ""}, credential ${credentialAfter}, member ${finishedMember}`,
+  );
+
+  // 20. F8-F1: a /kabinet page's reads through the handle every kabinet page and route now uses
+  // (`kabinetDbOver`, what `kabinetDb()` applies to the served database), over this driver: the
+  // principal and the password status `/kabinet` reads for step 19's signed-in user, then a
+  // relational read Postgres refuses (a word bound to an integer column, 22P02). Only statuses,
+  // booleans and the cleaned error's name, code and constraint are printed. Nothing is written.
+  const pageName =
+    "kabinet page reads through the cleaned handle (the principal and the password status; a refused read cleaned, no message, parameters or SQL)";
+  // `kabinetDbOver`: the rule `kabinetDb()` applies to the served database, over this target.
+  const kabinetHandle = kabinetDbOver(db);
+  const pageHeaders = new Headers({ cookie: finished.cookie, origin: BASE });
+  const pagePrincipal = (
+    await kabinetIdentityOf(auth, kabinetHandle, pageHeaders, new Date(), true)
+  ).principal.kind;
+  const pagePassword = await kabinetActorRepo(kabinetHandle).hasPassword(stranded.userId);
+  const refusedRead = await failureOf(
+    kabinetHandle.query.shelters.findFirst({
+      where: (shelter, { eq }) => eq(shelter.version, marker as never),
+    }),
+  );
+  const refusedFacts = factsOf(refusedRead);
+  check(
+    pageName,
+    pagePrincipal === "shelter_admin" &&
+      pagePassword &&
+      refusedRead !== null &&
+      refusedFacts.code === "22P02" &&
+      refusedFacts.noText &&
+      refusedFacts.noValues,
+    `principal ${pagePrincipal}, password set ${pagePassword}; refused read ${refusedFacts.name} ${refusedFacts.code}, no message text ${refusedFacts.noText}, no values or SQL ${refusedFacts.noValues}`,
   );
   return out;
 }

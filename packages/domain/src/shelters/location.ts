@@ -9,7 +9,7 @@ import { type CityId, CityIdSchema, type ShelterId } from "../primitives/ids";
 import { type LocalizedText, LocalizedTextSchema } from "../primitives/localized-text";
 
 /**
- * "How well do we know this location" is a union, not a nullable — same idiom
+ * "How well do we know this location" is a union, not a nullable - same idiom
  * as `MedicalAttestation.source`, `DocumentItem.kind` and `Freshness.kind`.
  * This makes the false-precision state unrepresentable rather than merely
  * discouraged, and forces the UI to switch on `precision` and decide what to
@@ -19,7 +19,7 @@ import { type LocalizedText, LocalizedTextSchema } from "../primitives/localized
  * district, and fuzzed coordinates. Shelters always produce this variant.
  *
  * `city`: we know only the city (and optionally the district). No coordinates
- * at all — the city centroid is `City.centroid`, honestly labelled as such,
+ * at all - the city centroid is `City.centroid`, honestly labelled as such,
  * rather than posing as the animal's position.
  * Fostered animals with no known address produce this variant.
  *
@@ -96,7 +96,7 @@ export const publicLocationOf = (
 /**
  * Public location for an animal fostered away from its shelter.
  *
- * Produces a `city`-precision location — no coordinates at all. The city
+ * Produces a `city`-precision location - no coordinates at all. The city
  * centroid is `City.centroid`, honestly labelled as a centroid rather than
  * posing as the animal's position.
  * Generating fuzzed coordinates from the centroid would be manufactured

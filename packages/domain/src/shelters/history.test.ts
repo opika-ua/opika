@@ -157,6 +157,13 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     from: "Лапа",
     to: "Лапа допомоги",
   },
+  logo_changed: {
+    kind: "logo_changed",
+    at: new Date("2026-10-20T00:00:00.000Z"),
+    actor: ADMIN,
+    previous: null,
+    next: { storageKey: "shelters/s/logo/0", width: 160, height: 160 },
+  },
 };
 
 describe("ShelterHistoryEntrySchema", () => {
@@ -307,6 +314,7 @@ describe("historyEntryAt", () => {
         "2026-10-17",
         "2026-10-18",
         "2026-10-19",
+        "2026-10-20",
       ],
     );
   });

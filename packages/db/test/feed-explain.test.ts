@@ -35,7 +35,7 @@ beforeEach(async () => {
  * `galleryRepo.list` actually emits, captured off the wire, instead of a
  * hand-written statement that resembles it. That header also records what the
  * `count(*) OVER()` window function does to the planner's incentive to pick an
- * ordered scan at all — which does not apply to anything in this file, since
+ * ordered scan at all - which does not apply to anything in this file, since
  * `feed.list` has no window function and its `LIMIT` really can stop early.
  */
 describe("feed query EXPLAIN", () => {

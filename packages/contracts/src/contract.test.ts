@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { contract } from "./contract";
 import { FeedListInputSchema } from "./procedures/feed";
-import { GalleryListInputSchema } from "./procedures/gallery";
+import {
+  GalleryFacetCountsInputSchema,
+  GalleryFacetCountsOutputSchema,
+  GalleryListInputSchema,
+  GalleryRelaxationCountsInputSchema,
+} from "./procedures/gallery";
 import {
   DEFAULT_PAGE_SIZE,
   GALLERY_PAGE_SIZE,
@@ -19,16 +24,26 @@ const procedurePaths = (node: object, prefix = ""): readonly string[] =>
   });
 
 describe("the contract surface", () => {
-  it("exposes exactly the ten agreed procedures", () => {
+  it("exposes exactly the fifteen agreed procedures", () => {
     // Spelled out rather than counted, so adding a procedure is a deliberate
-    // edit made while looking at the surface. `gallery.*` joined in Phase E0.
+    // edit made while looking at the surface. `gallery.*` joined in Phase E0;
+    // `animals.cardsByIds` (S8, the saved page's batch read) joined after it;
+    // `animals.neighbours` (pet card PR 2) joined after that; `gallery.facetCounts`
+    // (the filter selectors' counts) after that. Nationwide N3 replaced the whole-settlement-list
+    // procedure (which no page may ship) with `cities.byIds` and `cities.resolveTokens`,
+    // and added `regions.list` (the 27 oblasts, from a constant).
     expect([...procedurePaths(contract)].sort()).toEqual([
       "animals.byId",
+      "animals.cardsByIds",
+      "animals.neighbours",
       "animals.reveal",
-      "cities.list",
+      "cities.byIds",
+      "cities.resolveTokens",
       "feed.list",
+      "gallery.facetCounts",
       "gallery.list",
       "gallery.relaxationCounts",
+      "regions.list",
       "reveals.listMine",
       "session.bootstrap",
       "shelters.byId",
@@ -53,14 +68,14 @@ describe("pagination constants", () => {
   });
 });
 
-describe("gallery pagination input", () => {
-  const ANY_FILTERS = {
-    cities: { kind: "any" },
-    species: { kind: "any" },
-    sizes: { kind: "any" },
-    ages: { kind: "any" },
-  };
+const ANY_FILTERS = {
+  cities: { kind: "any" },
+  species: { kind: "any" },
+  sizes: { kind: "any" },
+  ages: { kind: "any" },
+};
 
+describe("gallery pagination input", () => {
   it("pins the gallery's own constants literally", () => {
     // 24 rather than the cursor default of 20 because it fills a grid: it
     // divides evenly by every column count the breakpoints use.
@@ -70,7 +85,7 @@ describe("gallery pagination input", () => {
   });
 
   it("defaults sort, page and page size so a bare URL is a valid request", () => {
-    // `/tvaryny` with no query string has to work — it is the indexed entry
+    // `/tvaryny` with no query string has to work - it is the indexed entry
     // point, and it degrades to a plain list without JS.
     const parsed = GalleryListInputSchema.parse({ filters: ANY_FILTERS });
 
@@ -96,6 +111,90 @@ describe("gallery pagination input", () => {
     expect(
       GalleryListInputSchema.safeParse({ filters: ANY_FILTERS, sort: "best_match" }).success,
     ).toBe(false);
+  });
+});
+
+describe("gallery scope input (the shelter page, DR1-D4)", () => {
+  const SHELTER_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+
+  it("lists everyone when no scope is sent, so every existing caller is unchanged", () => {
+    const parsed = GalleryListInputSchema.parse({ filters: ANY_FILTERS });
+
+    expect(parsed.scope).toEqual({ kind: "everyone" });
+  });
+
+  it("gives gallery.facetCounts the same default and the same scope shapes", () => {
+    expect(GalleryFacetCountsInputSchema.parse({ filters: ANY_FILTERS }).scope).toEqual({
+      kind: "everyone",
+    });
+    expect(
+      GalleryFacetCountsInputSchema.parse({
+        filters: ANY_FILTERS,
+        scope: { kind: "shelter", shelterId: SHELTER_ID },
+      }).scope,
+    ).toEqual({ kind: "shelter", shelterId: SHELTER_ID });
+    expect(
+      GalleryFacetCountsInputSchema.safeParse({
+        filters: ANY_FILTERS,
+        scope: { kind: "shelter", shelterId: "42" },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("gives gallery.relaxationCounts the same default and scope", () => {
+    expect(GalleryRelaxationCountsInputSchema.parse({ filters: ANY_FILTERS }).scope).toEqual({
+      kind: "everyone",
+    });
+    expect(
+      GalleryRelaxationCountsInputSchema.parse({
+        filters: ANY_FILTERS,
+        scope: { kind: "shelter", shelterId: SHELTER_ID },
+      }).scope,
+    ).toEqual({ kind: "shelter", shelterId: SHELTER_ID });
+  });
+
+  it("accepts one shelter by id", () => {
+    const parsed = GalleryListInputSchema.parse({
+      filters: ANY_FILTERS,
+      scope: { kind: "shelter", shelterId: SHELTER_ID },
+    });
+
+    expect(parsed.scope).toEqual({ kind: "shelter", shelterId: SHELTER_ID });
+  });
+
+  it("refuses a shelter id that isn't a UUID", () => {
+    for (const shelterId of ["42", "not-a-uuid", "", `${SHELTER_ID}x`]) {
+      expect(
+        GalleryListInputSchema.safeParse({
+          filters: ANY_FILTERS,
+          scope: { kind: "shelter", shelterId },
+        }).success,
+        shelterId,
+      ).toBe(false);
+    }
+  });
+
+  it("refuses a shelter scope with no id, and a scope kind it doesn't know", () => {
+    for (const scope of [
+      { kind: "shelter" },
+      { kind: "city", cityId: SHELTER_ID },
+      { kind: "featured" },
+      { shelterId: SHELTER_ID },
+    ]) {
+      expect(
+        GalleryListInputSchema.safeParse({ filters: ANY_FILTERS, scope }).success,
+        JSON.stringify(scope),
+      ).toBe(false);
+    }
+  });
+
+  it("drops an id sent with the everyone scope rather than narrowing by it", () => {
+    const parsed = GalleryListInputSchema.parse({
+      filters: ANY_FILTERS,
+      scope: { kind: "everyone", shelterId: SHELTER_ID },
+    });
+
+    expect(parsed.scope).toEqual({ kind: "everyone" });
   });
 });
 
@@ -141,5 +240,61 @@ describe("feed pagination input", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("gallery facet counts output", () => {
+  const CITY = "c1000000-0000-4000-8000-000000000001";
+  const REGION = "814661e1-67de-532e-a38e-2216d8b521ff";
+  const label = {
+    id: CITY,
+    slug: "brovary-kyivska",
+    kind: "city",
+    nameScope: "unique_in_ukraine",
+    regionId: REGION,
+    name: "Бровари",
+    regionShort: "Київська обл.",
+    raion: "Броварський район",
+  };
+  const counts = {
+    cities: [{ cityId: CITY, count: 3, label }],
+    regions: [{ regionId: REGION, count: 3 }],
+    ages: { baby: 1, young: 0, adult: 2, senior: 0 },
+    sizes: { small: 1, medium: 1, large: 1 },
+    sexes: { male: 2, female: 1, unknown: 0 },
+    species: { dog: 2, cat: 1 },
+  };
+
+  // Public view: option ids, integers and a city label cross the wire, whatever the handler hands
+  // over - a shelter id, a centroid or a KATOTTG code rides along nowhere.
+  it("strips anything beyond option ids, counts and the label", () => {
+    const parsed = GalleryFacetCountsOutputSchema.parse({
+      ...counts,
+      cities: [
+        {
+          cityId: CITY,
+          count: 3,
+          shelterId: "x",
+          label: { ...label, katottgCode: "UA32000000000000000", centroid: { lat: 1, lng: 2 } },
+        },
+      ],
+      totalShelters: 4,
+    });
+    expect(parsed).toEqual(counts);
+  });
+
+  it("refuses a missing option and a negative or fractional count", () => {
+    const { senior: _senior, ...threeAges } = counts.ages;
+    expect(GalleryFacetCountsOutputSchema.safeParse({ ...counts, ages: threeAges }).success).toBe(
+      false,
+    );
+    expect(
+      GalleryFacetCountsOutputSchema.safeParse({ ...counts, sizes: { ...counts.sizes, small: -1 } })
+        .success,
+    ).toBe(false);
+    expect(
+      GalleryFacetCountsOutputSchema.safeParse({ ...counts, sexes: { ...counts.sexes, male: 1.5 } })
+        .success,
+    ).toBe(false);
   });
 });

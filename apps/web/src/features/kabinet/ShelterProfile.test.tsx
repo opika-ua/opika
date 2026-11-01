@@ -8,7 +8,7 @@ import { ShelterProfile } from "./ShelterProfile";
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"). Its strings are
  * Oleksii's final Ukrainian (2026-10-14); elements are found by catalogue key and what's
- * asserted is structure and data: every value a label–value row, nothing
+ * asserted is structure and data: every value a label-value row, nothing
  * editable, the verification block apart, the support mode signals.
  */
 
@@ -37,6 +37,7 @@ const view = (overrides: Partial<KabinetShelterView> = {}): KabinetShelterView =
   donation: null,
   pendingDonation: null,
   freshnessSentence: null,
+  logo: null,
   version: 3,
   verification: { status: "verified", since: new Date("2025-03-14T10:00:00Z") },
   ...overrides,
@@ -103,12 +104,12 @@ describe("ShelterProfile (K4, read-only)", () => {
     renderProfile();
     expect(
       within(screen.getByRole("region", { name: t.contactsTitle })).getByText(
-        "Ці контакти бачить людина, коли натискає «Написати притулку», — і пише вам сама. Листування йде напряму, без посередників.",
+        "Ці контакти бачить людина, коли натискає «Написати притулку», – і пише вам сама. Листування йде напряму, без посередників.",
       ),
     ).toBeTruthy();
     expect(
       within(screen.getByRole("region", { name: t.donationTitle })).getByText(
-        "Лише https. Через сайт гроші не проходять — це зовнішнє посилання.",
+        "Лише https. Через сайт гроші не проходять – це зовнішнє посилання.",
       ),
     ).toBeTruthy();
   });
@@ -137,10 +138,9 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(rowValue(t.voiceLabel)).toBe("Напишіть, і ми скажемо, чи {імʼя} ще з нами.");
   });
 
-  it("keeps the verified details in the dashed block: legal name, grouped EDRPOU, status with its date, address", () => {
+  it("keeps the verified details in their own block: legal name, grouped EDRPOU, status with its date, address", () => {
     renderProfile();
     const block = screen.getByRole("region", { name: t.lockedTitle });
-    expect(block.className).toContain("border-dashed");
     expect(rowValue(t.legalName)).toBe("ГО «Домівка для хвостатих»");
     expect(rowValue(t.edrpou)).toBe("43 218 765");
     expect(rowValue(t.registrationStatus)).toContain("14 березня 2025");
@@ -153,12 +153,8 @@ describe("ShelterProfile (K4, read-only)", () => {
     // Row 57, his replacement (2026-10-14), transcribed: the caption under the
     // address, inside the same block.
     expect(
-      within(block).getByText("Ті, хто шукає тварину, не бачать точної адреси — лише місто."),
+      within(block).getByText("Ті, хто шукає тварину, не бачать точної адреси – лише місто."),
     ).toBeTruthy();
-    // Only the verification block is dashed: contacts are not "not yours to edit".
-    expect(screen.getByRole("region", { name: t.contactsTitle }).className).not.toContain(
-      "border-dashed",
-    );
   });
 
   it("names the operator in the block's note, without an instruction it gives no channel for", () => {
@@ -186,14 +182,34 @@ describe("ShelterProfile (K4, read-only)", () => {
     ).toBeTruthy();
   });
 
-  it("puts the status chip after the note, in K4 360's order", () => {
+  // Round-2 answer 6: no name configured, lower case mid-sentence - the
+  // locked note's own fallback, distinct from the decision's signature
+  // (capitalised, stands alone), which moved to `KabinetHome` (Головна) with
+  // `VerificationDecision.test.tsx`'s own fallback case.
+  it("with no operator name configured: the locked note keeps «адміністратор сайту»", () => {
+    render(
+      <ShelterProfile
+        view={view()}
+        cityName="Бровари"
+        viewer="admin"
+        operator={{ kind: "fallback" }}
+      />,
+    );
+    expect(
+      screen.getByText(
+        "Ці дані встановлює адміністратор сайту під час перевірки притулку. Тут вони лише для перегляду.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("puts the note after the title, and the status chip in the same block", () => {
     renderProfile();
     const block = screen.getByRole("region", { name: t.lockedTitle });
     const note = within(block).getByText(t.lockedNote.replaceAll("{operator}", "Олексій"));
     const chip = within(block).getByText(uk.kabinet.profileStatus.verified, { selector: "span" });
     const title = within(block).getByRole("heading", { name: t.lockedTitle });
     expect(title.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(note.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(chip).toBeTruthy();
   });
 
   it("shows an unregistered initiative's contact person, and no EDRPOU row", () => {
@@ -241,6 +257,22 @@ describe("ShelterProfile (K4, read-only)", () => {
     },
   );
 
+  // Kabinet redesign Phase 2 PR 1: the pending-review note (G3, audit
+  // 2026-10-22) moved to Головна (`KabinetHome.test.tsx`) along with the
+  // rejected/suspended notice (`VerificationDecision`) - this screen no
+  // longer renders either, since "what needs attention" now belongs on the
+  // landing page, not here.
+
+  // Audit 2026-10-22 #13, transcribed: the page also holds the data set during verification.
+  it("introduces the page as the shelter's data, public and from verification", () => {
+    renderProfile();
+    expect(
+      screen.getByText(
+        "Дані притулку: те, що бачать ті, хто шукає тварину, і те, що встановлено під час перевірки.",
+      ),
+    ).toBeTruthy();
+  });
+
   it("dates a status by the day it was in Kyiv, not the server's zone", () => {
     // 22:30 UTC on 13 March is already 14 March in Kyiv.
     renderProfile({
@@ -258,8 +290,8 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(screen.queryByRole("region", { name: bannerTitle })).toBeNull();
   });
 
-  it("a support view gets the banner and the frame, sign-out disabled, and no sign-out button", () => {
-    const { container } = renderProfile({}, "support");
+  it("a support view gets the banner, sign-out disabled, and no sign-out button", () => {
+    renderProfile({}, "support");
     const banner = screen.getByRole("region", { name: bannerTitle });
     expect(within(banner).getByRole("button", { name: uk.kabinet.support.exit })).toBeDefined();
     expect(
@@ -269,19 +301,6 @@ describe("ShelterProfile (K4, read-only)", () => {
     ).toBeDefined();
     expect(screen.queryByRole("button", { name: t.signOut })).toBeNull();
     expect(screen.getByText(uk.kabinet.support.signOutDisabled)).toBeDefined();
-    expect((container.firstElementChild as HTMLElement).className).toContain("outline-4");
-  });
-
-  it("every interactive element carries focus-visible styling and a 48px target", () => {
-    renderProfile({}, "support");
-    for (const button of screen.getAllByRole("button")) {
-      expect(button.className).toContain("focus-visible:outline");
-      expect(button.className).toMatch(/min-h-1[2-9]/);
-    }
-    renderProfile();
-    const signOut = screen.getByRole("button", { name: t.signOut });
-    expect(signOut.className).toContain("focus-visible:outline");
-    expect(signOut.className).toContain("min-h-12");
   });
 });
 
@@ -307,7 +326,7 @@ describe("ShelterProfile with K4 editing", () => {
       />,
     );
     expect(screen.getByLabelText(/^Телефон/)).toBeTruthy();
-    expect(screen.getByLabelText("Ваші слова на картках")).toBeTruthy();
+    expect(screen.getByLabelText("Ваші слова на сторінці притулку")).toBeTruthy();
   });
 
   it("a support view stays read-only even if editing were open", () => {
@@ -418,25 +437,72 @@ describe("the section nav (K2)", () => {
     ["the admin with writes open", "admin", open],
     ["the support view", "support", { kind: "read_only" }],
   ] as const)(
-    "%s gets «Тварини», pointing at the list, before the current profile",
+    "%s gets «Тварини» (pointing at the list) and the current «Притулок»",
     (_who, viewer, editing) => {
       const { unmount } = renderWith(viewer, editing);
       const links = within(nav()).getAllByRole("link");
-      expect(links.map((link) => link.textContent)).toEqual(["Тварини", "Профіль притулку"]);
+      expect(links.map((link) => link.textContent)).toEqual(["Тварини", "Притулок"]);
       expect(links[0]?.getAttribute("href")).toBe("/kabinet/tvaryny");
+      expect(links[1]?.getAttribute("href")).toBe("/kabinet/prytulok");
       expect(links[1]?.getAttribute("aria-current")).toBe("page");
       expect(screen.queryByRole("link", { name: "Нова тварина" })).toBeNull();
       unmount();
     },
   );
 
-  it("a shelter whose writes are refused: the profile alone, no way to a list that 404s", () => {
+  it("a shelter whose writes are refused: no «Тварини», no way to a list that 404s", () => {
     renderWith("admin", { kind: "read_only" });
     expect(
       within(nav())
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Профіль притулку"]);
+    ).toEqual(["Притулок"]);
     expect(screen.queryByRole("link", { name: "Тварини" })).toBeNull();
+  });
+});
+
+describe("Притулок: the public page link and the sub-tabs", () => {
+  const open = { kind: "open", previewAnimal: null, donationDeclined: false } as const;
+  const renderOpen = (tab?: string) =>
+    render(
+      <ShelterProfile
+        view={view()}
+        cityName="Бровари"
+        viewer="admin"
+        operator={{ kind: "configured", name: "Олексій" }}
+        editing={open}
+        {...(tab !== undefined ? { tab } : {})}
+      />,
+    );
+
+  it("«Сторінка притулку на сайті» opens the public shelter page in a new tab", () => {
+    renderOpen();
+    const link = screen.getByRole("link", { name: /^Сторінка притулку на сайті/ });
+    expect(link.getAttribute("href")).toBe(`/prytulky/${view().id}`);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+    expect(link.textContent).toContain("(відкриється в новій вкладці)");
+  });
+
+  it("the five sub-tabs are there, and ?tab= picks the one shown (an unknown value: the first)", () => {
+    const { unmount } = renderOpen("kontakty");
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Профіль",
+      "Контакти",
+      "Збір коштів",
+      "Перевірка",
+      "Акаунт",
+    ]);
+    expect(screen.getByRole("tab", { name: "Контакти" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    unmount();
+    renderOpen("nonsense");
+    expect(screen.getByRole("tab", { name: "Профіль" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("the nav stays on a phone while the editor is open (no back link needed)", () => {
+    renderOpen();
+    expect(screen.getByRole("navigation", { name: "Розділи кабінету" })).toBeTruthy();
   });
 });

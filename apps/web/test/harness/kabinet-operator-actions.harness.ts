@@ -133,6 +133,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
       exactAddress,
       contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
       donation: null,
+      logo: null,
       // Rehearsal step 5: "I approve a donation link".
       pendingDonation: {
         link: { url: "https://send.monobank.ua/jar/harness-rui3", provider: "monobank_jar" },
@@ -257,7 +258,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
     await expect(notice.getByText("Причина: Скарга підтвердилася.")).toBeVisible();
     await expect(notice.getByText("Пояснення:", { exact: true })).toBeVisible();
     await expect(notice.getByText(NOTE, { exact: true })).toBeVisible();
-    await expect(notice.getByText(`— ${OPERATOR_NAME}`, { exact: true })).toBeVisible();
+    await expect(notice.getByText(`- ${OPERATOR_NAME}`, { exact: true })).toBeVisible();
     await kabinet.close();
 
     await decision.getByRole("button", { name: "Відновити → «Перевірено»" }).click();
@@ -284,7 +285,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
   test("view as the shelter from S4, then leave: back on the list", async () => {
     const page = await shelterPage();
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button", { name: "Переглянути як притулок · лише читання" }).click(),
     ]);
     const banner = page.getByRole("region", { name: /^Ви переглядаєте кабінет притулку «/ });

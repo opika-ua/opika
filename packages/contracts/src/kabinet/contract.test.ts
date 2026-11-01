@@ -102,6 +102,8 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "shelter.photos.add": WRITE,
   "shelter.photos.reorder": WRITE,
   "shelter.photos.remove": WRITE,
+  "shelter.logo.set": WRITE,
+  "shelter.logo.remove": WRITE,
   "shelter.history.list": READ,
   "registry.shelters.list": REGISTRY,
   "registry.shelters.byId": REGISTRY,
@@ -121,6 +123,7 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "registry.admins.remove": REGISTRY,
   "registry.admins.blockedAddresses": REGISTRY,
   "registry.history.list": REGISTRY,
+  "registry.cities.search": REGISTRY,
   "registry.support.enter": REGISTRY,
   "session.exitSupport": { surface: "support_exit" },
 };
@@ -170,10 +173,10 @@ describe("registry.donation.* compare-and-set on the version (RG-Q12)", () => {
 
 describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
   /**
-   * S3-Q2: shelter A's member acting on shelter B's animal or shelter is
-   * FORBIDDEN, confirm and undoConfirm included. The cross-tenant tests that
-   * prove a handler *raises* it belong to the handlers slice; this proves the
-   * contract lets it, since an undeclared error can't be thrown typed.
+   * FORBIDDEN is for role refusals (an actor a procedure doesn't accept).
+   * Another shelter's animal id is NOT_FOUND since QA-2026-10-29 (S3-Q2 had it
+   * FORBIDDEN); the cross-tenant tests live in apps/web. This proves the
+   * contract lets a handler raise FORBIDDEN, since an undeclared error can't be thrown typed.
    */
   it.each(all.map(([path]) => path))("%s declares FORBIDDEN with status 403", (path) => {
     expect(internals(path).errorMap.FORBIDDEN?.status).toBe(403);
@@ -196,12 +199,12 @@ describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
 describe("no procedure declares the retired SHELTER_WRITES_NOT_YET_AVAILABLE (P6-Q8)", () => {
   const RETIRED = ["SHELTER", "WRITES", "NOT", "YET", "AVAILABLE"].join("_");
 
-  it("sanity: the matrix still names the sixteen shelter writes", () => {
+  it("sanity: the matrix still names the eighteen shelter writes", () => {
     expect(
       Object.values(EXPECTED_ACCESS).filter(
         (access) => access.surface === "shelter" && access.mode === "write",
       ),
-    ).toHaveLength(16);
+    ).toHaveLength(18);
   });
 
   it("is no API error any more", () => {
@@ -285,9 +288,13 @@ describe("kabinet views carry exactly their listed keys", () => {
         "species",
         "sex",
         "size",
+        "coatLength",
         "age",
         "description",
         "photos",
+        "temperament",
+        "colour",
+        "medicalNotes",
         "vaccination",
         "spayNeuter",
         "documentReadiness",
@@ -312,6 +319,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "donation",
         "pendingDonation",
         "freshnessSentence",
+        "logo",
         "version",
         "verification",
       ].sort(),
@@ -503,6 +511,8 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
     "shelter.photos.add": ANIMAL_VIEW_KEYS,
     "shelter.photos.reorder": ANIMAL_VIEW_KEYS,
     "shelter.photos.remove": ANIMAL_VIEW_KEYS,
+    "shelter.logo.set": SHELTER_VIEW_KEYS,
+    "shelter.logo.remove": SHELTER_VIEW_KEYS,
     "shelter.history.list": ["items", "nextCursor"],
   };
 
@@ -544,6 +554,7 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     contact_changed: ["kind", "at", "actor", "previous", "next"],
     freshness_sentence_changed: ["kind", "at", "actor", "previous", "next"],
     description_changed: ["kind", "at", "actor", "previous", "next"],
+    logo_changed: ["kind", "at", "actor", "previous", "next"],
     donation_proposed: ["kind", "at", "actor", "link"],
     donation_proposal_cancelled: ["kind", "at", "actor"],
     donation_decided: ["kind", "at", "actor", "decision", "link", "previousLive"],
@@ -854,4 +865,72 @@ describe("the K2 list's filter", () => {
       expect(Object.keys(shape), path).not.toContain("shelterId");
     }
   });
+});
+
+/**
+ * The Ukrainian-phone rule on every contract input that carries a contact, parsed through the
+ * procedure's own input schema (no database): `+380670000002213` is refused and a typed local
+ * number comes out as +380XXXXXXXXX.
+ */
+describe("the Ukrainian phone rule on every write that carries a contact", () => {
+  const SHELTER = "51000000-0000-4000-8000-000000000001";
+  const TOO_LONG = "+380670000002213";
+  const LOCAL = "(067) 123-45-67";
+  const NORMALISED = "+380671234567";
+  const phone = (e164: string) => ({ kind: "phone", e164 });
+  const contactOf = (e164: string) => ({ primary: phone(e164), additional: [] });
+  const reference = (e164: string) => ({
+    kind: "reference_contact",
+    name: "Ветклініка",
+    channel: { kind: "viber", e164 },
+    relationship: "veterinary_clinic",
+  });
+  const create = (contact: unknown, evidence: unknown[] = []) => ({
+    displayName: "Лапа допомоги",
+    description: { uk: "Опис", en: null },
+    legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" },
+    exactAddress: {
+      line1: "вул. Київська, 300",
+      line2: null,
+      postalCode: "07400",
+      cityId: "c1000000-0000-4000-8000-000000000001",
+      district: null,
+      coordinates: { lat: 50.5, lng: 30.8 },
+    },
+    contact,
+    freshnessSentence: null,
+    evidence,
+    firstAdmin: { name: "Олена", email: "olena@example.org" },
+  });
+  const paths = {
+    "shelter.profile.updateContact": (e164: string) => ({
+      contact: contactOf(e164),
+      expectedVersion: 0,
+    }),
+    "registry.shelters.create (contact)": (e164: string) => create(contactOf(e164)),
+    "registry.shelters.create (reference contact)": (e164: string) =>
+      create(contactOf("+380501112233"), [reference(e164)]),
+    "registry.shelters.updateProfile": (e164: string) => ({
+      shelterId: SHELTER,
+      expectedVersion: 0,
+      contact: contactOf(e164),
+    }),
+    "registry.verification.resubmit (reference contact)": (e164: string) => ({
+      shelterId: SHELTER,
+      evidence: [reference(e164)],
+    }),
+  } as const;
+
+  it.each(Object.entries(paths))(
+    "%s refuses extra digits and normalises a local number",
+    (name, build) => {
+      const path = name.replace(/ \(.*\)$/, "");
+      const input = internals(path).inputSchema;
+      expect(input?.safeParse(build(TOO_LONG)).success).toBe(false);
+      const parsed = input?.safeParse(build(LOCAL));
+      expect(parsed?.success).toBe(true);
+      expect(JSON.stringify(parsed?.data)).toContain(NORMALISED);
+      expect(JSON.stringify(parsed?.data)).not.toContain(LOCAL);
+    },
+  );
 });

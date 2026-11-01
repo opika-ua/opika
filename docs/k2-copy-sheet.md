@@ -122,25 +122,25 @@ once K2 and K3 both reuse them: a rename, no new copy.
 
 | Key | English sense | Where / state | Vars | Mock draft |
 |---|---|---|---|---|
-| `animalList.pageTitle` | Animals | `<title>` | — | «Тварини» (MOCK:28, KAB:132) |
-| `animalList.title` | Animals | page heading | — | «Тварини» (MOCK:28-29) |
+| `animalList.pageTitle` | Animals | `<title>` | - | «Тварини» (MOCK:28, KAB:132) |
+| `animalList.title` | Animals | page heading | - | «Тварини» (MOCK:28-29) |
 | `animalList.caption` | {shelter} · {count} cards in the list (every state, adopted and withdrawn included) | under the heading | `{shelter}` display name; `{count}` sum of `counts`; the noun needs three forms (`pluralizeUk`, `packages/domain/src/primitives/plural.ts`) | «Притулок «Домівка» · 14 тварин» (MOCK:28); «… · 0 тварин» (MOCK:29). Only the «many» form exists. ⚠ The count includes adopted and withdrawn cards; «тварин» reads as animals at the shelter now (Q6) |
-| `animalList.add` | Add an animal | header primary, opens `/kabinet/tvaryny/nova` (K3) | — | «Додати тварину» (MOCK:28, KAB:132) |
-| `animalList.addShort` | Add | the same at 360 | — | «Додати» (MOCK:29) |
-| `kabinet.nav.label` | Cabinet sections | the nav landmark's name. Today it is `profile.title` (`ShelterProfile.tsx:118-120`), wrong once the nav holds two items | — | no draft |
-| `kabinet.nav.animals` | Animals | nav item and phone tab | — | «Тварини» (MOCK:28-29; KAB:115) |
+| `animalList.add` | Add an animal | header primary, opens `/kabinet/tvaryny/nova` (K3) | - | «Додати тварину» (MOCK:28, KAB:132) |
+| `animalList.addShort` | Add | the same at 360 | - | «Додати» (MOCK:29) |
+| `kabinet.nav.label` | Cabinet sections | the nav landmark's name. Today it is `profile.title` (`ShelterProfile.tsx:118-120`), wrong once the nav holds two items | - | no draft |
+| `kabinet.nav.animals` | Animals | nav item and phone tab | - | «Тварини» (MOCK:28-29; KAB:115) |
 
 ## 3. Filter chips (inventory counts, KAB:133)
 
 | Key | English sense | Where / state | Vars | Mock draft |
 |---|---|---|---|---|
-| `animalList.filter.label` | Show | the chip group's accessible name | — | no draft |
-| `animalList.filter.all` | All | chip | — | «Усі» (MOCK:28) |
-| `animalList.filter.draft` | Drafts | chip | — | «Чернетки» (MOCK:28) |
-| `animalList.filter.published` | Published | chip | — | «Опубліковано» (MOCK:28) |
-| `animalList.filter.reserved` | Arranging | chip | — | «Домовляються» (MOCK:28) |
-| `animalList.filter.adopted` | Home | chip | — | «Удома» (MOCK:28) |
-| `animalList.filter.withdrawn` | Withdrawn from display | chip | — | «Знято» (MOCK:28). ⚠ His chip label is «Знято з показу» (K3UK §2): one wording for the state (Q7) |
+| `animalList.filter.label` | Show | the chip group's accessible name | - | no draft |
+| `animalList.filter.all` | All | chip | - | «Усі» (MOCK:28) |
+| `animalList.filter.draft` | Drafts | chip | - | «Чернетки» (MOCK:28) |
+| `animalList.filter.published` | Published | chip | - | «Опубліковано» (MOCK:28) |
+| `animalList.filter.reserved` | Arranging | chip | - | «Домовляються» (MOCK:28) |
+| `animalList.filter.adopted` | Home | chip | - | «Удома» (MOCK:28) |
+| `animalList.filter.withdrawn` | Withdrawn from display | chip | - | «Знято» (MOCK:28). ⚠ His chip label is «Знято з показу» (K3UK §2): one wording for the state (Q7) |
 | `animalList.filter.withCount` | {label} · {count} | each chip | `{label}`, `{count}` from `counts` (inventory, not engagement) | «Усі · 14», «Чернетки · 2» (MOCK:28) |
 
 ## 4. The row
@@ -152,12 +152,12 @@ the parts are §1's labels). A draft's missing size or age goes in the gap line,
 
 | Key | English sense | Where / state | Vars | Mock draft |
 |---|---|---|---|---|
-| `animalList.row.draftStatus` | Not published | draft row, first line of the freshness cell | — | «Ще не опубліковано» (MOCK:28, KAB:149). ⚠ **False for a draft restored after a withdrawal** (it was published before; `first_published_at` is set). Q9 |
-| (reused) | To publish, this still needs: {list}. | draft row with gaps, second line | — | `animalForm.publish.missing`. The mock's «бракує фото» (MOCK:28-29) predates K-Q5 and names the photo only |
+| `animalList.row.draftStatus` | Not published | draft row, first line of the freshness cell | - | «Ще не опубліковано» (MOCK:28, KAB:149). ⚠ **False for a draft restored after a withdrawal** (it was published before; `first_published_at` is set). Q9 |
+| (reused) | To publish, this still needs: {list}. | draft row with gaps, second line | - | `animalForm.publish.missing`. The mock's «бракує фото» (MOCK:28-29) predates K-Q5 and names the photo only |
 | `animalList.row.adoptedSince` | Home since {date} | adopted row | `{date}` `adoptedAt`, `Intl` day and month (the year added when it isn't the current one) | «Удома з 12 вересня» (MOCK:28, KAB:152) |
 | `animalList.row.withdrawnOn` | Withdrawn on {date} · {reason} | withdrawn row | `{date}` `withdrawnAt`; `{reason}` the code's label (§6), then the shelter's note in «…» when there is one | «Знято 2 жовтня · «переїхав в інший притулок»» (MOCK:28, KAB:153): the mock shows a sample note only; its «переїхав» is the shelter's own words |
-| `animalList.row.more` | More | «Ще ▾» menu button (the ▾ is a glyph, hidden from screen readers) | — | «Ще ▾» (MOCK:28-29) |
-| `animalList.actions.edit` | Edit | menu, every state (opens K3) | — | no draft |
+| `animalList.row.more` | More | «Ще ▾» menu button (the ▾ is a glyph, hidden from screen readers) | - | «Ще ▾» (MOCK:28-29) |
+| `animalList.actions.edit` | Edit | menu, every state (opens K3) | - | no draft |
 
 Published and reserved rows show the pips and `freshnessLabel` (§1). Which actions a row offers:
 
@@ -173,13 +173,13 @@ Published and reserved rows show the pips and `freshnessLabel` (§1). Which acti
 
 | Key | English sense | Where / state | Vars | Mock draft |
 |---|---|---|---|---|
-| `animalList.confirm.stillLooking` | Still looking: confirms this animal is still looking for a home; the card's date becomes today. One animal per tap; there is no "confirm all" (commitment #7, KAB:157-161) | published row, under the freshness marker | — | «✓ Ще шукає» (MOCK:28, KAB:150). The ✓ is a glyph, hidden from screen readers (P4) |
-| `animalList.confirm.stillArranging` | Still arranging: confirms the arrangement still stands; the card's date becomes today | reserved row | — | «✓ Ще домовляються» (MOCK:28, KAB:151) |
-| `animalList.confirm.done` | Confirmed today | the cell for 8 s after a confirm | — | «✓ Підтверджено сьогодні» (MOCK:28, KAB:158). Its word vs the public «Оновлено» follows K-Q14 |
+| `animalList.confirm.stillLooking` | Still looking: confirms this animal is still looking for a home; the card's date becomes today. One animal per tap; there is no "confirm all" (commitment #7, KAB:157-161) | published row, under the freshness marker | - | «✓ Ще шукає» (MOCK:28, KAB:150). The ✓ is a glyph, hidden from screen readers (P4) |
+| `animalList.confirm.stillArranging` | Still arranging: confirms the arrangement still stands; the card's date becomes today | reserved row | - | «✓ Ще домовляються» (MOCK:28, KAB:151) |
+| `animalList.confirm.done` | Confirmed today | the cell for 8 s after a confirm | - | «✓ Підтверджено сьогодні» (MOCK:28, KAB:158). Its word vs the public «Оновлено» follows K-Q14 |
 | `animalList.confirm.undo` | Undo · {seconds} s | button beside `confirm.done`, counting down from 8. The server accepts it up to 13 s (`UNDO_WINDOW_MS`), so a tap at the last second still lands | `{seconds}` | «Скасувати · 8 с» (MOCK:28, KAB:158) |
-| `animalList.confirm.undone` | Undone: the card's date is back to what it was | live region after a successful undo (the exact previous date, H2-16) | — | no draft |
-| `animalList.confirm.undoExpired` | Too late to undo: the card changed after this confirmation, or the time ran out. Its date stays today | `UNDO_EXPIRED`. Reached past the 13 s window, or after a newer write to the listing; **since RH-B7, a photo change on this card in K3 during the 8 s is one** (§0). In every case the date is today: the confirm or the photo change set it. Says nothing about who changed it | — | no draft |
-| `animalList.confirm.failed` | Not confirmed: the card's date hasn't changed. Check the connection and try again | after a failed confirm. When no answer arrived at all, K2 re-reads the row first (K4-T16's pattern) and shows this only if the date really didn't move | — | no draft |
+| `animalList.confirm.undone` | Undone: the card's date is back to what it was | live region after a successful undo (the exact previous date, H2-16) | - | no draft |
+| `animalList.confirm.undoExpired` | Too late to undo: the card changed after this confirmation, or the time ran out. Its date stays today | `UNDO_EXPIRED`. Reached past the 13 s window, or after a newer write to the listing; **since RH-B7, a photo change on this card in K3 during the 8 s is one** (§0). In every case the date is today: the confirm or the photo change set it. Says nothing about who changed it | - | no draft |
+| `animalList.confirm.failed` | Not confirmed: the card's date hasn't changed. Check the connection and try again | after a failed confirm. When no answer arrived at all, K2 re-reads the row first (K4-T16's pattern) and shows this only if the date really didn't move | - | no draft |
 
 An undo refused with `ILLEGAL_TRANSITION` (the card was withdrawn or adopted meanwhile) uses
 `publish.stateChanged`.
@@ -191,22 +191,22 @@ Reserve, release, restore and publish act on one tap.
 
 | Key | English sense | Where / state | Vars | Mock draft |
 |---|---|---|---|---|
-| `animalList.actions.reserve` | Mark as arranging: the card stays visible (the gallery card carries «Уже домовляються», uk:438; `AnimalCard.tsx:195`), and its date and waiting time don't change | published row, forward action | — | «Домовляються» (MOCK:28, KAB:150). ⚠ The chip's status word used as a button (Q7) |
-| `animalList.actions.release` | The arrangement fell through: show as looking again. Keeps the date and the waiting time | reserved row, menu | — | no draft. **The mock has no control for it**; without one a fallen-through reservation could only be withdrawn and restored, which restarts the waiting time (P9) |
-| `animalList.actions.adopt` | Home | reserved row (forward), published row (menu) | — | «Уже вдома» (MOCK:28, KAB:151) |
+| `animalList.actions.reserve` | Mark as arranging: the card stays visible (the gallery card carries «Уже домовляються», uk:438; `AnimalCard.tsx:195`), and its date and waiting time don't change | published row, forward action | - | «Домовляються» (MOCK:28, KAB:150). ⚠ The chip's status word used as a button (Q7) |
+| `animalList.actions.release` | The arrangement fell through: show as looking again. Keeps the date and the waiting time | reserved row, menu | - | no draft. **The mock has no control for it**; without one a fallen-through reservation could only be withdrawn and restored, which restarts the waiting time (P9) |
+| `animalList.actions.adopt` | Home | reserved row (forward), published row (menu) | - | «Уже вдома» (MOCK:28, KAB:151) |
 | `animalList.adoptDialog.title` | «{name}» is home? | N15 dialog, no reason field (`adopt` takes none) | `{name}` | no draft (template «Відхилити «Ірпінь-Хвіст»?», MOCK:33) |
 | `animalList.adoptDialog.body` | The card leaves the gallery and the deck, and its page then says it is gone. It stays in your list as «Удома». This can't be undone: if the animal comes back, add it as a new card | dialog body. True: adopted is terminal (H2-7); public reads refuse a non-visible listing; the page answers `detail.notFound` (uk:311, itself «реєстр» hit #18 in `origin/docs/r-ui-scope:docs/copy-reyestr-hits.md`). A deck already loaded on someone's screen keeps the card until it reloads, but its reveal is refused | `{name}` | no draft. Q8 |
-| `animalList.adoptDialog.confirm` | Yes, home | dialog primary (black) | — | no draft |
-| `animalList.actions.withdraw` | Withdraw from display | published or reserved row, menu | — | no draft. Nearest wording: his F-B4 «зняти з показу» and his chip «Знято з показу» |
+| `animalList.adoptDialog.confirm` | Yes, home | dialog primary (black) | - | no draft |
+| `animalList.actions.withdraw` | Withdraw from display | published or reserved row, menu | - | no draft. Nearest wording: his F-B4 «зняти з показу» and his chip «Знято з показу» |
 | `animalList.withdrawDialog.title` | Withdraw «{name}» from display? | N15 dialog | `{name}` | no draft |
-| `animalList.withdrawDialog.body` | People looking won't see the card any more, and its page says it is gone. It stays in your list, and you can move it back to drafts; publishing it again starts its waiting time and its date from that day | dialog body (`listing-transition.ts:134-135, 198-199`) | — | no draft (S3's «Притулок побачить цю причину дослівно…», MOCK:33, is the operator's dialog) |
-| `animalList.withdrawDialog.confirm` | Withdraw | dialog primary (black) | — | no draft |
-| `animalList.withdrawReason.adopted_elsewhere` | found a home another way | select option; also the row's `{reason}` | — | no draft (`docs/h2-copy-sheet.md` D lists all five with no Ukrainian; F-B4, verbatim: "Withdrawal reason labels come with the K2 sheet."). Q10 |
-| `animalList.withdrawReason.transferred` | moved to another shelter | same | — | no draft |
-| `animalList.withdrawReason.deceased` | died | same | — | no draft. Tone: Q10 |
-| `animalList.withdrawReason.listing_error` | listed by mistake | same | — | no draft |
-| `animalList.withdrawReason.other` | other | same | — | no draft |
-| `animalList.actions.restore` | Back to drafts | withdrawn row, forward action | — | «Повернути в чернетки» (MOCK:28, KAB:153) |
+| `animalList.withdrawDialog.body` | People looking won't see the card any more, and its page says it is gone. It stays in your list, and you can move it back to drafts; publishing it again starts its waiting time and its date from that day | dialog body (`listing-transition.ts:134-135, 198-199`) | - | no draft (S3's «Притулок побачить цю причину дослівно…», MOCK:33, is the operator's dialog) |
+| `animalList.withdrawDialog.confirm` | Withdraw | dialog primary (black) | - | no draft |
+| `animalList.withdrawReason.adopted_elsewhere` | found a home another way | select option; also the row's `{reason}` | - | no draft (`docs/h2-copy-sheet.md` D lists all five with no Ukrainian; F-B4, verbatim: "Withdrawal reason labels come with the K2 sheet."). Q10 |
+| `animalList.withdrawReason.transferred` | moved to another shelter | same | - | no draft |
+| `animalList.withdrawReason.deceased` | died | same | - | no draft. Tone: Q10 |
+| `animalList.withdrawReason.listing_error` | listed by mistake | same | - | no draft |
+| `animalList.withdrawReason.other` | other | same | - | no draft |
+| `animalList.actions.restore` | Back to drafts | withdrawn row, forward action | - | «Повернути в чернетки» (MOCK:28, KAB:153) |
 | `animalList.moved.reserved` / `.released` / `.adopted` / `.withdrawn` / `.restored` / `.published` | «{name}»: arranging / looking again / home / withdrawn / back in drafts / published | polite live region after each move (`.published` is `animalForm.publish.done` where that is true, Q5) | `{name}` | no draft |
 
 No reason chosen in the withdraw dialog: the select is marked invalid and focused, with no message
@@ -216,38 +216,38 @@ No reason chosen in the withdraw dialog: the select is marked invalid and focuse
 
 | Key | English sense | Where / state | Vars | Mock draft |
 |---|---|---|---|---|
-| `animalList.actions.deleteDraft` | Delete draft | draft row, menu (P8: only where it can work) | — | no draft. Nearest wording: his R-UI history line «Видалено чернетку: {name}» (RUI:125) |
+| `animalList.actions.deleteDraft` | Delete draft | draft row, menu (P8: only where it can work) | - | no draft. Nearest wording: his R-UI history line «Видалено чернетку: {name}» (RUI:125) |
 | `animalList.deleteDialog.title` | Delete the draft «{name}»? | N15 dialog, no reason field | `{name}` | no draft |
-| `animalList.deleteDialog.body` | It disappears from your list for good | dialog body | — | no draft |
-| `animalList.deleteDialog.photosStay` *(Q8)* | Its photo files aren't deleted at once; write to me if they must go | dialog body, only when the draft has photos. True: nothing deletes R2 objects (P-Q14), and a draft's photos are public files at unguessable addresses (F-B2) | — | no draft. Precedent, his K3 text: «Фото зникло з картки. Сам файл не видаляється одразу — якщо його треба прибрати зовсім, напишіть мені.» (K3UK §7, `photos.removedStillReachable`) |
-| `animalList.deleteDialog.confirm` | Delete | dialog primary (black) | — | no draft |
+| `animalList.deleteDialog.body` | It disappears from your list for good | dialog body | - | no draft |
+| `animalList.deleteDialog.photosStay` *(Q8)* | Its photo files aren't deleted at once; write to me if they must go | dialog body, only when the draft has photos. True: nothing deletes R2 objects (P-Q14), and a draft's photos are public files at unguessable addresses (F-B2) | - | no draft. Precedent, his K3 text: «Фото зникло з картки. Сам файл не видаляється одразу — якщо його треба прибрати зовсім, напишіть мені.» (K3UK §7, `photos.removedStillReachable`) |
+| `animalList.deleteDialog.confirm` | Delete | dialog primary (black) | - | no draft |
 | `animalList.deleted` | Draft «{name}» deleted | polite live region | `{name}` | no draft |
-| `kabinet.deleteDraft.refused.wasPublished` (E3's key, `docs/h2-copy-sheet.md:212-228`) | This card has been published before, so it can't be deleted. It stays in your list as a draft, and people looking don't see it | `WAS_PUBLISHED`, the one answer for both causes. **Nothing in it may vary with whether anyone swiped or asked about the animal** (commitment #2's watch item, `docs/standing-constraints.md:354`) | — | His direction (F-B4, verbatim): "E3 direction per K-Q9: «Цю картку вже публікували, тож видалити її не можна — лише зняти з показу.»" ⚠ **F-T2, open:** the refusal only ever reaches a draft, and a draft can't be withdrawn (`draft → withdrawn` closed) and is already not shown. «лише зняти з показу» offers a move that doesn't exist there. Q2 |
+| `kabinet.deleteDraft.refused.wasPublished` (E3's key, `docs/h2-copy-sheet.md:212-228`) | This card has been published before, so it can't be deleted. It stays in your list as a draft, and people looking don't see it | `WAS_PUBLISHED`, the one answer for both causes. **Nothing in it may vary with whether anyone swiped or asked about the animal** (commitment #2's watch item, `docs/standing-constraints.md:354`) | - | His direction (F-B4, verbatim): "E3 direction per K-Q9: «Цю картку вже публікували, тож видалити її не можна — лише зняти з показу.»" ⚠ **F-T2, open:** the refusal only ever reaches a draft, and a draft can't be withdrawn (`draft → withdrawn` closed) and is already not shown. «лише зняти з показу» offers a move that doesn't exist there. Q2 |
 
 ## 8. The stale strip (N5, KAB:163-166)
 
 | Key | English sense | Where / state | Vars | Mock draft |
 |---|---|---|---|---|
 | `animalList.stale.count` | {count} cards haven't been confirmed for more than 30 days | strip heading, only when `staleCount` > 0 | `{count}`, with three noun forms (`pluralizeUk`). The «30» is typed: pin it to `DEFAULT_FRESHNESS_POLICY.agingMaxDays` as `copy-plural-pins.test.ts` pins the TTLs | «3 картки ви не підтверджували понад 30 днів.» (MOCK:28-29). True: stale means a confirmation older than 30 whole days. With RH-B7 a photo change counts as one |
-| `animalList.stale.caption` | People looking see an old date on them. If nothing has changed, a tap on «Ще шукає» or «Ще домовляються» is enough | strip caption | — | «Адоптери бачать на них «оновлено 41 день тому». Якщо нічого не змінилось — достатньо «Ще шукає».» (MOCK:28-29). ⚠ «Адоптери»; one day count for several cards, each with its own; «оновлено» follows K-Q14; reserved cards count too, and theirs is «Ще домовляються»; "people see" is false while the shelter isn't visible (§9). Q4 |
+| `animalList.stale.caption` | People looking see an old date on them. If nothing has changed, a tap on «Ще шукає» or «Ще домовляються» is enough | strip caption | - | «Адоптери бачать на них «оновлено 41 день тому». Якщо нічого не змінилось - достатньо «Ще шукає».» (MOCK:28-29). ⚠ «Адоптери»; one day count for several cards, each with its own; «оновлено» follows K-Q14; reserved cards count too, and theirs is «Ще домовляються»; "people see" is false while the shelter isn't visible (§9). Q4 |
 | `animalList.stale.show` | Show these {count} | strip button: filters the list to the stale cards (P7) | `{count}` | «Показати ці 3» (MOCK:28-29) |
-| `animalList.stale.showAll` | Show all | leaves that filter | — | no draft |
+| `animalList.stale.showAll` | Show all | leaves that filter | - | no draft |
 
 ## 9. When nobody can see the cards (N18 and the other states)
 
 | Key | English sense | Where / state | Vars | Mock draft |
 |---|---|---|---|---|
-| (reused) | Intake paused since {date} · {reason} | N18 banner, paused only, above everything | — | `profileEdit.pause.pausedLine`. The mock's «Прийом тварин на паузі · {причина}» (KAB:136) is superseded by his K4 line (P2) |
-| `animalList.paused.hidden` | While intake is paused, people looking don't see your animals | banner, second line: says why (KAB:138-139, "never be left wondering why") | — | His own sentence, the first of `profileEdit.pause.dialogBody` (uk:1100-1101): «Поки прийом на паузі, ваших тварин не бачать ті, хто шукає.» Reused as a key of its own if he agrees (Q5) |
-| (reused) | Resume taking animals | banner button; no dialog (KAB:242-247) | — | `profileEdit.pause.resumeButton`. Mock: «Відновити» (KAB:136) |
-| `animalList.notVisible.pending` | Your animals appear to people looking once verification is finished | banner, pending or under review | — | no draft. KABINET designs no such state for K2. His R-UI `rejectedEffect` («Тварин притулку не буде в галереї, доки перевірку не пройдено.») reads true here too (Q5) |
-| (reused) | — | suspended / rejected | — | R-UI's `suspendedEffect` / `rejectedEffect` (§1), if R-UI 3 has merged |
+| (reused) | Intake paused since {date} · {reason} | N18 banner, paused only, above everything | - | `profileEdit.pause.pausedLine`. The mock's «Прийом тварин на паузі · {причина}» (KAB:136) is superseded by his K4 line (P2) |
+| `animalList.paused.hidden` | While intake is paused, people looking don't see your animals | banner, second line: says why (KAB:138-139, "never be left wondering why") | - | His own sentence, the first of `profileEdit.pause.dialogBody` (uk:1100-1101): «Поки прийом на паузі, ваших тварин не бачать ті, хто шукає.» Reused as a key of its own if he agrees (Q5) |
+| (reused) | Resume taking animals | banner button; no dialog (KAB:242-247) | - | `profileEdit.pause.resumeButton`. Mock: «Відновити» (KAB:136) |
+| `animalList.notVisible.pending` | Your animals appear to people looking once verification is finished | banner, pending or under review | - | no draft. KABINET designs no such state for K2. His R-UI `rejectedEffect` («Тварин притулку не буде в галереї, доки перевірку не пройдено.») reads true here too (Q5) |
+| (reused) | - | suspended / rejected | - | R-UI's `suspendedEffect` / `rejectedEffect` (§1), if R-UI 3 has merged |
 
 ## 10. The ordering sentence (KAB:55-56, commitment #1)
 
 | Key | English sense | Where / state | Vars | Mock draft |
 |---|---|---|---|---|
-| `animalList.orderNote` | Order in the public gallery is by date (most recently confirmed first, or longest waiting first, as the person chooses); card completeness affects only the order in the deck. Nothing here changes it, and there is no promotion | under the list | — | KAB:56: «Порядок у публічній галереї — дата й повнота картки. Тут його не можна змінити, і просування немає.» ⚠ False: the gallery orders by date only (`gallery-repo.ts` doesn't call `scoreAnimal`). His rewrite (F-B3, verbatim): "F3: K2 rewrite = «Порядок у галереї — за датою оновлення. Повнота картки впливає лише на порядок у стрічці.»" ⚠ **F-T1, open:** there are two date sorts (`freshest` by `last_confirmed_at`, `longest_waiting` by `wait_anchor_at`), and «оновлення» is K-Q14's open word. Q3 |
+| `animalList.orderNote` | Order in the public gallery is by date (most recently confirmed first, or longest waiting first, as the person chooses); card completeness affects only the order in the deck. Nothing here changes it, and there is no promotion | under the list | - | KAB:56: «Порядок у публічній галереї — дата й повнота картки. Тут його не можна змінити, і просування немає.» ⚠ False: the gallery orders by date only (`gallery-repo.ts` doesn't call `scoreAnimal`). His rewrite (F-B3, verbatim): "F3: K2 rewrite = «Порядок у галереї — за датою оновлення. Повнота картки впливає лише на порядок у стрічці.»" ⚠ **F-T1, open:** there are two date sorts (`freshest` by `last_confirmed_at`, `longest_waiting` by `wait_anchor_at`), and «оновлення» is K-Q14's open word. Q3 |
 
 K2's own order (most recently edited, HS-T8) is not the gallery's; nothing here describes it.
 
@@ -255,14 +255,14 @@ K2's own order (most recently edited, HS-T8) is not the gallery's; nothing here 
 
 | Key | English sense | Where / state | Vars | Mock draft |
 |---|---|---|---|---|
-| `animalList.empty.title` | No animals here yet | empty card | — | «Тут поки немає тварин.» (MOCK:29, KAB:172) |
-| `animalList.empty.body` | Add the first one. People looking don't see it until you publish it | empty card | — | «Додайте першу — вона з'явиться в галереї, щойно ви натиснете «Опублікувати». До того її бачите лише ви.» (MOCK:29). ⚠ «вона», «її»: pronouns (his answer 2); «бачите лише ви» false (F-B2: other admins and the operator's support view see drafts, and a draft's photos are public files at unguessable addresses); "appears as soon as you press" true only while the shelter is verified (Q5) |
-| `animalList.empty.add` | Add the first animal | empty primary, opens K3 | — | «Додати першу тварину» (MOCK:29, KAB:173) |
-| `animalList.empty.caption` | A name and a species are enough to save a draft; the rest can be added later | empty caption | — | «Від вашої картки нічого не вимагаємо одразу: назва й фото достатні для чернетки, решту можна дописати пізніше.» (MOCK:29, KAB:173). ⚠ «вимагаємо»: «ми» voice; **false**: K-Q5 makes a draft from a name and a species, with no photo; «назва» where K3 says «Імʼя». His true sentence for the fact: «Щоб зберегти чернетку, потрібні імʼя та вид.» (K3UK §9, `draft.notSavedYet`) |
-| `animalList.loading` | Loading | the `aria-busy` region's name (skeleton rows, no shimmer, KAB:174) | — | «Завантаження» (MOCK:29) |
-| `animalList.loadMore` | Show more | after the last row while `nextCursor` is set (keyset) | — | no draft |
-| `animalList.filterEmpty` | No cards in this group | a filter with no rows | — | no draft |
-| `animalList.loadFailed` | The list didn't load. Check the connection and try again | read failure, with `profileEdit.state.retry` | — | no draft (K3's `errors.loadFailed` speaks of one card) |
+| `animalList.empty.title` | No animals here yet | empty card | - | «Тут поки немає тварин.» (MOCK:29, KAB:172) |
+| `animalList.empty.body` | Add the first one. People looking don't see it until you publish it | empty card | - | «Додайте першу — вона з'явиться в галереї, щойно ви натиснете «Опублікувати». До того її бачите лише ви.» (MOCK:29). ⚠ «вона», «її»: pronouns (his answer 2); «бачите лише ви» false (F-B2: other admins and the operator's support view see drafts, and a draft's photos are public files at unguessable addresses); "appears as soon as you press" true only while the shelter is verified (Q5) |
+| `animalList.empty.add` | Add the first animal | empty primary, opens K3 | - | «Додати першу тварину» (MOCK:29, KAB:173) |
+| `animalList.empty.caption` | A name and a species are enough to save a draft; the rest can be added later | empty caption | - | «Від вашої картки нічого не вимагаємо одразу: назва й фото достатні для чернетки, решту можна дописати пізніше.» (MOCK:29, KAB:173). ⚠ «вимагаємо»: «ми» voice; **false**: K-Q5 makes a draft from a name and a species, with no photo; «назва» where K3 says «Імʼя». His true sentence for the fact: «Щоб зберегти чернетку, потрібні імʼя та вид.» (K3UK §9, `draft.notSavedYet`) |
+| `animalList.loading` | Loading | the `aria-busy` region's name (skeleton rows, no shimmer, KAB:174) | - | «Завантаження» (MOCK:29) |
+| `animalList.loadMore` | Show more | after the last row while `nextCursor` is set (keyset) | - | no draft |
+| `animalList.filterEmpty` | No cards in this group | a filter with no rows | - | no draft |
+| `animalList.loadFailed` | The list didn't load. Check the connection and try again | read failure, with `profileEdit.state.retry` | - | no draft (K3's `errors.loadFailed` speaks of one card) |
 
 `INVALID_CURSOR` reloads from the top with no message.
 
@@ -270,8 +270,8 @@ K2's own order (most recently edited, HS-T8) is not the gallery's; nothing here 
 
 | Key | English sense | What triggers it | Vars | Mock draft |
 |---|---|---|---|---|
-| `animalList.errors.rateLimited` | Too many actions in a short time. Wait a moment and try again | the route's plain HTTP 429 (100 a minute per user) | — | no draft |
-| `animalList.errors.actionFailed` | That didn't go through. Check the connection and try again | network failure or 5xx on a move or delete. After a lost answer K2 re-reads the row (K4-T16) and reports what is actually stored | — | no draft |
+| `animalList.errors.rateLimited` | Too many actions in a short time. Wait a moment and try again | the route's plain HTTP 429 (100 a minute per user) | - | no draft |
+| `animalList.errors.actionFailed` | That didn't go through. Check the connection and try again | network failure or 5xx on a move or delete. After a lost answer K2 re-reads the row (K4-T16) and reports what is actually stored | - | no draft |
 | (reused) | | `ILLEGAL_TRANSITION`, `NOT_FOUND`/`FORBIDDEN`, `SHELTER_WRITES_NOT_YET_AVAILABLE`, `PUBLISH_REQUIREMENTS_UNMET` | | §1 |
 
 ---

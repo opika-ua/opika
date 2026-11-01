@@ -21,21 +21,21 @@ import { TEST_DATABASE_URL } from "../src/test-utils/setup";
  *
  * The deck's WHERE clause was factored out into `buildFeedPredicate` so the
  * gallery could share it. The deck's own tests would not have caught a
- * subtly *narrower* predicate coming back — they assert on the rows a small
+ * subtly *narrower* predicate coming back - they assert on the rows a small
  * fixture corpus returns, and a dropped or reordered condition can leave those
  * rows unchanged. So the thing that has to hold is the SQL itself, and the only
  * way to assert it against the shape that existed before the refactor is to
  * have recorded that shape first.
  *
  * The snapshot in `__snapshots__/` was committed from the pre-extraction
- * `feedRepo.list` — see the commit that introduced this file, which lands
+ * `feedRepo.list` - see the commit that introduced this file, which lands
  * before the one that extracts the helper. Regenerating it is therefore never
  * the right response to a failure here: either the change to `feed.list` was
  * intended, in which case say so in the commit, or the shared predicate has
  * drifted, which is exactly what this exists to report.
  *
  * Parameters are snapshotted alongside the text because a condition can be
- * dropped without the query text changing shape — `IN ($1)` versus `IN ($1,$2)`
+ * dropped without the query text changing shape - `IN ($1)` versus `IN ($1,$2)`
  * looks similar and is not.
  */
 
@@ -85,7 +85,7 @@ async function sqlFor(opts: {
   });
 
   const statement = captured.at(-1);
-  if (!statement) throw new Error("no SQL captured — the debug hook is not wired");
+  if (!statement) throw new Error("no SQL captured - the debug hook is not wired");
   return {
     // Whitespace is an artefact of how the conditions are assembled, not of
     // what they mean; collapsing it keeps the snapshot about the predicate.
@@ -95,10 +95,14 @@ async function sqlFor(opts: {
 }
 
 const ALL_FILTERS: FeedFilters = {
+  regions: { kind: "any" },
   cities: { kind: "oneOf", values: [CITY_A, CITY_B] },
   species: { kind: "oneOf", values: ["dog"] as [AnimalSpecies] },
   sizes: { kind: "oneOf", values: ["small", "medium"] as [SizeBucket, SizeBucket] },
   ages: { kind: "oneOf", values: ["baby", "young"] as [AgeBucket, AgeBucket] },
+  // "Every dimension" means every dimension that existed when these snapshots
+  // were recorded; sex has a case of its own below.
+  sexes: { kind: "any" },
 };
 
 describe("feed.list generated SQL is unchanged by the shared-predicate extraction", () => {
@@ -132,7 +136,7 @@ describe("feed.list generated SQL is unchanged by the shared-predicate extractio
 
   it("a single age bucket, which takes the un-OR'd branch", async () => {
     // `ageAnchorRange` collapses to one condition for a single bucket and to an
-    // OR over several otherwise — two code paths, both worth pinning.
+    // OR over several otherwise - two code paths, both worth pinning.
     expect(
       await sqlFor({
         filters: { ...NO_FILTERS, ages: { kind: "oneOf", values: ["senior"] as [AgeBucket] } },
@@ -146,6 +150,18 @@ describe("feed.list generated SQL is unchanged by the shared-predicate extractio
     expect(
       await sqlFor({
         filters: { ...NO_FILTERS, ages: { kind: "oneOf", values: ["baby"] as [AgeBucket] } },
+        cursor: null,
+        adopterId: null,
+      }),
+    ).toMatchSnapshot();
+  });
+
+  // A plain IN like species/size: `sex` is NOT NULL, so there is no
+  // "unrecorded" case to call out.
+  it("a sex filter: one IN over sex", async () => {
+    expect(
+      await sqlFor({
+        filters: { ...NO_FILTERS, sexes: { kind: "oneOf", values: ["male"] } },
         cursor: null,
         adopterId: null,
       }),

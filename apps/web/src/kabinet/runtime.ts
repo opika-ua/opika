@@ -1,8 +1,8 @@
 import { after } from "next/server";
-import { getDb } from "../api/db";
 import { createKabinetAuth, type KabinetAuth } from "./auth";
 import { kabinetAuthAvailability } from "./auth-route";
-import { kabinetLimiters } from "./limiters";
+import { kabinetDb } from "./kabinet-db";
+import { kabinetLimiters, passwordLimiters } from "./limiters";
 import { kabinetSessionUserIdOf } from "./principal";
 
 /**
@@ -18,13 +18,15 @@ export function kabinetAuth(): KabinetAuth {
   const availability = kabinetAuthAvailability(process.env);
   if (availability.kind === "unavailable") throw new Error(availability.reason);
   cachedAuth ??= createKabinetAuth({
-    db: getDb(),
+    db: kabinetDb(),
     sender: availability.sender,
     schedule: (work) => after(work),
     baseURL: availability.baseURL,
     secret: availability.secret,
     secureCookies: availability.baseURL.startsWith("https://"),
     limiters: kabinetLimiters,
+    passwordLimiters,
+    passwordMail: availability.passwordMail,
   });
   return cachedAuth;
 }
@@ -36,5 +38,5 @@ export function kabinetAuth(): KabinetAuth {
  */
 export async function kabinetPageUserId(headers: Headers, now: Date): Promise<string | null> {
   if (kabinetAuthAvailability(process.env).kind === "unavailable") return null;
-  return kabinetSessionUserIdOf(kabinetAuth(), headers, now);
+  return kabinetSessionUserIdOf(kabinetAuth(), kabinetDb(), headers, now);
 }

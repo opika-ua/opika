@@ -9,7 +9,7 @@ import { releaseVelocity, useSwipeGesture } from "./use-swipe-gesture";
  * Tests for the two gesture defects a code review dismissed as "theoretically
  * possible but practically unlikely". Both were real, both are pinned here.
  *
- * happy-dom does no layout, which is fine — neither of these is about
+ * happy-dom does no layout, which is fine - neither of these is about
  * geometry. One is about listener bookkeeping, the other about a timer.
  */
 
@@ -59,7 +59,7 @@ function stubReducedMotion(): void {
  * Count pointer-listener registrations on a node from this moment on.
  *
  * Wraps the two DOM methods rather than using `vi.spyOn`, because the real
- * implementations must keep running — the point is to observe the churn, not
+ * implementations must keep running - the point is to observe the churn, not
  * to prevent the gesture from working.
  */
 function countPointerListenerChurn(node: HTMLElement): { added: number; removed: number } {
@@ -87,7 +87,7 @@ describe("swipe gesture listener stability", () => {
    * re-renders on every pointermove, and the callbacks object it passed to the
    * hook was a fresh literal each time. That changed the ref callback's
    * identity ~60 times a second, so React detached and re-attached all four
-   * pointer listeners on every frame — during the one interaction where the
+   * pointer listeners on every frame - during the one interaction where the
    * element must not be disturbed.
    *
    * Using the real deck also catches the other way this regresses: someone
@@ -132,7 +132,7 @@ describe("swipe gesture listener stability", () => {
 });
 
 /**
- * A minimal card wired straight to the hook. `ref={cardRef}` with no wrapper —
+ * A minimal card wired straight to the hook. `ref={cardRef}` with no wrapper -
  * an inline arrow here would churn on its own and mask what is being tested.
  */
 function GestureHarness(props: {
@@ -183,7 +183,7 @@ describe("swipe gesture commit path", () => {
    * Lost fix 5. The commit used to hang entirely off `transitionend`. That
    * event is not guaranteed: a backgrounded tab, an interrupted transition, a
    * dropped frame, and it never arrives. The card then sat off screen with the
-   * deck never advancing — a permanently wedged feed, recoverable only by
+   * deck never advancing - a permanently wedged feed, recoverable only by
    * reloading the page.
    */
   it("commits even when transitionend never fires", () => {
@@ -218,8 +218,8 @@ describe("swipe gesture commit path", () => {
 
   /**
    * G4 (`docs/handoff-2026-10-04.md` §3 block 6): the exit is a real design
-   * value on a fixed timeline — `docs/design/README.md`'s "Exit 280ms" via
-   * `cubic-bezier(0.3, 0, 0, 1)` — a timeline, unlike the return to centre,
+   * value on a fixed timeline - `docs/design/README.md`'s "Exit 280ms" via
+   * `cubic-bezier(0.3, 0, 0, 1)` - a timeline, unlike the return to centre,
    * which is the deck's spring (below). Pins the 300ms→280ms frame
    * correction; an edit that put the spring on this path, or any other
    * duration or curve, must fail here.
@@ -234,7 +234,7 @@ describe("swipe gesture commit path", () => {
 
   /**
    * The committed-exit path under reduced motion is the one reduced-motion
-   * case where the easing is actually visible — opacity genuinely animates
+   * case where the easing is actually visible - opacity genuinely animates
    * 1 -> 0, unlike the snap-back case's instant one-frame reset. Catches a
    * real gap: the earlier version of this change pinned the invisible
    * snap-back string but not this one.
@@ -255,12 +255,12 @@ describe("swipe gesture commit path", () => {
   });
 
   /**
-   * G4 part 2: the return is the deck's spring, driven frame by frame — not a
+   * G4 part 2: the return is the deck's spring, driven frame by frame - not a
    * CSS transition with a duration and a curve, which is what this path was
    * until now (`transform 300ms cubic-bezier(0.16, 1, 0.3, 1)`). Asserted on
    * the rendered transform mid-flight: a jump to centre, or a transition left
-   * doing the work, both fail here. The spring's own physics — no overshoot,
-   * release velocity, settling — is pinned in `spring.test.ts`.
+   * doing the work, both fail here. The spring's own physics - no overshoot,
+   * release velocity, settling - is pinned in `spring.test.ts`.
    */
   it("returns to centre on the spring, frame by frame, not on a CSS transition", () => {
     const onSnapBack = vi.fn();
@@ -275,7 +275,7 @@ describe("swipe gesture commit path", () => {
     });
     const midFlight = translateX(card);
     expect(midFlight, "100ms in, the card must be on its way back").toBeLessThan(60);
-    expect(midFlight, "…and not already at centre — that would be a jump").toBeGreaterThan(5);
+    expect(midFlight, "…and not already at centre - that would be a jump").toBeGreaterThan(5);
     expect(onSnapBack, "onSnapBack waits for the spring to arrive").not.toHaveBeenCalled();
 
     act(() => {
@@ -317,8 +317,8 @@ describe("swipe gesture commit path", () => {
   /**
    * The other half of the re-grab rule, and the one that costs the user
    * something. A spring-back is a suggestion and may be dropped; a commit is a
-   * decision already made. Cancelling it loses the swipe with no trace — the
-   * deck never advances and the card sits off screen — and `transitionend`
+   * decision already made. Cancelling it loses the swipe with no trace - the
+   * deck never advances and the card sits off screen - and `transitionend`
    * cannot rescue it either, because starting a new drag writes
    * `transition: none`, which is precisely the interrupted-transition case the
    * fallback timer exists for.
@@ -395,7 +395,7 @@ describe("swipe gesture commit path", () => {
 
   /**
    * Grabbing the card again while a spring-back is still settling must drop
-   * the pending callback — otherwise it lands mid-drag and resets the
+   * the pending callback - otherwise it lands mid-drag and resets the
    * affordance under the user's finger.
    */
   it("drops a pending snap-back when the card is grabbed again", () => {
@@ -413,7 +413,7 @@ describe("swipe gesture commit path", () => {
 
     expect(onSnapBack).not.toHaveBeenCalled();
     // The spring writes the transform itself every frame, so dropping its
-    // callback is not enough — its frames must stop too, or it would drag
+    // callback is not enough - its frames must stop too, or it would drag
     // the card out from under the finger that just grabbed it.
     expect(card.style.transform, "the abandoned spring kept moving the card").toBe(underTheFinger);
   });
@@ -425,12 +425,12 @@ describe("swipe gesture commit path", () => {
    * only inside `onCommit` (calling `setDx(0)` and returning) could not
    * actually recentre anything, because by the time `onCommit` fires the
    * exit animation has already run to completion and written a real
-   * off-screen `transform` straight to the node — `setDx` never controlled
+   * off-screen `transform` straight to the node - `setDx` never controlled
    * that transform in the first place. A refused commit must therefore never
    * start the exit animation at all; it has to take the exact same path as
    * an under-threshold drag.
    */
-  it("refuses a commit via canCommit — springs back instead of exiting, transform ends at centre", () => {
+  it("refuses a commit via canCommit - springs back instead of exiting, transform ends at centre", () => {
     const onCommit = vi.fn();
     const onSnapBack = vi.fn();
     const canCommit = vi.fn(() => false);
@@ -453,11 +453,11 @@ describe("swipe gesture commit path", () => {
   });
 
   /**
-   * The same refusal, under reduced motion — a distinct branch in
+   * The same refusal, under reduced motion - a distinct branch in
    * `onPointerUp` (synchronous `onSnapBack`, no pending settle to wait on),
    * found on review as the one `canCommit` path nothing else exercised.
    */
-  it("refuses a commit via canCommit under prefers-reduced-motion — no animation, snaps back synchronously", () => {
+  it("refuses a commit via canCommit under prefers-reduced-motion - no animation, snaps back synchronously", () => {
     stubReducedMotion();
 
     try {
@@ -470,7 +470,7 @@ describe("swipe gesture commit path", () => {
 
       expect(onCommit, "a refused commit must never fire onCommit").not.toHaveBeenCalled();
       expect(card.style.transform).toBe("translate3d(0, 0, 0) rotate(0deg)");
-      // Reduced motion has nothing to wait for — the callback fires in the
+      // Reduced motion has nothing to wait for - the callback fires in the
       // same tick as the refusal, not on a later transition/fallback timer.
       expect(onSnapBack).toHaveBeenCalledTimes(1);
     } finally {
@@ -492,7 +492,7 @@ describe("swipe gesture commit path", () => {
   });
 
   /**
-   * docs/design/README.md:204, :639, :872 — under reduced motion "the stack
+   * docs/design/README.md:204, :639, :872 - under reduced motion "the stack
    * does not move". A spring-back therefore has no transform transition to animate
    * or to wait for: the card is simply back where it started, in one frame.
    *
@@ -510,7 +510,7 @@ describe("swipe gesture commit path", () => {
 
       expect(
         card.style.transition,
-        "reduced motion must not put a transition on transform — the stack does not move",
+        "reduced motion must not put a transition on transform - the stack does not move",
       ).not.toContain("transform");
       // G4: reduced motion bypasses the spring entirely, so this gets the
       // same fixed-timeline "quick" easing as the exit path, not the
@@ -526,7 +526,7 @@ describe("swipe gesture commit path", () => {
 
   /**
    * The browser cancelling the pointer (usually to take a vertical scroll)
-   * returns the card on the same spring as any other return — it used to
+   * returns the card on the same spring as any other return - it used to
    * write its own 300ms transform transition and fire `onSnapBack` before
    * the card had moved at all.
    */
@@ -577,7 +577,7 @@ describe("swipe gesture commit path", () => {
 
       expect(
         card.style.transition,
-        "reduced motion must not put a transition on transform — the stack does not move",
+        "reduced motion must not put a transition on transform - the stack does not move",
       ).not.toContain("transform");
       expect(card.style.transform).toBe("translate3d(0, 0, 0) rotate(0deg)");
       expect(onSnapBack).toHaveBeenCalledTimes(1);

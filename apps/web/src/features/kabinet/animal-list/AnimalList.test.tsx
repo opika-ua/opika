@@ -1,5 +1,5 @@
 import type { KabinetAnimalView, KabinetCursor, KabinetShelterView } from "@opika/contracts";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { KabinetAnimalListClient } from "../../../api/kabinet-browser-client";
@@ -97,12 +97,16 @@ const viewOf = (from: AnimalRow, listing: KabinetAnimalView["listing"]): Kabinet
     species: from.species,
     sex: from.sex,
     size: from.size,
+    coatLength: null,
     age: from.age,
     description: { uk: "Опис", en: null },
     photos: from.coverPhoto === null ? [] : [from.coverPhoto],
     vaccination: { source: "shelter_declared", state: "unknown", declaredAt: NOW },
     spayNeuter: { source: "shelter_declared", state: "unknown", declaredAt: NOW },
     documentReadiness: { kind: "unknown" },
+    temperament: [],
+    colour: null,
+    medicalNotes: null,
     listing,
     publicLocation: null,
     createdAt: NOW,
@@ -188,7 +192,7 @@ function renderList({
 const rowOf = (name: string) => screen.getByRole("listitem", { name });
 const inRow = (name: string) => within(rowOf(name));
 const openMenu = async (name: string) => {
-  await userEvent.click(inRow(name).getByRole("button", { name: "Ще" }));
+  await userEvent.click(inRow(name).getByRole("button", { name: /^Дії з карткою/ }));
 };
 const statusText = () => screen.getByRole("status").textContent;
 const alertText = () =>
@@ -202,18 +206,25 @@ afterEach(() => {
 });
 
 describe("the page: header, rows, order note", () => {
-  it("the title, the caption counting every card, and «Додати тварину» to K3's create page", () => {
+  it("the title, the caption counting every card, and «Додати тварину» to K3's create page", async () => {
     renderList();
     expect(screen.getByRole("heading", { level: 1, name: "Тварини" })).toBeTruthy();
-    expect(screen.getByText("Притулок «Домівка» · 6 карток")).toBeTruthy();
+    expect(screen.getByText("Притулок «Домівка» ·")).toBeTruthy();
+    expect(screen.getByText("6 карток")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Додати тварину" }).getAttribute("href")).toBe(
       "/kabinet/tvaryny/nova",
     );
-    expect(
-      screen.getByText(
-        "Порядок у галереї — за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у стрічці. Тут порядок змінити не можна, і просування немає.",
-      ),
-    ).toBeTruthy();
+    // The order note sits behind a «?» button, closed until pressed.
+    const NOTE =
+      "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.";
+    expect(screen.queryByText(NOTE)).toBeNull();
+    const info = screen.getByRole("button", { name: "Як впорядковано список" });
+    expect(info.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.click(info);
+    expect(info.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText(NOTE)).toBeTruthy();
+    // It opens in a card of its own, not in the page's flow.
+    expect(screen.getByText(NOTE).closest("header")).toBeNull();
   });
 
   it("each row: the name, the status chip, the meta line and the line that says where it stands", () => {
@@ -227,7 +238,7 @@ describe("the page: header, rows, order note", () => {
     expect(inRow("Сірко").getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeTruthy();
     expect(inRow("Бім").getByText("Удома з 12 вересня")).toBeTruthy();
     expect(
-      inRow("Дуся").getByText("Знято з показу 2 жовтня · переїхала до іншого притулку"),
+      inRow("Дуся").getByText("Знято з показу 2 жовтня · переведено до іншого притулку"),
     ).toBeTruthy();
   });
 });
@@ -248,10 +259,10 @@ describe("the row's thumbnail", () => {
 });
 
 describe("filters and counts (N3)", () => {
-  it("one chip per kind with its inventory count, «Усі» pressed", () => {
+  it("one tab per kind with its inventory count, «Усі» selected", () => {
     renderList();
-    const chips = within(screen.getByRole("group", { name: "Показати" })).getAllByRole("button");
-    expect(chips.map((chip) => chip.textContent)).toEqual([
+    const chips = within(screen.getByRole("tablist", { name: "Показати" })).getAllByRole("tab");
+    expect(chips.map((chip) => chip.getAttribute("aria-label"))).toEqual([
       "Усі · 6",
       "Чернетки · 2",
       "Опубліковано · 1",
@@ -259,7 +270,7 @@ describe("filters and counts (N3)", () => {
       "Удома · 1",
       "Знято з показу · 1",
     ]);
-    expect(chips.map((chip) => chip.getAttribute("aria-pressed"))).toEqual([
+    expect(chips.map((chip) => chip.getAttribute("aria-selected"))).toEqual([
       "true",
       "false",
       "false",
@@ -275,13 +286,13 @@ describe("filters and counts (N3)", () => {
         list: async () => ({ ...FIRST, items: [READY_DRAFT, GAPPY_DRAFT] }),
       },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Чернетки · 2" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Чернетки · 2" }));
     expect(calls.list).toHaveBeenCalledWith({
       filter: { kind: "listing", listing: "draft" },
       cursor: null,
       limit: 50,
     });
-    expect(screen.getByRole("button", { name: "Чернетки · 2" }).getAttribute("aria-pressed")).toBe(
+    expect(screen.getByRole("tab", { name: "Чернетки · 2" }).getAttribute("aria-selected")).toBe(
       "true",
     );
     expect(screen.queryByRole("listitem", { name: "Рекс" })).toBeNull();
@@ -290,7 +301,7 @@ describe("filters and counts (N3)", () => {
 
   it("a group with no cards says so", async () => {
     renderList({ handlers: { list: async () => ({ ...FIRST, items: [] }) } });
-    await userEvent.click(screen.getByRole("button", { name: "Удома · 1" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Удома · 1" }));
     expect(screen.getByText("У цій групі поки немає карток.")).toBeTruthy();
   });
 
@@ -307,8 +318,8 @@ describe("filters and counts (N3)", () => {
             : Promise.resolve({ ...FIRST, items: [PUBLISHED] }),
       } as Handlers,
     });
-    await userEvent.click(screen.getByRole("button", { name: "Чернетки · 2" }));
-    await userEvent.click(screen.getByRole("button", { name: "Опубліковано · 1" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Чернетки · 2" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Опубліковано · 1" }));
     expect(rowOf("Рекс")).toBeTruthy();
     await act(async () => {
       draftsAnswer({ ...FIRST, items: [READY_DRAFT, GAPPY_DRAFT] });
@@ -316,7 +327,7 @@ describe("filters and counts (N3)", () => {
     expect(rowOf("Рекс")).toBeTruthy();
     expect(screen.queryByRole("listitem", { name: "Ластівка" })).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Опубліковано · 1" }).getAttribute("aria-pressed"),
+      screen.getByRole("tab", { name: "Опубліковано · 1" }).getAttribute("aria-selected"),
     ).toBe("true");
   });
 
@@ -330,7 +341,7 @@ describe("filters and counts (N3)", () => {
         },
       },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Опубліковано · 1" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Опубліковано · 1" }));
     expect(
       screen.getByText("Список не завантажився. Перевірте зʼєднання і спробуйте ще раз."),
     ).toBeTruthy();
@@ -403,7 +414,8 @@ describe("listing moves: each request, and its refusal", () => {
           }),
       },
     });
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Почали домовлятися" }));
+    await openMenu("Рекс");
+    await userEvent.click(screen.getByRole("button", { name: "Почали домовлятися" }));
     expect(calls.transition).toHaveBeenCalledWith({
       animalId: PUBLISHED.id,
       event: { type: "reserve" },
@@ -419,21 +431,20 @@ describe("listing moves: each request, and its refusal", () => {
     renderList({
       handlers: { transition: async () => Promise.reject(apiError("ILLEGAL_TRANSITION")) },
     });
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Почали домовлятися" }));
+    await openMenu("Рекс");
+    await userEvent.click(screen.getByRole("button", { name: "Почали домовлятися" }));
     expect(alertText()).toContain(
       "Картка змінилася в іншому вікні. Оновіть сторінку, щоб побачити поточну версію.",
     );
     expect(inRow("Рекс").getByText("Опубліковано")).toBeTruthy();
   });
 
-  it("«Не домовилися — знову шукає» (in «Ще») releases; a missing card is his not-found sentence", async () => {
+  it("«Не домовилися – знову шукає» (in «Ще») releases; a missing card is his not-found sentence", async () => {
     const calls = renderList({
       handlers: { transition: async () => Promise.reject(apiError("NOT_FOUND")) },
     });
     await openMenu("Мурка");
-    await userEvent.click(
-      inRow("Мурка").getByRole("button", { name: "Не домовилися — знову шукає" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Не домовилися – знову шукає" }));
     expect(calls.transition).toHaveBeenCalledWith({
       animalId: RESERVED.id,
       event: { type: "release" },
@@ -447,7 +458,7 @@ describe("listing moves: each request, and its refusal", () => {
     const calls = renderList({
       handlers: { transition: async () => viewOf(WITHDRAWN, { kind: "draft" }) },
     });
-    await userEvent.click(inRow("Дуся").getByRole("button", { name: "Повернути в чернетки" }));
+    await userEvent.click(screen.getByRole("button", { name: "Повернути в чернетки" }));
     expect(calls.transition).toHaveBeenCalledWith({
       animalId: WITHDRAWN.id,
       event: { type: "restore_to_draft" },
@@ -460,7 +471,7 @@ describe("listing moves: each request, and its refusal", () => {
     renderList({
       handlers: { transition: async () => Promise.reject(apiError("TOO_MANY_REQUESTS")) },
     });
-    await userEvent.click(inRow("Дуся").getByRole("button", { name: "Повернути в чернетки" }));
+    await userEvent.click(screen.getByRole("button", { name: "Повернути в чернетки" }));
     expect(alertText()).toContain(
       "Забагато дій за короткий час. Зачекайте хвилину й спробуйте ще раз.",
     );
@@ -473,7 +484,7 @@ describe("listing moves: each request, and its refusal", () => {
         byId: async () => viewOf(WITHDRAWN, { kind: "draft" }),
       },
     });
-    await userEvent.click(inRow("Дуся").getByRole("button", { name: "Повернути в чернетки" }));
+    await userEvent.click(screen.getByRole("button", { name: "Повернути в чернетки" }));
     expect(calls.byId).toHaveBeenCalledWith({ animalId: WITHDRAWN.id });
     expect(statusText()).toBe("Дуся: повернуто в чернетки.");
   });
@@ -485,7 +496,7 @@ describe("listing moves: each request, and its refusal", () => {
         byId: async () => viewOf(WITHDRAWN, WITHDRAWN.listing),
       },
     });
-    await userEvent.click(inRow("Дуся").getByRole("button", { name: "Повернути в чернетки" }));
+    await userEvent.click(screen.getByRole("button", { name: "Повернути в чернетки" }));
     expect(alertText()).toContain("Не вдалося. Перевірте зʼєднання і спробуйте ще раз.");
   });
 });
@@ -560,7 +571,8 @@ describe("«Уже вдома» (his answer 8a)", () => {
     const calls = renderList({
       handlers: { transition: async () => viewOf(RESERVED, { kind: "adopted", adoptedAt: NOW }) },
     });
-    await userEvent.click(inRow("Мурка").getByRole("button", { name: "Уже вдома" }));
+    await openMenu("Мурка");
+    await userEvent.click(screen.getByRole("button", { name: "Уже вдома" }));
     const dialog = screen.getByRole("dialog", { name: "Мурка уже вдома?" });
     expect(
       within(dialog).getByText(
@@ -582,7 +594,7 @@ describe("«Уже вдома» (his answer 8a)", () => {
       handlers: { transition: async () => Promise.reject(apiError("ILLEGAL_TRANSITION")) },
     });
     await openMenu("Рекс");
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Уже вдома" }));
+    await userEvent.click(screen.getByRole("button", { name: "Уже вдома" }));
     const dialog = screen.getByRole("dialog", { name: "Рекс уже вдома?" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Так, уже вдома" }));
     expect(within(dialog).getByRole("alert").textContent).toBe(
@@ -592,7 +604,8 @@ describe("«Уже вдома» (his answer 8a)", () => {
 
   it("«Скасувати» closes it with nothing sent", async () => {
     const calls = renderList();
-    await userEvent.click(inRow("Мурка").getByRole("button", { name: "Уже вдома" }));
+    await openMenu("Мурка");
+    await userEvent.click(screen.getByRole("button", { name: "Уже вдома" }));
     await userEvent.click(screen.getByRole("button", { name: "Скасувати" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(calls.transition).not.toHaveBeenCalled();
@@ -603,7 +616,7 @@ describe("«Зняти з показу» with a reason (his answer 10)", () => {
   it("offers four reasons, not «знайшла дім іншим шляхом», and points a homed animal to «Уже вдома»", async () => {
     renderList();
     await openMenu("Рекс");
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Зняти з показу" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зняти з показу" }));
     const dialog = screen.getByRole("dialog", { name: "Зняти з показу: Рекс?" });
     expect(
       within(dialog).getByText("Якщо тварина знайшла дім, позначте краще «Уже вдома»."),
@@ -613,7 +626,7 @@ describe("«Зняти з показу» with a reason (his answer 10)", () => {
       .map((option) => option.textContent);
     expect(options).toEqual([
       "Оберіть причину",
-      "переїхала до іншого притулку",
+      "переведено до іншого притулку",
       "тварини не стало",
       "додано помилково",
       "інша причина",
@@ -623,7 +636,7 @@ describe("«Зняти з показу» with a reason (his answer 10)", () => {
   it("without a reason nothing is sent: the select is marked invalid and focused", async () => {
     const calls = renderList();
     await openMenu("Рекс");
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Зняти з показу" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зняти з показу" }));
     const dialog = screen.getByRole("dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: "Зняти з показу" }));
     const select = within(dialog).getByLabelText("Причина");
@@ -644,7 +657,7 @@ describe("«Зняти з показу» with a reason (his answer 10)", () => {
       },
     });
     await openMenu("Рекс");
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Зняти з показу" }));
+    await userEvent.click(screen.getByRole("button", { name: "Зняти з показу" }));
     const dialog = screen.getByRole("dialog");
     await userEvent.selectOptions(within(dialog).getByLabelText("Причина"), "transferred");
     await userEvent.type(within(dialog).getByLabelText(/Коментар/), "  до Києва  ");
@@ -657,7 +670,7 @@ describe("«Зняти з показу» with a reason (his answer 10)", () => {
     expect(statusText()).toBe("Рекс: знято з показу.");
     expect(
       inRow("Рекс").getByText(
-        "Знято з показу 18 жовтня · переїхала до іншого притулку · «до Києва»",
+        "Знято з показу 18 жовтня · переведено до іншого притулку · «до Києва»",
       ),
     ).toBeTruthy();
   });
@@ -668,26 +681,26 @@ describe("«Видалити чернетку» (K2-T4, his answers 2 and 8b)", 
     renderList();
     for (const name of ["Ластівка", "Сірко"]) {
       await openMenu(name);
-      expect(inRow(name).getByRole("button", { name: "Видалити чернетку" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Видалити чернетку" })).toBeTruthy();
     }
     for (const name of ["Рекс", "Мурка", "Бім", "Дуся"]) {
       await openMenu(name);
-      expect(inRow(name).queryByRole("button", { name: "Видалити чернетку" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Видалити чернетку" })).toBeNull();
     }
   });
 
   it("the photos line only when the draft has photos", async () => {
     renderList();
     const PHOTOS =
-      "Файли фото не видаляються одразу — якщо їх треба прибрати зовсім, напишіть мені.";
+      "Файли фото не видаляються одразу – якщо їх треба прибрати зовсім, напишіть мені.";
     await openMenu("Ластівка");
-    await userEvent.click(inRow("Ластівка").getByRole("button", { name: "Видалити чернетку" }));
+    await userEvent.click(screen.getByRole("button", { name: "Видалити чернетку" }));
     let dialog = screen.getByRole("dialog", { name: "Видалити чернетку «Ластівка»?" });
     expect(within(dialog).getByText("Вона назавжди зникне з вашого списку.")).toBeTruthy();
     expect(within(dialog).getByText(PHOTOS)).toBeTruthy();
     await userEvent.click(within(dialog).getByRole("button", { name: "Скасувати" }));
     await openMenu("Сірко");
-    await userEvent.click(inRow("Сірко").getByRole("button", { name: "Видалити чернетку" }));
+    await userEvent.click(screen.getByRole("button", { name: "Видалити чернетку" }));
     dialog = screen.getByRole("dialog", { name: "Видалити чернетку «Сірко»?" });
     expect(within(dialog).queryByText(PHOTOS)).toBeNull();
   });
@@ -695,7 +708,7 @@ describe("«Видалити чернетку» (K2-T4, his answers 2 and 8b)", 
   it("deletes: the request, the row gone, his line", async () => {
     const calls = renderList();
     await openMenu("Сірко");
-    await userEvent.click(inRow("Сірко").getByRole("button", { name: "Видалити чернетку" }));
+    await userEvent.click(screen.getByRole("button", { name: "Видалити чернетку" }));
     await userEvent.click(screen.getByRole("button", { name: "Видалити" }));
     expect(calls.deleteDraft).toHaveBeenCalledWith({ animalId: GAPPY_DRAFT.id });
     expect(screen.queryByRole("listitem", { name: "Сірко" })).toBeNull();
@@ -715,7 +728,7 @@ describe("«Видалити чернетку» (K2-T4, his answers 2 and 8b)", 
       handlers: { deleteDraft: async () => Promise.reject(apiError("WAS_PUBLISHED", data)) },
     });
     await openMenu("Ластівка");
-    await userEvent.click(inRow("Ластівка").getByRole("button", { name: "Видалити чернетку" }));
+    await userEvent.click(screen.getByRole("button", { name: "Видалити чернетку" }));
     const dialog = screen.getByRole("dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: "Видалити" }));
     expect(within(dialog).getByRole("alert").textContent).toBe(
@@ -868,7 +881,7 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     await userEvent.click(inRow("Мурка").getByRole("button", { name: "Ще домовляються" }));
     await userEvent.click(inRow("Мурка").getByRole("button", { name: "Скасувати · 8 с" }));
     expect(alertText()).toContain(
-      "Скасувати вже не можна: час минув або картку змінено. На картці — сьогоднішня дата.",
+      "Скасувати вже не можна: час минув або картку змінено. На картці – сьогоднішня дата.",
     );
     expect(inRow("Мурка").getByText("Оновлено сьогодні")).toBeTruthy();
     expect(inRow("Мурка").queryByRole("button", { name: /^Скасувати/ })).toBeNull();
@@ -956,7 +969,7 @@ describe("after a lost answer, only what is known", () => {
     expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
   });
 
-  it("UNDO_EXPIRED and the re-read shows today's date: his «…На картці — сьогоднішня дата.»", async () => {
+  it("UNDO_EXPIRED and the re-read shows today's date: his «…На картці – сьогоднішня дата.»", async () => {
     renderList({
       handlers: {
         confirm: async () => ({ animal: confirmedToday, undoUntil: NOW }),
@@ -967,7 +980,7 @@ describe("after a lost answer, only what is known", () => {
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" }));
     expect(alertText()).toContain(
-      "Скасувати вже не можна: час минув або картку змінено. На картці — сьогоднішня дата.",
+      "Скасувати вже не можна: час минув або картку змінено. На картці – сьогоднішня дата.",
     );
   });
 
@@ -987,7 +1000,7 @@ describe("after a lost answer, only what is known", () => {
 
   it("a move whose answer and re-read are both lost: no «Не вдалося»", async () => {
     renderList({ handlers: { transition: LOST, byId: LOST } });
-    await userEvent.click(inRow("Дуся").getByRole("button", { name: "Повернути в чернетки" }));
+    await userEvent.click(screen.getByRole("button", { name: "Повернути в чернетки" }));
     expect(alertText()).toContain(CARD_DIDNT_LOAD);
     expect(alertText()).not.toContain("Не вдалося");
   });
@@ -996,7 +1009,7 @@ describe("after a lost answer, only what is known", () => {
     renderList({
       handlers: { transition: LOST, byId: async () => Promise.reject(apiError("NOT_FOUND")) },
     });
-    await userEvent.click(inRow("Дуся").getByRole("button", { name: "Повернути в чернетки" }));
+    await userEvent.click(screen.getByRole("button", { name: "Повернути в чернетки" }));
     expect(alertText()).toContain(
       "Цієї тварини немає у вашому списку: картку видалено або посилання неправильне.",
     );
@@ -1005,7 +1018,7 @@ describe("after a lost answer, only what is known", () => {
   it("a delete whose answer and re-read are both lost: no «Не вдалося», the row kept", async () => {
     renderList({ handlers: { deleteDraft: LOST, byId: LOST } });
     await openMenu("Сірко");
-    await userEvent.click(inRow("Сірко").getByRole("button", { name: "Видалити чернетку" }));
+    await userEvent.click(screen.getByRole("button", { name: "Видалити чернетку" }));
     const dialog = screen.getByRole("dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: "Видалити" }));
     expect(within(dialog).getByRole("alert").textContent).toBe(CARD_DIDNT_LOAD);
@@ -1048,7 +1061,7 @@ describe("keyset «Показати ще»", () => {
       } as Handlers,
     });
     await userEvent.click(screen.getByRole("button", { name: "Показати ще" }));
-    await userEvent.click(screen.getByRole("button", { name: "Чернетки · 2" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Чернетки · 2" }));
     expect(calls.list).toHaveBeenLastCalledWith({
       filter: { kind: "listing", listing: "draft" },
       cursor: null,
@@ -1059,7 +1072,7 @@ describe("keyset «Показати ще»", () => {
       lateMore({ ...FIRST, items: [ADOPTED, WITHDRAWN], nextCursor: "c2" as KabinetCursor });
     });
     expect(
-      within(screen.getByRole("region", { name: "Тварини" }))
+      within(screen.getByRole("tabpanel"))
         .getAllByRole("heading", { level: 2 })
         .map((heading) => heading.textContent),
     ).toEqual(["Ластівка", "Сірко"]);
@@ -1116,7 +1129,7 @@ describe("empty list", () => {
     );
     expect(
       screen.getByText(
-        "Щоб зберегти чернетку, потрібні імʼя та вид — решту можна дописати пізніше.",
+        "Щоб зберегти чернетку, потрібні імʼя та вид – решту можна дописати пізніше.",
       ),
     ).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Показати" })).toBeNull();
@@ -1126,7 +1139,9 @@ describe("empty list", () => {
     renderList({ first: EMPTY, verification: { status: "pending", since: NOW } });
     expect(screen.queryByText(/побачать картку після публікації/)).toBeNull();
     expect(
-      screen.getByText("Ваші тварини зʼявляться в галереї, щойно притулок пройде перевірку."),
+      screen.getByText(
+        "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
+      ),
     ).toBeTruthy();
   });
 });
@@ -1158,12 +1173,12 @@ describe("when nobody can see the cards", () => {
     [
       "pending",
       { status: "pending", since: NOW },
-      ["Ваші тварини зʼявляться в галереї, щойно притулок пройде перевірку."],
+      ["Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку."],
     ],
     [
       "under review",
       { status: "under_review", since: NOW },
-      ["Ваші тварини зʼявляться в галереї, щойно притулок пройде перевірку."],
+      ["Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку."],
     ],
     [
       "rejected",
@@ -1225,19 +1240,19 @@ describe("the support view (S5): everything visible, nothing writes", () => {
     expect(screen.queryByRole("link", { name: "Додати тварину" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Відновити прийом тварин" })).toBeNull();
     const confirm = inRow("Рекс").getByRole("button", { name: "Ще шукає" });
-    const reserve = inRow("Рекс").getByRole("button", { name: "Почали домовлятися" });
-    for (const button of [confirm, reserve]) {
-      expect(button.getAttribute("aria-disabled")).toBe("true");
-      await userEvent.click(button);
-    }
+    expect(confirm.getAttribute("aria-disabled")).toBe("true");
+    await userEvent.click(confirm);
     await openMenu("Рекс");
-    const withdraw = inRow("Рекс").getByRole("button", { name: "Зняти з показу" });
+    const reserve = screen.getByRole("button", { name: "Почали домовлятися" });
+    expect(reserve.getAttribute("aria-disabled")).toBe("true");
+    await userEvent.click(reserve);
+    const withdraw = screen.getByRole("button", { name: "Зняти з показу" });
     expect(withdraw.getAttribute("aria-disabled")).toBe("true");
     await userEvent.click(withdraw);
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(calls.confirm).not.toHaveBeenCalled();
     expect(calls.transition).not.toHaveBeenCalled();
-    expect(inRow("Рекс").getByRole("link", { name: "Редагувати" }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "Редагувати" }).getAttribute("href")).toBe(
       `/kabinet/tvaryny/${PUBLISHED.id}`,
     );
   });
@@ -1246,11 +1261,11 @@ describe("the support view (S5): everything visible, nothing writes", () => {
 describe("«Ще» is a disclosure", () => {
   it("opens and closes, says so, and Escape closes it with focus back on «Ще»", async () => {
     renderList();
-    const more = inRow("Рекс").getByRole("button", { name: "Ще" });
+    const more = inRow("Рекс").getByRole("button", { name: /^Дії з карткою/ });
     expect(more.getAttribute("aria-expanded")).toBe("false");
     await userEvent.click(more);
     expect(more.getAttribute("aria-expanded")).toBe("true");
-    const edit = inRow("Рекс").getByRole("link", { name: "Редагувати" });
+    const edit = screen.getByRole("link", { name: "Редагувати" });
     edit.focus();
     await userEvent.keyboard("{Escape}");
     expect(more.getAttribute("aria-expanded")).toBe("false");
@@ -1260,10 +1275,90 @@ describe("«Ще» is a disclosure", () => {
   it("the row's repeated buttons are described by the animal's name (P4)", () => {
     renderList();
     const name = inRow("Рекс").getByRole("heading", { name: "Рекс" });
-    for (const label of ["Ще", "Ще шукає", "Почали домовлятися"]) {
-      expect(
-        inRow("Рекс").getByRole("button", { name: label }).getAttribute("aria-describedby"),
-      ).toContain(name.id);
-    }
+    expect(
+      inRow("Рекс").getByRole("button", { name: "Ще шукає" }).getAttribute("aria-describedby"),
+    ).toContain(name.id);
+    // The ⋯ button carries the name in its own accessible name instead.
+    expect(inRow("Рекс").getByRole("button", { name: "Дії з карткою Рекс" })).toBeTruthy();
+  });
+});
+
+describe("the name is the way into the card's form, and «Ще» closes on a press outside", () => {
+  it("the name links to the card's form, and «Редагувати» stays under «Ще»", async () => {
+    renderList();
+    expect(inRow("Рекс").getByRole("link", { name: "Рекс" }).getAttribute("href")).toBe(
+      `/kabinet/tvaryny/${PUBLISHED.id}`,
+    );
+    await openMenu("Рекс");
+    expect(screen.getByRole("link", { name: "Редагувати" })).toBeTruthy();
+  });
+
+  it("a press outside the open «Ще» closes it", async () => {
+    renderList();
+    await openMenu("Рекс");
+    const more = inRow("Рекс").getByRole("button", { name: /^Дії з карткою/ });
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+    await userEvent.click(screen.getByRole("heading", { level: 1, name: "Тварини" }));
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
+describe("a dialog stays open while its call is in flight", () => {
+  it("Escape and the ✕ do nothing until the answer is in", async () => {
+    let answer: (value: unknown) => void = () => {};
+    renderList({
+      handlers: {
+        transition: () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      },
+    });
+    await openMenu("Мурка");
+    await userEvent.click(screen.getByRole("button", { name: "Уже вдома" }));
+    const dialog = screen.getByRole("dialog", { name: "Мурка уже вдома?" }) as HTMLDialogElement;
+    await userEvent.click(within(dialog).getByRole("button", { name: "Так, уже вдома" }));
+    const cancel = new Event("cancel", { cancelable: true });
+    dialog.dispatchEvent(cancel);
+    expect(cancel.defaultPrevented).toBe(true);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Закрити" }));
+    expect(dialog.open).toBe(true);
+    answer(viewOf(RESERVED, { kind: "adopted", adoptedAt: NOW }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+});
+
+describe("the ⋯ menu: the public page, and the danger entry last", () => {
+  it.each(["Рекс", "Мурка"])(
+    "%s (public): «Переглянути на сайті» opens the public page in a new tab",
+    async (name) => {
+      renderList();
+      await openMenu(name);
+      const link = screen.getByRole("link", { name: /^Переглянути на сайті/ });
+      expect(link.getAttribute("href")).toMatch(/^\/tvaryny\/[0-9a-f-]+$/);
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toContain("noopener");
+      expect(link.textContent).toContain("(відкриється в новій вкладці)");
+    },
+  );
+
+  it.each(["Сірко", "Бім", "Дуся"])(
+    "%s (draft, adopted, withdrawn): no public link",
+    async (name) => {
+      renderList();
+      await openMenu(name);
+      expect(screen.queryByRole("link", { name: /Переглянути на сайті/ })).toBeNull();
+    },
+  );
+
+  it("«Зняти з показу» comes after a separator, as the last entry", async () => {
+    renderList();
+    await openMenu("Рекс");
+    const items = [
+      ...(document.body.querySelector("ul[popover]") as HTMLElement).querySelectorAll("li"),
+    ];
+    const names = items.map((item) => item.textContent ?? "");
+    expect(names.at(-1)).toContain("Зняти з показу");
+    expect(items.at(-2)?.getAttribute("aria-hidden")).toBe("true");
   });
 });

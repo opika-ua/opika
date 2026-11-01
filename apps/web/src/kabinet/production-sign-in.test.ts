@@ -42,7 +42,7 @@ describe("productionSignInOf", () => {
 
   /**
    * Oleksii, 2026-10-14 (delivery test 2): the sign-in email is signed
-   * `— {operator}` like the invite. Production's config carries the name
+   * `- {operator}` like the invite. Production's config carries the name
    * the wiring hands to `providerMagicLinkSender`; a missing or blank one is
    * the catalogue's fallback, never a reason to stay off (RS-Q2).
    */
@@ -62,28 +62,37 @@ describe("productionSignInOf", () => {
 
   /**
    * EM-B6 and EM-B10: the routes `production-mail.ts` hands to the two senders.
-   * After the switch-on both are Resend, on one key; a split still works and
-   * each route reads its own provider's key.
+   * After the switch-on both are Resend, on one key. Since PW1-Q4 no other
+   * shape can be configured (the next test).
    */
-  it("carries both email routes: both on Resend's key after the switch-on, split when sign-in names another provider", () => {
+  it("carries both email routes, both on Resend's key; a Brevo key left in the environment moves nothing", () => {
     const on = productionSignInOf(full);
     expect(on.kind).toBe("on");
     if (on.kind !== "on") return;
     expect(on.email.invite).toMatchObject({ provider: "resend", apiKey: "resend-key" });
     expect(on.email.signIn).toEqual(on.email.invite);
-    // A Brevo key left in the environment moves nothing: no route names Brevo.
     const leftover = productionSignInOf({ ...full, BREVO_API_KEY: "brevo-key" });
     expect(leftover.kind === "on" && leftover.email).toEqual(on.email);
-    const split = productionSignInOf({
-      ...full,
-      EMAIL_PROVIDER: "brevo",
-      BREVO_API_KEY: "brevo-key",
-      EMAIL_SIGN_IN_PROVIDER: "resend",
-    });
-    expect(split.kind).toBe("on");
-    if (split.kind !== "on") return;
-    expect(split.email.signIn).toMatchObject({ provider: "resend", apiKey: "resend-key" });
-    expect(split.email.invite).toMatchObject({ provider: "brevo", apiKey: "brevo-key" });
+  });
+
+  /**
+   * Oleksii, 2026-10-20 (inbox PW1-Q4), verbatim: "PW1-Q4: (a). Lock auth emails (sign-in,
+   * invite, reset, password changed) to Resend in config, with a test that a Brevo setting is
+   * refused for them." Every email production sends is an auth email, so a Brevo setting on
+   * either variable turns production sign-in off, failing closed as any misconfiguration does,
+   * with Brevo's own key present: the grace-period rollback that used to be on is gone.
+   */
+  it("is off (provider_invalid) with a Brevo setting on either variable, Brevo's key set and all", () => {
+    for (const brevo of [
+      { EMAIL_PROVIDER: "brevo", BREVO_API_KEY: "brevo-key" },
+      { EMAIL_PROVIDER: "brevo", BREVO_API_KEY: "brevo-key", EMAIL_SIGN_IN_PROVIDER: "resend" },
+      { EMAIL_SIGN_IN_PROVIDER: "brevo", BREVO_API_KEY: "brevo-key" },
+    ]) {
+      const off = productionSignInOf({ ...full, ...brevo });
+      expect(off, JSON.stringify(brevo)).toEqual({ kind: "off", reason: "provider_invalid" });
+      expect(JSON.stringify(off)).not.toContain("brevo-key");
+      expect(JSON.stringify(off)).not.toContain("resend-key");
+    }
   });
 
   /**
@@ -283,7 +292,57 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // adds nothing. 595 with operator.create.errors.nameTooLong (his RUI4-F2
     // text, 2026-10-18). 596 with email.invite.whatBeforeVerification (Q-C, 2026-10-19).
     // 595 since PR 6 deleted profileEdit.errors.notAvailable (P6-Q8).
-    expect(pending.length + written.length).toBe(595);
+    // 635 with PW-1's passwords (his text, 2026-10-19, pinned in copy-status.test.ts): 8 new
+    // `signIn.*` keys less `signIn.send`, 3 `setPassword.*`, 5 `password.*`, 5 `forgot.*`,
+    // 5 `reset.*`, 7 `changePassword.*`, 5 `email.reset.*` and 3 `email.passwordChanged.*`.
+    // 640 with designer round 1's fur (his text, 2026-10-20, pinned in copy-status.test.ts):
+    // the four `animalForm.coat.*` and `animalHistoryLabels.field.coatLength`.
+    // 637 with PW-2: his 3 `setPassword.*` (title, intro, submit), less the magic-link landing's
+    // 6 `inviteLanding.*` (ready, send, sent, title, alreadyAccepted, rateLimited).
+    // 639 with the copy audit's G3 `profile.pendingNote` and G4 `signIn.failed` (2026-10-22).
+    // 637 with designer round 1, S6 (his DR1-Q1 and DR1-Q5 text, 2026-10-20): less
+    // `voice.nameStaysHint`, `voice.insertName` and `voice.previewNoAnimals`, plus
+    // `errors.nameTokenGone`.
+    // 648 with the pet card redesign's 11 (his approval of 2026-10-26, quoted in
+    // copy-status.test.ts's `PET_CARD_COPY`): the four `animalForm.temperament.*`, the four
+    // `animalForm.colour.*` and three `animalHistoryLabels.field.*`. His other two, the medical
+    // note's label and hint, ship in PR 5 with the note's field.
+    // 661 with pet card PR 3b's logo section: the twelve `profileEdit.logo.*` keys (his final
+    // text, 2026-10-27, including `add`) and `operator.history.logo_changed`.
+    // 664 with pet card PR 5's medical note field: his `animalForm.medicalNotes.title`/`.hint`
+    // (given directly, 2026-10-27), plus the builder-drafted
+    // `animalForm.validation.medicalNotesTooLong` (not his words, but real text, never
+    // `COPY_PENDING` - a pending `kabinet.*` string would turn production sign-in off
+    // entirely, which this very test exists to gate).
+    // 665 with the sex-filter feature's one new gap word, `animalForm.publish.gap.sex`
+    // (confirmed directly in chat, pinned in copy-status.test.ts's `SEX_FILTER_COPY`).
+    // 666 with the kabinet redesign Phase 2 PR 1's one new key, `kabinet.nav.home`
+    // («Головна», owner-approved 2026-10-28, pinned in copy-status.test.ts's K2_FINAL).
+    // 670 with the animal form's four section names, `animalForm.sections.*` (owner-approved
+    // 2026-10-28/29, pinned in copy-status.test.ts's FORM_SECTIONS_COPY).
+    // 680 with the settlement picker's ten strings, `cityPicker.*` (owner-approved Phase 0 table,
+    // 2026-10-29, nationwide N4).
+    // 681 with kabinet UX round 2: less `nav.home` (no Головна tab), plus `shell.viewSite` and
+    // `shell.newTab` (owner-approved 2026-10-29).
+    // 684 with kabinet UX round 2's list strings (`animalList.actions.viewOnSite`,
+    // `orderInfoLabel`, `row.menuLabel`; owner-approved 2026-10-29).
+    // 693 with kabinet UX round 2's Притулок sub-tabs and save bar: `profile.viewOnSite`, six
+    // `profileTabs.*` and two `profileEdit.saveBar.*` (owner-approved 2026-10-29).
+    // 699 with the animal editor's tabs (PR 2): seven new keys (`sections.tabsLabel`, two badge
+    // names, `publish.requiredTag`, `missingTitle`, `missingItem`, `allSet`; owner-approved
+    // 2026-10-31, pinned in copy-status.test.ts's EDITOR_TABS_COPY) less `photos.ratioNote`.
+    // 709 with the photo manager (PR 3): eleven new keys (counter, orderHint, addTile, addLeft,
+    // addDrop, menuLabel, dragHandle and four drag announcements; owner-approved 2026-10-31,
+    // pinned in copy-status.test.ts's PHOTO_MANAGER_COPY) less `photos.add`.
+    // 708 with the photo manager fixes: less orderHint, dragHandle, addHint, howItWorks,
+    // privacyNote, dateMoves; plus orderHintMouse, orderHintTouch, infoLabel, infoText, dateNote
+    // (owner-approved 2026-10-31, pinned in copy-status.test.ts's PHOTO_MANAGER_COPY).
+    // 714 with save bar A: `saveBar.allSaved`, `show`, `failed` and the three forms of
+    // `checkFields` (owner-approved 2026-10-31, pinned in copy-status.test.ts).
+    expect(pending.length + written.length).toBe(714);
+    expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
+    expect(written).toContain("kabinet.animalForm.coat.unknown");
+    expect(written).toContain("kabinet.animalForm.temperament.hint");
     expect(written).toContain("kabinet.operator.create.errors.nameTooLong");
     expect(written).toContain("kabinet.profileEdit.state.saved");
     expect(written).toContain("kabinet.animalForm.draft.notVisible");

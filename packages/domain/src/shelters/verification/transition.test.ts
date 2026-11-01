@@ -130,7 +130,7 @@ const eventFor = (type: VerificationEventType): VerificationEvent => {
 
 /**
  * The whole lifecycle in one place. Every legal edge is named here and every
- * pair absent from this map must be refused — which is what makes the generated
+ * pair absent from this map must be refused - which is what makes the generated
  * suite below exhaustive rather than merely thorough.
  */
 const LEGAL: Partial<
@@ -229,7 +229,7 @@ describe("evidence and actor survive every legal edge", () => {
 
 describe("the edges that are closed on purpose", () => {
   it("does not allow a verified shelter back into review", () => {
-    // It would vanish from the feed with no record it had been verified —
+    // It would vanish from the feed with no record it had been verified -
     // the failure priorStatus exists to prevent, through another door.
     const result = transition(stateFor("verified"), eventFor("start_review"));
     expect(result.kind).toBe("illegal");
@@ -474,14 +474,14 @@ describe("pause and resume by the shelter's own administrator", () => {
     const suspend: VerificationEvent = {
       type: "suspend",
       at: T1,
-      // @ts-expect-error — suspend is moderator-only
+      // @ts-expect-error - suspend is moderator-only
       moderatorId: ADMIN,
       reason: { code: "unresponsive", note: null },
     };
     const approve: VerificationEvent = {
       type: "approve",
       at: T1,
-      // @ts-expect-error — approve is moderator-only
+      // @ts-expect-error - approve is moderator-only
       moderatorId: ADMIN.shelterAdminId,
     };
     expect(VerificationEventSchema.safeParse(suspend).success).toBe(false);

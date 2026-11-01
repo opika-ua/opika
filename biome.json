@@ -7,7 +7,13 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!docs/design"]
+    "includes": [
+      "**",
+      "!docs/design",
+      "!apps/web/public/brand-v3/logo.svg",
+      "!apps/web/src/app/icon.svg",
+      "!apps/web/public/pet-card/*.svg"
+    ]
   },
   "formatter": {
     "enabled": true,

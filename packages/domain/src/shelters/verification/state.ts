@@ -55,8 +55,8 @@ export type InterruptedState = z.infer<typeof InterruptedStateSchema>;
  * with nothing to diff against.
  *
  * `paused` and `suspended` are deliberately distinct rather than one state with
- * a reason code. A pause is self-declared and a suspension is imposed, and —
- * decisively — they differ in who may end them: a shelter may resume itself
+ * a reason code. A pause is self-declared and a suspension is imposed, and -
+ * decisively - they differ in who may end them: a shelter may resume itself
  * once it has a login, whereas lifting a suspension is always a moderator's
  * call. A reason code cannot carry a permission, so encoding the difference in
  * one would push that rule out to every call site.
@@ -143,8 +143,8 @@ export const enteredAt = (state: ShelterVerification): Date => {
  * evidence and reasons are internal, so the public projection is derived here
  * rather than assembled ad hoc at each call site.
  *
- * A paused shelter is excluded. It remains verified in the trust sense — the
- * approval is still on the state — but it is not currently taking adopters, and
+ * A paused shelter is excluded. It remains verified in the trust sense - the
+ * approval is still on the state - but it is not currently taking adopters, and
  * showing its animals would send people to a closed door.
  */
 export const FEED_VISIBLE_VERIFICATION_STATUSES = [

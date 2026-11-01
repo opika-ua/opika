@@ -1,6 +1,6 @@
 /**
  * Static mock data for local gesture testing.
- * Not used in production — the real feed comes from the oRPC client.
+ * Not used in production - the real feed comes from the oRPC client.
  */
 import type { FeedCardView, ShelterSummaryView } from "@opika/contracts";
 import type { AnimalId, Freshness, FreshnessKind } from "@opika/domain";
@@ -13,18 +13,14 @@ function mockId(n: number): AnimalId {
 const mockShelter: ShelterSummaryView = {
   id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as never,
   displayName: "Тестовий притулок",
+  logo: null,
   publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
-  freshnessSentence: {
-    uk: "Ми оновлювали цю картку 25 червня. Напишіть — скажемо, чи тварина ще з нами.",
-    en: null,
-  },
   verification: "verified",
 };
 
-const mockShelterNoSentence: ShelterSummaryView = {
+const mockSecondShelter: ShelterSummaryView = {
   ...mockShelter,
   displayName: "Другий притулок",
-  freshnessSentence: null,
 };
 
 function mockFreshness(kind: FreshnessKind, ageDays: number): Freshness {
@@ -58,6 +54,7 @@ export function generateMockCards(count: number): FeedCardView[] {
     species: i % 3 === 0 ? ("cat" as const) : ("dog" as const),
     sex: i % 2 === 0 ? ("male" as const) : ("female" as const),
     size: (["small", "medium", "large"] as const)[i % 3] ?? ("medium" as const),
+    coatLength: (["short", "long", null] as const)[i % 3] ?? null,
     publicLocation: null,
     ageBucket: (["baby", "young", "adult", "senior"] as const)[i % 4] ?? "young",
     freshness: mockFreshness(
@@ -69,6 +66,6 @@ export function generateMockCards(count: number): FeedCardView[] {
     // (filed as a follow-up alongside E1's own listingKind addition), so
     // there's nothing here for a "reserved" mock card to demonstrate.
     listingKind: "published" as const,
-    shelter: i % 2 === 0 ? mockShelter : mockShelterNoSentence,
+    shelter: i % 2 === 0 ? mockShelter : mockSecondShelter,
   }));
 }

@@ -61,7 +61,7 @@ describe("SupportBanner", () => {
   it("prints a shelter name carrying $& and $1 literally (review finding 2)", () => {
     render(<SupportBanner shelterName="Лапа $& $1" exit={async () => true} navigate={vi.fn()} />);
     expect(screen.getByRole("region").getAttribute("aria-label")).toBe(
-      "Ви переглядаєте кабінет притулку «Лапа $& $1» — лише перегляд, змінити нічого не можна.",
+      "Ви переглядаєте кабінет притулку «Лапа $& $1» – лише перегляд, змінити нічого не можна.",
     );
   });
 
@@ -75,7 +75,7 @@ describe("SupportBanner", () => {
     expect(uk.kabinet.support.title).not.toContain("Олексій");
     // Oleksii's final title (2026-10-14, row 69), transcribed, filled.
     expect(title).toBe(
-      "Ви переглядаєте кабінет притулку «Домівка» — лише перегляд, змінити нічого не можна.",
+      "Ви переглядаєте кабінет притулку «Домівка» – лише перегляд, змінити нічого не можна.",
     );
   });
 
@@ -117,7 +117,7 @@ describe("SignOutButton with unsaved K4 edits (answer 1)", () => {
 
 describe("confirmLeave", () => {
   it("asks nothing with no section dirty, and his question with one dirty", async () => {
-    const { confirmLeave, useUnsavedChanges } = await import("./profile-edit/unsaved-changes");
+    const { confirmLeave, useUnsavedChanges } = await import("./shared/unsaved-changes");
     const ask = vi.fn(() => true);
     expect(confirmLeave(ask)).toBe(true);
     expect(ask).not.toHaveBeenCalled();

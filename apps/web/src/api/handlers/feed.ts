@@ -13,6 +13,7 @@ import type { z } from "zod";
 import type { AppContext } from "../context";
 import { decodeFeedCursor, encodeFeedCursor } from "../cursor";
 import { requireEnv } from "../env";
+import { cardCityIdOf, cityLabelsFor } from "./city-labels";
 import { discoverableListingKind } from "./discoverable-listing-kind";
 import { listingFreshness } from "./listing-freshness";
 import { cityOnlyLocationOf } from "./public-location";
@@ -20,7 +21,7 @@ import { cityOnlyLocationOf } from "./public-location";
 type FeedInput = z.infer<typeof FeedListInputSchema>;
 type FeedOutput = z.infer<typeof FeedListOutputSchema>;
 
-/** The exact subset `feedListContract` declares — see animals.ts's own comment (O-20). */
+/** The exact subset `feedListContract` declares - see animals.ts's own comment (O-20). */
 type FeedListErrors = ORPCErrorConstructorMap<{
   INVALID_CURSOR: typeof apiErrors.INVALID_CURSOR;
   RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
@@ -47,20 +48,20 @@ export async function feedList(
   const feed = feedRepo(context.db);
 
   /**
-   * Only counted on a fresh feed (`cursorData === null` — the entry fetch or
+   * Only counted on a fresh feed (`cursorData === null` - the entry fetch or
    * a retry-restart), and only for a caller with a session: the contract's
    * own doc comment on `reachableCount` says why a prefetch must not
    * re-count, and why a caller with no session needs no count at all.
    *
-   * Gated on the session alone — not on first asking whether the seen-set
-   * is non-empty — so it runs alongside `feed.list` below via `Promise.all`
+   * Gated on the session alone - not on first asking whether the seen-set
+   * is non-empty - so it runs alongside `feed.list` below via `Promise.all`
    * rather than after a second query: awaiting them in sequence would cost a
    * full extra round trip on every fresh deck fetch (real latency on Neon's
    * HTTP driver, the exact class of cost O-9 exists to remove). An adopter
    * with an empty seen-set pays one indexed count for it.
    *
    * A second tab building up its own seen-set concurrently isn't reflected
-   * until this tab's next fresh fetch — accepted, as it was for R1: the
+   * until this tab's next fresh fetch - accepted, as it was for R1: the
    * counter is honest about what this load confirmed.
    */
   const reachableCountPromise: Promise<number | null> =
@@ -85,7 +86,7 @@ export async function feedList(
     reachableCountPromise,
   ]);
 
-  // Build shelter lookup for the page — single batch query, not N+1
+  // Build shelter lookup for the page - single batch query, not N+1
   const shelterIds = [...new Set(page.items.map((a) => a.shelterId))];
   const shelters = shelterRepo(context.db);
   const shelterList = await shelters.findByIds(shelterIds);
@@ -104,6 +105,7 @@ export async function feedList(
         species: animal.species,
         sex: animal.sex,
         size: animal.size,
+        coatLength: animal.coatLength,
         publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
         ageBucket: ageBucketOf(animal.age, context.now),
         freshness,
@@ -112,8 +114,8 @@ export async function feedList(
         shelter: {
           id: shelter.id,
           displayName: shelter.displayName,
+          logo: shelter.logo,
           publicLocation: cityOnlyLocationOf(shelter.publicLocation),
-          freshnessSentence: shelter.freshnessSentence,
           verification:
             shelter.verification.status === "verified"
               ? ("verified" as const)
@@ -134,8 +136,11 @@ export async function feedList(
       ) as string)
     : null;
 
+  const cityLabels = await cityLabelsFor(context.db, items.map(cardCityIdOf));
+
   return {
     items,
+    cityLabels,
     nextCursor: nextCursor as FeedOutput["nextCursor"],
     reachableCount,
   };

@@ -183,20 +183,27 @@ const onWith = (env: Record<string, string | undefined>) => {
 
 describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", () => {
   /**
-   * A split configuration, so a sender reaching the other's provider would
-   * show: invites through Brevo on BREVO_API_KEY, sign-in through Resend on
-   * RESEND_API_KEY (the grace-period rollback's shape, EM-B10).
+   * Two routes on different providers, so a sender reaching the other's
+   * provider would show: invites through Brevo on its own key, sign-in
+   * through Resend. Config can no longer produce this (PW1-Q4: auth emails
+   * are locked to Resend, `production-sign-in.test.ts`), so the invite route
+   * is replaced by hand: this tests which route `productionMailOf` hands to
+   * which sender, not what config allows.
    */
-  const split = {
-    ...production,
-    EMAIL_PROVIDER: "brevo",
-    BREVO_API_KEY: "brevo-key-example",
-    EMAIL_SIGN_IN_PROVIDER: "resend",
+  const splitOn = () => {
+    const on = onWith(production);
+    return {
+      ...on,
+      email: {
+        ...on.email,
+        invite: { ...on.email.invite, provider: "brevo" as const, apiKey: "brevo-key-example" },
+      },
+    };
   };
 
   it("sends the magic link through routes.signIn, signed with the configured operator name", async () => {
     const { calls, fetchImpl } = recordingFetch();
-    const mail = productionMailOf(onWith(split), { fetchImpl, log: () => {} });
+    const mail = productionMailOf(splitOn(), { fetchImpl, log: () => {} });
     await mail.sender.send({
       email: "olena@example.org",
       url: "https://example.org/kabinet/vkhid/pidtverdzhennia?token=abc",
@@ -207,12 +214,12 @@ describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", 
     expect(body.to).toEqual(["olena@example.org"]);
     expect(body.reply_to).toBe("hello@example.org");
     // Transcribed: row 82's signature line, filled with the configured name.
-    expect(body.text).toContain("— Олексій Колотенко");
+    expect(body.text).toContain("- Олексій Колотенко");
   });
 
   it("sends the invite through routes.invite, with the block check on that route's provider", async () => {
     const { calls, fetchImpl } = recordingFetch();
-    const mail = productionMailOf(onWith(split), { fetchImpl, log: () => {} });
+    const mail = productionMailOf(splitOn(), { fetchImpl, log: () => {} });
     const outcome = await mail.invites.send({
       email: "olena@example.org",
       shelterName: "Тестовий",
@@ -261,14 +268,37 @@ describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", 
       url: "https://example.org/kabinet/vkhid/pidtverdzhennia?token=secret-token",
     });
     expect(lines).toEqual([
-      "[kabinet] sign-in email to o•••@example.org not sent: failed (provider_error)",
+      "[kabinet] sign-in email to o•••@example.org not sent: failed (provider_error), provider resend, status 500",
     ]);
+  });
+
+  it("logs a refused invite send through the same line, with the provider and status (2026-10-19)", async () => {
+    const lines: string[] = [];
+    const failing = (async () => new Response("no", { status: 401 })) as typeof fetch;
+    const mail = productionMailOf(onWith(production), {
+      fetchImpl: failing,
+      log: (line) => lines.push(line),
+    });
+    const outcome = await mail.invites.send({
+      email: "olena@example.org",
+      shelterName: "Лапа",
+      operatorName: "Олексій",
+      url: "https://example.org/kabinet/vkhid?zaproshennia=secret-invite",
+      shelterVerification: "verified",
+      validForHours: 72,
+    });
+    expect(outcome).toEqual({ kind: "failed", reason: "provider_error" });
+    expect(lines).toEqual([
+      "[kabinet] invite email to o•••@example.org not sent: failed (provider_error), provider resend, status 401",
+    ]);
+    expect(lines.join("")).not.toContain("secret-invite");
+    expect(lines.join("")).not.toContain("resend-key-example");
   });
 
   it("is rebuilt only when the configuration changes (productionMailFor)", () => {
     const first = productionMailFor(onWith(production));
     expect(productionMailFor(onWith({ ...production }))).toBe(first);
-    expect(productionMailFor(onWith(split))).not.toBe(first);
+    expect(productionMailFor(onWith({ ...production, EMAIL_FROM_NAME: "Other" }))).not.toBe(first);
   });
 });
 

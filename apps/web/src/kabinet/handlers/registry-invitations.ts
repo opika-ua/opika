@@ -10,6 +10,8 @@ import {
 import {
   type AddressRole,
   cityRepo,
+  erasableIf,
+  eraseUsersAndScrubHistory,
   INVITATION_TTL_MS,
   kabinetInvitationRepo,
   kabinetInvitedUsersRepo,
@@ -36,6 +38,8 @@ import { ORPCError, type ORPCErrorConstructorMap } from "@orpc/server";
 import { INVITE_LINK, linkTo } from "../email-links";
 import type { InviteShelterVerification } from "../email-senders";
 import { invitationReminderOf } from "../invitation-reminder";
+import { newInviteToken } from "../invite-password";
+import { inviteTokensOf } from "../invite-tokens";
 import { loadShelterOr404, type RegistryDeps, registryShelterView } from "./registry-reads";
 import { acceptEvidence } from "./registry-writes";
 
@@ -46,11 +50,11 @@ import { acceptEvidence } from "./registry-writes";
  * production sign-in answers 503 and accept-invitation isn't forwarded:
  * moving or splitting this file fails that test, and so does either
  * condition flipping, because that is the day a shelter can sign in and the
- * /prytulkam copy (A1–A3, B1) has to be live.
+ * /prytulkam copy (A1-A3, B1) has to be live.
  *
  * Each write that makes an invitation live (create's first admin, invite,
- * resend) emails the invitee a link to the invite landing (IN-Q3), after the
- * write and never deciding it, and returns what became of the email so the
+ * resend) emails the invitee a link to «Створіть пароль» (IN-Q3; PW-2, a new
+ * hashed token each time), after the write and never deciding it, and returns what became of the email so the
  * operator sees it directly (IN-E7, Oleksii, 2026-10-14). A failed or blocked
  * email leaves the invitation in place; a resend retries the email. A sent
  * one comes back with the reminder to tell the shelter personally (IN-E13).
@@ -85,7 +89,14 @@ const inviteVerificationOf = (shelter: Pick<Shelter, "verification">): InviteShe
     ? "verified"
     : "not_yet_verified";
 
-/** The invite email for one live invitation. Never throws: a sender that does is `provider_error`. */
+/**
+ * The invite email for one live invitation, with a new link (PW-2): a fresh random token, stored
+ * hashed, good until the invitation's own expiry, replacing any earlier link of this invitation
+ * (`kabinetInviteTokenRepo.issue`, on the cleaned handle: `inviteTokensOf`), so only the newest email's link works. The invitation id is
+ * not the link's secret any more. Storing the link can throw (the database); the send never does:
+ * a sender that does is `provider_error`. Either way the invitation stays, and a resend retries
+ * both.
+ */
 async function emailInvitation(
   deps: RegistryDeps,
   input: {
@@ -93,15 +104,24 @@ async function emailInvitation(
     shelterName: string;
     shelterVerification: InviteShelterVerification;
     invitationId: string;
+    expiresAt: Date;
   },
 ): Promise<EmailSendOutcome> {
+  const token = newInviteToken();
+  await inviteTokensOf(deps.db).issue({
+    id: deps.newId(),
+    invitationId: input.invitationId,
+    token,
+    expiresAt: input.expiresAt,
+    now: deps.now,
+  });
   try {
     return await deps.invites.send({
       email: input.email,
       shelterName: input.shelterName,
       shelterVerification: input.shelterVerification,
       operatorName: deps.operatorDisplayName,
-      url: linkTo(deps.linkBaseURL, INVITE_LINK, input.invitationId),
+      url: linkTo(deps.linkBaseURL, INVITE_LINK, token),
       validForHours: Math.round(INVITATION_TTL_MS / 3_600_000),
     });
   } catch {
@@ -151,6 +171,7 @@ async function invite(
     shelterName: input.shelterName,
     shelterVerification: input.shelterVerification,
     invitationId,
+    expiresAt: result.expiresAt,
   });
   return {
     kind: "invited",
@@ -197,7 +218,7 @@ export async function registrySheltersCreate(
   if (accepted.kind === "refused") {
     throw errors.INVALID_EVIDENCE({ data: { reason: accepted.reason } });
   }
-  if ((await cityRepo(deps.db).findById(input.exactAddress.cityId as CityId)) === null) {
+  if ((await cityRepo(deps.db).findCurrentById(input.exactAddress.cityId as CityId)) === null) {
     // A client fault (the form offers known cities only), not one of the
     // contract's typed refusals; answered as a bad request, never a 500.
     throw new ORPCError("BAD_REQUEST", { status: 400, message: UNKNOWN_CITY_MESSAGE });
@@ -223,6 +244,7 @@ export async function registrySheltersCreate(
     exactAddress: input.exactAddress,
     contact: input.contact,
     donation: null,
+    logo: null,
     pendingDonation: null,
     version: 0,
     freshnessSentence: input.freshnessSentence,
@@ -324,6 +346,7 @@ export async function registryAdminsResendInvite(
     shelterName: shelter.displayName,
     shelterVerification: inviteVerificationOf(shelter),
     invitationId: latest.id,
+    expiresAt: resent.expiresAt,
   });
   return {
     invitationEmail,
@@ -375,6 +398,14 @@ export async function registryAdminsRemove(
   // Lost a race with an accept or another removal: nothing of what the
   // operator saw is left to remove.
   if (!removed) throw errors.NOT_FOUND();
+  // GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4; Oleksii,
+  // 2026-10-24), the accepted-member half: a withdrawn *pending* invite has
+  // no membership to lose here - `cleanUpInvitedUsers` below erases that
+  // account (same shared mechanism, same invariant) if it now holds no
+  // shelter role at all, whether or not it was ever signed into.
+  if (admin.invite.status === "accepted") {
+    await eraseUsersAndScrubHistory(deps.db, erasableIf(admin.userId, deps.now));
+  }
   await cleanUpInvitedUsers(deps, organizationId);
   return {};
 }

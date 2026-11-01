@@ -3,16 +3,27 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "browserslist": [
+    "ios_saf >= 16",
+    "safari >= 16",
+    "chrome >= 130",
+    "and_chr >= 130",
+    "edge >= 130",
+    "samsung >= 27",
+    "last 2 firefox versions"
+  ],
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
+    "icons:generate": "node scripts/generate-pwa-icons.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:harness": "node ./test/run-harness.mjs",
     "test:harness:install": "playwright install --with-deps chromium",
     "email:delivery-test": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/email-delivery-test.ts",
-    "kabinet:neon-auth-smoke": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/neon-auth-smoke.ts"
+    "kabinet:neon-auth-smoke": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/neon-auth-smoke.ts",
+    "kabinet:sign-in-delay-smoke": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/sign-in-delay-smoke.ts"
   },
   "dependencies": {
     "@opika/contracts": "workspace:*",
@@ -27,6 +38,7 @@
     "@upstash/redis": "catalog:",
     "@vercel/analytics": "catalog:",
     "@vercel/speed-insights": "catalog:",
+    "@better-auth/core": "catalog:",
     "better-auth": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
@@ -36,6 +48,7 @@
   "devDependencies": {
     "@playwright/test": "catalog:",
     "@tailwindcss/postcss": "catalog:",
+    "sharp": "catalog:",
     "@testing-library/react": "catalog:",
     "@testing-library/user-event": "catalog:",
     "@types/node": "catalog:",

@@ -1,388 +1,364 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
+import { donationHost, hasAnyDocumentEvidence, textIn } from "@opika/domain";
 import {
-  donationHost,
-  fillAnimalName,
-  hasAnyDocumentEvidence,
-  pluralizeUk,
-  textIn,
-} from "@opika/domain";
-import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
+  ageChipWordFor,
+  colourChipLabel,
+  fillTemplate,
+  sexWordFor,
+  sizeChipWordFor,
+  temperamentLabelFor,
+  uk,
+} from "@opika/i18n";
+import { freshnessLabel } from "@opika/ui";
+import Image from "next/image";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
-import { Footer } from "../chrome/Footer";
+import { Avatar } from "../../ui/Avatar";
+import { LinkButton } from "../../ui/Button";
+import { Chip } from "../../ui/Chip";
+import { Heading } from "../../ui/Heading";
+import { Icon } from "../../ui/Icon";
+import { MAIN_LANDMARK } from "../../ui/landmark";
+import { MetaLine } from "../../ui/MetaLine";
+import { Text } from "../../ui/Text";
 import { SiteHeader } from "../chrome/SiteHeader";
+import { chipDisplayLabel, similarAnimalsHref, similarAnimalsLabel } from "../gallery/filter-url";
+import { SaveButton } from "../likes/SaveButton";
+import { shelterPagePath } from "../shelters/shelter-url";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
+import { MedicalStatus } from "./MedicalStatus";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
-import { ShelterFreshnessBlock } from "./ShelterFreshnessBlock";
+import { ShareButton } from "./ShareButton";
 
-/**
- * "Перевірений вручну · {years} на Opika" — years is whole, floored, never
- * negative (a shelter created "today" reads as 0, not a fraction or a
- * negative from clock skew).
- */
-function yearsOnOpika(createdAt: Date, now: Date): number {
-  const years = (now.getTime() - createdAt.getTime()) / (365.2425 * 86_400_000);
-  return Math.max(0, Math.floor(years));
-}
-
-function speciesLabel(species: AnimalDetailView["species"]): string {
-  return species === "dog" ? uk.detail.speciesDog : uk.detail.speciesCat;
-}
+// The Figma panel's 1084px on the spacing scale (271 x 4px). Below desktop the panel is a single
+// column of at most 640px (centred on a tablet, the whole width on a phone).
+const PANEL_WIDTH = "max-w-160 desktop:max-w-271";
 
 interface AnimalDetailScreenProps {
   animal: AnimalDetailView;
   shelter: PublicShelterView;
-  now: Date;
-  /** Resolved by the caller (`cities.list`), same pattern as the gallery's `AnimalCard` — this component never fetches. */
+  /** Resolved by the caller (`cities.byIds`), same pattern as the gallery's `AnimalCard` - this component never fetches. */
   cityName: string | null;
-  /** O-12 (`docs/observations.md`): where "← Усі тварини у {city}" actually
-   * goes — the gallery filtered to this animal's city, built by the caller
-   * through `galleryHref` (`/tvaryny` unfiltered only if the city couldn't
-   * be resolved). Every back-navigation on this screen shares it: the
-   * header's two links and the "Не зараз" button all mean the same "back to
-   * where I was," not three independent destinations. */
-  backToGalleryHref: string;
+  /** The place as a meta line prints it, for the contact reveal (kind prefix, oblast where ambiguous). */
+  cityPlace: string | null;
 }
 
 /**
- * `docs/design/README.md`'s addendum, frames D1 (1920)/D2 (360) —
- * `Opika Registry Frames.dc.html`, opened directly per
- * `docs/standing-constraints.md`'s "when a mock exists, open the mock
- * file." One DOM tree reflowing by breakpoint (`tablet:`/`desktop:`),
- * matching the gallery's own approach: a Server Component cannot know the
- * client's width, and this page must render correctly with no JS.
+ * Full-page chrome (header, demo banner) around `AnimalDetailContent`, which the gallery's
+ * overlay (`AnimalOverlay.tsx`) renders too. Prev/next lives only in the overlay: the full page
+ * never fetches neighbours, and shows no back-link row (owner decision B).
  *
- * Real deviations from the mock, all recorded rather than silently
- * resolved — see this phase's PR body for the full account:
- * 1. The subtitle is 3 segments (species · age · size), not the mock's 4
- *    ("Метис · 2 роки · середня · стерилізація не записана"). Two changes,
- *    not one: "Метис" (breed) is dropped because `Animal` has no breed
- *    field at all; the trailing sterilisation clause is dropped because
- *    that fact already gets its own full row in the medical section below
- *    — repeating it in the subtitle risked the two disagreeing the moment
- *    either one changed independently.
- * 2. The medical section renders two rows (vaccination, spayNeuter), not
- *    the mock's three ("Сказ" / "Комплексне щеплення" / "Стерилізація") —
- *    `medical-labels.ts`'s own comment has the full reasoning.
- * 3. ~~The header carries only the back link, not the mock's own
- *    logo+wordmark beside it.~~ **Reversed in Phase T, and the reasoning
- *    that stood here was wrong.** It argued against "repeating the wordmark
- *    a second time on every route" while itself noting that mock D1 shows
- *    both — so the mock had already settled it, and this deviated from it
- *    knowingly. The design critique found the cost: this URL is the one
- *    people paste into Telegram, and it arrived with no brand, no promise
- *    text, and no route to «Про проєкт» (critique E1/B2). The header is now
- *    the shared `SiteHeader`, which carries the wordmark and site nav on
- *    every surface but the deck.
+ * Deviations from the Figma frame (full list in the pet card PR 5 body): the meta line shows the
+ * age bucket, not "N років" (the contract carries only the bucket); the freshness tag reuses
+ * `freshnessLabel` verbatim, without the mock's colon.
  */
 export function AnimalDetailScreen({
+  // Defaulted so the tests of this screen's own content don't all need a prop they aren't
+  // testing; the one real caller (`app/tvaryny/[animalId]/page.tsx`) always passes it.
+  kabinetSignedIn = false,
+  backToGalleryHref = "/tvaryny",
+  ...content
+}: AnimalDetailScreenProps & { kabinetSignedIn?: boolean; backToGalleryHref?: string }) {
+  return (
+    <div className="flex min-h-dvh flex-col bg-page">
+      <SiteHeader kabinetSignedIn={kabinetSignedIn} />
+
+      <main {...MAIN_LANDMARK} className="flex flex-1 flex-col">
+        {/* The demo disclosure must be in the page body, not only in metadata: this route is the one shelters share into Telegram. */}
+        {REGISTRY_HAS_NO_REAL_SHELTERS && (
+          <div className="p-4 tablet:p-6 desktop:px-14">
+            <span data-testid="detail-demo-banner">
+              <Text as="span" look="hint">
+                {uk.demo.bannerNotice}
+              </Text>
+            </span>
+          </div>
+        )}
+
+        {/* Below desktop the full page has no ✕ and no prev/next (those belong to the overlay), so the way out is this link. */}
+        <div className="mx-auto w-full max-w-160 px-4 tablet:px-6 desktop:hidden">
+          <Link
+            href={backToGalleryHref}
+            prefetch={false}
+            className="inline-flex min-h-target items-center gap-1 rounded-field text-label focus-ring"
+          >
+            <Icon name="chevron-left" size="sm" />
+            {uk.detail.notFound.action}
+          </Link>
+        </div>
+        <div className="flex flex-1 flex-col desktop:pt-10">
+          <AnimalDetailContent {...content} />
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/** The animal itself, with no page chrome: shared by the full page and the gallery overlay. */
+export function AnimalDetailContent({
   animal,
   shelter,
-  now,
   cityName,
-  backToGalleryHref,
+  cityPlace,
 }: AnimalDetailScreenProps) {
   const showDocuments =
     animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
-  const years = yearsOnOpika(shelter.createdAt, now);
-  const yearsLabel = pluralizeUk(years, { one: "рік", few: "роки", many: "років" });
-
-  const subtitle = [
-    speciesLabel(animal.species),
-    ageWordFor(animal.ageBucket, animal.sex),
-    sizeLabel(animal.size),
-  ].join(" · ");
-
-  /**
-   * `animal.publicLocation` is `null` for an animal still at its own
-   * shelter — it inherits the shelter's location (`CLAUDE.md` decision
-   * #17). Non-null means fostered. Either way this view holds the city only
-   * (Oleksii, 2026-10-14, EM-Q10), so nullness is the one signal.
-   */
-  const isFostered = animal.publicLocation !== null;
-  const locationLine = (isFostered ? uk.location.lineFostered : uk.location.lineAtShelter).replace(
-    "{city}",
-    () => cityName ?? "",
-  );
+  const customTemperament = animal.temperament.find((entry) => entry.kind === "custom");
 
   return (
-    <div className="font-rg min-h-dvh bg-rg-page">
-      <SiteHeader />
-
-      {/*
-        The gallery's own visible carrier of the D-2 demo disclosure
-        (`tvaryny/page.tsx`) needed the identical fix here — found by the
-        reviewer, not caught in the first pass: this route is the one
-        `/prytulkam` itself tells a shelter to expect shared into Telegram,
-        so a visitor reaching it directly (not via the gallery) saw no demo
-        disclosure at all, same gap, same reason (`description`/
-        `og:description` are metadata, never page body). See `seo-flags.ts`'s
-        own correction comment on `REGISTRY_HAS_NO_REAL_SHELTERS` for the
-        full history.
-      */}
-      {REGISTRY_HAS_NO_REAL_SHELTERS && (
-        <div className="p-4 tablet:p-6 desktop:px-8 desktop:max-w-[1200px] desktop:mx-auto">
-          <span data-testid="detail-demo-banner" className="text-[13px]/[18px] text-rg-ink-3">
-            {uk.demo.bannerNotice}
-          </span>
-        </div>
-      )}
-
-      {/*
-        O-8 (`docs/observations.md`): this used to render inside `SiteHeader`
-        via its `leading` slot, beside the wordmark, where it read as a site
-        navigation item rather than the page's own back-link. Moved below
-        the header, above the content, left-aligned — the same "never two
-        navigations at once" direction `docs/design/README.md`'s deck-chrome
-        section states for the gallery/deck split, applied here to header
-        nav vs. page-own navigation instead of gallery nav vs. deck nav.
-
-        `min-h-12` (48), not the `min-h-11` (44) these carried before:
-        docs/design/README.md:200 sets 48 as the minimum touch target
-        *anywhere*, and calls it a civic-trust metric rather than the WCAG
-        floor. Same rule as the header-height fix (critique A2) and found in
-        the same pass, one component over.
-
-        Horizontal padding matches the content column immediately below
-        (`p-4 tablet:p-6`, desktop's own `desktop:px-8` starts at the same
-        breakpoint) so the back-link's left edge lines up with the photo and
-        text columns it sits above, not with the header's wider padding.
-      */}
-      <div className="p-4 tablet:p-6 desktop:px-8 desktop:pt-6 desktop:max-w-[1200px] desktop:mx-auto">
-        <Link
-          href={backToGalleryHref}
-          data-testid="back-to-list"
-          className="min-h-12 inline-flex items-center gap-1.5 rounded-rg-button bg-rg-fill px-4 text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px] desktop:hidden"
-        >
-          {uk.feed.backToList}
-        </Link>
-        <Link
-          href={backToGalleryHref}
-          data-testid="back-to-list-desktop"
-          className="hidden desktop:inline-flex min-h-12 items-center text-[15px] text-rg-ink-2 rounded-rg-button focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-        >
-          {uk.detail.backToListIn.replace("{city}", () => cityName ?? "")}
-        </Link>
-      </div>
-
-      <div className="desktop:max-w-[1200px] desktop:mx-auto p-4 tablet:p-6 desktop:py-10 desktop:px-8 desktop:flex desktop:gap-10 desktop:items-start">
-        {/* Photo column — sticky on desktop, fixed-height strip on mobile. */}
-        <div className="desktop:w-[560px] desktop:flex-none desktop:sticky desktop:top-10 flex flex-col gap-2">
-          <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} />
-        </div>
-
-        {/* Content column */}
-        <div className="flex-1 min-w-0 flex flex-col gap-6 mt-4 desktop:mt-0">
-          <div className="flex flex-col gap-1">
-            <h1
-              data-testid="animal-name"
-              className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.03em] text-rg-ink"
-            >
+    <div
+      className={`mx-auto flex w-full flex-1 max-desktop:min-h-full ${PANEL_WIDTH} flex-col gap-4 px-4 pb-0 tablet:px-6 desktop:gap-13 desktop:p-10`}
+    >
+      {/* Header. Below desktop its wrappers dissolve (`contents`) so the action bar can stick to the
+          bottom of the whole panel, not of the header. */}
+      <div className="flex flex-col gap-4 max-desktop:contents">
+        <div className="flex flex-col gap-6 desktop:flex-row desktop:items-start desktop:justify-between max-desktop:contents">
+          <div className="flex min-w-0 flex-col gap-1">
+            <Heading level={1} look="display-l" className="break-words desktop:text-display-xl">
               {animal.name}
-            </h1>
-            <span className="text-[15px]/[22px] text-rg-ink-2">{subtitle}</span>
+            </Heading>
+            <MetaLine parts={metaParts(animal)} />
           </div>
+          {/* Wraps onto two lines on a phone rather than overflowing; «Дати сімʼю» stays the one primary action. */}
+          {/* Phone: the bar that is always on screen (sticky to the bottom of the panel's scroll), «Дати сімʼю» taking the width and two 52px circles; from desktop, the header's own row. */}
+          <div
+            data-testid="action-bar"
+            className="sticky bottom-0 z-10 order-last -mx-4 mt-auto flex items-center gap-2.5 border-line border-t bg-surface px-4 pt-3 pb-inset tablet:-mx-6 tablet:px-6 desktop:static desktop:order-none desktop:m-0 desktop:flex-none desktop:flex-wrap desktop:gap-4 desktop:border-0 desktop:bg-transparent desktop:p-0"
+          >
+            <RevealFlow
+              animalId={animal.id}
+              animalName={animal.name}
+              cityName={cityPlace}
+              cityLabel={cityName}
+            />
+            <ShareButton animalId={animal.id} animalName={animal.name} />
+            <SaveButton animalId={animal.id} animalName={animal.name} />
+          </div>
+        </div>
 
-          {/*
-            Freshness quote block — a separate card below the name, on both
-            mobile and desktop, matching the mock's D1 (1920) and D2 (360)
-            frames exactly: neither ever overlays freshness on the photo.
-            An earlier version of this screen also overlaid a redundant
-            freshness-pips-only cluster on the mobile photo (duplicating
-            this block's own pips for no reason, and incidentally occupying
-            the mock's actual photo-dot-indicator corner) — removed when
-            `DetailPhotoGallery.tsx`'s real dot indicator needed that corner
-            for what the mock actually puts there. See O-22,
-            `docs/observations.md`, for the full account.
-          */}
-          {/*
-            `freshnessSentence`, NOT `description` — this block quoted the
-            shelter's general description («Один з найбільших притулків
-            Києва, працює з 2015 року…») under an attribution that reads
-            «Слова притулку · дата автоматична» (as it then read), inside a freshness block.
-            Wrong field, and wrong against the design: README's freshness
-            section specifies a sentence "written once by the shelter at
-            verification, in their own words" about how current their
-            listings are, which is what `freshnessSentence` holds and what
-            `SwipeCard` already renders. The contract exposes it
-            (`ShelterSummaryViewSchema`) and the handler already passes it;
-            only this surface read the wrong one.
-
-            Found by verifying a claim in `/prytulkam`'s own copy — §8 tells
-            shelters their sentence appears on the animal's page, which was
-            false here. A copy claim that could not be checked against the
-            screen is how the page would have shipped describing a product
-            that did not exist.
-
-            Read from `animal.shelter`, not the `shelter` prop:
-            `PublicShelterViewSchema` does not `pick` `freshnessSentence`
-            (which is why this reached for `description` in the first place),
-            but `AnimalDetailView`'s own nested `ShelterSummaryView` does and
-            the handler already populates it. Using the data already on the
-            page beats widening a public view — `pick`, never `omit`, means
-            every field on that view is a deliberate decision, and this one
-            needs no new decision.
-
-            `{імʼя}` is filled with this page's animal (K-Q6), here and on the
-            deck only; the kabinet shows the shelter its sentence as written,
-            except K4's voice preview (N11), which fills it in this same block.
-
-            Nullable by design: a shelter with no sentence falls back to the
-            pips and day count alone (`FreshnessSentenceSchema`'s own note),
-            which is why this stays conditional rather than gaining a
-            placeholder. The attribution goes with it: under the day count
-            alone, «Слова притулку» would credit the shelter with words it
-            never wrote (VH-Q2).
-          */}
-          <ShelterFreshnessBlock
-            freshness={animal.freshness}
-            sentence={
-              animal.shelter.freshnessSentence
-                ? fillAnimalName(textIn(animal.shelter.freshnessSentence, "uk"), animal.name)
-                : null
-            }
-          />
-
-          <div className="flex gap-2">
-            {/*
-              Real navigation back to the gallery, not an inert button — a
-              reviewer finding, caught by checking for an onClick/href
-              rather than trusting the visible label: this used to be a
-              `<button>` with neither, the same "renders but does nothing"
-              failure standing-constraints was written for
-              (`/discovery`'s dead swipe gesture). Unlike the deck, this
-              page has no "next card" to advance to on decline — "Не
-              зараз" here means "not this one, back to the list," so it
-              goes to the same place the header's own back link does.
-              Not `swipes.record`: that call is deck-scoped today (a
-              browsing context this page isn't), and inventing a second
-              meaning for it here is a product decision this fix isn't
-              making.
-            */}
+        <div className="flex flex-col gap-4 desktop:flex-row desktop:flex-wrap desktop:items-center desktop:justify-between">
+          {/* Wraps the reserved chip below the freshness one when there is no room. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span data-testid="freshness-block" className="w-fit">
+              <Chip kind="info">{freshnessLabel(animal.freshness)}</Chip>
+            </span>
+            {animal.listingKind === "reserved" && (
+              <span data-testid="reserved-badge" className="w-fit">
+                <Chip kind="status" tone="reserved">
+                  {uk.reserved.badge}
+                </Chip>
+              </span>
+            )}
+          </div>
+          <div className="flex min-w-0 items-center justify-between gap-3 desktop:flex-wrap desktop:justify-start desktop:gap-8">
             <Link
-              href={backToGalleryHref}
-              data-testid="not-now-button"
-              className="min-h-14 flex-1 flex items-center justify-center rounded-rg-button bg-rg-fill text-[15px] font-medium text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+              href={shelterPagePath(shelter.id)}
+              prefetch={false}
+              aria-label={fillTemplate(uk.detail.shelterRowLink, { name: shelter.displayName })}
+              className="inline-flex min-h-target min-w-0 items-center gap-3 rounded-field focus-ring"
             >
-              {uk.actions.notNow}
-            </Link>
-            <RevealFlow animalId={animal.id} animalName={animal.name} cityName={cityName} />
-          </div>
-
-          <div className="flex flex-col desktop:flex-row gap-6">
-            <div className="flex-1 min-w-0 flex flex-col gap-3">
-              <span className="text-[19px]/[24px] font-medium text-rg-ink">
-                {uk.medical.heading}
-              </span>
-              <MedicalRowView row={vaccinationRow(animal.vaccination)} />
-              <MedicalRowView row={spayNeuterRow(animal.spayNeuter)} />
-              {showDocuments && (
-                <div className="flex gap-2 pt-1">
-                  {animal.documentReadiness.kind === "tracked" &&
-                    animal.documentReadiness.microchip.kind === "present" && (
-                      <span className="inline-flex min-h-7 items-center rounded-rg-chip bg-rg-fill px-3 text-[13px] text-rg-ink-2">
-                        {uk.documents.chipPresent}
-                      </span>
-                    )}
-                  {animal.documentReadiness.kind === "tracked" &&
-                    animal.documentReadiness.rabiesVaccination.kind === "present" && (
-                      <span className="inline-flex min-h-7 items-center rounded-rg-chip bg-rg-fill px-3 text-[13px] text-rg-ink-2">
-                        {uk.documents.rabiesPresent}
-                      </span>
-                    )}
-                </div>
+              {shelter.logo === null ? (
+                <Avatar kind="initials" name={shelter.displayName} />
+              ) : (
+                <Avatar kind="logo" src={shelter.logo.storageKey} />
               )}
-            </div>
-
-            <div className="desktop:w-65 desktop:flex-none flex flex-col gap-3">
-              <span className="text-[19px]/[24px] font-medium text-rg-ink">
-                {uk.location.heading}
-              </span>
-              <div className="bg-rg-fill-strong rounded-rg-button p-4 flex flex-col gap-2">
-                <span className="text-[15px]/[22px] font-medium text-rg-ink">{locationLine}</span>
-                <span className="text-[15px]/[22px] text-rg-ink-2">
-                  {uk.location.noMapExplanation}
+              <Text as="span" look="label" className="min-w-0 max-desktop:truncate">
+                {shelter.displayName}
+              </Text>
+            </Link>
+            {cityName && (
+              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap desktop:gap-2">
+                <Image
+                  src="/pet-card/icon-location.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width={32}
+                  height={32}
+                  unoptimized
+                  className="size-6 desktop:size-8"
+                />
+                <span data-testid="shelter-city">
+                  <Text as="span" look="label" className="text-accent-text">
+                    {cityName}
+                  </Text>
                 </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4 pt-2">
-            <div className="flex items-center gap-3">
-              <span
-                aria-hidden="true"
-                className="size-11 rounded-full bg-rg-fill inline-flex items-center justify-center text-[15px] font-medium text-rg-ink-2 flex-none"
-              >
-                {shelter.displayName.replace(/[«»]/g, "").trim().slice(0, 1)}
               </span>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[15px]/[22px] font-medium text-rg-ink">
-                  {shelter.displayName}
-                </span>
-                {/*
-                  D-2 (seo-flags.ts's own comment on REGISTRY_HAS_NO_REAL_SHELTERS):
-                  this badge asserts something true about a *verified* shelter —
-                  fictional while the flag is true, which it is on production
-                  today. Suppressed rather than shown for a shelter that doesn't
-                  exist.
-                */}
-                {!REGISTRY_HAS_NO_REAL_SHELTERS && (
-                  <span className="text-[13px]/[18px] text-rg-ink-3">
-                    {uk.detail.shelterVerifiedYears.replace("{years}", `${years} ${yearsLabel}`)}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {shelter.donation && (
-              <a
-                href={shelter.donation.url}
-                target="_blank"
-                rel="noopener"
-                data-testid="donate-link"
-                className="flex items-center justify-between gap-3 min-h-14 rounded-rg-button bg-rg-fill px-5 text-[15px] text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-              >
-                <span>{uk.detail.donateShelter}</span>
-                <span className="text-rg-ink-2">{donationHost(shelter.donation)} ↗</span>
-              </a>
             )}
           </div>
         </div>
+        {/* Commitment 5: donations are external links to the shelter's own payment page, domain visible before the tap. */}
+        {shelter.donation && (
+          <LinkButton
+            variant="secondary"
+            href={shelter.donation.url}
+            target="_blank"
+            rel="noopener"
+            data-testid="donate-link"
+            className="w-fit"
+          >
+            <span>{uk.detail.donateShelter}</span>
+            <span className="text-ink-2">{donationHost(shelter.donation)} ↗</span>
+          </LinkButton>
+        )}
       </div>
 
-      <div className="p-4 tablet:p-6 desktop:px-8 desktop:max-w-[1200px] desktop:mx-auto">
-        <Footer />
+      {/* Photo slider */}
+      <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} />
+
+      {/* Про мене */}
+      <div className="flex flex-col gap-4 max-desktop:pt-2">
+        <Heading level={2}>{uk.detail.aboutMeHeading}</Heading>
+        <div className="flex flex-wrap gap-2">
+          <FilterableChipLink
+            species={animal.species}
+            dimension="ages"
+            value={animal.ageBucket}
+            visibleText={ageChipWordFor(animal.ageBucket, animal.sex)}
+          />
+          <SexChip species={animal.species} sex={animal.sex} />
+          <FilterableChipLink
+            species={animal.species}
+            dimension="sizes"
+            value={animal.size}
+            visibleText={sizeChipWordFor(animal.size, animal.sex)}
+          />
+          {animal.temperament
+            .filter((entry) => entry.kind === "preset")
+            .map((entry) => (
+              <PlainChip key={entry.trait} text={temperamentLabelFor(entry.trait, animal.sex)} />
+            ))}
+          {customTemperament?.kind === "custom" && (
+            <PlainChip text={textIn(customTemperament.text, "uk")} />
+          )}
+          {animal.colour?.kind === "preset" && (
+            <PlainChip text={colourChipLabel(animal.colour.colour)} />
+          )}
+          {animal.colour?.kind === "custom" && (
+            <PlainChip text={textIn(animal.colour.text, "uk")} />
+          )}
+          {animal.coatLength && <PlainChip text={COAT_WORDS[animal.coatLength]} />}
+          {showDocuments && animal.documentReadiness.kind === "tracked" && (
+            <>
+              {animal.documentReadiness.microchip.kind === "present" && (
+                <PlainChip text={uk.documents.chipPresent} />
+              )}
+              {animal.documentReadiness.rabiesVaccination.kind === "present" && (
+                <PlainChip text={uk.documents.rabiesPresent} />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Моя історія / Медичний стан */}
+      <div className="flex flex-col gap-13 desktop:flex-row">
+        <div className="flex flex-1 flex-col gap-3">
+          <Heading level={2}>{uk.detail.myStoryHeading}</Heading>
+          <Text look="lead" className="text-ink-2">
+            {textIn(animal.description, "uk")}
+          </Text>
+        </div>
+        <MedicalStatus
+          rows={[vaccinationRow(animal.vaccination), spayNeuterRow(animal.spayNeuter)]}
+          notes={animal.medicalNotes === null ? null : textIn(animal.medicalNotes, "uk")}
+        />
+      </div>
+
+      {/* Footer divider */}
+      <div className="flex items-center justify-center gap-10 pt-2">
+        <Image
+          src="/pet-card/divider-left.svg"
+          alt=""
+          aria-hidden="true"
+          width={431}
+          height={6}
+          unoptimized
+          className="h-auto min-w-0 flex-1"
+        />
+        <Image
+          src="/pet-card/mascot-divider.svg"
+          alt=""
+          aria-hidden="true"
+          width={63}
+          height={60}
+          unoptimized
+          className="h-15 w-auto flex-none"
+        />
+        <Image
+          src="/pet-card/divider-right.svg"
+          alt=""
+          aria-hidden="true"
+          unoptimized
+          width={431}
+          height={6}
+          className="h-auto min-w-0 flex-1"
+        />
       </div>
     </div>
   );
 }
 
-/**
- * Stacked (label above status), not side-by-side: the medical column
- * shares its row with the fixed-width "Де живе" column at desktop
- * (`w-65`), which leaves it real but narrow — a side-by-side layout with
- * "Комплексне щеплення" as the label overlapped its own status text at
- * 1920, caught by looking at the actual rendered screenshot, not assumed
- * from the JSX. Stacking removes the width budget entirely rather than
- * trimming it closer to a number that might collide again with a longer
- * translation later.
- */
-function MedicalRowView({ row }: { row: ReturnType<typeof vaccinationRow> }) {
+/** Sex, age bucket and size: the gallery card's three facts, composed here from the detail view. */
+function metaParts(animal: AnimalDetailView): string[] {
+  return [
+    sexWordFor(animal.sex),
+    ageChipWordFor(animal.ageBucket, animal.sex),
+    sizeChipWordFor(animal.size, animal.sex),
+  ].filter((part): part is string => Boolean(part));
+}
+
+/** Coat length's own words, no longer read through `chipDisplayLabel` (gallery filter
+ * restructure removed the fur filter, which that function served): the two words
+ * themselves stay public, under `uk.filters.*` still, since this chip is their only
+ * remaining caller - see that key's own comment in `uk.ts`. */
+const COAT_WORDS: Record<NonNullable<AnimalDetailView["coatLength"]>, string> = {
+  short: uk.filters.coatShort,
+  long: uk.filters.coatLong,
+};
+
+/** A non-filterable fact, as plain text (A6 - custom «Інше» values and the medical facts). */
+function PlainChip({ text }: { text: string }) {
+  return <Chip kind="fact">{text}</Chip>;
+}
+
+/** The sex chip joins ages/sizes as a filterable chip; omitted for "unknown" (no word to show, and "more like this: not recorded" answers nothing). */
+function SexChip({
+  species,
+  sex,
+}: {
+  species: AnimalDetailView["species"];
+  sex: AnimalDetailView["sex"];
+}) {
+  const word = sexWordFor(sex);
+  return word === null ? null : (
+    <FilterableChipLink species={species} dimension="sexes" value={sex} visibleText={word} />
+  );
+}
+
+/** A filterable chip (A6): a link to the gallery filtered to the animal's species plus this
+ * one fact, accessible name via `similarAnimalsLabel`. `visibleText` overrides the default
+ * (`chipDisplayLabel`) for temperament, whose visible chip uses the sex-matched singular form,
+ * not the plural the accessible name reads. */
+function FilterableChipLink<D extends Parameters<typeof chipDisplayLabel>[0]["dimension"]>({
+  species,
+  dimension,
+  value,
+  visibleText,
+}: {
+  species: AnimalDetailView["species"];
+  dimension: D;
+  value: Extract<Parameters<typeof chipDisplayLabel>[0], { dimension: D }>["value"];
+  visibleText?: string;
+}) {
+  const chip = { dimension, value } as Parameters<typeof chipDisplayLabel>[0];
   return (
-    <div className="flex items-start gap-3">
-      <span
-        aria-hidden="true"
-        className={`w-1 h-4 mt-1 rounded-rg-chip flex-none ${row.barClassName}`}
-      />
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-[15px]/[22px] text-rg-ink">{row.label}</span>
-        <span
-          className={`text-[13px]/[18px] ${row.barClassName === "bg-rg-registry" ? "font-medium text-rg-registry" : row.barClassName === "bg-rg-ink-3" ? "text-rg-ink-2" : "text-rg-ink-3"}`}
-        >
-          {row.statusText}
-        </span>
-      </div>
-    </div>
+    <Chip
+      kind="fact"
+      href={similarAnimalsHref(species, chip)}
+      aria-label={similarAnimalsLabel(species, chip)}
+    >
+      {visibleText ?? chipDisplayLabel(chip)}
+    </Chip>
   );
 }

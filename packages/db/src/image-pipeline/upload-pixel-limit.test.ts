@@ -2,6 +2,7 @@ import realSharp, { type SharpOptions } from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateVariants } from "./generate-variants";
 import { prepareUploadedPhoto, UPLOAD_PIXEL_LIMIT } from "./prepare-uploaded-photo";
+import { IMAGE_VARIANTS } from "./variants";
 
 /**
  * The decoder's own pixel ceiling, behind the header check (P-Q5): every
@@ -32,7 +33,7 @@ beforeEach(() => {
 
 describe("UPLOAD_PIXEL_LIMIT", () => {
   it("lets the largest upload P-Q5 allows, 2000 × 2000, decode under it", async () => {
-    const variants = await generateVariants(await solid(2000, 2000), {
+    const variants = await generateVariants(IMAGE_VARIANTS, await solid(2000, 2000), {
       limitInputPixels: UPLOAD_PIXEL_LIMIT,
     });
     expect(Object.keys(variants).sort()).toEqual(["card", "detail", "thumb"]);
@@ -63,7 +64,9 @@ describe("UPLOAD_PIXEL_LIMIT", () => {
     // (at generateVariants' own header read, the first open that carries it),
     // not the 2000 px side check, which prepareUploadedPhoto runs first.
     await expect(
-      generateVariants(await solid(2001, 2000), { limitInputPixels: UPLOAD_PIXEL_LIMIT }),
+      generateVariants(IMAGE_VARIANTS, await solid(2001, 2000), {
+        limitInputPixels: UPLOAD_PIXEL_LIMIT,
+      }),
     ).rejects.toThrow("Input image exceeds pixel limit");
   });
 });

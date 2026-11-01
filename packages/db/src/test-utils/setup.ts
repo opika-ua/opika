@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { FULL_RESET_TABLES, RESET_EXCLUDED_TABLES } from "../full-reset";
 import * as schema from "../schema/index";
 import { assertDisposableTestDatabase, ensureTestDatabase, testDatabaseUrl } from "./test-database";
 
@@ -40,7 +41,7 @@ export type TestContext = {
  * Call once in a `beforeAll` or at the top of a test file.
  *
  * Drops every application table, then applies the committed Drizzle
- * migrations — the same SQL that would run against a real database.
+ * migrations - the same SQL that would run against a real database.
  * This keeps the test schema in sync with `packages/db/src/schema/*.ts`
  * automatically: adding a column and running `db:generate` produces a
  * migration file, and the next test run picks it up.
@@ -56,6 +57,7 @@ export async function setupTestDatabase() {
   // Drop every application table and the drizzle migration journal so
   // migrations apply cleanly from scratch on every test run.
   await client.unsafe(`
+    DROP TABLE IF EXISTS r2_unreferenced_objects CASCADE;
     DROP TABLE IF EXISTS support_sessions CASCADE;
     DROP TABLE IF EXISTS invitation_created_users CASCADE;
     DROP TABLE IF EXISTS shelter_history CASCADE;
@@ -73,7 +75,11 @@ export async function setupTestDatabase() {
     DROP TABLE IF EXISTS animals CASCADE;
     DROP TABLE IF EXISTS adopters CASCADE;
     DROP TABLE IF EXISTS shelters CASCADE;
+    DROP TABLE IF EXISTS city_slug_aliases CASCADE;
     DROP TABLE IF EXISTS cities CASCADE;
+    DROP TABLE IF EXISTS regions CASCADE;
+    -- Outlives its tables otherwise; dropped so each run proves migration 0013 creates it.
+    DROP FUNCTION IF EXISTS auth_account_password_revokes_sessions() CASCADE;
     DROP SCHEMA IF EXISTS drizzle CASCADE;
   `);
 
@@ -88,11 +94,26 @@ export async function setupTestDatabase() {
 }
 
 /**
+ * Every real table, derived from `full-reset.ts`'s own two lists rather
+ * than kept as a third hand-written copy (Tier 1 review simplification, PR
+ * #199) - `full-reset-table-coverage.test.ts` already proves those two
+ * together are exactly the schema's real tables, so this can never drift
+ * from that set the way an independent literal list could.
+ */
+const ALL_TABLES = [...FULL_RESET_TABLES, ...RESET_EXCLUDED_TABLES.map((entry) => entry.table)];
+
+/** Migration data, not test data: `cities.region_id` needs these 27 rows to exist in every test. */
+const KEPT_BETWEEN_TESTS = new Set(["regions"]);
+
+/**
  * Truncate all tables between tests. Faster than dropping/recreating and
- * preserves the schema.
+ * preserves the schema. `CASCADE` is fine here, unlike `full-reset.ts`'s own
+ * production `TRUNCATE` - this always covers every real table already, so
+ * there is nothing outside the list for `CASCADE` to reach.
  */
 export async function truncateAll(db: ReturnType<typeof drizzle<typeof schema>>) {
-  await db.execute(
-    sql`TRUNCATE support_sessions, invitation_created_users, shelter_history, super_admins, auth_invitation, auth_member, auth_session, auth_account, auth_verification, auth_organization, auth_user, sessions, reveals, swipes, animals, adopters, shelters, cities CASCADE`,
-  );
+  const list = ALL_TABLES.filter((table) => !KEPT_BETWEEN_TESTS.has(table))
+    .map((table) => `"${table}"`)
+    .join(", ");
+  await db.execute(sql.raw(`TRUNCATE ${list} CASCADE`));
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { photoUploadEnvProblem } from "../kabinet/photo-upload-env";
+import { r2CleanupEnvProblem } from "../kabinet/r2-cleanup-env";
 import { signInEnvProblems } from "../kabinet/sign-in-env";
 import {
   cronSecretProblem,
@@ -28,12 +29,12 @@ export function requireEnv(name: string): string {
 /**
  * Every secret this app's production runtime reads, in one place.
  *
- * `requireEnv` above already throws with no fallback wherever it's called —
+ * `requireEnv` above already throws with no fallback wherever it's called -
  * the gap it can't close on its own is *when*: it only fires the first time
  * a request happens to reach a code path that calls it. `gallery.list` uses
  * `OFFSET` pagination and never touches `CURSOR_HMAC_SECRET` at all, so a
  * deploy missing it would build cleanly, serve the gallery correctly, and
- * only 500 the first time someone opens the deck or a reveal — discovered by
+ * only 500 the first time someone opens the deck or a reveal - discovered by
  * a real visitor, not by the deploy itself. This schema is the single
  * manifest `validateEnv` checks as a whole, so a missing secret fails before
  * the instance accepts its first request, all missing names at once, not
@@ -66,17 +67,17 @@ export function requireEnv(name: string): string {
  * `PRELAUNCH_GATE_SECRET` (2026-09-13) follows `CURSOR_HMAC_SECRET`'s pattern:
  * `proxy.ts` reads it on every single request
  * while `SITE_IS_PUBLICLY_DISCOVERABLE` is false, which today is every
- * request this app serves — an instance that booted without it would 500
+ * request this app serves - an instance that booted without it would 500
  * or, worse, silently deny every visitor with no way to open the gate at
  * all. Required here rather than only where it's read, for the same reason
  * every other secret in this schema is: fail at boot, not on the first
  * request that happens to need it. Comes back out of this schema in the
  * same change that removes the gate itself (`docs/build-plan.md`'s launch
- * gate — the gate comes down in the same change that flips
+ * gate - the gate comes down in the same change that flips
  * `SITE_IS_PUBLICLY_DISCOVERABLE`), not left behind as a requirement
  * nothing reads anymore.
  *
- * **This is a bot shutter, not a security boundary — see
+ * **This is a bot shutter, not a security boundary - see
  * `apps/web/src/api/prelaunch-gate.ts`'s own top comment for what it does
  * and does not protect.** The 32-character floor below is not because the
  * value is precious; it's the same reasoning Oleksii gave for it directly:
@@ -88,12 +89,12 @@ export function requireEnv(name: string): string {
  * own entry below.** Because this is read on every request rather than only
  * a DB-backed one, a Production *or Preview* instance deployed before
  * `PRELAUNCH_GATE_SECRET` exists in Vercel's dashboard does not fail one
- * handler — it 500s on its very first request and stays that way, with no
+ * handler - it 500s on its very first request and stays that way, with no
  * page left to open the gate from at all. Set it in Vercel, **both
  * Production and Preview, the same value on both**, before this branch
- * deploys — Oleksii's own instruction, 2026-09-13. Preview currently has no
+ * deploys - Oleksii's own instruction, 2026-09-13. Preview currently has no
  * `DATABASE_URL` and cannot serve a DB-backed page regardless, so gating it
- * changes nothing about what Preview can do today — it costs nothing now
+ * changes nothing about what Preview can do today - it costs nothing now
  * and covers the case where Preview later gets its own Neon branch and
  * starts serving real pages.
  *
@@ -103,7 +104,7 @@ export function requireEnv(name: string): string {
  * before. It is genuinely required by this app's
  * own runtime, not just by the operator's onboarding script. Every real animal photo routes
  * through `apps/web/src/image-loader.ts`, which throws without it the
- * moment a real (non-seed-placeholder) `storageKey` needs a URL — see that
+ * moment a real (non-seed-placeholder) `storageKey` needs a URL - see that
  * file's own comment. The onboarding script's R2 *write* credentials
  * (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) still belong to
  * `onboard-shelter.ts`'s own operator-local run, never to Vercel. Since PR 3
@@ -117,7 +118,7 @@ export function requireEnv(name: string): string {
  * never holds the token and refuses every upload with a typed error.
  *
  * ⚠ Checking it at boot is a real check, but not the one that actually protects
- * the client — found by inspecting a built client bundle, not assumed.
+ * the client - found by inspecting a built client bundle, not assumed.
  * `NEXT_PUBLIC_*` values are inlined into the client bundle at *build*
  * time; the boot check runs against the *server's* live
  * `process.env` at *boot*. Those can disagree: a promoted or rolled-back
@@ -125,7 +126,7 @@ export function requireEnv(name: string): string {
  * carries the actual load-bearing check, gated on `process.env.VERCEL`,
  * for exactly this reason), ships a client bundle that throws on hydration
  * for any real photo, on a server instance whose own `validateEnv()` still
- * passes cleanly — the server-side env is fine, the frozen bundle isn't.
+ * passes cleanly - the server-side env is fine, the frozen bundle isn't.
  * The boot check still earns its place: it's what turns "some request 500s"
  * into "every request 500s, from boot," for the server-rendered half of
  * every page, which is real signal even though it can't see the client
@@ -134,10 +135,10 @@ export function requireEnv(name: string): string {
  * after this entry landed, not after. See `docs/h1-decisions.md`.
  *
  * The Upstash rate-limiter credentials (Phase 3, block 4,
- * `docs/handoff-2026-10-04.md` §3 — either `KV_REST_API_URL`/
+ * `docs/handoff-2026-10-04.md` §3 - either `KV_REST_API_URL`/
  * `KV_REST_API_TOKEN`, from Vercel's own Storage marketplace integration,
  * or `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`, Upstash's own
- * naming) are **deliberately not in this schema** — see `validateEnv()`'s
+ * naming) are **deliberately not in this schema** - see `validateEnv()`'s
  * own comment below for why they need a different gate than
  * `NODE_ENV === "production"` alone, and `apps/web/src/api/rate-limit.ts`'s
  * own doc comment for what happens when they're missing (a silent, not a
@@ -150,7 +151,7 @@ const RequiredProductionEnvSchema = z.object({
     .string()
     .min(
       32,
-      "PRELAUNCH_GATE_SECRET must be at least 32 characters — generate with: openssl rand -hex 32",
+      "PRELAUNCH_GATE_SECRET must be at least 32 characters - generate with: openssl rand -hex 32",
     ),
 });
 
@@ -160,7 +161,7 @@ const RequiredProductionEnvSchema = z.object({
  * discover its own gap separately.
  *
  * Called once from `instrumentation.ts`'s `register()`, which Next.js runs
- * before a server instance accepts its first request — see that file's own
+ * before a server instance accepts its first request - see that file's own
  * comment for why this is the one place in the app where an eager,
  * boot-time check is both possible and correct without also making `next
  * build` require a runtime secret (`register()` doesn't run during `next
@@ -178,13 +179,13 @@ export function validateEnv(): void {
   const r2 = r2PublicBaseUrlProblem(process.env);
   if (!result.success || r2 !== null) {
     /**
-     * Each schema entry's own message, not `issue.path` alone — every
+     * Each schema entry's own message, not `issue.path` alone - every
      * message in `RequiredProductionEnvSchema` already names its own
      * variable, so joining messages loses nothing a bare name would have
      * given. Joining paths instead, as an earlier version of this function
      * did, silently discarded `PRELAUNCH_GATE_SECRET`'s length-floor
      * message: a 20-character value would fail validation and report
-     * "Missing required environment variable(s): PRELAUNCH_GATE_SECRET" —
+     * "Missing required environment variable(s): PRELAUNCH_GATE_SECRET" -
      * true-sounding but wrong, since the operator would find the variable
      * genuinely set in Vercel and have no way to learn *why* boot still
      * refused it. Found by a reviewer's own mutation, not read from the
@@ -198,7 +199,7 @@ export function validateEnv(): void {
   }
 
   /**
-   * Phase 3, block 4 (`docs/handoff-2026-10-04.md` §3) — gated on
+   * Phase 3, block 4 (`docs/handoff-2026-10-04.md` §3) - gated on
    * `process.env.VERCEL`/`VERCEL_ENV` (`next.config.ts`'s own established
    * pattern for this exact class of problem, checked here rather than
    * reused only for symmetry), **not** folded into
@@ -206,7 +207,7 @@ export function validateEnv(): void {
    * is not "a real Vercel deployment": the Playwright harness's own
    * `webServer` (`playwright.config.ts`) runs `next start`, which sets
    * `NODE_ENV=production`, with no live Upstash account and no intention
-   * of ever having one — it must keep using `rate-limit.ts`'s in-memory
+   * of ever having one - it must keep using `rate-limit.ts`'s in-memory
    * fallback. Folding these into the schema above would force the harness
    * to supply *some* value to pass validation, and unlike every other
    * entry in that schema (a local secret, never a live external
@@ -217,7 +218,7 @@ export function validateEnv(): void {
    * using the in-memory limiter the harness actually needs.
    *
    * `apiRateLimiter`'s own construction (`rate-limit.ts`) never throws on
-   * a missing credential — it silently falls back to in-memory instead,
+   * a missing credential - it silently falls back to in-memory instead,
    * which is exactly the per-instance behaviour this block exists to stop
    * running in production. This check is what turns that silent fallback
    * into a loud boot failure specifically on a real Vercel deployment,
@@ -225,7 +226,7 @@ export function validateEnv(): void {
    * start`, including the harness's own.
    */
   /**
-   * Two accepted name pairs, not one — see `rate-limit.ts`'s own
+   * Two accepted name pairs, not one - see `rate-limit.ts`'s own
    * `apiRateLimiter` comment for the full "why two naming conventions"
    * account (confirmed against this project's real Vercel provisioning,
    * not assumed). This check and that file's own pair-resolution read the
@@ -247,7 +248,7 @@ export function validateEnv(): void {
       "Invalid or missing required environment variable(s): either KV_REST_API_URL + " +
         "KV_REST_API_TOKEN (Vercel's Upstash integration) or UPSTASH_REDIS_REST_URL + " +
         "UPSTASH_REDIS_REST_TOKEN (Upstash's own naming) must both be set on a real Vercel " +
-        "deployment — set them in Production and Preview before the next deploy.",
+        "deployment - set them in Production and Preview before the next deploy.",
     );
   }
 
@@ -294,6 +295,7 @@ export function validateEnv(): void {
     rateLimitKeySecretProblem(process.env),
     locationSecretProblem(process.env),
     photoUploadEnvProblem(process.env),
+    r2CleanupEnvProblem(process.env),
     ...signInEnvProblems(process.env),
   ].filter((problem): problem is string => problem !== null);
   if (problems.length > 0) {

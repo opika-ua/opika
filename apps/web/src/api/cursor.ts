@@ -9,7 +9,7 @@ import type { ShelterId } from "@opika/domain";
  * The cursor encodes:
  * - `kind`: which list this cursor belongs to (feed vs reveal)
  * - `filtersFingerprint`: a hash of the filters the cursor was issued against
- * - `at`: the ordering value — the feed's `last_confirmed_at`, the reveal
+ * - `at`: the ordering value - the feed's `last_confirmed_at`, the reveal
  *   history's `revealed_at` (each list maps its own key onto this one, so
  *   neither is stored under the other's name)
  * - `id`: the tiebreaker

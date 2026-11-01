@@ -77,7 +77,7 @@ export function photoUploadEnvProblem(env: Env): string | null {
   if (missing.length === 0) return null;
   return (
     `${missing.join(", ")} must be set on a production deployment (shelter photo uploads ` +
-    "write to R2 with their own token, P-Q10) — set them in Vercel's Production " +
+    "write to R2 with their own token, P-Q10) - set them in Vercel's Production " +
     "environment only, never Preview"
   );
 }

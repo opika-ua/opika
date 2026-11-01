@@ -1,4 +1,6 @@
+import type { SQL } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Database } from "../src/client";
 import { setupTestDatabase } from "../src/test-utils/index";
 import { runSmoke, smokeTarget } from "./neon-smoke";
 
@@ -109,9 +111,59 @@ describe("runSmoke against the local database", () => {
     const outcomes = await runSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
     // 25 through PR 3, R-UI 1's 26 (S1 row: admin counts and donationPending),
-    // K3's 27–31 (F-B1, K3-T7, RH-B7), then K2's 32–36 (the list's keyset,
+    // K3's 27-31 (F-B1, K3-T7, RH-B7), then K2's 32-36 (the list's keyset,
     // filters and counts; confirm/undo; the recorded moves), then KH-Q12's 37
-    // (auth:revoke-all's purge).
-    expect(outcomes.length).toBe(37);
+    // (auth:revoke-all's purge), then 38 (the gallery's relaxation counts),
+    // then 39 (fur set and cleared by the kabinet edit, DR1 S3 - the write
+    // round trip only since the gallery filter restructure removed the fur
+    // filter that used to verify it there too), then 40 (the gallery list
+    // scoped to one shelter, DR1 S5), then S8's 41 (animals.cardsByIds's
+    // findByIds), then GDPR photo retention's 42 - six checks (PR #200, Tier
+    // 1 review, blocker 4): referencedStorageKeys' jsonb_array_elements
+    // SELECT, referencedObjectKeys' derived variant, recordScan's track,
+    // still Unreferenced's re-check, and afterDeleted's jsonb_set UPDATE plus
+    // a read-back confirming the null landed for real, not just in the
+    // statement's own reported count. Then 42b, two checks (pet card PR 4,
+    // Tier 1 review, note 2): referencedStorageKeys' UNION also reads
+    // shelters.logo over neon-http, and referencedObjectKeys derives the
+    // logo's own small/large variants, not the animal-photo ones. Then 43,
+    // the pet card's fields (migration 0017): the schema's first array
+    // column, set and cleared through writeEditIf and read back (the
+    // temperament/colour filter checks that used to follow at 44 are gone
+    // with the filters themselves, gallery filter restructure). Then 44b,
+    // one more (sex-filter feature), kept because sex stays a filter: the
+    // sex filter's own IN clause, over the same corpus, including the
+    // explicit "unknown" value. Then 45, two checks (pet card PR 2): the
+    // scalar-subquery seek in animals.neighbours - list() order through a
+    // tied pair broken by id, and the end-of-list/unknown-id null cases -
+    // over neon-http's own timestamptz comparison and id tiebreak, not just
+    // postgres-js's. Then S3's five (audit F6, F8): 46 the adopter-session
+    // clean-up's batched delete, 47 the orphaned-adopter delete, 48 the reveal
+    // budget's transaction (its isolation, the boundary one at a time, a stored-row
+    // check, and a forced overlap at 29). And 44c, the filter selectors' facet counts, then 49-50, the
+    // same counts and the relaxation counts under a shelter scope (the shelter page's filters).
+    expect(outcomes.length).toBe(62);
+  });
+
+  it("passes every statement over a driver whose raw results are `{ rows }`, as neon-http's are", async () => {
+    // Production's driver returns a raw `db.execute()` result as
+    // `{ rows, fields, … }`, not postgres-js's array (#166). This wrapper gives
+    // the local database that shape, so a step that reads a raw result as an
+    // array fails here before it reaches Neon. A second run on the same
+    // database: every step makes fixtures of its own, under a fresh tag.
+    const neonHttpRawShape = new Proxy(db, {
+      get(target, property, receiver) {
+        if (property === "execute") {
+          return async (query: SQL) => ({
+            rows: Array.from(await target.execute(query)),
+            fields: [],
+          });
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    }) as Database;
+    const outcomes = await runSmoke(neonHttpRawShape);
+    expect(outcomes.filter((o) => !o.ok)).toEqual([]);
+    expect(outcomes.length).toBe(62);
   });
 });

@@ -53,6 +53,7 @@ const shelter: Shelter = {
   exactAddress,
   contact,
   donation: null,
+  logo: null,
   pendingDonation: null,
   version: 0,
   freshnessSentence: null,
@@ -97,6 +98,43 @@ describe("public shelter projections withhold the private fields", () => {
     const summary = ShelterSummaryViewSchema.parse({ ...shelter, verification: "verified" });
     expect(summary).not.toHaveProperty("exactAddress");
     expect(summary).not.toHaveProperty("contact");
+  });
+
+  /** Pet card PR 3a: `logo` carries the same `AnimalPhoto`-shaped storage key
+   * and dimensions in both views - a public, non-sensitive field, unlike the
+   * ones withheld above. */
+  it("carries the logo, both on the shelter page's view and on the card summary", () => {
+    const withLogo = {
+      ...shelter,
+      logo: { storageKey: "shelters/x/logo/y", width: 160, height: 160 },
+    };
+    expect(PublicShelterViewSchema.parse({ ...withLogo, verification: "verified" }).logo).toEqual(
+      withLogo.logo,
+    );
+    expect(ShelterSummaryViewSchema.parse({ ...withLogo, verification: "verified" }).logo).toEqual(
+      withLogo.logo,
+    );
+  });
+
+  /**
+   * Designer round 1, S6 (Oleksii's DR1-Q1, verbatim: "the shelter’s freshness
+   * sentence leaves the deck and animal pages and shows only on the shelter
+   * page."): the shelter page's view carries it, the card summary never does,
+   * even when handed a shelter that has one.
+   */
+  it("carries the freshness sentence on the shelter page's view only, never on a card", () => {
+    const withSentence = {
+      ...shelter,
+      freshnessSentence: { uk: "Оновлюємо щосуботи.", en: null },
+      verification: "verified" as const,
+    };
+    expect(PublicShelterViewSchema.parse(withSentence).freshnessSentence).toEqual({
+      uk: "Оновлюємо щосуботи.",
+      en: null,
+    });
+    const summary = ShelterSummaryViewSchema.parse(withSentence);
+    expect(summary).not.toHaveProperty("freshnessSentence");
+    expect(JSON.stringify(summary)).not.toContain("щосуботи");
   });
 
   /**
@@ -330,15 +368,17 @@ describe("the pause note reaches no public view (K4-B4)", () => {
       "description",
       "displayName",
       "donation",
+      "freshnessSentence",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);
     const summary = ShelterSummaryViewSchema.parse({ ...paused, verification: "unverified" });
     expect(Object.keys(summary).sort()).toEqual([
       "displayName",
-      "freshnessSentence",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);

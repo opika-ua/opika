@@ -1,51 +1,71 @@
 import { uk } from "@opika/i18n";
-import { KabinetBrand } from "../KabinetBrand";
+import { Heading } from "../../../ui/Heading";
+import { MAIN_LANDMARK } from "../../../ui/landmark";
+import { Panel } from "../../../ui/Panel";
+import { Text } from "../../../ui/Text";
+import { KabinetHeader } from "../KabinetHeader";
 import { KabinetNav } from "../KabinetNav";
-import { SignOutButton } from "../SignOutButton";
 import { SupportBanner } from "../SupportBanner";
+import { VerificationDecision } from "../VerificationDecision";
 import { AnimalList } from "./AnimalList";
 import type { KabinetAnimalListPage } from "./animal-list-page";
 
 /**
- * K2's page around the list: the kabinet's header (N2: brand, the shelter's
- * name, «Вийти»; the support banner and frame in support mode, as on
- * `/kabinet` and K3), the section nav with «Тварини» current, then the list.
- * Unstyled beyond the shared tokens until the brand lands.
+ * K2's page around the list, and the shelter's landing page (kabinet UX round 2: there is no
+ * Головна). The header is the kabinet's, the two-tab nav has «Тварини» current, and what Головна
+ * used to say sits at the top of the list: a rejected or suspended decision with the operator's
+ * note, and the pending-review note (the stale-cards strip and the pause notice are the list's own).
  */
 export function AnimalListScreen({
   page,
+  operatorName,
 }: {
   page: Extract<KabinetAnimalListPage, { kind: "list" }>;
+  /** Who signs a rejection or suspension note (`standaloneOperatorName`). */
+  operatorName: string;
 }) {
   const support = page.viewer === "support";
+  const status = page.shelter.verification.status;
+  const pending = status === "pending" || status === "under_review";
   return (
     <div
       className={
-        support ? "min-h-dvh outline-4 -outline-offset-4 outline-rg-ink outline-solid" : "min-h-dvh"
+        support ? "min-h-dvh outline-4 -outline-offset-4 outline-ink outline-solid" : "min-h-dvh"
       }
     >
       {support ? <SupportBanner shelterName={page.shelter.displayName} /> : null}
-      <header className="flex min-h-16 items-center gap-3 bg-rg-surface px-4 desktop:gap-5 desktop:px-8">
-        <KabinetBrand />
-        <span className="hidden text-base font-medium text-rg-ink desktop:block">
-          {page.shelter.displayName}
-        </span>
-        <div className="flex-1" />
-        {support ? (
-          <span className="text-base text-rg-ink-3">{uk.kabinet.support.signOutDisabled}</span>
-        ) : (
-          <SignOutButton />
-        )}
-      </header>
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 pb-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
+      <KabinetHeader shelterName={page.shelter.displayName} viewer={page.viewer} />
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 pb-24 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
         {/* Only a viewer this page is shown to reaches here, so «Тварини» is always in its nav. */}
         <KabinetNav current="animals" animalList />
-        <main className="flex min-w-0 flex-1 flex-col gap-4">
+        <main {...MAIN_LANDMARK} className="flex min-w-0 flex-1 flex-col gap-4">
           <AnimalList
             shelter={page.shelter}
             first={page.first}
             viewer={page.viewer}
             editing={page.editing}
+            attention={
+              <>
+                <VerificationDecision
+                  verification={page.shelter.verification}
+                  operatorName={operatorName}
+                />
+                {/* Not for the support view, where «я» would be the operator speaking to themselves. */}
+                {!support && pending ? (
+                  <Panel
+                    as="section"
+                    padding="lg"
+                    aria-labelledby="list-pending"
+                    className="flex flex-col gap-2"
+                  >
+                    <Heading level={2} look="title" id="list-pending">
+                      {uk.kabinet.profileStatus[status as "pending" | "under_review"]}
+                    </Heading>
+                    <Text>{uk.kabinet.profile.pendingNote}</Text>
+                  </Panel>
+                ) : null}
+              </>
+            }
           />
         </main>
       </div>

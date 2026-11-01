@@ -4,7 +4,7 @@ import { assertBuildEnv } from "./build-env";
 import { validateEnv } from "./env";
 
 /**
- * `validateEnv` is the boot-time check `instrumentation.ts` calls — see that
+ * `validateEnv` is the boot-time check `instrumentation.ts` calls - see that
  * file and `env.ts`'s own comment for why it only applies in production.
  * `vi.stubEnv` (not direct `process.env` assignment: `NODE_ENV` is typed
  * read-only by `@types/node`) plus `vi.unstubAllEnvs()` in `afterEach`
@@ -28,6 +28,8 @@ const UPLOAD = {
   R2_BUCKET_NAME: "example-photo-bucket",
   R2_UPLOAD_ACCESS_KEY_ID: "example-upload-key-id",
   R2_UPLOAD_SECRET_ACCESS_KEY: "example-upload-secret-value",
+  R2_CLEANUP_ACCESS_KEY_ID: "example-cleanup-key-id",
+  R2_CLEANUP_SECRET_ACCESS_KEY: "example-cleanup-secret-value",
 } as const;
 
 describe("validateEnv", () => {
@@ -68,7 +70,7 @@ describe("validateEnv", () => {
     expect(() => validateEnv()).not.toThrow();
   });
 
-  it("requires NEXT_PUBLIC_R2_PUBLIC_BASE_URL specifically — H1's runtime dependency, not just the operator script's", () => {
+  it("requires NEXT_PUBLIC_R2_PUBLIC_BASE_URL specifically - H1's runtime dependency, not just the operator script's", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("DATABASE_URL", "postgres://user:pass@host/db");
     vi.stubEnv("CURSOR_HMAC_SECRET", "a".repeat(32));
@@ -78,7 +80,7 @@ describe("validateEnv", () => {
     expect(() => validateEnv()).toThrow(/NEXT_PUBLIC_R2_PUBLIC_BASE_URL/);
   });
 
-  it("requires PRELAUNCH_GATE_SECRET specifically — proxy.ts reads it on every request while the site is not publicly discoverable", () => {
+  it("requires PRELAUNCH_GATE_SECRET specifically - proxy.ts reads it on every request while the site is not publicly discoverable", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("DATABASE_URL", "postgres://user:pass@host/db");
     vi.stubEnv("CURSOR_HMAC_SECRET", "a".repeat(32));
@@ -88,7 +90,7 @@ describe("validateEnv", () => {
     expect(() => validateEnv()).toThrow(/PRELAUNCH_GATE_SECRET/);
   });
 
-  it("rejects a PRELAUNCH_GATE_SECRET under 32 characters — Oleksii's own floor, 'a short gate is guessable by exactly the traffic it exists to stop', with a message naming the actual reason, not a generic 'missing'", () => {
+  it("rejects a PRELAUNCH_GATE_SECRET under 32 characters - Oleksii's own floor, 'a short gate is guessable by exactly the traffic it exists to stop', with a message naming the actual reason, not a generic 'missing'", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("DATABASE_URL", "postgres://user:pass@host/db");
     vi.stubEnv("CURSOR_HMAC_SECRET", "a".repeat(32));
@@ -96,7 +98,7 @@ describe("validateEnv", () => {
     vi.stubEnv("PRELAUNCH_GATE_SECRET", "a".repeat(31));
 
     // A variable that IS set but too short must not be reported as
-    // "missing" — an operator checking Vercel would find it genuinely
+    // "missing" - an operator checking Vercel would find it genuinely
     // present and have no way to learn why boot still refused it.
     expect(() => validateEnv()).toThrow(/PRELAUNCH_GATE_SECRET must be at least 32 characters/);
   });
@@ -112,7 +114,7 @@ describe("validateEnv", () => {
   });
 
   /**
-   * Phase 3, block 4 — the Upstash rate-limiter credentials are
+   * Phase 3, block 4 - the Upstash rate-limiter credentials are
    * deliberately NOT part of `RequiredProductionEnvSchema` (see that
    * schema's own comment): they're gated on `process.env.VERCEL`/
    * `VERCEL_ENV`, not `NODE_ENV` alone, so the Playwright harness's own
@@ -122,7 +124,7 @@ describe("validateEnv", () => {
    * Two accepted name pairs, confirmed against this project's own real
    * Vercel provisioning (not assumed): `KV_REST_API_URL`/`KV_REST_API_
    * TOKEN` is what Vercel's Storage marketplace integration actually
-   * injects when Upstash for Redis is connected that way — the path this
+   * injects when Upstash for Redis is connected that way - the path this
    * project used. `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`
    * (Upstash's own naming) is kept as a fallback. Every test below clears
    * all four variables first, so a leftover value from a prior test (or
@@ -151,7 +153,7 @@ describe("validateEnv", () => {
     vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
   }
 
-  it("does not require Upstash credentials when VERCEL/VERCEL_ENV are unset — the harness's own next start", () => {
+  it("does not require Upstash credentials when VERCEL/VERCEL_ENV are unset - the harness's own next start", () => {
     setBaseRequiredEnv();
     vi.stubEnv("VERCEL", "");
     vi.stubEnv("VERCEL_ENV", "");
@@ -174,7 +176,7 @@ describe("validateEnv", () => {
     expect(() => validateEnv()).toThrow(/UPSTASH_REDIS_REST_TOKEN/);
   });
 
-  it("does not throw once KV_REST_API_URL/TOKEN are set — Vercel's own Storage integration naming", () => {
+  it("does not throw once KV_REST_API_URL/TOKEN are set - Vercel's own Storage integration naming", () => {
     setBaseRequiredEnv();
     vi.stubEnv("VERCEL", "1");
     vi.stubEnv("KV_REST_API_URL", "https://example-upstash.example.com");
@@ -183,7 +185,7 @@ describe("validateEnv", () => {
     expect(() => validateEnv()).not.toThrow();
   });
 
-  it("does not throw once UPSTASH_REDIS_REST_URL/TOKEN are set — Upstash's own naming", () => {
+  it("does not throw once UPSTASH_REDIS_REST_URL/TOKEN are set - Upstash's own naming", () => {
     setBaseRequiredEnv();
     vi.stubEnv("VERCEL", "1");
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://example-upstash.example.com");
@@ -195,9 +197,9 @@ describe("validateEnv", () => {
   /**
    * Tier 1 review's medium finding, now applied to both naming pairs: a
    * test that only ever sets *neither* variable in a pair can't distinguish
-   * `!URL || !TOKEN` (correct — throws unless both are present) from a
+   * `!URL || !TOKEN` (correct - throws unless both are present) from a
    * regressed `!URL && !TOKEN` (throws only if *neither* is present,
-   * silently accepting exactly one) — both conditions agree on the "both
+   * silently accepting exactly one) - both conditions agree on the "both
    * missing" and "both present" cases and disagree only when exactly one is
    * set. These are what actually pin `||` over that specific wrong
    * mutation, for each naming pair independently.
@@ -352,15 +354,20 @@ describe("validateEnv", () => {
       vi.stubEnv("BETTER_AUTH_SECRET", "b".repeat(31));
       expect(() => validateEnv()).toThrow(/BETTER_AUTH_SECRET must be at least 32 characters/);
       vi.stubEnv("BETTER_AUTH_SECRET", SIGN_IN.BETTER_AUTH_SECRET);
+      // PW1-Q4: Brevo is refused for the auth emails, its key present or not.
       vi.stubEnv("EMAIL_SIGN_IN_PROVIDER", "brevo");
+      vi.stubEnv("BREVO_API_KEY", "brevo-key-example");
       let message = "";
       try {
         validateEnv();
       } catch (error) {
         message = (error as Error).message;
       }
-      expect(message).toMatch(/EMAIL_SIGN_IN_PROVIDER=brevo needs BREVO_API_KEY/);
+      expect(message).toMatch(
+        /EMAIL_SIGN_IN_PROVIDER must be unset or resend: every email it routes is an auth email/,
+      );
       expect(message).not.toContain(SIGN_IN.RESEND_API_KEY);
+      expect(message).not.toContain("brevo-key-example");
     });
 
     it("is not required on a Preview or under the harness's next start", () => {

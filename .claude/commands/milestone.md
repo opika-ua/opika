@@ -6,28 +6,37 @@ allowed-tools: Read, Glob, Grep, Edit, Write, Bash, Task
 
 Implement milestone **$ARGUMENTS** from `docs/build-plan.md`.
 
+> **Since 2026-10-21, `CLAUDE.md`'s "Who does what" overrides this playbook wherever they
+> differ.**
+> - A cloud builder builds and pushes its branch only. It never opens a PR, never merges, and
+>   never has a reviewer fix its code.
+> - Reviews are read-only and run on the pushed head: a fresh cloud reviewer for Tier 1, the
+>   local agent for everything else.
+> - Only blockers loop.
+> - Phase 4's PR is the local agent's.
+
 Read `CLAUDE.md`, `docs/build-plan.md` and `docs/stack-decision.md` first. They are the
-source of truth. Do not relitigate decisions recorded there — if you believe one is
+source of truth. Do not relitigate decisions recorded there - if you believe one is
 wrong, say so and stop; do not quietly work around it.
 
-## Phase 0 — Orient
+## Phase 0 - Orient
 
 Confirm the working tree is clean and `main` is up to date. Confirm `pnpm check` passes
 *before* you change anything, so a pre-existing failure is never mistaken for one you
 introduced. If it fails, stop and report.
 
 Extract from the build plan, for this milestone only: the task list, the hour estimate,
-and the definition of done. Restate the definition of done in your own words — that is
+and the definition of done. Restate the definition of done in your own words - that is
 the contract you will be held to at the end.
 
-## Phase 1 — Plan, then STOP
+## Phase 1 - Plan, then STOP
 
 Produce a short plan:
 
 - The tasks, in dependency order.
 - For each, the **model** you would use and why, per the model policy in `CLAUDE.md`.
 - Every decision the milestone requires that the build plan does not settle. This is
-  the important part — list them explicitly as questions rather than choosing.
+  the important part - list them explicitly as questions rather than choosing.
 - Anything you expect to be hard, and what you'd do if it doesn't work.
 - What you are deliberately NOT doing, so scope is agreed before it drifts.
 
@@ -35,7 +44,7 @@ Produce a short plan:
 The plan gate exists because wrong-direction work is far more expensive than a
 round-trip, and on a ten-hour week a wasted session is a wasted week.
 
-## Phase 2 — Implement
+## Phase 2 - Implement
 
 Once approved:
 
@@ -59,45 +68,50 @@ Hold to these throughout:
 If something is genuinely ambiguous and was not settled in Phase 1, **stop and ask**.
 Guessing is what produces work that has to be redone.
 
-## Phase 3 — Review
+## Phase 3 - Review
 
-Invoke the **reviewer** subagent against `git diff main...HEAD`.
+Invoke the **reviewer** subagent against `git diff main...HEAD`. It is read-only: it reports
+findings and never fixes them.
 
-It may fix what it finds and re-review, up to two rounds. If a finding survives two
-rounds, it stops — that is a design question for a human, and you must not attempt a
-third fix. Carry unresolved findings into the pull request body verbatim.
+A blocker it reports is fixed in its own commit and re-reviewed as a delta, up to two rounds.
+If a blocker survives two rounds, that is a design question for a human: you must not attempt a
+third fix. It goes to Oleksii as a decision, and the PR stays a draft until he answers; it is
+never carried into the pull request as unresolved, and never becomes "not a blocker". Non-blocking
+findings go to the area's follow-up batch; carry them into the pull request body verbatim.
 
 If the reviewer returns `blocked`, stop and report. Do not open a pull request.
 
 If tests fail at any point and the cause is not obvious, invoke the **debugger**
 subagent rather than guessing at a fix.
 
-## Phase 4 — Pull request
+## Phase 4 - Pull request
 
 Only after `pnpm check` is green and the reviewer has returned `clean` or `findings`:
 
 ```
 git push -u origin <branch>
-gh pr create --fill
+gh pr create --draft --fill
 ```
 
 The pull request body must contain:
 
-- **Milestone** — id and one-line description.
-- **Definition of done** — the criteria from the build plan, each marked met or not,
+- **Milestone** - id and one-line description.
+- **Definition of done** - the criteria from the build plan, each marked met or not,
   honestly. An unmet criterion stated plainly is useful; a checkbox ticked
   optimistically is a lie that costs a day later.
-- **Decisions made** — anything you settled during implementation that the plan did
+- **Decisions made** - anything you settled during implementation that the plan did
   not, and the reasoning.
-- **Reviewer report** — resolved, unresolved, and observations, in full.
-- **Unresolved findings** — called out at the top if any exist. These are the reason
-  the human is reading.
-- **Follow-ups** — anything deliberately deferred, and to which milestone.
+- **Reviewer report** - resolved, unresolved, and observations, in full.
+- **Open findings** - the non-blocking findings headed for the follow-up batch, called out at
+  the top if any exist. These are the reason the human is reading. (A blocker is never listed
+  here: it goes to Oleksii as a decision first.)
+- **Follow-ups** - anything deliberately deferred, and to which milestone.
 
-**Then stop.** Do not merge. Do not push to `main`. The pull request is the handoff.
+**Then stop.** Do not merge (*narrowed 2026-10-19:* except under CLAUDE.md's "Merge only the
+commit that was reviewed"). Do not push to `main`. The pull request is the handoff.
 
 ## Reporting back
 
 Finish with a short summary in chat: what was built, the test count before and after,
 what the reviewer found, what needs a decision, and the pull request URL. Keep it to a
-few sentences — the detail lives in the pull request.
+few sentences - the detail lives in the pull request.

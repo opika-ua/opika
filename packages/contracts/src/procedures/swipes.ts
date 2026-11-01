@@ -6,7 +6,7 @@ import { apiErrors } from "../errors";
 export type { SwipeDirection } from "@opika/domain";
 /**
  * Re-exported rather than declared here. Which animals an adopter has already
- * been shown is a product rule, so it lives in the domain — a transport package
+ * been shown is a product rule, so it lives in the domain - a transport package
  * defining a domain concept would invert the dependency the packages are
  * arranged around.
  */

@@ -163,16 +163,16 @@ describe("the row's status line", () => {
         freshness: null,
       } as Partial<AnimalRow>);
     expect(statusLineOf(withdrawn(null), NOW)).toBe(
-      "Знято з показу 2 жовтня · переїхала до іншого притулку",
+      "Знято з показу 2 жовтня · переведено до іншого притулку",
     );
     expect(statusLineOf(withdrawn("до Києва"), NOW)).toBe(
-      "Знято з показу 2 жовтня · переїхала до іншого притулку · «до Києва»",
+      "Знято з показу 2 жовтня · переведено до іншого притулку · «до Києва»",
     );
   });
 
   it("a row that already carries adopted_elsewhere keeps its label (his answer 10)", () => {
     expect(withdrawalReasonOf({ code: "adopted_elsewhere", note: null })).toBe(
-      "знайшла дім іншим шляхом",
+      "дім знайдено іншим шляхом",
     );
   });
 });
@@ -181,8 +181,8 @@ describe("which actions a row offers (sheet §4, his answers 7 and 8)", () => {
   /** Written out state by state, not derived. */
   const EXPECTED: Record<ListingKind, { forward: string | null; menu: string[] }> = {
     draft: { forward: "publish", menu: ["edit", "deleteDraft"] },
-    published: { forward: "reserve", menu: ["edit", "adopt", "withdraw"] },
-    reserved: { forward: "adopt", menu: ["edit", "release", "withdraw"] },
+    published: { forward: null, menu: ["edit", "reserve", "adopt", "viewOnSite", "withdraw"] },
+    reserved: { forward: null, menu: ["edit", "release", "adopt", "viewOnSite", "withdraw"] },
     adopted: { forward: null, menu: ["edit"] },
     withdrawn: { forward: "restore", menu: ["edit"] },
   };
@@ -309,11 +309,11 @@ describe("why nobody sees the cards (his answer 5)", () => {
     },
     pending: {
       kind: "line",
-      text: "Ваші тварини зʼявляться в галереї, щойно притулок пройде перевірку.",
+      text: "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
     },
     under_review: {
       kind: "line",
-      text: "Ваші тварини зʼявляться в галереї, щойно притулок пройде перевірку.",
+      text: "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
     },
     rejected: {
       kind: "line",

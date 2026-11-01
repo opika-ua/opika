@@ -1,3 +1,9 @@
+import {
+  COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
+  MEDICAL_NOTES_MAX_CHARACTERS,
+  TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
+  TEMPERAMENT_TRAITS,
+} from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { apiErrors } from "../errors";
 import { AnimalDetailViewSchema, type FeedCardView, FeedCardViewSchema } from "../views/animal";
@@ -22,9 +28,13 @@ const draftView = {
   species: "dog",
   sex: "unknown",
   size: null,
+  coatLength: null,
   age: null,
   description: null,
   photos: [],
+  temperament: [],
+  colour: null,
+  medicalNotes: null,
   vaccination: unknownFact,
   spayNeuter: unknownFact,
   documentReadiness: { kind: "unknown" },
@@ -72,6 +82,24 @@ describe("the update patch (F-B1, T4)", () => {
     expect(AnimalPatchSchema.safeParse({ description: null }).success).toBe(true);
   });
 
+  it("may set fur or clear it with null (DR1-D10), and takes only its two values", () => {
+    expect(AnimalPatchSchema.safeParse({ coatLength: null }).success).toBe(true);
+    expect(AnimalPatchSchema.safeParse({ coatLength: "long" }).success).toBe(true);
+    expect(AnimalPatchSchema.safeParse({ coatLength: "wire" }).success).toBe(false);
+  });
+
+  it("may clear colour and the medical note with null, and temperament with []", () => {
+    expect(AnimalPatchSchema.safeParse({ colour: null }).success).toBe(true);
+    expect(AnimalPatchSchema.safeParse({ medicalNotes: null }).success).toBe(true);
+    expect(AnimalPatchSchema.safeParse({ temperament: [] }).success).toBe(true);
+    expect(AnimalPatchSchema.safeParse({ temperament: null }).success).toBe(false);
+  });
+
+  it("stays strict: the database's column names are no patch keys", () => {
+    expect(AnimalPatchSchema.safeParse({ temperamentTraits: ["calm"] }).success).toBe(false);
+    expect(AnimalPatchSchema.safeParse({ coatColour: "black" }).success).toBe(false);
+  });
+
   it("may not clear the size or the age", () => {
     expect(AnimalPatchSchema.safeParse({ size: null }).success).toBe(false);
     expect(AnimalPatchSchema.safeParse({ age: null }).success).toBe(false);
@@ -86,6 +114,80 @@ describe("the update patch (F-B1, T4)", () => {
     expect(apiErrors.LISTING_FACT_REQUIRED.data.safeParse({ field: "description" }).success).toBe(
       true,
     );
+    // SF-F1: sex joined the gated listing facts.
+    expect(apiErrors.LISTING_FACT_REQUIRED.data.safeParse({ field: "sex" }).success).toBe(true);
+  });
+});
+
+/**
+ * Each custom text against its own cap, in each language, counted as a
+ * reader sees them. Every limit is crossed by one character, and met exactly.
+ */
+describe("the pet card fields' caps (kabinet write)", () => {
+  const text = (length: number) => "я".repeat(length);
+  const custom = (uk: string, en: string | null = null) => ({
+    kind: "custom" as const,
+    text: { uk, en: en === null ? null : { text: en, provenance: "human" as const } },
+  });
+  const messagesOf = (patch: unknown): string[] => {
+    const result = AnimalPatchSchema.safeParse(patch);
+    return result.success ? [] : result.error.issues.map((issue) => issue.message);
+  };
+
+  it(`a custom temperament: ${TEMPERAMENT_CUSTOM_MAX_CHARACTERS} characters fit, one more is refused`, () => {
+    const at = (uk: string) => ({ temperament: [{ kind: "preset", trait: "calm" }, custom(uk)] });
+    expect(messagesOf(at(text(TEMPERAMENT_CUSTOM_MAX_CHARACTERS)))).toEqual([]);
+    expect(messagesOf(at(text(TEMPERAMENT_CUSTOM_MAX_CHARACTERS + 1)))).toEqual([
+      `Custom temperament is ${TEMPERAMENT_CUSTOM_MAX_CHARACTERS + 1} characters; the maximum is ${TEMPERAMENT_CUSTOM_MAX_CHARACTERS}`,
+    ]);
+  });
+
+  it("a custom temperament's English is held to the same cap", () => {
+    const patch = {
+      temperament: [custom("Тихий", text(TEMPERAMENT_CUSTOM_MAX_CHARACTERS + 1))],
+    };
+    const result = AnimalPatchSchema.safeParse(patch);
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([
+      ["temperament", 0, "text", "en", "text"],
+    ]);
+  });
+
+  it("the domain's own temperament rules still apply under the cap", () => {
+    expect(
+      AnimalPatchSchema.safeParse({ temperament: [custom("Перше"), custom("Друге")] }).success,
+    ).toBe(false);
+    expect(
+      AnimalPatchSchema.safeParse({
+        temperament: [...TEMPERAMENT_TRAITS, "calm"].map((trait) => ({ kind: "preset", trait })),
+      }).success,
+    ).toBe(false);
+  });
+
+  it(`a custom colour: ${COAT_COLOUR_CUSTOM_MAX_CHARACTERS} characters fit, one more is refused`, () => {
+    expect(messagesOf({ colour: custom(text(COAT_COLOUR_CUSTOM_MAX_CHARACTERS)) })).toEqual([]);
+    expect(messagesOf({ colour: custom(text(COAT_COLOUR_CUSTOM_MAX_CHARACTERS + 1)) })).toEqual([
+      `Custom colour is ${COAT_COLOUR_CUSTOM_MAX_CHARACTERS + 1} characters; the maximum is ${COAT_COLOUR_CUSTOM_MAX_CHARACTERS}`,
+    ]);
+    expect(messagesOf({ colour: { kind: "preset", colour: "tabby" } })).toEqual([]);
+  });
+
+  it(`the medical note: ${MEDICAL_NOTES_MAX_CHARACTERS} characters fit, one more is refused`, () => {
+    expect(
+      messagesOf({ medicalNotes: { uk: text(MEDICAL_NOTES_MAX_CHARACTERS), en: null } }),
+    ).toEqual([]);
+    expect(
+      messagesOf({ medicalNotes: { uk: text(MEDICAL_NOTES_MAX_CHARACTERS + 1), en: null } }),
+    ).toEqual([
+      `Medical notes is ${MEDICAL_NOTES_MAX_CHARACTERS + 1} characters; the maximum is ${MEDICAL_NOTES_MAX_CHARACTERS}`,
+    ]);
+  });
+
+  it("counts characters as a reader sees them, not UTF-16 units", () => {
+    // One flag emoji is four UTF-16 units and one character a reader sees.
+    const flags = "🇺🇦".repeat(TEMPERAMENT_CUSTOM_MAX_CHARACTERS);
+    expect(flags.length).toBeGreaterThan(TEMPERAMENT_CUSTOM_MAX_CHARACTERS);
+    expect(messagesOf({ temperament: [custom(flags)] })).toEqual([]);
   });
 });
 
@@ -136,6 +238,27 @@ describe("the kabinet animal views are the union (T2)", () => {
     expect(
       KabinetAnimalViewSchema.safeParse({ ...draftView, ...facts, listing: published }).success,
     ).toBe(true);
+  });
+
+  it("a published animal's temperament, colour and medical note may be unrecorded", () => {
+    const listed = { ...draftView, ...facts, listing: published };
+    expect(KabinetAnimalViewSchema.safeParse(listed).success).toBe(true);
+    expect(
+      KabinetAnimalViewSchema.safeParse({
+        ...listed,
+        temperament: [{ kind: "preset", trait: "shy" }],
+        colour: { kind: "custom", text: { uk: "Димчастий", en: null } },
+        medicalNotes: { uk: "Без особливостей.", en: null },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("a published animal's fur may be unknown: it is no publishing fact (DR1-D10)", () => {
+    const listed = { ...draftView, ...facts, listing: published };
+    expect(KabinetAnimalViewSchema.safeParse({ ...listed, coatLength: null }).success).toBe(true);
+    expect(KabinetAnimalViewSchema.safeParse({ ...listed, coatLength: "short" }).success).toBe(
+      true,
+    );
   });
 });
 

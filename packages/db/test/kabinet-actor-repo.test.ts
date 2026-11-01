@@ -110,3 +110,68 @@ describe("kabinetActorRepo.roleOf", () => {
     });
   });
 });
+
+/**
+ * The reads the password guards rest on (`docs/shelter-passwords.md` §4.6, §9 answers 2 and 3):
+ * who is the operator, who is a shelter admin, and what a password may not contain.
+ */
+describe("kabinetActorRepo: the password guards' reads", () => {
+  const OPERATOR = "bbbbbbbb-0000-4000-8000-00000000000b";
+
+  async function admin() {
+    await user();
+    const shelter = await shelterWithOrg("org-a");
+    await db
+      .insert(authMember)
+      .values({ id: "m1", organizationId: "org-a", userId: USER, role: "owner", createdAt: AT });
+    return shelter;
+  }
+
+  it("hasActiveOperatorGrant: an active grant only, never a revoked one", async () => {
+    await user(OPERATOR);
+    await user();
+    await db.insert(superAdmins).values([
+      { id: "g-live", userId: OPERATOR, grantedAt: AT },
+      { id: "g-old", userId: USER, grantedAt: AT, revokedAt: AT },
+    ]);
+    expect(await kabinetActorRepo(db).hasActiveOperatorGrant(OPERATOR)).toBe(true);
+    expect(await kabinetActorRepo(db).hasActiveOperatorGrant(USER)).toBe(false);
+  });
+
+  it("operatorGrantForEmail: by address in any case; false for a shelter admin or nobody", async () => {
+    await admin();
+    await user(OPERATOR);
+    await db.insert(superAdmins).values({ id: "g-live", userId: OPERATOR, grantedAt: AT });
+    const actors = kabinetActorRepo(db);
+    expect(await actors.operatorGrantForEmail(` ${OPERATOR.toUpperCase()}@Example.org `)).toBe(
+      true,
+    );
+    expect(await actors.operatorGrantForEmail(`${USER}@example.org`)).toBe(false);
+    expect(await actors.operatorGrantForEmail("nobody@example.org")).toBe(false);
+  });
+
+  it("shelterAdminIdByEmail: the shelter admin only, never the operator or a roleless user", async () => {
+    await admin();
+    await user(OPERATOR);
+    await db.insert(superAdmins).values({ id: "g-live", userId: OPERATOR, grantedAt: AT });
+    await user("dddddddd-0000-4000-8000-00000000000d");
+    const actors = kabinetActorRepo(db);
+    expect(await actors.shelterAdminIdByEmail(`${USER}@EXAMPLE.org`)).toBe(USER);
+    expect(await actors.shelterAdminIdByEmail(`${OPERATOR}@example.org`)).toBeNull();
+    expect(
+      await actors.shelterAdminIdByEmail("dddddddd-0000-4000-8000-00000000000d@example.org"),
+    ).toBeNull();
+    expect(await actors.shelterAdminIdByEmail("nobody@example.org")).toBeNull();
+  });
+
+  it("passwordSubjectOf: a shelter admin's address and shelter name; null for the operator", async () => {
+    const shelter = await admin();
+    await user(OPERATOR);
+    await db.insert(superAdmins).values({ id: "g-live", userId: OPERATOR, grantedAt: AT });
+    expect(await kabinetActorRepo(db).passwordSubjectOf(USER)).toEqual({
+      email: `${USER}@example.org`,
+      shelterName: shelter.displayName,
+    });
+    expect(await kabinetActorRepo(db).passwordSubjectOf(OPERATOR)).toBeNull();
+  });
+});

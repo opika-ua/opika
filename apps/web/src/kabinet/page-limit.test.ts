@@ -3,8 +3,10 @@ import { inMemoryRateLimiter } from "../api/rate-limit";
 import { SHELTER_WRITE_POLICY } from "./access";
 import { capturingInvitationSender } from "./email-senders";
 import { isChargedKabinetPageLoad, isKabinetPagePath, kabinetPageLoadAllowed } from "./page-limit";
+import { capturingPasswordMail } from "./password-mail";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * KH-Q8 (KS-Q3): `/kabinet` page loads draw on the kabinet API's limiters.
@@ -107,12 +109,17 @@ describe("a page load and an API call share one allowance", () => {
     const response = await handleKabinetRpc(
       new Request("http://localhost/api/kabinet/shelter/profile/get", {
         method: "POST",
-        headers: { "content-type": "application/json", origin: "http://localhost" },
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          cookie: TEST_SESSION_COOKIE,
+        },
         body: JSON.stringify({ json: {} }),
       }),
       {
         availability: {
           kind: "available",
+          passwordMail: capturingPasswordMail(),
           sender: { send: async () => {} },
           invites: capturingInvitationSender(),
           secret: "x",

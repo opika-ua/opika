@@ -13,7 +13,7 @@ import { ShelterSummaryViewSchema } from "./shelter";
  * Age and freshness are sent as derived values rather than as the raw estimate
  * and timestamp.
  *
- * The client has no trustworthy clock — a device with a wrong date could
+ * The client has no trustworthy clock - a device with a wrong date could
  * otherwise render a stale listing as fresh, or a senior animal as a puppy.
  * Deriving on the server makes the honesty guarantee something the platform
  * provides rather than something it hopes for.
@@ -41,7 +41,7 @@ const animalLocation = {
  * which kinds are discoverable is a compile error here, not a silent gap.
  *
  * Exists so the deck and the gallery can both render the "Уже домовляються"
- * reserved badge the design specifies — neither the deck nor (until now) the
+ * reserved badge the design specifies - neither the deck nor (until now) the
  * gallery card had any way to know an animal was reserved, since nothing in
  * `FeedCardView` exposed listing state at all.
  */
@@ -61,6 +61,7 @@ export const FeedCardViewSchema = ListedAnimalSchema.pick({
   species: true,
   sex: true,
   size: true,
+  coatLength: true,
 })
   .extend(animalLocation)
   .extend(derivedAnimalFacts)
@@ -77,15 +78,23 @@ export const AnimalDetailViewSchema = ListedAnimalSchema.pick({
   species: true,
   sex: true,
   size: true,
+  coatLength: true,
   description: true,
   photos: true,
   vaccination: true,
   spayNeuter: true,
   documentReadiness: true,
+  temperament: true,
+  colour: true,
+  medicalNotes: true,
 })
   .extend(animalLocation)
   .extend(derivedAnimalFacts)
   .extend({
     shelter: ShelterSummaryViewSchema,
+    // The kind only, never the listing state itself: `since`/`publishedAt` would tell how long
+    // an animal has waited or when it was reserved. Reflects the shelter's own state, so it
+    // cannot vary with adopter activity (commitment 2).
+    listingKind: FeedCardListingKindSchema,
   });
 export type AnimalDetailView = z.infer<typeof AnimalDetailViewSchema>;

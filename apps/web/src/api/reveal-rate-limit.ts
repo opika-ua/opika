@@ -1,8 +1,9 @@
 import type { apiErrors } from "@opika/contracts";
 import type { Database } from "@opika/db";
-import { revealRepo } from "@opika/db/repos";
-import type { AdopterId, ShelterId } from "@opika/domain";
+import { type RevealBudget, revealRepo } from "@opika/db/repos";
+import type { AdopterId, ContactReveal, ShelterId } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
+import { logRateLimited } from "./rate-limit-log";
 
 /**
  * Narrower than `AnimalsRevealErrors` (`handlers/reveal.ts`) on purpose:
@@ -25,23 +26,23 @@ type RevealRateLimitErrors = ORPCErrorConstructorMap<{
  * Deliberately its own file, not part of `rate-limit.ts`: this one imports
  * `@opika/db/repos`, a Postgres driver dependency. `rate-limit.ts` is also
  * imported from `apps/web/src/proxy.ts`, a separate deployment unit
- * from the route handlers — pulling a DB driver into that bundle would be
+ * from the route handlers - pulling a DB driver into that bundle would be
  * wrong regardless of what any specific runtime does or doesn't support.
  * Single responsibility here removes the question rather than resolving it.
  *
- * **Correction, 2026-09-10 — the budget counts distinct shelters, not
+ * **Correction, 2026-09-10 - the budget counts distinct shelters, not
  * reveal actions.** Contacts are per shelter, not per animal: a device
  * right-swiping 40 cards across 6 shelters was burning 40 units to see 6
  * phone numbers, which is the counter measuring the wrong thing rather than
  * the budget being genuinely tight. `maxReveals` therefore now bounds
  * `COUNT(DISTINCT shelter_id)` over the window, and re-revealing a shelter
- * the device has already seen in that window costs nothing — see
+ * the device has already seen in that window costs nothing - see
  * `checkRevealRateLimit`'s own free-re-reveal short-circuit below. This is
  * also what makes an *accidental repeat* drag on an already-revealed shelter
- * safe now that gesture parity is decided and shipped (Oleksii, 2026-09-12 —
+ * safe now that gesture parity is decided and shipped (Oleksii, 2026-09-12 -
  * a deck right-drag does exactly what «Написати» does): that specific case
  * costs nothing. It does **not**
- * make every accidental drag free — an accidental drag on a shelter never
+ * make every accidental drag free - an accidental drag on a shelter never
  * revealed before still spends a unit and still irreversibly discloses the
  * shelter's contact details, same as an accidental button tap always did
  * (never its exact address, which no reveal sends since EM-D1, 2026-10-15).
@@ -51,18 +52,27 @@ const REVEAL_RATE_LIMIT = {
   windowSeconds: 24 * 3600, // 24 hours
 };
 
+/** The window and size at `now`, the same for the check and the guarded write. */
+const budgetAt = (now: Date): RevealBudget => ({
+  since: new Date(now.getTime() - REVEAL_RATE_LIMIT.windowSeconds * 1000),
+  maxShelters: REVEAL_RATE_LIMIT.maxReveals,
+});
+
+/** Whether a reveal that passed the check spends a unit (`new_shelter`) or not. */
+export type RevealBudgetUse = "free_re_reveal" | "new_shelter";
+
 /**
  * Check whether revealing `shelterId` would exceed the adopter's reveal
  * rate limit, and throw if so.
  *
  * Free re-reveal: if this shelter is already among the adopter's distinct
  * shelter contacts revealed within the window, this returns without
- * touching the budget at all — checked first, via an indexed existence
+ * touching the budget at all - checked first, via an indexed existence
  * query, so the common case (a repeat reveal) never runs the distinct-count
  * query below it. ⚠ "Indexed" is not the same claim as "cheap under load":
  * `reveals_shelter_id_idx` is shelter-only, so a first-time reveal of a
  * *popular* shelter still filters the adopter out of a wide row set rather
- * than seeking directly to this adopter's own rows — measured, not assumed,
+ * than seeking directly to this adopter's own rows - measured, not assumed,
  * at real corpus scale, and a `(adopter_id, shelter_id, revealed_at)`
  * composite index did not change the query plan Postgres chose. Left as-is:
  * this project runs at near-zero traffic today (`docs/observations.md`'s
@@ -75,6 +85,9 @@ const REVEAL_RATE_LIMIT = {
  * it belongs (standing check: repository boundary).
  *
  * Throws RATE_LIMITED if the limit is exceeded.
+ *
+ * A fast answer, not the guarantee: two reveals can both pass it before either
+ * writes (audit F8). `writeRevealWithinRateLimit` below is what holds the limit.
  */
 export async function checkRevealRateLimit(
   db: Database,
@@ -82,19 +95,43 @@ export async function checkRevealRateLimit(
   shelterId: ShelterId,
   now: Date,
   errors: RevealRateLimitErrors,
-): Promise<void> {
-  const cutoff = new Date(now.getTime() - REVEAL_RATE_LIMIT.windowSeconds * 1000);
+): Promise<RevealBudgetUse> {
+  const { since, maxShelters } = budgetAt(now);
   const reveals = revealRepo(db);
 
-  const alreadyRevealed = await reveals.hasRevealedShelterRecently(adopterId, shelterId, cutoff);
-  if (alreadyRevealed) return;
+  const alreadyRevealed = await reveals.hasRevealedShelterRecently(adopterId, shelterId, since);
+  if (alreadyRevealed) return "free_re_reveal";
 
-  const distinctShelterCount = await reveals.countDistinctSheltersRecentByAdopter(
-    adopterId,
-    cutoff,
-  );
+  const distinctShelterCount = await reveals.countDistinctSheltersRecentByAdopter(adopterId, since);
 
-  if (distinctShelterCount >= REVEAL_RATE_LIMIT.maxReveals) {
+  if (distinctShelterCount >= maxShelters) {
+    logRateLimited("reveal-adopter");
     throw errors.RATE_LIMITED();
+  }
+  return "new_shelter";
+}
+
+/**
+ * Writes the reveal under the same budget, atomically (audit F8): the adopter's
+ * row locked, then an insert guarded by the budget, in one transaction
+ * (`revealRepo.insertWithinShelterBudget`). A reveal that lost the race to
+ * another of this adopter's reveals answers as the check above would have:
+ * RATE_LIMITED past the budget, or the reveal already written for this animal.
+ */
+export async function writeRevealWithinRateLimit(
+  db: Database,
+  reveal: ContactReveal,
+  errors: RevealRateLimitErrors,
+): Promise<ContactReveal> {
+  const reveals = revealRepo(db);
+  const outcome = await reveals.insertWithinShelterBudget(reveal, budgetAt(reveal.revealedAt));
+  switch (outcome.kind) {
+    case "inserted":
+      return reveal;
+    case "animal_already_revealed":
+      return outcome.existing;
+    case "over_budget":
+      logRateLimited("reveal-adopter");
+      throw errors.RATE_LIMITED();
   }
 }

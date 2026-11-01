@@ -1,6 +1,8 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
-import { BODY, CAPTION, CARD, CARD_TITLE, INNER, STRONG } from "./profile-edit/styles";
+import { Heading } from "../../ui/Heading";
+import { Panel } from "../../ui/Panel";
+import { Text } from "../../ui/Text";
 
 /**
  * K5 at its minimum (RU-Q7, answer 7, verbatim: "Yes: a minimal shelter-side
@@ -27,6 +29,13 @@ import { BODY, CAPTION, CARD, CARD_TITLE, INNER, STRONG } from "./profile-edit/s
  * note. Every other status renders nothing: pending and under review are the
  * chip's to say, verified needs no notice, and a pause is the shelter's own
  * (`PausedStatus`).
+ *
+ * **Hierarchy (owner's data/structure-hierarchy direction, 2026-10-28):**
+ * the heading takes Головна's own page-title weight (``title` look, not the
+ * routine `body-l` every other card on that page uses) - a rejection or
+ * suspension outranks everything else Головна can show (it means nothing of
+ * the shelter's is visible at all), and the page's own structure has to say
+ * so before the words do.
  */
 export function VerificationDecision({
   verification,
@@ -49,18 +58,28 @@ export function VerificationDecision({
   const title = rejected ? t.rejectedTitle : t.suspendedTitle;
   const note = verification.reason.note;
   return (
-    <section aria-label={title} className={CARD}>
-      <h2 className={CARD_TITLE}>{title}</h2>
-      <p className={BODY}>{rejected ? t.rejectedEffect : t.suspendedEffect}</p>
-      <p className={STRONG}>{fillTemplate(t.reason, { code })}</p>
+    <Panel
+      as="section"
+      tone="outline"
+      padding="lg"
+      aria-label={title}
+      className="flex flex-col gap-4"
+    >
+      <Heading level={2} look="title">
+        {title}
+      </Heading>
+      <Text>{rejected ? t.rejectedEffect : t.suspendedEffect}</Text>
+      <Text look="label">{fillTemplate(t.reason, { code })}</Text>
       {note !== null ? (
         <figure className="flex flex-col gap-2">
-          <figcaption className={CAPTION}>{t.noteLabel}</figcaption>
-          <blockquote className={`${INNER} ${BODY} whitespace-pre-wrap`}>{note}</blockquote>
-          <p className={BODY}>{fillTemplate(t.signature, { operator: operatorName })}</p>
+          <figcaption className="text-caption text-ink-2">{t.noteLabel}</figcaption>
+          <Panel tone="sunken">
+            <blockquote className="text-body whitespace-pre-wrap text-ink">{note}</blockquote>
+          </Panel>
+          <Text>{fillTemplate(t.signature, { operator: operatorName })}</Text>
         </figure>
       ) : null}
-      <p className={CAPTION}>{t.contact}</p>
-    </section>
+      <Text look="hint">{t.contact}</Text>
+    </Panel>
   );
 }

@@ -1,74 +1,146 @@
 "use client";
 
 import type { KabinetShelterView } from "@opika/contracts";
-import { useCallback, useState } from "react";
+import { uk } from "@opika/i18n";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import {
   type KabinetProfileClient,
   kabinetProfileBrowserClient,
 } from "../../../api/kabinet-browser-client";
-import type { PreviewAnimal } from "../home";
+import { Heading } from "../../../ui/Heading";
+import { Tabs } from "../../../ui/Tabs";
+import { Text } from "../../../ui/Text";
 import { LockedBlock } from "../ProfileParts";
+import { publicShelterPath } from "../routes";
+import { PageSave, PageSaveStatus } from "../shared/page-save";
+import { runWrite } from "../shared/write-result";
 import { ContactsSection } from "./ContactsSection";
 import { DonationSection } from "./DonationSection";
+import { LogoSection } from "./LogoSection";
 import { PauseControl } from "./PauseControl";
+import { type ProfileTab, profileTabOf } from "./profile-tabs";
 import { VoiceSection } from "./VoiceSection";
-import { runWrite } from "./write-result";
+
+/** Which tab holds each section that can refuse a save, so a refusal shows the tab it is on. */
+const SECTION_TAB: Record<string, ProfileTab> = { contacts: "kontakty", voice: "profil" };
 
 /**
- * K4 with writes open for this shelter (the page decided, with the router's
- * own `decideAccess` and policy). Holds the one shelter view all sections
- * share: each write answers with the new view, whose `version` the next
- * compare-and-set write sends, so saving contacts and then the sentence never
- * trips over its own version bump (answer 1). Each section keeps its own
- * draft; a write elsewhere changes only the version under it.
+ * K4 with writes open for this shelter (the page decided, with the router's own `decideAccess`
+ * and policy), as sub-tabs: Профіль (logo, the sentence), Контакти, Збір коштів, Перевірка
+ * (read-only), Акаунт (pause, password). The tab is addressable as `?tab=` and kept in the URL
+ * without a navigation; every panel stays mounted, so an unsaved edit survives a tab switch.
  *
- * Same layout as the read-only page (contacts and fundraising, then the voice
- * and the locked block), with pause/resume (N21) after the locked block.
+ * Holds the one shelter view all sections share: each write answers with the new view, whose
+ * `version` the next compare-and-set write sends, so the page's single save bar, which saves the
+ * dirty sections one after another, never trips over its own version bump (`versionRef` is read
+ * at call time, not captured at render).
  */
 export function ProfileEditor({
   initialView,
   cityName,
   operatorName,
-  previewAnimal,
   donationDeclined,
+  initialTab = "profil",
+  account = null,
   client = kabinetProfileBrowserClient,
 }: {
   initialView: KabinetShelterView;
   cityName: string | null;
   operatorName: string;
-  previewAnimal: PreviewAnimal | null;
   donationDeclined: boolean;
+  initialTab?: ProfileTab;
+  /** The password card, rendered in the Акаунт tab (the page decides whether there is one). */
+  account?: ReactNode;
   client?: KabinetProfileClient;
 }) {
   const [view, setView] = useState(initialView);
+  const versionRef = useRef(initialView.version);
+  const [tab, setTab] = useState<ProfileTab>(initialTab);
   const profile = client.shelter.profile;
+  const t = uk.kabinet.profileTabs;
 
-  const write = useCallback(async (call: () => Promise<KabinetShelterView>) => {
-    const result = await runWrite(call);
-    if (result.kind === "ok") setView(result.view);
-    return result;
+  const show = useCallback((next: ProfileTab) => {
+    setTab(next);
+    const url = new URL(window.location.href);
+    if (next === "profil") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", next);
+    window.history.replaceState(window.history.state, "", url);
   }, []);
+
+  const adopt = useCallback((next: KabinetShelterView) => {
+    versionRef.current = next.version;
+    setView(next);
+  }, []);
+
+  const write = useCallback(
+    async (call: () => Promise<KabinetShelterView>) => {
+      const result = await runWrite(call);
+      if (result.kind === "ok") adopt(result.view);
+      return result;
+    },
+    [adopt],
+  );
 
   const reload = useCallback(async (): Promise<KabinetShelterView | null> => {
     try {
       const next = await profile.get({});
-      setView(next);
+      adopt(next);
       return next;
     } catch {
       return null;
     }
-  }, [profile]);
+  }, [profile, adopt]);
 
-  return (
-    <div className="grid grid-cols-1 items-start gap-3 desktop:grid-cols-2 desktop:gap-4">
-      <div className="flex min-w-0 flex-col gap-3 desktop:gap-4">
+  const panels = [
+    {
+      id: "profil",
+      label: t.profile,
+      panel: (
+        <div className="flex flex-col gap-4 desktop:gap-6">
+          <div className="flex flex-col gap-1">
+            <Heading level={2} look="title">
+              {t.profile}
+            </Heading>
+            <Text look="hint">{t.profileNote}</Text>
+          </div>
+          <LogoSection
+            logo={view.logo}
+            displayName={view.displayName}
+            onView={adopt}
+            client={client}
+          />
+          <VoiceSection
+            sentence={view.freshnessSentence}
+            save={(freshnessSentence) =>
+              write(() =>
+                profile.updateFreshnessSentence({
+                  freshnessSentence,
+                  expectedVersion: versionRef.current,
+                }),
+              )
+            }
+            reload={reload}
+          />
+        </div>
+      ),
+    },
+    {
+      id: "kontakty",
+      label: uk.kabinet.profile.contactsTitle,
+      panel: (
         <ContactsSection
           contact={view.contact}
           save={(contact) =>
-            write(() => profile.updateContact({ contact, expectedVersion: view.version }))
+            write(() => profile.updateContact({ contact, expectedVersion: versionRef.current }))
           }
           reload={reload}
         />
+      ),
+    },
+    {
+      id: "zbir",
+      label: uk.kabinet.profile.donationTitle,
+      panel: (
         <DonationSection
           donation={view.donation}
           pendingDonation={view.pendingDonation}
@@ -76,25 +148,42 @@ export function ProfileEditor({
           propose={(url) => write(() => profile.proposeDonation({ url }))}
           cancel={() => write(() => profile.cancelDonationProposal({}))}
         />
-      </div>
-      <div className="flex min-w-0 flex-col gap-3 desktop:gap-4">
-        <VoiceSection
-          sentence={view.freshnessSentence}
-          previewAnimal={previewAnimal}
-          save={(freshnessSentence) =>
-            write(() =>
-              profile.updateFreshnessSentence({ freshnessSentence, expectedVersion: view.version }),
-            )
-          }
-          reload={reload}
-        />
-        <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />
-        <PauseControl
-          verification={view.verification}
-          pause={(reason) => write(() => profile.pause({ reason }))}
-          resume={() => write(() => profile.resume({}))}
-        />
-      </div>
-    </div>
+      ),
+    },
+    {
+      id: "perevirka",
+      label: t.verification,
+      panel: <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />,
+    },
+    {
+      id: "akaunt",
+      label: t.account,
+      panel: (
+        <div className="flex flex-col gap-4 desktop:gap-6">
+          <PauseControl
+            verification={view.verification}
+            pause={(reason) => write(() => profile.pause({ reason }))}
+            resume={() => write(() => profile.resume({}))}
+          />
+          {account}
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <PageSave
+      onProblem={(id) => show(SECTION_TAB[id] ?? "profil")}
+      viewHref={publicShelterPath(view.id)}
+    >
+      <Tabs
+        look="pills"
+        label={t.label}
+        tabs={panels}
+        selectedId={tab}
+        status={<PageSaveStatus />}
+        onSelect={(id) => show(profileTabOf(id))}
+      />
+    </PageSave>
   );
 }

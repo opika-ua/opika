@@ -116,7 +116,7 @@ describe("isAgeEstimateUncertain", () => {
       declaredAt: yearsBefore(2.5),
     };
     // Declared under a year old, two and a half years ago: now somewhere in
-    // [2.5, 3.5) — young or adult, and the data cannot say which.
+    // [2.5, 3.5) - young or adult, and the data cannot say which.
     expect(isAgeEstimateUncertain(estimate, NOW)).toBe(true);
     expect(ageBucketOf(estimate, NOW)).toBe("young");
   });
@@ -157,7 +157,7 @@ describe("isAgeEstimateUncertain", () => {
   });
 });
 
-describe("ageAnchorOf — the indexable form", () => {
+describe("ageAnchorOf - the indexable form", () => {
   it("is the birth date itself for a known birth date", () => {
     const date = yearsBefore(4);
     expect(ageAnchorOf({ kind: "birth_date", date, precision: "day" })).toEqual(date);
@@ -183,7 +183,7 @@ describe("ageAnchorOf — the indexable form", () => {
   });
 });
 
-describe("ageAnchorRange — the filter predicate", () => {
+describe("ageAnchorRange - the filter predicate", () => {
   it("selects exactly the animals in the bucket", () => {
     for (const bucket of ["baby", "young", "adult", "senior"] as const) {
       const range = ageAnchorRange(bucket, NOW);

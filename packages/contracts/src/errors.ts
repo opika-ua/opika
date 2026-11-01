@@ -37,25 +37,25 @@ export const IllegalTransitionDataSchema = z.discriminatedUnion("machine", [
  * Codes only. Human-readable copy belongs to the translation layer, which also
  * means no product naming can leak into this package.
  *
- * **`status`, added 2026-09-10 (O-20) — the one place every one of these
+ * **`status`, added 2026-09-10 (O-20) - the one place every one of these
  * codes' real HTTP status is declared.** Found by the reviewer, confirmed
  * against a real request: none of these codes are oRPC's own "common" error
  * codes (`BAD_REQUEST`, `UNAUTHORIZED`, `TOO_MANY_REQUESTS`, ...), and oRPC's
  * own `fallbackORPCErrorStatus` falls back to a bare `500` for any code it
- * doesn't recognise — so every `throw new ORPCError("RATE_LIMITED")` in this
+ * doesn't recognise - so every `throw new ORPCError("RATE_LIMITED")` in this
  * codebase answered 500 over the wire, indistinguishable from a real server
  * failure, until now. (`NOT_FOUND` happened to already read 404, purely
- * because oRPC also has a *common* code spelled identically — coincidence,
+ * because oRPC also has a *common* code spelled identically - coincidence,
  * not a fix.) Every procedure's own `.errors({...})` declaration in
  * `packages/contracts/src/procedures/*.ts` already references these objects
  * directly, and every handler now constructs its errors via the
  * `errors.<CODE>()` constructor oRPC injects from that same declaration
  * (`apps/web/src/api/handlers/*.ts`) rather than a raw `new ORPCError(code)`
- * — so a status set here is the status a real client receives, not merely
+ * - so a status set here is the status a real client receives, not merely
  * the status the server intended to send. Verified end to end in
  * `apps/web/src/api/api.test.ts`, which asserts the actual `Response.status`
  * a request receives (via the real `RPCHandler` pipeline in
- * `apps/web/src/api/test-harness.ts`), not the code the handler threw — "the
+ * `apps/web/src/api/test-harness.ts`), not the code the handler threw - "the
  * harness" elsewhere in this repo means the Playwright rendering gate
  * (`pnpm test:harness`), which this fix does not touch.
  */
@@ -74,7 +74,7 @@ export const apiErrors = {
    * NOT_FOUND on a lookup would turn it into a moderation oracle: shelter ids
    * are public on every feed card, so an id answering "not visible" rather than
    * "not found" would identify a shelter a moderator had suspended or rejected.
-   * Same status as NOT_FOUND, deliberately — the point is that a client can't
+   * Same status as NOT_FOUND, deliberately - the point is that a client can't
    * tell the two apart from the status alone, only from the code.
    */
   SHELTER_NOT_VISIBLE: {
@@ -100,8 +100,8 @@ export const apiErrors = {
   },
   /**
    * H2 kabinet. Authenticated, but not as an actor this procedure accepts,
-   * including a shelter admin acting on another shelter's animal or shelter
-   * (S3-Q2: cross-tenant is FORBIDDEN, by Oleksii's instruction).
+   * by role, never by resource: another shelter's animal id is NOT_FOUND, the
+   * same as a missing one (QA-2026-10-29; S3-Q2 had it FORBIDDEN).
    */
   FORBIDDEN: {
     status: 403,
@@ -137,14 +137,16 @@ export const apiErrors = {
   },
   /**
    * A save that would clear a listing fact on an animal that has been
-   * published (F-B1): only a draft may lack one. Today only the description
-   * can be cleared, so `field` is that in practice; the enum names every
-   * listing fact so the answer stays exact if another becomes clearable.
+   * published (F-B1): only a draft may lack one. The enum names every
+   * listing fact so the answer stays exact as more become gated – `sex`
+   * joined description/size/age (SF-F1): an already-listed animal's sex
+   * may not drift back to "unknown", the same way its description may
+   * not drift back to null.
    */
   LISTING_FACT_REQUIRED: {
     status: 422,
     message: "A listing that was published must keep this field.",
-    data: z.object({ field: z.enum(["size", "age", "description"]) }),
+    data: z.object({ field: z.enum(["size", "age", "description", "sex"]) }),
   },
   /**
    * A birth date or «as of» date the server refuses (D3, Oleksii: "Refuse a
@@ -196,6 +198,22 @@ export const apiErrors = {
     data: z.object({
       reason: z.enum(["shelter_admin", "operator", "invited_elsewhere"]),
     }),
+  },
+  /**
+   * An invitation link that can't set a password (PW-2): unknown, expired, already used, withdrawn,
+   * or naming an address that can't hold a password through it (the operator's, one that already
+   * has a password or a membership). One answer for all of them, as the link's page shows one
+   * page for all of them (Oleksii, PW-2 Q1).
+   */
+  INVITE_UNUSABLE: {
+    status: 410,
+    message: "This invitation link no longer works.",
+  },
+  /** The password policy refused the new password (`data.reason`, `docs/shelter-passwords.md` §3). */
+  PASSWORD_REJECTED: {
+    status: 422,
+    message: "That password can't be used.",
+    data: z.object({ reason: z.enum(["too_short", "too_long", "contains_personal", "common"]) }),
   },
   /** An undo past its window, or after a newer write (H2-16). */
   UNDO_EXPIRED: {

@@ -13,6 +13,7 @@ import {
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
 import { historyRowSelect } from "./history-sql";
+import { invitationNotExpiredAt } from "./invitation-liveness";
 
 /** A history row written in the same statement as the change it records. */
 type HistoryRow = { id: string; shelterId: ShelterId; entry: ShelterHistoryEntry };
@@ -308,7 +309,7 @@ export function kabinetInvitationRepo(db: Database) {
           and(
             eq(authInvitation.email, email),
             eq(authInvitation.status, "pending"),
-            sql`${authInvitation.expiresAt} > ${input.now.toISOString()}::timestamptz`,
+            sql`${authInvitation.expiresAt} ${invitationNotExpiredAt(input.now)}`,
             thisOrganization === null
               ? undefined
               : sql`${authInvitation.organizationId} <> ${thisOrganization}`,

@@ -4,7 +4,6 @@ import {
   type ContactsForm,
   contactOfForm,
   contactsFormOf,
-  insertAt,
   linkProblem,
   sentenceCheck,
   sentenceLength,
@@ -80,7 +79,7 @@ describe("contactOfForm", () => {
   it("names the message for each bad field, by row", () => {
     const result = contactOfForm(
       form({
-        phone: "067 123 45 67",
+        phone: "+380670000002213",
         telegram: "@abc",
         others: [
           { id: "n1", kind: "email", value: "not-an-email", stored: false },
@@ -95,6 +94,30 @@ describe("contactOfForm", () => {
       others: { n1: "emailFormat", n2: "httpsOnly" },
       atLeastOne: false,
     });
+  });
+
+  it("saves the Ukrainian local and international forms as +380XXXXXXXXX", () => {
+    for (const typed of [
+      "067 123 45 67",
+      "(067) 123-45-67",
+      "0671234567",
+      "380671234567",
+      "+380 67 123 45 67",
+    ]) {
+      expect(contactOfForm(form({ phone: typed }))).toEqual({
+        kind: "ok",
+        contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
+      });
+    }
+  });
+
+  it("refuses a Viber number with extra digits or another country code", () => {
+    for (const typed of ["+380670000002213", "+48 600 100 200", "067123456"]) {
+      const result = contactOfForm(
+        form({ others: [{ id: "n1", kind: "viber", value: typed, stored: false }] }),
+      );
+      expect(result).toMatchObject({ kind: "invalid", others: { n1: "viberFormat" } });
+    }
   });
 
   it("a stored row of any kind is checked as that kind (fix 3)", () => {
@@ -125,11 +148,17 @@ describe("sentenceCheck (his messages for the K-Q6 rule)", () => {
     expect(sentenceCheck("   ")).toEqual({ kind: "ok", text: null });
   });
 
-  it("normalises the token spellings", () => {
-    expect(sentenceCheck("{ім'я} досі шукає дім.")).toEqual({
+  it("trims what it accepts", () => {
+    expect(sentenceCheck("  Оновлюємо щосуботи. ")).toEqual({
       kind: "ok",
-      text: "{імʼя} досі шукає дім.",
+      text: "Оновлюємо щосуботи.",
     });
+  });
+
+  it("refuses {імʼя} in any spelling with its own message (DR1-Q5)", () => {
+    for (const text of ["{ім'я} досі шукає дім.", "Чи {імʼя} тут?", "{ІМ’Я}"]) {
+      expect(sentenceCheck(text)).toEqual({ kind: "invalid", error: { key: "nameTokenGone" } });
+    }
   });
 
   it("{дата} gets its own message (answer 5), in any case and spacing", () => {
@@ -159,12 +188,5 @@ describe("sentenceCheck (his messages for the K-Q6 rule)", () => {
 
   it("counts characters as a reader sees them", () => {
     expect(sentenceLength("  🐾 ок  ")).toBe(4);
-  });
-});
-
-describe("insertAt (answer 7)", () => {
-  it("replaces the selection and puts the caret after the token", () => {
-    expect(insertAt("ab cd", 3, 5, "{імʼя}")).toEqual({ value: "ab {імʼя}", caret: 9 });
-    expect(insertAt("", 0, 0, "{імʼя}")).toEqual({ value: "{імʼя}", caret: 6 });
   });
 });

@@ -75,8 +75,12 @@ const fieldLabel = (field: AnimalEditedField): string => {
     case "species":
     case "sex":
     case "size":
+    case "coatLength":
+    case "colour":
     case "age":
     case "description":
+    case "temperament":
+    case "medicalNotes":
     case "photos":
       return labels.field[field];
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled field; unreachable at runtime */
@@ -197,6 +201,8 @@ function lineOf(
       return { text: t.freshness_sentence_changed, actor: actorOf(entry.actor, people) };
     case "description_changed":
       return { text: t.description_changed, actor: actorOf(entry.actor, people) };
+    case "logo_changed":
+      return { text: t.logo_changed, actor: actorOf(entry.actor, people) };
     case "donation_proposed":
       return {
         text: fillTemplate(t.donation_proposed, { host: donationHost(entry.link) }),

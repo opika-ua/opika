@@ -1,26 +1,27 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
-import {
-  inSentenceOperatorName,
-  type OperatorName,
-  standaloneOperatorName,
-} from "../../kabinet/operator";
+import { inSentenceOperatorName, type OperatorName } from "../../kabinet/operator";
+import { Card } from "../../ui/Card";
+import { FormSection } from "../../ui/FormSection";
+import { Heading } from "../../ui/Heading";
+import { MAIN_LANDMARK } from "../../ui/landmark";
+import { Text } from "../../ui/Text";
 import type { ProfileEditing } from "./home";
-import { KabinetBrand, KabinetMark } from "./KabinetBrand";
+import { KabinetHeader } from "./KabinetHeader";
 import { KabinetNav } from "./KabinetNav";
-import { CAPTION, CARD, CARD_TITLE, channelValue, LockedBlock, Row } from "./ProfileParts";
+import { channelValue, Facts, LockedBlock, Row } from "./ProfileParts";
+import { ChangePasswordSection, type PasswordState } from "./password/ChangePasswordSection";
 import { PausedStatus } from "./profile-edit/PausedStatus";
 import { ProfileEditor } from "./profile-edit/ProfileEditor";
-import { animalListShownTo } from "./routes";
-import { SignOutButton } from "./SignOutButton";
+import { profileTabOf } from "./profile-edit/profile-tabs";
+import { animalListShownTo, publicShelterPath } from "./routes";
 import { SupportBanner } from "./SupportBanner";
-import { VerificationDecision } from "./VerificationDecision";
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"; mock
  * `Opika Kabinet.dc.html`, «K4 Профіль притулку» 1440 and 360). K4's sections
  * in K4's order (contacts and fundraising, then the shelter's voice and the
- * block set during verification), with every value a label–value row: the
+ * block set during verification), with every value a label-value row: the
  * pattern K4 already uses for its locked block (N10), so nothing on the page
  * looks editable. No inputs, no Save bar, and no view or inquiry counts in any
  * form (commitment #2; KABINET K4: «Немає статистики переглядів чи запитів»).
@@ -35,6 +36,18 @@ import { VerificationDecision } from "./VerificationDecision";
  * policy, the sections become K4's editor (`ProfileEditor`): for every
  * shelter's own admins since PR 6. For a support view this stays the
  * read-only page, so it never offers a change the API would refuse.
+ *
+ * **Kabinet redesign Phase 2, PR 4:** the shell is the animal form's (kit tokens, the brand header,
+ * the side nav from desktop) and the sections are the kit's `FormSection`s. While the editor is
+ * open, the tab bar is hidden below desktop: the bottom edge belongs to a section's sticky save
+ * bar, and the back link to Головна above the title is the way out (the animal form's rule, PR 3).
+ *
+ * **Kabinet redesign Phase 2, PR 1:** this screen moved off `SHELTER_HOME`
+ * to its own path (`SHELTER_PROFILE_PATH`, «Притулок» in the nav - renamed
+ * from «Профіль притулку»). The rejected/suspended notice (`VerificationDecision`)
+ * and the pending-review note moved to the new Головна landing page, which
+ * now owns `SHELTER_HOME`: "what needs attention" belongs on the page a
+ * volunteer lands on, not on the page that edits the shelter's own data.
  */
 
 export type ShelterProfileProps = {
@@ -51,6 +64,13 @@ export type ShelterProfileProps = {
   operator: OperatorName;
   /** K4: `read_only` unless the page's access decision opened writes. */
   editing?: ProfileEditing;
+  /**
+   * PW-1: «Змінити пароль», for the shelter's own admin only (null in a support
+   * view, whose session is the operator's: the operator never has a password).
+   */
+  password?: PasswordState | null;
+  /** The `?tab=` of the page (the editor's sub-tab); anything unknown is the first tab. */
+  tab?: string | undefined;
 };
 
 export function ShelterProfile({
@@ -59,139 +79,134 @@ export function ShelterProfile({
   viewer,
   operator,
   editing = { kind: "read_only" },
+  password = null,
+  tab,
 }: ShelterProfileProps) {
   const t = uk.kabinet.profile;
   const operatorName = inSentenceOperatorName(operator);
   const notRecorded = uk.kabinet.profileNotRecorded;
   const support = viewer === "support";
+  const editorOpen = editing.kind === "open" && !support;
+  const nav = <KabinetNav current="profile" animalList={animalListShownTo(viewer, editing)} />;
 
   return (
     <div
       className={
-        support ? "min-h-dvh outline-4 -outline-offset-4 outline-rg-ink outline-solid" : "min-h-dvh"
+        support ? "min-h-dvh outline-4 -outline-offset-4 outline-ink outline-solid" : "min-h-dvh"
       }
     >
       {support ? <SupportBanner shelterName={view.displayName} /> : null}
 
-      <header className="flex min-h-16 items-center gap-3 bg-rg-surface px-4 desktop:min-h-[72px] desktop:gap-5 desktop:px-8">
-        {/* Phone (K4 360): the mark and the page's short name; desktop (K4 1440): the brand row. */}
-        <span className="flex items-center gap-2 desktop:hidden">
-          <KabinetMark />
-          <span className="text-[19px] leading-6 font-bold tracking-[-0.02em] text-rg-ink">
-            {t.phoneTitle}
-          </span>
-        </span>
-        <span className="hidden desktop:block">
-          <KabinetBrand />
-        </span>
-        <span aria-hidden="true" className="hidden h-7 w-px bg-rg-page desktop:block" />
-        <span className="hidden text-[15px] leading-[22px] font-medium text-rg-ink desktop:block">
-          {view.displayName}
-        </span>
-        <div className="flex-1" />
-        <span className="hidden text-[15px] leading-[22px] text-rg-ink-3 desktop:block">
-          {support ? uk.kabinet.support.viewingAs : t.role}
-        </span>
-        {support ? (
-          <span className="text-[15px] leading-[22px] text-rg-ink-3">
-            {uk.kabinet.support.signOutDisabled}
-          </span>
-        ) : (
-          <SignOutButton />
-        )}
-      </header>
+      <KabinetHeader shelterName={view.displayName} viewer={viewer} />
 
-      <div className="flex flex-col gap-3 px-4 pt-5 pb-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
+      <div
+        className={`mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14 pb-24`}
+      >
         {/*
-          K4's side nav: «Тварини» (K2, PR 5) where the list is shown to this
-          viewer (P1: writes open, or the support view), and «Профіль
-          притулку». The list is K3's entry point now («Додати тварину»), so
-          the «Нова тварина» link that stood in for it here until PR 5 is gone
-          (decision taken, reversible).
+          The shell nav: «Головна» · «Тварини» (K2, PR 5) where the list is shown to this viewer
+          (P1: writes open, or the support view) · «Притулок» (this page). Bottom padding above is
+          clearance for the nav's fixed mobile tab bar, unused at desktop width where the nav sits
+          in the side column, and unused while the editor hides the bar.
         */}
-        <KabinetNav current="profile" animalList={animalListShownTo(viewer, editing)} />
+        {nav}
 
-        <main className="flex min-w-0 max-w-[1080px] flex-1 flex-col gap-3 desktop:gap-6">
-          <div className="flex flex-col gap-1">
-            {/* K4 360 shows neither: the header names the page there. The heading stays for screen readers. */}
-            <h1 className="sr-only desktop:not-sr-only desktop:text-[44px] desktop:leading-[46px] desktop:font-bold desktop:tracking-[-0.035em] desktop:text-rg-ink">
-              {t.title}
-            </h1>
-            <p className={`hidden desktop:block ${CAPTION}`}>{t.intro}</p>
-          </div>
+        <main
+          {...MAIN_LANDMARK}
+          className="flex min-w-0 max-w-176 flex-1 flex-col gap-4 desktop:gap-6"
+        >
+          <header className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <Heading level={1} look="display-l" className="break-words">
+                {t.title}
+              </Heading>
+              <a
+                href={publicShelterPath(view.id)}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex min-h-target items-center rounded-field text-label text-ink underline underline-offset-4 focus-ring"
+              >
+                {t.viewOnSite}
+                <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
+              </a>
+            </div>
+            <Text look="hint" className="hidden tablet:block">
+              {t.intro}
+            </Text>
+          </header>
 
-          {/* K5 (RU-Q7): a rejected or suspended shelter reads why, for its admins and the support view alike. */}
-          <VerificationDecision
-            verification={view.verification}
-            operatorName={standaloneOperatorName(operator)}
-          />
-
-          {editing.kind === "open" && !support ? (
+          {editorOpen ? (
             <ProfileEditor
               initialView={view}
               cityName={cityName}
               operatorName={operatorName}
-              previewAnimal={editing.previewAnimal}
               donationDeclined={editing.donationDeclined}
+              initialTab={profileTabOf(tab)}
+              account={
+                password !== null ? (
+                  <Card>
+                    <div className="p-4 tablet:p-6">
+                      <ChangePasswordSection password={password} />
+                    </div>
+                  </Card>
+                ) : null
+              }
             />
           ) : (
-            <div className="grid grid-cols-1 items-start gap-3 desktop:grid-cols-2 desktop:gap-4">
-              <div className="flex flex-col gap-3 desktop:gap-4">
-                <section aria-labelledby="kabinet-contacts" className={CARD}>
-                  <h2 id="kabinet-contacts" className={CARD_TITLE}>
-                    {t.contactsTitle}
-                  </h2>
-                  <dl className="flex flex-col gap-3 tablet:gap-0">
-                    {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
-                      <Row
-                        key={`${channel.kind}-${index}`}
-                        label={uk.kabinet.profileChannel[channel.kind]}
-                      >
-                        {channelValue(channel)}
-                      </Row>
-                    ))}
-                  </dl>
-                  <p className={CAPTION}>{t.contactsNote}</p>
-                </section>
+            <div className="flex min-w-0 flex-col gap-4 desktop:gap-6">
+              <FormSection id="contacts" title={t.contactsTitle} description={t.contactsNote}>
+                <Facts>
+                  {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
+                    <Row
+                      key={`${channel.kind}-${index}`}
+                      label={uk.kabinet.profileChannel[channel.kind]}
+                    >
+                      {channelValue(channel)}
+                    </Row>
+                  ))}
+                </Facts>
+              </FormSection>
 
-                <section aria-labelledby="kabinet-donation" className={CARD}>
-                  <h2 id="kabinet-donation" className={CARD_TITLE}>
-                    {t.donationTitle}
-                  </h2>
-                  <dl className="flex flex-col gap-3 tablet:gap-0">
-                    <Row label={t.donationLink}>{view.donation?.url ?? notRecorded}</Row>
-                    {view.pendingDonation !== null ? (
-                      <Row label={t.donationPending}>{view.pendingDonation.link.url}</Row>
-                    ) : null}
-                  </dl>
-                  <p className={CAPTION}>{t.donationNote}</p>
-                </section>
-              </div>
+              <FormSection id="voice" title={t.voiceTitle} description={t.voiceNote}>
+                <Facts>
+                  <Row label={t.voiceLabel}>{view.freshnessSentence?.uk ?? notRecorded}</Row>
+                </Facts>
+              </FormSection>
 
-              <div className="flex flex-col gap-3 desktop:gap-4">
-                <section aria-labelledby="kabinet-voice" className={CARD}>
-                  <h2 id="kabinet-voice" className={CARD_TITLE}>
-                    {t.voiceTitle}
-                  </h2>
-                  <dl className="flex flex-col gap-3 tablet:gap-0">
-                    <Row label={t.voiceLabel}>{view.freshnessSentence?.uk ?? notRecorded}</Row>
-                  </dl>
-                  <p className={CAPTION}>{t.voiceNote}</p>
-                </section>
+              <FormSection id="donation" title={t.donationTitle}>
+                <Facts>
+                  <Row label={t.donationLink}>{view.donation?.url ?? notRecorded}</Row>
+                  {view.pendingDonation !== null ? (
+                    <Row label={t.donationPending}>{view.pendingDonation.link.url}</Row>
+                  ) : null}
+                </Facts>
+                <Text look="hint">{t.donationNote}</Text>
+              </FormSection>
 
-                <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />
-                {/* K4-B4, answer 2: the pause note, for this shelter's admins and the support view. */}
-                {view.verification.status === "paused" ? (
-                  <section aria-label={uk.kabinet.profileStatus.paused} className={CARD}>
+              <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />
+              {/* K4-B4, answer 2: the pause note, for this shelter's admins and the support view. */}
+              {view.verification.status === "paused" ? (
+                <Card as="section" tone="outline" aria-labelledby="kabinet-paused">
+                  <div className="flex flex-col gap-3 p-4 tablet:p-6">
+                    <h2 id="kabinet-paused" className="sr-only">
+                      {uk.kabinet.profileStatus.paused}
+                    </h2>
                     <PausedStatus
                       since={view.verification.since}
                       reason={view.verification.reason}
                     />
-                  </section>
-                ) : null}
-              </div>
+                  </div>
+                </Card>
+              ) : null}
             </div>
           )}
+
+          {!editorOpen && password !== null && !support ? (
+            <Card>
+              <div className="p-4 tablet:p-6">
+                <ChangePasswordSection password={password} />
+              </div>
+            </Card>
+          ) : null}
         </main>
       </div>
     </div>

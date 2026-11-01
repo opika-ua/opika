@@ -1,4 +1,10 @@
-import { sharedRateLimiter } from "../api/rate-limit";
+import { sharedRateLimiter, sharedRedisStore } from "../api/rate-limit";
+import {
+  inMemoryDelayStore,
+  PASSWORD_LIMITS,
+  type PasswordLimiters,
+  upstashDelayStore,
+} from "./password-limits";
 import { KABINET_RATE_LIMITS, PHOTO_UPLOAD_RATE_LIMITS } from "./rate-limits";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
 
@@ -25,4 +31,25 @@ export const kabinetLimiters = {
 export const photoUploadLimiters = {
   perHour: sharedRateLimiter({ name: "kabinet-photo-hour", ...PHOTO_UPLOAD_RATE_LIMITS.perHour }),
   perDay: sharedRateLimiter({ name: "kabinet-photo-day", ...PHOTO_UPLOAD_RATE_LIMITS.perDay }),
+};
+
+/** PW-2, §4.3: «Створіть пароль»'s POST, 20 an hour per IP (the link is single use, so nothing per address). */
+export const inviteLimiters = {
+  perIp: sharedRateLimiter({ name: "kabinet-invite-ip", ...PASSWORD_LIMITS.invitePerIp }),
+};
+
+const signInDelayStore = sharedRedisStore("kabinet-sign-in-delay");
+
+/** §4.3: «Забули пароль?», a reset link's POST, and the password sign-in's increasing delays. */
+export const passwordLimiters: PasswordLimiters = {
+  forgotPerIp: sharedRateLimiter({ name: "kabinet-forgot-ip", ...PASSWORD_LIMITS.forgotPerIp }),
+  forgotPerAddress: sharedRateLimiter({
+    name: "kabinet-forgot-address",
+    ...PASSWORD_LIMITS.forgotPerAddress,
+  }),
+  resetPerIp: sharedRateLimiter({ name: "kabinet-reset-ip", ...PASSWORD_LIMITS.resetPerIp }),
+  signInDelay:
+    signInDelayStore === null
+      ? inMemoryDelayStore()
+      : upstashDelayStore(signInDelayStore.redis, signInDelayStore.prefix),
 };

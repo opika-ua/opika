@@ -1,19 +1,23 @@
+import type { AnimalDetailView } from "@opika/contracts";
 import { isRealPhotoKey, r2PublicUrl } from "@opika/db/image-pipeline";
-import {
-  type AnimalId,
-  AnimalIdSchema,
-  DEFAULT_GALLERY_SORT,
-  NO_FILTERS,
-  textIn,
-} from "@opika/domain";
-import { ageWordFor, sizeLabel, uk } from "@opika/i18n";
+import { textIn } from "@opika/domain";
+import { speciesWordFor, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { cache } from "react";
-import { anonymousRouterClient } from "../../../api/server-client";
 import { AnimalDetailScreen } from "../../../features/animal-detail/AnimalDetailScreen";
-import { galleryHref } from "../../../features/gallery/filter-url";
+import {
+  type AnimalPageLoad,
+  loadAnimalPage,
+} from "../../../features/animal-detail/animal-page-load";
+import { speciesLabel } from "../../../features/animal-detail/detail-text";
+import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
+import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
+import { JsonLd } from "../../../seo/json-ld";
+import { animalBreadcrumbs } from "../../../seo/json-ld-builders";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
+import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
 
 /**
  * Same reasoning as `../page.tsx` and `../../page.tsx`: prerendering at
@@ -24,96 +28,63 @@ import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
 export const dynamic = "force-dynamic";
 
 /**
- * F1, `docs/design/README.md`'s addendum frames D1 (1920)/D2 (360) —
- * `AnimalDetailScreen`'s own comment has the rendering detail. This file
- * is the data-fetching shell: parse the route param, fetch, resolve the
- * city name, hand a fully-formed view to the presentational component.
+ * F1, `docs/design/README.md`'s addendum frames D1 (1920)/D2 (360) -
+ * `AnimalDetailScreen`'s own comment has the rendering detail. The data
+ * comes from `loadAnimalPage`, which the gallery's overlay
+ * (`../@preview/(.)[animalId]`) also renders from (designer round 1, §2:
+ * one component, one loader).
  *
- * `notFound()` (Next's own 404 mechanism, `not-found.tsx` in this same
- * segment), not this route's inherited `error.tsx` — a malformed id or an
- * animal that genuinely doesn't exist (or isn't discoverable, or whose
- * shelter isn't verified — `animals.byId`'s own handler collapses all
- * three to one `NOT_FOUND`, deliberately not distinguishing a real id from
- * a guessed one) is a real 404, not a failure to recover from by retrying.
- * Any other error (a database failure, RATE_LIMITED) is not caught here
- * and falls through to `/tvaryny/error.tsx`, the same boundary the
- * gallery already has — consistent copy for "something failed on our
- * side" regardless of which route under `/tvaryny` hit it.
+ * Its three outcomes:
+ * - `not_found` → `notFound()` (Next's 404, `not-found.tsx` in this
+ *   segment): a malformed id, or an animal that doesn't exist, isn't
+ *   discoverable or whose shelter isn't verified (`animals.byId` collapses
+ *   all three to one `NOT_FOUND`).
+ * - `rate_limited` → its own screen, his sentence (RL-F1). This used to be
+ *   caught with everything else and shown as the 404, «Це не помилка —
+ *   просто картки тут більше немає», which was false.
+ * - any other error (a database failure) is thrown by the loader and lands
+ *   on `/tvaryny/error.tsx`, the boundary the gallery already has. It is
+ *   never the not-found copy either.
  */
 export default async function Page({ params }: { params: Promise<{ animalId: string }> }) {
-  const { animalId: rawAnimalId } = await params;
-  const parsedId = AnimalIdSchema.safeParse(rawAnimalId);
-  if (!parsedId.success) notFound();
-
-  const client = anonymousRouterClient();
-  const [animalResult, cities] = await Promise.all([
-    safeById(parsedId.data),
-    client.cities.list({}),
+  const { animalId } = await params;
+  const [load, kabinetSignedIn] = await Promise.all([
+    loadAnimalPageOnce(animalId),
+    kabinetSessionCookiePresent(),
   ]);
-  if (!animalResult) notFound();
+  return renderAnimalPage(load, kabinetSignedIn);
+}
 
-  const shelter = await client.shelters.byId({ shelterId: animalResult.shelter.id });
-
-  const cityId = animalResult.publicLocation
-    ? animalResult.publicLocation.cityId
-    : shelter.publicLocation.cityId;
-  const city = cities.find((c) => c.id === cityId) ?? null;
-
-  /**
-   * O-12 (`docs/observations.md`): «← Усі тварини у Бровари» has to actually
-   * return to Brovary, not the unfiltered gallery — the link's own text is a
-   * claim about where it goes. Built through `galleryHref`, the same URL
-   * scheme every other city link in the app uses, rather than a hand-rolled
-   * `/tvaryny?misto=...` string — one scheme, one place it can drift.
-   * `/tvaryny` unfiltered only when this animal's city genuinely isn't in
-   * the list `cities.list` returned (never expected in practice; every
-   * animal's location resolves to a real seeded city).
-   */
-  const citySlugs = new Map(cities.map((c) => [c.id, c.slug]));
-  const backToGalleryHref = city
-    ? galleryHref(
-        { ...NO_FILTERS, cities: { kind: "oneOf", values: [city.id] } },
-        DEFAULT_GALLERY_SORT,
-        citySlugs,
-      )
-    : "/tvaryny";
-
-  return (
-    <AnimalDetailScreen
-      animal={animalResult}
-      shelter={shelter}
-      backToGalleryHref={backToGalleryHref}
-      now={new Date()}
-      cityName={city ? textIn(city.name, "uk") : null}
-    />
-  );
+/** The page body for a load result; exported so a test can render each state. */
+export function renderAnimalPage(load: AnimalPageLoad, kabinetSignedIn: boolean): ReactNode {
+  switch (load.kind) {
+    case "not_found":
+      return notFound();
+    case "rate_limited":
+      return <RateLimitedScreen />;
+    case "animal":
+      return (
+        <>
+          <JsonLd data={animalBreadcrumbs(uk.feed.galleryTitle, load.view.animal)} />
+          <AnimalDetailScreen {...load.view} kabinetSignedIn={kabinetSignedIn} />
+        </>
+      );
+  }
 }
 
 /**
- * `animals.byId` throws `NOT_FOUND` (an `ORPCError`, not a plain rejected
- * promise) for both a missing id and a genuinely malformed one that still
- * happens to parse as a UUID — this narrows either case to `null` so the
- * caller can call `notFound()` once, rather than needing oRPC's own error
- * type at the call site.
- *
- * `cache()` because Next calls `generateMetadata` and the component in the same
- * request and both need the animal. Without it this route would issue two
- * identical queries per view on a `force-dynamic` page — React dedupes them for
- * the lifetime of the request instead.
+ * `cache()` because Next calls `generateMetadata` and the component in the
+ * same request and both need the animal. Without it this route would issue
+ * two identical sets of queries per view on a `force-dynamic` page; React
+ * dedupes them for the lifetime of the request instead.
  */
-const safeById = cache(async (animalId: AnimalId) => {
-  try {
-    return await anonymousRouterClient().animals.byId({ animalId });
-  } catch {
-    return null;
-  }
-});
+const loadAnimalPageOnce = cache((animalId: string) => loadAnimalPage(animalId));
 
 /**
  * Phase T. Before this the route had no metadata at all, so a shared
- * `/tvaryny/{id}` link — the exact URL shape the product is designed to be
+ * `/tvaryny/{id}` link - the exact URL shape the product is designed to be
  * passed around in, and the one `/prytulkam` tells shelters they can send to
- * Telegram — previewed under the root layout's title with no image and no
+ * Telegram - previewed under the root layout's title with no image and no
  * description.
  *
  * The image is only emitted for a real uploaded photo. `isRealPhotoKey` is
@@ -131,33 +102,50 @@ const safeById = cache(async (animalId: AnimalId) => {
  *   landscape, which is where heads get cut.
  *
  * If a real paste into Telegram, Viber and an Instagram DM looks wrong, the fix
- * is a 1200x630 JPEG OG variant in `packages/db/src/image-pipeline` — a
+ * is a 1200x630 JPEG OG variant in `packages/db/src/image-pipeline` - a
  * pipeline addition, deliberately not pre-emptively built here. Decided by what
  * the phone shows, not by what the spec says should work.
  *
  * D-2: this route builds its own `description`/`openGraph.description` rather
- * than inheriting the root layout's — Next does not merge them, it overrides.
+ * than inheriting the root layout's - Next does not merge them, it overrides.
  * Without its own demo swap, `/tvaryny/{id}` would preview an animal's
- * age/size with no demo-data disclosure at all — exactly the shared link
+ * age/size with no demo-data disclosure at all - exactly the shared link
  * `/prytulkam` tells shelters they can paste into Telegram, so this is one
  * of the routes the disclosure matters on most (see the root layout's own
  * comment for which routes deliberately don't carry it).
+ *
+ * `title`/`description`, PR B (the SEO review of page titles), owner-approved:
+ * - `title`: `{name}, {species}, {city}` (`city` omitted when the animal's own
+ *   location doesn't resolve to a known city - `filter(Boolean)`, not a guess).
+ *   The age bucket and the reserved/adopted state are both deliberately absent -
+ *   neither belongs in a title a search index can keep stale, and the state was
+ *   never in it to begin with.
+ * - `description`: built by `animalMetaDescription`, below - see its own doc comment
+ *   for the exact format, the sex-aware species word and the 160-character budget.
+ *
+ * `openGraph.title` is omitted, not duplicated: Next resolves a missing
+ * `openGraph.title` from the page's own already-templated `title` (same
+ * pattern `/prytulkam`'s and `/pro`'s own metadata already use), which is how
+ * "og:title matches the page's title" (owner) holds without hand-typing the
+ * brand suffix here too.
  */
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ animalId: string }>;
 }): Promise<Metadata> {
-  const { animalId: rawAnimalId } = await params;
-  const parsedId = AnimalIdSchema.safeParse(rawAnimalId);
-  if (!parsedId.success) return {};
+  const { animalId } = await params;
+  const load = await loadAnimalPageOnce(animalId);
+  // A refusal says nothing about the animal; a search engine that met it
+  // must not keep it as this URL's page (RL-F1).
+  if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
+  if (load.kind !== "animal") return {};
+  const { animal, shelter, cityName } = load.view;
 
-  const animal = await safeById(parsedId.data);
-  if (!animal) return {};
-
+  const title = [animal.name, speciesLabel(animal.species), cityName].filter(Boolean).join(", ");
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice
-    : [ageWordFor(animal.ageBucket, animal.sex), sizeLabel(animal.size)].join(" · ");
+    : animalMetaDescription(animal, shelter.displayName, cityName);
   const photo = animal.photos[0];
   const publicBaseUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
 
@@ -174,13 +162,62 @@ export async function generateMetadata({
       : undefined;
 
   return {
-    title: animal.name,
+    title,
     description,
+    // Always the animal's own validated id, no query string - the pet-card work
+    // (owner, PR B) adds gallery-context params to this same URL, and this canonical
+    // must never vary with them. `animal.id`, not the raw route param: `AnimalIdSchema`
+    // accepts a UUID in any case, so a request that happened to use uppercase would
+    // otherwise get a canonical that disagrees with the lowercase form every other
+    // link on the site actually uses.
+    alternates: { canonical: `/tvaryny/${animal.id}` },
     openGraph: {
       type: "article",
-      title: animal.name,
       description,
       ...(images ? { images } : {}),
     },
+    ...(images ? { twitter: { card: "summary_large_image" as const } } : {}),
   };
+}
+
+/** A body sentence shorter than this reads as a cut-off word, not a useful fragment -
+ * omitted entirely rather than shown truncated (found on review: an unusually long
+ * shelter name could leave almost no room for it). */
+const MIN_USEFUL_BODY_LENGTH = 20;
+
+/**
+ * `{species word} {name} · {city} · {shelterName}. {animal's own description, trimmed}.`
+ * - owner's exact wording, replacing an earlier draft ("з притулку «...», м. ..."):
+ * no "з притулку", no "м.", and no quotes around the shelter name, because a shelter's
+ * own display name may already contain "притулок" or quotes of its own. The species
+ * word is sex-aware (`speciesWordFor`, `@opika/i18n`) - distinct from the title's own
+ * `speciesLabel`, which stays sex-neutral. Exported for its own test; `cityName` is
+ * `null` whenever the animal's location doesn't resolve to a known city (`loadAnimalPage`'s
+ * own fallback), dropped from the sentence entirely rather than rendered as an empty
+ * " · ".
+ *
+ * The shelter name itself is trimmed to whatever budget is left after the fixed
+ * surrounding segments - found on review: an unusually long shelter name could
+ * otherwise make the prefix alone exceed `META_DESCRIPTION_MAX_LENGTH`, which
+ * `trimAtWordBoundary`'s own 160-character ceiling is supposed to guarantee never
+ * happens to the description as a whole.
+ */
+export function animalMetaDescription(
+  animal: Pick<AnimalDetailView, "name" | "species" | "sex" | "description">,
+  shelterName: string,
+  cityName: string | null,
+): string {
+  const speciesWord = speciesWordFor(animal.species, animal.sex);
+  const fixedPrefix = [`${speciesWord} ${animal.name}`, cityName].filter(Boolean).join(" · ");
+  // " · " before the shelter name (3 characters), "." after it (1 character).
+  const shelterBudget = Math.max(0, META_DESCRIPTION_MAX_LENGTH - fixedPrefix.length - 3 - 1);
+  const safeShelterName = trimAtWordBoundary(shelterName, shelterBudget);
+  const prefix = `${fixedPrefix} · ${safeShelterName}.`;
+
+  const bodyBudget = META_DESCRIPTION_MAX_LENGTH - prefix.length - 1;
+  const body =
+    bodyBudget >= MIN_USEFUL_BODY_LENGTH
+      ? trimAtWordBoundary(textIn(animal.description, "uk"), bodyBudget)
+      : "";
+  return body ? `${prefix} ${body}` : prefix;
 }

@@ -17,12 +17,13 @@ import {
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
-import { checkRevealRateLimit } from "../reveal-rate-limit";
+import { perIpBudgetSpent, spendPerIpBudget } from "../per-ip-budgets";
+import { checkRevealRateLimit, writeRevealWithinRateLimit } from "../reveal-rate-limit";
 import { cityOnlyLocationOf } from "./public-location";
 
 type RevealInput = z.infer<typeof AnimalsRevealInputSchema>;
 
-/** The exact subset `animalsRevealContract` declares — see animals.ts's own comment (O-20). */
+/** The exact subset `animalsRevealContract` declares - see animals.ts's own comment (O-20). */
 export type AnimalsRevealErrors = ORPCErrorConstructorMap<{
   NOT_FOUND: typeof apiErrors.NOT_FOUND;
   ANIMAL_NOT_AVAILABLE: typeof apiErrors.ANIMAL_NOT_AVAILABLE;
@@ -41,7 +42,9 @@ export type AnimalsRevealErrors = ORPCErrorConstructorMap<{
  * - Is idempotent: a second reveal for the same animal returns the existing one
  * - Writes an immutable audit record with a denormalised shelter snapshot
  *   (exact address included, for the operator; `toView` leaves it out)
- * - Rate-limits per adopter via a Postgres counter (survives across instances)
+ * - Rate-limits per adopter via a Postgres counter (survives across instances),
+ *   held by a guarded write under a lock on the adopter's row (audit F8), and
+ *   per IP on top of it (audit F1)
  */
 export async function animalsReveal(
   input: RevealInput,
@@ -81,10 +84,23 @@ export async function animalsReveal(
     return toView(existing, current);
   }
 
-  // Rate limit check — persisted in Postgres, survives across instances.
+  // Rate limit check - persisted in Postgres, survives across instances.
   // Distinct-shelter budget: free if this shelter is already revealed
   // within the window (see checkRevealRateLimit's own doc comment).
-  await checkRevealRateLimit(context.db, context.adopterId, shelter.id, context.now, errors);
+  const use = await checkRevealRateLimit(
+    context.db,
+    context.adopterId,
+    shelter.id,
+    context.now,
+    errors,
+  );
+  // Audit F1: the same unit, counted per IP across every adopter behind it.
+  if (
+    use === "new_shelter" &&
+    !(await spendPerIpBudget(context.caller, "newShelterReveals", context.now))
+  ) {
+    throw perIpBudgetSpent();
+  }
 
   const reveal: ContactReveal = {
     id: RevealIdSchema.parse(crypto.randomUUID()) as RevealId,
@@ -107,9 +123,8 @@ export async function animalsReveal(
     },
   };
 
-  await reveals.insert(reveal);
-
-  return toView(reveal, current);
+  // The check above can be passed by two reveals at once; this write holds the budget (audit F8).
+  return toView(await writeRevealWithinRateLimit(context.db, reveal, errors), current);
 }
 
 /**

@@ -1,6 +1,8 @@
 import {
+  kabinetInvitationContract,
   kabinetSessionContract,
   registryAdminsContract,
+  registryCitiesContract,
   registryDonationContract,
   registryHistoryContract,
   registrySheltersContract,
@@ -8,6 +10,7 @@ import {
   registryVerificationContract,
   shelterAnimalsContract,
   shelterHistoryContract,
+  shelterLogoContract,
   shelterPhotosContract,
   shelterProfileContract,
   shelterVerificationContract,
@@ -28,6 +31,7 @@ export const shelterKabinetContract = {
     verification: shelterVerificationContract,
     animals: shelterAnimalsContract,
     photos: shelterPhotosContract,
+    logo: shelterLogoContract,
     history: shelterHistoryContract,
   },
 } as const;
@@ -45,6 +49,7 @@ export const registryContract = {
     verification: registryVerificationContract,
     donation: registryDonationContract,
     admins: registryAdminsContract,
+    cities: registryCitiesContract,
     history: registryHistoryContract,
     support: registrySupportContract,
   },
@@ -52,3 +57,14 @@ export const registryContract = {
 } as const;
 
 export type RegistryContract = typeof registryContract;
+
+/**
+ * The invitation link's «Створіть пароль» (PW-2): the one kabinet procedure a signed-out visitor
+ * may call, because the link's token is its credential. A contract of its own, so the access
+ * matrix and the router each name it once.
+ */
+export const invitationContract = {
+  invitation: kabinetInvitationContract,
+} as const;
+
+export type InvitationContract = typeof invitationContract;

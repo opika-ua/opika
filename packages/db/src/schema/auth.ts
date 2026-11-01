@@ -11,8 +11,8 @@ import { shelters } from "./shelters";
  * organization plugin's three), so `auth_session` can't be mistaken for the
  * adopter `sessions` table in a query, a migration or an incident.
  *
- * The shapes are Better Auth 1.6.33's own (`getSchema` with this app's
- * options), written by hand so every column is reviewed. JS keys are Better
+ * The shapes are Better Auth 1.7.14's own (`getSchema` with this app's
+ * options, unchanged from 1.6.33), written by hand so every column is reviewed. JS keys are Better
  * Auth's field names, which its Drizzle adapter looks up; SQL names are this
  * repo's snake_case. Ids are text holding UUIDs (`generateId: "uuid"`), so
  * they parse as `ModeratorId`/`ShelterAdminId` (proposal §2).
@@ -160,8 +160,16 @@ export const authInvitation = pgTable(
  * so who held the role, and when, survives the revocation. A grant is active
  * while `revoked_at` is null, and a user has at most one active grant at a
  * time (the partial unique index), so a re-grant after a revoke is a new row.
- * The only writers are `admin:grant` and `admin:revoke` (HS-Q4), both behind
+ * The only production writers are `admin:grant` and `admin:revoke` (HS-Q4; tests and the auth
+ * smoke write fixture grants on throwaway databases), both behind
  * the production guard.
+ *
+ * **One named exception** (Oleksii, 2026-10-25, confirming PR #199's Tier 1
+ * review): `db:full-reset` (`full-reset.ts`) overrides this rule by design.
+ * A full reset's whole purpose is the moment before any real shelter exists
+ * - there is no real operator history yet to audit, so wiping this table
+ * along with everything else loses nothing a pre-launch reset is meant to
+ * protect. The rule above still holds for every other write path.
  */
 export const superAdmins = pgTable(
   "super_admins",
@@ -186,6 +194,11 @@ export const superAdmins = pgTable(
  * token, as decision #13 does for adopters (Oleksii: "Hashed token in
  * support_sessions: fine"). Rows are never deleted: who viewed which shelter,
  * and when, stays auditable.
+ *
+ * **One named exception** (Oleksii, 2026-10-25, confirming PR #199's Tier 1
+ * review): `db:full-reset` (`full-reset.ts`) overrides this rule by design,
+ * for the same reason `super_admins` above does - nothing real to audit
+ * before launch. The rule above still holds for every other write path.
  */
 export const supportSessions = pgTable(
   "support_sessions",

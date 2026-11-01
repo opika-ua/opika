@@ -57,10 +57,16 @@
  * again inside the transaction and rolls back if any table's deleted count
  * differs from that plan. A second dry run afterwards reports all zeros.
  *
- * Photos are never deleted from R2 (K-Q2: the deployed app never deletes R2
- * objects, and this script holds no R2 credentials). The plan lists the R2
- * object keys of the targeted animals' real photos so Oleksii can delete them
- * by hand (DR-B3, answer 2); a dedicated deletion script is follow-up DR-F3.
+ * This script itself never deletes photos from R2 - it holds no R2
+ * credentials, and removing the `animals` rows just leaves their photos
+ * unreferenced. The plan lists the R2 object keys of the targeted animals'
+ * real photos so Oleksii can delete them by hand sooner than the grace
+ * period (DR-B3, answer 2; the GDPR photo-retention job,
+ * `docs/gdpr-analysis.md`, R2-B1, deletes them automatically once
+ * unreferenced for long enough, with no action here) - a dedicated
+ * immediate-deletion script is follow-up DR-F3, narrowed by R2-B1's
+ * automatic sweep to a way of going sooner than the grace period, not the
+ * only path left at all.
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";

@@ -12,7 +12,7 @@ in. It lifts the production 503 on `/api/auth/*` and `/api/kabinet/*`.
   (HS-Q2)~~. **Decided 2026-10-13: Brevo**, with Resend as the documented fallback, not set up
   (IN-E1/IN-E2). The delivery test is Gmail only; ukr.net and i.ua are postponed with a trigger
   (IN-E4).
-- **Copy:** this PR carries the `/prytulkam` A1–A3/B1 copy (HS-Q13). A false commitment sentence is
+- **Copy:** this PR carries the `/prytulkam` A1-A3/B1 copy (HS-Q13). A false commitment sentence is
   never live (HS-Q3).
 - **Real-Neon run:** sign-in, verify, getSession, accept-invitation, the audited-write CTE, the
   listing compare-and-set and the deleteDraft 23503 catch all run on a real Neon child branch
@@ -33,7 +33,7 @@ can't ship as scoped until they're settled.
 ## Q0. Collision: a shelter can sign in, but there is no cabinet to sign in to
 
 RG-Q1 made the registry PR API only, with the screens in their own PR. Nothing in
-`apps/web/src/app` renders `/kabinet/*` today: no K1 sign-in, no K2–K5, no S1–S5.
+`apps/web/src/app` renders `/kabinet/*` today: no K1 sign-in, no K2-K5, no S1-S5.
 
 This PR's own premise is "a real shelter can sign in". The copy it must carry describes screens:
 A2's true-after-H2 text is "the cabinet has a «Уже вдома» action per animal (K2)". Shipping
@@ -42,12 +42,12 @@ is exactly what HS-Q3 exists to prevent.
 
 The invite link itself also needs pages: somewhere to land, sign in, and accept. See Q3.
 
-- **A (recommended): the screens PR goes before this one.** K1–K5 and S1–S5 are built from the
+- **A (recommended): the screens PR goes before this one.** K1-K5 and S1-S5 are built from the
   mock against the served API, all behind the existing production 503 (nothing changes for anyone
   until it lifts). This PR then turns sign-in on, with every screen the copy describes already
   real. The cost: the copy gate and the 503 lift wait for the screens.
-- **B:** this PR carries K1, the acceptance page and the shelter screens (K2–K5) with it, and the
-  operator screens (S1–S5) follow separately. One much larger Tier 1 PR. The operator would run
+- **B:** this PR carries K1, the acceptance page and the shelter screens (K2-K5) with it, and the
+  operator screens (S1-S5) follow separately. One much larger Tier 1 PR. The operator would run
   the registry from the API until S-screens land, which nobody can do comfortably.
 - **C:** ship sign-in with no screens and copy describing only what is true then. The copy would
   have to say "the cabinet is coming", and it would be rewritten again within weeks. Commitment #6
@@ -134,7 +134,7 @@ That is RG-Q9 working as designed.
 
 - **Proposed:** replace the guard with its successor in the same commit as the copy. The
   successor test asserts:
-  - the A1–A3/B1 keys hold the new Ukrainian, not the old sentences;
+  - the A1-A3/B1 keys hold the new Ukrainian, not the old sentences;
   - exactly one organization path is forwarded (`accept-invitation`), so no other plugin path
     (create-organization, invite, set-active) becomes reachable;
   - `allowUserToCreateOrganization` stays false, and only the invitations module writes
@@ -143,7 +143,7 @@ That is RG-Q9 working as designed.
 
 ## Q5. The `/prytulkam` copy and the emails' Ukrainian
 
-These block the merge: A1–A3 and B1, plus B2, which you flagged as your call (`docs/h2-copy-sheet.md`).
+These block the merge: A1-A3 and B1, plus B2, which you flagged as your call (`docs/h2-copy-sheet.md`).
 `[COPY PENDING]` can't ship for them (commitment sentences).
 
 **New copy this PR needs**, not on the sheet yet:
@@ -232,7 +232,7 @@ RG-Q2's order, with RG-Q10's steps and this PR's prerequisites folded in:
    Vercel; the delivery test (Q2) has passed. *(Provider and DNS done for Brevo, 2026-10-13, IN-E1;
    the auth env and the Gmail delivery test still pending.)*
 4. The real-Neon run (Q9) is green on a child branch.
-5. Invite PR merged. RG-T10 is in it, and the env schema now requires the keys from steps 2–3.
+5. Invite PR merged. RG-T10 is in it, and the env schema now requires the keys from steps 2-3.
 6. `admin:bootstrap <your email>` on production.
 7. You sign in on production.
 8. First shelter invite. When the first real shelter lands, the demo corpus is removed (RG-Q11's

@@ -8,6 +8,7 @@ import {
   deterministicId,
   OnboardInputSchema,
   refuseIfInsideRepo,
+  withCityIdFromSlug,
 } from "../src/onboard-shelter";
 
 const SECRET_A = "a".repeat(32);
@@ -63,7 +64,7 @@ const now = new Date("2026-09-06T12:00:00Z");
 /**
  * The whole point of `onboard-shelter.ts`, verified directly rather than
  * trusted: a real exact address must never be recoverable from what gets
- * stored, and the offset must actually depend on the secret — not just be
+ * stored, and the offset must actually depend on the secret - not just be
  * "some fixed transform" that happens to differ numerically.
  */
 describe("buildShelter's public location", () => {
@@ -74,7 +75,7 @@ describe("buildShelter's public location", () => {
     expect(shelter.publicLocation.approximate.center).not.toEqual(EXACT_ADDRESS.coordinates);
   });
 
-  it("differs between two different secrets — proof the offset is actually keyed, not just non-zero", () => {
+  it("differs between two different secrets - proof the offset is actually keyed, not just non-zero", () => {
     const a = buildShelter(SHELTER_INPUT, now, SECRET_A);
     const b = buildShelter(SHELTER_INPUT, now, SECRET_B);
     if (
@@ -86,11 +87,11 @@ describe("buildShelter's public location", () => {
     expect(a.publicLocation.approximate.center).not.toEqual(b.publicLocation.approximate.center);
   });
 
-  it("throws on a secret shorter than 32 characters — productionLocationPolicy's own guard, exercised through this caller", () => {
+  it("throws on a secret shorter than 32 characters - productionLocationPolicy's own guard, exercised through this caller", () => {
     // The property this test actually verifies: buildShelter really does
     // call productionLocationPolicy, not merely something that behaves
     // similarly. testOnlyLocationPolicy (packages/domain) carries no such
-    // guard — mutation-tested by temporarily swapping the import in
+    // guard - mutation-tested by temporarily swapping the import in
     // onboard-shelter.ts to confirm this exact assertion, and only this
     // one, catches the swap; the two tests above still pass either way,
     // since both policies produce *some* keyed-looking variation.
@@ -159,7 +160,7 @@ describe("buildShelter's evidence requirement", () => {
     );
   });
 
-  it("does not fabricate a reference_contact pointing at the shelter's own number — evidence comes only from what the input actually supplied", () => {
+  it("does not fabricate a reference_contact pointing at the shelter's own number - evidence comes only from what the input actually supplied", () => {
     const shelter = buildShelter(SHELTER_INPUT, now, SECRET_A);
     const referenceContacts = shelter.verification.evidence.items.filter(
       (item) => item.kind === "reference_contact",
@@ -171,13 +172,13 @@ describe("buildShelter's evidence requirement", () => {
 });
 
 describe("buildShelter and buildAnimal ids", () => {
-  it("are deterministic across two calls with the same input — re-running the script must not duplicate rows", () => {
+  it("are deterministic across two calls with the same input - re-running the script must not duplicate rows", () => {
     const first = buildShelter(SHELTER_INPUT, now, SECRET_A);
     const second = buildShelter(SHELTER_INPUT, now, SECRET_A);
     expect(first.id).toBe(second.id);
   });
 
-  it("differ between a shelter and an animal sharing the same idSeed — a namespace collision must not be possible", () => {
+  it("differ between a shelter and an animal sharing the same idSeed - a namespace collision must not be possible", () => {
     const shelter = buildShelter(SHELTER_INPUT, now, SECRET_A);
     const animal = buildAnimal(
       {
@@ -191,10 +192,38 @@ describe("buildShelter and buildAnimal ids", () => {
         photos: [{ localPath: "dog-1.jpg" }],
       },
       [{ storageKey: "animals/test/0", width: 800, height: 1000, alt: null }],
-      shelter.id,
+      shelter,
       now,
     );
     expect(animal.id).not.toBe(shelter.id);
+  });
+
+  /**
+   * S8-F5, hook 3: this script is the one real path that inserts an animal
+   * already `published` under a shelter already `verified` - both the
+   * publish-transition hook and the verification-transition hook never run
+   * for it, so this insert is the only chance to stamp `everServedAt`.
+   */
+  it("stamps everServedAt at insert, since every shelter this script creates is already verified", () => {
+    const shelter = buildShelter(SHELTER_INPUT, now, SECRET_A);
+    expect(shelter.verification.status).toBe("verified");
+    const animal = buildAnimal(
+      {
+        idSeed: "test-shelter-served",
+        name: "Ластівка",
+        species: "dog",
+        sex: "female",
+        size: "medium",
+        ageBucket: "adult",
+        descriptionUk: "Опис.",
+        photos: [{ localPath: "dog-1.jpg" }],
+      },
+      [{ storageKey: "animals/test/1", width: 800, height: 1000, alt: null }],
+      shelter,
+      now,
+    );
+    expect(animal.listing.kind).toBe("published");
+    expect(animal.everServedAt).toEqual(now);
   });
 });
 
@@ -220,10 +249,25 @@ describe("OnboardInputSchema's text rules", () => {
       animals: [{ ...ANIMAL_INPUT, ...animal }],
     });
 
-  it("normalises the token's spellings in the freshness sentence to {імʼя}", () => {
-    const parsed = parse({ freshnessSentenceUk: " Чи {Ім'я} ще з нами? " });
+  it("refuses a +380 phone with extra digits and stores a typed local number as +380XXXXXXXXX", () => {
+    const withPhone = (e164: string) =>
+      parse({ contact: { primary: { kind: "phone", e164 }, additional: [] } });
+    expect(withPhone("+380670000002213").success).toBe(false);
+    const parsed = withPhone("(067) 123-45-67");
     expect(parsed.success).toBe(true);
-    expect(parsed.data?.shelter.freshnessSentenceUk).toBe("Чи {імʼя} ще з нами?");
+    expect(parsed.data?.shelter.contact.primary).toEqual({ kind: "phone", e164: "+380671234567" });
+  });
+
+  it("trims the freshness sentence", () => {
+    const parsed = parse({ freshnessSentenceUk: " Оновлюємо щосуботи. " });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.shelter.freshnessSentenceUk).toBe("Оновлюємо щосуботи.");
+  });
+
+  // DR1-Q5: the sentence is shelter-level, so the operator's script refuses the
+  // name token too, as the kabinet does; nothing it writes can carry one.
+  it.each([["{імʼя}"], ["{Ім'я}"]])("refuses a freshness sentence with %s", (token) => {
+    expect(parse({ freshnessSentenceUk: `Чи ${token} ще з нами?` }).success).toBe(false);
   });
 
   it.each([
@@ -273,6 +317,20 @@ describe("OnboardInputSchema's text rules", () => {
     // 1,500 paw prints are 3,000 UTF-16 units.
     expect(parse({}, { descriptionUk: "🐾".repeat(1500) }).success).toBe(true);
   });
+
+  // SF-F1: onboarding always publishes directly, so unlike a kabinet draft,
+  // there is no pre-publish stage where "unknown" is an acceptable sex.
+  it("refuses an animal with sex unknown", () => {
+    const refused = parse({}, { sex: "unknown" });
+    expect(refused.success).toBe(false);
+    expect(refused.error?.issues.map((issue) => issue.message)).toContain(
+      "Onboarded animals must have a known sex (male or female), not unknown",
+    );
+  });
+
+  it.each([["male"], ["female"]])("accepts an animal with sex %s", (sex) => {
+    expect(parse({}, { sex }).success).toBe(true);
+  });
 });
 
 describe("refuseIfInsideRepo", () => {
@@ -291,7 +349,7 @@ describe("refuseIfInsideRepo", () => {
 
   /**
    * `resolve()` normalises `..` away, so this is the guard working as
-   * intended rather than a hole — asserted because the normalisation is the
+   * intended rather than a hole - asserted because the normalisation is the
    * whole reason a `..` path cannot be used to smuggle a real shelter file
    * back into the working tree under a different-looking name.
    */
@@ -352,5 +410,64 @@ describe("refuseIfInsideRepo", () => {
     });
     expect(() => refuseIfInsideRepo("/tmp/shelter-brovary.json")).not.toThrow();
     exitSpy.mockRestore();
+  });
+});
+
+describe("withCityIdFromSlug", () => {
+  const CITY_ID = "c1000000-0000-4000-8000-000000000001";
+  const withAddress = (address: Record<string, unknown>) => ({
+    shelter: { displayName: "x", exactAddress: address },
+    animals: [],
+  });
+  const city = { id: CITY_ID } as never;
+  const lookup = async (slug: string) =>
+    slug === "brovary-kyivska"
+      ? ({ kind: "current", city } as const)
+      : slug === "old-town"
+        ? ({ kind: "retired", city } as const)
+        : ({ kind: "unknown" } as const);
+
+  it("leaves a file that names its city by id exactly as it was", async () => {
+    const raw = withAddress({ line1: "a", cityId: CITY_ID });
+    expect(await withCityIdFromSlug(raw, lookup)).toBe(raw);
+  });
+
+  it("replaces a slug by the id it resolves to, and drops the slug", async () => {
+    const resolved = (await withCityIdFromSlug(
+      withAddress({ line1: "a", citySlug: " brovary-kyivska " }),
+      lookup,
+    )) as { shelter: { exactAddress: Record<string, unknown> } };
+    expect(resolved.shelter.exactAddress).toEqual({ line1: "a", cityId: CITY_ID });
+  });
+
+  it("refuses a slug nothing answers to, naming it", async () => {
+    await expect(
+      withCityIdFromSlug(withAddress({ line1: "a", citySlug: "atlantis" }), lookup),
+    ).rejects.toThrow(/"atlantis"/);
+  });
+
+  it("refuses a retired settlement, saying so", async () => {
+    await expect(
+      withCityIdFromSlug(withAddress({ line1: "a", citySlug: "old-town" }), lookup),
+    ).rejects.toThrow(/retired/);
+  });
+
+  it("refuses both an id and a slug, and an empty slug", async () => {
+    await expect(
+      withCityIdFromSlug(withAddress({ cityId: CITY_ID, citySlug: "brovary-kyivska" }), lookup),
+    ).rejects.toThrow(/both cityId and citySlug/);
+    await expect(withCityIdFromSlug(withAddress({ citySlug: "" }), lookup)).rejects.toThrow(
+      /non-empty/,
+    );
+  });
+
+  it("feeds the schema, which then accepts the file", async () => {
+    const resolved = await withCityIdFromSlug(
+      withAddress({ ...EXACT_ADDRESS, cityId: undefined, citySlug: "brovary-kyivska" }),
+      lookup,
+    );
+    const address = (resolved as { shelter: { exactAddress: { cityId: string } } }).shelter
+      .exactAddress;
+    expect(address.cityId).toBe(CITY_ID);
   });
 });

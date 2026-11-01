@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { rateLimitKeySecretProblem } from "./build-env";
+import { rateLimitSubjectOf } from "./rate-limit-subject";
 
 /**
  * The one way a client IP becomes a rate-limiter key: `ip:` and an
@@ -19,11 +20,31 @@ import { rateLimitKeySecretProblem } from "./build-env";
  * touches the location fuzzing or the cursors.
  *
  * Every limiter call site goes through this (`rate-limit-key.test.ts` scans
- * for a hand-built `ip:` key anywhere else). The kabinet's per-user and
- * per-address keys are not IPs and stay as they are.
+ * for a hand-built `ip:` key anywhere else). The kabinet's per-user keys are
+ * not IPs and stay as they are; per-address keys are HMAC'd too, below.
+ *
+ * The address is reduced first (`rateLimitSubjectOf`, audit F2): an IPv6
+ * caller is keyed on its /64, so every per-IP budget is per subscriber.
  */
 export const ipKeyWith = (secret: string, ip: string): string =>
-  `ip:${createHmac("sha256", secret).update(ip, "utf8").digest("base64url")}`;
+  `ip:${createHmac("sha256", secret).update(rateLimitSubjectOf(ip), "utf8").digest("base64url")}`;
+
+/**
+ * The one way an email address becomes a rate-limiter key: `address:` and an
+ * HMAC-SHA256 of the address, trimmed and lower-cased first (the same rule as
+ * `normalizeEmail`, so " Olena@X.ua" and "olena@x.ua" share one budget), under
+ * the same secret as the IP keys.
+ *
+ * Oleksii, 2026-10-19 (`docs/shelter-passwords.md` §9 answer 7), verbatim:
+ * "Yes: every per-address limiter key becomes an HMAC of the address, like IP
+ * keys." Until then the magic-link and invite-landing budgets keyed Upstash on
+ * `address:<email>` in plain text. Every per-address budget goes through this:
+ * the magic link, the invite landing, «Забули пароль?» and the sign-in delay
+ * (`rate-limit-key.test.ts` scans for a hand-built `address:` key). The
+ * counters under the old keys simply restart.
+ */
+export const addressKeyWith = (secret: string, email: string): string =>
+  `address:${createHmac("sha256", secret).update(email.trim().toLowerCase(), "utf8").digest("base64url")}`;
 
 /**
  * Off Vercel with no secret set (local dev, CI, unit tests, the harness's
@@ -51,6 +72,12 @@ function secretFrom(env: Readonly<Record<string, string | undefined>>): string {
   processKey ??= randomBytes(32).toString("hex");
   return processKey;
 }
+
+/** The limiter key for an email address, under the configured secret (read per call). */
+export const addressRateLimitKey = (
+  email: string,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string => addressKeyWith(secretFrom(env), email);
 
 /** The limiter key for `ip`, under the configured secret (read per call). */
 export const ipRateLimitKey = (

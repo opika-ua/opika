@@ -1,14 +1,13 @@
 import { uk } from "@opika/i18n";
-import { linkClass } from "../controls/controls";
-import { ANIMAL_LIST_PATH, SHELTER_HOME } from "./routes";
+import { BottomNav } from "../../ui/BottomNav";
+import { ANIMAL_LIST_PATH, SHELTER_PROFILE_PATH } from "./routes";
 
 /**
- * The shelter kabinet's section nav (N2): «Тварини» · «Профіль притулку», the
- * current one marked `aria-current="page"` (which the shared `nav` link
- * styles from). «Тварини» appears only where K2 is shown to this viewer
- * (`animalListShownTo`, P1): a link to a list that answers 404 would be a dead
- * end. On every width: the phone's bottom tabs are the brand's to design.
- * No hooks, so the server-rendered profile and list pages both use it.
+ * The shelter kabinet's shell nav: «Тварини» · «Притулок», the current one marked
+ * `aria-current="page"`. Two tabs since kabinet UX round 2 (there is no Головна: Тварини is the
+ * landing). «Тварини» appears only where K2 is shown to this viewer (`animalListShownTo`): a link
+ * to a list that answers 404 would be a dead end. A fixed bottom bar below `desktop`, a side
+ * column from there; both are the kit's `BottomNav`. No hooks, so server pages mount it as is.
  */
 export function KabinetNav({
   current,
@@ -17,24 +16,18 @@ export function KabinetNav({
   current: "animals" | "profile";
   animalList: boolean;
 }) {
+  const items = [
+    ...(animalList
+      ? [{ key: "animals", href: ANIMAL_LIST_PATH, label: uk.kabinet.nav.animals }]
+      : []),
+    { key: "profile", href: SHELTER_PROFILE_PATH, label: uk.kabinet.profile.title },
+  ];
   return (
-    <nav aria-label={uk.kabinet.nav.label} className="flex flex-wrap gap-1 desktop:flex-col">
-      {animalList ? (
-        <a
-          href={ANIMAL_LIST_PATH}
-          aria-current={current === "animals" ? "page" : undefined}
-          className={linkClass("nav")}
-        >
-          {uk.kabinet.nav.animals}
-        </a>
-      ) : null}
-      <a
-        href={SHELTER_HOME}
-        aria-current={current === "profile" ? "page" : undefined}
-        className={linkClass("nav")}
-      >
-        {uk.kabinet.profile.title}
-      </a>
-    </nav>
+    <BottomNav
+      label={uk.kabinet.nav.label}
+      items={items}
+      current={current}
+      layout="bar-then-rail"
+    />
   );
 }

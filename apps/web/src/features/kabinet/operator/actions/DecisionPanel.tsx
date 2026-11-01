@@ -4,24 +4,18 @@ import type { RegistryShelterView } from "@opika/contracts";
 import type { EvidenceGap, InterruptedState } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useId, useRef, useState } from "react";
-import { Button } from "../../../controls/controls";
+import { Button } from "../../../../ui/Button";
+import { Heading } from "../../../../ui/Heading";
+import { Panel } from "../../../../ui/Panel";
+import { Text } from "../../../../ui/Text";
+import { VerificationStatusChip } from "../../StatusChips";
 import { formatDate } from "../format";
 import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { type OfferedAction, offeredActionsOf } from "./offered-actions";
 import { useOperatorActions } from "./operator-actions";
 import { ReasonDialog, type ReasonKind } from "./ReasonDialog";
 import { ResubmitPanel } from "./ResubmitPanel";
-import {
-  ACTIONS,
-  CAPTION,
-  CARD,
-  CARD_TITLE,
-  CHIP,
-  INNER,
-  NOTICE,
-  STRONG,
-  SUBTITLE,
-} from "./styles";
+import { ACTIONS, NOTICE } from "./styles";
 
 type Notice = { kind: "none" } | Exclude<DecisionOutcome, { kind: "moved" }>;
 
@@ -218,24 +212,31 @@ export function DecisionPanel() {
   };
 
   return (
-    <section aria-labelledby={titleId} className={CARD}>
+    <Panel
+      as="section"
+      aria-labelledby={titleId}
+      padding="lg"
+      className="flex min-w-0 flex-col gap-4"
+    >
       <div className="flex flex-col gap-1">
-        <h2 id={titleId} ref={headingRef} tabIndex={-1} className={CARD_TITLE}>
+        <Heading level={2} look="body-l" id={titleId} ref={headingRef} tabIndex={-1}>
           {t.decisionTitle}
-        </h2>
-        <p className={CAPTION}>{t.decisionCaption}</p>
+        </Heading>
+        <Text look="hint">{t.decisionCaption}</Text>
       </div>
 
       {verification.status === "rejected" ? (
-        <div className={INNER}>
-          <h3 className={SUBTITLE}>{t.rejected.title}</h3>
-          <p className={STRONG}>
+        <Panel tone="sunken" className="flex flex-col gap-2">
+          <Heading level={3} look="body-l">
+            {t.rejected.title}
+          </Heading>
+          <Text look="label">
             {reasonText(
               uk.kabinet.operator.codes.rejection[verification.reason.code],
               verification.reason,
             )}
-          </p>
-        </div>
+          </Text>
+        </Panel>
       ) : null}
 
       {verification.status === "suspended" ? (
@@ -274,7 +275,7 @@ export function DecisionPanel() {
           }}
         />
       ) : null}
-    </section>
+    </Panel>
   );
 }
 
@@ -306,17 +307,17 @@ function ApproveControl({
       </Button>
       {gate.kind === "blocked" ? (
         <div id={blockedId} className="flex flex-col gap-1">
-          <p className={STRONG}>{t.approveBlocked}</p>
+          <Text look="label">{t.approveBlocked}</Text>
           <ul className="flex flex-col gap-1">
             {gate.gaps.map((gap) => (
-              <li key={gap.kind} className={CAPTION}>
+              <li key={gap.kind} className="text-caption text-ink-2">
                 {gapText(gap)}
               </li>
             ))}
           </ul>
         </div>
       ) : (
-        <p className={CAPTION}>{t.approveNote}</p>
+        <Text look="hint">{t.approveNote}</Text>
       )}
     </div>
   );
@@ -336,15 +337,15 @@ function ReinstateControl({
   const t = uk.kabinet.operator.verification;
   return (
     <div className="flex flex-col gap-2">
-      <p className={CAPTION}>
+      <Text look="hint">
         {to.status === "paused"
           ? t.suspended.reinstateExplainPaused
           : t.suspended.reinstateExplainVerified}
-      </p>
+      </Text>
       <Button aria-disabled={busy || undefined} aria-busy={mine || undefined} onClick={onReinstate}>
         {fillTemplate(t.reinstate, { status: uk.kabinet.profileStatus[to.status] })}
       </Button>
-      <p className={CAPTION}>{t.noConfirm}</p>
+      <Text look="hint">{t.noConfirm}</Text>
     </div>
   );
 }
@@ -364,19 +365,21 @@ function SuspendedDetails({
   const t = uk.kabinet.operator.verification.suspended;
   return (
     <div className="flex flex-col gap-3">
-      <h3 className={SUBTITLE}>{t.title}</h3>
+      <Heading level={3} look="body-l">
+        {t.title}
+      </Heading>
       <dl className="flex flex-col gap-3">
-        <div className={INNER}>
-          <dt className={CAPTION}>{t.reasonLabel}</dt>
-          <dd className={STRONG}>
+        <Panel tone="sunken" className="flex flex-col gap-2">
+          <dt className="text-caption text-ink-2">{t.reasonLabel}</dt>
+          <dd className="text-label text-ink">
             {reasonText(uk.kabinet.operator.codes.suspension[reason.code], reason)}
           </dd>
-        </div>
+        </Panel>
         <div className="flex flex-col gap-2">
-          <dt className={CAPTION}>{t.priorLabel}</dt>
-          <dd className="flex flex-col gap-1">
-            <span className={CHIP}>{uk.kabinet.profileStatus[prior.status]}</span>
-            <span className={CAPTION}>
+          <dt className="text-caption text-ink-2">{t.priorLabel}</dt>
+          <dd className="flex flex-col items-start gap-1">
+            <VerificationStatusChip status={prior.status} />
+            <span className="text-caption text-ink-2">
               {prior.status === "paused"
                 ? fillTemplate(t.priorPausedSince, { date: formatDate(prior.pausedAt) })
                 : fillTemplate(uk.kabinet.operator.shelter.timeInState, {

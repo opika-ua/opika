@@ -8,9 +8,9 @@ VERIFIED | TAKEN ON TRUST
 ---|---
 All 7 commits touch only `docs/*.md` (`git show --stat`). Nothing needs re-tiering | That any quoted text matches Oleksii's actual messages. I can't see them, so I checked internal consistency only
 All 32 inbox rows have 8 cells (escaped `\|` inside code spans) | The 0009 rehearsal: no record in the repo either way
-The same quotes match across inbox, S3 §8, phase0 and the PR body (S3-Q3 "before merge" correction, T1–T5, the 0008 "all as expected") | Oleksii's 0010 production re-check details (the PR body quotes only "expected")
-Code at HEAD vs docs: `shelterKabinetContract`/`registryContract` split (contract.ts:23,38); `organization()` on with no org path in `FORWARDED_AUTH_PATHS` (auth.ts:184,203), which matches phase0; REGISTRY_CONFIRMED/WAS_PUBLISHED in errors.ts; the no-self-serve test names A1–A3/B1; timestamp CAS kept (kabinet-animal-repo.ts:52) | —
-PR #85 body read via `gh pr view 85` | —
+The same quotes match across inbox, S3 §8, phase0 and the PR body (S3-Q3 "before merge" correction, T1-T5, the 0008 "all as expected") | Oleksii's 0010 production re-check details (the PR body quotes only "expected")
+Code at HEAD vs docs: `shelterKabinetContract`/`registryContract` split (contract.ts:23,38); `organization()` on with no org path in `FORWARDED_AUTH_PATHS` (auth.ts:184,203), which matches phase0; REGISTRY_CONFIRMED/WAS_PUBLISHED in errors.ts; the no-self-serve test names A1-A3/B1; timestamp CAS kept (kabinet-animal-repo.ts:52) | -
+PR #85 body read via `gh pr view 85` | -
 
 FINDINGS (most severe first)
 1. [medium] 0009's rehearsal is recorded nowhere. Oleksii's own HS-Q6 order ("→ then 0009 rehearsal on a fresh child branch") and 2c48d9b's body ("0009 does not go to a rehearsal branch before that test passes") both expect one. The build-plan row skips from 0008's rehearsal to "0008 and 0009 applied to production", and the PR checklist has no 0009-rehearsal item. Fix: either record the rehearsal (branch, date, his result) or record that it was skipped and on whose word. Don't infer which.

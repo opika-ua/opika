@@ -3,8 +3,8 @@ import {
   ANIMAL_NAME_TOKEN,
   AnimalNameInputSchema,
   animalNameProblem,
+  carriesAnimalNameToken,
   characterCount,
-  fillAnimalName,
   normalizeFreshnessSentenceText,
 } from "./freshness-sentence";
 
@@ -73,6 +73,11 @@ describe("normalizeFreshnessSentenceText", () => {
     expect(normalizeFreshnessSentenceText(raw)).toEqual({ kind: "empty" });
   });
 
+  /**
+   * DR1-Q5 (Oleksii, verbatim: "The sentence is shelter-level, and the editor
+   * refuses {імʼя}."): every spelling the old normalisation accepted is now
+   * refused with its own problem, wherever it sits in the sentence.
+   */
   it.each([
     ["ASCII apostrophe", "{ім'я}"],
     ["right single quotation mark", "{ім’я}"],
@@ -83,16 +88,22 @@ describe("normalizeFreshnessSentenceText", () => {
     ["capitalised", "{Ім'я}"],
     ["upper case", "{ІМ’Я}"],
     ["mixed case", "{іМʼя}"],
-  ])("normalises the token spelled with %s to {імʼя}", (_label, spelling) => {
-    expect(normalizeFreshnessSentenceText(`Напишіть, чи ${spelling} ще з нами.`)).toEqual(
-      ok(`Напишіть, чи ${TOKEN} ще з нами.`),
-    );
+  ])("refuses the name token spelled with %s", (_label, spelling) => {
+    expect(normalizeFreshnessSentenceText(`Напишіть, чи ${spelling} ще з нами.`)).toEqual({
+      kind: "invalid",
+      problem: { kind: "name_token" },
+    });
   });
 
-  it("normalises every occurrence, not just the first", () => {
-    expect(normalizeFreshnessSentenceText("{ім'я} чекає. {ІМ’Я} справді чекає.")).toEqual(
-      ok(`${TOKEN} чекає. ${TOKEN} справді чекає.`),
-    );
+  it("refuses the name token ahead of any other problem in the same text", () => {
+    expect(normalizeFreshnessSentenceText(`Оновлено {дата}. ${TOKEN} чекає.`)).toEqual({
+      kind: "invalid",
+      problem: { kind: "name_token" },
+    });
+    expect(normalizeFreshnessSentenceText(`${"я".repeat(300)} ${TOKEN}`)).toEqual({
+      kind: "invalid",
+      problem: { kind: "name_token" },
+    });
   });
 
   it.each([
@@ -101,7 +112,6 @@ describe("normalizeFreshnessSentenceText", () => {
     ["empty braces", "Пишіть {}.", "{}"],
     ["spaces inside the token", "Чи { ім'я } тут?", "{ ім'я }"],
     ["a Latin i in the token", "Чи {im'я} тут?", "{im'я}"],
-    ["an unknown token after a valid one", `${TOKEN} оновлено {дата}`, "{дата}"],
   ])("refuses %s as an unknown token", (_label, raw, token) => {
     expect(normalizeFreshnessSentenceText(raw)).toEqual({
       kind: "invalid",
@@ -112,8 +122,7 @@ describe("normalizeFreshnessSentenceText", () => {
   it.each([
     ["a stray closing brace", "Оновлюємо } щотижня."],
     ["a stray opening brace", "Оновлюємо { щотижня."],
-    ["braces wrapped around the token", `{ab${TOKEN}cd`],
-    ["an unclosed brace before the token", `{ ${TOKEN}`],
+    ["an unclosed brace at the end", "Оновлюємо щотижня {"],
   ])("refuses %s", (_label, raw) => {
     expect(normalizeFreshnessSentenceText(raw)).toEqual({
       kind: "invalid",
@@ -141,34 +150,19 @@ describe("normalizeFreshnessSentenceText", () => {
   it("measures after trimming", () => {
     expect(normalizeFreshnessSentenceText(`   ${"я".repeat(280)}   `).kind).toBe("ok");
   });
-
-  it("measures after normalising the token", () => {
-    // Each token is 6 characters whatever its apostrophe: 274 + 6 = 280.
-    expect(normalizeFreshnessSentenceText(`${"я".repeat(274)}{ім'я}`).kind).toBe("ok");
-    expect(normalizeFreshnessSentenceText(`${"я".repeat(275)}{ім'я}`)).toEqual({
-      kind: "invalid",
-      problem: { kind: "too_long", characters: 281, max: 280 },
-    });
-  });
 });
 
-describe("fillAnimalName", () => {
-  it("replaces every token with the name", () => {
-    expect(fillAnimalName(`Чи ${TOKEN} ще з нами? ${TOKEN} чекає.`, "Мурчик")).toBe(
-      "Чи Мурчик ще з нами? Мурчик чекає.",
-    );
-  });
+describe("carriesAnimalNameToken", () => {
+  it.each([["{імʼя}"], ["{ім'я}"], ["{ІМ’Я}"]])(
+    "is true for a stored sentence with %s",
+    (token) => {
+      expect(carriesAnimalNameToken(`Чи ${token} ще з нами?`)).toBe(true);
+    },
+  );
 
-  it("leaves a sentence without the token untouched", () => {
-    expect(fillAnimalName("Оновлюємо щотижня.", "Мурчик")).toBe("Оновлюємо щотижня.");
-  });
-
-  it("inserts the name literally, even where it looks like a replacement pattern", () => {
-    expect(fillAnimalName(`Чи ${TOKEN} тут?`, "Пес $& $1 $$")).toBe("Чи Пес $& $1 $$ тут?");
-  });
-
-  it("does not fill an un-normalised spelling: storage only ever holds {імʼя}", () => {
-    expect(fillAnimalName("Чи {ім'я} тут?", "Мурчик")).toBe("Чи {ім'я} тут?");
+  it("is false for a sentence without it, or with a look-alike that was never the token", () => {
+    expect(carriesAnimalNameToken("Оновлюємо щосуботи.")).toBe(false);
+    expect(carriesAnimalNameToken("Чи { ім'я } тут?")).toBe(false);
   });
 });
 

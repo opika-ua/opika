@@ -36,13 +36,18 @@ const newDraft: DraftAnimal = {
   name: "Ластівка",
   species: "dog",
   sex: "unknown",
+  coatLength: null,
   size: null,
   age: null,
   description: null,
   photos: [],
+  everServedAt: null,
   vaccination: unknownFact,
   spayNeuter: unknownFact,
   documentReadiness: { kind: "unknown" },
+  temperament: [],
+  colour: null,
+  medicalNotes: null,
   listing: { kind: "draft" },
   publicLocation: null,
   createdAt: AT,
@@ -56,7 +61,7 @@ const facts = {
   description: { uk: "Спокійна, любить гуляти.", en: null },
 } as const;
 
-const completeDraft: DraftAnimal = { ...newDraft, ...facts, photos: [PHOTO] };
+const completeDraft: DraftAnimal = { ...newDraft, ...facts, sex: "male", photos: [PHOTO] };
 
 const NON_DRAFT_LISTINGS: readonly NonDraftListing[] = [
   { kind: "published", publishedAt: EARLIER, confirmedAt: EARLIER, undoable: null },
@@ -99,6 +104,21 @@ describe("the animal union (F-B1)", () => {
     });
   }
 
+  it("fur is never a listing fact: every listing kind parses with it unrecorded (DR1-D10)", () => {
+    expect(DraftAnimalSchema.safeParse(newDraft).success).toBe(true);
+    for (const listing of NON_DRAFT_LISTINGS) {
+      expect(ListedAnimalSchema.safeParse({ ...listed(listing), coatLength: null }).success).toBe(
+        true,
+      );
+      expect(ListedAnimalSchema.safeParse({ ...listed(listing), coatLength: "long" }).success).toBe(
+        true,
+      );
+      expect(ListedAnimalSchema.safeParse({ ...listed(listing), coatLength: "wire" }).success).toBe(
+        false,
+      );
+    }
+  });
+
   it("the guards split on the listing, and only published and reserved are discoverable", () => {
     expect(isDraftAnimal(newDraft)).toBe(true);
     expect(isListedAnimal(newDraft)).toBe(false);
@@ -122,13 +142,21 @@ describe("publishReadinessOf", () => {
   it("lists every gap in form order when nothing but a name and a species is there", () => {
     expect(publishReadinessOf(newDraft)).toEqual({
       kind: "gaps",
-      gaps: [{ kind: "size" }, { kind: "age" }, { kind: "description" }, { kind: "photo" }],
+      gaps: [
+        { kind: "sex" },
+        { kind: "size" },
+        { kind: "age" },
+        { kind: "description" },
+        { kind: "photo" },
+      ],
     });
-    // Form order, transcribed from the copy sheet's §11 («розмір», «вік», «опис», «фото»).
-    expect(PUBLISH_GAP_KINDS).toEqual(["size", "age", "description", "photo"]);
+    // Form order: species, then sex, then the rest (`FormSections.tsx`); sex
+    // joined this list reversing D2 (sex-filter feature's own Phase 0 note).
+    expect(PUBLISH_GAP_KINDS).toEqual(["sex", "size", "age", "description", "photo"]);
   });
 
   it.each([
+    ["sex", { sex: "unknown" }],
     ["size", { size: null }],
     ["age", { age: null }],
     ["description", { description: null }],
@@ -144,14 +172,73 @@ describe("publishReadinessOf", () => {
     expect(publishReadinessOf(completeDraft)).toEqual({ kind: "ready", facts });
   });
 
-  it("never counts the sex or the medical facts as gaps (D2, «Не записано» is an answer)", () => {
-    expect(publishReadinessOf({ ...completeDraft, sex: "unknown" }).kind).toBe("ready");
+  it("counts an unknown sex as a gap - reverses D2, which this feature's own decision record replaces", () => {
+    expect(publishReadinessOf({ ...completeDraft, sex: "unknown" })).toEqual({
+      kind: "gaps",
+      gaps: [{ kind: "sex" }],
+    });
+  });
+
+  it("never counts the medical facts as gaps", () => {
+    expect(publishReadinessOf(completeDraft).kind).toBe("ready");
+  });
+
+  it("never counts unrecorded fur as a gap (DR1-D10)", () => {
+    expect(publishReadinessOf({ ...completeDraft, coatLength: null }).kind).toBe("ready");
+  });
+
+  it("never counts an unrecorded temperament, colour or medical note as a gap", () => {
+    expect(
+      publishReadinessOf({ ...completeDraft, temperament: [], colour: null, medicalNotes: null }),
+    ).toEqual({ kind: "ready", facts });
+    // And the gap list stays the five it is now: none of the three ever joins it.
+    expect(PUBLISH_GAP_KINDS).toEqual(["sex", "size", "age", "description", "photo"]);
+  });
+});
+
+describe("the pet card fields are recorded on every listing kind, never required", () => {
+  const recorded = {
+    temperament: [
+      { kind: "preset", trait: "calm" },
+      { kind: "custom", text: { uk: "Любить сидіти на руках", en: null } },
+    ],
+    colour: { kind: "preset", colour: "tabby" },
+    medicalNotes: { uk: "Потребує гіпоалергенного корму.", en: null },
+  } as const;
+
+  it("a draft and every listed kind parse with all three unrecorded and with all three set", () => {
+    expect(DraftAnimalSchema.safeParse(newDraft).success).toBe(true);
+    expect(DraftAnimalSchema.safeParse({ ...newDraft, ...recorded }).success).toBe(true);
+    for (const listing of NON_DRAFT_LISTINGS) {
+      expect(ListedAnimalSchema.safeParse(listed(listing)).success).toBe(true);
+      expect(ListedAnimalSchema.safeParse({ ...listed(listing), ...recorded }).success).toBe(true);
+    }
+  });
+
+  it("refuses an animal that omits any of the three, rather than reading the absence as unrecorded", () => {
+    for (const field of ["temperament", "colour", "medicalNotes"] as const) {
+      const { [field]: _omitted, ...without } = listed(NON_DRAFT_LISTINGS[0] as NonDraftListing);
+      expect(ListedAnimalSchema.safeParse(without).success, field).toBe(false);
+    }
+  });
+
+  it("refuses a malformed value in each", () => {
+    const base = listed(NON_DRAFT_LISTINGS[0] as NonDraftListing);
+    expect(ListedAnimalSchema.safeParse({ ...base, temperament: null }).success).toBe(false);
+    expect(
+      ListedAnimalSchema.safeParse({ ...base, colour: { kind: "preset", colour: "purple" } })
+        .success,
+    ).toBe(false);
+    expect(
+      ListedAnimalSchema.safeParse({ ...base, medicalNotes: { uk: "", en: null } }).success,
+    ).toBe(false);
   });
 });
 
 describe("publishGaps", () => {
   it("is a draft's readiness gaps, or none when it is ready", () => {
     expect(publishGaps(newDraft)).toEqual([
+      { kind: "sex" },
       { kind: "size" },
       { kind: "age" },
       { kind: "description" },

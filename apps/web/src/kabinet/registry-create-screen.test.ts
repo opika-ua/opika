@@ -1,6 +1,7 @@
 import type { CreatedShelterView } from "@opika/contracts";
+import { REGIONS } from "@opika/db";
 import { cityRepo } from "@opika/db/repos";
-import { authUser, superAdmins } from "@opika/db/schema";
+import { authUser, cities, superAdmins } from "@opika/db/schema";
 import { makeCity, setupTestDatabase, truncateAll } from "@opika/db/test";
 import { type ModeratorId, testOnlyLocationPolicy } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -16,7 +17,9 @@ import type { RegistryCreateInput } from "../features/kabinet/operator/create/re
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
+import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * S2's two halves against each other, through the served router: what the
@@ -63,12 +66,17 @@ const limiters = {
 async function create(input: RegistryCreateInput, now: Date = NOW) {
   const request = new Request("http://localhost/api/kabinet/registry/shelters/create", {
     method: "POST",
-    headers: { "content-type": "application/json", origin: "http://localhost" },
+    headers: {
+      "content-type": "application/json",
+      origin: "http://localhost",
+      cookie: TEST_SESSION_COOKIE,
+    },
     body: JSON.stringify(toRpcBody(input)),
   });
   const response = await handleKabinetRpc(request, {
     availability: {
       kind: "available",
+      passwordMail: capturingPasswordMail(),
       sender: { send: async () => {} },
       invites: capturingInvitationSender(),
       secret: "x",
@@ -150,6 +158,23 @@ describe("the screen's input, as the server takes it", () => {
 describe("the server's refusals, as the screen reads them", () => {
   it("an unknown city", async () => {
     const { status, body } = await create(inputOf(initiative({ cityId: crypto.randomUUID() })));
+    expect(status).toBe(400);
+    expect(createRefusalOf(body)).toEqual({ kind: "unknown_city" });
+  });
+
+  it.each(["UA01", "UA85"])(
+    "accepts a settlement of region %s like any other region",
+    async (code) => {
+      const region = REGIONS.find((r) => r.code === code);
+      const city = makeCity({ regionId: region?.id as never });
+      await cityRepo(db).insert(city);
+      expect((await create(inputOf(initiative({ cityId: city.id })))).status).toBe(200);
+    },
+  );
+
+  it("a retired settlement is an unknown city", async () => {
+    await db.update(cities).set({ retiredInEdition: "2026-01" }); // the only city there is
+    const { status, body } = await create(inputOf(initiative()));
     expect(status).toBe(400);
     expect(createRefusalOf(body)).toEqual({ kind: "unknown_city" });
   });

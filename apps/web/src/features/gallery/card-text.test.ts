@@ -2,7 +2,13 @@ import type { FeedCardView } from "@opika/contracts";
 import type { Freshness } from "@opika/domain";
 import { freshnessLabel } from "@opika/ui";
 import { describe, expect, it } from "vitest";
-import { cardAccessibleName, cardMetaLine, housingCityLabel, isReserved } from "./card-text";
+import {
+  cardAccessibleName,
+  cardFactsParts,
+  cardMetaLine,
+  housingCityLabel,
+  isReserved,
+} from "./card-text";
 
 const FRESHNESS: Freshness = {
   kind: "fresh",
@@ -25,6 +31,7 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
     shelter: {
       id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as FeedCardView["shelter"]["id"],
       displayName: "Тестовий притулок",
+      logo: null,
       publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
       freshnessSentence: null,
       verification: "verified",
@@ -41,16 +48,16 @@ describe("isReserved", () => {
 });
 
 describe("housingCityLabel", () => {
-  it("reads 'м. {city}' for an animal at its shelter (publicLocation null)", () => {
+  it("reads the place as given for an animal at its shelter (publicLocation null)", () => {
     const card = makeCard({ publicLocation: null });
-    expect(housingCityLabel(card, "Бровари")).toBe("м. Бровари");
+    expect(housingCityLabel(card, "м. Бровари")).toBe("м. Бровари");
   });
 
   it("reads the fostered sentence for an animal with its own city-precision location", () => {
     const card = makeCard({
       publicLocation: { cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never },
     });
-    expect(housingCityLabel(card, "Ірпінь")).toBe("живе у волонтерки, м. Ірпінь");
+    expect(housingCityLabel(card, "м. Ірпінь")).toBe("на перетримці, м. Ірпінь");
   });
 
   it("degrades to null, not a broken template, when the city name hasn't resolved", () => {
@@ -58,7 +65,7 @@ describe("housingCityLabel", () => {
   });
 
   it("prints a city name carrying replacement patterns ($&, $1) literally", () => {
-    expect(housingCityLabel(makeCard({ publicLocation: null }), "Місто $& $1")).toBe(
+    expect(housingCityLabel(makeCard({ publicLocation: null }), "м. Місто $& $1")).toBe(
       "м. Місто $& $1",
     );
   });
@@ -67,7 +74,7 @@ describe("housingCityLabel", () => {
 describe("cardMetaLine", () => {
   it("joins age, size and housing+city with the deck's own separator", () => {
     const card = makeCard({ ageBucket: "young", size: "small", publicLocation: null });
-    expect(cardMetaLine(card, "Бровари")).toBe("молодий · мала · м. Бровари");
+    expect(cardMetaLine(card, "м. Бровари")).toBe("молодий · мала · м. Бровари");
   });
 
   it("drops the housing+city segment rather than leaving a dangling separator", () => {
@@ -91,8 +98,46 @@ describe("cardMetaLine", () => {
   });
 });
 
+/** gallery-v3 (Figma `58:1617`): sex named as its own word, no city. */
+describe("cardFactsParts", () => {
+  it("lists sex, age and size as separate parts, in that order", () => {
+    const card = makeCard({ sex: "male", ageBucket: "young", size: "small" });
+    expect(cardFactsParts(card)).toEqual(["Хлопчик", "молодий", "мала"]);
+  });
+
+  it.each([
+    ["male", "baby", "малюк"],
+    ["male", "young", "молодий"],
+    ["male", "adult", "дорослий"],
+    ["male", "senior", "літній"],
+    ["female", "baby", "малючка"],
+    ["female", "young", "молода"],
+    ["female", "adult", "доросла"],
+    ["female", "senior", "літня"],
+    ["unknown", "baby", "малюк"],
+    ["unknown", "young", "молодий"],
+    ["unknown", "adult", "дорослий"],
+    ["unknown", "senior", "літній"],
+  ] as const)("the age word agrees with sex: %s, %s → «%s»", (sex, bucket, word) => {
+    const card = makeCard({ sex, ageBucket: bucket, size: "small" });
+    expect(cardFactsParts(card)).toContain(word);
+  });
+
+  it("drops the sex part for an unknown sex rather than guessing", () => {
+    const card = makeCard({ sex: "unknown", ageBucket: "adult", size: "large" });
+    expect(cardFactsParts(card)).toEqual(["дорослий", "велика"]);
+  });
+
+  it("never mentions the city - city stays in the accessible name only", () => {
+    const card = makeCard({
+      publicLocation: { cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never },
+    });
+    expect(cardFactsParts(card).join(" ")).not.toContain("перетримці");
+  });
+});
+
 describe("cardAccessibleName", () => {
-  it("composes name, age, city, then the freshness sentence — docs/design/README.md 'Keyboard'", () => {
+  it("composes name, age, city, then the freshness sentence - docs/design/README.md 'Keyboard'", () => {
     const card = makeCard({ name: "Мурчик", ageBucket: "young" });
     const expected = `Мурчик, молодий, Бровари, ${freshnessLabel(FRESHNESS)}`;
     expect(cardAccessibleName(card, "Бровари")).toBe(expected);

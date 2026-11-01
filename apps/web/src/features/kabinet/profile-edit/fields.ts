@@ -1,10 +1,11 @@
 import {
   type ContactChannel,
-  ContactChannelSchema,
+  ContactChannelInputSchema,
   characterCount,
   DonationLinkSchema,
   FRESHNESS_SENTENCE_MAX_CHARACTERS,
   normalizeFreshnessSentenceText,
+  normalizeUaPhone,
   type ShelterContact,
 } from "@opika/domain";
 
@@ -13,7 +14,7 @@ import {
  * normalised (K4 sheet, answer 4, Oleksii, verbatim: "Yes: accept @handle,
  * t.me/handle, spaced/dashed numbers; normalise silently."), and which of his
  * messages a field gets. No React, no I/O: the components call these, and the
- * server checks everything again (`ShelterContactSchema`,
+ * server checks everything again (`ShelterContactInputSchema`,
  * `FreshnessSentenceInputSchema`), so these exist to tell a person what to fix
  * before a round trip, never to decide what is stored.
  */
@@ -121,8 +122,8 @@ export type ParsedChannel =
   | { kind: "ok"; channel: ContactChannel }
   | { kind: "error"; error: FieldError };
 
-/** Spaces, dashes, dots and brackets go; the digits and the leading + stay. */
-const normalizePhone = (raw: string): string => raw.replace(/[\s\-.()]/g, "");
+/** Ukrainian forms (+380, 380, 0XX; spaces, dashes, brackets) become +380XXXXXXXXX; anything else stays as typed, so the schema refuses it. */
+const normalizePhone = (raw: string): string => normalizeUaPhone(raw) ?? raw.trim();
 
 /** «@handle», «t.me/handle» and «https://t.me/handle» all mean the handle. */
 const normalizeTelegram = (raw: string): string =>
@@ -155,7 +156,7 @@ export function linkProblem(raw: string): "httpsOnly" | "notAUrl" | null {
  */
 export function parseChannel(kind: ChannelKind, raw: string): ParsedChannel {
   const checked = (candidate: ContactChannel, error: FieldError): ParsedChannel =>
-    ContactChannelSchema.safeParse(candidate).success
+    ContactChannelInputSchema.safeParse(candidate).success
       ? { kind: "ok", channel: candidate }
       : { kind: "error", error };
   switch (kind) {
@@ -228,6 +229,8 @@ export function contactOfForm(form: ContactsForm): ContactsCheck {
 
 export type SentenceError =
   | { key: "sentenceTooLong" }
+  /** DR1-Q5: `{імʼя}` in any spelling; the sentence shows on the shelter page now. */
+  | { key: "nameTokenGone" }
   | { key: "unknownToken"; token: string }
   /** Answer 5: `{дата}` typed by habit gets its own explanation. */
   | { key: "dateTokenGone" }
@@ -253,6 +256,8 @@ export function sentenceCheck(raw: string): SentenceCheck {
       switch (problem.kind) {
         case "too_long":
           return { kind: "invalid", error: { key: "sentenceTooLong" } };
+        case "name_token":
+          return { kind: "invalid", error: { key: "nameTokenGone" } };
         case "unknown_token":
           return DATE_TOKEN.test(problem.token)
             ? { kind: "invalid", error: { key: "dateTokenGone" } }
@@ -277,15 +282,3 @@ export function sentenceCheck(raw: string): SentenceCheck {
 /** The counter's number: characters as the server counts them, after trimming. */
 export const sentenceLength = (raw: string): number => characterCount(raw.trim());
 export const SENTENCE_MAX = FRESHNESS_SENTENCE_MAX_CHARACTERS;
-
-/** The textarea's value and caret after inserting `token` over the selection (answer 7). */
-export function insertAt(
-  value: string,
-  selectionStart: number,
-  selectionEnd: number,
-  token: string,
-): { value: string; caret: number } {
-  const start = Math.max(0, Math.min(selectionStart, value.length));
-  const end = Math.max(start, Math.min(selectionEnd, value.length));
-  return { value: value.slice(0, start) + token + value.slice(end), caret: start + token.length };
-}

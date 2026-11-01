@@ -13,6 +13,7 @@ import { ShelterContactSchema } from "./contact";
 import { DonationLinkSchema } from "./donation";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
+import { ShelterLogoSchema } from "./logo";
 import { FreshnessSentenceSchema } from "./shelter";
 import { VerificationEventSchema } from "./verification/events";
 import { VerificationStatusSchema } from "./verification/state";
@@ -22,16 +23,25 @@ import { VerificationStatusSchema } from "./verification/state";
  * `AnimalPatchSchema` keys plus `photos` (a contracts test pins the two
  * together). Photos aren't a patch key: they change through their own
  * procedures (`shelter.photos.*`, P-Q3), which record `fields: ["photos"]`.
+ *
+ * Names only, never values (K-Q7): a medical note or a custom temperament is
+ * free text the shelter can change or clear, and append-only history would
+ * keep every version of it forever. The order here is the order a history
+ * line lists them in.
  */
 export const ANIMAL_EDITED_FIELDS = [
   "name",
   "species",
   "sex",
   "size",
+  "coatLength",
+  "colour",
   "age",
   "description",
+  "temperament",
   "vaccination",
   "spayNeuter",
+  "medicalNotes",
   "photos",
 ] as const;
 export type AnimalEditedField = (typeof ANIMAL_EDITED_FIELDS)[number];
@@ -123,6 +133,26 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     actor: ShelterActorSchema,
     previous: LocalizedTextSchema,
     next: LocalizedTextSchema,
+  }),
+  /**
+   * The shelter's own logo, set or cleared (pet card PR 3b). Same shape as
+   * `contact_changed`/`description_changed`: an immediate, audited edit, no
+   * approval step - a logo is the shelter's own mark, not a verified fact.
+   *
+   * Durable, but deliberately NOT a reference `r2-cleanup-repo.ts`'s
+   * `referencedStorageKeys` counts - the same reasoning as
+   * `contact-reveal.ts`'s `primaryPhoto`: no history-list rendering shows a
+   * past logo image (this entry's own `uk` copy is text-only, "changed its
+   * logo"), so an old `previous`/`next` value sitting here forever doesn't
+   * keep its object alive past the grace period once nothing else points
+   * at it.
+   */
+  z.object({
+    kind: z.literal("logo_changed"),
+    at: z.date(),
+    actor: ShelterActorSchema,
+    previous: ShelterLogoSchema.nullable(),
+    next: ShelterLogoSchema.nullable(),
   }),
   z.object({
     kind: z.literal("donation_proposed"),
@@ -294,6 +324,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "contact_changed":
     case "freshness_sentence_changed":
     case "description_changed":
+    case "logo_changed":
     case "donation_proposed":
     case "donation_proposal_cancelled":
     case "donation_decided":
@@ -317,3 +348,29 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     }
   }
 };
+
+/**
+ * The four history kinds that carry a departed admin's real email address -
+ * the exact set GDPR erasure (option A, `docs/gdpr-analysis.md` §5 item 4)
+ * scrubs when an admin with no other membership is removed. Not every
+ * kind with an `email` field belongs here on principle; it happens that
+ * these four are the only ones that do.
+ */
+export const ADMIN_EMAIL_HISTORY_KINDS = [
+  "admin_invited",
+  "admin_invitation_resent",
+  "admin_joined",
+  "admin_removed",
+] as const satisfies readonly ShelterHistoryKind[];
+
+/**
+ * What a departed admin's real email is replaced with, in their shelter's
+ * own history, once their account is erased (GDPR Art. 17; the decision is
+ * Oleksii's, 2026-10-24: "Delete the account (when it has no other
+ * membership) and scrub the email in that shelter's admin history entries
+ * to the placeholder, at the moment of removal"). `.invalid` is RFC 2606's
+ * reserved TLD for exactly this - guaranteed never to resolve, so it can
+ * never be mistaken for a real address, and it parses as a real `z.email()`,
+ * which `ShelterHistoryEntrySchema`'s own `email` field requires.
+ */
+export const ERASED_ADMIN_EMAIL = "removed@erased.invalid";

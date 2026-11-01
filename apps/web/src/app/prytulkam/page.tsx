@@ -1,46 +1,55 @@
-import { uk } from "@opika/i18n";
+import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
-import { Footer } from "../../features/chrome/Footer";
-import { SiteHeader } from "../../features/chrome/SiteHeader";
+import { WORDMARK } from "../../brand";
+import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
+import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
+import { SIGN_IN_PAGE_PATH } from "../../features/kabinet/routes";
+import { LinkButton } from "../../ui/Button";
+import { Heading } from "../../ui/Heading";
+import { Panel } from "../../ui/Panel";
+import { Text } from "../../ui/Text";
 
 /**
- * The subject. The root layout's `title.template` («%s — Opika») appends
- * the product name — spelling it out here too rendered «Для притулків — Opika —
+ * The subject. The root layout's `title.template` («%s - Opika») appends
+ * the product name - spelling it out here too rendered «Для притулків - Opika -
  * Opika», caught by reading the served HTML rather than by any assertion.
  *
  * `description`/`openGraph` are an explicit override (Option B, 2026-09-06,
- * see `docs/observations.md`) — without one this page would inherit the
+ * see `docs/observations.md`) - without one this page would inherit the
  * root layout's default, which swaps to the demo-data disclosure while
  * `REGISTRY_HAS_NO_REAL_SHELTERS`. This is the link Oleksii actually sends
  * to shelters, and that disclosure was never meant to reach it specifically
- * — a scope decided, not an oversight. `uk.forShelters.whatThisIs` is the
+ * - a scope decided, not an oversight. `uk.forShelters.whatThisIs` is the
  * page's own existing, already-shipped §1 sentence (the first paragraph
- * under the `<h1>`) — used verbatim, not trimmed, and not a new key. A full
- * `openGraph` object, not just `description` — Next replaces a parent's
+ * under the `<h1>`) - used verbatim, not trimmed, and not a new key. A full
+ * `openGraph` object, not just `description` - Next replaces a parent's
  * `openGraph` wholesale rather than deep-merging it once a child sets any
  * part of it (same gotcha `/tvaryny/[animalId]/page.tsx` already has its
  * own note on). No `title` inside `openGraph`, deliberately: unlike the
  * nested object as a whole, Next resolves a missing `openGraph.title` from
- * the page's own already-templated `title` («Для притулків — Opika»),
- * exactly the string above — setting it explicitly here would instead
+ * the page's own already-templated `title` («Для притулків - Opika»),
+ * exactly the string above - setting it explicitly here would instead
  * freeze it at the untemplated subject, dropping the brand name from the
  * one link-preview headline this page's own comment already flags as
  * having failed the same way once (PR #53 review, caught by rebuilding and
  * diffing the served `og:title`, not by inspection).
  */
+const WHAT_THIS_IS = fillTemplate(uk.forShelters.whatThisIs, { site: WORDMARK });
+
 export const metadata: Metadata = {
   title: uk.forShelters.title,
-  description: uk.forShelters.whatThisIs,
+  description: WHAT_THIS_IS,
+  alternates: { canonical: "/prytulkam" },
   openGraph: {
     type: "website",
-    siteName: "Opika",
+    siteName: WORDMARK,
     locale: "uk_UA",
-    description: uk.forShelters.whatThisIs,
+    description: WHAT_THIS_IS,
   },
 };
 
 /**
- * «Для притулків» — Phase T, closing critique finding E3.
+ * «Для притулків» - Phase T, closing critique finding E3.
  *
  * The first surface in this project written for shelters rather than
  * adopters, and the page an outreach message links to. Before it, a volunteer
@@ -52,7 +61,7 @@ export const metadata: Metadata = {
  * ## Structure, and why it is this structure
  *
  * Section order is fixed by `docs/prytulkam-argument.md` and follows the
- * order a volunteer's questions actually arrive in — notably cost second,
+ * order a volunteer's questions actually arrive in - notably cost second,
  * because it is what they are bracing for and every later sentence reads
  * differently once it is answered. That document is the spec for what each
  * paragraph must establish and what it must not claim; this file is only its
@@ -62,7 +71,7 @@ export const metadata: Metadata = {
  *
  * Every string below is a `COPY_PENDING` placeholder. The Ukrainian is
  * written by the maintainer, *from* the argument document's structure rather
- * than translated from its English — sentence-by-sentence translation is how
+ * than translated from its English - sentence-by-sentence translation is how
  * calques get in, and the copy critique (D3) already found one construction
  * in the live catalogue that reads translated. `prytulkam.test.tsx` reports
  * how many remain, so the count is visible rather than discovered on the
@@ -71,11 +80,11 @@ export const metadata: Metadata = {
  * ## No mock exists
  *
  * `docs/design/README.md` has no frame and no prose for a shelter-facing
- * page — this is the first surface in the project the design handoff does not
+ * page - this is the first surface in the project the design handoff does not
  * describe at all. Composed rather than invented: the page shell, width,
  * type scale and spacing are «Про проєкт»'s (`app/pro/page.tsx`), which is
  * itself the design's own established treatment for a static text page; the
- * one emphasised block reuses the `bg-rg-fill` surface the freshness block
+ * one emphasised block reuses the sunken Panel surface the freshness block
  * and filter chips already use. No new visual idiom is introduced here.
  *
  * Section headings are deliberately absent rather than invented: headings are
@@ -86,117 +95,135 @@ export const metadata: Metadata = {
 const h = uk.forShelters.headings;
 /**
  * `whitespace-pre-line` so a section's own paragraph breaks survive as one
- * catalogue string. The alternative — a key per paragraph — would triple the
+ * catalogue string. The alternative - a key per paragraph - would triple the
  * key count and let a translator silently drop one, which is exactly the shape
  * of loss `messages.test.ts`'s parity check exists to catch and cannot see
  * inside a single string.
  */
-const BODY = "text-[17px]/[26px] text-rg-ink whitespace-pre-line";
+function Body({ children }: { children: React.ReactNode }) {
+  return (
+    <Text look="lead" className="whitespace-pre-line text-ink-2">
+      {children}
+    </Text>
+  );
+}
 
 /**
- * A real `<h2>` under the page's `<h1>`, not a styled paragraph — the whole
+ * A real `<h2>` under the page's `<h1>`, not a styled paragraph - the whole
  * value of the headings is to a reader who is not reading linearly, and a
  * screen-reader user navigating by heading gets nothing from a bold `<p>`.
  */
 function Section({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="font-bold text-[19px]/[26px] tracking-[-0.02em] text-rg-ink">{heading}</h2>
+      <Heading level={2} look="title">
+        {heading}
+      </Heading>
       {children}
     </section>
   );
 }
 
-export default function ForSheltersPage() {
+/**
+ * Designer feedback batch D (2026-10-23): same trade as `/pro`'s own
+ * comment on this - reading the kabinet cookie here makes this page
+ * `force-dynamic` too, so the role-aware header doesn't flip-flop between
+ * this page and the rest of the site for a signed-in admin. Split into
+ * this thin async wrapper and `renderForSheltersPage` below for the same
+ * reason `/pro` is: `cookies()` throws outside a real request scope.
+ */
+export const dynamic = "force-dynamic";
+
+export default async function ForSheltersPage() {
+  const kabinetSignedIn = await kabinetSessionCookiePresent();
+  return renderForSheltersPage(kabinetSignedIn);
+}
+
+/** The page body; exported so `page.test.tsx` can render it without a real request scope. */
+export function renderForSheltersPage(kabinetSignedIn: boolean) {
   return (
-    <div className="font-rg min-h-dvh bg-rg-page">
-      <SiteHeader />
+    <ContentPageLayout kabinetSignedIn={kabinetSignedIn} title={uk.forShelters.title}>
+      {/*
+        PW-2, his scope item 1: «Увійти в кабінет» → /kabinet/vkhid. Under the title, so a shelter
+        already in the kabinet, sent here again, finds the way in without reading the page.
+      */}
+      <LinkButton href={SIGN_IN_PAGE_PATH} variant="secondary" className="self-start">
+        {uk.forShelters.signInLink}
+      </LinkButton>
 
-      <div className="max-w-[640px] mx-auto p-4 tablet:p-6 desktop:py-16 flex flex-col gap-6">
-        <h1 className="font-bold text-[34px]/[38px] desktop:text-[44px]/[46px] tracking-[-0.035em] text-rg-ink">
-          {uk.forShelters.title}
-        </h1>
-
-        <Section heading={h.whatThisIs}>
-          <p className="text-[19px]/[28px] text-rg-ink">{uk.forShelters.whatThisIs}</p>
-        </Section>
-        <Section heading={h.cost}>
-          <p className={BODY}>{uk.forShelters.cost}</p>
-        </Section>
-        <Section heading={h.whatHappensToAnimals}>
-          <p className={BODY}>{uk.forShelters.whatHappensToAnimals}</p>
-        </Section>
-        <Section heading={h.whoContactsWhom}>
-          <p className={BODY}>{uk.forShelters.whoContactsWhom}</p>
-          <p className={BODY}>{uk.forShelters.noObligation}</p>
-        </Section>
-        <Section heading={h.money}>
-          <p className={BODY}>{uk.forShelters.money}</p>
-        </Section>
-        <Section heading={h.verification}>
-          <p className={BODY}>{uk.forShelters.verification}</p>
-          <p className={BODY}>{uk.forShelters.verificationOpenToVolunteers}</p>
-        </Section>
-        {/*
-          §6 ends on «Ваш другий номер телефону — не рекомендація» — the only
+      <Section heading={h.whatThisIs}>
+        <Body>{WHAT_THIS_IS}</Body>
+      </Section>
+      <Section heading={h.cost}>
+        <Body>{uk.forShelters.cost}</Body>
+      </Section>
+      <Section heading={h.whatHappensToAnimals}>
+        <Body>{uk.forShelters.whatHappensToAnimals}</Body>
+      </Section>
+      <Section heading={h.whoContactsWhom}>
+        <Body>{uk.forShelters.whoContactsWhom}</Body>
+        <Body>{uk.forShelters.noObligation}</Body>
+      </Section>
+      <Section heading={h.money}>
+        <Body>{uk.forShelters.money}</Body>
+      </Section>
+      <Section heading={h.verification}>
+        <Body>{uk.forShelters.verification}</Body>
+        <Body>{uk.forShelters.verificationOpenToVolunteers}</Body>
+      </Section>
+      {/*
+          §6 ends on «Ваш другий номер телефону - не рекомендація» - the only
           sentence on the page that anticipates someone gaming the process. It
           earns its place by proving the verification is enforced rather than
           merely described, but it means §6 closes on fraud. §7 opening on
           «потрібно небагато» is what recovers the tone, in one line. Keep
           these two adjacent.
         */}
-        <Section heading={h.whatToPrepare}>
-          <p className={BODY}>{uk.forShelters.whatToPrepare}</p>
-        </Section>
+      <Section heading={h.whatToPrepare}>
+        <Body>{uk.forShelters.whatToPrepare}</Body>
+      </Section>
 
-        {/*
+      {/*
           §8 is the paragraph the argument document marks as needing the most
-          care — no shelter has been asked for a freshness sentence before, so
+          care - no shelter has been asked for a freshness sentence before, so
           the reason has to land or the request reads as strange. Given the
           page's one piece of emphasis for that reason, using the same
-          `bg-rg-fill` block the freshness display itself uses, so the
+          sunken Panel the freshness display itself uses, so the
           explanation and the thing it explains share a surface.
         */}
-        <Section heading={h.whyThatSentence}>
-          <div
-            data-testid="why-that-sentence"
-            className="bg-rg-fill rounded-rg-button p-4 flex flex-col gap-2"
-          >
-            <p className={BODY}>{uk.forShelters.whyThatSentence}</p>
-          </div>
-        </Section>
-        <Section heading={h.whenAnimalFindsHome}>
-          <p className={BODY}>{uk.forShelters.whenAnimalFindsHome}</p>
-        </Section>
-        {/*
+      <Section heading={h.whyThatSentence}>
+        <Panel tone="sunken" className="flex flex-col gap-2">
+          <Body>{uk.forShelters.whyThatSentence}</Body>
+        </Panel>
+      </Section>
+      <Section heading={h.whenAnimalFindsHome}>
+        <Body>{uk.forShelters.whenAnimalFindsHome}</Body>
+      </Section>
+      {/*
           The largest unspoken objection on the page, and previously unanswered
           in eleven sections: what happens if they change their mind. It is the
           first question anyone asks before handing their data to a stranger
           with a website, and the answer is one of the strongest things the
           project can say.
         */}
-        <Section heading={h.howToLeave}>
-          <p className={BODY}>{uk.forShelters.howToLeave}</p>
-        </Section>
-        <Section heading={h.whoIsBehindThis}>
-          <p className={BODY}>{uk.forShelters.whoIsBehindThis}</p>
-        </Section>
+      <Section heading={h.howToLeave}>
+        <Body>{uk.forShelters.howToLeave}</Body>
+      </Section>
+      <Section heading={h.whoIsBehindThis}>
+        <Body>{uk.forShelters.whoIsBehindThis}</Body>
+      </Section>
 
-        {/*
+      {/*
           `hello@opika.org.ua` is live and receives mail (Cloudflare Email
-          Routing, delivery tested 2026-09-02) — the same address
+          Routing, delivery tested 2026-09-02) - the same address
           `app/pro/page.tsx` renders. It mattered more here than there: a
           shelter is *sent* to this page rather than stumbling on it, and a
           page whose entire purpose is "write to us" is worse than absent if
           the address bounces. That gate is satisfied, not outstanding.
         */}
-        <Section heading={h.howToStart}>
-          <p className={BODY}>
-            {uk.forShelters.howToStart.replace("{contact}", "hello@opika.org.ua")}
-          </p>
-        </Section>
-        <Footer currentPage="prytulkam" />
-      </div>
-    </div>
+      <Section heading={h.howToStart}>
+        <Body>{uk.forShelters.howToStart.replace("{contact}", "hello@opika.org.ua")}</Body>
+      </Section>
+    </ContentPageLayout>
   );
 }

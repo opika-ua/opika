@@ -173,7 +173,8 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
   [
     "freshness_sentence_changed",
     { kind: "freshness_sentence_changed", at: AT, actor: byOlena, previous: null, next: null },
-    "Змінено речення на картках · Олена",
+    // his DR1-Q1 text (2026-10-20)
+    "Змінено речення на сторінці притулку · Олена",
   ],
   [
     "description_changed",
@@ -185,6 +186,18 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
       next: { uk: "Новий", en: null },
     },
     "Змінено опис притулку · ви",
+  ],
+  [
+    "logo_changed",
+    {
+      kind: "logo_changed",
+      at: AT,
+      actor: byMe,
+      previous: null,
+      next: { storageKey: "shelters/s/logo/0", width: 160, height: 160 },
+    },
+    // his final text, 2026-10-27 (pet card PR 3b)
+    "Змінено логотип притулку · ви",
   ],
   [
     "donation_proposed",
@@ -274,14 +287,18 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
         "species",
         "sex",
         "size",
+        "coatLength",
+        "colour",
         "age",
         "description",
+        "temperament",
         "vaccination",
         "spayNeuter",
+        "medicalNotes",
         "photos",
       ],
     },
-    "Змінено картку Рекс: Імʼя, Вид, Стать, Розмір, Вік, Опис, Комплексне щеплення, Стерилізація, Фото · Олена",
+    "Змінено картку Рекс: Імʼя, Вид, Стать, Розмір, Шерсть, Забарвлення, Вік, Опис, Характер, Комплексне щеплення, Стерилізація, Медичний стан, Фото · Олена",
   ],
   [
     "animal_listing_changed",

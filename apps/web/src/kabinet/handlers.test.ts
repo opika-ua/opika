@@ -30,8 +30,10 @@ import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
+import { capturingPasswordMail } from "./password-mail";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * What each shelter procedure does for its own shelter, through the served
@@ -82,12 +84,17 @@ async function call<T = Record<string, unknown>>(
 ): Promise<{ status: number; body: T }> {
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { "content-type": "application/json", origin: "http://localhost" },
+    headers: {
+      "content-type": "application/json",
+      origin: "http://localhost",
+      cookie: TEST_SESSION_COOKIE,
+    },
     body: JSON.stringify(toRpcBody(input)),
   });
   const response = await handleKabinetRpc(request, {
     availability: {
       kind: "available",
+      passwordMail: capturingPasswordMail(),
       sender: { send: async () => {} },
       invites: capturingInvitationSender(),
       secret: "x",
@@ -191,6 +198,29 @@ describe("shelter.profile", () => {
     ]);
   });
 
+  it("updateContact refuses a +380 number with extra digits and writes nothing", async () => {
+    const bad = { primary: { kind: "phone", e164: "+380670000002213" }, additional: [] };
+    const result = await call("shelter.profile.updateContact", {
+      contact: bad,
+      expectedVersion: 0,
+    });
+    expect(result.status).toBe(400);
+    expect((await shelterRepo(db).findById(shelter.id))?.contact).toEqual(shelter.contact);
+  });
+
+  it("updateContact stores a local-form number as +380XXXXXXXXX", async () => {
+    const typed = { primary: { kind: "phone", e164: "(067) 123-45-67" }, additional: [] };
+    const result = await call("shelter.profile.updateContact", {
+      contact: typed,
+      expectedVersion: 0,
+    });
+    expect(result.status).toBe(200);
+    expect((await shelterRepo(db).findById(shelter.id))?.contact.primary).toEqual({
+      kind: "phone",
+      e164: "+380671234567",
+    });
+  });
+
   it("updateContact from a stale form is CONFLICT and writes nothing", async () => {
     const next = { primary: { kind: "telegram", handle: "lapa_shelter" }, additional: [] };
     expect(
@@ -270,15 +300,34 @@ describe("shelter.profile", () => {
       expect(result.body.freshnessSentence).toEqual(stored);
     });
 
-    it("compares the normalised Ukrainian: another spelling of {імʼя} is not a change", async () => {
-      const withToken = { uk: "{імʼя} досі шукає дім.", en: stored.en };
-      await reseed(withToken);
+    it("compares the trimmed Ukrainian: surrounding spaces are not a change", async () => {
+      const sentence = { uk: "Оновлюємо картки щосуботи.", en: stored.en };
+      await reseed(sentence);
       const result = await call<KabinetShelterView>("shelter.profile.updateFreshnessSentence", {
-        freshnessSentence: { uk: "{ім'я} досі шукає дім.", en: stored.en },
+        freshnessSentence: { uk: "  Оновлюємо картки щосуботи.  ", en: stored.en },
         expectedVersion: 0,
       });
       expect(result.status).toBe(200);
-      expect(result.body.freshnessSentence).toEqual(withToken);
+      expect(result.body.freshnessSentence).toEqual(sentence);
+    });
+
+    /**
+     * DR1-Q5 (Oleksii, verbatim: "the editor refuses {імʼя}. … Existing
+     * test-shelter sentences containing it are re-saved, not migrated."): a
+     * sentence stored with the token can't be saved again with it, in any
+     * spelling, and nothing is written.
+     */
+    it("refuses {імʼя} with 400 and writes nothing, even over a stored sentence carrying it", async () => {
+      const withToken = { uk: "{імʼя} досі шукає дім.", en: null };
+      await reseed(withToken);
+      for (const uk of ["{імʼя} досі шукає дім. Пишіть.", "{ім'я} досі шукає дім."]) {
+        const result = await call("shelter.profile.updateFreshnessSentence", {
+          freshnessSentence: { uk, en: null },
+          expectedVersion: 0,
+        });
+        expect(result.status, uk).toBe(400);
+      }
+      expect((await shelterRepo(db).findById(shelter.id))?.freshnessSentence).toEqual(withToken);
     });
   });
 
@@ -956,6 +1005,155 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
   });
 
   /**
+   * DR1 (S3): fur is set and cleared through the patch, on a listed card too
+   * (DR1-D10: «Не вказано» is an answer, not a gap), and history names the
+   * field, never its value (K-Q7).
+   */
+  it("fur is set, then cleared on a published card, each a recorded edit of «coatLength»", async () => {
+    const a = await animal();
+    expect(a.listing.kind).toBe("published");
+    const set = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { coatLength: "long" },
+    });
+    expect(set.status).toBe(200);
+    expect(set.body.coatLength).toBe("long");
+    expect((await reload(a.id)).coatLength).toBe("long");
+
+    const cleared = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: set.body.version,
+      patch: { coatLength: null },
+    });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.coatLength).toBeNull();
+    expect((await reload(a.id)).coatLength).toBeNull();
+
+    const lines = await animalLines();
+    expect(lines.map((l) => (l.kind === "animal_edited" ? l.fields : l.kind))).toEqual([
+      ["coatLength"],
+      ["coatLength"],
+    ]);
+    expect(JSON.stringify(lines)).not.toContain('"long"');
+  });
+
+  it("re-sending the stored fur, or leaving it out, changes nothing", async () => {
+    const a = await animal({ coatLength: "short" });
+    const same = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { coatLength: "short" },
+    });
+    expect(same.body.version).toBe(a.version);
+    const other = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { sex: a.sex === "male" ? "female" : "male" },
+    });
+    expect(other.body.coatLength).toBe("short");
+    expect(
+      (await animalLines()).map((l) => (l.kind === "animal_edited" ? l.fields : l.kind)),
+    ).toEqual([["sex"]]);
+  });
+
+  /**
+   * The pet card's temperament, colour and medical note: set and cleared on a
+   * published card (none is a listing fact), stored as sent, and named in
+   * history by field only, never by value (K-Q7).
+   */
+  it("temperament, colour and the medical note are set, then cleared on a published card, recorded by name only", async () => {
+    const a = await animal();
+    expect(a.listing.kind).toBe("published");
+    const set = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: {
+        temperament: [
+          { kind: "preset", trait: "shy" },
+          { kind: "preset", trait: "calm" },
+          { kind: "custom", text: { uk: "Боїться грози", en: null } },
+        ],
+        colour: { kind: "custom", text: { uk: "Димчасте", en: null } },
+        medicalNotes: { uk: "Потребує гіпоалергенного корму.", en: null },
+      },
+    });
+    expect(set.status).toBe(200);
+    const stored = await reload(a.id);
+    expect(stored.temperament).toEqual([
+      { kind: "preset", trait: "shy" },
+      { kind: "preset", trait: "calm" },
+      { kind: "custom", text: { uk: "Боїться грози", en: null } },
+    ]);
+    expect(stored.colour).toEqual({ kind: "custom", text: { uk: "Димчасте", en: null } });
+    expect(stored.medicalNotes).toEqual({ uk: "Потребує гіпоалергенного корму.", en: null });
+    expect(set.body.temperament).toEqual(stored.temperament);
+
+    const cleared = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: set.body.version,
+      patch: { temperament: [], colour: null, medicalNotes: null },
+    });
+    expect(cleared.status).toBe(200);
+    const after = await reload(a.id);
+    expect(after.temperament).toEqual([]);
+    expect(after.colour).toBeNull();
+    expect(after.medicalNotes).toBeNull();
+    expect(after.listing.kind).toBe("published");
+
+    const lines = await animalLines();
+    expect(lines.map((l) => (l.kind === "animal_edited" ? l.fields : l.kind))).toEqual([
+      ["colour", "temperament", "medicalNotes"],
+      ["colour", "temperament", "medicalNotes"],
+    ]);
+    const recorded = JSON.stringify(lines);
+    for (const value of ["Боїться грози", "Димчасте", "гіпоалергенного", "shy"]) {
+      expect(recorded).not.toContain(value);
+    }
+  });
+
+  it("a custom text keeps its English while its Ukrainian is unchanged, and drops it once it changes", async () => {
+    const english = { text: "Smoky", provenance: "human" } as const;
+    const a = await animal({
+      colour: { kind: "custom", text: { uk: "Димчасте", en: english } },
+      medicalNotes: {
+        uk: "Без особливостей.",
+        en: { text: "Nothing special.", provenance: "human" },
+      },
+    });
+    const kept = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { colour: { kind: "custom", text: { uk: "Димчасте", en: english } } },
+    });
+    expect(kept.body.version).toBe(a.version);
+    const changed = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: {
+        colour: { kind: "custom", text: { uk: "Сіро-димчасте", en: english } },
+        medicalNotes: { uk: "Потребує дієти.", en: { text: "Needs a diet.", provenance: "human" } },
+      },
+    });
+    expect(changed.status).toBe(200);
+    const after = await reload(a.id);
+    expect(after.colour).toEqual({ kind: "custom", text: { uk: "Сіро-димчасте", en: null } });
+    expect(after.medicalNotes).toEqual({ uk: "Потребує дієти.", en: null });
+  });
+
+  it("refuses a custom temperament over its cap with BAD_REQUEST, writing nothing", async () => {
+    const a = await animal();
+    const refused = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: a.id,
+      expectedVersion: a.version,
+      patch: { temperament: [{ kind: "custom", text: { uk: "я".repeat(41), en: null } }] },
+    });
+    expect(refused.status).toBe(400);
+    expect((await reload(a.id)).temperament).toEqual([]);
+    expect(await animalLines()).toEqual([]);
+  });
+
+  /**
    * D3 (Oleksii: "keep the chosen «Станом на» date"): the form shows the
    * stored bucket and its date, so re-sending them is "no change", even for a
    * bucket stamped at save time before D3 (compared as Kyiv calendar dates).
@@ -1520,7 +1718,13 @@ describe("K3: drafts, readiness and the description", () => {
     expect(result.body).toMatchObject({
       code: "PUBLISH_REQUIREMENTS_UNMET",
       data: {
-        gaps: [{ kind: "size" }, { kind: "age" }, { kind: "description" }, { kind: "photo" }],
+        gaps: [
+          { kind: "sex" },
+          { kind: "size" },
+          { kind: "age" },
+          { kind: "description" },
+          { kind: "photo" },
+        ],
       },
     });
     expect((await reload(draft.id)).listing.kind).toBe("draft");
@@ -1528,10 +1732,11 @@ describe("K3: drafts, readiness and the description", () => {
   });
 
   it.each([
-    ["size", { age: AGE, description: DESCRIPTION, photos: [PHOTO] }],
-    ["age", { size: "small", description: DESCRIPTION, photos: [PHOTO] }],
-    ["description", { size: "small", age: AGE, photos: [PHOTO] }],
-    ["photo", { size: "small", age: AGE, description: DESCRIPTION }],
+    ["sex", { size: "small", age: AGE, description: DESCRIPTION, photos: [PHOTO] }],
+    ["size", { sex: "male", age: AGE, description: DESCRIPTION, photos: [PHOTO] }],
+    ["age", { sex: "male", size: "small", description: DESCRIPTION, photos: [PHOTO] }],
+    ["description", { sex: "male", size: "small", age: AGE, photos: [PHOTO] }],
+    ["photo", { sex: "male", size: "small", age: AGE, description: DESCRIPTION }],
   ] as const)("a draft missing only its %s answers exactly that gap", async (kind, filled) => {
     const draft = await bareDraft(filled);
     const result = await publish(draft.id);
@@ -1545,6 +1750,7 @@ describe("K3: drafts, readiness and the description", () => {
       animalId: draft.id,
       expectedVersion: draft.version,
       patch: {
+        sex: "male",
         size: "small",
         age: { kind: "declared_bucket", bucket: "young", asOf: "2026-09-01" },
         description: DESCRIPTION,
@@ -1590,6 +1796,42 @@ describe("K3: drafts, readiness and the description", () => {
     expect(stored.description).toEqual(listed.description);
     expect(stored.version).toBe(listed.version);
     expect(await lines()).toEqual([]);
+  });
+
+  it("setting a published animal's sex to unknown is LISTING_FACT_REQUIRED, writing nothing (SF-F1)", async () => {
+    const listed = await animal();
+    const result = await call<{ code?: string; data?: unknown }>("shelter.animals.update", {
+      animalId: listed.id,
+      expectedVersion: listed.version,
+      patch: { sex: "unknown" },
+    });
+    expect(result.status).toBe(422);
+    expect(result.body).toMatchObject({
+      code: "LISTING_FACT_REQUIRED",
+      data: { field: "sex" },
+    });
+    const stored = await reload(listed.id);
+    expect(stored.sex).toBe(listed.sex);
+    expect(stored.version).toBe(listed.version);
+    expect(await lines()).toEqual([]);
+  });
+
+  it("a draft can be saved and stay at sex unknown (SF-F1, must not regress)", async () => {
+    const draft = await bareDraft({ photos: [PHOTO] });
+    const result = await call<KabinetAnimalView>("shelter.animals.update", {
+      animalId: draft.id,
+      expectedVersion: draft.version,
+      patch: {
+        size: "small",
+        age: { kind: "declared_bucket", bucket: "young", asOf: "2026-09-01" },
+        description: DESCRIPTION,
+      },
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.sex).toBe("unknown");
+    const stored = await reload(draft.id);
+    expect(stored.sex).toBe("unknown");
+    expect(stored.listing.kind).toBe("draft");
   });
 
   it("a changed Ukrainian description drops the English; an unchanged one keeps it (T5)", async () => {
@@ -1744,6 +1986,7 @@ describe("K2: the animal list", () => {
     await animalRepo(db).insert(bare, cityId as never);
     const partial = makeDraftAnimal({
       shelterId: shelter.id,
+      sex: "male",
       size: "small",
       age: { kind: "declared_bucket", bucket: "young", declaredAt: new Date("2026-09-01") },
     });
@@ -1754,7 +1997,13 @@ describe("K2: the animal list", () => {
     const rows = new Map((await list({ kind: "all" })).body.items.map((row) => [row.id, row]));
     expect(rows.get(bare.id)).toMatchObject({
       age: null,
-      publishGaps: [{ kind: "size" }, { kind: "age" }, { kind: "description" }, { kind: "photo" }],
+      publishGaps: [
+        { kind: "sex" },
+        { kind: "size" },
+        { kind: "age" },
+        { kind: "description" },
+        { kind: "photo" },
+      ],
     });
     expect(rows.get(partial.id)).toMatchObject({
       age: partial.age,

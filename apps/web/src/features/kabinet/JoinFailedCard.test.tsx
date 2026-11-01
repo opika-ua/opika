@@ -17,7 +17,7 @@ describe("JoinFailedCard", () => {
       "Ви увійшли, але приєднати вас до притулку не вдалося",
     );
     expect(screen.getByRole("alert").textContent).toBe(
-      "Нічого не збережено наполовину. Спробуйте ще раз — а якщо не вийде, спроба повториться автоматично під час наступного входу.",
+      "Доступ до притулку ще не додано. Натисніть «Спробувати ще раз». Якщо не вийде, сайт спробує знову, коли ви наступного разу ввійдете.",
     );
     expect(screen.getByRole("link", { name: "Спробувати ще раз" })).toBeDefined();
   });
@@ -31,12 +31,5 @@ describe("JoinFailedCard", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       uk.kabinet.confirm.joinFailedTitle,
     );
-  });
-
-  it("the retry carries focus-visible styling and a 56px target", () => {
-    render(<JoinFailedCard />);
-    const retry = screen.getByRole("link", { name: uk.kabinet.confirm.joinRetry });
-    expect(retry.className).toContain("focus-visible:outline");
-    expect(retry.className).toContain("min-h-14");
   });
 });

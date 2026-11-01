@@ -17,8 +17,10 @@ import { fromRpcBody, rpcRequestInit } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
+import { capturingPasswordMail } from "./password-mail";
 import { PHOTO_PROCESSING_BUDGET_MS, type PhotoUploads } from "./photo-uploads";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 type Pipeline = typeof import("@opika/db/image-pipeline/server");
 
@@ -131,12 +133,17 @@ async function call<T = KabinetAnimalView>(
   const { body, headers } = rpcRequestInit(input);
   const request = new Request(`${ORIGIN}/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
-    headers: { ...headers, ...(opts.origin === null ? {} : { origin: opts.origin ?? ORIGIN }) },
+    headers: {
+      ...headers,
+      cookie: TEST_SESSION_COOKIE,
+      ...(opts.origin === null ? {} : { origin: opts.origin ?? ORIGIN }),
+    },
     body,
   });
   const response = await handleKabinetRpc(request, {
     availability: {
       kind: "available",
+      passwordMail: capturingPasswordMail(),
       sender: { send: async () => {} },
       invites: capturingInvitationSender(),
       secret: "x",
@@ -363,6 +370,8 @@ describe("the processing budget", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(puts).toEqual([]);
     expect((await reload(target.id)).photos).toEqual([]);
+    // Nor has the date a photo write on a visible card moves (RH-B7).
+    expect((await reload(target.id)).listing).toEqual(target.listing);
     expect(await photoHistory()).toEqual([]);
     expect(logged.mock.calls).toHaveLength(1);
   });
@@ -539,7 +548,7 @@ describe("who may upload", () => {
     expect(result.status).toBe(401);
   });
 
-  it("another shelter's animal: 403 FORBIDDEN, nothing stored, its photos untouched", async () => {
+  it("another shelter's animal: 404 NOT_FOUND like a missing id, nothing stored, its photos untouched", async () => {
     const theirs = await animal({ photos: [photo(1)] }, other);
     const { uploads, puts } = uploadsOn();
     for (const [path, input] of [
@@ -562,8 +571,8 @@ describe("who may upload", () => {
       ],
     ] as const) {
       const result = await call(path, input, { uploads });
-      expect(result.status, path).toBe(403);
-      expect(errorOf(result.body).code, path).toBe("FORBIDDEN");
+      expect(result.status, path).toBe(404);
+      expect(errorOf(result.body).code, path).toBe("NOT_FOUND");
     }
     expect(puts).toEqual([]);
     expect((await reload(theirs.id)).photos).toEqual([photo(1)]);

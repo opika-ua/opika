@@ -2,8 +2,10 @@
 
 import type { ShelterHistoryEntry, ShelterId } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { Button } from "../../controls/controls";
-import { BODY, CAPTION, CARD, CARD_TITLE, ERROR_TEXT, STRONG } from "../profile-edit/styles";
+import { Button } from "../../../ui/Button";
+import { Heading } from "../../../ui/Heading";
+import { Panel } from "../../../ui/Panel";
+import { Text } from "../../../ui/Text";
 import { formatDateTime } from "./format";
 import { type HistoryPeople, historyLineOf, historyLineText } from "./history-lines";
 import { HISTORY_PAGE } from "./list-params";
@@ -37,13 +39,18 @@ export function HistoryList({
     restart,
   );
   return (
-    <section aria-labelledby="operator-history" className={CARD}>
-      <h2 id="operator-history" className={CARD_TITLE}>
+    <Panel
+      as="section"
+      aria-labelledby="operator-history"
+      padding="lg"
+      className="flex min-w-0 flex-col gap-4"
+    >
+      <Heading level={2} look="body-l" id="operator-history">
         {t.title}
-      </h2>
-      <p className={CAPTION}>{t.note}</p>
+      </Heading>
+      <Text look="hint">{t.note}</Text>
       {items.length === 0 ? (
-        <p className={BODY}>{t.empty}</p>
+        <Text>{t.empty}</Text>
       ) : (
         <ol className="flex flex-col gap-3">
           {items.map((entry, index) => {
@@ -51,8 +58,10 @@ export function HistoryList({
             return (
               // History rows carry no id in this view; their order is the record's.
               <li key={`${line.at.toISOString()}-${index}`} className="flex flex-col gap-1">
-                <p className={`${STRONG} break-words`}>{historyLineText(line)}</p>
-                <time dateTime={line.at.toISOString()} className={CAPTION}>
+                <Text look="label" className="break-words">
+                  {historyLineText(line)}
+                </Text>
+                <time dateTime={line.at.toISOString()} className="text-caption text-ink-2">
                   {formatDateTime(line.at)}
                 </time>
               </li>
@@ -62,7 +71,7 @@ export function HistoryList({
       )}
       {state.kind === "failed" ? (
         <div role="alert" className="flex flex-col items-start gap-2">
-          <p className={ERROR_TEXT}>{uk.kabinet.operator.errors.failed}</p>
+          <Text look="label">{uk.kabinet.operator.errors.failed}</Text>
           <Button variant="secondary" onClick={more}>
             {uk.kabinet.profileEdit.state.retry}
           </Button>
@@ -77,6 +86,6 @@ export function HistoryList({
           {t.more}
         </Button>
       ) : null}
-    </section>
+    </Panel>
   );
 }

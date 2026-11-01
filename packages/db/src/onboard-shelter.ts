@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   type AnimalId,
   AnimalIdSchema,
+  type AnimalListingState,
   AnimalNameInputSchema,
   type AnimalPhoto,
   AnimalSexSchema,
@@ -16,6 +17,7 @@ import {
   DonationLinkSchema,
   EvidenceItemInputSchema,
   ExactAddressSchema,
+  everServedAtAfter,
   freshnessSentenceProblemMessage,
   type ListedAnimal,
   MAX_ANIMAL_PHOTOS,
@@ -25,9 +27,10 @@ import {
   normalizeFreshnessSentenceText,
   publicLocationOf,
   type Shelter,
-  ShelterContactSchema,
+  ShelterContactInputSchema,
   ShelterIdSchema,
   ShelterLegalEntitySchema,
+  type ShelterVerification,
   SizeBucketSchema,
   toVerificationEvidence,
   UNKNOWN_ATTESTATION,
@@ -46,19 +49,20 @@ import {
 import { productionLocationPolicy } from "./location-policy";
 import { assertProductionWriteAllowed } from "./prod-guard";
 import { animalRepo, cityRepo, shelterRepo } from "./repos";
+import type { CurrentCityResolution } from "./repos/city-repo";
 import { insertShelterFromScript, recordAnimalsImported, type ScriptActor } from "./script-history";
 
 /**
- * Onboards ONE real shelter and its animals — the only path in this repo that
+ * Onboards ONE real shelter and its animals - the only path in this repo that
  * may ever write a real, non-fictional `publicLocation`.
  *
  * Deliberately separate from `seed.ts`, not a mode flag on it: a shared file
  * where a flag chooses between "append real data" and "truncate everything
  * and reseed fiction" is a failure mode reachable by typo, on exactly the
  * evening someone is least careful. This script imports nothing from
- * seed.ts and has no truncation code path at all — it can only insert.
+ * seed.ts and has no truncation code path at all - it can only insert.
  *
- * Always uses `productionLocationPolicy` — there is no test-only fallback
+ * Always uses `productionLocationPolicy` - there is no test-only fallback
  * reachable from this file, not gated on `NODE_ENV`. `LOCATION_HMAC_SECRET`
  * is read directly and the process exits if it's missing or too short
  * (`productionLocationPolicy`'s own check).
@@ -83,7 +87,7 @@ import { insertShelterFromScript, recordAnimalsImported, type ScriptActor } from
  * development notes"):
  * - Windows paths are case-insensitive, so `d:\startup\opika\shelter.json`
  *   names a file inside the repo while failing a case-sensitive `startsWith`
- *   against `D:\Startup\opika` — the guard would wave through exactly the
+ *   against `D:\Startup\opika` - the guard would wave through exactly the
  *   file it exists to refuse.
  * - A symlink outside the tree can point at a file inside it, and only
  *   `realpathSync` sees through that. What would get committed is the real
@@ -129,7 +133,7 @@ function haversineMetres(a: Coordinates, b: Coordinates): number {
  * failure would insert duplicates instead of finishing the job. `crypto.
  * randomUUID()` (used everywhere else ids are minted) is exactly wrong here.
  *
- * Not a real UUIDv5 (no external namespace UUID, no RFC 4122 library) —
+ * Not a real UUIDv5 (no external namespace UUID, no RFC 4122 library) -
  * just SHA-256 truncated to 16 bytes with the version/variant nibbles set so
  * the result passes `z.uuid()`. The seed's own uniqueness is what this
  * repo's ids need; the "5" is decoration for readability, not a claim of
@@ -146,7 +150,7 @@ export function deterministicId(seed: string): string {
 
 /**
  * The moderator identity recorded against every shelter this script
- * verifies — there is no real moderator login system yet, so this stands in
+ * verifies - there is no real moderator login system yet, so this stands in
  * for "the founder personally vetted this" until one exists. Fixed and
  * deterministic, not `crypto.randomUUID()`, so every onboarded shelter's
  * verification record points at the same, recognisable id rather than a
@@ -157,12 +161,12 @@ const FOUNDER_MODERATOR_ID = ModeratorIdSchema.parse(
 ) as ModeratorId;
 
 /**
- * `localPath`, not `storageKey`/`width`/`height` — an operator has a folder
+ * `localPath`, not `storageKey`/`width`/`height` - an operator has a folder
  * of real photo files next to their input JSON (`docs/onboarding-a-
  * shelter.md`'s documented convention: a `photos/` directory alongside the
  * input file), not R2 object keys or hand-measured pixel dimensions. Both
  * are computed by this script now: `resolveLocalPhotoPath` +
- * `validateLocalPhoto` read the real file for its real dimensions (H1 —
+ * `validateLocalPhoto` read the real file for its real dimensions (H1 -
  * see `docs/h1-decisions.md`), and `uploadAnimalPhoto` stores it under a
  * fresh random key per photo (P-Q13), the scheme the kabinet's uploads use.
  */
@@ -172,8 +176,8 @@ const OnboardPhotoSchema = z.object({
 
 /**
  * The operator's sentences get the same validation as the kabinet's (K-Q6):
- * the token's spellings normalised to `{імʼя}`, other braces refused, 280
- * characters. Unlike the kabinet, blank is refused rather than cleared,
+ * no braces at all (`{імʼя}` included since DR1-Q5: the sentence shows on the
+ * shelter page, where no animal's name fills it), 280 characters. Unlike the kabinet, blank is refused rather than cleared,
  * because this field is required (see `freshnessSentenceUk` below).
  */
 const OnboardFreshnessSentenceUkSchema = z.string().transform((raw, ctx) => {
@@ -195,10 +199,14 @@ const OnboardFreshnessSentenceUkSchema = z.string().transform((raw, ctx) => {
 
 const OnboardAnimalSchema = z.object({
   idSeed: z.string().min(1),
-  // The kabinet's rule: a name is substituted into the sentence, so no braces.
+  // The kabinet's rule: no braces in a name (K-Q6, kept since DR1-Q5; see `animalNameProblem`).
   name: AnimalNameInputSchema,
   species: AnimalSpeciesSchema,
-  sex: AnimalSexSchema,
+  // Onboarding always publishes directly (no draft stage), so unlike the kabinet's
+  // draft form, "unknown" is never an acceptable starting value here (SF-F1).
+  sex: AnimalSexSchema.refine((s) => s !== "unknown", {
+    message: "Onboarded animals must have a known sex (male or female), not unknown",
+  }),
   size: SizeBucketSchema,
   ageBucket: z.enum(["baby", "young", "adult", "senior"]),
   // K3's cap: an onboarded description over it couldn't be saved again in K3.
@@ -218,7 +226,7 @@ const OnboardAnimalSchema = z.object({
 /**
  * Evidence input is `EvidenceItemInputSchema` from `@opika/domain`, shared with
  * the kabinet's S2 evidence step (decisions §4: one schema, two callers). This
- * script supplies the attribution itself — `FOUNDER_MODERATOR_ID` and `now` —
+ * script supplies the attribution itself - `FOUNDER_MODERATOR_ID` and `now` -
  * because no operator login reaches it.
  */
 export const OnboardInputSchema = z.object({
@@ -228,7 +236,7 @@ export const OnboardInputSchema = z.object({
     descriptionUk: z.string().min(1),
     legalEntity: ShelterLegalEntitySchema,
     exactAddress: ExactAddressSchema,
-    contact: ShelterContactSchema,
+    contact: ShelterContactInputSchema,
     donation: DonationLinkSchema.nullable(),
     /**
      * Required, not optional: this is the sentence the shelter writes in
@@ -239,13 +247,13 @@ export const OnboardInputSchema = z.object({
     /**
      * What you actually have, not a name this script used to turn into a
      * fabricated `reference_contact` pointing at the shelter's own phone
-     * number as if it were independent corroboration — caught on review,
+     * number as if it were independent corroboration - caught on review,
      * not by construction the first time: an `unregistered_initiative`
      * needs a site visit plus two real references; a registered entity
      * needs its EDRPOU and bank-holder records. `buildShelter` below
      * refuses to produce a `verified` shelter (dry run or `--commit`) if
      * what's here doesn't clear `DEFAULT_VERIFICATION_POLICY` for the
-     * `legalEntity.kind` given — see docs/onboarding-a-shelter.md for a
+     * `legalEntity.kind` given - see docs/onboarding-a-shelter.md for a
      * worked example per legal shape.
      */
     evidence: z.array(EvidenceItemInputSchema).min(1),
@@ -255,6 +263,46 @@ export const OnboardInputSchema = z.object({
 
 type OnboardInput = z.infer<typeof OnboardInputSchema>;
 
+const RETIRED_CITY_MESSAGE =
+  "that settlement is retired (no longer in the current settlement register); a shelter cannot be onboarded there. Use its current settlement.";
+
+export type CitySlugLookup = (slug: string) => Promise<CurrentCityResolution>;
+
+/**
+ * An input file may name the settlement by its slug (`exactAddress.citySlug`, the current or a
+ * former one) instead of a `cityId` UUID: with ~30k settlements nobody can be asked to copy a
+ * UUID, but the slug is in the URL of the city's page. Resolved to the id before the schema runs,
+ * so everything after sees only `cityId`. Both given, or neither, or a slug nothing answers to, is
+ * refused with a sentence saying which; the lookup is injected so this stays testable without a database.
+ */
+export async function withCityIdFromSlug(raw: unknown, lookup: CitySlugLookup): Promise<unknown> {
+  const address = (raw as { shelter?: { exactAddress?: Record<string, unknown> } } | null)?.shelter
+    ?.exactAddress;
+  if (!address || typeof address !== "object" || !("citySlug" in address)) return raw;
+
+  const { citySlug, ...rest } = address;
+  if ("cityId" in rest && rest["cityId"] !== undefined) {
+    throw new Error("exactAddress has both cityId and citySlug: give one of them.");
+  }
+  if (typeof citySlug !== "string" || citySlug.trim() === "") {
+    throw new Error("exactAddress.citySlug must be a non-empty string.");
+  }
+  const found = await lookup(citySlug.trim());
+  if (found.kind === "unknown") {
+    throw new Error(
+      `no settlement answers to the slug "${citySlug}" (neither a current nor a former one). Check the slug in the city's address on the site.`,
+    );
+  }
+  if (found.kind === "retired") throw new Error(RETIRED_CITY_MESSAGE);
+  return {
+    ...(raw as object),
+    shelter: {
+      ...(raw as { shelter: object }).shelter,
+      exactAddress: { ...rest, cityId: found.city.id },
+    },
+  };
+}
+
 export function refuseIfInsideRepo(inputPath: string): void {
   const resolved = canonicalPath(inputPath);
   if (resolved === REPO_ROOT || resolved.startsWith(`${REPO_ROOT}${sep}`)) {
@@ -262,7 +310,7 @@ export function refuseIfInsideRepo(inputPath: string): void {
       "ERROR: input file is inside the repository.\n" +
         `  ${resolve(inputPath)}\n` +
         "This file will contain a real shelter's exact address and phone number, and\n" +
-        "docs/standing-constraints.md forbids real shelter data in the repository —\n" +
+        "docs/standing-constraints.md forbids real shelter data in the repository -\n" +
         "it is public. Move the file outside the working tree and pass that path instead.",
     );
     process.exit(1);
@@ -304,7 +352,7 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
   });
   if (recorded.kind === "site_visit_in_future") {
     throw new Error(
-      `site_visit.visitedOn ${recorded.visitedOn} is after today — a visit that hasn't happened can't back a verification.`,
+      `site_visit.visitedOn ${recorded.visitedOn} is after today - a visit that hasn't happened can't back a verification.`,
     );
   }
   const evidence = recorded.evidence;
@@ -330,6 +378,7 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
     exactAddress: input.exactAddress,
     contact: input.contact,
     donation: input.donation,
+    logo: null,
     pendingDonation: null,
     version: 0,
     freshnessSentence: { uk: input.freshnessSentenceUk, en: null },
@@ -354,7 +403,7 @@ export function animalIdFor(idSeed: string): AnimalId {
 }
 
 /**
- * `photos` arrives already resolved to real `AnimalPhoto` records — this
+ * `photos` arrives already resolved to real `AnimalPhoto` records - this
  * function no longer derives them from the raw input, `main()` does, via
  * `resolveAndUploadPhotos` below. Keeps this function pure and testable
  * without touching the filesystem or R2, same as before H1.
@@ -362,15 +411,24 @@ export function animalIdFor(idSeed: string): AnimalId {
 export function buildAnimal(
   input: z.infer<typeof OnboardAnimalSchema>,
   photos: readonly AnimalPhoto[],
-  shelterId: Shelter["id"],
+  shelter: Pick<Shelter, "id" | "verification">,
   now: Date,
 ): ListedAnimal {
+  const listing: AnimalListingState = {
+    kind: "published",
+    publishedAt: now,
+    confirmedAt: now,
+    undoable: null,
+  };
   return {
     id: animalIdFor(input.idSeed),
-    shelterId,
+    shelterId: shelter.id,
     name: input.name,
     species: input.species,
     sex: input.sex,
+    // Not part of the onboarding input (DR1-D12): an onboarded animal starts
+    // with fur «Не записано», and the shelter records it in the kabinet.
+    coatLength: null,
     size: input.size,
     age: { kind: "declared_bucket", bucket: input.ageBucket, declaredAt: now },
     description: { uk: input.descriptionUk, en: null },
@@ -378,13 +436,25 @@ export function buildAnimal(
     vaccination: UNKNOWN_ATTESTATION(now),
     spayNeuter: UNKNOWN_ATTESTATION(now),
     documentReadiness: UNKNOWN_DOCUMENT_READINESS,
+    // Not part of the onboarding input, like fur (DR1-D12): an onboarded
+    // animal starts with no temperament, colour or medical note recorded,
+    // and the shelter records them in the kabinet. No new flag.
+    temperament: [],
+    colour: null,
+    medicalNotes: null,
     // Publishing is the first confirmation: a shelter handing over a live
     // animal is saying it is looking for a home today.
-    listing: { kind: "published", publishedAt: now, confirmedAt: now, undoable: null },
+    listing,
     // null: inherits the shelter's own publicLocation, computed above.
     // Only a fostered animal (not supported by this script) would need its
-    // own city-precision location — see animal.ts's own comment on the field.
+    // own city-precision location - see animal.ts's own comment on the field.
     publicLocation: null,
+    // S8-F5's third hook: this script is the one real path that can insert an
+    // animal already published under an already-verified shelter (every
+    // shelter it inserts is `status: "verified"` from the start), so the
+    // publish-transition and verification-transition hooks never fire for
+    // it - this is the only chance to stamp the fact.
+    everServedAt: everServedAtAfter(null, listing, shelter.verification, now),
     createdAt: now,
     lastUpdatedAt: now,
     version: 0,
@@ -392,7 +462,7 @@ export function buildAnimal(
 }
 
 /**
- * Runs in both dry-run and `--commit` — resolves each photo's local path
+ * Runs in both dry-run and `--commit` - resolves each photo's local path
  * against the input file's own directory and confirms it's a real,
  * readable image, without uploading anything. This is what catches a
  * shelter's missing or corrupt photo file before the dry-run's "looks
@@ -413,7 +483,7 @@ async function validateAnimalPhotos(
 }
 
 /**
- * `NOT VERIFIED against a real bucket` — this is `--commit`-only, and the
+ * `NOT VERIFIED against a real bucket` - this is `--commit`-only, and the
  * one place in this script that calls `uploadAnimalPhoto`, which is itself
  * the one place that calls the R2 client. See `docs/h1-decisions.md`.
  *
@@ -452,6 +522,34 @@ export async function insertOnboardedShelter(
   return "inserted";
 }
 
+/**
+ * The verification a *new* animal from this run should be stamped with
+ * (S8-F5's hook 3, `buildAnimal`'s `everServedAtAfter` call).
+ *
+ * Tier 1 review finding 1 (PR #196): `buildShelter` always sets a freshly
+ * built shelter to `verified` - the status *this run* would give it, never
+ * what a shelter that already existed is at *now*. A second run against an
+ * existing shelter (adding a new animal: `docs/onboarding-a-shelter.md`'s
+ * documented re-run flow) must stamp the new animal with that shelter's
+ * real, current row - not `shelter.verification`'s optimistic value - or a
+ * card published while the shelter is paused or suspended would read as
+ * "ever served" when it was never actually shown.
+ */
+export async function verificationForNewAnimals(
+  db: Database,
+  shelter: Shelter,
+  insertResult: "inserted" | "exists",
+): Promise<ShelterVerification> {
+  if (insertResult === "inserted") return shelter.verification;
+  const stored = await shelterRepo(db).findById(shelter.id);
+  if (!stored) {
+    throw new Error(
+      `Internal error: shelter ${shelter.id} was reported as existing but not found.`,
+    );
+  }
+  return stored.verification;
+}
+
 async function main(): Promise<void> {
   // First, before anything else this script checks or reads: which database
   // it would write to. Checked even on a dry run, because it costs nothing and
@@ -487,7 +585,22 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const raw = JSON.parse(readFileSync(inputPath, "utf8"));
+  let raw: unknown = JSON.parse(readFileSync(inputPath, "utf8"));
+  try {
+    raw = await withCityIdFromSlug(raw, async (slug) => {
+      // Opened only when the file names its city by slug, and closed at once; the dry run
+      // otherwise touches no database. The same guard above already vetted `databaseUrl`.
+      const lookupSql = postgres(databaseUrl);
+      try {
+        return await cityRepo(createDatabaseWithClient(lookupSql)).resolveCurrent(slug);
+      } finally {
+        await lookupSql.end();
+      }
+    });
+  } catch (error) {
+    console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
   const parsed = OnboardInputSchema.safeParse(raw);
   if (!parsed.success) {
     console.error("ERROR: input file does not match the expected shape.");
@@ -515,7 +628,7 @@ async function main(): Promise<void> {
 
   // `noUncheckedIndexedAccess` types every `animalPhotoValidations[i]` as
   // possibly-undefined, even though `Promise.all(input.animals.map(...))`
-  // above makes an out-of-bounds index structurally impossible — same
+  // above makes an out-of-bounds index structurally impossible - same
   // length, same order, every time. Round-1 review found the original code
   // defaulting to `?? []`/`?? 0` at each call site instead: a real index
   // mismatch (a future refactor breaking the 1:1 correspondence) would
@@ -526,7 +639,7 @@ async function main(): Promise<void> {
     const validated = animalPhotoValidations[index];
     if (!validated) {
       throw new Error(
-        `Internal error: no photo validation result for animal index ${index} — ` +
+        `Internal error: no photo validation result for animal index ${index} - ` +
           "animalPhotoValidations should always have one entry per input.animals.",
       );
     }
@@ -543,7 +656,7 @@ async function main(): Promise<void> {
   // always resemble the real address (that's what a 1km radius means), so
   // eyeballing the raw coordinates was never actually checkable. A metres
   // figure inside the configured radius is.
-  console.log(`\n${commit ? "COMMIT" : "DRY RUN"} — ${input.shelter.displayName}\n`);
+  console.log(`\n${commit ? "COMMIT" : "DRY RUN"} - ${input.shelter.displayName}\n`);
   console.log("Computed public location (productionLocationPolicy output, not the input address):");
   console.log(JSON.stringify(shelter.publicLocation, null, 2));
   if (shelter.publicLocation.precision === "fuzzed_address") {
@@ -553,8 +666,8 @@ async function main(): Promise<void> {
     );
     console.log(
       `Offset from the real address: ${Math.round(offset)}m ` +
-        `(radius: ${shelter.publicLocation.approximate.precisionMetres}m) — ` +
-        `${offset > 0 && offset <= shelter.publicLocation.approximate.precisionMetres * 1.05 ? "looks right" : "CHECK THIS — outside the expected radius"}`,
+        `(radius: ${shelter.publicLocation.approximate.precisionMetres}m) - ` +
+        `${offset > 0 && offset <= shelter.publicLocation.approximate.precisionMetres * 1.05 ? "looks right" : "CHECK THIS - outside the expected radius"}`,
     );
   }
   console.log(`\nShelter id:  ${shelter.id}`);
@@ -569,12 +682,12 @@ async function main(): Promise<void> {
 
   if (!commit) {
     console.log(
-      "\nDry run only — nothing was written or uploaded. Re-run with --commit to insert.",
+      "\nDry run only - nothing was written or uploaded. Re-run with --commit to insert.",
     );
     process.exit(0);
   }
 
-  // R2 write credentials — this script's own token, operator-only, never in
+  // R2 write credentials - this script's own token, operator-only, never in
   // Vercel: this script runs from an operator's own machine, never through the
   // deployed apps/web instance. The app's kabinet uploads (K-Q2) write with a
   // different token of its own (`R2_UPLOAD_*`, P-Q10), so this one never
@@ -613,7 +726,7 @@ async function main(): Promise<void> {
   // The connection is opened here and closed explicitly below, rather than
   // through `createDatabase`, which keeps its `postgres.Sql` private. Without
   // the `end()`, postgres.js holds an idle socket open and the script never
-  // exits after printing "Done." — on a script whose whole job is writing
+  // exits after printing "Done." - on a script whose whole job is writing
   // real rows to a live database, a hang after the last log line reads as a
   // failure and invites a Ctrl+C mid-write on the next run. `seed.ts` ends
   // its own client for the same reason.
@@ -624,26 +737,31 @@ async function main(): Promise<void> {
   const scriptActor = { moderatorId: FOUNDER_MODERATOR_ID, now };
 
   const cityId = input.shelter.exactAddress.cityId;
-  const city = await cities.findById(cityId);
+  const city = await cities.findCurrentById(cityId);
   if (!city) {
+    const existing = await cities.findById(cityId);
     console.error(
-      `ERROR: city ${cityId} does not exist. Cities are seeded once and not created here.`,
+      existing
+        ? `ERROR: city ${cityId} is retired. ${RETIRED_CITY_MESSAGE}`
+        : `ERROR: city ${cityId} does not exist. Cities are seeded once and not created here.`,
     );
     process.exit(1);
   }
 
-  if ((await insertOnboardedShelter(db, shelter, scriptActor)) === "exists") {
-    console.log(
-      `\nShelter ${shelter.id} already exists — skipping (re-run is safe, not duplicating).`,
-    );
-  } else {
-    console.log(`\nInserted shelter ${shelter.id}.`);
-  }
+  const insertResult = await insertOnboardedShelter(db, shelter, scriptActor);
+  console.log(
+    insertResult === "exists"
+      ? `\nShelter ${shelter.id} already exists - skipping (re-run is safe, not duplicating).`
+      : `\nInserted shelter ${shelter.id}.`,
+  );
+  // S8-F5, Tier 1 review finding 1: see verificationForNewAnimals' own doc
+  // comment for why this can't just be `shelter.verification`.
+  const shelterVerification = await verificationForNewAnimals(db, shelter, insertResult);
 
-  // Existence checked BEFORE uploading, not after — round-1 review found
+  // Existence checked BEFORE uploading, not after - round-1 review found
   // the original order (upload every animal's photos, then check
   // existence) wasted a real upload on every already-inserted animal on
-  // every retry, and — worse — silently discarded an edited photo list:
+  // every retry, and - worse - silently discarded an edited photo list:
   // an operator re-running after adding a photo would see "Uploading N
   // photo(s)..." followed by "skipped, already present" and reasonably
   // conclude the new photo landed. It uploaded to R2 and was never
@@ -651,13 +769,13 @@ async function main(): Promise<void> {
   // case with a loud warning instead of a silent no-op.
   //
   // Round-2 review found this still doesn't catch a one-for-one photo
-  // REPLACEMENT — count stays the same, so the check below can't tell a
+  // REPLACEMENT - count stays the same, so the check below can't tell a
   // fresh file apart from the one already recorded, and stays silent.
   // docs/onboarding-a-shelter.md's own re-run section states this limit
   // plainly rather than overclaiming the warning catches every edit.
   //
   // NOT VERIFIED against a real bucket until this actually runs against
-  // one — see docs/h1-decisions.md's explicit list (auth, CORS,
+  // one - see docs/h1-decisions.md's explicit list (auth, CORS,
   // content-type, whether the public URL resolves).
   let insertedCount = 0;
   let skippedCount = 0;
@@ -670,7 +788,7 @@ async function main(): Promise<void> {
       skippedCount += 1;
       if (existingAnimal.photos.length !== validated.length) {
         mismatchCount += 1;
-        // console.error, not console.log — round-2 review found the
+        // console.error, not console.log - round-2 review found the
         // original console.log call could scroll off above the final
         // success-shaped summary line unnoticed. The count below in that
         // summary is the second half of making this loud, not just
@@ -679,7 +797,7 @@ async function main(): Promise<void> {
           `\nWARNING: ${animalInput.name} (${animalId}) already exists with ` +
             `${existingAnimal.photos.length} photo(s), but this input now lists ` +
             `${validated.length}. Nothing was uploaded or changed for ` +
-            "this animal — re-running does not update an existing row. If the photo list " +
+            "this animal - re-running does not update an existing row. If the photo list " +
             "genuinely changed, this needs a real update path, not a re-run of this script.",
         );
       }
@@ -687,7 +805,10 @@ async function main(): Promise<void> {
     }
     console.log(`Uploading ${validated.length} photo(s) for ${animalInput.name}...`);
     const photos = await uploadAnimalPhotos(r2, animalId, validated);
-    await animalsRepo.insert(buildAnimal(animalInput, photos, shelter.id, now), cityId);
+    await animalsRepo.insert(
+      buildAnimal(animalInput, photos, { id: shelter.id, verification: shelterVerification }, now),
+      cityId,
+    );
     insertedCount += 1;
   }
 
@@ -702,14 +823,14 @@ async function main(): Promise<void> {
   console.log(
     `Inserted ${insertedCount} animal(s), skipped ${skippedCount} already present` +
       (mismatchCount > 0
-        ? ` (${mismatchCount} with a photo-count mismatch — see WARNINGs above)`
+        ? ` (${mismatchCount} with a photo-count mismatch - see WARNINGs above)`
         : "") +
       ". Done.",
   );
 }
 
 // Only run the CLI when this file is executed directly (`tsx src/onboard-
-// shelter.ts`), not when its exports are imported for testing — importing a
+// shelter.ts`), not when its exports are imported for testing - importing a
 // module must never have the side effect of running its whole script.
 // `pathToFileURL`, not a manual `file://` prefix: on Windows argv[1] is a
 // backslash path with no leading slash, and a naive string concatenation

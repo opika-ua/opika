@@ -4,9 +4,12 @@ import {
   animalPhotoStorageKeyFor,
   IMAGE_VARIANTS,
   isRealPhotoKey,
+  LOGO_VARIANTS,
   nearestVariant,
   r2EndpointUrl,
   r2PublicUrl,
+  shelterLogoStorageKeyFor,
+  storageKeyFromObjectKey,
   variantObjectKey,
 } from "./variants";
 
@@ -14,23 +17,30 @@ const ANIMAL_ID = AnimalIdSchema.parse("a0000000-0000-4000-8000-000000000000");
 
 describe("nearestVariant", () => {
   it("picks thumb for anything at or below 176", () => {
-    expect(nearestVariant(88)).toBe("thumb");
-    expect(nearestVariant(176)).toBe("thumb");
+    expect(nearestVariant(IMAGE_VARIANTS, 88)).toBe("thumb");
+    expect(nearestVariant(IMAGE_VARIANTS, 176)).toBe("thumb");
   });
 
   it("picks card for the measured gallery/deck 2x range", () => {
-    expect(nearestVariant(177)).toBe("card");
-    expect(nearestVariant(624)).toBe("card");
-    expect(nearestVariant(640)).toBe("card");
+    expect(nearestVariant(IMAGE_VARIANTS, 177)).toBe("card");
+    expect(nearestVariant(IMAGE_VARIANTS, 624)).toBe("card");
+    expect(nearestVariant(IMAGE_VARIANTS, 640)).toBe("card");
   });
 
   it("picks detail for anything above card, up to and beyond the detail width", () => {
-    expect(nearestVariant(641)).toBe("detail");
-    expect(nearestVariant(1120)).toBe("detail");
+    expect(nearestVariant(IMAGE_VARIANTS, 641)).toBe("detail");
+    expect(nearestVariant(IMAGE_VARIANTS, 1120)).toBe("detail");
   });
 
-  it("never upscales past detail — the largest variant is the ceiling", () => {
-    expect(nearestVariant(4000)).toBe("detail");
+  it("never upscales past detail - the largest variant is the ceiling", () => {
+    expect(nearestVariant(IMAGE_VARIANTS, 4000)).toBe("detail");
+  });
+
+  it("picks the logo's own small/large variants, generic over a different set (pet card PR 3b)", () => {
+    expect(nearestVariant(LOGO_VARIANTS, 40)).toBe("small");
+    expect(nearestVariant(LOGO_VARIANTS, 80)).toBe("small");
+    expect(nearestVariant(LOGO_VARIANTS, 81)).toBe("large");
+    expect(nearestVariant(LOGO_VARIANTS, 4000)).toBe("large");
   });
 });
 
@@ -51,6 +61,27 @@ describe("animalPhotoStorageKeyFor", () => {
   });
 });
 
+describe("shelterLogoStorageKeyFor", () => {
+  const SHELTER_ID = "51000000-0000-4000-8000-000000000001";
+
+  it("is shelters/{shelterId}/logo/{logoId} for a v4 UUID logo id (pet card PR 3b)", () => {
+    expect(
+      shelterLogoStorageKeyFor(SHELTER_ID as never, "b1000000-0000-4000-8000-000000000001"),
+    ).toBe(
+      "shelters/51000000-0000-4000-8000-000000000001/logo/b1000000-0000-4000-8000-000000000001",
+    );
+  });
+
+  it.each([
+    ["an array index", "0"],
+    ["a non-v4 UUID", "b1000000-0000-1000-8000-000000000001"],
+    ["a path segment", "../other"],
+    ["empty", ""],
+  ])("refuses %s, so no key can be reused", (_label, logoId) => {
+    expect(() => shelterLogoStorageKeyFor(SHELTER_ID as never, logoId)).toThrow(/fresh random/);
+  });
+});
+
 describe("variantObjectKey", () => {
   it("appends the variant name and .webp extension", () => {
     expect(variantObjectKey("animals/x/0", "card")).toBe("animals/x/0/card.webp");
@@ -59,14 +90,34 @@ describe("variantObjectKey", () => {
   });
 });
 
+describe("storageKeyFromObjectKey (the R2 clean-up job's own need, the inverse of variantObjectKey)", () => {
+  it("recovers the storage key for each real variant", () => {
+    for (const variant of ["thumb", "card", "detail"] as const) {
+      expect(storageKeyFromObjectKey(variantObjectKey("animals/x/0", variant))).toBe("animals/x/0");
+    }
+  });
+
+  it("round-trips through variantObjectKey for a realistic key with slashes in the storage key itself", () => {
+    const storageKey = animalPhotoStorageKeyFor(ANIMAL_ID, "b1000000-0000-4000-8000-000000000001");
+    expect(storageKeyFromObjectKey(variantObjectKey(storageKey, "card"))).toBe(storageKey);
+  });
+
+  it("refuses anything that isn't a real variant object key, rather than mis-parsing it", () => {
+    expect(storageKeyFromObjectKey("animals/x/0")).toBeNull();
+    expect(storageKeyFromObjectKey("animals/x/0/original.jpg")).toBeNull();
+    expect(storageKeyFromObjectKey("animals/x/0/thumb.jpg")).toBeNull();
+    expect(storageKeyFromObjectKey("not-a-photo-key")).toBeNull();
+  });
+});
+
 describe("isRealPhotoKey", () => {
   it("recognises the animals/ namespace this module writes keys into", () => {
     expect(isRealPhotoKey("animals/a0000000-0000-4000-8000-000000000000/0")).toBe(true);
   });
 
-  it("does not mistake seed.ts's actual storage keys for real ones — no leading slash either way", () => {
+  it("does not mistake seed.ts's actual storage keys for real ones - no leading slash either way", () => {
     // packages/db/src/seed.ts literally stores "seed-photos/dog-1.jpg", not
-    // "/seed-photos/dog-1.jpg" — a leading-slash check can't tell these
+    // "/seed-photos/dog-1.jpg" - a leading-slash check can't tell these
     // apart, which is exactly why this function doesn't use one.
     expect(isRealPhotoKey("seed-photos/cat-1.jpg")).toBe(false);
     expect(isRealPhotoKey("seed-photos/dog-5.jpg")).toBe(false);
@@ -75,6 +126,18 @@ describe("isRealPhotoKey", () => {
   it("does not mistake an already-root-relative static asset for a real key", () => {
     expect(isRealPhotoKey("/icon.svg")).toBe(false);
     expect(isRealPhotoKey("/_next/static/media/logo.png")).toBe(false);
+  });
+
+  it("recognises a real logo key (pet card PR 3b), never the rest of a shelter's own path", () => {
+    expect(isRealPhotoKey("shelters/51000000-0000-4000-8000-000000000001/logo/0")).toBe(true);
+    // The exact probe shapes a Tier 1 review found this job must never treat
+    // as a real image (PR #220's STOP): verification evidence, a future
+    // cover photo elsewhere under the shelter's own path, a bare file.
+    expect(
+      isRealPhotoKey("shelters/51000000-0000-4000-8000-000000000001/evidence/statute.pdf"),
+    ).toBe(false);
+    expect(isRealPhotoKey("shelters/51000000-0000-4000-8000-000000000001/cover/0")).toBe(false);
+    expect(isRealPhotoKey("shelters/readme.txt")).toBe(false);
   });
 });
 
@@ -88,6 +151,12 @@ describe("r2PublicUrl", () => {
   it("does not double a trailing slash on the base url", () => {
     expect(r2PublicUrl("https://cdn.example.com/", "animals/x/0", "card")).toBe(
       "https://cdn.example.com/animals/x/0/card.webp",
+    );
+  });
+
+  it("derives a logo's own variant too (pet card PR 3b)", () => {
+    expect(r2PublicUrl("https://cdn.example.com", "shelters/s/logo/0", "small")).toBe(
+      "https://cdn.example.com/shelters/s/logo/0/small.webp",
     );
   });
 });

@@ -32,7 +32,7 @@ describe("discoverableListingKind", () => {
   /**
    * The throw branch, exercised rather than assumed. Without this the guard is
    * decoration: inverting its condition would leave every other test in the
-   * repository green, since no query ever produces one of these today — which
+   * repository green, since no query ever produces one of these today - which
    * is exactly the point, because the day one does is the day this has to fire.
    */
   const nonDiscoverable = (Object.keys(LISTINGS) as AnimalListingState["kind"][]).filter(

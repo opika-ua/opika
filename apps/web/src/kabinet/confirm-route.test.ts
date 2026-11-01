@@ -6,11 +6,22 @@ import { inMemoryRateLimiter } from "../api/rate-limit";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import { CONFIRM_PATH, createKabinetAuth, type KabinetAuth } from "./auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "./auth-route";
-import { handleKabinetConfirm } from "./confirm-route";
+import {
+  CREDENTIAL_PAGE_REFERRER_POLICY,
+  handleKabinetConfirm,
+  isSameOriginPost,
+  STRIP_TOKEN_FROM_ADDRESS_BAR,
+} from "./confirm-route";
 import { SIGN_IN_LINK } from "./email-links";
 import { capturingInvitationSender } from "./email-senders";
 import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
 import { capturingSender } from "./magic-link-sender";
+import { generousPasswordLimiters } from "./password-limits";
+import { capturingPasswordMail } from "./password-mail";
+
+// Better Auth 1.7 asks how a user came to be; it is read only by `validateUserInfo`, which is
+// unset here. These fixtures stand in for the operator's server-side invitation write.
+const OPERATOR_INVITE = { method: "operator-invite" } as const;
 
 /**
  * IN-Q11: a GET never consumes anything. Real Better Auth, real Postgres,
@@ -55,12 +66,15 @@ beforeEach(async () => {
     secureCookies: false,
     // #95's kabinet limiters on verify/get-session/sign-out: never refusing,
     // only recorded, for the charge-once test below.
+    passwordLimiters: generousPasswordLimiters(),
+    passwordMail: capturingPasswordMail(),
     limiters: { perUser: recording("perUser"), perIp: recording("perIp") },
   });
 });
 
 const available: KabinetAuthAvailability = {
   kind: "available",
+  passwordMail: capturingPasswordMail(),
   sender: capturingSender(),
   invites: capturingInvitationSender(),
   secret: "unused-here",
@@ -76,11 +90,10 @@ const deps = (acceptInvitation: AcceptInvitation = realAccept()) => ({
 /** A known user asks to sign in; returns the emailed link. */
 async function emailedLink(): Promise<string> {
   const ctx = await auth.$context;
-  await ctx.internalAdapter.createUser({
-    email: "olena@example.org",
-    name: "Олена",
-    emailVerified: true,
-  });
+  await ctx.internalAdapter.createUser(
+    { email: "olena@example.org", name: "Олена", emailVerified: true },
+    OPERATOR_INVITE,
+  );
   await handleKabinetAuth(
     new Request(`${BASE}/api/auth/sign-in/magic-link`, {
       method: "POST",
@@ -288,6 +301,30 @@ describe("login CSRF (IN-T7)", () => {
   });
 });
 
+/**
+ * Oleksii, 2026-10-20, verbatim: "PW1-Q1: (a). Use strict-origin on pages whose button submits an
+ * ordinary form (the magic-link confirm page), and no-referrer everywhere else as specified (the
+ * reset page included). … Add a test that the confirm page's form submission passes IN-T8, so this
+ * can't regress." A browser's Origin on a same-origin form POST (Fetch, "append a request Origin
+ * header"): `null` under `no-referrer`, the page's origin under a policy that sends one. The harness
+ * (`kabinet-confirm.harness.ts`) drives a real browser through the same POST.
+ */
+describe("the confirm page's own Referrer-Policy and IN-T8 (PW1-Q1)", () => {
+  const originOfFormPost = (policy: string, pageOrigin: string): string =>
+    policy === "no-referrer" ? "null" : pageOrigin;
+
+  it("under the confirm page's policy, the «Увійти» POST keeps an Origin that passes the check", () => {
+    expect(CREDENTIAL_PAGE_REFERRER_POLICY).not.toBe("no-referrer");
+    expect(isSameOriginPost(originOfFormPost(CREDENTIAL_PAGE_REFERRER_POLICY, BASE), BASE)).toBe(
+      true,
+    );
+  });
+
+  it("under no-referrer the same POST would be refused: why this page alone keeps strict-origin", () => {
+    expect(isSameOriginPost(originOfFormPost("no-referrer", BASE), BASE)).toBe(false);
+  });
+});
+
 /** Production with sign-in off: the harness's own case (`next start` off Vercel). */
 const OFF_IN_PRODUCTION = {
   kind: "unavailable",
@@ -325,7 +362,11 @@ describe("the page itself", () => {
     const html = await shown.text();
     expect(shown.status).toBe(400);
     expect(html).not.toContain("<form");
-    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<script>x");
+    // The page's only script is its own: taking the token out of the address bar (2026-10-20).
+    expect([...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1])).toEqual([
+      STRIP_TOKEN_FROM_ADDRESS_BAR,
+    ]);
   });
 
   it("answers 404 to both methods while kabinet sign-in is unavailable, consuming nothing", async () => {

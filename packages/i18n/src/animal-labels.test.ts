@@ -1,6 +1,14 @@
 import { AGE_BUCKETS, SIZE_BUCKETS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { ageBucketLabel, ageWordFor, sizeLabel } from "./animal-labels";
+import {
+  ageBucketLabel,
+  ageChipWordFor,
+  ageWordFor,
+  sexWordFor,
+  sizeChipWordFor,
+  sizeLabel,
+  speciesWordFor,
+} from "./animal-labels";
 
 describe("ageBucketLabel", () => {
   it("returns a distinct, non-empty word for every bucket", () => {
@@ -47,5 +55,74 @@ describe("ageWordFor, each sex × bucket", () => {
 
   it("the masculine words are the card's long-standing ones, unchanged", () => {
     expect(AGE_BUCKETS.map(ageBucketLabel)).toEqual(["малюк", "молодий", "дорослий", "літній"]);
+  });
+});
+
+/** The pet card's chip: the same agreement as `ageWordFor`, capitalised. Every sex × bucket. */
+describe("ageChipWordFor, each sex × bucket", () => {
+  it.each([
+    ["male", "baby", "Малюк"],
+    ["male", "young", "Молодий"],
+    ["male", "adult", "Дорослий"],
+    ["male", "senior", "Літній"],
+    ["female", "baby", "Малючка"],
+    ["female", "young", "Молода"],
+    ["female", "adult", "Доросла"],
+    ["female", "senior", "Літня"],
+    ["unknown", "baby", "Малюк"],
+    ["unknown", "young", "Молодий"],
+    ["unknown", "adult", "Дорослий"],
+    ["unknown", "senior", "Літній"],
+  ] as const)("%s, %s → «%s»", (sex, bucket, word) => {
+    expect(ageChipWordFor(bucket, sex)).toBe(word);
+  });
+});
+
+/** The pet card's size chip agrees with sex like the age chip. Every size × sex. */
+describe("sizeChipWordFor, each sex × size", () => {
+  it.each([
+    ["male", "small", "Малий"],
+    ["male", "medium", "Середній"],
+    ["male", "large", "Великий"],
+    ["female", "small", "Мала"],
+    ["female", "medium", "Середня"],
+    ["female", "large", "Велика"],
+    ["unknown", "small", "Малий"],
+    ["unknown", "medium", "Середній"],
+    ["unknown", "large", "Великий"],
+  ] as const)("%s, %s → «%s»", (sex, size, word) => {
+    expect(sizeChipWordFor(size, sex)).toBe(word);
+  });
+});
+
+/** gallery-v3 (Figma `58:1617`): the redesigned card names sex as its own word. */
+describe("sexWordFor", () => {
+  it.each([
+    ["male", "Хлопчик"],
+    ["female", "Дівчинка"],
+  ] as const)("%s → «%s»", (sex, word) => {
+    expect(sexWordFor(sex)).toBe(word);
+  });
+
+  it("an unknown sex has no word - the caller omits it rather than guessing", () => {
+    expect(sexWordFor("unknown")).toBeNull();
+  });
+});
+
+/**
+ * The animal page's meta description (PR B, the SEO review of page titles), owner's exact
+ * wording: cat male «Кіт», female «Кішка»; dog male «Пес», female «Собака»; unknown sex takes
+ * the masculine form, same convention `ageWordFor` above already uses.
+ */
+describe("speciesWordFor, each sex × species", () => {
+  it.each([
+    ["male", "cat", "Кіт"],
+    ["female", "cat", "Кішка"],
+    ["unknown", "cat", "Кіт"],
+    ["male", "dog", "Пес"],
+    ["female", "dog", "Собака"],
+    ["unknown", "dog", "Пес"],
+  ] as const)("%s, %s → «%s»", (sex, species, word) => {
+    expect(speciesWordFor(species, sex)).toBe(word);
   });
 });

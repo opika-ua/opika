@@ -1,14 +1,23 @@
-export { adopterRepo } from "./adopter-repo";
+export { erasableIf, eraseUsersAndScrubHistory } from "./admin-erasure-repo";
+export { adopterRepo, ORPHAN_ADOPTER_MIN_AGE_MS } from "./adopter-repo";
 export { animalRepo } from "./animal-repo";
 export {
   type AuthExpiryCounts,
   authExpiryRepo,
-  KABINET_SESSION_ABSOLUTE_MS,
+  KABINET_SESSION_LIMITS,
 } from "./auth-expiry-repo";
+export { authPasswordWriteRepo, type PasswordWrite } from "./auth-password-write-repo";
+export { authResetLinkRepo } from "./auth-reset-link-repo";
 export { cityRepo } from "./city-repo";
+export { citySearchRepo } from "./city-search-repo";
 export { type FeedCursorData, type FeedPage, feedRepo } from "./feed-repo";
 export { type GalleryPage, type GalleryRelaxationCounts, galleryRepo } from "./gallery-repo";
-export { kabinetActorRepo, type UserRole } from "./kabinet-actor-repo";
+export {
+  CREDENTIAL_PROVIDER_ID,
+  kabinetActorRepo,
+  type PasswordSubject,
+  type UserRole,
+} from "./kabinet-actor-repo";
 export {
   type AnimalHistoryRow,
   type ConditionalWrite,
@@ -30,7 +39,15 @@ export {
   type InviteResult,
   kabinetInvitationRepo,
 } from "./kabinet-invitation-repo";
-export { type InviteLandingRow, kabinetInviteLandingRepo } from "./kabinet-invite-landing-repo";
+export {
+  type InviteTokenRow,
+  inviteTokenIdentifierOf,
+  inviteTokenRowOf,
+  inviteTokenValueOf,
+  isRefusalFlagSet,
+  kabinetInviteTokenRepo,
+  type RawInviteTokenRow,
+} from "./kabinet-invite-token-repo";
 export { type CleanupCandidate, kabinetInvitedUsersRepo } from "./kabinet-invited-users-repo";
 export {
   kabinetRegistryRepo,
@@ -44,8 +61,24 @@ export {
   kabinetShelterRepo,
 } from "./kabinet-shelter-repo";
 export { kabinetSupportRepo, SUPPORT_IDLE_MS } from "./kabinet-support-repo";
-export { revealRepo } from "./reveal-repo";
-export { type SessionRow, sessionRepo } from "./session-repo";
+export {
+  afterDeleted,
+  recordScan,
+  referencedObjectKeys,
+  referencedStorageKeys,
+  stillUnreferenced,
+  trackedUnreferencedObjects,
+} from "./r2-cleanup-repo";
+export { type RevealBudget, type RevealInsertOutcome, revealRepo } from "./reveal-repo";
+export {
+  ADOPTER_CLEANUP_BATCH,
+  ADOPTER_SESSION_POLICY,
+  type AdopterSessionPolicy,
+  adopterSessionCutoffs,
+  adopterSessionLapse,
+  type SessionRow,
+  sessionRepo,
+} from "./session-repo";
 export { shelterRepo } from "./shelter-repo";
 export {
   type BootstrapResult,

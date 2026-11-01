@@ -2,7 +2,7 @@ import { NO_FILTERS } from "@opika/domain";
 import { ORPCError } from "@orpc/client";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { withToggledSpecies } from "../gallery/filter-url";
+import { withOnlySpecies } from "../gallery/filter-url";
 import { generateMockCards } from "./mock-data";
 import { useFeedDeck } from "./use-feed-deck";
 
@@ -12,7 +12,9 @@ const record = vi.fn();
 
 vi.mock("../../api/browser-client", () => ({
   feedBrowserClient: {
-    feed: { list: (...args: unknown[]) => list(...args) },
+    // A page without `cityLabels` stands for "no city to name" in the older tests below; the
+    // contract always sends the field.
+    feed: { list: async (...args: unknown[]) => ({ cityLabels: [], ...(await list(...args)) }) },
     session: { bootstrap: (...args: unknown[]) => bootstrap(...args) },
     swipes: { record: (...args: unknown[]) => record(...args) },
   },
@@ -20,7 +22,7 @@ vi.mock("../../api/browser-client", () => ({
 
 /**
  * `feedBrowserClient` is mocked at the module boundary rather than faking
- * `fetch` — this is a test of the hook's own cursor/prefetch/error-mapping
+ * `fetch` - this is a test of the hook's own cursor/prefetch/error-mapping
  * logic, not of the HTTP transport underneath it (that's what
  * `apps/web/test/harness` exercises against a real running server).
  */
@@ -41,7 +43,7 @@ describe("useFeedDeck", () => {
     await waitFor(() => expect(result.current.state.kind).toBe("ready"));
 
     // Second arg is the AbortController.signal the entry effect's cleanup
-    // uses to cancel a superseded fetch (see use-feed-deck.ts) — a real
+    // uses to cancel a superseded fetch (see use-feed-deck.ts) - a real
     // AbortSignal instance, not a literal to compare structurally against.
     expect(list).toHaveBeenCalledExactlyOnceWith(
       { filters: NO_FILTERS, cursor: null, limit: 20 },
@@ -50,9 +52,46 @@ describe("useFeedDeck", () => {
     expect(result.current.state).toEqual({ kind: "ready", cards });
   });
 
+  it("names the cities of every page fetched so far, as the reveal prints them", async () => {
+    const label = (id: string, name: string, kind: "city" | "village" = "city") => ({
+      id,
+      slug: name,
+      kind,
+      nameScope: kind === "village" ? "unique_in_region" : "unique_in_ukraine",
+      regionId: "814661e1-67de-532e-a38e-2216d8b521ff",
+      name,
+      regionShort: "Київська обл.",
+      raion: null,
+    });
+    list
+      .mockResolvedValueOnce({
+        items: generateMockCards(1),
+        nextCursor: "c1",
+        cityLabels: [label("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "Бровари")],
+      })
+      .mockResolvedValueOnce({
+        items: generateMockCards(1),
+        nextCursor: null,
+        cityLabels: [label("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "Гора", "village")],
+      });
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+    expect(result.current.cityNames).toEqual({
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa": "м. Бровари",
+    });
+
+    act(() => result.current.onPrefetch());
+    await waitFor(() => expect(Object.keys(result.current.cityNames)).toHaveLength(2));
+    expect(result.current.cityNames).toEqual({
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa": "м. Бровари",
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb": "с. Гора, Київська обл.",
+    });
+  });
+
   /**
-   * R5: the deck's total is a snapshot of the feed's start — the fresh
-   * fetch's `reachableCount` — that the header counts `shownCount` up
+   * R5: the deck's total is a snapshot of the feed's start - the fresh
+   * fetch's `reachableCount` - that the header counts `shownCount` up
    * toward. These pin each way it could drift: a prefetch overwriting it, a
    * swipe touching it, and a new feed failing to replace it.
    */
@@ -146,7 +185,7 @@ describe("useFeedDeck", () => {
     });
 
     it("is replaced by the new starting fetch when the filters change", async () => {
-      const OTHER_FILTERS = withToggledSpecies(NO_FILTERS, "dog");
+      const OTHER_FILTERS = withOnlySpecies(NO_FILTERS, "dog");
       list
         .mockResolvedValueOnce({ items: generateMockCards(3), nextCursor: null, reachableCount: 7 })
         .mockResolvedValueOnce({
@@ -165,7 +204,7 @@ describe("useFeedDeck", () => {
     });
   });
 
-  it("appends, not replaces, on prefetch — and carries the stored cursor forward", async () => {
+  it("appends, not replaces, on prefetch - and carries the stored cursor forward", async () => {
     const firstPage = generateMockCards(3);
     const secondPage = generateMockCards(2);
     list
@@ -176,7 +215,7 @@ describe("useFeedDeck", () => {
     await waitFor(() => expect(result.current.state.kind).toBe("ready"));
 
     act(() => result.current.onPrefetch());
-    // Waiting on the merged card count, not just "list was called twice" —
+    // Waiting on the merged card count, not just "list was called twice" -
     // the second call's response still has to clear its own await/setState
     // before the merge is actually visible in `state`.
     await waitFor(() =>
@@ -186,7 +225,7 @@ describe("useFeedDeck", () => {
       }),
     );
 
-    // No signal for a prefetch ("append") call — only "replace" calls
+    // No signal for a prefetch ("append") call - only "replace" calls
     // (entry, retry) carry one; see use-feed-deck.ts's own comment.
     expect(list).toHaveBeenLastCalledWith(
       { filters: NO_FILTERS, cursor: "cursor-1", limit: 20 },
@@ -202,7 +241,7 @@ describe("useFeedDeck", () => {
 
     act(() => result.current.onPrefetch());
 
-    // No second call queued — a null cursor means nothing left to ask for,
+    // No second call queued - a null cursor means nothing left to ask for,
     // not "hasn't loaded yet" (see the hook's own doc comment on this).
     await new Promise((r) => setTimeout(r, 0));
     expect(list).toHaveBeenCalledTimes(1);
@@ -222,8 +261,8 @@ describe("useFeedDeck", () => {
   });
 
   /**
-   * Caught on review: nothing pinned that mounting the deck alone — no
-   * swipe yet — doesn't already mint a session. `session.bootstrap` only
+   * Caught on review: nothing pinned that mounting the deck alone - no
+   * swipe yet - doesn't already mint a session. `session.bootstrap` only
    * fires from the first real swipe; a deck that bootstraps eagerly on
    * mount would set the `__Host-session` cookie for every visitor who
    * merely opens the deck and never decides on anything, which is a
@@ -241,11 +280,11 @@ describe("useFeedDeck", () => {
   });
 
   /**
-   * R1 (Phase R, 2026-09): the whole point of wiring this up — a skip or a
+   * R1 (Phase R, 2026-09): the whole point of wiring this up - a skip or a
    * write-intent must reach `swipes.record` with the domain's own
    * direction vocabulary (`pass`/`interested`), not the deck UI's
    * `left`/`right`, which exists only because that's the gesture, not a
-   * product concept. Bootstrap must resolve before record fires — a
+   * product concept. Bootstrap must resolve before record fires - a
    * `swipes.record` call with no session is a guaranteed
    * `UNAUTHENTICATED` (see `apps/web/src/api/handlers/swipes.ts`).
    */
@@ -276,7 +315,7 @@ describe("useFeedDeck", () => {
 
   /**
    * Mint-or-return makes a second `bootstrap` call harmless server-side,
-   * but swiping is high-frequency — this is the guarantee that the
+   * but swiping is high-frequency - this is the guarantee that the
    * *client* never pays for a second round trip it doesn't need. Verified
    * by mutation: removing `sessionReadyRef`'s memoisation in
    * `use-feed-deck.ts` (calling `feedBrowserClient.session.bootstrap`
@@ -300,7 +339,7 @@ describe("useFeedDeck", () => {
 
   /**
    * Caught on review: the memoised promise pattern above caches a
-   * *failed* bootstrap just as eagerly as a successful one — `??=` only
+   * *failed* bootstrap just as eagerly as a successful one - `??=` only
    * reassigns when the ref is null/undefined, and a resolved-false
    * promise is neither. A swipe made while briefly offline would
    * otherwise poison every later swipe in the same page load, silently,
@@ -332,7 +371,7 @@ describe("useFeedDeck", () => {
   });
 
   /**
-   * Decision #9 (`CLAUDE.md`): swipes are "best-effort and batchable" —
+   * Decision #9 (`CLAUDE.md`): swipes are "best-effort and batchable" -
    * a device offline mid-swipe must not freeze or roll back the deck the
    * adopter is already looking at. The local advance (asserted below)
    * happens synchronously inside `onSwipe`, before the async
@@ -373,7 +412,7 @@ describe("useFeedDeck", () => {
   it("an INVALID_CURSOR oRPC error maps to sessionExpired, not the generic loadFailed copy", async () => {
     // `defined: true` matters: it's what real contract-declared errors carry
     // once the client deserializes them, and what `isDefinedError` (the
-    // hook's own check) actually keys on — a bare `new ORPCError(code)`
+    // hook's own check) actually keys on - a bare `new ORPCError(code)`
     // defaults to `defined: false` and would silently take the "loadFailed"
     // branch instead, testing nothing.
     list.mockRejectedValueOnce(new ORPCError("INVALID_CURSOR", { defined: true }));
@@ -388,14 +427,28 @@ describe("useFeedDeck", () => {
    * The bug this guards: the rate limiter's raw `new Response("Too Many
    * Requests", {status:429})` (apps/web/src/app/api/rpc/[...rpc]/route.ts)
    * never reaches oRPC's own handler, so the client can't decode it as a
-   * *defined* contract error — `isDefinedError` is false for it, same as
+   * *defined* contract error - `isDefinedError` is false for it, same as
    * for any undeclared server-side failure. The hook used to key "offline"
    * off `!isDefinedError`, which put both of those on «БЕЗ ЗВ'ЯЗКУ — Зараз
    * немає інтернету» even though the server responded and the user's
    * network is fine. `error instanceof TypeError` is the real signal for
-   * "the fetch never reached a server at all" — this is not that.
+   * "the fetch never reached a server at all" - this is not that.
    */
-  it("an undeclared server-side error is loadFailed, never offline — the network is fine", async () => {
+  /**
+   * G1 (audit 2026-10-22): the limiter's raw 429 is neither offline nor the site's failure.
+   * oRPC's client reports it as `TOO_MANY_REQUESTS`, status 429, `defined: false` (checked
+   * against a real `RPCLink` answering `new Response("Too Many Requests", { status: 429 })`).
+   */
+  it("the per-IP limiter's 429 is tooManyRequests - not offline, and not loadFailed", async () => {
+    list.mockRejectedValueOnce(new ORPCError("TOO_MANY_REQUESTS"));
+
+    const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
+    await waitFor(() =>
+      expect(result.current.state).toEqual({ kind: "error", reason: "tooManyRequests" }),
+    );
+  });
+
+  it("an undeclared server-side error is loadFailed, never offline - the network is fine", async () => {
     list.mockRejectedValueOnce(new ORPCError("INTERNAL_SERVER_ERROR", { defined: false }));
 
     const { result } = renderHook(() => useFeedDeck(NO_FILTERS));
@@ -407,7 +460,7 @@ describe("useFeedDeck", () => {
   /**
    * A malformed, non-oRPC-shaped response (the raw 429 text body above is
    * exactly this in practice) doesn't necessarily deserialize as an
-   * `ORPCError` at all — it can surface as a plain parse error. Still not
+   * `ORPCError` at all - it can surface as a plain parse error. Still not
    * "offline": the server responded, it just didn't respond the way oRPC
    * expects.
    */
@@ -425,7 +478,7 @@ describe("useFeedDeck", () => {
   /**
    * The bug this guards: filters changing while a fetch for the *old*
    * filters is still in flight used to let that stale response win once it
-   * resolved — landing the old filters' cards, and its cursor, under the
+   * resolved - landing the old filters' cards, and its cursor, under the
    * new filters' header, silently. `renderHook`'s `rerender` changes the
    * hook's `filters` argument the same way a prop change would; the first
    * `list` call is left unresolved on purpose to simulate it losing the
@@ -442,7 +495,7 @@ describe("useFeedDeck", () => {
     const freshCards = generateMockCards(2);
     list.mockResolvedValueOnce({ items: freshCards, nextCursor: null });
 
-    const OTHER_FILTERS = withToggledSpecies(NO_FILTERS, "dog");
+    const OTHER_FILTERS = withOnlySpecies(NO_FILTERS, "dog");
     const { result, rerender } = renderHook(({ filters }) => useFeedDeck(filters), {
       initialProps: { filters: NO_FILTERS },
     });
@@ -451,7 +504,7 @@ describe("useFeedDeck", () => {
     await waitFor(() => expect(result.current.state.kind).toBe("ready"));
     expect(result.current.state).toEqual({ kind: "ready", cards: freshCards });
 
-    // The stale request finally resolves — it must not overwrite the
+    // The stale request finally resolves - it must not overwrite the
     // already-settled, correct state above.
     resolveStale?.({ items: generateMockCards(9), nextCursor: "stale-cursor" });
     await new Promise((r) => setTimeout(r, 0));
@@ -461,7 +514,7 @@ describe("useFeedDeck", () => {
   /**
    * The generation check (above) discards a stale *response*; this is the
    * separate guarantee that a superseded fetch is also actually cancelled,
-   * not just ignored — confirmed by mutation, not assumed: deleting the
+   * not just ignored - confirmed by mutation, not assumed: deleting the
    * entry effect's `return () => controller.abort()` in use-feed-deck.ts
    * leaves this test's `signal.aborted` false while every other test in
    * this file still passes, since none of the others can tell an aborted
@@ -471,11 +524,11 @@ describe("useFeedDeck", () => {
     let capturedSignal: AbortSignal | undefined;
     list.mockImplementationOnce((_input, options?: { signal?: AbortSignal }) => {
       capturedSignal = options?.signal;
-      return new Promise(() => {}); // never resolves — only the abort matters
+      return new Promise(() => {}); // never resolves - only the abort matters
     });
     list.mockResolvedValueOnce({ items: generateMockCards(1), nextCursor: null });
 
-    const OTHER_FILTERS = withToggledSpecies(NO_FILTERS, "dog");
+    const OTHER_FILTERS = withOnlySpecies(NO_FILTERS, "dog");
     const { rerender } = renderHook(({ filters }) => useFeedDeck(filters), {
       initialProps: { filters: NO_FILTERS },
     });

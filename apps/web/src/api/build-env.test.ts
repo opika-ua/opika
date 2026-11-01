@@ -28,6 +28,8 @@ const UPLOAD = {
   R2_BUCKET_NAME: "example-photo-bucket",
   R2_UPLOAD_ACCESS_KEY_ID: "example-upload-key-id",
   R2_UPLOAD_SECRET_ACCESS_KEY: "example-upload-secret-value",
+  R2_CLEANUP_ACCESS_KEY_ID: "example-cleanup-key-id",
+  R2_CLEANUP_SECRET_ACCESS_KEY: "example-cleanup-secret-value",
 } as const;
 // A recognisable value, so a test can show it never reaches the message.
 const SHORT_SECRET = "short-secret-value-0123456789ab"; // 31 characters
@@ -284,7 +286,15 @@ describe("assertBuildEnv: production sign-in's variables (IN-R2, Decision 1)", (
     expect(message).toMatch(/RESEND_API_KEY, EMAIL_REPLY_TO, BETTER_AUTH_SECRET/);
     // An unknown provider names no key (there is no variable for it) but is still refused.
     expect(messageOf({ ...production, EMAIL_PROVIDER: "sendgrid" })).toMatch(
-      /EMAIL_PROVIDER must be one of resend, postmark, brevo/,
+      /EMAIL_PROVIDER must be resend: every email it routes is an auth email/,
+    );
+    // PW1-Q4: nor does a locked one. Brevo without its key is refused as Brevo, never sent to
+    // look for a BREVO_API_KEY that couldn't configure anything.
+    const brevo = messageOf({ ...production, EMAIL_PROVIDER: "brevo" });
+    expect(brevo).toMatch(/EMAIL_PROVIDER must be resend: every email it routes is an auth email/);
+    expect(brevo).not.toContain("BREVO_API_KEY");
+    expect(messageOf({ ...production, EMAIL_SIGN_IN_PROVIDER: "brevo" })).toMatch(
+      /EMAIL_SIGN_IN_PROVIDER must be unset or resend: every email it routes is an auth email/,
     );
   });
 
@@ -320,9 +330,14 @@ describe("assertBuildEnv: production sign-in's variables (IN-R2, Decision 1)", (
       /EMAIL_REPLY_TO must be an address on PRODUCTION_ORIGIN's host/,
     ],
     [
-      "a sign-in route naming Brevo with no Brevo key",
-      { EMAIL_SIGN_IN_PROVIDER: "brevo" },
-      /EMAIL_SIGN_IN_PROVIDER=brevo needs BREVO_API_KEY/,
+      "a sign-in route naming Brevo, its key set (PW1-Q4)",
+      { EMAIL_SIGN_IN_PROVIDER: "brevo", BREVO_API_KEY: "brevo-key-example" },
+      /EMAIL_SIGN_IN_PROVIDER must be unset or resend: every email it routes is an auth email/,
+    ],
+    [
+      "the default route naming Brevo, its key set (PW1-Q4)",
+      { EMAIL_PROVIDER: "brevo", BREVO_API_KEY: "brevo-key-example" },
+      /EMAIL_PROVIDER must be resend: every email it routes is an auth email/,
     ],
   ])(
     "fails a production build with %s, naming the problem and never a value",
@@ -330,6 +345,7 @@ describe("assertBuildEnv: production sign-in's variables (IN-R2, Decision 1)", (
       const message = messageOf({ ...production, ...change });
       expect(message).toMatch(problem);
       expect(message).not.toContain(SIGN_IN.RESEND_API_KEY);
+      expect(message).not.toContain("brevo-key-example");
       expect(message).not.toContain(SHORT_SECRET.slice(0, 8));
     },
   );

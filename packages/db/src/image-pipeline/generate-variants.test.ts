@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { attentionCropBox, generateVariants } from "./generate-variants";
 import { IMAGE_VARIANTS } from "./variants";
 
-// Deliberate cross-package coupling, not an accident — real photographs
+// Deliberate cross-package coupling, not an accident - real photographs
 // (off-centre subjects, real JPEG artefacts, real varied aspect ratios)
 // catch things a synthetic fixture wouldn't, and apps/web/public/
 // seed-photos/ already has nine of them with a licence file next to them.
@@ -32,12 +32,12 @@ function isRed([r, g, b]: [number, number, number]): boolean {
 
 describe("generateVariants", () => {
   it("produces exactly the three named variants", async () => {
-    const variants = await generateVariants(REAL_PHOTO);
+    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO);
     expect(Object.keys(variants).sort()).toEqual(["card", "detail", "thumb"]);
   });
 
   it("each variant is a real WebP at exactly its specified dimensions", async () => {
-    const variants = await generateVariants(REAL_PHOTO);
+    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO);
     for (const [name, buffer] of Object.entries(variants)) {
       const meta = await sharp(buffer).metadata();
       const spec = IMAGE_VARIANTS[name as keyof typeof IMAGE_VARIANTS];
@@ -47,25 +47,27 @@ describe("generateVariants", () => {
     }
   });
 
-  it("actually shrinks a real photo — sanity check against a no-op bug", async () => {
+  it("actually shrinks a real photo - sanity check against a no-op bug", async () => {
     const originalSize = REAL_PHOTO.byteLength;
-    const variants = await generateVariants(REAL_PHOTO);
+    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO);
     // Round-1 review found the original assertion here
     // (`toBeLessThan(originalSize * 2)`) passed even against a mutated
-    // pass-through no-op — `originalSize < originalSize * 2` is trivially
+    // pass-through no-op - `originalSize < originalSize * 2` is trivially
     // true regardless of what generateVariants does. A real, checkable
     // claim instead: WebP at quality 82 (generate-variants.ts) compresses
     // this real fixture smaller than its own JPEG source, even though
     // `detail` (1120x1400) has more pixels than cat-1.jpg's original
-    // 1024x490 — confirmed empirically against this exact fixture, not
+    // 1024x490 - confirmed empirically against this exact fixture, not
     // assumed to hold for photos in general.
-    expect(variants.detail.byteLength).toBeLessThan(originalSize);
-    expect(variants.thumb.byteLength).toBeLessThan(variants.detail.byteLength);
+    const detail = variants.detail;
+    const thumb = variants.thumb;
+    expect(detail.byteLength).toBeLessThan(originalSize);
+    expect(thumb.byteLength).toBeLessThan(detail.byteLength);
   });
 
-  it("handles a landscape source without distortion — cover crop, not squeeze", async () => {
+  it("handles a landscape source without distortion - cover crop, not squeeze", async () => {
     // dog-3.jpg is a real landscape photo in the seed corpus (per
-    // apps/web/public/seed-photos/SOURCES.md) — this is the exact case a
+    // apps/web/public/seed-photos/SOURCES.md) - this is the exact case a
     // centre-crop-without-saliency would risk cropping the subject out of.
     const landscape = readFileSync(resolve(REPO_ROOT, "apps/web/public/seed-photos/dog-3.jpg"));
     const sourceMeta = await sharp(landscape).metadata();
@@ -73,16 +75,16 @@ describe("generateVariants", () => {
       sourceMeta.height ?? 0,
     );
 
-    const variants = await generateVariants(landscape);
+    const variants = await generateVariants(IMAGE_VARIANTS, landscape);
     const cardMeta = await sharp(variants.card).metadata();
     // fit: "cover" always produces the exact target box regardless of
-    // source aspect ratio — this is the property that proves no distortion
+    // source aspect ratio - this is the property that proves no distortion
     // (a "fill" resize would also hit the target box, but by squeezing).
     expect(cardMeta.width).toBe(IMAGE_VARIANTS.card.width);
     expect(cardMeta.height).toBe(IMAGE_VARIANTS.card.height);
   });
 
-  it("applies EXIF orientation, not just source pixels — round-2 review found this untested", async () => {
+  it("applies EXIF orientation, not just source pixels - round-2 review found this untested", async () => {
     // Round-2 review found that removing generateVariants' .rotate() call
     // left every prior test in this file green, since fixed-size crops
     // can't reveal a missing rotation from dimensions alone. Direct pixel
@@ -108,7 +110,7 @@ describe("generateVariants", () => {
     // Every variant: the displayed 200 × 300 covers `thumb` (scaled down,
     // then cropped) but not `card` or `detail` (cropped, then enlarged), so
     // both paths through `generateVariants` are held to the rotation.
-    const variants = await generateVariants(source);
+    const variants = await generateVariants(IMAGE_VARIANTS, source);
     for (const [name, bytes] of Object.entries(variants)) {
       const { data, info } = await sharp(bytes).raw().toBuffer({ resolveWithObject: true });
 

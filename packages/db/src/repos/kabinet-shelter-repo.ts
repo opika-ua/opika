@@ -1,4 +1,5 @@
 import {
+  DISCOVERABLE_LISTING_KINDS,
   type DonationLink,
   type ExactAddress,
   type FreshnessSentence,
@@ -11,9 +12,10 @@ import {
   type ShelterHistoryEntry,
   type ShelterId,
   type ShelterLegalEntity,
+  type ShelterLogo,
   type ShelterVerification,
 } from "@opika/domain";
-import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
 import { shelterHistory } from "../schema/shelter-history";
@@ -33,6 +35,8 @@ export type AuditedShelterChange =
   | { kind: "verification"; verification: ShelterVerification }
   | { kind: "description"; description: LocalizedText }
   | { kind: "legal_entity"; legalEntity: ShelterLegalEntity }
+  /** The shelter's own logo, set or cleared (pet card PR 3b). */
+  | { kind: "logo"; logo: ShelterLogo | null }
   /**
    * The premises moved (S4). The public location is recomputed by the caller
    * with the location policy and travels with the address, never apart from
@@ -45,6 +49,8 @@ export type AuditedShelterChange =
   | { kind: "display_name"; displayName: string };
 
 export type AuditedWriteResult = { kind: "ok" } | { kind: "conflict" };
+
+type WriteCte = Parameters<Database["with"]>[number];
 
 function columnsOf(change: AuditedShelterChange) {
   switch (change.kind) {
@@ -72,6 +78,8 @@ function columnsOf(change: AuditedShelterChange) {
     }
     case "legal_entity":
       return { legalEntity: change.legalEntity };
+    case "logo":
+      return { logo: change.logo };
     case "exact_address":
       return {
         exactAddress: change.exactAddress,
@@ -161,24 +169,65 @@ export function kabinetShelterRepo(db: Database) {
           .returning({ id: shelters.id }),
       );
       const moved = input.changes.find((change) => change.kind === "exact_address");
-      const withs =
-        moved === undefined
-          ? [upd]
-          : [
-              upd,
-              db.$with("moved").as(
-                db
-                  .update(animals)
-                  .set({ cityId: moved.publicLocation.cityId as never })
-                  .where(
-                    and(
-                      sql`${animals.shelterId} IN (SELECT "id" FROM "upd")`,
-                      isNull(animals.publicLocation),
-                    ),
-                  )
-                  .returning({ id: animals.id }),
-              ),
-            ];
+      // S8-F5, hook 2: entering `verified` (approve, resume, reinstate - the
+      // only three events `transition()` can produce this status for) can
+      // make animals visible that a publish never stamped, because they
+      // were published while this shelter was pending, paused or suspended.
+      // Every one of that shelter's currently-discoverable, not-yet-stamped
+      // animals gets it in the same statement as the shelter's own write.
+      const becomesVerified = input.changes.some(
+        (change) => change.kind === "verification" && change.verification.status === "verified",
+      );
+      const extraWrites: WriteCte[] = [];
+      // Tier 1 review finding 5 (PR #196): an address move and a verification
+      // change used to be two separate sibling CTEs, each its own UPDATE of
+      // `animals`. When a single audited write carries both (a profile edit
+      // and an approval in one call) and they target the same row - any
+      // animal at the shelter's own premises, not fostered - Postgres's
+      // documented behaviour for two data-modifying WITH statements racing
+      // the same row is "the results are unspecified": observed empirically
+      // as `city_id` silently not moving while `everServedAt` still got set.
+      // Merged into one UPDATE so a row is written at most once; each
+      // column's own eligibility is re-checked independently with CASE, so a
+      // row that qualifies for only one of the two still gets exactly that
+      // one column touched.
+      if (moved !== undefined || becomesVerified) {
+        const movedCondition = moved !== undefined ? isNull(animals.publicLocation) : undefined;
+        const servedCondition = becomesVerified
+          ? and(
+              inArray(animals.listingKind, [...DISCOVERABLE_LISTING_KINDS]),
+              isNull(animals.everServedAt),
+            )
+          : undefined;
+        const rowFilter =
+          movedCondition !== undefined && servedCondition !== undefined
+            ? or(movedCondition, servedCondition)
+            : (movedCondition ?? servedCondition);
+        if (rowFilter === undefined) {
+          throw new Error("Unreachable: at least one of moved/becomesVerified is set");
+        }
+        extraWrites.push(
+          db.$with("visibility").as(
+            db
+              .update(animals)
+              .set({
+                ...(moved === undefined
+                  ? {}
+                  : {
+                      cityId: sql`CASE WHEN ${isNull(animals.publicLocation)} THEN ${moved.publicLocation.cityId} ELSE ${animals.cityId} END`,
+                    }),
+                ...(becomesVerified
+                  ? {
+                      everServedAt: sql`CASE WHEN ${inArray(animals.listingKind, [...DISCOVERABLE_LISTING_KINDS])} THEN COALESCE(${animals.everServedAt}, ${input.now.toISOString()}::timestamptz) ELSE ${animals.everServedAt} END`,
+                    }
+                  : {}),
+              })
+              .where(and(sql`${animals.shelterId} IN (SELECT "id" FROM "upd")`, rowFilter))
+              .returning({ id: animals.id }),
+          ),
+        );
+      }
+      const withs = [upd, ...extraWrites];
       // One SELECT per entry, each reading `upd`: no update, no history.
       const rows = sql.join(
         input.entries.map(

@@ -9,6 +9,7 @@ import {
   type ShelterContact,
   type ShelterHistoryEntry,
   type ShelterId,
+  type ShelterLogo,
   shelterFacingVerificationOf,
   transition,
   type VerificationEvent,
@@ -16,8 +17,10 @@ import {
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { ShelterReadScope, ShelterWriteScope } from "../access";
 import type { KabinetContext } from "../context";
+import { shelterUploadKey } from "../rate-limits";
+import { withinBudget } from "./photos";
 
-export type ProfileDeps = Pick<KabinetContext, "db" | "now" | "newId">;
+export type ProfileDeps = Pick<KabinetContext, "db" | "now" | "newId" | "photoUploads">;
 
 type CasErrors = ORPCErrorConstructorMap<{ CONFLICT: typeof apiErrors.CONFLICT }>;
 type TransitionErrors = ORPCErrorConstructorMap<{
@@ -41,6 +44,7 @@ export function kabinetShelterViewOf(shelter: Shelter): KabinetShelterView {
     donation: shelter.donation,
     pendingDonation: shelter.pendingDonation,
     freshnessSentence: shelter.freshnessSentence,
+    logo: shelter.logo,
     version: shelter.version,
     verification: shelterFacingVerificationOf(shelter.verification),
   };
@@ -229,6 +233,97 @@ export const profileCancelDonationProposal = (deps: ProfileDeps, scope: ShelterW
           kind: "write",
           change: { kind: "pending_donation", pendingDonation: null },
           entry: { kind: "donation_proposal_cancelled", at: deps.now, actor: actorOf(scope) },
+        },
+  );
+
+/**
+ * A stored logo file no shelter row points at any more: logged the same way
+ * `photos.ts`'s own `logOrphan` is, under a distinct event name so the two
+ * pipelines stay tellable apart in the logs. Nothing deletes it in code - the
+ * R2 clean-up job reclaims it after the grace period (pet card PR 4).
+ */
+const logOrphan = (storageKey: string) => console.error({ event: "logo_orphaned", storageKey });
+
+/**
+ * `shelter.logo.set` (pet card PR 3b): checked and re-encoded the same way a
+ * `shelter.photos.add` upload is (`prepareUploadedLogo` - same magic-byte
+ * sniff, same `PHOTO_MAX_EDGE_PX` ceiling, same metadata stripping - just a
+ * different, square variant set), charged to the shelter's *existing* upload
+ * allowance (`shelterUploadKey`/`PHOTO_UPLOAD_RATE_LIMITS` - a decision
+ * taken, not a new limiter pool: a logo is rare next to animal photos). No
+ * `PHOTO_LIMIT_REACHED`: a single nullable field has nothing to fill up.
+ * `tapWithRetry` re-reads on a lost race, so the history's `previous` is
+ * always whatever the write actually replaced, even if another admin edited
+ * the profile between the read and this write.
+ */
+export async function profileSetLogo(
+  deps: ProfileDeps,
+  scope: ShelterWriteScope,
+  input: { file: File },
+  errors: ORPCErrorConstructorMap<{
+    RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
+    PHOTO_UPLOADS_UNAVAILABLE: typeof apiErrors.PHOTO_UPLOADS_UNAVAILABLE;
+    PHOTO_REJECTED: typeof apiErrors.PHOTO_REJECTED;
+  }>,
+): Promise<KabinetShelterView> {
+  const uploads = deps.photoUploads;
+  if (uploads.kind === "off") throw errors.PHOTO_UPLOADS_UNAVAILABLE();
+
+  const allowanceKey = shelterUploadKey(scope.shelterId);
+  if (!(await uploads.limiters.perHour.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
+  if (!(await uploads.limiters.perDay.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
+
+  const pipeline = await import("@opika/db/image-pipeline/server");
+  const bytes = Buffer.from(await input.file.arrayBuffer());
+  const processed = await withinBudget(
+    pipeline.prepareUploadedLogo(bytes),
+    uploads.processingBudgetMs,
+  );
+  if (processed.kind === "over_budget") {
+    console.error({ event: "logo_processing_over_budget", budgetMs: uploads.processingBudgetMs });
+    throw new Error("Logo processing ran past its budget");
+  }
+  const prepared = processed.value;
+  if (prepared.kind === "rejected") {
+    throw errors.PHOTO_REJECTED({ data: { reason: prepared.reason } });
+  }
+
+  const storageKey = pipeline.shelterLogoStorageKeyFor(scope.shelterId, deps.newId());
+  const logo: ShelterLogo = { storageKey, width: prepared.width, height: prepared.height };
+  try {
+    await pipeline.storeLogoVariants(uploads.storage, storageKey, prepared.variants);
+    return await tapWithRetry(deps, scope, (shelter) => ({
+      kind: "write",
+      change: { kind: "logo", logo },
+      entry: {
+        kind: "logo_changed",
+        at: deps.now,
+        actor: actorOf(scope),
+        previous: shelter.logo,
+        next: logo,
+      },
+    }));
+  } catch (error) {
+    logOrphan(storageKey);
+    throw error;
+  }
+}
+
+/** Clears the logo back to the fallback-initials avatar. With none set there is nothing to change or record. */
+export const profileRemoveLogo = (deps: ProfileDeps, scope: ShelterWriteScope) =>
+  tapWithRetry(deps, scope, (shelter) =>
+    shelter.logo === null
+      ? { kind: "no_change" }
+      : {
+          kind: "write",
+          change: { kind: "logo", logo: null },
+          entry: {
+            kind: "logo_changed",
+            at: deps.now,
+            actor: actorOf(scope),
+            previous: shelter.logo,
+            next: null,
+          },
         },
   );
 

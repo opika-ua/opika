@@ -17,14 +17,14 @@ function residual(config: SpringConfig, x0: number, v0: number, t: number): numb
 
 const REGIMES: readonly { name: string; config: SpringConfig }[] = [
   { name: "the deck's own 280/30 (underdamped)", config: DECK_RETURN_SPRING },
-  // 2·√280 — the exact boundary between the two branches.
+  // 2·√280 - the exact boundary between the two branches.
   { name: "critically damped", config: { stiffness: 280, damping: 2 * Math.sqrt(280), mass: 1 } },
   { name: "overdamped", config: { stiffness: 280, damping: 60, mass: 1 } },
 ];
 
 describe("springAt", () => {
   for (const { name, config } of REGIMES) {
-    it(`solves the spring equation and honours the release state — ${name}`, () => {
+    it(`solves the spring equation and honours the release state - ${name}`, () => {
       for (const [x0, v0] of [
         [88, 0],
         [-60, 900],
@@ -47,7 +47,7 @@ describe("springAt", () => {
    * alone overshoot. If someone retunes damping to ≥ 2·√280 this fails, and the
    * clamp's comment needs revisiting rather than silently becoming dead weight.
    */
-  it("crosses the origin on its own at 280/30 — the free motion overshoots", () => {
+  it("crosses the origin on its own at 280/30 - the free motion overshoots", () => {
     let crossed = false;
     for (let ms = 1; ms <= 1000; ms++) {
       if (springAt(DECK_RETURN_SPRING, 88, 0, ms / 1000).x < 0) crossed = true;
@@ -62,7 +62,7 @@ describe("returnToOrigin", () => {
    * sides, from a nudge to a refused commit far past the 88px threshold, and
    * with release velocities toward and away from the centre up to well past
    * the 0.45 px/ms commit velocity, no rendered frame is ever on the far side
-   * of the origin. Sampled every millisecond — finer than any display frame.
+   * of the origin. Sampled every millisecond - finer than any display frame.
    */
   it("never renders the card past the origin", () => {
     for (const x0 of [-240, -88, -20, -1, 1, 20, 88, 240]) {
@@ -73,13 +73,13 @@ describe("returnToOrigin", () => {
           const frame = frameAt(ms / 1000);
           if (frame.kind === "moving") moving.push({ ms, x: frame.x });
         }
-        // Without this, a return that never moves at all — always `at_rest` —
+        // Without this, a return that never moves at all - always `at_rest` -
         // would pass the check below by rendering nothing to check.
         expect(moving.length, `x0=${x0} v0=${v0} rendered no frames at all`).toBeGreaterThan(0);
         const pastOrigin = moving.find(({ x }) => Math.sign(x) !== Math.sign(x0));
         expect(
           pastOrigin,
-          `x0=${x0} v0=${v0} rendered ${pastOrigin?.x}px at ${pastOrigin?.ms}ms — past the origin`,
+          `x0=${x0} v0=${v0} rendered ${pastOrigin?.x}px at ${pastOrigin?.ms}ms - past the origin`,
         ).toBeUndefined();
       }
     }
@@ -93,7 +93,7 @@ describe("returnToOrigin", () => {
     }
   });
 
-  it("is still visibly moving shortly after release — a spring, not a jump", () => {
+  it("is still visibly moving shortly after release - a spring, not a jump", () => {
     const frame = returnToOrigin(DECK_RETURN_SPRING, 88, 0)(0.1);
     expect(frame.kind).toBe("moving");
     if (frame.kind !== "moving") return;

@@ -7,6 +7,7 @@ import {
   listingAfterPhotoChange,
   type ShelterAdminId,
   type ShelterHistoryEntry,
+  type ShelterVerification,
   transitionListing,
 } from "@opika/domain";
 import { eq, sql } from "drizzle-orm";
@@ -36,7 +37,7 @@ import {
  * F-B1's storage (migration 0012) and the compare-and-sets K3 relies on:
  * the three CHECKs, the draft-only null guard on edits, the publish guard
  * (K3-T7) and RH-B7's photo write. Local Postgres; the same statements run on
- * Neon as `neon-smoke.ts` steps 27–31.
+ * Neon as `neon-smoke.ts` steps 27-31.
  */
 
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
@@ -61,14 +62,18 @@ const PHOTO = (id: string) => ({
   alt: null,
 });
 
-async function place(): Promise<{ shelterId: ListedAnimal["shelterId"]; cityId: CityId }> {
+async function place(): Promise<{
+  shelterId: ListedAnimal["shelterId"];
+  cityId: CityId;
+  verification: ShelterVerification;
+}> {
   const city = makeCity();
   await cityRepo(db).insert(city);
   const shelter = makeShelter({
     publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
   });
   await shelterRepo(db).insert(shelter);
-  return { shelterId: shelter.id, cityId: city.id };
+  return { shelterId: shelter.id, cityId: city.id, verification: shelter.verification };
 }
 
 const historyOf = (shelterId: string): Promise<ShelterHistoryEntry[]> =>
@@ -240,6 +245,7 @@ describe("writeEditIf: a null is written only while the row is a draft", () => {
         draft.id,
         publishedAt(AT),
         draft.listing,
+        AT,
         publishLine(draft.id),
         {
           kind: "publish",
@@ -280,14 +286,14 @@ describe("writeEditIf: a null is written only while the row is a draft", () => {
 
 describe("the publish compare-and-set (K3-T7)", () => {
   async function completeDraft() {
-    const { shelterId, cityId } = await place();
+    const { shelterId, cityId, verification } = await place();
     const draft = makeAnimal({
       shelterId,
       listing: { kind: "draft" },
       photos: [PHOTO("a")],
     }) as DraftAnimal;
     await animalRepo(db).insert(draft, cityId);
-    return { draft, shelterId, cityId };
+    return { draft, shelterId, cityId, verification };
   }
 
   it("publishes on the version and photos it read", async () => {
@@ -297,6 +303,7 @@ describe("the publish compare-and-set (K3-T7)", () => {
         draft.id,
         publishedAt(AT),
         draft.listing,
+        AT,
         publishLine(draft.id),
         {
           kind: "publish",
@@ -322,6 +329,7 @@ describe("the publish compare-and-set (K3-T7)", () => {
         draft.id,
         publishedAt(LATER),
         draft.listing,
+        AT,
         publishLine(draft.id),
         {
           kind: "publish",
@@ -350,6 +358,7 @@ describe("the publish compare-and-set (K3-T7)", () => {
         draft.id,
         publishedAt(LATER),
         draft.listing,
+        AT,
         publishLine(draft.id),
         {
           kind: "publish",
@@ -367,6 +376,7 @@ describe("the publish compare-and-set (K3-T7)", () => {
       draft.id,
       publishedAt(AT),
       draft.listing,
+      AT,
       publishLine(draft.id),
       {
         kind: "publish",
@@ -395,6 +405,7 @@ describe("the publish compare-and-set (K3-T7)", () => {
         draft.id,
         publishedAt(AT),
         draft.listing,
+        AT,
         publishLine(draft.id),
       ),
     ).rejects.toThrow(/must compare-and-set on version and photos/);
@@ -410,6 +421,7 @@ describe("the publish compare-and-set (K3-T7)", () => {
         draft.id,
         publishedAt(AT),
         draft.listing,
+        AT,
         publishLine(draft.id),
         {
           kind: "publish",
@@ -476,7 +488,7 @@ describe("writePhotosIf with the listing (RH-B7)", () => {
     const animal = makeAnimal({ shelterId, photos: [PHOTO("a")] });
     await animalRepo(db).insert(animal, cityId);
     const confirmed = { ...animal.listing, confirmedAt: AT, undoable: null } as AnimalListingState;
-    await kabinetAnimalRepo(db).writeListingIf(animal.id, confirmed, animal.listing, {
+    await kabinetAnimalRepo(db).writeListingIf(animal.id, confirmed, animal.listing, AT, {
       kind: "not_recorded",
       because: "confirmation",
     });

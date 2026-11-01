@@ -5,27 +5,26 @@ import { ShelterContactSchema } from "./contact";
 import { DonationLinkSchema, PendingDonationSchema } from "./donation";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema, PublicLocationSchema } from "./location";
+import { ShelterLogoSchema } from "./logo";
 import { ShelterVerificationSchema } from "./verification/state";
 
 /**
  * `exactAddress` and `contact` sit on the domain object and are excluded from
  * every public projection. That exclusion is expressed in the contract layer by
  * listing the fields a view may contain, never by subtracting the fields it may
- * not — so a field added here cannot leak by default.
+ * not - so a field added here cannot leak by default.
  */
 /**
  * A shelter's own sentence describing how current its information is.
  *
  * Written in the shelter's own words and rendered as written: nothing is
- * generated or paraphrased. One slot exists, `{імʼя}` (`ANIMAL_NAME_TOKEN`),
- * filled with the animal's name in its base form: names can't be declined,
- * so it only fits where the nominative does (VH-Q1, Oleksii, 2026-10-15).
- * The deck and the animal page fill it; the kabinet shows it as written
- * (K-Q6). There is no `{date}`: the day count above the quote already says
- * how current it is. Every write path checks the text with
- * `normalizeFreshnessSentenceText`, so what is stored holds only the
- * canonical token and no other braces; this schema itself stays the stored
- * shape and doesn't re-check it.
+ * generated, paraphrased or filled in. It belongs to the shelter, not to an
+ * animal, and shows on the shelter page only (designer round 1, DR1-Q1); the
+ * `{імʼя}` slot it used to carry is refused since DR1-Q5
+ * (`ANIMAL_NAME_TOKEN`). There is no `{date}`: every card's day count already
+ * says how current it is. Every write path checks the text with
+ * `normalizeFreshnessSentenceText`, so what is stored from now on holds no
+ * braces; this schema itself stays the stored shape and doesn't re-check it.
  * A shelter with no sentence falls back to the marker + day count alone.
  */
 export const FreshnessSentenceSchema = LocalizedTextSchema.nullable();
@@ -40,6 +39,9 @@ export const ShelterSchema = z.object({
   exactAddress: ExactAddressSchema,
   contact: ShelterContactSchema,
   donation: DonationLinkSchema.nullable(),
+  /** Null until the shelter uploads one; the fallback is a client-rendered
+   * initials circle (pet card PR 3b), not a stored placeholder image. */
+  logo: ShelterLogoSchema.nullable(),
   /**
    * A proposed replacement for `donation`, awaiting the operator (H2, N20).
    * Never part of any public view: `PublicShelterViewSchema` is built with

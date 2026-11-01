@@ -65,6 +65,13 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     previous: { uk: "Було", en: null },
     next: { uk: "Стало", en: null },
   },
+  logo_changed: {
+    kind: "logo_changed",
+    at: AT,
+    actor: ADMIN,
+    previous: null,
+    next: { storageKey: "shelters/s/logo/0", width: 160, height: 160 },
+  },
   donation_proposed: { kind: "donation_proposed", at: AT, actor: ADMIN, link: LINK },
   donation_proposal_cancelled: { kind: "donation_proposal_cancelled", at: AT, actor: ADMIN },
   donation_decided: {

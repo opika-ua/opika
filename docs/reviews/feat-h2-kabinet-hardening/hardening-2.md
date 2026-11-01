@@ -1,4 +1,4 @@
-# Review — feat/h2-kabinet-hardening, uncommitted delta on f9fe311 (pass 2, Tier 1)
+# Review - feat/h2-kabinet-hardening, uncommitted delta on f9fe311 (pass 2, Tier 1)
 
 VERDICT: STOP (blocks the merge only, not the commit; two defaults in STOP-list areas still need Oleksii's word. Code otherwise passes, with notes)
 

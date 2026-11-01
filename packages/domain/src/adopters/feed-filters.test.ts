@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { RegionIdSchema } from "../geography/region";
 import { CityIdSchema } from "../primitives/ids";
 import {
   canonicalizeFilters,
@@ -8,7 +9,6 @@ import {
   filtersFingerprint,
   isConstrained,
   isExplicitlySelected,
-  isUnfiltered,
   matchesSelection,
   NO_FILTERS,
   relaxDimension,
@@ -32,7 +32,7 @@ describe("matchesSelection", () => {
 });
 
 describe("isExplicitlySelected", () => {
-  it("is false for every value when the selection is any — unlike matchesSelection", () => {
+  it("is false for every value when the selection is any - unlike matchesSelection", () => {
     // The bug this function exists to prevent: a filter-UI checkbox reusing
     // matchesSelection would render every option checked the moment nothing
     // is filtered, since matchesSelection's "any admits everything" is
@@ -59,8 +59,8 @@ describe("an empty selection is unrepresentable", () => {
       species: { kind: "oneOf", values: [] },
     });
 
-    // The alternative — an empty array meaning either "everything" or
-    // "nothing" by convention — is the ambiguity this union removes.
+    // The alternative - an empty array meaning either "everything" or
+    // "nothing" by convention - is the ambiguity this union removes.
     expect(result.success).toBe(false);
   });
 
@@ -102,7 +102,6 @@ describe("canonicalizeFilters", () => {
       species: { kind: "oneOf", values: ["dog", "cat"] },
     };
     expect(canonicalizeFilters(everySpecies)).toEqual(NO_FILTERS);
-    expect(isUnfiltered(canonicalizeFilters(everySpecies))).toBe(true);
   });
 
   it("does not collapse a partial selection", () => {
@@ -126,18 +125,6 @@ describe("canonicalizeFilters", () => {
     };
     const once = canonicalizeFilters(filters);
     expect(canonicalizeFilters(once)).toEqual(once);
-  });
-});
-
-describe("isUnfiltered", () => {
-  it("is true when nothing is constrained", () => {
-    expect(isUnfiltered(NO_FILTERS)).toBe(true);
-  });
-
-  it("is false when any dimension is constrained", () => {
-    expect(isUnfiltered({ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } })).toBe(
-      false,
-    );
   });
 });
 
@@ -185,10 +172,12 @@ describe("filter dimensions", () => {
 
   it("relaxes exactly one dimension and leaves the rest alone", () => {
     const narrow: FeedFilters = {
+      regions: { kind: "any" },
       cities: { kind: "oneOf", values: [KHARKIV] },
       species: { kind: "oneOf", values: ["dog"] },
       sizes: { kind: "oneOf", values: ["small"] },
       ages: { kind: "oneOf", values: ["baby"] },
+      sexes: { kind: "oneOf", values: ["male"] },
     };
 
     const relaxed = relaxDimension(narrow, "sizes");
@@ -197,11 +186,183 @@ describe("filter dimensions", () => {
     expect(relaxed.cities).toEqual(narrow.cities);
     expect(relaxed.species).toEqual(narrow.species);
     expect(relaxed.ages).toEqual(narrow.ages);
+    expect(relaxed.sexes).toEqual(narrow.sexes);
   });
 
   it("does not mutate the filters it relaxes", () => {
     const dogs: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
     relaxDimension(dogs, "species");
     expect(dogs.species).toEqual({ kind: "oneOf", values: ["dog"] });
+  });
+});
+
+/**
+ * Sex: the eighth dimension (sex-filter feature). Unlike fur/temperament/
+ * colour, it is a closed universe over a field that is never null -
+ * "unknown" is a real, explicit value, not an absence - so it collapses on
+ * the same rule species/sizes/ages do, not the null-admitting one above.
+ */
+describe("the sex dimension", () => {
+  const EVERY_SEX = ["male", "female", "unknown"] as const;
+
+  it("collapses ticking every sex back to any", () => {
+    const every: FeedFilters = {
+      ...NO_FILTERS,
+      sexes: { kind: "oneOf", values: [...EVERY_SEX] },
+    };
+    expect(canonicalizeFilters(every).sexes).toEqual({ kind: "any" });
+    expect(canonicalizeFilters(every)).toEqual(NO_FILTERS);
+    expect(filtersFingerprint(every)).toBe(filtersFingerprint(NO_FILTERS));
+  });
+
+  it("keeps a partial selection as a constraint", () => {
+    expect(
+      canonicalizeFilters({ ...NO_FILTERS, sexes: { kind: "oneOf", values: ["male"] } }).sexes,
+    ).toEqual({
+      kind: "oneOf",
+      values: ["male"],
+    });
+    expect(
+      isConstrained({ ...NO_FILTERS, sexes: { kind: "oneOf", values: ["female"] } }, "sexes"),
+    ).toBe(true);
+  });
+
+  it("gives each sex selection its own fingerprint", () => {
+    const bySex = (
+      values: readonly ["male" | "female" | "unknown", ...("male" | "female" | "unknown")[]],
+    ): FeedFilters => ({
+      ...NO_FILTERS,
+      sexes: { kind: "oneOf", values },
+    });
+    const prints = [NO_FILTERS, bySex(["male"]), bySex(["female"]), bySex(["unknown"])].map(
+      filtersFingerprint,
+    );
+    expect(new Set(prints).size).toBe(4);
+  });
+
+  it("never reproduces a fingerprint from before this dimension existed", () => {
+    // The 7-segment form every cursor was issued under before this PR:
+    // `sexes` did not exist as a dimension yet, and fur/temperament/colour
+    // (segments 5-7) were the last three. Those three are hardcoded "*"
+    // rather than read off `c`, since this PR removes them from
+    // FeedFilters entirely and they were always "any" for any value
+    // constructible as today's narrower type.
+    const legacy = (f: FeedFilters): string => {
+      const c = canonicalizeFilters(f);
+      const encode = (s: { kind: "any" } | { kind: "oneOf"; values: readonly string[] }) =>
+        s.kind === "any" ? "*" : s.values.join(",");
+      return [
+        encode(c.cities),
+        encode(c.species),
+        encode(c.sizes),
+        encode(c.ages),
+        "*",
+        "*",
+        "*",
+      ].join("|");
+    };
+    const sets: FeedFilters[] = [
+      NO_FILTERS,
+      { ...NO_FILTERS, sexes: { kind: "oneOf", values: ["unknown"] } },
+    ];
+    const current = new Set(sets.map(filtersFingerprint));
+    for (const set of sets) {
+      expect(current.has(legacy(set))).toBe(false);
+    }
+  });
+
+  it("reads a filter set stored before this dimension as no sex filter", () => {
+    const stored = {
+      cities: { kind: "any" },
+      species: { kind: "oneOf", values: ["dog"] },
+      sizes: { kind: "any" },
+      ages: { kind: "any" },
+    };
+    const parsed = FeedFiltersSchema.parse(stored);
+    expect(parsed.sexes).toEqual({ kind: "any" });
+  });
+
+  it("refuses a value outside the closed list, and an empty selection", () => {
+    expect(
+      FeedFiltersSchema.safeParse({ ...NO_FILTERS, sexes: { kind: "oneOf", values: ["other"] } })
+        .success,
+    ).toBe(false);
+    expect(
+      FeedFiltersSchema.safeParse({ ...NO_FILTERS, sexes: { kind: "oneOf", values: [] } }).success,
+    ).toBe(false);
+  });
+
+  it("relaxes like any other dimension", () => {
+    const narrow: FeedFilters = { ...NO_FILTERS, sexes: { kind: "oneOf", values: ["unknown"] } };
+    expect(relaxDimension(narrow, "sexes")).toEqual({ ...narrow, sexes: { kind: "any" } });
+    expect(isConstrained(narrow, "sexes")).toBe(true);
+    expect(FEED_FILTER_DIMENSIONS).toContain("sexes");
+  });
+});
+
+/**
+ * The oblast dimension. The URL slug, the fingerprint segment and the saved-filter default are
+ * the three places a new dimension silently goes wrong.
+ */
+describe("regions", () => {
+  const LVIV = RegionIdSchema.parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+  const KYIV = RegionIdSchema.parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+  const byRegion = (...values: [typeof LVIV, ...(typeof LVIV)[]]): FeedFilters => ({
+    ...NO_FILTERS,
+    regions: { kind: "oneOf", values },
+  });
+
+  it("reads a filter set stored before this dimension as no oblast filter", () => {
+    const stored = {
+      cities: { kind: "any" },
+      species: { kind: "any" },
+      sizes: { kind: "any" },
+      ages: { kind: "any" },
+      sexes: { kind: "any" },
+    };
+    expect(FeedFiltersSchema.parse(stored).regions).toEqual({ kind: "any" });
+  });
+
+  it("canonicalizes order and duplicates, and never collapses to any", () => {
+    expect(canonicalizeFilters(byRegion(LVIV, KYIV, LVIV)).regions).toEqual({
+      kind: "oneOf",
+      values: [LVIV, KYIV].sort(),
+    });
+    // Whatever the list, regions are data: selecting every oblast stays an explicit selection.
+    expect(canonicalizeFilters(byRegion(LVIV)).regions.kind).toBe("oneOf");
+  });
+
+  it("gives each selection its own fingerprint, with the oblast segment last", () => {
+    const prints = [NO_FILTERS, byRegion(LVIV), byRegion(KYIV), byRegion(LVIV, KYIV)].map(
+      filtersFingerprint,
+    );
+    expect(new Set(prints).size).toBe(4);
+    expect(filtersFingerprint(NO_FILTERS)).toBe("*|*|*|*|*|*");
+    expect(filtersFingerprint(byRegion(LVIV)).endsWith(`|${LVIV}`)).toBe(true);
+  });
+
+  it("never reproduces a fingerprint from before this dimension existed", () => {
+    // Five segments, as every cursor was issued under before: a cursor from then is refused once.
+    const legacy = "*|*|*|*|*";
+    const current = [NO_FILTERS, byRegion(LVIV)].map(filtersFingerprint);
+    expect(current).not.toContain(legacy);
+    expect(current.every((print) => print.split("|").length === 6)).toBe(true);
+  });
+
+  it("refuses more than 27 oblasts and more than 30 cities", () => {
+    const ids = (n: number) =>
+      Array.from({ length: n }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
+    const regions = (n: number) => ({ ...NO_FILTERS, regions: { kind: "oneOf", values: ids(n) } });
+    const cities = (n: number) => ({ ...NO_FILTERS, cities: { kind: "oneOf", values: ids(n) } });
+    expect(FeedFiltersSchema.safeParse(regions(27)).success).toBe(true);
+    expect(FeedFiltersSchema.safeParse(regions(28)).success).toBe(false);
+    expect(FeedFiltersSchema.safeParse(cities(30)).success).toBe(true);
+    expect(FeedFiltersSchema.safeParse(cities(31)).success).toBe(false);
+  });
+
+  it("relaxes like any other dimension", () => {
+    expect(relaxDimension(byRegion(LVIV), "regions")).toEqual(NO_FILTERS);
+    expect(isConstrained(byRegion(LVIV), "regions")).toBe(true);
+    expect(FEED_FILTER_DIMENSIONS).toContain("regions");
   });
 });

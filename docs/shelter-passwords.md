@@ -23,13 +23,18 @@ key; any new string is given as its English sense, with the Ukrainian left to hi
 |---|---|---|
 | `auth_account.password` already exists (`text`, nullable) | `packages/db/src/schema/auth.ts` | Passwords need **no migration**. A credential is an `auth_account` row with `provider_id = 'credential'` |
 | `emailAndPassword: { enabled: false }` today | `apps/web/src/kabinet/auth.ts` | Enabling it adds `/sign-in/email`, `/sign-up/email`, `/request-password-reset`, `/reset-password`, `/change-password` |
-| Sign-in with an unknown address, or a user with no credential, still runs `password.hash(password)` and throws the same `401 INVALID_EMAIL_OR_PASSWORD` | `dist/api/routes/sign-in.mjs:287–310` | The enumeration property (§5) holds in Better Auth itself. Our layers must not break it |
-| `/request-password-reset` creates a token and calls `sendResetPassword` for **any** existing user, the operator included | `dist/api/routes/password.mjs:58–86` | Our `sendResetPassword` must send only to shelter admins, and a guard must stop the token being created for the operator (§4.6) |
+| Sign-in with an unknown address, or a user with no credential, still runs `password.hash(password)` and throws the same `401 INVALID_EMAIL_OR_PASSWORD` | `dist/api/routes/sign-in.mjs:287-310` | The enumeration property (§5) holds in Better Auth itself. Our layers must not break it |
+| `/request-password-reset` creates a token and calls `sendResetPassword` for **any** existing user, the operator included | `dist/api/routes/password.mjs:58-86` | Our `sendResetPassword` must send only to shelter admins, and a guard must stop the token being created for the operator (§4.6) |
 | `/reset-password` **creates** a credential account if the user has none | `password.mjs:162` | Without a guard, a reset would give the operator a password. That's the main hole (§4.6) |
 | Reset tokens are stored as `identifier = 'reset-password:<token>'`, in plain text by default | `password.mjs:77`, `db/internal-adapter.mjs:600` | His "stored hashed" needs `verification.storeIdentifier: { default: "plain", overrides: { "reset-password:": "hashed" } }` (SHA-256, built into 1.6.33, `verification-token-storage.mjs`) |
 | Sessions today: 7 days idle, 30 days absolute (HS-Q8); the absolute cap is enforced in our `hooks.before` and by the clean-up (`KABINET_SESSION_ABSOLUTE_MS`) | `auth.ts`, `auth-expiry-repo.ts` | F-B9's 30-day rolling / 90-day cap changes those two numbers (§4.5) |
-| Auth email goes through **Resend** (EM-B10: production sets `EMAIL_PROVIDER=resend`, `EMAIL_SIGN_IN_PROVIDER` unset; Brevo's code stays only as a grace-period rollback). Resend has **no per-message tracking option**: click and open tracking are per-domain settings, active only with a verified tracking subdomain. Our payloads carry no tracking field or header | `email-provider.ts:296`; Resend's API reference (send email; update domain) | His rule, "no tracking on any auth email, ever", is enforced at the Resend domain plus a payload test (§4.4). The code comments about Brevo's click tracker describe the provider being retired |
+| Auth email goes through **Resend** (EM-B10: production sets `EMAIL_PROVIDER=resend`, `EMAIL_SIGN_IN_PROVIDER` unset; Brevo's code stayed as a grace-period rollback, refused in config since PW1-Q4, §4.4). Resend has **no per-message tracking option**: click and open tracking are per-domain settings, active only with a verified tracking subdomain. Our payloads carry no tracking field or header | `email-provider.ts:296`; Resend's API reference (send email; update domain) | His rule, "no tracking on any auth email, ever", is enforced at the Resend domain plus a payload test (§4.4). The code comments about Brevo's click tracker describe the provider being retired |
 | Per-address limiter keys are plain (`address:<email>`); only IP keys are HMAC'd (EM-Q11) | `sign-in-limit.ts:36`, `invite-landing.ts:86` | "HMAC'd keys as now" is true for IPs, not for addresses (§9, Q7) |
+
+**PW1-F5 (2026-10-20), on the first row:** storing a password still needed no migration, but ending
+the sessions atomically with it did. Migration 0013 (additive: a function and two triggers on
+`auth_account`) ends every session of the user inside the statement that writes the password, and
+Better Auth's revokes stay as a second line (`docs/decisions-inbox/fix-pw1-f5-atomic-session-revoke.md`).
 
 ## 3. Password policy (domain, pure)
 
@@ -56,6 +61,54 @@ passwordVerdictOf(password: string): PasswordVerdict
 - **Hashing:** Better Auth's default (scrypt). Passwords are never logged, echoed, put in a URL, or
   returned in a response body. A test asserts no response or log line contains the submitted
   password (§8).
+
+**PW1-F8 (2026-10-20), on logging:** Better Auth's own logger and its error handler
+(`onAPIError`) write through the masking in `apps/web/src/kabinet/auth-log.ts`: an error (an
+`instanceof Error` only) is its name and SQLSTATE only, an address is masked (URL-encoded too), a
+token-shaped value replaced, and Drizzle's `params:` part cut whatever its case. Better Auth's
+router no longer prints an unexpected error whole. After the review's STOP (two paths that print a
+raw query error: Better Auth's fallback join, and a direct `auth.api.getSession`), query errors are
+also cleaned where they happen (Oleksii's Q1, (i)): the database handle Better Auth is given, and
+the kabinet's principal path, go through `withQueryErrorsCleaned`
+(`apps/web/src/kabinet/clean-query-errors.ts`). A cleaned error keeps its name, SQLSTATE and the
+constraint, table, schema and column names (both drivers' spellings, on it and its cause); it has
+no message, no SQL, no parameters, no `detail` or `where`. `principal.ts` also rethrows anything
+else `getSession` throws cleaned. `clean-query-errors.test.ts` forces failures at the driver (both
+drivers' error shapes, an outage) and finds no address, token, password or `params:` in any log
+line or thrown error; every caller that reads a SQLSTATE behaves as before.
+
+**F8-F1 (2026-10-21), the PW1-F8 review's five notes:** a transaction on the cleaned handle hands
+its callback the transaction cleaned, so a statement failing inside it is cleaned at the statement.
+What the callback throws (an `APIError`, Drizzle's rollback, a plain error) reaches the caller as the
+same object, unless the walk over it finds a raw query error: the walk follows `cause` and `errors`
+when `errors` is an array (an `AggregateError`'s list, or any error carrying an array there), from
+the thrown error down, at any depth. If the walk stops first (on a loop, past 64 errors, or on a
+read that throws), the throw is cleaned too (fail closed, his rule). So does an `errors` that is
+there but isn't an array (a `Set`, an array-like, a plain object): the walk can't see into it, so
+the throw is cleaned (F8-F2, his Q2). The cleaned chain itself only ever follows `cause` three
+hops deep from the outermost error (`CAUSE_DEPTH`) - four linked objects over three hops, not
+three. When none of those four carries a SQLSTATE, a separate, deeper walk over the original
+error's `cause`/`errors` tree
+(`walkOf`, the same walk above, within its own 64-error limit) finds the facts of the first raw
+query error at whatever depth it's actually at, and attaches them to the outermost cleaned error
+only - the chain under it still stops at three hops (F8-F2). A cleaned error is never named `APIError`, so Better Auth answers it as
+a plain 500. Anything the transaction itself raises is cleaned (neon-http has no transactions: its
+refusal is cleaned as before). Every kabinet page, route and procedure reads through `kabinetDb()`
+(`apps/web/src/kabinet/kabinet-db.ts`, the served database cleaned), pinned by
+`kabinet-db.test.ts`. `kabinet-db-scan.test.ts` walks the import closure from every kabinet page,
+route and module and `proxy.ts`, through `@/` and relative imports (static, re-exported, dynamic
+of a literal, and `require` of a literal) into any folder. It reads imports from the TypeScript
+compiler's syntax tree (`apps/web/test/source-ast.ts`, F8-F2), so a string or a comment can neither
+hide an import nor fake one. It fails if a reached module imports `getDb` or uses
+`createDatabase`, or loads a module in a way it can't follow (a non-literal `import()` or
+`require()`, `createRequire`, a namespace or dynamic load of `@opika/db`); `kabinet-db.ts` is its one
+exception, with exactly its one finding. In
+log text, a snake_case schema or constant name (`auth_user_email_unique`, `INTERNAL_SERVER_ERROR`)
+is no longer masked as a token; a hex or base64url token still is. Error names are allow-listed: a
+cleaned error, a log line and `maskedLogValue` show a name only from the fixed list in
+`error-class-name.ts` (the standard JS errors, the library errors the code meets, and each of our
+own error classes, by name; his (c)); anything else, a non-string name or one whose read throws
+included, is `Error`.
 
 ## 4. Contract
 
@@ -105,7 +158,7 @@ The one new oRPC procedure goes through `implement(contract)`. It takes no sessi
 credential.
 
 ```ts
-// packages/contracts — kabinet.invitation.acceptWithPassword
+// packages/contracts - kabinet.invitation.acceptWithPassword
 input:  { token: InviteTokenSchema; password: string }       // never logged
 output: { kind: "signed_in" }                                 // session cookie set
 errors: INVITE_UNUSABLE            // unknown, expired, withdrawn, already used, or the address is an operator: one answer
@@ -124,8 +177,31 @@ What it does, in one transaction where it writes:
 8. accept the invitation (membership);
 9. sign in through Better Auth's `sign-in/email`, server-side, so the cookie comes from Better Auth.
 
+**PW1-F5 (2026-10-20):** step 7 before step 9 is required, not only the order written: inserting
+the credential ends every session of the user (migration 0013), so a session created before it
+would be signed out at once.
+
 Today's invitation id stops being the link's secret. The invite email carries a separate random token,
 stored hashed through the same `storeIdentifier` override, so **no migration** is needed.
+
+**As built in PW-2 (2026-10-20, unreviewed; `docs/decisions-inbox/feat-pw-2-invite-password.md`):**
+- **The GET reads.** His Q1 replaces "the GET looks nothing up" above: one read-only lookup by the
+  token's hash. It shows the form (the shelter and the address, masked) or one identical unusable
+  page for every failure kind. It consumes nothing and sends nothing. It adds no budget of its
+  own (no invitation, address or sign-in budget); like every `/kabinet` page load it counts
+  against the per-IP page budget (PW2-Q1 (a)).
+- **Headers.** `no-store` and `no-referrer`, since the form's POST is a `fetch`.
+- **The token.** Our own `auth_verification` row (`kabinetInviteTokenRepo`): SHA-256 of
+  `invite-password:<token>`, value `invitation:<id>`. Better Auth never reads it, so no
+  `storeIdentifier` entry was needed.
+- **The order.** Charge, read, policy, consume, the address marked verified, credential, void
+  reset links, sign in, accept. Verified before the credential (review finding 4, his
+  2026-10-21 decision): a failure between the two leaves no password, so a resend finishes. The accept runs after the sign-in, as on every sign-in
+  (IN-Q12), rather than before it as in steps 8 and 9 above.
+- **The output** gains `password_set`: set, but the sign-in didn't go through (the delay).
+- **Query errors** (PW1-F8): every statement of the link's page and its POST runs on the cleaned
+  handle (`inviteTokensOf`, `withQueryErrorsCleaned`), so a failed one logs no token, address or
+  `params:`.
 
 ### 4.3 Rate limits (shared Upstash store, keys never plain)
 
@@ -133,9 +209,9 @@ stored hashed through the same `storeIdentifier` override, so **no migration** i
 |---|---|---|
 | Sign in with password | the kabinet per-IP budget | **increasing delay, no lockout:** after 5 failures in 15 min, each further attempt for that address waits 1, 2, 4, 8, then 15 min (the cap) before it is even checked; a success resets it |
 | Forgot password | 20/h | 3/h |
-| Reset (token POST) | 20/h | — (the token is single use) |
-| Change password | per user, the existing budget | — |
-| Invite acceptance | 20/h | — (single use) |
+| Reset (token POST) | 20/h | - (the token is single use) |
+| Change password | per user, the existing budget | - |
+| Invite acceptance | 20/h | - (single use) |
 
 The per-account delay applies to **any submitted address**, existing or not, so it can't be used
 to find accounts. Its message is the same for every address (§9, Q5).
@@ -148,20 +224,39 @@ to find accounts. Its message is the same for every address (§9, Q5).
 - **The «пароль змінено» notice**, sent after a reset (and after a change, §9 Q4), with his
   «…якщо це не ви — напишіть мені» and the contact address.
 - **No tracking on any auth email, ever** (his rule, 2026-10-19). Resend can't express this per
-  message, so two locks:
+  message, so three locks:
   1. **A test** pins every auth email's provider payload to exactly `{ from, to, reply_to, subject,
      html, text }`. A `headers`, `tags` or tracking field fails it. The same test runs for each
-     provider the code can route to, while more than one exists.
-  2. **The domain check:** `email:delivery-test` reads the Resend domain (`GET /domains/{id}`) and
-     refuses to send unless `click_tracking` and `open_tracking` are both false. His dashboard
-     check stays the authority (Resend → Domains → the sending subdomain → tracking off, no
-     tracking subdomain).
+     provider config can route to (Resend alone, item 3).
+  2. **The domain check, by hand** (revised 2026-10-20, PW1-Q5). As first built,
+     `email:delivery-test` read the Resend domain and refused unless `click_tracking` and
+     `open_tracking` were both false; that read needs more than a sending-only key. His answer,
+     verbatim: "PW1-Q5: (b). Keep a sending-only key and drop the domain-reading check from the
+     script. Tracking stays verified by hand: the Resend dashboard shows click and open tracking
+     off, and the links in the received email are plain. Add both as runbook steps for each
+     delivery test." The two steps are in `docs/onboarding-a-shelter.md` ("Every delivery test").
+  3. **Resend only, in config** (2026-10-20, PW1-Q4). `EMAIL_PROVIDER` and
+     `EMAIL_SIGN_IN_PROVIDER` accept `resend` alone (`AUTH_EMAIL_PROVIDERS`), so Brevo, whose
+     click tracker rewrites every link (IN-E8), can't carry an auth email; the delivery test
+     refuses `--…-provider brevo` by name. His answer, verbatim: "PW1-Q4: (a). Lock auth emails
+     (sign-in, invite, reset, password changed) to Resend in config, with a test that a Brevo
+     setting is refused for them. Note: the Brevo keys are already revoked, so this makes the
+     current state explicit. The full Brevo removal stays planned for after the 14 Nov check."
 
 ### 4.5 Sessions (F-B9)
 
 - `expiresIn: 30 days`, `updateAge: 1 day`: a rolling 30-day idle expiry.
 - `KABINET_SESSION_ABSOLUTE_MS = 90 days`, the same constant in our `hooks.before` and in the
   clean-up (which deletes sessions past the cap, KH-Q12's job).
+- **As built (revised 2026-10-20).** The two bullets above are not what shipped:
+  - Better Auth's `expiresIn` is the 90-day cap, and the 30-day idle limit is ours, on
+    `updated_at`, in `hooks.before`, the second line and the clean-up. The kabinet reads sessions
+    server-side, which never renews the cookie, so a 30-day `expiresIn` would end every session 30
+    days after sign-in, used or not (PW1-D12, the builder's decision).
+  - `updateAge` is 0: the session refreshes on every kabinet request, so "30 days from the last
+    visit" is exact (PW1-Q2, answered (b); his words in `docs/decisions-inbox/feat-pw-1-passwords.md`).
+  - The one source for the numbers, by role, is `KABINET_SESSION_LIMITS` (`packages/db`), not a
+    `KABINET_SESSION_ABSOLUTE_MS` constant.
 - For the operator, see §9 Q3.
 - **/pro:** no sentence states a kabinet session length today. F-B9 asks /pro to gain one (new copy,
   §7). The «…протягом доби» clause keeps holding, because the clean-up deletes a session at most a
@@ -187,10 +282,30 @@ to find accounts. Its message is the same for every address (§9, Q5).
 - **One answer for every failure:** an unknown address, a known address with the wrong password, a
   shelter admin with no password yet, and the operator all get the same status (401) and the same
   body text.
+  - A fifth (PW1-F6): a sign-in whose password was right when Better Auth checked it, but was
+    written by a reset or a change while the sign-in ran, gets that same answer, its headers
+    included, and keeps no session (`apps/web/src/kabinet/sign-in-race.ts`).
 - **Timing:** Better Auth hashes a dummy on the unknown and no-credential paths. The test runs each
   case N times and asserts the medians lie within a tolerance that a real difference (hash skipped)
   breaks. Its mutation removes the dummy hash in a wrapper and shows the test going red.
 - **The per-account delay** (§4.3) behaves identically for existing and unknown addresses.
+
+**PW1-F4 (2026-10-20), on the timing bullet:** the test no longer reads the clock. Comparing
+wall-clock medians went red once on a busy machine and passed in CI, so it now asserts the work
+that makes the time instead, by order (`password-flows.test.ts`, "similar timing, as the work behind
+it …"): every cause, and a success, runs exactly one scrypt, awaited before anything else starts,
+among a wrong password's limiter calls and statements. Two causes run fewer reads, and the test
+pins that rather than hiding it: an unknown address skips Better Auth's credential read, and the
+operator skips both of Better Auth's reads (inbox PW1-F4-Q1). Mutations: the operator guard's dummy
+hash removed, Better Auth's unknown-address dummy hash removed, the guard's hash left un-awaited,
+an extra statement on the operator's path; each turns it red.
+
+**PW1-F7 (2026-10-20), on the operator's two reads:** the operator guard now makes Better Auth's
+user and credential reads itself, through Better Auth's own call
+(`internalAdapter.findUserByEmail(email, { includeAccounts: true })`), before its dummy hash, so the
+operator's work equals a wrong password's, statement for statement, and the test pins that
+equality. The unknown address's skipped credential read stays, a recorded residual (inbox
+PW1-F4-Q1, his (b)): revisit if the per-address delay is ever loosened.
 
 ## 6. Flows
 
@@ -313,6 +428,9 @@ to find accounts. Its message is the same for every address (§9, Q5).
 **Migration:** none expected (`auth_account.password` and `auth_verification` already exist). If
 building shows otherwise, the PR states its kind (additive expected) and follows the
 "Migrating production" block.
+
+**PW1-F5 (2026-10-20):** one migration after all, additive: 0013, the session revoke made atomic
+with the password write (§2's note). It follows the "Migrating production" block.
 
 **Dress rehearsal, added to the final script:** invite → set the password → sign out → sign in with
 the password → forgot password → reset (the old session is gone).

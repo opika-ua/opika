@@ -1,7 +1,7 @@
 import { animalRepo, cityRepo, shelterRepo } from "@opika/db/repos";
 import { makeAnimal, makeCity, makeShelter } from "@opika/db/test";
 import { render, screen, within } from "@testing-library/react";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { anonymousRouterClient } from "../../api/server-client";
 import { createTestHarness, type TestHarness } from "../../api/test-harness";
 import { WithMockRouter } from "../../features/gallery/test-router";
@@ -23,8 +23,8 @@ beforeEach(async () => {
 
 /**
  * The one thing no other test in this branch covers: that `/tvaryny` itself
- * — not `AnimalCard` given fabricated props (AnimalCard.test.tsx), not
- * `gallery.list` in isolation (apps/web/src/api/api.test.ts) — wires a real
+ * - not `AnimalCard` given fabricated props (AnimalCard.test.tsx), not
+ * `gallery.list` in isolation (apps/web/src/api/api.test.ts) - wires a real
  * database through `anonymousRouterClient` to a real render. Same reasoning
  * as `../page.test.tsx`: `force-dynamic` means `next build` never exercises
  * this path, so nothing else does either.
@@ -51,13 +51,18 @@ describe("/tvaryny (renderGallery)", () => {
     render(<WithMockRouter>{element}</WithMockRouter>);
 
     // Scoped to the grid: the page around it now carries its own links too
-    // (rail chips, sort control, the sheet trigger) — this assertion is
-    // about the one animal card, not "the only link on the page."
+    // (dropdown options, the sort toggle, the sheet trigger) - this
+    // assertion is about the one animal card, not "the only link on the
+    // page."
     const grid = within(screen.getByTestId("gallery-grid"));
     const link = grid.getByRole("link");
     expect(link.getAttribute("href")).toBe(`/tvaryny/${animal.id}`);
     expect(link.getAttribute("aria-label")).toContain("Мурчик");
-    expect(screen.getByTestId("card-meta").textContent).toContain("Бровари");
+    // gallery-v3 (Figma `58:1617`): the card's visible meta line no longer
+    // shows city at all (sex · age · size only) - city stays in the
+    // accessible name, which this is the real-handler proof of.
+    expect(link.getAttribute("aria-label")).toContain("Бровари");
+    expect(screen.getByTestId("card-meta").textContent).not.toContain("Бровари");
   });
 
   it("renders the reserved badge for a reserved animal, through the real handler", async () => {
@@ -92,11 +97,11 @@ describe("/tvaryny (renderGallery)", () => {
   });
 
   /**
-   * V2 repoint: this used to assert "an empty grid, not a crash" — the E4
+   * V2 repoint: this used to assert "an empty grid, not a crash" - the E4
    * no-match state had no mock yet, so an empty `<main>` was the honest
    * placeholder. docs/design/README.md's "Gallery states" > "No match" now
    * has one (`Opika Registry System.dc.html`'s B4 frame), built as
-   * `NoMatch.tsx` and wired in here — the design value that changed is the
+   * `NoMatch.tsx` and wired in here - the design value that changed is the
    * whole rendered branch, "empty grid" -> "the no-match card", not a
    * colour or a class.
    */
@@ -110,20 +115,14 @@ describe("/tvaryny (renderGallery)", () => {
   });
 
   /**
-   * E5: the deck has nothing to show when the gallery has no matches, so
-   * the entry control must not offer a destination that's immediately
-   * exhausted — a rendered assertion of its absence, not just "the no-match
-   * branch doesn't call the component that renders it."
+   * Oleksii, mid-build, verbatim: "let's hide access to Гортати по одній
+   * page for now as well." The deck entry link is gone from this page
+   * entirely - not conditional on match count or sign-in anymore, so this
+   * collapses the three tests that used to check it under each of those
+   * conditions into one: it is simply never there. The deck route itself
+   * (`/tvaryny/gortaty`) is untouched; only this page's link to it is gone.
    */
-  it("does not render the deck entry control when there are no matches", async () => {
-    const element = await renderGallery(anonymousRouterClient(h.db));
-    render(<WithMockRouter>{element}</WithMockRouter>);
-
-    expect(screen.queryByText("Гортати по одній")).toBeNull();
-    expect(screen.queryByText("Гортати")).toBeNull();
-  });
-
-  it("the deck entry control links to /tvaryny/gortaty carrying the real total", async () => {
+  it("never renders a deck entry control, with or without matches", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
@@ -140,52 +139,66 @@ describe("/tvaryny (renderGallery)", () => {
     const element = await renderGallery(anonymousRouterClient(h.db));
     render(<WithMockRouter>{element}</WithMockRouter>);
 
-    const entryLinks = screen.getAllByText("Гортати по одній", { selector: "a" });
-    expect(entryLinks.length).toBeGreaterThan(0);
-    for (const link of entryLinks) {
-      expect(link.getAttribute("href")).toBe("/tvaryny/gortaty?total=1");
-    }
+    expect(screen.queryByText("Гортати по одній")).toBeNull();
+    expect(screen.queryByText("Гортати")).toBeNull();
+  });
+
+  it("kabinetSignedIn=true still shows «Кабінет», not «Збережені», in the header", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: {
+        precision: "fuzzed_address",
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.51, lng: 30.79 }, precisionMetres: 1000 } as never,
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id }), city.id);
+
+    const element = await renderGallery(anonymousRouterClient(h.db), {}, true);
+    render(<WithMockRouter>{element}</WithMockRouter>);
+
+    expect(screen.getByRole("link", { name: "Кабінет" }).getAttribute("href")).toBe("/kabinet");
+    expect(screen.queryByRole("link", { name: "Збережені" })).toBeNull();
   });
 });
 
 /**
- * Found 2026-09-10 (Oleksii, not a test): the only carrier of D-2's demo
- * disclosure on this route was `og:description`/`description`
- * (`seo-flags.test.ts`'s own describe block covers those) — invisible to a
- * visitor who just opens the page. `bannerNotice` was never rendered in
- * this page's body before this row — `FirstRunBand` (deleted by O-3, for
- * unrelated reasons) rendered `firstRun.promise`/`firstRun.disclaimer`, a
- * different pair of sentences, not this one (verified via `git show`, not
- * assumed — an earlier draft of this file's own comment got this wrong).
- * This describe block is the rendered assertion the metadata tests can't
- * be: a real render of the page body itself, not a `<head>` tag.
+ * The visible D-2 demo disclosure banner this describe block used to cover
+ * (`gallery-demo-banner`) is removed from this page - Oleksii, mid-build,
+ * verbatim: "remove На сайті поки немає справжніх притулків — усі картки
+ * тут демонстраційні. as we hide our app anyways and people without gate
+ * cant access it ye[t]." Deleted, not weakened: there is no banner left to
+ * assert the presence or absence of. The `og:description`/`description`
+ * metadata swap (root `app/layout.tsx`, gated on the same
+ * `REGISTRY_HAS_NO_REAL_SHELTERS` flag) is untouched and still covered by
+ * `seo-flags.test.ts`.
  */
-describe("/tvaryny — demo disclosure banner (D-2 correction, 2026-09-10)", () => {
-  afterEach(() => {
-    vi.doUnmock("../../seo-flags");
-    vi.resetModules();
-  });
 
-  it("shows the demo banner in the page body while the registry holds no real shelters", async () => {
-    const element = await renderGallery(anonymousRouterClient(h.db));
+/**
+ * A hand-edited place param must degrade to "no filter", as it did before the token lookup existed,
+ * never reach the contract as an invalid input and land on the error page. (The deck and the
+ * overlay read the same `cityTokensOf`, whose unit test is in `filter-url.test.ts`.)
+ */
+describe("/tvaryny (renderGallery) with a malformed place param", () => {
+  it.each([
+    ["an empty value", { misto: "" }],
+    ["a trailing comma", { misto: "unknown-city," }],
+    ["an empty token between commas", { misto: "a,,b" }],
+    ["a token over the length cap", { misto: "a".repeat(101) }],
+    [
+      "more tokens than the cap",
+      { misto: Array.from({ length: 45 }, (_, i) => `p${i}`).join(",") },
+    ],
+    [
+      "more oblast tokens than exist",
+      { obl: Array.from({ length: 40 }, (_, i) => `r${i}`).join(",") },
+    ],
+  ])("renders for %s", async (_what, params) => {
+    const element = await renderGallery(anonymousRouterClient(h.db), params);
     render(<WithMockRouter>{element}</WithMockRouter>);
-
-    expect(screen.getByTestId("gallery-demo-banner").textContent).toBe(
-      "На сайті поки немає справжніх притулків — усі картки тут демонстраційні.",
-    );
-  });
-
-  it("does not show the banner once real shelters exist", async () => {
-    vi.resetModules();
-    vi.doMock("../../seo-flags", async (importOriginal) => ({
-      ...(await importOriginal()),
-      REGISTRY_HAS_NO_REAL_SHELTERS: false,
-    }));
-    const { renderGallery: renderGalleryReal } = await import("./page");
-
-    const element = await renderGalleryReal(anonymousRouterClient(h.db));
-    render(<WithMockRouter>{element}</WithMockRouter>);
-
-    expect(screen.queryByTestId("gallery-demo-banner")).toBeNull();
+    expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
   });
 });

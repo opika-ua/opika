@@ -3,6 +3,9 @@
  * text only (Oleksii, 2026-10-17: "Test logic, not looks ... a few Playwright
  * flow tests that query by role/label/text only; accessibility basics").
  *
+ * Kabinet redesign Phase 2 PR 1: this screen («Притулок») moved off
+ * `/kabinet`, which now serves Головна instead - see `profilePage()` below.
+ *
  * Writes go through the served route and its own write policy, which opens
  * every shelter's writes to its own admins (PR 6).
  * Nothing in the app is patched, and no environment variable opens anything.
@@ -17,19 +20,31 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createDatabase } from "@opika/db";
 import { kabinetInvitationRepo } from "@opika/db/repos";
 import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { expectTabRowSound } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.35";
 test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" });
 
+const SEED_PHOTO = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "public",
+  "seed-photos",
+  "cat-1.jpg",
+);
+
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
-test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
+test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", () => {
   let server: SignInServer | undefined;
   let context: BrowserContext | undefined;
 
@@ -93,10 +108,11 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
     // 39065612577), the event never matched; a URL already reached still
     // satisfies `waitForURL`. Each test's own `goto("/kabinet")` asserts 200.
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button").click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
+    // Kabinet redesign Phase 2 PR 1: sign-in lands on Тварини.
+    await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
     await page.close();
   });
 
@@ -105,22 +121,41 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
     await server?.stop();
   });
 
-  const profilePage = async (): Promise<Page> => {
+  // Притулок (renamed from «Профіль притулку», kabinet redesign Phase 2 PR 1):
+  // the editor moved off `/kabinet` (now Головна) to its own path.
+  // Kabinet UX round 2: the editor is sub-tabs, addressable as `?tab=`.
+  const profilePage = async (tab?: string): Promise<Page> => {
     if (context === undefined) throw new Error("not signed in");
     const page = await context.newPage();
-    expect((await page.goto("/kabinet"))?.status()).toBe(200);
+    const path = tab === undefined ? "/kabinet/prytulok" : `/kabinet/prytulok?tab=${tab}`;
+    expect((await page.goto(path))?.status()).toBe(200);
     return page;
   };
 
+  for (const size of [
+    { width: 360, height: 800 },
+    { width: 1440, height: 900 },
+  ]) {
+    test(`the Притулок sub-tabs at ${size.width}px: at most 48px tall, no vertical scroll, a pointer on every tab, the focus ring inside the row`, async () => {
+      const page = await profilePage();
+      await page.setViewportSize(size);
+      await expectTabRowSound(page, page.getByRole("tablist"));
+      await page.close();
+    });
+  }
+
   test("edit the phone, save, see «Збережено.», and the new value after a reload", async () => {
-    const page = await profilePage();
+    const page = await profilePage("kontakty");
     const contacts = page.getByRole("region", { name: "Контакти" });
     const phone = contacts.getByLabel(/^Телефон/);
     const before = await phone.inputValue();
 
     await phone.fill("+380 50 111-22-33");
-    await contacts.getByRole("button", { name: "Зберегти" }).click();
-    await expect(contacts.getByRole("status")).toHaveText("Збережено.");
+    // The one page save bar appears only now that something is unsaved.
+    await page.getByRole("button", { name: "Зберегти" }).click();
+    // The confirmation: the pill's «Збережено о …», repeated in the line under the tabs.
+    await expect(page.getByText(/^Збережено о \d\d:\d\d$/).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Зберегти" })).toHaveCount(0);
 
     await page.reload();
     await expect(page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/)).toHaveValue(
@@ -131,14 +166,73 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
     const again = page.getByRole("region", { name: "Контакти" });
     await again.getByLabel(/^Телефон/).fill(before);
     if (before !== "+380501112233") {
-      await again.getByRole("button", { name: "Зберегти" }).click();
-      await expect(again.getByRole("status")).toHaveText("Збережено.");
+      await page.getByRole("button", { name: "Зберегти" }).click();
+      await expect(page.getByText(/^Збережено о \d\d:\d\d$/).first()).toBeVisible();
     }
     await page.close();
   });
 
+  /**
+   * Save bar A. From 600px a floating pill centred on the viewport; on a phone a full-width bar
+   * with two equal 48px buttons that never covers the last field and never makes the page scroll
+   * sideways. Opened with an edit, left unsaved (the page is closed).
+   */
+  for (const width of [1024, 1280, 1440, 1920]) {
+    test(`the save pill is centred on the viewport at ${width}`, async () => {
+      const page = await profilePage("kontakty");
+      await page.setViewportSize({ width, height: 900 });
+      await page
+        .getByRole("region", { name: "Контакти" })
+        .getByLabel(/^Телефон/)
+        .fill("+380 50 111-22-33");
+      const pill = page.locator("[data-save-pill]");
+      await expect(pill).toBeVisible();
+      const box = await pill.boundingBox();
+      if (box === null) throw new Error("no layout");
+      expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThanOrEqual(1);
+      expect(box.height).toBeGreaterThanOrEqual(56 - 1);
+      if (width === 1024) {
+        // A hugging pill must clear the side nav's content.
+        const nav = await page.getByRole("navigation", { name: "Розділи кабінету" }).boundingBox();
+        if (nav === null) throw new Error("no nav layout");
+        expect(box.x).toBeGreaterThanOrEqual(nav.x + nav.width);
+      }
+      await page.close();
+    });
+  }
+
+  test("the save bar at 393: equal 48px buttons, no sideways scroll, the last field stays clear", async () => {
+    const page = await profilePage("kontakty");
+    await page.setViewportSize({ width: 393, height: 800 });
+    const contacts = page.getByRole("region", { name: "Контакти" });
+    await contacts.getByLabel(/^Телефон/).fill("+380 50 111-22-33");
+    const bar = page.locator("[data-save-pill]");
+    await expect(bar).toBeVisible();
+    const buttons = bar.getByRole("button");
+    await expect(buttons).toHaveCount(2);
+    const [first, second] = [
+      await buttons.nth(0).boundingBox(),
+      await buttons.nth(1).boundingBox(),
+    ];
+    if (first === null || second === null) throw new Error("no layout");
+    expect(Math.abs(first.width - second.width)).toBeLessThanOrEqual(1);
+    expect(first.height).toBeGreaterThanOrEqual(48);
+    expect(second.height).toBeGreaterThanOrEqual(48);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const fields = contacts.locator("input:visible");
+    const last = await fields.last().boundingBox();
+    const barBox = await bar.boundingBox();
+    if (last === null || barBox === null) throw new Error("no layout");
+    expect(last.y + last.height).toBeLessThanOrEqual(barBox.y);
+    await page.close();
+  });
+
   test("pause with a reason, then resume", async () => {
-    const page = await profilePage();
+    const page = await profilePage("akaunt");
     await page.getByRole("button", { name: "Призупинити прийом тварин" }).click();
     const dialog = page.getByRole("dialog", { name: "Призупинити прийом тварин?" });
     await dialog.getByLabel("Причина").selectOption({ label: "Сезонна перерва" });
@@ -150,6 +244,28 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
     await page.getByRole("button", { name: "Відновити прийом тварин" }).click();
     await expect(page.getByText("Прийом відновлено. Ваших тварин знову видно.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Призупинити прийом тварин" })).toBeVisible();
+    await page.close();
+  });
+
+  /**
+   * Pet card PR 3b. A real file, through a real browser's device-side
+   * compression (`compressPhoto`'s canvas path - happy-dom has none, so this
+   * is the one place that step runs for real) and a real round trip to the
+   * server. This harness environment has no R2 credentials configured
+   * (`photo-upload-env.ts`), so the real, honest answer here is
+   * `PHOTO_UPLOADS_UNAVAILABLE` - which is exactly the failure mode the
+   * section's own error mapping must render correctly, not a mocked stand-in
+   * for a success this environment can't produce.
+   */
+  test("choosing a logo file runs real client-side compression and reports the server's real answer", async () => {
+    const page = await profilePage();
+    const section = page.getByRole("region", { name: "Логотип притулку" });
+    // setInputFiles acts on the hidden <input> directly - no native file
+    // picker dialog involved, so nothing here waits on one.
+    await page.getByTestId("logo-file-input").setInputFiles(SEED_PHOTO);
+    await expect(
+      section.getByText("На цій версії сайту логотип завантажити не можна."),
+    ).toBeVisible();
     await page.close();
   });
 
@@ -170,16 +286,28 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
     const form = await context.newPage();
     expect((await form.goto("/kabinet/tvaryny/nova"))?.status()).toBe(200);
     const controls = [
-      ["TextField", page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/)],
+      [
+        "TextField",
+        "Контакти",
+        page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/),
+      ],
       [
         "TextAreaField",
-        page.getByRole("region", { name: "Голос притулку" }).getByLabel("Ваші слова на картках"),
+        "Профіль",
+        page
+          .getByRole("region", { name: "Голос притулку" })
+          .getByLabel("Ваші слова на сторінці притулку"),
       ],
-      ["Button, secondary", page.getByRole("button", { name: "Вставити {імʼя}" })],
-      ["Button, secondary", page.getByRole("button", { name: "Призупинити прийом тварин" })],
-      ["SegmentedControl", form.getByRole("radio", { name: "Собака" })],
+      [
+        "Button, secondary",
+        "Акаунт",
+        page.getByRole("button", { name: "Призупинити прийом тварин" }),
+      ],
+      ["SegmentedControl", null, form.getByRole("radio", { name: "Собака" })],
     ] as const;
-    for (const [primitive, control] of controls) {
+    for (const [primitive, tab, control] of controls) {
+      // Each control sits in its sub-tab; only the active panel is visible.
+      if (tab !== null) await page.getByRole("tab", { name: tab }).click();
       const { name, minHeight } = await control.evaluate((el) => {
         const label = (el as HTMLInputElement).labels?.[0];
         const target = (el as HTMLInputElement).type === "radio" && label ? label : el;
@@ -187,7 +315,11 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
           name: (label?.textContent ?? el.getAttribute("aria-label") ?? el.textContent ?? "")
             .replace(/\s+/g, " ")
             .trim(),
-          minHeight: Number.parseFloat(getComputedStyle(target).minHeight),
+          // A segment is 44px inside its 52px track: its hit area is the 48px+ ::before.
+          minHeight: Math.max(
+            Number.parseFloat(getComputedStyle(target).minHeight),
+            Number.parseFloat(getComputedStyle(target, "::before").height) || 0,
+          ),
         };
       });
       expect(minHeight, `computed min-height of «${name}» (${primitive})`).toBeGreaterThanOrEqual(
@@ -204,7 +336,7 @@ test.describe("/kabinet K4 profile editing (a shelter's own admin)", () => {
    * tabbing), never its appearance").
    */
   test("tabbing to a control shows a focus indicator", async () => {
-    const page = await profilePage();
+    const page = await profilePage("kontakty");
     const phone = page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/);
     let reached = false;
     for (let i = 0; i < 20 && !reached; i += 1) {

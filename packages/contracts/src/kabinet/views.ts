@@ -1,10 +1,12 @@
 import {
   AnimalPhotoSchema,
   CityIdSchema,
+  CitySchema,
   DraftAnimalSchema,
   FreshnessSchema,
   ListedAnimalSchema,
   PublishGapSchema,
+  RegionIdSchema,
   ShelterAdminIdSchema,
   ShelterFacingHistoryItemSchema,
   ShelterFacingVerificationSchema,
@@ -65,9 +67,13 @@ const ANIMAL_VIEW_FIELDS = {
   species: true,
   sex: true,
   size: true,
+  coatLength: true,
   age: true,
   description: true,
   photos: true,
+  temperament: true,
+  colour: true,
+  medicalNotes: true,
   vaccination: true,
   spayNeuter: true,
   documentReadiness: true,
@@ -103,6 +109,7 @@ export const KabinetShelterViewSchema = ShelterSchema.pick({
   donation: true,
   pendingDonation: true,
   freshnessSentence: true,
+  logo: true,
   version: true,
 }).extend({ verification: ShelterFacingVerificationSchema });
 export type KabinetShelterView = z.infer<typeof KabinetShelterViewSchema>;
@@ -289,3 +296,29 @@ export const HistoryEntryViewSchema = ShelterHistoryEntrySchema;
  */
 export const ShelterHistoryItemViewSchema = ShelterFacingHistoryItemSchema;
 export type ShelterHistoryItemView = z.infer<typeof ShelterHistoryItemViewSchema>;
+
+/**
+ * One settlement offered by the operator's place search (nationwide N2). Built with `pick`, like
+ * every public view: the code, the centroid, the scope and the occupation rule stay in the
+ * database. `hromada` is set only where the name needs it to be told apart from a namesake in the
+ * same raion (`name_scope = shared_in_district`), so the picker never prints more than it must.
+ */
+export const PlaceOptionViewSchema = CitySchema.pick({ id: true, kind: true, slug: true }).extend({
+  name: z.string().min(1),
+  district: z.string().min(1).nullable(),
+  hromada: z.string().min(1).nullable(),
+  region: z.object({ id: RegionIdSchema, ukShort: z.string().min(1) }),
+});
+export type PlaceOptionView = z.infer<typeof PlaceOptionViewSchema>;
+
+/** `too_short` is an answer, not an error: the picker shows its hint instead of an empty list. */
+export const PLACE_SEARCH_MAX_QUERY_LENGTH = 80;
+export const PLACE_SEARCH_MAX_RESULTS = 20;
+export const PlaceSearchResultSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("too_short") }),
+  z.object({
+    kind: z.literal("results"),
+    places: z.array(PlaceOptionViewSchema).max(PLACE_SEARCH_MAX_RESULTS).readonly(),
+  }),
+]);
+export type PlaceSearchResult = z.infer<typeof PlaceSearchResultSchema>;

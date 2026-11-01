@@ -7,19 +7,23 @@ import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetContext } from "./context";
 import { PHOTO_PROCESSING_BUDGET_MS, PHOTO_UPLOADS_NOT_CONFIGURED } from "./photo-uploads";
 import { handleKabinetRpc, KABINET_RPC_PREFIX, kabinetRpcHandler } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
- * P-Q7: `/api/kabinet/*` reads at most `KABINET_MAX_BODY_BYTES`. A larger
- * body is 413 before any session is looked up, so an oversized upload costs
- * the server one bounded read and nothing else: no session, no database, no
- * sharp, no put.
+ * P-Q7: `/api/kabinet/*` reads at most `KABINET_MAX_BODY_BYTES`. A declared
+ * larger body is 413 before any session is looked up; an undeclared one is
+ * counted while read, and since audit F9's S3 cap (owner, 2026-10-29) its
+ * session is looked up once it passes 16 KB (`rpc-unverified-body.test.ts`),
+ * so a signed-in upload's 413 comes after that one lookup. Either way an
+ * oversized upload costs one bounded read: no sharp, no put.
  */
 
 const BASE = "https://opika.example";
 const ADD = `${BASE}/api/kabinet/shelter/photos/add`;
 const SENTINEL = "reached the session lookup";
 
-function deps() {
+/** `signedIn`: the lookup finds a session, so the body is read on to the ceiling. */
+function deps(lookup: "throws" | "signedIn" = "throws") {
   let resolved = 0;
   const puts: string[] = [];
   return {
@@ -35,7 +39,13 @@ function deps() {
       },
       resolve: async () => {
         resolved += 1;
-        throw new Error(SENTINEL);
+        if (lookup === "throws") throw new Error(SENTINEL);
+        return {
+          principal: { kind: "shelter_admin", shelterAdminId: "u-1", shelterId: "s-1" },
+          userId: "u-1",
+          db: {},
+          cursorSecret: "x",
+        };
       },
       limiters: {
         perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
@@ -101,27 +111,32 @@ describe("the kabinet body ceiling (P-Q7)", () => {
     expect(puts).toEqual([]);
   });
 
-  it("a chunked body (no Content-Length) over the ceiling: 413, no session, nothing stored", async () => {
-    const { deps: d, resolvedCount, puts } = deps();
+  it("a chunked body (no Content-Length) over the ceiling: 413 after one session lookup, nothing stored", async () => {
+    const { deps: d, resolvedCount, puts } = deps("signedIn");
     const request = new Request(ADD, {
       method: "POST",
-      headers: { origin: BASE, "content-type": "multipart/form-data; boundary=x" },
+      headers: {
+        origin: BASE,
+        cookie: TEST_SESSION_COOKIE,
+        "content-type": "multipart/form-data; boundary=x",
+      },
       body: chunked(5 * MiB),
       duplex: "half",
     } as RequestInit);
     expect(request.headers.get("content-length")).toBeNull();
     const response = await handleKabinetRpc(request, d);
     expect(response.status).toBe(413);
-    expect(resolvedCount()).toBe(0);
+    expect(resolvedCount()).toBe(1);
     expect(puts).toEqual([]);
   });
 
-  it("a small declared Content-Length followed by a larger body: 413, no session, nothing stored", async () => {
-    const { deps: d, resolvedCount, puts } = deps();
+  it("a small declared Content-Length followed by a larger body: 413 after one session lookup, nothing stored", async () => {
+    const { deps: d, resolvedCount, puts } = deps("signedIn");
     const request = new Request(ADD, {
       method: "POST",
       headers: {
         origin: BASE,
+        cookie: TEST_SESSION_COOKIE,
         "content-type": "multipart/form-data; boundary=x",
         "content-length": "1024",
       },
@@ -132,32 +147,74 @@ describe("the kabinet body ceiling (P-Q7)", () => {
     expect(request.headers.get("content-length")).toBe("1024");
     const response = await handleKabinetRpc(request, d);
     expect(response.status).toBe(413);
-    expect(resolvedCount()).toBe(0);
+    expect(resolvedCount()).toBe(1);
     expect(puts).toEqual([]);
   });
 
   it("one byte over, counted while reading: 413", async () => {
-    const { deps: d, resolvedCount } = deps();
+    const { deps: d, resolvedCount } = deps("signedIn");
     const request = new Request(ADD, {
       method: "POST",
-      headers: { origin: BASE },
+      headers: { origin: BASE, cookie: TEST_SESSION_COOKIE },
       body: chunked(KABINET_MAX_BODY_BYTES + 1),
       duplex: "half",
     } as RequestInit);
     expect((await handleKabinetRpc(request, d)).status).toBe(413);
-    expect(resolvedCount()).toBe(0);
+    expect(resolvedCount()).toBe(1);
   });
 
   it("exactly the ceiling goes on to the session lookup (the 413s above are about size)", async () => {
     const { deps: d, resolvedCount } = deps();
     const request = new Request(ADD, {
       method: "POST",
-      headers: { origin: BASE },
+      headers: { origin: BASE, cookie: TEST_SESSION_COOKIE },
       body: chunked(KABINET_MAX_BODY_BYTES),
       duplex: "half",
     } as RequestInit);
     await expect(handleKabinetRpc(request, d)).rejects.toThrow(SENTINEL);
     expect(resolvedCount()).toBe(1);
+  });
+
+  // Literal 4 MiB on purpose: sized from the constant, the test would follow it when it moves.
+  const FOUR_MIB = 4 * 1024 * 1024;
+
+  it("the ceiling is 4 MiB", () => {
+    expect(KABINET_MAX_BODY_BYTES).toBe(FOUR_MIB);
+  });
+
+  it("a signed-in shelter admin's body of exactly 4 MiB is read whole: not 413", async () => {
+    const { deps: d, resolvedCount } = deps("signedIn");
+    let pulled = 0;
+    const lazy = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (pulled >= FOUR_MIB) return controller.close();
+        const size = Math.min(MiB, FOUR_MIB - pulled);
+        pulled += size;
+        controller.enqueue(new Uint8Array(size));
+      },
+    });
+    const request = new Request(ADD, {
+      method: "POST",
+      headers: { origin: BASE, cookie: TEST_SESSION_COOKIE },
+      body: lazy,
+      duplex: "half",
+    } as RequestInit);
+    const response = await handleKabinetRpc(request, d);
+    // Past the 16 KB cap and the ceiling check: the stream was drained to the last byte.
+    expect(pulled).toBe(FOUR_MIB);
+    expect(response.status).not.toBe(413);
+    expect(resolvedCount()).toBe(1);
+  });
+
+  it("a signed-in shelter admin's body of 4 MiB plus one byte: 413", async () => {
+    const { deps: d } = deps("signedIn");
+    const request = new Request(ADD, {
+      method: "POST",
+      headers: { origin: BASE, cookie: TEST_SESSION_COOKIE },
+      body: chunked(FOUR_MIB + 1),
+      duplex: "half",
+    } as RequestInit);
+    expect((await handleKabinetRpc(request, d)).status).toBe(413);
   });
 
   it("the oRPC handler holds the same ceiling on its own (BodyLimitPlugin)", async () => {

@@ -27,13 +27,18 @@ describe("anonymousRouterClient", () => {
     await cityRepo(h.db).insert(city);
 
     const client = anonymousRouterClient(h.db);
-    const cities = await client.cities.list({});
+    const cities = await client.cities.byIds({ ids: [city.id] });
 
     expect(cities).toHaveLength(1);
     expect(cities[0]).toEqual({
       id: city.id,
       slug: city.slug,
-      name: city.name,
+      kind: city.kind,
+      nameScope: city.nameScope,
+      regionId: city.regionId,
+      name: "Бровари",
+      regionShort: "Київська обл.",
+      raion: null,
     });
   });
 
@@ -41,8 +46,8 @@ describe("anonymousRouterClient", () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
 
-    const viaInProcess = await anonymousRouterClient(h.db).cities.list({});
-    const viaHttp = await h.call("cities.list", {});
+    const viaInProcess = await anonymousRouterClient(h.db).cities.byIds({ ids: [city.id] });
+    const viaHttp = await h.call("cities.byIds", { ids: [city.id] });
 
     expect(viaHttp.status).toBe(200);
     expect(viaInProcess).toEqual(viaHttp.body);
@@ -76,15 +81,45 @@ describe("anonymousRouterClient", () => {
     expect(page.items).toHaveLength(1);
     expect(Object.keys(page.items[0]?.shelter ?? {}).sort()).toEqual([
       "displayName",
-      "freshnessSentence",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);
     expect(JSON.stringify(page.items[0]?.shelter)).not.toContain("вул. Тестова");
   });
 
-  it("also exposes gallery.relaxationCounts — V2's no-match state, read-only same as gallery.list", async () => {
+  /** Pet card PR 3a: the key list test above checks `logo` is present, never that its
+   * value is the one actually stored - every handler copies it by hand (`logo:
+   * shelter.logo`), so a typo there would pass the key-list check and still ship null. */
+  it("carries the shelter's actual logo value through gallery.list, not just the key", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const logo = { storageKey: "shelters/test/logo/abc123", width: 160, height: 160 };
+    const shelter = makeShelter({
+      logo,
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id }), city.id);
+
+    const page = await anonymousRouterClient(h.db).gallery.list({
+      filters: NO_FILTERS,
+      page: 1,
+      pageSize: 24,
+    });
+
+    expect(page.items[0]?.shelter.logo).toEqual(logo);
+  });
+
+  it("also exposes gallery.relaxationCounts - V2's no-match state, read-only same as gallery.list", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
@@ -110,7 +145,7 @@ describe("anonymousRouterClient", () => {
    * F1 put `animals.byId` and `shelters.byId` on this path, which changes the
    * shape of the guard below rather than duplicating it: `animals` is now a
    * legitimately-defined namespace, so its mere presence proves nothing. What
-   * must stay absent from it is `reveal` — the one procedure that needs an
+   * must stay absent from it is `reveal` - the one procedure that needs an
    * `adopterId` a Server Component render never has, and the only one that
    * discloses an exact address and contact details.
    */
@@ -155,14 +190,16 @@ describe("anonymousRouterClient", () => {
       "description",
       "displayName",
       "donation",
+      "freshnessSentence",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);
     expect(Object.keys(detail.shelter).sort()).toEqual([
       "displayName",
-      "freshnessSentence",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);
@@ -173,7 +210,7 @@ describe("anonymousRouterClient", () => {
   });
 
   /**
-   * This path throws `setCookies` away — a Server Component cannot write a
+   * This path throws `setCookies` away - a Server Component cannot write a
    * cookie. `session.bootstrap` inserts an adopter row and a session row
    * before it queues its Set-Cookie, so exposing it here would mint an
    * orphan adopter on every render and report success. The surface is

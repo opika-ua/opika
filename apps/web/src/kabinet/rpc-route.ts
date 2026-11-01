@@ -2,22 +2,27 @@ import { KABINET_MAX_BODY_BYTES } from "@opika/contracts";
 import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
+import { boundedBody, readBodyHead } from "../api/bounded-body";
 import { ipRateLimitKey } from "../api/rate-limit-key";
+import { retryAfterSecondsOf } from "../api/retry-after";
 import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
+import { kabinetCookieName } from "./auth";
 import type { KabinetAuthAvailability } from "./auth-route";
 import { isSameOriginPost } from "./confirm-route";
+import { invitationRouter } from "./invitation-router";
+import { INVITE_PASSWORDS_OFF, type InvitePasswords } from "./invite-password";
 import { PHOTO_UPLOADS_NOT_CONFIGURED, type PhotoUploads } from "./photo-uploads";
 import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
 import { registryRouter } from "./registry-router";
 import { shelterKabinetRouter } from "./router";
 
 /**
- * Both surfaces on one handler (`shelter`, `registry`, `session` are disjoint
+ * Every surface on one handler (`shelter`, `registry`, `session`, `invitation` are disjoint
  * top-level keys). Each router was built with `implement(...)` over its own
  * contract and is complete, so no stub answers a real route (HS-Q1).
  */
-export const kabinetRouter = { ...shelterKabinetRouter, ...registryRouter };
+export const kabinetRouter = { ...shelterKabinetRouter, ...registryRouter, ...invitationRouter };
 
 /**
  * `BodyLimitPlugin` holds the body ceiling inside oRPC too (P-Q7). The route
@@ -31,45 +36,77 @@ export const kabinetRpcHandler = new RPCHandler(kabinetRouter, {
 
 export const KABINET_RPC_PREFIX = "/api/kabinet";
 
-const tooMany = () => new Response("Too Many Requests", { status: 429 });
-const tooLarge = () => new Response("Payload Too Large", { status: 413 });
+/**
+ * Audit F9 (owner, S3 scope, 2026-10-29): the most read for a caller no session has vouched
+ * for: the invitation link always, and any other call until its session cookie has been looked
+ * up. Far above any such call's real input (`invitation.acceptWithPassword`'s is a token and a
+ * password); only `mayExceedUnverifiedCap`'s roles keep `KABINET_MAX_BODY_BYTES`.
+ */
+export const KABINET_UNVERIFIED_MAX_BODY_BYTES = 16 * 1024;
 
 /**
- * The request with its body read into memory, or `too_large` as soon as it
- * is known to exceed `KABINET_MAX_BODY_BYTES` (P-Q7): by a declared
- * `Content-Length` without reading a byte, or, for a body without one
- * (chunked), by counting while reading and stopping at the first byte over.
- * Either way before any session is looked up or any database touched, so an
- * oversized upload costs a read of at most the ceiling and nothing else.
- *
- * A declared length is not trusted to be honest: the count runs on every
- * body, so one that claims less than it sends is refused all the same.
+ * Who may send past `KABINET_UNVERIFIED_MAX_BODY_BYTES` (owner, #249): only a principal whose own
+ * procedures can need it. A shelter admin uploads photos and a logo; the operator's registry
+ * inputs carry free text no schema bounds (a shelter's description). Everyone else is held to
+ * 16 KB like an unauthenticated caller: no_role and conflicting_roles are nobody the kabinet
+ * serves, and a support view writes nothing.
  */
-async function boundedBody(request: Request): Promise<Request | "too_large"> {
-  const declared = request.headers.get("content-length");
-  if (declared !== null && Number(declared) > KABINET_MAX_BODY_BYTES) return "too_large";
-  if (request.body === null) return request;
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > KABINET_MAX_BODY_BYTES) {
-      await reader.cancel();
-      return "too_large";
-    }
-    chunks.push(value);
+function mayExceedUnverifiedCap(principal: KabinetPrincipal): boolean {
+  switch (principal.kind) {
+    case "shelter_admin":
+    case "super_admin":
+      return true;
+    case "anonymous":
+    case "no_role":
+    case "conflicting_roles":
+    case "support_view":
+      return false;
   }
-  const headers = new Headers(request.headers);
-  // The buffered body sets its own length; a chunked framing header no longer applies.
-  headers.delete("content-length");
-  headers.delete("transfer-encoding");
-  return new Request(request.url, {
-    method: request.method,
-    headers,
-    body: Buffer.concat(chunks),
+}
+
+const tooMany = (retryAfterSeconds: number) =>
+  new Response("Too Many Requests", {
+    status: 429,
+    headers: { "Retry-After": String(retryAfterSeconds) },
+  });
+const tooLarge = () => new Response("Payload Too Large", { status: 413 });
+const unauthorized = () => new Response("Unauthorized", { status: 401 });
+
+/**
+ * The paths a caller with no session may use: the `invitation_link` procedures
+ * (PW-2), whose token is the credential. Read from the served router's own
+ * access meta, so a new anonymous procedure can't be forgotten here.
+ */
+function anonymousPathsOf(node: unknown, path: readonly string[] = []): string[] {
+  if (typeof node !== "object" || node === null) return [];
+  if ("~orpc" in node) {
+    const meta = (node as { "~orpc": { meta?: { access?: { surface?: string } | null } } })["~orpc"]
+      .meta;
+    return meta?.access?.surface === "invitation_link"
+      ? [`${KABINET_RPC_PREFIX}/${path.join("/")}`]
+      : [];
+  }
+  return Object.entries(node).flatMap(([key, child]) => anonymousPathsOf(child, [...path, key]));
+}
+
+export const KABINET_ANONYMOUS_PATHS: ReadonlySet<string> = new Set(
+  anonymousPathsOf(kabinetRouter),
+);
+
+const SESSION_COOKIE_NAMES: ReadonlySet<string> = new Set([
+  kabinetCookieName("session_token", true),
+  kabinetCookieName("session_token", false),
+]);
+
+/** Whether a non-empty kabinet session cookie is present. Presence only: `resolve` checks it. */
+function hasSessionCookie(cookieHeader: string | null): boolean {
+  return (cookieHeader ?? "").split(";").some((pair) => {
+    const at = pair.indexOf("=");
+    return (
+      at > 0 &&
+      SESSION_COOKIE_NAMES.has(pair.slice(0, at).trim()) &&
+      pair.slice(at + 1).trim() !== ""
+    );
   });
 }
 
@@ -107,9 +144,18 @@ export async function handleKabinetRpc(
      * Left out, uploads are off: a caller that doesn't say can't store.
      */
     photoUploads?: PhotoUploads;
+    /**
+     * The invitation link's «Створіть пароль» (PW-2). Called only once the kabinet is known to be
+     * available, since it needs Better Auth. Left out, it is off: the procedure answers that the
+     * link can't be used.
+     */
+    invitePasswords?: () => InvitePasswords;
   },
 ): Promise<Response> {
-  if (!(await deps.limiters.perIp.check(ipRateLimitKey(deps.ip), deps.now))) return tooMany();
+  const ipKey = ipRateLimitKey(deps.ip);
+  if (!(await deps.limiters.perIp.check(ipKey, deps.now))) {
+    return tooMany(retryAfterSecondsOf(deps.limiters.perIp, ipKey, deps.now));
+  }
   if (deps.availability.kind === "unavailable") {
     return new Response("Kabinet is not available", { status: 503 });
   }
@@ -122,17 +168,51 @@ export async function handleKabinetRpc(
   if (!isSameOriginPost(request.headers.get("origin"), deps.availability.baseURL)) {
     return new Response("Forbidden", { status: 403 });
   }
-  const bounded = await boundedBody(request);
-  if (bounded === "too_large") return tooLarge();
+  // P-Q7: an oversized declared body is refused first, before anything is read or looked up.
+  const declared = request.headers.get("content-length");
+  if (declared !== null && Number(declared) > KABINET_MAX_BODY_BYTES) return tooLarge();
+  // Audit F9 (owner, 2026-10-28): no session cookie, no body read and no database,
+  // except on the invitation link.
+  const path = new URL(request.url).pathname;
+  const invitationLink = KABINET_ANONYMOUS_PATHS.has(path);
+  if (!invitationLink && !hasSessionCookie(request.headers.get("cookie"))) {
+    return unauthorized();
+  }
+  // Audit F9 (S3): an unverified caller gets 16 KB. Past that, the session is looked up before
+  // reading on, and only a role that needs it gets the rest of the ceiling (P-Q7). Anyone else
+  // gets the cookie-less 401; an invitation-link body past 16 KB is 413.
+  let identity: Awaited<ReturnType<typeof deps.resolve>> | undefined;
+  let bounded: Request;
+  if (invitationLink) {
+    const small = await boundedBody(request, KABINET_UNVERIFIED_MAX_BODY_BYTES);
+    if (small === "too_large") return tooLarge();
+    bounded = small;
+  } else {
+    const head = await readBodyHead(request, KABINET_UNVERIFIED_MAX_BODY_BYTES);
+    if (head.kind === "whole") {
+      bounded = head.request;
+    } else {
+      identity = await deps.resolve();
+      if (!mayExceedUnverifiedCap(identity.principal)) {
+        await head.discard();
+        return unauthorized();
+      }
+      const whole = await head.readRest(KABINET_MAX_BODY_BYTES);
+      if (whole === "too_large") return tooLarge();
+      bounded = whole;
+    }
+  }
   // RG-Q10: without the location key the registry can't create a shelter or
   // move one honestly, so all of it is unavailable rather than half of it.
-  const path = new URL(bounded.url).pathname;
   if (deps.locationPolicy === null && path.startsWith(`${KABINET_RPC_PREFIX}/registry/`)) {
     return new Response("Registry is not available", { status: 503 });
   }
-  const { principal, userId, db, cursorSecret } = await deps.resolve();
-  if (userId !== null && !(await deps.limiters.perUser.check(kabinetUserKey(userId), deps.now))) {
-    return tooMany();
+  const { principal, userId, db, cursorSecret } = identity ?? (await deps.resolve());
+  if (userId !== null) {
+    const userKey = kabinetUserKey(userId);
+    if (!(await deps.limiters.perUser.check(userKey, deps.now))) {
+      return tooMany(retryAfterSecondsOf(deps.limiters.perUser, userKey, deps.now));
+    }
   }
   const setCookies: string[] = [];
   const result = await kabinetRpcHandler.handle(bounded, {
@@ -152,6 +232,7 @@ export async function handleKabinetRpc(
       linkBaseURL: deps.availability.baseURL,
       shelterWrites: deps.shelterWrites,
       photoUploads: deps.photoUploads ?? PHOTO_UPLOADS_NOT_CONFIGURED,
+      invitePasswords: deps.invitePasswords?.() ?? INVITE_PASSWORDS_OFF,
     },
   });
   if (!result.matched) return new Response("Not Found", { status: 404 });

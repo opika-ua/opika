@@ -33,7 +33,7 @@ export function testDatabaseName(kind: "test" | "harness", checkoutPath: string)
 }
 
 /**
- * This checkout's harness port, 3100–3599, derived from its path like the
+ * This checkout's harness port, 3100-3599, derived from its path like the
  * database name: two checkouts' harness runs can then go in parallel instead
  * of the second failing with "port already used" (the follow-up #88 left).
  * A collision between two paths is possible but rare, and loud when it
@@ -81,19 +81,92 @@ export function assertDisposableTestDatabase(url: string): string {
   return url;
 }
 
-/** Runs one statement against the same server's maintenance database, where CREATE/DROP DATABASE run. */
+/**
+ * Held (as a session advisory lock on the maintenance connection) around every
+ * CREATE / COMMENT / DROP DATABASE any test process runs. Postgres makes each
+ * DROP DATABASE emit a ProcSignalBarrier that every backend must absorb; with
+ * several agents dropping at once, the drops waited on each other forever
+ * (50+ stuck sessions, 2026-10-30). One lock key serialises them across
+ * processes. The number is arbitrary but must never change or be reused.
+ */
+export const TEST_DB_MAINTENANCE_LOCK_KEY = 7_308_142_001;
+
+export type MaintenanceLimits = {
+  /** How long to wait for the lock before giving up (the holder may have crashed). */
+  lockWaitMs: number;
+  /** Poll interval while waiting. */
+  lockPollMs: number;
+  /** `statement_timeout` on the maintenance connection. NOT lock_timeout: the barrier wait isn't a lock wait. */
+  statementTimeoutMs: number;
+  connectTimeoutSeconds: number;
+};
+
+export const DEFAULT_MAINTENANCE_LIMITS: MaintenanceLimits = {
+  lockWaitMs: 25_000,
+  lockPollMs: 100,
+  statementTimeoutMs: 30_000,
+  connectTimeoutSeconds: 10,
+};
+
+export type Locked<T> = { kind: "done"; value: T } | { kind: "lock_busy" };
+
+/**
+ * pg_try_advisory_lock polled up to `lockWaitMs`, rather than a blocking
+ * pg_advisory_lock: the blocking call is only bounded by statement_timeout and
+ * would hold the connection for all of it. Closing the connection also
+ * releases the lock, so a crashed holder never blocks anyone for long; the
+ * explicit unlock in `finally` just frees it sooner.
+ */
+async function withMaintenanceLock<T>(
+  sql: postgres.Sql,
+  limits: MaintenanceLimits,
+  run: () => Promise<T>,
+): Promise<Locked<T>> {
+  const deadline = Date.now() + limits.lockWaitMs;
+  for (;;) {
+    const [row] = await sql.unsafe(
+      `SELECT pg_try_advisory_lock(${TEST_DB_MAINTENANCE_LOCK_KEY}) AS locked`,
+    );
+    if (row?.locked === true) break;
+    if (Date.now() >= deadline) return { kind: "lock_busy" };
+    await new Promise((done) => setTimeout(done, limits.lockPollMs));
+  }
+  try {
+    return { kind: "done", value: await run() };
+  } finally {
+    // Best effort: if this fails the connection is closed next, which releases it.
+    await sql.unsafe(`SELECT pg_advisory_unlock(${TEST_DB_MAINTENANCE_LOCK_KEY})`).catch(() => {});
+  }
+}
+
+/**
+ * Runs `run` against the same server's maintenance database, where
+ * CREATE/DROP DATABASE run, under the maintenance lock and a statement
+ * timeout. All three utility statements share the lock: CREATE DATABASE also
+ * waits on a barrier-sensitive checkpoint and COMMENT touches pg_shdescription
+ * under the same contention, so only one of them at a time is the safe rule.
+ */
 async function onServer<T>(
   url: string,
   run: (sql: postgres.Sql, name: string) => Promise<T>,
-): Promise<T> {
+  limits: MaintenanceLimits = DEFAULT_MAINTENANCE_LIMITS,
+): Promise<Locked<T>> {
   const target = new URL(assertDisposableTestDatabase(url));
   const name = target.pathname.slice(1);
   target.pathname = "/postgres";
-  const sql = postgres(target.toString(), { max: 1, onnotice: () => {} });
+  const sql = postgres(target.toString(), {
+    max: 1,
+    onnotice: () => {},
+    connect_timeout: limits.connectTimeoutSeconds,
+    // Only utility statements run here; the type-fetch query would itself hit a tiny statement_timeout
+    // and surface as an unhandled rejection.
+    fetch_types: false,
+    connection: { statement_timeout: limits.statementTimeoutMs },
+  });
   try {
-    return await run(sql, name);
+    return await withMaintenanceLock(sql, limits, () => run(sql, name));
   } finally {
-    await sql.end();
+    await sql.end({ timeout: 5 });
   }
 }
 
@@ -139,26 +212,39 @@ const isDerivedFrom = (name: string, checkoutPath: string): boolean =>
  * own throwaway name) names a database this checkout's path didn't produce,
  * and recording this path on it would claim an origin it doesn't have.
  */
-export const ensureTestDatabase = (url: string, checkoutPath: string = CHECKOUT_ROOT) =>
-  onServer(url, async (sql, name) => {
-    const [exists] = await sql`SELECT 1 FROM pg_database WHERE datname = ${name}`;
-    if (exists === undefined) {
-      try {
-        await sql.unsafe(`CREATE DATABASE "${name}"`);
-      } catch (error) {
-        // Two first runs at once: the other one created it between our check
-        // and our CREATE, which is the outcome wanted (42P04 duplicate_database).
-        if ((error as { code?: string }).code !== "42P04") throw error;
+export async function ensureTestDatabase(
+  url: string,
+  checkoutPath: string = CHECKOUT_ROOT,
+  limits: MaintenanceLimits = DEFAULT_MAINTENANCE_LIMITS,
+): Promise<void> {
+  const result = await onServer(
+    url,
+    async (sql, name) => {
+      const [exists] = await sql`SELECT 1 FROM pg_database WHERE datname = ${name}`;
+      if (exists === undefined) {
+        try {
+          await sql.unsafe(`CREATE DATABASE "${name}"`);
+        } catch (error) {
+          // Two first runs at once: the other one created it between our check
+          // and our CREATE, which is the outcome wanted (42P04 duplicate_database).
+          if ((error as { code?: string }).code !== "42P04") throw error;
+        }
       }
-    }
-    if (!isDerivedFrom(name, checkoutPath)) return;
-    // COMMENT is a utility statement and takes no bind parameters, so the
-    // literal is escaped here (standard_conforming_strings: only ' needs it).
-    // The name is safe to interpolate: `assertDisposableTestDatabase` held it
-    // to /^opika_(test|harness)_[0-9a-f]{8}$/ before we got here.
-    const literal = checkoutComment(checkoutPath).replaceAll("'", "''");
-    await sql.unsafe(`COMMENT ON DATABASE "${name}" IS '${literal}'`);
-  });
+      if (!isDerivedFrom(name, checkoutPath)) return;
+      // COMMENT is a utility statement and takes no bind parameters, so the
+      // literal is escaped here (standard_conforming_strings: only ' needs it).
+      // The name is safe to interpolate: `assertDisposableTestDatabase` held it
+      // to /^opika_(test|harness)_[0-9a-f]{8}$/ before we got here.
+      const literal = checkoutComment(checkoutPath).replaceAll("'", "''");
+      await sql.unsafe(`COMMENT ON DATABASE "${name}" IS '${literal}'`);
+    },
+    limits,
+  );
+  // Setup, unlike teardown, cannot continue without its database.
+  if (result.kind === "lock_busy") {
+    throw new Error("Timed out waiting for the test-database maintenance lock. Refusing to guess.");
+  }
+}
 
 /**
  * How a drop treats a database another session still has open.
@@ -172,30 +258,46 @@ export const ensureTestDatabase = (url: string, checkoutPath: string = CHECKOUT_
  */
 export type DropMode = "force" | "unless_in_use";
 
-export type DropResult = { kind: "dropped" } | { kind: "in_use" };
+export type DropResult =
+  | { kind: "dropped" }
+  | { kind: "in_use" }
+  /** The maintenance lock stayed busy for the whole bound; nothing was attempted. */
+  | { kind: "skipped"; reason: "lock_busy" };
 
 /** 55006 object_in_use: "database ... is being accessed by other users". */
 const OBJECT_IN_USE = "55006";
 
 /**
- * Drops it if it exists. Without FORCE, Postgres itself waits up to five
- * seconds for other sessions to go before giving up with 55006, so a
- * connection still closing as the run ends doesn't count as in use.
+ * Drops it if it exists, under the maintenance lock. Without FORCE, Postgres
+ * itself waits up to five seconds for other sessions to go before giving up
+ * with 55006, so a connection still closing as the run ends doesn't count as
+ * in use. A statement_timeout (57014) or any other error is thrown: the
+ * teardown logs and continues, the prune script counts it as a failure.
  */
-export const dropTestDatabase = (url: string, mode: DropMode): Promise<DropResult> =>
-  onServer(url, async (sql, name): Promise<DropResult> => {
-    if (mode === "force") {
-      await sql.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
-      return { kind: "dropped" };
-    }
-    try {
-      await sql.unsafe(`DROP DATABASE IF EXISTS "${name}"`);
-      return { kind: "dropped" };
-    } catch (error) {
-      if ((error as { code?: string }).code === OBJECT_IN_USE) return { kind: "in_use" };
-      throw error;
-    }
-  });
+export async function dropTestDatabase(
+  url: string,
+  mode: DropMode,
+  limits: MaintenanceLimits = DEFAULT_MAINTENANCE_LIMITS,
+): Promise<DropResult> {
+  const result = await onServer(
+    url,
+    async (sql, name): Promise<DropResult> => {
+      if (mode === "force") {
+        await sql.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+        return { kind: "dropped" };
+      }
+      try {
+        await sql.unsafe(`DROP DATABASE IF EXISTS "${name}"`);
+        return { kind: "dropped" };
+      } catch (error) {
+        if ((error as { code?: string }).code === OBJECT_IN_USE) return { kind: "in_use" };
+        throw error;
+      }
+    },
+    limits,
+  );
+  return result.kind === "done" ? result.value : { kind: "skipped", reason: "lock_busy" };
+}
 
 /** The env flag that keeps a failed run's database for debugging. */
 export const KEEP_ON_FAILURE_ENV = "KEEP_TEST_DB_ON_FAILURE";
@@ -205,7 +307,10 @@ export type RunOutcome = "passed" | "failed" | "interrupted" | "timedout";
 
 export type TestDatabaseDisposal =
   | { kind: "drop" }
-  | { kind: "keep"; reason: "failed_run_with_keep_flag" | "in_use_by_another_session" };
+  | {
+      kind: "keep";
+      reason: "failed_run_with_keep_flag" | "in_use_by_another_session" | "drop_not_completed";
+    };
 
 /**
  * After a run, the database goes (Oleksii, 2026-10-13, relayed): it is
@@ -233,10 +338,9 @@ export function disposalAfterRun(
  * checkout, and that run keeps its database. It is reused by the next run, or
  * dropped by whichever run ends last, or by `db:prune-test-dbs` later.
  *
- * A server that isn't running (`docker compose` down, a run of pure unit
- * tests only) is said, not thrown: there is nothing to drop, and the run's own
- * result shouldn't turn red over it. Any other failure throws. Prints the
- * database's name, never its URL.
+ * Any failure (server down, statement timeout, busy lock) is logged with the
+ * database's name and swallowed: the run's own result shouldn't turn red over
+ * a leftover scratch database. Never prints the URL.
  */
 export async function disposeTestDatabaseAfterRun(
   url: string,
@@ -258,11 +362,23 @@ export async function disposeTestDatabaseAfterRun(
       log(`Kept test database ${name}: another session is still using it.`);
       return { kind: "keep", reason: "in_use_by_another_session" };
     }
+    if (dropped.kind === "skipped") {
+      log(
+        `Test database ${name} not dropped: the maintenance lock stayed busy. db:prune-test-dbs can sweep it.`,
+      );
+      return { kind: "keep", reason: "drop_not_completed" };
+    }
   } catch (error) {
-    if ((error as { code?: string }).code !== "ECONNREFUSED") throw error;
+    // Never throw from a teardown: a stuck DROP (57014 statement timeout), a
+    // terminated connection (57P01) or a server that is down must not turn a
+    // finished run red or hang it. The name is logged for the prune sweep.
+    const code = (error as { code?: string }).code;
     log(
-      `Test database server not reachable; ${name} not dropped (nothing to drop if it never ran).`,
+      code === "ECONNREFUSED"
+        ? `Test database server not reachable; ${name} not dropped (nothing to drop if it never ran).`
+        : `Test database ${name} not dropped (${code ?? "error"}: ${(error as Error).message}). db:prune-test-dbs can sweep it.`,
     );
+    return { kind: "keep", reason: "drop_not_completed" };
   }
   return disposal;
 }

@@ -3,12 +3,16 @@ import type {
   AdopterIdentity,
   AdopterProfile,
   Animal,
+  AnimalColour,
   City,
   CityId,
+  CoatColour,
   ContactReveal,
   LocalizedText,
   Shelter,
   Swipe,
+  Temperament,
+  TemperamentTrait,
   TextProvenance,
 } from "@opika/domain";
 import {
@@ -18,6 +22,9 @@ import {
   confirmationAnchorOf,
   type DiscoverableAnimal,
   isDiscoverableAnimal,
+  searchLatinOf,
+  searchNameOf,
+  temperamentTraitsOf,
   waitAnchorOf,
 } from "@opika/domain";
 import type { adopters } from "../schema/adopters";
@@ -69,9 +76,56 @@ function columnsToLocalizedText(
   };
 }
 
+/** An optional `LocalizedText` as its three nullable columns: all null when there is none. */
+function optionalTextToColumns(lt: LocalizedText | null): {
+  uk: string | null;
+  enText: string | null;
+  enProvenance: TextProvenance | null;
+} {
+  return lt === null ? { uk: null, enText: null, enProvenance: null } : localizedTextToColumns(lt);
+}
+
+/** The reverse. No Ukrainian is no text: the `_en_check` CHECKs keep an English one from being stored alone. */
+function columnsToOptionalText(
+  uk: string | null,
+  enText: string | null,
+  enProvenance: string | null,
+): LocalizedText | null {
+  return uk === null ? null : columnsToLocalizedText(uk, enText, enProvenance);
+}
+
+// --- The pet card's temperament and colour ---
+//
+// `Temperament` is presets then at most one custom entry, last
+// (`TemperamentSchema`), so it splits into the filterable array and one
+// optional text, and joins back in exactly the order it was stored.
+
+const customTemperamentOf = (temperament: Temperament): LocalizedText | null => {
+  const last = temperament.at(-1);
+  return last?.kind === "custom" ? last.text : null;
+};
+
+function columnsToTemperament(
+  traits: readonly TemperamentTrait[],
+  custom: LocalizedText | null,
+): Temperament {
+  return [
+    ...traits.map((trait) => ({ kind: "preset" as const, trait })),
+    ...(custom === null ? [] : [{ kind: "custom" as const, text: custom }]),
+  ];
+}
+
+function columnsToColour(
+  preset: CoatColour | null,
+  custom: LocalizedText | null,
+): AnimalColour | null {
+  if (preset !== null) return { kind: "preset", colour: preset };
+  return custom === null ? null : { kind: "custom", text: custom };
+}
+
 // --- City ---
 //
-// Not `localizedTextToColumns`/`columnsToLocalizedText` — those two exist
+// Not `localizedTextToColumns`/`columnsToLocalizedText` - those two exist
 // for `LocalizedText`, whose `en` is genuinely nullable (a shelter or
 // animal description can be Ukrainian-only). `City.name` is the stricter
 // `CityName` (`packages/domain`, tightened 2026-09-12 alongside this
@@ -81,14 +135,24 @@ function columnsToLocalizedText(
 // accepting a null `en` the type no longer permits.
 
 export function cityToRow(city: City): CityInsert {
+  const centroid = city.centroid;
   return {
     id: city.id,
     slug: city.slug,
     nameUk: city.name.uk,
     nameEnText: city.name.en.text,
     nameEnProvenance: city.name.en.provenance,
-    centroidLat: city.centroid.lat,
-    centroidLng: city.centroid.lng,
+    regionId: city.regionId,
+    kind: city.kind,
+    districtNameUk: city.district?.uk ?? null,
+    hromadaNameUk: city.hromada?.uk ?? null,
+    nameScope: city.nameScope,
+    // Derived here so no writer can store a key that disagrees with the name.
+    searchName: searchNameOf(city.name.uk),
+    searchLatin: searchLatinOf(city.name.uk),
+    centroidLat: centroid.kind === "recorded" ? centroid.coordinates.lat : null,
+    centroidLng: centroid.kind === "recorded" ? centroid.coordinates.lng : null,
+    centroidSource: centroid.kind === "recorded" ? centroid.source : null,
   };
 }
 
@@ -96,11 +160,23 @@ export function rowToCity(row: CityRow): City {
   return {
     id: row.id,
     slug: CitySlugSchema.parse(row.slug),
+    regionId: row.regionId,
+    kind: row.kind,
     name: {
       uk: row.nameUk,
       en: { text: row.nameEnText, provenance: row.nameEnProvenance },
     },
-    centroid: { lat: row.centroidLat, lng: row.centroidLng },
+    district: row.districtNameUk === null ? null : { uk: row.districtNameUk },
+    hromada: row.hromadaNameUk === null ? null : { uk: row.hromadaNameUk },
+    nameScope: row.nameScope,
+    centroid:
+      row.centroidLat !== null && row.centroidLng !== null && row.centroidSource !== null
+        ? {
+            kind: "recorded",
+            coordinates: { lat: row.centroidLat, lng: row.centroidLng },
+            source: row.centroidSource,
+          }
+        : { kind: "not_recorded" },
   };
 }
 
@@ -119,6 +195,7 @@ export function shelterToRow(shelter: Shelter): ShelterInsert {
     exactAddress: shelter.exactAddress,
     contact: shelter.contact,
     donation: shelter.donation,
+    logo: shelter.logo,
     pendingDonation: shelter.pendingDonation,
     version: shelter.version,
     freshnessSentenceUk: shelter.freshnessSentence?.uk ?? null,
@@ -147,6 +224,7 @@ export function rowToShelter(row: ShelterRow): Shelter {
     exactAddress: row.exactAddress,
     contact: row.contact,
     donation: row.donation ?? null,
+    logo: row.logo ?? null,
     pendingDonation: row.pendingDonation ?? null,
     version: row.version,
     freshnessSentence: row.freshnessSentenceUk
@@ -168,12 +246,18 @@ export function rowToShelter(row: ShelterRow): Shelter {
  */
 export function animalToRowWithCity(animal: Animal, cityId: CityId): AnimalInsert {
   const desc = animal.description === null ? null : localizedTextToColumns(animal.description);
+  const temperamentCustom = optionalTextToColumns(customTemperamentOf(animal.temperament));
+  const colourCustom = optionalTextToColumns(
+    animal.colour?.kind === "custom" ? animal.colour.text : null,
+  );
+  const medicalNotes = optionalTextToColumns(animal.medicalNotes);
   return {
     id: animal.id,
     shelterId: animal.shelterId,
     name: animal.name,
     species: animal.species,
     sex: animal.sex,
+    coatLength: animal.coatLength,
     size: animal.size,
     age: animal.age,
     ageAnchorAt: animal.age === null ? null : ageAnchorOf(animal.age),
@@ -184,11 +268,23 @@ export function animalToRowWithCity(animal: Animal, cityId: CityId): AnimalInser
     vaccination: animal.vaccination,
     spayNeuter: animal.spayNeuter,
     documentReadiness: animal.documentReadiness,
+    temperamentTraits: temperamentTraitsOf(animal.temperament),
+    temperamentCustomUk: temperamentCustom.uk,
+    temperamentCustomEnText: temperamentCustom.enText,
+    temperamentCustomEnProvenance: temperamentCustom.enProvenance,
+    coatColour: animal.colour?.kind === "preset" ? animal.colour.colour : null,
+    coatColourCustomUk: colourCustom.uk,
+    coatColourCustomEnText: colourCustom.enText,
+    coatColourCustomEnProvenance: colourCustom.enProvenance,
+    medicalNotesUk: medicalNotes.uk,
+    medicalNotesEnText: medicalNotes.enText,
+    medicalNotesEnProvenance: medicalNotes.enProvenance,
     listing: animal.listing,
     listingKind: animal.listing.kind,
     waitAnchorAt: waitAnchorOf(animal.listing),
     lastConfirmedAt: confirmationAnchorOf(animal.listing),
     firstPublishedAt: firstPublishedAnchorOf(animal.listing),
+    everServedAt: animal.everServedAt,
     publicLocation: animal.publicLocation,
     cityId,
     createdAt: animal.createdAt,
@@ -211,11 +307,34 @@ export function rowToAnimal(row: AnimalRow): Animal {
     name: row.name,
     species: row.species,
     sex: row.sex,
+    coatLength: row.coatLength ?? null,
     photos: row.photos,
     vaccination: row.vaccination,
     spayNeuter: row.spayNeuter,
     documentReadiness: row.documentReadiness,
+    temperament: columnsToTemperament(
+      row.temperamentTraits,
+      columnsToOptionalText(
+        row.temperamentCustomUk,
+        row.temperamentCustomEnText,
+        row.temperamentCustomEnProvenance,
+      ),
+    ),
+    colour: columnsToColour(
+      row.coatColour ?? null,
+      columnsToOptionalText(
+        row.coatColourCustomUk,
+        row.coatColourCustomEnText,
+        row.coatColourCustomEnProvenance,
+      ),
+    ),
+    medicalNotes: columnsToOptionalText(
+      row.medicalNotesUk,
+      row.medicalNotesEnText,
+      row.medicalNotesEnProvenance,
+    ),
     publicLocation: row.publicLocation ?? null,
+    everServedAt: row.everServedAt ?? null,
     createdAt: row.createdAt,
     lastUpdatedAt: row.lastUpdatedAt,
     version: row.version,

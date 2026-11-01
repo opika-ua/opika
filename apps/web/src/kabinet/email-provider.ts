@@ -6,11 +6,11 @@ import type { EMAIL_BLOCK_REASONS } from "@opika/contracts";
  * through Resend (Oleksii, 2026-10-15, after delivery test 5, inbox EM-B10,
  * verbatim: "Decision: invites move to Resend; retire Brevo."), sign-in
  * first (EM-B6) and invites since; each template is a route
- * (`emailRoutesOf`). All three providers stay behind one interface and
- * config chooses, so a swap is an env change; Brevo's code stays as the
- * rollback for the 30-day grace period, and comes out only with his OK
- * (EM-P1). Their request shapes follow each provider's public API reference
- * (2026-10-13):
+ * (`emailRoutesOf`). All three providers stay behind one interface, but
+ * since PW1-Q4 config accepts Resend only (`AUTH_EMAIL_PROVIDERS`): the
+ * Brevo and Postmark senders below are unreachable from config, and come out
+ * with Brevo's removal (EM-P1, after the 14 Nov check). Their request shapes
+ * follow each provider's public API reference (2026-10-13):
  *
  * - Resend: `POST https://api.resend.com/emails`, `Authorization: Bearer`,
  *   `{ from, to, reply_to, subject, html, text }`, 200 `{ id }`.
@@ -42,6 +42,34 @@ const USER_AGENT = "kabinet-mailer/1";
 
 export const EMAIL_PROVIDERS = ["resend", "postmark", "brevo"] as const;
 export type EmailProvider = (typeof EMAIL_PROVIDERS)[number];
+
+/**
+ * The providers config may route to: Resend only. Every email this config
+ * serves is an auth email (`production-mail.ts`: the magic link and the
+ * invite, and the reset link and «пароль змінено» on the sign-in route), his
+ * rule is "no tracking on any auth email, ever" (2026-10-19), and Brevo
+ * rewrites every link through its click tracker (IN-E8). Oleksii, 2026-10-20
+ * (inbox PW1-Q4), verbatim: "PW1-Q4: (a). Lock auth emails (sign-in, invite,
+ * reset, password changed) to Resend in config, with a test that a Brevo
+ * setting is refused for them. Note: the Brevo keys are already revoked, so
+ * this makes the current state explicit. The full Brevo removal stays planned
+ * for after the 14 Nov check."
+ *
+ * Postmark, never configured, is refused by the same lock: a provider joins
+ * this list only once someone has checked it sends an auth email untracked.
+ */
+export const AUTH_EMAIL_PROVIDERS = ["resend"] as const satisfies readonly EmailProvider[];
+export type AuthEmailProvider = (typeof AUTH_EMAIL_PROVIDERS)[number];
+
+export const isAuthEmailProvider = (value: string): value is AuthEmailProvider =>
+  (AUTH_EMAIL_PROVIDERS as readonly string[]).includes(value);
+
+/** The lock's refusal, naming the variable and never its value (it may be a key pasted into the wrong variable). */
+const authEmailLockReason = (name: "EMAIL_PROVIDER" | "EMAIL_SIGN_IN_PROVIDER"): string => {
+  const allowed = AUTH_EMAIL_PROVIDERS.join(" or ");
+  const unset = name === "EMAIL_SIGN_IN_PROVIDER" ? "unset or " : "";
+  return `${name} must be ${unset}${allowed}: every email it routes is an auth email, and auth emails go through ${allowed} only`;
+};
 
 export type EmailProviderConfig = {
   provider: EmailProvider;
@@ -77,9 +105,9 @@ export type EmailConfigResult =
  * setting and the key disagree.
  *
  * Postmark stays a candidate (the ADR's §12 names "Resend or Postmark"), so
- * it has a name too; nothing sets it today. Brevo's stays while Brevo is the
- * rollback for the 30-day grace period (EM-P1); removing it is a retirement
- * step that needs Oleksii's explicit OK.
+ * it has a name too; nothing sets it today. Brevo's name stays until Brevo's
+ * removal (EM-P1); config refuses both providers for now (PW1-Q4,
+ * `AUTH_EMAIL_PROVIDERS`), so neither key is ever read by a route.
  */
 export const PROVIDER_KEY_NAMES: Readonly<Record<EmailProvider, string>> = {
   resend: "RESEND_API_KEY",
@@ -98,6 +126,10 @@ const providerKeyOf = (
  * (`PROVIDER_KEY_NAMES`), `EMAIL_FROM_ADDRESS`, `EMAIL_REPLY_TO`,
  * `PRODUCTION_ORIGIN` and the optional `EMAIL_FROM_NAME`.
  *
+ * `EMAIL_PROVIDER` other than `resend`, Brevo included, is `invalid`
+ * (PW1-Q4, `AUTH_EMAIL_PROVIDERS`): production sign-in stays off
+ * (`provider_invalid`), as for any other misconfiguration.
+ *
  * The provider's key missing is `invalid`, naming the variable, not
  * `missing`: the provider setting is a claim about which key exists, and a
  * claim with nothing behind it is a misconfiguration (production sign-in off,
@@ -112,7 +144,7 @@ const providerKeyOf = (
  * not optional, so sign-in can't go live sending mail nobody can answer.
  *
  * No reason carries a value from the environment: only variable names, and a
- * provider name once it is known to be one of EMAIL_PROVIDERS.
+ * provider name once it is known to be one of AUTH_EMAIL_PROVIDERS.
  */
 export function emailProviderConfigOf(
   env: Readonly<Record<string, string | undefined>>,
@@ -124,14 +156,10 @@ export function emailProviderConfigOf(
     "PRODUCTION_ORIGIN",
   ].filter((name) => !env[name]?.trim());
   if (missing.length > 0) return { kind: "missing", missing };
-  const provider = env.EMAIL_PROVIDER as string;
-  if (!(EMAIL_PROVIDERS as readonly string[]).includes(provider)) {
-    return {
-      kind: "invalid",
-      reason: `EMAIL_PROVIDER must be one of ${EMAIL_PROVIDERS.join(", ")}`,
-    };
+  const known = env.EMAIL_PROVIDER as string;
+  if (!isAuthEmailProvider(known)) {
+    return { kind: "invalid", reason: authEmailLockReason("EMAIL_PROVIDER") };
   }
-  const known = provider as EmailProvider;
   const apiKey = providerKeyOf(env, known);
   if (apiKey === null) {
     return {
@@ -189,16 +217,18 @@ export type EmailRoutesResult =
  * The default route (`emailProviderConfigOf`) plus an optional sign-in route
  * chosen by `EMAIL_SIGN_IN_PROVIDER` (EM-B6; the design is EM-T22). Since
  * delivery test 5 (EM-B10) both go through Resend: production sets
- * `EMAIL_PROVIDER=resend` and leaves `EMAIL_SIGN_IN_PROVIDER` unset. The
- * setting stays so one template can be put on another provider (Brevo, as a
- * rollback during the grace period) without a code change.
+ * `EMAIL_PROVIDER=resend` and leaves `EMAIL_SIGN_IN_PROVIDER` unset. Since
+ * PW1-Q4 the setting can name Resend only (`AUTH_EMAIL_PROVIDERS`): the
+ * sign-in route carries the reset link and «пароль змінено» too, all auth
+ * emails, so the Brevo rollback it used to allow is refused. The setting
+ * itself goes with Brevo's removal.
  *
  * - Unset: sign-in takes the default route.
  * - Set: sign-in goes through that provider with that provider's own key
  *   (`PROVIDER_KEY_NAMES`) and the default route's From, From name and
  *   Reply-To. Naming the default route's own provider is therefore exactly
  *   the default route: the same provider reads the same key.
- * - Its key missing, or a value that isn't one of EMAIL_PROVIDERS:
+ * - Its key missing, or a value other than `resend` (Brevo included):
  *   `invalid`, so production sign-in stays off (`provider_invalid`). Never a
  *   silent fall back to the default route: a half-done switch would keep
  *   sending sign-in through a route Oleksii moved it off, and nobody would
@@ -213,23 +243,19 @@ export function emailRoutesOf(
   env: Readonly<Record<string, string | undefined>>,
 ): EmailRoutesResult {
   const chosen = env.EMAIL_SIGN_IN_PROVIDER?.trim() ?? "";
-  if (chosen !== "" && !(EMAIL_PROVIDERS as readonly string[]).includes(chosen)) {
-    return {
-      kind: "invalid",
-      reason: `EMAIL_SIGN_IN_PROVIDER must be one of ${EMAIL_PROVIDERS.join(", ")}`,
-    };
-  }
   let signIn: { provider: EmailProvider; apiKey: string } | null = null;
   if (chosen !== "") {
-    const provider = chosen as EmailProvider;
-    const apiKey = providerKeyOf(env, provider);
+    if (!isAuthEmailProvider(chosen)) {
+      return { kind: "invalid", reason: authEmailLockReason("EMAIL_SIGN_IN_PROVIDER") };
+    }
+    const apiKey = providerKeyOf(env, chosen);
     if (apiKey === null) {
       return {
         kind: "invalid",
-        reason: `EMAIL_SIGN_IN_PROVIDER=${provider} needs ${PROVIDER_KEY_NAMES[provider]}`,
+        reason: `EMAIL_SIGN_IN_PROVIDER=${chosen} needs ${PROVIDER_KEY_NAMES[chosen]}`,
       };
     }
-    signIn = { provider, apiKey };
+    signIn = { provider: chosen, apiKey };
   }
   const base = emailProviderConfigOf(env);
   if (base.kind !== "configured") return base;
@@ -362,6 +388,25 @@ const messageIdOf = (body: Record<string, unknown> | null): string | null => {
 };
 
 /**
+ * A send the provider refused or never answered. The message is unchanged (provider and status,
+ * never the key or the recipient); `provider` and `status` are the same facts as data, so the
+ * failure log line can name them without parsing a message. `status` is null when no answer came.
+ */
+export class ProviderSendError extends Error {
+  // Plain fields, not constructor parameter properties: `proxy.test.ts` reads this module with
+  // Node's strip-only TypeScript, which cannot handle parameter properties.
+  readonly provider: EmailProvider;
+  readonly status: number | null;
+
+  constructor(provider: EmailProvider, status: number | null, message: string) {
+    super(message);
+    this.name = "ProviderSendError";
+    this.provider = provider;
+    this.status = status;
+  }
+}
+
+/**
  * Sends through the configured provider. Throws on any failure, a 2xx
  * carrying an error included, with the provider and status only: never
  * the key, and never the recipient's address in the message. A send is
@@ -386,7 +431,11 @@ export function fetchEmailSender(
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch {
-        throw new Error(`Email provider ${config.provider} did not answer the send.`);
+        throw new ProviderSendError(
+          config.provider,
+          null,
+          `Email provider ${config.provider} did not answer the send.`,
+        );
       }
       const body = (await response.json().catch(() => null)) as
         | (Record<string, unknown> & { ErrorCode?: number })
@@ -396,7 +445,9 @@ export function fetchEmailSender(
       const postmarkError =
         config.provider === "postmark" && (body === null || (body.ErrorCode ?? 0) !== 0);
       if (!response.ok || postmarkError) {
-        throw new Error(
+        throw new ProviderSendError(
+          config.provider,
+          response.status,
           `Email provider ${config.provider} refused the send (status ${response.status}).`,
         );
       }

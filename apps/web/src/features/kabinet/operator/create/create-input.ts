@@ -51,7 +51,7 @@ export type LegalForm = {
 export type CreateShelterForm = {
   displayName: string;
   description: string;
-  /** A `cities.list` id, or "" before one is picked. */
+  /** A settlement id from `registry.cities.search`, or "" before one is picked. */
   cityId: string;
   line1: string;
   line2: string;

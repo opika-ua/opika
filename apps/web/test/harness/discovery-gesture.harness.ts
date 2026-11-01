@@ -10,33 +10,32 @@
  * is observable without reaching into React internals.
  *
  * E5: migrated from `/discovery` (retired, now a redirect) to
- * `/tvaryny/gortaty` — the deck's real route on real `feed.list` data. None
+ * `/tvaryny/gortaty` - the deck's real route on real `feed.list` data. None
  * of these assertions are about specific card content, so the migration is
  * the route and a rate-limit IP identity, nothing else.
  */
 
 import { expect, test } from "@playwright/test";
-import { dragHorizontally, flickWithTimestamps, openRoute } from "./harness";
+import {
+  dragHorizontally,
+  flickWithTimestamps,
+  nameOnceSettled,
+  openRoute,
+  topCardName,
+} from "./harness";
 import { PHONE } from "./viewports";
 
 const ROUTE = "/tvaryny/gortaty";
 const CARD = "[data-testid='swipe-card']";
 
 /**
- * TEST-NET-2 (198.51.100.0/24), `.27` — `/tvaryny/gortaty` sits under
+ * TEST-NET-2 (198.51.100.0/24), `.27` - `/tvaryny/gortaty` sits under
  * `proxy.ts`'s per-IP page-render limiter same as every other `/tvaryny`
- * route (its own server-side `cities.list()` call), and separately drives
+ * route (its own server-side place lookup), and separately drives
  * real `feed.list()` traffic client-side. `.21`-`.26` are already claimed by
  * the other `/tvaryny` harness files.
  */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.27" } });
-
-/** The name on the currently-top card. */
-async function topCardName(page: import("@playwright/test").Page): Promise<string> {
-  const label = await page.getByTestId("swipe-card").getAttribute("aria-label");
-  expect(label, "the top card should expose its animal name as aria-label").not.toBeNull();
-  return label ?? "";
-}
 
 test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
   test.beforeEach(async ({ page }) => {
@@ -46,12 +45,12 @@ test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
   test("a deliberate drag past the threshold advances the deck", async ({ page }) => {
     const before = await topCardName(page);
 
-    // 140px is past the 88px commit distance, spread over ~12 frames so the
-    // gesture looks like a thumb rather than a teleport.
+    // 140px is past the 88px commit distance, spread over 12 stated frames so
+    // the gesture looks like a thumb rather than a teleport.
     await dragHorizontally(page, page.getByTestId("swipe-card"), {
       dx: 140,
       steps: 12,
-      stepDelayMs: 16,
+      stepMs: 16,
     });
 
     await expect
@@ -68,11 +67,10 @@ test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
     await dragHorizontally(page, page.getByTestId("swipe-card"), {
       dx: 20,
       steps: 10,
-      stepDelayMs: 24,
+      stepMs: 24,
     });
 
-    await page.waitForTimeout(600); // let the spring-back finish
-    expect(await topCardName(page), "a 20px drag must not commit").toBe(before);
+    expect(await nameOnceSettled(page, before), "a 20px drag must not commit").toBe(before);
   });
 
   /**
@@ -81,7 +79,7 @@ test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
    * driver can also make it advance. Without this, a `flickWithTimestamps` that
    * silently delivered no events at all would look like a passing tap test.
    *
-   * 30px in 5ms is 6 px/ms — over the velocity threshold and well under the
+   * 30px in 5ms is 6 px/ms - over the velocity threshold and well under the
    * 88px distance threshold, so this can only commit down the velocity path.
    */
   test("a fast short flick past the velocity threshold advances the deck", async ({ page }) => {
@@ -93,7 +91,7 @@ test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
       .poll(() => topCardName(page), {
         message:
           `a 30px flick in 5ms (6 px/ms) is over the 0.45 px/ms commit velocity and should ` +
-          `have advanced the deck past "${before}" — if this fails alongside the tap test ` +
+          `have advanced the deck past "${before}" – if this fails alongside the tap test ` +
           `below, suspect the driver rather than the gesture`,
         timeout: 5_000,
       })
@@ -109,7 +107,7 @@ test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
    *
    * The timestamps have to be dispatched explicitly. Driving this with
    * `page.mouse` produced whatever velocity the CDP round trip happened to
-   * imply — ~0.6 px/ms on an idle machine, a tenth of that under load — so the
+   * imply - ~0.6 px/ms on an idle machine, a tenth of that under load - so the
    * assertion passed on a loaded runner with the 12px floor deleted. It read as
    * a lock and was a coin toss.
    */
@@ -118,10 +116,9 @@ test.describe(`${ROUTE} gesture at ${PHONE.name}`, () => {
 
     await flickWithTimestamps(page, page.getByTestId("swipe-card"), { dx: 2, overMs: 1 });
 
-    await page.waitForTimeout(600);
     expect(
-      await topCardName(page),
-      "a 2px twitch at 2 px/ms is a tap, not a swipe — the deck must not advance",
+      await nameOnceSettled(page, before),
+      "a 2px twitch at 2 px/ms is a tap, not a swipe – the deck must not advance",
     ).toBe(before);
   });
 });

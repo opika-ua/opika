@@ -3,19 +3,21 @@ import {
   DISCOVERABLE_LISTING_KINDS,
   FEED_VISIBLE_VERIFICATION_STATUSES,
   type FeedFilters,
+  type GalleryScope,
 } from "@opika/domain";
-import { and, inArray, or, type SQL, sql } from "drizzle-orm";
+import { and, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import { animals } from "../schema/animals";
+import { cities } from "../schema/cities";
 import { shelters } from "../schema/shelters";
 
 /**
  * The WHERE clause every animal-browsing query shares.
  *
- * Two repositories now build it — the deck's keyset feed and the gallery's
- * numbered pages — and they must agree exactly, or a filter that hides an
- * animal from one surface leaves it visible on the other. A sixth
- * `FeedFilters` dimension is a one-site edit here rather than a two-site edit
- * somebody does once.
+ * Two repositories now build it - the deck's keyset feed and the gallery's
+ * numbered pages - and they must agree exactly, or a filter that hides an
+ * animal from one surface leaves it visible on the other. A new or removed
+ * `FeedFilters` dimension is a one-site edit here rather than a two-site
+ * edit somebody does once.
  *
  * Split into the two halves rather than only the whole, because
  * `gallery.relaxationCounts` needs them separately: its base scan is the
@@ -37,7 +39,7 @@ import { shelters } from "../schema/shelters";
  */
 
 /**
- * Discoverable listing, verified shelter — true for every animal any adopter
+ * Discoverable listing, verified shelter - true for every animal any adopter
  * surface may show, independent of what they filtered on.
  */
 export function buildDiscoverabilityPredicate(): SQL[] {
@@ -55,6 +57,35 @@ export function buildDiscoverabilityPredicate(): SQL[] {
 }
 
 /**
+ * Oblast and city together, as a union of scopes: an animal matches when its city is a picked
+ * city, or its oblast is picked and none of that oblast's cities is. So "Київська" alone is the
+ * whole oblast, "Київська" + "Бровари" is Brovary only, and "Бровари" + "Львівська" is Brovary
+ * plus all of Lviv oblast. Cities alone stay a bare `city_id IN (...)`, byte-identical to before
+ * the oblast dimension (`feed-predicate-identity.test.ts`).
+ */
+function buildLocationCondition(filters: FeedFilters): SQL | null {
+  const cityIds = filters.cities.kind === "oneOf" ? [...filters.cities.values] : null;
+  if (filters.regions.kind !== "oneOf") {
+    return cityIds ? inArray(animals.cityId, cityIds) : null;
+  }
+
+  const regionIds = [...filters.regions.values];
+  const inRegions = cityIds
+    ? sql`${animals.cityId} IN (
+        SELECT ${cities.id} FROM ${cities}
+        WHERE ${inArray(cities.regionId, regionIds)}
+          AND ${cities.regionId} NOT IN (
+            SELECT picked.region_id FROM ${cities} AS picked WHERE ${inArray(sql`picked.id`, cityIds)}
+          )
+      )`
+    : sql`${animals.cityId} IN (
+        SELECT ${cities.id} FROM ${cities} WHERE ${inArray(cities.regionId, regionIds)}
+      )`;
+
+  return cityIds ? sql`(${inArray(animals.cityId, cityIds)} OR ${inRegions})` : inRegions;
+}
+
+/**
  * Only what the adopter asked for. Empty when nothing is constrained, which is
  * why `{ kind: "any" }` exists as a distinct variant rather than an empty list.
  *
@@ -65,11 +96,18 @@ export function buildDiscoverabilityPredicate(): SQL[] {
 export function buildFilterPredicate(filters: FeedFilters, now: Date): SQL[] {
   const conditions: SQL[] = [];
 
-  if (filters.cities.kind === "oneOf") {
-    conditions.push(inArray(animals.cityId, [...filters.cities.values]));
-  }
+  const location = buildLocationCondition(filters);
+  if (location) conditions.push(location);
   if (filters.species.kind === "oneOf") {
     conditions.push(inArray(animals.species, [...filters.species.values]));
+  }
+  // `sex` is NOT NULL - "unknown" is a real, explicit value, not an absence -
+  // so this `IN` has no "unrecorded" asymmetry to call out. No dedicated
+  // index: the same reasoning as `coatLength`'s own comment in `animals.ts`
+  // (a low-cardinality equality applied to rows the feed and wait-anchor
+  // indexes already narrow).
+  if (filters.sexes.kind === "oneOf") {
+    conditions.push(inArray(animals.sex, [...filters.sexes.values]));
   }
   if (filters.sizes.kind === "oneOf") {
     conditions.push(inArray(animals.size, [...filters.sizes.values]));
@@ -97,9 +135,32 @@ export function buildFilterPredicate(filters: FeedFilters, now: Date): SQL[] {
 }
 
 /**
+ * Whose animals: nothing for everyone, one equality for a shelter's page.
+ *
+ * Always added *alongside* the discoverability half, never instead of it, so
+ * a scope naming an unknown, unverified, suspended or paused shelter matches
+ * nothing (the shelter subquery already excludes it) rather than listing its
+ * animals. Kept out of `buildFeedPredicate` because the deck has no scope and
+ * `feed-predicate-identity.test.ts` pins the SQL the deck generates.
+ */
+export function buildScopePredicate(scope: GalleryScope): SQL[] {
+  switch (scope.kind) {
+    case "everyone":
+      return [];
+    case "shelter":
+      return [eq(animals.shelterId, scope.shelterId)];
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = scope;
+      return unreachable;
+    }
+  }
+}
+
+/**
  * The full predicate: what is showable, and what was asked for.
  *
- * Callers add their own pagination and personalisation on top — the deck adds
+ * Callers add their own pagination and personalisation on top - the deck adds
  * a keyset cursor and its seen-set exclusion, the gallery adds neither.
  */
 export function buildFeedPredicate(filters: FeedFilters, now: Date): SQL[] {

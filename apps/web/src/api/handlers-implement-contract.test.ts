@@ -1,9 +1,15 @@
-import { contract, registryContract, shelterKabinetContract } from "@opika/contracts";
+import {
+  contract,
+  invitationContract,
+  registryContract,
+  shelterKabinetContract,
+} from "@opika/contracts";
 import { isContractProcedure } from "@orpc/contract";
 import { type AnyRouter, implement, isLazy, isProcedure, os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { invitationRouter } from "../kabinet/invitation-router";
 import { registryRouter } from "../kabinet/registry-router";
 import { shelterKabinetRouter } from "../kabinet/router";
 import { kabinetRouter } from "../kabinet/rpc-route";
@@ -13,7 +19,7 @@ import { router } from "./router";
  * Locks the one property the type system cannot enforce (CLAUDE.md,
  * "Obligations the contract cannot express"): every procedure the server
  * actually serves must be built through `implement(contract)`, because that
- * is the only thing that attaches an output schema — and an output schema is
+ * is the only thing that attaches an output schema - and an output schema is
  * the only thing that strips a handler's return value down to the public
  * view. The fields at stake are a shelter's exact address and contact
  * details (`Shelter.exactAddress`, `ShelterContactSnapshot`): a handler
@@ -21,12 +27,12 @@ import { router } from "./router";
  * whatever the handler function produced, unfiltered.
  *
  * Two independent checks:
- *  1. Structural — walk `contract` and the real `router` in parallel and
+ *  1. Structural - walk `contract` and the real `router` in parallel and
  *     assert, for every leaf, that the router's output schema is the exact
  *     same object the contract declares. This is what "goes through
  *     implement(contract)" means at runtime: `implement()` does not restate
  *     the schema, it inherits the contract's own instance.
- *  2. Behavioural — on a throwaway contract, prove the mechanism the
+ *  2. Behavioural - on a throwaway contract, prove the mechanism the
  *     structural check relies on: an `implement(contract)`-built procedure
  *     strips a field the handler adds but the schema doesn't declare, and a
  *     plain-`os` procedure does not. Without this, check 1 is trusting a
@@ -41,19 +47,19 @@ type LeafInfo = {
 /**
  * Walk a contract or router tree and collect every leaf procedure with its
  * dotted path. Works on both trees because `isContractProcedure` and
- * `isProcedure` each recognise only their own kind — a router leaf is never
+ * `isProcedure` each recognise only their own kind - a router leaf is never
  * mistaken for a contract leaf and vice versa, so running this once per tree
  * and comparing path sets is exact, not approximate.
  *
  * Exact, however, only over the node kinds it understands. A *lazy* router
  * (`os.lazy(...)`, oRPC's code-splitting primitive) is an object with no own
- * enumerable keys — `Object.entries` on one returns `[]` — so the recursion
+ * enumerable keys - `Object.entries` on one returns `[]` - so the recursion
  * below walks straight past it and reports zero leaves for the whole subtree
  * behind it. Verified against @orpc/server 1.14.14: splicing
  * `{ admin: os.lazy(async () => ({ default: { leak: os.handler(...) } })) }`
  * into the router leaves every assertion in this file green while
  * `RPCHandler` happily serves `POST /api/rpc/admin/leak` and returns the
- * handler's raw object — exact address and phone number included. That is
+ * handler's raw object - exact address and phone number included. That is
  * precisely the bypass these tests exist to make impossible, so a lazy node
  * is a hard error rather than something to walk past: whoever introduces one
  * must first teach this walk to resolve it (`unlazy` from @orpc/server).
@@ -94,14 +100,19 @@ describe("every served procedure goes through implement(contract)", () => {
   // The list is spelled out rather than counted so that adding a procedure is
   // a deliberate edit here, made while looking at what is being served, rather
   // than a number quietly incremented. `gallery.*` joined it in Phase E0.
-  it("finds exactly the ten contracted procedures", () => {
+  it("finds exactly the fifteen contracted procedures", () => {
     expect(contractLeaves.map((l) => l.path).sort()).toEqual([
       "animals.byId",
+      "animals.cardsByIds",
+      "animals.neighbours",
       "animals.reveal",
-      "cities.list",
+      "cities.byIds",
+      "cities.resolveTokens",
       "feed.list",
+      "gallery.facetCounts",
       "gallery.list",
       "gallery.relaxationCounts",
+      "regions.list",
       "reveals.listMine",
       "session.bootstrap",
       "shelters.byId",
@@ -109,13 +120,13 @@ describe("every served procedure goes through implement(contract)", () => {
     ]);
   });
 
-  it("wires exactly the contracted paths — nothing missing, nothing extra", () => {
+  it("wires exactly the contracted paths - nothing missing, nothing extra", () => {
     const contractPaths = contractLeaves.map((l) => l.path).sort();
     const routerPaths = routerLeaves.map((l) => l.path).sort();
 
-    // Missing: a contract procedure with no router counterpart — an endpoint
+    // Missing: a contract procedure with no router counterpart - an endpoint
     // documented in the contract but never actually served.
-    // Extra: a router leaf with no contract counterpart — an ad-hoc
+    // Extra: a router leaf with no contract counterpart - an ad-hoc
     // procedure spliced into the router object outside `impl`, which is
     // exactly the shape a bypass would take, since `impl.<path>` is typed
     // against `contract` and cannot reference a path the contract lacks.
@@ -130,7 +141,7 @@ describe("every served procedure goes through implement(contract)", () => {
       expect(contractLeaf, `no contract leaf at ${path}`).toBeDefined();
       expect(
         routerLeaf,
-        `router has no procedure at ${path} — see the previous test`,
+        `router has no procedure at ${path} - see the previous test`,
       ).toBeDefined();
 
       const contractSchema = outputSchemaOf(contractLeaf?.node);
@@ -142,7 +153,7 @@ describe("every served procedure goes through implement(contract)", () => {
       // router the contract's own Zod schema object; a handler re-declaring
       // an output schema that merely *looks* the same would defeat the point
       // of a shared contract just as thoroughly as omitting `.output()`
-      // entirely — the two schemas could drift the next time either changes.
+      // entirely - the two schemas could drift the next time either changes.
       expect(
         routerSchema,
         `${path}: the router's output schema is not the contract's schema instance. ` +
@@ -165,8 +176,8 @@ describe("every served kabinet procedure goes through implement(shelterKabinetCo
   const contractLeaves = collectLeaves(shelterKabinetContract);
   const routerLeaves = collectLeaves(shelterKabinetRouter);
 
-  it("finds all twenty shelter procedures (not vacuous)", () => {
-    expect(contractLeaves).toHaveLength(20);
+  it("finds all twenty-two shelter procedures (not vacuous)", () => {
+    expect(contractLeaves).toHaveLength(22);
   });
 
   it("serves exactly the contracted paths", () => {
@@ -197,8 +208,8 @@ describe("every served registry procedure goes through implement(registryContrac
   const routerLeaves = collectLeaves(registryRouter);
   const mountedLeaves = collectLeaves(kabinetRouter);
 
-  it("finds all twenty registry procedures (nineteen plus session.exitSupport; not vacuous)", () => {
-    expect(contractLeaves).toHaveLength(20);
+  it("finds all twenty-one registry procedures (twenty plus session.exitSupport; not vacuous)", () => {
+    expect(contractLeaves).toHaveLength(21);
   });
 
   it("serves exactly the contracted paths", () => {
@@ -207,9 +218,40 @@ describe("every served registry procedure goes through implement(registryContrac
     );
   });
 
-  it("mounts exactly the shelter and registry contracts, nothing shadowed or extra", () => {
-    const union = [...collectLeaves(shelterKabinetContract), ...contractLeaves].map((l) => l.path);
+  it("mounts exactly the shelter, registry and invitation contracts, nothing shadowed or extra", () => {
+    const union = [
+      ...collectLeaves(shelterKabinetContract),
+      ...contractLeaves,
+      ...collectLeaves(invitationContract),
+    ].map((l) => l.path);
     expect(mountedLeaves.map((l) => l.path).sort()).toEqual(union.sort());
+  });
+
+  it.each(contractLeaves.map((l) => l.path))(
+    "%s: the served output schema is the contract's own schema instance",
+    (path) => {
+      const contractSchema = outputSchemaOf(contractLeaves.find((l) => l.path === path)?.node);
+      const routerSchema = outputSchemaOf(mountedLeaves.find((l) => l.path === path)?.node);
+      expect(contractSchema).toBeDefined();
+      expect(routerSchema).toBe(contractSchema);
+    },
+  );
+});
+
+/** The invitation link's «Створіть пароль» (PW-2): the one procedure a signed-out visitor may call. */
+describe("every served invitation procedure goes through implement(invitationContract)", () => {
+  const contractLeaves = collectLeaves(invitationContract);
+  const routerLeaves = collectLeaves(invitationRouter);
+  const mountedLeaves = collectLeaves(kabinetRouter);
+
+  it("finds the one procedure (not vacuous)", () => {
+    expect(contractLeaves.map((l) => l.path)).toEqual(["invitation.acceptWithPassword"]);
+  });
+
+  it("serves exactly the contracted paths", () => {
+    expect(routerLeaves.map((l) => l.path).sort()).toEqual(
+      contractLeaves.map((l) => l.path).sort(),
+    );
   });
 
   it.each(contractLeaves.map((l) => l.path))(
@@ -225,7 +267,7 @@ describe("every served registry procedure goes through implement(registryContrac
 
 describe("collectLeaves refuses to walk past what it cannot see", () => {
   /**
-   * The guard added to `collectLeaves` for lazy routers, exercised — a throw
+   * The guard added to `collectLeaves` for lazy routers, exercised - a throw
    * branch nothing reaches is the same as no guard at all. Without it this
    * subtree contributes zero paths, so "nothing extra" above passes while
    * `RPCHandler` serves `admin.leak` and returns its handler's object
@@ -246,7 +288,7 @@ describe("collectLeaves refuses to walk past what it cannot see", () => {
 
 describe("what an implement(contract) bypass actually leaks (mechanism check)", () => {
   /**
-   * Not the real API — a two-procedure throwaway contract, exercised through
+   * Not the real API - a two-procedure throwaway contract, exercised through
    * a real `RPCHandler` exactly like the app's own route handler
    * (`app/api/rpc/[...rpc]/route.ts`). This is the thing the structural
    * checks above are trusting: that an attached output schema strips extra
@@ -266,7 +308,7 @@ describe("what an implement(contract) bypass actually leaks (mechanism check)", 
       body: JSON.stringify({ json: {} }),
     });
     const result = await rpcHandler.handle(request, { prefix: "/api/rpc" });
-    if (!result.matched) throw new Error("request did not match — test is misconfigured");
+    if (!result.matched) throw new Error("request did not match - test is misconfigured");
     return JSON.parse(await result.response.text());
   }
 

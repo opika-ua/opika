@@ -4,7 +4,7 @@ VERDICT: STOP (blocks the PR, not the commit: production sign-in is still 503, s
 
 | VERIFIED | TAKEN ON TRUST |
 |---|---|
-| My own script: rows 1–88 of h2-copy-final.md (row 88's two lines joined with `\n`) against the live `uk` object, keys taken from h2-copy-export.md. 0 mismatches | The builder's full `pnpm check` (2330 unit, harness 222 passed, 3 skipped) |
+| My own script: rows 1-88 of h2-copy-final.md (row 88's two lines joined with `\n`) against the live `uk` object, keys taken from h2-copy-export.md. 0 mismatches | The builder's full `pnpm check` (2330 unit, harness 222 passed, 3 skipped) |
 | Placeholders, export sense vs uk: only row 70 drops `{shelter}`, row 84 drops `{operator}`, row 88 adds `{operator}`. Nothing else lost or renamed | Nowrap widths (EM-T16) |
 | Every placeholder the code fills has a fill site: InviteLandingCard, SignInCard, SupportBanner title, ShelterProfile lockedNote/statusSince, email-message, invitation-reminder. Banner test asserts no brace. `adminJoined` has no renderer yet | The delivery script against real Brevo (not run, by instruction) |
 | `kabinet.*`: 90 leaves, none pending. uk vs main: 88 keys differ, all `kabinet.*`. `forShelters` and `about` are byte-identical to main in uk and en | The builder's other mutations, beyond the one I re-ran |

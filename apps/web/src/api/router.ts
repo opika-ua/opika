@@ -1,10 +1,11 @@
 import { contract } from "@opika/contracts";
 import { implement } from "@orpc/server";
 import type { AppContext } from "./context";
-import { animalsById } from "./handlers/animals";
-import { citiesList } from "./handlers/cities";
+import { animalsById, animalsCardsByIds, animalsNeighbours } from "./handlers/animals";
+import { citiesByIds, citiesResolveTokens } from "./handlers/cities";
 import { feedList } from "./handlers/feed";
-import { galleryList, galleryRelaxationCounts } from "./handlers/gallery";
+import { galleryFacetCounts, galleryList, galleryRelaxationCounts } from "./handlers/gallery";
+import { regionsList } from "./handlers/regions";
 import { animalsReveal } from "./handlers/reveal";
 import { revealsListMine } from "./handlers/reveals-list";
 import { sessionBootstrap } from "./handlers/session";
@@ -15,7 +16,7 @@ import { swipesRecord } from "./handlers/swipes";
  * The oRPC router, implementing the contract from @opika/contracts.
  *
  * Each handler receives the validated input and the AppContext. oRPC validates
- * outputs against the contract's output schema and strips extra fields — this
+ * outputs against the contract's output schema and strips extra fields - this
  * is the runtime guarantee that `pick`-based views actually hold over the wire.
  */
 const impl = implement(contract).$context<AppContext>();
@@ -27,7 +28,13 @@ export const router = impl.router({
     ),
   },
   cities: {
-    list: impl.cities.list.handler(({ input, context }) => citiesList(input, context)),
+    byIds: impl.cities.byIds.handler(({ input, context }) => citiesByIds(input, context)),
+    resolveTokens: impl.cities.resolveTokens.handler(({ input, context }) =>
+      citiesResolveTokens(input, context),
+    ),
+  },
+  regions: {
+    list: impl.regions.list.handler(({ input, context }) => regionsList(input, context)),
   },
   feed: {
     list: impl.feed.list.handler(({ input, context, errors }) => feedList(input, context, errors)),
@@ -37,6 +44,9 @@ export const router = impl.router({
     relaxationCounts: impl.gallery.relaxationCounts.handler(({ input, context }) =>
       galleryRelaxationCounts(input, context),
     ),
+    facetCounts: impl.gallery.facetCounts.handler(({ input, context }) =>
+      galleryFacetCounts(input, context),
+    ),
   },
   animals: {
     byId: impl.animals.byId.handler(({ input, context, errors }) =>
@@ -44,6 +54,12 @@ export const router = impl.router({
     ),
     reveal: impl.animals.reveal.handler(({ input, context, errors }) =>
       animalsReveal(input, context, errors),
+    ),
+    cardsByIds: impl.animals.cardsByIds.handler(({ input, context }) =>
+      animalsCardsByIds(input, context),
+    ),
+    neighbours: impl.animals.neighbours.handler(({ input, context }) =>
+      animalsNeighbours(input, context),
     ),
   },
   reveals: {

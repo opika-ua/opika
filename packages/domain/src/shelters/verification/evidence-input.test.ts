@@ -127,7 +127,7 @@ describe("toEvidenceItem", () => {
     });
   }
 
-  /** Decisions §4: whoever records it vouches for it — the script and the kabinet differ only here. */
+  /** Decisions §4: whoever records it vouches for it - the script and the kabinet differ only here. */
   it("credits the visit to whoever is recording it, not to a typed name", () => {
     const visit: EvidenceItemInput = { kind: "site_visit", visitedOn: "2026-09-30", notes: "Був" };
     const fromKabinet = toEvidenceItem(visit, BY);

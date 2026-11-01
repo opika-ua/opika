@@ -6,15 +6,15 @@ packages:
 # This is the pnpm-native fix for the #1 monorepo papercut (packages drifting
 # to different major versions of React/Zod/TypeScript) with zero build tooling.
 #
-# Note: Biome is pinned one patch behind npm's absolute latest on purpose —
+# Note: Biome is pinned one patch behind npm's absolute latest on purpose –
 # it clears pnpm 11's default 24h minimumReleaseAge quarantine without
 # needing a minimumReleaseAgeExclude entry. Don't add exclude entries here;
 # that quarantine is the single best free defense against a repeat of the
 # 2025 npm worm incidents (see CLAUDE.md).
 catalog:
   typescript: 7.0.2
-  zod: 4.4.3
-  vitest: 4.1.10
+  zod: 4.6.7
+  vitest: 4.1.12
   "@biomejs/biome": 2.5.6
   "@types/node": 24.13.3
   "@types/react": 19.2.17
@@ -22,43 +22,40 @@ catalog:
   "@orpc/client": 1.14.14
   "@orpc/contract": 1.14.14
   "@orpc/server": 1.14.14
-  "@vitest/coverage-v8": 4.1.10
+  "@vitest/coverage-v8": 4.1.12
   # Browser-layer verification. Playwright drives the rendering harness
   # (apps/web/test/harness) and is the e2e dependency the build plan calls
   # for at M12; happy-dom + Testing Library give apps/web a DOM environment
   # so React components can be asserted on at all. See CLAUDE.md,
   # "How work is verified".
   "@playwright/test": 1.62.1
-  happy-dom: 20.11.1
+  happy-dom: 21.0.4
   "@testing-library/react": 16.3.2
   "@testing-library/user-event": 14.6.3
   # Styling. tailwindcss/@tailwindcss/postcss pinned at 4.3.3 (published
   # 2026-07-16, well clear of the 24h quarantine); postcss at 8.5.25 rather
-  # than the newer 8.5.26, which published 2026-08-06 — inside the window.
+  # than the newer 8.5.26, which published 2026-08-06 – inside the window.
   tailwindcss: 4.3.3
   "@tailwindcss/postcss": 4.3.3
   postcss: 8.5.25
   drizzle-orm: 0.45.2
-  # H2 handlers slice (HS-Q1..Q6): the ADR's auth choice (docs/stack-decision.md
-  # §Auth: self-hosted, MIT, organization plugin for shelters), added only now
-  # because this is the first slice with an authenticated surface. Kabinet only:
-  # adopters keep the hand-rolled anonymous session (decision #13). 1.6.33 is
-  # the newest 1.6.x and published 2026-09-14, well clear of the 24h quarantine.
-  # Pinned exactly (HS-Q7, Oleksii). An upgrade must pass the end-to-end
-  # invitation test in apps/web/src/kabinet/auth.test.ts ("an invitation,
-  # written server-side and accepted through Better Auth"): invitations are
-  # written by our own repo and accepted by Better Auth's endpoint, so a change
-  # in what that endpoint checks or writes breaks the invite flow silently.
-  better-auth: 1.6.33
+  # Kabinet auth only (ADR §Auth; adopters keep decision #13's session). Pinned
+  # exactly (HS-Q7). Our repos write invitations and read Better Auth's rows, so
+  # an upgrade must pass the kabinet auth suites (apps/web/src/kabinet/*.test.ts)
+  # and the Neon auth smoke. 1.7.14 since S1 (1.7.7+ clears GHSA-965c-763c-88jm).
+  better-auth: 1.7.14
+  # Same version as better-auth, which depends on it: apps/web imports its `context` export
+  # (auth-log.ts) to run server-side adapter calls inside a logger-bearing context.
+  "@better-auth/core": 1.7.14
   drizzle-kit: 0.31.10
   # O-9, 2026-09-06 reprioritisation ("2.1"): production's DB-backed pages
   # plateau at a ~1s floor (reconfirmed against the live site before this
-  # was added) — every Vercel function invocation pays a fresh TCP+TLS
+  # was added) – every Vercel function invocation pays a fresh TCP+TLS
   # handshake to Neon (aws-eu-central-1) from a function executing in iad1
   # (US East), on top of the Atlantic round trip itself (the region-pin
-  # half of that is not addressed here — see packages/db/src/client.ts's
+  # half of that is not addressed here – see packages/db/src/client.ts's
   # own comment). Justified on its own terms: MIT, zero transitive
-  # dependencies, the only way to reach Neon over HTTP at all — not
+  # dependencies, the only way to reach Neon over HTTP at all – not
   # because docs/stack-decision.md's ADR specifically approved this choice
   # (it names Neon's HTTP driver as a vendor feature, not a decision for
   # this row). Used only by `packages/db/src/client.ts`'s `createDatabase`
@@ -67,7 +64,7 @@ catalog:
   # Postgres, which this driver cannot talk to at all.
   "@neondatabase/serverless": 1.1.0
   # packages/db's own db:seed script runs `tsx src/seed.ts` directly, but
-  # nothing declared tsx — it only resolved because drizzle-kit depends on
+  # nothing declared tsx – it only resolved because drizzle-kit depends on
   # it too, and pnpm's hoisting made it reachable from packages/db's
   # scripts by luck, not by declaration. Confirmed to actually break: CI's
   # clean `pnpm install --frozen-lockfile` doesn't hoist it the same way a
@@ -77,7 +74,7 @@ catalog:
   # so this declares an existing resolution rather than introducing a new
   # one.
   tsx: 4.23.5
-  next: 16.3.0
+  next: 16.4.3
   postgres: 3.4.9
   react: 19.2.7
   react-dom: 19.2.7
@@ -87,30 +84,29 @@ catalog:
   # project's actual plan (CLAUDE.md pins Vercel Pro): Speed Insights is
   # $10/mo per project including 10k events then metered; Web Analytics is
   # metered per event beyond its included allotment. At MVP traffic this
-  # should stay near-zero, but it counts against the day-one spend cap —
+  # should stay near-zero, but it counts against the day-one spend cap –
   # watch it, don't assume "free." See apps/web/src/app/layout.tsx for the
   # mount.
   "@vercel/analytics": 2.0.1
   "@vercel/speed-insights": 2.0.0
   # H1's image pipeline. sharp generates the three real variants server-side
   # at upload time (packages/db/src/image-pipeline); @aws-sdk/client-s3
-  # talks to R2's S3-compatible API — the standard client Cloudflare's own
+  # talks to R2's S3-compatible API – the standard client Cloudflare's own
   # docs point to, no lighter official alternative exists.
   #
-  # 0.35.3, not 0.35.4 — round-1 review found next@16.3.0 already carries
-  # sharp@0.35.3 as its own optional dependency (Next's built-in image
-  # optimizer can use it), so pinning the same version here dedupes the
-  # native binary download instead of installing both. Not the newest
-  # cleared version for its own sake; matching an existing resolution
-  # already in the tree, same reasoning CLAUDE.md's own tsx pin gives.
-  sharp: 0.35.3
+  # Kept equal to next's own optional sharp (next@16.4.3: ^0.35.5), so one
+  # native binary is installed, not two. Bump the two together.
+  sharp: 0.35.5
+  # N2 importer: unzips the ministry's XLSX codifier. MIT, no dependencies; imported only by
+  # packages/db/src/import (the script and its tests), never by apps/web or a runtime path.
+  fflate: 0.8.3
   "@aws-sdk/client-s3": 3.1123.0
   # Phase 3, block 4 (launch-gate infra, docs/handoff-2026-10-04.md §3):
   # `apiRateLimiter` (apps/web/src/api/rate-limit.ts) is in-memory and does
-  # not survive serverless cold starts — each instance gets its own budget,
+  # not survive serverless cold starts – each instance gets its own budget,
   # so the real ceiling in production is (limit x instance count), not the
   # stated limit. `@upstash/ratelimit` (not the lower-level `@upstash/redis`
-  # alone) is Upstash's own official, purpose-built rate-limiting SDK —
+  # alone) is Upstash's own official, purpose-built rate-limiting SDK –
   # sliding-window counting over a shared store via battle-tested Lua
   # scripts, which is exactly this problem, rather than hand-rolling the
   # same sliding-window algorithm again on top of raw Redis commands in
@@ -120,7 +116,7 @@ catalog:
   # vars. Both published >2 weeks before being pinned here, clear of pnpm's
   # 24h quarantine with room to spare. REST-based (HTTP, not a TCP Redis
   # protocol client), which is why it's the only Redis-compatible option
-  # that actually works from Vercel's Node.js and Edge runtimes alike —
+  # that actually works from Vercel's Node.js and Edge runtimes alike –
   # matches `@neondatabase/serverless`'s own reasoning for the DB side of
   # this exact constraint, just above.
   "@upstash/ratelimit": 2.2.0
@@ -128,3 +124,11 @@ catalog:
 
 allowBuilds:
   esbuild: true
+
+# Transitive dev-tooling pins for audit advisories (vitest pulls vite, and
+# vite/magicast pull source-map-js; none is declared by us). Not catalog
+# entries because nothing depends on them directly. Drop each once vitest's
+# own resolution reaches the fixed version.
+overrides:
+  vite: 8.3.5
+  source-map-js: 1.2.2

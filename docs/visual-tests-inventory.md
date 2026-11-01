@@ -6,6 +6,11 @@ because of a visual change is deleted (listed in that PR's body), not fixed. Cla
 `origin/main` at `ac3e02f`. This is a snapshot, not maintained; when the brand lands the whole
 list is reconsidered.
 
+**2026-10-20: superseded.** Oleksii, verbatim: "UI-measuring tests: yes, keep both V-B2 tests (the 48px shared controls and the focus indicator being present). They’re accessibility guarantees, not looks. Drop the rest that measure appearance." The LOOKS tests and the LOOKS parts of
+the MIXED ones listed below are deleted (branch `chore/drop-ui-measuring-tests`); the record of
+what went is `docs/decisions-inbox/chore-drop-ui-measuring-tests.md`. This file is kept as the
+pre-removal snapshot. Its line numbers are `ac3e02f`'s.
+
 Classes: **LOOKS** (geometry, sizes, margins, font size, wrapping or truncation, colours,
 contrast, `sizes` attributes, columns, CSS values, focus-ring appearance) · **LOGIC** · **A11Y**
 (labels, keyboard, aria-live, focus order) · **MIXED** (part LOOKS, part LOGIC or A11Y).
@@ -31,17 +36,17 @@ contrast, `sizes` attributes, columns, CSS values, focus-ring appearance) · **L
 
 | File | LOOKS | MIXED (what part is looks) |
 |---|---|---|
-| animal-detail | — | :120, :139 breakpoint visibility · :226–:302 focus ring ×7 |
+| animal-detail | - | :120, :139 breakpoint visibility · :226-:302 focus ring ×7 |
 | detail-photo-gallery | :81 photo dots ≥ 48px | :96, :106 focus ring |
-| discovery-layout | :137 action row vs card overlap ×5 · :147, :156 freshness / shelter line inside card ×10 · :167 `MIN_SHELTER_MARGIN_PX` ×5 · :184 photo ≥ 152px ×5 · :208 back button ≥ 48px ×5 · :265 photo exactly 386px · :286 photo shrink at 390×640 · :344 notice hidden at 320 · :378 `test.fail()` 1280×800 deck width · :527 retry ≥ 56px | :216 overflow (vertical fit) ×5 · :324 notice position ×4 · :406 demo banner clipping/height ×4 · :460–:532 focus ring ×4 |
-| discovery-reveal | — | :108 focus ring |
-| freshness-pip-contrast | :76, :100 empty pips ≥ 3:1 | — |
-| gallery-error | — | :118 focus ring |
+| discovery-layout | :137 action row vs card overlap ×5 · :147, :156 freshness / shelter line inside card ×10 · :167 `MIN_SHELTER_MARGIN_PX` ×5 · :184 photo ≥ 152px ×5 · :208 back button ≥ 48px ×5 · :265 photo exactly 386px · :286 photo shrink at 390×640 · :344 notice hidden at 320 · :378 `test.fail()` 1280×800 deck width · :527 retry ≥ 56px | :216 overflow (vertical fit) ×5 · :324 notice position ×4 · :406 demo banner clipping/height ×4 · :460-:532 focus ring ×4 |
+| discovery-reveal | - | :108 focus ring |
+| freshness-pip-contrast | :76, :100 empty pips ≥ 3:1 | - |
+| gallery-error | - | :118 focus ring |
 | gallery-filters | :122 deck entry ≥ 48px | :49, :64 rail/sheet visibility · :90, :99 focus ring |
 | gallery-layout | :99, :111 photo size / 4:5 ×5 · :170 first-row span ×6 · :278 photo box stable ×2 · :354 toolbar fits ×3 | :59 column count ×5 · :83 no sideways scroll ×5 |
 | gallery-pagination | :65 targets ≥ 56px | :81 active page background colour · :154 skip link size |
-| gallery-photo-sizes | :246 chosen variant ×12 · :270 `sizes` within 1px ×12 | — |
-| kabinet | — | :122 no sideways scroll ×2 · :143 sign-out ≥ 48px + ring |
+| gallery-photo-sizes | :246 chosen variant ×12 · :270 `sizes` within 1px ×12 | - |
+| kabinet | - | :122 no sideways scroll ×2 · :143 sign-out ≥ 48px + ring |
 | site-header | :125 header height ×5 · :138, :152 links ≥ 48px · :198 logo baseline ×4 · :334 card name 24/22px ×4 · :363, :409 name truncation ×6 | :248, :254 no overflow ×4 · :273, :299 demo banner at 320 ×2 · :450, :458 focus ring |
 
 Fully LOGIC or A11Y and untouched by the convention: discovery-gesture, gallery-arrow-nav (A11Y),
@@ -49,7 +54,7 @@ gallery-rate-limit, kabinet-confirm, prelaunch-gate, plus the LOGIC tests inside
 (reveal, not-found, pagination behaviour, filters' URL state, gate, sign-in flows).
 
 **No-horizontal-scroll checks are MIXED.** Sideways overflow at 320/360 hides content (WCAG
-1.4.10 Reflow), but the check is a raw pixel comparison that has failed on harmless 1–2px
+1.4.10 Reflow), but the check is a raw pixel comparison that has failed on harmless 1-2px
 platform font differences (`gallery-layout:332-347`).
 
 ## Unit and component LOOKS assertions

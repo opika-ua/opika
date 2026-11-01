@@ -1,45 +1,24 @@
 /**
- * Phase T — the site-wide header, and the two measured type/size findings
- * that shipped alongside it.
+ * Phase T - the site-wide header: on every user-facing surface except the
+ * deck, carrying the wordmark and all three site links (S8 added the saved
+ * page's), reachable by keyboard; plus the demo banner on the gallery and
+ * detail pages.
  *
- * Everything here is geometry or reachability in a real browser, because
- * that is what the underlying findings were. The design critique measured
- * every one of them off the live DOM rather than reading markup, and a class
- * string in a component test cannot fail for the reason any of them failed:
- * `min-h-14` reads perfectly fine and is 56px.
- *
- * - **A2** — the header measured 56px at mobile and 68px at desktop against
- *   `docs/design/README.md:200`'s own 64/88, which that line calls a
- *   civic-trust metric rather than the WCAG floor.
- * - **A1** — the card name rendered at the compact 22/26 on *vertical* cards
- *   at desktop and wide, because `tablet:text-[22px]` was never un-set. Two
- *   of four documented breakpoints, and the majority of desktop visitors.
- * - **E5/E1/B2** — «Про проєкт» was reachable from one link in the whole
+ * - **E5/E1/B2** - «Про проєкт» was reachable from one link in the whole
  *   app, and the detail page (the URL people paste into Telegram) carried no
  *   wordmark at all.
- * - **C1** — no name in the seed corpus exceeded six characters, so the
- *   design's own "names truncate to one line with ellipsis" had never been
- *   exercised anywhere near its limit.
+ *
+ * Until 2026-10-20 this file also measured the header's height (A2), the
+ * nav and footer links' touch targets, the logo mark's baseline alignment
+ * (O-1), sideways overflow, the demo banner's clipping, the card name's font
+ * size (A1) and long-name truncation (C1). Those measured appearance and
+ * were removed (Oleksii, 2026-10-20, verbatim: "Drop the rest that measure
+ * appearance."; CLAUDE.md, "Test logic, not looks").
  */
 
 import { expect, test } from "@playwright/test";
-import {
-  expectFocusVisibleOutline,
-  expectMinTouchTarget,
-  expectNoHorizontalOverflow,
-  openRoute,
-  rectOf,
-} from "./harness";
-import {
-  DESKTOP,
-  DETAIL_PHONE,
-  GALLERY_PHONE_360,
-  GALLERY_TABLET,
-  GALLERY_WIDE,
-  NARROW_PHONE,
-  PHONE,
-  type Viewport,
-} from "./viewports";
+import { expectReachableByTab, openRoute } from "./harness";
+import { DESKTOP, DETAIL_PHONE, NARROW_PHONE, PHONE } from "./viewports";
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.31" } });
 
@@ -47,29 +26,57 @@ const GALLERY = "/tvaryny";
 const DECK = "/tvaryny/gortaty";
 const ABOUT = "/pro";
 const FOR_SHELTERS = "/prytulkam";
+const SAVED = "/zberezheni";
 
 const HEADER = "[data-testid='site-header']";
 const WORDMARK = "[data-testid='site-wordmark']";
 const NAV_ABOUT = "[data-testid='nav-about']";
 const NAV_SHELTERS = "[data-testid='nav-for-shelters']";
-const FOOTER = "[data-testid='site-footer']";
-const FOOTER_ABOUT = "[data-testid='footer-about']";
-const FOOTER_SHELTERS = "[data-testid='footer-for-shelters']";
+const NAV_SAVED = "[data-testid='nav-saved']";
 const CARD = "[data-testid='animal-card']";
-const CARD_NAME = "[data-testid='card-name']";
 
-/** docs/design/README.md:337 — "min-height 88 desktop / 64 mobile". */
-const HEADER_MIN_HEIGHT_MOBILE_PX = 64;
-const HEADER_MIN_HEIGHT_DESKTOP_PX = 88;
+// Hamburger menu (below `tablet:`): the drawer's own copies of the three
+// links carry a `-menu` suffix (`SiteHeader.tsx`'s `NavLinks`), distinct
+// from the ids above, which always address the inline, tablet-and-up nav.
+const NAV_MENU_TRIGGER = "[data-testid='nav-menu-trigger']";
+const NAV_MENU_SHEET = "[data-testid='nav-menu-sheet']";
+const NAV_ABOUT_MENU = "[data-testid='nav-about-menu']";
+const NAV_SHELTERS_MENU = "[data-testid='nav-for-shelters-menu']";
+const NAV_SAVED_MENU = "[data-testid='nav-saved-menu']";
 
 let cachedAnimalHref: string | null = null;
 async function firstAnimalHref(page: import("@playwright/test").Page): Promise<string> {
   if (cachedAnimalHref !== null) return cachedAnimalHref;
   await openRoute(page, GALLERY, PHONE, { readySelector: CARD });
   const href = await page.locator(CARD).first().getAttribute("href");
-  expect(href, "no animal card link on the gallery — cannot reach a detail page").toBeTruthy();
+  expect(href, "no animal card link on the gallery – cannot reach a detail page").toBeTruthy();
   cachedAnimalHref = href as string;
   return cachedAnimalHref;
+}
+
+/**
+ * `NAV_SAVED` only renders once something's saved (`SavedNavLink.tsx`,
+ * Oleksii: "show Збережені tab in header only if we have something saved
+ * otherwise hide it"). An `addInitScript`, not a real save through the UI —
+ * these tests are about the header, not the save flow, and `likes-store.ts`'s
+ * own shape (`version`, `items[].animalId`/`likedAt`) is what `SavedNavLink`
+ * reads, so seeding it directly is the same state a real save would leave,
+ * reached without depending on `SaveButton` staying wired the way it is
+ * today. Registered before `openRoute`'s own `page.goto`, so it's in place
+ * for that navigation, same as every later one on this page.
+ */
+async function seedASavedAnimal(page: import("@playwright/test").Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "likes.v1",
+      JSON.stringify({
+        version: 1,
+        items: [
+          { animalId: "00000000-0000-4000-8000-000000000000", likedAt: new Date().toISOString() },
+        ],
+      }),
+    );
+  });
 }
 
 test.describe("the header is on every user-facing surface except the deck", () => {
@@ -78,26 +85,41 @@ test.describe("the header is on every user-facing surface except the deck", () =
     ["about", ABOUT],
     ["for shelters", FOR_SHELTERS],
   ] as const) {
-    test(`${name} carries the wordmark and both site links`, async ({ page }) => {
+    test(`${name} carries the wordmark and all three site links`, async ({ page }) => {
+      await seedASavedAnimal(page);
       await openRoute(page, route, PHONE, { readySelector: HEADER });
 
       await expect(page.locator(WORDMARK)).toHaveText("Opika");
       await expect(page.locator(NAV_ABOUT)).toHaveAttribute("href", ABOUT);
       await expect(page.locator(NAV_SHELTERS)).toHaveAttribute("href", FOR_SHELTERS);
+      await expect(page.locator(NAV_SAVED)).toHaveAttribute("href", SAVED);
     });
   }
 
-  test("the detail page carries it too — this is the URL people paste into Telegram", async ({
+  /**
+   * Oleksii, from a live screenshot: "show Збережені tab in header only if
+   * we have something saved otherwise hide it." A fresh context has nothing
+   * in `localStorage` at all, so this is the real default, not a seeded one.
+   */
+  test("«Збережені» is absent for a visitor with nothing saved", async ({ page }) => {
+    await openRoute(page, GALLERY, PHONE, { readySelector: HEADER });
+    await expect(page.locator(NAV_ABOUT)).toHaveAttribute("href", ABOUT);
+    await expect(page.locator(NAV_SAVED)).toHaveCount(0);
+  });
+
+  test("the detail page carries it too – this is the URL people paste into Telegram", async ({
     page,
   }) => {
+    await seedASavedAnimal(page);
     await openRoute(page, await firstAnimalHref(page), DETAIL_PHONE, { readySelector: HEADER });
 
     await expect(page.locator(WORDMARK)).toHaveText("Opika");
     await expect(page.locator(NAV_ABOUT)).toHaveAttribute("href", ABOUT);
     await expect(page.locator(NAV_SHELTERS)).toHaveAttribute("href", FOR_SHELTERS);
+    await expect(page.locator(NAV_SAVED)).toHaveAttribute("href", SAVED);
   });
 
-  test("the deck does NOT carry it — docs/design/README.md:589, never two navigations at once", async ({
+  test("the deck does NOT carry it – docs/design/README.md:589, never two navigations at once", async ({
     page,
   }) => {
     await openRoute(page, DECK, PHONE, {
@@ -106,360 +128,138 @@ test.describe("the header is on every user-facing surface except the deck", () =
 
     expect(
       await page.locator(HEADER).count(),
-      "the deck's header replaces the gallery header by design — a site header here would be " +
+      "the deck's header replaces the gallery header by design – a site header here would be " +
         "the second navigation the design explicitly rules out, not a fix",
     ).toBe(0);
   });
 });
 
-test.describe("A2 — header height meets the design's own touch-target standard", () => {
-  const CASES: ReadonlyArray<{ viewport: Viewport; min: number }> = [
-    { viewport: PHONE, min: HEADER_MIN_HEIGHT_MOBILE_PX },
-    { viewport: GALLERY_PHONE_360, min: HEADER_MIN_HEIGHT_MOBILE_PX },
-    { viewport: GALLERY_TABLET, min: HEADER_MIN_HEIGHT_MOBILE_PX },
-    { viewport: DESKTOP, min: HEADER_MIN_HEIGHT_DESKTOP_PX },
-    { viewport: GALLERY_WIDE, min: HEADER_MIN_HEIGHT_DESKTOP_PX },
-  ];
-
-  for (const { viewport, min } of CASES) {
-    test(`is at least ${min}px at ${viewport.name}`, async ({ page }) => {
-      await openRoute(page, GALLERY, viewport, { readySelector: HEADER });
-      const rect = await rectOf(page.locator(HEADER), "site header");
-
-      expect(
-        rect.height,
-        `header measures ${rect.height.toFixed(1)}px at ${viewport.width}px wide; the design ` +
-          `specifies at least ${min}px (README.md:200/:337, stated as a civic-trust metric, ` +
-          `not the WCAG floor). It measured 56/68 before Phase T.`,
-      ).toBeGreaterThanOrEqual(min);
-    });
-  }
-
-  test("both nav links meet the 48px minimum touch target", async ({ page }) => {
-    await openRoute(page, GALLERY, PHONE, { readySelector: HEADER });
-
-    for (const selector of [NAV_ABOUT, NAV_SHELTERS]) {
-      await expectMinTouchTarget(page.locator(selector), selector);
-    }
-  });
-
-  /**
-   * O-11/O-13 (`docs/observations.md`): the new shared `Footer` reuses both
-   * of the header's own nav links — a reviewer round found the first draft
-   * shipped them at the surrounding 18px line-height, the one-off `<footer>`
-   * fragment it replaced never having had a touch-target floor at all.
-   */
-  test("both footer links meet the 48px minimum touch target", async ({ page }) => {
-    await openRoute(page, GALLERY, PHONE, { readySelector: FOOTER });
-
-    for (const selector of [FOOTER_ABOUT, FOOTER_SHELTERS]) {
-      await expectMinTouchTarget(page.locator(selector), selector);
-    }
-  });
-});
-
-test.describe("O-1 — the logo mark aligns to the wordmark's baseline, not its box", () => {
-  /**
-   * Oleksii caught this one from a screenshot, not from reading the markup —
-   * exactly the `docs/standing-constraints.md` category ("requires a
-   * rendered assertion") this test exists to close. `items-end` (the
-   * original code) aligned the mark's own box bottom to the wordmark's
-   * line-box bottom, which sits below the true typographic baseline by the
-   * font's descent plus half its leading — a different point than the
-   * design's own "align optically to the threshold line, not the box."
-   *
-   * Baseline is read via a zero-size inline-block probe inserted right after
-   * the wordmark text (`vertical-align: baseline` places its own bottom edge
-   * exactly on the surrounding line's baseline) rather than `canvas.
-   * measureText`'s `fontBoundingBox*` metrics, which Chrome rounds to whole
-   * pixels — a ~0.5px systematic error that would otherwise eat half the
-   * tolerance below for no reason. The threshold line's position is read
-   * from the SVG's own client rect against the design doc's stated 88/96
-   * viewBox fraction (`docs/design/README.md`'s "The logo" section) — not
-   * `getBBox()`, which would (correctly) also report it, but the fraction is
-   * the more direct assertion against the spec's own stated grid position.
-   *
-   * Covers both lockup branches `SiteHeader` renders: the plain `<span>`
-   * (gallery, where the wordmark is the current page and self-link is
-   * suppressed) and the `<Link>` (`/pro` and everywhere else) — they compose
-   * the mark and wordmark identically, but `<Link>` additionally carries
-   * `min-h-12`, which a reviewer round found does shift the lockup's overall
-   * vertical position within the header even though the mark-to-baseline
-   * alignment itself is unaffected by it.
-   */
-  const CASES: ReadonlyArray<{ name: string; route: string; viewport: Viewport }> = [
-    { name: "desktop, span branch (gallery)", route: GALLERY, viewport: DESKTOP },
-    { name: "mobile, span branch (gallery)", route: GALLERY, viewport: PHONE },
-    { name: "desktop, link branch (/pro)", route: ABOUT, viewport: DESKTOP },
-    { name: "mobile, link branch (/pro)", route: ABOUT, viewport: PHONE },
-  ];
-
-  for (const { name, route, viewport } of CASES) {
-    test(`the mark's threshold sits on the wordmark's baseline — ${name}`, async ({ page }) => {
-      await openRoute(page, route, viewport, { readySelector: WORDMARK });
-
-      const { baselineY, thresholdY } = await page.evaluate(() => {
-        const wordmark = document.querySelector('[data-testid="site-wordmark"]');
-        if (!wordmark) throw new Error("no site-wordmark element");
-        const span = wordmark.querySelector("span");
-        const svg = wordmark.querySelector("svg");
-        if (!span || !svg) throw new Error("wordmark is missing its span or svg");
-
-        const probe = document.createElement("span");
-        probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
-        span.appendChild(probe);
-        const baselineY = probe.getBoundingClientRect().bottom;
-        probe.remove();
-
-        // The mark's threshold line is drawn at viewBox y=88 of a 0..96 grid
-        // (docs/design/README.md's "The logo" section) — 88/96 of the way
-        // down the rendered SVG box, regardless of its pixel size.
-        const svgRect = svg.getBoundingClientRect();
-        const thresholdY = svgRect.top + (88 / 96) * svgRect.height;
-
-        return { baselineY, thresholdY };
-      });
-
-      const offsetPx = Math.abs(thresholdY - baselineY);
-      expect(
-        offsetPx,
-        `mark's threshold line is at y=${thresholdY.toFixed(2)}, wordmark's real baseline is at ` +
-          `y=${baselineY.toFixed(2)} — off by ${(thresholdY - baselineY).toFixed(2)}px. ` +
-          `docs/design/README.md's "align optically to the threshold line, not the box" means ` +
-          "these two must land on the same pixel, allowing only for sub-pixel layout rounding " +
-          "(the original items-end defect was off by 6.5px at desktop / 5.3px at mobile, not a " +
-          "rounding artifact).",
-      ).toBeLessThanOrEqual(1);
-    });
-  }
-});
-
-test.describe("the header does not push any page sideways", () => {
-  /**
-   * The reason `SiteHeader` wraps below `tablet:`. At 360 the detail page's
-   * row is wordmark + «← До списку» + two nav links, which is wider than the
-   * 328px content column — this is the assertion that would have caught it.
-   */
-  for (const [name, viewport] of [
-    ["gallery at 360", GALLERY_PHONE_360],
-    ["gallery at 390", PHONE],
-    ["gallery at tablet", GALLERY_TABLET],
-  ] as const) {
-    test(`${name} has no horizontal overflow`, async ({ page }) => {
-      await openRoute(page, GALLERY, viewport, { readySelector: HEADER });
-      await expectNoHorizontalOverflow(page, viewport);
-    });
-  }
-
-  test("the detail page at 360 has no horizontal overflow, header included", async ({ page }) => {
-    await openRoute(page, await firstAnimalHref(page), GALLERY_PHONE_360, {
-      readySelector: HEADER,
-    });
-    await expectNoHorizontalOverflow(page, GALLERY_PHONE_360);
+/**
+ * D-2: the demo banner (`detail-demo-banner`) shows on the detail page while
+ * the registry holds no real shelters. `NARROW_PHONE` (320) is this
+ * project's own narrowest supported width (`docs/stack-decision.md`, "budget
+ * Android"). Its clipping and the pages' sideways overflow were measured
+ * here until 2026-10-20 (removed with the other UI-measuring tests).
+ *
+ * The gallery's own banner (`gallery-demo-banner`) is gone - Oleksii,
+ * mid-build, verbatim: "remove На сайті поки немає справжніх притулків —
+ * усі картки тут демонстраційні. as we hide our app anyways and people
+ * without gate cant access it ye[t]." Only the detail page's instance is
+ * still asserted.
+ */
+test.describe("the demo banner is visible on the detail page", () => {
+  test("detail page banner is visible at 320", async ({ page }) => {
+    await openRoute(page, await firstAnimalHref(page), NARROW_PHONE, { readySelector: HEADER });
+    await expect(page.getByTestId("detail-demo-banner")).toBeVisible();
   });
 });
 
 /**
- * O-19-class gap the reviewer found in the D-2 gating fix (2026-09-10):
- * the new demo banner (`gallery-demo-banner`/`detail-demo-banner`) had a
- * real unit-level render assertion (`page.test.tsx`) but no measured
- * geometry at all — a 66-character Ukrainian sentence, unlike the deck's
- * 4-character «Демо» label, which already had a real width budget measured
- * at four viewports before it shipped. `NARROW_PHONE` (320) is this
- * project's own narrowest supported width (`docs/stack-decision.md`,
- * "budget Android").
+ * `PHONE` (390px) is below `tablet:` (600px, `--breakpoint-tablet`), so the
+ * inline `<nav>` is CSS-hidden there and its links are out of the native tab
+ * order (a `display: none` element is never a Tab stop) - reaching them now
+ * goes through `MobileNavMenu`'s drawer instead. Updated for the hamburger
+ * menu, not deleted: the owner's task that added it explicitly kept "48px
+ * touch target on the toggle button, aria-expanded/aria-controls, visible
+ * focus" as a requirement, and this describe block is what used to cover the
+ * links' own reachability at this exact width - still worth covering, just
+ * through the drawer now.
  */
-test.describe("the demo banner is visible and does not push either page sideways", () => {
-  test("gallery banner is visible, unclipped, and the page has no horizontal overflow at 320", async ({
-    page,
-  }) => {
-    await openRoute(page, GALLERY, NARROW_PHONE, { readySelector: HEADER });
-    const banner = page.getByTestId("gallery-demo-banner");
-    await expect(banner).toBeVisible();
-    await expectNoHorizontalOverflow(page, NARROW_PHONE);
-
-    // Round 2 (2026-09-11): `toBeVisible()` alone doesn't catch clipping —
-    // `overflow-hidden` text-overflow-ellipsis (Tailwind's `truncate`) still
-    // reports visible while hiding most of the sentence. Same check as the
-    // deck's own demo label (`discovery-layout.harness.ts`), which exists for
-    // exactly this: confirmed by mutation that adding `truncate` here passes
-    // both toBeVisible() and expectNoHorizontalOverflow() while leaving only
-    // "На сайті поки немає спр…" on screen.
-    const { scrollWidth, clientWidth } = await banner.evaluate((el) => ({
-      scrollWidth: el.scrollWidth,
-      clientWidth: el.clientWidth,
-    }));
-    expect(
-      scrollWidth,
-      `the gallery demo banner is clipped at ${NARROW_PHONE.name}: needs ${scrollWidth}px, has ` +
-        `${clientWidth}px. The whole point of D-2 is that a real visitor can read this.`,
-    ).toBeLessThanOrEqual(clientWidth);
-  });
-
-  test("detail page banner is visible, unclipped, and the page has no horizontal overflow at 320", async ({
-    page,
-  }) => {
-    await openRoute(page, await firstAnimalHref(page), NARROW_PHONE, { readySelector: HEADER });
-    const banner = page.getByTestId("detail-demo-banner");
-    await expect(banner).toBeVisible();
-    await expectNoHorizontalOverflow(page, NARROW_PHONE);
-
-    const { scrollWidth, clientWidth } = await banner.evaluate((el) => ({
-      scrollWidth: el.scrollWidth,
-      clientWidth: el.clientWidth,
-    }));
-    expect(
-      scrollWidth,
-      `the detail demo banner is clipped at ${NARROW_PHONE.name}: needs ${scrollWidth}px, has ` +
-        `${clientWidth}px. The whole point of D-2 is that a real visitor can read this.`,
-    ).toBeLessThanOrEqual(clientWidth);
-  });
-});
-
-test.describe("A1 — the card name is display-s on every vertical card", () => {
-  /**
-   * The compact 22/26 step belongs to the 600-1023 *horizontal* card and
-   * nothing else. Asserting the real computed `font-size` rather than a class
-   * is the whole point: `tablet:text-[22px]` with no `desktop:` reset reads
-   * entirely correct in the markup.
-   */
-  const CASES: ReadonlyArray<{ viewport: Viewport; expected: number; layout: string }> = [
-    { viewport: PHONE, expected: 24, layout: "1 column, vertical card" },
-    { viewport: GALLERY_TABLET, expected: 22, layout: "2 columns, horizontal card" },
-    { viewport: DESKTOP, expected: 24, layout: "3 columns, vertical card" },
-    { viewport: GALLERY_WIDE, expected: 24, layout: "4 columns, vertical card" },
-  ];
-
-  for (const { viewport, expected, layout } of CASES) {
-    test(`is ${expected}px at ${viewport.name} (${layout})`, async ({ page }) => {
-      await openRoute(page, GALLERY, viewport, { readySelector: CARD });
-
-      const fontSize = await page
-        .locator(CARD_NAME)
-        .first()
-        .evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
-
-      expect(
-        fontSize,
-        `card name renders at ${fontSize}px at ${viewport.width}px wide; the design's Scale ` +
-          `table gives ${expected}px for a ${layout}. The compact 22/26 step is specified only ` +
-          `for the 600-1023 horizontal card.`,
-      ).toBe(expected);
-    });
-  }
-});
-
-test.describe("C1 — a long name truncates rather than escaping its card", () => {
-  /**
-   * The seed corpus now carries a 30-character animal name and a
-   * 44-character shelter name (`packages/db/src/seed.ts`), because every
-   * other name in it was six characters or fewer and the `truncate` safety
-   * net had never been exercised. Which page a given animal lands on depends
-   * on freshness ordering, so this asserts the invariant across whatever
-   * cards are on screen rather than hunting one name — the invariant is what
-   * matters, and the long name is what makes it bite.
-   */
-  for (const viewport of [GALLERY_PHONE_360, PHONE, GALLERY_TABLET, DESKTOP, GALLERY_WIDE]) {
-    test(`no card name overflows its card at ${viewport.name}`, async ({ page }) => {
-      await openRoute(page, GALLERY, viewport, { readySelector: CARD });
-
-      const worst = await page.evaluate(
-        ({ cardSel, nameSel }) => {
-          let overflow = 0;
-          let offender = "";
-          for (const card of document.querySelectorAll(cardSel)) {
-            const name = card.querySelector(nameSel);
-            if (!name) continue;
-            const spill = name.getBoundingClientRect().right - card.getBoundingClientRect().right;
-            if (spill > overflow) {
-              overflow = spill;
-              offender = name.textContent ?? "";
-            }
-          }
-          return { overflow, offender };
-        },
-        { cardSel: CARD, nameSel: CARD_NAME },
-      );
-
-      expect(
-        worst.overflow,
-        `"${worst.offender}" spills ${worst.overflow.toFixed(2)}px past its card's right edge. ` +
-          `The design specifies names truncate to one line with ellipsis; a name escaping the ` +
-          `card means the truncate is not actually constraining it (a missing min-w-0 on a flex ` +
-          `parent is the usual cause).`,
-      ).toBeLessThanOrEqual(0.5);
-    });
-  }
-
-  /**
-   * Walks pages rather than assuming page 1. Which page the long name lands
-   * on depends on freshness ordering, which is seeded data and not something
-   * this test should pin — an assertion that silently passes because the
-   * stressor happened to be elsewhere is exactly the decoration
-   * `docs/standing-constraints.md` warns about, and this failed for that
-   * reason on its first run before being made to walk.
-   *
-   * `LONG_NAME_MIN_CHARS` is the threshold C1 was raised about, not the
-   * seed's exact string: the test should keep working if the corpus's long
-   * name is reworded, and should fail if the corpus stops containing one.
-   */
-  const LONG_NAME_MIN_CHARS = 25;
-  const GALLERY_PAGES = 10;
-
-  test("a name long enough to need it exists in the corpus and is actually clipped", async ({
-    page,
-  }) => {
-    let found: { name: string; clipped: boolean } | null = null;
-
-    for (let stor = 1; stor <= GALLERY_PAGES && found === null; stor++) {
-      await openRoute(page, `${GALLERY}?stor=${stor}`, GALLERY_PHONE_360, {
-        readySelector: CARD,
-      });
-      found = await page.evaluate(
-        ({ nameSel, minChars }) => {
-          for (const el of document.querySelectorAll(nameSel)) {
-            const name = (el.textContent ?? "").trim();
-            if (name.length >= minChars) {
-              return { name, clipped: el.scrollWidth > el.clientWidth + 1 };
-            }
-          }
-          return null;
-        },
-        { nameSel: CARD_NAME, minChars: LONG_NAME_MIN_CHARS },
-      );
-    }
-
-    expect(
-      found,
-      `no animal name of ${LONG_NAME_MIN_CHARS}+ characters exists anywhere in the seeded ` +
-        `corpus's ${GALLERY_PAGES} pages. packages/db/src/seed.ts carries one deliberately ` +
-        `(critique C1) precisely so truncation is exercised near its limit — if it was removed, ` +
-        `the design's "names truncate to one line with ellipsis" goes back to being untested.`,
-    ).not.toBeNull();
-
-    expect(
-      found?.clipped,
-      `"${found?.name}" (${found?.name.length} characters) is not clipped at 360px, so the ` +
-        `truncate is not engaging even at this length. Either the name box is far wider than ` +
-        `expected or the truncate was dropped.`,
-    ).toBe(true);
-  });
-});
-
 test.describe("the header is reachable by keyboard", () => {
-  test("the «Про проєкт» link has real focus-visible styling", async ({ page }) => {
+  test("the hamburger toggle is reachable by Tab, below tablet:", async ({ page }) => {
     await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
-    await expectFocusVisibleOutline(page, {
-      label: "header «Про проєкт» link",
-      locator: page.locator(NAV_ABOUT),
+    await expectReachableByTab(page, {
+      label: "header hamburger menu toggle",
+      locator: page.locator(NAV_MENU_TRIGGER),
     });
   });
 
-  test("the «Для притулків» link has real focus-visible styling", async ({ page }) => {
+  test("the «Про проєкт» link is reachable by Tab, once the drawer is open", async ({ page }) => {
     await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
-    await expectFocusVisibleOutline(page, {
-      label: "header «Для притулків» link",
-      locator: page.locator(NAV_SHELTERS),
+    await page.locator(NAV_MENU_TRIGGER).click();
+    await expectReachableByTab(page, {
+      label: "drawer «Про проєкт» link",
+      locator: page.locator(NAV_ABOUT_MENU),
     });
+  });
+
+  test("the «Для притулків» link is reachable by Tab, once the drawer is open", async ({
+    page,
+  }) => {
+    await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await page.locator(NAV_MENU_TRIGGER).click();
+    await expectReachableByTab(page, {
+      label: "drawer «Для притулків» link",
+      locator: page.locator(NAV_SHELTERS_MENU),
+    });
+  });
+
+  test("the «Збережені» link is reachable by Tab, once the drawer is open", async ({ page }) => {
+    await seedASavedAnimal(page);
+    await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await page.locator(NAV_MENU_TRIGGER).click();
+    await expectReachableByTab(page, {
+      label: "drawer «Збережені» link",
+      locator: page.locator(NAV_SAVED_MENU),
+    });
+  });
+});
+
+test.describe("the mobile nav drawer (below tablet:)", () => {
+  test("below tablet:, the hamburger toggle is visible and the inline nav is not", async ({
+    page,
+  }) => {
+    await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await expect(page.locator(NAV_MENU_TRIGGER)).toBeVisible();
+    await expect(page.locator(NAV_ABOUT)).toBeHidden();
+  });
+
+  test("at tablet: and up, the inline nav is visible and the hamburger toggle is not", async ({
+    page,
+  }) => {
+    await openRoute(page, ABOUT, DESKTOP, { readySelector: HEADER });
+    await expect(page.locator(NAV_ABOUT)).toBeVisible();
+    await expect(page.locator(NAV_MENU_TRIGGER)).toBeHidden();
+  });
+
+  test("opens with zero JS, via the plain #site-nav-menu anchor jump", async ({ browser }) => {
+    const context = await browser.newContext({
+      javaScriptEnabled: false,
+      extraHTTPHeaders: { "x-forwarded-for": "198.51.100.31" },
+    });
+    const page = await context.newPage();
+    await page.setViewportSize({ width: PHONE.width, height: PHONE.height });
+    await page.goto(ABOUT, { waitUntil: "load" });
+    await page.locator(NAV_MENU_TRIGGER).click();
+    // The reveal itself, asserted rather than left implicit in a later
+    // click's actionability timeout - same reasoning as `FilterSheet`'s own
+    // no-JS test: with no JS this is `:target` and `globals.css`'s
+    // `#site-nav-menu:target` rule doing all of the work, and if that rule
+    // were dropped the dialog would stay `display: none` from the UA
+    // stylesheet's own `dialog:not([open])`.
+    await expect(
+      page.locator(NAV_MENU_SHEET),
+      "the <dialog> should be revealed by the :target rule alone, with no JS",
+    ).toBeVisible();
+    await expect(page.locator(NAV_ABOUT_MENU)).toBeVisible();
+    await context.close();
+  });
+
+  test("Escape closes the open drawer and returns focus to the toggle", async ({ page }) => {
+    await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await page.locator(NAV_MENU_TRIGGER).click();
+    await expect(page.locator(NAV_MENU_SHEET)).toBeVisible();
+
+    await page.keyboard.press("Escape");
+
+    await expect(page.locator(NAV_MENU_SHEET)).toBeHidden();
+    await expect(page.locator(NAV_MENU_TRIGGER)).toBeFocused();
+  });
+
+  test("clicking a link in the drawer navigates to it", async ({ page }) => {
+    await openRoute(page, ABOUT, PHONE, { readySelector: HEADER });
+    await page.locator(NAV_MENU_TRIGGER).click();
+    await page.locator(NAV_SHELTERS_MENU).click();
+    await expect(page).toHaveURL(FOR_SHELTERS);
   });
 });

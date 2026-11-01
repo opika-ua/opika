@@ -4,12 +4,14 @@ import type { RegistryShelterView, ShelterAdminView } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
 import { type FormEvent, useId, useRef, useState } from "react";
 import { z } from "zod";
-import { Button, TextField } from "../../../controls/controls";
-import { ModalDialog } from "../../../controls/ModalDialog";
+import { Button } from "../../../../ui/Button";
+import { TextField } from "../../../../ui/form";
+import { Modal } from "../../../../ui/Modal";
+import { Text } from "../../../../ui/Text";
 import { formatDate } from "../format";
 import { type ActionRefusal, emailOutcomeText } from "./action-result";
 import { useOperatorActions } from "./operator-actions";
-import { ACTIONS, BODY, CAPTION, NOTICE, STRONG } from "./styles";
+import { ACTIONS, NOTICE } from "./styles";
 
 const OWNER = "admins";
 
@@ -140,7 +142,7 @@ export function AdminsManager({ now }: { now: Date }) {
   return (
     <div className="flex flex-col gap-4">
       {view.admins.length === 0 ? (
-        <p className={CAPTION}>{t.none}</p>
+        <Text look="hint">{t.none}</Text>
       ) : (
         <ul ref={listRef} tabIndex={-1} className="flex flex-col gap-3">
           {view.admins.map((admin) => (
@@ -170,9 +172,7 @@ export function AdminsManager({ now }: { now: Date }) {
               ? t.gone
               : null}
       </p>
-      {notice.kind === "email" && notice.reminder !== null ? (
-        <p className={BODY}>{notice.reminder}</p>
-      ) : null}
+      {notice.kind === "email" && notice.reminder !== null ? <Text>{notice.reminder}</Text> : null}
       {notice.kind === "failed" ? (
         <p role="alert" className={NOTICE}>
           {errors.failed}
@@ -187,9 +187,10 @@ export function AdminsManager({ now }: { now: Date }) {
       <InviteAdminForm id={inviteId} view={view} onNotice={setNotice} />
 
       {confirming !== null ? (
-        <ModalDialog
+        <Modal
+          open
           title={fillTemplate(t.removeConfirm.title, { name: confirming.name })}
-          body={t.removeConfirm.body}
+          description={t.removeConfirm.body}
           closeLabel={uk.kabinet.profileEdit.pause.close}
           onClose={() => {
             setConfirming(null);
@@ -216,7 +217,7 @@ export function AdminsManager({ now }: { now: Date }) {
               {t.remove}
             </Button>
           </div>
-        </ModalDialog>
+        </Modal>
       ) : null}
     </div>
   );
@@ -249,12 +250,12 @@ function AdminRow({
   return (
     <li className="flex flex-col gap-2">
       <div className="flex flex-col gap-0.5">
-        <span id={nameId} className={STRONG}>
+        <Text as="span" look="label" id={nameId}>
           {admin.name}
-        </span>
-        <span className={CAPTION}>
+        </Text>
+        <Text as="span" look="hint">
           {admin.email} · {statusLine(admin, now)}
-        </span>
+        </Text>
       </div>
       <div className={ACTIONS}>
         {admin.invite.status === "pending" ? (
@@ -268,7 +269,7 @@ function AdminRow({
           </Button>
         ) : null}
         <Button
-          variant="text"
+          variant="ghost"
           aria-disabled={busy || undefined}
           aria-describedby={nameId}
           onClick={(event) => onRemove(event.currentTarget)}

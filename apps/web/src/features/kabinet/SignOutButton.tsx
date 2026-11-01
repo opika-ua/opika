@@ -2,14 +2,13 @@
 
 import { uk } from "@opika/i18n";
 import { useState } from "react";
-import { confirmLeave as defaultConfirmLeave } from "./profile-edit/unsaved-changes";
+import { Button } from "../../ui/Button";
+import { Text } from "../../ui/Text";
+import { confirmLeave as defaultConfirmLeave } from "./shared/unsaved-changes";
 
 /** Better Auth's sign-out, one of the four forwarded auth paths (`FORWARDED_AUTH_PATHS`). */
 export const SIGN_OUT_PATH = "/api/auth/sign-out";
 export const SIGNED_OUT_DESTINATION = "/kabinet/vkhid";
-
-const FOCUS =
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]";
 
 async function defaultSignOut(): Promise<void> {
   const response = await fetch(SIGN_OUT_PATH, {
@@ -46,8 +45,8 @@ export function SignOutButton({
   const [failed, setFailed] = useState(false);
   return (
     <span className="inline-flex flex-col items-end">
-      <button
-        type="button"
+      <Button
+        variant="secondary"
         aria-busy={busy}
         onClick={async () => {
           if (busy) return;
@@ -63,17 +62,14 @@ export function SignOutButton({
           }
           navigate(SIGNED_OUT_DESTINATION);
         }}
-        className={`inline-flex min-h-12 items-center justify-center px-2 text-[15px] whitespace-nowrap text-rg-ink underline ${FOCUS}`}
+        className="whitespace-nowrap"
       >
         {uk.kabinet.profile.signOut}
-      </button>
+      </Button>
       {failed ? (
-        <p
-          role="alert"
-          className="max-w-[320px] text-right text-[15px] leading-[22px] font-medium text-rg-ink"
-        >
-          {uk.kabinet.profile.signOutFailed}
-        </p>
+        <div role="alert" className="max-w-80 text-right">
+          <Text look="label">{uk.kabinet.profile.signOutFailed}</Text>
+        </div>
       ) : null}
     </span>
   );

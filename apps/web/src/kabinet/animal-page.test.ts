@@ -168,6 +168,11 @@ describe("kabinetAnimalPageOf: /[id] (edit)", () => {
         animalId,
       ).toMatchObject({ kind: "missing", viewer: "admin" });
     }
+    // Indistinguishable, not merely the same kind: a foreign id and a random one give deeply equal pages.
+    const foreign = await kabinetAnimalPageOf(adminOf(mine), existing(other.id), deps());
+    const absent = await kabinetAnimalPageOf(adminOf(mine), existing(crypto.randomUUID()), deps());
+    expect(foreign).toEqual(absent);
+    expect(JSON.stringify(foreign)).not.toContain(other.id);
   });
 
   it("says where the shelter's cards stand, read from the stored verification, for every status", async () => {

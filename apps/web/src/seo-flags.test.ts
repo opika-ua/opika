@@ -1,5 +1,6 @@
-import { PENDING_R4_2_ANALYTICS_SENTENCE } from "@opika/i18n";
+import { R4_2_ANALYTICS_SENTENCE } from "@opika/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SITE_ORIGIN } from "./brand";
 import {
   assertAnalyticsCopyMatchesGateState,
   assertDemoDiscoverabilityInvariant,
@@ -7,36 +8,36 @@ import {
 } from "./seo-flags";
 
 const INCOMPLETE_ANALYTICS_COPY =
-  "Сайт збирає базову статистику відвідувань — скільки людей заходить і наскільки швидко " +
-  "працюють сторінки — без реклами.";
-const LANDED_ANALYTICS_COPY = `${INCOMPLETE_ANALYTICS_COPY} ${PENDING_R4_2_ANALYTICS_SENTENCE}`;
+  "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко " +
+  "працюють сторінки – без реклами.";
+const LANDED_ANALYTICS_COPY = `${INCOMPLETE_ANALYTICS_COPY} ${R4_2_ANALYTICS_SENTENCE}`;
 
 /**
  * D-3's and D-2's tests both import `./app/layout` (for `metadata.robots`
  * and `metadata.description` respectively), and that module's top-level
- * `fonts.ts` import calls `next/font/local` — a call Next's own build step
+ * `fonts.ts` import calls `next/font/local` - a call Next's own build step
  * transforms away, which Vitest never runs. Without this, the call itself
  * throws before any test body runs; the shape returned only needs to satisfy
  * `RootLayout`'s JSX (`.variable`), which these tests never render anyway.
  * Every family is self-hosted now, so `next/font/google` needs no mock.
  */
 vi.mock("next/font/local", () => ({
-  default: () => ({ variable: "--font-e-ukraine" }),
+  default: () => ({ variable: "--font-brand" }),
 }));
 
 /**
  * `vi.doMock` registers a factory that stays active for the rest of this
- * file — `vi.resetModules()` alone clears the module cache, not the
+ * file - `vi.resetModules()` alone clears the module cache, not the
  * registered mock. Tests run in file order, so the very first describe
  * block below ("SITE_IS_PUBLICLY_DISCOVERABLE — single source ...") is the
  * one that leaks forward: whichever of its `doMock("./seo-flags", ...)`
  * calls ran last (its factory stubs the assertion function as a no-op)
  * silently answers every later dynamic import of `./seo-flags` in this
  * file, including from describe blocks that never called `doMock`
- * themselves — it is the block ABOVE the affected tests that leaks, not
+ * themselves - it is the block ABOVE the affected tests that leaks, not
  * below. Found by the one invariant test that expects a throw going red
  * (the stub is a no-op, so it never throws) while the three
- * `not.toThrow()` tests stayed green for the wrong reason — they imported
+ * `not.toThrow()` tests stayed green for the wrong reason - they imported
  * the same stub, and a no-op never throws either.
  */
 afterEach(() => {
@@ -44,9 +45,19 @@ afterEach(() => {
 });
 
 /**
+ * PR B, the SEO review of page titles - found missing on review: `metadataBase` had
+ * no test at all, even though every indexable page's `alternates.canonical` is a
+ * relative path that depends on it resolving correctly.
+ */
+it("metadataBase is the fixed SITE_ORIGIN constant, never left unset", async () => {
+  const { metadata } = await import("./app/layout");
+  expect(metadata.metadataBase).toEqual(new URL(SITE_ORIGIN));
+});
+
+/**
  * D-1/D-3: proves `next.config.ts`'s `headers()` and the root layout's
  * `robots` metadata both derive their noindex behaviour from
- * `SITE_IS_PUBLICLY_DISCOVERABLE` specifically — not merely from "some flag
+ * `SITE_IS_PUBLICLY_DISCOVERABLE` specifically - not merely from "some flag
  * in this module" — rather than each hand-maintaining its own copy of the
  * same decision. `vi.doMock` replaces the one module both consumers import
  * from; if either consumer stopped reading it, that consumer's assertion
@@ -54,18 +65,18 @@ afterEach(() => {
  * which is exactly the drift this test exists to catch.
  *
  * `app/robots.ts` is asserted separately, once, outside this describe block
- * — D-3 made it unconditional (always `allow: "/"`), specifically so a
+ * - D-3 made it unconditional (always `allow: "/"`), specifically so a
  * crawler can reach the header and the metadata this test does cover. It no
  * longer reads the flag at all, so it has nothing to vary here.
  *
  * The three cases deliberately do NOT vary both constants in lockstep. Two
  * cases that only ever move opposite each other (`SITE=false,REGISTRY=true`
  * then `SITE=true,REGISTRY=false`) cannot tell a correct consumer from one
- * that reads `!REGISTRY_HAS_NO_REAL_SHELTERS` instead — both would produce
+ * that reads `!REGISTRY_HAS_NO_REAL_SHELTERS` instead - both would produce
  * identical output in either case, and the STOP this file exists to guard
  * against was exactly that the two facts had been treated as
  * interchangeable. The `REGISTRY=false,SITE=false` case is where they
- * diverge — the launch-gate window itself — and is the one case that
+ * diverge - the launch-gate window itself - and is the one case that
  * actually distinguishes which constant a consumer reads.
  *
  * The `firstRun.promise` swap is covered by its own describe block further
@@ -74,7 +85,11 @@ afterEach(() => {
  * render (`DeckScreen.test.tsx`, `animal-detail.harness.ts`) rather than
  * here, since neither's markup is reachable from this file's imports.
  */
-describe("SITE_IS_PUBLICLY_DISCOVERABLE — single source for noindex behaviour", () => {
+/** The `headers()` entries carrying X-Robots-Tag; the security headers (audit F5) are on every route either way. */
+const robotsTagEntries = (entries: { headers: { key: string }[] }[] | undefined) =>
+  (entries ?? []).filter((entry) => entry.headers.some((h) => h.key === "X-Robots-Tag"));
+
+describe("SITE_IS_PUBLICLY_DISCOVERABLE – single source for noindex behaviour", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -90,12 +105,12 @@ describe("SITE_IS_PUBLICLY_DISCOVERABLE — single source for noindex behaviour"
     const nextConfig = (await import("../next.config")).default;
 
     expect(metadata.robots).toEqual({ index: false, follow: false });
-    expect(await nextConfig.headers?.()).toEqual([
+    expect(robotsTagEntries(await nextConfig.headers?.())).toEqual([
       { source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ]);
   });
 
-  it("stays noindex at the launch-gate window — real shelters present, still not discoverable", async () => {
+  it("stays noindex at the launch-gate window – real shelters present, still not discoverable", async () => {
     vi.doMock("./seo-flags", () => ({
       SITE_IS_PUBLICLY_DISCOVERABLE: false,
       REGISTRY_HAS_NO_REAL_SHELTERS: false,
@@ -106,7 +121,7 @@ describe("SITE_IS_PUBLICLY_DISCOVERABLE — single source for noindex behaviour"
     const nextConfig = (await import("../next.config")).default;
 
     expect(metadata.robots).toEqual({ index: false, follow: false });
-    expect(await nextConfig.headers?.()).toEqual([
+    expect(robotsTagEntries(await nextConfig.headers?.())).toEqual([
       { source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ]);
   });
@@ -122,19 +137,19 @@ describe("SITE_IS_PUBLICLY_DISCOVERABLE — single source for noindex behaviour"
     const nextConfig = (await import("../next.config")).default;
 
     expect(metadata.robots).toEqual({ index: true, follow: true });
-    expect(await nextConfig.headers?.()).toEqual([]);
+    expect(robotsTagEntries(await nextConfig.headers?.())).toEqual([]);
   });
 });
 
 /**
  * D-3: `app/robots.ts` no longer reads `SITE_IS_PUBLICLY_DISCOVERABLE` at
- * all — it always allows crawling, unconditionally, so that a crawler can
+ * all - it always allows crawling, unconditionally, so that a crawler can
  * actually reach the `X-Robots-Tag` header and `robots` metadata the
  * describe block above covers. No flag to vary, so a single assertion
  * (not a per-flag-value case) is the correct amount of test here.
  */
-describe("app/robots.ts — always allows crawling", () => {
-  it("always allows — reads no flag at all", async () => {
+describe("app/robots.ts – always allows crawling", () => {
+  it("always allows – reads no flag at all", async () => {
     const robots = (await import("./app/robots")).default;
     expect(robots().rules).toEqual({ userAgent: "*", allow: "/" });
   });
@@ -146,7 +161,7 @@ describe("app/robots.ts — always allows crawling", () => {
  * discoverable. The reverse (real shelters present, not yet discoverable)
  * is `docs/build-plan.md`'s launch-gate window and must NOT throw.
  *
- * These test only that the function throws — not that a thrown error in
+ * These test only that the function throws - not that a thrown error in
  * `instrumentation.ts`'s `register()` actually prevents a Next.js instance
  * from serving requests. It's the neighbouring `validateEnv()` call's own
  * documented behaviour that a throw there becomes per-request 500s rather
@@ -156,13 +171,13 @@ describe("app/robots.ts — always allows crawling", () => {
  * CI, on the real constants, before either reaches a deploy.
  *
  * Imports `assertDemoDiscoverabilityInvariant` statically (top of file),
- * not via `await import("./seo-flags")` like the describe block above —
+ * not via `await import("./seo-flags")` like the describe block above -
  * a dynamic import here would resolve to whatever the previous block's
  * `vi.doMock` last registered if that file-level `afterEach` were ever
  * weakened, and the mocked factory stubs this very function as a no-op.
  * A no-op never throws, so the throw-expecting test below would go red as
- * a false alarm, while the three `not.toThrow()` tests — including
- * "defaults to the real constants", the actual day-to-day CI gate — would
+ * a false alarm, while the three `not.toThrow()` tests - including
+ * "defaults to the real constants", the actual day-to-day CI gate - would
  * stay green for the wrong reason: the exact failure mode this suite
  * exists to catch would itself go undetected. The static import is bound
  * before any `doMock` call runs, so it is immune to that leak regardless
@@ -175,31 +190,31 @@ describe("assertDemoDiscoverabilityInvariant", () => {
     );
   });
 
-  it("permits real shelters present while not yet discoverable — the launch-gate window", () => {
+  it("permits real shelters present while not yet discoverable – the launch-gate window", () => {
     expect(() => assertDemoDiscoverabilityInvariant(false, false)).not.toThrow();
   });
 
-  it("permits the fully-launched state — real shelters, publicly discoverable", () => {
+  it("permits the fully-launched state – real shelters, publicly discoverable", () => {
     expect(() => assertDemoDiscoverabilityInvariant(false, true)).not.toThrow();
   });
 
-  it("defaults to the real constants — permits today's actual state, no real shelters and not discoverable", () => {
+  it("defaults to the real constants – permits today's actual state, no real shelters and not discoverable", () => {
     expect(() => assertDemoDiscoverabilityInvariant()).not.toThrow();
   });
 });
 
 /**
  * R4-2's tripwire (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`):
- * `uk.about.analytics` must carry `PENDING_R4_2_ANALYTICS_SENTENCE` exactly
+ * `uk.about.analytics` must carry `R4_2_ANALYTICS_SENTENCE` exactly
  * when `SITE_IS_PUBLICLY_DISCOVERABLE` is true, and must not carry it while
- * that flag is false — two-sided, not one, because the sentence landing
+ * that flag is false - two-sided, not one, because the sentence landing
  * early is its own violation («одне кукі» would be false while the gate
  * still exists), not just the sentence missing late. Matched against the
- * real exported constant, not a hand-typed substring like "кукі" — a
+ * real exported constant, not a hand-typed substring like "кукі" - a
  * reworded or partially-landed sentence must still trip this.
  *
  * The real flag is `false` today, so both "today's actual state" cases
- * below are deliberately the vacuous half of each direction — neither has
+ * below are deliberately the vacuous half of each direction - neither has
  * anything to catch yet, because the condition each guards hasn't happened.
  * The two throwing cases above them are what prove each direction actually
  * fires once it does.
@@ -228,17 +243,17 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
     );
   });
 
-  it("permits today's incomplete copy while the site is not yet discoverable — the pre-launch window", () => {
+  it("permits today's incomplete copy while the site is not yet discoverable – the pre-launch window", () => {
     expect(() =>
       assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY, false),
     ).not.toThrow();
   });
 
-  it("defaults to the real flag — permits today's actual, incomplete copy while still not discoverable", () => {
+  it("defaults to the real flag – permits today's actual, incomplete copy while still not discoverable", () => {
     expect(() => assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY)).not.toThrow();
   });
 
-  it("defaults to the real copy and the real flag — today's actual state on both", () => {
+  it("defaults to the real copy and the real flag – today's actual state on both", () => {
     expect(() => assertAnalyticsCopyMatchesGateState()).not.toThrow();
   });
 });
@@ -247,12 +262,12 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
  * Found 2026-09-10 (Oleksii, not a test): `AnimalCard.tsx` and
  * `SwipeCard.tsx` both rendered a verified shelter's "· перевірений" suffix
  * unconditionally, with no reference to `REGISTRY_HAS_NO_REAL_SHELTERS`
- * anywhere — the one badge that got its own gate right
+ * anywhere - the one badge that got its own gate right
  * (`AnimalDetailScreen.tsx`'s `shelterVerifiedYears`) did so per-component,
  * not from a shared place, so the next two surfaces inherited nothing from
  * that fix. `verificationSuffix` is the shared gate both cards now call.
  *
- * Tested via the explicit second parameter, not `vi.doMock` — the function
+ * Tested via the explicit second parameter, not `vi.doMock` - the function
  * closes over its own module instance's `REGISTRY_HAS_NO_REAL_SHELTERS`
  * binding, so a mocked module namespace's override never reaches it once
  * the function itself is copied across via `...importOriginal()`. Same
@@ -273,20 +288,20 @@ describe("verificationSuffix", () => {
     expect(verificationSuffix("verified", false)).toBe(" · перевірений");
   });
 
-  it("defaults to the real constant — suppresses today's actual state, no real shelters", () => {
+  it("defaults to the real constant – suppresses today's actual state, no real shelters", () => {
     expect(verificationSuffix("verified")).toBeNull();
   });
 });
 
 /**
- * `/tvaryny/gortaty` must stay noindex regardless of either constant — its
+ * `/tvaryny/gortaty` must stay noindex regardless of either constant - its
  * reason is permanent SEO ownership (`/tvaryny` is the canonical surface),
  * not demo-data honesty. Exercises all four combinations so a future edit
  * that makes this route read either flag is caught immediately, rather than
  * discovered when the site is publicly discoverable and the deck starts
  * competing with the gallery for the same search traffic.
  */
-describe("/tvaryny/gortaty noindex — independent of both seo-flags constants", () => {
+describe("/tvaryny/gortaty noindex – independent of both seo-flags constants", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -312,29 +327,29 @@ describe("/tvaryny/gortaty noindex — independent of both seo-flags constants",
 });
 
 /**
- * Transcribed from `uk.ts`, not imported from it — the describe blocks below
+ * Transcribed from `uk.ts`, not imported from it - the describe blocks below
  * assert `metadata.description`/`openGraph.description` against these, and
  * comparing against the same constant the code renders would pass against
  * any value that constant happens to hold, including an accidentally-deleted
  * one.
  */
 const DEMO_BANNER_NOTICE =
-  "На сайті поки немає справжніх притулків — усі картки тут демонстраційні.";
+  "На сайті поки немає справжніх притулків – усі картки тут демонстраційні.";
 const REAL_PROMISE =
-  "Тварини з перевірених притулків Київщини. Перегляньте список і подивіться, кого шукає дім.";
+  "Собаки й коти з перевірених притулків України шукають дім. Перегляньте список.";
 
 /**
  * D-2: a shared link's preview must not claim verified shelters exist while
- * the registry holds none — this is the root layout's **default**, which
+ * the registry holds none - this is the root layout's **default**, which
  * every route inherits unless it overrides its own `description`.
  * `/tvaryny/[animalId]` does (own describe block further down); `/prytulkam`
  * and `/pro` do too, deliberately NOT with this swap (see their own describe
- * blocks below — Option B, 2026-09-06, `docs/observations.md`). Varied
- * independently of `SITE_IS_PUBLICLY_DISCOVERABLE` — same discipline as the
- * describe block above — so this doesn't pass for a consumer that actually
+ * blocks below - Option B, 2026-09-06, `docs/observations.md`). Varied
+ * independently of `SITE_IS_PUBLICLY_DISCOVERABLE` - same discipline as the
+ * describe block above - so this doesn't pass for a consumer that actually
  * reads the wrong flag.
  */
-describe("REGISTRY_HAS_NO_REAL_SHELTERS — root layout's default description swap (D-2)", () => {
+describe("REGISTRY_HAS_NO_REAL_SHELTERS – root layout's default description swap (D-2)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -352,7 +367,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — root layout's default description sw
     expect(metadata.openGraph?.description).toBe(DEMO_BANNER_NOTICE);
   });
 
-  it("uses the real promise at the launch-gate window — real shelters, still not discoverable", async () => {
+  it("uses the real promise at the launch-gate window – real shelters, still not discoverable", async () => {
     vi.doMock("./seo-flags", () => ({
       SITE_IS_PUBLICLY_DISCOVERABLE: false,
       REGISTRY_HAS_NO_REAL_SHELTERS: false,
@@ -381,19 +396,19 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — root layout's default description sw
 
 /**
  * Option B, 2026-09-06 (`docs/observations.md`): `/prytulkam` is the link
- * Oleksii sends to shelters directly — its own `description`/
+ * Oleksii sends to shelters directly - its own `description`/
  * `openGraph.description` is `uk.forShelters.whatThisIs`, its existing §1
  * sentence, and this page's `metadata` object does not read either
  * seo-flags constant at all. `vi.doMock` here is therefore a no-op today
  * (this page imports no such thing) rather than a demonstration that this
- * override "wins" over the root layout's default — that part is Next's
+ * override "wins" over the root layout's default - that part is Next's
  * metadata-resolution behaviour (a child's own `description` replaces the
  * parent's, verified separately by building and reading the served HTML,
  * not by this unit test). What `it.each` actually guards: if a future edit
  * ever makes this page read `REGISTRY_HAS_NO_REAL_SHELTERS` after all, the
  * mock stops being a no-op and this test starts noticing.
  */
-describe("/prytulkam — description is its own opening sentence, never the demo swap", () => {
+describe("/prytulkam – description is its own opening sentence, never the demo swap", () => {
   it.each([true, false])(
     "uses uk.forShelters.whatThisIs when REGISTRY_HAS_NO_REAL_SHELTERS=%s",
     async (registryHasNoRealShelters) => {
@@ -407,7 +422,7 @@ describe("/prytulkam — description is its own opening sentence, never the demo
       const { metadata } = await import("./app/prytulkam/page");
 
       const whatThisIs =
-        "Opika — сайт, де тварини з перевірених притулків Київщини шукають дім, а кожен ваш підопічний отримує власну сторінку.";
+        "Opika – сайт, де тварини з перевірених притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку.";
       expect(metadata.description).toBe(whatThisIs);
       expect(metadata.openGraph?.description).toBe(whatThisIs);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
@@ -416,11 +431,11 @@ describe("/prytulkam — description is its own opening sentence, never the demo
 });
 
 /**
- * Same reasoning as `/prytulkam` above, for `/pro` — its own `uk.about.intro`,
+ * Same reasoning as `/prytulkam` above, for `/pro` - its own `uk.about.intro`,
  * and the same caveat about what the `it.each` parameterisation does and
  * does not prove today.
  */
-describe("/pro — description is its own opening sentence, never the demo swap", () => {
+describe("/pro – description is its own opening sentence, never the demo swap", () => {
   it.each([true, false])(
     "uses uk.about.intro when REGISTRY_HAS_NO_REAL_SHELTERS=%s",
     async (registryHasNoRealShelters) => {
@@ -434,7 +449,7 @@ describe("/pro — description is its own opening sentence, never the demo swap"
       const { metadata } = await import("./app/pro/page");
 
       const intro =
-        "Opika — сайт, де тварини з притулків Київщини шукають дім. Я роблю його сам, поза роботою. Немає команди, немає інвестора — є одна людина, яка вважає, що знайти дім для тварини не повинно залежати від того, чи вміє притулок вести застарілий Excel-файл.";
+        "Opika – сайт, де тварини з притулків України шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.";
       expect(metadata.description).toBe(intro);
       expect(metadata.openGraph?.description).toBe(intro);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
@@ -444,45 +459,67 @@ describe("/pro — description is its own opening sentence, never the demo swap"
 
 /**
  * D-2, corrected: the root layout's swap does not reach
- * `/tvaryny/[animalId]` at all — Next does not merge a route's own
+ * `/tvaryny/[animalId]` at all - Next does not merge a route's own
  * `generateMetadata` with the root layout's, it overrides it, and this
  * route builds its own `description`/`openGraph.description` from the
- * animal's age/size. Without its own demo swap this route would preview a
- * fictional animal's age and size with no demo-data disclosure — exactly
- * the shared-link surface `/prytulkam` tells shelters they can paste into
- * Telegram, so the one route this disclosure matters on most.
+ * animal's own data (PR B, the SEO review of page titles: sex-aware species
+ * word, name, city, shelter name, and a trimmed line of the animal's own
+ * description - age and size are gone from here, deliberately;
+ * `animalMetaDescription`'s own test in
+ * `[animalId]/animal-meta-description.test.ts` covers that formatting in
+ * detail). Without its own demo swap this route would preview a fictional
+ * animal with no demo-data disclosure - exactly the shared-link surface
+ * `/prytulkam` tells shelters they can paste into Telegram, so the one
+ * route this disclosure matters on most.
  *
- * `anonymousRouterClient` is mocked rather than hitting a real database —
+ * `anonymousRouterClient` is mocked rather than hitting a real database -
  * this test is about the swap in `generateMetadata`, which `animals.byId`'s
  * own integration coverage elsewhere does not touch.
  */
-describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview description swap (D-2)", () => {
+describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview description swap (D-2)", () => {
+  const CITY_ID = "c0000000-0000-4000-8000-000000000001";
   const fakeAnimal = {
     id: "a0000000-0000-4000-8000-000000000001",
     name: "Мурчик",
+    species: "cat",
     sex: "male",
     ageBucket: "adult",
     size: "medium",
+    description: { uk: "Лагідний кіт.", en: null },
     photos: [],
+    publicLocation: null,
+    shelter: { id: "d0000000-0000-4000-8000-000000000001" },
   };
-
-  /**
-   * The animal the mocked `animals.byId` answers, read when it is called. A
-   * test needing another animal reassigns this; it must never `vi.doMock`
-   * `./api/server-client` a second time. Vitest queues every `doMock` until
-   * the next import, resolves same-kind entries concurrently, and registers
-   * each one when its resolution settles, so a second `doMock` of the same
-   * path does not reliably replace this `beforeEach`'s: about one run in four
-   * served the male animal to the female test.
-   */
-  let servedAnimal: typeof fakeAnimal = fakeAnimal;
+  const REAL_DESCRIPTION = "Кіт Мурчик · Бровари · Добрі лапи. Лагідний кіт.";
 
   beforeEach(() => {
-    servedAnimal = fakeAnimal;
     vi.resetModules();
     vi.doMock("./api/server-client", () => ({
+      // The route reads its data through the animal page's one loader (S4b),
+      // which also asks for the shelter and its city.
       anonymousRouterClient: () => ({
-        animals: { byId: async () => servedAnimal },
+        animals: { byId: async () => fakeAnimal },
+        shelters: {
+          byId: async () => ({
+            displayName: "Добрі лапи",
+            publicLocation: { cityId: CITY_ID },
+          }),
+        },
+        cities: {
+          byIds: async () => [
+            {
+              id: CITY_ID,
+              slug: "brovary",
+              kind: "city",
+              nameScope: "unique_in_ukraine",
+              regionId: "814661e1-67de-532e-a38e-2216d8b521ff",
+              name: "Бровари",
+              regionShort: "Київська обл.",
+              raion: null,
+            },
+          ],
+        },
+        regions: { list: async () => [] },
       }),
     }));
   });
@@ -507,12 +544,12 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview des
     expect(metadata.openGraph?.description).toBe(DEMO_BANNER_NOTICE);
   });
 
-  it("uses the animal's own age/size at the launch-gate window — real shelters, still not discoverable", async () => {
+  it("uses the animal's own data at the launch-gate window – real shelters, still not discoverable", async () => {
     // Deliberately does NOT vary both flags in lockstep with the case above
-    // — `(SITE=false, REGISTRY=false)` here vs. `(SITE=false, REGISTRY=true)`
+    // - `(SITE=false, REGISTRY=false)` here vs. `(SITE=false, REGISTRY=true)`
     // above. Two cases that only ever move opposite each other cannot tell a
     // correct consumer (reads `REGISTRY_HAS_NO_REAL_SHELTERS`) from one that
-    // actually reads `!SITE_IS_PUBLICLY_DISCOVERABLE` instead — both flags
+    // actually reads `!SITE_IS_PUBLICLY_DISCOVERABLE` instead - both flags
     // are `false`-ish together in both of this file's other cases, so this
     // is the one case that actually distinguishes which constant the route
     // reads. Same discipline as the layout describe block further up this
@@ -528,13 +565,11 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview des
       params: Promise.resolve({ animalId: fakeAnimal.id }),
     });
 
-    // Transcribed from `uk.ts`'s cardMeta section, not derived via
-    // `ageBucketLabel`/`sizeLabel` — same reasoning as above.
-    expect(metadata.description).toBe("дорослий · середня");
-    expect(metadata.openGraph?.description).toBe("дорослий · середня");
+    expect(metadata.description).toBe(REAL_DESCRIPTION);
+    expect(metadata.openGraph?.description).toBe(REAL_DESCRIPTION);
   });
 
-  it("uses the animal's own age/size once fully launched", async () => {
+  it("uses the animal's own data once fully launched", async () => {
     vi.doMock("./seo-flags", () => ({
       SITE_IS_PUBLICLY_DISCOVERABLE: true,
       REGISTRY_HAS_NO_REAL_SHELTERS: false,
@@ -546,24 +581,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS — /tvaryny/[animalId] link-preview des
       params: Promise.resolve({ animalId: fakeAnimal.id }),
     });
 
-    expect(metadata.description).toBe("дорослий · середня");
-    expect(metadata.openGraph?.description).toBe("дорослий · середня");
-  });
-
-  /** Q9 (Oleksii, 2026-10-18): a female animal's age word, his «доросла». */
-  it("a female animal's description carries the agreeing age word", async () => {
-    servedAnimal = { ...fakeAnimal, sex: "female" };
-    vi.doMock("./seo-flags", () => ({
-      SITE_IS_PUBLICLY_DISCOVERABLE: true,
-      REGISTRY_HAS_NO_REAL_SHELTERS: false,
-      assertDemoDiscoverabilityInvariant: vi.fn(),
-    }));
-
-    const { generateMetadata } = await import("./app/tvaryny/[animalId]/page");
-    const metadata = await generateMetadata({
-      params: Promise.resolve({ animalId: fakeAnimal.id }),
-    });
-
-    expect(metadata.description).toBe("доросла · середня");
+    expect(metadata.description).toBe(REAL_DESCRIPTION);
+    expect(metadata.openGraph?.description).toBe(REAL_DESCRIPTION);
   });
 });

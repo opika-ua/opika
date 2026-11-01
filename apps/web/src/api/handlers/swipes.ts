@@ -12,7 +12,7 @@ import type { AppContext } from "../context";
 type SwipesInput = z.infer<typeof SwipesRecordInputSchema>;
 type SwipesOutput = z.infer<typeof SwipesRecordOutputSchema>;
 
-/** The exact subset `swipesRecordContract` declares — see animals.ts's own comment (O-20). */
+/** The exact subset `swipesRecordContract` declares - see animals.ts's own comment (O-20). */
 type SwipesRecordErrors = ORPCErrorConstructorMap<{
   NOT_FOUND: typeof apiErrors.NOT_FOUND;
   UNAUTHENTICATED: typeof apiErrors.UNAUTHENTICATED;

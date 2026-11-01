@@ -3,33 +3,45 @@ import sharp, { type Metadata } from "sharp";
 import { generateVariants } from "./generate-variants";
 import { displayedDimensions } from "./resolve-local-photo";
 import { sniffImageType } from "./sniff";
-import type { ImageVariantName } from "./variants";
+import {
+  IMAGE_VARIANTS,
+  type ImageVariantName,
+  LOGO_VARIANTS,
+  type LogoVariantName,
+} from "./variants";
 
-export type PreparedPhoto =
+type PreparedImage<Name extends string> =
   | {
       kind: "ok";
       /** The only bytes ever stored: re-encoded WebP, no metadata, never the original. */
-      variants: Record<ImageVariantName, Buffer>;
+      variants: Record<Name, Buffer>;
       /** As displayed (EXIF orientation applied), like `validateLocalPhoto`'s. */
       width: number;
       height: number;
     }
   | { kind: "rejected"; reason: PhotoRejectionReason };
 
+export type PreparedPhoto = PreparedImage<ImageVariantName>;
+export type PreparedLogo = PreparedImage<LogoVariantName>;
+
 /**
- * The most pixels any read in the pipeline may open. sharp checks it against
+ * The most pixels any decode in the pipeline may open. sharp checks it against
  * the header's width × height when it opens a file, so it is a second check
- * behind the 2000 px dimension check below, carried on every read
+ * behind the 2000 px dimension check below, carried on every decode
  * (generateVariants' own included) so none can open a larger image if that
- * check is ever loosened.
+ * check is ever loosened. The one header read below lifts it on purpose, so an
+ * oversized file is refused by name.
  */
 export const UPLOAD_PIXEL_LIMIT = PHOTO_MAX_EDGE_PX * PHOTO_MAX_EDGE_PX;
 
-const rejected = (reason: PhotoRejectionReason): PreparedPhoto => ({ kind: "rejected", reason });
+const rejected = <Name extends string>(reason: PhotoRejectionReason): PreparedImage<Name> => ({
+  kind: "rejected",
+  reason,
+});
 
 /**
- * An uploaded file, checked and turned into the three stored variants
- * (P-Q2, P-Q5, K-Q2):
+ * An uploaded file, checked and turned into its stored variants (P-Q2,
+ * P-Q5, K-Q2):
  *
  * 1. its magic bytes say JPEG, PNG or WebP (`sniffImageType`);
  * 2. sharp reads the header only (`metadata()` decodes no pixels), and the
@@ -48,8 +60,18 @@ const rejected = (reason: PhotoRejectionReason): PreparedPhoto => ({ kind: "reje
  *
  * A refusal is a value, never a throw, so the handler maps each reason to its
  * typed error and an unexpected sharp failure still surfaces as one.
+ *
+ * Generic over the variant set (pet card PR 3b): every check above is about
+ * the *source* file, not what it becomes, so a logo (`LOGO_VARIANTS`) goes
+ * through exactly the same validation as an animal photo (`IMAGE_VARIANTS`)
+ * - same size/type limits, same metadata stripping - and only the variant
+ * map handed to `generateVariants` differs. `prepareUploadedPhoto` and
+ * `prepareUploadedLogo` below are this function with that one map fixed.
  */
-export async function prepareUploadedPhoto(bytes: Buffer): Promise<PreparedPhoto> {
+async function prepareUploadedImage<Name extends string>(
+  bytes: Buffer,
+  variants: Record<Name, { width: number; height: number }>,
+): Promise<PreparedImage<Name>> {
   const sniffed = sniffImageType(bytes);
   if (sniffed === null) return rejected("unsupported_type");
 
@@ -69,9 +91,9 @@ export async function prepareUploadedPhoto(bytes: Buffer): Promise<PreparedPhoto
     return rejected("dimensions_exceeded");
   }
 
-  let variants: Record<ImageVariantName, Buffer>;
+  let generated: Record<Name, Buffer>;
   try {
-    variants = await generateVariants(bytes, { limitInputPixels: UPLOAD_PIXEL_LIMIT });
+    generated = await generateVariants(variants, bytes, { limitInputPixels: UPLOAD_PIXEL_LIMIT });
   } catch {
     return rejected("unreadable");
   }
@@ -80,5 +102,13 @@ export async function prepareUploadedPhoto(bytes: Buffer): Promise<PreparedPhoto
     height: metadata.height,
     orientation: metadata.orientation,
   });
-  return { kind: "ok", variants, width, height };
+  return { kind: "ok", variants: generated, width, height };
+}
+
+export function prepareUploadedPhoto(bytes: Buffer): Promise<PreparedPhoto> {
+  return prepareUploadedImage(bytes, IMAGE_VARIANTS);
+}
+
+export function prepareUploadedLogo(bytes: Buffer): Promise<PreparedLogo> {
+  return prepareUploadedImage(bytes, LOGO_VARIANTS);
 }

@@ -1,5 +1,6 @@
 import {
   AgeBucketSchema,
+  AnimalColourSchema,
   AnimalIdSchema,
   AnimalNameInputSchema,
   AnimalSexSchema,
@@ -7,6 +8,8 @@ import {
   animalDescriptionProblem,
   animalDescriptionProblemMessage,
   CalendarDateSchema,
+  COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
+  CoatLengthSchema,
   characterCount,
   DonationLinkSchema,
   EvidenceItemInputSchema,
@@ -14,20 +17,25 @@ import {
   type FreshnessSentence,
   freshnessSentenceProblemMessage,
   LISTING_KINDS,
+  type LocalizedText,
   LocalizedTextSchema,
   MAX_ANIMAL_PHOTOS,
+  MEDICAL_NOTES_MAX_CHARACTERS,
   MedicalDeclarationInputSchema,
   normalizeFreshnessSentenceText,
   PauseCodeSchema,
   type PauseReason,
+  RegionIdSchema,
   RejectionCodeSchema,
   ShelterAdminIdSchema,
-  ShelterContactSchema,
+  ShelterContactInputSchema,
   ShelterDisplayNameInputSchema,
   ShelterIdSchema,
   ShelterLegalEntitySchema,
   SizeBucketSchema,
   SuspensionCodeSchema,
+  TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
+  TemperamentSchema,
   TextProvenanceSchema,
   VERIFICATION_STATUSES,
   VerificationStatusSchema,
@@ -37,7 +45,14 @@ import {
 import { z } from "zod";
 import { apiErrors } from "../errors";
 import { MAX_PAGE_SIZE } from "../procedures/pagination";
-import { kabinet, registry, shelterRead, shelterWrite, supportExit } from "./access";
+import {
+  invitationLink,
+  kabinet,
+  registry,
+  shelterRead,
+  shelterWrite,
+  supportExit,
+} from "./access";
 import {
   BlockedAddressesViewSchema,
   CreatedShelterViewSchema,
@@ -48,6 +63,8 @@ import {
   KabinetAnimalRowViewSchema,
   KabinetAnimalViewSchema,
   KabinetShelterViewSchema,
+  PLACE_SEARCH_MAX_QUERY_LENGTH,
+  PlaceSearchResultSchema,
   RegistryShelterRowViewSchema,
   RegistryShelterViewSchema,
   ShelterHistoryItemViewSchema,
@@ -64,8 +81,8 @@ import {
  *
  * `shelterId` never appears in a `shelter.*` input. It comes from the actor,
  * so a shelter admin has no field to put another shelter's id in. Animal ids
- * do appear, and a handler that finds one belonging to another shelter answers
- * FORBIDDEN (S3-Q2), which is why every shelter-scoped procedure declares it.
+ * do appear, and one belonging to another shelter answers NOT_FOUND, the same
+ * as a missing id (QA-2026-10-29). FORBIDDEN stays declared for role refusals.
  */
 
 /** Opaque and signed, like the feed's: the handler binds it to its list and filters. */
@@ -191,9 +208,9 @@ const animalRef = z.strictObject({ animalId: AnimalIdSchema });
 const humanName = z.string().trim().min(1);
 
 /**
- * One language's freshness sentence, checked and normalised by the domain
- * rule (K-Q6), so the handler only ever receives `{імʼя}` in its canonical
- * spelling. Blank becomes null: the sentence is optional, and a shelter who
+ * One language's freshness sentence, checked and trimmed by the domain rule
+ * (K-Q6), so the handler never receives a brace: since DR1-Q5 not even
+ * `{імʼя}`, the sentence being shelter-level. Blank becomes null: the sentence is optional, and a shelter who
  * clears the field means "no sentence", which a refusal would only make them
  * retype as an explicit null.
  */
@@ -263,6 +280,63 @@ const AnimalDescriptionInputSchema = LocalizedTextSchema.superRefine((descriptio
   if (description.en !== null) withinDescriptionLimit(description.en.text, ["en", "text"], ctx);
 });
 
+/**
+ * The same check as the description's, for the pet card's shorter texts:
+ * each language against its own field's cap, counted as a reader sees them
+ * (`characterCount`, K-B2). The caps live in domain beside the schemas they
+ * bound, as the description's does.
+ */
+const withinCharacterLimit = (
+  max: number,
+  what: string,
+  text: LocalizedText,
+  path: readonly PropertyKey[],
+  ctx: z.RefinementCtx,
+) => {
+  const languages: [string, readonly PropertyKey[]][] = [[text.uk, ["uk"]]];
+  if (text.en !== null) languages.push([text.en.text, ["en", "text"]]);
+  for (const [value, at] of languages) {
+    const characters = characterCount(value);
+    if (characters > max) {
+      ctx.addIssue({
+        code: "custom",
+        path: [...path, ...at],
+        message: `${what} is ${characters} characters; the maximum is ${max}`,
+      });
+    }
+  }
+};
+
+const TemperamentInputSchema = TemperamentSchema.superRefine((temperament, ctx) => {
+  temperament.forEach((entry, index) => {
+    if (entry.kind === "custom") {
+      withinCharacterLimit(
+        TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
+        "Custom temperament",
+        entry.text,
+        [index, "text"],
+        ctx,
+      );
+    }
+  });
+});
+
+const AnimalColourInputSchema = AnimalColourSchema.superRefine((colour, ctx) => {
+  if (colour.kind === "custom") {
+    withinCharacterLimit(
+      COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
+      "Custom colour",
+      colour.text,
+      ["text"],
+      ctx,
+    );
+  }
+});
+
+const MedicalNotesInputSchema = LocalizedTextSchema.superRefine((notes, ctx) => {
+  withinCharacterLimit(MEDICAL_NOTES_MAX_CHARACTERS, "Medical notes", notes, [], ctx);
+});
+
 // ─── shelter.profile ────────────────────────────────────────────────────────
 
 const shelterProfileRead = kabinet.$meta(shelterRead).output(KabinetShelterViewSchema);
@@ -271,7 +345,7 @@ const shelterProfileWrite = shelterWriteProcedure.output(KabinetShelterViewSchem
 export const shelterProfileContract = {
   get: shelterProfileRead.input(empty).errors(shelterScopedErrors),
   updateContact: shelterProfileWrite
-    .input(z.strictObject({ contact: ShelterContactSchema, expectedVersion }))
+    .input(z.strictObject({ contact: ShelterContactInputSchema, expectedVersion }))
     .errors(shelterCasErrors),
   updateFreshnessSentence: shelterProfileWrite
     .input(z.strictObject({ freshnessSentence: FreshnessSentenceInputSchema, expectedVersion }))
@@ -346,7 +420,11 @@ export type AgeEstimateInput = z.infer<typeof AgeEstimateInputSchema>;
  * Only the description can be cleared (null), and only on a draft (F-B1): a
  * listed animal answers `LISTING_FACT_REQUIRED`. A size or an age bucket is a
  * segmented choice with no "unselected" once made, so `size: null` and
- * `age: null` stay BAD_REQUEST (decision taken T4).
+ * `age: null` stay BAD_REQUEST (decision taken T4). Fur is the exception
+ * that can go back to null (DR1-D10): «Не вказано» is a complete answer, not
+ * a gap, so a shelter that guessed can take the guess back. Colour and the
+ * medical note clear to null the same way, on any listing kind, and a
+ * temperament clears to `[]`: none of the three is a listing fact.
  */
 export const AnimalPatchSchema = z
   .strictObject({
@@ -354,10 +432,14 @@ export const AnimalPatchSchema = z
     species: AnimalSpeciesSchema,
     sex: AnimalSexSchema,
     size: SizeBucketSchema,
+    coatLength: CoatLengthSchema.nullable(),
+    colour: AnimalColourInputSchema.nullable(),
     age: AgeEstimateInputSchema,
     description: AnimalDescriptionInputSchema.nullable(),
+    temperament: TemperamentInputSchema,
     vaccination: MedicalDeclarationInputSchema,
     spayNeuter: MedicalDeclarationInputSchema,
+    medicalNotes: MedicalNotesInputSchema.nullable(),
   })
   .partial()
   .refine((patch) => Object.keys(patch).length > 0, { message: "Empty patch" });
@@ -569,8 +651,10 @@ export const shelterPhotosContract = {
     .errors({ ...shelterCasErrors, NOT_FOUND: apiErrors.NOT_FOUND }),
   /**
    * Takes the photo off the animal. The stored files stay where they are
-   * (no code path deletes an object, K-Q2); a takedown is a manual step
-   * (P-Q14, `docs/onboarding-a-shelter.md`).
+   * for now - unreferenced, and either taken down manually (P-Q14,
+   * `docs/onboarding-a-shelter.md`) or deleted automatically within the
+   * GDPR photo-retention job's grace period (`docs/gdpr-analysis.md`,
+   * R2-B1).
    */
   remove: animalWrite
     .input(
@@ -590,6 +674,36 @@ export const shelterPhotosContract = {
       NOT_FOUND: apiErrors.NOT_FOUND,
       PHOTOS_REQUIRED_WHILE_VISIBLE: apiErrors.PHOTOS_REQUIRED_WHILE_VISIBLE,
     }),
+};
+
+// ─── shelter.logo ───────────────────────────────────────────────────────────
+
+/**
+ * The shelter's own logo (pet card PR 3b): its own procedures, outside
+ * `profile`'s form fields, for the same reason `shelter.photos.*` is - an
+ * upload is a file, not a form field. One nullable value rather than a list
+ * (P-Q2's `add`/`reorder`/`remove` shape doesn't apply): `set` replaces
+ * whatever was there, `remove` clears it back to the fallback-initials
+ * avatar. `set` shares animal photos' size/type limits and upload rate
+ * limit (`shelterUploadKey`, `PHOTO_UPLOAD_RATE_LIMITS`) - a decision taken,
+ * not specified: a logo is rare next to animal photos, so sharing one
+ * allowance costs nothing in practice and avoids a second limiter pool.
+ * `remove` isn't an upload and charges nothing. Both go through
+ * `tapWithRetry` (a re-read on each attempt, no client-sent
+ * `expectedVersion`), the same shape `pause`/`resume`/the donation actions
+ * use, not `editFromForm`'s - a file upload (or a removal) has no stale form
+ * value to protect against a race on.
+ */
+export const shelterLogoContract = {
+  set: shelterProfileWrite
+    .input(z.strictObject({ file: z.file().max(PHOTO_UPLOAD_MAX_FILE_BYTES) }))
+    .errors({
+      ...shelterScopedErrors,
+      RATE_LIMITED: apiErrors.RATE_LIMITED,
+      PHOTO_UPLOADS_UNAVAILABLE: apiErrors.PHOTO_UPLOADS_UNAVAILABLE,
+      PHOTO_REJECTED: apiErrors.PHOTO_REJECTED,
+    }),
+  remove: shelterProfileWrite.input(empty).errors(shelterScopedErrors),
 };
 
 // ─── registry (operator only) ───────────────────────────────────────────────
@@ -639,7 +753,7 @@ export const registrySheltersContract = {
         description: LocalizedTextSchema,
         legalEntity: ShelterLegalEntitySchema,
         exactAddress: ExactAddressSchema,
-        contact: ShelterContactSchema,
+        contact: ShelterContactInputSchema,
         freshnessSentence: FreshnessSentenceInputSchema,
         evidence: z.array(EvidenceItemInputSchema).readonly(),
         firstAdmin: z.strictObject({ name: humanName, email: z.email() }),
@@ -683,7 +797,7 @@ export const registrySheltersContract = {
           shelterId: ShelterIdSchema,
           expectedVersion,
           displayName: ShelterDisplayNameInputSchema.optional(),
-          contact: ShelterContactSchema.optional(),
+          contact: ShelterContactInputSchema.optional(),
           description: LocalizedTextSchema.optional(),
           freshnessSentence: FreshnessSentenceInputSchema.optional(),
         })
@@ -821,5 +935,54 @@ export const kabinetSessionContract = {
     .$meta(supportExit)
     .input(empty)
     .output(emptyOutput)
+    .errors({ UNAUTHENTICATED: apiErrors.UNAUTHENTICATED, FORBIDDEN: apiErrors.FORBIDDEN }),
+};
+
+/**
+ * The invitation link's one write (PW-2, `docs/shelter-passwords.md` §4.2): sets the invitee's
+ * password and signs them in. The token is the credential, so no session is needed. Every reason
+ * the link can't be used is one `INVITE_UNUSABLE` (Oleksii, PW-2 Q1); a password the policy
+ * refuses is `PASSWORD_REJECTED`, and leaves the link usable. The address is always the
+ * invitation's, never one the request sends. The password is only ever hashed: it is never
+ * logged, echoed or returned.
+ */
+export const kabinetInvitationContract = {
+  acceptWithPassword: kabinet
+    .$meta(invitationLink)
+    .input(
+      z.strictObject({
+        token: z.string().min(1).max(256),
+        // The policy decides the length (§3); this only bounds the body. 128 characters of up to
+        // 4 UTF-16 units each (a grapheme the policy counts once can be longer still, and is then
+        // refused as too long by Better Auth's second line, PW1-D17).
+        password: z.string().max(1024),
+      }),
+    )
+    .output(z.object({ kind: z.enum(["signed_in", "password_set"]) }))
+    .errors({
+      INVITE_UNUSABLE: apiErrors.INVITE_UNUSABLE,
+      PASSWORD_REJECTED: apiErrors.PASSWORD_REJECTED,
+      RATE_LIMITED: apiErrors.RATE_LIMITED,
+      FORBIDDEN: apiErrors.FORBIDDEN,
+    }),
+};
+
+/**
+ * The place search behind the operator's city picker (nationwide N2). A kabinet POST like every
+ * other call, so it sits behind the session, the same-origin check and the kabinet's per-user and
+ * per-IP limits; a public GET would have needed a hole in the pre-launch gate. The query is capped,
+ * the answer is capped (`PLACE_SEARCH_MAX_RESULTS`), and `regionBias` ranks an oblast first
+ * without ever filtering.
+ */
+export const registryCitiesContract = {
+  search: kabinet
+    .$meta(registry)
+    .input(
+      z.strictObject({
+        query: z.string().max(PLACE_SEARCH_MAX_QUERY_LENGTH),
+        regionBias: RegionIdSchema.nullable(),
+      }),
+    )
+    .output(PlaceSearchResultSchema)
     .errors({ UNAUTHENTICATED: apiErrors.UNAUTHENTICATED, FORBIDDEN: apiErrors.FORBIDDEN }),
 };

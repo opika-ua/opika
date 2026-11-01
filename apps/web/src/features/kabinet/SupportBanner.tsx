@@ -15,9 +15,6 @@ export const EXIT_SUPPORT_PATH = "/api/kabinet/session/exitSupport";
  */
 export const AFTER_SUPPORT_DESTINATION = OPERATOR_HOME;
 
-const FOCUS =
-  "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-white focus-visible:outline-offset-[3px]";
-
 async function defaultExit(): Promise<boolean> {
   const response = await fetch(EXIT_SUPPORT_PATH, {
     method: "POST",
@@ -54,13 +51,13 @@ export function SupportBanner({
   return (
     <section
       aria-label={title}
-      className="sticky top-0 z-10 flex min-h-16 flex-col items-start gap-3 bg-rg-ink px-4 py-3 text-white tablet:flex-row tablet:items-center tablet:px-8"
+      className="sticky top-0 z-(--z-header) flex min-h-16 flex-col items-start gap-3 bg-ink px-4 py-3 text-on-ink tablet:flex-row tablet:items-center tablet:px-8"
     >
       <div className="flex flex-1 flex-col gap-0.5">
-        <span className="text-[15px] leading-[22px] font-medium">{title}</span>
-        <span className="text-[13px] leading-[18px] text-white">{t.body}</span>
+        <span className="text-label">{title}</span>
+        <span className="text-caption">{t.body}</span>
         {state === "failed" ? (
-          <span role="alert" className="text-[13px] leading-[18px] text-white">
+          <span role="alert" className="text-caption">
             {t.exitFailed}
           </span>
         ) : null}
@@ -75,7 +72,7 @@ export function SupportBanner({
           if (left) navigate(AFTER_SUPPORT_DESTINATION);
           else setState("failed");
         }}
-        className={`inline-flex min-h-12 items-center justify-center rounded-rg-button bg-white px-6 text-[15px] font-medium whitespace-nowrap text-rg-ink ${FOCUS}`}
+        className="inline-flex min-h-target cursor-pointer items-center justify-center rounded-pill bg-on-ink px-6 text-label whitespace-nowrap text-ink focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-on-ink focus-visible:outline-solid"
       >
         {t.exit}
       </button>

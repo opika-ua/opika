@@ -36,7 +36,7 @@ export default async function NewShelterPage() {
     case "create":
       return (
         <OperatorShell operator={operator} current="new_shelter">
-          <CreateShelterForm cities={page.cities} />
+          <CreateShelterForm />
         </OperatorShell>
       );
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */

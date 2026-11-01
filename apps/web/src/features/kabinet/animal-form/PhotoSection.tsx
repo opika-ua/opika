@@ -1,33 +1,36 @@
 "use client";
 
 import type { KabinetAnimalView } from "@opika/contracts";
-import {
-  type AnimalPhoto,
-  isDiscoverable,
-  MAX_ANIMAL_PHOTOS,
-  PHOTO_MAX_EDGE_PX,
-} from "@opika/domain";
+import { type AnimalPhoto, isDiscoverable, MAX_ANIMAL_PHOTOS } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
-import { Button } from "../../controls/controls";
+import { Badge } from "../../../ui/Badge";
+import { Button } from "../../../ui/Button";
+import { Card } from "../../../ui/Card";
+import { cx } from "../../../ui/cx";
+import { InlineStatus } from "../../../ui/feedback";
+import { Icon } from "../../../ui/Icon";
+import { Menu, MenuDivider, MenuItem } from "../../../ui/Menu";
+import { Photo } from "../../../ui/Photo";
+import { Text } from "../../../ui/Text";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
-import { CAPTION, CARD, CARD_TITLE, ERROR_TEXT } from "../profile-edit/styles";
 import { type ShelterVisibility, uploadProgressText } from "./labels";
+import { usePhotoDrag } from "./use-photo-drag";
 
 /**
- * K3's «Фото» section (N9): the photos as tiles in their order (the first is
- * the cover, P-Q9), an add tile, and one tile per photo on its way up.
+ * K3's «Фото» section body (N9), inside a `FormSection`: the photos as tiles in their order (the
+ * first is the cover, P-Q9), an add tile, and one tile per photo on its way up. A failed upload
+ * is a full-width row, not a tile: its sentence has to be readable on a phone.
  *
  * Every photo goes through `compressPhoto` on the device first (K-Q2: 2000 px,
  * re-encoded, which also drops its location data), then up over
  * `XMLHttpRequest`, so the tile can say how much has gone (answer 12). Uploads
  * run one after another: a budget phone decodes one large photo at a time.
  *
- * The order changes by dragging a photo (pointer events, mouse and touch
- * alike) or with each tile's own buttons, which are the keyboard's way in
- * (drag alone isn't operable without a pointer). Photo writes go one at a
+ * The order changes by dragging the tile (pointer events, `use-photo-drag`: a mouse drags, a held
+ * finger lifts) or with each tile's ⋯ menu, the keyboard's and screen reader's way in. Photo writes go one at a
  * time: the server compare-and-sets on the list the screen shows (P-Q3), so
  * a second write planned on the same list would only come back CONFLICT.
  */
@@ -47,7 +50,7 @@ const codeOf = (error: unknown): string | null =>
     ? error.code
     : null;
 
-/** A device-side refusal, in his words (P-T8 (1)–(3)); retrying the same file can't help. */
+/** A device-side refusal, in his words (P-T8 (1)-(3)); retrying the same file can't help. */
 const compressionMessage = (result: Exclude<CompressedPhoto, { kind: "ok" }>): string => {
   switch (result.kind) {
     case "heic_unsupported":
@@ -64,7 +67,7 @@ const compressionMessage = (result: Exclude<CompressedPhoto, { kind: "ok" }>): s
   }
 };
 
-/** The server's refusal of an upload, in his words (P-T8 (4)–(8)); a lost connection is «Не завантажилось». */
+/** The server's refusal of an upload, in his words (P-T8 (4)-(8)); a lost connection is «Не завантажилось». */
 const uploadFailure = (error: unknown): { message: string; retryable: boolean } => {
   switch (codeOf(error)) {
     case "PHOTO_REJECTED":
@@ -108,11 +111,14 @@ export function PhotoSection({
   const [writing, setWriting] = useState(false);
   const [status, setStatus] = useState("");
   const [removedOnce, setRemovedOnce] = useState(false);
-  const [dragOver, setDragOver] = useState<number | null>(null);
+  const [announce, setAnnounce] = useState("");
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState(false);
+  const pointerType = useRef("mouse");
+  const tileIds = useRef(new Map<string, number>());
   const fileInput = useRef<HTMLInputElement>(null);
   const nextId = useRef(1);
   const queue = useRef<Promise<void>>(Promise.resolve());
-  const drag = useRef<{ from: number; x: number; y: number; moved: boolean } | null>(null);
 
   const visibleListing = isDiscoverable(animal.listing);
   const lastPhotoLocked = visibleListing && photos.length === 1;
@@ -218,14 +224,15 @@ export function PhotoSection({
     }
   };
 
+  // Every reorder, from the menu or a drag, is this one call; «Зробити обкладинкою» is move(i, 0).
   const move = (from: number, to: number) => {
-    if (from === to || to < 0 || to >= photos.length) return;
+    if (from === to || to < 0 || to >= photos.length) return Promise.resolve(false);
     const keys = photos.map((photo) => photo.storageKey);
     const next = [...keys];
     const [moved] = next.splice(from, 1);
-    if (moved === undefined) return;
+    if (moved === undefined) return Promise.resolve(false);
     next.splice(to, 0, moved);
-    void writePhotos(
+    return writePhotos(
       () =>
         client.shelter.photos.reorder({
           animalId: animal.id,
@@ -249,210 +256,296 @@ export function PhotoSection({
     if (removed) setRemovedOnce(true);
   };
 
-  // Dragging: the pointer's own events, captured on the tile it started on;
-  // the tile under the pointer at release is where the photo goes.
-  const tileAt = (x: number, y: number): number | null => {
-    const tile = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-photo-index]");
-    const index = tile?.dataset.photoIndex;
-    return index === undefined ? null : Number(index);
+  const total = photos.length;
+  const where = (pos: number) => ({ pos: integer.format(pos + 1), total: integer.format(total) });
+  const { drag, start } = usePhotoDrag(total, {
+    onPickUp: (from) =>
+      setAnnounce(
+        fillTemplate(t.photos.dragPickUp, { n: integer.format(from + 1), ...where(from) }),
+      ),
+    onMove: (over) => setAnnounce(fillTemplate(t.photos.dragMove, where(over))),
+    onDrop: (from, to) => {
+      setAnnounce(fillTemplate(t.photos.dragDrop, { n: integer.format(from + 1), ...where(to) }));
+      void move(from, to);
+    },
+    onCancel: () => setAnnounce(t.photos.dragCancel),
+  });
+  const canDrag = editable && !writing && total > 1;
+  // While dragging, the others reflow around the slot where the photo would land.
+  const order = photos.map((photo, index) => ({ photo, index }));
+  if (drag !== null) {
+    const [lifted] = order.splice(drag.from, 1);
+    if (lifted !== undefined) order.splice(drag.over, 0, lifted);
+  }
+  const triggerIdOf = (key: string) => {
+    let id = tileIds.current.get(key);
+    if (id === undefined) {
+      id = tileIds.current.size + 1;
+      tileIds.current.set(key, id);
+    }
+    return `${animal.id}-photo-menu-${id}`;
+  };
+  // The menu closes first; focus then goes back to the tile's ⋯ (gone after a removal: no-op).
+  const runFromMenu = async (key: string, action: () => Promise<unknown>) => {
+    setOpenMenu(null);
+    await action();
+    document.getElementById(triggerIdOf(key))?.focus();
   };
 
   const lastPhotoNoteId = `${animal.id}-last-photo`;
-  const total = photos.length;
+  const failed = uploads.filter((upload) => upload.state.kind === "failed");
+  const inProgress = uploads.filter((upload) => upload.state.kind !== "failed");
+  const sizes = "(min-width: 600px) 200px, 50vw";
+  const lifted = drag === null ? undefined : photos[drag.from];
+  const menuItem = "w-full justify-start";
 
   return (
-    <section aria-labelledby="photos-title" className={CARD}>
-      <h2 id="photos-title" className={CARD_TITLE}>
-        {t.photos.title}
-      </h2>
-      <p className={CAPTION}>{t.photos.ratioNote}</p>
-      <ul className="grid grid-cols-3 gap-3 tablet:grid-cols-4">
-        {photos.map((photo, index) => (
-          <li
-            key={photo.storageKey}
-            data-photo-index={index}
-            className={`flex min-w-0 flex-col gap-2 rounded-rg-photo ${dragOver === index ? "ring-2 ring-rg-ink" : ""}`}
-          >
-            <fieldset
-              aria-label={fillTemplate(t.photos.tileLabel, {
-                n: integer.format(index + 1),
-                total: integer.format(total),
-              })}
-              className="flex min-w-0 flex-col gap-2"
-              disabled={!editable || writing}
-            >
-              <div
-                className={`relative aspect-4/5 overflow-hidden rounded-rg-photo bg-rg-fill-strong ${editable ? "cursor-grab touch-none" : ""}`}
-                onPointerDown={(event) => {
-                  if (!editable || writing || event.button !== 0) return;
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  drag.current = { from: index, x: event.clientX, y: event.clientY, moved: false };
-                }}
-                onPointerMove={(event) => {
-                  const current = drag.current;
-                  if (current === null) return;
-                  if (
-                    !current.moved &&
-                    Math.hypot(event.clientX - current.x, event.clientY - current.y) < 8
-                  ) {
-                    return;
-                  }
-                  current.moved = true;
-                  setDragOver(tileAt(event.clientX, event.clientY));
-                }}
-                onPointerUp={(event) => {
-                  const current = drag.current;
-                  drag.current = null;
-                  setDragOver(null);
-                  if (current === null || !current.moved) return;
-                  const to = tileAt(event.clientX, event.clientY);
-                  if (to !== null) move(current.from, to);
-                }}
-                onPointerCancel={() => {
-                  drag.current = null;
-                  setDragOver(null);
-                }}
-              >
-                <Image
-                  src={photo.storageKey}
-                  alt=""
-                  fill
-                  sizes="(min-width: 600px) 148px, 94px"
-                  className="pointer-events-none object-cover"
-                  draggable={false}
-                />
-                {index === 0 ? (
-                  <span className="absolute top-2 left-2 rounded-rg-chip bg-rg-surface px-3 py-1 text-sm font-medium text-rg-ink">
-                    {t.photos.cover}
-                  </span>
-                ) : null}
-              </div>
-              {editable ? (
-                <div className="flex flex-col items-start gap-1">
-                  {index > 0 ? (
-                    <Button variant="text" onClick={() => move(index, 0)}>
-                      {t.photos.makeCover}
-                    </Button>
-                  ) : null}
-                  {index > 0 ? (
-                    <Button variant="text" onClick={() => move(index, index - 1)}>
-                      {t.photos.moveEarlier}
-                    </Button>
-                  ) : null}
-                  {index < total - 1 ? (
-                    <Button variant="text" onClick={() => move(index, index + 1)}>
-                      {t.photos.moveLater}
-                    </Button>
-                  ) : null}
-                  <Button
-                    variant="text"
-                    aria-disabled={lastPhotoLocked || undefined}
-                    aria-describedby={lastPhotoLocked ? lastPhotoNoteId : undefined}
-                    onClick={() => {
-                      if (!lastPhotoLocked) void remove(photo);
-                    }}
-                  >
-                    {fillTemplate(t.photos.remove, { n: integer.format(index + 1) })}
-                  </Button>
-                </div>
-              ) : null}
-            </fieldset>
-          </li>
-        ))}
-        {uploads.map((upload) => (
-          <li key={`upload-${upload.id}`} className="flex min-w-0 flex-col gap-2">
-            <div
-              className={`flex aspect-4/5 flex-col justify-end gap-2 rounded-rg-photo p-2 ${upload.state.kind === "failed" ? "bg-rg-fill ring-2 ring-rg-ink ring-inset" : "bg-rg-fill-strong"}`}
-            >
+    <>
+      <ul className="photo-grid items-start gap-3">
+        {order.map(({ photo, index }, slot) => {
+          const key = photo.storageKey;
+          if (drag !== null && index === drag.from) {
+            return (
+              <li
+                key={key}
+                data-photo-slot={slot}
+                aria-hidden="true"
+                className="aspect-4/5 min-w-0 rounded-card border-2 border-species-dog bg-status-published"
+              />
+            );
+          }
+          const n = integer.format(slot + 1);
+          return (
+            <li key={key} data-photo-slot={slot} className="min-w-0">
+              <Card tone="outline">
+                <fieldset
+                  aria-label={fillTemplate(t.photos.tileLabel, { n, total: integer.format(total) })}
+                  className="flex min-w-0 flex-col"
+                  disabled={!editable || writing}
+                >
+                  <div className="relative">
+                    <Photo src={key} alt="" aspect="portrait" sizes={sizes} />
+                    {canDrag ? (
+                      // The whole tile is the drag target: a mouse drags, a held finger lifts the
+                      // photo. The menu is the keyboard's and screen reader's way to every move.
+                      // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only layer over the photo
+                      <div
+                        className="absolute inset-0 cursor-grab select-none"
+                        data-photo-surface=""
+                        onDragStart={(event) => event.preventDefault()}
+                        onContextMenu={(event) => {
+                          if (pointerType.current !== "mouse") event.preventDefault();
+                        }}
+                        onPointerDown={(event) => {
+                          pointerType.current = event.pointerType;
+                          if (event.button !== 0) return;
+                          if ((event.target as Element).closest("button")) return;
+                          start(slot, event);
+                        }}
+                      />
+                    ) : null}
+                    <Badge tone="ink" className="pointer-events-none absolute top-2 left-2">
+                      <span aria-hidden="true">{n}</span>
+                    </Badge>
+                    {slot === 0 ? (
+                      <Badge tone="ink" className="pointer-events-none absolute bottom-2 left-2">
+                        {t.photos.cover}
+                      </Badge>
+                    ) : null}
+                    {editable ? (
+                      <>
+                        <div className="absolute top-0.5 right-0.5">
+                          <Menu
+                            open={openMenu === key}
+                            onOpenChange={(open) => setOpenMenu(open ? key : null)}
+                            trigger="icon-compact"
+                            label={fillTemplate(t.photos.menuLabel, { n })}
+                            triggerId={triggerIdOf(key)}
+                          >
+                            {slot > 0 ? (
+                              <MenuItem>
+                                <Button
+                                  variant="ghost"
+                                  className={menuItem}
+                                  onClick={() => void runFromMenu(key, () => move(slot, 0))}
+                                >
+                                  {t.photos.makeCover}
+                                </Button>
+                              </MenuItem>
+                            ) : null}
+                            {slot > 0 ? (
+                              <MenuItem>
+                                <Button
+                                  variant="ghost"
+                                  className={menuItem}
+                                  onClick={() => void runFromMenu(key, () => move(slot, slot - 1))}
+                                >
+                                  {t.photos.moveEarlier}
+                                </Button>
+                              </MenuItem>
+                            ) : null}
+                            {slot < total - 1 ? (
+                              <MenuItem>
+                                <Button
+                                  variant="ghost"
+                                  className={menuItem}
+                                  onClick={() => void runFromMenu(key, () => move(slot, slot + 1))}
+                                >
+                                  {t.photos.moveLater}
+                                </Button>
+                              </MenuItem>
+                            ) : null}
+                            {total > 1 ? <MenuDivider /> : null}
+                            <MenuItem tone="danger">
+                              <Button
+                                variant="ghost"
+                                className={menuItem}
+                                aria-disabled={lastPhotoLocked || undefined}
+                                aria-describedby={lastPhotoLocked ? lastPhotoNoteId : undefined}
+                                onClick={() => {
+                                  if (!lastPhotoLocked) void runFromMenu(key, () => remove(photo));
+                                }}
+                              >
+                                {t.photos.remove}
+                              </Button>
+                            </MenuItem>
+                          </Menu>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                </fieldset>
+              </Card>
+            </li>
+          );
+        })}
+        {inProgress.map((upload) => (
+          <li key={`upload-${upload.id}`} className="min-w-0">
+            <Card tone="outline" className="flex aspect-4/5 flex-col justify-end gap-2 p-3">
               {upload.state.kind === "preparing" ? (
-                <p className={CAPTION}>{t.photos.preparing}</p>
+                <Text look="hint">{t.photos.preparing}</Text>
               ) : null}
               {upload.state.kind === "uploading" ? (
                 <>
                   <progress
-                    className="h-1.5 w-full accent-rg-ink"
+                    className="h-2 w-full accent-ink"
                     max={upload.state.progress?.total ?? 1}
                     value={upload.state.progress?.sent ?? undefined}
                     aria-label={t.photos.uploading}
                   />
-                  <p className={CAPTION}>
+                  <Text look="hint">
                     {upload.state.progress === null
                       ? t.photos.uploading
                       : uploadProgressText(upload.state.progress.sent, upload.state.progress.total)}
-                  </p>
+                  </Text>
                 </>
               ) : null}
-              {upload.state.kind === "failed" ? (
-                <p role="alert" className={ERROR_TEXT}>
-                  {upload.state.message}
-                </p>
-              ) : null}
-            </div>
-            {upload.state.kind === "failed" ? (
-              <div className="flex flex-col items-start gap-1">
-                {upload.state.retryable ? (
-                  <Button variant="text" onClick={() => enqueue(upload)}>
-                    {uk.kabinet.profileEdit.state.retry}
-                  </Button>
-                ) : null}
-                <Button
-                  variant="text"
-                  aria-label={t.photos.dismissFailedName}
-                  onClick={() => patchUpload(upload.id, null)}
-                >
-                  {t.photos.dismissFailed}
-                </Button>
-              </div>
-            ) : null}
+            </Card>
           </li>
         ))}
-        {editable ? (
-          <li className="flex min-w-0 flex-col gap-2">
-            {room > 0 ? (
-              <>
-                <Button
-                  variant="secondary"
-                  className="aspect-4/5 w-full rounded-rg-photo border-2 border-dashed border-rg-ink-3"
-                  onClick={() => fileInput.current?.click()}
-                >
-                  {t.photos.add}
-                </Button>
-                <p className={CAPTION}>{t.photos.addHint}</p>
-              </>
-            ) : (
-              <p className={CAPTION}>
-                {fillTemplate(t.photos.capReached, { max: integer.format(MAX_ANIMAL_PHOTOS) })}
-              </p>
-            )}
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/*"
-              multiple
-              hidden
-              data-testid="photo-file-input"
-              onChange={(event) => {
-                choose(event.currentTarget.files);
-                event.currentTarget.value = "";
+        {failed.map((upload) =>
+          upload.state.kind === "failed" ? (
+            <li key={`upload-${upload.id}`} className="min-w-0">
+              <Card tone="outline" className="flex aspect-4/5 flex-col justify-between gap-2 p-3">
+                <InlineStatus tone="error">{upload.state.message}</InlineStatus>
+                <div className="flex flex-col items-start">
+                  {upload.state.retryable ? (
+                    <Button variant="secondary" onClick={() => enqueue(upload)}>
+                      {uk.kabinet.profileEdit.state.retry}
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    aria-label={t.photos.dismissFailedName}
+                    onClick={() => patchUpload(upload.id, null)}
+                  >
+                    {t.photos.dismissFailed}
+                  </Button>
+                </div>
+              </Card>
+            </li>
+          ) : null,
+        )}
+        {editable && room > 0 ? (
+          <li className="min-w-0">
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              onDragOver={(event) => {
+                if (!event.dataTransfer.types.includes("Files")) return;
+                event.preventDefault();
+                setDropTarget(true);
               }}
-            />
+              onDragLeave={() => setDropTarget(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDropTarget(false);
+                choose(event.dataTransfer.files);
+              }}
+              className={cx(
+                "flex aspect-4/5 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-card border-2 border-dashed p-3 text-center focus-ring",
+                dropTarget ? "border-species-dog bg-status-published" : "border-line bg-surface",
+              )}
+            >
+              <Icon name="plus" />
+              <span className="text-label text-ink">{t.photos.addTile}</span>
+              <span className="text-caption text-ink-2">
+                {fillTemplate(t.photos.addLeft, { left: integer.format(room) })}
+                <span className="hidden pointer-fine:inline"> · {t.photos.addDrop}</span>
+              </span>
+            </button>
           </li>
         ) : null}
       </ul>
-      {editable && lastPhotoLocked ? (
-        <p id={lastPhotoNoteId} className={CAPTION}>
-          {lastPhotoText}
-        </p>
-      ) : null}
-      <p className={CAPTION}>
-        {fillTemplate(t.photos.howItWorks, { px: integer.format(PHOTO_MAX_EDGE_PX) })}
+      {drag !== null && lifted !== undefined
+        ? createPortal(
+            <div
+              aria-hidden="true"
+              style={{
+                left: drag.x - drag.dx,
+                top: drag.y - drag.dy,
+                width: drag.width,
+                height: drag.height,
+              }}
+              className="pointer-events-none fixed z-(--z-popover) scale-105 overflow-clip rounded-card shadow-float motion-reduce:scale-100 motion-reduce:shadow-none"
+            >
+              <Photo src={lifted.storageKey} alt="" aspect="portrait" sizes={sizes} />
+            </div>,
+            document.body,
+          )
+        : null}
+      <p role="status" className="sr-only">
+        {announce}
       </p>
-      <p className={CAPTION}>{t.photos.privacyNote}</p>
-      {visibleListing ? <p className={CAPTION}>{t.photos.dateMoves}</p> : null}
-      {removedOnce ? <p className={CAPTION}>{t.photos.removedStillReachable}</p> : null}
-      <p role="status" className={CAPTION}>
+      {editable ? (
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          data-testid="photo-file-input"
+          onChange={(event) => {
+            choose(event.currentTarget.files);
+            event.currentTarget.value = "";
+          }}
+        />
+      ) : null}
+      {editable && room <= 0 ? (
+        <Text look="hint">
+          {fillTemplate(t.photos.capReached, { max: integer.format(MAX_ANIMAL_PHOTOS) })}
+        </Text>
+      ) : null}
+      {editable && lastPhotoLocked ? (
+        <Text look="hint" id={lastPhotoNoteId}>
+          {lastPhotoText}
+        </Text>
+      ) : null}
+      {visibleListing ? <Text look="hint">{t.photos.dateNote}</Text> : null}
+      {removedOnce ? <Text look="hint">{t.photos.removedStillReachable}</Text> : null}
+      <p role="status" className="text-caption text-ink-2 empty:sr-only">
         {status}
       </p>
-    </section>
+    </>
   );
 }

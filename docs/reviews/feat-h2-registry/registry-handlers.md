@@ -46,7 +46,7 @@ VERDICT: PASS WITH NOTES
 
 VERIFIED | TAKEN ON TRUST
 --- | ---
-Read the delta for F1–F6 and both simplifications | The builder's mutations (check removed, history dropped, delete-all sessions). In pass 1 the permission classifier refused me the same kind of worktree edit, so I did not retry it. Each test I read does assert the thing its mutation breaks
+Read the delta for F1-F6 and both simplifications | The builder's mutations (check removed, history dropped, delete-all sessions). In pass 1 the permission classifier refused me the same kind of worktree edit, so I did not retry it. Each test I read does assert the thing its mutation breaks
 F1: the registry-writes.ts comment, the test name and comment, and RG-T4 now state the true property. RG-Q12 is open as Tier 1. The contract is unchanged | That the create-time race returns the admin-less view: no test, as disclosed
 F2: the new 400 test asserts both the status and that the address is unchanged | Neon: unchanged from pass 1. Every listed statement is still local-only
 F3: invite and resend history are written in one statement (CTE off the invitation insert/update). The resend test asserts `admin_invitation_resent` at `later` |
@@ -55,7 +55,7 @@ F5: the removeMember test leaves exactly `["sess-op"]`. The 503 test covers all 
 Ran the touched suites (below) |
 
 FINDINGS
-1. [Low, attribution] h2-next-prs.md:36–37 says "(Oleksii, 2026-10-13: on `rehearsal-0011`, after 0011, before production)". The nearest verbatim source is RS-R1. It says to freeze 0011 "before any rehearsal" and to check the journal hash "on the rehearsal branch". It names no `rehearsal-0011`, and it does not say to run these statements there. Correct wording: "(sequence per RS-R1: on the rehearsal branch, after 0011 is frozen, before production)", or cite the message where he said it. Paperwork only; not blocking.
+1. [Low, attribution] h2-next-prs.md:36-37 says "(Oleksii, 2026-10-13: on `rehearsal-0011`, after 0011, before production)". The nearest verbatim source is RS-R1. It says to freeze 0011 "before any rehearsal" and to check the journal hash "on the rehearsal branch". It names no `rehearsal-0011`, and it does not say to run these statements there. Correct wording: "(sequence per RS-R1: on the rehearsal branch, after 0011 is frozen, before production)", or cite the message where he said it. Paperwork only; not blocking.
 2. [Low] `createInvitation` and `resend` take `history` as optional, and the only no-history calls are in tests (auth.test.ts:572/611, kabinet-invitation-repo.test.ts:203/208). A future production caller could again write an invitation with no history line. Make `history` required and update those four call sites.
 
 SIMPLIFICATIONS

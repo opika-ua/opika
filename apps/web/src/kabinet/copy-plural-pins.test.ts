@@ -3,17 +3,22 @@ import {
   AGE_DATE_MAX_YEARS_BACK,
   ANIMAL_DESCRIPTION_MAX_CHARACTERS,
   ANIMAL_NAME_MAX_CHARACTERS,
+  COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   DEFAULT_FRESHNESS_POLICY,
+  TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import { nameTooLongMessage } from "../features/kabinet/operator/display-name";
+import { throttledMessage } from "../features/kabinet/password/password-copy";
 import { MAGIC_LINK_TTL_SECONDS } from "./auth";
+import { SIGN_IN_DELAY } from "./password-limits";
+import { RESET_PASSWORD_TTL_SECONDS } from "./password-mail";
 
 /**
  * Oleksii's final copy (2026-10-14) types the plural noun after a filled
  * number: «діє {minutes} хвилин» and «діє {hours} години». Ukrainian picks the
- * noun form from the number (1 хвилина, 2–4 хвилини, 5–20 хвилин; 72 години,
+ * noun form from the number (1 хвилина, 2-4 хвилини, 5-20 хвилин; 72 години,
  * but 75 годин), so each form is right for one value only, and a TTL change
  * would ship broken grammar with every test still green. His note on row 27:
  * "pin 15 in a test or move to Intl plural rules." These pins are that test.
@@ -21,8 +26,7 @@ import { MAGIC_LINK_TTL_SECONDS } from "./auth";
  * the same way, as is R-UI's `operator.create.whatHappens.step2` («72 години»).
  */
 
-const MINUTE_KEYS =
-  "kabinet.email.signIn.expiry, kabinet.inviteLanding.sent and kabinet.signIn.sentBody";
+const MINUTE_KEYS = "kabinet.email.signIn.expiry and kabinet.signIn.sentBody";
 const HOUR_KEYS = "kabinet.email.invite.expiry and kabinet.operator.create.whatHappens.step2";
 
 describe("the TTLs the copy's plural nouns were written for", () => {
@@ -43,7 +47,6 @@ describe("the TTLs the copy's plural nouns were written for", () => {
   /** The forms in the copy, from his answer sheet: what the pins above protect. */
   it("the copy carries the noun forms those values take", () => {
     expect(uk.kabinet.email.signIn.expiry).toContain("{minutes} хвилин.");
-    expect(uk.kabinet.inviteLanding.sent).toContain("{minutes} хвилин.");
     expect(uk.kabinet.signIn.sentBody).toContain("15 хвилин");
     expect(uk.kabinet.email.invite.expiry).toContain("{hours} години.");
     expect(uk.kabinet.operator.create.whatHappens.step2).toContain("72 години");
@@ -103,6 +106,25 @@ describe("the caps K3's plural nouns were written for", () => {
 });
 
 /**
+ * The pet card's two custom texts reuse the description's counter, «{count}
+ * з {max} символів», with their own caps: 40 and 30. «символів» is right for
+ * each of those, not for every cap (41 would take «символу»). The medical
+ * note's field, and with it its counter's pin, arrives in PR 5.
+ */
+describe("the caps the pet card fields' counters were written for", () => {
+  it.each([
+    ["TEMPERAMENT_CUSTOM_MAX_CHARACTERS", TEMPERAMENT_CUSTOM_MAX_CHARACTERS, 40],
+    ["COAT_COLOUR_CUSTOM_MAX_CHARACTERS", COAT_COLOUR_CUSTOM_MAX_CHARACTERS, 30],
+  ] as const)("%s is %i («символів»)", (name, cap, written) => {
+    expect(
+      cap,
+      `${name} changed: «символів» in kabinet.animalForm.description.counter, which this field's counter reuses, was written for ${written} and must be rechecked before this pin moves`,
+    ).toBe(written);
+    expect(new Intl.PluralRules("uk").select(cap)).toBe("many");
+  });
+});
+
+/**
  * K2's strip (Oleksii, 2026-10-18) types «днів» after `{days}`: «{cards} ви не
  * підтверджували понад {days} днів.», `{days}` filled with the freshness
  * policy's `agingMaxDays` (his note, verbatim: "{days} pinned to agingMaxDays
@@ -138,5 +160,30 @@ describe("the cap RUI4-F2's plural noun was written for", () => {
 
   it("100 falls in the plural category «символів» takes", () => {
     expect(new Intl.PluralRules("uk").select(100)).toBe("many");
+  });
+});
+
+/**
+ * PW-1 (`docs/shelter-passwords-copy-uk.md`): his wording avoids plurals by design («хв.»), and
+ * his note asks to keep the `{minutes}` pins anyway: «Забагато спроб входу. Спробуйте ще раз
+ * через {minutes} хв.» (§9 answer 5, "plural pin for minutes") for every wait the delay can
+ * give, and the reset link's hour in `forgot.sent` and the reset email. Each rendered sentence is
+ * pinned whole against his literal.
+ */
+describe("the password copy's {minutes} (PW-1)", () => {
+  it.each([1, 2, 3, 4, 5, 8, 11, 15, 21])("the delay's sentence for %i minutes", (minutes) => {
+    expect(throttledMessage(minutes)).toBe(
+      `Забагато спроб входу. Спробуйте ще раз через ${minutes} хв.`,
+    );
+  });
+
+  it("every wait the delay gives is one of those, and a reset link lives an hour", () => {
+    expect(SIGN_IN_DELAY.delaysMinutes).toEqual([1, 2, 4, 8, 15]);
+    expect(
+      RESET_PASSWORD_TTL_SECONDS / 60,
+      "RESET_PASSWORD_TTL_SECONDS changed: forgot.sent and email.reset.expiry say «{minutes} хв.», recheck them",
+    ).toBe(60);
+    expect(uk.kabinet.forgot.sent.endsWith("Воно діє {minutes} хв.")).toBe(true);
+    expect(uk.kabinet.email.reset.expiry).toBe("Посилання спрацює один раз і діє {minutes} хв.");
   });
 });

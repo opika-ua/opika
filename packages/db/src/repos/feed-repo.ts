@@ -7,7 +7,7 @@ import { buildFeedPredicate } from "./feed-predicate";
 import { rowToDiscoverableAnimal } from "./mappers";
 
 export type FeedCursorData = {
-  /** The row's `last_confirmed_at` — the keyset's ordering value. */
+  /** The row's `last_confirmed_at` - the keyset's ordering value. */
   confirmedAt: Date;
   id: string;
 };
@@ -22,13 +22,13 @@ export function feedRepo(db: Database) {
     /**
      * Keyset-paginated feed query.
      *
-     * Ordering: `(last_confirmed_at DESC, id ASC)` — most recently confirmed
+     * Ordering: `(last_confirmed_at DESC, id ASC)` - most recently confirmed
      * first, ties broken by id for determinism (decision #10, revised
      * 2026-10-07: the key used to be `last_updated_at`, edit time).
      *
      * `last_confirmed_at` moves when a shelter confirms an animal is still
      * looking, which moves the row's sort position. A cursor may therefore
-     * skip a row that moved ahead of it, or revisit one — accepted as it was
+     * skip a row that moved ahead of it, or revisit one - accepted as it was
      * for the old key: the seen-set exclusion absorbs duplicates, and a
      * just-confirmed listing surfaces on the next fresh fetch. Editing a
      * listing no longer moves it at all. Materialising a stable sort key
@@ -103,15 +103,15 @@ export function feedRepo(db: Database) {
      * filters, right now: the page query's own predicate and seen-set
      * exclusion, counted instead of paged (R5).
      *
-     * Same `buildFeedPredicate` and the same `buildSeenExclusion` — including
-     * its `LIMIT maxTracked` cap — so the count excludes exactly what
+     * Same `buildFeedPredicate` and the same `buildSeenExclusion` - including
+     * its `LIMIT maxTracked` cap - so the count excludes exactly what
      * `list` excludes at this moment, not every swipe ever made. A separate
      * query rather than a window function on the page query, because the
      * page query has a keyset cursor and a LIMIT, and this must count the
      * whole remaining feed.
      *
      * A typed `.select()` with `count(*)` mapped to a number, not a raw
-     * `db.execute()` — the same adapter-agnostic shape as `galleryRepo`'s
+     * `db.execute()` - the same adapter-agnostic shape as `galleryRepo`'s
      * `countMatching`: postgres-js and neon-http return different raw result
      * shapes from `.execute()` and both return `count(*)`'s bigint as a
      * string, which `mapWith(Number)` normalises on either.
@@ -139,7 +139,7 @@ export function feedRepo(db: Database) {
 
 /**
  * The WHERE condition matching swipe rows that still exclude their animal
- * under the given policy — "interested" swipes exclude permanently, "pass"
+ * under the given policy - "interested" swipes exclude permanently, "pass"
  * swipes expire after `reshowAfterDays`. Kept as its own function so what
  * "still excludes" means is defined once.
  */

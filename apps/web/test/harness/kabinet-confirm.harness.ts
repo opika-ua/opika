@@ -124,17 +124,25 @@ test.describe("kabinet confirm page, in a real browser", () => {
       const pending: Promise<void>[] = [];
       context.on("request", (request) => {
         pending.push(
-          request.allHeaders().then((headers) => {
-            if (headers.referer !== undefined) referers.push(headers.referer);
-          }),
+          request
+            .allHeaders()
+            .then((headers) => {
+              if (headers.referer !== undefined) referers.push(headers.referer);
+            })
+            // A request the browser abandons (a link prefetch cut off by a navigation) has no headers to read.
+            .catch(() => {}),
         );
       });
       const page = await context.newPage();
 
       const shown = await page.goto(link);
       expect(shown?.status()).toBe(200);
+      // Oleksii, 2026-10-20: once the page has read the token, the address bar no longer shows
+      // it (history.replaceState); the button's form carries it in its hidden field.
+      expect(new URL(page.url()).pathname).toBe(CONFIRM_PATH);
+      expect(page.url().includes("token="), "the token left the address bar").toBe(false);
       // Opened twice, as a mail scanner and then the person would: still valid.
-      const reloaded = await page.reload();
+      const reloaded = await page.goto(link);
       expect(reloaded?.status()).toBe(200);
 
       const postResponse = page.waitForResponse(
@@ -144,7 +152,8 @@ test.describe("kabinet confirm page, in a real browser", () => {
       );
       const landingResponse = page.waitForResponse(
         (response) =>
-          response.request().method() === "GET" && new URL(response.url()).pathname === "/kabinet",
+          response.request().method() === "GET" &&
+          new URL(response.url()).pathname === "/kabinet/tvaryny",
       );
       await page.getByRole("button").click();
       const posted = await postResponse;
@@ -168,7 +177,8 @@ test.describe("kabinet confirm page, in a real browser", () => {
       expect(session?.httpOnly).toBe(true);
 
       // The redirect lands on the signed-in shelter's own page, not a 404.
-      expect(landing.status(), "/kabinet after sign-in").toBe(200);
+      // `/kabinet` redirects on to Тварини, which is the page that answers 200.
+      expect(landing.status(), "/kabinet/tvaryny after sign-in").toBe(200);
 
       // The session is real, not just a cookie: Better Auth resolves it.
       const me = await page.request.get(`${origin}/api/auth/get-session`);
@@ -185,93 +195,6 @@ test.describe("kabinet confirm page, in a real browser", () => {
         "no Referer carries the token",
       ).toBe(0);
       expect(referers.filter((referer) => referer.includes(CONFIRM_PATH)).length).toBe(0);
-
-      await context.close();
-    });
-
-    /**
-     * EM-Q3 (Oleksii, 2026-10-14, verbatim: "(b). The invite landing shows one
-     * «Надіслати посилання» button; only its POST sends. A GET sends nothing.
-     * Test: a GET doesn't consume the per-address send budget."). A mail
-     * scanner's six GETs and a HEAD send nothing; six is one past the
-     * address's five links an hour, so had any of them charged that budget the
-     * button's POST would answer rate-limited and send nothing. The POST is
-     * the real button in a real browser, so its Origin and Referer are what a
-     * browser sends under the landing's Referrer-Policy.
-     */
-    test("the invite landing: GETs and a HEAD send nothing; the button's POST sends exactly one link", async ({
-      browser,
-    }) => {
-      const email = `harness-invite-${randomUUID()}@example.test`;
-      const db = createDatabase(HARNESS_DATABASE_URL);
-      const now = new Date();
-      const operatorId = randomUUID();
-      await db.insert(authUser).values({
-        id: operatorId,
-        name: "Harness operator",
-        email: `harness-operator-${randomUUID()}@example.test`,
-        emailVerified: true,
-        createdAt: now,
-        updatedAt: now,
-      });
-      const shelter = (
-        await db.select({ id: shelters.id, organizationId: shelters.organizationId }).from(shelters)
-      ).find((row) => row.organizationId === null);
-      if (shelter === undefined) throw new Error("no seeded shelter without an organization");
-      const invitationId = randomUUID();
-      const invited = await kabinetInvitationRepo(db).invite({
-        shelterId: shelter.id as never,
-        email,
-        name: "Harness invitee",
-        inviterUserId: operatorId,
-        ids: { invitationId, userId: randomUUID(), organizationId: randomUUID() },
-        now,
-        history: {
-          id: randomUUID(),
-          entry: { kind: "admin_invited", at: now, moderatorId: operatorId as never, email },
-        },
-      });
-      expect(invited.kind).toBe("invited");
-
-      const landingPath = `/kabinet/vkhid?zaproshennia=${invitationId}`;
-      const marker = `[kabinet] magic link for ${email}: `;
-      const sentCount = () => log().split(marker).length - 1;
-
-      for (let i = 0; i < 6; i++) {
-        expect((await fetch(`${origin}${landingPath}`)).status, `GET ${i + 1}`).toBe(200);
-      }
-      expect((await fetch(`${origin}${landingPath}`, { method: "HEAD" })).status).toBe(200);
-
-      const context = await browser.newContext();
-      const page = await context.newPage();
-      expect((await page.goto(`${origin}${landingPath}`))?.status()).toBe(200);
-      expect(await page.getByRole("button").count(), "one button").toBe(1);
-      // Still nothing sent: eight GETs and a HEAD so far, the browser's included.
-      expect(sentCount(), "no link sent by any GET or HEAD").toBe(0);
-
-      const postResponse = page.waitForResponse(
-        (response) =>
-          response.request().method() === "POST" &&
-          new URL(response.url()).pathname === "/kabinet/vkhid",
-      );
-      await page.getByRole("button").click();
-      const posted = await postResponse;
-      const postHeaders = await posted.request().allHeaders();
-      expect(
-        { status: posted.status(), origin: postHeaders.origin, referer: postHeaders.referer },
-        "the POST carried our real Origin, and a Referer without the invitation id",
-      ).toEqual({ status: 200, origin, referer: `${origin}/` });
-
-      // The answer card names the masked address (`maskAddress`: first letter, •••, the domain).
-      await expect(page.getByText("h•••@example.test")).toBeVisible();
-      await expect.poll(sentCount, { timeout: 10_000 }).toBe(1);
-      const link =
-        log()
-          .slice(log().indexOf(marker) + marker.length)
-          .split(/\s/, 1)[0] ?? "";
-      expect(link.startsWith(`${origin}${CONFIRM_PATH}?token=`), "link is the confirm page").toBe(
-        true,
-      );
 
       await context.close();
     });

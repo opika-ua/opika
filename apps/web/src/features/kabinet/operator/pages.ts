@@ -16,6 +16,7 @@ import { createRouterClient, ORPCError, type RouterClient } from "@orpc/server";
 import { registryOperatorOf } from "../../../kabinet/access";
 import type { KabinetPrincipal } from "../../../kabinet/actor";
 import type { KabinetContext } from "../../../kabinet/context";
+import { INVITE_PASSWORDS_OFF } from "../../../kabinet/invite-password";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../../kabinet/photo-uploads";
 import { registryRouter } from "../../../kabinet/registry-router";
 import { HISTORY_PAGE, SHELTERS_PAGE, type ShelterListFilters } from "./list-params";
@@ -28,7 +29,7 @@ import { HISTORY_PAGE, SHELTERS_PAGE, type ShelterListFilters } from "./list-par
  *
  * **Picked and read-only.** Four reads, never the whole router: no page render
  * may reach a write, and `registry.support.enter` sets a cookie, which a
- * render can't do (the same reason `api/server-client.ts` picks). Writes go
+ * render can't do (the same reason `api/router-client.ts` picks). Writes go
  * from the browser to `/api/kabinet/registry/*` (R-UI 3), which carries the
  * Origin check, the per-user limit and the 503 without the location key.
  */
@@ -76,6 +77,7 @@ function readClient(principal: KabinetPrincipal, deps: OperatorPageDeps): ReadCl
       setCookies: [],
       cookieHeader: null,
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
+      invitePasswords: INVITE_PASSWORDS_OFF,
     }),
   });
 }
@@ -95,9 +97,12 @@ export function refusalOf(error: unknown): OperatorRefusal | null {
   return null;
 }
 
-/** City names by id, public data the rows name by id only. */
-async function cityNamesOf(deps: OperatorPageDeps): Promise<Record<string, string>> {
-  const cities = await cityRepo(deps.db).listAll();
+/** City names for the cities a page's rows name, by primary key (never the whole settlement list). */
+async function cityNamesOf(
+  deps: OperatorPageDeps,
+  rows: readonly { cityId: CityId }[],
+): Promise<Record<string, string>> {
+  const cities = await cityRepo(deps.db).findByIds(rows.map((row) => row.cityId));
   return Object.fromEntries(cities.map((city) => [city.id, city.name.uk]));
 }
 
@@ -139,7 +144,7 @@ export async function operatorShelterListOf(
     log(error);
     return { kind: "load_failed" };
   }
-  return { kind: "list", filters, page, cityNames: await cityNamesOf(deps) };
+  return { kind: "list", filters, page, cityNames: await cityNamesOf(deps, page.items) };
 }
 
 export type HistoryPage = {

@@ -1,4 +1,5 @@
 import { photoUploadEnvProblem } from "../kabinet/photo-upload-env";
+import { r2CleanupEnvProblem } from "../kabinet/r2-cleanup-env";
 import { signInEnvProblems } from "../kabinet/sign-in-env";
 import { envValueOf, paddedValueMessage } from "./env-value";
 
@@ -59,7 +60,7 @@ function productionSecretProblem(
     env,
     name,
     `${name} must be at least ${PRODUCTION_SECRET_MIN_LENGTH} characters on a production ` +
-      `deployment (${withoutIt}) — generate with: ` +
+      `deployment (${withoutIt}) - generate with: ` +
       "openssl rand -hex 32, and set it in Vercel's Production environment",
   );
 }
@@ -112,7 +113,7 @@ export const locationSecretProblem = (
     env,
     "LOCATION_HMAC_SECRET",
     `LOCATION_HMAC_SECRET must be at least ${PRODUCTION_SECRET_MIN_LENGTH} characters on a ` +
-      "production deployment (the registry fuzzes shelter locations with it) — set it in Vercel's " +
+      "production deployment (the registry fuzzes shelter locations with it) - set it in Vercel's " +
       "Production environment to the same value the onboarding script uses, never a new one",
   );
 };
@@ -157,7 +158,7 @@ export const rateLimitKeySecretProblem = (
     "RATE_LIMIT_KEY_SECRET",
     `RATE_LIMIT_KEY_SECRET must be at least ${PRODUCTION_SECRET_MIN_LENGTH} characters on every ` +
       "Vercel deployment, Preview included (every rate limiter keys a client IP as an HMAC under " +
-      "it, so no IP is ever stored) — generate with: openssl rand -hex 32, and set it in Vercel's " +
+      "it, so no IP is ever stored) - generate with: openssl rand -hex 32, and set it in Vercel's " +
       "Production and Preview environments, a separate value on each",
   );
 };
@@ -176,7 +177,7 @@ export const r2PublicBaseUrlProblem = (
   if (value.kind === "set") return null;
   if (value.kind === "padded") return paddedValueMessage(["NEXT_PUBLIC_R2_PUBLIC_BASE_URL"]);
   return (
-    "Missing required environment variable: NEXT_PUBLIC_R2_PUBLIC_BASE_URL — " +
+    "Missing required environment variable: NEXT_PUBLIC_R2_PUBLIC_BASE_URL - " +
     "set it in Vercel's Production and Preview environments before building. " +
     "See docs/h1-decisions.md."
   );
@@ -201,7 +202,9 @@ export const r2PublicBaseUrlProblem = (
  *
  * The photo upload variables (P-Q10, production only) are
  * `photoUploadEnvProblem` (`kabinet/photo-upload-env.ts`), shared with the boot
- * check the same way.
+ * check the same way. The R2 clean-up job's own credentials (GDPR photo
+ * retention, production only) are `r2CleanupEnvProblem`
+ * (`kabinet/r2-cleanup-env.ts`), shared the same way.
  */
 export function assertBuildEnv(env: Readonly<Record<string, string | undefined>>): void {
   const problems: string[] = [];
@@ -212,6 +215,7 @@ export function assertBuildEnv(env: Readonly<Record<string, string | undefined>>
     rateLimitKeySecretProblem(env),
     locationSecretProblem(env),
     photoUploadEnvProblem(env),
+    r2CleanupEnvProblem(env),
   ]) {
     if (problem !== null) {
       problems.push(`Invalid or missing required environment variable: ${problem}`);

@@ -21,6 +21,7 @@ import {
   type AgeEstimate,
   ANIMAL_EDITED_FIELDS,
   type Animal,
+  type AnimalColour,
   type AnimalEditedField,
   type AnimalId,
   type AnimalListingState,
@@ -45,6 +46,7 @@ import {
   type ShelterActor,
   type ShelterId,
   type SpayNeuterStatus,
+  type Temperament,
   transitionListing,
   UNDO_WINDOW_MS,
   UNKNOWN_ATTESTATION,
@@ -59,7 +61,6 @@ export type AnimalDeps = Pick<KabinetContext, "db" | "now" | "newId">;
 
 export type OwnErrors = ORPCErrorConstructorMap<{
   NOT_FOUND: typeof apiErrors.NOT_FOUND;
-  FORBIDDEN: typeof apiErrors.FORBIDDEN;
 }>;
 type MoveErrors = OwnErrors &
   ORPCErrorConstructorMap<{ ILLEGAL_TRANSITION: typeof apiErrors.ILLEGAL_TRANSITION }>;
@@ -83,7 +84,11 @@ export function kabinetAnimalViewOf(animal: Animal): KabinetAnimalView {
     name: animal.name,
     species: animal.species,
     sex: animal.sex,
+    coatLength: animal.coatLength,
     photos: animal.photos,
+    temperament: animal.temperament,
+    colour: animal.colour,
+    medicalNotes: animal.medicalNotes,
     vaccination: animal.vaccination,
     spayNeuter: animal.spayNeuter,
     documentReadiness: animal.documentReadiness,
@@ -133,11 +138,10 @@ export function kabinetAnimalRowOf(animal: Animal, now: Date): KabinetAnimalRowV
 }
 
 /**
- * The ownership check every animal procedure starts with (S3-Q2, Oleksii): an
- * id that exists nowhere is NOT_FOUND; one that belongs to another shelter is
- * FORBIDDEN. The trade accepted there: FORBIDDEN confirms an id exists
- * elsewhere, but animal ids are public on every feed card and draft ids are
- * unguessable UUIDs.
+ * The ownership check every animal procedure starts with. Another shelter's id
+ * is NOT_FOUND, indistinguishable from an id that exists nowhere (QA-2026-10-29:
+ * the earlier FORBIDDEN confirmed an id existed). Id and shelter are one query,
+ * so both cases take the same path; the answer never depends on adopter activity.
  */
 export async function owned(
   deps: AnimalDeps,
@@ -145,9 +149,8 @@ export async function owned(
   animalId: AnimalId,
   errors: OwnErrors,
 ): Promise<{ animal: Animal; cityId: CityId; firstPublishedAt: Date | null }> {
-  const found = await kabinetAnimalRepo(deps.db).findWithCity(animalId);
+  const found = await kabinetAnimalRepo(deps.db).findOwnedWithCity(animalId, scope.shelterId);
   if (found === null) throw errors.NOT_FOUND();
-  if (found.animal.shelterId !== scope.shelterId) throw errors.FORBIDDEN();
   return found;
 }
 
@@ -173,7 +176,7 @@ function declared<T extends VaccinationStatus | SpayNeuterStatus>(
  * «Станом на» date"): a birth date at day precision, or a bucket declared as
  * of the date the shelter chose, which `ageAnchorOf` then carries forward.
  * The date is the shelter's knowledge, not the save time: «Коли ви це
- * оцінили. Зазвичай — день, коли тварина потрапила до притулку.»
+ * оцінили. Зазвичай - день, коли тварина потрапила до притулку.»
  */
 const ageOfInput = (input: AgeEstimateInput, now: Date): AgeEstimate =>
   input.kind === "birth_date"
@@ -226,18 +229,37 @@ function editedAge(
 }
 
 /**
- * The description an edit stores (decision taken T5, by analogy with
- * Oleksii's K4-B1 answer 13 for the shelter's sentence, verbatim: "Clear
- * `en` when `uk` changes; a stale translation would be a false claim."). A
- * changed Ukrainian text stores no English, whatever the request carried; an
- * unchanged one keeps the English sent with it.
+ * The text an edit stores: the description, the medical note, or a custom
+ * temperament or colour (decision taken T5, by analogy with Oleksii's K4-B1
+ * answer 13 for the shelter's sentence, verbatim: "Clear `en` when `uk`
+ * changes; a stale translation would be a false claim."). A changed Ukrainian
+ * text stores no English, whatever the request carried; an unchanged one
+ * keeps the English sent with it.
  */
-export function descriptionAfterEdit(
-  stored: LocalizedText | null,
-  edited: LocalizedText,
-): LocalizedText {
+export function textAfterEdit(stored: LocalizedText | null, edited: LocalizedText): LocalizedText {
   if (stored !== null && stored.uk === edited.uk) return edited;
   return { uk: edited.uk, en: null };
+}
+
+/** A temperament's custom entry by `textAfterEdit`'s rule, against the stored custom entry. */
+export function temperamentAfterEdit(stored: Temperament, edited: Temperament): Temperament {
+  const storedLast = stored.at(-1);
+  const storedCustom = storedLast?.kind === "custom" ? storedLast.text : null;
+  return edited.map((entry) =>
+    entry.kind === "custom"
+      ? { kind: "custom", text: textAfterEdit(storedCustom, entry.text) }
+      : entry,
+  );
+}
+
+/** A custom colour by `textAfterEdit`'s rule, against the stored custom colour; a preset or none as sent. */
+export function colourAfterEdit(
+  stored: AnimalColour | null,
+  edited: AnimalColour | null,
+): AnimalColour | null {
+  if (edited === null || edited.kind === "preset") return edited;
+  const storedCustom = stored?.kind === "custom" ? stored.text : null;
+  return { kind: "custom", text: textAfterEdit(storedCustom, edited.text) };
 }
 
 const MAX_ATTEMPTS = 3;
@@ -295,6 +317,7 @@ async function tap(
       animal.id,
       next.listing,
       animal.listing,
+      deps.now,
       typeof history === "function" ? history(animal, next) : history,
       guard,
     );
@@ -433,8 +456,9 @@ export async function animalsById(
 /**
  * A new draft from a name and a species (K-Q5, Oleksii: "name + species to
  * create"). Sex starts «Не записано» (D2, verbatim: "sex defaults to
- * "unknown""), the medical facts unknown, no size, age, description or
- * photo: what the shelter hasn't told yet stays unanswered, never invented.
+ * "unknown""), the medical facts and fur unknown, no size, age, description,
+ * temperament, colour, medical note or photo: what the shelter hasn't told
+ * yet stays unanswered, never invented.
  */
 export async function animalsCreateDraft(
   deps: AnimalDeps,
@@ -449,13 +473,18 @@ export async function animalsCreateDraft(
     name: input.name,
     species: input.species,
     sex: "unknown",
+    coatLength: null,
     size: null,
     age: null,
     description: null,
     photos: [],
+    everServedAt: null,
     vaccination: UNKNOWN_ATTESTATION(deps.now),
     spayNeuter: UNKNOWN_ATTESTATION(deps.now),
     documentReadiness: { kind: "unknown" },
+    temperament: [],
+    colour: null,
+    medicalNotes: null,
     listing: { kind: "draft" },
     publicLocation: null,
     createdAt: deps.now,
@@ -517,6 +546,22 @@ export async function animalsUpdate(
     name: patch.name ?? animal.name,
     species: patch.species ?? animal.species,
     sex: patch.sex ?? animal.sex,
+    // `?? ` would turn a cleared fur (null) back into the stored one; the
+    // same for colour and the medical note. None of the four is a listing
+    // fact, so each clears on any listing kind.
+    coatLength: patch.coatLength === undefined ? animal.coatLength : patch.coatLength,
+    colour:
+      patch.colour === undefined ? animal.colour : colourAfterEdit(animal.colour, patch.colour),
+    temperament:
+      patch.temperament === undefined
+        ? animal.temperament
+        : temperamentAfterEdit(animal.temperament, patch.temperament),
+    medicalNotes:
+      patch.medicalNotes === undefined
+        ? animal.medicalNotes
+        : patch.medicalNotes === null
+          ? null
+          : textAfterEdit(animal.medicalNotes, patch.medicalNotes),
     vaccination,
     spayNeuter,
   };
@@ -525,7 +570,7 @@ export async function animalsUpdate(
       ? stored
       : patch.description === null
         ? null
-        : descriptionAfterEdit(stored, patch.description);
+        : textAfterEdit(stored, patch.description);
   let edited: Animal;
   if (isDraftAnimal(animal)) {
     edited = {
@@ -543,6 +588,9 @@ export async function animalsUpdate(
     const age = editedAge(animal.age, patch.age, deps.now, errors);
     /* v8 ignore next -- the patch can't clear an age (`age: null` is BAD_REQUEST) */
     if (age === null) throw errors.LISTING_FACT_REQUIRED({ data: { field: "age" } });
+    // SF-F1: unlike size/age/description, sex has no null variant – "unknown"
+    // is the stored-but-incomplete value a listed card must never drift back to.
+    if (common.sex === "unknown") throw errors.LISTING_FACT_REQUIRED({ data: { field: "sex" } });
     edited = { ...animal, ...common, size: patch.size ?? animal.size, age, description: kept };
   }
   const [first, ...rest] = changedFields(animal, edited);

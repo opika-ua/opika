@@ -22,6 +22,7 @@ const animal: Animal = {
   name: "Мурчик",
   species: "cat",
   sex: "male",
+  coatLength: "long",
   size: "small",
   age: { kind: "declared_bucket", bucket: "young", declaredAt: AT },
   description: { uk: "Лагідний кіт", en: null },
@@ -29,8 +30,15 @@ const animal: Animal = {
   vaccination: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
   spayNeuter: { source: "shelter_declared", state: "confirmed", declaredAt: AT },
   documentReadiness: { kind: "unknown" },
+  temperament: [
+    { kind: "preset", trait: "affectionate" },
+    { kind: "custom", text: { uk: "Муркоче на руках", en: null } },
+  ],
+  colour: { kind: "preset", colour: "ginger" },
+  medicalNotes: { uk: "Потребує гіпоалергенного корму.", en: null },
   listing: { kind: "published", publishedAt: AT, confirmedAt: AT, undoable: null },
   publicLocation: null,
+  everServedAt: AT,
   createdAt: AT,
   lastUpdatedAt: AT,
   version: 0,
@@ -39,6 +47,7 @@ const animal: Animal = {
 const shelterSummary = {
   id: animal.shelterId,
   displayName: "Тестовий притулок",
+  logo: null,
   publicLocation: {
     precision: "fuzzed_address",
     cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -73,6 +82,7 @@ describe("animal views expose exactly their intended fields", () => {
 
     expect(Object.keys(parsed).sort()).toEqual([
       "ageBucket",
+      "coatLength",
       "freshness",
       "id",
       "listingKind",
@@ -95,10 +105,14 @@ describe("animal views expose exactly their intended fields", () => {
 
     expect(Object.keys(parsed).sort()).toEqual([
       "ageBucket",
+      "coatLength",
+      "colour",
       "description",
       "documentReadiness",
       "freshness",
       "id",
+      "listingKind",
+      "medicalNotes",
       "name",
       "photos",
       "publicLocation",
@@ -107,14 +121,109 @@ describe("animal views expose exactly their intended fields", () => {
       "size",
       "spayNeuter",
       "species",
+      "temperament",
       "vaccination",
     ]);
+  });
+
+  it("AnimalDetailView carries the listing kind only: no state object, no timestamps, no non-public kind", () => {
+    const base = { ...animal, ...derived, shelter: shelterSummary };
+    expect(AnimalDetailViewSchema.parse({ ...base, listingKind: "reserved" }).listingKind).toBe(
+      "reserved",
+    );
+    for (const leaky of [
+      { kind: "reserved", since: AT, publishedAt: AT },
+      "draft",
+      "adopted",
+      "withdrawn",
+      null,
+    ]) {
+      expect(
+        AnimalDetailViewSchema.safeParse({ ...base, listingKind: leaky }).success,
+        JSON.stringify(leaky),
+      ).toBe(false);
+    }
+    const parsed = AnimalDetailViewSchema.parse({
+      ...base,
+      listingKind: "reserved",
+      listing: { kind: "reserved", since: AT, publishedAt: AT },
+      reservedSince: AT,
+    });
+    expect(parsed).not.toHaveProperty("listing");
+    expect(parsed).not.toHaveProperty("reservedSince");
+  });
+
+  /**
+   * The pet card's temperament, colour and medical note reach the animal page
+   * as stored, and never the gallery or deck card: the card has no room for
+   * them, and the deck holds several cards in memory at once.
+   */
+  it("the animal page carries temperament, colour and the medical note as stored; the feed card none of them", () => {
+    const detail = AnimalDetailViewSchema.parse({ ...animal, ...derived, shelter: shelterSummary });
+    expect(detail.temperament).toEqual(animal.temperament);
+    expect(detail.colour).toEqual(animal.colour);
+    expect(detail.medicalNotes).toEqual(animal.medicalNotes);
+
+    const card = FeedCardViewSchema.parse({
+      ...animal,
+      ...derived,
+      primaryPhoto: null,
+      shelter: shelterSummary,
+    });
+    for (const field of ["temperament", "colour", "medicalNotes"]) {
+      expect(card, field).not.toHaveProperty(field);
+    }
+  });
+
+  it("the animal page carries each unrecorded as itself ([] or null), never dropped", () => {
+    const unrecorded = { ...animal, temperament: [], colour: null, medicalNotes: null };
+    const detail = AnimalDetailViewSchema.parse({
+      ...unrecorded,
+      ...derived,
+      shelter: shelterSummary,
+    });
+    expect(detail.temperament).toEqual([]);
+    expect(detail.colour).toBeNull();
+    expect(detail.medicalNotes).toBeNull();
+    for (const field of ["temperament", "colour", "medicalNotes"] as const) {
+      const { [field]: _omitted, ...without } = animal;
+      expect(
+        AnimalDetailViewSchema.safeParse({ ...without, ...derived, shelter: shelterSummary })
+          .success,
+        field,
+      ).toBe(false);
+    }
+  });
+
+  it("both public views carry unrecorded fur as null, never dropped or invented (DR1-D10)", () => {
+    const unrecorded = { ...animal, coatLength: null };
+    expect(
+      FeedCardViewSchema.parse({
+        ...unrecorded,
+        ...derived,
+        primaryPhoto: null,
+        shelter: shelterSummary,
+      }).coatLength,
+    ).toBeNull();
+    expect(
+      AnimalDetailViewSchema.parse({ ...unrecorded, ...derived, shelter: shelterSummary })
+        .coatLength,
+    ).toBeNull();
+    expect(
+      FeedCardViewSchema.safeParse({
+        ...animal,
+        coatLength: undefined,
+        ...derived,
+        primaryPhoto: null,
+        shelter: shelterSummary,
+      }).success,
+    ).toBe(false);
   });
 
   it("never ships the raw age estimate or lastUpdatedAt", () => {
     // The client has no trustworthy clock. Sending the inputs rather than the
     // derived values would let a wrong device date render a stale listing as
-    // fresh, or a senior animal as a puppy — which is the entire reason these
+    // fresh, or a senior animal as a puppy - which is the entire reason these
     // two fields are computed server-side.
     for (const parsed of [
       FeedCardViewSchema.parse({
@@ -200,7 +309,9 @@ describe("shelter views expose exactly their intended fields", () => {
       "description",
       "displayName",
       "donation",
+      "freshnessSentence",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);
@@ -209,8 +320,8 @@ describe("shelter views expose exactly their intended fields", () => {
   it("ShelterSummaryView", () => {
     expect(Object.keys(ShelterSummaryViewSchema.shape).sort()).toEqual([
       "displayName",
-      "freshnessSentence",
       "id",
+      "logo",
       "publicLocation",
       "verification",
     ]);

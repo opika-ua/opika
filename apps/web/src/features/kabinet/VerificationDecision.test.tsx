@@ -1,17 +1,22 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { OperatorName } from "../../kabinet/operator";
-import { ShelterProfile } from "./ShelterProfile";
+import { type OperatorName, standaloneOperatorName } from "../../kabinet/operator";
+import { VerificationDecision } from "./VerificationDecision";
 
 /**
- * The shelter's side of a rejection or suspension on `/kabinet` (RU-Q7,
- * answer 7, and round-2 answer 2: "«Пояснення:», then my note verbatim, then
- * a signature line «— {operator}» (nominative, as in the emails)"), rendered
- * as the page renders it. Every string is Oleksii's, transcribed from
- * `rui-copy-uk.md` §3.4 and §3.2 (the code labels) and his round-2 answers 2
- * and 6, never read from `uk.ts`. The section's whole text is pinned, so
- * nothing else (no count, no adopter, commitment #2) can ride along in it.
+ * The shelter's side of a rejection or suspension (RU-Q7, answer 7, and
+ * round-2 answer 2: "«Пояснення:», then my note verbatim, then a signature
+ * line «— {operator}» (nominative, as in the emails)"), rendered as the page
+ * renders it. Since kabinet redesign Phase 2 PR 1 that page is Головна
+ * (the top of Тварини) - it used to be `/kabinet`'s profile
+ * editor, which still renders the separate, unrelated locked block its own
+ * operator-name fallback test lives in `ShelterProfile.test.tsx` now.
+ *
+ * Every string here is Oleksii's, transcribed from `rui-copy-uk.md` §3.4 and
+ * §3.2 (the code labels) and his round-2 answers 2 and 6, never read from
+ * `uk.ts`. The section's whole text is pinned, so nothing else (no count, no
+ * adopter, commitment #2) can ride along in it.
  */
 
 const view = (verification: KabinetShelterView["verification"]): KabinetShelterView => ({
@@ -31,6 +36,7 @@ const view = (verification: KabinetShelterView["verification"]): KabinetShelterV
   donation: null,
   pendingDonation: null,
   freshnessSentence: null,
+  logo: null,
   version: 3,
   verification,
 });
@@ -41,15 +47,13 @@ const OLEKSII: OperatorName = { kind: "configured", name: "Олексій Кол
 
 const renderAs = (
   verification: KabinetShelterView["verification"],
-  viewer: "admin" | "support" = "admin",
+  _viewer: "admin" | "support" = "admin",
   operator: OperatorName = OLEKSII,
 ) =>
   render(
-    <ShelterProfile
-      view={view(verification)}
-      cityName="Бровари"
-      viewer={viewer}
-      operator={operator}
+    <VerificationDecision
+      verification={view(verification).verification}
+      operatorName={standaloneOperatorName(operator)}
     />,
   );
 
@@ -66,7 +70,7 @@ describe("a rejected shelter reads the decision", () => {
           "Причина: Спам.",
           "Пояснення:",
           NOTE,
-          "— Олексій Колотенко",
+          "- Олексій Колотенко",
           "Якщо маєте питання, напишіть мені.",
         ].join(""),
       );
@@ -74,7 +78,7 @@ describe("a rejected shelter reads the decision", () => {
       const quote = section.querySelector("blockquote");
       expect(quote?.textContent).toBe(NOTE);
       expect(section.querySelector("figcaption")?.textContent).toBe("Пояснення:");
-      expect(screen.getByText("— Олексій Колотенко").closest("blockquote")).toBeNull();
+      expect(screen.getByText("- Олексій Колотенко").closest("blockquote")).toBeNull();
     },
   );
 
@@ -97,7 +101,7 @@ describe("a rejected shelter reads the decision", () => {
       kind: "configured",
       name: "Олексій $& $1",
     });
-    expect(screen.getByText("— Олексій $& $1")).toBeTruthy();
+    expect(screen.getByText("- Олексій $& $1")).toBeTruthy();
   });
 });
 
@@ -119,7 +123,7 @@ describe("a suspended shelter reads the decision", () => {
         "Причина: Скарга підтвердилася.",
         "Пояснення:",
         "Скарга від ветклініки. Чекаю на ваші фото.",
-        "— Олексій Колотенко",
+        "- Олексій Колотенко",
         "Якщо маєте питання, напишіть мені.",
       ].join(""),
     );
@@ -129,23 +133,19 @@ describe("a suspended shelter reads the decision", () => {
 /**
  * No name configured: the signature stands alone, so it takes the capitalised
  * fallback, as both emails sign (round-2 answer 6: "capitalise it → «—
- * Адміністратор сайту»"), while the locked note on the same page keeps the
- * lower case mid-sentence. One page, two forms: each place gets its own.
+ * Адміністратор сайту»"). `ShelterProfile.test.tsx` has the locked note's own
+ * fallback case (lower case, mid-sentence) - a different component, on a
+ * different screen since kabinet redesign Phase 2 PR 1.
  */
 describe("with no operator name configured", () => {
-  it("signs «— Адміністратор сайту», and the locked note keeps «адміністратор сайту»", () => {
+  it("signs «- Адміністратор сайту»", () => {
     renderAs(
       { status: "suspended", at: AT, reason: { code: "other", note: "Чекаю на ваші фото." } },
       "admin",
       { kind: "fallback" },
     );
     const section = screen.getByRole("region", { name: "Притулок тимчасово призупинено" });
-    expect(section.textContent).toContain("Чекаю на ваші фото.— Адміністратор сайту");
-    expect(
-      screen.getByText(
-        "Ці дані встановлює адміністратор сайту під час перевірки притулку. Тут вони лише для перегляду.",
-      ),
-    ).toBeTruthy();
+    expect(section.textContent).toContain("Чекаю на ваші фото.- Адміністратор сайту");
   });
 });
 
@@ -165,12 +165,12 @@ describe("every other status sees none of it", () => {
       "Притулок тимчасово призупинено",
       "Якщо маєте питання, напишіть мені.",
       "Пояснення:",
-      "— Олексій Колотенко",
+      "- Олексій Колотенко",
     ]) {
       expect(screen.queryByText(text)).toBeNull();
     }
     expect(screen.queryByText(/^Причина: /)).toBeNull();
     expect(screen.queryByText(/^Пояснення/)).toBeNull();
-    expect(screen.queryByText(/^— /)).toBeNull();
+    expect(screen.queryByText(/^- /)).toBeNull();
   });
 });

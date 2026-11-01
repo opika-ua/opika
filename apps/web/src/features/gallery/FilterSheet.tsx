@@ -1,436 +1,559 @@
 "use client";
 
-import type {
-  AgeBucket,
-  AnimalSpecies,
-  CityId,
-  CitySlug,
-  FeedFilters,
-  GallerySort,
-  SizeBucket,
-} from "@opika/domain";
-import {
-  AGE_BUCKETS,
-  ANIMAL_SPECIES,
-  ANY,
-  DEFAULT_GALLERY_SORT,
-  isExplicitlySelected,
-  SIZE_BUCKETS,
-} from "@opika/domain";
-import { uk } from "@opika/i18n";
+import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
+import type { CityId, FeedFilters, FilterSelection, GallerySort, RegionId } from "@opika/domain";
+import { ANIMAL_SPECIES, ANY, isExplicitlySelected } from "@opika/domain";
+import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
-import type { CitySlugsById } from "./filter-url";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Button, LinkButton } from "../../ui/Button";
+import { Chip, choiceClass } from "../../ui/Chip";
+import { cx } from "../../ui/cx";
+import { Icon } from "../../ui/Icon";
+import { MultiSelectChecklist } from "../../ui/MultiSelectRows";
+import { Sheet } from "../../ui/Sheet";
+import { activeFilterCount } from "./active-filters";
+import { CityFacetChoices } from "./CityFacetChoices";
+import {
+  ageFacetOptions,
+  cityFacetOptions,
+  type FacetOption,
+  facetAccessibleName,
+  isUnavailable,
+  regionFacetOptions,
+  sexFacetOptions,
+  sizeFacetOptions,
+} from "./facet-options";
+import type { CitySlugsById, PlaceIdsBySlug } from "./filter-url";
 import {
   GALLERY_PARAM,
+  GALLERY_PATH,
   galleryHref,
   parseGalleryQuery,
   resetFiltersHref,
   searchParamsFromFormData,
+  withToggledCity,
+  withToggledRegion,
 } from "./filter-url";
-import { sheetResultCount, showCountLabel } from "./gallery-copy";
+import { showAnimalsLabel } from "./gallery-copy";
+import { liveResultCount } from "./live-count";
+import { cityPickerOptions, pickerRows, pickerSummary, regionPickerOptions } from "./picker-model";
 
 const SHEET_ID = "tvaryny-filters";
 
 interface FilterSheetProps {
   filters: FeedFilters;
   sort: GallerySort;
-  cities: ReadonlyArray<{ id: CityId; name: string; slug: CitySlug }>;
+  /** Slug to id for the form's own submit (`parseGalleryQuery`): the 27 oblasts and the cities on this page. */
+  placeIds: PlaceIdsBySlug;
+  /** Id to slug for every link and checkbox value, cities and oblasts both. */
   citySlugs: CitySlugsById;
-  /** The count a submit right now would show — matches the design's live preview, computed from the *current* (already-applied) filters, same value the rail's result line uses. A checkbox ticked but not yet submitted does not change this number; only a real submission does. */
+  /** A name for every oblast: the filter always lists all 27. */
+  regionLabels: Readonly<Record<string, string>>;
+  /** The labels of the cities the URL names, so a chosen city with no animal stays clearable. */
+  selectedCities: readonly CityLabelView[];
+  /**
+   * What «Показати …» shows, from the applied filters: a count for choices not yet applied would
+   * need a request per tick, which this sheet does not make.
+   */
   resultCount: number;
-  /** For the sheet's own "Підходить N тварин у M притулках." sentence — `Opika Registry System.dc.html`'s B6 frame, same sentence the rail's closing box shows. */
-  shelterCount: number;
+  /** Per-option counts for the applied filters (`gallery.facetCounts`). */
+  counts: GalleryFacetCounts;
+  /** A shelter page: its own path for every link and the form, and no Область/Місто rows. */
+  scope?: { basePath: string };
 }
 
-const SPECIES_LABEL: Record<AnimalSpecies, string> = {
-  dog: uk.filters.speciesDogs,
-  cat: uk.filters.speciesCats,
-};
-const SIZE_LABEL: Record<SizeBucket, string> = {
-  small: uk.filters.sizeSmall,
-  medium: uk.filters.sizeMedium,
-  large: uk.filters.sizeLarge,
-};
-const AGE_LABEL: Record<AgeBucket, string> = {
-  baby: uk.filters.ageBaby,
-  young: uk.filters.ageYoung,
-  adult: uk.filters.ageAdult,
-  senior: uk.filters.ageSenior,
-};
+const LEGEND = "text-label text-ink";
 
 /**
- * `has-[:focus-visible]:` is not a nicety here: the real `<input>` is
- * `sr-only` (1x1, clipped), so the focus ring the browser draws on it is
- * drawn on a pixel nobody can see. Without lifting that ring onto the
- * visible `<label>`, a keyboard user tabbing through the sheet has no
- * indication of where they are — docs/design/README.md's "Keyboard" table
- * routes Tab through these controls, and its focus-visible rule
- * (`outline: 2px solid #4F6B3A; outline-offset: 2px`) is stated as "never
- * removed", which drawing it where nobody can see it is a way of removing.
+ * One group of choice pills with counts: real checkboxes, so the GET form submits them with no
+ * JS (the kit chip lifts the hidden input's focus ring onto the pill). An option with nothing to
+ * find is disabled unless ticked, when it must stay clearable.
  */
-const CHIP_LABEL_BASE =
-  "min-h-12 inline-flex items-center rounded-rg-chip px-5 font-rg text-[15px] leading-none cursor-pointer transition-colors duration-[120ms] ease-rg has-[:checked]:bg-rg-ink has-[:checked]:text-rg-surface has-[:checked]:font-medium bg-rg-fill text-rg-ink has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-rg-registry has-[:focus-visible]:outline-offset-[3px]";
+function FacetGroup<T extends string>({
+  legend,
+  name,
+  options,
+  selection,
+  submitValue = (value) => value,
+  leading,
+  windowed,
+}: {
+  legend: string;
+  name: string;
+  options: readonly FacetOption<T>[];
+  selection: FilterSelection<T>;
+  /** The submitted value when it isn't the option's id (a city submits its slug). */
+  submitValue?: (value: T) => string;
+  leading?: ReactNode;
+  /** The city group: windows a long list (first dozen, show all, local filter) instead of drawing every option. */
+  windowed?: { idPrefix: string };
+}) {
+  const chip = (option: FacetOption<T>) => (
+    <Chip
+      key={option.value}
+      kind="choice"
+      control="checkbox"
+      name={name}
+      value={submitValue(option.value)}
+      defaultChecked={isExplicitlySelected(selection, option.value)}
+      disabled={isUnavailable(option, selection)}
+      count={option.count}
+      accessibleName={facetAccessibleName(option)}
+    >
+      {option.label}
+    </Chip>
+  );
+  return (
+    <fieldset className="flex flex-col gap-3">
+      <legend className={LEGEND}>{legend}</legend>
+      <div className="flex flex-wrap gap-3">
+        {leading}
+        {windowed ? (
+          <CityFacetChoices
+            idPrefix={windowed.idPrefix}
+            options={options}
+            selection={selection}
+            renderOption={chip}
+          />
+        ) : (
+          options.map(chip)
+        )}
+      </div>
+    </fieldset>
+  );
+}
+
+type View = "main" | "region" | "city";
+
+/** A row of the sheet that opens a drill-down: the label, the current choice (or «Усі») and «›». */
+function DrillRow({
+  label,
+  summary,
+  onOpen,
+}: {
+  label: string;
+  summary: string;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      // The visible choice ends the name, so voice control can say what it sees (WCAG 2.5.3).
+      aria-label={`${label}, ${summary}`}
+      className="flex min-h-target w-full cursor-pointer items-center justify-between gap-3 text-left text-body text-ink focus-ring"
+    >
+      <span className="text-label">{label}</span>
+      <span className="flex min-w-0 items-center gap-1 text-ink-2">
+        <span className="truncate text-body">{summary}</span>
+        <Icon name="chevron-right" size="md" />
+      </span>
+    </button>
+  );
+}
 
 /**
- * docs/design/README.md, "03 · Фільтри" + "Rail, count, sort": "Below
- * 1024 it collapses into the existing 03 sheet, extended with sort."
+ * Below 1024px the filters live in one dialog (`docs/design/README.md`, "03 · Фільтри", as reshaped
+ * by filters v2): full-screen on a phone, a centred dialog on a tablet. The kit `Sheet` supplies the
+ * trigger, the no-JS `:target` reveal and the native modal `<dialog>` (focus trap, Esc, scroll lock,
+ * focus return). The content is a `<form method="GET">`: nothing is applied until «Показати …»
+ * (the desktop fields apply at once), and ✕ discards the edits.
  *
- * A native `<dialog>`, server-rendered without `open`, made visible with
- * **zero JS** via `:target` (`globals.css`, `#tvaryny-filters:target`) —
- * the trigger is a plain `<a href="#tvaryny-filters">`, an ordinary
- * anchor jump. The `<form method="GET">` inside needs no JS either:
- * checkboxes/radios sharing a `name` are exactly the native primitive a
- * GET submission turns into repeated query params, which
- * `filter-url.ts`'s `parseGalleryQuery` reads directly.
- *
- * JS, when present, upgrades the same markup rather than replacing it:
- * the trigger's click is intercepted to call `showModal()` instead of
- * navigating the hash (real focus trap, real Esc-to-close, a backdrop —
- * all native `<dialog>` behaviour, not hand-rolled), and this component
- * adds only what `showModal()` doesn't provide for free: locking
- * background scroll, and returning focus to the trigger on close.
+ * With JS, Область and Місто are rows that open a full-screen checklist with a search field (a
+ * drill-down inside the same dialog); their choices live in `draft` and are submitted as hidden
+ * inputs. Without JS the drill-downs cannot open, so the server-rendered form falls back to the
+ * pill groups for those two, and the browser submits the same params either way.
  */
 export function FilterSheet({
   filters,
   sort,
-  cities,
+  placeIds,
   citySlugs,
+  regionLabels,
+  selectedCities,
   resultCount,
-  shelterCount,
+  counts,
+  scope,
 }: FilterSheetProps) {
+  const basePath = scope?.basePath;
   const router = useRouter();
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const triggerRef = useRef<HTMLAnchorElement>(null);
+  const [js, setJs] = useState(false);
+  useEffect(() => setJs(true), []);
+  const [view, setView] = useState<View>("main");
+  const [draft, setDraft] = useState<FeedFilters>(filters);
+  const [pinned, setPinned] = useState<ReadonlySet<string>>(() => new Set());
+  const [query, setQuery] = useState("");
+  // Bumped when the dialog closes, so the uncontrolled pill checkboxes forget unsaved ticks.
+  const [discards, setDiscards] = useState(0);
+  // The pill groups' ticks, read from the form on every change (they are uncontrolled inputs).
+  const [ticked, setTicked] = useState<FeedFilters | null>(null);
 
-  /**
-   * The reverse of `citySlugs`, needed only here: `onSubmit` reads the
-   * form's own submission back through `parseGalleryQuery`, which resolves a
-   * city token by slug. Derived from the same `cities` prop `citySlugs`
-   * itself was built from at the call site, so the two can never disagree.
-   */
-  const citiesBySlug = new Map(cities.map((city) => [city.slug, city.id]));
-
+  // A change that did not come from this form (a chip's ✕, the desktop fields) is the new baseline.
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
+    setDraft(filters);
+    setTicked(null);
+  }, [filters]);
 
-    const onClose = () => {
-      document.body.style.overflow = "";
-      triggerRef.current?.focus();
-      // Clear the fragment left by the no-JS path (or by showModal() having
-      // been triggered from a #tvaryny-filters link) so a reload doesn't
-      // immediately re-show the sheet.
-      if (window.location.hash === `#${SHEET_ID}`) {
-        history.replaceState(null, "", window.location.pathname + window.location.search);
-      }
+  // Escape inside a drill-down steps back to the sheet's main screen; Escape there closes the sheet.
+  const viewRef = useRef<View>("main");
+  viewRef.current = view;
+  useEffect(() => {
+    const dialog = document.getElementById(SHEET_ID);
+    if (!dialog) return;
+    const onCancel = (event: Event) => {
+      if (viewRef.current === "main") return;
+      event.preventDefault();
+      setView("main");
     };
-    dialog.addEventListener("close", onClose);
-    return () => dialog.removeEventListener("close", onClose);
+    dialog.addEventListener("cancel", onCancel);
+    return () => dialog.removeEventListener("cancel", onCancel);
   }, []);
 
-  const openWithJs = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    event.preventDefault();
-    document.body.style.overflow = "hidden";
-    dialog.showModal();
-  };
+  const appliedKey = galleryHref(filters, sort, citySlugs, basePath);
+  const slugOf = (id: CityId | RegionId): string => citySlugs.get(id) ?? id;
 
-  /**
-   * Two ways this sheet can be on screen, and only one of them has an
-   * `open` attribute. `showModal()` sets it; the no-JS `:target` reveal
-   * (`globals.css`) does not — and `HTMLDialogElement.close()` on a dialog
-   * without `open` returns immediately, firing no `close` event. So when
-   * the sheet was revealed by the fragment — a click on the trigger before
-   * hydration finished, or a shared/bookmarked URL already carrying
-   * `#tvaryny-filters` — swallowing this anchor's own navigation would
-   * leave the ✕ dead and the sheet unclosable. Falling through to the
-   * plain `href="#"` clears the fragment, which is exactly what closes it
-   * in that state, with or without JS.
-   */
-  const closeWithJs = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    const dialog = dialogRef.current;
-    if (!dialog?.open) return;
-    event.preventDefault();
-    dialog.close();
-  };
-
-  /**
-   * `router.replace`, not the default push a real `<a>`/form GET produces
-   * — same "ten clicks, ten history entries" reasoning as `ReplaceNav`
-   * (`apps/web/src/features/gallery/ReplaceNav.tsx`), applied here instead
-   * of wrapping this component in it: `FilterSheet` is already a Client
-   * Component with its own dialog-close bookkeeping, so a second layer of
-   * click interception would just be two mechanisms doing the same job.
-   */
-  const navigateWithJs = (href: string) => {
-    dialogRef.current?.close();
+  // `router.replace`, not the push a real `<a>`/GET produces: ten filter changes should not be ten
+  // history entries (same reasoning as `ReplaceNav`). Closing the dialog fires the Sheet's own
+  // close handling (scroll lock, focus return, fragment cleanup).
+  const navigateWithJs = (from: Element, href: string) => {
+    from.closest("dialog")?.close();
     router.replace(href, { scroll: false });
-  };
-
-  /**
-   * "Уся Київщина" drops the city constraint and nothing else — the same
-   * href the rail's own chip carries (`FilterRail`), and what
-   * docs/design/README.md's deviation note says the string means: "what
-   * the button actually does today, which is drop the city filter
-   * entirely." It is a МІСТО-group chip, not a second "Скинути": clearing
-   * species/size/age from here would silently discard choices the adopter
-   * made in three other groups.
-   */
-  const allCitiesHref = galleryHref({ ...filters, cities: ANY }, sort, citySlugs);
-
-  const onAllCitiesClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    navigateWithJs(allCitiesHref);
   };
 
   const onResetClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    navigateWithJs(resetFiltersHref(sort));
+    navigateWithJs(event.currentTarget, resetFiltersHref(sort, basePath));
   };
 
-  /**
-   * The submitted form is read back through the same `parseGalleryQuery` a
-   * cold request goes through and written out through the same
-   * `galleryHref` the rail's chips use, rather than assembling a URL of
-   * its own — so the same state reached through the sheet and through the
-   * rail produces the same URL, not two equivalent-but-different-looking
-   * ones. Two things that would otherwise need restating here come free
-   * with that: a radio group always submits, so a native submission always
-   * carries `sort` even at its default, and `galleryHref` already omits a
-   * default sort; and a group with every value checked canonicalizes back
-   * to "unconstrained" instead of spelling out the universe.
-   *
-   * The no-JS path is untouched by this — the browser submits the form
-   * itself and the server reads the repeated params through the same
-   * parser. This enhances that path; it does not replace it.
-   */
+  // The submitted form goes back through the same parser and `galleryHref` the rail's chips use,
+  // so the same state reached either way yields the same URL (a default sort is omitted, a group
+  // with every value ticked collapses to unconstrained). Without JS the browser submits the form
+  // itself and the server reads the same params.
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const submitted = parseGalleryQuery(
       searchParamsFromFormData(new FormData(event.currentTarget)),
-      citiesBySlug,
+      placeIds,
     );
-    navigateWithJs(galleryHref(submitted.filters, submitted.sort, citySlugs));
+    navigateWithJs(
+      event.currentTarget,
+      galleryHref(submitted.filters, submitted.sort, citySlugs, basePath),
+    );
   };
 
-  return (
-    <>
-      <a
-        ref={triggerRef}
-        href={`#${SHEET_ID}`}
-        onClick={openWithJs}
-        data-testid="filter-sheet-trigger"
-        className="font-rg desktop:hidden min-h-12 inline-flex items-center rounded-rg-button bg-rg-fill px-4 text-[15px] text-rg-ink focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-      >
-        {uk.feed.filtersLabel}
-      </a>
+  const regionOfCity = new Map<CityId, RegionId>([
+    ...counts.cities.map((entry) => [entry.cityId, entry.label.regionId] as const),
+    ...selectedCities.map((city) => [city.id, city.regionId] as const),
+  ]);
+  const regionOptions = regionPickerOptions(counts, regionLabels, draft.regions);
+  const cityOptions = cityPickerOptions(counts, draft.regions, draft.cities, selectedCities);
+  const regionValues = draft.regions.kind === "oneOf" ? draft.regions.values : [];
+  const cityValues = draft.cities.kind === "oneOf" ? draft.cities.values : [];
+  const anySummary = (options: typeof regionOptions, values: readonly string[]) =>
+    values.length === 0 ? uk.filters.anyValue : pickerSummary(options, values);
 
-      <dialog
-        ref={dialogRef}
-        id={SHEET_ID}
-        aria-label={uk.filters.title}
-        data-testid="filter-sheet"
-        // Fixed positioning is stated explicitly rather than left to the
-        // <dialog>'s native top-layer centering: showModal() DOES apply its
-        // own default centered placement, but this component also has to
-        // render as a real, correctly-positioned overlay with no JS at all
-        // (revealed only by :target, never entering the top layer), where
-        // nothing but this component's own CSS positions it. Relying on
-        // showModal()'s defaults for the JS path and something else for the
-        // no-JS path would be two different layouts to keep in sync;
-        // stating it once here covers both by construction.
-        //
-        // `z-50` is load-bearing, not decorative: `position: fixed` alone
-        // does not guarantee paint order over later DOM siblings unless a
-        // stacking context is established — without an explicit z-index,
-        // the gallery grid (which comes after this element in the tree)
-        // painted its cards' photos through the sheet in the no-JS path,
-        // caught by an actual browser render, not by reasoning about it.
-        className="font-rg desktop:hidden fixed inset-x-0 bottom-0 top-auto z-50 m-0 w-full max-w-none max-h-[85vh] overflow-y-auto rounded-t-[24px] rounded-b-none border-0 bg-rg-surface p-0 shadow-rg-card backdrop:bg-[#B9B9B5]/80"
-      >
-        {/*
-          `key` is what keeps this form honest. Its inputs are uncontrolled
-          (`defaultChecked`), and React writes a changed `defaultChecked`
-          to the *attribute* only — an input the adopter has actually
-          clicked keeps its own dirty checkedness regardless. So after any
-          filter change that did NOT come from submitting this form
-          ("Скинути", "Уся Київщина", the back button), the boxes would go
-          on showing what was last clicked while the URL says something
-          else: hidden client state outliving the URL that is supposed to
-          be the only source of truth. Keying the subtree on the applied
-          state remounts the inputs whenever it changes, so what is ticked
-          is always what the address bar says.
-        */}
-        <form
-          key={galleryHref(filters, sort, citySlugs)}
-          method="GET"
-          action="/tvaryny"
-          onSubmit={onSubmit}
-          className="flex flex-col gap-7 pt-4 px-5 pb-6"
-        >
-          <div className="flex items-center justify-between">
+  const openView = (next: Exclude<View, "main">) => {
+    setPinned(new Set<string>(next === "region" ? regionValues : cityValues));
+    setQuery("");
+    setView(next);
+  };
+
+  const live: FeedFilters = {
+    ...(ticked ?? filters),
+    regions: draft.regions,
+    cities: draft.cities,
+  };
+  const shownCount = js ? liveResultCount(filters, live, counts, resultCount) : resultCount;
+  const activeCount = activeFilterCount(filters);
+  const species = ANIMAL_SPECIES.find((value) => isExplicitlySelected(filters.species, value));
+
+  const form = (close: ReactNode) => (
+    <form
+      key={`${appliedKey}-${discards}`}
+      method="GET"
+      action={basePath ?? GALLERY_PATH}
+      onSubmit={onSubmit}
+      onChange={(event) =>
+        setTicked(
+          parseGalleryQuery(searchParamsFromFormData(new FormData(event.currentTarget)), placeIds)
+            .filters,
+        )
+      }
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      {/* Species and sort have their own controls on the page; a GET submit must carry them along. */}
+      <input type="hidden" name={GALLERY_PARAM.species} value={species ?? ""} />
+      <input type="hidden" name={GALLERY_PARAM.sort} value={sort} />
+      {js
+        ? [
+            ...regionValues.map((id) => (
+              <input key={`r-${id}`} type="hidden" name={GALLERY_PARAM.region} value={slugOf(id)} />
+            )),
+            ...cityValues.map((id) => (
+              <input key={`c-${id}`} type="hidden" name={GALLERY_PARAM.city} value={slugOf(id)} />
+            )),
+          ]
+        : null}
+
+      <div className={cx("min-h-0 flex-1 flex-col", view === "main" ? "flex" : "hidden")}>
+        <div className="flex items-center justify-between gap-4 px-5 pt-3 pb-2">
+          <h2 className="text-title text-ink">{uk.filters.title}</h2>
+          {close}
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-5 pb-6">
+          {scope ? null : js ? (
+            <div className="flex flex-col divide-y-2 divide-line">
+              <DrillRow
+                label={uk.filters.region}
+                summary={anySummary(regionOptions, regionValues)}
+                onOpen={() => openView("region")}
+              />
+              <DrillRow
+                label={uk.filters.city}
+                summary={anySummary(cityOptions, cityValues)}
+                onOpen={() => openView("city")}
+              />
+            </div>
+          ) : (
+            <>
+              <FacetGroup
+                legend={uk.filters.region}
+                name={GALLERY_PARAM.region}
+                options={regionFacetOptions(counts, regionLabels, filters.regions)}
+                selection={filters.regions}
+                submitValue={slugOf}
+                leading={
+                  <a
+                    href={galleryHref({ ...filters, regions: ANY }, sort, citySlugs)}
+                    className={cx(
+                      choiceClass(filters.regions.kind === "any" ? "on" : "off"),
+                      "focus-ring",
+                    )}
+                  >
+                    {uk.filters.allRegions}
+                  </a>
+                }
+              />
+              <FacetGroup
+                legend={uk.filters.city}
+                name={GALLERY_PARAM.city}
+                options={cityFacetOptions(counts, filters.regions, filters.cities, selectedCities)}
+                selection={filters.cities}
+                submitValue={slugOf}
+                windowed={{ idPrefix: "sheet" }}
+                leading={
+                  <a
+                    href={galleryHref({ ...filters, cities: ANY }, sort, citySlugs)}
+                    className={cx(
+                      choiceClass(filters.cities.kind === "any" ? "on" : "off"),
+                      "focus-ring",
+                    )}
+                  >
+                    {uk.filters.allCities}
+                  </a>
+                }
+              />
+            </>
+          )}
+
+          <FacetGroup
+            legend={uk.filters.age}
+            name={GALLERY_PARAM.age}
+            options={ageFacetOptions(counts)}
+            selection={filters.ages}
+          />
+          <FacetGroup
+            legend={uk.filters.size}
+            name={GALLERY_PARAM.size}
+            options={sizeFacetOptions(counts)}
+            selection={filters.sizes}
+          />
+          <FacetGroup
+            legend={uk.filters.sex}
+            name={GALLERY_PARAM.sex}
+            options={sexFacetOptions(counts)}
+            selection={filters.sexes}
+          />
+        </div>
+        <div className="flex gap-2 border-t-2 border-line px-5 pt-3 pb-safe">
+          <LinkButton
+            variant="secondary"
+            href={resetFiltersHref(sort, basePath)}
+            onClick={onResetClick}
+            prefetch={false}
+          >
+            {uk.filters.reset}
+          </LinkButton>
+          <Button type="submit" className="flex-1">
+            {shownCount === null ? uk.filters.showResults : showAnimalsLabel(shownCount)}
+          </Button>
+        </div>
+      </div>
+
+      {js && view !== "main" ? (
+        <DrillDown
+          title={view === "region" ? uk.filters.region : uk.filters.city}
+          searchLabel={view === "region" ? uk.filters.findRegionField : uk.filters.findCityField}
+          query={query}
+          onQuery={setQuery}
+          options={view === "region" ? regionOptions : cityOptions}
+          pinned={pinned}
+          grouped={view === "region"}
+          noMatchHint={view === "city" ? uk.filters.cityNoMatchHint : undefined}
+          onToggle={(value) =>
+            setDraft((current) =>
+              view === "region"
+                ? withToggledRegion(current, value as RegionId, regionOfCity)
+                : withToggledCity(current, value as CityId),
+            )
+          }
+          onClear={() =>
+            setDraft((current) =>
+              view === "region"
+                ? { ...current, regions: ANY, cities: ANY }
+                : { ...current, cities: ANY },
+            )
+          }
+          onBack={() => setView("main")}
+          close={close}
+        />
+      ) : null}
+    </form>
+  );
+
+  return (
+    <Sheet
+      id={SHEET_ID}
+      label={uk.filters.title}
+      triggerLabel={
+        activeCount > 0
+          ? `${uk.filters.title}, ${fillTemplate(uk.filters.activeCount, { count: String(activeCount) })}`
+          : uk.filters.title
+      }
+      closeLabel={uk.filters.close}
+      hideFrom="desktop"
+      presentation="screen"
+      onClosed={() => {
+        setView("main");
+        setQuery("");
+        setDraft(filters);
+        setTicked(null);
+        setDiscards((count) => count + 1);
+      }}
+      trigger={
+        <>
+          {uk.filters.title}
+          {activeCount > 0 ? (
             <span
               aria-hidden="true"
-              className="mx-auto h-[5px] w-12 rounded-rg-chip bg-rg-fill-strong absolute top-4 left-1/2 -translate-x-1/2"
-            />
-            <h2 className="text-[24px]/[28px] font-bold tracking-[-0.02em] text-rg-ink">
-              {uk.filters.title}
-            </h2>
-            {/* biome-ignore lint/a11y/useValidAnchor: real navigation, not a disguised button — without JS this is the only way to clear #tvaryny-filters and make the :target rule hide the sheet again; a <button> cannot change the URL fragment on its own. */}
-            <a
-              href="#"
-              onClick={closeWithJs}
-              aria-label="Закрити"
-              className="min-h-12 min-w-12 inline-flex items-center justify-center rounded-rg-button text-rg-ink-3 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
+              className="inline-flex size-6 items-center justify-center rounded-pill bg-accent text-caption text-on-ink"
             >
-              ✕
-            </a>
+              {activeCount}
+            </span>
+          ) : null}
+        </>
+      }
+      triggerClassName="desktop:hidden shrink-0 rounded-pill border-2 border-ink px-4 tablet:px-5"
+      triggerTestId="filter-sheet-trigger"
+      dialogTestId="filter-sheet"
+    >
+      {({ close }) => form(close)}
+    </Sheet>
+  );
+}
+
+/**
+ * The Область / Місто screen: «‹», the title and ✕; the search field pinned under it (not focused
+ * on open, so the on-screen keyboard does not jump up); the checklist; «Очистити» and «Готово»
+ * pinned below. It sits inside the sheet's form, so every control here is `type="button"` and
+ * Enter in the search field only narrows the list.
+ */
+function DrillDown({
+  title,
+  searchLabel,
+  query,
+  onQuery,
+  options,
+  pinned,
+  grouped,
+  noMatchHint,
+  onToggle,
+  onClear,
+  onBack,
+  close,
+}: {
+  title: string;
+  searchLabel: string;
+  query: string;
+  onQuery: (next: string) => void;
+  options: ReturnType<typeof regionPickerOptions>;
+  pinned: ReadonlySet<string>;
+  grouped: boolean;
+  noMatchHint: string | undefined;
+  onToggle: (value: string) => void;
+  onClear: () => void;
+  onBack: () => void;
+  close: ReactNode;
+}) {
+  const rows = pickerRows(options, { query, pinned, grouped });
+  const chosen = options.filter((option) => option.selected).length;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center justify-between gap-2 px-5 pt-3 pb-2">
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label={uk.filters.back}
+          className="inline-flex size-target cursor-pointer items-center justify-center rounded-pill text-ink focus-ring"
+        >
+          <Icon name="chevron-left" />
+        </button>
+        <h2 className="min-w-0 flex-1 text-center text-title text-ink">{title}</h2>
+        {close}
+      </div>
+      <div className="px-5 pb-3">
+        <input
+          type="search"
+          aria-label={searchLabel}
+          placeholder={searchLabel}
+          autoComplete="off"
+          value={query}
+          onChange={(event) => onQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.preventDefault();
+          }}
+          className="h-13 w-full rounded-field border-2 border-line bg-surface px-5 text-label text-ink placeholder:text-ink-2 focus:border-accent"
+        />
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-3">
+        {rows.length === 0 ? (
+          <div className="flex flex-col gap-1 px-2 py-4 text-body text-ink-2">
+            <span>{uk.filters.cityNoMatch}</span>
+            {noMatchHint ? <span>{noMatchHint}</span> : null}
           </div>
-
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.city}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              <a
-                href={allCitiesHref}
-                onClick={onAllCitiesClick}
-                className={`${CHIP_LABEL_BASE} ${filters.cities.kind === "any" ? "bg-rg-ink text-rg-surface font-medium" : ""}`}
-              >
-                {uk.filters.allCities}
-              </a>
-              {cities.map((city) => (
-                <label key={city.id} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="checkbox"
-                    name={GALLERY_PARAM.city}
-                    value={city.slug}
-                    defaultChecked={isExplicitlySelected(filters.cities, city.id)}
-                    className="sr-only"
-                  />
-                  {city.name}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.species}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {ANIMAL_SPECIES.map((species) => (
-                <label key={species} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="checkbox"
-                    name={GALLERY_PARAM.species}
-                    value={species}
-                    defaultChecked={isExplicitlySelected(filters.species, species)}
-                    className="sr-only"
-                  />
-                  {SPECIES_LABEL[species]}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.size}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {SIZE_BUCKETS.map((size) => (
-                <label key={size} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="checkbox"
-                    name={GALLERY_PARAM.size}
-                    value={size}
-                    defaultChecked={isExplicitlySelected(filters.sizes, size)}
-                    className="sr-only"
-                  />
-                  {SIZE_LABEL[size]}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.age}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {AGE_BUCKETS.map((age) => (
-                <label key={age} className={CHIP_LABEL_BASE}>
-                  <input
-                    type="checkbox"
-                    name={GALLERY_PARAM.age}
-                    value={age}
-                    defaultChecked={isExplicitlySelected(filters.ages, age)}
-                    className="sr-only"
-                  />
-                  {AGE_LABEL[age]}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset className="flex flex-col gap-3">
-            <legend className="font-medium text-xs tracking-[0.06em] text-rg-ink-3 uppercase">
-              {uk.filters.sortLabel}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              <label className={CHIP_LABEL_BASE}>
-                <input
-                  type="radio"
-                  name={GALLERY_PARAM.sort}
-                  value="freshest"
-                  defaultChecked={sort === DEFAULT_GALLERY_SORT}
-                  className="sr-only"
-                />
-                {uk.filters.sortFreshest}
-              </label>
-              <label className={CHIP_LABEL_BASE}>
-                <input
-                  type="radio"
-                  name={GALLERY_PARAM.sort}
-                  value="longest_waiting"
-                  defaultChecked={sort === "longest_waiting"}
-                  className="sr-only"
-                />
-                {uk.filters.sortLongestWaiting}
-              </label>
-            </div>
-          </fieldset>
-
-          {/* docs/design/README.md, "Sheet": the same closing sentence pair
-            the rail's own box shows, immediately above the footer buttons
-            here rather than in its own filled block — `Opika Registry
-            System.dc.html`'s B6 frame nests both directly in the form's
-            own flow, not in a separate fill. */}
-          <div className="flex flex-col gap-3">
-            <p className="text-[15px]/[22px] text-rg-ink-2">
-              {sheetResultCount(resultCount, shelterCount, filters.cities.kind !== "any")}
-            </p>
-            <div className="flex gap-2">
-              <a
-                href={resetFiltersHref(sort)}
-                onClick={onResetClick}
-                className="min-h-14 flex items-center justify-center rounded-rg-button bg-rg-fill text-rg-ink font-medium text-[15px] px-6 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-              >
-                {uk.filters.reset}
-              </a>
-              <button
-                type="submit"
-                className="min-h-14 flex-1 rounded-rg-button bg-rg-ink text-rg-surface font-medium text-[15px] cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-rg-registry focus-visible:outline-offset-[3px]"
-              >
-                {showCountLabel(resultCount)}
-              </button>
-            </div>
-          </div>
-        </form>
-      </dialog>
-    </>
+        ) : (
+          <MultiSelectChecklist
+            rows={rows}
+            idPrefix={`drill-${grouped ? "region" : "city"}`}
+            onToggle={onToggle}
+            label={title}
+          />
+        )}
+        <p role="status" className="sr-only">
+          {query.trim() === ""
+            ? ""
+            : fillTemplate(uk.filters.cityFound, { count: String(rows.length) })}
+        </p>
+      </div>
+      <div className="flex items-center gap-2 border-t-2 border-line px-5 pt-3 pb-safe">
+        <Button type="button" variant="secondary" onClick={onClear} disabled={chosen === 0}>
+          {uk.filters.clearSelection}
+        </Button>
+        <Button type="button" className="flex-1" onClick={onBack}>
+          {uk.filters.done}
+        </Button>
+      </div>
+    </div>
   );
 }

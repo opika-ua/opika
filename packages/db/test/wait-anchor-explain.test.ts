@@ -1,9 +1,12 @@
 import {
   type Animal,
   type CityId,
+  EVERYONE_SCOPE,
   type FeedFilters,
+  type GalleryScope,
   type GallerySort,
   NO_FILTERS,
+  type ShelterId,
 } from "@opika/domain";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -17,7 +20,7 @@ import { makeAnimal, makeCity, makeShelter, setupTestDatabase } from "../src/tes
 import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 
 /**
- * The M2 bar — `EXPLAIN` shows an index scan and no `Sort` node — applied to
+ * The M2 bar - `EXPLAIN` shows an index scan and no `Sort` node - applied to
  * the longest-waiting ordering, filtered and unfiltered.
  *
  * `docs/gallery-contract-decisions.md` §2 argues for extending the existing
@@ -28,7 +31,7 @@ import { TEST_DATABASE_URL } from "../src/test-utils/setup";
  * `docs/standing-constraints.md` records three times over.
  *
  * The query being explained is the one `galleryRepo.list` actually generates,
- * captured off the wire — not a hand-written approximation of it. A test that
+ * captured off the wire - not a hand-written approximation of it. A test that
  * explains its own SQL proves the index can serve *some* query; it does not
  * prove the repository asks one the index can serve, which is the thing that
  * would silently regress.
@@ -37,7 +40,7 @@ import { TEST_DATABASE_URL } from "../src/test-utils/setup";
  *
  * Proves: for each ordering, an index exists that supplies it, and
  * `galleryRepo.list`'s own query can be answered through that index with no
- * `Sort` node. Both assertions fail when the index is wrong — verified by
+ * `Sort` node. Both assertions fail when the index is wrong - verified by
  * mutation: reordering `animals_wait_anchor_idx`'s columns fails the
  * unfiltered case, and putting `listing_kind` back at the front of
  * `animals_wait_anchor_filtered_idx` (the shape
@@ -48,7 +51,7 @@ import { TEST_DATABASE_URL } from "../src/test-utils/setup";
  * Does not prove: that Postgres *chooses* those plans under default settings.
  * It often will not, and the reason is structural rather than a missing index.
  * `count(*) OVER()` makes the window function consume every matching row, so
- * the `LIMIT` cannot stop an ordered scan early — which is the entire
+ * the `LIMIT` cannot stop an ordered scan early - which is the entire
  * advantage an ordered index has over "cheapest scan, then sort". With that
  * advantage gone the two plans cost almost the same and the choice turns on
  * table statistics: against this file's 1,500-row fixture the planner sorts,
@@ -57,7 +60,7 @@ import { TEST_DATABASE_URL } from "../src/test-utils/setup";
  *
  * This is recorded rather than resolved because resolving it means revisiting
  * `docs/gallery-contract-decisions.md` §3's decision to fold the count into
- * the page query via a window function — a signed-off decision with its own
+ * the page query via a window function - a signed-off decision with its own
  * good reason (one round-trip, and a page that cannot disagree with its own
  * total under a concurrent write). Splitting the count back out would restore
  * the early-stop advantage and make the no-Sort plan the natural choice. At
@@ -79,6 +82,7 @@ const client = postgres(TEST_DATABASE_URL, {
 const db = drizzle(client, { schema });
 
 let filterCity: CityId;
+let scopedShelter: ShelterId;
 
 beforeAll(async () => {
   const setup = await setupTestDatabase();
@@ -96,8 +100,8 @@ beforeAll(async () => {
   filterCity = first.id;
 
   // Many shelters, not one. With a single shelter the planner can satisfy the
-  // verified-shelter semi-join by driving from `shelters` — one row, trivially
-  // cheap — which destroys the ordering an index scan on `animals` would have
+  // verified-shelter semi-join by driving from `shelters` - one row, trivially
+  // cheap - which destroys the ordering an index scan on `animals` would have
   // provided and makes a `Sort` node the cheapest plan for reasons that have
   // nothing to do with the indexes under test. The real corpus has dozens of
   // shelters; a fixture with one asks a different question.
@@ -122,6 +126,9 @@ beforeAll(async () => {
     });
   });
   for (const shelter of shelterList) await shelters.insert(shelter);
+  const firstShelter = shelterList[0];
+  if (!firstShelter) throw new Error("no shelter seeded");
+  scopedShelter = firstShelter.id;
 
   const species = ["dog", "cat"] as const;
   const sizes = ["small", "medium", "large"] as const;
@@ -168,13 +175,15 @@ afterAll(async () => {
  * The page query is the one carrying `count(*) OVER()`; the count-only queries
  * the repo may also run are not the ones with an ordering to preserve.
  */
-async function explainGalleryQuery(opts: {
+async function captureGalleryQuery(opts: {
   filters: FeedFilters;
+  scope: GalleryScope;
   sort: GallerySort;
-}): Promise<string> {
+}): Promise<{ query: string; parameters: readonly unknown[] }> {
   captured.length = 0;
   await galleryRepo(db).list({
     filters: opts.filters,
+    scope: opts.scope,
     sort: opts.sort,
     page: 1,
     pageSize: 24,
@@ -182,20 +191,28 @@ async function explainGalleryQuery(opts: {
   });
 
   const pageQuery = captured.find((statement) => statement.query.includes("count(*) OVER()"));
-  if (!pageQuery) throw new Error("the page query was not captured — the debug hook is not wired");
+  if (!pageQuery) throw new Error("the page query was not captured - the debug hook is not wired");
+  return pageQuery;
+}
+
+async function explainGalleryQuery(opts: {
+  filters: FeedFilters;
+  sort: GallerySort;
+}): Promise<string> {
+  const pageQuery = await captureGalleryQuery({ ...opts, scope: EVERYONE_SCOPE });
 
   // The planner is constrained to the plan family that *can* preserve an
   // ordering, so the question asked is the one that matters: is there an index
   // able to serve this ordering, or must the query sort no matter what.
   //
   // Sequential and bitmap scans are off for the reason `feed-explain.test.ts`
-  // already turns them off — on a fixture-sized table a seq scan plus a sort is
+  // already turns them off - on a fixture-sized table a seq scan plus a sort is
   // genuinely cheaper, and choosing it says nothing about the index. Hash and
   // merge joins are off one level up, because the verified-shelter semi-join
   // under either discards its input's ordering. `enable_sort` is off last:
   // Postgres does not forbid a sort when it is off, it prices one at a
   // prohibitive cost, so a plan without one is chosen *if any exists*. That is
-  // precisely the question — and it is why removing an index makes these tests
+  // precisely the question - and it is why removing an index makes these tests
   // fail rather than merely get slower.
   //
   // See the file header for what this deliberately does not claim.
@@ -232,10 +249,12 @@ describe("longest-waiting EXPLAIN", () => {
     // §2 is explicit that waiving the no-Sort bar here, to save one index, sets
     // a worse precedent than the write amplification costs.
     const filters: FeedFilters = {
+      regions: { kind: "any" },
       cities: { kind: "oneOf", values: [filterCity] },
       species: { kind: "oneOf", values: ["dog"] },
       sizes: { kind: "oneOf", values: ["small"] },
       ages: { kind: "any" },
+      sexes: { kind: "any" },
     };
 
     const plan = await explainGalleryQuery({ filters, sort: "longest_waiting" });
@@ -253,4 +272,37 @@ describe("longest-waiting EXPLAIN", () => {
     expect(plan, plan).not.toContain("Sort ");
     expect(plan, plan).toContain("animals_feed_unfiltered_idx");
   });
+});
+
+/**
+ * The shelter page's list (DR1-D4): one shelter's animals, both sorts.
+ *
+ * A different bar from the one above, on purpose. A shelter lists tens of
+ * animals, not the whole registry, so the plan that matters is "find this
+ * shelter's rows through an index" rather than "walk the registry in sort
+ * order": a `Sort` node over one shelter's few rows is the cheap plan, and a
+ * composite `(shelter_id, sort key)` index would buy nothing at that size while
+ * adding write cost to every animal row. So: the default planner settings, as
+ * production runs them, and the assertion is that `animals` is reached through
+ * `animals_shelter_id_idx`, never by a sequential scan. No migration.
+ */
+describe("a shelter's own list EXPLAIN", () => {
+  for (const sort of ["freshest", "longest_waiting"] as const) {
+    it(`${sort}: reaches the shelter's rows through animals_shelter_id_idx, no full scan`, async () => {
+      const pageQuery = await captureGalleryQuery({
+        filters: NO_FILTERS,
+        scope: { kind: "shelter", shelterId: scopedShelter },
+        sort,
+      });
+      const rows = await client.unsafe(`EXPLAIN (FORMAT TEXT) ${pageQuery.query}`, [
+        ...pageQuery.parameters,
+      ] as never[]);
+      const plan = Array.from(rows as Iterable<Record<string, unknown>>)
+        .map((row) => row["QUERY PLAN"])
+        .join("\n");
+
+      expect(plan, plan).toContain("animals_shelter_id_idx");
+      expect(plan, plan).not.toContain("Seq Scan on animals");
+    });
+  }
 });

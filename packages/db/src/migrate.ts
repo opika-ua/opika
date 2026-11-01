@@ -2,7 +2,7 @@ import { applyMigrations, dotenvFilesIn, runMigrate } from "./migrate-run";
 import { assertProductionWriteAllowed } from "./prod-guard";
 
 /**
- * `pnpm db:migrate`: the production-write guard, then the committed migrations, applied in this
+ * `pnpm --filter @opika/db db:migrate`: the production-write guard, then the committed migrations, applied in this
  * process to the URL the guard checked (`migrate-run.ts`, PG-F3).
  *
  * `--prod` and `--expect <ep>` are its only arguments. A non-local target needs `--expect`

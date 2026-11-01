@@ -3,6 +3,7 @@ import {
   adopterRepo,
   animalRepo,
   cityRepo,
+  kabinetInviteTokenRepo,
   kabinetShelterRepo,
   shelterRepo,
 } from "@opika/db/repos";
@@ -12,6 +13,8 @@ import {
   authMember,
   authSession,
   authUser,
+  authVerification,
+  cities,
   superAdmins,
   supportSessions,
 } from "@opika/db/schema";
@@ -20,12 +23,14 @@ import {
   makeAnimal,
   makeCity,
   makeShelter,
+  markInvitationAccepted,
   setupTestDatabase,
   truncateAll,
 } from "@opika/db/test";
 import {
   type AdopterId,
   donationProviderOf,
+  ERASED_ADMIN_EMAIL,
   type ModeratorId,
   publicLocationOf,
   type Shelter,
@@ -55,7 +60,9 @@ import {
   type InvitationMessage,
   type InvitationSender,
 } from "./email-senders";
+import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc } from "./rpc-route";
+import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
  * The operator's registry (`registry.*`, `session.exitSupport`) through the
@@ -119,7 +126,7 @@ async function call<T = Record<string, unknown>>(
   } = {},
 ): Promise<Result<T>> {
   const headers: Record<string, string> = { "content-type": "application/json" };
-  if (opts.cookie !== undefined) headers.cookie = opts.cookie;
+  headers.cookie = [TEST_SESSION_COOKIE, opts.cookie].filter(Boolean).join("; ");
   headers.origin ??= "http://localhost";
   const request = new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
     method: "POST",
@@ -129,6 +136,7 @@ async function call<T = Record<string, unknown>>(
   const response = await handleKabinetRpc(request, {
     availability: {
       kind: "available",
+      passwordMail: capturingPasswordMail(),
       sender: { send: async () => {} },
       invites,
       secret: "x",
@@ -218,7 +226,7 @@ const createInput = () => {
 describe("without LOCATION_HMAC_SECRET", () => {
   it("answers 503 to every registry call, and leaves the shelter surface alone", async () => {
     const s = await shelter();
-    // Every one of the nineteen, by path: the route refuses before the input is read.
+    // Every one of the twenty, by path: the route refuses before the input is read.
     const paths = [
       "registry.shelters.list",
       "registry.shelters.byId",
@@ -238,6 +246,7 @@ describe("without LOCATION_HMAC_SECRET", () => {
       "registry.admins.remove",
       "registry.admins.blockedAddresses",
       "registry.history.list",
+      "registry.cities.search",
       "registry.support.enter",
     ];
     const statuses: Record<string, number> = {};
@@ -546,6 +555,19 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
     expect((await reload(s.id)).exactAddress).toEqual(s.exactAddress);
   });
 
+  it("refuses an address in a retired settlement as a bad request, changing nothing", async () => {
+    const s = await shelter();
+    // Every city is retired, which is fine here: only the target's state is read.
+    await db.update(cities).set({ retiredInEdition: "2026-01" });
+    const result = await call("registry.shelters.updateVerifiedData", {
+      shelterId: s.id,
+      expectedVersion: 0,
+      change: { field: "exact_address", next: { ...s.exactAddress, cityId: otherCityId } },
+    });
+    expect(result.status).toBe(400);
+    expect((await reload(s.id)).exactAddress).toEqual(s.exactAddress);
+  });
+
   it("refuses a stale version with CONFLICT and changes nothing", async () => {
     const s = await shelter();
     const result = await call("registry.shelters.updateVerifiedData", {
@@ -605,6 +627,9 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
 
 // ─── the rename (R-UI 4) ────────────────────────────────────────────────────
 
+const ALLOWS = { check: async () => true };
+const UNSPENT = { adopterMints: ALLOWS, newShelterReveals: ALLOWS };
+
 /**
  * A public procedure through the adopter API's own router, as a browser
  * reaches it; `adopterId` stands for a session an adopter already holds.
@@ -622,7 +647,15 @@ async function publicCall<T>(
     }),
     {
       prefix: "/api/rpc",
-      context: { db, adopterId: opts.adopterId ?? null, tokenHash: null, now: NOW, setCookies: [] },
+      context: {
+        db,
+        adopterId: opts.adopterId ?? null,
+        tokenHash: null,
+        now: NOW,
+        // The per-IP budgets (audit F1) aren't what this file tests.
+        caller: { kind: "http", ipKey: "ip:registry-test", budgets: UNSPENT },
+        setCookies: [],
+      },
     },
   );
   if (!result.matched) throw new Error(`No public procedure at ${path}`);
@@ -1282,6 +1315,12 @@ describe("registry.admins.*", () => {
       role: "admin",
       createdAt: NOW,
     });
+    // The real accept flow flips the invitation to `accepted` in the same
+    // statement as the membership - a real accepted admin's own invitation
+    // is never still `pending`. Without this, `erasableIf`'s
+    // `noLiveInvitationElsewhere` check would (rightly) treat the fixture's
+    // own invitation as a live invitation elsewhere.
+    await markInvitationAccepted(db, invitation?.id ?? "");
     return invited.body.id;
   }
 
@@ -1394,8 +1433,20 @@ describe("registry.admins.*", () => {
     ).toBe(404);
   });
 
-  /** RG-Q6: sessions end at once; the last admin may go; it is recorded. */
-  it("removes the last admin, ending every session of theirs, and records it", async () => {
+  /**
+   * RG-Q6: sessions end at once; the last admin may go; it is recorded.
+   *
+   * GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4; Oleksii,
+   * 2026-10-24): this is also the realistic, reachable shape of that
+   * decision - a real, accepted admin removed from their only shelter
+   * (one person administers at most one shelter, `auth_member_user_id_unique`),
+   * who is never a `super_admins` grant either (RG-T10: an operator is
+   * never invited as a shelter admin). So the account is erased and this
+   * same `admin_removed` entry's own email - the one `removeMember` just
+   * wrote - is scrubbed to the placeholder *before this call returns*: "at
+   * the moment of removal" means this request, not a later sweep.
+   */
+  it("removes the last admin, ending every session of theirs, erasing the account, and scrubbing their email from history", async () => {
     const s = await shelter();
     const member = await acceptedAdmin(s.id, "member@example.org");
     const session = (id: string, userId: string) => ({
@@ -1420,12 +1471,26 @@ describe("registry.admins.*", () => {
         .from(authSession)
         .then((rows) => rows.filter((row) => row.userId === member)),
     ).toEqual([]);
+    // The account itself is gone - not just its memberships and sessions.
+    expect(
+      await db
+        .select()
+        .from(authUser)
+        .then((rows) => rows.filter((row) => row.id === member)),
+    ).toEqual([]);
     expect(await history(s.id)).toContainEqual(
       expect.objectContaining({
         kind: "admin_removed",
-        email: "member@example.org",
+        email: ERASED_ADMIN_EMAIL,
         wasPending: false,
       }),
+    );
+    // The earlier admin_invited entry for the same address is scrubbed too, not just admin_removed.
+    expect(await history(s.id)).toContainEqual(
+      expect.objectContaining({ kind: "admin_invited", email: ERASED_ADMIN_EMAIL }),
+    );
+    expect(await history(s.id)).not.toContainEqual(
+      expect.objectContaining({ email: "member@example.org" }),
     );
   });
 
@@ -1538,7 +1603,15 @@ describe("registry.support.enter / session.exitSupport", () => {
 // ─── invitation emails (IN-Q3, IN-E7) ───────────────────────────────────────
 
 describe("invitation emails: every write that makes an invitation live sends one, and the operator sees the outcome (IN-E7)", () => {
-  const INVITE_URL = /^http:\/\/localhost\/kabinet\/vkhid\?zaproshennia=([0-9a-f-]{36})$/;
+  /** PW-2: the link carries a 43-character random token, never the invitation id. */
+  const INVITE_URL = /^http:\/\/localhost\/kabinet\/vkhid\?zaproshennia=([A-Za-z0-9_-]{43})$/;
+
+  /** The invitation each emailed link's token names, through its stored hash only. */
+  const invitationOfLink = async (url: string | undefined) => {
+    const token = INVITE_URL.exec(url ?? "")?.[1];
+    if (token === undefined) return undefined;
+    return (await kabinetInviteTokenRepo(db).landingOf(token))?.invitationId;
+  };
 
   const pendingInvitationIds = async () =>
     (await db.select().from(authInvitation))
@@ -1565,8 +1638,15 @@ describe("invitation emails: every write that makes an invitation live sends one
         validForHours: 72,
       },
     ]);
-    const id = INVITE_URL.exec(invites.sent[0]?.url ?? "")?.[1];
+    const id = await invitationOfLink(invites.sent[0]?.url);
     expect(await pendingInvitationIds()).toEqual([id]);
+    // Stored hashed: no verification row holds the token, or the invitation id as its identifier.
+    const token = INVITE_URL.exec(invites.sent[0]?.url ?? "")?.[1] ?? "";
+    const rows = await db.select().from(authVerification);
+    expect(rows.some((row) => row.identifier.includes(token) || row.value.includes(token))).toBe(
+      false,
+    );
+    expect(rows.map((row) => row.value)).toEqual([`invitation:${id}`]);
   });
 
   /**
@@ -1702,6 +1782,7 @@ describe("invitation emails: every write that makes an invitation live sends one
       name: "Олена",
       email: "olena@example.org",
     });
+    const firstLink = invites.sent[0]?.url;
     invites = capturingInvitationSender({ kind: "failed", reason: "provider_error" });
     const resent = await call<{ invitationEmail: unknown }>("registry.admins.resendInvite", {
       shelterId: s.id,
@@ -1713,9 +1794,13 @@ describe("invitation emails: every write that makes an invitation live sends one
       invitationReminder: null,
     });
     const [id] = await pendingInvitationIds();
-    expect(invites.sent.map((m) => m.url)).toEqual([
-      `http://localhost/kabinet/vkhid?zaproshennia=${id}`,
-    ]);
+    const [link] = invites.sent.map((m) => m.url);
+    expect(invites.sent).toHaveLength(1);
+    expect(link).toMatch(INVITE_URL);
+    // A new link for the same invitation; the first email's link no longer names anything.
+    expect(await invitationOfLink(link)).toBe(id);
+    expect(link).not.toBe(firstLink);
+    expect(await invitationOfLink(firstLink)).toBeUndefined();
   });
 
   it("create: emails the first admin and returns the outcome beside the record", async () => {
@@ -1763,7 +1848,7 @@ describe("after an invitation email is sent, the operator is reminded to tell th
   const expectReminderFrom = (reminder: Reminder, sender: string) => {
     expect(reminder?.kind).toBe("tell_personally");
     expect(reminder?.text).toBe(
-      `Повідомте притулок особисто: запрошення надіслано з ${sender}. Якщо листа не видно — хай перевірить вкладку «Промоакції».`,
+      `Повідомте притулок особисто: запрошення надіслано з ${sender}. Якщо листа не видно – хай перевірить вкладку «Промоакції».`,
     );
   };
 
@@ -2010,5 +2095,81 @@ describe("registry.admins.blockedAddresses: which of a shelter's addresses the p
       shelterId: "51000000-0000-4000-8000-00000000dead",
     });
     expect(result.status).toBe(404);
+  });
+});
+
+/**
+ * The Ukrainian-phone rule on every operator write path that carries a contact: the shelter's
+ * contact on create and on updateProfile, and the evidence's reference contact on create and on
+ * resubmit. Each refuses `+380670000002213` and stores a typed local number as +380XXXXXXXXX.
+ */
+describe("Ukrainian phone rule on the operator's write paths", () => {
+  const TOO_LONG = "+380670000002213";
+  const LOCAL = "(067) 123-45-67";
+  const NORMALISED = "+380671234567";
+
+  it("create: a contact phone with extra digits is refused, a local number is stored normalised", async () => {
+    const bad = createInput();
+    bad.contact = { primary: { kind: "phone", e164: TOO_LONG }, additional: [] } as never;
+    expect((await call("registry.shelters.create", bad)).status).toBe(400);
+
+    const local = createInput();
+    local.contact = { primary: { kind: "phone", e164: LOCAL }, additional: [] } as never;
+    const created = await call<RegistryShelterView>("registry.shelters.create", local);
+    expect(created.status).toBe(200);
+    expect((await reload(created.body.id)).contact.primary).toEqual({
+      kind: "phone",
+      e164: NORMALISED,
+    });
+  });
+
+  it("create: a reference contact with extra digits is refused, a local one is stored normalised", async () => {
+    const withChannel = (e164: string) => {
+      const input = createInput();
+      input.evidence[2] = {
+        kind: "reference_contact",
+        name: "Ветклініка",
+        channel: { kind: "viber", e164 },
+        relationship: "veterinary_clinic",
+      } as never;
+      return input;
+    };
+    expect((await call("registry.shelters.create", withChannel(TOO_LONG))).status).toBe(400);
+    const created = await call<RegistryShelterView>("registry.shelters.create", withChannel(LOCAL));
+    expect(created.status).toBe(200);
+    expect((await reload(created.body.id)).verification.evidence.items).toContainEqual(
+      expect.objectContaining({
+        kind: "reference_contact",
+        channel: { kind: "viber", e164: NORMALISED },
+      }),
+    );
+  });
+
+  it("updateProfile: extra digits are refused and change nothing, a local number is stored normalised", async () => {
+    const s = await shelter();
+    const send = (e164: string) =>
+      call<RegistryShelterView>("registry.shelters.updateProfile", {
+        shelterId: s.id,
+        expectedVersion: 0,
+        contact: { primary: { kind: "phone", e164 }, additional: [] },
+      });
+    expect((await send(TOO_LONG)).status).toBe(400);
+    expect((await reload(s.id)).contact).toEqual(s.contact);
+    expect((await send(LOCAL)).status).toBe(200);
+    expect((await reload(s.id)).contact.primary).toEqual({ kind: "phone", e164: NORMALISED });
+  });
+
+  it("resubmit: a reference contact with extra digits is refused", async () => {
+    const s = await shelter({ verification: STATES.under_review });
+    const evidence = createInput().evidence;
+    evidence[2] = {
+      kind: "reference_contact",
+      name: "Ветклініка",
+      channel: { kind: "phone", e164: TOO_LONG },
+      relationship: "veterinary_clinic",
+    } as never;
+    expect(
+      (await call("registry.verification.resubmit", { shelterId: s.id, evidence })).status,
+    ).toBe(400);
   });
 });

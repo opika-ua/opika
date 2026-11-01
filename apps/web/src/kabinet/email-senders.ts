@@ -1,14 +1,22 @@
 import type { EmailSendOutcome } from "@opika/contracts";
 import { COPY_PENDING } from "@opika/i18n";
-import { invitationEmail, magicLinkEmail } from "./email-message";
+import {
+  invitationEmail,
+  magicLinkEmail,
+  passwordChangedEmail,
+  passwordResetEmail,
+} from "./email-message";
 import {
   type BlockedStatus,
   type BlockListReader,
+  type EmailProvider,
   type EmailSender,
   type OutgoingEmail,
+  ProviderSendError,
   unsupportedBlockList,
 } from "./email-provider";
 import type { MagicLinkSender } from "./magic-link-sender";
+import type { PasswordMailSender } from "./password-mail";
 
 /**
  * The provider-backed senders for the two kabinet emails, and the rule both
@@ -54,19 +62,26 @@ export async function sendChecked(
 }
 
 /**
- * `sendChecked`, plus why the block check wasn't done when the outcome is
- * `sent` with `blockCheck: "unknown"`. The outcome the operator sees stays
- * the contract's; the reason only feeds the sign-in log line, so a Resend
- * send reads `provider_suppresses` there, not like a failed lookup.
+ * `sendChecked`, plus two things only the log lines use: why the block check
+ * wasn't done when the outcome is `sent` with `blockCheck: "unknown"` (so a
+ * Resend send reads `provider_suppresses` in the sign-in line, not like a
+ * failed lookup), and, for a failed send, the provider and HTTP status, which
+ * both the sign-in and the invite line carry. The outcome the operator sees
+ * stays the contract's.
  */
 async function sendCheckedWithReason(
   mail: ProviderMail,
   email: OutgoingEmail,
-): Promise<{ outcome: EmailSendOutcome; uncheckedWhy: UncheckedWhy | null }> {
-  const result = (outcome: EmailSendOutcome, uncheckedWhy: UncheckedWhy | null = null) => ({
-    outcome,
-    uncheckedWhy,
-  });
+): Promise<{
+  outcome: EmailSendOutcome;
+  uncheckedWhy: UncheckedWhy | null;
+  providerFailure: ProviderFailure | null;
+}> {
+  const result = (
+    outcome: EmailSendOutcome,
+    uncheckedWhy: UncheckedWhy | null = null,
+    providerFailure: ProviderFailure | null = null,
+  ) => ({ outcome, uncheckedWhy, providerFailure });
   if (
     mail.refuseCopyPending &&
     [email.subject, email.html, email.text].some((part) => part.includes(COPY_PENDING))
@@ -86,16 +101,42 @@ async function sendCheckedWithReason(
   // be the guess `BlockedStatus` forbids.
   try {
     await mail.sender.send(email);
-  } catch {
-    return result({ kind: "failed", reason: "provider_error" });
+  } catch (error) {
+    // The provider and HTTP status, when the provider module says them (`ProviderSendError`);
+    // nothing else from the error reaches the log line.
+    const failure =
+      error instanceof ProviderSendError
+        ? { provider: error.provider, status: error.status }
+        : null;
+    return result({ kind: "failed", reason: "provider_error" }, null, failure);
   }
   return status.kind === "not_blocked"
     ? result({ kind: "sent", blockCheck: "clear" })
     : result({ kind: "sent", blockCheck: "unknown" }, status.why);
 }
 
-const describeOutcome = (outcome: Exclude<EmailSendOutcome, { kind: "sent" }>) =>
-  `${outcome.kind} (${outcome.reason})`;
+/** Which provider refused or never answered a send, and with what HTTP status (null: no answer). */
+type ProviderFailure = { provider: EmailProvider; status: number | null };
+
+/**
+ * The one line every unsent kabinet email logs (sign-in and invite share it, never a second
+ * copy): the template, the address masked, the outcome's stable kind and reason code, and, when
+ * the provider refused or never answered, its name and HTTP status. Never the full address, the
+ * link or its token, the body, or a key (Oleksii, 2026-10-19: "Never log the full address, the
+ * invite link or token, the email body, or any provider key").
+ */
+function sendFailureLine(
+  template: "sign-in" | "invite" | "password-reset" | "password-changed",
+  to: string,
+  outcome: Exclude<EmailSendOutcome, { kind: "sent" }>,
+  providerFailure: ProviderFailure | null,
+): string {
+  const provider =
+    providerFailure === null
+      ? ""
+      : `, provider ${providerFailure.provider}, status ${providerFailure.status ?? "none"}`;
+  return `[kabinet] ${template} email to ${maskAddress(to)} not sent: ${outcome.kind} (${outcome.reason})${provider}`;
+}
 
 /**
  * The production magic-link sender. Its result reaches nobody on screen (the
@@ -107,7 +148,7 @@ export function providerMagicLinkSender(
   options: {
     ttlMinutes: number;
     /**
-     * Signs the email (`— {operator}`). Required, so the wiring can't build
+     * Signs the email (`- {operator}`). Required, so the wiring can't build
      * this sender without it: production passes `ProductionSignIn.operatorName`,
      * i.e. `operatorDisplayName(env)`, the value that signs the invite.
      */
@@ -117,7 +158,7 @@ export function providerMagicLinkSender(
 ): MagicLinkSender {
   return {
     async send({ email, url }) {
-      const { outcome, uncheckedWhy } = await sendCheckedWithReason(
+      const { outcome, uncheckedWhy, providerFailure } = await sendCheckedWithReason(
         mail,
         magicLinkEmail({
           to: email,
@@ -127,9 +168,7 @@ export function providerMagicLinkSender(
         }),
       );
       if (outcome.kind !== "sent") {
-        options.log(
-          `[kabinet] sign-in email to ${maskAddress(email)} not sent: ${describeOutcome(outcome)}`,
-        );
+        options.log(sendFailureLine("sign-in", email, outcome, providerFailure));
       } else if (outcome.blockCheck === "unknown") {
         // Sent, but unchecked: if she was blocked it was dropped, and this
         // line is the only trace. Its reason says which: a lookup that
@@ -180,13 +219,22 @@ export interface InvitationSender {
 
 export function providerInvitationSender(
   mail: ProviderMail,
-  channel: { fromAddress: string; blockList: BlockListReader },
+  channel: {
+    fromAddress: string;
+    blockList: BlockListReader;
+    /**
+     * Where an unsent invite's masked line goes (Oleksii, 2026-10-19: "any send attempt
+     * through Brevo should fail loudly in logs"). Required, like the sign-in sender's, so the
+     * wiring can't drop it; production uses `console.warn`.
+     */
+    log: (line: string) => void;
+  },
 ): InvitationSender {
   return {
     fromAddress: channel.fromAddress,
     blockList: channel.blockList,
-    send: (message) =>
-      sendChecked(
+    async send(message) {
+      const { outcome, providerFailure } = await sendCheckedWithReason(
         mail,
         invitationEmail({
           to: message.email,
@@ -196,14 +244,22 @@ export function providerInvitationSender(
           shelterVerification: message.shelterVerification,
           ttlHours: message.validForHours,
         }),
-      ),
+      );
+      // The operator also sees the outcome on screen (IN-E7); the log is what remains after.
+      if (outcome.kind !== "sent") {
+        channel.log(sendFailureLine("invite", message.email, outcome, providerFailure));
+      }
+      return outcome;
+    },
   };
 }
 
 /**
- * Development: prints the invite landing's link. It isn't a credential (the
- * landing sends its own magic link). No block list is read, so the check is
- * `unknown`, never a claimed `clear`.
+ * Development: prints the invitation link, as `consoleSender` prints the magic
+ * link. Since PW-2 the link is a credential (it sets the invitee's password,
+ * once), so this channel is development's only, like the magic link's: never
+ * production, and the harness reads it without printing it. No block list is
+ * read, so the check is `unknown`, never a claimed `clear`.
  */
 export const consoleInvitationSender: InvitationSender = {
   fromAddress: null,
@@ -230,6 +286,58 @@ export function capturingInvitationSender(
     async send(message) {
       sent.push(message);
       return outcome;
+    },
+  };
+}
+
+/**
+ * The production password emails (PW-1, §4.4), on the same rule as the
+ * magic link: checked before sending, and, since nobody is shown the result
+ * (they go out after the response), a failure is one masked log line, never
+ * the link, which is a credential. `contact` is the Reply-To address the
+ * notice names («напишіть мені: {contact}»).
+ */
+export function providerPasswordMail(
+  mail: ProviderMail,
+  options: {
+    ttlMinutes: number;
+    operatorName: string;
+    contact: string;
+    log: (line: string) => void;
+  },
+): PasswordMailSender {
+  const send = async (
+    template: "password-reset" | "password-changed",
+    to: string,
+    email: OutgoingEmail,
+  ) => {
+    const { outcome, providerFailure } = await sendCheckedWithReason(mail, email);
+    if (outcome.kind !== "sent")
+      options.log(sendFailureLine(template, to, outcome, providerFailure));
+  };
+  return {
+    async sendReset({ email, url }) {
+      await send(
+        "password-reset",
+        email,
+        passwordResetEmail({
+          to: email,
+          url,
+          ttlMinutes: options.ttlMinutes,
+          operatorName: options.operatorName,
+        }),
+      );
+    },
+    async sendChanged({ email }) {
+      await send(
+        "password-changed",
+        email,
+        passwordChangedEmail({
+          to: email,
+          contact: options.contact,
+          operatorName: options.operatorName,
+        }),
+      );
     },
   };
 }

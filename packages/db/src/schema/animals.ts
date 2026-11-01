@@ -6,12 +6,15 @@ import type {
   AnimalSex,
   AnimalSpecies,
   CityId,
+  CoatColour,
+  CoatLength,
   DocumentReadiness,
   LocalizedText,
   PublicLocation,
   ShelterId,
   SizeBucket,
   SpayNeuterStatus,
+  TemperamentTrait,
   VaccinationStatus,
 } from "@opika/domain";
 import { sql } from "drizzle-orm";
@@ -43,18 +46,27 @@ export const animals = pgTable(
      * domain union refuses.
      */
     size: text({ enum: ["small", "medium", "large"] }).$type<SizeBucket>(),
+    /**
+     * Null is «Не записано» on every listing kind, not only a draft (DR1-D10):
+     * fur is no listing fact, so `animals_listing_facts_check` leaves it out.
+     * Added with no default and no backfill (migration 0014), because a
+     * value written for an animal nobody described would be an invented fact.
+     * No index of its own: a two-value equality applied on rows the feed and
+     * wait-anchor indexes already narrow.
+     */
+    coatLength: text("coat_length", { enum: ["short", "long"] }).$type<CoatLength>(),
 
     age: jsonb<AgeEstimate>("age"),
     /**
      * Derived from `ageAnchorOf(age)` at write time. The indexed column for
-     * age-bucket filtering — one range predicate instead of a multi-branch OR
+     * age-bucket filtering - one range predicate instead of a multi-branch OR
      * across two columns. See `packages/domain` age.ts for the derivation.
      * Null exactly when `age` is (`animals_age_anchor_check`).
      */
     ageAnchorAt: timestamp("age_anchor_at", { withTimezone: true }),
 
     /**
-     * Derived from `waitAnchorOf(listing)` at write time — when the animal
+     * Derived from `waitAnchorOf(listing)` at write time - when the animal
      * became available, which is what a "longest waiting" ordering sorts on.
      *
      * Nullable, unlike `age_anchor_at`, because the derivation is: a draft,
@@ -62,7 +74,7 @@ export const animals = pgTable(
      * below are partial on the discoverable kinds, so those nulls are never
      * scanned rather than merely sorted last.
      *
-     * Not `last_updated_at`, which is edit time — a shelter fixing a typo
+     * Not `last_updated_at`, which is edit time - a shelter fixing a typo
      * would make a four-month wait read as freshly available.
      */
     waitAnchorAt: timestamp("wait_anchor_at", { withTimezone: true }),
@@ -99,6 +111,15 @@ export const animals = pgTable(
      */
     firstPublishedAt: timestamp("first_published_at", { withTimezone: true }),
 
+    /**
+     * The first instant this row was both discoverable and its shelter
+     * publicly verified (S8-F5). Set once, by `everServedAtAfter`, never
+     * cleared. `null` means this specific listing has never actually been
+     * rendered to an adopter - the precise fact `animals.cardsByIds`'s
+     * `wasEverPublic` approximation couldn't express.
+     */
+    everServedAt: timestamp("ever_served_at", { withTimezone: true }),
+
     descriptionUk: text("description_uk"),
     descriptionEnText: text("description_en_text"),
     descriptionEnProvenance: text("description_en_provenance", {
@@ -109,6 +130,74 @@ export const animals = pgTable(
     vaccination: jsonb<VaccinationStatus>("vaccination").notNull(),
     spayNeuter: jsonb<SpayNeuterStatus>("spay_neuter").notNull(),
     documentReadiness: jsonb<DocumentReadiness>("document_readiness").notNull(),
+
+    /**
+     * The temperament's presets, in the order the shelter gave them: the
+     * filterable part of `Animal.temperament` (`temperamentTraitsOf`). Its
+     * custom entry, the shelter's own words, is the three columns below, and
+     * reads back as the array's last element (`TemperamentSchema`'s rule), so
+     * the stored value round-trips with nothing to reorder. `{}` is «Не
+     * записано»: not null, because "none recorded" is one answer, not two.
+     *
+     * The schema's first array column. Drizzle turns the JS array into a
+     * Postgres array literal before either driver sees it, and parses either
+     * driver's answer back (`PgArray`'s mappers), so no array is ever bound
+     * as a raw parameter (which `r2-cleanup-repo.ts` avoids as unproven
+     * across postgres-js and neon-http).
+     */
+    temperamentTraits: text("temperament_traits", {
+      enum: [
+        "playful",
+        "calm",
+        "affectionate",
+        "energetic",
+        "independent",
+        "shy",
+        "good_with_kids",
+        "good_with_cats",
+        "good_with_dogs",
+      ],
+    })
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`)
+      .$type<readonly TemperamentTrait[]>(),
+    temperamentCustomUk: text("temperament_custom_uk"),
+    temperamentCustomEnText: text("temperament_custom_en_text"),
+    temperamentCustomEnProvenance: text("temperament_custom_en_provenance", {
+      enum: ["human", "machine"],
+    }),
+    /**
+     * A preset colour or the shelter's own words, never both
+     * (`animals_coat_colour_one_kind_check`): the domain's `AnimalColour` is
+     * one or the other, and the database refuses the row it refuses. All
+     * null is «Не вказано», on every listing kind, like fur.
+     */
+    coatColour: text("coat_colour", {
+      enum: [
+        "black",
+        "white",
+        "grey",
+        "ginger",
+        "brown",
+        "cream",
+        "black_white",
+        "tricolour",
+        "tabby",
+        "spotted",
+      ],
+    }).$type<CoatColour>(),
+    coatColourCustomUk: text("coat_colour_custom_uk"),
+    coatColourCustomEnText: text("coat_colour_custom_en_text"),
+    coatColourCustomEnProvenance: text("coat_colour_custom_en_provenance", {
+      enum: ["human", "machine"],
+    }),
+    /** Null omits the card's «Медичний стан» column; never a listing fact. */
+    medicalNotesUk: text("medical_notes_uk"),
+    medicalNotesEnText: text("medical_notes_en_text"),
+    medicalNotesEnProvenance: text("medical_notes_en_provenance", {
+      enum: ["human", "machine"],
+    }),
 
     listing: jsonb<AnimalListingState>("listing").notNull(),
     /** Denormalised from listing JSONB for feed-query filtering. */
@@ -129,7 +218,7 @@ export const animals = pgTable(
     /**
      * The city the animal is discoverable in. For animals at the shelter,
      * this equals the shelter's city. For fostered animals, it is the
-     * foster city — legitimately independent of the shelter's city,
+     * foster city - legitimately independent of the shelter's city,
      * supporting Ukrainian foster networks where animals move across cities.
      */
     cityId: text("city_id")
@@ -165,6 +254,24 @@ export const animals = pgTable(
       "animals_description_en_check",
       sql`${t.descriptionUk} IS NOT NULL OR (${t.descriptionEnText} IS NULL AND ${t.descriptionEnProvenance} IS NULL)`,
     ),
+    /** One colour per animal: a preset or the shelter's words, never both (`AnimalColour`). */
+    check(
+      "animals_coat_colour_one_kind_check",
+      sql`${t.coatColour} IS NULL OR ${t.coatColourCustomUk} IS NULL`,
+    ),
+    /** The same English-needs-Ukrainian rule as the description's, for each new text. */
+    check(
+      "animals_temperament_custom_en_check",
+      sql`${t.temperamentCustomUk} IS NOT NULL OR (${t.temperamentCustomEnText} IS NULL AND ${t.temperamentCustomEnProvenance} IS NULL)`,
+    ),
+    check(
+      "animals_coat_colour_custom_en_check",
+      sql`${t.coatColourCustomUk} IS NOT NULL OR (${t.coatColourCustomEnText} IS NULL AND ${t.coatColourCustomEnProvenance} IS NULL)`,
+    ),
+    check(
+      "animals_medical_notes_en_check",
+      sql`${t.medicalNotesUk} IS NOT NULL OR (${t.medicalNotesEnText} IS NULL AND ${t.medicalNotesEnProvenance} IS NULL)`,
+    ),
 
     /**
      * The feed index. Equality columns first (the ones feed filters match on),
@@ -190,7 +297,7 @@ export const animals = pgTable(
     ),
 
     /**
-     * Partial index for the unfiltered feed — the most common case.
+     * Partial index for the unfiltered feed - the most common case.
      * Covers `WHERE listing_kind IN ('published','reserved') ORDER BY last_confirmed_at DESC, id`.
      * The composite feed_idx above can't provide ordering when city/species/size aren't filtered
      * because Postgres can't skip middle columns.
@@ -216,7 +323,7 @@ export const animals = pgTable(
      * `listing_kind` deliberately does *not* lead here, unlike in
      * `animals_feed_idx`. The partial predicate already restricts the index to
      * the two discoverable kinds, so repeating it as a leading column would
-     * only put a two-element `IN` in front of `city_id` — and a btree scan
+     * only put a two-element `IN` in front of `city_id` - and a btree scan
      * whose leading column is matched by `= ANY(...)` rather than a single
      * value returns rows grouped per array element, not in index order, which
      * makes the planner add the `Sort` node this index exists to remove.
@@ -225,6 +332,26 @@ export const animals = pgTable(
      */
     index("animals_wait_anchor_filtered_idx")
       .on(t.cityId, t.species, t.size, t.waitAnchorAt.asc().nullsLast(), t.id.asc())
+      .where(sql`listing_kind IN ('published', 'reserved')`),
+
+    /**
+     * Built for the temperament and colour filters: GIN, because a
+     * temperament filter asks "does the array contain these traits", which a
+     * btree can't answer; a btree for colour, because ten values narrow where
+     * fur's two don't (fur has no index of its own). Both partial on the
+     * discoverable kinds, as every adopter-facing query is, so drafts' rows
+     * never enter them.
+     *
+     * Orphaned by the gallery filter restructure, which removed both filters:
+     * nothing queries `temperamentTraits` or `coatColour` anymore. Left in
+     * place rather than dropped here - an index drop is its own migration,
+     * deliberately not bundled with this PR's filter removal.
+     */
+    index("animals_temperament_traits_idx")
+      .using("gin", t.temperamentTraits)
+      .where(sql`listing_kind IN ('published', 'reserved')`),
+    index("animals_coat_colour_idx")
+      .on(t.coatColour)
       .where(sql`listing_kind IN ('published', 'reserved')`),
   ],
 );

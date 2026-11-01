@@ -91,7 +91,7 @@ const logOrphan = (storageKey: string) => console.error({ event: "photo_orphaned
  * cropping before enlarging, `attentionCropBox`); what it
  * produces after the budget is dropped, so it never reaches storage.
  */
-async function withinBudget<T>(
+export async function withinBudget<T>(
   work: Promise<T>,
   budgetMs: number,
 ): Promise<{ kind: "done"; value: T } | { kind: "over_budget" }> {
@@ -122,7 +122,7 @@ async function withinBudget<T>(
  * 6. the photo is appended, compare-and-set on the photo list as re-read, so
  *    two uploads at once both land or the eleventh is refused, never lost.
  *
- * Steps 5–6 can leave a stored file no animal points at (the animal deleted,
+ * Steps 5-6 can leave a stored file no animal points at (the animal deleted,
  * filled to ten meanwhile, or a failure in between): logged as
  * `photo_orphaned`, never deleted.
  *

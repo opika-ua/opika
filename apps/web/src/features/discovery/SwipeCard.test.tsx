@@ -32,6 +32,7 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
     shelter: {
       id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as FeedCardView["shelter"]["id"],
       displayName: "Тестовий притулок",
+      logo: null,
       publicLocation: {
         precision: "fuzzed_address",
         cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never,
@@ -39,7 +40,7 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       freshnessSentence: {
-        uk: "Ми оновлювали цю картку 25 червня. Напишіть — скажемо, чи Ластівка ще з нами.",
+        uk: "Ми оновлювали цю картку 25 червня. Напишіть - скажемо, чи Ластівка ще з нами.",
         en: null,
       },
       verification: "verified",
@@ -59,37 +60,18 @@ describe("SwipeCard freshness marker", () => {
    * `fresh` would still look plausible in markup and would silently drop the
    * "how far has this travelled" comparison the whole component exists for.
    */
-  // V2 repoint (docs/design/README.md, "The freshness marker"): fill colours moved
-  // bg-leaf -> bg-rg-registry, bg-ink-4 -> bg-rg-ink-3, bg-ink -> bg-rg-ink (same role,
-  // new token names). The empty slot is no longer `null`/unstyled: it's the
-  // WCAG 1.4.11 fix — transparent fill + border-rg-ink-3 — replacing the mock's
-  // original solid #DCDCD9 fill, which measured 1.16-1.37:1 against every background
-  // it appears on and fails the 3:1 non-text-contrast requirement. The design was
-  // subsequently updated to specify the outline directly.
+  // Which pips are filled, per the design table. Their colours are appearance and are
+  // not asserted (CLAUDE.md, "Test logic, not looks"; removed 2026-10-20).
   it.each([
-    ["fresh", 3, ["bg-rg-registry", "empty", "empty"]],
-    ["aging", 19, ["bg-rg-ink-3", "bg-rg-ink-3", "empty"]],
-    ["stale", 41, ["bg-rg-ink-3", "bg-rg-ink-3", "bg-rg-ink"]],
+    ["fresh", 3, ["filled", "empty", "empty"]],
+    ["aging", 19, ["filled", "filled", "empty"]],
+    ["stale", 41, ["filled", "filled", "filled"]],
   ] as const)("renders three pips for %s, filled per the design table", (kind, days, expected) => {
     renderCard(makeCard({ freshness: makeFreshness(kind, days) }));
 
-    const pips = screen.getAllByTestId("freshness-pip");
-    expect(pips).toHaveLength(3);
-    expect(pips.map((p) => p.getAttribute("data-filled"))).toEqual(
-      expected.map((fill) => (fill === "empty" ? "false" : "true")),
-    );
-    // Stronger than the boolean check above: the *specific* fill colour per
-    // the design table, not just whether a pip is filled at all. The empty
-    // slot gets its own check — border-drawn, transparent, never a bg- fill.
-    expected.forEach((fill, i) => {
-      if (fill === "empty") {
-        expect(pips[i]?.className).toContain("bg-transparent");
-        expect(pips[i]?.className).toContain("border-rg-ink-3");
-        expect(pips[i]?.className).not.toContain("bg-rg-");
-      } else {
-        expect(pips[i]?.className).toContain(fill);
-      }
-    });
+    const fills = document.querySelector("[data-fill]")?.getAttribute("data-fill")?.split(" ");
+    expect(fills).toHaveLength(3);
+    expect(fills?.map((fill) => (fill === "empty" ? "empty" : "filled"))).toEqual(expected);
   });
 
   /**
@@ -108,7 +90,7 @@ describe("SwipeCard freshness marker", () => {
     expect(screen.getByText("Оновлено 3 дні тому")).toBeTruthy();
   });
 
-  /** "…and `aria-label` repeats the same sentence" — docs/design/README.md. */
+  /** "…and `aria-label` repeats the same sentence" - docs/design/README.md. */
   it("repeats that same sentence as the block's aria-label", () => {
     const freshness = makeFreshness("aging", 19);
     renderCard(makeCard({ freshness }));
@@ -121,53 +103,14 @@ describe("SwipeCard freshness marker", () => {
     // Same words visible and announced, not two different phrasings.
     expect(screen.getByText(sentence)).toBeTruthy();
   });
-
-  it("renders the shelter's own sentence beneath the day count", () => {
-    const card = makeCard();
-    renderCard(card);
-
-    const sentence = card.shelter.freshnessSentence?.uk;
-    expect(sentence).toBeTruthy();
-    expect(screen.getByText(sentence as string)).toBeTruthy();
-  });
-
-  it("fills {імʼя} with this card's animal name (K-Q6)", () => {
-    const card = makeCard({ name: "Мурчик" });
-    renderCard({
-      ...card,
-      shelter: {
-        ...card.shelter,
-        freshnessSentence: { uk: "Напишіть, і ми скажемо, чи {імʼя} ще з нами.", en: null },
-      },
-    });
-    const block = screen.getByTestId("freshness-block");
-    expect(block.textContent).toContain("Напишіть, і ми скажемо, чи Мурчик ще з нами.");
-    expect(block.textContent).not.toContain("{");
-  });
+  // The shelter's sentence left the deck in designer round 1, S6 (DR1-Q1); its
+  // absence is pinned in `features/shelters/sentence-only-there.test.tsx`.
 });
 
 describe("SwipeCard name", () => {
   /**
-   * A long name must truncate to one line rather than wrap and push the rest
-   * of the card down. happy-dom does no layout, so this asserts the mechanism
-   * that produces the single line; the rendered height is measured for real in
-   * `test/harness/discovery-layout.harness.ts`.
-   */
-  it("truncates a long Ukrainian name to a single line", () => {
-    renderCard(makeCard({ name: "Всеволода-Мирослава Великодушна з Броварського притулку" }));
-
-    const nameEl = screen.getByTestId("card-name");
-
-    // Tailwind's `truncate` utility is exactly `overflow:hidden;
-    // text-overflow:ellipsis; white-space:nowrap` — the same three
-    // properties this test checked individually before the Tailwind
-    // migration, now behind one class instead of three that could drift
-    // independently.
-    expect(nameEl.className.split(/\s+/)).toContain("truncate");
-  });
-
-  /**
-   * Truncation is visual only. The full name must stay in the accessible tree,
+   * A long name truncates visually (not asserted: appearance). The full name
+   * must stay in the accessible tree,
    * or the ellipsis becomes data loss for anyone using a screen reader.
    */
   it("keeps the full name in the DOM and on the card's accessible label", () => {
@@ -182,10 +125,10 @@ describe("SwipeCard name", () => {
 /**
  * 2026-09-10, found by Oleksii, not by any test: this card had no
  * assertion at all about the "· перевірений" suffix, and it rendered
- * unconditionally — no reference anywhere to `REGISTRY_HAS_NO_REAL_SHELTERS`,
+ * unconditionally - no reference anywhere to `REGISTRY_HAS_NO_REAL_SHELTERS`,
  * the identical defect `AnimalCard.test.tsx`'s own gallery card had.
  * `verificationSuffix` (`seo-flags.ts`) is the shared gate both cards now
- * call. Real `REGISTRY_HAS_NO_REAL_SHELTERS` is `true` on production today —
+ * call. Real `REGISTRY_HAS_NO_REAL_SHELTERS` is `true` on production today -
  * `seo-flags.test.ts`'s `verificationSuffix` describe block covers the
  * other branch directly, via the function's own explicit parameter.
  */

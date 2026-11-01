@@ -17,9 +17,10 @@ const leaves = (node: object, path: string[] = []): string[] =>
   );
 
 describe("the create page's browser client", () => {
-  it("exposes exactly create and resend", () => {
+  it("exposes exactly create, the settlement search and resend", () => {
     expect(leaves(registryCreateBrowserContract).sort()).toEqual([
       "registry.admins.resendInvite",
+      "registry.cities.search",
       "registry.shelters.create",
     ]);
   });

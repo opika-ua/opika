@@ -1,12 +1,21 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import {
+  type AdopterId,
+  type Animal,
+  type AnimalId,
   type AnimalListingState,
+  type ContactReveal,
+  DEFAULT_SEEN_SET_POLICY,
+  EVERYONE_SCOPE,
+  type FeedFilters,
   isDraftAnimal,
   listingAfterPhotoChange,
   listingHistoryEventOf,
   type ModeratorId,
+  NO_FILTERS,
   publicLocationOf,
   type ShelterAdminId,
   type ShelterHistoryEntry,
@@ -14,14 +23,17 @@ import {
   testOnlyLocationPolicy,
   transitionListing,
 } from "@opika/domain";
-import { count, eq, inArray } from "drizzle-orm";
-import { createDatabase, type Database } from "../src/client";
+import { count, countDistinct, eq, inArray, sql } from "drizzle-orm";
+import { createDatabase, type Database, inOneTransaction } from "../src/client";
+import { variantObjectKey } from "../src/image-pipeline/variants";
 import { productionEndpoint } from "../src/prod-guard";
-import { adopterRepo } from "../src/repos/adopter-repo";
+import { adopterRepo, ORPHAN_ADOPTER_MIN_AGE_MS } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
-import { authExpiryRepo, KABINET_SESSION_ABSOLUTE_MS } from "../src/repos/auth-expiry-repo";
+import { authExpiryRepo, KABINET_SESSION_LIMITS } from "../src/repos/auth-expiry-repo";
 import { authRevokeRepo } from "../src/repos/auth-revoke-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { feedRepo } from "../src/repos/feed-repo";
+import { galleryRepo } from "../src/repos/gallery-repo";
 import {
   type AnimalHistoryRow,
   isCheckViolation,
@@ -34,9 +46,20 @@ import { kabinetInvitedUsersRepo } from "../src/repos/kabinet-invited-users-repo
 import { kabinetRegistryRepo } from "../src/repos/kabinet-registry-repo";
 import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
 import { kabinetSupportRepo, SUPPORT_IDLE_MS } from "../src/repos/kabinet-support-repo";
+import { revealToRow } from "../src/repos/mappers";
+import {
+  afterDeleted,
+  recordScan,
+  referencedObjectKeys,
+  referencedStorageKeys,
+  stillUnreferenced,
+} from "../src/repos/r2-cleanup-repo";
+import { revealRepo } from "../src/repos/reveal-repo";
+import { sessionRepo } from "../src/repos/session-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { superAdminRepo } from "../src/repos/super-admin-repo";
 import { swipeRepo } from "../src/repos/swipe-repo";
+import { adopters } from "../src/schema/adopters";
 import { animals } from "../src/schema/animals";
 import {
   authInvitation,
@@ -44,18 +67,24 @@ import {
   authSession,
   authUser,
   authVerification,
+  superAdmins,
   supportSessions,
 } from "../src/schema/auth";
+import { reveals } from "../src/schema/reveals";
 import { insertShelterFromScript, recordAnimalsImported } from "../src/script-history";
 import {
   makeAdopter,
   makeAnimal,
   makeCity,
   makeDraftAnimal,
+  makeReveal,
   makeShelter,
   makeSwipe,
 } from "../src/test-utils/fixtures";
 import { type SmokeTarget, smokeTarget } from "../src/test-utils/smoke-target";
+import { runFiltersSmoke } from "./neon-smoke-filters";
+import { runGeographySmoke } from "./neon-smoke-geography";
+import { runSearchSmoke } from "./neon-smoke-search";
 
 /**
  * `pnpm --filter @opika/db db:neon-smoke --expect ep-…` (from a worktree:
@@ -653,33 +682,51 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `${dupAccepted.kind}; newest ${statusOf(newerId)}, older ${statusOf(olderInvite.invitationId)}, ${stillPending} pending`,
   );
 
-  // 18. the auth clean-up's one statement (KH-Q9, plus EM-Q11's 30-day
-  // cap): two data-modifying CTEs and their counts, through neon-http. Rows
-  // past expiry go, and a session past the absolute cap goes even with its
-  // idle expiry still ahead (EM-Q11: "Test the case where the cap is passed
-  // but the idle expiry is in the future"); one just under the cap stays. On a
-  // disposable branch the counts may include rows copied from production, so
-  // they are "at least" and this run's own rows are checked by id.
-  const expired = { session: randomUUID(), verification: randomUUID() };
-  const live = { session: randomUUID(), verification: randomUUID() };
-  const pastCap = randomUUID();
-  const underCap = randomUUID();
-  await db.insert(authSession).values([
-    { ...session(operator), id: expired.session, expiresAt: later(-1000) },
-    { ...session(operator), id: live.session, expiresAt: later(86_400_000) },
-    {
-      ...session(operator),
-      id: pastCap,
-      createdAt: later(-KABINET_SESSION_ABSOLUTE_MS - 60_000),
-      expiresAt: later(5 * 86_400_000),
-    },
-    {
-      ...session(operator),
-      id: underCap,
-      createdAt: later(-KABINET_SESSION_ABSOLUTE_MS + 60_000),
-      expiresAt: later(5 * 86_400_000),
-    },
-  ]);
+  // 18. the auth clean-up's one statement (KH-Q9, EM-Q11), with PW-1's limits by role
+  // (F-B9, §9 answers 3 and 6: a shelter-side session 30 days idle and 90 at most, the
+  // operator's 7 and 30; KABINET_SESSION_LIMITS): two data-modifying CTEs and their counts,
+  // and, new with PW-1, a subquery on super_admins inside the delete, through neon-http. Rows
+  // past expiry go; a session past a limit goes even with its expiry still ahead (EM-Q11: "Test
+  // the case where the cap is passed but the idle expiry is in the future"); one just inside a
+  // limit stays, and a shelter-side session past the operator's limits stays. On a disposable
+  // branch the counts may include rows copied from production, so they are "at least" and this
+  // run's own rows are checked by id.
+  const DAY_MS = 86_400_000;
+  const { shelterAdmin, operator: operatorLimits } = KABINET_SESSION_LIMITS;
+  const granted = randomUUID();
+  await db.insert(authUser).values({
+    id: granted,
+    name: `smoke-granted-${tag}`,
+    email: `smoke-granted-${tag}@example.invalid`,
+    emailVerified: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  await db.insert(superAdmins).values({ id: randomUUID(), userId: granted, grantedAt: NOW });
+  const aged = (userId: string, ago: { created: number; updated: number }) => ({
+    ...session(userId),
+    createdAt: later(-ago.created),
+    updatedAt: later(-ago.updated),
+    expiresAt: later(60 * DAY_MS),
+  });
+  const rows = {
+    expired: { ...session(operator), expiresAt: later(-1000) },
+    live: { ...session(operator), expiresAt: later(DAY_MS) },
+    pastCap: aged(operator, { created: shelterAdmin.absoluteMs + 60_000, updated: 60_000 }),
+    underCap: aged(operator, { created: shelterAdmin.absoluteMs - 60_000, updated: 60_000 }),
+    pastIdle: aged(operator, { created: DAY_MS, updated: shelterAdmin.idleMs + 60_000 }),
+    underIdle: aged(operator, {
+      created: shelterAdmin.idleMs,
+      updated: shelterAdmin.idleMs - 60_000,
+    }),
+    opPastIdle: aged(granted, { created: DAY_MS, updated: operatorLimits.idleMs + 60_000 }),
+    opUnderIdle: aged(granted, { created: DAY_MS, updated: operatorLimits.idleMs - 60_000 }),
+    opPastCap: aged(granted, { created: operatorLimits.absoluteMs + 60_000, updated: 60_000 }),
+    opUnderCap: aged(granted, { created: operatorLimits.absoluteMs - 60_000, updated: 60_000 }),
+  };
+  await db.insert(authSession).values(Object.values(rows));
+  const expiredVerification = randomUUID();
+  const liveVerification = randomUUID();
   const verification = (id: string, expiresAt: Date) => ({
     id,
     identifier: `smoke-${tag}-${id}`,
@@ -691,40 +738,44 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   await db
     .insert(authVerification)
     .values([
-      verification(expired.verification, later(-1000)),
-      verification(live.verification, later(900_000)),
+      verification(expiredVerification, later(-1000)),
+      verification(liveVerification, later(900_000)),
     ]);
   const counts = await authExpiryRepo(db).deleteExpired(NOW);
+  const sessionIds = Object.values(rows).map((row) => row.id);
   const left = new Set([
     ...(
       await db
         .select({ id: authSession.id })
         .from(authSession)
-        .where(inArray(authSession.id, [expired.session, live.session, pastCap, underCap]))
+        .where(inArray(authSession.id, sessionIds))
     ).map((r) => r.id),
     ...(
       await db
         .select({ id: authVerification.id })
         .from(authVerification)
-        .where(inArray(authVerification.id, [expired.verification, live.verification]))
+        .where(inArray(authVerification.id, [expiredVerification, liveVerification]))
     ).map((r) => r.id),
   ]);
+  const gone = ["expired", "pastCap", "pastIdle", "opPastIdle", "opPastCap"] as const;
+  const kept = ["live", "underCap", "underIdle", "opUnderIdle", "opUnderCap"] as const;
+  const wrong = [
+    ...gone.filter((name) => left.has(rows[name].id)).map((name) => `${name} kept`),
+    ...kept.filter((name) => !left.has(rows[name].id)).map((name) => `${name} deleted`),
+    ...(left.has(expiredVerification) ? ["expired verification kept"] : []),
+    ...(left.has(liveVerification) ? [] : ["live verification deleted"]),
+  ];
   check(
-    "auth clean-up (expired verification + session, session past the 30-day cap, one statement)",
+    "auth clean-up (expiry, and each holder's limits: shelter-side 30/90, the operator's 7/30, one statement)",
     typeof counts.sessions === "number" &&
       typeof counts.verifications === "number" &&
-      counts.sessions >= 2 &&
+      counts.sessions >= gone.length &&
       counts.verifications >= 1 &&
-      !left.has(expired.session) &&
-      !left.has(expired.verification) &&
-      !left.has(pastCap) &&
-      left.has(underCap) &&
-      left.has(live.session) &&
-      left.has(live.verification),
-    `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); this run's live rows kept ${left.has(live.session) && left.has(live.verification)}, expired gone ${!left.has(expired.session) && !left.has(expired.verification)}, past-cap gone ${!left.has(pastCap)}, under-cap kept ${left.has(underCap)}`,
+      wrong.length === 0,
+    `deleted ${counts.verifications} verification(s), ${counts.sessions} session(s); ${wrong.length === 0 ? "every row of this run where it should be" : wrong.join(", ")}`,
   );
 
-  // 19–21: the K2/K3 animal writes HS-T4b names (the listing jsonb
+  // 19-21: the K2/K3 animal writes HS-T4b names (the listing jsonb
   // compare-and-set, the deleteDraft 23503 catch) and S3-T6's guard, which is
   // the integer `version` since Oleksii's override (S3-T6: "integer version for
   // animals too"), so the `last_updated_at` equality round-trip it once
@@ -799,6 +850,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           atShelter.id,
           { ...readListing, confirmedAt: later(2000), undoable: null },
           readListing,
+          NOW,
           { kind: "not_recorded", because: "confirmation" },
         )
       : { kind: "conflict" as const };
@@ -808,6 +860,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           atShelter.id,
           { ...readListing, confirmedAt: later(3000), undoable: null },
           readListing,
+          NOW,
           { kind: "not_recorded", because: "confirmation" },
         )
       : { kind: "ok" as const };
@@ -948,6 +1001,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           publishable.id,
           published.next,
           draftListing,
+          NOW,
           publishLine(publishable),
           publishGuard(publishableRead.animal.version),
         )
@@ -958,6 +1012,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           publishable.id,
           published.next,
           draftListing,
+          NOW,
           publishLine(publishable),
           publishGuard(publishableRead.animal.version),
         )
@@ -1182,7 +1237,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `R: ${counted === undefined ? "not the one row found" : `joined ${counted.admins.joined}, invited ${counted.admins.invited} (adminsOf ${listedJoined}/${listedInvited}), donationPending ${counted.donationPending}`}; S: ${uncounted === undefined ? "not the one row found" : `joined ${uncounted.admins.joined}, invited ${uncounted.admins.invited}, donationPending ${uncounted.donationPending}`}`,
   );
 
-  // 27–31: K3 (PR 4). F-B1's nullable facts and their CHECKs (migration
+  // 27-31: K3 (PR 4). F-B1's nullable facts and their CHECKs (migration
   // 0012), the draft-only null guard on a form save, the publish
   // compare-and-set (K3-T7) and RH-B7's photo write, each through neon-http.
   const smokePhotoOf = (animalId: string) => ({
@@ -1269,6 +1324,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
         bareDraft.id,
         barePublish.next,
         bareRead.animal.listing,
+        NOW,
         publishLine(bareDraft),
         publishGuard(bareRead.animal.version),
       );
@@ -1363,6 +1419,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           raced.id,
           racedPublish.next,
           racedRead.animal.listing,
+          NOW,
           publishLine(raced),
           publishGuard(racedRead.animal.version),
         )
@@ -1373,6 +1430,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           raced.id,
           racedPublish.next,
           racedRead.animal.listing,
+          NOW,
           publishLine(raced),
           publishGuard(racedRead.animal.version + 1),
         )
@@ -1390,6 +1448,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           photoless.id,
           racedPublish.next,
           { kind: "draft" },
+          NOW,
           publishLine(photoless),
           publishGuard(0),
         )
@@ -1410,7 +1469,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   // 31. RH-B7: a photo change on a published row moves `photos`,
   // `listing.confirmedAt` and `last_confirmed_at` together under the photo
   // and listing compare-and-set; a stale listing writes nothing; on a draft
-  // (steps 24–25's `createdDraft`) `last_confirmed_at` stays null.
+  // (steps 24-25's `createdDraft`) `last_confirmed_at` stays null.
   const visibleRead = await kabinetAnimals.findWithCity(raced.id);
   const photoAt = later(17000);
   const visibleWrite = visibleRead
@@ -1462,7 +1521,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       draftRaw?.lastConfirmedAt === null,
     `write ${visibleWrite.kind}, stale listing ${staleListingWrite.kind}, ${visibleAfter?.animal.photos.length} photo(s), confirmed ${visibleRaw?.lastConfirmedAt?.toISOString()}, draft last_confirmed_at ${draftRaw?.lastConfirmedAt === null ? "null" : "set"}`,
   );
-  // 32–36: K2 (PR 5). The list's keyset, filters and counts, and the listing
+  // 32-36: K2 (PR 5). The list's keyset, filters and counts, and the listing
   // moves K2's buttons make (confirm and its undo with a stored `undoable`;
   // reserve, release, withdraw with a note, restore, adopt), each through
   // neon-http against the listing as this driver reads it back. On a shelter
@@ -1573,6 +1632,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Confirmed.id,
           confirmMove.next,
           beforeConfirm.animal.listing,
+          NOW,
           notRecorded,
         )
       : { kind: "conflict" as const };
@@ -1586,6 +1646,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Confirmed.id,
           undoMove.next,
           confirmedRead.animal.listing,
+          NOW,
           notRecorded,
         )
       : { kind: "conflict" as const };
@@ -1595,6 +1656,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Confirmed.id,
           undoMove.next,
           confirmedRead.animal.listing,
+          NOW,
           notRecorded,
         )
       : { kind: "ok" as const };
@@ -1622,7 +1684,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   // against the listing as read back: one line each, and the draft keeps its
   // first_published_at with no confirmation or wait anchor.
   const k2Moving = await k2Animal(visibleSince("published", later(-5 * DAY)), later(-6000));
-  const k2Note = `Забрали «додому» — ${tag}`;
+  const k2Note = `Забрали «додому» - ${tag}`;
   const k2Steps = [
     { type: "reserve", at: later(22000) },
     { type: "release", at: later(23000) },
@@ -1641,6 +1703,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       k2Moving.id,
       move.next,
       read.animal.listing,
+      NOW,
       {
         kind: "recorded",
         row: {
@@ -1711,6 +1774,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
           k2Adopting.id,
           adoptMove.next,
           adoptRead.animal.listing,
+          NOW,
           {
             kind: "recorded",
             row: {
@@ -1760,8 +1824,9 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   // every auth_session and auth_verification row, through neon-http, the
   // driver the CLI uses on Neon. Users and memberships stay. On a disposable
   // branch the two tables may also hold rows copied from production; they go
-  // too (the branch is thrown away), so the counts are "at least". Last on
-  // purpose: it signs out every session the steps above wrote.
+  // too (the branch is thrown away), so the counts are "at least". It runs
+  // after every step that writes a session, since it signs out every session
+  // the steps above wrote; the steps after it read no session.
   const revokeSession = randomUUID();
   const revokeLink = randomUUID();
   await db.insert(authSession).values({ ...session(operator), id: revokeSession });
@@ -1785,6 +1850,850 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       membersAfter === membersBefore,
     `deleted ${revoked.sessions} session(s), ${revoked.verifications} link(s); left ${revokeLeft.sessions} and ${revokeLeft.verifications}; operator ${operatorStays ? "kept" : "GONE"}, members ${membersBefore} → ${membersAfter}`,
   );
+
+  // 38. the gallery's relaxation counts through neon-http (found in the review
+  // of #163): the query read a raw `db.execute()` result as an array, which on
+  // this driver is `{ rows }`, so every count was 0 and no no-match screen
+  // offered a relaxation. A city, a verified shelter and three cards of this
+  // run's own, so the counts don't depend on what the branch copied from
+  // production. After 37 is harmless: it reads no session.
+  const relaxCity = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(relaxCity);
+  const relaxBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} G` });
+  const relaxAddress = { ...relaxBase.exactAddress, cityId: relaxCity.id };
+  await insertShelterFromScript(
+    db,
+    {
+      ...relaxBase,
+      exactAddress: relaxAddress,
+      publicLocation: publicLocationOf(relaxBase.id, relaxAddress, policy),
+    },
+    by,
+  );
+  for (const species of ["cat", "dog", "dog"] as const) {
+    await animalRepo(db).insert(
+      makeAnimal({ id: randomUUID() as never, shelterId: relaxBase.id, species }),
+      relaxCity.id,
+    );
+  }
+  const relaxation = await galleryRepo(db).relaxationCounts({
+    filters: {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf", values: [relaxCity.id] },
+      species: { kind: "oneOf", values: ["cat"] },
+    },
+    now: NOW,
+  });
+  const withoutSpecies = relaxation.relaxations.find((r) => r.dimension === "species");
+  check(
+    "gallery relaxation counts (typed select, not a raw execute read)",
+    relaxation.current === 1 && withoutSpecies?.additional === 2,
+    `current ${relaxation.current}, without species +${withoutSpecies?.additional ?? "none"}, ${relaxation.relaxations.length} suggestion(s)`,
+  );
+
+  // 39. fur (DR1 S3): set «long», then cleared to null, through the kabinet
+  // edit's own write (`writeEditIf`, as `animalsUpdate` calls it), read back
+  // through this driver. (Until the gallery filter restructure removed the
+  // fur filter, this also filtered the gallery and the deck by fur,
+  // Oleksii's Q2 (a) - that half is gone with the filter itself.) A city, a
+  // verified shelter and a published dog of this run's own.
+  const furCity = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(furCity);
+  const furBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} H` });
+  const furAddress = { ...furBase.exactAddress, cityId: furCity.id };
+  await insertShelterFromScript(
+    db,
+    {
+      ...furBase,
+      exactAddress: furAddress,
+      publicLocation: publicLocationOf(furBase.id, furAddress, policy),
+    },
+    by,
+  );
+  const furDog = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: furBase.id,
+    species: "dog",
+    coatLength: null,
+  });
+  await animalRepo(db).insert(furDog, furCity.id);
+  const furEdit = async (coatLength: "long" | null, at: Date) => {
+    const read = await kabinetAnimals.findWithCity(furDog.id);
+    if (!read) return { kind: "conflict" as const };
+    return kabinetAnimals.writeEditIf(
+      { ...read.animal, coatLength, lastUpdatedAt: at, version: read.animal.version + 1 },
+      read.cityId,
+      read.animal.version,
+      {
+        id: randomUUID(),
+        entry: {
+          kind: "animal_edited",
+          at,
+          actor: smokeActor,
+          animalId: furDog.id,
+          animalName: read.animal.name,
+          fields: ["coatLength"],
+        },
+      },
+    );
+  };
+  const furSet = await furEdit("long", later(27000));
+  const furAfterSet = (await kabinetAnimals.findWithCity(furDog.id))?.animal.coatLength;
+  const furCleared = await furEdit(null, later(28000));
+  const furAfterClear = (await kabinetAnimals.findWithCity(furDog.id))?.animal.coatLength;
+  check(
+    "fur set «long» then cleared through the kabinet edit write, read back over this driver",
+    furSet.kind === "ok" &&
+      furAfterSet === "long" &&
+      furCleared.kind === "ok" &&
+      furAfterClear === null,
+    `set ${furSet.kind} → ${furAfterSet ?? "null"}; cleared ${furCleared.kind} → ${furAfterClear === undefined ? "missing" : (furAfterClear ?? "null")}`,
+  );
+
+  // 40. the shelter page's list (DR1 S5, DR1-D4): `gallery.list` scoped to one
+  // shelter, over this driver. Reads only: step 38's shelter and its three
+  // cards are the known shelter, and a fresh UUID is the unknown one. No
+  // filters, so the only thing narrowing the list is the scope; the registry
+  // the branch copied holds other shelters' animals besides.
+  const scopedList = (shelterId: ShelterId) =>
+    galleryRepo(db).list({
+      filters: NO_FILTERS,
+      scope: { kind: "shelter", shelterId },
+      sort: "freshest",
+      page: 1,
+      pageSize: 24,
+      now: NOW,
+    });
+  const ownList = await scopedList(relaxBase.id);
+  const ownOnly = ownList.items.every((a) => a.shelterId === relaxBase.id);
+  const unknownList = await scopedList(randomUUID() as ShelterId);
+  check(
+    "gallery list scoped to one shelter: only its own animals, none for an unknown id",
+    ownList.items.length === 3 &&
+      ownList.totalMatching === 3 &&
+      ownList.totalShelters === 1 &&
+      ownOnly &&
+      unknownList.items.length === 0 &&
+      unknownList.totalMatching === 0,
+    `known: ${ownList.items.length} item(s), total ${ownList.totalMatching}, shelters ${ownList.totalShelters}, all its own ${ownOnly}; unknown: ${unknownList.items.length} item(s), total ${unknownList.totalMatching}`,
+  );
+
+  // 41. S8's `animals.cardsByIds`: `animalRepo.findByIds` (a plain
+  // `inArray` select, no new migration) over this driver. A mix of two real
+  // ids from this run (`atShelter`, `fostered`, both inserted in step 2) and
+  // one random, never-inserted id returns exactly the two real rows - the
+  // unknown id is silently absent, not an error, which is what the handler's
+  // order-preserving map over `input.animalIds` relies on. An empty array
+  // short-circuits in TS before any query, so it has no real-Neon case to add
+  // here; it's already covered locally (`animals-cards-by-ids.test.ts`).
+  const foundIds = (
+    await animalRepo(db).findByIds([atShelter.id, fostered.id, randomUUID() as never])
+  )
+    .map((a) => a.id)
+    .sort();
+  check(
+    "animals.cardsByIds: findByIds (inArray select) over neon-http",
+    foundIds.length === 2 && foundIds.includes(atShelter.id) && foundIds.includes(fostered.id),
+    `${foundIds.length} row(s) found for 2 real + 1 unknown id`,
+  );
+
+  // 42. GDPR photo retention (PR #200, Tier 1 review, blocker 4): the raw
+  // SQL `r2-cleanup-repo.ts` never had a real-Neon run before this.
+  // `referencedStorageKeys`'s `jsonb_array_elements` SELECT and
+  // `afterDeleted`'s `jsonb_set` UPDATE (with its scalar-OR'd WHERE, never
+  // an array binding) both go through `executeRows`, the one place that
+  // already handles postgres-js/neon-http's differing raw-result shapes -
+  // but the statements themselves, with their real jsonb operators, had
+  // only ever executed locally until this step.
+  const r2StorageKey = `smoke/${tag}/photo-1`;
+  const r2Animal = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: shelter.id,
+    photos: [{ storageKey: r2StorageKey, width: 800, height: 1000, alt: null }] as never,
+  });
+  await animalRepo(db).insert(r2Animal, city.id);
+  const r2Referenced = await referencedStorageKeys(db);
+  check(
+    "r2-cleanup-repo: referencedStorageKeys (jsonb_array_elements SELECT) over neon-http",
+    r2Referenced.has(r2StorageKey),
+    `${r2Referenced.size} referenced storage key(s), expected one to include this run's`,
+  );
+  const r2ObjectKeys = await referencedObjectKeys(db);
+  const r2CardKey = variantObjectKey(r2StorageKey, "card");
+  check(
+    "r2-cleanup-repo: referencedObjectKeys derives the card variant",
+    r2ObjectKeys.has(r2CardKey),
+    `${r2ObjectKeys.size} referenced object key(s)`,
+  );
+
+  const r2OrphanKey = variantObjectKey(`smoke/${tag}/orphan`, "card");
+  const scanResult = await recordScan(db, [r2CardKey, r2OrphanKey], NOW);
+  check(
+    "r2-cleanup-repo: recordScan tracks the orphan, leaves the referenced key alone",
+    scanResult.newlyTracked === 1,
+    `newlyTracked ${scanResult.newlyTracked}, expected 1`,
+  );
+  const stillDue = await stillUnreferenced(db, [r2CardKey, r2OrphanKey]);
+  check(
+    "r2-cleanup-repo: stillUnreferenced re-check excludes the referenced key",
+    stillDue.length === 1 && stillDue[0] === r2OrphanKey,
+    `${JSON.stringify(stillDue)}`,
+  );
+
+  const r2Adopter = makeAdopter({ id: randomUUID() as never });
+  await adopterRepo(db).insert(r2Adopter);
+  const r2Reveal = makeReveal({
+    id: randomUUID() as never,
+    adopterId: r2Adopter.id,
+    animalId: r2Animal.id,
+    shelterId: shelter.id,
+    animalSnapshot: {
+      name: "Smoke",
+      primaryPhoto: { storageKey: r2StorageKey, width: 800, height: 1000, alt: null },
+    },
+  });
+  await revealRepo(db).insert(r2Reveal);
+  const deleteResult = await afterDeleted(db, [r2CardKey]);
+  check(
+    "r2-cleanup-repo: afterDeleted nulls the reveal snapshot's primaryPhoto (jsonb_set UPDATE) over neon-http",
+    deleteResult.snapshotsNulled === 1,
+    `snapshotsNulled ${deleteResult.snapshotsNulled}, expected 1`,
+  );
+  const [r2RevealRow] = await db.select().from(reveals).where(eq(reveals.id, r2Reveal.id));
+  const r2SnapshotAfter = r2RevealRow?.animalSnapshot as { primaryPhoto: unknown } | undefined;
+  check(
+    "r2-cleanup-repo: the null is real, read back from Neon, not just the statement's own count",
+    r2SnapshotAfter?.primaryPhoto === null,
+    `primaryPhoto read back as ${JSON.stringify(r2SnapshotAfter?.primaryPhoto)}`,
+  );
+
+  // 42b. Pet card PR 4 widened referencedStorageKeys's UNION to also read
+  // shelters.logo - that UNION, and the SHELTER_LOGO_PREFIX branch in
+  // referencedObjectKeys, had only ever run against local Postgres before
+  // this step (Tier 1 review, PR #220, note 2).
+  const r2LogoStorageKey = `shelters/${tag}/logo/1`;
+  const r2LogoBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} R2` });
+  const r2LogoShelter = {
+    ...r2LogoBase,
+    exactAddress: { ...r2LogoBase.exactAddress, cityId: city.id },
+    publicLocation: publicLocationOf(
+      r2LogoBase.id,
+      { ...r2LogoBase.exactAddress, cityId: city.id },
+      policy,
+    ),
+    logo: { storageKey: r2LogoStorageKey, width: 160, height: 160 },
+  };
+  await insertShelterFromScript(db, r2LogoShelter, by);
+  const r2LogoReferenced = await referencedStorageKeys(db);
+  check(
+    "r2-cleanup-repo: referencedStorageKeys's UNION also reads shelters.logo over neon-http",
+    r2LogoReferenced.has(r2LogoStorageKey),
+    `${r2LogoReferenced.size} referenced storage key(s), expected one to include this shelter's logo`,
+  );
+  const r2LogoObjectKeys = await referencedObjectKeys(db);
+  const r2LogoSmallKey = variantObjectKey(r2LogoStorageKey, "small");
+  check(
+    "r2-cleanup-repo: referencedObjectKeys derives the logo's small variant, not the photo variants",
+    r2LogoObjectKeys.has(r2LogoSmallKey) &&
+      !r2LogoObjectKeys.has(variantObjectKey(r2LogoStorageKey, "card")),
+    `${r2LogoObjectKeys.size} referenced object key(s)`,
+  );
+
+  // 43. The pet card's fields (migration 0017). `temperament_traits` is the
+  // schema's first array column: Drizzle sends it as an array literal and
+  // parses whatever the driver hands back, which postgres-js and neon-http
+  // shape differently, and only a run over this driver shows the round trip
+  // holds. Written and cleared through the kabinet edit's own write
+  // (`writeEditIf`, as `animalsUpdate` calls it) and read back through
+  // `findWithCity`: three presets in order with a custom entry last, a custom
+  // colour and a medical note, each with its English; then an empty
+  // temperament, a preset colour and no note.
+  const cardAnimal = makeAnimal({ id: randomUUID() as never, shelterId: shelter.id });
+  await animalRepo(db).insert(cardAnimal, city.id);
+  const cardFields = {
+    temperament: [
+      { kind: "preset", trait: "shy" },
+      { kind: "preset", trait: "good_with_cats" },
+      { kind: "preset", trait: "calm" },
+      {
+        kind: "custom",
+        text: { uk: "Боїться грози", en: { text: "Afraid of thunderstorms", provenance: "human" } },
+      },
+    ],
+    colour: {
+      kind: "custom",
+      text: { uk: "Димчасте", en: { text: "Smoky", provenance: "human" } },
+    },
+    medicalNotes: {
+      uk: "Потребує гіпоалергенного корму.",
+      en: { text: "Needs hypoallergenic food.", provenance: "human" },
+    },
+  } satisfies Pick<Animal, "temperament" | "colour" | "medicalNotes">;
+  const cardCleared = {
+    temperament: [],
+    colour: { kind: "preset", colour: "tabby" },
+    medicalNotes: null,
+  } satisfies Pick<Animal, "temperament" | "colour" | "medicalNotes">;
+  const cardEdit = async (
+    fields: Pick<Animal, "temperament" | "colour" | "medicalNotes">,
+    at: Date,
+  ) => {
+    const read = await kabinetAnimals.findWithCity(cardAnimal.id);
+    if (!read) return { kind: "conflict" as const };
+    return kabinetAnimals.writeEditIf(
+      { ...read.animal, ...fields, lastUpdatedAt: at, version: read.animal.version + 1 },
+      read.cityId,
+      read.animal.version,
+      {
+        id: randomUUID(),
+        entry: {
+          kind: "animal_edited",
+          at,
+          actor: smokeActor,
+          animalId: cardAnimal.id,
+          animalName: read.animal.name,
+          fields: ["colour", "temperament", "medicalNotes"],
+        },
+      },
+    );
+  };
+  const cardFieldsOf = async () => {
+    const read = (await kabinetAnimals.findWithCity(cardAnimal.id))?.animal;
+    return read === undefined
+      ? null
+      : { temperament: read.temperament, colour: read.colour, medicalNotes: read.medicalNotes };
+  };
+  const cardSet = await cardEdit(cardFields, later(29000));
+  const cardAfterSet = await cardFieldsOf();
+  const cardClear = await cardEdit(cardCleared, later(30000));
+  const cardAfterClear = await cardFieldsOf();
+  check(
+    "pet card fields: temperament_traits (text[]), a custom colour and a medical note set then cleared through writeEditIf, read back over this driver",
+    cardSet.kind === "ok" &&
+      isDeepStrictEqual(cardAfterSet, cardFields) &&
+      cardClear.kind === "ok" &&
+      isDeepStrictEqual(cardAfterClear, cardCleared),
+    `set ${cardSet.kind} → ${JSON.stringify(cardAfterSet)}; cleared ${cardClear.kind} → ${JSON.stringify(cardAfterClear)}`,
+  );
+
+  // 44. Corpus for the sex filter check below (44b). Originally built for
+  // the temperament and colour filters too (pet card PR 1b) - removed with
+  // those filters by the gallery filter restructure - but the same four
+  // animals (two with temperament/colour presets, one with nothing
+  // recorded, one with only the shelter's own words) still exercise the sex
+  // filter's "unknown" case meaningfully, so the corpus stays as built. A
+  // city, a verified shelter and four published animals of this run's own.
+  const pcCity = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(pcCity);
+  const pcBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} T` });
+  const pcAddress = { ...pcBase.exactAddress, cityId: pcCity.id };
+  await insertShelterFromScript(
+    db,
+    {
+      ...pcBase,
+      exactAddress: pcAddress,
+      publicLocation: publicLocationOf(pcBase.id, pcAddress, policy),
+    },
+    by,
+  );
+  const pcAnimal = (fields: Pick<Animal, "temperament" | "colour" | "sex">) =>
+    makeAnimal({ id: randomUUID() as never, shelterId: pcBase.id, ...fields });
+  const pcShyCat = pcAnimal({
+    temperament: [
+      { kind: "preset", trait: "shy" },
+      { kind: "preset", trait: "good_with_cats" },
+    ],
+    colour: { kind: "preset", colour: "cream" },
+    sex: "male",
+  });
+  const pcPlayful = pcAnimal({
+    temperament: [{ kind: "preset", trait: "playful" }],
+    colour: { kind: "preset", colour: "black" },
+    sex: "female",
+  });
+  const pcBlank = pcAnimal({ temperament: [], colour: null, sex: "unknown" });
+  const pcOwnWords = pcAnimal({
+    temperament: [{ kind: "custom", text: { uk: "Любить сніг", en: null } }],
+    colour: { kind: "custom", text: { uk: "Димчасте", en: null } },
+    sex: "unknown",
+  });
+  for (const animal of [pcShyCat, pcPlayful, pcBlank, pcOwnWords]) {
+    await animalRepo(db).insert(animal, pcCity.id);
+  }
+  const pcName = new Map([
+    [pcShyCat.id, "shyCat"],
+    [pcPlayful.id, "playful"],
+    [pcBlank.id, "blank"],
+    [pcOwnWords.id, "ownWords"],
+  ]);
+  const pcFound = async (only: Partial<FeedFilters>) => {
+    const filters: FeedFilters = {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf", values: [pcCity.id] },
+      ...only,
+    };
+    const names = (items: readonly { id: string }[]) =>
+      items
+        .map((a) => pcName.get(a.id as never) ?? "other")
+        .sort()
+        .join(",");
+    const gallery = await galleryRepo(db).list({
+      filters,
+      scope: EVERYONE_SCOPE,
+      sort: "freshest",
+      page: 1,
+      pageSize: 24,
+      now: NOW,
+    });
+    const deck = await feedRepo(db).list({
+      filters,
+      cursor: null,
+      limit: 20,
+      adopterId: null,
+      now: NOW,
+      seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
+    });
+    return { gallery: names(gallery.items), deck: names(deck.items) };
+  };
+  const bothAre = (found: { gallery: string; deck: string }, expected: string) =>
+    found.gallery === expected && found.deck === expected;
+
+  // 44b. The sex filter, over the same corpus. "unknown" is a real, explicit
+  // value here - not an absence - so it is a normal `IN` member, unlike the
+  // "custom" and "unrecorded" variants the corpus's own temperament/colour
+  // fields carry (step 44's fixtures, no longer filterable, kept only as
+  // data that still exercises this filter's "unknown" case meaningfully).
+  const males = await pcFound({ sexes: { kind: "oneOf", values: ["male"] } });
+  const females = await pcFound({ sexes: { kind: "oneOf", values: ["female"] } });
+  const unknownSex = await pcFound({ sexes: { kind: "oneOf", values: ["unknown"] } });
+  check(
+    "sex filter (IN over sex) in the gallery and the deck, including the explicit 'unknown' value",
+    bothAre(males, "shyCat") &&
+      bothAre(females, "playful") &&
+      bothAre(unknownSex, "blank,ownWords"),
+    `male: ${JSON.stringify(males)}; female: ${JSON.stringify(females)}; unknown: ${JSON.stringify(unknownSex)}`,
+  );
+
+  // 44c. The filter selectors' counts (`gallery.facetCounts`) over the same
+  // corpus: one grouped statement of `COUNT(*) FILTER` columns, nested in a
+  // typed select and summed over the city groups - the shape this driver has
+  // to map exactly as postgres-js does. With «male» chosen in this city the
+  // sex counts ignore that choice (1 male, 1 female, 2 unrecorded); the city
+  // count applies it (1); sizes and ages, with both applied, sum to 1.
+  const pcFacets = await galleryRepo(db).facetCounts({
+    filters: {
+      ...NO_FILTERS,
+      cities: { kind: "oneOf", values: [pcCity.id] },
+      sexes: { kind: "oneOf", values: ["male"] },
+    },
+    now: NOW,
+  });
+  const sumOf = (counts: Readonly<Record<string, number>>) =>
+    Object.values(counts).reduce((sum, n) => sum + n, 0);
+  const pcCityFacet = pcFacets.cities.find((entry) => entry.cityId === pcCity.id)?.count;
+  check(
+    "gallery facet counts (grouped COUNT FILTER columns, own selection ignored, the rest applied)",
+    isDeepStrictEqual(pcFacets.sexes, { male: 1, female: 1, unknown: 2 }) &&
+      pcCityFacet === 1 &&
+      sumOf(pcFacets.sizes) === 1 &&
+      sumOf(pcFacets.ages) === 1,
+    `sexes ${JSON.stringify(pcFacets.sexes)}, this city ${pcCityFacet ?? "absent"}, sizes ${JSON.stringify(pcFacets.sizes)}, ages ${JSON.stringify(pcFacets.ages)}`,
+  );
+
+  // Pet card PR 2: animals.neighbours. Two of the three cards share one
+  // confirmedAt - the scalar-subquery seek (gallery-repo.ts's
+  // `seekCondition`) only reads correctly on neon-http if its timestamptz
+  // comparison and its `id` tiebreak both behave the same as on postgres-js.
+  const nbCity = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(nbCity);
+  const nbBase = makeShelter({ id: randomUUID() as ShelterId, displayName: "Smoke neighbours" });
+  const nbAddress = { ...nbBase.exactAddress, cityId: nbCity.id };
+  const nbShelter = {
+    ...nbBase,
+    exactAddress: nbAddress,
+    publicLocation: publicLocationOf(nbBase.id, nbAddress, policy),
+  };
+  await insertShelterFromScript(db, nbShelter, by);
+  const nbListing = (confirmedAt: Date, publishedAt: Date): AnimalListingState => ({
+    kind: "published",
+    publishedAt,
+    confirmedAt,
+    undoable: null,
+  });
+  const nbTied = new Date(NOW.getTime() - 1 * 86_400_000);
+  const nbOlder = new Date(NOW.getTime() - 2 * 86_400_000);
+  const nbA = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: nbShelter.id,
+    name: "NeighbourA",
+    listing: nbListing(nbTied, new Date(NOW.getTime() - 30 * 86_400_000)),
+  });
+  const nbB = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: nbShelter.id,
+    name: "NeighbourB",
+    listing: nbListing(nbTied, new Date(NOW.getTime() - 29 * 86_400_000)),
+  });
+  const nbC = makeAnimal({
+    id: randomUUID() as never,
+    shelterId: nbShelter.id,
+    name: "NeighbourC",
+    listing: nbListing(nbOlder, new Date(NOW.getTime() - 31 * 86_400_000)),
+  });
+  for (const animal of [nbA, nbB, nbC]) await animalRepo(db).insert(animal, nbCity.id);
+
+  const nbFilters: FeedFilters = { ...NO_FILTERS, cities: { kind: "oneOf", values: [nbCity.id] } };
+  const nbTiedPair = [nbA, nbB].sort((a, b) => (a.id < b.id ? -1 : 1));
+  const nbExpectedFreshest = [...nbTiedPair, nbC].map((a) => a.id);
+
+  const nbList = await galleryRepo(db).list({
+    filters: nbFilters,
+    scope: EVERYONE_SCOPE,
+    sort: "freshest",
+    page: 1,
+    pageSize: 10,
+    now: NOW,
+  });
+  const nbListOrder = nbList.items.map((a) => a.id);
+
+  const nbMiddleId = nbExpectedFreshest[1] as string;
+  const nbNeighbours = await galleryRepo(db).neighbours({
+    animalId: nbMiddleId as never,
+    filters: nbFilters,
+    scope: EVERYONE_SCOPE,
+    sort: "freshest",
+    now: NOW,
+  });
+  check(
+    "animals.neighbours: list() order (incl. a tied pair broken by id) and neighbours() walk agree",
+    isDeepStrictEqual(nbListOrder, nbExpectedFreshest) &&
+      nbNeighbours.prev?.id === nbExpectedFreshest[0] &&
+      nbNeighbours.next?.id === nbExpectedFreshest[2],
+    `list: ${JSON.stringify(nbListOrder)}; expected: ${JSON.stringify(nbExpectedFreshest)}; neighbours of middle: ${JSON.stringify(nbNeighbours)}`,
+  );
+
+  const nbEndNeighbours = await galleryRepo(db).neighbours({
+    animalId: nbExpectedFreshest[2] as never,
+    filters: nbFilters,
+    scope: EVERYONE_SCOPE,
+    sort: "freshest",
+    now: NOW,
+  });
+  const nbUnknownNeighbours = await galleryRepo(db).neighbours({
+    animalId: randomUUID() as never,
+    filters: nbFilters,
+    scope: EVERYONE_SCOPE,
+    sort: "freshest",
+    now: NOW,
+  });
+  check(
+    "animals.neighbours: the last row's next is null, and an unknown id answers null at both ends",
+    nbEndNeighbours.next === null &&
+      nbUnknownNeighbours.prev === null &&
+      nbUnknownNeighbours.next === null,
+    `end.next: ${JSON.stringify(nbEndNeighbours.next)}; unknown: ${JSON.stringify(nbUnknownNeighbours)}`,
+  );
+
+  // 46-48: S3 (audit F6, F8). Last, because 46 and 47 delete: a lapsed adopter session or an
+  // orphaned adopter an earlier step made (or the branch copied) goes too, which nothing after
+  // them reads. On a disposable branch the deletes run to 0 in batches, then this run's own
+  // rows are checked by id. (`DAY` is K2's, above.)
+  const drain = async (run: () => Promise<number>) => {
+    let total = 0;
+    for (let i = 0; i < 100; i++) {
+      const n = await run();
+      total += n;
+      if (n === 0) break;
+    }
+    return total;
+  };
+
+  // 46. the adopter-session clean-up's batched DELETE (`sessionRepo.deleteLapsed`): `IN (SELECT
+  // … LIMIT)` and both limits strictly, through this driver's timestamptz comparison. Exactly at
+  // a limit stays (`validateSession` still accepts it).
+  const s46Adopter = makeAdopter({ id: randomUUID() as never, createdAt: later(-60 * DAY) });
+  await adopterRepo(db).insert(s46Adopter);
+  const s46 = {
+    pastAbsolute: [later(-30 * DAY - 1), later(-60_000)],
+    atAbsolute: [later(-30 * DAY), later(-60_000)],
+    pastIdle: [later(-10 * DAY), later(-7 * DAY - 1)],
+    atIdle: [later(-10 * DAY), later(-7 * DAY)],
+    live: [later(-DAY), later(-60_000)],
+  } as const;
+  const s46Hash = (label: string) => `${tag}${label}`.padEnd(64, "0").slice(0, 64);
+  for (const [label, [createdAt, lastSeenAt]] of Object.entries(s46)) {
+    await sessionRepo(db).insert({
+      tokenHash: s46Hash(label),
+      adopterId: s46Adopter.id,
+      createdAt,
+      lastSeenAt,
+    });
+  }
+  const s46Deleted = await drain(() => sessionRepo(db).deleteLapsed(NOW));
+  const s46Left = new Set<string>();
+  for (const label of Object.keys(s46)) {
+    if ((await sessionRepo(db).findByHash(s46Hash(label))) !== null) s46Left.add(label);
+  }
+  check(
+    "adopter-session clean-up: past either limit deleted, exactly at a limit and live kept",
+    s46Deleted >= 2 && [...s46Left].sort().join(",") === "atAbsolute,atIdle,live",
+    `deleted ${s46Deleted} (at least this run's 2); kept of this run's: ${[...s46Left].sort().join(",")}`,
+  );
+
+  // 47. the orphaned-adopter DELETE (`adopterRepo.deleteOrphaned`): three correlated NOT EXISTS
+  // in a batched `IN (SELECT … LIMIT)`. An old adopter with nothing goes; one with a swipe, one
+  // with a reveal and one exactly at the minimum age stay.
+  const s47Old = later(-ORPHAN_ADOPTER_MIN_AGE_MS - 1);
+  const s47 = {
+    orphan: makeAdopter({ id: randomUUID() as never, createdAt: s47Old }),
+    swiped: makeAdopter({ id: randomUUID() as never, createdAt: s47Old }),
+    revealed: makeAdopter({ id: randomUUID() as never, createdAt: s47Old }),
+    young: makeAdopter({ id: randomUUID() as never, createdAt: later(-ORPHAN_ADOPTER_MIN_AGE_MS) }),
+  };
+  for (const adopter of Object.values(s47)) await adopterRepo(db).insert(adopter);
+  const s47City = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(s47City);
+  const s47Shelter = makeShelter({
+    id: randomUUID() as ShelterId,
+    displayName: `Smoke ${tag} S3`,
+    exactAddress: { ...makeShelter().exactAddress, cityId: s47City.id },
+  });
+  await shelterRepo(db).insert(s47Shelter);
+  const s47Animal = makeAnimal({ id: randomUUID() as never, shelterId: s47Shelter.id });
+  await animalRepo(db).insert(s47Animal, s47City.id);
+  await swipeRepo(db).record(makeSwipe({ adopterId: s47.swiped.id, animalId: s47Animal.id }));
+  await revealRepo(db).insert(
+    makeReveal({
+      id: randomUUID() as never,
+      adopterId: s47.revealed.id,
+      animalId: s47Animal.id,
+      shelterId: s47Shelter.id,
+    }),
+  );
+  const s47Deleted = await drain(() => adopterRepo(db).deleteOrphaned(NOW));
+  const s47Left: string[] = [];
+  for (const [label, adopter] of Object.entries(s47)) {
+    if ((await adopterRepo(db).findById(adopter.id)) !== null) s47Left.push(label);
+  }
+  check(
+    "orphaned-adopter clean-up: nothing left goes; a swipe, a reveal or too young stays",
+    s47Deleted >= 1 && s47Left.sort().join(",") === "revealed,swiped,young",
+    `deleted ${s47Deleted} (at least this run's 1); kept of this run's: ${s47Left.sort().join(",")}`,
+  );
+
+  // 48. the reveal budget's atomic write (`revealRepo.insertWithinShelterBudget`): on this
+  // driver a batch, one HTTP transaction, READ COMMITTED as `createDatabase` sets it, the
+  // adopter's row locked by `FOR NO KEY UPDATE`, then an INSERT … SELECT … WHERE guard.
+  const [s48Isolation] = await inOneTransaction(db, (tx) => [
+    tx
+      .select({ level: sql<string>`current_setting('transaction_isolation')` })
+      .from(sql`(SELECT 1) AS one`),
+  ]);
+  check(
+    "inOneTransaction runs READ COMMITTED (each statement a fresh snapshot)",
+    s48Isolation[0]?.level === "read committed",
+    `transaction_isolation: ${s48Isolation[0]?.level ?? "none"}`,
+  );
+
+  const s48City = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(s48City);
+  const s48Spots: { shelterId: ShelterId; animals: AnimalId[] }[] = [];
+  for (let i = 0; i < 31; i++) {
+    const shelter = makeShelter({
+      id: randomUUID() as ShelterId,
+      exactAddress: { ...makeShelter().exactAddress, cityId: s48City.id },
+    });
+    await shelterRepo(db).insert(shelter);
+    const animals: AnimalId[] = [];
+    for (let a = 0; a < (i === 29 ? 2 : 1); a++) {
+      const animal = makeAnimal({ id: randomUUID() as never, shelterId: shelter.id });
+      await animalRepo(db).insert(animal, s48City.id);
+      animals.push(animal.id);
+    }
+    s48Spots.push({ shelterId: shelter.id, animals });
+  }
+  const s48Budget = { since: later(-DAY), maxShelters: 30 };
+  const s48RevealOf = (adopterId: AdopterId, spot: number, animal = 0) =>
+    makeReveal({
+      id: randomUUID() as never,
+      adopterId,
+      shelterId: s48Spots[spot]?.shelterId as ShelterId,
+      animalId: s48Spots[spot]?.animals[animal] as AnimalId,
+      revealedAt: NOW,
+    });
+  const s48AdopterAt29 = async () => {
+    const adopter = makeAdopter({ id: randomUUID() as never, createdAt: NOW });
+    await adopterRepo(db).insert(adopter);
+    for (let i = 0; i < 29; i++) await revealRepo(db).insert(s48RevealOf(adopter.id, i));
+    return adopter.id;
+  };
+  const s48Distinct = async (adopterId: AdopterId) => {
+    const [row] = await db
+      .select({ n: countDistinct(reveals.shelterId) })
+      .from(reveals)
+      .where(eq(reveals.adopterId, adopterId));
+    return row?.n ?? 0;
+  };
+
+  const s48One = await s48AdopterAt29();
+  const writeOutcome = (reveal: ContactReveal) =>
+    revealRepo(db).insertWithinShelterBudget(reveal, s48Budget);
+  const write = async (reveal: ContactReveal) => (await writeOutcome(reveal)).kind;
+  const s48First = s48RevealOf(s48One, 29);
+  const s48Sequence = [
+    await write(s48First),
+    await write(s48RevealOf(s48One, 30)),
+    await write(s48RevealOf(s48One, 29, 1)),
+  ];
+  const s48Repeat = await writeOutcome(s48RevealOf(s48One, 29, 0));
+  s48Sequence.push(s48Repeat.kind);
+  check(
+    "reveal budget, one at a time: 30th inserted, 31st refused, free re-reveal, no duplicate",
+    isDeepStrictEqual(s48Sequence, [
+      "inserted",
+      "over_budget",
+      "inserted",
+      "animal_already_revealed",
+    ]) && (await s48Distinct(s48One)) === 30,
+    `${JSON.stringify(s48Sequence)}; distinct shelters ${await s48Distinct(s48One)}`,
+  );
+  check(
+    "reveal budget, duplicate animal: answers with the stored row, not just the kind",
+    s48Repeat.kind === "animal_already_revealed" &&
+      s48Repeat.existing.id === s48First.id &&
+      s48Repeat.existing.adopterId === s48One &&
+      s48Repeat.existing.animalId === s48First.animalId &&
+      s48Repeat.existing.shelterId === s48First.shelterId,
+    s48Repeat.kind === "animal_already_revealed"
+      ? `stored id matches first write: ${s48Repeat.existing.id === s48First.id}`
+      : `kind ${s48Repeat.kind}`,
+  );
+
+  // A forced overlap at 29, by another adopter. A holder batch takes the adopter's row lock
+  // (the same statement the repo uses), sleeps inside its transaction, then writes the 30th
+  // shelter unconditionally. The racing reveal starts only once pg_stat_activity shows that
+  // sleep running, so it arrives while the lock is held. Without the lock it would count 29,
+  // write, and the holder's insert would make 31; with it, it waits, then sees 30 and is refused.
+  const s48Two = await s48AdopterAt29();
+  const s48SleepMs = 3000;
+  const s48Marker = `pg_sleep(${s48SleepMs / 1000})`;
+  const s48Holder = inOneTransaction(db, (tx) => [
+    tx
+      .select({ id: adopters.id })
+      .from(adopters)
+      .where(eq(adopters.id, s48Two))
+      .for("no key update"),
+    tx.select({ slept: sql<string>`${sql.raw(s48Marker)}::text` }).from(sql`(SELECT 1) AS one`),
+    tx.insert(reveals).values(revealToRow(s48RevealOf(s48Two, 29))),
+  ]);
+  const s48Sleeping = async () => {
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(sql`pg_stat_activity`)
+      .where(
+        sql`pid <> pg_backend_pid() AND state = 'active' AND query LIKE ${`%${s48Marker}::text%`}`,
+      );
+    return (row?.n ?? 0) > 0;
+  };
+  // A single-connection driver (the local suite's) queues the monitor behind the holder, so no
+  // overlap is possible there; that case is told apart by the first poll taking the whole sleep.
+  const s48PollStart = Date.now();
+  let s48SawHolder = false;
+  let s48Polls = 0;
+  for (; s48Polls < 40 && !s48SawHolder; s48Polls++) {
+    s48SawHolder = await s48Sleeping();
+    if (s48Polls === 0 && Date.now() - s48PollStart >= s48SleepMs / 2) break;
+    if (!s48SawHolder) await new Promise((r) => setTimeout(r, 100));
+  }
+  const s48Serialised = !s48SawHolder && Date.now() - s48PollStart >= s48SleepMs / 2;
+  const s48Started = Date.now();
+  const s48Racer =
+    s48SawHolder || s48Serialised ? await write(s48RevealOf(s48Two, 30)) : "holder_not_seen";
+  const s48Waited = Date.now() - s48Started;
+  await s48Holder;
+  check(
+    "reveal budget, forced overlap at 29: the racer waits for the lock, then is refused",
+    (s48SawHolder ? s48Waited >= 300 : s48Serialised) &&
+      s48Racer === "over_budget" &&
+      (await s48Distinct(s48Two)) === 30,
+    `holder seen ${s48SawHolder} (serialised driver ${s48Serialised}); racer ${s48Racer} after ${s48Waited} ms; distinct shelters ${await s48Distinct(s48Two)}`,
+  );
+
+  // 49-50: the shelter page's filters (`scope` on `facetCounts` and `relaxationCounts`). Appended
+  // last, after step 48; nothing above is touched. One fresh city holds two shelters, so every
+  // count is exact on a child branch whatever else the branch holds: A has a small male dog, a
+  // small female cat and a large male dog; B has one large female cat.
+  const s49City = makeCity({ id: randomUUID() as never });
+  await cityRepo(db).insert(s49City);
+  const s49Shelter = async (name: string) => {
+    const base = makeShelter({ id: randomUUID() as ShelterId, displayName: name });
+    const address = { ...base.exactAddress, cityId: s49City.id };
+    const shelter = {
+      ...base,
+      exactAddress: address,
+      publicLocation: publicLocationOf(base.id, address, policy),
+    };
+    await insertShelterFromScript(db, shelter, by);
+    return shelter;
+  };
+  const s49A = await s49Shelter("Smoke scope A");
+  const s49B = await s49Shelter("Smoke scope B");
+  const s49Animal = (
+    shelterId: ShelterId,
+    name: string,
+    species: "dog" | "cat",
+    size: "small" | "large",
+    sex: "male" | "female",
+  ) =>
+    makeAnimal({
+      id: randomUUID() as never,
+      shelterId,
+      name,
+      species,
+      size,
+      sex,
+      listing: nbListing(new Date(NOW.getTime() - DAY), new Date(NOW.getTime() - 30 * DAY)),
+    });
+  for (const animal of [
+    s49Animal(s49A.id, "ScopeA1", "dog", "small", "male"),
+    s49Animal(s49A.id, "ScopeA2", "cat", "small", "female"),
+    s49Animal(s49A.id, "ScopeA3", "dog", "large", "male"),
+    s49Animal(s49B.id, "ScopeB1", "cat", "large", "female"),
+  ]) {
+    await animalRepo(db).insert(animal, s49City.id);
+  }
+  const s49Mine = { kind: "shelter", shelterId: s49A.id } as const;
+  const s49Scoped = await galleryRepo(db).facetCounts({
+    filters: NO_FILTERS,
+    scope: s49Mine,
+    now: NOW,
+  });
+  const s49Everyone = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
+  const s49CityOf = (counts: typeof s49Scoped) =>
+    counts.cities.find((entry) => entry.cityId === s49City.id)?.count;
+  check(
+    "facet counts with a shelter scope: only that shelter's animals (sizes, sexes, species, its city), unscoped sees both",
+    isDeepStrictEqual(s49Scoped.sizes, { small: 2, medium: 0, large: 1 }) &&
+      isDeepStrictEqual(s49Scoped.sexes, { male: 2, female: 1, unknown: 0 }) &&
+      isDeepStrictEqual(s49Scoped.species, { dog: 2, cat: 1 }) &&
+      s49CityOf(s49Scoped) === 3 &&
+      s49CityOf(s49Everyone) === 4,
+    `scoped sizes ${JSON.stringify(s49Scoped.sizes)}, sexes ${JSON.stringify(s49Scoped.sexes)}, species ${JSON.stringify(s49Scoped.species)}, city ${s49CityOf(s49Scoped) ?? "absent"} (unscoped ${s49CityOf(s49Everyone) ?? "absent"})`,
+  );
+
+  const s49Dogs: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
+  const s49Relax = await galleryRepo(db).relaxationCounts({
+    filters: s49Dogs,
+    scope: s49Mine,
+    now: NOW,
+  });
+  check(
+    "relaxation counts with a shelter scope: dogs of shelter A are 2, dropping the species filter gains its 1 cat (not B's)",
+    s49Relax.current === 2 &&
+      isDeepStrictEqual(s49Relax.relaxations, [{ dimension: "species", additional: 1 }]),
+    `current ${s49Relax.current}, relaxations ${JSON.stringify(s49Relax.relaxations)}`,
+  );
+
   return out;
 }
 
@@ -1801,7 +2710,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   console.log(`Target host: ${target.host}`);
-  const outcomes = await runSmoke(createDatabase(url));
+  const database = createDatabase(url);
+  const outcomes = [
+    ...(await runSmoke(database)),
+    ...(await runGeographySmoke(database)),
+    ...(await runSearchSmoke(database)),
+    ...(await runFiltersSmoke(database)),
+  ];
   for (const o of outcomes) console.log(`${o.ok ? "PASS" : "FAIL"}  ${o.name}: ${o.detail}`);
   const failed = outcomes.filter((o) => !o.ok).length;
   console.log(`${outcomes.length - failed} passed, ${failed} failed`);

@@ -14,7 +14,7 @@ sense of what is true. The English describes the facts. It is not a draft to tra
 the coordinating session); his final Ukrainian for every `kabinet.*` key on this sheet and on
 `docs/h2-copy-sheet.md` §F is in `uk.ts` verbatim, and `uk.ts` is now the record of the text.
 The drafts below are history. Row 70 (`kabinet.support.body`) leaves out `{shelter}` on purpose
-(his note; EM-Q5). The invite email is signed `— {operator}` on its last
+(his note; EM-Q5). The invite email is signed `- {operator}` on its last
 line (row 88), filled from `KABINET_OPERATOR_DISPLAY_NAME` like the history actor.
 
 The product name is not final ("the name is not final" in CLAUDE.md), so no string here may
@@ -33,7 +33,7 @@ address its link (IN-Q3). The only email whose link signs someone in.
 | `kabinet.email.signIn.intro` | First line of the body | Someone asked to sign in with this address. Since 2026-10-14 it opens with a greeting, the invite's personal shape (Oleksii, after delivery test 2: the invite landed in Gmail's Primary tab, the sign-in email in Promotions). |
 | `kabinet.email.signIn.action` | The link's label in the HTML part: a label, never the URL (IN-E8); the plain-text part shows the raw URL | Open the sign-in page. **Oleksii's draft (IN-E8, given as "e.g.", not final):** «Відкрити сторінку входу» |
 | `kabinet.email.signIn.expiry` | Under the link | The link works once and expires in 15 minutes (`MAGIC_LINK_TTL_SECONDS`; the value is filled in, never typed into the string). |
-| `kabinet.email.signIn.notYou` | Last line | If you didn't ask for this, ignore the email: nothing happens without the link. Signed `— {operator}` on its own last line since 2026-10-14, filled as the invite's (`KABINET_OPERATOR_DISPLAY_NAME`, fallback «Оператор реєстру»). |
+| `kabinet.email.signIn.notYou` | Last line | If you didn't ask for this, ignore the email: nothing happens without the link. Signed `- {operator}` on its own last line since 2026-10-14, filled as the invite's (`KABINET_OPERATOR_DISPLAY_NAME`, fallback «Оператор реєстру»). |
 
 ## E2. The invite email
 
@@ -126,6 +126,17 @@ up, so it can't name the shelter; two keys added, both `[COPY PENDING]`:
 | `kabinet.inviteLanding.ready` | Under `pageTitle`, before anything is sent | Says where the link will go, without showing the address (EM-Q4: kept). Oleksii's draft: «Посилання для входу прийде на адресу, на яку ви отримали це запрошення.» |
 | `kabinet.inviteLanding.send` | The one button | Send the link. **Oleksii's draft (EM-Q3):** «Надіслати посилання». In code with the draft quoted inside. |
 
+**Revised by Oleksii, 2026-10-21 (PW-2 review, Q2 (b)), `kabinet.inviteLanding.expired` only.**
+His message, verbatim: "Q2: (b). The shared “link no longer works” page gets this text:
+«Посилання вже не діє. Якщо пароль уже створено — увійдіть. Якщо ні — напишіть мені, і я надішлю
+нове запрошення.» Keep the «Перейти до входу» button. It’s still one identical page for every
+broken link. Update its test and the exact copy check."
+
+| Key | Where | Text |
+|---|---|---|
+| `kabinet.inviteLanding.expired` | Under `unusableTitle`, on the one page every broken invitation link gets (unknown, expired, used, replaced, withdrawn, an operator's, one with a password already, a member's, a pre-PW-2 id link) | **Now:** «Посилання вже не діє. Якщо пароль уже створено — увійдіть. Якщо ні — напишіть мені, і я надішлю нове запрошення.» English sense: the link no longer works; if you've already created a password, sign in; if not, write to me and I'll send a new invitation. **Replaced:** «Запрошення більше не дійсне. Напишіть мені — я надішлю нове.» |
+| `kabinet.inviteLanding.signIn` | The link under it, to K1 | Kept: «Перейти до входу» |
+
 ## P. The confirm page (IN-Q11)
 
 The page every emailed sign-in link opens. Its GET only shows the button; pressing it signs in
@@ -152,7 +163,7 @@ Instead of changing the `/prytulkam` A3 sentence, the kabinet's support banner i
 
 | Key | Where | English sense | Oleksii's draft (verbatim, "copy sheet, draft") |
 |---|---|---|---|
-| `kabinet.support.title` | S5 banner, the first line (the operator's own screen) | You are viewing the cabinet of «{shelter}»: view only, nothing can be changed. | «Ви переглядаєте кабінет притулку «{shelter}» — лише перегляд, змінити нічого не можна.» |
+| `kabinet.support.title` | S5 banner, the first line (the operator's own screen) | You are viewing the cabinet of «{shelter}»: view only, nothing can be changed. | «Ви переглядаєте кабінет притулку «{shelter}» - лише перегляд, змінити нічого не можна.» |
 
 **EM-Q2 (Oleksii, 2026-10-14, verbatim):** "the banner addresses the operator; no name
 hard-coded." The draft above replaces his first one («Олексій переглядає ваш кабінет — лише

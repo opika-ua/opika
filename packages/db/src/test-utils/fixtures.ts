@@ -23,6 +23,7 @@ import {
   testOnlyLocationPolicy,
   UNKNOWN_DOCUMENT_READINESS,
 } from "@opika/domain";
+import { KYIV_OBLAST_REGION_ID } from "../geography/regions-data";
 
 const policy = testOnlyLocationPolicy();
 
@@ -60,14 +61,23 @@ export function makeCity(overrides: Partial<City> = {}): City {
     // Derived from `id`, not a fixed string: `slug` is unique in the real
     // schema, and a suite that calls this more than once per test (several
     // do) would otherwise collide on the same default the moment more than
-    // one city is inserted. Not `citySlugOf(id)` — that would produce a
-    // slug that is *itself* UUID-shaped, which `redirectHrefForLegacyCityIds`
+    // one city is inserted. Not `citySlugOf(id)` - that would produce a
+    // slug that is *itself* UUID-shaped, which `redirectHrefForNonCanonicalCities`
     // (`apps/web`) treats as a legacy id needing rewriting, not a real slug.
     // The `c-` prefix makes this fixture's default provably never collide
     // with that shape.
     slug: CitySlugSchema.parse(`c-${id}`),
+    regionId: KYIV_OBLAST_REGION_ID,
+    kind: "city",
     name: { uk: "Тест", en: { text: "Test", provenance: "human" } },
-    centroid: { lat: 50.45, lng: 30.52 },
+    district: null,
+    hromada: null,
+    nameScope: "unique_in_ukraine",
+    centroid: {
+      kind: "recorded",
+      coordinates: { lat: 50.45, lng: 30.52 },
+      source: "manual",
+    },
     ...overrides,
   };
 }
@@ -93,6 +103,7 @@ export function makeShelter(overrides: Partial<Shelter> = {}): Shelter {
     exactAddress,
     contact: defaultContact,
     donation: null,
+    logo: null,
     pendingDonation: null,
     version: 0,
     freshnessSentence: null,
@@ -125,6 +136,7 @@ const completeAnimalFields = (): CompleteAnimalFields => ({
   name: "Бровко",
   species: "dog",
   sex: "male",
+  coatLength: null,
   size: "medium",
   age: defaultAge,
   description: { uk: "Дуже гарний песик", en: null },
@@ -132,7 +144,14 @@ const completeAnimalFields = (): CompleteAnimalFields => ({
   vaccination: { source: "shelter_declared", state: "unknown", declaredAt: now },
   spayNeuter: { source: "shelter_declared", state: "unknown", declaredAt: now },
   documentReadiness: UNKNOWN_DOCUMENT_READINESS,
+  temperament: [],
+  colour: null,
+  medicalNotes: null,
   publicLocation: null,
+  // Matches the published/verified defaults below: a fixture a test doesn't
+  // override is already visible. A test exercising S8-F5 overrides this
+  // (and/or listing/verification) explicitly.
+  everServedAt: now,
   createdAt: now,
   lastUpdatedAt: now,
   version: 0,

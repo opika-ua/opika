@@ -7,14 +7,14 @@ import {
   ShelterIdSchema,
 } from "@opika/domain";
 import { ORPCError } from "@orpc/client";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RevealFlow } from "./RevealFlow";
 
 /**
  * The reveal dialog had no rendered assertion of its own outside the
  * Playwright harness, and the harness only ever exercises one shelter from
- * seed data — which is how "the dialog renders nothing for a shelter whose
+ * seed data - which is how "the dialog renders nothing for a shelter whose
  * primary channel isn't Telegram" survived to a screenshot, and how "the
  * Telegram handle in `additional` is silently dropped" survived past that
  * fix. These are the cases seed data cannot reach.
@@ -69,7 +69,7 @@ function revealFor(contact: ShelterContact): ContactRevealView {
 }
 
 function renderFlow() {
-  return render(<RevealFlow animalId={ANIMAL_ID} animalName="Ластівка" cityName="Бровари" />);
+  return render(<RevealFlow animalId={ANIMAL_ID} animalName="Ластівка" cityName="м. Бровари" />);
 }
 
 beforeEach(() => {
@@ -80,7 +80,7 @@ beforeEach(() => {
 });
 
 describe("RevealFlow's session handling", () => {
-  it("calls nothing at all until the trigger is pressed — no session is minted by opening the page", () => {
+  it("calls nothing at all until the trigger is pressed – no session is minted by opening the page", () => {
     renderFlow();
     expect(callOrder).toEqual([]);
   });
@@ -96,7 +96,7 @@ describe("RevealFlow's session handling", () => {
 
     // `animals.reveal` is gated on `context.adopterId` server-side, so a
     // reveal fired before bootstrap resolves is a guaranteed UNAUTHENTICATED
-    // — this order is the whole reason two calls exist rather than one.
+    // - this order is the whole reason two calls exist rather than one.
     expect(callOrder).toEqual(["session.bootstrap", "animals.reveal"]);
     expect(revealCall).toHaveBeenCalledWith({ animalId: ANIMAL_ID });
   });
@@ -129,8 +129,10 @@ describe("RevealFlow's contact rows", () => {
     // Frames.dc.html` show "+380 67 123 45 67" above "@domivka_brovary").
     // Every seeded shelter has exactly this shape, so a regression here is
     // invisible to any test that only checks "some contact appeared".
-    const rows = screen.getAllByTestId("reveal-contact-row").map((row) => row.textContent);
-    expect(rows).toEqual(["+380671234567", "@domivka_brovary"]);
+    const rows = screen
+      .getAllByTestId("reveal-contact-row")
+      .map((row) => row.querySelector("a")?.textContent);
+    expect(rows).toEqual(["Подзвонити+380671234567", "Написати в Telegram@domivka_brovary"]);
   });
 
   it("still shows the details for a shelter whose primary channel has no action button", async () => {
@@ -147,9 +149,21 @@ describe("RevealFlow's contact rows", () => {
     // The reveal has already been spent against the adopter's 30-per-day
     // limit by this point. A dialog with no contact details in it would be
     // the worst possible outcome of that trade.
-    const rows = screen.getAllByTestId("reveal-contact-row").map((row) => row.textContent);
-    expect(rows).toEqual(["https://domivka.example", "Viber · +380671234567"]);
-    expect(screen.queryByTestId("reveal-primary-action")).toBeNull();
+    const rows = screen
+      .getAllByTestId("reveal-contact-row")
+      .map((row) => row.querySelector("a")?.textContent);
+    expect(rows).toEqual(["Відкрити сайтhttps://domivka.example", "Написати у Viber+380671234567"]);
+    // Viber opens the app's own chat; a website is opened, not copied (no copy button on that row).
+    const [websiteRow, viberRow] = screen.getAllByTestId("reveal-contact-row");
+    expect(
+      within(viberRow as HTMLElement)
+        .getByRole("link")
+        .getAttribute("href"),
+    ).toBe("viber://chat?number=%2B380671234567");
+    expect(within(websiteRow as HTMLElement).queryByRole("button")).toBeNull();
+    expect(
+      within(viberRow as HTMLElement).getByRole("button", { name: "Копіювати номер у Viber" }),
+    ).toBeTruthy();
   });
 
   it("offers a tel: action for a phone-primary shelter and a t.me link for a Telegram-primary one", async () => {
@@ -162,7 +176,7 @@ describe("RevealFlow's contact rows", () => {
 
     const call = screen.getByTestId("reveal-primary-action");
     expect(call.getAttribute("href")).toBe("tel:+380671234567");
-    expect(call.textContent).toBe("Подзвонити");
+    expect(within(call).getByText("Подзвонити")).toBeTruthy();
     phoneOnly.unmount();
 
     revealCall.mockResolvedValue(
@@ -175,7 +189,7 @@ describe("RevealFlow's contact rows", () => {
     const write = screen.getByTestId("reveal-primary-action");
     expect(write.getAttribute("href")).toBe("https://t.me/domivka_brovary");
     // Transcribed from the mock's R1 frame, not read back from `uk.reveal`.
-    expect(write.textContent).toBe("Написати в Telegram");
+    expect(within(write).getByText("Написати в Telegram")).toBeTruthy();
   });
 });
 
@@ -228,9 +242,11 @@ describe("RevealFlow's dialog semantics", () => {
     fireEvent.click(screen.getByTestId("reveal-trigger"));
     await screen.findByTestId("reveal-dialog");
 
-    const dialog = screen.getByRole("dialog", { name: "Ось як зв'язатися з притулком." });
+    const dialog = screen.getByRole("dialog", { name: "Як звʼязатися з притулком" });
     expect(dialog).toBeTruthy();
-    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("heading", { level: 2 })),
+    );
   });
 
   it("names the dialog and moves focus into it in the error state too", async () => {
@@ -242,36 +258,47 @@ describe("RevealFlow's dialog semantics", () => {
     // Without a `#reveal-heading` in this branch the dialog's own
     // `aria-labelledby` dangles: an unnamed modal, with focus left on the
     // trigger button behind the overlay.
-    expect(screen.getByRole("dialog", { name: "Щось не спрацювало на нашому боці." })).toBeTruthy();
-    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+    expect(screen.getByRole("dialog", { name: "Збій на боці сайту." })).toBeTruthy();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("heading", { level: 2 })),
+    );
   });
 
   /**
-   * Oleksii's own words, 2026-09-13 (`docs/decisions-pending-review.md`) —
+   * Oleksii's own words, 2026-09-13 (`docs/decisions-pending-review.md`) -
    * the honest replacement for the generic "Щось не спрацювало" copy the
    * dialog rendered for every error, this one included, until now. A
    * rendered assertion, not a markup check: `docs/standing-constraints.md`'s
    * "a UI item may not be marked done on the basis of inspecting markup."
    */
-  it("shows the reveal-budget copy, not the generic error, when animals.reveal is RATE_LIMITED — and offers no retry", async () => {
+  it("shows the reveal-budget copy, not the generic error, when animals.reveal is RATE_LIMITED – and offers no retry", async () => {
     revealCall.mockRejectedValue(new ORPCError("RATE_LIMITED", { defined: true }));
     renderFlow();
     fireEvent.click(screen.getByTestId("reveal-trigger"));
     await screen.findByTestId("reveal-dialog");
 
     expect(
-      screen.getByRole("dialog", { name: "Ви відкрили контакти багатьох притулків сьогодні." }),
+      screen.getByRole("dialog", {
+        name: "За останню добу ви відкрили контакти багатьох притулків.",
+      }),
     ).toBeTruthy();
-    expect(screen.getByText("Наступні — завтра.")).toBeTruthy();
+    // Audit 2026-10-22 #6: the window is a rolling day, and a shelter already opened is free.
+    expect(
+      screen.getByText(
+        "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Нові – пізніше, коли мине доба від перших.",
+      ),
+    ).toBeTruthy();
     expect(screen.queryByTestId("reveal-retry")).toBeNull();
-    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("heading", { level: 2 })),
+    );
   });
 
   /**
    * Parked in `docs/decisions-pending-review.md`'s PARKED section (R3) and
    * picked up here: a genuine network failure during `animals.reveal` used
    * to collapse into the same "Щось не спрацювало на нашому боці" copy as
-   * every other error, which is false for this case specifically — neither
+   * every other error, which is false for this case specifically - neither
    * the app's fault nor the shelter's. `uk.errors.offline` was already
    * approved and already wired for the same signal in the deck
    * (`SwipeDeck.tsx`'s `DeckErrorReason`); this only extends the existing
@@ -283,23 +310,29 @@ describe("RevealFlow's dialog semantics", () => {
     fireEvent.click(screen.getByTestId("reveal-trigger"));
     await screen.findByTestId("reveal-dialog");
 
-    expect(screen.getByRole("dialog", { name: "Зараз немає інтернету." })).toBeTruthy();
-    expect(screen.getByText("БЕЗ ЗВ'ЯЗКУ")).toBeTruthy();
-    // `uk.errors.offline` has no `body` field — the only text in this dialog
+    expect(
+      screen.getByRole("dialog", {
+        name: "Немає звʼязку із сайтом. Перевірте інтернет і спробуйте ще раз.",
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText("БЕЗ ЗВʼЯЗКУ")).toBeTruthy();
+    // `uk.errors.offline` has no `body` field - the only text in this dialog
     // is the eyebrow, the title (the dialog's own accessible name, asserted
     // above) and the retry button; a stray loadFailed-style body line would
     // mean the `"body" in copy` guard regressed.
     expect(screen.queryByText("Це не ваша помилка і не помилка притулку.")).toBeNull();
     const retry = screen.getByTestId("reveal-retry");
     expect(retry.textContent).toBe("Спробувати ще раз");
-    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("heading", { level: 2 })),
+    );
   });
 
   /**
    * Reviewer-found gap (`docs/reviews/chore/finish-line-block-1/b22b7c1.md`):
    * the test above only proves the `animals.reveal` call's own offline path.
    * `RevealFlow.tsx` calls `useReveal()` with no `ensureSession`, so
-   * `session.bootstrap` runs *first* on every open — a real outage is at
+   * `session.bootstrap` runs *first* on every open - a real outage is at
    * least as likely to be caught there as at the reveal call, and the
    * sibling test just above it (`beforeEach`'s `bootstrap.mockResolvedValue`)
    * never exercises that path at all.
@@ -310,8 +343,31 @@ describe("RevealFlow's dialog semantics", () => {
     fireEvent.click(screen.getByTestId("reveal-trigger"));
     await screen.findByTestId("reveal-dialog");
 
-    expect(screen.getByRole("dialog", { name: "Зараз немає інтернету." })).toBeTruthy();
+    expect(
+      screen.getByRole("dialog", {
+        name: "Немає звʼязку із сайтом. Перевірте інтернет і спробуйте ще раз.",
+      }),
+    ).toBeTruthy();
     expect(revealCall).not.toHaveBeenCalled();
+  });
+
+  /**
+   * G1 (audit 2026-10-22): the per-IP limiter answers a plain 429, which the client reports
+   * as `TOO_MANY_REQUESTS` (an undefined, non-contract error). It used to read «Щось не
+   * спрацювало на нашому боці», blaming the site for a limit; it reads `detail.rateLimited`.
+   * Unlike the reveal budget above, it keeps a retry: the limit clears by itself.
+   */
+  it("shows «Забагато запитів…» with a retry for the per-IP 429, not the site's failure", async () => {
+    revealCall.mockRejectedValue(new ORPCError("TOO_MANY_REQUESTS"));
+    renderFlow();
+    fireEvent.click(screen.getByTestId("reveal-trigger"));
+    await screen.findByTestId("reveal-dialog");
+
+    expect(
+      screen.getByRole("dialog", { name: "Забагато запитів. Спробуйте ще раз пізніше." }),
+    ).toBeTruthy();
+    expect(screen.queryByText("Збій на боці сайту.")).toBeNull();
+    expect(screen.getByTestId("reveal-retry").textContent).toBe("Спробувати ще раз");
   });
 
   it("Escape closes the dialog, restores focus to the trigger, and unlocks page scroll", async () => {
@@ -324,28 +380,46 @@ describe("RevealFlow's dialog semantics", () => {
     await screen.findByTestId("reveal-dialog");
     expect(document.body.style.overflow).toBe("hidden");
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    // The platform's Esc ends in dialog.close() (happy-dom has no key handling of its own).
+    act(() => (screen.getByTestId("reveal-dialog") as HTMLDialogElement).close());
 
     await waitFor(() => expect(screen.queryByTestId("reveal-dialog")).toBeNull());
     expect(document.activeElement).toBe(trigger);
     expect(document.body.style.overflow).not.toBe("hidden");
   });
 
-  it("wraps Shift+Tab from the heading back to the last control instead of leaking to the page behind", async () => {
+  /**
+   * RF-F1's regression guard. The assertion above (`toBe("hidden")` read
+   * right after `findByTestId`) only catches the race if the test run
+   * happens to land in the unlucky scheduling window: the passive original
+   * passed it in every local run and failed it once in CI. This test forces
+   * the window open deterministically instead of hoping to land in it: a
+   * `MutationObserver` fires on the exact DOM mutation that inserts the
+   * dialog, and its callback reads `document.body.style.overflow` after the
+   * commit's layout effects and before any later-scheduled passive effect
+   * runs. The dialog mounts only after an
+   * awaited `animals.reveal` resolves, so nothing about this update is a
+   * plain discrete click; that's exactly the shape that exposed the race.
+   */
+  it("has the scroll lock applied at the exact moment the dialog node appears, not merely by the time it's queried", async () => {
     revealCall.mockResolvedValue(
       revealFor({ primary: { kind: "phone", e164: "+380671234567" }, additional: [] }),
     );
     renderFlow();
+
+    let overflowAtFirstSight: string | null = null;
+    const observer = new MutationObserver(() => {
+      if (overflowAtFirstSight !== null) return;
+      if (document.querySelector('[data-testid="reveal-dialog"]')) {
+        overflowAtFirstSight = document.body.style.overflow;
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
     fireEvent.click(screen.getByTestId("reveal-trigger"));
     await screen.findByTestId("reveal-dialog");
-    await waitFor(() => expect(document.activeElement?.id).toBe("reveal-heading"));
+    observer.disconnect();
 
-    // The heading carries tabindex="-1", so it is not in the trap's own
-    // focusable list: comparing the active element against `first` alone
-    // matched nothing here and let the browser walk backwards out of the
-    // dialog onto the trigger button.
-    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
-
-    expect(document.activeElement).toBe(screen.getByTestId("reveal-back-to-gallery"));
+    expect(overflowAtFirstSight).toBe("hidden");
   });
 });

@@ -62,20 +62,34 @@ export const captionOf = (shelterName: string, counts: AnimalListCounts): string
 /** The chips in N3's order: every card, then one per listing kind, each with its inventory count. */
 export const filterChipsOf = (
   counts: AnimalListCounts,
-): { filter: KabinetAnimalListFilter; label: string }[] => [
+): {
+  id: string;
+  filter: KabinetAnimalListFilter;
+  /** The accessible name: «Усі · 48». */
+  label: string;
+  /** The visible name, and its count beside it. */
+  text: string;
+  count: number;
+}[] => [
   {
+    id: "all",
     filter: { kind: "all" },
     label: fillTemplate(t.filter.withCount, {
       label: t.filter.all,
       count: integer.format(totalOf(counts)),
     }),
+    text: t.filter.all,
+    count: totalOf(counts),
   },
   ...LISTING_KINDS.map((kind) => ({
+    id: kind,
     filter: { kind: "listing", listing: kind } as const,
     label: fillTemplate(t.filter.withCount, {
       label: t.filter[kind],
       count: integer.format(counts[kind]),
     }),
+    text: t.filter[kind],
+    count: counts[kind],
   })),
 ];
 
@@ -192,22 +206,33 @@ export type RowAction =
   | "edit";
 
 /**
- * Which actions a row offers (K2 sheet §4, with his answers 7 and 8): one
- * forward action beside the row, the rest under «Ще». «Видалити чернетку» is
- * on every draft (K2-T4: whether a draft was ever published stays out of
- * every view), and a refusal is handled when it comes. Adopted is terminal
- * (H2-7), so it offers editing only.
+ * What a row's ⋯ menu may hold: every row action, plus the link to the card on the public site
+ * (a new tab; only where the card is public).
+ */
+export type MenuEntry = RowAction | "viewOnSite";
+
+/** The entries drawn after a divider, in the danger colour: the ones that take a card out of sight or away. */
+export const DANGER_ENTRIES: ReadonlySet<MenuEntry> = new Set(["withdraw", "deleteDraft"]);
+
+/**
+ * Which actions a row offers: one primary action beside the row and the rest in the ⋯ menu. The
+ * primary is the move a shelter makes most: «Опублікувати» on a draft, «Повернути в чернетки» on a
+ * withdrawn card; on a published or reserved card it is the date confirmation («Ще шукає» /
+ * «Ще домовляються», drawn by the row from `confirmLabelOf`), so `forward` is null there and the
+ * status moves sit in the menu. The menu: «Редагувати», the status moves, «Переглянути на сайті»
+ * (published and reserved only), then, after a divider, «Зняти з показу» or «Видалити чернетку».
+ * Adopted is terminal (H2-7), so it offers editing only.
  */
 export const rowActionsOf = (
   kind: ListingKind,
-): { forward: RowAction | null; menu: readonly RowAction[] } => {
+): { forward: RowAction | null; menu: readonly MenuEntry[] } => {
   switch (kind) {
     case "draft":
       return { forward: "publish", menu: ["edit", "deleteDraft"] };
     case "published":
-      return { forward: "reserve", menu: ["edit", "adopt", "withdraw"] };
+      return { forward: null, menu: ["edit", "reserve", "adopt", "viewOnSite", "withdraw"] };
     case "reserved":
-      return { forward: "adopt", menu: ["edit", "release", "withdraw"] };
+      return { forward: null, menu: ["edit", "release", "adopt", "viewOnSite", "withdraw"] };
     case "adopted":
       return { forward: null, menu: ["edit"] };
     case "withdrawn":
@@ -220,7 +245,7 @@ export const rowActionsOf = (
   }
 };
 
-export const actionLabelOf = (action: RowAction): string =>
+export const actionLabelOf = (action: MenuEntry): string =>
   action === "publish" ? uk.kabinet.animalForm.publish.button : t.actions[action];
 
 /** The listing a move leaves the card in, for the re-read after a lost answer. */

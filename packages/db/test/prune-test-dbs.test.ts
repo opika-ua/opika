@@ -25,6 +25,7 @@ import {
   mayDrop,
   type PathStatus,
   type PruneEnvironment,
+  type PruneOptions,
   pruneTestDatabases,
 } from "../src/tools/prune-test-dbs";
 
@@ -295,6 +296,49 @@ describe("runOutcome (the vitest teardown's reading of the run)", () => {
   });
 });
 
+describe("pruneTestDatabases --yes failure handling", () => {
+  const listing: ListedDatabase[] = [recorded("test", GONE), recorded("harness", GONE)];
+  const run = async (drop: PruneOptions["drop"], dropTimeoutMs = 50) => {
+    const lines: string[] = [];
+    const code = await pruneTestDatabases({
+      serverUrl: "postgres://opika:opika@localhost:5433",
+      yes: true,
+      env: env({ status: (p) => (p === GONE ? "missing" : "exists") }),
+      list: async () => listing,
+      drop,
+      dropTimeoutMs,
+      log: (line) => lines.push(line),
+    });
+    return { code, lines };
+  };
+
+  it("a drop that never settles ends with exit code 1 and a log line naming the database", async () => {
+    const { code, lines } = await run(() => new Promise<void>(() => {}));
+    expect(code).toBe(1);
+    expect(lines.join("\n")).toContain(`FAILED to drop ${testDatabaseName("test", GONE)}`);
+    expect(lines.join("\n")).toMatch(/timed out/);
+    expect(lines.at(-1)).toBe("Dropped 0 of 2.");
+  });
+
+  it("a drop that rejects (a terminated connection, 57P01) is a failure value, and the rest still run", async () => {
+    let calls = 0;
+    const { code, lines } = await run(async () => {
+      calls += 1;
+      if (calls === 1) throw Object.assign(new Error("terminating connection"), { code: "57P01" });
+    });
+    expect(code).toBe(1);
+    expect(calls).toBe(2);
+    expect(lines.join("\n")).toContain("terminating connection");
+    expect(lines.at(-1)).toBe("Dropped 1 of 2.");
+  });
+
+  it("drops that succeed exit 0", async () => {
+    const { code, lines } = await run(async () => {});
+    expect(code).toBe(0);
+    expect(lines.at(-1)).toBe("Dropped 2 of 2.");
+  });
+});
+
 describe("disposeTestDatabaseAfterRun", () => {
   const url = testDatabaseUrl("test", "D:/anywhere");
 
@@ -311,7 +355,7 @@ describe("disposeTestDatabaseAfterRun", () => {
     expect(drop).toHaveBeenCalledWith(url);
   });
 
-  it("says, rather than throws, when the server isn't running; rethrows anything else", async () => {
+  it("says, rather than throws, when the server isn't running or the drop fails, naming the database", async () => {
     const refused = Object.assign(new Error("connect"), { code: "ECONNREFUSED" });
     const lines: string[] = [];
     await disposeTestDatabaseAfterRun(
@@ -324,17 +368,21 @@ describe("disposeTestDatabaseAfterRun", () => {
       },
     );
     expect(lines.join("\n")).toMatch(/not reachable/);
-    await expect(
-      disposeTestDatabaseAfterRun(
-        url,
-        "passed",
-        {},
-        () => {},
-        async () => {
-          throw new Error("permission denied");
-        },
-      ),
-    ).rejects.toThrow("permission denied");
+    const failedLines: string[] = [];
+    const timedOut = Object.assign(new Error("canceling statement"), { code: "57014" });
+    const disposal = await disposeTestDatabaseAfterRun(
+      url,
+      "passed",
+      {},
+      (l) => failedLines.push(l),
+      async () => {
+        throw timedOut;
+      },
+    );
+    expect(disposal).toEqual({ kind: "keep", reason: "drop_not_completed" });
+    expect(failedLines).toHaveLength(1);
+    expect(failedLines[0]).toContain(testDatabaseName("test", "D:/anywhere"));
+    expect(failedLines[0]).toContain("57014");
   });
 
   it("keeps a database another session is using, and says so in one line", async () => {

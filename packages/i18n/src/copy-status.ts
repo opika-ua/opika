@@ -1,11 +1,11 @@
-import { COPY_PENDING } from "./messages/uk";
+import { COPY_PENDING } from "./messages/uk-public";
 
 /**
  * Which strings in a catalogue group are still placeholders.
  *
  * Exists because "the copy isn't written yet" is a real state this project
- * passes through — `docs/prytulkam-argument.md` is deliberately structure-
- * first, with the Ukrainian written from it afterwards — and an unwritten
+ * passes through - `docs/prytulkam-argument.md` is deliberately structure-
+ * first, with the Ukrainian written from it afterwards - and an unwritten
  * string should be *counted*, not discovered when someone reads the live
  * page. Returns key names rather than a boolean so a failure or a report
  * says which ones, not merely how many.

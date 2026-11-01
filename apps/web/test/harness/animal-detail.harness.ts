@@ -1,5 +1,5 @@
 /**
- * F1 (detail page) + F2 (contact reveal) — docs/design/README.md's addendum
+ * F1 (detail page) + F2 (contact reveal) - docs/design/README.md's addendum
  * frames D1/D2 (detail) and R1/R2 (reveal), opened directly per
  * docs/standing-constraints.md's "when a mock exists, open the mock file."
  *
@@ -8,27 +8,26 @@
  * integration point between E1's grid and F1's detail page, and is what
  * actually proves the 404 this phase set out to fix is gone, not just that
  * the route exists in isolation. Every other test below reuses that first
- * test's discovered href directly (see `discoverFirstAnimalHref` below) —
+ * test's discovered href directly (see `discoverFirstAnimalHref` below) -
  * they assert against a real seeded animal, just not by re-navigating the
  * gallery to find one.
  *
  * A dedicated `x-forwarded-for` isolates this file's own request budget from
- * proxy.ts's shared 100 req/min limiter — the same reasoning
+ * proxy.ts's shared 100 req/min limiter - the same reasoning
  * `gallery-filters.harness.ts` and siblings already give for their own IPs
  * (TEST-NET-2, 198.51.100.0/24; .21 through .28 are already claimed by
  * other harness files, this one is .29). Confirmed empirically (not just
  * reasoned about) that the dedicated IP alone is not enough: with caching
  * removed and only the IP isolation in place, "Esc closes the dialog" and
- * "Tab is trapped" still time out identically waiting on the gallery page —
+ * "Tab is trapped" still time out identically waiting on the gallery page -
  * this file's own ~20 tests, each doing a full gallery navigation, exhaust
  * its own budget before the file finishes. `discoverFirstAnimalHref` below
  * is a real fix, not a guess.
  */
 
 import { citySlugOf } from "@opika/domain";
-import { uk } from "@opika/i18n";
 import { expect, test } from "@playwright/test";
-import { expectFocusVisibleOutline, openRoute } from "./harness";
+import { expectReachableByTab, openRoute } from "./harness";
 import { DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
 
 const SPOOFED_IP_HEADERS = { "x-forwarded-for": "198.51.100.29" };
@@ -36,12 +35,12 @@ test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
 /**
  * `citySlugOf` (2026-09-12) takes a city's English name, not its Ukrainian
- * one — see `packages/domain/src/geography/city-slug.ts`'s own doc comment
+ * one - see `packages/domain/src/geography/city-slug.ts`'s own doc comment
  * for why the transliteration it used to do was dropped. This page renders
  * only the Ukrainian name, so the test below (which has no database access
- * of its own — see this file's top comment) can't ask `citySlugOf` to
+ * of its own - see this file's top comment) can't ask `citySlugOf` to
  * resolve a name it scraped from the DOM anymore. Pinned to `seed.ts`'s own
- * `CITY_DATA`, the same real, only-ever corpus this repo seeds — confirmed
+ * `CITY_DATA`, the same real, only-ever corpus this repo seeds - confirmed
  * exactly 8 rows against Neon before this migration shipped (Oleksii,
  * 2026-09-12), same posture as `city-slug-backfill.test.ts`'s own
  * `REAL_SEEDED_CITIES` table.
@@ -61,7 +60,7 @@ function expectedSlugFor(visibleCityNameUk: string): string {
   const nameEn = KNOWN_CITY_NAME_UK_TO_EN[visibleCityNameUk];
   if (nameEn === undefined) {
     throw new Error(
-      `"${visibleCityNameUk}" is not one of the 8 known seeded cities — either the seed corpus ` +
+      `"${visibleCityNameUk}" is not one of the 8 known seeded cities – either the seed corpus ` +
         "grew (add it to KNOWN_CITY_NAME_UK_TO_EN above) or this is a real bug.",
     );
   }
@@ -70,11 +69,12 @@ function expectedSlugFor(visibleCityNameUk: string): string {
 
 const GALLERY_ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
+const PHOTO = "section[aria-label='Фотографії тварини'] img";
 
 /**
  * Discovered once per file run, not once per test: every test here already
  * proved (individually, before this existed) that it reaches a real detail
- * page — what they don't each need is their *own* gallery page load to get
+ * page - what they don't each need is their *own* gallery page load to get
  * there. ~20 tests × a full gallery navigation apiece was enough real
  * request volume to trip proxy.ts's 100 req/min limiter by itself, even
  * with this file's own dedicated IP (`SPOOFED_IP_HEADERS` above isolates
@@ -112,160 +112,108 @@ async function openFirstAnimalDetail(
   const href = await discoverFirstAnimalHref(browser);
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await page.goto(href, { waitUntil: "load" });
-  await page.getByTestId("animal-name").waitFor({ state: "visible" });
+  await page.getByRole("heading", { level: 1 }).waitFor({ state: "visible" });
   return href;
 }
 
 test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
-  test("360 — name, photo, action row, and both back links are real and visible", async ({
-    page,
-  }) => {
+  test("360 – name, photo, reveal trigger are real and visible", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_PHONE);
 
-    await expect(page.getByTestId("animal-name")).toBeVisible();
-    await expect(page.getByTestId("detail-photo")).toBeVisible();
-    await expect(page.getByTestId("not-now-button")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator(PHOTO).first()).toBeVisible();
     await expect(page.getByTestId("reveal-trigger")).toBeVisible();
-
-    const mobileBack = page.getByTestId("back-to-list");
-    const desktopBack = page.getByTestId("back-to-list-desktop");
-    await expect(mobileBack, "the mobile back link is the visible one at 360").toBeVisible();
-    await expect(
-      desktopBack,
-      "the desktop back link should have no bounding box (display:none) at 360",
-    ).toBeHidden();
   });
 
-  test("1920 — desktop back link, sticky photo column, and thumbnails are real and visible", async ({
-    page,
-  }) => {
+  /**
+   * Pet card PR 5 (owner decision B) removed the full page's own back-link
+   * row entirely ("whoever lands here didn't come from the gallery") - the
+   * O-12 city-claim test this block used to carry (`back-to-list-desktop`'s
+   * own "← Усі тварини у {city}" text/href cross-check) has no link left to
+   * check. What replaces it: the header's shelter row now prints the bare
+   * city name as plain text (owner decision 6, no link, no href to get
+   * wrong), so what's left to verify is only that it's a real, known seeded
+   * city's name, not empty or a placeholder.
+   */
+  test("1920 – the shelter row names a real seeded city", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
 
-    await expect(page.getByTestId("animal-name")).toBeVisible();
-    await expect(page.getByTestId("detail-photo")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator(PHOTO).first()).toBeVisible();
 
-    const mobileBack = page.getByTestId("back-to-list");
-    const desktopBack = page.getByTestId("back-to-list-desktop");
-    await expect(desktopBack, "the desktop back link is the visible one at 1920").toBeVisible();
-    await expect(
-      mobileBack,
-      "the mobile back link should have no bounding box (display:none) at 1920",
-    ).toBeHidden();
-
-    /**
-     * O-12 (`docs/observations.md`): «← Усі тварини у {city}» has to
-     * actually claim a real city, not the unfiltered gallery — the link's
-     * own text is the claim being checked. Folded into this existing test
-     * (rather than a standalone one) to add zero extra page loads:
-     * `gallery-filters.harness.ts` already proves a `?misto=` link
-     * genuinely narrows the gallery it lands on, so what's left to check
-     * here is that this href is built at all (not the bare `/tvaryny` the
-     * bug produced) and names *this animal's own* city, not a placeholder.
-     *
-     * A membership check against the known seeded slugs alone does not
-     * prove that — every seeded slug is equally "real," so a mutation that
-     * resolves the *wrong* city consistently (e.g. always Kyiv, for every
-     * animal) still produces a value that passes a bare "is this a real
-     * slug" assertion. The fix cross-checks two independently computed
-     * fields instead — `backToListIn`'s own visible city name (from
-     * `AnimalDetailScreen`'s `cityName` prop) and the href's `misto` slug
-     * (from its separate `backToGalleryHref` prop) — which catches the two
-     * fields disagreeing (one derivation swapped onto a different city than
-     * the other). It does **not** catch both being wrong the *same* way —
-     * a consistently-wrong `city` lookup in `page.tsx` that both props are
-     * built from would still make the two sides agree. Proving "the right
-     * one, not just a consistent one" needs an oracle outside this page
-     * (the real seeded corpus's actual per-animal city assignment), which
-     * costs a database read this harness test doesn't have — a real,
-     * accepted gap, not something the assertion below overclaims to close.
-     */
-    const linkText = await desktopBack.textContent();
-    const prefix = uk.detail.backToListIn.replace("{city}", "");
-    expect(linkText?.startsWith(prefix), `"${linkText}" should start with "${prefix}"`).toBe(true);
-    const visibleCityName = (linkText ?? "").slice(prefix.length).trim();
+    const cityText = await page.getByTestId("shelter-city").textContent();
+    expect(cityText?.trim().length ?? 0, "a real city name is shown").toBeGreaterThan(0);
     expect(
-      visibleCityName.length,
-      "a real city name must remain after stripping the template",
-    ).toBeGreaterThan(0);
-
-    const href = await desktopBack.getAttribute("href");
-    const url = new URL(href ?? "", "http://x");
-    expect(url.pathname).toBe("/tvaryny");
-    const citySlug = url.searchParams.get("misto");
-    expect(
-      citySlug,
-      "O-12: the link claims a city, so the href must actually carry one",
-    ).not.toBeNull();
-    expect(
-      citySlug,
-      `the href's city ("${citySlug}") must match the link's own visible city ("${visibleCityName}")`,
-    ).toBe(expectedSlugFor(visibleCityName));
+      () => expectedSlugFor(cityText?.trim() ?? ""),
+      `"${cityText}" is a known seeded city`,
+    ).not.toThrow();
   });
 
-  test("clicking a gallery card actually reaches a real detail page, not a 404", async ({
-    page,
-  }) => {
+  test("clicking a gallery card actually reaches a real animal, not a 404", async ({ page }) => {
     // The one test in this file that does a genuine, uncached gallery visit
-    // and click — every other test below reuses `discoverFirstAnimalHref`'s
+    // and click - every other test below reuses `discoverFirstAnimalHref`'s
     // cached result instead, to stay under proxy.ts's rate limit. This is
-    // what actually proves the gallery→click→detail path works end to end,
+    // what actually proves the gallery→click→animal path works end to end,
     // not just that the detail route renders when opened directly.
     await openRoute(page, GALLERY_ROUTE, DETAIL_DESKTOP, { readySelector: CARD });
     const href = await page.locator(CARD).first().getAttribute("href");
     expect(href, "the first gallery card should link somewhere").not.toBeNull();
+    // Since designer round 1 (S4b) the click opens this page in the gallery's
+    // overlay, at this page's own URL; `gallery-animal-overlay.harness.ts`
+    // covers the overlay and reloads the URL into this page. Not repeated
+    // here: this file's request budget is spent.
+    const name =
+      (await page.locator(CARD).first().getByTestId("card-name").textContent())?.trim() ?? "";
     await page.locator(CARD).first().click();
-    await page.getByTestId("animal-name").waitFor({ state: "visible" });
+    const overlay = page.getByRole("dialog", { name });
+    await expect(overlay).toBeVisible();
+    await expect(overlay.getByRole("heading", { level: 1, name })).toBeVisible();
     expect(page.url()).toContain(href as string);
-    // A genuine assertion that this is F1's own page, not Next's bare 404 —
+    // A genuine assertion that this is F1's own page, not Next's bare 404 -
     // the not-found route renders uk.detail.notFound.title instead.
     await expect(page.getByText("Цієї картки більше немає.")).toHaveCount(0);
   });
 });
 
-test.describe("/tvaryny/[animalId] keyboard focus", () => {
-  test("the back-to-list link shows a real focus-visible outline", async ({ page }) => {
-    await openFirstAnimalDetail(page, DETAIL_PHONE);
-    await expectFocusVisibleOutline(page, {
-      label: "back-to-list link",
-      locator: page.getByTestId("back-to-list"),
-    });
-  });
-
-  test("the reveal trigger shows a real focus-visible outline", async ({ page }) => {
+test.describe("/tvaryny/[animalId] keyboard reachability", () => {
+  test("the reveal trigger is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "reveal-trigger button",
       locator: page.getByTestId("reveal-trigger"),
     });
   });
 
-  test("the back-to-list-desktop link shows a real focus-visible outline", async ({ page }) => {
+  /** Pet card PR 5, owner decision 8: "every interactive element gets a hit area of at least
+   * 48px (the prev/next labels, the close button, the slider buttons, the chip links)" and
+   * "filterable chips are <Link>s" - this is their own keyboard-reachability coverage. */
+  test("the share button is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
-    await expectFocusVisibleOutline(page, {
-      label: "back-to-list-desktop link",
-      locator: page.getByTestId("back-to-list-desktop"),
+    await expectReachableByTab(page, {
+      label: "share button",
+      locator: page.getByTestId("share-button"),
     });
   });
 
-  test("the not-now link shows a real focus-visible outline", async ({ page }) => {
+  test("a filterable chip link is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
-    await expectFocusVisibleOutline(page, {
-      label: "not-now-button link",
-      locator: page.getByTestId("not-now-button"),
+    await expectReachableByTab(page, {
+      label: "a «Показати схожих» chip link",
+      locator: page.getByRole("link", { name: /Показати схожих/ }).first(),
     });
   });
 
-  test("the reveal dialog's close button shows a real focus-visible outline", async ({ page }) => {
+  test("the reveal dialog's close button is reachable by Tab", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
     await page.getByTestId("reveal-trigger").click();
     await page.getByTestId("reveal-dialog").waitFor({ state: "visible" });
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "reveal-close button",
       locator: page.getByTestId("reveal-close"),
     });
   });
 
-  test("the reveal dialog's primary action and back-to-gallery controls show a real focus-visible outline", async ({
+  test("the reveal dialog's primary action and back-to-gallery controls are reachable by Tab", async ({
     page,
   }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
@@ -274,13 +222,13 @@ test.describe("/tvaryny/[animalId] keyboard focus", () => {
 
     const primaryAction = page.getByTestId("reveal-primary-action");
     if ((await primaryAction.count()) > 0) {
-      await expectFocusVisibleOutline(page, {
+      await expectReachableByTab(page, {
         label: "reveal-primary-action link",
         locator: primaryAction,
       });
     }
 
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "reveal-back-to-gallery button",
       locator: page.getByTestId("reveal-back-to-gallery"),
     });
@@ -299,9 +247,9 @@ test.describe("/tvaryny/[animalId] an unknown or malformed id 404s on-brand", ()
     await expect(page.getByText("Цієї картки більше немає.")).toBeVisible();
   });
 
-  test("the not-found page's action link shows a real focus-visible outline", async ({ page }) => {
+  test("the not-found page's action link is reachable by Tab", async ({ page }) => {
     await page.goto("/tvaryny/not-a-real-id", { waitUntil: "load" });
-    await expectFocusVisibleOutline(page, {
+    await expectReachableByTab(page, {
       label: "not-found-action link",
       locator: page.getByTestId("not-found-action"),
     });
@@ -309,12 +257,12 @@ test.describe("/tvaryny/[animalId] an unknown or malformed id 404s on-brand", ()
 });
 
 /**
- * F2 — the reveal is the one interaction on this whole page that needs
+ * F2 - the reveal is the one interaction on this whole page that needs
  * JavaScript to work at all (session.bootstrap then animals.reveal, both
  * real network calls against the harness's own seeded database). "Before"
  * and "after" match the PR's own required screenshots.
  */
-test.describe("/tvaryny/[animalId] contact reveal — before, after, and close", () => {
+test.describe("/tvaryny/[animalId] contact reveal – before, after, and close", () => {
   test("before: the reveal trigger is present and the dialog is not", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
     await expect(page.getByTestId("reveal-trigger")).toBeVisible();
@@ -329,10 +277,11 @@ test.describe("/tvaryny/[animalId] contact reveal — before, after, and close",
 
     const dialog = page.getByTestId("reveal-dialog");
     await expect(dialog).toBeVisible();
-    await expect(dialog).toHaveAttribute("role", "dialog");
-    await expect(dialog).toHaveAttribute("aria-modal", "true");
+    // A native modal dialog (kit Modal): open, in the top layer, named by its title.
+    await expect(dialog).toHaveJSProperty("open", true);
+    await expect(page.getByRole("dialog", { name: "Як звʼязатися з притулком" })).toBeVisible();
 
-    // Real data, not a placeholder — the shelter's actual name from the
+    // Real data, not a placeholder - the shelter's actual name from the
     // seeded database appears inside the dialog once the reveal resolves.
     const shelterLine = dialog.locator("text=/Притулок/");
     await expect(shelterLine.first()).toBeVisible();
@@ -343,7 +292,7 @@ test.describe("/tvaryny/[animalId] contact reveal — before, after, and close",
     await page.getByTestId("reveal-trigger").click();
     await page.getByTestId("reveal-dialog").waitFor({ state: "visible" });
 
-    const heading = page.locator("#reveal-heading");
+    const heading = page.getByRole("heading", { level: 2, name: "Як звʼязатися з притулком" });
     await expect(heading).toBeFocused();
   });
 
@@ -365,7 +314,7 @@ test.describe("/tvaryny/[animalId] contact reveal — before, after, and close",
     const dialog = page.getByTestId("reveal-dialog");
     await dialog.waitFor({ state: "visible" });
 
-    // Tab far more times than the dialog has focusable elements — if the
+    // Tab far more times than the dialog has focusable elements - if the
     // trap is broken, focus escapes onto the page behind it (the "Не
     // зараз" button, still present but supposed to be unreachable while
     // the dialog is open) rather than cycling within the dialog.
@@ -375,7 +324,12 @@ test.describe("/tvaryny/[animalId] contact reveal — before, after, and close",
 
     const activeIsInsideDialog = await page.evaluate(() => {
       const dialogEl = document.querySelector('[data-testid="reveal-dialog"]');
-      return dialogEl?.contains(document.activeElement) ?? false;
+      // A native modal dialog hands Tab on to the browser's own UI at its ends (focus then reads as
+      // <body>); what must never happen is a stop on the page behind it.
+      return (
+        (dialogEl?.contains(document.activeElement) ?? false) ||
+        document.activeElement === document.body
+      );
     });
     expect(activeIsInsideDialog, "focus should stay inside the dialog after repeated Tab").toBe(
       true,
@@ -384,97 +338,46 @@ test.describe("/tvaryny/[animalId] contact reveal — before, after, and close",
 });
 
 /**
- * The freshness block quotes the shelter's *freshness sentence*, not its
- * general description.
- *
- * This is a regression guard for a real bug, and one that shipped precisely
- * because nothing asserted which field the block reads. It rendered
- * `shelter.description` — «Один з найбільших притулків Києва, працює з 2015
- * року…» — under the attribution «Слова притулку · дата автоматична» (as it then read), inside a
- * block about how current the listings are. Both fields are the shelter's own
- * words, both are prose, and the wrong one looks entirely plausible on screen.
- *
- * Found by verifying a claim in `/prytulkam`'s copy, which tells shelters their
- * sentence appears on the animal's page. `docs/design/README.md`'s freshness
- * section specifies a sentence "written once by the shelter at verification, in
- * their own words"; `SwipeCard` had always used the right field.
+ * Designer round 1, S6. Oleksii's DR1-Q1, verbatim: "the shelter’s freshness
+ * sentence leaves the deck and animal pages and shows only on the shelter
+ * page. «Оновлено … тому» stays on every card." This test used to require the
+ * sentence here (it once quoted the shelter's description by mistake); it now
+ * requires the opposite: the pips' day count and nothing of the shelter's
+ * words, in a real browser. Whether this animal's shelter has a sentence is
+ * the data's business; that it would not render if it had one is pinned with
+ * a sentence present in `sentence-only-there.test.tsx`.
  */
-test.describe("the detail page's freshness block quotes the right field", () => {
-  test("shows the shelter's freshness sentence and not its description", async ({
+test.describe("the detail page's freshness block is the day count only", () => {
+  test("shows «Оновлено …» and neither the shelter's sentence nor «Слова притулку»", async ({
     page,
     browser,
   }) => {
     await openRoute(page, await discoverFirstAnimalHref(browser), DETAIL_DESKTOP, {
-      readySelector: "[data-testid='detail-photo']",
+      readySelector: PHOTO,
     });
-
-    /**
-     * Unconditional on purpose. The first version of this test skipped its
-     * own assertions when the element was absent — and the element is absent
-     * in exactly the broken state, because the wrong field carries no test
-     * id. It passed against a deliberate reintroduction of the bug, which is
-     * the "would this fail if the thing it guards were broken?" case
-     * `docs/standing-constraints.md` rules out. Caught by mutation testing,
-     * not by review.
-     *
-     * The seeded corpus's verified shelters all carry a freshness sentence,
-     * so requiring it here is a real precondition rather than an assumption:
-     * if a future corpus change removed them, this fails loudly and says so,
-     * which is better than silently guarding nothing again.
-     */
-    const quoted = page.getByTestId("shelter-freshness-sentence");
-    await expect(
-      quoted,
-      "no freshness sentence rendered in the freshness block. Either this animal's shelter has " +
-        "no `freshnessSentence` in the seeded corpus (a fixture problem — say so and pick another " +
-        "animal), or the block is reading a different field again, which is the bug this exists " +
-        "for: it previously quoted `shelter.description` under the «Слова притулку» attribution.",
-    ).toHaveCount(1);
-
-    // The block wraps the sentence in «…» (CB-B1); strip them so the
-    // startsWith check below reads the sentence's own first word.
-    const text = ((await quoted.textContent()) ?? "").replace(/[«»]/g, "").trim();
-    expect(text.length, "the freshness quote rendered empty").toBeGreaterThan(0);
-
-    /**
-     * The description is not rendered on this page, so it cannot be compared
-     * against directly. What distinguishes the two fields in the seeded
-     * corpus is subject: every description opens by describing the shelter
-     * itself ("Один з найбільших притулків…", "Маленький сімейний притулок…"),
-     * while every freshness sentence is about update cadence. Asserting the
-     * quote does not begin like a shelter description catches the specific
-     * regression without pinning either string.
-     */
-    expect(
-      text.startsWith("Притулок") || text.includes("притулок у") || text.includes("притулків"),
-      `the freshness block is quoting something that reads like the shelter's description ` +
-        `rather than its freshness sentence: "${text}"`,
-    ).toBe(false);
-
-    // The attribution is what makes the quote a claim about freshness rather
-    // than just a nice sentence from the shelter.
-    // Exact text: «· дата автоматична» was deleted as false (VH-Q2) and must not return.
-    await expect(page.getByTestId("shelter-freshness-attribution")).toHaveText("Слова притулку");
+    await expect(page.getByTestId("freshness-block")).toContainText("Оновлено");
+    await expect(page.getByText("Слова притулку")).toHaveCount(0);
+    await expect(page.getByTestId("shelter-freshness-sentence")).toHaveCount(0);
   });
 });
 
 /**
  * D-2: `REGISTRY_HAS_NO_REAL_SHELTERS` (`apps/web/src/seo-flags.ts`) is a
  * hardcoded source constant, `true` in the build this harness runs against
- * — the same build production runs. This asserts the real, current state;
+ * - the same build production runs. This asserts the real, current state;
  * it cannot exercise the `false` branch, since that would need a second
  * build with the source flipped. That branch has no automated coverage at
- * all today (no component test file exists for `AnimalDetailScreen`) —
+ * all today (no component test file exists for `AnimalDetailScreen`) -
  * recorded here rather than silently assumed correct, same discipline
  * DECK-3 used for the text-scaling gap it also couldn't assert.
  */
-test.describe("shelter-verified badge — suppressed while the registry holds no real shelters", () => {
+test.describe("shelter-verified badge – suppressed while the registry holds no real shelters", () => {
   test("the manually-verified-years badge does not render on a real seeded animal's page", async ({
     page,
     browser,
   }) => {
     await openRoute(page, await discoverFirstAnimalHref(browser), DETAIL_DESKTOP, {
-      readySelector: "[data-testid='detail-photo']",
+      readySelector: PHOTO,
     });
 
     await expect(page.getByText(/Перевірений вручну/)).toHaveCount(0);
@@ -482,8 +385,38 @@ test.describe("shelter-verified badge — suppressed while the registry holds no
 });
 
 /**
+ * Designer round 1, S7: the save toggle, in a real browser. `localStorage`
+ * is per-origin and genuinely persists across a navigation in a way
+ * happy-dom's component tests can't exercise - this is the flow those
+ * tests can't cover, not a re-run of them. His DR1-Q3 text for both of the
+ * button's accessible names.
+ */
+test.describe("the save toggle persists a save across a reload", () => {
+  test("saving an animal, then reloading, shows it still saved", async ({ page, browser }) => {
+    await openRoute(page, await discoverFirstAnimalHref(browser), DETAIL_DESKTOP, {
+      readySelector: PHOTO,
+    });
+
+    const save = page.getByRole("button", { name: "Зберегти" });
+    await expect(save).toHaveAttribute("aria-pressed", "false");
+    await save.click();
+    await expect(page.getByRole("button", { name: "Збережено" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await page.reload();
+
+    await expect(page.getByRole("button", { name: "Збережено" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+});
+
+/**
  * The not-a-judgement notice's interim home was here, under the action
  * pair (Phase D). R2 (Phase R, `docs/build-plan.md`) moved it to its
- * permanent one, the deck itself (`SwipeDeck.tsx`) — see
+ * permanent one, the deck itself (`SwipeDeck.tsx`) - see
  * `discovery-layout.harness.ts`'s own coverage for the notice now.
  */

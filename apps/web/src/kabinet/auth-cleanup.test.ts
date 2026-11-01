@@ -1,8 +1,20 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { authSession, authUser, authVerification } from "@opika/db/schema";
-import { setupTestDatabase, truncateAll } from "@opika/db/test";
+import { adopterRepo, sessionRepo } from "@opika/db/repos";
+import {
+  adopters as adopterRows,
+  sessions as adopterSessionRows,
+  authInvitation,
+  authOrganization,
+  authSession,
+  authUser,
+  authVerification,
+  invitationCreatedUsers,
+} from "@opika/db/schema";
+import { makeAdopter, setupTestDatabase, truncateAll } from "@opika/db/test";
+import type { AdopterId } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { handleAuthCleanup } from "./auth-cleanup";
@@ -28,6 +40,11 @@ const at = (ms: number) => new Date(NOW.getTime() + ms);
 const SECRET = "cron-secret-for-tests-0123456789abcdef";
 const EMAIL = "olena@example.org";
 const USER = "aaaaaaaa-0000-4000-8000-00000000000a";
+/** Audit F6: an adopter whose one session is 40 days old (past the 30-day cap), and a live one. */
+const LAPSED_ADOPTER = "bbbbbbbb-0000-4000-8000-00000000000b" as AdopterId;
+const LIVE_ADOPTER = "cccccccc-0000-4000-8000-00000000000c" as AdopterId;
+const LAPSED_HASH = "a".repeat(64);
+const LIVE_HASH = "b".repeat(64);
 
 beforeEach(async () => {
   await truncateAll(db);
@@ -64,6 +81,15 @@ beforeEach(async () => {
       verification("verification-expired", at(-1)),
       verification("verification-live", at(15 * 60_000)),
     ]);
+  for (const [id, tokenHash, createdAt] of [
+    [LAPSED_ADOPTER, LAPSED_HASH, at(-40 * 86_400_000)],
+    [LIVE_ADOPTER, LIVE_HASH, at(-86_400_000)],
+  ] as const) {
+    await adopterRepo(db).insert(
+      makeAdopter({ id, identity: { kind: "anonymous", deviceSessionId: tokenHash }, createdAt }),
+    );
+    await sessionRepo(db).insert({ tokenHash, adopterId: id, createdAt, lastSeenAt: createdAt });
+  }
 });
 
 const rows = async () => ({
@@ -71,10 +97,14 @@ const rows = async () => ({
   verifications: (await db.select({ id: authVerification.id }).from(authVerification))
     .map((r) => r.id)
     .sort(),
+  adopterSessions: (await db.select().from(adopterSessionRows)).map((r) => r.tokenHash).sort(),
+  adopters: (await db.select().from(adopterRows)).map((r) => r.id).sort(),
 });
 const ALL = {
   sessions: ["session-expired", "session-live"],
   verifications: ["verification-expired", "verification-live"],
+  adopterSessions: [LAPSED_HASH, LIVE_HASH],
+  adopters: [LAPSED_ADOPTER, LIVE_ADOPTER],
 };
 
 async function run(
@@ -93,10 +123,30 @@ describe("the auth clean-up cron (KH-Q9)", () => {
   it("with the secret: deletes the expired session and verification, keeps the live ones", async () => {
     const { response } = await run({ authorization: `Bearer ${SECRET}` });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ verifications: 1, sessions: 1 });
+    expect(await response.json()).toEqual({
+      verifications: 1,
+      sessions: 1,
+      erasedInvitedUsers: 0,
+      adopterSessions: 1,
+      orphanedAdopters: 1,
+    });
     expect(await rows()).toEqual({
       sessions: ["session-live"],
       verifications: ["verification-live"],
+      adopterSessions: [LIVE_HASH],
+      adopters: [LIVE_ADOPTER],
+    });
+  });
+
+  it("a second run straight after deletes nothing more (audit F6, idempotent)", async () => {
+    await run({ authorization: `Bearer ${SECRET}` });
+    const { response } = await run({ authorization: `Bearer ${SECRET}` });
+    expect(await response.json()).toEqual({
+      verifications: 0,
+      sessions: 0,
+      erasedInvitedUsers: 0,
+      adopterSessions: 0,
+      orphanedAdopters: 0,
     });
   });
 
@@ -108,10 +158,93 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       outcome: "deleted",
       verifications: 1,
       sessions: 1,
+      erasedInvitedUsers: 0,
+      adopterSessions: 1,
+      orphanedAdopters: 1,
     });
-    for (const secretish of [EMAIL, "olena", "token-of-", "hashed-", USER, "expired", SECRET]) {
+    for (const secretish of [
+      EMAIL,
+      "olena",
+      "token-of-",
+      "hashed-",
+      USER,
+      "expired",
+      SECRET,
+      LAPSED_ADOPTER,
+      LAPSED_HASH,
+    ]) {
       expect(lines[0]).not.toContain(secretish);
     }
+  });
+
+  /**
+   * GDPR erasure, decision 3 of the 2026-10-24 STOP (Oleksii, verbatim):
+   * "add the expired-invitation sweep to the existing auth clean-up
+   * schedule. A dormant shelter's dead invitee is erased without any
+   * kabinet action." No fixture here ever calls a `registry.admins.*`
+   * handler - the cron alone, given a later `now`, is what erases this
+   * account. `now` is already a parameter the handler takes rather than
+   * reading the clock, so the two different instants below (one to create
+   * the dead invitation, one to run the cron after it expired) stand in for
+   * "fake timers": nothing here touches the real clock either way.
+   */
+  it("erases a dormant invitee's account on its own, with no kabinet action - the invitation sweep", async () => {
+    const inviterId = randomUUID();
+    await db.insert(authUser).values({
+      id: inviterId,
+      name: "Operator",
+      email: "operator@example.org",
+      emailVerified: true,
+      createdAt: at(-30 * 86_400_000),
+      updatedAt: at(-30 * 86_400_000),
+    });
+    const [org] = await db
+      .insert(authOrganization)
+      .values({
+        id: randomUUID(),
+        name: "Притулок",
+        slug: `dormant-${randomUUID()}`,
+        logo: null,
+        createdAt: at(-30 * 86_400_000),
+        metadata: null,
+      })
+      .returning();
+    const invitedId = randomUUID();
+    await db.insert(authUser).values({
+      id: invitedId,
+      name: "Departed",
+      email: "departed@example.org",
+      emailVerified: false,
+      createdAt: at(-10 * 86_400_000),
+      updatedAt: at(-10 * 86_400_000),
+    });
+    const invitationId = randomUUID();
+    await db.insert(authInvitation).values({
+      id: invitationId,
+      organizationId: org?.id ?? "",
+      email: "departed@example.org",
+      role: "admin",
+      status: "pending",
+      expiresAt: at(-1), // already dead - no one ever acted on it
+      createdAt: at(-10 * 86_400_000),
+      inviterId,
+    });
+    await db.insert(invitationCreatedUsers).values({
+      userId: invitedId,
+      invitationId,
+      createdAt: at(-10 * 86_400_000),
+      firstSessionAt: null,
+    });
+
+    const { response } = await run({ authorization: `Bearer ${SECRET}` });
+    expect(response.status).toBe(200);
+    expect((await response.json()).erasedInvitedUsers).toBe(1);
+    expect(
+      await db
+        .select()
+        .from(authUser)
+        .then((users) => users.filter((u) => u.id === invitedId)),
+    ).toEqual([]);
   });
 
   it.each([
@@ -184,9 +317,11 @@ describe("the auth clean-up is scheduled and reachable", () => {
  * - an address typed into the sign-in form lives in `auth_verification` for
  *   the link's lifetime (`MAGIC_LINK_TTL_SECONDS`), then is past expiry; a
  *   sign-in record is past expiry from the moment it loses force;
- * - the same typed address is also a key in the shared rate limiter, as is
- *   (`address:<email>`, the per-address limit, HS-Q5; only IP keys are
- *   HMAC'd, EM-Q11). `@upstash/ratelimit`'s sliding window keeps a key for
+ * - the same typed address also keys the shared rate limiter (the
+ *   per-address limit, HS-Q5; since PW-1 the key is `address:` and an HMAC
+ *   of the address, `addressKeyWith`, `docs/shelter-passwords.md` §9 answer
+ *   7, no longer the address itself). `@upstash/ratelimit`'s sliding window
+ *   keeps a key for
  *   2 × its window + 1 s, then Redis drops it; that has to fit within a day
  *   too, and is checked below beside the schedule;
  * - a record past expiry goes at the first run after it expired, and since the
@@ -294,13 +429,13 @@ function runHoursOf(hourField: string, refusal: (why: string) => Error): number[
   if (step) {
     const every = Number(step[1]);
     if (!Number.isInteger(every) || every < 1 || every > 23) {
-      throw refusal(`a step of ${step[1]} hours is outside 1–23`);
+      throw refusal(`a step of ${step[1]} hours is outside 1-23`);
     }
     return Array.from({ length: Math.ceil(24 / every) }, (_, i) => i * every);
   }
   if (/^\d{1,2}(,\d{1,2})*$/.test(hourField)) {
     const hours = [...new Set(hourField.split(",").map(Number))].sort((a, b) => a - b);
-    if (hours.some((hour) => hour > 23)) throw refusal("an hour is outside 0–23");
+    if (hours.some((hour) => hour > 23)) throw refusal("an hour is outside 0-23");
     return hours;
   }
   throw refusal(

@@ -85,10 +85,10 @@ written. B1/B2 copy still due by PR 6."
 | # | Change | Lines | Why | Verified by |
 |---|---|---|---|---|
 | 4.1 | Rewrite the header and `COPY_GATE`: B1 no longer waits for "a later merge"; PR 6 is the edit-screens gate, for everyone | `:13-40`, `:79-81` | HS-Q3; B1 moved to the edit-screens gate (his 2026-10-14 answer, quoted at `:23-24`) | read |
-| 4.2 | Delete the K-Q17 block | `:280-341` | K-Q17 | — |
+| 4.2 | Delete the K-Q17 block | `:280-341` | K-Q17 | - |
 | 4.3 | Invert A2: `not.toContain` «лише для перегляду» and his new §9 third paragraph, transcribed. Keep «не хочу обіцяти кабінет, якого не існує» gone. A1 stays while his §7 keeps the line; add his new §7 last paragraph. A3 stays | `:185-200` | commitment #6 (P6CS §1.1, §1.2) | **Mutation:** restore A2's old paragraph in `uk.ts` → red naming it |
 | 4.4 | Add: B1 live (his §8, transcribed). Keep the membership scans: after PR 6 a shelter still can't create a membership or an invitation | new `it`; `:83-161, 224-278` kept | P6CS §4, #6's successor | **Mutation:** a second `auth_member` writer → red |
-| 4.5 | Keep the file name, rewrite the header (decision taken, reversible): `docs/standing-constraints.md` #6 and the test messages cite it by name | — | avoids breaking references | — |
+| 4.5 | Keep the file name, rewrite the header (decision taken, reversible): `docs/standing-constraints.md` #6 and the test messages cite it by name | - | avoids breaking references | - |
 
 ## 5. `shelter-writes-refused.test.ts` and the access matrix
 
@@ -113,7 +113,7 @@ transcribes.
 | 6.6 | `kabinet.email.invite.what` (:1179), and `invite.intro` (:1177-1178) if 0.3d | the first real shelter gets this email after PR 6 (F-B6) | `copy-status.test.ts:272-273`; `apps/web/src/kabinet/email-message.test.ts:177`; `apps/web/src/kabinet/email-delivery-test.test.ts:106`; `production-sign-in.test.ts:272` keeps it in the screenless list | P6CS §1.4 |
 | 6.7 | `/pro` `about.data` (:649) | his answer 11, verbatim: "11. Yes, in PR 6: /pro says profile changes are recorded with who made them." Facts P1-P10 (P6CS §3), updated: **P6 and P7 are built** (PR 3: metadata stripped, with a GPS canary test; random keys for kabinet and onboarding uploads, P-B2, P-T9); **P8 still holds** (no takedown script: `packages/db/package.json` has no DR-F3 entry); P3 gains K-Q18 (a withdrawal's note is never in history) | `copy-status.test.ts:626-646`; `apps/web/src/app/pro/page.test.tsx:13, 27-36` | P6CS §1.5, §3, Q5-Q7 |
 | 6.8 | `kabinet.profileEdit.errors.notAvailable` (:1031) | dead after PR 6, or kept with the off switch | its `copy-status` pin | P6CS §1.8; 1.4 |
-| 6.9 | **Checked, not changed:** P6CS §5's list. Add `detail.notFound.body` (:311), what a person sees after «Уже вдома» or a withdrawal: true whoever removed the card, but its «з реєстру» is hit #18 (his wording, not PR 6's blocker) | — | — | P6CS §5; `copy-reyestr-hits.md` |
+| 6.9 | **Checked, not changed:** P6CS §5's list. Add `detail.notFound.body` (:311), what a person sees after «Уже вдома» or a withdrawal: true whoever removed the card, but its «з реєстру» is hit #18 (his wording, not PR 6's blocker) | - | - | P6CS §5; `copy-reyestr-hits.md` |
 
 ## 7. Docs
 
@@ -132,10 +132,10 @@ transcribes.
 | # | Step | When | Verified by |
 |---|---|---|---|
 | 8.1 | **Delete `KABINET_WRITE_ALLOWLIST` from Vercel** (Production, where it was set, RH-B1), then redeploy. His words: "after PR 6: delete the variable, then redeploy" (RH-B6); "KABINET_WRITE_ALLOWLIST is only for that interim and goes away with PR 6" (RU-B5) | after PR 6's production deployment is live. Until then it keeps the rehearsal shelter's id | `vercel env ls production` doesn't list it; the dress rehearsal (§9) opens writes for a shelter nothing names |
-| 8.2 | No migration is expected: nothing in §1-§7 touches SQL. If the build turns one up, it is Tier 1 with his real-Neon run (the block in `docs/onboarding-a-shelter.md`, "Migrating production": `db:check-hashes` → `db:migrate --prod --expect <production ep- id>` → `db:check-hashes`), drafted in the PR, never run by the builder | — | — |
+| 8.2 | No migration is expected: nothing in §1-§7 touches SQL. If the build turns one up, it is Tier 1 with his real-Neon run (the block in `docs/onboarding-a-shelter.md`, "Migrating production": `db:check-hashes` → `db:migrate --prod --expect <production ep- id>` → `db:check-hashes`), drafted in the PR, never run by the builder | - | - |
 | 8.3 | Re-run `email:delivery-test` if the invite body changed length (inbox placement was tested on today's body) | after 6.6 lands | his report |
 | 8.4 | The copy and decisions in §0 | PR 6's start | inbox rows |
-| 8.5 | Merge | after review and a green `pnpm check` | — |
+| 8.5 | Merge | after review and a green `pnpm check` | - |
 
 ## 9. The dress rehearsal gate (RU-B1, RU-B4, RU-B5)
 

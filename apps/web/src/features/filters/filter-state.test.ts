@@ -38,7 +38,7 @@ describe("filter state persistence", () => {
   });
 
   /**
-   * A browser with site data blocked doesn't hand back an empty storage — it
+   * A browser with site data blocked doesn't hand back an empty storage - it
    * throws on every operation. Losing a filter preference is acceptable;
    * taking the page down over one is not.
    */

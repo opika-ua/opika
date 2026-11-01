@@ -130,10 +130,10 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     // rendered (the same fix as b598d93 for K4 and #120's for KS-T3; AW-H2). Each test's own
     // `goto("/kabinet")` asserts 200.
     await Promise.all([
-      page.waitForURL((url) => url.pathname === "/kabinet"),
+      page.waitForURL((url) => url.pathname === "/kabinet/tvaryny"),
       page.getByRole("button").click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: "Профіль притулку" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
     await page.close();
   });
 
@@ -150,6 +150,10 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
   };
 
   const publishButton = (page: Page) => page.getByRole("button", { name: "Опублікувати" });
+  const openTab = (page: Page, name: string | RegExp) => page.getByRole("tab", { name }).click();
+  /** The links of the missing-items panel in «Публікація». */
+  const missingLinks = (page: Page) =>
+    page.getByRole("navigation", { name: "Щоб опублікувати, ще потрібно:" }).getByRole("link");
 
   // K2 (PR 5) is the form's entry point: the list's «Додати тварину», reached from the nav.
   test("from the list, «Додати тварину»: a name and a species save a draft; publish stays disabled with every gap written", async () => {
@@ -170,16 +174,19 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await expect(page).toHaveURL(/\/kabinet\/tvaryny\/[0-9a-f-]{36}$/);
     draftId = page.url().split("/").at(-1) as AnimalId;
     await expect(page.getByRole("heading", { level: 1, name: "Харнес" })).toBeVisible();
-    await expect(
-      page.getByText(
-        /^Чернетку збережено о \d\d:\d\d · Ті, хто шукає тварину, цю чернетку не бачать\.$/,
-      ),
-    ).toBeVisible();
+    await expect(page.getByText(/^Чернетку збережено о \d\d:\d\d$/)).toBeVisible();
+    await openTab(page, "Публікація");
+    await expect(page.getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeVisible();
     await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
-    const missing = page.getByText("Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.");
-    await expect(missing).toBeVisible();
+    await expect(missingLinks(page)).toHaveText([
+      "Стать (Основне)",
+      "Розмір (Основне)",
+      "Вік (Основне)",
+      "Опис (Про тварину)",
+      "Фото (Фото)",
+    ]);
     await expect(publishButton(page)).toHaveAccessibleDescription(
-      "Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.",
+      /^Щоб опублікувати, ще потрібно:.*Стать \(Основне\).*Фото \(Фото\)$/,
     );
 
     // Stored: the draft's own address shows it after a reload, still a draft.
@@ -191,19 +198,72 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
 
   test("the facts filled in, the gap list shrinks to «фото»", async () => {
     const page = await open(`/kabinet/tvaryny/${draftId}`);
+    // Every save is held at the route until the test lets it through, so the
+    // gap list is read while no save has landed (it is the form's own state
+    // and reads «фото» before any does), and the reload below waits for the
+    // form to say the facts are stored. Leaving a field saves too, and the
+    // saves queue one behind another; a reload while one is still queued
+    // cancels it (seen 2026-10-19: the page came back with the size only).
+    // The hold is a promise the test resolves, not a timed delay (Oleksii,
+    // 2026-10-20: "the kabinet form without the 1 s delay").
+    let releaseSaves: () => void = () => {};
+    const savesReleased = new Promise<void>((resolve) => {
+      releaseSaves = resolve;
+    });
+    let savesHeld = 0;
+    let savesUnfinished = 0;
+    // Saves waiting at the route for the release. The held check needs every save that
+    // reached the route still parked: a release moved ahead of it lets them through at once,
+    // whatever the timing (UI-F1).
+    let savesParked = 0;
+    const isSave = (request: { url(): string }) =>
+      request.url().includes("/api/kabinet/shelter/animals/update");
+    page.on("requestfinished", (request) => {
+      if (isSave(request)) savesUnfinished -= 1;
+    });
+    page.on("requestfailed", (request) => {
+      if (isSave(request)) savesUnfinished -= 1;
+    });
+    await page.route("**/api/kabinet/shelter/animals/update", async (route) => {
+      savesHeld += 1;
+      savesUnfinished += 1;
+      savesParked += 1;
+      await savesReleased;
+      savesParked -= 1;
+      await route.continue();
+    });
+    await page.getByRole("group", { name: "Стать" }).getByText("Хлопчик").click();
     await page.getByRole("group", { name: "Розмір" }).getByText("Середній").click();
     await page
       .getByRole("group", { name: "Вік на ту дату" })
       .getByText(/^Молодий/)
       .click();
     await expect(page.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeVisible();
-    await page.getByLabel("Про тварину").fill("Спокійний, любить гуляти в парку.");
+    // Switching tabs keeps what was chosen on the first one.
+    await openTab(page, /^Про тварину/);
+    await page.getByLabel(/^Опис/).fill("Спокійний, любить гуляти в парку.");
     await page.getByRole("button", { name: "Зберегти чернетку" }).click();
-    await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
+    // Held: a save has been asked for and none has landed, yet the gap list
+    // already reads the form's own state.
+    await expect.poll(() => savesHeld, { message: "no save reached the route" }).toBeGreaterThan(0);
+    await openTab(page, "Публікація");
+    await expect(missingLinks(page)).toHaveText(["Фото (Фото)"]);
+    expect(
+      { letThrough: savesHeld - savesParked, landed: savesHeld - savesUnfinished },
+      "a save was let through, or landed, before the held check",
+    ).toEqual({ letThrough: 0, landed: 0 });
+
+    releaseSaves();
+    await expect(page.getByText(/^Чернетку збережено о \d\d:\d\d$/)).toBeVisible();
+    await expect
+      .poll(() => savesUnfinished, { message: "a save was still in flight before the reload" })
+      .toBe(0);
+    await expect(missingLinks(page)).toHaveText(["Фото (Фото)"]);
     await expect(publishButton(page)).toHaveAttribute("aria-disabled", "true");
 
+    // The address keeps the tab: a reload opens «Публікація» again.
     await page.reload();
-    await expect(page.getByText("Щоб опублікувати, ще потрібно: фото.")).toBeVisible();
+    await expect(missingLinks(page)).toHaveText(["Фото (Фото)"]);
     await page.close();
   });
 
@@ -240,8 +300,9 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       await route.continue();
     });
 
+    await openTab(page, /^Фото/);
     const chooser = page.waitForEvent("filechooser");
-    await page.getByRole("button", { name: "+ Фото" }).click();
+    await page.getByRole("button", { name: /^Додати фото/ }).click();
     await (await chooser).setFiles({ name: "IMG_4000.png", mimeType: "image/png", buffer: png });
 
     await expect(page.getByText("На цій версії сайту фото завантажити не можна.")).toBeVisible({
@@ -279,10 +340,146 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     );
 
     const page = await open(`/kabinet/tvaryny/${draftId}`);
+    await openTab(page, /^Фото/);
     await expect(page.getByRole("group", { name: "Фото 1 з 1" })).toBeVisible();
     await expect(page.getByText("Обкладинка", { exact: true })).toBeVisible();
-    await expect(page.getByText(/^Щоб опублікувати, ще потрібно/)).toHaveCount(0);
+    await openTab(page, "Публікація");
+    await expect(page.getByText("Усе потрібне заповнено. Можна публікувати.")).toBeVisible();
+    await expect(missingLinks(page)).toHaveCount(0);
     await expect(publishButton(page)).not.toHaveAttribute("aria-disabled", "true");
+    await page.close();
+  });
+
+  const withThreePhotos = async () => {
+    if (draftId === undefined) throw new Error("no draft from the first test");
+    const id = draftId;
+    const draft = await animalRepo(db).findById(id);
+    const row = (await db.select({ id: animals.id, cityId: animals.cityId }).from(animals)).find(
+      (candidate) => candidate.id === id,
+    );
+    if (draft === null || row === undefined) throw new Error("the draft isn't stored");
+    await animalRepo(db).update(
+      {
+        ...draft,
+        photos: [1, 2, 3].map((n) => ({
+          storageKey: `seed-photos/dog-${n}.jpg`,
+          width: 1200,
+          height: 1500,
+          alt: null,
+        })),
+      },
+      row.cityId as CityId,
+    );
+  };
+
+  /** Set `PHOTO_SCREENSHOT_DIR` to keep the pictures for a PR; unset, nothing is written. */
+  const shot = async (page: Page, name: string) => {
+    const dir = process.env.PHOTO_SCREENSHOT_DIR;
+    if (dir !== undefined && dir !== "") await page.screenshot({ path: `${dir}/${name}.png` });
+  };
+
+  test("the photo manager tiles are at least 180 px wide at 1024, 1280 and 1440, and the panel aligns with the tabs", async () => {
+    await withThreePhotos();
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    await openTab(page, /^Фото/);
+    for (const width of [1024, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(page.getByRole("button", { name: /^Перетягнути фото/ })).toHaveCount(0);
+      for (const n of [1, 2, 3]) {
+        const box = await page.locator(`[data-photo-slot="${n - 1}"]`).boundingBox();
+        expect(box?.width ?? 0).toBeGreaterThanOrEqual(180);
+      }
+      await shot(page, `photo-manager-${width}`);
+    }
+    await expect(page.getByText("Перетягніть, щоб змінити порядок.")).toBeVisible();
+    await page.close();
+  });
+
+  test("every tab's content starts at the tabs row's left edge, at 393 and 1280", async () => {
+    await withThreePhotos();
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    for (const width of [393, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const name of [/^Фото/, /^Про тварину/, /^Основне/]) {
+        await openTab(page, name);
+        // The pill row scrolls sideways on a phone and scrolls the chosen tab into view.
+        await page.getByRole("tablist").evaluate((row) => row.scrollTo({ left: 0 }));
+        const tabLeft = (await page.getByRole("tab").first().boundingBox())?.x ?? -1;
+        const panelLeft =
+          (await page.locator('[role="tabpanel"]:not([hidden]) h2').first().boundingBox())?.x ?? -2;
+        expect(Math.abs(panelLeft - tabLeft)).toBeLessThanOrEqual(1);
+      }
+      await shot(page, `tab-alignment-${width}`);
+    }
+    await page.close();
+  });
+
+  test("the photo manager at 393: ⋯ targets are 44 px, a held finger lifts a photo, a quick swipe does not", async () => {
+    await withThreePhotos();
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    await page.setViewportSize({ width: 393, height: 852 });
+    await openTab(page, /^Фото/);
+    for (const n of [1, 2, 3]) {
+      const tile = await page.locator(`[data-photo-slot="${n - 1}"]`).boundingBox();
+      expect(tile?.width ?? 0).toBeGreaterThanOrEqual(140);
+      const box = await page.getByRole("button", { name: `Дії з фото ${n}` }).boundingBox();
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+    await shot(page, "photo-manager-393");
+
+    const tile = await page.getByRole("group", { name: "Фото 1 з 3" }).boundingBox();
+    if (tile === null) throw new Error("no tile");
+    const x = tile.x + tile.width / 2;
+    const y = tile.y + tile.height / 2;
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (
+      type: "touchStart" | "touchMove" | "touchEnd",
+      point: { x: number; y: number } | null,
+    ) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: point === null ? [] : [point],
+      });
+    const status = page.getByRole("status").filter({ hasText: /підняте|скасовано/ });
+
+    // A swipe moves first, so the page scrolls and the photo stays down.
+    await touch("touchStart", { x, y });
+    await touch("touchMove", { x, y: y - 40 });
+    await page.waitForTimeout(500);
+    await touch("touchEnd", null);
+    await expect(status).toHaveCount(0);
+
+    // A hold lifts it; the lift is announced, and letting go where it started changes nothing.
+    await touch("touchStart", { x, y });
+    await expect(status).toContainText("Фото 1 підняте", { timeout: 3000 });
+    await touch("touchMove", { x: x + 40, y: y + 20 });
+    await shot(page, "photo-manager-393-lifted");
+    await touch("touchEnd", null);
+    await expect(status).toContainText("Переміщення скасовано.");
+    await page.close();
+  });
+
+  test("the photo manager at 360: nothing overflows sideways and the ⋯ menu opens", async () => {
+    await withThreePhotos();
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    await page.setViewportSize({ width: 360, height: 800 });
+    await openTab(page, /^Фото/);
+    const tile360 = await page.locator('[data-photo-slot="0"]').boundingBox();
+    expect(tile360?.width ?? 0).toBeGreaterThanOrEqual(140);
+    const box = await page.getByRole("button", { name: "Дії з фото 2" }).boundingBox();
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+
+    await page.getByRole("button", { name: "Дії з фото 2" }).click();
+    await expect(page.getByRole("button", { name: "Посунути раніше" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Прибрати" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Посунути раніше" })).toBeHidden();
     await page.close();
   });
 });

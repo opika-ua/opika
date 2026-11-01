@@ -2,6 +2,7 @@ import {
   type AdopterId,
   type Animal,
   DEFAULT_SEEN_SET_POLICY,
+  EVERYONE_SCOPE,
   type FeedFilters,
   NO_FILTERS,
 } from "@opika/domain";
@@ -55,18 +56,6 @@ describe("cityRepo", () => {
     expect(found).toEqual(city);
   });
 
-  it("lists all cities", async () => {
-    const cities = cityRepo(db);
-    const c1 = makeCity({ name: { uk: "Харків", en: { text: "Kharkiv", provenance: "human" } } });
-    const c2 = makeCity({ name: { uk: "Дніпро", en: { text: "Dnipro", provenance: "human" } } });
-
-    await cities.insertMany([c1, c2]);
-    const list = await cities.listAll();
-
-    expect(list).toHaveLength(2);
-    expect(list.map((c) => c.id).sort()).toEqual([c1.id, c2.id].sort());
-  });
-
   it("returns null for non-existent city", async () => {
     const cities = cityRepo(db);
     const found = await cities.findById("00000000-0000-0000-0000-000000000000" as never);
@@ -105,6 +94,40 @@ describe("shelterRepo", () => {
     const found = await shelters.findById(shelter.id);
 
     expect(found).toEqual(shelter);
+  });
+
+  /** Pet card PR 3a (migration 0018): the new `logo` JSONB column, set. */
+  it("round-trips a shelter with a logo set", async () => {
+    const cities = cityRepo(db);
+    const shelters = shelterRepo(db);
+
+    const city = makeCity();
+    await cities.insert(city);
+
+    const shelter = makeShelter({
+      publicLocation: {
+        cityId: city.id,
+        district: null,
+        precision: "fuzzed_address",
+        approximate: {
+          center: { lat: 50.45, lng: 30.52 },
+          precisionMetres: 1000,
+        } as never,
+      },
+      exactAddress: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+      logo: { storageKey: "shelters/test/logo/abc123", width: 160, height: 160 },
+    });
+    await shelters.insert(shelter);
+    const found = await shelters.findById(shelter.id);
+
+    expect(found?.logo).toEqual(shelter.logo);
   });
 
   it("exposes exactly its three methods: no unaudited whole-row update, and any addition a conscious one", () => {
@@ -464,7 +487,7 @@ describe("revealRepo", () => {
   });
 
   /**
-   * The keyset predicate has two branches — a strict `revealed_at <` and an
+   * The keyset predicate has two branches - a strict `revealed_at <` and an
    * `=` plus `id <` tiebreaker. Three reveals share a timestamp so the tie
    * straddles the page boundary at limit 2, which is the only arrangement
    * that exercises the second branch: a tie contained entirely within one
@@ -1102,7 +1125,7 @@ describe("feedRepo", () => {
      * filter-independent: a swipe on a dog excludes nothing from a cats-only
      * feed, and the count says so.
      */
-    it("is scoped to the filters — a swipe on a dog leaves a cats-only count untouched", async () => {
+    it("is scoped to the filters - a swipe on a dog leaves a cats-only count untouched", async () => {
       const { dogs, adopter } = await seedThreeDogsAndACat();
       await swipeRepo(db).record(
         makeSwipe({
@@ -1126,7 +1149,7 @@ describe("feedRepo", () => {
     /**
      * R5's client falls back to the gallery's `totalMatching` for a deck
      * opened with no session. That is only honest if the two count the same
-     * predicate when nothing is excluded — an assumption carried over from R1,
+     * predicate when nothing is excluded - an assumption carried over from R1,
      * asserted here rather than left assumed.
      */
     it("matches the gallery's own total when nothing is excluded", async () => {
@@ -1135,6 +1158,7 @@ describe("feedRepo", () => {
       for (const filters of [NO_FILTERS, catsOnly]) {
         const gallery = await galleryRepo(db).list({
           filters,
+          scope: EVERYONE_SCOPE,
           sort: "freshest",
           page: 1,
           pageSize: 24,
