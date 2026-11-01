@@ -1,8 +1,6 @@
 import { COPY_PENDING, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import {
-  BLOCKED_MAX_PAGES,
-  BLOCKED_PAGE_SIZE,
   type BlockedStatus,
   blockedStatusOf,
   type OutgoingEmail,
@@ -32,9 +30,9 @@ function mail(
       async send(message) {
         if (options.sendFails)
           throw new ProviderSendError(
-            "brevo",
+            "resend",
             500,
-            "Email provider brevo refused the send (status 500).",
+            "Email provider resend refused the send (status 500).",
           );
         sent.push(message);
         return { status: 201, messageId: "m" };
@@ -67,13 +65,7 @@ describe("sendChecked", () => {
   });
 
   it("still sends when the block list can't be read, and says the check wasn't done (review of 5f9e7c4, finding 1)", async () => {
-    for (const why of [
-      "provider_error",
-      "list_too_long",
-      "timed_out",
-      "unsupported_provider",
-      "provider_suppresses",
-    ] as const) {
+    for (const why of ["unsupported_provider", "provider_suppresses"] as const) {
       const unknown = mail({ kind: "unknown", why });
       expect(await sendChecked(unknown.provider, email), why).toEqual({
         kind: "sent",
@@ -91,18 +83,9 @@ describe("sendChecked", () => {
     expect(throwing.sent).toHaveLength(1);
   });
 
-  it("the reviewer's case end to end: the invitee is past the 500th blocked contact, so sent but unchecked", async () => {
-    const total = BLOCKED_PAGE_SIZE * BLOCKED_MAX_PAGES + 1;
-    const fetchImpl = (async (url: string) => {
-      const offset = Number(new URL(url).searchParams.get("offset"));
-      const contacts = Array.from({ length: BLOCKED_PAGE_SIZE }, (_, i) => ({
-        email: `other${offset + i}@example.org`,
-        reason: { code: "hardBounce" },
-      }));
-      return new Response(JSON.stringify({ count: total, contacts }), { status: 200 });
-    }) as unknown as typeof fetch;
-    const brevo = {
-      provider: "brevo",
+  it("a Resend route's real check is unknown, so the email is sent and reported as unchecked", async () => {
+    const resend = {
+      provider: "resend",
       apiKey: "k",
       fromAddress: "a@mail.example.org",
       fromName: null,
@@ -113,10 +96,10 @@ describe("sendChecked", () => {
       sender: {
         async send(message) {
           sent.push(message);
-          return { status: 201, messageId: "m" };
+          return { status: 200, messageId: "m" };
         },
       },
-      blockedStatus: (address) => blockedStatusOf(brevo, address, fetchImpl),
+      blockedStatus: async () => blockedStatusOf(resend),
       refuseCopyPending: false,
     };
     expect(await sendChecked(provider, email)).toEqual({ kind: "sent", blockCheck: "unknown" });
@@ -169,7 +152,7 @@ describe("providerMagicLinkSender", () => {
       [mail({ kind: "blocked", reason: "unsubscribed" }), "blocked (unsubscribed)"],
       [
         mail({ kind: "not_blocked" }, { sendFails: true }),
-        "failed (provider_error), provider brevo, status 500",
+        "failed (provider_error), provider resend, status 500",
       ],
     ] as const) {
       const lines: string[] = [];
@@ -188,7 +171,7 @@ describe("providerMagicLinkSender", () => {
   });
 
   it("logs a send whose block check couldn't be done, masked, never the link", async () => {
-    const m = mail({ kind: "unknown", why: "timed_out" });
+    const m = mail({ kind: "unknown", why: "provider_error" });
     const lines: string[] = [];
     await providerMagicLinkSender(m.provider, {
       ttlMinutes: 15,
@@ -199,7 +182,7 @@ describe("providerMagicLinkSender", () => {
       url: URL_WITH_TOKEN,
     });
     expect(lines).toEqual([
-      "[kabinet] sign-in email to o•••@example.org sent without a block-list check (timed_out)",
+      "[kabinet] sign-in email to o•••@example.org sent without a block-list check (provider_error)",
     ]);
     expect(m.sent).toHaveLength(1);
   });
@@ -219,11 +202,6 @@ describe("providerMagicLinkSender", () => {
       replyTo: "hello@example.org",
     } as const;
     const sent: OutgoingEmail[] = [];
-    let lookups = 0;
-    const lookupFetch = (async () => {
-      lookups++;
-      throw new Error("must not be called");
-    }) as unknown as typeof fetch;
     const lines: string[] = [];
     await providerMagicLinkSender(
       {
@@ -233,56 +211,17 @@ describe("providerMagicLinkSender", () => {
             return { status: 200, messageId: "r-1" };
           },
         },
-        blockedStatus: (address) => blockedStatusOf(resend, address, lookupFetch),
+        blockedStatus: async () => blockedStatusOf(resend),
         refuseCopyPending: true,
       },
       { ttlMinutes: 15, operatorName: "Олексій", log: (l) => lines.push(l) },
     ).send({ email: "olena@example.org", url: URL_WITH_TOKEN });
     expect(sent).toHaveLength(1);
-    expect(lookups).toBe(0);
     expect(lines).toEqual([
       "[kabinet] sign-in email to o•••@example.org sent without a block-list check (provider_suppresses)",
     ]);
     expect(lines.join("")).not.toContain("SECRET-TOKEN");
     expect(lines.join("")).not.toContain("olena@");
-  });
-
-  it("an invite through Brevo still reads Brevo's block list, and a listed address is not sent", async () => {
-    const brevo = {
-      provider: "brevo",
-      apiKey: "brevo-key",
-      fromAddress: "noreply@mail.example.org",
-      fromName: null,
-      replyTo: "hello@example.org",
-    } as const;
-    const asked: string[] = [];
-    const listFetch = (async (url: string) => {
-      asked.push(url);
-      return new Response(
-        JSON.stringify({
-          count: 1,
-          contacts: [{ email: "olena@example.org", reason: { code: "hardBounce" } }],
-        }),
-        { status: 200 },
-      );
-    }) as unknown as typeof fetch;
-    const sent: OutgoingEmail[] = [];
-    const outcome = await sendChecked(
-      {
-        sender: {
-          send: async (e) => {
-            sent.push(e);
-            return { status: 201, messageId: "b-1" };
-          },
-        },
-        blockedStatus: (address) => blockedStatusOf(brevo, address, listFetch),
-        refuseCopyPending: false,
-      },
-      email,
-    );
-    expect(outcome).toEqual({ kind: "blocked", reason: "hard_bounce" });
-    expect(asked[0]).toMatch(/^https:\/\/api\.brevo\.com\/v3\/smtp\/blockedContacts\?/);
-    expect(sent).toEqual([]);
   });
 
   it("logs nothing for a checked, sent email, and sends the magic-link email itself", async () => {
@@ -350,7 +289,7 @@ describe("providerInvitationSender", () => {
     }).send(invitation);
     expect(outcome).toEqual({ kind: "failed", reason: "provider_error" });
     expect(lines).toEqual([
-      "[kabinet] invite email to o•••@example.org not sent: failed (provider_error), provider brevo, status 500",
+      "[kabinet] invite email to o•••@example.org not sent: failed (provider_error), provider resend, status 500",
     ]);
     const all = lines.join("\n");
     expect(all).not.toContain("olena@");

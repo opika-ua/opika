@@ -31,11 +31,9 @@ import { operatorDisplayName } from "./operator";
  * since delivery test 5 (Oleksii, 2026-10-15, EM-B10, verbatim: "Decision:
  * invites move to Resend; retire Brevo."). Production's routes
  * (`emailRoutesOf`) are built from the same variables, so the test sends
- * exactly what production could be configured for: since PW1-Q4 that is
- * Resend only, and `--sign-in-provider brevo` / `--invite-provider brevo`
- * are refused by name (`deliveryLockRefusalOf`) before any key is read. The
- * flags, `brevo` among their values and the Brevo key's reading stay until
- * Brevo's removal (after the 14 Nov check), which deletes them.
+ * exactly what production could be configured for: Resend only. Brevo is gone
+ * (PW1-Q4 locked auth emails to Resend; the code came out with the DNS
+ * records, 2026-11), and with it the per-email provider flags.
  *
  * Tracking is checked by hand, not by the script (PW1-Q5): it sends with a
  * sending-only key, which can't read Resend's domain settings. Oleksii,
@@ -47,74 +45,13 @@ import { operatorDisplayName } from "./operator";
  *
  * Keys are read from the repo-root .env.local, one named key at a time (the
  * way prod-guard.ts reads PROD_NEON_ENDPOINT) and only the ones the sends
- * need (`deliveryKeysOf`): RESEND_API_KEY, once, shared by both emails.
+ * need (`readSingleKey`): RESEND_API_KEY, once, shared by both emails.
  * Never printed: the output is, per send, the provider, the HTTP status and
  * the provider's message id.
  */
 
-/** The Brevo key's name, production's (`PROVIDER_KEY_NAMES`); never committed or logged. */
-export const DELIVERY_KEY_NAME = PROVIDER_KEY_NAMES.brevo;
-
 /** The Resend key's name, production's (`PROVIDER_KEY_NAMES`, EM-B7); never committed or logged. */
 export const RESEND_DELIVERY_KEY_NAME = PROVIDER_KEY_NAMES.resend;
-
-/**
- * What `--sign-in-provider` / `--invite-provider` parse: Resend, production's, and `brevo`,
- * which parses only to be refused by name (`deliveryLockRefusalOf`, PW1-Q4) rather than read
- * as a typo. Brevo's removal deletes it.
- */
-export const DELIVERY_PROVIDERS = ["resend", "brevo"] as const;
-export type DeliveryProvider = (typeof DELIVERY_PROVIDERS)[number];
-
-/** Which provider each email goes through in one run. */
-export type DeliveryRouting = { signIn: DeliveryProvider; invite: DeliveryProvider };
-
-/**
- * The refusal for a run asking for Brevo, or null. Every email this test sends is an auth email,
- * and config locks those to Resend (Oleksii, 2026-10-20, inbox PW1-Q4, verbatim: "PW1-Q4: (a).
- * Lock auth emails (sign-in, invite, reset, password changed) to Resend in config, with a test
- * that a Brevo setting is refused for them."). `emailRoutesOf` would refuse the routes anyway;
- * this names the lock and the flag, and lets the script refuse before it reads any key.
- */
-export function deliveryLockRefusalOf(routing: DeliveryRouting): string | null {
-  const flags = [
-    routing.signIn === "brevo" ? "--sign-in-provider brevo" : null,
-    routing.invite === "brevo" ? "--invite-provider brevo" : null,
-  ].filter((flag) => flag !== null);
-  if (flags.length === 0) return null;
-  return `${flags.join(" and ")}: refused. Auth emails are locked to Resend (PW1-Q4), so neither email may go through Brevo. Nothing sent.`;
-}
-
-/** `--sign-in-provider` / `--invite-provider` as given, or null for anything that isn't one of the two. Unset is Resend. */
-export function deliveryProviderOf(value: string | undefined): DeliveryProvider | null {
-  if (value === undefined) return "resend";
-  return (DELIVERY_PROVIDERS as readonly string[]).includes(value)
-    ? (value as DeliveryProvider)
-    : null;
-}
-
-/** Which keys a run sends with: Brevo's while either email goes through Brevo, Resend's while either goes through Resend. */
-export function deliveryKeysNeeded(routing: DeliveryRouting): { brevo: boolean; resend: boolean } {
-  const providers = [routing.signIn, routing.invite];
-  return { brevo: providers.includes("brevo"), resend: providers.includes("resend") };
-}
-
-/**
- * Reads exactly the keys `deliveryKeysNeeded` names, each at most once
- * (`readKey` is the script's `readSingleKey` on .env.local): a run never
- * touches a key it doesn't send with, and both emails on Resend share one
- * read of RESEND_API_KEY.
- */
-export function deliveryKeysOf(
-  routing: DeliveryRouting,
-  readKey: (name: string) => string | undefined,
-): { brevoApiKey: string | undefined; resendApiKey: string | undefined } {
-  const needed = deliveryKeysNeeded(routing);
-  return {
-    brevoApiKey: needed.brevo ? readKey(DELIVERY_KEY_NAME) : undefined,
-    resendApiKey: needed.resend ? readKey(RESEND_DELIVERY_KEY_NAME) : undefined,
-  };
-}
 
 /** The verified sender's local part; the domain is mail.<production host>, enforced by emailProviderConfigOf. */
 const FROM_LOCAL_PART = "noreply";
@@ -131,13 +68,7 @@ export function readSingleKey(file: string, key: string): string | undefined {
 
 export type DeliveryTestInput = {
   to: string | undefined;
-  /** BREVO_API_KEY: never read since PW1-Q4, a Brevo run being refused first; goes with Brevo's removal. */
-  brevoApiKey?: string | undefined;
-  /** Where the sign-in email goes (`--sign-in-provider`); unset is Resend, `brevo` is refused (PW1-Q4). */
-  signInProvider?: DeliveryProvider;
-  /** Where the invite goes (`--invite-provider`); unset is Resend, `brevo` is refused (PW1-Q4). */
-  inviteProvider?: DeliveryProvider;
-  /** RESEND_API_KEY, read by the script only while either email goes through Resend. */
+  /** RESEND_API_KEY, read by the script from the repo-root .env.local. */
   resendApiKey?: string | undefined;
   /** The production origin; the From domain is mail. + its host. */
   origin: string;
@@ -168,15 +99,6 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
     input.log("Usage: --to <address> is required.");
     return 1;
   }
-  const routing: DeliveryRouting = {
-    signIn: input.signInProvider ?? "resend",
-    invite: input.inviteProvider ?? "resend",
-  };
-  const locked = deliveryLockRefusalOf(routing);
-  if (locked !== null) {
-    input.log(locked);
-    return 1;
-  }
   // IN-E15: this run tests the final emails. With any template string still a
   // placeholder it would test something else, so it refuses outright.
   const pending = input.pendingTemplateCopy ?? pendingTemplateCopy();
@@ -190,12 +112,7 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
     input.log("No From name: pass --from-name or set EMAIL_FROM_NAME. Nothing sent.");
     return 1;
   }
-  const needed = deliveryKeysNeeded(routing);
-  if (needed.brevo && !input.brevoApiKey) {
-    input.log(`${DELIVERY_KEY_NAME} is not set in the repo-root .env.local. Nothing sent.`);
-    return 1;
-  }
-  if (needed.resend && !input.resendApiKey) {
+  if (!input.resendApiKey) {
     input.log(`${RESEND_DELIVERY_KEY_NAME} is not set in the repo-root .env.local. Nothing sent.`);
     return 1;
   }
@@ -208,16 +125,11 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
   })();
   // Production's own routing (`emailRoutesOf`), from the variables
   // production reads, so the test sends the way the app will: one From, From
-  // name and Reply-To for both emails, on Resend's key (the config refuses
-  // any other provider, PW1-Q4). The invite is the default route; sign-in
-  // names its provider only when it differs, as production leaves
-  // EMAIL_SIGN_IN_PROVIDER unset. A key the run doesn't need was never read,
-  // so it is undefined.
+  // name and Reply-To for both emails, on Resend's key (the config accepts no
+  // other provider).
   const routes = emailRoutesOf({
-    EMAIL_PROVIDER: routing.invite,
-    ...(routing.signIn === routing.invite ? {} : { EMAIL_SIGN_IN_PROVIDER: routing.signIn }),
+    EMAIL_PROVIDER: "resend",
     [PROVIDER_KEY_NAMES.resend]: input.resendApiKey,
-    [PROVIDER_KEY_NAMES.brevo]: input.brevoApiKey,
     EMAIL_FROM_ADDRESS: `${FROM_LOCAL_PART}@mail.${originHost}`,
     EMAIL_FROM_NAME: input.fromName,
     EMAIL_REPLY_TO: input.replyTo,

@@ -17,7 +17,7 @@ const SIGN_IN_URL = "https://example.org/kabinet/vkhid/pidtverdzhennia?token=abc
 const INVITE_URL =
   "https://example.org/kabinet/vkhid?zaproshennia=0ec0ec0e-0000-4000-8000-000000000009";
 
-/** Hosts Brevo's click and open tracking use (IN-E8, IN-E10): none may appear in what we send. */
+/** Hosts a click and open tracker uses (IN-E8, IN-E10; the removed Brevo's): none may appear in what we send. */
 const TRACKER = /sendibt\d*\.com|sender-sib|\/tr\/(cl|op)\//i;
 
 const builders = {
@@ -106,18 +106,18 @@ describe.each(Object.entries(builders))("the %s email", (name, build) => {
     for (const text of texts) expect(looksLikeUrl(text), text).toBe(false);
   });
 
-  it("is sent to Brevo with the exact raw URL in textContent, no tracker host anywhere, and a label as the anchor text", async () => {
+  it("is sent to Resend with the exact raw URL in the text part, no tracker host anywhere, and a label as the anchor text", async () => {
     const email = build();
     // Known per builder, never read back out of what it built.
     const url = name === "magic link" ? SIGN_IN_URL : INVITE_URL;
-    let body: { textContent: string; htmlContent: string } | null = null;
+    let body: { text: string; html: string } | null = null;
     const capture = (async (_url: string, init: RequestInit) => {
       body = JSON.parse(init.body as string);
-      return new Response(JSON.stringify({ messageId: "m" }), { status: 201 });
+      return new Response(JSON.stringify({ id: "m" }), { status: 200 });
     }) as unknown as typeof fetch;
     await fetchEmailSender(
       {
-        provider: "brevo",
+        provider: "resend",
         apiKey: "k",
         fromAddress: "noreply@mail.example.org",
         fromName: "N",
@@ -125,11 +125,11 @@ describe.each(Object.entries(builders))("the %s email", (name, build) => {
       },
       capture,
     ).send(email);
-    const sent = body as unknown as { textContent: string; htmlContent: string };
-    expect(sent.textContent.split("\n")).toContain(url);
-    expect(sent.textContent).not.toMatch(TRACKER);
-    expect(sent.htmlContent).not.toMatch(TRACKER);
-    for (const text of anchorTexts(sent.htmlContent)) expect(looksLikeUrl(text), text).toBe(false);
+    const sent = body as unknown as { text: string; html: string };
+    expect(sent.text.split("\n")).toContain(url);
+    expect(sent.text).not.toMatch(TRACKER);
+    expect(sent.html).not.toMatch(TRACKER);
+    for (const text of anchorTexts(sent.html)) expect(looksLikeUrl(text), text).toBe(false);
   });
 });
 

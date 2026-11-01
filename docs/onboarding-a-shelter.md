@@ -635,8 +635,8 @@ hand: the Resend dashboard shows click and open tracking off, and the links in t
 are plain. Add both as runbook steps for each delivery test."
 
 1. **Run it:** `pnpm --filter @opika/web email:delivery-test --to <address>`. The key is
-   `RESEND_API_KEY` in the repo-root `.env.local`, a sending-only one. `--sign-in-provider brevo`
-   and `--invite-provider brevo` are refused: auth emails are locked to Resend (PW1-Q4).
+   `RESEND_API_KEY` in the repo-root `.env.local`, a sending-only one. Both emails go through
+   Resend: auth emails are locked to it (PW1-Q4) and the script takes no provider flag.
 2. **The Resend dashboard shows click and open tracking off:** Resend → Domains → the sending
    subdomain (`mail.opika.org.ua`), both switches off.
 3. **The links in the received email are plain:** in each of the two emails, the link points

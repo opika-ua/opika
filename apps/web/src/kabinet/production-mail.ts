@@ -1,6 +1,6 @@
 import {
   blockedStatusOf,
-  cachedBlockList,
+  blockListReaderOf,
   type EmailProviderConfig,
   fetchEmailSender,
 } from "./email-provider";
@@ -23,7 +23,7 @@ import type { ProductionSignIn } from "./production-sign-in";
  *   operator name (`ProductionSignIn.operatorName`, the value that signs the
  *   invite);
  * - the invite goes through `routes.invite`, and so does the registry's
- *   blocked-addresses view (`cachedBlockList`). On Resend both block checks
+ *   blocked-addresses view (`blockListReaderOf`). On Resend both block checks
  *   answer `unknown` (`provider_suppresses`, EM-T26) until EM-F1.
  *
  * Every email still holding `[COPY PENDING]` is refused, never sent (IN-Q5),
@@ -45,7 +45,7 @@ type Deps = {
 
 const providerMailOf = (config: EmailProviderConfig, fetchImpl: typeof fetch): ProviderMail => ({
   sender: fetchEmailSender(config, fetchImpl),
-  blockedStatus: (address) => blockedStatusOf(config, address, fetchImpl),
+  blockedStatus: async () => blockedStatusOf(config),
   refuseCopyPending: true,
 });
 
@@ -65,7 +65,7 @@ export function productionMailOf(
     invites: providerInvitationSender(providerMailOf(on.email.invite, fetchImpl), {
       log,
       fromAddress: on.email.invite.fromAddress,
-      blockList: cachedBlockList(on.email.invite, { fetchImpl }),
+      blockList: blockListReaderOf(on.email.invite),
     }),
     passwordMail: providerPasswordMail(providerMailOf(on.email.signIn, fetchImpl), {
       ttlMinutes: RESET_PASSWORD_TTL_SECONDS / 60,
@@ -77,9 +77,8 @@ export function productionMailOf(
 }
 
 /**
- * Built once per process and reused by every request, so the block list's
- * three-minute cache (`cachedBlockList`) is shared rather than rebuilt and
- * thrown away per request. Rebuilt only if the configuration itself differs
+ * Built once per process and reused by every request, rather than rebuilt
+ * and thrown away per request. Rebuilt only if the configuration itself differs
  * (never in a deployed instance, whose environment is fixed; it keeps a test
  * that changes the environment from reading a stale pair). The key holds the
  * provider keys in memory only, as `process.env` already does; it is never

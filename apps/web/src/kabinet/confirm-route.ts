@@ -9,7 +9,7 @@ import type { AcceptInvitation, InvitationAcceptOutcome } from "./invitation-acc
 /**
  * The page an emailed sign-in link opens (IN-Q11,
  * `docs/h2-invite-confirm-shapes.md`). Mail scanners follow every link
- * (Brevo rewrites them all), and Better Auth's verify consumes the token on
+ * (a tracking provider rewrites them all), and Better Auth's verify consumes the token on
  * GET. So the GET here only shows one button, and only that button's POST
  * runs the verify, server-side, through `auth.handler`: the same entry the
  * `/api/auth` route forwards to, so no Better Auth server API beyond
