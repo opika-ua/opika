@@ -63,7 +63,9 @@ export async function handleMonitoringTunnel(
   const events = envelope.items
     .filter((item) => item.header.type === FORWARDED_ITEM_TYPE)
     .map((item) => scrubbedEventPayload(item.payload))
-    .filter((payload): payload is string => payload !== null);
+    .filter((payload): payload is string => payload !== null)
+    // One error per envelope: the SDK sends one, so a second item is not ours.
+    .slice(0, 1);
   if (events.length === 0) return opaque();
 
   const body = [

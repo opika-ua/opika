@@ -163,11 +163,35 @@ describe("scrubEvent", () => {
     expect(scrubbed).not.toHaveProperty("modules");
   });
 
-  it("keeps only the page address, the method and the browser UA of the request", () => {
+  it("keeps only the page address and the method of the request: no header, not even the UA", () => {
     expect(scrubbed.request).toEqual({
       url: "https://opika.example/api/rpc/animals/reveal",
       method: "POST",
-      headers: { "User-Agent": "Mozilla/5.0 (Linux; Android 14)" },
+    });
+  });
+
+  it("drops top-level keys it does not know, and keeps only debug ids and files of debug_meta", () => {
+    const out = scrubEvent({
+      event_id: "e1",
+      level: "error",
+      fingerprint: ["olena@example.ua"],
+      threads: { values: [{ name: "main" }] },
+      culprit: "somewhere",
+      debug_meta: {
+        images: [
+          {
+            type: "sourcemap",
+            debug_id: "d1",
+            code_file: "https://x.example/a.js?v=SECRET",
+            extra: "e",
+          },
+        ],
+        sdk_info: { sdk_name: "x" },
+      },
+    }) as Record<string, unknown>;
+    expect(Object.keys(out).sort()).toEqual(["debug_meta", "event_id", "level"]);
+    expect(out.debug_meta).toEqual({
+      images: [{ type: "sourcemap", debug_id: "d1", code_file: "https://x.example/a.js" }],
     });
   });
 

@@ -48,15 +48,23 @@ describe("the options every runtime shares", () => {
   const options = baseSentryOptions("https://k@o1.ingest.de.sentry.io/1");
 
   it("turns tracing off and collects no default PII", () => {
-    expect(options.tracesSampleRate).toBe(0);
     expect(options.sendDefaultPii).toBe(false);
     expect(options.dataCollection).toBe(MINIMAL_DATA_COLLECTION);
     expect(options.maxBreadcrumbs).toBe(0);
     expect(options.sendClientReports).toBe(false);
   });
 
-  it("never sends a transaction even if one were built", () => {
-    expect(options.beforeSendTransaction()).toBeNull();
+  it("sets no tracing key (tracesSampleRate 0 is not off in v11) and stops trace headers going out", () => {
+    const keys = Object.keys(options);
+    for (const tracing of [
+      "tracesSampleRate",
+      "tracesSampler",
+      "enableTracing",
+      "traceLifecycle",
+    ]) {
+      expect(keys).not.toContain(tracing);
+    }
+    expect(options.tracePropagationTargets).toEqual([]);
   });
 
   it("scrubs events and breadcrumbs", () => {
@@ -72,7 +80,6 @@ describe("the options every runtime shares", () => {
       "replaysOnErrorSampleRate",
       "profilesSampleRate",
       "profileSessionSampleRate",
-      "tracePropagationTargets",
     ]) {
       expect(keys).not.toContain(forbidden);
     }

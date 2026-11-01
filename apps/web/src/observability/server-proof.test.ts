@@ -80,6 +80,50 @@ async function realRequestThatErrors(): Promise<void> {
   await Sentry.flush(2000);
 }
 
+let upstream: Server | undefined;
+afterEach(async () => {
+  await new Promise<void>((done) => (upstream ? upstream.close(() => done()) : done()));
+  upstream = undefined;
+});
+
+const TRACE_ID = "0123456789abcdef0123456789abcdef";
+const SAMPLED_PARENT = {
+  "sentry-trace": `${TRACE_ID}-0123456789abcdef-1`,
+  baggage: `sentry-trace_id=${TRACE_ID},sentry-sampled=true,sentry-sample_rate=1,sentry-public_key=attacker`,
+};
+
+/**
+ * A request whose caller already decided to trace it (a sampled `sentry-trace` and `baggage`), into a
+ * server that makes spans, calls an upstream service and reports an error. Returns the headers the
+ * upstream call carried.
+ */
+async function sampledRequestWithUpstreamCall(): Promise<Record<string, unknown>> {
+  let seen: Record<string, unknown> = {};
+  upstream = createServer((req, res) => {
+    seen = { ...req.headers };
+    res.end("ok");
+  });
+  await new Promise<void>((ready) => upstream?.listen(0, "127.0.0.1", ready));
+  const upstreamPort = (upstream.address() as AddressInfo).port;
+  server = createServer((req, res) => {
+    req.resume();
+    req.on("end", () => {
+      void Sentry.startSpan({ name: "handler" }, async () => {
+        await Sentry.startSpan({ name: "db" }, async () => undefined);
+        await fetch(`http://127.0.0.1:${upstreamPort}/neon?token=SECRETTOKEN`);
+        Sentry.captureException(caught());
+      }).then(() => res.end("ok"));
+    });
+  });
+  await new Promise<void>((ready) => server?.listen(0, "127.0.0.1", ready));
+  const { port } = server.address() as AddressInfo;
+  await fetch(`http://127.0.0.1:${port}/tvaryny?gate=GATEVALUE`, {
+    headers: { ...HEADERS, ...SAMPLED_PARENT },
+  });
+  await Sentry.flush(2000);
+  return seen;
+}
+
 /** What a careless caller could still put on a scope: the full config must hold even then. */
 async function hostileScope(): Promise<void> {
   await Sentry.withIsolationScope(async (scope) => {
@@ -182,6 +226,25 @@ describe("the full config (SDK collection and scrubber)", () => {
     await hostileScope();
     expect(sent.itemTypes().length).toBeGreaterThan(0);
     expect(sent.itemTypes().every((type) => type === "event")).toBe(true);
+  });
+
+  it("sends no span or transaction for a request that arrives already sampled, and still reports the error", async () => {
+    const sent = recordingTransport();
+    initServerSentry(DSN, { transport: sent.transport });
+    await sampledRequestWithUpstreamCall();
+    expect(sent.itemTypes()).toContain("event");
+    expect(sent.itemTypes().every((type) => type === "event")).toBe(true);
+    expectNothingPrivate(sent);
+  });
+
+  it("adds no sentry-trace or baggage header to outgoing requests", async () => {
+    const sent = recordingTransport();
+    initServerSentry(DSN, { transport: sent.transport });
+    const headers = await sampledRequestWithUpstreamCall();
+    expect(Object.keys(headers).length).toBeGreaterThan(0);
+    expect(headers).not.toHaveProperty("sentry-trace");
+    expect(headers).not.toHaveProperty("baggage");
+    expect(headers).not.toHaveProperty("traceparent");
   });
 
   it("runs none of the integrations that send sessions, process data or local variables", () => {

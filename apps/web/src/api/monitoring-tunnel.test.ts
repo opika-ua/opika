@@ -244,6 +244,7 @@ describe("what is forwarded", () => {
   it("drops every item that is not an error event", async () => {
     const { response, forward } = await forwarded([
       { type: "transaction", payload: { type: "transaction" } },
+      { type: "span", payload: { items: [] } },
       { type: "replay_event", payload: {} },
       { type: "session", payload: {} },
       { type: "attachment", payload: "raw bytes" },
@@ -262,6 +263,17 @@ describe("what is forwarded", () => {
     const body = String(call?.[1]?.body);
     expect(body).not.toContain("raw bytes");
     expect(body).not.toContain("transaction");
+    expect(body.split("\n")).toHaveLength(3);
+  });
+
+  it("forwards at most one event per envelope", async () => {
+    const { call } = await forwarded([
+      { type: "event", payload: event({ message: "first" }) },
+      { type: "event", payload: event({ message: "second" }) },
+    ]);
+    const body = String(call?.[1]?.body);
+    expect(body).toContain("first");
+    expect(body).not.toContain("second");
     expect(body.split("\n")).toHaveLength(3);
   });
 

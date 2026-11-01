@@ -41,4 +41,24 @@ describe("app/api/monitoring/route.ts", () => {
     expect(statuses[20]).toBe(429);
     expect(forward).toHaveBeenCalledTimes(20);
   });
+
+  it("the test route has its own limiter: 5 calls a minute per address, checked before the secret", async () => {
+    const secret = "s".repeat(40);
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", DSN);
+    vi.stubEnv("CRON_SECRET", secret);
+    const route = await import("../app/api/monitoring/test/route");
+    const call = (bearer: string) =>
+      route.POST(
+        new Request("https://opika.example/api/monitoring/test", {
+          method: "POST",
+          headers: { authorization: `Bearer ${bearer}`, "x-forwarded-for": "198.51.100.77" },
+        }),
+      );
+    for (let i = 0; i < 5; i++) expect((await call("x".repeat(40))).status).toBe(404);
+    const refused = await call("x".repeat(40));
+    expect(refused.status).toBe(429);
+    expect(Number(refused.headers.get("retry-after"))).toBeGreaterThanOrEqual(1);
+    // The right secret does not get past the limiter either.
+    expect((await call(secret)).status).toBe(429);
+  });
 });

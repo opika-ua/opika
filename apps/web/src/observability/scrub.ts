@@ -97,43 +97,54 @@ function scrubException(exception: unknown): unknown {
   };
 }
 
-/** Only the page address, the method and the browser's own UA string stay of a request. */
+/** Only the page address and the method stay of a request: no header (the UA included), cookie, body or query. */
 function scrubRequest(request: unknown): Loose | undefined {
   if (!isObject(request)) return undefined;
   const out: Loose = {};
   if (typeof request.url === "string") out.url = scrubString(scrubUrl(request.url));
   if (typeof request.method === "string") out.method = request.method;
-  if (isObject(request.headers)) {
-    const ua = Object.entries(request.headers).find(([k]) => k.toLowerCase() === "user-agent");
-    if (ua !== undefined && typeof ua[1] === "string") {
-      out.headers = { "User-Agent": scrubString(ua[1]) };
-    }
-  }
   return out;
 }
 
+/** Source-map matching needs each bundle's debug id and file; nothing else of `debug_meta` stays. */
+function scrubDebugMeta(debugMeta: unknown): Loose | undefined {
+  if (!isObject(debugMeta) || !Array.isArray(debugMeta.images)) return undefined;
+  const images = debugMeta.images.flatMap((image) => {
+    if (!isObject(image) || typeof image.debug_id !== "string") return [];
+    const kept: Loose = { debug_id: scrubString(image.debug_id) };
+    if (typeof image.type === "string") kept.type = image.type;
+    if (typeof image.code_file === "string") kept.code_file = urlOf(image.code_file);
+    return [kept];
+  });
+  return { images };
+}
+
+/** Top-level keys that may stay; anything else (fingerprint, threads, user, breadcrumbs, ...) is dropped. */
+const PLAIN_KEYS = [
+  "event_id",
+  "type",
+  "timestamp",
+  "start_timestamp",
+  "platform",
+  "level",
+  "environment",
+  "release",
+  "dist",
+  "sdk",
+] as const;
+
 /**
- * Applies to any event type (error, transaction, anything else): removes user, breadcrumbs,
- * cookies, every header but the UA, the request body and query, local variables and source
- * lines; scrubs every string that remains.
+ * Applies to any event type (error, transaction, anything else) and builds the result from an
+ * allow-list of top-level keys, so a key a future SDK adds is dropped until it is reviewed. Request
+ * data, user, breadcrumbs, local variables and source lines are never copied; every string that
+ * remains is scrubbed.
  */
 export function scrubEvent<T extends object>(event: T): T {
-  const {
-    user: _user,
-    breadcrumbs: _breadcrumbs,
-    server_name: _serverName,
-    request,
-    exception,
-    extra,
-    contexts,
-    tags,
-    message,
-    logentry,
-    transaction,
-    spans,
-    ...rest
-  } = event as Loose;
-  const out: Loose = { ...rest };
+  const source = event as Loose;
+  const out: Loose = {};
+  for (const key of PLAIN_KEYS) if (key in source) out[key] = scrubValue(source[key]);
+  const { request, exception, extra, contexts, tags, message, logentry, transaction, spans } =
+    source;
   const scrubbedRequest = scrubRequest(request);
   if (scrubbedRequest !== undefined) out.request = scrubbedRequest;
   if (exception !== undefined) out.exception = scrubException(exception);
@@ -144,7 +155,8 @@ export function scrubEvent<T extends object>(event: T): T {
   if (logentry !== undefined) out.logentry = scrubValue(logentry);
   if (typeof transaction === "string") out.transaction = scrubString(scrubUrl(transaction));
   if (Array.isArray(spans)) out.spans = scrubValue(spans);
-  for (const key of ["modules", "sdkProcessingMetadata", "_metadata"]) delete out[key];
+  const debugMeta = scrubDebugMeta(source.debug_meta);
+  if (debugMeta !== undefined) out.debug_meta = debugMeta;
   return out as T;
 }
 

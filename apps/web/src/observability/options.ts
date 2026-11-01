@@ -32,21 +32,22 @@ export type SentryTestKnobs = {
 };
 
 /**
- * Options common to the browser, Node and edge SDKs: errors only, tracing off (no span or
- * transaction is ever sampled), nothing collected beyond the event itself, no breadcrumbs.
+ * Options common to the browser, Node and edge SDKs: errors only, tracing off (no tracing key
+ * is set, so nothing starts a span that is sent), nothing collected beyond the event itself, no breadcrumbs.
  */
 export function baseSentryOptions(dsn: string, knobs: SentryTestKnobs = {}) {
   return {
     dsn,
-    tracesSampleRate: 0,
+    // Tracing is off by leaving every tracing key out. `tracesSampleRate: 0` is not off in v11: a
+    // sampled incoming `sentry-trace` still wins and streamed spans leave. `[]` stops the SDK adding
+    // `sentry-trace` and `baggage` (public key, org, transaction name) to outgoing requests.
+    tracePropagationTargets: [] as string[],
     sendDefaultPii: false,
     dataCollection: MINIMAL_DATA_COLLECTION,
     maxBreadcrumbs: 0,
     sendClientReports: false,
     attachStacktrace: true,
     debug: false,
-    // Belt and braces: with tracing off none is built, and this keeps it so.
-    beforeSendTransaction: () => null,
     ...(knobs.unscrubbed === true
       ? {}
       : {
