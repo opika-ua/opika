@@ -19,7 +19,6 @@ import { productionSignInOf } from "./production-sign-in";
 const EXACT_FIELDS: Readonly<Record<EmailProvider, readonly string[]>> = {
   resend: ["from", "html", "reply_to", "subject", "text", "to"],
   postmark: ["From", "HtmlBody", "MessageStream", "ReplyTo", "Subject", "TextBody", "To"],
-  brevo: ["htmlContent", "replyTo", "sender", "subject", "textContent", "to"],
 };
 
 /** Words no auth email's request may carry, in any provider's spelling. */
@@ -35,7 +34,6 @@ const BANNED = [
 const KEY_NAMES: Readonly<Record<EmailProvider, string>> = {
   resend: "RESEND_API_KEY",
   postmark: "POSTMARK_API_KEY",
-  brevo: "BREVO_API_KEY",
 };
 
 const signInFor = (provider: EmailProvider) =>
@@ -64,15 +62,13 @@ const onFor = (provider: EmailProvider) => {
 /** The providers config turns production sign-in on for, each with its own key: derived, not listed. */
 const ROUTABLE = EMAIL_PROVIDERS.filter((provider) => signInFor(provider).kind === "on");
 
-/** Records each send's body as sent (the block-list reads aside) and answers each provider's success. */
+/** Records each send's body as sent and answers each provider's success. */
 function recordingFetch() {
   const sends: string[] = [];
   const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    if (url.includes("blockedContacts")) return Response.json({ count: 0, contacts: [] });
     sends.push(typeof init?.body === "string" ? init.body : "");
     if (url.includes("postmark")) return Response.json({ ErrorCode: 0, MessageID: "p-1" });
-    if (url.includes("brevo")) return Response.json({ messageId: "b-1" }, { status: 201 });
     return Response.json({ id: "r-1" });
   }) as typeof fetch;
   return { sends, fetchImpl };

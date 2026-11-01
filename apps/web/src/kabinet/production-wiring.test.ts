@@ -166,10 +166,7 @@ function recordingFetch() {
       headers: (init?.headers ?? {}) as Record<string, string>,
       body: typeof init?.body === "string" ? JSON.parse(init.body) : null,
     });
-    if (url.includes("blockedContacts")) {
-      return Response.json({ count: 0, contacts: [] });
-    }
-    if (url.includes("brevo")) return Response.json({ messageId: "brevo-1" }, { status: 201 });
+    if (url.includes("postmark")) return Response.json({ ErrorCode: 0, MessageID: "postmark-1" });
     return Response.json({ id: "resend-1" });
   }) as typeof fetch;
   return { calls, fetchImpl };
@@ -184,7 +181,7 @@ const onWith = (env: Record<string, string | undefined>) => {
 describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", () => {
   /**
    * Two routes on different providers, so a sender reaching the other's
-   * provider would show: invites through Brevo on its own key, sign-in
+   * provider would show: invites through Postmark on its own key, sign-in
    * through Resend. Config can no longer produce this (PW1-Q4: auth emails
    * are locked to Resend, `production-sign-in.test.ts`), so the invite route
    * is replaced by hand: this tests which route `productionMailOf` hands to
@@ -196,7 +193,11 @@ describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", 
       ...on,
       email: {
         ...on.email,
-        invite: { ...on.email.invite, provider: "brevo" as const, apiKey: "brevo-key-example" },
+        invite: {
+          ...on.email.invite,
+          provider: "postmark" as const,
+          apiKey: "postmark-key-example",
+        },
       },
     };
   };
@@ -228,9 +229,9 @@ describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", 
       shelterVerification: "verified",
       validForHours: 72,
     });
-    expect(outcome).toEqual({ kind: "sent", blockCheck: "clear" });
-    expect(calls.map((call) => new URL(call.url).host)).toEqual(["api.brevo.com", "api.brevo.com"]);
-    for (const call of calls) expect(call.headers["api-key"]).toBe("brevo-key-example");
+    expect(outcome).toEqual({ kind: "sent", blockCheck: "unknown" });
+    expect(calls.map((call) => new URL(call.url).host)).toEqual(["api.postmarkapp.com"]);
+    expect(calls[0]?.headers["X-Postmark-Server-Token"]).toBe("postmark-key-example");
     expect(calls.some((call) => call.url.includes("resend"))).toBe(false);
     expect(mail.invites.fromAddress).toBe("noreply@mail.example.org");
   });

@@ -7,12 +7,12 @@ import type { OutgoingEmail } from "./email-provider";
  * paragraphs, as an HTML part and a plain-text part.
  *
  * The link is the reason this module exists (IN-E8, Oleksii, 2026-10-14):
- * Brevo rewrites every href through its click tracker, so an HTML link whose
+ * A click-tracking provider rewrites every href, so an HTML link whose
  * text is the raw URL shows one domain while pointing at another, which spam
  * filters read as phishing. In HTML the link's text is therefore always a
  * label, never a URL, and `emailBody` refuses a label that looks like one.
  * The plain-text part carries the raw URL on its own line: there is no
- * anchor there to disagree with, and Brevo doesn't rewrite it today
+ * anchor there to disagree with, and a provider doesn't rewrite it
  * (a test pins that what we send is the exact URL).
  */
 

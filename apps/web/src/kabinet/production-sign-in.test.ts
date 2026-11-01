@@ -78,11 +78,11 @@ describe("productionSignInOf", () => {
   /**
    * Oleksii, 2026-10-20 (inbox PW1-Q4), verbatim: "PW1-Q4: (a). Lock auth emails (sign-in,
    * invite, reset, password changed) to Resend in config, with a test that a Brevo setting is
-   * refused for them." Every email production sends is an auth email, so a Brevo setting on
-   * either variable turns production sign-in off, failing closed as any misconfiguration does,
-   * with Brevo's own key present: the grace-period rollback that used to be on is gone.
+   * refused for them." Brevo's code is removed; a stale Brevo setting left in Vercel (an unknown
+   * provider now) on either variable turns production sign-in off, failing closed as any
+   * misconfiguration does, a leftover key present or not. It is never read.
    */
-  it("is off (provider_invalid) with a Brevo setting on either variable, Brevo's key set and all", () => {
+  it("is off (provider_invalid) with a stale Brevo setting on either variable, a leftover key set and all", () => {
     for (const brevo of [
       { EMAIL_PROVIDER: "brevo", BREVO_API_KEY: "brevo-key" },
       { EMAIL_PROVIDER: "brevo", BREVO_API_KEY: "brevo-key", EMAIL_SIGN_IN_PROVIDER: "resend" },

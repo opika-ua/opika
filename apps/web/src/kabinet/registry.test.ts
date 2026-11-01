@@ -48,13 +48,7 @@ import { refusedForNameLength } from "../features/kabinet/operator/display-name"
 import { historyLineOf, historyLineText } from "../features/kabinet/operator/history-lines";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
-import {
-  BLOCKED_MAX_PAGES,
-  BLOCKED_PAGE_SIZE,
-  type BlockListReader,
-  type BlockListSnapshot,
-  cachedBlockList,
-} from "./email-provider";
+import { type BlockListReader, type BlockListSnapshot, blockListReaderOf } from "./email-provider";
 import {
   capturingInvitationSender,
   type InvitationMessage,
@@ -2007,78 +2001,25 @@ describe("registry.admins.blockedAddresses: which of a shelter's addresses the p
     }
   });
 
-  /** End to end through the real cached reader, Brevo faked at fetch: the two cases Oleksii named. */
-  describe("through the real cached reader (Brevo faked at fetch)", () => {
-    const brevoConfig = {
-      provider: "brevo",
-      apiKey: "k",
-      fromAddress: "noreply@mail.example.org",
-      fromName: null,
-      replyTo: "hello@example.org",
-    } as const;
-
-    it("Brevo error → unknown", async () => {
-      const s = await shelterWithTwoInvited();
-      const fetchImpl = (async () =>
-        new Response("{}", { status: 502 })) as unknown as typeof fetch;
-      invites = capturingInvitationSender(undefined, {
-        blockList: cachedBlockList(brevoConfig, { fetchImpl }),
-      });
-      const result = await call("registry.admins.blockedAddresses", { shelterId: s.id });
-      expect(result.body).toEqual({ kind: "unknown", why: "provider_error" });
-    });
-
-    it("cap hit → incomplete", async () => {
-      const s = await shelterWithTwoInvited();
-      const total = BLOCKED_PAGE_SIZE * (BLOCKED_MAX_PAGES + 1);
-      const fetchImpl = (async (url: string) => {
-        const offset = Number(new URL(url).searchParams.get("offset"));
-        const contacts = Array.from({ length: BLOCKED_PAGE_SIZE }, (_, i) => ({
-          email: offset === 0 && i === 0 ? "olena@example.org" : `other${offset + i}@example.org`,
-          reason: { code: "unsubscribedViaEmail" },
-        }));
-        return new Response(JSON.stringify({ count: total, contacts }), { status: 200 });
-      }) as unknown as typeof fetch;
-      invites = capturingInvitationSender(undefined, {
-        blockList: cachedBlockList(brevoConfig, { fetchImpl }),
-      });
-      const result = await call("registry.admins.blockedAddresses", { shelterId: s.id });
-      expect(result.body).toEqual({
-        kind: "incomplete",
-        asOf: NOW,
-        blockedSoFar: [{ email: "olena@example.org", reason: "unsubscribed" }],
-      });
-    });
-  });
-
   /**
    * The invite route moves to Resend (Oleksii, 2026-10-15, EM-B10, verbatim:
    * "Decision: invites move to Resend; retire Brevo."). Resend's suppression
    * list isn't read (EM-F1), so the view says so in the same words a
    * Resend-routed send's block check uses, never an empty `checked`.
    */
-  it("the invite route on Resend: unknown (provider_suppresses), and nobody is called", async () => {
+  it("the invite route on Resend: unknown (provider_suppresses)", async () => {
     const s = await shelterWithTwoInvited();
-    let calls = 0;
-    const fetchImpl = (async () => {
-      calls++;
-      return new Response(JSON.stringify({ count: 0, contacts: [] }), { status: 200 });
-    }) as unknown as typeof fetch;
     invites = capturingInvitationSender(undefined, {
-      blockList: cachedBlockList(
-        {
-          provider: "resend",
-          apiKey: "k",
-          fromAddress: "noreply@mail.example.org",
-          fromName: null,
-          replyTo: "hello@example.org",
-        },
-        { fetchImpl },
-      ),
+      blockList: blockListReaderOf({
+        provider: "resend",
+        apiKey: "k",
+        fromAddress: "noreply@mail.example.org",
+        fromName: null,
+        replyTo: "hello@example.org",
+      }),
     });
     const result = await call("registry.admins.blockedAddresses", { shelterId: s.id });
     expect(result.body).toEqual({ kind: "unknown", why: "provider_suppresses" });
-    expect(calls).toBe(0);
   });
 
   it("a shelter with no addresses is an honest empty `checked`, without asking the provider", async () => {

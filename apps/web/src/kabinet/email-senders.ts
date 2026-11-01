@@ -23,16 +23,17 @@ import type { PasswordMailSender } from "./password-mail";
  * follow (IN-E7, Oleksii, 2026-10-14):
  *
  * - Ask the provider whether the address is blocked **before** sending. A
- *   recipient who taps Gmail's "Unsubscribe" on a sign-in email lands on
- *   Brevo's block list, and Brevo accepts a later send to that address and
- *   drops it (inferred, IN-E7): the send's own answer can't say so.
+ *   recipient who taps Gmail's "Unsubscribe" on a sign-in email can land on
+ *   a provider block list, which then accepts a later send to that address and
+ *   drops it (inferred, IN-E7): the send's own answer can't say so. Resend's
+ *   own list isn't read yet, so every answer is `unknown` today (EM-F1).
  * - Operator-triggered invitations report the outcome to the operator.
  * - Sign-in emails run after the response (`after()`), behind a card that is
  *   the same for every address, so a failure is a log line with the address
  *   masked, never a different screen. Notifying the operator needs a
  *   mechanism that doesn't exist yet (IN-E9).
  *
- * Unblocking in Brevo stays manual (IN-E7).
+ * Unblocking stays manual, in the provider (IN-E7).
  */
 
 /** What the provider-backed senders need: the provider module's sender, its block-list lookup, and the production copy rule. */
@@ -213,7 +214,7 @@ export interface InvitationSender {
   send(message: InvitationMessage): Promise<EmailSendOutcome>;
   /** The configured From address; null where nothing is really sent (development). */
   readonly fromAddress: string | null;
-  /** The provider's block list, cached (`cachedBlockList`). */
+  /** The provider's block-list reader (`blockListReaderOf`). */
   readonly blockList: BlockListReader;
 }
 
