@@ -34,6 +34,7 @@ import { Text } from "../../ui/Text";
  * having failed the same way once (PR #53 review, caught by rebuilding and
  * diffing the served `og:title`, not by inspection).
  */
+const INDEPENDENT = fillTemplate(uk.about.independent, { site: WORDMARK });
 const WHAT_THIS_IS = fillTemplate(uk.forShelters.whatThisIs, { site: WORDMARK });
 
 export const metadata: Metadata = {
@@ -150,6 +151,8 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
       <LinkButton href={SIGN_IN_PAGE_PATH} variant="secondary" className="self-start">
         {uk.forShelters.signInLink}
       </LinkButton>
+
+      <Text look="hint">{INDEPENDENT}</Text>
 
       <Section heading={h.whatThisIs}>
         <Body>{WHAT_THIS_IS}</Body>
