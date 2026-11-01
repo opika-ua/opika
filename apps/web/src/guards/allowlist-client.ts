@@ -102,7 +102,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/profile-edit/ProfileEditor.tsx": "editor shell: section states, browser client",
   "features/kabinet/profile-edit/VoiceSection.tsx": "sentence form with live announce",
   "features/likes/SaveButton.tsx": "toggles saved state in localStorage",
-  "features/likes/SavedNavLink.tsx": "reads saved count from localStorage after hydration",
+  "features/likes/SavedButton.tsx": "reads saved count from localStorage after hydration",
   "features/likes/SavedCards.tsx":
     "the saved list: reads localStorage after hydration, remove buttons",
   "features/reveal/ContactRevealDialog.tsx": "own modal: focus, Esc, scroll lock, reveal call",

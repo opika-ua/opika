@@ -432,6 +432,8 @@ export const en = {
 
   // --- Site-wide header links (Phase T) - see the uk key's own note ---
   nav: {
+    animals: "Animals",
+    savedWithCount: "Saved, {count}",
     about: "About",
     forShelters: "For shelters",
     saved: "Saved",

@@ -6,6 +6,7 @@ import { SiteHeader } from "./SiteHeader";
 
 beforeEach(() => {
   window.localStorage.clear();
+  document.documentElement.removeAttribute("data-has-saved");
 });
 
 /**
@@ -64,64 +65,131 @@ describe("SiteHeader", () => {
     expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
   });
 
-  it("designer feedback batch D: a signed-in shelter admin/operator sees «Кабінет», not «Збережені», and no surface-specific adopter slot", () => {
+  it("links «Тварини» to the gallery and marks the current entry with aria-current", () => {
+    render(<SiteHeader kabinetSignedIn={false} current="about" />);
+
+    expect(screen.getByRole("link", { name: uk.nav.animals }).getAttribute("href")).toBe(
+      "/tvaryny",
+    );
+    expect(screen.getByRole("link", { name: uk.nav.about }).getAttribute("aria-current")).toBe(
+      "page",
+    );
+    expect(screen.getByRole("link", { name: uk.nav.animals }).getAttribute("aria-current")).toBe(
+      null,
+    );
+  });
+
+  it("on the saved page no text link is current", () => {
+    render(<SiteHeader kabinetSignedIn={false} current="saved" />);
+
+    for (const name of [uk.nav.animals, uk.nav.forShelters, uk.nav.about]) {
+      expect(screen.getByRole("link", { name }).getAttribute("aria-current")).toBe(null);
+    }
+  });
+
+  it("a visitor has no «Кабінет» entry anywhere, and signs in from «Для притулків»", () => {
+    render(<SiteHeader kabinetSignedIn={false} />);
+
+    expect(screen.queryByTestId("nav-kabinet")).toBeNull();
+    expect(screen.queryByTestId("nav-kabinet-menu")).toBeNull();
+    expect(screen.queryByRole("link", { name: uk.nav.kabinet, hidden: true })).toBeNull();
+  });
+
+  it("a signed-in shelter gets the «Кабінет» pill and the same links as a visitor, plus no deck entry", () => {
     render(
       <SiteHeader kabinetSignedIn={true}>
         <span>deck entry</span>
       </SiteHeader>,
     );
 
-    const kabinetLink = screen.getByRole("link", { name: uk.nav.kabinet });
-    expect(kabinetLink.getAttribute("href")).toBe("/kabinet");
-    expect(screen.queryByRole("link", { name: uk.nav.saved })).toBeNull();
+    const pill = screen.getByTestId("nav-kabinet");
+    expect(pill.getAttribute("href")).toBe("/kabinet");
+    expect(pill.textContent).toBe(uk.nav.kabinet);
+    expect(screen.getByTestId("nav-kabinet-menu").getAttribute("href")).toBe("/kabinet");
     expect(screen.queryByText("deck entry")).toBeNull();
-    // «Для притулків» and «Про проєкт» stay, his own wording for who still sees what.
     expect(screen.getByRole("link", { name: uk.nav.about })).toBeTruthy();
     expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
+    expect(screen.getByRole("link", { name: uk.nav.animals })).toBeTruthy();
   });
 
   /**
-   * Oleksii, from a live screenshot: "show Збережені tab in header only if
-   * we have something saved otherwise hide it" — `SavedNavLink.tsx` reads
-   * `localStorage` in an effect (same reasoning `SaveButton.test.tsx`
-   * already documents for the identical constraint), so these use
-   * `findByRole`/`queryByRole`, not a synchronous assertion right after
-   * `render`.
+   * `SavedButton` reads `localStorage` in an effect (the same constraint `SaveButton` documents),
+   * so these use `findBy`/`queryBy`, not an assertion right after `render`. It is the same for a
+   * visitor and a shelter: the count comes from this browser's storage, not from the audience.
    */
-  it("a visitor with something saved sees «Збережені», not «Кабінет»", async () => {
-    toggleSavedAnimal("a1", new Date());
-    render(<SiteHeader kabinetSignedIn={false} />);
+  it.each([
+    ["visitor", false],
+    ["shelter", true],
+  ])("a %s with 3 saved sees the bookmark named «Збережені, 3»", async (_name, signedIn) => {
+    for (const id of ["a1", "a2", "a3"]) toggleSavedAnimal(id, new Date());
+    render(<SiteHeader kabinetSignedIn={signedIn} />);
 
-    expect(await screen.findByRole("link", { name: uk.nav.saved })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: uk.nav.kabinet })).toBeNull();
+    const button = await screen.findByRole("link", { name: "Збережені, 3" });
+    expect(button.getAttribute("href")).toBe("/zberezheni");
+    expect(button.textContent).toBe("3");
+    expect(document.documentElement.hasAttribute("data-has-saved")).toBe(true);
   });
 
-  it("a visitor with nothing saved sees no «Збережені» link at all", async () => {
+  it.each([
+    ["visitor", false],
+    ["shelter", true],
+  ])("a %s with nothing saved has no saved entry at all", async (_name, signedIn) => {
+    render(<SiteHeader kabinetSignedIn={signedIn} />);
+
+    // Give the effect its tick, so the absence is not just "not checked yet".
+    await screen.findByRole("link", { name: uk.nav.about });
+    expect(screen.queryByRole("link", { name: /^Збережені/, hidden: true })).toBeNull();
+    expect(document.documentElement.hasAttribute("data-has-saved")).toBe(false);
+  });
+
+  it("the badge reads «99+» above 99 while the accessible name keeps the real number", async () => {
+    for (let i = 0; i < 100; i++) toggleSavedAnimal(`a${i}`, new Date());
     render(<SiteHeader kabinetSignedIn={false} />);
 
-    // Nothing to await for an absence - give the effect a tick to run (the
-    // same pattern as a positive case, just asserting the other outcome) so
-    // this doesn't pass merely because the check hasn't happened yet.
-    await screen.findByRole("link", { name: uk.nav.about });
-    expect(screen.queryByRole("link", { name: uk.nav.saved })).toBeNull();
+    const button = await screen.findByRole("link", { name: "Збережені, 100" });
+    expect(button.textContent).toBe("99+");
+  });
+
+  it("on the saved page the bookmark is the current page", async () => {
+    toggleSavedAnimal("a1", new Date());
+    render(<SiteHeader kabinetSignedIn={false} current="saved" />);
+
+    const button = await screen.findByRole("link", { name: "Збережені, 1" });
+    expect(button.getAttribute("aria-current")).toBe("page");
+  });
+
+  it("the drawer carries the same entries: a «Збережені» row with its count, and «Кабінет» last for a shelter", async () => {
+    toggleSavedAnimal("a1", new Date());
+    toggleSavedAnimal("a2", new Date());
+    render(<SiteHeader kabinetSignedIn={true} />);
+
+    const row = await screen.findByTestId("nav-saved-menu");
+    expect(row.getAttribute("aria-label")).toBe("Збережені, 2");
+    expect(row.getAttribute("href")).toBe("/zberezheni");
+    const rows = Array.from(screen.getByTestId("nav-menu-sheet").querySelectorAll("nav > a"));
+    expect(rows.at(-1)?.getAttribute("data-testid")).toBe("nav-kabinet-menu");
+    expect(rows.map((r) => r.getAttribute("href"))).toEqual([
+      "/tvaryny",
+      "/prytulkam",
+      "/pro",
+      "/zberezheni",
+      "/kabinet",
+    ]);
   });
 
   /**
-   * The real scenario this whole feature is for: a visitor saves something
-   * on the page they're already looking at, header included - not a reload,
-   * not another tab. `likes-store.ts`'s `SAME_TAB_CHANGE_EVENT` is what
-   * makes this work at all: the native `storage` event never fires in the
-   * document that made the write, so without it this would stay stuck on
-   * the header's first render forever.
+   * The real scenario this whole feature is for: a visitor saves something on the page they're
+   * already looking at, header included - not a reload, not another tab. `likes-store.ts`'s
+   * `SAME_TAB_CHANGE_EVENT` is what makes this work at all.
    */
-  it("a save made after the header has already mounted makes «Збережені» appear, no reload", async () => {
+  it("a save made after the header has mounted makes the bookmark appear, no reload", async () => {
     render(<SiteHeader kabinetSignedIn={false} />);
     await screen.findByRole("link", { name: uk.nav.about });
-    expect(screen.queryByRole("link", { name: uk.nav.saved })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^Збережені/ })).toBeNull();
 
     toggleSavedAnimal("a1", new Date());
 
-    expect(await screen.findByRole("link", { name: uk.nav.saved })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Збережені, 1" })).toBeTruthy();
   });
 
   it("the logo mark is marked decorative", () => {

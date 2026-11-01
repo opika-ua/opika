@@ -17,7 +17,7 @@ interface SavedPageScreenProps {
 export function SavedPageScreen({ kabinetSignedIn = false }: SavedPageScreenProps) {
   return (
     <div className="min-h-dvh bg-page">
-      <SiteHeader kabinetSignedIn={kabinetSignedIn} />
+      <SiteHeader kabinetSignedIn={kabinetSignedIn} current="saved" />
 
       <Container as="main" className="flex flex-col gap-13 pt-10 pb-10 desktop:pb-14">
         <SavedCards

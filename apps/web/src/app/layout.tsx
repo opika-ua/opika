@@ -4,6 +4,7 @@ import "./globals.css";
 import { SITE_ORIGIN, SITE_TITLE, TITLE_TEMPLATE, titled, WORDMARK } from "../brand";
 import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
 import { SkipLink } from "../features/chrome/SkipLink";
+import { SAVED_PREPAINT_SCRIPT } from "../features/chrome/saved-prepaint";
 import { PAGE_COLOR } from "../pwa";
 import { JsonLd } from "../seo/json-ld";
 import { organizationJsonLd } from "../seo/json-ld-builders";
@@ -83,7 +84,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uk" className={`${brandDisplay.variable} ${brandUi.variable}`}>
+    // `suppressHydrationWarning`: the pre-paint script below sets `data-has-saved` on this element.
+    <html
+      lang="uk"
+      className={`${brandDisplay.variable} ${brandUi.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Before first paint, so the header's saved slot never jumps: see `saved-prepaint.ts`. */}
+        <script dangerouslySetInnerHTML={{ __html: SAVED_PREPAINT_SCRIPT }} />
+      </head>
       {/*
         The user agent's default 8px body margin is not decoration: combined
         with content-box padding on a full-height page it pushed the deck

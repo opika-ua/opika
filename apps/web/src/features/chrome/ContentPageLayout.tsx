@@ -10,14 +10,21 @@ import { SiteHeader } from "./SiteHeader";
  */
 export interface ContentPageLayoutProps {
   readonly kabinetSignedIn: boolean;
+  /** Which header entry this page is, for the underline. */
+  readonly current: "about" | "forShelters";
   readonly title: ReactNode;
   readonly children: ReactNode;
 }
 
-export function ContentPageLayout({ kabinetSignedIn, title, children }: ContentPageLayoutProps) {
+export function ContentPageLayout({
+  kabinetSignedIn,
+  current,
+  title,
+  children,
+}: ContentPageLayoutProps) {
   return (
     <div className="min-h-dvh bg-page">
-      <SiteHeader kabinetSignedIn={kabinetSignedIn} />
+      <SiteHeader kabinetSignedIn={kabinetSignedIn} current={current} />
 
       <Container as="main" className="py-8 desktop:py-14">
         <div className="mx-auto flex max-w-180 flex-col gap-8 rounded-t-sheet bg-surface p-6 tablet:p-10 desktop:p-14">
