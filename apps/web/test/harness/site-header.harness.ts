@@ -55,11 +55,11 @@ async function firstAnimalHref(page: import("@playwright/test").Page): Promise<s
 }
 
 /**
- * `NAV_SAVED` only renders once something's saved (`SavedNavLink.tsx`,
+ * `NAV_SAVED` only renders once something's saved (`SavedButton.tsx`,
  * Oleksii: "show Збережені tab in header only if we have something saved
  * otherwise hide it"). An `addInitScript`, not a real save through the UI —
  * these tests are about the header, not the save flow, and `likes-store.ts`'s
- * own shape (`version`, `items[].animalId`/`likedAt`) is what `SavedNavLink`
+ * own shape (`version`, `items[].animalId`/`likedAt`) is what `SavedButton`
  * reads, so seeding it directly is the same state a real save would leave,
  * reached without depending on `SaveButton` staying wired the way it is
  * today. Registered before `openRoute`'s own `page.goto`, so it's in place
@@ -104,7 +104,8 @@ test.describe("the header is on every user-facing surface except the deck", () =
   test("«Збережені» is absent for a visitor with nothing saved", async ({ page }) => {
     await openRoute(page, GALLERY, PHONE, { readySelector: HEADER });
     await expect(page.locator(NAV_ABOUT)).toHaveAttribute("href", ABOUT);
-    await expect(page.locator(NAV_SAVED)).toHaveCount(0);
+    // In the server HTML for the pre-paint flag, hidden once the island sees none saved.
+    await expect(page.locator(NAV_SAVED)).toBeHidden();
   });
 
   test("the detail page carries it too – this is the URL people paste into Telegram", async ({

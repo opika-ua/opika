@@ -143,7 +143,7 @@ describe("subscribeToLikesChanges", () => {
   /**
    * `storage` never fires in the document that made the write (WHATWG spec,
    * cross-tab only) - a caller that only watches, like the header's
-   * `SavedNavLink`, would otherwise never learn about a save made elsewhere
+   * `SavedButton`, would otherwise never learn about a save made elsewhere
    * on the same page at all. `toggleSavedAnimal` is the real write path, not
    * a synthetic event, so this also confirms the write itself notifies.
    */

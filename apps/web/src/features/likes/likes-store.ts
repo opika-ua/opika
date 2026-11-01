@@ -6,7 +6,7 @@ import { z } from "zod";
  * heart."). The storage key and every internal field stay `likes*` (DR1-D14): renaming them
  * is churn with no one reading them, since nothing user-facing says "like."
  */
-const STORAGE_KEY = "likes.v1";
+export const LIKES_STORAGE_KEY = "likes.v1";
 
 /** DR1-D14: refuse past the cap rather than silently drop the oldest save. */
 export const MAX_LIKES = 200;
@@ -56,7 +56,7 @@ let storageIsBlocked = false;
 const readRaw = (): LikesStoreV1 => {
   if (memoryFallback !== undefined) return memoryFallback;
   try {
-    return parseStore(window.localStorage.getItem(STORAGE_KEY));
+    return parseStore(window.localStorage.getItem(LIKES_STORAGE_KEY));
   } catch {
     storageIsBlocked = true;
     memoryFallback = EMPTY_STORE;
@@ -71,7 +71,7 @@ const readRaw = (): LikesStoreV1 => {
  * `useSavedCards`' `removeSaved`) doesn't need this: both set their own
  * state directly, right after their own write. A component that's merely
  * watching from elsewhere in the tree and isn't the one writing - the
- * header's `SavedNavLink`, which has no other way to learn "something was
+ * header's `SavedButton`, which has no other way to learn "something was
  * just saved on this same page" — does.
  */
 const SAME_TAB_CHANGE_EVENT = "likes-store-changed";
@@ -81,7 +81,7 @@ const writeRaw = (store: LikesStoreV1): void => {
     memoryFallback = store;
   } else {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+      window.localStorage.setItem(LIKES_STORAGE_KEY, JSON.stringify(store));
     } catch {
       storageIsBlocked = true;
       memoryFallback = store;
@@ -138,12 +138,12 @@ export const toggleSavedAnimal = (animalId: string, now: Date): ToggleSavedResul
  * of the writers (`SaveButton`, `useSavedCards`'s `removeSaved`) already
  * updates its own state directly and just gets a redundant, idempotent
  * re-read from its own write - harmless. A caller that only watches
- * (`SavedNavLink`) needs the second listener to ever learn about a save
+ * (`SavedButton`) needs the second listener to ever learn about a save
  * made elsewhere on the same page at all.
  */
 export const subscribeToLikesChanges = (onChange: () => void): (() => void) => {
   const storageListener = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) onChange();
+    if (event.key === LIKES_STORAGE_KEY || event.key === null) onChange();
   };
   window.addEventListener("storage", storageListener);
   window.addEventListener(SAME_TAB_CHANGE_EVENT, onChange);

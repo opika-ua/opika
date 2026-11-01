@@ -9,7 +9,7 @@ describe("SkipLink", () => {
     render(
       <>
         <SkipLink />
-        <ContentPageLayout kabinetSignedIn={false} title="Заголовок">
+        <ContentPageLayout kabinetSignedIn={false} current="about" title="Заголовок">
           <p>Вміст</p>
         </ContentPageLayout>
       </>,

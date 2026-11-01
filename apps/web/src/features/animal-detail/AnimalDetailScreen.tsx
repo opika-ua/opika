@@ -62,7 +62,7 @@ export function AnimalDetailScreen({
 }: AnimalDetailScreenProps & { kabinetSignedIn?: boolean; backToGalleryHref?: string }) {
   return (
     <div className="flex min-h-dvh flex-col bg-page">
-      <SiteHeader kabinetSignedIn={kabinetSignedIn} />
+      <SiteHeader kabinetSignedIn={kabinetSignedIn} current="animals" />
 
       <main {...MAIN_LANDMARK} className="flex flex-1 flex-col">
         {/* The demo disclosure must be in the page body, not only in metadata: this route is the one shelters share into Telegram. */}

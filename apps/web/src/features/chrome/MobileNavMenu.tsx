@@ -15,11 +15,20 @@ export function MobileNavMenu({ children }: { children: ReactNode }) {
       id="site-nav-menu"
       label={uk.nav.menu}
       closeLabel={uk.preview.close}
-      hideFrom="tablet"
-      triggerClassName="tablet:hidden rounded-field text-ink"
+      hideFrom="desktop"
+      triggerClassName="desktop:hidden rounded-pill text-ink"
       triggerTestId="nav-menu-trigger"
       dialogTestId="nav-menu-sheet"
-      trigger={<Icon name="menu" />}
+      trigger={
+        <span className="relative inline-flex size-11 items-center justify-center rounded-pill border border-line">
+          <Icon name="menu" />
+          {/* A count dot while something is saved: the same `data-has-saved` flag as the saved slot. */}
+          <span
+            aria-hidden="true"
+            className="saved-dot absolute -top-0.5 -right-0.5 size-3 rounded-pill bg-accent"
+          />
+        </span>
+      }
     >
       <nav aria-label={uk.nav.menu} className="flex flex-col gap-1">
         {children}
