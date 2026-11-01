@@ -409,8 +409,12 @@ export const ukPublic = {
      * given a sentence; `SavedPageScreen.tsx` never reaches this key for a `null` name).
      */
     unavailable: "{name} більше не показується на сайті.",
-    /** The remove control on each saved-page card. */
-    remove: "Прибрати зі списку",
+    /** The remove control on each saved-page card: its accessible name and tooltip (owner-approved, 2026-11-01). */
+    removeFromSaved: "Прибрати зі збережених",
+    /** The toast shown after a card is removed from the saved page. */
+    removedToast: "Прибрано зі збережених",
+    /** The toast's action: puts the card back where it was. */
+    undo: "Повернути",
     /** `localStorage` threw (private mode, blocked storage) - the saved page's own notice. */
     storageBlocked: "Цей браузер не дає сайту зберегти ваш список.",
     /** Designer feedback batch C, his own text: aria-live while the saved page is reading ids/fetching cards, never shown as visible body text. */

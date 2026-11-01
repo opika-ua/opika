@@ -5,9 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { savedBrowserClient } from "../../api/browser-client";
 import {
   likesStorageIsBlocked,
+  type RemovedSave,
   readLikesStore,
+  removeSavedAnimal,
+  restoreSavedAnimal,
   subscribeToLikesChanges,
-  toggleSavedAnimal,
 } from "./likes-store";
 
 export type SavedCardResult = Awaited<
@@ -32,12 +34,13 @@ export type SavedCardsLoadState =
 
 export function savedCardsLoadStateOf(
   ids: readonly string[] | null,
-  items: readonly SavedCardResult[] | null,
+  resolved: ReadonlyMap<string, SavedCardResult | null>,
 ): SavedCardsLoadState {
   if (ids === null) return { kind: "unknown" };
-  if (items !== null) return { kind: "ready", items };
   if (ids.length === 0) return { kind: "empty" };
-  return { kind: "loading", count: ids.length };
+  if (!ids.every((id) => resolved.has(id))) return { kind: "loading", count: ids.length };
+  const items = ids.flatMap((id) => resolved.get(id) ?? []);
+  return { kind: "ready", items };
 }
 
 export interface SavedCardsState {
@@ -45,7 +48,10 @@ export interface SavedCardsState {
   /** A name for each city the available cards are in (`cardsByIds` carries one label per city). */
   readonly cityNames: Readonly<Record<CityId, string>>;
   readonly storageBlocked: boolean;
-  removeSaved(animalId: AnimalId): void;
+  /** Takes the save out at once (the list and the header count follow); the record feeds `restoreSaved`. */
+  removeSaved(animalId: AnimalId): RemovedSave | null;
+  /** Puts a removed save back at its old place; the card is still cached, so no fetch. */
+  restoreSaved(removed: RemovedSave): void;
 }
 
 /**
@@ -71,7 +77,9 @@ export interface SavedCardsState {
  */
 export function useSavedCards(): SavedCardsState {
   const [ids, setIds] = useState<readonly string[] | null>(null);
-  const [items, setItems] = useState<readonly SavedCardResult[] | null>(null);
+  // Every card the page has fetched, by id (`null`: asked for, no answer). Kept after a removal so
+  // an undo puts the card back without another request.
+  const [resolved, setResolved] = useState<ReadonlyMap<string, SavedCardResult | null>>(new Map());
   const [cityLabels, setCityLabels] = useState<readonly CityLabelView[]>([]);
   const [storageBlocked, setStorageBlocked] = useState(false);
 
@@ -88,16 +96,19 @@ export function useSavedCards(): SavedCardsState {
 
   useEffect(() => {
     if (ids === null) return;
-    if (ids.length === 0) {
-      setItems([]);
-      return;
-    }
+    // A removal or an undo only reorders ids already fetched: nothing to ask for.
+    if (ids.every((id) => resolved.has(id))) return;
     let cancelled = false;
     savedBrowserClient.animals
       .cardsByIds({ animalIds: ids as AnimalId[] })
       .then((res) => {
         if (cancelled) return;
-        setItems(res.items);
+        setResolved((current) => {
+          const next = new Map(current);
+          for (const id of ids) next.set(id, null);
+          for (const item of res.items) next.set(item.animalId, item);
+          return next;
+        });
         setCityLabels(res.cityLabels);
       })
       .catch(() => {
@@ -120,12 +131,27 @@ export function useSavedCards(): SavedCardsState {
 
   const removeSaved = useCallback(
     (animalId: AnimalId) => {
-      toggleSavedAnimal(animalId, new Date());
+      const removed = removeSavedAnimal(animalId);
+      readIds();
+      return removed;
+    },
+    [readIds],
+  );
+
+  const restoreSaved = useCallback(
+    (removed: RemovedSave) => {
+      restoreSavedAnimal(removed);
       readIds();
     },
     [readIds],
   );
 
   const cityNames = Object.fromEntries(cityLabels.map((city) => [city.id, placeName(city)]));
-  return { load: savedCardsLoadStateOf(ids, items), cityNames, storageBlocked, removeSaved };
+  return {
+    load: savedCardsLoadStateOf(ids, resolved),
+    cityNames,
+    storageBlocked,
+    removeSaved,
+    restoreSaved,
+  };
 }
