@@ -516,3 +516,19 @@ body:has([data-testid="pet-card-overlay-open"]) header {
 .brand-scrollbar.is-scrolling::-webkit-scrollbar-thumb {
   background-color: var(--color-line);
 }
+
+/*
+ * The header's saved slot (button, menu row, burger dot) is server-rendered but shown only while
+ * `<html data-has-saved>` is set: first by the inline pre-paint script (`saved-prepaint.ts`), then
+ * kept in step with the likes store by `SavedButton`. `[hidden]` is its own post-mount "none saved".
+ */
+.saved-slot,
+.saved-dot {
+  display: none;
+}
+html[data-has-saved] .saved-slot:not([hidden]) {
+  display: inline-flex;
+}
+html[data-has-saved] .saved-dot {
+  display: block;
+}

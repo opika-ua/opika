@@ -1062,6 +1062,10 @@ export const ukPublic = {
    * recorded as composition rather than specification.
    */
   nav: {
+    /** Header option B, owner-approved 2026-11-01: the gallery link (`/tvaryny`). */
+    animals: "Тварини",
+    /** Owner-approved 2026-11-01: the saved button's accessible name; `{count}` is the real number, even above 99. */
+    savedWithCount: "Збережені, {count}",
     about: "Про проєкт",
     forShelters: "Для притулків",
     /** S8: the site header's link to the saved page (`/zberezheni`). §11, his text. */

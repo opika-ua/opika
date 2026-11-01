@@ -5,7 +5,7 @@ import { ContentPageLayout } from "./ContentPageLayout";
 describe("ContentPageLayout", () => {
   it("holds the title and the content in the one main landmark, outside the header", () => {
     render(
-      <ContentPageLayout kabinetSignedIn={false} title="Заголовок">
+      <ContentPageLayout kabinetSignedIn={false} current="about" title="Заголовок">
         <p>Вміст</p>
       </ContentPageLayout>,
     );

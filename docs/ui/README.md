@@ -38,7 +38,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | ContactRevealDialog | Modal | Stacks over the animal overlay (both in the top layer; last opened is on top); drop its own trap and hex backdrop |
 | AnimalOverlay | Modal | Route-driven: always `open`, `router.back()` in `onClose`; a full-screen variant if the design keeps it |
 | FilterSheet | Sheet | Keeps its GET form as children; its count line goes in children |
-| MobileNavMenu | Sheet | Nav links as children; hide the trigger from tablet via `triggerClassName` |
+| MobileNavMenu | Sheet | Nav links as children; hide the trigger from desktop (1024) via `hideFrom` and `triggerClassName` |
 
 ## Catalog
 

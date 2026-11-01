@@ -228,7 +228,7 @@ export async function renderGallery(
         mid-build: "let's hide access to Гортати по одній page for now as
         well." It was never in the Figma frame to begin with.
       */}
-      <SiteHeader wordmarkIsCurrentPage kabinetSignedIn={kabinetSignedIn} />
+      <SiteHeader wordmarkIsCurrentPage kabinetSignedIn={kabinetSignedIn} current="animals" />
 
       {/*
         The visible D-2 demo disclosure banner that used to render here

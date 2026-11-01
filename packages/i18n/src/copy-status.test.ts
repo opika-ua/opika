@@ -2617,3 +2617,17 @@ describe("kabinet UX round 2 copy (the owner's text)", () => {
     expect(actual).toBe(expected);
   });
 });
+
+/** Header option B (owner-approved 2026-11-01): the two new nav strings, transcribed; the rest of `nav` is not pending. */
+describe("site header nav copy (the owner's text)", () => {
+  it.each([
+    [uk.nav.animals, "Тварини"],
+    [uk.nav.savedWithCount, "Збережені, {count}"],
+  ])("%s", (actual, expected) => {
+    expect(actual).toBe(expected);
+  });
+
+  it("no nav string is a placeholder", () => {
+    expect(pendingCopyKeys(uk.nav)).toEqual([]);
+  });
+});

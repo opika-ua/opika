@@ -142,7 +142,11 @@ export default async function ForSheltersPage() {
 /** The page body; exported so `page.test.tsx` can render it without a real request scope. */
 export function renderForSheltersPage(kabinetSignedIn: boolean) {
   return (
-    <ContentPageLayout kabinetSignedIn={kabinetSignedIn} title={uk.forShelters.title}>
+    <ContentPageLayout
+      kabinetSignedIn={kabinetSignedIn}
+      current="forShelters"
+      title={uk.forShelters.title}
+    >
       {/*
         PW-2, his scope item 1: «Увійти в кабінет» → /kabinet/vkhid. Under the title, so a shelter
         already in the kabinet, sent here again, finds the way in without reading the page.
