@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { migrateTargetCheck, parseMigrateArgs } from "./migrate-args";
-import { databaseTargetLine } from "./prod-guard";
+import { AMBIENT_CONNECTION_VARIABLES, databaseTargetLine } from "./prod-guard";
 
 /**
  * `pnpm db:migrate`, the logic. The migration runs here, in this process, through drizzle-orm's
@@ -39,8 +39,35 @@ export type MigrateIo = {
 
 const DOTENV_VARIABLE = /^DOTENV_CONFIG_/i;
 
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : "an error with no message";
+/**
+ * The libpq variables that move the connection (host, port, user, database, password, service
+ * files), checked here before the guard so the refusal names them. The guard's own list plus
+ * PGPASSFILE. PGSSLMODE, PGCONNECT_TIMEOUT, PGAPPNAME and the like stay allowed: they tune the
+ * connection to the host in the URL and cannot choose another one.
+ */
+const CONNECTION_VARIABLES: ReadonlySet<string> = new Set([
+  ...AMBIENT_CONNECTION_VARIABLES,
+  "PGPASSFILE",
+]);
+
+/** The URL and its password are cut out of a message even if a driver put them in. */
+function messageOf(error: unknown, url: string): string {
+  // drizzle wraps the driver's error as "Failed query: …"; the cause says why (refused, timed out).
+  const cause = error instanceof Error && error.cause instanceof Error ? error.cause.message : "";
+  let message = error instanceof Error ? error.message : "an error with no message";
+  if (cause) message = `${message} (${cause})`;
+  const secrets = [url];
+  try {
+    const parsed = new URL(url);
+    secrets.push(parsed.password, decodeURIComponent(parsed.password));
+  } catch {
+    // An unparseable URL never reaches here: the guard refused it first.
+  }
+  for (const secret of secrets) {
+    if (secret) message = message.split(secret).join("[redacted]");
+  }
+  return message;
+}
 
 export async function runMigrate(
   argv: readonly string[],
@@ -66,10 +93,22 @@ export async function runMigrate(
     );
     return 1;
   }
-  const dotenvFiles = io.dotenvFiles();
-  if (dotenvFiles.length > 0) {
+  const connectionVariables = Object.keys(env).filter((name) =>
+    CONNECTION_VARIABLES.has(name.toUpperCase()),
+  );
+  if (connectionVariables.length > 0) {
     io.error(
-      `ERROR: an env file drizzle-kit would load is present: ${dotenvFiles.join(", ")}. db:migrate reads DATABASE_URL and nothing else; move the file away. Refusing (not reading or printing it).`,
+      `ERROR: set in the environment: ${connectionVariables.join(", ")}. db:migrate connects with DATABASE_URL alone. Unset ${connectionVariables.length === 1 ? "it" : "them"}. Refusing (not printing any value).`,
+    );
+    return 1;
+  }
+  // Nothing loads these files any more, so outside production they are only noted; for a
+  // production write a stray one is refused (owner, 2026-11-01).
+  const dotenvFiles = io.dotenvFiles();
+  const production = args.production;
+  if (dotenvFiles.length > 0 && production) {
+    io.error(
+      `ERROR: an env file is present: ${dotenvFiles.join(", ")}. A production migration reads DATABASE_URL and no env file; move the file away. Refusing (not reading or printing it).`,
     );
     return 1;
   }
@@ -84,11 +123,14 @@ export async function runMigrate(
   // After the guards (a refused target gets nothing but the refusal), before the migration: this
   // line says where it ran (Oleksii, 2026-10-13).
   io.log(databaseTargetLine(url));
+  if (dotenvFiles.length > 0) {
+    io.log(`Ignored (never read): ${dotenvFiles.join(", ")}. Only DATABASE_URL is used.`);
+  }
   try {
     await io.applyMigrations(url);
   } catch (error) {
     // The driver's and the migrator's messages carry the server's text or a host, never the URL.
-    io.error(`ERROR: the migration failed: ${messageOf(error)}`);
+    io.error(`ERROR: the migration failed: ${messageOf(error, url)}`);
     return 1;
   }
   io.log("Migrations: every committed migration is now applied.");

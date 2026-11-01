@@ -865,6 +865,7 @@ describe("parseMigrateArgs", () => {
     expect(parseMigrateArgs(["--expect", "ep-other-hill-d4e5f6", "--prod"])).toEqual({
       kind: "ok",
       expect: "ep-other-hill-d4e5f6",
+      production: true,
     });
   });
 
@@ -872,6 +873,7 @@ describe("parseMigrateArgs", () => {
     expect(parseMigrateArgs(["--expect=ep-other-hill-d4e5f6", "--prod"])).toEqual({
       kind: "ok",
       expect: "ep-other-hill-d4e5f6",
+      production: true,
     });
     expect(parseMigrateArgs(["--expect="]).kind).toBe("refused");
   });
@@ -880,8 +882,9 @@ describe("parseMigrateArgs", () => {
     expect(parseMigrateArgs(["--prod", "--expect", "ep-other-hill-d4e5f6"])).toEqual({
       kind: "ok",
       expect: "ep-other-hill-d4e5f6",
+      production: true,
     });
-    expect(parseMigrateArgs([])).toEqual({ kind: "ok", expect: undefined });
+    expect(parseMigrateArgs([])).toEqual({ kind: "ok", expect: undefined, production: false });
   });
 
   it.each([
@@ -898,6 +901,52 @@ describe("parseMigrateArgs", () => {
     expect(parseMigrateArgs(["--expect", "ep-a1", "--expect", "ep-b2"])).toEqual({
       kind: "refused",
       reason: "--expect is given twice",
+    });
+  });
+
+  /** PG-F3 tests 1-3: the refusals name the kind of argument, never its value. */
+  it.each([
+    ["--config with a separate value", ["--config", "other.ts"], "other.ts"],
+    ["--config=value", ["--config=other.ts"], "other.ts"],
+  ])("refuses %s, naming the flag and not the value", (_case, argv, value) => {
+    const result = parseMigrateArgs(argv);
+    expect(result.kind).toBe("refused");
+    const reason = result.kind === "refused" ? result.reason : "";
+    expect(reason).toContain("--config");
+    expect(reason).not.toContain(value);
+  });
+
+  it.each([
+    "dotenv_config_path=/tmp/x.env",
+    "DOTENV_CONFIG_OVERRIDE=true",
+    "dotenv_config_encoding=latin1",
+  ])("refuses the dotenv argument %s without printing it", (arg) => {
+    const result = parseMigrateArgs(["--prod", arg]);
+    expect(result.kind).toBe("refused");
+    const reason = result.kind === "refused" ? result.reason : "";
+    expect(reason).toContain("dotenv_config_*");
+    expect(reason).not.toContain(arg.split("=")[1] ?? "");
+    expect(reason).not.toContain(arg);
+  });
+
+  it("refuses any other argument without echoing it, and still takes --prod and --expect", () => {
+    const secret = "postgres://u:hunter2@example.test/db";
+    for (const argv of [[secret], ["--verbose"], ["--prod", secret]]) {
+      const result = parseMigrateArgs(argv);
+      expect(result.kind).toBe("refused");
+      const reason = result.kind === "refused" ? result.reason : "";
+      expect(reason).not.toContain("hunter2");
+      expect(reason).not.toContain("--verbose");
+    }
+    expect(parseMigrateArgs(["--prod", "--expect", "ep-a1b2"])).toEqual({
+      kind: "ok",
+      expect: "ep-a1b2",
+      production: true,
+    });
+    expect(parseMigrateArgs(["--expect=ep-a1b2"])).toEqual({
+      kind: "ok",
+      expect: "ep-a1b2",
+      production: false,
     });
   });
 });
@@ -1142,11 +1191,40 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
       "Target: Neon endpoint ep-other-hill-d4e5f6 (ep-other-hill-d4e5f6-pooler.eu-central-1.aws.neon.tech)",
     );
     // It reached the migration's connection, and the preload stopped it there.
-    expect(result.stderr).toContain(
-      "ERROR: the migration failed: network disabled by test/no-network.mjs",
-    );
+    expect(result.stderr).toContain("(network disabled by test/no-network.mjs)");
     expect(result.status, result.stderr).toBe(1);
     expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
+  });
+
+  /** PG-F3 through the real CLI: the old drizzle-kit routes are refused before the guard or any connection. */
+  it.each([
+    ["--config", ["--config=elsewhere.ts"], {}, "--config"],
+    ["a dotenv_config_* argument", ["dotenv_config_path=elsewhere.env"], {}, "dotenv_config_*"],
+    ["DOTENV_CONFIG_OVERRIDE", [], { DOTENV_CONFIG_OVERRIDE: "true" }, "DOTENV_CONFIG_OVERRIDE"],
+    ["PGHOST", [], { PGHOST: "ep-fake.neon.tech" }, "PGHOST"],
+  ] as const)("db:migrate refuses %s and prints no target", (_case, args, extra, named) => {
+    const result = spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/migrate.ts", ...args],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env: {
+          ...INHERITED_ENV,
+          DATABASE_URL: "postgres://u:secret@localhost:1/opika_print_target",
+          PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+          ...extra,
+        },
+        timeout: SPAWN_TIMEOUT_MS,
+      },
+    );
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain(named);
+    expect(result.stdout).not.toContain("Target:");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("elsewhere");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("ep-fake");
   });
 
   const WRITING_CLIS = [

@@ -19,7 +19,10 @@ globalThis.fetch = async () => {
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "::1"]);
 const connect = net.Socket.prototype.connect;
 net.Socket.prototype.connect = function (...args) {
-  const [first, second] = args;
+  // net.connect(options) hands Socket#connect the normalized `[options, callback]` array, not the
+  // options object; reading `.host` off the array let every such connection through.
+  const [raw, second] = args;
+  const first = Array.isArray(raw) ? raw[0] : raw;
   // connect(options) or connect(port, host?); no host means localhost, a `path` a local socket.
   const host = typeof first === "object" && first !== null ? first.host : second;
   if (host === undefined || typeof host !== "string" || LOOPBACK.has(host)) {
