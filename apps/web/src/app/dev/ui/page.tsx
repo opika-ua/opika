@@ -610,12 +610,6 @@ export default function DevUiPage() {
           <Toast tone="info" message="Info toast" dismissLabel="Dismiss" />
           <Toast tone="success" message="Saved" dismissLabel="Dismiss" />
           <Toast tone="error" message="Could not save" dismissLabel="Dismiss" />
-          <Toast
-            tone="info"
-            message="Removed from saved"
-            dismissLabel="Dismiss"
-            action={{ label: "Undo", onAction: () => {} }}
-          />
           <ToastDemo />
         </Row>
         <Row label="Tooltip (hover or focus the bookmark)">
