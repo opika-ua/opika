@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -70,5 +71,31 @@ describe("test/no-network.mjs", () => {
       server.close();
     `);
     expect(JSON.parse(result.stdout.trim())).toEqual({ answer: "hi", noHost: "ok" });
+  });
+});
+
+/** A spawned db CLI with a fake Neon URL must run under the preload, or a broken guard would dial Neon. */
+describe("spawned CLI tests", () => {
+  const testDir = resolve(fileURLToPath(import.meta.url), "..");
+  const files = readdirSync(testDir).filter((name) => name.endsWith(".test.ts"));
+
+  it("finds the spawns it is meant to police", () => {
+    const count = files.reduce(
+      (n, f) => n + (readFileSync(resolve(testDir, f), "utf8").match(/"tsx"/g)?.length ?? 0),
+      0,
+    );
+    expect(count).toBeGreaterThan(5);
+  });
+
+  it.each(files)("%s: every tsx spawn preloads test/no-network.mjs", (file) => {
+    const source = readFileSync(resolve(testDir, file), "utf8");
+    const calls = source.split("spawnSync(").slice(1);
+    for (const call of calls) {
+      const head = call.slice(0, 400);
+      if (!head.includes('"tsx"')) continue;
+      // The one tsx spawn that only imports the (local-only) test database setup.
+      if (head.includes('"-e"')) continue;
+      expect(head, `${file}: a tsx spawn without the preload`).toContain("no-network.mjs");
+    }
   });
 });
