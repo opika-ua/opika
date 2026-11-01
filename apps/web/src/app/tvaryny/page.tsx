@@ -35,9 +35,11 @@ import { placeBookOf } from "../../features/gallery/place-book";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { throwIfGalleryTestFailure } from "../../features/gallery/test-only-failure";
 import { Container } from "../../ui/Container";
+import { cx } from "../../ui/cx";
 import { Heading } from "../../ui/Heading";
-import { Mascot } from "../../ui/Mascot";
+import { MASCOT_RESERVE_CLASS, Mascot } from "../../ui/Mascot";
 import { mascotKindFor } from "../../ui/mascot-species";
+import { PerchedWords } from "../../ui/PerchedWords";
 
 /**
  * Same reasoning as `../page.tsx`: without this, `next build` would try to
@@ -277,16 +279,23 @@ export async function renderGallery(
             // defensive floor either way.
             title={
               // The mascot sits on the title only while there are cards: the no-match block has its own.
-              <div className="relative tablet:mt-2">
-                {page.totalMatching > 0 && (
-                  <Mascot kind={mascotKind} pose="lie" size={48} perch="top-left" offset={32} />
-                )}
+              <div className="tablet:mt-2">
                 <Heading
                   level={1}
                   look="display-l"
-                  className="min-w-0 break-words tablet:text-display-xl"
+                  className={cx(
+                    "min-w-0 break-words max-compact:text-display-m tablet:text-display-xl",
+                    page.totalMatching > 0 && MASCOT_RESERVE_CLASS[48],
+                  )}
                 >
-                  {uk.feed.galleryTitle}
+                  {page.totalMatching > 0 ? (
+                    <PerchedWords
+                      text={uk.feed.galleryTitle}
+                      mascot={<Mascot kind={mascotKind} pose="lie" size={48} perch="word" />}
+                    />
+                  ) : (
+                    uk.feed.galleryTitle
+                  )}
                 </Heading>
               </div>
             }

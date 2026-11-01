@@ -15,6 +15,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     "registry of dirty sections and the save-all state of the page bar",
   "features/kabinet/shared/save-pill.tsx":
     "the 4 s confirmation timer with hover/focus pause, and the phone/desktop media query",
+  "ui/PerchedWords.tsx":
+    "measures which word ends the first line (layout and font decide) to seat the mascot",
   "ui/Menu.tsx": "controlled open state, outside-press and Esc listeners",
   "ui/Modal.tsx": "controlled dialog; refs and the dialog core",
   "ui/ErrorSummary.tsx":
