@@ -88,9 +88,9 @@ A swipe-based pet adoption platform connecting adopters with verified shelters a
 decision, 2026-10-29). Solo developer, React/TypeScript background, ~10h/week. MVP scope, with a
 documented path through Phases 2-4: ad revenue, registry integration, cross-border adoption to Poland/EU.
 
-## The name is not final
+## The name is final: keep it out of the domain
 
-"Opika" is a working name: the npm scope and nothing else. No product name in `packages/domain`,
+"Opika" is the final name (owner, 2026-11-01, MK-9). It is also the npm scope. No product name in `packages/domain`,
 `packages/contracts`, error messages or schema descriptions; it lives in app-level config/i18n.
 Rationale: `docs/dev-notes.md`.
 
@@ -154,7 +154,7 @@ technical type.
   is the additional, domain-specific list of what else isn't allowed in.
 - `packages/contracts` defines schemas and the API contract shape with
   **no implementation** - routers/handlers live elsewhere.
-- No hardcoded brand strings (see "the name is not final," above).
+- No hardcoded brand strings (see "the name is final," above).
 
 ## Phase scope
 
