@@ -284,7 +284,7 @@ export async function renderGallery(
                   level={1}
                   look="display-l"
                   className={cx(
-                    "min-w-0 break-words tablet:text-display-xl",
+                    "min-w-0 break-words max-compact:text-display-m tablet:text-display-xl",
                     page.totalMatching > 0 && MASCOT_RESERVE_CLASS[48],
                   )}
                 >

@@ -81,6 +81,11 @@
   --text-display-l--line-height: 1.15;
   --text-display-l--font-weight: 400;
   --text-display-l--letter-spacing: 0;
+  /* The gallery title on phones under 360px, so «Шукають дім» stays on one line. */
+  --text-display-m: 28px;
+  --text-display-m--line-height: 1.15;
+  --text-display-m--font-weight: 400;
+  --text-display-m--letter-spacing: 0;
   --text-title: 26px;
   --text-title--line-height: 1.2;
   --text-title--font-weight: 700;

@@ -280,6 +280,7 @@ test.describe("mascot on a word", () => {
                   r.bottom > box.top,
               ).length;
             return {
+              anchorWord: anchor.textContent,
               dx: Math.abs(box.left + box.width / 2 - (word.left + word.width / 2)),
               dy: box.bottom - capTop,
               onFirstLine: anchor.offsetTop === lineTop,
@@ -293,6 +294,10 @@ test.describe("mascot on a word", () => {
         expect(m.onFirstLine && m.nextWrapped, "anchor is the last word of the first line").toBe(
           true,
         );
+        // The gallery title scales down below 360px so «дім» never leaves the first line.
+        if (variant.name.startsWith("hero")) {
+          expect(m.anchorWord, "the mascot sits on «дім»").toBe("дім");
+        }
         expect(m.dx, "centre within 4px of the word's centre").toBeLessThanOrEqual(4);
         expect(
           Math.abs(m.dy - 1),
