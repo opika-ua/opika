@@ -161,3 +161,31 @@ What the code does now (`packages/db/src/test-utils/test-database.ts`):
   later. Prune bounds every drop (60 s), always exits with a code, and logs a failure as a line.
 - `docker-compose.yml` sets `idle_in_transaction_session_timeout=60s` and `max_connections=200`;
   apply with `docker compose up -d --force-recreate db` (the volume stays).
+
+## Error reporting (Sentry, H5)
+
+Errors only, no tracing, no replay, no profiling, no feedback widget. Code: `apps/web/src/observability/`.
+
+- **Env, all optional.** `NEXT_PUBLIC_SENTRY_DSN` (Production and Preview) switches everything on; unset, the
+  SDK is never loaded or initialised and the app boots as before (local, CI, tests, harness).
+  `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` (Production only) are build-time, for source maps:
+  upload runs only when `VERCEL_ENV=production` and all three are set, then the maps are deleted from the
+  build output. `assertBuildEnv` requires none of them.
+- **What leaves.** Error type and message (scrubbed), stack frames (function, file, line), page URL without
+  query or fragment, browser UA string. No user, cookies, headers, request body, query strings, local
+  variables, source lines or breadcrumbs; the approved sentence in `/pro` (`about.data`) rests on this.
+  Two layers: the SDK's `dataCollection` is spelled out as all-off (`options.ts`; v11 defaults to on, so
+  `options.test.ts` fails if the SDK gains a key that is not set), then `scrub.ts` runs as `beforeSend`
+  and in the tunnel. `server-proof.test.ts` and `client-proof.test.ts` throw real errors inside a request /
+  page full of cookies, a bearer token, `?gate=`, a JSON body and a contact in a local variable, and assert the
+  captured envelope has none of it, with the scrubber on and off.
+- **Browser path.** `instrumentation-client.ts` loads the SDK after idle (`load-client.ts`), only with a DSN.
+  Events go to our own `POST /api/monitoring` (`api/monitoring-tunnel.ts`), never to Sentry directly, so
+  the CSP stays `connect-src 'self'`. It forwards error events only, rebuilt and scrubbed, from our server
+  with no client headers or address.
+- **Trigger one test error after a deploy.** `POST /api/monitoring/test` with `Authorization: Bearer
+  $CRON_SECRET` throws on purpose (the server error then arrives through `onRequestError`). It answers 404
+  to anyone without that header and when no DSN is set, so it is not a public endpoint. In PowerShell,
+  with the secret read by `Read-Secret`:
+  `curl.exe -X POST -H "Authorization: Bearer $secret" https://<host>/api/monitoring/test`
+  (the path is exempt from the pre-launch gate; it needs `CRON_SECRET` set on that deployment).

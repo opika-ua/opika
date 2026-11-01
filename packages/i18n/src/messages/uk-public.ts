@@ -1134,7 +1134,10 @@ export const ukPublic = {
       // DR1-Q4, his sentence, verbatim: landed with S8 (the saved page). Distinct from the
       // held R4-2 amendment above - that one is gated off /pro until the pre-launch cookie
       // conflict clears; this standalone sentence has no such gate and ships now.
-      "Список збережених тварин зберігається лише в цьому браузері. Щоб показати його актуальним, сайт запитує дані про цих тварин без кукі й не зберігає, яких саме.",
+      "Список збережених тварин зберігається лише в цьому браузері. Щоб показати його актуальним, сайт запитує дані про цих тварин без кукі й не зберігає, яких саме.\n\n" +
+      // H5, his sentence, verbatim (2026-11-01): names Sentry; what the code sends is pinned by
+      // apps/web/src/observability tests.
+      "Якщо на сайті стається збій, до сервісу відстеження помилок Sentry (сервери в ЄС) надсилається лише технічний опис: тип помилки, місце в коді, адреса сторінки без параметрів, браузер і система. Контакти, пошта, номери телефонів, вміст форм і кукі туди не потрапляють, а IP-адреси не зберігаються.",
     analytics:
       "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами.",
     contact: "Написати мені: {contact}",
