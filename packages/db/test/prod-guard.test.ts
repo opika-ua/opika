@@ -1037,13 +1037,17 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
   it("db:migrate refuses a non-local target when production isn't configured", () => {
     const env = { ...INHERITED_ENV, DATABASE_URL: CHILD_BRANCH, PROD_GUARD_ENV_FILE: NO_ENV_FILE };
     delete (env as Record<string, string | undefined>).PROD_NEON_ENDPOINT;
-    const result = spawnSync("npx", ["tsx", "src/migrate.ts"], {
-      cwd: PKG,
-      encoding: "utf8",
-      shell: process.platform === "win32",
-      env,
-      timeout: SPAWN_TIMEOUT_MS,
-    });
+    const result = spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/migrate.ts"],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env,
+        timeout: SPAWN_TIMEOUT_MS,
+      },
+    );
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("PROD_NEON_ENDPOINT is not set");
     expect(result.stderr).not.toContain("secret");
@@ -1051,18 +1055,22 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
 
   /** The STOP's finding 1: a URL that won't parse must not end up in a crash dump. */
   it("db:migrate refuses an unparseable URL without printing it", () => {
-    const result = spawnSync("npx", ["tsx", "src/migrate.ts"], {
-      cwd: PKG,
-      encoding: "utf8",
-      shell: process.platform === "win32",
-      env: {
-        ...INHERITED_ENV,
-        DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host",
-        PROD_NEON_ENDPOINT: PROD_ENDPOINT,
-        PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+    const result = spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/migrate.ts"],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env: {
+          ...INHERITED_ENV,
+          DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host",
+          PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+          PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+        },
+        timeout: SPAWN_TIMEOUT_MS,
       },
-      timeout: SPAWN_TIMEOUT_MS,
-    });
+    );
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("could not be parsed");
     expect(result.stderr).not.toContain("SECRETPW");
@@ -1110,13 +1118,17 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
   });
 
   it("db:check-hashes refuses an unparseable URL after saying so, without printing it", () => {
-    const result = spawnSync("npx", ["tsx", "src/check-migration-hashes.ts"], {
-      cwd: PKG,
-      encoding: "utf8",
-      shell: process.platform === "win32",
-      env: { ...INHERITED_ENV, DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host" },
-      timeout: SPAWN_TIMEOUT_MS,
-    });
+    const result = spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/check-migration-hashes.ts"],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env: { ...INHERITED_ENV, DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host" },
+        timeout: SPAWN_TIMEOUT_MS,
+      },
+    );
     expect(result.status, result.stderr).toBe(1);
     expect(result.stdout.split(/\r?\n/)[0]).toBe(
       "Target: DATABASE_URL could not be parsed (not printing it).",
@@ -1129,17 +1141,21 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
    * fails on the closed local port.
    */
   it("db:migrate prints the target before it migrates", () => {
-    const result = spawnSync("npx", ["tsx", "src/migrate.ts"], {
-      cwd: PKG,
-      encoding: "utf8",
-      shell: process.platform === "win32",
-      env: {
-        ...INHERITED_ENV,
-        DATABASE_URL: "postgres://opika:secret@localhost:1/opika_print_target",
-        PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+    const result = spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/migrate.ts"],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env: {
+          ...INHERITED_ENV,
+          DATABASE_URL: "postgres://opika:secret@localhost:1/opika_print_target",
+          PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+        },
+        timeout: SPAWN_TIMEOUT_MS,
       },
-      timeout: SPAWN_TIMEOUT_MS,
-    });
+    );
     expect(result.stdout.split(/\r?\n/)[0]).toBe("Target: local (localhost:1/opika_print_target)");
     expect(result.stderr).toContain("ERROR: the migration failed:");
     expect(result.status, result.stderr).toBe(1);

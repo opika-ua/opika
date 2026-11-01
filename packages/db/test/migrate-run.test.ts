@@ -91,6 +91,8 @@ describe("runMigrate refusals (nothing is guarded or migrated)", () => {
     "PGSERVICE",
     "PGSERVICEFILE",
     "PGPASSFILE",
+    "PGUSERNAME",
+    "PGOPTIONS",
   ])("refuses %s in the environment, names it, prints no value", async (name) => {
     const h = harness();
     const env: MigrateEnvironment = { DATABASE_URL: LOCAL, [name]: "leaky-value" };
@@ -227,6 +229,7 @@ describe("runMigrate outcomes", () => {
     const h = harness({ applyMigrations });
     expect(await runMigrate([], { DATABASE_URL: WITH_PASSWORD }, h.io)).toBe(1);
     expect(h.err.join("\n")).toContain("ERROR: the migration failed:");
+    expect(h.err.join("\n")).toContain("ECONNREFUSED");
     const text = everything(h);
     expect(text).not.toContain(PASSWORD);
     expect(text).not.toContain(WITH_PASSWORD);
@@ -254,6 +257,7 @@ describe("applyMigrations on a throwaway local database", () => {
   };
 
   it("applies every committed migration, the hashes match db:check-hashes, and a second run changes nothing", async () => {
+    await dropTestDatabase(url, "force");
     await ensureTestDatabase(url);
     await applyMigrations(url);
     const first = await snapshot();

@@ -306,7 +306,7 @@ Expected:
    then `match` for every migration already applied and `not run` for the PR's new one; exit 0.
    **Stop if the endpoint differs.**
 2. **`db:migrate`**: `WARNING: writing to PRODUCTION (--prod given).`, the same `Target:` line,
-   then `Migrations: every committed migration is now applied.` (it applies the committed migrations in its own process on that one URL; no drizzle-kit, no config or env file, no `PGHOST`-style variables); exit 0. Without `--prod` it refuses
+   then `Migrations: every committed migration is now applied.` (it applies the committed migrations in its own process on that one URL; no drizzle-kit, no config or env file, no `PGHOST`-style variables); exit 0. NOTICE lines from the driver (e.g. `schema "drizzle" already exists, skipping`) may appear between the two; they are not errors (drizzle-kit printed them too). Without `--prod` it refuses
    production. Without `--expect`, or with one naming another compute, it refuses before
    anything runs, and prints neither the URL nor an endpoint.
 3. **`db:check-hashes` again**: the same `Target:` line, `match` for every migration including
