@@ -501,8 +501,6 @@ export const ukPublic = {
 
   // --- Location ---
   location: {
-    /** Template: "{place} · у домі волонтерки"; `{place}` is the kind-aware text from `placeText`. */
-    fostered: "Живе у волонтерки, {place}. Точної адреси ми не знаємо і не показуємо.",
     /**
      * Pet card PR 5 dropped the detail screen's own "Де живе" explanatory
      * block (`heading`/`noMapExplanation`, used only there): the new panel
@@ -539,8 +537,8 @@ export const ukPublic = {
 
   // --- Detail screen (04) ---
   detail: {
-    /** Template: "Перевірено вручну · на сайті з {year} року" - `{year}` is the year the shelter's record was created. */
-    shelterVerifiedYears: "Перевірено вручну · на сайті з {year} року",
+    /** Template: `{site}` is the wordmark, `{year}` the year (a number) the shelter's record was created. */
+    shelterVerifiedYears: "Перевірений вручну · на {site} з {year} р.",
     donateShelter: "Підтримати притулок",
     /**
      * Designer round 1 (S6), his text: the animal page's shelter row is a
@@ -602,7 +600,7 @@ export const ukPublic = {
      * this one survives as the slider's own scroll-container label, since it
      * names "the photo list," not any particular control for moving through it.
      */
-    photoGalleryLabel: "Фотографії тварини",
+    photoGalleryLabel: "Фотогалерея",
     /**
      * Owner-approved 2026-10-30 (pet card on phones). The slider's own
      * prev/next buttons' accessible names.
@@ -759,7 +757,7 @@ export const ukPublic = {
      */
     rateLimited: {
       title: "За останню добу ви відкрили контакти багатьох притулків.",
-      body: "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Нові – пізніше, коли мине доба від перших.",
+      body: "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Наступні стануть доступні протягом доби.",
     },
     photoMissing: {
       placeholder: "Фото немає – притулок ще не надіслав",
@@ -821,8 +819,7 @@ export const ukPublic = {
     /**
      * Templates: "{city}" -> "м. {city}". The gallery card's terse
      * housing+city fragment (docs/design/README.md, "The Gallery" > "Card"),
-     * not the fuller sentence in location.fostered, which carries the
-     * detail page's own address disclaimer the card has no room for.
+     * the terse form the card has room for.
      */
     atShelter: "{place}",
     fosteredHousing: "на перетримці, {place}",

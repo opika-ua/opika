@@ -2,6 +2,7 @@ import { donationHost, type GallerySort, NO_FILTERS, pluralizeUk } from "@opika/
 import { fillTemplate, uk } from "@opika/i18n";
 import Image from "next/image";
 import { useId } from "react";
+import { WORDMARK } from "../../brand";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { buttonClass, LinkButton } from "../../ui/Button";
 import { Container } from "../../ui/Container";
@@ -154,7 +155,7 @@ export function ShelterPageScreen({
                 {shelter.verification === "verified" ? (
                   <span data-testid="shelter-verified-badge">
                     <span aria-hidden="true">✓ </span>
-                    {fillTemplate(uk.detail.shelterVerifiedYears, { year })}
+                    {fillTemplate(uk.detail.shelterVerifiedYears, { site: WORDMARK, year })}
                   </span>
                 ) : (
                   fillTemplate(uk.shelterPage.sinceYear, { year })

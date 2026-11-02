@@ -36,7 +36,7 @@ test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
 const GALLERY_ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
-const DETAIL_READY = "section[aria-label='Фотографії тварини'] img";
+const DETAIL_READY = "section[aria-label='Фотогалерея'] img";
 const MAX_CANDIDATES = 8;
 
 /**

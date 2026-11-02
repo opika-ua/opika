@@ -69,7 +69,7 @@ function expectedSlugFor(visibleCityNameUk: string): string {
 
 const GALLERY_ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
-const PHOTO = "section[aria-label='Фотографії тварини'] img";
+const PHOTO = "section[aria-label='Фотогалерея'] img";
 
 /**
  * Discovered once per file run, not once per test: every test here already
