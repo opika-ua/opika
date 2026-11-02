@@ -1,5 +1,6 @@
 import { uk } from "@opika/i18n";
 import { buttonClass } from "../../ui/Button";
+import { Container } from "../../ui/Container";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { Text } from "../../ui/Text";
 import { AnimalForm } from "./animal-form/AnimalForm";
@@ -54,7 +55,7 @@ export function AnimalPage({
     >
       {support ? <SupportBanner shelterName={page.shelter.displayName} /> : null}
       <KabinetHeader shelterName={page.shelter.displayName} viewer={page.viewer} />
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 pb-4 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14">
+      <Container className="flex flex-col gap-4 pt-5 pb-4 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14">
         <div className="hidden desktop:contents">
           <KabinetNav current="animals" animalList={listShown} />
         </div>
@@ -77,7 +78,7 @@ export function AnimalPage({
             </div>
           )}
         </main>
-      </div>
+      </Container>
     </div>
   );
 }
