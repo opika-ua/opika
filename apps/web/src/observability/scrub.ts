@@ -15,12 +15,13 @@ const EMAIL =
   /[\p{L}\p{N}._%+'-]{1,64}@[\p{L}\p{N}-]{1,63}(?:\.[\p{L}\p{N}-]{1,63}){0,8}\.\p{L}{2,24}/gu;
 // UA numbers: optional 38 / +38 prefix, a 0, then nine digits in any grouping (0501234567,
 // +380 (50) 123-45-67, 380501234567, en-dash separators). Never part of a longer digit run.
-const PHONE = /(?<![\p{N}])\(?(?:\+?38[\s().–-]*)?0(?:[\s().–-]*\d){9}(?![\p{N}]|:\d)/gu;
+// A dd.mm.yyyy hh:mm date-time is the one shape that looks like a number and is not one.
+const PHONE =
+  /(?<![\p{N}])(?!\d{2}[./]\d{2}[./]\d{4}\s\d{2}:\d{2})\(?(?:\+?38[\s().–-]*)?0(?:[\s().–-]*\d){9}(?![\p{N}])/gu;
 // Any other international number: "+" or "00", then 8 to 15 digits (E.164) with spaces, dots, dashes
 // and brackets between them (+48 500 123 456, +49 (0) 30 1234567, 0033.1.23.45.67.89). Each step eats
 // one digit after an optional separator run, so the scan is linear.
-const PHONE_INTL =
-  /(?<![\p{L}\p{N}])\(?(?:\+|00)[\s().–-]*\d(?:[\s().–-]*\d){7,14}(?![\p{N}]|:\d)/gu;
+const PHONE_INTL = /(?<![\p{L}\p{N}])\(?(?:\+|00)[\s().–-]*\d(?:[\s().–-]*\d){7,14}(?![\p{N}])/gu;
 // Polish-style groups without a prefix: 500 123 456, 050/123-45-67.
 const PHONE_GROUPS =
   /(?<![\p{N}/])(?:[4-8]\d{2}[\s–-]\d{3}[\s–-]\d{3}|0?\d{2,3}\/\d{3}[\s–-]?\d{2}[\s–-]?\d{2})(?![\p{N}])/gu;

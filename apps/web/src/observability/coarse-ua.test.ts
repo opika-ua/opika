@@ -67,13 +67,31 @@ describe("coarseFromUserAgent: family and major version, over real user-agent st
     expect(JSON.stringify(out)).not.toContain("(((");
   });
 
-  it("never returns more than a short name and at most four digits, whatever the input", () => {
+  it("never returns more than a short name and at most three digits, whatever the input", () => {
     const hostile = `Chrome/${"9".repeat(5000)} Android ${"8".repeat(5000)} ${"a".repeat(100000)}`;
     const out = coarseFromUserAgent(hostile);
     for (const part of [out.browser, out.os]) {
       expect(part.name).toMatch(/^[A-Za-z ]{1,32}$/);
-      expect(part.version ?? "").toMatch(/^\d{0,4}$/);
+      expect(part.version ?? "").toMatch(/^\d{0,3}$/);
     }
+  });
+
+  it("drops a version of more than three digits instead of cutting it short", () => {
+    expect(coarseFromUserAgent("Chrome/1300.0.0 Safari/537.36").browser).toEqual({
+      name: "unknown",
+    });
+    expect(coarseFromUserAgent("Linux; Android 1400").os).toEqual({ name: "Android" });
+    expect(
+      coarseFromUserAgentData({ brands: [{ brand: "Google Chrome", version: "1300" }] }).browser,
+    ).toEqual({
+      name: "Chrome",
+    });
+  });
+
+  it("names Yandex Browser, which also carries a Chrome token", () => {
+    const ua =
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 YaBrowser/24.4.0 Yowser/2.5 Safari/537.36";
+    expect(coarseFromUserAgent(ua).browser).toEqual({ name: "Yandex", version: "24" });
   });
 
   it("is linear on a long input", () => {

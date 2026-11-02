@@ -13,20 +13,23 @@ const MAX_UA_LENGTH = 512;
 
 const isDigit = (ch: string | undefined): boolean => ch !== undefined && ch >= "0" && ch <= "9";
 
-/** The digits right after `token` (the major version, up to 3 digits), or undefined. */
+/** The digits right after `token` (the major version, 1 to 3 digits), or undefined. */
 function majorAfter(ua: string, token: string): string | undefined {
   const at = ua.indexOf(token);
   if (at === -1) return undefined;
   let end = at + token.length;
   const start = end;
-  while (end < ua.length && end - start < 3 && isDigit(ua[end])) end += 1;
-  return end > start ? ua.slice(start, end) : undefined;
+  while (end < ua.length && end - start < 4 && isDigit(ua[end])) end += 1;
+  // More than three digits is not a major version we know; drop it rather than cut it short.
+  return end > start && end - start <= 3 ? ua.slice(start, end) : undefined;
 }
 
 const named = (name: string, version?: string): CoarseName =>
   version === undefined ? { name } : { name, version };
 
 const BROWSER_TOKENS: readonly (readonly [token: string, name: string])[] = [
+  ["YaBrowser/", "Yandex"],
+  ["Yowser/", "Yandex"],
   ["EdgA/", "Edge"],
   ["EdgiOS/", "Edge"],
   ["Edg/", "Edge"],
@@ -94,8 +97,8 @@ const isGrease = (brand: string): boolean => /^not.{0,4}a.{0,4}brand/i.test(bran
 function majorOf(version: unknown): string | undefined {
   if (typeof version !== "string") return undefined;
   const dot = version.indexOf(".");
-  const major = (dot === -1 ? version : version.slice(0, dot)).slice(0, 3);
-  return major !== "" && [...major].every(isDigit) ? major : undefined;
+  const major = (dot === -1 ? version : version.slice(0, dot)).slice(0, 4);
+  return major !== "" && major.length <= 3 && [...major].every(isDigit) ? major : undefined;
 }
 
 /**

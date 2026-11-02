@@ -59,6 +59,10 @@ const REDACTED: [label: string, text: string, secret: string][] = [
   ["PL with en dash", "050–123–45–67 failed", "123"],
   ["PL groups without prefix", "number 500 123 456 failed", "500 123"],
   ["UA with en dash", "+38 (050) 123–45–67 failed", "123"],
+  ["UA number then a colon and a digit", "0501234567:1 failed", "0501234567"],
+  ["UA grouped number then colon", "050 123 45 67:9 failed", "123 45"],
+  ["UA +380 then colon", "+380501234567:1 failed", "501234567"],
+  ["UA number before a time", "тел. 0501234567:10:30", "0501234567"],
   ["DE", "+49 30 12345678 failed", "12345678"],
   ["DE with trunk zero", "+49 (0) 30 1234567 failed", "1234567"],
   ["FR with dots", "+33 1.23.45.67.89 failed", "23.45"],
@@ -156,7 +160,10 @@ describe("free-text scrubber: timing", () => {
     for (const input of nasty) {
       const started = performance.now();
       scrubString(input);
-      expect(performance.now() - started).toBeLessThan(1000);
+      expect(
+        performance.now() - started,
+        `slow on ${JSON.stringify(input.slice(0, 20))}...`,
+      ).toBeLessThan(1000);
     }
   });
 });

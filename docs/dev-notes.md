@@ -191,7 +191,7 @@ Errors only, no tracing, no replay, no profiling, no feedback widget. Code: `app
 - **Free-text scrubber.** `scrubString` removes emails, UA phones, other international phones (`+` or `00`, 8 to
   15 digits, spaces/dots/dashes/brackets), Polish digit groups (`500 123 456`, `050/123-45-67`), t.me /
   telegram.me / telegram.dog / tg:// links, `@handles` next to the word telegram, and street addresses (UA, PL, EN;
-  a house number is required). Patterns are linear (bounded repeats, no nested quantifiers); `scrub-patterns.test.ts`
+  a house number is required). Patterns are linear because every step consumes a character and no two adjacent parts can match the same one (for the phone patterns: each step is an optional separator run then one digit); email labels are length-bounded; `scrub-patterns.test.ts`
   holds the output-level cases (direct and through the tunnel), a false-positive set and a timing test.
 - **Browser path.** `instrumentation-client.ts` loads the SDK after idle (`load-client.ts`), only with a DSN.
   Events go to our own `POST /api/monitoring` (`api/monitoring-tunnel.ts`), never to Sentry directly, so
