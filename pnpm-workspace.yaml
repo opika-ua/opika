@@ -89,6 +89,8 @@ catalog:
   # mount.
   "@vercel/analytics": 2.0.1
   "@vercel/speed-insights": 2.0.0
+  # H5 observability. Errors only: tracing off, collection explicitly minimal (src/observability).
+  "@sentry/nextjs": 11.10.0
   # H1's image pipeline. sharp generates the three real variants server-side
   # at upload time (packages/db/src/image-pipeline); @aws-sdk/client-s3
   # talks to R2's S3-compatible API – the standard client Cloudflare's own

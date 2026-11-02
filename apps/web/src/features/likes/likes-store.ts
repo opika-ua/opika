@@ -129,6 +129,37 @@ export const toggleSavedAnimal = (animalId: string, now: Date): ToggleSavedResul
   return { kind: "saved" };
 };
 
+/** What a removal took out, enough to put it back at the same place. */
+export type RemovedSave = {
+  readonly animalId: string;
+  readonly likedAt: string;
+  readonly index: number;
+};
+
+/** Removes one save and returns what the undo needs; `null` when it was not saved. */
+export const removeSavedAnimal = (animalId: string): RemovedSave | null => {
+  const store = readRaw();
+  const index = store.items.findIndex((item) => item.animalId === animalId);
+  const item = store.items[index];
+  if (item === undefined) return null;
+  writeRaw({ ...store, items: store.items.filter((_, at) => at !== index) });
+  return { animalId, likedAt: item.likedAt, index };
+};
+
+/** Undo of `removeSavedAnimal`: the original `likedAt` at the original place (clamped). A no-op if already saved or the list is full. */
+export const restoreSavedAnimal = (removed: RemovedSave): ToggleSavedResult => {
+  const store = readRaw();
+  if (store.items.some((item) => item.animalId === removed.animalId)) return { kind: "saved" };
+  if (store.items.length >= MAX_LIKES) return { kind: "cap_reached" };
+  const items = [...store.items];
+  items.splice(Math.min(removed.index, items.length), 0, {
+    animalId: removed.animalId,
+    likedAt: removed.likedAt,
+  });
+  writeRaw({ ...store, items });
+  return { kind: "saved" };
+};
+
 /**
  * Two listeners, not one: `storage` fires on every *other* document using
  * this origin (never the one that wrote - the plan's own note), filtered to

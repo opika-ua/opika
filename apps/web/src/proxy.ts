@@ -140,7 +140,9 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
  * `/api/authx`, `/api/kabinetx` and `/kabinetx` stay gated like everything
  * else.
  */
-const GATE_EXEMPT_PREFIXES = ["/api/auth", "/api/kabinet", "/kabinet"] as const;
+// `/api/monitoring` (H5) is the browser's error-report tunnel: a visitor without the gate cookie must be
+// able to report a crash, and it holds no listing data (its own limiter, DSN check and size cap).
+const GATE_EXEMPT_PREFIXES = ["/api/auth", "/api/kabinet", "/kabinet", "/api/monitoring"] as const;
 
 export function isGateExemptPath(pathname: string): boolean {
   return GATE_EXEMPT_PREFIXES.some(

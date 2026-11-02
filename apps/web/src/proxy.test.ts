@@ -89,16 +89,22 @@ describe("proxy", () => {
       "/api/kabinet/registry/shelters/list",
       "/kabinet",
       "/kabinet/vkhid",
-    ])("lets %s through without the gate (the kabinet's own routes)", async (path) => {
-      const { proxy } = await import("./proxy");
-      expect((await proxy(request(`https://opika.example${path}`))).status).toBe(200);
-    });
+      "/api/monitoring",
+      "/api/monitoring/test",
+    ])(
+      "lets %s through without the gate (the kabinet's own routes, the error tunnel)",
+      async (path) => {
+        const { proxy } = await import("./proxy");
+        expect((await proxy(request(`https://opika.example${path}`))).status).toBe(200);
+      },
+    );
 
     it.each([
       "/api/authx",
       "/api/auth-old",
       "/api/registry",
       "/api/kabinetx",
+      "/api/monitoringx",
       "/api/rpc/feed.list",
       "/api",
       "/kabinetx",

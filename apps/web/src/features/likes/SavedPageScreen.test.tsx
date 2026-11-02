@@ -172,7 +172,7 @@ describe("SavedPageScreen", () => {
     expect(cardsByIds).toHaveBeenCalledTimes(1);
   });
 
-  it("removing one of several saved items re-fetches the rest", async () => {
+  it("removing one of several saved items asks for nothing more - the rest are already on the page", async () => {
     const first = "00000001-0000-4000-8000-000000000000" as AnimalId;
     const second = "00000002-0000-4000-8000-000000000000" as AnimalId;
     toggleSavedAnimal(second, new Date("2026-10-20T00:00:00.000Z"));
@@ -189,16 +189,12 @@ describe("SavedPageScreen", () => {
     await screen.findByRole("link", { name: /Мурчик/ });
     expect(cardsByIds).toHaveBeenLastCalledWith({ animalIds: [first, second] });
 
-    cardsByIds.mockResolvedValue({
-      cityLabels: [BROVARY_LABEL],
-      items: [
-        { kind: "available", animalId: second, card: makeCard({ id: second, name: "Рекс" }) },
-      ],
-    });
     const user = userEvent.setup();
     await user.click(screen.getAllByTestId("saved-remove")[0] as HTMLElement);
 
-    await waitFor(() => expect(cardsByIds).toHaveBeenLastCalledWith({ animalIds: [second] }));
+    await waitFor(() => expect(screen.queryByRole("link", { name: /Мурчик/ })).toBeNull());
+    expect(screen.getByRole("link", { name: /Рекс/ })).toBeTruthy();
+    expect(cardsByIds).toHaveBeenCalledTimes(1);
   });
 
   it("shows the storage-blocked notice when localStorage threw", async () => {

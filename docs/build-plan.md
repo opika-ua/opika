@@ -1121,7 +1121,7 @@ verbatim: "remove all test shelters (demo + mine) before the first real shelter"
 This is the sharp one. It is not "before launch" - shelter onboarding can happen the moment
 someone says yes to an outreach email, independent of whatever else is or isn't ready.
 
-- [ ] **DMARC to `p=quarantine`** (Oleksii, 2026-10-19, verbatim: "Launch-gate checklist
+- [x] **DMARC to `p=quarantine`** (**DONE 2026-11-02**, Oleksii; `p=reject` later, after a week of clean reports) (Oleksii, 2026-10-19, verbatim: "Launch-gate checklist
   addition (before the first real shelter): review DMARC aggregate reports at dmarc@, then raise
   _dmarc.opika.org.ua from p=none to p=quarantine (later p=reject). My step in Cloudflare DNS;
   note the current record and the change in the runbook."). The runbook section is "DMARC:
@@ -1129,7 +1129,7 @@ someone says yes to an outreach email, independent of whatever else is or isn't 
   and `_dmarc.mail.opika.org.ua` to `p=quarantine`, then later `p=reject`, the same `rua`. In
   order: remove the Brevo DNS records, raise both, delivery-test a sign-in email and an invite,
   then check the next reports before `p=reject`.
-- [ ] **Google Postmaster Tools for `mail.opika.org.ua`** (Oleksii, 2026-10-19, verbatim: "Launch
+- [x] **Google Postmaster Tools for `mail.opika.org.ua`** (**DONE 2026-11-02**, Oleksii; domain verified) (Oleksii, 2026-10-19, verbatim: "Launch
   gate: add Google Postmaster Tools for mail.opika.org.ua. I add the verification TXT."). His step:
   add the domain in Postmaster Tools, and its verification TXT in Cloudflare DNS. The reason, his
   report of the delivery test, verbatim: "Gmail sorted the sign-in email into Promotions in the

@@ -13,6 +13,7 @@ import { TextLink } from "../../ui/TextLink";
  * name is app config (`brand.ts`), never typed in the catalogue.
  */
 const INTRO = fillTemplate(uk.about.intro, { site: WORDMARK });
+const INDEPENDENT = fillTemplate(uk.about.independent, { site: WORDMARK });
 
 /** The dataset page and the licence URL are the data.gov.ua record's own (CKAN `license_url`, read 2026-10-30). */
 const CODIFIER_DATASET_URL = "https://data.gov.ua/dataset/43c2a113-a032-4c8a-a409-3b5e1660bb38";
@@ -99,6 +100,7 @@ export function renderAboutPage(kabinetSignedIn: boolean) {
       <Text look="lead" className="text-ink-2">
         {INTRO}
       </Text>
+      <Text look="hint">{INDEPENDENT}</Text>
       <Text look="lead" className="text-ink-2">
         {uk.about.free}
       </Text>

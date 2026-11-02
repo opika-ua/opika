@@ -3,6 +3,13 @@ import { describe, expect, it } from "vitest";
 import { metadata, renderAboutPage } from "./page";
 
 describe("AboutPage", () => {
+  it("states it is run by one person, independent of any state or city service", () => {
+    render(renderAboutPage(false));
+    expect(
+      screen.getByText("Opika робить одна людина, незалежно. Це не державний і не міський сервіс."),
+    ).toBeTruthy();
+  });
+
   it("sets its own canonical (PR B, the SEO review of page titles)", () => {
     expect(metadata.alternates?.canonical).toBe("/pro");
   });

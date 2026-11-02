@@ -6,6 +6,8 @@ import type {
 } from "@opika/contracts";
 import { animalRepo, revealRepo, shelterRepo } from "@opika/db/repos";
 import {
+  type AdopterId,
+  type Animal,
   type ContactReveal,
   isDiscoverable,
   isPubliclyVerified,
@@ -42,6 +44,7 @@ export type AnimalsRevealErrors = ORPCErrorConstructorMap<{
  * - Is idempotent: a second reveal for the same animal returns the existing one
  * - Writes an immutable audit record with a denormalised shelter snapshot
  *   (exact address included, for the operator; `toView` leaves it out)
+ * - A validated shelter session is neither recorded nor counted per adopter (per IP still)
  * - Rate-limits per adopter via a Postgres counter (survives across instances),
  *   held by a guarded write under a lock on the adopter's row (audit F8), and
  *   per IP on top of it (audit F1)
@@ -77,6 +80,15 @@ export async function animalsReveal(
   // current name and contacts (K4-B4, RUI4-F1), never the first-reveal record's.
   const current = currentShelterContactOf(shelter);
 
+  // A validated shelter (kabinet) session looking at a card is not an adopter: nothing is
+  // recorded and the per-adopter budget is not used. The per-IP budget still is (anti-abuse).
+  if (await isKabinetViewer(context)) {
+    if (!(await spendPerIpBudget(context.caller, "newShelterReveals", context.now))) {
+      throw perIpBudgetSpent();
+    }
+    return toView(revealOf(context.adopterId, animal, shelter, context.now), current);
+  }
+
   // Idempotent: return existing reveal if one exists
   const reveals = revealRepo(context.db);
   const existing = await reveals.findByAdopterAndAnimal(context.adopterId, animal.id);
@@ -102,12 +114,33 @@ export async function animalsReveal(
     throw perIpBudgetSpent();
   }
 
-  const reveal: ContactReveal = {
+  const reveal = revealOf(context.adopterId, animal, shelter, context.now);
+
+  // The check above can be passed by two reveals at once; this write holds the budget (audit F8).
+  return toView(await writeRevealWithinRateLimit(context.db, reveal, errors), current);
+}
+
+/** A lookup that throws or is unavailable means a visitor: the normal, recorded path. */
+async function isKabinetViewer(context: AppContext): Promise<boolean> {
+  try {
+    return (await context.isKabinetSession?.()) === true;
+  } catch {
+    return false;
+  }
+}
+
+function revealOf(
+  adopterId: AdopterId,
+  animal: Animal,
+  shelter: Shelter,
+  now: Date,
+): ContactReveal {
+  return {
     id: RevealIdSchema.parse(crypto.randomUUID()) as RevealId,
-    adopterId: context.adopterId,
+    adopterId,
     animalId: animal.id,
     shelterId: shelter.id,
-    revealedAt: context.now,
+    revealedAt: now,
     shelterSnapshot: {
       shelterId: shelter.id,
       displayName: shelter.displayName,
@@ -122,9 +155,6 @@ export async function animalsReveal(
       primaryPhoto: primaryPhoto(animal),
     },
   };
-
-  // The check above can be passed by two reveals at once; this write holds the budget (audit F8).
-  return toView(await writeRevealWithinRateLimit(context.db, reveal, errors), current);
 }
 
 /**

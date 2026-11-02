@@ -44,17 +44,30 @@ export type MascotPose =
   | { kind: "cat"; pose: "lie"; variant?: never }
   | { kind: "dog"; pose: "sit" | "lie" | "stand"; variant?: never };
 
-export type MascotProps = MascotPose & {
-  size: MascotSize;
-  /**
-   * Sits on the top edge of its nearest positioned ancestor (the element needs `relative`), at
-   * the given inset from that corner. Without it the mascot is an ordinary inline-level block.
-   */
-  perch?: "top-left" | "top-right";
-  offset?: MascotOffset;
-  /** Layout only (margin, self alignment). */
-  className?: string;
-};
+/**
+ * `top-left` / `top-right`: sits on the top edge of the nearest positioned ancestor (it needs `relative`)
+ * at the inset `offset`. `word`: centred on the letters of the `PerchedWords` word it is rendered in,
+ * its feet on the cap line (`--cap-offset`), so it takes no offset. No perch: an ordinary inline block.
+ */
+export type MascotPerchProps =
+  | { perch?: undefined; offset?: MascotOffset }
+  | { perch: "top-left" | "top-right"; offset?: MascotOffset }
+  | { perch: "word"; offset?: never };
+
+export type MascotProps = MascotPose &
+  MascotPerchProps & {
+    size: MascotSize;
+    /** Layout only (margin, self alignment). */
+    className?: string;
+  };
+
+/** Top padding that reserves the room a word-perched mascot of this size takes above its line. */
+export const MASCOT_RESERVE_CLASS = {
+  32: "pt-8",
+  48: "pt-8 tablet:pt-12",
+  64: "pt-12 tablet:pt-16",
+  96: "pt-16 tablet:pt-24",
+} as const satisfies Record<MascotSize, string>;
 
 function perchClass(perch: "top-left" | "top-right", offset: MascotOffset): string {
   const compact = compactOffset(offset) as keyof typeof COMPACT_LEFT_CLASS;
@@ -99,6 +112,8 @@ export function mascotKey({ kind, pose, variant }: MascotPose): MascotShapeKey {
  * per screen, never on cards, controls or over photos (`docs/ui/components/Mascot.md`).
  */
 export function Mascot({ size, perch, offset = 0, className, ...pose }: MascotProps) {
+  const perchClasses =
+    perch === "word" ? "mascot-word-perch" : perch && perchClass(perch, offset as MascotOffset);
   const shape = MASCOT_SHAPES[mascotKey(pose)];
   return (
     <svg
@@ -112,7 +127,7 @@ export function Mascot({ size, perch, offset = 0, className, ...pose }: MascotPr
         HEIGHT[size],
         HEIGHT_PHONE[size],
         COMPACT_HEIGHT_CLASS[size],
-        perch && perchClass(perch, offset),
+        perchClasses,
         className,
       )}
     >

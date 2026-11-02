@@ -28,22 +28,25 @@ const MOMENT = "[data-mascot-group], [data-mascot]:not([data-mascot-group] [data
 /** Per mascot moment (a group counts once): where it is, and what is under its centre point. */
 async function moments(page: Page) {
   return page.locator(MOMENT).evaluateAll((nodes) =>
-    nodes.map((node) => {
-      const box = node.getBoundingClientRect();
-      const top = box.top + window.scrollY;
-      const under = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-      return {
-        top,
-        width: box.width,
-        left: box.left,
-        right: box.right,
-        viewportWidth: window.innerWidth,
-        key: node.getAttribute("data-mascot") ?? "group",
-        // Off screen, elementFromPoint is null: a click can only be taken where the mascot is shown.
-        onScreen: box.bottom > 0 && box.top < window.innerHeight,
-        underIsMascot: under?.closest("[data-mascot], [data-mascot-group]") != null,
-      };
-    }),
+    // A mascot hidden by the breakpoint (display: none) is no moment.
+    nodes
+      .filter((node) => node.getBoundingClientRect().width > 0)
+      .map((node) => {
+        const box = node.getBoundingClientRect();
+        const top = box.top + window.scrollY;
+        const under = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return {
+          top,
+          width: box.width,
+          left: box.left,
+          right: box.right,
+          viewportWidth: window.innerWidth,
+          key: node.getAttribute("data-mascot") ?? "group",
+          // Off screen, elementFromPoint is null: a click can only be taken where the mascot is shown.
+          onScreen: box.bottom > 0 && box.top < window.innerHeight,
+          underIsMascot: under?.closest("[data-mascot], [data-mascot-group]") != null,
+        };
+      }),
   );
 }
 
@@ -208,3 +211,107 @@ for (const viewport of [DESKTOP_1440, PHONE_393, PHONE_360, PHONE_320]) {
     });
   });
 }
+
+/**
+ * Word perch: the mascot is centred on the last word of the heading's first line and its feet sit on
+ * that word's cap line. Its own client address, so the extra loads never spend the budget above.
+ */
+const PERCH_WIDTHS = [320, 360, 393, 1024, 1440] as const;
+const PERCH_VARIANTS = [
+  { name: "hero-cat", route: "/tvaryny", ready: CARD, heading: "h1", key: "cat-lie" },
+  { name: "hero-dog", route: "/tvaryny?vyd=dog", ready: CARD, heading: "h1", key: "dog-lie" },
+  {
+    name: "no-match",
+    route: "/tvaryny?vyd=cat&rozmir=large",
+    ready: "[data-testid='gallery-no-match']",
+    heading: "#gallery-no-match-heading",
+    key: "cat-lie",
+  },
+] as const;
+
+test.describe("mascot on a word", () => {
+  test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.66" } });
+
+  for (const variant of PERCH_VARIANTS) {
+    for (const width of PERCH_WIDTHS) {
+      test(`${variant.name} at ${width}: centred on the anchor word, feet on its cap line, clear of the chrome`, async ({
+        page,
+      }) => {
+        const viewport: Viewport = { name: `${width}`, width, height: 800 };
+        await openRoute(page, variant.route, viewport, { readySelector: variant.ready });
+        await page.evaluate(() => document.fonts.ready);
+        const m = await page
+          .locator(variant.heading)
+          .first()
+          .evaluate(async (heading, key) => {
+            await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+            const mascot = heading.querySelector(`[data-mascot='${key}']`) as SVGElement | null;
+            if (mascot === null) return null;
+            const anchor = mascot.parentElement as HTMLElement;
+            const words = Array.from(heading.querySelectorAll<HTMLElement>("[data-word]"));
+            const textNode = Array.from(anchor.childNodes).find((n) => n.nodeType === 3) as Text;
+            const range = document.createRange();
+            range.selectNodeContents(textNode);
+            const word = range.getBoundingClientRect();
+            const style = getComputedStyle(anchor);
+            const ctx = document
+              .createElement("canvas")
+              .getContext("2d") as CanvasRenderingContext2D;
+            ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+            // The letters' top: lowercase, which is what the anchor words are made of.
+            const capHeight = ctx.measureText("н").actualBoundingBoxAscent;
+            const ascent = ctx.measureText("н").fontBoundingBoxAscent;
+            const capTop = word.top + ascent - capHeight;
+            const box = mascot.getBoundingClientRect();
+            const index = words.indexOf(anchor);
+            const lineTop = words[0]?.offsetTop ?? 0;
+            const obstacles = Array.from(
+              document.querySelectorAll<HTMLElement>(
+                "header, header a, a[href], button, input, select, [role='tab'], [role='radio']",
+              ),
+            )
+              .filter((el) => !heading.contains(el) && el.getBoundingClientRect().width > 0)
+              .map((el) => el.getBoundingClientRect())
+              .filter(
+                (r) =>
+                  r.left < box.right &&
+                  r.right > box.left &&
+                  r.top < box.bottom &&
+                  r.bottom > box.top,
+              ).length;
+            return {
+              anchorWord: anchor.textContent,
+              dx: Math.abs(box.left + box.width / 2 - (word.left + word.width / 2)),
+              dy: box.bottom - capTop,
+              onFirstLine: anchor.offsetTop === lineTop,
+              nextWrapped:
+                words[index + 1] === undefined || words[index + 1]?.offsetTop !== lineTop,
+              obstacles,
+            };
+          }, variant.key);
+        expect(m, "the heading carries its mascot").not.toBeNull();
+        if (m === null) return;
+        expect(m.onFirstLine && m.nextWrapped, "anchor is the last word of the first line").toBe(
+          true,
+        );
+        // The gallery title scales down below 360px so «дім» never leaves the first line.
+        if (variant.name.startsWith("hero")) {
+          expect(m.anchorWord, "the mascot sits on «дім»").toBe("дім");
+        }
+        expect(m.dx, "centre within 4px of the word's centre").toBeLessThanOrEqual(4);
+        expect(
+          Math.abs(m.dy - 1),
+          "feet within 2px of the cap top (1px overlap)",
+        ).toBeLessThanOrEqual(2);
+        expect(m.obstacles, "no overlap with the header, logo or filters").toBe(0);
+        expect(await noSidewaysScroll(page)).toBe(true);
+        const gutters = await moments(page);
+        for (const g of gutters) {
+          expect(g.left).toBeGreaterThanOrEqual(16);
+          expect(g.viewportWidth - g.right).toBeGreaterThanOrEqual(16);
+        }
+        await shoot(page, `perch-${variant.name}`, viewport);
+      });
+    }
+  }
+});

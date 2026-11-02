@@ -409,8 +409,12 @@ export const ukPublic = {
      * given a sentence; `SavedPageScreen.tsx` never reaches this key for a `null` name).
      */
     unavailable: "{name} більше не показується на сайті.",
-    /** The remove control on each saved-page card. */
-    remove: "Прибрати зі списку",
+    /** The remove control on each saved-page card: its accessible name and tooltip (owner-approved, 2026-11-01). */
+    removeFromSaved: "Прибрати зі збережених",
+    /** The toast shown after a card is removed from the saved page. */
+    removedToast: "Прибрано зі збережених",
+    /** The toast's action: puts the card back where it was. */
+    undo: "Повернути",
     /** `localStorage` threw (private mode, blocked storage) - the saved page's own notice. */
     storageBlocked: "Цей браузер не дає сайту зберегти ваш список.",
     /** Designer feedback batch C, his own text: aria-live while the saved page is reading ids/fetching cards, never shown as visible body text. */
@@ -1099,6 +1103,8 @@ export const ukPublic = {
     title: "Про проєкт",
     intro:
       "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.",
+    /** MK-7, owner-verbatim (2026-11-01); also shown on «Для притулків». */
+    independent: "{site} робить одна людина, незалежно. Це не державний і не міський сервіс.",
     free: "Сайт безкоштовний для притулків, без платних тарифів. Якщо це колись зміниться, кожен притулок дізнається про це заздалегідь, а не постфактум.",
     money:
       "Opika ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) – сайт лише показує посилання, гроші йдуть напряму, і видно, куди саме.",
@@ -1138,7 +1144,10 @@ export const ukPublic = {
       // DR1-Q4, his sentence, verbatim: landed with S8 (the saved page). Distinct from the
       // held R4-2 amendment above - that one is gated off /pro until the pre-launch cookie
       // conflict clears; this standalone sentence has no such gate and ships now.
-      "Список збережених тварин зберігається лише в цьому браузері. Щоб показати його актуальним, сайт запитує дані про цих тварин без кукі й не зберігає, яких саме.",
+      "Список збережених тварин зберігається лише в цьому браузері. Щоб показати його актуальним, сайт запитує дані про цих тварин без кукі й не зберігає, яких саме.\n\n" +
+      // H5, his sentence, verbatim (2026-11-01): names Sentry; what the code sends is pinned by
+      // apps/web/src/observability tests.
+      "Якщо на сайті стається збій, до сервісу відстеження помилок Sentry (сервери в ЄС) надсилається лише технічний опис: тип помилки, місце в коді, адреса сторінки без параметрів, браузер і система. Контакти, пошта, номери телефонів, вміст форм і кукі туди не потрапляють, а IP-адреси не зберігаються.",
     analytics:
       "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами.",
     contact: "Написати мені: {contact}",

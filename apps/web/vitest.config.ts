@@ -32,6 +32,9 @@ const TEST_DATABASE_TEARDOWN = "./test/vitest-global-setup.ts";
  * project at all, and a test file added there would not fail - it would simply
  * never run, which is the same silent green this whole branch exists to remove.
  */
+/** Resolved with the `browser` condition so `@sentry/nextjs` is its client build, as in a page. */
+const BROWSER_SDK_TESTS = "src/observability/client-*.test.ts";
+
 export default defineConfig({
   test: {
     projects: [
@@ -67,7 +70,13 @@ export default defineConfig({
           name: "dom",
           environment: "happy-dom",
           include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
-          exclude: [...configDefaults.exclude, "src/api/**", "src/kabinet/**", "src/proxy.test.ts"],
+          exclude: [
+            ...configDefaults.exclude,
+            "src/api/**",
+            "src/kabinet/**",
+            "src/proxy.test.ts",
+            BROWSER_SDK_TESTS,
+          ],
           setupFiles: ["./test/setup-dom.ts"],
           // Most files here are pure component tests with no DB. A growing
           // minority (src/app/page.test.tsx, src/app/tvaryny/page.test.tsx)
@@ -87,6 +96,17 @@ export default defineConfig({
           // migrates; vitest's 10 s default cut that wait off. Pinned by test-database-teardown.test.ts.
           hookTimeout: 60_000,
           globalSetup: [TEST_DATABASE_TEARDOWN],
+        },
+      },
+      {
+        resolve: { conditions: ["browser", "module", "import", "default"] },
+        ssr: { resolve: { conditions: ["browser", "module", "import", "default"] } },
+        test: {
+          name: "browser-sdk",
+          environment: "happy-dom",
+          include: [BROWSER_SDK_TESTS],
+          server: { deps: { inline: [/@sentry/] } },
+          setupFiles: ["./test/setup-dom.ts"],
         },
       },
     ],

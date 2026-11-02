@@ -50,7 +50,7 @@ export type ProductionSignIn =
       /**
        * One provider config per template (`emailRoutesOf`, EM-B6):
        * `production-mail.ts` passes `email.signIn` to `providerMagicLinkSender`
-       * and `email.invite` to the invitation sender and `cachedBlockList`
+       * and `email.invite` to the invitation sender and `blockListReaderOf`
        * (EM-T22).
        */
       email: EmailRoutes;

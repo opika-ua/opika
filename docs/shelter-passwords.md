@@ -28,7 +28,7 @@ key; any new string is given as its English sense, with the Ukrainian left to hi
 | `/reset-password` **creates** a credential account if the user has none | `password.mjs:162` | Without a guard, a reset would give the operator a password. That's the main hole (§4.6) |
 | Reset tokens are stored as `identifier = 'reset-password:<token>'`, in plain text by default | `password.mjs:77`, `db/internal-adapter.mjs:600` | His "stored hashed" needs `verification.storeIdentifier: { default: "plain", overrides: { "reset-password:": "hashed" } }` (SHA-256, built into 1.6.33, `verification-token-storage.mjs`) |
 | Sessions today: 7 days idle, 30 days absolute (HS-Q8); the absolute cap is enforced in our `hooks.before` and by the clean-up (`KABINET_SESSION_ABSOLUTE_MS`) | `auth.ts`, `auth-expiry-repo.ts` | F-B9's 30-day rolling / 90-day cap changes those two numbers (§4.5) |
-| Auth email goes through **Resend** (EM-B10: production sets `EMAIL_PROVIDER=resend`, `EMAIL_SIGN_IN_PROVIDER` unset; Brevo's code stayed as a grace-period rollback, refused in config since PW1-Q4, §4.4). Resend has **no per-message tracking option**: click and open tracking are per-domain settings, active only with a verified tracking subdomain. Our payloads carry no tracking field or header | `email-provider.ts:296`; Resend's API reference (send email; update domain) | His rule, "no tracking on any auth email, ever", is enforced at the Resend domain plus a payload test (§4.4). The code comments about Brevo's click tracker describe the provider being retired |
+| Auth email goes through **Resend** (EM-B10: production sets `EMAIL_PROVIDER=resend`, `EMAIL_SIGN_IN_PROVIDER` unset; Brevo's code stayed as a grace-period rollback, refused in config since PW1-Q4, §4.4, and removed with its DNS records, 2026-11). Resend has **no per-message tracking option**: click and open tracking are per-domain settings, active only with a verified tracking subdomain. Our payloads carry no tracking field or header | `email-provider.ts:296`; Resend's API reference (send email; update domain) | His rule, "no tracking on any auth email, ever", is enforced at the Resend domain plus a payload test (§4.4). Brevo is retired and out of the code |
 | Per-address limiter keys are plain (`address:<email>`); only IP keys are HMAC'd (EM-Q11) | `sign-in-limit.ts:36`, `invite-landing.ts:86` | "HMAC'd keys as now" is true for IPs, not for addresses (§9, Q7) |
 
 **PW1-F5 (2026-10-20), on the first row:** storing a password still needed no migration, but ending
@@ -237,8 +237,8 @@ to find accounts. Its message is the same for every address (§9, Q5).
      delivery test." The two steps are in `docs/onboarding-a-shelter.md` ("Every delivery test").
   3. **Resend only, in config** (2026-10-20, PW1-Q4). `EMAIL_PROVIDER` and
      `EMAIL_SIGN_IN_PROVIDER` accept `resend` alone (`AUTH_EMAIL_PROVIDERS`), so Brevo, whose
-     click tracker rewrites every link (IN-E8), can't carry an auth email; the delivery test
-     refuses `--…-provider brevo` by name. His answer, verbatim: "PW1-Q4: (a). Lock auth emails
+     click tracker rewrites every link (IN-E8), can't carry an auth email (Brevo is since
+     removed from the code; the delivery test's provider flags went with it). His answer, verbatim: "PW1-Q4: (a). Lock auth emails
      (sign-in, invite, reset, password changed) to Resend in config, with a test that a Brevo
      setting is refused for them. Note: the Brevo keys are already revoked, so this makes the
      current state explicit. The full Brevo removal stays planned for after the 14 Nov check."

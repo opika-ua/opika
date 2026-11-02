@@ -17,7 +17,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { expectReachableByTab, openRoute } from "./harness";
+import { expectReachableByTab, noSidewaysScroll, openRoute } from "./harness";
 import { DESKTOP, DETAIL_PHONE, NARROW_PHONE, PHONE } from "./viewports";
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.31" } });
@@ -78,6 +78,24 @@ async function seedASavedAnimal(page: import("@playwright/test").Page): Promise<
     );
   });
 }
+
+/** MK-7: the independence line sits in the content of «Про проєкт» and «Для притулків». */
+test.describe("the independence line is visible and does not widen the page", () => {
+  const wide = { name: "1440x900 wide", width: 1440, height: 900 };
+  for (const route of [ABOUT, FOR_SHELTERS]) {
+    for (const viewport of [NARROW_PHONE, wide]) {
+      test(`${route} at ${viewport.width}`, async ({ page }) => {
+        await openRoute(page, route, viewport, { readySelector: HEADER });
+        await expect(
+          page.getByText(
+            "Opika робить одна людина, незалежно. Це не державний і не міський сервіс.",
+          ),
+        ).toBeVisible();
+        expect(await noSidewaysScroll(page)).toBe(true);
+      });
+    }
+  }
+});
 
 test.describe("the header is on every user-facing surface except the deck", () => {
   for (const [name, route] of [

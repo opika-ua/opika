@@ -36,6 +36,7 @@
     "@orpc/server": "catalog:",
     "@upstash/ratelimit": "catalog:",
     "@upstash/redis": "catalog:",
+    "@sentry/nextjs": "catalog:",
     "@vercel/analytics": "catalog:",
     "@vercel/speed-insights": "catalog:",
     "@better-auth/core": "catalog:",

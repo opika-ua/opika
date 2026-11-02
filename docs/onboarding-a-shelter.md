@@ -635,8 +635,8 @@ hand: the Resend dashboard shows click and open tracking off, and the links in t
 are plain. Add both as runbook steps for each delivery test."
 
 1. **Run it:** `pnpm --filter @opika/web email:delivery-test --to <address>`. The key is
-   `RESEND_API_KEY` in the repo-root `.env.local`, a sending-only one. `--sign-in-provider brevo`
-   and `--invite-provider brevo` are refused: auth emails are locked to Resend (PW1-Q4).
+   `RESEND_API_KEY` in the repo-root `.env.local`, a sending-only one. Both emails go through
+   Resend: auth emails are locked to it (PW1-Q4) and the script takes no provider flag.
 2. **The Resend dashboard shows click and open tracking off:** Resend → Domains → the sending
    subdomain (`mail.opika.org.ua`), both switches off.
 3. **The links in the received email are plain:** in each of the two emails, the link points
@@ -647,6 +647,11 @@ If either check shows tracking, turn it off in Resend (Domains, the sending subd
 anything else is sent.
 
 ## DMARC: raising the policy (launch gate, Oleksii's step)
+
+**Status, 2026-11-02: DONE at `p=quarantine`.** Oleksii removed the Brevo DNS records (both DKIM CNAMEs and
+the `brevo-code` TXT), raised both records to `p=quarantine` and verified `mail.opika.org.ua` in Google
+Postmaster Tools. A test mail from `hello@opika.org.ua` passed SPF, DKIM and DMARC, aligned. `p=reject`
+is a later follow-up, after a week of clean reports. The text below stays as the record of the step.
 
 Before the first real shelter (`docs/build-plan.md` Part 5), he reviews the DMARC aggregate
 reports that arrive at `dmarc@`, then raises both DMARC records in Cloudflare DNS. Oleksii,
@@ -684,6 +689,14 @@ goes through `p=quarantine` first. Both records, not only the apex: EA-Q1 below.
   4. **Check the next DMARC reports** for anything failing **before** going to `p=reject` (both
      records, the same `rua`).
 - **All DNS changes are his** ("I make all DNS changes myself").
+
+## The apex sending domain and `hello@` (Oleksii, 2026-11-02)
+
+`opika.org.ua` (the apex) is a second Resend domain (EU region), next to `mail.opika.org.ua`. Its DNS
+records are the `resend._domainkey` DKIM and the `rsend` and `send` CNAMEs. `hello@opika.org.ua` sends
+through Gmail "Send mail as" over Resend SMTP, with a sending-only key scoped to `opika.org.ua`. The
+key lives only in Resend and in Gmail's account settings, never in the repo. Test mail: SPF, DKIM and
+DMARC all pass, aligned. The auth emails still send from `mail.opika.org.ua` through the app's own key.
 
 ## Debugging sign-in: share a name and an email, never the response
 

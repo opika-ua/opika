@@ -44,6 +44,7 @@ A card's or a shelter's state, as a soft tint with its own text colour (`Chip ki
 |---|---|---|---|
 | `text-display-xl` | 48 / 1.1 | 400 | hero, in `font-display` |
 | `text-display-l` | 32 / 1.15 | 400 | page title, in `font-display` |
+| `text-display-m` | 28 / 1.15 | 400 | the gallery title below 360px only (keeps «Шукають дім» on one line) |
 | `text-title` | 26 / 1.2 | 700 | section headings |
 | `text-body-l` | 20 / 1.4 | 400 | lead text; bold for h3 |
 | `text-body` | 16 / 1.4 | 400 | body |

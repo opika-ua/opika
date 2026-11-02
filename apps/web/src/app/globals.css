@@ -81,6 +81,11 @@
   --text-display-l--line-height: 1.15;
   --text-display-l--font-weight: 400;
   --text-display-l--letter-spacing: 0;
+  /* The gallery title on phones under 360px, so «Шукають дім» stays on one line. */
+  --text-display-m: 28px;
+  --text-display-m--line-height: 1.15;
+  --text-display-m--font-weight: 400;
+  --text-display-m--letter-spacing: 0;
   --text-title: 26px;
   --text-title--line-height: 1.2;
   --text-title--font-weight: 700;
@@ -244,6 +249,10 @@
 @utility gcard-badges {
   @apply contents tablet:absolute tablet:inset-x-4 tablet:top-4 tablet:flex tablet:flex-wrap tablet:items-start tablet:gap-2;
 }
+/* The saved page puts a 44px bookmark in the photo's top-right corner; the badges stop short of it. */
+@utility gcard-badges-saved {
+  @apply gcard-badges tablet:right-16;
+}
 /* The species dot is a pseudo-element in `--dot` (set by gcard-dog / gcard-cat). */
 @utility gcard-fresh-st {
   @apply order-last flex items-center gap-2 text-caption text-ink-2;
@@ -281,6 +290,21 @@
 @utility gcard-pill {
   @apply hidden w-fit shrink-0 items-center justify-center gap-2 rounded-pill bg-ink px-6 text-label min-h-target text-on-ink tablet:mt-2 tablet:inline-flex;
 }
+/* The saved page's card leaving: its row collapses to nothing in 200 ms (none under reduced motion, where the island skips it). */
+@utility saved-item {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 200ms,
+    opacity 200ms;
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+@utility saved-item-leaving {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
 @utility meta-line {
   @apply flex flex-wrap items-center gap-x-2 text-ink-2;
 }
@@ -314,6 +338,23 @@
 main:focus {
   outline: none;
 }
+/*
+ * A mascot perched on a word of a display heading (ui/Mascot `perch="word"`): centred on the word, its
+ * feet on the letters. --cap-offset is the gap between the top of the display face's line box and the
+ * top of its lowercase letters (1.07em ascent - 0.62em x-height, measured on Climate Crisis; its
+ * capitals reach 0.75em, so a capital pokes 0.13em above the feet). Re-measure if the face changes.
+ * The 1px overlap keeps the feet on the letters instead of hovering over them.
+ */
+:root {
+  --cap-offset: 0.45em;
+}
+.mascot-word-perch {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(100% - var(--cap-offset) - 1px);
+}
+
 /* A native <dialog> sheet opened with no JS: the trigger is an <a href="#id"> (ui/Sheet). */
 dialog[data-hash-open]:target {
   display: block;

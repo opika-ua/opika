@@ -15,6 +15,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     "registry of dirty sections and the save-all state of the page bar",
   "features/kabinet/shared/save-pill.tsx":
     "the 4 s confirmation timer with hover/focus pause, and the phone/desktop media query",
+  "ui/PerchedWords.tsx":
+    "measures which word ends the first line (layout and font decide) to seat the mascot",
   "ui/Menu.tsx": "controlled open state, outside-press and Esc listeners",
   "ui/Modal.tsx": "controlled dialog; refs and the dialog core",
   "ui/ErrorSummary.tsx":
@@ -23,10 +25,13 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/ComboboxMulti.tsx":
     "open state, query, active row, top-layer popover positioning, key handling",
   "ui/Popover.tsx": "open state, outside-press and Esc listeners",
+  "ui/Tooltip.tsx": "hover and focus state, Esc listener, top-layer positioning",
   "ui/InfoTip.tsx": "open state, outside-press, Esc and focus listeners, top-layer positioning",
   "ui/StickyActionBar.tsx":
     "VisualViewport listeners (keyboard lift), ResizeObserver and a focus listener for scroll padding",
   "ui/Sheet.tsx": "open state and hash-link upgrade to showModal; no-JS :target path stays",
+  "app/global-error.tsx":
+    "Next error boundary for a throwing root layout (must be client); reports the error, retry button",
   "app/tvaryny/error.tsx": "Next error boundary (must be client); retry button, focus on mount",
   "app/tvaryny/gortaty/error.tsx": "Next error boundary (must be client); retry button",
   "features/animal-detail/RevealFlow.tsx":

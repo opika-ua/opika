@@ -3,6 +3,8 @@ import {
   isAnimalSaved,
   MAX_LIKES,
   readLikesStore,
+  removeSavedAnimal,
+  restoreSavedAnimal,
   subscribeToLikesChanges,
   toggleSavedAnimal,
 } from "./likes-store";
@@ -161,5 +163,59 @@ describe("subscribeToLikesChanges", () => {
     unsubscribe();
     toggleSavedAnimal("a1", new Date());
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("removeSavedAnimal and restoreSavedAnimal", () => {
+  const ids = () => readLikesStore().items.map((item) => item.animalId);
+
+  it("removes at once and hands back what the undo needs", () => {
+    toggleSavedAnimal("a", new Date("2026-10-21T00:00:00.000Z"));
+    toggleSavedAnimal("b", new Date("2026-10-22T00:00:00.000Z"));
+    toggleSavedAnimal("c", new Date("2026-10-23T00:00:00.000Z"));
+    expect(ids()).toEqual(["c", "b", "a"]);
+    const removed = removeSavedAnimal("b");
+    expect(removed).toEqual({ animalId: "b", likedAt: "2026-10-22T00:00:00.000Z", index: 1 });
+    expect(ids()).toEqual(["c", "a"]);
+  });
+
+  it("an id that is not saved removes nothing", () => {
+    toggleSavedAnimal("a", NOW);
+    expect(removeSavedAnimal("zzz")).toBeNull();
+    expect(ids()).toEqual(["a"]);
+  });
+
+  it("restores into the same place with the same date", () => {
+    toggleSavedAnimal("a", new Date("2026-10-21T00:00:00.000Z"));
+    toggleSavedAnimal("b", new Date("2026-10-22T00:00:00.000Z"));
+    toggleSavedAnimal("c", new Date("2026-10-23T00:00:00.000Z"));
+    const removed = removeSavedAnimal("b");
+    if (removed === null) throw new Error("expected a removal");
+    expect(restoreSavedAnimal(removed)).toEqual({ kind: "saved" });
+    expect(readLikesStore().items.map((item) => [item.animalId, item.likedAt])).toEqual([
+      ["c", "2026-10-23T00:00:00.000Z"],
+      ["b", "2026-10-22T00:00:00.000Z"],
+      ["a", "2026-10-21T00:00:00.000Z"],
+    ]);
+  });
+
+  it("clamps the place when the list got shorter, and never duplicates", () => {
+    toggleSavedAnimal("a", NOW);
+    toggleSavedAnimal("b", NOW);
+    const removed = removeSavedAnimal("a");
+    if (removed === null) throw new Error("expected a removal");
+    removeSavedAnimal("b");
+    restoreSavedAnimal(removed);
+    restoreSavedAnimal(removed);
+    expect(ids()).toEqual(["a"]);
+  });
+
+  it("refuses to restore past the cap", () => {
+    toggleSavedAnimal("a", NOW);
+    const removed = removeSavedAnimal("a");
+    if (removed === null) throw new Error("expected a removal");
+    for (let i = 0; i < MAX_LIKES; i++) toggleSavedAnimal(`x${i}`, NOW);
+    expect(restoreSavedAnimal(removed)).toEqual({ kind: "cap_reached" });
+    expect(isAnimalSaved("a")).toBe(false);
   });
 });

@@ -14,14 +14,12 @@ type NotFound = ORPCErrorConstructorMap<Pick<typeof apiErrors, "NOT_FOUND">>;
  *
  * The shelter's addresses are its admins and pending invitations, the same
  * list S4 shows. The provider's list is read through the invitation channel's
- * cached reader (`cachedBlockList`), so it is paged at most once per cache
- * window however many shelters the operator opens. What can't be read is
+ * reader (`blockListReaderOf`). What can't be read is
  * `unknown` and what was cut off by the page cap is `incomplete`: neither is
  * ever answered as an empty `checked` list. With the invite route on Resend
  * (EM-B10) the answer is `unknown` (`provider_suppresses`): Resend filters on
- * a suppression list this doesn't read yet (follow-up EM-F1). The Brevo read
- * stays in the code, unreachable now that config routes auth emails to Resend
- * only (PW1-Q4), until Brevo's removal. A shelter with no addresses has
+ * a suppression list this doesn't read yet (follow-up EM-F1). (Brevo's
+ * block-list read is gone with Brevo.) A shelter with no addresses has
  * nothing to look up, so its answer is an honest empty `checked`, without a
  * call to the provider.
  */

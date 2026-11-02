@@ -273,6 +273,90 @@ describe("Toast", () => {
     }
   });
 
+  function ActionTrigger({ onUndo }: { onUndo: () => void }) {
+    const { show } = useToast();
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          show("Прибрано", "info", {
+            durationMs: 6000,
+            action: { label: "Повернути", onAction: onUndo },
+          })
+        }
+      >
+        Показати
+      </button>
+    );
+  }
+
+  it("an action runs once, dismisses the toast and is gone after the time", () => {
+    vi.useFakeTimers();
+    try {
+      const onUndo = vi.fn();
+      const { container } = render(
+        <ToastProvider dismissLabel="Закрити">
+          <ActionTrigger onUndo={onUndo} />
+        </ToastProvider>,
+      );
+      const region = container.querySelector('[aria-live="polite"]') as HTMLElement;
+      fireEvent.click(screen.getByRole("button", { name: "Показати" }));
+      expect(screen.getByRole("button", { name: "Повернути" })).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(5999);
+      });
+      expect(screen.getByRole("button", { name: "Повернути" })).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(screen.queryByRole("button", { name: "Повернути" })).toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: "Показати" }));
+      fireEvent.click(screen.getByRole("button", { name: "Повернути" }));
+      expect(onUndo).toHaveBeenCalledTimes(1);
+      expect(region.textContent).toBe("");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the timer waits while the pointer is on the toast and restarts when it leaves", () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <ToastProvider dismissLabel="Закрити">
+          <ActionTrigger onUndo={() => {}} />
+        </ToastProvider>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Показати" }));
+      const action = screen.getByRole("button", { name: "Повернути" });
+      fireEvent.mouseEnter(action.parentElement as HTMLElement);
+      act(() => {
+        vi.advanceTimersByTime(20000);
+      });
+      expect(screen.getByRole("button", { name: "Повернути" })).toBeTruthy();
+      fireEvent.mouseLeave(action.parentElement as HTMLElement);
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(screen.queryByRole("button", { name: "Повернути" })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("showing a toast with an action does not move focus", () => {
+    render(
+      <ToastProvider dismissLabel="Закрити">
+        <ActionTrigger onUndo={() => {}} />
+      </ToastProvider>,
+    );
+    const trigger = screen.getByRole("button", { name: "Показати" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("useToast outside a provider fails loudly", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => render(<Trigger />)).toThrow(/ToastProvider/);

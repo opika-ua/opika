@@ -183,7 +183,7 @@ of it.
 
 **Verification:** each step of RU-B5 IS its own verification - this is a human walkthrough,
 not a scripted check. The point is confirming the real kabinet, real email delivery
-(Resend/Brevo, whichever is live), and the real adopter-facing surfaces all work end to end
+(Resend), and the real adopter-facing surfaces all work end to end
 against production, immediately after a reset that touched every one of their tables.
 
 **Rollback:** none needed mid-rehearsal - nothing here is a one-way action. If something is

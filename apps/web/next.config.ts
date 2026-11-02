@@ -1,5 +1,7 @@
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 import { assertBuildEnv } from "./src/api/build-env";
+import { sentryBuildOptions } from "./src/observability/build-options";
 import { securityHeaders } from "./src/security-headers";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./src/seo-flags";
 
@@ -132,4 +134,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// H5: wrapped only when a DSN or a source-map upload is configured, so every other build (local,
+// CI, the harness) is the unwrapped config. No `tunnelRoute`: the tunnel is our own route.
+const sentryOptions = sentryBuildOptions(process.env);
+export default sentryOptions === null ? nextConfig : withSentryConfig(nextConfig, sentryOptions);

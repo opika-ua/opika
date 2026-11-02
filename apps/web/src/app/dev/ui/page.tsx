@@ -25,10 +25,11 @@ import { CheckboxGroup, ChipGroup, RadioGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
 import { ICON_NAMES, Icon } from "../../../ui/Icon";
 import { InfoTip } from "../../../ui/InfoTip";
-import { Mascot, MascotPerch, type MascotPose } from "../../../ui/Mascot";
+import { MASCOT_RESERVE_CLASS, Mascot, MascotPerch, type MascotPose } from "../../../ui/Mascot";
 import { MetaLine } from "../../../ui/MetaLine";
 import { Pagination } from "../../../ui/Pagination";
 import { Panel } from "../../../ui/Panel";
+import { PerchedWords } from "../../../ui/PerchedWords";
 import { Photo } from "../../../ui/Photo";
 import { PhotoSlider } from "../../../ui/PhotoSlider";
 import { PrevNext } from "../../../ui/PrevNext";
@@ -55,6 +56,7 @@ import {
   SheetDemo,
   ToastDemo,
   ToggleChipDemo,
+  TooltipDemo,
 } from "./Demos";
 import { SegmentedDemo } from "./SegmentedDemo";
 
@@ -610,6 +612,9 @@ export default function DevUiPage() {
           <Toast tone="error" message="Could not save" dismissLabel="Dismiss" />
           <ToastDemo />
         </Row>
+        <Row label="Tooltip (hover or focus the bookmark)">
+          <TooltipDemo />
+        </Row>
       </Group>
 
       <Group id="g-mascots" title="Mascots">
@@ -640,6 +645,14 @@ export default function DevUiPage() {
               <Mascot kind="dog" pose="sit" size={32} />
             </MascotPerch>
           </div>
+        </Row>
+        <Row label="Perch: on a word (last word of the first line)">
+          <Heading level={2} look="display-l" className={MASCOT_RESERVE_CLASS[48]}>
+            <PerchedWords
+              text="Шукають дім"
+              mascot={<Mascot kind="cat" pose="lie" size={48} perch="word" />}
+            />
+          </Heading>
         </Row>
       </Group>
 
