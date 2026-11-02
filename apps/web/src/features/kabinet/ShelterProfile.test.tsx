@@ -529,7 +529,7 @@ describe("Притулок: the public page link and the sub-tabs", () => {
     const ruled = tabs.filter((tab) => tab.className.includes("after:bg-ink"));
     expect(ruled.map((tab) => tab.textContent)).toEqual(["Збір коштів"]);
     for (const tab of tabs) {
-      expect(tab.className).not.toContain("bg-ink");
+      expect(tab.className.split(" ")).not.toContain("bg-ink");
       expect(tab.className).not.toContain("rounded-pill");
     }
   });
