@@ -37,7 +37,8 @@ describe("AnimalPage", () => {
     expect(screen.getByRole("link", { name: "← Тварини" }).getAttribute("href")).toBe(
       "/kabinet/tvaryny",
     );
-    expect(screen.getByRole("button", { name: "Вийти" })).toBeTruthy();
+    // Sign-out is in the header's account menu, under the shelter's name.
+    expect(screen.getByRole("button", { name: shelter.displayName })).toBeTruthy();
   });
 
   /** P1: the list 404s for a shelter whose writes are refused, so «←» can't point there. */

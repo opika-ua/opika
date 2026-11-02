@@ -12,16 +12,23 @@ export function EmptyState({
   title,
   body,
   action,
+  inset = "panel",
   className,
 }: {
   title: string;
   body?: string;
   /** Usually a LinkButton or Button. */
   action?: ReactNode;
+  /** `none`: no padding, so the text starts on the column's own left edge (a list page). */
+  inset?: "panel" | "none";
   className?: string;
 }) {
   return (
-    <Panel tone="surface" padding="lg" className={cx("flex flex-col items-start gap-3", className)}>
+    <Panel
+      tone="surface"
+      padding={inset === "none" ? "none" : "lg"}
+      className={cx("flex flex-col items-start gap-3", className)}
+    >
       <Heading level={2} look="title">
         {title}
       </Heading>

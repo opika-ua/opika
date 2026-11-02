@@ -223,15 +223,21 @@ export function SavePill({
 export function SaveStatusLine({
   message,
   state,
+  srOnly = false,
 }: {
   message: string | null;
   state: SaveBarState | null;
+  /** Heard, not drawn: the page shows its state elsewhere (the save bar). */
+  srOnly?: boolean;
 }) {
   return (
     <p
       role="status"
       aria-live="polite"
-      className="flex min-h-5 items-center gap-2 text-caption text-ink-2"
+      className={cx(
+        "items-center gap-2 text-caption text-ink-2",
+        srOnly ? "sr-only" : "flex min-h-5",
+      )}
     >
       {message === null ? null : (
         <>

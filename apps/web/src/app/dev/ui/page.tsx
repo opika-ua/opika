@@ -465,6 +465,18 @@ export default function DevUiPage() {
             ]}
           />
         </Row>
+        <Row label="Tabs (underline look: the kabinet's second level)">
+          <Tabs
+            label="Shelter sections, underline"
+            look="underline"
+            className="w-full"
+            tabs={[
+              { id: "profile", label: "Profile", panel: <Text>Profile panel</Text> },
+              { id: "contacts", label: "Contacts", panel: <Text>Contacts panel</Text> },
+              { id: "fund", label: "Fundraising", panel: <Text>Fundraising panel</Text> },
+            ]}
+          />
+        </Row>
         <Row label="BottomNav (a fixed bar; contained here)">
           <div className="relative h-20 w-full transform-gpu overflow-hidden rounded-panel border-2 border-line">
             <BottomNav

@@ -53,7 +53,7 @@ export default async function OperatorShelterPage({ params }: { params: Params }
       break;
     case "shelter":
       return (
-        <OperatorShell operator={request.operator} current={null}>
+        <OperatorShell current={null}>
           <ShelterActionsScreen
             view={shelter.view}
             cityName={shelter.cityName}

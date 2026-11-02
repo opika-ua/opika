@@ -8,6 +8,7 @@ import { cx } from "./cx";
 const LOOK = {
   "display-xl": "font-display text-display-xl",
   "display-l": "font-display text-display-l",
+  "display-m": "font-display text-display-m",
   title: "text-title",
   /** A form or page section: 20px bold on a phone, the 26px title from tablet. */
   section: "text-body-l font-bold tablet:text-title",

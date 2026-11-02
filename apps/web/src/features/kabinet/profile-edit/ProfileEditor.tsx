@@ -2,7 +2,7 @@
 
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   type KabinetProfileClient,
   kabinetProfileBrowserClient,
@@ -26,8 +26,8 @@ const SECTION_TAB: Record<string, ProfileTab> = { contacts: "kontakty", voice: "
 
 /**
  * K4 with writes open for this shelter (the page decided, with the router's own `decideAccess`
- * and policy), as sub-tabs: Профіль (logo, the sentence), Контакти, Збір коштів, Перевірка
- * (read-only), Акаунт (pause, password). The tab is addressable as `?tab=` and kept in the URL
+ * and policy), as sub-tabs: Профіль (logo, the sentence, pause), Контакти, Збір коштів, Перевірка
+ * (read-only). The tab is addressable as `?tab=` and kept in the URL
  * without a navigation; every panel stays mounted, so an unsaved edit survives a tab switch.
  *
  * Holds the one shelter view all sections share: each write answers with the new view, whose
@@ -41,7 +41,6 @@ export function ProfileEditor({
   operatorName,
   donationDeclined,
   initialTab = "profil",
-  account = null,
   client = kabinetProfileBrowserClient,
 }: {
   initialView: KabinetShelterView;
@@ -49,8 +48,6 @@ export function ProfileEditor({
   operatorName: string;
   donationDeclined: boolean;
   initialTab?: ProfileTab;
-  /** The password card, rendered in the Акаунт tab (the page decides whether there is one). */
-  account?: ReactNode;
   client?: KabinetProfileClient;
 }) {
   const [view, setView] = useState(initialView);
@@ -121,6 +118,11 @@ export function ProfileEditor({
             }
             reload={reload}
           />
+          <PauseControl
+            verification={view.verification}
+            pause={(reason) => write(() => profile.pause({ reason }))}
+            resume={() => write(() => profile.resume({}))}
+          />
         </div>
       ),
     },
@@ -155,20 +157,6 @@ export function ProfileEditor({
       label: t.verification,
       panel: <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />,
     },
-    {
-      id: "akaunt",
-      label: t.account,
-      panel: (
-        <div className="flex flex-col gap-4 desktop:gap-6">
-          <PauseControl
-            verification={view.verification}
-            pause={(reason) => write(() => profile.pause({ reason }))}
-            resume={() => write(() => profile.resume({}))}
-          />
-          {account}
-        </div>
-      ),
-    },
   ];
 
   return (
@@ -177,13 +165,14 @@ export function ProfileEditor({
       viewHref={publicShelterPath(view.id)}
     >
       <Tabs
-        look="pills"
+        look="underline"
         label={t.label}
         tabs={panels}
         selectedId={tab}
-        status={<PageSaveStatus />}
         onSelect={(id) => show(profileTabOf(id))}
       />
+      {/* The quiet «Усі зміни збережено» is read out, not drawn: the save bar carries the saved state. */}
+      <PageSaveStatus srOnly />
     </PageSave>
   );
 }

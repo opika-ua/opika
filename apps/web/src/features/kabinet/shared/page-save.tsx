@@ -1,6 +1,6 @@
 "use client";
 
-import { fillTemplate, uk } from "@opika/i18n";
+import { uk } from "@opika/i18n";
 import {
   createContext,
   type ReactNode,
@@ -13,7 +13,7 @@ import {
   useState,
 } from "react";
 import { SavePill, SaveStatusLine } from "./save-pill";
-import { type SaveBarState, saveBarTextOf, savedTimeOf } from "./save-state";
+import { type SaveBarState, saveBarTextOf } from "./save-state";
 
 /**
  * One save bar for the whole Притулок page. Each editable section (contacts, the sentence) reports
@@ -51,10 +51,10 @@ const NO_REGISTRY: Registry = { register: () => {}, unregister: () => {}, setDir
 const PageSaveContext = createContext<Registry>(NO_REGISTRY);
 const StatusContext = createContext<Status>({ message: null, state: null });
 
-/** The status line under the tabs; pass it to `Tabs`' `status`. Empty outside a `PageSave`. */
-export function PageSaveStatus() {
+/** The status line (live region); `srOnly` keeps it for screen readers only. Empty outside a `PageSave`. */
+export function PageSaveStatus({ srOnly = false }: { srOnly?: boolean }) {
   const { message, state } = useContext(StatusContext);
-  return <SaveStatusLine message={message} state={state} />;
+  return <SaveStatusLine message={message} state={state} srOnly={srOnly} />;
 }
 
 /** Ties a section to the page bar. Outside a `PageSave` it does nothing. */
@@ -180,14 +180,14 @@ export function PageSave({
     };
   } else if (dirty) state = { kind: "unsaved" };
   else if (phase.kind === "saved" && phase.showing) {
-    state = { kind: "saved", at: phase.at, ...(viewHref === undefined ? {} : { viewHref }) };
+    state = {
+      kind: "saved",
+      at: phase.at,
+      message: t.saveBar.allSaved,
+      ...(viewHref === undefined ? {} : { viewHref }),
+    };
   }
-  const message =
-    state !== null
-      ? saveBarTextOf(state)
-      : phase.kind === "saved"
-        ? fillTemplate(t.state.savedAt, { time: savedTimeOf(phase.at) })
-        : t.saveBar.allSaved;
+  const message = state !== null ? saveBarTextOf(state) : t.saveBar.allSaved;
 
   return (
     <PageSaveContext.Provider value={registry}>

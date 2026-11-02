@@ -141,8 +141,8 @@ test.describe("shelter passwords, end to end (PW-1)", () => {
     ]);
     await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
 
-    // «Змінити пароль» lives in the Акаунт sub-tab of Притулок (kabinet UX round 2).
-    await page.goto("/kabinet/prytulok?tab=akaunt");
+    // «Змінити пароль» lives on «Акаунт і пароль», which the account menu links to.
+    await page.goto("/kabinet/akaunt");
     // «Змінити пароль»: the current one, then the new one twice.
     await expect(page.getByRole("heading", { level: 2, name: "Змінити пароль" })).toBeVisible();
     await page.getByLabel("Поточний пароль").fill(FIRST);

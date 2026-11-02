@@ -538,7 +538,9 @@ export const en = {
     operatorFallbackNameInSentence: "site administrator",
     shell: {
       label: "Cabinet",
-      viewSite: "View site",
+      toSite: "To the site",
+      accountAndPassword: "Account and password",
+      operator: "Operator",
       newTab: "(opens in a new tab)",
     },
     signIn: {
@@ -661,7 +663,6 @@ export const en = {
       label: "Shelter sections",
       profile: "Profile",
       verification: "Verification",
-      account: "Account",
       profileNote: "What people see on the shelter's page.",
       view: "View",
     },
