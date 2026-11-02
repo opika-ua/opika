@@ -22,12 +22,8 @@ import { brandDisplay, brandUi } from "./fonts";
  * `template` rather than a per-route full string: a route sets its own subject
  * («Тест», «Для притулків») and the product name is appended once, here.
  *
- * No default `openGraph.images` - deliberately, not an oversight. A site-wide
- * OG image is a designed asset that does not exist in this repo, and inventing
- * one would be worse than the link-preview card falling back to title +
- * description. The detail route supplies a real per-animal image
- * (`tvaryny/[animalId]/page.tsx`); a default card for the other routes is a
- * design task, recorded rather than faked.
+ * The default preview image is `opengraph-image.tsx` beside this file (wordmark and site title);
+ * `/tvaryny/[animalId]` has its own per-animal one.
  *
  * `metadataBase` is set below, to `SITE_ORIGIN` (`brand.ts`) - a fixed literal, never
  * `VERCEL_URL`/`VERCEL_PROJECT_PRODUCTION_URL` (owner, PR B SEO review, 2026-10-26):
@@ -71,6 +67,7 @@ export const metadata: Metadata = {
     title: titled(SITE_TITLE),
     description: linkPreviewDescription,
   },
+  twitter: { card: "summary_large_image" },
   /**
    * D-3: the noindex signal a crawler can actually see once `app/robots.ts`
    * stops disallowing fetches. `next.config.ts`'s `X-Robots-Tag` header

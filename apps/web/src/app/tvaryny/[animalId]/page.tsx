@@ -1,5 +1,4 @@
 import type { AnimalDetailView } from "@opika/contracts";
-import { isRealPhotoKey, r2PublicUrl } from "@opika/db/image-pipeline";
 import { textIn } from "@opika/domain";
 import { speciesWordFor, uk } from "@opika/i18n";
 import type { Metadata } from "next";
@@ -87,24 +86,9 @@ const loadAnimalPageOnce = cache((animalId: string) => loadAnimalPage(animalId))
  * Telegram - previewed under the root layout's title with no image and no
  * description.
  *
- * The image is only emitted for a real uploaded photo. `isRealPhotoKey` is
- * false for the seeded corpus's `seed-photos/*.jpg` placeholders, which have no
- * absolute URL to give a link-preview crawler; a card with a correct title and
- * no image is honest, and pointing a crawler at a relative path is not.
- *
- * ⚠ **Unverified against real clients, and that is the acceptance test, not a
- * metadata assertion.** Two known risks, both of which only a real preview can
- * settle:
- * - The variants are **WebP**. The well-trodden OG path is JPEG/PNG, client
- *   support for WebP previews is uneven, and Telegram caches a first bad fetch
- *   aggressively enough that retrying the same URL will not clear it.
- * - `detail` is **4:5 portrait** (1120x1400). Several clients crop a preview to
- *   landscape, which is where heads get cut.
- *
- * If a real paste into Telegram, Viber and an Instagram DM looks wrong, the fix
- * is a 1200x630 JPEG OG variant in `packages/db/src/image-pipeline` - a
- * pipeline addition, deliberately not pre-emptively built here. Decided by what
- * the phone shows, not by what the spec says should work.
+ * The preview image is the sibling `opengraph-image.tsx` (1200x630 PNG: photo, name, species, city;
+ * nothing that can go stale), which Next wires into og:image and twitter:image. The raw 4:5 WebP
+ * variants were dropped as a preview: uneven client support and portrait crops.
  *
  * D-2: this route builds its own `description`/`openGraph.description` rather
  * than inheriting the root layout's - Next does not merge them, it overrides.
@@ -146,21 +130,6 @@ export async function generateMetadata({
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice
     : animalMetaDescription(animal, shelter.displayName, cityName);
-  const photo = animal.photos[0];
-  const publicBaseUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
-
-  const images =
-    photo && publicBaseUrl && isRealPhotoKey(photo.storageKey)
-      ? [
-          {
-            url: r2PublicUrl(publicBaseUrl, photo.storageKey, "detail"),
-            width: 1120,
-            height: 1400,
-            alt: animal.name,
-          },
-        ]
-      : undefined;
-
   return {
     title,
     description,
@@ -174,9 +143,8 @@ export async function generateMetadata({
     openGraph: {
       type: "article",
       description,
-      ...(images ? { images } : {}),
     },
-    ...(images ? { twitter: { card: "summary_large_image" as const } } : {}),
+    twitter: { card: "summary_large_image" },
   };
 }
 
