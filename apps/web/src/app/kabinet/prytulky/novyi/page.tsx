@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { CreateShelterForm } from "../../../../features/kabinet/operator/create/CreateShelterForm";
 import { operatorCreatePageOf } from "../../../../features/kabinet/operator/create/create-page";
 import { OperatorShell } from "../../../../features/kabinet/operator/OperatorShell";
+import { signedInPerson } from "../../signed-in-person";
 import { operatorRequest } from "../operator-request";
 
 export const metadata: Metadata = {
@@ -35,7 +36,7 @@ export default async function NewShelterPage() {
       break;
     case "create":
       return (
-        <OperatorShell current="new_shelter">
+        <OperatorShell current="new_shelter" person={await signedInPerson()}>
           <CreateShelterForm />
         </OperatorShell>
       );

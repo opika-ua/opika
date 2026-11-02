@@ -50,6 +50,7 @@ const renderProfile = (
 ) =>
   render(
     <ShelterProfile
+      person={null}
       view={view(overrides)}
       cityName="Бровари"
       viewer={viewer}
@@ -173,6 +174,7 @@ describe("ShelterProfile (K4, read-only)", () => {
   it("prints an operator name carrying $& and $1 literally (review finding 2)", () => {
     render(
       <ShelterProfile
+        person={null}
         view={view()}
         cityName="Бровари"
         viewer="admin"
@@ -193,6 +195,7 @@ describe("ShelterProfile (K4, read-only)", () => {
   it("with no operator name configured: the locked note keeps «адміністратор сайту»", () => {
     render(
       <ShelterProfile
+        person={null}
         view={view()}
         cityName="Бровари"
         viewer="admin"
@@ -324,6 +327,7 @@ describe("ShelterProfile with K4 editing", () => {
   it("open for the admin: the editor's fields are there", () => {
     render(
       <ShelterProfile
+        person={null}
         view={view()}
         cityName="Бровари"
         viewer="admin"
@@ -338,6 +342,7 @@ describe("ShelterProfile with K4 editing", () => {
   it("a support view stays read-only even if editing were open", () => {
     const { container } = render(
       <ShelterProfile
+        person={null}
         view={view()}
         cityName="Бровари"
         viewer="support"
@@ -351,6 +356,7 @@ describe("ShelterProfile with K4 editing", () => {
   it("read-only editing: no field at all", () => {
     const { container } = render(
       <ShelterProfile
+        person={null}
         view={view()}
         cityName="Бровари"
         viewer="admin"
@@ -382,6 +388,7 @@ describe("the pause note on the read-only page (K4-B4)", () => {
     (viewer) => {
       render(
         <ShelterProfile
+          person={null}
           view={paused}
           cityName="Бровари"
           viewer={viewer}
@@ -399,6 +406,7 @@ describe("the pause note on the read-only page (K4-B4)", () => {
   it("no note: the paused line alone", () => {
     render(
       <ShelterProfile
+        person={null}
         view={view({
           verification: {
             status: "paused",
@@ -430,6 +438,7 @@ describe("the section nav (K2)", () => {
   const renderWith = (viewer: "admin" | "support", editing: ProfileEditing) =>
     render(
       <ShelterProfile
+        person={null}
         view={view()}
         cityName="Бровари"
         viewer={viewer}
@@ -472,6 +481,7 @@ describe("Притулок: the public page link and the sub-tabs", () => {
   const renderOpen = (tab?: string) =>
     render(
       <ShelterProfile
+        person={null}
         view={view()}
         cityName="Бровари"
         viewer="admin"
@@ -510,6 +520,7 @@ describe("Притулок: the public page link and the sub-tabs", () => {
   it("the title names the shelter, the status chip follows it, and the one link to the public page sits under", () => {
     render(
       <ShelterProfile
+        person={null}
         view={view({ displayName: "Домівка" })}
         cityName="Бровари"
         viewer="admin"

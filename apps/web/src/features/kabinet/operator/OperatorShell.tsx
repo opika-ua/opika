@@ -1,5 +1,6 @@
 import { uk } from "@opika/i18n";
 import type { ReactNode } from "react";
+import type { SignedInPerson } from "../../../kabinet/signed-in-person";
 import { BottomNav } from "../../../ui/BottomNav";
 import { Container } from "../../../ui/Container";
 import { MAIN_LANDMARK } from "../../../ui/landmark";
@@ -20,16 +21,18 @@ import { NEW_SHELTER_PATH, OPERATOR_HOME } from "../routes";
  */
 export function OperatorShell({
   current,
+  person,
   children,
 }: {
   /** Which nav item is this page, for `aria-current`. */
   current: "shelters" | "new_shelter" | null;
+  person: SignedInPerson | null;
   children: ReactNode;
 }) {
   const t = uk.kabinet.operator.shell;
   return (
     <div className="flex min-h-dvh flex-col">
-      <KabinetHeader account={{ kind: "operator", role: t.role }} />
+      <KabinetHeader account={{ kind: "operator", role: t.role }} person={person} />
       {/* Bottom padding clears the nav's fixed phone tab bar; unused from desktop. */}
       <Container className="flex flex-1 flex-col gap-4 pt-5 pb-24 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14">
         <BottomNav

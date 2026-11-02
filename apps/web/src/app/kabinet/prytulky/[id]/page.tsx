@@ -6,6 +6,7 @@ import { cache } from "react";
 import { ShelterActionsScreen } from "../../../../features/kabinet/operator/actions/ShelterActionsScreen";
 import { OperatorShell } from "../../../../features/kabinet/operator/OperatorShell";
 import { operatorShelterOf } from "../../../../features/kabinet/operator/pages";
+import { signedInPerson } from "../../signed-in-person";
 import { operatorRequest } from "../operator-request";
 
 type Params = Promise<{ id: string }>;
@@ -53,7 +54,7 @@ export default async function OperatorShelterPage({ params }: { params: Params }
       break;
     case "shelter":
       return (
-        <OperatorShell current={null}>
+        <OperatorShell current={null} person={await signedInPerson()}>
           <ShelterActionsScreen
             view={shelter.view}
             cityName={shelter.cityName}

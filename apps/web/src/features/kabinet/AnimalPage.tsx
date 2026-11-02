@@ -1,4 +1,5 @@
 import { uk } from "@opika/i18n";
+import type { SignedInPerson } from "../../kabinet/signed-in-person";
 import { buttonClass } from "../../ui/Button";
 import { Text } from "../../ui/Text";
 import { AnimalForm } from "./animal-form/AnimalForm";
@@ -36,10 +37,12 @@ export const BACK_TO_PROFILE = {
 export function AnimalPage({
   page,
   tab = "osnovne",
+  person,
 }: {
   page: Extract<KabinetAnimalPage, { kind: "form" | "missing" }>;
   /** From `?tab=`, read by the server page. */
   tab?: AnimalTab;
+  person: SignedInPerson | null;
 }) {
   const listShown = animalListShownTo(page.viewer, page.editing);
   const back = listShown ? BACK_TO_LIST : BACK_TO_PROFILE;
@@ -47,6 +50,7 @@ export function AnimalPage({
     <ShelterShell
       shelterName={page.shelter.displayName}
       viewer={page.viewer}
+      person={person}
       nav={<KabinetNav current="animals" animalList={listShown} />}
       navOnPhone={false}
     >

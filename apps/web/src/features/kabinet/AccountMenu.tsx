@@ -2,6 +2,7 @@
 
 import { uk } from "@opika/i18n";
 import type { ReactNode } from "react";
+import { personLineOf, type SignedInPerson } from "../../kabinet/signed-in-person";
 import { buttonClass } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { Icon } from "../../ui/Icon";
@@ -9,7 +10,6 @@ import { Popover } from "../../ui/Popover";
 import { Sheet } from "../../ui/Sheet";
 import { PUBLIC_GALLERY_PATH, SHELTER_ACCOUNT_PATH } from "./routes";
 import { SignOutButton } from "./SignOutButton";
-import { personLineOf, useSignedInPerson } from "./use-signed-in-person";
 
 export type AccountMenuProps = {
   /** The button's label: the shelter's name, or «Оператор». */
@@ -20,6 +20,8 @@ export type AccountMenuProps = {
   account: boolean;
   /** The support view cannot sign out. */
   signOut: "enabled" | "disabled";
+  /** Who is signed in, from the server: plain strings, so the first line is there on the first frame. */
+  person: SignedInPerson | null;
 };
 
 const ROW = cx(buttonClass("ghost"), "w-full justify-start rounded-field px-3 no-underline");
@@ -70,7 +72,7 @@ function Body({
  * carries «На сайт» (the header has no room for that link there).
  */
 export function AccountMenu(props: AccountMenuProps) {
-  const person = personLineOf(useSignedInPerson());
+  const person = personLineOf(props.person);
   return (
     <>
       <Popover

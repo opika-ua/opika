@@ -7,6 +7,7 @@ import { KabinetBrand } from "../../../features/kabinet/KabinetBrand";
 import { OPERATOR_HOME, SHELTER_PROFILE_PATH } from "../../../features/kabinet/routes";
 import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { loadShelterPage } from "../shelter-load";
+import { signedInPerson } from "../signed-in-person";
 
 /**
  * «Акаунт і пароль» (kabinet shell, 2026-11-02): what the Притулок page's fifth tab, «Акаунт»,
@@ -54,6 +55,7 @@ export default async function ShelterAccountPage() {
           shelterName={home.view.displayName}
           editing={home.editing}
           password={password}
+          person={await signedInPerson()}
         />
       );
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */

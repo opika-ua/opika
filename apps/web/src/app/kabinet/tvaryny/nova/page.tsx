@@ -2,6 +2,7 @@ import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { AnimalPage } from "../../../../features/kabinet/AnimalPage";
+import { signedInPerson } from "../../signed-in-person";
 import { loadKabinetAnimalPage } from "../load";
 
 export const metadata: Metadata = { title: uk.kabinet.animalForm.pageTitleNew };
@@ -22,7 +23,7 @@ export default async function NewAnimalPage() {
       notFound();
       break;
     case "form":
-      return <AnimalPage page={page} />;
+      return <AnimalPage page={page} person={await signedInPerson()} />;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
       const unreachable: never = page;

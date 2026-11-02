@@ -1,4 +1,5 @@
 import { uk } from "@opika/i18n";
+import type { SignedInPerson } from "../../kabinet/signed-in-person";
 import { Container } from "../../ui/Container";
 import { Icon } from "../../ui/Icon";
 import { AccountMenu } from "./AccountMenu";
@@ -17,7 +18,13 @@ export type HeaderAccount =
  * пароль» (a shelter's own admin) and «Вийти». The support view keeps its role line and has no
  * working sign-out.
  */
-export function KabinetHeader({ account }: { account: HeaderAccount }) {
+export function KabinetHeader({
+  account,
+  person,
+}: {
+  account: HeaderAccount;
+  person: SignedInPerson | null;
+}) {
   const t = uk.kabinet;
   const menu =
     account.kind === "operator"
@@ -48,7 +55,7 @@ export function KabinetHeader({ account }: { account: HeaderAccount }) {
           <Icon name="arrow-up-right" size="md" />
           <span className="sr-only"> {t.shell.newTab}</span>
         </a>
-        <AccountMenu {...menu} />
+        <AccountMenu {...menu} person={person} />
       </Container>
     </header>
   );

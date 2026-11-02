@@ -320,7 +320,7 @@ test.describe("/kabinet shell", () => {
         timeout: 1500,
       });
     }).toPass({ timeout: 15_000 });
-    // The person (the first line) arrives after the page loads; the shelter's name is not repeated.
+    // The person is already in the markup (server-passed), the shelter's name is not repeated.
     await expect(page.getByText("Harness admin").last()).toBeVisible();
     await shot(page, "menu-open");
     await page.keyboard.press("Escape");
@@ -328,6 +328,35 @@ test.describe("/kabinet shell", () => {
     await expect(button).toBeFocused();
     await page.close();
   });
+
+  for (const size of [PHONE, DESKTOP]) {
+    test(`the person is in the server's markup and on the first frame of the menu at ${size.width}, with no session fetch`, async () => {
+      if (admin === undefined) throw new Error("not signed in");
+      // The HTML as the server sent it: no script ran, so nothing was fetched into it.
+      for (const path of ["/kabinet/tvaryny", "/kabinet/akaunt"]) {
+        const html = await (await admin.request.get(path)).text();
+        expect(html).toContain("Harness admin");
+      }
+      const page = await admin.newPage();
+      const sessionCalls: string[] = [];
+      page.on("request", (request) => {
+        if (request.url().includes("/api/auth/get-session")) sessionCalls.push(request.url());
+      });
+      await page.setViewportSize(size);
+      await page.goto("/kabinet/tvaryny");
+      const button =
+        size === PHONE
+          ? page.getByRole("banner").getByRole("link").last()
+          : page.getByRole("banner").getByRole("button");
+      await button.click();
+      // Visible the moment the menu is: no waiting for an answer to arrive.
+      await expect(page.getByText("Harness admin").last()).toBeVisible({ timeout: 1500 });
+      await shot(page, "person-menu-open");
+      await page.waitForLoadState("networkidle");
+      expect(sessionCalls).toEqual([]);
+      await page.close();
+    });
+  }
 
   test("«Акаунт і пароль» opens from the menu; the old ?tab=akaunt lands there too", async () => {
     const page = await open(admin, "/kabinet/tvaryny");

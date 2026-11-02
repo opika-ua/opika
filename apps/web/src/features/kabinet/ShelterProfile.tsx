@@ -1,6 +1,7 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { inSentenceOperatorName, type OperatorName } from "../../kabinet/operator";
+import type { SignedInPerson } from "../../kabinet/signed-in-person";
 import { Card } from "../../ui/Card";
 import { FormSection } from "../../ui/FormSection";
 import { Heading } from "../../ui/Heading";
@@ -65,6 +66,7 @@ export type ShelterProfileProps = {
   editing?: ProfileEditing;
   /** The `?tab=` of the page (the editor's sub-tab); anything unknown is the first tab. */
   tab?: string | undefined;
+  person: SignedInPerson | null;
 };
 
 export function ShelterProfile({
@@ -74,6 +76,7 @@ export function ShelterProfile({
   operator,
   editing = { kind: "read_only" },
   tab,
+  person,
 }: ShelterProfileProps) {
   const t = uk.kabinet.profile;
   const operatorName = inSentenceOperatorName(operator);
@@ -83,7 +86,7 @@ export function ShelterProfile({
   const nav = <KabinetNav current="profile" animalList={animalListShownTo(viewer, editing)} />;
 
   return (
-    <ShelterShell shelterName={view.displayName} viewer={viewer} nav={nav}>
+    <ShelterShell shelterName={view.displayName} viewer={viewer} person={person} nav={nav}>
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {/* The name alone, two lines at most, balanced; a longer one ends in an ellipsis. */}

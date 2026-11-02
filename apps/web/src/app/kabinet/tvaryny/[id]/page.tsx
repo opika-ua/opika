@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { AnimalPage } from "../../../../features/kabinet/AnimalPage";
 import { animalTabOf } from "../../../../features/kabinet/animal-form/animal-tabs";
+import { signedInPerson } from "../../signed-in-person";
 import { loadKabinetAnimalPage } from "../load";
 
 type Params = {
@@ -41,7 +42,13 @@ export default async function AnimalEditPage({ params, searchParams }: Params) {
       break;
     case "missing":
     case "form":
-      return <AnimalPage page={page} tab={animalTabOf(firstOf((await searchParams)?.tab))} />;
+      return (
+        <AnimalPage
+          page={page}
+          tab={animalTabOf(firstOf((await searchParams)?.tab))}
+          person={await signedInPerson()}
+        />
+      );
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
       const unreachable: never = page;

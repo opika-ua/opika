@@ -13,13 +13,9 @@ import { OperatorShell } from "./OperatorShell";
  * catalogue.
  */
 
-/** The session endpoint answers with the person; every other path with `other`. */
+/** Every fetch answers with `other`; the person comes as a prop, never from a fetch. */
 const stubFetch = (other: () => Response = () => new Response(null, { status: 200 })) => {
-  const mock = vi.fn(async (url: string) =>
-    url === "/api/auth/get-session"
-      ? new Response(JSON.stringify({ user: { name: "Олексій Колотенко" } }), { status: 200 })
-      : other(),
-  );
+  const mock = vi.fn(async () => other());
   vi.stubGlobal("fetch", mock);
   return mock;
 };
@@ -28,7 +24,7 @@ const renderShell = (
   current: "shelters" | "new_shelter" | null = "shelters",
 ): ReturnType<typeof render> =>
   render(
-    <OperatorShell current={current}>
+    <OperatorShell current={current} person={{ name: "Олексій Колотенко", email: null }}>
       <p>Вміст сторінки</p>
     </OperatorShell>,
   );
@@ -49,7 +45,7 @@ describe("OperatorShell: who is signed in", () => {
     stubFetch();
     renderShell();
     const panel = await openMenu();
-    expect(await within(panel).findByText("Олексій Колотенко")).toBeTruthy();
+    expect(within(panel).getByText("Олексій Колотенко")).toBeTruthy();
     expect(within(panel).getAllByText("адміністратор сайту")).toHaveLength(1);
   });
 });

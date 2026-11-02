@@ -1,4 +1,5 @@
 import { uk } from "@opika/i18n";
+import type { SignedInPerson } from "../../../kabinet/signed-in-person";
 import { Heading } from "../../../ui/Heading";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
@@ -17,10 +18,12 @@ import type { KabinetAnimalListPage } from "./animal-list-page";
 export function AnimalListScreen({
   page,
   operatorName,
+  person,
 }: {
   page: Extract<KabinetAnimalListPage, { kind: "list" }>;
   /** Who signs a rejection or suspension note (`standaloneOperatorName`). */
   operatorName: string;
+  person: SignedInPerson | null;
 }) {
   const support = page.viewer === "support";
   const status = page.shelter.verification.status;
@@ -29,6 +32,7 @@ export function AnimalListScreen({
     <ShelterShell
       shelterName={page.shelter.displayName}
       viewer={page.viewer}
+      person={person}
       // Only a viewer this page is shown to reaches here, so «Тварини» is always in its nav.
       nav={<KabinetNav current="animals" animalList />}
     >
