@@ -99,6 +99,14 @@ describe("proxy", () => {
       },
     );
 
+    it("lets /api/health through without the gate, but not its look-alikes", async () => {
+      const { proxy } = await import("./proxy");
+      expect((await proxy(request("https://opika.example/api/health"))).status).toBe(200);
+      for (const path of ["/api/healthx", "/api/health/deep", "/api/health-old"]) {
+        expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
+      }
+    });
+
     it.each([
       "/api/authx",
       "/api/auth-old",
