@@ -195,7 +195,8 @@ export function isCronPath(pathname: string): boolean {
  * no-store`; nothing logged about which ids were asked for. Full record:
  * `docs/decisions-inbox.md` (S8-D1, folded from `feat-dr1-s8-saved-page.md` at #186's merge).
  */
-const GATE_EXEMPT_EXACT_PATHS: readonly string[] = ["/api/rpc/animals/cardsByIds"];
+// `/api/health` is the uptime monitor's probe: no cookie, no data beyond the build SHA, own limiter.
+const GATE_EXEMPT_EXACT_PATHS: readonly string[] = ["/api/rpc/animals/cardsByIds", "/api/health"];
 
 // The manifest and install icons are fetched by the browser without the gate cookie and carry
 // no listing data. Read-only methods only, so anything else on those paths stays refused.

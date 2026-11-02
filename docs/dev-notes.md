@@ -196,3 +196,8 @@ Errors only, no tracing, no replay, no profiling, no feedback widget. Code: `app
   ```
   In Sentry (Issues, the project, environment `production`): an issue titled "Error: Sentry test error:
   thrown on purpose by POST /api/monitoring/test", with a stack, no user, no request data.
+- **Uptime probe: `GET /api/health`.** Answers 200 with `{"sha":"<VERCEL_GIT_COMMIT_SHA>"}` (or `"unknown"`)
+  and nothing else; `Cache-Control: no-store`; GET and HEAD only (405 otherwise). No database call, so it says
+  the deploy answers, not that Neon does. Exempt from the pre-launch gate (exact path, `proxy.ts`) and has its
+  own limiter (30 per minute per address, 429 with `Retry-After`). Point a Sentry uptime monitor at
+  `https://<production-host>/api/health` (owner's click-through: `Claude outputs/SENTRY-uptime-steps.md`).
