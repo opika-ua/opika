@@ -148,6 +148,13 @@
       "when": 1793279161949,
       "tag": "0020_nationwide_geography_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793619435614,
+      "tag": "0021_drop_orphan_animal_indexes",
+      "breakpoints": true
     }
   ]
 }

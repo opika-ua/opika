@@ -138,29 +138,6 @@ describe("migration 0017's columns", () => {
     ]);
   });
 
-  it("indexes temperament (GIN) and colour (btree), both partial on the discoverable kinds", async () => {
-    const rows = await db.execute<{ indexname: string; indexdef: string }>(
-      sql`SELECT indexname, indexdef FROM pg_indexes
-          WHERE tablename = 'animals'
-            AND indexname IN ('animals_temperament_traits_idx', 'animals_coat_colour_idx')
-          ORDER BY indexname`,
-    );
-    expect(Array.from(rows)).toEqual([
-      {
-        indexname: "animals_coat_colour_idx",
-        indexdef: expect.stringMatching(
-          /USING btree \(coat_colour\) WHERE \(listing_kind = ANY \(ARRAY\['published'::text, 'reserved'::text\]\)\)$/,
-        ),
-      },
-      {
-        indexname: "animals_temperament_traits_idx",
-        indexdef: expect.stringMatching(
-          /USING gin \(temperament_traits\) WHERE \(listing_kind = ANY \(ARRAY\['published'::text, 'reserved'::text\]\)\)$/,
-        ),
-      },
-    ]);
-  });
-
   it("gives a row written without the new columns an empty temperament and nothing else", async () => {
     const { shelterId, cityId } = await place();
     const animal = makeAnimal({ shelterId });
