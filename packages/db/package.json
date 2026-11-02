@@ -11,7 +11,9 @@
     "./test": "./src/test-utils/index.ts",
     "./test/vitest-global-setup": "./src/test-utils/vitest-global-setup.ts",
     "./image-pipeline": "./src/image-pipeline/index.ts",
-    "./image-pipeline/server": "./src/image-pipeline/server.ts"
+    "./image-pipeline/server": "./src/image-pipeline/server.ts",
+    "./perf": "./src/tools/perf-support.ts",
+    "./perf-seed": "./src/tools/perf-seed.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
@@ -37,6 +39,8 @@
     "admin:sweep-invites": "tsx src/admin.ts sweep-invites",
     "db:neon-smoke": "tsx test/neon-smoke.ts",
     "db:neon-smoke-timings": "tsx test/neon-smoke-timings.ts",
+    "db:neon-perf-seed": "tsx src/tools/perf-seed.ts",
+    "db:neon-perf-report": "tsx src/tools/perf-report.ts",
     "db:neon-search-diagnose": "tsx src/tools/search-diagnose.ts",
     "worktree:remove": "tsx src/tools/worktree-remove.ts",
     "db:prune-test-dbs": "tsx src/tools/prune-test-dbs.ts",

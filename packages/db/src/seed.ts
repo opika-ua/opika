@@ -258,7 +258,7 @@ export async function insertSeedData(
 }
 
 /** Deterministic UUID v4 from a numeric index, for reproducible seeds. */
-function seededUuid(prefix: string, index: number): string {
+export function seededUuid(prefix: string, index: number): string {
   const hex = index.toString(16).padStart(8, "0");
   const base = prefix.padEnd(8, "0").slice(0, 8);
   return `${base}-${hex.slice(0, 4)}-4${hex.slice(4, 7)}-8000-${hex.padStart(12, "0")}`;
@@ -273,7 +273,7 @@ function shelterId(i: number): ShelterId {
 function animalId(i: number): AnimalId {
   return seededUuid("a0000000", i) as AnimalId;
 }
-function moderatorId(): ModeratorId {
+export function moderatorId(): ModeratorId {
   // Not "m0d00000" (the original, mnemonic-looking prefix) - 'm' isn't a
   // valid hex digit, so that prefix produced a string that merely looked
   // like a UUID and worked everywhere as an opaque reference, but failed
@@ -322,14 +322,14 @@ function daysAgo(days: number): Date {
  * back (see git history for `generatePlaceholderPhoto`) if a real
  * requirement calls for it.
  */
-const DOG_PHOTOS: AnimalPhoto[] = [
+export const DOG_PHOTOS: AnimalPhoto[] = [
   { storageKey: "seed-photos/dog-1.jpg", width: 1024, height: 768, alt: null },
   { storageKey: "seed-photos/dog-2.jpg", width: 766, height: 1024, alt: null },
   { storageKey: "seed-photos/dog-3.jpg", width: 1023, height: 782, alt: null },
   { storageKey: "seed-photos/dog-4.jpg", width: 1024, height: 768, alt: null },
   { storageKey: "seed-photos/dog-5.jpg", width: 768, height: 1024, alt: null },
 ];
-const CAT_PHOTOS: AnimalPhoto[] = [
+export const CAT_PHOTOS: AnimalPhoto[] = [
   { storageKey: "seed-photos/cat-1.jpg", width: 1024, height: 490, alt: null },
   { storageKey: "seed-photos/cat-2.jpg", width: 1024, height: 740, alt: null },
   { storageKey: "seed-photos/cat-3.jpg", width: 1024, height: 683, alt: null },
@@ -392,7 +392,11 @@ const D6_REAL_DOG_PHOTOS: AnimalPhoto[] = [
  * itself, not always 0) so two animals with the same `count` don't render
  * identical photo sequences card-to-card.
  */
-function makePhotos(species: AnimalSpecies, animalIndex: number, count: number): AnimalPhoto[] {
+export function makePhotos(
+  species: AnimalSpecies,
+  animalIndex: number,
+  count: number,
+): AnimalPhoto[] {
   const pool = species === "dog" ? DOG_PHOTOS : CAT_PHOTOS;
   return Array.from({ length: count }, (_, i) => pool[(animalIndex + i) % pool.length]!);
 }
@@ -966,7 +970,7 @@ export function buildDemoShelters(cities: City[]): Shelter[] {
 // Animals - 300+ with realistic distributions
 // ---------------------------------------------------------------------------
 
-const DOG_NAMES = [
+export const DOG_NAMES = [
   "Сірко",
   "Рекс",
   "Бровко",
@@ -1014,7 +1018,7 @@ const DOG_NAMES = [
   "Бартоломеус-Максиміліан Третій",
 ];
 
-const DOG_NAMES_F = [
+export const DOG_NAMES_F = [
   "Ласка",
   "Жулька",
   "Альма",
@@ -1037,7 +1041,7 @@ const DOG_NAMES_F = [
   "Тіна",
 ];
 
-const CAT_NAMES = [
+export const CAT_NAMES = [
   "Мурчик",
   "Барсик",
   "Рижик",
@@ -1060,7 +1064,7 @@ const CAT_NAMES = [
   "Прохор",
 ];
 
-const CAT_NAMES_F = [
+export const CAT_NAMES_F = [
   "Мурка",
   "Масяня",
   "Мася",
@@ -1078,7 +1082,7 @@ const CAT_NAMES_F = [
   "Муся",
 ];
 
-const DESCRIPTIONS_UK = [
+export const DESCRIPTIONS_UK = [
   "Дуже дружелюбна тварина, любить дітей та інших тварин. Привчена до вигулу.",
   "Спокійний та ласкавий характер. Ідеально підходить для квартирного утримання.",
   "Активна і грайлива, потребує простору для руху. Чудовий компаньйон для прогулянок.",
@@ -1102,20 +1106,20 @@ const DESCRIPTIONS_UK = [
  * colour, 1,500 for a medical note. The first of each carries an English
  * text, so the English columns round-trip in the seeded corpus too.
  */
-const CUSTOM_TEMPERAMENTS: readonly LocalizedText[] = [
+export const CUSTOM_TEMPERAMENTS: readonly LocalizedText[] = [
   { uk: "Боїться грози", en: { text: "Afraid of thunderstorms", provenance: "human" } },
   { uk: "Любить їздити в машині", en: null },
   { uk: "Обожнює мʼячики", en: null },
   { uk: "Спить лише на дивані", en: null },
 ];
 
-const CUSTOM_COLOURS: readonly LocalizedText[] = [
+export const CUSTOM_COLOURS: readonly LocalizedText[] = [
   { uk: "Димчасте", en: { text: "Smoky", provenance: "machine" } },
   { uk: "Палеве з білими лапками", en: null },
   { uk: "Шоколадне", en: null },
 ];
 
-const MEDICAL_NOTES: readonly LocalizedText[] = [
+export const MEDICAL_NOTES: readonly LocalizedText[] = [
   {
     uk: "Потребує гіпоалергенного корму.",
     en: { text: "Needs hypoallergenic food.", provenance: "human" },
@@ -1125,7 +1129,7 @@ const MEDICAL_NOTES: readonly LocalizedText[] = [
   { uk: "Щорічний огляд у ветеринара пройдено, без зауважень.", en: null },
 ];
 
-const DESCRIPTIONS_EN: { text: string; provenance: "human" | "machine" }[] = [
+export const DESCRIPTIONS_EN: { text: string; provenance: "human" | "machine" }[] = [
   {
     text: "Very friendly animal, loves children and other pets. Trained for outdoor walks.",
     provenance: "human",
