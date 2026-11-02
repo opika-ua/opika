@@ -100,11 +100,13 @@ export type RecordingDatabase = {
  * The same driver choice as `createDatabase` (neon-http for a Neon host, postgres-js otherwise),
  * with each statement's start and end recorded. The recording sits under the driver, so a repository
  * or a handler can't skip it. `readOnly` makes a local (postgres-js) connection READ ONLY at session
- * level; it cannot on Neon HTTP. Batches (`inOneTransaction`) are not recorded: no read path uses them.
+ * level; it cannot on Neon HTTP. `latencyMs` (local only) holds every statement back that long before it
+ * runs, standing in for the network round trip so that waves are decided by what depends on what and
+ * not by how fast a local database happens to answer. Batches (`inOneTransaction`) are not recorded: no read path uses them.
  */
 export function createRecordingDatabase(
   url: string,
-  options: { readOnly?: boolean } = {},
+  options: { readOnly?: boolean; latencyMs?: number } = {},
 ): RecordingDatabase {
   const calls: Call[] = [];
   let epoch = performance.now();
@@ -140,6 +142,7 @@ export function createRecordingDatabase(
     max: 4,
     ...(options.readOnly ? { connection: { default_transaction_read_only: true } } : {}),
   });
+  const latency = options.latencyMs ?? 0;
   const patched = new WeakSet<object>();
   // postgres-js queries are lazy thenables: the clock starts at the first `then` and stops when it settles.
   const timed = <Q extends PromiseLike<unknown>>(
@@ -156,17 +159,19 @@ export function createRecordingDatabase(
     Object.defineProperty(pending, "then", {
       value: (ok?: (v: unknown) => unknown, bad?: (e: unknown) => unknown) => {
         done ??= open(text, params);
-        return original(
-          (v) => {
-            done?.();
-            return ok ? ok(v) : v;
-          },
-          (e) => {
-            done?.();
-            if (bad) return bad(e);
-            throw e;
-          },
-        );
+        const run = () =>
+          original(
+            (v) => {
+              done?.();
+              return ok ? ok(v) : v;
+            },
+            (e) => {
+              done?.();
+              if (bad) return bad(e);
+              throw e;
+            },
+          );
+        return latency > 0 ? new Promise((r) => setTimeout(r, latency)).then(run) : run();
       },
     });
     return pending;

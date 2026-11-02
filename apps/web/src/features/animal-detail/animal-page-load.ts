@@ -52,19 +52,19 @@ export async function loadAnimalPage(
 
   try {
     const animal = await client.animals.byId({ animalId: parsedId.data });
-    // `shelters.byId` answers NOT_FOUND when the shelter stopped being
-    // verified between the two calls; the card is then gone for the same
-    // reason `animals.byId` would have said so a moment later.
-    const shelter = await client.shelters.byId({ shelterId: animal.shelter.id });
-
+    // The card's city is known from the animal view alone (its own city, else its shelter's), so
+    // the shelter's page-only fields (`shelters.byId`, which answers NOT_FOUND if the shelter
+    // stopped being verified between the calls) and the city are read together: two waits in all.
     const cityId = animal.publicLocation
       ? animal.publicLocation.cityId
-      : shelter.publicLocation.cityId;
+      : animal.shelter.publicLocation.cityId;
     // One city by id, never the settlement list.
-    const [regions, found] = await Promise.all([
-      client.regions.list({}),
-      client.cities.byIds({ ids: [cityId] }),
-    ]);
+    const shelterRead = client.shelters.byId({ shelterId: animal.shelter.id });
+    const restRead = Promise.all([client.regions.list({}), client.cities.byIds({ ids: [cityId] })]);
+    // The shelter settles first so its NOT_FOUND wins over a failure of the city read beside it.
+    restRead.catch(() => undefined);
+    const shelter = await shelterRead;
+    const [regions, found] = await restRead;
     const city = found.find((c) => c.id === cityId) ?? null;
 
     /**

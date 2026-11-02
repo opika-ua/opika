@@ -84,6 +84,7 @@ import {
 import { type SmokeTarget, smokeTarget } from "../src/test-utils/smoke-target";
 import { runFiltersSmoke } from "./neon-smoke-filters";
 import { runGeographySmoke } from "./neon-smoke-geography";
+import { runRoundTripsSmoke } from "./neon-smoke-round-trips";
 import { runSearchSmoke } from "./neon-smoke-search";
 
 /**
@@ -2716,6 +2717,7 @@ async function main(): Promise<void> {
     ...(await runGeographySmoke(database)),
     ...(await runSearchSmoke(database)),
     ...(await runFiltersSmoke(database)),
+    ...(await runRoundTripsSmoke(database)),
   ];
   for (const o of outcomes) console.log(`${o.ok ? "PASS" : "FAIL"}  ${o.name}: ${o.detail}`);
   const failed = outcomes.filter((o) => !o.ok).length;

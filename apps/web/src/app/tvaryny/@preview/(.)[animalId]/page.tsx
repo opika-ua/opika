@@ -1,27 +1,15 @@
-import { type AnimalId, AnimalIdSchema } from "@opika/domain";
+import { AnimalIdSchema } from "@opika/domain";
 import type { ReactNode } from "react";
-import { anonymousRouterClient } from "../../../../api/server-client";
 import { AnimalDetailContent } from "../../../../features/animal-detail/AnimalDetailScreen";
 import {
   type AnimalOverlayNotice,
   AnimalOverlayNoticeView,
   overlayNoticeTitle,
 } from "../../../../features/animal-detail/AnimalPageStates";
-import {
-  type AnimalPageClient,
-  loadAnimalPage,
-} from "../../../../features/animal-detail/animal-page-load";
-import {
-  AnimalOverlay,
-  type OverlayNeighbour,
-} from "../../../../features/animal-overlay/AnimalOverlay";
+import type { AnimalPageClient } from "../../../../features/animal-detail/animal-page-load";
+import { AnimalOverlay } from "../../../../features/animal-overlay/AnimalOverlay";
+import { loadOverlayData } from "../../../../features/animal-overlay/overlay-load";
 import type { SearchParams } from "../../../../features/gallery/filter-url";
-import {
-  animalPageHref,
-  cityTokensOf,
-  parseGalleryQuery,
-} from "../../../../features/gallery/filter-url";
-import { placeBookOf } from "../../../../features/gallery/place-book";
 
 /** Same reasoning as the full page: the overlay reads live listing data. */
 export const dynamic = "force-dynamic";
@@ -70,7 +58,8 @@ export async function renderAnimalOverlay(
 ): Promise<ReactNode> {
   // Not an animal id: some other `/tvaryny/…` path the interception's
   // `[animalId]` pattern also fits (DR1-S4-T2 met `gortaty`). No overlay.
-  if (!AnimalIdSchema.safeParse(animalId).success) return null;
+  const parsedId = AnimalIdSchema.safeParse(animalId);
+  if (!parsedId.success) return null;
   const openerHref = `/tvaryny/${animalId}`;
   const noNeighbours = { prev: null, next: null };
   const notice = (kind: AnimalOverlayNotice) => (
@@ -83,64 +72,15 @@ export async function renderAnimalOverlay(
     </AnimalOverlay>
   );
 
-  let load: Awaited<ReturnType<typeof loadAnimalPage>>;
-  try {
-    load = await loadAnimalPage(animalId, client);
-  } catch {
-    // The full page lets this reach `/tvaryny/error.tsx`; from here that
-    // boundary would replace the gallery the visitor is still using.
-    return notice("failed");
-  }
+  const { load, neighbours } = await loadOverlayData(parsedId.data, rawSearchParams, client);
+  // The full page lets a failure reach `/tvaryny/error.tsx`; from here that
+  // boundary would replace the gallery the visitor is still using.
+  if (load.kind === "failed") return notice("failed");
   if (load.kind !== "animal") return notice(load.kind);
-
-  const neighbours = await neighboursOf(
-    client ?? anonymousRouterClient(),
-    load.view.animal.id,
-    rawSearchParams,
-  );
 
   return (
     <AnimalOverlay label={load.view.animal.name} openerHref={openerHref} neighbours={neighbours}>
       <AnimalDetailContent {...load.view} />
     </AnimalOverlay>
   );
-}
-
-/**
- * The gallery's current filter and sort, parsed from the same query scheme
- * `animalPageHref` writes it in, then `animals.neighbours` (PR #217,
- * already fully implemented server-side) walks the identical result set
- * `gallery.list` would. Its own place lookup (the URL's city tokens through `cities.resolveTokens`,
- * the 27 oblasts from `regions.list`), since this route - unlike `loadAnimalPage`, which makes
- * its own call for the city *name* - has no other reason to fetch places; not threaded through
- * `loadAnimalPage` to avoid coupling that shared loader (also used by the full page, which never
- * needs this) to the overlay's own concern.
- */
-async function neighboursOf(
-  client: AnimalPageClient,
-  animalId: AnimalId,
-  rawSearchParams: SearchParams,
-): Promise<{ prev: OverlayNeighbour; next: OverlayNeighbour }> {
-  try {
-    const cityTokens = cityTokensOf(rawSearchParams);
-    const [regions, resolutions] = await Promise.all([
-      client.regions.list({}),
-      cityTokens.length > 0 ? client.cities.resolveTokens({ tokens: cityTokens }) : [],
-    ]);
-    const book = placeBookOf(regions, [], resolutions);
-    const citySlugs = book.slugs;
-    const { filters, sort } = parseGalleryQuery(rawSearchParams, book.placeIds);
-
-    const { prev, next } = await client.animals.neighbours({ animalId, filters, sort });
-    return {
-      prev: prev
-        ? { name: prev.name, href: animalPageHref(prev.id, filters, sort, citySlugs) }
-        : null,
-      next: next
-        ? { name: next.name, href: animalPageHref(next.id, filters, sort, citySlugs) }
-        : null,
-    };
-  } catch {
-    return { prev: null, next: null };
-  }
 }

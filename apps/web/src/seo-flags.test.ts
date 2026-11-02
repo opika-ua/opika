@@ -488,7 +488,10 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview des
     description: { uk: "Лагідний кіт.", en: null },
     photos: [],
     publicLocation: null,
-    shelter: { id: "d0000000-0000-4000-8000-000000000001" },
+    shelter: {
+      id: "d0000000-0000-4000-8000-000000000001",
+      publicLocation: { cityId: CITY_ID },
+    },
   };
   const REAL_DESCRIPTION = "Кіт Мурчик · Бровари · Добрі лапи. Лагідний кіт.";
 

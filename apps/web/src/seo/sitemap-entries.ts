@@ -8,11 +8,8 @@ export const SITEMAP_URL_LIMIT = 50_000;
 export const STATIC_SITEMAP_PATHS = ["/", "/tvaryny", "/pro", "/prytulkam"] as const;
 
 export type SitemapSource = {
-  /** One page of public animals: ids with their shelter ids. */
-  readonly animalPage: (page: number) => Promise<{
-    readonly items: readonly { readonly id: string; readonly shelterId: string }[];
-    readonly totalPages: number;
-  }>;
+  /** Every public animal, in the gallery's order: ids with their shelter ids (one read, not a page loop). */
+  readonly animals: () => Promise<readonly { readonly id: string; readonly shelterId: string }[]>;
 };
 
 /**
@@ -28,14 +25,9 @@ export async function buildSitemapEntries(
   const paths = new Set<string>(STATIC_SITEMAP_PATHS);
   const shelterPaths = new Set<string>();
   const animalPaths: string[] = [];
-  let totalPages = 1;
-  for (let page = 1; page <= totalPages; page++) {
-    const result = await source.animalPage(page);
-    totalPages = result.totalPages;
-    for (const item of result.items) {
-      animalPaths.push(`/tvaryny/${item.id}`);
-      shelterPaths.add(`/prytulky/${item.shelterId}`);
-    }
+  for (const item of await source.animals()) {
+    animalPaths.push(`/tvaryny/${item.id}`);
+    shelterPaths.add(`/prytulky/${item.shelterId}`);
   }
   const all = [...paths, ...shelterPaths, ...animalPaths].slice(0, SITEMAP_URL_LIMIT);
   return all.map((path) => ({ url: absoluteUrl(path) }));

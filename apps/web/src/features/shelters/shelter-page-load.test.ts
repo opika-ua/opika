@@ -65,4 +65,27 @@ describe("the shelter page's filters (loader)", () => {
     await loadShelterPage(SHELTER_ID, { ...QUERY, filters: CATS }, some.client);
     expect(some.relaxationCounts).not.toHaveBeenCalled();
   });
+
+  it("shows the filtered counts for the filters in force, and the unfiltered ones only for the total", async () => {
+    const { client, facetCounts } = stubShelterPageClient({ kind: "answer" }, listOf(2));
+    const filteredAnswer = makeFacetCounts({ species: { dog: 0, cat: 2 } });
+    const unfilteredAnswer = makeFacetCounts({ species: { dog: 5, cat: 7 } });
+    facetCounts.mockImplementation(async (input?: { filters: unknown }) =>
+      input?.filters === NO_FILTERS ? unfilteredAnswer : filteredAnswer,
+    );
+    const load = await loadShelterPage(SHELTER_ID, { ...QUERY, filters: CATS }, client);
+    if (load.kind !== "shelter") throw new Error("expected the shelter page");
+    expect(facetCounts).toHaveBeenCalledWith({
+      filters: CATS,
+      scope: { kind: "shelter", shelterId: SHELTER_ID },
+    });
+    expect(load.view.filterUi?.counts).toBe(filteredAnswer);
+    expect(load.view.filterUi?.total).toBe(12);
+  });
+
+  it("answers a legitimate 404 even when a read started beside the shelter fails", async () => {
+    const { client, galleryList } = stubShelterPageClient({ kind: "refuse", code: "NOT_FOUND" });
+    galleryList.mockRejectedValue(new Error("connection terminated"));
+    expect(await loadShelterPage(SHELTER_ID, QUERY, client)).toEqual({ kind: "not_found" });
+  });
 });

@@ -6,11 +6,11 @@ import type {
   GalleryRelaxationCountsInputSchema,
   GalleryRelaxationCountsOutputSchema,
 } from "@opika/contracts";
-import { galleryRepo, shelterRepo } from "@opika/db/repos";
+import { galleryRepo } from "@opika/db/repos";
 import { ageBucketOf, canonicalizeFilters, primaryPhoto } from "@opika/domain";
 import type { z } from "zod";
 import type { AppContext } from "../context";
-import { cardCityIdOf, cityLabelOf, cityLabelsFor } from "./city-labels";
+import { cityLabelOf } from "./city-labels";
 import { discoverableListingKind } from "./discoverable-listing-kind";
 import { listingFreshness } from "./listing-freshness";
 import { cityOnlyLocationOf } from "./public-location";
@@ -43,7 +43,8 @@ export async function galleryList(
   input: GalleryListInput,
   context: AppContext,
 ): Promise<GalleryListOutput> {
-  const page = await galleryRepo(context.db).list({
+  // One round trip for the page with each card's shelter and city (JOINs); the shelter count runs beside it.
+  const page = await galleryRepo(context.db).listCards({
     // Deduped at the boundary: a filter list repeated thousands of times over
     // /api/rpc would otherwise reach SQL as thousands of predicates (review of #250).
     filters: canonicalizeFilters(input.filters),
@@ -54,46 +55,32 @@ export async function galleryList(
     now: context.now,
   });
 
-  // One batch query for the page's shelters, not one per card.
-  const shelterIds = [...new Set(page.items.map((animal) => animal.shelterId))];
-  const shelterList = await shelterRepo(context.db).findByIds(shelterIds);
-  const shelterMap = new Map(shelterList.map((shelter) => [shelter.id, shelter]));
+  const items = page.items.map(({ animal, shelter }) => ({
+    id: animal.id,
+    name: animal.name,
+    species: animal.species,
+    sex: animal.sex,
+    size: animal.size,
+    coatLength: animal.coatLength,
+    publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
+    ageBucket: ageBucketOf(animal.age, context.now),
+    freshness: listingFreshness(animal.listing, context.now),
+    primaryPhoto: primaryPhoto(animal),
+    listingKind: discoverableListingKind(animal.listing),
+    shelter: {
+      id: shelter.id,
+      displayName: shelter.displayName,
+      logo: shelter.logo,
+      publicLocation: cityOnlyLocationOf(shelter.publicLocation),
+      verification: shelter.verification,
+    },
+  }));
 
-  const items = page.items
-    .map((animal) => {
-      const shelter = shelterMap.get(animal.shelterId);
-      // Unreachable through the predicate, which already restricts to
-      // feed-visible shelters. Dropping the card is the honest response to it
-      // happening anyway: a card with no shelter is not something to render.
-      if (!shelter) return null;
-
-      return {
-        id: animal.id,
-        name: animal.name,
-        species: animal.species,
-        sex: animal.sex,
-        size: animal.size,
-        coatLength: animal.coatLength,
-        publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
-        ageBucket: ageBucketOf(animal.age, context.now),
-        freshness: listingFreshness(animal.listing, context.now),
-        primaryPhoto: primaryPhoto(animal),
-        listingKind: discoverableListingKind(animal.listing),
-        shelter: {
-          id: shelter.id,
-          displayName: shelter.displayName,
-          logo: shelter.logo,
-          publicLocation: cityOnlyLocationOf(shelter.publicLocation),
-          verification:
-            shelter.verification.status === "verified"
-              ? ("verified" as const)
-              : ("unverified" as const),
-        },
-      };
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null);
-
-  const cityLabels = await cityLabelsFor(context.db, items.map(cardCityIdOf));
+  // The cards' cities, once each, in the order the cards first name them.
+  const cities = new Map(
+    page.items.flatMap(({ city }) => (city ? [[city.id, city] as const] : [])),
+  );
+  const cityLabels = [...cities.values()].map(cityLabelOf);
 
   return {
     items,

@@ -33,10 +33,40 @@ describe("neon-perf-routes", () => {
     expect(text).toMatch(/DB calls: \d+ \| sequential waves/);
     expect(text).toContain("wave 1");
     expect(text).toContain("note:");
-    // The animal page reads the shelter twice with the same id: the report names it.
-    expect(text).toMatch(/\/tvaryny\/\[animalId\][\s\S]*?DB calls: 4/);
+    // The animal page: the animal with its shelter in one statement, then the shelter view and the city.
+    expect(text).toMatch(/\/tvaryny\/\[animalId\][\s\S]*?DB calls: 3/);
     expect(text).not.toMatch(/postgres(ql)?:\/\//);
     expect(lines.length).toBeLessThan(400);
+  });
+
+  it("keeps every public route within its round-trip budget (a regression back to N sequential waves fails)", {
+    timeout: 180_000,
+  }, async () => {
+    // Each statement is held back 100 ms, so the wall time is decided by what depends on what, not by
+    // how fast the local database answers: N sequential waves cost about N x 80 ms. (The wave count
+    // alone can merge a wave of one branch into the overlapping wave of another, as in the overlay.)
+    const latencyMs = 100;
+    const costs = await runRoutes(url, () => {}, { latencyMs });
+    const budgets: [string, number][] = [
+      ["/tvaryny (gallery, unfiltered)", 1],
+      ["/tvaryny?misto=<busiest city>", 2],
+      ["/tvaryny/[animalId] (animal page)", 2],
+      ["/tvaryny/@preview/[animalId] (gallery overlay)", 2],
+      ["/prytulky/[shelterId] (busiest shelter)", 2],
+      // No match adds one count after the page, and the shelter's own city one more.
+      ["/prytulky/[shelterId] (shelter with no animals)", 3],
+      ["animals.cardsByIds (/zberezheni, 12 saved cards)", 1],
+      ["/sitemap.xml (every public animal)", 1],
+    ];
+    for (const [label, budget] of budgets) {
+      const cost = costs.get(label);
+      expect(cost, label).toBeTruthy();
+      expect(cost?.waves, label).toBeLessThanOrEqual(budget);
+      expect(cost?.wallMs, label).toBeLessThan((budget + 0.9) * latencyMs);
+    }
+    // The saved cards are one statement, the animal page three: not one per lookup.
+    expect(costs.get("animals.cardsByIds (/zberezheni, 12 saved cards)")?.calls).toBe(1);
+    expect(costs.get("/tvaryny/[animalId] (animal page)")?.calls).toBe(3);
   });
 
   it("flags a repeated statement and a duplicate read in a synthetic route", () => {

@@ -13,7 +13,8 @@ import {
   timelineLines,
   wavesOf,
 } from "@opika/db/perf";
-import { NO_FILTERS } from "@opika/domain";
+import { galleryRepo } from "@opika/db/repos";
+import { type AnimalId, NO_FILTERS } from "@opika/domain";
 import { createRouterClient } from "@orpc/server";
 import type { AppContext } from "../src/api/context";
 import { router } from "../src/api/router";
@@ -21,6 +22,7 @@ import {
   type AnimalPageClient,
   loadAnimalPage,
 } from "../src/features/animal-detail/animal-page-load";
+import { loadOverlayData } from "../src/features/animal-overlay/overlay-load";
 import { kabinetAnimalListPageOf } from "../src/features/kabinet/animal-list/animal-list-page";
 import {
   loadShelterPage,
@@ -58,12 +60,10 @@ type Route = {
 };
 
 const GALLERY_LIST_NOTE =
-  "gallery.list (handler + repo) is 4 sequential trips: (1) page SELECT; (2) countShelters, which needs only the same WHERE and not the page rows; (3) shelterRepo.findByIds(page's shelter ids); (4) cityRepo.findByIds(cards' cities). " +
-  "(2) could start together with (1) in one Promise.all. (3) and (4) both need (1)'s rows; (4) also needs (3) only for the shelter's own city, so they can be one statement (shelters and cities by id) or a JOIN in (1): 4 trips -> 2 (page + count in parallel, then one lookup) or -> 1 with the JOINs.";
+  "gallery.list (handler + repo) is one wave: the page SELECT joins each card's shelter and city (narrow public columns), and countShelters runs beside it. Only a page past the end or with no match adds a count wave.";
 
 const DETAIL_NOTE =
-  "loadAnimalPage: animals.byId = animal (1) then its shelter (2, needs animal.shelterId); then shelters.byId AGAIN (3, the same shelter row read a second time, only for fields the animal view lacks); then cities.byIds (4, needs the animal's or shelter's city). regions.list has no query. " +
-  "Obvious merge: one statement animal JOIN shelter JOIN city (4 trips -> 1); at minimum, drop (3) by returning the extra shelter fields from (2).";
+  "loadAnimalPage: animals.byId is one statement (animal JOIN shelter); then shelters.byId (the page-only shelter fields) and cities.byIds run together (the card's city is known from the animal view). regions.list has no query. The shelter row is still read a second time for fields the animal view lacks; dropping that needs a contract change.";
 
 export const ROUTES: Route[] = [
   {
@@ -107,7 +107,8 @@ export const ROUTES: Route[] = [
   },
   {
     label: "/tvaryny/[animalId] (animal page)",
-    reads: "loadAnimalPage: animals.byId -> shelters.byId -> regions.list || cities.byIds",
+    reads:
+      "loadAnimalPage: animals.byId (animal JOIN shelter) -> shelters.byId || regions.list || cities.byIds",
     needs: (p) => p.animalId !== null,
     run: (client, _db, pick) =>
       loadAnimalPage(pick.animalId as string, client as unknown as AnimalPageClient),
@@ -115,25 +116,20 @@ export const ROUTES: Route[] = [
   },
   {
     label: "/tvaryny/@preview/[animalId] (gallery overlay)",
-    reads: "loadAnimalPage, then animals.neighbours (2 parallel statements)",
+    reads: "loadOverlayData: loadAnimalPage || animals.neighbours (2 parallel statements)",
     needs: (p) => p.animalId !== null,
     run: async (client, _db, pick) => {
-      await loadAnimalPage(pick.animalId as string, client as unknown as AnimalPageClient);
-      await client.animals.neighbours({
-        animalId: pick.animalId,
-        filters: NO_FILTERS,
-        sort: "freshest",
-      } as never);
+      await loadOverlayData(pick.animalId as AnimalId, {}, client as unknown as AnimalPageClient);
     },
     notes: [
       DETAIL_NOTE,
-      "animals.neighbours needs only the animal id (not the loaded animal), but the overlay awaits it after loadAnimalPage. Starting it with loadAnimalPage in one Promise.all removes one trip from the critical path.",
+      "animals.neighbours (2 parallel statements) starts with loadAnimalPage in one Promise.all: it needs only the animal id.",
     ],
   },
   {
     label: "/prytulky/[shelterId] (busiest shelter)",
     reads:
-      "loadShelterPage: shelters.byId -> gallery.list -> [facetCounts x1-2 -> relaxationCounts] -> cities.byIds? -> regions.list",
+      "loadShelterPage: shelters.byId || gallery.list || [facetCounts x2 when filtered] -> facetCounts / relaxationCounts / cities.byIds together",
     needs: (p) => p.busyShelter !== null,
     run: (client, _db, pick) =>
       loadShelterPage(
@@ -142,9 +138,7 @@ export const ROUTES: Route[] = [
         client as unknown as ShelterPageClient,
       ),
     notes: [
-      "shelters.byId is awaited first only so its NOT_FOUND decides the page (source comment); gallery.list for the shelter scope needs only the id, so it could start with it (a 404 would just discard the list).",
-      "facetCounts (read only above 12 animals, or with a filter) needs gallery.list's total only to decide whether to run: it could be started speculatively in the same Promise.all, or always run (its statement is independent of the page rows). With a filter on, the second facetCounts (unfiltered, for the heading) is independent of the first and can run with it.",
-      "cities.byIds for the shelter's city runs only if the list's cityLabels lack it; it needs only shelter.publicLocation.cityId, known after shelters.byId, so it could join the first Promise.all.",
+      "shelters.byId and gallery.list start together (a 404 just discards the list); the facet counts the list's total calls for, the zero-match suggestions and the shelter's own city (when no card carried it) run together in a second wave.",
       GALLERY_LIST_NOTE,
     ],
   },
@@ -159,16 +153,23 @@ export const ROUTES: Route[] = [
         client as unknown as ShelterPageClient,
       ),
     notes: [
-      "An empty list adds the count statements (matching and shelters) to the list: see the call count.",
+      "An empty list adds one count statement (matching) after the page: see the call count.",
     ],
   },
   {
     label: "animals.cardsByIds (/zberezheni, 12 saved cards)",
-    reads: "animalRepo.findByIds -> shelterRepo.findByIds -> cityRepo.findByIds",
+    reads: "animalRepo.findCardsByIds (animals JOIN shelters JOIN cities)",
     needs: (p) => p.animalIds.length > 0,
     run: (client, _db, pick) => client.animals.cardsByIds({ animalIds: pick.animalIds } as never),
+    notes: ["One statement: the animals with their shelters and card cities (LEFT JOINs)."],
+  },
+  {
+    label: "/sitemap.xml (every public animal)",
+    reads: "galleryRepo.sitemapRows (ids and shelter ids, one statement up to the navigable bound)",
+    needs: () => true,
+    run: (_client, db) => galleryRepo(db).sitemapRows({ now: new Date() }),
     notes: [
-      "Three dependent trips: animals, then their shelters (needs animal.shelterId), then cities (needs animal and shelter cities). One statement with JOINs on shelters and cities returns the same data in 1 trip.",
+      "One statement. It was a loop of 50-animal gallery pages, each four statements in a row (page, shelter count, shelters, cities): about 4 x ceil(n/50) round trips in sequence.",
     ],
   },
   {
@@ -234,8 +235,16 @@ export function routeBlock(route: Route, calls: readonly Call[], wallMs: number)
   return lines;
 }
 
-export async function runRoutes(url: string, log: (line: string) => void): Promise<void> {
-  const recorder = createRecordingDatabase(url, { readOnly: true });
+/** What a route cost: statements issued and sequential waves (round trips on the critical path). */
+export type RouteCost = { label: string; calls: number; waves: number; wallMs: number } | null;
+
+export async function runRoutes(
+  url: string,
+  log: (line: string) => void,
+  options: { latencyMs?: number } = {},
+): Promise<ReadonlyMap<string, RouteCost>> {
+  const costs = new Map<string, RouteCost>();
+  const recorder = createRecordingDatabase(url, { readOnly: true, ...options });
   try {
     const pick = await pickPerfData(recorder.db);
     log(
@@ -256,6 +265,7 @@ export async function runRoutes(url: string, log: (line: string) => void): Promi
         log("");
         log(`== ${route.label}`);
         log("   skipped: the branch has no data for it");
+        costs.set(route.label, null);
         continue;
       }
       // One untimed pass first, so the second is the warm one.
@@ -265,10 +275,17 @@ export async function runRoutes(url: string, log: (line: string) => void): Promi
       await route.run(client, recorder.db, pick);
       const wall = performance.now() - started;
       for (const line of routeBlock(route, recorder.calls, wall)) log(line);
+      costs.set(route.label, {
+        label: route.label,
+        calls: recorder.calls.length,
+        waves: wavesOf(recorder.calls).length,
+        wallMs: wall,
+      });
     }
   } finally {
     await recorder.close();
   }
+  return costs;
 }
 
 async function main(): Promise<void> {
@@ -286,7 +303,10 @@ async function main(): Promise<void> {
     "Routes: warm pass (a cold pass runs first and is discarded). Read paths only; local connection READ ONLY, Neon HTTP has no session.",
   );
   try {
-    await runRoutes(url, (line) => console.log(scrubbed(line)));
+    // PERF_LATENCY_MS=26 holds each statement back that long (local only): the wall time then
+    // reads as waves x round trip, as it would over Neon.
+    const latencyMs = Number(process.env["PERF_LATENCY_MS"] ?? 0) || 0;
+    await runRoutes(url, (line) => console.log(scrubbed(line)), { latencyMs });
   } catch (error) {
     console.error(
       scrubbed(`Routes failed: ${error instanceof Error ? error.message.split("\n")[0] : "error"}`),
