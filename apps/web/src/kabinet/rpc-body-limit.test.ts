@@ -239,8 +239,8 @@ describe("the kabinet body ceiling (P-Q7)", () => {
   /**
    * Next's proxy buffers a matched request's body up to `proxyClientMaxBodySize` and passes on only
    * that much, so a ceiling at or above it would let a truncated body through as if it were whole.
-   * The config lowers it to 128 KB (`proxy-matcher.test.ts` pins the number), so the kabinet's 4 MiB
-   * ceiling is safe only because `/api/kabinet` is outside the proxy matcher.
+   * The config lowers it to 128 KB (`proxy-matcher.test.ts` pins it above 64 KB and at most
+   * 1 MiB), so the kabinet's 4 MiB ceiling is safe only because `/api/kabinet` is outside the proxy matcher.
    */
   it("is not truncated by Next's proxy body buffer, because the kabinet is outside the matcher", async () => {
     const { config } = await import("../proxy");
