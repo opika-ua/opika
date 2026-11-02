@@ -247,28 +247,19 @@ function isDiscoveryPagePath(pathname: string): boolean {
 }
 
 /**
- * Every request this file's own matcher gets to run against, except the two
- * kinds excluded on purpose: Next's own hashed, content-addressed static
- * build assets (`_next/static`, `_next/image`) and `favicon.ico`. Excluding
- * them isn't a gate weakness - they reveal nothing about the site's content
- * and a browser that already holds the gate cookie needs them to render any
- * page at all. Everything else this matcher sees, including `/api/rpc/*`
- * and every app page, is in scope (the kabinet's routes and the cron path are
- * exempted inside `proxy`, by path, not here): "every request" per the decision this
- * gate implements, not only the specific routes a crawler happened to hit
- * this time.
+ * Every request this file's matcher runs against, except: Next's hashed static assets
+ * (`_next/static`, `_next/image`), `favicon.ico`, and `/api/kabinet` and `/api/auth`. The last two
+ * are out because a matched non-GET request has its whole body buffered before the route runs,
+ * which defeats `/api/kabinet`'s 16 KB cap; both are gate-exempt by path and take no other proxy
+ * effect (the page charges and token-page headers are for `/kabinet/*` pages). Every other path,
+ * `/api/rpc/*`, `/api/monitoring/*`, `/api/cron/*` and every page, is matched, and what the proxy
+ * exempts inside `proxy` (the kabinet pages, the cron paths) it still buffers; that buffering is
+ * bounded by `PROXY_CLIENT_MAX_BODY_BYTES` in `next.config.ts`.
  *
- * ⚠ Not literally every request the app can produce a response for. Next's
- * config-level `redirects()` (`next.config.ts`: `/` → `/tvaryny`, `/discovery`
- * → `/tvaryny/gortaty`) run before this file at all - both are checked
- * without the gate seeing them, and both stay 308s regardless of the gate
- * secret. Left ungated deliberately, not overlooked: neither serves any
- * content, only a redirect to a route the gate *does* cover, so nothing is
- * exposed by the gap - an unauthenticated caller still hits the gate the
- * moment they follow either redirect.
+ * Not every response passes through here: `redirects()` in `next.config.ts` (`/` and `/discovery`)
+ * run before this file, and stay 308s regardless of the gate. They serve no content, only a
+ * redirect to a route the gate does cover.
  */
 export const config = {
-  // `/api/kabinet` and `/api/auth` are gate-exempt and take no other proxy effect, and a matched
-  // route has its whole chunked body buffered (up to 10 MB) before the route's 16 KB cap can act.
   matcher: ["/((?!_next/static|_next/image|favicon.ico|api/kabinet(?:/|$)|api/auth(?:/|$)).*)"],
 };

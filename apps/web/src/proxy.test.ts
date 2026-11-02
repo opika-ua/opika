@@ -912,29 +912,3 @@ void (async () => { await import("./kabinet/runtime"); })();
     );
   });
 });
-
-describe("proxy matcher", () => {
-  // Next buffers a matched route's whole chunked body (up to 10 MB) before the route runs, which
-  // defeats `/api/kabinet`'s 16 KB cap; both excluded prefixes are gate-exempt by path.
-  async function matches(pathname: string): Promise<boolean> {
-    const { config } = await import("./proxy");
-    const inner = /^\/\((.*)\)$/.exec(config.matcher[0] ?? "")?.[1];
-    if (inner === undefined) throw new Error("unexpected matcher shape");
-    return new RegExp(`^/(${inner})$`).test(pathname);
-  }
-
-  it.each(["/api/kabinet/shelter/photos/add", "/api/kabinet", "/api/auth/sign-in/email"])(
-    "skips %s",
-    async (path) => expect(await matches(path)).toBe(false),
-  );
-
-  it.each([
-    "/api/rpc/animals/list",
-    "/api/kabinetx",
-    "/api/authx",
-    "/kabinet",
-    "/kabinet/vkhid",
-    "/tvaryny",
-    "/",
-  ])("still runs on %s", async (path) => expect(await matches(path)).toBe(true));
-});
