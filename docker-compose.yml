@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgis/postgis:17-3.5
+    image: postgis/postgis:18-3.6
     restart: unless-stopped
     # The image's default CMD is just ["postgres"] (verified), so these flags replace nothing.
     command: ["postgres", "-c", "idle_in_transaction_session_timeout=60s", "-c", "max_connections=200"]
@@ -11,7 +11,8 @@ services:
     ports:
       - "${OPIKA_DB_PORT:-5433}:5432"
     volumes:
-      - opika-db-data:/var/lib/postgresql/data
+      # PG18 images keep PGDATA at /var/lib/postgresql/18/docker, so mount the parent, on a new volume (the PG17 one is not reusable).
+      - opika-pgdata-18:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U opika -d opika"]
       interval: 5s
@@ -19,4 +20,4 @@ services:
       retries: 10
 
 volumes:
-  opika-db-data:
+  opika-pgdata-18:

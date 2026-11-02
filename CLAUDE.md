@@ -102,7 +102,7 @@ Rationale: `docs/dev-notes.md`.
 | Swipe deck       | Hand-rolled `PointerEvent` + `transform` (no gesture library)                                                                                                                                                            |
 | API contract     | oRPC (`@orpc/contract`) in contract-first mode, Zod 4. Settled on the stable 1.x line (tRPC v11 is only the documented fallback)                                                                                                                   |
 | Server runtime   | Node 24 LTS, inside Next.js route handlers; domain logic framework-free                                                                                                                                                  |
-| DB               | Postgres 17 on Neon (Launch, `aws-eu-central-1`), PostGIS available but not enabled at MVP                                                                                                                               |
+| DB               | Postgres 18 on Neon (Free plan today; upgrade to Launch before onboarding), PostGIS available but not enabled at MVP                                                                                                                               |
 | ORM              | Drizzle 0.45.x                                                                                                                                                                                                           |
 | Images           | Cloudflare R2 + `sharp`-generated variants at upload, served via CF CDN. Never through Vercel's image optimizer                                                                                                          |
 | Auth             | Better Auth 1.7.x, self-hosted, `organization` plugin for shelters                                                                                                                                                       |
@@ -193,7 +193,7 @@ pnpm test:harness         # Playwright rendering harness against /tvaryny and /t
 # One-time, and again after a Playwright version bump:
 pnpm --filter @opika/web test:harness:install   # downloads Chromium
 
-docker compose up -d      # local Postgres+PostGIS (postgis/postgis:17-3.5)
+docker compose up -d      # local Postgres+PostGIS (postgis/postgis:18-3.6)
 docker compose down       # stop it; add -v to also drop the volume
 docker compose up -d --force-recreate db   # apply changed db flags in docker-compose.yml (volume stays)
 
