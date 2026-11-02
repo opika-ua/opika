@@ -86,7 +86,7 @@ function migrationParts(migration: SmokeSittingInput["migration"]) {
       "pnpm --filter @opika/db db:migrate --expect $ep\npnpm --filter @opika/db db:check-hashes\n",
     // Kept until the production step: `--prod` identifies production by this id.
     endpointRemovedAfterSmoke: "",
-    childExpected: `# Expected first: ${migration.tag} applied, then every hash "match" (${migration.tag} included).\n`,
+    childExpected: `# Expected first: "Migrations: applied 1: ${migration.tag}" (applied 0: STOP unless you are re-running an already-applied migration), then every hash "match" (${migration.tag} included).\n`,
     productionStep: `
 ---- Production migration (only after every check above passed; no smoke runs here) ----
 $env:DATABASE_URL = Read-Secret "Production connection string (for db:migrate and db:check-hashes only)"
@@ -94,7 +94,7 @@ pnpm --filter @opika/db db:migrate --prod --expect (Read-Host "Type the producti
 pnpm --filter @opika/db db:check-hashes
 Remove-Item Env:DATABASE_URL
 Remove-Item Env:PROD_NEON_ENDPOINT
-# Expected: ${migration.tag} applied; every hash "match". Any refusal or failure -> STOP, paste it.
+# Expected: "Migrations: applied 1: ${migration.tag}"; every hash "match". Any refusal or failure -> STOP, paste it.
 `,
     pasteBack: " Then the production migration's full output.",
   };
