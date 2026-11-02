@@ -8,6 +8,7 @@ import { OPERATOR_HOME, SHELTER_ACCOUNT_PATH } from "../../../features/kabinet/r
 import { ShelterProfile } from "../../../features/kabinet/ShelterProfile";
 import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { loadShelterPage } from "../shelter-load";
+import { signedInPerson } from "../signed-in-person";
 
 export async function generateMetadata(): Promise<Metadata> {
   const result = await loadShelterPage();
@@ -65,6 +66,7 @@ export default async function ShelterProfilePage({
           // The locked note puts the name mid-sentence; the decision's signature stands alone.
           operator={operator}
           editing={home.editing}
+          person={await signedInPerson()}
           tab={Array.isArray(tab) ? tab[0] : tab}
         />
       );

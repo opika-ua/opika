@@ -5,6 +5,7 @@ import type { KabinetPrincipal } from "./actor";
 import type { KabinetAuth } from "./auth";
 import { cleanedQueryError, withQueryErrorsCleaned } from "./clean-query-errors";
 import { sessionHasLapsed } from "./session-lapse";
+import { personOf, type SignedInPerson } from "./signed-in-person";
 import { withSupportMode } from "./support";
 
 /**
@@ -69,13 +70,38 @@ export async function kabinetSessionUserIdOf(
   now: Date,
   options: { refresh: boolean } = { refresh: true },
 ): Promise<string | null> {
-  const session = await sessionOf(auth, headers, options.refresh);
+  return (await liveSessionUserOf(auth, db, headers, now, options.refresh))?.id ?? null;
+}
+
+/**
+ * Who is signed in, for the header and the account page: the name and the address, nothing else
+ * of the session. Read without refreshing (a render is not a visit; the page's own identity read
+ * does that), and null for no session or a lapsed one.
+ */
+export async function kabinetSessionPersonOf(
+  auth: KabinetAuth,
+  db: Database,
+  headers: Headers,
+  now: Date,
+): Promise<SignedInPerson | null> {
+  const user = await liveSessionUserOf(auth, db, headers, now, false);
+  return user === null ? null : personOf(user);
+}
+
+async function liveSessionUserOf(
+  auth: KabinetAuth,
+  db: Database,
+  headers: Headers,
+  now: Date,
+  refresh: boolean,
+): Promise<{ id: string; name: unknown; email: unknown } | null> {
+  const session = await sessionOf(auth, headers, refresh);
   if (session === null) return null;
   const userId = session.user.id;
   const lapsed = await sessionHasLapsed(session.session, now, () =>
     kabinetActorRepo(withQueryErrorsCleaned(db)).hasActiveOperatorGrant(userId),
   );
-  return lapsed ? null : userId;
+  return lapsed ? null : session.user;
 }
 
 /**

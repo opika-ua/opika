@@ -32,7 +32,7 @@ import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
 import { capturingSender } from "./magic-link-sender";
 import { generousPasswordLimiters } from "./password-limits";
 import { capturingPasswordMail } from "./password-mail";
-import { kabinetIdentityOf, kabinetSessionUserIdOf } from "./principal";
+import { kabinetIdentityOf, kabinetSessionPersonOf, kabinetSessionUserIdOf } from "./principal";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
@@ -675,6 +675,36 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
       expect(await kabinetSessionUserIdOf(auth, db, headers, now)).toBe(user.id);
       const [refreshed] = await db.select().from(authSession);
       expect(refreshed?.updatedAt.getTime()).toBeGreaterThan(before?.updatedAt.getTime() ?? 0);
+    });
+
+    /**
+     * The header's person (`{ name, email }`) is read like the reveal: it must not count as a visit.
+     * Fails if the person read starts refreshing the session.
+     */
+    it("the person read returns exactly name and email and never moves updated_at or expiresAt", async () => {
+      const user = await createUser("olena@example.org");
+      const cookie = await signIn("olena@example.org");
+      await age({ created: 10 * day, updated: 10 * day });
+      const [before] = await db.select().from(authSession);
+      const person = await kabinetSessionPersonOf(auth, db, new Headers({ cookie }), new Date());
+      expect(person).toEqual({ name: user.name, email: "olena@example.org" });
+      expect(Object.keys(person ?? {}).sort()).toEqual(["email", "name"]);
+      const [after] = await db.select().from(authSession);
+      expect(after?.updatedAt).toEqual(before?.updatedAt);
+      expect(after?.expiresAt).toEqual(before?.expiresAt);
+    });
+
+    it("the person read is null with no cookie and for a session past its limit, and does not throw", async () => {
+      await createUser("olena@example.org");
+      const cookie = await signIn("olena@example.org");
+      expect(await kabinetSessionPersonOf(auth, db, new Headers(), new Date())).toBeNull();
+      await age({ created: 2 * day, updated: 30 * day + 60_000 });
+      expect(
+        await kabinetSessionPersonOf(auth, db, new Headers({ cookie }), new Date()),
+      ).toBeNull();
+      expect(
+        await kabinetSessionPersonOf(auth, db, new Headers({ cookie: "x=y" }), new Date()),
+      ).toBeNull();
     });
 
     it("the operator's session: gone past 7 days idle or 30 days, enforced by role", async () => {

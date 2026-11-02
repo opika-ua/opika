@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { SignedInPerson } from "../../kabinet/signed-in-person";
 import { Container } from "../../ui/Container";
 import { cx } from "../../ui/cx";
 import { MAIN_LANDMARK } from "../../ui/landmark";
@@ -15,12 +16,14 @@ import { SupportBanner } from "./SupportBanner";
 export function ShelterShell({
   shelterName,
   viewer,
+  person,
   nav,
   navOnPhone = true,
   children,
 }: {
   shelterName: string;
   viewer: "admin" | "support";
+  person: SignedInPerson | null;
   nav: ReactNode;
   navOnPhone?: boolean;
   children: ReactNode;
@@ -33,7 +36,7 @@ export function ShelterShell({
       }
     >
       {support ? <SupportBanner shelterName={shelterName} /> : null}
-      <KabinetHeader account={{ kind: "shelter", shelterName, viewer }} />
+      <KabinetHeader account={{ kind: "shelter", shelterName, viewer }} person={person} />
       <Container
         className={cx(
           "flex flex-col gap-4 pt-5 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14",

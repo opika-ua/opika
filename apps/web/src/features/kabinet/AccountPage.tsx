@@ -1,4 +1,5 @@
 import { uk } from "@opika/i18n";
+import type { SignedInPerson } from "../../kabinet/signed-in-person";
 import { Heading } from "../../ui/Heading";
 import type { ProfileEditing } from "./home";
 import { KabinetNav } from "./KabinetNav";
@@ -16,21 +17,24 @@ export function AccountPage({
   shelterName,
   editing,
   password,
+  person,
 }: {
   shelterName: string;
   editing: ProfileEditing;
   password: PasswordState | null;
+  person: SignedInPerson | null;
 }) {
   return (
     <ShelterShell
       shelterName={shelterName}
       viewer="admin"
+      person={person}
       nav={<KabinetNav current={null} animalList={animalListShownTo("admin", editing)} />}
     >
       <Heading level={1} look="display-l" className="break-words">
         {uk.kabinet.shell.accountAndPassword}
       </Heading>
-      <SignInEmail />
+      <SignInEmail email={person?.email ?? null} />
       {password !== null ? <ChangePasswordSection password={password} /> : null}
     </ShelterShell>
   );

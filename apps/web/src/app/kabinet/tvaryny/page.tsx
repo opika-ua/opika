@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { AnimalListScreen } from "../../../features/kabinet/animal-list/AnimalListScreen";
 import { operatorNameOf, standaloneOperatorName } from "../../../kabinet/operator";
+import { signedInPerson } from "../signed-in-person";
 import { loadKabinetAnimalListPage } from "./load";
 
 export const metadata: Metadata = { title: uk.kabinet.animalList.pageTitle };
@@ -26,6 +27,7 @@ export default async function AnimalListPage() {
       return (
         <AnimalListScreen
           page={page}
+          person={await signedInPerson()}
           operatorName={standaloneOperatorName(
             operatorNameOf({
               KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,

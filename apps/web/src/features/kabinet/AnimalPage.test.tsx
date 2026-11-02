@@ -20,6 +20,7 @@ describe("AnimalPage", () => {
   it("an id that isn't this shelter's animal: his not-found sentence, and the way back to the list", () => {
     render(
       <AnimalPage
+        person={null}
         page={{
           kind: "missing",
           shelter,
@@ -45,6 +46,7 @@ describe("AnimalPage", () => {
   it("a shelter outside the allowlist, which has no list, goes back to its profile", () => {
     render(
       <AnimalPage
+        person={null}
         page={{ kind: "missing", shelter, viewer: "admin", editing: { kind: "read_only" } }}
       />,
     );
@@ -57,6 +59,7 @@ describe("AnimalPage", () => {
   it("the support view: the banner instead of sign-out, and no form controls to write with", () => {
     render(
       <AnimalPage
+        person={null}
         page={{
           kind: "form",
           shelter,

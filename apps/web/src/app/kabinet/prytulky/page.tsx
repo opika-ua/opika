@@ -5,6 +5,7 @@ import { listFiltersOf } from "../../../features/kabinet/operator/list-params";
 import { OperatorShell } from "../../../features/kabinet/operator/OperatorShell";
 import { operatorShelterListOf } from "../../../features/kabinet/operator/pages";
 import { ShelterListScreen } from "../../../features/kabinet/operator/ShelterListScreen";
+import { signedInPerson } from "../signed-in-person";
 import { operatorRequest } from "./operator-request";
 
 export const metadata: Metadata = {
@@ -38,7 +39,7 @@ export default async function OperatorSheltersPage({
     case "load_failed":
     case "list":
       return (
-        <OperatorShell current="shelters">
+        <OperatorShell current="shelters" person={await signedInPerson()}>
           <ShelterListScreen
             filters={filters}
             content={
