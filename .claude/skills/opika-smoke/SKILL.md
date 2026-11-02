@@ -13,6 +13,11 @@ verified until a sitting has run against real Neon.
   real child branch.
 - **Do not hand-write the commands.** Generate the block with `pnpm --filter @opika/db smoke-sitting`
   (`packages/db/src/tools/smoke-sitting.ts`); it refuses to render a sitting that says otherwise.
+- The generated block types the CHILD and PRODUCTION endpoint ids by hand (`Read-Host`, visible: they are not
+  secrets), reads only the URL with `Read-Secret`, and passes `--expect $child`. It runs the commands only inside
+  `if ($problems.Count -eq 0)`; it halts with `STOP, nothing was run: ...` if an id is not `ep-...`, the child id is
+  pooled or equals production, or the URL's endpoint differs from the typed child id or is production. Never derive
+  `--expect` from the pasted URL (that always matches). Windows PowerShell 5.1.
 - PowerShell, secrets read with `Read-Secret` (never printed, echoed or logged; branch URLs carry the
   production password), one sitting file per day under `Claude outputs/`.
 - Every command takes `--filter` (`db:migrate` and the smokes have no root alias); a non-local target needs

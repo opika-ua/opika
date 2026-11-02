@@ -25,7 +25,7 @@ describe("renderSmokeSitting", () => {
   it("never puts a real child branch's own connection string on the production endpoint", () => {
     const text = renderSmokeSitting(BASE);
     expect(text).toContain("PROD_NEON_ENDPOINT");
-    expect(text).toContain("Child branch connection string (never production's own)");
+    expect(text).toContain("Child branch DIRECT connection string (never production's own)");
     expect(text).toContain("git worktree add --detach");
     expect(text).toContain(BASE.sha);
   });
@@ -81,6 +81,77 @@ describe("renderSmokeSitting", () => {
   });
 });
 
+describe("renderSmokeSitting, typed child endpoint guard", () => {
+  const variants: Record<string, string> = {
+    plain: renderSmokeSitting(BASE),
+    migration: renderSmokeSitting({ ...BASE, migration: { tag: "0019_x" } }),
+    import: renderSmokeSitting({
+      ...BASE,
+      settlementImport: {
+        download: { url: "https://example.org/k.xlsx", sha256: "abc123" },
+        expectedFirstPlan: "F",
+        expectedAfterCommit: "C",
+        expectedRerun: "R",
+        expectedAfterReseed: "S",
+        timings: { expected: "T" },
+      },
+    }),
+  };
+
+  for (const [name, text] of Object.entries(variants)) {
+    describe(name, () => {
+      const at = (needle: string) => text.indexOf(needle);
+
+      it("types the child and production ids visibly and reads only the URL as a secret", () => {
+        expect(text).toContain('$child = (Read-Host "CHILD branch endpoint id');
+        expect(text).toContain(".Trim().ToLower()");
+        expect(text).toContain('$prod = (Read-Host "PRODUCTION endpoint id');
+        expect(text).toContain('$env:DATABASE_URL = Read-Secret "Child branch DIRECT');
+        expect(text).not.toContain('Read-Secret "Production Neon endpoint id');
+        expect(text).toContain("[Console]::OutputEncoding = [Text.Encoding]::UTF8");
+      });
+
+      it("never derives the --expect value from the pasted URL", () => {
+        expect(text).not.toContain("$ep = ([uri]");
+        expect(text).not.toMatch(/--expect \$ep\b/);
+        expect(text).toContain("$urlEp = ([uri]$env:DATABASE_URL).Host.Split('.')[0]\n");
+        expect(text).toContain("--expect $child");
+      });
+
+      it("halts on every bad case and prints the stop line", () => {
+        for (const reason of [
+          "$child -notmatch '^ep-[a-z0-9-]+$'",
+          "$prod -notmatch '^ep-[a-z0-9-]+$'",
+          "$child -match '-pooler$'",
+          "($child -replace '-pooler$','') -eq ($prod -replace '-pooler$','')",
+          "$urlEp -ne $child",
+          "($urlEp -replace '-pooler$','') -eq ($prod -replace '-pooler$','')",
+        ]) {
+          expect(text, reason).toContain(reason);
+        }
+        expect(text).toContain('Write-Host ("STOP, nothing was run: "');
+      });
+
+      it("runs the commands only inside the guard, and removes the URL in every case", () => {
+        const guard = at("if ($problems.Count -eq 0) {");
+        const elseAt = at("} else {");
+        expect(guard).toBeGreaterThan(at("$problems = @()"));
+        for (const cmd of [
+          "db:neon-smoke --expect $child",
+          "db:import-settlements",
+          "db:migrate --expect",
+        ]) {
+          const i = at(cmd);
+          if (i === -1) continue;
+          expect(i, cmd).toBeGreaterThan(guard);
+          expect(i, cmd).toBeLessThan(elseAt);
+        }
+        expect(at("Remove-Item Env:DATABASE_URL")).toBeGreaterThan(elseAt);
+      });
+    });
+  }
+});
+
 describe("renderSmokeSitting, for a PR with a migration", () => {
   const TAG = "0019_sessions_adopter_id_index";
   const WITH_MIGRATION: SmokeSittingInput = { ...BASE, migration: { tag: TAG } };
@@ -88,9 +159,9 @@ describe("renderSmokeSitting, for a PR with a migration", () => {
   const at = (needle: string) => text.indexOf(needle);
 
   it("migrates and checks the child branch, then smokes it, then migrates production", () => {
-    const childMigrate = at("db:migrate --expect $ep");
+    const childMigrate = at("db:migrate --expect $child");
     const childHashes = at("db:check-hashes");
-    const smoke = at("db:neon-smoke --expect $ep");
+    const smoke = at("db:neon-smoke --expect $child");
     const productionMigrate = at("db:migrate --prod --expect");
     expect(childMigrate).toBeGreaterThan(-1);
     expect(childHashes).toBeGreaterThan(childMigrate);
@@ -131,8 +202,8 @@ describe("renderSmokeSitting with the settlement import (nationwide N2)", () => 
   const at = (needle: string) => text.indexOf(needle);
 
   it("smokes first, then imports, then reruns, then reseeds and checks again, in that order", () => {
-    const smoke = at("db:neon-smoke --expect $ep");
-    const dry = at("db:import-settlements --expect $ep --file $xlsx\n");
+    const smoke = at("db:neon-smoke --expect $child");
+    const dry = at("db:import-settlements --expect $child --file $xlsx\n");
     const commit = at("--file $xlsx --commit");
     const seed = at("db:seed --profile=demo --force --db-name=$dbName");
     expect(smoke).toBeGreaterThan(-1);
@@ -185,7 +256,7 @@ describe("renderSmokeSitting with the import and the timings step (nationwide N3
   const at = (needle: string) => withTimings.indexOf(needle);
 
   it("times after the import and the reseed, before the connection string is removed", () => {
-    const timings = at("db:neon-smoke-timings --expect $ep");
+    const timings = at("db:neon-smoke-timings --expect $child");
     expect(timings).toBeGreaterThan(at("RESEED"));
     expect(at("# Expected: TIMINGS")).toBeGreaterThan(timings);
     expect(at("Remove-Item Env:DATABASE_URL")).toBeGreaterThan(timings);
