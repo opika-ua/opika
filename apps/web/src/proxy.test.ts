@@ -223,6 +223,8 @@ describe("proxy", () => {
       expect(response.headers.get("set-cookie")).toBeNull();
     });
 
+    // The per-animal image is gated NOW on purpose (owner, 2026-11-02). This case has to change at the
+    // discoverability flip: docs/launch-sequence.md step 14, "exempt per-animal OG images".
     it("exempts the site-wide link-preview image and nothing next to it (BR-7)", async () => {
       const { proxy } = await import("./proxy");
       expect((await proxy(request("https://opika.example/opengraph-image"))).status).toBe(200);

@@ -320,7 +320,7 @@ deploy, the gallery's demo banner and the deck's demo label are gone, and a card
 
 ### 14. Remove the gate, flip `SITE_IS_PUBLICLY_DISCOVERABLE`, land R4-2 - one commit
 
-Three changes, one commit, because `assertAnalyticsCopyMatchesGateState` (`seo-flags.ts`)
+Four changes, one commit, because `assertAnalyticsCopyMatchesGateState` (`seo-flags.ts`)
 is a test-time tripwire that fails CI if they land out of step with each other (it does not
 throw at boot - `instrumentation.ts`'s `assertDemoDiscoverabilityInvariant` is the one
 boot-time check, and it covers the other pair of constants, step 13 above):
@@ -335,6 +335,11 @@ boot-time check, and it covers the other pair of constants, step 13 above):
 3. `packages/i18n/src/messages/uk.ts`: append `PENDING_R4_2_ANALYTICS_SENTENCE` to
    `uk.about.analytics` (`+ " " + PENDING_R4_2_ANALYTICS_SENTENCE`, not retyped - the constant
    is Oleksii's own already-written Ukrainian, held since 2026-10-06).
+4. Exempt per-animal OG images from the gate (BR-7, owner 2026-11-02): only `/opengraph-image` is
+   exempt until now; `/tvaryny/<id>/opengraph-image` stays gated. Flipping step 1 makes the gate
+   unreachable, so this holds by itself; if the gate branch in `proxy.ts` is kept or reworked
+   instead, add the path there. Either way, change the `proxy.test.ts` case that pins the per-animal
+   image as gated ("exempts the site-wide link-preview image and nothing next to it").
 
 Commit, push, let the deploy land.
 
