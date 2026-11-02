@@ -1,7 +1,18 @@
 import type { Animal, AnimalId, CityId, ShelterId } from "@opika/domain";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
+import { cities } from "../schema/cities";
+import { shelters } from "../schema/shelters";
+import {
+  type CardCity,
+  type CardShelter,
+  cardCityColumns,
+  cardCityIdSql,
+  cardShelterColumns,
+  toCardCity,
+  toCardShelter,
+} from "./card-places";
 import { animalToRowWithCity, firstPublishedAnchorOf, rowToAnimal } from "./mappers";
 
 export function animalRepo(db: Database) {
@@ -25,6 +36,58 @@ export function animalRepo(db: Database) {
       if (ids.length === 0) return [];
       const rows = await db.select().from(animals).where(inArray(animals.id, ids));
       return rows.map(rowToAnimal);
+    },
+
+    /**
+     * `findById` with the animal's shelter in the same statement: the detail page's one round
+     * trip instead of two. The shelter is `null` when its row is missing (not expected: a foreign
+     * key); only the public columns come back (`card-places.ts`).
+     */
+    async findWithShelterById(
+      id: AnimalId,
+    ): Promise<{ animal: Animal; shelter: CardShelter | null } | null> {
+      const rows = await db
+        .select({ animal: getTableColumns(animals), shelter: cardShelterColumns })
+        .from(animals)
+        .leftJoin(shelters, eq(shelters.id, animals.shelterId))
+        .where(eq(animals.id, id))
+        .limit(1);
+      const row = rows[0];
+      if (!row) return null;
+      return {
+        animal: rowToAnimal(row.animal),
+        shelter: row.shelter ? toCardShelter(row.shelter) : null,
+      };
+    },
+
+    /**
+     * `findByIds` with each animal's shelter and card city in the same statement (the saved
+     * page's one round trip). Any listing kind comes back, drafts included, exactly as
+     * `findByIds` returns them; the caller decides what each may show.
+     */
+    async findCardsByIds(ids: readonly AnimalId[]): Promise<
+      readonly {
+        animal: Animal;
+        shelter: CardShelter | null;
+        city: CardCity | null;
+      }[]
+    > {
+      if (ids.length === 0) return [];
+      const rows = await db
+        .select({
+          animal: getTableColumns(animals),
+          shelter: cardShelterColumns,
+          city: cardCityColumns,
+        })
+        .from(animals)
+        .leftJoin(shelters, eq(shelters.id, animals.shelterId))
+        .leftJoin(cities, sql`${cities.id} = ${cardCityIdSql}`)
+        .where(inArray(animals.id, ids));
+      return rows.map((row) => ({
+        animal: rowToAnimal(row.animal),
+        shelter: row.shelter ? toCardShelter(row.shelter) : null,
+        city: row.city ? toCardCity(row.city) : null,
+      }));
     },
 
     async findByShelterId(shelterId: ShelterId): Promise<readonly Animal[]> {

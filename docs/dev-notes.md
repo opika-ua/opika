@@ -101,7 +101,7 @@ Neon child branch that is NOT production, reached by its direct hostname (pooled
   the gallery, facets, detail, shelter page, city search and kabinet K2 list; unused indexes (meaningless
   until real traffic: stats on a fresh branch are zero).
 - `@opika/web neon-perf-routes`: the real loaders per route with every statement recorded: call count, timeline,
-  sequential waves, N+1 and duplicate reads, and static notes on what could run together. Suggestions only.
+  sequential waves, N+1 and duplicate reads, and static notes on what could run together. Suggestions only. Locally, `PERF_LATENCY_MS=26` holds each statement back that long, so wall time reads as waves x round trip; the route test uses it to fail a route that goes back to more sequential waves.
 The PowerShell sitting block is generated into the PR body of the PR that added them (#367).
 
 ## The name is final - keep it out of the domain

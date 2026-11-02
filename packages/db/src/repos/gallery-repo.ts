@@ -18,9 +18,12 @@ import {
   type GallerySort,
   galleryPageCount,
   isConstrained,
+  MAX_GALLERY_NAVIGABLE_ROWS,
   maxNavigablePage,
+  NO_FILTERS,
   type RegionId,
   relaxDimension,
+  type ShelterId,
   SIZE_BUCKETS,
   type SizeBucket,
 } from "@opika/domain";
@@ -28,6 +31,16 @@ import { and, asc, desc, eq, getTableColumns, type SQL, sql } from "drizzle-orm"
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
 import { cities } from "../schema/cities";
+import { shelters } from "../schema/shelters";
+import {
+  type CardCity,
+  type CardShelter,
+  cardCityColumns,
+  cardCityIdSql,
+  cardShelterColumns,
+  toCardCity,
+  toCardShelter,
+} from "./card-places";
 import {
   buildDiscoverabilityPredicate,
   buildFeedPredicate,
@@ -35,6 +48,15 @@ import {
   buildScopePredicate,
 } from "./feed-predicate";
 import { rowToCity, rowToDiscoverableAnimal } from "./mappers";
+
+/** A page card: the animal with the public columns of its shelter and city, read in the same statement. */
+export type GalleryCardPage = Omit<GalleryPage, "items"> & {
+  readonly items: readonly {
+    readonly animal: DiscoverableAnimal;
+    readonly shelter: CardShelter;
+    readonly city: CardCity | null;
+  }[];
+};
 
 export type GalleryPage = {
   readonly items: readonly DiscoverableAnimal[];
@@ -225,27 +247,10 @@ export function galleryRepo(db: Database) {
      * scope narrows the same predicate, so its page, totals and navigable bound
      * are this method's, unchanged.
      */
-    async list(opts: {
-      filters: FeedFilters;
-      scope: GalleryScope;
-      sort: GallerySort;
-      page: number;
-      pageSize: number;
-      now: Date;
-    }): Promise<GalleryPage> {
-      const conditions = [
-        ...buildFeedPredicate(opts.filters, opts.now),
-        ...buildScopePredicate(opts.scope),
-      ];
-      const where = and(...conditions);
-      const ordering = orderingFor(opts.sort);
-
-      const fetchPage = async (
-        page: number,
-      ): Promise<{
-        rows: readonly (typeof animals.$inferSelect & { totalMatching: number })[];
-      }> => {
-        const rows = await db
+    async list(opts: PageOptions): Promise<GalleryPage> {
+      const { where, ordering } = pageParts(opts);
+      const page = await paginate(db, where, opts, async (pageNumber) =>
+        db
           .select({
             ...getAnimalColumns(),
             totalMatching: sql<number>`count(*) OVER()`.mapWith(Number),
@@ -254,59 +259,72 @@ export function galleryRepo(db: Database) {
           .where(where)
           .orderBy(...ordering)
           .limit(opts.pageSize)
-          .offset((page - 1) * opts.pageSize);
-        return { rows };
-      };
+          .offset((pageNumber - 1) * opts.pageSize),
+      );
+      const { rows, ...totals } = page;
+      return { ...totals, items: rows.map(rowToDiscoverableAnimal) };
+    },
 
-      // Capped before the fetch, not after. `totalPages` alone would leave the
-      // bound as a number in the response that nothing enforced: past it, rows
-      // still exist, so the page query returns a full page and the response
-      // claims a `page` greater than the `totalPages` it just reported. The
-      // requested number comes from a user-editable, crawler-visible `?stor=`,
-      // never only from the page links this bound governs.
-      const requestedPage = Math.min(Math.max(opts.page, 1), maxNavigablePage(opts.pageSize));
-      const first = await fetchPage(requestedPage);
-
-      // The in-range path: the window function already carried the total, so
-      // nothing more is needed.
-      const firstTotal = first.rows[0]?.totalMatching;
-      if (firstTotal !== undefined) {
-        const totalPages = galleryPageCount(firstTotal, opts.pageSize);
-        const [totalShelters] = await Promise.all([countShelters(db, where)]);
-        return {
-          items: first.rows.map(rowToDiscoverableAnimal),
-          totalMatching: firstTotal,
-          totalShelters,
-          totalPages,
-          page: requestedPage,
-        };
-      }
-
-      // Zero rows, which is ambiguous: either nothing matches, or the page is
-      // past the end and `COUNT(*) OVER()` had no row to attach the total to.
-      // Only here does the second query cost anything.
-      const [totalMatching, totalShelters] = await Promise.all([
-        countMatching(db, where),
-        countShelters(db, where),
-      ]);
-      const totalPages = galleryPageCount(totalMatching, opts.pageSize);
-      const page = clampGalleryPage(requestedPage, totalPages);
-
-      if (totalPages === 0 || page === requestedPage) {
-        // Genuinely no matches - or a page that is in range and simply empty,
-        // which the predicate makes impossible but which costs nothing to
-        // handle honestly rather than by re-running the same query.
-        return { items: [], totalMatching, totalShelters, totalPages, page };
-      }
-
-      const clamped = await fetchPage(page);
+    /**
+     * `list`, with each card's shelter and city read in the same statement (a JOIN), so a page
+     * of cards is one round trip (the shelter count runs beside it) instead of four in a row.
+     * Same predicate, ordering, window total and paging as `list`; only the narrow public
+     * columns of the shelter and the city ride along (`card-places.ts`).
+     */
+    async listCards(opts: PageOptions): Promise<GalleryCardPage> {
+      const { where, ordering } = pageParts(opts);
+      const page = await paginate(db, where, opts, async (pageNumber) =>
+        db
+          .select({
+            animal: {
+              ...getAnimalColumns(),
+              totalMatching: sql<number>`count(*) OVER()`.mapWith(Number),
+            },
+            shelter: cardShelterColumns,
+            city: cardCityColumns,
+          })
+          .from(animals)
+          .innerJoin(shelters, eq(shelters.id, animals.shelterId))
+          .leftJoin(cities, sql`${cities.id} = ${cardCityIdSql}`)
+          .where(where)
+          .orderBy(...ordering)
+          .limit(opts.pageSize)
+          .offset((pageNumber - 1) * opts.pageSize)
+          .then((rows) =>
+            rows.map((row) => ({
+              ...row.animal,
+              card: {
+                shelter: toCardShelter(row.shelter),
+                city: row.city ? toCardCity(row.city) : null,
+              },
+            })),
+          ),
+      );
+      const { rows, ...totals } = page;
       return {
-        items: clamped.rows.map(rowToDiscoverableAnimal),
-        totalMatching,
-        totalShelters,
-        totalPages,
-        page,
+        ...totals,
+        items: rows.map(({ card, ...row }) => ({
+          animal: rowToDiscoverableAnimal(row),
+          ...card,
+        })),
       };
+    },
+
+    /**
+     * Every public animal's id and shelter id in the gallery's unfiltered `freshest` order, up to
+     * the navigable bound: what the sitemap lists. One statement, where paging 50 at a time took a
+     * statement per page (and, over neon-http, a round trip each). Same predicate and ordering as
+     * `list`, so the sitemap names exactly the animals the gallery's pages reach.
+     */
+    async sitemapRows(opts: {
+      now: Date;
+    }): Promise<readonly { readonly id: AnimalId; readonly shelterId: ShelterId }[]> {
+      return db
+        .select({ id: animals.id, shelterId: animals.shelterId })
+        .from(animals)
+        .where(and(...buildFeedPredicate(NO_FILTERS, opts.now)))
+        .orderBy(...orderingFor("freshest"))
+        .limit(MAX_GALLERY_NAVIGABLE_ROWS);
     },
 
     /**
@@ -497,6 +515,74 @@ export function galleryRepo(db: Database) {
       return { prev: prev ?? null, next: next ?? null };
     },
   };
+}
+
+type PageOptions = {
+  filters: FeedFilters;
+  scope: GalleryScope;
+  sort: GallerySort;
+  page: number;
+  pageSize: number;
+  now: Date;
+};
+
+function pageParts(opts: PageOptions): { where: SQL | undefined; ordering: SQL[] } {
+  const conditions = [
+    ...buildFeedPredicate(opts.filters, opts.now),
+    ...buildScopePredicate(opts.scope),
+  ];
+  return { where: and(...conditions), ordering: orderingFor(opts.sort) };
+}
+
+/**
+ * The paging shared by `list` and `listCards`: the requested page and the shelter count start
+ * together (the count needs only the same WHERE, not the page's rows).
+ *
+ * Capped before the fetch, not after. `totalPages` alone would leave the bound as a number in the
+ * response that nothing enforced: past it, rows still exist, so the page query returns a full
+ * page and the response claims a `page` greater than the `totalPages` it just reported. The
+ * requested number comes from a user-editable, crawler-visible `?stor=`, never only from the page
+ * links this bound governs.
+ */
+async function paginate<Row extends { totalMatching: number }>(
+  db: Database,
+  where: SQL | undefined,
+  opts: PageOptions,
+  fetchPage: (page: number) => Promise<Row[]>,
+): Promise<{
+  rows: Row[];
+  totalMatching: number;
+  totalShelters: number;
+  totalPages: number;
+  page: number;
+}> {
+  const requestedPage = Math.min(Math.max(opts.page, 1), maxNavigablePage(opts.pageSize));
+  const [first, totalShelters] = await Promise.all([
+    fetchPage(requestedPage),
+    countShelters(db, where),
+  ]);
+
+  // The in-range path: the window function already carried the total, so nothing more is needed.
+  const firstTotal = first[0]?.totalMatching;
+  if (firstTotal !== undefined) {
+    return {
+      rows: first,
+      totalMatching: firstTotal,
+      totalShelters,
+      totalPages: galleryPageCount(firstTotal, opts.pageSize),
+      page: requestedPage,
+    };
+  }
+
+  // Zero rows, which is ambiguous: either nothing matches, or the page is past the end and
+  // `COUNT(*) OVER()` had no row to attach the total to. Only here does the second query cost anything.
+  const totalMatching = await countMatching(db, where);
+  const totalPages = galleryPageCount(totalMatching, opts.pageSize);
+  const page = clampGalleryPage(requestedPage, totalPages);
+  if (totalPages === 0 || page === requestedPage) {
+    return { rows: [], totalMatching, totalShelters, totalPages, page };
+  }
+  return { rows: await fetchPage(page), totalMatching, totalShelters, totalPages, page };
 }
 
 /**

@@ -1,4 +1,5 @@
 import { animalRepo, cityRepo, kabinetShelterRepo, revealRepo, shelterRepo } from "@opika/db/repos";
+import { animals } from "@opika/db/schema";
 import {
   type AnimalFixtureOverrides,
   makeAnimal,
@@ -393,6 +394,41 @@ describe("reveal", () => {
 
     const res = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
     expectError(res, "ANIMAL_NOT_AVAILABLE", 404);
+  });
+
+  /**
+   * No cache sits in front of a reveal: the animal is read live, so a page or list served a moment
+   * earlier cannot make a since-adopted animal revealable (PR A, round-trip work).
+   */
+  it("checks the animal's status live: adopted after its page and the gallery were served", async () => {
+    const cookie = await bootstrap();
+    const { animal } = await seedFeedAnimal();
+    const seen = await h.call("animals.byId", { animalId: animal.id });
+    expect(seen.status).toBe(200);
+    const listed = await h.call("gallery.list", {
+      filters: NO_FILTERS,
+      sort: "freshest",
+      page: 1,
+      pageSize: 24,
+      scope: { kind: "everyone" },
+    });
+    expect((listed.body as { items: { id: string }[] }).items.map((i) => i.id)).toContain(
+      animal.id,
+    );
+
+    await h.db.update(animals).set({
+      listingKind: "adopted",
+      listing: { kind: "adopted", adoptedAt: new Date("2026-08-01T00:00:00Z") },
+      waitAnchorAt: null,
+      lastConfirmedAt: null,
+    });
+
+    expectError(
+      await h.call("animals.reveal", { animalId: animal.id }, { cookie }),
+      "ANIMAL_NOT_AVAILABLE",
+      404,
+    );
+    expectError(await h.call("animals.byId", { animalId: animal.id }), "NOT_FOUND", 404);
   });
 
   it("answers SHELTER_NOT_VISIBLE, at 404, once the shelter is no longer verified", async () => {

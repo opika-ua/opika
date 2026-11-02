@@ -40,11 +40,13 @@ describe("the route's outcomes, with shelters.byId stubbed", () => {
     expect(screen.queryByText(/НЕ ЗНАЙДЕНО/)).toBeNull();
   });
 
-  it("NOT_FOUND is Next's 404, and no list is read for it", async () => {
+  it("NOT_FOUND is Next's 404, and the list started beside it is discarded", async () => {
     const { client, galleryList } = stubShelterPageClient({ kind: "refuse", code: "NOT_FOUND" });
     const load = await loadShelterPage(SHELTER_ID, FIRST_PAGE, client);
     expect(load).toEqual({ kind: "not_found" });
-    expect(galleryList).not.toHaveBeenCalled();
+    // The scoped list needs only the id, so it starts with the shelter lookup (one wave); its rows
+    // never reach the page.
+    expect(galleryList).toHaveBeenCalledTimes(1);
     let thrown: unknown = null;
     try {
       renderShelterPage(load, false);

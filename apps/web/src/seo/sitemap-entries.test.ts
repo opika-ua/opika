@@ -2,26 +2,20 @@ import { describe, expect, it, vi } from "vitest";
 import { SITE_ORIGIN } from "../brand";
 import { buildSitemapEntries, SITEMAP_URL_LIMIT } from "./sitemap-entries";
 
-const pageOf = (items: { id: string; shelterId: string }[], totalPages: number) => ({
-  items,
-  totalPages,
-});
-
 describe("buildSitemapEntries", () => {
   it("is empty and reads nothing while the site is not discoverable", async () => {
-    const animalPage = vi.fn();
-    expect(await buildSitemapEntries(false, { animalPage })).toEqual([]);
-    expect(animalPage).not.toHaveBeenCalled();
+    const animals = vi.fn();
+    expect(await buildSitemapEntries(false, { animals })).toEqual([]);
+    expect(animals).not.toHaveBeenCalled();
   });
 
-  it("walks every page and lists animals, deduplicated shelters and static pages", async () => {
-    const animalPage = vi.fn(async (page: number) =>
-      page === 1
-        ? pageOf([{ id: "a1", shelterId: "s1" }], 2)
-        : pageOf([{ id: "a2", shelterId: "s1" }], 2),
-    );
-    const urls = (await buildSitemapEntries(true, { animalPage })).map((e) => e.url);
-    expect(animalPage).toHaveBeenCalledTimes(2);
+  it("lists animals, deduplicated shelters and static pages from one read", async () => {
+    const animals = vi.fn(async () => [
+      { id: "a1", shelterId: "s1" },
+      { id: "a2", shelterId: "s1" },
+    ]);
+    const urls = (await buildSitemapEntries(true, { animals })).map((e) => e.url);
+    expect(animals).toHaveBeenCalledTimes(1);
     expect(urls).toContain(`${SITE_ORIGIN}/tvaryny/a2`);
     expect(urls.filter((u) => u.endsWith("/prytulky/s1"))).toHaveLength(1);
     expect(urls.every((u) => u.startsWith(SITE_ORIGIN))).toBe(true);
@@ -32,7 +26,7 @@ describe("buildSitemapEntries", () => {
       id: `a${i}`,
       shelterId: "s",
     }));
-    const out = await buildSitemapEntries(true, { animalPage: async () => pageOf(items, 1) });
+    const out = await buildSitemapEntries(true, { animals: async () => items });
     expect(out).toHaveLength(SITEMAP_URL_LIMIT);
   });
 });

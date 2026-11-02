@@ -100,46 +100,55 @@ export async function loadShelterPage(
   const shelterId = parsedId.data;
 
   try {
-    // The shelter first: its NOT_FOUND decides the page before any list is
-    // read. The scoped list would answer an empty page for the same shelter
-    // anyway (S5, DR1-S5-T5), but a 404 must not depend on that.
-    const shelter = await client.shelters.byId({ shelterId });
-    // The cards' cities ride with the list (`cityLabels`); the shelter's own city is one more id,
-    // read by primary key. The settlement list is never read.
+    // The shelter's NOT_FOUND still decides the page, but the scoped list needs only the id, so it
+    // starts with the shelter (a 404 just discards the list). The filter counts that are certain to
+    // be used (a filter is in the URL) start with them; the rest waits for the list's total.
     const scope = { kind: "shelter", shelterId } as const;
-    const animals = await client.gallery.list({
-      filters: query.filters,
-      sort: query.sort,
-      page: query.page,
-      scope,
-    });
     // Filters appear above 12 animals, or whenever one is already in the URL (so it can be undone).
     const filtersOn = FEED_FILTER_DIMENSIONS.some((dimension) =>
       isConstrained(query.filters, dimension),
     );
+    const [shelter, animals, early] = await Promise.all([
+      client.shelters.byId({ shelterId }),
+      client.gallery.list({ filters: query.filters, sort: query.sort, page: query.page, scope }),
+      filtersOn
+        ? Promise.all([
+            client.gallery.facetCounts({ filters: query.filters, scope }),
+            client.gallery.facetCounts({ filters: NO_FILTERS, scope }),
+          ])
+        : null,
+    ]);
+    // Second wait, all together: the counts the list's total calls for, the zero-match suggestions,
+    // and the shelter's own city when no card carried it (the cards' cities ride with the list).
+    const shelterCityId = shelter.publicLocation.cityId;
+    const needsCounts = filtersOn || animals.totalMatching > SHELTER_FILTERS_ABOVE;
+    const [counted, relaxed, cityRows] = await Promise.all([
+      early ??
+        (needsCounts
+          ? client.gallery
+              .facetCounts({ filters: query.filters, scope })
+              .then((c) => [c, c] as const)
+          : null),
+      needsCounts && animals.totalMatching === 0
+        ? client.gallery.relaxationCounts({ filters: query.filters, scope })
+        : null,
+      animals.cityLabels.some((city) => city.id === shelterCityId)
+        ? null
+        : client.cities.byIds({ ids: [shelterCityId] }),
+    ]);
     let filterUi: ShelterFilterUi | null = null;
-    if (filtersOn || animals.totalMatching > SHELTER_FILTERS_ABOVE) {
-      const counts = await client.gallery.facetCounts({ filters: query.filters, scope });
-      const all = filtersOn
-        ? await client.gallery.facetCounts({ filters: NO_FILTERS, scope })
-        : counts;
-      const relaxations =
-        animals.totalMatching === 0
-          ? (await client.gallery.relaxationCounts({ filters: query.filters, scope })).relaxations
-          : [];
+    if (counted) {
+      const [counts, all] = counted;
       filterUi = {
         counts,
         total: all.species.dog + all.species.cat,
         hasBothSpecies: all.species.dog > 0 && all.species.cat > 0,
-        relaxations,
+        relaxations: relaxed?.relaxations ?? [],
       };
     }
-    const shelterCityId = shelter.publicLocation.cityId;
     const shelterCity =
       animals.cityLabels.find((city) => city.id === shelterCityId) ??
-      (await client.cities.byIds({ ids: [shelterCityId] })).find(
-        (city) => city.id === shelterCityId,
-      ) ??
+      cityRows?.find((city) => city.id === shelterCityId) ??
       null;
     // The 27 regions are a constant (no query behind it); read only to tell a city-region from an oblast.
     const regions = await client.regions.list({});
