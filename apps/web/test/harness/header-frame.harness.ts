@@ -1,6 +1,6 @@
 /**
- * The shared header frame: the logo sits at the same x on the public site and on the signed-in
- * kabinet at every width we support, and neither page scrolls sideways at 320. The sign-in
+ * The shared header frame: the logo sits at the left edge of the page content on the public site and
+ * on the signed-in kabinet at every width we support, and neither page scrolls sideways at 320. The sign-in
  * mirrors `kabinet.harness.ts`. Own `x-forwarded-for`: proxy.ts's limiter is app-wide.
  */
 
@@ -17,12 +17,24 @@ const FORWARDED_FOR = "198.51.100.62";
 test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" });
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
-const WIDTHS = [1024, 1440, 1920, 2560] as const;
+const WIDTHS = [393, 1024, 1440, 1920, 2560] as const;
 
 async function logoX(page: Page, headerSelector: string): Promise<number> {
   const box = await page.locator(`${headerSelector} img`).first().boundingBox();
   if (box === null) throw new Error(`no logo in ${headerSelector}`);
   return Math.round(box.x);
+}
+
+/** Left edge of the page's content box: the `Container` that is `main` (public) or main's parent (kabinet). */
+async function contentX(page: Page, kabinet: boolean): Promise<number> {
+  return page.evaluate((k) => {
+    const main = document.querySelector("main");
+    const el = k ? main?.parentElement : main;
+    if (!el) throw new Error("no content container");
+    return Math.round(
+      el.getBoundingClientRect().x + Number.parseFloat(getComputedStyle(el).paddingLeft),
+    );
+  }, kabinet);
 }
 
 test.describe("header frame: public site and kabinet", () => {
@@ -88,14 +100,13 @@ test.describe("header frame: public site and kabinet", () => {
   };
 
   for (const width of WIDTHS) {
-    test(`the logo is at the same x on /tvaryny and /kabinet at ${width}`, async () => {
+    test(`the logo is at the content's left edge on /tvaryny and /kabinet/tvaryny at ${width}`, async () => {
       const page = await signedInPage();
       await page.setViewportSize({ width, height: 800 });
       await page.goto("/tvaryny");
-      const publicX = await logoX(page, "[data-testid='site-header']");
-      await page.goto("/kabinet");
-      const kabinetX = await logoX(page, "header");
-      expect(kabinetX).toBe(publicX);
+      expect(await logoX(page, "[data-testid='site-header']")).toBe(await contentX(page, false));
+      await page.goto("/kabinet/tvaryny");
+      expect(await logoX(page, "header")).toBe(await contentX(page, true));
       await page.close();
     });
   }
@@ -103,7 +114,7 @@ test.describe("header frame: public site and kabinet", () => {
   test("neither header scrolls sideways at 320", async () => {
     const page = await signedInPage();
     await page.setViewportSize({ width: 320, height: 700 });
-    for (const path of ["/tvaryny", "/kabinet"]) {
+    for (const path of ["/tvaryny", "/kabinet/tvaryny"]) {
       await page.goto(path);
       expect(await noSidewaysScroll(page), path).toBe(true);
     }

@@ -124,10 +124,6 @@
    */
   --spacing-target: 48px;
 
-  /* The header frame (ui/HeaderFrame): one gutter and one inner width for the site and kabinet headers. */
-  --spacing-header-gutter: clamp(16px, 3vw, 40px);
-  --container-header: 1600px;
-
   /*
    * ---- Breakpoints — docs/design/README.md, "Breakpoints & Surfaces" ----
    * Named for the gallery layout each one turns on, not for a device class:
