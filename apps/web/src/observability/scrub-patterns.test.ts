@@ -3,7 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import { handleMonitoringTunnel } from "../api/monitoring-tunnel";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { coarseFromUserAgentData } from "./coarse-ua";
-import { FILTERED, scrubEvent, scrubString } from "./scrub";
+import {
+  BROWSER_FAMILIES,
+  FILTERED,
+  MAX_INPUT_LENGTH,
+  OS_FAMILIES,
+  scrubEvent,
+  scrubString,
+} from "./scrub";
 
 const DSN = "https://publickey@o1.ingest.de.sentry.io/4500000000000001";
 
@@ -141,30 +148,84 @@ describe("free-text scrubber: false positives stay untouched", () => {
 });
 
 describe("free-text scrubber: timing", () => {
-  const nasty = [
-    "1 ".repeat(50_000),
-    "+".repeat(50_000),
-    "+1 ".repeat(30_000),
-    "0 ".repeat(50_000),
-    `1${" ".repeat(50_000)}A`,
-    "вул. ".repeat(20_000),
-    "ul. A ".repeat(20_000),
-    "Telegram ".repeat(20_000),
-    "@aaaa ".repeat(20_000),
-    "1 Aa ".repeat(20_000),
-    "A".repeat(100_000),
-    "t.me/".repeat(20_000),
-  ];
+  const SIZE = 64 * 1024;
+  const fill = (unit: string) => unit.repeat(Math.ceil(SIZE / unit.length)).slice(0, SIZE);
+  // Trigger tokens of every pattern, near-misses (no number, no street word end) and long runs of
+  // the separators the phone and address patterns skip over.
+  const hostile: Record<string, string> = {
+    digits: fill("1"),
+    "digit-space": fill("1 "),
+    "zero-space": fill("0 "),
+    plus: fill("+"),
+    "plus-digit": fill("+1 "),
+    "intl-prefix": fill("00 "),
+    "ua-prefix": fill("+38 (0"),
+    spaces: fill(" "),
+    "digit-then-spaces": `1${fill(" ")}A`,
+    dots: fill("."),
+    hyphens: fill("-"),
+    "en-dashes": fill("–"),
+    "mixed-separators": fill(" .-–()"),
+    "digit-separators": fill("1 .-"),
+    "polish-groups": fill("500 123 "),
+    slashes: fill("12/"),
+    "street-uk": fill("вул. "),
+    "street-uk-glued": fill("вул."),
+    "street-boulevard": fill("б-р. "),
+    "street-boulevard-glued": fill("б-р."),
+    "street-prospect": fill("просп. "),
+    "street-pl": fill("ul. A "),
+    "street-pl-glued": fill("ul."),
+    "street-name-words": `вул. ${fill("Шевченка ")}`,
+    "street-name-dots": `вул. ${fill("а.")}`,
+    "street-name-hyphens": `вул. ${fill("а-")}`,
+    "number-first": fill("1, вул. "),
+    "number-first-letters": fill("12а, ul. "),
+    "english-names": fill("1 Aa "),
+    "english-suffix": fill("Aa Street "),
+    "english-name-first": fill("Aa Bb Cc Street No "),
+    telegram: fill("Telegram "),
+    handles: fill("@aaaa "),
+    "handle-gap": fill("@abc tg "),
+    "tme-links": fill("t.me/"),
+    "tg-links": fill("tg://"),
+    emails: fill("a@b."),
+    "email-labels": `${fill("a")}@${fill("b")}`,
+    "email-dots": fill("a.b@"),
+    bearer: fill("Bearer "),
+    "bearer-token": `Bearer ${fill("a")}`,
+    cookie: fill("cookie:"),
+    gate: fill("gate="),
+    query: fill("http://a/?"),
+    "query-path": fill("/a?"),
+    letters: fill("A"),
+    unicode: fill("Ж"),
+  };
 
-  it("scrubs 100 kB adversarial inputs in well under a second each", () => {
-    for (const input of nasty) {
-      const started = performance.now();
-      scrubString(input);
-      expect(
-        performance.now() - started,
-        `slow on ${JSON.stringify(input.slice(0, 20))}...`,
-      ).toBeLessThan(1000);
+  it("scrubs 64 kB hostile inputs in under 50 ms each, once warm", () => {
+    scrubString("warm-up call 0501234567 вул. Шевченка 1");
+    for (const [label, input] of Object.entries(hostile)) {
+      expect(input.length, label).toBeGreaterThanOrEqual(SIZE);
+      // Best of three: a noisy CI neighbour slows one run, a quadratic pattern slows all of them.
+      const times = [0, 1, 2].map(() => {
+        const started = performance.now();
+        scrubString(input);
+        return performance.now() - started;
+      });
+      expect(Math.min(...times), `slow on ${label}`).toBeLessThan(50);
     }
+  });
+
+  it("cuts a string at the input cap before any pattern runs, and says so", () => {
+    const out = scrubString(`${"x".repeat(MAX_INPUT_LENGTH)}+380501234567`);
+    expect(out).not.toContain("0501234567");
+    expect(out.endsWith("[truncated]")).toBe(true);
+  });
+
+  it("still redacts a contact inside the cap, however long the string", () => {
+    const out = scrubString(`call +380 50 123 45 67 now${" ".repeat(MAX_INPUT_LENGTH * 2)}`);
+    expect(out).not.toContain("123 45 67");
+    expect(out).toContain(FILTERED);
   });
 });
 
@@ -230,6 +291,24 @@ describe("contexts: closed family lists, server-side", () => {
       browser: { name: "unknown" },
       os: { name: "unknown" },
     });
+  });
+
+  it("pins the closed lists exactly, so adding a name fails here", () => {
+    expect([...BROWSER_FAMILIES].sort()).toEqual(
+      [
+        "Chrome",
+        "Safari",
+        "Firefox",
+        "Edge",
+        "Samsung Internet",
+        "Opera",
+        "Yandex",
+        "unknown",
+      ].sort(),
+    );
+    expect([...OS_FAMILIES].sort()).toEqual(
+      ["iOS", "iPadOS", "Android", "Windows", "macOS", "Linux", "ChromeOS", "unknown"].sort(),
+    );
   });
 
   it("passes exactly the listed literals plus unknown and other, per list", () => {
@@ -324,6 +403,17 @@ describe("userAgentData with a malformed brands list", () => {
     const out = coarseFromUserAgentData({ brands, platform: "Windows" }, fallbackUa);
     expect(out.browser).toEqual({ name: "Chrome", version: "130" });
     expect(out.os.name).toBe("Windows");
+  });
+
+  it("renames the YaBrowser brand to Yandex", () => {
+    const out = coarseFromUserAgentData({
+      brands: [
+        { brand: "YaBrowser", version: "24.10.1" },
+        { brand: "Chromium", version: "130" },
+      ],
+      platform: "Windows",
+    });
+    expect(out.browser).toEqual({ name: "Yandex", version: "24" });
   });
 
   it("skips null and non-object entries and keeps the good ones", () => {

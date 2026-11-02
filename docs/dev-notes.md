@@ -218,8 +218,8 @@ Errors only, no tracing, no replay, no profiling, no feedback widget. Code: `app
 - **Free-text scrubber.** `scrubString` removes emails, UA phones, other international phones (`+` or `00`, 8 to
   15 digits, spaces/dots/dashes/brackets), Polish digit groups (`500 123 456`, `050/123-45-67`), t.me /
   telegram.me / telegram.dog / tg:// links, `@handles` next to the word telegram, and street addresses (UA, PL, EN;
-  a house number is required). Patterns are linear because every step consumes a character and no two adjacent parts can match the same one (for the phone patterns: each step is an optional separator run then one digit); email labels are length-bounded; `scrub-patterns.test.ts`
-  holds the output-level cases (direct and through the tunnel), a false-positive set and a timing test.
+  a house number is required). Every string is cut at 8 KB (`MAX_INPUT_LENGTH`, marked `...[truncated]`) before any pattern runs, so no scan sees more than that; the phone patterns are linear (each step is an optional separator run then one digit), and email labels and address name words (40 characters each, at most three words) are length-bounded, so the address patterns are bounded, not linear (unbounded words took seconds on 64 KB of «вул.»); `scrub-patterns.test.ts`
+  holds the output-level cases (direct and through the tunnel), a false-positive set and a 64 kB timing test per pattern family (under 50 ms each); the closed browser and OS lists are pinned exactly there.
 - **Browser path.** `instrumentation-client.ts` loads the SDK after idle (`load-client.ts`), only with a DSN.
   Events go to our own `POST /api/monitoring` (`api/monitoring-tunnel.ts`), never to Sentry directly, so
   the CSP stays `connect-src 'self'`. It forwards error events only, rebuilt and scrubbed, from our server

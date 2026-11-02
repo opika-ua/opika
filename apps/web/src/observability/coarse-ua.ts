@@ -88,6 +88,7 @@ export type UserAgentDataLike = {
 const BRAND_RENAMES: Record<string, string> = {
   "Google Chrome": "Chrome",
   "Microsoft Edge": "Edge",
+  YaBrowser: "Yandex",
   "Chrome OS": "ChromeOS",
   "Chromium OS": "ChromeOS",
 };
