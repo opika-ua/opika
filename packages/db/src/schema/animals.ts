@@ -333,26 +333,6 @@ export const animals = pgTable(
     index("animals_wait_anchor_filtered_idx")
       .on(t.cityId, t.species, t.size, t.waitAnchorAt.asc().nullsLast(), t.id.asc())
       .where(sql`listing_kind IN ('published', 'reserved')`),
-
-    /**
-     * Built for the temperament and colour filters: GIN, because a
-     * temperament filter asks "does the array contain these traits", which a
-     * btree can't answer; a btree for colour, because ten values narrow where
-     * fur's two don't (fur has no index of its own). Both partial on the
-     * discoverable kinds, as every adopter-facing query is, so drafts' rows
-     * never enter them.
-     *
-     * Orphaned by the gallery filter restructure, which removed both filters:
-     * nothing queries `temperamentTraits` or `coatColour` anymore. Left in
-     * place rather than dropped here - an index drop is its own migration,
-     * deliberately not bundled with this PR's filter removal.
-     */
-    index("animals_temperament_traits_idx")
-      .using("gin", t.temperamentTraits)
-      .where(sql`listing_kind IN ('published', 'reserved')`),
-    index("animals_coat_colour_idx")
-      .on(t.coatColour)
-      .where(sql`listing_kind IN ('published', 'reserved')`),
   ],
 );
 
