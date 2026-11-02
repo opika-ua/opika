@@ -6,6 +6,8 @@ File: `apps/web/src/ui/Sheet.tsx`
 
 **Props and variants.** `id`, `label`, `closeLabel`, `trigger`, `triggerClassName?`, `hideFrom?` (`tablet` | `desktop`: the sheet and its :target reveal are off from that breakpoint; pair it with the trigger's own hiding class), `triggerTestId?`/`dialogTestId?` (harness hooks). Client component, on the shared core.
 
+**Title.** `title="none"` drops the visible title (only the ✕ shows); `label` still names the dialog.
+
 **Accessibility.** Trigger is `<a href=#id>`: opens with no JS through `:target`. With JS it upgrades to `showModal()`: trap, Esc, Back, scroll lock.
 
 **Responsive.** Full width, `dvh` max height, safe-area padding.

@@ -339,7 +339,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // (owner-approved 2026-10-31, pinned in copy-status.test.ts's PHOTO_MANAGER_COPY).
     // 714 with save bar A: `saveBar.allSaved`, `show`, `failed` and the three forms of
     // `checkFields` (owner-approved 2026-10-31, pinned in copy-status.test.ts).
-    expect(pending.length + written.length).toBe(714);
+    // 715 with the kabinet shell (owner-approved 2026-11-02): plus `shell.operator`;
+    // `shell.toSite` and `shell.accountAndPassword` replace `shell.viewSite` and
+    // `profileTabs.account`. The page title is the shelter's name alone (no wrapper string).
+    expect(pending.length + written.length).toBe(715);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

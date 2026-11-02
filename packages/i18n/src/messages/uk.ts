@@ -265,10 +265,14 @@ export const uk = {
      * pins the load-bearing strings against his text, transcribed.
      */
     shell: {
-      /** The tag chip next to the logo in the header (K1, N2). */
+      /** The muted word next to the logo in the header (K1, N2). */
       label: "Кабінет",
       /** Header link to the public gallery; opens in a new tab so unsaved kabinet work is not lost. */
-      viewSite: "Переглянути сайт",
+      toSite: "На сайт",
+      /** The account menu's link (was the «Акаунт» tab) and the title of the page it opens. */
+      accountAndPassword: "Акаунт і пароль",
+      /** The account button's label for an operator session (a shelter session shows the shelter's name). */
+      operator: "Оператор",
       /** Hidden text after a link that opens a new tab, for screen readers. */
       newTab: "(відкриється в новій вкладці)",
     },
@@ -516,7 +520,6 @@ export const uk = {
       label: "Розділи притулку",
       profile: "Профіль",
       verification: "Перевірка",
-      account: "Акаунт",
       profileNote: "Те, що бачать на сторінці притулку.",
       /** The confirmation's link to the public page, in a new tab. */
       view: "Переглянути",

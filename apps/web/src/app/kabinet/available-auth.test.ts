@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import ShelterAccountPage from "./akaunt/page";
 import KabinetHomePage from "./page";
 import OperatorShelterPage from "./prytulky/[id]/page";
 import NewShelterPage from "./prytulky/novyi/page";
@@ -46,6 +47,7 @@ describe.each([
   ["/kabinet", () => KabinetHomePage()],
   ["/kabinet/prytulok", () => ShelterProfilePage({ searchParams: Promise.resolve({}) })],
   ["/kabinet/prytulok (its <title>)", () => shelterProfileMetadata()],
+  ["/kabinet/akaunt", () => ShelterAccountPage()],
   ["/kabinet/vkhid", signIn({})],
   ["/kabinet/vkhid?zaproshennia=<id>", signIn({ zaproshennia: crypto.randomUUID() })],
   ["/kabinet/prytulky", operatorList],

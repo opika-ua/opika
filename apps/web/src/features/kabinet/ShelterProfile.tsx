@@ -2,21 +2,19 @@ import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { inSentenceOperatorName, type OperatorName } from "../../kabinet/operator";
 import { Card } from "../../ui/Card";
-import { Container } from "../../ui/Container";
 import { FormSection } from "../../ui/FormSection";
 import { Heading } from "../../ui/Heading";
-import { MAIN_LANDMARK } from "../../ui/landmark";
+import { Icon } from "../../ui/Icon";
 import { Text } from "../../ui/Text";
 import type { ProfileEditing } from "./home";
-import { KabinetHeader } from "./KabinetHeader";
 import { KabinetNav } from "./KabinetNav";
 import { channelValue, Facts, LockedBlock, Row } from "./ProfileParts";
-import { ChangePasswordSection, type PasswordState } from "./password/ChangePasswordSection";
 import { PausedStatus } from "./profile-edit/PausedStatus";
 import { ProfileEditor } from "./profile-edit/ProfileEditor";
 import { profileTabOf } from "./profile-edit/profile-tabs";
 import { animalListShownTo, publicShelterPath } from "./routes";
-import { SupportBanner } from "./SupportBanner";
+import { ShelterShell } from "./ShelterShell";
+import { VerificationStatusChip } from "./StatusChips";
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"; mock
@@ -65,11 +63,6 @@ export type ShelterProfileProps = {
   operator: OperatorName;
   /** K4: `read_only` unless the page's access decision opened writes. */
   editing?: ProfileEditing;
-  /**
-   * PW-1: «Змінити пароль», for the shelter's own admin only (null in a support
-   * view, whose session is the operator's: the operator never has a password).
-   */
-  password?: PasswordState | null;
   /** The `?tab=` of the page (the editor's sub-tab); anything unknown is the first tab. */
   tab?: string | undefined;
 };
@@ -80,7 +73,6 @@ export function ShelterProfile({
   viewer,
   operator,
   editing = { kind: "read_only" },
-  password = null,
   tab,
 }: ShelterProfileProps) {
   const t = uk.kabinet.profile;
@@ -91,123 +83,87 @@ export function ShelterProfile({
   const nav = <KabinetNav current="profile" animalList={animalListShownTo(viewer, editing)} />;
 
   return (
-    <div
-      className={
-        support ? "min-h-dvh outline-4 -outline-offset-4 outline-ink outline-solid" : "min-h-dvh"
-      }
-    >
-      {support ? <SupportBanner shelterName={view.displayName} /> : null}
-
-      <KabinetHeader shelterName={view.displayName} viewer={viewer} />
-
-      <Container className="flex flex-col gap-4 pt-5 pb-24 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14">
-        {/*
-          The shell nav: «Головна» · «Тварини» (K2, PR 5) where the list is shown to this viewer
-          (P1: writes open, or the support view) · «Притулок» (this page). Bottom padding above is
-          clearance for the nav's fixed mobile tab bar, unused at desktop width where the nav sits
-          in the side column, and unused while the editor hides the bar.
-        */}
-        {nav}
-
-        <main
-          {...MAIN_LANDMARK}
-          className="flex min-w-0 max-w-176 flex-1 flex-col gap-4 desktop:gap-6"
+    <ShelterShell shelterName={view.displayName} viewer={viewer} nav={nav}>
+      <header className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {/* The name alone, two lines at most, balanced; a longer one ends in an ellipsis. */}
+          <Heading
+            level={1}
+            look="display-m"
+            className="line-clamp-2 min-w-0 break-words text-balance"
+          >
+            {view.displayName}
+          </Heading>
+          <VerificationStatusChip status={view.verification.status} />
+        </div>
+        <a
+          href={publicShelterPath(view.id)}
+          target="_blank"
+          rel="noopener"
+          className="inline-flex min-h-target items-center gap-1 self-start rounded-field text-label text-ink underline underline-offset-4 focus-ring"
         >
-          <header className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <Heading level={1} look="display-l" className="break-words">
-                {t.title}
-              </Heading>
-              <a
-                href={publicShelterPath(view.id)}
-                target="_blank"
-                rel="noopener"
-                className="inline-flex min-h-target items-center rounded-field text-label text-ink underline underline-offset-4 focus-ring"
-              >
-                {t.viewOnSite}
-                <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
-              </a>
-            </div>
-            <Text look="hint" className="hidden tablet:block">
-              {t.intro}
-            </Text>
-          </header>
+          {t.viewOnSite}
+          <Icon name="arrow-up-right" size="md" />
+          <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
+        </a>
+        <Text look="hint" className="hidden tablet:block">
+          {t.intro}
+        </Text>
+      </header>
 
-          {editorOpen ? (
-            <ProfileEditor
-              initialView={view}
-              cityName={cityName}
-              operatorName={operatorName}
-              donationDeclined={editing.donationDeclined}
-              initialTab={profileTabOf(tab)}
-              account={
-                password !== null ? (
-                  <Card>
-                    <div className="p-4 tablet:p-6">
-                      <ChangePasswordSection password={password} />
-                    </div>
-                  </Card>
-                ) : null
-              }
-            />
-          ) : (
-            <div className="flex min-w-0 flex-col gap-4 desktop:gap-6">
-              <FormSection id="contacts" title={t.contactsTitle} description={t.contactsNote}>
-                <Facts>
-                  {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
-                    <Row
-                      key={`${channel.kind}-${index}`}
-                      label={uk.kabinet.profileChannel[channel.kind]}
-                    >
-                      {channelValue(channel)}
-                    </Row>
-                  ))}
-                </Facts>
-              </FormSection>
+      {editorOpen ? (
+        <ProfileEditor
+          initialView={view}
+          cityName={cityName}
+          operatorName={operatorName}
+          donationDeclined={editing.donationDeclined}
+          initialTab={profileTabOf(tab)}
+        />
+      ) : (
+        <div className="flex min-w-0 flex-col gap-4 desktop:gap-6">
+          <FormSection id="contacts" title={t.contactsTitle} description={t.contactsNote}>
+            <Facts>
+              {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
+                <Row
+                  key={`${channel.kind}-${index}`}
+                  label={uk.kabinet.profileChannel[channel.kind]}
+                >
+                  {channelValue(channel)}
+                </Row>
+              ))}
+            </Facts>
+          </FormSection>
 
-              <FormSection id="voice" title={t.voiceTitle} description={t.voiceNote}>
-                <Facts>
-                  <Row label={t.voiceLabel}>{view.freshnessSentence?.uk ?? notRecorded}</Row>
-                </Facts>
-              </FormSection>
+          <FormSection id="voice" title={t.voiceTitle} description={t.voiceNote}>
+            <Facts>
+              <Row label={t.voiceLabel}>{view.freshnessSentence?.uk ?? notRecorded}</Row>
+            </Facts>
+          </FormSection>
 
-              <FormSection id="donation" title={t.donationTitle}>
-                <Facts>
-                  <Row label={t.donationLink}>{view.donation?.url ?? notRecorded}</Row>
-                  {view.pendingDonation !== null ? (
-                    <Row label={t.donationPending}>{view.pendingDonation.link.url}</Row>
-                  ) : null}
-                </Facts>
-                <Text look="hint">{t.donationNote}</Text>
-              </FormSection>
-
-              <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />
-              {/* K4-B4, answer 2: the pause note, for this shelter's admins and the support view. */}
-              {view.verification.status === "paused" ? (
-                <Card as="section" tone="outline" aria-labelledby="kabinet-paused">
-                  <div className="flex flex-col gap-3 p-4 tablet:p-6">
-                    <h2 id="kabinet-paused" className="sr-only">
-                      {uk.kabinet.profileStatus.paused}
-                    </h2>
-                    <PausedStatus
-                      since={view.verification.since}
-                      reason={view.verification.reason}
-                    />
-                  </div>
-                </Card>
+          <FormSection id="donation" title={t.donationTitle}>
+            <Facts>
+              <Row label={t.donationLink}>{view.donation?.url ?? notRecorded}</Row>
+              {view.pendingDonation !== null ? (
+                <Row label={t.donationPending}>{view.pendingDonation.link.url}</Row>
               ) : null}
-            </div>
-          )}
+            </Facts>
+            <Text look="hint">{t.donationNote}</Text>
+          </FormSection>
 
-          {!editorOpen && password !== null && !support ? (
-            <Card>
-              <div className="p-4 tablet:p-6">
-                <ChangePasswordSection password={password} />
+          <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />
+          {/* K4-B4, answer 2: the pause note, for this shelter's admins and the support view. */}
+          {view.verification.status === "paused" ? (
+            <Card as="section" tone="outline" aria-labelledby="kabinet-paused">
+              <div className="flex flex-col gap-3 p-4 tablet:p-6">
+                <h2 id="kabinet-paused" className="sr-only">
+                  {uk.kabinet.profileStatus.paused}
+                </h2>
+                <PausedStatus since={view.verification.since} reason={view.verification.reason} />
               </div>
             </Card>
           ) : null}
-        </main>
-      </Container>
-    </div>
+        </div>
+      )}
+    </ShelterShell>
   );
 }

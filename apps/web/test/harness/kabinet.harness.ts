@@ -31,6 +31,7 @@ import { kabinetInvitationRepo } from "@opika/db/repos";
 import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { type BrowserContext, expect, test } from "@playwright/test";
+import { openAccountMenu } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.34";
@@ -131,20 +132,27 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
     return context.newPage();
   };
 
-  test("after the skip link the header's Tab stops are «Переглянути сайт» (a new tab), then «Вийти»", async () => {
+  test("after the skip link the header's Tab stops are «На сайт» (a new tab), then the account button", async () => {
     const page = await signedInPage();
     await page.goto("/kabinet");
-    // Transcribed: K4's «Вийти» (`kabinet.profile.signOut`).
-    const signOut = page.getByRole("button", { name: "Вийти" });
+    const account = page.getByRole("banner").getByRole("button");
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Перейти до вмісту" })).toBeFocused();
     await page.keyboard.press("Tab");
-    const viewSite = page.getByRole("link", { name: /^Переглянути сайт/ });
+    const viewSite = page.getByRole("link", { name: /^На сайт/ });
     await expect(viewSite).toBeFocused();
     await expect(viewSite).toHaveAttribute("target", "_blank");
     await expect(viewSite).toHaveAttribute("rel", /noopener/);
     await page.keyboard.press("Tab");
-    await expect(signOut).toBeFocused();
+    await expect(account).toBeFocused();
+    // The menu opens from the keyboard and Escape gives the focus back to the button.
+    await expect(async () => {
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("button", { name: "Вийти" })).toBeVisible({ timeout: 1500 });
+    }).toPass({ timeout: 15_000 });
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Вийти" })).toHaveCount(0);
+    await expect(account).toBeFocused();
     await page.close();
   });
 
@@ -164,7 +172,10 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
 
     await Promise.all([
       page.waitForURL((url) => url.pathname === "/kabinet/vkhid"),
-      page.getByRole("button", { name: "Вийти" }).click(),
+      (async () => {
+        await openAccountMenu(page, page.getByRole("button", { name: "Вийти" }));
+        await page.getByRole("button", { name: "Вийти" }).click();
+      })(),
     ]);
 
     const after = await page.request.get("/api/auth/get-session");

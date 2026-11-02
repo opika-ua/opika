@@ -35,6 +35,8 @@ export type SheetProps = {
    * trigger's own hiding class: the hash reveal would otherwise show the sheet on a wide screen.
    */
   hideFrom?: keyof typeof HIDE_FROM;
+  /** `none`: the title bar carries only the ✕ (the sheet's content already says whose it is). `label` still names the dialog. */
+  title?: "shown" | "none";
   /** Test hooks for the harness; the unit tests query by role. */
   triggerTestId?: string;
   dialogTestId?: string;
@@ -62,6 +64,7 @@ export function Sheet({
   triggerTestId,
   dialogTestId,
   presentation = "bottom",
+  title = "shown",
   children,
 }: SheetProps) {
   const [open, setOpen] = useState(false);
@@ -151,7 +154,11 @@ export function Sheet({
         ) : (
           <div className="flex flex-col gap-4 p-5 pb-safe">
             <div className="flex items-center justify-between gap-4">
-              <span className="text-label text-ink-2">{label}</span>
+              {title === "shown" ? (
+                <span className="text-label text-ink-2">{label}</span>
+              ) : (
+                <span />
+              )}
               {closeLink}
             </div>
             {typeof children === "function" ? children({ close: closeLink }) : children}

@@ -22,6 +22,7 @@ import { kabinetInvitationRepo, kabinetInviteTokenRepo } from "@opika/db/repos";
 import { authMember, authUser, authVerification, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { expect, test } from "@playwright/test";
+import { openAccountMenu } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.43";
@@ -169,7 +170,8 @@ test.describe("the invitation link sets a password (PW-2)", () => {
       (await db.select().from(authMember)).filter((member) => member.userId === userId),
     ).toHaveLength(1);
 
-    // Sign out.
+    // Sign out, from the account menu.
+    await openAccountMenu(page, page.getByRole("button", { name: "Вийти" }));
     await page.getByRole("button", { name: "Вийти" }).click();
     await page.waitForURL((url) => url.pathname === "/kabinet/vkhid");
 

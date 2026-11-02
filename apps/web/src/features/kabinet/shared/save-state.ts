@@ -2,14 +2,15 @@ import { pluralizeUk } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 
 /**
- * What the kabinet's save pill (desktop) or bar (phone) says. «Усі зміни збережено» and a draft's
- * autosave status are not here: they show only as the line under the tabs, never as a pill (a
- * draft saves itself, so there is nothing to act on).
+ * What the kabinet's save pill (desktop) or bar (phone) says. A draft's autosave status is not
+ * here: it shows only as the line under the tabs, never as a pill (a draft saves itself, so there
+ * is nothing to act on).
  */
 export type SaveBarState =
   | { kind: "unsaved" }
   | { kind: "saving" }
-  | { kind: "saved"; at: Date; viewHref?: string }
+  /** `message` replaces the default «Збережено о …» (the Притулок page says «Усі зміни збережено»). */
+  | { kind: "saved"; at: Date; viewHref?: string; message?: string }
   | { kind: "invalid"; count: number }
   | { kind: "failed" }
   /** A message with at most one action of its own, e.g. the existing conflict text and «Показати поточну версію». */
@@ -34,7 +35,7 @@ export function saveBarTextOf(state: SaveBarState): string {
     case "saving":
       return t.state.saving;
     case "saved":
-      return fillTemplate(t.state.savedAt, { time: savedTimeOf(state.at) });
+      return state.message ?? fillTemplate(t.state.savedAt, { time: savedTimeOf(state.at) });
     case "invalid":
       return fillTemplate(pluralizeUk(state.count, t.saveBar.checkFields), {
         n: String(state.count),
