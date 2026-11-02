@@ -137,11 +137,21 @@ describe("the shelter page", () => {
 });
 
 describe("the shelter page, states", () => {
-  it("a verified shelter reads «Перевірено вручну · на сайті з {year} року» as plain text", () => {
+  it("an older verified shelter reads «Перевірений вручну · на Opika з 2023 р.»", () => {
     renderScreen({ shelter: makeShelterPageShelter({ verification: "verified" }) });
     expect(screen.getByTestId("shelter-trust-line").textContent).toContain(
-      "Перевірено вручну · на сайті з 2023 року",
+      "Перевірений вручну · на Opika з 2023 р.",
     );
+  });
+
+  it("a first-year shelter reads the current year, never «0 років»", () => {
+    const year = new Date().getFullYear();
+    renderScreen({
+      shelter: makeShelterPageShelter({ verification: "verified", createdAt: new Date() }),
+    });
+    const line = screen.getByTestId("shelter-trust-line").textContent ?? "";
+    expect(line).toContain(`Перевірений вручну · на Opika з ${year} р.`);
+    expect(line).not.toContain("0 рок");
   });
 
   it("an unverified shelter reads only «на сайті з {year} року»", () => {

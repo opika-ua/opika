@@ -114,7 +114,7 @@ describe("the gallery's animal overlay", () => {
     expect(inside.getByText("Довгошерсті")).toBeTruthy();
     // The fixture's two photos (`a.jpg`/`b.jpg`) are both in the card's photo region.
     expect(
-      inside.getByRole("region", { name: "Фотографії тварини" }).querySelectorAll("img"),
+      inside.getByRole("region", { name: "Фотогалерея" }).querySelectorAll("img"),
     ).toHaveLength(2);
     expect(inside.getByText("Оновлено 5 днів тому")).toBeTruthy();
   });

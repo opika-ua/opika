@@ -285,7 +285,7 @@ describe("RevealFlow's dialog semantics", () => {
     // Audit 2026-10-22 #6: the window is a rolling day, and a shelter already opened is free.
     expect(
       screen.getByText(
-        "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Нові – пізніше, коли мине доба від перших.",
+        "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Наступні стануть доступні протягом доби.",
       ),
     ).toBeTruthy();
     expect(screen.queryByTestId("reveal-retry")).toBeNull();

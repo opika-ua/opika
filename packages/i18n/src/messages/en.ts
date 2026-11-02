@@ -5,7 +5,7 @@
  * alarming), not a native-speaker pass. Eleven keys use the literal English
  * the design canvas gives directly (`Opika - Keeper's Voice.dc.html`,
  * "КОПІЯ · UK / EN"): freshness.attribution, swipe.left/right,
- * medical.unknown/registryConfirmed, location.fostered, reveal.title,
+ * medical.unknown/registryConfirmed, reveal.title,
  * exhausted.title/body, reserved.badge/action. Everything else is new
  * content in that register, not literally specified anywhere - flag any
  * mistranslation rather than trusting it silently; this hasn't had a
@@ -169,10 +169,7 @@ export const en = {
 
   // --- Location ---
   location: {
-    /** Template: "Living with a volunteer in {place}..." */
-    fostered:
-      "Living with a volunteer in {place}. We don't know the exact address and won't invent one.",
-    lineFostered: "{place} · living with a volunteer",
+    lineFostered: "{place} · in foster care",
     lineAtShelter: "{place}",
   },
 
@@ -187,7 +184,7 @@ export const en = {
   // --- Detail screen (04) ---
   detail: {
     /** Template: "Manually verified · on the site since {year}" - `{year}` is the year the shelter's record was created. */
-    shelterVerifiedYears: "Manually verified · on the site since {year}",
+    shelterVerifiedYears: "Manually verified · on {site} since {year}",
     donateShelter: "Support the shelter",
     shelterRowLink: "The shelter's page: «{name}»",
     speciesDog: "Dog",
@@ -202,7 +199,7 @@ export const en = {
       action: "All animals",
     },
     rateLimited: "Too many requests. Please try again later.",
-    photoGalleryLabel: "Animal photos",
+    photoGalleryLabel: "Photo gallery",
     photoNext: "Next photo",
     photoPrev: "Previous photo",
     photoCounter: "Photo {n} of {total}",
@@ -289,7 +286,7 @@ export const en = {
     /** Mirrors uk.ts's rateLimited key-for-key - machine-translated like the rest of this file, not a native pass; see this file's own top comment. */
     rateLimited: {
       title: "You've revealed the contacts of many shelters today.",
-      body: "The next ones – tomorrow.",
+      body: "The next ones will become available within a day.",
     },
     photoMissing: {
       placeholder: "No photo yet – the shelter hasn't sent one",
@@ -331,7 +328,7 @@ export const en = {
     sizeMedium: "medium",
     sizeLarge: "large",
     atShelter: "{place}",
-    fosteredHousing: "with a volunteer foster in {place}",
+    fosteredHousing: "in foster care, {place}",
     sexMale: "boy",
     sexFemale: "girl",
   },

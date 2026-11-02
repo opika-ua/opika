@@ -66,8 +66,8 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
 }
 
 /**
- * Pet card PR 5: the `shelterVerifiedYears` badge ("Перевірено вручну · на
- * сайті з {year} року") had no slot in the Figma header - the shelter row is
+ * Pet card PR 5: the `shelterVerifiedYears` badge ("Перевірений вручну · на
+ * {site} з {year} р.") had no slot in the Figma header - the shelter row is
  * now just the logo, the name and the city (owner decision 1, "follow the
  * Figma design completely"). It was already suppressed everywhere in
  * production (`REGISTRY_HAS_NO_REAL_SHELTERS` is `true`), so dropping it
@@ -88,7 +88,7 @@ describe("AnimalDetailScreen – shelterVerifiedYears badge (retired, pet card P
         cityPlace="м. Бровари"
       />,
     );
-    expect(screen.queryByText(/Перевірено вручну/)).toBeNull();
+    expect(screen.queryByText(/Перевірений вручну/)).toBeNull();
   });
 });
 

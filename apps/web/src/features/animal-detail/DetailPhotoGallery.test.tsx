@@ -8,7 +8,7 @@ function photo(storageKey: string, alt: string | null = null): AnimalPhoto {
 }
 
 const THREE_PHOTOS = [photo("/a.jpg"), photo("/b.jpg"), photo("/c.jpg")];
-const REGION = { name: "Фотографії тварини" };
+const REGION = { name: "Фотогалерея" };
 
 /** happy-dom has no layout: give the scroller real-looking widths before it mounts. */
 function stubWidths(clientWidth: number, scrollWidth: number) {
@@ -56,7 +56,7 @@ describe("DetailPhotoGallery", () => {
     render(<DetailPhotoGallery photos={[]} altFallback="Мурчик" />);
 
     expect(screen.getByText("Фото немає – притулок ще не надіслав")).toBeTruthy();
-    expect(screen.queryByRole("region", { name: "Фотографії тварини" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Фотогалерея" })).toBeNull();
   });
 
   it("two photos get a counter whose accessible name says which one is showing", () => {
