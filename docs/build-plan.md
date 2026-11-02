@@ -1049,8 +1049,8 @@ weeks.
 - [ ] **PG-F3 merged: a hard item.** Oleksii, 2026-10-19, verbatim: "Add PG-F3 to the launch gate as
   a hard item: no real shelters before it's merged." `db:migrate` could reach a database the
   production guard never checked (drizzle-kit's own config file and env-file loading). The fix is
-  parked on `fix/pgf3-migrate-bypass` (WIP, unreviewed, tests missing; handoff in its inbox file):
-  he writes its tests, then it gets the full Tier 1 review. No real shelter is onboarded before it
+  on `fix/pgf3-migrate-bypass` (db:migrate applies migrations in its own process; tests written
+  2026-11-01): it waits for the full Tier 1 review. No real shelter is onboarded before it
   merges.
 - [x] **PW1-F5 merged.** Done. PR #158 (`fix/pw1-f5-atomic-session-revoke`) merged 2026-10-20
   (`f490ae6`): an additive migration, `0013`, one function and two triggers on `auth_account`.

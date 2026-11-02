@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { count, isNotNull } from "drizzle-orm";
 import { createDatabase, type Database } from "../client";
-import { migrateTargetCheck, parseMigrateArgs } from "../migrate-args";
+import { migrateTargetCheck, parseTargetArgs } from "../migrate-args";
 import {
   assertProductionWriteAllowed,
   checkProductionWrite,
@@ -123,8 +123,8 @@ async function main(): Promise<void> {
     console.error("ERROR: DATABASE_URL is not set.");
     process.exit(1);
   }
-  const args = parseMigrateArgs(process.argv.slice(2));
-  if (args.kind === "refused" || args.drizzleArgs.length > 1) {
+  const args = parseTargetArgs(process.argv.slice(2));
+  if (args.kind === "refused" || args.rest.length > 0) {
     console.error("ERROR: usage: db:city-references [--prod] [--expect ep-...]");
     process.exit(1);
   }

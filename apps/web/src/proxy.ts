@@ -195,10 +195,12 @@ export function isCronPath(pathname: string): boolean {
  * no-store`; nothing logged about which ids were asked for. Full record:
  * `docs/decisions-inbox.md` (S8-D1, folded from `feat-dr1-s8-saved-page.md` at #186's merge).
  */
+// `/api/health` is the uptime monitor's probe: no cookie, no data beyond the build SHA, own limiter.
 // BR-7: the site-wide link-preview image is a fixed wordmark card with no listing data; the per-animal
 // image stays behind the gate with its page.
 const GATE_EXEMPT_EXACT_PATHS: readonly string[] = [
   "/api/rpc/animals/cardsByIds",
+  "/api/health",
   "/opengraph-image",
 ];
 

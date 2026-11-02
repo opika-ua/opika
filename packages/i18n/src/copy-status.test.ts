@@ -1878,9 +1878,9 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
  * `photoGalleryLabel` survives unchanged - it labels "the photo list" regardless of which
  * control renders the list, so the new slider's scroll container reuses it as-is.
  */
-describe("Q-A: the animal page's photo gallery label", () => {
+describe("Q-A (D6-3, relabelled by the owner 2026-11-02): the animal page's photo gallery label", () => {
   it("is his string", () => {
-    expect(uk.detail.photoGalleryLabel).toBe("Фотографії тварини");
+    expect(uk.detail.photoGalleryLabel).toBe("Фотогалерея");
   });
 
   it("the dot/thumbnail labels are gone with the UI they named", () => {
@@ -2526,7 +2526,8 @@ describe("the copy audit of 2026-10-22", () => {
     expect(uk.kabinet.email.invite.intro).toBe(
       "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті {site}.",
     );
-    expect(uk.detail.shelterVerifiedYears).toBe("Перевірено вручну · на сайті з {year} року");
+    // MK-6 (owner, 2026-11-02): the year of the record as a number, never a years count.
+    expect(uk.detail.shelterVerifiedYears).toBe("Перевірений вручну · на {site} з {year} р.");
     for (const text of [
       uk.about.intro,
       uk.kabinet.email.invite.intro,
@@ -2640,5 +2641,27 @@ describe("site header nav copy (the owner's text)", () => {
 
   it("no nav string is a placeholder", () => {
     expect(pendingCopyKeys(uk.nav)).toEqual([]);
+  });
+});
+
+/** Owner-approved 2026-11-02 (decisions inbox MK-1, MK-2, MK-4, B1-1), verbatim. */
+describe("owner-approved copy, 2026-11-02", () => {
+  it("MK-1: the first reflection holds at any age", () => {
+    expect(uk.reveal.reflection1).toBe("Це роки разом, а не вихідні.");
+  });
+
+  it("MK-2: foster housing is gender-neutral, and the dormant location.fostered is gone", () => {
+    expect(uk.location.lineFostered).toBe("{place} · на перетримці");
+    expect(uk.cardMeta.fosteredHousing).toBe("на перетримці, {place}");
+    expect(Object.keys(uk.location)).not.toContain("fostered");
+  });
+
+  it("MK-4: the /pro cost line makes no unconditional promise", () => {
+    expect(uk.about.free).not.toContain("лишиться безкоштовним");
+  });
+
+  it("B1-1: the throttle body names a window, not a calendar day, and has no em dash", () => {
+    expect(uk.errors.rateLimited.body).toContain("Наступні стануть доступні протягом доби.");
+    expect(uk.errors.rateLimited.body).not.toContain(String.fromCodePoint(0x2014));
   });
 });
