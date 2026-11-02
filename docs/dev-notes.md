@@ -89,6 +89,21 @@ is not the same claim as "I ran it and here is the output."
 # given a CLI --reporter (it replaces the dropping reporter), and while another session
 # still uses it (the drop is never forced). The next run reuses it; the prune clears it.
 
+## Performance check on a Neon child branch (2026-11-02)
+
+Three tools, all built on `packages/db/src/tools/perf-support.ts` (`perfTarget`): local (no `--expect`) or a
+Neon child branch that is NOT production, reached by its direct hostname (pooled is refused), with
+`--expect ep-…` and `PROD_NEON_ENDPOINT` set (unset = refused). `--prod` is refused; there is no production mode.
+- `db:neon-perf-seed`: launch-sized fictional corpus (30 shelters, 1,500 discoverable animals plus reserved,
+  draft, adopted, withdrawn; 20 cities). Adds only. A second run on a branch that has it writes nothing; a
+  half-seeded branch is refused, so recreate the branch.
+- `db:neon-perf-report`: read-only. Cold/warm round trip against `EXPLAIN (ANALYZE, BUFFERS)` execution time for
+  the gallery, facets, detail, shelter page, city search and kabinet K2 list; unused indexes (meaningless
+  until real traffic: stats on a fresh branch are zero).
+- `@opika/web neon-perf-routes`: the real loaders per route with every statement recorded: call count, timeline,
+  sequential waves, N+1 and duplicate reads, and static notes on what could run together. Suggestions only.
+The command block is in `Claude outputs/NEON-PERF-sitting-*.txt` (and the PR that added them).
+
 ## The name is final - keep it out of the domain
 
 "Opika" (Опіка - Ukrainian for guardianship/care, same word as Polish
