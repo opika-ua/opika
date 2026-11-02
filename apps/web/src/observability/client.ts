@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { coarseUserAgentIntegration } from "./coarse-context";
 import { baseSentryOptions, type SentryTestKnobs, TUNNEL_PATH } from "./options";
 
 /**
@@ -19,6 +20,7 @@ export function initClientSentry(
       Sentry.linkedErrorsIntegration(),
       Sentry.dedupeIntegration(),
       Sentry.httpContextIntegration(),
+      coarseUserAgentIntegration(),
     ],
     ...(test.transport === undefined ? {} : { transport: test.transport }),
   });

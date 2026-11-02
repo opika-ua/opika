@@ -172,13 +172,19 @@ Errors only, no tracing, no replay, no profiling, no feedback widget. Code: `app
   upload runs only when `VERCEL_ENV=production` and all three are set, then the maps are deleted from the
   build output. `assertBuildEnv` requires none of them.
 - **What leaves.** Error type and message (scrubbed), stack frames (function, file, line), page URL without
-  query or fragment, browser UA string. No user, cookies, headers, request body, query strings, local
+  query or fragment, and `contexts.browser` / `contexts.os` as family plus major version only ("Safari 18", "iOS 18"; `coarse-ua.ts`,
+  never the raw UA string, a minor version or a device model). No user, cookies, headers, request body, query strings, local
   variables, source lines or breadcrumbs; the approved sentence in `/pro` (`about.data`) rests on this.
   Two layers: the SDK's `dataCollection` is spelled out as all-off (`options.ts`; v11 defaults to on, so
   `options.test.ts` fails if the SDK gains a key that is not set), then `scrub.ts` runs as `beforeSend`
   and in the tunnel. `server-proof.test.ts` and `client-proof.test.ts` throw real errors inside a request /
   page full of cookies, a bearer token, `?gate=`, a JSON body and a contact in a local variable, and assert the
   captured envelope has none of it, with the scrubber on and off.
+- **Coarse browser and OS.** `coarse-context.ts` runs as a client event processor: in the browser from
+  `navigator.userAgentData` (low-entropy brands and platform, no `getHighEntropyValues`), else a small pure
+  parser; on the server from the request's User-Agent header (or `onRequestError`'s headers). Only the derived
+  `{name, version}` pair is kept; `scrub.ts` allows exactly `contexts.browser` and `contexts.os` in that strict
+  shape (any other context is dropped, an unrecognised name becomes "unknown") and drops every header, also in the tunnel.
 - **Browser path.** `instrumentation-client.ts` loads the SDK after idle (`load-client.ts`), only with a DSN.
   Events go to our own `POST /api/monitoring` (`api/monitoring-tunnel.ts`), never to Sentry directly, so
   the CSP stays `connect-src 'self'`. It forwards error events only, rebuilt and scrubbed, from our server

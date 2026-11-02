@@ -106,6 +106,29 @@ function scrubRequest(request: unknown): Loose | undefined {
   return out;
 }
 
+const CONTEXT_NAME = /^[A-Za-z][A-Za-z0-9 ]{0,31}$/;
+const CONTEXT_MAJOR = /^\d{1,4}$/;
+
+/** A family name and a major version only; anything else (a raw UA string included) becomes "unknown". */
+function coarseContext(value: unknown): Loose {
+  if (!isObject(value) || typeof value.name !== "string" || !CONTEXT_NAME.test(value.name)) {
+    return { name: "unknown" };
+  }
+  const kept: Loose = { name: value.name };
+  if (typeof value.version === "string" && CONTEXT_MAJOR.test(value.version)) {
+    kept.version = value.version;
+  }
+  return kept;
+}
+
+/** Only `browser` and `os` stay, in the strict shape above; every other context is dropped. */
+function scrubContexts(contexts: unknown): Loose | undefined {
+  if (!isObject(contexts)) return undefined;
+  const out: Loose = {};
+  for (const key of ["browser", "os"]) if (key in contexts) out[key] = coarseContext(contexts[key]);
+  return out;
+}
+
 /** Source-map matching needs each bundle's debug id and file; nothing else of `debug_meta` stays. */
 function scrubDebugMeta(debugMeta: unknown): Loose | undefined {
   if (!isObject(debugMeta) || !Array.isArray(debugMeta.images)) return undefined;
@@ -149,7 +172,8 @@ export function scrubEvent<T extends object>(event: T): T {
   if (scrubbedRequest !== undefined) out.request = scrubbedRequest;
   if (exception !== undefined) out.exception = scrubException(exception);
   if (extra !== undefined) out.extra = scrubValue(extra);
-  if (contexts !== undefined) out.contexts = scrubValue(contexts);
+  const scrubbedContexts = scrubContexts(contexts);
+  if (scrubbedContexts !== undefined) out.contexts = scrubbedContexts;
   if (tags !== undefined) out.tags = scrubValue(tags);
   if (typeof message === "string") out.message = scrubString(message);
   if (logentry !== undefined) out.logentry = scrubValue(logentry);
