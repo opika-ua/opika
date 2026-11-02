@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -21,8 +21,8 @@ export type MigrateEnvironment = Readonly<Record<string, string | undefined>>;
 export type MigrateIo = {
   /** The production guard: returns only when the write is allowed (`assertProductionWriteAllowed`). */
   guard: (url: string, argv: readonly string[], env: MigrateEnvironment) => void;
-  /** Applies every committed migration not yet applied, to exactly this URL. */
-  applyMigrations: (url: string) => Promise<void>;
+  /** Applies every committed migration not yet applied, to exactly this URL; returns the names applied, in order. */
+  applyMigrations: (url: string) => Promise<readonly string[]>;
   /** The `.env` files drizzle-kit would have loaded, as display paths, if any exist. */
   dotenvFiles: () => readonly string[];
   log: (line: string) => void;
@@ -120,23 +120,55 @@ export async function runMigrate(
   if (dotenvFiles.length > 0) {
     io.log(`Ignored (never read): ${dotenvFiles.join(", ")}. Only DATABASE_URL is used.`);
   }
+  let applied: readonly string[];
   try {
-    await io.applyMigrations(url);
+    applied = await io.applyMigrations(url);
   } catch (error) {
     // The driver's and the migrator's messages carry the server's text or a host, never the URL.
     io.error(`ERROR: the migration failed: ${messageOf(error, url)}`);
     return 1;
   }
-  io.log("Migrations: every committed migration is now applied.");
+  // "applied 0" tells a no-op from an apply; names only, never the target.
+  io.log(
+    `Migrations: applied ${applied.length}${applied.length > 0 ? `: ${applied.join(", ")}` : ""}`,
+  );
   return 0;
 }
 
+/** Journal tag by `when`, which the migrator stores as `created_at` on each applied row. */
+function journalTags(): Map<number, string> {
+  const journal = JSON.parse(
+    readFileSync(resolve(MIGRATIONS_DIR, "meta/_journal.json"), "utf8"),
+  ) as {
+    entries: { when: number; tag: string }[];
+  };
+  return new Map(journal.entries.map((entry) => [entry.when, entry.tag]));
+}
+
+/** The applied rows' `created_at`; none before the first run creates the table. */
+async function appliedStamps(client: postgres.Sql): Promise<Set<number>> {
+  const [table] = await client`SELECT to_regclass('drizzle.__drizzle_migrations') AS name`;
+  if (!table?.name) return new Set();
+  const rows = await client`SELECT created_at FROM drizzle.__drizzle_migrations`;
+  return new Set(rows.map((row) => Number(row.created_at)));
+}
+
 /** Same calls drizzle-kit made for Postgres, and the same migrator the test setup uses, so the
- * recorded hashes are the ones db:check-hashes reads. */
-export async function applyMigrations(url: string): Promise<void> {
+ * recorded hashes are the ones db:check-hashes reads. The names are the applied rows after minus before. */
+export async function applyMigrations(url: string): Promise<string[]> {
   const client = postgres(url, { max: 1 });
   try {
+    // Wrapped like drizzle's own errors, so messageOf reports the cause the same way.
+    const before = await appliedStamps(client).catch((cause: unknown) => {
+      throw new Error("Failed query: reading the applied migrations", { cause });
+    });
     await migrate(drizzle(client), { migrationsFolder: MIGRATIONS_DIR });
+    const after = await appliedStamps(client);
+    const tags = journalTags();
+    return [...after]
+      .filter((stamp) => !before.has(stamp))
+      .sort((a, b) => a - b)
+      .map((stamp) => tags.get(stamp) ?? `unknown (${stamp})`);
   } finally {
     await client.end();
   }
