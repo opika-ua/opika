@@ -6,7 +6,8 @@ import { placeQueryOf } from "@opika/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AMBIENT_CONNECTION_VARIABLES } from "../src/prod-guard";
 import { searchStatement } from "../src/repos/city-search-repo";
-import { setupTestDatabase, testDatabaseUrl } from "../src/test-utils/index";
+import { setupTestDatabase } from "../src/test-utils/index";
+import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 import {
   assertReadOnly,
   branchStatements,
@@ -258,7 +259,7 @@ describe("against the local test database", () => {
   afterAll(async () => cleanup?.());
 
   it("reports the four search indexes valid and a plan for every branch of every probe", async () => {
-    const result = await diagnose(connect(testDatabaseUrl("test")));
+    const result = await diagnose(connect(TEST_DATABASE_URL));
     expect(result.catalog.indexes).toHaveLength(4);
     expect(result.catalog.indexes?.every((r) => r.indisvalid === true)).toBe(true);
     for (const probe of result.probes) {
@@ -274,7 +275,7 @@ describe("against the local test database", () => {
   it("the server refuses a write sent through connect(), whatever the validator would say", async () => {
     // The validator is switched off on purpose: this proves the READ ONLY transaction, the second
     // lock. Dropping "read only" from connect() lets these statements through and turns it red.
-    const unchecked = connect(testDatabaseUrl("test"), () => undefined);
+    const unchecked = connect(TEST_DATABASE_URL, () => undefined);
     await expect(unchecked([{ text: "CREATE TEMP TABLE t (a int)", params: [] }])).rejects.toThrow(
       /read-only/,
     );

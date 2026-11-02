@@ -69,7 +69,9 @@ cookie for the rest of the session. The seed script refuses any non-local databa
 another. Stop the database with `docker compose down` (add `-v` to drop the data).
 
 Moving from the old Postgres 17 image: its volume cannot be reused (PG18 changed the data directory
-layout). Run `docker compose down -v`, then `docker compose up -d`, then `db:migrate` and `db:seed`.
+layout), so compose now uses a new volume. Run `docker compose stop db` (frees port 5433), then
+`docker compose up -d`, then `db:migrate` and `db:seed`. The old volume is left in place; it can be
+removed later with `docker volume rm opika_opika-db-data` (name is `<project>_opika-db-data`); the owner decides when.
 
 ## Checks
 

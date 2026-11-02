@@ -163,9 +163,12 @@ What the code does now (`packages/db/src/test-utils/test-database.ts`):
   apply with `docker compose up -d --force-recreate db` (the volume stays).
 - Local and CI Postgres is `postgis/postgis:18-3.6` (production Neon runs Postgres 18). The PG18
   image moved PGDATA to `/var/lib/postgresql/18/docker`, so the compose volume mounts
-  `/var/lib/postgresql`, and an existing PG17 volume cannot be reused. One-time local migration:
-  `docker compose down -v`, `docker compose up -d`, then
-  `pnpm --filter @opika/db run db:migrate` and `db:seed` (local data is disposable).
+  `/var/lib/postgresql`, and the PG17 volume cannot be reused, so compose uses a new volume. One-time local migration:
+  stop the old PG17 container first (`docker compose stop db`, it holds port 5433), then `docker compose up -d`
+  (recreates the `db` service on the new `opika-pgdata-18` volume), then
+  `pnpm --filter @opika/db run db:migrate` and `db:seed`. Nothing is deleted: the old PG17 volume stays.
+  It can be removed later with `docker volume rm <project>_opika-db-data` (for the main checkout:
+  `opika_opika-db-data`); the owner decides when.
 - Production Neon is on the Free plan today: 100 CU-hours per month per project, compute suspends
   when exhausted, 6 h history retention, Postgres 18, default compute 0.25 CU. Upgrade to Launch is
   planned before shelters are onboarded (see `docs/launch-gate.md` section A).
