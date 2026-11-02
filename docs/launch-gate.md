@@ -34,6 +34,7 @@ superseded branch-inbox files deleted.
 | **Google Postmaster Tools** for `mail.opika.org.ua` | Oleksii | **DONE, 2026-11-02** (Oleksii): `mail.opika.org.ua` verified | - | - |
 | **`OPIKA_TEST_FAIL_GALLERY` is unset in every deployed environment** | Oleksii (Vercel env list) | **OPEN**, check at launch | Not present in Production, Preview or any other deployed environment. The variable arms a test-only failure hook (`apps/web/src/features/gallery/test-only-failure.ts`). Its second guard is the Vercel check (`VERCEL` / `VERCEL_ENV`); a move off Vercel (the OpenNext / Cloudflare exit ramp) must swap that guard first, because the check would no longer protect anything there | nothing |
 | **Location fuzzing wired into production** | - | **DONE** | - | - |
+| **Upgrade production Neon from Free to Launch** | Oleksii (Neon console) | **OPEN**, before shelters are onboarded | Project on Launch. Free today: 100 CU-hours per month per project, compute suspends when exhausted, 6 h history retention, Postgres 18, default compute 0.25 CU. Estimated ~120 CU-h per month at launch traffic, so Free would suspend. | - |
 | **BR-3** | - | **DONE** (PR #183) | - | - |
 
 ## B. Before any route is indexed, one hour earlier: D-7

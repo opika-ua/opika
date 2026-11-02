@@ -24,7 +24,7 @@ here.
 |---|---|
 | Client | Next.js 16 App Router, React 19, Tailwind v4 |
 | API | oRPC contract-first, Zod 4 |
-| Database | Postgres 17 (local: Docker; production: Neon), Drizzle ORM |
+| Database | Postgres 18 (local: Docker; production: Neon), Drizzle ORM |
 | Adopter session | Anonymous device session, no accounts |
 | Shelter auth | Better Auth, magic-link sign-in for the kabinet |
 | Images | Cloudflare R2, `sharp`-generated variants |
@@ -67,6 +67,9 @@ cookie for the rest of the session. The seed script refuses any non-local databa
 
 `docker-compose.yml` maps Postgres to host port 5433, not 5432; set `OPIKA_DB_PORT` to use
 another. Stop the database with `docker compose down` (add `-v` to drop the data).
+
+Moving from the old Postgres 17 image: its volume cannot be reused (PG18 changed the data directory
+layout). Run `docker compose down -v`, then `docker compose up -d`, then `db:migrate` and `db:seed`.
 
 ## Checks
 

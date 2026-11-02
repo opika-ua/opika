@@ -161,6 +161,14 @@ What the code does now (`packages/db/src/test-utils/test-database.ts`):
   later. Prune bounds every drop (60 s), always exits with a code, and logs a failure as a line.
 - `docker-compose.yml` sets `idle_in_transaction_session_timeout=60s` and `max_connections=200`;
   apply with `docker compose up -d --force-recreate db` (the volume stays).
+- Local and CI Postgres is `postgis/postgis:18-3.6` (production Neon runs Postgres 18). The PG18
+  image moved PGDATA to `/var/lib/postgresql/18/docker`, so the compose volume mounts
+  `/var/lib/postgresql`, and an existing PG17 volume cannot be reused. One-time local migration:
+  `docker compose down -v`, `docker compose up -d`, then
+  `pnpm --filter @opika/db run db:migrate` and `db:seed` (local data is disposable).
+- Production Neon is on the Free plan today: 100 CU-hours per month per project, compute suspends
+  when exhausted, 6 h history retention, Postgres 18, default compute 0.25 CU. Upgrade to Launch is
+  planned before shelters are onboarded (see `docs/launch-gate.md` section A).
 
 ## Error reporting (Sentry, H5)
 
