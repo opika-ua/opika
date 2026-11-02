@@ -66,12 +66,21 @@ describe("useAnchored", () => {
 
   it("observes with the header height as a negative top margin and closes when not intersecting", () => {
     const onHidden = vi.fn();
+    const header = document.createElement("header");
+    header.style.position = "sticky";
+    document.body.append(header);
     render(<Probe place={vi.fn()} onHidden={onHidden} />);
     expect(observers[0]?.options).toMatchObject({ rootMargin: "-64px 0px 0px 0px", threshold: 0 });
     report(true);
     expect(onHidden).not.toHaveBeenCalled();
     report(false);
     expect(onHidden).toHaveBeenCalledTimes(1);
+    header.remove();
+  });
+
+  it("has no top margin when no header is sticky (the kabinet's header scrolls away)", () => {
+    render(<Probe place={vi.fn()} onHidden={vi.fn()} />);
+    expect(observers[0]?.options).toMatchObject({ rootMargin: "0px 0px 0px 0px" });
   });
 });
 

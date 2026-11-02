@@ -31,6 +31,7 @@ import { kabinetInvitationRepo } from "@opika/db/repos";
 import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { type BrowserContext, expect, test } from "@playwright/test";
+import { openAccountMenu } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.34";
@@ -145,8 +146,10 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
     await page.keyboard.press("Tab");
     await expect(account).toBeFocused();
     // The menu opens from the keyboard and Escape gives the focus back to the button.
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("button", { name: "Вийти" })).toBeVisible();
+    await expect(async () => {
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("button", { name: "Вийти" })).toBeVisible({ timeout: 1500 });
+    }).toPass({ timeout: 15_000 });
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "Вийти" })).toHaveCount(0);
     await expect(account).toBeFocused();
@@ -170,7 +173,7 @@ test.describe("/kabinet read-only profile, signed in (KS-T3)", () => {
     await Promise.all([
       page.waitForURL((url) => url.pathname === "/kabinet/vkhid"),
       (async () => {
-        await page.getByRole("banner").getByRole("button").click();
+        await openAccountMenu(page, page.getByRole("button", { name: "Вийти" }));
         await page.getByRole("button", { name: "Вийти" }).click();
       })(),
     ]);

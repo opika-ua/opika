@@ -523,10 +523,10 @@ describe("Притулок: the public page link and the sub-tabs", () => {
     expect(screen.queryByRole("link", { name: /Переглянути сайт/ })).toBeNull();
   });
 
-  it("the tabs are underlined: only the selected one carries the ink rule, none is a filled pill", () => {
+  it("the tabs are underlined: only the selected one carries the ink bar, none is a filled pill", () => {
     renderOpen("zbir");
     const tabs = screen.getAllByRole("tab");
-    const ruled = tabs.filter((tab) => tab.className.includes("border-ink"));
+    const ruled = tabs.filter((tab) => tab.className.includes("after:bg-ink"));
     expect(ruled.map((tab) => tab.textContent)).toEqual(["Збір коштів"]);
     for (const tab of tabs) {
       expect(tab.className).not.toContain("bg-ink");

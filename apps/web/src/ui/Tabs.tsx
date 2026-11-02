@@ -110,16 +110,17 @@ export function Tabs({
               onClick={() => setSelected(tab.id)}
               onKeyDown={(event) => move(event, index)}
               className={cx(
-                "min-h-target cursor-pointer text-label focus-ring-inset",
+                "cursor-pointer text-label focus-ring-inset",
                 look === "underline"
                   ? cx(
-                      "-mb-0.5 shrink-0 whitespace-nowrap border-b-2",
+                      // 46px of tab plus the row's 2px rule is the 48px row; the 4px bar is the FilterTabs underline.
+                      "relative h-11.5 shrink-0 whitespace-nowrap px-1 pb-1 after:absolute after:inset-x-0 after:bottom-0 after:h-1",
                       isSelected
-                        ? "border-ink text-ink"
-                        : "border-transparent text-ink-2 hover:border-line hover:text-ink",
+                        ? "text-ink after:bg-ink"
+                        : "text-ink-2 hover:text-ink hover:after:bg-line",
                     )
                   : cx(
-                      "rounded-pill",
+                      "min-h-target rounded-pill",
                       look === "pills" ? "shrink-0 whitespace-nowrap border-2 px-5" : "flex-1 px-4",
                       look === "pills"
                         ? isSelected

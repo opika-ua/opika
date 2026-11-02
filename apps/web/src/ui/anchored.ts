@@ -1,7 +1,12 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 
-/** Reads `--sticky-header-h` (globals.css, set by the site header) as px; 0 when unset or unreadable. */
+/** Reads `--sticky-header-h` (globals.css, set by the site header) as px; 0 when unset, unreadable or when no header is sticky. */
 export function stickyHeaderHeight(): number {
+  // The kabinet's header scrolls away: with no sticky header nothing covers the top of the page.
+  const sticky = [...document.querySelectorAll("header")].some(
+    (header) => getComputedStyle(header).position === "sticky",
+  );
+  if (!sticky) return 0;
   const raw = getComputedStyle(document.documentElement)
     .getPropertyValue("--sticky-header-h")
     .trim();

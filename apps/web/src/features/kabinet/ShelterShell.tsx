@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
+import { Container } from "../../ui/Container";
 import { cx } from "../../ui/cx";
-import { HeaderFrame } from "../../ui/HeaderFrame";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { KabinetHeader } from "./KabinetHeader";
 import { SupportBanner } from "./SupportBanner";
@@ -34,7 +34,7 @@ export function ShelterShell({
     >
       {support ? <SupportBanner shelterName={shelterName} /> : null}
       <KabinetHeader account={{ kind: "shelter", shelterName, viewer }} />
-      <HeaderFrame
+      <Container
         className={cx(
           "flex flex-col gap-4 pt-5 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14",
           navOnPhone ? "pb-24" : "pb-4",
@@ -44,7 +44,7 @@ export function ShelterShell({
         <main {...MAIN_LANDMARK} className="flex min-w-0 max-w-205 flex-1 flex-col gap-4">
           {children}
         </main>
-      </HeaderFrame>
+      </Container>
     </div>
   );
 }

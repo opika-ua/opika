@@ -11,12 +11,14 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createDatabase } from "@opika/db";
-import { kabinetInvitationRepo } from "@opika/db/repos";
-import { authMember, authUser, shelters, superAdmins } from "@opika/db/schema";
+import { createDatabase, productionLocationPolicy } from "@opika/db";
+import { kabinetInvitationRepo, kabinetShelterRepo } from "@opika/db/repos";
+import { authMember, authUser, cities, superAdmins } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
+import { type ModeratorId, publicLocationOf, type Shelter, type ShelterId } from "@opika/domain";
 import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { HARNESS_LOCATION_HMAC_SECRET } from "../harness-env";
+import { openAccountMenu } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.37";
@@ -73,18 +75,66 @@ test.describe("/kabinet shell", () => {
     test.setTimeout(180_000);
     const db = createDatabase(HARNESS_DATABASE_URL);
     const now = new Date();
-    const shelter = (
-      await db
-        .select({
-          id: shelters.id,
-          organizationId: shelters.organizationId,
-          status: shelters.verificationStatus,
-        })
-        .from(shelters)
-    ).find((row) => row.organizationId === null && row.status === "verified");
-    if (shelter === undefined)
-      throw new Error("no verified seeded shelter without an organization");
-    shelterId = shelter.id;
+    // Its own fictional verified shelter: the seeded ones are claimed one per spec, and a spec that
+    // takes the last would leave the next without.
+    const [city] = await db.select({ id: cities.id }).from(cities).limit(1);
+    if (city === undefined) throw new Error("no seeded city");
+    const operatorId = randomUUID();
+    const id = randomUUID() as ShelterId;
+    const exactAddress = {
+      line1: "вул. Тестова, 1",
+      line2: null,
+      postalCode: null,
+      cityId: city.id as never,
+      district: null,
+      coordinates: { lat: 50.45, lng: 30.52 },
+    };
+    const shelter: Shelter = {
+      id,
+      displayName: `Притулок «Каркас ${id.slice(0, 4)}»`,
+      description: { uk: "Вигаданий притулок для перевірки екранів.", en: null },
+      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Тестова" },
+      publicLocation: publicLocationOf(
+        id,
+        exactAddress,
+        productionLocationPolicy(HARNESS_LOCATION_HMAC_SECRET),
+      ),
+      exactAddress,
+      contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
+      donation: null,
+      logo: null,
+      pendingDonation: null,
+      version: 0,
+      freshnessSentence: null,
+      verification: {
+        status: "verified",
+        verifiedAt: now,
+        verifiedBy: operatorId as ModeratorId,
+        evidence: {
+          submittedAt: now,
+          items: [
+            {
+              kind: "site_visit",
+              visitedAt: new Date("2026-10-01T00:00:00Z"),
+              visitedBy: operatorId as ModeratorId,
+              notes: "Чисто, вольєри з навісом.",
+            },
+          ],
+        },
+      },
+      createdAt: now,
+      lastUpdatedAt: now,
+    };
+    await kabinetShelterRepo(db).createWithHistory(shelter, {
+      id: randomUUID(),
+      entry: {
+        kind: "shelter_created",
+        at: now,
+        moderatorId: operatorId as ModeratorId,
+        via: "registry",
+      },
+    });
+    shelterId = id;
 
     server = await startSignInServer(HARNESS_DATABASE_URL, {
       LOCATION_HMAC_SECRET: HARNESS_LOCATION_HMAC_SECRET,
@@ -115,7 +165,6 @@ test.describe("/kabinet shell", () => {
     });
 
     const operatorEmail = `harness-shell-operator-${randomUUID()}@example.test`;
-    const operatorId = randomUUID();
     await db.insert(authUser).values({
       id: operatorId,
       name: "Harness operator",
@@ -144,13 +193,22 @@ test.describe("/kabinet shell", () => {
     return page;
   };
 
-  test("desktop: the sidebar starts on the header's gutter line, the column is at most 820px and left-aligned", async () => {
+  for (const width of [1024, 1440, 1920, 2560]) {
+    test(`the logo and the sidebar share a left edge at ${width}`, async () => {
+      const page = await open(admin, "/kabinet/tvaryny", { width, height: 900 });
+      const logo = await page.getByRole("banner").locator("img").first().boundingBox();
+      const nav = await page.getByRole("navigation", { name: "Розділи кабінету" }).boundingBox();
+      if (logo === null || nav === null) throw new Error("no layout");
+      expect(Math.abs(logo.x - nav.x)).toBeLessThanOrEqual(1);
+      await page.close();
+    });
+  }
+
+  test("desktop: the content column is at most 820px and left-aligned next to the sidebar", async () => {
     const page = await open(admin, "/kabinet/prytulok");
-    const logo = await page.getByRole("banner").locator("svg").first().boundingBox();
     const nav = await page.getByRole("navigation", { name: "Розділи кабінету" }).boundingBox();
     const main = await page.getByRole("main").boundingBox();
-    if (logo === null || nav === null || main === null) throw new Error("no layout");
-    expect(Math.abs(logo.x - nav.x)).toBeLessThanOrEqual(1);
+    if (nav === null || main === null) throw new Error("no layout");
     expect(main.width).toBeLessThanOrEqual(821);
     expect(main.x).toBeLessThan(nav.x + nav.width + 40);
     await shot(page, "prytulok-profil");
@@ -216,8 +274,12 @@ test.describe("/kabinet shell", () => {
     const page = await open(admin, "/kabinet/tvaryny");
     const button = page.getByRole("banner").getByRole("button");
     await button.focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("link", { name: "Акаунт і пароль" })).toBeVisible();
+    await expect(async () => {
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("link", { name: "Акаунт і пароль" })).toBeVisible({
+        timeout: 1500,
+      });
+    }).toPass({ timeout: 15_000 });
     await shot(page, "menu-open");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("link", { name: "Акаунт і пароль" })).toHaveCount(0);
@@ -227,7 +289,7 @@ test.describe("/kabinet shell", () => {
 
   test("«Акаунт і пароль» opens from the menu; the old ?tab=akaunt lands there too", async () => {
     const page = await open(admin, "/kabinet/tvaryny");
-    await page.getByRole("banner").getByRole("button").click();
+    await openAccountMenu(page, page.getByRole("link", { name: "Акаунт і пароль" }));
     await Promise.all([
       page.waitForURL((url) => url.pathname === "/kabinet/akaunt"),
       page.getByRole("link", { name: "Акаунт і пароль" }).click(),
@@ -265,9 +327,8 @@ test.describe("/kabinet shell", () => {
     await expect(
       page.getByRole("region", { name: /^Ви переглядаєте кабінет притулку «/ }),
     ).toBeVisible();
-    await page.getByRole("banner").getByRole("button").click();
-    await expect(page.getByText("Вихід вимкнено").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Вийти" })).toHaveCount(0);
+    await openAccountMenu(page, page.getByText("Вихід вимкнено").last());
+    await expect(page.getByRole("button", { name: "Вийти", exact: true })).toHaveCount(0);
     await shot(page, "support");
     await page.getByRole("button", { name: "Вийти з режиму перегляду" }).click();
     await page.waitForURL((url) => url.pathname === "/kabinet/prytulky");

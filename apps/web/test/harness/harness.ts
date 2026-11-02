@@ -361,3 +361,17 @@ export async function expectTabRowSound(page: Page, row: Locator): Promise<void>
   expect(ring.bottom).toBeGreaterThanOrEqual(0);
   expect(ring.left).toBeGreaterThanOrEqual(0);
 }
+
+/**
+ * Opens the kabinet header's account menu. The button is server-rendered before React attaches its
+ * handler, so a click that lands early does nothing: press until the menu's own `ready` element
+ * shows (a press that did land late would close it again, and the next press reopens it).
+ */
+export async function openAccountMenu(page: Page, ready: Locator): Promise<void> {
+  const button = page.getByRole("banner").getByRole("button");
+  await expect(async () => {
+    // Only press while it reads closed: React may replay an early press once it hydrates.
+    if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
+    await expect(ready).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 15_000 });
+}

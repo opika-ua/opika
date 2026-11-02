@@ -49,13 +49,7 @@ export default async function ShelterAccountPage() {
     case "shelter":
       // A support view has no account of its own to show: back to the shelter's page.
       if (home.viewer === "support") redirect(SHELTER_PROFILE_PATH);
-      return (
-        <AccountPage
-          view={home.view}
-          editing={home.editing}
-          password={password}
-        />
-      );
+      return <AccountPage view={home.view} editing={home.editing} password={password} />;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
       const unreachable: never = home;

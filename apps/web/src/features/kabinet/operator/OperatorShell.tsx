@@ -2,7 +2,7 @@ import { uk } from "@opika/i18n";
 import type { ReactNode } from "react";
 import { type OperatorName, standaloneOperatorName } from "../../../kabinet/operator";
 import { BottomNav } from "../../../ui/BottomNav";
-import { HeaderFrame } from "../../../ui/HeaderFrame";
+import { Container } from "../../../ui/Container";
 import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { KabinetHeader } from "../KabinetHeader";
 import { NEW_SHELTER_PATH, OPERATOR_HOME } from "../routes";
@@ -40,7 +40,7 @@ export function OperatorShell({
         }}
       />
       {/* Bottom padding clears the nav's fixed phone tab bar; unused from desktop. */}
-      <HeaderFrame className="flex flex-1 flex-col gap-4 pt-5 pb-24 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14">
+      <Container className="flex flex-1 flex-col gap-4 pt-5 pb-24 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14">
         <BottomNav
           label={uk.kabinet.nav.label}
           layout="bar-then-rail"
@@ -53,7 +53,7 @@ export function OperatorShell({
         <main {...MAIN_LANDMARK} className="flex min-w-0 flex-1 flex-col gap-4 desktop:gap-6">
           {children}
         </main>
-      </HeaderFrame>
+      </Container>
     </div>
   );
 }
