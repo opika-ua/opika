@@ -1,5 +1,5 @@
 import { uk } from "@opika/i18n";
-import { HeaderFrame } from "../../ui/HeaderFrame";
+import { Container } from "../../ui/Container";
 import { KabinetBrand } from "./KabinetBrand";
 import { PUBLIC_GALLERY_PATH } from "./routes";
 import { SignOutButton } from "./SignOutButton";
@@ -19,7 +19,7 @@ export function KabinetHeader({
   const support = viewer === "support";
   return (
     <header className="border-b-2 border-line bg-surface">
-      <HeaderFrame className="flex min-h-16 items-center gap-3 desktop:min-h-18 desktop:gap-5">
+      <Container className="flex min-h-16 items-center gap-3 desktop:min-h-18 desktop:gap-5">
         <KabinetBrand />
         <div className="flex-1" />
         <p className="hidden min-w-0 items-baseline gap-2 desktop:flex">
@@ -42,7 +42,7 @@ export function KabinetHeader({
         ) : (
           <SignOutButton />
         )}
-      </HeaderFrame>
+      </Container>
     </header>
   );
 }

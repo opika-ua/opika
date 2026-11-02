@@ -2,6 +2,7 @@ import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { inSentenceOperatorName, type OperatorName } from "../../kabinet/operator";
 import { Card } from "../../ui/Card";
+import { Container } from "../../ui/Container";
 import { FormSection } from "../../ui/FormSection";
 import { Heading } from "../../ui/Heading";
 import { MAIN_LANDMARK } from "../../ui/landmark";
@@ -99,9 +100,7 @@ export function ShelterProfile({
 
       <KabinetHeader shelterName={view.displayName} viewer={viewer} />
 
-      <div
-        className={`mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-5 tablet:px-6 desktop:flex-row desktop:items-start desktop:gap-8 desktop:px-8 desktop:pt-8 desktop:pb-14 pb-24`}
-      >
+      <Container className="flex flex-col gap-4 pt-5 pb-24 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14">
         {/*
           The shell nav: «Головна» · «Тварини» (K2, PR 5) where the list is shown to this viewer
           (P1: writes open, or the support view) · «Притулок» (this page). Bottom padding above is
@@ -208,7 +207,7 @@ export function ShelterProfile({
             </Card>
           ) : null}
         </main>
-      </div>
+      </Container>
     </div>
   );
 }

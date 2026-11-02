@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { WORDMARK } from "../../brand";
 import { LinkButton } from "../../ui/Button";
-import { HeaderFrame } from "../../ui/HeaderFrame";
+import { Container } from "../../ui/Container";
 import { Icon } from "../../ui/Icon";
 import { SavedButton } from "../likes/SavedButton";
 import { type Audience, audienceOf } from "./audience";
@@ -12,7 +12,7 @@ import { MobileNavMenu } from "./MobileNavMenu";
 
 /**
  * The one header, on every user-facing surface except the deck (the deck has its own chrome and
- * "never two navigations at once"). Built from the kit: `HeaderFrame` for width and gutters,
+ * "never two navigations at once"). Built from the kit: `Container` for width and gutters,
  * `Sheet` (via `MobileNavMenu`) for the hamburger drawer below `desktop:`, the token set for the
  * rest. 72px tall from desktop, 64 below; every link keeps a 48px hit area. The inline nav starts
  * at `desktop` (1024), the burger drawer below it.
@@ -150,9 +150,9 @@ export function SiteHeader({
   const audience = audienceOf(kabinetSignedIn);
   return (
     // The element carries the sticky fill (the overlay rule in globals.css turns it transparent);
-    // `HeaderFrame` inside carries the width. Sticky because the header must follow the scroll.
+    // `Container` inside carries the width. Sticky because the header must follow the scroll.
     <header data-testid="site-header" className="sticky top-0 z-(--z-header) bg-page">
-      <HeaderFrame className="flex min-h-(--sticky-header-h) items-center gap-3 desktop:gap-4 py-2 tablet:py-0">
+      <Container className="flex min-h-(--sticky-header-h) items-center gap-3 desktop:gap-4 py-2 tablet:py-0">
         {wordmarkIsCurrentPage ? (
           <span data-testid="site-wordmark" className="inline-flex items-center">
             <BrandLogo />
@@ -184,7 +184,7 @@ export function SiteHeader({
 
         {/* Every current caller's `children` is adopter-only (the deck entry link). */}
         {audience === "visitor" && children}
-      </HeaderFrame>
+      </Container>
     </header>
   );
 }
