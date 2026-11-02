@@ -78,6 +78,8 @@ catalog:
   postgres: 3.4.9
   react: 19.2.7
   react-dom: 19.2.7
+  # Exact, no range: the compiler rewrites component bodies, so a bump is a deliberate PR (ADR §1).
+  babel-plugin-react-compiler: 1.0.0
   # Cookieless, no-op-without-JS. Speed Insights reports real Core Web
   # Vitals from actual devices in the field, which the harness cannot
   # simulate; Analytics gives aggregate page-view counts. NOT free on this

@@ -54,6 +54,7 @@
     "@testing-library/react": "catalog:",
     "@testing-library/user-event": "catalog:",
     "@types/node": "catalog:",
+    "babel-plugin-react-compiler": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "happy-dom": "catalog:",

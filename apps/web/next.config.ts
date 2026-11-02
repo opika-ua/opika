@@ -49,6 +49,8 @@ assertBuildEnv(process.env);
 export const PROXY_CLIENT_MAX_BODY_BYTES = 128 * 1024;
 
 const nextConfig: NextConfig = {
+  // Default compilationMode ("infer"); no component needed an opt-out. Revert: delete this line.
+  reactCompiler: true,
   experimental: { proxyClientMaxBodySize: PROXY_CLIENT_MAX_BODY_BYTES },
   // Transpile workspace packages so Next.js can resolve .ts source files
   transpilePackages: ["@opika/contracts", "@opika/domain", "@opika/db"],
