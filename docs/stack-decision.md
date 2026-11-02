@@ -189,6 +189,8 @@ Perf sitting on a Neon child branch (1,819 animals, PG 18.6, commit 9c06986); `d
 
 No duplicate reads, no N+1. DB execution is 0.1-5 ms per statement; the cost is the sequential neon-http round trips (~26-30 ms each from the owner's PC), so the lever is fewer waves, not faster SQL. The 194 ms wall time on `/tvaryny` was a post-seed warm-up artifact (three parallel calls at 117-192 ms against ~27 ms elsewhere), not a regression.
 
+Migration `0021_drop_orphan_animal_indexes` (PR #376) dropped the two unused `animals` indexes (`animals_temperament_traits_idx`, `animals_coat_colour_idx`). Applied to production on 2026-11-02 by Oleksii after a clean child-branch sitting (87 passed); production `pg_indexes` for `animals` lists exactly the six remaining indexes.
+
 ### 3.4 ORM: Drizzle
 
 **Prisma 7 (Nov 2025) is a genuine turnaround** - Rust engine gone, ~90% smaller bundle, ~3× faster queries, generated code in your source tree. The historical complaints are substantially fixed. But:
