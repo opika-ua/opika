@@ -15,6 +15,7 @@ import {
   buildPerfShelters,
   PERF_PUBLISHED_ANIMALS,
   perfCities,
+  safeMessage,
   seedPerf,
 } from "../src/tools/perf-seed";
 import {
@@ -41,8 +42,8 @@ const UNSET = { PROD_GUARD_ENV_FILE: NO_ENV_FILE };
 
 describe("perfTarget: where the performance tools may run", () => {
   it("accepts a local database without --expect, and a non-production child with it", () => {
-    expect(perfTarget(LOCAL, [], [], UNSET)).toMatchObject({ kind: "ok", scope: "local" });
-    expect(perfTarget(CHILD, ["--expect", "ep-other-hill-d4e5f6"], [], ENV)).toMatchObject({
+    expect(perfTarget(LOCAL, [], UNSET)).toMatchObject({ kind: "ok", scope: "local" });
+    expect(perfTarget(CHILD, ["--expect", "ep-other-hill-d4e5f6"], ENV)).toMatchObject({
       kind: "ok",
       scope: "child_branch",
     });
@@ -56,29 +57,32 @@ describe("perfTarget: where the performance tools may run", () => {
         ["--expect", PROD_ENDPOINT],
         ["--prod", "--expect", PROD_ENDPOINT],
       ]) {
-        const result = perfTarget(target, argv, [], ENV);
-        expect(result.kind).toBe("refused");
+        const result = perfTarget(target, argv, ENV);
+        const label = `${target === PROD ? "direct" : "pooled"} host with [${argv.join(" ")}]`;
+        expect(result.kind, `${label} was not refused`).toBe("refused");
+        if (!argv.includes("--prod")) {
+          expect(JSON.stringify(result), `${label}: wrong reason`).toContain("PRODUCTION");
+        }
       }
     }
   });
 
   it("fails closed when PROD_NEON_ENDPOINT is unset", () => {
-    const result = perfTarget(CHILD, ["--expect", "ep-other-hill-d4e5f6"], [], UNSET);
+    const result = perfTarget(CHILD, ["--expect", "ep-other-hill-d4e5f6"], UNSET);
     expect(result).toMatchObject({ kind: "refused" });
     expect(JSON.stringify(result)).toContain("PROD_NEON_ENDPOINT");
   });
 
   it("refuses a Neon target with no --expect, a different --expect, and a local target with --expect", () => {
-    expect(perfTarget(CHILD, [], [], ENV).kind).toBe("refused");
-    expect(perfTarget(CHILD, ["--expect", "ep-another-one-999999"], [], ENV).kind).toBe("refused");
-    expect(perfTarget(LOCAL, ["--expect", "ep-other-hill-d4e5f6"], [], UNSET).kind).toBe("refused");
+    expect(perfTarget(CHILD, [], ENV).kind).toBe("refused");
+    expect(perfTarget(CHILD, ["--expect", "ep-another-one-999999"], ENV).kind).toBe("refused");
+    expect(perfTarget(LOCAL, ["--expect", "ep-other-hill-d4e5f6"], UNSET).kind).toBe("refused");
   });
 
   it("refuses the pooled hostname of a child branch", () => {
     const result = perfTarget(
       url("ep-other-hill-d4e5f6", true),
       ["--expect", "ep-other-hill-d4e5f6"],
-      [],
       ENV,
     );
     expect(result).toMatchObject({ kind: "refused" });
@@ -86,13 +90,13 @@ describe("perfTarget: where the performance tools may run", () => {
   });
 
   it("refuses an argument it does not know without echoing it", () => {
-    const result = perfTarget(LOCAL, ["--wat-secret-flag"], [], UNSET);
+    const result = perfTarget(LOCAL, ["--wat-secret-flag"], UNSET);
     expect(result.kind).toBe("refused");
     expect(JSON.stringify(result)).not.toContain("wat-secret-flag");
   });
 
   it("refuses when a driver-level environment variable is set", () => {
-    expect(perfTarget(LOCAL, [], [], { ...UNSET, PGHOST: "elsewhere" }).kind).toBe("refused");
+    expect(perfTarget(LOCAL, [], { ...UNSET, PGHOST: "elsewhere" }).kind).toBe("refused");
   });
 });
 
@@ -118,10 +122,12 @@ describe("the spawned CLIs refuse before connecting", () => {
     "%s refuses production, even with --prod and --expect, and prints no secret",
     { timeout: 120_000 },
     (script) => {
-      for (const args of [[], ["--prod", "--expect", PROD_ENDPOINT]]) {
+      for (const args of [[], ["--expect", PROD_ENDPOINT], ["--prod", "--expect", PROD_ENDPOINT]]) {
         const result = run(script, args, PROD, PROD_ENDPOINT);
         expect(result.status, result.stderr).toBe(1);
         expect(result.stderr).toContain("REFUSED");
+        // Without --prod the refusal must come from the production check itself.
+        if (!args.includes("--prod")) expect(result.stderr).toContain("PRODUCTION");
         expect(`${result.stdout}${result.stderr}`).not.toMatch(/secret|postgres(ql)?:\/\//);
       }
     },
@@ -306,6 +312,40 @@ describe("against the local database", () => {
     await expect(
       run([{ text: "UPDATE animals SET name = name WHERE false", params: [] }]),
     ).rejects.toThrow(/read-only/i);
+  });
+
+  it("completes the missing import history lines of an interrupted run instead of saying already seeded", {
+    timeout: 60_000,
+  }, async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    await db.execute(sql`DELETE FROM shelter_history WHERE kind = 'animals_imported'`);
+    // The partial-run test removed one animal; restore the full corpus first.
+    await db.execute(sql`TRUNCATE reveals, swipes, animals, adopters, shelters CASCADE`);
+    await seedPerf(db);
+    await db.execute(sql`DELETE FROM shelter_history WHERE kind = 'animals_imported'`);
+    const result = await seedPerf(db);
+    expect(result).toMatchObject({ kind: "history_completed" });
+    expect(await seedPerf(db)).toMatchObject({ kind: "already_seeded" });
+  });
+
+  it("keeps parameter values out of a seed failure message", () => {
+    const error = new Error(
+      ["Failed query: insert into animals values ($1)", "params: Rex,secret-value"].join("\n"),
+    );
+    expect(safeMessage(error)).not.toContain("secret-value");
+    expect(safeMessage(error)).not.toContain("Rex");
+  });
+
+  it("a recording connection opened read-only refuses a write", async () => {
+    const recorder = createRecordingDatabase(TEST_DATABASE_URL, { readOnly: true });
+    try {
+      await expect(
+        recorder.db.execute(sql`UPDATE animals SET name = name WHERE false`),
+      ).rejects.toThrow();
+      await expect(recorder.db.select({ n: count() }).from(animals)).resolves.toBeDefined();
+    } finally {
+      await recorder.close();
+    }
   });
 
   it("records each statement with a start and end, and sees two concurrent reads as one wave", async () => {

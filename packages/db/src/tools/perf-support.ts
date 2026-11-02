@@ -28,20 +28,19 @@ import { shelters } from "../schema/shelters";
 // ---- the guard --------------------------------------------------------------------------------
 
 export type PerfTarget =
-  | { kind: "ok"; scope: "local" | "child_branch"; flags: string[] }
+  | { kind: "ok"; scope: "local" | "child_branch" }
   | { kind: "refused"; reason: string };
 
 /**
  * Where a performance tool may run: a local database (no `--expect`), or a Neon compute that is
  * provably NOT production and is exactly `--expect ep-…`, reached by its direct hostname. Fails
  * closed: with `PROD_NEON_ENDPOINT` unset a Neon target is refused, and `--prod` is refused
- * outright (these tools have no production mode). `knownFlags` are the tool's own flags; any
- * other argument is refused without echoing it.
+ * outright (these tools have no production mode). The tools take no flags besides `--expect`;
+ * any other argument is refused without echoing it.
  */
 export function perfTarget(
   url: string,
   argv: readonly string[],
-  knownFlags: readonly string[] = [],
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): PerfTarget {
   const args = parseTargetArgs(argv);
@@ -52,8 +51,7 @@ export function perfTarget(
       reason: `${PROD_FLAG} is not accepted: this tool never runs against production`,
     };
   }
-  const flags = args.rest.filter((a) => knownFlags.includes(a));
-  if (flags.length !== args.rest.length) {
+  if (args.rest.length > 0) {
     return { kind: "refused", reason: "an unknown argument was given (not printing it)" };
   }
   // The flag is stripped inside checkNonProductionTarget; a production target therefore always
@@ -83,7 +81,7 @@ export function perfTarget(
       reason: "the pooled hostname (-pooler) is refused: use the branch's direct connection string",
     };
   }
-  return { kind: "ok", scope: check.reason === "local" ? "local" : "child_branch", flags };
+  return { kind: "ok", scope: check.reason === "local" ? "local" : "child_branch" };
 }
 
 // ---- recording --------------------------------------------------------------------------------
@@ -101,9 +99,13 @@ export type RecordingDatabase = {
 /**
  * The same driver choice as `createDatabase` (neon-http for a Neon host, postgres-js otherwise),
  * with each statement's start and end recorded. The recording sits under the driver, so a repository
- * or a handler can't skip it. Batches (`inOneTransaction`) are not recorded: no read path uses them.
+ * or a handler can't skip it. `readOnly` makes a local (postgres-js) connection READ ONLY at session
+ * level; it cannot on Neon HTTP. Batches (`inOneTransaction`) are not recorded: no read path uses them.
  */
-export function createRecordingDatabase(url: string): RecordingDatabase {
+export function createRecordingDatabase(
+  url: string,
+  options: { readOnly?: boolean } = {},
+): RecordingDatabase {
   const calls: Call[] = [];
   let epoch = performance.now();
   const open = (sql: string, params: readonly unknown[]) => {
@@ -132,7 +134,12 @@ export function createRecordingDatabase(url: string): RecordingDatabase {
     return { db, calls, reset, close: async () => {} };
   }
 
-  const sql = postgres(url, { max: 4 });
+  // A postgres-js connection can be READ ONLY for the whole session. The Neon HTTP driver has no
+  // session, so there the guarantee is that the callers run repository reads only.
+  const sql = postgres(url, {
+    max: 4,
+    ...(options.readOnly ? { connection: { default_transaction_read_only: true } } : {}),
+  });
   const patched = new WeakSet<object>();
   // postgres-js queries are lazy thenables: the clock starts at the first `then` and stops when it settles.
   const timed = <Q extends PromiseLike<unknown>>(

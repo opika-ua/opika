@@ -28,14 +28,15 @@ import {
 import { connect, type ReadOnlyRunner, type Statement } from "./search-diagnose";
 
 /**
- * `pnpm --filter @opika/db db:neon-perf-report --expect ep-…`: strictly read-only. Runs the
+ * `pnpm --filter @opika/db db:neon-perf-report --expect ep-…`: reads only. Runs the
  * repository functions the public pages and the kabinet list really call, twice each (cold, warm),
  * recording every statement with the driver the app uses (neon-http on Neon), then runs
  * `EXPLAIN (ANALYZE, BUFFERS)` of each recorded SELECT inside a READ ONLY transaction, twice, to
- * set the database's own execution time against the round trip. Nothing is written: an EXPLAIN is
- * only ever sent for a statement that starts with SELECT or WITH and contains no write keyword
- * (`assertExplainable`), the server's READ ONLY transaction refuses writes anyway, and the repository
- * calls used here are reads. Per-route query counts, timelines and N+1 flags: `neon-perf-routes`
+ * set the database's own execution time against the round trip. What is READ ONLY: every EXPLAIN
+ * and catalog read (server-enforced transaction), and, on a local database, the recording connection
+ * (session level). What is not: the recording connection on Neon HTTP, which has no session; there
+ * the guarantee is that the repository methods called are reads (child branch only). An EXPLAIN is
+ * sent only for a statement that starts with SELECT or WITH and has no write keyword (`assertExplainable`). Per-route query counts, timelines and N+1 flags: `neon-perf-routes`
  * in apps/web (it runs the real loaders).
  */
 
@@ -281,7 +282,7 @@ export async function runReport(url: string, log: (line: string) => void): Promi
   if (!picked.animalId)
     log("NOTE: no published animals on this branch; seed first (db:neon-perf-seed).");
 
-  const recorder = createRecordingDatabase(url);
+  const recorder = createRecordingDatabase(url, { readOnly: true });
   const now = new Date();
   try {
     for (const scenario of scenariosOf(picked)) {
@@ -363,7 +364,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   console.log(
-    "Read-only: SELECT and EXPLAIN ANALYZE of SELECT inside READ ONLY transactions. Writes nothing.",
+    "Reads only: EXPLAIN and catalog reads run in READ ONLY transactions; the repository calls are reads (the recording connection is READ ONLY too when local, not over Neon HTTP).",
   );
   try {
     await runReport(url, (line) => console.log(scrubbed(line)));

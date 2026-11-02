@@ -28,7 +28,7 @@ import {
   testOnlyLocationPolicy,
   UNKNOWN_DOCUMENT_READINESS,
 } from "@opika/domain";
-import { count, inArray } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import type { Database } from "../client";
@@ -37,7 +37,9 @@ import { databaseTargetLine } from "../prod-guard";
 import { animals } from "../schema/animals";
 import { cities } from "../schema/cities";
 import * as schema from "../schema/index";
+import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
+import { recordAnimalsImported } from "../script-history";
 import {
   buildCities,
   CAT_NAMES,
@@ -55,7 +57,7 @@ import {
   seededUuid,
 } from "../seed";
 import { SEED_LOCATION_POLICY_KEY, SEED_SHELTER_ID_PREFIX } from "../seed-ids";
-import { perfTarget } from "./perf-support";
+import { perfTarget, scrubbed } from "./perf-support";
 
 /**
  * `pnpm --filter @opika/db db:neon-perf-seed --expect ep-…`: a launch-sized, entirely fictional
@@ -145,7 +147,8 @@ export function perfShelterPlan(): {
   const verifiedTotal = plan
     .filter((p) => p.verification === "verified")
     .reduce((n, p) => n + p.published, 0);
-  plan[0]!.published += PERF_PUBLISHED_ANIMALS - verifiedTotal;
+  const first = plan[0];
+  if (first) first.published += PERF_PUBLISHED_ANIMALS - verifiedTotal;
   return plan;
 }
 
@@ -154,6 +157,14 @@ const shelterIdOf = (i: number) =>
 const animalIdOf = (g: number) => seededUuid("a0000000", ANIMAL_INDEX_BASE + g) as AnimalId;
 
 const policy = testOnlyLocationPolicy(SEED_LOCATION_POLICY_KEY);
+
+const BIG_CITY_INDEXES = [0, 8, 10] as const;
+
+function elementAt<T>(arr: readonly T[], i: number): T {
+  const value = arr[i];
+  if (value === undefined) throw new Error(`no element at ${i}`);
+  return value;
+}
 
 function pick<T>(arr: readonly T[], seed: number): T {
   return arr[Math.abs(seed) % arr.length] as T;
@@ -165,7 +176,7 @@ export function buildPerfShelters(cityList: readonly City[], now: Date): Shelter
   return perfShelterPlan().map((planned, i) => {
     const id = shelterIdOf(i);
     // The three large shelters sit in the big cities; the rest cycle through all twenty.
-    const city = cityList[i < 3 ? [0, 8, 10][i]! : i % cityList.length]!;
+    const city = elementAt(cityList, i < 3 ? (BIG_CITY_INDEXES[i] ?? 0) : i % cityList.length);
     if (city.centroid.kind !== "recorded") throw new Error("perf cities carry recorded centroids");
     const exactAddress: ExactAddress = {
       line1: `вул. Тестова, ${i + 1}`,
@@ -238,7 +249,7 @@ export function buildPerfAnimals(
   const out: { animal: Animal; cityId: CityId }[] = [];
   let g = 0;
   shelterList.forEach((shelter, s) => {
-    const published = plan[s]!.published;
+    const published = elementAt(plan, s).published;
     // Per shelter, on top of the published ones: reserved ~8%, draft ~4%, adopted ~4%, withdrawn ~2%.
     const kinds: AnimalListingState["kind"][] = [
       ...Array<AnimalListingState["kind"]>(published).fill("published"),
@@ -265,7 +276,7 @@ export function buildPerfAnimals(
           ? i % 2 === 0
             ? "small"
             : "medium"
-          : (["small", "medium", "large"] as const)[i % 3]!;
+          : elementAt(["small", "medium", "large"] as const, i % 3);
       const coatLength: CoatLength | null = i % 7 < 3 ? "short" : i % 7 < 5 ? "long" : null;
       const temperamentCount = i % 6 === 5 ? 0 : 1 + (i % 3);
       const temperament: Temperament = [
@@ -327,7 +338,7 @@ export function buildPerfAnimals(
       const photoCount = kind === "draft" ? 0 : pick(PHOTO_COUNTS, i);
       // About one animal in ten is fostered in another city.
       const fostered = i % 10 === 3;
-      const fosterCity = fostered ? cityList[(i * 3 + 1) % cityList.length]! : null;
+      const fosterCity = fostered ? elementAt(cityList, (i * 3 + 1) % cityList.length) : null;
       const cityId = fosterCity && fosterCity.id !== shelterCityId ? fosterCity.id : shelterCityId;
       const medicalNotes: LocalizedText | null = i % 4 === 1 ? pick(MEDICAL_NOTES, i) : null;
       const fields = {
@@ -369,7 +380,8 @@ export function buildPerfAnimals(
 
 export type PerfSeedResult =
   | { kind: "seeded"; cities: number; shelters: number; animals: number }
-  | { kind: "already_seeded"; shelters: number; animals: number };
+  | { kind: "already_seeded"; shelters: number; animals: number }
+  | { kind: "history_completed"; shelters: number; animals: number; lines: number };
 
 /** Writes the corpus, or reports it is already there; refuses a partial one. */
 export async function seedPerf(db: Database, now = new Date()): Promise<PerfSeedResult> {
@@ -402,7 +414,34 @@ export async function seedPerf(db: Database, now = new Date()): Promise<PerfSeed
   const haveShelters = Number(shelterRow?.n ?? 0);
   const haveAnimals = Number(animalRow?.n ?? 0);
   if (haveShelters === shelterList.length && haveAnimals === animalList.length) {
-    return { kind: "already_seeded", shelters: haveShelters, animals: haveAnimals };
+    // A run stopped inside the history loop leaves every row but some "animals_imported" lines.
+    const actor = { moderatorId: moderatorId(), now };
+    const have = new Set(
+      (
+        await db
+          .select({ id: shelterHistory.shelterId })
+          .from(shelterHistory)
+          .where(
+            and(
+              inArray(shelterHistory.shelterId, shelterIds),
+              eq(shelterHistory.kind, "animals_imported"),
+            ),
+          )
+      ).map((r) => r.id),
+    );
+    const perShelter = new Map<ShelterId, number>();
+    for (const { animal } of animalList) {
+      perShelter.set(animal.shelterId, (perShelter.get(animal.shelterId) ?? 0) + 1);
+    }
+    let lines = 0;
+    for (const [id, n] of perShelter) {
+      if (have.has(id)) continue;
+      await recordAnimalsImported(db, id, n, actor);
+      lines++;
+    }
+    return lines === 0
+      ? { kind: "already_seeded", shelters: haveShelters, animals: haveAnimals }
+      : { kind: "history_completed", shelters: haveShelters, animals: haveAnimals, lines };
   }
   if (haveShelters > 0 || haveAnimals > 0) {
     throw new Error(
@@ -420,6 +459,17 @@ export async function seedPerf(db: Database, now = new Date()): Promise<PerfSeed
     shelters: shelterList.length,
     animals: animalList.length,
   };
+}
+
+/** A driver error carries the failed statement with its parameter values: only a short, value-free line goes out. */
+export function safeMessage(error: unknown): string {
+  if (!(error instanceof Error)) return "unknown error";
+  const first = error.message.split(/\r?\n/)[0] ?? "";
+  if (/^failed query|params:|\$\d/i.test(first)) {
+    const code = (error.cause as { code?: string } | undefined)?.code;
+    return `a statement failed${code ? ` (SQLSTATE ${code})` : ""}; details withheld because they can carry values`;
+  }
+  return first.slice(0, 200);
 }
 
 async function main(): Promise<void> {
@@ -440,10 +490,12 @@ async function main(): Promise<void> {
     console.log(
       result.kind === "already_seeded"
         ? `Already seeded: ${result.shelters} shelters, ${result.animals} animals. Nothing written.`
-        : `Seeded: ${result.shelters} shelters, ${result.animals} animals, ${result.cities} new cities.`,
+        : result.kind === "history_completed"
+          ? `The animals were all there; wrote the ${result.lines} missing import history line(s) of an interrupted run.`
+          : `Seeded: ${result.shelters} shelters, ${result.animals} animals, ${result.cities} new cities.`,
     );
   } catch (error) {
-    console.error(`Perf seed failed: ${error instanceof Error ? error.message : "unknown error"}`);
+    console.error(scrubbed(`Perf seed failed: ${safeMessage(error)}`));
     process.exitCode = 1;
   } finally {
     await client.end();

@@ -40,7 +40,7 @@ describe("neon-perf-routes", () => {
   });
 
   it("flags a repeated statement and a duplicate read in a synthetic route", () => {
-    const route = { ...ROUTES[0]!, notes: [] };
+    const route = { ...(ROUTES[0] as (typeof ROUTES)[number]), notes: [] };
     const call = (i: number, sql: string, params: unknown[]) => ({
       sql,
       params,
@@ -66,34 +66,40 @@ describe("neon-perf-routes", () => {
   it("refuses production before connecting, with no secret in the output", {
     timeout: 120_000,
   }, () => {
-    const result = spawnSync(
-      "npx",
-      [
-        "tsx",
-        "--import",
-        "./test/no-network.mjs",
-        "../../apps/web/scripts/neon-perf-routes.ts",
-        "--prod",
-      ],
-      {
-        cwd: DB_PACKAGE,
-        encoding: "utf8",
-        shell: process.platform === "win32",
-        env: {
-          NODE_ENV: "test",
-          ...Object.fromEntries(
-            Object.entries(process.env).filter(([k]) => !/^(PG|PROD_NEON_ENDPOINT$)/i.test(k)),
-          ),
-          DATABASE_URL:
-            "postgresql://u:secret@ep-quiet-lake-a1b2c3.eu-central-1.aws.neon.tech/neondb",
-          PROD_NEON_ENDPOINT: "ep-quiet-lake-a1b2c3",
-          PROD_GUARD_ENV_FILE: resolve(tmpdir(), "opika-prod-guard-test-no-such-file.env"),
+    for (const args of [
+      ["--expect", "ep-quiet-lake-a1b2c3"],
+      ["--prod", "--expect", "ep-quiet-lake-a1b2c3"],
+    ]) {
+      const result = spawnSync(
+        "npx",
+        [
+          "tsx",
+          "--import",
+          "./test/no-network.mjs",
+          "../../apps/web/scripts/neon-perf-routes.ts",
+          ...args,
+        ],
+        {
+          cwd: DB_PACKAGE,
+          encoding: "utf8",
+          shell: process.platform === "win32",
+          env: {
+            NODE_ENV: "test",
+            ...Object.fromEntries(
+              Object.entries(process.env).filter(([k]) => !/^(PG|PROD_NEON_ENDPOINT$)/i.test(k)),
+            ),
+            DATABASE_URL:
+              "postgresql://u:secret@ep-quiet-lake-a1b2c3.eu-central-1.aws.neon.tech/neondb",
+            PROD_NEON_ENDPOINT: "ep-quiet-lake-a1b2c3",
+            PROD_GUARD_ENV_FILE: resolve(tmpdir(), "opika-prod-guard-test-no-such-file.env"),
+          },
+          timeout: 90_000,
         },
-        timeout: 90_000,
-      },
-    );
-    expect(result.status, result.stderr).toBe(1);
-    expect(result.stderr).toContain("REFUSED");
-    expect(`${result.stdout}${result.stderr}`).not.toMatch(/secret|postgres(ql)?:\/\//);
+      );
+      expect(result.status, result.stderr).toBe(1);
+      expect(result.stderr).toContain("REFUSED");
+      if (!args.includes("--prod")) expect(result.stderr).toContain("PRODUCTION");
+      expect(`${result.stdout}${result.stderr}`).not.toMatch(/secret|postgres(ql)?:\/\//);
+    }
   });
 });

@@ -36,7 +36,7 @@ import { capturingInvitationSender } from "../src/kabinet/email-senders";
  * statement recorded by `createRecordingDatabase`. Per route it prints how many DB calls were made,
  * a timeline (start offset and duration per call), the number of sequential waves (the critical
  * path, in round trips), repeated statements (N+1 shapes) and a static note from reading the
- * source. Read-only: only read paths are called. Nothing in any route or repository is changed by
+ * source. Only read paths are called (the connection is also READ ONLY when local; Neon HTTP has no session). Nothing in any route or repository is changed by
  * this; the suggestions are text.
  */
 
@@ -235,7 +235,7 @@ export function routeBlock(route: Route, calls: readonly Call[], wallMs: number)
 }
 
 export async function runRoutes(url: string, log: (line: string) => void): Promise<void> {
-  const recorder = createRecordingDatabase(url);
+  const recorder = createRecordingDatabase(url, { readOnly: true });
   try {
     const pick = await pickPerfData(recorder.db);
     log(
@@ -282,7 +282,9 @@ async function main(): Promise<void> {
     console.error(`REFUSED: ${target.reason}. Nothing was run.`);
     process.exit(1);
   }
-  console.log("Routes: warm pass (a cold pass runs first and is discarded). Reads only.");
+  console.log(
+    "Routes: warm pass (a cold pass runs first and is discarded). Read paths only; local connection READ ONLY, Neon HTTP has no session.",
+  );
   try {
     await runRoutes(url, (line) => console.log(scrubbed(line)));
   } catch (error) {
