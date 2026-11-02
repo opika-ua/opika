@@ -2,10 +2,10 @@ import { uk } from "@opika/i18n";
 import type { ReactNode } from "react";
 import { type OperatorName, standaloneOperatorName } from "../../../kabinet/operator";
 import { BottomNav } from "../../../ui/BottomNav";
+import { HeaderFrame } from "../../../ui/HeaderFrame";
 import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { KabinetHeader } from "../KabinetHeader";
 import { NEW_SHELTER_PATH, OPERATOR_HOME } from "../routes";
-import { FRAME_GUTTER, FRAME_INNER } from "../shell-frame";
 
 /**
  * The operator's frame (R-UI 1, mock «S1 Притулки»): the kabinet's header (the
@@ -40,9 +40,7 @@ export function OperatorShell({
         }}
       />
       {/* Bottom padding clears the nav's fixed phone tab bar; unused from desktop. */}
-      <div
-        className={`${FRAME_INNER} ${FRAME_GUTTER} flex flex-1 flex-col gap-4 pt-5 pb-24 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14`}
-      >
+      <HeaderFrame className="flex flex-1 flex-col gap-4 pt-5 pb-24 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14">
         <BottomNav
           label={uk.kabinet.nav.label}
           layout="bar-then-rail"
@@ -55,7 +53,7 @@ export function OperatorShell({
         <main {...MAIN_LANDMARK} className="flex min-w-0 flex-1 flex-col gap-4 desktop:gap-6">
           {children}
         </main>
-      </div>
+      </HeaderFrame>
     </div>
   );
 }

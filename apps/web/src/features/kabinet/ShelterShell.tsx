@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { cx } from "../../ui/cx";
+import { HeaderFrame } from "../../ui/HeaderFrame";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { KabinetHeader } from "./KabinetHeader";
 import { SupportBanner } from "./SupportBanner";
-import { FRAME_GUTTER, FRAME_INNER } from "./shell-frame";
 
 /**
  * The frame of every shelter page: the support banner and its 4px outline (support view only), the
@@ -34,10 +34,8 @@ export function ShelterShell({
     >
       {support ? <SupportBanner shelterName={shelterName} /> : null}
       <KabinetHeader account={{ kind: "shelter", shelterName, viewer }} />
-      <div
+      <HeaderFrame
         className={cx(
-          FRAME_INNER,
-          FRAME_GUTTER,
           "flex flex-col gap-4 pt-5 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14",
           navOnPhone ? "pb-24" : "pb-4",
         )}
@@ -46,7 +44,7 @@ export function ShelterShell({
         <main {...MAIN_LANDMARK} className="flex min-w-0 max-w-205 flex-1 flex-col gap-4">
           {children}
         </main>
-      </div>
+      </HeaderFrame>
     </div>
   );
 }

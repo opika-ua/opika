@@ -12,6 +12,7 @@ One set, defined in `apps/web/src/app/globals.css` (`@theme`). Class names have 
 | Z-index | `--z-header/popover/sheet/modal/toast` | use `z-(--z-popover)`; dialogs use the top layer |
 | Breakpoints | `tablet` 600, `desktop` 1024, `wide` 1440, `ultrawide` 2000 | mobile first |
 | Spacing | Tailwind's 4px steps; `target` = 48px | `min-h-target`, `size-target` |
+| Header frame | `header-gutter` = `clamp(16px, 3vw, 40px)`, `max-w-header` = 1600px | only via `HeaderFrame`; page content keeps `Container` |
 | Utilities | `focus-ring`, `focus-ring-within`, `focus-ring-on-ink` (white ring on an ink surface), `pb-safe` (sheets), `pb-inset` (fixed bars), `bottom-above-nav` (a bar that sticks above the kabinet's phone nav) | every control; chips with a hidden input; sheets and fixed bars |
 
 ## Mascot colours

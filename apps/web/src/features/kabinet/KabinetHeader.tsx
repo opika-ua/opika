@@ -1,9 +1,9 @@
 import { uk } from "@opika/i18n";
+import { HeaderFrame } from "../../ui/HeaderFrame";
 import { Icon } from "../../ui/Icon";
 import { AccountMenu } from "./AccountMenu";
 import { KabinetBrand } from "./KabinetBrand";
 import { PUBLIC_GALLERY_PATH } from "./routes";
-import { FRAME_GUTTER, FRAME_INNER } from "./shell-frame";
 
 export type HeaderAccount =
   | { kind: "shelter"; shelterName: string; viewer: "admin" | "support" }
@@ -37,9 +37,7 @@ export function KabinetHeader({ account }: { account: HeaderAccount }) {
         };
   return (
     <header className="border-b-2 border-line bg-surface">
-      <div
-        className={`${FRAME_INNER} ${FRAME_GUTTER} flex min-h-16 items-center gap-3 desktop:min-h-18 desktop:gap-5`}
-      >
+      <HeaderFrame className="flex min-h-16 items-center gap-3 desktop:min-h-18 desktop:gap-5">
         <KabinetBrand />
         <div className="flex-1" />
         <a
@@ -53,7 +51,7 @@ export function KabinetHeader({ account }: { account: HeaderAccount }) {
           <span className="sr-only"> {t.shell.newTab}</span>
         </a>
         <AccountMenu {...menu} />
-      </div>
+      </HeaderFrame>
     </header>
   );
 }
