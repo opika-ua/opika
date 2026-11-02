@@ -1,109 +1,107 @@
 # Opika (Опіка)
 
-A swipe-based pet adoption platform connecting adopters with verified shelters across
-Ukraine. "Opika" - Ukrainian for guardianship/care - is a working name, not final;
-see [`CLAUDE.md`](./CLAUDE.md) for what that means in practice.
+A registry of verified Ukrainian shelters' animals, nationwide. Free for shelters, and no
+money is handled: donations are external links to a shelter's own payment page.
 
-No accounts required to browse. The platform never touches money - donations are external
-links to a shelter's own payment page. All data in this repository is fictional; no real
-shelter or animal data is ever committed here.
+The site is pre-launch and sits behind an access gate, so it is not open to the public yet.
+All data in this repository is fictional; no real shelter or animal data is ever committed
+here.
 
-## What you can actually see right now
+## What you can see
 
-The product is being built phase by phase (current status:
-[`docs/build-plan.md`](./docs/build-plan.md)). `/` redirects to the routes below, which are
-the real, current surfaces:
+- **`/tvaryny`** - the gallery: a filterable grid of animals with nationwide city search.
+- **`/tvaryny/gortaty`** - the swipe deck, entered from the gallery. Drag or use the
+  on-screen buttons.
+- **`/tvaryny/[animalId]`** - an animal's page, with contact reveal.
+- **`/prytulky/[shelterId]`** - a shelter's page.
+- **`/zberezheni`** - the saved list.
+- **`/pro`** and **`/prytulkam`** - about the project, and the page for shelters.
+- **`/kabinet`** - the cabinet where verified shelters manage their own animals.
 
-- **`/tvaryny`** - the gallery: a browsable, filterable grid, the primary surface. Paginated,
-  works with JavaScript disabled. Not indexed yet - see the Phase D note below.
-- **`/tvaryny/gortaty`** - the swipe deck, entered from the gallery. Pointer/touch drag, or
-  the on-screen buttons, to move through animals one at a time. Not the front door on any
-  screen size, and not indexed.
-- **`/tvaryny/[animalId]`** - an animal's detail page, with contact reveal.
-- **`/pro`** and **`/prytulkam`** - about the project, and the page a shelter is sent to.
-
-Phase D is labelling and de-indexing the demo data above so a real visitor can't mistake it
-for a real registry before real shelters exist - see `docs/observations.md` for what's
-currently true about it.
-
-## Stack, briefly
+## Stack
 
 | Layer | Choice |
 |---|---|
 | Client | Next.js 16 App Router, React 19, Tailwind v4 |
 | API | oRPC contract-first, Zod 4 |
 | Database | Postgres 17 (local: Docker; production: Neon), Drizzle ORM |
-| Auth | Hand-rolled anonymous device session (no accounts at this stage) |
+| Adopter session | Anonymous device session, no accounts |
+| Shelter auth | Better Auth, magic-link sign-in for the kabinet |
+| Images | Cloudflare R2, `sharp`-generated variants |
+| Email | Resend (auth emails only) |
+| Errors | Sentry (EU region, scrubbed) |
+| Rate limits | Upstash |
+| Hosting | Vercel |
 | Testing | Vitest 4, Testing Library, Playwright (rendering harness) |
 | Repo | pnpm workspaces + catalogs |
 
 Full rationale and version sources: [`docs/stack-decision.md`](./docs/stack-decision.md).
-Day-to-day engineering rules: [`CLAUDE.md`](./CLAUDE.md) and
+Engineering rules: [`CLAUDE.md`](./CLAUDE.md) and
 [`docs/standing-constraints.md`](./docs/standing-constraints.md).
 
 ## Running it locally
 
+Local database only (Docker, `localhost:5433`); never point these commands at a hosted one.
+
 ```bash
-# Once per machine
-corepack enable
+corepack enable           # once per machine
+pnpm i                    # resolves the pinned pnpm version
+docker compose up -d      # Postgres + PostGIS on localhost:5433
 
-# Install - resolves the pinned pnpm version automatically
-pnpm i
+# Create apps/web/.env.local (gitignored) with:
+#   DATABASE_URL=postgresql://opika:opika@localhost:5433/opika
+#   CURSOR_HMAC_SECRET=<openssl rand -hex 32>
+#   PRELAUNCH_GATE_SECRET=<openssl rand -hex 32>
+# Section 3 of .env.example explains each value.
 
-# Local Postgres (Docker), mapped to localhost:5433
-docker compose up -d
+# The db scripts read DATABASE_URL from the shell, not from .env.local:
+export DATABASE_URL=postgresql://opika:opika@localhost:5433/opika
+pnpm --filter @opika/db run db:migrate   # apply the schema
+pnpm --filter @opika/db run db:seed      # fictional cities, shelters and animals
 
-# Seed fictional data - cities, shelters, animals.
-# DATABASE_URL isn't picked up from .env by the seed script; pass it explicitly.
-DATABASE_URL="postgresql://opika:opika@localhost:5433/opika" pnpm --filter @opika/db run db:seed
-
-# Start the dev server
-DATABASE_URL="postgresql://opika:opika@localhost:5433/opika" pnpm --filter @opika/web dev
+pnpm --filter @opika/web dev
 ```
 
-Then open **http://localhost:3000**.
+Open `http://localhost:3000/tvaryny?gate=<PRELAUNCH_GATE_SECRET>` once; the gate sets a
+cookie for the rest of the session. The seed script refuses any non-local database.
 
-`docker-compose.yml` maps the container's Postgres to host port **5433**, not the
-Postgres-standard 5432 - the `OPIKA_DB_PORT` override in `docker-compose.yml` if you need
-a different one. Passing `DATABASE_URL` on the command line (as above) is the reliable
-path today; see [issue #22](https://github.com/opika-ua/opika/issues/22) for the config
-default that will eventually make this unnecessary.
+`docker-compose.yml` maps Postgres to host port 5433, not 5432; set `OPIKA_DB_PORT` to use
+another. Stop the database with `docker compose down` (add `-v` to drop the data).
 
-Stop the database with `docker compose down` (add `-v` to also drop the seeded data).
-
-## Testing and checks
+## Checks
 
 ```bash
 pnpm check   # typecheck -> lint -> test -> next build -> Playwright rendering harness
 ```
 
-This is the same gate CI runs, and the standing bar for any change: it must pass on a
-clean clone before anything is considered done. Individual steps (`pnpm typecheck`,
-`pnpm lint`, `pnpm test`, `pnpm build:web`, `pnpm test:harness`) are also available
-separately - see `package.json`'s `scripts`.
+This is the same gate CI runs. The steps are also available separately (`pnpm typecheck`,
+`pnpm lint`, `pnpm test`, `pnpm build:web`, `pnpm test:harness`).
 
 ## Repo layout
 
 ```
 opika/
-├─ apps/web/          # the Next.js app - adopter-facing PWA
+├─ apps/web/          # the Next.js app: adopter PWA and the shelter kabinet
 ├─ packages/
 │  ├─ contracts/      # Zod schemas + the oRPC API contract
 │  ├─ domain/         # pure business logic - no I/O, no framework
 │  ├─ db/             # Drizzle schema, migrations, repositories, seed data
-│  ├─ ui/             # shared UI primitives used across features
+│  ├─ ui/             # cross-app freshness display
 │  └─ i18n/           # uk/en message catalogues
-└─ docs/              # design handoff, architecture decisions, the build plan
+└─ docs/              # architecture decisions, build plan, UI kit docs
 ```
-
-`CLAUDE.md` has the full, current version of this layout and the reasoning behind it.
 
 ## Where to go from here
 
-- [`docs/build-plan.md`](./docs/build-plan.md) - what's built, what's next, hour estimates.
-- [`docs/design/README.md`](./docs/design/README.md) - the design handoff: every screen,
-  the string table, motion and spacing specs.
-- [`docs/stack-decision.md`](./docs/stack-decision.md) - why each piece of the stack was
-  chosen, with sources.
-- [`CLAUDE.md`](./CLAUDE.md) - the engineering rules this repo holds itself to, and why
-  each one exists.
+- [`docs/build-plan.md`](./docs/build-plan.md) - what is built and what is next.
+- [`docs/stack-decision.md`](./docs/stack-decision.md) - why each piece of the stack.
+- [`docs/ui/README.md`](./docs/ui/README.md) - the UI kit and design tokens.
+- [`CLAUDE.md`](./CLAUDE.md) - the engineering rules this repo holds itself to.
+
+## Licence
+
+Opika is licensed under the [GNU Affero General Public License v3.0](./LICENSE)
+(AGPL-3.0-only): if you run a modified version as a public service, you must offer its
+users the source of your modified version under the same licence. Third-party material
+keeps its own licence; see [`NOTICE`](./NOTICE), the font folders under
+`apps/web/src/app/fonts`, and the data-source credit on the site's `/pro` page.

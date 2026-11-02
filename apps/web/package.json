@@ -2,6 +2,7 @@
   "name": "@opika/web",
   "version": "0.0.0",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "browserslist": [
     "ios_saf >= 16",
