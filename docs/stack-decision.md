@@ -172,6 +172,23 @@ Language choice is irrelevant here (see §11); these three things are not:
 2. **Kill the N+1 on the feed page.** 20 cards × (shelter + photos + status) = 61 queries instead of 1.
 3. **The "already seen" set** is the real design problem in a swipe feed. Keep it in a compact per-user structure (a `seen_animal_ids` array or a Redis set), and exclude it in the query rather than filtering client-side.
 
+#### Round trips, measured (PR #370)
+
+Perf sitting on a Neon child branch (1,819 animals, PG 18.6, commit 9c06986); `db:neon-perf-routes` repeats it. Sequential round-trip waves per route:
+
+| Route | Before | After |
+|---|---|---|
+| `/tvaryny` | 3 | 1 |
+| `/tvaryny?misto` | 4 | 2 |
+| Animal page | 4 | 2 |
+| Overlay | 5 | 1 |
+| `/prytulky/[id]` | 6 | 2 (empty shelter 3, accepted) |
+| `/zberezheni` | 3 | 1 |
+| Sitemap | ~148 calls | 1 statement (54 ms) |
+| `cardsByIds`, K2 | n/a | 1 each |
+
+No duplicate reads, no N+1. DB execution is 0.1-5 ms per statement; the cost is the sequential neon-http round trips (~26-30 ms each from the owner's PC), so the lever is fewer waves, not faster SQL. The 194 ms wall time on `/tvaryny` was a post-seed warm-up artifact (three parallel calls at 117-192 ms against ~27 ms elsewhere), not a regression.
+
 ### 3.4 ORM: Drizzle
 
 **Prisma 7 (Nov 2025) is a genuine turnaround** - Rust engine gone, ~90% smaller bundle, ~3× faster queries, generated code in your source tree. The historical complaints are substantially fixed. But:
