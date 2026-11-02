@@ -10,10 +10,58 @@ export const FILTERED = "[Filtered]";
 export const MAX_STRING_LENGTH = 1000;
 const MAX_DEPTH = 8;
 
-const EMAIL = /[\p{L}\p{N}._%+'-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,}/gu;
+// Labels are length-bounded (RFC maxima) so a long run of word characters cannot make the scan quadratic.
+const EMAIL =
+  /[\p{L}\p{N}._%+'-]{1,64}@[\p{L}\p{N}-]{1,63}(?:\.[\p{L}\p{N}-]{1,63}){0,8}\.\p{L}{2,24}/gu;
 // UA numbers: optional 38 / +38 prefix, a 0, then nine digits in any grouping (0501234567,
-// +380 (50) 123-45-67, 380501234567). Never part of a longer digit run.
-const PHONE = /(?<![\p{N}])\(?(?:\+?38[\s().-]*)?0(?:[\s().-]*\d){9}(?![\p{N}])/gu;
+// +380 (50) 123-45-67, 380501234567, en-dash separators). Never part of a longer digit run.
+// A dd.mm.yyyy hh:mm date-time is the one shape that looks like a number and is not one.
+const PHONE =
+  /(?<![\p{N}])(?!\d{2}[./]\d{2}[./]\d{4}\s\d{2}:\d{2})\(?(?:\+?38[\s().–-]*)?0(?:[\s().–-]*\d){9}(?![\p{N}])/gu;
+// Any other international number: "+" or "00", then 8 to 15 digits (E.164) with spaces, dots, dashes
+// and brackets between them (+48 500 123 456, +49 (0) 30 1234567, 0033.1.23.45.67.89). Each step eats
+// one digit after an optional separator run, so the scan is linear.
+const PHONE_INTL = /(?<![\p{L}\p{N}])\(?(?:\+|00)[\s().–-]*\d(?:[\s().–-]*\d){7,14}(?![\p{N}])/gu;
+// Polish-style groups without a prefix: 500 123 456, 050/123-45-67.
+const PHONE_GROUPS =
+  /(?<![\p{N}/])(?:[4-8]\d{2}[\s–-]\d{3}[\s–-]\d{3}|0?\d{2,3}\/\d{3}[\s–-]?\d{2}[\s–-]?\d{2})(?![\p{N}])/gu;
+const TELEGRAM_LINK =
+  /(?<![\p{L}\p{N}.])(?:(?:https?:\/\/)?(?:t\.me|telegram\.(?:me|dog))\/[^\s"'<>)]*|tg:\/\/[^\s"'<>)]*)/giu;
+// A handle only counts as one next to the word telegram (either side, short gap), so "@types/node" stays.
+const TELEGRAM_WORD = "(?:telegram|tg|телеграм|телега)";
+const HANDLE_AFTER = new RegExp(
+  String.raw`(?<![\p{L}\p{N}])(${TELEGRAM_WORD}\p{L}*[^@\n]{0,24}?)@\w{3,32}`,
+  "giu",
+);
+const HANDLE_BEFORE = new RegExp(
+  String.raw`@\w{3,32}(?=[^@\n]{0,24}?(?<![\p{L}\p{N}])${TELEGRAM_WORD})`,
+  "giu",
+);
+// Street addresses: a street word, a name of up to three words, then a house number. The number is
+// required, so "вулиця Шевченка" alone stays; the street word must end in a dot or a space ("вулкан" is safe).
+const NAME = String.raw`[\p{L}'’.-]+(?:\s+[\p{L}'’.-]+){0,2}`;
+const NUMBER = String.raw`(?:№\s*)?\d{1,4}\p{L}?(?:[/-]\d{1,4}\p{L}?)?`;
+const STREET_WORD_UK = String.raw`(?:вул(?:иця)?|просп(?:ект)?|пров(?:улок)?|бульв(?:ар)?|пр-т|б-р)(?:\.\s*|\s+)`;
+const STREET_WORD_PL = String.raw`(?:ul(?:ica)?|al|aleja)(?:\.\s*|\s+)`;
+const HOUSE = String.raw`(?:(?:буд(?:инок)?|б|д|nr)\.?\s*)?`;
+const ADDRESS_LOCAL = new RegExp(
+  String.raw`(?<![\p{L}\p{N}])(?:\d{1,4}\p{L}?,?\s*)?(?:${STREET_WORD_UK}|${STREET_WORD_PL})${NAME},?\s*${HOUSE}${NUMBER}(?![\p{N}])`,
+  "giu",
+);
+const ADDRESS_LOCAL_NUMBER_FIRST = new RegExp(
+  String.raw`(?<![\p{L}\p{N}])\d{1,4}\p{L}?,\s*(?:${STREET_WORD_UK}|${STREET_WORD_PL})${NAME}`,
+  "giu",
+);
+const EN_SUFFIX = "(?:Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Boulevard|Blvd)";
+const EN_NAME = String.raw`(?:[A-Z][\p{L}'-]*\s+){1,3}`;
+const ADDRESS_EN_NUMBER_FIRST = new RegExp(
+  String.raw`(?<![\p{L}\p{N}])\d{1,5}[A-Za-z]?\s+${EN_NAME}${EN_SUFFIX}\b\.?`,
+  "gu",
+);
+const ADDRESS_EN_NAME_FIRST = new RegExp(
+  String.raw`(?<![\p{L}\p{N}])${EN_NAME}${EN_SUFFIX}\b\.?,?\s*(?:No\.?\s*)?\d{1,5}[A-Za-z]?(?![\p{N}])`,
+  "gu",
+);
 const BEARER = /\b(?:Bearer|Basic)\s+[\w.~+/=-]+/gi;
 const GATE_PARAM = /\bgate=[^&\s"'#]*/gi;
 const HEADER_LINE = /\b(?:cookie|set-cookie|authorization)\s*[:=]\s*[^\n]*/gi;
@@ -35,7 +83,16 @@ export function scrubString(value: string): string {
     .replace(QUERY_IN_TEXT, "$1")
     .replace(GATE_PARAM, FILTERED)
     .replace(EMAIL, FILTERED)
-    .replace(PHONE, FILTERED);
+    .replace(TELEGRAM_LINK, FILTERED)
+    .replace(HANDLE_AFTER, `$1${FILTERED}`)
+    .replace(HANDLE_BEFORE, FILTERED)
+    .replace(PHONE, FILTERED)
+    .replace(PHONE_INTL, FILTERED)
+    .replace(PHONE_GROUPS, FILTERED)
+    .replace(ADDRESS_LOCAL, FILTERED)
+    .replace(ADDRESS_LOCAL_NUMBER_FIRST, FILTERED)
+    .replace(ADDRESS_EN_NUMBER_FIRST, FILTERED)
+    .replace(ADDRESS_EN_NAME_FIRST, FILTERED);
   return cleaned.length > MAX_STRING_LENGTH
     ? `${cleaned.slice(0, MAX_STRING_LENGTH)}...[truncated]`
     : cleaned;
@@ -106,15 +163,36 @@ function scrubRequest(request: unknown): Loose | undefined {
   return out;
 }
 
-const CONTEXT_NAME = /^[A-Za-z][A-Za-z0-9 ]{0,31}$/;
-const CONTEXT_MAJOR = /^\d{1,4}$/;
+// Closed lists, applied here so a forged envelope or a tampered client cannot carry free text in a
+// context name. Two fallback literals, exact and lowercase only: "unknown" = unparseable or absent
+// (the parser's own value), "other" = parsed but not on the list.
+const BROWSER_FAMILIES = new Set([
+  "Chrome",
+  "Safari",
+  "Firefox",
+  "Edge",
+  "Samsung Internet",
+  "Opera",
+  "Yandex",
+  "unknown",
+]);
+const OS_FAMILIES = new Set([
+  "iOS",
+  "iPadOS",
+  "Android",
+  "Windows",
+  "macOS",
+  "Linux",
+  "ChromeOS",
+  "unknown",
+]);
+const OTHER = "other";
+// A major version only: one to three digits, so "130.0.6723.58" is dropped, not shortened.
+const CONTEXT_MAJOR = /^\d{1,3}$/;
 
-/** A family name and a major version only; anything else (a raw UA string included) becomes "unknown". */
-function coarseContext(value: unknown): Loose {
-  if (!isObject(value) || typeof value.name !== "string" || !CONTEXT_NAME.test(value.name)) {
-    return { name: "unknown" };
-  }
-  const kept: Loose = { name: value.name };
+function coarseContext(value: unknown, families: ReadonlySet<string>): Loose {
+  if (!isObject(value) || typeof value.name !== "string") return { name: OTHER };
+  const kept: Loose = { name: families.has(value.name) ? value.name : OTHER };
   if (typeof value.version === "string" && CONTEXT_MAJOR.test(value.version)) {
     kept.version = value.version;
   }
@@ -125,7 +203,8 @@ function coarseContext(value: unknown): Loose {
 function scrubContexts(contexts: unknown): Loose | undefined {
   if (!isObject(contexts)) return undefined;
   const out: Loose = {};
-  for (const key of ["browser", "os"]) if (key in contexts) out[key] = coarseContext(contexts[key]);
+  if ("browser" in contexts) out.browser = coarseContext(contexts.browser, BROWSER_FAMILIES);
+  if ("os" in contexts) out.os = coarseContext(contexts.os, OS_FAMILIES);
   return out;
 }
 

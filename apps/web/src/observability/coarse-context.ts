@@ -39,15 +39,16 @@ export const coarseUserAgentIntegration = () => ({
     client.addEventProcessor(coarseContextsOf),
 });
 
-/**
- * Sets `contexts.browser` and `contexts.os` from the request's UA (server) or the page's (browser),
- * replacing any the SDK put there. The header itself is dropped by `scrubEvent` right after.
- * An event with no UA source at all gets none.
- */
 /** The page's own UA, in a browser only: on the server `navigator.userAgent` is the runtime's, not a visitor's. */
 const pageUserAgent = (): unknown =>
   typeof window === "undefined" ? undefined : navigator.userAgent;
 
+/**
+ * Sets `contexts.browser` and `contexts.os` from the request's UA (server) or the page's (browser),
+ * replacing any the SDK put there. The header itself is dropped by `scrubEvent` right after.
+ * An event with no UA source is left as it is: on Node the SDK's own context integration then keeps
+ * the server's OS name, which `scrubEvent` reduces to the closed family list.
+ */
 export function coarseContextsOf<T extends object>(event: T): T {
   const source = event as Loose;
   const userAgent = userAgentOf(source) ?? pageUserAgent();
