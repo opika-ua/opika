@@ -28,26 +28,32 @@ const renderShell = (
   );
 
 const header = () => screen.getByRole("banner");
-/** Every «адміністратор сайту» in the header, either case. */
-const roleMentions = () => header().textContent?.match(/адміністратор сайту/giu) ?? [];
+/** Opens the account menu (the operator's button reads «Оператор») and returns its panel. */
+const openMenu = async (name: string) => {
+  await userEvent.click(within(header()).getByRole("button", { name: "Оператор" }));
+  return screen.getByRole("group", { name });
+};
+/** Every «адміністратор сайту» in the menu, either case. */
+const roleMentions = (panel: HTMLElement) =>
+  panel.querySelector("p")?.textContent?.match(/адміністратор сайту/giu) ?? [];
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe("OperatorShell: who is signed in", () => {
-  it("a configured name, with the role beside it", () => {
+  it("the account button reads «Оператор»; the menu names who is signed in, with the role under it", async () => {
     renderShell(OLEKSII);
-    expect(within(header()).getByText("Олексій Колотенко")).toBeTruthy();
-    expect(within(header()).getByText("адміністратор сайту")).toBeTruthy();
-    expect(roleMentions()).toHaveLength(1);
+    const panel = await openMenu("Олексій Колотенко");
+    expect(within(panel).getByText("адміністратор сайту")).toBeTruthy();
+    expect(roleMentions(panel)).toHaveLength(1);
   });
 
-  it("no name configured: the role once, capitalised as it stands alone, never twice", () => {
+  it("no name configured: the role once, capitalised as it stands alone, never twice", async () => {
     renderShell(UNSET);
-    expect(within(header()).getByText("Адміністратор сайту")).toBeTruthy();
-    expect(within(header()).queryByText("адміністратор сайту")).toBeNull();
-    expect(roleMentions()).toEqual(["Адміністратор сайту"]);
+    const panel = await openMenu("Адміністратор сайту");
+    expect(within(panel).queryByText("адміністратор сайту")).toBeNull();
+    expect(roleMentions(panel)).toEqual(["Адміністратор сайту"]);
   });
 });
 
@@ -56,7 +62,8 @@ describe("OperatorShell: «Вийти»", () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 503 }));
     vi.stubGlobal("fetch", fetchMock);
     renderShell(OLEKSII);
-    await userEvent.click(within(header()).getByRole("button", { name: "Вийти" }));
+    const panel = await openMenu("Олексій Колотенко");
+    await userEvent.click(within(panel).getByRole("button", { name: "Вийти" }));
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/auth/sign-out",
@@ -67,9 +74,11 @@ describe("OperatorShell: «Вийти»", () => {
     );
   });
 
-  it("is there with no name configured too", () => {
+  it("is there with no name configured too, and there is no account link for the operator", async () => {
     renderShell(UNSET);
-    expect(within(header()).getByRole("button", { name: "Вийти" })).toBeTruthy();
+    const panel = await openMenu("Адміністратор сайту");
+    expect(within(panel).getByRole("button", { name: "Вийти" })).toBeTruthy();
+    expect(within(panel).queryByRole("link", { name: "Акаунт і пароль" })).toBeNull();
   });
 });
 

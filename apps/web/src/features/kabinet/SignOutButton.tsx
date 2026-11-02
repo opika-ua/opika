@@ -36,17 +36,20 @@ export function SignOutButton({
   signOut = defaultSignOut,
   navigate = (to: string) => window.location.assign(to),
   confirmLeave = defaultConfirmLeave,
+  variant = "button",
 }: {
   signOut?: () => Promise<void>;
   navigate?: (to: string) => void;
   confirmLeave?: () => boolean;
+  /** `menu`: a full-width row in the account menu; `button`: the outlined button. */
+  variant?: "button" | "menu";
 }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   return (
-    <span className="inline-flex flex-col items-end">
+    <span className={variant === "menu" ? "flex flex-col" : "inline-flex flex-col items-end"}>
       <Button
-        variant="secondary"
+        variant={variant === "menu" ? "ghost" : "secondary"}
         aria-busy={busy}
         onClick={async () => {
           if (busy) return;
@@ -62,12 +65,16 @@ export function SignOutButton({
           }
           navigate(SIGNED_OUT_DESTINATION);
         }}
-        className="whitespace-nowrap"
+        className={
+          variant === "menu"
+            ? "w-full justify-start rounded-field px-3 whitespace-nowrap no-underline"
+            : "whitespace-nowrap"
+        }
       >
         {uk.kabinet.profile.signOut}
       </Button>
       {failed ? (
-        <div role="alert" className="max-w-80 text-right">
+        <div role="alert" className={variant === "menu" ? "max-w-80 px-3" : "max-w-80 text-right"}>
           <Text look="label">{uk.kabinet.profile.signOutFailed}</Text>
         </div>
       ) : null}

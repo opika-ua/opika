@@ -1,45 +1,59 @@
 import { uk } from "@opika/i18n";
+import { Icon } from "../../ui/Icon";
+import { AccountMenu } from "./AccountMenu";
 import { KabinetBrand } from "./KabinetBrand";
 import { PUBLIC_GALLERY_PATH } from "./routes";
-import { SignOutButton } from "./SignOutButton";
+import { FRAME_GUTTER, FRAME_INNER } from "./shell-frame";
+
+export type HeaderAccount =
+  | { kind: "shelter"; shelterName: string; viewer: "admin" | "support" }
+  /** `name` is the configured display name or the role standing alone; `role` only when a name is configured. */
+  | { kind: "operator"; name: string; role: string | null };
 
 /**
- * The shelter kabinet's header on every page that has a shelter: the brand row on the left; on the
- * right the shelter's name, the role in ink-2, «Переглянути сайт» (a new tab, so unsaved work is not
- * lost) and «Вийти». The support view shows its own role line and no working sign-out.
+ * The kabinet's header on every page: the logo and «Кабінет» as muted text on the left; on the
+ * right «На сайт ↗» (a new tab, so unsaved work is not lost) and the account button, labelled with
+ * the shelter's name («Оператор» for the operator). The menu holds the name and role, «Акаунт і
+ * пароль» (a shelter's own admin) and «Вийти». The support view keeps its role line and has no
+ * working sign-out.
  */
-export function KabinetHeader({
-  shelterName,
-  viewer,
-}: {
-  shelterName: string;
-  viewer: "admin" | "support";
-}) {
-  const support = viewer === "support";
+export function KabinetHeader({ account }: { account: HeaderAccount }) {
+  const t = uk.kabinet;
+  const menu =
+    account.kind === "operator"
+      ? {
+          buttonLabel: t.shell.operator,
+          name: account.name,
+          role: account.role,
+          account: false,
+          signOut: "enabled" as const,
+        }
+      : {
+          buttonLabel: account.shelterName,
+          name: account.shelterName,
+          role: account.viewer === "support" ? t.support.viewingAs : t.profile.role,
+          account: account.viewer === "admin",
+          signOut: account.viewer === "support" ? ("disabled" as const) : ("enabled" as const),
+        };
   return (
-    <header className="flex min-h-16 items-center gap-3 border-b-2 border-line bg-surface px-4 desktop:min-h-18 desktop:gap-5 desktop:px-8">
-      <KabinetBrand />
-      <div className="flex-1" />
-      <p className="hidden min-w-0 items-baseline gap-2 desktop:flex">
-        <span className="truncate text-label text-ink">{shelterName}</span>
-        <span className="shrink-0 text-body text-ink-2">
-          {support ? uk.kabinet.support.viewingAs : uk.kabinet.profile.role}
-        </span>
-      </p>
-      <a
-        href={PUBLIC_GALLERY_PATH}
-        target="_blank"
-        rel="noopener"
-        className="hidden min-h-target shrink-0 items-center whitespace-nowrap rounded-field px-2 text-label text-ink underline underline-offset-4 focus-ring tablet:inline-flex"
+    <header className="border-b-2 border-line bg-surface">
+      <div
+        className={`${FRAME_INNER} ${FRAME_GUTTER} flex min-h-16 items-center gap-3 desktop:min-h-18 desktop:gap-5`}
       >
-        {uk.kabinet.shell.viewSite}
-        <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
-      </a>
-      {support ? (
-        <span className="text-body text-ink-2">{uk.kabinet.support.signOutDisabled}</span>
-      ) : (
-        <SignOutButton />
-      )}
+        <KabinetBrand />
+        <div className="flex-1" />
+        <a
+          href={PUBLIC_GALLERY_PATH}
+          target="_blank"
+          rel="noopener"
+          className="hidden min-h-target shrink-0 items-center gap-1 whitespace-nowrap rounded-field px-2 text-label text-ink hover:underline hover:underline-offset-4 focus-ring tablet:inline-flex"
+        >
+          {t.shell.toSite}
+          <Icon name="arrow-up-right" size="md" />
+          <span className="sr-only"> {t.shell.newTab}</span>
+        </a>
+        <AccountMenu {...menu} />
+      </div>
     </header>
   );
 }

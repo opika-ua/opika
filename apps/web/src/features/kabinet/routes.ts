@@ -16,11 +16,14 @@ export const NEW_SHELTER_PATH = `${OPERATOR_HOME}/novyi`;
  */
 export const SHELTER_HOME = "/kabinet";
 
-/** The public gallery, for the header's «Переглянути сайт» (opened in a new tab). */
+/** The public gallery, for the header's «На сайт» (opened in a new tab). */
 export const PUBLIC_GALLERY_PATH = "/tvaryny";
 
 /** Притулок (renamed from «Профіль притулку»): K4's profile editor, moved off `SHELTER_HOME`. */
 export const SHELTER_PROFILE_PATH = "/kabinet/prytulok";
+
+/** «Акаунт і пароль» (was the Притулок page's «Акаунт» tab): pause, password. The account menu links here. */
+export const SHELTER_ACCOUNT_PATH = "/kabinet/akaunt";
 
 /** K2, the shelter's animal list (PR 5): the nav's «Тварини» and K3's back link go here. */
 export const ANIMAL_LIST_PATH = "/kabinet/tvaryny";

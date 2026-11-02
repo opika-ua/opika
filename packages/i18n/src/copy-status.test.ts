@@ -167,7 +167,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       registry: keysOf(uk.kabinet.registry.inviteSent),
       history: keysOf(uk.kabinet.history),
     }).toEqual({
-      shell: ["label", "newTab", "viewSite"],
+      shell: ["accountAndPassword", "label", "newTab", "operator", "toSite"],
       // PW-1: `send` (the magic-link button) gave way to his `useLink`; the password keys are his §A.
       signIn: [
         "addressNote",
@@ -2618,11 +2618,13 @@ describe("kabinet UX round 2 copy (the owner's text)", () => {
     [uk.kabinet.profileTabs.label, "Розділи притулку"],
     [uk.kabinet.profileTabs.profile, "Профіль"],
     [uk.kabinet.profileTabs.verification, "Перевірка"],
-    [uk.kabinet.profileTabs.account, "Акаунт"],
     [uk.kabinet.profileTabs.profileNote, "Те, що бачать на сторінці притулку."],
     [uk.kabinet.profileTabs.view, "Переглянути"],
     [uk.kabinet.profile.viewOnSite, "Сторінка притулку на сайті"],
-    [uk.kabinet.shell.viewSite, "Переглянути сайт"],
+    [uk.kabinet.shell.toSite, "На сайт"],
+    [uk.kabinet.shell.accountAndPassword, "Акаунт і пароль"],
+    [uk.kabinet.shell.operator, "Оператор"],
+    [uk.kabinet.profile.shelterTitle, "Притулок «{name}»"],
     [uk.kabinet.shell.newTab, "(відкриється в новій вкладці)"],
     [uk.kabinet.shell.label, "Кабінет"],
   ])("%s", (actual, expected) => {

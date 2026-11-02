@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { KabinetProfileClient } from "../../../api/kabinet-browser-client";
+import { AccountSections } from "../AccountSections";
 import { ProfileEditor } from "./ProfileEditor";
 
 /**
@@ -152,7 +153,7 @@ describe("contacts (answer 3, answer 4)", () => {
       expectedVersion: 3,
     });
     // The confirmation is in the pill and repeated in the status line under the tabs.
-    expect(screen.getAllByText(/^Збережено о \d\d:\d\d$/)).toHaveLength(2);
+    expect(screen.getAllByText(/^Усі зміни збережено$/)).toHaveLength(2);
   });
 
   it("names the bad field with his message and sends nothing", async () => {
@@ -537,11 +538,11 @@ describe("the donation link (N20)", () => {
   });
 });
 
-const openTab = (name: string) => fireEvent.click(screen.getByRole("tab", { name }));
-/** Pause and resume live in the Акаунт tab. */
+/** Pause and resume live on the «Акаунт і пароль» page, no longer a tab of the editor. */
 const renderInAccount = (options: Parameters<typeof renderEditor>[0] = {}) => {
-  const fns = renderEditor(options);
-  openTab("Акаунт");
+  const view = options.view ?? baseView();
+  const { fns, client } = fakeClient(view, options.overrides);
+  render(<AccountSections initialView={view} client={client} />);
   return fns;
 };
 
@@ -703,21 +704,15 @@ describe("pause and resume (N21)", () => {
     expect(screen.queryByRole("button", { name: /прийом тварин/ })).toBeNull();
   });
 
-  it("the locked block's chip follows the pause", async () => {
-    renderEditor();
-    const locked = () => {
-      openTab("Перевірка");
-      return screen.getByRole("region", { name: "Встановлено під час перевірки" });
-    };
-    expect(within(locked()).getAllByText("Перевірено").length).toBeGreaterThan(0);
-    openTab("Акаунт");
+  it("after pausing, the control offers to resume", async () => {
+    renderInAccount();
     await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
     const dialog = within(screen.getByRole("dialog"));
     await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Переїзд");
     await act(async () => {
       await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
     });
-    expect(within(locked()).getAllByText("На паузі").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Відновити прийом тварин" })).toBeTruthy();
   });
 });
 
@@ -752,7 +747,7 @@ describe("a save whose answer is lost (K4-T16)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(fns.updateContact).toHaveBeenCalledWith({ contact: saved, expectedVersion: 3 });
     expect(fns.get).toHaveBeenCalledOnce();
-    expect(screen.getAllByText(/^Збережено о \d\d:\d\d$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Усі зміни збережено$/).length).toBeGreaterThan(0);
     expect(screen.queryByText(FAILED)).toBeNull();
   });
 
@@ -783,7 +778,7 @@ describe("a save whose answer is lost (K4-T16)", () => {
     await userEvent.type(v.getByLabelText("Ваші слова на сторінці притулку"), " Пишіть.");
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(fns.get).toHaveBeenCalledOnce();
-    expect(screen.getAllByText(/^Збережено о \d\d:\d\d$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Усі зміни збережено$/).length).toBeGreaterThan(0);
   });
 
   it("a server refusal is not re-read: the failure shows at once", async () => {
@@ -873,9 +868,9 @@ describe("the page's one save bar and the sub-tabs", () => {
     renderEditor();
     await dirtyPhone();
     await dirtySentence();
-    // The status line under the tabs reads the time only once every save has landed.
+    // The status line reads «Усі зміни збережено» only once every save has landed.
     const line = screen.getAllByText("Є незбережені зміни")[0]?.closest('[role="status"]');
-    const saved = whenReads(line as HTMLElement, /^Збережено о \d\d:\d\d$/);
+    const saved = whenReads(line as HTMLElement, /^Усі зміни збережено$/);
     const click = userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     await saved;
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
@@ -1000,10 +995,10 @@ describe("the save pill on the shelter page", () => {
       "true",
     );
     await act(async () => finish(baseView({ version: 4 })));
-    expect(screen.getAllByText(/^Збережено о \d\d:\d\d$/)).toHaveLength(2);
+    expect(screen.getAllByText(/^Усі зміни збережено$/)).toHaveLength(2);
   });
 
-  it("S4 leaves after 4 s and the line keeps the time; hover holds it", async () => {
+  it("S4 leaves after 4 s and the line keeps reading «Усі зміни збережено»; hover holds it", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       renderEditor();
@@ -1025,7 +1020,7 @@ describe("the save pill on the shelter page", () => {
         vi.advanceTimersByTime(4000);
       });
       expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
-      expect(screen.getAllByText(/^Збережено о \d\d:\d\d$/)).toHaveLength(1);
+      expect(screen.getAllByText(/^Усі зміни збережено$/)).toHaveLength(1);
     } finally {
       vi.useRealTimers();
     }

@@ -538,7 +538,9 @@ export const en = {
     operatorFallbackNameInSentence: "site administrator",
     shell: {
       label: "Cabinet",
-      viewSite: "View site",
+      toSite: "To the site",
+      accountAndPassword: "Account and password",
+      operator: "Operator",
       newTab: "(opens in a new tab)",
     },
     signIn: {
@@ -616,6 +618,7 @@ export const en = {
       role: "shelter administrator",
       signOut: "Sign out",
       viewOnSite: "Shelter page on the site",
+      shelterTitle: "Shelter «{name}»",
       signOutFailed:
         "Sign-out didn't go through, so you are still signed in. Check the connection and try again.",
       contactsTitle: "Contacts",
@@ -661,7 +664,6 @@ export const en = {
       label: "Shelter sections",
       profile: "Profile",
       verification: "Verification",
-      account: "Account",
       profileNote: "What people see on the shelter's page.",
       view: "View",
     },

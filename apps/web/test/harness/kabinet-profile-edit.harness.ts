@@ -153,8 +153,8 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
     await phone.fill("+380 50 111-22-33");
     // The one page save bar appears only now that something is unsaved.
     await page.getByRole("button", { name: "Зберегти" }).click();
-    // The confirmation: the pill's «Збережено о …», repeated in the line under the tabs.
-    await expect(page.getByText(/^Збережено о \d\d:\d\d$/).first()).toBeVisible();
+    // The confirmation: the pill's «Усі зміни збережено» (the line under the tabs is heard, not drawn).
+    await expect(page.getByText(/^Усі зміни збережено$/).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Зберегти" })).toHaveCount(0);
 
     await page.reload();
@@ -167,7 +167,7 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
     await again.getByLabel(/^Телефон/).fill(before);
     if (before !== "+380501112233") {
       await page.getByRole("button", { name: "Зберегти" }).click();
-      await expect(page.getByText(/^Збережено о \d\d:\d\d$/).first()).toBeVisible();
+      await expect(page.getByText(/^Усі зміни збережено$/).first()).toBeVisible();
     }
     await page.close();
   });
@@ -232,7 +232,10 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
   });
 
   test("pause with a reason, then resume", async () => {
-    const page = await profilePage("akaunt");
+    if (context === undefined) throw new Error("not signed in");
+    // Pause and resume moved off the Притулок page to «Акаунт і пароль» (the account menu's link).
+    const page = await context.newPage();
+    expect((await page.goto("/kabinet/akaunt"))?.status()).toBe(200);
     await page.getByRole("button", { name: "Призупинити прийом тварин" }).click();
     const dialog = page.getByRole("dialog", { name: "Призупинити прийом тварин?" });
     await dialog.getByLabel("Причина").selectOption({ label: "Сезонна перерва" });
@@ -297,11 +300,6 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
         page
           .getByRole("region", { name: "Голос притулку" })
           .getByLabel("Ваші слова на сторінці притулку"),
-      ],
-      [
-        "Button, secondary",
-        "Акаунт",
-        page.getByRole("button", { name: "Призупинити прийом тварин" }),
       ],
       ["SegmentedControl", null, form.getByRole("radio", { name: "Собака" })],
     ] as const;

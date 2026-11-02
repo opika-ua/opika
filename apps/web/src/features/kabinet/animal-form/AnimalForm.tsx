@@ -686,7 +686,7 @@ export function AnimalForm({
         }}
       >
         <Tabs
-          look="pills"
+          look="underline"
           {...(editable ? { status: <SaveStatusLine message={statusMessage} state={pill} /> } : {})}
           label={t.sections.tabsLabel}
           selectedId={tab}

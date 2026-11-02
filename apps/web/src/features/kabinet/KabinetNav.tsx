@@ -7,18 +7,29 @@ import { ANIMAL_LIST_PATH, SHELTER_PROFILE_PATH } from "./routes";
  * `aria-current="page"`. Two tabs since kabinet UX round 2 (there is no Головна: Тварини is the
  * landing). «Тварини» appears only where K2 is shown to this viewer (`animalListShownTo`): a link
  * to a list that answers 404 would be a dead end. A fixed bottom bar below `desktop`, a side
- * column from there; both are the kit's `BottomNav`. No hooks, so server pages mount it as is.
+ * column from there; both are the kit's `BottomNav` (the kabinet's first navigation level). No hooks, so server pages mount it as is.
  */
 export function KabinetNav({
   current,
   animalList,
+  animalCount,
 }: {
-  current: "animals" | "profile";
+  /** `null` on a page under the account menu («Акаунт і пароль»), which is in neither. */
+  current: "animals" | "profile" | null;
   animalList: boolean;
+  /** The inventory count shown after «Тварини» in the sidebar, where the page already has it. */
+  animalCount?: number;
 }) {
   const items = [
     ...(animalList
-      ? [{ key: "animals", href: ANIMAL_LIST_PATH, label: uk.kabinet.nav.animals }]
+      ? [
+          {
+            key: "animals",
+            href: ANIMAL_LIST_PATH,
+            label: uk.kabinet.nav.animals,
+            ...(animalCount === undefined ? {} : { count: animalCount }),
+          },
+        ]
       : []),
     { key: "profile", href: SHELTER_PROFILE_PATH, label: uk.kabinet.profile.title },
   ];
@@ -26,7 +37,7 @@ export function KabinetNav({
     <BottomNav
       label={uk.kabinet.nav.label}
       items={items}
-      current={current}
+      current={current ?? ""}
       layout="bar-then-rail"
     />
   );

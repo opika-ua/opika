@@ -2,12 +2,19 @@ import Link from "next/link";
 import { cx } from "./cx";
 
 /**
- * A short top-level nav (the kabinet's «Головна · Тварини · Притулок»). Text tabs, each 48px, the
- * current one marked `aria-current="page"` and filled from that attribute's state. `layout`:
- * `bar` stays a fixed bottom bar at every width; `bar-then-rail` is a bottom bar below `desktop` and a
- * side column from `desktop` up. The page needs bottom padding equal to the bar's height on a phone.
+ * A short top-level nav (the kabinet's «Тварини · Притулок»). Text only. `layout`: `bar` stays a
+ * fixed bottom bar at every width; `bar-then-rail` is a bottom bar below `desktop` (safe-area aware,
+ * every tab 48px) and a side column from `desktop` up. The current item is marked
+ * `aria-current="page"`: on the bar an orange rule over a tinted tab, in the rail a tinted row with an
+ * orange marker on its left edge. The page needs bottom padding equal to the bar on a phone.
  */
-export type BottomNavItem = { key: string; href: string; label: string };
+export type BottomNavItem = {
+  key: string;
+  href: string;
+  label: string;
+  /** A count after the label, shown in the rail only (the bar is text only). */
+  count?: number;
+};
 
 export type BottomNavProps = {
   label: string;
@@ -21,6 +28,13 @@ const LAYOUT = {
   bar: "",
   "bar-then-rail":
     "desktop:static desktop:border-t-0 desktop:inset-auto desktop:z-auto desktop:w-55 desktop:flex-none desktop:flex-col desktop:bg-transparent desktop:p-0",
+} as const;
+
+// The marker is drawn only on the current item: a rule over the tab, or a bar on the row's left edge.
+const MARKER = {
+  bar: "before:absolute before:inset-x-4 before:top-0 before:h-0.5 before:rounded-pill before:bg-accent",
+  "bar-then-rail":
+    "before:absolute before:inset-x-4 before:top-0 before:h-0.5 before:rounded-pill before:bg-accent desktop:before:inset-x-auto desktop:before:inset-y-2 desktop:before:left-0 desktop:before:h-auto desktop:before:w-1",
 } as const;
 
 export function BottomNav({ label, items, current, layout = "bar" }: BottomNavProps) {
@@ -41,12 +55,23 @@ export function BottomNav({ label, items, current, layout = "bar" }: BottomNavPr
             prefetch={false}
             aria-current={isCurrent ? "page" : undefined}
             className={cx(
-              "flex min-h-target flex-1 items-center justify-center rounded-field px-4 text-label focus-ring",
-              layout === "bar-then-rail" && "desktop:flex-none desktop:justify-start",
-              isCurrent ? "bg-ink text-on-ink" : "text-ink",
+              "relative flex min-h-target flex-1 items-center justify-center gap-2 rounded-field px-4 text-label text-ink focus-ring",
+              layout === "bar-then-rail" &&
+                "desktop:flex-none desktop:justify-between desktop:hover:bg-line",
+              isCurrent && cx("bg-line", MARKER[layout]),
             )}
           >
             {item.label}
+            {item.count === undefined ? null : (
+              <span
+                className={cx(
+                  "text-caption text-ink-2",
+                  layout === "bar-then-rail" ? "max-desktop:hidden" : "hidden",
+                )}
+              >
+                {item.count}
+              </span>
+            )}
           </Link>
         );
       })}

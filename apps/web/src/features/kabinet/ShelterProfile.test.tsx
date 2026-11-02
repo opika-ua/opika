@@ -1,6 +1,7 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { ProfileEditing } from "./home";
 import { ShelterProfile } from "./ShelterProfile";
@@ -76,7 +77,10 @@ describe("ShelterProfile (K4, read-only)", () => {
   it("has nothing editable: no inputs, no textareas, no save button", () => {
     const { container } = renderProfile();
     expect(container.querySelectorAll("input, textarea, select")).toHaveLength(0);
-    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([t.signOut]);
+    // The only controls are the header's: the account button (sign-out lives in its menu).
+    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "Притулок «Домівка»",
+    ]);
   });
 
   it("reads «Не записано» for a value the record doesn't hold, never blank", () => {
@@ -284,14 +288,16 @@ describe("ShelterProfile (K4, read-only)", () => {
   /** The banner's title, filled the way `SupportBanner` fills it (EM-Q2). */
   const bannerTitle = uk.kabinet.support.title.replaceAll("{shelter}", "Притулок «Домівка»");
 
-  it("an admin gets sign-out and no support banner", () => {
+  it("an admin gets sign-out in the account menu and no support banner", async () => {
     renderProfile();
+    await userEvent.click(screen.getByRole("button", { name: "Притулок «Домівка»" }));
     expect(screen.getByRole("button", { name: t.signOut })).toBeDefined();
     expect(screen.queryByRole("region", { name: bannerTitle })).toBeNull();
   });
 
-  it("a support view gets the banner, sign-out disabled, and no sign-out button", () => {
+  it("a support view gets the banner, sign-out disabled, and no sign-out button", async () => {
     renderProfile({}, "support");
+    await userEvent.click(screen.getByRole("button", { name: "Притулок «Домівка»" }));
     const banner = screen.getByRole("region", { name: bannerTitle });
     expect(within(banner).getByRole("button", { name: uk.kabinet.support.exit })).toBeDefined();
     expect(
@@ -300,7 +306,7 @@ describe("ShelterProfile (K4, read-only)", () => {
       ),
     ).toBeDefined();
     expect(screen.queryByRole("button", { name: t.signOut })).toBeNull();
-    expect(screen.getByText(uk.kabinet.support.signOutDisabled)).toBeDefined();
+    expect(screen.getAllByText(uk.kabinet.support.signOutDisabled).length).toBeGreaterThan(0);
   });
 });
 
@@ -484,21 +490,58 @@ describe("Притулок: the public page link and the sub-tabs", () => {
     expect(link.textContent).toContain("(відкриється в новій вкладці)");
   });
 
-  it("the five sub-tabs are there, and ?tab= picks the one shown (an unknown value: the first)", () => {
+  it("the four sub-tabs are there, and ?tab= picks the one shown (an unknown value: the first)", () => {
     const { unmount } = renderOpen("kontakty");
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Профіль",
       "Контакти",
       "Збір коштів",
       "Перевірка",
-      "Акаунт",
     ]);
+    expect(screen.queryByRole("tab", { name: "Акаунт" })).toBeNull();
     expect(screen.getByRole("tab", { name: "Контакти" }).getAttribute("aria-selected")).toBe(
       "true",
     );
     unmount();
     renderOpen("nonsense");
     expect(screen.getByRole("tab", { name: "Профіль" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("the title names the shelter, the status chip follows it, and the one link to the public page sits under", () => {
+    render(
+      <ShelterProfile
+        view={view({ displayName: "Домівка" })}
+        cityName="Бровари"
+        viewer="admin"
+        operator={{ kind: "configured", name: "Олексій" }}
+        editing={open}
+      />,
+    );
+    expect(screen.getByRole("heading", { level: 1, name: "Притулок «Домівка»" })).toBeTruthy();
+    expect(screen.getAllByText("Перевірено").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /^Сторінка притулку на сайті/ })).toHaveLength(1);
+    expect(screen.queryByRole("link", { name: /Переглянути сайт/ })).toBeNull();
+  });
+
+  it("the tabs are underlined: only the selected one carries the ink rule, none is a filled pill", () => {
+    renderOpen("zbir");
+    const tabs = screen.getAllByRole("tab");
+    const ruled = tabs.filter((tab) => tab.className.includes("border-ink"));
+    expect(ruled.map((tab) => tab.textContent)).toEqual(["Збір коштів"]);
+    for (const tab of tabs) {
+      expect(tab.className).not.toContain("bg-ink");
+      expect(tab.className).not.toContain("rounded-pill");
+    }
+  });
+
+  it("nothing sits between the tabs and the first panel (the saved line is heard, not drawn)", () => {
+    renderOpen();
+    const status = screen
+      .getAllByRole("status")
+      .find((node) => node.textContent === "Усі зміни збережено");
+    expect(status?.className).toContain("sr-only");
+    const tablist = screen.getByRole("tablist");
+    expect(tablist.nextElementSibling?.getAttribute("role")).toBe("tabpanel");
   });
 
   it("the nav stays on a phone while the editor is open (no back link needed)", () => {

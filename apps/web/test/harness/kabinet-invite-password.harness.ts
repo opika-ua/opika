@@ -169,7 +169,8 @@ test.describe("the invitation link sets a password (PW-2)", () => {
       (await db.select().from(authMember)).filter((member) => member.userId === userId),
     ).toHaveLength(1);
 
-    // Sign out.
+    // Sign out, from the account menu.
+    await page.getByRole("banner").getByRole("button").click();
     await page.getByRole("button", { name: "Вийти" }).click();
     await page.waitForURL((url) => url.pathname === "/kabinet/vkhid");
 

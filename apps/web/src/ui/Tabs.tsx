@@ -25,8 +25,12 @@ export type TabsProps = {
   /** Controlled selection: when given, `onSelect` is called instead of the tabs keeping their own state. */
   selectedId?: string;
   onSelect?: (id: string) => void;
-  /** `segmented` (default): one pill track, equal-width tabs. `pills`: separate outlined pills that scroll sideways. */
-  look?: "segmented" | "pills";
+  /**
+   * `segmented` (default): one pill track, equal-width tabs. `pills`: separate outlined pills that
+   * scroll sideways. `underline`: text tabs on a rule, the selected one underlined in ink (the
+   * kabinet's second navigation level; it scrolls sideways on a phone).
+   */
+  look?: "segmented" | "pills" | "underline";
   /** A quiet line between the tab list and the panels (the kabinet's save status). */
   status?: ReactNode;
   className?: string;
@@ -83,7 +87,9 @@ export function Tabs({
         className={
           look === "pills"
             ? "relative -mx-4 my-1 flex gap-2 overflow-x-auto overflow-y-hidden px-4 tablet:mx-0 tablet:px-0"
-            : "flex gap-1 rounded-pill bg-line p-1"
+            : look === "underline"
+              ? "-mx-4 flex gap-6 overflow-x-auto overflow-y-hidden border-b-2 border-line px-4 tablet:mx-0 tablet:px-0"
+              : "flex gap-1 rounded-pill bg-line p-1"
         }
       >
         {tabs.map((tab, index) => {
@@ -104,15 +110,25 @@ export function Tabs({
               onClick={() => setSelected(tab.id)}
               onKeyDown={(event) => move(event, index)}
               className={cx(
-                "min-h-target cursor-pointer rounded-pill text-label focus-ring-inset",
-                look === "pills" ? "shrink-0 whitespace-nowrap border-2 px-5" : "flex-1 px-4",
-                look === "pills"
-                  ? isSelected
-                    ? "border-ink bg-ink text-on-ink"
-                    : "border-line bg-surface text-ink hover:border-ink"
-                  : isSelected
-                    ? "bg-ink text-on-ink"
-                    : "text-ink",
+                "min-h-target cursor-pointer text-label focus-ring-inset",
+                look === "underline"
+                  ? cx(
+                      "-mb-0.5 shrink-0 whitespace-nowrap border-b-2",
+                      isSelected
+                        ? "border-ink text-ink"
+                        : "border-transparent text-ink-2 hover:border-line hover:text-ink",
+                    )
+                  : cx(
+                      "rounded-pill",
+                      look === "pills" ? "shrink-0 whitespace-nowrap border-2 px-5" : "flex-1 px-4",
+                      look === "pills"
+                        ? isSelected
+                          ? "border-ink bg-ink text-on-ink"
+                          : "border-line bg-surface text-ink hover:border-ink"
+                        : isSelected
+                          ? "bg-ink text-on-ink"
+                          : "text-ink",
+                    ),
               )}
             >
               {tab.label}
