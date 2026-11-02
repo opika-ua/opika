@@ -125,23 +125,11 @@ describe("the full page", () => {
       expect(metadata.openGraph).not.toHaveProperty("title");
     });
 
-    it("gets twitter:card summary_large_image only when a real image is emitted", async () => {
+    it("asks for the large twitter card and sets no image by hand: the sibling opengraph-image route supplies it (BR-7)", async () => {
       current = stubAnimalPageClient();
-      const withoutEnv = await generateMetadata({ params });
-      expect(withoutEnv.twitter).toBeUndefined();
-      expect(withoutEnv.openGraph).not.toHaveProperty("images");
-
-      vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "https://cdn.example.test");
-      current = stubAnimalPageClient({
-        kind: "answer",
-        animal: makeDetailAnimal({
-          photos: [{ storageKey: "animals/real.jpg", width: 1200, height: 900, alt: null }],
-        }),
-      });
-      const withEnv = await generateMetadata({ params });
-      expect(withEnv.twitter).toEqual({ card: "summary_large_image" });
-      expect(withEnv.openGraph).toHaveProperty("images");
-      vi.unstubAllEnvs();
+      const metadata = await generateMetadata({ params });
+      expect(metadata.twitter).toEqual({ card: "summary_large_image" });
+      expect(metadata.openGraph).not.toHaveProperty("images");
     });
 
     // The description's own demo/real branches (by `REGISTRY_HAS_NO_REAL_SHELTERS`) are
