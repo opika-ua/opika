@@ -11,8 +11,9 @@ describe("DB-using vitest projects' hook timeout", () => {
       test?: { name?: string; hookTimeout?: number };
     }[];
     const named = projects.map((p) => p.test);
-    expect(named.map((t) => t?.name)).toEqual(["api", "dom"]);
-    for (const t of named) {
+    // browser-sdk (H5) has no DB, so no hook budget to hold.
+    expect(named.map((t) => t?.name)).toEqual(["api", "dom", "browser-sdk"]);
+    for (const t of named.filter((t) => t?.name !== "browser-sdk")) {
       expect(t?.hookTimeout).toBeGreaterThanOrEqual(
         DEFAULT_MAINTENANCE_LIMITS.lockWaitMs + MARGIN_MS,
       );

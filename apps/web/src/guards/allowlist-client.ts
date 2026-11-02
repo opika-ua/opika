@@ -30,6 +30,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "ui/StickyActionBar.tsx":
     "VisualViewport listeners (keyboard lift), ResizeObserver and a focus listener for scroll padding",
   "ui/Sheet.tsx": "open state and hash-link upgrade to showModal; no-JS :target path stays",
+  "app/global-error.tsx":
+    "Next error boundary for a throwing root layout (must be client); reports the error, retry button",
   "app/tvaryny/error.tsx": "Next error boundary (must be client); retry button, focus on mount",
   "app/tvaryny/gortaty/error.tsx": "Next error boundary (must be client); retry button",
   "features/animal-detail/RevealFlow.tsx":
