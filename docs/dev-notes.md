@@ -199,7 +199,15 @@ Errors only, no tracing, no replay, no profiling, no feedback widget. Code: `app
   `navigator.userAgentData` (low-entropy brands and platform, no `getHighEntropyValues`), else a small pure
   parser; on the server from the request's User-Agent header (or `onRequestError`'s headers). Only the derived
   `{name, version}` pair is kept; `scrub.ts` allows exactly `contexts.browser` and `contexts.os` in that strict
-  shape (any other context is dropped, an unrecognised name becomes "unknown") and drops every header, also in the tunnel.
+  shape and drops every header, also in the tunnel. The closed lists live in `scrub.ts`, so a forged envelope is
+  covered too: browser in Chrome, Safari, Firefox, Edge, Samsung Internet, Opera, Yandex; os in iOS, iPadOS, Android,
+  Windows, macOS, Linux, ChromeOS; anything else becomes "other" (the parser's own "unknown" stays); a version is kept
+  only as one to three digits. Any other context is dropped.
+- **Free-text scrubber.** `scrubString` removes emails, UA phones, other international phones (`+` or `00`, 8 to
+  15 digits, spaces/dots/dashes/brackets), Polish digit groups (`500 123 456`, `050/123-45-67`), t.me /
+  telegram.me / telegram.dog / tg:// links, `@handles` next to the word telegram, and street addresses (UA, PL, EN;
+  a house number is required). Patterns are linear because every step consumes a character and no two adjacent parts can match the same one (for the phone patterns: each step is an optional separator run then one digit); email labels are length-bounded; `scrub-patterns.test.ts`
+  holds the output-level cases (direct and through the tunnel), a false-positive set and a timing test.
 - **Browser path.** `instrumentation-client.ts` loads the SDK after idle (`load-client.ts`), only with a DSN.
   Events go to our own `POST /api/monitoring` (`api/monitoring-tunnel.ts`), never to Sentry directly, so
   the CSP stays `connect-src 'self'`. It forwards error events only, rebuilt and scrubbed, from our server
