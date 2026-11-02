@@ -75,7 +75,7 @@ function migrationParts(migration: SmokeSittingInput["migration"]) {
   if (migration === undefined) {
     return {
       childSteps: "",
-      endpointRemovedAfterSmoke: "Remove-Item Env:PROD_NEON_ENDPOINT\n",
+      endpointRemovedAfterSmoke: "  Remove-Item Env:PROD_NEON_ENDPOINT\n",
       childExpected: "",
       productionStep: "",
       pasteBack: "",
@@ -83,7 +83,7 @@ function migrationParts(migration: SmokeSittingInput["migration"]) {
   }
   return {
     childSteps:
-      "pnpm --filter @opika/db db:migrate --expect $ep\npnpm --filter @opika/db db:check-hashes\n",
+      "pnpm --filter @opika/db db:migrate --expect $child\n    pnpm --filter @opika/db db:check-hashes\n",
     // Kept until the production step: `--prod` identifies production by this id.
     endpointRemovedAfterSmoke: "",
     childExpected: `# Expected first: "Migrations: applied 1: ${migration.tag}" (applied 0: STOP unless you are re-running an already-applied migration), then every hash "match" (${migration.tag} included).\n`,
@@ -100,11 +100,11 @@ Remove-Item Env:PROD_NEON_ENDPOINT
   };
 }
 
-/** The import block: empty for a sitting without one. Uses the `$ep` the smoke block already set. */
+/** The import block: empty for a sitting without one. Runs inside the smoke block's guard and uses its typed `$child`. */
 function importParts(settlementImport: SmokeSittingInput["settlementImport"]): string {
   if (settlementImport === undefined) return "";
   return `
----- Settlement import, on the same child branch (the rehearsal: no production flag here) ----
+# ---- Settlement import, on the same child branch (the rehearsal: no production flag here) ----
 $xlsx = Join-Path $env:TEMP "kodifikator-07-07.xlsx"
 Invoke-WebRequest -Uri "${settlementImport.download.url}" -OutFile $xlsx
 $hash = (Get-FileHash -Algorithm SHA256 $xlsx).Hash.ToLower()
@@ -112,15 +112,15 @@ $hash
 if ($hash -ne "${settlementImport.download.sha256}") { throw "STOP: the file's sha256 is not ${settlementImport.download.sha256}. Do not import it; paste this back." }
 # If the link has moved: download the file by hand and set $xlsx to its path instead, e.g.
 #   $xlsx = "C:\\path\\kodifikator-07-07.xlsx"   (strip the quotes from a "Copy as path" path). The checksum check above still applies. Do not commit the file.
-pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
+pnpm --filter @opika/db db:import-settlements --expect $child --file $xlsx
 # Expected (dry run, writes nothing): ${settlementImport.expectedFirstPlan}
-pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx --commit
+pnpm --filter @opika/db db:import-settlements --expect $child --file $xlsx --commit
 # Expected: ${settlementImport.expectedAfterCommit}
-pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
+pnpm --filter @opika/db db:import-settlements --expect $child --file $xlsx
 # Expected (rerun, dry): ${settlementImport.expectedRerun}
-$dbName = ([uri]$env:DATABASE_URL).AbsolutePath.TrimStart('/')
+$dbName = $u.AbsolutePath.TrimStart('/')
 pnpm --filter @opika/db db:seed --profile=demo --force --db-name=$dbName
-pnpm --filter @opika/db db:import-settlements --expect $ep --file $xlsx
+pnpm --filter @opika/db db:import-settlements --expect $child --file $xlsx
 # Expected (after a reseed, dry): ${settlementImport.expectedAfterReseed}
 ${timingParts(settlementImport.timings)}`;
 }
@@ -129,8 +129,8 @@ ${timingParts(settlementImport.timings)}`;
 function timingParts(timings: { expected: string } | undefined): string {
   if (timings === undefined) return "";
   return `
----- Timings and plans, same child branch, after the import (read-only; it prints and asserts nothing) ----
-pnpm --filter @opika/db db:neon-smoke-timings --expect $ep
+# ---- Timings and plans, same child branch, after the import (read-only; it prints and asserts nothing) ----
+pnpm --filter @opika/db db:neon-smoke-timings --expect $child
 # Expected: ${timings.expected}
 `;
 }
@@ -166,15 +166,38 @@ pnpm i
 function Read-Secret($p){ $s = Read-Host $p -AsSecureString; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) }
 
 ---- Smoke, on a fresh Neon child branch (create one first if this sitting needs its own) ----
-$env:DATABASE_URL = Read-Secret "Child branch connection string (never production's own)"
-$env:PROD_NEON_ENDPOINT = Read-Secret "Production Neon endpoint id (ep-..., so the script can refuse a target that matches it)"
-$ep = ([uri]$env:DATABASE_URL).Host.Split('.')[0] -replace '-pooler$',''
-$ep
-${m.childSteps}pnpm --filter @opika/db db:neon-smoke --expect $ep
-${importParts(input.settlementImport)}Remove-Item Env:DATABASE_URL
-${m.endpointRemovedAfterSmoke}${m.childExpected}# Expected: ${input.expectedTotal} passed, 0 failed (was ${input.previousTotal} before this PR;
-# ${input.newCheckDescription}). Any failure -> STOP, paste full output - this is new
-# information about how the driver handles the change, not a formality.
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+$OutputEncoding = [Text.Encoding]::UTF8
+# Endpoint ids are not secrets: typed visibly, separately from the URL, so --expect is never derived from it.
+$child = (Read-Host "CHILD branch endpoint id (ep-..., the fresh branch you smoke)").Trim().ToLower()
+$prod = (Read-Host "PRODUCTION endpoint id (ep-...)").Trim().ToLower()
+$env:DATABASE_URL = Read-Secret "Child branch DIRECT connection string (never production's own)"
+$env:PROD_NEON_ENDPOINT = $prod
+try {
+  # TryCreate, not a [uri] cast: a cast error would print the whole pasted URL, password included.
+  $urlEp = ''
+  $u = $null
+  $problems = @()
+  if ([uri]::TryCreate($env:DATABASE_URL, [UriKind]::Absolute, [ref]$u)) { $urlEp = $u.Host.Split('.')[0] }
+  else { $problems += "the pasted URL could not be parsed" }
+  if ($child -notmatch '^ep-[a-z0-9-]+$') { $problems += "child id is not an ep-... id" }
+  if ($prod -notmatch '^ep-[a-z0-9-]+$') { $problems += "production id is not an ep-... id" }
+  if ($child -match '-pooler$') { $problems += "child id is the pooled one: use the direct id and URL" }
+  if ($child -eq ($prod -replace '-pooler$','')) { $problems += "child id equals the production id" }
+  if ($urlEp -ne $child) { $problems += "the pasted URL's endpoint is not the child id you typed" }
+  if ($urlEp -ne '' -and ($urlEp -replace '-pooler$','') -eq ($prod -replace '-pooler$','')) { $problems += "the pasted URL is PRODUCTION" }
+
+  if ($problems.Count -eq 0) {
+    ${m.childSteps}pnpm --filter @opika/db db:neon-smoke --expect $child
+${importParts(input.settlementImport)}  } else {
+    Write-Host ("STOP, nothing was run: " + ($problems -join "; ")) -ForegroundColor Red
+  }
+} finally {
+  Remove-Item Env:DATABASE_URL
+${m.endpointRemovedAfterSmoke}}
+${m.childExpected}# Expected: ${input.expectedTotal} passed, 0 failed (was ${input.previousTotal} before this PR;
+# ${input.newCheckDescription}). Any failure or a STOP line -> STOP, paste full output (and do not run
+# anything after it) - a failure is new information about how the driver handles the change, not a formality.
 ${m.productionStep}
 ---- Cleanup ----
 cd D:\\Startup\\opika
@@ -276,9 +299,11 @@ if (-not $hashOk) { Write-Host "STOP: the file's sha256 is not ${p.download.sha2
 ---- Production connection (read without echo; never printed) ----
 $env:DATABASE_URL = Read-Secret "PRODUCTION connection string"
 $env:PROD_NEON_ENDPOINT = Read-Secret "Production Neon endpoint id (ep-...)"
-$ep = ([uri]$env:DATABASE_URL).Host.Split('.')[0] -replace '-pooler$',''
+$ep = ''
+$pu = $null
+if ([uri]::TryCreate($env:DATABASE_URL, [UriKind]::Absolute, [ref]$pu)) { $ep = $pu.Host.Split('.')[0] -replace '-pooler$','' }
 $ep
-$epOk = ($ep -eq ($env:PROD_NEON_ENDPOINT.Trim().ToLower() -replace '-pooler$',''))
+$epOk = ($ep -ne '') -and ($ep -eq ($env:PROD_NEON_ENDPOINT.Trim().ToLower() -replace '-pooler$',''))
 if (-not $epOk) { Write-Host "STOP: the connection string is not the production endpoint you typed. Nothing below will write." -ForegroundColor Red }
 
 ---- Pre-flight (read-only) ----
