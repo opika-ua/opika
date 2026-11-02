@@ -97,7 +97,7 @@ describe("renderSmokeSitting, for a PR with a migration", () => {
     expect(smoke).toBeGreaterThan(childHashes);
     expect(productionMigrate).toBeGreaterThan(smoke);
     expect(text.lastIndexOf("db:check-hashes")).toBeGreaterThan(productionMigrate);
-    expect(text).toContain(`${TAG} applied`);
+    expect(text).toContain(`Migrations: applied 1: ${TAG}`);
   });
 
   it("runs the smoke once, on the child branch only", () => {
