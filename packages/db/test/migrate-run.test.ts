@@ -9,6 +9,7 @@ import {
   dotenvFilesIn,
   type MigrateEnvironment,
   type MigrateIo,
+  type MigrateOutcome,
   runMigrate,
 } from "../src/migrate-run";
 import {
@@ -39,7 +40,7 @@ function harness(overrides: Partial<MigrateIo> = {}, dotenvFiles: string[] = [])
   const out: string[] = [];
   const err: string[] = [];
   const guard = vi.fn();
-  const apply = vi.fn(async (): Promise<readonly string[]> => []);
+  const apply = vi.fn(async (): Promise<MigrateOutcome> => ({ kind: "applied", names: [] }));
   const io: MigrateIo = {
     guard,
     applyMigrations: apply,
@@ -193,8 +194,18 @@ describe("runMigrate outcomes", () => {
     ]);
   });
 
+  it("committed but unlisted: says so, exit 0, no failure message, no URL", async () => {
+    const h = harness({ applyMigrations: async () => ({ kind: "unlisted" }) });
+    expect(await runMigrate([], { DATABASE_URL: WITH_PASSWORD }, h.io)).toBe(0);
+    expect(h.out.at(-1)).toContain("committed, but the applied list could not be read");
+    expect(h.err).toEqual([]);
+    expect(everything(h)).not.toContain(PASSWORD);
+  });
+
   it("lists the applied names in order, and never the URL", async () => {
-    const h = harness({ applyMigrations: async () => ["0021_x", "0022_y"] });
+    const h = harness({
+      applyMigrations: async () => ({ kind: "applied", names: ["0021_x", "0022_y"] }),
+    });
     expect(await runMigrate([], { DATABASE_URL: WITH_PASSWORD }, h.io)).toBe(0);
     expect(h.out.at(-1)).toBe("Migrations: applied 2: 0021_x, 0022_y");
     expect(everything(h)).not.toContain(PASSWORD);
@@ -268,14 +279,16 @@ describe("applyMigrations on a throwaway local database", () => {
     await ensureTestDatabase(url);
     const applied = await applyMigrations(url);
     const first = await snapshot();
-    expect(applied).toHaveLength(first.length);
-    expect(applied[0]).toMatch(/^0000_/);
+    expect(applied).toEqual({
+      kind: "applied",
+      names: committedHashes().map((entry) => entry.tag),
+    });
     const checks = compareHashes(committedHashes(), first);
     expect(checks.length).toBeGreaterThan(10);
     expect(checks.filter((check) => check.status !== "match")).toEqual([]);
     expect(first).toHaveLength(checks.length);
 
-    expect(await applyMigrations(url)).toEqual([]);
+    expect(await applyMigrations(url)).toEqual({ kind: "applied", names: [] });
     expect(await snapshot()).toEqual(first);
   });
 });
