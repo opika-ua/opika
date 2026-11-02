@@ -221,9 +221,9 @@ describe("scrubEvent", () => {
     expect(scrubbed.transaction).toBe("GET /tvaryny");
   });
 
-  it("keeps browser and os as family and major version only; a raw string becomes unknown", () => {
+  it("keeps browser and os as family and major version only; a raw string becomes other", () => {
     expect(scrubbed.contexts.browser).toEqual({ name: "Safari", version: "18" });
-    expect(scrubbed.contexts.os).toEqual({ name: "unknown" });
+    expect(scrubbed.contexts.os).toEqual({ name: "other" });
     expect(text).not.toContain("Mozilla");
   });
 

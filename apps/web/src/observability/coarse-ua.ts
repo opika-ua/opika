@@ -13,13 +13,13 @@ const MAX_UA_LENGTH = 512;
 
 const isDigit = (ch: string | undefined): boolean => ch !== undefined && ch >= "0" && ch <= "9";
 
-/** The digits right after `token` (the major version, up to 4 digits), or undefined. */
+/** The digits right after `token` (the major version, up to 3 digits), or undefined. */
 function majorAfter(ua: string, token: string): string | undefined {
   const at = ua.indexOf(token);
   if (at === -1) return undefined;
   let end = at + token.length;
   const start = end;
-  while (end < ua.length && end - start < 4 && isDigit(ua[end])) end += 1;
+  while (end < ua.length && end - start < 3 && isDigit(ua[end])) end += 1;
   return end > start ? ua.slice(start, end) : undefined;
 }
 
@@ -78,7 +78,7 @@ export function coarseFromUserAgent(userAgent: unknown): CoarseContexts {
 
 /** The low-entropy part of `navigator.userAgentData` (what it gives without asking the user). */
 export type UserAgentDataLike = {
-  brands?: readonly { brand?: unknown; version?: unknown }[];
+  brands?: unknown;
   platform?: unknown;
 };
 
@@ -94,7 +94,7 @@ const isGrease = (brand: string): boolean => /^not.{0,4}a.{0,4}brand/i.test(bran
 function majorOf(version: unknown): string | undefined {
   if (typeof version !== "string") return undefined;
   const dot = version.indexOf(".");
-  const major = (dot === -1 ? version : version.slice(0, dot)).slice(0, 4);
+  const major = (dot === -1 ? version : version.slice(0, dot)).slice(0, 3);
   return major !== "" && [...major].every(isDigit) ? major : undefined;
 }
 
@@ -107,11 +107,15 @@ export function coarseFromUserAgentData(
   fallbackUserAgent?: unknown,
 ): CoarseContexts {
   const fallback = coarseFromUserAgent(fallbackUserAgent);
-  const brands = (data?.brands ?? []).flatMap((entry) =>
-    typeof entry.brand === "string" && entry.brand.length <= 64 && !isGrease(entry.brand)
-      ? [{ name: rename(entry.brand), version: majorOf(entry.version) }]
-      : [],
-  );
+  // A tampered or odd `brands` (not an array, null or non-object entries) counts as missing, never throws.
+  const list: readonly unknown[] = Array.isArray(data?.brands) ? data.brands : [];
+  const brands = list.flatMap((entry) => {
+    if (typeof entry !== "object" || entry === null) return [];
+    const { brand, version } = entry as { brand?: unknown; version?: unknown };
+    return typeof brand === "string" && brand.length <= 64 && !isGrease(brand)
+      ? [{ name: rename(brand), version: majorOf(version) }]
+      : [];
+  });
   // "Chromium" is the engine every Chromium browser lists; a specific brand beats it.
   const brand = brands.find((b) => b.name !== "Chromium") ?? brands[0];
   const platform = typeof data?.platform === "string" ? rename(data.platform) : "";
