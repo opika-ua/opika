@@ -70,12 +70,19 @@ export function StickyActionBar({
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => sync());
     observer?.observe(bar);
     // The keyboard takes a moment to open after focus; look again once the viewport has settled.
+    // Both are cancelled on cleanup: a late `reveal` would touch `document` after unmount or teardown.
+    let frame: number | undefined;
+    let settle: number | undefined;
     const onFocusIn = () => {
-      window.requestAnimationFrame(reveal);
-      window.setTimeout(reveal, 300);
+      window.cancelAnimationFrame(frame ?? 0);
+      window.clearTimeout(settle);
+      frame = window.requestAnimationFrame(reveal);
+      settle = window.setTimeout(reveal, 300);
     };
     document.addEventListener("focusin", onFocusIn);
     return () => {
+      window.cancelAnimationFrame(frame ?? 0);
+      window.clearTimeout(settle);
       observer?.disconnect();
       root.style.scrollPaddingBottom = "";
       document.removeEventListener("focusin", onFocusIn);

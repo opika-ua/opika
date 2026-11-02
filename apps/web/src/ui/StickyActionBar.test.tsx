@@ -107,4 +107,52 @@ describe("StickyActionBar", () => {
     unmount();
     expect(document.documentElement.style.scrollPaddingBottom).toBe("");
   });
+
+  describe("the focus-in reveal timers", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    const focusField = () => {
+      const input = document.createElement("input");
+      document.body.append(input);
+      input.getBoundingClientRect = () => ({ bottom: 900 }) as DOMRect;
+      act(() => input.focus());
+      return input;
+    };
+
+    it("still reveals the focused field after the settle delay while mounted", () => {
+      vi.useFakeTimers();
+      const scrollBy = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
+      render(
+        <StickyActionBar>
+          <button type="button">Зберегти</button>
+        </StickyActionBar>,
+      );
+      const input = focusField();
+      vi.advanceTimersByTime(300);
+      expect(scrollBy).toHaveBeenCalled();
+      input.remove();
+    });
+
+    it("does nothing after unmount: no late reveal, no document access", () => {
+      vi.useFakeTimers();
+      const scrollBy = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
+      const { unmount } = render(
+        <StickyActionBar>
+          <button type="button">Зберегти</button>
+        </StickyActionBar>,
+      );
+      const input = focusField();
+      const active = vi.spyOn(document, "activeElement", "get");
+      unmount();
+      active.mockClear();
+      expect(() => vi.advanceTimersByTime(1000)).not.toThrow();
+      expect(active).not.toHaveBeenCalled();
+      expect(scrollBy).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+      input.remove();
+    });
+  });
 });
