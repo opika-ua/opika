@@ -267,7 +267,6 @@ describe("contexts: closed family lists, server-side", () => {
     ["Edge", "macOS"],
     ["Samsung Internet", "Linux"],
     ["Opera", "ChromeOS"],
-    ["Yandex", "iPadOS"],
   ])("keeps the listed names %s and %s", (browser, os) => {
     expect(scrubEvent(ctxEvent({ name: browser }, { name: os })).contexts).toEqual({
       browser: { name: browser },
@@ -302,17 +301,27 @@ describe("contexts: closed family lists, server-side", () => {
         "Edge",
         "Samsung Internet",
         "Opera",
-        "Yandex",
+        "other",
         "unknown",
       ].sort(),
     );
     expect([...OS_FAMILIES].sort()).toEqual(
-      ["iOS", "iPadOS", "Android", "Windows", "macOS", "Linux", "ChromeOS", "unknown"].sort(),
+      [
+        "iOS",
+        "iPadOS",
+        "Android",
+        "Windows",
+        "macOS",
+        "Linux",
+        "ChromeOS",
+        "other",
+        "unknown",
+      ].sort(),
     );
   });
 
   it("passes exactly the listed literals plus unknown and other, per list", () => {
-    const browsers = ["Chrome", "Safari", "Firefox", "Edge", "Samsung Internet", "Opera", "Yandex"];
+    const browsers = ["Chrome", "Safari", "Firefox", "Edge", "Samsung Internet", "Opera"];
     const systems = ["iOS", "iPadOS", "Android", "Windows", "macOS", "Linux", "ChromeOS"];
     const nameOf = (ctx: unknown, key: "browser" | "os") =>
       (scrubEvent({ contexts: { [key]: ctx } }).contexts as Record<string, { name: string }>)[key]
@@ -405,7 +414,7 @@ describe("userAgentData with a malformed brands list", () => {
     expect(out.os.name).toBe("Windows");
   });
 
-  it("renames the YaBrowser brand to Yandex", () => {
+  it("puts the YaBrowser brand in other, in brands and in the UA string", () => {
     const out = coarseFromUserAgentData({
       brands: [
         { brand: "YaBrowser", version: "24.10.1" },
@@ -413,7 +422,15 @@ describe("userAgentData with a malformed brands list", () => {
       ],
       platform: "Windows",
     });
-    expect(out.browser).toEqual({ name: "Yandex", version: "24" });
+    expect(out.browser).toEqual({ name: "other" });
+    const ya =
+      "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/124.0.0.0 YaBrowser/24.4.0 Safari/537.36";
+    expect(coarseFromUserAgentData(undefined, ya).browser).toEqual({ name: "other" });
+    expect(
+      scrubEvent({ contexts: { browser: { name: "Yandex", version: "24" } } }).contexts,
+    ).toEqual({
+      browser: { name: "other", version: "24" },
+    });
   });
 
   it("skips null and non-object entries and keeps the good ones", () => {

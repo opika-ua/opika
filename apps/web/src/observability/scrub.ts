@@ -180,7 +180,7 @@ export const BROWSER_FAMILIES = new Set([
   "Edge",
   "Samsung Internet",
   "Opera",
-  "Yandex",
+  "other",
   "unknown",
 ]);
 export const OS_FAMILIES = new Set([
@@ -191,6 +191,7 @@ export const OS_FAMILIES = new Set([
   "macOS",
   "Linux",
   "ChromeOS",
+  "other",
   "unknown",
 ]);
 const OTHER = "other";
