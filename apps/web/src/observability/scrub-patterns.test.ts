@@ -232,6 +232,37 @@ describe("contexts: closed family lists, server-side", () => {
     });
   });
 
+  it("passes exactly the listed literals plus unknown and other, per list", () => {
+    const browsers = ["Chrome", "Safari", "Firefox", "Edge", "Samsung Internet", "Opera", "Yandex"];
+    const systems = ["iOS", "iPadOS", "Android", "Windows", "macOS", "Linux", "ChromeOS"];
+    const nameOf = (ctx: unknown, key: "browser" | "os") =>
+      (scrubEvent({ contexts: { [key]: ctx } }).contexts as Record<string, { name: string }>)[key]
+        ?.name;
+    for (const [key, list] of [
+      ["browser", browsers],
+      ["os", systems],
+    ] as const) {
+      for (const name of [...list, "unknown", "other"]) {
+        expect(nameOf({ name }, key), `${key} ${name}`).toBe(name);
+      }
+      const forged = [
+        "Unknown",
+        "UNKNOWN",
+        "unknown ",
+        " unknown",
+        "Other",
+        "",
+        ["unknown"],
+        ["Chrome"],
+        5,
+        null,
+      ];
+      for (const name of forged) {
+        expect(nameOf({ name }, key), `${key} ${JSON.stringify(name)}`).toBe("other");
+      }
+    }
+  });
+
   it("treats a context that is not an object as other", () => {
     expect(scrubEvent(ctxEvent("Chrome", null)).contexts).toEqual({
       browser: { name: "other" },

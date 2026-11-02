@@ -164,7 +164,8 @@ function scrubRequest(request: unknown): Loose | undefined {
 }
 
 // Closed lists, applied here so a forged envelope or a tampered client cannot carry free text in a
-// context name. "unknown" is the parser's own no-information value.
+// context name. Two fallback literals, exact and lowercase only: "unknown" = unparseable or absent
+// (the parser's own value), "other" = parsed but not on the list.
 const BROWSER_FAMILIES = new Set([
   "Chrome",
   "Safari",
