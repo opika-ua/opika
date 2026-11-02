@@ -24,12 +24,13 @@ function majorAfter(ua: string, token: string): string | undefined {
   return end > start && end - start <= 3 ? ua.slice(start, end) : undefined;
 }
 
+// "other" carries no version: a browser outside the closed list is not described further.
 const named = (name: string, version?: string): CoarseName =>
-  version === undefined ? { name } : { name, version };
+  version === undefined || name === "other" ? { name } : { name, version };
 
 const BROWSER_TOKENS: readonly (readonly [token: string, name: string])[] = [
-  ["YaBrowser/", "Yandex"],
-  ["Yowser/", "Yandex"],
+  ["YaBrowser/", "other"],
+  ["Yowser/", "other"],
   ["EdgA/", "Edge"],
   ["EdgiOS/", "Edge"],
   ["Edg/", "Edge"],
@@ -88,6 +89,8 @@ export type UserAgentDataLike = {
 const BRAND_RENAMES: Record<string, string> = {
   "Google Chrome": "Chrome",
   "Microsoft Edge": "Edge",
+  YaBrowser: "other",
+  Yowser: "other",
   "Chrome OS": "ChromeOS",
   "Chromium OS": "ChromeOS",
 };

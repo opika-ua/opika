@@ -8,6 +8,13 @@
 
 export const FILTERED = "[Filtered]";
 export const MAX_STRING_LENGTH = 1000;
+// Every string is cut here before any pattern runs, so no pattern ever scans more than 8 KB (a tunnel
+// envelope can carry 64 KB strings); real messages and URLs are far shorter.
+export const MAX_INPUT_LENGTH = 8192;
+// A token that straddles the cut leaves a partial fragment the patterns cannot match, always at the end
+// of the output; dropping more than the longest possible match (an email is under 700) removes it.
+const CUT_TAIL = 1024;
+const TRUNCATED = "...[truncated]";
 const MAX_DEPTH = 8;
 
 // Labels are length-bounded (RFC maxima) so a long run of word characters cannot make the scan quadratic.
@@ -39,7 +46,9 @@ const HANDLE_BEFORE = new RegExp(
 );
 // Street addresses: a street word, a name of up to three words, then a house number. The number is
 // required, so "вулиця Шевченка" alone stays; the street word must end in a dot or a space ("вулкан" is safe).
-const NAME = String.raw`[\p{L}'’.-]+(?:\s+[\p{L}'’.-]+){0,2}`;
+// Words are length-bounded (no real street word is near 40) so a long glued run cannot make the scan quadratic.
+const NAME_WORD = String.raw`[\p{L}'’.-]{1,64}`;
+const NAME = String.raw`${NAME_WORD}(?:\s+${NAME_WORD}){0,2}`;
 const NUMBER = String.raw`(?:№\s*)?\d{1,4}\p{L}?(?:[/-]\d{1,4}\p{L}?)?`;
 const STREET_WORD_UK = String.raw`(?:вул(?:иця)?|просп(?:ект)?|пров(?:улок)?|бульв(?:ар)?|пр-т|б-р)(?:\.\s*|\s+)`;
 const STREET_WORD_PL = String.raw`(?:ul(?:ica)?|al|aleja)(?:\.\s*|\s+)`;
@@ -77,7 +86,8 @@ export function scrubUrl(url: string): string {
 }
 
 export function scrubString(value: string): string {
-  const cleaned = value
+  const capped = value.length > MAX_INPUT_LENGTH;
+  const cleaned = (capped ? value.slice(0, MAX_INPUT_LENGTH) : value)
     .replace(HEADER_LINE, FILTERED)
     .replace(BEARER, FILTERED)
     .replace(QUERY_IN_TEXT, "$1")
@@ -93,9 +103,9 @@ export function scrubString(value: string): string {
     .replace(ADDRESS_LOCAL_NUMBER_FIRST, FILTERED)
     .replace(ADDRESS_EN_NUMBER_FIRST, FILTERED)
     .replace(ADDRESS_EN_NAME_FIRST, FILTERED);
-  return cleaned.length > MAX_STRING_LENGTH
-    ? `${cleaned.slice(0, MAX_STRING_LENGTH)}...[truncated]`
-    : cleaned;
+  const kept = capped ? cleaned.slice(0, Math.max(0, cleaned.length - CUT_TAIL)) : cleaned;
+  if (kept.length > MAX_STRING_LENGTH) return `${kept.slice(0, MAX_STRING_LENGTH)}${TRUNCATED}`;
+  return capped ? `${kept}${TRUNCATED}` : kept;
 }
 
 /** Strings scrubbed, objects walked, values under a sensitive key replaced. */
@@ -166,17 +176,17 @@ function scrubRequest(request: unknown): Loose | undefined {
 // Closed lists, applied here so a forged envelope or a tampered client cannot carry free text in a
 // context name. Two fallback literals, exact and lowercase only: "unknown" = unparseable or absent
 // (the parser's own value), "other" = parsed but not on the list.
-const BROWSER_FAMILIES = new Set([
+export const BROWSER_FAMILIES = new Set([
   "Chrome",
   "Safari",
   "Firefox",
   "Edge",
   "Samsung Internet",
   "Opera",
-  "Yandex",
+  "other",
   "unknown",
 ]);
-const OS_FAMILIES = new Set([
+export const OS_FAMILIES = new Set([
   "iOS",
   "iPadOS",
   "Android",
@@ -184,6 +194,7 @@ const OS_FAMILIES = new Set([
   "macOS",
   "Linux",
   "ChromeOS",
+  "other",
   "unknown",
 ]);
 const OTHER = "other";
@@ -193,7 +204,12 @@ const CONTEXT_MAJOR = /^\d{1,3}$/;
 function coarseContext(value: unknown, families: ReadonlySet<string>): Loose {
   if (!isObject(value) || typeof value.name !== "string") return { name: OTHER };
   const kept: Loose = { name: families.has(value.name) ? value.name : OTHER };
-  if (typeof value.version === "string" && CONTEXT_MAJOR.test(value.version)) {
+  // "other" is not described further, so no version either.
+  if (
+    kept.name !== OTHER &&
+    typeof value.version === "string" &&
+    CONTEXT_MAJOR.test(value.version)
+  ) {
     kept.version = value.version;
   }
   return kept;

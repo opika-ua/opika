@@ -88,10 +88,10 @@ describe("coarseFromUserAgent: family and major version, over real user-agent st
     });
   });
 
-  it("names Yandex Browser, which also carries a Chrome token", () => {
+  it("puts Yandex Browser in other, not Chrome, though it carries a Chrome token", () => {
     const ua =
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 YaBrowser/24.4.0 Yowser/2.5 Safari/537.36";
-    expect(coarseFromUserAgent(ua).browser).toEqual({ name: "Yandex", version: "24" });
+    expect(coarseFromUserAgent(ua).browser).toEqual({ name: "other" });
   });
 
   it("is linear on a long input", () => {
