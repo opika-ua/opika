@@ -860,17 +860,12 @@ describe("productionEndpoint", () => {
 
 /** AW-F1 (Oleksii: "a real --expect on db:migrate … tests for wrong and missing endpoints"). */
 describe("parseMigrateArgs", () => {
-  /** `--prod` and `--expect <ep>` are this package's flags; drizzle-kit gets everything else. */
-  it("passes everything through to drizzle-kit except --prod and --expect <ep>", () => {
-    expect(parseMigrateArgs(["--prod", "--verbose"])).toEqual({
-      kind: "ok",
-      expect: undefined,
-      drizzleArgs: ["migrate", "--verbose"],
-    });
-    expect(parseMigrateArgs(["--expect", "ep-other-hill-d4e5f6", "--prod", "--verbose"])).toEqual({
+  /** PG-F3: `--prod` and `--expect <ep>` and nothing else; nothing is handed on any more. */
+  it("takes --prod and --expect <ep>, in any order", () => {
+    expect(parseMigrateArgs(["--expect", "ep-other-hill-d4e5f6", "--prod"])).toEqual({
       kind: "ok",
       expect: "ep-other-hill-d4e5f6",
-      drizzleArgs: ["migrate", "--verbose"],
+      production: true,
     });
   });
 
@@ -878,22 +873,18 @@ describe("parseMigrateArgs", () => {
     expect(parseMigrateArgs(["--expect=ep-other-hill-d4e5f6", "--prod"])).toEqual({
       kind: "ok",
       expect: "ep-other-hill-d4e5f6",
-      drizzleArgs: ["migrate"],
+      production: true,
     });
     expect(parseMigrateArgs(["--expect="]).kind).toBe("refused");
   });
 
-  it("reads --expect's value and keeps it out of drizzle-kit's arguments", () => {
+  it("reads --expect's value, and takes no arguments at all", () => {
     expect(parseMigrateArgs(["--prod", "--expect", "ep-other-hill-d4e5f6"])).toEqual({
       kind: "ok",
       expect: "ep-other-hill-d4e5f6",
-      drizzleArgs: ["migrate"],
+      production: true,
     });
-    expect(parseMigrateArgs([])).toEqual({
-      kind: "ok",
-      expect: undefined,
-      drizzleArgs: ["migrate"],
-    });
+    expect(parseMigrateArgs([])).toEqual({ kind: "ok", expect: undefined, production: false });
   });
 
   it.each([
@@ -910,6 +901,52 @@ describe("parseMigrateArgs", () => {
     expect(parseMigrateArgs(["--expect", "ep-a1", "--expect", "ep-b2"])).toEqual({
       kind: "refused",
       reason: "--expect is given twice",
+    });
+  });
+
+  /** PG-F3 tests 1-3: the refusals name the kind of argument, never its value. */
+  it.each([
+    ["--config with a separate value", ["--config", "other.ts"], "other.ts"],
+    ["--config=value", ["--config=other.ts"], "other.ts"],
+  ])("refuses %s, naming the flag and not the value", (_case, argv, value) => {
+    const result = parseMigrateArgs(argv);
+    expect(result.kind).toBe("refused");
+    const reason = result.kind === "refused" ? result.reason : "";
+    expect(reason).toContain("--config");
+    expect(reason).not.toContain(value);
+  });
+
+  it.each([
+    "dotenv_config_path=/tmp/x.env",
+    "DOTENV_CONFIG_OVERRIDE=true",
+    "dotenv_config_encoding=latin1",
+  ])("refuses the dotenv argument %s without printing it", (arg) => {
+    const result = parseMigrateArgs(["--prod", arg]);
+    expect(result.kind).toBe("refused");
+    const reason = result.kind === "refused" ? result.reason : "";
+    expect(reason).toContain("dotenv_config_*");
+    expect(reason).not.toContain(arg.split("=")[1] ?? "");
+    expect(reason).not.toContain(arg);
+  });
+
+  it("refuses any other argument without echoing it, and still takes --prod and --expect", () => {
+    const secret = "postgres://u:hunter2@example.test/db";
+    for (const argv of [[secret], ["--verbose"], ["--prod", secret]]) {
+      const result = parseMigrateArgs(argv);
+      expect(result.kind).toBe("refused");
+      const reason = result.kind === "refused" ? result.reason : "";
+      expect(reason).not.toContain("hunter2");
+      expect(reason).not.toContain("--verbose");
+    }
+    expect(parseMigrateArgs(["--prod", "--expect", "ep-a1b2"])).toEqual({
+      kind: "ok",
+      expect: "ep-a1b2",
+      production: true,
+    });
+    expect(parseMigrateArgs(["--expect=ep-a1b2"])).toEqual({
+      kind: "ok",
+      expect: "ep-a1b2",
+      production: false,
     });
   });
 });
@@ -982,7 +1019,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     },
     extra: Record<string, string> = {},
   ) =>
-    spawnSync("npx", ["tsx", script, ...args], {
+    spawnSync("npx", ["tsx", "--import", "./test/no-network.mjs", script, ...args], {
       cwd: PKG,
       encoding: "utf8",
       shell: process.platform === "win32",
@@ -1000,13 +1037,17 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
   it("db:migrate refuses a non-local target when production isn't configured", () => {
     const env = { ...INHERITED_ENV, DATABASE_URL: CHILD_BRANCH, PROD_GUARD_ENV_FILE: NO_ENV_FILE };
     delete (env as Record<string, string | undefined>).PROD_NEON_ENDPOINT;
-    const result = spawnSync("npx", ["tsx", "src/migrate.ts"], {
-      cwd: PKG,
-      encoding: "utf8",
-      shell: process.platform === "win32",
-      env,
-      timeout: SPAWN_TIMEOUT_MS,
-    });
+    const result = spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/migrate.ts"],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env,
+        timeout: SPAWN_TIMEOUT_MS,
+      },
+    );
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("PROD_NEON_ENDPOINT is not set");
     expect(result.stderr).not.toContain("secret");
@@ -1014,18 +1055,22 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
 
   /** The STOP's finding 1: a URL that won't parse must not end up in a crash dump. */
   it("db:migrate refuses an unparseable URL without printing it", () => {
-    const result = spawnSync("npx", ["tsx", "src/migrate.ts"], {
-      cwd: PKG,
-      encoding: "utf8",
-      shell: process.platform === "win32",
-      env: {
-        ...INHERITED_ENV,
-        DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host",
-        PROD_NEON_ENDPOINT: PROD_ENDPOINT,
-        PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+    const result = spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/migrate.ts"],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env: {
+          ...INHERITED_ENV,
+          DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host",
+          PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+          PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+        },
+        timeout: SPAWN_TIMEOUT_MS,
       },
-      timeout: SPAWN_TIMEOUT_MS,
-    });
+    );
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("could not be parsed");
     expect(result.stderr).not.toContain("SECRETPW");
@@ -1073,13 +1118,17 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
   });
 
   it("db:check-hashes refuses an unparseable URL after saying so, without printing it", () => {
-    const result = spawnSync("npx", ["tsx", "src/check-migration-hashes.ts"], {
-      cwd: PKG,
-      encoding: "utf8",
-      shell: process.platform === "win32",
-      env: { ...INHERITED_ENV, DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host" },
-      timeout: SPAWN_TIMEOUT_MS,
-    });
+    const result = spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/check-migration-hashes.ts"],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env: { ...INHERITED_ENV, DATABASE_URL: "postgresql://u:SECRETPW@[not-a-host" },
+        timeout: SPAWN_TIMEOUT_MS,
+      },
+    );
     expect(result.status, result.stderr).toBe(1);
     expect(result.stdout.split(/\r?\n/)[0]).toBe(
       "Target: DATABASE_URL could not be parsed (not printing it).",
@@ -1088,29 +1137,34 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
   });
 
   /**
-   * After the guard (a local target passes without a flag), before drizzle-kit.
-   * The missing config makes drizzle-kit stop before it connects to anything.
+   * After the guard (a local target passes without a flag), before the migration, which then
+   * fails on the closed local port.
    */
-  it("db:migrate prints the target before drizzle-kit starts", () => {
-    const result = spawnSync("npx", ["tsx", "src/migrate.ts", "--config=does-not-exist.ts"], {
-      cwd: PKG,
-      encoding: "utf8",
-      shell: process.platform === "win32",
-      env: {
-        ...INHERITED_ENV,
-        DATABASE_URL: "postgres://opika:secret@localhost:1/opika_print_target",
-        PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+  it("db:migrate prints the target before it migrates", () => {
+    const result = spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/migrate.ts"],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env: {
+          ...INHERITED_ENV,
+          DATABASE_URL: "postgres://opika:secret@localhost:1/opika_print_target",
+          PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+        },
+        timeout: SPAWN_TIMEOUT_MS,
       },
-      timeout: SPAWN_TIMEOUT_MS,
-    });
+    );
     expect(result.stdout.split(/\r?\n/)[0]).toBe("Target: local (localhost:1/opika_print_target)");
-    expect(result.status, result.stderr).not.toBe(0);
+    expect(result.stderr).toContain("ERROR: the migration failed:");
+    expect(result.status, result.stderr).toBe(1);
     expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
   });
 
   /** AW-F1 through the real CLI: the endpoint check runs after the guard and before anything else. */
   const migrateWith = (url: string, args: readonly string[]) =>
-    spawnSync("npx", ["tsx", "src/migrate.ts", ...args], {
+    spawnSync("npx", ["tsx", "--import", "./test/no-network.mjs", "src/migrate.ts", ...args], {
       cwd: PKG,
       encoding: "utf8",
       shell: process.platform === "win32",
@@ -1124,8 +1178,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     });
 
   it("db:migrate refuses a non-production Neon target with no --expect (missing endpoint)", () => {
-    // The missing config stops drizzle-kit before it connects, should a regression ever reach it.
-    const result = migrateWith(CHILD_BRANCH, ["--config=does-not-exist.ts"]);
+    const result = migrateWith(CHILD_BRANCH, []);
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("pass --expect ep-…");
     expect(result.stdout).not.toContain("Target:");
@@ -1133,12 +1186,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
   });
 
   it("db:migrate refuses production with --prod but the wrong --expect (wrong endpoint)", () => {
-    const result = migrateWith(PROD_DIRECT, [
-      "--prod",
-      "--expect",
-      "ep-other-hill-d4e5f6",
-      "--config=does-not-exist.ts",
-    ]);
+    const result = migrateWith(PROD_DIRECT, ["--prod", "--expect", "ep-other-hill-d4e5f6"]);
     expect(result.status, result.stderr).toBe(1);
     expect(result.stderr).toContain("the target's Neon endpoint is not --expect");
     expect(result.stdout).not.toContain("Target:");
@@ -1152,23 +1200,52 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     expect(result.stdout).not.toContain("Target:");
   });
 
-  /** The matching compute gets through both guards; the missing config stops drizzle-kit before it connects. */
-  it("db:migrate with the matching --expect prints the target, then hands over to drizzle-kit", () => {
-    const result = migrateWith(CHILD_BRANCH, [
-      "--expect",
-      "ep-other-hill-d4e5f6",
-      "--config=does-not-exist.ts",
-    ]);
+  /** The matching compute gets through both guards; the migration then meets the disabled network. */
+  it("db:migrate with the matching --expect prints the target, then migrates (the network disabled)", () => {
+    const result = migrateWith(CHILD_BRANCH, ["--expect", "ep-other-hill-d4e5f6"]);
     expect(result.stdout.split(/\r?\n/)[0]).toBe(
       "Target: Neon endpoint ep-other-hill-d4e5f6 (ep-other-hill-d4e5f6-pooler.eu-central-1.aws.neon.tech)",
     );
-    expect(result.status, result.stderr).not.toBe(0);
+    // It reached the migration's connection, and the preload stopped it there.
+    expect(result.stderr).toContain("(network disabled by test/no-network.mjs)");
+    expect(result.status, result.stderr).toBe(1);
     expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
   });
 
+  /** PG-F3 through the real CLI: the old drizzle-kit routes are refused before the guard or any connection. */
+  it.each([
+    ["--config", ["--config=elsewhere.ts"], {}, "--config"],
+    ["a dotenv_config_* argument", ["dotenv_config_path=elsewhere.env"], {}, "dotenv_config_*"],
+    ["DOTENV_CONFIG_OVERRIDE", [], { DOTENV_CONFIG_OVERRIDE: "true" }, "DOTENV_CONFIG_OVERRIDE"],
+    ["PGHOST", [], { PGHOST: "ep-fake.neon.tech" }, "PGHOST"],
+  ] as const)("db:migrate refuses %s and prints no target", (_case, args, extra, named) => {
+    const result = spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/migrate.ts", ...args],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env: {
+          ...INHERITED_ENV,
+          DATABASE_URL: "postgres://u:secret@localhost:1/opika_print_target",
+          PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+          ...extra,
+        },
+        timeout: SPAWN_TIMEOUT_MS,
+      },
+    );
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain(named);
+    expect(result.stdout).not.toContain("Target:");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("elsewhere");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("ep-fake");
+  });
+
   const WRITING_CLIS = [
-    // The missing config stops drizzle-kit before it connects, should a regression ever reach it.
-    ["db:migrate", "src/migrate.ts", ["--config=does-not-exist.ts"]],
+    // Refused by the guard before the migration connects; `run`'s network preload stops it if not.
+    ["db:migrate", "src/migrate.ts", []],
     ["db:seed", "src/seed.ts", ["--profile=demo", "--force", "--db-name=neondb"]],
     ["onboard:shelter", "src/onboard-shelter.ts", ["does-not-matter.json"]],
     // Read-only, but it reads every exact address, so it takes --prod too (RG-Q10).
@@ -1317,7 +1394,7 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
   });
 
   it.each([
-    ["db:migrate", "src/migrate.ts", ["--config=does-not-exist.ts"]],
+    ["db:migrate", "src/migrate.ts", []],
     ["admin:sweep-invites", "src/admin.ts", ["sweep-invites"]],
   ] as const)(
     "%s refuses a raw IP even with --prod, printing neither it nor the password",
