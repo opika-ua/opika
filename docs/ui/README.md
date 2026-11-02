@@ -62,6 +62,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [Photo](components/Photo.md) | `Photo.tsx` | The only image component. |
 | [Avatar](components/Avatar.md) | `Avatar.tsx` | A shelter's logo, or its initials. |
 | [Container](components/Container.md) | `Container.tsx` | Max width plus page gutters. |
+| [HeaderFrame](components/HeaderFrame.md) | `HeaderFrame.tsx` | The shared frame of the site and kabinet headers (fluid gutter, 1600 cap). |
 | [Section](components/Section.md) | `Container.tsx` | A vertical block of a page, named by its heading. |
 | [EmptyState](components/EmptyState.md) | `feedback.tsx` | Nothing to show yet. |
 | [ErrorState](components/ErrorState.md) | `feedback.tsx` | Something failed. |

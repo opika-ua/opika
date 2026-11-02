@@ -22,6 +22,7 @@ import {
   TextField,
 } from "../../../ui/form";
 import { CheckboxGroup, ChipGroup, RadioGroup } from "../../../ui/groups";
+import { HeaderFrame } from "../../../ui/HeaderFrame";
 import { Heading } from "../../../ui/Heading";
 import { ICON_NAMES, Icon } from "../../../ui/Icon";
 import { InfoTip } from "../../../ui/InfoTip";
@@ -255,6 +256,13 @@ export default function DevUiPage() {
       </Group>
 
       <Group id="g-containers" title="Containers and media">
+        <Row label="HeaderFrame">
+          <div className="w-full border border-line">
+            <HeaderFrame className="flex min-h-16 items-center">
+              <Text>Header row</Text>
+            </HeaderFrame>
+          </div>
+        </Row>
         <Row label="Card tones">
           <Card tone="surface" className="p-4">
             <Text>Surface card</Text>
