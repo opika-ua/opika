@@ -11,6 +11,9 @@ export const MAX_STRING_LENGTH = 1000;
 // Every string is cut here before any pattern runs, so no pattern ever scans more than 8 KB (a tunnel
 // envelope can carry 64 KB strings); real messages and URLs are far shorter.
 export const MAX_INPUT_LENGTH = 8192;
+// A token that straddles the cut leaves a partial fragment the patterns cannot match, always at the end
+// of the output; dropping more than the longest possible match (an email is under 700) removes it.
+const CUT_TAIL = 1024;
 const TRUNCATED = "...[truncated]";
 const MAX_DEPTH = 8;
 
@@ -44,7 +47,7 @@ const HANDLE_BEFORE = new RegExp(
 // Street addresses: a street word, a name of up to three words, then a house number. The number is
 // required, so "вулиця Шевченка" alone stays; the street word must end in a dot or a space ("вулкан" is safe).
 // Words are length-bounded (no real street word is near 40) so a long glued run cannot make the scan quadratic.
-const NAME_WORD = String.raw`[\p{L}'’.-]{1,40}`;
+const NAME_WORD = String.raw`[\p{L}'’.-]{1,64}`;
 const NAME = String.raw`${NAME_WORD}(?:\s+${NAME_WORD}){0,2}`;
 const NUMBER = String.raw`(?:№\s*)?\d{1,4}\p{L}?(?:[/-]\d{1,4}\p{L}?)?`;
 const STREET_WORD_UK = String.raw`(?:вул(?:иця)?|просп(?:ект)?|пров(?:улок)?|бульв(?:ар)?|пр-т|б-р)(?:\.\s*|\s+)`;
@@ -100,9 +103,9 @@ export function scrubString(value: string): string {
     .replace(ADDRESS_LOCAL_NUMBER_FIRST, FILTERED)
     .replace(ADDRESS_EN_NUMBER_FIRST, FILTERED)
     .replace(ADDRESS_EN_NAME_FIRST, FILTERED);
-  if (cleaned.length > MAX_STRING_LENGTH)
-    return `${cleaned.slice(0, MAX_STRING_LENGTH)}${TRUNCATED}`;
-  return capped ? `${cleaned}${TRUNCATED}` : cleaned;
+  const kept = capped ? cleaned.slice(0, Math.max(0, cleaned.length - CUT_TAIL)) : cleaned;
+  if (kept.length > MAX_STRING_LENGTH) return `${kept.slice(0, MAX_STRING_LENGTH)}${TRUNCATED}`;
+  return capped ? `${kept}${TRUNCATED}` : kept;
 }
 
 /** Strings scrubbed, objects walked, values under a sensitive key replaced. */
@@ -201,7 +204,12 @@ const CONTEXT_MAJOR = /^\d{1,3}$/;
 function coarseContext(value: unknown, families: ReadonlySet<string>): Loose {
   if (!isObject(value) || typeof value.name !== "string") return { name: OTHER };
   const kept: Loose = { name: families.has(value.name) ? value.name : OTHER };
-  if (typeof value.version === "string" && CONTEXT_MAJOR.test(value.version)) {
+  // "other" is not described further, so no version either.
+  if (
+    kept.name !== OTHER &&
+    typeof value.version === "string" &&
+    CONTEXT_MAJOR.test(value.version)
+  ) {
     kept.version = value.version;
   }
   return kept;

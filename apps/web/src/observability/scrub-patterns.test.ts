@@ -222,6 +222,35 @@ describe("free-text scrubber: timing", () => {
     expect(out.endsWith("[truncated]")).toBe(true);
   });
 
+  // A token straddling the cut must leave no fragment. The long query is stripped first, so the
+  // output is short and the fragment would sit at its very end.
+  const straddlers: Record<string, string> = {
+    "phone UA": "+380501234567",
+    "phone UA local": "0501234567",
+    "phone intl": "+48 500 123 456",
+    "phone PL groups": "500 123 456",
+    email: "ivan.petrenko@gmail.com",
+    "address UK": "вул. Шевченка 10",
+    "address EN": "221B Baker Street",
+    "telegram handle": "Telegram: @ivan_petrenko",
+    "t.me link": "t.me/ivan_petrenko",
+  };
+  it.each(Object.entries(straddlers))(
+    "leaves no fragment of a %s that crosses the cut",
+    (_k, token) => {
+      const head = "https://x.io/p?";
+      for (let before = 0; before <= token.length + 2; before += 1) {
+        const filler = "a".repeat(MAX_INPUT_LENGTH - before - head.length - 1);
+        const out = scrubString(`see ${head}${filler} ${token}`);
+        const body = token.replace(/^Telegram: /, "");
+        for (let i = 0; i + 4 <= body.length; i += 1) {
+          const piece = body.slice(i, i + 4);
+          expect(out, `${JSON.stringify(piece)} survived at offset ${before}`).not.toContain(piece);
+        }
+      }
+    },
+  );
+
   it("still redacts a contact inside the cap, however long the string", () => {
     const out = scrubString(`call +380 50 123 45 67 now${" ".repeat(MAX_INPUT_LENGTH * 2)}`);
     expect(out).not.toContain("123 45 67");
@@ -253,8 +282,8 @@ describe("contexts: closed family lists, server-side", () => {
       const tunnelled = (await throughTunnel(event)) as Ctx;
       for (const out of [direct, tunnelled]) {
         expect(out.contexts).toEqual({
-          browser: { name: "other", version: "130" },
-          os: { name: "other", version: "14" },
+          browser: { name: "other" },
+          os: { name: "other" },
         });
       }
     },
@@ -429,7 +458,7 @@ describe("userAgentData with a malformed brands list", () => {
     expect(
       scrubEvent({ contexts: { browser: { name: "Yandex", version: "24" } } }).contexts,
     ).toEqual({
-      browser: { name: "other", version: "24" },
+      browser: { name: "other" },
     });
   });
 
