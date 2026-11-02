@@ -43,12 +43,14 @@ const BODY = JSON.stringify({
   phone: "+380 50 123 45 67",
   shelterSnapshot: { contacts: "0501234567" },
 });
+const PIXEL_UA =
+  "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36";
 const HEADERS = {
   cookie: "opika_session=abc123",
   authorization: "Bearer tok-SECRET-token",
   "x-forwarded-for": "203.0.113.7",
   "content-type": "application/json",
-  "user-agent": "Mozilla/5.0 (Linux; Android 14) Chrome/130",
+  "user-agent": PIXEL_UA,
 };
 
 let server: Server | undefined;
@@ -264,4 +266,84 @@ describe("the full config (SDK collection and scrubber)", () => {
       expect(names).not.toContain(forbidden);
     }
   });
+});
+
+/** A GET with the given User-Agent into a server that reports an error; GET keeps the SDK's request scope intact. */
+async function getThatErrors(userAgent: string): Promise<void> {
+  server = createServer((_req, res) => {
+    Sentry.captureException(caught());
+    res.end("ok");
+  });
+  await new Promise<void>((ready) => server?.listen(0, "127.0.0.1", ready));
+  const { port } = server.address() as AddressInfo;
+  await fetch(`http://127.0.0.1:${port}/x?gate=GATEVALUE`, {
+    headers: { "user-agent": userAgent },
+  });
+  await Sentry.flush(2000);
+}
+
+/** Next's `onRequestError` path: the request's headers are handed over directly, no request scope. */
+async function onRequestErrorOnly(userAgent: string): Promise<void> {
+  Sentry.captureRequestError(
+    caught(),
+    {
+      path: "/x",
+      method: "GET",
+      headers: { "user-agent": userAgent, cookie: "opika_session=abc123" },
+    },
+    { routerKind: "App Router", routePath: "/x", routeType: "route" },
+  );
+  await Sentry.flush(2000);
+}
+
+describe("browser and system context from the request's User-Agent", () => {
+  const contextsOf = (sent: ReturnType<typeof recordingTransport>) =>
+    eventsOf(sent).map((event) => event.contexts as Record<string, unknown>);
+
+  it.each([
+    ["a request that errors", getThatErrors],
+    ["onRequestError", onRequestErrorOnly],
+  ])("carries family and major version only, from %s", async (_label, run) => {
+    const sent = recordingTransport();
+    initServerSentry(DSN, { transport: sent.transport });
+    await run(PIXEL_UA);
+    const contexts = contextsOf(sent);
+    expect(contexts.length).toBeGreaterThan(0);
+    for (const c of contexts) {
+      expect(c.browser).toEqual({ name: "Chrome", version: "130" });
+      expect(c.os).toEqual({ name: "Android", version: "14" });
+      expect(Object.keys(c).sort()).toEqual(["browser", "os"]);
+    }
+  });
+
+  it("never sends the raw user-agent string, a minor version or the device model", async () => {
+    const sent = recordingTransport();
+    initServerSentry(DSN, { transport: sent.transport });
+    await getThatErrors(PIXEL_UA);
+    await onRequestErrorOnly(PIXEL_UA);
+    await realRequestThatErrors();
+    await hostileScope();
+    const text = sent.json();
+    for (const part of [PIXEL_UA, "Mozilla", "AppleWebKit", "Pixel", "130.0", "6723"]) {
+      expect(text, `leaked: ${part}`).not.toContain(part);
+    }
+  });
+
+  it.each([
+    ["a request that errors", getThatErrors],
+    ["onRequestError", onRequestErrorOnly],
+  ])(
+    "says unknown, not the raw string, for a User-Agent it does not recognise (%s)",
+    async (_label, run) => {
+      const sent = recordingTransport();
+      initServerSentry(DSN, { transport: sent.transport });
+      await run("SECRETAGENT/9.9.9 xyz");
+      expect(contextsOf(sent).length).toBeGreaterThan(0);
+      for (const c of contextsOf(sent)) {
+        expect(c.browser).toEqual({ name: "unknown" });
+        expect(c.os).toEqual({ name: "unknown" });
+      }
+      expect(sent.json()).not.toContain("SECRETAGENT");
+    },
+  );
 });

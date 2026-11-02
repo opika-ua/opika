@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { coarseUserAgentIntegration } from "./coarse-context";
 import { baseSentryOptions, type SentryTestKnobs } from "./options";
 
 /**
@@ -26,6 +27,7 @@ export function initServerSentry(
       ...defaults.filter((i) => !DROPPED_INTEGRATIONS.has(i.name) && i.name !== "Http"),
       // Request sessions would send release-health envelopes; only error events leave.
       Sentry.httpIntegration({ sessions: false }),
+      coarseUserAgentIntegration(),
     ],
     ...(test.transport === undefined ? {} : { transport: test.transport }),
   });

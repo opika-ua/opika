@@ -99,12 +99,85 @@ describe("the browser SDK as configured", () => {
         .integrations.map((i) => i.name) ?? [];
     expect(names).toBeGreaterThan(0);
     expect(installed.sort()).toEqual(
-      ["Dedupe", "GlobalHandlers", "HttpContext", "LinkedErrors"].sort(),
+      ["CoarseUserAgent", "Dedupe", "GlobalHandlers", "HttpContext", "LinkedErrors"].sort(),
     );
   });
 
   it("posts to its own tunnel, not to Sentry", () => {
     initClientSentry(DSN, { transport: recordingTransport().transport });
     expect(Sentry.getClient()?.getOptions().tunnel).toBe("/api/monitoring");
+  });
+});
+
+const IPHONE_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1.1 Mobile/15E148 Safari/604.1";
+const ODD_UA = "SECRETAGENT/1.2.3 (device model X)";
+
+function setNavigator(key: "userAgent" | "userAgentData", value: unknown): void {
+  Object.defineProperty(navigator, key, { value, configurable: true });
+}
+
+async function oneError(): Promise<ReturnType<typeof recordingTransport>> {
+  const sent = recordingTransport();
+  initClientSentry(DSN, { transport: sent.transport });
+  Sentry.captureException(new Error("boom"));
+  await Sentry.flush(2000);
+  return sent;
+}
+
+const contextsOf = (sent: ReturnType<typeof recordingTransport>) =>
+  sent.envelopes.flatMap(([, items]) =>
+    items.map(([, payload]) => (payload as { contexts?: Record<string, unknown> }).contexts),
+  );
+
+describe("browser and system context in a browser error", () => {
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, "userAgent");
+    Reflect.deleteProperty(navigator, "userAgentData");
+  });
+
+  it("from the UA string: family and major version only, no raw string, minor version or model", async () => {
+    setNavigator("userAgent", IPHONE_UA);
+    const sent = await oneError();
+    expect(contextsOf(sent).length).toBeGreaterThan(0);
+    for (const c of contextsOf(sent)) {
+      expect(c).toEqual({
+        browser: { name: "Safari", version: "18" },
+        os: { name: "iOS", version: "18" },
+      });
+    }
+    for (const part of [IPHONE_UA, "Mozilla", "AppleWebKit", "18.1", "15E148", "iPhone"]) {
+      expect(sent.json(), `leaked: ${part}`).not.toContain(part);
+    }
+  });
+
+  it("from userAgentData: the real brand, not the placeholder one, with the major version", async () => {
+    setNavigator("userAgent", ODD_UA);
+    setNavigator("userAgentData", {
+      brands: [
+        { brand: "Not)A;Brand", version: "99.0.0.0" },
+        { brand: "Chromium", version: "131.0.6778.86" },
+        { brand: "Google Chrome", version: "131.0.6778.86" },
+      ],
+      platform: "Windows",
+      mobile: false,
+    });
+    const sent = await oneError();
+    expect(contextsOf(sent).length).toBeGreaterThan(0);
+    for (const c of contextsOf(sent)) {
+      expect(c).toEqual({ browser: { name: "Chrome", version: "131" }, os: { name: "Windows" } });
+    }
+    expect(sent.json()).not.toContain("SECRETAGENT");
+    expect(sent.json()).not.toContain("6778");
+  });
+
+  it("says unknown for a UA nothing recognises, never the raw string", async () => {
+    setNavigator("userAgent", ODD_UA);
+    const sent = await oneError();
+    expect(contextsOf(sent).length).toBeGreaterThan(0);
+    for (const c of contextsOf(sent)) {
+      expect(c).toEqual({ browser: { name: "unknown" }, os: { name: "unknown" } });
+    }
+    expect(sent.json()).not.toContain("SECRETAGENT");
   });
 });

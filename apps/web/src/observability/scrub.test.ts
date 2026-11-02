@@ -131,6 +131,8 @@ const contactEvent = () => ({
   contexts: {
     nextjs: { request_path: "/api/x?gate=SECRET", router_path: "/api/x" },
     trace: { data: { "http.query": "?gate=SECRET" } },
+    browser: { name: "Safari", version: "18" },
+    os: { name: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X)", version: "18.1.2" },
   },
   tags: { email: "olena@example.ua", route: "/api/x", cookie: "opika_session=abc" },
   transaction: "GET /tvaryny?gate=SECRET",
@@ -214,9 +216,15 @@ describe("scrubEvent", () => {
     expect(scrubbed.extra.body).toBe(FILTERED);
     expect(scrubbed.extra.contacts).toBe(FILTERED);
     expect(scrubbed.extra.shelterSnapshot).toBe(FILTERED);
-    expect(scrubbed.contexts.nextjs.request_path).toBe("/api/x");
+    expect(Object.keys(scrubbed.contexts).sort()).toEqual(["browser", "os"]);
     expect(scrubbed.tags).toEqual({ email: FILTERED, route: "/api/x", cookie: FILTERED });
     expect(scrubbed.transaction).toBe("GET /tvaryny");
+  });
+
+  it("keeps browser and os as family and major version only; a raw string becomes unknown", () => {
+    expect(scrubbed.contexts.browser).toEqual({ name: "Safari", version: "18" });
+    expect(scrubbed.contexts.os).toEqual({ name: "unknown" });
+    expect(text).not.toContain("Mozilla");
   });
 
   it("runs over any event type, spans of a transaction included", () => {
