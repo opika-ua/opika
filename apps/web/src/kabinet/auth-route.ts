@@ -1,3 +1,4 @@
+import { boundedBody } from "../api/bounded-body";
 import { clientIp } from "../api/client-ip";
 import { FORWARDED_AUTH_PATHS, type KabinetAuth } from "./auth";
 import { consoleInvitationSender, type InvitationSender } from "./email-senders";
@@ -90,6 +91,12 @@ export function kabinetAuthAvailability(
   };
 }
 
+/**
+ * No caller here is signed in when the body is read, and since #360 the route is outside the proxy, so
+ * this is the only bound. The largest real body (a password change) is under 2 KB (`auth-route-body-cap.test.ts`).
+ */
+export const AUTH_MAX_BODY_BYTES = 16 * 1024;
+
 const SIGN_IN_PATH = "/api/auth/sign-in/magic-link";
 
 /**
@@ -162,6 +169,7 @@ function withBody(response: Response, body: unknown): Response {
  *
  * 1. Unavailable → 503.
  * 2. Not an allowlisted path → 404, before Better Auth sees it.
+ *    A body over `AUTH_MAX_BODY_BYTES` → 413, read no further, before any parse.
  * 3. A magic-link request: charge both sign-in budgets; over either, answer
  *    exactly as a success does and send nothing. Otherwise forward it with
  *    the email normalised, so the stored address and the limiter key agree.
@@ -171,7 +179,7 @@ function withBody(response: Response, body: unknown): Response {
  *    (`sessionAnswerOf`).
  */
 export async function handleKabinetAuth(
-  request: Request,
+  incoming: Request,
   deps: {
     availability: KabinetAuthAvailability;
     auth: () => KabinetAuth;
@@ -182,9 +190,16 @@ export async function handleKabinetAuth(
   if (deps.availability.kind === "unavailable") {
     return new Response("Kabinet sign-in is not available", { status: 503 });
   }
-  const path = new URL(request.url).pathname;
+  const path = new URL(incoming.url).pathname;
   if (!(FORWARDED_AUTH_PATHS as readonly string[]).includes(path)) {
     return new Response("Not Found", { status: 404 });
+  }
+
+  let request = incoming;
+  if (incoming.method !== "GET" && incoming.method !== "HEAD") {
+    const bounded = await boundedBody(incoming, AUTH_MAX_BODY_BYTES);
+    if (bounded === "too_large") return new Response("Payload Too Large", { status: 413 });
+    request = bounded;
   }
 
   if (request.method === "POST" && path === SIGN_IN_PATH) {

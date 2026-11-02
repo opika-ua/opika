@@ -337,6 +337,8 @@ The counter-case is honest: at 300k MAU, Cloudflare Workers is 10× cheaper than
 
 Concretely, keep the exit open by: **not using Node middleware in `proxy.ts`**, **not depending on Vercel-specific APIs** (`@vercel/*` packages, `waitUntil` outside a shim), and **keeping images off Vercel** (already decided). Then the migration is a build-config change, not a rewrite. Validate it once early - deploy a branch to Workers in week 3 and confirm it builds - so the ramp is tested rather than theoretical.
 
+**Request-body caps on the exit ramp.** On Vercel the platform buffers a request body at its edge before the function runs and limits it to 4.5 MB (production probes, 2026-11-02, `docs/launch-gate.md`), so the in-app caps are not what bounds bodies there: 16 KB for unauthenticated `/api/kabinet` and `/api/auth` calls, 128 KB `proxyClientMaxBodySize` for proxy-matched paths. On OpenNext/Cloudflare Workers they become the only bound. Re-run the launch-gate body-cap probes (unterminated chunked bodies to `/api/kabinet`, `/api/auth`, `/api/rpc`) as part of the exit-ramp validation.
+
 ### Non-negotiables on day one
 
 1. **Configure Vercel Spend Management** with a hard cap and a webhook. This is the difference between a bad week and a dead project.
