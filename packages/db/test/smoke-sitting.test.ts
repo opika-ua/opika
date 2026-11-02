@@ -1,3 +1,7 @@
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   type ProductionImportSittingInput,
@@ -81,24 +85,23 @@ describe("renderSmokeSitting", () => {
   });
 });
 
-describe("renderSmokeSitting, typed child endpoint guard", () => {
-  const variants: Record<string, string> = {
-    plain: renderSmokeSitting(BASE),
-    migration: renderSmokeSitting({ ...BASE, migration: { tag: "0019_x" } }),
-    import: renderSmokeSitting({
-      ...BASE,
-      settlementImport: {
-        download: { url: "https://example.org/k.xlsx", sha256: "abc123" },
-        expectedFirstPlan: "F",
-        expectedAfterCommit: "C",
-        expectedRerun: "R",
-        expectedAfterReseed: "S",
-        timings: { expected: "T" },
-      },
-    }),
-  };
+const IMPORT_INPUT: SmokeSittingInput["settlementImport"] = {
+  download: { url: "https://example.org/k.xlsx", sha256: "abc123" },
+  expectedFirstPlan: "F",
+  expectedAfterCommit: "C",
+  expectedRerun: "R",
+  expectedAfterReseed: "S",
+  timings: { expected: "T" },
+};
 
-  for (const [name, text] of Object.entries(variants)) {
+const GUARD_VARIANTS: Record<string, string> = {
+  plain: renderSmokeSitting(BASE),
+  migration: renderSmokeSitting({ ...BASE, migration: { tag: "0019_x" } }),
+  import: renderSmokeSitting({ ...BASE, settlementImport: IMPORT_INPUT }),
+};
+
+describe("renderSmokeSitting, typed child endpoint guard", () => {
+  for (const [name, text] of Object.entries(GUARD_VARIANTS)) {
     describe(name, () => {
       const at = (needle: string) => text.indexOf(needle);
 
@@ -111,46 +114,160 @@ describe("renderSmokeSitting, typed child endpoint guard", () => {
         expect(text).toContain("[Console]::OutputEncoding = [Text.Encoding]::UTF8");
       });
 
-      it("never derives the --expect value from the pasted URL", () => {
+      it("never derives --expect from the pasted URL: every child command takes $child", () => {
         expect(text).not.toContain("$ep = ([uri]");
-        expect(text).not.toMatch(/--expect \$ep\b/);
-        expect(text).toContain("$urlEp = ([uri]$env:DATABASE_URL).Host.Split('.')[0]\n");
-        expect(text).toContain("--expect $child");
+        expect(text).not.toContain("([uri]$env:DATABASE_URL)");
+        const expects = text.match(/--expect (?:\$\w+|\(Read-Host)/g) ?? [];
+        expect(expects.length).toBeGreaterThan(0);
+        for (const e of expects) {
+          // The production migration keeps its own typed prompt.
+          expect(["--expect $child", "--expect (Read-Host"], e).toContain(e);
+        }
       });
 
-      it("halts on every bad case and prints the stop line", () => {
-        for (const reason of [
-          "$child -notmatch '^ep-[a-z0-9-]+$'",
-          "$prod -notmatch '^ep-[a-z0-9-]+$'",
-          "$child -match '-pooler$'",
-          "($child -replace '-pooler$','') -eq ($prod -replace '-pooler$','')",
-          "$urlEp -ne $child",
-          "($urlEp -replace '-pooler$','') -eq ($prod -replace '-pooler$','')",
+      it("adds a problem for each bad case, and stops on an unparseable or empty URL", () => {
+        for (const line of [
+          `if ($child -notmatch '^ep-[a-z0-9-]+$') { $problems += "child id is not an ep-... id" }`,
+          `if ($prod -notmatch '^ep-[a-z0-9-]+$') { $problems += "production id is not an ep-... id" }`,
+          `if ($child -match '-pooler$') { $problems += "child id is the pooled one: use the direct id and URL" }`,
+          `if ($child -eq ($prod -replace '-pooler$','')) { $problems += "child id equals the production id" }`,
+          `if ($urlEp -ne $child) { $problems += "the pasted URL's endpoint is not the child id you typed" }`,
+          `{ $problems += "the pasted URL is PRODUCTION" }`,
+          `else { $problems += "the pasted URL could not be parsed" }`,
         ]) {
-          expect(text, reason).toContain(reason);
+          expect(text, line).toContain(line);
         }
+        expect(text).toContain("$urlEp = ''");
         expect(text).toContain('Write-Host ("STOP, nothing was run: "');
       });
 
-      it("runs the commands only inside the guard, and removes the URL in every case", () => {
+      it("runs the commands only inside the guard, and removes the URL in a finally", () => {
         const guard = at("if ($problems.Count -eq 0) {");
         const elseAt = at("} else {");
+        const finallyAt = at("} finally {");
         expect(guard).toBeGreaterThan(at("$problems = @()"));
-        for (const cmd of [
-          "db:neon-smoke --expect $child",
-          "db:import-settlements",
-          "db:migrate --expect",
-        ]) {
-          const i = at(cmd);
-          if (i === -1) continue;
-          expect(i, cmd).toBeGreaterThan(guard);
-          expect(i, cmd).toBeLessThan(elseAt);
+        const commands = ["db:neon-smoke --expect $child"];
+        if (name === "migration") commands.push("db:migrate --expect $child", "db:check-hashes");
+        if (name === "import") commands.push("db:import-settlements", "db:neon-smoke-timings");
+        for (const cmd of commands) {
+          expect(at(cmd), cmd).toBeGreaterThan(guard);
+          expect(at(cmd), cmd).toBeLessThan(elseAt);
         }
-        expect(at("Remove-Item Env:DATABASE_URL")).toBeGreaterThan(elseAt);
+        expect(finallyAt).toBeGreaterThan(elseAt);
+        expect(at("Remove-Item Env:DATABASE_URL")).toBeGreaterThan(finallyAt);
       });
     });
   }
 });
+
+// Runs the rendered block under Windows PowerShell with Read-Host and pnpm stubbed. Skipped, not
+// failed, where there is no powershell.exe (the Linux CI).
+const POWERSHELL = (() => {
+  if (process.platform !== "win32") return null;
+  const probe = spawnSync("powershell.exe", ["-NoProfile", "-Command", "1"], { encoding: "utf8" });
+  return probe.status === 0 ? "powershell.exe" : null;
+})();
+
+const PW = "SECRETPW9x";
+const CHILD = "ep-child-123456";
+const PROD = "ep-prod-654321";
+const urlFor = (ep: string) =>
+  `postgres://u:${PW}@${ep}.eu-central-1.aws.neon.tech/db?sslmode=require`;
+
+function runBlock(text: string, ids: [string, string], url: string) {
+  const start = text.indexOf("function Read-Secret");
+  const fnEnd = text.indexOf("\n", start);
+  const blockStart = text.indexOf("[Console]::OutputEncoding", fnEnd);
+  const finallyAt = text.indexOf("} finally {", blockStart);
+  const end = text.indexOf("\n}\n", finallyAt) + 3;
+  const script = [
+    // Load the utility module first: it would otherwise autoload later and shadow the Get-FileHash stub.
+    "Import-Module Microsoft.PowerShell.Utility",
+    "function Read-Host($p, [switch]$AsSecureString) {",
+    "  if ($AsSecureString) { return ConvertTo-SecureString $env:T_URL -AsPlainText -Force }",
+    "  $v = $global:ids[0]; $global:ids = @($global:ids | Select-Object -Skip 1); return $v",
+    "}",
+    "function pnpm { 'PNPM-RAN ' + ($args -join ' ') }",
+    "function Invoke-WebRequest { }",
+    "function Get-FileHash { [pscustomobject]@{ Hash = 'ABC123' } }",
+    "$global:ids = @($env:T_CHILD, $env:T_PROD)",
+    text.slice(start, fnEnd),
+    "try {",
+    text.slice(blockStart, end),
+    "} catch { 'CAUGHT' }",
+    "'URLSET=' + [bool]$env:DATABASE_URL",
+  ].join("\n");
+  const dir = mkdtempSync(join(tmpdir(), "sitting-"));
+  const file = join(dir, "block.ps1");
+  writeFileSync(file, `﻿${script}`, "utf8");
+  try {
+    const r = spawnSync(
+      POWERSHELL as string,
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", file],
+      { encoding: "utf8", env: { ...process.env, T_URL: url, T_CHILD: ids[0], T_PROD: ids[1] } },
+    );
+    return {
+      out: `${r.stdout}\n${r.stderr}`,
+      ran: (r.stdout.match(/PNPM-RAN .*/g) ?? []) as string[],
+    };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+describe.skipIf(POWERSHELL === null)(
+  "the rendered block, executed under PowerShell with stubs",
+  { timeout: 90_000 },
+  () => {
+    for (const [name, text] of Object.entries(GUARD_VARIANTS)) {
+      describe(name, () => {
+        it("runs every command with --expect <typed child> when the URL is the child, then clears the URL", () => {
+          const { out, ran } = runBlock(text, [CHILD, PROD], urlFor(CHILD));
+          expect(out).not.toContain("STOP, nothing was run");
+          expect(ran.length).toBeGreaterThan(0);
+          expect(ran.some((l) => l.includes("db:neon-smoke "))).toBe(true);
+          for (const l of ran.filter((x) => x.includes("--expect"))) {
+            expect(l).toContain(`--expect ${CHILD}`);
+          }
+          expect(out).toContain("URLSET=False");
+          expect(out).not.toContain(PW);
+        });
+
+        const bad: Array<[string, [string, string], string, string]> = [
+          [
+            "a URL for another endpoint",
+            [CHILD, PROD],
+            urlFor("ep-other-111111"),
+            "not the child id",
+          ],
+          ["a pooled URL", [CHILD, PROD], urlFor(`${CHILD}-pooler`), "not the child id"],
+          ["the production URL", [CHILD, PROD], urlFor(PROD), "PRODUCTION"],
+          ["child id equal to production", [PROD, PROD], urlFor(PROD), "equals the production id"],
+          ["a pooled child id", [`${CHILD}-pooler`, PROD], urlFor(`${CHILD}-pooler`), "pooled"],
+          ["a malformed child id", ["child", PROD], urlFor(CHILD), "not an ep-"],
+          [
+            "a bad port",
+            [CHILD, PROD],
+            `postgres://u:${PW}@${CHILD}.neon.tech:54x32/db`,
+            "could not be parsed",
+          ],
+          ["a one-letter user and no host", [CHILD, PROD], `a:${PW}@${CHILD}.neon.tech/db`, "STOP"],
+          ["text that is not a URL", [CHILD, PROD], "not a url", "could not be parsed"],
+        ];
+        for (const [label, ids, url, reason] of bad) {
+          it(`runs nothing and prints no secret for ${label}`, () => {
+            const { out, ran } = runBlock(text, ids, url);
+            expect(out).toContain("STOP, nothing was run");
+            expect(out).toContain(reason);
+            expect(ran).toEqual([]);
+            expect(out).not.toContain(PW);
+            expect(out).toContain("URLSET=False");
+          });
+        }
+      });
+    }
+  },
+);
 
 describe("renderSmokeSitting, for a PR with a migration", () => {
   const TAG = "0019_sessions_adopter_id_index";
