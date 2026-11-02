@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { placeQueryOf } from "@opika/domain";
 import { createDatabase, type Database } from "../client";
-import { parseMigrateArgs } from "../migrate-args";
+import { parseTargetArgs } from "../migrate-args";
 import { databaseTargetLine } from "../prod-guard";
 import { citySearchRepo } from "../repos/city-search-repo";
 import { decideImportTarget, type ImportScope } from "./import-target";
@@ -24,9 +24,9 @@ export type ImportArgs =
   | { kind: "refused"; reason: string };
 
 export function parseImportArgs(argv: readonly string[]): ImportArgs {
-  const base = parseMigrateArgs(argv);
+  const base = parseTargetArgs(argv);
   if (base.kind === "refused") return base;
-  const rest = base.drizzleArgs.slice(1); // drop the "migrate" word the shared parser prepends
+  const rest = base.rest;
   let file: string | undefined;
   let commit = false;
   for (let i = 0; i < rest.length; i++) {
