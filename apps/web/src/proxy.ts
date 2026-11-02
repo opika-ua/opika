@@ -268,5 +268,7 @@ function isDiscoveryPagePath(pathname: string): boolean {
  * moment they follow either redirect.
  */
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // `/api/kabinet` and `/api/auth` are gate-exempt and take no other proxy effect, and a matched
+  // route has its whole chunked body buffered (up to 10 MB) before the route's 16 KB cap can act.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/kabinet(?:/|$)|api/auth(?:/|$)).*)"],
 };
