@@ -8,7 +8,7 @@ const TONE = {
   outline: "border-2 border-line bg-transparent",
 } as const;
 
-const PADDING = { md: "p-4", lg: "p-5 desktop:p-6" } as const;
+const PADDING = { none: "", md: "p-4", lg: "p-5 desktop:p-6" } as const;
 
 export type PanelProps = {
   as?: "div" | "section" | "aside";

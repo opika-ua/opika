@@ -12,24 +12,14 @@ import { ANIMAL_LIST_PATH, SHELTER_PROFILE_PATH } from "./routes";
 export function KabinetNav({
   current,
   animalList,
-  animalCount,
 }: {
   /** `null` on a page under the account menu («Акаунт і пароль»), which is in neither. */
   current: "animals" | "profile" | null;
   animalList: boolean;
-  /** The inventory count shown after «Тварини» in the sidebar, where the page already has it. */
-  animalCount?: number;
 }) {
   const items = [
     ...(animalList
-      ? [
-          {
-            key: "animals",
-            href: ANIMAL_LIST_PATH,
-            label: uk.kabinet.nav.animals,
-            ...(animalCount === undefined ? {} : { count: animalCount }),
-          },
-        ]
+      ? [{ key: "animals", href: ANIMAL_LIST_PATH, label: uk.kabinet.nav.animals }]
       : []),
     { key: "profile", href: SHELTER_PROFILE_PATH, label: uk.kabinet.profile.title },
   ];

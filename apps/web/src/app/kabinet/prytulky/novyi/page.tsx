@@ -24,7 +24,7 @@ export const metadata: Metadata = {
  * check, the per-user limit and the 503 again: this page grants nothing.
  */
 export default async function NewShelterPage() {
-  const { principal, deps, operator } = await operatorRequest();
+  const { principal, deps } = await operatorRequest();
   const page = await operatorCreatePageOf(principal, deps);
   switch (page.kind) {
     case "sign_in":
@@ -35,7 +35,7 @@ export default async function NewShelterPage() {
       break;
     case "create":
       return (
-        <OperatorShell operator={operator} current="new_shelter">
+        <OperatorShell current="new_shelter">
           <CreateShelterForm />
         </OperatorShell>
       );

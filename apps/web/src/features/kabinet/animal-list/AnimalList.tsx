@@ -591,6 +591,7 @@ export function AnimalList({
 
       {total === 0 && !stale ? (
         <EmptyState
+          inset="none"
           title={t.empty.title}
           {...(shown ? { body: t.empty.body } : {})}
           action={

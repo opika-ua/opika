@@ -2624,7 +2624,6 @@ describe("kabinet UX round 2 copy (the owner's text)", () => {
     [uk.kabinet.shell.toSite, "На сайт"],
     [uk.kabinet.shell.accountAndPassword, "Акаунт і пароль"],
     [uk.kabinet.shell.operator, "Оператор"],
-    [uk.kabinet.profile.shelterTitle, "Притулок «{name}»"],
     [uk.kabinet.shell.newTab, "(відкриється в новій вкладці)"],
     [uk.kabinet.shell.label, "Кабінет"],
   ])("%s", (actual, expected) => {

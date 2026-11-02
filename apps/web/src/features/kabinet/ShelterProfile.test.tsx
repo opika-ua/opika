@@ -517,7 +517,7 @@ describe("Притулок: the public page link and the sub-tabs", () => {
         editing={open}
       />,
     );
-    expect(screen.getByRole("heading", { level: 1, name: "Притулок «Домівка»" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "Домівка" })).toBeTruthy();
     expect(screen.getAllByText("Перевірено").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /^Сторінка притулку на сайті/ })).toHaveLength(1);
     expect(screen.queryByRole("link", { name: /Переглянути сайт/ })).toBeNull();

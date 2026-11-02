@@ -1,11 +1,23 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { KabinetHeader } from "./KabinetHeader";
 import { KabinetNav } from "./KabinetNav";
 
 const admin = { kind: "shelter", shelterName: "Домівка", viewer: "admin" } as const;
 const support = { kind: "shelter", shelterName: "Домівка", viewer: "support" } as const;
+
+const stubSession = (user: { name?: string; email?: string } | null) =>
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () => new Response(JSON.stringify(user === null ? null : { user }), { status: 200 }),
+    ),
+  );
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 /** The menu panel (the Popover's group), not the phone sheet that carries the same content. */
 const openMenu = async () => {
@@ -32,15 +44,32 @@ describe("KabinetHeader", () => {
     expect(screen.queryByText("Переглянути сайт")).toBeNull();
   });
 
-  it("the account button is labelled with the shelter's name; the menu has the name, the role, «Акаунт і пароль» and «Вийти»", async () => {
+  it("the button carries the shelter's name; the menu's first line is the person, the second the role, and the shelter's name is not repeated", async () => {
+    stubSession({ name: "Олена Тестова", email: "olena@example.test" });
     render(<KabinetHeader account={admin} />);
     const { panel } = await openMenu();
-    expect(panel.querySelector("p")?.textContent).toContain("Домівка");
+    expect(await within(panel).findByText("Олена Тестова")).toBeTruthy();
     expect(within(panel).getByText("адміністратор притулку")).toBeTruthy();
+    expect(panel.querySelector("p")?.textContent).not.toContain("Домівка");
     expect(within(panel).getByRole("link", { name: "Акаунт і пароль" }).getAttribute("href")).toBe(
       "/kabinet/akaunt",
     );
     expect(within(panel).getByRole("button", { name: "Вийти" })).toBeTruthy();
+  });
+
+  it("with no name on the account, the first line is the address", async () => {
+    stubSession({ email: "olena@example.test" });
+    render(<KabinetHeader account={admin} />);
+    const { panel } = await openMenu();
+    expect(await within(panel).findByText("olena@example.test")).toBeTruthy();
+  });
+
+  it("the phone sheet has no visible title and does not repeat the shelter's name", async () => {
+    stubSession({ name: "Олена Тестова" });
+    render(<KabinetHeader account={admin} />);
+    const sheet = document.querySelector("dialog#kabinet-account") as HTMLElement;
+    expect(await within(sheet).findByText("Олена Тестова")).toBeTruthy();
+    expect(within(sheet).queryByText("Домівка")).toBeNull();
   });
 
   it("Escape closes the menu and puts focus back on the account button", async () => {
@@ -73,14 +102,12 @@ describe("KabinetHeader", () => {
     expect(within(panel).queryByRole("link", { name: "Акаунт і пароль" })).toBeNull();
   });
 
-  it("the operator's button reads «Оператор»; its menu names who is signed in, with no account link", async () => {
-    render(
-      <KabinetHeader
-        account={{ kind: "operator", name: "Олексій", role: "адміністратор сайту" }}
-      />,
-    );
+  it("the operator's button reads «Оператор»; the menu has the person and the role word, no account link", async () => {
+    stubSession({ name: "Олексій" });
+    render(<KabinetHeader account={{ kind: "operator", role: "адміністратор сайту" }} />);
     await userEvent.click(screen.getByRole("button", { name: "Оператор" }));
-    const panel = screen.getByRole("group", { name: "Олексій" });
+    const panel = screen.getByRole("group", { name: "Оператор" });
+    expect(await within(panel).findByText("Олексій")).toBeTruthy();
     expect(within(panel).getByText("адміністратор сайту")).toBeTruthy();
     expect(within(panel).getByRole("button", { name: "Вийти" })).toBeTruthy();
     expect(within(panel).queryByRole("link", { name: "Акаунт і пароль" })).toBeNull();
@@ -98,25 +125,16 @@ describe("KabinetNav", () => {
     expect(screen.getByRole("link", { name: "Тварини" }).getAttribute("aria-current")).toBe("page");
   });
 
-  it("the animal count follows «Тварини» in the sidebar", () => {
-    render(<KabinetNav current="profile" animalList animalCount={12} />);
-    expect(screen.getByRole("link", { name: "Тварини 12" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Притулок" }).getAttribute("aria-current")).toBe(
-      "page",
-    );
-  });
-
   it("a page under the account menu marks neither item", () => {
     render(<KabinetNav current={null} animalList />);
     expect(document.querySelector('[aria-current="page"]')).toBeNull();
   });
 
   it("the phone bar is text only: every tab is 48px tall (min-h-target) and the bar clears the home indicator", () => {
-    render(<KabinetNav current="animals" animalList animalCount={3} />);
+    render(<KabinetNav current="animals" animalList />);
     for (const link of screen.getAllByRole("link"))
       expect(link.className).toContain("min-h-target");
     const bar = screen.getByRole("navigation");
     expect(bar.className).toContain("pb-inset");
-    expect(screen.getByText("3").className).toContain("max-desktop:hidden");
   });
 });

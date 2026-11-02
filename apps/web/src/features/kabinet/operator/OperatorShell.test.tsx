@@ -1,7 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OperatorName } from "../../../kabinet/operator";
 import { OperatorShell } from "./OperatorShell";
 
 /**
@@ -14,57 +13,53 @@ import { OperatorShell } from "./OperatorShell";
  * catalogue.
  */
 
-const OLEKSII: OperatorName = { kind: "configured", name: "Олексій Колотенко" };
-const UNSET: OperatorName = { kind: "fallback" };
+/** The session endpoint answers with the person; every other path with `other`. */
+const stubFetch = (other: () => Response = () => new Response(null, { status: 200 })) => {
+  const mock = vi.fn(async (url: string) =>
+    url === "/api/auth/get-session"
+      ? new Response(JSON.stringify({ user: { name: "Олексій Колотенко" } }), { status: 200 })
+      : other(),
+  );
+  vi.stubGlobal("fetch", mock);
+  return mock;
+};
 
 const renderShell = (
-  operator: OperatorName,
   current: "shelters" | "new_shelter" | null = "shelters",
 ): ReturnType<typeof render> =>
   render(
-    <OperatorShell operator={operator} current={current}>
+    <OperatorShell current={current}>
       <p>Вміст сторінки</p>
     </OperatorShell>,
   );
 
 const header = () => screen.getByRole("banner");
 /** Opens the account menu (the operator's button reads «Оператор») and returns its panel. */
-const openMenu = async (name: string) => {
+const openMenu = async () => {
   await userEvent.click(within(header()).getByRole("button", { name: "Оператор" }));
-  return screen.getByRole("group", { name });
+  return screen.getByRole("group", { name: "Оператор" });
 };
-/** Every «адміністратор сайту» in the menu, either case. */
-const roleMentions = (panel: HTMLElement) =>
-  panel.querySelector("p")?.textContent?.match(/адміністратор сайту/giu) ?? [];
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe("OperatorShell: who is signed in", () => {
-  it("the account button reads «Оператор»; the menu names who is signed in, with the role under it", async () => {
-    renderShell(OLEKSII);
-    const panel = await openMenu("Олексій Колотенко");
-    expect(within(panel).getByText("адміністратор сайту")).toBeTruthy();
-    expect(roleMentions(panel)).toHaveLength(1);
-  });
-
-  it("no name configured: the role once, capitalised as it stands alone, never twice", async () => {
-    renderShell(UNSET);
-    const panel = await openMenu("Адміністратор сайту");
-    expect(within(panel).queryByText("адміністратор сайту")).toBeNull();
-    expect(roleMentions(panel)).toEqual(["Адміністратор сайту"]);
+  it("the account button reads «Оператор»; the menu has the person, then the role word, once", async () => {
+    stubFetch();
+    renderShell();
+    const panel = await openMenu();
+    expect(await within(panel).findByText("Олексій Колотенко")).toBeTruthy();
+    expect(within(panel).getAllByText("адміністратор сайту")).toHaveLength(1);
   });
 });
 
 describe("OperatorShell: «Вийти»", () => {
   it("is the kabinet's sign-out: it posts to the sign-out path, and a refusal stays and says so", async () => {
-    const fetchMock = vi.fn(async () => new Response(null, { status: 503 }));
-    vi.stubGlobal("fetch", fetchMock);
-    renderShell(OLEKSII);
-    const panel = await openMenu("Олексій Колотенко");
+    const fetchMock = stubFetch(() => new Response(null, { status: 503 }));
+    renderShell();
+    const panel = await openMenu();
     await userEvent.click(within(panel).getByRole("button", { name: "Вийти" }));
-    expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/auth/sign-out",
       expect.objectContaining({ method: "POST" }),
@@ -73,20 +68,13 @@ describe("OperatorShell: «Вийти»", () => {
       "Вийти не вдалося – ви досі в кабінеті. Перевірте зʼєднання і спробуйте ще раз.",
     );
   });
-
-  it("is there with no name configured too, and there is no account link for the operator", async () => {
-    renderShell(UNSET);
-    const panel = await openMenu("Адміністратор сайту");
-    expect(within(panel).getByRole("button", { name: "Вийти" })).toBeTruthy();
-    expect(within(panel).queryByRole("link", { name: "Акаунт і пароль" })).toBeNull();
-  });
 });
 
 describe("OperatorShell: the nav and the page", () => {
   const navLinks = () => within(screen.getByRole("navigation")).getAllByRole("link");
 
   it("leads to the list and to the create page", () => {
-    renderShell(OLEKSII, null);
+    renderShell(null);
     expect(navLinks().map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["Притулки", "/kabinet/prytulky"],
       ["Новий притулок", "/kabinet/prytulky/novyi"],
@@ -97,7 +85,7 @@ describe("OperatorShell: the nav and the page", () => {
     ["shelters", "Притулки"],
     ["new_shelter", "Новий притулок"],
   ] as const)("marks %s as the current page, and only it", (current, label) => {
-    renderShell(OLEKSII, current);
+    renderShell(current);
     expect(
       navLinks()
         .filter((link) => link.getAttribute("aria-current") === "page")
@@ -106,12 +94,12 @@ describe("OperatorShell: the nav and the page", () => {
   });
 
   it("marks nothing on a page outside the nav (a shelter's page)", () => {
-    renderShell(OLEKSII, null);
+    renderShell(null);
     expect(navLinks().filter((link) => link.hasAttribute("aria-current"))).toEqual([]);
   });
 
   it("puts the page's content in the main landmark", () => {
-    renderShell(OLEKSII);
+    renderShell();
     expect(within(screen.getByRole("main")).getByText("Вміст сторінки")).toBeTruthy();
   });
 });

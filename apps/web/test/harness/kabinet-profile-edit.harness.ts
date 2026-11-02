@@ -232,10 +232,7 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
   });
 
   test("pause with a reason, then resume", async () => {
-    if (context === undefined) throw new Error("not signed in");
-    // Pause and resume moved off the Притулок page to «Акаунт і пароль» (the account menu's link).
-    const page = await context.newPage();
-    expect((await page.goto("/kabinet/akaunt"))?.status()).toBe(200);
+    const page = await profilePage();
     await page.getByRole("button", { name: "Призупинити прийом тварин" }).click();
     const dialog = page.getByRole("dialog", { name: "Призупинити прийом тварин?" });
     await dialog.getByLabel("Причина").selectOption({ label: "Сезонна перерва" });

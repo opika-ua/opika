@@ -420,8 +420,6 @@ export const uk = {
       signOut: "Вийти",
       /** Next to the title: the shelter's public page, in a new tab (owner-approved 2026-10-29). */
       viewOnSite: "Сторінка притулку на сайті",
-      /** The page's heading: «Притулок «Домівка»» (owner-approved 2026-11-02). */
-      shelterTitle: "Притулок «{name}»",
       signOutFailed:
         "Вийти не вдалося – ви досі в кабінеті. Перевірте зʼєднання і спробуйте ще раз.",
       contactsTitle: "Контакти",

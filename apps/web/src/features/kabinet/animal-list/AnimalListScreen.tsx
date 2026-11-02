@@ -7,7 +7,6 @@ import { ShelterShell } from "../ShelterShell";
 import { VerificationDecision } from "../VerificationDecision";
 import { AnimalList } from "./AnimalList";
 import type { KabinetAnimalListPage } from "./animal-list-page";
-import { totalOf } from "./list-model";
 
 /**
  * K2's page around the list, and the shelter's landing page (kabinet UX round 2: there is no
@@ -31,7 +30,7 @@ export function AnimalListScreen({
       shelterName={page.shelter.displayName}
       viewer={page.viewer}
       // Only a viewer this page is shown to reaches here, so «Тварини» is always in its nav.
-      nav={<KabinetNav current="animals" animalList animalCount={totalOf(page.first.counts)} />}
+      nav={<KabinetNav current="animals" animalList />}
     >
       <AnimalList
         shelter={page.shelter}

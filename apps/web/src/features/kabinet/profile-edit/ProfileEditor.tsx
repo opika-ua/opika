@@ -17,6 +17,7 @@ import { runWrite } from "../shared/write-result";
 import { ContactsSection } from "./ContactsSection";
 import { DonationSection } from "./DonationSection";
 import { LogoSection } from "./LogoSection";
+import { PauseControl } from "./PauseControl";
 import { type ProfileTab, profileTabOf } from "./profile-tabs";
 import { VoiceSection } from "./VoiceSection";
 
@@ -25,7 +26,7 @@ const SECTION_TAB: Record<string, ProfileTab> = { contacts: "kontakty", voice: "
 
 /**
  * K4 with writes open for this shelter (the page decided, with the router's own `decideAccess`
- * and policy), as sub-tabs: Профіль (logo, the sentence), Контакти, Збір коштів, Перевірка
+ * and policy), as sub-tabs: Профіль (logo, the sentence, pause), Контакти, Збір коштів, Перевірка
  * (read-only). The tab is addressable as `?tab=` and kept in the URL
  * without a navigation; every panel stays mounted, so an unsaved edit survives a tab switch.
  *
@@ -116,6 +117,11 @@ export function ProfileEditor({
               )
             }
             reload={reload}
+          />
+          <PauseControl
+            verification={view.verification}
+            pause={(reason) => write(() => profile.pause({ reason }))}
+            resume={() => write(() => profile.resume({}))}
           />
         </div>
       ),

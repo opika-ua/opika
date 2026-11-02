@@ -60,7 +60,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/SignInCard.tsx": "sign-in form, fetch, resend timer",
   "features/kabinet/AccountMenu.tsx":
     "header menus: the kit Popover (tablet+) and Sheet (phone) need client parents",
-  "features/kabinet/AccountSections.tsx": "pause/resume write through the browser client",
+  "features/kabinet/SignInEmail.tsx": "reads the signed-in address from the session after load",
   "features/kabinet/SignOutButton.tsx": "POST sign-out then navigate",
   "features/kabinet/SupportBanner.tsx": "exit-support POST button",
   "features/kabinet/animal-form/AnimalForm.tsx":

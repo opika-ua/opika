@@ -26,6 +26,9 @@ test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" 
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 const SHOTS_DIR = process.env.KABINET_SHELL_SHOTS_DIR;
+// A real-style long name (82 characters), fictional.
+const LONG_NAME = "Притулок для безпритульних тварин «Добра домівка» ГО «Лапа допомоги» (Бровари)";
+const HUNDRED = `${LONG_NAME} і ще трохи слів`.slice(0, 100);
 const PHONE = { width: 393, height: 852 };
 const DESKTOP = { width: 1440, height: 900 };
 
@@ -91,7 +94,7 @@ test.describe("/kabinet shell", () => {
     };
     const shelter: Shelter = {
       id,
-      displayName: `Притулок «Каркас ${id.slice(0, 4)}»`,
+      displayName: LONG_NAME,
       description: { uk: "Вигаданий притулок для перевірки екранів.", en: null },
       legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Тестова" },
       publicLocation: publicLocationOf(
@@ -204,6 +207,41 @@ test.describe("/kabinet shell", () => {
     });
   }
 
+  for (const size of [PHONE, DESKTOP]) {
+    test(`a 100-character shelter name at ${size.width}: the title is at most two lines, nothing overflows`, async () => {
+      const page = await open(admin, "/kabinet/prytulok?tab=perevirka", size);
+      const title = page.getByRole("heading", { level: 1 });
+      // The layout is what is under test: put the 100-character name into the real heading.
+      await title.evaluate((node, text) => {
+        node.textContent = text;
+      }, HUNDRED);
+      const lines = await title.evaluate((node) => {
+        const style = getComputedStyle(node);
+        return Math.round(
+          node.getBoundingClientRect().height / Number.parseFloat(style.lineHeight),
+        );
+      });
+      expect(lines).toBeLessThanOrEqual(2);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(0);
+      await page.close();
+    });
+  }
+
+  test("Профіль holds the pause control with its explanation; the account page has none", async () => {
+    const page = await open(admin, "/kabinet/prytulok");
+    const pause = page.getByRole("button", { name: "Призупинити прийом тварин" });
+    await expect(pause).toBeVisible();
+    await pause.scrollIntoViewIfNeeded();
+    await shot(page, "prytulok-profil-pause");
+    await page.close();
+    const account = await open(admin, "/kabinet/akaunt");
+    await expect(account.getByRole("button", { name: "Призупинити прийом тварин" })).toHaveCount(0);
+    await account.close();
+  });
+
   test("desktop: the content column is at most 820px and left-aligned next to the sidebar", async () => {
     const page = await open(admin, "/kabinet/prytulok");
     const nav = await page.getByRole("navigation", { name: "Розділи кабінету" }).boundingBox();
@@ -240,22 +278,23 @@ test.describe("/kabinet shell", () => {
       const box = await links.nth(index).boundingBox();
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(48);
     }
+    await shot(page, "prytulok-profil");
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     const barBox = await bar.boundingBox();
     const lastPanel = await page.getByRole("main").boundingBox();
     if (barBox === null || lastPanel === null) throw new Error("no layout");
     // The page scrolled to its end: the content column's bottom edge clears the fixed bar.
     expect(lastPanel.y + lastPanel.height).toBeLessThanOrEqual(barBox.y + 1);
-    await shot(page, "prytulok-profil");
     await page.close();
   });
 
-  test("the list page: the sidebar shows the animal count, the phone menu is a sheet with «На сайт»", async () => {
+  test("the list page has no count in the sidebar, the phone menu is a sheet with «На сайт»", async () => {
     const page = await open(admin, "/kabinet/tvaryny");
     await expect(
-      page
-        .getByRole("navigation", { name: "Розділи кабінету" })
-        .getByRole("link", { name: /^Тварини \d+$/ }),
+      page.getByRole("navigation", { name: "Розділи кабінету" }).getByRole("link", {
+        name: "Тварини",
+        exact: true,
+      }),
     ).toBeVisible();
     await shot(page, "tvaryny");
     await page.close();
@@ -266,6 +305,7 @@ test.describe("/kabinet shell", () => {
     await expect(sheet.getByRole("link", { name: /^На сайт/ })).toBeVisible();
     await expect(sheet.getByRole("link", { name: "Акаунт і пароль" })).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Вийти" })).toBeVisible();
+    await expect(sheet.getByText("Harness admin")).toBeVisible();
     await shot(phone, "menu-open");
     await phone.close();
   });
@@ -280,6 +320,8 @@ test.describe("/kabinet shell", () => {
         timeout: 1500,
       });
     }).toPass({ timeout: 15_000 });
+    // The person (the first line) arrives after the page loads; the shelter's name is not repeated.
+    await expect(page.getByText("Harness admin").last()).toBeVisible();
     await shot(page, "menu-open");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("link", { name: "Акаунт і пароль" })).toHaveCount(0);
@@ -295,6 +337,7 @@ test.describe("/kabinet shell", () => {
       page.getByRole("link", { name: "Акаунт і пароль" }).click(),
     ]);
     await expect(page.getByRole("heading", { level: 1, name: "Акаунт і пароль" })).toBeVisible();
+    await expect(page.getByText("harness-shell-admin-").first()).toBeVisible();
     await shot(page, "akaunt");
     await page.goto("/kabinet/prytulok?tab=akaunt");
     expect(new URL(page.url()).pathname).toBe("/kabinet/akaunt");

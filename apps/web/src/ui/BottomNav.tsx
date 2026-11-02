@@ -8,13 +8,7 @@ import { cx } from "./cx";
  * `aria-current="page"`: on the bar an orange rule over a tinted tab, in the rail a tinted row with an
  * orange marker on its left edge. The page needs bottom padding equal to the bar on a phone.
  */
-export type BottomNavItem = {
-  key: string;
-  href: string;
-  label: string;
-  /** A count after the label, shown in the rail only (the bar is text only). */
-  count?: number;
-};
+export type BottomNavItem = { key: string; href: string; label: string };
 
 export type BottomNavProps = {
   label: string;
@@ -55,23 +49,13 @@ export function BottomNav({ label, items, current, layout = "bar" }: BottomNavPr
             prefetch={false}
             aria-current={isCurrent ? "page" : undefined}
             className={cx(
-              "relative flex min-h-target flex-1 items-center justify-center gap-2 rounded-field px-4 text-label text-ink focus-ring",
+              "relative flex min-h-target flex-1 items-center justify-center rounded-field px-4 text-label text-ink focus-ring",
               layout === "bar-then-rail" &&
-                "desktop:flex-none desktop:justify-between desktop:hover:bg-line",
+                "desktop:flex-none desktop:justify-start desktop:hover:bg-line",
               isCurrent && cx("bg-line", MARKER[layout]),
             )}
           >
             {item.label}
-            {item.count === undefined ? null : (
-              <span
-                className={cx(
-                  "text-caption text-ink-2",
-                  layout === "bar-then-rail" ? "max-desktop:hidden" : "hidden",
-                )}
-              >
-                {item.count}
-              </span>
-            )}
           </Link>
         );
       })}

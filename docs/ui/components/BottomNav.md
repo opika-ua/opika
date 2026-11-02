@@ -4,7 +4,7 @@ File: `apps/web/src/ui/BottomNav.tsx`
 
 **Purpose.** A short top-level nav (the kabinet's first level): a fixed bottom bar on a phone, a side column from `desktop`.
 
-**Props and variants.** `label`, `items` ({key, href, label, count?}), `current` (a key), `layout`: bar or bar-then-rail (side column from `desktop`). `count` shows after the label in the rail only; the bar is text only.
+**Props and variants.** `label`, `items` ({key, href, label}), `current` (a key), `layout`: bar or bar-then-rail (side column from `desktop`). Text only.
 
 **Accessibility.** Named nav; the current item is `aria-current=page`.
 

@@ -7,8 +7,8 @@ import { PUBLIC_GALLERY_PATH } from "./routes";
 
 export type HeaderAccount =
   | { kind: "shelter"; shelterName: string; viewer: "admin" | "support" }
-  /** `name` is the configured display name or the role standing alone; `role` only when a name is configured. */
-  | { kind: "operator"; name: string; role: string | null };
+  /** `role`: «адміністратор сайту», shown under the person in the menu. */
+  | { kind: "operator"; role: string | null };
 
 /**
  * The kabinet's header on every page: the logo and «Кабінет» as muted text on the left; on the
@@ -23,14 +23,12 @@ export function KabinetHeader({ account }: { account: HeaderAccount }) {
     account.kind === "operator"
       ? {
           buttonLabel: t.shell.operator,
-          name: account.name,
           role: account.role,
           account: false,
           signOut: "enabled" as const,
         }
       : {
           buttonLabel: account.shelterName,
-          name: account.shelterName,
           role: account.viewer === "support" ? t.support.viewingAs : t.profile.role,
           account: account.viewer === "admin",
           signOut: account.viewer === "support" ? ("disabled" as const) : ("enabled" as const),

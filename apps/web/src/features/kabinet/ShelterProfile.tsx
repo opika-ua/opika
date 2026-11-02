@@ -1,5 +1,5 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import { fillTemplate, uk } from "@opika/i18n";
+import { uk } from "@opika/i18n";
 import { inSentenceOperatorName, type OperatorName } from "../../kabinet/operator";
 import { Card } from "../../ui/Card";
 import { FormSection } from "../../ui/FormSection";
@@ -86,8 +86,13 @@ export function ShelterProfile({
     <ShelterShell shelterName={view.displayName} viewer={viewer} nav={nav}>
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Heading level={1} look="display-l" className="break-words">
-            {fillTemplate(t.shelterTitle, { name: view.displayName })}
+          {/* The name alone, two lines at most, balanced; a longer one ends in an ellipsis. */}
+          <Heading
+            level={1}
+            look="display-m"
+            className="line-clamp-2 min-w-0 break-words text-balance"
+          >
+            {view.displayName}
           </Heading>
           <VerificationStatusChip status={view.verification.status} />
         </div>

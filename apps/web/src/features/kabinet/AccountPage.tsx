@@ -1,44 +1,37 @@
-import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
-import { Card } from "../../ui/Card";
 import { Heading } from "../../ui/Heading";
-import { AccountSections } from "./AccountSections";
 import type { ProfileEditing } from "./home";
 import { KabinetNav } from "./KabinetNav";
 import { ChangePasswordSection, type PasswordState } from "./password/ChangePasswordSection";
 import { animalListShownTo } from "./routes";
 import { ShelterShell } from "./ShelterShell";
+import { SignInEmail } from "./SignInEmail";
 
 /**
- * «Акаунт і пароль»: pause or resume intake (when writes are open) and the password, under the same
- * shell as the shelter's other pages. It is in neither nav item: the account menu leads here.
+ * «Акаунт і пароль»: personal only, the sign-in address and the password. What concerns the shelter
+ * (pausing intake) lives on Притулок → Профіль. Under the same shell as the shelter's other pages;
+ * it is in neither nav item, the account menu leads here.
  */
 export function AccountPage({
-  view,
+  shelterName,
   editing,
   password,
 }: {
-  view: KabinetShelterView;
+  shelterName: string;
   editing: ProfileEditing;
   password: PasswordState | null;
 }) {
   return (
     <ShelterShell
-      shelterName={view.displayName}
+      shelterName={shelterName}
       viewer="admin"
       nav={<KabinetNav current={null} animalList={animalListShownTo("admin", editing)} />}
     >
       <Heading level={1} look="display-l" className="break-words">
         {uk.kabinet.shell.accountAndPassword}
       </Heading>
-      {editing.kind === "open" ? <AccountSections initialView={view} /> : null}
-      {password !== null ? (
-        <Card>
-          <div className="p-4 tablet:p-6">
-            <ChangePasswordSection password={password} />
-          </div>
-        </Card>
-      ) : null}
+      <SignInEmail />
+      {password !== null ? <ChangePasswordSection password={password} /> : null}
     </ShelterShell>
   );
 }

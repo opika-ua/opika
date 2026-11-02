@@ -9,13 +9,12 @@ import { Popover } from "../../ui/Popover";
 import { Sheet } from "../../ui/Sheet";
 import { PUBLIC_GALLERY_PATH, SHELTER_ACCOUNT_PATH } from "./routes";
 import { SignOutButton } from "./SignOutButton";
+import { personLineOf, useSignedInPerson } from "./use-signed-in-person";
 
 export type AccountMenuProps = {
   /** The button's label: the shelter's name, or «Оператор». */
   buttonLabel: string;
-  /** First line of the menu: who is signed in. */
-  name: string;
-  /** Second line: the role, when there is one to say. */
+  /** The line under the person: the role, when there is one to say. The shelter's name is on the button, not repeated here. */
   role: string | null;
   /** «Акаунт і пароль» is offered to a shelter's own admin only (the operator has no password). */
   account: boolean;
@@ -35,11 +34,19 @@ function SiteLink() {
   );
 }
 
-function Body({ props, withSite }: { props: AccountMenuProps; withSite: boolean }): ReactNode {
+function Body({
+  props,
+  person,
+  withSite,
+}: {
+  props: AccountMenuProps;
+  person: string | null;
+  withSite: boolean;
+}): ReactNode {
   return (
     <div className="flex w-full min-w-56 flex-col gap-1">
       <p className="flex flex-col px-3 py-2">
-        <span className="break-words text-label text-ink">{props.name}</span>
+        {person === null ? null : <span className="break-words text-label text-ink">{person}</span>}
         {props.role === null ? null : <span className="text-caption text-ink-2">{props.role}</span>}
       </p>
       {withSite ? <SiteLink /> : null}
@@ -63,16 +70,16 @@ function Body({ props, withSite }: { props: AccountMenuProps; withSite: boolean 
  * carries «На сайт» (the header has no room for that link there).
  */
 export function AccountMenu(props: AccountMenuProps) {
+  const person = personLineOf(useSignedInPerson());
   return (
     <>
       <Popover
         label={props.buttonLabel}
         trigger={props.buttonLabel}
-        panelLabel={props.name}
         align="end"
         className="hidden max-w-64 tablet:block"
       >
-        <Body props={props} withSite={false} />
+        <Body props={props} person={person} withSite={false} />
       </Popover>
       <Sheet
         id="kabinet-account"
@@ -81,8 +88,9 @@ export function AccountMenu(props: AccountMenuProps) {
         trigger={<Icon name="user" />}
         triggerClassName="rounded-pill border-2 border-line tablet:hidden"
         hideFrom="tablet"
+        title="none"
       >
-        <Body props={props} withSite />
+        <Body props={props} person={person} withSite />
       </Sheet>
     </>
   );

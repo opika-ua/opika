@@ -1,6 +1,5 @@
 import { uk } from "@opika/i18n";
 import type { ReactNode } from "react";
-import { type OperatorName, standaloneOperatorName } from "../../../kabinet/operator";
 import { BottomNav } from "../../../ui/BottomNav";
 import { Container } from "../../../ui/Container";
 import { MAIN_LANDMARK } from "../../../ui/landmark";
@@ -20,11 +19,9 @@ import { NEW_SHELTER_PATH, OPERATOR_HOME } from "../routes";
  * side: a bottom tab bar on a phone, a side column from desktop.
  */
 export function OperatorShell({
-  operator,
   current,
   children,
 }: {
-  operator: OperatorName;
   /** Which nav item is this page, for `aria-current`. */
   current: "shelters" | "new_shelter" | null;
   children: ReactNode;
@@ -32,13 +29,7 @@ export function OperatorShell({
   const t = uk.kabinet.operator.shell;
   return (
     <div className="flex min-h-dvh flex-col">
-      <KabinetHeader
-        account={{
-          kind: "operator",
-          name: standaloneOperatorName(operator),
-          role: operator.kind === "configured" ? t.role : null,
-        }}
-      />
+      <KabinetHeader account={{ kind: "operator", role: t.role }} />
       {/* Bottom padding clears the nav's fixed phone tab bar; unused from desktop. */}
       <Container className="flex flex-1 flex-col gap-4 pt-5 pb-24 desktop:flex-row desktop:items-start desktop:gap-8 desktop:pt-8 desktop:pb-14">
         <BottomNav

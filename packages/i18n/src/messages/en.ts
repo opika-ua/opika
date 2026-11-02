@@ -618,7 +618,6 @@ export const en = {
       role: "shelter administrator",
       signOut: "Sign out",
       viewOnSite: "Shelter page on the site",
-      shelterTitle: "Shelter «{name}»",
       signOutFailed:
         "Sign-out didn't go through, so you are still signed in. Check the connection and try again.",
       contactsTitle: "Contacts",

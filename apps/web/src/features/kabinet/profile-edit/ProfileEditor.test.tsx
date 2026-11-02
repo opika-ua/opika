@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { KabinetProfileClient } from "../../../api/kabinet-browser-client";
-import { AccountSections } from "../AccountSections";
 import { ProfileEditor } from "./ProfileEditor";
 
 /**
@@ -538,13 +537,8 @@ describe("the donation link (N20)", () => {
   });
 });
 
-/** Pause and resume live on the «Акаунт і пароль» page, no longer a tab of the editor. */
-const renderInAccount = (options: Parameters<typeof renderEditor>[0] = {}) => {
-  const view = options.view ?? baseView();
-  const { fns, client } = fakeClient(view, options.overrides);
-  render(<AccountSections initialView={view} client={client} />);
-  return fns;
-};
+/** Pause and resume sit on the Профіль tab (the editor opens on it). */
+const renderInAccount = (options: Parameters<typeof renderEditor>[0] = {}) => renderEditor(options);
 
 describe("pause and resume (N21)", () => {
   const REASONS = ["Сезонна перерва", "Переїзд", "Немає місця", "Брак людей", "Інше"];
@@ -702,6 +696,13 @@ describe("pause and resume (N21)", () => {
   it.each(["pending", "under_review"] as const)("offers neither while %s", (status) => {
     renderInAccount({ view: baseView({ verification: { status, since: new Date() } }) });
     expect(screen.queryByRole("button", { name: /прийом тварин/ })).toBeNull();
+  });
+
+  it("the pause control is on the Профіль tab, with its explanation", () => {
+    renderInAccount();
+    const panel = screen.getByRole("tabpanel", { name: "Профіль" });
+    expect(within(panel).getByRole("button", { name: "Призупинити прийом тварин" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Акаунт" })).toBeNull();
   });
 
   it("after pausing, the control offers to resume", async () => {
