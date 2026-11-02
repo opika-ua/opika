@@ -39,7 +39,17 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./src/seo-flags";
  */
 assertBuildEnv(process.env);
 
+/**
+ * Next buffers every matched non-GET request's whole body (chunked or not) before the proxy's own
+ * 403/429 or the route can answer, 10 MB by default. The largest legitimate body on a matched path
+ * is 64 KB (`/api/rpc` and `/api/monitoring` each cap there; `docs/launch-gate.md` D has the table),
+ * so 128 KB bounds that buffering and still sits above both route caps, which therefore still fire.
+ * Bytes, not a string: the number is what the setting's own parser yields.
+ */
+export const PROXY_CLIENT_MAX_BODY_BYTES = 128 * 1024;
+
 const nextConfig: NextConfig = {
+  experimental: { proxyClientMaxBodySize: PROXY_CLIENT_MAX_BODY_BYTES },
   // Transpile workspace packages so Next.js can resolve .ts source files
   transpilePackages: ["@opika/contracts", "@opika/domain", "@opika/db"],
   /**
