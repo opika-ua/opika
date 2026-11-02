@@ -94,7 +94,7 @@ export function stubShelterPageClient(
     }
   });
   const galleryList = vi.fn(async () => list);
-  const facetCounts = vi.fn(async () => makeFacetCounts());
+  const facetCounts = vi.fn(async (_input?: { filters: unknown }) => makeFacetCounts());
   const relaxationCounts = vi.fn(async () => ({ current: 0, relaxations: [] }));
   const client = {
     shelters: { byId: sheltersById },

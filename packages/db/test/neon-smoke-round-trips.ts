@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { type CityId, EVERYONE_SCOPE, NO_FILTERS } from "@opika/domain";
+import { type CityId, EVERYONE_SCOPE, MAX_GALLERY_NAVIGABLE_ROWS, NO_FILTERS } from "@opika/domain";
 import type { Database } from "../src/client";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
@@ -119,12 +119,29 @@ export async function runRoundTripsSmoke(db: Database): Promise<Outcome[]> {
     `${cards.length} rows`,
   );
 
+  // The expectation is the capped one: the gallery's total, never above the bound. A branch with
+  // more public animals than the bound (or newer ones than the fixtures) lists only the freshest
+  // 2,000, so the fixtures are required in the list only when everything fits.
   const sitemap = await galleryRepo(db).sitemapRows({ now: NOW });
+  const few = await galleryRepo(db).sitemapRows({ now: NOW, limit: 3 });
+  const everything = await galleryRepo(db).listCards({
+    filters: NO_FILTERS,
+    scope: EVERYONE_SCOPE,
+    sort: "freshest",
+    page: 1,
+    pageSize: 1,
+    now: NOW,
+  });
   const ids = new Set(sitemap.map((r) => r.id as string));
+  const expectedLength = Math.min(everything.totalMatching, MAX_GALLERY_NAVIGABLE_ROWS);
+  const fits = everything.totalMatching <= MAX_GALLERY_NAVIGABLE_ROWS;
   check(
-    "sitemapRows: one statement lists the public animals (both fixtures, not the draft)",
-    ids.has(atHome.id) && ids.has(fostered.id) && !ids.has(draft.id) && sitemap.length <= 2000,
-    `${sitemap.length} rows`,
+    "sitemapRows: one statement, the gallery's total capped at the navigable bound, no draft; both fixtures when all fit",
+    sitemap.length === expectedLength &&
+      few.length === Math.min(3, expectedLength) &&
+      !ids.has(draft.id) &&
+      (!fits || (ids.has(atHome.id) && ids.has(fostered.id))),
+    `${sitemap.length} rows of ${everything.totalMatching} public`,
   );
   return out;
 }

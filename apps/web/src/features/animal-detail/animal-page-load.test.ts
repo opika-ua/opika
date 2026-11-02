@@ -46,6 +46,13 @@ describe("loadAnimalPage", () => {
     expect(await loadAnimalPage(ANIMAL_ID, client)).toEqual({ kind: "not_found" });
   });
 
+  it("a not-found shelter wins even when the city read beside it fails", async () => {
+    const { client } = stubAnimalPageClient();
+    vi.mocked(client.shelters.byId).mockRejectedValueOnce(new ORPCError("NOT_FOUND"));
+    vi.mocked(client.cities.byIds).mockRejectedValueOnce(new Error("connection terminated"));
+    expect(await loadAnimalPage(ANIMAL_ID, client)).toEqual({ kind: "not_found" });
+  });
+
   it("a malformed id is not found, without asking the server", async () => {
     const { client, animalsById } = stubAnimalPageClient();
     expect(await loadAnimalPage("gortaty", client)).toEqual({ kind: "not_found" });

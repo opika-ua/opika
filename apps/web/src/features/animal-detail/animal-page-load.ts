@@ -59,11 +59,12 @@ export async function loadAnimalPage(
       ? animal.publicLocation.cityId
       : animal.shelter.publicLocation.cityId;
     // One city by id, never the settlement list.
-    const [shelter, regions, found] = await Promise.all([
-      client.shelters.byId({ shelterId: animal.shelter.id }),
-      client.regions.list({}),
-      client.cities.byIds({ ids: [cityId] }),
-    ]);
+    const shelterRead = client.shelters.byId({ shelterId: animal.shelter.id });
+    const restRead = Promise.all([client.regions.list({}), client.cities.byIds({ ids: [cityId] })]);
+    // The shelter settles first so its NOT_FOUND wins over a failure of the city read beside it.
+    restRead.catch(() => undefined);
+    const shelter = await shelterRead;
+    const [regions, found] = await restRead;
     const city = found.find((c) => c.id === cityId) ?? null;
 
     /**

@@ -318,13 +318,15 @@ export function galleryRepo(db: Database) {
      */
     async sitemapRows(opts: {
       now: Date;
+      /** Lower than the navigable bound only in a test or a probe; the sitemap passes nothing. */
+      limit?: number;
     }): Promise<readonly { readonly id: AnimalId; readonly shelterId: ShelterId }[]> {
       return db
         .select({ id: animals.id, shelterId: animals.shelterId })
         .from(animals)
         .where(and(...buildFeedPredicate(NO_FILTERS, opts.now)))
         .orderBy(...orderingFor("freshest"))
-        .limit(MAX_GALLERY_NAVIGABLE_ROWS);
+        .limit(Math.min(opts.limit ?? MAX_GALLERY_NAVIGABLE_ROWS, MAX_GALLERY_NAVIGABLE_ROWS));
     },
 
     /**

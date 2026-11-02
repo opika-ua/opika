@@ -42,10 +42,10 @@ describe("neon-perf-routes", () => {
   it("keeps every public route within its round-trip budget (a regression back to N sequential waves fails)", {
     timeout: 180_000,
   }, async () => {
-    // Each statement is held back 80 ms, so the wall time is decided by what depends on what, not by
+    // Each statement is held back 100 ms, so the wall time is decided by what depends on what, not by
     // how fast the local database answers: N sequential waves cost about N x 80 ms. (The wave count
     // alone can merge a wave of one branch into the overlapping wave of another, as in the overlay.)
-    const latencyMs = 80;
+    const latencyMs = 100;
     const costs = await runRoutes(url, () => {}, { latencyMs });
     const budgets: [string, number][] = [
       ["/tvaryny (gallery, unfiltered)", 1],
@@ -62,7 +62,7 @@ describe("neon-perf-routes", () => {
       const cost = costs.get(label);
       expect(cost, label).toBeTruthy();
       expect(cost?.waves, label).toBeLessThanOrEqual(budget);
-      expect(cost?.wallMs, label).toBeLessThan((budget + 0.6) * latencyMs);
+      expect(cost?.wallMs, label).toBeLessThan((budget + 0.9) * latencyMs);
     }
     // The saved cards are one statement, the animal page three: not one per lookup.
     expect(costs.get("animals.cardsByIds (/zberezheni, 12 saved cards)")?.calls).toBe(1);

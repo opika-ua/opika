@@ -58,6 +58,14 @@ beforeAll(async () => {
   });
   await animalRepo(db).insert(foster, fosterCity);
   fosterId = foster.id;
+  // Past the sitemap's 2,000 bound (the perf corpus has 1,819 public animals), so the cap is real.
+  const homeCity = shelterRow?.cityId as CityId;
+  await animalRepo(db).insertMany(
+    Array.from({ length: 450 }, (_, i) => ({
+      animal: makeAnimal({ shelterId: pick.busyShelter as ShelterId, name: `Додаткова ${i}` }),
+      cityId: homeCity,
+    })),
+  );
 }, 180_000);
 afterAll(async () => cleanup?.());
 
@@ -278,7 +286,28 @@ describe("galleryRepo.sitemapRows equals the gallery's pages walked 50 at a time
       for (const a of result.items) walked.push({ id: a.id, shelterId: a.shelterId });
     }
     const rows = await galleryRepo(db).sitemapRows({ now: NOW });
-    expect(rows.length).toBeGreaterThan(50);
+    // More than 2,000 public animals exist here; both the walk and the one statement stop at the bound.
+    expect(rows).toHaveLength(2000);
+    expect(walked).toHaveLength(2000);
+    const few = await galleryRepo(db).sitemapRows({ now: NOW, limit: 7 });
+    expect(few.map((r) => r.id)).toEqual(rows.slice(0, 7).map((r) => r.id));
+    // A limit above the bound never lifts it.
+    expect(await galleryRepo(db).sitemapRows({ now: NOW, limit: 99999 })).toHaveLength(2000);
     expect(rows.map((r) => ({ id: r.id, shelterId: r.shelterId }))).toEqual(walked);
+  });
+});
+
+describe("the card's verified/unverified comes from the verification_status column", () => {
+  it("equals the verification jsonb's status for every shelter, in every state the corpus holds", async () => {
+    const rows = await db
+      .select({ id: shelters.id, column: shelters.verificationStatus })
+      .from(shelters);
+    const states = new Set<string>();
+    for (const row of rows) {
+      const shelter = await shelterRepo(db).findById(row.id);
+      expect(row.column).toBe(shelter?.verification.status);
+      states.add(row.column);
+    }
+    expect([...states]).toEqual(expect.arrayContaining(["verified", "pending", "suspended"]));
   });
 });

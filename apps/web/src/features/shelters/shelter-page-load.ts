@@ -108,8 +108,8 @@ export async function loadShelterPage(
     const filtersOn = FEED_FILTER_DIMENSIONS.some((dimension) =>
       isConstrained(query.filters, dimension),
     );
-    const [shelter, animals, early] = await Promise.all([
-      client.shelters.byId({ shelterId }),
+    const shelterRead = client.shelters.byId({ shelterId });
+    const restRead = Promise.all([
       client.gallery.list({ filters: query.filters, sort: query.sort, page: query.page, scope }),
       filtersOn
         ? Promise.all([
@@ -118,6 +118,12 @@ export async function loadShelterPage(
           ])
         : null,
     ]);
+    // The shelter settles first: its NOT_FOUND (or RATE_LIMITED) must win over a failure of a read
+    // started beside it, which would otherwise turn a legitimate 404 into a 500. The rest's own
+    // rejection is then handled below, or silenced if the shelter already ended the page.
+    restRead.catch(() => undefined);
+    const shelter = await shelterRead;
+    const [animals, early] = await restRead;
     // Second wait, all together: the counts the list's total calls for, the zero-match suggestions,
     // and the shelter's own city when no card carried it (the cards' cities ride with the list).
     const shelterCityId = shelter.publicLocation.cityId;
