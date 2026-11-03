@@ -1,0 +1,14 @@
+Fixes the two real CodeQL alerts from the first scan; no GitHub dismissals here.
+
+- js/polynomial-redos, `packages/i18n/src/place.ts`: the `\s+` tail regexes in `raionShort` / `hromadaShort` become a linear backward scan (`stripTail`). `\s` semantics kept (tab, U+00A0, runs of spaces). Tests: old outputs, whitespace variants, 64 KB hostile input under 50 ms.
+- js/incomplete-sanitization, `apps/web/src/kabinet/auth-log.ts`: the malformed-encoding fallback now replaces every `%40` (`/gi`). The other replaces in the file (`withoutQuery`, whitespace, `URL_PATTERN`) are regex-global or not sanitizers. Test with two encoded addresses fails without the fix.
+
+Triage confirmations (no change):
+- insufficient-password-hash `kabinet-invite-token-repo.ts:43`: fine; the token is `randomBytes(32)` (256 bits, CSPRNG), `apps/web/src/kabinet/invite-password.ts:34,39`; SHA-256 is Better Auth's defaultKeyHasher shape.
+- `password-flows.test.ts:358,858`, `neon-auth-smoke.ts:390,483`: test/tool hashing of reset tokens to match Better Auth's lookup key; no password involved.
+- bad-tag-filter `confirm-route.test.ts:367`: test-only regex over our own rendered HTML.
+- incomplete-sanitization `email-message.test.ts:90`: replaces the single `&` of a known constant test URL.
+
+Check: typecheck green; `pnpm test`: all packages green, apps/web 4186/4187 with one load-flaky `proxy-matcher.test.ts` case that passes alone and on a stash. Biome on changed files clean at `--diagnostic-level=error`; whole-repo ratchet cannot parse Biome output locally (CI is the source of truth). build:web / harness left to CI.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

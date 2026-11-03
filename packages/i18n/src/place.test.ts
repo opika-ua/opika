@@ -92,3 +92,38 @@ describe("hromadaShort", () => {
     expect(hromadaShort("Броварська громада")).toBe("Броварська громада");
   });
 });
+
+describe("tail stripping on any whitespace, in linear time", () => {
+  const hint = (raion: string) =>
+    placeHint(label({ nameScope: "shared_in_district", raion, regionShort: "Київська обл." }));
+
+  it("shortens a raion; keeps one without the tail", () => {
+    expect(hint("Броварський район")).toBe("Броварський р-н, Київська обл.");
+    expect(hint("Броварський район")).toBe("Броварський р-н, Київська обл.");
+    expect(hint("Броварський 	  район")).toBe("Броварський р-н, Київська обл.");
+    expect(hint("Броварський район ")).toBe("Броварський район , Київська обл.");
+    expect(hint("Броварськийрайон")).toBe("Броварськийрайон, Київська обл.");
+  });
+
+  it("shortens a hromada across tabs, runs of spaces and U+00A0; no whitespace, no match", () => {
+    expect(hromadaShort("Броварська	міська   територіальна громада")).toBe("Броварська громада");
+    expect(hromadaShort("Броварська міська територіальна громада ")).toBe(
+      "Броварська міська територіальна громада ",
+    );
+    expect(hromadaShort("Броварськаміська територіальна громада")).toBe(
+      "Броварськаміська територіальна громада",
+    );
+    expect(hromadaShort("Броварська міська територіальнагромада")).toBe(
+      "Броварська міська територіальнагромада",
+    );
+  });
+
+  it("finishes a hostile 64 KB whitespace input in under 50 ms", () => {
+    const hostile = " ".repeat(64 * 1024);
+    const start = performance.now();
+    expect(hint(`${hostile}x`)).toBe("x, Київська обл.".replace("x", `${hostile}x`));
+    expect(hromadaShort(`а${hostile}міська${hostile}територіальна${hostile}x`)).toContain("а");
+    expect(hromadaShort(`${hostile}міська${hostile}територіальна`)).toContain("територіальна");
+    expect(performance.now() - start).toBeLessThan(50);
+  });
+});
