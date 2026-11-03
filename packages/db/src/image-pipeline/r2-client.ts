@@ -25,8 +25,8 @@ import { r2EndpointUrl } from "./variants";
  * docs recommend this exact client), and there's no lighter-weight official
  * alternative - this is the standard way to talk to R2 from Node.
  */
-// Keys are immutable random-UUID paths, so a browser/CDN may keep an object for a year.
-export const IMAGE_CACHE_CONTROL = "public, max-age=31536000, immutable";
+// Immutable UUID keys: browsers keep 1 year; s-maxage 4 h because deletions (clean-up, erasure) do not purge the CDN.
+export const IMAGE_CACHE_CONTROL = "public, max-age=31536000, s-maxage=14400, immutable";
 
 export interface ImageStorageClient {
   put(key: string, body: Buffer, contentType: string): Promise<void>;

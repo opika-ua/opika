@@ -537,13 +537,16 @@ photo actually loads on the live detail page before trusting the rest.
 
 ## Image caching (Cloudflare Cache Rule on img.opika.org.ua)
 
-Every R2 put sets `Cache-Control: public, max-age=31536000, immutable`
+Every R2 put sets `Cache-Control: public, max-age=31536000, s-maxage=14400, immutable`
 (`IMAGE_CACHE_CONTROL` in `packages/db/src/image-pipeline/r2-client.ts`; photo
 variants and shelter logos share that one put). Keys are immutable UUID paths,
-so a year-long cache is safe. The origin header alone is not enough: Cloudflare
+so a year-long browser cache is safe. `s-maxage=14400` caps shared caches (the
+Cloudflare edge) at 4 h on purpose: the clean-up job and shelter erasure delete
+objects without purging the CDN, so a deleted photo must leave the edge within
+4 h. The origin header alone is not enough: Cloudflare
 does not treat these image responses as cache-eligible by default, so a Cache
 Rule matches host `img.opika.org.ua` with "eligible for cache", browser TTL 1
-year, edge TTL "use origin" (4 h). Objects uploaded before this change lack the
+year, edge TTL "use origin", which is then the 4 h from `s-maxage`. Objects uploaded before this change lack the
 header; for them the browser TTL comes from the rule. Once every object carries
 the header (e.g. after the pre-launch full reset) the browser-TTL override can be
 removed; keep the eligibility part.
