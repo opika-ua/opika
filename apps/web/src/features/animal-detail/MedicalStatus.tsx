@@ -35,13 +35,11 @@ export function MedicalStatus({
           // label and source stacked on the left and the value centred on the right.
           <div
             key={row.label}
-            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 border-line px-4 py-3 not-first:border-t-2"
+            className="grid grid-flow-col grid-rows-2 items-center justify-between gap-x-4 border-line px-4 py-3 not-first:border-t-2"
           >
-            <dt className="col-start-1 text-body text-ink">{row.label}</dt>
-            {shared === null && (
-              <dd className="col-start-1 m-0 text-caption text-ink-2">{rowSource(row)}</dd>
-            )}
-            <dd className="col-start-2 row-span-2 row-start-1 m-0 flex shrink-0 items-center gap-2 text-label text-ink">
+            <dt className="text-body text-ink">{row.label}</dt>
+            {shared === null && <dd className="m-0 text-caption text-ink-2">{rowSource(row)}</dd>}
+            <dd className="row-span-2 m-0 flex shrink-0 items-center gap-2 text-label text-ink">
               <span aria-hidden="true" className={`size-2 rounded-pill ${VALUE_DOT[row.value]}`} />
               {MEDICAL_VALUE_TEXT[row.value]}
             </dd>
