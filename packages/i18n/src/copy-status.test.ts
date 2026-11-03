@@ -1361,38 +1361,16 @@ describe("/prytulkam §8 B1 (forShelters.whyThatSentence)", () => {
   });
 });
 
-/**
- * §3 ¶4 (commitment #1), his PR 6 text (pr6-copy-uk.md §1.6), transcribed:
- * the ordering inputs are unchanged, and «оновлено» reads as the cards'
- * confirmation date (K-Q14 (a)).
- */
-describe("/prytulkam §3 ¶4 (forShelters.whatHappensToAnimals)", () => {
-  it("is his ordering paragraph, still closing on «Це все, що впливає на порядок.»", () => {
+/** §3 ordering paragraph (commitment #1), owner-approved text after the deck was retired. */
+describe("/prytulkam §3 ordering paragraph (forShelters.whatHappensToAnimals)", () => {
+  it("is date-only with no promotion, and no deck paragraphs remain", () => {
     const paragraphs = uk.forShelters.whatHappensToAnimals.split("\n\n");
-    expect(paragraphs).toHaveLength(5);
-    expect(paragraphs[3]).toBe(
-      "Порядок у списку – за датою: спочатку ті, чиї картки оновлено найновіше, або ті, хто чекає найдовше; людина обирає сама. У режимі «по одній» до дати додається повнота картки – та, де є фотографії, опис і відмітка про щеплення, показується раніше. Це все, що впливає на порядок.",
+    expect(paragraphs).toHaveLength(3);
+    expect(paragraphs[1]).toBe(
+      "Порядок у списку – за датою: спочатку ті, чиї картки оновлено найновіше, або ті, хто чекає найдовше. Людина обирає сама. Просування немає.",
     );
-  });
-});
-
-/**
- * GV3-Q3, 2026-10-26 (standing-constraints.md's commitment #8 row). A first
- * attempt at this narrowing added a new builder-written clause about the
- * deck being temporarily unlinked, instead of only deleting the overclaim -
- * which a Tier 1 review caught, since adding copy needs the normal gate
- * regardless of how accurate it reads; only a bare deletion is exempt. This
- * pins the result as an exact match, not `.not.toContain("по одній")`: that
- * first attempt's own clause did still contain the phrase («Перегляд по
- * одній поки не має…»), so a substring check would have happened to catch
- * it too - but only by coincidence of wording. An exact match catches any
- * future replacement sentence, not just ones that happen to reuse this
- * particular phrase.
- */
-describe("/prytulkam §3 ¶2 (forShelters.whatHappensToAnimals, GV3-Q3)", () => {
-  it("is the bare deletion, not a replacement sentence", () => {
-    const paragraphs = uk.forShelters.whatHappensToAnimals.split("\n\n");
-    expect(paragraphs[1]).toBe("Тварин можна дивитися списком.");
+    expect(uk.forShelters.whatHappensToAnimals).not.toContain("по одній");
+    expect(uk.forShelters.whatHappensToAnimals).not.toContain("Не зараз");
   });
 });
 
@@ -2523,13 +2501,6 @@ describe("the copy audit of 2026-10-22", () => {
 
   it("#8 the reveal dialog's second button is «Повернутися до картки»", () => {
     expect(uk.reveal.backToFeed).toBe("Повернутися до картки");
-  });
-
-  // #19: «Написати» everywhere; /prytulkam ¶3 follows it.
-  it("#19 /prytulkam ¶3 names «Написати»", () => {
-    const paragraph3 = uk.forShelters.whatHappensToAnimals.split("\n\n")[2];
-    expect(paragraph3).toContain("на кого вже натиснула «Не зараз» чи «Написати»");
-    expect(paragraph3).not.toContain("«Запитати»");
   });
 
   it("#3 forShelters.howToStart describes today's order: invite at creation, cards by the shelter", () => {
