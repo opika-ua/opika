@@ -408,7 +408,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
         const panelLeft =
           (
             await page
-              .locator('[role="tabpanel"]:not([hidden]) :is(h2, label)')
+              .locator('[role="tabpanel"]:not([hidden]) :is(h2, label, p, button)')
               .first()
               .boundingBox()
           )?.x ?? -2;
