@@ -75,7 +75,7 @@ catalog:
   # one.
   tsx: 4.23.5
   next: 16.4.3
-  postgres: 3.4.9
+  postgres: 4.0.0
   react: 19.2.7
   react-dom: 19.2.7
   # Cookieless, no-op-without-JS. Speed Insights reports real Core Web
