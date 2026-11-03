@@ -46,7 +46,7 @@ const HANDLE_BEFORE = new RegExp(
 );
 // Street addresses: a street word, a name of up to three words, then a house number. The number is
 // required, so "вулиця Шевченка" alone stays; the street word must end in a dot or a space ("вулкан" is safe).
-// Words are length-bounded (no real street word is near 40) so a long glued run cannot make the scan quadratic.
+// Words are length-bounded (no real street word is near 64) so a long glued run cannot make the scan quadratic.
 const NAME_WORD = String.raw`[\p{L}'’.-]{1,64}`;
 const NAME = String.raw`${NAME_WORD}(?:\s+${NAME_WORD}){0,2}`;
 const NUMBER = String.raw`(?:№\s*)?\d{1,4}\p{L}?(?:[/-]\d{1,4}\p{L}?)?`;
@@ -114,12 +114,35 @@ export function scrubValue(value: unknown, depth = 0): unknown {
   if (value === null || typeof value !== "object") return value;
   if (depth >= MAX_DEPTH) return FILTERED;
   if (Array.isArray(value)) return value.map((item) => scrubValue(item, depth + 1));
-  const out: Record<string, unknown> = {};
-  for (const [key, inner] of Object.entries(value)) {
-    out[key] = SENSITIVE_KEY.test(key) ? FILTERED : scrubValue(inner, depth + 1);
-  }
-  return out;
+  return scrubEntries(Object.entries(value), (inner) => scrubValue(inner, depth + 1));
 }
+
+// Keys are free text too. Past MAX_KEYS entries are dropped, so a hostile event stays linear; a key
+// that scrubs to one already taken keeps the first and gets "#2", "#3" ..., never overwrites it.
+export const MAX_KEYS = 256;
+function scrubEntries(
+  entries: [string, unknown][],
+  scrubInner: (inner: unknown) => unknown,
+): Record<string, unknown> {
+  const taken = new Map<string, unknown>();
+  for (const [rawKey, inner] of entries.slice(0, MAX_KEYS)) {
+    const base = scrubString(rawKey);
+    let key = base;
+    for (let n = 2; taken.has(key); n += 1) key = `${base}#${n}`;
+    taken.set(key, SENSITIVE_KEY.test(rawKey) ? FILTERED : scrubInner(inner));
+  }
+  // fromEntries defines own properties, so a "__proto__" key stays data.
+  return Object.fromEntries(taken);
+}
+
+export const HTTP_METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]);
+/** A closed set: a method string is otherwise free text. */
+export function coarseMethod(method: string): string {
+  const upper = method.toUpperCase();
+  return HTTP_METHODS.has(upper) ? upper : "other";
+}
+// The image types Sentry sends: "sourcemap" from the JS SDKs, the rest from native/wasm debug files.
+export const DEBUG_IMAGE_TYPES = new Set(["sourcemap", "wasm", "macho", "elf", "pe", "proguard"]);
 
 type Loose = Record<string, unknown>;
 const isObject = (value: unknown): value is Loose =>
@@ -169,7 +192,7 @@ function scrubRequest(request: unknown): Loose | undefined {
   if (!isObject(request)) return undefined;
   const out: Loose = {};
   if (typeof request.url === "string") out.url = scrubString(scrubUrl(request.url));
-  if (typeof request.method === "string") out.method = request.method;
+  if (typeof request.method === "string") out.method = coarseMethod(request.method);
   return out;
 }
 
@@ -230,7 +253,8 @@ function scrubDebugMeta(debugMeta: unknown): Loose | undefined {
   const images = debugMeta.images.flatMap((image) => {
     if (!isObject(image) || typeof image.debug_id !== "string") return [];
     const kept: Loose = { debug_id: scrubString(image.debug_id) };
-    if (typeof image.type === "string") kept.type = image.type;
+    if (typeof image.type === "string")
+      kept.type = DEBUG_IMAGE_TYPES.has(image.type) ? image.type : "other";
     if (typeof image.code_file === "string") kept.code_file = urlOf(image.code_file);
     return [kept];
   });
@@ -290,20 +314,13 @@ export function scrubBreadcrumb<T extends object>(crumb: T): T | null {
     const data = out.data;
     if (category === "fetch" || category === "xhr") {
       const reduced: Loose = {};
-      if (typeof data.method === "string") reduced.method = data.method;
+      if (typeof data.method === "string") reduced.method = coarseMethod(data.method);
       if (typeof data.status_code === "number") reduced.status_code = data.status_code;
       if (typeof data.url === "string") reduced.url = pathOf(data.url);
       out.data = reduced;
     } else {
-      const next: Loose = {};
-      for (const [key, value] of Object.entries(data)) {
-        next[key] =
-          key === "url" || key === "from" || key === "to"
-            ? urlOf(value)
-            : SENSITIVE_KEY.test(key)
-              ? FILTERED
-              : scrubValue(value);
-      }
+      const next = scrubEntries(Object.entries(data), (value) => scrubValue(value));
+      for (const key of ["url", "from", "to"]) if (key in next) next[key] = urlOf(data[key]);
       out.data = next;
     }
   }
