@@ -46,7 +46,7 @@ const maskedAddress = (match: string): string => {
   try {
     return maskAddress(decodeURIComponent(match));
   } catch {
-    return maskAddress(match.replace(/%40/i, "@"));
+    return maskAddress(match.replace(/%40/gi, "@"));
   }
 };
 
