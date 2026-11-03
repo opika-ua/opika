@@ -2126,7 +2126,7 @@ const PET_CARD_PR5_COPY: Record<string, string> = {
   "detail.aboutMeHeading": "Про мене",
   "detail.myStoryHeading": "Моя історія",
   "detail.medicalHeading": "Медичний стан",
-  "detail.chipLinkName": "Показати схожих {species}: {value}",
+  "detail.chipLinkName": "{value}: показати схожих {species}",
   "detail.chipSpeciesCat": "котів",
   "detail.chipSpeciesDog": "собак",
   "kabinet.animalForm.medicalNotes.title": "Що ще варто знати про здоровʼя",

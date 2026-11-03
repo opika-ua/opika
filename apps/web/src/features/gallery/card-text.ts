@@ -1,7 +1,6 @@
 import type { FeedCardView } from "@opika/contracts";
 import type { CityId } from "@opika/domain";
-import { ageWordFor, animalFactsParts, fillTemplate, ukPublic as uk } from "@opika/i18n/public";
-import { freshnessLabel } from "@opika/ui";
+import { animalFactsParts, fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 
 /**
  * A `switch`, not `card.listingKind === "reserved"`. The ternary would treat
@@ -55,28 +54,4 @@ export function housingCityLabel(card: FeedCardView, cityName: string | null): s
 /** The card's visible facts line, as parts: the shared formatter, no species and no city (the city is in the accessible name only). */
 export function cardFactsParts(card: FeedCardView): readonly string[] {
   return animalFactsParts({ sex: card.sex, ageBucket: card.ageBucket, size: card.size });
-}
-
-/**
- * "Мурчик, Уже домовляються, молодий, Бровари, Оновлено 3 дні тому" - the
- * card link's accessible name.
- *
- * docs/design/README.md, "The Gallery" > "Keyboard": "Screen readers get
- * name, age, city, then the sentence 'оновлено 41 день тому' via
- * `aria-label`; the pips are `aria-hidden`." Reserved status is inserted
- * right after the name, ahead of what the design lists - safety-critical
- * context (a blind adopter must not contact a shelter about an animal
- * already spoken for without knowing that going in) a sighted user already
- * has from the badge before reaching the meta line at all.
- */
-export function cardAccessibleName(card: FeedCardView, cityName: string | null): string {
-  return [
-    card.name,
-    isReserved(card.listingKind) ? uk.reserved.badge : null,
-    ageWordFor(card.ageBucket, card.sex),
-    cityName,
-    freshnessLabel(card.freshness),
-  ]
-    .filter((part): part is string => Boolean(part))
-    .join(", ");
 }

@@ -607,16 +607,22 @@ describe("animalPageHref", () => {
 describe("similarAnimalsLabel", () => {
   it("age/size: the existing filter labels, lowercased", () => {
     expect(similarAnimalsLabel("cat", { dimension: "ages", value: "baby" })).toBe(
-      "Показати схожих котів: малюк",
+      "малюк: показати схожих котів",
     );
     expect(similarAnimalsLabel("dog", { dimension: "sizes", value: "large" })).toBe(
-      "Показати схожих собак: великий",
+      "великий: показати схожих собак",
+    );
+  });
+
+  it("begins with the chip's visible text when that differs from the filter word (WCAG 2.5.3)", () => {
+    expect(similarAnimalsLabel("cat", { dimension: "sizes", value: "large" }, "Велика")).toBe(
+      "велика: показати схожих котів",
     );
   });
 
   it("sex: the existing filter label, lowercased", () => {
     expect(similarAnimalsLabel("dog", { dimension: "sexes", value: "male" })).toBe(
-      "Показати схожих собак: хлопчик",
+      "хлопчик: показати схожих собак",
     );
   });
 

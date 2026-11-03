@@ -263,16 +263,19 @@
 }
 /* From tablet the dot goes and the badge itself takes the species colour. */
 @utility gcard-fresh {
-  @apply gcard-fresh-st tablet:order-none tablet:inline-flex tablet:whitespace-nowrap tablet:rounded-tag tablet:bg-(--dot) tablet:px-2 tablet:py-1 tablet:text-on-ink;
+  @apply gcard-fresh-st tablet:order-none tablet:inline-flex tablet:whitespace-nowrap tablet:rounded-tag tablet:bg-(--dot) tablet:px-2 tablet:py-1 tablet:text-(--on-dot);
   &::before {
     @apply tablet:hidden;
   }
 }
 @utility gcard-dog {
   --dot: var(--color-species-dog);
+  --on-dot: var(--color-on-ink);
 }
+/* Ink on the orange badge is 5.4:1; white on it is 3.0:1 (WCAG 1.4.3). */
 @utility gcard-cat {
   --dot: var(--color-species-cat);
+  --on-dot: var(--color-ink);
 }
 @utility gcard-info-st {
   @apply flex flex-col gap-1;

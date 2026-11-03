@@ -7,7 +7,7 @@ import { Badge } from "../../ui/Badge";
 import { cx } from "../../ui/cx";
 import { MetaLine } from "../../ui/MetaLine";
 import { Photo } from "../../ui/Photo";
-import { cardAccessibleName, cardFactsParts, isReserved } from "./card-text";
+import { cardFactsParts, isReserved } from "./card-text";
 import { animalPageHref, type CitySlugsById } from "./filter-url";
 
 /**
@@ -21,9 +21,8 @@ import { animalPageHref, type CitySlugsById } from "./filter-url";
  *
  * Same accessibility contract as `AnimalCard`: one `<a>` per animal, no
  * nested interactive elements (the pill below is a non-interactive
- * `<span>`, owner decision #2), `aria-label` carries the full composed name
- * (`cardAccessibleName`) so none of this card's visible text - the pill
- * included - needs to agree with or extend the accessible name.
+ * `<span>`, owner decision #2). No `aria-label`: the name comes from the visible content (WCAG
+ * 2.5.3), plus the city as screen-reader-only text; the aria-hidden pill stays out of it.
  *
  * Two layouts of one DOM (`layout`): on a phone the text sits under the photo with the freshness as
  * a species-coloured dot plus its words; from `tablet` the gallery keeps the Figma panel over the
@@ -91,7 +90,6 @@ export function GalleryCard({
       href={animalPageHref(card.id, filters, sort, citySlugs)}
       // Off: the overlay's prefetch per visible card would eat proxy.ts's per-IP budget.
       prefetch={false}
-      aria-label={cardAccessibleName(card, cityName)}
       data-testid="animal-card"
       className={stacked ? "gcard-st" : "gcard"}
     >
@@ -130,6 +128,7 @@ export function GalleryCard({
           {card.name}
         </span>
         <MetaLine parts={facts} size="caption" testId="card-meta" />
+        {cityName && <span className="sr-only">{`, ${cityName}`}</span>}
         {!stacked && (
           <span aria-hidden="true" className="gcard-pill">
             {uk.feed.adoptPill}

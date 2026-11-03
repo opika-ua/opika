@@ -8,7 +8,6 @@ import {
 import { freshnessLabel } from "@opika/ui";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { cardAccessibleName } from "./card-text";
 import { GalleryCard } from "./GalleryCard";
 
 /** The gallery-context props every real caller passes (`tvaryny/page.tsx`); this file's
@@ -94,19 +93,19 @@ describe("GalleryCard link", () => {
     expect(url.searchParams.get("sort")).toBe("longest_waiting");
   });
 
-  it("has the accessible name cardAccessibleName computes, unaffected by the pill text", () => {
-    const card = makeCard({ name: "Мурчик" });
-    render(<GalleryCard card={card} cityName="Бровари" {...NO_CONTEXT} />);
-
-    const expected = cardAccessibleName(card, "Бровари");
-    expect(screen.getByRole("link", { name: expected })).toBeTruthy();
+  it("names the link from its visible text, so no aria-label can disagree with it (WCAG 2.5.3)", () => {
+    render(<GalleryCard card={makeCard({ name: "Мурчик" })} cityName="Бровари" {...NO_CONTEXT} />);
+    const link = screen.getByRole("link");
+    expect(link.hasAttribute("aria-label")).toBe(false);
+    expect(link.textContent).toContain("Мурчик");
+    expect(screen.getByRole("link", { name: /Мурчик/ })).toBeTruthy();
   });
 
   it("folds the reserved badge into the accessible name for a reserved animal", () => {
     const card = makeCard({ listingKind: "reserved" });
     render(<GalleryCard card={card} cityName="Бровари" {...NO_CONTEXT} />);
 
-    expect(screen.getByRole("link").getAttribute("aria-label")).toContain("Уже домовляються");
+    expect(screen.getByRole("link", { name: /Уже домовляються/ })).toBeTruthy();
   });
 });
 
@@ -124,11 +123,9 @@ describe("GalleryCard the «Познайомитися» pill", () => {
     expect(screen.getByText("Познайомитися")).toBeTruthy();
   });
 
-  it("does not change the accessible name - the link's own aria-label is what's read", () => {
-    const card = makeCard();
-    render(<GalleryCard card={card} cityName="Бровари" {...NO_CONTEXT} />);
-    const link = screen.getByRole("link");
-    expect(link.getAttribute("aria-label")).not.toContain("Познайомитися");
+  it("stays out of the accessible name (aria-hidden)", () => {
+    render(<GalleryCard card={makeCard()} cityName="Бровари" {...NO_CONTEXT} />);
+    expect(screen.queryByRole("link", { name: /Познайомитися/ })).toBeNull();
   });
 });
 
@@ -182,7 +179,7 @@ describe("GalleryCard meta line", () => {
 
   it("still carries the city in the accessible name, for a screen-reader user", () => {
     render(<GalleryCard card={makeCard()} cityName="Бровари" {...NO_CONTEXT} />);
-    expect(screen.getByRole("link").getAttribute("aria-label")).toContain("Бровари");
+    expect(screen.getByRole("link", { name: /Бровари/ })).toBeTruthy();
   });
 });
 
@@ -234,7 +231,7 @@ describe("GalleryCard on a phone (text under the photo)", () => {
     render(
       <GalleryCard card={makeCard({ name })} cityName="Бровари" layout="stacked" {...NO_CONTEXT} />,
     );
-    expect(screen.getByRole("link").getAttribute("aria-label")?.startsWith(`${name},`)).toBe(true);
+    expect(screen.getByRole("link", { name: new RegExp(name) })).toBeTruthy();
     expect(screen.getByTestId("card-name").textContent).toBe(name);
   });
 });

@@ -295,7 +295,7 @@ describe("AnimalDetailScreen meta line, by sex", () => {
   /**
    * The age word agrees with the animal's sex on the meta line and in the «Про мене» chip (Q9,
    * the same `ageWordFor` as the gallery card), capitalised like the other chips; the chip's link
-   * and accessible name stay the filter's own («Показати схожих…: дорослий»). Every sex × bucket.
+   * stays the filter's own, and the accessible name begins with the visible word («доросла: показати схожих…»). Every sex × bucket.
    */
   it.each([
     ["male", "baby", "Малюк", "малюк"],
@@ -311,8 +311,8 @@ describe("AnimalDetailScreen meta line, by sex", () => {
     ["unknown", "adult", "Дорослий", "дорослий"],
     ["unknown", "senior", "Літній", "літній"],
   ] as const)(
-    "%s, %s: the age chip and meta line read «%s»; the chip's link name keeps «%s»",
-    async (sex, ageBucket, word, filterWord) => {
+    "%s, %s: the age chip and meta line read «%s»; the filter word is «%s»",
+    async (sex, ageBucket, word, _filterWord) => {
       const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
       render(
         <AnimalDetailScreen
@@ -324,7 +324,9 @@ describe("AnimalDetailScreen meta line, by sex", () => {
       );
       // The chip row keeps its capitalised word; the meta line has its own lowercase one.
       expect(screen.getAllByText(word).length).toBeGreaterThanOrEqual(1);
-      const chip = screen.getByRole("link", { name: new RegExp(`${filterWord}$`) });
+      const chip = screen.getByRole("link", {
+        name: new RegExp(`^${word.toLowerCase()}: показати схожих`),
+      });
       expect(chip.textContent).toBe(word);
     },
   );
@@ -345,7 +347,7 @@ describe("AnimalDetailScreen meta line, by sex", () => {
         cityPlace="м. Бровари"
       />,
     );
-    const chip = screen.getByRole("link", { name: "Показати схожих котів: хлопчик" });
+    const chip = screen.getByRole("link", { name: "хлопчик: показати схожих котів" });
     expect(chip.textContent).toBe("Хлопчик");
     expect(chip.getAttribute("href")).toContain("stat=male");
   });
@@ -484,7 +486,7 @@ describe("AnimalDetailScreen – the size chip agrees with sex", () => {
   ] as const)("%s, %s: the chip reads «%s»", async (sex, size, word) => {
     await renderAnimal({ sex, size });
     const chip = screen.getByRole("link", {
-      name: /^Показати схожих котів: (малий|середній|великий)$/,
+      name: new RegExp(`^${word.toLowerCase()}: показати схожих котів$`),
     });
     expect(chip.textContent).toBe(word);
   });
@@ -498,7 +500,8 @@ describe("AnimalDetailScreen – the size chip agrees with sex", () => {
       colour: { kind: "custom", text: { uk: "Димчасто-кремова", en: null } },
       coatLength: "short",
     });
-    const row = screen.getByRole("link", { name: /котів: доросл/ }).parentElement as HTMLElement;
+    const row = screen.getByRole("link", { name: /^доросла: показати схожих котів$/ })
+      .parentElement as HTMLElement;
     expect(Array.from(row.children).map((c) => c.textContent)).toEqual([
       "Доросла",
       "Дівчинка",

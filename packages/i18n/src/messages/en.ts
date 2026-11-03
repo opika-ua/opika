@@ -198,7 +198,7 @@ export const en = {
     aboutMeHeading: "About me",
     myStoryHeading: "My story",
     medicalHeading: "Medical",
-    chipLinkName: "Show similar {species}: {value}",
+    chipLinkName: "{value}: show similar {species}",
     chipSpeciesCat: "cats",
     chipSpeciesDog: "dogs",
   },

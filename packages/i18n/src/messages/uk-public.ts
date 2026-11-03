@@ -566,15 +566,15 @@ export const ukPublic = {
     myStoryHeading: "Моя історія",
     medicalHeading: "Медичний стан",
     /**
-     * Template: "Показати схожих {species}: {value}" - a filterable chip
-     * link's accessible name. `{species}` is `chipSpeciesCat`/`chipSpeciesDog`
+     * Template: "{value}: показати схожих {species}" - a filterable chip
+     * link's accessible name; it begins with the chip's visible text (WCAG 2.5.3). `{species}` is `chipSpeciesCat`/`chipSpeciesDog`
      * below; `{value}` is the dimension's own existing label text,
      * lowercased, with no quotes around it (his exact wording, 2026-10-27:
      * "«Показати схожих {котів|собак}: {значення}», with no quotes around
      * the value. The value is lowercase and uses the filter form"). Built by
      * `similarAnimalsLabel` (`apps/web/src/features/gallery/filter-url.ts`).
      */
-    chipLinkName: "Показати схожих {species}: {value}",
+    chipLinkName: "{value}: показати схожих {species}",
     chipSpeciesCat: "котів",
     chipSpeciesDog: "собак",
   },
