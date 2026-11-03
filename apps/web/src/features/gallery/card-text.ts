@@ -1,12 +1,6 @@
 import type { FeedCardView } from "@opika/contracts";
 import type { CityId } from "@opika/domain";
-import {
-  ageWordFor,
-  fillTemplate,
-  sexWordFor,
-  sizeLabel,
-  ukPublic as uk,
-} from "@opika/i18n/public";
+import { ageWordFor, animalFactsParts, fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { freshnessLabel } from "@opika/ui";
 
 /**
@@ -58,36 +52,9 @@ export function housingCityLabel(card: FeedCardView, cityName: string | null): s
   return fillTemplate(template, { place: cityName });
 }
 
-/** "молодий · мала · на перетримці, м. Бровари" - the card's full meta line. */
-export function cardMetaLine(card: FeedCardView, cityName: string | null): string {
-  return [
-    ageWordFor(card.ageBucket, card.sex),
-    sizeLabel(card.size),
-    housingCityLabel(card, cityName),
-  ]
-    .filter((part): part is string => Boolean(part))
-    .join(" · ");
-}
-
-/**
- * ["Хлопчик", "молодий", "мала"] - the gallery-v3 card's meta line (Figma
- * `58:1617`), as separate parts rather than one joined string: the design
- * renders a decorative bar between each part (`GalleryCard.tsx`'s own
- * `META_SEPARATOR`), not a "·" character, so the caller needs the parts to
- * interleave them with real DOM separators. Sex is named as its own word
- * rather than folded into the age word's grammatical gender, and city is
- * never included (the design keeps city in the accessible name only,
- * `cardAccessibleName`, never visible on the card itself - a new function
- * rather than editing `cardMetaLine` above, which the old `AnimalCard`
- * shared with the shelter and saved pages still uses unchanged). Age uses
- * `ageWordFor`: the age word agrees with the animal's sex («Дівчинка · доросла»), the
- * same function every other card surface uses. An `"unknown"` sex drops the sex segment
- * rather than guessing, and the age word then reads masculine.
- */
+/** The card's visible facts line, as parts: the shared formatter, no species and no city (the city is in the accessible name only). */
 export function cardFactsParts(card: FeedCardView): readonly string[] {
-  return [sexWordFor(card.sex), ageWordFor(card.ageBucket, card.sex), sizeLabel(card.size)].filter(
-    (part): part is string => Boolean(part),
-  );
+  return animalFactsParts({ sex: card.sex, ageBucket: card.ageBucket, size: card.size });
 }
 
 /**

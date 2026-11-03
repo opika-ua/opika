@@ -2,13 +2,7 @@ import type { FeedCardView } from "@opika/contracts";
 import type { Freshness } from "@opika/domain";
 import { freshnessLabel } from "@opika/ui";
 import { describe, expect, it } from "vitest";
-import {
-  cardAccessibleName,
-  cardFactsParts,
-  cardMetaLine,
-  housingCityLabel,
-  isReserved,
-} from "./card-text";
+import { cardAccessibleName, cardFactsParts, housingCityLabel, isReserved } from "./card-text";
 
 const FRESHNESS: Freshness = {
   kind: "fresh",
@@ -71,61 +65,20 @@ describe("housingCityLabel", () => {
   });
 });
 
-describe("cardMetaLine", () => {
-  it("joins age, size and housing+city with the deck's own separator", () => {
-    const card = makeCard({ ageBucket: "young", size: "small", publicLocation: null });
-    expect(cardMetaLine(card, "м. Бровари")).toBe("молодий · мала · м. Бровари");
-  });
-
-  it("drops the housing+city segment rather than leaving a dangling separator", () => {
-    const card = makeCard({ ageBucket: "adult", size: "large" });
-    expect(cardMetaLine(card, null)).toBe("дорослий · велика");
-  });
-
-  /** Q9 (Oleksii, 2026-10-18): the age word agrees with the animal; «Не записано» keeps today's word. */
-  it.each([
-    ["female", "молода · мала"],
-    ["male", "молодий · мала"],
-    ["unknown", "молодий · мала"],
-  ] as const)("a %s animal's age word: «%s»", (sex, line) => {
-    expect(cardMetaLine(makeCard({ sex, ageBucket: "young", size: "small" }), null)).toBe(line);
-  });
-
-  it("the card link's accessible name carries the same agreeing word", () => {
-    expect(cardAccessibleName(makeCard({ sex: "female", ageBucket: "senior" }), null)).toContain(
-      "літня",
-    );
-  });
-});
-
-/** gallery-v3 (Figma `58:1617`): sex named as its own word, no city. */
 describe("cardFactsParts", () => {
   it("lists sex, age and size as separate parts, in that order", () => {
     const card = makeCard({ sex: "male", ageBucket: "young", size: "small" });
-    expect(cardFactsParts(card)).toEqual(["Хлопчик", "молодий", "мала"]);
+    expect(cardFactsParts(card)).toEqual(["Хлопчик", "молодий", "малий"]);
   });
 
-  it.each([
-    ["male", "baby", "малюк"],
-    ["male", "young", "молодий"],
-    ["male", "adult", "дорослий"],
-    ["male", "senior", "літній"],
-    ["female", "baby", "малючка"],
-    ["female", "young", "молода"],
-    ["female", "adult", "доросла"],
-    ["female", "senior", "літня"],
-    ["unknown", "baby", "малюк"],
-    ["unknown", "young", "молодий"],
-    ["unknown", "adult", "дорослий"],
-    ["unknown", "senior", "літній"],
-  ] as const)("the age word agrees with sex: %s, %s → «%s»", (sex, bucket, word) => {
-    const card = makeCard({ sex, ageBucket: bucket, size: "small" });
-    expect(cardFactsParts(card)).toContain(word);
+  it("is the shared formatter's line (full table in animal-labels.test.ts)", () => {
+    const card = makeCard({ sex: "female", ageBucket: "adult", size: "large" });
+    expect(cardFactsParts(card)).toEqual(["Дівчинка", "доросла", "велика"]);
   });
 
   it("drops the sex part for an unknown sex rather than guessing", () => {
     const card = makeCard({ sex: "unknown", ageBucket: "adult", size: "large" });
-    expect(cardFactsParts(card)).toEqual(["дорослий", "велика"]);
+    expect(cardFactsParts(card)).toEqual(["Дорослий", "великий"]);
   });
 
   it("never mentions the city - city stays in the accessible name only", () => {
@@ -137,6 +90,13 @@ describe("cardFactsParts", () => {
 });
 
 describe("cardAccessibleName", () => {
+  it("stays age-only: no sex word and no size word (UX-2 decision 4)", () => {
+    const card = makeCard({ sex: "female", ageBucket: "adult", size: "large" });
+    const name = cardAccessibleName(card, "Бровари");
+    expect(name).toContain("доросла");
+    expect(name).not.toMatch(/Дівчинка|велика/);
+  });
+
   it("composes name, age, city, then the freshness sentence - docs/design/README.md 'Keyboard'", () => {
     const card = makeCard({ name: "Мурчик", ageBucket: "young" });
     const expected = `Мурчик, молодий, Бровари, ${freshnessLabel(FRESHNESS)}`;

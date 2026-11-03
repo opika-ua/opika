@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isRealPhotoKey, r2PublicUrl } from "@opika/db/image-pipeline";
-import { sexWordFor, speciesWordFor } from "@opika/i18n";
+import { animalFactsParts } from "@opika/i18n";
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
 import { SITE_TITLE } from "../brand";
@@ -142,9 +142,13 @@ export async function animalOgImage(view: AnimalPageView): Promise<Response> {
     firstPhoto ? photoDataUri(firstPhoto.storageKey) : Promise.resolve(null),
     fonts(),
   ]);
-  const facts = [speciesWordFor(animal.species, animal.sex), sexWordFor(animal.sex)]
-    .filter(Boolean)
-    .join(" · ");
+  // Only what cannot go stale in a cached preview, so no age bucket (it moves on its own).
+  const facts = animalFactsParts({
+    species: animal.species,
+    sex: animal.sex,
+    ageBucket: null,
+    size: null,
+  }).join(" · ");
 
   const image = new ImageResponse(
     <div style={{ width: "100%", height: "100%", display: "flex", background: PAGE, color: INK }}>

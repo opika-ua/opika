@@ -1,6 +1,6 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
 import { DEFAULT_FRESHNESS_POLICY, freshnessOf } from "@opika/domain";
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -234,21 +234,33 @@ describe("AnimalDetailScreen meta line, by sex", () => {
   });
 
   it.each([
-    ["male", "small", "Малий"],
-    ["male", "medium", "Середній"],
-    ["male", "large", "Великий"],
-    ["female", "small", "Мала"],
-    ["female", "medium", "Середня"],
-    ["female", "large", "Велика"],
-    ["unknown", "small", "Малий"],
-    ["unknown", "medium", "Середній"],
-    ["unknown", "large", "Великий"],
+    ["male", "small", "малий"],
+    ["male", "medium", "середній"],
+    ["male", "large", "великий"],
+    ["female", "small", "мала"],
+    ["female", "medium", "середня"],
+    ["female", "large", "велика"],
+    ["unknown", "small", "малий"],
+    ["unknown", "medium", "середній"],
+    ["unknown", "large", "великий"],
   ] as const)("%s, %s: the meta line's size word reads «%s»", async (sex, size, word) => {
     await renderAnimal({ sex, size });
     const parts = Array.from(
       document.querySelector(".meta-line")?.querySelectorAll(".meta-part") ?? [],
     ).map((part) => part.textContent);
     expect(parts.at(-1)).toBe(word);
+  });
+
+  it("the header line is species, sex, age, size; an unknown sex has no sex part", async () => {
+    await renderAnimal({ species: "cat", sex: "female", ageBucket: "young", size: "large" });
+    const read = () =>
+      Array.from(document.querySelector(".meta-line")?.querySelectorAll(".meta-part") ?? []).map(
+        (part) => part.textContent,
+      );
+    expect(read()).toEqual(["Кіт", "дівчинка", "молода", "велика"]);
+    cleanup();
+    await renderAnimal({ species: "dog", sex: "unknown", ageBucket: "young", size: "large" });
+    expect(read()).toEqual(["Собака", "молодий", "великий"]);
   });
 
   it("an unrecorded sex shows no sex chip at all (sexWordFor's own null-for-unknown contract)", async () => {
@@ -295,8 +307,8 @@ describe("AnimalDetailScreen meta line, by sex", () => {
           cityPlace="м. Бровари"
         />,
       );
-      // Meta line and chip row: two places.
-      expect(screen.getAllByText(word).length).toBeGreaterThanOrEqual(2);
+      // The chip row keeps its capitalised word; the meta line has its own lowercase one.
+      expect(screen.getAllByText(word).length).toBeGreaterThanOrEqual(1);
       const chip = screen.getByRole("link", { name: new RegExp(`${filterWord}$`) });
       expect(chip.textContent).toBe(word);
     },

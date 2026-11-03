@@ -37,21 +37,6 @@ export function ageBucketLabel(bucket: AgeBucket): string {
   return AGE_BUCKET_LABELS[bucket];
 }
 
-/** The size word in a card's meta line, e.g. "мала" in "молодий · мала". */
-export function sizeLabel(size: SizeBucket): string {
-  return SIZE_LABELS[size];
-}
-
-/**
- * The pet card's size chip: agrees with the animal's sex like the age word (female «Мала»,
- * male and «Не записано» «Малий»). The masculine words are the filter's own, already capitalised.
- */
-export function sizeChipWordFor(size: SizeBucket, sex: AnimalSex): string {
-  if (grammaticalGenderOf(sex) === "masculine") return MASCULINE_SIZE_CHIP_WORDS[size];
-  const word = SIZE_LABELS[size];
-  return word.charAt(0).toLocaleUpperCase("uk") + word.slice(1);
-}
-
 const FEMININE_AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
   baby: uk.cardMeta.ageBabyFemale,
   young: uk.cardMeta.ageYoungFemale,
@@ -66,15 +51,6 @@ const FEMININE_AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
 export function ageWordFor(bucket: AgeBucket, sex: AnimalSex): string {
   const gender: GrammaticalGender = grammaticalGenderOf(sex);
   return gender === "feminine" ? FEMININE_AGE_BUCKET_LABELS[bucket] : AGE_BUCKET_LABELS[bucket];
-}
-
-/**
- * `ageWordFor` with a capital first letter, for the pet card's meta line and «Про мене» chip,
- * which are capitalised like the other chips («Доросла» for a girl, «Дорослий» otherwise).
- */
-export function ageChipWordFor(bucket: AgeBucket, sex: AnimalSex): string {
-  const word = ageWordFor(bucket, sex);
-  return word.charAt(0).toLocaleUpperCase("uk") + word.slice(1);
 }
 
 const SPECIES_WORD_LABELS: Record<AnimalSpecies, string> = {
@@ -128,4 +104,44 @@ export function sexWordFor(sex: AnimalSex): string | null {
       return unreachable;
     }
   }
+}
+
+const SPECIES_NEUTRAL_LABELS: Record<AnimalSpecies, string> = {
+  dog: uk.detail.speciesDog,
+  cat: uk.detail.speciesCat,
+};
+
+/** The size word agreeing with the animal's sex, lowercase-as-catalogued for the facts line. */
+export function sizeWordFor(size: SizeBucket, sex: AnimalSex): string {
+  return grammaticalGenderOf(sex) === "feminine"
+    ? SIZE_LABELS[size]
+    : MASCULINE_SIZE_CHIP_WORDS[size];
+}
+
+/**
+ * The one facts line for every animal surface: [species] · sex · age · size, as separate parts.
+ * Age and size agree with the sex (girl feminine, boy and unknown masculine); an unknown sex has
+ * no word, so the line starts with the age, unless the caller passes `unknownSexText` (the
+ * kabinet, where the shelter can fix the gap). Missing age or size (a kabinet draft) is left out.
+ * The first part is capitalised, the rest lowercase.
+ */
+export function animalFactsParts(facts: {
+  species?: AnimalSpecies;
+  sex: AnimalSex;
+  ageBucket: AgeBucket | null;
+  size: SizeBucket | null;
+  unknownSexText?: string;
+}): string[] {
+  const { species, sex, ageBucket, size, unknownSexText } = facts;
+  const parts = [
+    species === undefined ? null : SPECIES_NEUTRAL_LABELS[species],
+    sexWordFor(sex) ?? unknownSexText ?? null,
+    ageBucket === null ? null : ageWordFor(ageBucket, sex),
+    size === null ? null : sizeWordFor(size, sex),
+  ]
+    .filter((part): part is string => part !== null && part !== "")
+    .map((part) => part.toLocaleLowerCase("uk"));
+  return parts.map((part, index) =>
+    index === 0 ? part.charAt(0).toLocaleUpperCase("uk") + part.slice(1) : part,
+  );
 }

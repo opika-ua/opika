@@ -1015,6 +1015,7 @@ export const uk = {
       },
       add: "Додати тварину",
       addShort: "Додати",
+      sexNotStated: "стать не вказана",
       filter: {
         label: "Показати",
         all: "Усі",

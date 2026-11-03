@@ -230,11 +230,11 @@ describe("the page: header, rows, order note", () => {
   it("each row: the name, the status chip, the meta line and the line that says where it stands", () => {
     renderList();
     expect(inRow("Рекс").getByText("Опубліковано")).toBeTruthy();
-    expect(inRow("Рекс").getByText("Собака · Хлопчик · Середній · молодий")).toBeTruthy();
+    expect(inRow("Рекс").getByText("Собака · хлопчик · молодий · середній")).toBeTruthy();
     expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
     expect(inRow("Мурка").getByText("Домовляються")).toBeTruthy();
-    expect(inRow("Мурка").getByText("Кіт · Дівчинка · Малий · молода")).toBeTruthy();
-    expect(inRow("Сірко").getByText("Собака · Не записано")).toBeTruthy();
+    expect(inRow("Мурка").getByText("Кіт · дівчинка · молода · мала")).toBeTruthy();
+    expect(inRow("Сірко").getByText("Собака · стать не вказана")).toBeTruthy();
     expect(inRow("Сірко").getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeTruthy();
     expect(inRow("Бім").getByText("Удома з 12 вересня")).toBeTruthy();
     expect(
