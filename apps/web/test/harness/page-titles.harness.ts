@@ -51,7 +51,7 @@ test("the shelter page's title is the shelter's name, then its city, then the br
   const href = await page.locator(CARD).first().getAttribute("href");
   await page.goto(href as string);
   const animalTitle = await page.title();
-  const shelterLink = page.getByRole("link", { name: /^Сторінка притулку «.+»$/ });
+  const shelterLink = page.locator("a[href^='/prytulky/']");
   await shelterLink.click();
   await page.waitForURL(/\/prytulky\//);
   await page.getByRole("heading", { level: 1 }).waitFor();
