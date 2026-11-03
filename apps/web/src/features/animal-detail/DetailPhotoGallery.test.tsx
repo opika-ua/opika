@@ -1,5 +1,5 @@
 import { type AnimalPhoto, MAX_ANIMAL_PHOTOS } from "@opika/domain";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
 
@@ -20,18 +20,59 @@ function imagesIn(region: HTMLElement): HTMLImageElement[] {
   return Array.from(region.querySelectorAll("img"));
 }
 
+type Watcher = {
+  cb: IntersectionObserverCallback;
+  options: IntersectionObserverInit | undefined;
+  targets: Element[];
+};
+let watchers: Watcher[] = [];
+
+/** The slider arms later slides through one observer; tests report which slides came into range. */
+function stubObserver() {
+  watchers = [];
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      private readonly watcher: Watcher;
+      constructor(cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        this.watcher = { cb, options, targets: [] };
+        watchers.push(this.watcher);
+      }
+      observe(target: Element) {
+        this.watcher.targets.push(target);
+      }
+      disconnect() {}
+    },
+  );
+}
+
+function reveal(slideIndex: number) {
+  const watcher = watchers[0];
+  const target = watcher?.targets[slideIndex];
+  if (!watcher || !target) throw new Error(`no observed slide ${slideIndex}`);
+  act(() => {
+    watcher.cb([{ isIntersecting: true, target } as IntersectionObserverEntry], {} as never);
+  });
+}
+
 describe("DetailPhotoGallery", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  it("renders every photo in one named region, falling back to the animal's name for alt", () => {
+  it("loads only the first photo until the others come into range, falling back to the animal's name for alt", () => {
+    stubObserver();
     render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    const region = screen.getByRole("region", REGION);
 
-    const imgs = imagesIn(screen.getByRole("region", REGION));
-    expect(imgs).toHaveLength(3);
+    expect(imagesIn(region)).toHaveLength(1);
+    expect(watchers[0]?.options?.root).toBe(region);
+    reveal(2);
+    const imgs = imagesIn(region);
+    expect(imgs).toHaveLength(2);
     expect(imgs[0]?.getAttribute("src")).toContain(encodeURIComponent("/a.jpg"));
-    expect(imgs[2]?.getAttribute("src")).toContain(encodeURIComponent("/c.jpg"));
+    expect(imgs[1]?.getAttribute("src")).toContain(encodeURIComponent("/c.jpg"));
     expect(imgs.every((img) => img.getAttribute("alt") === "Мурчик")).toBe(true);
   });
 
@@ -41,15 +82,30 @@ describe("DetailPhotoGallery", () => {
     expect(screen.getByRole("img", { name: "Мурчик спить" })).toBeTruthy();
   });
 
-  it.each([1, 5, MAX_ANIMAL_PHOTOS])("shows all %i photos, in order", (count) => {
+  it.each([1, 5, MAX_ANIMAL_PHOTOS])("shows all %i photos, in order, once armed", (count) => {
+    stubObserver();
     const photos = Array.from({ length: count }, (_, i) => photo(`/p${i}.jpg`));
     render(<DetailPhotoGallery photos={photos} altFallback="Мурчик" />);
+    for (let i = 1; i < count; i++) reveal(i);
 
     const imgs = imagesIn(screen.getByRole("region", REGION));
     expect(imgs).toHaveLength(count);
     imgs.forEach((img, i) => {
       expect(img.getAttribute("src")).toContain(encodeURIComponent(`/p${i}.jpg`));
     });
+  });
+
+  it("an armed slide stays loaded, and without IntersectionObserver every photo loads", () => {
+    stubObserver();
+    const { unmount } = render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    reveal(1);
+    reveal(1);
+    expect(imagesIn(screen.getByRole("region", REGION))).toHaveLength(2);
+    unmount();
+
+    vi.stubGlobal("IntersectionObserver", undefined);
+    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    expect(imagesIn(screen.getByRole("region", REGION))).toHaveLength(3);
   });
 
   it("an animal with no photos gets the phone's placeholder text and no slider", () => {

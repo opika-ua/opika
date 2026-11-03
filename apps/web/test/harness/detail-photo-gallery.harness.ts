@@ -66,7 +66,7 @@ async function discoverMultiPhotoAnimalHref(
       // scroll - `scrollBy` is a no-op and the prev button never appears. 3 photos
       // (3*360 + 32 = 1112px) genuinely overflow, which is what this file's own prev-
       // button test needs a real animal for.
-      const photoCount = await page.locator(DETAIL_READY).count();
+      const photoCount = await page.locator("section[aria-label='Фотогалерея'] > div").count();
       if (photoCount >= 3) {
         cachedMultiPhotoHref = href;
         return href;
