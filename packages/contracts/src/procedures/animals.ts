@@ -136,13 +136,8 @@ export const AnimalsRevealInputSchema = z.object({
 });
 
 /**
- * Deliberately separate from `swipes.record`.
- *
  * A reveal is a transactional, idempotent, append-only event: it writes the
- * shelter snapshot the adopter's history depends on, and later it is the entry
- * a reward ledger reads. Recording a swipe is best-effort and batchable. Fusing
- * them would give the cheap call the reliability requirements of the expensive
- * one and the expensive call the guarantees of the cheap one.
+ * shelter snapshot the adopter's history depends on.
  *
  * Calling it twice for the same animal must return the existing reveal rather
  * than creating a second, so a double tap on a card cannot duplicate history.

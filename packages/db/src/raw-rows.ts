@@ -9,8 +9,7 @@ import type { Database } from "./client";
  * `RowList` array on postgres-js, `{ rows, fields, … }` on neon-http
  * (`drizzle-orm/neon-http/session.js` runs raw SQL with `fullResults: true`).
  * Code that reads the result as an array passes every local test and reads
- * nothing in production: `hasActiveSeenSet` (R1) and `relaxationCounts` (#112)
- * both did. Prefer a typed `.select()`, whose rows the query builder maps the
+ * nothing in production: `relaxationCounts` (#112) did. Prefer a typed `.select()`, whose rows the query builder maps the
  * same way on both drivers; this is for the statement the builder can't
  * express. `raw-execute-reads.test.ts` refuses a raw read anywhere else.
  *

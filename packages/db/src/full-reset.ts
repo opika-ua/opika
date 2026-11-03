@@ -16,7 +16,7 @@ import { executeRows } from "./raw-rows";
  * rehearsal to remove the rehearsal shelter itself along with everything
  * else - `docs/launch-sequence.md` has the full two-cycle sequence. Empties
  * every application data table in one plain `TRUNCATE` statement: shelters,
- * animals, their history, swipes, reveals, every `auth_*` table, support
+ * animals, their history, reveals, every `auth_*` table, support
  * sessions. Keeps the schema and drizzle's own migrations table -
  * `db:check-hashes` matches, unchanged, before and after a reset - and
  * keeps `cities` (see `RESET_EXCLUDED_TABLES` below): reference data a
@@ -74,13 +74,12 @@ export const FULL_RESET_TABLES = [
   "auth_user",
   "sessions",
   "reveals",
-  "swipes",
   "animals",
   "adopters",
   "shelters",
   // GDPR photo retention's own tracking table (r2-cleanup-repo.ts): which real
   // R2 keys are currently unreferenced, and since when. Wiped with the data it
-  // describes, same as swipes/reveals/shelter_history - the next scan
+  // describes, same as reveals/shelter_history - the next scan
   // (necessarily run after a reset, as part of the post-reset R2 clean-up step)
   // repopulates it fresh from the bucket listing and the post-reset reference
   // set, so nothing is lost by resetting it too.

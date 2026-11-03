@@ -258,7 +258,7 @@ describe("kabinet views carry exactly their listed keys", () => {
   /**
    * Commitment #2: a shelter is never told someone looked at a card. Pinning
    * each view's whole key set (not just the absence of a few names) means no
-   * reveal, swipe or view count can be added without an edit here.
+   * reveal or view count can be added without an edit here.
    */
   const keys = keysOf;
 

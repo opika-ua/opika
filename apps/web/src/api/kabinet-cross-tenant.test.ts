@@ -6,15 +6,15 @@ import {
   animalRepo,
   cityRepo,
   kabinetShelterRepo,
+  revealRepo,
   shelterRepo,
-  swipeRepo,
 } from "@opika/db/repos";
 import {
   makeAdopter,
   makeAnimal,
   makeCity,
+  makeReveal,
   makeShelter,
-  makeSwipe,
   setupTestDatabase,
   testJpeg,
   truncateAll,
@@ -233,7 +233,13 @@ describe("cross-tenant: an animalId from another shelter is NOT_FOUND, same as a
     const before = await call("shelter.animals.byId", { animalId: bPublished.id });
     const adopter = makeAdopter();
     await adopterRepo(db).insert(adopter);
-    await swipeRepo(db).record(makeSwipe({ adopterId: adopter.id, animalId: bPublished.id }));
+    await revealRepo(db).insert(
+      makeReveal({
+        adopterId: adopter.id,
+        animalId: bPublished.id,
+        shelterId: bPublished.shelterId,
+      }),
+    );
     const after = await call("shelter.animals.byId", { animalId: bPublished.id });
     expect(after).toEqual(before);
   });

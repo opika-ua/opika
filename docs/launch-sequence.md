@@ -84,7 +84,7 @@ to).
 ### 2. The full reset
 
 Empties every application data table in production - shelters, animals, history, reveals,
-swipes, every `auth_*` table, support sessions - in one `TRUNCATE`. Keeps the schema, the
+every `auth_*` table, support sessions - in one `TRUNCATE`. Keeps the schema, the
 `drizzle.__drizzle_migrations` table, and `cities` (geography reference data, not application
 data; see `packages/db/src/full-reset.ts`'s own doc comment for the full list and why each
 exclusion is deliberate, not a gap).

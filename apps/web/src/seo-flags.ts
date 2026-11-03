@@ -1,4 +1,3 @@
-import type { VerificationBadge } from "@opika/contracts";
 import { R4_2_ANALYTICS_SENTENCE, ukPublic as uk } from "@opika/i18n/public";
 
 /**
@@ -21,9 +20,9 @@ import { R4_2_ANALYTICS_SENTENCE, ukPublic as uk } from "@opika/i18n/public";
  * Does the registry currently hold zero real shelters. Drives the root layout's default `description`
  * swap (`app/layout.tsx` - `/prytulkam` and `/pro` override this default
  * with their own opening sentences instead, Option B, see
- * `docs/observations.md`), and `verificationSuffix` below - everything that
+ * `docs/observations.md`) - everything that
  * would otherwise assert something true about a fictional shelter to a
- * visitor. All are D-2.
+ * visitor. D-2.
  *
  * This is a fact about *data*, not about *reach*. It goes `false` the
  * moment the demo corpus is wiped and the first real shelter is onboarded -
@@ -51,48 +50,11 @@ import { R4_2_ANALYTICS_SENTENCE, ukPublic as uk } from "@opika/i18n/public";
  * {animalId}` - the URL `/prytulkam` itself tells a shelter to paste into
  * Telegram - has exactly the same gap (disclosure in `generateMetadata`
  * only) and needs the same fix; tracked to close in the same row, not
- * deferred. (2) Both `AnimalCard.tsx` and the (since retired) deck card rendered a
- * card's "· перевірений" suffix straight off `shelter.verification ===
- * "verified"`, with **no** reference to this flag at all. `verificationSuffix`
- * below unifies *that one duplicated pattern* - it is not, contrary to an
- * earlier draft of this comment, a claim that every surface asserting
- * shelter verification calls it: `AnimalDetailScreen.tsx`'s
- * `shelterVerifiedYears` badge and the gallery/detail banners below each
- * gate directly on this flag inline, correctly, because each renders
- * different content this one function has no reason to own. What actually
- * changed is that the *one* pattern repeated verbatim across two files
- * now has one definition instead of two copies that could drift.
+ * deferred. (2) The card "verified" suffix had no gate either; its shared
+ * helper, `verificationSuffix`, was removed with its last caller (2026-11-03).
+ * Surfaces gate on this flag inline.
  */
 export const REGISTRY_HAS_NO_REAL_SHELTERS = true;
-
-/**
- * The "· перевірений" suffix a card appends next to a verified shelter's
- * name. The one gate for that claim - a card surface calls this rather
- * than carrying its own copy of the check, so a future one
- * inherits the suppression rather than needing to remember
- * `REGISTRY_HAS_NO_REAL_SHELTERS` exists. (`AnimalCard.tsx` carries no
- * shelter name at all since S1 - "No shelter name on the gallery card" -
- * so it has no verified-suffix call to make.) Not sourced from
- * `packages/i18n`: the literal predates this fix and moving it into the
- * catalogue is a separate, unrelated cleanup this row doesn't scope-creep
- * into - the string itself is unchanged, only where the check lives.
- *
- * `registryHasNoRealShelters` defaulted to the real constant, not read from
- * the module binding inside the body - same reasoning as
- * `assertDemoDiscoverabilityInvariant`'s own doc comment: `vi.doMock`
- * builds a new module namespace for the *exported* binding, but a function
- * copied into that namespace via `...importOriginal()` still closes over
- * its original module instance's own binding, not the mock's override.
- * Confirmed by hitting exactly that false pass while writing this row's own
- * test, not assumed from the other function's comment alone.
- */
-export function verificationSuffix(
-  verification: VerificationBadge,
-  registryHasNoRealShelters: boolean = REGISTRY_HAS_NO_REAL_SHELTERS,
-): string | null {
-  if (registryHasNoRealShelters) return null;
-  return verification === "verified" ? " · перевірений" : null;
-}
 
 /**
  * Is this deploy meant to be found by a search engine or crawled at all.

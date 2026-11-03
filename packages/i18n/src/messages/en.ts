@@ -125,12 +125,6 @@ export const en = {
     loading: "Loading the list…",
   },
 
-  // --- Action buttons ---
-  actions: {
-    write: "Message",
-    writeShelter: "Message the shelter",
-  },
-
   // --- Freshness ---
   freshness: {
     /** Rendered by Intl.RelativeTimeFormat('en'), not this string. */

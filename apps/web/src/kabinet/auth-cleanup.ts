@@ -31,7 +31,7 @@ import { adopterRepo, authExpiryRepo, kabinetInvitedUsersRepo, sessionRepo } fro
  *   cron's own 6-hour worst case, not left to wait indefinitely.
  * - **And the adopters' side** (audit F6, owner's S3 scope, 2026-10-29): anonymous sessions
  *   past decision 13's limits (`sessionRepo.deleteLapsed`, the rule `validateSession` refuses
- *   by), then adopters left with no session, swipe or reveal (`adopterRepo.deleteOrphaned`),
+ *   by), then adopters left with no session or reveal (`adopterRepo.deleteOrphaned`),
  *   at most `ADOPTER_CLEANUP_BATCH` of each per run, so a backlog takes several runs rather
  *   than one long statement. Sessions first, so an adopter whose session goes now can go too.
  * - **Who may call it:** Vercel's cron, which sends

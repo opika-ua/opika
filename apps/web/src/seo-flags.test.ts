@@ -4,7 +4,6 @@ import { SITE_ORIGIN } from "./brand";
 import {
   assertAnalyticsCopyMatchesGateState,
   assertDemoDiscoverabilityInvariant,
-  verificationSuffix,
 } from "./seo-flags";
 
 const INCOMPLETE_ANALYTICS_COPY =
@@ -255,41 +254,6 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
 
   it("defaults to the real copy and the real flag – today's actual state on both", () => {
     expect(() => assertAnalyticsCopyMatchesGateState()).not.toThrow();
-  });
-});
-
-/**
- * Found 2026-09-10 (Oleksii, not a test): `AnimalCard.tsx` and
- * the (since retired) deck card both rendered a verified shelter's "· перевірений" suffix
- * unconditionally, with no reference to `REGISTRY_HAS_NO_REAL_SHELTERS`
- * anywhere - the one badge that got its own gate right
- * (`AnimalDetailScreen.tsx`'s `shelterVerifiedYears`) did so per-component,
- * not from a shared place, so the next two surfaces inherited nothing from
- * that fix. `verificationSuffix` is the shared gate both cards now call.
- *
- * Tested via the explicit second parameter, not `vi.doMock` - the function
- * closes over its own module instance's `REGISTRY_HAS_NO_REAL_SHELTERS`
- * binding, so a mocked module namespace's override never reaches it once
- * the function itself is copied across via `...importOriginal()`. Same
- * limitation `assertDemoDiscoverabilityInvariant`'s own doc comment already
- * documents; the parameter default exists for exactly this reason.
- */
-describe("verificationSuffix", () => {
-  it("suppresses the suffix for a verified shelter while the registry holds no real shelters", () => {
-    expect(verificationSuffix("verified", true)).toBeNull();
-  });
-
-  it("suppresses for an unverified shelter regardless of the demo flag", () => {
-    expect(verificationSuffix("unverified", true)).toBeNull();
-    expect(verificationSuffix("unverified", false)).toBeNull();
-  });
-
-  it("shows the suffix for a verified shelter once real shelters exist", () => {
-    expect(verificationSuffix("verified", false)).toBe(" · перевірений");
-  });
-
-  it("defaults to the real constant – suppresses today's actual state, no real shelters", () => {
-    expect(verificationSuffix("verified")).toBeNull();
   });
 });
 

@@ -1,5 +1,7 @@
 # R5 - reachable-count design handoff
 
+> **Retired 2026-11-03 (owner decision): `feed.list`, `feedRepo` and the seen-set are deleted with the swipe deck. History only.**
+
 Investigated 2026-10-06 (Sonnet), handed off to Opus per `docs/model-policy.md`'s explicit
 assignment of seen-set-exclusion and keyset-query work before any contract or repo code was
 written. This document is the starting point for that session - the shape below is a proposal,

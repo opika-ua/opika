@@ -9,7 +9,7 @@ import { shelters } from "./shelters";
  * `shelterFacingHistoryOf` (no evidence and no ids).
  *
  * Five columns, pinned by an exact-field test (HS-Q6, Oleksii): the shelter,
- * when, which kind, the entry, and its id. **No adopter, reveal or swipe data,
+ * when, which kind, the entry, and its id. **No adopter or reveal data,
  * ever.** This table is one join away from `reveals.shelter_id`, which is
  * exactly how commitment #2 ("a shelter is never told someone looked") would
  * break by accident.

@@ -46,6 +46,11 @@ export interface SmokeSittingInput {
    */
   migration?: { tag: string };
   /**
+   * Read-only commands run on the child branch before `db:migrate` (only with `migration`), inside
+   * the guard block, so they may use the typed `$child`. Each is followed by a stop instruction.
+   */
+  preMigrateChecks?: { command: string; expected: string }[];
+  /**
    * A PR with the settlement import (nationwide N2): after the smoke, on the same child branch, the
    * import runs as a dry run, with `--commit`, as a dry run again (all zeros), and again after a
    * reseed. This block is the child-branch rehearsal and never passes `--prod`; the production
@@ -71,7 +76,10 @@ export interface SmokeSittingInput {
 const AGAINST_PRODUCTION = /against\s+production/i;
 
 /** The migration variant's extra lines; empty strings leave a plain smoke sitting unchanged. */
-function migrationParts(migration: SmokeSittingInput["migration"]) {
+function migrationParts(
+  migration: SmokeSittingInput["migration"],
+  preMigrateChecks: NonNullable<SmokeSittingInput["preMigrateChecks"]> = [],
+) {
   if (migration === undefined) {
     return {
       childSteps: "",
@@ -83,10 +91,11 @@ function migrationParts(migration: SmokeSittingInput["migration"]) {
   }
   return {
     childSteps:
+      preMigrateChecks.map((c) => `${c.command}\n    `).join("") +
       "pnpm --filter @opika/db db:migrate --expect $child\n    pnpm --filter @opika/db db:check-hashes\n",
     // Kept until the production step: `--prod` identifies production by this id.
     endpointRemovedAfterSmoke: "",
-    childExpected: `# Expected first: "Migrations: applied 1: ${migration.tag}" (applied 0: STOP unless you are re-running an already-applied migration), then every hash "match" (${migration.tag} included).\n`,
+    childExpected: `${preMigrateChecks.map((c) => `# Before the migration, expected: ${c.expected}. Any row -> STOP, paste the output.\n`).join("")}# Expected first: "Migrations: applied 1: ${migration.tag}" (applied 0: STOP unless you are re-running an already-applied migration), then every hash "match" (${migration.tag} included).\n`,
     productionStep: `
 ---- Production migration (only after every check above passed; no smoke runs here) ----
 $env:DATABASE_URL = Read-Secret "Production connection string (for db:migrate and db:check-hashes only)"
@@ -146,7 +155,7 @@ function importPasteBack(settlementImport: SmokeSittingInput["settlementImport"]
 
 function assembled(input: SmokeSittingInput): string {
   const worktreePath = `D:\\opika-worktrees\\${input.worktreeSlug}`;
-  const m = migrationParts(input.migration);
+  const m = migrationParts(input.migration, input.preMigrateChecks);
   return `${input.title} - merge sitting, ${input.date}. PowerShell.
 ${input.migrationNote}
 

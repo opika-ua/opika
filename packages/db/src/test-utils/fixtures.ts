@@ -19,7 +19,6 @@ import {
   type Shelter,
   type ShelterContact,
   type ShelterVerification,
-  type Swipe,
   testOnlyLocationPolicy,
   UNKNOWN_DOCUMENT_READINESS,
 } from "@opika/domain";
@@ -206,16 +205,6 @@ export function makeAdopter(overrides: Partial<AdopterProfile> = {}): AdopterPro
     preferredLocale: "uk",
     savedFilters: null,
     createdAt: now,
-    ...overrides,
-  };
-}
-
-export function makeSwipe(overrides: Partial<Swipe> = {}): Swipe {
-  return {
-    adopterId: uuid(),
-    animalId: uuid(),
-    direction: "pass",
-    at: now,
     ...overrides,
   };
 }

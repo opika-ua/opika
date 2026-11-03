@@ -71,6 +71,7 @@ export async function setupTestDatabase() {
     DROP TABLE IF EXISTS auth_user CASCADE;
     DROP TABLE IF EXISTS sessions CASCADE;
     DROP TABLE IF EXISTS reveals CASCADE;
+    -- Dropped by migration 0022; kept so a stale local database that still has it migrates from 0000.
     DROP TABLE IF EXISTS swipes CASCADE;
     DROP TABLE IF EXISTS animals CASCADE;
     DROP TABLE IF EXISTS adopters CASCADE;

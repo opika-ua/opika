@@ -20,4 +20,3 @@ export { reveals } from "./reveals";
 export { sessions } from "./sessions";
 export { shelterHistory } from "./shelter-history";
 export { shelters } from "./shelters";
-export { swipes } from "./swipes";

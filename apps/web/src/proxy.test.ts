@@ -113,7 +113,7 @@ describe("proxy", () => {
       "/api/registry",
       "/api/kabinetx",
       "/api/monitoringx",
-      "/api/rpc/feed.list",
+      "/api/rpc/animals.byId",
       "/api",
       "/kabinetx",
       "/kabinet-old",

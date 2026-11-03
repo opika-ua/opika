@@ -3,14 +3,12 @@ import { implement } from "@orpc/server";
 import type { AppContext } from "./context";
 import { animalsById, animalsCardsByIds, animalsNeighbours } from "./handlers/animals";
 import { citiesByIds, citiesResolveTokens } from "./handlers/cities";
-import { feedList } from "./handlers/feed";
 import { galleryFacetCounts, galleryList, galleryRelaxationCounts } from "./handlers/gallery";
 import { regionsList } from "./handlers/regions";
 import { animalsReveal } from "./handlers/reveal";
 import { revealsListMine } from "./handlers/reveals-list";
 import { sessionBootstrap } from "./handlers/session";
 import { sheltersById } from "./handlers/shelters";
-import { swipesRecord } from "./handlers/swipes";
 
 /**
  * The oRPC router, implementing the contract from @opika/contracts.
@@ -35,9 +33,6 @@ export const router = impl.router({
   },
   regions: {
     list: impl.regions.list.handler(({ input, context }) => regionsList(input, context)),
-  },
-  feed: {
-    list: impl.feed.list.handler(({ input, context, errors }) => feedList(input, context, errors)),
   },
   gallery: {
     list: impl.gallery.list.handler(({ input, context }) => galleryList(input, context)),
@@ -70,11 +65,6 @@ export const router = impl.router({
   shelters: {
     byId: impl.shelters.byId.handler(({ input, context, errors }) =>
       sheltersById(input, context, errors),
-    ),
-  },
-  swipes: {
-    record: impl.swipes.record.handler(({ input, context, errors }) =>
-      swipesRecord(input, context, errors),
     ),
   },
 });

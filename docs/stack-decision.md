@@ -544,7 +544,7 @@ type ShelterVerification =
 > into a false one. That is a product decision available to be taken
 > deliberately; it is not one to arrive at by implementation.
 
-**Stack additions:** an ad SDK (client), a server-side reward verification endpoint, a `RewardGrant` ledger table.
+**Stack additions:** an ad SDK (client), a server-side reward verification endpoint, a `RewardGrant` ledger table (owner, 2026-11-03: if Phase 2 ever needs a reward ledger it gets its own table designed then; the `swipes` table is dropped, migration 0022).
 
 **Architectural fit: clean.** Reward verification is a stateless server callback - validate the SDK's signature, write one idempotent row keyed on the SDK's transaction ID, credit the shelter's fund. It slots into `packages/domain` as a pure function plus one repository call. This is also, incidentally, the *cheapest possible thing to extract into a separate service* if you ever want to (see §11).
 

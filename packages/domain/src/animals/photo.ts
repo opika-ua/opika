@@ -7,8 +7,7 @@ import { LocalizedTextSchema } from "../primitives/localized-text";
  * migration.
  *
  * Intrinsic dimensions travel with the record so a card can reserve its space
- * before the image loads. A deck that reflows mid-swipe feels broken, and that
- * is not a discovery worth postponing until there is a deck to discover it in.
+ * before the image loads. A card that reflows as its image loads feels broken.
  *
  * H1: `width`/`height` are the ORIGINAL uploaded photo's real dimensions
  * (`packages/db/src/image-pipeline/resolve-local-photo.ts` for the onboarding

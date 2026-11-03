@@ -156,7 +156,6 @@ describe("adopter-facing responses carry the city only, before and after a revea
   it("checks every location-bearing procedure, the two reveal outputs included, with no exemption", () => {
     expect(all.map(([path]) => path)).toEqual(
       expect.arrayContaining([
-        "feed.list",
         "gallery.list",
         "animals.byId",
         "shelters.byId",
@@ -175,9 +174,9 @@ describe("adopter-facing responses carry the city only, before and after a revea
   );
 
   it("the location they do carry is reached by the walk (so an empty result means something)", () => {
-    const feed = all.find(([path]) => path === "feed.list")?.[1];
-    if (feed === undefined) throw new Error("feed.list missing from the contract");
-    const keys = reachableKeys(feed["~orpc"].outputSchema);
+    const gallery = all.find(([path]) => path === "gallery.list")?.[1];
+    if (gallery === undefined) throw new Error("gallery.list missing from the contract");
+    const keys = reachableKeys(gallery["~orpc"].outputSchema);
     expect(keys).toEqual(
       expect.arrayContaining([
         "$.items[].publicLocation.cityId",

@@ -50,14 +50,6 @@ const codeOf = (body: unknown) => (body as { code?: string }).code;
 const idsOf = (body: unknown) => (body as { items: { id: string }[] }).items.map((item) => item.id);
 
 describe("a name-and-species draft is on no adopter-facing surface (F-B2)", () => {
-  it("feed.list shows the published animal and not the draft", async () => {
-    const { visible, draft } = await seed();
-    const res = await h.call("feed.list", { filters: NO_FILTERS, cursor: null, limit: 20 });
-    expect(res.status).toBe(200);
-    expect(idsOf(res.body)).toContain(visible.id);
-    expect(idsOf(res.body)).not.toContain(draft.id);
-  });
-
   it("gallery.list shows the published animal and not the draft", async () => {
     const { visible, draft } = await seed();
     const res = await h.call("gallery.list", { filters: NO_FILTERS });
@@ -73,23 +65,6 @@ describe("a name-and-species draft is on no adopter-facing surface (F-B2)", () =
     expect(res.status).toBe(404);
     expect(codeOf(res.body)).toBe("NOT_FOUND");
     expect(JSON.stringify(res.body)).not.toContain("Чернетка");
-  });
-
-  it("swipes.record refuses the draft (NOT_FOUND) and records the published animal", async () => {
-    const { visible, draft } = await seed();
-    const cookie = await adopterCookie();
-    const at = new Date("2026-08-01T12:00:00Z");
-    expect(
-      (await h.call("swipes.record", { animalId: visible.id, direction: "pass", at }, { cookie }))
-        .status,
-    ).toBe(200);
-    const res = await h.call(
-      "swipes.record",
-      { animalId: draft.id, direction: "interested", at },
-      { cookie },
-    );
-    expect(res.status).toBe(404);
-    expect(codeOf(res.body)).toBe("NOT_FOUND");
   });
 
   it("animals.reveal refuses the draft (ANIMAL_NOT_AVAILABLE) and reveals the published animal", async () => {
