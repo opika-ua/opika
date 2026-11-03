@@ -11,7 +11,7 @@ import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
  * or `reveals.animal_snapshot`.
  *
  * `objectKey` is the real R2 object key (`{storageKey}/{variant}.webp`),
- * never the bare `storageKey` - the three variants of one photo can age out
+ * never the bare `storageKey` - the variants of one photo can age out
  * of reference at slightly different scan instants in principle (they never
  * do in practice, since they're always written and referenced together,
  * but the table makes no assumption that they must).

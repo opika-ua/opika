@@ -202,7 +202,7 @@ export async function stillUnreferenced(
  * is deleted, set that snapshot's primaryPhoto to null in the same run (so
  * nothing points at a missing file)." Grouped by `storageKey`, not
  * `objectKey`: a snapshot names a photo, not a variant, and every one of an
- * animal photo's three variants is always deleted together (the reference
+ * animal photo's variants are always deleted together (the reference
  * check above is keyed on `storageKey` too), so this runs once per photo,
  * not three times. A deleted shelter-logo key (two variants, pet card PR 4)
  * groups the same way structurally, but `reveals.animal_snapshot` never

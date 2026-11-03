@@ -56,7 +56,7 @@ export function attentionCropBox(source: Size, variant: Size): Size {
  * Generic over the variant set (pet card PR 3b): the attention-crop and
  * progressive-resize logic below has nothing animal-photo-specific about
  * it - a logo's `LOGO_VARIANTS` (square, two sizes) runs through exactly
- * the same pipeline as `IMAGE_VARIANTS` (4:5, three sizes), since
+ * the same pipeline as `IMAGE_VARIANTS` (4:5, several sizes), since
  * `attentionCropBox`'s crop shape comes entirely from the variant map's own
  * `{width, height}` entries, never from a hardcoded aspect ratio.
  */
