@@ -204,15 +204,15 @@ describe("authRevokeRepo", () => {
 
 describe("parseRevokeArgs", () => {
   it("reads the runbook's three lines", () => {
-    const dry = ["--prod", "--expect", "ep-dawn-pond-b1dz515g"];
+    const dry = ["--prod", "--expect", "ep-fake-prod-a1b2c3d4"];
     expect(parseRevokeArgs(dry)).toEqual({
       kind: "ok",
-      expect: "ep-dawn-pond-b1dz515g",
+      expect: "ep-fake-prod-a1b2c3d4",
       commit: false,
     });
     expect(parseRevokeArgs([...dry, "--commit"])).toEqual({
       kind: "ok",
-      expect: "ep-dawn-pond-b1dz515g",
+      expect: "ep-fake-prod-a1b2c3d4",
       commit: true,
     });
   });

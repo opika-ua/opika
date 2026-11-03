@@ -1054,8 +1054,8 @@ weeks.
   merges.
 - [x] **PW1-F5 merged.** Done. PR #158 (`fix/pw1-f5-atomic-session-revoke`) merged 2026-10-20
   (`f490ae6`): an additive migration, `0013`, one function and two triggers on `auth_account`.
-  His rehearsal (`9013a35` on child `ep-mute-darkness-b1imydip`: migrate ok, smoke 13/13) and his
-  production migration (`ep-dawn-pond-b1dz515g`, 2026-10-20: "migrations applied successfully",
+  His rehearsal (`9013a35` on child `ep-CHILD-BRANCH`: migrate ok, smoke 13/13) and his
+  production migration (`ep-PRODUCTION`, 2026-10-20: "migrations applied successfully",
   hashes clean before and after) are both quoted verbatim in the PR body. Review: PASS WITH NOTES,
   notes fixed in the follow-up commit. The branch's own inbox rows were never folded into
   `docs/decisions-inbox.md`'s shared table - folded in the same pass as this checkbox.

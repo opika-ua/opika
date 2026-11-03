@@ -26,7 +26,7 @@ questions go to Oleksii before code.
       equals the committed file's).
       **Frozen at 6b7fa12** (unchanged since; `drizzle-kit generate` reports no schema drift), and
       `check-migration-hashes.test.ts` pins its hash, so an edit fails CI instead of a rehearsal.
-      **On production 2026-10-13** (ep-dawn-pond-b1dz515g, Oleksii, RG-R4): `db:check-hashes` 12/12
+      **On production 2026-10-13** (ep-PRODUCTION, Oleksii, RG-R4): `db:check-hashes` 12/12
       match; 12 migrations; animals 18, all `version` 0; `support_sessions` and
       `invitation_created_users` exist, 0 rows; shelters 2, auth users 0.
 - [ ] **The registry answers 503 without `LOCATION_HMAC_SECRET`** (RG-Q10) while the kabinet is
@@ -47,7 +47,7 @@ questions go to Oleksii before code.
       `removeMember` (membership + sessions + history), `withdrawPending`, `createInvitation` and
       `resend` with their history rows, support `touch` (`make_interval`), and the S1 list's
       row-comparison keyset. Counts reported.
-      **Run 2026-10-13 on rehearsal-0011 (ep-crimson-pine-b1ka29bi):** 0011 applied, `db:check-hashes`
+      **Run 2026-10-13 on rehearsal-0011 (ep-CHILD-BRANCH):** 0011 applied, `db:check-hashes`
       12/12 match (0011 included), `db:neon-smoke` 14 passed / 0 failed.
 - [ ] Invitations go only through `kabinetInvitationRepo`, with the operator's own user as the
       inviter (HS-Q7). The end-to-end accept test passes on the pinned better-auth.
@@ -161,7 +161,7 @@ as #87 did. Done on `chore/inbox-fold` (2026-10-15): all six files (#89, #93, #9
 - [x] **Real-Neon rerun of step 18 with the 30-day cap condition** (EM-T21): Oleksii reruns
       `neon-smoke.ts`; step 18 now also checks a session past the cap (idle expiry ahead) goes and
       one just under it stays. **Done 2026-10-15** (EM-B11 item 1, verbatim: "Neon smoke rerun
-      (step 18), from D:\opika-worktrees\invite (feat/h2-invite), target ep-calm-math-b1ffs8rq
+      (step 18), from D:\opika-worktrees\invite (feat/h2-invite), target ep-PRODUCTION
       (smoke-invite): 18 passed, 0 failed. All accept paths pass (idempotent, membership_conflict
       shape, duplicate-invitation cancel). Auth clean-up deleted 2 verifications + 2 sessions; live
       and under-cap rows were kept, expired and past-cap rows were gone. Tick it on the merge
@@ -207,13 +207,13 @@ as #87 did. Done on `chore/inbox-fold` (2026-10-15): all six files (#89, #93, #9
       session deleted, live rows kept. Covers the statement before EM-Q11's 30-day condition; the
       rerun with it is ticked above (EM-B11 item 1).
 - [x] **#94's statements on real Neon** (IN-Q9), Oleksii's run of 2026-10-14 as relayed by the
-      coordinating session: `db:neon-smoke` on `smoke-invite` (`ep-calm-math-b1ffs8rq`, a fresh
+      coordinating session: `db:neon-smoke` on `smoke-invite` (`ep-PRODUCTION`, a fresh
       child of the production branch), run from the invite worktree: **16 passed, 0 failed**. Step 15
       (the accept): accepted, then `nothing_to_accept` on re-run; 1 membership, 1 `admin_joined`
       (idempotent on real Neon). Step 16 (the one-membership conflict on the neon-http driver):
       typed `membership_conflict`, the invitation stays pending.
 - [x] **#94's final real-Neon verification** (IN-T16), Oleksii's rerun of 2026-10-14 as relayed by
-      the coordinating session, on `smoke-invite` (`ep-calm-math-b1ffs8rq`) from the invite
+      the coordinating session, on `smoke-invite` (`ep-PRODUCTION`) from the invite
       worktree: **18 passed, 0 failed**. Step 17 (duplicate invitations): newest accepted, older
       canceled, 0 pending. Step 18 (#95's auth clean-up, post-merge numbering): 1 verification + 1
       session deleted, live rows kept. Step 14 (bootstrap) refused: an operator from the previous
@@ -257,7 +257,7 @@ relay's elision.)
      words: "never existed before today").
   2. Oleksii runs `location:verify --prod` against production with that value: **0 mismatches**
      and no `PRIVACY` line. A `demo` count is expected while the seeded corpus is on production.
-     **Done 2026-10-15** (EM-B12, his report verbatim: "Target: Neon endpoint ep-dawn-pond-b1dz515g
+     **Done 2026-10-15** (EM-B12, his report verbatim: "Target: Neon endpoint ep-PRODUCTION
      (production, matches RG-R4) match 0 / demo 2 (seeded fictional shelters on the test-only key) /
      MISMATCH 0, no PRIVACY line."). With no real-key rows yet this proves nothing about the key
      itself (RG-T1): the first `onboard:shelter --commit` is the real test (expect `match 1`).
@@ -369,7 +369,7 @@ relay's elision.)
       compare-and-set, the deleteDraft 23503 catch, and the `last_updated_at` round-trip
       (S3-T6). **Oleksii's run, a pre-merge item of the wiring PR** (inbox WI-T5): on a fresh child
       branch of production (its own endpoint id, never production's; IN-Q9: nothing is sent), from
-      the wiring worktree, with `PROD_NEON_ENDPOINT=ep-dawn-pond-b1dz515g` in the shell:
+      the wiring worktree, with `PROD_NEON_ENDPOINT=ep-PRODUCTION` in the shell:
       1. `pnpm --filter @opika/db db:neon-smoke --expect ep-…` → expect **21 passed, 0 failed**:
          steps 1-18 as before (the audited-write CTE is step 3, the accept 15-17), plus 19 (an edit
          compare-and-set on `animals.version`, which replaced the `last_updated_at` guard, so S3-T6's

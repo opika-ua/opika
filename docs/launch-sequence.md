@@ -43,7 +43,7 @@ git pull
 pnpm i --frozen-lockfile --prefer-offline
 
 # A fresh Neon child branch of production (Neon console, or neonctl branches create --parent main).
-$env:PROD_NEON_ENDPOINT = "ep-dawn-pond-b1dz515g"
+$env:PROD_NEON_ENDPOINT = "ep-PRODUCTION"
 $env:DATABASE_URL = Read-Secret "Child branch connection string"
 
 pnpm --filter @opika/db db:migrate --expect <child-branch-endpoint-id>
@@ -90,14 +90,14 @@ data; see `packages/db/src/full-reset.ts`'s own doc comment for the full list an
 exclusion is deliberate, not a gap).
 
 ```powershell
-$env:PROD_NEON_ENDPOINT = "ep-dawn-pond-b1dz515g"
+$env:PROD_NEON_ENDPOINT = "ep-PRODUCTION"
 $env:DATABASE_URL = Read-Secret "Production DIRECT connection string"
 
 # Dry run - prints every table's current row count, and confirms cities is kept.
-pnpm --filter @opika/db db:full-reset --expect ep-dawn-pond-b1dz515g --prod
+pnpm --filter @opika/db db:full-reset --expect ep-PRODUCTION --prod
 
 # Apply.
-pnpm --filter @opika/db db:full-reset --expect ep-dawn-pond-b1dz515g --prod --commit
+pnpm --filter @opika/db db:full-reset --expect ep-PRODUCTION --prod --commit
 
 Remove-Item Env:DATABASE_URL
 ```
@@ -207,11 +207,11 @@ $env:R2_CLEANUP_SECRET_ACCESS_KEY = Read-Secret "R2_CLEANUP_SECRET_ACCESS_KEY"
 
 # Optional general preview - the default 7-day grace period, not this
 # step's own --grace-days 0 override (see the note below for why).
-pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod
+pnpm --filter @opika/db r2:cleanup --expect ep-PRODUCTION --prod
 
 # Apply, at the post-reset override. There is no dry run for --grace-days 0
 # itself - R2-F4 (closed) keeps the override requiring --commit.
-pnpm --filter @opika/db r2:cleanup --expect ep-dawn-pond-b1dz515g --prod --grace-days 0 --commit
+pnpm --filter @opika/db r2:cleanup --expect ep-PRODUCTION --prod --grace-days 0 --commit
 
 Remove-Item Env:DATABASE_URL
 Remove-Item Env:R2_CLEANUP_ACCESS_KEY_ID

@@ -463,7 +463,7 @@ decisions (`docs/standing-constraints.md`'s Ukrainian-copy and public-claim gate
    **Oleksii's own real-Neon smoke, same day:** a fresh Neon child branch (`ep-weathered-base-
    b1q8ugg0`) ran the dry run (listed 1, his own test address), then `--apply` (erased 1), then a
    re-run (listed 0) - the 4-CTE statement ran cleanly over `neon-http`. Production
-   (`ep-dawn-pond-b1dz515g`), dry run only: the same one test address, fine to erase; the cron
+   (`ep-PRODUCTION`), dry run only: the same one test address, fine to erase; the cron
    does the actual erasure after merge.
 
    **His merge instruction, verbatim:** "Merge #198 after the >/>= boundary fix (one shared
