@@ -85,6 +85,9 @@ export const metadata: Metadata = {
  */
 const PRIORITY_CARD_COUNT = 1;
 
+/** One desktop row (4 columns; a phone shows 2): a lazy image there waits for layout and loads late. */
+const EAGER_CARD_COUNT = 4;
+
 /**
  * E1's grid, E2's filters + sort, E3's numbered pagination.
  * `docs/build-plan.md`'s E2 row: "Filter and sort state in the URL —
@@ -428,6 +431,7 @@ export async function renderGallery(
                     card={item}
                     cityName={cityNames.get(cardCityId(item)) ?? null}
                     priority={index < PRIORITY_CARD_COUNT}
+                    eager={index < EAGER_CARD_COUNT}
                     filters={filters}
                     sort={sort}
                     citySlugs={citySlugs}
