@@ -47,12 +47,9 @@ beforeEach(() => {
 });
 
 /**
- * The generation guard's own reason to exist: `SwipeDeck.tsx` is one
- * long-lived component reusing the same `useReveal` instance across many
- * different animals, so a slow response to an *earlier* `open()` call
- * landing after a *later* one must never overwrite what the later call
- * already resolved to. Caught on review - the deck's own tests never
- * exercised two overlapping calls directly; these do.
+ * The generation guard's own reason to exist: a slow response to an
+ * *earlier* `open()` call landing after a *later* one must never overwrite
+ * what the later call already resolved to.
  *
  * Each test drives the two overlapping calls in strict, deterministic
  * order (first call's own request registered, then the second call
@@ -73,7 +70,6 @@ beforeEach(() => {
  */
 describe("useReveal's error reason", () => {
   /**
-   * Same pattern `use-feed-deck.test.tsx` already uses for `INVALID_CURSOR`:
    * `defined: true` matters - it's what a real contract-declared error
    * carries once the client deserializes it, and what `isDefinedError` (this
    * hook's own check) actually keys on. A bare `new ORPCError(code)`
@@ -172,8 +168,7 @@ describe("useReveal's error reason", () => {
    * Reviewer-found gap (`docs/reviews/chore/finish-line-block-1/b22b7c1.md`):
    * a network failure reaching `session.bootstrap` itself - not
    * `animals.reveal` - is the far more likely shape of "offline" on the
-   * detail page, since this is the *first* request `open()` makes with no
-   * `ensureSession` injected (`RevealFlow.tsx`'s own call site). The sibling
+   * detail page, since this is the *first* request `open()` makes (`RevealFlow.tsx`'s own call site). The sibling
    * test above (a plain `Error`) proved the fallback-to-loadFailed case; this
    * one proves the fallback-to-offline case actually fires too, not just the
    * later `revealError instanceof TypeError` check.

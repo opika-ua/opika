@@ -21,21 +21,15 @@ import { router } from "./router";
  * reads a session"; leaving it out of this object is what makes that a fact
  * about the type rather than a convention someone has to remember.
  *
- * Read-only by construction as a consequence: `animals.reveal` and
- * `swipes.record` both need an `adopterId` this path never has, so neither
- * belongs here either.
+ * Read-only by construction as a consequence: `animals.reveal` needs
+ * an `adopterId` this path never has, so it does not belong here either.
  *
  * Trimmed to what a real Server Component actually calls today - `cities.byIds` and
  * `cities.resolveTokens` (place names and URL tokens, never the full list), `regions.list`, `gallery.list` (the E1 grid), `gallery.relaxationCounts`
  * (V2's no-match state, `apps/web/src/features/gallery/NoMatch.tsx`),
  * `animals.byId` and `shelters.byId` (F1's detail page, both read-only with
  * no `adopterId` involved) - not to what a later phase will eventually want.
- * `feed.list` was added ahead of Phase F needing it and stayed unused on
- * this path; that is exactly the premature scaffolding `CLAUDE.md`'s
- * phase-scope-discipline section warns against - E5 ended up giving the
- * deck its own client-side caller instead
- * (`apps/web/src/api/browser-client.ts`), since deck pagination is
- * inherently client-driven. `animals.byId`/`shelters.byId` land here
+ * `animals.byId`/`shelters.byId` land here
  * instead, in the same commit that starts calling them, because the detail
  * page genuinely is server-rendered.
  *

@@ -17,8 +17,7 @@ import type { ShelterId } from "@opika/domain";
  * The key was `lastUpdatedAt` until H2-3 moved the feed's ordering onto
  * confirmation, and renamed so neither list's value travels under the other's
  * name. Cursors issued before that change decode as invalid
- * (`INVALID_CURSOR`): the deck shows its `sessionExpired` error state, whose
- * retry restarts the feed from the first page. `reveals.listMine` has no
+ * (`INVALID_CURSOR`). `reveals.listMine` has no
  * client caller yet, so no reveal cursor is in flight anywhere.
  *
  * Signing prevents:

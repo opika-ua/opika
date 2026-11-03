@@ -31,8 +31,7 @@ export const COPY_PENDING = "[COPY PENDING]";
  * it was never about *his* approval being pending, only about the gate
  * above; the text itself has been his approved words since 2026-10-06) and
  * swapped «Написати» for «Дати сімʼю», the pet card's own reveal-trigger
- * label, which the deck's own button no longer shares now that the two
- * surfaces have different words for the same action. **This constant, not
+ * label. **This constant, not
  * the 2026-10-06 file, is what lands** when R4-2 actually ships. Still held:
  * the pre-launch cookie-disclosure gate this sentence waits on is unrelated
  * to PR 5 and remains unresolved. `apps/web/src/seo-flags.ts`'s
@@ -97,14 +96,9 @@ export const ukPublic = {
    * Provenance: drafted by Claude from an English sense; Oleksii selected
    * these from offered options on 2026-09-05.
    *
-   * Renamed 2026-09-06 - the two keys previously named `promise` and
-   * `bannerNotice` described each other's contents, not their own: the long
-   * sentence below (a notice shown in the link-preview banner a shared URL
-   * produces) was called `promise`, mirroring `firstRun.promise` above by
-   * habit rather than by what it actually is; the short deck string (a
-   * plain label, not a notice) was called `bannerNotice`. `bannerNotice`
-   * now names the actual banner notice; `deckLabel` names the actual deck
-   * label.
+   * Renamed 2026-09-06: `bannerNotice` names the notice shown in the
+   * link-preview banner a shared URL produces (it was called `promise`,
+   * mirroring `firstRun.promise` above by habit).
    */
   demo: {
     /**
@@ -112,8 +106,8 @@ export const ukPublic = {
      * `firstRun.promise` (`app/layout.tsx`) - the link-preview text anyone
      * sharing a URL from this deploy actually sees, while the registry
      * holds no real shelters. As metadata, a link preview is free-flowing
-     * text, not a fixed-width UI slot, so there was no truncation budget to
-     * fit like `deckLabel` below has. **That stopped being the whole story
+     * text, not a fixed-width UI slot, so there was no truncation budget.
+     * **That stopped being the whole story
      * 2026-09-10** - see the correction below: the two visible render sites
      * this string gained *do* sit inside a real container width, and do
      * have a budget, just not a single-line one. They wrap instead of
@@ -125,7 +119,7 @@ export const ukPublic = {
      * and `/pro` override this root default with their own existing opening
      * sentences instead of inheriting it - this disclosure was never meant
      * to reach those two specifically, only the surfaces that actually show
-     * fabricated animals/shelters (the gallery, the deck, and the detail
+     * fabricated animals/shelters (the gallery and the detail
      * page inherit or set this).
      *
      * **Correction, 2026-09-10 (Oleksii, then the reviewer) - also renders
@@ -140,23 +134,9 @@ export const ukPublic = {
      * new sentence for the visible case.
      */
     bannerNotice: "На сайті поки немає справжніх притулків – усі картки тут демонстраційні.",
-    /**
-     * The deck header's compact label (`DeckScreen.tsx`) - replaces only
-     * `filtersLabel`. The position count stays (Oleksii, D-1: demo mode is
-     * the whole testing period, a deck missing the count for weeks is not
-     * the deck being tested); the progress bar is hidden unconditionally
-     * whenever this label shows, to give it the room the bar would
-     * otherwise take (D-1's degrade order - the count alone already
-     * answers README.md:597-600's "otherwise invisible" argument).
-     *
-     * Real width budget was measured before this landed: tightest at 320px,
-     * ~107px available, safely fits up to ~12 Cyrillic characters. «Демо»
-     * (4 characters) is nowhere near that ceiling at any asserted viewport.
-     */
-    deckLabel: "Демо",
   },
 
-  // --- Screen 02 · Feed / deck ---
+  // --- Screen 02 · Feed ---
   feed: {
     /**
      * gallery-v3 (Figma `58:1617`): singular, builder-prompt-approved -
@@ -166,16 +146,8 @@ export const ukPublic = {
      * on both of this page's two filter-disclosure controls.
      */
     filtersLabel: "Фільтр",
-    /** Desktop gallery header, full phrase - docs/design/README.md "Screens" > "Gallery." */
-    enterDeck: "Гортати по одній",
-    /** Mobile sticky-bar short form, same destination - "sticky bottom bar «Фільтри · N / Гортати»." */
-    enterDeckShort: "Гортати",
-    /** The deck's own header, exit control - docs/design/README.md "Deck chrome and the mode switch." */
+    /** The shelter page's link back to the list. */
     backToList: "← До списку",
-    /** Screen-reader announcement on entering the deck, template: "Тварина {position} з {total}." */
-    /** QA 2026-10-29, owner text: the deck's visually hidden page heading. */
-    deckHeading: "Тварини по одній",
-    deckEntryAnnouncement: "Режим по одній. Тварина {position} з {total}.",
     /**
      * gallery-v3 (Figma `58:1617`): the card's pill. Was "Усиновити" until
      * Oleksii's direct replacement, mid-build - owner-approved final copy,
@@ -372,12 +344,6 @@ export const ukPublic = {
     activeCount: "Активних фільтрів: {count}",
   },
 
-  // --- Swipe affordances ---
-  swipe: {
-    left: "Не зараз",
-    right: "Написати",
-  },
-
   // --- Saved animals (designer round 1, S7). "Save," never "like" (DR1-Q3, his text,
   // verbatim): the button, the saved state, and the bookmark icon (no heart). Storage stays
   // `likes.v1`/`likes*` internally (DR1-D14) - nothing user-facing says "like." ---
@@ -423,34 +389,8 @@ export const ukPublic = {
 
   // --- Action buttons ---
   actions: {
-    notNow: "Не зараз",
     write: "Написати",
     writeShelter: "Написати притулку",
-    /**
-     * Oleksii's Phase D decisions (the not-a-judgement notice - not
-     * build-plan.md's D-3 row, an unrelated robots-metadata task):
-     * `docs/standing-constraints.md`'s "The swipe is filtering, not
-     * judging" is a standing product rule, and
-     * the only place it was ever stated - the sentence used to close
-     * `firstRun.disclaimer`, deleted with `FirstRunBand` - was gone with no
-     * replacement. Phase D's interim home was the detail page, directly
-     * under the `notNow`/`writeShelter` pair - R2 (Phase R,
-     * `docs/build-plan.md`) moves it to its permanent one, the deck
-     * itself (`SwipeDeck.tsx`), and removes it from the detail page. Not
-     * a duplication: the rule this sentence states is about what a
-     * *swipe* decision means, and the detail page's own «Не зараз» never
-     * was a swipe - it's a plain link back to the gallery
-     * (`AnimalDetailScreen.tsx`'s own comment on that button), recording
-     * no exclusion and needing no reassurance about one.
-     *
-     * Recovered verbatim, not newly written - the original disclaimer's own
-     * closing sentence, «просто» included. An earlier pass here dropped
-     * «просто» as an unapproved edit; restored because this sentence is
-     * Oleksii's existing shipped copy and needs no fresh approval at all
-     * once it's reproduced exactly, which is the whole point of recovering
-     * it rather than redrafting it.
-     */
-    notAJudgementNotice: "«Не зараз» – це просто фільтр, а не оцінка тварини.",
   },
 
   // --- Freshness ---
@@ -710,17 +650,6 @@ export const ukPublic = {
     resolved: "Притулок каже: {name} уже вдома.",
   },
 
-  // --- Exhausted (07) ---
-  exhausted: {
-    title: "Це всі, хто зараз підходить.",
-    body: "Тих, кого ви пропустили через «Не зараз», режим «по одній» покаже знову через 30 днів. У списку видно всіх.",
-    newAnimals: "Нові тварини зʼявляються, щойно притулки публікують картки.",
-    changeFilters: "Змінити фільтри",
-    /** G5 (audit 2026-10-22): the deck's end state, linking to `/tvaryny` with the deck's own filters. */
-    toList: "Переглянути список",
-    reviewAgain: "Переглянути ще раз спокійно",
-  },
-
   // --- Error states (08) ---
   errors: {
     offline: {
@@ -733,11 +662,6 @@ export const ukPublic = {
       title: "Збій на боці сайту.",
       body: "Це не ваша помилка і не помилка притулку.",
       action: "Оновити",
-    },
-    sessionExpired: {
-      eyebrow: "НЕ ВДАЛОСЯ ПРОДОВЖИТИ",
-      title: "Режим «по одній» почнеться спочатку.",
-      action: "Почати спочатку",
     },
     /**
      * `animals.reveal`'s own `RATE_LIMITED` (`apps/web/src/api/reveal-rate-limit.ts`)

@@ -17,7 +17,7 @@ export interface RevealSnapshot {
   animalId: AnimalId;
   animalName: string;
   cityName: string | null;
-  /** The bare city for the dialog's header line; absent where `cityName` already is bare (the deck). */
+  /** The bare city for the dialog's header line; absent where `cityName` already is bare. */
   cityLabel?: string | null | undefined;
 }
 
@@ -45,127 +45,75 @@ export type RevealState =
   | ({ kind: "open"; reveal: ContactRevealView } & RevealSnapshot);
 
 /**
- * Extracted from `RevealFlow.tsx` (R3, Phase R, `docs/build-plan.md`) so
- * the deck (`SwipeDeck.tsx`) can open the same reveal client the detail
- * page already used, without a second bootstrap-then-reveal
- * implementation to drift out of sync with the first.
+ * Extracted from `RevealFlow.tsx` (R3, Phase R, `docs/build-plan.md`).
  *
  * `open` takes the snapshot per call, not a fixed `animalId` bound once at
- * the hook's own call site: the detail page opens the same animal every
- * time (one `RevealFlow` instance per page, `animalId` never changes), but
- * the deck's `SwipeDeck` is one long-lived component cycling through many
- * different cards - a hook parameterised at mount would need re-mounting
- * (and losing in-flight state) on every swipe just to change which animal
- * it points at. Bundling `animalName`/`cityName` into the snapshot, not
- * kept as separate outer state, rules out one race but not the other:
- * atomic spreading means `state` can never pair one animal's display name
- * with a different animal's `ContactRevealView`, but it does NOT by
- * itself stop a *slower* first response from landing after a *faster*
- * second one and overwriting it - `callGenerationRef` below is what closes
- * that half, discarding any resolution that isn't the most recent call.
- *
- * `ensureSession`, injectable rather than always calling
- * `revealBrowserClient.session.bootstrap` directly: caught on review - the
- * deck already has its own memoised session-bootstrap promise
- * (`use-feed-deck.ts`'s `ensureSession`, shared with `swipes.record`), and
- * this hook calling `session.bootstrap` a second, independent time raced
- * it. Two concurrent cookie-less bootstrap requests can't tell the server
- * they're the same visitor, so both mint - two adopters, two sessions, one
- * surviving cookie, and whichever swipe or reveal landed under the
- * discarded identity silently vanishes. `SwipeDeck.tsx` passes its own
- * `ensureSession` in; `RevealFlow.tsx` (the detail page, with no sibling
- * session consumer to race) omits it and keeps this hook's own default.
+ * the hook's own call site. Bundling `animalName`/`cityName` into the
+ * snapshot, not kept as separate outer state, means `state` can never pair
+ * one animal's display name with a different animal's `ContactRevealView`;
+ * `callGenerationRef` below closes the other half, discarding any resolution
+ * that isn't the most recent call, so a slower first response cannot land
+ * after a faster second one and overwrite it.
  */
-export function useReveal(ensureSession?: () => Promise<boolean>) {
+export function useReveal() {
   const [state, setState] = useState<RevealState>({ kind: "idle" });
   const callGenerationRef = useRef(0);
 
-  const open = useCallback(
-    async (snapshot: RevealSnapshot) => {
-      const generation = ++callGenerationRef.current;
-      setState({ kind: "loading", ...snapshot });
+  const open = useCallback(async (snapshot: RevealSnapshot) => {
+    const generation = ++callGenerationRef.current;
+    setState({ kind: "loading", ...snapshot });
 
+    const [bootstrapError] = await safe(revealBrowserClient.session.bootstrap({}));
+    const ready = !bootstrapError;
+    if (generation !== callGenerationRef.current) return;
+    if (!ready) {
       /**
-       * `bootstrapError` only exists on the no-`ensureSession` path (the
-       * detail page, `RevealFlow.tsx`): the injected path (the deck,
-       * `SwipeDeck.tsx`) collapses its own result to a plain boolean in
-       * `use-feed-deck.ts`'s `ensureSession`, with no error object this
-       * hook could inspect - same reason the RATE_LIMITED comment below
-       * already gives for that path, now true of `offline` too.
-       *
-       * **Known gap, not fixed here (O-21, `docs/observations.md`):** a
-       * first-ever right-swipe (`SwipeDeck.tsx`'s `handleCommit` calls
-       * `openReveal` before `onSwipe`) while offline hits this exact branch
-       * too - `use-feed-deck.ts`'s own `onSwipe` doesn't await
-       * `ensureSession` before advancing the deck, and a failed bootstrap
-       * there clears `sessionReadyRef` rather than caching anything. An
-       * earlier version of this comment claimed the deck's exposure window
-       * was "materially smaller" than the detail page's; a reviewer found
-       * that claim false by reading `use-feed-deck.ts` directly rather than
-       * trusting it, and it's corrected here rather than left standing.
+       * A network failure (`TypeError`) is offline. A bootstrap 429 is
+       * `tooManyRequests`, never `rateLimited`: both the per-IP API limiter
+       * (`api/public-rpc-route.ts`) and the per-IP adopter cap
+       * (`perIpBudgetSpent`, `api/per-ip-budgets.ts`) answer with the undefined
+       * `TOO_MANY_REQUESTS`, so `isTooManyRequests` catches either.
        */
-      let bootstrapError: unknown = null;
-      let ready: boolean;
-      if (ensureSession) {
-        ready = await ensureSession();
-      } else {
-        const [error] = await safe(revealBrowserClient.session.bootstrap({}));
-        bootstrapError = error;
-        ready = !error;
-      }
-      if (generation !== callGenerationRef.current) return;
-      if (!ready) {
-        /**
-         * A network failure (`TypeError`) is offline. A bootstrap 429 is
-         * `tooManyRequests`, never `rateLimited`: both the per-IP API limiter
-         * (`api/public-rpc-route.ts`) and the per-IP adopter cap
-         * (`perIpBudgetSpent`, `api/per-ip-budgets.ts`) answer with the undefined
-         * `TOO_MANY_REQUESTS`, so `isTooManyRequests` catches either.
-         */
-        const reason: RevealErrorReason =
-          bootstrapError instanceof TypeError
-            ? "offline"
-            : isTooManyRequests(bootstrapError)
+      const reason: RevealErrorReason =
+        bootstrapError instanceof TypeError
+          ? "offline"
+          : isTooManyRequests(bootstrapError)
+            ? "tooManyRequests"
+            : "loadFailed";
+      setState({ kind: "error", reason, ...snapshot });
+      return;
+    }
+
+    const [revealError, result] = await safe(
+      revealBrowserClient.animals.reveal({ animalId: snapshot.animalId }),
+    );
+    if (generation !== callGenerationRef.current) return;
+    if (revealError || !result) {
+      /**
+       * `revealError instanceof TypeError` checked first - the same
+       * "offline" test: a genuine network failure (the fetch never
+       * reached a server at all) is a `TypeError` at the fetch layer, per
+       * the Fetch API's own contract, and is neither the app's fault nor
+       * the shelter's - `uk.errors.loadFailed`'s "щось не спрацювало на
+       * нашому боці" is false for this case specifically. Otherwise `RATE_LIMITED` is one of
+       * `animals.reveal`'s
+       * declared contract errors (`packages/contracts/src/procedures/
+       * animals.ts`), so a real response carrying it is
+       * `isDefinedError() === true`.
+       */
+      const reason: RevealErrorReason =
+        revealError instanceof TypeError
+          ? "offline"
+          : revealError && isDefinedError(revealError) && revealError.code === "RATE_LIMITED"
+            ? "rateLimited"
+            : isTooManyRequests(revealError)
               ? "tooManyRequests"
               : "loadFailed";
-        setState({ kind: "error", reason, ...snapshot });
-        return;
-      }
-
-      const [revealError, result] = await safe(
-        revealBrowserClient.animals.reveal({ animalId: snapshot.animalId }),
-      );
-      if (generation !== callGenerationRef.current) return;
-      if (revealError || !result) {
-        /**
-         * `revealError instanceof TypeError` checked first - the same
-         * "offline" test `use-feed-deck.ts:102-104` already established and
-         * the same reasoning: a genuine network failure (the fetch never
-         * reached a server at all) is a `TypeError` at the fetch layer, per
-         * the Fetch API's own contract, and is neither the app's fault nor
-         * the shelter's - `uk.errors.loadFailed`'s "щось не спрацювало на
-         * нашому боці" is false for this case specifically. Otherwise, same
-         * `isDefinedError` + `error.code` pattern as `use-feed-deck.ts`'s own
-         * `INVALID_CURSOR` check - `RATE_LIMITED` is one of `animals.reveal`'s
-         * declared contract errors (`packages/contracts/src/procedures/
-         * animals.ts`), so a real response carrying it is
-         * `isDefinedError() === true`.
-         */
-        const reason: RevealErrorReason =
-          revealError instanceof TypeError
-            ? "offline"
-            : revealError && isDefinedError(revealError) && revealError.code === "RATE_LIMITED"
-              ? "rateLimited"
-              : isTooManyRequests(revealError)
-                ? "tooManyRequests"
-                : "loadFailed";
-        setState({ kind: "error", reason, ...snapshot });
-        return;
-      }
-      setState({ kind: "open", ...snapshot, reveal: result });
-    },
-    [ensureSession],
-  );
+      setState({ kind: "error", reason, ...snapshot });
+      return;
+    }
+    setState({ kind: "open", ...snapshot, reveal: result });
+  }, []);
 
   const close = useCallback(() => {
     // Bumping the generation here too: an in-flight `open()` whose

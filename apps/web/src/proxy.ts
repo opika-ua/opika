@@ -263,7 +263,7 @@ function isDiscoveryPagePath(pathname: string): boolean {
  * exempts inside `proxy` (the kabinet pages, the cron paths) it still buffers; that buffering is
  * bounded by `PROXY_CLIENT_MAX_BODY_BYTES` in `next.config.ts`.
  *
- * Not every response passes through here: `redirects()` in `next.config.ts` (`/` and `/discovery`)
+ * Not every response passes through here: `redirects()` in `next.config.ts` (`/`, `/discovery` and `/tvaryny/gortaty`)
  * run before this file, and stay 308s regardless of the gate. They serve no content, only a
  * redirect to a route the gate does cover.
  */

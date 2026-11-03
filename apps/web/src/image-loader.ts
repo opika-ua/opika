@@ -20,9 +20,8 @@ import type { ImageLoaderProps } from "next/image";
  * sidesteps it: Next's own bundler wires this in, so no Server Component
  * ever needs to import or reference it. `"use client"` here is why the R2
  * base URL below has to be `NEXT_PUBLIC_`-prefixed, not a stylistic choice -
- * `SwipeCard.tsx` is a Client Component and mounts/unmounts real `<Image>`s
- * client-side as the deck advances, so this function genuinely runs in the
- * browser sometimes, not only during SSR.
+ * Client Components mount real `<Image>`s (the saved page, the photo
+ * sliders), so this function genuinely runs in the browser sometimes, not only during SSR.
  *
  * `AnimalPhoto.storageKey` (`packages/domain/src/animals/photo.ts`) is an
  * object key, not a URL. H1 makes that real for actual uploaded photos:

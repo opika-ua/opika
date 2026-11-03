@@ -413,10 +413,3 @@ test.describe("the save toggle persists a save across a reload", () => {
     );
   });
 });
-
-/**
- * The not-a-judgement notice's interim home was here, under the action
- * pair (Phase D). R2 (Phase R, `docs/build-plan.md`) moved it to its
- * permanent one, the deck itself (`SwipeDeck.tsx`) - see
- * `discovery-layout.harness.ts`'s own coverage for the notice now.
- */

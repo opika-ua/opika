@@ -96,16 +96,9 @@ import { LoadErrorScreen } from "../../features/gallery/LoadErrorScreen";
  * succeed request this app can make, and degrades honestly on every other
  * case - if the backend is genuinely down, it fails too, same as retry.
  *
- * The header stays inside this same failing tree, not moved out: E5 added
- * a "Гортати по одні" deck-entry link to `page.tsx`'s header (`filter-
- * url.ts`'s `deckEntryHref`) - not currently rendered there (GV3-Q3,
- * `docs/standing-constraints.md`'s commitment #8 row), but kept rather
- * than deleted, so this reasoning is written for when it's restored, not
- * just history. That link needs both the current
- * `filters` (from `searchParams`, which - per the above - a `layout.tsx`
- * cannot read) and the real `totalMatching` count (from the very
- * `gallery.list` call that can fail). A header with no state at all could
- * move to a `layout.tsx` safely; this one no longer qualifies.
+ * The header stays inside this same failing tree, not moved out: the page's
+ * header-adjacent controls need the current `filters` (from `searchParams`,
+ * which - per the above - a `layout.tsx` cannot read).
  */
 export default function GalleryError({
   retry,

@@ -62,8 +62,7 @@ describe("«Для притулків» copy status", () => {
 });
 
 /**
- * D-2 (`docs/observations.md`): both strings are now live - `DeckScreen.tsx`
- * shows `deckLabel`, and the root layout defaults to `bannerNotice` as the
+ * D-2 (`docs/observations.md`): the root layout defaults to `bannerNotice` as the
  * description while `REGISTRY_HAS_NO_REAL_SHELTERS` (Option B, 2026-09-06:
  * `/prytulkam` and `/pro` override this default with their own opening
  * sentences instead - see `app/prytulkam/page.tsx`/`app/pro/page.tsx`).
@@ -73,42 +72,27 @@ describe("«Для притулків» copy status", () => {
  * either string reverts to a placeholder mid-edit.
  */
 describe("demo-mode copy status (D-2)", () => {
-  it("has no placeholders left – both strings are written", () => {
+  it("has no placeholders left – the string is written", () => {
     expect(pendingCopyKeys(uk.demo)).toEqual([]);
   });
 
-  it("still has both keys the D-2 row specifies", () => {
+  it("still has the key the D-2 row specifies", () => {
     // Guards the guard: `toEqual([])` above also passes against an empty
     // object, so deleting a key rather than writing it would look identical
     // without this.
-    expect(Object.keys(uk.demo).length).toBe(2);
+    expect(Object.keys(uk.demo).length).toBe(1);
   });
 });
 
-/**
- * Oleksii's Phase D decisions (the not-a-judgement notice - not
- * build-plan.md's D-3 row, an unrelated robots-metadata task): the "«Не
- * зараз» is a filter, not a judgement" sentence - a standing product rule
- * (`docs/standing-constraints.md`), not decoration - lost its only home
- * when `FirstRunBand` was deleted. Landed 2026-09-06: recovered verbatim,
- * including «просто», from the original disclaimer - already-shipped copy
- * of Oleksii's, reproduced exactly rather than redrafted, so it needs no
- * fresh approval. Interim home was the detail page
- * (`AnimalDetailScreen.tsx`); R2 (Phase R, `docs/build-plan.md`) moved it
- * to its permanent one, the deck (`SwipeDeck.tsx`), and dropped `next`
- * (`uk.actions.next`, «Далі») along with the button it labelled - 5 keys
- * became 4, not 5 again with a different member.
- */
-describe("deck not-a-judgement notice copy status", () => {
-  it("has no placeholder left – the notice is written", () => {
+/** The swipe deck is retired (2026-11-02): `uk.actions` keeps only the two message buttons. */
+describe("actions copy status", () => {
+  it("has no placeholder left", () => {
     expect(pendingCopyKeys(uk.actions)).toEqual([]);
   });
 
   it("still has every key `uk.actions` is expected to carry", () => {
-    // Guards the guard: `toEqual([])` above also passes against an empty
-    // object, so deleting `notAJudgementNotice` rather than writing it would
-    // look identical without this.
-    expect(Object.keys(uk.actions).length).toBe(4);
+    // Guards the guard: `toEqual([])` above also passes against an empty object.
+    expect(Object.keys(uk.actions).length).toBe(2);
   });
 });
 
@@ -2542,10 +2526,8 @@ describe("the copy audit of 2026-10-22", () => {
     expect(uk.reveal.backToFeed).toBe("Повернутися до картки");
   });
 
-  // #19: one name for the right swipe and the button beside it; /prytulkam ¶3 follows it.
-  it("#19 the right swipe is «Написати», and /prytulkam ¶3 names it", () => {
-    expect(uk.swipe.right).toBe("Написати");
-    expect(uk.swipe.right).toBe(uk.actions.write);
+  // #19: «Написати» everywhere; /prytulkam ¶3 follows it.
+  it("#19 /prytulkam ¶3 names «Написати»", () => {
     const paragraph3 = uk.forShelters.whatHappensToAnimals.split("\n\n")[2];
     expect(paragraph3).toContain("на кого вже натиснула «Не зараз» чи «Написати»");
     expect(paragraph3).not.toContain("«Запитати»");
@@ -2564,16 +2546,6 @@ describe("the copy audit of 2026-10-22", () => {
     );
     expect(uk.kabinet.signIn.failed).toBe(
       "Не вдалося звʼязатися із сайтом. Перевірте зʼєднання і спробуйте ще раз.",
-    );
-    expect(uk.exhausted.toList).toBe("Переглянути список");
-  });
-
-  it("#12 and #11: the end state says where hidden animals come back, and no invented cadence", () => {
-    expect(uk.exhausted.body).toBe(
-      "Тих, кого ви пропустили через «Не зараз», режим «по одній» покаже знову через 30 днів. У списку видно всіх.",
-    );
-    expect(uk.exhausted.newAnimals).toBe(
-      "Нові тварини зʼявляються, щойно притулки публікують картки.",
     );
   });
 
@@ -2605,11 +2577,6 @@ describe("nationwide copy (owner-approved table, N5)", () => {
     expect(uk.filters.showAllOptions).toBe("Показати всі ({count})");
     expect(uk.filters.findCity).toBe("Знайти місто");
     expect(uk.place.hromadaShort).toBe("{name} громада");
-  });
-
-  it("the two dead exhausted keys are gone", () => {
-    expect(Object.keys(uk.exhausted)).not.toContain("addNearbyCities");
-    expect(Object.keys(uk.exhausted)).not.toContain("footnote");
   });
 });
 

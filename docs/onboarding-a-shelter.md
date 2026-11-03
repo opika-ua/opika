@@ -284,7 +284,7 @@ first merge code that no longer uses the old shape, then migrate in a later PR. 
 destructive: ask me." **Every migration PR says in its body which kind it is.** The block below
 is the additive order: it runs before the merge.
 
-Replace `<pr branch>` before running. `ep-dawn-pond-b1dz515g` is production's endpoint id, the
+Replace `<pr branch>` before running. `ep-PRODUCTION` is production's endpoint id, the
 value to type for `--expect`:
 
 ```powershell
@@ -294,7 +294,7 @@ git switch --detach origin/<pr branch>
 pnpm i --frozen-lockfile --prefer-offline
 $env:DATABASE_URL = Read-Secret "Production DIRECT connection string"
 pnpm --filter @opika/db db:check-hashes
-pnpm --filter @opika/db db:migrate --prod --expect ep-dawn-pond-b1dz515g
+pnpm --filter @opika/db db:migrate --prod --expect ep-PRODUCTION
 pnpm --filter @opika/db db:check-hashes
 Remove-Item Env:DATABASE_URL
 git switch main
@@ -302,7 +302,7 @@ git switch main
 
 Expected:
 
-1. **`db:check-hashes`** (read-only): first line `Target: Neon endpoint ep-dawn-pond-b1dz515g (…)`,
+1. **`db:check-hashes`** (read-only): first line `Target: Neon endpoint ep-PRODUCTION (…)`,
    then `match` for every migration already applied and `not run` for the PR's new one; exit 0.
    **Stop if the endpoint differs.**
 2. **`db:migrate`**: `WARNING: writing to PRODUCTION (--prod given).`, the same `Target:` line,
@@ -319,7 +319,7 @@ branch, as its status gives them.
 derived."). `$ep` in "PowerShell 5.1: reading a secret" is read out of `$env:DATABASE_URL`, so
 `--expect $ep` would always agree with the very URL it is there to check, and catch nothing. For
 production, `--expect` states the compute you mean to migrate, written independently of the
-shell: `ep-dawn-pond-b1dz515g`, the value of `PROD_NEON_ENDPOINT`.
+shell: `ep-PRODUCTION`, the value of `PROD_NEON_ENDPOINT`.
 
 ## Removing the demo corpus (once, after the first real shelter)
 
@@ -398,7 +398,7 @@ confirmation they are gone.
 
 ## Retiring the rehearsal shelter (at launch, before the first real invite)
 
-The rehearsal shelter «Притулок «Репетиція»» (`c00c73ac-b27f-535e-b629-ac8cd2c69123`, onboarded 2026-10-17
+The rehearsal shelter «Притулок «Репетиція»» (`<rehearsal-shelter-uuid>`, onboarded 2026-10-17
 for the K4/photo rehearsal) is a test shelter on the real location key. It goes in the launch
 order below, after the first real shelter is onboarded. Every step is Oleksii's to run.
 
@@ -421,8 +421,8 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    (`$env:DATABASE_URL = Read-Secret "Production direct URL"`, with the helper from "PowerShell 5.1:
    reading a secret"):
    ```powershell
-   pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter c00c73ac-b27f-535e-b629-ac8cd2c69123
-   pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter c00c73ac-b27f-535e-b629-ac8cd2c69123 --commit
+   pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter <rehearsal-shelter-uuid>
+   pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter <rehearsal-shelter-uuid> --commit
    ```
    The dry run names the shelter and prints the R2 keys of its animals' photos, including the
    ones uploaded from the kabinet. **Add those keys to the DR-F3 takedown list** if you want
@@ -453,7 +453,7 @@ which he reworded on 2026-10-17 (RU-Q6, verbatim: "Reword rehearsal step 2 to "r
 a second address""), because creating a shelter already invites its first admin:
 
 1. He creates «Притулок «Генеральна»» in his screens and verifies it. (The create form requires
-   the first admin, so this is where `oleksii.kolotenko+shelter2@gmail.com` is entered and
+   the first admin, so this is where `<owner email>` is entered and
    invited.)
 2. From the shelter page: resend, or invite a second address.
 2a. **Passwords (PW-2).** His words for the rehearsal, verbatim (2026-10-19, scope): "Add it to
@@ -472,7 +472,7 @@ a second address""), because creating a shelter already invites its first admin:
    5. Sign in with the new password.
 3. The shelter admin signs in on a phone, fills the profile, adds 2-3 animals with photos taken
    on the phone, and publishes.
-4. The adopter (a separate browser plus the gate cookie) finds them in the deck and the gallery,
+4. The adopter (a separate browser plus the gate cookie) finds them in the gallery,
    reveals contacts, and messages the shelter.
 5. The shelter marks one adopted and hides one. He approves a donation link, then suspends and
    reinstates the shelter, and checks that the history shows all of it.
@@ -488,7 +488,7 @@ a second address""), because creating a shelter already invites its first admin:
    (This step reworded on 2026-10-18 per his N8 answer, and the throttled-tap step added on
    2026-10-19 per his own words quoted there; the rest of the script is verbatim RU-B5.)
 
-Until then the current rehearsal shelter (`c00c73ac-…`) stays as the dev test bed, and
+Until then the current rehearsal shelter (`<rehearsal-shelter-uuid>`) stays as the dev test bed, and
 `KABINET_WRITE_ALLOWLIST` serves only that interim; it goes away with PR 6.
 
 ## Where `LOCATION_HMAC_SECRET` comes from
@@ -794,21 +794,21 @@ after this block.
 Run it from the main checkout (its root `.env.local` provides
 `PROD_NEON_ENDPOINT`), up to date with the default branch, in Windows
 PowerShell 5.1 with `Read-Secret` from "PowerShell 5.1: reading a secret"
-pasted first. `ep-dawn-pond-b1dz515g` is production's endpoint id, the value
+pasted first. `ep-PRODUCTION` is production's endpoint id, the value
 to type for `--expect`:
 
 ```powershell
 $env:DATABASE_URL = Read-Secret "Production DIRECT connection string"
-pnpm --filter @opika/db auth:revoke-all --prod --expect ep-dawn-pond-b1dz515g
-pnpm --filter @opika/db auth:revoke-all --prod --expect ep-dawn-pond-b1dz515g --commit
-pnpm --filter @opika/db auth:revoke-all --prod --expect ep-dawn-pond-b1dz515g
+pnpm --filter @opika/db auth:revoke-all --prod --expect ep-PRODUCTION
+pnpm --filter @opika/db auth:revoke-all --prod --expect ep-PRODUCTION --commit
+pnpm --filter @opika/db auth:revoke-all --prod --expect ep-PRODUCTION
 Remove-Item Env:DATABASE_URL
 ```
 
 Expected:
 
 1. **Dry run**: `WARNING: reading PRODUCTION (--prod given).`, then
-   `Target: Neon endpoint ep-dawn-pond-b1dz515g (…)`, `DRY RUN (nothing is
+   `Target: Neon endpoint ep-PRODUCTION (…)`, `DRY RUN (nothing is
    deleted)`, `Rows now:` with one count for `auth_session` and one for
    `auth_verification`, and `Nothing was deleted. …`; exit 0. **Stop if the
    endpoint differs.**
@@ -832,7 +832,7 @@ the same database"): Better Auth creating the credential account and consuming t
 token, the password sign-in and change, and the clean-up's new `super_admins` subquery. Both
 smokes pass locally (postgres-js); neither has run against Neon. On a fresh child branch of
 production (its own endpoint id, never production's; nothing is sent anywhere), from the PW-1
-worktree, with `PROD_NEON_ENDPOINT=ep-dawn-pond-b1dz515g` in the shell and the child branch's
+worktree, with `PROD_NEON_ENDPOINT=ep-PRODUCTION` in the shell and the child branch's
 DIRECT connection string read with `Read-Secret`:
 
 ```powershell

@@ -48,7 +48,7 @@ lists; nothing here duplicates those.
 | **M2** - persistence | Drizzle schema, repositories, keyset feed query, HMAC location fuzzing | Done. `packages/db/test/feed-explain.test.ts` asserts the feed query's `EXPLAIN` plan has no `Sort` node and uses the partial index - mutation-checked (temporarily dropping the index makes the test fail) during this rewrite, closing an open contradiction from the pause brief: an earlier audit claimed nothing verified index usage; the test existed, ran, and was correct. The audit was wrong, not the test. 31 tests |
 | **M3** - seed data | 300+ animals, realistic distributions | Done. 320 animals, 8 shelters, shaped freshness and vaccination distributions, fostered animals, real photos. `db:seed` itself has not been re-run in a verification pass since - still merely asserted, not a live gap this rewrite closes. 27 Biome console warnings in the seed script are known and deliberately deferred - a dev-only script, not shipped code |
 | **M4** - minimal API | oRPC router, anonymous session, rate limiting | Done, and hardened beyond the original scope: hand-rolled anonymous device session (not Better Auth - that's deferred to shelter accounts), HMAC-signed cursors bound to a filters fingerprint, split rate limiting (per-IP sliding window; Postgres-persisted reveal limit). Session security properties - timing-safe comparison, `__Host-` cookie in production, 30-day/7-day expiry - are implemented but still merely asserted: no test currently exercises them end to end |
-| **M5** - swipe deck | `PointerEvent` + `transform`, release physics, deck component | Done, but this is the milestone the process failures cluster around. "`/discovery` renders" was originally verified by fetching HTML and grepping for card text, while an action row sat on top of the card and the gesture was dead. The rendering harness (`apps/web/test/harness`, Playwright) and the fixes it verifies - six of them, each now locked by a harness assertion or a unit test - are what actually closed this. Visual properties that aren't geometry (the 6° rotation cap, the 0.03deg/px factor, the 40px affordance ramp) still have no assertion; `onPointerCancel` ignoring `prefers-reduced-motion` is a known, deliberately deferred gap; iOS Safari's swipe failure has never reproduced on any other engine and - now that the deck is a mode entered from the gallery, not the front door - is off the critical path |
+| **M5** - swipe deck *(retired 2026-11-02)* | `PointerEvent` + `transform`, release physics, deck component | Done, but this is the milestone the process failures cluster around. "`/discovery` renders" was originally verified by fetching HTML and grepping for card text, while an action row sat on top of the card and the gesture was dead. The rendering harness (`apps/web/test/harness`, Playwright) and the fixes it verifies - six of them, each now locked by a harness assertion or a unit test - are what actually closed this. Visual properties that aren't geometry (the 6° rotation cap, the 0.03deg/px factor, the 40px affordance ramp) still have no assertion; `onPointerCancel` ignoring `prefers-reduced-motion` is a known, deliberately deferred gap; iOS Safari's swipe failure has never reproduced on any other engine and - now that the deck is a mode entered from the gallery, not the front door - is off the critical path |
 
 **Test counts at the end of M5:** 307 vitest (domain 252, contracts 24, db 31), 0 harness.
 
@@ -59,6 +59,8 @@ Two things landed at once: a build failure that had been invisible to CI (`tsc` 
 had never run), and a new, correct requirement that the original plan never carried:
 **the app must work on desktop, and animals must be browsable as a gallery, not only as a
 swipe deck.**
+
+**Update 2026-11-02: the deck was retired altogether (owner decision); the gallery is the only browsing surface.**
 
 The gallery becomes the **primary surface**, not the deck - it's what search engines
 index, what gets pasted into a Telegram group, what a grant reviewer or shelter director
@@ -313,6 +315,8 @@ depends on is Phase H's M7-equivalent work, so this may block on that, not befor
 
 ### Phase G - Deck completion
 
+**RETIRED 2026-11-02 (owner decision): the swipe deck and its route are removed; `/tvaryny/gortaty` redirects to `/tvaryny`. This phase, Phase R and every deck row below are history, not scope.**
+
 **Off the critical path - ships when it works, does not block launch.** The deck is a
 mode entered from the gallery now, not the front door.
 
@@ -542,6 +546,8 @@ deliberately not this phase's to close; it's D-7's, deferred to Part 5, due befo
 procedure is actually needed rather than before this phase closes.
 
 ### Phase R - Deck memory, two actions, inline reveal
+
+**RETIRED 2026-11-02 (owner decision): the deck is removed. The reveal flow this phase extracted (`useReveal`, `ContactRevealDialog`) stays on the animal page; the swipe recording is removed with the deck.**
 
 Not a Phase D fix - an unbuilt feature on the product's namesake surface. Two product decisions
 from Oleksii (`docs/observations.md`, "Decisions 1 & 2", 2026-09-05), reached after
@@ -1054,8 +1060,8 @@ weeks.
   merges.
 - [x] **PW1-F5 merged.** Done. PR #158 (`fix/pw1-f5-atomic-session-revoke`) merged 2026-10-20
   (`f490ae6`): an additive migration, `0013`, one function and two triggers on `auth_account`.
-  His rehearsal (`9013a35` on child `ep-mute-darkness-b1imydip`: migrate ok, smoke 13/13) and his
-  production migration (`ep-dawn-pond-b1dz515g`, 2026-10-20: "migrations applied successfully",
+  His rehearsal (`9013a35` on child `ep-CHILD-BRANCH`: migrate ok, smoke 13/13) and his
+  production migration (`ep-PRODUCTION`, 2026-10-20: "migrations applied successfully",
   hashes clean before and after) are both quoted verbatim in the PR body. Review: PASS WITH NOTES,
   notes fixed in the follow-up commit. The branch's own inbox rows were never folded into
   `docs/decisions-inbox.md`'s shared table - folded in the same pass as this checkbox.

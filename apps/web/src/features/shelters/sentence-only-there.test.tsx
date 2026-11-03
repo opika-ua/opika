@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import { AnimalDetailScreen } from "../animal-detail/AnimalDetailScreen";
 import { makeDetailAnimal } from "../animal-detail/test-fixtures";
 import { AnimalOverlay } from "../animal-overlay/AnimalOverlay";
-import { SwipeCard } from "../discovery/SwipeCard";
 import { GalleryCard } from "../gallery/GalleryCard";
 import { WithMockRouter } from "../gallery/test-router";
 import { ShelterPageScreen } from "./ShelterPageScreen";
@@ -92,14 +91,6 @@ describe("the shelter's sentence and «Слова притулку» show only o
     );
     expectNoSentence("the overlay", document.body);
     expect(document.body.textContent).toMatch(DAY_COUNT);
-  });
-
-  it("the deck card: neither, and its day count stays", () => {
-    const { container } = render(
-      <SwipeCard card={card} gestureRef={() => {}} dx={0} stackIndex={0} />,
-    );
-    expectNoSentence("the deck card", container);
-    expect(container.textContent).toMatch(DAY_COUNT);
   });
 
   it("the gallery card: neither", () => {

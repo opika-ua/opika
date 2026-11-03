@@ -94,8 +94,7 @@ describe("the contacts footnote shows only under the first-reveal record (K4-B5)
 });
 
 /**
- * Audit 2026-10-22 #18: in the deck «Не зараз» hides an animal for 30 days, so a screen
- * reader must not hear it on a plain close button. The ✕ is «Закрити», in the open dialog
+ * Audit 2026-10-22 #18: a screen reader must not hear «Не зараз» on a plain close button. The ✕ is «Закрити», in the open dialog
  * and in the error dialog alike.
  */
 describe("the ✕ is named «Закрити», never «Не зараз»", () => {

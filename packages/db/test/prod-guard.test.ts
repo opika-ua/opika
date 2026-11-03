@@ -129,13 +129,13 @@ describe("checkProductionWrite edge cases", () => {
 
 /**
  * Verbatim from the review that found the hole (KH-Q12 purge, 2026-10-19).
- * `ep-dawn-pond-b1dz515g` is production's endpoint id, already public in
- * docs/onboarding-a-shelter.md; the literal `<region>` keeps the second host
+ * `ep-fake-prod-a1b2c3d4` stands in for production's endpoint id (see
+ * docs/onboarding-a-shelter.md); the literal `<region>` keeps the second host
  * unresolvable, so even a regression couldn't reach anything with it.
  */
 const REVIEWS_EXAMPLE =
-  "postgres://u:p@localhost#,ep-dawn-pond-b1dz515g.<region>.aws.neon.tech/neondb";
-const REVIEWS_PROD_ENDPOINT = "ep-dawn-pond-b1dz515g";
+  "postgres://u:p@localhost#,ep-fake-prod-a1b2c3d4.<region>.aws.neon.tech/neondb";
+const REVIEWS_PROD_ENDPOINT = "ep-fake-prod-a1b2c3d4";
 const PROD_HOST = `${PROD_ENDPOINT}-pooler.eu-central-1.aws.neon.tech`;
 const CHILD_HOST = "ep-other-hill-d4e5f6.eu-central-1.aws.neon.tech";
 
@@ -336,7 +336,7 @@ describe("one host, or refused (2026-10-19)", () => {
    * If an upgrade changes its parsing, this says so before anyone relies on it.
    */
   it.each([
-    [REVIEWS_EXAMPLE, "localhost", ["localhost#", "ep-dawn-pond-b1dz515g.<region>.aws.neon.tech"]],
+    [REVIEWS_EXAMPLE, "localhost", ["localhost#", "ep-fake-prod-a1b2c3d4.<region>.aws.neon.tech"]],
     [`postgres://u:p@nope%2C${PROD_HOST}/neondb`, `nope%2C${PROD_HOST}`, ["nope", PROD_HOST]],
     [
       `postgres://u:p@${PROD_HOST},x@localhost:5433/neondb`,

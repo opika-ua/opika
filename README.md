@@ -10,8 +10,6 @@ here.
 ## What you can see
 
 - **`/tvaryny`** - the gallery: a filterable grid of animals with nationwide city search.
-- **`/tvaryny/gortaty`** - the swipe deck, entered from the gallery. Drag or use the
-  on-screen buttons.
 - **`/tvaryny/[animalId]`** - an animal's page, with contact reveal.
 - **`/prytulky/[shelterId]`** - a shelter's page.
 - **`/zberezheni`** - the saved list.

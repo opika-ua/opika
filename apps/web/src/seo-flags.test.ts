@@ -80,9 +80,9 @@ it("metadataBase is the fixed SITE_ORIGIN constant, never left unset", async () 
  * actually distinguishes which constant a consumer reads.
  *
  * The `firstRun.promise` swap is covered by its own describe block further
- * down this file, keyed on `REGISTRY_HAS_NO_REAL_SHELTERS`; the deck's demo
- * banner and the detail page's badge suppression are covered where they
- * render (`DeckScreen.test.tsx`, `animal-detail.harness.ts`) rather than
+ * down this file, keyed on `REGISTRY_HAS_NO_REAL_SHELTERS`; the detail
+ * page's badge suppression is covered where it
+ * renders (`animal-detail.harness.ts`) rather than
  * here, since neither's markup is reachable from this file's imports.
  */
 /** The `headers()` entries carrying X-Robots-Tag; the security headers (audit F5) are on every route either way. */
@@ -260,7 +260,7 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
 
 /**
  * Found 2026-09-10 (Oleksii, not a test): `AnimalCard.tsx` and
- * `SwipeCard.tsx` both rendered a verified shelter's "· перевірений" suffix
+ * the (since retired) deck card both rendered a verified shelter's "· перевірений" suffix
  * unconditionally, with no reference to `REGISTRY_HAS_NO_REAL_SHELTERS`
  * anywhere - the one badge that got its own gate right
  * (`AnimalDetailScreen.tsx`'s `shelterVerifiedYears`) did so per-component,
@@ -291,39 +291,6 @@ describe("verificationSuffix", () => {
   it("defaults to the real constant – suppresses today's actual state, no real shelters", () => {
     expect(verificationSuffix("verified")).toBeNull();
   });
-});
-
-/**
- * `/tvaryny/gortaty` must stay noindex regardless of either constant - its
- * reason is permanent SEO ownership (`/tvaryny` is the canonical surface),
- * not demo-data honesty. Exercises all four combinations so a future edit
- * that makes this route read either flag is caught immediately, rather than
- * discovered when the site is publicly discoverable and the deck starts
- * competing with the gallery for the same search traffic.
- */
-describe("/tvaryny/gortaty noindex – independent of both seo-flags constants", () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
-
-  it.each([
-    [true, false],
-    [true, true],
-    [false, false],
-    [false, true],
-  ])(
-    "stays noindex when REGISTRY_HAS_NO_REAL_SHELTERS=%s and SITE_IS_PUBLICLY_DISCOVERABLE=%s",
-    async (registryHasNoRealShelters, siteIsPubliclyDiscoverable) => {
-      vi.doMock("./seo-flags", () => ({
-        REGISTRY_HAS_NO_REAL_SHELTERS: registryHasNoRealShelters,
-        SITE_IS_PUBLICLY_DISCOVERABLE: siteIsPubliclyDiscoverable,
-        assertDemoDiscoverabilityInvariant: vi.fn(),
-      }));
-
-      const { metadata } = await import("./app/tvaryny/gortaty/page");
-      expect(metadata.robots).toEqual({ index: false, follow: false });
-    },
-  );
 });
 
 /**

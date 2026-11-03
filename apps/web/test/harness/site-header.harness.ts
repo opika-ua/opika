@@ -1,6 +1,6 @@
 /**
- * Phase T - the site-wide header: on every user-facing surface except the
- * deck, carrying the wordmark and all three site links (S8 added the saved
+ * Phase T - the site-wide header: on every user-facing surface,
+ * carrying the wordmark and all three site links (S8 added the saved
  * page's), reachable by keyboard; plus the demo banner on the gallery and
  * detail pages.
  *
@@ -23,7 +23,6 @@ import { DESKTOP, DETAIL_PHONE, NARROW_PHONE, PHONE } from "./viewports";
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.31" } });
 
 const GALLERY = "/tvaryny";
-const DECK = "/tvaryny/gortaty";
 const ABOUT = "/pro";
 const FOR_SHELTERS = "/prytulkam";
 const SAVED = "/zberezheni";
@@ -97,7 +96,7 @@ test.describe("the independence line is visible and does not widen the page", ()
   }
 });
 
-test.describe("the header is on every user-facing surface except the deck", () => {
+test.describe("the header is on every user-facing surface", () => {
   for (const [name, route] of [
     ["gallery", GALLERY],
     ["about", ABOUT],
@@ -136,20 +135,6 @@ test.describe("the header is on every user-facing surface except the deck", () =
     await expect(page.locator(NAV_ABOUT)).toHaveAttribute("href", ABOUT);
     await expect(page.locator(NAV_SHELTERS)).toHaveAttribute("href", FOR_SHELTERS);
     await expect(page.locator(NAV_SAVED)).toHaveAttribute("href", SAVED);
-  });
-
-  test("the deck does NOT carry it – docs/design/README.md:589, never two navigations at once", async ({
-    page,
-  }) => {
-    await openRoute(page, DECK, PHONE, {
-      readySelector: "[data-testid='back-to-deck-list'], header",
-    });
-
-    expect(
-      await page.locator(HEADER).count(),
-      "the deck's header replaces the gallery header by design – a site header here would be " +
-        "the second navigation the design explicitly rules out, not a fix",
-    ).toBe(0);
   });
 });
 

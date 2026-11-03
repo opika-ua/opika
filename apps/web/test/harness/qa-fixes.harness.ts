@@ -57,10 +57,3 @@ test.describe("/tvaryny?stor= with a hostile value", () => {
     });
   }
 });
-
-test.describe("the deck", () => {
-  test("has a level-1 heading", async ({ page }) => {
-    await page.goto("/tvaryny/gortaty", { waitUntil: "load" });
-    await expect(page.getByRole("heading", { level: 1, name: "Тварини по одній" })).toHaveCount(1);
-  });
-});
