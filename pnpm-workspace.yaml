@@ -11,6 +11,7 @@ packages:
 # needing a minimumReleaseAgeExclude entry. Don't add exclude entries here;
 # that quarantine is the single best free defense against a repeat of the
 # 2025 npm worm incidents (see CLAUDE.md).
+# Dependabot ignores Biome entirely: bumps are manual (lint:fix, review the diff).
 catalog:
   typescript: 7.0.2
   zod: 4.6.7
