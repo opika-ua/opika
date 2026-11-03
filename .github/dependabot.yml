@@ -1,0 +1,38 @@
+# Weekly, grouped, with a cooldown that mirrors pnpm's 24h minimumReleaseAge (docs/dev-notes.md).
+# Dependabot only opens PRs: they run CI and go through the merge queue like any other. Nothing
+# auto-merges.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    labels:
+      - dependencies
+    groups:
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+    labels:
+      - dependencies
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch
