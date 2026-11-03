@@ -22,7 +22,7 @@ catalog:
   "@orpc/client": 1.14.14
   "@orpc/contract": 1.14.14
   "@orpc/server": 1.14.14
-  "@vitest/coverage-v8": 4.1.12
+  "@vitest/coverage-v8": 5.0.5
   # Browser-layer verification. Playwright drives the rendering harness
   # (apps/web/test/harness) and is the e2e dependency the build plan calls
   # for at M12; happy-dom + Testing Library give apps/web a DOM environment
