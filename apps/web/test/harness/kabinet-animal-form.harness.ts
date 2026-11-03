@@ -406,7 +406,12 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
         await page.getByRole("tablist").evaluate((row) => row.scrollTo({ left: 0 }));
         const tabLeft = (await page.getByRole("tab").first().boundingBox())?.x ?? -1;
         const panelLeft =
-          (await page.locator('[role="tabpanel"]:not([hidden]) h2').first().boundingBox())?.x ?? -2;
+          (
+            await page
+              .locator('[role="tabpanel"]:not([hidden]) :is(h2, label)')
+              .first()
+              .boundingBox()
+          )?.x ?? -2;
         expect(Math.abs(panelLeft - tabLeft)).toBeLessThanOrEqual(1);
       }
       await shot(page, `tab-alignment-${width}`);
