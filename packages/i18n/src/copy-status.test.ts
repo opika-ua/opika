@@ -285,7 +285,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       "Ви переглядаєте кабінет притулку «{shelter}» – лише перегляд, змінити нічого не можна.",
     // row 41; final sentence replaced by CB-B1 (2026-10-17)
     "profile.contactsNote":
-      "Ці контакти бачить людина, коли натискає «Написати притулку», – і пише вам сама. Листування йде напряму, без посередників.",
+      "Ці контакти бачить людина, коли натискає «Дати сімʼю», – і пише вам сама. Листування йде напряму, без посередників.",
     // row 57, his replacement (2026-10-14), live once pre-reveal responses carry the city only
     "profile.addressNote": "Ті, хто шукає тварину, не бачать точної адреси – лише місто.",
     // row 44; replaced by CB-B1 (2026-10-17)
@@ -487,7 +487,7 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     "profileEdit.pause.resumed": "Прийом відновлено. Ваших тварин знову видно.",
     // K4 copy fixes
     "profileEdit.actions.liveOnSave.contacts":
-      "Нові контакти побачать одразу після збереження – коли натиснуть «Написати притулку».",
+      "Нові контакти побачать одразу після збереження – коли натиснуть «Дати сімʼю».",
     // his DR1-Q1 text (2026-10-20)
     "profileEdit.actions.liveOnSave.voice":
       "Нове речення зʼявиться на сторінці притулку одразу після збереження.",
