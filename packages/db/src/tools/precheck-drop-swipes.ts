@@ -58,18 +58,15 @@ export function precheckTarget(
 async function main(): Promise<void> {
   const url = process.env.DATABASE_URL;
   if (!url) {
-    process.stderr.write("ERROR: DATABASE_URL is not set.
-");
+    process.stderr.write("ERROR: DATABASE_URL is not set.\n");
     process.exit(1);
   }
   const target = precheckTarget(url, process.argv, productionEndpoint());
   if (target.kind === "refused") {
-    process.stderr.write(`REFUSED: ${target.reason}. Nothing was run.
-`);
+    process.stderr.write(`REFUSED: ${target.reason}. Nothing was run.\n`);
     process.exit(1);
   }
-  process.stdout.write(`Target host: ${target.host}
-`);
+  process.stdout.write(`Target host: ${target.host}\n`);
   const db = createDatabase(url);
   const [present] = await executeRows<{ present: boolean }>(
     db,
@@ -97,8 +94,7 @@ async function main(): Promise<void> {
       ).map((r) => r.name)
     : [];
   const { text, exitCode } = renderPrecheck({ tablePresent, referencingTables, dependentObjects });
-  process.stdout.write(`${text}
-`);
+  process.stdout.write(`${text}\n`);
   process.exit(exitCode);
 }
 
