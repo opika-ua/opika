@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../../zod-client-config";
 import type { RegistryShelterView } from "@opika/contracts";
 import {
   createContext,

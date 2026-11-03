@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../zod-client-config";
 import type { KabinetShelterView } from "@opika/contracts";
 import type { FreshnessSentence } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";

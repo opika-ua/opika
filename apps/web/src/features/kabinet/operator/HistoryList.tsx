@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../zod-client-config";
 import type { ShelterHistoryEntry, ShelterId } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { Button } from "../../../ui/Button";

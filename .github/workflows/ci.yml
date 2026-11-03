@@ -127,6 +127,11 @@ jobs:
         if: steps.classify.outputs.code != 'false'
         run: pnpm run build:web
 
+      # No zod in the first load of a public route (src/client-bundle-guard.test.ts is the source half).
+      - name: Check route bundles
+        if: steps.classify.outputs.code != 'false'
+        run: pnpm --filter @opika/web run check:route-bundles
+
       # ~170MB and unchanged between runs of the same Playwright version, so
       # key the cache on the lockfile: a version bump busts it.
       - name: Cache Playwright browsers

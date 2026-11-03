@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../zod-client-config";
 import { uk } from "@opika/i18n";
 import { type FormEvent, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Button, LinkButton } from "../../../ui/Button";

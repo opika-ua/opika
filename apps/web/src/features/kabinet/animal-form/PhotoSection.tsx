@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../zod-client-config";
 import type { KabinetAnimalView } from "@opika/contracts";
 import { type AnimalPhoto, isDiscoverable, MAX_ANIMAL_PHOTOS } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";

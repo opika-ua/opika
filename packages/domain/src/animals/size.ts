@@ -1,10 +1,10 @@
 import { z } from "zod";
+import { SIZE_BUCKETS, type SizeBucket } from "../core";
 import type { AnimalSpecies } from "./animal";
 
-export const SizeBucketSchema = z.enum(["small", "medium", "large"]);
-export type SizeBucket = z.infer<typeof SizeBucketSchema>;
+export { SIZE_BUCKETS, type SizeBucket };
 
-export const SIZE_BUCKETS = ["small", "medium", "large"] as const satisfies readonly SizeBucket[];
+export const SizeBucketSchema = z.enum(SIZE_BUCKETS);
 
 /**
  * Guidance for whoever is filling in the listing, not a stored measurement.

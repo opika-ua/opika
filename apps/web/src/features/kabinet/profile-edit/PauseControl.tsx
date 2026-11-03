@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../zod-client-config";
 import type { KabinetShelterView } from "@opika/contracts";
 import { PAUSE_NOTE_MAX_CHARACTERS } from "@opika/contracts";
 import { type PauseCode, PauseCodeSchema, type PauseReason } from "@opika/domain";

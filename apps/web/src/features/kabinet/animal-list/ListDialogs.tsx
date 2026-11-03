@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../zod-client-config";
 import { KABINET_WITHDRAWAL_CODES, WITHDRAWAL_NOTE_MAX_CHARACTERS } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
 import { type ReactNode, useId, useState } from "react";

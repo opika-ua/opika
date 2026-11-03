@@ -1,6 +1,6 @@
 import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
 import type { CityId, FilterSelection, RegionId } from "@opika/domain";
-import { isExplicitlySelected, pluralizeUk } from "@opika/domain";
+import { isExplicitlySelected, pluralizeUk } from "@opika/domain/core";
 import { fillTemplate, placeHint, ukPublic as uk } from "@opika/i18n/public";
 import type { MultiSelectRow } from "../../ui/MultiSelectRows";
 import { arrangeOptions, type PickerOption, splitAtMatch } from "./filter-search";

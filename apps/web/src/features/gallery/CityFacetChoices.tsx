@@ -1,7 +1,7 @@
 "use client";
 
 import type { FilterSelection } from "@opika/domain";
-import { isExplicitlySelected } from "@opika/domain";
+import { isExplicitlySelected } from "@opika/domain/core";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { type ReactNode, useState } from "react";
 import { Button } from "../../ui/Button";

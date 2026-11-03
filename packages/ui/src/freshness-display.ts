@@ -1,5 +1,5 @@
 import type { Freshness, FreshnessKind } from "@opika/domain";
-import { formatFreshnessRelative } from "@opika/domain";
+import { formatFreshnessRelative } from "@opika/domain/core";
 import { ukPublic as strings } from "@opika/i18n/public";
 
 /**

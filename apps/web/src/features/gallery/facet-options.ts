@@ -13,7 +13,7 @@ import {
   isExplicitlySelected,
   pluralizeUk,
   SIZE_BUCKETS,
-} from "@opika/domain";
+} from "@opika/domain/core";
 import { fillTemplate, placeName, ukPublic as uk } from "@opika/i18n/public";
 
 /**

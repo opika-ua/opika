@@ -2,7 +2,7 @@
 
 import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
 import type { CityId, FeedFilters, FilterSelection, GallerySort, RegionId } from "@opika/domain";
-import { ANIMAL_SPECIES, ANY, isExplicitlySelected } from "@opika/domain";
+import { ANIMAL_SPECIES, ANY, isExplicitlySelected } from "@opika/domain/core";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";

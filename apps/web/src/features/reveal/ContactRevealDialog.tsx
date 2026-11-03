@@ -1,7 +1,8 @@
 "use client";
 
 import type { ContactRevealView } from "@opika/contracts";
-import { allChannels, type ContactChannel } from "@opika/domain";
+import type { ContactChannel } from "@opika/domain";
+import { allChannels } from "@opika/domain/core";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { useEffect, useState } from "react";
 import { Button } from "../../ui/Button";

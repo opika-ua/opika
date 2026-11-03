@@ -1,6 +1,6 @@
 "use client";
 
-import { type FeedFilters, NO_FILTERS } from "@opika/domain";
+import { type FeedFilters, NO_FILTERS } from "@opika/domain/core";
 import { useCallback, useEffect, useState } from "react";
 import { readStoredFilters, writeStoredFilters } from "./filter-state";
 

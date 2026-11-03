@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 /**
  * "Save for later," never "like" (DR1-Q3, Oleksii, verbatim: "save. Button: «Зберегти»; saved
  * state: «Збережено». Page title: «Збережені тварини»; slug /zberezheni. Bookmark icon, no
@@ -11,18 +9,34 @@ export const LIKES_STORAGE_KEY = "likes.v1";
 /** DR1-D14: refuse past the cap rather than silently drop the oldest save. */
 export const MAX_LIKES = 200;
 
-const LikesStoreV1Schema = z.object({
-  version: z.literal(1),
-  items: z.array(
-    z.object({
-      animalId: z.string(),
-      /** ISO 8601, `Date#toISOString()`. The person's own order (newest first), not a ranking. */
-      likedAt: z.string(),
-    }),
-  ),
-});
+export type LikesStoreV1 = {
+  version: 1;
+  items: {
+    animalId: string;
+    /** ISO 8601, `Date#toISOString()`. The person's own order (newest first), not a ranking. */
+    likedAt: string;
+  }[];
+};
 
-export type LikesStoreV1 = z.infer<typeof LikesStoreV1Schema>;
+/**
+ * A hand-written guard, not a schema: this module is on every page through the header's saved
+ * button, and zod would ship to all of them for one object shape.
+ */
+export const isLikesStoreV1 = (value: unknown): value is LikesStoreV1 => {
+  if (typeof value !== "object" || value === null) return false;
+  const { version, items } = value as Record<string, unknown>;
+  return (
+    version === 1 &&
+    Array.isArray(items) &&
+    items.every(
+      (item: unknown) =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as Record<string, unknown>).animalId === "string" &&
+        typeof (item as Record<string, unknown>).likedAt === "string",
+    )
+  );
+};
 
 const EMPTY_STORE: LikesStoreV1 = { version: 1, items: [] };
 
@@ -36,8 +50,7 @@ const parseStore = (raw: string | null): LikesStoreV1 => {
   if (raw === null) return EMPTY_STORE;
   try {
     const parsed: unknown = JSON.parse(raw);
-    const result = LikesStoreV1Schema.safeParse(parsed);
-    return result.success ? result.data : EMPTY_STORE;
+    return isLikesStoreV1(parsed) ? parsed : EMPTY_STORE;
   } catch {
     return EMPTY_STORE;
   }

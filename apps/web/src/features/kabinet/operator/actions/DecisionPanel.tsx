@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../../zod-client-config";
 import type { RegistryShelterView } from "@opika/contracts";
 import type { EvidenceGap, InterruptedState } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";

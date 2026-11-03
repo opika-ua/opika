@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../../zod-client-config";
 import { kyivCalendarDateOf } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useEffect, useId, useRef, useState } from "react";

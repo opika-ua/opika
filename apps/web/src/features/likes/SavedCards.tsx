@@ -1,7 +1,7 @@
 "use client";
 
 import type { AnimalId } from "@opika/domain";
-import { DEFAULT_GALLERY_SORT, NO_FILTERS } from "@opika/domain";
+import { DEFAULT_GALLERY_SORT, NO_FILTERS } from "@opika/domain/core";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { LinkButton } from "../../ui/Button";

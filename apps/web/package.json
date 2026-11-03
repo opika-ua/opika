@@ -20,6 +20,7 @@
     "icons:generate": "node scripts/generate-pwa-icons.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
+    "check:route-bundles": "node ./scripts/check-route-bundles.mjs",
     "test:harness": "node ./test/run-harness.mjs",
     "test:harness:install": "playwright install --with-deps chromium",
     "email:delivery-test": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/email-delivery-test.ts",
