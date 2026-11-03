@@ -1,10 +1,6 @@
 import { z } from "zod";
+import { INTL_LOCALE, LOCALES, type Locale } from "../core";
 
-export const LocaleSchema = z.enum(["uk", "en"]);
-export type Locale = z.infer<typeof LocaleSchema>;
+export { INTL_LOCALE, type Locale };
 
-/** BCP 47 tags, used when calling `Intl`. */
-export const INTL_LOCALE: Record<Locale, string> = {
-  uk: "uk-UA",
-  en: "en-GB",
-};
+export const LocaleSchema = z.enum(LOCALES);

@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../zod-client-config";
 import type { KabinetAnimalListFilter, KabinetCursor, KabinetShelterView } from "@opika/contracts";
 import { UNDO_SHOWN_MS } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";

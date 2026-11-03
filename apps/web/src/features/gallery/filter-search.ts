@@ -1,4 +1,4 @@
-import { placeQueryOf, searchLatinOf, searchNameOf, transliterateUk } from "@opika/domain";
+import { placeQueryOf, searchLatinOf, searchNameOf, transliterateUk } from "@opika/domain/core";
 
 /**
  * The client-side search of the Область and Місто lists. It filters the options the page already

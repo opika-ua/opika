@@ -1,4 +1,4 @@
-import { pluralizeUk } from "@opika/domain";
+import { pluralizeUk } from "@opika/domain/core";
 import { ukPublic as uk } from "@opika/i18n/public";
 
 /**

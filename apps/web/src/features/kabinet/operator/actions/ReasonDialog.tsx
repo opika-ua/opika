@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../../zod-client-config";
 import { OperatorNoteSchema, type RegistryShelterView } from "@opika/contracts";
 import {
   type RejectionCode,

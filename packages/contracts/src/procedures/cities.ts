@@ -1,6 +1,7 @@
 import { CityIdSchema } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
+import { MAX_CITY_TOKEN_LENGTH, MAX_CITY_TOKENS } from "../constants";
 import { apiErrors } from "../errors";
 import { CityLabelViewSchema } from "../views/shelter";
 
@@ -11,8 +12,6 @@ import { CityLabelViewSchema } from "../views/shelter";
  * offers come from `gallery.facetCounts`, derived from the animals.
  */
 export const MAX_CITY_LABEL_IDS = 50;
-export const MAX_CITY_TOKENS = 30;
-export const MAX_CITY_TOKEN_LENGTH = 100;
 
 export const CitiesByIdsInputSchema = z.object({
   ids: z.array(CityIdSchema).max(MAX_CITY_LABEL_IDS),

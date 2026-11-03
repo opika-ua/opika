@@ -1,4 +1,4 @@
-import { type FeedFilters, FeedFiltersSchema, NO_FILTERS } from "@opika/domain";
+import { type FeedFilters, NO_FILTERS, parseFeedFilters } from "@opika/domain/core";
 
 const STORAGE_KEY = "opika:filters";
 
@@ -23,8 +23,7 @@ export function readStoredFilters(storage: Storage): FeedFilters {
     return NO_FILTERS;
   }
 
-  const parsed = FeedFiltersSchema.safeParse(json);
-  return parsed.success ? parsed.data : NO_FILTERS;
+  return parseFeedFilters(json) ?? NO_FILTERS;
 }
 
 export function writeStoredFilters(storage: Storage, filters: FeedFilters): void {

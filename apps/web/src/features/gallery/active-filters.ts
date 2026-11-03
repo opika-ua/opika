@@ -7,7 +7,7 @@ import type {
   GallerySort,
   RegionId,
 } from "@opika/domain";
-import { relaxDimension } from "@opika/domain";
+import { relaxDimension } from "@opika/domain/core";
 import { fillTemplate, placeName, ukPublic as uk } from "@opika/i18n/public";
 import { AGE_LABEL, SEX_LABEL, SIZE_LABEL } from "./facet-options";
 import {

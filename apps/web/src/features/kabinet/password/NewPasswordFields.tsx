@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../zod-client-config";
 import { uk } from "@opika/i18n";
 import { useId } from "react";
 import { PasswordField } from "./PasswordField";

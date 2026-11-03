@@ -1,4 +1,4 @@
-import { contract } from "@opika/contracts";
+import type { contract } from "@opika/contracts";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import type { ContractRouterClient } from "@orpc/contract";
@@ -11,12 +11,13 @@ import type { ContractRouterClient } from "@orpc/contract";
  * its own) and `animals.reveal` (the disclosure itself, session-gated
  * server-side by `context.adopterId`, not by anything this client trims).
  * An explicit list, not `typeof contract` minus what is excluded, so a
- * procedure added to the contract later is not callable from the browser by default.
+ * procedure added to the contract later is not callable from the browser by default. Types only:
+ * `createORPCClient` needs no runtime contract, and importing it would ship zod to the browser.
  */
-const revealBrowserContract = {
-  session: { bootstrap: contract.session.bootstrap },
-  animals: { reveal: contract.animals.reveal },
-} as const;
+type RevealBrowserContract = {
+  session: { bootstrap: typeof contract.session.bootstrap };
+  animals: { reveal: typeof contract.animals.reveal };
+};
 
 /**
  * S8, the saved page. Its own link, not `link` below: DR1-Q2's spec is
@@ -27,9 +28,9 @@ const revealBrowserContract = {
  * worst. `revealBrowserClient` must keep the browser's default (same-origin)
  * credentials - a reveal depends on the cookie reaching the server.
  */
-const savedBrowserContract = {
-  animals: { cardsByIds: contract.animals.cardsByIds },
-} as const;
+type SavedBrowserContract = {
+  animals: { cardsByIds: typeof contract.animals.cardsByIds };
+};
 
 /**
  * `url` is a function, not the string `"/api/rpc"` directly - confirmed
@@ -46,14 +47,14 @@ const link = new RPCLink<Record<never, never>>({
   url: () => `${window.location.origin}/api/rpc`,
 });
 
-/** `credentials: "omit"` - see `savedBrowserContract`'s own comment above. */
+/** `credentials: "omit"` - see `SavedBrowserContract`'s own comment above. */
 const savedLink = new RPCLink<Record<never, never>>({
   url: () => `${window.location.origin}/api/rpc`,
   fetch: (request, init) => fetch(request, { ...init, credentials: "omit" }),
 });
 
-export const revealBrowserClient: ContractRouterClient<typeof revealBrowserContract> =
+export const revealBrowserClient: ContractRouterClient<RevealBrowserContract> =
   createORPCClient(link);
 
-export const savedBrowserClient: ContractRouterClient<typeof savedBrowserContract> =
+export const savedBrowserClient: ContractRouterClient<SavedBrowserContract> =
   createORPCClient(savedLink);

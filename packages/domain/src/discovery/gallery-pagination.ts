@@ -1,3 +1,5 @@
+import { MAX_GALLERY_NAVIGABLE_ROWS } from "../core";
+
 /**
  * How deep a numbered, browsable list will go, and how a requested page number
  * is reconciled with the result set that actually exists.
@@ -8,18 +10,8 @@
  * `Math.ceil` disagreeing at a boundary is a real bug and an invisible one.
  */
 
-/**
- * The bound on how many matching rows the gallery will page through.
- *
- * Not a database guard - `OFFSET` over a few thousand rows via an index
- * Postgres already holds for the ordering costs nothing, and would still cost
- * nothing at ten times this. It is an admission that at ~83 pages numbered
- * pagination has stopped being a way anyone browses anything, and that the
- * answer past this depth is a narrower filter, not a higher ceiling. Written
- * down so the number is not later raised on a performance argument that was
- * never the reason it exists.
- */
-export const MAX_GALLERY_NAVIGABLE_ROWS = 2000;
+// Defined in `../core` (with the reasoning) so the contracts' client constants can reach it without zod.
+export { MAX_GALLERY_NAVIGABLE_ROWS };
 
 /**
  * How many pages are navigable for a result set of `totalMatching`.

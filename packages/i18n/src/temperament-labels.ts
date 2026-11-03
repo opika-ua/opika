@@ -1,9 +1,5 @@
-import {
-  type AnimalSex,
-  type GrammaticalGender,
-  grammaticalGenderOf,
-  type TemperamentTrait,
-} from "@opika/domain";
+import type { TemperamentTrait } from "@opika/domain";
+import { type AnimalSex, type GrammaticalGender, grammaticalGenderOf } from "@opika/domain/core";
 import { ukPublic as uk } from "./messages/uk-public";
 
 /**

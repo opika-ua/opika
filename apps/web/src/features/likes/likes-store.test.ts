@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   isAnimalSaved,
+  isLikesStoreV1,
   MAX_LIKES,
   readLikesStore,
   removeSavedAnimal,
@@ -217,5 +218,36 @@ describe("removeSavedAnimal and restoreSavedAnimal", () => {
     for (let i = 0; i < MAX_LIKES; i++) toggleSavedAnimal(`x${i}`, NOW);
     expect(restoreSavedAnimal(removed)).toEqual({ kind: "cap_reached" });
     expect(isAnimalSaved("a")).toBe(false);
+  });
+});
+
+describe("what the store accepts from storage (a hand-written guard, no schema library)", () => {
+  const VALID = { version: 1, items: [{ animalId: "a1", likedAt: "2026-10-20T00:00:00.000Z" }] };
+
+  it("reads a valid store back unchanged, an empty one included", () => {
+    window.localStorage.setItem("likes.v1", JSON.stringify(VALID));
+    expect(readLikesStore()).toEqual(VALID);
+    expect(isLikesStoreV1({ version: 1, items: [] })).toBe(true);
+  });
+
+  it.each([
+    ["the old shape, a bare array of ids", ["a1", "a2"]],
+    ["an object with ids under another key", { likes: ["a1"] }],
+    ["items that are not objects", { version: 1, items: ["a1", null, 3] }],
+    ["an item without likedAt", { version: 1, items: [{ animalId: "a1" }] }],
+    ["an item with a numeric animalId", { version: 1, items: [{ animalId: 1, likedAt: "x" }] }],
+    ["a numeric likedAt", { version: 1, items: [{ animalId: "a1", likedAt: 1 }] }],
+    ["a string version", { version: "1", items: [] }],
+    ["null", null],
+    ["a number", 5],
+  ])("treats %s as empty", (_name, stored) => {
+    window.localStorage.setItem("likes.v1", JSON.stringify(stored));
+    expect(readLikesStore()).toEqual({ version: 1, items: [] });
+    expect(isLikesStoreV1(stored)).toBe(false);
+  });
+
+  it("treats text that is not JSON as empty", () => {
+    window.localStorage.setItem("likes.v1", "{not json");
+    expect(readLikesStore()).toEqual({ version: 1, items: [] });
   });
 });

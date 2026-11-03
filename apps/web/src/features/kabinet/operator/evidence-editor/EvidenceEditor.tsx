@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../../zod-client-config";
 import type { ReferenceRelationship } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useEffect, useState } from "react";

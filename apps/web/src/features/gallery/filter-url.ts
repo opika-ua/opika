@@ -1,29 +1,30 @@
-import { MAX_CITY_TOKEN_LENGTH, MAX_CITY_TOKENS, MAX_GALLERY_PAGE } from "@opika/contracts";
-import type {
-  AgeBucket,
-  AnimalId,
-  AnimalSex,
-  AnimalSpecies,
-  CityId,
-  FeedFilters,
-  FilterSelection,
-  GallerySort,
-  RegionId,
-  SizeBucket,
-} from "@opika/domain";
 import {
-  AgeBucketSchema,
+  MAX_CITY_TOKEN_LENGTH,
+  MAX_CITY_TOKENS,
+  MAX_GALLERY_PAGE,
+} from "@opika/contracts/constants";
+import type { AnimalId, CityId, RegionId } from "@opika/domain";
+import {
+  AGE_BUCKETS,
+  type AgeBucket,
+  ANIMAL_SEXES,
+  ANIMAL_SPECIES,
   ANY,
-  AnimalSexSchema,
-  AnimalSpeciesSchema,
-  CityIdSchema,
+  type AnimalSex,
+  type AnimalSpecies,
   canonicalizeFilters,
   DEFAULT_GALLERY_SORT,
-  GallerySortSchema,
+  type FeedFilters,
+  type FilterSelection,
+  GALLERY_SORTS,
+  type GallerySort,
   isExplicitlySelected,
   NO_FILTERS,
-  SizeBucketSchema,
-} from "@opika/domain";
+  parseCityId,
+  parseEnum,
+  SIZE_BUCKETS,
+  type SizeBucket,
+} from "@opika/domain/core";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import type { CityTokenResolution } from "./city-tokens";
 
@@ -111,14 +112,13 @@ const tokensOf = (raw: string | string[] | undefined): string[] =>
 
 function parseSelection<T extends string>(
   raw: string | string[] | undefined,
-  schema: { safeParse: (value: unknown) => { success: boolean; data?: T } },
+  universe: readonly T[],
 ): FilterSelection<T> {
   const values = [
     ...new Set(
       tokensOf(raw)
-        .map((token) => schema.safeParse(token))
-        .filter((result): result is { success: true; data: T } => result.success)
-        .map((result) => result.data),
+        .map((token) => parseEnum(universe, token))
+        .filter((value): value is T => value !== null),
     ),
   ];
 
@@ -188,8 +188,8 @@ function parseCitySelection(
     ...new Set(
       tokensOf(raw)
         .slice(0, MAX_CITY_TOKENS)
-        .map((token) => citiesBySlug.get(token) ?? CityIdSchema.safeParse(token).data)
-        .filter((id): id is CityId => id !== undefined),
+        .map((token) => citiesBySlug.get(token) ?? parseCityId(token))
+        .filter((id): id is CityId => id !== null),
     ),
   ];
 
@@ -238,14 +238,14 @@ export function parseGalleryQuery(
   const filters = canonicalizeFilters({
     regions: parseRegionSelection(searchParams[REGION_PARAM], placeIds.regions),
     cities: parseCitySelection(searchParams[CITY_PARAM], placeIds.cities),
-    species: parseSelection<AnimalSpecies>(searchParams[SPECIES_PARAM], AnimalSpeciesSchema),
-    sizes: parseSelection<SizeBucket>(searchParams[SIZE_PARAM], SizeBucketSchema),
-    ages: parseSelection<AgeBucket>(searchParams[AGE_PARAM], AgeBucketSchema),
-    sexes: parseSelection<AnimalSex>(searchParams[SEX_PARAM], AnimalSexSchema),
+    species: parseSelection<AnimalSpecies>(searchParams[SPECIES_PARAM], ANIMAL_SPECIES),
+    sizes: parseSelection<SizeBucket>(searchParams[SIZE_PARAM], SIZE_BUCKETS),
+    ages: parseSelection<AgeBucket>(searchParams[AGE_PARAM], AGE_BUCKETS),
+    sexes: parseSelection<AnimalSex>(searchParams[SEX_PARAM], ANIMAL_SEXES),
   });
 
-  const sortResult = GallerySortSchema.safeParse(firstValue(searchParams[SORT_PARAM]));
-  const sort: GallerySort = sortResult.success ? sortResult.data : DEFAULT_GALLERY_SORT;
+  const sort: GallerySort =
+    parseEnum(GALLERY_SORTS, firstValue(searchParams[SORT_PARAM])) ?? DEFAULT_GALLERY_SORT;
 
   const page = parsePageParam(firstValue(searchParams[PAGE_PARAM]));
 
@@ -287,7 +287,7 @@ export function redirectHrefForNonCanonicalCities(
     if (entry?.city && (entry.via === "alias" || entry.via === "id")) {
       sawRewrite = true;
       rewritten.push(entry.city.slug);
-    } else if (!entry?.city && CityIdSchema.safeParse(token).success) {
+    } else if (!entry?.city && parseCityId(token) !== null) {
       return null;
     } else {
       rewritten.push(token);

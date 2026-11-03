@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../../zod-client-config";
 import type { CreatedShelterView, PlaceOptionView } from "@opika/contracts";
 import { kyivCalendarDateOf } from "@opika/domain";
 import { fillTemplate, placeLabel, uk } from "@opika/i18n";

@@ -1,5 +1,5 @@
-import { MAX_GALLERY_NAVIGABLE_ROWS } from "@opika/domain";
 import { z } from "zod";
+import { MAX_GALLERY_PAGE } from "../constants";
 
 /**
  * Opaque to the client on purpose.
@@ -43,19 +43,5 @@ export const pageSizeSchema = z.int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_
 export const GALLERY_PAGE_SIZE = 24;
 
 export const galleryPageSizeSchema = z.int().min(1).max(MAX_PAGE_SIZE).default(GALLERY_PAGE_SIZE);
-
-/**
- * A page number, not a cursor - the gallery's numbered, shareable, crawlable
- * pages are the named exception to this codebase's keyset rule
- * (`docs/standing-constraints.md`).
- *
- * The upper bound is one page per navigable row, which is the most pages that
- * can exist at the smallest permitted page size. Anything above it is a page
- * number no surface has ever generated, so it is rejected rather than clamped;
- * anything at or below it that has simply gone stale is served as the last real
- * page, which is a handler obligation rather than a schema one - see
- * `clampGalleryPage`.
- */
-export const MAX_GALLERY_PAGE = MAX_GALLERY_NAVIGABLE_ROWS;
 
 export const galleryPageSchema = z.int().min(1).max(MAX_GALLERY_PAGE).default(1);

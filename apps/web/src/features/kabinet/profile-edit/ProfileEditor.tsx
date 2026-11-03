@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../zod-client-config";
 import type { KabinetShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { useCallback, useRef, useState } from "react";

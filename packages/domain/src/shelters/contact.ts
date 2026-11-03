@@ -80,7 +80,5 @@ export const ShelterContactInputSchema = z.object({
   additional: z.array(ContactChannelInputSchema).readonly(),
 });
 
-export const allChannels = (contact: ShelterContact): readonly ContactChannel[] => [
-  contact.primary,
-  ...contact.additional,
-];
+// In `../core` so the reveal dialog reaches it without zod.
+export { allChannels } from "../core";

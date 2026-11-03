@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../../zod-client-config";
 import { uk } from "@opika/i18n";
 import { useState } from "react";
 import { Button } from "../../../../ui/Button";

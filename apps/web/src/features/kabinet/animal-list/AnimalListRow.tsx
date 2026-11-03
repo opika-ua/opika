@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../zod-client-config";
 import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
 import { Fragment, useId } from "react";

@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../zod-client-config";
 import type { RegistryShelterRowView } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
 import { Button, LinkButton } from "../../../ui/Button";

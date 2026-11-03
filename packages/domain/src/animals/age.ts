@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AGE_BUCKETS, type AgeBucket } from "../core";
 import {
   type CalendarDate,
   calendarDateYearsBefore,
@@ -6,16 +7,9 @@ import {
   kyivCalendarDateOf,
 } from "../primitives/calendar-date";
 
-export const AgeBucketSchema = z.enum(["baby", "young", "adult", "senior"]);
-export type AgeBucket = z.infer<typeof AgeBucketSchema>;
+export { AGE_BUCKETS, type AgeBucket };
 
-/** Ordered youngest to oldest. The order is load-bearing for range queries. */
-export const AGE_BUCKETS = [
-  "baby",
-  "young",
-  "adult",
-  "senior",
-] as const satisfies readonly AgeBucket[];
+export const AgeBucketSchema = z.enum(AGE_BUCKETS);
 
 /** Lower bound of each bucket, in years. baby <1, young 1-3, adult 3-8, senior 8+. */
 export const AGE_BUCKET_MIN_YEARS: Record<AgeBucket, number> = {

@@ -5,7 +5,7 @@ import {
   type GrammaticalGender,
   grammaticalGenderOf,
   type SizeBucket,
-} from "@opika/domain";
+} from "@opika/domain/core";
 import { ukPublic as uk } from "./messages/uk-public";
 
 /**

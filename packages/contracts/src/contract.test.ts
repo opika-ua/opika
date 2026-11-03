@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_GALLERY_PAGE } from "./constants";
 import { contract } from "./contract";
 import {
   GalleryFacetCountsInputSchema,
@@ -6,12 +7,7 @@ import {
   GalleryListInputSchema,
   GalleryRelaxationCountsInputSchema,
 } from "./procedures/gallery";
-import {
-  DEFAULT_PAGE_SIZE,
-  GALLERY_PAGE_SIZE,
-  MAX_GALLERY_PAGE,
-  MAX_PAGE_SIZE,
-} from "./procedures/pagination";
+import { DEFAULT_PAGE_SIZE, GALLERY_PAGE_SIZE, MAX_PAGE_SIZE } from "./procedures/pagination";
 
 const procedurePaths = (node: object, prefix = ""): readonly string[] =>
   Object.entries(node).flatMap(([key, value]) => {

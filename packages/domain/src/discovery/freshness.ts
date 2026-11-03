@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { INTL_LOCALE, type Locale } from "../primitives/locale";
 
 export const FreshnessKindSchema = z.enum(["fresh", "aging", "stale"]);
 export type FreshnessKind = z.infer<typeof FreshnessKindSchema>;
@@ -70,21 +69,8 @@ export const freshnessOf = (confirmedAt: Date, now: Date, policy: FreshnessPolic
   return { kind, confirmedAt, ageDays };
 };
 
-/**
- * The sign-and-unit contract for relative time, in one place.
- *
- * `Intl.RelativeTimeFormat` produces correct Ukrainian plurals for free, but
- * only when called with a negative offset and the "day" unit - which is the
- * mistake worth a test, rather than whether the platform's plural rules work.
- * Keeping the call here means every surface cannot re-derive the sign wrongly.
- *
- * Locale is a parameter, so nothing about a language or a product is baked in.
- */
-export const formatFreshnessRelative = (freshness: Freshness, locale: Locale): string =>
-  new Intl.RelativeTimeFormat(INTL_LOCALE[locale], { numeric: "auto" }).format(
-    -freshness.ageDays,
-    "day",
-  );
+// In `../core` so the freshness label reaches a client file without zod.
+export { formatFreshnessRelative } from "../core";
 
 /**
  * Fails loudly at boot on a runtime built without full ICU, where every locale

@@ -1,5 +1,6 @@
 "use client";
 
+import "../../../../zod-client-config";
 import type { CreatedShelterView, EmailSendOutcome, InvitationReminder } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useEffect, useRef, useState } from "react";
