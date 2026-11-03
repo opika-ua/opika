@@ -116,9 +116,14 @@ const inTab = (tab: string, name: string) => {
   fireEvent.click(screen.getByRole("tab", { name: tab }));
   return screen.getByRole("region", { name });
 };
-const contacts = () => inTab("Контакти", "Контакти");
+/** A tab whose section has no heading of its own: the panel, named by its tab, is the scope. */
+const inPanel = (tab: string) => {
+  fireEvent.click(screen.getByRole("tab", { name: tab }));
+  return screen.getByRole("tabpanel", { name: tab });
+};
+const contacts = () => inPanel("Контакти");
 const voice = () => inTab("Профіль", "Голос притулку");
-const donation = () => inTab("Збір коштів", "Збір коштів");
+const donation = () => inPanel("Збір коштів");
 
 describe("contacts (answer 3, answer 4)", () => {
   it("offers save and cancel only once something changed, and cancel puts the stored values back", async () => {
@@ -703,6 +708,27 @@ describe("pause and resume (N21)", () => {
     const panel = screen.getByRole("tabpanel", { name: "Профіль" });
     expect(within(panel).getByRole("button", { name: "Призупинити прийом тварин" })).toBeTruthy();
     expect(screen.queryByRole("tab", { name: "Акаунт" })).toBeNull();
+  });
+
+  it("says what pausing does above the button, and prints the label once", () => {
+    renderInAccount();
+    const panel = screen.getByRole("tabpanel", { name: "Профіль" });
+    const explanation = within(panel).getByText(
+      "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає. Відновити можна тут будь-коли.",
+    );
+    const button = within(panel).getByRole("button", { name: "Призупинити прийом тварин" });
+    expect(
+      explanation.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(within(panel).getAllByText("Призупинити прийом тварин")).toHaveLength(1);
+    // The section is still named, by its button.
+    expect(within(panel).getByRole("region", { name: "Призупинити прийом тварин" })).toBeTruthy();
+  });
+
+  it("does not repeat the tab's name as a heading", () => {
+    renderInAccount();
+    const panel = screen.getByRole("tabpanel", { name: "Профіль" });
+    expect(within(panel).queryByRole("heading", { name: "Профіль" })).toBeNull();
   });
 
   it("after pausing, the control offers to resume", async () => {

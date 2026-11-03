@@ -1,10 +1,12 @@
 import { type ReactNode, useEffect, useRef } from "react";
 import { Button, buttonClass } from "../../ui/Button";
+import { Container } from "../../ui/Container";
 import { cx } from "../../ui/cx";
 import { Heading } from "../../ui/Heading";
 import { Mascot } from "../../ui/Mascot";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
+import { SiteHeader } from "../chrome/SiteHeader";
 
 /**
  * The full-page error card both `/tvaryny` error boundaries render (the list and the deck), so
@@ -43,44 +45,48 @@ export function LoadErrorScreen({
     <>
       {/* A client component cannot export `metadata`; React hoists this tag into <head>. */}
       <meta name="robots" content="noindex, nofollow" />
-      <div className="flex min-h-dvh items-center justify-center bg-page p-4">
-        <Panel padding="lg" className="animate-fade-in w-full max-w-140">
-          <div
-            role="alert"
-            aria-live="assertive"
-            data-testid={testIdPrefix}
-            className="flex flex-col items-start gap-4"
-          >
-            <Mascot kind="cat" pose="sit" variant="collar" size={64} />
-            <Text look="hint" className="uppercase tracking-wider">
-              {eyebrow}
-            </Text>
-            <Heading
-              level={1}
-              look="display-l"
-              ref={headingRef}
-              tabIndex={-1}
-              className="wrap-anywhere"
+      <div className="min-h-dvh bg-page">
+        {/* A client boundary cannot read the cookie; the visitor header is the safe default. */}
+        <SiteHeader kabinetSignedIn={false} />
+        <Container as="main" className="flex justify-center py-8 desktop:py-14">
+          <Panel padding="lg" className="animate-fade-in w-full max-w-140">
+            <div
+              role="alert"
+              aria-live="assertive"
+              data-testid={testIdPrefix}
+              className="flex flex-col items-start gap-4"
             >
-              {title}
-            </Heading>
-            <Text look="lead" className="text-ink-2">
-              {body}
-            </Text>
-            <div className="flex flex-wrap items-center gap-4">
-              <Button type="button" data-testid={`${testIdPrefix}-retry`} onClick={onRetry}>
-                {retryLabel}
-              </Button>
-              <a
-                href="/tvaryny"
-                data-testid={escapeTestId}
-                className={cx(buttonClass("ghost"), "underline")}
+              <Mascot kind="cat" pose="sit" variant="collar" size={64} />
+              <Text look="hint" className="uppercase tracking-wider">
+                {eyebrow}
+              </Text>
+              <Heading
+                level={1}
+                look="display-l"
+                ref={headingRef}
+                tabIndex={-1}
+                className="wrap-anywhere"
               >
-                {escapeLabel}
-              </a>
+                {title}
+              </Heading>
+              <Text look="lead" className="text-ink-2">
+                {body}
+              </Text>
+              <div className="flex flex-wrap items-center gap-4">
+                <Button type="button" data-testid={`${testIdPrefix}-retry`} onClick={onRetry}>
+                  {retryLabel}
+                </Button>
+                <a
+                  href="/tvaryny"
+                  data-testid={escapeTestId}
+                  className={cx(buttonClass("ghost"), "underline")}
+                >
+                  {escapeLabel}
+                </a>
+              </div>
             </div>
-          </div>
-        </Panel>
+          </Panel>
+        </Container>
       </div>
     </>
   );

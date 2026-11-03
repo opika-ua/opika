@@ -2,6 +2,7 @@
 
 import { ukPublic as uk } from "@opika/i18n/public";
 import { useEffect } from "react";
+import { SiteHeader } from "../features/chrome/SiteHeader";
 import { reportClientError } from "../observability/load-client";
 import { MAIN_LANDMARK } from "../ui/landmark";
 import "./globals.css";
@@ -9,7 +10,7 @@ import "./globals.css";
 /**
  * Next renders this instead of the root layout when the layout itself throws, so it owns the page
  * shell. It reuses the gallery's approved error strings rather than adding copy, and plain markup
- * on the kit's tokens rather than the kit's components: this file is in every page's client graph,
+ * on the kit's tokens rather than the kit's components (bar the site header): this file is in every page's client graph,
  * and the screen those components build costs every page about 3.6 kB gzipped for a case that
  * almost never happens. The error goes to the reporter (a no-op without a DSN).
  */
@@ -28,7 +29,12 @@ export default function GlobalError({
     <html lang="uk">
       <body style={{ margin: 0 }}>
         <meta name="robots" content="noindex, nofollow" />
-        <main {...MAIN_LANDMARK} className="flex min-h-dvh items-center justify-center bg-page p-4">
+        {/* The root layout is gone here, so the header is drawn again; the visitor variant (no cookie read). */}
+        <SiteHeader kabinetSignedIn={false} />
+        <main
+          {...MAIN_LANDMARK}
+          className="flex min-h-[calc(100dvh-var(--sticky-header-h))] items-center justify-center bg-page p-4"
+        >
           <div
             role="alert"
             data-testid="global-error"

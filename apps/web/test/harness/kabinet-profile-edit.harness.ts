@@ -146,7 +146,7 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
 
   test("edit the phone, save, see «Збережено.», and the new value after a reload", async () => {
     const page = await profilePage("kontakty");
-    const contacts = page.getByRole("region", { name: "Контакти" });
+    const contacts = page.getByRole("tabpanel", { name: "Контакти" });
     const phone = contacts.getByLabel(/^Телефон/);
     const before = await phone.inputValue();
 
@@ -158,12 +158,12 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
     await expect(page.getByRole("button", { name: "Зберегти" })).toHaveCount(0);
 
     await page.reload();
-    await expect(page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/)).toHaveValue(
-      "+380501112233",
-    );
+    await expect(
+      page.getByRole("tabpanel", { name: "Контакти" }).getByLabel(/^Телефон/),
+    ).toHaveValue("+380501112233");
 
     // Put the seeded value back (or clear it, if there was none and another channel remains).
-    const again = page.getByRole("region", { name: "Контакти" });
+    const again = page.getByRole("tabpanel", { name: "Контакти" });
     await again.getByLabel(/^Телефон/).fill(before);
     if (before !== "+380501112233") {
       await page.getByRole("button", { name: "Зберегти" }).click();
@@ -182,7 +182,7 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
       const page = await profilePage("kontakty");
       await page.setViewportSize({ width, height: 900 });
       await page
-        .getByRole("region", { name: "Контакти" })
+        .getByRole("tabpanel", { name: "Контакти" })
         .getByLabel(/^Телефон/)
         .fill("+380 50 111-22-33");
       const pill = page.locator("[data-save-pill]");
@@ -204,7 +204,7 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
   test("the save bar at 393: equal 48px buttons, no sideways scroll, the last field stays clear", async () => {
     const page = await profilePage("kontakty");
     await page.setViewportSize({ width: 393, height: 800 });
-    const contacts = page.getByRole("region", { name: "Контакти" });
+    const contacts = page.getByRole("tabpanel", { name: "Контакти" });
     await contacts.getByLabel(/^Телефон/).fill("+380 50 111-22-33");
     const bar = page.locator("[data-save-pill]");
     await expect(bar).toBeVisible();
@@ -289,7 +289,7 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
       [
         "TextField",
         "Контакти",
-        page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/),
+        page.getByRole("tabpanel", { name: "Контакти" }).getByLabel(/^Телефон/),
       ],
       [
         "TextAreaField",
@@ -332,7 +332,7 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
    */
   test("tabbing to a control shows a focus indicator", async () => {
     const page = await profilePage("kontakty");
-    const phone = page.getByRole("region", { name: "Контакти" }).getByLabel(/^Телефон/);
+    const phone = page.getByRole("tabpanel", { name: "Контакти" }).getByLabel(/^Телефон/);
     let reached = false;
     for (let i = 0; i < 20 && !reached; i += 1) {
       await page.keyboard.press("Tab");

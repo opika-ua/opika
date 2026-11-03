@@ -2252,7 +2252,8 @@ describe("sections, steps and the error summary (kabinet redesign PR 3)", () => 
     const headings = screen
       .getAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent?.split(" · ")[0]);
-    expect(headings).toEqual(["Основне", "Фото", "Про тварину", "Здоровʼя", "Публікація"]);
+    // The other tabs are named by their tab, not by a repeated heading.
+    expect(headings).toEqual(["Фото", "Публікація"]);
   });
 
   it("a read-only view has no «Публікація» section and no tab for it", () => {

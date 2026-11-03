@@ -163,6 +163,21 @@ describe("AnimalDetailScreen – the shelter row (designer round 1, S6)", () => 
     expect(link.getAttribute("href")).toBe("/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd");
   });
 
+  it("does not say «Притулок» twice when the registered name already opens with it", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter({ displayName: "Притулок «Репетиція»" })}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Притулок «Репетиція»" });
+    expect(link.getAttribute("href")).toBe("/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+    expect((link.getAttribute("aria-label") ?? "").match(/притул/gi)).toHaveLength(1);
+  });
+
   it("keeps the donation link, with its domain as text", async () => {
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
     render(

@@ -16,6 +16,7 @@ import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { Avatar } from "../../ui/Avatar";
 import { LinkButton } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
+import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
 import { Icon } from "../../ui/Icon";
 import { MAIN_LANDMARK } from "../../ui/landmark";
@@ -67,13 +68,13 @@ export function AnimalDetailScreen({
       <main {...MAIN_LANDMARK} className="flex flex-1 flex-col">
         {/* The demo disclosure must be in the page body, not only in metadata: this route is the one shelters share into Telegram. */}
         {REGISTRY_HAS_NO_REAL_SHELTERS && (
-          <div className="p-4 tablet:p-6 desktop:px-14">
+          <Container className="pt-4 tablet:pt-6">
             <span data-testid="detail-demo-banner">
               <Text as="span" look="hint">
                 {uk.demo.bannerNotice}
               </Text>
             </span>
-          </div>
+          </Container>
         )}
 
         {/* Below desktop the full page has no ✕ and no prev/next (those belong to the overlay), so the way out is this link. */}
@@ -93,6 +94,16 @@ export function AnimalDetailScreen({
       </main>
     </div>
   );
+}
+
+/**
+ * Registered names usually already open with the word («Притулок «Добрі лапи»»), and the template
+ * adds it again; such a name is its own label (it also keeps the visible text inside the name).
+ */
+export function shelterRowLabel(displayName: string): string {
+  return /^притулок(\s|$)/iu.test(displayName.trim())
+    ? displayName
+    : fillTemplate(uk.detail.shelterRowLink, { name: displayName });
 }
 
 /** The animal itself, with no page chrome: shared by the full page and the gallery overlay. */
@@ -155,7 +166,7 @@ export function AnimalDetailContent({
             <Link
               href={shelterPagePath(shelter.id)}
               prefetch={false}
-              aria-label={fillTemplate(uk.detail.shelterRowLink, { name: shelter.displayName })}
+              aria-label={shelterRowLabel(shelter.displayName)}
               className="inline-flex min-h-target min-w-0 items-center gap-3 rounded-field focus-ring"
             >
               {shelter.logo === null ? (

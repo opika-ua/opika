@@ -1,8 +1,9 @@
 import { uk } from "@opika/i18n";
 import { buttonClass } from "../../ui/Button";
+import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
-import { MAIN_LANDMARK } from "../../ui/landmark";
 import { Panel } from "../../ui/Panel";
+import { SiteHeader } from "./SiteHeader";
 
 /**
  * RL-F1: a public page whose read was refused for rate, the animal page's
@@ -21,23 +22,24 @@ import { Panel } from "../../ui/Panel";
  */
 export function RateLimitedScreen() {
   return (
-    <main
-      {...MAIN_LANDMARK}
-      className="flex min-h-dvh items-center justify-center bg-page p-4 tablet:p-6"
-    >
-      {/* Sunken: surface is near-identical to the page, so only the fill makes the card visible. Ink text, since ink-2 is 4.1:1 on it. */}
-      <Panel
-        tone="sunken"
-        padding="lg"
-        className="flex w-full max-w-xl flex-col items-start gap-4 text-ink shadow-float"
-      >
-        <Heading level={1} look="title">
-          {uk.detail.rateLimited}
-        </Heading>
-        <a href="/tvaryny" className={buttonClass("primary")}>
-          {uk.detail.notFound.action}
-        </a>
-      </Panel>
-    </main>
+    <div className="min-h-dvh bg-page">
+      {/* A static page: no cookie read, so the visitor header (the cabinet link is a hint only). */}
+      <SiteHeader kabinetSignedIn={false} />
+      <Container as="main" className="flex justify-center py-8 desktop:py-14">
+        {/* Sunken: surface is near-identical to the page, so only the fill makes the card visible. Ink text, since ink-2 is 4.1:1 on it. */}
+        <Panel
+          tone="sunken"
+          padding="lg"
+          className="flex w-full max-w-xl flex-col items-start gap-4 text-ink shadow-float"
+        >
+          <Heading level={1} look="title">
+            {uk.detail.rateLimited}
+          </Heading>
+          <a href="/tvaryny" className={buttonClass("primary")}>
+            {uk.detail.notFound.action}
+          </a>
+        </Panel>
+      </Container>
+    </div>
   );
 }
