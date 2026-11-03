@@ -37,11 +37,6 @@ export function ageBucketLabel(bucket: AgeBucket): string {
   return AGE_BUCKET_LABELS[bucket];
 }
 
-/** Deck-only leftover: goes with the deck (PR 1); everything else uses `animalFactsParts`. */
-export function sizeLabel(size: SizeBucket): string {
-  return SIZE_LABELS[size];
-}
-
 const FEMININE_AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
   baby: uk.cardMeta.ageBabyFemale,
   young: uk.cardMeta.ageYoungFemale,

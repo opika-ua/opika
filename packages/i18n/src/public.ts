@@ -8,7 +8,6 @@ export {
   ageWordFor,
   animalFactsParts,
   sexWordFor,
-  sizeLabel,
   sizeWordFor,
   speciesWordFor,
 } from "./animal-labels";
