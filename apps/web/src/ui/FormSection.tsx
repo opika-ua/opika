@@ -17,7 +17,7 @@ export type FormSectionProps = {
   /**
    * For a section that is the whole body of a tab or panel already named by it (the tab's name is
    * the title): no heading and no `section` name, so the tab name is not read twice. `title` is
-   * ignored; the surrounding tab panel carries the name (`aria-labelledby` its tab).
+   * ignored (`titleExtra` and `description` still show), and the section takes focus (`tabIndex` -1) where a link moves it here; the surrounding tab panel carries the name (`aria-labelledby` its tab).
    */
   titleless?: boolean;
   /** The section's 1-based place in the form; omit for an unnumbered section. */
@@ -49,7 +49,7 @@ export function FormSection({
     <Card
       as="section"
       id={id}
-      {...(titleless ? {} : { "aria-labelledby": titleId })}
+      {...(titleless ? { tabIndex: -1 } : { "aria-labelledby": titleId })}
       tone={framing === "flush" ? "page" : "surface"}
       className={cx("scroll-mt-4", className)}
     >
@@ -60,9 +60,14 @@ export function FormSection({
         )}
       >
         {titleless ? (
-          description === undefined ? null : (
-            <p className="text-caption text-ink-2">{description}</p>
-          )
+          <>
+            {titleExtra === undefined ? null : (
+              <div className="flex items-center gap-3">{titleExtra}</div>
+            )}
+            {description === undefined ? null : (
+              <p className="text-caption text-ink-2">{description}</p>
+            )}
+          </>
         ) : (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">

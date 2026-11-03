@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import NotFound from "./not-found";
 
 describe("the card 404", () => {
-  it("says the card is gone inside the site chrome, with a way back", async () => {
-    render(await NotFound());
+  it("says the card is gone inside the site chrome, with a way back", () => {
+    render(<NotFound />);
 
     expect(screen.getByRole("banner")).toBeTruthy();
     const main = screen.getByRole("main");

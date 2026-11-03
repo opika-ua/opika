@@ -1,7 +1,6 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
-import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
-import { SiteHeader } from "../../../features/chrome/SiteHeader";
+import { NotFoundHeader } from "../../../features/chrome/NotFoundHeader";
 import { LinkButton } from "../../../ui/Button";
 import { Container } from "../../../ui/Container";
 import { Heading } from "../../../ui/Heading";
@@ -21,11 +20,11 @@ import { Text } from "../../../ui/Text";
  */
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
-export default async function NotFound() {
+export default function NotFound() {
   const copy = uk.detail.notFound;
   return (
     <div className="min-h-dvh bg-page">
-      <SiteHeader kabinetSignedIn={await kabinetSessionCookiePresent()} />
+      <NotFoundHeader />
       <Container as="main" className="flex justify-center py-8 desktop:py-14">
         <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">
           <Mascot kind="cat" pose="sit" variant="collar" size={64} />
