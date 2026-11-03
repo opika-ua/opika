@@ -535,6 +535,19 @@ real. Treat the first real onboarding run as that verification, not as a
 formality - watch the upload log lines closely and check the resulting
 photo actually loads on the live detail page before trusting the rest.
 
+## Image caching (Cloudflare Cache Rule on img.opika.org.ua)
+
+Every R2 put sets `Cache-Control: public, max-age=31536000, immutable`
+(`IMAGE_CACHE_CONTROL` in `packages/db/src/image-pipeline/r2-client.ts`; photo
+variants and shelter logos share that one put). Keys are immutable UUID paths,
+so a year-long cache is safe. The origin header alone is not enough: Cloudflare
+does not treat these image responses as cache-eligible by default, so a Cache
+Rule matches host `img.opika.org.ua` with "eligible for cache", browser TTL 1
+year, edge TTL "use origin" (4 h). Objects uploaded before this change lack the
+header; for them the browser TTL comes from the rule. Once every object carries
+the header (e.g. after the pre-launch full reset) the browser-TTL override can be
+removed; keep the eligibility part.
+
 ## Taking a photo down (P-Q14)
 
 Removing a photo in the kabinet (`shelter.photos.remove`) only takes it off

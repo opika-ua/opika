@@ -34,6 +34,7 @@ describe("createR2Client", () => {
       Bucket: "photos",
       Key: "animals/a/b/card.webp",
       ContentType: "image/webp",
+      CacheControl: "public, max-age=31536000, immutable",
       IfNoneMatch: "*",
     });
   });

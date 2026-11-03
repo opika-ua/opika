@@ -220,6 +220,8 @@ describe("the photo pipeline's never-rules (K-Q2, P-Q11)", () => {
     const text = all.find((file) => file.path === R2_CLIENT)?.text ?? "";
     expect(text).toMatch(/IfNoneMatch:\s*"\*"/);
     expect(text.match(/new PutObjectCommand\(/g)).toHaveLength(1);
+    // Photo variants and logos both put through this one call; an omitted header would skip the CDN rule.
+    expect(text).toMatch(/CacheControl:\s*IMAGE_CACHE_CONTROL/);
   });
 
   it("nothing in the image pipeline keeps or writes metadata", () => {
