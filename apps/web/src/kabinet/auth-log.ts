@@ -16,11 +16,14 @@ export type AuthLogLevel = "debug" | "info" | "warn" | "error";
 export type AuthLogConsole = Pick<Console, "error" | "warn" | "log">;
 
 /**
- * An address, also URL-encoded (`olena%40example.org`, as a query string or a form body has it).
- * The domain is letters, digits, dots and hyphens only and the local part stops at `& = | /`, so
- * `to=a@x.org&cc=b@x.org` is two addresses, not one that swallows the second.
+ * An address, also URL-encoded (`olena%40example.org`, as a query string or a form body has it),
+ * also with a fullwidth `＠` or a double-encoded `%2540`. The domain is letters, combining marks,
+ * digits, underscores, hyphens and dots (`%2E` too); the local part stops at whitespace and
+ * `" ' < > ( ) , ; : @ & = | / ? #`, so `to=a@x.org&cc=b@x.org` is two addresses, not one that
+ * swallows the second. Known, not masked: a quoted local part with a space (`"first last"@host`).
  */
-const EMAIL = /[^\s"'<>(),;:@&=|/\?#]+(?:@|%40)[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/giu;
+const EMAIL =
+  /[^\s"'<>(),;:@&=|/?#]+(?:@|＠|%40|%2540)[\p{L}\p{M}\p{N}_-]+(?:(?:\.|%2E)[\p{L}\p{M}\p{N}_-]+)+/giu;
 const URL_PATTERN = /https?:\/\/[^\s"'<>]+/g;
 /** A run of base64url, base64 or hex characters long enough to be looked at (`TOKEN_SHAPED`). */
 const TOKEN_RUN = /[A-Za-z0-9_+=-]{12,}/g;
@@ -46,12 +49,28 @@ const TOKEN_SHAPED = (run: string): boolean =>
   !IDENTIFIER.test(run) && (run.length >= 20 || (/[0-9]/.test(run) && /[A-Za-z]/.test(run)));
 
 /** An address masked as `maskAddress` does, decoded first if it came URL-encoded. */
-const maskedAddress = (match: string): string => {
+const maskedAddress = (raw: string): string => {
+  const match = raw.replace(/＠/g, "@").replace(/%2540/gi, "%40");
   try {
     return maskAddress(decodeURIComponent(match));
   } catch {
     return maskAddress(match.replace(/%40/gi, "@"));
   }
+};
+
+/** The regexes below are quadratic on a long unbroken run, so a line is cut before they run. */
+export const MAX_LOG_TEXT_LENGTH = 2000;
+const TRUNCATED_MARKER = " …[truncated]";
+
+/**
+ * Cut an over-long line, back to its last whitespace: an address split by the cut would otherwise
+ * survive as a fragment the pattern no longer recognises. Cut first, mask after, the cut-off rest
+ * is dropped and never logged.
+ */
+const capped = (text: string): { text: string; cut: boolean } => {
+  if (text.length <= MAX_LOG_TEXT_LENGTH) return { text, cut: false };
+  const head = text.slice(0, MAX_LOG_TEXT_LENGTH);
+  return { text: head.slice(0, Math.max(0, head.search(/\s\S*$/))), cut: true };
 };
 
 /** A URL's origin and path only: a token in its query or fragment never reaches a log. */
@@ -65,13 +84,15 @@ const withoutQuery = (url: string) => url.replace(/[?#].*$/, "");
  * interpolated into one.
  */
 export function maskedLogText(text: string): string {
-  const [head = ""] = text.split(/\bparams:/i);
-  return head
+  const { text: bounded, cut } = capped(text);
+  const [head = ""] = bounded.split(/\bparams:/i);
+  const masked = head
     .replace(URL_PATTERN, withoutQuery)
     .replace(EMAIL, maskedAddress)
     .replace(TOKEN_RUN, (run) => (TOKEN_SHAPED(run) ? "•••" : run))
     .replace(/\s+/g, " ")
     .trim();
+  return cut ? `${masked}${TRUNCATED_MARKER}` : masked;
 }
 
 /**
