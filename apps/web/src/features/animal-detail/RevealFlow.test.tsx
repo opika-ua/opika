@@ -19,8 +19,7 @@ import { RevealFlow } from "./RevealFlow";
  * Telegram handle in `additional` is silently dropped" survived past that
  * fix. These are the cases seed data cannot reach.
  *
- * The client is mocked at the module boundary, the same way
- * `use-feed-deck.test.tsx` does it: what is under test is this component's
+ * The client is mocked at the module boundary: what is under test is this component's
  * own call order and rendering, not the RPC transport (that is the
  * harness's job, against a real server).
  */
@@ -300,9 +299,7 @@ describe("RevealFlow's dialog semantics", () => {
    * to collapse into the same "Щось не спрацювало на нашому боці" copy as
    * every other error, which is false for this case specifically - neither
    * the app's fault nor the shelter's. `uk.errors.offline` was already
-   * approved and already wired for the same signal in the deck
-   * (`SwipeDeck.tsx`'s `DeckErrorReason`); this only extends the existing
-   * wiring to the detail page's reveal flow.
+   * approved; this wires it to the detail page's reveal flow.
    */
   it("shows the offline copy, with a retry, when animals.reveal never reaches a server at all", async () => {
     revealCall.mockRejectedValue(new TypeError("Failed to fetch"));

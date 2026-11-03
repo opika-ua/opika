@@ -29,7 +29,7 @@ import type { CityTokenResolution } from "./city-tokens";
 
 /**
  * The design's own URL example (`/tvaryny?misto=brovary&stor=1`,
- * docs/design/README.md "Gallery ↔ Deck") is now literal: `misto`'s value is
+ * docs/design/README.md) is now literal: `misto`'s value is
  * a city's `slug` (`docs/observations.md` O-6), not the raw `CityId` this
  * file used before the slug field existed. `vyd`/`rozmir`/`vik`
  * (species/size/age) are new - the design specifies the filter *groups*
@@ -40,8 +40,7 @@ import type { CityTokenResolution } from "./city-tokens";
  * between `CityId` (what `FeedFilters` and every domain/contract type carry)
  * and `CitySlug` (what the URL carries) - cities are seed/admin data, not
  * something these pure functions can fetch themselves, so the lookup always
- * arrives as a parameter built once by the caller (`place-book.ts`, from the labels the page holds), the same
- * pattern `filtersInWords`'s own `cityNames` map already established below.
+ * arrives as a parameter built once by the caller (`place-book.ts`, from the labels the page holds).
  *
  * `stat` (sex) follows the same transliteration convention for «Стать» -
  * «ь» drops, the way a final «я» becomes `ia`.
@@ -398,9 +397,7 @@ function slugsOf(ids: readonly (CityId | RegionId)[], slugs: CitySlugsById): str
 }
 
 /**
- * The filter half of every URL this file writes, the gallery's and the deck's
- * entry link alike: one writer, so a dimension added here reaches both, and
- * neither can carry a filter the other drops.
+ * The filter half of every URL this file writes: one writer, so a dimension added here reaches every link.
  */
 function filterParams(filters: FeedFilters, citySlugs: CitySlugsById): URLSearchParams {
   const canonical = canonicalizeFilters(filters);
@@ -576,8 +573,7 @@ export function similarAnimalsHref(species: AnimalSpecies, chip: FilterableChip)
 /**
  * A filterable chip's own visible text - the dimension's existing label,
  * exactly as the filter dropdown already shows it (`AGE_WORDS`/`SIZE_WORDS`/
- * `SEX_WORDS` below, the same maps `filtersInWords` already resolves these
- * dimensions through). Defined here, ahead of those `const` maps in this
+ * `SEX_WORDS` below). Defined here, ahead of those `const` maps in this
  * file, because `const` bindings (unlike `function`) aren't usable before
  * their own declaration runs - this only works because nothing calls this
  * function until the whole module has finished loading.
@@ -609,7 +605,7 @@ const CHIP_SPECIES_WORDS: Record<AnimalSpecies, string> = {
  * no quotes around the value. The value is lowercase and uses the filter
  * form"). `{value}` reuses `chipDisplayLabel` above, lowercased, rather than
  * a separately-maintained set of lowercase words - one source per dimension,
- * the same discipline `filtersInWords` already applies for its own sentence.
+ * the same discipline as the maps above.
  */
 export function similarAnimalsLabel(species: AnimalSpecies, chip: FilterableChip): string {
   return fillTemplate(uk.detail.chipLinkName, {
@@ -618,85 +614,6 @@ export function similarAnimalsLabel(species: AnimalSpecies, chip: FilterableChip
   });
 }
 
-/**
- * `total` isn't a gallery filter dimension - it rides along on the deck
- * entry link for one reason only, documented on `deckEntryHref` below.
- */
-const TOTAL_PARAM = "total";
-
-/**
- * The gallery already knows `totalMatching` (it just fetched `gallery.list`
- * to render); `feed.list` has no total field at all - a keyset feed doesn't
- * paginate by count. Carrying the number across at the moment of the click
- * is cheaper and more honest than inventing a second query just to restate
- * a number the caller already has. `parseDeckQuery`'s `total` comes back
- * `null` for anyone who reaches `/tvaryny/gortaty` without it (a reload, a
- * bookmark, a shared link) - the deck header degrades to showing position
- * alone rather than guessing a denominator it was never given.
- *
- * **No production caller since the gallery-v3 redesign** - see
- * `DeckEntryLink.tsx`'s own top comment for why this is kept rather than
- * deleted (GV3-Q3, a documented temporary narrowing, not a removal).
- */
-export function deckEntryHref(
-  filters: FeedFilters,
-  total: number,
-  citySlugs: CitySlugsById,
-): string {
-  const params = filterParams(filters, citySlugs);
-  params.set(TOTAL_PARAM, String(total));
-
-  return `/tvaryny/gortaty?${params.toString()}`;
-}
-
-export type DeckQuery = { filters: FeedFilters; total: number | null };
-
-/**
- * A sanity bound, not a real domain ceiling - checked, not assumed to
- * mirror one. `gallery.list`'s `totalMatching` is an uncapped
- * `count(*) OVER()` (`packages/db/src/repos/gallery-repo.ts`); only
- * *navigable pages* are capped at `MAX_GALLERY_NAVIGABLE_ROWS` rows
- * (`docs/standing-constraints.md`), so there is no real number
- * `totalMatching` itself provably can't exceed. This exists only to reject
- * an obviously-fabricated `?total=` (a hand-edited or malicious URL) -
- * comfortably above any plausible real total for this app's actual scale
- * (a single-oblast platform; the seeded corpus is 320), not derived from
- * any other constant in the codebase.
- */
-const MAX_PLAUSIBLE_DECK_TOTAL = 1_000_000;
-
-/**
- * The deck's own reading of the same URL scheme `parseGalleryQuery` reads -
- * same filter params, `sort`/`stor` simply don't apply to a
- * cursor-paginated feed and are ignored if present (a stray `?stor=3`
- * carried over by accident degrades to "unused," not an error, matching
- * this file's existing posture toward unrecognised input). `total` is an
- * untrusted value read back out of a URL - see `MAX_PLAUSIBLE_DECK_TOTAL`
- * above - so a hand-edited or malicious `?total=` gets the same "stale
- * link, not an error" treatment `parseGalleryQuery`'s own page-number
- * parsing already gives out-of-range input, rather than rendering
- * whatever number was typed.
- */
-export function parseDeckQuery(searchParams: SearchParams, placeIds: PlaceIdsBySlug): DeckQuery {
-  const { filters } = parseGalleryQuery(searchParams, placeIds);
-
-  const totalRaw = Number(firstValue(searchParams[TOTAL_PARAM]));
-  // > 0, not >= 0: deckEntryHref is only ever built when the gallery found
-  // at least one match (page.tsx's own totalMatching > 0 guard), so a
-  // legitimate link never carries ?total=0 - one arriving here is already
-  // a stale or hand-edited URL, same treatment as any other untrusted value.
-  const total =
-    Number.isInteger(totalRaw) && totalRaw > 0 && totalRaw <= MAX_PLAUSIBLE_DECK_TOTAL
-      ? totalRaw
-      : null;
-
-  return { filters, total };
-}
-
-const SPECIES_WORDS: Record<AnimalSpecies, string> = {
-  dog: uk.filters.speciesDogs,
-  cat: uk.filters.speciesCats,
-};
 const SIZE_WORDS: Record<SizeBucket, string> = {
   small: uk.filters.sizeSmall,
   medium: uk.filters.sizeMedium,
@@ -713,54 +630,3 @@ const SEX_WORDS: Record<AnimalSex, string> = {
   female: uk.filters.sexFemale,
   unknown: uk.filters.sexUnknown,
 };
-
-/**
- * "Бровари · собаки · середні" - `docs/design/README.md`'s "Deck chrome and
- * the mode switch," the header phrase naming what the deck inherited from
- * the gallery. Only dimensions actually constrained are named; entering the
- * deck with every dimension at `ANY` says nothing extra, rather than
- * inventing a claim like "every city" that reads as a filter when it isn't
- * one.
- *
- * Deviation: the mock's own example uses plural adjective agreement
- * ("середні," not "середній") this codebase's label catalogue doesn't
- * carry - the same class of gap as E4's ordinal-page deviation
- * (`docs/design/README.md`'s "Out-of-range page" note). Shipped as the
- * existing filter-chip labels, lower-cased, rather than inventing new
- * declension entries with no groundwork anywhere else in the app.
- */
-export function filtersInWords(
-  filters: FeedFilters,
-  cityNames: ReadonlyMap<CityId, string>,
-  regionNames: ReadonlyMap<RegionId, string> = new Map(),
-): string | null {
-  const canonical = canonicalizeFilters(filters);
-  const parts: string[] = [];
-
-  if (canonical.regions.kind === "oneOf") {
-    const names = canonical.regions.values
-      .map((id) => regionNames.get(id))
-      .filter((name): name is string => Boolean(name));
-    if (names.length > 0) parts.push(names.join("/"));
-  }
-  if (canonical.cities.kind === "oneOf") {
-    const names = canonical.cities.values
-      .map((id) => cityNames.get(id))
-      .filter((name): name is string => Boolean(name));
-    if (names.length > 0) parts.push(names.join("/"));
-  }
-  if (canonical.species.kind === "oneOf") {
-    parts.push(canonical.species.values.map((s) => SPECIES_WORDS[s].toLowerCase()).join("/"));
-  }
-  if (canonical.sizes.kind === "oneOf") {
-    parts.push(canonical.sizes.values.map((s) => SIZE_WORDS[s].toLowerCase()).join("/"));
-  }
-  if (canonical.ages.kind === "oneOf") {
-    parts.push(canonical.ages.values.map((a) => AGE_WORDS[a].toLowerCase()).join("/"));
-  }
-  if (canonical.sexes.kind === "oneOf") {
-    parts.push(canonical.sexes.values.map((s) => SEX_WORDS[s].toLowerCase()).join("/"));
-  }
-
-  return parts.length > 0 ? parts.join(" · ") : null;
-}

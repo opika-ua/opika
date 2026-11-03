@@ -114,9 +114,8 @@ export default defineConfig({
       "pnpm --filter @opika/db run db:seed",
       `pnpm exec next start --port ${PORT} --hostname 127.0.0.1`,
     ].join(" && "),
-    // Was /discovery, retired by E5 (next.config.ts now redirects it to
-    // /tvaryny/gortaty) - /tvaryny is the real front door and needs no
-    // redirect hop to confirm the server is actually serving pages.
+    // /tvaryny is the real front door and needs no redirect hop to confirm the server is
+    // actually serving pages.
     url: `${ORIGIN}/tvaryny`,
     // Not `!process.env.CI`, which is the usual idiom. Reusing a server that
     // an aborted run left behind on its port would grade the build that server

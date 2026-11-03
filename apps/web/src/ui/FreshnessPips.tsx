@@ -7,7 +7,7 @@ import { cx } from "./cx";
  * the filled count says how far the last confirmation has travelled, and the words say the rest.
  * `freshness-display` in `packages/ui` stays the source of truth for which pips are filled
  * (`FreshnessPips.test.tsx` fails if the two disagree); this is the same marker on the kit's
- * tokens. The deck's `SwipeCard` still draws its own until it moves onto the kit.
+ * tokens.
  */
 type Fill = "success" | "muted" | "ink" | "empty";
 

@@ -13,7 +13,7 @@ import { brandDisplay, brandUi } from "./fonts";
 
 /**
  * Phase T. This was `title: "Adoption Platform"` - a generic English
- * placeholder, and the *default for every route*, so the gallery, the deck and
+ * placeholder, and the *default for every route*, so the gallery and
  * «Для притулків» itself all previewed under it. That mattered the moment
  * `/prytulkam` started telling shelters a card can be sent to Telegram: the
  * page asking a Ukrainian volunteer to trust the project previewed as an
@@ -91,15 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Before first paint, so the header's saved slot never jumps: see `saved-prepaint.ts`. */}
         <script dangerouslySetInnerHTML={{ __html: SAVED_PREPAINT_SCRIPT }} />
       </head>
-      {/*
-        The user agent's default 8px body margin is not decoration: combined
-        with content-box padding on a full-height page it pushed the deck
-        48px past the viewport in both axes (2x8 margin + 2x16 padding), which
-        is a scrollbar on a screen that is supposed to be a fixed deck. Found
-        against /discovery (E5 migrated the deck to /tvaryny/gortaty; the
-        same margin math still applies there). Asserted in
-        test/harness/discovery-layout.harness.ts.
-      */}
+      {/* The default 8px body margin plus content-box padding on a full-height page overflows the viewport. */}
       <body style={{ margin: 0 }}>
         <SkipLink />
         <JsonLd data={organizationJsonLd()} />

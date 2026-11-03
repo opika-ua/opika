@@ -10,11 +10,14 @@ const drawn = (container: HTMLElement): string[] =>
   (container.querySelector("[data-fill]")?.getAttribute("data-fill") ?? "").split(" ");
 
 describe("FreshnessPips", () => {
-  it.each(KINDS)("%s fills the same pips, in the same places, as the deck's marker", (kind) => {
-    const { container } = render(<FreshnessPips kind={kind} label="Оновлено 3 дні тому" />);
-    const truth = freshnessPips(kind).map((fill) => fill === "empty");
-    expect(drawn(container).map((fill) => fill === "empty")).toEqual(truth);
-  });
+  it.each(KINDS)(
+    "%s fills the same pips, in the same places, as the domain's pip fills",
+    (kind) => {
+      const { container } = render(<FreshnessPips kind={kind} label="Оновлено 3 дні тому" />);
+      const truth = freshnessPips(kind).map((fill) => fill === "empty");
+      expect(drawn(container).map((fill) => fill === "empty")).toEqual(truth);
+    },
+  );
 
   it("always says the day count in words next to the pips, and hides the pips from assistive tech", () => {
     const { container } = render(<FreshnessPips kind="aging" label="Оновлено 12 днів тому" />);

@@ -18,8 +18,7 @@ import { R4_2_ANALYTICS_SENTENCE, ukPublic as uk } from "@opika/i18n/public";
  */
 
 /**
- * Does the registry currently hold zero real shelters. Drives the deck's
- * demo label (`DeckScreen.tsx`), the root layout's default `description`
+ * Does the registry currently hold zero real shelters. Drives the root layout's default `description`
  * swap (`app/layout.tsx` - `/prytulkam` and `/pro` override this default
  * with their own opening sentences instead, Option B, see
  * `docs/observations.md`), and `verificationSuffix` below - everything that
@@ -47,14 +46,12 @@ import { R4_2_ANALYTICS_SENTENCE, ukPublic as uk } from "@opika/i18n/public";
  * filter rail, delayed the content). The gallery's body has never carried
  * `bannerNotice` before this row - this is new placement of an
  * already-approved string that previously lived only in metadata, not
- * copy recovered from a deleted component. `/tvaryny/gortaty` still gets
- * this by construction (`DeckScreen.tsx`'s own header label - `uk.demo.
- * deckLabel`, a different, shorter string for a different slot).
+ * copy recovered from a deleted component.
  * **Still incomplete as shipped, found by the reviewer:** `/tvaryny/
  * {animalId}` - the URL `/prytulkam` itself tells a shelter to paste into
  * Telegram - has exactly the same gap (disclosure in `generateMetadata`
  * only) and needs the same fix; tracked to close in the same row, not
- * deferred. (2) Both `AnimalCard.tsx` and `SwipeCard.tsx` rendered a
+ * deferred. (2) Both `AnimalCard.tsx` and the (since retired) deck card rendered a
  * card's "· перевірений" suffix straight off `shelter.verification ===
  * "verified"`, with **no** reference to this flag at all. `verificationSuffix`
  * below unifies *that one duplicated pattern* - it is not, contrary to an
@@ -70,8 +67,8 @@ export const REGISTRY_HAS_NO_REAL_SHELTERS = true;
 
 /**
  * The "· перевірений" suffix a card appends next to a verified shelter's
- * name. The one gate for that claim - `SwipeCard.tsx` calls this rather
- * than carrying its own copy of the check, so a future card surface
+ * name. The one gate for that claim - a card surface calls this rather
+ * than carrying its own copy of the check, so a future one
  * inherits the suppression rather than needing to remember
  * `REGISTRY_HAS_NO_REAL_SHELTERS` exists. (`AnimalCard.tsx` carries no
  * shelter name at all since S1 - "No shelter name on the gallery card" -
@@ -128,11 +125,6 @@ export function verificationSuffix(
  * that window on purpose. Flipping this to `true` is the actual launch
  * gate, not a flag to flip casually. See `docs/build-plan.md`'s launch-gate
  * list.
- *
- * `/tvaryny/gortaty` does NOT read this flag - its own `noindex` metadata
- * (`app/tvaryny/gortaty/page.tsx`) is permanent regardless of launch state,
- * because it is a non-canonical sibling of `/tvaryny`'s SEO surface, not a
- * demo-data concern. See that file's own comment.
  */
 export const SITE_IS_PUBLICLY_DISCOVERABLE = false;
 

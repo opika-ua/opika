@@ -53,18 +53,15 @@ const nextConfig: NextConfig = {
   // Transpile workspace packages so Next.js can resolve .ts source files
   transpilePackages: ["@opika/contracts", "@opika/domain", "@opika/db"],
   /**
-   * E5: `/discovery` was the deck's placeholder route while it ran on
-   * `generateMockCards` - real data moved it to `/tvaryny/gortaty` (the
-   * URL scheme `docs/design/README.md` and `docs/gallery-contract-
-   * decisions.md` §6 always specified). `permanent: true` (308): this is
-   * a real promotion, not a temporary redirect, and the first redirect
-   * this app has needed - checked before assuming `next/link`'s client
-   * router would need anything special, since redirects here run before
-   * the filesystem and apply to a full navigation the same way regardless.
+   * Retired routes, all 308: `/tvaryny/gortaty` was the swipe deck (retired 2026-11-02, owner
+   * decision); `/discovery` was its earlier placeholder URL. Next carries the query string over,
+   * so a deck link with filters lands on the gallery with the same filters.
    */
   async redirects() {
     return [
-      { source: "/discovery", destination: "/tvaryny/gortaty", permanent: true },
+      { source: "/discovery", destination: "/tvaryny", permanent: true },
+      { source: "/tvaryny/gortaty", destination: "/tvaryny", permanent: true },
+      { source: "/tvaryny/gortaty/:path*", destination: "/tvaryny", permanent: true },
       /**
        * `docs/design/README.md:427`'s "01 First run" is explicit that the
        * gallery, not a separate screen, is the first-visit surface - see

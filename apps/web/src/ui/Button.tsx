@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, ComponentProps, ReactNode, Ref } from "react
 import { cx } from "./cx";
 
 /**
- * The one button. Replaces controls.Button, CircleButton, PillButton and the deck's ActionButton.
+ * The one button. Replaces controls.Button, CircleButton, PillButton.
  * `cursor-pointer` is explicit: Tailwind's preflight resets buttons to `cursor: default`.
  */
 export type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "icon";

@@ -176,8 +176,8 @@ follow the emailed link.
 `docs/onboarding-a-shelter.md`'s "Dress rehearsal (UI only)" section; follow it there rather
 than a paraphrase here. In short: as the operator, create and verify a shelter; invite
 yourself as its admin from the shelter page; as that admin, sign in on a phone, fill the
-profile, add 2-3 animals with real phone photos, and publish; as an adopter, find them in the
-deck and gallery, reveal contacts, and message the shelter; mark one adopted and hide one,
+profile, add 2-3 animals with real phone photos, and publish; as an adopter, find them in
+the gallery, reveal contacts, and message the shelter; mark one adopted and hide one,
 approve a donation link, suspend and reinstate the shelter, and check the history shows all
 of it.
 
@@ -311,7 +311,7 @@ shelters existing is not the same fact as the site being publicly discoverable
 one fact"; `seo-flags.ts`'s own doc comment on this constant has the full reasoning).
 
 **Verification:** `seo-flags.test.ts`'s own assertions pass in CI before this merges. After
-deploy, the gallery's demo banner and the deck's demo label are gone, and a card's "·
+deploy, the gallery's demo banner is gone, and a card's "·
 перевірений" suffix appears for a verified real shelter — all driven by this one flag
 (`verificationSuffix`, `seo-flags.ts`).
 

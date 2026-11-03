@@ -10,9 +10,7 @@ import { SavedPageScreen } from "../../features/likes/SavedPageScreen";
  *
  * `noindex`: the page's entire content is one browser's `localStorage` -
  * there is nothing here for a crawler to find, server-rendered or not, and
- * indexing an always-empty shell would be actively misleading. The deck
- * (`/tvaryny/gortaty`) is the existing precedent for a real, linked route
- * that stays out of search for a reason specific to what it shows.
+ * indexing an always-empty shell would be actively misleading.
  */
 export const metadata: Metadata = {
   title: uk.likes.title,
@@ -21,7 +19,7 @@ export const metadata: Metadata = {
 
 /**
  * `force-dynamic` for the same reason every other route here that reads
- * live data sets it (`../tvaryny/gortaty/page.tsx`'s own comment): a
+ * live data sets it (`../tvaryny/page.tsx`'s own comment): a
  * build-time prerender would bake in a snapshot rather than a live read.
  * Nothing about this page is actually time-sensitive in the way the gallery
  * is, since its real content never leaves the client - kept for consistency
