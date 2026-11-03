@@ -6,5 +6,5 @@ import { startClientMonitoring } from "./observability/load-client";
 // first; zod's plain parser gives the same results as its compiled one.
 z.config({ jitless: true });
 
-// H5: the error reporter loads after idle and only when a DSN was built in; see load-client.ts.
+// H5: the error reporter loads after the page settles and only when a DSN was built in; see load-client.ts.
 startClientMonitoring();
