@@ -15,8 +15,12 @@ export type AuthLogLevel = "debug" | "info" | "warn" | "error";
 /** Where a masked line goes: the console by default, a capture in tests. */
 export type AuthLogConsole = Pick<Console, "error" | "warn" | "log">;
 
-/** An address, also URL-encoded (`olena%40example.org`, as a query string or a form body has it). */
-const EMAIL = /[^\s"'<>(),;:@]+(?:@|%40)[^\s"'<>(),;:@%]+\.[^\s"'<>(),;:@%]+/gi;
+/**
+ * An address, also URL-encoded (`olena%40example.org`, as a query string or a form body has it).
+ * The domain is letters, digits, dots and hyphens only and the local part stops at `& = | /`, so
+ * `to=a@x.org&cc=b@x.org` is two addresses, not one that swallows the second.
+ */
+const EMAIL = /[^\s"'<>(),;:@&=|/\?#]+(?:@|%40)[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/giu;
 const URL_PATTERN = /https?:\/\/[^\s"'<>]+/g;
 /** A run of base64url, base64 or hex characters long enough to be looked at (`TOKEN_SHAPED`). */
 const TOKEN_RUN = /[A-Za-z0-9_+=-]{12,}/g;
