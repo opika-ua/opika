@@ -18,6 +18,7 @@ import { inMemoryRateLimiter } from "../api/rate-limit";
 import { createKabinetAuth } from "./auth";
 import {
   type AuthLogLevel,
+  MAX_LOG_TEXT_LENGTH,
   maskedAuthHandler,
   maskedAuthLogging,
   maskedLogText,
@@ -269,6 +270,38 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
     const chained = maskedLogText("x%zz%40olena%40example.org");
     expect(chained).not.toContain("olena");
     expect(chained).not.toContain("%40");
+  });
+
+  it("an over-long line is cut before the masking runs: fast, and no address survives the cut", () => {
+    const started = performance.now();
+    const pathological = maskedLogText(`${"x%40".repeat(1)}${"a-".repeat(20_000)}`);
+    const long = maskedLogText(`${"word ".repeat(600)}olena@example.org ${"y".repeat(40_000)}`);
+    expect(performance.now() - started).toBeLessThan(200);
+    expect(pathological).not.toContain("a-a-a-");
+    expect(long.length).toBeLessThan(MAX_LOG_TEXT_LENGTH + 20);
+    // An address straddling the cut leaves no fragment of its local part behind.
+    const straddling = maskedLogText(`${"w ".repeat(990)}olena@exam${"z".repeat(500)}`);
+    expect(straddling).not.toContain("olena");
+    expect(straddling).toContain("[truncated]");
+    // Under the cap nothing changes.
+    expect(maskedLogText("sent to olena@example.org")).toBe("sent to o•••@example.org");
+  });
+
+  it("the domain takes combining marks and underscores; fullwidth @, double-encoded @ and %2E are masked", () => {
+    const decomposed = "olena@éxample.org";
+    for (const input of [
+      decomposed,
+      "olena@my_host.example.org",
+      "olena＠example.org",
+      "olena%2540example.org",
+      "olena%40example%2Eorg",
+      "olena@приклад.укр",
+    ]) {
+      const out = maskedLogText(`to ${input} end`);
+      expect(out, input).not.toContain("olena");
+      expect(out, input).toMatch(/^to o•••@\S+ end$/);
+    }
+    expect(maskedLogText(`to ${decomposed} end`)).toBe(`to o•••@${decomposed.split("@")[1]} end`);
   });
 
   it("masks every address in a line: to=&cc= pairs, comma lists, bcc, and a single one as before", () => {
