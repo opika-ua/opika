@@ -11,9 +11,12 @@
  * sibling file gives: `proxy.ts`'s per-IP limiter is shared across the app.
  */
 
+import { harnessPort } from "@opika/db/test";
 import { expect, test } from "@playwright/test";
 import { openRoute } from "./harness";
 import { DETAIL_DESKTOP } from "./viewports";
+
+const ORIGIN = `http://127.0.0.1:${harnessPort()}`;
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.44" } });
 
@@ -157,7 +160,11 @@ test.describe("the saved page's batch read", () => {
     let lastStatus = 0;
     for (let i = 0; i < BUDGET + 1; i++) {
       const response = await request.post("/api/rpc/animals/cardsByIds", {
-        headers: { "x-forwarded-for": testIp, "content-type": "application/json" },
+        headers: {
+          "x-forwarded-for": testIp,
+          "content-type": "application/json",
+          origin: ORIGIN,
+        },
         data: body,
       });
       lastStatus = response.status();

@@ -5,9 +5,12 @@
  * later would not break them. Its own `x-forwarded-for`, so its requests never
  * spend another spec's per-IP budget.
  */
+import { harnessPort } from "@opika/db/test";
 import { expect, type Page, test } from "@playwright/test";
 import { PRELAUNCH_GATE_QUERY_PARAM } from "../../src/api/prelaunch-gate";
 import { HARNESS_PRELAUNCH_GATE_SECRET } from "../harness-env";
+
+const ORIGIN = `http://127.0.0.1:${harnessPort()}`;
 
 const IP_HEADERS = { "x-forwarded-for": "198.51.100.60" };
 test.use({ extraHTTPHeaders: IP_HEADERS });
@@ -19,6 +22,11 @@ function expectSecurityHeaders(headers: Record<string, string>, what: string) {
   expect(headers["content-security-policy"], what).toBe("frame-ancestors 'none'");
   expect(headers["strict-transport-security"], what).toBe("max-age=63072000; includeSubDomains");
   expect(headers["content-security-policy-report-only"], what).toContain("default-src 'self'");
+  expect(headers["referrer-policy"], what).toBe("strict-origin-when-cross-origin");
+  expect(headers["permissions-policy"], what).toBe(
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+  );
+  expect(headers["x-powered-by"], what).toBeUndefined();
 }
 
 test.describe("security headers (audit F5)", () => {
@@ -28,7 +36,7 @@ test.describe("security headers (audit F5)", () => {
     expectSecurityHeaders(page.headers(), "GET /tvaryny");
 
     const api = await request.post("/api/rpc/animals/cardsByIds", {
-      headers: IP_HEADERS,
+      headers: { ...IP_HEADERS, origin: ORIGIN },
       data: { json: { animalIds: [] } },
     });
     expect(api.status()).toBe(200);

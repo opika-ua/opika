@@ -30,12 +30,13 @@ const deps = {
   now: new Date("2026-10-28T12:00:00Z"),
   apiLimiter: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
   perIp: { adopterMints: ALLOWS, newShelterReveals: ALLOWS } as PerIpBudgets,
+  siteOrigin: "https://opika.example",
 };
 
 const ping = (cookie: string) =>
   new Request("https://opika.example/api/rpc/ping", {
     method: "POST",
-    headers: { "content-type": "application/json", cookie },
+    headers: { "content-type": "application/json", cookie, origin: "https://opika.example" },
     body: JSON.stringify({ json: {} }),
   });
 

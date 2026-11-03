@@ -60,6 +60,16 @@ describe("validateEnv", () => {
     expect(() => validateEnv()).not.toThrow();
   });
 
+  it("refuses a CURSOR_HMAC_SECRET shorter than 32 characters in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DATABASE_URL", "postgres://user:pass@host/db");
+    vi.stubEnv("CURSOR_HMAC_SECRET", "a".repeat(31));
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "https://cdn.opika.org.ua");
+    vi.stubEnv("PRELAUNCH_GATE_SECRET", "a".repeat(32));
+
+    expect(() => validateEnv()).toThrow(/CURSOR_HMAC_SECRET must be at least 32/);
+  });
+
   it("does not throw outside production even if every secret is missing", () => {
     vi.stubEnv("NODE_ENV", "test");
     vi.stubEnv("DATABASE_URL", "");

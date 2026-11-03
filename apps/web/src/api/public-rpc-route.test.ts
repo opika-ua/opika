@@ -35,6 +35,7 @@ function deps(
       now: new Date("2026-10-28T12:00:00Z"),
       apiLimiter: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
       perIp: UNSPENT,
+      siteOrigin: BASE,
     },
   };
 }
@@ -72,7 +73,11 @@ function untouched() {
 }
 
 const post = (path: string, init: RequestInit & { duplex?: "half" }) =>
-  new Request(`${BASE}${path}`, { method: "POST", ...init } as RequestInit);
+  new Request(`${BASE}${path}`, {
+    method: "POST",
+    ...init,
+    headers: { origin: BASE, ...(init.headers as Record<string, string> | undefined) },
+  } as RequestInit);
 
 const cardsByIds = (animalIds: unknown[], headers: Record<string, string> = {}) =>
   post(CARDS_BY_IDS_PATH, {
@@ -229,5 +234,50 @@ describe("animals.cardsByIds: more than 200 ids, refused by length alone (audit 
     const response = await handlePublicRpc(new Request(`${BASE}${CARDS_BY_IDS_PATH}`), d);
     expect(response.status).toBe(405);
     expect(dbCalls()).toBe(0);
+  });
+});
+
+describe("the /api/rpc Origin check (same rule as the kabinet route)", () => {
+  const cities = (headers: Record<string, string>) =>
+    new Request(`${BASE}/api/rpc/cities/list`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...headers },
+      body: JSON.stringify({ json: {} }),
+    });
+
+  it("refuses a cross-site POST before the limiter or the session lookup", async () => {
+    const { deps: d, dbCalls } = deps();
+    const limiter = vi.spyOn(d.apiLimiter, "check");
+    const response = await handlePublicRpc(cities({ origin: "https://evil.example" }), d);
+    expect(response.status).toBe(403);
+    expect(limiter).not.toHaveBeenCalled();
+    expect(dbCalls()).toBe(0);
+  });
+
+  it("refuses a POST with no Origin and one with Origin: null", async () => {
+    const { deps: d } = deps();
+    expect((await handlePublicRpc(cities({}), d)).status).toBe(403);
+    expect((await handlePublicRpc(cities({ origin: "null" }), d)).status).toBe(403);
+  });
+
+  it("refuses every write when the deployment's origin is unknown", async () => {
+    const { deps: d } = deps();
+    const response = await handlePublicRpc(cities({ origin: BASE }), { ...d, siteOrigin: null });
+    expect(response.status).toBe(403);
+  });
+
+  it("lets a same-origin POST through to the session lookup", async () => {
+    const { deps: d } = deps();
+    await expect(handlePublicRpc(cities({ origin: BASE }), d)).rejects.toThrow(SENTINEL);
+  });
+
+  it("does not apply to GET: a cross-origin or Origin-less read reaches the session lookup", async () => {
+    const { deps: d } = deps();
+    const get = (headers: Record<string, string>) =>
+      new Request(`${BASE}/api/rpc/cities/list`, { method: "GET", headers });
+    await expect(handlePublicRpc(get({}), d)).rejects.toThrow(SENTINEL);
+    await expect(handlePublicRpc(get({ origin: "https://evil.example" }), d)).rejects.toThrow(
+      SENTINEL,
+    );
   });
 });

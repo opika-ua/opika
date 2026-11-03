@@ -264,7 +264,11 @@ describe("no limiter key carries the raw IP (EM-Q11)", () => {
       const response = await POST(
         new Request("https://opika.example/api/rpc/cities/list", {
           method: "POST",
-          headers: { "x-forwarded-for": IPV6, "content-type": "application/json" },
+          headers: {
+            "x-forwarded-for": IPV6,
+            "content-type": "application/json",
+            origin: "https://opika.example",
+          },
           body: "{}",
         }),
       );

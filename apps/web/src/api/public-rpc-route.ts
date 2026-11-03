@@ -1,6 +1,7 @@
 import { MAX_SAVED_CARDS_PER_REQUEST } from "@opika/contracts";
 import type { Database } from "@opika/db";
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
+import { isSameOriginPost } from "../kabinet/confirm-route";
 import { boundedBody } from "./bounded-body";
 import type { AppContext } from "./context";
 import { kabinetSessionCheckFor } from "./kabinet-session-check";
@@ -44,6 +45,8 @@ export type PublicRpcDeps = {
   now: Date;
   apiLimiter: RateLimiter;
   perIp: PerIpBudgets;
+  /** The deployment's own origin (`servedSiteOrigin`); null refuses every write. */
+  siteOrigin: string | null;
 };
 
 /** Everything `/api/rpc/*` does, as a function the tests call with a real `Request`. */
@@ -51,6 +54,12 @@ export async function handlePublicRpc(request: Request, deps: PublicRpcDeps): Pr
   const pathname = new URL(request.url).pathname;
   if (pathname === CARDS_BY_IDS_PATH && request.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405, headers: { Allow: "POST" } });
+  }
+
+  // CSRF guard, same rule as the kabinet route: a write must carry the site's own Origin. Reads
+  // (GET/HEAD) are unaffected. Checked before the limiter so a forged cross-site POST spends nothing.
+  if (!isReadMethod(request.method) && !hasSiteOrigin(request, deps.siteOrigin)) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   // Keyed on an HMAC of the address's /64 or IPv4 (`ipKeyWith`), never the address (EM-Q11).
@@ -121,4 +130,10 @@ function inputOf(body: unknown): { animalIds?: unknown } | null {
   if (typeof body !== "object" || body === null || !("json" in body)) return null;
   const { json } = body;
   return typeof json === "object" && json !== null ? json : null;
+}
+
+const isReadMethod = (method: string): boolean => method === "GET" || method === "HEAD";
+
+function hasSiteOrigin(request: Request, siteOrigin: string | null): boolean {
+  return siteOrigin !== null && isSameOriginPost(request.headers.get("origin"), siteOrigin);
 }
