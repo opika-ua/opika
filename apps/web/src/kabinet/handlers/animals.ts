@@ -702,14 +702,14 @@ export async function animalsUndoConfirm(
 /**
  * Only a draft that has never been public can be deleted (HS-Q9, Oleksii);
  * anything that ever was is withdrawn instead, because its URL and possibly
- * adopters' swipes and reveals still point at it. Compare-and-set like every
+ * adopters' reveals still point at it. Compare-and-set like every
  * write: an edit landing in between means re-reading and deciding again.
  *
  * Both refusals are one answer, with nothing to tell them apart (K-Q9,
  * Oleksii: "one refusal for both cases"). A separate "has activity" answer
- * would tell the shelter that an adopter swiped or revealed the animal,
+ * would tell the shelter that an adopter revealed the animal,
  * which commitment #2 says it is never told. One answer is also truthful:
- * activity implies the animal was public, since swipes and reveals refuse a
+ * activity implies the animal was public, since a reveal refuses a
  * non-discoverable animal (DR-F1).
  */
 export async function animalsDeleteDraft(

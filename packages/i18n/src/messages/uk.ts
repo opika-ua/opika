@@ -81,11 +81,8 @@ export const uk = {
      *
      * R4-1 (`docs/decisions-inbox.md`), 2026-10-06: the second paragraph is
      * commitment 8's restored, fuller sentence, replacing the narrowed
-     * version R1 shipped on 2026-09-09 - both «Не зараз» (`pass`, expires
-     * after `DEFAULT_SEEN_SET_POLICY.reshowAfterDays`, 30) and «Запитати»
-     * (`interested`, excluded permanently) are named, per
-     * `packages/domain/src/discovery/seen-set.ts`'s own `stillExcludes`,
-     * rather than only the weaker "doesn't re-serve what you skipped" the
+     * version R1 shipped on 2026-09-09 - both «Не зараз» and «Запитати»
+     * were named (the deck's seen-set, since retired), rather than only the weaker "doesn't re-serve what you skipped" the
      * English sense in `docs/observations.md` originally drafted. Oleksii's
      * own Ukrainian, verbatim - not drafted or polished here.
      *

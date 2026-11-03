@@ -99,7 +99,7 @@ export const animals = pgTable(
      * (HS-Q9, Oleksii). `restore_to_draft` drops the listing's own
      * `publishedAt`, so without this a draft that used to be public would look
      * never-published, and `deleteDraft` would erase a listing whose public
-     * URL and adopter swipes and reveals still point at it. Null means it has
+     * URL and adopter reveals still point at it. Null means it has
      * never been public, which is the only case a draft may be deleted.
      *
      * **A delete guard only** (HS-Q11, Oleksii). It never appears in any view

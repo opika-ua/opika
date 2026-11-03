@@ -93,11 +93,9 @@ function expectCityOnly(name: string, res: { status: number; raw: string }) {
 }
 
 describe("served pre-reveal responses carry the city only (EM-Q10)", () => {
-  it("feed.list, gallery.list (both scopes), animals.byId, shelters.byId and the city and region lookups", async () => {
+  it("gallery.list (both scopes), animals.byId, shelters.byId and the city and region lookups", async () => {
     const { city, shelter, atShelter, fostered } = await seed();
 
-    const feed = await h.call("feed.list", { filters: NO_FILTERS, cursor: null, limit: 20 });
-    expectCityOnly("feed.list", feed);
     const gallery = await h.call("gallery.list", { filters: NO_FILTERS });
     expectCityOnly("gallery.list", gallery);
     // The shelter page's own list (designer round 1, S6): the same procedure,
@@ -127,11 +125,11 @@ describe("served pre-reveal responses carry the city only (EM-Q10)", () => {
 
     // The city itself does arrive, for both kinds of animal: the check above
     // is not passing on an empty or failed response.
-    const items = (feed.body as { items: { id: string; publicLocation: unknown }[] }).items;
+    const items = (gallery.body as { items: { id: string; publicLocation: unknown }[] }).items;
     expect(items).toHaveLength(2);
     expect(items.find((i) => i.id === fostered.id)?.publicLocation).toEqual({ cityId: city.id });
     expect(items.find((i) => i.id === atShelter.id)?.publicLocation).toBeNull();
-    expect(feed.raw).toContain(`"publicLocation":{"cityId":"${city.id}"}`);
+    expect(gallery.raw).toContain(`"publicLocation":{"cityId":"${city.id}"}`);
   });
 
   it("the scan sees the keys where they exist: the shelter's own record, as stored", async () => {

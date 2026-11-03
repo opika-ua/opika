@@ -134,14 +134,6 @@ describe("the labels that ride with a response", () => {
     expect(labels.map((l) => l.id).sort()).toEqual([brovary.id, irpin.id].sort());
   });
 
-  it("feed.list names the cities of the page's cards", async () => {
-    const { brovary, irpin } = await seedPlaces();
-    const res = await h.call("feed.list", { filters: NO_FILTERS, cursor: null, limit: 20 });
-    const labels = (res.body as { cityLabels: { id: string }[] }).cityLabels;
-
-    expect(labels.map((l) => l.id).sort()).toEqual([brovary.id, irpin.id].sort());
-  });
-
   it("animals.cardsByIds names the cities of the available cards only", async () => {
     const { brovary, atShelter } = await seedPlaces();
     const gone = "99999999-9999-4999-8999-999999999999";

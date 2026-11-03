@@ -375,7 +375,7 @@ equivalent) - "temporarily narrowed, restoring a fuller version in `<row>`" is a
 statement from silently letting the shorter sentence look like the whole of what was ever
 promised.
 
-*Why:* R1 (Phase R, 2026-09-09) wired real per-device swipe memory into the deck, which made
+*Why:* R1 (Phase R, 2026-09-09; the deck and its `swipes` table were retired 2026-11-02/03) wired real per-device swipe memory into the deck, which made
 two live sentences false the same day it shipped - `/prytulkam` §3's "both browsing methods show
 everyone" and `/pro`'s "no cookies," each requiring a fuller honest replacement that wasn't
 written yet. Treating the deletion and the replacement as one blocked action would have held a

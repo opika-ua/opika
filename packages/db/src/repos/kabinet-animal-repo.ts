@@ -87,7 +87,7 @@ export type ConditionalWrite = { kind: "ok" } | { kind: "conflict" };
 
 /**
  * Why a draft delete wrote nothing. `referenced` is the database refusing
- * because a swipe or reveal still points at the row (the FK has no cascade):
+ * because a reveal still points at the row (the FK has no cascade):
  * caught here and returned as a value, on either driver, so it reaches the
  * caller as a typed answer and never as an untyped 500 (HS-Q9, Oleksii).
  */
@@ -455,8 +455,8 @@ export function kabinetAnimalRepo(db: Database) {
      * once-public listing is withdrawn, never deleted. `not_deleted` says only
      * that one of those conditions failed; the caller re-reads to say which.
      *
-     * The `animal_deleted` line is written by the same statement. A swipe or
-     * reveal still referencing the row fails the whole statement (the foreign
+     * The `animal_deleted` line is written by the same statement. A reveal
+     * still referencing the row fails the whole statement (the foreign
      * key is checked at the statement's end, CTE or not), so a refused delete
      * records nothing either.
      */

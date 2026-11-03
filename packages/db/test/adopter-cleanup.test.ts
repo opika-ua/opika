@@ -9,18 +9,15 @@ import { cityRepo } from "../src/repos/city-repo";
 import { revealRepo } from "../src/repos/reveal-repo";
 import { adopterSessionLapse, type SessionRow, sessionRepo } from "../src/repos/session-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
-import { swipeRepo } from "../src/repos/swipe-repo";
 import { adopters } from "../src/schema/adopters";
 import { reveals } from "../src/schema/reveals";
 import { sessions } from "../src/schema/sessions";
-import { swipes } from "../src/schema/swipes";
 import {
   makeAdopter,
   makeAnimal,
   makeCity,
   makeReveal,
   makeShelter,
-  makeSwipe,
   setupTestDatabase,
   truncateAll,
 } from "../src/test-utils/index";
@@ -167,10 +164,8 @@ describe("adopterRepo.deleteOrphaned", () => {
     const orphan = await adopterWith(old);
     const withLapsedSession = await adopterWith(old);
     await sessionOf(withLapsedSession, old, old);
-    const withSwipe = await adopterWith(old);
     const withReveal = await adopterWith(old);
     const { shelterId, animalId } = await animalAt();
-    await swipeRepo(db).record(makeSwipe({ adopterId: withSwipe, animalId: animalId as never }));
     const reveal = makeReveal({ adopterId: withReveal, animalId: animalId as never, shelterId });
     await revealRepo(db).insert(reveal);
     const account = await adopterWith(old, {
@@ -184,12 +179,9 @@ describe("adopterRepo.deleteOrphaned", () => {
     const young = await adopterWith(at(-ORPHAN_ADOPTER_MIN_AGE_MS));
 
     expect(await adopterRepo(db).deleteOrphaned(NOW)).toBe(1);
-    expect(await adopterIds()).toEqual(
-      [withLapsedSession, withSwipe, withReveal, account, young].sort(),
-    );
+    expect(await adopterIds()).toEqual([withLapsedSession, withReveal, account, young].sort());
     expect(await adopterIds()).not.toContain(orphan);
     // What the kept adopters carry is untouched.
-    expect((await db.select().from(swipes)).map((r) => r.adopterId)).toEqual([withSwipe]);
     expect((await db.select().from(reveals)).map((r) => r.id)).toEqual([reveal.id]);
     expect(await sessionHashes()).toHaveLength(1);
   });

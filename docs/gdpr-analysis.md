@@ -47,18 +47,19 @@ side.
 
 | What | Where | Why | Retention | Likely legal basis |
 |---|---|---|---|---|
-| `sessions` (token hash, `adopter_id`, `created_at`, `last_seen_at`) - the token itself is a SHA-256 hash of a server-issued, ≥256-bit random value (CLAUDE.md decision #13) | Postgres (Neon, Frankfurt) | Lets the deck remember what this device has already swiped/revealed, across visits | **Deleted on a schedule since S3 (audit F6, 2026-10-29).** A row past the 30-day absolute or 7-day idle limit is deleted by the 6-hourly clean-up cron (`/api/cron/auth-cleanup`, `sessionRepo.deleteLapsed`), using the same limits `validateSession` refuses by (`ADOPTER_SESSION_POLICY`, `packages/db/src/repos/session-repo.ts`) – so within about 12 hours of lapsing, allowing for one skipped run, unless a backlog exceeds the 5,000-row batch each run takes. Still also deleted at once when its cookie comes back past a limit | Legitimate interest (Art. 6(1)(f)), arguably - the seen-set memory is the product's one adopter-visible mechanism; **whether the cookie needs ePrivacy consent at all is a live judgment call**, see G7 |
-| `adopters` (one row per `sessions` row, device-bound, carries `device_session_id`) | Postgres | Identity the rest of this table hangs off | **Since S3 (audit F6, 2026-10-29), deleted by the same cron only when nothing hangs off it:** an anonymous adopter more than 31 days old (its one session's 30-day cap plus a day) with no session, no swipe and no reveal (`adopterRepo.deleteOrphaned`, 5,000 a run). **An adopter with any swipe or reveal is kept indefinitely**, with its `device_session_id`, because deleting it means deleting those rows first, and their retention is undecided (G3). `demo:remove` still never removes adopters | Same basis |
-| `swipes` (adopter_id, animal_id, direction, swiped_at) | Postgres | Seen-set exclusion in the deck; Phase 2's reward ledger (not built) | **Narrower than "none": `demo:remove --shelter` does delete every swipe referencing that shelter's animals** (`packages/db/src/demo-remove.ts`) - but that only fires when a whole shelter is removed. For an adopter whose swiped shelters stay in business indefinitely, there is no retention mechanism at all tied to the *adopter's* own age or inactivity | Legitimate interest, same basis as above |
-| `reveals` (adopter_id, animal_id, shelter_id, revealed_at, shelter_snapshot, animal_snapshot) | Postgres | Lets `animals.reveal` be idempotent (don't re-charge a rate-limit unit for the same shelter); historical record of who was shown what shelter contact | **Append-only by design** (CLAUDE.md decision #9), with the same shelter-removal exception as `swipes` above. `shelter_snapshot`/`animal_snapshot` freeze the shelter's name/contact/animal facts *as revealed*, so this is also the one place a shelter's now-changed contact details stay recorded against a specific adopter | Legitimate interest (abuse prevention via idempotency) for the fact of the reveal; the *snapshot's* indefinite retention is harder to justify on the same basis - see gap G3 |
+| `sessions` (token hash, `adopter_id`, `created_at`, `last_seen_at`) - the token itself is a SHA-256 hash of a server-issued, ≥256-bit random value (CLAUDE.md decision #13) | Postgres (Neon, Frankfurt) | Lets the site remember what this device has already revealed, across visits | **Deleted on a schedule since S3 (audit F6, 2026-10-29).** A row past the 30-day absolute or 7-day idle limit is deleted by the 6-hourly clean-up cron (`/api/cron/auth-cleanup`, `sessionRepo.deleteLapsed`), using the same limits `validateSession` refuses by (`ADOPTER_SESSION_POLICY`, `packages/db/src/repos/session-repo.ts`) – so within about 12 hours of lapsing, allowing for one skipped run, unless a backlog exceeds the 5,000-row batch each run takes. Still also deleted at once when its cookie comes back past a limit | Legitimate interest (Art. 6(1)(f)), arguably - remembering which contacts a visitor has opened is the product's one adopter-visible mechanism; **whether the cookie needs ePrivacy consent at all is a live judgment call**, see G7 |
+| `adopters` (one row per `sessions` row, device-bound, carries `device_session_id`) | Postgres | Identity the rest of this table hangs off | **Since S3 (audit F6, 2026-10-29), deleted by the same cron only when nothing hangs off it:** an anonymous adopter more than 31 days old (its one session's 30-day cap plus a day) with no session and no reveal (`adopterRepo.deleteOrphaned`, 5,000 a run). **An adopter with any reveal is kept indefinitely**, with its `device_session_id`, because deleting it means deleting those rows first, and their retention is undecided (G3). `demo:remove` still never removes adopters | Same basis |
+| `reveals` (adopter_id, animal_id, shelter_id, revealed_at, shelter_snapshot, animal_snapshot) | Postgres | Lets `animals.reveal` be idempotent (don't re-charge a rate-limit unit for the same shelter); historical record of who was shown what shelter contact | **Append-only by design** (CLAUDE.md decision #9), except that `demo:remove --shelter` deletes the reveals on a removed shelter's animals. `shelter_snapshot`/`animal_snapshot` freeze the shelter's name/contact/animal facts *as revealed*, so this is also the one place a shelter's now-changed contact details stay recorded against a specific adopter | Legitimate interest (abuse prevention via idempotency) for the fact of the reveal; the *snapshot's* indefinite retention is harder to justify on the same basis - see gap G3 |
 | Saved list (which animals a visitor has bookmarked) | **Not server-side at all** - `localStorage`, this browser only. `animals.cardsByIds`'s batch read is a `credentials: 'omit'` POST, no cookie, and the server doesn't log or store which ids were asked for | n/a - client state | n/a - never reaches the server as a record | n/a - nothing to have a legal basis for |
 | Per-IP rate-limit keys (`ip:` + HMAC-SHA256 under `RATE_LIMIT_KEY_SECRET` - never the raw address itself) | Upstash Redis | Abuse/scraping prevention (per-IP throttling on the deck, the gallery, reveals, kabinet routes) | Short TTLs only: ~2 minutes (kabinet per-IP), ~2 hours (sign-in per-IP and the typed-address key) - `@upstash/ratelimit`'s sliding-window `PEXPIRE` | Legitimate interest (Art. 6(1)(f), security/anti-abuse - one of GDPR's own listed examples of a likely legitimate interest, Recital 49) |
 | Vercel Analytics / Speed Insights | Vercel's own infrastructure, not this app's database | Aggregate traffic/performance numbers | Vercel's own retention (not controlled by this app) | **Cookieless** (`SiteAnalytics.tsx`'s own comment) - Vercel's documented approach avoids a persistent per-visitor identifier, which is the usual basis for treating this kind of aggregate, non-tracking analytics as not needing consent under ePrivacy. Worth confirming this is still true of the current `@vercel/analytics` version rather than assumed, see G6 |
 
+**2026-11-03 (owner): the `swipes` table is dropped (migration 0022) with the swipe deck, so one less table holds adopter activity.** What remains per adopter is `sessions`, `adopters` and `reveals`; the table's rows are gone with it, not archived.
+
 **A fact worth being precise about:** an anonymous device-session hash with no name, email or
 phone attached is still very likely "personal data" under GDPR. Recital 30 names online
 identifiers (device IDs, cookies) as personal data when they can be linked to a natural person,
-directly or indirectly - and combined with swipe/reveal behaviour tied to one device over time,
+directly or indirectly - and combined with reveal behaviour tied to one device over time,
 this is squarely the kind of pseudonymous-but-identifiable data GDPR Art. 4(1) and Recital 26
 cover. "No PII" is not the same claim as "not personal data."
 
@@ -153,19 +154,18 @@ worth confirming rather than assuming is fine or assuming is a problem.
 **G3 - No retention policy tied to an adopter's own age or inactivity.** Not every category
 in this doc has a stated window - `shelter_history` and `support_sessions` in §2 are
 deliberately permanent, by his own decision, not gaps - but none of the adopter-side
-`sessions`, `adopters`, `swipes` and `reveals` rows has *any* cleanup tied to the adopter's
+`sessions`, `adopters` and `reveals` rows has *any* cleanup tied to the adopter's
 own age or inactivity, beyond the narrow, incidental case of the whole owning shelter being
-removed. The *functional* purpose of a `swipes` row (seen-set exclusion) is moot well before
-any new retention window would need to bite: `validateSession`'s own policy kills a session
+removed. `validateSession`'s own policy kills a session
 at `min(createdAt + 30 days, lastSeenAt + 7 days)`, and once it's dead `session.bootstrap`
-mints a *new* adopter identity rather than reviving the old one - so a session's swipes can
+mints a *new* adopter identity rather than reviving the old one - so a session's rows can
 never again serve the purpose they were kept for, no later than 30 days after it was created,
 and as soon as 7 days after its last use if it went idle first. The actual gap is that nothing
 deletes the *rows* once that purpose has lapsed; GDPR's storage-limitation principle
 (Art. 5(1)(e)) is about the data outliving its purpose, and here that's concrete and
 measurable against the formula above, not merely "no number was ever chosen."
 *Narrowed by S3 (audit F6, 2026-10-29):* lapsed `sessions` rows and adopters with nothing
-attached are now deleted on the cron's schedule (§2). Still open: `swipes`, `reveals`, and the
+attached are now deleted on the cron's schedule (§2). Still open: `reveals`, and the
 `adopters` rows they keep alive.
 
 **G4 - No mechanism for a data subject rights request, and one structural case that today's
@@ -176,11 +176,11 @@ tooling can't close at all.**
   as a solved mechanism: asking someone to paste a live session credential into a support
   email is the same class of risk `docs/onboarding-a-shelter.md`'s own "Debugging sign-in"
   section already warns about for kabinet sessions, now in a channel with no redaction
-  habit built around it. **The runbook isn't a one-line delete either.** `swipes`, `reveals` and `sessions` all reference
+  habit built around it. **The runbook isn't a one-line delete either.** `reveals` and `sessions` both reference
   `adopters.id` with Postgres's default `NO ACTION` foreign-key behaviour (no `onDelete`
-  clause in any of the three schema files), so a bare `DELETE FROM adopters` fails with a
-  constraint violation; the three child tables have to be deleted first, in that order
-  relative to the parent, not just "the adopters row plus its swipes/reveals."
+  clause in either schema file), so a bare `DELETE FROM adopters` fails with a
+  constraint violation; the two child tables have to be deleted first, in that order
+  relative to the parent, not just "the adopters row plus its reveals."
 - **For a shelter admin removed from a shelter that keeps operating:** there is currently no
   path at all, not just an undocumented one. `cleanUpInvitedUsers`'s `cleanupCandidates`
   query only matches a user with no session ever recorded (`isNull(firstSessionAt)`), so a
@@ -229,10 +229,10 @@ decisions (`docs/standing-constraints.md`'s Ukrainian-copy and public-claim gate
    inventory), processor list with their locations, data subject rights and how to exercise
    them, supervisory-authority complaint right. This is the one item that actually closes G1,
    and it's a genuinely new page, not an edit to `/pro`.
-2. **Decide a retention window for `adopters`/`sessions`/`swipes`/`reveals`** (closes G3) -
+2. **Decide a retention window for `adopters`/`sessions`/`reveals`** (closes G3) -
    e.g., a scheduled sweep deleting rows whose owning session has been expired for some
    stated grace period, alongside the existing auth-cleanup cron. A product decision (how
-   long is "necessary" for the seen-set feature to keep working across a plausible return
+   long is "necessary" for a returning visitor's reveals to keep working across a plausible return
    visit) before it's a build, and the deletion order from G4 applies here too.
 3. **Resolve the Upstash region conflict and record both processors' status** - confirm
    which region the live Upstash database is actually in, and obtain/confirm DPA/SCC

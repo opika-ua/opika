@@ -1586,7 +1586,7 @@ export function buildDemoAnimals(
  * same statement.
  */
 export async function truncateForReseed(db: Database): Promise<void> {
-  await db.execute(sql`TRUNCATE reveals, swipes, animals, adopters, shelters CASCADE`);
+  await db.execute(sql`TRUNCATE reveals, animals, adopters, shelters CASCADE`);
 }
 
 async function main(profile: SeedProfile) {

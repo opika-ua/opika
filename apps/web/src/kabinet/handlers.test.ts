@@ -8,7 +8,6 @@ import {
   kabinetShelterRepo,
   revealRepo,
   shelterRepo,
-  swipeRepo,
 } from "@opika/db/repos";
 import { shelterHistory } from "@opika/db/schema";
 import {
@@ -19,7 +18,6 @@ import {
   makeDraftAnimal,
   makeReveal,
   makeShelter,
-  makeSwipe,
   setupTestDatabase,
   truncateAll,
 } from "@opika/db/test";
@@ -831,16 +829,18 @@ describe("deleting a draft (HS-Q9: only one that has never been public)", () => 
   });
 
   /**
-   * HS-Q9: "map the FK violation (swipe/reveal reference) to a typed error
+   * HS-Q9: "map the FK violation (reveal reference) to a typed error
    * regardless, so no path returns an untyped 500." A never-published draft
-   * can't normally have a swipe; this plants one to reach the database's own
+   * can't normally have a reveal; this plants one to reach the database's own
    * refusal and proves it comes back typed.
    */
-  it("answers WAS_PUBLISHED, not a 500, when a swipe still references the draft", async () => {
+  it("answers WAS_PUBLISHED, not a 500, when a reveal still references the draft", async () => {
     const a = await animal({ listing: { kind: "draft" } });
     const adopter = makeAdopter();
     await adopterRepo(db).insert(adopter);
-    await swipeRepo(db).record(makeSwipe({ adopterId: adopter.id, animalId: a.id }));
+    await revealRepo(db).insert(
+      makeReveal({ adopterId: adopter.id, animalId: a.id, shelterId: a.shelterId }),
+    );
     const result = await call<{ code: string; data: unknown }>("shelter.animals.deleteDraft", {
       animalId: a.id,
     });
@@ -874,7 +874,13 @@ describe("deleting a draft (HS-Q9: only one that has never been public)", () => 
     const withActivity = await animal({ listing: { kind: "draft" } });
     const adopter = makeAdopter();
     await adopterRepo(db).insert(adopter);
-    await swipeRepo(db).record(makeSwipe({ adopterId: adopter.id, animalId: withActivity.id }));
+    await revealRepo(db).insert(
+      makeReveal({
+        adopterId: adopter.id,
+        animalId: withActivity.id,
+        shelterId: withActivity.shelterId,
+      }),
+    );
 
     const first = await call("shelter.animals.deleteDraft", { animalId: wasPublished.id });
     const second = await call("shelter.animals.deleteDraft", { animalId: withActivity.id });
@@ -1413,7 +1419,13 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
     const referenced = await animal({ listing: { kind: "draft" } });
     const adopter = makeAdopter();
     await adopterRepo(db).insert(adopter);
-    await swipeRepo(db).record(makeSwipe({ adopterId: adopter.id, animalId: referenced.id }));
+    await revealRepo(db).insert(
+      makeReveal({
+        adopterId: adopter.id,
+        animalId: referenced.id,
+        shelterId: referenced.shelterId,
+      }),
+    );
     expect((await call("shelter.animals.deleteDraft", { animalId: referenced.id })).status).toBe(
       409,
     );
@@ -1955,7 +1967,7 @@ describe("K2: the animal list", () => {
    * Commitment #2 (review of #126, finding 1): nothing the list answers may vary with what
    * adopters did, the stale strip and its filter included.
    */
-  it("an adopter's swipe and reveal change nothing the list answers", async () => {
+  it("an adopter's reveal changes nothing the list answers", async () => {
     const watched = await animal({ listing: confirmedDaysAgo("published", 40) });
     await animal({ listing: confirmedDaysAgo("published", 2) });
     await animal({ listing: { kind: "draft" } });
@@ -1967,9 +1979,6 @@ describe("K2: the animal list", () => {
     const before = await read();
     const adopter = makeAdopter();
     await adopterRepo(db).insert(adopter);
-    await swipeRepo(db).record(
-      makeSwipe({ adopterId: adopter.id, animalId: watched.id, direction: "interested", at: NOW }),
-    );
     await revealRepo(db).insert(
       makeReveal({
         adopterId: adopter.id,

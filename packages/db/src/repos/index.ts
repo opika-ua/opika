@@ -11,7 +11,6 @@ export { authResetLinkRepo } from "./auth-reset-link-repo";
 export type { CardCity, CardShelter } from "./card-places";
 export { cityRepo } from "./city-repo";
 export { citySearchRepo } from "./city-search-repo";
-export { type FeedCursorData, type FeedPage, feedRepo } from "./feed-repo";
 export {
   type GalleryCardPage,
   type GalleryPage,
@@ -92,4 +91,3 @@ export {
   type RevokeResult,
   superAdminRepo,
 } from "./super-admin-repo";
-export { swipeRepo } from "./swipe-repo";

@@ -12,9 +12,9 @@ import {
   kabinetInvitationAcceptRepo,
   kabinetInvitationRepo,
   type ListingMoveHistory,
+  revealRepo,
   shelterRepo,
   superAdminRepo,
-  swipeRepo,
 } from "@opika/db/repos";
 import {
   authAccount,
@@ -31,8 +31,8 @@ import {
   makeAnimal,
   makeCity,
   makeDraftAnimal,
+  makeReveal,
   makeShelter,
-  makeSwipe,
   neonHttpDatabaseAnswering,
   postgresError,
   setupTestDatabase,
@@ -375,15 +375,15 @@ describe("our callers read the cleaned error exactly as they read the raw one", 
     expect(outcomes[1]).toEqual(outcomes[0]);
   });
 
-  it("23503: a draft a swipe references comes back `referenced`, kept", async () => {
+  it("23503: a draft a reveal references comes back `referenced`, kept", async () => {
     const outcomes = await bothWays(async (handle) => {
       const { shelterId, cityId } = await place(handle);
       const draft = makeAnimal({ shelterId, listing: { kind: "draft" } });
       await animalRepo(handle).insert(draft, cityId);
       const adopter = makeAdopter();
       await adopterRepo(handle).insert(adopter);
-      await swipeRepo(handle).record(
-        makeSwipe({ adopterId: adopter.id, animalId: draft.id, at: AT }),
+      await revealRepo(handle).insert(
+        makeReveal({ adopterId: adopter.id, animalId: draft.id, shelterId, revealedAt: AT }),
       );
       const answer = await kabinetAnimalRepo(handle).deleteDraftIf(draft.id, draft.version, {
         id: randomUUID(),

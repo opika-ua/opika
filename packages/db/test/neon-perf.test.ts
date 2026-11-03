@@ -320,7 +320,7 @@ describe("against the local database", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     await db.execute(sql`DELETE FROM shelter_history WHERE kind = 'animals_imported'`);
     // The partial-run test removed one animal; restore the full corpus first.
-    await db.execute(sql`TRUNCATE reveals, swipes, animals, adopters, shelters CASCADE`);
+    await db.execute(sql`TRUNCATE reveals, animals, adopters, shelters CASCADE`);
     await seedPerf(db);
     await db.execute(sql`DELETE FROM shelter_history WHERE kind = 'animals_imported'`);
     const result = await seedPerf(db);

@@ -99,8 +99,8 @@ export type Database = PostgresJsDatabase<typeof schema>;
  * `.select()/.insert()/.update()/.delete()` chain, whose *typed row*
  * return shape Drizzle's query builder normalises identically regardless
  * of adapter. A real union (`PostgresJsDatabase | NeonHttpDatabase`) was
- * tried first and rejected: it made `swipeRepo.record`'s
- * `.onConflictDoUpdate(...).returning(...)` fail to typecheck (`Expected
+ * tried first and rejected: it made an
+ * `.onConflictDoUpdate(...).returning(...)` upsert fail to typecheck (`Expected
  * 0 arguments, but got 1`) - a TypeScript overload-resolution artifact of
  * unioning two generically-parameterised classes, confirmed by the same
  * call typechecking cleanly against each adapter individually in

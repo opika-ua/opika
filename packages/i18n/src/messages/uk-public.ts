@@ -41,14 +41,15 @@ export const COPY_PENDING = "[COPY PENDING]";
  * `uk.about.analytics` directly - `+ " " + R4_2_ANALYTICS_SENTENCE` or
  * equivalent - rather than retyping the text, so the landed sentence and
  * this constant can never drift apart.
+ *
+ * 2026-11-03 (owner): the swipe deck is retired, so the cookie now follows only «Дати сімʼю».
  */
 export const R4_2_ANALYTICS_SENTENCE =
-  "Людині, яка шукає тварину, сайт ставить одне кукі – і тільки після першої дії: " +
-  "«Не зараз» чи «Дати сімʼю». У ньому немає імені чи номера телефону, лише " +
-  "випадковий ідентифікатор: щоб режим «по одній» памʼятав, кого ви вже бачили, а сайт – " +
-  "чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без візитів або через 30 " +
-  "днів у будь-якому разі. Окремо від кукі, якщо ви зберігаєте тварин, їхній список лежить " +
-  "у цьому браузері.";
+  "Людині, яка шукає тварину, сайт ставить одне кукі – і тільки після того, як вона натисне " +
+  "«Дати сімʼю». У ньому немає імені чи номера телефону, лише випадковий ідентифікатор: " +
+  "щоб сайт памʼятав, чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без " +
+  "візитів або через 30 днів у будь-якому разі. Окремо від кукі, якщо ви зберігаєте тварин, " +
+  "їхній список лежить у цьому браузері.";
 
 /**
  * GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4). Oleksii's own
@@ -385,12 +386,6 @@ export const ukPublic = {
     storageBlocked: "Цей браузер не дає сайту зберегти ваш список.",
     /** Designer feedback batch C, his own text: aria-live while the saved page is reading ids/fetching cards, never shown as visible body text. */
     loading: "Завантаження списку…",
-  },
-
-  // --- Action buttons ---
-  actions: {
-    write: "Написати",
-    writeShelter: "Написати притулку",
   },
 
   // --- Freshness ---

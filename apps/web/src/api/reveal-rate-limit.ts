@@ -77,7 +77,7 @@ export type RevealBudgetUse = "free_re_reveal" | "new_shelter";
  * composite index did not change the query plan Postgres chose. Left as-is:
  * this project runs at near-zero traffic today (`docs/observations.md`'s
  * O-9), and a real fix needs the query plan actually asserted
- * (`packages/db/test/feed-explain.test.ts` is the existing pattern for
+ * (`packages/db/test/wait-anchor-explain.test.ts` is the existing pattern for
  * that), not a speculative index.
  *
  * Counts distinct shelters in the last `windowSeconds` via the reveal

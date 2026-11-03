@@ -1,7 +1,5 @@
 import {
   type CityId,
-  DEFAULT_SEEN_SET_POLICY,
-  NO_FILTERS,
   publicLocationOf,
   type Shelter,
   type ShelterId,
@@ -26,10 +24,8 @@ import { expectedTargetOf } from "../src/prod-guard";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
-import { feedRepo } from "../src/repos/feed-repo";
 import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
-import { swipeRepo } from "../src/repos/swipe-repo";
 import { animals } from "../src/schema/animals";
 import {
   authAccount,
@@ -46,7 +42,6 @@ import { cities } from "../src/schema/cities";
 import { reveals } from "../src/schema/reveals";
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
-import { swipes } from "../src/schema/swipes";
 import { recordAnimalsImported } from "../src/script-history";
 import {
   makeAdopter,
@@ -74,7 +69,6 @@ beforeAll(async () => {
 afterAll(async () => cleanup?.());
 
 const NOW = new Date("2026-10-15T12:00:00.000Z");
-const EARLIER = new Date("2026-10-01T12:00:00.000Z");
 const ACTOR = { moderatorId: "0ec0ec0e-0000-4000-8000-0000000000aa" as never, now: NOW };
 /** The seed's key and reserved range, written out rather than imported from the code under test. */
 const testKey = testOnlyLocationPolicy("seed");
@@ -191,14 +185,6 @@ async function productionAfterStep4() {
 
   const visitor = makeAdopter();
   await adopterRepo(db).insert(visitor);
-  for (const animal of [...demoAnimals, realAnimal]) {
-    await swipeRepo(db).record({
-      adopterId: visitor.id,
-      animalId: animal.id,
-      direction: "pass",
-      at: NOW,
-    });
-  }
   const demoReveal = makeReveal({
     adopterId: visitor.id,
     animalId: firstDemoAnimal.id,
@@ -292,7 +278,6 @@ describe("demo:remove, the plan (dry run)", () => {
     ]);
     expect(plan.otherShelters).toBe(1);
     expect(plan.counts).toEqual({
-      swipes: 3,
       reveals: 1,
       animals: 3,
       shelter_history: 2,
@@ -368,9 +353,6 @@ describe("demo:remove, the commit", () => {
     expect((await db.select({ id: animals.id }).from(animals)).map((a) => a.id)).toEqual([
       f.realAnimal.id,
     ]);
-    expect((await db.select({ id: swipes.animalId }).from(swipes)).map((s) => s.id)).toEqual([
-      f.realAnimal.id,
-    ]);
     expect((await db.select({ id: reveals.id }).from(reveals)).map((r) => r.id)).toEqual([
       f.realReveal.id,
     ]);
@@ -406,35 +388,6 @@ describe("demo:remove, the commit", () => {
     expect(again.counts).toEqual(ZERO);
     expect(again.refusals).toEqual([]);
     expect((await removeDemoCorpus(db, testKey)).kind).toBe("nothing_to_remove");
-  });
-
-  /**
-   * DR-B1, answer 1: a visitor whose deck or cursor still points at a deleted
-   * demo animal gets the next card, not an error. The feed keyset needs only
-   * the cursor's values, never the row they came from.
-   */
-  it("a feed cursor taken on a demo animal still pages on to the real one", async () => {
-    const demo = await insertShelter({ id: seedId(1), onTestKey: true });
-    const real = await insertShelter();
-    await insertAnimal(demo.id, NOW);
-    const realAnimal = await insertAnimal(real.id, EARLIER);
-    const list = (cursor: { confirmedAt: Date; id: string } | null) =>
-      feedRepo(db).list({
-        filters: NO_FILTERS,
-        cursor,
-        limit: 1,
-        adopterId: null,
-        now: NOW,
-        seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
-      });
-    const first = await list(null);
-    expect(first.items.map((a) => a.shelterId)).toEqual([demo.id]);
-    if (first.nextCursor === null) throw new Error("expected a second page");
-
-    expect((await removeDemoCorpus(db, testKey)).kind).toBe("removed");
-
-    const next = await list(first.nextCursor);
-    expect(next.items.map((a) => a.id)).toEqual([realAnimal.id]);
   });
 });
 
@@ -577,7 +530,6 @@ describe("demo:remove rolls back on any count that differs from its plan", () =>
       );
     }
     // Everything before auth_user was deleted inside the transaction; all of it is back.
-    expect(await rows(db.select().from(swipes))).toBe(4);
     expect(await rows(db.select().from(reveals))).toBe(2);
     expect(await rows(db.select().from(animals))).toBe(4);
     expect(await rows(db.select().from(shelters))).toBe(3);
@@ -610,7 +562,7 @@ describe("demo:remove --shelter: exactly these shelters", () => {
    * Production after step 4 plus two of Oleksii's test shelters: the first
    * with an organization, an accepted invitation whose user has since lost
    * the membership, an animal with two real R2 photos and a seed photo, a
-   * swipe, a reveal and history; the second bare. A user created by a test
+   * reveal and history; the second bare. A user created by a test
    * invitation and since invited (by address) to a demo shelter must stay:
    * a demo shelter is "elsewhere" when it isn't targeted.
    */
@@ -624,12 +576,6 @@ describe("demo:remove --shelter: exactly these shelters", () => {
       "animals/photo-animal/1",
     ]);
     const bareAnimal = await insertAnimal(testB.id);
-    await swipeRepo(db).record({
-      adopterId: f.visitor.id,
-      animalId: photoAnimal.id,
-      direction: "interested",
-      at: NOW,
-    });
     await revealRepo(db).insert(
       makeReveal({ adopterId: f.visitor.id, animalId: photoAnimal.id, shelterId: testA.id }),
     );
@@ -671,7 +617,6 @@ describe("demo:remove --shelter: exactly these shelters", () => {
     // Демо А, Демо Б and the real shelter stay.
     expect(plan.otherShelters).toBe(3);
     expect(plan.counts).toEqual({
-      swipes: 1,
       reveals: 1,
       animals: 2,
       shelter_history: 1,
@@ -730,8 +675,7 @@ describe("demo:remove --shelter: exactly these shelters", () => {
     expect(shelterIds.sort()).toEqual([f.demoA.id, f.demoB.id, f.real.id].sort());
     const animalIds = (await db.select({ id: animals.id }).from(animals)).map((a) => a.id);
     expect(animalIds.sort()).toEqual([...f.demoAnimals.map((a) => a.id), f.realAnimal.id].sort());
-    // #103's fixture: 4 swipes, 2 reveals, 3 history rows; the test shelter's are gone.
-    expect(await rows(db.select().from(swipes))).toBe(4);
+    // #103's fixture: 2 reveals, 3 history rows; the test shelter's are gone.
     expect(await rows(db.select().from(reveals))).toBe(2);
     expect(await rows(db.select().from(shelterHistory))).toBe(3);
     const orgs = (await db.select({ id: authOrganization.id }).from(authOrganization)).map(

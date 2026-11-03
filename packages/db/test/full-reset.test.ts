@@ -7,7 +7,6 @@ import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
-import { swipeRepo } from "../src/repos/swipe-repo";
 import {
   authAccount,
   authInvitation,
@@ -31,7 +30,6 @@ import {
   makeCity,
   makeReveal,
   makeShelter,
-  makeSwipe,
   setupTestDatabase,
   truncateAll,
 } from "../src/test-utils/index";
@@ -72,7 +70,6 @@ async function populateEveryResetTable() {
   await animalRepo(db).insert(animal, city.id as never);
   const adopter = makeAdopter();
   await adopterRepo(db).insert(adopter);
-  await swipeRepo(db).record(makeSwipe({ adopterId: adopter.id, animalId: animal.id }));
   await revealRepo(db).insert(
     makeReveal({ adopterId: adopter.id, animalId: animal.id, shelterId: shelter.id }),
   );
