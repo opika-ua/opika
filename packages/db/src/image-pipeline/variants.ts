@@ -16,11 +16,23 @@ import type { AnimalId, ShelterId } from "@opika/domain";
  * handles it natively. A default, not derived from the mock; worth revisiting
  * if there's a format preference.
  */
-export const IMAGE_VARIANTS = {
+export const SERVED_IMAGE_VARIANTS = {
   thumb: { width: 176, height: 176 },
   card: { width: 640, height: 800 },
   detail: { width: 1120, height: 1400 },
 } as const;
+
+/**
+ * Written at upload but not yet requested by the loader: photos uploaded
+ * before they existed have no such object, so a request must stay on
+ * `SERVED_IMAGE_VARIANTS` until the flagged rollout.
+ */
+export const EXTRA_IMAGE_VARIANTS = {
+  mid: { width: 840, height: 1050 },
+  compact: { width: 400, height: 500 },
+} as const;
+
+export const IMAGE_VARIANTS = { ...SERVED_IMAGE_VARIANTS, ...EXTRA_IMAGE_VARIANTS } as const;
 
 export type ImageVariantName = keyof typeof IMAGE_VARIANTS;
 

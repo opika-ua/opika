@@ -31,9 +31,9 @@ function isRed([r, g, b]: [number, number, number]): boolean {
 }
 
 describe("generateVariants", () => {
-  it("produces exactly the three named variants", async () => {
+  it("produces exactly the named variants", async () => {
     const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO);
-    expect(Object.keys(variants).sort()).toEqual(["card", "detail", "thumb"]);
+    expect(Object.keys(variants).sort()).toEqual(["card", "compact", "detail", "mid", "thumb"]);
   });
 
   it("each variant is a real WebP at exactly its specified dimensions", async () => {
@@ -153,10 +153,26 @@ describe("attentionCropBox", () => {
   });
 
   it.each([
-    ["2000×10", { width: 2000, height: 10 }, { thumb: [10, 10], card: [8, 10], detail: [8, 10] }],
-    ["10×2000", { width: 10, height: 2000 }, { thumb: [10, 10], card: [10, 13], detail: [10, 13] }],
-    ["2000×1", { width: 2000, height: 1 }, { thumb: [1, 1], card: [1, 1], detail: [1, 1] }],
-    ["1×2000", { width: 1, height: 2000 }, { thumb: [1, 1], card: [1, 1], detail: [1, 1] }],
+    [
+      "2000×10",
+      { width: 2000, height: 10 },
+      { thumb: [10, 10], card: [8, 10], detail: [8, 10], mid: [8, 10], compact: [8, 10] },
+    ],
+    [
+      "10×2000",
+      { width: 10, height: 2000 },
+      { thumb: [10, 10], card: [10, 13], detail: [10, 13], mid: [10, 13], compact: [10, 13] },
+    ],
+    [
+      "2000×1",
+      { width: 2000, height: 1 },
+      { thumb: [1, 1], card: [1, 1], detail: [1, 1], mid: [1, 1], compact: [1, 1] },
+    ],
+    [
+      "1×2000",
+      { width: 1, height: 2000 },
+      { thumb: [1, 1], card: [1, 1], detail: [1, 1], mid: [1, 1], compact: [1, 1] },
+    ],
   ] as const)("%s: a box inside the source for every variant", (_label, source, boxes) => {
     for (const [name, variant] of Object.entries(IMAGE_VARIANTS)) {
       const box = attentionCropBox(source, variant);

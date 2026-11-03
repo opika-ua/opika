@@ -22,6 +22,7 @@ import {
   type RemovalTarget,
   removeDemoCorpus,
 } from "../src/demo-remove";
+import { IMAGE_VARIANT_NAMES } from "../src/image-pipeline/variants";
 import { expectedTargetOf } from "../src/prod-guard";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
@@ -696,17 +697,17 @@ describe("demo:remove --shelter: exactly these shelters", () => {
   it("lists the R2 keys of every variant of the target animals' real photos, never a seed photo", async () => {
     const f = await withTestShelters();
     const plan = await planDemoRemoval(db, testKey, shelterTarget(f.testA.id, f.testB.id));
-    expect(plan.photoObjectKeys).toEqual([
-      "animals/photo-animal/0/thumb.webp",
-      "animals/photo-animal/0/card.webp",
-      "animals/photo-animal/0/detail.webp",
-      "animals/photo-animal/1/thumb.webp",
-      "animals/photo-animal/1/card.webp",
-      "animals/photo-animal/1/detail.webp",
-    ]);
+    // Every variant name, so a new variant that demo-remove skipped would fail here.
+    expect(plan.photoObjectKeys).toEqual(
+      ["animals/photo-animal/0", "animals/photo-animal/1"].flatMap((key) =>
+        IMAGE_VARIANT_NAMES.map((name) => `${key}/${name}.webp`),
+      ),
+    );
+    expect(plan.photoObjectKeys).toContain("animals/photo-animal/0/mid.webp");
+    expect(plan.photoObjectKeys).toContain("animals/photo-animal/0/compact.webp");
     const printed = formatPlan(plan, "Would delete");
     expect(printed).toContain(
-      "R2 photo objects of these animals: 6 (left in R2, unlinked; delete by hand in Cloudflare if wanted)",
+      `R2 photo objects of these animals: ${2 * IMAGE_VARIANT_NAMES.length} (left in R2, unlinked; delete by hand in Cloudflare if wanted)`,
     );
     expect(printed).toContain("  animals/photo-animal/1/detail.webp");
     expect(printed.join("\n")).not.toContain("seed-photos");

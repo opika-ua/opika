@@ -96,7 +96,13 @@ describe("prepareUploadedPhoto strips every piece of metadata (K-Q2)", () => {
   it("no variant carries EXIF, XMP or IPTC, and no canary survives in any byte", async () => {
     const prepared = await prepareUploadedPhoto(await gpsTaggedJpeg());
     if (prepared.kind !== "ok") throw new Error(`refused: ${prepared.reason}`);
-    expect(Object.keys(prepared.variants).sort()).toEqual(["card", "detail", "thumb"]);
+    expect(Object.keys(prepared.variants).sort()).toEqual([
+      "card",
+      "compact",
+      "detail",
+      "mid",
+      "thumb",
+    ]);
     for (const [name, bytes] of Object.entries(prepared.variants)) {
       const meta = await sharp(bytes).metadata();
       expect(

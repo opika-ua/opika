@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { variantObjectKey } from "../src/image-pipeline/variants";
+import { IMAGE_VARIANT_NAMES, variantObjectKey } from "../src/image-pipeline/variants";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
@@ -87,23 +87,21 @@ async function insertRevealWithPrimaryPhoto(storageKey: string) {
 }
 
 describe("referencedStorageKeys / referencedObjectKeys", () => {
-  it("finds every storageKey across every animal, and derives all three variants per key", async () => {
+  it("finds every storageKey across every animal, and derives every variant per key", async () => {
     await insertAnimalWithPhotos(["animals/a/1", "animals/a/2"]);
 
     const storageKeys = await referencedStorageKeys(db);
     expect([...storageKeys].sort()).toEqual(["animals/a/1", "animals/a/2"]);
 
     const objectKeys = await referencedObjectKeys(db);
+    // Built from every variant name, so a variant added to IMAGE_VARIANTS but missed here
+    // would leave its objects "unreferenced" and deleted by the clean-up job.
     expect([...objectKeys].sort()).toEqual(
-      [
-        variantObjectKey("animals/a/1", "card"),
-        variantObjectKey("animals/a/1", "detail"),
-        variantObjectKey("animals/a/1", "thumb"),
-        variantObjectKey("animals/a/2", "card"),
-        variantObjectKey("animals/a/2", "detail"),
-        variantObjectKey("animals/a/2", "thumb"),
-      ].sort(),
+      ["animals/a/1", "animals/a/2"]
+        .flatMap((key) => IMAGE_VARIANT_NAMES.map((name) => variantObjectKey(key, name)))
+        .sort(),
     );
+    expect(IMAGE_VARIANT_NAMES).toEqual(expect.arrayContaining(["mid", "compact"]));
   });
 
   it("finds a shelter's logo too, deriving the logo (not animal-photo) variants (pet card PR 4)", async () => {

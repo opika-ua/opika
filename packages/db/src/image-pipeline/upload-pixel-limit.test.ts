@@ -36,12 +36,12 @@ describe("UPLOAD_PIXEL_LIMIT", () => {
     const variants = await generateVariants(IMAGE_VARIANTS, await solid(2000, 2000), {
       limitInputPixels: UPLOAD_PIXEL_LIMIT,
     });
-    expect(Object.keys(variants).sort()).toEqual(["card", "detail", "thumb"]);
+    expect(Object.keys(variants).sort()).toEqual(["card", "compact", "detail", "mid", "thumb"]);
   });
 
   it("reaches every decode of an upload; only the header read lifts it", async () => {
     // 1200 × 900 takes both paths: `thumb` and `card` are scaled down, then
-    // cropped; `detail` is cropped, then enlarged from the crop.
+    // cropped; `detail` and `mid` are cropped, then enlarged from the crop.
     const bytes = await solid(1200, 900);
     given.options.length = 0;
 
@@ -49,9 +49,9 @@ describe("UPLOAD_PIXEL_LIMIT", () => {
 
     const [headerRead, ...decodes] = given.options;
     expect(headerRead).toEqual({ limitInputPixels: false });
-    // generateVariants' own header read, three crops, and the enlargement of
-    // `detail`'s crop.
-    expect(decodes).toHaveLength(5);
+    // generateVariants' own header read, five crops, and the enlargements of
+    // `detail`'s and `mid`'s crops.
+    expect(decodes).toHaveLength(8);
     decodes.forEach((options, i) => {
       expect(options?.limitInputPixels, `decode ${i + 1} of ${decodes.length}`).toBe(
         UPLOAD_PIXEL_LIMIT,
