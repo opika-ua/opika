@@ -271,6 +271,35 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
     expect(chained).not.toContain("%40");
   });
 
+  it("masks every address in a line: to=&cc= pairs, comma lists, bcc, and a single one as before", () => {
+    const hidden = (text: string, ...locals: string[]) => {
+      const out = maskedLogText(text);
+      for (const local of locals) expect(out).not.toContain(local);
+      return out;
+    };
+    expect(hidden("to=anna@example.org&cc=boris@example.org", "anna", "boris")).toBe(
+      "to=a•••@example.org&cc=b•••@example.org",
+    );
+    expect(
+      hidden(
+        "to=anna@example.org&cc=boris@example.org&bcc=clara@example.org",
+        "anna",
+        "boris",
+        "clara",
+      ),
+    ).toBe("to=a•••@example.org&cc=b•••@example.org&bcc=c•••@example.org");
+    expect(
+      hidden(
+        "sent to anna@example.org,boris@example.org, clara@example.org|dmytro@example.org",
+        "anna",
+        "boris",
+        "clara",
+        "dmytro",
+      ),
+    ).toBe("sent to a•••@example.org,b•••@example.org, c•••@example.org|d•••@example.org");
+    expect(maskedLogText("sent to olena@example.org.")).toBe("sent to o•••@example.org.");
+  });
+
   it("note 5: a URL-encoded address, a capitalised Params: and a short token are masked", () => {
     expect(maskedLogText("sent to olena%40example.org and OLENA%40Example.org")).toBe(
       "sent to o•••@example.org and O•••@Example.org",
