@@ -3,5 +3,6 @@ export * from "./animals/index";
 export * from "./discovery/index";
 export * from "./geography/index";
 export * from "./primitives/index";
+export * from "./reports/index";
 export * from "./reveals/index";
 export * from "./shelters/index";

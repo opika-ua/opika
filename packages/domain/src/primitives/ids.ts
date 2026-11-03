@@ -22,6 +22,9 @@ export type AdopterId = z.infer<typeof AdopterIdSchema>;
 export const RevealIdSchema = brandedId<"RevealId">();
 export type RevealId = z.infer<typeof RevealIdSchema>;
 
+export const ReportIdSchema = brandedId<"ReportId">();
+export type ReportId = z.infer<typeof ReportIdSchema>;
+
 export const CityIdSchema = brandedId<"CityId">();
 export type CityId = z.infer<typeof CityIdSchema>;
 

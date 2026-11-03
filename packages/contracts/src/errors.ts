@@ -4,6 +4,7 @@ import {
   LISTING_KINDS,
   PHOTO_REJECTION_REASONS,
   PublishGapSchema,
+  REPORT_EVENT_TYPES,
   VERIFICATION_EVENT_TYPES,
   VerificationStatusSchema,
 } from "@opika/domain";
@@ -11,7 +12,7 @@ import { z } from "zod";
 
 /**
  * Which state machine refused, and from where. A union on `machine` rather
- * than one loose `{ from: string; event: string }`: the two FSMs' states and
+ * than one loose `{ from: string; event: string }`: the FSMs' states and
  * events are disjoint vocabularies, and a client rendering the refusal needs
  * to know which one it's reading.
  */
@@ -28,6 +29,12 @@ export const IllegalTransitionDataSchema = z.discriminatedUnion("machine", [
     machine: z.literal("verification"),
     from: VerificationStatusSchema,
     event: z.enum(VERIFICATION_EVENT_TYPES),
+  }),
+  z.object({
+    machine: z.literal("report"),
+    // "open" is the only state that moves, so only decided ones can refuse.
+    from: z.enum(["resolved", "dismissed"]),
+    event: z.enum(REPORT_EVENT_TYPES),
   }),
 ]);
 

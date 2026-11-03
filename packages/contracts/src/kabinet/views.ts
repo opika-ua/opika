@@ -1,16 +1,21 @@
 import {
+  AnimalIdSchema,
   AnimalPhotoSchema,
   CityIdSchema,
   CitySchema,
   DraftAnimalSchema,
   FreshnessSchema,
+  LISTING_KINDS,
   ListedAnimalSchema,
   PublishGapSchema,
   RegionIdSchema,
+  ReportIdSchema,
+  ReportKindSchema,
   ShelterAdminIdSchema,
   ShelterFacingHistoryItemSchema,
   ShelterFacingVerificationSchema,
   ShelterHistoryEntrySchema,
+  ShelterIdSchema,
   ShelterSchema,
   VerificationStatusSchema,
 } from "@opika/domain";
@@ -322,3 +327,23 @@ export const PlaceSearchResultSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type PlaceSearchResult = z.infer<typeof PlaceSearchResultSchema>;
+
+/** One open report as the operator reads it. Nothing about who sent it exists to show. */
+export const ReportRowViewSchema = z.object({
+  id: ReportIdSchema,
+  kind: ReportKindSchema,
+  comment: z.string().nullable(),
+  createdAt: z.date(),
+});
+
+/** The operator queue is grouped by animal: one card, its open reports, oldest first. */
+export const ReportGroupViewSchema = z.object({
+  animal: z.object({
+    id: AnimalIdSchema,
+    name: z.string(),
+    listingKind: z.enum(LISTING_KINDS),
+  }),
+  shelter: z.object({ id: ShelterIdSchema, displayName: z.string() }),
+  openCount: z.int().min(1),
+  reports: z.array(ReportRowViewSchema).readonly(),
+});

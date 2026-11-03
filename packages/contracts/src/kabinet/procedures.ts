@@ -27,6 +27,7 @@ import {
   type PauseReason,
   RegionIdSchema,
   RejectionCodeSchema,
+  ReportIdSchema,
   ShelterAdminIdSchema,
   ShelterContactInputSchema,
   ShelterDisplayNameInputSchema,
@@ -67,6 +68,7 @@ import {
   PlaceSearchResultSchema,
   RegistryShelterRowViewSchema,
   RegistryShelterViewSchema,
+  ReportGroupViewSchema,
   ShelterHistoryItemViewSchema,
 } from "./views";
 
@@ -923,6 +925,37 @@ export const registryHistoryContract = {
       }),
     )
     .errors({ ...registryErrors, INVALID_CURSOR: apiErrors.INVALID_CURSOR }),
+};
+
+/**
+ * Exported but not mounted in `registryContract`: mounting needs handlers, and
+ * `implement(registryContract)` refuses a contract it cannot serve in full.
+ * Deciding the same report twice to the same outcome is a success (a double
+ * click); any other move off a decided report is ILLEGAL_TRANSITION.
+ */
+const reportDecisionSchema = z.enum(["resolved", "dismissed"]);
+
+export const registryReportsContract = {
+  list: kabinet
+    .$meta(registry)
+    .input(z.strictObject({ cursor: KabinetCursorSchema.nullable(), limit: kabinetPageSizeSchema }))
+    .output(
+      z.object({
+        items: z.array(ReportGroupViewSchema).readonly(),
+        nextCursor: KabinetCursorSchema.nullable(),
+        openTotal: z.int().min(0),
+      }),
+    )
+    .errors({
+      UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
+      FORBIDDEN: apiErrors.FORBIDDEN,
+      INVALID_CURSOR: apiErrors.INVALID_CURSOR,
+    }),
+  setStatus: kabinet
+    .$meta(registry)
+    .input(z.strictObject({ id: ReportIdSchema, status: reportDecisionSchema }))
+    .output(z.object({ id: ReportIdSchema, status: reportDecisionSchema }))
+    .errors({ ...registryErrors, ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION }),
 };
 
 export const registrySupportContract = {
