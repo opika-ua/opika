@@ -288,6 +288,21 @@ describe("renderSmokeSitting, for a PR with a migration", () => {
     expect(text).toContain(`Migrations: applied 1: ${TAG}`);
   });
 
+  it("runs each pre-migrate check on the child branch before db:migrate, with a stop instruction", () => {
+    const checked = renderSmokeSitting({
+      ...WITH_MIGRATION,
+      preMigrateChecks: [
+        { command: "pnpm --filter @opika/db db:precheck --expect $child", expected: "none" },
+      ],
+    });
+    expect(checked.indexOf("db:precheck --expect $child")).toBeGreaterThan(-1);
+    expect(checked.indexOf("db:precheck")).toBeLessThan(
+      checked.indexOf("db:migrate --expect $child"),
+    );
+    expect(checked).toContain("Any row -> STOP, paste the output.");
+    expect(text).not.toContain("Before the migration");
+  });
+
   it("runs the smoke once, on the child branch only", () => {
     expect(text.match(/db:neon-smoke/g)).toHaveLength(1);
     expect(at("db:neon-smoke")).toBeLessThan(at("Production connection string"));
