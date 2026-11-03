@@ -1,10 +1,9 @@
 export {
   ageBucketLabel,
-  ageChipWordFor,
   ageWordFor,
+  animalFactsParts,
   sexWordFor,
-  sizeChipWordFor,
-  sizeLabel,
+  sizeWordFor,
   speciesWordFor,
 } from "./animal-labels";
 export { colourChipLabel, colourFilterLabel } from "./colour-labels";

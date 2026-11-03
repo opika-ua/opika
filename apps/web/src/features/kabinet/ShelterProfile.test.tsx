@@ -109,7 +109,7 @@ describe("ShelterProfile (K4, read-only)", () => {
     renderProfile();
     expect(
       within(screen.getByRole("region", { name: t.contactsTitle })).getByText(
-        "Ці контакти бачить людина, коли натискає «Написати притулку», – і пише вам сама. Листування йде напряму, без посередників.",
+        "Ці контакти бачить людина, коли натискає «Дати сімʼю», – і пише вам сама. Листування йде напряму, без посередників.",
       ),
     ).toBeTruthy();
     expect(

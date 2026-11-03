@@ -18,7 +18,7 @@ import {
   type ShelterFacingVerification,
   type WithdrawalReason,
 } from "@opika/domain";
-import { ageWordFor, fillTemplate, uk } from "@opika/i18n";
+import { animalFactsParts, fillTemplate, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 import type { InferContractRouterOutputs } from "@orpc/contract";
 import { publishedAnnouncementOf, type ShelterVisibility } from "../animal-form/labels";
@@ -107,35 +107,19 @@ export const staleLineOf = (count: number): string =>
     days: integer.format(DEFAULT_FRESHNESS_POLICY.agingMaxDays),
   });
 
-const SPECIES: Record<AnimalRow["species"], string> = {
-  dog: uk.detail.speciesDog,
-  cat: uk.detail.speciesCat,
-};
-const SEX: Record<AnimalRow["sex"], string> = {
-  male: uk.kabinet.animalForm.who.sexMale,
-  female: uk.kabinet.animalForm.who.sexFemale,
-  unknown: uk.kabinet.profileNotRecorded,
-};
-const SIZE: Record<NonNullable<AnimalRow["size"]>, string> = {
-  small: uk.filters.sizeSmall,
-  medium: uk.filters.sizeMedium,
-  large: uk.filters.sizeLarge,
-};
-
 /**
- * Species · sex · size · age (his answer 6): K3's own segment labels, and
- * the card's age word for the bucket the age is in today, agreeing with the
- * animal's sex as the card's does (Q9: «молода» for a female). A draft's missing
- * size or age is left out rather than written «Не записано»: it is a gap,
- * named in the gap line, not an answer. No foster part (K-Q10).
+ * Species · sex · age · size, the shared facts line (his answer 3, UX-2). A draft's missing size
+ * or age is left out rather than written «Не записано»: it is a gap, named in the gap line. An
+ * unknown sex shows «стать не вказана» here only, where the shelter can fix it. No foster part (K-Q10).
  */
 export const metaLineOf = (row: AnimalRow, now: Date): string =>
-  [
-    SPECIES[row.species],
-    SEX[row.sex],
-    ...(row.size === null ? [] : [SIZE[row.size]]),
-    ...(row.age === null ? [] : [ageWordFor(ageBucketOf(row.age, now), row.sex)]),
-  ].join(" · ");
+  animalFactsParts({
+    species: row.species,
+    sex: row.sex,
+    ageBucket: row.age === null ? null : ageBucketOf(row.age, now),
+    size: row.size,
+    unknownSexText: t.sexNotStated,
+  }).join(" · ");
 
 /** A day on Kyiv's calendar in `Intl`'s words, «12 вересня», with the year when it isn't this one. */
 export const dayOf = (date: Date, now: Date): string => {

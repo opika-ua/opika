@@ -981,6 +981,7 @@ export const en = {
       },
       add: "Add an animal",
       addShort: "Add",
+      sexNotStated: "sex not stated",
       filter: {
         label: "Show",
         all: "All",

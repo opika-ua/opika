@@ -212,7 +212,7 @@ type RegistrySheltersPayload = {
   id: string;
 };
 
-/** Bound to the search and the status filter, like the feed's to its filters. */
+/** Bound to the search and the status filter, like a gallery filter set. */
 export const registrySheltersFingerprint = (search: string | null, status: string | null): string =>
   JSON.stringify([search, status]);
 

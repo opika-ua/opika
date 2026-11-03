@@ -2,11 +2,9 @@ import { AGE_BUCKETS, SIZE_BUCKETS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
   ageBucketLabel,
-  ageChipWordFor,
   ageWordFor,
+  animalFactsParts,
   sexWordFor,
-  sizeChipWordFor,
-  sizeLabel,
   speciesWordFor,
 } from "./animal-labels";
 
@@ -19,18 +17,6 @@ describe("ageBucketLabel", () => {
 
   it("matches the card meta line's expected word for a known bucket", () => {
     expect(ageBucketLabel("young")).toBe("молодий");
-  });
-});
-
-describe("sizeLabel", () => {
-  it("returns a distinct, non-empty word for every bucket", () => {
-    const labels = SIZE_BUCKETS.map(sizeLabel);
-    expect(labels.every((label) => label.length > 0)).toBe(true);
-    expect(new Set(labels).size).toBe(SIZE_BUCKETS.length);
-  });
-
-  it("matches the card meta line's expected word for a known bucket", () => {
-    expect(sizeLabel("small")).toBe("мала");
   });
 });
 
@@ -58,40 +44,65 @@ describe("ageWordFor, each sex × bucket", () => {
   });
 });
 
-/** The pet card's chip: the same agreement as `ageWordFor`, capitalised. Every sex × bucket. */
-describe("ageChipWordFor, each sex × bucket", () => {
-  it.each([
-    ["male", "baby", "Малюк"],
-    ["male", "young", "Молодий"],
-    ["male", "adult", "Дорослий"],
-    ["male", "senior", "Літній"],
-    ["female", "baby", "Малючка"],
-    ["female", "young", "Молода"],
-    ["female", "adult", "Доросла"],
-    ["female", "senior", "Літня"],
-    ["unknown", "baby", "Малюк"],
-    ["unknown", "young", "Молодий"],
-    ["unknown", "adult", "Дорослий"],
-    ["unknown", "senior", "Літній"],
-  ] as const)("%s, %s → «%s»", (sex, bucket, word) => {
-    expect(ageChipWordFor(bucket, sex)).toBe(word);
-  });
-});
+const AGE_M = { baby: "малюк", young: "молодий", adult: "дорослий", senior: "літній" } as const;
+const AGE_F = { baby: "малючка", young: "молода", adult: "доросла", senior: "літня" } as const;
+const SIZE_M = { small: "малий", medium: "середній", large: "великий" } as const;
+const SIZE_F = { small: "мала", medium: "середня", large: "велика" } as const;
+const cap = (word: string) => word.charAt(0).toLocaleUpperCase("uk") + word.slice(1);
 
-/** The pet card's size chip agrees with sex like the age chip. Every size × sex. */
-describe("sizeChipWordFor, each sex × size", () => {
-  it.each([
-    ["male", "small", "Малий"],
-    ["male", "medium", "Середній"],
-    ["male", "large", "Великий"],
-    ["female", "small", "Мала"],
-    ["female", "medium", "Середня"],
-    ["female", "large", "Велика"],
-    ["unknown", "small", "Малий"],
-    ["unknown", "medium", "Середній"],
-    ["unknown", "large", "Великий"],
-  ] as const)("%s, %s → «%s»", (sex, size, word) => {
-    expect(sizeChipWordFor(size, sex)).toBe(word);
+/** UX-2: every sex × age × size, with and without species, exact strings. */
+describe("animalFactsParts", () => {
+  const rows = (["male", "female", "unknown"] as const).flatMap((sex) =>
+    AGE_BUCKETS.flatMap((age) => SIZE_BUCKETS.map((size) => ({ sex, age, size }))),
+  );
+
+  it.each(rows)("$sex $age $size, no species", ({ sex, age, size }) => {
+    const f = sex === "female";
+    const sexWord = sex === "male" ? ["Хлопчик"] : sex === "female" ? ["Дівчинка"] : [];
+    const rest = [(f ? AGE_F : AGE_M)[age], (f ? SIZE_F : SIZE_M)[size]];
+    const expected = [...sexWord, ...rest];
+    expected[0] = cap(expected[0] as string);
+    expect(animalFactsParts({ sex, ageBucket: age, size })).toEqual(expected);
+  });
+
+  it.each(rows)("$sex $age $size, with species", ({ sex, age, size }) => {
+    const f = sex === "female";
+    for (const [species, word] of [
+      ["cat", "Кіт"],
+      ["dog", "Собака"],
+    ] as const) {
+      const sexWord = sex === "male" ? ["хлопчик"] : sex === "female" ? ["дівчинка"] : [];
+      expect(animalFactsParts({ species, sex, ageBucket: age, size })).toEqual([
+        word,
+        ...sexWord,
+        (f ? AGE_F : AGE_M)[age],
+        (f ? SIZE_F : SIZE_M)[size],
+      ]);
+    }
+  });
+
+  it("an unknown sex starts the line with the age, masculine throughout", () => {
+    expect(
+      animalFactsParts({ sex: "unknown", ageBucket: "young", size: "large" }).join(" · "),
+    ).toBe("Молодий · великий");
+  });
+
+  it("leaves out a missing age or size (a kabinet draft)", () => {
+    expect(animalFactsParts({ species: "dog", sex: "male", ageBucket: null, size: null })).toEqual([
+      "Собака",
+      "хлопчик",
+    ]);
+  });
+
+  it("puts the caller's unknown-sex text in the sex slot, lowercase, only when asked", () => {
+    const facts = { species: "cat", sex: "unknown", ageBucket: "adult", size: "small" } as const;
+    expect(animalFactsParts({ ...facts, unknownSexText: "стать не вказана" })).toEqual([
+      "Кіт",
+      "стать не вказана",
+      "дорослий",
+      "малий",
+    ]);
+    expect(animalFactsParts(facts)).toEqual(["Кіт", "дорослий", "малий"]);
   });
 });
 
