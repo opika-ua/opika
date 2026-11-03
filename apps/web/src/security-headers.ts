@@ -4,8 +4,6 @@
  * every subdomain (no preload), a cross-origin referrer limited to the origin,
  * and the browser features the app never uses switched off. The full policy is
  * report-only until its reports have been read: nothing in it blocks anything yet.
- * The credential and token pages set a stricter Referrer-Policy of their own
- * (`proxy.ts`, and a meta tag), which replaces this one there.
  */
 export type SecurityHeader = { key: string; value: string };
 
@@ -16,12 +14,23 @@ export type SecurityHeaderOptions = {
   development: boolean;
 };
 
+/**
+ * The site-wide Referrer-Policy, on every path except the sign-in pages (`/kabinet/vkhid*`).
+ * Those carry a credential in their URL and set their own, stricter policy
+ * (`kabinet/token-pages.ts`, `CONFIRM_HEADERS`); a config header would override it, and
+ * `strict-origin-when-cross-origin` sends the full URL, token included, as the Referer of
+ * their own same-origin POST. The harness (`kabinet-confirm`) caught exactly that.
+ */
+export const REFERRER_POLICY_RULE: { source: string; headers: SecurityHeader[] } = {
+  source: "/:path((?!kabinet/vkhid).*)",
+  headers: [{ key: "Referrer-Policy", value: "strict-origin-when-cross-origin" }],
+};
+
 export function securityHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
   return [
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
     { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
-    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     // Nothing here uses these; an empty allowlist also stops an embedded script from asking.
     {
       key: "Permissions-Policy",

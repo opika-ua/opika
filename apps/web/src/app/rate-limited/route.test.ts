@@ -32,7 +32,7 @@ it("fetches the screen from the configured origin, whatever Host or forwarded he
   vi.stubEnv("BETTER_AUTH_URL", "https://opika.example");
   const fetchStub = vi.fn(async () => new Response("<h1>screen</h1>", { status: 200 }));
   vi.stubGlobal("fetch", fetchStub);
-  const spoofed = new Request("https://attacker.example/rate-limited", {
+  const spoofed = new Request("https://attacker.example/rate-limited?gate=x", {
     headers: {
       host: "attacker.example",
       "x-forwarded-host": "attacker.example",
@@ -44,6 +44,7 @@ it("fetches the screen from the configured origin, whatever Host or forwarded he
   const [url] = fetchStub.mock.calls[0] as unknown as [URL];
   expect(url.origin).toBe("https://opika.example");
   expect(url.pathname).toBe("/rate-limited/screen");
+  expect(url.search).toBe("?gate=x");
 });
 
 it("in production with no configured origin, makes no fetch and still answers 429", async () => {

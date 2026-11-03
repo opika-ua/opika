@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { securityHeaders } from "./security-headers";
+import { REFERRER_POLICY_RULE, securityHeaders } from "./security-headers";
 
 /**
  * Audit F5, the owner's scope: three enforced headers (nosniff, no framing,
@@ -34,14 +34,22 @@ describe("securityHeaders", () => {
       "Content-Security-Policy",
       "Content-Security-Policy-Report-Only",
       "Permissions-Policy",
-      "Referrer-Policy",
       "Strict-Transport-Security",
       "X-Content-Type-Options",
     ]);
   });
 
   it("limits the cross-origin referrer to the origin and switches off unused browser features", () => {
-    expect(headerValue(production, "Referrer-Policy")).toBe("strict-origin-when-cross-origin");
+    expect(REFERRER_POLICY_RULE.headers).toEqual([
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    ]);
+    // Not on the credential pages, which set a stricter policy of their own.
+    const everywhere = new RegExp(`^${REFERRER_POLICY_RULE.source.replace(/^\/:path/, "/")}$`);
+    expect(everywhere.test("/tvaryny/gortaty")).toBe(true);
+    expect(everywhere.test("/kabinet/tvaryny")).toBe(true);
+    expect(everywhere.test("/kabinet/vkhid")).toBe(false);
+    expect(everywhere.test("/kabinet/vkhid/pidtverdzhennia")).toBe(false);
+    expect(everywhere.test("/kabinet/vkhid/novyi-parol")).toBe(false);
     const features = (headerValue(production, "Permissions-Policy") ?? "").split(", ").sort();
     expect(features).toEqual([
       "camera=()",

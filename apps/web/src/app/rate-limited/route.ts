@@ -17,6 +17,8 @@ export async function GET(request: Request): Promise<Response> {
     const origin = servedSiteOrigin(process.env, request);
     if (origin === null) throw new Error("no site origin");
     const url = new URL("/rate-limited/screen", origin);
+    // The query (the pre-launch gate's parameter) goes along, as it did when the URL was the request's own.
+    url.search = new URL(request.url).search;
     const cookie = request.headers.get("cookie");
     const screen = await fetch(url, {
       headers: cookie === null ? {} : { cookie },
