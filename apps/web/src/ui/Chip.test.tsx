@@ -127,13 +127,13 @@ describe("Chip", () => {
     render(
       <>
         <Chip kind="fact">Спокійний</Chip>
-        <Chip kind="fact" href="/tvaryny?stat=male" aria-label="Показати схожих котів: хлопчик">
+        <Chip kind="fact" href="/tvaryny?stat=male" aria-label="хлопчик: показати схожих котів">
           Хлопчик
         </Chip>
       </>,
     );
     expect(screen.getByText("Спокійний").closest("a")).toBeNull();
-    const link = screen.getByRole("link", { name: "Показати схожих котів: хлопчик" });
+    const link = screen.getByRole("link", { name: "хлопчик: показати схожих котів" });
     expect(link.textContent).toBe("Хлопчик");
   });
 });

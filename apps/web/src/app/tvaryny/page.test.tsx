@@ -57,11 +57,11 @@ describe("/tvaryny (renderGallery)", () => {
     const grid = within(screen.getByTestId("gallery-grid"));
     const link = grid.getByRole("link");
     expect(link.getAttribute("href")).toBe(`/tvaryny/${animal.id}`);
-    expect(link.getAttribute("aria-label")).toContain("Мурчик");
+    expect(link.textContent).toContain("Мурчик");
     // gallery-v3 (Figma `58:1617`): the card's visible meta line no longer
     // shows city at all (sex · age · size only) - city stays in the
     // accessible name, which this is the real-handler proof of.
-    expect(link.getAttribute("aria-label")).toContain("Бровари");
+    expect(grid.getByRole("link", { name: /Бровари/ })).toBeTruthy();
     expect(screen.getByTestId("card-meta").textContent).not.toContain("Бровари");
   });
 

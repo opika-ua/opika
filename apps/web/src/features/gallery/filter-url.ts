@@ -607,10 +607,15 @@ const CHIP_SPECIES_WORDS: Record<AnimalSpecies, string> = {
  * a separately-maintained set of lowercase words - one source per dimension,
  * the same discipline as the maps above.
  */
-export function similarAnimalsLabel(species: AnimalSpecies, chip: FilterableChip): string {
+export function similarAnimalsLabel(
+  species: AnimalSpecies,
+  chip: FilterableChip,
+  /** The chip's visible text when it differs from the filter word: the name must begin with it. */
+  visibleText?: string,
+): string {
   return fillTemplate(uk.detail.chipLinkName, {
     species: CHIP_SPECIES_WORDS[species],
-    value: chipDisplayLabel(chip).toLowerCase(),
+    value: (visibleText ?? chipDisplayLabel(chip)).toLowerCase(),
   });
 }
 

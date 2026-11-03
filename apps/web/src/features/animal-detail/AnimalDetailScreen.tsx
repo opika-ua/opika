@@ -373,7 +373,7 @@ function FilterableChipLink<D extends Parameters<typeof chipDisplayLabel>[0]["di
     <Chip
       kind="fact"
       href={similarAnimalsHref(species, chip)}
-      aria-label={similarAnimalsLabel(species, chip)}
+      aria-label={similarAnimalsLabel(species, chip, visibleText)}
     >
       {visibleText ?? chipDisplayLabel(chip)}
     </Chip>

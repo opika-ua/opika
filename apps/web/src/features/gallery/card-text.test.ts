@@ -1,8 +1,7 @@
 import type { FeedCardView } from "@opika/contracts";
 import type { Freshness } from "@opika/domain";
-import { freshnessLabel } from "@opika/ui";
 import { describe, expect, it } from "vitest";
-import { cardAccessibleName, cardFactsParts, housingCityLabel, isReserved } from "./card-text";
+import { cardFactsParts, housingCityLabel, isReserved } from "./card-text";
 
 const FRESHNESS: Freshness = {
   kind: "fresh",
@@ -86,36 +85,5 @@ describe("cardFactsParts", () => {
       publicLocation: { cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never },
     });
     expect(cardFactsParts(card).join(" ")).not.toContain("перетримці");
-  });
-});
-
-describe("cardAccessibleName", () => {
-  it("stays age-only: no sex word and no size word (UX-2 decision 4)", () => {
-    const card = makeCard({ sex: "female", ageBucket: "adult", size: "large" });
-    const name = cardAccessibleName(card, "Бровари");
-    expect(name).toContain("доросла");
-    expect(name).not.toMatch(/Дівчинка|велика/);
-  });
-
-  it("composes name, age, city, then the freshness sentence - docs/design/README.md 'Keyboard'", () => {
-    const card = makeCard({ name: "Мурчик", ageBucket: "young" });
-    const expected = `Мурчик, молодий, Бровари, ${freshnessLabel(FRESHNESS)}`;
-    expect(cardAccessibleName(card, "Бровари")).toBe(expected);
-  });
-
-  it("inserts the reserved badge text right after the name", () => {
-    const card = makeCard({ name: "Мурчик", listingKind: "reserved" });
-    const name = cardAccessibleName(card, "Бровари");
-    expect(name.startsWith("Мурчик, Уже домовляються, ")).toBe(true);
-  });
-
-  it("never mentions the reserved badge for a published animal", () => {
-    const card = makeCard({ listingKind: "published" });
-    expect(cardAccessibleName(card, "Бровари")).not.toContain("домовляються");
-  });
-
-  it("omits city cleanly when it hasn't resolved", () => {
-    const card = makeCard({ name: "Мурчик", ageBucket: "young" });
-    expect(cardAccessibleName(card, null)).toBe(`Мурчик, молодий, ${freshnessLabel(FRESHNESS)}`);
   });
 });

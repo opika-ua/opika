@@ -199,7 +199,7 @@ test.describe("/tvaryny/[animalId] keyboard reachability", () => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
     await expectReachableByTab(page, {
       label: "a «Показати схожих» chip link",
-      locator: page.getByRole("link", { name: /Показати схожих/ }).first(),
+      locator: page.getByRole("link", { name: /: показати схожих/ }).first(),
     });
   });
 
