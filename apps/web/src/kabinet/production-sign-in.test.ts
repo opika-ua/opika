@@ -342,7 +342,8 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 715 with the kabinet shell (owner-approved 2026-11-02): plus `shell.operator`;
     // `shell.toSite` and `shell.accountAndPassword` replace `shell.viewSite` and
     // `profileTabs.account`. The page title is the shelter's name alone (no wrapper string).
-    expect(pending.length + written.length).toBe(715);
+    // 716 with `animalList.sexNotStated` (owner-approved 2026-11-03, UX-2).
+    expect(pending.length + written.length).toBe(716);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

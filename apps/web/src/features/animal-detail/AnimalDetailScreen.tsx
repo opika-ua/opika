@@ -1,11 +1,12 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
 import { donationHost, hasAnyDocumentEvidence, textIn } from "@opika/domain";
 import {
-  ageChipWordFor,
+  ageWordFor,
+  animalFactsParts,
   colourChipLabel,
   fillTemplate,
   sexWordFor,
-  sizeChipWordFor,
+  sizeWordFor,
   temperamentLabelFor,
   uk,
 } from "@opika/i18n";
@@ -214,14 +215,14 @@ export function AnimalDetailContent({
             species={animal.species}
             dimension="ages"
             value={animal.ageBucket}
-            visibleText={ageChipWordFor(animal.ageBucket, animal.sex)}
+            visibleText={capitalised(ageWordFor(animal.ageBucket, animal.sex))}
           />
           <SexChip species={animal.species} sex={animal.sex} />
           <FilterableChipLink
             species={animal.species}
             dimension="sizes"
             value={animal.size}
-            visibleText={sizeChipWordFor(animal.size, animal.sex)}
+            visibleText={capitalised(sizeWordFor(animal.size, animal.sex))}
           />
           {animal.temperament
             .filter((entry) => entry.kind === "preset")
@@ -299,14 +300,19 @@ export function AnimalDetailContent({
   );
 }
 
-/** Sex, age bucket and size: the gallery card's three facts, composed here from the detail view. */
+/** Species, sex, age bucket and size: the shared facts line, same as every other animal surface. */
 function metaParts(animal: AnimalDetailView): string[] {
-  return [
-    sexWordFor(animal.sex),
-    ageChipWordFor(animal.ageBucket, animal.sex),
-    sizeChipWordFor(animal.size, animal.sex),
-  ].filter((part): part is string => Boolean(part));
+  return animalFactsParts({
+    species: animal.species,
+    sex: animal.sex,
+    ageBucket: animal.ageBucket,
+    size: animal.size,
+  });
 }
+
+/** «Про мене» chips keep their own capitalised look (UX review #14 is out of scope here). */
+const capitalised = (word: string): string =>
+  word.charAt(0).toLocaleUpperCase("uk") + word.slice(1);
 
 /** Coat length's own words, no longer read through `chipDisplayLabel` (gallery filter
  * restructure removed the fur filter, which that function served): the two words

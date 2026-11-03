@@ -1719,6 +1719,7 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.captionCards.many": "{count} карток",
     "kabinet.animalList.add": "Додати тварину",
     "kabinet.animalList.addShort": "Додати",
+    "kabinet.animalList.sexNotStated": "стать не вказана",
     "kabinet.nav.label": "Розділи кабінету",
     "kabinet.nav.animals": "Тварини",
     "kabinet.animalList.filter.label": "Показати",

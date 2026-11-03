@@ -81,15 +81,21 @@ describe("the stale strip's sentence", () => {
   });
 });
 
-describe("the meta line: species · sex · size · age (his answer 6)", () => {
-  it("K3's segment labels and the card's age word", () => {
-    expect(metaLineOf(row(), NOW)).toBe("Собака · Хлопчик · Середній · молодий");
+describe("the meta line: [species] · sex · age · size (UX-2)", () => {
+  it("the shared order and case: species first, the rest lowercase, size agreeing with sex", () => {
+    expect(metaLineOf(row(), NOW)).toBe("Собака · хлопчик · молодий · середній");
     expect(metaLineOf(row({ species: "cat", sex: "female", size: "small" }), NOW)).toBe(
-      "Кіт · Дівчинка · Малий · молода",
+      "Кіт · дівчинка · молода · мала",
     );
   });
 
-  it("an unknown sex reads «Не записано»; a draft's missing size and age are left out, not answered", () => {
+  it("an unknown sex reads «стать не вказана» here, in the sex slot", () => {
+    expect(metaLineOf(row({ species: "cat", sex: "unknown", size: "large" }), NOW)).toBe(
+      "Кіт · стать не вказана · молодий · великий",
+    );
+  });
+
+  it("a draft's missing size and age are left out, not answered", () => {
     expect(
       metaLineOf(
         row({
@@ -100,7 +106,7 @@ describe("the meta line: species · sex · size · age (his answer 6)", () => {
         } as Partial<AnimalRow>),
         NOW,
       ),
-    ).toBe("Собака · Не записано");
+    ).toBe("Собака · стать не вказана");
   });
 
   it("the age word is the bucket the age is in today, not when it was entered", () => {
@@ -110,7 +116,7 @@ describe("the meta line: species · sex · size · age (his answer 6)", () => {
       declaredAt: new Date("2025-01-01"),
     };
     expect(metaLineOf(row({ age: declared } as Partial<AnimalRow>), NOW)).toBe(
-      "Собака · Хлопчик · Середній · молодий",
+      "Собака · хлопчик · молодий · середній",
     );
   });
 });
