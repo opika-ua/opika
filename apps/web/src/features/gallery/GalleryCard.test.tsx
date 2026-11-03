@@ -238,3 +238,32 @@ describe("GalleryCard on a phone (text under the photo)", () => {
     expect(screen.getByTestId("card-name").textContent).toBe(name);
   });
 });
+
+describe("GalleryCard photo loading", () => {
+  const withPhoto = makeCard({
+    primaryPhoto: { storageKey: "/seed-photos/dog-1.jpg" } as FeedCardView["primaryPhoto"],
+  });
+  const img = (container: HTMLElement) => container.querySelector("img");
+
+  it("the first-row photo loads now, without high priority", () => {
+    const { container } = render(
+      <GalleryCard card={withPhoto} cityName={null} eager {...NO_CONTEXT} />,
+    );
+    expect(img(container)?.getAttribute("loading")).toBe("eager");
+    expect(img(container)?.getAttribute("fetchpriority")).toBeNull();
+  });
+
+  it("the priority photo gets fetchpriority high and is not lazy", () => {
+    const { container } = render(
+      <GalleryCard card={withPhoto} cityName={null} priority eager {...NO_CONTEXT} />,
+    );
+    expect(img(container)?.getAttribute("fetchpriority")).toBe("high");
+    expect(img(container)?.getAttribute("loading")).not.toBe("lazy");
+  });
+
+  it("a photo below the first row stays lazy", () => {
+    const { container } = render(<GalleryCard card={withPhoto} cityName={null} {...NO_CONTEXT} />);
+    expect(img(container)?.getAttribute("loading")).toBe("lazy");
+    expect(img(container)?.getAttribute("fetchpriority")).toBeNull();
+  });
+});
