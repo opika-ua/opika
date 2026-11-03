@@ -27,7 +27,7 @@ decision already settled in `docs/`; if something there looks wrong, ask before 
 | Any Ukrainian text | skill `opika-copy` |
 | Layout or mobile work | skill `opika-responsive` |
 | A PR touching SQL or a migration | skill `opika-smoke` |
-| Before changing verification rules, shelter-facing copy commitments, `/prytulkam` claims, or product rules (freshness, swipe, money) | `docs/standing-constraints.md` (all of it) |
+| Before changing verification rules, shelter-facing copy commitments, `/prytulkam` claims, or product rules (freshness, money; the swipe rules are retired) | `docs/standing-constraints.md` (all of it) |
 | Choosing a model for a task or subagent | `docs/model-policy.md` |
 | Brand constraints the design must keep | `docs/design/brand-constraints.md` (`docs/design/README.md` is the retired «Реєстр» spec, history only; `docs/ui` replaces it) |
 | Stack rationale, prices, versions | `docs/stack-decision.md` |
@@ -84,8 +84,8 @@ Priority: speed with sensible quality.
 
 
 ## What this is
-A swipe-based pet adoption platform connecting adopters with verified shelters across Ukraine (owner
-decision, 2026-10-29). Solo developer, React/TypeScript background, ~10h/week. MVP scope, with a
+A gallery-first registry of verified shelters' animals across Ukraine (owner decision, 2026-10-29;
+the swipe deck was retired 2026-11-02, owner decision). Solo developer, React/TypeScript background, ~10h/week. MVP scope, with a
 documented path through Phases 2-4: ad revenue, registry integration, cross-border adoption to Poland/EU.
 
 ## The name is final: keep it out of the domain
@@ -99,7 +99,6 @@ Rationale: `docs/dev-notes.md`.
 | Layer            | Choice                                                                                                                                                                                                                   |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Client           | Next.js 16.4 App Router, PWA (manifest now; Serwist offline later), React 19.2, React Compiler NOT enabled (decision 2026-11-02, `docs/stack-decision.md`)                                                                                           |
-| Swipe deck       | Hand-rolled `PointerEvent` + `transform` (no gesture library)                                                                                                                                                            |
 | API contract     | oRPC (`@orpc/contract`) in contract-first mode, Zod 4. Settled on the stable 1.x line (tRPC v11 is only the documented fallback)                                                                                                                   |
 | Server runtime   | Node 24 LTS, inside Next.js route handlers; domain logic framework-free                                                                                                                                                  |
 | DB               | Postgres 18 on Neon (Free plan today; upgrade to Launch before onboarding), PostGIS available but not enabled at MVP                                                                                                                               |
@@ -188,7 +187,7 @@ pnpm lint:fix              # biome check --write .
 pnpm format                # biome format --write .
 pnpm test                 # vitest, all packages
 pnpm build:web            # DO NOT REMOVE from check - see "Module resolution"
-pnpm test:harness         # Playwright rendering harness against /tvaryny and /tvaryny/gortaty
+pnpm test:harness         # Playwright rendering harness against /tvaryny
 
 # One-time, and again after a Playwright version bump:
 pnpm --filter @opika/web test:harness:install   # downloads Chromium

@@ -17,12 +17,10 @@ interface RevealFlowProps {
 /**
  * The trigger button plus the detail page's own framing around
  * `ContactRevealDialog` (R3, Phase R, `docs/build-plan.md`, extracted the
- * dialog itself and `useReveal`'s state machine out of this component so
- * the deck could open the identical dialog - see both files' own comments).
+ * dialog itself and `useReveal`'s state machine out of this component).
  *
- * `secondaryAction` is the one thing this page passes that the deck does
- * not: dismissing the reveal here already meant "back to the gallery"
- * before this dialog existed, so the text link stays. Focus returns to
+ * `secondaryAction` is the dismiss link: dismissing the reveal here already
+ * meant "back to the gallery" before this dialog existed. Focus returns to
  * this trigger button on close - `close`'s own job, not the dialog's,
  * since the dialog has no idea what triggered it.
  *

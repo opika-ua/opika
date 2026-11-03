@@ -1,6 +1,5 @@
 import { ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { WORDMARK } from "../../brand";
 import { LinkButton } from "../../ui/Button";
 import { Container } from "../../ui/Container";
@@ -11,8 +10,7 @@ import { BrandLogo } from "./BrandLogo";
 import { MobileNavMenu } from "./MobileNavMenu";
 
 /**
- * The one header, on every user-facing surface except the deck (the deck has its own chrome and
- * "never two navigations at once"). Built from the kit: `Container` for width and gutters,
+ * The one header, on every user-facing surface. Built from the kit: `Container` for width and gutters,
  * `Sheet` (via `MobileNavMenu`) for the hamburger drawer below `desktop:`, the token set for the
  * rest. 72px tall from desktop, 64 below; every link keeps a 48px hit area. The inline nav starts
  * at `desktop` (1024), the burger drawer below it.
@@ -25,8 +23,6 @@ export { WORDMARK };
 export type NavCurrent = "animals" | "forShelters" | "about" | "saved";
 
 export interface SiteHeaderProps {
-  /** Surface-specific trailing actions, after the nav - the gallery's deck entry. */
-  readonly children?: ReactNode;
   /**
    * Suppresses the link on the wordmark when this *is* the gallery. A link to
    * the page you are already on is a WCAG 2.4.4-adjacent annoyance and a
@@ -37,8 +33,7 @@ export interface SiteHeaderProps {
   readonly wordmarkIsCurrentPage?: boolean;
   /**
    * Whether the kabinet session cookie is present (a UI hint, never security). A signed-in shelter
-   * gets the filled «Кабінет» pill and no `children` (every current caller's is adopter-only: the
-   * deck entry link); the rest of the header is the same for everyone. No default: every caller
+   * gets the filled «Кабінет» pill; the rest of the header is the same for everyone. No default: every caller
    * decides this from its own request, via `kabinetSessionCookiePresent()`
    * (`kabinet-signed-in.ts`), so an omission cannot go unnoticed.
    */
@@ -142,7 +137,6 @@ function NavLinks({
 }
 
 export function SiteHeader({
-  children,
   wordmarkIsCurrentPage = false,
   kabinetSignedIn,
   current,
@@ -181,9 +175,6 @@ export function SiteHeader({
         <MobileNavMenu>
           <NavLinks audience={audience} current={current} layout="menu" />
         </MobileNavMenu>
-
-        {/* Every current caller's `children` is adopter-only (the deck entry link). */}
-        {audience === "visitor" && children}
       </Container>
     </header>
   );

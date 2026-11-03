@@ -51,20 +51,6 @@ describe("SiteHeader", () => {
     expect(screen.getByRole("navigation", { name: "Opika" })).toBeTruthy();
   });
 
-  it("renders a surface-specific trailing slot alongside the site nav", () => {
-    render(
-      <SiteHeader kabinetSignedIn={false}>
-        <span>deck entry</span>
-      </SiteHeader>,
-    );
-
-    expect(screen.getByText("deck entry")).toBeTruthy();
-    // Both site links survive the presence of surface chrome - the regression
-    // would be a slot that visually or structurally displaces the nav.
-    expect(screen.getByRole("link", { name: uk.nav.about })).toBeTruthy();
-    expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
-  });
-
   it("links «Тварини» to the gallery and marks the current entry with aria-current", () => {
     render(<SiteHeader kabinetSignedIn={false} current="about" />);
 
@@ -95,18 +81,13 @@ describe("SiteHeader", () => {
     expect(screen.queryByRole("link", { name: uk.nav.kabinet, hidden: true })).toBeNull();
   });
 
-  it("a signed-in shelter gets the «Кабінет» pill and the same links as a visitor, plus no deck entry", () => {
-    render(
-      <SiteHeader kabinetSignedIn={true}>
-        <span>deck entry</span>
-      </SiteHeader>,
-    );
+  it("a signed-in shelter gets the «Кабінет» pill and the same links as a visitor", () => {
+    render(<SiteHeader kabinetSignedIn={true} />);
 
     const pill = screen.getByTestId("nav-kabinet");
     expect(pill.getAttribute("href")).toBe("/kabinet");
     expect(pill.textContent).toBe(uk.nav.kabinet);
     expect(screen.getByTestId("nav-kabinet-menu").getAttribute("href")).toBe("/kabinet");
-    expect(screen.queryByText("deck entry")).toBeNull();
     expect(screen.getByRole("link", { name: uk.nav.about })).toBeTruthy();
     expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
     expect(screen.getByRole("link", { name: uk.nav.animals })).toBeTruthy();

@@ -31,7 +31,7 @@ These live in `docs/standing-constraints.md` ("Product rules that are not negoti
   reads «Не записано», never as "no" and never as an error.
 - **A fostered animal never gets a map pin.** A city-precision location renders as a place
   name.
-- **The swipe filters; it doesn't judge:** «Не зараз», never "nope". No stamps, scores, streaks
+- **The swipe filters; it doesn't judge** *(deck retired 2026-11-02)*: «Не зараз», never "nope". No stamps, scores, streaks
   or celebration.
 - **No money UI:** a donation is an external link, with its domain shown before the tap.
 - **Contrast:** text and meaningful marks meet WCAG AA on their background. That includes the

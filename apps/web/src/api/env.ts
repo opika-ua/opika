@@ -34,7 +34,7 @@ export function requireEnv(name: string): string {
  * a request happens to reach a code path that calls it. `gallery.list` uses
  * `OFFSET` pagination and never touches `CURSOR_HMAC_SECRET` at all, so a
  * deploy missing it would build cleanly, serve the gallery correctly, and
- * only 500 the first time someone opens the deck or a reveal - discovered by
+ * only 500 the first time someone opens a reveal - discovered by
  * a real visitor, not by the deploy itself. This schema is the single
  * manifest `validateEnv` checks as a whole, so a missing secret fails before
  * the instance accepts its first request, all missing names at once, not

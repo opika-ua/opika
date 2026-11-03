@@ -14,13 +14,10 @@ import {
   type CitySlugsById,
   chipDisplayLabel,
   cityTokensOf,
-  deckEntryHref,
-  filtersInWords,
   galleryHref,
   galleryPageHref,
   NO_PLACE_IDS,
   type PlaceIdsBySlug,
-  parseDeckQuery,
   parseGalleryQuery,
   redirectHrefForNonCanonicalCities,
   resetFiltersHref,
@@ -280,82 +277,6 @@ describe("galleryPageHref", () => {
   });
 });
 
-describe("deckEntryHref / parseDeckQuery", () => {
-  it("round-trips filters and carries the total through, with no sort/page params at all", () => {
-    const filters = withOnlySpecies(withToggledCity(NO_FILTERS, CITY_A), "dog");
-    const href = deckEntryHref(filters, 34, CITY_SLUGS);
-
-    expect(href).not.toContain("sort=");
-    expect(href).not.toContain("stor=");
-
-    const reparsed = parseDeckQuery(
-      Object.fromEntries(new URL(href, "http://x").searchParams),
-      CITIES_BY_SLUG,
-    );
-    expect(reparsed).toEqual({ filters, total: 34 });
-  });
-
-  it("an unfiltered gallery produces a bare href with only the total", () => {
-    expect(deckEntryHref(NO_FILTERS, 320, NO_CITIES)).toBe("/tvaryny/gortaty?total=320");
-  });
-
-  it("parseDeckQuery falls back to null when total is missing - direct navigation, not a filtered click", () => {
-    expect(parseDeckQuery({}, NO_SLUGS)).toEqual({ filters: NO_FILTERS, total: null });
-  });
-
-  it("parseDeckQuery falls back to null on a garbage total rather than throwing", () => {
-    expect(parseDeckQuery({ total: "not-a-number" }, NO_SLUGS)).toEqual({
-      filters: NO_FILTERS,
-      total: null,
-    });
-  });
-
-  it("parseDeckQuery falls back to null on an implausibly large total - untrusted input, not rendered verbatim", () => {
-    expect(parseDeckQuery({ total: "99999999" }, NO_SLUGS)).toEqual({
-      filters: NO_FILTERS,
-      total: null,
-    });
-  });
-
-  it("parseDeckQuery falls back to null on total=0 - deckEntryHref never produces one, so it's already a stale or hand-edited link", () => {
-    expect(parseDeckQuery({ total: "0" }, NO_SLUGS)).toEqual({ filters: NO_FILTERS, total: null });
-  });
-
-  it("ignores a stray sort/stor param carried over by accident", () => {
-    const { filters } = parseDeckQuery(
-      { sort: "longest_waiting", stor: "3", total: "10" },
-      NO_SLUGS,
-    );
-    expect(filters).toEqual(NO_FILTERS);
-  });
-});
-
-describe("filtersInWords", () => {
-  const cityNames = new Map([[CITY_A, "Бровари"]]);
-
-  it("names nothing when every dimension is unconstrained", () => {
-    expect(filtersInWords(NO_FILTERS, cityNames)).toBeNull();
-  });
-
-  it("joins only the dimensions actually constrained, city first", () => {
-    const filters = withToggledSize(
-      withOnlySpecies(withToggledCity(NO_FILTERS, CITY_A), "dog"),
-      "medium",
-    );
-    expect(filtersInWords(filters, cityNames)).toBe("Бровари · собаки · середній");
-  });
-
-  it("an unknown city id (map miss) is dropped rather than rendering 'undefined'", () => {
-    const filters = withToggledCity(NO_FILTERS, CITY_B);
-    expect(filtersInWords(filters, cityNames)).toBeNull();
-  });
-
-  it("multiple selected values in one dimension join with a slash", () => {
-    const filters = withToggledAge(withToggledAge(NO_FILTERS, "baby"), "senior");
-    expect(filtersInWords(filters, cityNames)).toBe("малюк/літній");
-  });
-});
-
 /** What `cities.resolveTokens` answers for a token, by how it was written. */
 const resolveToken = (token: string): CityTokenResolution => {
   const known = [
@@ -451,12 +372,6 @@ describe("redirectHrefForNonCanonicalCities", () => {
     expect(url.searchParams.get("obl")).toBe(SLUG_KYIVSKA);
     expect(url.searchParams.get("misto")).toBe(SLUG_A);
   });
-
-  it("uses the given path - the deck's own route, not the gallery's", () => {
-    expect(
-      redirectHrefForNonCanonicalCities({ misto: CITY_A }, "/tvaryny/gortaty", resolved(CITY_A)),
-    ).toBe(`/tvaryny/gortaty?misto=${SLUG_A}`);
-  });
 });
 
 describe("the oblast filter in the URL", () => {
@@ -501,16 +416,13 @@ describe("the oblast filter in the URL", () => {
     expect(reparsed.filters).toEqual(filters);
   });
 
-  it("carries the oblast onto page links, card links and the deck entry", () => {
+  it("carries the oblast onto page links and card links", () => {
     const filters = { ...NO_FILTERS, regions: { kind: "oneOf", values: [LVIV_OBL] } } as const;
     expect(galleryPageHref(filters, "freshest", 3, CITY_SLUGS)).toBe(
       `/tvaryny?obl=${SLUG_LVIVSKA}&stor=3`,
     );
     expect(animalPageHref("a" as AnimalId, filters, "freshest", CITY_SLUGS)).toBe(
       `/tvaryny/a?obl=${SLUG_LVIVSKA}`,
-    );
-    expect(deckEntryHref(filters, 5, CITY_SLUGS)).toBe(
-      `/tvaryny/gortaty?obl=${SLUG_LVIVSKA}&total=5`,
     );
   });
 
@@ -538,17 +450,6 @@ describe("the oblast filter in the URL", () => {
     expect(cityTokensOf({ misto: "brovary," })).toEqual(["brovary"]);
     expect(cityTokensOf({ misto: "" })).toEqual([]);
     expect(cityTokensOf({ misto: ["a", "a,b"] })).toEqual(["a", "b"]);
-  });
-
-  it("names the chosen oblasts first in the deck header", () => {
-    const filters = {
-      ...NO_FILTERS,
-      regions: { kind: "oneOf", values: [KYIV_OBL] },
-      species: { kind: "oneOf", values: ["dog"] },
-    } as const;
-    expect(filtersInWords(filters, new Map(), new Map([[KYIV_OBL, "Київська"]]))).toBe(
-      "Київська · собаки",
-    );
   });
 });
 
@@ -624,19 +525,9 @@ describe("the sex filter in the URL", () => {
     expect(reparsed).toEqual({ filters, sort: "longest_waiting", page: 1 });
   });
 
-  it("is carried into a page link and into the deck", () => {
+  it("is carried into a page link", () => {
     const filters = withToggledSex(NO_FILTERS, "unknown");
     expect(galleryPageHref(filters, "freshest", 2, NO_CITIES)).toBe("/tvaryny?stat=unknown&stor=2");
-    const deckHref = deckEntryHref(filters, 5, NO_CITIES);
-    expect(deckHref).toBe("/tvaryny/gortaty?stat=unknown&total=5");
-    expect(
-      parseDeckQuery(Object.fromEntries(new URL(deckHref, "http://x").searchParams), NO_SLUGS),
-    ).toEqual({ filters, total: 5 });
-  });
-
-  it("the deck's header names it in his filter words", () => {
-    const filters = withToggledSex(withOnlySpecies(NO_FILTERS, "dog"), "male");
-    expect(filtersInWords(filters, new Map())).toBe("собаки · хлопчик");
   });
 
   it("toggling it off again leaves no filter", () => {

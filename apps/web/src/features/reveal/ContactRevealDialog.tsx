@@ -161,9 +161,8 @@ interface ContactRevealDialogProps {
   onClose: () => void;
   onRetry: () => void;
   /**
-   * The text button at the bottom, absent for a surface where dismissing should never navigate
-   * anywhere: the deck must survive a reveal ("no exit back to the gallery", R3, Phase R). The
-   * animal page passes one; it only closes the dialog, like the ✕.
+   * The text button at the bottom, optional. The animal page passes one; it only closes the
+   * dialog, like the ✕.
    */
   secondaryAction?: { label: string; onClick: () => void } | undefined;
 }

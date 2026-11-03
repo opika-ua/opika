@@ -472,7 +472,7 @@ a second address""), because creating a shelter already invites its first admin:
    5. Sign in with the new password.
 3. The shelter admin signs in on a phone, fills the profile, adds 2-3 animals with photos taken
    on the phone, and publishes.
-4. The adopter (a separate browser plus the gate cookie) finds them in the deck and the gallery,
+4. The adopter (a separate browser plus the gate cookie) finds them in the gallery,
    reveals contacts, and messages the shelter.
 5. The shelter marks one adopted and hides one. He approves a donation link, then suspends and
    reinstates the shelter, and checks that the history shows all of it.

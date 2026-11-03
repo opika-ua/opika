@@ -131,9 +131,8 @@ const PRIORITY_CARD_COUNT = 1;
  * different sentences, and its removal (O-3, unrelated reasons - duplicated
  * the filter rail, delayed the content) is not what left `bannerNotice`
  * invisible here. `bannerNotice` was *never* rendered in this page's body,
- * at any point in this repo's history - only in metadata, always. The
- * deck (`DeckScreen.tsx`) shows "Демо" in its own header; this route, the
- * higher-traffic one, showed nothing at all. Fixed below: the same
+ * at any point in this repo's history - only in metadata, always. This
+ * route, the higher-traffic one, showed nothing at all. Fixed below: the same
  * already-approved `bannerNotice` sentence, rendered visibly for the first
  * time, directly under the header - not the slot `FirstRunBand` used to
  * occupy (that band sat *inside* the padded `max-w-[760px] mx-auto mb-8`
@@ -225,10 +224,7 @@ export async function renderGallery(
         gallery-v3 (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`): the
         header is in the frame and is re-skinned in `SiteHeader.tsx` itself
         (shared across every route) rather than here, so it's called with no
-        children on this route. The deck entry link that used to live in the
-        header's trailing slot is gone from this page entirely - Oleksii,
-        mid-build: "let's hide access to Гортати по одній page for now as
-        well." It was never in the Figma frame to begin with.
+        children on this route.
       */}
       <SiteHeader wordmarkIsCurrentPage kabinetSignedIn={kabinetSignedIn} current="animals" />
 
@@ -300,14 +296,6 @@ export async function renderGallery(
               </div>
             }
             trailing={
-              // Oleksii, mid-build: "let's hide access to Гортати по одній
-              // page for now as well" — the deck entry link (never in the
-              // Figma frame to begin with, flagged there for the owner and
-              // designer) is removed from this row entirely, not merely
-              // restyled. The deck route itself (`/tvaryny/gortaty`) still
-              // exists and still reads its own filters/total from the URL;
-              // only this page's own link to it is gone - `deckEntryHref`
-              // and `DeckEntryLink` are no longer imported here at all.
               <FilterSheet
                 filters={filters}
                 sort={sort}

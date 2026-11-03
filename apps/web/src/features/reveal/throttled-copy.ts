@@ -1,7 +1,7 @@
 import { ukPublic as uk } from "@opika/i18n/public";
 
 /**
- * What a per-IP 429 shows on the reveal dialog and the deck's error card
+ * What a per-IP 429 shows on the reveal dialog
  * (audit 2026-10-22, G1): `detail.rateLimited`, the sentence the animal page
  * already uses for the same refusal, and the plain retry label, since the limit
  * clears by itself. No eyebrow and no body: it says nothing about the card or

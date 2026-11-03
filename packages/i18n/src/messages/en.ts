@@ -4,9 +4,9 @@
  * Machine-translated in the design's established voice (plain, warm, never
  * alarming), not a native-speaker pass. Eleven keys use the literal English
  * the design canvas gives directly (`Opika - Keeper's Voice.dc.html`,
- * "КОПІЯ · UK / EN"): freshness.attribution, swipe.left/right,
+ * "КОПІЯ · UK / EN"): freshness.attribution,
  * medical.unknown/registryConfirmed, reveal.title,
- * exhausted.title/body, reserved.badge/action. Everything else is new
+ * reserved.badge/action. Everything else is new
  * content in that register, not literally specified anywhere - flag any
  * mistranslation rather than trusting it silently; this hasn't had a
  * native-speaker read yet, and next-intl isn't wired until H3, so nothing
@@ -24,17 +24,12 @@ export const en = {
 
   demo: {
     bannerNotice: "The site doesn't hold any real shelters yet – every card here is a demo.",
-    deckLabel: "Demo",
   },
 
-  // --- Screen 02 · Feed / deck ---
+  // --- Screen 02 · Feed ---
   feed: {
     filtersLabel: "Filter",
-    enterDeck: "Swipe one at a time",
-    enterDeckShort: "Swipe",
     backToList: "← Back to the list",
-    deckHeading: "Animals one at a time",
-    deckEntryAnnouncement: "One-at-a-time mode. Animal {position} of {total}.",
     adoptPill: "Adopt",
     galleryTitle: "Catalogue",
     listEnd: "That is every animal for these filters.",
@@ -110,12 +105,6 @@ export const en = {
     optionCount: "{option}, {count} {animalWord}",
   },
 
-  // --- Swipe affordances ---
-  swipe: {
-    left: "Not right now",
-    right: "Ask about them",
-  },
-
   // --- Saved animals (designer round 1, S7/S8) ---
   likes: {
     save: "Save",
@@ -138,10 +127,8 @@ export const en = {
 
   // --- Action buttons ---
   actions: {
-    notNow: "Not right now",
     write: "Message",
     writeShelter: "Message the shelter",
-    notAJudgementNotice: '"Not right now" is just a filter, not a judgement of the animal.',
   },
 
   // --- Freshness ---
@@ -255,16 +242,6 @@ export const en = {
     resolved: "The shelter says: {name} has found a home.",
   },
 
-  // --- Exhausted (07) ---
-  exhausted: {
-    title: "That's everyone who fits right now.",
-    body: "There aren't many shelters here, so the list is short – that's normal.",
-    newAnimals: "New animals appear when shelters update their cards. Usually every few weeks.",
-    changeFilters: "Change filters",
-    toList: "Browse the list",
-    reviewAgain: "Look through them again, no rush",
-  },
-
   // --- Error states (08) ---
   errors: {
     offline: {
@@ -277,11 +254,6 @@ export const en = {
       title: "Something went wrong on our end.",
       body: "This isn't your fault, and it isn't the shelter's.",
       action: "Refresh",
-    },
-    sessionExpired: {
-      eyebrow: "SESSION ENDED",
-      title: "We've started the feed over.",
-      action: "To the feed",
     },
     /** Mirrors uk.ts's rateLimited key-for-key - machine-translated like the rest of this file, not a native pass; see this file's own top comment. */
     rateLimited: {

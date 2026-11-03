@@ -18,7 +18,7 @@ interface SaveButtonProps {
 
 /**
  * The save toggle (designer round 1, S7; DR1-D8: the overlay and the animal page, since both
- * render this same `AnimalDetailScreen` - not the gallery card or the deck card). Bookmark
+ * render this same `AnimalDetailScreen` - not the gallery card). Bookmark
  * icon, no heart (his DR1-Q3). `aria-pressed` carries the state to a screen reader the same
  * way it decides the fill, so the two can never disagree.
  *

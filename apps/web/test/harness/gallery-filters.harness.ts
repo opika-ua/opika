@@ -10,10 +10,7 @@
  *
  * gallery-v3 (Figma `58:1617`): `FilterRail` is retired - the desktop
  * dropdown row (`GalleryFilterDropdowns`/`GalleryControlBlock`) and its own
- * «Фільтр» toggle now own what the rail used to, and the old deck-entry
- * keyboard-reachability tests this file carried are gone with that link
- * (Oleksii, mid-build: "let's hide access to Гортати по одній page for now
- * as well").
+ * «Фільтр» toggle now own what the rail used to.
  */
 
 import { expect, test } from "@playwright/test";

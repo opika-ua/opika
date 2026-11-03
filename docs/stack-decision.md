@@ -1,7 +1,7 @@
 # Stack Decision Record - Swipe-Based Shelter Adoption Platform (Ukraine)
 
 **Date:** 5 August 2026 · **Author:** research + recommendation for a solo TS/React developer
-**Status:** Proposed · **Scope:** MVP (one Ukrainian oblast) with an explicit path through Phases 2-4
+**Status:** Proposed · **Amended 2026-11-02 (owner decision): the swipe deck is retired; the product is a gallery-first registry. The deck rows and sections below are kept as the record of the original reasoning, not as current scope.** · **Scope:** MVP (one Ukrainian oblast) with an explicit path through Phases 2-4
 
 > Every version number, price, and free-tier limit below was verified against a live source on 2026-08-05. Where something could not be verified, it is marked ⚠️ rather than guessed. Sources are listed at the end of each section and consolidated at the bottom.
 
@@ -12,7 +12,7 @@
 | Layer | Choice | Why (one line) |
 |---|---|---|
 | **Client** | Next.js **16.3** App Router, mobile-first **PWA** (Serwist), React 19.2, React Compiler **not enabled** (2026-11-02, see below) | You already know it; one codebase; SEO on animal profiles is a free acquisition channel a native app cannot give you |
-| **Swipe deck** | **Hand-rolled `PointerEvent` + `transform`** (0 KB), `motion` w/ `LazyMotion`+`domAnimation` for everything else | The only gesture lib with the right physics (`@use-gesture`) has not shipped since March 2024; the drag itself is ~150 lines |
+| **Swipe deck** (retired 2026-11-02) | **Hand-rolled `PointerEvent` + `transform`** (0 KB), `motion` w/ `LazyMotion`+`domAnimation` for everything else | The only gesture lib with the right physics (`@use-gesture`) has not shipped since March 2024; the drag itself is ~150 lines |
 | **API contract** | **oRPC** in contract-first mode (`@orpc/contract`), Zod 4 schemas | Contract-first is literally your stated principle; same contract emits OpenAPI → native app + registry partners later, without a second source of truth |
 | **Server runtime** | **Node 24 LTS**, inside the Next.js app (route handlers), domain logic in a framework-free package | One deployable at MVP; the domain package is the thing you extract later, not the framework |
 | **DB** | **Postgres 18 on Neon (`aws-eu-central-1`; Free plan today, auto-suspends after 5 min; upgrade to Launch and disable suspend before onboarding)** - PostGIS available, not enabled at MVP | Plain Postgres, `pg_dump` out at any time; scale-to-zero; PostGIS present so the Poland phase is not a migration |

@@ -33,7 +33,6 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "app/global-error.tsx":
     "Next error boundary for a throwing root layout (must be client); reports the error, retry button",
   "app/tvaryny/error.tsx": "Next error boundary (must be client); retry button, focus on mount",
-  "app/tvaryny/gortaty/error.tsx": "Next error boundary (must be client); retry button",
   "features/animal-detail/RevealFlow.tsx":
     "contact-reveal button + dialog open state, calls reveal",
   "features/animal-detail/ShareButton.tsx": "navigator.share / clipboard on click",
@@ -42,12 +41,6 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/chrome/SiteAnalytics.tsx": "Vercel Analytics component",
   "features/controls/useModalFocus.ts": "hook: focus trap and restore",
   "features/controls/useScrollingClass.ts": "hook: scroll listener toggling a class",
-  "features/discovery/DeckScreen.tsx": "swipe deck page shell: feed hook, keyboard, router",
-  "features/discovery/SwipeCard.tsx":
-    "Low value to change (always inside client SwipeDeck, no bundle saving): only forwards onTap to the card; no own state",
-  "features/discovery/SwipeDeck.tsx":
-    "pointer-event gesture engine, fetch of swipes, transform animation",
-  "features/discovery/use-feed-deck.ts": "hook: feed paging through the browser oRPC client",
   "features/filters/use-feed-filters.ts": "hook: filter state persisted via window",
   "features/gallery/CityFacetChoices.tsx":
     "expanded and query state for the long city list (show all, local filter)",

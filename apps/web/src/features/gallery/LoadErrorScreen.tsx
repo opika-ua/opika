@@ -7,8 +7,8 @@ import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
 
 /**
- * The full-page error card both `/tvaryny` error boundaries render (the list and the deck), so
- * the two routes cannot drift apart. The boundaries themselves stay thin client files because
+ * The full-page error card both `/tvaryny` error boundaries render, so
+ * the two cannot drift apart. The boundaries themselves stay thin client files because
  * Next requires an `error.tsx` to be one. The escape link is a real `<a href>`, not `next/link`:
  * a `Link` click inside an active boundary soft-navigates within the segment that just errored
  * and never leaves it.

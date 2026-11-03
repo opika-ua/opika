@@ -116,14 +116,7 @@ describe("/tvaryny (renderGallery)", () => {
     ).toBeTruthy();
   });
 
-  /**
-   * Oleksii, mid-build, verbatim: "let's hide access to Гортати по одній
-   * page for now as well." The deck entry link is gone from this page
-   * entirely - not conditional on match count or sign-in anymore, so this
-   * collapses the three tests that used to check it under each of those
-   * conditions into one: it is simply never there. The deck route itself
-   * (`/tvaryny/gortaty`) is untouched; only this page's link to it is gone.
-   */
+  /** The swipe deck is retired (2026-11-02): no entry control, with or without matches. */
   it("never renders a deck entry control, with or without matches", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);

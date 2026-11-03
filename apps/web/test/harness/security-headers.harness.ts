@@ -82,7 +82,7 @@ test.describe("security headers (audit F5)", () => {
   }
 
   // No exceptions: zod's eval probe is off in the browser (`src/instrumentation-client.ts`).
-  for (const path of ["/tvaryny", "/tvaryny/gortaty", "/prytulkam", "/zberezheni", "/pro"]) {
+  for (const path of ["/tvaryny", "/prytulkam", "/zberezheni", "/pro"]) {
     test(`the report-only policy reports nothing on ${path}`, async ({ page }) => {
       expect(await violationsOn(page, path)).toEqual([]);
     });

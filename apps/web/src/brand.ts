@@ -24,8 +24,7 @@ export const SITE_ORIGIN = "https://opika.org.ua";
  * The subject only - no brand suffix. `app/layout.tsx`'s root `title.default` uses it
  * as-is (Next never runs a segment's own `template` against its own `default`, so the
  * root's fallback title - reached by any route with no explicit title of its own,
- * which today means the two error boundaries, both `not-found.tsx` files, and
- * `/tvaryny/gortaty` (owner: no title change there) - renders subject-only, brand-less;
+ * which today means the two error boundaries and both `not-found.tsx` files - renders subject-only, brand-less;
  * a minor, accepted gap, and every one of those routes is noindex anyway). `/tvaryny`
  * (`app/tvaryny/
  * page.tsx`) sets this as its own explicit `title`, which Next *does* run through the
