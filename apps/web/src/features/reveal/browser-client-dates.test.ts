@@ -34,7 +34,7 @@ describe("the browser client revives dates from the RPC wire without a schema", 
 
     const freshness = result[0]?.freshness;
     expect(freshness?.confirmedAt).toBeInstanceOf(Date);
-    expect((freshness?.confirmedAt as Date).toISOString()).toBe(confirmedAt.toISOString());
+    expect(freshness?.confirmedAt).toEqual(confirmedAt);
     expect(freshness?.ageDays).toBe(3);
   });
 });
