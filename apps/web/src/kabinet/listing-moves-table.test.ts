@@ -5,7 +5,6 @@ import {
   kabinetShelterRepo,
   revealRepo,
   shelterRepo,
-  swipeRepo,
 } from "@opika/db/repos";
 import {
   makeAdopter,
@@ -13,7 +12,6 @@ import {
   makeCity,
   makeReveal,
   makeShelter,
-  makeSwipe,
   setupTestDatabase,
   truncateAll,
 } from "@opika/db/test";
@@ -60,10 +58,10 @@ import { TEST_SESSION_COOKIE } from "./test-session-cookie";
  *   or its undo none (K-Q7, S1), a refusal none and changes nothing;
  * - a form opened before the move still saves afterwards (HS-T8: an open form
  *   and a listing move never conflict);
- * - the answer doesn't vary with whether adopters swiped or asked about the
+ * - the answer doesn't vary with whether adopters asked about the
  *   animal (commitment #2): every non-draft case runs on a twin that has a
- *   swipe and a reveal, and the two answers must be identical but for the id.
- *   A draft gets no twin: no swipe or reveal can reach one (DR-F1), and the
+ *   reveal, and the two answers must be identical but for the id.
+ *   A draft gets no twin: no reveal can reach one (DR-F1), and the
  *   one place activity does matter, deleting a draft, answers one refusal for
  *   both causes (K-Q9; `handlers.test.ts`).
  */
@@ -269,14 +267,11 @@ async function animalAt(start: Start): Promise<Animal> {
   return animal;
 }
 
-/** The same, plus an adopter's swipe and contact reveal pointing at it. */
+/** The same, plus an adopter's contact reveal pointing at it. */
 async function animalWithActivityAt(start: Start): Promise<Animal> {
   const animal = await animalAt(start);
   const adopter = makeAdopter();
   await adopterRepo(db).insert(adopter);
-  await swipeRepo(db).record(
-    makeSwipe({ adopterId: adopter.id, animalId: animal.id, direction: "interested", at: SINCE }),
-  );
   await revealRepo(db).insert(
     makeReveal({
       adopterId: adopter.id,

@@ -38,6 +38,7 @@
     "admin:revoke": "tsx src/admin.ts revoke",
     "admin:sweep-invites": "tsx src/admin.ts sweep-invites",
     "db:neon-smoke": "tsx test/neon-smoke.ts",
+    "db:precheck-drop-swipes": "tsx src/tools/precheck-drop-swipes.ts",
     "db:neon-smoke-timings": "tsx test/neon-smoke-timings.ts",
     "db:neon-perf-seed": "tsx src/tools/perf-seed.ts",
     "db:neon-perf-report": "tsx src/tools/perf-report.ts",

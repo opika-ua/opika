@@ -4,7 +4,7 @@ import { z } from "zod";
 /**
  * Opaque to the client on purpose.
  *
- * The cursor encodes a keyset position - the ordering tuple the feed query
+ * The cursor encodes a keyset position - the ordering tuple a list query
  * seeks on. Publishing that shape in the contract would let clients construct
  * cursors, and would pin the persistence layer's ordering decision forever.
  * Branding it keeps a cursor from one list being passed to another.
@@ -13,7 +13,7 @@ const OPAQUE_CURSOR_MAX_LENGTH = 512;
 
 /**
  * The brand is a convenience for honest TypeScript callers and nothing more -
- * over the wire any string arrives, so a feed cursor and a reveal cursor are
+ * over the wire any string arrives, so a reveal cursor and a kabinet cursor are
  * indistinguishable until the server checks. The payload therefore has to carry
  * its own kind tag and be signed; the type system cannot do this job at a trust
  * boundary.
@@ -21,13 +21,6 @@ const OPAQUE_CURSOR_MAX_LENGTH = 512;
  * Bounded because an unbounded cursor is parsed, logged and traced on every
  * request.
  */
-export const FeedCursorSchema = z
-  .string()
-  .min(1)
-  .max(OPAQUE_CURSOR_MAX_LENGTH)
-  .brand<"FeedCursor">();
-export type FeedCursor = z.infer<typeof FeedCursorSchema>;
-
 export const RevealCursorSchema = z
   .string()
   .min(1)

@@ -84,18 +84,6 @@ describe("demo-mode copy status (D-2)", () => {
   });
 });
 
-/** The swipe deck is retired (2026-11-02): `uk.actions` keeps only the two message buttons. */
-describe("actions copy status", () => {
-  it("has no placeholder left", () => {
-    expect(pendingCopyKeys(uk.actions)).toEqual([]);
-  });
-
-  it("still has every key `uk.actions` is expected to carry", () => {
-    // Guards the guard: `toEqual([])` above also passes against an empty object.
-    expect(Object.keys(uk.actions).length).toBe(2);
-  });
-});
-
 /**
  * The kabinet's Ukrainian is final: Oleksii's answer of 2026-10-14 to the
  * 91-row copy export for PR #94 (relayed by the coordinating session), applied
@@ -2337,19 +2325,19 @@ describe("species-toggle copy (gallery filter restructure)", () => {
  * with «Написати» changed to «Дати сімʼю» and the rest unchanged."
  */
 describe("R4_2_ANALYTICS_SENTENCE (owner-approved text, 2026-10-27)", () => {
-  it("names «Дати сімʼю», not «Написати»", () => {
-    expect(R4_2_ANALYTICS_SENTENCE).toContain("«Не зараз» чи «Дати сімʼю»");
+  it("names only «Дати сімʼю» (the swipe deck is retired), not «Не зараз» or «Написати»", () => {
+    expect(R4_2_ANALYTICS_SENTENCE).toContain("натисне «Дати сімʼю»");
+    expect(R4_2_ANALYTICS_SENTENCE).not.toContain("Не зараз");
     expect(R4_2_ANALYTICS_SENTENCE).not.toContain("Написати");
   });
 
-  it("is otherwise byte-for-byte his original 2026-10-06 sentence", () => {
+  it("is exactly the owner-approved text of 2026-11-03", () => {
     expect(R4_2_ANALYTICS_SENTENCE).toBe(
-      "Людині, яка шукає тварину, сайт ставить одне кукі – і тільки після першої дії: " +
-        "«Не зараз» чи «Дати сімʼю». У ньому немає імені чи номера телефону, лише " +
-        "випадковий ідентифікатор: щоб режим «по одній» памʼятав, кого ви вже бачили, а сайт – " +
-        "чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без візитів або через 30 " +
-        "днів у будь-якому разі. Окремо від кукі, якщо ви зберігаєте тварин, їхній список лежить " +
-        "у цьому браузері.",
+      "Людині, яка шукає тварину, сайт ставить одне кукі – і тільки після того, як вона натисне " +
+        "«Дати сімʼю». У ньому немає імені чи номера телефону, лише випадковий ідентифікатор: " +
+        "щоб сайт памʼятав, чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без " +
+        "візитів або через 30 днів у будь-якому разі. Окремо від кукі, якщо ви зберігаєте тварин, " +
+        "їхній список лежить у цьому браузері.",
     );
   });
 });

@@ -5,7 +5,6 @@ import {
   animalsRevealContract,
 } from "./procedures/animals";
 import { citiesByIdsContract, citiesResolveTokensContract } from "./procedures/cities";
-import { feedListContract } from "./procedures/feed";
 import {
   galleryFacetCountsContract,
   galleryListContract,
@@ -15,7 +14,6 @@ import { regionsListContract } from "./procedures/regions";
 import { revealsListMineContract } from "./procedures/reveals";
 import { sessionBootstrapContract } from "./procedures/session";
 import { sheltersByIdContract } from "./procedures/shelters";
-import { swipesRecordContract } from "./procedures/swipes";
 
 /**
  * The API surface, as data.
@@ -36,9 +34,6 @@ export const contract = {
   regions: {
     list: regionsListContract,
   },
-  feed: {
-    list: feedListContract,
-  },
   gallery: {
     list: galleryListContract,
     relaxationCounts: galleryRelaxationCountsContract,
@@ -55,9 +50,6 @@ export const contract = {
   },
   shelters: {
     byId: sheltersByIdContract,
-  },
-  swipes: {
-    record: swipesRecordContract,
   },
 } as const;
 

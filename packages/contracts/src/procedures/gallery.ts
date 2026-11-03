@@ -22,14 +22,8 @@ import { galleryPageSchema, galleryPageSizeSchema } from "./pagination";
 const countSchema = z.int().nonnegative();
 
 /**
- * A separate namespace from `feed`, not an extension of it.
- *
- * The two consumption patterns do not share a shape: the deck sends a cursor
- * and gets one back, never needs a total, and personalises by seen-set; the
- * gallery sends a page number, needs totals to draw page links at all, and is
- * identical for every visitor so it can be server-rendered and crawled. Forcing
- * them into one procedure with a discriminated `pagination` union would make
- * the deck carry the gallery's concerns on every request.
+ * The gallery sends a page number, needs totals to draw page links at all, and
+ * is identical for every visitor so it can be server-rendered and crawled.
  */
 export const GalleryListInputSchema = z.object({
   filters: FeedFiltersSchema,

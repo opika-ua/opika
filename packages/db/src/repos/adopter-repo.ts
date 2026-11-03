@@ -4,7 +4,6 @@ import type { Database } from "../client";
 import { adopters } from "../schema/adopters";
 import { reveals } from "../schema/reveals";
 import { sessions } from "../schema/sessions";
-import { swipes } from "../schema/swipes";
 import { adopterToRow, rowToAdopter } from "./mappers";
 import { ADOPTER_CLEANUP_BATCH, ADOPTER_SESSION_POLICY } from "./session-repo";
 
@@ -46,8 +45,8 @@ export function adopterRepo(db: Database) {
     /**
      * Deletes up to `limit` anonymous adopters that nothing can reach or needs (audit F6): no
      * session (only `session.bootstrap` makes one, always with a new adopter, so none can come
-     * back), no swipe and no reveal, and older than `ORPHAN_ADOPTER_MIN_AGE_MS`. An adopter with
-     * a swipe or a reveal stays: deleting it means deleting those first, and reveals are an
+     * back), no reveal, and older than `ORPHAN_ADOPTER_MIN_AGE_MS`. An adopter with
+     * a reveal stays: deleting it means deleting those first, and reveals are an
      * append-only record (decision 9) whose retention is not decided (gdpr-analysis G3).
      * With no session, nothing can add a child while this runs; were one added anyway, the
      * foreign key refuses the whole statement rather than leave it orphaned.
@@ -61,12 +60,6 @@ export function adopterRepo(db: Database) {
             .select({ adopterId: sessions.adopterId })
             .from(sessions)
             .where(eq(sessions.adopterId, adopters.id)),
-        ),
-        notExists(
-          db
-            .select({ adopterId: swipes.adopterId })
-            .from(swipes)
-            .where(eq(swipes.adopterId, adopters.id)),
         ),
         notExists(
           db

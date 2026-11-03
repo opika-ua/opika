@@ -10,7 +10,6 @@ import type {
   ContactReveal,
   LocalizedText,
   Shelter,
-  Swipe,
   Temperament,
   TemperamentTrait,
   TextProvenance,
@@ -32,20 +31,17 @@ import type { animals } from "../schema/animals";
 import type { cities } from "../schema/cities";
 import type { reveals } from "../schema/reveals";
 import type { shelters } from "../schema/shelters";
-import type { swipes } from "../schema/swipes";
 
 type CityRow = typeof cities.$inferSelect;
 type ShelterRow = typeof shelters.$inferSelect;
 type AnimalRow = typeof animals.$inferSelect;
 type AdopterRow = typeof adopters.$inferSelect;
-type SwipeRow = typeof swipes.$inferSelect;
 type RevealRow = typeof reveals.$inferSelect;
 
 type CityInsert = typeof cities.$inferInsert;
 type ShelterInsert = typeof shelters.$inferInsert;
 type AnimalInsert = typeof animals.$inferInsert;
 type AdopterInsert = typeof adopters.$inferInsert;
-type SwipeInsert = typeof swipes.$inferInsert;
 type RevealInsert = typeof reveals.$inferInsert;
 
 // --- LocalizedText helpers ---
@@ -412,26 +408,6 @@ export function rowToAdopter(row: AdopterRow): AdopterProfile {
     preferredLocale: row.preferredLocale,
     savedFilters: row.savedFilters ?? null,
     createdAt: row.createdAt,
-  };
-}
-
-// --- Swipe ---
-
-export function swipeToRow(swipe: Swipe): SwipeInsert {
-  return {
-    adopterId: swipe.adopterId,
-    animalId: swipe.animalId,
-    direction: swipe.direction,
-    swipedAt: swipe.at,
-  };
-}
-
-export function rowToSwipe(row: SwipeRow): Swipe {
-  return {
-    adopterId: row.adopterId,
-    animalId: row.animalId,
-    direction: row.direction,
-    at: row.swipedAt,
   };
 }
 

@@ -16,7 +16,6 @@ export {
   makeDraftAnimal,
   makeReveal,
   makeShelter,
-  makeSwipe,
   now,
   policy,
   uuid,

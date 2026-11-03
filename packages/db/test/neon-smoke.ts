@@ -8,7 +8,6 @@ import {
   type AnimalId,
   type AnimalListingState,
   type ContactReveal,
-  DEFAULT_SEEN_SET_POLICY,
   EVERYONE_SCOPE,
   type FeedFilters,
   isDraftAnimal,
@@ -32,7 +31,6 @@ import { animalRepo } from "../src/repos/animal-repo";
 import { authExpiryRepo, KABINET_SESSION_LIMITS } from "../src/repos/auth-expiry-repo";
 import { authRevokeRepo } from "../src/repos/auth-revoke-repo";
 import { cityRepo } from "../src/repos/city-repo";
-import { feedRepo } from "../src/repos/feed-repo";
 import { galleryRepo } from "../src/repos/gallery-repo";
 import {
   type AnimalHistoryRow,
@@ -58,7 +56,6 @@ import { revealRepo } from "../src/repos/reveal-repo";
 import { sessionRepo } from "../src/repos/session-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { superAdminRepo } from "../src/repos/super-admin-repo";
-import { swipeRepo } from "../src/repos/swipe-repo";
 import { adopters } from "../src/schema/adopters";
 import { animals } from "../src/schema/animals";
 import {
@@ -79,7 +76,6 @@ import {
   makeDraftAnimal,
   makeReveal,
   makeShelter,
-  makeSwipe,
 } from "../src/test-utils/fixtures";
 import { type SmokeTarget, smokeTarget } from "../src/test-utils/smoke-target";
 import { runFiltersSmoke } from "./neon-smoke-filters";
@@ -877,7 +873,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `read ${readListing?.kind}, move ${listingMoved.kind}, stale ${staleMove.kind}`,
   );
 
-  // 21. deleteDraft on a never-published draft a swipe points at: the FK
+  // 21. deleteDraft on a never-published draft a reveal points at: the FK
   // refuses, and the SQLSTATE 23503 read off neon-http's error becomes the
   // typed `referenced`, never a 500 (HS-Q9); an unreferenced draft deletes.
   const referencedDraft = makeAnimal({
@@ -894,8 +890,13 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   await animalRepo(db).insert(freeDraft, city.id);
   const adopter = makeAdopter({ id: randomUUID() as never });
   await adopterRepo(db).insert(adopter);
-  await swipeRepo(db).record(
-    makeSwipe({ adopterId: adopter.id, animalId: referencedDraft.id, at: NOW }),
+  await revealRepo(db).insert(
+    makeReveal({
+      id: randomUUID() as never,
+      adopterId: adopter.id,
+      animalId: referencedDraft.id,
+      shelterId: shelter.id,
+    }),
   );
   const deletedLine = (animal: { id: typeof freeDraft.id; name: string }) =>
     ({
@@ -2246,18 +2247,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       pageSize: 24,
       now: NOW,
     });
-    const deck = await feedRepo(db).list({
-      filters,
-      cursor: null,
-      limit: 20,
-      adopterId: null,
-      now: NOW,
-      seenSetPolicy: DEFAULT_SEEN_SET_POLICY,
-    });
-    return { gallery: names(gallery.items), deck: names(deck.items) };
+    return names(gallery.items);
   };
-  const bothAre = (found: { gallery: string; deck: string }, expected: string) =>
-    found.gallery === expected && found.deck === expected;
 
   // 44b. The sex filter, over the same corpus. "unknown" is a real, explicit
   // value here - not an absence - so it is a normal `IN` member, unlike the
@@ -2268,10 +2259,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const females = await pcFound({ sexes: { kind: "oneOf", values: ["female"] } });
   const unknownSex = await pcFound({ sexes: { kind: "oneOf", values: ["unknown"] } });
   check(
-    "sex filter (IN over sex) in the gallery and the deck, including the explicit 'unknown' value",
-    bothAre(males, "shyCat") &&
-      bothAre(females, "playful") &&
-      bothAre(unknownSex, "blank,ownWords"),
+    "sex filter (IN over sex) in the gallery, including the explicit 'unknown' value",
+    males === "shyCat" && females === "playful" && unknownSex === "blank,ownWords",
     `male: ${JSON.stringify(males)}; female: ${JSON.stringify(females)}; unknown: ${JSON.stringify(unknownSex)}`,
   );
 
@@ -2441,13 +2430,12 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `deleted ${s46Deleted} (at least this run's 2); kept of this run's: ${[...s46Left].sort().join(",")}`,
   );
 
-  // 47. the orphaned-adopter DELETE (`adopterRepo.deleteOrphaned`): three correlated NOT EXISTS
-  // in a batched `IN (SELECT … LIMIT)`. An old adopter with nothing goes; one with a swipe, one
+  // 47. the orphaned-adopter DELETE (`adopterRepo.deleteOrphaned`): two correlated NOT EXISTS
+  // in a batched `IN (SELECT … LIMIT)`. An old adopter with nothing goes; one
   // with a reveal and one exactly at the minimum age stay.
   const s47Old = later(-ORPHAN_ADOPTER_MIN_AGE_MS - 1);
   const s47 = {
     orphan: makeAdopter({ id: randomUUID() as never, createdAt: s47Old }),
-    swiped: makeAdopter({ id: randomUUID() as never, createdAt: s47Old }),
     revealed: makeAdopter({ id: randomUUID() as never, createdAt: s47Old }),
     young: makeAdopter({ id: randomUUID() as never, createdAt: later(-ORPHAN_ADOPTER_MIN_AGE_MS) }),
   };
@@ -2462,7 +2450,6 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   await shelterRepo(db).insert(s47Shelter);
   const s47Animal = makeAnimal({ id: randomUUID() as never, shelterId: s47Shelter.id });
   await animalRepo(db).insert(s47Animal, s47City.id);
-  await swipeRepo(db).record(makeSwipe({ adopterId: s47.swiped.id, animalId: s47Animal.id }));
   await revealRepo(db).insert(
     makeReveal({
       id: randomUUID() as never,
@@ -2477,8 +2464,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     if ((await adopterRepo(db).findById(adopter.id)) !== null) s47Left.push(label);
   }
   check(
-    "orphaned-adopter clean-up: nothing left goes; a swipe, a reveal or too young stays",
-    s47Deleted >= 1 && s47Left.sort().join(",") === "revealed,swiped,young",
+    "orphaned-adopter clean-up: nothing left goes; a reveal or too young stays",
+    s47Deleted >= 1 && s47Left.sort().join(",") === "revealed,young",
     `deleted ${s47Deleted} (at least this run's 1); kept of this run's: ${s47Left.sort().join(",")}`,
   );
 
