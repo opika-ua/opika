@@ -522,8 +522,7 @@ export const uk = {
            * `apps/web/src/api/handlers/reveal.ts`), so a person who asked
            * before the change gets the new ones too.
            */
-          contacts:
-            "Нові контакти побачать одразу після збереження – коли натиснуть «Дати сімʼю».",
+          contacts: "Нові контакти побачать одразу після збереження – коли натиснуть «Дати сімʼю».",
           voice: "Нове речення зʼявиться на сторінці притулку одразу після збереження.",
         },
         unsavedLeave: "Зміни не збережено. Все одно вийти?",
