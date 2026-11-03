@@ -24,7 +24,7 @@ function directivesOf(policy: string | undefined): Map<string, string[]> {
 describe("securityHeaders", () => {
   const production = securityHeaders({ photoBaseUrl: PHOTOS, development: false });
 
-  it("enforces exactly these three, and nothing else is enforced", () => {
+  it("enforces exactly these, and nothing else is enforced", () => {
     expect(headerValue(production, "X-Content-Type-Options")).toBe("nosniff");
     expect(headerValue(production, "Content-Security-Policy")).toBe("frame-ancestors 'none'");
     expect(headerValue(production, "Strict-Transport-Security")).toBe(
@@ -33,8 +33,22 @@ describe("securityHeaders", () => {
     expect(production.map((h) => h.key).sort()).toEqual([
       "Content-Security-Policy",
       "Content-Security-Policy-Report-Only",
+      "Permissions-Policy",
+      "Referrer-Policy",
       "Strict-Transport-Security",
       "X-Content-Type-Options",
+    ]);
+  });
+
+  it("limits the cross-origin referrer to the origin and switches off unused browser features", () => {
+    expect(headerValue(production, "Referrer-Policy")).toBe("strict-origin-when-cross-origin");
+    const features = (headerValue(production, "Permissions-Policy") ?? "").split(", ").sort();
+    expect(features).toEqual([
+      "camera=()",
+      "geolocation=()",
+      "microphone=()",
+      "payment=()",
+      "usb=()",
     ]);
   });
 

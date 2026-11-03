@@ -1,4 +1,5 @@
 import { uk } from "@opika/i18n";
+import { servedSiteOrigin } from "../../api/site-origin";
 
 /**
  * Where `proxy.ts` rewrites a per-IP refusal on the public pages. A rewrite to a page keeps the
@@ -12,8 +13,10 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<Response> {
   const headers = { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex" };
   try {
-    const url = new URL(request.url);
-    url.pathname = "/rate-limited/screen";
+    // The configured origin, not the request's Host: the visitor's cookie goes with this fetch.
+    const origin = servedSiteOrigin(process.env, request);
+    if (origin === null) throw new Error("no site origin");
+    const url = new URL("/rate-limited/screen", origin);
     const cookie = request.headers.get("cookie");
     const screen = await fetch(url, {
       headers: cookie === null ? {} : { cookie },

@@ -49,6 +49,8 @@ assertBuildEnv(process.env);
 export const PROXY_CLIENT_MAX_BODY_BYTES = 128 * 1024;
 
 const nextConfig: NextConfig = {
+  // Do not announce the framework on every response (audit I2).
+  poweredByHeader: false,
   experimental: { proxyClientMaxBodySize: PROXY_CLIENT_MAX_BODY_BYTES },
   // Transpile workspace packages so Next.js can resolve .ts source files
   transpilePackages: ["@opika/contracts", "@opika/domain", "@opika/db"],

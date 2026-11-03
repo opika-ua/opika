@@ -146,7 +146,12 @@ export function requireEnv(name: string): string {
  */
 const RequiredProductionEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  CURSOR_HMAC_SECRET: z.string().min(1, "CURSOR_HMAC_SECRET is required"),
+  CURSOR_HMAC_SECRET: z
+    .string()
+    .min(
+      32,
+      "CURSOR_HMAC_SECRET must be at least 32 characters - generate with: openssl rand -hex 32",
+    ),
   PRELAUNCH_GATE_SECRET: z
     .string()
     .min(
