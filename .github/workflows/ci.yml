@@ -91,7 +91,7 @@ jobs:
         run: corepack install
 
       # v6: the same Node 20 runner deprecation; v6 targets the node24 runtime.
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.classify.outputs.code != 'false'
         with:
           node-version: 24
