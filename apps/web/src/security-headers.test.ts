@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { securityHeaders } from "./security-headers";
+import { REFERRER_POLICY_RULE, securityHeaders } from "./security-headers";
 
 /**
  * Audit F5, the owner's scope: three enforced headers (nosniff, no framing,
@@ -24,7 +24,7 @@ function directivesOf(policy: string | undefined): Map<string, string[]> {
 describe("securityHeaders", () => {
   const production = securityHeaders({ photoBaseUrl: PHOTOS, development: false });
 
-  it("enforces exactly these three, and nothing else is enforced", () => {
+  it("enforces exactly these, and nothing else is enforced", () => {
     expect(headerValue(production, "X-Content-Type-Options")).toBe("nosniff");
     expect(headerValue(production, "Content-Security-Policy")).toBe("frame-ancestors 'none'");
     expect(headerValue(production, "Strict-Transport-Security")).toBe(
@@ -33,8 +33,30 @@ describe("securityHeaders", () => {
     expect(production.map((h) => h.key).sort()).toEqual([
       "Content-Security-Policy",
       "Content-Security-Policy-Report-Only",
+      "Permissions-Policy",
       "Strict-Transport-Security",
       "X-Content-Type-Options",
+    ]);
+  });
+
+  it("limits the cross-origin referrer to the origin and switches off unused browser features", () => {
+    expect(REFERRER_POLICY_RULE.headers).toEqual([
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    ]);
+    // Not on the credential pages, which set a stricter policy of their own.
+    const everywhere = new RegExp(`^${REFERRER_POLICY_RULE.source.replace(/^\/:path/, "/")}$`);
+    expect(everywhere.test("/tvaryny/gortaty")).toBe(true);
+    expect(everywhere.test("/kabinet/tvaryny")).toBe(true);
+    expect(everywhere.test("/kabinet/vkhid")).toBe(false);
+    expect(everywhere.test("/kabinet/vkhid/pidtverdzhennia")).toBe(false);
+    expect(everywhere.test("/kabinet/vkhid/novyi-parol")).toBe(false);
+    const features = (headerValue(production, "Permissions-Policy") ?? "").split(", ").sort();
+    expect(features).toEqual([
+      "camera=()",
+      "geolocation=()",
+      "microphone=()",
+      "payment=()",
+      "usb=()",
     ]);
   });
 

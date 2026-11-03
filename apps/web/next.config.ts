@@ -2,7 +2,7 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 import { assertBuildEnv } from "./src/api/build-env";
 import { sentryBuildOptions } from "./src/observability/build-options";
-import { securityHeaders } from "./src/security-headers";
+import { REFERRER_POLICY_RULE, securityHeaders } from "./src/security-headers";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./src/seo-flags";
 
 /**
@@ -49,6 +49,8 @@ assertBuildEnv(process.env);
 export const PROXY_CLIENT_MAX_BODY_BYTES = 128 * 1024;
 
 const nextConfig: NextConfig = {
+  // Do not announce the framework on every response (audit I2).
+  poweredByHeader: false,
   experimental: { proxyClientMaxBodySize: PROXY_CLIENT_MAX_BODY_BYTES },
   // Transpile workspace packages so Next.js can resolve .ts source files
   transpilePackages: ["@opika/contracts", "@opika/domain", "@opika/db"],
@@ -94,9 +96,10 @@ const nextConfig: NextConfig = {
         development: process.env.NODE_ENV === "development",
       }),
     };
-    if (SITE_IS_PUBLICLY_DISCOVERABLE) return [security];
+    if (SITE_IS_PUBLICLY_DISCOVERABLE) return [security, REFERRER_POLICY_RULE];
     return [
       security,
+      REFERRER_POLICY_RULE,
       {
         source: "/:path*",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],

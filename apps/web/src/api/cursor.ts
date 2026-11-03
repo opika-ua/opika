@@ -36,7 +36,7 @@ type CursorPayload = {
 export type CursorPosition = { at: Date; id: string };
 
 function sign(payload: string, secret: string): string {
-  return createHmac("sha256", secret).update(payload).digest("hex").slice(0, 16);
+  return createHmac("sha256", secret).update(payload).digest("hex").slice(0, 32);
 }
 
 function encodeCursor(kind: CursorPayload["kind"], data: CursorPosition, secret: string): string {

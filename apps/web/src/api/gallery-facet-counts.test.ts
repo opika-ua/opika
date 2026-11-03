@@ -44,6 +44,11 @@ async function seedOneCityTwoDogsOneCat() {
   return city;
 }
 
+const withOrigin = (init: ReturnType<typeof rpcRequestInit>) => ({
+  ...init,
+  headers: { ...init.headers, origin: "https://opika.example" },
+});
+
 describe("gallery.facetCounts", () => {
   it("is on the Server Component path and answers option ids, counts and the cities' public labels only", async () => {
     const city = await seedOneCityTwoDogsOneCat();
@@ -206,11 +211,12 @@ describe("gallery.facetCounts", () => {
       now: new Date(),
       apiLimiter,
       perIp: { adopterMints: allows, newShelterReveals: allows },
+      siteOrigin: "https://opika.example",
     });
     const request = (procedure: string) =>
       new Request(`https://opika.example/api/rpc/gallery/${procedure}`, {
         method: "POST",
-        ...rpcRequestInit({ filters: NO_FILTERS }),
+        ...withOrigin(rpcRequestInit({ filters: NO_FILTERS })),
       });
 
     expect((await handlePublicRpc(request("facetCounts"), deps(counting))).status).toBe(200);

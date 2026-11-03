@@ -56,4 +56,9 @@ describe("proxy body buffering bound", () => {
     const { PROXY_CLIENT_MAX_BODY_BYTES } = await import("../next.config");
     expect(config.experimental?.proxyClientMaxBodySize).toBe(PROXY_CLIENT_MAX_BODY_BYTES);
   });
+
+  it("does not send X-Powered-By", async () => {
+    const config = (await import("../next.config")).default;
+    expect(config.poweredByHeader).toBe(false);
+  });
 });
