@@ -38,7 +38,13 @@ const accepted = (width: number, height: number) => ({
   kind: "ok",
   width,
   height,
-  variants: { thumb: [176, 176], card: [640, 800], detail: [1120, 1400] },
+  variants: {
+    thumb: [176, 176],
+    card: [640, 800],
+    detail: [1120, 1400],
+    mid: [840, 1050],
+    compact: [400, 500],
+  },
 });
 
 /**

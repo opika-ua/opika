@@ -118,7 +118,7 @@ export async function withinBudget<T>(
  *    processing budget: past it, the upload fails as any unexpected failure
  *    does (a 500, «Не завантажилось» on the screen), logged without the file,
  *    its name or any key, and nothing is stored;
- * 5. the three variants are stored under a fresh random key (P-Q4);
+ * 5. every variant is stored under a fresh random key (P-Q4);
  * 6. the photo is appended, compare-and-set on the photo list as re-read, so
  *    two uploads at once both land or the eleventh is refused, never lost.
  *

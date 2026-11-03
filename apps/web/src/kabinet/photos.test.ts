@@ -1,4 +1,5 @@
 import type { KabinetAnimalView } from "@opika/contracts";
+import { IMAGE_VARIANT_NAMES } from "@opika/db/image-pipeline";
 import { animalRepo, cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
 import {
   type AnimalFixtureOverrides,
@@ -210,7 +211,7 @@ const svgFile = () =>
   });
 
 describe("shelter.photos.add", () => {
-  it("stores the three WebP variants under a fresh random key and appends the photo", async () => {
+  it("stores every WebP variant under a fresh random key and appends the photo", async () => {
     const target = await animal({ photos: [photo(1)] });
     const { uploads, puts } = uploadsOn();
     const now = new Date("2026-10-17T10:00:00.000Z");
@@ -233,7 +234,7 @@ describe("shelter.photos.add", () => {
     );
     expect(added).toMatchObject({ width: 1200, height: 900, alt: null });
     expect(puts.map((p) => p.key).sort()).toEqual(
-      ["card", "detail", "thumb"].map((v) => `${added?.storageKey}/${v}.webp`),
+      [...IMAGE_VARIANT_NAMES].sort().map((v) => `${added?.storageKey}/${v}.webp`),
     );
     expect(puts.every((p) => p.contentType === "image/webp")).toBe(true);
     // Never the original: every stored byte is WebP.
@@ -271,7 +272,7 @@ describe("shelter.photos.add", () => {
       { uploads },
     );
 
-    expect(puts).toHaveLength(3);
+    expect(puts).toHaveLength(IMAGE_VARIANT_NAMES.length);
     for (const put of puts) {
       expect(put.bytes.includes("CANARY-SHELTER-YARD")).toBe(false);
       expect(await imageFactsOf(put.bytes)).toEqual({ format: "webp", hasMetadata: false });
@@ -421,7 +422,7 @@ describe("the ten-photo cap (K-Q11)", () => {
     const stored = await reload(target.id);
     expect(stored.photos).toHaveLength(10);
     // Both were stored (each passed the count check before either appended)…
-    expect(puts).toHaveLength(6);
+    expect(puts).toHaveLength(2 * IMAGE_VARIANT_NAMES.length);
     const storedKeys = new Set(puts.map((p) => p.key.replace(/\/[a-z]+\.webp$/, "")));
     const referenced = new Set(stored.photos.map((p) => p.storageKey));
     const orphaned = [...storedKeys].filter((key) => !referenced.has(key));
@@ -463,7 +464,7 @@ describe("per-shelter upload limits (P-Q12)", () => {
     );
     expect(third.status).toBe(429);
     expect(errorOf(third.body).code).toBe("RATE_LIMITED");
-    expect(puts).toHaveLength(3);
+    expect(puts).toHaveLength(IMAGE_VARIANT_NAMES.length);
   });
 
   it("the daily allowance refuses on its own", async () => {

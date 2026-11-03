@@ -27,7 +27,7 @@ function fakeR2Client() {
 }
 
 describe("uploadAnimalPhoto", () => {
-  it("uploads all three variants under the derived storage key, each as image/webp", async () => {
+  it("uploads every variant under the derived storage key, each as image/webp", async () => {
     const { client, puts } = fakeR2Client();
     await uploadAnimalPhoto(client, REAL_PHOTO, ANIMAL_ID, PHOTO_ID, {
       width: 1023,
@@ -37,7 +37,9 @@ describe("uploadAnimalPhoto", () => {
     const keys = puts.map((p) => p.key).sort();
     expect(keys).toEqual([
       "animals/a0000000-0000-4000-8000-000000000000/b1000000-0000-4000-8000-000000000001/card.webp",
+      "animals/a0000000-0000-4000-8000-000000000000/b1000000-0000-4000-8000-000000000001/compact.webp",
       "animals/a0000000-0000-4000-8000-000000000000/b1000000-0000-4000-8000-000000000001/detail.webp",
+      "animals/a0000000-0000-4000-8000-000000000000/b1000000-0000-4000-8000-000000000001/mid.webp",
       "animals/a0000000-0000-4000-8000-000000000000/b1000000-0000-4000-8000-000000000001/thumb.webp",
     ]);
     for (const p of puts) {

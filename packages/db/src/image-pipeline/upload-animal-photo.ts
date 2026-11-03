@@ -11,7 +11,7 @@ import {
 } from "./variants";
 
 /**
- * Puts one photo's three variants under its storage key. The one place
+ * Puts one photo's variants under its storage key. The one place
  * either writer (the onboarding script, the kabinet's upload) hands bytes to
  * storage, so both store exactly the variants, as WebP, and never the
  * original file.

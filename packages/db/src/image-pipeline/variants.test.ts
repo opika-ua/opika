@@ -2,12 +2,15 @@ import { AnimalIdSchema } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
   animalPhotoStorageKeyFor,
+  IMAGE_VARIANT_NAMES,
   IMAGE_VARIANTS,
   isRealPhotoKey,
+  LOGO_VARIANT_NAMES,
   LOGO_VARIANTS,
   nearestVariant,
   r2EndpointUrl,
   r2PublicUrl,
+  SERVED_IMAGE_VARIANTS,
   shelterLogoStorageKeyFor,
   storageKeyFromObjectKey,
   variantObjectKey,
@@ -17,23 +20,23 @@ const ANIMAL_ID = AnimalIdSchema.parse("a0000000-0000-4000-8000-000000000000");
 
 describe("nearestVariant", () => {
   it("picks thumb for anything at or below 176", () => {
-    expect(nearestVariant(IMAGE_VARIANTS, 88)).toBe("thumb");
-    expect(nearestVariant(IMAGE_VARIANTS, 176)).toBe("thumb");
+    expect(nearestVariant(SERVED_IMAGE_VARIANTS, 88)).toBe("thumb");
+    expect(nearestVariant(SERVED_IMAGE_VARIANTS, 176)).toBe("thumb");
   });
 
   it("picks card for the measured gallery/deck 2x range", () => {
-    expect(nearestVariant(IMAGE_VARIANTS, 177)).toBe("card");
-    expect(nearestVariant(IMAGE_VARIANTS, 624)).toBe("card");
-    expect(nearestVariant(IMAGE_VARIANTS, 640)).toBe("card");
+    expect(nearestVariant(SERVED_IMAGE_VARIANTS, 177)).toBe("card");
+    expect(nearestVariant(SERVED_IMAGE_VARIANTS, 624)).toBe("card");
+    expect(nearestVariant(SERVED_IMAGE_VARIANTS, 640)).toBe("card");
   });
 
   it("picks detail for anything above card, up to and beyond the detail width", () => {
-    expect(nearestVariant(IMAGE_VARIANTS, 641)).toBe("detail");
-    expect(nearestVariant(IMAGE_VARIANTS, 1120)).toBe("detail");
+    expect(nearestVariant(SERVED_IMAGE_VARIANTS, 641)).toBe("detail");
+    expect(nearestVariant(SERVED_IMAGE_VARIANTS, 1120)).toBe("detail");
   });
 
   it("never upscales past detail - the largest variant is the ceiling", () => {
-    expect(nearestVariant(IMAGE_VARIANTS, 4000)).toBe("detail");
+    expect(nearestVariant(SERVED_IMAGE_VARIANTS, 4000)).toBe("detail");
   });
 
   it("picks the logo's own small/large variants, generic over a different set (pet card PR 3b)", () => {
@@ -92,7 +95,7 @@ describe("variantObjectKey", () => {
 
 describe("storageKeyFromObjectKey (the R2 clean-up job's own need, the inverse of variantObjectKey)", () => {
   it("recovers the storage key for each real variant", () => {
-    for (const variant of ["thumb", "card", "detail"] as const) {
+    for (const variant of [...IMAGE_VARIANT_NAMES, ...LOGO_VARIANT_NAMES]) {
       expect(storageKeyFromObjectKey(variantObjectKey("animals/x/0", variant))).toBe("animals/x/0");
     }
   });
@@ -168,9 +171,17 @@ describe("r2EndpointUrl", () => {
 });
 
 describe("IMAGE_VARIANTS", () => {
-  it("card and detail are 4:5, matching the design's own photo aspect ratio", () => {
-    expect(IMAGE_VARIANTS.card.height / IMAGE_VARIANTS.card.width).toBeCloseTo(1.25, 5);
-    expect(IMAGE_VARIANTS.detail.height / IMAGE_VARIANTS.detail.width).toBeCloseTo(1.25, 5);
+  it("card, detail, mid and compact are 4:5, matching the design's own photo aspect ratio", () => {
+    for (const name of ["card", "detail", "mid", "compact"] as const) {
+      expect(IMAGE_VARIANTS[name].height / IMAGE_VARIANTS[name].width).toBeCloseTo(1.25, 5);
+    }
+    expect(IMAGE_VARIANTS.mid).toEqual({ width: 840, height: 1050 });
+    expect(IMAGE_VARIANTS.compact).toEqual({ width: 400, height: 500 });
+  });
+
+  it("the loader's set holds only variants every stored photo has; the extras are upload-only", () => {
+    expect(Object.keys(SERVED_IMAGE_VARIANTS)).toEqual(["thumb", "card", "detail"]);
+    expect([...IMAGE_VARIANT_NAMES].sort()).toEqual(["card", "compact", "detail", "mid", "thumb"]);
   });
 
   it("thumb is square, matching the detail page's 88px thumbnails", () => {

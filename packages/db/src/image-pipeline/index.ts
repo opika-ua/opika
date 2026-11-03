@@ -10,6 +10,7 @@
  * `@opika/db/image-pipeline/server` (`./server.ts`), never through this file.
  */
 export {
+  EXTRA_IMAGE_VARIANTS,
   IMAGE_VARIANT_NAMES,
   IMAGE_VARIANTS,
   type ImageVariantName,
@@ -19,6 +20,7 @@ export {
   nearestVariant,
   r2EndpointUrl,
   r2PublicUrl,
+  SERVED_IMAGE_VARIANTS,
   SHELTER_LOGO_KEY_PATTERN,
   variantObjectKey,
 } from "./variants";
