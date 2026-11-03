@@ -26,10 +26,20 @@ export type PhotoProps = {
   sizes: string;
   aspect: keyof typeof ASPECT;
   priority?: boolean;
+  /** Fetch now without a preload or high priority: for the images of the first visible row. */
+  eager?: boolean;
   className?: string;
 };
 
-export function Photo({ src, alt, sizes, aspect, priority = false, className }: PhotoProps) {
+export function Photo({
+  src,
+  alt,
+  sizes,
+  aspect,
+  priority = false,
+  eager = false,
+  className,
+}: PhotoProps) {
   return (
     <div className={cx("relative overflow-clip bg-line", ASPECT[aspect], className)}>
       {src === null ? null : (
@@ -39,6 +49,7 @@ export function Photo({ src, alt, sizes, aspect, priority = false, className }: 
           fill
           sizes={sizes}
           priority={priority}
+          loading={eager && !priority ? "eager" : undefined}
           fetchPriority={priority ? "high" : undefined}
           className="object-cover"
         />

@@ -52,6 +52,8 @@ interface GalleryCardProps {
   /** Pre-resolved by the caller (from `cityLabels`) - the card never fetches. */
   cityName: string | null;
   priority?: boolean;
+  /** The photo is in the first visible row: loaded now, but not preloaded (that is `priority`). */
+  eager?: boolean;
   /**
    * `responsive` (the gallery): the text sits under the photo on a phone and in a panel over it
    * from `tablet`. `stacked` (the shelter page): under the photo at every width.
@@ -75,6 +77,7 @@ export function GalleryCard({
   card,
   cityName,
   priority = false,
+  eager = false,
   layout = "responsive",
   filters,
   sort,
@@ -101,6 +104,7 @@ export function GalleryCard({
         sizes={SIZES[layout]}
         aspect={stacked ? "portrait" : "cardStacked"}
         priority={priority}
+        eager={eager}
         className={stacked ? "rounded-card tablet:rounded-none" : ""}
       />
       {/* `contents` on a phone: the badge floats on the photo, the freshness joins the text column

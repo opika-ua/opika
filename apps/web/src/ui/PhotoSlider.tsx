@@ -11,6 +11,8 @@ import { Photo } from "./Photo";
  * own and works without JS). Prev and next buttons appear only when there is somewhere to scroll,
  * stepping by most of the visible width. The scroller is a named region and keyboard-focusable
  * (arrow keys scroll it natively). Slides use the kit's `Photo`: fixed aspect, R2 variants, `sizes`.
+ * Only the first photo loads up front; each later slide stays an empty box until it is about half a
+ * slide from the viewport (Chrome's own lazy threshold is too far to spare a 412px slide).
  */
 const SLIDE = {
   peek: "w-4/5 max-w-90",
@@ -58,6 +60,8 @@ export function PhotoSlider({
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
   const [current, setCurrent] = useState(0);
+  // Sticky: an armed slide keeps its image, so scrolling back never blanks it.
+  const [armed, setArmed] = useState<ReadonlySet<number>>(() => new Set([0]));
 
   const measure = useCallback(() => {
     const node = scrollerRef.current;
@@ -75,6 +79,36 @@ export function PhotoSlider({
     observer.observe(node);
     return () => observer.disconnect();
   }, [measure]);
+
+  const count = photos.length;
+  useEffect(() => {
+    const node = scrollerRef.current;
+    if (!node || count < 2) return;
+    const arm = (indexes: number[]) =>
+      setArmed((prev) => {
+        const next = new Set(prev);
+        for (const index of indexes) next.add(index);
+        return next.size === prev.size ? prev : next;
+      });
+    if (typeof IntersectionObserver === "undefined") {
+      arm(Array.from({ length: count }, (_, index) => index));
+      return;
+    }
+    const slides = Array.from(node.children);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        arm(
+          entries
+            .filter((entry) => entry.isIntersecting)
+            .map((entry) => slides.indexOf(entry.target))
+            .filter((index) => index >= 0),
+        );
+      },
+      { root: node, rootMargin: "0px 50% 0px 50%" },
+    );
+    for (const slide of slides) observer.observe(slide);
+    return () => observer.disconnect();
+  }, [count]);
 
   const step = (direction: 1 | -1) => {
     const node = scrollerRef.current;
@@ -113,7 +147,7 @@ export function PhotoSlider({
         {photos.map((photo, index) => (
           <Photo
             key={`${index}-${photo.src}`}
-            src={photo.src}
+            src={armed.has(index) ? photo.src : null}
             alt={photo.alt}
             sizes={sizes}
             aspect={aspect}
