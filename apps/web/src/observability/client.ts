@@ -3,7 +3,7 @@ import { coarseUserAgentIntegration } from "./coarse-context";
 import { baseSentryOptions, type SentryTestKnobs, TUNNEL_PATH } from "./options";
 
 /**
- * The browser SDK, loaded by `load-client.ts` after idle and only when a DSN exists. Its integration
+ * The browser SDK, loaded by `load-client.ts` after load, interaction or error, and only when a DSN exists. Its integration
  * list is explicit (no default list): no tracing, no replay, no feedback, no breadcrumb sources, no
  * session tracking. Events go through our own tunnel, never straight to Sentry.
  */
