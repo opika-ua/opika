@@ -17,14 +17,14 @@ import {
   type ListingMoveHistory,
 } from "../src/repos/kabinet-animal-repo";
 import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
+import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
-import { swipeRepo } from "../src/repos/swipe-repo";
 import {
   makeAdopter,
   makeAnimal,
   makeCity,
+  makeReveal,
   makeShelter,
-  makeSwipe,
   setupTestDatabase,
   truncateAll,
 } from "../src/test-utils/index";
@@ -458,13 +458,20 @@ describe("a shelter animal write and its history line are one statement (K-Q7)",
    * 23503 still reaches the catch as `referenced`, and the line inserted by the
    * same statement goes with it.
    */
-  it("a draft a swipe references comes back referenced, kept, with no line", async () => {
+  it("a draft a reveal references comes back referenced, kept, with no line", async () => {
     const { animal, cityId } = await seeded();
     const draft = makeAnimal({ shelterId: animal.shelterId, listing: { kind: "draft" } });
     await animalRepo(db).insert(draft, cityId as never);
     const adopter = makeAdopter();
     await adopterRepo(db).insert(adopter);
-    await swipeRepo(db).record(makeSwipe({ adopterId: adopter.id, animalId: draft.id, at: AT }));
+    await revealRepo(db).insert(
+      makeReveal({
+        adopterId: adopter.id,
+        animalId: draft.id,
+        shelterId: draft.shelterId,
+        revealedAt: AT,
+      }),
+    );
     expect(
       await kabinetAnimalRepo(db).deleteDraftIf(draft.id, draft.version, deletedLine(draft)),
     ).toEqual({ kind: "referenced" });

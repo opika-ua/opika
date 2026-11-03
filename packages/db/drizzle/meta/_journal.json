@@ -155,6 +155,13 @@
       "when": 1793619435614,
       "tag": "0021_drop_orphan_animal_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793695478602,
+      "tag": "0022_drop_swipes",
+      "breakpoints": true
     }
   ]
 }

@@ -14,8 +14,7 @@ export type AppCaller =
 /**
  * Request context carried through every oRPC handler.
  *
- * `adopterId` is null for unauthenticated requests (cities.byIds, feed.list
- * without seen-set). Handlers that require a session check for non-null and
+ * `adopterId` is null for unauthenticated requests (cities.byIds, gallery.list). Handlers that require a session check for non-null and
  * return UNAUTHENTICATED otherwise.
  */
 export type AppContext = {

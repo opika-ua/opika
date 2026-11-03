@@ -14,6 +14,12 @@ export type FormSectionProps = {
   /** The anchor: `FormSteps` links to `#id`. The heading is `${id}-title`. */
   id: string;
   title: ReactNode;
+  /**
+   * For a section that is the whole body of a tab or panel already named by it (the tab's name is
+   * the title): no heading and no `section` name, so the tab name is not read twice. `title` is
+   * ignored (`titleExtra` and `description` still show), and the section takes focus (`tabIndex` -1) where a link moves it here; the surrounding tab panel carries the name (`aria-labelledby` its tab).
+   */
+  titleless?: boolean;
   /** The section's 1-based place in the form; omit for an unnumbered section. */
   step?: number;
   /** Sits in the title row after the heading, outside it (an InfoTip, a counter), so the heading's name stays the title. */
@@ -30,6 +36,7 @@ export type FormSectionProps = {
 export function FormSection({
   id,
   title,
+  titleless = false,
   step,
   titleExtra,
   description,
@@ -42,7 +49,7 @@ export function FormSection({
     <Card
       as="section"
       id={id}
-      aria-labelledby={titleId}
+      {...(titleless ? { tabIndex: -1 } : { "aria-labelledby": titleId })}
       tone={framing === "flush" ? "page" : "surface"}
       className={cx("scroll-mt-4", className)}
     >
@@ -52,25 +59,36 @@ export function FormSection({
           framing === "flush" ? "py-4 tablet:py-6" : "p-4 tablet:p-6 desktop:p-8",
         )}
       >
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
-            {step === undefined ? null : (
-              <span
-                aria-hidden="true"
-                className="grid size-8 shrink-0 place-items-center rounded-pill bg-ink text-label text-on-ink"
-              >
-                {step}
-              </span>
+        {titleless ? (
+          <>
+            {titleExtra === undefined ? null : (
+              <div className="flex items-center gap-3">{titleExtra}</div>
             )}
-            <Heading level={2} look="section" id={titleId} tabIndex={-1}>
-              {title}
-            </Heading>
-            {titleExtra}
+            {description === undefined ? null : (
+              <p className="text-caption text-ink-2">{description}</p>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              {step === undefined ? null : (
+                <span
+                  aria-hidden="true"
+                  className="grid size-8 shrink-0 place-items-center rounded-pill bg-ink text-label text-on-ink"
+                >
+                  {step}
+                </span>
+              )}
+              <Heading level={2} look="section" id={titleId} tabIndex={-1}>
+                {title}
+              </Heading>
+              {titleExtra}
+            </div>
+            {description === undefined ? null : (
+              <p className="text-caption text-ink-2">{description}</p>
+            )}
           </div>
-          {description === undefined ? null : (
-            <p className="text-caption text-ink-2">{description}</p>
-          )}
-        </div>
+        )}
         {children}
       </div>
     </Card>

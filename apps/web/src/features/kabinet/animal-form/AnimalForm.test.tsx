@@ -2250,9 +2250,10 @@ describe("sections, steps and the error summary (kabinet redesign PR 3)", () => 
       "Публікація",
     ]);
     const headings = screen
-      .getAllByRole("heading", { level: 2 })
+      .queryAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent?.split(" · ")[0]);
-    expect(headings).toEqual(["Основне", "Фото", "Про тварину", "Здоровʼя", "Публікація"]);
+    // The tabs name their panels; no section repeats its tab as a heading.
+    expect(headings).toEqual([]);
   });
 
   it("a read-only view has no «Публікація» section and no tab for it", () => {
@@ -2263,7 +2264,7 @@ describe("sections, steps and the error summary (kabinet redesign PR 3)", () => 
 
   it("on /nova the photos section is there, without a way to add one yet", () => {
     renderForm(null);
-    expect(screen.getByRole("heading", { level: 2, name: /^Фото/ })).toBeTruthy();
+    expect(document.getElementById("photos")).not.toBeNull();
     expect(screen.queryByRole("button", { name: /^Додати фото/ })).toBeNull();
   });
 
@@ -2299,7 +2300,7 @@ describe("sections, steps and the error summary (kabinet redesign PR 3)", () => 
     expect(screen.getByRole("tab", { name: "Публікація" }).getAttribute("aria-selected")).toBe(
       "true",
     );
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Публікація" }));
+    expect(document.activeElement).toBe(document.getElementById("publication"));
     expect(missingItems()).toEqual([
       "Розмір (Основне)",
       "Вік (Основне)",

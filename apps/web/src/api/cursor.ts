@@ -7,26 +7,20 @@ import type { ShelterId } from "@opika/domain";
  * Cursor payload, signed with HMAC to prevent tampering.
  *
  * The cursor encodes:
- * - `kind`: which list this cursor belongs to (feed vs reveal)
+ * - `kind`: which list this cursor belongs to (reveal vs the kabinet lists)
  * - `filtersFingerprint`: a hash of the filters the cursor was issued against
- * - `at`: the ordering value - the feed's `last_confirmed_at`, the reveal
+ * - `at`: the ordering value - the reveal
  *   history's `revealed_at` (each list maps its own key onto this one, so
  *   neither is stored under the other's name)
  * - `id`: the tiebreaker
  *
- * The key was `lastUpdatedAt` until H2-3 moved the feed's ordering onto
- * confirmation, and renamed so neither list's value travels under the other's
- * name. Cursors issued before that change decode as invalid
- * (`INVALID_CURSOR`). `reveals.listMine` has no
- * client caller yet, so no reveal cursor is in flight anywhere.
- *
  * Signing prevents:
  * - Constructing cursors to skip directly to a position
- * - Reusing a feed cursor as a reveal cursor (kind mismatch)
+ * - Reusing one list's cursor as another's (kind mismatch)
  * - Reusing a cursor after changing filters (fingerprint mismatch)
  */
 type CursorPayload = {
-  kind: "feed" | "reveal" | "kabinet_animals" | "kabinet_history" | "registry_history";
+  kind: "reveal" | "kabinet_animals" | "kabinet_history" | "registry_history";
   filtersFingerprint: string;
   at: string;
   id: string;
@@ -68,14 +62,6 @@ function encodeCursorWithFingerprint(
   return Buffer.from(`${mac}:${json}`).toString("base64url");
 }
 
-export function encodeFeedCursor(
-  data: CursorPosition,
-  filtersFingerprint: string,
-  secret: string,
-): string {
-  return encodeCursorWithFingerprint("feed", data, filtersFingerprint, secret);
-}
-
 export function encodeRevealCursor(data: CursorPosition, secret: string): string {
   return encodeCursor("reveal", data, secret);
 }
@@ -84,8 +70,6 @@ type DecodedCursor = {
   data: CursorPosition;
   filtersFingerprint: string;
 };
-
-export type DecodedFeedCursor = DecodedCursor;
 
 /**
  * Decode and verify a signed cursor, checking kind and optional fingerprint.
@@ -137,14 +121,6 @@ function decodeCursor(
   } catch {
     return null;
   }
-}
-
-export function decodeFeedCursor(
-  cursor: string,
-  expectedFingerprint: string,
-  secret: string,
-): DecodedFeedCursor | null {
-  return decodeCursor(cursor, "feed", expectedFingerprint, secret);
 }
 
 export function decodeRevealCursor(
@@ -236,7 +212,7 @@ type RegistrySheltersPayload = {
   id: string;
 };
 
-/** Bound to the search and the status filter, like the feed's to its filters. */
+/** Bound to the search and the status filter, like a gallery filter set. */
 export const registrySheltersFingerprint = (search: string | null, status: string | null): string =>
   JSON.stringify([search, status]);
 

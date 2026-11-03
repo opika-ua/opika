@@ -26,7 +26,7 @@ export const GAP_TARGET: Record<PublishGap["kind"], string> = {
   size: 'input[name="animal-size"]',
   age: "#animal-birth-date, input[name='animal-age-bucket']",
   description: "#animal-description",
-  photo: "#photos-title",
+  photo: "#photos",
 };
 
 /** ✓ when the tab holds publish fields and none is missing, ! when one is, null on a tab with none. */

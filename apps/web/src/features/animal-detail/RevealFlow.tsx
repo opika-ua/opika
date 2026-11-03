@@ -41,7 +41,7 @@ interface RevealFlowProps {
  * Pet card PR 5, owner decision 4: «Дати сімʼю», the panel header's own
  * pill (64px tall, orange `bg-brand-accent`), opens this exact flow with no
  * new logic - only this trigger's own label and styling changed, from
- * `uk.actions.writeShelter` ("Написати притулку") to `uk.detail.giveHome`.
+ * "Написати притулку" to `uk.detail.giveHome`.
  * The dialog it opens, `secondaryAction` included, is untouched.
  */
 export function RevealFlow({ animalId, animalName, cityName, cityLabel }: RevealFlowProps) {

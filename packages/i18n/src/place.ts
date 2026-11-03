@@ -24,9 +24,31 @@ const PREFIX: Record<PlaceLabel["kind"], string> = {
   village: uk.place.prefixVillage,
 };
 
+const WHITESPACE = /\s/u;
+
+/**
+ * Removes the words of `tail` (each slot lists its alternatives) from the end of `text`, with at
+ * least one whitespace character before each, and the whitespace before the first. Null when the
+ * tail is absent. A backward scan, linear on any input (it replaces `\s+` regexes that CodeQL
+ * flags as polynomial); `\s` is the same set as before, so U+00A0 and tabs still count.
+ */
+function stripTail(text: string, tail: readonly (readonly string[])[]): string | null {
+  let end = text.length;
+  for (let i = tail.length - 1; i >= 0; i--) {
+    const head = text.slice(0, end);
+    const word = tail[i]?.find((w) => head.endsWith(w));
+    if (word === undefined) return null;
+    end -= word.length;
+    const wordStart = end;
+    while (end > 0 && WHITESPACE.test(text.charAt(end - 1))) end--;
+    if (end === wordStart) return null;
+  }
+  return text.slice(0, end);
+}
+
 /** «Броварський район» -> «Броварський р-н»; a raion that does not end in «район» is kept as is. */
 function raionShort(raion: string): string {
-  const name = raion.replace(/\s+район$/u, "");
+  const name = stripTail(raion, [["район"]]) ?? raion;
   return name === raion ? raion : fillTemplate(uk.place.districtShort, { name });
 }
 
@@ -35,7 +57,9 @@ function raionShort(raion: string): string {
  * the «міська/селищна/сільська територіальна громада» tail is kept as is.
  */
 export function hromadaShort(hromada: string): string {
-  const name = hromada.replace(/\s+(?:міська|селищна|сільська)\s+територіальна\s+громада$/u, "");
+  const name =
+    stripTail(hromada, [["міська", "селищна", "сільська"], ["територіальна"], ["громада"]]) ??
+    hromada;
   return name === hromada ? hromada : fillTemplate(uk.place.hromadaShort, { name });
 }
 

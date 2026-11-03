@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { contract } from "./contract";
-import { FeedListInputSchema } from "./procedures/feed";
 import {
   GalleryFacetCountsInputSchema,
   GalleryFacetCountsOutputSchema,
@@ -39,7 +38,6 @@ describe("the contract surface", () => {
       "animals.reveal",
       "cities.byIds",
       "cities.resolveTokens",
-      "feed.list",
       "gallery.facetCounts",
       "gallery.list",
       "gallery.relaxationCounts",
@@ -47,14 +45,7 @@ describe("the contract surface", () => {
       "reveals.listMine",
       "session.bootstrap",
       "shelters.byId",
-      "swipes.record",
     ]);
-  });
-
-  it("keeps reveal separate from swipe recording", () => {
-    // Fusing them would make a best-effort analytics write transactional and a
-    // ledger write droppable.
-    expect(contract.animals.reveal).not.toBe(contract.swipes.record);
   });
 });
 
@@ -195,51 +186,6 @@ describe("gallery scope input (the shelter page, DR1-D4)", () => {
     });
 
     expect(parsed.scope).toEqual({ kind: "everyone" });
-  });
-});
-
-describe("feed pagination input", () => {
-  it("defaults the page size so a client need not choose one", () => {
-    const parsed = FeedListInputSchema.parse({
-      filters: {
-        cities: { kind: "any" },
-        species: { kind: "any" },
-        sizes: { kind: "any" },
-        ages: { kind: "any" },
-      },
-      cursor: null,
-    });
-
-    expect(parsed.limit).toBe(DEFAULT_PAGE_SIZE);
-  });
-
-  it("refuses a page size above the cap", () => {
-    const result = FeedListInputSchema.safeParse({
-      filters: {
-        cities: { kind: "any" },
-        species: { kind: "any" },
-        sizes: { kind: "any" },
-        ages: { kind: "any" },
-      },
-      cursor: null,
-      limit: MAX_PAGE_SIZE + 1,
-    });
-
-    expect(result.success).toBe(false);
-  });
-
-  it("refuses an empty cursor, which is a bug rather than a first page", () => {
-    const result = FeedListInputSchema.safeParse({
-      filters: {
-        cities: { kind: "any" },
-        species: { kind: "any" },
-        sizes: { kind: "any" },
-        ages: { kind: "any" },
-      },
-      cursor: "",
-    });
-
-    expect(result.success).toBe(false);
   });
 });
 

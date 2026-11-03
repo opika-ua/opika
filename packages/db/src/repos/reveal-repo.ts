@@ -159,7 +159,7 @@ export function revealRepo(db: Database) {
      *
      * The guard alone can't close the race: each statement sees only what was committed when it
      * began, so two reveals at 29 would both pass. So the adopter's row is locked first, in the
-     * same transaction (`FOR NO KEY UPDATE`, which a swipe's or a session's foreign-key check
+     * same transaction (`FOR NO KEY UPDATE`, which a session's foreign-key check
      * doesn't wait on): a second reveal by this adopter waits there, and its guarded insert, a
      * new statement, then counts the first one's row.
      */

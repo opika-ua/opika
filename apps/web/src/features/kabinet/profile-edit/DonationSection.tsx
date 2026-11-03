@@ -102,7 +102,7 @@ export function DonationSection({
   const pendingHost = pendingDonation === null ? null : hostOf(pendingDonation.link.url);
 
   return (
-    <FormSection id="donation" title={profile.donationTitle}>
+    <FormSection id="donation" title={profile.donationTitle} titleless>
       <TextField
         id={`${id}-url`}
         label={

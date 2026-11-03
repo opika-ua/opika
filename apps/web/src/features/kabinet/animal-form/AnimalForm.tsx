@@ -30,7 +30,7 @@ import { type SaveBarState, saveBarTextOf } from "../shared/save-state";
 import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../shared/unsaved-changes";
 import { ANIMAL_TABS, type AnimalTab } from "./animal-tabs";
 import { summaryItemsOf } from "./error-summary-items";
-import { AboutFields, BasicsFields, HealthFields, withTag } from "./FormSections";
+import { AboutFields, BasicsFields, HealthFields } from "./FormSections";
 import {
   emptyValues,
   type FieldProblem,
@@ -479,7 +479,7 @@ export function AnimalForm({
     if (gaps.length > 0) {
       setAnnouncement(missingSentence(gaps));
       // The gaps are written in «Публікація», next to the links that lead to each.
-      goTo("publikatsiia", "#publication-title");
+      goTo("publikatsiia", "#publication");
       return;
     }
     setPublishing(true);
@@ -547,7 +547,7 @@ export function AnimalForm({
 
   const panels: Record<AnimalTab, React.ReactNode> = {
     osnovne: (
-      <FormSection framing="flush" id="basics" title={t.sections.basics}>
+      <FormSection framing="flush" id="basics" title={t.sections.basics} titleless>
         <BasicsFields
           values={values}
           set={set}
@@ -563,7 +563,8 @@ export function AnimalForm({
       <FormSection
         framing="flush"
         id="photos"
-        title={withTag(t.photos.title, required.includes("photo"))}
+        title={t.photos.title}
+        titleless
         titleExtra={
           view === null ? undefined : (
             <>
@@ -604,7 +605,7 @@ export function AnimalForm({
       </FormSection>
     ),
     "pro-tvarynu": (
-      <FormSection framing="flush" id="about" title={t.sections.about}>
+      <FormSection framing="flush" id="about" title={t.sections.about} titleless>
         <AboutFields
           values={values}
           set={set}
@@ -615,7 +616,7 @@ export function AnimalForm({
       </FormSection>
     ),
     zdorovia: (
-      <FormSection framing="flush" id="health" title={t.sections.health}>
+      <FormSection framing="flush" id="health" title={t.sections.health} titleless>
         <HealthFields
           values={values}
           set={set}
@@ -626,7 +627,7 @@ export function AnimalForm({
       </FormSection>
     ),
     publikatsiia: (
-      <FormSection framing="flush" id="publication" title={t.sections.publication}>
+      <FormSection framing="flush" id="publication" title={t.sections.publication} titleless>
         {isDraft ? (
           <DraftPublication
             gaps={gaps}

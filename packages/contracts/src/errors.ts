@@ -180,12 +180,11 @@ export const apiErrors = {
    * A draft that can't be deleted, only withdrawn (HS-Q9, Oleksii). One
    * refusal for both causes, with no data (K-Q9, Oleksii: "one refusal for
    * both cases"): it has been public before (`first_published_at` set), or a
-   * swipe or reveal still references it (the database's own refusal). Telling
+   * reveal still references it (the database's own refusal). Telling
    * the two apart would tell a shelter that an adopter acted on its animal
    * (commitment #2). Merging them is truthful because activity implies
-   * publication: `swipes.record` refuses a non-discoverable animal (DR-F1),
-   * and a reveal needs a discoverable one too, so a never-published draft
-   * collects neither.
+   * publication: a reveal needs a discoverable animal (DR-F1), so a
+   * never-published draft collects none.
    */
   WAS_PUBLISHED: {
     status: 409,

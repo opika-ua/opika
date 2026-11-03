@@ -261,6 +261,16 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
     expect(maskedLogValue(await realQueryError())).toBe("Error (42703)");
   });
 
+  it("masks every encoded address in a malformed-encoding string, not just the first", () => {
+    const out = maskedLogText("bad %zz olena%40example.org kovalenko%40example.org");
+    expect(out).not.toContain("olena");
+    expect(out).not.toContain("kovalenko");
+    // One match holding two encoded @ signs: the decode throws, the fallback must replace both.
+    const chained = maskedLogText("x%zz%40olena%40example.org");
+    expect(chained).not.toContain("olena");
+    expect(chained).not.toContain("%40");
+  });
+
   it("note 5: a URL-encoded address, a capitalised Params: and a short token are masked", () => {
     expect(maskedLogText("sent to olena%40example.org and OLENA%40Example.org")).toBe(
       "sent to o•••@example.org and O•••@Example.org",

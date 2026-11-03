@@ -1,8 +1,9 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
+import { NotFoundHeader } from "../../../features/chrome/NotFoundHeader";
 import { LinkButton } from "../../../ui/Button";
+import { Container } from "../../../ui/Container";
 import { Heading } from "../../../ui/Heading";
-import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { Mascot } from "../../../ui/Mascot";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
@@ -22,22 +23,25 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 export default function NotFound() {
   const copy = uk.detail.notFound;
   return (
-    <main {...MAIN_LANDMARK} className="flex min-h-dvh items-center justify-center bg-page p-6">
-      <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">
-        <Mascot kind="cat" pose="sit" variant="collar" size={64} />
-        <Text look="hint" className="uppercase tracking-wider">
-          {copy.eyebrow}
-        </Text>
-        <Heading level={1} look="display-l">
-          {copy.title}
-        </Heading>
-        <Text look="lead" className="text-ink-2">
-          {copy.body}
-        </Text>
-        <LinkButton href="/tvaryny" data-testid="not-found-action">
-          {copy.action}
-        </LinkButton>
-      </Panel>
-    </main>
+    <div className="min-h-dvh bg-page">
+      <NotFoundHeader />
+      <Container as="main" className="flex justify-center py-8 desktop:py-14">
+        <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">
+          <Mascot kind="cat" pose="sit" variant="collar" size={64} />
+          <Text look="hint" className="uppercase tracking-wider">
+            {copy.eyebrow}
+          </Text>
+          <Heading level={1} look="display-l">
+            {copy.title}
+          </Heading>
+          <Text look="lead" className="text-ink-2">
+            {copy.body}
+          </Text>
+          <LinkButton href="/tvaryny" data-testid="not-found-action">
+            {copy.action}
+          </LinkButton>
+        </Panel>
+      </Container>
+    </div>
   );
 }

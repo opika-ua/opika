@@ -7,7 +7,7 @@
  * What it deletes is Oleksii's Phase 0 answer (inbox DR-B1, 2026-10-15),
  * narrowed by his DR-Q1 (b) to leave support sessions alone: the
  * shelters in the seed's reserved id range and everything attached to them
- * (their animals, swipes and reveals on those animals, shelter history, each
+ * (their animals, reveals on those animals, shelter history, each
  * shelter's organization with its invitations; a member is a refusal), plus
  * users whose only link was an invitation to one of those shelters and who are
  * not super_admin (step 4's `+test` user). Cities stay:
@@ -98,13 +98,11 @@ import {
 import { reveals } from "./schema/reveals";
 import { shelterHistory } from "./schema/shelter-history";
 import { shelters } from "./schema/shelters";
-import { swipes } from "./schema/swipes";
 import { isSeedShelterId, SEED_LOCATION_POLICY_KEY, SEED_SHELTER_ID_PREFIX } from "./seed-ids";
 import { storedWith } from "./verify-locations";
 
 /** Every table the removal deletes from, in the order it deletes. */
 export const DEMO_REMOVAL_TABLES = [
-  "swipes",
   "reveals",
   "animals",
   "shelter_history",
@@ -255,7 +253,6 @@ function scopeOf(target: RemovalTarget): Scope {
 
   /** What each table's deletion targets; the plan counts exactly these rows. */
   const targets: Scope["targets"] = {
-    swipes: { table: swipes, where: sql`${swipes.animalId} IN ${animalIds}` },
     reveals: {
       table: reveals,
       where: sql`(${isTargetAnimalReveal} OR ${isTargetShelterReveal})`,
@@ -449,9 +446,6 @@ export async function removeDemoCorpus(
       }
     };
 
-    await del("swipes", () =>
-      tx.delete(swipes).where(targets.swipes.where).returning({ id: swipes.animalId }),
-    );
     await del("reveals", () =>
       tx.delete(reveals).where(targets.reveals.where).returning({ id: reveals.animalId }),
     );

@@ -25,7 +25,7 @@ import { z } from "zod";
  * Kabinet views (H2 S3 addendum §3). All built with `pick`, never `omit`, and
  * never `PublicShelterView` with extras bolted on: a field added to a domain
  * object reaches no kabinet screen until someone decides it should. No view
- * carries a reveal, swipe or view count (commitment #2); a contract test pins
+ * carries a reveal or view count (commitment #2); a contract test pins
  * each view's exact key list.
  */
 

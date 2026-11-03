@@ -1,9 +1,9 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
+import { NotFoundHeader } from "../../../features/chrome/NotFoundHeader";
 import { LinkButton } from "../../../ui/Button";
 import { Container } from "../../../ui/Container";
 import { Heading } from "../../../ui/Heading";
-import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { Mascot } from "../../../ui/Mascot";
 import { Panel } from "../../../ui/Panel";
 
@@ -17,8 +17,9 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default function NotFound() {
   return (
-    <main {...MAIN_LANDMARK} className="flex min-h-dvh items-center bg-page">
-      <Container className="max-w-xl">
+    <div className="min-h-dvh bg-page">
+      <NotFoundHeader />
+      <Container as="main" className="max-w-xl py-8 desktop:py-14">
         <Panel padding="lg" className="flex flex-col items-start gap-4">
           <Mascot kind="cat" pose="sit" variant="collar" size={64} />
           <Heading level={1} look="title">
@@ -27,6 +28,6 @@ export default function NotFound() {
           <LinkButton href="/tvaryny">{uk.detail.notFound.action}</LinkButton>
         </Panel>
       </Container>
-    </main>
+    </div>
   );
 }

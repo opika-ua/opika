@@ -16,6 +16,8 @@ export type CardProps = {
   /** A named region: `id` for an anchor, `aria-labelledby` for the heading that names it. */
   id?: string;
   "aria-labelledby"?: string;
+  /** -1 where a link moves focus to the region (a section with no heading of its own). */
+  tabIndex?: -1;
   children: ReactNode;
 };
 

@@ -7,7 +7,6 @@ import {
   type KabinetProfileClient,
   kabinetProfileBrowserClient,
 } from "../../../api/kabinet-browser-client";
-import { Heading } from "../../../ui/Heading";
 import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
 import { LockedBlock } from "../ProfileParts";
@@ -94,12 +93,8 @@ export function ProfileEditor({
       label: t.profile,
       panel: (
         <div className="flex flex-col gap-4 desktop:gap-6">
-          <div className="flex flex-col gap-1">
-            <Heading level={2} look="title">
-              {t.profile}
-            </Heading>
-            <Text look="hint">{t.profileNote}</Text>
-          </div>
+          {/* The tab is named «Профіль» already; the sentence stays. */}
+          <Text look="hint">{t.profileNote}</Text>
           <LogoSection
             logo={view.logo}
             displayName={view.displayName}

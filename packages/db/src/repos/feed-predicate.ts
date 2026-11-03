@@ -13,11 +13,10 @@ import { shelters } from "../schema/shelters";
 /**
  * The WHERE clause every animal-browsing query shares.
  *
- * Two repositories now build it - the deck's keyset feed and the gallery's
- * numbered pages - and they must agree exactly, or a filter that hides an
- * animal from one surface leaves it visible on the other. A new or removed
- * `FeedFilters` dimension is a one-site edit here rather than a two-site
- * edit somebody does once.
+ * The gallery's queries and the other adopter-facing reads build it, and
+ * they must agree exactly, or a filter that hides an animal from one surface
+ * leaves it visible on the other. A new or removed `FeedFilters` dimension is
+ * a one-site edit here.
  *
  * Split into the two halves rather than only the whole, because
  * `gallery.relaxationCounts` needs them separately: its base scan is the
@@ -31,11 +30,6 @@ import { shelters } from "../schema/shelters";
  * repository boundary exists so a query builder never reaches a route handler;
  * putting them on the barrel would make that reach the path of least
  * resistance for the next caller who wants "just one more condition".
- *
- * The condition order is load-bearing only in that
- * `test/feed-predicate-identity.test.ts` pins the SQL `feed.list` generates;
- * Postgres does not care, but a silent reordering would hide a genuine change
- * in the same diff.
  */
 
 /**
@@ -61,7 +55,7 @@ export function buildDiscoverabilityPredicate(): SQL[] {
  * city, or its oblast is picked and none of that oblast's cities is. So "Київська" alone is the
  * whole oblast, "Київська" + "Бровари" is Brovary only, and "Бровари" + "Львівська" is Brovary
  * plus all of Lviv oblast. Cities alone stay a bare `city_id IN (...)`, byte-identical to before
- * the oblast dimension (`feed-predicate-identity.test.ts`).
+ * the oblast dimension.
  */
 function buildLocationCondition(filters: FeedFilters): SQL | null {
   const cityIds = filters.cities.kind === "oneOf" ? [...filters.cities.values] : null;
@@ -140,8 +134,7 @@ export function buildFilterPredicate(filters: FeedFilters, now: Date): SQL[] {
  * Always added *alongside* the discoverability half, never instead of it, so
  * a scope naming an unknown, unverified, suspended or paused shelter matches
  * nothing (the shelter subquery already excludes it) rather than listing its
- * animals. Kept out of `buildFeedPredicate` because the deck has no scope and
- * `feed-predicate-identity.test.ts` pins the SQL the deck generates.
+ * animals. Kept out of `buildFeedPredicate`, which has no scope.
  */
 export function buildScopePredicate(scope: GalleryScope): SQL[] {
   switch (scope.kind) {
@@ -160,8 +153,7 @@ export function buildScopePredicate(scope: GalleryScope): SQL[] {
 /**
  * The full predicate: what is showable, and what was asked for.
  *
- * Callers add their own pagination and personalisation on top - the deck adds
- * a keyset cursor and its seen-set exclusion, the gallery adds neither.
+ * Callers add their own ordering and pagination on top.
  */
 export function buildFeedPredicate(filters: FeedFilters, now: Date): SQL[] {
   return [...buildDiscoverabilityPredicate(), ...buildFilterPredicate(filters, now)];
