@@ -157,6 +157,10 @@ why - it's the newest version that's already cleared quarantine. Don't
 "fix" this by bumping to `latest` and adding a `minimumReleaseAgeExclude`
 entry; wait a day, or pick the next-newest cleared version instead.
 
+Dependabot (`.github/dependabot.yml`) opens weekly, grouped (minor+patch) update PRs for npm and
+GitHub Actions with a 3-day cooldown, so it never proposes a version younger than the quarantine. Its PRs
+run CI and go through the merge queue; nothing auto-merges.
+
 
 ## Test-DB drops: the ProcSignalBarrier pile-up (2026-10-30)
 
