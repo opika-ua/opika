@@ -21,8 +21,6 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
 const ipHeaders = (lastOctet: number) => ({ "x-forwarded-for": `198.51.100.${lastOctet}` });
 
 const CARD = "[data-testid='animal-card']";
-/** His `detail.shelterRowLink`: «Сторінка притулку «{name}»». */
-const ROW_LINK = /^Сторінка притулку «(.+)»$/;
 /** His `shelterPage.animalsHeading`: «Шукають дім: {count}». */
 const ANIMALS_LIST = /^Шукають дім: \d+$/;
 
@@ -38,10 +36,11 @@ async function firstGalleryAnimal(page: Page) {
 
 /** The animal page's shelter row link, and the shelter name its accessible name gives. */
 async function shelterRowLinkOn(scope: Page | ReturnType<Page["getByRole"]>) {
-  const link = scope.getByRole("link", { name: ROW_LINK });
+  const link = scope.locator("a[href^='/prytulky/']");
   await expect(link).toHaveCount(1);
+  // The label is the registered name itself, or the template around it (`shelterRowLabel`).
   const label = (await link.getAttribute("aria-label")) ?? "";
-  const shelterName = ROW_LINK.exec(label)?.[1] ?? "";
+  const shelterName = /^Сторінка притулку «(.+)»$/.exec(label)?.[1] ?? label;
   expect(shelterName.length, "the row link names the shelter").toBeGreaterThan(0);
   return { link, shelterName };
 }

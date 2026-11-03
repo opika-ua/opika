@@ -107,6 +107,7 @@ export function ContactsSection({
     <FormSection
       id="contacts"
       title={uk.kabinet.profile.contactsTitle}
+      titleless
       description={uk.kabinet.profile.contactsNote}
     >
       <ContactFields idPrefix={id} form={form} update={setForm} errors={errors} />

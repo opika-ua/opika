@@ -61,4 +61,15 @@ describe("FormSteps", () => {
     ]);
     expect(links.map((link) => link.textContent)).toEqual(["1Основне", "2Фото", "3Про тварину"]);
   });
+
+  it("with titleless, draws no heading and leaves the tab panel as the name", () => {
+    render(
+      <FormSection id="basics" title="Основне" titleless>
+        <p>поля</p>
+      </FormSection>,
+    );
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.queryByRole("region")).toBeNull();
+    expect(screen.getByText("поля")).toBeTruthy();
+  });
 });

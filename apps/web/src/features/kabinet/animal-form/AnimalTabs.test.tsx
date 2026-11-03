@@ -214,7 +214,7 @@ describe("the missing-items panel", () => {
   it.each([
     ["Розмір (Основне)", /^Основне/, () => document.querySelector('input[name="animal-size"]')],
     ["Опис (Про тварину)", /^Про тварину/, () => document.getElementById("animal-description")],
-    ["Фото (Фото)", /^Фото/, () => document.getElementById("photos-title")],
+    ["Фото (Фото)", /^Фото/, () => document.getElementById("photos")],
   ])("«%s» switches to its tab and focuses the field", async (item, tab, field) => {
     const user = userEvent.setup();
     renderTabs(animal({ sex: "male" }), "publikatsiia");
@@ -223,13 +223,13 @@ describe("the missing-items panel", () => {
     await waitFor(() => expect(document.activeElement).toBe(field()));
   });
 
-  it("pressing «Опублікувати» with something missing opens «Публікація» and focuses its heading", async () => {
+  it("pressing «Опублікувати» with something missing opens «Публікація» and focuses its section", async () => {
     const user = userEvent.setup();
     renderTabs(animal({ sex: "male" }));
     await user.click(screen.getByRole("button", { name: "Опублікувати" }));
     expect(selectedTab()?.textContent).toBe("Публікація");
     await waitFor(() =>
-      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Публікація" })),
+      expect(document.activeElement).toBe(document.getElementById("publication")),
     );
     expect(
       screen.getByText("Щоб опублікувати, ще потрібно: розмір, вік, опис і фото."),

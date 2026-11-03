@@ -61,8 +61,9 @@ export function ShareButton({ animalId, animalName }: { animalId: AnimalId; anim
 
   return (
     <>
-      {/* Two looks of one action: the ink pill from desktop, an icon circle in the phone's action bar. */}
+      {/* Two looks of one action: the outline pill from desktop, an icon circle in the phone's action bar. */}
       <Button
+        variant="secondary"
         size="lg"
         data-testid="share-button"
         onClick={() => void share()}

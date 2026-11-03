@@ -70,31 +70,38 @@ export function PauseControl({
       as="section"
       tone="outline"
       padding="lg"
-      aria-labelledby={`${id}-title`}
+      aria-labelledby={`${id}-action`}
       className="flex flex-col items-start gap-4"
     >
-      {/* The section is named by the action it holds. */}
-      <h2 id={`${id}-title`} className="sr-only">
-        {verification.status === "paused" ? t.resumeButton : t.button}
-      </h2>
+      {/* The section is named by the action it holds (its button), so the label is in the DOM once. */}
       {verification.status === "paused" ? (
         <>
           <PausedStatus since={verification.since} reason={verification.reason} />
-          <Button variant="secondary" status={busy ? "loading" : "idle"} onClick={onResume}>
+          <Button
+            id={`${id}-action`}
+            variant="secondary"
+            status={busy ? "loading" : "idle"}
+            onClick={onResume}
+          >
             {t.resumeButton}
           </Button>
         </>
       ) : (
-        <Button
-          ref={pauseButtonRef}
-          variant="secondary"
-          onClick={() => {
-            setNotice({ kind: "none" });
-            setDialogOpen(true);
-          }}
-        >
-          {t.button}
-        </Button>
+        <>
+          {/* What visitors see while paused and how to resume: the dialog's own sentence, said before the button. */}
+          <p className="text-body text-ink-2">{t.dialogBody}</p>
+          <Button
+            id={`${id}-action`}
+            ref={pauseButtonRef}
+            variant="secondary"
+            onClick={() => {
+              setNotice({ kind: "none" });
+              setDialogOpen(true);
+            }}
+          >
+            {t.button}
+          </Button>
+        </>
       )}
       <p role="status" className="text-body text-ink">
         {notice.kind === "paused" ? t.paused : notice.kind === "resumed" ? t.resumed : null}

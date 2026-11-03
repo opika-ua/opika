@@ -10,4 +10,9 @@ describe("RateLimitedScreen", () => {
     const link = screen.getByRole("link", { name: uk.detail.notFound.action });
     expect(link.getAttribute("href")).toBe("/tvaryny");
   });
+
+  it("keeps the site header, so the visitor still has navigation", () => {
+    render(<RateLimitedScreen />);
+    expect(screen.getByRole("banner")).toBeTruthy();
+  });
 });

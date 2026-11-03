@@ -26,6 +26,9 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
 /**
  * Measured 70,853 bytes (raw HTML, production build, 2026-10-31) for the animal below; the budget
  * is that plus 15%, rounded up to the next 1,000. Ordinary seeded animals are about 51-54 KB.
+ * UX-1 (2026-11-03): the segment's 404 now has a header, and Next renders that element into the
+ * page payload. The full SiteHeader there cost +5.5 KB (78,459 on main, 83,995 with it); the plain
+ * `NotFoundHeader` costs +2.1 KB (80,556), so the budget stays at 82,000.
  */
 export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 82_000;
 
