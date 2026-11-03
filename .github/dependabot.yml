@@ -14,7 +14,27 @@ updates:
       prefix: "deps"
     labels:
       - dependencies
+    ignore:
+      # Runtime is pinned to Node 24 LTS.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # Planned upgrade: postgres.js 4 PR plus a smoke sitting after launch.
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]
+      # Planned upgrade: one PR, both packages, after launch.
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitest/*"
+        update-types: ["version-update:semver-major"]
+      # 2.5.6 -> 2.6.4 broke lint (317 errors); upgrade deliberately with lint:fix in its own PR.
+      - dependency-name: "@biomejs/biome"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     groups:
+      # Kept together for when majors are allowed again.
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
       npm-minor-patch:
         update-types:
           - minor
@@ -32,7 +52,7 @@ updates:
     labels:
       - dependencies
     groups:
-      actions-minor-patch:
-        update-types:
-          - minor
-          - patch
+      # One PR for every Actions update, majors included.
+      github-actions:
+        patterns:
+          - "*"

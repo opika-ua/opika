@@ -157,8 +157,7 @@ why - it's the newest version that's already cleared quarantine. Don't
 "fix" this by bumping to `latest` and adding a `minimumReleaseAgeExclude`
 entry; wait a day, or pick the next-newest cleared version instead.
 
-Dependabot (`.github/dependabot.yml`) opens weekly, grouped (minor+patch) update PRs for npm and
-GitHub Actions with a 3-day cooldown, so it never proposes a version younger than the quarantine. Its PRs
+Dependabot (`.github/dependabot.yml`) opens weekly, grouped update PRs (npm minor+patch, all Actions types) with a 3-day cooldown, so it never proposes a version younger than the quarantine. It edits the catalog and lockfile, not the `overrides` block. Its PRs
 run CI and go through the merge queue; nothing auto-merges.
 
 
