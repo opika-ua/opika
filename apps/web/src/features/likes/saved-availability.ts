@@ -3,12 +3,14 @@ import { MAX_LIKES, readLikesStore, subscribeToLikesChanges } from "./likes-stor
 /**
  * What the server said about a saved id. `gone`: no name to show (reset, deleted, never public),
  * so it will not come back and may be pruned. `unavailable`: a known animal that is not shown now
- * (adopted, withdrawn, its shelter paused) - it may return from a pause, so the id stays stored.
+ * (adopted, withdrawn) and `paused`: its shelter is on a break, the page still opens. Neither
+ * counts as servable; both stay stored, because a pause ends.
  */
-export type SavedAvailability = "available" | "unavailable" | "gone";
+export type SavedAvailability = "available" | "paused" | "unavailable" | "gone";
 
 type ServerItem =
   | { kind: "available"; animalId: string }
+  | { kind: "paused"; animalId: string; name: string }
   | { kind: "unavailable"; animalId: string; name: string | null };
 
 export function classifySavedItems(
@@ -22,9 +24,11 @@ export function classifySavedItems(
       const state: SavedAvailability =
         item?.kind === "available"
           ? "available"
-          : item?.kind === "unavailable" && item.name !== null
-            ? "unavailable"
-            : "gone";
+          : item?.kind === "paused"
+            ? "paused"
+            : item?.kind === "unavailable" && item.name !== null
+              ? "unavailable"
+              : "gone";
       return [id, state];
     }),
   );
@@ -41,7 +45,7 @@ export function servableCount(
   }).length;
 }
 
-const CACHE_KEY = "saved-availability.v1";
+const CACHE_KEY = "saved-availability.v2";
 /** Short, so an adoption shows within minutes, long enough that page loads do not each ask. */
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -58,7 +62,12 @@ const restoreCache = (now: number): void => {
     if (typeof at !== "number" || now - at > CACHE_TTL_MS || typeof states !== "object") return;
     loadedAt = at;
     for (const [id, state] of Object.entries(states as Record<string, unknown>)) {
-      if (state === "available" || state === "unavailable" || state === "gone")
+      if (
+        state === "available" ||
+        state === "paused" ||
+        state === "unavailable" ||
+        state === "gone"
+      )
         known.set(id, state);
     }
   } catch {

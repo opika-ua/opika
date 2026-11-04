@@ -107,7 +107,11 @@ export async function generateMetadata({
   searchParams: Promise<SearchParams>;
 }): Promise<Metadata> {
   const { shelterId } = await params;
-  const load = await loadShelterPageOnce(shelterId, await searchParams);
+  return shelterMetadataOf(await loadShelterPageOnce(shelterId, await searchParams));
+}
+
+/** Exported so a test can read the metadata of each load result without a database. */
+export function shelterMetadataOf(load: ShelterPageLoad): Metadata {
   if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
   if (load.kind !== "shelter") return {};
   const { shelter, cityName } = load.view;
@@ -124,5 +128,7 @@ export async function generateMetadata({
     // lowercase form every other link on the site actually uses.
     alternates: { canonical: `/prytulky/${shelter.id}` },
     openGraph: { type: "website", description },
+    // A paused page is reachable by link only: after the discoverability flip it must not be indexed.
+    ...(shelter.availability.kind === "paused" && { robots: { index: false, follow: true } }),
   };
 }

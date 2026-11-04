@@ -446,7 +446,7 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     "profileEdit.pause.dialogTitle": "Призупинити прийом тварин?",
     // k4-copy-uk.md
     "profileEdit.pause.dialogBody":
-      "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає. Відновити можна тут будь-коли.",
+      "Поки прийом на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом на паузі.",
     // k4-copy-uk.md
     "profileEdit.pause.reasonLabel": "Причина",
     // k4-copy-uk.md
@@ -456,9 +456,9 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // k4-copy-uk.md
     "profileEdit.pause.reason.relocation": "Переїзд",
     // k4-copy-uk.md
-    "profileEdit.pause.reason.capacity_reached": "Немає місця",
+    "profileEdit.pause.reason.capacity_reached": "Немає вільних місць",
     // k4-copy-uk.md
-    "profileEdit.pause.reason.staff_shortage": "Брак людей",
+    "profileEdit.pause.reason.staff_shortage": "Бракує волонтерів",
     // k4-copy-uk.md
     "profileEdit.pause.reason.other": "Інше",
     // k4-copy-uk.md
@@ -1741,7 +1741,7 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.stale.show": "Показати ці {count}",
     "kabinet.animalList.stale.showAll": "Показати всі",
     "kabinet.animalList.paused.hidden":
-      "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає.",
+      "Поки прийом на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом на паузі.",
     // audit 2026-10-22 #24
     "kabinet.animalList.notVisible.pending":
       "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",

@@ -1,4 +1,10 @@
-import { CitySchema, RegionIdSchema, RegionSchema, ShelterSchema } from "@opika/domain";
+import {
+  CitySchema,
+  RegionIdSchema,
+  RegionSchema,
+  ShelterAvailabilitySchema,
+  ShelterSchema,
+} from "@opika/domain";
 import { z } from "zod";
 import { PublicCityLocationViewSchema } from "./location";
 
@@ -37,6 +43,8 @@ export const PublicShelterViewSchema = ShelterSchema.pick({
 }).extend({
   publicLocation: PublicCityLocationViewSchema,
   verification: VerificationBadgeSchema,
+  // A paused shelter is still `verified` in the trust sense; this says whether it is taking requests.
+  availability: ShelterAvailabilitySchema,
 });
 export type PublicShelterView = z.infer<typeof PublicShelterViewSchema>;
 

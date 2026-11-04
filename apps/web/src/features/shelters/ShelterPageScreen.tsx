@@ -24,6 +24,7 @@ import { GalleryFilterDropdowns, SpeciesToggle } from "../gallery/GalleryFilterD
 import { hasPagination } from "../gallery/gallery-pagination";
 import { NoMatch } from "../gallery/NoMatch";
 import { ReplaceNav } from "../gallery/ReplaceNav";
+import { PauseNotice } from "./PauseNotice";
 import { ShelterLogoAvatar } from "./ShelterLogoAvatar";
 import { ShelterWordsSection } from "./ShelterWordsSection";
 import { isLongShelterName } from "./shelter-identity";
@@ -185,7 +186,14 @@ export function ShelterPageScreen({
           </div>
         </div>
 
-        {animals.totalMatching === 0 && filterUi === null ? (
+        {shelter.availability.kind === "paused" ? (
+          // The gallery list is empty for a paused shelter by design; say why instead of claiming
+          // it has no animals, and offer no filters.
+          <div data-testid="shelter-paused" className="flex flex-col gap-4">
+            <PauseNotice reason={shelter.availability.reason} />
+            <p className="text-body text-ink-2">{uk.pause.shelterNotListed}</p>
+          </div>
+        ) : animals.totalMatching === 0 && filterUi === null ? (
           <div
             data-testid="shelter-no-animals"
             className="relative mt-8 flex flex-col items-center gap-3 rounded-card border-2 border-dashed border-line px-4 py-8 text-center"

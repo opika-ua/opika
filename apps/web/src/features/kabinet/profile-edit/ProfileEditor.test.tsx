@@ -547,7 +547,13 @@ describe("the donation link (N20)", () => {
 const renderInAccount = (options: Parameters<typeof renderEditor>[0] = {}) => renderEditor(options);
 
 describe("pause and resume (N21)", () => {
-  const REASONS = ["Сезонна перерва", "Переїзд", "Немає місця", "Брак людей", "Інше"];
+  const REASONS = [
+    "Сезонна перерва",
+    "Переїзд",
+    "Немає вільних місць",
+    "Бракує волонтерів",
+    "Інше",
+  ];
 
   it("pauses through the reason dialog, which needs a reason; the note is optional", async () => {
     const fns = renderInAccount();
@@ -555,7 +561,7 @@ describe("pause and resume (N21)", () => {
     const dialog = within(screen.getByRole("dialog", { name: "Призупинити прийом тварин?" }));
     expect(
       dialog.getByText(
-        "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає. Відновити можна тут будь-коли.",
+        "Поки прийом на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом на паузі.",
       ),
     ).toBeTruthy();
     const select = dialog.getByLabelText("Причина");
@@ -628,7 +634,7 @@ describe("pause and resume (N21)", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
     const dialog = within(screen.getByRole("dialog"));
-    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Немає місця");
+    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Немає вільних місць");
     await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
     expect(dialog.getByRole("alert").textContent).toBe(
       "Зараз не вийде поставити прийом на паузу: статус притулку змінився. Оновіть сторінку.",
@@ -649,7 +655,7 @@ describe("pause and resume (N21)", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
     const dialog = within(screen.getByRole("dialog", { name: "Призупинити прийом тварин?" }));
-    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Немає місця");
+    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Немає вільних місць");
     await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
     expect(pressEscape()).toBe(true);
     await userEvent.click(dialog.getByRole("button", { name: "Закрити" }));
@@ -742,7 +748,7 @@ describe("pause and resume (N21)", () => {
     renderInAccount();
     const panel = screen.getByRole("tabpanel", { name: "Профіль" });
     const explanation = within(panel).getByText(
-      "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає. Відновити можна тут будь-коли.",
+      "Поки прийом на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом на паузі.",
     );
     const button = within(panel).getByRole("button", { name: "Призупинити прийом тварин" });
     expect(

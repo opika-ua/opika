@@ -9,7 +9,7 @@ import { createTestHarness, type TestHarness } from "../../../api/test-harness";
 import { loadShelterPage } from "../../../features/shelters/shelter-page-load";
 import { SHELTER_ID, stubShelterPageClient } from "../../../features/shelters/test-fixtures";
 import { metadata as notFoundMetadata } from "./not-found";
-import { renderShelterPage } from "./page";
+import { renderShelterPage, shelterMetadataOf } from "./page";
 
 /**
  * `/prytulky/{id}` (designer round 1, S6): its three outcomes through the
@@ -103,14 +103,22 @@ describe("the shelter page's data, through the real router", () => {
   const MODERATOR = randomUUID() as never;
   const EVIDENCE = { items: [], submittedAt: NOW };
   const verified = { verifiedAt: NOW, verifiedBy: MODERATOR };
+  const pausedState: ShelterVerification = {
+    status: "paused",
+    ...verified,
+    pausedAt: NOW,
+    pausedBy: { kind: "moderator", moderatorId: MODERATOR },
+    reason: { code: "relocation", note: "private note" },
+    evidence: EVIDENCE,
+  };
   const notListed: Record<string, ShelterVerification> = {
     pending: { status: "pending", submittedAt: NOW, evidence: EVIDENCE },
-    paused: {
-      status: "paused",
-      ...verified,
-      pausedAt: NOW,
-      pausedBy: { kind: "moderator", moderatorId: MODERATOR },
-      reason: { code: "relocation", note: null },
+    suspendedFromPause: {
+      status: "suspended",
+      suspendedAt: NOW,
+      suspendedBy: MODERATOR,
+      reason: { code: "unresponsive", note: null },
+      priorState: { ...pausedState, status: "paused" } as never,
       evidence: EVIDENCE,
     },
     suspended: {
@@ -204,6 +212,22 @@ describe("the shelter page's data, through the real router", () => {
   it.each(Object.keys(notListed))("a %s shelter is a 404, its animals unread", async (status) => {
     const hidden = await seedShelter(2, notListed[status]);
     expect(await load(hidden.shelter.id, FIRST_PAGE)).toEqual({ kind: "not_found" });
+  });
+
+  it("a paused shelter is a page, not a 404: the reason code, an empty list, noindex", async () => {
+    const paused = await seedShelter(2, pausedState);
+    const result = await load(paused.shelter.id, FIRST_PAGE);
+    if (result.kind !== "shelter") throw new Error(result.kind);
+    expect(result.view.shelter.availability).toEqual({ kind: "paused", reason: "relocation" });
+    expect(result.view.animals.items).toEqual([]);
+    expect(shelterMetadataOf(result).robots).toEqual({ index: false, follow: true });
+    expect(JSON.stringify(result.view)).not.toContain("private note");
+  });
+
+  it("an open shelter's metadata sets no robots of its own", async () => {
+    const open = await seedShelter(1);
+    const result = await load(open.shelter.id, FIRST_PAGE);
+    expect(shelterMetadataOf(result).robots).toBeUndefined();
   });
 
   it("an unknown id is a 404", async () => {

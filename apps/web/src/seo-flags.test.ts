@@ -419,6 +419,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview des
     description: { uk: "Лагідний кіт.", en: null },
     photos: [],
     publicLocation: null,
+    availability: { kind: "open" },
     shelter: {
       id: "d0000000-0000-4000-8000-000000000001",
       publicLocation: { cityId: CITY_ID },

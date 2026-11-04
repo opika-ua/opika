@@ -68,7 +68,27 @@ const shelter: Shelter = {
 };
 
 describe("public shelter projections withhold the private fields", () => {
-  const projected = PublicShelterViewSchema.parse({ ...shelter, verification: "verified" });
+  const projected = PublicShelterViewSchema.parse({
+    ...shelter,
+    verification: "verified",
+    availability: { kind: "open" },
+  });
+
+  it("a paused shelter's availability carries the reason code only, never a note, actor or date", () => {
+    const paused = PublicShelterViewSchema.parse({
+      ...shelter,
+      verification: "verified",
+      availability: {
+        kind: "paused",
+        reason: "relocation",
+        note: "private note",
+        pausedAt: AT,
+        pausedBy: { kind: "moderator" },
+      },
+    });
+    expect(paused.availability).toEqual({ kind: "paused", reason: "relocation" });
+    expect(JSON.stringify(paused)).not.toContain("private note");
+  });
 
   it("does not carry the exact address", () => {
     expect(projected).not.toHaveProperty("exactAddress");
@@ -95,7 +115,11 @@ describe("public shelter projections withhold the private fields", () => {
   });
 
   it("withholds the same fields from the card summary", () => {
-    const summary = ShelterSummaryViewSchema.parse({ ...shelter, verification: "verified" });
+    const summary = ShelterSummaryViewSchema.parse({
+      ...shelter,
+      verification: "verified",
+      availability: { kind: "open" },
+    });
     expect(summary).not.toHaveProperty("exactAddress");
     expect(summary).not.toHaveProperty("contact");
   });
@@ -108,12 +132,20 @@ describe("public shelter projections withhold the private fields", () => {
       ...shelter,
       logo: { storageKey: "shelters/x/logo/y", width: 160, height: 160 },
     };
-    expect(PublicShelterViewSchema.parse({ ...withLogo, verification: "verified" }).logo).toEqual(
-      withLogo.logo,
-    );
-    expect(ShelterSummaryViewSchema.parse({ ...withLogo, verification: "verified" }).logo).toEqual(
-      withLogo.logo,
-    );
+    expect(
+      PublicShelterViewSchema.parse({
+        ...withLogo,
+        verification: "verified",
+        availability: { kind: "open" },
+      }).logo,
+    ).toEqual(withLogo.logo);
+    expect(
+      ShelterSummaryViewSchema.parse({
+        ...withLogo,
+        verification: "verified",
+        availability: { kind: "open" },
+      }).logo,
+    ).toEqual(withLogo.logo);
   });
 
   /**
@@ -127,6 +159,7 @@ describe("public shelter projections withhold the private fields", () => {
       ...shelter,
       freshnessSentence: { uk: "Оновлюємо щосуботи.", en: null },
       verification: "verified" as const,
+      availability: { kind: "open" as const },
     };
     expect(PublicShelterViewSchema.parse(withSentence).freshnessSentence).toEqual({
       uk: "Оновлюємо щосуботи.",
@@ -152,6 +185,7 @@ describe("public shelter projections withhold the private fields", () => {
         proposedBy: "44444444-4444-4444-8444-444444444444" as never,
       },
       verification: "verified" as const,
+      availability: { kind: "open" as const },
     };
     for (const view of [
       PublicShelterViewSchema.parse(withPending),
@@ -362,8 +396,13 @@ describe("the pause note reaches no public view (K4-B4)", () => {
   });
 
   it("their keys are exactly these", () => {
-    const publicView = PublicShelterViewSchema.parse({ ...paused, verification: "unverified" });
+    const publicView = PublicShelterViewSchema.parse({
+      ...paused,
+      verification: "unverified",
+      availability: { kind: "open" },
+    });
     expect(Object.keys(publicView).sort()).toEqual([
+      "availability",
       "createdAt",
       "description",
       "displayName",

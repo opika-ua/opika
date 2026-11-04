@@ -83,10 +83,20 @@ export const apiErrors = {
    * "not found" would identify a shelter a moderator had suspended or rejected.
    * Same status as NOT_FOUND, deliberately - the point is that a client can't
    * tell the two apart from the status alone, only from the code.
+   * A pause is the exception: the pages of a paused shelter are public, so it has
+   * its own code (SHELTER_PAUSED) and never travels as this one.
    */
   SHELTER_NOT_VISIBLE: {
     status: 404,
     message: "The shelter is not currently verified.",
+  },
+  /**
+   * A paused shelter's contact reveal. Safe to name because the shelter and animal pages show the
+   * pause; a suspended shelter (even one suspended mid-pause) still answers SHELTER_NOT_VISIBLE.
+   */
+  SHELTER_PAUSED: {
+    status: 409,
+    message: "The shelter is not taking requests right now.",
   },
   /**
    * The session cookie is absent, expired, or was not issued by this server.

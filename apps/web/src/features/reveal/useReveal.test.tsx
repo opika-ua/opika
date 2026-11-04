@@ -89,6 +89,19 @@ describe("useReveal's error reason", () => {
     );
   });
 
+  it("a SHELTER_PAUSED oRPC error maps to reason: 'shelterPaused'", async () => {
+    revealCall.mockRejectedValueOnce(new ORPCError("SHELTER_PAUSED", { defined: true }));
+
+    const { result } = renderHook(() => useReveal());
+    act(() => {
+      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+    });
+
+    await waitFor(() =>
+      expect(result.current.state).toMatchObject({ kind: "error", reason: "shelterPaused" }),
+    );
+  });
+
   it("a network failure (no oRPC response at all) maps to reason: 'offline', not loadFailed", async () => {
     revealCall.mockRejectedValueOnce(new TypeError("Failed to fetch"));
 

@@ -48,7 +48,13 @@ export async function animalsById(
     throw errors.NOT_FOUND();
   }
 
-  if (shelter?.verification !== "verified") {
+  // A paused shelter's page stays reachable, but only for an animal that was once actually served:
+  // one published during the pause (`everServedAt` null) was never shown and stays NOT_FOUND.
+  if (
+    !shelter ||
+    shelter.availability === "unreachable" ||
+    (shelter.availability === "paused" && animal.everServedAt === null)
+  ) {
     throw errors.NOT_FOUND();
   }
 
@@ -78,6 +84,7 @@ export async function animalsById(
       publicLocation: cityOnlyLocationOf(shelter.publicLocation),
       verification: "verified",
     },
+    availability: { kind: shelter.availability === "paused" ? "paused" : "open" },
   };
 }
 
@@ -120,6 +127,16 @@ export async function animalsCardsByIds(
     // that was only ever published while pending, paused or suspended reads
     // `null` here regardless of what the shelter's own history later holds.
     const everServedAt = animal?.everServedAt ?? null;
+
+    // A paused shelter's served animal leaves the gallery but keeps its page: a link, not a card.
+    if (
+      animal &&
+      isDiscoverableAnimal(animal) &&
+      shelter?.availability === "paused" &&
+      everServedAt !== null
+    ) {
+      return { kind: "paused" as const, animalId, name: animal.name };
+    }
 
     if (
       !animal ||

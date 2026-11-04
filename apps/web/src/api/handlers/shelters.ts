@@ -1,5 +1,6 @@
 import type { apiErrors, PublicShelterView, SheltersByIdInputSchema } from "@opika/contracts";
 import { shelterRepo } from "@opika/db/repos";
+import { shelterAvailabilityOf } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
@@ -21,9 +22,11 @@ export async function sheltersById(
   const shelters = shelterRepo(context.db);
   const shelter = await shelters.findById(input.shelterId);
 
-  // A shelter that exists but is not verified answers NOT_FOUND, same as
-  // one that does not exist. Distinguishing would leak moderation state.
-  if (shelter?.verification.status !== "verified") {
+  // Only verified and paused shelters are reachable. Every other state answers NOT_FOUND, same as
+  // an id that does not exist, so moderation state (a suspension, even one made mid-pause) is not
+  // told apart from absence.
+  const availability = shelter ? shelterAvailabilityOf(shelter.verification) : null;
+  if (!shelter || availability === null) {
     throw errors.NOT_FOUND();
   }
 
@@ -37,5 +40,6 @@ export async function sheltersById(
     createdAt: shelter.createdAt,
     freshnessSentence: shelter.freshnessSentence,
     verification: "verified",
+    availability,
   };
 }
