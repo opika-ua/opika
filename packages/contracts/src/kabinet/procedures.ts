@@ -24,10 +24,10 @@ import {
   MEDICAL_NOTES_MAX_CHARACTERS,
   MedicalDeclarationInputSchema,
   normalizeFreshnessSentenceText,
+  OfferedRejectionCodeSchema,
   PauseCodeSchema,
   type PauseReason,
   RegionIdSchema,
-  RejectionCodeSchema,
   ReportIdSchema,
   ShelterAdminIdSchema,
   ShelterContactInputSchema,
@@ -830,7 +830,7 @@ export const registryVerificationContract = {
     .input(
       z.strictObject({
         shelterId: ShelterIdSchema,
-        reason: z.strictObject({ code: RejectionCodeSchema, note: OperatorNoteSchema }),
+        reason: z.strictObject({ code: OfferedRejectionCodeSchema, note: OperatorNoteSchema }),
       }),
     )
     .errors({ ...registryErrors, ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION }),

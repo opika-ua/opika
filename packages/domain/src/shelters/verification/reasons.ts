@@ -20,6 +20,16 @@ export const RejectionCodeSchema = z.enum([
 export type RejectionCode = z.infer<typeof RejectionCodeSchema>;
 
 /**
+ * Codes no longer offered for a new rejection but still valid in stored records, so old
+ * rejections keep parsing and displaying. `out_of_service_area`: the site is nationwide.
+ */
+export const RETIRED_REJECTION_CODES = ["out_of_service_area"] as const;
+
+/** What a moderator may pick today: every code except the retired ones. */
+export const OfferedRejectionCodeSchema = RejectionCodeSchema.exclude(RETIRED_REJECTION_CODES);
+export type OfferedRejectionCode = z.infer<typeof OfferedRejectionCodeSchema>;
+
+/**
  * Every code here describes something the platform decided about a shelter.
  *
  * `shelter_requested` used to sit in this list, and its presence was the
