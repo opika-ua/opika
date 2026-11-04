@@ -20,25 +20,58 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-function resolveRelative(from: string, specifier: string): string | undefined {
-  const base = resolve(dirname(from), specifier);
+function resolveFile(base: string): string | undefined {
   return [`${base}.tsx`, `${base}.ts`, join(base, "index.tsx"), join(base, "index.ts")].find(
     existsSync,
   );
 }
 
-// Entry points = every file of the gate-exempt pages (`/kabinet/*`, which holds sign-in and the
-// reset/invitation pages) plus the root layout; then the relative imports they load, transitively.
+// Workspace packages by import name: `@opika/ui/x` loads code from `packages/ui`, so every source
+// file of that package counts as loaded (coarse on purpose: it can only add references).
+const REPO_PACKAGES = resolve(SRC, "..", "..", "..", "packages");
+function workspacePackageSources(specifier: string): string[] {
+  for (const dir of readdirSync(REPO_PACKAGES)) {
+    const manifest = join(REPO_PACKAGES, dir, "package.json");
+    if (!existsSync(manifest)) continue;
+    const name = (JSON.parse(readFileSync(manifest, "utf8")) as { name?: string }).name;
+    if (name && (specifier === name || specifier.startsWith(`${name}/`))) {
+      return sourceFiles(join(REPO_PACKAGES, dir, "src"));
+    }
+  }
+  return [];
+}
+
+function importedFiles(from: string, source: string): string[] {
+  const out: string[] = [];
+  for (const m of source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) {
+    const specifier = m[1] ?? "";
+    if (specifier.startsWith("@/")) {
+      const file = resolveFile(join(SRC, specifier.slice(2)));
+      if (file) out.push(file);
+    } else if (specifier.startsWith(".")) {
+      const file = resolveFile(resolve(dirname(from), specifier));
+      if (file) out.push(file);
+    } else if (specifier.startsWith("@opika/")) {
+      out.push(...workspacePackageSources(specifier));
+    }
+  }
+  return out;
+}
+
+// Entry points = every file of the gate-exempt pages (`/kabinet/*`: sign-in, reset, invitation,
+// confirm), the root layout and the not-found page every unknown `/kabinet/*` path renders; then
+// what they import, transitively.
 function exemptPageSources(): string[] {
   const seen = new Set<string>();
-  const queue = [...sourceFiles(join(SRC, "app/kabinet")), join(SRC, "app/layout.tsx")];
+  const queue = [
+    ...sourceFiles(join(SRC, "app/kabinet")),
+    join(SRC, "app/layout.tsx"),
+    join(SRC, "app/not-found.tsx"),
+  ];
   for (let file = queue.pop(); file; file = queue.pop()) {
     if (seen.has(file)) continue;
     seen.add(file);
-    for (const m of readFileSync(file, "utf8").matchAll(/from\s+["'](\.\.?\/[^"']+)["']/g)) {
-      const next = resolveRelative(file, m[1] ?? "");
-      if (next) queue.push(next);
-    }
+    queue.push(...importedFiles(file, readFileSync(file, "utf8")));
   }
   return [...seen];
 }

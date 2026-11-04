@@ -213,7 +213,7 @@ export function isInstallAssetRequest(method: string, pathname: string): boolean
 
 // Static files the gate-exempt pages (kabinet, sign-in) render: the header logo and the favicon. Exact
 // file paths, never a directory prefix, so no other file under `public/` and no page is reachable
-// through them; `proxy.test.ts` derives the list from the exempt pages' own source.
+// through them; `proxy-exempt-assets.test.ts` derives the list from the exempt pages' own source.
 export const GATE_EXEMPT_PAGE_ASSET_PATHS: readonly string[] = ["/brand-v3/logo.svg", "/icon.svg"];
 
 export function isExemptPageAssetRequest(method: string, pathname: string): boolean {
