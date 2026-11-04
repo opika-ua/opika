@@ -141,6 +141,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
         proposedBy: randomUUID() as ShelterAdminId,
       },
       version: 0,
+      earlyListingSince: null,
       freshnessSentence: null,
       verification: {
         status: "pending",

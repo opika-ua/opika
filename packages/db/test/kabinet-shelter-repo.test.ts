@@ -204,6 +204,91 @@ describe("kabinetShelterRepo.applyAudited", () => {
   });
 });
 
+describe("kabinetShelterRepo early_listing_since", () => {
+  const SINCE = new Date("2026-10-01T08:00:00.000Z");
+  const columnOf = async (id: string) => {
+    const [row] = await db.query.shelters.findMany({ where: (t, { eq }) => eq(t.id, id as never) });
+    return row?.earlyListingSince ?? null;
+  };
+  const pauseChange = (s: Awaited<ReturnType<typeof shelter>>) =>
+    ({
+      shelterId: s.id,
+      expectedVersion: 0,
+      change: {
+        kind: "verification",
+        verification: {
+          ...s.verification,
+          status: "paused",
+          pausedAt: NOW,
+          pausedBy: ADMIN,
+          reason: { code: "relocation", note: null },
+        } as never,
+      },
+      entry: {
+        kind: "verification",
+        event: { type: "pause", at: NOW, actor: ADMIN, reason: { code: "relocation", note: null } },
+        from: "verified",
+        to: "paused",
+      },
+      historyId: "h1",
+      now: NOW,
+    }) as const;
+
+  it("round-trips through insert and read, and defaults to null", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const loc = { ...makeShelter().publicLocation, cityId: city.id };
+    const s = makeShelter({ publicLocation: loc, earlyListingSince: SINCE });
+    await shelterRepo(db).insert(s);
+    expect((await shelterRepo(db).findById(s.id))?.earlyListingSince).toEqual(SINCE);
+    expect((await shelterRepo(db).findById(s.id))?.earlyListingSince).not.toBeNull();
+  });
+
+  it("is cleared by a verification change in the same statement", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const loc = { ...makeShelter().publicLocation, cityId: city.id };
+    const s = makeShelter({ publicLocation: loc, earlyListingSince: SINCE });
+    await shelterRepo(db).insert(s);
+    expect(await columnOf(s.id)).toEqual(SINCE);
+    const result = await kabinetShelterRepo(db).applyAudited(pauseChange(s));
+    expect(result).toEqual({ kind: "ok" });
+    expect(await columnOf(s.id)).toBeNull();
+    expect((await shelterRepo(db).findById(s.id))?.earlyListingSince).toBeNull();
+  });
+
+  it("is kept by a change that is not a verification change", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const loc = { ...makeShelter().publicLocation, cityId: city.id };
+    const s = makeShelter({ publicLocation: loc, earlyListingSince: SINCE });
+    await shelterRepo(db).insert(s);
+    await kabinetShelterRepo(db).applyAudited({
+      shelterId: s.id,
+      expectedVersion: 0,
+      change: { kind: "contact", contact: NEXT_CONTACT },
+      entry: contactEntry(s.contact),
+      historyId: "h1",
+      now: NOW,
+    });
+    expect(await columnOf(s.id)).toEqual(SINCE);
+  });
+
+  it("is not cleared by a verification write that lost the compare-and-set", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const loc = { ...makeShelter().publicLocation, cityId: city.id };
+    const s = makeShelter({ publicLocation: loc, earlyListingSince: SINCE });
+    await shelterRepo(db).insert(s);
+    const result = await kabinetShelterRepo(db).applyAudited({
+      ...pauseChange(s),
+      expectedVersion: 7,
+    });
+    expect(result).toEqual({ kind: "conflict" });
+    expect(await columnOf(s.id)).toEqual(SINCE);
+  });
+});
+
 describe("kabinetShelterRepo.historyPage", () => {
   /** A script batch writes several entries at one instant: the id breaks the tie, newest id first. */
   it("orders entries at the same instant by id, and pages across them without loss", async () => {

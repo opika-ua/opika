@@ -1,0 +1,1 @@
+ALTER TABLE "shelters" ADD COLUMN "early_listing_since" timestamp with time zone;

@@ -67,6 +67,8 @@ function columnsOf(change: AuditedShelterChange) {
       return {
         verification: change.verification,
         verificationStatus: change.verification.status,
+        // The single invariant: a permission never survives a status change.
+        earlyListingSince: null,
       };
     case "description": {
       const columns = localizedTextToColumns(change.description);

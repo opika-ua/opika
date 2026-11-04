@@ -854,6 +854,7 @@ export function buildShelters(cities: City[]): Shelter[] {
           : null,
       logo: null,
       pendingDonation: null,
+      earlyListingSince: null,
       version: 0,
       freshnessSentence: def.freshnessSentenceUk ? { uk: def.freshnessSentenceUk, en: null } : null,
       verification: buildVerification(def),
