@@ -335,6 +335,17 @@ describe("invite (a shelter with no admin yet, so the button reads «Запро�
     ).toBeTruthy();
     expect(emailField().getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(emailField());
+    // The sentence is about the address that was sent: editing or clearing it takes it away.
+    await userEvent.type(emailField(), "x");
+    expect(
+      screen.queryByText("Це адреса адміністратора сайту. Для притулку потрібна інша."),
+    ).toBeNull();
+    expect(emailField().getAttribute("aria-invalid")).toBeNull();
+    await userEvent.click(submit());
+    await userEvent.clear(emailField());
+    expect(
+      screen.queryByText("Це адреса адміністратора сайту. Для притулку потрібна інша."),
+    ).toBeNull();
   });
 
   it("a lost invite the re-read shows done: the form clears, and no email outcome is claimed", async () => {

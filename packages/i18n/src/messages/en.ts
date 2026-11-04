@@ -541,7 +541,13 @@ export const en = {
       intro: "The password for the cabinet of «{shelter}». You sign in as: {email}.",
       newLabel: "Password",
       repeatLabel: "Repeat the password",
-      hint: "Characters: {count} of {min}",
+      hint: "At least {min} characters",
+      remaining: {
+        one: "{n} more character",
+        few: "{n} more characters",
+        many: "{n} more characters",
+      },
+      enough: "Long enough",
       submit: "Save and sign in",
     },
     password: {
@@ -1106,14 +1112,14 @@ export const en = {
       viewingAs: "as the shelter administrator",
       signOutDisabled: "Sign-out disabled",
     },
-    /** The English sense of uk.ts's final Ukrainian (2026-10-14); both emails are signed `- {operator}`. */
+    /** The English sense of uk.ts's final Ukrainian (2026-10-14); both emails are signed `{operator}`. */
     email: {
       signIn: {
         subject: `A sign-in link for the shelter's cabinet`,
         intro: `Hello. A sign-in link for the shelter's cabinet was requested for this address.`,
         action: `Open the sign-in page`,
         expiry: `The link works once and expires in {minutes} minutes.`,
-        notYou: `If you didn't ask for this, just ignore the email: nothing happens without the link.\n- {operator}`,
+        notYou: `If you didn't ask for this, just ignore the email: nothing happens without the link.\n{operator}`,
       },
       invite: {
         subject: `Your access to the shelter's cabinet`,
@@ -1122,19 +1128,19 @@ export const en = {
         whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
-        notYou: `If you weren't expecting this email, just ignore it and don't forward it to anyone: while the invitation is valid, this link lets someone create a password for this address, once.\n- {operator}`,
+        notYou: `If you weren't expecting this email, just ignore it and don't forward it to anyone: while the invitation is valid, this link lets someone create a password for this address, once.\n{operator}`,
       },
       reset: {
         subject: `A new password for the shelter's cabinet`,
         intro: `A new password for the shelter's cabinet was requested for this address.`,
         action: `Create a new password`,
         expiry: `The link works once and expires in {minutes} min.`,
-        notYou: `If you didn't make this request, just ignore this email: your password stays the same.\n- {operator}`,
+        notYou: `If you didn't make this request, just ignore this email: your password stays the same.\n{operator}`,
       },
       passwordChanged: {
         subject: `Shelter cabinet: password changed`,
         body: `The password to the shelter's cabinet for this address has just been changed. Other devices have been signed out.`,
-        notYou: `If this wasn't you, write to me: {contact}\n- {operator}`,
+        notYou: `If this wasn't you, write to me: {contact}\n{operator}`,
       },
     },
     signInCard: {
@@ -1488,7 +1494,7 @@ export const en = {
       suspendedTitle: "The shelter is temporarily suspended",
       reason: "Reason: {code}.",
       noteLabel: "Explanation:",
-      signature: "- {operator}",
+      signature: "{operator}",
       contact: "If you have questions, write to me.",
       suspendedEffect: "While the shelter is suspended, its animals aren't in the gallery.",
       rejectedEffect: "The shelter's animals won't be in the gallery until verification is passed.",

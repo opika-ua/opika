@@ -48,6 +48,12 @@ describe("the rename form on S4", () => {
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
   });
 
+  it("with no name to show, renders no bare label", () => {
+    renderWithActions(<RenameForm />, { view: registryView({ displayName: "" }) });
+    expect(screen.queryByText("Назва притулку")).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
   it("sends the trimmed name with the version read, then says «Збережено.» and shows the new name", async () => {
     const updateProfile = vi.fn(async () => renamed);
     const { reread } = renderWithActions(<RenameForm />, {

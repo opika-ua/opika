@@ -51,7 +51,8 @@ describe("«Створіть пароль»", () => {
     expect(field("Пароль").getAttribute("type")).toBe("password");
     expect(field("Повторіть пароль").getAttribute("type")).toBe("password");
     expect(screen.getAllByRole("button", { name: "Показати пароль" })).toHaveLength(2);
-    expect(screen.getByText("Символів: 0 з 10")).toBeDefined();
+    expect(screen.getByText("Щонайменше 10 символів")).toBeDefined();
+    expect(screen.getByText("Ще 10 символів")).toBeDefined();
   });
 
   /** His PW-2 Q3: the address-bar removal extends to `?zaproshennia=`. */

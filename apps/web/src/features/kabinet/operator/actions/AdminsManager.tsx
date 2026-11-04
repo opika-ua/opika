@@ -382,7 +382,10 @@ function InviteAdminForm({
         value={name}
         autoComplete="off"
         error={fieldErrors.name}
-        onChange={(event) => setName(event.target.value)}
+        onChange={(event) => {
+          setName(event.target.value);
+          setFieldErrors((now) => ({ ...now, name: null }));
+        }}
       />
       <TextField
         id={`${id}-email`}
@@ -391,7 +394,11 @@ function InviteAdminForm({
         value={email}
         autoComplete="off"
         error={fieldErrors.email}
-        onChange={(event) => setEmail(event.target.value)}
+        onChange={(event) => {
+          setEmail(event.target.value);
+          // A refusal names the address that was sent; once it changes the sentence is stale.
+          setFieldErrors((now) => ({ ...now, email: null }));
+        }}
       />
       <Button
         type="submit"

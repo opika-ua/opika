@@ -1,10 +1,15 @@
+import { pluralizeUk } from "@opika/domain";
+import { uk } from "@opika/i18n";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ChangePasswordSection } from "./ChangePasswordSection";
 import { ForgotPasswordCard } from "./ForgotPasswordCard";
+import type { SetPasswordOutcome } from "./invitation-client";
 import type { ChangeOutcome, ForgotOutcome, ResetOutcome } from "./password-api";
+import { lengthProgress } from "./password-copy";
 import { ResetPasswordCard } from "./ResetPasswordCard";
+import { SetPasswordCard } from "./SetPasswordCard";
 
 /**
  * The three password forms PW-1 adds (§4.2), driven the way a person does: found by role,
@@ -73,14 +78,6 @@ describe("the reset page", () => {
     expect(window.location.href).not.toContain("token-from-the-link");
     await submit(user, "ялинка-під-вікном");
     expect(reset).toHaveBeenCalledWith("token-from-the-link", "ялинка-під-вікном");
-  });
-
-  it("shows the live length while typing, as «Символів: {count} з 10»", async () => {
-    const { user } = renderWith({ kind: "done" });
-    expect(screen.getByText("Символів: 0 з 10")).toBeDefined();
-    await user.type(field("Пароль"), "ґанок🇺🇦");
-    // A flag is one character, as a reader counts it.
-    expect(screen.getByText("Символів: 6 з 10")).toBeDefined();
   });
 
   it("refuses two different passwords before sending anything", async () => {
@@ -186,5 +183,79 @@ describe("«Змінити пароль»", () => {
     const { user } = renderWith({ kind: "no_password" });
     await submit(user);
     expect(screen.getByRole("link", { name: "Забули пароль?" })).toBeDefined();
+  });
+});
+
+/** Owner copy, 2026-11-04: a static rule, then a live line that counts what is missing. */
+describe("the password length counter, shared by the three forms", () => {
+  const forms: [string, () => void, string][] = [
+    [
+      "reset",
+      () =>
+        render(
+          <ResetPasswordCard
+            token="t"
+            reset={vi.fn(async (): Promise<ResetOutcome> => ({ kind: "done" }))}
+          />,
+        ),
+      "Пароль",
+    ],
+    ["change", () => render(<ChangePasswordSection password={{ kind: "set" }} />), "Новий пароль"],
+    [
+      "set",
+      () =>
+        render(
+          <SetPasswordCard
+            token={"A".repeat(43)}
+            shelterName="Ліс"
+            maskedEmail="o•••@example.org"
+            accept={vi.fn(async (): Promise<SetPasswordOutcome> => ({ kind: "signed_in" }))}
+            go={vi.fn()}
+          />,
+        ),
+      "Пароль",
+    ],
+  ];
+
+  it.each(forms)(
+    "%s: hint, live line, and the hint is the description",
+    async (_n, mount, label) => {
+      mount();
+      const user = userEvent.setup();
+      const input = field(label);
+      const hint = screen.getAllByText("Щонайменше 10 символів")[0] as HTMLElement;
+      expect(input.getAttribute("aria-describedby")).toContain(hint.id);
+      const live = screen.getAllByText("Ще 10 символів")[0] as HTMLElement;
+      expect(live.getAttribute("aria-live")).toBe("polite");
+      await user.type(input, "ґанок🇺🇦"); // a flag counts as one character
+      expect(screen.getByText("Ще 4 символи")).toBeDefined();
+      await user.type(input, "абв");
+      expect(screen.getByText("Ще 1 символ")).toBeDefined();
+      await user.type(input, "г");
+      expect(screen.getByText("Достатньо")).toBeDefined();
+      await user.type(input, "еєж");
+      expect(screen.getByText("Достатньо")).toBeDefined();
+      expect(screen.queryByText(/Ще \d/)).toBeNull();
+      expect(screen.getByText("Щонайменше 10 символів")).toBeDefined();
+    },
+  );
+
+  it.each([
+    [1, "символ"],
+    [2, "символи"],
+    [5, "символів"],
+    [11, "символів"],
+    [21, "символ"],
+    [22, "символи"],
+  ])("the form for %i is «%s»", (n, word) => {
+    expect(pluralizeUk(n, uk.kabinet.setPassword.remaining)).toBe(`Ще {n} ${word}`);
+  });
+
+  it("counts down to the minimum and reads «Достатньо» exactly at it", () => {
+    expect(lengthProgress("")).toBe("Ще 10 символів");
+    expect(lengthProgress("a".repeat(8))).toBe("Ще 2 символи");
+    expect(lengthProgress("a".repeat(9))).toBe("Ще 1 символ");
+    expect(lengthProgress("a".repeat(10))).toBe("Достатньо");
+    expect(lengthProgress("a".repeat(30))).toBe("Достатньо");
   });
 });

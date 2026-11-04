@@ -74,7 +74,7 @@ verify URL 403s and sign-in can't complete.
 
 ## Q2. Which email provider, and from which domain?
 
-**Answered 2026-10-13 (IN-E1/IN-E2): Brevo, sending from `noreply@mail.opika.org.ua`, Resend the
+**Answered 2026-10-13 (IN-E1/IN-E2): Brevo, sending from `noreply@mail.opika.org.ua` (since 2026-11-04: `oleksii@mail.opika.org.ua`, display name «Олексій з Opika»), Resend the
 documented fallback (not set up).** The candidates below are kept as the record of what was
 weighed. The delivery test became Gmail only (IN-E5's script); ukr.net/i.ua are postponed (IN-E4).
 
