@@ -757,6 +757,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.history.animal_edited": "Змінено картку {name}: {fields}",
     "operator.history.animal_listing_changed": "{name}: «{from}» → «{to}»",
     "operator.history.animal_deleted": "Видалено чернетку: {name}",
+    "operator.history.evidence_added": "Додано докази: {kinds}",
     "operator.create.title": "Новий притулок",
     "operator.create.intro":
       "Тут ви вносите все про притулок: назву, адресу, юридичні дані й докази. Перший адміністратор отримає запрошення на пошту.",
@@ -795,6 +796,16 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.evidence.remove": "Прибрати",
     "operator.evidence.typePicker": "Тип доказу",
     "operator.evidence.siteVisitDateHint": "Дата візиту не може бути в майбутньому.",
+    // Owner-approved 2026-11-04 (evidence add, copy table rows 1-8).
+    "operator.evidence.addTitle": "Додати докази",
+    "operator.evidence.addIntro":
+      "Нові докази додаються до наявних. Статус не змінюється, а в історії притулку цього запису не буде.",
+    "operator.evidence.addNeeded": "Додайте хоча б один доказ.",
+    "operator.evidence.addSubmit": "Додати",
+    "operator.evidence.addDone": "Докази додано.",
+    "operator.evidence.addNothingNew": "Ці докази вже є.",
+    "operator.evidence.notEditable": "Докази можна додати, лише поки рішення не ухвалено.",
+    "operator.evidence.limit": "У заявці може бути щонайбільше 30 доказів, за раз – до 10.",
     "operator.create.created": "Притулок створено.",
     "operator.email.sent": "Запрошення надіслано на {email}.",
     "operator.email.sentUnchecked":

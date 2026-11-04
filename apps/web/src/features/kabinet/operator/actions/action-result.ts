@@ -30,6 +30,8 @@ export type ActionFailure =
   | { kind: "illegal_transition" }
   | { kind: "conflict" }
   | { kind: "evidence_insufficient" }
+  | { kind: "evidence_not_editable" }
+  | { kind: "evidence_limit_reached" }
   | { kind: "not_found" }
   | { kind: "address_has_a_role"; reason: AddressRoleReason }
   | { kind: "invalid_evidence"; reason: InvalidEvidenceReason }
@@ -58,6 +60,10 @@ export function actionFailureOf(error: unknown): ActionFailure {
       return { kind: "conflict" };
     case "EVIDENCE_INSUFFICIENT":
       return { kind: "evidence_insufficient" };
+    case "EVIDENCE_NOT_EDITABLE":
+      return { kind: "evidence_not_editable" };
+    case "EVIDENCE_LIMIT_REACHED":
+      return { kind: "evidence_limit_reached" };
     case "NOT_FOUND":
       return { kind: "not_found" };
     case "ADDRESS_HAS_A_ROLE": {
@@ -89,6 +95,7 @@ export const staleAfter = (failure: ActionRefusal): boolean =>
   failure.kind === "illegal_transition" ||
   failure.kind === "conflict" ||
   failure.kind === "evidence_insufficient" ||
+  failure.kind === "evidence_not_editable" ||
   failure.kind === "not_found";
 
 /**

@@ -1456,6 +1456,15 @@ export const uk = {
         remove: "Прибрати",
         typePicker: "Тип доказу",
         siteVisitDateHint: "Дата візиту не може бути в майбутньому.",
+        addTitle: "Додати докази",
+        addIntro:
+          "Нові докази додаються до наявних. Статус не змінюється, а в історії притулку цього запису не буде.",
+        addNeeded: "Додайте хоча б один доказ.",
+        addSubmit: "Додати",
+        addDone: "Докази додано.",
+        addNothingNew: "Ці докази вже є.",
+        notEditable: "Докази можна додати, лише поки рішення не ухвалено.",
+        limit: "У заявці може бути щонайбільше 30 доказів, за раз – до 10.",
       },
       blocked: {
         title: "Адреси, на які поштовий сервіс не доставляє листи",
@@ -1529,6 +1538,7 @@ export const uk = {
         animal_edited: "Змінено картку {name}: {fields}",
         animal_listing_changed: "{name}: «{from}» → «{to}»",
         animal_deleted: "Видалено чернетку: {name}",
+        evidence_added: "Додано докази: {kinds}",
       },
       create: {
         title: "Новий притулок",

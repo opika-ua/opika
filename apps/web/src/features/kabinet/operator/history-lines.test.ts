@@ -319,7 +319,6 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     { kind: "animal_deleted", at: AT, actor: byOlena, animalId: ANIMAL, animalName: "Рекс" },
     "Видалено чернетку: Рекс · Олена",
   ],
-  // TODO(copy): expected text is a placeholder until the owner approves the line.
   [
     "evidence_added",
     {
@@ -329,7 +328,7 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
       items: [{ kind: "site_visit" }],
       statusAt: "pending",
     },
-    "evidence_added · ви",
+    "Додано докази: Візит на місце · ви",
   ],
 ];
 

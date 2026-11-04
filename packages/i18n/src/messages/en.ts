@@ -1269,6 +1269,15 @@ export const en = {
         remove: "Remove",
         typePicker: "Kind of evidence",
         siteVisitDateHint: "The visit date can't be in the future.",
+        addTitle: "Add evidence",
+        addIntro:
+          "New evidence is added to what is on file. The status doesn't change, and the shelter's history won't show this entry.",
+        addNeeded: "Add at least one piece of evidence.",
+        addSubmit: "Add",
+        addDone: "Evidence added.",
+        addNothingNew: "This evidence is already on file.",
+        notEditable: "Evidence can be added only until a decision is made.",
+        limit: "An application can hold at most 30 pieces of evidence, up to 10 at a time.",
       },
       blocked: {
         title: "Addresses the email provider won't deliver to",
@@ -1329,6 +1338,7 @@ export const en = {
         animal_edited: "Card {name} changed: {fields}",
         animal_listing_changed: "{name}: «{from}» → «{to}»",
         animal_deleted: "Draft deleted: {name}",
+        evidence_added: "Evidence added: {kinds}",
       },
       create: {
         title: "New shelter",
