@@ -1,0 +1,7 @@
+{
+  "name": "scratchaxe",
+  "version": "1.0.0",
+  "dependencies": {
+    "axe-core": "^4.14.0"
+  }
+}

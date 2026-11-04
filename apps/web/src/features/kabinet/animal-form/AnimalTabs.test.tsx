@@ -231,9 +231,8 @@ describe("the missing-items panel", () => {
     await waitFor(() =>
       expect(document.activeElement).toBe(document.getElementById("publication")),
     );
-    expect(
-      screen.getByText("Щоб опублікувати, ще потрібно: розмір, вік, опис і фото."),
-    ).toBeTruthy();
+    expect(screen.queryByText(/Щоб опублікувати, ще потрібно: /)).toBeNull();
+    expect(screen.getByRole("navigation", { name: "Щоб опублікувати, ще потрібно:" })).toBeTruthy();
   });
 });
 

@@ -1022,7 +1022,7 @@ export const en = {
       },
       adoptDialog: {
         title: "Is {name} already home?",
-        body: "The card leaves the gallery and the deck, and its page will say the animal is no longer there. In your list the card stays, marked «Home». This can't be undone: if the animal comes back, add it as a new card.",
+        body: "The card leaves the gallery, and its page becomes unavailable. In your list the card stays, marked «Home». This can't be undone: if the animal comes back, add it as a new card.",
         confirm: "Yes, already home",
       },
       withdrawDialog: {
