@@ -319,6 +319,18 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     { kind: "animal_deleted", at: AT, actor: byOlena, animalId: ANIMAL, animalName: "Рекс" },
     "Видалено чернетку: Рекс · Олена",
   ],
+  // TODO(copy): expected text is a placeholder until the owner approves the line.
+  [
+    "evidence_added",
+    {
+      kind: "evidence_added",
+      at: AT,
+      moderatorId: ME,
+      items: [{ kind: "site_visit" }],
+      statusAt: "pending",
+    },
+    "evidence_added · ви",
+  ],
 ];
 
 describe("historyLineOf: one line per entry, the actor after « · »", () => {

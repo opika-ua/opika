@@ -225,6 +225,9 @@ function lineOf(
         text: renameLine(entry.from, entry.to),
         actor: operatorActor(entry.moderatorId, people),
       };
+    case "evidence_added":
+      // TODO(copy): placeholder until the owner approves the line's wording.
+      return { text: entry.kind, actor: operatorActor(entry.moderatorId, people) };
     case "animals_imported":
       return {
         text: fillTemplate(t.animals_imported, { count: String(entry.count) }),

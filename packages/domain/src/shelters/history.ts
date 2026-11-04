@@ -16,6 +16,7 @@ import { ExactAddressSchema } from "./location";
 import { ShelterLogoSchema } from "./logo";
 import { FreshnessSentenceSchema } from "./shelter";
 import { VerificationEventSchema } from "./verification/events";
+import { EvidenceKindSchema } from "./verification/evidence";
 import { VerificationStatusSchema } from "./verification/state";
 
 /**
@@ -197,6 +198,19 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     ]),
   }),
   /**
+   * The operator added evidence while the shelter was pending or under review.
+   * Operator-only history: the shelter-facing projection omits it entirely
+   * (owner, 2026-11-04). Kinds only, never contents: a reference holds a third
+   * party's name and phone, and this log is append-only.
+   */
+  z.object({
+    kind: z.literal("evidence_added"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    items: z.array(z.object({ kind: EvidenceKindSchema })).min(1),
+    statusAt: z.enum(["pending", "under_review"]),
+  }),
+  /**
    * The operator renamed the shelter on S4 (R-UI 4; Oleksii, R-UI answer 8,
    * verbatim: "Yes: rename as R-UI 4, with a history line."). The display
    * name is public (every card names the shelter by it), so a change is
@@ -329,6 +343,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "donation_proposal_cancelled":
     case "donation_decided":
     case "verified_data_changed":
+    case "evidence_added":
     case "display_name_changed":
     case "shelter_created":
     case "admin_invited":

@@ -1,6 +1,7 @@
 import { type apiErrors, type RegistryShelterView, UNKNOWN_CITY_MESSAGE } from "@opika/contracts";
 import { type AuditedShelterChange, cityRepo, kabinetShelterRepo } from "@opika/db/repos";
 import {
+  addEvidence,
   type CityId,
   DEFAULT_VERIFICATION_POLICY,
   type EvidenceItemInput,
@@ -9,6 +10,7 @@ import {
   type FreshnessSentence,
   type LocalizedText,
   type LocationPrivacyPolicy,
+  MAX_EVIDENCE_ITEMS,
   type ModeratorId,
   publicLocationOf,
   type RejectionCode,
@@ -421,7 +423,7 @@ export function registryResubmit(
   deps: RegistryDeps,
   moderatorId: ModeratorId,
   input: { shelterId: ShelterId; evidence: readonly EvidenceItemInput[] },
-  errors: E<"ILLEGAL_TRANSITION" | "INVALID_EVIDENCE">,
+  errors: E<"ILLEGAL_TRANSITION" | "INVALID_EVIDENCE" | "EVIDENCE_LIMIT_REACHED">,
 ): Promise<RegistryShelterView> {
   const accepted = acceptEvidence(input.evidence, { moderatorId, now: deps.now });
   if (accepted.kind === "refused")
@@ -429,12 +431,77 @@ export function registryResubmit(
   return verificationMove(
     deps,
     input.shelterId,
-    (shelter) => ({
-      type: "resubmit",
-      at: deps.now,
-      actor: moderatorActor(moderatorId),
-      evidence: withEvidenceOnFile(shelter.verification.evidence, accepted.evidence),
-    }),
+    (shelter) => {
+      const evidence = withEvidenceOnFile(shelter.verification.evidence, accepted.evidence);
+      // Counted after the carried documents are put back: that is the list the shelter will hold.
+      if (evidence.items.length > MAX_EVIDENCE_ITEMS) {
+        throw errors.EVIDENCE_LIMIT_REACHED({ data: { limit: MAX_EVIDENCE_ITEMS } });
+      }
+      return { type: "resubmit", at: deps.now, actor: moderatorActor(moderatorId), evidence };
+    },
+    errors,
+  );
+}
+
+// ─── verification.addEvidence ───────────────────────────────────────────────
+
+/**
+ * The operator appends evidence while the shelter is pending or under review.
+ * Not a verification move: status, timestamps and reviewer are untouched and
+ * the shelter is not told (its history projection omits `evidence_added`). The
+ * entry names the kinds only, never contents. Duplicates (same kind and key
+ * field, see `evidenceDuplicateKey`) are dropped, so a repeat writes nothing.
+ * No version in the input: appends commute, and a lost race re-plans on what is
+ * there now, so a shelter approved or rejected meanwhile answers
+ * EVIDENCE_NOT_EDITABLE rather than taking the item. Approval re-reads the
+ * list at approve time, so the new items count with no extra code.
+ */
+export function registryAddEvidence(
+  deps: RegistryDeps,
+  moderatorId: ModeratorId,
+  input: { shelterId: ShelterId; evidence: readonly EvidenceItemInput[] },
+  errors: E<"INVALID_EVIDENCE" | "EVIDENCE_NOT_EDITABLE" | "EVIDENCE_LIMIT_REACHED">,
+): Promise<RegistryShelterView> {
+  const accepted = acceptEvidence(input.evidence, { moderatorId, now: deps.now });
+  if (accepted.kind === "refused")
+    throw errors.INVALID_EVIDENCE({ data: { reason: accepted.reason } });
+  return tapWithRetry(
+    deps,
+    input.shelterId,
+    (shelter) => {
+      const result = addEvidence(shelter.verification, accepted.evidence.items);
+      switch (result.kind) {
+        case "not_open":
+          throw errors.EVIDENCE_NOT_EDITABLE({ data: { from: result.from } });
+        case "too_many":
+          throw errors.EVIDENCE_LIMIT_REACHED({ data: { limit: result.limit } });
+        case "nothing_new":
+          return { changes: [], entries: [] };
+        case "ok": {
+          const statusAt = shelter.verification.status;
+          if (statusAt !== "pending" && statusAt !== "under_review") {
+            throw new Error("addEvidence returned ok from a closed status");
+          }
+          return {
+            changes: [{ kind: "verification", verification: result.next }],
+            entries: [
+              {
+                kind: "evidence_added",
+                at: deps.now,
+                moderatorId,
+                items: result.added.map((item) => ({ kind: item.kind })),
+                statusAt,
+              },
+            ],
+          };
+        }
+        /* v8 ignore next 4 -- exists so the compiler rejects an unhandled result; unreachable at runtime */
+        default: {
+          const unreachable: never = result;
+          return unreachable;
+        }
+      }
+    },
     errors,
   );
 }

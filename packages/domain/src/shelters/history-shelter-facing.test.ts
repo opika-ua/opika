@@ -154,6 +154,20 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     from: "Лапа",
     to: "Лапа допомоги",
   },
+  evidence_added: {
+    kind: "evidence_added",
+    at: AT,
+    moderatorId: MOD,
+    items: [{ kind: "reference_contact" }, { kind: "site_visit" }],
+    statusAt: "under_review",
+  },
+};
+
+/** The projection of an entry the shelter does see; fails the test on `null`. */
+const facing = (entry: ShelterHistoryEntry, operatorName: string) => {
+  const item = shelterFacingHistoryOf(entry, operatorName);
+  if (item === null) throw new Error(`${entry.kind} is hidden from the shelter`);
+  return item;
 };
 
 /** Every key name at any depth of a value, so a nested id can't hide from the check. */
@@ -167,9 +181,11 @@ describe("shelterFacingHistoryOf", () => {
     expect(Object.keys(ENTRIES).length).toBe(ShelterHistoryEntrySchema.options.length);
   });
 
-  for (const [kind, entry] of Object.entries(ENTRIES)) {
+  for (const [kind, entry] of Object.entries(ENTRIES).filter(
+    ([kind]) => kind !== "evidence_added",
+  )) {
     it(`${kind}: parses as a shelter-facing item and carries no id or evidence`, () => {
-      const item = shelterFacingHistoryOf(entry, OPERATOR);
+      const item = facing(entry, OPERATOR);
       expect(ShelterFacingHistoryItemSchema.parse(item)).toEqual(item);
       const json = JSON.stringify(item);
       expect(json).not.toContain(MOD);
@@ -187,12 +203,24 @@ describe("shelterFacingHistoryOf", () => {
     });
   }
 
+  /** Owner, 2026-11-04: the shelter learns nothing of evidence the operator adds. */
+  it("evidence_added: hidden from the shelter entirely", () => {
+    expect(shelterFacingHistoryOf(ENTRIES.evidence_added, OPERATOR)).toBeNull();
+  });
+
+  it("every other kind is shown", () => {
+    const hidden = Object.values(ENTRIES)
+      .filter((entry) => shelterFacingHistoryOf(entry, OPERATOR) === null)
+      .map((entry) => entry.kind);
+    expect(hidden).toEqual(["evidence_added"]);
+  });
+
   /**
    * IN-Q14: the shelter is shown the email stored at join time and nothing
    * else, with its own admin as the actor. The ids stay operator-only.
    */
   it("admin_joined: the stored email, the shelter as actor, and no id", () => {
-    expect(shelterFacingHistoryOf(ENTRIES.admin_joined, OPERATOR)).toEqual({
+    expect(facing(ENTRIES.admin_joined, OPERATOR)).toEqual({
       kind: "admin_joined",
       at: AT,
       actor: { kind: "shelter" },
@@ -202,7 +230,7 @@ describe("shelterFacingHistoryOf", () => {
 
   /** K-Q7: the animal by name, its own instant, and a withdrawal's reason code (never its note, K-Q18). */
   it("animal_listing_changed: name, instant, move and reason, flattened", () => {
-    expect(shelterFacingHistoryOf(ENTRIES.animal_listing_changed, OPERATOR)).toEqual({
+    expect(facing(ENTRIES.animal_listing_changed, OPERATOR)).toEqual({
       kind: "animal_listing_changed",
       at: new Date("2026-10-16T00:00:00.000Z"),
       actor: { kind: "shelter" },
@@ -213,7 +241,7 @@ describe("shelterFacingHistoryOf", () => {
       to: "withdrawn",
     });
     expect(
-      shelterFacingHistoryOf(
+      facing(
         {
           ...ENTRIES.animal_listing_changed,
           event: { type: "publish" },
@@ -231,23 +259,23 @@ describe("shelterFacingHistoryOf", () => {
       ...ENTRIES.animal_listing_changed,
       event: { type: "withdraw", reason: { code: "other", note: "Забрала пані Олена" } },
     } as unknown as ShelterHistoryEntry;
-    const view = shelterFacingHistoryOf(unparsed, OPERATOR);
+    const view = facing(unparsed, OPERATOR);
     expect(view).toMatchObject({ reason: { code: "other" } });
     expect(JSON.stringify(view)).not.toContain("Олена");
   });
 
   it("animal_edited and animal_created/deleted keep their own instant and the field names", () => {
-    expect(shelterFacingHistoryOf(ENTRIES.animal_edited, OPERATOR)).toEqual({
+    expect(facing(ENTRIES.animal_edited, OPERATOR)).toEqual({
       kind: "animal_edited",
       at: new Date("2026-10-15T00:00:00.000Z"),
       actor: { kind: "shelter" },
       animalName: "Барсик",
       fields: ["name", "age"],
     });
-    expect(shelterFacingHistoryOf(ENTRIES.animal_created, OPERATOR).at).toEqual(
+    expect(facing(ENTRIES.animal_created, OPERATOR).at).toEqual(
       new Date("2026-10-14T00:00:00.000Z"),
     );
-    expect(shelterFacingHistoryOf(ENTRIES.animal_deleted, OPERATOR)).toEqual({
+    expect(facing(ENTRIES.animal_deleted, OPERATOR)).toEqual({
       kind: "animal_deleted",
       at: new Date("2026-10-17T00:00:00.000Z"),
       actor: { kind: "shelter" },
@@ -257,7 +285,7 @@ describe("shelterFacingHistoryOf", () => {
 
   /** R-UI 4: both names, the operator as the actor, and no moderator id. */
   it("display_name_changed: both names, the operator by display name", () => {
-    expect(shelterFacingHistoryOf(ENTRIES.display_name_changed, OPERATOR)).toEqual({
+    expect(facing(ENTRIES.display_name_changed, OPERATOR)).toEqual({
       kind: "display_name_changed",
       at: AT,
       actor: { kind: "operator", displayName: OPERATOR },
@@ -267,27 +295,27 @@ describe("shelterFacingHistoryOf", () => {
   });
 
   it("shows the operator by the display name it was given, never by id", () => {
-    expect(shelterFacingHistoryOf(ENTRIES.admin_invited, OPERATOR).actor).toEqual({
+    expect(facing(ENTRIES.admin_invited, OPERATOR).actor).toEqual({
       kind: "operator",
       displayName: OPERATOR,
     });
-    expect(shelterFacingHistoryOf(ENTRIES.freshness_sentence_changed, OPERATOR).actor).toEqual({
+    expect(facing(ENTRIES.freshness_sentence_changed, OPERATOR).actor).toEqual({
       kind: "operator",
       displayName: OPERATOR,
     });
   });
 
   it("shows the shelter's own admin as the shelter", () => {
-    expect(shelterFacingHistoryOf(ENTRIES.contact_changed, OPERATOR).actor).toEqual({
+    expect(facing(ENTRIES.contact_changed, OPERATOR).actor).toEqual({
       kind: "shelter",
     });
-    expect(shelterFacingHistoryOf(ENTRIES.verification, OPERATOR).actor).toEqual({
+    expect(facing(ENTRIES.verification, OPERATOR).actor).toEqual({
       kind: "shelter",
     });
   });
 
   it("keeps a rejection's reason, which the shelter already sees verbatim", () => {
-    const rejected = shelterFacingHistoryOf(
+    const rejected = facing(
       {
         kind: "verification",
         event: {
@@ -312,10 +340,7 @@ describe("shelterFacingHistoryOf", () => {
 describe("who the shelter sees as the actor of a verification move", () => {
   const MOD_ACTOR = { kind: "moderator", moderatorId: MOD } as const;
   const move = (event: unknown, from = "verified", to = "paused") =>
-    shelterFacingHistoryOf(
-      { kind: "verification", event, from, to } as ShelterHistoryEntry,
-      OPERATOR,
-    ).actor;
+    facing({ kind: "verification", event, from, to } as ShelterHistoryEntry, OPERATOR).actor;
   const reason = { code: "relocation", note: null } as const;
   const operator = { kind: "operator", displayName: OPERATOR };
 
