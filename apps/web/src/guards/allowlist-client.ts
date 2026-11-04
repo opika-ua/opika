@@ -97,6 +97,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/profile-edit/ContactFields.tsx": "controlled contact inputs",
   "features/kabinet/profile-edit/ContactsSection.tsx": "section form with save state",
   "features/kabinet/profile-edit/DonationSection.tsx": "donation link form",
+  "features/kabinet/profile-edit/LiveVerificationStatus.tsx":
+    "context so the header chip follows a pause or resume",
   "features/kabinet/profile-edit/LogoSection.tsx": "logo upload via browser client",
   "features/kabinet/profile-edit/PauseControl.tsx": "pause/unpause dialog",
   "features/kabinet/profile-edit/ProfileEditor.tsx": "editor shell: section states, browser client",

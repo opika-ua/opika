@@ -249,7 +249,6 @@ const expectRefusedInlineAndInSummary = (text: string | RegExp) => {
 };
 
 const SAVE_DRAFT = "Зберегти чернетку";
-const MISSING_ALL = "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.";
 const MISSING_ITEMS_ALL = [
   "Стать (Основне)",
   "Розмір (Основне)",
@@ -1609,7 +1608,8 @@ describe("publishing", () => {
     const client = renderForm(draft());
     await user.click(screen.getByRole("button", { name: "Опублікувати" }));
     expect(client.calls.transition).not.toHaveBeenCalled();
-    expect(formStatus().textContent).toBe(MISSING_ALL);
+    // The list is the panel's bullets only, not repeated in the status line.
+    expect(formStatus().textContent).toBe("");
   });
 
   it("the server's own gap list wins (another window removed the photo)", async () => {
@@ -2122,7 +2122,7 @@ describe("medical note", () => {
   });
 
   it("isn't one of the publish gaps, unlike description", () => {
-    // `MISSING_ALL` (`"...розмір, вік, опис і фото."`) is the exact gap list a fresh form
+    // `MISSING_ITEMS_ALL` is the exact gap list a fresh form
     // shows - A3: an empty medical note never adds itself to it, the way an empty
     // description does.
     renderForm(null);
