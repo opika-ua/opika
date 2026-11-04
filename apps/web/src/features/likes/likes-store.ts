@@ -142,6 +142,13 @@ export const toggleSavedAnimal = (animalId: string, now: Date): ToggleSavedResul
   return { kind: "saved" };
 };
 
+/** Drops ids the server says no longer exist (not ones merely hidden: a paused animal can return). */
+export const pruneSavedAnimals = (animalIds: readonly string[]): void => {
+  const store = readRaw();
+  const items = store.items.filter((item) => !animalIds.includes(item.animalId));
+  if (items.length !== store.items.length) writeRaw({ ...store, items });
+};
+
 /** What a removal took out, enough to put it back at the same place. */
 export type RemovedSave = {
   readonly animalId: string;

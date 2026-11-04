@@ -105,15 +105,13 @@ describe("/tvaryny (renderGallery)", () => {
    * whole rendered branch, "empty grid" -> "the no-match card", not a
    * colour or a class.
    */
-  it("renders the no-match state, not an empty grid, when nothing is seeded", async () => {
+  it("renders the empty-registry state, not an empty grid, when nothing is seeded", async () => {
     const element = await renderGallery(anonymousRouterClient(h.db));
     render(<WithMockRouter>{element}</WithMockRouter>);
 
     expect(screen.queryByTestId("gallery-grid")).toBeNull();
     expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
-    expect(
-      screen.getByRole("heading", { name: "Під ці фільтри зараз нікого немає." }),
-    ).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Тут поки немає тварин." })).toBeTruthy();
   });
 
   /** The swipe deck is retired (2026-11-02): no entry control, with or without matches. */
