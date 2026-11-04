@@ -15,7 +15,7 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDatabase, productionLocationPolicy } from "@opika/db";
 import { kabinetInvitationRepo, kabinetInviteTokenRepo, kabinetShelterRepo } from "@opika/db/repos";
-import { authMember, authUser, cities, shelters, superAdmins } from "@opika/db/schema";
+import { authMember, authUser, cities, superAdmins } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { type ModeratorId, publicLocationOf, type Shelter, type ShelterId } from "@opika/domain";
 import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
@@ -122,52 +122,56 @@ test.describe("gate-exempt pages load every same-origin asset without the gate c
     const [city] = await db.select({ id: cities.id }).from(cities).limit(1);
     if (city === undefined) throw new Error("no seeded city");
 
-    // Its own fictional verified shelter with no animals: the list shows its empty state.
-    const id = randomUUID() as ShelterId;
-    const exactAddress = {
-      line1: "вул. Тестова, 1",
-      line2: null,
-      postalCode: null,
-      cityId: city.id as never,
-      district: null,
-      coordinates: { lat: 50.45, lng: 30.52 },
-    };
-    const shelter: Shelter = {
-      id,
-      displayName: "Вигаданий притулок для перевірки",
-      description: { uk: "Вигаданий притулок для перевірки екранів.", en: null },
-      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Тестова" },
-      publicLocation: publicLocationOf(
+    // Fictional verified shelters with no animals: the admin's list shows its empty state.
+    const newShelter = (displayName: string): Shelter => {
+      const id = randomUUID() as ShelterId;
+      const exactAddress = {
+        line1: "вул. Тестова, 1",
+        line2: null,
+        postalCode: null,
+        cityId: city.id as never,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      };
+      const shelter: Shelter = {
         id,
+        displayName,
+        description: { uk: "Вигаданий притулок для перевірки екранів.", en: null },
+        legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Тестова" },
+        publicLocation: publicLocationOf(
+          id,
+          exactAddress,
+          productionLocationPolicy(HARNESS_LOCATION_HMAC_SECRET),
+        ),
         exactAddress,
-        productionLocationPolicy(HARNESS_LOCATION_HMAC_SECRET),
-      ),
-      exactAddress,
-      contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
-      donation: null,
-      logo: null,
-      pendingDonation: null,
-      version: 0,
-      freshnessSentence: null,
-      verification: {
-        status: "verified",
-        verifiedAt: now,
-        verifiedBy: operatorId as ModeratorId,
-        evidence: {
-          submittedAt: now,
-          items: [
-            {
-              kind: "site_visit",
-              visitedAt: new Date("2026-10-01T00:00:00Z"),
-              visitedBy: operatorId as ModeratorId,
-              notes: "Чисто, вольєри з навісом.",
-            },
-          ],
+        contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
+        donation: null,
+        logo: null,
+        pendingDonation: null,
+        version: 0,
+        freshnessSentence: null,
+        verification: {
+          status: "verified",
+          verifiedAt: now,
+          verifiedBy: operatorId as ModeratorId,
+          evidence: {
+            submittedAt: now,
+            items: [
+              {
+                kind: "site_visit",
+                visitedAt: new Date("2026-10-01T00:00:00Z"),
+                visitedBy: operatorId as ModeratorId,
+                notes: "Чисто, вольєри з навісом.",
+              },
+            ],
+          },
         },
-      },
-      createdAt: now,
-      lastUpdatedAt: now,
+        createdAt: now,
+        lastUpdatedAt: now,
+      };
+      return shelter;
     };
+    const shelter = newShelter("Вигаданий притулок для перевірки");
     await kabinetShelterRepo(db).createWithHistory(shelter, {
       id: randomUUID(),
       entry: {
@@ -177,7 +181,7 @@ test.describe("gate-exempt pages load every same-origin asset without the gate c
         via: "registry",
       },
     });
-    shelterId = id;
+    shelterId = shelter.id;
 
     server = await startSignInServer(HARNESS_DATABASE_URL, {
       LOCATION_HMAC_SECRET: HARNESS_LOCATION_HMAC_SECRET,
@@ -216,21 +220,22 @@ test.describe("gate-exempt pages load every same-origin asset without the gate c
     });
     await db.insert(superAdmins).values({ id: randomUUID(), userId: operatorId, grantedAt: now });
 
-    // A live invitation for the create-password page: the pending seeded shelter without an organization.
-    const pending = (
-      await db
-        .select({
-          id: shelters.id,
-          organizationId: shelters.organizationId,
-          status: shelters.verificationStatus,
-        })
-        .from(shelters)
-    ).find((row) => row.organizationId === null && row.status === "pending");
-    if (pending === undefined) throw new Error("no pending seeded shelter without an organization");
+    // A live invitation for the create-password page, to a second shelter of its own without an
+    // organization (the one seeded pending shelter belongs to the invite-password spec).
+    const invitedShelter = newShelter("Вигаданий притулок для запрошення");
+    await kabinetShelterRepo(db).createWithHistory(invitedShelter, {
+      id: randomUUID(),
+      entry: {
+        kind: "shelter_created",
+        at: now,
+        moderatorId: operatorId as ModeratorId,
+        via: "registry",
+      },
+    });
     const invitationId = randomUUID();
     const inviteeEmail = `harness-assets-invitee-${randomUUID()}@example.test`;
     const invited = await kabinetInvitationRepo(db).invite({
-      shelterId: pending.id as never,
+      shelterId: invitedShelter.id,
       email: inviteeEmail,
       name: "Harness invitee",
       inviterUserId: operatorId,
