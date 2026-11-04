@@ -967,6 +967,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.evidence.notEditable": "Докази можна додати, лише поки рішення не ухвалено.",
     "operator.evidence.limit": "У заявці може бути щонайбільше 30 доказів, за раз – до 10.",
     "operator.history.evidence_added": "Додано докази: {kinds}",
+    "operator.evidence.gapItem": "{kind} – {provided} з {minimum}",
   };
   const PET_CARD_PR3B_LOGO_CHANGED: Record<string, string> = {
     "operator.history.logo_changed": "Змінено логотип притулку",
@@ -1007,7 +1008,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     expect(Object.keys(ROUND_3_N7)).toHaveLength(2);
     expect(Object.keys(ROUND_4C_RUI4_F2)).toHaveLength(1);
     expect(Object.keys(PET_CARD_PR3B_LOGO_CHANGED)).toHaveLength(1);
-    expect(Object.keys(EVIDENCE_ADD_COPY)).toHaveLength(9);
+    expect(Object.keys(EVIDENCE_ADD_COPY)).toHaveLength(10);
     expect(Object.keys(CHECKED_AGAINST_CODE).length).toBe(2);
     expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his !== null)).toHaveLength(1);
     expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his === null)).toHaveLength(1);

@@ -1265,6 +1265,7 @@ export const en = {
         },
         noDocument: "No document attached: allowed for this kind of evidence.",
         gaps: "Missing for approval: {kind}, {provided} of {minimum}.",
+        gapItem: "{kind}, {provided} of {minimum}",
         add: "+ Add evidence",
         remove: "Remove",
         typePicker: "Kind of evidence",

@@ -193,8 +193,15 @@ function EvidenceCard({
   );
 
   return (
-    <fieldset className="flex min-w-0 flex-col gap-3 rounded-panel bg-line p-4">
-      <legend className="mb-2 text-label text-ink">{t.kind[row.kind]}</legend>
+    // A visible title inside the card, named through aria-labelledby: a `legend` straddles the
+    // fieldset's top border, which overlapped the card's edge.
+    <fieldset
+      aria-labelledby={id("title")}
+      className="flex min-w-0 flex-col gap-3 rounded-panel bg-line p-4"
+    >
+      <p id={id("title")} className="text-label text-ink">
+        {t.kind[row.kind]}
+      </p>
       {row.kind === "edrpou_registration" ? (
         <>
           <TextField

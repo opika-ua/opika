@@ -1452,6 +1452,7 @@ export const uk = {
         },
         noDocument: "Документ не додано – для цього типу доказу це дозволено.",
         gaps: "Для схвалення бракує: {kind} – {provided} з {minimum}.",
+        gapItem: "{kind} – {provided} з {minimum}",
         add: "+ Додати доказ",
         remove: "Прибрати",
         typePicker: "Тип доказу",

@@ -191,9 +191,9 @@ describe("pending → «Взяти на розгляд» → «Схвалити�
         .getAllByRole("listitem")
         .map((li) => li.textContent),
     ).toEqual([
-      "Для схвалення бракує: Реєстрація · ЄДРПОУ – 0 з 1.",
-      "Для схвалення бракує: Власник банківського рахунку – 0 з 1.",
-      "Для схвалення бракує: Рекомендація – 0 з 1.",
+      "Реєстрація · ЄДРПОУ – 0 з 1",
+      "Власник банківського рахунку – 0 з 1",
+      "Рекомендація – 0 з 1",
     ]);
     await userEvent.click(approve);
     expect(fns.verification.approve).not.toHaveBeenCalled();
