@@ -15,6 +15,9 @@
   --color-accent: #f26427;
   /* Orange as text or as a focus ring: 4.9:1 on the page, 3.8:1 on `line`. The fill stays `accent`. */
   --color-accent-text: #c2410c;
+  /* Fill of the primary accent Button only: pure white (`on-accent-strong`) on it is 4.0:1, enough for the 19px bold label (large text). */
+  --color-accent-strong: #d9531a;
+  --color-on-accent-strong: #ffffff;
   --color-on-ink: #faf8f9;
   --color-species-dog: #794eba;
   /* Cats are shown in the accent colour today (`card-text.ts`). */
@@ -102,6 +105,10 @@
   --text-label--line-height: 1.4;
   --text-label--font-weight: 600;
   --text-label--letter-spacing: 0;
+  --text-cta: 19px;
+  --text-cta--line-height: 1.4;
+  --text-cta--font-weight: 700;
+  --text-cta--letter-spacing: 0;
   --text-chip: 15px;
   --text-chip--line-height: 1.4;
   --text-chip--font-weight: 600;
@@ -261,21 +268,15 @@
     @apply size-2 shrink-0 rounded-pill bg-(--dot);
   }
 }
-/* From tablet the dot goes and the badge itself takes the species colour. */
+/* From tablet the same dot sits in a page-coloured chip that lifts off any photo. */
 @utility gcard-fresh {
-  @apply gcard-fresh-st tablet:order-none tablet:inline-flex tablet:whitespace-nowrap tablet:rounded-tag tablet:bg-(--dot) tablet:px-2 tablet:py-1 tablet:text-(--on-dot);
-  &::before {
-    @apply tablet:hidden;
-  }
+  @apply gcard-fresh-st tablet:order-none tablet:inline-flex tablet:whitespace-nowrap tablet:rounded-tag tablet:bg-page tablet:px-2 tablet:py-1 tablet:text-ink tablet:shadow-float;
 }
 @utility gcard-dog {
   --dot: var(--color-species-dog);
-  --on-dot: var(--color-on-ink);
 }
-/* Ink on the orange badge is 5.4:1; white on it is 3.0:1 (WCAG 1.4.3). */
 @utility gcard-cat {
   --dot: var(--color-species-cat);
-  --on-dot: var(--color-ink);
 }
 @utility gcard-info-st {
   @apply flex flex-col gap-1;

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { FeedCardView } from "@opika/contracts";
 import {
   DEFAULT_GALLERY_SORT,
@@ -262,5 +264,17 @@ describe("GalleryCard photo loading", () => {
     const { container } = render(<GalleryCard card={withPhoto} cityName={null} {...NO_CONTEXT} />);
     expect(img(container)?.getAttribute("loading")).toBe("lazy");
     expect(img(container)?.getAttribute("fetchpriority")).toBeNull();
+  });
+
+  it("one freshness chip for both species: page fill, ink text, species only as the dot", () => {
+    const css = readFileSync(join(__dirname, "../../app/globals.css"), "utf8");
+    const chip = css.match(/@utility gcard-fresh \{([^}]*)\}/)?.[1] ?? "";
+    expect(chip).toContain("tablet:bg-page");
+    expect(chip).toContain("tablet:text-ink");
+    expect(chip).toContain("tablet:shadow-float");
+    expect(chip).not.toContain("--dot");
+    expect(css).not.toContain("--on-dot");
+    expect(css).toMatch(/@utility gcard-cat \{\s*--dot: var\(--color-species-cat\);/);
+    expect(css).toMatch(/@utility gcard-dog \{\s*--dot: var\(--color-species-dog\);/);
   });
 });
