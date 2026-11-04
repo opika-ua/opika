@@ -67,7 +67,8 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     !isGateExemptPath(request.nextUrl.pathname) &&
     !isCronPath(request.nextUrl.pathname) &&
     !isGateExemptExactPath(request.nextUrl.pathname) &&
-    !isInstallAssetRequest(request.method, request.nextUrl.pathname)
+    !isInstallAssetRequest(request.method, request.nextUrl.pathname) &&
+    !isExemptPageAssetRequest(request.method, request.nextUrl.pathname)
   ) {
     const decision = evaluatePrelaunchGate(
       request.headers.get("cookie"),
@@ -208,6 +209,15 @@ const GATE_EXEMPT_EXACT_PATHS: readonly string[] = [
 // no listing data. Read-only methods only, so anything else on those paths stays refused.
 export function isInstallAssetRequest(method: string, pathname: string): boolean {
   return (method === "GET" || method === "HEAD") && PWA_PUBLIC_PATHS.includes(pathname);
+}
+
+// Static files the gate-exempt pages (kabinet, sign-in) render: the header logo and the favicon. Exact
+// file paths, never a directory prefix, so no other file under `public/` and no page is reachable
+// through them; `proxy.test.ts` derives the list from the exempt pages' own source.
+export const GATE_EXEMPT_PAGE_ASSET_PATHS: readonly string[] = ["/brand-v3/logo.svg", "/icon.svg"];
+
+export function isExemptPageAssetRequest(method: string, pathname: string): boolean {
+  return (method === "GET" || method === "HEAD") && GATE_EXEMPT_PAGE_ASSET_PATHS.includes(pathname);
 }
 
 export function isGateExemptExactPath(pathname: string): boolean {
