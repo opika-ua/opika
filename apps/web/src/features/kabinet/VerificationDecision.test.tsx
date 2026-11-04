@@ -82,6 +82,11 @@ describe("a rejected shelter reads the decision", () => {
     },
   );
 
+  it("a rejection stored with the retired out_of_service_area still shows its label", () => {
+    renderAs({ status: "rejected", at: AT, reason: { code: "out_of_service_area", note: null } });
+    expect(screen.getByText("Причина: Поза територією, де працює сайт.")).toBeTruthy();
+  });
+
   it("a reason stored without a note shows the code: no label, no empty quotation, no signature", () => {
     renderAs({ status: "rejected", at: AT, reason: { code: "insufficient_evidence", note: null } });
     const section = screen.getByRole("region", { name: "Перевірку не пройдено" });
