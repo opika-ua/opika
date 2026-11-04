@@ -197,7 +197,7 @@ before anything is uploaded or written, with the file path in the error.
 
 Uploading only happens on `--commit` - the dry run validates that every
 photo file exists and is readable, and nothing more. `--commit` generates
-three real sizes per photo (thumbnail, gallery-card, detail-page) and
+five real sizes per photo (thumb, card, compact, mid, detail) and
 uploads each to R2; see "R2 credentials" below for what that step needs.
 
 ## Run it: dry run, then commit
@@ -323,6 +323,8 @@ shell: `ep-PRODUCTION`, the value of `PROD_NEON_ENDPOINT`.
 
 ## Removing the demo corpus (once, after the first real shelter)
 
+**Superseded as the launch path** (`docs/launch-sequence.md`): launch uses the full reset, run twice. `demo:remove` is kept only to remove one mistakenly onboarded real shelter.
+
 The seeded demo shelters (ids `51000000-…`) go when the first real shelter is in
 (RG-Q11). `db:seed` can't do it: it truncates every table. `demo:remove` deletes
 only the demo shelters and what hangs off them (inbox DR-B1): their animals,
@@ -397,6 +399,8 @@ is 0 and it refuses with "no shelter has id …" for each id**, which is the
 confirmation they are gone.
 
 ## Retiring the rehearsal shelter (at launch, before the first real invite)
+
+**Superseded as the launch path** (`docs/launch-sequence.md`): launch uses the full reset, run twice. `demo:remove` is kept only to remove one mistakenly onboarded real shelter.
 
 The rehearsal shelter «Притулок «Репетиція»» (`<rehearsal-shelter-uuid>`, onboarded 2026-10-17
 for the K4/photo rehearsal) is a test shelter on the real location key. It goes in the launch
@@ -554,7 +558,7 @@ removed; keep the eligibility part.
 ## Taking a photo down (P-Q14)
 
 Removing a photo in the kabinet (`shelter.photos.remove`) only takes it off
-the animal: its three files stay in the bucket and stay reachable by their URL.
+the animal: its five files stay in the bucket and stay reachable by their URL.
 Nothing links to them any more, but anyone who saved the URL can still open it
 - until the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
 R2-B1) deletes it on its own, automatically, once it has sat unreferenced for the
@@ -571,10 +575,10 @@ which fields changed (`fields: ["photos"]`, K-Q7), never a key. So list the
 animal's prefix in the bucket: R2 → the photo bucket → Objects → prefix
 `animals/{animalId}/` (the animal's id is still in the database and the
 kabinet). Each photo is one folder, `animals/{animalId}/{uuid}/`, holding
-`thumb.webp`, `card.webp` and `detail.webp`. The folders whose key is still in
+`thumb.webp`, `card.webp`, `compact.webp`, `mid.webp` and `detail.webp`. The folders whose key is still in
 the animal's `photos` are on the card; any other folder is a removed or orphaned
-photo. Open its `card.webp` to confirm it is the one, then delete all three
-files and purge those three URLs from the CDN cache.
+photo. Open its `card.webp` to confirm it is the one, then delete all five
+files and purge those five URLs from the CDN cache.
 
 A takedown script (DR-F3) will replace this; until then it is a manual, logged
 step. The same applies to a file logged as `{event:"photo_orphaned",
