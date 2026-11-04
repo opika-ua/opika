@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { KabinetProfileClient } from "../../../api/kabinet-browser-client";
+import { LiveVerificationChip, LiveVerificationStatus } from "./LiveVerificationStatus";
 import { ProfileEditor } from "./ProfileEditor";
 
 /**
@@ -681,6 +682,33 @@ describe("pause and resume (N21)", () => {
     expect(fns.resume).toHaveBeenCalledOnce();
     expect(screen.getByText("Прийом відновлено. Ваших тварин знову видно.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Призупинити прийом тварин" })).toBeTruthy();
+  });
+
+  it("the page header chip follows a pause and a resume, not the stale server render", async () => {
+    const view = baseView();
+    const { client } = fakeClient(view);
+    render(
+      <LiveVerificationStatus initial="verified">
+        <LiveVerificationChip fallback="verified" />
+        <ProfileEditor
+          initialView={view}
+          cityName="Бровари"
+          operatorName="Олексій"
+          donationDeclined={false}
+          client={client}
+        />
+      </LiveVerificationStatus>,
+    );
+    // The first match is the header chip (the Перевірка tab holds a second).
+    const chip = () => screen.getAllByText(/^(Перевірено|На паузі)$/)[0] as HTMLElement;
+    expect(chip().textContent).toBe("Перевірено");
+    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
+    const dialog = within(screen.getByRole("dialog"));
+    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Переїзд");
+    await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
+    expect(chip().textContent).toBe("На паузі");
+    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом тварин" }));
+    expect(chip().textContent).toBe("Перевірено");
   });
 
   it("ILLEGAL_TRANSITION on resume: his message", async () => {

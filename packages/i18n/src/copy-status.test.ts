@@ -222,7 +222,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     "email.signIn.expiry": "Посилання спрацює один раз і діє {minutes} хвилин.",
     // row 82, signed like row 88 (2026-10-14)
     "email.signIn.notYou":
-      "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n- {operator}",
+      "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n{operator}",
     // row 83
     "email.invite.subject": "Ваш доступ до кабінету притулку",
     // row 84
@@ -244,7 +244,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     "email.invite.expiry": "Запрошення діє {hours} години. Якщо не встигнете – я надішлю нове.",
     // row 88, replaced by his PW-2 Q2 paragraph (2026-10-20, verbatim), the signature kept
     "email.invite.notYou":
-      "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n- {operator}",
+      "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n{operator}",
     // row 10 (2026-10-14: the sign-in email reached Gmail's Promotions tab)
     "signIn.spamNote":
       "Листа немає? Перевірте «Спам» і «Промоакції». Надіслати ще раз можна через 60 секунд.",
@@ -930,7 +930,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
    */
   const ROUND_2_REASON_VIEW: Record<string, { his: string | null; used: string }> = {
     "verificationDecision.noteLabel": { his: "Пояснення від {operator}:", used: "Пояснення:" },
-    "verificationDecision.signature": { his: null, used: "- {operator}" },
+    "verificationDecision.signature": { his: null, used: "{operator}" },
   };
 
   /**
@@ -1178,7 +1178,7 @@ describe("/prytulkam §9 (forShelters.whenAnimalFindsHome)", () => {
       "Найважливіше, що ви можете зробити, – позначити, що тварина знайшла дім.",
     );
     expect(paragraphs[2]).toBe(
-      "Кожна опублікована картка в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї та стрічки, а у вашому списку лишається з позначкою «Удома».",
+      "Кожна опублікована картка в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї, а у вашому списку лишається з позначкою «Удома».",
     );
   });
 
@@ -1718,7 +1718,7 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.actions.adopt": "Уже вдома",
     "kabinet.animalList.adoptDialog.title": "{name} уже вдома?",
     "kabinet.animalList.adoptDialog.body":
-      "Картка зникне з галереї та стрічки, а її сторінка повідомлятиме, що тварини там уже немає. У вашому списку картка лишиться з позначкою «Удома». Скасувати це не можна: якщо тварина повернеться, додайте її як нову картку.",
+      "Картка зникне з галереї, а її сторінка стане недоступною. У вашому списку картка лишиться з позначкою «Удома». Скасувати це не можна: якщо тварина повернеться, додайте її як нову картку.",
     "kabinet.animalList.adoptDialog.confirm": "Так, уже вдома",
     "kabinet.animalList.actions.withdraw": "Зняти з показу",
     "kabinet.animalList.withdrawDialog.title": "Зняти з показу: {name}?",
@@ -1889,7 +1889,11 @@ describe("kabinet passwords copy (PW-1, his Ukrainian, 2026-10-19)", () => {
     "setPassword.intro": "Пароль для кабінету притулку «{shelter}». Адреса для входу: {email}.",
     "setPassword.submit": "Зберегти й увійти",
     "setPassword.repeatLabel": "Повторіть пароль",
-    "setPassword.hint": "Символів: {count} з {min}",
+    "setPassword.hint": "Щонайменше {min} символів",
+    "setPassword.remaining.one": "Ще {n} символ",
+    "setPassword.remaining.few": "Ще {n} символи",
+    "setPassword.remaining.many": "Ще {n} символів",
+    "setPassword.enough": "Достатньо",
     "password.tooShort": "Пароль закороткий. Мінімум символів: {min}.",
     "password.tooLong": "Пароль задовгий. Максимум символів: {max}.",
     "password.common": "Цей пароль надто легко вгадати. Оберіть інший.",
@@ -1926,12 +1930,12 @@ describe("kabinet passwords copy (PW-1, his Ukrainian, 2026-10-19)", () => {
     "email.reset.action": "Створити новий пароль",
     "email.reset.expiry": "Посилання спрацює один раз і діє {minutes} хв.",
     "email.reset.notYou":
-      "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\n- {operator}",
+      "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\n{operator}",
     // F2
     "email.passwordChanged.subject": "Кабінет притулку: пароль змінено",
     "email.passwordChanged.body":
       "Пароль до кабінету притулку для цієї адреси щойно змінено. На інших пристроях виконано вихід.",
-    "email.passwordChanged.notYou": "Якщо це не ви – напишіть мені: {contact}\n- {operator}",
+    "email.passwordChanged.notYou": "Якщо це не ви – напишіть мені: {contact}\n{operator}",
   };
 
   const at = (path: string) =>
@@ -1954,7 +1958,16 @@ describe("kabinet passwords copy (PW-1, his Ukrainian, 2026-10-19)", () => {
       emailReset: keysOf(uk.kabinet.email.reset),
       emailPasswordChanged: keysOf(uk.kabinet.email.passwordChanged),
     }).toEqual({
-      setPassword: ["hint", "intro", "newLabel", "repeatLabel", "submit", "title"],
+      setPassword: [
+        "enough",
+        "hint",
+        "intro",
+        "newLabel",
+        "remaining",
+        "repeatLabel",
+        "submit",
+        "title",
+      ],
       password: ["common", "mismatch", "personal", "tooLong", "tooShort"],
       forgot: ["intro", "sent", "submit", "throttled", "title"],
       reset: ["done", "invalidLink", "invalidLinkText", "submit", "title"],

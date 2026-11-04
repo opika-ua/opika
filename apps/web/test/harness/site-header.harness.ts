@@ -17,7 +17,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { expectReachableByTab, noSidewaysScroll, openRoute } from "./harness";
+import { expectReachableByTab, noSidewaysScroll, openRoute, servedAnimalIds } from "./harness";
 import { DESKTOP, DETAIL_PHONE, NARROW_PHONE, PHONE } from "./viewports";
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.31" } });
@@ -65,17 +65,13 @@ async function firstAnimalHref(page: import("@playwright/test").Page): Promise<s
  * for that navigation, same as every later one on this page.
  */
 async function seedASavedAnimal(page: import("@playwright/test").Page): Promise<void> {
-  await page.addInitScript(() => {
+  const [animalId] = await servedAnimalIds(page, 1);
+  await page.addInitScript((id) => {
     window.localStorage.setItem(
       "likes.v1",
-      JSON.stringify({
-        version: 1,
-        items: [
-          { animalId: "00000000-0000-4000-8000-000000000000", likedAt: new Date().toISOString() },
-        ],
-      }),
+      JSON.stringify({ version: 1, items: [{ animalId: id, likedAt: new Date().toISOString() }] }),
     );
-  });
+  }, animalId);
 }
 
 /** MK-7: the independence line sits in the content of «Про проєкт» and «Для притулків». */

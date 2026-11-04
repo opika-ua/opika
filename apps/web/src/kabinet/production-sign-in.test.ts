@@ -42,7 +42,7 @@ describe("productionSignInOf", () => {
 
   /**
    * Oleksii, 2026-10-14 (delivery test 2): the sign-in email is signed
-   * `- {operator}` like the invite. Production's config carries the name
+   * `{operator}` like the invite. Production's config carries the name
    * the wiring hands to `providerMagicLinkSender`; a missing or blank one is
    * the catalogue's fallback, never a reason to stay off (RS-Q2).
    */
@@ -345,7 +345,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 716 with `animalList.sexNotStated` (owner-approved 2026-11-03, UX-2).
     // 726 with the evidence-add strings (owner-approved 2026-11-04): eight `operator.evidence.add*`
     // and notices, plus `operator.history.evidence_added`.
-    expect(pending.length + written.length).toBe(726);
+    // 730 with the password counter (owner-approved 2026-11-04): `setPassword.remaining` (three
+    // forms) and `enough`; `hint` is reworded.
+    expect(pending.length + written.length).toBe(730);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

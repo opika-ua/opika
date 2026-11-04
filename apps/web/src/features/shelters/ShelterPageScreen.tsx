@@ -161,8 +161,8 @@ export function ShelterPageScreen({
                   fillTemplate(uk.shelterPage.sinceYear, { year })
                 )}
               </span>
-              {/* Commitment 7: the shelter's sentence renders here and on no card or animal page. */}
-              {words !== null && (
+              {/* Commitment 7: the sentence renders here only; without one the block is hidden, not left as a heading over the description. */}
+              {words?.sentence != null && (
                 <div className="basis-full desktop:order-last">
                   <ShelterWordsSection words={words} headingLevel={2} variant="quote" />
                 </div>

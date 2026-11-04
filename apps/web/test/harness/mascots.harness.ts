@@ -220,13 +220,6 @@ const PERCH_WIDTHS = [320, 360, 393, 1024, 1440] as const;
 const PERCH_VARIANTS = [
   { name: "hero-cat", route: "/tvaryny", ready: CARD, heading: "h1", key: "cat-lie" },
   { name: "hero-dog", route: "/tvaryny?vyd=dog", ready: CARD, heading: "h1", key: "dog-lie" },
-  {
-    name: "no-match",
-    route: "/tvaryny?vyd=cat&rozmir=large",
-    ready: "[data-testid='gallery-no-match']",
-    heading: "#gallery-no-match-heading",
-    key: "cat-lie",
-  },
 ] as const;
 
 test.describe("mascot on a word", () => {

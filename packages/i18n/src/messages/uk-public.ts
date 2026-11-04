@@ -896,6 +896,12 @@ export const ukPublic = {
     hromadaShort: "{name} громада",
   },
 
+  /** The registry itself has no animals (no filter is set): nothing to reset, so no «Скинути». */
+  emptyRegistry: {
+    heading: "Тут поки немає тварин.",
+    line: "Притулки тільки починають додавати картки. Зазирніть трохи згодом.",
+  },
+
   noMatch: {
     heading: "Під ці фільтри зараз нікого немає.",
     reassurance: "Це не помилка пошуку.",

@@ -1,10 +1,12 @@
 "use client";
 
+import type { AnimalId } from "@opika/domain";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Icon } from "../../ui/Icon";
-import { readLikesStore, subscribeToLikesChanges } from "./likes-store";
+import { pruneSavedAnimals } from "./likes-store";
+import { watchServableSavedCount } from "./saved-availability";
 
 /** The badge reads «99+» above this; the accessible name keeps the real number. */
 const BADGE_CAP = 99;
@@ -32,15 +34,21 @@ export function SavedButton({ layout, current = false, testId, rowClassName }: S
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
-    const read = () => {
-      const next = readLikesStore().items.length;
-      setCount(next);
-      const root = document.documentElement;
-      if (next > 0) root.setAttribute("data-has-saved", "");
-      else root.removeAttribute("data-has-saved");
-    };
-    read();
-    return subscribeToLikesChanges(read);
+    return watchServableSavedCount(
+      (next) => {
+        setCount(next);
+        const root = document.documentElement;
+        if (next > 0) root.setAttribute("data-has-saved", "");
+        else root.removeAttribute("data-has-saved");
+      },
+      // Loaded on demand: only a visitor with saves pays for the API client on every page.
+      async () => {
+        const { savedBrowserClient } = await import("../../api/browser-client");
+        return (input) =>
+          savedBrowserClient.animals.cardsByIds({ animalIds: input.animalIds as AnimalId[] });
+      },
+      pruneSavedAnimals,
+    );
   }, []);
 
   const name =

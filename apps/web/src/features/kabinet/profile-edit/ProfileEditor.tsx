@@ -16,6 +16,7 @@ import { PageSave, PageSaveStatus } from "../shared/page-save";
 import { runWrite } from "../shared/write-result";
 import { ContactsSection } from "./ContactsSection";
 import { DonationSection } from "./DonationSection";
+import { useReportVerification } from "./LiveVerificationStatus";
 import { LogoSection } from "./LogoSection";
 import { PauseControl } from "./PauseControl";
 import { type ProfileTab, profileTabOf } from "./profile-tabs";
@@ -51,6 +52,7 @@ export function ProfileEditor({
   client?: KabinetProfileClient;
 }) {
   const [view, setView] = useState(initialView);
+  useReportVerification(view.verification.status);
   const versionRef = useRef(initialView.version);
   const [tab, setTab] = useState<ProfileTab>(initialTab);
   const profile = client.shelter.profile;

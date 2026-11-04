@@ -478,8 +478,7 @@ export function AnimalForm({
   const publish = async () => {
     if (!editable || publishing) return;
     if (gaps.length > 0) {
-      setAnnouncement(missingSentence(gaps));
-      // The gaps are written in «Публікація», next to the links that lead to each.
+      // The gaps are listed once, in «Публікація», next to the links that lead to each; no second sentence.
       goTo("publikatsiia", "#publication");
       return;
     }

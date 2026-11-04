@@ -70,7 +70,7 @@ describe("a rejected shelter reads the decision", () => {
           "Причина: Спам.",
           "Пояснення:",
           NOTE,
-          "- Олексій Колотенко",
+          "Олексій Колотенко",
           "Якщо маєте питання, напишіть мені.",
         ].join(""),
       );
@@ -78,7 +78,7 @@ describe("a rejected shelter reads the decision", () => {
       const quote = section.querySelector("blockquote");
       expect(quote?.textContent).toBe(NOTE);
       expect(section.querySelector("figcaption")?.textContent).toBe("Пояснення:");
-      expect(screen.getByText("- Олексій Колотенко").closest("blockquote")).toBeNull();
+      expect(screen.getByText("Олексій Колотенко").closest("blockquote")).toBeNull();
     },
   );
 
@@ -101,7 +101,7 @@ describe("a rejected shelter reads the decision", () => {
       kind: "configured",
       name: "Олексій $& $1",
     });
-    expect(screen.getByText("- Олексій $& $1")).toBeTruthy();
+    expect(screen.getByText("Олексій $& $1")).toBeTruthy();
   });
 });
 
@@ -123,7 +123,7 @@ describe("a suspended shelter reads the decision", () => {
         "Причина: Скарга підтвердилася.",
         "Пояснення:",
         "Скарга від ветклініки. Чекаю на ваші фото.",
-        "- Олексій Колотенко",
+        "Олексій Колотенко",
         "Якщо маєте питання, напишіть мені.",
       ].join(""),
     );
@@ -138,14 +138,14 @@ describe("a suspended shelter reads the decision", () => {
  * different screen since kabinet redesign Phase 2 PR 1.
  */
 describe("with no operator name configured", () => {
-  it("signs «- Адміністратор сайту»", () => {
+  it("signs «Адміністратор сайту»", () => {
     renderAs(
       { status: "suspended", at: AT, reason: { code: "other", note: "Чекаю на ваші фото." } },
       "admin",
       { kind: "fallback" },
     );
     const section = screen.getByRole("region", { name: "Притулок тимчасово призупинено" });
-    expect(section.textContent).toContain("Чекаю на ваші фото.- Адміністратор сайту");
+    expect(section.textContent).toContain("Чекаю на ваші фото.Адміністратор сайту");
   });
 });
 
@@ -165,7 +165,7 @@ describe("every other status sees none of it", () => {
       "Притулок тимчасово призупинено",
       "Якщо маєте питання, напишіть мені.",
       "Пояснення:",
-      "- Олексій Колотенко",
+      "Олексій Колотенко",
     ]) {
       expect(screen.queryByText(text)).toBeNull();
     }

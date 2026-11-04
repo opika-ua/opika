@@ -55,7 +55,7 @@ pnpm --filter @opika/db db:full-reset --expect <child-branch-endpoint-id>
 pnpm --filter @opika/db db:full-reset --expect <child-branch-endpoint-id> --commit
 
 pnpm --filter @opika/db db:check-hashes
-pnpm --filter @opika/db admin:bootstrap oleksii@example.org --expect <child-branch-endpoint-id>
+pnpm --filter @opika/db admin:bootstrap oleksii@example.org
 
 Remove-Item Env:DATABASE_URL
 ```
@@ -273,6 +273,9 @@ Identical to step 6. Sweeps the rehearsal's own photos, now genuinely orphaned: 
 
 ### 12. Onboard the real shelters
 
+The rehearsal stays on the Neon Free plan; upgrade to Launch before the first real shelter, so
+before this step's first `--commit`.
+
 **The existing path**, `docs/onboarding-a-shelter.md` in full, run once per real shelter:
 
 ```powershell
@@ -311,9 +314,8 @@ shelters existing is not the same fact as the site being publicly discoverable
 one fact"; `seo-flags.ts`'s own doc comment on this constant has the full reasoning).
 
 **Verification:** `seo-flags.test.ts`'s own assertions pass in CI before this merges. After
-deploy, the gallery's demo banner is gone, and a card's "·
-перевірений" suffix appears for a verified real shelter — all driven by this one flag
-(`verificationSuffix`, `seo-flags.ts`).
+deploy, the gallery's demo banner is gone. There is no card "перевірений" suffix any more
+(`verificationSuffix` was removed 2026-11-03); surfaces gate on this flag inline.
 
 **Rollback:** flip it back to `true`, commit, redeploy. Reversible at any point before step
 14, since nothing downstream depends on it alone.
@@ -332,8 +334,8 @@ boot-time check, and it covers the other pair of constants, step 13 above):
    for correctness).
 2. `apps/web/src/api/env.ts`: drop `PRELAUNCH_GATE_SECRET` from `RequiredProductionEnvSchema`
    - nothing reads it anymore once the gate's branch is unreachable.
-3. `packages/i18n/src/messages/uk.ts`: append `PENDING_R4_2_ANALYTICS_SENTENCE` to
-   `uk.about.analytics` (`+ " " + PENDING_R4_2_ANALYTICS_SENTENCE`, not retyped - the constant
+3. `packages/i18n/src/messages/uk-public.ts`: append `R4_2_ANALYTICS_SENTENCE` to
+   `uk.about.analytics` (`+ " " + R4_2_ANALYTICS_SENTENCE`, not retyped - the constant
    is Oleksii's own already-written Ukrainian, held since 2026-10-06).
 4. Exempt per-animal OG images from the gate (BR-7, owner 2026-11-02): only `/opengraph-image` is
    exempt until now; `/tvaryny/<id>/opengraph-image` stays gated. Flipping step 1 makes the gate

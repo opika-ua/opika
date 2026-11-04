@@ -8,7 +8,7 @@ import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signe
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { ActiveFilterChips } from "../../features/gallery/ActiveFilterChips";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
-import { activeFilterChips } from "../../features/gallery/active-filters";
+import { activeFilterChips, anyFilterSet } from "../../features/gallery/active-filters";
 import { cardCityId } from "../../features/gallery/card-text";
 import { FilterSheet } from "../../features/gallery/FilterSheet";
 import {
@@ -220,6 +220,7 @@ export async function renderGallery(
     page.totalMatching === 0 ? neighbourRegionsOf(filters.regions, book, facetCounts.regions) : [];
 
   const mascotKind = mascotKindFor(filters.species);
+  const registryEmpty = page.totalMatching === 0 && !anyFilterSet(filters);
 
   return (
     <div className="min-h-dvh bg-page">
@@ -342,9 +343,12 @@ export async function renderGallery(
               </ReplaceNav>
             }
             mobileCount={
-              <p aria-hidden="true" className="text-label text-ink-2">
-                {railResultCount(page.totalMatching, page.totalShelters)}
-              </p>
+              // An empty registry says so in the card below; a count line above it would only repeat it.
+              registryEmpty ? undefined : (
+                <p aria-hidden="true" className="text-label text-ink-2">
+                  {railResultCount(page.totalMatching, page.totalShelters)}
+                </p>
+              )
             }
           >
             <ReplaceNav>

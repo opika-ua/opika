@@ -45,11 +45,10 @@ describe("the shelter page", () => {
     expect(within(section).getByText(`«${SENTENCE}»`)).toBeTruthy();
   });
 
-  it("shows the section with only the part the shelter wrote", () => {
+  it("hides the block when the shelter has no sentence, even with a description", () => {
     renderScreen({ shelter: makeShelterPageShelter({ freshnessSentence: null }) });
-    const section = screen.getByRole("region", { name: WORDS_HEADING });
-    expect(within(section).getByText(DESCRIPTION)).toBeTruthy();
-    expect(within(section).queryByText(/«/)).toBeNull();
+    expect(screen.queryByRole("region", { name: WORDS_HEADING })).toBeNull();
+    expect(screen.queryByText(DESCRIPTION)).toBeNull();
   });
 
   it("omits the section entirely when the shelter wrote neither: no heading over nothing", () => {
@@ -70,7 +69,7 @@ describe("the shelter page", () => {
       }),
     });
     expect(screen.queryByText(/імʼя/)).toBeNull();
-    expect(screen.getByRole("region", { name: WORDS_HEADING })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: WORDS_HEADING })).toBeNull();
   });
 
   it("shows the donation link's domain as text before the tap (commitment 5)", () => {
