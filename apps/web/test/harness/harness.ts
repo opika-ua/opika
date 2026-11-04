@@ -186,3 +186,24 @@ export async function openAccountMenu(page: Page, ready: Locator): Promise<void>
     await expect(ready).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 15_000 });
 }
+
+/**
+ * Ids of animals the seeded gallery really serves. The header's saved count drops ids the server
+ * does not serve, so a spec that seeds `likes.v1` needs real ones, not made-up uuids.
+ */
+export async function servedAnimalIds(page: Page, count: number): Promise<string[]> {
+  const ids: string[] = [];
+  for (let pageNumber = 1; ids.length < count && pageNumber <= 20; pageNumber++) {
+    await page.goto(`/tvaryny?stor=${pageNumber}`, { waitUntil: "load" });
+    const found = await page
+      .locator("[data-testid='animal-card']")
+      .evaluateAll((cards) =>
+        cards
+          .map((card) => card.getAttribute("href")?.match(/\/tvaryny\/([0-9a-f-]{36})/)?.[1])
+          .filter((id): id is string => id !== undefined),
+      );
+    ids.push(...found.filter((id) => !ids.includes(id)));
+  }
+  expect(ids.length, "the seeded gallery has enough animals").toBeGreaterThanOrEqual(count);
+  return ids.slice(0, count);
+}

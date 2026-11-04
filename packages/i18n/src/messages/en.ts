@@ -365,6 +365,11 @@ export const en = {
     hromadaShort: "{name} community",
   },
 
+  emptyRegistry: {
+    heading: "There are no animals here yet.",
+    line: "Shelters are only starting to add listings. Please check back a little later.",
+  },
+
   noMatch: {
     heading: "Nobody matches these filters right now.",
     reassurance: "This isn't a search error.",

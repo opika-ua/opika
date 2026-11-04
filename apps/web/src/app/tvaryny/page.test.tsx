@@ -105,15 +105,50 @@ describe("/tvaryny (renderGallery)", () => {
    * whole rendered branch, "empty grid" -> "the no-match card", not a
    * colour or a class.
    */
-  it("renders the no-match state, not an empty grid, when nothing is seeded", async () => {
+  it("renders the empty-registry state, not an empty grid, when nothing is seeded", async () => {
     const element = await renderGallery(anonymousRouterClient(h.db));
     render(<WithMockRouter>{element}</WithMockRouter>);
 
     expect(screen.queryByTestId("gallery-grid")).toBeNull();
     expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Тут поки немає тварин." })).toBeTruthy();
+  });
+
+  it("an empty registry shows no count line, and nothing on the page claims a non-zero count", async () => {
+    const element = await renderGallery(anonymousRouterClient(h.db));
+    const { container } = render(<WithMockRouter>{element}</WithMockRouter>);
+
+    expect(container.querySelector("p[aria-hidden='true']")?.textContent ?? "").not.toMatch(
+      /Знайдено/,
+    );
+    for (const line of screen.queryAllByText(/Знайдено/)) {
+      expect(line.textContent).toMatch(/Знайдено 0 /);
+    }
+  });
+
+  it("filters that exclude everything keep a count line that agrees with the empty state: zero", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: {
+        precision: "fuzzed_address",
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.51, lng: 30.79 }, precisionMetres: 1000 } as never,
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id, species: "dog" }), city.id);
+
+    const element = await renderGallery(anonymousRouterClient(h.db), { vyd: "cat" });
+    render(<WithMockRouter>{element}</WithMockRouter>);
+
     expect(
       screen.getByRole("heading", { name: "Під ці фільтри зараз нікого немає." }),
     ).toBeTruthy();
+    const lines = screen.getAllByText(/Знайдено/);
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) expect(line.textContent).toMatch(/Знайдено 0 /);
   });
 
   /** The swipe deck is retired (2026-11-02): no entry control, with or without matches. */
