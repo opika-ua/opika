@@ -244,8 +244,6 @@ export default function DevUiPage() {
           </Chip>
         </Row>
         <Row label="Badge">
-          <Badge tone="dog">Dog</Badge>
-          <Badge tone="cat">Cat</Badge>
           <Badge tone="ink">Reserved</Badge>
           <Badge tone="neutral">Neutral</Badge>
         </Row>

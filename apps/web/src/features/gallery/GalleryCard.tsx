@@ -25,8 +25,8 @@ import { animalPageHref, type CitySlugsById } from "./filter-url";
  * 2.5.3), plus the city as screen-reader-only text; the aria-hidden pill stays out of it.
  *
  * Two layouts of one DOM (`layout`): on a phone the text sits under the photo with the freshness as
- * a species-coloured dot plus its words; from `tablet` the gallery keeps the Figma panel over the
- * photo. The pill is decorative and exists only in that panel.
+ * a species-coloured dot plus its words; from `tablet` the same dot and words sit in a page-coloured
+ * chip on the photo, and the gallery keeps the Figma panel over it. The pill is decorative and exists only in that panel.
  */
 
 /**
@@ -43,7 +43,7 @@ const SIZES = {
     "(max-width:599px) calc(50vw - 22px),(max-width:1023px) calc(34vw - 26px),(max-width:1511px) calc(25vw - 50.5px),328px",
 } as const;
 
-// Sets `--dot`: the phone's dot and, from tablet, the badge fill.
+// Sets `--dot`, the species dot at every width.
 const SPECIES = { dog: "gcard-dog", cat: "gcard-cat" } as const;
 
 interface GalleryCardProps {

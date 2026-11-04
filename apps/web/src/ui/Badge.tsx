@@ -2,12 +2,10 @@ import type { ReactNode } from "react";
 import { cx } from "./cx";
 
 /**
- * A small tag that sits on a photo (freshness, reserved). Species colours carry identity only;
- * freshness itself is never red or amber (docs/standing-constraints.md), so there is no warning tone.
+ * A small tag that sits on a photo (freshness, reserved). Freshness itself is never red or amber
+ * (docs/standing-constraints.md), so there is no warning tone; species is a dot on the card, not a badge colour.
  */
 const TONE = {
-  dog: "bg-species-dog text-on-ink",
-  cat: "bg-species-cat text-on-ink",
   ink: "bg-ink text-on-ink",
   neutral: "bg-line text-ink",
 } as const;

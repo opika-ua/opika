@@ -10,12 +10,17 @@ export type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "icon
 export type ButtonSize = "md" | "lg";
 export type ButtonStatus = "idle" | "loading";
 
-const LOOK = "inline-flex shrink-0 items-center justify-center gap-2 text-label";
-const BASE = `${LOOK} cursor-pointer focus-ring disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60`;
+const LAYOUT = "inline-flex shrink-0 items-center justify-center gap-2";
+// The accent label is its own type token (19px bold, at every breakpoint): white on accent-strong is 3.8:1,
+// which passes WCAG 1.4.3 only as large text. It replaces text-label rather than stacking on it.
+const look = (variant: ButtonVariant) =>
+  `${LAYOUT} ${variant === "accent" ? "text-cta" : "text-label"}`;
+const BASE_BEHAVIOUR =
+  "cursor-pointer focus-ring disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary: "rounded-pill bg-ink text-on-ink",
-  accent: "rounded-pill bg-accent text-on-ink",
+  accent: "rounded-pill bg-accent-strong text-on-ink",
   secondary: "rounded-pill border-2 border-ink bg-transparent text-ink",
   ghost: "rounded-pill bg-transparent text-ink underline-offset-4 hover:underline",
   // The surface and page tokens are near-identical, so the shadow alone leaves the circle invisible on
@@ -31,7 +36,7 @@ const SIZE: Record<ButtonVariant, Record<ButtonSize, string>> = {
   },
   accent: {
     md: "min-h-target px-6",
-    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 font-bold desktop:text-body-l",
+    lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11",
   },
   secondary: {
     md: "min-h-target px-6",
@@ -43,12 +48,12 @@ const SIZE: Record<ButtonVariant, Record<ButtonSize, string>> = {
 
 /** The class string, for the rare element that cannot be a Button or LinkButton. */
 export function buttonClass(variant: ButtonVariant, size: ButtonSize = "md"): string {
-  return cx(BASE, VARIANT[variant], SIZE[variant][size]);
+  return cx(look(variant), BASE_BEHAVIOUR, VARIANT[variant], SIZE[variant][size]);
 }
 
 /** A button's look with none of its behaviour classes, for a decorative `<span aria-hidden>` that only looks like one (a card's pill); fewer classes per card. */
 export function buttonLookClass(variant: ButtonVariant, size: ButtonSize = "md"): string {
-  return cx(LOOK, VARIANT[variant], SIZE[variant][size]);
+  return cx(look(variant), VARIANT[variant], SIZE[variant][size]);
 }
 
 type Common = {
