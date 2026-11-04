@@ -15,6 +15,7 @@ import {
   authUser,
   authVerification,
   cities,
+  shelters,
   superAdmins,
   supportSessions,
 } from "@opika/db/schema";
@@ -117,6 +118,8 @@ async function call<T = Record<string, unknown>>(
     now?: Date;
     cookie?: string;
     locationPolicy?: typeof policy | null;
+    /** A wrapped handle, for a test that has to act between the handler's read and its write. */
+    db?: typeof db;
   } = {},
 ): Promise<Result<T>> {
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -139,7 +142,7 @@ async function call<T = Record<string, unknown>>(
     resolve: async () => ({
       principal: opts.principal ?? asOperator,
       userId: OPERATOR,
-      db,
+      db: opts.db ?? db,
       cursorSecret: "test-cursor-secret",
     }),
     limiters,
@@ -1329,6 +1332,61 @@ describe("registry.verification.addEvidence", () => {
     expect((await add(s.id, refs(0, 1))).status).toBe(200);
     expect(await kindsOn(s.id)).toHaveLength(30);
     expect(await history(s.id)).toHaveLength(3);
+  });
+
+  it("loses a race to an approve cleanly: EVIDENCE_NOT_EDITABLE, nothing written, no history row", async () => {
+    const s = await shelter({ verification: STATES.under_review });
+    let raced = false;
+    // The approve lands right after the handler's first read of the shelter, so its write is stale.
+    const approveFirst = async () => {
+      raced = true;
+      await kabinetShelterRepo(db).applyAudited({
+        shelterId: s.id,
+        expectedVersion: s.version,
+        change: { kind: "verification", verification: STATES.verified },
+        entry: {
+          kind: "verification",
+          event: { type: "approve", at: NOW, moderatorId: OPERATOR as ModeratorId },
+          from: "under_review",
+          to: "verified",
+        },
+        historyId: crypto.randomUUID(),
+        now: NOW,
+      });
+    };
+    const wrap = (target: object, onShelters: boolean): object =>
+      new Proxy(target, {
+        get(obj, prop) {
+          const value = Reflect.get(obj, prop, obj);
+          if (prop === "then" && onShelters && typeof value === "function") {
+            return (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
+              value
+                .call(obj, async (rows: unknown) => {
+                  if (!raced) await approveFirst();
+                  return rows;
+                })
+                .then(resolve, reject);
+          }
+          if (typeof value !== "function") return value;
+          return (...args: unknown[]) => {
+            const result = value.apply(obj, args);
+            if (result === null || typeof result !== "object") return result;
+            return wrap(result, onShelters || (prop === "from" && args[0] === shelters));
+          };
+        },
+      });
+    const racing = wrap(db, false) as typeof db;
+    const refused = await call<{ data: unknown }>(
+      "registry.verification.addEvidence",
+      { shelterId: s.id, evidence: [EDRPOU] },
+      { db: racing },
+    );
+    expect(raced).toBe(true);
+    expect(refused.status).toBe(409);
+    expect(refused.body.data).toEqual({ from: "verified" });
+    expect(await kindsOn(s.id)).toEqual([]);
+    // Only the approve that won the race is on record.
+    expect((await history(s.id)).map((e) => e.kind)).toEqual(["verification"]);
   });
 
   it("applies the same 30 cap to create and resubmit", async () => {

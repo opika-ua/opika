@@ -1,4 +1,6 @@
 import type { RegistryShelterView } from "@opika/contracts";
+import { MAX_EVIDENCE_ITEMS, MAX_EVIDENCE_ITEMS_PER_ADD } from "@opika/domain";
+import { uk } from "@opika/i18n";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -46,6 +48,12 @@ async function fillReference(
 }
 
 describe("«Додати докази»", () => {
+  it("the limit message names the domain's two caps", () => {
+    const text = uk.kabinet.operator.evidence.limit;
+    expect(text).toContain(String(MAX_EVIDENCE_ITEMS));
+    expect(text).toContain(String(MAX_EVIDENCE_ITEMS_PER_ADD));
+  });
+
   it.each([
     ["pending", pending],
     ["under_review", underReview],

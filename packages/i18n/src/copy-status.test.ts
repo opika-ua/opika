@@ -954,8 +954,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.errors.nameTooLong": "Назва довша за {max} символів.",
   };
 
-  /** Pet card PR 3b. His final text (2026-10-27): the builder's draft, approved as written. */
-  /** Owner-approved 2026-11-04 (evidence add, copy table rows 1-9). */
+  /** Owner-approved 2026-11-04 (evidence add, copy table rows 1-9, plus the gap-line item text). */
   const EVIDENCE_ADD_COPY: Record<string, string> = {
     "operator.evidence.addTitle": "Додати докази",
     "operator.evidence.addIntro":
@@ -969,6 +968,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.history.evidence_added": "Додано докази: {kinds}",
     "operator.evidence.gapItem": "{kind} – {provided} з {minimum}",
   };
+  /** Pet card PR 3b. His final text (2026-10-27): the builder's draft, approved as written. */
   const PET_CARD_PR3B_LOGO_CHANGED: Record<string, string> = {
     "operator.history.logo_changed": "Змінено логотип притулку",
   };
