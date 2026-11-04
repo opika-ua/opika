@@ -7,7 +7,7 @@
  */
 
 import { expect, type Page, test } from "@playwright/test";
-import { noSidewaysScroll, openRoute } from "./harness";
+import { noSidewaysScroll, openRoute, servedAnimalIds } from "./harness";
 import type { Viewport } from "./viewports";
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.61" } });
@@ -18,13 +18,11 @@ const at = (width: number): Viewport => ({ name: `${width} wide`, width, height:
 const WIDTHS: readonly Viewport[] = [320, 360, 393, 1024, 1440].map(at);
 
 async function seedSaved(page: Page, count: number): Promise<void> {
-  await page.addInitScript((n) => {
-    const items = Array.from({ length: n }, (_, i) => ({
-      animalId: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
-      likedAt: new Date().toISOString(),
-    }));
+  const ids = await servedAnimalIds(page, count);
+  await page.addInitScript((animalIds) => {
+    const items = animalIds.map((animalId) => ({ animalId, likedAt: new Date().toISOString() }));
     window.localStorage.setItem("likes.v1", JSON.stringify({ version: 1, items }));
-  }, count);
+  }, ids);
 }
 
 async function signInHint(page: Page): Promise<void> {
