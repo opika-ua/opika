@@ -15,7 +15,7 @@ import {
 import { parseShelterPageQuery } from "../../../features/shelters/shelter-url";
 import { JsonLd } from "../../../seo/json-ld";
 import { shelterBreadcrumbs } from "../../../seo/json-ld-builders";
-import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
+import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
 import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
 
 /** Live listing data, like `/tvaryny`: prerendering would bake in a stale snapshot. */
@@ -129,6 +129,8 @@ export function shelterMetadataOf(load: ShelterPageLoad): Metadata {
     alternates: { canonical: `/prytulky/${shelter.id}` },
     openGraph: { type: "website", description },
     // A paused page is reachable by link only: after the discoverability flip it must not be indexed.
-    ...(shelter.availability.kind === "paused" && { robots: { index: false, follow: true } }),
+    ...(shelter.availability.kind === "paused" && {
+      robots: { index: false, follow: SITE_IS_PUBLICLY_DISCOVERABLE },
+    }),
   };
 }

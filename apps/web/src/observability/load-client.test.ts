@@ -95,6 +95,16 @@ describe("loadSentryClientDeferred", () => {
     await vi.waitFor(() => expect(t.stops).toHaveBeenCalled());
     expect(t.capture).not.toHaveBeenCalled();
   });
+
+  it("drops errors queued before a failed load instead of replaying or keeping them", async () => {
+    const t = setup();
+    t.load.mockRejectedValueOnce(new Error("offline"));
+    t.fire.error(new Error("before the failure"));
+    await vi.waitFor(() => expect(t.stops).toHaveBeenCalled());
+    expect(t.init).not.toHaveBeenCalled();
+    expect(t.capture).not.toHaveBeenCalled();
+    expect(t.load).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("reportClientError", () => {

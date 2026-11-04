@@ -8,6 +8,7 @@ import { anonymousRouterClient } from "../../../api/server-client";
 import { createTestHarness, type TestHarness } from "../../../api/test-harness";
 import { loadShelterPage } from "../../../features/shelters/shelter-page-load";
 import { SHELTER_ID, stubShelterPageClient } from "../../../features/shelters/test-fixtures";
+import { SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
 import { metadata as notFoundMetadata } from "./not-found";
 import { renderShelterPage, shelterMetadataOf } from "./page";
 
@@ -220,7 +221,10 @@ describe("the shelter page's data, through the real router", () => {
     if (result.kind !== "shelter") throw new Error(result.kind);
     expect(result.view.shelter.availability).toEqual({ kind: "paused", reason: "relocation" });
     expect(result.view.animals.items).toEqual([]);
-    expect(shelterMetadataOf(result).robots).toEqual({ index: false, follow: true });
+    expect(shelterMetadataOf(result).robots).toEqual({
+      index: false,
+      follow: SITE_IS_PUBLICLY_DISCOVERABLE,
+    });
     expect(JSON.stringify(result.view)).not.toContain("private note");
   });
 

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { EdrpouSchema, ModeratorIdSchema } from "../../primitives/ids";
 import { EvidenceItemSchema } from "./evidence";
 import {
+  EVIDENCE_DOCUMENT_KEY_MAX_LENGTH,
+  EVIDENCE_NAME_MAX_LENGTH,
+  EVIDENCE_NOTES_MAX_LENGTH,
   type EvidenceAttribution,
   type EvidenceItemInput,
   EvidenceItemInputSchema,
@@ -62,6 +65,43 @@ describe("EvidenceItemInputSchema", () => {
   it("still requires the document on a supporting document", () => {
     expect(
       EvidenceItemInputSchema.safeParse({ kind: "supporting_document", labelUk: "Статут" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("EvidenceItemInputSchema text bounds", () => {
+  const at = (n: number) => "я".repeat(n);
+
+  it("accepts text at the limit and refuses one character more", () => {
+    const holder = (holderName: string) => ({ kind: "bank_account_holder", holderName });
+    expect(EvidenceItemInputSchema.safeParse(holder(at(EVIDENCE_NAME_MAX_LENGTH))).success).toBe(
+      true,
+    );
+    expect(
+      EvidenceItemInputSchema.safeParse(holder(at(EVIDENCE_NAME_MAX_LENGTH + 1))).success,
+    ).toBe(false);
+
+    const visit = (notes: string) => ({ kind: "site_visit", visitedOn: "2026-10-01", notes });
+    expect(EvidenceItemInputSchema.safeParse(visit(at(EVIDENCE_NOTES_MAX_LENGTH))).success).toBe(
+      true,
+    );
+    expect(
+      EvidenceItemInputSchema.safeParse(visit(at(EVIDENCE_NOTES_MAX_LENGTH + 1))).success,
+    ).toBe(false);
+  });
+
+  it("bounds a document key", () => {
+    const doc = (documentKey: string) => ({
+      kind: "supporting_document",
+      labelUk: "Довідка",
+      documentKey,
+    });
+    expect(
+      EvidenceItemInputSchema.safeParse(doc("k".repeat(EVIDENCE_DOCUMENT_KEY_MAX_LENGTH))).success,
+    ).toBe(true);
+    expect(
+      EvidenceItemInputSchema.safeParse(doc("k".repeat(EVIDENCE_DOCUMENT_KEY_MAX_LENGTH + 1)))
+        .success,
     ).toBe(false);
   });
 });
