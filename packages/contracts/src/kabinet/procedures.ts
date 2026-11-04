@@ -20,6 +20,7 @@ import {
   type LocalizedText,
   LocalizedTextSchema,
   MAX_ANIMAL_PHOTOS,
+  MAX_EVIDENCE_ITEMS_PER_ADD,
   MEDICAL_NOTES_MAX_CHARACTERS,
   MedicalDeclarationInputSchema,
   normalizeFreshnessSentenceText,
@@ -765,6 +766,7 @@ export const registrySheltersContract = {
       UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
       FORBIDDEN: apiErrors.FORBIDDEN,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE,
+      EVIDENCE_LIMIT_REACHED: apiErrors.EVIDENCE_LIMIT_REACHED,
       // Its first admin may already have a role: a shelter, an operator grant, or a live invitation elsewhere (RG-T10).
       ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE,
     }),
@@ -851,6 +853,30 @@ export const registryVerificationContract = {
       ...registryErrors,
       ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE,
+      EVIDENCE_LIMIT_REACHED: apiErrors.EVIDENCE_LIMIT_REACHED,
+    }),
+  /**
+   * Appends evidence while pending or under review. Not a verification move:
+   * no status change, so it is not an FSM event and has no ILLEGAL_TRANSITION.
+   * Duplicates are dropped (same kind and key field, `evidenceDuplicateKey`),
+   * so a repeat call is idempotent. Operator only; the shelter never sees it.
+   */
+  addEvidence: registryShelter
+    .input(
+      z.strictObject({
+        shelterId: ShelterIdSchema,
+        evidence: z
+          .array(EvidenceItemInputSchema)
+          .min(1)
+          .max(MAX_EVIDENCE_ITEMS_PER_ADD)
+          .readonly(),
+      }),
+    )
+    .errors({
+      ...registryErrors,
+      INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE,
+      EVIDENCE_NOT_EDITABLE: apiErrors.EVIDENCE_NOT_EDITABLE,
+      EVIDENCE_LIMIT_REACHED: apiErrors.EVIDENCE_LIMIT_REACHED,
     }),
 };
 

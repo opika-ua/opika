@@ -76,12 +76,15 @@ export function EvidenceEditor({
   update,
   errors,
   today,
+  limit,
 }: {
   idPrefix: string;
   rows: readonly EvidenceRow[];
   update: (change: (current: readonly EvidenceRow[]) => readonly EvidenceRow[]) => void;
   errors: Readonly<Record<string, EvidenceRowErrors>>;
   today: string;
+  /** At most this many cards: past it no new card is offered and `hint` says why. */
+  limit?: { rows: number; hint: string };
 }) {
   const t = uk.kabinet.operator.evidence;
   const [kind, setKind] = useState<EditableEvidenceKind>("edrpou_registration");
@@ -131,23 +134,27 @@ export function EvidenceEditor({
           ))}
         </ul>
       ) : null}
-      <div className="flex min-w-0 flex-col gap-3">
-        <Select
-          id={pickerId}
-          label={t.typePicker}
-          value={kind}
-          onChange={(event) => setKind(event.target.value as EditableEvidenceKind)}
-        >
-          {EDITABLE_EVIDENCE_KINDS.map((option) => (
-            <option key={option} value={option}>
-              {t.kind[option]}
-            </option>
-          ))}
-        </Select>
-        <Button variant="secondary" className="self-start" onClick={add}>
-          {t.add}
-        </Button>
-      </div>
+      {limit !== undefined && rows.length >= limit.rows ? (
+        <Text look="hint">{limit.hint}</Text>
+      ) : (
+        <div className="flex min-w-0 flex-col gap-3">
+          <Select
+            id={pickerId}
+            label={t.typePicker}
+            value={kind}
+            onChange={(event) => setKind(event.target.value as EditableEvidenceKind)}
+          >
+            {EDITABLE_EVIDENCE_KINDS.map((option) => (
+              <option key={option} value={option}>
+                {t.kind[option]}
+              </option>
+            ))}
+          </Select>
+          <Button variant="secondary" className="self-start" onClick={add}>
+            {t.add}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -186,8 +193,15 @@ function EvidenceCard({
   );
 
   return (
-    <fieldset className="flex min-w-0 flex-col gap-3 rounded-panel bg-line p-4">
-      <legend className="mb-2 text-label text-ink">{t.kind[row.kind]}</legend>
+    // A visible title inside the card, named through aria-labelledby: a `legend` straddles the
+    // fieldset's top border, which overlapped the card's edge.
+    <fieldset
+      aria-labelledby={id("title")}
+      className="flex min-w-0 flex-col gap-3 rounded-panel bg-line p-4"
+    >
+      <p id={id("title")} className="text-label text-ink">
+        {t.kind[row.kind]}
+      </p>
       {row.kind === "edrpou_registration" ? (
         <>
           <TextField

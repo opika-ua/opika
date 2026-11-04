@@ -225,6 +225,13 @@ function lineOf(
         text: renameLine(entry.from, entry.to),
         actor: operatorActor(entry.moderatorId, people),
       };
+    case "evidence_added":
+      return {
+        text: fillTemplate(t.evidence_added, {
+          kinds: entry.items.map((item) => uk.kabinet.operator.evidence.kind[item.kind]).join(", "),
+        }),
+        actor: operatorActor(entry.moderatorId, people),
+      };
     case "animals_imported":
       return {
         text: fillTemplate(t.animals_imported, { count: String(entry.count) }),

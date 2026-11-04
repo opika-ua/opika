@@ -42,6 +42,7 @@ const EXPECTED_PATHS = [
   "registry.verification.suspend",
   "registry.verification.reinstate",
   "registry.verification.resubmit",
+  "registry.verification.addEvidence",
   "registry.donation.approve",
   "registry.donation.reject",
   "registry.admins.invite",

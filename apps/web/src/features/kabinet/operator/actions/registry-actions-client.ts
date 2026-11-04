@@ -38,6 +38,7 @@ export const registryActionsBrowserContract = {
       suspend: verification.suspend,
       reinstate: verification.reinstate,
       resubmit: verification.resubmit,
+      addEvidence: verification.addEvidence,
     },
     donation: {
       approve: donation.approve,

@@ -32,7 +32,7 @@ const reasonText = (label: string, reason: Reason): string =>
       });
 
 const gapText = (gap: EvidenceGap): string =>
-  fillTemplate(uk.kabinet.operator.evidence.gaps, {
+  fillTemplate(uk.kabinet.operator.evidence.gapItem, {
     kind: uk.kabinet.operator.evidence.kind[gap.kind],
     provided: String(gap.provided),
     minimum: String(gap.minimum),

@@ -103,6 +103,7 @@ export function fakeClient(overrides: FakeOverrides = {}) {
       suspend: unexpected("suspend"),
       reinstate: unexpected("reinstate"),
       resubmit: unexpected("resubmit"),
+      addEvidence: unexpected("addEvidence"),
       ...overrides.verification,
     },
     donation: {

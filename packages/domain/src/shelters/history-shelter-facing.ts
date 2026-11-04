@@ -149,14 +149,14 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
 export type ShelterFacingHistoryItem = z.infer<typeof ShelterFacingHistoryItemSchema>;
 
 /**
- * Projects one history entry for the shelter. Field by field, never a spread
+ * Projects one history entry for the shelter, or `null` for an entry the shelter never sees. Field by field, never a spread
  * with deletions: a field added to an entry later can't reach the shelter by
  * default (the same reasoning as `pick` over `omit`).
  */
 export function shelterFacingHistoryOf(
   entry: ShelterHistoryEntry,
   operatorDisplayName: string,
-): ShelterFacingHistoryItem {
+): ShelterFacingHistoryItem | null {
   const operator: HistoryActorView = { kind: "operator", displayName: operatorDisplayName };
   const shelterActorView = (actor: { kind: "moderator" | "shelter_admin" }): HistoryActorView =>
     actor.kind === "moderator" ? operator : { kind: "shelter" };
@@ -238,6 +238,9 @@ export function shelterFacingHistoryOf(
       };
     case "verified_data_changed":
       return { kind: "verified_data_changed", at: entry.at, actor: operator, change: entry.change };
+    // Operator-only (owner, 2026-11-04): the shelter learns nothing of it.
+    case "evidence_added":
+      return null;
     case "display_name_changed":
       return {
         kind: "display_name_changed",

@@ -164,6 +164,13 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     previous: null,
     next: { storageKey: "shelters/s/logo/0", width: 160, height: 160 },
   },
+  evidence_added: {
+    kind: "evidence_added",
+    at: new Date("2026-10-21T00:00:00.000Z"),
+    moderatorId: MOD,
+    items: [{ kind: "reference_contact" }],
+    statusAt: "pending",
+  },
 };
 
 describe("ShelterHistoryEntrySchema", () => {
@@ -183,6 +190,29 @@ describe("ShelterHistoryEntrySchema", () => {
       ShelterHistoryEntrySchema.safeParse({ ...ENTRIES.donation_decided, moderatorId: ADMIN })
         .success,
     ).toBe(false);
+  });
+});
+
+describe("evidence_added", () => {
+  const added = ENTRIES.evidence_added;
+
+  it("is operator-authored, names at least one kind, and only pending or under_review", () => {
+    expect(ShelterHistoryEntrySchema.safeParse({ ...added, moderatorId: ADMIN }).success).toBe(
+      false,
+    );
+    expect(ShelterHistoryEntrySchema.safeParse({ ...added, items: [] }).success).toBe(false);
+    expect(ShelterHistoryEntrySchema.safeParse({ ...added, statusAt: "verified" }).success).toBe(
+      false,
+    );
+  });
+
+  it("stores kinds only: a content field on an item is stripped, never kept", () => {
+    const parsed = ShelterHistoryEntrySchema.parse({
+      ...added,
+      items: [{ kind: "reference_contact", name: "Клініка", channel: { kind: "phone" } }],
+    });
+    expect(JSON.stringify(parsed)).not.toContain("Клініка");
+    expect(Object.keys(added).sort()).toEqual(["at", "items", "kind", "moderatorId", "statusAt"]);
   });
 });
 
@@ -315,6 +345,7 @@ describe("historyEntryAt", () => {
         "2026-10-18",
         "2026-10-19",
         "2026-10-20",
+        "2026-10-21",
       ],
     );
   });

@@ -26,6 +26,7 @@ import {
   type FreshnessSentence,
   type LocalizedText,
   type LocationPrivacyPolicy,
+  MAX_EVIDENCE_ITEMS,
   type ModeratorId,
   publicLocationOf,
   type Shelter,
@@ -212,8 +213,11 @@ export async function registrySheltersCreate(
     evidence: readonly EvidenceItemInput[];
     firstAdmin: { name: string; email: string };
   },
-  errors: E<"INVALID_EVIDENCE" | "ADDRESS_HAS_A_ROLE">,
+  errors: E<"INVALID_EVIDENCE" | "EVIDENCE_LIMIT_REACHED" | "ADDRESS_HAS_A_ROLE">,
 ): Promise<CreatedShelterView> {
+  if (input.evidence.length > MAX_EVIDENCE_ITEMS) {
+    throw errors.EVIDENCE_LIMIT_REACHED({ data: { limit: MAX_EVIDENCE_ITEMS } });
+  }
   const accepted = acceptEvidence(input.evidence, { moderatorId, now: deps.now });
   if (accepted.kind === "refused") {
     throw errors.INVALID_EVIDENCE({ data: { reason: accepted.reason } });

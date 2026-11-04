@@ -206,8 +206,8 @@ describe("every served registry procedure goes through implement(registryContrac
   const routerLeaves = collectLeaves(registryRouter);
   const mountedLeaves = collectLeaves(kabinetRouter);
 
-  it("finds all twenty-one registry procedures (twenty plus session.exitSupport; not vacuous)", () => {
-    expect(contractLeaves).toHaveLength(21);
+  it("finds all twenty-two registry procedures (twenty-one plus session.exitSupport; not vacuous)", () => {
+    expect(contractLeaves).toHaveLength(22);
   });
 
   it("serves exactly the contracted paths", () => {

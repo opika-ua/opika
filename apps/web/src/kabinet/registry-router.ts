@@ -26,6 +26,7 @@ import {
   registrySheltersList,
 } from "./handlers/registry-reads";
 import {
+  registryAddEvidence,
   registryApprove,
   registryDonationApprove,
   registryDonationReject,
@@ -137,6 +138,9 @@ export const registryRouter = guarded.router({
       ),
       resubmit: guarded.registry.verification.resubmit.handler(({ context, input, errors }) =>
         registryResubmit(context, operator(context.access), input, errors),
+      ),
+      addEvidence: guarded.registry.verification.addEvidence.handler(({ context, input, errors }) =>
+        registryAddEvidence(context, operator(context.access), input, errors),
       ),
     },
     donation: {
