@@ -76,6 +76,12 @@ const shelterView = (s: Shelter) => ({
   logo: s.logo,
   publicLocation: s.publicLocation,
   verification: s.verification.status === "verified" ? "verified" : "unverified",
+  availability:
+    s.verification.status === "verified"
+      ? "open"
+      : s.verification.status === "paused"
+        ? "paused"
+        : "unreachable",
 });
 const cityView = (c: City) => ({
   id: c.id,
@@ -200,7 +206,7 @@ describe("galleryRepo.listCards equals list + shelters + cities", () => {
     });
     const first = page.items[0];
     expect(Object.keys(first?.shelter ?? {}).sort()).toEqual(
-      ["displayName", "id", "logo", "publicLocation", "verification"].sort(),
+      ["availability", "displayName", "id", "logo", "publicLocation", "verification"].sort(),
     );
     expect(Object.keys(first?.city ?? {}).sort()).toEqual(
       ["district", "id", "kind", "name", "nameScope", "regionId", "slug"].sort(),

@@ -39,6 +39,7 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
     ageBucket: "young",
     freshness: freshnessOf(AT, NOW, DEFAULT_FRESHNESS_POLICY),
     listingKind: "published",
+    availability: { kind: "open" },
     shelter: {
       id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as AnimalDetailView["shelter"]["id"],
       displayName: "Тестовий притулок",
@@ -61,6 +62,7 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
     createdAt: new Date("2023-01-01T00:00:00.000Z"),
     freshnessSentence: null,
     verification: "verified",
+    availability: { kind: "open" },
     ...overrides,
   };
 }

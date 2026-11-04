@@ -37,6 +37,7 @@ export function makeDetailAnimal(overrides: Partial<AnimalDetailView> = {}): Ani
     ageBucket: "young",
     freshness: { kind: "aging", confirmedAt: AT, ageDays: 5 },
     listingKind: "published",
+    availability: { kind: "open" },
     shelter: {
       id: SHELTER_ID as AnimalDetailView["shelter"]["id"],
       displayName: "Тестовий притулок «Домівка»",
@@ -59,6 +60,7 @@ export function makeDetailShelter(overrides: Partial<PublicShelterView> = {}): P
     createdAt: new Date("2023-01-01T00:00:00.000Z"),
     freshnessSentence: null,
     verification: "verified",
+    availability: { kind: "open" },
     ...overrides,
   };
 }

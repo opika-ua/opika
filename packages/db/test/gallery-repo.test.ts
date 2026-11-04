@@ -1397,3 +1397,66 @@ describe("galleryRepo.neighbours", () => {
     expect(neighbours.next?.id).toBe(a2.id);
   });
 });
+
+/**
+ * Pause pages: a paused shelter's pages answer, but the gallery predicate is unchanged. Every
+ * gallery surface (list, counts, neighbours, sitemap) still leaves its animals out.
+ */
+describe("a paused shelter's animals stay out of every gallery surface", () => {
+  it("list, totals, facet and relaxation counts, neighbours and sitemapRows exclude them", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const MODERATOR = randomUUID() as never;
+    const paused: ShelterVerification = {
+      status: "paused",
+      verifiedAt: NOW,
+      verifiedBy: MODERATOR,
+      pausedAt: NOW,
+      pausedBy: { kind: "moderator", moderatorId: MODERATOR },
+      reason: { code: "relocation", note: null },
+      evidence: { items: [], submittedAt: NOW },
+    };
+    const open = await makeShelterInCity(city.id, "Відкритий");
+    const closed = await makeShelterInCity(city.id, "На паузі", paused);
+    const shown = makeAnimal({ shelterId: open.id, name: "Видимий" });
+    const hidden = makeAnimal({ shelterId: closed.id, name: "Прихований" });
+    await animalRepo(db).insertMany([shown, hidden].map((animal) => ({ animal, cityId: city.id })));
+    const gallery = galleryRepo(db);
+
+    const list = await gallery.list({
+      filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
+      sort: "freshest",
+      page: 1,
+      pageSize: PAGE_SIZE,
+      now: NOW,
+    });
+    expect(list.items.map((a) => a.id)).toEqual([shown.id]);
+    expect(list.totalMatching).toBe(1);
+    expect(list.totalShelters).toBe(1);
+
+    const counts = await gallery.facetCounts({ filters: NO_FILTERS, now: NOW });
+    expect(counts.cities.reduce((sum, entry) => sum + entry.count, 0)).toBe(1);
+
+    const relaxed = await gallery.relaxationCounts({
+      filters: { ...NO_FILTERS, cities: { kind: "oneOf", values: [city.id] } },
+      scope: { kind: "shelter", shelterId: closed.id },
+      now: NOW,
+    });
+    expect(relaxed.current).toBe(0);
+    expect(relaxed.relaxations.every((entry) => entry.additional === 0)).toBe(true);
+
+    // The hidden animal is never anyone's neighbour either.
+    const neighbours = await gallery.neighbours({
+      animalId: shown.id,
+      filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
+      sort: "freshest",
+      now: NOW,
+    });
+    expect(neighbours).toEqual({ prev: null, next: null });
+
+    const sitemap = await gallery.sitemapRows({ now: NOW });
+    expect(sitemap.map((row) => row.id)).toEqual([shown.id]);
+  });
+});

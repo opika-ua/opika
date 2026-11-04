@@ -72,6 +72,13 @@ export const FeedCardViewSchema = ListedAnimalSchema.pick({
   });
 export type FeedCardView = z.infer<typeof FeedCardViewSchema>;
 
+/** No reason here: the page also loads the shelter view, which carries it. */
+export const AnimalAvailabilityViewSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("open") }),
+  z.object({ kind: z.literal("paused") }),
+]);
+export type AnimalAvailabilityView = z.infer<typeof AnimalAvailabilityViewSchema>;
+
 export const AnimalDetailViewSchema = ListedAnimalSchema.pick({
   id: true,
   name: true,
@@ -92,6 +99,7 @@ export const AnimalDetailViewSchema = ListedAnimalSchema.pick({
   .extend(derivedAnimalFacts)
   .extend({
     shelter: ShelterSummaryViewSchema,
+    availability: AnimalAvailabilityViewSchema,
     // The kind only, never the listing state itself: `since`/`publishedAt` would tell how long
     // an animal has waited or when it was reserved. Reflects the shelter's own state, so it
     // cannot vary with adopter activity (commitment 2).

@@ -137,6 +137,27 @@ describe("SavedPageScreen", () => {
     expect(screen.queryByRole("link", { name: /Рекс/ })).toBeNull();
   });
 
+  it("shows a paused item with its name and a link to its page, not as a card", async () => {
+    const id = "00000004-0000-4000-8000-000000000000";
+    toggleSavedAnimal(id, new Date());
+    cardsByIds.mockResolvedValue({
+      cityLabels: [],
+      items: [{ kind: "paused", animalId: id, name: "Рижик" }],
+    });
+
+    render(<SavedPageScreen />);
+
+    expect(
+      await screen.findByText(
+        "Рижик зараз не показується в галереї: притулок тимчасово не приймає звернень.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Відкрити сторінку" }).getAttribute("href")).toBe(
+      `/tvaryny/${id}`,
+    );
+    expect(screen.queryByTestId("saved-unavailable")).toBeNull();
+  });
+
   it("drops an item with no name at all - nothing honest to show, and no copy to invent (S8-D2)", async () => {
     toggleSavedAnimal("00000003-0000-4000-8000-000000000000", new Date());
     cardsByIds.mockResolvedValue({

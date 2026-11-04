@@ -118,6 +118,9 @@ export const en = {
     empty: "Nothing here yet. Save animals from the gallery to come back to them later.",
     emptyLink: "To the gallery",
     unavailable: "{name} is no longer shown on the site.",
+    paused:
+      "{name} is not shown in the gallery right now: the shelter is temporarily not taking requests.",
+    openPausedPage: "Open the page",
     removeFromSaved: "Remove from saved",
     removedToast: "Removed from saved",
     undo: "Undo",
@@ -152,6 +155,19 @@ export const en = {
   location: {
     lineFostered: "{place} · in foster care",
     lineAtShelter: "{place}",
+  },
+
+  // --- A paused shelter's pages ---
+  pause: {
+    notice: "The shelter is temporarily not taking new requests",
+    reasonLine: "Reason: {reason}",
+    reason: {
+      seasonal_closure: "Seasonal break",
+      relocation: "Relocation",
+      capacity_reached: "No free places",
+      staff_shortage: "Short of volunteers",
+    },
+    shelterNotListed: "This shelter's animals are not shown in the gallery right now.",
   },
 
   // --- Shelter page (designer round 1, S6) ---
@@ -238,6 +254,9 @@ export const en = {
 
   // --- Error states (08) ---
   errors: {
+    shelterPaused: {
+      title: "The shelter is temporarily not taking new requests",
+    },
     offline: {
       eyebrow: "OFFLINE",
       title: "No internet connection right now.",
@@ -739,14 +758,14 @@ export const en = {
         pausedLine: "Intake paused since {date} · {reason}",
         dialogTitle: "Pause taking animals?",
         dialogBody:
-          "While intake is paused, people looking don't see your animals. You can resume here at any time.",
+          "While intake is paused, your animals are not in the gallery or search. Animal and shelter pages open by direct link and show that intake is paused.",
         reasonLabel: "Reason",
         reasonPlaceholder: "Choose a reason",
         reason: {
           seasonal_closure: "Seasonal break",
           relocation: "Moving",
-          capacity_reached: "No room",
-          staff_shortage: "Not enough people",
+          capacity_reached: "No free places",
+          staff_shortage: "Short of volunteers",
           other: "Other",
         },
         noteLabel: "Note",
@@ -1077,7 +1096,8 @@ export const en = {
         showAll: "Show all",
       },
       paused: {
-        hidden: "While intake is paused, people looking for an animal don't see your animals.",
+        hidden:
+          "While intake is paused, your animals are not in the gallery or search. Animal and shelter pages open by direct link and show that intake is paused.",
       },
       notVisible: {
         pending: "Your animals appear in the gallery as soon as the shelter passes verification.",

@@ -25,6 +25,7 @@ interface SavedCardsProps {
 /** An `unavailable` item with no name has nothing honest to show (S8-D2) - dropped, not rendered. */
 type VisibleSavedCardResult =
   | Extract<SavedCardResult, { kind: "available" }>
+  | Extract<SavedCardResult, { kind: "paused" }>
   | (Extract<SavedCardResult, { kind: "unavailable" }> & { name: string });
 
 function hasSomethingToShow(item: SavedCardResult): item is VisibleSavedCardResult {
@@ -239,6 +240,15 @@ function SavedCardsBody({ intro }: SavedCardsProps) {
                     citySlugs={EMPTY_CITY_SLUGS}
                     cornerControl
                   />
+                ) : item.kind === "paused" ? (
+                  <div data-testid="saved-paused">
+                    <Panel className="flex flex-col items-start gap-3 pr-14 text-body text-ink-2">
+                      {fillTemplate(uk.likes.paused, { name: item.name })}
+                      <LinkButton href={`/tvaryny/${item.animalId}`} variant="ghost">
+                        {uk.likes.openPausedPage}
+                      </LinkButton>
+                    </Panel>
+                  </div>
                 ) : (
                   <div data-testid="saved-unavailable">
                     <Panel className="pr-14 text-body text-ink-2">

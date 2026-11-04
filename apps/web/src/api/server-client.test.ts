@@ -186,6 +186,7 @@ describe("anonymousRouterClient", () => {
     // so a field added to `Shelter` shows up here as a failure instead of
     // travelling silently to a page that never asked for it.
     expect(Object.keys(publicShelter).sort()).toEqual([
+      "availability",
       "createdAt",
       "description",
       "displayName",

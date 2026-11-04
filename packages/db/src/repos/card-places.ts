@@ -17,6 +17,8 @@ import { shelters } from "../schema/shelters";
  */
 export type CardShelter = Pick<Shelter, "id" | "displayName" | "logo" | "publicLocation"> & {
   readonly verification: "verified" | "unverified";
+  /** From the status already selected: `paused` for a pause only, `unreachable` for the rest. */
+  readonly availability: "open" | "paused" | "unreachable";
 };
 
 /** The city fields of a public label (`cityLabelOf`), nothing else: no centroid, KATOTTG or search keys. */
@@ -64,6 +66,8 @@ export function toCardShelter(row: CardShelterRow): CardShelter {
     verification: (FEED_VISIBLE_VERIFICATION_STATUSES as readonly string[]).includes(row.status)
       ? "verified"
       : "unverified",
+    availability:
+      row.status === "verified" ? "open" : row.status === "paused" ? "paused" : "unreachable",
   };
 }
 

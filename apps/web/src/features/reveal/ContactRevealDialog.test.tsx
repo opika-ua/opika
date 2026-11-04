@@ -310,3 +310,23 @@ describe("«Повернутися до картки»", () => {
     expect(screen.queryByRole("button", { name: "Повернутися до картки" })).toBeNull();
   });
 });
+
+describe("the error dialog for a paused shelter", () => {
+  it("says the notice and offers no retry", () => {
+    render(
+      <ContactRevealDialog
+        state={{
+          kind: "error",
+          reason: "shelterPaused",
+          animalId: ANIMAL_ID,
+          animalName: "Мурчик",
+          cityName: null,
+        }}
+        onClose={() => {}}
+        onRetry={() => {}}
+      />,
+    );
+    expect(screen.getByText("Притулок тимчасово не приймає нових звернень")).toBeTruthy();
+    expect(screen.queryByTestId("reveal-retry")).toBeNull();
+  });
+});

@@ -119,7 +119,11 @@ export async function generateMetadata({
   params: Promise<{ animalId: string }>;
 }): Promise<Metadata> {
   const { animalId } = await params;
-  const load = await loadAnimalPageOnce(animalId);
+  return animalMetadataOf(await loadAnimalPageOnce(animalId));
+}
+
+/** Exported so a test can read the metadata of each load result without a database. */
+export function animalMetadataOf(load: AnimalPageLoad): Metadata {
   // A refusal says nothing about the animal; a search engine that met it
   // must not keep it as this URL's page (RL-F1).
   if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
@@ -145,6 +149,8 @@ export async function generateMetadata({
       description,
     },
     twitter: { card: "summary_large_image" },
+    // A paused shelter's animal page is reachable by link only: never indexed, even after the flip.
+    ...(animal.availability.kind === "paused" && { robots: { index: false, follow: true } }),
   };
 }
 

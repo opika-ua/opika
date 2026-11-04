@@ -26,6 +26,7 @@ import { Text } from "../../ui/Text";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { chipDisplayLabel, similarAnimalsHref, similarAnimalsLabel } from "../gallery/filter-url";
 import { SaveButton } from "../likes/SaveButton";
+import { PauseNotice } from "../shelters/PauseNotice";
 import { shelterPagePath } from "../shelters/shelter-url";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
 import { MedicalStatus } from "./MedicalStatus";
@@ -138,16 +139,24 @@ export function AnimalDetailContent({
             data-testid="action-bar"
             className="sticky bottom-0 z-10 order-last -mx-4 mt-auto flex items-center gap-2.5 border-line border-t bg-surface px-4 pt-3 pb-inset tablet:-mx-6 tablet:px-6 desktop:static desktop:order-none desktop:m-0 desktop:flex-none desktop:flex-wrap desktop:gap-4 desktop:border-0 desktop:bg-transparent desktop:p-0"
           >
-            <RevealFlow
-              animalId={animal.id}
-              animalName={animal.name}
-              cityName={cityPlace}
-              cityLabel={cityName}
-            />
+            {animal.availability.kind === "paused" ? null : (
+              <RevealFlow
+                animalId={animal.id}
+                animalName={animal.name}
+                cityName={cityPlace}
+                cityLabel={cityName}
+              />
+            )}
             <ShareButton animalId={animal.id} animalName={animal.name} />
             <SaveButton animalId={animal.id} animalName={animal.name} />
           </div>
         </div>
+
+        {animal.availability.kind === "paused" && (
+          <PauseNotice
+            reason={shelter.availability.kind === "paused" ? shelter.availability.reason : null}
+          />
+        )}
 
         <div className="flex flex-col gap-4 desktop:flex-row desktop:flex-wrap desktop:items-center desktop:justify-between">
           {/* Wraps the reserved chip below the freshness one when there is no room. */}

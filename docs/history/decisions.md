@@ -207,3 +207,13 @@ live in a checklist rather than in a schema:
   `Animal.adoptionFee` would invite recording exactly the "symbolic fee" the
   EU enforcement guidance flags, so it waits for a real requirement.
 
+## Paused shelter pages (owner, 2026-11-04)
+
+- Two facts, not one: "listed" (`FEED_VISIBLE_VERIFICATION_STATUSES`, SQL, gallery) and "reachable" (`REACHABLE_VERIFICATION_STATUSES`, pages). A paused shelter is reachable, not listed. The reachable constant is never used in SQL; gallery, search, counts, neighbours and sitemap predicates are unchanged (pinned in `gallery-repo.test.ts`).
+- `shelterAvailabilityOf` is the one projection: verified is open, paused is the closed reason code, every other status (a suspension made mid-pause included) is `null` and reads as 404, so a suspension is never told apart from an unknown id.
+- Public view carries the reason code only: no note, actor or date. `other` shows no reason line. Donation link stays on the paused shelter page.
+- An animal published during a pause (`everServedAt` null) stays 404 on its page, in the reveal (SHELTER_NOT_VISIBLE, not SHELTER_PAUSED) and in the saved list (unavailable, no name).
+- `animals.reveal` on a paused shelter: typed `SHELTER_PAUSED` (409), checked before the idempotent branch and the kabinet-viewer branch. Suspended stays `SHELTER_NOT_VISIBLE`.
+- Saved list: a `paused` arm (name, link to the page, not counted, id kept); availability cache key bumped to v2.
+- Per-page `robots: noindex, follow` for the paused arm on both pages, whatever the site-wide flag says.
+

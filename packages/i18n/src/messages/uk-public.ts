@@ -376,6 +376,9 @@ export const ukPublic = {
      * given a sentence; `SavedPageScreen.tsx` never reaches this key for a `null` name).
      */
     unavailable: "{name} більше не показується на сайті.",
+    /** A paused shelter's animal: out of the gallery, page still open. `{name}` is the animal's name. */
+    paused: "{name} зараз не показується в галереї: притулок тимчасово не приймає звернень.",
+    openPausedPage: "Відкрити сторінку",
     /** The remove control on each saved-page card: its accessible name and tooltip (owner-approved, 2026-11-01). */
     removeFromSaved: "Прибрати зі збережених",
     /** The toast shown after a card is removed from the saved page. */
@@ -451,6 +454,22 @@ export const ukPublic = {
      */
     lineFostered: "{place} · на перетримці",
     lineAtShelter: "{place}",
+  },
+
+  // --- A paused shelter's pages (owner-approved 2026-11-04) ---
+  pause: {
+    notice: "Притулок тимчасово не приймає нових звернень",
+    /** `{reason}` is one of `reason` below; the line is omitted for the code `other`. */
+    reasonLine: "Причина: {reason}",
+    /** Public labels; `other` has none on purpose. */
+    reason: {
+      seasonal_closure: "Сезонна перерва",
+      relocation: "Переїзд",
+      capacity_reached: "Немає вільних місць",
+      staff_shortage: "Бракує волонтерів",
+    },
+    /** The shelter page, in place of the animals list. */
+    shelterNotListed: "Тварини з цього притулку зараз не показуються в галереї.",
   },
 
   // --- Shelter page (designer round 1, S6) ---
@@ -647,6 +666,10 @@ export const ukPublic = {
 
   // --- Error states (08) ---
   errors: {
+    /** The contact reveal refused because the shelter is paused (same words as `pause.notice`); no retry. */
+    shelterPaused: {
+      title: "Притулок тимчасово не приймає нових звернень",
+    },
     offline: {
       eyebrow: "БЕЗ ЗВʼЯЗКУ",
       title: "Немає звʼязку із сайтом. Перевірте інтернет і спробуйте ще раз.",

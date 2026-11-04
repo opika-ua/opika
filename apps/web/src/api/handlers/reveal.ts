@@ -30,6 +30,7 @@ export type AnimalsRevealErrors = ORPCErrorConstructorMap<{
   NOT_FOUND: typeof apiErrors.NOT_FOUND;
   ANIMAL_NOT_AVAILABLE: typeof apiErrors.ANIMAL_NOT_AVAILABLE;
   SHELTER_NOT_VISIBLE: typeof apiErrors.SHELTER_NOT_VISIBLE;
+  SHELTER_PAUSED: typeof apiErrors.SHELTER_PAUSED;
   UNAUTHENTICATED: typeof apiErrors.UNAUTHENTICATED;
   RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
 }>;
@@ -72,6 +73,12 @@ export async function animalsReveal(
   const shelters = shelterRepo(context.db);
   const shelter = await shelters.findById(animal.shelterId);
 
+  // Ahead of every other branch, the idempotent existing reveal and the kabinet viewer included: a
+  // paused shelter hands out no contacts. SHELTER_PAUSED only where the page was reachable (the
+  // animal was once served); otherwise the pause must not be told apart from a hidden shelter.
+  if (shelter?.verification.status === "paused" && animal.everServedAt !== null) {
+    throw errors.SHELTER_PAUSED();
+  }
   if (shelter?.verification.status !== "verified") {
     throw errors.SHELTER_NOT_VISIBLE();
   }

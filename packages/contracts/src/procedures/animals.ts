@@ -72,6 +72,13 @@ export const SavedCardResultSchema = z.discriminatedUnion("kind", [
     animalId: AnimalIdSchema,
     name: z.string().nullable(),
   }),
+  // A paused shelter's animal: not in the gallery, but its page is reachable. Always named
+  // (only an ever-served animal gets here); no reason, the page explains.
+  z.object({
+    kind: z.literal("paused"),
+    animalId: AnimalIdSchema,
+    name: z.string(),
+  }),
 ]);
 
 export const AnimalsCardsByIdsOutputSchema = z.object({
@@ -152,6 +159,7 @@ export const animalsRevealContract = oc
     // the refusal explains something they already know about rather than
     // disclosing moderation state for an id they merely guessed.
     SHELTER_NOT_VISIBLE: apiErrors.SHELTER_NOT_VISIBLE,
+    SHELTER_PAUSED: apiErrors.SHELTER_PAUSED,
     UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
     RATE_LIMITED: apiErrors.RATE_LIMITED,
   });

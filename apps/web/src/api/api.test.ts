@@ -940,7 +940,7 @@ describe("reveal views carry the shelter's current contacts, labelled (K4-B4, K4
 
     // Refused before the stored reveal is even looked up.
     const again = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
-    expectError(again, "SHELTER_NOT_VISIBLE", 404);
+    expectError(again, "SHELTER_PAUSED", 409);
 
     const list = await h.call("reveals.listMine", { cursor: null, limit: 20 }, { cookie });
     const items = (list.body as { items: unknown[] }).items;
@@ -1160,7 +1160,9 @@ describe("reveal views name the shelter from the same moment as its contacts (RU
       await hide(shelter.id, shelter.version + 2, to);
 
       const again = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
-      expectError(again, "SHELTER_NOT_VISIBLE", 404);
+      // A pause is explained (the page shows it); a suspension stays an unexplained refusal.
+      if (to === "paused") expectError(again, "SHELTER_PAUSED", 409);
+      else expectError(again, "SHELTER_NOT_VISIBLE", 404);
 
       const list = await h.call("reveals.listMine", { cursor: null, limit: 20 }, { cookie });
       const items = (list.body as { items: unknown[] }).items;
