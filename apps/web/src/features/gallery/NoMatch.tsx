@@ -1,6 +1,6 @@
 import type { GalleryRelaxation } from "@opika/contracts";
 import type { FeedFilterDimension, FeedFilters, GallerySort, RegionId } from "@opika/domain";
-import { ANY, isConstrained, pluralizeUk, relaxDimension } from "@opika/domain";
+import { ANY, pluralizeUk, relaxDimension } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { LinkButton } from "../../ui/Button";
 import { Heading } from "../../ui/Heading";
@@ -8,6 +8,7 @@ import { Mascot } from "../../ui/Mascot";
 import { mascotKindFor } from "../../ui/mascot-species";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
+import { anyFilterSet } from "./active-filters";
 import type { CitySlugsById } from "./filter-url";
 import { galleryHref, resetFiltersHref } from "./filter-url";
 
@@ -86,10 +87,7 @@ export function NoMatch({
 }: NoMatchProps) {
   // The registry itself is empty (the gallery page only renders this at zero matches): no filter to
   // blame, nothing to reset. A shelter page (`basePath`) keeps the filter wording.
-  const filtered = (Object.keys(filters) as FeedFilterDimension[]).some((dimension) =>
-    isConstrained(filters, dimension),
-  );
-  const registryEmpty = !filtered && basePath === undefined;
+  const registryEmpty = !anyFilterSet(filters) && basePath === undefined;
   // A removal that would add nothing is no suggestion ("no suggestion without a number" means a useful one).
   const offered = relaxations.filter((suggestion) => suggestion.additional > 0);
   const nothingToOffer = offered.length === 0 && neighbourRegions.length === 0;

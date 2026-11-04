@@ -10,7 +10,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { noSidewaysScroll, openRoute, servedAnimalIds } from "./harness";
 import type { Viewport } from "./viewports";
 
-test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.61" } });
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.91" } });
 
 const HEADER = "[data-testid='site-header']";
 const ROUTES = ["/tvaryny", "/prytulkam", "/pro", "/zberezheni"] as const;

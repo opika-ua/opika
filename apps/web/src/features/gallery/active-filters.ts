@@ -2,12 +2,13 @@ import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
 import type {
   AnimalSpecies,
   CityId,
+  FeedFilterDimension,
   FeedFilters,
   FilterSelection,
   GallerySort,
   RegionId,
 } from "@opika/domain";
-import { relaxDimension } from "@opika/domain/core";
+import { isConstrained, relaxDimension } from "@opika/domain/core";
 import { fillTemplate, placeName, ukPublic as uk } from "@opika/i18n/public";
 import { AGE_LABEL, SEX_LABEL, SIZE_LABEL } from "./facet-options";
 import {
@@ -101,3 +102,9 @@ export function activeFilterChips(input: {
     ),
   ];
 }
+
+/** Whether any filter is set: with none and zero matches, the registry itself is empty. */
+export const anyFilterSet = (filters: FeedFilters): boolean =>
+  (Object.keys(filters) as FeedFilterDimension[]).some((dimension) =>
+    isConstrained(filters, dimension),
+  );

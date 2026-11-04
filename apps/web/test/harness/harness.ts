@@ -195,15 +195,14 @@ export async function servedAnimalIds(page: Page, count: number): Promise<string
   const ids: string[] = [];
   for (let pageNumber = 1; ids.length < count && pageNumber <= 20; pageNumber++) {
     await page.goto(`/tvaryny?stor=${pageNumber}`, { waitUntil: "load" });
-    ids.push(
-      ...(await page
-        .locator("[data-testid='animal-card']")
-        .evaluateAll((cards) =>
-          cards
-            .map((card) => card.getAttribute("href")?.match(/\/tvaryny\/([0-9a-f-]{36})/)?.[1])
-            .filter((id): id is string => id !== undefined),
-        )),
-    );
+    const found = await page
+      .locator("[data-testid='animal-card']")
+      .evaluateAll((cards) =>
+        cards
+          .map((card) => card.getAttribute("href")?.match(/\/tvaryny\/([0-9a-f-]{36})/)?.[1])
+          .filter((id): id is string => id !== undefined),
+      );
+    ids.push(...found.filter((id) => !ids.includes(id)));
   }
   expect(ids.length, "the seeded gallery has enough animals").toBeGreaterThanOrEqual(count);
   return ids.slice(0, count);
