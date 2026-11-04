@@ -83,6 +83,10 @@ describe("0021 drop orphan animal indexes", () => {
   it("drops exactly the two, keeps every other index, and keeps existing rows", async () => {
     // The schema's columns are identical before and after 0021, so the repos write a real row
     // into the previous-migration database.
+    // Later column (0023) that the repo insert names; added here so a fixture row can be written.
+    await client.unsafe(
+      "ALTER TABLE shelters ADD COLUMN IF NOT EXISTS early_listing_since timestamptz",
+    );
     const db = drizzle(client, { schema });
     const city = makeCity();
     await cityRepo(db).insert(city);

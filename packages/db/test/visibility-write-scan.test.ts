@@ -77,7 +77,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/mappers.ts",
-    line: 279,
+    line: 281,
     text: "listingKind: animal.listing.kind,",
     kind: "write",
     why:
