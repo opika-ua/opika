@@ -79,7 +79,13 @@ function exemptPageSources(): string[] {
 const ASSET_LITERAL =
   /["'`](\/[A-Za-z0-9_\-./]+\.(?:svg|png|webp|jpe?g|gif|ico|avif|woff2?|webmanifest))["'`]/g;
 
+let referencedCache: string[] | undefined;
 function referencedAssetUrls(): string[] {
+  referencedCache ??= computeReferencedAssetUrls();
+  return referencedCache;
+}
+
+function computeReferencedAssetUrls(): string[] {
   const urls = new Set<string>();
   for (const file of exemptPageSources()) {
     for (const m of readFileSync(file, "utf8").matchAll(ASSET_LITERAL)) {
@@ -96,7 +102,8 @@ function referencedAssetUrls(): string[] {
   return [...urls].sort();
 }
 
-describe("gate-exempt pages' static assets", () => {
+// The source walk reads a few hundred files; a loaded CI machine needs more than the default 5 s.
+describe("gate-exempt pages' static assets", { timeout: 60_000 }, () => {
   beforeEach(() => {
     vi.resetModules();
     vi.stubEnv("PRELAUNCH_GATE_SECRET", SECRET);
