@@ -55,6 +55,7 @@ const shelter: Shelter = {
   donation: null,
   logo: null,
   pendingDonation: null,
+  earlyListingSince: null,
   version: 0,
   freshnessSentence: null,
   verification: {

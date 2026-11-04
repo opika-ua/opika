@@ -149,6 +149,7 @@ test.describe("gate-exempt pages load every same-origin asset without the gate c
         logo: null,
         pendingDonation: null,
         version: 0,
+        earlyListingSince: null,
         freshnessSentence: null,
         verification: {
           status: "verified",

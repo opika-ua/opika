@@ -48,6 +48,8 @@ export const shelters = pgTable(
       .notNull()
       .$type<VerificationStatus>(),
     verification: jsonb<ShelterVerification>("verification").notNull(),
+    /** Operator permission to list before verification; no reader yet. Cleared by every verification change. */
+    earlyListingSince: timestamp("early_listing_since", { withTimezone: true }),
 
     cityId: text("city_id")
       .notNull()

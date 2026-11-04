@@ -246,6 +246,7 @@ export async function registrySheltersCreate(
     donation: null,
     logo: null,
     pendingDonation: null,
+    earlyListingSince: null,
     version: 0,
     freshnessSentence: input.freshnessSentence,
     verification: { status: "pending", submittedAt: deps.now, evidence: accepted.evidence },

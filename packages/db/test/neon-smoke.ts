@@ -1176,6 +1176,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     id: randomUUID() as ShelterId,
     displayName: uncountedName,
     pendingDonation: null,
+    earlyListingSince: null,
   });
   for (const s of [countedBase, uncountedBase]) {
     await insertShelterFromScript(
