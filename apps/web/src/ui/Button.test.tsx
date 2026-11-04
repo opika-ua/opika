@@ -55,11 +55,12 @@ describe("LinkButton", () => {
   });
 
   it("the accent button is the accent-strong fill with the 19px bold cta label at both sizes", () => {
-    // White on #D9531A is 3.8:1: only large text passes, so the label token is pinned, not just the fill.
+    // White #FFFFFF on #D9531A is 4.0:1: only large text passes, so the label token is pinned, not just the fill.
     for (const size of ["md", "lg"] as const) {
       const tokens = buttonClass("accent", size).split(" ");
       expect(tokens).toContain("bg-accent-strong");
-      expect(tokens).toContain("text-on-ink");
+      expect(tokens).toContain("text-on-accent-strong");
+      expect(tokens).not.toContain("text-on-ink");
       expect(tokens).toContain("text-cta");
       expect(tokens).not.toContain("text-label");
       expect(tokens).not.toContain("bg-accent");
@@ -67,6 +68,7 @@ describe("LinkButton", () => {
     }
     const css = readFileSync(join(__dirname, "../app/globals.css"), "utf8");
     expect(css).toMatch(/--color-accent-strong:\s*#d9531a/i);
+    expect(css).toMatch(/--color-on-accent-strong:\s*#ffffff/i);
     expect(css).toMatch(/--text-cta:\s*19px/);
     expect(css).toMatch(/--text-cta--font-weight:\s*700/);
     expect(buttonClass("primary", "lg")).not.toContain("bg-accent-strong");

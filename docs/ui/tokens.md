@@ -5,7 +5,7 @@ One set, defined in `apps/web/src/app/globals.css` (`@theme`). Class names have 
 
 | Group | Tokens | Use |
 |---|---|---|
-| Colour | `page`, `surface`, `ink`, `ink-2`, `muted`, `line`, `accent`, `accent-strong`, `accent-text`, `on-ink`, `species-dog`, `species-cat`, `focus`, `success`, `warning`, `danger` | `ink` text and primary fills; `ink-2` secondary text and hints; `muted` placeholders only (not for text that carries meaning); `line` borders and quiet fills; `accent` the call to action (fill only; text on it is `on-ink`, white; orange as text on a light background, and the focus ring, is `accent-text`); `accent-strong` #D9531A the fill of the primary accent Button only (nothing else) |
+| Colour | `page`, `surface`, `ink`, `ink-2`, `muted`, `line`, `accent`, `accent-strong`, `accent-text`, `on-ink`, `species-dog`, `species-cat`, `focus`, `success`, `warning`, `danger` | `ink` text and primary fills; `ink-2` secondary text and hints; `muted` placeholders only (not for text that carries meaning); `line` borders and quiet fills; `accent` the call to action (fill only; text on it is `on-ink`, white; orange as text on a light background, and the focus ring, is `accent-text`); `accent-strong` #D9531A the fill of the primary accent Button only, with `on-accent-strong` #FFFFFF as its label colour (nothing else uses either) |
 | Radius | `tag` 8, `field` 12, `bar` 16 (the page save bar only), `panel` 20, `card` 24, `sheet` 48, `pill` | tags, inputs, grouped boxes, cards, tablet sheets, buttons and chips |
 | Shadow | `float` | floating layers only |
 | Motion | `--duration-quick/settle/reveal`, `--ease-standard` | all go to 0 under reduced motion |
@@ -73,6 +73,6 @@ reintroduction.
 | Pair | Ratio | Rule | Decision | Mitigation |
 |---|---|---|---|---|
 | White (`on-ink`) text on the `accent` fill #F26427 (cat Badge, accent Chip) | 3.0:1 | Below WCAG 1.4.3 AA for normal text (4.5:1) | Accepted by the owner on 2026-10-29 as the brand design. The fill is not darkened. | Badge and Chip labels are 14px at weight 600. No body-size text on the fill. |
-| White (`on-ink`) text on `accent-strong` #D9531A (accent Button) | 3.8:1 | Below 4.5:1, passes 1.4.3 only as large text (3:1) | Owner, 2026-11-04 (Lighthouse failure; replaces the #F26427 fill for this button). | The label is `text-cta`: 19px bold, above the 18.66px bold large-text threshold, at every breakpoint including the phone sticky bar. Pinned by `Button.test.tsx`. |
+| Pure white (`on-accent-strong` #FFFFFF, this button only; `on-ink` is #FAF8F9) text on `accent-strong` #D9531A (accent Button) | 4.0:1 | Below 4.5:1, passes 1.4.3 only as large text (3:1) | Owner, 2026-11-04 (Lighthouse failure; replaces the #F26427 fill for this button). | The label is `text-cta`: 19px bold, above the 18.66px bold large-text threshold, at every breakpoint including the phone sticky bar. Pinned by `Button.test.tsx`. |
 
 Orange as text on a light background is not part of this deviation: it uses `accent-text` (#C2410C, 4.9:1), as does the focus ring.

@@ -11,7 +11,7 @@ export type ButtonSize = "md" | "lg";
 export type ButtonStatus = "idle" | "loading";
 
 const LAYOUT = "inline-flex shrink-0 items-center justify-center gap-2";
-// The accent label is its own type token (19px bold, at every breakpoint): white on accent-strong is 3.8:1,
+// The accent label is its own type token (19px bold, at every breakpoint): pure white on accent-strong is 4.0:1,
 // which passes WCAG 1.4.3 only as large text. It replaces text-label rather than stacking on it.
 const look = (variant: ButtonVariant) =>
   `${LAYOUT} ${variant === "accent" ? "text-cta" : "text-label"}`;
@@ -20,7 +20,7 @@ const BASE_BEHAVIOUR =
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary: "rounded-pill bg-ink text-on-ink",
-  accent: "rounded-pill bg-accent-strong text-on-ink",
+  accent: "rounded-pill bg-accent-strong text-on-accent-strong",
   secondary: "rounded-pill border-2 border-ink bg-transparent text-ink",
   ghost: "rounded-pill bg-transparent text-ink underline-offset-4 hover:underline",
   // The surface and page tokens are near-identical, so the shadow alone leaves the circle invisible on

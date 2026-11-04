@@ -15,8 +15,9 @@
   --color-accent: #f26427;
   /* Orange as text or as a focus ring: 4.9:1 on the page, 3.8:1 on `line`. The fill stays `accent`. */
   --color-accent-text: #c2410c;
-  /* Fill of the primary accent Button only: white on it is 3.8:1, enough for the 19px bold label (large text). */
+  /* Fill of the primary accent Button only: pure white (`on-accent-strong`) on it is 4.0:1, enough for the 19px bold label (large text). */
   --color-accent-strong: #d9531a;
+  --color-on-accent-strong: #ffffff;
   --color-on-ink: #faf8f9;
   --color-species-dog: #794eba;
   /* Cats are shown in the accent colour today (`card-text.ts`). */
