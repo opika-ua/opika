@@ -220,7 +220,7 @@ export const uk = {
      * "Email signature fallback: capitalise it → «— Адміністратор сайту»."
      *
      * `operatorFallbackName` stands alone, so it is capitalised: both emails'
-     * «- {operator}» signature, the shelter-facing history actor, the
+     * «{operator}» signature, the shelter-facing history actor, the
      * operator's header. `operatorFallbackNameInSentence` sits mid-sentence
      * (`profile.lockedNote`'s «встановлює {operator}»), in lower case as he
      * wrote the role, where a capital would read as a proper name.
@@ -298,8 +298,9 @@ export const uk = {
      * The password fields every password form shares (`docs/shelter-passwords-copy-uk.md` §B,
      * his Ukrainian, 2026-10-19, verbatim). PW-1 renders these three on the reset page and in
      * «Змінити пароль»; the invitation's «Створіть пароль» (PW-2) adds its title, intro and
-     * button. `hint` is the live hint under the field: «Символів: {count} з {min}», the length so
-     * far against the minimum, worded to avoid a plural.
+     * button. `hint` is the static rule under the field («Щонайменше {min} символів», owner
+     * 2026-11-04); `remaining` (per `Intl.PluralRules("uk")` category) and `enough` are the live
+     * line under it, below and at-or-above the minimum.
      */
     setPassword: {
       /** PW-2: the invitation link's page (his scope item 2, verbatim). */
@@ -308,7 +309,14 @@ export const uk = {
       intro: "Пароль для кабінету притулку «{shelter}». Адреса для входу: {email}.",
       newLabel: "Пароль",
       repeatLabel: "Повторіть пароль",
-      hint: "Символів: {count} з {min}",
+      hint: "Щонайменше {min} символів",
+      /** `{n}` characters still missing. */
+      remaining: {
+        one: "Ще {n} символ",
+        few: "Ще {n} символи",
+        many: "Ще {n} символів",
+      },
+      enough: "Достатньо",
       submit: "Зберегти й увійти",
     },
     /**
@@ -1171,12 +1179,12 @@ export const uk = {
     /**
      * The two kabinet emails (`docs/h2-invite-copy-sheet.md` E1/E2), Oleksii's
      * final Ukrainian (2026-10-14). The invite email is a personal note in his
-     * «я» voice (IN-E14), signed `- {operator}` on its last line (`notYou`):
+     * «я» voice (IN-E14), signed `{operator}` on its last line (`notYou`):
      * the display name, nominative, from the same config as the history
      * actor. The sign-in email took the same personal shape on 2026-10-14
      * (his delivery test 2: the invite reached Gmail's Primary tab, the short
      * impersonal sign-in email Promotions): «Добрий день.» opens it and the
-     * same `- {operator}` signs its `notYou`. The plural nouns in `signIn.expiry` («хвилин», 15) and
+     * same `{operator}` signs its `notYou`. The plural nouns in `signIn.expiry` («хвилин», 15) and
      * `invite.expiry` («години», 72) are typed for those exact values;
      * `copy-plural-pins.test.ts` fails if a TTL changes under them. `action`
      * is the link's label in the HTML part: a label, never the URL itself
@@ -1194,7 +1202,7 @@ export const uk = {
         action: "Відкрити сторінку входу",
         expiry: "Посилання спрацює один раз і діє {minutes} хвилин.",
         notYou:
-          "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n- {operator}",
+          "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n{operator}",
       },
       invite: {
         subject: "Ваш доступ до кабінету притулку",
@@ -1215,16 +1223,16 @@ export const uk = {
         expiry: "Запрошення діє {hours} години. Якщо не встигнете – я надішлю нове.",
         /**
          * PW-2 (Oleksii, 2026-10-20, Q2, verbatim): the link sets a password, so whoever holds it
-         * can; the paragraph says so, and not to forward it. Signed `- {operator}` as before.
+         * can; the paragraph says so, and not to forward it. Signed `{operator}` as before.
          */
         notYou:
-          "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n- {operator}",
+          "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n{operator}",
       },
       /**
        * F1, the reset link (`docs/shelter-passwords-copy-uk.md`, his Ukrainian, 2026-10-19,
        * verbatim), sent only to a shelter admin's address. `{minutes}` is the link's lifetime,
        * 60; «хв.» needs no plural. `action` is the link's label in the HTML part (IN-E8). Signed
-       * `- {operator}` like the other emails.
+       * `{operator}` like the other emails.
        */
       reset: {
         subject: "Новий пароль до кабінету притулку",
@@ -1232,7 +1240,7 @@ export const uk = {
         action: "Створити новий пароль",
         expiry: "Посилання спрацює один раз і діє {minutes} хв.",
         notYou:
-          "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\n- {operator}",
+          "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\n{operator}",
       },
       /**
        * F2, the notice after a reset and after a change (his §9 answer 4, verbatim: "Yes:
@@ -1242,7 +1250,7 @@ export const uk = {
       passwordChanged: {
         subject: "Кабінет притулку: пароль змінено",
         body: "Пароль до кабінету притулку для цієї адреси щойно змінено. На інших пристроях виконано вихід.",
-        notYou: "Якщо це не ви – напишіть мені: {contact}\n- {operator}",
+        notYou: "Якщо це не ви – напишіть мені: {contact}\n{operator}",
       },
     },
     /**
@@ -1727,7 +1735,7 @@ export const uk = {
        * name standing alone, as both emails sign: `standaloneOperatorName`, the
        * configured name, else «Адміністратор сайту».
        */
-      signature: "- {operator}",
+      signature: "{operator}",
       contact: "Якщо маєте питання, напишіть мені.",
       suspendedEffect: "Поки притулок призупинено, його тварин немає в галереї.",
       rejectedEffect: "Тварин притулку не буде в галереї, доки перевірку не пройдено.",

@@ -1,4 +1,9 @@
-import { characterCount, PASSWORD_MAX_CHARACTERS, PASSWORD_MIN_CHARACTERS } from "@opika/domain";
+import {
+  characterCount,
+  PASSWORD_MAX_CHARACTERS,
+  PASSWORD_MIN_CHARACTERS,
+  pluralizeUk,
+} from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import type { PasswordRefusal } from "../../../kabinet/password-codes";
 
@@ -26,12 +31,18 @@ export function refusalMessage(refusal: PasswordRefusal): string {
   }
 }
 
-/** The live hint under a new password (§9 answer 2: "the live hint shows length"): «Символів: {count} з {min}». */
-export const lengthHint = (password: string): string =>
-  fillTemplate(uk.kabinet.setPassword.hint, {
-    count: String(characterCount(password)),
-    min: String(PASSWORD_MIN_CHARACTERS),
+/** The static rule under a new password: «Щонайменше {min} символів». */
+export const lengthHint = (): string =>
+  fillTemplate(uk.kabinet.setPassword.hint, { min: String(PASSWORD_MIN_CHARACTERS) });
+
+/** The live line: «Ще {n} символ/символи/символів» below the minimum, «Достатньо» at or above it. */
+export const lengthProgress = (password: string): string => {
+  const missing = PASSWORD_MIN_CHARACTERS - characterCount(password);
+  if (missing <= 0) return uk.kabinet.setPassword.enough;
+  return fillTemplate(pluralizeUk(missing, uk.kabinet.setPassword.remaining), {
+    n: String(missing),
   });
+};
 
 /** The delay's sentence, the same for every address (§9 answer 5). */
 export const throttledMessage = (minutes: number): string =>

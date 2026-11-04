@@ -144,6 +144,9 @@ export function RenameForm() {
     }
   };
 
+  // No name to show or change: a bare label would only confuse (it cannot happen for a saved shelter).
+  if (view.displayName.trim() === "" && draft === null) return null;
+
   return (
     <form
       ref={formRef}

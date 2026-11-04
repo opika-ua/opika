@@ -274,8 +274,8 @@ relay's elision.)
 - [x] **Production switch-on (EM-B10 step 2; Oleksii sets the variables himself), after the code
       above is deployed.** Vercel, **Production environment only**, never Preview:
       - **ADD** `EMAIL_PROVIDER` = `resend`
-      - **ADD** `EMAIL_FROM_ADDRESS` = `noreply@mail.opika.org.ua`
-      - **ADD** `EMAIL_FROM_NAME` = `Opika` (optional in code; without it the From is the bare
+      - **ADD** `EMAIL_FROM_ADDRESS` = `oleksii@mail.opika.org.ua` (was `noreply@mail.opika.org.ua` until 2026-11-04)
+      - **ADD** `EMAIL_FROM_NAME` = `Олексій з Opika` (was `Opika`; optional in code; without it the From is the bare
         address, which the delivery tests never sent)
       - **ADD** `EMAIL_REPLY_TO` = `hello@opika.org.ua` (required: no Reply-To, sign-in stays off)
       - **ADD** `PRODUCTION_ORIGIN` = `https://opika.org.ua`
