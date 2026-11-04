@@ -757,7 +757,6 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.history.animal_edited": "Змінено картку {name}: {fields}",
     "operator.history.animal_listing_changed": "{name}: «{from}» → «{to}»",
     "operator.history.animal_deleted": "Видалено чернетку: {name}",
-    "operator.history.evidence_added": "Додано докази: {kinds}",
     "operator.create.title": "Новий притулок",
     "operator.create.intro":
       "Тут ви вносите все про притулок: назву, адресу, юридичні дані й докази. Перший адміністратор отримає запрошення на пошту.",
@@ -796,16 +795,6 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.evidence.remove": "Прибрати",
     "operator.evidence.typePicker": "Тип доказу",
     "operator.evidence.siteVisitDateHint": "Дата візиту не може бути в майбутньому.",
-    // Owner-approved 2026-11-04 (evidence add, copy table rows 1-8).
-    "operator.evidence.addTitle": "Додати докази",
-    "operator.evidence.addIntro":
-      "Нові докази додаються до наявних. Статус не змінюється, а в історії притулку цього запису не буде.",
-    "operator.evidence.addNeeded": "Додайте хоча б один доказ.",
-    "operator.evidence.addSubmit": "Додати",
-    "operator.evidence.addDone": "Докази додано.",
-    "operator.evidence.addNothingNew": "Ці докази вже є.",
-    "operator.evidence.notEditable": "Докази можна додати, лише поки рішення не ухвалено.",
-    "operator.evidence.limit": "У заявці може бути щонайбільше 30 доказів, за раз – до 10.",
     "operator.create.created": "Притулок створено.",
     "operator.email.sent": "Запрошення надіслано на {email}.",
     "operator.email.sentUnchecked":
@@ -966,6 +955,19 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   };
 
   /** Pet card PR 3b. His final text (2026-10-27): the builder's draft, approved as written. */
+  /** Owner-approved 2026-11-04 (evidence add, copy table rows 1-9). */
+  const EVIDENCE_ADD_COPY: Record<string, string> = {
+    "operator.evidence.addTitle": "Додати докази",
+    "operator.evidence.addIntro":
+      "Нові докази додаються до наявних. Статус не змінюється, а в історії притулку цього запису не буде.",
+    "operator.evidence.addNeeded": "Додайте хоча б один доказ.",
+    "operator.evidence.addSubmit": "Додати",
+    "operator.evidence.addDone": "Докази додано.",
+    "operator.evidence.addNothingNew": "Ці докази вже є.",
+    "operator.evidence.notEditable": "Докази можна додати, лише поки рішення не ухвалено.",
+    "operator.evidence.limit": "У заявці може бути щонайбільше 30 доказів, за раз – до 10.",
+    "operator.history.evidence_added": "Додано докази: {kinds}",
+  };
   const PET_CARD_PR3B_LOGO_CHANGED: Record<string, string> = {
     "operator.history.logo_changed": "Змінено логотип притулку",
   };
@@ -995,6 +997,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(ROUND_3_N7),
         ...Object.keys(ROUND_4C_RUI4_F2),
         ...Object.keys(PET_CARD_PR3B_LOGO_CHANGED),
+        ...Object.keys(EVIDENCE_ADD_COPY),
       ].sort(),
     );
   });
@@ -1004,6 +1007,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     expect(Object.keys(ROUND_3_N7)).toHaveLength(2);
     expect(Object.keys(ROUND_4C_RUI4_F2)).toHaveLength(1);
     expect(Object.keys(PET_CARD_PR3B_LOGO_CHANGED)).toHaveLength(1);
+    expect(Object.keys(EVIDENCE_ADD_COPY)).toHaveLength(9);
     expect(Object.keys(CHECKED_AGAINST_CODE).length).toBe(2);
     expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his !== null)).toHaveLength(1);
     expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his === null)).toHaveLength(1);
@@ -1014,6 +1018,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 
   it.each(Object.entries(PET_CARD_PR3B_LOGO_CHANGED))("%s is his final text", (path, text) => {
+    expect(valueAt(path)).toBe(text);
+  });
+
+  it.each(Object.entries(EVIDENCE_ADD_COPY))("%s is the owner-approved text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
 
