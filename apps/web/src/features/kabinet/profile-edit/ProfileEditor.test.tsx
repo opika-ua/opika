@@ -1,5 +1,5 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { KabinetProfileClient } from "../../../api/kabinet-browser-client";
@@ -706,9 +706,9 @@ describe("pause and resume (N21)", () => {
     const dialog = within(screen.getByRole("dialog"));
     await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Переїзд");
     await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
-    expect(chip().textContent).toBe("На паузі");
+    await waitFor(() => expect(chip().textContent).toBe("На паузі"));
     await userEvent.click(screen.getByRole("button", { name: "Відновити прийом тварин" }));
-    expect(chip().textContent).toBe("Перевірено");
+    await waitFor(() => expect(chip().textContent).toBe("Перевірено"));
   });
 
   it("ILLEGAL_TRANSITION on resume: his message", async () => {
