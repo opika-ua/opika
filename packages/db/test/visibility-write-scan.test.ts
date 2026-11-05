@@ -60,7 +60,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/gallery-repo.ts",
-    line: 627,
+    line: 630,
     text: "listingKind: animals.listingKind,",
     kind: "read",
     why: "getAnimalColumns' SELECT list for the gallery page",
@@ -99,7 +99,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/kabinet-shelter-repo.ts",
-    line: 69,
+    line: 78,
     text: "verificationStatus: change.verification.status,",
     kind: "write",
     why: "applyAuditedMany's columnsOf - the one UPDATE of this column; its own `becomesVerified` check is hook 2",
