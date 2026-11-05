@@ -230,7 +230,7 @@ describe("the shelter page's data, through the real router", () => {
   });
 
   it("a shelter under review is a labelled page with its animals, and noindex", async () => {
-    const since = new Date(NOW.getTime() - 86_400_000);
+    const since = new Date(NOW.getTime() - 5 * 86_400_000);
     const early = await seedShelter(2, notListed.pending, since);
     const result = await load(early.shelter.id, FIRST_PAGE);
     if (result.kind !== "shelter") throw new Error(result.kind);

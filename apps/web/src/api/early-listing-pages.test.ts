@@ -205,10 +205,10 @@ describe("animals.reveal and reveals.listMine", () => {
 
   it("is SHELTER_NOT_VISIBLE once the period is over, and the list falls back to the first reveal", async () => {
     const { cookie } = await bootstrap();
-    const { animal } = await seed("pending", RUNNING);
+    const { animal } = await seed("pending", new Date(NOW.getTime() - 59 * DAY));
     expect((await h.call("animals.reveal", { animalId: animal.id }, { cookie })).status).toBe(200);
 
-    const later = new Date(NOW.getTime() + EARLY_LISTING_DAYS * DAY);
+    const later = new Date(NOW.getTime() + 2 * DAY);
     const again = await h.call("animals.reveal", { animalId: animal.id }, { cookie, now: later });
     expect([again.status, code(again)]).toEqual([404, "SHELTER_NOT_VISIBLE"]);
 
