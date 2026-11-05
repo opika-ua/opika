@@ -125,6 +125,19 @@ describe("animals.reveal with a validated kabinet session", () => {
   });
 });
 
+describe("animals.reveal on a paused shelter", () => {
+  it("a kabinet viewer is refused with SHELTER_PAUSED, never handed the contact", async () => {
+    findAnimal.mockResolvedValue({ ...animal, everServedAt: new Date("2026-09-01T00:00:00Z") });
+    findShelter.mockResolvedValue({ ...shelter, verification: { status: "paused" } as never });
+
+    await expect(reveal(context(async () => true))).rejects.toMatchObject({
+      code: "SHELTER_PAUSED",
+    });
+    expect(ipBudget).not.toHaveBeenCalled();
+    expect(writeReveal).not.toHaveBeenCalled();
+  });
+});
+
 describe("animals.reveal without a valid kabinet session is a visitor", () => {
   const recordedAndBudgeted = () => {
     expect(checkLimit).toHaveBeenCalledTimes(1);
