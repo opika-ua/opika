@@ -240,7 +240,10 @@ describe("the shelter page's data, through the real router", () => {
     if (result.kind !== "shelter") throw new Error(result.kind);
     expect(result.view.shelter.verification).toBe("listed_before_verification");
     expect(result.view.animals.totalMatching).toBe(2);
-    expect(shelterMetadataOf(result).robots).toEqual({ index: false, follow: SITE_IS_PUBLICLY_DISCOVERABLE });
+    expect(shelterMetadataOf(result).robots).toEqual({
+      index: false,
+      follow: SITE_IS_PUBLICLY_DISCOVERABLE,
+    });
     expect(JSON.stringify(result.view)).not.toContain(since.toISOString());
   });
 
