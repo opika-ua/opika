@@ -85,7 +85,7 @@ export const ukPublic = {
      * link-preview copy only, but still an accurate invitation to the page
      * it describes.
      */
-    promise: "Собаки й коти з перевірених притулків України шукають дім. Перегляньте список.",
+    promise: "Собаки й коти з притулків України шукають дім. Перегляньте список.",
   },
 
   /**
