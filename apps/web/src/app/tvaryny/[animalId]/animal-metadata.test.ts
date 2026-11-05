@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeDetailAnimal, makeDetailShelter } from "../../../features/animal-detail/test-fixtures";
+import { SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
 import { animalMetadataOf } from "./page";
 
 const view = (paused: boolean) => ({
@@ -15,7 +16,10 @@ const view = (paused: boolean) => ({
 
 describe("animal page metadata", () => {
   it("a paused shelter's animal is noindex, follow", () => {
-    expect(animalMetadataOf(view(true)).robots).toEqual({ index: false, follow: true });
+    expect(animalMetadataOf(view(true)).robots).toEqual({
+      index: false,
+      follow: SITE_IS_PUBLICLY_DISCOVERABLE,
+    });
   });
 
   it("an open shelter's animal sets no robots of its own", () => {
@@ -26,7 +30,7 @@ describe("animal page metadata", () => {
     const early = view(false);
     early.view.shelter = makeDetailShelter({ verification: "listed_before_verification" });
     const metadata = animalMetadataOf(early);
-    expect(metadata.robots).toEqual({ index: false, follow: true });
+    expect(metadata.robots).toEqual({ index: false, follow: SITE_IS_PUBLICLY_DISCOVERABLE });
     // The demo notice outranks the preview line while no real shelter exists; the line is pinned in copy-status.
   });
 

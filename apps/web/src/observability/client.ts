@@ -11,6 +11,9 @@ export function initClientSentry(
   dsn: string,
   test: SentryTestKnobs & { transport?: Sentry.BrowserOptions["transport"] } = {},
 ) {
+  // The idle load and an error boundary can both get here; a second init would stack handlers.
+  const existing = Sentry.getClient();
+  if (existing !== undefined) return existing;
   return Sentry.init({
     ...baseSentryOptions(dsn, test),
     tunnel: TUNNEL_PATH,

@@ -436,6 +436,10 @@ export function registryResubmit(
   input: { shelterId: ShelterId; evidence: readonly EvidenceItemInput[] },
   errors: E<"ILLEGAL_TRANSITION" | "INVALID_EVIDENCE" | "EVIDENCE_LIMIT_REACHED">,
 ): Promise<RegistryShelterView> {
+  // Before validating any item: an oversized list is refused on its length alone, as at creation.
+  if (input.evidence.length > MAX_EVIDENCE_ITEMS) {
+    throw errors.EVIDENCE_LIMIT_REACHED({ data: { limit: MAX_EVIDENCE_ITEMS } });
+  }
   const accepted = acceptEvidence(input.evidence, { moderatorId, now: deps.now });
   if (accepted.kind === "refused")
     throw errors.INVALID_EVIDENCE({ data: { reason: accepted.reason } });

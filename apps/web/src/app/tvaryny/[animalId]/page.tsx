@@ -15,7 +15,7 @@ import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-si
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import { JsonLd } from "../../../seo/json-ld";
 import { animalBreadcrumbs } from "../../../seo/json-ld-builders";
-import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
+import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
 import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
 
 /**
@@ -154,9 +154,9 @@ export function animalMetadataOf(load: AnimalPageLoad): Metadata {
     },
     twitter: { card: "summary_large_image" },
     // A paused shelter's animal page is reachable by link only: never indexed, even after the flip.
-    // An early-listed shelter's page is likewise by link only, whatever the discoverability flag.
+    // Paused, or an early-listed shelter's animal: by link only, whatever the discoverability flag.
     ...((animal.availability.kind === "paused" || listedEarly) && {
-      robots: { index: false, follow: true },
+      robots: { index: false, follow: SITE_IS_PUBLICLY_DISCOVERABLE },
     }),
   };
 }
