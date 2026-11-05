@@ -129,7 +129,9 @@ export function shelterMetadataOf(load: ShelterPageLoad): Metadata {
     alternates: { canonical: `/prytulky/${shelter.id}` },
     openGraph: { type: "website", description },
     // A paused page is reachable by link only: after the discoverability flip it must not be indexed.
-    ...(shelter.availability.kind === "paused" && {
+    // Paused, or still under review: reachable by link, never indexed (owner, 2026-11-04).
+    ...((shelter.availability.kind === "paused" ||
+      shelter.verification === "listed_before_verification") && {
       robots: { index: false, follow: SITE_IS_PUBLICLY_DISCOVERABLE },
     }),
   };

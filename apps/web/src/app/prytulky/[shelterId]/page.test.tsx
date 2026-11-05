@@ -132,7 +132,11 @@ describe("the shelter page's data, through the real router", () => {
     },
   };
 
-  async function seedShelter(animals: number, verification?: ShelterVerification) {
+  async function seedShelter(
+    animals: number,
+    verification?: ShelterVerification,
+    earlyListingSince: Date | null = null,
+  ) {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
@@ -143,6 +147,7 @@ describe("the shelter page's data, through the real router", () => {
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
       ...(verification ? { verification } : {}),
+      earlyListingSince,
     });
     await shelterRepo(h.db).insert(shelter);
     const ids: string[] = [];
@@ -226,6 +231,29 @@ describe("the shelter page's data, through the real router", () => {
       follow: SITE_IS_PUBLICLY_DISCOVERABLE,
     });
     expect(JSON.stringify(result.view)).not.toContain("private note");
+  });
+
+  it("a shelter under review is a labelled page with its animals, and noindex", async () => {
+    const since = new Date(NOW.getTime() - 5 * 86_400_000);
+    const early = await seedShelter(2, notListed.pending, since);
+    const result = await load(early.shelter.id, FIRST_PAGE);
+    if (result.kind !== "shelter") throw new Error(result.kind);
+    expect(result.view.shelter.verification).toBe("listed_before_verification");
+    expect(result.view.animals.totalMatching).toBe(2);
+    expect(shelterMetadataOf(result).robots).toEqual({
+      index: false,
+      follow: SITE_IS_PUBLICLY_DISCOVERABLE,
+    });
+    expect(JSON.stringify(result.view)).not.toContain(since.toISOString());
+  });
+
+  it("the same shelter with its period over is a 404", async () => {
+    const lapsed = await seedShelter(
+      1,
+      notListed.pending,
+      new Date(NOW.getTime() - 61 * 86_400_000),
+    );
+    expect(await load(lapsed.shelter.id, FIRST_PAGE)).toEqual({ kind: "not_found" });
   });
 
   it("an open shelter's metadata sets no robots of its own", async () => {

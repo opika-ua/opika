@@ -91,9 +91,9 @@ export async function runRoundTripsSmoke(db: Database): Promise<Outcome[]> {
     `${none.items.length} items, total ${none.totalMatching}`,
   );
 
-  const one = await animalRepo(db).findWithShelterById(atHome.id);
-  const draftOne = await animalRepo(db).findWithShelterById(draft.id);
-  const unknown = await animalRepo(db).findWithShelterById(randomUUID() as never);
+  const one = await animalRepo(db).findWithShelterById(atHome.id, new Date());
+  const draftOne = await animalRepo(db).findWithShelterById(draft.id, new Date());
+  const unknown = await animalRepo(db).findWithShelterById(randomUUID() as never, new Date());
   check(
     "findWithShelterById (animal LEFT JOIN shelter): the shelter rides along; a draft still resolves; an unknown id is null",
     one?.shelter?.id === shelter.id &&
@@ -103,12 +103,10 @@ export async function runRoundTripsSmoke(db: Database): Promise<Outcome[]> {
     `${one?.shelter?.displayName ?? "none"}, draft ${draftOne?.animal.listing.kind}, unknown ${unknown}`,
   );
 
-  const cards = await animalRepo(db).findCardsByIds([
-    atHome.id,
-    fostered.id,
-    draft.id,
-    randomUUID() as never,
-  ]);
+  const cards = await animalRepo(db).findCardsByIds(
+    [atHome.id, fostered.id, draft.id, randomUUID() as never],
+    new Date(),
+  );
   const byId = new Map(cards.map((c) => [c.animal.id, c]));
   check(
     "findCardsByIds (animals LEFT JOIN shelters LEFT JOIN cities): the fostered card names the foster city, an unknown id is absent",

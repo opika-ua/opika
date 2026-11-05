@@ -319,6 +319,11 @@ function RevealContent({
         </div>
       }
     >
+      {reveal.shelterListing === "listed_before_verification" && (
+        <p data-testid="reveal-under-review" className="text-body text-ink">
+          {uk.underReview.revealNotice}
+        </p>
+      )}
       <ul className="flex flex-col gap-3">
         {allChannels(contact).map((channel, index) => {
           const action = channelAction(channel);

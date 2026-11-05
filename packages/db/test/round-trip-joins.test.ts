@@ -236,7 +236,7 @@ describe("animalRepo.findWithShelterById equals findById + shelter findById", ()
     for (const id of ids) {
       const old = await animalRepo(db).findById(id);
       const oldShelter = old ? await shelterRepo(db).findById(old.shelterId) : null;
-      const joined = await animalRepo(db).findWithShelterById(id);
+      const joined = await animalRepo(db).findWithShelterById(id, new Date());
       expect(joined?.animal ?? null).toEqual(old);
       expect(joined?.shelter ?? null).toEqual(oldShelter ? shelterView(oldShelter) : null);
     }
@@ -260,7 +260,7 @@ describe("animalRepo.findCardsByIds equals findByIds + shelters + cities", () =>
       old.map((a) => cardCityId(a, shelterById.get(a.shelterId) as Shelter)),
     );
     const cityById = new Map(cityRows.map((c) => [c.id, c]));
-    const joined = await animalRepo(db).findCardsByIds(mix);
+    const joined = await animalRepo(db).findCardsByIds(mix, new Date());
     const byId = <T extends { id: string }>(xs: readonly T[]) =>
       [...xs].sort((a, b) => a.id.localeCompare(b.id));
 
@@ -271,7 +271,7 @@ describe("animalRepo.findCardsByIds equals findByIds + shelters + cities", () =>
       const city = cityById.get(cardCityId(j.animal, shelter));
       expect(j.city).toEqual(city ? cityView(city) : null);
     }
-    expect(await animalRepo(db).findCardsByIds([])).toEqual([]);
+    expect(await animalRepo(db).findCardsByIds([], new Date())).toEqual([]);
   });
 });
 

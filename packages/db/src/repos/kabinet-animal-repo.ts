@@ -7,7 +7,6 @@ import {
   confirmationAnchorOf,
   DISCOVERABLE_LISTING_KINDS,
   type DraftAnimal,
-  FEED_VISIBLE_VERIFICATION_STATUSES,
   isDiscoverable,
   LISTING_KINDS,
   type ListingKind,
@@ -20,6 +19,7 @@ import type { Database } from "../client";
 import { animals } from "../schema/animals";
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
+import { listedShelterCondition } from "./feed-predicate";
 import { historyRowSelect } from "./history-sql";
 import { animalToRowWithCity, rowToAnimal } from "./mappers";
 
@@ -324,7 +324,7 @@ export function kabinetAnimalRepo(db: Database) {
      * hook 3: `onboard-shelter.ts`/`seed.ts`'s insert-time case). Whether this
      * move serves the row is checked **inside this statement**, against the
      * shelter's committed row at write time (`EXISTS` on `shelters`, the same
-     * `FEED_VISIBLE_VERIFICATION_STATUSES` test `buildDiscoverabilityPredicate`
+     * `listedShelterCondition` test `buildDiscoverabilityPredicate`
      * uses) - not against a verification value the caller read earlier.
      *
      * Tier 1 review finding 4 (PR #196): this used to take the shelter's
@@ -358,7 +358,7 @@ export function kabinetAnimalRepo(db: Database) {
             CASE WHEN EXISTS (
               SELECT 1 FROM ${shelters}
               WHERE ${shelters.id} = ${animals.shelterId}
-                AND ${inArray(shelters.verificationStatus, [...FEED_VISIBLE_VERIFICATION_STATUSES])}
+                AND ${listedShelterCondition(now)}
             ) THEN ${now.toISOString()}::timestamptz ELSE NULL END
           )`
         : undefined;

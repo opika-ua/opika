@@ -279,6 +279,13 @@ export const en = {
   },
 
   // --- Reserved badge ---
+  underReview: {
+    card: "Under review",
+    shelter: "Shelter under review",
+    revealNotice: "This shelter is still being reviewed. Don't send money in advance.",
+    sharePreview: "An animal from a shelter that is still being reviewed.",
+  },
+
   reserved: {
     badge: "Already in conversation",
     badgeShort: "In talks",
@@ -1371,6 +1378,9 @@ export const en = {
         animal_listing_changed: "{name}: «{from}» → «{to}»",
         animal_deleted: "Draft deleted: {name}",
         evidence_added: "Evidence added: {kinds}",
+        early_listing_allowed: "Your cards are shown while the review continues",
+        early_listing_revoked: "Showing cards before the review ends was withdrawn",
+        early_listing_lapsed: "The period for showing cards before the review ended has run out",
       },
       create: {
         title: "New shelter",

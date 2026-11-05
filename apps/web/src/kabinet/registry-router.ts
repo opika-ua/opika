@@ -27,12 +27,14 @@ import {
 } from "./handlers/registry-reads";
 import {
   registryAddEvidence,
+  registryAllowEarlyListing,
   registryApprove,
   registryDonationApprove,
   registryDonationReject,
   registryReinstate,
   registryReject,
   registryResubmit,
+  registryRevokeEarlyListing,
   registryStartReview,
   registrySuspend,
   registryUpdateProfile,
@@ -141,6 +143,14 @@ export const registryRouter = guarded.router({
       ),
       addEvidence: guarded.registry.verification.addEvidence.handler(({ context, input, errors }) =>
         registryAddEvidence(context, operator(context.access), input, errors),
+      ),
+    },
+    earlyListing: {
+      allow: guarded.registry.earlyListing.allow.handler(({ context, input, errors }) =>
+        registryAllowEarlyListing(context, operator(context.access), input, errors),
+      ),
+      revoke: guarded.registry.earlyListing.revoke.handler(({ context, input, errors }) =>
+        registryRevokeEarlyListing(context, operator(context.access), input, errors),
       ),
     },
     donation: {

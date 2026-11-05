@@ -330,6 +330,21 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     },
     "Додано докази: Візит на місце · ви",
   ],
+  [
+    "early_listing_allowed",
+    { kind: "early_listing_allowed", at: AT, moderatorId: ME, period: 1, note: null },
+    "Ваші картки показуються, поки триває перевірка · ви",
+  ],
+  [
+    "early_listing_revoked",
+    { kind: "early_listing_revoked", at: AT, moderatorId: ME },
+    "Показ карток до завершення перевірки знято · ви",
+  ],
+  [
+    "early_listing_lapsed",
+    { kind: "early_listing_lapsed", at: AT },
+    "Строк показу карток до завершення перевірки минув",
+  ],
 ];
 
 describe("historyLineOf: one line per entry, the actor after « · »", () => {

@@ -266,8 +266,7 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
  */
 const DEMO_BANNER_NOTICE =
   "На сайті поки немає справжніх притулків – усі картки тут демонстраційні.";
-const REAL_PROMISE =
-  "Собаки й коти з перевірених притулків України шукають дім. Перегляньте список.";
+const REAL_PROMISE = "Собаки й коти з притулків України шукають дім. Перегляньте список.";
 
 /**
  * D-2: a shared link's preview must not claim verified shelters exist while
@@ -353,7 +352,7 @@ describe("/prytulkam – description is its own opening sentence, never the demo
       const { metadata } = await import("./app/prytulkam/page");
 
       const whatThisIs =
-        "Opika – сайт, де тварини з перевірених притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку.";
+        "Opika – сайт, де тварини з притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку. Притулки, які ще проходять перевірку, мають позначку «на перевірці».";
       expect(metadata.description).toBe(whatThisIs);
       expect(metadata.openGraph?.description).toBe(whatThisIs);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);

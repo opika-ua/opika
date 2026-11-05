@@ -347,7 +347,8 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // and notices, plus `operator.history.evidence_added`.
     // 730 with the password counter (owner-approved 2026-11-04): `setPassword.remaining` (three
     // forms) and `enough`; `hint` is reworded.
-    expect(pending.length + written.length).toBe(730);
+    // 733 with the early-listing history lines (owner's copy table N4–N6, 2026-11-04).
+    expect(pending.length + written.length).toBe(733);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

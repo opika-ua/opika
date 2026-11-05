@@ -294,7 +294,7 @@ export function galleryRepo(db: Database) {
             rows.map((row) => ({
               ...row.animal,
               card: {
-                shelter: toCardShelter(row.shelter),
+                shelter: toCardShelter(row.shelter, opts.now),
                 city: row.city ? toCardCity(row.city) : null,
               },
             })),
@@ -321,12 +321,15 @@ export function galleryRepo(db: Database) {
       /** Lower than the navigable bound only in a test or a probe; the sitemap passes nothing. */
       limit?: number;
     }): Promise<readonly { readonly id: AnimalId; readonly shelterId: ShelterId }[]> {
-      return db
-        .select({ id: animals.id, shelterId: animals.shelterId })
-        .from(animals)
-        .where(and(...buildFeedPredicate(NO_FILTERS, opts.now)))
-        .orderBy(...orderingFor("freshest"))
-        .limit(Math.min(opts.limit ?? MAX_GALLERY_NAVIGABLE_ROWS, MAX_GALLERY_NAVIGABLE_ROWS));
+      return (
+        db
+          .select({ id: animals.id, shelterId: animals.shelterId })
+          .from(animals)
+          // Verified shelters only: an early-listed shelter is noindex and out of the sitemap.
+          .where(and(...buildFeedPredicate(NO_FILTERS, opts.now, "verified_only")))
+          .orderBy(...orderingFor("freshest"))
+          .limit(Math.min(opts.limit ?? MAX_GALLERY_NAVIGABLE_ROWS, MAX_GALLERY_NAVIGABLE_ROWS))
+      );
     },
 
     /**
@@ -348,7 +351,7 @@ export function galleryRepo(db: Database) {
       scope?: GalleryScope;
     }): Promise<GalleryRelaxationCounts> {
       const base = and(
-        ...buildDiscoverabilityPredicate(),
+        ...buildDiscoverabilityPredicate(opts.now),
         ...buildScopePredicate(opts.scope ?? EVERYONE_SCOPE),
       );
       const currentFilter = and(...buildFilterPredicate(opts.filters, opts.now)) ?? sql`TRUE`;
@@ -438,7 +441,7 @@ export function galleryRepo(db: Database) {
         .from(animals)
         .where(
           and(
-            ...buildDiscoverabilityPredicate(),
+            ...buildDiscoverabilityPredicate(opts.now),
             ...buildScopePredicate(opts.scope ?? EVERYONE_SCOPE),
           ),
         )

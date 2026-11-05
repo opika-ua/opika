@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { AnimalPageView } from "../features/animal-detail/animal-page-load";
-import { makeDetailAnimal } from "../features/animal-detail/test-fixtures";
+import { makeDetailAnimal, makeDetailShelter } from "../features/animal-detail/test-fixtures";
 import { animalOgImage, OG_SIZE, siteOgImage } from "./og-image";
 
 async function render(response: Response) {
@@ -14,7 +14,7 @@ function viewOf(
   animal: ReturnType<typeof makeDetailAnimal>,
   cityName: string | null = "Бровари",
 ): AnimalPageView {
-  return { animal, cityName } as AnimalPageView;
+  return { animal, cityName, shelter: makeDetailShelter() } as AnimalPageView;
 }
 
 describe("link-preview images (BR-7)", () => {

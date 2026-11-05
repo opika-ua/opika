@@ -1,19 +1,25 @@
 import { type apiErrors, type RegistryShelterView, UNKNOWN_CITY_MESSAGE } from "@opika/contracts";
 import { type AuditedShelterChange, cityRepo, kabinetShelterRepo } from "@opika/db/repos";
 import {
+  type AllowEarlyListingResult,
   addEvidence,
+  allowEarlyListing,
   type CityId,
   DEFAULT_VERIFICATION_POLICY,
   type EvidenceItemInput,
   type ExactAddress,
+  earlyListingOf,
   evidenceGaps,
   type FreshnessSentence,
+  keepsEarlyListing,
   type LocalizedText,
   type LocationPrivacyPolicy,
+  lapsedAtOf,
   MAX_EVIDENCE_ITEMS,
   type ModeratorId,
   publicLocationOf,
   type RejectionCode,
+  revokeEarlyListing,
   type Shelter,
   type ShelterActor,
   type ShelterContact,
@@ -92,12 +98,12 @@ const MAX_ATTEMPTS = 3;
 async function tapWithRetry(
   deps: RegistryDeps,
   shelterId: ShelterId,
-  plan: (shelter: Shelter) => Planned,
+  plan: (shelter: Shelter) => Planned | Promise<Planned>,
   errors: E<never>,
 ): Promise<RegistryShelterView> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const shelter = await loadShelterOr404(deps, shelterId, errors);
-    if ((await writePlanned(deps, shelter, plan(shelter))) !== "conflict") {
+    if ((await writePlanned(deps, shelter, await plan(shelter))) !== "conflict") {
       return registryShelterView(deps, await loadShelterOr404(deps, shelterId, errors));
     }
   }
@@ -318,6 +324,11 @@ function verificationMove(
             from: shelter.verification.status,
             to: result.next.status,
           },
+          // The write clears an expired permission (approve, reject); the lapse is recorded then,
+          // dated at its expiry. `start_review` keeps the permission, so records nothing.
+          ...(keepsEarlyListing(shelter.verification.status, result.next.status)
+            ? []
+            : lapsedEntries(shelter, deps.now)),
         ],
       };
     },
@@ -442,6 +453,87 @@ export function registryResubmit(
         throw errors.EVIDENCE_LIMIT_REACHED({ data: { limit: MAX_EVIDENCE_ITEMS } });
       }
       return { type: "resubmit", at: deps.now, actor: moderatorActor(moderatorId), evidence };
+    },
+    errors,
+  );
+}
+
+// ─── earlyListing.allow / revoke ────────────────────────────────────────────
+
+/** The lapse line for a permission that ran out on its own, dated at its expiry, or nothing. */
+const lapsedEntries = (shelter: Shelter, now: Date): ShelterHistoryEntry[] => {
+  const at = lapsedAtOf(earlyListingOf(shelter.earlyListingSince), now);
+  return at === null ? [] : [{ kind: "early_listing_lapsed", at }];
+};
+
+const refusalOf = (result: Exclude<AllowEarlyListingResult, { kind: "ok" }>) => result.kind;
+
+/**
+ * Operator only (the registry matrix). Not a verification move: the FSM, the evidence and the
+ * reviewer are untouched. Re-read on a lost race, so an approval that lands meanwhile answers
+ * wrong_status instead of leaving a permission on a verified shelter. A re-allow after a lapse
+ * writes the lapse line first, then the allow; the note is operator-only history.
+ */
+export function registryAllowEarlyListing(
+  deps: RegistryDeps,
+  moderatorId: ModeratorId,
+  input: { shelterId: ShelterId; note?: string | undefined },
+  errors: E<"EARLY_LISTING_REFUSED">,
+): Promise<RegistryShelterView> {
+  return tapWithRetry(
+    deps,
+    input.shelterId,
+    async (shelter) => {
+      const result = allowEarlyListing({
+        verification: shelter.verification,
+        early: earlyListingOf(shelter.earlyListingSince),
+        periodsUsed: await kabinetShelterRepo(deps.db).earlyListingPeriodsUsed(shelter.id),
+        note: input.note ?? null,
+        now: deps.now,
+      });
+      if (result.kind !== "ok") {
+        throw errors.EARLY_LISTING_REFUSED({ data: { reason: refusalOf(result) } });
+      }
+      return {
+        changes: [{ kind: "early_listing_allowed", since: result.since }],
+        entries: [
+          ...lapsedEntries(shelter, deps.now),
+          {
+            kind: "early_listing_allowed",
+            at: deps.now,
+            moderatorId,
+            period: result.period,
+            note: input.note ?? null,
+          },
+        ],
+      };
+    },
+    errors,
+  );
+}
+
+export function registryRevokeEarlyListing(
+  deps: RegistryDeps,
+  moderatorId: ModeratorId,
+  input: { shelterId: ShelterId },
+  errors: E<"EARLY_LISTING_REFUSED">,
+): Promise<RegistryShelterView> {
+  return tapWithRetry(
+    deps,
+    input.shelterId,
+    (shelter) => {
+      const result = revokeEarlyListing(
+        shelter.verification,
+        earlyListingOf(shelter.earlyListingSince),
+        deps.now,
+      );
+      if (result.kind !== "ok") {
+        throw errors.EARLY_LISTING_REFUSED({ data: { reason: "not_running" } });
+      }
+      return {
+        changes: [{ kind: "early_listing_revoked" }],
+        entries: [{ kind: "early_listing_revoked", at: deps.now, moderatorId }],
+      };
     },
     errors,
   );

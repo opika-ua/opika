@@ -117,6 +117,8 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "registry.verification.suspend": REGISTRY,
   "registry.verification.resubmit": REGISTRY,
   "registry.verification.addEvidence": REGISTRY,
+  "registry.earlyListing.allow": REGISTRY,
+  "registry.earlyListing.revoke": REGISTRY,
   "registry.donation.approve": REGISTRY,
   "registry.donation.reject": REGISTRY,
   "registry.admins.invite": REGISTRY,

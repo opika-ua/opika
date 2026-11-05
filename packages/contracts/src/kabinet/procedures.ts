@@ -881,6 +881,24 @@ export const registryVerificationContract = {
 };
 
 /**
+ * Listing before verification (owner, 2026-11-04), operator only and beside the verification
+ * moves: not FSM events. Allow records a written note for the second period; a third is refused.
+ */
+export const registryEarlyListingContract = {
+  allow: registryShelter
+    .input(
+      z.strictObject({
+        shelterId: ShelterIdSchema,
+        note: OperatorNoteSchema.optional(),
+      }),
+    )
+    .errors({ ...registryErrors, EARLY_LISTING_REFUSED: apiErrors.EARLY_LISTING_REFUSED }),
+  revoke: registryShelter
+    .input(shelterRef)
+    .errors({ ...registryErrors, EARLY_LISTING_REFUSED: apiErrors.EARLY_LISTING_REFUSED }),
+};
+
+/**
  * The operator decides on the proposal they read (RG-Q12, Oleksii): the
  * version they read travels with the decision, and anything newer (a
  * re-proposal, a cancellation, any other write) is CONFLICT, the same rule

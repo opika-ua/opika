@@ -9,7 +9,7 @@ import type { z } from "zod";
 import type { AppContext } from "../context";
 import { decodeRevealCursor, encodeRevealCursor } from "../cursor";
 import { requireEnv } from "../env";
-import { shelterContactOf, toView } from "./reveal";
+import { listingOf, shelterContactOf, toView } from "./reveal";
 
 type Input = z.infer<typeof RevealsListMineInputSchema>;
 type Output = z.infer<typeof RevealsListMineOutputSchema>;
@@ -63,7 +63,14 @@ export async function revealsListMine(
     // The same projection as the reveal itself: no exact address (EM-D1), and
     // the shelter's current name and contacts while it is visible, else the
     // first-reveal record's, labelled as such (K4-B4, K4-B5, RUI4-F1).
-    items: pageItems.map((item) => toView(item, shelterContactOf(item, byId.get(item.shelterId)))),
+    items: pageItems.map((item) => {
+      const shelter = byId.get(item.shelterId);
+      return toView(
+        item,
+        shelterContactOf(item, shelter, context.now),
+        shelter ? listingOf(shelter, context.now) : null,
+      );
+    }),
     nextCursor,
   };
 }

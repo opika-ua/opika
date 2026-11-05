@@ -257,6 +257,24 @@ export const apiErrors = {
     message: "Evidence can't be added to this shelter in its current status.",
     data: z.object({ from: VerificationStatusSchema }),
   },
+  /**
+   * The operator's allow or revoke of listing before verification was refused (`data.reason`).
+   * Not ILLEGAL_TRANSITION: it is not a verification event.
+   */
+  EARLY_LISTING_REFUSED: {
+    status: 409,
+    message: "Listing before verification can't be changed this way.",
+    data: z.object({
+      reason: z.enum([
+        "wrong_status",
+        "already_running",
+        "not_running",
+        "evidence_below_minimum",
+        "note_required",
+        "limit_reached",
+      ]),
+    }),
+  },
   /** The evidence list would pass the most a shelter can hold (`data.limit`). */
   EVIDENCE_LIMIT_REACHED: {
     status: 422,

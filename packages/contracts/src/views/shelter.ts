@@ -1,5 +1,6 @@
 import {
   CitySchema,
+  PUBLIC_LISTING_LABELS,
   RegionIdSchema,
   RegionSchema,
   ShelterAvailabilitySchema,
@@ -11,8 +12,14 @@ import { PublicCityLocationViewSchema } from "./location";
 /**
  * The only verification distinction an adopter is entitled to. Moderator
  * identities, submitted evidence and rejection reasons stay server-side.
+ * `listed_before_verification` is a label, never a date: the public sees
+ * that the review is running, not when the permission ends.
  */
-export const VerificationBadgeSchema = z.enum(["verified", "unverified"]);
+export const VerificationBadgeSchema = z.enum([
+  ...PUBLIC_LISTING_LABELS,
+  // Only a stale row on the saved page; no surface shows it as a live shelter.
+  "unverified",
+]);
 export type VerificationBadge = z.infer<typeof VerificationBadgeSchema>;
 
 /**

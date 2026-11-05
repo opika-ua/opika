@@ -343,6 +343,10 @@ boot-time check, and it covers the other pair of constants, step 13 above):
    instead, add the path there. Either way, change the `proxy.test.ts` case that pins the per-animal
    image as gated ("exempts the site-wide link-preview image and nothing next to it").
 
+Also before the flip (a check, not a change): no shelter is in early listing without an operator record,
+i.e. every set `shelters.early_listing_since` has an `early_listing_allowed` history line. Early-listed
+shelters stay noindex and out of the sitemap after the flip (owner, 2026-11-04).
+
 Commit, push, let the deploy land.
 
 **Verification:** the tripwire test above is green in CI before this ever merges - a failed

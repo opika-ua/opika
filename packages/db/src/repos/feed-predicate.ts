@@ -1,6 +1,8 @@
 import {
   ageAnchorRange,
   DISCOVERABLE_LISTING_KINDS,
+  EARLY_LISTING_STATUSES,
+  earlyListingCutoff,
   FEED_VISIBLE_VERIFICATION_STATUSES,
   type FeedFilters,
   type GalleryScope,
@@ -33,10 +35,36 @@ import { shelters } from "../schema/shelters";
  */
 
 /**
- * Discoverable listing, verified shelter - true for every animal any adopter
+ * `any_listed`: verified, or listed before verification and still inside its period (the
+ * gallery, counts, shelter page). `verified_only`: the sitemap, which never names an early-listed
+ * shelter's pages (owner, 2026-11-04).
+ */
+export type ShelterListingBasis = "any_listed" | "verified_only";
+
+/**
+ * The SQL twin of `publicListingBasisOf`, on the denormalised columns of `shelters`. Expiry is
+ * read time against `now` (no job, no write when it lapses); the cutoff comes from the domain so
+ * the strict boundary is one definition, and a parity test holds this to the domain function.
+ */
+export function listedShelterCondition(now: Date, basis: ShelterListingBasis = "any_listed"): SQL {
+  const verified = inArray(shelters.verificationStatus, [...FEED_VISIBLE_VERIFICATION_STATUSES]);
+  if (basis === "verified_only") return verified;
+  const cutoff = earlyListingCutoff(now).toISOString();
+  return sql`(${verified} OR (
+    ${inArray(shelters.verificationStatus, [...EARLY_LISTING_STATUSES])}
+    AND ${shelters.earlyListingSince} IS NOT NULL
+    AND ${shelters.earlyListingSince} > ${cutoff}::timestamptz
+  ))`;
+}
+
+/**
+ * Discoverable listing, listed shelter - true for every animal any adopter
  * surface may show, independent of what they filtered on.
  */
-export function buildDiscoverabilityPredicate(): SQL[] {
+export function buildDiscoverabilityPredicate(
+  now: Date,
+  basis: ShelterListingBasis = "any_listed",
+): SQL[] {
   return [
     inArray(animals.listingKind, [...DISCOVERABLE_LISTING_KINDS]),
 
@@ -45,7 +73,7 @@ export function buildDiscoverabilityPredicate(): SQL[] {
     // carries a `satisfies` for exactly this reason.
     sql`${animals.shelterId} IN (
           SELECT ${shelters.id} FROM ${shelters}
-          WHERE ${inArray(shelters.verificationStatus, [...FEED_VISIBLE_VERIFICATION_STATUSES])}
+          WHERE ${listedShelterCondition(now, basis)}
         )`,
   ];
 }
@@ -155,6 +183,10 @@ export function buildScopePredicate(scope: GalleryScope): SQL[] {
  *
  * Callers add their own ordering and pagination on top.
  */
-export function buildFeedPredicate(filters: FeedFilters, now: Date): SQL[] {
-  return [...buildDiscoverabilityPredicate(), ...buildFilterPredicate(filters, now)];
+export function buildFeedPredicate(
+  filters: FeedFilters,
+  now: Date,
+  basis: ShelterListingBasis = "any_listed",
+): SQL[] {
+  return [...buildDiscoverabilityPredicate(now, basis), ...buildFilterPredicate(filters, now)];
 }

@@ -45,6 +45,14 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    what `priorStatus` exists to prevent). Periodic re-verification, when
    needed, is a **new `re_review` state** carrying its prior status - not an
    overload of `under_review`.
+5a. **Listing before verification is beside the FSM** (owner, 2026-11-04). The operator's
+   permission is its own column (`shelters.early_listing_since`) and a pure module
+   (`early-listing.ts`), not a state or an event: allow and revoke are audited operator
+   toggles, so the 5 x 6 table above is unchanged. Expiry is a read-time comparison against
+   `now` (strict: hidden from `since + 60 days`), SQL and domain share one cutoff and a parity
+   test holds them together. The one repo invariant: a verification change clears the column
+   except a move that stays in `pending`/`under_review` (`start_review`, an evidence add).
+   Allowances are counted from history (`early_listing_allowed`), at most two.
 6. **`VerificationEvidence` is a list of discriminated items**, not a fixed
    record, because what a shelter can produce depends on its legal form. The
    requirement rule therefore lives in `DEFAULT_VERIFICATION_POLICY` as a

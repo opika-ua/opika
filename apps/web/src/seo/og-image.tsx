@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isRealPhotoKey, r2PublicUrl } from "@opika/db/image-pipeline";
 import { animalFactsParts } from "@opika/i18n";
+import { ukPublic as uk } from "@opika/i18n/public";
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
 import { SITE_TITLE } from "../brand";
@@ -209,6 +210,19 @@ export async function animalOgImage(view: AnimalPageView): Promise<Response> {
               }}
             >
               {cityName}
+            </div>
+          ) : null}
+          {view.shelter.verification === "listed_before_verification" ? (
+            <div
+              style={{
+                fontFamily: "Ui",
+                fontWeight: 700,
+                fontSize: 40,
+                color: MUTED,
+                marginTop: 12,
+              }}
+            >
+              {uk.underReview.card}
             </div>
           ) : null}
         </div>

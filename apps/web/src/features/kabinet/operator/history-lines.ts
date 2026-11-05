@@ -23,7 +23,8 @@ import { fillTemplate, uk } from "@opika/i18n";
  * Pure, no hooks and no clock: the server page and the client «Показати ще»
  * both render with it, and every entry kind is tested table by table.
  */
-export type HistoryLine = { at: Date; text: string; actor: string };
+/** `actor` is `null` for a line nobody did: a period that ran out on its own. */
+export type HistoryLine = { at: Date; text: string; actor: string | null };
 
 /** Who the people in a history are, as far as the page can tell. */
 export type HistoryPeople = {
@@ -33,7 +34,8 @@ export type HistoryPeople = {
   admins: readonly Pick<ShelterAdminView, "id" | "name" | "email">[];
 };
 
-export const historyLineText = (line: HistoryLine): string => `${line.text} · ${line.actor}`;
+export const historyLineText = (line: HistoryLine): string =>
+  line.actor === null ? line.text : `${line.text} · ${line.actor}`;
 
 const t = uk.kabinet.operator.history;
 const labels = uk.kabinet.animalHistoryLabels;
@@ -157,7 +159,7 @@ function verificationLine(
 function lineOf(
   entry: ShelterHistoryEntry,
   people: HistoryPeople,
-): { text: string; actor: string } {
+): Pick<HistoryLine, "text" | "actor"> {
   switch (entry.kind) {
     case "verification":
       return verificationLine(entry.event, entry, people);
@@ -232,6 +234,14 @@ function lineOf(
         }),
         actor: operatorActor(entry.moderatorId, people),
       };
+    // Operator-facing lines use the approved N4–N6 strings; the operator-addressed wording and the
+    // period/note detail arrive with the operator UI (follow-up PR).
+    case "early_listing_allowed":
+      return { text: t.early_listing_allowed, actor: operatorActor(entry.moderatorId, people) };
+    case "early_listing_revoked":
+      return { text: t.early_listing_revoked, actor: operatorActor(entry.moderatorId, people) };
+    case "early_listing_lapsed":
+      return { text: t.early_listing_lapsed, actor: null };
     case "animals_imported":
       return {
         text: fillTemplate(t.animals_imported, { count: String(entry.count) }),

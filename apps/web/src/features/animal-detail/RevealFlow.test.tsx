@@ -54,6 +54,7 @@ function revealFor(contact: ShelterContact): ContactRevealView {
     id: REVEAL_ID,
     animalId: ANIMAL_ID,
     revealedAt: new Date("2026-08-08T10:00:00Z"),
+    shelterListing: "verified",
     shelterContact: { source: "current", displayName: "Притулок «Домівка»", contact },
     shelterAtFirstReveal: {
       shelterId: SHELTER_ID,

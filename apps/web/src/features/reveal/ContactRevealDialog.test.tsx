@@ -1,6 +1,6 @@
 import type { ContactRevealView } from "@opika/contracts";
 import { AnimalIdSchema, CityIdSchema, RevealIdSchema, ShelterIdSchema } from "@opika/domain";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ContactRevealDialog } from "./ContactRevealDialog";
 
@@ -10,6 +10,7 @@ const reveal: ContactRevealView = {
   id: RevealIdSchema.parse("bbbbbbbb-cccc-4ddd-8eee-ffffffffffff"),
   animalId: ANIMAL_ID,
   revealedAt: new Date("2026-08-08T10:00:00Z"),
+  shelterListing: "verified",
   shelterContact: {
     source: "current",
     displayName: "Притулок «Домівка»",
@@ -182,6 +183,22 @@ function revealWith(contact: ContactRevealView["shelterContact"]["contact"]): Co
     shelterContact: { source: "current", displayName: "Притулок «Домівка»", contact },
   };
 }
+
+/** Listing before verification: the one required line (N3) shows only for such a shelter. */
+describe("the reveal for a shelter still under review", () => {
+  it("shows the notice for a listed shelter and none for a verified one", () => {
+    renderOpen({ ...revealWith(BOTH), shelterListing: "listed_before_verification" });
+    expect(screen.getByTestId("reveal-under-review").textContent).toBe(
+      "Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.",
+    );
+    cleanup();
+    renderOpen({ ...revealWith(BOTH), shelterListing: "verified" });
+    expect(screen.queryByTestId("reveal-under-review")).toBeNull();
+    cleanup();
+    renderOpen({ ...revealWith(BOTH), shelterListing: null });
+    expect(screen.queryByTestId("reveal-under-review")).toBeNull();
+  });
+});
 
 /** Reveal redesign (owner-approved copy): header row, one ✕, action rows, one location line. */
 describe("the redesigned reveal", () => {

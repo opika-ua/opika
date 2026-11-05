@@ -240,6 +240,10 @@ export function shelterFacingHistoryOf(
       return { kind: "verified_data_changed", at: entry.at, actor: operator, change: entry.change };
     // Operator-only (owner, 2026-11-04): the shelter learns nothing of it.
     case "evidence_added":
+    // Shelter-side lines for the early listing arrive with the kabinet banner (follow-up PR).
+    case "early_listing_allowed":
+    case "early_listing_revoked":
+    case "early_listing_lapsed":
       return null;
     case "display_name_changed":
       return {

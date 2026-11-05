@@ -223,7 +223,7 @@ const createInput = () => {
 describe("without LOCATION_HMAC_SECRET", () => {
   it("answers 503 to every registry call, and leaves the shelter surface alone", async () => {
     const s = await shelter();
-    // Every one of the twenty-one, by path: the route refuses before the input is read.
+    // Every one of the twenty-three, by path: the route refuses before the input is read.
     const paths = [
       "registry.shelters.list",
       "registry.shelters.byId",
@@ -237,6 +237,8 @@ describe("without LOCATION_HMAC_SECRET", () => {
       "registry.verification.suspend",
       "registry.verification.resubmit",
       "registry.verification.addEvidence",
+      "registry.earlyListing.allow",
+      "registry.earlyListing.revoke",
       "registry.donation.approve",
       "registry.donation.reject",
       "registry.admins.invite",
@@ -2405,5 +2407,183 @@ describe("Ukrainian phone rule on the operator's write paths", () => {
     expect(
       (await call("registry.verification.resubmit", { shelterId: s.id, evidence })).status,
     ).toBe(400);
+  });
+});
+
+/**
+ * Listing before verification (owner, 2026-11-04): operator-only allow and revoke, beside the
+ * verification moves. The permission is a stored instant read against the clock; the periods are
+ * counted from history.
+ */
+describe("registry.earlyListing", () => {
+  const DAY = 86_400_000;
+  const VISIT = {
+    kind: "site_visit",
+    visitedAt: new Date("2026-10-01T00:00:00.000Z"),
+    visitedBy: OPERATOR as ModeratorId,
+    notes: "Був на місці",
+  } as const;
+  const withVisit = (status: "pending" | "under_review"): ShelterVerification => ({
+    ...STATES[status],
+    evidence: { items: [VISIT], submittedAt: NOW },
+  });
+  const allow = (shelterId: string, opts: { note?: string; now?: Date } = {}) =>
+    call<RegistryShelterView & { data?: unknown }>(
+      "registry.earlyListing.allow",
+      { shelterId, ...(opts.note === undefined ? {} : { note: opts.note }) },
+      opts.now === undefined ? {} : { now: opts.now },
+    );
+  const revoke = (shelterId: string, now?: Date) =>
+    call<{ data?: unknown }>("registry.earlyListing.revoke", { shelterId }, now ? { now } : {});
+  const sinceOf = async (id: string) => (await reload(id)).earlyListingSince;
+  const kinds = async (id: string) => (await history(id)).map((e) => e.kind).sort();
+
+  it("allows with a visit on file: stores the instant, records who and which period", async () => {
+    const s = await shelter({ verification: withVisit("pending") });
+    const done = await allow(s.id);
+    expect(done.status).toBe(200);
+    expect(await sinceOf(s.id)).toEqual(NOW);
+    // The verification state is untouched: allow is not a verification move.
+    expect((await reload(s.id)).verification).toEqual(withVisit("pending"));
+    expect(await history(s.id)).toEqual([
+      { kind: "early_listing_allowed", at: NOW, moderatorId: OPERATOR, period: 1, note: null },
+    ]);
+  });
+
+  it("accepts a reference as the minimum too, and refuses anything below it", async () => {
+    const reference = {
+      kind: "reference_contact",
+      name: "Ветклініка",
+      channel: { kind: "phone", e164: "+380501112233" },
+      relationship: "veterinary_clinic",
+    } as const;
+    const ok = await shelter({
+      verification: { ...STATES.pending, evidence: { items: [reference], submittedAt: NOW } },
+    });
+    expect((await allow(ok.id)).status).toBe(200);
+    const bare = await shelter({ verification: STATES.pending });
+    const refused = await allow(bare.id);
+    expect(refused.status).toBe(409);
+    expect(refused.body.data).toEqual({ reason: "evidence_below_minimum" });
+    expect(await sinceOf(bare.id)).toBeNull();
+    expect(await history(bare.id)).toEqual([]);
+  });
+
+  it("refuses a verified shelter and a running permission", async () => {
+    const verified = await shelter({ verification: STATES.verified });
+    expect((await allow(verified.id)).body.data).toEqual({ reason: "wrong_status" });
+    const s = await shelter({ verification: withVisit("under_review") });
+    await allow(s.id);
+    expect((await allow(s.id)).body.data).toEqual({ reason: "already_running" });
+    expect(await kinds(s.id)).toEqual(["early_listing_allowed"]);
+  });
+
+  it("a second period needs a note; the lapse is recorded at its expiry; a third is refused", async () => {
+    const s = await shelter({ verification: withVisit("pending") });
+    await allow(s.id);
+    const afterFirst = new Date(NOW.getTime() + 61 * DAY);
+    expect((await allow(s.id, { now: afterFirst })).body.data).toEqual({ reason: "note_required" });
+    expect((await allow(s.id, { now: afterFirst, note: "  " })).status).toBe(400);
+
+    const second = await allow(s.id, { now: afterFirst, note: "Чекаємо на візит" });
+    expect(second.status).toBe(200);
+    expect(await sinceOf(s.id)).toEqual(afterFirst);
+    const lines = await history(s.id);
+    expect(lines).toContainEqual({
+      kind: "early_listing_lapsed",
+      at: new Date(NOW.getTime() + 60 * DAY),
+    });
+    expect(lines).toContainEqual({
+      kind: "early_listing_allowed",
+      at: afterFirst,
+      moderatorId: OPERATOR,
+      period: 2,
+      note: "Чекаємо на візит",
+    });
+
+    const afterSecond = new Date(afterFirst.getTime() + 61 * DAY);
+    const third = await allow(s.id, { now: afterSecond, note: "Ще раз" });
+    expect(third.status).toBe(409);
+    expect(third.body.data).toEqual({ reason: "limit_reached" });
+    expect(await kinds(s.id)).toEqual([
+      "early_listing_allowed",
+      "early_listing_allowed",
+      "early_listing_lapsed",
+    ]);
+  });
+
+  it("revoke ends a running permission at once and refuses when none runs", async () => {
+    const s = await shelter({ verification: withVisit("pending") });
+    expect((await revoke(s.id)).body.data).toEqual({ reason: "not_running" });
+    await allow(s.id);
+    expect((await revoke(s.id)).status).toBe(200);
+    expect(await sinceOf(s.id)).toBeNull();
+    expect(await history(s.id)).toContainEqual({
+      kind: "early_listing_revoked",
+      at: NOW,
+      moderatorId: OPERATOR,
+    });
+    expect((await revoke(s.id)).body.data).toEqual({ reason: "not_running" });
+    // Revoked is not lapsed: a later re-allow is the second period and needs its note.
+    expect((await allow(s.id)).body.data).toEqual({ reason: "note_required" });
+  });
+
+  it("start_review keeps the permission; reject clears it, recording a lapse only if one happened", async () => {
+    const kept = await shelter({ verification: withVisit("pending") });
+    await allow(kept.id);
+    expect((await call("registry.verification.startReview", { shelterId: kept.id })).status).toBe(
+      200,
+    );
+    expect(await sinceOf(kept.id)).toEqual(NOW);
+    expect((await reload(kept.id)).verification.status).toBe("under_review");
+
+    // Rejecting while it still runs: cleared, no lapse line.
+    const rejected = await call("registry.verification.reject", {
+      shelterId: kept.id,
+      reason: { code: "spam", note: "Ні" },
+    });
+    expect(rejected.status).toBe(200);
+    expect(await sinceOf(kept.id)).toBeNull();
+    expect(await kinds(kept.id)).toEqual(["early_listing_allowed", "verification", "verification"]);
+
+    // Rejecting after it ran out: cleared, and the lapse is on record at its expiry.
+    const lapsed = await shelter({ verification: withVisit("under_review") });
+    await allow(lapsed.id);
+    await call(
+      "registry.verification.reject",
+      { shelterId: lapsed.id, reason: { code: "spam", note: "Ні" } },
+      { now: new Date(NOW.getTime() + 70 * DAY) },
+    );
+    expect(await sinceOf(lapsed.id)).toBeNull();
+    expect(await history(lapsed.id)).toContainEqual({
+      kind: "early_listing_lapsed",
+      at: new Date(NOW.getTime() + 60 * DAY),
+    });
+  });
+
+  it("an evidence add leaves the permission alone", async () => {
+    const s = await shelter({ verification: withVisit("pending") });
+    await allow(s.id);
+    const added = await call("registry.verification.addEvidence", {
+      shelterId: s.id,
+      evidence: [{ kind: "bank_account_holder", holderName: "ГО Лапа" }],
+    });
+    expect(added.status).toBe(200);
+    expect(await sinceOf(s.id)).toEqual(NOW);
+  });
+
+  it("is the operator's alone: a shelter admin can neither allow nor revoke", async () => {
+    const s = await shelter({ verification: withVisit("pending") });
+    const asAdmin: KabinetPrincipal = {
+      kind: "shelter_admin",
+      shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+      shelterId: s.id,
+    };
+    for (const path of ["registry.earlyListing.allow", "registry.earlyListing.revoke"]) {
+      const refused = await call(path, { shelterId: s.id }, { principal: asAdmin });
+      expect(refused.status).toBe(403);
+    }
+    expect(await sinceOf(s.id)).toBeNull();
+    expect(await history(s.id)).toEqual([]);
   });
 });
