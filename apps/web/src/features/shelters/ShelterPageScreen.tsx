@@ -158,6 +158,8 @@ export function ShelterPageScreen({
                     <span aria-hidden="true">✓ </span>
                     {fillTemplate(uk.detail.shelterVerifiedYears, { site: WORDMARK, year })}
                   </span>
+                ) : shelter.verification === "listed_before_verification" ? (
+                  <span data-testid="shelter-under-review">{uk.underReview.shelter}</span>
                 ) : (
                   fillTemplate(uk.shelterPage.sinceYear, { year })
                 )}

@@ -131,9 +131,13 @@ export function animalMetadataOf(load: AnimalPageLoad): Metadata {
   const { animal, shelter, cityName } = load.view;
 
   const title = [animal.name, speciesLabel(animal.species), cityName].filter(Boolean).join(", ");
+  const listedEarly = shelter.verification === "listed_before_verification";
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice
-    : animalMetaDescription(animal, shelter.displayName, cityName);
+    : listedEarly
+      ? // A link preview must not suggest a verified shelter (N14).
+        uk.underReview.sharePreview
+      : animalMetaDescription(animal, shelter.displayName, cityName);
   return {
     title,
     description,
@@ -150,7 +154,10 @@ export function animalMetadataOf(load: AnimalPageLoad): Metadata {
     },
     twitter: { card: "summary_large_image" },
     // A paused shelter's animal page is reachable by link only: never indexed, even after the flip.
-    ...(animal.availability.kind === "paused" && { robots: { index: false, follow: true } }),
+    // An early-listed shelter's page is likewise by link only, whatever the discoverability flag.
+    ...((animal.availability.kind === "paused" || listedEarly) && {
+      robots: { index: false, follow: true },
+    }),
   };
 }
 

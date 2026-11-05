@@ -164,6 +164,11 @@ export function AnimalDetailContent({
             <span data-testid="freshness-block" className="w-fit">
               <Chip kind="info">{freshnessLabel(animal.freshness)}</Chip>
             </span>
+            {shelter.verification === "listed_before_verification" && (
+              <span data-testid="under-review-badge" className="w-fit">
+                <Chip kind="info">{uk.underReview.card}</Chip>
+              </span>
+            )}
             {animal.listingKind === "reserved" && (
               <span data-testid="reserved-badge" className="w-fit">
                 <Chip kind="status" tone="reserved">

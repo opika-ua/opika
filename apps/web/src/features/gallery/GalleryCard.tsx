@@ -125,6 +125,13 @@ export function GalleryCard({
             </Badge>
           </span>
         )}
+        {card.shelter.verification === "listed_before_verification" && (
+          <span data-testid="under-review-badge" className="contents">
+            <Badge tone="neutral" className="absolute bottom-2 left-2 tablet:static">
+              {uk.underReview.card}
+            </Badge>
+          </span>
+        )}
       </div>
 
       <div className={stacked ? "gcard-info-st" : "gcard-info"}>

@@ -8,7 +8,7 @@ import {
   NO_FILTERS,
 } from "@opika/domain";
 import { freshnessLabel } from "@opika/ui";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { GalleryCard } from "./GalleryCard";
 
@@ -52,6 +52,18 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
     ...overrides,
   } as FeedCardView;
 }
+
+describe("GalleryCard under-review label", () => {
+  it("shows «На перевірці» for a shelter listed before verification and nothing for a verified one", () => {
+    const listed = makeCard();
+    listed.shelter = { ...listed.shelter, verification: "listed_before_verification" };
+    render(<GalleryCard card={listed} cityName="Бровари" {...NO_CONTEXT} />);
+    expect(screen.getByTestId("under-review-badge").textContent).toBe("На перевірці");
+    cleanup();
+    render(<GalleryCard card={makeCard()} cityName="Бровари" {...NO_CONTEXT} />);
+    expect(screen.queryByTestId("under-review-badge")).toBeNull();
+  });
+});
 
 describe("GalleryCard link", () => {
   it("is exactly one link, and only one - the pill is not a nested button or anchor", () => {

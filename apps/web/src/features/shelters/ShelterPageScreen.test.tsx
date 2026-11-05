@@ -160,6 +160,16 @@ describe("the shelter page, states", () => {
     expect(line).not.toContain("Перевірено");
   });
 
+  it("a shelter under review reads «Притулок на перевірці», never the verified line", () => {
+    renderScreen({
+      shelter: makeShelterPageShelter({ verification: "listed_before_verification" }),
+    });
+    const line = screen.getByTestId("shelter-trust-line").textContent ?? "";
+    expect(line).toBe("Притулок на перевірці");
+    expect(line).not.toContain("Перевірений вручну");
+    expect(screen.queryByTestId("shelter-verified-badge")).toBeNull();
+  });
+
   it("has no «Шукають дім» count chip: the heading is the only place the count shows", () => {
     renderScreen({ animals: makeListOutput([makeCardView(1), makeCardView(2)]) });
     expect(screen.getAllByText("Шукають дім: 2")).toHaveLength(1);

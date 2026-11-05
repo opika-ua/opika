@@ -133,6 +133,8 @@ const REGISTRY_CALLS = (shelter: Shelter): [string, unknown][] => {
         ],
       },
     ],
+    ["registry.earlyListing.allow", ref],
+    ["registry.earlyListing.revoke", ref],
     ["registry.donation.approve", { ...ref, expectedVersion: 0 }],
     ["registry.donation.reject", { ...ref, expectedVersion: 0 }],
     ["registry.admins.invite", { ...ref, name: "Олена", email: "olena@example.org" }],
@@ -162,8 +164,8 @@ const NOT_OPERATORS: [string, KabinetPrincipal, number][] = [
 ];
 
 describe("registry.* refuses everyone but a super_admin", () => {
-  it("covers all twenty-one registry procedures (not vacuous)", () => {
-    expect(REGISTRY_CALLS(makeShelter())).toHaveLength(21);
+  it("covers all twenty-three registry procedures (not vacuous)", () => {
+    expect(REGISTRY_CALLS(makeShelter())).toHaveLength(23);
   });
 
   for (const [who, principal, status] of NOT_OPERATORS) {
