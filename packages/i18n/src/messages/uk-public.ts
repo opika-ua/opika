@@ -707,6 +707,19 @@ export const ukPublic = {
   },
 
   // --- Reserved badge ---
+  /**
+   * A shelter shown before its verification is complete (owner's copy table, 2026-11-04, N1–N3).
+   * `card` is the short label on a card and the animal page, `shelter` the shelter page's trust
+   * line, `revealNotice` the one required line in the contact dialog. A label only, never a date.
+   */
+  underReview: {
+    card: "На перевірці",
+    shelter: "Притулок на перевірці",
+    revealNotice: "Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.",
+    /** The link-preview description of an animal at such a shelter (N14). */
+    sharePreview: "Тварина з притулку, який ще проходить перевірку.",
+  },
+
   reserved: {
     badge: "Уже домовляються",
     /** The gallery card's tablet (600-1023) layout, shown instead of `badge` when the compact horizontal card has less room - docs/design/README.md, "The Gallery" > "Card". */

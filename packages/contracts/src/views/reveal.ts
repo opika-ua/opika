@@ -1,4 +1,8 @@
-import { ContactRevealSchema, ShelterContactSnapshotSchema } from "@opika/domain";
+import {
+  ContactRevealSchema,
+  PUBLIC_LISTING_LABELS,
+  ShelterContactSnapshotSchema,
+} from "@opika/domain";
 import { z } from "zod";
 import { PublicCityLocationViewSchema } from "./location";
 
@@ -84,6 +88,12 @@ export const ContactRevealViewSchema = ContactRevealSchema.pick({
   animalSnapshot: true,
 }).extend({
   shelterContact: RevealShelterContactViewSchema,
+  /**
+   * How the shelter is listed right now: `listed_before_verification` makes the dialog say the
+   * review is still running. A label only, never a date; `null` where the shelter is not listed
+   * (a «Мої запити» item for a hidden shelter, which carries the first-reveal record instead).
+   */
+  shelterListing: z.enum(PUBLIC_LISTING_LABELS).nullable(),
   shelterAtFirstReveal: ShelterAtFirstRevealViewSchema,
 });
 export type ContactRevealView = z.infer<typeof ContactRevealViewSchema>;

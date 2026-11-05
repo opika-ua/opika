@@ -161,7 +161,23 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     items: [{ kind: "reference_contact" }, { kind: "site_visit" }],
     statusAt: "under_review",
   },
+  early_listing_allowed: {
+    kind: "early_listing_allowed",
+    at: AT,
+    moderatorId: MOD,
+    period: 2,
+    note: "чекаємо на візит",
+  },
+  early_listing_revoked: { kind: "early_listing_revoked", at: AT, moderatorId: MOD },
+  early_listing_lapsed: { kind: "early_listing_lapsed", at: AT },
 };
+
+const OPERATOR_ONLY: string[] = [
+  "evidence_added",
+  "early_listing_allowed",
+  "early_listing_revoked",
+  "early_listing_lapsed",
+];
 
 /** The projection of an entry the shelter does see; fails the test on `null`. */
 const facing = (entry: ShelterHistoryEntry, operatorName: string) => {
@@ -182,7 +198,7 @@ describe("shelterFacingHistoryOf", () => {
   });
 
   for (const [kind, entry] of Object.entries(ENTRIES).filter(
-    ([kind]) => kind !== "evidence_added",
+    ([kind]) => !OPERATOR_ONLY.includes(kind),
   )) {
     it(`${kind}: parses as a shelter-facing item and carries no id or evidence`, () => {
       const item = facing(entry, OPERATOR);
@@ -208,11 +224,17 @@ describe("shelterFacingHistoryOf", () => {
     expect(shelterFacingHistoryOf(ENTRIES.evidence_added, OPERATOR)).toBeNull();
   });
 
+  it("early listing lines stay operator-only until the shelter-side lines ship", () => {
+    for (const kind of OPERATOR_ONLY.filter((k) => k.startsWith("early_listing"))) {
+      expect(shelterFacingHistoryOf(ENTRIES[kind as keyof typeof ENTRIES], OPERATOR)).toBeNull();
+    }
+  });
+
   it("every other kind is shown", () => {
     const hidden = Object.values(ENTRIES)
       .filter((entry) => shelterFacingHistoryOf(entry, OPERATOR) === null)
       .map((entry) => entry.kind);
-    expect(hidden).toEqual(["evidence_added"]);
+    expect(hidden.sort()).toEqual([...OPERATOR_ONLY].sort());
   });
 
   /**

@@ -42,7 +42,8 @@ import { buildDiscoverabilityPredicate } from "./repos/feed-predicate";
 import { animals } from "./schema/animals";
 
 /** Rows the backfill would still set: currently discoverable, `everServedAt` still null. */
-const candidateWhere = () => and(isNull(animals.everServedAt), ...buildDiscoverabilityPredicate());
+const candidateWhere = () =>
+  and(isNull(animals.everServedAt), ...buildDiscoverabilityPredicate(new Date()));
 
 export async function countBackfillCandidates(db: Database): Promise<number> {
   const [row] = await db.select({ n: count() }).from(animals).where(candidateWhere());

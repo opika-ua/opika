@@ -966,6 +966,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.evidence.notEditable": "Докази можна додати, лише поки рішення не ухвалено.",
     "operator.evidence.limit": "У заявці може бути щонайбільше 30 доказів, за раз – до 10.",
     "operator.history.evidence_added": "Додано докази: {kinds}",
+    // Owner's copy table, 2026-11-04 (N4–N6), pinned in their own block above.
+    "operator.history.early_listing_allowed": "Ваші картки показуються, поки триває перевірка",
+    "operator.history.early_listing_revoked": "Показ карток до завершення перевірки знято",
+    "operator.history.early_listing_lapsed": "Строк показу карток до завершення перевірки минув",
     "operator.evidence.gapItem": "{kind} – {provided} з {minimum}",
   };
   /** Pet card PR 3b. His final text (2026-10-27): the builder's draft, approved as written. */
@@ -1008,7 +1012,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     expect(Object.keys(ROUND_3_N7)).toHaveLength(2);
     expect(Object.keys(ROUND_4C_RUI4_F2)).toHaveLength(1);
     expect(Object.keys(PET_CARD_PR3B_LOGO_CHANGED)).toHaveLength(1);
-    expect(Object.keys(EVIDENCE_ADD_COPY)).toHaveLength(10);
+    expect(Object.keys(EVIDENCE_ADD_COPY)).toHaveLength(13);
     expect(Object.keys(CHECKED_AGAINST_CODE).length).toBe(2);
     expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his !== null)).toHaveLength(1);
     expect(Object.values(ROUND_2_REASON_VIEW).filter(({ his }) => his === null)).toHaveLength(1);
@@ -1301,6 +1305,40 @@ describe("/pro about.data (his PR 6 text, and PW-1's two sentences)", () => {
  * strings by his answer ("reuse the existing string, yes"), so those are
  * pinned as unchanged.
  */
+describe("listing before verification (owner's copy table, 2026-11-04, N1–N3 and the operator lines N4–N6)", () => {
+  it.each([
+    ["underReview.shelter (N1)", uk.underReview.shelter, "Притулок на перевірці"],
+    ["underReview.card (N2)", uk.underReview.card, "На перевірці"],
+    [
+      "underReview.revealNotice (N3)",
+      uk.underReview.revealNotice,
+      "Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.",
+    ],
+    [
+      "underReview.sharePreview (N14)",
+      uk.underReview.sharePreview,
+      "Тварина з притулку, який ще проходить перевірку.",
+    ],
+    [
+      "kabinet.operator.history.early_listing_allowed (N4)",
+      uk.kabinet.operator.history.early_listing_allowed,
+      "Ваші картки показуються, поки триває перевірка",
+    ],
+    [
+      "kabinet.operator.history.early_listing_revoked (N5)",
+      uk.kabinet.operator.history.early_listing_revoked,
+      "Показ карток до завершення перевірки знято",
+    ],
+    [
+      "kabinet.operator.history.early_listing_lapsed (N6)",
+      uk.kabinet.operator.history.early_listing_lapsed,
+      "Строк показу карток до завершення перевірки минув",
+    ],
+  ])("%s is the approved text", (_name, actual, expected) => {
+    expect(actual).toBe(expected);
+  });
+});
+
 describe("designer round 1, S6 (his DR1-Q1 and shelter-page copy)", () => {
   it.each([
     ["medical.shelterDeclared", uk.medical.shelterDeclared, "Дані притулку"],

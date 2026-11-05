@@ -211,6 +211,30 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     statusAt: z.enum(["pending", "under_review"]),
   }),
   /**
+   * The operator let the shelter's cards be public while its review runs (owner, 2026-11-04).
+   * `period` is 1 or 2; the note is required for 2 and is operator-only like the entry.
+   */
+  z.object({
+    kind: z.literal("early_listing_allowed"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    period: z.int().min(1),
+    note: z.string().min(1).nullable(),
+  }),
+  z.object({
+    kind: z.literal("early_listing_revoked"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+  }),
+  /**
+   * A period ran out on its own. `at` is the expiry instant, not the write that records it: read-time
+   * expiry writes nothing, so the next audited write that clears the column adds this line.
+   */
+  z.object({
+    kind: z.literal("early_listing_lapsed"),
+    at: z.date(),
+  }),
+  /**
    * The operator renamed the shelter on S4 (R-UI 4; Oleksii, R-UI answer 8,
    * verbatim: "Yes: rename as R-UI 4, with a history line."). The display
    * name is public (every card names the shelter by it), so a change is
@@ -344,6 +368,9 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "donation_decided":
     case "verified_data_changed":
     case "evidence_added":
+    case "early_listing_allowed":
+    case "early_listing_revoked":
+    case "early_listing_lapsed":
     case "display_name_changed":
     case "shelter_created":
     case "admin_invited":

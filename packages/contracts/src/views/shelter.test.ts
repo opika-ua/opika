@@ -196,6 +196,28 @@ describe("public shelter projections withhold the private fields", () => {
       expect(JSON.stringify(view)).not.toContain("swapped");
     }
   });
+
+  /**
+   * Listing before verification (owner, 2026-11-04): the public sees a label that the review is
+   * running, never when the permission started or ends.
+   */
+  it("carries the under-review label and never the permission's dates, in either view", () => {
+    const SINCE = new Date("2026-10-01T08:30:00.000Z");
+    const early = {
+      ...shelter,
+      earlyListingSince: SINCE,
+      verification: "listed_before_verification" as const,
+      availability: { kind: "open" as const },
+    };
+    for (const view of [
+      PublicShelterViewSchema.parse(early),
+      ShelterSummaryViewSchema.parse(early),
+    ]) {
+      expect(view.verification).toBe("listed_before_verification");
+      expect(view).not.toHaveProperty("earlyListingSince");
+      expect(JSON.stringify(view)).not.toContain(SINCE.toISOString());
+    }
+  });
 });
 
 describe("the reveal is the one sanctioned path to the contact details, and never to the address", () => {
@@ -214,6 +236,7 @@ describe("the reveal is the one sanctioned path to the contact details, and neve
     animalId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     revealedAt: AT,
     shelterContact: { source: "current", displayName: shelter.displayName, contact },
+    shelterListing: "verified",
     shelterAtFirstReveal: record,
     animalSnapshot: { name: "Мурчик", primaryPhoto: null },
     ...extra,
@@ -284,6 +307,7 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
       donation: null,
       pauseNote: "internal",
     },
+    shelterListing: null,
     animalSnapshot: { name: "Мурчик", primaryPhoto: null },
   };
 
@@ -311,6 +335,7 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
         "revealedAt",
         "shelterAtFirstReveal",
         "shelterContact",
+        "shelterListing",
       ]);
       expect(Object.keys(view.shelterContact).sort()).toEqual(["contact", "displayName", "source"]);
       expect(view.shelterContact.source).toBe(source);

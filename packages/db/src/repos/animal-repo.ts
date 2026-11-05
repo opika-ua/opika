@@ -45,6 +45,7 @@ export function animalRepo(db: Database) {
      */
     async findWithShelterById(
       id: AnimalId,
+      now: Date,
     ): Promise<{ animal: Animal; shelter: CardShelter | null } | null> {
       const rows = await db
         .select({ animal: getTableColumns(animals), shelter: cardShelterColumns })
@@ -56,7 +57,7 @@ export function animalRepo(db: Database) {
       if (!row) return null;
       return {
         animal: rowToAnimal(row.animal),
-        shelter: row.shelter ? toCardShelter(row.shelter) : null,
+        shelter: row.shelter ? toCardShelter(row.shelter, now) : null,
       };
     },
 
@@ -65,7 +66,10 @@ export function animalRepo(db: Database) {
      * page's one round trip). Any listing kind comes back, drafts included, exactly as
      * `findByIds` returns them; the caller decides what each may show.
      */
-    async findCardsByIds(ids: readonly AnimalId[]): Promise<
+    async findCardsByIds(
+      ids: readonly AnimalId[],
+      now: Date,
+    ): Promise<
       readonly {
         animal: Animal;
         shelter: CardShelter | null;
@@ -85,7 +89,7 @@ export function animalRepo(db: Database) {
         .where(inArray(animals.id, ids));
       return rows.map((row) => ({
         animal: rowToAnimal(row.animal),
-        shelter: row.shelter ? toCardShelter(row.shelter) : null,
+        shelter: row.shelter ? toCardShelter(row.shelter, now) : null,
         city: row.city ? toCardCity(row.city) : null,
       }));
     },

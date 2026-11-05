@@ -1549,6 +1549,9 @@ export const uk = {
         animal_listing_changed: "{name}: «{from}» → «{to}»",
         animal_deleted: "Видалено чернетку: {name}",
         evidence_added: "Додано докази: {kinds}",
+        early_listing_allowed: "Ваші картки показуються, поки триває перевірка",
+        early_listing_revoked: "Показ карток до завершення перевірки знято",
+        early_listing_lapsed: "Строк показу карток до завершення перевірки минув",
       },
       create: {
         title: "Новий притулок",

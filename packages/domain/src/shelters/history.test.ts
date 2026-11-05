@@ -171,6 +171,19 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     items: [{ kind: "reference_contact" }],
     statusAt: "pending",
   },
+  early_listing_allowed: {
+    kind: "early_listing_allowed",
+    at: new Date("2026-10-22T00:00:00.000Z"),
+    moderatorId: MOD,
+    period: 1,
+    note: null,
+  },
+  early_listing_revoked: {
+    kind: "early_listing_revoked",
+    at: new Date("2026-10-23T00:00:00.000Z"),
+    moderatorId: MOD,
+  },
+  early_listing_lapsed: { kind: "early_listing_lapsed", at: new Date("2026-12-21T00:00:00.000Z") },
 };
 
 describe("ShelterHistoryEntrySchema", () => {
@@ -346,6 +359,9 @@ describe("historyEntryAt", () => {
         "2026-10-19",
         "2026-10-20",
         "2026-10-21",
+        "2026-10-22",
+        "2026-10-23",
+        "2026-12-21",
       ],
     );
   });
