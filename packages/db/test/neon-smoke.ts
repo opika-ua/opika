@@ -78,6 +78,7 @@ import {
   makeShelter,
 } from "../src/test-utils/fixtures";
 import { type SmokeTarget, smokeTarget } from "../src/test-utils/smoke-target";
+import { runEarlyListingSmoke } from "./neon-smoke-early-listing";
 import { runFiltersSmoke } from "./neon-smoke-filters";
 import { runGeographySmoke } from "./neon-smoke-geography";
 import { runRoundTripsSmoke } from "./neon-smoke-round-trips";
@@ -2706,6 +2707,7 @@ async function main(): Promise<void> {
     ...(await runSearchSmoke(database)),
     ...(await runFiltersSmoke(database)),
     ...(await runRoundTripsSmoke(database)),
+    ...(await runEarlyListingSmoke(database)),
   ];
   for (const o of outcomes) console.log(`${o.ok ? "PASS" : "FAIL"}  ${o.name}: ${o.detail}`);
   const failed = outcomes.filter((o) => !o.ok).length;
