@@ -397,7 +397,10 @@ boot-time check, and it covers the other pair of constants, step 13 above):
    unreachable, so this holds by itself; if the gate branch in `proxy.ts` is kept or reworked
    instead, add the path there and change the `proxy.test.ts` case that pins the per-animal image
    as gated ("exempts the site-wide link-preview image and nothing next to it"; the unit test
-   mocks the flag to `false`, so it keeps passing unless you change it).
+   mocks the flag to `false`, so it keeps passing unless you change it). `proxy.test.ts` ("while SITE_IS_PUBLICLY_DISCOVERABLE is true") and
+   `post-flip-noindex.test.ts` already pin the post-flip state with the flag mocked: no gate, the per-animal
+   image reachable, early-listed and paused pages noindex. Link-preview images are `X-Robots-Tag: noindex`
+   always, and short-cached (300 s, no stale-while-revalidate) for early-listed and paused shelters.
 
 **Files that pin the current gate state** (they ride in the same commit; each fails or goes dead
 once the gate is gone):
