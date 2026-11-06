@@ -4,7 +4,12 @@ import { sharedRateLimiter } from "../../../../api/rate-limit";
 import { ipRateLimitKey } from "../../../../api/rate-limit-key";
 
 /** Its own small budget: the secret check sits behind it, so guessing is limited. */
-const limiter = sharedRateLimiter({ name: "monitoring-test", windowMs: 60_000, maxRequests: 5 });
+const limiter = sharedRateLimiter({
+  name: "monitoring-test",
+  windowMs: 60_000,
+  maxRequests: 5,
+  onUnavailable: "allow",
+});
 
 /**
  * The owner's way to see one error arrive in Sentry after a deploy: a POST with

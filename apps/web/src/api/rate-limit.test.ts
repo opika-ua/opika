@@ -109,6 +109,7 @@ describe("upstashRateLimiter", () => {
       windowMs: 60_000,
       maxRequests: 100,
       prefix: "test",
+      onUnavailable: "deny",
     });
 
     expect(await limiter.check("1.2.3.4", new Date())).toBe(true);
@@ -123,6 +124,7 @@ describe("upstashRateLimiter", () => {
       windowMs: 60_000,
       maxRequests: 100,
       prefix: "test",
+      onUnavailable: "deny",
     });
 
     expect(await limiter.check("1.2.3.4", new Date())).toBe(false);
@@ -137,6 +139,7 @@ describe("upstashRateLimiter", () => {
       windowMs: 60_000,
       maxRequests: 100,
       prefix: "test",
+      onUnavailable: "deny",
     });
 
     await limiter.check("9.9.9.9", new Date());
@@ -152,6 +155,7 @@ describe("upstashRateLimiter", () => {
       windowMs: 90_000,
       maxRequests: 42,
       prefix: "test",
+      onUnavailable: "deny",
     });
 
     expect(slidingWindowMock).toHaveBeenCalledWith(42, "90 s");
@@ -173,6 +177,7 @@ describe("upstashRateLimiter", () => {
       windowMs: 200,
       maxRequests: 10,
       prefix: "test",
+      onUnavailable: "deny",
     });
 
     expect(slidingWindowMock).toHaveBeenCalledWith(10, "1 s");
@@ -192,6 +197,7 @@ describe("upstashRateLimiter", () => {
       windowMs: 60_000,
       maxRequests: 100,
       prefix: "test",
+      onUnavailable: "deny",
     });
 
     expect(ratelimitConstructorMock).toHaveBeenCalledWith(
@@ -226,6 +232,7 @@ describe("upstashRateLimiter", () => {
       windowMs: 60_000,
       maxRequests: 100,
       prefix: "test",
+      onUnavailable: "deny",
     });
 
     expect(await limiter.check("1.2.3.4", new Date())).toBe(false);
@@ -251,6 +258,7 @@ describe("upstashRateLimiter", () => {
       windowMs: 60_000,
       maxRequests: 100,
       prefix: "test",
+      onUnavailable: "deny",
     });
 
     expect(await limiter.check("1.2.3.4", new Date())).toBe(false);
