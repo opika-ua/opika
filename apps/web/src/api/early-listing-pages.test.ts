@@ -39,6 +39,9 @@ const STATES = {
 } as const satisfies Record<string, ShelterVerification>;
 
 /** Inside the period, one millisecond short of expiry, and exactly at it. */
+type ShelterFixtureDonation = { url: string; provider: "monobank_jar" } | null;
+const LIVE_LINK = { url: "https://send.monobank.ua/jar/live", provider: "monobank_jar" } as const;
+
 const RUNNING = new Date(NOW.getTime() - 10 * DAY);
 const LAST_MS = new Date(NOW.getTime() - EARLY_LISTING_DAYS * DAY + 1);
 const AT_EXPIRY = new Date(NOW.getTime() - EARLY_LISTING_DAYS * DAY);
@@ -47,12 +50,14 @@ async function seed(
   state: keyof typeof STATES,
   since: Date | null,
   animalOverrides?: AnimalFixtureOverrides,
+  donation: ShelterFixtureDonation = null,
 ) {
   const city = makeCity();
   await cityRepo(h.db).insert(city);
   const shelter = makeShelter({
     verification: STATES[state],
     earlyListingSince: since,
+    donation,
     exactAddress: {
       line1: "вул. Тестова 1",
       line2: null,
@@ -116,6 +121,24 @@ describe("shelters.byId", () => {
     const rejected = await seed("rejected", RUNNING);
     const refused = await h.call("shelters.byId", { shelterId: rejected.shelter.id });
     expect([refused.status, code(refused)]).toEqual([404, "NOT_FOUND"]);
+  });
+
+  /** An approved link is the shelter's own; the page of an unverified shelter must not send money anywhere. */
+  it.each(["pending", "under_review"] as const)(
+    "shows no donation link for a shelter listed early in %s, though one is stored",
+    async (state) => {
+      const { shelter } = await seed(state, RUNNING, undefined, LIVE_LINK);
+      const res = await h.call("shelters.byId", { shelterId: shelter.id });
+      expect(res.status).toBe(200);
+      expect(field(res, "donation")).toBeNull();
+      expect(res.raw).not.toContain("monobank");
+    },
+  );
+
+  it("shows the stored link once the shelter is verified", async () => {
+    const { shelter } = await seed("verified", null, undefined, LIVE_LINK);
+    const res = await h.call("shelters.byId", { shelterId: shelter.id });
+    expect(field(res, "donation")).toEqual(LIVE_LINK);
   });
 
   it("a pending shelter with no permission is still NOT_FOUND", async () => {

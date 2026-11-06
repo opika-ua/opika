@@ -234,6 +234,52 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     "Посилання на збір відхилено · ви",
   ],
   [
+    "donation_removed, with a waiting proposal cleared too",
+    {
+      kind: "donation_removed",
+      at: AT,
+      moderatorId: ME,
+      previousLive: link,
+      clearedPending: true,
+      reason: { code: "cannot_confirm", note: "Не відкривається" },
+    },
+    "Посилання на збір прибрано: send.monobank.ua. Не вдалося підтвердити, куди веде посилання. Не відкривається Пропозицію, що чекала, скасовано разом із посиланням · ви",
+  ],
+  [
+    "donation_removed, nothing else waiting",
+    {
+      kind: "donation_removed",
+      at: AT,
+      moderatorId: ME,
+      previousLive: link,
+      clearedPending: false,
+      reason: { code: "shelter_request", note: "Попросили" },
+    },
+    "Посилання на збір прибрано: send.monobank.ua. Прохання притулку. Попросили · ви",
+  ],
+  [
+    "donation_suspended, moved to pending",
+    {
+      kind: "donation_suspended",
+      at: AT,
+      moderatorId: ME,
+      previousLive: link,
+      outcome: "moved_to_pending",
+    },
+    "Посилання на збір send.monobank.ua переведено на повторне схвалення: притулок призупинено · ви",
+  ],
+  [
+    "donation_suspended, newer proposal kept",
+    {
+      kind: "donation_suspended",
+      at: AT,
+      moderatorId: ME,
+      previousLive: link,
+      outcome: "pending_kept",
+    },
+    "Чинне посилання send.monobank.ua більше не показується: притулок призупинено. Новіша пропозиція лишається в очікуванні · ви",
+  ],
+  [
     "verified_data_changed, legal entity",
     {
       kind: "verified_data_changed",

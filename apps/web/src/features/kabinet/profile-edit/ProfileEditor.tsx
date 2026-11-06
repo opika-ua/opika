@@ -16,6 +16,7 @@ import { PageSave, PageSaveStatus } from "../shared/page-save";
 import { runWrite } from "../shared/write-result";
 import { ContactsSection } from "./ContactsSection";
 import { DonationSection } from "./DonationSection";
+import type { DonationOutcome } from "./donation-outcome";
 import { useReportVerification } from "./LiveVerificationStatus";
 import { LogoSection } from "./LogoSection";
 import { PauseControl } from "./PauseControl";
@@ -40,14 +41,14 @@ export function ProfileEditor({
   initialView,
   cityName,
   operatorName,
-  donationDeclined,
+  donationOutcome,
   initialTab = "profil",
   client = kabinetProfileBrowserClient,
 }: {
   initialView: KabinetShelterView;
   cityName: string | null;
   operatorName: string;
-  donationDeclined: boolean;
+  donationOutcome: DonationOutcome;
   initialTab?: ProfileTab;
   client?: KabinetProfileClient;
 }) {
@@ -144,7 +145,8 @@ export function ProfileEditor({
         <DonationSection
           donation={view.donation}
           pendingDonation={view.pendingDonation}
-          declined={donationDeclined}
+          outcome={donationOutcome}
+          status={view.verification.status}
           propose={(url) => write(() => profile.proposeDonation({ url }))}
           cancel={() => write(() => profile.cancelDonationProposal({}))}
         />

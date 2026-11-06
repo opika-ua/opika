@@ -3,6 +3,7 @@ import {
   ContactChannelInputSchema,
   characterCount,
   DonationLinkSchema,
+  donationUrlProblemOf,
   FRESHNESS_SENTENCE_MAX_CHARACTERS,
   normalizeFreshnessSentenceText,
   normalizeUaPhone,
@@ -147,6 +148,19 @@ export function linkProblem(raw: string): "httpsOnly" | "notAUrl" | null {
   }
   if (url.protocol !== "https:") return url.protocol === "http:" ? "httpsOnly" : "notAUrl";
   return DonationLinkSchema.shape.url.safeParse(value).success ? null : "notAUrl";
+}
+
+/**
+ * `linkProblem` plus the rules only a donation link has (userinfo, IDN hosts), from the same
+ * domain function the server applies, so the form refuses what the API would.
+ */
+export function donationLinkProblem(
+  raw: string,
+): "httpsOnly" | "notAUrl" | "donationUserinfo" | "donationIdn" | null {
+  const problem = linkProblem(raw);
+  if (problem !== null) return problem;
+  const extra = donationUrlProblemOf(raw);
+  return extra === null ? null : extra === "userinfo" ? "donationUserinfo" : "donationIdn";
 }
 
 /**

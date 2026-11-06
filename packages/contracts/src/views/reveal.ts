@@ -47,8 +47,9 @@ export type RevealShelterContactView = z.infer<typeof RevealShelterContactViewSc
 
 /**
  * What an adopter receives of the shelter as it stood at their first reveal of
- * this animal, from the reveal's stored snapshot (the record): its donation
- * link, the verification status it held then, and its city. Never its exact
+ * this animal, from the reveal's stored snapshot (the record): the verification status it
+ * held then, and its city. No donation link: that is read from the shelter's public page, where
+ * it is shown only while the shelter is verified; the snapshot still keeps what it held. Never its exact
  * address, district or coordinates. Named for when it was taken: a repeat
  * reveal returns the same stored reveal, so none of this is re-read from the
  * shelter; only `shelterContact` (the name and the channels) can be current.
@@ -76,7 +77,6 @@ export type RevealShelterContactView = z.infer<typeof RevealShelterContactViewSc
  */
 export const ShelterAtFirstRevealViewSchema = ShelterContactSnapshotSchema.pick({
   shelterId: true,
-  donation: true,
 }).extend({
   publicLocation: PublicCityLocationViewSchema,
   /**

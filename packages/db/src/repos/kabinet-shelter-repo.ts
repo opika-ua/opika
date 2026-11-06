@@ -54,6 +54,15 @@ export type AuditedShelterChange =
   | { kind: "exact_address"; exactAddress: ExactAddress; publicLocation: PublicLocation }
   /** The operator approved the proposed link: it goes live and the proposal clears (N20). */
   | { kind: "donation_approved"; donation: DonationLink }
+  /**
+   * The live link and the proposal set together: removal clears both, a suspension takes the live
+   * link away (and may park it as the proposal). One change, so the two columns never disagree.
+   */
+  | {
+      kind: "donation_state";
+      donation: DonationLink | null;
+      pendingDonation: PendingDonation | null;
+    }
   /** The operator renamed the shelter (R-UI 4); recorded as `display_name_changed`. */
   | { kind: "display_name"; displayName: string };
 
@@ -110,6 +119,8 @@ function columnsOf(change: AuditedShelterChange) {
       };
     case "donation_approved":
       return { donation: change.donation, pendingDonation: null };
+    case "donation_state":
+      return { donation: change.donation, pendingDonation: change.pendingDonation };
     case "display_name":
       return { displayName: change.displayName };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */

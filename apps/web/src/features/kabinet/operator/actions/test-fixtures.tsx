@@ -125,6 +125,7 @@ export function fakeClient(overrides: FakeOverrides = {}) {
     donation: {
       approve: unexpected("donation.approve"),
       reject: unexpected("donation.reject"),
+      remove: unexpected("donation.remove"),
       ...overrides.donation,
     },
     admins: {

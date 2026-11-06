@@ -58,11 +58,16 @@ const STATES = {
 } as const satisfies Record<string, ShelterVerification>;
 type StateName = keyof typeof STATES;
 
-async function seed(state: StateName, animalOverrides?: AnimalFixtureOverrides) {
+async function seed(
+  state: StateName,
+  animalOverrides?: AnimalFixtureOverrides,
+  donation: { url: string; provider: "monobank_jar" } | null = null,
+) {
   const city = makeCity();
   await cityRepo(h.db).insert(city);
   const shelter = makeShelter({
     verification: STATES[state],
+    donation,
     exactAddress: {
       line1: "вул. Тестова 1",
       line2: null,
@@ -208,4 +213,25 @@ describe("animals.reveal on a paused shelter", () => {
     const res = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
     expect([res.status, code(res)]).toEqual([404, "SHELTER_NOT_VISIBLE"]);
   });
+});
+
+describe("shelters.byId and the donation link", () => {
+  const LINK = { url: "https://send.monobank.ua/jar/live", provider: "monobank_jar" } as const;
+
+  it.each(["verified", "paused"] as const)("shows the link of a %s shelter", async (state) => {
+    const { shelter } = await seed(state, undefined, LINK);
+    const res = await h.call("shelters.byId", { shelterId: shelter.id });
+    expect(res.status).toBe(200);
+    expect((res.body as Record<string, unknown>).donation).toEqual(LINK);
+  });
+
+  it.each(["suspended", "suspendedFromPause", "pending", "under_review", "rejected"] as const)(
+    "never serves the link of a %s shelter (the page itself is not found)",
+    async (state) => {
+      const { shelter } = await seed(state, undefined, LINK);
+      const res = await h.call("shelters.byId", { shelterId: shelter.id });
+      expect(res.status).toBe(404);
+      expect(res.raw).not.toContain("monobank");
+    },
+  );
 });

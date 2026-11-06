@@ -2,7 +2,7 @@ import { z } from "zod";
 import { LISTING_KINDS } from "../animals/listing-transition";
 import { LocalizedTextSchema } from "../primitives/localized-text";
 import { ShelterContactSchema } from "./contact";
-import { DonationLinkSchema } from "./donation";
+import { DonationLinkSchema, DonationRemovalCodeSchema } from "./donation";
 import {
   ANIMAL_EDITED_FIELDS,
   HistoryWithdrawalReasonSchema,
@@ -90,6 +90,19 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
     decision: z.enum(["approved", "rejected"]),
     link: DonationLinkSchema,
     previousLive: DonationLinkSchema.nullable(),
+  }),
+  z.object({
+    kind: z.literal("donation_removed"),
+    ...base,
+    previousLive: DonationLinkSchema,
+    clearedPending: z.boolean(),
+    reason: z.object({ code: DonationRemovalCodeSchema, note: z.string().min(1) }),
+  }),
+  z.object({
+    kind: z.literal("donation_suspended"),
+    ...base,
+    previousLive: DonationLinkSchema,
+    outcome: z.enum(["moved_to_pending", "pending_kept"]),
   }),
   z.object({
     kind: z.literal("verified_data_changed"),
@@ -240,6 +253,23 @@ export function shelterFacingHistoryOf(
         decision: entry.decision,
         link: entry.link,
         previousLive: entry.previousLive,
+      };
+    case "donation_removed":
+      return {
+        kind: "donation_removed",
+        at: entry.at,
+        actor: operator,
+        previousLive: entry.previousLive,
+        clearedPending: entry.clearedPending,
+        reason: entry.reason,
+      };
+    case "donation_suspended":
+      return {
+        kind: "donation_suspended",
+        at: entry.at,
+        actor: operator,
+        previousLive: entry.previousLive,
+        outcome: entry.outcome,
       };
     case "verified_data_changed":
       return { kind: "verified_data_changed", at: entry.at, actor: operator, change: entry.change };

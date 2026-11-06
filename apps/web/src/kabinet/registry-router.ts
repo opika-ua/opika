@@ -31,6 +31,7 @@ import {
   registryApprove,
   registryDonationApprove,
   registryDonationReject,
+  registryDonationRemove,
   registryReinstate,
   registryReject,
   registryResubmit,
@@ -159,6 +160,9 @@ export const registryRouter = guarded.router({
       ),
       reject: guarded.registry.donation.reject.handler(({ context, input, errors }) =>
         registryDonationReject(context, operator(context.access), input, errors),
+      ),
+      remove: guarded.registry.donation.remove.handler(({ context, input, errors }) =>
+        registryDonationRemove(context, operator(context.access), input, errors),
       ),
     },
     admins: {

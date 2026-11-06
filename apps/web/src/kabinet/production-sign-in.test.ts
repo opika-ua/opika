@@ -351,7 +351,11 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 747 with the early-listing operator, banner and listed-variant lines (N7-N13, B5 and B6, 2026-11-04; B7 was removed in #426).
     // 762 with the copy proofread (owner-approved 2026-11-06): `units` (twelve count forms),
     // `operatorStatus` (two) and `animalForm.medicalNotes.publicNote`.
-    expect(pending.length + written.length).toBe(762);
+    // 785 with the donation link safety copy (owner-approved 2026-11-06): six `profileEdit.*`
+    // (`donation.previewLabelUnverified`, `removed`, `suspendedNote`, `reinstatedPending` and two
+    // `errors.donation*`) and seventeen `operator.*` (four history lines, five removal codes,
+    // four `donation.*` and the four-string `donation.removeDialog`).
+    expect(pending.length + written.length).toBe(785);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

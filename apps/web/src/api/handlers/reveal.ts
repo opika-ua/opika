@@ -224,7 +224,7 @@ export const shelterContactOf = (
  * 2026-10-15: "the exact address never leaves the server for adopters"): the
  * name and contacts the caller chose (`shelterContact`: current, or the
  * first-reveal record's, K4-B5, RUI4-F1), and from the first-reveal record the
- * shelter's donation link, status and city. The exact address, district and
+ * shelter's status and city. The exact address, district and
  * point stay in the stored record, the operator's. Shared by `animals.reveal`
  * and `reveals.listMine`.
  *
@@ -247,7 +247,6 @@ export function toView(
     shelterAtFirstReveal: {
       shelterId: record.shelterId,
       verificationStatusAtReveal: publicListingLabelAtReveal(record.verificationStatusAtReveal),
-      donation: record.donation,
       publicLocation: cityOnlyLocationOf(record.publicLocation),
     },
     animalSnapshot: reveal.animalSnapshot,
