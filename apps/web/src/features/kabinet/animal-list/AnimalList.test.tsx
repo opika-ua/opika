@@ -151,11 +151,15 @@ function fakeClient(handlers: Handlers = {}) {
 }
 
 const VERIFIED = { status: "verified", since: new Date("2025-03-14T10:00:00Z") } as const;
-const shelterIn = (verification: KabinetShelterView["verification"]) =>
+const shelterIn = (
+  verification: KabinetShelterView["verification"],
+  earlyListing: KabinetShelterView["earlyListing"] = { kind: "none" },
+) =>
   ({
     id: "51000000-0000-4000-8000-000000000001",
     displayName: "Притулок «Домівка»",
     verification,
+    earlyListing,
   }) as unknown as KabinetShelterView;
 
 const OPEN: AnimalFormEditing = { kind: "open" };
@@ -163,6 +167,7 @@ const OPEN: AnimalFormEditing = { kind: "open" };
 function renderList({
   first = FIRST,
   verification = VERIFIED,
+  earlyListing = { kind: "none" },
   editing = OPEN,
   viewer = "admin",
   handlers = {},
@@ -170,6 +175,7 @@ function renderList({
 }: {
   first?: AnimalListPageData;
   verification?: KabinetShelterView["verification"];
+  earlyListing?: KabinetShelterView["earlyListing"];
   editing?: AnimalFormEditing;
   viewer?: "admin" | "support";
   handlers?: Handlers;
@@ -178,7 +184,7 @@ function renderList({
   const { client, calls } = fakeClient(handlers);
   render(
     <AnimalList
-      shelter={shelterIn(verification)}
+      shelter={shelterIn(verification, earlyListing)}
       first={first}
       viewer={viewer}
       editing={editing}
@@ -1200,6 +1206,21 @@ describe("when nobody can see the cards", () => {
       expect(screen.getByText("1 картку ви не підтверджували понад 30 днів.")).toBeTruthy();
     },
   );
+
+  it("pending but allowed to show: the listed line, and not the one saying nobody sees the cards", () => {
+    renderList({
+      verification: { status: "pending", since: NOW } as KabinetShelterView["verification"],
+      earlyListing: { kind: "running", expiresAt: new Date("2026-12-01T00:00:00Z") },
+    });
+    expect(
+      screen.getByText("Опубліковані картки показуються з позначкою «на перевірці»."),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(
+        "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
+      ),
+    ).toBeNull();
+  });
 
   it("verified: no such line", () => {
     renderList();

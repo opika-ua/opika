@@ -17,7 +17,7 @@ import { Menu, MenuDivider, MenuItem } from "../../../ui/Menu";
 import { Photo } from "../../../ui/Photo";
 import { Text } from "../../../ui/Text";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
-import { type ShelterVisibility, uploadProgressText } from "./labels";
+import { cardsArePublic, type ShelterVisibility, uploadProgressText } from "./labels";
 import { usePhotoDrag } from "./use-photo-drag";
 
 /**
@@ -126,8 +126,9 @@ export function PhotoSection({
   // «бачать люди» is true only while the shelter's cards are shown. His other
   // line serves both hidden kinds: «поки її ще не бачать» ("while they still
   // don't see it") makes no claim about verification.
-  const lastPhotoText =
-    shelterVisibility === "visible" ? t.photos.lastPhotoKept : t.photos.lastPhotoKeptNotShown;
+  const lastPhotoText = cardsArePublic(shelterVisibility)
+    ? t.photos.lastPhotoKept
+    : t.photos.lastPhotoKeptNotShown;
   const room =
     MAX_ANIMAL_PHOTOS - photos.length - uploads.filter((u) => u.state.kind !== "failed").length;
 

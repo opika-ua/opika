@@ -276,6 +276,23 @@ describe("the reveal is the one sanctioned path to the contact details, and neve
     const parsed = ContactRevealViewSchema.parse(revealOf());
     expect(parsed.shelterAtFirstReveal.verificationStatusAtReveal).toBe("verified");
   });
+
+  /** The operator's words never reach an adopter: only the two public labels parse. */
+  it("accepts only the public labels for the status at reveal, never a raw status", () => {
+    const withStatus = (status: string) =>
+      ContactRevealViewSchema.safeParse(
+        revealOf({
+          shelterAtFirstReveal: {
+            ...revealOf().shelterAtFirstReveal,
+            verificationStatusAtReveal: status,
+          },
+        }),
+      ).success;
+    expect(withStatus("listed_before_verification")).toBe(true);
+    for (const raw of ["pending", "under_review", "rejected", "paused", "suspended"]) {
+      expect(withStatus(raw), raw).toBe(false);
+    }
+  });
 });
 
 /**

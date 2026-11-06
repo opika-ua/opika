@@ -129,6 +129,7 @@ describe("kabinetHomeOf", () => {
       "description",
       "displayName",
       "donation",
+      "earlyListing",
       "exactAddress",
       "freshnessSentence",
       "id",

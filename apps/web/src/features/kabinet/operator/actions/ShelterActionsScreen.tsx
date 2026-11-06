@@ -6,6 +6,7 @@ import { AddEvidencePanel } from "./AddEvidencePanel";
 import { AdminsManager } from "./AdminsManager";
 import { DecisionPanel } from "./DecisionPanel";
 import { DonationDecision } from "./DonationDecision";
+import { EarlyListingPanel } from "./EarlyListingPanel";
 import { OperatorActionsRoot } from "./OperatorActionsRoot";
 import { RenameForm } from "./RenameForm";
 import { SupportEntry } from "./SupportEntry";
@@ -48,6 +49,7 @@ export function ShelterActionsScreen({
             <>
               <DecisionPanel />
               <AddEvidencePanel />
+              <EarlyListingPanel />
             </>
           ),
           donationDecision: <DonationDecision />,

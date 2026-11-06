@@ -32,6 +32,7 @@ export type ActionFailure =
   | { kind: "evidence_insufficient" }
   | { kind: "evidence_not_editable" }
   | { kind: "evidence_limit_reached" }
+  | { kind: "early_listing_refused"; reason: EarlyListingRefusal }
   | { kind: "not_found" }
   | { kind: "address_has_a_role"; reason: AddressRoleReason }
   | { kind: "invalid_evidence"; reason: InvalidEvidenceReason }
@@ -41,6 +42,13 @@ export type ActionFailure =
 
 export type ActionRefusal = Exclude<ActionFailure, { kind: "no_answer" }>;
 
+type EarlyListingRefusal =
+  | "wrong_status"
+  | "already_running"
+  | "not_running"
+  | "evidence_below_minimum"
+  | "note_required"
+  | "limit_reached";
 type AddressRoleReason = "shelter_admin" | "operator" | "invited_elsewhere";
 type InvalidEvidenceReason = "site_visit_in_future" | "document_not_supported_yet";
 
@@ -64,6 +72,12 @@ export function actionFailureOf(error: unknown): ActionFailure {
       return { kind: "evidence_not_editable" };
     case "EVIDENCE_LIMIT_REACHED":
       return { kind: "evidence_limit_reached" };
+    case "EARLY_LISTING_REFUSED": {
+      const data = apiErrors.EARLY_LISTING_REFUSED.data.safeParse(fieldOf(error, "data"));
+      return data.success
+        ? { kind: "early_listing_refused", reason: data.data.reason }
+        : { kind: "failed" };
+    }
     case "NOT_FOUND":
       return { kind: "not_found" };
     case "ADDRESS_HAS_A_ROLE": {
@@ -96,6 +110,11 @@ export const staleAfter = (failure: ActionRefusal): boolean =>
   failure.kind === "conflict" ||
   failure.kind === "evidence_insufficient" ||
   failure.kind === "evidence_not_editable" ||
+  // The status or the running period moved under the page; the other reasons are about the input.
+  (failure.kind === "early_listing_refused" &&
+    (failure.reason === "wrong_status" ||
+      failure.reason === "already_running" ||
+      failure.reason === "not_running")) ||
   failure.kind === "not_found";
 
 /**

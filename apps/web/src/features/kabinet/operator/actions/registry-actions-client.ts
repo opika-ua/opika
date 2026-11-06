@@ -3,7 +3,8 @@ import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import type { ContractRouterClient } from "@orpc/contract";
 
-const { shelters, verification, donation, admins, support } = registryContract.registry;
+const { shelters, verification, donation, admins, support, earlyListing } =
+  registryContract.registry;
 
 /**
  * What S4's action controls may call from the browser: the registry writes
@@ -22,7 +23,7 @@ const { shelters, verification, donation, admins, support } = registryContract.r
  *
  * Every procedure here is the contract's own object, so each keeps its
  * `registry` access meta: the served route refuses it to anyone but a
- * super_admin (`kabinet-registry-access.test.ts`: all nineteen, and a
+ * super_admin (`kabinet-registry-access.test.ts`: all twenty-one, and a
  * rename-shaped `updateProfile` on its own). Same origin, so the Origin check
  * and the per-user limit of `/api/kabinet` apply as they do to K4's editor.
  */
@@ -39,6 +40,10 @@ export const registryActionsBrowserContract = {
       reinstate: verification.reinstate,
       resubmit: verification.resubmit,
       addEvidence: verification.addEvidence,
+    },
+    earlyListing: {
+      allow: earlyListing.allow,
+      revoke: earlyListing.revoke,
     },
     donation: {
       approve: donation.approve,

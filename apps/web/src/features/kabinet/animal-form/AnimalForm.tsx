@@ -42,6 +42,7 @@ import {
   valuesOf,
 } from "./form-values";
 import {
+  cardsArePublic,
   createdWhen,
   missingSentence,
   publishedAnnouncementOf,
@@ -465,7 +466,7 @@ export function AnimalForm({
   }
 
   const heading = view === null ? t.titleNew : view.name;
-  const shelterShown = shelterVisibility === "visible";
+  const shelterShown = cardsArePublic(shelterVisibility);
   // Seen by people: a published or reserved card of a shelter whose cards
   // are on the public surfaces (verified, not paused). Both halves, because
   // the feed, the gallery and `animals.byId` each check both.

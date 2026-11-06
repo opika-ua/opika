@@ -1,0 +1,223 @@
+/**
+ * Listing before verification, PR B, in a real browser: the operator allows showing a pending
+ * shelter's cards from S4 (confirm text, days left), the shelter's admin reads the banner and the
+ * listed note on its landing page, and the operator withdraws it. Flows only, by role, label and
+ * text. With `EARLY_LISTING_SHOTS_DIR` set it also saves screenshots of the operator panel and the
+ * banner (desktop and phone); CI does not set it.
+ *
+ * Fictional shelter, own database, sign-in on the second server like `kabinet-operator-actions`.
+ * Own `x-forwarded-for` (TEST-NET-2 .37).
+ */
+
+import { randomUUID } from "node:crypto";
+import { join } from "node:path";
+import { createDatabase, productionLocationPolicy } from "@opika/db";
+import { kabinetInvitationRepo, kabinetShelterRepo } from "@opika/db/repos";
+import { authMember, authUser, cities, superAdmins } from "@opika/db/schema";
+import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
+import { type ModeratorId, publicLocationOf, type Shelter, type ShelterId } from "@opika/domain";
+import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { HARNESS_LOCATION_HMAC_SECRET } from "../harness-env";
+import { type SignInServer, startSignInServer } from "./sign-in-server";
+
+const FORWARDED_FOR = "198.51.100.37";
+test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" });
+
+const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
+const SHOTS = process.env.EARLY_LISTING_SHOTS_DIR;
+
+async function signedInContext(
+  browser: Browser,
+  server: SignInServer,
+  email: string,
+): Promise<BrowserContext> {
+  const { origin } = server;
+  const requested = await fetch(`${origin}/api/auth/sign-in/magic-link`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin, "x-forwarded-for": FORWARDED_FOR },
+    body: JSON.stringify({ email }),
+  });
+  expect(requested.status).toBe(200);
+  const link = await server.linkFor(email);
+  const context = await browser.newContext({
+    baseURL: origin,
+    extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR },
+  });
+  const page = await context.newPage();
+  expect((await page.goto(link))?.status()).toBe(200);
+  await Promise.all([
+    page.waitForURL(
+      (url) => url.pathname.startsWith("/kabinet") && !url.pathname.startsWith("/kabinet/vkhid"),
+    ),
+    page.getByRole("button").click(),
+  ]);
+  await page.close();
+  return context;
+}
+
+async function shoot(page: Page, name: string) {
+  if (SHOTS === undefined) return;
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.screenshot({ path: join(SHOTS, `${name}-desktop.png`), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: join(SHOTS, `${name}-mobile.png`), fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+}
+
+test.describe("listing before verification, operator and shelter sides", () => {
+  let server: SignInServer | undefined;
+  let operator: BrowserContext | undefined;
+  let shelterAdmin: BrowserContext | undefined;
+  let shelterId: ShelterId | undefined;
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(180_000);
+    const db = createDatabase(HARNESS_DATABASE_URL);
+    const now = new Date();
+    server = await startSignInServer(HARNESS_DATABASE_URL, {
+      LOCATION_HMAC_SECRET: HARNESS_LOCATION_HMAC_SECRET,
+      KABINET_OPERATOR_DISPLAY_NAME: "Ярина Перевіркова",
+    });
+
+    const operatorEmail = `harness-operator-${randomUUID()}@example.test`;
+    const operatorId = randomUUID();
+    await db.insert(authUser).values({
+      id: operatorId,
+      name: "Harness operator",
+      email: operatorEmail,
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(superAdmins).values({ id: randomUUID(), userId: operatorId, grantedAt: now });
+
+    const [city] = await db.select({ id: cities.id }).from(cities).limit(1);
+    if (city === undefined) throw new Error("no seeded city");
+    const id = randomUUID() as ShelterId;
+    const exactAddress = {
+      line1: "вул. Тестова, 1",
+      line2: null,
+      postalCode: null,
+      cityId: city.id as never,
+      district: null,
+      coordinates: { lat: 50.45, lng: 30.52 },
+    };
+    const shelter: Shelter = {
+      id,
+      displayName: `Притулок «Репетиція ${id.slice(0, 4)}»`,
+      description: { uk: "Вигаданий притулок для перевірки екранів.", en: null },
+      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Тестова" },
+      publicLocation: publicLocationOf(
+        id,
+        exactAddress,
+        productionLocationPolicy(HARNESS_LOCATION_HMAC_SECRET),
+      ),
+      exactAddress,
+      contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
+      donation: null,
+      logo: null,
+      pendingDonation: null,
+      version: 0,
+      earlyListingSince: null,
+      freshnessSentence: null,
+      verification: {
+        status: "pending",
+        submittedAt: now,
+        evidence: {
+          submittedAt: now,
+          items: [
+            {
+              kind: "site_visit",
+              visitedAt: new Date("2026-10-01T00:00:00Z"),
+              visitedBy: operatorId as ModeratorId,
+              notes: "Чисто, вольєри з навісом.",
+            },
+          ],
+        },
+      },
+      createdAt: now,
+      lastUpdatedAt: now,
+    };
+    await kabinetShelterRepo(db).createWithHistory(shelter, {
+      id: randomUUID(),
+      entry: {
+        kind: "shelter_created",
+        at: now,
+        moderatorId: operatorId as ModeratorId,
+        via: "registry",
+      },
+    });
+    shelterId = id;
+
+    const adminEmail = `harness-early-admin-${randomUUID()}@example.test`;
+    const adminId = randomUUID();
+    await db.insert(authUser).values({
+      id: adminId,
+      name: "Harness admin",
+      email: adminEmail,
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const organizationId = await kabinetInvitationRepo(db).ensureOrganization(
+      id,
+      { organizationId: randomUUID() },
+      now,
+    );
+    await db.insert(authMember).values({
+      id: randomUUID(),
+      organizationId,
+      userId: adminId,
+      role: "admin",
+      createdAt: now,
+    });
+
+    operator = await signedInContext(browser, server, operatorEmail);
+    shelterAdmin = await signedInContext(browser, server, adminEmail);
+  });
+
+  test.afterAll(async () => {
+    await operator?.close();
+    await shelterAdmin?.close();
+    await server?.stop();
+  });
+
+  test("allow with the confirm text, the shelter reads the banner, then withdraw", async () => {
+    if (operator === undefined || shelterAdmin === undefined || shelterId === undefined) {
+      throw new Error("not set up");
+    }
+    const ALLOW = "Дозволити показ до завершення перевірки";
+    const page = await operator.newPage();
+    expect((await page.goto(`/kabinet/prytulky/${shelterId}`))?.status()).toBe(200);
+    await shoot(page, "operator-panel-before");
+
+    await page.getByRole("button", { name: ALLOW }).click();
+    const dialog = page.getByRole("dialog", { name: ALLOW });
+    await expect(
+      dialog.getByText(
+        "Картки притулку побачать усі, з позначкою «на перевірці». Дозвіл діє до 60 днів, зняти його можна будь-коли.",
+      ),
+    ).toBeVisible();
+    await dialog.getByRole("button", { name: ALLOW }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText("До кінця показу: 60 днів")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Зняти дозвіл" })).toBeVisible();
+    await shoot(page, "operator-panel-running");
+
+    const kabinet = await shelterAdmin.newPage();
+    expect((await kabinet.goto("/kabinet/tvaryny"))?.status()).toBe(200);
+    await expect(
+      kabinet.getByText(/^Ваші картки показуються з позначкою «на перевірці» до \d+ \S+\.$/),
+    ).toBeVisible();
+    await expect(
+      kabinet.getByText(/ваші картки показуються з позначкою «на перевірці»\.$/),
+    ).toBeVisible();
+    await shoot(kabinet, "kabinet-banner");
+    await kabinet.close();
+
+    await page.getByRole("button", { name: "Зняти дозвіл" }).click();
+    await expect(page.getByRole("button", { name: ALLOW })).toBeVisible();
+    await expect(page.getByText(/^До кінця показу:/)).toBeHidden();
+    await page.close();
+  });
+});

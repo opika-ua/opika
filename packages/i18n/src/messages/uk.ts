@@ -434,6 +434,11 @@ export const uk = {
        */
       pendingNote:
         "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваших тварин бачите лише ви.",
+      /** B5, owner-approved 2026-11-04: the same note while the operator has allowed showing cards. */
+      pendingNoteListed:
+        "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваші картки показуються з позначкою «на перевірці».",
+      /** N13, owner-approved 2026-11-04: the shelter may see the end date, the public never does. `{date}` is a Kyiv day. */
+      earlyListingBanner: "Ваші картки показуються з позначкою «на перевірці» до {date}.",
       lockedTitle: "Встановлено під час перевірки",
       /** `{operator}` is the operator's display name (RS-Q2). */
       lockedNote:
@@ -959,6 +964,9 @@ export const uk = {
          */
         publishedNotShown:
           "Опубліковано. Ті, хто шукає тварину, побачать картку, щойно притулок пройде перевірку.",
+        /** B6, owner-approved 2026-11-04: while the operator has allowed showing cards before verification. */
+        publishedListed:
+          "Опубліковано. Картку видно всім з позначкою «на перевірці», поки притулок проходить перевірку.",
         viewPublic: "Відкрити сторінку тварини",
         stateChanged:
           "Картка змінилася в іншому вікні. Оновіть сторінку, щоб побачити поточну версію.",
@@ -1119,6 +1127,8 @@ export const uk = {
       },
       notVisible: {
         pending: "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
+        /** B7, owner-approved 2026-11-04. */
+        pendingListed: "Опубліковані картки показуються з позначкою «на перевірці».",
       },
       orderNote:
         "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.",
@@ -1612,7 +1622,8 @@ export const uk = {
           /** «72 години» is typed for INVITATION_TTL_MS; `copy-plural-pins.test.ts` pins it. */
           step2:
             "{name} отримає запрошення: посилання, щоб створити пароль, діє 72 години. Його можна надіслати ще раз.",
-          step3: "Тварин притулку не буде в галереї, доки ви не схвалите перевірку.",
+          step3:
+            "Тварин притулку не буде в галереї, доки ви не схвалите перевірку або не дозволите показ до її завершення.",
         },
         created: "Притулок створено.",
         createdNoInvite:
@@ -1719,6 +1730,26 @@ export const uk = {
           suspected_fraud: "Підозра на шахрайство",
           other: "Інше",
         },
+      },
+      /**
+       * Listing before verification, operator side (owner-approved copy table, 2026-11-04: N7–N12).
+       * `daysLeft` takes `{count}`, through `pluralizeUk`.
+       */
+      earlyListing: {
+        allow: "Дозволити показ до завершення перевірки",
+        revoke: "Зняти дозвіл",
+        confirm:
+          "Картки притулку побачать усі, з позначкою «на перевірці». Дозвіл діє до 60 днів, зняти його можна будь-коли.",
+        daysLeft: {
+          one: "До кінця показу: {count} день",
+          few: "До кінця показу: {count} дні",
+          many: "До кінця показу: {count} днів",
+        },
+        expired: "Показ завершився {date}",
+        extendNote: "Чому подовжуєте показ",
+        limitReached: "Показ до перевірки вже дозволяли двічі.",
+        evidenceMinimum:
+          "Щоб дозволити показ, потрібен хоча б візит на місце або одна рекомендація.",
       },
       errors: {
         illegalTransition: "З поточного статусу так не можна. Сторінку оновлено.",

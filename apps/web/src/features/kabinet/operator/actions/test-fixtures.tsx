@@ -20,6 +20,7 @@ export function registryView(overrides: Partial<RegistryShelterView> = {}): Regi
   return {
     id: SHELTER_ID,
     displayName: "Домівка",
+    earlyListing: { state: { kind: "none" }, periodsUsed: 0 },
     description: { uk: "Опис", en: null },
     legalEntity: {
       kind: "registered_ngo",
@@ -58,6 +59,12 @@ export function registryView(overrides: Partial<RegistryShelterView> = {}): Regi
   };
 }
 
+/** The same record with another early-listing state (the operator's derived view of it). */
+export const withEarlyListing = (
+  view: RegistryShelterView,
+  earlyListing: RegistryShelterView["earlyListing"],
+): RegistryShelterView => ({ ...view, earlyListing, version: view.version + 1 });
+
 /** The same record with another verification state, everything else kept. */
 export const withVerification = (
   view: RegistryShelterView,
@@ -74,6 +81,10 @@ type Fns = {
   shelters: Record<keyof RegistryActionsClient["registry"]["shelters"], ReturnType<typeof vi.fn>>;
   verification: Record<
     keyof RegistryActionsClient["registry"]["verification"],
+    ReturnType<typeof vi.fn>
+  >;
+  earlyListing: Record<
+    keyof RegistryActionsClient["registry"]["earlyListing"],
     ReturnType<typeof vi.fn>
   >;
   donation: Record<keyof RegistryActionsClient["registry"]["donation"], ReturnType<typeof vi.fn>>;
@@ -105,6 +116,11 @@ export function fakeClient(overrides: FakeOverrides = {}) {
       resubmit: unexpected("resubmit"),
       addEvidence: unexpected("addEvidence"),
       ...overrides.verification,
+    },
+    earlyListing: {
+      allow: unexpected("earlyListing.allow"),
+      revoke: unexpected("earlyListing.revoke"),
+      ...overrides.earlyListing,
     },
     donation: {
       approve: unexpected("donation.approve"),

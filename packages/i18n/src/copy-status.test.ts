@@ -182,7 +182,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       // 25 with addressNote back (row 57, his replacement, 2026-10-14): deleted as
       // a false claim (a map no adopter sees), restored once adopters receive
       // the city only (EM-Q10).
-      profile: 27,
+      profile: 29,
       profileStatus: ["paused", "pending", "rejected", "suspended", "under_review", "verified"],
       profileChannel: ["email", "phone", "telegram", "viber", "website"],
       support: ["body", "exit", "exitFailed", "signOutDisabled", "title", "viewingAs"],
@@ -789,8 +789,9 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     // audit 2026-10-22 #10
     "operator.create.whatHappens.step2":
       "{name} отримає запрошення: посилання, щоб створити пароль, діє 72 години. Його можна надіслати ще раз.",
+    // B8, owner-approved 2026-11-04: the operator now has a second way to make cards visible.
     "operator.create.whatHappens.step3":
-      "Тварин притулку не буде в галереї, доки ви не схвалите перевірку.",
+      "Тварин притулку не буде в галереї, доки ви не схвалите перевірку або не дозволите показ до її завершення.",
     "operator.evidence.add": "+ Додати доказ",
     "operator.evidence.remove": "Прибрати",
     "operator.evidence.typePicker": "Тип доказу",
@@ -972,6 +973,21 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.history.early_listing_lapsed": "Строк показу карток до завершення перевірки минув",
     "operator.evidence.gapItem": "{kind} – {provided} з {minimum}",
   };
+  /** Owner-approved 2026-11-04 (listing before verification, copy table N7–N12). */
+  const EARLY_LISTING_OPERATOR_COPY: Record<string, string> = {
+    "operator.earlyListing.allow": "Дозволити показ до завершення перевірки",
+    "operator.earlyListing.revoke": "Зняти дозвіл",
+    "operator.earlyListing.confirm":
+      "Картки притулку побачать усі, з позначкою «на перевірці». Дозвіл діє до 60 днів, зняти його можна будь-коли.",
+    "operator.earlyListing.daysLeft.one": "До кінця показу: {count} день",
+    "operator.earlyListing.daysLeft.few": "До кінця показу: {count} дні",
+    "operator.earlyListing.daysLeft.many": "До кінця показу: {count} днів",
+    "operator.earlyListing.expired": "Показ завершився {date}",
+    "operator.earlyListing.extendNote": "Чому подовжуєте показ",
+    "operator.earlyListing.limitReached": "Показ до перевірки вже дозволяли двічі.",
+    "operator.earlyListing.evidenceMinimum":
+      "Щоб дозволити показ, потрібен хоча б візит на місце або одна рекомендація.",
+  };
   /** Pet card PR 3b. His final text (2026-10-27): the builder's draft, approved as written. */
   const PET_CARD_PR3B_LOGO_CHANGED: Record<string, string> = {
     "operator.history.logo_changed": "Змінено логотип притулку",
@@ -1003,6 +1019,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(ROUND_4C_RUI4_F2),
         ...Object.keys(PET_CARD_PR3B_LOGO_CHANGED),
         ...Object.keys(EVIDENCE_ADD_COPY),
+        ...Object.keys(EARLY_LISTING_OPERATOR_COPY),
       ].sort(),
     );
   });
@@ -1029,6 +1046,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   it.each(Object.entries(EVIDENCE_ADD_COPY))("%s is the owner-approved text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
+
+  it.each(Object.entries(EARLY_LISTING_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
 
   it.each(Object.entries(CHECKED_AGAINST_CODE))(
     "%s carries his round-2 wording, true against the code, not his first draft",
@@ -1334,6 +1358,26 @@ describe("listing before verification (owner's copy table, 2026-11-04, N1–N3 a
       uk.kabinet.operator.history.early_listing_lapsed,
       "Строк показу карток до завершення перевірки минув",
     ],
+    [
+      "kabinet.profile.pendingNoteListed (B5)",
+      uk.kabinet.profile.pendingNoteListed,
+      "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваші картки показуються з позначкою «на перевірці».",
+    ],
+    [
+      "kabinet.animalForm.publish.publishedListed (B6)",
+      uk.kabinet.animalForm.publish.publishedListed,
+      "Опубліковано. Картку видно всім з позначкою «на перевірці», поки притулок проходить перевірку.",
+    ],
+    [
+      "kabinet.animalList.notVisible.pendingListed (B7)",
+      uk.kabinet.animalList.notVisible.pendingListed,
+      "Опубліковані картки показуються з позначкою «на перевірці».",
+    ],
+    [
+      "kabinet.profile.earlyListingBanner (N13)",
+      uk.kabinet.profile.earlyListingBanner,
+      "Ваші картки показуються з позначкою «на перевірці» до {date}.",
+    ],
   ])("%s is the approved text", (_name, actual, expected) => {
     expect(actual).toBe(expected);
   });
@@ -1583,6 +1627,9 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.publish.done": "Опубліковано. Тепер картку бачать ті, хто шукає тварину.",
     "kabinet.animalForm.publish.publishedNotShown":
       "Опубліковано. Ті, хто шукає тварину, побачать картку, щойно притулок пройде перевірку.",
+    // B6, owner-approved 2026-11-04.
+    "kabinet.animalForm.publish.publishedListed":
+      "Опубліковано. Картку видно всім з позначкою «на перевірці», поки притулок проходить перевірку.",
     "kabinet.animalForm.publish.viewPublic": "Відкрити сторінку тварини",
     "kabinet.animalForm.publish.stateChanged":
       "Картка змінилася в іншому вікні. Оновіть сторінку, щоб побачити поточну версію.",
@@ -1803,6 +1850,9 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     // audit 2026-10-22 #24
     "kabinet.animalList.notVisible.pending":
       "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
+    // B7, owner-approved 2026-11-04.
+    "kabinet.animalList.notVisible.pendingListed":
+      "Опубліковані картки показуються з позначкою «на перевірці».",
     // audit 2026-10-22 #41: the public name of the deck is «по одній»
     "kabinet.animalList.orderNote":
       "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.",

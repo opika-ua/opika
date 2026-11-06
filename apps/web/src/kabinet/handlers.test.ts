@@ -169,6 +169,58 @@ describe("access, through the served router", () => {
   });
 });
 
+describe("shelter.profile: the early listing as the shelter is told it", () => {
+  const DAY = 86_400_000;
+  it("a running permission carries its end date and nothing else about it", async () => {
+    const since = new Date(Date.now() - 10 * DAY);
+    const s = makeShelter({
+      verification: {
+        status: "pending",
+        submittedAt: new Date(),
+        evidence: { items: [], submittedAt: new Date() },
+      },
+      earlyListingSince: since,
+      publicLocation: { ...makeShelter().publicLocation, cityId: cityId as never },
+    });
+    await shelterRepo(db).insert(s);
+    const principal: KabinetPrincipal = {
+      kind: "shelter_admin",
+      shelterAdminId: ADMIN,
+      shelterId: s.id,
+    };
+    const { body } = await call<KabinetShelterView>("shelter.profile.get", {}, { principal });
+    expect(body.earlyListing).toEqual({
+      kind: "running",
+      expiresAt: new Date(since.getTime() + 60 * DAY),
+    });
+  });
+
+  it("is none once the period has run out, and for a verified shelter whatever is stored", async () => {
+    const lapsed = makeShelter({
+      verification: {
+        status: "pending",
+        submittedAt: new Date(),
+        evidence: { items: [], submittedAt: new Date() },
+      },
+      earlyListingSince: new Date(Date.now() - 61 * DAY),
+      publicLocation: { ...makeShelter().publicLocation, cityId: cityId as never },
+    });
+    await shelterRepo(db).insert(lapsed);
+    const asLapsed: KabinetPrincipal = {
+      kind: "shelter_admin",
+      shelterAdminId: ADMIN,
+      shelterId: lapsed.id,
+    };
+    expect(
+      (await call<KabinetShelterView>("shelter.profile.get", {}, { principal: asLapsed })).body
+        .earlyListing,
+    ).toEqual({ kind: "none" });
+    expect((await call<KabinetShelterView>("shelter.profile.get", {})).body.earlyListing).toEqual({
+      kind: "none",
+    });
+  });
+});
+
 describe("shelter.profile", () => {
   it("get returns the shelter-facing view: no evidence, no moderator ids", async () => {
     const result = await call("shelter.profile.get", {});

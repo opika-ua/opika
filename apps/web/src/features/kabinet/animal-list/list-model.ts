@@ -4,6 +4,7 @@ import {
   type KabinetAnimalRowView,
   type KabinetAnimalView,
   type KabinetDraftAnimalView,
+  type KabinetEarlyListing,
   type ShelterKabinetContract,
 } from "@opika/contracts";
 import {
@@ -373,6 +374,14 @@ export type VisibilityNotice =
   | { kind: "paused"; line: string }
   | { kind: "line"; text: string };
 
+/** «1 грудня», no year: the sentence it ends is closed by its own full stop, and «р.» would double it. */
+export const dayAndMonth = (date: Date): string =>
+  new Intl.DateTimeFormat("uk-UA", {
+    day: "numeric",
+    month: "long",
+    timeZone: KYIV_TIME_ZONE,
+  }).format(date);
+
 const longDay = (date: Date): string =>
   new Intl.DateTimeFormat("uk-UA", {
     day: "numeric",
@@ -381,7 +390,10 @@ const longDay = (date: Date): string =>
     timeZone: KYIV_TIME_ZONE,
   }).format(date);
 
-export const visibilityNoticeOf = (verification: ShelterFacingVerification): VisibilityNotice => {
+export const visibilityNoticeOf = (
+  verification: ShelterFacingVerification,
+  earlyListing: KabinetEarlyListing,
+): VisibilityNotice => {
   switch (verification.status) {
     case "verified":
       return { kind: "none" };
@@ -397,7 +409,10 @@ export const visibilityNoticeOf = (verification: ShelterFacingVerification): Vis
     }
     case "pending":
     case "under_review":
-      return { kind: "line", text: t.notVisible.pending };
+      return {
+        kind: "line",
+        text: earlyListing.kind === "running" ? t.notVisible.pendingListed : t.notVisible.pending,
+      };
     case "rejected":
       return { kind: "line", text: uk.kabinet.verificationDecision.rejectedEffect };
     case "suspended":

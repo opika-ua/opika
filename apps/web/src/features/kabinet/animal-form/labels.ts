@@ -1,3 +1,4 @@
+import type { KabinetEarlyListing } from "@opika/contracts";
 import {
   AGE_BUCKET_MAX_YEARS,
   AGE_BUCKET_MIN_YEARS,
@@ -32,7 +33,18 @@ const t = uk.kabinet.animalForm;
  * pause, a suspension), so that sentence would be false and only «зараз ніхто
  * не бачить» is true.
  */
-export type ShelterVisibility = "visible" | "awaiting_verification" | "hidden";
+export type ShelterVisibility =
+  | "visible"
+  | "listed_unverified"
+  | "awaiting_verification"
+  | "hidden";
+
+/**
+ * Whether the public can see the shelter's cards right now: verified, or listed before
+ * verification. The one test for «бачать люди»-type sentences, so the listed case cannot be left out.
+ */
+export const cardsArePublic = (visibility: ShelterVisibility): boolean =>
+  visibility === "visible" || visibility === "listed_unverified";
 
 /**
  * `visible` is the public surfaces' own rule (`FEED_VISIBLE_VERIFICATION_STATUSES`
@@ -46,11 +58,16 @@ export type ShelterVisibility = "visible" | "awaiting_verification" | "hidden";
  * the surfaces ever stop showing a verified shelter, and such a shelter has
  * passed. Exhaustive, so a new status fails to compile until it is placed.
  */
-export const shelterVisibilityOf = (status: VerificationStatus): ShelterVisibility => {
+export const shelterVisibilityOf = (
+  status: VerificationStatus,
+  earlyListing: KabinetEarlyListing,
+): ShelterVisibility => {
   if ((FEED_VISIBLE_VERIFICATION_STATUSES as readonly string[]).includes(status)) return "visible";
   switch (status) {
     case "pending":
     case "under_review":
+      // The view says `running` only inside the open statuses and the period (server-derived).
+      return earlyListing.kind === "running" ? "listed_unverified" : "awaiting_verification";
     case "rejected":
       return "awaiting_verification";
     case "verified":
@@ -76,6 +93,8 @@ export const publishedAnnouncementOf = (visibility: ShelterVisibility): string =
   switch (visibility) {
     case "visible":
       return t.publish.done;
+    case "listed_unverified":
+      return t.publish.publishedListed;
     case "awaiting_verification":
       return t.publish.publishedNotShown;
     case "hidden":

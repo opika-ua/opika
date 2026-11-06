@@ -1,7 +1,6 @@
 import { type apiErrors, type RegistryShelterView, UNKNOWN_CITY_MESSAGE } from "@opika/contracts";
 import { type AuditedShelterChange, cityRepo, kabinetShelterRepo } from "@opika/db/repos";
 import {
-  type AllowEarlyListingResult,
   addEvidence,
   allowEarlyListing,
   type CityId,
@@ -466,8 +465,6 @@ const lapsedEntries = (shelter: Shelter, now: Date): ShelterHistoryEntry[] => {
   return at === null ? [] : [{ kind: "early_listing_lapsed", at }];
 };
 
-const refusalOf = (result: Exclude<AllowEarlyListingResult, { kind: "ok" }>) => result.kind;
-
 /**
  * Operator only (the registry matrix). Not a verification move: the FSM, the evidence and the
  * reviewer are untouched. Re-read on a lost race, so an approval that lands meanwhile answers
@@ -492,7 +489,7 @@ export function registryAllowEarlyListing(
         now: deps.now,
       });
       if (result.kind !== "ok") {
-        throw errors.EARLY_LISTING_REFUSED({ data: { reason: refusalOf(result) } });
+        throw errors.EARLY_LISTING_REFUSED({ data: { reason: result.kind } });
       }
       return {
         changes: [{ kind: "early_listing_allowed", since: result.since }],

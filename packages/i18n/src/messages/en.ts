@@ -635,6 +635,9 @@ export const en = {
       voiceNote: "One sentence in the first person, written by you.",
       pendingNote:
         "I carry out the verification myself: I will write or call to arrange it. Until it is finished, only you can see your animals.",
+      pendingNoteListed:
+        "I carry out the verification myself: I will write or call to arrange it. Until it is finished, your cards are shown with the label «under review».",
+      earlyListingBanner: "Your cards are shown with the label «under review» until {date}.",
       lockedTitle: "Set during verification",
       lockedNote:
         "{operator} sets these details while verifying the shelter. Here they are read-only.",
@@ -982,6 +985,8 @@ export const en = {
         done: "Published. People looking for an animal can see the card now.",
         publishedNotShown:
           "Published. People looking for an animal will see the card as soon as the shelter passes verification.",
+        publishedListed:
+          "Published. Everyone can see the card with the label «under review» while the shelter is being verified.",
         viewPublic: "Open the animal's page",
         stateChanged:
           "The card changed in another window. Reload the page to see the current version.",
@@ -1108,6 +1113,7 @@ export const en = {
       },
       notVisible: {
         pending: "Your animals appear in the gallery as soon as the shelter passes verification.",
+        pendingListed: "Published cards are shown with the label «under review».",
       },
       orderNote:
         "Order in the gallery is by date: the person chooses the freshest cards first or those who have waited longest. Card completeness affects only the order in the deck. The order can't be changed here, and there is no promotion.",
@@ -1420,7 +1426,7 @@ export const en = {
           step2:
             "{name} gets a sign-in email. The link is valid for 72 hours and can be sent again.",
           step3:
-            "The shelter's animals won't be in the gallery until you approve the verification.",
+            "The shelter's animals won't be in the gallery until you approve the verification or allow showing them before it ends.",
         },
         created: "Shelter created.",
         createdNoInvite:
@@ -1523,6 +1529,21 @@ export const en = {
           suspected_fraud: "Suspected fraud",
           other: "Other",
         },
+      },
+      earlyListing: {
+        allow: "Allow showing before the review ends",
+        revoke: "Withdraw permission",
+        confirm:
+          "Everyone will see the shelter's cards, labelled «under review». The permission lasts up to 60 days and can be withdrawn at any time.",
+        daysLeft: {
+          one: "Until the showing ends: {count} day",
+          few: "Until the showing ends: {count} days",
+          many: "Until the showing ends: {count} days",
+        },
+        expired: "Showing ended on {date}",
+        extendNote: "Why are you extending the showing",
+        limitReached: "Showing before the review has already been allowed twice.",
+        evidenceMinimum: "To allow showing, at least a site visit or one reference is needed.",
       },
       errors: {
         illegalTransition: "That isn't possible from the current status. The page was refreshed.",

@@ -172,18 +172,14 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
   early_listing_lapsed: { kind: "early_listing_lapsed", at: AT },
 };
 
-const OPERATOR_ONLY: string[] = [
-  "evidence_added",
-  "early_listing_allowed",
-  "early_listing_revoked",
-  "early_listing_lapsed",
-];
+const OPERATOR_ONLY: string[] = ["evidence_added"];
 
 /** The projection of an entry the shelter does see; fails the test on `null`. */
 const facing = (entry: ShelterHistoryEntry, operatorName: string) => {
   const item = shelterFacingHistoryOf(entry, operatorName);
   if (item === null) throw new Error(`${entry.kind} is hidden from the shelter`);
-  return item;
+  // The lapse line is the one item with no actor; the tests that read `.actor` never ask for it.
+  return item as Exclude<typeof item, { kind: "early_listing_lapsed" }>;
 };
 
 /** Every key name at any depth of a value, so a nested id can't hide from the check. */
@@ -224,10 +220,24 @@ describe("shelterFacingHistoryOf", () => {
     expect(shelterFacingHistoryOf(ENTRIES.evidence_added, OPERATOR)).toBeNull();
   });
 
-  it("early listing lines stay operator-only until the shelter-side lines ship", () => {
-    for (const kind of OPERATOR_ONLY.filter((k) => k.startsWith("early_listing"))) {
-      expect(shelterFacingHistoryOf(ENTRIES[kind as keyof typeof ENTRIES], OPERATOR)).toBeNull();
-    }
+  /** The shelter sees that and when, never the period, the operator's note or who. */
+  it("early listing lines: allowed and revoked by the operator, lapsed by nobody, no note or period", () => {
+    const allowed = facing(ENTRIES.early_listing_allowed, OPERATOR);
+    expect(allowed).toEqual({
+      kind: "early_listing_allowed",
+      at: AT,
+      actor: { kind: "operator", displayName: OPERATOR },
+    });
+    expect(JSON.stringify(allowed)).not.toContain("візит");
+    expect(facing(ENTRIES.early_listing_revoked, OPERATOR)).toEqual({
+      kind: "early_listing_revoked",
+      at: AT,
+      actor: { kind: "operator", displayName: OPERATOR },
+    });
+    expect(facing(ENTRIES.early_listing_lapsed, OPERATOR)).toEqual({
+      kind: "early_listing_lapsed",
+      at: AT,
+    });
   });
 
   it("every other kind is shown", () => {

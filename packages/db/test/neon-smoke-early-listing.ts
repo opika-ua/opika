@@ -7,12 +7,15 @@ import {
   NO_FILTERS,
   type ShelterVerification,
 } from "@opika/domain";
+import { and, inArray } from "drizzle-orm";
 import type { Database } from "../src/client";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { buildFeedPredicate } from "../src/repos/feed-predicate";
 import { galleryRepo } from "../src/repos/gallery-repo";
 import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
+import { animals } from "../src/schema/animals";
 import { makeAnimal, makeCity, makeShelter } from "../src/test-utils/index";
 
 type Outcome = { name: string; ok: boolean; detail: string };
@@ -75,9 +78,37 @@ export async function runEarlyListingSmoke(db: Database): Promise<Outcome[]> {
     `${page.totalMatching} listed, label ${page.items[0]?.shelter.verification}`,
   );
 
+  // The sitemap is windowed to the freshest rows of the whole branch, so a bare "not in it" can
+  // pass on a large branch only because the fixture fell outside the window. Scope both bases to
+  // the fixtures themselves (their shelters), unwindowed, and decide on those.
+  const fixtureIds = [running.animal.id, lapsed.animal.id];
+  const idsUnder = async (basis: "any_listed" | "verified_only") =>
+    (
+      await db
+        .select({ id: animals.id })
+        .from(animals)
+        .where(
+          and(
+            ...buildFeedPredicate(NO_FILTERS, NOW, basis),
+            inArray(animals.shelterId, [running.shelter.id, lapsed.shelter.id]),
+          ),
+        )
+    ).map((row) => row.id);
+  const anyListed = await idsUnder("any_listed");
+  check(
+    "early listing, any-listed basis, unwindowed and scoped to the fixtures: only the running permission's animal is in the set",
+    anyListed.length === 1 && anyListed[0] === running.animal.id,
+    `${anyListed.length} of ${fixtureIds.length} fixture animals`,
+  );
+  const verifiedOnly = await idsUnder("verified_only");
+  check(
+    "early listing, verified-only basis, unwindowed and scoped to the fixtures: neither is in the set",
+    verifiedOnly.length === 0,
+    `${verifiedOnly.length} of ${fixtureIds.length} fixture animals`,
+  );
   const sitemap = await galleryRepo(db).sitemapRows({ now: NOW });
   check(
-    "early listing, verified-only basis (sitemap): neither fixture appears",
+    "early listing, sitemap rows: neither fixture appears (the two checks above are what keep this from passing vacuously)",
     sitemap.every((row) => row.id !== running.animal.id && row.id !== lapsed.animal.id),
     `${sitemap.length} sitemap rows`,
   );

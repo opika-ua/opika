@@ -194,13 +194,22 @@ describe("animals.reveal and reveals.listMine", () => {
     expect(field(res, "shelterListing")).toBe("listed_before_verification");
     expect((field(res, "shelterContact") as { source: string }).source).toBe("current");
     expect(res.raw).not.toContain(RUNNING.toISOString());
-    // The stored record keeps the truthful raw status.
+    // The stored record keeps the truthful raw status; the adopter never receives it.
     const stored = await revealRepo(h.db).findByAdopterAndAnimal(adopterId, animal.id);
     expect(stored?.shelterSnapshot.verificationStatusAtReveal).toBe("under_review");
+    const atFirstReveal = field(res, "shelterAtFirstReveal") as Record<string, unknown>;
+    expect(atFirstReveal.verificationStatusAtReveal).toBe("listed_before_verification");
+    expect(res.raw).not.toContain("under_review");
+    expect(res.raw).not.toContain('"pending"');
 
     const list = await h.call("reveals.listMine", { cursor: null, limit: 20 }, { cookie });
     const item = (list.body as { items: Record<string, unknown>[] }).items[0];
     expect(item?.shelterListing).toBe("listed_before_verification");
+    expect(
+      (item?.shelterAtFirstReveal as Record<string, unknown> | undefined)
+        ?.verificationStatusAtReveal,
+    ).toBe("listed_before_verification");
+    expect(JSON.stringify(list.body)).not.toContain("under_review");
   });
 
   it("is SHELTER_NOT_VISIBLE once the period is over, and the list falls back to the first reveal", async () => {
@@ -234,5 +243,28 @@ describe("animals.reveal and reveals.listMine", () => {
     const { animal } = await seed("verified", null);
     const res = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
     expect(field(res, "shelterListing")).toBe("verified");
+  });
+});
+
+describe("toView: the first-reveal status is a public label for every stored status", () => {
+  it("never passes a raw status through", async () => {
+    const { toView } = await import("./handlers/reveal");
+    const { VERIFICATION_STATUSES } = await import("@opika/domain");
+    const { makeReveal } = await import("@opika/db/test");
+    for (const status of VERIFICATION_STATUSES) {
+      const base = makeReveal();
+      const reveal = {
+        ...base,
+        shelterSnapshot: { ...base.shelterSnapshot, verificationStatusAtReveal: status },
+      };
+      const view = toView(
+        reveal,
+        { source: "first_reveal", displayName: "x", contact: reveal.shelterSnapshot.contact },
+        null,
+      );
+      expect(["verified", "listed_before_verification"], status).toContain(
+        view.shelterAtFirstReveal.verificationStatusAtReveal,
+      );
+    }
   });
 });

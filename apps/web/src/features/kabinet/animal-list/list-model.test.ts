@@ -350,6 +350,8 @@ describe("why nobody sees the cards (his answer 5)", () => {
   });
 
   it.each(VERIFICATION_STATUSES)("%s", (status) => {
-    expect(visibilityNoticeOf(verificationIn(status) as never)).toEqual(EXPECTED[status]);
+    expect(visibilityNoticeOf(verificationIn(status) as never, { kind: "none" })).toEqual(
+      EXPECTED[status],
+    );
   });
 });
