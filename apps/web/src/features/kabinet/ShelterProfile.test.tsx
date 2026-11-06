@@ -322,7 +322,7 @@ describe("ShelterProfile with K4 editing", () => {
   const open = {
     kind: "open",
     previewAnimal: null,
-    donationDeclined: false,
+    donationOutcome: { kind: "none" },
   } as const;
 
   it("open for the admin: the editor's fields are there", () => {
@@ -437,7 +437,7 @@ describe("the pause note on the read-only page (K4-B4)", () => {
  * gone; the list's «Додати тварину» is its successor.
  */
 describe("the section nav (K2)", () => {
-  const open = { kind: "open", previewAnimal: null, donationDeclined: false } as const;
+  const open = { kind: "open", previewAnimal: null, donationOutcome: { kind: "none" } } as const;
   const renderWith = (viewer: "admin" | "support", editing: ProfileEditing) =>
     render(
       <ShelterProfile
@@ -480,7 +480,7 @@ describe("the section nav (K2)", () => {
 });
 
 describe("Притулок: the public page link and the sub-tabs", () => {
-  const open = { kind: "open", previewAnimal: null, donationDeclined: false } as const;
+  const open = { kind: "open", previewAnimal: null, donationOutcome: { kind: "none" } } as const;
   const renderOpen = (tab?: string) =>
     render(
       <ShelterProfile

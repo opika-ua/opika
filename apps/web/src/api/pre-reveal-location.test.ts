@@ -179,7 +179,7 @@ describe("served reveal responses carry contacts and the city, never the address
         "source",
       ]);
       expect(Object.keys(item.shelterAtFirstReveal ?? {}).sort()).toEqual(
-        ["donation", "publicLocation", "shelterId", "verificationStatusAtReveal"].sort(),
+        ["publicLocation", "shelterId", "verificationStatusAtReveal"].sort(),
       );
     }
   });

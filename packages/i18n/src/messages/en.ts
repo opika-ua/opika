@@ -453,7 +453,7 @@ export const en = {
     independent: "{site} is run by one person, independently. It is not a state or city service.",
     free: "The site is free for shelters, with no paid tiers. If that ever changes, every shelter will know well in advance, not after the fact.",
     money:
-      '{site} never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) – the site only shows the link; the money goes directly, and you can see exactly where.',
+      '{site} never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) – the site only shows the link; the money goes directly, and you can see exactly where. The button exists only for verified shelters.',
     data: "Data a shelter enters – address, contact details, animal listings – belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks. If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
     analytics:
       "The site collects basic visit statistics – how many people visit and how fast the pages load – with no advertising.",
@@ -724,6 +724,10 @@ export const en = {
           "Enter a Ukrainian number: +380 and 9 more digits, for example +380 67 123 45 67.",
         emailFormat: "That doesn't look like an email address.",
         httpsOnly: "Only links that start with https://.",
+        donationUserinfo:
+          "The link must not contain a name or password before the site address (as in https://name@site). Copy the address from the browser bar.",
+        donationIdn:
+          "Addresses with Cyrillic letters (or starting with «xn--») are not accepted. Use a fundraising page on a service with a Latin address, such as monobank.",
         notAUrl: "That doesn't look like a link.",
         sentenceTooLong: "The sentence is longer than {max} characters.",
         unknownToken: "Only {імʼя} is filled in. Remove «{token}», or write it without braces.",
@@ -754,10 +758,12 @@ export const en = {
       donation: {
         optional: "· optional",
         previewLabel: "This is how people will see it:",
+        previewLabelUnverified:
+          "This is how people will see it once the shelter passes verification:",
         previewHost: "{host} ↗",
         propose: "Send for checking",
         proposeNote:
-          "The new link appears on the cards after I check it. Until then people see the current one.",
+          "The new link appears as soon as I check it, if the shelter has already passed verification. Until then people see the current one, if there is one.",
         pendingTitle: "Waiting to be checked",
         pendingHost: "Proposed: {host}",
         pendingSince: "Sent {date}",
@@ -767,6 +773,11 @@ export const en = {
         replaceNote: "Sending another link replaces the one waiting to be checked.",
         failed: "Not sent. Check the connection and try again.",
         declined: "The last proposed link wasn't approved. If it isn't clear why, write to me.",
+        removed:
+          "The fundraising link is no longer shown: {code}. {note} Send a new one and I will check it.",
+        suspendedNote:
+          "While the shelter is suspended, the fundraising link is not shown. After reinstatement I will check it again.",
+        reinstatedPending: "The link {host} is waiting for me to approve it again.",
       },
       pause: {
         button: "Pause enquiries",
@@ -1170,7 +1181,7 @@ export const en = {
         subject: `Your access to the shelter's cabinet`,
         intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» on the site {site} for this address.`,
         what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
-        whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification, or once I allow them to be shown with the label «under review». A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
+        whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification, or once I allow them to be shown with the label «under review». The fundraising link appears once I have checked it and the shelter has passed verification. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours}. If you miss it, I will send a new one.`,
         notYou: `If you weren't expecting this email, just ignore it and don't forward it to anyone: while the invitation is valid, this link lets someone create a password for this address, once.\n{operator}`,
@@ -1270,6 +1281,17 @@ export const en = {
         approved: "Link approved.",
         rejected: "Link rejected.",
         conflict: "The proposal changed while the page was open. This is the current one.",
+        remove: "Remove the link…",
+        removed: "The link was removed.",
+        removeConflict: "The link changed while the page was open. The current one is shown here.",
+        afterSuspension:
+          "Was live before the suspension. Approve with one click after reinstatement.",
+        removeDialog: {
+          title: "Remove the fundraising link of «{shelter}»?",
+          body: "The link disappears from the pages at once. The shelter sees the reason in its cabinet and can propose a new one. A pending proposal disappears too.",
+          shelterSeesNote: "The shelter will see this text.",
+          confirm: "Remove",
+        },
       },
       admins: {
         title: "Administrators",
@@ -1381,6 +1403,12 @@ export const en = {
         donation_proposal_cancelled: "Link proposal withdrawn",
         donation_approved: "Fundraising link approved",
         donation_rejected: "Fundraising link rejected",
+        donation_removed: "Fundraising link removed: {host}. {code}. {note}",
+        donation_removed_pending: "The pending proposal was cancelled together with the link",
+        donation_suspended_to_pending:
+          "Fundraising link {host} moved to re-approval: the shelter was suspended",
+        donation_suspended_recorded:
+          "The live link {host} is no longer shown: the shelter was suspended. The newer proposal stays pending",
         verified_data_changed: {
           legal_entity: "Legal details changed",
           exact_address: "Premises address changed",
@@ -1499,7 +1527,7 @@ export const en = {
           reinstateExplainPaused:
             "«Reinstate» returns the shelter to its pause, not to «Verified». The animals stay hidden until the shelter lifts the pause itself.",
           reinstateExplainVerified:
-            "«Reinstate» returns the status «Verified», and the animals appear in the gallery again.",
+            "«Reinstate» returns the status «Verified», and the animals appear in the gallery again. The site will not bring the fundraising link back by itself: approve it separately.",
         },
         noConfirm: "No confirmation needed: this action hides nothing.",
         rejected: {
@@ -1513,7 +1541,7 @@ export const en = {
         rejectBody:
           "The shelter will see this explanation verbatim in its cabinet. Its animals won't be in the gallery.",
         suspendBody:
-          "The shelter's animals leave the gallery at once. The shelter will see this explanation in its cabinet. It can be reinstated at any time.",
+          "The shelter's animals leave the gallery at once. The shelter will see this explanation in its cabinet. It can be reinstated at any time. The fundraising link stops being shown too; after reinstatement it must be approved again.",
         codeLabel: "Reason",
         reasonLabel: "Explanation",
         reasonHint: "Required. Write it so the person knows what to do next.",
@@ -1534,6 +1562,13 @@ export const en = {
           complaint_upheld: "A complaint was upheld",
           listing_quality: "The cards don't match reality",
           suspected_fraud: "Suspected fraud",
+          other: "Other",
+        },
+        donationRemoval: {
+          wrong_destination: "Leads somewhere else",
+          not_shelters_own: "Not the shelter's own page",
+          cannot_confirm: "Couldn't confirm where the link leads",
+          shelter_request: "Shelter's request",
           other: "Other",
         },
       },
@@ -1571,7 +1606,8 @@ export const en = {
       noteLabel: "Explanation:",
       signature: "{operator}",
       contact: "If you have questions, write to me.",
-      suspendedEffect: "While the shelter is suspended, its animals aren't in the gallery.",
+      suspendedEffect:
+        "While the shelter is suspended, its animals aren't in the gallery and the fundraising link is not shown.",
       rejectedEffect: "The shelter's animals won't be in the gallery until verification is passed.",
     },
     /** The words the operator's animal history lines fill in; see the Ukrainian catalogue. */

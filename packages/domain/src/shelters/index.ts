@@ -9,5 +9,6 @@ export * from "./legal-entity";
 export * from "./location";
 export * from "./logo";
 export * from "./password-policy";
+export * from "./public-donation";
 export * from "./shelter";
 export * from "./verification/index";

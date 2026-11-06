@@ -62,7 +62,6 @@ function revealFor(contact: ShelterContact): ContactRevealView {
       // address, district or point ever reaches the client.
       publicLocation: { cityId: CITY_ID },
       verificationStatusAtReveal: "verified",
-      donation: null,
     },
     animalSnapshot: { name: "Ластівка", primaryPhoto: null },
   };

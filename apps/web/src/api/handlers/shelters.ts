@@ -1,6 +1,11 @@
 import type { apiErrors, PublicShelterView, SheltersByIdInputSchema } from "@opika/contracts";
 import { shelterRepo } from "@opika/db/repos";
-import { earlyListingOf, publicListingBasisOf, shelterAvailabilityOf } from "@opika/domain";
+import {
+  earlyListingOf,
+  publicDonationOf,
+  publicListingBasisOf,
+  shelterAvailabilityOf,
+} from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
@@ -48,7 +53,8 @@ export async function sheltersById(
     displayName: shelter.displayName,
     description: shelter.description,
     publicLocation: cityOnlyLocationOf(shelter.publicLocation),
-    donation: shelter.donation,
+    // Only a verified (or paused) shelter shows its link; an early listing, a review or a suspension shows none.
+    donation: publicDonationOf(shelter),
     logo: shelter.logo,
     createdAt: shelter.createdAt,
     freshnessSentence: shelter.freshnessSentence,

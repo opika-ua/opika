@@ -54,7 +54,6 @@ const REVEAL: ContactRevealView = {
     shelterId: SHELTER_ID as ContactRevealView["shelterAtFirstReveal"]["shelterId"],
     publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
     verificationStatusAtReveal: "verified",
-    donation: null,
   },
   animalSnapshot: { name: "Мурчик", primaryPhoto: null },
 };

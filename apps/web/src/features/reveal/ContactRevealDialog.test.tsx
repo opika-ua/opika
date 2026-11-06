@@ -20,7 +20,6 @@ const reveal: ContactRevealView = {
     shelterId: ShelterIdSchema.parse("66666666-7777-4888-8999-aaaaaaaaaaaa"),
     publicLocation: { cityId: CityIdSchema.parse("12121212-3434-4565-8787-909090909090") },
     verificationStatusAtReveal: "verified",
-    donation: null,
   },
   animalSnapshot: { name: "Пес $& $1", primaryPhoto: null },
 };

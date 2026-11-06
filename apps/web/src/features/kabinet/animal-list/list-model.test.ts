@@ -325,7 +325,10 @@ describe("why nobody sees the cards (his answer 5)", () => {
       kind: "line",
       text: "Тварин притулку не буде в галереї, доки перевірку не пройдено.",
     },
-    suspended: { kind: "line", text: "Поки притулок призупинено, його тварин немає в галереї." },
+    suspended: {
+      kind: "line",
+      text: "Поки притулок призупинено, його тварин немає в галереї, а посилання на збір не показується.",
+    },
   } as const;
 
   const verificationIn = (status: (typeof VERIFICATION_STATUSES)[number]) => {

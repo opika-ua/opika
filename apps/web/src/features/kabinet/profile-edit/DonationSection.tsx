@@ -12,7 +12,8 @@ import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 import { formatDate } from "../ProfileParts";
 import type { WriteResult } from "../shared/write-result";
-import { linkProblem } from "./fields";
+import type { DonationOutcome } from "./donation-outcome";
+import { donationLinkProblem } from "./fields";
 import { Optional } from "./Optional";
 
 /** The host people are shown before they tap (hard constraint 5), from a link that parses. */
@@ -43,13 +44,16 @@ type Notice = { kind: "none" } | { kind: "proposed" } | { kind: "cancelled" } | 
 export function DonationSection({
   donation,
   pendingDonation,
-  declined,
+  outcome,
+  status,
   propose,
   cancel,
 }: {
   donation: KabinetShelterView["donation"];
   pendingDonation: KabinetShelterView["pendingDonation"];
-  declined: boolean;
+  outcome: DonationOutcome;
+  /** The shelter's verification status now: decides what the preview promises and which notice shows. */
+  status: KabinetShelterView["verification"]["status"];
   propose: (url: string) => Promise<WriteResult>;
   cancel: () => Promise<WriteResult>;
 }) {
@@ -58,15 +62,17 @@ export function DonationSection({
   const id = useId();
   const live = donation?.url ?? "";
   const [value, setValue] = useState(live);
-  const [error, setError] = useState<"httpsOnly" | "notAUrl" | null>(null);
+  const [error, setError] = useState<keyof typeof t.errors | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>({ kind: "none" });
-  const [showDeclined, setShowDeclined] = useState(declined);
+  const [showOutcome, setShowOutcome] = useState(true);
 
   const trimmed = value.trim();
   const offerPropose =
     trimmed !== "" && trimmed !== live && trimmed !== (pendingDonation?.link.url ?? null);
-  const previewHost = linkProblem(trimmed) === null ? hostOf(trimmed) : null;
+  const previewHost = donationLinkProblem(trimmed) === null ? hostOf(trimmed) : null;
+  // Nobody sees the link before the shelter is verified (or paused), and the preview must say so.
+  const publiclyShown = status === "verified" || status === "paused";
 
   const noticeOf = (result: WriteResult, success: Notice): Notice => {
     if (result.kind === "ok") return success;
@@ -75,7 +81,7 @@ export function DonationSection({
 
   const onPropose = async () => {
     if (busy) return;
-    const problem = linkProblem(trimmed);
+    const problem = donationLinkProblem(trimmed);
     if (problem !== null) {
       setError(problem);
       document.getElementById(`${id}-url`)?.focus();
@@ -87,7 +93,7 @@ export function DonationSection({
     setBusy(false);
     setNotice(noticeOf(result, { kind: "proposed" }));
     if (result.kind === "ok") {
-      setShowDeclined(false);
+      setShowOutcome(false);
       setValue(result.view.donation?.url ?? "");
     }
   };
@@ -122,7 +128,9 @@ export function DonationSection({
 
       {previewHost !== null ? (
         <div className="flex flex-col gap-2">
-          <Text look="hint">{t.donation.previewLabel}</Text>
+          <Text look="hint">
+            {publiclyShown ? t.donation.previewLabel : t.donation.previewLabelUnverified}
+          </Text>
           {/* What the animal page shows (`AnimalDetailScreen`): a row, not a link here. */}
           <Panel
             tone="sunken"
@@ -165,8 +173,29 @@ export function DonationSection({
         </Panel>
       ) : null}
 
-      {showDeclined && pendingDonation === null ? (
+      {showOutcome && pendingDonation === null && outcome.kind === "declined" ? (
         <Text look="body">{t.donation.declined}</Text>
+      ) : null}
+      {showOutcome && pendingDonation === null && outcome.kind === "removed" ? (
+        <Text look="body">
+          {fillTemplate(t.donation.removed, {
+            code: uk.kabinet.operator.codes.donationRemoval[outcome.reason.code],
+            note: outcome.reason.note,
+          })}
+        </Text>
+      ) : null}
+      {pendingDonation !== null && status === "suspended" ? (
+        <Text look="hint">{t.donation.suspendedNote}</Text>
+      ) : null}
+      {showOutcome &&
+      pendingDonation !== null &&
+      status !== "suspended" &&
+      outcome.kind === "suspended" ? (
+        <Text look="hint">
+          {fillTemplate(t.donation.reinstatedPending, {
+            host: pendingHost ?? pendingDonation.link.url,
+          })}
+        </Text>
       ) : null}
 
       {/* Always in the tree, so a screen reader hears the line it gains. */}

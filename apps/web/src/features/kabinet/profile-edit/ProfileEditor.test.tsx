@@ -1,8 +1,9 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { KabinetProfileClient } from "../../../api/kabinet-browser-client";
+import type { DonationOutcome } from "./donation-outcome";
 import { LiveVerificationChip, LiveVerificationStatus } from "./LiveVerificationStatus";
 import { ProfileEditor } from "./ProfileEditor";
 
@@ -96,7 +97,7 @@ function renderEditor(
   options: {
     view?: KabinetShelterView;
     overrides?: Partial<Fake>;
-    donationDeclined?: boolean;
+    donationOutcome?: DonationOutcome;
   } = {},
 ) {
   const view = options.view ?? baseView();
@@ -106,7 +107,7 @@ function renderEditor(
       initialView={view}
       cityName="Бровари"
       operatorName="Олексій"
-      donationDeclined={options.donationDeclined ?? false}
+      donationOutcome={options.donationOutcome ?? { kind: "none" }}
       client={client}
     />,
   );
@@ -474,6 +475,90 @@ describe("the donation link (N20)", () => {
     expect(fns.proposeDonation).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "https://send.monobank.ua@evil.example/jar",
+      "У посиланні не має бути імені чи пароля перед адресою сайту (як у https://імʼя@сайт). Скопіюйте адресу з рядка браузера.",
+    ],
+    [
+      "https://xn--monobank-9ve.ua/jar",
+      "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
+    ],
+    [
+      "https://send.m\u043enobank.ua/jar",
+      "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
+    ],
+  ])("refuses %s before sending, as the server would", async (url, message) => {
+    const fns = renderEditor();
+    const d = within(donation());
+    await userEvent.clear(field());
+    await userEvent.type(field(), url);
+    expect(d.queryByText("send.monobank.ua ↗")).toBeNull();
+    await userEvent.click(d.getByRole("button", { name: "Надіслати на перевірку" }));
+    expect(d.getByText(message)).toBeTruthy();
+    expect(fns.proposeDonation).not.toHaveBeenCalled();
+  });
+
+  it("promises the preview only for a shelter people can already see", async () => {
+    const unverified = baseView({
+      verification: { status: "suspended", since: new Date("2026-10-01T00:00:00Z") } as never,
+    });
+    renderEditor({ view: unverified });
+    const d = within(donation());
+    await userEvent.clear(field());
+    await userEvent.type(field(), "https://send.monobank.ua/jar/abc");
+    expect(d.getByText("Так це побачать люди, коли притулок пройде перевірку:")).toBeTruthy();
+    expect(d.queryByText("Так це побачать люди:")).toBeNull();
+  });
+
+  it("tells the shelter the operator removed the link, with the reason and the note verbatim", () => {
+    renderEditor({
+      view: baseView({ donation: null }),
+      donationOutcome: {
+        kind: "removed",
+        reason: { code: "cannot_confirm", note: "Сторінка не відкривається" },
+      },
+    });
+    expect(
+      within(donation()).getByText(
+        "Посилання на збір більше не показується: Не вдалося підтвердити, куди веде посилання. Сторінка не відкривається Надішліть нове – я його перевірю.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("explains a suspension that parked the link, while suspended and after reinstatement", () => {
+    const pendingDonation = {
+      link: { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" },
+      proposedAt: new Date("2026-10-16T09:00:00Z"),
+      proposedBy: null,
+    } as never;
+    const suspended = renderEditor({
+      view: baseView({
+        donation: null,
+        pendingDonation,
+        verification: { status: "suspended", since: new Date("2026-10-20T00:00:00Z") } as never,
+      }),
+      donationOutcome: { kind: "suspended" },
+    });
+    expect(suspended).toBeDefined();
+    const d = within(donation());
+    expect(
+      d.getByText(
+        "Поки притулок призупинено, посилання на збір не показується. Після відновлення я перевірю його ще раз.",
+      ),
+    ).toBeTruthy();
+    expect(d.queryByText(/чекає, поки я знову його схвалю/)).toBeNull();
+    cleanup();
+
+    renderEditor({
+      view: baseView({ donation: null, pendingDonation }),
+      donationOutcome: { kind: "suspended" },
+    });
+    expect(
+      within(donation()).getByText("Посилання send.monobank.ua чекає, поки я знову його схвалю."),
+    ).toBeTruthy();
+  });
+
   it("proposes, then shows the waiting block, and cancels it", async () => {
     const fns = renderEditor();
     const d = within(donation());
@@ -515,7 +600,7 @@ describe("the donation link (N20)", () => {
   });
 
   it("shows the declined line (answer 12) until a new proposal", async () => {
-    renderEditor({ donationDeclined: true });
+    renderEditor({ donationOutcome: { kind: "declined" } });
     const d = within(donation());
     const declined =
       "Останнє запропоноване посилання не підтверджено. Якщо незрозуміло чому – напишіть мені.";
@@ -703,7 +788,7 @@ describe("pause and resume (N21)", () => {
           initialView={view}
           cityName="Бровари"
           operatorName="Олексій"
-          donationDeclined={false}
+          donationOutcome={{ kind: "none" }}
           client={client}
         />
       </LiveVerificationStatus>,

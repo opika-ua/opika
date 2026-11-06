@@ -10,7 +10,7 @@ import {
 import { LocalizedTextSchema } from "../primitives/localized-text";
 import { ShelterActorSchema } from "./actor";
 import { ShelterContactSchema } from "./contact";
-import { DonationLinkSchema } from "./donation";
+import { DonationLinkSchema, DonationRemovalCodeSchema } from "./donation";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
 import { ShelterLogoSchema } from "./logo";
@@ -174,6 +174,31 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     decision: z.enum(["approved", "rejected"]),
     link: DonationLinkSchema,
     previousLive: DonationLinkSchema.nullable(),
+  }),
+  /**
+   * The operator took the live link away (money safety). Names the link that went and why, like a
+   * suspension: a code plus a required note the shelter reads verbatim. `clearedPending` says a
+   * waiting proposal went with it.
+   */
+  z.object({
+    kind: z.literal("donation_removed"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    previousLive: DonationLinkSchema,
+    clearedPending: z.boolean(),
+    reason: z.object({ code: DonationRemovalCodeSchema, note: z.string().min(1) }),
+  }),
+  /**
+   * A suspension stopped the live link being live. `moved_to_pending`: nothing newer was waiting,
+   * so the old link now waits for the operator; `pending_kept`: a newer proposal already waited,
+   * which stays, and the old link is only recorded here.
+   */
+  z.object({
+    kind: z.literal("donation_suspended"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    previousLive: DonationLinkSchema,
+    outcome: z.enum(["moved_to_pending", "pending_kept"]),
   }),
   /**
    * The operator editing what verification checked (S4). No approval step:
@@ -366,6 +391,8 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "donation_proposed":
     case "donation_proposal_cancelled":
     case "donation_decided":
+    case "donation_removed":
+    case "donation_suspended":
     case "verified_data_changed":
     case "evidence_added":
     case "early_listing_allowed":

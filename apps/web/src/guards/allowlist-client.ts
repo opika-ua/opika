@@ -71,7 +71,10 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     "SERVER CANDIDATE (server rows + island for the filter): row list with status filter and browser-client paging",
   "features/kabinet/operator/actions/AdminsManager.tsx": "invite/remove admins form + dialog",
   "features/kabinet/operator/actions/DecisionPanel.tsx": "verification decision controls + dialogs",
-  "features/kabinet/operator/actions/DonationDecision.tsx": "approve/reject donation link buttons",
+  "features/kabinet/operator/actions/DonationDecision.tsx":
+    "approve/reject/remove donation link buttons",
+  "features/kabinet/operator/actions/DonationRemoveDialog.tsx":
+    "reason textarea inside the kit Modal",
   "features/kabinet/operator/actions/OperatorActionsRoot.tsx":
     "router.refresh wrapper around the provider",
   "features/kabinet/operator/actions/ReasonDialog.tsx": "reason textarea inside the kit Modal",

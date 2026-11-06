@@ -255,6 +255,93 @@ describe("legal entity and donation approval columns", () => {
     expect(after?.donation).toEqual(link);
     expect(after?.pendingDonation).toBeNull();
   });
+
+  it("sets the live link and the proposal together, in the same statement as a verification change", async () => {
+    const link = { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" } as const;
+    const s = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: homeCity } as never,
+      donation: link,
+      pendingDonation: null,
+    });
+    await shelterRepo(db).insert(s);
+    const result = await repo().applyAuditedMany({
+      shelterId: s.id,
+      expectedVersion: 0,
+      changes: [
+        {
+          kind: "verification",
+          verification: {
+            status: "pending",
+            submittedAt: NOW,
+            evidence: { items: [], submittedAt: NOW },
+          },
+        },
+        {
+          kind: "donation_state",
+          donation: null,
+          pendingDonation: { link, proposedAt: NOW, proposedBy: null },
+        },
+      ],
+      entries: [
+        {
+          id: "h1",
+          entry: {
+            kind: "donation_suspended",
+            at: NOW,
+            moderatorId: MOD,
+            previousLive: link,
+            outcome: "moved_to_pending",
+          },
+        },
+      ],
+      now: NOW,
+    });
+    expect(result.kind).toBe("ok");
+    const after = await shelterRepo(db).findById(s.id);
+    expect(after?.donation).toBeNull();
+    expect(after?.pendingDonation).toEqual({ link, proposedAt: NOW, proposedBy: null });
+    expect(after?.version).toBe(1);
+  });
+
+  it("clears both columns on removal, and a stale version writes and records nothing", async () => {
+    const link = { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" } as const;
+    const s = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: homeCity } as never,
+      donation: link,
+      pendingDonation: { link, proposedAt: NOW, proposedBy: "admin-1" as ShelterAdminId },
+    });
+    await shelterRepo(db).insert(s);
+    const removal = {
+      changes: [{ kind: "donation_state", donation: null, pendingDonation: null }] as const,
+      entries: [
+        {
+          id: "h1",
+          entry: {
+            kind: "donation_removed",
+            at: NOW,
+            moderatorId: MOD,
+            previousLive: link,
+            clearedPending: true,
+            reason: { code: "other", note: "Тест" },
+          },
+        },
+      ],
+      now: NOW,
+    } as const;
+    expect(
+      (await repo().applyAuditedMany({ shelterId: s.id, expectedVersion: 5, ...removal })).kind,
+    ).toBe("conflict");
+    expect((await shelterRepo(db).findById(s.id))?.donation).toEqual(link);
+    expect((await repo().historyPage({ shelterId: s.id, after: null, limit: 5 })).items).toEqual(
+      [],
+    );
+    expect(
+      (await repo().applyAuditedMany({ shelterId: s.id, expectedVersion: 0, ...removal })).kind,
+    ).toBe("ok");
+    const after = await shelterRepo(db).findById(s.id);
+    expect(after?.donation).toBeNull();
+    expect(after?.pendingDonation).toBeNull();
+  });
 });
 
 /**

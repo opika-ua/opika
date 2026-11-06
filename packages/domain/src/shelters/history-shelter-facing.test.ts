@@ -82,6 +82,21 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     link: LINK,
     previousLive: null,
   },
+  donation_removed: {
+    kind: "donation_removed",
+    at: AT,
+    moderatorId: MOD,
+    previousLive: LINK,
+    clearedPending: false,
+    reason: { code: "wrong_destination", note: "Веде на інший сайт" },
+  },
+  donation_suspended: {
+    kind: "donation_suspended",
+    at: AT,
+    moderatorId: MOD,
+    previousLive: LINK,
+    outcome: "pending_kept",
+  },
   verified_data_changed: {
     kind: "verified_data_changed",
     at: AT,

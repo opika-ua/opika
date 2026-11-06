@@ -5,6 +5,8 @@ import {
   allowEarlyListing,
   type CityId,
   DEFAULT_VERIFICATION_POLICY,
+  type DonationRemovalCode,
+  donationOnSuspension,
   type EvidenceItemInput,
   type ExactAddress,
   earlyListingOf,
@@ -294,6 +296,7 @@ function verificationMove(
   eventOf: (shelter: Shelter) => VerificationEvent,
   errors: MoveErrors,
   precheck: (shelter: Shelter) => void = () => {},
+  alongside: (shelter: Shelter) => Planned = () => ({ changes: [], entries: [] }),
 ): Promise<RegistryShelterView> {
   return tapWithRetry(
     deps,
@@ -314,8 +317,9 @@ function verificationMove(
         );
       }
       precheck(shelter);
+      const extra = alongside(shelter);
       return {
-        changes: [{ kind: "verification", verification: result.next }],
+        changes: [{ kind: "verification", verification: result.next }, ...extra.changes],
         entries: [
           {
             kind: "verification",
@@ -328,6 +332,7 @@ function verificationMove(
           ...(keepsEarlyListing(shelter.verification.status, result.next.status)
             ? []
             : lapsedEntries(shelter, deps.now)),
+          ...extra.entries,
         ],
       };
     },
@@ -414,6 +419,34 @@ export const registrySuspend = (
     input.shelterId,
     () => ({ type: "suspend", at: deps.now, moderatorId, reason: input.reason }),
     errors,
+    undefined,
+    // Planned from the same read the transition is, and written in the same compare-and-set
+    // statement: a link that stops being live can never outlive the suspension that ended it.
+    (shelter) => {
+      const outcome = donationOnSuspension(shelter, deps.now);
+      if (outcome.kind === "nothing_live") return { changes: [], entries: [] };
+      return {
+        changes: [
+          {
+            kind: "donation_state",
+            donation: null,
+            pendingDonation:
+              outcome.kind === "moved_to_pending"
+                ? outcome.pendingDonation
+                : shelter.pendingDonation,
+          },
+        ],
+        entries: [
+          {
+            kind: "donation_suspended",
+            at: deps.now,
+            moderatorId,
+            previousLive: outcome.previousLive,
+            outcome: outcome.kind,
+          },
+        ],
+      };
+    },
   );
 
 /**
@@ -614,6 +647,11 @@ const donationDecisionPlan =
   (shelter: Shelter): Planned => {
     const pending = shelter.pendingDonation;
     if (pending === null) return { changes: [], entries: [] };
+    // Approving while suspended would let a reinstatement publish the link with no decision after
+    // it; rejecting stays possible. Nothing is written, as with nothing pending.
+    if (decision === "approved" && shelter.verification.status === "suspended") {
+      return { changes: [], entries: [] };
+    }
     return {
       changes: [
         decision === "approved"
@@ -651,3 +689,41 @@ const donationDecision =
 
 export const registryDonationApprove = donationDecision("approved");
 export const registryDonationReject = donationDecision("rejected");
+
+/**
+ * Takes the live link away for good and clears a waiting proposal with it, for a reason the
+ * shelter reads. Versioned: the operator removes the link they read, anything newer is CONFLICT.
+ * With no live link there is nothing to remove, so nothing is written.
+ */
+export const registryDonationRemove = (
+  deps: RegistryDeps,
+  moderatorId: ModeratorId,
+  input: {
+    shelterId: ShelterId;
+    expectedVersion: number;
+    reason: { code: DonationRemovalCode; note: string };
+  },
+  errors: E<"CONFLICT">,
+) =>
+  editFromForm(
+    deps,
+    input.shelterId,
+    input.expectedVersion,
+    (shelter) =>
+      shelter.donation === null
+        ? { changes: [], entries: [] }
+        : {
+            changes: [{ kind: "donation_state", donation: null, pendingDonation: null }],
+            entries: [
+              {
+                kind: "donation_removed",
+                at: deps.now,
+                moderatorId,
+                previousLive: shelter.donation,
+                clearedPending: shelter.pendingDonation !== null,
+                reason: input.reason,
+              },
+            ],
+          },
+    errors,
+  );

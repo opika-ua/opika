@@ -11,7 +11,8 @@ import {
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   CoatLengthSchema,
   characterCount,
-  DonationLinkSchema,
+  DonationProposalUrlSchema,
+  DonationRemovalCodeSchema,
   EvidenceItemInputSchema,
   ExactAddressSchema,
   type FreshnessSentence,
@@ -355,7 +356,7 @@ export const shelterProfileContract = {
     .errors(shelterCasErrors),
   /** The provider is derived from the URL on the server (`donationProviderOf`), never sent. */
   proposeDonation: shelterProfileWrite
-    .input(DonationLinkSchema.pick({ url: true }).strict())
+    .input(z.strictObject({ url: DonationProposalUrlSchema }))
     .errors(shelterScopedErrors),
   cancelDonationProposal: shelterProfileWrite.input(empty).errors(shelterScopedErrors),
   pause: shelterProfileWrite
@@ -912,6 +913,19 @@ export const registryDonationContract = {
     .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
   reject: registryShelter
     .input(donationDecision)
+    .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
+  /**
+   * Takes the live link away (and any waiting proposal with it) for a reason the shelter reads.
+   * Versioned like the decisions: the operator removes the link they read.
+   */
+  remove: registryShelter
+    .input(
+      z.strictObject({
+        shelterId: ShelterIdSchema,
+        expectedVersion,
+        reason: z.strictObject({ code: DonationRemovalCodeSchema, note: OperatorNoteSchema }),
+      }),
+    )
     .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
 };
 

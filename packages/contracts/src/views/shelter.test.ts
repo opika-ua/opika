@@ -360,7 +360,6 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
       // The first-reveal object carries neither the name nor the contacts: they
       // are `shelterContact`'s alone, so they come from one moment (RUI4-F1).
       expect(Object.keys(view.shelterAtFirstReveal).sort()).toEqual([
-        "donation",
         "publicLocation",
         "shelterId",
         "verificationStatusAtReveal",

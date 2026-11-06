@@ -227,3 +227,7 @@ live in a checklist rather than in a schema:
 - Saved list: a `paused` arm (name, link to the page, not counted, id kept); availability cache key bumped to v2.
 - Per-page `robots: noindex, follow` for the paused arm on both pages, whatever the site-wide flag says.
 
+## Donation link safety (owner, 2026-11-06)
+
+- The link is public only for a verified or paused shelter (`publicDonationOf`, the one door); the reveal response no longer carries it (the stored snapshot keeps its `donation`, no migration). Suspension takes the live link away in the same compare-and-set write as the suspend: it moves to pending (`proposedBy: null`) unless a newer proposal waits, which stays and the old link is only recorded; a reinstatement never revives a link. `registry.donation.remove` clears live and pending with a reason code and a note the shelter reads.
+- A new proposal refuses userinfo and punycode/IDN hosts (`donationUrlProblemOf`); stored links are not re-checked.

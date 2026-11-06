@@ -70,6 +70,21 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     link: LINK,
     previousLive: null,
   },
+  donation_removed: {
+    kind: "donation_removed",
+    at: new Date("2026-10-07T01:00:00.000Z"),
+    moderatorId: MOD,
+    previousLive: LINK,
+    clearedPending: true,
+    reason: { code: "cannot_confirm", note: "Не відкривається" },
+  },
+  donation_suspended: {
+    kind: "donation_suspended",
+    at: new Date("2026-10-07T02:00:00.000Z"),
+    moderatorId: MOD,
+    previousLive: LINK,
+    outcome: "moved_to_pending",
+  },
   verified_data_changed: {
     kind: "verified_data_changed",
     at: new Date("2026-10-08T00:00:00.000Z"),
@@ -196,6 +211,17 @@ describe("ShelterHistoryEntrySchema", () => {
       expect(ShelterHistoryEntrySchema.parse(entry)).toEqual(entry);
     });
   }
+
+  it("refuses a removal without a note or by a shelter admin", () => {
+    const removed = ENTRIES.donation_removed;
+    expect(
+      ShelterHistoryEntrySchema.safeParse({ ...removed, reason: { code: "other", note: "" } })
+        .success,
+    ).toBe(false);
+    expect(ShelterHistoryEntrySchema.safeParse({ ...removed, moderatorId: ADMIN }).success).toBe(
+      false,
+    );
+  });
 
   /** Who can decide a donation is part of the shape: a shelter admin can't approve their own link. */
   it("refuses a donation decision by a shelter admin", () => {
@@ -344,6 +370,8 @@ describe("historyEntryAt", () => {
         "2026-10-04",
         "2026-10-05",
         "2026-10-06",
+        "2026-10-07",
+        "2026-10-07",
         "2026-10-07",
         "2026-10-08",
         "2026-10-09",
