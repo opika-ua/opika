@@ -14,6 +14,12 @@ import { type Browser, type BrowserContext, expect } from "@playwright/test";
 import { HARNESS_LOCATION_HMAC_SECRET, PRELAUNCH_GATE_STORAGE_STATE_PATH } from "../harness-env";
 import type { SignInServer } from "./sign-in-server";
 
+/*
+ * The specs using this file are named `zz-*` on purpose: Playwright runs files alphabetically, and
+ * several older specs pick seeded shelters by an unordered `find` over `shelters`. Rows added
+ * before them can change that scan order (CI run 42232240979 broke kabinet and shelter-filters),
+ * so these specs run last.
+ */
 export const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
 
 /** `LOCATION_HMAC_SECRET` for the sign-in server: the shelter's public location is derived with it. */

@@ -4,7 +4,7 @@
  * pages close), and the second allowance asks for a written reason. Fictional pending shelter with
  * no evidence, created in the harness database; every step after that is a real operator action.
  * The per-page `noindex` is not asserted here: the pre-launch flag makes every page noindex, so it
- * cannot be observed in a browser (`post-flip-noindex.test.ts` covers it). Own `x-forwarded-for` (.72).
+ * cannot be observed in a browser (`post-flip-noindex.test.ts` covers it). Named zz-* to run last (see fictional-shelter.ts). Own `x-forwarded-for` (.72).
  */
 
 import { expect, test } from "@playwright/test";
