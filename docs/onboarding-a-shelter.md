@@ -37,16 +37,15 @@ Never paste a connection string into a command line, a file or a chat.
   never touches money).
 - **A freshness sentence, in their own words** - one or two sentences about
   how current their listings are. Required; don't onboard without it.
-  It is shown **word for word**: until K2, nothing fills in an animal's name,
-  and nothing will ever fill in a date (inbox VH-Q1). So keep a specific date
-  and any animal's name out of it: a
-  typed date goes stale while it still reads as current, and `{date}` or
-  `{name}` would appear with their braces.
+  It is shown **word for word** on the shelter's page: nothing fills in an animal's
+  name or a date. Every write path refuses `{імʼя}` and any other `{…}` (DR1-Q5), and
+  the sentence is at most 280 characters. So keep a specific date and any animal's name
+  out of it: a typed date goes stale while it still reads as current.
 - **Real verification evidence** - see below. Not their name for the record;
   actual evidence the domain's own verification policy requires, or the
   script refuses to write a `verified` shelter at all.
 - **For each animal**: name, species, sex, size bucket, age bucket, a short
-  description, and at least one real photo file - see "Photos" below.
+  description, and one to ten real photo files (`MAX_ANIMAL_PHOTOS`) - see "Photos" below.
 
 ## The input file
 
@@ -88,7 +87,7 @@ before anything is computed):
       {
         "kind": "site_visit",
         "visitedOn": "2026-09-01",
-        "notes": "Дзвінок з Оленою 1 вересня — розповіла про притулок, показала фото тварин на місці."
+        "notes": "Дзвінок з Оленою 1 вересня – розповіла про притулок, показала фото тварин на місці."
       },
       {
         "kind": "reference_contact",
@@ -149,6 +148,12 @@ real phone call where you actually talked to someone and can say what you
 learned counts; `notes` should say what actually happened, in your own
 words, since this becomes a permanent part of the shelter's record.
 
+A `reference_contact`'s `relationship` is one of `veterinary_clinic`, `local_authority`,
+`partner_organisation`, `other`. A `bank_account_holder` carries `holderName` (the
+account holder as the bank shows it). Text limits: names 300 characters, `site_visit`
+`notes` 2000. A shelter holds at most 30 evidence items, and one add takes at most 10
+(`MAX_EVIDENCE_ITEMS`, `MAX_EVIDENCE_ITEMS_PER_ADD`).
+
 **`visitedOn` is required** (`YYYY-MM-DD`): the day the visit or call
 actually happened, not the day you're filling in this file. A date after
 today is refused, because a visit that hasn't happened can't back a
@@ -190,7 +195,9 @@ directory**, not wherever you happen to run the command from. Keep a
     lastivka-2.jpg
 ```
 
-You don't supply width/height - the script reads the real file for its
+This script takes any file sharp can decode. The kabinet is stricter: JPEG, PNG or WebP
+(`sniff.ts`), and a HEIC is converted in the browser where it can be, else refused
+(ask for a JPG). You don't supply width/height - the script reads the real file for its
 actual dimensions, both in dry run and `--commit`. A missing file or one
 sharp can't decode (wrong format, corrupted download) fails immediately,
 before anything is uploaded or written, with the file path in the error.
@@ -450,7 +457,7 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
 ## Dress rehearsal (UI only), before any public posting
 
 The launch gate after PR 6 and the operator screens (RU-B4). **UI only:** no console rpc, no
-scripts, no `KABINET_WRITE_ALLOWLIST`. The pre-launch gate cookie is the only non-UI piece
+scripts (the retired `KABINET_WRITE_ALLOWLIST` is gone from the code). The pre-launch gate cookie is the only non-UI piece
 (RU-B1). Three people, three browsers: Oleksii as the operator in his own screens, a test shelter
 as the client, and a third browser as the adopter. His script, verbatim (RU-B5) except step 2,
 which he reworded on 2026-10-17 (RU-Q6, verbatim: "Reword rehearsal step 2 to "resend, or invite
@@ -464,7 +471,7 @@ a second address""), because creating a shelter already invites its first admin:
    the final dress-rehearsal script: invite → set password → sign out → sign in with password →
    forgot password → reset." As steps, before step 3 (the invitation from step 1 or 2 is the
    one used):
-   1. The shelter admin opens the invite email's «Відкрити запрошення»: «Створіть пароль» names
+   1. The shelter admin opens the invite email's «Створити пароль»: «Створіть пароль» names
       the shelter and the address (masked). Set a password (the repeat field must match) and
       press «Зберегти й увійти»: the kabinet opens, signed in.
    2. Open the same invite link again: «Цим запрошенням не можна скористатися» (the link works
@@ -493,7 +500,7 @@ a second address""), because creating a shelter already invites its first admin:
    2026-10-19 per his own words quoted there; the rest of the script is verbatim RU-B5.)
 
 Until then the current rehearsal shelter (`<rehearsal-shelter-uuid>`) stays as the dev test bed, and
-`KABINET_WRITE_ALLOWLIST` serves only that interim; it goes away with PR 6.
+the allowlist that served that interim went away with PR 6 (#133).
 
 ## Where `LOCATION_HMAC_SECRET` comes from
 
@@ -592,9 +599,10 @@ Every put carries `IfNoneMatch: "*"`, so R2 should refuse (HTTP 412) to write
 to a key that already holds an object. That is asserted in code, not yet
 observed against R2.
 
-**When: before uploads open to any shelter**, the allowlisted test shelter
-included (`KABINET_WRITE_ALLOWLIST`, K-Q4/K-Q17). Until it has passed, no
-shelter's kabinet may store a photo.
+**When: before uploads open to any shelter**, the test shelter included. Shelter
+writes are open to every shelter since PR 6 (#133, the allowlist is gone), so run this
+before the first real shelter uploads. Until it has passed, no shelter's kabinet should
+store a photo.
 
 **Who and with what:** the operator, by hand, from his own shell, with the
 **onboarding token** (`R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`, the one in
@@ -732,12 +740,11 @@ also carries a signature made with `BETTER_AUTH_SECRET` (next section), so no ro
 for a token alone. This happened once, on 2026-10-15, with the operator's own session, and was
 closed exactly this way (inbox RO-E1).
 
-## The operator's own `/kabinet` answers 404
+## The operator's own `/kabinet` redirects to the shelter list
 
-Signed in as the operator (super_admin) and outside support mode, `/kabinet` answers 404. That is
-intended for now (inbox RO-D1): the kabinet shows one shelter's profile, and the operator account
-belongs to no shelter. The operator works through the registry API instead. A minimal operator
-landing (one line plus «Вийти») is a low-priority follow-up (RO-F1).
+Signed in as the operator (super_admin), `/kabinet` redirects to `/kabinet/prytulky`
+(`OPERATOR_HOME`, `apps/web/src/app/kabinet/page.tsx`); the operator account belongs to no
+shelter, so there is no profile to show. This replaced the earlier 404 (RO-D1, RU-T1).
 
 ## Rotating `BETTER_AUTH_SECRET` (kabinet sign-in)
 
@@ -917,7 +924,7 @@ production check (whole-payload search)." The same checklist as PW-1's above, on
 link instead of the reset link (production, once PW-2 has merged and deployed):
 
 1. From his screens, invite a test address on the Репетиція shelter (or resend its pending
-   invite), and open the email's «Відкрити запрошення».
+   invite), and open the email's «Створити пароль».
 2. In DevTools → Network, filter for `insights` / `vitals`: each analytics request's payload URL
    is `/kabinet/vkhid` with no query string.
 3. In each of those analytics requests, search the whole payload (not just the URL field) for
