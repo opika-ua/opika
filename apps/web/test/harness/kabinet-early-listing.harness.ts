@@ -290,7 +290,8 @@ test.describe("listing before verification, operator and shelter sides", () => {
           page,
           `page${path.replaceAll(/[^a-z]+/g, "-")}`,
         );
-        if (mainBottom > barTop + 0.5) covered.push(`${path}: content ends ${mainBottom}, bar at ${barTop}`);
+        if (mainBottom > barTop + 0.5)
+          covered.push(`${path}: content ends ${mainBottom}, bar at ${barTop}`);
         await page.close();
       }
     }

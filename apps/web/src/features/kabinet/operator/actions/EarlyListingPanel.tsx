@@ -6,8 +6,8 @@ import { EARLY_LISTING_MAX_PERIODS, EARLY_LISTING_STATUSES, pluralizeUk } from "
 import { fillTemplate, uk } from "@opika/i18n";
 import { useId, useState } from "react";
 import { Button } from "../../../../ui/Button";
-import { Heading } from "../../../../ui/Heading";
 import { TextArea } from "../../../../ui/form";
+import { Heading } from "../../../../ui/Heading";
 import { Modal } from "../../../../ui/Modal";
 import { Panel } from "../../../../ui/Panel";
 import { Text } from "../../../../ui/Text";

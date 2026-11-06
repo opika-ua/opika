@@ -44,7 +44,9 @@ describe("«Показ до завершення перевірки»", () => {
   it("is a titled section holding the allow button", () => {
     renderWithActions(<EarlyListingPanel />, { view: withEarlyListing(pending, none) });
     const region = within(screen.getByRole("region", { name: "Показ до завершення перевірки" }));
-    expect(region.getByRole("button", { name: "Дозволити показ до завершення перевірки" })).toBeTruthy();
+    expect(
+      region.getByRole("button", { name: "Дозволити показ до завершення перевірки" }),
+    ).toBeTruthy();
   });
 });
 
