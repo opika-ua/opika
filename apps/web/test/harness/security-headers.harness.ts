@@ -50,9 +50,7 @@ test.describe("security headers (audit F5)", () => {
     expect(headers["strict-transport-security"], what).toBe("max-age=63072000; includeSubDomains");
   }
 
-  test("a 404 page, a build asset, a public file and the proxy's own refusal carry them", async ({
-    request,
-  }) => {
+  test("a 404 page, a build asset and a public file carry them", async ({ request }) => {
     const notFound = await request.get(`/tvaryny/not-a-real-id?${GATE}`, { headers: IP_HEADERS });
     expect(notFound.status()).toBe(404);
     expectEnforced(notFound.headers(), "the 404 page");
@@ -67,11 +65,23 @@ test.describe("security headers (audit F5)", () => {
     const publicFile = await request.get(`/brand-v3/logo.svg?${GATE}`, { headers: IP_HEADERS });
     expect(publicFile.status()).toBe(200);
     expectEnforced(publicFile.headers(), "a file under /public");
+  });
 
-    // `proxy.ts` answers this itself (the pre-launch gate), as it does its 429s.
-    const gated = await request.get("/prytulkam", { headers: IP_HEADERS });
-    expect(gated.status()).toBe(403);
-    expectEnforced(gated.headers(), "the proxy's own refusal");
+  // Its own test: a request that carried the gate query earlier would leave the cookie in the
+  // context's jar and make this one pass the gate.
+  test.describe("without the project's gate cookie", () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test("the proxy's own refusal carries them", async ({ request }) => {
+      expect(
+        (await request.storageState()).cookies,
+        "the request context must carry no gate cookie",
+      ).toHaveLength(0);
+      // `proxy.ts` answers this itself (the pre-launch gate), as it does its 429s.
+      const gated = await request.get("/prytulkam", { headers: IP_HEADERS });
+      expect(gated.status()).toBe(403);
+      expectEnforced(gated.headers(), "the proxy's own refusal");
+    });
   });
 
   /** Every report-only violation the page raises, collected as the browser fires them. */

@@ -38,7 +38,15 @@ test.describe("web app manifest, against a real server", () => {
     await expect(page.locator('link[rel="manifest"]')).toHaveCount(1);
   });
 
-  test("the gate still denies a page without a cookie", async ({ request }) => {
-    expect((await request.get("/tvaryny")).status()).toBe(403);
+  test.describe("without the project's gate cookie", () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test("the gate still denies a page without a cookie", async ({ request }) => {
+      expect(
+        (await request.storageState()).cookies,
+        "the request context must carry no gate cookie",
+      ).toHaveLength(0);
+      expect((await request.get("/tvaryny")).status()).toBe(403);
+    });
   });
 });

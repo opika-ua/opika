@@ -50,7 +50,13 @@ test("the site card renders without the gate cookie, an unknown animal falls bac
   const anonymous = await playwright.request.newContext({
     baseURL: baseURL as string,
     extraHTTPHeaders: { "x-forwarded-for": "203.0.113.41" },
+    // Explicit: newer Playwright versions may otherwise inherit the project's gate cookie.
+    storageState: { cookies: [], origins: [] },
   });
+  expect(
+    (await anonymous.storageState()).cookies,
+    "the context must carry no gate cookie",
+  ).toHaveLength(0);
   const site = await anonymous.get("/opengraph-image");
   expect(site.status()).toBe(200);
   expect(pngSize(await site.body())).toEqual({ width: 1200, height: 630 });
