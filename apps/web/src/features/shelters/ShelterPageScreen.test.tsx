@@ -211,10 +211,10 @@ describe("the shelter page, filters", () => {
     expect(screen.queryByTestId("species-toggle-mobile")).toBeNull();
   });
 
-  it("with filterUi: the species switch, the «Фільтри» sheet and the desktop selectors, but no Область or Місто", () => {
+  it("with filterUi: the species switch, the «Фільтри» sheet and the desktop selectors, but no Область or Місто", async () => {
     renderScreen({ animals: many, filterUi: UI });
     expect(screen.getByTestId("species-toggle-mobile")).toBeTruthy();
-    expect(screen.getByTestId("filter-sheet-trigger")).toBeTruthy();
+    expect(await screen.findByTestId("filter-sheet-trigger")).toBeTruthy();
     const desktop = screen.getByTestId("gallery-filter-dropdowns");
     expect(within(desktop).getByRole("button", { name: /^Вік/ })).toBeTruthy();
     expect(within(desktop).queryByRole("combobox", { name: /Область|Місто/ })).toBeNull();

@@ -10,7 +10,7 @@ import { ActiveFilterChips } from "../../features/gallery/ActiveFilterChips";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
 import { activeFilterChips, anyFilterSet } from "../../features/gallery/active-filters";
 import { cardCityId } from "../../features/gallery/card-text";
-import { FilterSheet } from "../../features/gallery/FilterSheet";
+import { FilterSheet } from "../../features/gallery/FilterSheetLazy";
 import {
   cityTokensOf,
   parseGalleryQuery,
