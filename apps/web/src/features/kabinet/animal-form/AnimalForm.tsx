@@ -169,6 +169,7 @@ export function AnimalForm({
   // summary takes focus. Never for an autosave, which must not pull focus from the typing.
   const [summaryFocus, setSummaryFocus] = useState(0);
   const summaryRef = useRef<HTMLDivElement | null>(null);
+  const statusRef = useRef<HTMLParagraphElement | null>(null);
   const inFlight = useRef<Promise<SaveOutcome> | null>(null);
   // How many `saveNow` calls are pending or queued right now: incremented
   // the instant a call is made, decremented only once that call's own
@@ -368,6 +369,11 @@ export function AnimalForm({
   useEffect(() => {
     if (summaryFocus > 0) summaryRef.current?.focus();
   }, [summaryFocus]);
+
+  // The Publish button unmounts with the draft actions; focus goes to the status line that says it worked.
+  useEffect(() => {
+    if (published) statusRef.current?.focus();
+  }, [published]);
 
   /** A person's own request to save: a refusal for a field sends focus to the summary. */
   const saveFromButton = useCallback(async () => {
@@ -716,7 +722,12 @@ export function AnimalForm({
           />
         </StickyActionBar>
       ) : (
-        <p role="status" className="text-caption text-ink-2 empty:sr-only">
+        <p
+          ref={statusRef}
+          role="status"
+          tabIndex={-1}
+          className="text-caption text-ink-2 focus-ring empty:sr-only"
+        >
           {announcement}
         </p>
       )}

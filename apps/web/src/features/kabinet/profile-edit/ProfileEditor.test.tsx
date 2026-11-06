@@ -574,6 +574,10 @@ describe("pause and resume (N21)", () => {
     await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом звернень" }));
     expect(fns.pause).not.toHaveBeenCalled();
     expect(select.getAttribute("aria-invalid")).toBe("true");
+    // The refusal is words, not only a flag: visible, and what the focused select is described by.
+    const message = dialog.getByText("Оберіть причину", { selector: "p" });
+    expect(select.getAttribute("aria-describedby")).toContain(message.id);
+    expect(document.activeElement).toBe(select);
     await userEvent.selectOptions(select, "Переїзд");
     await userEvent.type(dialog.getByLabelText(/^Коментар/), "  Переїжджаємо до Бучі  ");
     await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом звернень" }));

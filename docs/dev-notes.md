@@ -89,6 +89,12 @@ is not the same claim as "I ran it and here is the output."
 # given a CLI --reporter (it replaces the dropping reporter), and while another session
 # still uses it (the drop is never forced). The next run reuses it; the prune clears it.
 
+## Accessibility gate (axe)
+
+`apps/web/test/harness/zz-a11y-axe.harness.ts` runs axe (`@axe-core/playwright` 4.14.0, tags wcag2a, wcag2aa, wcag21a, wcag21aa) on
+`/tvaryny`, a verified animal page, a shelter page and `/zberezheni` at 393 and 1280, and fails on any violation.
+`incomplete` results and best-practice rules are not gated. It is the accepted exception to "test logic, not looks": it checks WCAG rules, not appearance. Run it alone with `pnpm --filter @opika/web test:harness zz-a11y-axe`.
+
 ## Performance check on a Neon child branch (2026-11-02)
 
 Three tools, all built on `packages/db/src/tools/perf-support.ts` (`perfTarget`): local (no `--expect`) or a

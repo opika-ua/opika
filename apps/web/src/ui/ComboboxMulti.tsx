@@ -233,7 +233,7 @@ export function ComboboxMulti({
           if (!ownsPress(event.target)) toggleFromField();
         }}
         className={cx(
-          "flex h-13 w-full cursor-pointer min-w-0 items-center gap-2 rounded-field border-2 bg-surface pr-1 pl-5 text-label text-ink",
+          "flex h-13 w-full cursor-pointer min-w-0 items-center gap-2 rounded-field border-2 bg-surface pr-1 pl-5 text-label text-ink focus-ring-within",
           hasSelection ? "border-ink" : open ? "border-accent" : "border-line",
         )}
       >

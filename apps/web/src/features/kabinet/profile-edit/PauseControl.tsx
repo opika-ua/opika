@@ -196,14 +196,13 @@ function PauseDialog({
       locked={busy}
       onClose={close}
     >
-      {/* No message key exists for a missing reason: the select is marked
-            invalid and focused, and its placeholder already says «Оберіть причину». */}
+      {/* The missing reason is said in the placeholder's words («Оберіть причину»), linked to the select, which takes focus. */}
       <Select
         id={reasonId}
         label={t.reasonLabel}
         value={code}
         required
-        aria-invalid={error.kind === "reason" || undefined}
+        error={error.kind === "reason" ? t.reasonPlaceholder : null}
         onChange={(event) => {
           setCode(event.target.value as PauseCode | "");
           if (error.kind === "reason") setError({ kind: "none" });
