@@ -3,7 +3,7 @@ import { handleMonitoringTestError } from "../../../../api/monitoring-test-error
 import { sharedRateLimiter } from "../../../../api/rate-limit";
 import { ipRateLimitKey } from "../../../../api/rate-limit-key";
 
-/** Its own small budget: the secret check sits behind it, so guessing is limited. */
+/** Its own small budget; fails open in an outage, where the long `CRON_SECRET` is the protection. */
 const limiter = sharedRateLimiter({
   name: "monitoring-test",
   windowMs: 60_000,

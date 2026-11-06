@@ -121,6 +121,15 @@ describe("limiter fail modes with the store unreachable", () => {
       );
     });
 
+    it.each(ALLOW)(
+      "%s still refuses when a healthy store says the limit is spent",
+      async (name) => {
+        const registered = await loadAllLimiters();
+        limitMock.mockResolvedValue({ success: false, reset: Date.now() + 1_000 });
+        expect(await registered.get(name)?.limiter.check("k", new Date())).toBe(false);
+      },
+    );
+
     it.each(DENY)("%s fails closed", async (name) => {
       const registered = await loadAllLimiters();
       fail();
