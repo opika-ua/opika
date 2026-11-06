@@ -1207,14 +1207,12 @@ describe("when nobody can see the cards", () => {
     },
   );
 
-  it("pending but allowed to show: the listed line, and not the one saying nobody sees the cards", () => {
+  it("pending but allowed to show: no list line at all (the screen's banner says it once)", () => {
     renderList({
       verification: { status: "pending", since: NOW } as KabinetShelterView["verification"],
       earlyListing: { kind: "running", expiresAt: new Date("2026-12-01T00:00:00Z") },
     });
-    expect(
-      screen.getByText("Опубліковані картки показуються з позначкою «на перевірці»."),
-    ).toBeTruthy();
+    expect(screen.queryByText(/на перевірці/)).toBeNull();
     expect(
       screen.queryByText(
         "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",

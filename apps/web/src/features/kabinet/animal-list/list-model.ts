@@ -409,10 +409,10 @@ export const visibilityNoticeOf = (
     }
     case "pending":
     case "under_review":
-      return {
-        kind: "line",
-        text: earlyListing.kind === "running" ? t.notVisible.pendingListed : t.notVisible.pending,
-      };
+      // While the dated banner shows, it says it (the label is said once on the page).
+      return earlyListing.kind === "running"
+        ? { kind: "none" }
+        : { kind: "line", text: t.notVisible.pending };
     case "rejected":
       return { kind: "line", text: uk.kabinet.verificationDecision.rejectedEffect };
     case "suspended":

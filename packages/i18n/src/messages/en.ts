@@ -635,8 +635,7 @@ export const en = {
       voiceNote: "One sentence in the first person, written by you.",
       pendingNote:
         "I carry out the verification myself: I will write or call to arrange it. Until it is finished, only you can see your animals.",
-      pendingNoteListed:
-        "I carry out the verification myself: I will write or call to arrange it. Until it is finished, your cards are shown with the label «under review».",
+      pendingNoteLead: "I carry out the verification myself: I will write or call to arrange it.",
       earlyListingBanner: "Your cards are shown with the label «under review» until {date}.",
       lockedTitle: "Set during verification",
       lockedNote:
@@ -1113,7 +1112,6 @@ export const en = {
       },
       notVisible: {
         pending: "Your animals appear in the gallery as soon as the shelter passes verification.",
-        pendingListed: "Published cards are shown with the label «under review».",
       },
       orderNote:
         "Order in the gallery is by date: the person chooses the freshest cards first or those who have waited longest. Card completeness affects only the order in the deck. The order can't be changed here, and there is no promotion.",
@@ -1531,6 +1529,7 @@ export const en = {
         },
       },
       earlyListing: {
+        title: "Showing before the review ends",
         allow: "Allow showing before the review ends",
         revoke: "Withdraw permission",
         confirm:

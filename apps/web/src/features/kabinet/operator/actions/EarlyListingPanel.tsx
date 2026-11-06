@@ -6,6 +6,7 @@ import { EARLY_LISTING_MAX_PERIODS, EARLY_LISTING_STATUSES, pluralizeUk } from "
 import { fillTemplate, uk } from "@opika/i18n";
 import { useId, useState } from "react";
 import { Button } from "../../../../ui/Button";
+import { Heading } from "../../../../ui/Heading";
 import { TextArea } from "../../../../ui/form";
 import { Modal } from "../../../../ui/Modal";
 import { Panel } from "../../../../ui/Panel";
@@ -149,7 +150,15 @@ export function EarlyListingPanel() {
   };
 
   return (
-    <Panel as="div" padding="lg" className="flex min-w-0 flex-col gap-3">
+    <Panel
+      as="section"
+      padding="lg"
+      aria-labelledby={`${id}-title`}
+      className="flex min-w-0 flex-col gap-3"
+    >
+      <Heading level={3} look="body-l" id={`${id}-title`}>
+        {t.title}
+      </Heading>
       {state.kind === "running" ? (
         <Text look={state.remind ? "body" : "hint"}>
           {fillTemplate(pluralizeUk(state.daysLeft, t.daysLeft), { count: String(state.daysLeft) })}

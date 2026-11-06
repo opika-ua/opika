@@ -975,6 +975,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   };
   /** Owner-approved 2026-11-04 (listing before verification, copy table N7–N12). */
   const EARLY_LISTING_OPERATOR_COPY: Record<string, string> = {
+    "operator.earlyListing.title": "Показ до завершення перевірки",
     "operator.earlyListing.allow": "Дозволити показ до завершення перевірки",
     "operator.earlyListing.revoke": "Зняти дозвіл",
     "operator.earlyListing.confirm":
@@ -1359,19 +1360,14 @@ describe("listing before verification (owner's copy table, 2026-11-04, N1–N3 a
       "Строк показу карток до завершення перевірки минув",
     ],
     [
-      "kabinet.profile.pendingNoteListed (B5)",
-      uk.kabinet.profile.pendingNoteListed,
-      "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваші картки показуються з позначкою «на перевірці».",
+      "kabinet.profile.pendingNoteLead (B5, first sentence while the banner shows)",
+      uk.kabinet.profile.pendingNoteLead,
+      "Перевірку проводжу я: напишу або зателефоную, щоб домовитися.",
     ],
     [
       "kabinet.animalForm.publish.publishedListed (B6)",
       uk.kabinet.animalForm.publish.publishedListed,
       "Опубліковано. Картку видно всім з позначкою «на перевірці», поки притулок проходить перевірку.",
-    ],
-    [
-      "kabinet.animalList.notVisible.pendingListed (B7)",
-      uk.kabinet.animalList.notVisible.pendingListed,
-      "Опубліковані картки показуються з позначкою «на перевірці».",
     ],
     [
       "kabinet.profile.earlyListingBanner (N13)",
@@ -1850,9 +1846,6 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     // audit 2026-10-22 #24
     "kabinet.animalList.notVisible.pending":
       "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
-    // B7, owner-approved 2026-11-04.
-    "kabinet.animalList.notVisible.pendingListed":
-      "Опубліковані картки показуються з позначкою «на перевірці».",
     // audit 2026-10-22 #41: the public name of the deck is «по одній»
     "kabinet.animalList.orderNote":
       "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.",

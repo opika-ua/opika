@@ -63,7 +63,7 @@ export function AnimalListScreen({
                   {uk.kabinet.profileStatus[status as "pending" | "under_review"]}
                 </Heading>
                 <Text>
-                  {listed ? uk.kabinet.profile.pendingNoteListed : uk.kabinet.profile.pendingNote}
+                  {listed ? uk.kabinet.profile.pendingNoteLead : uk.kabinet.profile.pendingNote}
                 </Text>
               </Panel>
             ) : null}

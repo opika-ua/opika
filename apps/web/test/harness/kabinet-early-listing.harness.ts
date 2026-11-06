@@ -12,9 +12,9 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { createDatabase, productionLocationPolicy } from "@opika/db";
-import { kabinetInvitationRepo, kabinetShelterRepo } from "@opika/db/repos";
+import { animalRepo, kabinetInvitationRepo, kabinetShelterRepo } from "@opika/db/repos";
 import { authMember, authUser, cities, superAdmins } from "@opika/db/schema";
-import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
+import { assertDisposableTestDatabase, makeAnimal, testDatabaseUrl } from "@opika/db/test";
 import { type ModeratorId, publicLocationOf, type Shelter, type ShelterId } from "@opika/domain";
 import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { HARNESS_LOCATION_HMAC_SECRET } from "../harness-env";
@@ -58,10 +58,44 @@ async function signedInContext(
 async function shoot(page: Page, name: string) {
   if (SHOTS === undefined) return;
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.screenshot({ path: join(SHOTS, `${name}-desktop.png`), fullPage: true });
+  await page.screenshot({ path: join(SHOTS, `${name}-desktop-v2.png`), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: join(SHOTS, `${name}-mobile.png`), fullPage: true });
+  await page.screenshot({ path: join(SHOTS, `${name}-mobile-v2.png`), fullPage: true });
   await page.setViewportSize({ width: 1280, height: 900 });
+}
+
+/**
+ * The phone's bottom bar must never sit on content: scrolled to the end at 390 wide, the bottom of
+ * `main` is above the top of every fixed or sticky element pinned to the bottom edge. Returns the
+ * numbers so a failure says by how much. A full-page screenshot cannot show this (a fixed bar is
+ * drawn at one scroll position), so the shot saved here is the viewport at the end of the page.
+ */
+async function bottomClearance(page: Page, name: string) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForLoadState("load");
+  const result = await page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    const vh = window.innerHeight;
+    const barTops = [...document.querySelectorAll("body *")]
+      .filter((el) => {
+        const position = getComputedStyle(el).position;
+        if (position !== "fixed" && position !== "sticky") return false;
+        const rect = el.getBoundingClientRect();
+        return rect.height > 0 && rect.bottom >= vh - 1 && rect.top > vh / 2;
+      })
+      .map((el) => el.getBoundingClientRect().top);
+    const main = document.querySelector("main");
+    return {
+      barTop: barTops.length === 0 ? vh : Math.min(...barTops),
+      mainBottom: main === null ? 0 : main.getBoundingClientRect().bottom,
+      bars: barTops.length,
+    };
+  });
+  if (SHOTS !== undefined) {
+    await page.screenshot({ path: join(SHOTS, `${name}-bottom-mobile-v2.png`) });
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  return result;
 }
 
 test.describe("listing before verification, operator and shelter sides", () => {
@@ -69,6 +103,7 @@ test.describe("listing before verification, operator and shelter sides", () => {
   let operator: BrowserContext | undefined;
   let shelterAdmin: BrowserContext | undefined;
   let shelterId: ShelterId | undefined;
+  let animalId: string | undefined;
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(180_000);
@@ -148,6 +183,9 @@ test.describe("listing before verification, operator and shelter sides", () => {
       },
     });
     shelterId = id;
+    const animal = makeAnimal({ shelterId: id, name: "Барсик", listing: { kind: "draft" } });
+    await animalRepo(db).insert(animal, city.id as never);
+    animalId = animal.id;
 
     const adminEmail = `harness-early-admin-${randomUUID()}@example.test`;
     const adminId = randomUUID();
@@ -209,9 +247,14 @@ test.describe("listing before verification, operator and shelter sides", () => {
     await expect(
       kabinet.getByText(/^Ваші картки показуються з позначкою «на перевірці» до \d+ \S+\.$/),
     ).toBeVisible();
+    // The label is said once on the landing page: the banner, not the note or the list line.
     await expect(
-      kabinet.getByText(/ваші картки показуються з позначкою «на перевірці»\.$/),
+      kabinet.getByText("Перевірку проводжу я: напишу або зателефоную, щоб домовитися.", {
+        exact: true,
+      }),
     ).toBeVisible();
+    await expect(kabinet.getByText(/на перевірці/)).toHaveCount(1);
+    await bottomClearance(kabinet, "kabinet-tvaryny");
     await shoot(kabinet, "kabinet-banner");
     await kabinet.close();
 
@@ -219,5 +262,38 @@ test.describe("listing before verification, operator and shelter sides", () => {
     await expect(page.getByRole("button", { name: ALLOW })).toBeVisible();
     await expect(page.getByText(/^До кінця показу:/)).toBeHidden();
     await page.close();
+  });
+
+  test("on a phone the bottom bar never covers the last line, on every kabinet page", async () => {
+    if (operator === undefined || shelterAdmin === undefined) throw new Error("not set up");
+    const operatorPages = [
+      "/kabinet/prytulky",
+      "/kabinet/prytulky/novyi",
+      `/kabinet/prytulky/${shelterId}`,
+    ];
+    const shelterPages = [
+      "/kabinet/tvaryny",
+      "/kabinet/tvaryny/nova",
+      `/kabinet/tvaryny/${animalId}`,
+      "/kabinet/prytulok",
+      "/kabinet/akaunt",
+    ];
+    const covered: string[] = [];
+    for (const [context, paths] of [
+      [operator, operatorPages],
+      [shelterAdmin, shelterPages],
+    ] as const) {
+      for (const path of paths) {
+        const page = await context.newPage();
+        expect((await page.goto(path))?.status(), path).toBe(200);
+        const { barTop, mainBottom } = await bottomClearance(
+          page,
+          `page${path.replaceAll(/[^a-z]+/g, "-")}`,
+        );
+        if (mainBottom > barTop + 0.5) covered.push(`${path}: content ends ${mainBottom}, bar at ${barTop}`);
+        await page.close();
+      }
+    }
+    expect(covered).toEqual([]);
   });
 });

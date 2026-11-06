@@ -5,6 +5,7 @@ import {
   ANIMAL_NAME_MAX_CHARACTERS,
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   DEFAULT_FRESHNESS_POLICY,
+  EARLY_LISTING_DAYS,
   TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
@@ -42,6 +43,15 @@ describe("the TTLs the copy's plural nouns were written for", () => {
       INVITATION_TTL_MS / 3_600_000,
       `INVITATION_TTL_MS changed: the Ukrainian noun form «години» in ${HOUR_KEYS} was written for 72 and must be rechecked before this pin moves`,
     ).toBe(72);
+  });
+
+  it("an early listing lasts 60 days («днів») in the operator's confirm text and the /prytulkam rule", () => {
+    expect(
+      EARLY_LISTING_DAYS,
+      `EARLY_LISTING_DAYS changed: «60 днів» in operator.earlyListing.confirm and forShelters.verification was written for 60 and must be rechecked before this pin moves`,
+    ).toBe(60);
+    expect(uk.kabinet.operator.earlyListing.confirm).toContain(`${EARLY_LISTING_DAYS} днів`);
+    expect(uk.forShelters.verification).toContain(`${EARLY_LISTING_DAYS} днів`);
   });
 
   /** The forms in the copy, from his answer sheet: what the pins above protect. */

@@ -23,7 +23,7 @@ const { shelters, verification, donation, admins, support, earlyListing } =
  *
  * Every procedure here is the contract's own object, so each keeps its
  * `registry` access meta: the served route refuses it to anyone but a
- * super_admin (`kabinet-registry-access.test.ts`: all twenty-one, and a
+ * super_admin (`kabinet-registry-access.test.ts`: all twenty-three, and a
  * rename-shaped `updateProfile` on its own). Same origin, so the Origin check
  * and the per-user limit of `/api/kabinet` apply as they do to K4's editor.
  */

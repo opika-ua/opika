@@ -43,7 +43,17 @@ const renderScreen = (shelter: KabinetShelterView) =>
   );
 
 describe("the kabinet banner while cards are shown before verification", () => {
-  it("says the label and the end date, and swaps the pending note for the listed one", () => {
+  it("says «на перевірці» exactly once on the page: the dated banner, not the note or the list line", () => {
+    renderScreen(
+      shelterIn({ status: "pending", since: AT } as KabinetShelterView["verification"], {
+        kind: "running",
+        expiresAt: new Date("2026-12-01T09:00:00Z"),
+      }),
+    );
+    expect(screen.queryAllByText(/на перевірці/)).toHaveLength(1);
+  });
+
+  it("says the end date, and cuts the pending note to its first sentence", () => {
     renderScreen(
       shelterIn({ status: "pending", since: AT } as KabinetShelterView["verification"], {
         kind: "running",
@@ -54,9 +64,7 @@ describe("the kabinet banner while cards are shown before verification", () => {
       screen.getByText("Ваші картки показуються з позначкою «на перевірці» до 1 грудня."),
     ).toBeTruthy();
     expect(
-      screen.getByText(
-        "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваші картки показуються з позначкою «на перевірці».",
-      ),
+      screen.getByText("Перевірку проводжу я: напишу або зателефоную, щоб домовитися."),
     ).toBeTruthy();
     expect(screen.queryByText(/ваших тварин бачите лише ви/)).toBeNull();
   });

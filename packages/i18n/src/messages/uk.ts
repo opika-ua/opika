@@ -434,9 +434,11 @@ export const uk = {
        */
       pendingNote:
         "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваших тварин бачите лише ви.",
-      /** B5, owner-approved 2026-11-04: the same note while the operator has allowed showing cards. */
-      pendingNoteListed:
-        "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваші картки показуються з позначкою «на перевірці».",
+      /**
+       * B5 while the dated banner (`earlyListingBanner`) shows (owner, 2026-11-06): only the first
+       * sentence, so the label is said once on the page.
+       */
+      pendingNoteLead: "Перевірку проводжу я: напишу або зателефоную, щоб домовитися.",
       /** N13, owner-approved 2026-11-04: the shelter may see the end date, the public never does. `{date}` is a Kyiv day. */
       earlyListingBanner: "Ваші картки показуються з позначкою «на перевірці» до {date}.",
       lockedTitle: "Встановлено під час перевірки",
@@ -1127,8 +1129,6 @@ export const uk = {
       },
       notVisible: {
         pending: "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
-        /** B7, owner-approved 2026-11-04. */
-        pendingListed: "Опубліковані картки показуються з позначкою «на перевірці».",
       },
       orderNote:
         "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.",
@@ -1736,6 +1736,8 @@ export const uk = {
        * `daysLeft` takes `{count}`, through `pluralizeUk`.
        */
       earlyListing: {
+        /** The panel's heading (owner-approved 2026-11-06). */
+        title: "Показ до завершення перевірки",
         allow: "Дозволити показ до завершення перевірки",
         revoke: "Зняти дозвіл",
         confirm:

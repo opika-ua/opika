@@ -40,6 +40,14 @@ const ALLOW = "Дозволити показ до завершення пере�
 const CONFIRM =
   "Картки притулку побачать усі, з позначкою «на перевірці». Дозвіл діє до 60 днів, зняти його можна будь-коли.";
 
+describe("«Показ до завершення перевірки»", () => {
+  it("is a titled section holding the allow button", () => {
+    renderWithActions(<EarlyListingPanel />, { view: withEarlyListing(pending, none) });
+    const region = within(screen.getByRole("region", { name: "Показ до завершення перевірки" }));
+    expect(region.getByRole("button", { name: "Дозволити показ до завершення перевірки" })).toBeTruthy();
+  });
+});
+
 describe("«Дозволити показ до завершення перевірки»", () => {
   it("is not offered once the decision is made or refused", () => {
     const evidence = { items: [], submittedAt: AT };
