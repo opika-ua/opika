@@ -1,5 +1,5 @@
 import type { ModeratorId, ShelterAdminId, ShelterId } from "@opika/domain";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import type { Database } from "../client";
 import { authAccount, authMember, authUser, superAdmins } from "../schema/auth";
 import { shelters } from "../schema/shelters";
@@ -147,6 +147,8 @@ export function kabinetActorRepo(db: Database) {
           .from(authMember)
           .innerJoin(shelters, eq(shelters.organizationId, authMember.organizationId))
           .where(eq(authMember.userId, userId))
+          // One membership per user (unique index), so this only pins the order for the plan.
+          .orderBy(asc(authMember.createdAt), asc(authMember.id))
           .limit(1),
       ]);
       const isSuperAdmin = admin.length > 0;

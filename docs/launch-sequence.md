@@ -68,6 +68,7 @@ only. "Both" means Production and Preview; a separate value on each where noted.
 | `EMAIL_SIGN_IN_PROVIDER` | Production | no; leave unset (only `resend` is accepted) | `kabinet/sign-in-env.ts:72` |
 | `KABINET_OPERATOR_DISPLAY_NAME` | Production | no (falls back to the catalogue's wording) | `app/api/kabinet/[...rpc]/route.ts:81` |
 | `NEXT_PUBLIC_SENTRY_DSN` | Production | no; unset means Sentry never loads, silently | `instrumentation.ts:34` |
+| `HEALTHCHECK_URL_AUTH_CLEANUP`, `HEALTHCHECK_URL_R2_CLEANUP` (Healthchecks.io ping URLs, one per cron) | Production only | no; unset means the cron sends no check-in | `kabinet/auth-cleanup.ts`, `kabinet/r2-cleanup-cron.ts` |
 
 (Paths relative to `apps/web/src`; `.env.example` has the long form of each.)
 `REGISTRY_HAS_NO_REAL_SHELTERS` and `SITE_IS_PUBLICLY_DISCOVERABLE` are compile-time constants in
@@ -78,6 +79,8 @@ unset everywhere (`docs/launch-gate.md`, section A).
 (`apps/web/vercel.json`): `/api/cron/auth-cleanup` at `0 */6 * * *` and `/api/cron/r2-cleanup` at
 `0 4 * * *`. **Uptime probe:** point a monitor at `https://opika.org.ua/api/health` (no database
 call, gate-exempt, its own 30-per-minute limiter).
+
+Incident steps (site down, a stopped cron, rollback, restore, secret rotation, kill options): `docs/runbook.md`.
 
 ## Rehearse first, once, long before the real sequence ever runs
 

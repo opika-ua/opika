@@ -52,6 +52,14 @@ function isKeyOwnedByThisJob(objectKey: string): boolean {
  */
 const DELETE_BATCH_SIZE = 1000;
 
+/**
+ * Blast-radius cap: one run deletes at most this many objects, else it deletes nothing. A photo is
+ * five variants, so 100 is about 20 photos a day, well above real churn; a bug or a wiped table that
+ * makes everything look unreferenced trips it instead of emptying the bucket (R2 has no versioning).
+ * The scheduled job always uses this default; only the CLI can raise it (`--max-delete`).
+ */
+export const DEFAULT_MAX_DELETE_PER_RUN = 100;
+
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
@@ -66,6 +74,8 @@ export type R2CleanupReport = {
   deleted: readonly string[];
   failed: readonly { key: string; message: string }[];
   snapshotsNulled: number;
+  /** Set when a commit run found more due objects than the cap allows; nothing was deleted. */
+  capTripped: { due: number; cap: number } | null;
 };
 
 /**
@@ -88,9 +98,10 @@ export async function runR2Cleanup(
   db: Database,
   r2: R2CleanupClient,
   now: Date,
-  options: { commit: boolean; graceDays: number | undefined },
+  options: { commit: boolean; graceDays: number | undefined; maxDelete?: number | undefined },
 ): Promise<R2CleanupReport> {
   const graceDays = options.graceDays ?? R2_CLEANUP_GRACE_PERIOD_DAYS;
+  const maxDelete = options.maxDelete ?? DEFAULT_MAX_DELETE_PER_RUN;
   // One listing call per prefix - R2's own ListObjectsV2 takes exactly one
   // prefix, so the two namespaces can't be scanned in a single call. The
   // shelters/ listing is broader than what this job owns, so it's narrowed
@@ -113,6 +124,20 @@ export async function runR2Cleanup(
       deleted: [],
       failed: [],
       snapshotsNulled: 0,
+      capTripped: null,
+    };
+  }
+
+  if (due.length > maxDelete) {
+    return {
+      scanned: bucketKeys.length,
+      newlyTracked,
+      clearedBack: cleared,
+      dueForDeletion: due,
+      deleted: [],
+      failed: [],
+      snapshotsNulled: 0,
+      capTripped: { due: due.length, cap: maxDelete },
     };
   }
 
@@ -136,6 +161,7 @@ export async function runR2Cleanup(
     deleted,
     failed,
     snapshotsNulled,
+    capTripped: null,
   };
 }
 
@@ -150,6 +176,11 @@ export function formatReport(
     `Past the grace period (${heading}): ${report.dueForDeletion.length}`,
   ];
   for (const key of report.dueForDeletion) lines.push(`  ${key}`);
+  if (report.capTripped !== null) {
+    lines.push(
+      `REFUSED: ${report.capTripped.due} objects are due, over the cap of ${report.capTripped.cap} per run. Nothing was deleted. Check why before raising it (--max-delete <n>).`,
+    );
+  }
   if (heading === "Deleted") {
     lines.push(`Deleted: ${report.deleted.length}`);
     lines.push(`Reveal snapshots nulled: ${report.snapshotsNulled}`);

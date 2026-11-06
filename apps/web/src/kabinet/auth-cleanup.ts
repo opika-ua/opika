@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Database } from "@opika/db";
 import { adopterRepo, authExpiryRepo, kabinetInvitedUsersRepo, sessionRepo } from "@opika/db/repos";
+import { pingHealthcheck } from "./cron-healthcheck";
 
 /**
  * The scheduled clean-up of dead Better Auth rows (inbox KH-Q9). Oleksii,
@@ -50,15 +51,34 @@ export async function handleAuthCleanup(
     db: () => Database;
     now: Date;
     log: (line: string) => void;
+    /** Healthchecks.io ping URL (`HEALTHCHECK_URL_AUTH_CLEANUP`); unset means no check-in. */
+    healthcheckUrl?: string | undefined;
+    fetchImpl?: typeof fetch;
   },
 ): Promise<Response> {
   if (!deps.cronSecret) {
     deps.log(JSON.stringify({ event: "kabinet_auth_cleanup", outcome: "refused_no_secret" }));
+    await pingHealthcheck(deps.healthcheckUrl, "fail", deps.fetchImpl);
     return new Response("Cron secret not configured", { status: 500 });
   }
   if (!bearerMatches(request.headers.get("authorization"), deps.cronSecret)) {
     return new Response("Unauthorized", { status: 401 });
   }
+  try {
+    const response = await runAuthCleanup(deps);
+    await pingHealthcheck(deps.healthcheckUrl, "ok", deps.fetchImpl);
+    return response;
+  } catch (error) {
+    await pingHealthcheck(deps.healthcheckUrl, "fail", deps.fetchImpl);
+    throw error;
+  }
+}
+
+async function runAuthCleanup(deps: {
+  db: () => Database;
+  now: Date;
+  log: (line: string) => void;
+}): Promise<Response> {
   const counts = await authExpiryRepo(deps.db()).deleteExpired(deps.now);
   const users = kabinetInvitedUsersRepo(deps.db());
   const candidates = await users.cleanupCandidates({ organizationId: null, now: deps.now });
