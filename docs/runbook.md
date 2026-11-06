@@ -9,13 +9,23 @@ rules (a Neon child branch for anything experimental; `--prod --expect ep-...` f
 1. Is it the site or the network? Open `https://opika.org.ua/api/health` (no database call, exempt
    from the pre-launch gate, its own limiter). 200 means the app answers and the fault is further in.
 2. Vercel dashboard, Deployments: did a deploy go out just before it broke? If yes, go to section 3.
-3. Vercel, Logs (Runtime): look for `rate_limiter_unreachable` (Upstash down; the limiters fail
-   closed, so every limited route answers 429 until the store is back), database errors (Neon: check
+3. Vercel, Logs (Runtime): look for `rate_limiter_unreachable` (Upstash down; see "When Upstash is
+   down" below for which routes stay open), database errors (Neon: check
    its status page and the project's compute state, section 5), or a boot error naming a missing
    variable (an env change without a redeploy, section 6).
 4. Neon console: is the compute suspended or out of compute hours (Free plan, section 5)?
 5. Vercel status, Upstash status, Cloudflare (R2 and DNS) status.
 6. If it is an attack, section 7.
+
+### When Upstash is down
+
+Each limiter has an explicit fail mode (`onUnavailable`). Fail open (allowed, unthrottled, each
+logged as `rate_limiter_unreachable`): public reads (`api`), adopter minting, and the `health`,
+`monitoring` and `monitoring-test` probes, because an outage of the limiter store must not take the
+site or its health probe down with it. Fail closed (refused with 429): sign-in, forgot and reset
+password, invites, the sign-in delay store, the kabinet per-user and per-IP limits, photo uploads and
+the per-IP reveal budget, because each guards a credential, a mail, a write or shelter contact data.
+`/api/health` therefore keeps answering 200 while the store is down; the warning is the signal.
 
 ## 2. A cron stopped
 
@@ -109,5 +119,10 @@ owner: shelters can re-upload photos and logos. The protection is the clean-up j
 - one run refuses to delete more than 100 objects (`DEFAULT_MAX_DELETE_PER_RUN`; about 20 photos at
   five variants each): over that it deletes nothing, logs `refused_over_cap` with the counts, and the
   cron answers 500. The cron has no way to raise the cap. Only the CLI does, after someone has looked
-  at why so much is due: `pnpm --filter @opika/db r2:cleanup --expect ep-... --commit --max-delete <n>`
+  at why so much is due: `pnpm --filter @opika/db r2:cleanup --prod --expect ep-... --commit --max-delete <n>`
   (dry run first, without `--commit`).
+
+## 9. A shelter looks wrong
+
+Not an outage: a shelter that is unreachable, inconsistent or suspected of asking adopters for money.
+Follow `docs/operator-playbook.md` (signals, triage, suspend and reinstate, what to record, draft messages).
