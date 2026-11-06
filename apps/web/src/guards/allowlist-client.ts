@@ -76,7 +76,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/operator/actions/ReasonDialog.tsx": "reason textarea inside the kit Modal",
   "features/kabinet/operator/actions/RenameForm.tsx": "inline rename form, focus management",
   "features/kabinet/operator/actions/AddEvidencePanel.tsx": "add-evidence panel with state",
-  "features/kabinet/operator/actions/EarlyListingPanel.tsx": "allow/withdraw early listing: confirm dialog and request state",
+  "features/kabinet/operator/actions/EarlyListingPanel.tsx":
+    "allow/withdraw early listing: confirm dialog and request state",
   "features/kabinet/operator/actions/ResubmitPanel.tsx": "resubmit evidence panel with state",
   "features/kabinet/operator/actions/SupportEntry.tsx": "start-support-view button",
   "features/kabinet/operator/actions/operator-actions.tsx":
