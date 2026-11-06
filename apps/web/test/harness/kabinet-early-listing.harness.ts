@@ -91,6 +91,8 @@ async function bottomClearance(page: Page, name: string) {
       bars: barTops.length,
     };
   });
+  // Without these a page with no main would pass the clearance check vacuously.
+  expect(result.mainBottom, `${name}: no main element`).toBeGreaterThan(0);
   if (SHOTS !== undefined) {
     await page.screenshot({ path: join(SHOTS, `${name}-bottom-mobile-v2.png`) });
   }
@@ -279,6 +281,7 @@ test.describe("listing before verification, operator and shelter sides", () => {
       "/kabinet/akaunt",
     ];
     const covered: string[] = [];
+    let barsSeen = 0;
     for (const [context, paths] of [
       [operator, operatorPages],
       [shelterAdmin, shelterPages],
@@ -286,15 +289,18 @@ test.describe("listing before verification, operator and shelter sides", () => {
       for (const path of paths) {
         const page = await context.newPage();
         expect((await page.goto(path))?.status(), path).toBe(200);
-        const { barTop, mainBottom } = await bottomClearance(
+        const { barTop, mainBottom, bars } = await bottomClearance(
           page,
           `page${path.replaceAll(/[^a-z]+/g, "-")}`,
         );
+        barsSeen += bars;
         if (mainBottom > barTop + 0.5)
           covered.push(`${path}: content ends ${mainBottom}, bar at ${barTop}`);
         await page.close();
       }
     }
+    // Some pages (a new-animal form) have no bar; if none has one the check proved nothing.
+    expect(barsSeen, "no page showed a fixed or sticky bottom bar").toBeGreaterThan(0);
     expect(covered).toEqual([]);
   });
 });

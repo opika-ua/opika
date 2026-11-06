@@ -217,6 +217,33 @@ describe("allowEarlyListing", () => {
     expect(third).toEqual({ kind: "limit_reached" });
   });
 
+  it("counts allowances made before a reject and resubmit toward the cap (no reset)", () => {
+    // Owner-accepted: the count comes from history, and neither reject nor resubmit clears it.
+    let periodsUsed = 0;
+    const first = allowEarlyListing({
+      ...base,
+      verification: stateOf("pending", [VISIT]),
+      periodsUsed,
+    });
+    expect(first).toEqual({ kind: "ok", since: NOW, period: 1 });
+    periodsUsed += 1;
+    // reject then resubmit: the column is cleared (not a move inside the open statuses).
+    expect(keepsEarlyListing("pending", "rejected")).toBe(false);
+    expect(keepsEarlyListing("rejected", "pending")).toBe(false);
+    const resubmitted = stateOf("pending", [VISIT]);
+    const second = allowEarlyListing({
+      ...base,
+      verification: resubmitted,
+      periodsUsed,
+      note: "ще чекаємо",
+    });
+    expect(second).toEqual({ kind: "ok", since: NOW, period: 2 });
+    periodsUsed += 1;
+    expect(
+      allowEarlyListing({ ...base, verification: resubmitted, periodsUsed, note: "ще раз" }),
+    ).toEqual({ kind: "limit_reached" });
+  });
+
   it("reports a missing evidence minimum before the period limit", () => {
     expect(
       allowEarlyListing({

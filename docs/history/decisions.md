@@ -52,7 +52,9 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    `now` (strict: hidden from `since + 60 days`), SQL and domain share one cutoff and a parity
    test holds them together. The one repo invariant: a verification change clears the column
    except a move that stays in `pending`/`under_review` (`start_review`, an evidence add).
-   Allowances are counted from history (`early_listing_allowed`), at most two.
+   Allowances are counted from history (`early_listing_allowed`), at most two. Owner-accepted:
+   allows made before a reject and resubmit still count; resubmitting does not reset the cap
+   (pinned in `early-listing.test.ts`).
 6. **`VerificationEvidence` is a list of discriminated items**, not a fixed
    record, because what a shelter can produce depends on its legal form. The
    requirement rule therefore lives in `DEFAULT_VERIFICATION_POLICY` as a
