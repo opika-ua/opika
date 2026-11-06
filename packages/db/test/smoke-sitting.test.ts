@@ -34,6 +34,17 @@ describe("renderSmokeSitting", () => {
     expect(text).toContain(BASE.sha);
   });
 
+  it("stops the setup when pnpm i failed or left no packages/db/node_modules", () => {
+    const text = renderSmokeSitting(BASE);
+    const lines = text.split(/\r?\n/);
+    const install = lines.indexOf("pnpm i");
+    expect(install).toBeGreaterThan(-1);
+    expect(lines[install + 1]).toContain("if ($LASTEXITCODE -ne 0)");
+    expect(lines[install + 1]).toContain("STOP");
+    expect(lines[install + 2]).toContain("Test-Path packages\\db\\node_modules");
+    expect(lines[install + 2]).toContain("STOP");
+  });
+
   it("includes every input field somewhere in the output", () => {
     const text = renderSmokeSitting(BASE);
     for (const value of [

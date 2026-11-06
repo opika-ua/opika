@@ -172,6 +172,8 @@ git worktree add --detach ${worktreePath} ${input.sha}
 cd ${worktreePath}
 git log -1 --oneline
 pnpm i
+if ($LASTEXITCODE -ne 0) { Write-Host "STOP: pnpm i failed. Do not run anything below; paste the output." -ForegroundColor Red }
+if (-not (Test-Path packages\\db\\node_modules)) { Write-Host "STOP: packages\\db\\node_modules is missing, so pnpm i did not install the workspace. Do not run anything below; paste the output." -ForegroundColor Red }
 function Read-Secret($p){ $s = Read-Host $p -AsSecureString; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) }
 
 ---- Smoke, on a fresh Neon child branch (create one first if this sitting needs its own) ----
@@ -293,6 +295,8 @@ git worktree add --detach ${worktreePath} ${p.sha}
 cd ${worktreePath}
 git log -1 --oneline
 pnpm i
+if ($LASTEXITCODE -ne 0) { Write-Host "STOP: pnpm i failed. Do not run anything below; paste the output." -ForegroundColor Red }
+if (-not (Test-Path packages\\db\\node_modules)) { Write-Host "STOP: packages\\db\\node_modules is missing, so pnpm i did not install the workspace. Do not run anything below; paste the output." -ForegroundColor Red }
 function Read-Secret($p){ $s = Read-Host $p -AsSecureString; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) }
 
 ---- The file (same download and checksum as Part 1) ----
