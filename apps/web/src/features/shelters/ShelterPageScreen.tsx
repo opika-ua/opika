@@ -16,7 +16,7 @@ import { ActiveFilterChips } from "../gallery/ActiveFilterChips";
 import { ArrowKeyGrid } from "../gallery/ArrowKeyGrid";
 import { activeFilterChips, activeFilterCount } from "../gallery/active-filters";
 import { cardCityId } from "../gallery/card-text";
-import { FilterSheet } from "../gallery/FilterSheet";
+import { FilterSheet } from "../gallery/FilterSheetLazy";
 import { type CitySlugsById, NO_PLACE_IDS, resetFiltersHref } from "../gallery/filter-url";
 import { GalleryCard } from "../gallery/GalleryCard";
 import { GalleryControlBlock } from "../gallery/GalleryControlBlock";

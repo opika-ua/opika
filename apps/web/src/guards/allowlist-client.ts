@@ -45,6 +45,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/gallery/CityFacetChoices.tsx":
     "expanded and query state for the long city list (show all, local filter)",
   "features/gallery/ArrowKeyGrid.tsx": "2D arrow-key navigation over the card grid",
+  "features/gallery/FilterSheetLazy.tsx": "next/dynamic must be called from a client module",
   "features/gallery/FilterSheet.tsx":
     "draft state, drill-down views, form submit and close through the router",
   "features/gallery/GalleryFilterDropdowns.tsx":

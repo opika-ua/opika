@@ -73,6 +73,45 @@ describe("opikaImageLoader", () => {
       expect(thumb).not.toBe(detail);
     });
 
+    describe("NEXT_PUBLIC_R2_EXTRA_VARIANTS", () => {
+      afterEach(() => {
+        delete process.env.NEXT_PUBLIC_R2_EXTRA_VARIANTS;
+      });
+
+      it("never requests compact or mid while the flag is off, so older photos cannot 404", () => {
+        for (const width of [300, 400, 700, 840]) {
+          const url = opikaImageLoader({ src: REAL_KEY, width, quality: 75 });
+          expect(url).not.toMatch(/\/(compact|mid)\.webp$/);
+        }
+      });
+
+      it("serves compact to a 2x phone card and mid to a 2x tablet card when it is on", () => {
+        process.env.NEXT_PUBLIC_R2_EXTRA_VARIANTS = "1";
+        expect(opikaImageLoader({ src: REAL_KEY, width: 400, quality: 75 })).toMatch(
+          /\/compact\.webp$/,
+        );
+        expect(opikaImageLoader({ src: REAL_KEY, width: 640, quality: 75 })).toMatch(
+          /\/card\.webp$/,
+        );
+        expect(opikaImageLoader({ src: REAL_KEY, width: 840, quality: 75 })).toMatch(
+          /\/mid\.webp$/,
+        );
+        expect(opikaImageLoader({ src: REAL_KEY, width: 1120, quality: 75 })).toMatch(
+          /\/detail\.webp$/,
+        );
+      });
+
+      it("leaves logos on their own variants either way", () => {
+        process.env.NEXT_PUBLIC_R2_EXTRA_VARIANTS = "1";
+        const url = opikaImageLoader({
+          src: "shelters/51000000-0000-4000-8000-000000000001/logo/0",
+          width: 80,
+          quality: 75,
+        });
+        expect(url).toMatch(/\/small\.webp$/);
+      });
+    });
+
     it("throws rather than silently returning a broken path when the CDN base URL is unset", () => {
       delete process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
       expect(() => opikaImageLoader({ src: REAL_KEY, width: 300, quality: 75 })).toThrow(

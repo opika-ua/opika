@@ -139,7 +139,10 @@ const nextConfig: NextConfig = {
      * 640 (`card`) over 176 (`thumb`) at that density, which is the
      * correct, intended behaviour, not a residual bug.
      */
-    deviceSizes: [640, 1120],
+    // With NEXT_PUBLIC_R2_EXTRA_VARIANTS=1 (every photo has all five variants) the ladder gains
+    // compact (400) and mid (840): a 2x phone card takes 400 instead of 640. Off, only the three.
+    deviceSizes:
+      process.env.NEXT_PUBLIC_R2_EXTRA_VARIANTS === "1" ? [400, 640, 840, 1120] : [640, 1120],
     imageSizes: [176],
   },
 };

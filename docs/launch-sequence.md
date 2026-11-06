@@ -54,6 +54,7 @@ only. "Both" means Production and Preview; a separate value on each where noted.
 | `RATE_LIMIT_KEY_SECRET` | both, separate values | build and boot, 32+ | `api/build-env.ts:152` |
 | `LOCATION_HMAC_SECRET` (the onboarding script's value) | Production | build and boot, 32+ | `api/build-env.ts:106` |
 | `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` | both | build (any Vercel build) and boot | `api/build-env.ts:173`, `api/env.ts:184` |
+| `NEXT_PUBLIC_R2_EXTRA_VARIANTS` (optional, `1`) | both | no, build time, default off: set once every photo has all five variants | `image-loader.ts`, `next.config.ts` |
 | `KV_REST_API_URL` + `KV_REST_API_TOKEN`, or `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | both | boot, one pair | `api/env.ts:242` |
 | `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_UPLOAD_ACCESS_KEY_ID`, `R2_UPLOAD_SECRET_ACCESS_KEY` | Production only, never Preview | build and boot | `kabinet/photo-upload-env.ts:15` |
 | `R2_CLEANUP_ACCESS_KEY_ID`, `R2_CLEANUP_SECRET_ACCESS_KEY` | Production only | no: setting them turns the job on; one without the other is refused | `kabinet/r2-cleanup-env.ts:15,107` |
