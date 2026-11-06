@@ -450,3 +450,40 @@ function duration(ms: number): string {
   if (h === 0) return `${m} min`;
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
+
+describe("the auth clean-up cron's Healthchecks check-in", () => {
+  const HC = "https://hc.example/ping/slug";
+  const callWith = (db2: () => never | typeof db, pings: string[], cronSecret = SECRET) =>
+    handleAuthCleanup(
+      new Request("https://opika.example/api/cron/auth-cleanup", {
+        headers: { authorization: `Bearer ${SECRET}` },
+      }),
+      {
+        cronSecret,
+        db: db2 as () => typeof db,
+        now: NOW,
+        log: () => {},
+        healthcheckUrl: HC,
+        fetchImpl: (async (url: string) => {
+          pings.push(url);
+          return new Response("OK");
+        }) as unknown as typeof fetch,
+      },
+    );
+
+  it("pings the success URL after a run", async () => {
+    const pings: string[] = [];
+    expect((await callWith(() => db, pings)).status).toBe(200);
+    expect(pings).toEqual([HC]);
+  });
+
+  it("pings /fail and rethrows when the run throws", async () => {
+    const pings: string[] = [];
+    await expect(
+      callWith(() => {
+        throw new Error("db down");
+      }, pings),
+    ).rejects.toThrow("db down");
+    expect(pings).toEqual([`${HC}/fail`]);
+  });
+});

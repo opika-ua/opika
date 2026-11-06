@@ -67,6 +67,7 @@ describe("the R2 clean-up cron's own boundary", () => {
         deleted: [],
         failed: [],
         snapshotsNulled: 0,
+        capTripped: null,
       }),
     }));
     const { response, lines } = await run({ authorization: `Bearer ${SECRET}` });
@@ -102,6 +103,7 @@ describe("the R2 clean-up cron's own boundary", () => {
           deleted: [],
           failed: [],
           snapshotsNulled: 0,
+          capTripped: null,
         };
       },
     }));
@@ -114,6 +116,106 @@ describe("the R2 clean-up cron's own boundary", () => {
       { commit: boolean; graceDays: number | undefined },
     ];
     expect(options).toEqual({ commit: true, graceDays: undefined });
+    vi.doUnmock("@opika/db/image-pipeline/server");
+  });
+
+  it("a tripped delete cap answers 500, logs the counts loudly, pings fail and passes no override", async () => {
+    const calls: unknown[][] = [];
+    vi.doMock("@opika/db/image-pipeline/server", () => ({
+      createR2CleanupClient: () => ({}),
+      runR2Cleanup: async (...args: unknown[]) => {
+        calls.push(args);
+        return {
+          scanned: 900,
+          newlyTracked: 0,
+          clearedBack: 0,
+          dueForDeletion: Array.from({ length: 300 }, (_, i) => `k${i}`),
+          deleted: [],
+          failed: [],
+          snapshotsNulled: 0,
+          capTripped: { due: 300, cap: 100 },
+        };
+      },
+    }));
+    const pings: string[] = [];
+    const errors: string[] = [];
+    const response = await handleR2CleanupCron(
+      new Request("https://opika.example/api/cron/r2-cleanup", {
+        headers: { authorization: `Bearer ${SECRET}` },
+      }),
+      {
+        cronSecret: SECRET,
+        db: () => db,
+        now: new Date("2026-10-25T04:00:00.000Z"),
+        r2State: ON,
+        log: () => {},
+        logError: (line) => errors.push(line),
+        healthcheckUrl: "https://hc.example/ping/slug",
+        fetchImpl: (async (url: string) => {
+          pings.push(url);
+          return new Response("OK");
+        }) as unknown as typeof fetch,
+      },
+    );
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      outcome: "refused_over_cap",
+      dueForDeletion: 300,
+      cap: 100,
+    });
+    expect(JSON.parse(errors[0] ?? "")).toMatchObject({
+      outcome: "refused_over_cap",
+      dueForDeletion: 300,
+      cap: 100,
+      deleted: 0,
+    });
+    expect(errors.join("")).not.toContain("k1");
+    expect(pings).toEqual(["https://hc.example/ping/slug/fail"]);
+    const options = (calls[0] as unknown[])[3] as Record<string, unknown>;
+    expect(options).not.toHaveProperty("maxDelete");
+    vi.doUnmock("@opika/db/image-pipeline/server");
+  });
+
+  it("a normal run pings the success URL, and a failing ping changes nothing", async () => {
+    vi.doMock("@opika/db/image-pipeline/server", () => ({
+      createR2CleanupClient: () => ({}),
+      runR2Cleanup: async () => ({
+        scanned: 0,
+        newlyTracked: 0,
+        clearedBack: 0,
+        dueForDeletion: [],
+        deleted: [],
+        failed: [],
+        snapshotsNulled: 0,
+        capTripped: null,
+      }),
+    }));
+    const pings: string[] = [];
+    const callWith = (fetchImpl: typeof fetch) =>
+      handleR2CleanupCron(
+        new Request("https://opika.example/api/cron/r2-cleanup", {
+          headers: { authorization: `Bearer ${SECRET}` },
+        }),
+        {
+          cronSecret: SECRET,
+          db: () => db,
+          now: new Date("2026-10-25T04:00:00.000Z"),
+          r2State: ON,
+          log: () => {},
+          healthcheckUrl: "https://hc.example/ping/slug",
+          fetchImpl,
+        },
+      );
+    const ok = await callWith((async (url: string) => {
+      pings.push(url);
+      return new Response("OK");
+    }) as unknown as typeof fetch);
+    expect(ok.status).toBe(200);
+    expect(pings).toEqual(["https://hc.example/ping/slug"]);
+    const down = await callWith((async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch);
+    expect(down.status).toBe(200);
     vi.doUnmock("@opika/db/image-pipeline/server");
   });
 
@@ -184,6 +286,7 @@ describe("the R2 clean-up cron's own boundary", () => {
         deleted: ["animals/deleted-secret/card.webp"],
         failed: [{ key: "animals/failed-secret/card.webp", message: "AccessDenied" }],
         snapshotsNulled: 1,
+        capTripped: null,
       }),
     }));
     const { lines } = await run({ authorization: `Bearer ${SECRET}` });

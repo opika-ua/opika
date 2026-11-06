@@ -30,6 +30,9 @@
  *     either way (this script only ever targets production - there is
  *     nothing to clean up locally, the same reasoning as `demo:remove`).
  *
+ * Blast-radius cap: a run that finds more than `DEFAULT_MAX_DELETE_PER_RUN` objects due deletes
+ * none and exits 1; `--max-delete <n>` is the explicit override, CLI only (the cron has no input).
+ *
  * Usage (from the repo root; `PROD_NEON_ENDPOINT` from the shell or the root
  * `.env.local`, as for every production-aware script):
  *   pnpm --filter @opika/db r2:cleanup --expect ep-…                 dry run
@@ -57,16 +60,17 @@ import { formatReport, runR2Cleanup } from "./r2-cleanup-run";
 
 export {
   ANIMAL_PHOTO_PREFIX,
+  DEFAULT_MAX_DELETE_PER_RUN,
   formatReport,
   type R2CleanupReport,
   runR2Cleanup,
 } from "./r2-cleanup-run";
 
 export type CleanupArgs =
-  | { kind: "ok"; commit: boolean; graceDays: number | undefined }
+  | { kind: "ok"; commit: boolean; graceDays: number | undefined; maxDelete: number | undefined }
   | { kind: "refused"; reason: string };
 
-const ARGUMENTS_TAKEN = "--expect <ep>, --commit, --prod and --grace-days <n>";
+const ARGUMENTS_TAKEN = "--expect <ep>, --commit, --prod, --grace-days <n> and --max-delete <n>";
 const FLAG_SPELLING = /^-{1,2}[A-Za-z][A-Za-z0-9-]*$/;
 
 /**
@@ -86,6 +90,7 @@ export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
   const args = argv.slice(2);
   let commit = false;
   let graceDays: number | undefined;
+  let maxDelete: number | undefined;
   let expectSeen = false;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i] ?? "";
@@ -124,6 +129,19 @@ export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
       i++;
       continue;
     }
+    if (arg === "--max-delete") {
+      const trimmed = args[i + 1]?.trim();
+      const n = trimmed === undefined || trimmed === "" ? Number.NaN : Number(trimmed);
+      if (!Number.isInteger(n) || n < 1) {
+        return { kind: "refused", reason: "--max-delete needs a positive whole number after it" };
+      }
+      if (maxDelete !== undefined) {
+        return { kind: "refused", reason: "--max-delete is given twice" };
+      }
+      maxDelete = n;
+      i++;
+      continue;
+    }
     const what = FLAG_SPELLING.test(arg)
       ? `${arg} is not an argument this script takes`
       : `argument ${i + 1} is not one this script takes`;
@@ -136,7 +154,7 @@ export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
         "--grace-days needs --commit (a non-default grace period is honoured only on a real run)",
     };
   }
-  return { kind: "ok", commit, graceDays };
+  return { kind: "ok", commit, graceDays, maxDelete };
 }
 
 async function main(): Promise<void> {
@@ -189,11 +207,12 @@ async function main(): Promise<void> {
     const report = await runR2Cleanup(db, r2, new Date(), {
       commit: args.commit,
       graceDays: args.graceDays,
+      maxDelete: args.maxDelete,
     });
     for (const line of formatReport(report, args.commit ? "Deleted" : "Would delete")) {
       console.log(line);
     }
-    if (report.failed.length > 0) exitCode = 1;
+    if (report.failed.length > 0 || report.capTripped !== null) exitCode = 1;
     if (!args.commit && report.dueForDeletion.length > 0) {
       console.log("Dry run only. Re-run with --commit to delete.");
     }

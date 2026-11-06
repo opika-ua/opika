@@ -1,7 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { R2CleanupClient } from "../src/image-pipeline/r2-cleanup-client";
 import { variantObjectKey } from "../src/image-pipeline/variants";
-import { formatReport, parseCleanupArgs, runR2Cleanup } from "../src/r2-cleanup";
+import {
+  DEFAULT_MAX_DELETE_PER_RUN,
+  formatReport,
+  parseCleanupArgs,
+  runR2Cleanup,
+} from "../src/r2-cleanup";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { recordScan, trackedUnreferencedObjects } from "../src/repos/r2-cleanup-repo";
@@ -208,7 +213,11 @@ describe("runR2Cleanup", () => {
     const past = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
     const r2 = fakeR2(keys);
 
-    const report = await mockedRunR2Cleanup(db, r2, past, { commit: true, graceDays: undefined });
+    const report = await mockedRunR2Cleanup(db, r2, past, {
+      commit: true,
+      graceDays: undefined,
+      maxDelete: 5000,
+    });
 
     expect(calls).toEqual([1000, 500]); // two batches, re-checked separately
     expect(report.deleted).toHaveLength(1500);
@@ -256,6 +265,68 @@ describe("runR2Cleanup", () => {
   });
 });
 
+describe("the per-run delete cap", () => {
+  const orphans = (n: number) =>
+    Array.from({ length: n }, (_, i) => variantObjectKey(`animals/orphan/${i}`, "card"));
+  const later = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
+
+  it("deletes everything when the due count is at the cap", async () => {
+    const r2 = fakeR2(orphans(3));
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+    const report = await runR2Cleanup(db, r2, later, {
+      commit: true,
+      graceDays: undefined,
+      maxDelete: 3,
+    });
+    expect(report.capTripped).toBeNull();
+    expect(report.deleted).toHaveLength(3);
+    expect(r2.remaining()).toEqual([]);
+  });
+
+  it("over the cap deletes nothing, reports the counts, and leaves the rows tracked", async () => {
+    const r2 = fakeR2(orphans(4));
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+    const report = await runR2Cleanup(db, r2, later, {
+      commit: true,
+      graceDays: undefined,
+      maxDelete: 3,
+    });
+    expect(report.capTripped).toEqual({ due: 4, cap: 3 });
+    expect(report.deleted).toEqual([]);
+    expect(r2.remaining()).toHaveLength(4);
+    expect(await trackedUnreferencedObjects(db)).toHaveLength(4);
+    expect(formatReport(report, "Deleted").join("\n")).toContain("REFUSED: 4 objects are due");
+  });
+
+  it("the override lets the same backlog through, and a dry run is never capped", async () => {
+    const r2 = fakeR2(orphans(4));
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+    const dry = await runR2Cleanup(db, r2, later, {
+      commit: false,
+      graceDays: undefined,
+      maxDelete: 1,
+    });
+    expect(dry.capTripped).toBeNull();
+    const report = await runR2Cleanup(db, r2, later, {
+      commit: true,
+      graceDays: undefined,
+      maxDelete: 10,
+    });
+    expect(report.deleted).toHaveLength(4);
+  });
+
+  it("without an option the default cap applies", async () => {
+    const r2 = fakeR2(orphans(DEFAULT_MAX_DELETE_PER_RUN + 1));
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+    const report = await runR2Cleanup(db, r2, later, { commit: true, graceDays: undefined });
+    expect(report.capTripped).toEqual({
+      due: DEFAULT_MAX_DELETE_PER_RUN + 1,
+      cap: DEFAULT_MAX_DELETE_PER_RUN,
+    });
+    expect(r2.remaining()).toHaveLength(DEFAULT_MAX_DELETE_PER_RUN + 1);
+  });
+});
+
 describe("formatReport", () => {
   it("names the heading-appropriate fields; a dry run never claims a deletion count", () => {
     const base = {
@@ -266,6 +337,7 @@ describe("formatReport", () => {
       deleted: [],
       failed: [],
       snapshotsNulled: 0,
+      capTripped: null,
     };
     const dry = formatReport(base, "Would delete").join("\n");
     expect(dry).toContain("Would delete");
@@ -289,6 +361,7 @@ describe("formatReport", () => {
         deleted: [],
         failed: [{ key: "k", message: "AccessDenied" }],
         snapshotsNulled: 0,
+        capTripped: null,
       },
       "Deleted",
     ).join("\n");
@@ -306,6 +379,23 @@ describe("parseCleanupArgs", () => {
       commit: false,
       graceDays: undefined,
     });
+  });
+
+  it("reads --max-delete, and refuses a missing, zero, fractional or repeated value", () => {
+    expect(parseCleanupArgs(argv("--expect", "ep-x", "--commit", "--max-delete", "500"))).toEqual({
+      kind: "ok",
+      commit: true,
+      graceDays: undefined,
+      maxDelete: 500,
+    });
+    for (const bad of [[], ["0"], ["1.5"], ["abc"], [""]]) {
+      expect(parseCleanupArgs(argv("--expect", "ep-x", "--max-delete", ...bad)).kind).toBe(
+        "refused",
+      );
+    }
+    expect(
+      parseCleanupArgs(argv("--expect", "ep-x", "--max-delete", "5", "--max-delete", "6")).kind,
+    ).toBe("refused");
   });
 
   it("reads --commit and --grace-days together", () => {
@@ -361,7 +451,7 @@ describe("parseCleanupArgs", () => {
     expect(parseCleanupArgs(argv("--shelter", "x"))).toEqual({
       kind: "refused",
       reason:
-        "--shelter is not an argument this script takes; it takes --expect <ep>, --commit, --prod and --grace-days <n>",
+        "--shelter is not an argument this script takes; it takes --expect <ep>, --commit, --prod, --grace-days <n> and --max-delete <n>",
     });
   });
 });

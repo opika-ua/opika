@@ -1,6 +1,7 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { logRateLimited, type RateLimitedLog } from "./rate-limit-log";
+import { warnLimiterUnreachable } from "./rate-limit-unreachable";
 import { redisCredentialsOf } from "./redis-credentials";
 import { retryAfterSecondsOf } from "./retry-after";
 
@@ -223,11 +224,13 @@ export function upstashRateLimiter(opts: {
         }
         if (result.reason === "timeout") {
           console.error("apiRateLimiter: Upstash check timed out - failing closed (RL-1)");
+          warnLimiterUnreachable(opts.prefix, "timeout");
           return false;
         }
         return result.success;
       } catch (err) {
         console.error("apiRateLimiter: Upstash check failed - failing closed (RL-1)", err);
+        warnLimiterUnreachable(opts.prefix, "error");
         return false;
       }
     },
