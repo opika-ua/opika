@@ -111,3 +111,8 @@ owner: shelters can re-upload photos and logos. The protection is the clean-up j
   cron answers 500. The cron has no way to raise the cap. Only the CLI does, after someone has looked
   at why so much is due: `pnpm --filter @opika/db r2:cleanup --expect ep-... --commit --max-delete <n>`
   (dry run first, without `--commit`).
+
+## 9. A shelter looks wrong
+
+Not an outage: a shelter that is unreachable, inconsistent or suspected of asking adopters for money.
+Follow `docs/operator-playbook.md` (signals, triage, suspend and reinstate, what to record, draft messages).

@@ -4,6 +4,8 @@ Follow this while on the phone with a volunteer, in order. Don't improvise
 the sequence - the dry run exists specifically so you see the computed
 public location before anything touches the live database.
 
+Once a shelter is live and something looks wrong with it, use `docs/operator-playbook.md` instead.
+
 ## PowerShell 5.1: reading a secret
 
 Windows PowerShell 5.1 has no `Read-Host -MaskInput`. Every connection string in this runbook is
