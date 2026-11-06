@@ -242,7 +242,7 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
     await expect(page.getByText(/^Прийом звернень на паузі з .+ · Сезонна перерва$/)).toBeVisible();
 
     await page.getByRole("button", { name: "Відновити прийом звернень" }).click();
-    await expect(page.getByText("Прийом відновлено. Ваших тварин знову видно.")).toBeVisible();
+    await expect(page.getByText("Прийом звернень відновлено. Ваших тварин знову видно.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Призупинити прийом звернень" })).toBeVisible();
     await page.close();
   });
