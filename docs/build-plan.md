@@ -64,8 +64,7 @@ swipe deck.**
 
 The gallery becomes the **primary surface**, not the deck - it's what search engines
 index, what gets pasted into a Telegram group, what a grant reviewer or shelter director
-opens on a laptop. The deck remains the differentiator and still ships, but as a mode
-entered from the gallery, and off the critical path for launch. Full reasoning -
+opens on a laptop. (The deck was to remain as a mode entered from the gallery; it was retired instead, see the update above.) Full reasoning -
 including the pattern behind the three verification incidents, now generalised into
 `docs/standing-constraints.md` rather than restated per-document - is in
 `docs/course-correction.md`.

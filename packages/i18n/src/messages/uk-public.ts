@@ -612,7 +612,7 @@ export const ukPublic = {
   reveal: {
     title: "Як звʼязатися з притулком",
     subtitle:
-      "Притулок не знає про цей запит, поки ви не напишете самі. Нічого не сталося автоматично.",
+      "Притулок не знає про це звернення, поки ви не напишете самі. Нічого не надсилається автоматично.",
     /**
      * Template: "Контакти такі, якими були {date}, коли ви їх відкрили."
      * ({date} is the first reveal's; «є сьогодні» next to a past date said
@@ -625,7 +625,7 @@ export const ukPublic = {
     reflectionHeading: "Перед тим як писати – три речі",
     reflection1: "Це роки разом, а не вихідні.",
     reflection2: "Корм, ветеринар, перевезення – щомісячні витрати.",
-    reflection3: "Чи згодні всі, хто живе з вами.",
+    reflection3: "Згода всіх, хто живе з вами.",
     writeTelegram: "Написати в Telegram",
     /**
      * Not every shelter's primary contact channel is Telegram - real seed
@@ -658,8 +658,8 @@ export const ukPublic = {
 
   // --- My reveals (06) ---
   myReveals: {
-    title: "Мої запити",
-    deviceOnly: "Зберігається лише на цьому пристрої. Ми не знаємо, хто ви.",
+    title: "Мої звернення",
+    deviceOnly: "Зберігається лише на цьому пристрої. Сайт не знає, хто ви.",
     /** Template: "Притулок каже: {name} уже вдома." */
     resolved: "Притулок каже: {name} уже вдома.",
   },
@@ -782,7 +782,7 @@ export const ukPublic = {
      * gallery-v3 (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`): the
      * redesigned card's meta line names sex as its own word instead of
      * folding it into the age word's grammatical gender (`ageYoungFemale`
-     * etc. above, unchanged - the deck and the old card still use those).
+     * etc. above, unchanged).
      * Builder-prompt-approved exact strings, same words already used for
      * the kabinet animal form's `who.sexMale`/`who.sexFemale`
      * (`messages/uk.ts`'s kabinet block) - not re-derived, reused verbatim
@@ -1019,7 +1019,7 @@ export const ukPublic = {
    * it too.
    *
    * Not in `docs/design/README.md`'s own header content list (line 337 gives
-   * mark + wordmark, city chip, «Мої запити · N», «UA / EN», «Гортати по
+   * mark + wordmark, city chip, «Мої звернення · N», «UA / EN», «Гортати по
    * одній») - composed for Phase T to close the critique's E5/E1/E3, and
    * recorded as composition rather than specification.
    */
@@ -1060,12 +1060,12 @@ export const ukPublic = {
   about: {
     title: "Про проєкт",
     intro:
-      "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.",
+      "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина, у вільний від роботи час і незалежно: немає команди й інвестора. Це не державний і не міський сервіс.",
     /** MK-7, owner-verbatim (2026-11-01); also shown on «Для притулків». */
     independent: "{site} робить одна людина, незалежно. Це не державний і не міський сервіс.",
     free: "Сайт безкоштовний для притулків, без платних тарифів. Якщо це колись зміниться, кожен притулок дізнається про це заздалегідь, а не постфактум.",
     money:
-      "Opika ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) – сайт лише показує посилання, гроші йдуть напряму, і видно, куди саме.",
+      "{site} ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) – сайт лише показує посилання, гроші йдуть напряму, і видно, куди саме.",
     /**
      * His PR 6 text (pr6-copy-uk.md §1.5), every claim checked against code:
      * - «бачить лише місто»: every adopter-facing view carries the city only

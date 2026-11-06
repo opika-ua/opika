@@ -172,7 +172,7 @@ describe("creating a shelter", () => {
     expect(JSON.stringify(input)).not.toMatch(/documentKey|visitedBy/);
   });
 
-  it("shows «Очікує», the fact, the outcome, the expiry and the reminder, with resend and open", async () => {
+  it("shows «Очікує перевірки», the fact, the outcome, the expiry and the reminder, with resend and open", async () => {
     renderForm(async () =>
       createdView({ kind: "sent", blockCheck: "clear" }, { kind: "tell_personally", text: TELL }),
     );
@@ -606,12 +606,12 @@ describe("what happens next", () => {
   it("names the first admin in step 2, and leaves the step out until a name is typed", async () => {
     renderForm(async () => createdView(null));
     expect(steps()).toEqual([
-      "Притулок зʼявиться у списку зі статусом «Очікує».",
+      "Притулок зʼявиться у списку зі статусом «Очікує перевірки».",
       "Тварин притулку не буде в галереї, доки ви не схвалите перевірку або не дозволите показ до її завершення.",
     ]);
     await user().type(screen.getByLabelText("Імʼя"), "Ірина");
     expect(steps()).toEqual([
-      "Притулок зʼявиться у списку зі статусом «Очікує».",
+      "Притулок зʼявиться у списку зі статусом «Очікує перевірки».",
       "Ірина отримає запрошення: посилання, щоб створити пароль, діє 72 години. Його можна надіслати ще раз.",
       "Тварин притулку не буде в галереї, доки ви не схвалите перевірку або не дозволите показ до її завершення.",
     ]);

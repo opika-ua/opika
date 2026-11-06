@@ -311,7 +311,7 @@ describe("why nobody sees the cards (his answer 5)", () => {
     verified: { kind: "none" },
     paused: {
       kind: "paused",
-      line: "Прийом на паузі з 10 жовтня 2026 р. · Переїзд",
+      line: "Прийом звернень на паузі з 10 жовтня 2026 р. · Переїзд",
     },
     pending: {
       kind: "line",

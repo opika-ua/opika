@@ -222,14 +222,14 @@ export const en = {
   reveal: {
     title: "How to reach the shelter",
     subtitle:
-      "They won't know you asked until you write to them yourself. Nothing happened automatically.",
+      "They won't know you asked until you write to them yourself. Nothing is sent automatically.",
     /** Template: "Contact details saved as they are today · {date}" */
     contactsFootnote: "Contact details saved as they are today · {date}",
     meetingPlace: "you'll agree on a place when you message",
     reflectionHeading: "Before you write – three things",
-    reflection1: "This is 10-15 years together, not a weekend.",
+    reflection1: "This is years together, not a weekend.",
     reflection2: "Food, the vet, transport – monthly costs.",
-    reflection3: "Whether everyone you live with agrees.",
+    reflection3: "Everyone you live with agrees.",
     writeTelegram: "Message on Telegram",
     call: "Call",
     writeEmail: "Send an email",
@@ -246,8 +246,8 @@ export const en = {
 
   // --- My reveals (06) ---
   myReveals: {
-    title: "My requests",
-    deviceOnly: "Saved on this device only. We don't know who you are.",
+    title: "My enquiries",
+    deviceOnly: "Saved on this device only. The site doesn't know who you are.",
     /** Template: "The shelter says: {name} has found a home." */
     resolved: "The shelter says: {name} has found a home.",
   },
@@ -449,11 +449,11 @@ export const en = {
   about: {
     title: "About this project",
     intro:
-      "{site} is a site where animals from shelters across Ukraine look for a home. One person builds it – me, in my free time. There's no team and no investor.",
+      "{site} is a site where animals from shelters across Ukraine look for a home. One person builds it, in their free time and independently: there is no team and no investor. It is not a state or city service.",
     independent: "{site} is run by one person, independently. It is not a state or city service.",
     free: "The site is free for shelters, with no paid tiers. If that ever changes, every shelter will know well in advance, not after the fact.",
     money:
-      'Opika never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) – the site only shows the link; the money goes directly, and you can see exactly where.',
+      '{site} never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) – the site only shows the link; the money goes directly, and you can see exactly where.',
     data: "Data a shelter enters – address, contact details, animal listings – belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks. If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
     analytics:
       "The site collects basic visit statistics – how many people visit and how fast the pages load – with no advertising.",
@@ -514,6 +514,13 @@ export const en = {
     signInLink: `Sign in to the cabinet`,
   },
   kabinet: {
+    units: {
+      hours: { one: "{count} hour", few: "{count} hours", many: "{count} hours" },
+      minutes: { one: "{count} minute", few: "{count} minutes", many: "{count} minutes" },
+      days: { one: "{count} day", few: "{count} days", many: "{count} days" },
+      years: { one: "{count} year", few: "{count} years", many: "{count} years" },
+    },
+    operatorStatus: { pending: "Waiting", under_review: "Under review" },
     cityPicker: {
       placeholder: "Start typing a name…",
       empty: "Nothing found",
@@ -649,8 +656,8 @@ export const en = {
       addressNote: "People looking for an animal don't see the exact address, only the city.",
     },
     profileStatus: {
-      pending: "Waiting",
-      under_review: "Under review",
+      pending: "Under verification",
+      under_review: "Under verification",
       verified: "Verified",
       rejected: "Rejected",
       paused: "Paused",
@@ -706,9 +713,9 @@ export const en = {
           "Someone changed the profile after you opened it. Your changes aren't saved. Here is the current version: make your changes again.",
         conflictReload: "Show the current version",
         illegalTransitionPause:
-          "Intake can't be paused right now: the shelter's status has changed. Reload the page.",
+          "Enquiries can't be paused right now: the shelter's status has changed. Reload the page.",
         illegalTransitionResume:
-          "Intake can't be resumed from here right now: the shelter's status has changed. Write to me.",
+          "Enquiries can't be resumed from here right now: the shelter's status has changed. Write to me.",
         phoneFormat:
           "Enter a Ukrainian number: +380 and 9 more digits, for example +380 67 123 45 67.",
         telegramFormat:
@@ -762,12 +769,12 @@ export const en = {
         declined: "The last proposed link wasn't approved. If it isn't clear why, write to me.",
       },
       pause: {
-        button: "Pause taking animals",
-        resumeButton: "Resume taking animals",
-        pausedLine: "Intake paused since {date} · {reason}",
-        dialogTitle: "Pause taking animals?",
+        button: "Pause enquiries",
+        resumeButton: "Resume enquiries",
+        pausedLine: "Enquiries paused since {date} · {reason}",
+        dialogTitle: "Pause enquiries?",
         dialogBody:
-          "While intake is paused, your animals are not in the gallery or search. Animal and shelter pages open by direct link and show that intake is paused.",
+          "While enquiries are paused, your animals are not in the gallery or search. Animal and shelter pages open by direct link and show that enquiries are paused.",
         reasonLabel: "Reason",
         reasonPlaceholder: "Choose a reason",
         reason: {
@@ -780,11 +787,11 @@ export const en = {
         noteLabel: "Note",
         noteHint:
           "You, the shelter's other administrators and I see the note. People looking for an animal don't.",
-        confirm: "Pause intake",
+        confirm: "Pause enquiries",
         cancel: "Cancel",
         close: "Close",
-        paused: "Intake paused.",
-        resumed: "Intake resumed. Your animals are shown again.",
+        paused: "Enquiries paused.",
+        resumed: "Enquiries resumed. Your animals are shown again.",
       },
       logo: {
         title: "Shelter logo",
@@ -899,6 +906,8 @@ export const en = {
       medicalNotes: {
         title: "Anything else worth knowing about their health",
         hint: "Optional. People looking for an animal will see this text under «Medical».",
+        publicNote:
+          "Everyone can see the notes on the animal's page, so don't write people's names or contact details here.",
       },
       photos: {
         title: "Photos",
@@ -1008,7 +1017,7 @@ export const en = {
         medicalNotesTooLong: "The health note is longer than {max} characters.",
         birthDateFuture: "The birth date can't be in the future.",
         asOfFuture: "The «As of» date can't be in the future.",
-        dateTooOld: "That date is too far back: more than {years} years ago.",
+        dateTooOld: "That date is too far back: more than {years} ago.",
       },
     },
     animalList: {
@@ -1095,7 +1104,7 @@ export const en = {
       },
       deleted: "Draft «{name}» deleted.",
       stale: {
-        count: "You haven't confirmed {cards} for more than {days} days.",
+        count: "You haven't confirmed {cards} for more than {days}.",
         countCards: {
           one: "{count} card",
           few: "{count} cards",
@@ -1108,13 +1117,13 @@ export const en = {
       },
       paused: {
         hidden:
-          "While intake is paused, your animals are not in the gallery or search. Animal and shelter pages open by direct link and show that intake is paused.",
+          "While enquiries are paused, your animals are not in the gallery or search. Animal and shelter pages open by direct link and show that enquiries are paused.",
       },
       notVisible: {
         pending: "Your animals appear in the gallery as soon as the shelter passes verification.",
       },
       orderNote:
-        "Order in the gallery is by date: the person chooses the freshest cards first or those who have waited longest. Card completeness affects only the order in the deck. The order can't be changed here, and there is no promotion.",
+        "In the gallery, cards are ordered by date: the visitor chooses between the freshest first and those who have waited longest. The order can't be changed and a card can't be moved up here.",
       empty: {
         title: "No animals here yet.",
         body: "Add the first one. People looking for an animal see the card once it is published.",
@@ -1154,7 +1163,7 @@ export const en = {
         subject: `A sign-in link for the shelter's cabinet`,
         intro: `Hello. A sign-in link for the shelter's cabinet was requested for this address.`,
         action: `Open the sign-in page`,
-        expiry: `The link works once and expires in {minutes} minutes.`,
+        expiry: `The link works once and expires in {minutes}.`,
         notYou: `If you didn't ask for this, just ignore the email: nothing happens without the link.\n{operator}`,
       },
       invite: {
@@ -1163,7 +1172,7 @@ export const en = {
         what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification, or once I allow them to be shown with the label «under review». A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
         action: `Open the invitation`,
-        expiry: `The invitation is valid for {hours} hours. If you miss it, I will send a new one.`,
+        expiry: `The invitation is valid for {hours}. If you miss it, I will send a new one.`,
         notYou: `If you weren't expecting this email, just ignore it and don't forward it to anyone: while the invitation is valid, this link lets someone create a password for this address, once.\n{operator}`,
       },
       reset: {
@@ -1357,7 +1366,7 @@ export const en = {
           suspend: "Suspended: {code}. {note}",
           reinstate: "Reinstated → «{status}»",
           resubmit: "Returned for verification",
-          pause: "Taking animals paused",
+          pause: "Enquiries paused",
           resume: "Pause lifted",
         },
         admin_invited: "Invitation sent: {name}, {email}",

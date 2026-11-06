@@ -7,6 +7,7 @@ import { Button, LinkButton } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
 import { Heading } from "../../../ui/Heading";
 import { Text } from "../../../ui/Text";
+import { operatorStatusLabel } from "../verification-label";
 import { SHELTERS_PAGE, type ShelterListFilters, shelterPath } from "./list-params";
 import { type RegistryReadClient, registryReadBrowserClient } from "./registry-browser-client";
 import { type Page, reloadPage, useMore } from "./use-more";
@@ -43,7 +44,7 @@ export function ShelterRow({
           {row.displayName}
         </Heading>
         <Text look="label">
-          {uk.kabinet.profileStatus[row.status]} · {cityName ?? uk.kabinet.profileNotRecorded}
+          {operatorStatusLabel(row.status)} · {cityName ?? uk.kabinet.profileNotRecorded}
         </Text>
         <Text look="hint">{adminsLineOf(row.admins)}</Text>
         {row.donationPending ? <Text look="label">{t.donationPending}</Text> : null}

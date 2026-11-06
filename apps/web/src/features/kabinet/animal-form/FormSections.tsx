@@ -37,6 +37,7 @@ import { Heading } from "../../../ui/Heading";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 import { MEDICAL_VALUE_TEXT, rowSource, vaccinationRow } from "../../animal-detail/medical-labels";
+import { countPhrase } from "../shared/count-phrase";
 import type { AgeMode, FieldProblem, FormValues } from "./form-values";
 import { ageInputOf } from "./form-values";
 import { bucketRange, dateEndingSentenceOf, sizeHint } from "./labels";
@@ -113,7 +114,7 @@ export const problemText = (
       return t.validation.asOfFuture;
     case "dateTooOld":
       return fillTemplate(t.validation.dateTooOld, {
-        years: integer.format(AGE_DATE_MAX_YEARS_BACK),
+        years: countPhrase(AGE_DATE_MAX_YEARS_BACK, uk.kabinet.units.years),
       });
     case "overLimit":
       return fillTemplate(t.description.counterOver, { over: integer.format(problem.over) });
@@ -600,6 +601,7 @@ export function HealthFields({
         hint={
           <>
             <span>{t.medicalNotes.hint}</span>
+            <span className="block">{t.medicalNotes.publicNote}</span>
             <CharacterCounter text={values.medicalNotes} max={MEDICAL_NOTES_MAX_CHARACTERS} />
           </>
         }

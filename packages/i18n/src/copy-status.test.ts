@@ -219,7 +219,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     // row 80
     "email.signIn.action": "Відкрити сторінку входу",
     // row 81
-    "email.signIn.expiry": "Посилання спрацює один раз і діє {minutes} хвилин.",
+    "email.signIn.expiry": "Посилання спрацює один раз і діє {minutes}.",
     // row 82, signed like row 88 (2026-10-14)
     "email.signIn.notYou":
       "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n{operator}",
@@ -241,7 +241,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     // audit 2026-10-22 #26: the link's job is to create a password
     "email.invite.action": "Створити пароль",
     // row 87
-    "email.invite.expiry": "Запрошення діє {hours} години. Якщо не встигнете – я надішлю нове.",
+    "email.invite.expiry": "Запрошення діє {hours}. Якщо не встигнете – я надішлю нове.",
     // row 88, replaced by his PW-2 Q2 paragraph (2026-10-20, verbatim), the signature kept
     "email.invite.notYou":
       "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n{operator}",
@@ -346,16 +346,16 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     "profileEdit.errors.conflictReload": "Показати поточну версію",
     // k4-copy-uk.md
     "profileEdit.errors.illegalTransitionPause":
-      "Зараз не вийде поставити прийом на паузу: статус притулку змінився. Оновіть сторінку.",
+      "Зараз не вийде поставити прийом звернень на паузу: статус притулку змінився. Оновіть сторінку.",
     // k4-copy-uk.md
     "profileEdit.errors.illegalTransitionResume":
-      "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
+      "Звідси прийом звернень зараз не відновити: статус притулку змінився. Напишіть мені.",
     // Owner, 2026-10-29 (kabinet UX round 2, replaces k4-copy-uk.md's sentence; the Viber one is the same).
     "profileEdit.errors.phoneFormat":
       "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
     // k4-copy-uk.md
     "profileEdit.errors.telegramFormat":
-      "Імʼя користувача в Telegram: 5-32 латинські літери, цифри або підкреслення. @ можна не писати.",
+      "Імʼя користувача в Telegram: 5–32 латинські літери, цифри або підкреслення. @ можна не писати.",
     // Owner, 2026-10-29 (same sentence as phoneFormat).
     "profileEdit.errors.viberFormat":
       "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
@@ -437,16 +437,16 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // k4-copy-uk.md
     "profileEdit.contacts.addOther": "Додати ще один спосіб звʼязку",
     // k4-copy-uk.md
-    "profileEdit.pause.button": "Призупинити прийом тварин",
+    "profileEdit.pause.button": "Призупинити прийом звернень",
     // k4-copy-uk.md
-    "profileEdit.pause.resumeButton": "Відновити прийом тварин",
+    "profileEdit.pause.resumeButton": "Відновити прийом звернень",
     // k4-copy-uk.md
-    "profileEdit.pause.pausedLine": "Прийом на паузі з {date} · {reason}",
+    "profileEdit.pause.pausedLine": "Прийом звернень на паузі з {date} · {reason}",
     // k4-copy-uk.md
-    "profileEdit.pause.dialogTitle": "Призупинити прийом тварин?",
+    "profileEdit.pause.dialogTitle": "Призупинити прийом звернень?",
     // k4-copy-uk.md
     "profileEdit.pause.dialogBody":
-      "Поки прийом на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом на паузі.",
+      "Поки прийом звернень на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом звернень на паузі.",
     // k4-copy-uk.md
     "profileEdit.pause.reasonLabel": "Причина",
     // k4-copy-uk.md
@@ -464,15 +464,15 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // k4-copy-uk.md
     "profileEdit.pause.noteLabel": "Коментар",
     // k4-copy-uk.md
-    "profileEdit.pause.confirm": "Призупинити прийом",
+    "profileEdit.pause.confirm": "Призупинити прийом звернень",
     // k4-copy-uk.md
     "profileEdit.pause.cancel": "Скасувати",
     // k4-copy-uk.md
     "profileEdit.pause.close": "Закрити",
     // k4-copy-uk.md
-    "profileEdit.pause.paused": "Прийом на паузі.",
+    "profileEdit.pause.paused": "Прийом звернень на паузі.",
     // k4-copy-uk.md
-    "profileEdit.pause.resumed": "Прийом відновлено. Ваших тварин знову видно.",
+    "profileEdit.pause.resumed": "Прийом звернень відновлено. Ваших тварин знову видно.",
     // K4 copy fixes
     "profileEdit.actions.liveOnSave.contacts":
       "Нові контакти побачать одразу після збереження – коли натиснуть «Дати сімʼю».",
@@ -486,7 +486,7 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
       "Коментар бачите ви, інші адміністратори притулку і я. Людям, які шукають тварину, він не показується.",
     // his DR1-Q1 text (2026-10-20)
     "profileEdit.voice.emptyMeans":
-      "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде „Оновлено … тому“.",
+      "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде «Оновлено … тому».",
     // his DR1-Q1 text (2026-10-20)
     "profileEdit.voice.previewEmpty": "Речення немає – на сторінці притулку його не буде.",
     // Pet card PR 3b §C. His final text (2026-10-27): `add`, `rejected` and `failed`
@@ -564,7 +564,7 @@ describe("CB-Q2: his four rewrites of the CB-B2 drafts", () => {
   it("about.intro is his three sentences, the name a slot", () => {
     expect(
       uk.about.intro.startsWith(
-        "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.",
+        "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина, у вільний від роботи час і незалежно: немає команди й інвестора. Це не державний і не міський сервіс.",
       ),
     ).toBe(true);
   });
@@ -736,7 +736,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.history.verification.suspend": "Призупинено: {code}. {note}",
     "operator.history.verification.reinstate": "Відновлено → «{status}»",
     "operator.history.verification.resubmit": "Повернуто на перевірку",
-    "operator.history.verification.pause": "Прийом тварин призупинено",
+    "operator.history.verification.pause": "Прийом звернень призупинено",
     "operator.history.verification.resume": "Паузу знято",
     "operator.history.admin_invited": "Надіслано запрошення: {name}, {email}",
     "operator.history.admin_invitation_resent": "Запрошення надіслано ще раз: {name}",
@@ -785,7 +785,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.submitShort": "Створити",
     "operator.create.cancel": "Скасувати",
     "operator.create.whatHappens.title": "Що буде далі",
-    "operator.create.whatHappens.step1": "Притулок зʼявиться у списку зі статусом «Очікує».",
+    "operator.create.whatHappens.step1":
+      "Притулок зʼявиться у списку зі статусом «Очікує перевірки».",
     // audit 2026-10-22 #10
     "operator.create.whatHappens.step2":
       "{name} отримає запрошення: посилання, щоб створити пароль, діє 72 години. Його можна надіслати ще раз.",
@@ -887,7 +888,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
       "Пропозиція змінилася, поки сторінка була відкрита. Тут – поточна.",
     "operator.admins.remove": "Прибрати",
     "operator.admins.removeConfirm.body":
-      "Доступ до кабінету закриється одразу, усі сеанси завершаться.",
+      "Користувач більше не зможе входити в кабінет. Доступ закриється одразу, усі сеанси завершаться.",
     "operator.admins.inviteAnother": "Запросити ще одного",
     "operator.admins.resend": "Надіслати ще раз",
     "operator.admins.gone": "Цей доступ уже закрито.",
@@ -942,7 +943,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   const ROUND_3_N7: Record<string, { his: string | null; used: string }> = {
     "operator.admins.removeConfirm.title": {
       his: "Прибрати {name}?",
-      used: "Закрити доступ? {name} більше не зможе входити в кабінет.",
+      used: "Закрити доступ для {name}?",
     },
     "operator.admins.inviteFirst": { his: null, used: "Запросити адміністратора" },
   };
@@ -968,7 +969,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.evidence.limit": "У заявці може бути щонайбільше 30 доказів, за раз – до 10.",
     "operator.history.evidence_added": "Додано докази: {kinds}",
     // Owner's copy table, 2026-11-04 (N4–N6), pinned in their own block above.
-    "operator.history.early_listing_allowed": "Ваші картки показуються, поки триває перевірка",
+    "operator.history.early_listing_allowed": "Показ карток до завершення перевірки дозволено",
     "operator.history.early_listing_revoked": "Показ карток до завершення перевірки знято",
     "operator.history.early_listing_lapsed": "Строк показу карток до завершення перевірки минув",
     "operator.evidence.gapItem": "{kind} – {provided} з {minimum}",
@@ -1347,7 +1348,7 @@ describe("listing before verification (owner's copy table, 2026-11-04, N1–N3 a
     [
       "kabinet.operator.history.early_listing_allowed (N4)",
       uk.kabinet.operator.history.early_listing_allowed,
-      "Ваші картки показуються, поки триває перевірка",
+      "Показ карток до завершення перевірки дозволено",
     ],
     [
       "kabinet.operator.history.early_listing_revoked (N5)",
@@ -1647,7 +1648,7 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.validation.descriptionTooLong": "Опис довший за {max} символів.",
     "kabinet.animalForm.validation.birthDateFuture": "Дата народження не може бути в майбутньому.",
     "kabinet.animalForm.validation.asOfFuture": "Дата «Станом на» не може бути в майбутньому.",
-    "kabinet.animalForm.validation.dateTooOld": "Ця дата надто давня – понад {years} років тому.",
+    "kabinet.animalForm.validation.dateTooOld": "Ця дата надто давня – понад {years} тому.",
     "kabinet.animalForm.photos.dismissFailedName": "Прибрати фото, яке не завантажилось",
   };
 
@@ -1833,22 +1834,21 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.deleted": "Чернетку «{name}» видалено.",
     "kabinet.deleteDraft.refused.wasPublished":
       "Цю картку вже публікували, тож видалити її не можна. Вона лишається у вашому списку як чернетка, і ті, хто шукає тварину, її не бачать.",
-    "kabinet.animalList.stale.count": "{cards} ви не підтверджували понад {days} днів.",
+    "kabinet.animalList.stale.count": "{cards} ви не підтверджували понад {days}.",
     "kabinet.animalList.stale.countCards.one": "{count} картку",
     "kabinet.animalList.stale.countCards.few": "{count} картки",
     "kabinet.animalList.stale.countCards.many": "{count} карток",
     "kabinet.animalList.stale.caption":
       "Ті, хто шукає тварину, бачать на них давню дату. Якщо нічого не змінилося, достатньо натиснути «Ще шукає» чи «Ще домовляються».",
-    "kabinet.animalList.stale.show": "Показати ці {count}",
+    "kabinet.animalList.stale.show": "Показати ці картки ({count})",
     "kabinet.animalList.stale.showAll": "Показати всі",
     "kabinet.animalList.paused.hidden":
-      "Поки прийом на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом на паузі.",
+      "Поки прийом звернень на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом звернень на паузі.",
     // audit 2026-10-22 #24
     "kabinet.animalList.notVisible.pending":
       "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
-    // audit 2026-10-22 #41: the public name of the deck is «по одній»
     "kabinet.animalList.orderNote":
-      "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.",
+      "У галереї картки впорядковані за датою: відвідувач сам обирає, спочатку найсвіжіші чи ті, хто чекає найдовше. Змінити порядок або підняти картку тут не можна.",
     "kabinet.animalList.empty.title": "Тут поки немає тварин.",
     "kabinet.animalList.empty.body":
       "Додайте першу. Ті, хто шукає тварину, побачать картку після публікації.",
@@ -2107,7 +2107,7 @@ const DR1_FUR: Record<string, string> = {
   "kabinet.animalForm.coat.label": "Шерсть",
   "kabinet.animalForm.coat.short": "Коротка",
   "kabinet.animalForm.coat.long": "Довга",
-  "kabinet.animalForm.coat.unknown": "Не вказано",
+  "kabinet.animalForm.coat.unknown": "Не записано",
   "kabinet.animalHistoryLabels.field.coatLength": "Шерсть",
   "filters.coatShort": "Короткошерсті",
   "filters.coatLong": "Довгошерсті",
@@ -2152,7 +2152,7 @@ const PET_CARD_COPY: Record<string, string> = {
   "kabinet.animalForm.temperament.other": "Інше",
   "kabinet.animalForm.temperament.customPlaceholder": "Своїми словами",
   "kabinet.animalForm.colour.title": "Забарвлення",
-  "kabinet.animalForm.colour.unknown": "Не вказано",
+  "kabinet.animalForm.colour.unknown": "Не записано",
   "kabinet.animalForm.colour.other": "Інше",
   "kabinet.animalForm.colour.customPlaceholder": "Своїми словами",
   "kabinet.animalHistoryLabels.field.temperament": "Характер",
@@ -2234,6 +2234,9 @@ const PET_CARD_PR5_COPY: Record<string, string> = {
   "kabinet.animalForm.medicalNotes.title": "Що ще варто знати про здоровʼя",
   "kabinet.animalForm.medicalNotes.hint":
     "Необовʼязково. Ті, хто шукає тварину, побачать цей текст у розділі «Медичний стан».",
+  // owner-approved 2026-11-06 (copy proofread): the notes are public
+  "kabinet.animalForm.medicalNotes.publicNote":
+    "Нотатки видно всім на сторінці тварини, тож не пишіть тут імен і контактів людей.",
 };
 
 describe("pet card PR 5 copy (owner-approved, 2026-10-26/27)", () => {
@@ -2242,8 +2245,8 @@ describe("pet card PR 5 copy (owner-approved, 2026-10-26/27)", () => {
       .split(".")
       .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], uk);
 
-  it("holds his 13 strings for this round", () => {
-    expect(Object.keys(PET_CARD_PR5_COPY)).toHaveLength(13);
+  it("holds his 14 strings for this round (13 + the 2026-11-06 public-notes line)", () => {
+    expect(Object.keys(PET_CARD_PR5_COPY)).toHaveLength(14);
   });
 
   it.each(Object.entries(PET_CARD_PR5_COPY))("%s is his approved text, exactly", (path, text) => {
@@ -2586,7 +2589,7 @@ describe("the copy audit of 2026-10-22", () => {
   // #33, #21 and #46: the name (and the year) are slots filled from app config, never typed here.
   it("#33, #46 and #21 carry {site} / {year} slots, and none of them types the site's name", () => {
     expect(uk.about.intro).toBe(
-      "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.",
+      "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина, у вільний від роботи час і незалежно: немає команди й інвестора. Це не державний і не міський сервіс.",
     );
     expect(uk.kabinet.email.invite.intro).toBe(
       "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті {site}.",

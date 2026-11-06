@@ -397,7 +397,9 @@ describe("the pause note on the read-only page (K4-B4)", () => {
         />,
       );
       expect(
-        screen.getByText(/^Прийом на паузі з \d+ жовтня 2026 р?\.? ?· Немає вільних місць$/),
+        screen.getByText(
+          /^Прийом звернень на паузі з \d+ жовтня 2026 р?\.? ?· Немає вільних місць$/,
+        ),
       ).toBeTruthy();
       const note = screen.getByText("Повні вольєри");
       expect(note.previousElementSibling?.textContent).toBe("Коментар");

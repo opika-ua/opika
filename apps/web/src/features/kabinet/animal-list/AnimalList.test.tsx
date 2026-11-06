@@ -222,7 +222,7 @@ describe("the page: header, rows, order note", () => {
     );
     // The order note sits behind a «?» button, closed until pressed.
     const NOTE =
-      "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.";
+      "У галереї картки впорядковані за датою: відвідувач сам обирає, спочатку найсвіжіші чи ті, хто чекає найдовше. Змінити порядок або підняти картку тут не можна.";
     expect(screen.queryByText(NOTE)).toBeNull();
     const info = screen.getByRole("button", { name: "Як впорядковано список" });
     expect(info.getAttribute("aria-expanded")).toBe("false");
@@ -374,7 +374,7 @@ describe("the stale strip (N5)", () => {
       first: { ...FIRST, staleCount: 3 },
       handlers: { list: async () => ({ ...FIRST, items: [PUBLISHED], staleCount: 3 }) },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Показати ці 3" }));
+    await userEvent.click(screen.getByRole("button", { name: "Показати ці картки (3)" }));
     expect(calls.list).toHaveBeenLastCalledWith({
       filter: { kind: "stale" },
       cursor: null,
@@ -395,7 +395,7 @@ describe("the stale strip (N5)", () => {
     const strip = screen.getByRole("region", {
       name: "1 картку ви не підтверджували понад 30 днів.",
     });
-    expect(within(strip).getByRole("button", { name: "Показати ці 1" })).toBeTruthy();
+    expect(within(strip).getByRole("button", { name: "Показати ці картки (1)" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Показати всі" })).toBeNull();
   });
 
@@ -1172,8 +1172,8 @@ describe("when nobody can see the cards", () => {
         reason: { code: "relocation", note: null },
       },
       [
-        "Прийом на паузі з 10 жовтня 2026 р. · Переїзд",
-        "Поки прийом на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом на паузі.",
+        "Прийом звернень на паузі з 10 жовтня 2026 р. · Переїзд",
+        "Поки прийом звернень на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом звернень на паузі.",
       ],
     ],
     [
@@ -1226,25 +1226,25 @@ describe("when nobody can see the cards", () => {
     expect(screen.queryByText(/на паузі/)).toBeNull();
   });
 
-  it("paused: «Відновити прийом тварин» resumes, and the banner goes", async () => {
+  it("paused: «Відновити прийом звернень» resumes, and the banner goes", async () => {
     const calls = renderList({
       verification: { status: "paused", since: NOW, reason: { code: "relocation", note: null } },
       handlers: { resume: async () => shelterIn(VERIFIED) },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом тварин" }));
+    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом звернень" }));
     expect(calls.resume).toHaveBeenCalledWith({});
-    expect(statusText()).toBe("Прийом відновлено. Ваших тварин знову видно.");
-    expect(screen.queryByText(/Поки прийом на паузі/)).toBeNull();
+    expect(statusText()).toBe("Прийом звернень відновлено. Ваших тварин знову видно.");
+    expect(screen.queryByText(/Поки прийом звернень на паузі/)).toBeNull();
   });
 
-  it("a refused resume: his «Звідси прийом зараз не відновити»", async () => {
+  it("a refused resume: his «Звідси прийом звернень зараз не відновити»", async () => {
     renderList({
       verification: { status: "paused", since: NOW, reason: { code: "relocation", note: null } },
       handlers: { resume: async () => Promise.reject(apiError("ILLEGAL_TRANSITION")) },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом тварин" }));
+    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом звернень" }));
     expect(alertText()).toContain(
-      "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
+      "Звідси прийом звернень зараз не відновити: статус притулку змінився. Напишіть мені.",
     );
   });
 });
@@ -1257,7 +1257,7 @@ describe("the support view (S5): everything visible, nothing writes", () => {
       verification: { status: "paused", since: NOW, reason: { code: "relocation", note: null } },
     });
     expect(screen.queryByRole("link", { name: "Додати тварину" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Відновити прийом тварин" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Відновити прийом звернень" })).toBeNull();
     const confirm = inRow("Рекс").getByRole("button", { name: "Ще шукає" });
     expect(confirm.getAttribute("aria-disabled")).toBe("true");
     await userEvent.click(confirm);

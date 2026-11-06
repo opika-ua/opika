@@ -83,7 +83,9 @@ test.describe("the independence line is visible and does not widen the page", ()
         await openRoute(page, route, viewport, { readySelector: HEADER });
         await expect(
           page.getByText(
-            "Opika робить одна людина, незалежно. Це не державний і не міський сервіс.",
+            route === ABOUT
+              ? "Його робить одна людина, у вільний від роботи час і незалежно: немає команди й інвестора. Це не державний і не міський сервіс."
+              : "Opika робить одна людина, незалежно. Це не державний і не міський сервіс.",
           ),
         ).toBeVisible();
         expect(await noSidewaysScroll(page)).toBe(true);
