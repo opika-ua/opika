@@ -27,6 +27,19 @@ const DISPLAY_EM_PER_CHAR = 0.8;
 // Short: a name, photo or city can change, and a preview cache must not hold the old one for long.
 const ANIMAL_CACHE = "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400";
 const SITE_CACHE = "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800";
+// An early-listed or paused shelter's animal can lose its listing at any time; no long
+// stale-while-revalidate, so the CDN stops serving the name and photo within about 5 minutes.
+export const SHORT_ANIMAL_CACHE = "public, max-age=300, s-maxage=300";
+// Previews are not pages: a card is never worth an index entry, whatever the discoverability flag says.
+const IMAGE_ROBOTS = "noindex";
+
+/** Verified shelters keep the hour-long cache; anything revocable gets the short one. */
+export function animalOgCacheControl(view: AnimalPageView): string {
+  const revocable =
+    view.shelter.verification === "listed_before_verification" ||
+    view.animal.availability.kind === "paused";
+  return revocable ? SHORT_ANIMAL_CACHE : ANIMAL_CACHE;
+}
 
 // satori reads TTF, not the woff2 the page fonts ship as; see fonts/og/README.md. Static
 // `new URL(..., import.meta.url)` so the bundler traces exactly these files into the function.
@@ -107,7 +120,7 @@ function nameFontSize(name: string): number {
   return Math.max(40, Math.min(96, fitted));
 }
 
-export async function siteOgImage(): Promise<ImageResponse> {
+export async function siteOgImage(cacheControl: string = SITE_CACHE): Promise<ImageResponse> {
   const [logo, loadedFonts] = await Promise.all([logoDataUri(), fonts()]);
   return new ImageResponse(
     <div
@@ -127,7 +140,11 @@ export async function siteOgImage(): Promise<ImageResponse> {
         {SITE_TITLE}
       </div>
     </div>,
-    { ...OG_SIZE, fonts: loadedFonts, headers: { "cache-control": SITE_CACHE } },
+    {
+      ...OG_SIZE,
+      fonts: loadedFonts,
+      headers: { "cache-control": cacheControl, "x-robots-tag": IMAGE_ROBOTS },
+    },
   );
 }
 
@@ -228,7 +245,14 @@ export async function animalOgImage(view: AnimalPageView): Promise<Response> {
         </div>
       </div>
     </div>,
-    { ...OG_SIZE, fonts: loadedFonts, headers: { "cache-control": ANIMAL_CACHE } },
+    {
+      ...OG_SIZE,
+      fonts: loadedFonts,
+      headers: {
+        "cache-control": animalOgCacheControl(view),
+        "x-robots-tag": IMAGE_ROBOTS,
+      },
+    },
   );
   return photo ? withPaletteCompression(image) : image;
 }

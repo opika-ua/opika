@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { AnimalPageView } from "../features/animal-detail/animal-page-load";
 import { makeDetailAnimal, makeDetailShelter } from "../features/animal-detail/test-fixtures";
-import { animalOgImage, OG_SIZE, siteOgImage } from "./og-image";
+import { animalOgImage, OG_SIZE, SHORT_ANIMAL_CACHE, siteOgImage } from "./og-image";
 
 async function render(response: Response) {
   const bytes = new Uint8Array(await response.arrayBuffer());
@@ -93,5 +93,60 @@ describe("link-preview images (BR-7)", () => {
   it("is cache-friendly and short-lived for an animal", async () => {
     const res = await animalOgImage(viewOf(makeDetailAnimal({ photos: [] })));
     expect(res.headers.get("cache-control")).toMatch(/s-maxage=3600/);
+  });
+});
+
+describe("link-preview image headers", () => {
+  const cacheOf = (res: Response) => res.headers.get("cache-control");
+  const withShelter = (
+    shelter: Parameters<typeof makeDetailShelter>[0],
+    animal: Parameters<typeof makeDetailAnimal>[0] = { photos: [] },
+  ): AnimalPageView =>
+    ({
+      animal: makeDetailAnimal(animal),
+      cityName: "Бровари",
+      shelter: makeDetailShelter(shelter),
+    }) as AnimalPageView;
+
+  it("a verified shelter's animal keeps the hour cache with stale-while-revalidate, and is noindex", async () => {
+    const res = await animalOgImage(withShelter({ verification: "verified" }));
+    expect(cacheOf(res)).toBe("public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400");
+    expect(res.headers.get("x-robots-tag")).toBe("noindex");
+  });
+
+  it("an early-listed shelter's animal gets about five minutes and no stale-while-revalidate", async () => {
+    const res = await animalOgImage(withShelter({ verification: "listed_before_verification" }));
+    expect(cacheOf(res)).toBe(SHORT_ANIMAL_CACHE);
+    expect(cacheOf(res)).toContain("s-maxage=300");
+    expect(cacheOf(res)).not.toContain("stale-while-revalidate");
+    expect(res.headers.get("x-robots-tag")).toBe("noindex");
+  });
+
+  it("the short cache also holds with a photo, which takes the palette-compression path", async () => {
+    const res = await animalOgImage(
+      withShelter(
+        { verification: "listed_before_verification" },
+        { photos: [{ storageKey: "seed-photos/cat-1.jpg", width: 800, height: 1000, alt: null }] },
+      ),
+    );
+    expect(cacheOf(res)).toBe(SHORT_ANIMAL_CACHE);
+    expect(res.headers.get("x-robots-tag")).toBe("noindex");
+  });
+
+  it("a paused shelter's animal gets the short cache too", async () => {
+    const res = await animalOgImage(
+      withShelter({ verification: "verified" }, { photos: [], availability: { kind: "paused" } }),
+    );
+    expect(cacheOf(res)).toBe(SHORT_ANIMAL_CACHE);
+    expect(res.headers.get("x-robots-tag")).toBe("noindex");
+  });
+
+  it("the site card keeps its day cache; as the fallback for an unknown id it is short", async () => {
+    const site = await siteOgImage();
+    expect(cacheOf(site)).toContain("s-maxage=86400");
+    expect(site.headers.get("x-robots-tag")).toBe("noindex");
+    const unknown = await siteOgImage(SHORT_ANIMAL_CACHE);
+    expect(cacheOf(unknown)).toBe(SHORT_ANIMAL_CACHE);
+    expect(unknown.headers.get("x-robots-tag")).toBe("noindex");
   });
 });
