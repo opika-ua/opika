@@ -26,6 +26,59 @@ every photo belonging to whatever test/demo data was already in production; thos
 the job already running to ever get swept at all, on the daily schedule or by the manual
 `--grace-days 0` runs (steps 6 and 11).
 
+## Before step 1: migrations and the Vercel environment
+
+**Migrations.** Every migration in `packages/db/drizzle` (0023, `0023_early_listing_since`, and
+any later one included) must be applied to production, and `db:check-hashes` confirmed, before
+step 1 and so before the first full reset: the reset and the deployed code both assume the
+current schema. Oleksii runs it, with the production direct string from `Read-Secret`:
+
+```powershell
+$env:PROD_NEON_ENDPOINT = "ep-PRODUCTION"
+$env:DATABASE_URL = Read-Secret "Production DIRECT connection string"
+pnpm --filter @opika/db db:migrate --expect ep-PRODUCTION --prod
+pnpm --filter @opika/db db:check-hashes
+Remove-Item Env:DATABASE_URL
+```
+
+**Vercel environment.** A production build or boot refuses to go on without the variables below.
+No values here; secrets are 32+ characters (`openssl rand -hex 32`) and set in the dashboard
+only. "Both" means Production and Preview; a separate value on each where noted.
+
+| Variable | Scope | Required | Read at |
+|---|---|---|---|
+| `DATABASE_URL` (pooled) | Production | boot | `api/env.ts:148` |
+| `CURSOR_HMAC_SECRET` | both | boot, 32+ | `api/env.ts:149` |
+| `PRELAUNCH_GATE_SECRET` | both, same value | boot, 32+, until step 14 | `api/env.ts:155`, `api/prelaunch-gate.ts:80` |
+| `CRON_SECRET` | Production | build and boot, 32+ | `api/build-env.ts:81` |
+| `RATE_LIMIT_KEY_SECRET` | both, separate values | build and boot, 32+ | `api/build-env.ts:152` |
+| `LOCATION_HMAC_SECRET` (the onboarding script's value) | Production | build and boot, 32+ | `api/build-env.ts:106` |
+| `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` | both | build (any Vercel build) and boot | `api/build-env.ts:173`, `api/env.ts:184` |
+| `KV_REST_API_URL` + `KV_REST_API_TOKEN`, or `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | both | boot, one pair | `api/env.ts:242` |
+| `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_UPLOAD_ACCESS_KEY_ID`, `R2_UPLOAD_SECRET_ACCESS_KEY` | Production only, never Preview | build and boot | `kabinet/photo-upload-env.ts:15` |
+| `R2_CLEANUP_ACCESS_KEY_ID`, `R2_CLEANUP_SECRET_ACCESS_KEY` | Production only | no: setting them turns the job on; one without the other is refused | `kabinet/r2-cleanup-env.ts:15,107` |
+| `EMAIL_PROVIDER` (`resend`) | Production | build and boot | `kabinet/sign-in-env.ts:62-70` |
+| `RESEND_API_KEY` (sending-only) | Production only | build and boot | `kabinet/sign-in-env.ts:64`, `kabinet/email-provider.ts:104` |
+| `EMAIL_FROM_ADDRESS` (on `mail.` + the origin's host) | Production | build and boot | `kabinet/sign-in-env.ts:62-70`, `kabinet/email-provider.ts:167` |
+| `EMAIL_REPLY_TO` (on the origin's host) | Production | build and boot | `kabinet/sign-in-env.ts:62-70` |
+| `PRODUCTION_ORIGIN` | Production | build and boot | `kabinet/sign-in-env.ts:62-70` |
+| `BETTER_AUTH_SECRET` | Production | build and boot, 32+ | `kabinet/sign-in-env.ts:68,111` |
+| `BETTER_AUTH_URL` (equals `PRODUCTION_ORIGIN`) | Production | build and boot | `kabinet/sign-in-env.ts:69,99` |
+| `EMAIL_FROM_NAME` | Production | no (display text, has a fallback) | `kabinet/email-provider.ts:186` |
+| `EMAIL_SIGN_IN_PROVIDER` | Production | no; leave unset (only `resend` is accepted) | `kabinet/sign-in-env.ts:72` |
+| `KABINET_OPERATOR_DISPLAY_NAME` | Production | no (falls back to the catalogue's wording) | `app/api/kabinet/[...rpc]/route.ts:81` |
+| `NEXT_PUBLIC_SENTRY_DSN` | Production | no; unset means Sentry never loads, silently | `instrumentation.ts:34` |
+
+(Paths relative to `apps/web/src`; `.env.example` has the long form of each.)
+`REGISTRY_HAS_NO_REAL_SHELTERS` and `SITE_IS_PUBLICLY_DISCOVERABLE` are compile-time constants in
+`seo-flags.ts`, not environment variables (steps 13 and 14). `OPIKA_TEST_FAIL_GALLERY` must be
+unset everywhere (`docs/launch-gate.md`, section A).
+
+**Production only, by design:** Vercel runs the crons on Production deployments alone
+(`apps/web/vercel.json`): `/api/cron/auth-cleanup` at `0 */6 * * *` and `/api/cron/r2-cleanup` at
+`0 4 * * *`. **Uptime probe:** point a monitor at `https://opika.org.ua/api/health` (no database
+call, gate-exempt, its own 30-per-minute limiter).
+
 ## Rehearse first, once, long before the real sequence ever runs
 
 **Oleksii's own instruction, 2026-10-25** (in place of rebuilding this script under a
@@ -314,7 +367,9 @@ shelters existing is not the same fact as the site being publicly discoverable
 one fact"; `seo-flags.ts`'s own doc comment on this constant has the full reasoning).
 
 **Verification:** `seo-flags.test.ts`'s own assertions pass in CI before this merges. After
-deploy, the gallery's demo banner is gone. There is no card "перевірений" suffix any more
+deploy, the site is still gated (step 14 removes the gate): open
+`/tvaryny?gate=<PRELAUNCH_GATE_SECRET>` (the value from your own notes, never pasted into
+chat or a file). The gallery's demo banner is gone. There is no card "перевірений" suffix any more
 (`verificationSuffix` was removed 2026-11-03); surfaces gate on this flag inline.
 
 **Rollback:** flip it back to `true`, commit, redeploy. Reversible at any point before step
@@ -340,8 +395,23 @@ boot-time check, and it covers the other pair of constants, step 13 above):
 4. Exempt per-animal OG images from the gate (BR-7, owner 2026-11-02): only `/opengraph-image` is
    exempt until now; `/tvaryny/<id>/opengraph-image` stays gated. Flipping step 1 makes the gate
    unreachable, so this holds by itself; if the gate branch in `proxy.ts` is kept or reworked
-   instead, add the path there. Either way, change the `proxy.test.ts` case that pins the per-animal
-   image as gated ("exempts the site-wide link-preview image and nothing next to it").
+   instead, add the path there and change the `proxy.test.ts` case that pins the per-animal image
+   as gated ("exempts the site-wide link-preview image and nothing next to it"; the unit test
+   mocks the flag to `false`, so it keeps passing unless you change it).
+
+**Files that pin the current gate state** (they ride in the same commit; each fails or goes dead
+once the gate is gone):
+
+- `apps/web/src/api/env.test.ts`: the cases that require `PRELAUNCH_GATE_SECRET` at boot, and the
+  32-character floor, go with change 2.
+- `apps/web/test/harness/prelaunch-gate.harness.ts` (asserts 403 on a real server),
+  `og-image.harness.ts` (per-animal image 403) and `security-headers.harness.ts` (gated
+  `/prytulkam` 403) fail after the flip: delete or invert them.
+- `apps/web/test/harness/prelaunch-gate.setup.ts`, `apps/web/test/harness-env.ts`
+  (`HARNESS_PRELAUNCH_GATE_SECRET`) and `apps/web/playwright.config.ts` (the setup project and the
+  `PRELAUNCH_GATE_SECRET` server env): dead once the gate is gone; remove them with it.
+- `.env.example`: both `PRELAUNCH_GATE_SECRET` entries (the Vercel-dashboard one and the local one).
+- Vercel: after the deploy lands, delete `PRELAUNCH_GATE_SECRET` from Production and Preview.
 
 Also before the flip (a check, not a change): no shelter is in early listing without an operator record,
 i.e. every set `shelters.early_listing_since` has an `early_listing_allowed` history line. Early-listed
@@ -359,10 +429,19 @@ Invoke-WebRequest -Uri "https://opika.org.ua/tvaryny" -UseBasicParsing | Select-
 
 Expected: `200`, no `X-Robots-Tag` header (or a value that isn't `noindex`). View page source:
 no `<meta name="robots" content="noindex...">`. `/pro`'s analytics paragraph includes R4-2's
-"одне кукі" sentence.
+"одне кукі" sentence. Then, in page source:
 
-**Rollback:** revert the commit, redeploy. All three changes are plain code/copy; nothing
-here is a data migration.
+- Plain `/tvaryny` stays indexable, `canonical` `/tvaryny`.
+- A `/tvaryny` filter, sort or `?stor=N` variant carries `canonical` `/tvaryny` and no `noindex`
+  (`app/tvaryny/page.tsx`, `alternates.canonical`, owner decision): it is folded into the
+  gallery, not hidden.
+- An early-listed shelter's animal page (and a paused shelter's) carries `noindex` (follow stays
+  on); only the meta tag does it, since the `X-Robots-Tag` header is gone. `/sitemap.xml` lists
+  verified shelters' animals only.
+
+**Rollback:** revert the commit, redeploy (re-set `PRELAUNCH_GATE_SECRET` in Vercel first if it
+was already deleted, or the reverted build refuses to boot). All four changes are plain
+code/copy; nothing here is a data migration.
 
 ### 15. Allow indexing
 
@@ -370,7 +449,8 @@ Nothing left to *do* - step 14 already made the site crawlable and indexable. Th
 confirming it, a day or two after step 14's deploy:
 
 - Google Search Console (if not already verified for `opika.org.ua`, verify it now) - submit
-  the root URL for indexing, or just wait for the next crawl.
+  `/sitemap.xml` there: `robots.txt` has no `Sitemap` line, and the sitemap is empty until the
+  flip, so Search Console is how the crawler learns of it.
 - Spot-check `https://opika.org.ua/robots.txt` allows `/` (it always has, D-3) and a real page
   no longer carries `noindex` (same check as step 14's verification).
 
