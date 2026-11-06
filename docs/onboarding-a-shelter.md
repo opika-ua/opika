@@ -635,6 +635,160 @@ uploads to any shelter. No permanent bucket lock replaces this (Oleksii: it
 would also block the DR-F3 takedown script; if one is ever added, a short
 retention only).
 
+## Shelter statuses, and what each side sees
+
+A shelter is in one of six verification states (`packages/domain/src/shelters/verification/state.ts`).
+The operator's screen splits the first two; every other surface says «На перевірці» for both
+(owner, 2026-11-06).
+
+| State | Operator sees | Shelter sees (its chip) | Adopters |
+|---|---|---|---|
+| `pending` | «Очікує перевірки» | «На перевірці» | Nothing: no page, no cards (unless early listing runs, below) |
+| `under_review` | «На розгляді» | «На перевірці» | Same |
+| `verified` | «Перевірено» | «Перевірено» | Cards in the gallery; the shelter page |
+| `rejected` | «Відхилено» | «Відхилено», with the code and your note word for word | Nothing |
+| `paused` | «На паузі» | «На паузі» | Pages by link only, with a notice; animals out of the gallery (see "Pause") |
+| `suspended` | «Призупинено» | «Призупинено», with the code and your note word for word | Nothing: the pages answer as if the shelter did not exist |
+
+The labels are `kabinet.operatorStatus` and `kabinet.profileStatus` in
+`packages/i18n/src/messages/uk.ts`. A suspended shelter is not told apart from a missing one on any
+public page, even when it was suspended mid-pause (`shelterAvailabilityOf`, `public-pause.ts`).
+
+**Rejection reasons** you can pick today: `insufficient_evidence` («Недостатньо доказів»),
+`identity_unverifiable` («Не вдалося підтвердити, хто стоїть за притулком»), `duplicate_submission`
+(«Повторна заявка»), `spam` («Спам»), `other` («Інше»). The code `out_of_service_area` («Поза
+територією, де працює сайт») is retired because the site is nationwide: it is no longer offered
+(`RETIRED_REJECTION_CODES`, `reasons.ts`), but an old rejection that holds it still parses and
+displays. A rejection always carries a written note; the shelter reads it verbatim.
+
+**Suspension reasons**: `unresponsive` («Немає звʼязку з притулком»), `complaint_upheld` («Скарга
+підтвердилася»), `listing_quality` («Картки не відповідають дійсності»), `suspected_fraud` («Підозра
+на шахрайство»), `other`, again with a required note. Suspension is imposed; a pause is the
+shelter's own choice, so the two have separate lists and separate exits.
+
+## What the operator's buttons do
+
+On the shelter's page in the registry (`ShelterActionsScreen.tsx`). Which buttons appear is exactly
+what the verification FSM allows from the current state (`offered-actions.ts`, held against
+`transition()` by a parity test). The shelter's own pause and resume are never operator buttons.
+
+| State | Buttons (exact labels) | What each does |
+|---|---|---|
+| `pending` | «Взяти на розгляд»; «Відхилити…» | Moves to `under_review`, recording you as the reviewer. Reject goes straight to `rejected` with no review step (obvious spam needs none). There is no approve from `pending` |
+| `under_review` | «Схвалити → «Перевірено»»; «Відхилити…» | Approve is refused while the evidence misses the policy (see "Evidence" above): the screen then lists the gaps after «Схвалити поки не можна – бракує доказів:». Approving puts the animals in the gallery at once |
+| `verified` | «Призупинити…» | Suspends (reason code and note required). The animals leave the gallery at once and the shelter sees the note |
+| `paused` | «Призупинити…» | Suspends the paused shelter: a complaint does not wait for it to reopen |
+| `rejected` | «Повернути на перевірку» | Opens the evidence editor, started from the evidence on file; sending it moves the shelter back to `pending` |
+| `suspended` | «Відновити → «{status}»»; «Відхилити…» | Reinstate returns to what the suspension interrupted: «Перевірено» or «На паузі». A shelter suspended mid-pause comes back paused, and its animals stay hidden until it lifts the pause itself |
+
+Two panels sit beside these and are not verification moves (no FSM event, no status change):
+
+- **«+ Додати доказ»** (dialog «Додати докази»): appends evidence while the shelter is `pending` or
+  `under_review` only («Докази можна додати, лише поки рішення не ухвалено.»). A repeat of an item
+  already on file is dropped («Ці докази вже є.»). At most 30 items on file, 10 per add. The shelter
+  is not told: the entry is in the operator's history («Додано докази: {kinds}», kinds only) and
+  never in the shelter's.
+- **«Дозволити показ до завершення перевірки» / «Зняти дозвіл»**: early listing, next.
+
+Every reject and suspend opens a dialog with a reason code and a required note. The dialog says
+the shelter reads the note verbatim, so write it as instructions for what to do next.
+
+## Early listing: public cards while the review runs
+
+Owner decision, 2026-11-04. You can let a `pending` or `under_review` shelter's cards be public,
+labelled, while the review is still running. It sits beside the verification FSM in its own column
+(`shelters.early_listing_since`); allow and revoke are audited operator toggles, not verification
+events (`early-listing.ts`).
+
+- **Who and where.** Operator only. Panel «Показ до завершення перевірки» on the shelter's registry
+  page, shown in `pending` and `under_review` only.
+- **Minimum evidence.** At least one `site_visit` or one `reference_contact` on file
+  (`EARLY_LISTING_EVIDENCE_KINDS`). This is weaker than approval and is not the table in "Evidence".
+  Otherwise refused with «Щоб дозволити показ, потрібен хоча б візит на місце або одна рекомендація.»
+- **Length.** 60 days from the moment you allow it (`EARLY_LISTING_DAYS`), an exact instant sum with
+  no calendar maths. Expiry is worked out when read, with no job: at the boundary instant the
+  shelter is already hidden. While it runs the panel shows «До кінця показу: {n} день/дні/днів»,
+  emphasised at 7 days or fewer; after it ends, «Показ завершився {date}».
+- **One re-allow, with a note.** At most two periods per shelter (`EARLY_LISTING_MAX_PERIODS`). The
+  second needs a written reason (field «Чому подовжуєте показ»); a running period cannot be
+  stacked, and the third is refused («Показ до перевірки вже дозволяли двічі.»). Periods are counted
+  from history, so a revoke does not give one back.
+- **Revoking.** «Зняти дозвіл» ends it at once, and only while it runs. The cards leave the gallery.
+- **A decision ends it.** Approve, reject and resubmit clear the permission; `start_review` and an
+  evidence add keep it (`keepsEarlyListing`).
+- **What adopters see.** The cards are in the gallery and search with the badge «На перевірці»; the
+  shelter page shows «Притулок на перевірці» in place of the trust line; the contact-reveal dialog
+  warns «Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.» (`uk-public.ts`,
+  `underReview`). Never the end date, and never the word «Перевірено».
+- **Search engines.** The shelter and animal pages are `noindex`, and follow only when
+  `SITE_IS_PUBLICLY_DISCOVERABLE` is true. The sitemap lists verified shelters only (`sitemapRows`,
+  `gallery-repo.ts`).
+- **What the shelter sees.** On its animals page, under «На перевірці», only the first sentence of
+  the usual note, so the label is said once, and a dated banner: «Ваші картки показуються з
+  позначкою «на перевірці» до {date}.» The date is the end day; the public never gets it.
+
+## Pause: the shelter closes intake itself
+
+Only a `verified` shelter can pause, and only its own administrator does: the control is on the
+shelter's profile page, not in the registry. A pending, rejected or suspended shelter does not see
+it.
+
+- **What the shelter does.** «Призупинити прийом звернень» opens a dialog «Призупинити прийом
+  звернень?» with a required reason and an optional comment (field «Коментар»). Reasons:
+  «Сезонна перерва», «Переїзд», «Немає вільних місць», «Бракує волонтерів», «Інше». While paused the
+  profile reads «Прийом звернень на паузі з {date} · {reason}» and the button becomes «Відновити
+  прийом звернень».
+- **Who sees the comment.** The shelter's administrators and you. The public view carries the reason
+  code only, never the comment, the actor or the date (`public-pause.ts`).
+- **What adopters see.** The shelter's animals leave the gallery and search. The shelter page stays
+  reachable by link and says «Притулок тимчасово не приймає нових звернень», then «Причина:
+  {reason}» (left out for «Інше»), then «Тварини з цього притулку зараз не показуються в галереї.»
+  An animal's own page also stays reachable by link, but only for an animal that was actually served
+  in the gallery before the pause; one never served answers as not found (`handlers/animals.ts`).
+  Both pages are `noindex` once the site is discoverable.
+- **Resuming.** «Відновити прийом звернень», by the shelter: no moderator needed. The animals are
+  back at once.
+- **Suspension while paused.** Allowed. «Відновити → «На паузі»» then returns the shelter to the
+  pause, not to «Перевірено».
+
+## The invitation lifetime: 72 hours
+
+An administrator's invitation link is good for 72 hours from the moment it is sent
+(`INVITATION_TTL_MS`, `kabinet-invitation-repo.ts`). It opens the «Створіть пароль» page, and the
+set-password token expires with the invitation, never later. The creation screen already says so
+(«посилання, щоб створити пароль, діє 72 години. Його можна надіслати ще раз.»).
+
+- **See it.** The admins list on the shelter's registry page reads «Запрошено · посилання діє до
+  {date}», and «Запрошено · посилання вже не діє» after the 72 hours.
+- **Resend.** «Надіслати ще раз» on that row makes the same invitation valid for a fresh 72 hours
+  and emails it again (history: «Запрошення надіслано ще раз: {name}»). It works for a pending admin
+  only. If the row is gone, invite the address again with «Запросити ще одного». If the email seems
+  not to have arrived, run the next section's checks before resending.
+- **Withdraw.** «Прибрати» on a pending admin cancels the invitation (history: «Запрошення
+  скасовано: {name}»); on a member it closes access and ends every session at once («Доступ закрито:
+  {name}»). Removing the last admin is allowed.
+- **Clean-up.** An invited account that holds no membership and no live invitation is erased,
+  signed in or not. It runs whenever the shelter's admins list is touched, and the scheduled sweep
+  does it too.
+
+## What the shelter sees in its own history
+
+The shelter-facing history (`shelter.history.list`, projected by `shelterFacingHistoryOf` in
+`history-shelter-facing.ts`) is built field by field: no evidence and no ids reach it. The kabinet
+renders no history screen from it yet (its only reader is the donation-declined notice, `home.ts`),
+so this is what the API hands any screen that shows it.
+
+- **Shown**, with the actor as your display name or "the shelter": verification moves (review
+  started, approved, rejected and suspended with code and note, reinstated, resubmitted, paused with
+  its reason, resumed); contact, freshness sentence, description, logo and name changes; donation
+  proposed, cancelled, approved or rejected; legal-entity or address changes you made; admin
+  invited, resent, joined, removed; animals imported; a card created, edited, listing-changed or
+  deleted; early listing allowed, revoked, or lapsed (the lapse has no actor).
+- **Not shown**: evidence added, the early-listing period number and your note, every id (moderator,
+  admin, invitation, animal), the evidence list inside a resubmission.
+- **Your own history** (registry) shows all of it, plus the evidence kinds, the period number and
+  the note.
+
 ## A shelter says the invitation never arrived
 
 All kabinet email goes through Resend (EM-B10). While Resend is the provider, the registry's
