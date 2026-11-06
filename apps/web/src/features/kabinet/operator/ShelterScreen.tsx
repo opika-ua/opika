@@ -352,7 +352,7 @@ export function ShelterScreen({
           })}
         </Text>
         <p className="flex flex-wrap items-center gap-2">
-          <VerificationStatusChip status={view.verification.status} />
+          <VerificationStatusChip status={view.verification.status} audience="operator" />
           <Text as="span">
             {fillTemplate(t.shelter.timeInState, {
               date: formatDate(enteredAt(view.verification)),

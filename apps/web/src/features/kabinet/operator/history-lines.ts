@@ -11,6 +11,7 @@ import {
   type VerificationEvent,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
+import { operatorStatusLabel } from "../verification-label";
 
 /**
  * One line of a shelter's history as the operator reads it on S4 (R-UI 1).
@@ -139,7 +140,7 @@ function verificationLine(
       };
     case "reinstate":
       return {
-        text: fillTemplate(v.reinstate, { status: uk.kabinet.profileStatus[to.to] }),
+        text: fillTemplate(v.reinstate, { status: operatorStatusLabel(to.to) }),
         actor: operatorActor(event.moderatorId, people),
       };
     case "resubmit":

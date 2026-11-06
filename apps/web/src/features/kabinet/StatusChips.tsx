@@ -1,6 +1,7 @@
 import type { ListingKind, ShelterVerification } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { Chip } from "../../ui/Chip";
+import { operatorStatusLabel } from "./verification-label";
 
 /**
  * One status language for the kabinet: a card's state (animal list) and a shelter's state (operator
@@ -50,6 +51,14 @@ export function ListingStatusChip({ kind }: { kind: ListingKind }) {
   );
 }
 
-export function VerificationStatusChip({ status }: { status: ShelterVerification["status"] }) {
-  return <LookChip look={VERIFICATION_LOOK[status]} label={uk.kabinet.profileStatus[status]} />;
+export function VerificationStatusChip({
+  status,
+  audience = "shelter",
+}: {
+  status: ShelterVerification["status"];
+  audience?: "shelter" | "operator";
+}) {
+  const label =
+    audience === "operator" ? operatorStatusLabel(status) : uk.kabinet.profileStatus[status];
+  return <LookChip look={VERIFICATION_LOOK[status]} label={label} />;
 }

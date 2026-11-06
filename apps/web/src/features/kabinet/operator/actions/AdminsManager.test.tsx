@@ -108,11 +108,13 @@ describe("remove asks first", () => {
     await userEvent.click(row("Олена").getByRole("button", { name: "Прибрати" }));
     const dialog = within(
       screen.getByRole("dialog", {
-        name: "Закрити доступ? Олена більше не зможе входити в кабінет.",
+        name: "Закрити доступ для Олена?",
       }),
     );
     expect(
-      dialog.getByText("Доступ до кабінету закриється одразу, усі сеанси завершаться."),
+      dialog.getByText(
+        "Користувач більше не зможе входити в кабінет. Доступ закриється одразу, усі сеанси завершаться.",
+      ),
     ).toBeTruthy();
     await userEvent.click(dialog.getByRole("button", { name: "Скасувати" }));
     expect(screen.queryByRole("dialog")).toBeNull();

@@ -105,7 +105,7 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
       "verified",
       "paused",
     ),
-    "Прийом тварин призупинено · Олена",
+    "Прийом звернень призупинено · Олена",
   ],
   [
     "resume, by the operator",
@@ -333,7 +333,7 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
   [
     "early_listing_allowed",
     { kind: "early_listing_allowed", at: AT, moderatorId: ME, period: 1, note: null },
-    "Ваші картки показуються, поки триває перевірка · ви",
+    "Показ карток до завершення перевірки дозволено · ви",
   ],
   [
     "early_listing_revoked",

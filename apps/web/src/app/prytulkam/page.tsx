@@ -36,6 +36,8 @@ import { Text } from "../../ui/Text";
  */
 const INDEPENDENT = fillTemplate(uk.about.independent, { site: WORDMARK });
 const WHAT_THIS_IS = fillTemplate(uk.forShelters.whatThisIs, { site: WORDMARK });
+const WHO_CONTACTS_WHOM = fillTemplate(uk.forShelters.whoContactsWhom, { site: WORDMARK });
+const WHO_IS_BEHIND_THIS = fillTemplate(uk.forShelters.whoIsBehindThis, { site: WORDMARK });
 
 export const metadata: Metadata = {
   title: uk.forShelters.title,
@@ -168,7 +170,7 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
         <Body>{uk.forShelters.whatHappensToAnimals}</Body>
       </Section>
       <Section heading={h.whoContactsWhom}>
-        <Body>{uk.forShelters.whoContactsWhom}</Body>
+        <Body>{WHO_CONTACTS_WHOM}</Body>
         <Body>{uk.forShelters.noObligation}</Body>
       </Section>
       <Section heading={h.money}>
@@ -217,7 +219,7 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
         <Body>{uk.forShelters.howToLeave}</Body>
       </Section>
       <Section heading={h.whoIsBehindThis}>
-        <Body>{uk.forShelters.whoIsBehindThis}</Body>
+        <Body>{WHO_IS_BEHIND_THIS}</Body>
       </Section>
 
       {/*

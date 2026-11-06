@@ -23,6 +23,7 @@ import { animalFactsParts, fillTemplate, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 import type { InferContractRouterOutputs } from "@orpc/contract";
 import { publishedAnnouncementOf, type ShelterVisibility } from "../animal-form/labels";
+import { countPhrase } from "../shared/count-phrase";
 
 /**
  * K2's words and rules that depend on a value, pure and free of server code,
@@ -105,7 +106,7 @@ export const sameFilter = (a: KabinetAnimalListFilter, b: KabinetAnimalListFilte
 export const staleLineOf = (count: number): string =>
   fillTemplate(t.stale.count, {
     cards: fillTemplate(pluralizeUk(count, t.stale.countCards), { count: integer.format(count) }),
-    days: integer.format(DEFAULT_FRESHNESS_POLICY.agingMaxDays),
+    days: countPhrase(DEFAULT_FRESHNESS_POLICY.agingMaxDays, uk.kabinet.units.days),
   });
 
 /**

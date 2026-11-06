@@ -1,5 +1,6 @@
 import { uk } from "@opika/i18n";
 import { WORDMARK } from "../brand";
+import { countPhrase } from "../features/kabinet/shared/count-phrase";
 import type { OutgoingEmail } from "./email-provider";
 
 /**
@@ -96,7 +97,7 @@ export function magicLinkEmail(input: {
     before: [copy.intro],
     link: { label: copy.action, url: input.url },
     after: [
-      fill(copy.expiry, { minutes: String(input.ttlMinutes) }),
+      fill(copy.expiry, { minutes: countPhrase(input.ttlMinutes, uk.kabinet.units.minutes) }),
       fill(copy.notYou, { operator: input.operatorName }),
     ],
   });
@@ -132,7 +133,7 @@ export function invitationEmail(input: {
     ],
     link: { label: copy.action, url: input.url },
     after: [
-      fill(copy.expiry, { hours: String(input.ttlHours) }),
+      fill(copy.expiry, { hours: countPhrase(input.ttlHours, uk.kabinet.units.hours) }),
       fill(copy.notYou, { operator: input.operatorName }),
     ],
   });

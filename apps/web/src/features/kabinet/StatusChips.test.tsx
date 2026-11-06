@@ -16,11 +16,21 @@ describe("status chips", () => {
 
   it.each([
     ["verified", "Перевірено"],
-    ["pending", "Очікує перевірки"],
+    ["pending", "На перевірці"],
+    ["under_review", "На перевірці"],
     ["paused", "На паузі"],
     ["rejected", "Відхилено"],
   ] as const)("a %s shelter reads «%s»", (status, label) => {
     render(<VerificationStatusChip status={status} />);
+    expect(screen.getByText(label)).toBeTruthy();
+  });
+
+  it.each([
+    ["pending", "Очікує перевірки"],
+    ["under_review", "На розгляді"],
+    ["verified", "Перевірено"],
+  ] as const)("the operator's view of a %s shelter reads «%s»", (status, label) => {
+    render(<VerificationStatusChip status={status} audience="operator" />);
     expect(screen.getByText(label)).toBeTruthy();
   });
 });

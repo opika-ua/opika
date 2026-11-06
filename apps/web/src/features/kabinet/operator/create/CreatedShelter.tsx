@@ -118,7 +118,7 @@ export function CreatedShelter({
       className="flex min-w-0 flex-col gap-4 self-start"
     >
       <span className="self-start">
-        <VerificationStatusChip status={view.verification.status} />
+        <VerificationStatusChip status={view.verification.status} audience="operator" />
       </span>
       <Heading level={1} look="title" id="created-shelter-fact" ref={factRef} tabIndex={-1}>
         {invitation === null ? t.createdNoInvite : t.created}

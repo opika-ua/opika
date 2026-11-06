@@ -349,7 +349,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // forms) and `enough`; `hint` is reworded.
     // 733 with the early-listing history lines (owner's copy table N4–N6, 2026-11-04).
     // 747 with the early-listing operator, banner and listed-variant lines (N7-N13, B5-B7, 2026-11-04).
-    expect(pending.length + written.length).toBe(747);
+    // 762 with the copy proofread (owner-approved 2026-11-06): `units` (twelve count forms),
+    // `operatorStatus` (two) and `animalForm.medicalNotes.publicNote`.
+    expect(pending.length + written.length).toBe(762);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");
