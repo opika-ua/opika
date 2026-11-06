@@ -229,7 +229,7 @@ export const en = {
     reflectionHeading: "Before you write – three things",
     reflection1: "This is years together, not a weekend.",
     reflection2: "Food, the vet, transport – monthly costs.",
-    reflection3: "Agreement of everyone you live with.",
+    reflection3: "Everyone you live with agrees.",
     writeTelegram: "Message on Telegram",
     call: "Call",
     writeEmail: "Send an email",
@@ -713,9 +713,9 @@ export const en = {
           "Someone changed the profile after you opened it. Your changes aren't saved. Here is the current version: make your changes again.",
         conflictReload: "Show the current version",
         illegalTransitionPause:
-          "Taking enquiries can't be paused right now: the shelter's status has changed. Reload the page.",
+          "Enquiries can't be paused right now: the shelter's status has changed. Reload the page.",
         illegalTransitionResume:
-          "Intake can't be resumed from here right now: the shelter's status has changed. Write to me.",
+          "Enquiries can't be resumed from here right now: the shelter's status has changed. Write to me.",
         phoneFormat:
           "Enter a Ukrainian number: +380 and 9 more digits, for example +380 67 123 45 67.",
         telegramFormat:
@@ -769,12 +769,12 @@ export const en = {
         declined: "The last proposed link wasn't approved. If it isn't clear why, write to me.",
       },
       pause: {
-        button: "Pause taking enquiries",
-        resumeButton: "Resume taking enquiries",
-        pausedLine: "Taking enquiries paused since {date} · {reason}",
-        dialogTitle: "Pause taking enquiries?",
+        button: "Pause enquiries",
+        resumeButton: "Resume enquiries",
+        pausedLine: "Enquiries paused since {date} · {reason}",
+        dialogTitle: "Pause enquiries?",
         dialogBody:
-          "While taking enquiries is paused, your animals are not in the gallery or search. Animal and shelter pages open by direct link and show that taking enquiries is paused.",
+          "While enquiries are paused, your animals are not in the gallery or search. Animal and shelter pages open by direct link and show that enquiries are paused.",
         reasonLabel: "Reason",
         reasonPlaceholder: "Choose a reason",
         reason: {
@@ -787,11 +787,11 @@ export const en = {
         noteLabel: "Note",
         noteHint:
           "You, the shelter's other administrators and I see the note. People looking for an animal don't.",
-        confirm: "Pause taking enquiries",
+        confirm: "Pause enquiries",
         cancel: "Cancel",
         close: "Close",
-        paused: "Taking enquiries paused.",
-        resumed: "Taking enquiries resumed. Your animals are shown again.",
+        paused: "Enquiries paused.",
+        resumed: "Enquiries resumed. Your animals are shown again.",
       },
       logo: {
         title: "Shelter logo",
@@ -1117,7 +1117,7 @@ export const en = {
       },
       paused: {
         hidden:
-          "While taking enquiries is paused, your animals are not in the gallery or search. Animal and shelter pages open by direct link and show that taking enquiries is paused.",
+          "While enquiries are paused, your animals are not in the gallery or search. Animal and shelter pages open by direct link and show that enquiries are paused.",
       },
       notVisible: {
         pending: "Your animals appear in the gallery as soon as the shelter passes verification.",
@@ -1366,7 +1366,7 @@ export const en = {
           suspend: "Suspended: {code}. {note}",
           reinstate: "Reinstated → «{status}»",
           resubmit: "Returned for verification",
-          pause: "Taking enquiries paused",
+          pause: "Enquiries paused",
           resume: "Pause lifted",
         },
         admin_invited: "Invitation sent: {name}, {email}",
