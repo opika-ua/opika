@@ -31,15 +31,16 @@ function sizesWithWarnings(env: Record<string, string | undefined>) {
 
 describe("the budget sizes", () => {
   it("default to 50 mints and 100 new-shelter reveals a day, per address, silently", () => {
-    const made: { name: string; windowMs: number; maxRequests: number }[] = [];
+    const made: { name: string; windowMs: number; maxRequests: number; onUnavailable: string }[] =
+      [];
     const { sizes, warnings } = sizesWithWarnings({});
     perIpBudgetsOf((opts) => {
       made.push(opts);
       return { check: async () => true };
     }, sizes);
     expect(made).toEqual([
-      { name: "adopter-mint", windowMs: 86_400_000, maxRequests: 50 },
-      { name: "reveal-ip", windowMs: 86_400_000, maxRequests: 100 },
+      { name: "adopter-mint", windowMs: 86_400_000, maxRequests: 50, onUnavailable: "allow" },
+      { name: "reveal-ip", windowMs: 86_400_000, maxRequests: 100, onUnavailable: "deny" },
     ]);
     expect(warnings).toEqual([]);
   });

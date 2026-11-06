@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import type { AppCaller } from "./context";
-import { type RateLimiter, sharedRateLimiter } from "./rate-limit";
+import { type OnUnavailable, type RateLimiter, sharedRateLimiter } from "./rate-limit";
 import { redisCredentialsOf } from "./redis-credentials";
 
 /**
@@ -94,15 +94,24 @@ type LimiterFactory = (opts: {
   name: string;
   windowMs: number;
   maxRequests: number;
+  onUnavailable: OnUnavailable;
 }) => RateLimiter;
 
 export function perIpBudgetsOf(make: LimiterFactory, sizes: PerIpBudgetSizes): PerIpBudgets {
   return {
-    adopterMints: make({ name: "adopter-mint", windowMs: DAY_MS, maxRequests: sizes.adopterMints }),
+    // Minting fails open (an outage must not stop new visitors); the reveal budget guards
+    // shelter contact data, so it fails closed.
+    adopterMints: make({
+      name: "adopter-mint",
+      windowMs: DAY_MS,
+      maxRequests: sizes.adopterMints,
+      onUnavailable: "allow",
+    }),
     newShelterReveals: make({
       name: "reveal-ip",
       windowMs: DAY_MS,
       maxRequests: sizes.newShelterReveals,
+      onUnavailable: "deny",
     }),
   };
 }

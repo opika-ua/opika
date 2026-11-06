@@ -4,7 +4,12 @@ import { sharedRateLimiter } from "../../../api/rate-limit";
 import { ipRateLimitKey } from "../../../api/rate-limit-key";
 
 /** Its own budget, apart from the page and API ones: an error loop in one browser must not spend them. */
-const limiter = sharedRateLimiter({ name: "monitoring", windowMs: 60_000, maxRequests: 20 });
+const limiter = sharedRateLimiter({
+  name: "monitoring",
+  windowMs: 60_000,
+  maxRequests: 20,
+  onUnavailable: "allow",
+});
 
 /**
  * The browser SDK's tunnel to Sentry: the page talks only to its own origin (CSP `connect-src

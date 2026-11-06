@@ -44,4 +44,26 @@ describe("pingHealthcheck", () => {
     expect(signal).toBeInstanceOf(AbortSignal);
     expect(HEALTHCHECK_TIMEOUT_MS).toBeLessThanOrEqual(5_000);
   });
+
+  it("aborts a hanging fetch at its timeout and resolves without failing the cron", async () => {
+    vi.useFakeTimers();
+    try {
+      let aborted = false;
+      const hanging = vi.fn(
+        (_url: string | URL | Request, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              aborted = true;
+              reject(new DOMException("aborted", "TimeoutError"));
+            });
+          }),
+      );
+      const done = pingHealthcheck(URL_OK, "ok", hanging as unknown as typeof fetch);
+      await vi.advanceTimersByTimeAsync(HEALTHCHECK_TIMEOUT_MS + 1);
+      await expect(done).resolves.toBeUndefined();
+      expect(aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

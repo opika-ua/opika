@@ -46,10 +46,26 @@ type Deps = {
 };
 
 /** Counts each send that succeeded toward the daily mail warning (`mail-volume.ts`). */
-const countingSender = (inner: EmailSender): EmailSender => ({
+export const MAIL_COUNT_TIMEOUT_MS = 500;
+
+/** A hung counter store must not delay a mail that has already been sent. */
+export const countingSender = (
+  inner: EmailSender,
+  note: (now: Date) => Promise<void> = noteMailSent,
+): EmailSender => ({
   async send(email) {
     const sent = await inner.send(email);
-    await noteMailSent(new Date());
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const gaveUp = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, MAIL_COUNT_TIMEOUT_MS);
+    });
+    try {
+      await Promise.race([note(new Date()).catch(() => {}), gaveUp]);
+    } catch {
+      // Counting never affects a send.
+    } finally {
+      clearTimeout(timer);
+    }
     return sent;
   },
 });

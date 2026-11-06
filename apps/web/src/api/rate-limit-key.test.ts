@@ -297,6 +297,7 @@ describe("no limiter key carries the raw IP (EM-Q11)", () => {
         windowMs: 60_000,
         maxRequests: 10,
         prefix: "opika-test",
+        onUnavailable: "deny",
       });
       const key = ipRateLimitKey(IPV4, { RATE_LIMIT_KEY_SECRET: SECRET_A });
       await limiter.check(key, new Date());
