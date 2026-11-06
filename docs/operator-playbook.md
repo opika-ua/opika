@@ -295,10 +295,10 @@ chat with an assistant that logs, never a screenshot with faces or numbers in a 
 
 Do not paste any of this into a PR, an issue, a commit message or a code comment.
 
-## 13. Messages to the shelter (DRAFT, awaiting owner approval)
+## 13. Messages to the shelter
 
-**DRAFT, awaiting owner approval.** These are new Ukrainian copy. Nothing here is approved or used by any
-code. They go out from your own mailbox, not from the product. Voice: «я», lowercase «ви», no «ми», no
+These Ukrainian messages are owner-approved (2026-11-06; D has a slot for the closing thanks). No
+code uses them. They go out from your own mailbox, not from the product. Voice: «я», lowercase «ви», no «ми», no
 exclamation marks, apostrophe ʼ. Square brackets are slots you fill by hand. Keep the reason factual and
 neutral; never name a suspicion.
 
@@ -327,7 +327,7 @@ neutral; never name a suspicion.
 
 > Добрий день. Я відновлюю притулок на сайті.
 > [Якщо був верифікований: ваші тварини знову зʼявляться в галереї. / Якщо була пауза: притулок лишається на паузі, її знімаєте ви в кабінеті.]
-> Дякую, що надіслали підтвердження.
+> [Дякую, що надіслали підтвердження. / Дякую, що відповіли.]
 > Якщо щось зміниться, напишіть мені.
 
 ## 14. Legal and privacy cautions
