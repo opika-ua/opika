@@ -101,13 +101,16 @@ export function DonationDecision() {
       ) : null}
       {pending !== null ? (
         <div className={ACTIONS}>
-          <Button
-            aria-disabled={busy || undefined}
-            aria-busy={mine || undefined}
-            onClick={() => decide("approve")}
-          >
-            {t.donation.approve}
-          </Button>
+          {/* Not offered while suspended: a reinstatement must not publish it unseen. */}
+          {view.verification.status === "suspended" ? null : (
+            <Button
+              aria-disabled={busy || undefined}
+              aria-busy={mine || undefined}
+              onClick={() => decide("approve")}
+            >
+              {t.donation.approve}
+            </Button>
+          )}
           <Button
             variant="secondary"
             aria-disabled={busy || undefined}

@@ -38,10 +38,10 @@ const STATES = {
   },
 } as const satisfies Record<string, ShelterVerification>;
 
-/** Inside the period, one millisecond short of expiry, and exactly at it. */
 type ShelterFixtureDonation = { url: string; provider: "monobank_jar" } | null;
 const LIVE_LINK = { url: "https://send.monobank.ua/jar/live", provider: "monobank_jar" } as const;
 
+/** Inside the period, one millisecond short of expiry, and exactly at it. */
 const RUNNING = new Date(NOW.getTime() - 10 * DAY);
 const LAST_MS = new Date(NOW.getTime() - EARLY_LISTING_DAYS * DAY + 1);
 const AT_EXPIRY = new Date(NOW.getTime() - EARLY_LISTING_DAYS * DAY);

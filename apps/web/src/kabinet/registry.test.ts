@@ -1576,6 +1576,33 @@ describe("registry.donation.approve / reject (N20)", () => {
     },
   );
 
+  it("refuses to approve while suspended, decides nothing, and still allows a reject", async () => {
+    const suspended = {
+      status: "suspended",
+      suspendedAt: NOW,
+      suspendedBy: OPERATOR as ModeratorId,
+      reason: { code: "unresponsive", note: null },
+      priorState: { status: "verified", verifiedAt: NOW, verifiedBy: OPERATOR as ModeratorId },
+      evidence,
+    } as const;
+    const s = await shelter({ verification: suspended, pendingDonation: pending() });
+    const approve = await call<RegistryShelterView>("registry.donation.approve", {
+      shelterId: s.id,
+      expectedVersion: 0,
+    });
+    expect(approve.status).toBe(200);
+    const after = await reload(s.id);
+    expect(after.donation).toBeNull();
+    expect(after.pendingDonation?.link).toEqual(pending().link);
+    expect(await history(s.id)).toEqual([]);
+    const reject = await call<RegistryShelterView>("registry.donation.reject", {
+      shelterId: s.id,
+      expectedVersion: 0,
+    });
+    expect(reject.body.pendingDonation).toBeNull();
+    expect(await history(s.id)).toEqual([expect.objectContaining({ decision: "rejected" })]);
+  });
+
   it("decides nothing when nothing is pending", async () => {
     const s = await shelter();
     expect(

@@ -45,6 +45,17 @@ describe("donation decision", () => {
     expect(screen.getByRole("button", { name: "Прибрати посилання…" })).toBeTruthy();
   });
 
+  it("suspended shelter: the proposal can be rejected but not approved", () => {
+    renderWithActions(<DonationDecision />, {
+      view: {
+        ...withProposal,
+        verification: { status: "suspended", since: new Date("2026-10-20T00:00:00Z") } as never,
+      },
+    });
+    expect(screen.queryByRole("button", { name: "Схвалити" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Відхилити" })).toBeTruthy();
+  });
+
   it("no live link: nothing to remove", () => {
     renderWithActions(<DonationDecision />, { view: registryView({ donation: null }) });
     expect(screen.queryByRole("button")).toBeNull();

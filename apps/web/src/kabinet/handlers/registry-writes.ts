@@ -647,6 +647,11 @@ const donationDecisionPlan =
   (shelter: Shelter): Planned => {
     const pending = shelter.pendingDonation;
     if (pending === null) return { changes: [], entries: [] };
+    // Approving while suspended would let a reinstatement publish the link with no decision after
+    // it; rejecting stays possible. Nothing is written, as with nothing pending.
+    if (decision === "approved" && shelter.verification.status === "suspended") {
+      return { changes: [], entries: [] };
+    }
     return {
       changes: [
         decision === "approved"
