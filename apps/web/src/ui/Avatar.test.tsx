@@ -16,7 +16,7 @@ describe("Avatar", () => {
     const { container } = render(<Avatar kind="initials" name="Домівка друзів" />);
     const node = container.firstElementChild;
     expect(node?.getAttribute("aria-hidden")).toBe("true");
-    expect(node?.textContent).toBe("ДД");
+    expect(node?.getAttribute("data-initials")).toBe("ДД");
   });
 });
 

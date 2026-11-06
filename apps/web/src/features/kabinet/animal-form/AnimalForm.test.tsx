@@ -1521,6 +1521,8 @@ describe("publishing", () => {
       event: { type: "publish" },
     });
     expect(await screen.findByText(PUBLISH_DONE)).toBeTruthy();
+    // The Publish button is gone; keyboard focus lands on the status that says it worked.
+    expect(document.activeElement).toBe(screen.getByText(PUBLISH_DONE));
     expect(
       screen.getByRole("link", { name: "Відкрити сторінку тварини" }).getAttribute("href"),
     ).toBe(`/tvaryny/${ID}`);

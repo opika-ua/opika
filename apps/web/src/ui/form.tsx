@@ -13,8 +13,9 @@ import { cx } from "./cx";
  * zoom on focus), labelled, and linked to its hint and error with `aria-describedby`. Invalid is an
  * inset ink ring plus the error's words, never a colour alone.
  */
+// `focus-within` too: a date input's calendar button is inside its shadow tree, where `:focus-visible` never matches the input.
 export const CONTROL =
-  "min-h-target w-full min-w-0 rounded-field border-2 border-line bg-surface px-4 text-body text-ink focus-ring";
+  "min-h-target w-full min-w-0 rounded-field border-2 border-line bg-surface px-4 text-body text-ink focus-ring focus-within:outline-3 focus-within:outline-offset-3 focus-within:outline-focus";
 export const INVALID = "ring-2 ring-inset ring-ink";
 export const LABEL = "text-label text-ink";
 export const HINT = "text-caption text-ink-2";

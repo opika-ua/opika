@@ -151,6 +151,7 @@ describe("app/robots.ts – always allows crawling", () => {
   it("always allows – reads no flag at all", async () => {
     const robots = (await import("./app/robots")).default;
     expect(robots().rules).toEqual({ userAgent: "*", allow: "/" });
+    expect(robots().sitemap).toBe(`${SITE_ORIGIN}/sitemap.xml`);
   });
 });
 

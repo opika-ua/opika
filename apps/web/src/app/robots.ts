@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { absoluteUrl } from "../seo/json-ld-builders";
 
 /**
  * D-3: always allows crawling, unconditionally - reads no flag at all.
@@ -7,5 +8,5 @@ import type { MetadataRoute } from "next";
  * (`src/seo-flags.ts`) for why disallowing crawling here would defeat both.
  */
 export default function robots(): MetadataRoute.Robots {
-  return { rules: { userAgent: "*", allow: "/" } };
+  return { rules: { userAgent: "*", allow: "/" }, sitemap: absoluteUrl("/sitemap.xml") };
 }

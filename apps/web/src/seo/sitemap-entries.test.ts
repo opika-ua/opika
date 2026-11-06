@@ -18,6 +18,8 @@ describe("buildSitemapEntries", () => {
     expect(animals).toHaveBeenCalledTimes(1);
     expect(urls).toContain(`${SITE_ORIGIN}/tvaryny/a2`);
     expect(urls.filter((u) => u.endsWith("/prytulky/s1"))).toHaveLength(1);
+    expect(urls).not.toContain(`${SITE_ORIGIN}/`);
+    expect(urls).toContain(`${SITE_ORIGIN}/tvaryny`);
     expect(urls.every((u) => u.startsWith(SITE_ORIGIN))).toBe(true);
   });
 

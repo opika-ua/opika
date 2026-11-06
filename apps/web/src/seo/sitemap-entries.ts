@@ -5,7 +5,8 @@ export type SitemapEntry = { readonly url: string; readonly lastModified?: Date 
 /** The sitemap protocol allows 50,000 URLs per file. */
 export const SITEMAP_URL_LIMIT = 50_000;
 
-export const STATIC_SITEMAP_PATHS = ["/", "/tvaryny", "/pro", "/prytulkam"] as const;
+/** No "/": it redirects to /tvaryny, and a sitemap lists only URLs that answer 200. */
+export const STATIC_SITEMAP_PATHS = ["/tvaryny", "/pro", "/prytulkam"] as const;
 
 export type SitemapSource = {
   /** Every public animal, in the gallery's order: ids with their shelter ids (one read, not a page loop). */

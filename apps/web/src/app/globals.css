@@ -577,3 +577,8 @@ html[data-has-saved] .saved-slot:not([hidden]) {
 html[data-has-saved] .saved-dot {
   display: block;
 }
+
+/* Avatar initials: generated content, so the decorative letters are not text in an accessible-name check. */
+.avatar-initials::before {
+  content: attr(data-initials);
+}

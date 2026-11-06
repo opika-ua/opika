@@ -87,8 +87,8 @@ export function FilterTabs({
               selected ? "text-ink after:bg-ink" : "text-ink-2 hover:text-ink hover:after:bg-line",
             )}
           >
-            {tab.label}
-            <span className="text-caption text-ink-2">{tab.count}</span>
+            {/* The space is invisible in the flex row; it makes the DOM text «Усі 45» (accessible-name check). */}
+            {tab.label} <span className="text-caption text-ink-2">{tab.count}</span>
           </button>
         );
       })}
