@@ -10,6 +10,9 @@ import type { ShelterVerification, VerificationStatus } from "./state";
 /** One period, an instant sum with no calendar maths. The one source for every reader. */
 export const EARLY_LISTING_DAYS = 60;
 
+/** The operator is reminded when this many days or fewer of a period are left (owner, 2026-11-04). */
+export const EARLY_LISTING_REMINDER_DAYS = 7;
+
 /** An allowance, then one renewal with a written reason; a third is refused (owner, 2026-11-04). */
 export const EARLY_LISTING_MAX_PERIODS = 2;
 
@@ -78,6 +81,15 @@ export type PublicListingLabel = (typeof PUBLIC_LISTING_LABELS)[number];
 
 export const publicListingLabelOf = (basis: PublicListingBasis): PublicListingLabel | null =>
   basis.kind === "not_listed" ? null : basis.kind;
+
+/**
+ * What an adopter may be told of the status a reveal recorded: the stored snapshot keeps the raw
+ * status (the operator's record), but `pending` / `under_review` must never reach an adopter.
+ * Anything not `verified` was listed before verification (a reveal needs a listed shelter), so
+ * the fallback is the cautious label, never "verified".
+ */
+export const publicListingLabelAtReveal = (status: VerificationStatus): PublicListingLabel =>
+  status === "verified" ? "verified" : "listed_before_verification";
 
 export const isPubliclyListed = (basis: PublicListingBasis): boolean => basis.kind !== "not_listed";
 
@@ -150,3 +162,25 @@ export const lapsedAtOf = (early: EarlyListing, now: Date): Date | null => {
   const expiresAt = earlyListingExpiresAt(early.since);
   return now.getTime() >= expiresAt.getTime() ? expiresAt : null;
 };
+
+export type EarlyListingRemaining =
+  | { kind: "none" }
+  | { kind: "running"; expiresAt: Date; daysLeft: number; remind: boolean }
+  | { kind: "lapsed"; expiredAt: Date };
+
+/**
+ * What the operator is told about a permission: whole days left (rounded up, so the last partial
+ * day still reads as one), or the date it ran out. Outside the open statuses the stored value is
+ * ignored, like the public gate does.
+ */
+export function earlyListingRemaining(
+  verification: ShelterVerification,
+  early: EarlyListing,
+  now: Date,
+): EarlyListingRemaining {
+  if (!isEarlyStatus(verification.status) || early.kind === "not_allowed") return { kind: "none" };
+  const expiresAt = earlyListingExpiresAt(early.since);
+  if (now.getTime() >= expiresAt.getTime()) return { kind: "lapsed", expiredAt: expiresAt };
+  const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / DAY_MS);
+  return { kind: "running", expiresAt, daysLeft, remind: daysLeft <= EARLY_LISTING_REMINDER_DAYS };
+}

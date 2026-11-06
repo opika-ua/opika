@@ -97,7 +97,7 @@ export async function kabinetAnimalPageOf(
   const write = decideAccess({ surface: "shelter", mode: "write" }, principal, deps.shelterWrites);
   const editing: AnimalFormEditing =
     write.kind === "allow_shelter_write" ? { kind: "open" } : { kind: "read_only" };
-  const shelterVisibility = shelterVisibilityOf(shelter.verification.status);
+  const shelterVisibility = shelterVisibilityOf(shelter.verification.status, shelter.earlyListing);
 
   if (target.kind === "new") {
     if (editing.kind === "read_only") return { kind: "not_found" };

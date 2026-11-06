@@ -25,6 +25,7 @@ const SHELTER_ID = "51000000-0000-4000-8000-000000000001" as RegistryShelterView
 const view = (overrides: Partial<RegistryShelterView> = {}): RegistryShelterView => ({
   id: SHELTER_ID,
   displayName: "Притулок «Домівка»",
+  earlyListing: { state: { kind: "none" }, periodsUsed: 0 },
   description: { uk: "Опис притулку для тесту.", en: null },
   legalEntity: {
     kind: "registered_ngo",

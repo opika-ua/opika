@@ -2,8 +2,10 @@ import type { apiErrors, KabinetShelterView } from "@opika/contracts";
 import { type AuditedShelterChange, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
 import {
   donationProviderOf,
+  earlyListingOf,
   type FreshnessSentence,
   type PauseReason,
+  publicListingBasisOf,
   type Shelter,
   type ShelterActor,
   type ShelterContact,
@@ -31,9 +33,15 @@ type TransitionErrors = ORPCErrorConstructorMap<{
  * The shelter's own view of itself (K4). Built field by field, the way the
  * view is `pick`ed: nothing reaches a shelter because it happened to be on
  * the row. Verification is the shelter-facing projection, with no evidence
- * and no moderator ids.
+ * and no moderator ids. `earlyListing` carries the end date only while the permission runs
+ * (N13); the public never gets a date.
  */
-export function kabinetShelterViewOf(shelter: Shelter): KabinetShelterView {
+export function kabinetShelterViewOf(shelter: Shelter, now: Date): KabinetShelterView {
+  const basis = publicListingBasisOf(
+    shelter.verification,
+    earlyListingOf(shelter.earlyListingSince),
+    now,
+  );
   return {
     id: shelter.id,
     displayName: shelter.displayName,
@@ -47,6 +55,10 @@ export function kabinetShelterViewOf(shelter: Shelter): KabinetShelterView {
     logo: shelter.logo,
     version: shelter.version,
     verification: shelterFacingVerificationOf(shelter.verification),
+    earlyListing:
+      basis.kind === "listed_before_verification"
+        ? { kind: "running", expiresAt: basis.expiresAt }
+        : { kind: "none" },
   };
 }
 
@@ -101,7 +113,7 @@ async function editFromForm(
   if (shelter.version !== expectedVersion) throw errors.CONFLICT();
   const result = await write(deps, shelter, expectedVersion, plan(shelter));
   if (result.kind === "conflict") throw errors.CONFLICT();
-  return kabinetShelterViewOf(await load(deps, scope.shelterId));
+  return kabinetShelterViewOf(await load(deps, scope.shelterId), deps.now);
 }
 
 /**
@@ -121,7 +133,8 @@ async function tapWithRetry(
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const shelter = await load(deps, scope.shelterId);
     const result = await write(deps, shelter, shelter.version, plan(shelter));
-    if (result.kind === "ok") return kabinetShelterViewOf(await load(deps, scope.shelterId));
+    if (result.kind === "ok")
+      return kabinetShelterViewOf(await load(deps, scope.shelterId), deps.now);
   }
   throw new Error(`Shelter ${scope.shelterId}: lost ${MAX_ATTEMPTS} races in a row`);
 }
@@ -130,7 +143,7 @@ export async function profileGet(
   deps: ProfileDeps,
   scope: ShelterReadScope,
 ): Promise<KabinetShelterView> {
-  return kabinetShelterViewOf(await load(deps, scope.shelterId));
+  return kabinetShelterViewOf(await load(deps, scope.shelterId), deps.now);
 }
 
 export const profileUpdateContact = (

@@ -76,9 +76,15 @@ export type RevealShelterContactView = z.infer<typeof RevealShelterContactViewSc
  */
 export const ShelterAtFirstRevealViewSchema = ShelterContactSnapshotSchema.pick({
   shelterId: true,
-  verificationStatusAtReveal: true,
   donation: true,
-}).extend({ publicLocation: PublicCityLocationViewSchema });
+}).extend({
+  publicLocation: PublicCityLocationViewSchema,
+  /**
+   * The public label, never the stored raw status: `pending` and `under_review` are the
+   * operator's words and must not reach an adopter (the stored record keeps them).
+   */
+  verificationStatusAtReveal: z.enum(PUBLIC_LISTING_LABELS),
+});
 export type ShelterAtFirstRevealView = z.infer<typeof ShelterAtFirstRevealViewSchema>;
 
 export const ContactRevealViewSchema = ContactRevealSchema.pick({

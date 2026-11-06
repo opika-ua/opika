@@ -16,6 +16,11 @@ describe("actionFailureOf", () => {
     [err("EVIDENCE_INSUFFICIENT"), { kind: "evidence_insufficient" }],
     [err("NOT_FOUND"), { kind: "not_found" }],
     [
+      err("EARLY_LISTING_REFUSED", { reason: "evidence_below_minimum" }),
+      { kind: "early_listing_refused", reason: "evidence_below_minimum" },
+    ],
+    [err("EARLY_LISTING_REFUSED", { reason: "nonsense" }), { kind: "failed" }],
+    [
       err("ADDRESS_HAS_A_ROLE", { reason: "invited_elsewhere" }),
       { kind: "address_has_a_role", reason: "invited_elsewhere" },
     ],
@@ -73,6 +78,15 @@ describe("staleAfter: which refusals mean the page is out of date", () => {
     expect(staleAfter({ kind: "address_has_a_role", reason: "operator" })).toBe(false);
     expect(staleAfter({ kind: "invalid_evidence", reason: "site_visit_in_future" })).toBe(false);
     expect(staleAfter({ kind: "name_too_long" })).toBe(false);
+    for (const reason of ["evidence_below_minimum", "note_required", "limit_reached"] as const) {
+      expect(staleAfter({ kind: "early_listing_refused", reason }), reason).toBe(false);
+    }
+  });
+
+  it("an early listing refused because the status or the period moved: re-read first", () => {
+    for (const reason of ["wrong_status", "already_running", "not_running"] as const) {
+      expect(staleAfter({ kind: "early_listing_refused", reason }), reason).toBe(true);
+    }
   });
 });
 

@@ -17,7 +17,7 @@ import { InfoTip } from "../../../ui/InfoTip";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
-import { missingSentence, shelterVisibilityOf } from "../animal-form/labels";
+import { cardsArePublic, missingSentence, shelterVisibilityOf } from "../animal-form/labels";
 import { NEW_ANIMAL_PATH } from "../routes";
 import { AnimalListRow, moreButtonId } from "./AnimalListRow";
 import { AdoptDialog, DeleteDialog, type DialogResult, WithdrawDialog } from "./ListDialogs";
@@ -162,9 +162,9 @@ export function AnimalList({
   const loadRequest = useRef(0);
 
   const now = clock();
-  const visibility = shelterVisibilityOf(verification.status);
-  const shown = visibility === "visible";
-  const visibilityNotice = visibilityNoticeOf(verification);
+  const visibility = shelterVisibilityOf(verification.status, shelter.earlyListing);
+  const shown = cardsArePublic(visibility);
+  const visibilityNotice = visibilityNoticeOf(verification, shelter.earlyListing);
   const total = totalOf(counts);
 
   // The undo countdown: one timer while any confirmation is on screen.

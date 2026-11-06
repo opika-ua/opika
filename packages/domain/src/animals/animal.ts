@@ -184,13 +184,13 @@ export const isDiscoverableAnimal = (animal: Animal): animal is DiscoverableAnim
 export const primaryPhoto = (animal: Animal): AnimalPhoto | null => animal.photos[0] ?? null;
 
 /**
- * The `everServedAt` an animal's own row should carry after a write that
- * could newly satisfy `buildDiscoverabilityPredicate` (`packages/db/src/
- * repos/feed-predicate.ts` - the actual query every adopter-facing surface
- * runs, which this mirrors exactly: `isDiscoverable(listing) &&
- * isPubliclyVerified(verification)`). Monotonic by construction: once set,
- * `current` always wins, so a later withdraw or suspension can't un-ring
- * this bell.
+ * The `everServedAt` an animal's row carries when it is INSERTED (onboarding, seed), where its
+ * shelter has just been created and so has no early-listing permission: public means
+ * `isDiscoverable(listing) && isPubliclyVerified(verification)`. It does NOT mirror
+ * `buildDiscoverabilityPredicate`, which also admits a shelter listed before verification; that
+ * case is stamped in SQL (`writeListingIf`, and the allow itself in `kabinet-shelter-repo.ts`),
+ * never here. Monotonic by construction: once set, `current` always wins, so a later withdraw or
+ * suspension can't un-ring this bell.
  */
 export const everServedAtAfter = (
   current: Date | null,

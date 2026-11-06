@@ -234,8 +234,7 @@ function lineOf(
         }),
         actor: operatorActor(entry.moderatorId, people),
       };
-    // Operator-facing lines use the approved N4–N6 strings; the operator-addressed wording and the
-    // period/note detail arrive with the operator UI (follow-up PR).
+    // The approved N4-N6 lines, as the shelter reads them; the period and note stay in the record.
     case "early_listing_allowed":
       return { text: t.early_listing_allowed, actor: operatorActor(entry.moderatorId, people) };
     case "early_listing_revoked":

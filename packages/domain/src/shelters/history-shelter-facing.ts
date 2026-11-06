@@ -114,6 +114,11 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
     from: z.string().min(1),
     to: z.string().min(1),
   }),
+  /** Allowed and revoked by the operator; the period number, the note and the moderator id stay operator-only. */
+  z.object({ kind: z.literal("early_listing_allowed"), ...base }),
+  z.object({ kind: z.literal("early_listing_revoked"), ...base }),
+  /** Nobody did it: the period ran out, so there is no actor. */
+  z.object({ kind: z.literal("early_listing_lapsed"), at: z.date() }),
   z.object({ kind: z.literal("shelter_created"), ...base }),
   z.object({ kind: z.literal("admin_invited"), ...base, email: z.email() }),
   z.object({ kind: z.literal("admin_invitation_resent"), ...base, email: z.email() }),
@@ -240,11 +245,12 @@ export function shelterFacingHistoryOf(
       return { kind: "verified_data_changed", at: entry.at, actor: operator, change: entry.change };
     // Operator-only (owner, 2026-11-04): the shelter learns nothing of it.
     case "evidence_added":
-    // Shelter-side lines for the early listing arrive with the kabinet banner (follow-up PR).
+      return null;
     case "early_listing_allowed":
     case "early_listing_revoked":
+      return { kind: entry.kind, at: entry.at, actor: operator };
     case "early_listing_lapsed":
-      return null;
+      return { kind: "early_listing_lapsed", at: entry.at };
     case "display_name_changed":
       return {
         kind: "display_name_changed",

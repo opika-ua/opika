@@ -329,8 +329,13 @@ describe("kabinet views carry exactly their listed keys", () => {
         "logo",
         "version",
         "verification",
+        "earlyListing",
       ].sort(),
     );
+    // The shelter may see when the period ends and nothing else about it (no period count, no note).
+    expect(
+      KabinetShelterViewSchema.shape.earlyListing.options.map((o) => Object.keys(o.shape).sort()),
+    ).toEqual([["kind"], ["expiresAt", "kind"]]);
     // The operator's record carries evidence and moderator ids; this one must not parse it.
     const verification = KabinetShelterViewSchema.shape.verification;
     expect(
@@ -378,6 +383,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "lastUpdatedAt",
         "version",
         "admins",
+        "earlyListing",
       ].sort(),
     );
   });
@@ -567,6 +573,9 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     donation_decided: ["kind", "at", "actor", "decision", "link", "previousLive"],
     verified_data_changed: ["kind", "at", "actor", "change"],
     display_name_changed: ["kind", "at", "actor", "from", "to"],
+    early_listing_allowed: ["kind", "at", "actor"],
+    early_listing_revoked: ["kind", "at", "actor"],
+    early_listing_lapsed: ["kind", "at"],
     shelter_created: ["kind", "at", "actor"],
     admin_invited: ["kind", "at", "actor", "email"],
     admin_invitation_resent: ["kind", "at", "actor", "email"],

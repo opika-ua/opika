@@ -4,16 +4,19 @@ import {
   allowEarlyListing,
   EARLY_LISTING_DAYS,
   EARLY_LISTING_MAX_PERIODS,
+  EARLY_LISTING_REMINDER_DAYS,
   EARLY_LISTING_STATUSES,
   earlyListingCutoff,
   earlyListingExpiresAt,
   earlyListingOf,
+  earlyListingRemaining,
   isPubliclyListed,
   keepsEarlyListing,
   lapsedAtOf,
   type PublicListingBasis,
   publicListingBasisOf,
   publicListingBasisOfColumns,
+  publicListingLabelAtReveal,
   publicListingLabelOf,
   revokeEarlyListing,
 } from "./early-listing";
@@ -242,5 +245,54 @@ describe("revokeEarlyListing and lapsedAtOf", () => {
     expect(lapsedAtOf(earlyListingOf(since), NOW)).toEqual(earlyListingExpiresAt(since));
     expect(lapsedAtOf(earlyListingOf(new Date(sinceOffsets.insideByOneMs)), NOW)).toBeNull();
     expect(lapsedAtOf(earlyListingOf(null), NOW)).toBeNull();
+  });
+});
+
+describe("publicListingLabelAtReveal", () => {
+  it("never answers a raw status, and says verified only for verified", () => {
+    for (const status of VERIFICATION_STATUSES) {
+      const label = publicListingLabelAtReveal(status);
+      expect(["verified", "listed_before_verification"], status).toContain(label);
+      expect(label === "verified", status).toBe(status === "verified");
+    }
+  });
+});
+
+describe("earlyListingRemaining", () => {
+  const since = new Date(NOW.getTime() - 10 * DAY);
+  const allowed = earlyListingOf(since);
+
+  it("is none without a permission, and outside pending and under_review whatever is stored", () => {
+    expect(earlyListingRemaining(stateOf("pending"), earlyListingOf(null), NOW)).toEqual({
+      kind: "none",
+    });
+    for (const status of VERIFICATION_STATUSES.filter(
+      (s) => !EARLY_LISTING_STATUSES.includes(s as never),
+    )) {
+      expect(earlyListingRemaining(stateOf(status), allowed, NOW), status).toEqual({
+        kind: "none",
+      });
+    }
+  });
+
+  it("counts whole days up, and reminds at the reminder window exactly", () => {
+    const left = (days: number, extraMs = 0) =>
+      earlyListingRemaining(
+        stateOf("under_review"),
+        earlyListingOf(new Date(NOW.getTime() - (EARLY_LISTING_DAYS - days) * DAY + extraMs)),
+        NOW,
+      );
+    expect(left(EARLY_LISTING_REMINDER_DAYS + 1)).toMatchObject({ daysLeft: 8, remind: false });
+    expect(left(EARLY_LISTING_REMINDER_DAYS)).toMatchObject({ daysLeft: 7, remind: true });
+    // One millisecond into the last day still reads as one day left.
+    expect(left(0, 1)).toMatchObject({ kind: "running", daysLeft: 1, remind: true });
+  });
+
+  it("is lapsed from the expiry instant, dated at the expiry", () => {
+    const old = new Date(NOW.getTime() - EARLY_LISTING_DAYS * DAY);
+    expect(earlyListingRemaining(stateOf("pending"), earlyListingOf(old), NOW)).toEqual({
+      kind: "lapsed",
+      expiredAt: NOW,
+    });
   });
 });

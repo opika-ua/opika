@@ -2512,6 +2512,42 @@ describe("registry.earlyListing", () => {
     ]);
   });
 
+  it("the operator's view carries the state, the days left and the periods used", async () => {
+    const s = await shelter({ verification: withVisit("pending") });
+    expect(
+      (await call<RegistryShelterView>("registry.shelters.byId", { shelterId: s.id })).body
+        .earlyListing,
+    ).toEqual({
+      state: { kind: "none" },
+      periodsUsed: 0,
+    });
+    const allowed = await allow(s.id);
+    expect(allowed.body.earlyListing).toEqual({
+      state: {
+        kind: "running",
+        expiresAt: new Date(NOW.getTime() + 60 * DAY),
+        daysLeft: 60,
+        remind: false,
+      },
+      periodsUsed: 1,
+    });
+    const nearEnd = await call<RegistryShelterView>(
+      "registry.shelters.byId",
+      { shelterId: s.id },
+      { now: new Date(NOW.getTime() + 55 * DAY + 1) },
+    );
+    expect(nearEnd.body.earlyListing.state).toMatchObject({ daysLeft: 5, remind: true });
+    const over = await call<RegistryShelterView>(
+      "registry.shelters.byId",
+      { shelterId: s.id },
+      { now: new Date(NOW.getTime() + 61 * DAY) },
+    );
+    expect(over.body.earlyListing).toEqual({
+      state: { kind: "lapsed", expiredAt: new Date(NOW.getTime() + 60 * DAY) },
+      periodsUsed: 1,
+    });
+  });
+
   it("revoke ends a running permission at once and refuses when none runs", async () => {
     const s = await shelter({ verification: withVisit("pending") });
     expect((await revoke(s.id)).body.data).toEqual({ reason: "not_running" });

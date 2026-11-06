@@ -14,6 +14,7 @@ import {
   type PublicListingLabel,
   primaryPhoto,
   publicListingBasisOf,
+  publicListingLabelAtReveal,
   publicListingLabelOf,
   type RevealId,
   RevealIdSchema,
@@ -245,7 +246,7 @@ export function toView(
     shelterListing,
     shelterAtFirstReveal: {
       shelterId: record.shelterId,
-      verificationStatusAtReveal: record.verificationStatusAtReveal,
+      verificationStatusAtReveal: publicListingLabelAtReveal(record.verificationStatusAtReveal),
       donation: record.donation,
       publicLocation: cityOnlyLocationOf(record.publicLocation),
     },

@@ -273,16 +273,28 @@ describe("shelterVisibilityOf: every verification status, and what publishing th
   });
 
   it.each(VERIFICATION_STATUSES)("%s", (status) => {
-    const visibility = shelterVisibilityOf(status);
+    const visibility = shelterVisibilityOf(status, { kind: "none" });
     expect({ visibility, announced: publishedAnnouncementOf(visibility) }).toEqual({
       visibility: EXPECTED_VISIBILITY[status],
       announced: ANNOUNCED[status],
     });
   });
 
+  it("a running early listing makes pending and under_review listed, with its own announcement; nothing else changes", () => {
+    const running = { kind: "running", expiresAt: new Date("2026-12-01T00:00:00Z") } as const;
+    for (const status of VERIFICATION_STATUSES) {
+      const visibility = shelterVisibilityOf(status, running);
+      const open = status === "pending" || status === "under_review";
+      expect(visibility, status).toBe(open ? "listed_unverified" : EXPECTED_VISIBILITY[status]);
+    }
+    expect(publishedAnnouncementOf("listed_unverified")).toBe(
+      "Опубліковано. Картку видно всім з позначкою «на перевірці», поки притулок проходить перевірку.",
+    );
+  });
+
   it("is visible exactly where the public surfaces show the shelter's cards", () => {
     for (const status of VERIFICATION_STATUSES) {
-      expect(shelterVisibilityOf(status) === "visible", status).toBe(
+      expect(shelterVisibilityOf(status, { kind: "none" }) === "visible", status).toBe(
         (FEED_VISIBLE_VERIFICATION_STATUSES as readonly string[]).includes(status),
       );
     }

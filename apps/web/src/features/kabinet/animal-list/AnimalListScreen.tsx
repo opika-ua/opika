@@ -1,4 +1,4 @@
-import { uk } from "@opika/i18n";
+import { fillTemplate, uk } from "@opika/i18n";
 import type { SignedInPerson } from "../../../kabinet/signed-in-person";
 import { Heading } from "../../../ui/Heading";
 import { Panel } from "../../../ui/Panel";
@@ -8,6 +8,7 @@ import { ShelterShell } from "../ShelterShell";
 import { VerificationDecision } from "../VerificationDecision";
 import { AnimalList } from "./AnimalList";
 import type { KabinetAnimalListPage } from "./animal-list-page";
+import { dayAndMonth } from "./list-model";
 
 /**
  * K2's page around the list, and the shelter's landing page (kabinet UX round 2: there is no
@@ -28,6 +29,9 @@ export function AnimalListScreen({
   const support = page.viewer === "support";
   const status = page.shelter.verification.status;
   const pending = status === "pending" || status === "under_review";
+  const early = page.shelter.earlyListing;
+  const listedUntil = pending && early.kind === "running" ? early.expiresAt : null;
+  const listed = listedUntil !== null;
   return (
     <ShelterShell
       shelterName={page.shelter.displayName}
@@ -58,7 +62,19 @@ export function AnimalListScreen({
                 <Heading level={2} look="title" id="list-pending">
                   {uk.kabinet.profileStatus[status as "pending" | "under_review"]}
                 </Heading>
-                <Text>{uk.kabinet.profile.pendingNote}</Text>
+                <Text>
+                  {listed ? uk.kabinet.profile.pendingNoteLead : uk.kabinet.profile.pendingNote}
+                </Text>
+              </Panel>
+            ) : null}
+            {/* The shelter may see when the period ends; the public never does (N13). */}
+            {listedUntil !== null ? (
+              <Panel tone="outline" padding="md">
+                <Text look="label">
+                  {fillTemplate(uk.kabinet.profile.earlyListingBanner, {
+                    date: dayAndMonth(listedUntil),
+                  })}
+                </Text>
               </Panel>
             ) : null}
           </>

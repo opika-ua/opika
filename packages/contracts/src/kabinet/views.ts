@@ -99,6 +99,17 @@ export type KabinetListedAnimalView = z.infer<typeof KabinetListedAnimalViewSche
 export type KabinetAnimalView = KabinetDraftAnimalView | KabinetListedAnimalView;
 
 /**
+ * Whether the operator lets this shelter's cards be public before verification, as the shelter
+ * is told: it may see the end date (N13), the public never does. Derived at read from the stored
+ * permission and the status, so a lapsed or cleared one is `none`.
+ */
+export const KabinetEarlyListingSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("none") }),
+  z.object({ kind: z.literal("running"), expiresAt: z.date() }),
+]);
+export type KabinetEarlyListing = z.infer<typeof KabinetEarlyListingSchema>;
+
+/**
  * K4: what a shelter sees of itself. Legal entity and premises address appear
  * read-only in the locked block; verification is the shelter-facing projection
  * (no evidence, no moderator ids). `version` goes out so a write can send back
@@ -116,7 +127,10 @@ export const KabinetShelterViewSchema = ShelterSchema.pick({
   freshnessSentence: true,
   logo: true,
   version: true,
-}).extend({ verification: ShelterFacingVerificationSchema });
+}).extend({
+  verification: ShelterFacingVerificationSchema,
+  earlyListing: KabinetEarlyListingSchema,
+});
 export type KabinetShelterView = z.infer<typeof KabinetShelterViewSchema>;
 
 /**
@@ -259,6 +273,27 @@ export const BlockedAddressesViewSchema = z.discriminatedUnion("kind", [
 ]);
 export type BlockedAddressesView = z.infer<typeof BlockedAddressesViewSchema>;
 
+/**
+ * Listing before verification as the operator reads it (operator only). Derived at read with the
+ * request's clock: `running` carries whole days left and whether the reminder window has begun,
+ * `lapsed` the instant it ran out. `periodsUsed` counts earlier allowances from history, so the
+ * panel knows when a note is needed (the second) and when the third is refused.
+ */
+export const RegistryEarlyListingSchema = z.object({
+  state: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("none") }),
+    z.object({
+      kind: z.literal("running"),
+      expiresAt: z.date(),
+      daysLeft: z.int().min(1),
+      remind: z.boolean(),
+    }),
+    z.object({ kind: z.literal("lapsed"), expiredAt: z.date() }),
+  ]),
+  periodsUsed: z.int().nonnegative(),
+});
+export type RegistryEarlyListing = z.infer<typeof RegistryEarlyListingSchema>;
+
 /** S3/S4: operator-only, the full record including evidence and moderator ids. */
 export const RegistryShelterViewSchema = ShelterSchema.pick({
   id: true,
@@ -275,7 +310,10 @@ export const RegistryShelterViewSchema = ShelterSchema.pick({
   createdAt: true,
   lastUpdatedAt: true,
   version: true,
-}).extend({ admins: z.array(ShelterAdminViewSchema).readonly() });
+}).extend({
+  admins: z.array(ShelterAdminViewSchema).readonly(),
+  earlyListing: RegistryEarlyListingSchema,
+});
 export type RegistryShelterView = z.infer<typeof RegistryShelterViewSchema>;
 
 /**
