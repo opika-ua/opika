@@ -54,7 +54,7 @@ import { R4_2_ANALYTICS_SENTENCE, ukPublic as uk } from "@opika/i18n/public";
  * helper, `verificationSuffix`, was removed with its last caller (2026-11-03).
  * Surfaces gate on this flag inline.
  */
-export const REGISTRY_HAS_NO_REAL_SHELTERS = true;
+export const REGISTRY_HAS_NO_REAL_SHELTERS = false;
 
 /**
  * Is this deploy meant to be found by a search engine or crawled at all.

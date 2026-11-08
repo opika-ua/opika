@@ -72,7 +72,7 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
  * {site} з {year} р.") had no slot in the Figma header - the shelter row is
  * now just the logo, the name and the city (owner decision 1, "follow the
  * Figma design completely"). It was already suppressed everywhere in
- * production (`REGISTRY_HAS_NO_REAL_SHELTERS` is `true`), so dropping it
+ * production (`REGISTRY_HAS_NO_REAL_SHELTERS` was `true` then), so dropping it
  * removes dead JSX, not a live feature - a decision taken, recorded here
  * rather than silently deleting its old test block. `uk.detail
  * .shelterVerifiedYears` itself is left in the catalogue (unlike the keys

@@ -137,22 +137,14 @@ test.describe("the header is on every user-facing surface", () => {
 });
 
 /**
- * D-2: the demo banner (`detail-demo-banner`) shows on the detail page while
- * the registry holds no real shelters. `NARROW_PHONE` (320) is this
- * project's own narrowest supported width (`docs/stack-decision.md`, "budget
- * Android"). Its clipping and the pages' sideways overflow were measured
- * here until 2026-10-20 (removed with the other UI-measuring tests).
- *
- * The gallery's own banner (`gallery-demo-banner`) is gone - Oleksii,
- * mid-build, verbatim: "remove На сайті поки немає справжніх притулків —
- * усі картки тут демонстраційні. as we hide our app anyways and people
- * without gate cant access it ye[t]." Only the detail page's instance is
- * still asserted.
+ * D-2: the demo banner (`detail-demo-banner`) shows only while the registry holds no real
+ * shelters; step 13 of the launch sequence turned `REGISTRY_HAS_NO_REAL_SHELTERS` off, so the
+ * detail page must carry none. `NARROW_PHONE` (320) is the narrowest supported width.
  */
-test.describe("the demo banner is visible on the detail page", () => {
-  test("detail page banner is visible at 320", async ({ page }) => {
+test.describe("the demo banner is gone from the detail page", () => {
+  test("detail page has no demo banner at 320", async ({ page }) => {
     await openRoute(page, await firstAnimalHref(page), NARROW_PHONE, { readySelector: HEADER });
-    await expect(page.getByTestId("detail-demo-banner")).toBeVisible();
+    await expect(page.getByTestId("detail-demo-banner")).toHaveCount(0);
   });
 });
 
