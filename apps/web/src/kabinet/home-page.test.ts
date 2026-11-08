@@ -200,7 +200,7 @@ describe("kabinetHomeOf: K4 editing", () => {
     );
     const home = await kabinetHomeOf(adminOf(mine), deps());
     if (home.kind !== "shelter") throw new Error("not a shelter");
-    expect(home.editing).toEqual({ kind: "open", donationDeclined: false });
+    expect(home.editing).toEqual({ kind: "open", donationOutcome: { kind: "none" } });
   });
 
   describe("the declined proposal (answer 12)", () => {
@@ -226,7 +226,7 @@ describe("kabinetHomeOf: K4 editing", () => {
     const declinedOf = async () => {
       const home = await kabinetHomeOf(adminOf(mine), deps());
       if (home.kind !== "shelter" || home.editing.kind !== "open") throw new Error("not open");
-      return home.editing.donationDeclined;
+      return home.editing.donationOutcome.kind === "declined";
     };
 
     it("is false with no donation history", async () => {

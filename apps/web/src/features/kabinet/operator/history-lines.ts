@@ -218,6 +218,27 @@ function lineOf(
         text: entry.decision === "approved" ? t.donation_approved : t.donation_rejected,
         actor: operatorActor(entry.moderatorId, people),
       };
+    case "donation_removed": {
+      const removed = fillTemplate(t.donation_removed, {
+        host: donationHost(entry.previousLive),
+        code: uk.kabinet.operator.codes.donationRemoval[entry.reason.code],
+        note: entry.reason.note,
+      }).trimEnd();
+      return {
+        text: entry.clearedPending ? `${removed} ${t.donation_removed_pending}` : removed,
+        actor: operatorActor(entry.moderatorId, people),
+      };
+    }
+    case "donation_suspended":
+      return {
+        text: fillTemplate(
+          entry.outcome === "moved_to_pending"
+            ? t.donation_suspended_to_pending
+            : t.donation_suspended_recorded,
+          { host: donationHost(entry.previousLive) },
+        ),
+        actor: operatorActor(entry.moderatorId, people),
+      };
     case "verified_data_changed":
       return {
         text: t.verified_data_changed[entry.change.field],

@@ -8,7 +8,7 @@ import type { KabinetContext } from "../../kabinet/context";
 import { INVITE_PASSWORDS_OFF } from "../../kabinet/invite-password";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../kabinet/photo-uploads";
 import { shelterKabinetRouter } from "../../kabinet/router";
-import { latestDonationOutcomeOf } from "./profile-edit/donation-outcome";
+import { type DonationOutcome, latestDonationOutcomeOf } from "./profile-edit/donation-outcome";
 
 /**
  * What `/kabinet` shows to whom (KS-Q1, Oleksii: "A"). The page calls the
@@ -50,8 +50,8 @@ export type ProfileEditing =
   | { kind: "read_only" }
   | {
       kind: "open";
-      /** The newest donation line is the operator declining the last proposal (answer 12). */
-      donationDeclined: boolean;
+      /** What the newest donation line in the history says (declined, removed, suspended, or nothing). */
+      donationOutcome: DonationOutcome;
     };
 
 /**
@@ -99,16 +99,16 @@ const HISTORY_PAGE = 50;
 
 type HomeClient = RouterClient<typeof homeRouter>;
 
-async function donationDeclinedOf(client: HomeClient): Promise<boolean> {
+async function donationOutcomeOf(client: HomeClient): Promise<DonationOutcome> {
   let cursor: KabinetCursor | null = null;
   for (let page = 0; page < DONATION_HISTORY_PAGES; page += 1) {
     const result = await client.shelter.history.list({ cursor, limit: HISTORY_PAGE });
     const outcome = latestDonationOutcomeOf(result.items);
-    if (outcome !== null) return outcome.kind === "declined";
-    if (result.nextCursor === null) return false;
+    if (outcome !== null) return outcome;
+    if (result.nextCursor === null) return { kind: "none" };
     cursor = result.nextCursor;
   }
-  return false;
+  return { kind: "none" };
 }
 
 export async function kabinetHomeOf(
@@ -150,7 +150,7 @@ export async function kabinetHomeOf(
     write.kind === "allow_shelter_write"
       ? {
           kind: "open",
-          donationDeclined: view.pendingDonation === null && (await donationDeclinedOf(client)),
+          donationOutcome: await donationOutcomeOf(client),
         }
       : { kind: "read_only" };
   return {

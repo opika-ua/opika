@@ -123,7 +123,7 @@ export function ShelterProfile({
             initialView={view}
             cityName={cityName}
             operatorName={operatorName}
-            donationDeclined={editing.donationDeclined}
+            donationOutcome={editing.donationOutcome}
             initialTab={profileTabOf(tab)}
           />
         ) : (

@@ -47,6 +47,7 @@ const EXPECTED_PATHS = [
   "registry.earlyListing.revoke",
   "registry.donation.approve",
   "registry.donation.reject",
+  "registry.donation.remove",
   "registry.admins.invite",
   "registry.admins.resendInvite",
   "registry.admins.remove",

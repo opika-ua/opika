@@ -121,6 +121,7 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "registry.earlyListing.revoke": REGISTRY,
   "registry.donation.approve": REGISTRY,
   "registry.donation.reject": REGISTRY,
+  "registry.donation.remove": REGISTRY,
   "registry.admins.invite": REGISTRY,
   "registry.admins.resendInvite": REGISTRY,
   "registry.admins.remove": REGISTRY,
@@ -172,6 +173,40 @@ describe("registry.donation.* compare-and-set on the version (RG-Q12)", () => {
       expect(internals(path).errorMap.CONFLICT?.status).toBe(409);
     },
   );
+});
+
+describe("registry.donation.remove", () => {
+  const shelterId = "51000000-0000-4000-8000-000000000001";
+  const input = () => internals("registry.donation.remove").inputSchema;
+  const reason = { code: "cannot_confirm", note: "Не відкривається" };
+
+  it("requires the version read, a code from the list and a non-blank note", () => {
+    expect(input()?.safeParse({ shelterId, expectedVersion: 3, reason }).success).toBe(true);
+    expect(input()?.safeParse({ shelterId, reason }).success).toBe(false);
+    expect(
+      input()?.safeParse({ shelterId, expectedVersion: 3, reason: { ...reason, code: "spam" } })
+        .success,
+    ).toBe(false);
+    expect(
+      input()?.safeParse({ shelterId, expectedVersion: 3, reason: { ...reason, note: "   " } })
+        .success,
+    ).toBe(false);
+  });
+
+  it("declares CONFLICT 409", () => {
+    expect(internals("registry.donation.remove").errorMap.CONFLICT?.status).toBe(409);
+  });
+});
+
+describe("shelter.profile.proposeDonation", () => {
+  const input = () => internals("shelter.profile.proposeDonation").inputSchema;
+
+  it("takes an https link and refuses userinfo and IDN hosts at the contract", () => {
+    expect(input()?.safeParse({ url: "https://send.monobank.ua/jar/x" }).success).toBe(true);
+    expect(input()?.safeParse({ url: "https://user@send.monobank.ua/jar/x" }).success).toBe(false);
+    expect(input()?.safeParse({ url: "https://xn--monobank-9ve.ua/jar/x" }).success).toBe(false);
+    expect(input()?.safeParse({ url: "http://send.monobank.ua/jar/x" }).success).toBe(false);
+  });
 });
 
 describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
@@ -571,6 +606,8 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     donation_proposed: ["kind", "at", "actor", "link"],
     donation_proposal_cancelled: ["kind", "at", "actor"],
     donation_decided: ["kind", "at", "actor", "decision", "link", "previousLive"],
+    donation_removed: ["kind", "at", "actor", "previousLive", "clearedPending", "reason"],
+    donation_suspended: ["kind", "at", "actor", "previousLive", "outcome"],
     verified_data_changed: ["kind", "at", "actor", "change"],
     display_name_changed: ["kind", "at", "actor", "from", "to"],
     early_listing_allowed: ["kind", "at", "actor"],

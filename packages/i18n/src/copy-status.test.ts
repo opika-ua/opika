@@ -236,7 +236,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
     // Q-C (Oleksii, 2026-10-19): the before-verification variant, his second sentence, the rest unchanged;
     // the same DR1-Q1 phrase replaced
     "email.invite.whatBeforeVerification":
-      "У кабінеті ви бачите дані притулку – і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку або я дозволю показ із позначкою «на перевірці». Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки – юридичну особу, ЄДРПОУ чи адресу, – напишіть мені.",
+      "У кабінеті ви бачите дані притулку – і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку або я дозволю показ із позначкою «на перевірці». Посилання на збір зʼявиться, коли я його перевірю і притулок пройде перевірку. Щоб змінити дані з перевірки – юридичну особу, ЄДРПОУ чи адресу, – напишіть мені.",
     // row 86
     // audit 2026-10-22 #26: the link's job is to create a password
     "email.invite.action": "Створити пароль",
@@ -395,13 +395,25 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     "profileEdit.donation.optional": "· необовʼязково",
     // k4-copy-uk.md
     "profileEdit.donation.previewLabel": "Так це побачать люди:",
+    // Owner-approved 2026-11-06 (donation copy table + approvals): shown while nobody can see the link yet.
+    "profileEdit.donation.previewLabelUnverified":
+      "Так це побачать люди, коли притулок пройде перевірку:",
+    "profileEdit.donation.removed":
+      "Посилання на збір більше не показується: {code}. {note} Надішліть нове – я його перевірю.",
+    "profileEdit.donation.suspendedNote":
+      "Поки притулок призупинено, посилання на збір не показується. Після відновлення я перевірю його ще раз.",
+    "profileEdit.donation.reinstatedPending": "Посилання {host} чекає, поки я знову його схвалю.",
+    "profileEdit.errors.donationUserinfo":
+      "У посиланні не має бути імені чи пароля перед адресою сайту (як у https://імʼя@сайт). Скопіюйте адресу з рядка браузера.",
+    "profileEdit.errors.donationIdn":
+      "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
     // k4-copy-uk.md
     "profileEdit.donation.previewHost": "{host} ↗",
     // k4-copy-uk.md
     "profileEdit.donation.propose": "Надіслати на перевірку",
     // k4-copy-uk.md
     "profileEdit.donation.proposeNote":
-      "Нове посилання зʼявиться на картках після того, як я його перевірю. До того люди бачать поточне.",
+      "Нове посилання зʼявиться, щойно я його перевірю, якщо притулок уже пройшов перевірку. До того люди бачать поточне, якщо воно є.",
     // k4-copy-uk.md
     "profileEdit.donation.pendingTitle": "Чекає на перевірку",
     // k4-copy-uk.md
@@ -852,7 +864,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.verification.suspended.reinstateExplainPaused":
       "Кнопка «Відновити» поверне притулок на паузу, а не в «Перевірено». Тварини лишаться прихованими, доки притулок сам не зніме паузу.",
     "operator.verification.suspended.reinstateExplainVerified":
-      "Кнопка «Відновити» поверне статус «Перевірено», і тварини знову зʼявляться в галереї.",
+      "Кнопка «Відновити» поверне статус «Перевірено», і тварини знову зʼявляться в галереї. Посилання на збір сайт сам не поверне: схваліть його окремо.",
     "operator.verification.noConfirm": "Підтвердження не потрібне: ця дія нічого не приховує.",
     "operator.verification.rejected.title": "Відхилено",
     "operator.verification.rejected.reason": "{code}. {note}",
@@ -861,7 +873,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.reasonDialog.rejectBody":
       "Притулок побачить це пояснення дослівно у своєму кабінеті. Його тварин не буде в галереї.",
     "operator.reasonDialog.suspendBody":
-      "Тварини притулку одразу зникнуть із галереї. Притулок побачить це пояснення у своєму кабінеті. Відновити можна будь-коли.",
+      "Тварини притулку одразу зникнуть із галереї. Притулок побачить це пояснення у своєму кабінеті. Відновити можна будь-коли. Посилання на збір теж перестане показуватися; після відновлення його треба схвалити знову.",
     "operator.reasonDialog.codeLabel": "Причина",
     "operator.reasonDialog.reasonLabel": "Пояснення",
     "operator.reasonDialog.reasonHint":
@@ -903,7 +915,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "verificationDecision.reason": "Причина: {code}.",
     "verificationDecision.contact": "Якщо маєте питання, напишіть мені.",
     "verificationDecision.suspendedEffect":
-      "Поки притулок призупинено, його тварин немає в галереї.",
+      "Поки притулок призупинено, його тварин немає в галереї, а посилання на збір не показується.",
     "verificationDecision.rejectedEffect":
       "Тварин притулку не буде в галереї, доки перевірку не пройдено.",
   };
@@ -974,6 +986,32 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.history.early_listing_lapsed": "Строк показу карток до завершення перевірки минув",
     "operator.evidence.gapItem": "{kind} – {provided} з {minimum}",
   };
+  /** Owner-approved 2026-11-06 (donation link safety: copy table N1–N14, N18, and the approvals file). */
+  const DONATION_SAFETY_OPERATOR_COPY: Record<string, string> = {
+    "operator.history.donation_removed": "Посилання на збір прибрано: {host}. {code}. {note}",
+    "operator.history.donation_removed_pending":
+      "Пропозицію, що чекала, скасовано разом із посиланням",
+    "operator.history.donation_suspended_to_pending":
+      "Посилання на збір {host} переведено на повторне схвалення: притулок призупинено",
+    "operator.history.donation_suspended_recorded":
+      "Чинне посилання {host} більше не показується: притулок призупинено. Новіша пропозиція лишається в очікуванні",
+    "operator.codes.donationRemoval.wrong_destination": "Посилання веде не туди",
+    "operator.codes.donationRemoval.not_shelters_own": "Це не власна сторінка притулку",
+    "operator.codes.donationRemoval.cannot_confirm": "Не вдалося підтвердити, куди веде посилання",
+    "operator.codes.donationRemoval.shelter_request": "Прохання притулку",
+    "operator.codes.donationRemoval.other": "Інше",
+    "operator.donation.remove": "Прибрати посилання…",
+    "operator.donation.removed": "Посилання прибрано.",
+    "operator.donation.removeConflict":
+      "Посилання змінилося, поки сторінка була відкрита. Тут – поточне.",
+    "operator.donation.afterSuspension":
+      "Було чинним до призупинення. Схваліть одним кліком після відновлення.",
+    "operator.donation.removeDialog.title": "Прибрати посилання на збір «{shelter}»?",
+    "operator.donation.removeDialog.body":
+      "Посилання одразу зникне зі сторінок. Притулок побачить причину у своєму кабінеті й зможе запропонувати нове. Пропозиція, що чекає, теж зникне.",
+    "operator.donation.removeDialog.shelterSeesNote": "Цей текст побачить притулок.",
+    "operator.donation.removeDialog.confirm": "Прибрати",
+  };
   /** Owner-approved 2026-11-04 (listing before verification, copy table N7–N12). */
   const EARLY_LISTING_OPERATOR_COPY: Record<string, string> = {
     "operator.earlyListing.title": "Показ до завершення перевірки",
@@ -1022,6 +1060,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(PET_CARD_PR3B_LOGO_CHANGED),
         ...Object.keys(EVIDENCE_ADD_COPY),
         ...Object.keys(EARLY_LISTING_OPERATOR_COPY),
+        ...Object.keys(DONATION_SAFETY_OPERATOR_COPY),
       ].sort(),
     );
   });
@@ -1048,6 +1087,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   it.each(Object.entries(EVIDENCE_ADD_COPY))("%s is the owner-approved text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
+
+  it.each(Object.entries(DONATION_SAFETY_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
 
   it.each(Object.entries(EARLY_LISTING_OPERATOR_COPY))(
     "%s is the owner-approved text",
@@ -1495,8 +1541,8 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
     // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
-    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms).
-    expect(k4.length).toBe(92);
+    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six.
+    expect(k4.length).toBe(98);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

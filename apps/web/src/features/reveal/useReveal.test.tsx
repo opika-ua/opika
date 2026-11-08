@@ -36,7 +36,6 @@ function revealFor(animalId: typeof ANIMAL_A, name: string): ContactRevealView {
       shelterId: SHELTER_ID,
       publicLocation: { cityId: CITY_ID },
       verificationStatusAtReveal: "verified",
-      donation: null,
     },
     animalSnapshot: { name, primaryPhoto: null },
   };

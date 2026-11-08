@@ -974,7 +974,6 @@ describe("reveal views carry the shelter's current contacts, labelled (K4-B4, K4
         "source",
       ]);
       expect(Object.keys(view.shelterAtFirstReveal as object).sort()).toEqual([
-        "donation",
         "publicLocation",
         "shelterId",
         "verificationStatusAtReveal",

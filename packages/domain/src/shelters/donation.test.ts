@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { ShelterAdminIdSchema } from "../primitives/ids";
-import { donationProviderOf, PendingDonationSchema } from "./donation";
+import {
+  DonationProposalUrlSchema,
+  donationProviderOf,
+  donationUrlProblemOf,
+  PendingDonationSchema,
+} from "./donation";
 
 describe("donationProviderOf", () => {
   it.each([
@@ -45,5 +50,50 @@ describe("PendingDonationSchema", () => {
         proposedBy,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("donationUrlProblemOf", () => {
+  it.each([
+    ["https://send.monobank.ua/jar/abc"],
+    ["https://pay.example.org:8443/domivka?a=b@c"],
+    ["https://example.org/path@still-path"],
+  ])("accepts %s", (url) => {
+    expect(donationUrlProblemOf(url)).toBeNull();
+    expect(DonationProposalUrlSchema.safeParse(url).success).toBe(true);
+  });
+
+  it.each([
+    ["https://user@send.monobank.ua/jar"],
+    ["https://send.monobank.ua@evil.example/jar"],
+    ["https://send.monobank.ua:443@evil.example/"],
+    ["https://user:secret@example.org/"],
+    ["https://@example.org/"],
+    ["  https://user@example.org/  "],
+  ])("refuses userinfo in %s", (url) => {
+    expect(donationUrlProblemOf(url)).toBe("userinfo");
+    expect(DonationProposalUrlSchema.safeParse(url.trim()).success).toBe(false);
+  });
+
+  it.each([
+    ["https://xn--monobank-9ve.ua/jar"],
+    ["https://send.xn--80ak6aa92e.com/"],
+    ["https://XN--e1afmkfd.xn--p1ai/"],
+    ["https://%78n--e1afmkfd.com/"],
+    // Cyrillic "о" and "а" in place of Latin ones: the classic lookalike.
+    ["https://send.mоnobаnk.ua/jar"],
+    ["https://банка.укр/"],
+  ])("refuses an IDN or punycode host: %s", (url) => {
+    expect(donationUrlProblemOf(url)).toBe("idn");
+    expect(DonationProposalUrlSchema.safeParse(url).success).toBe(false);
+  });
+
+  it("does not take a non-ASCII path or query for a host", () => {
+    expect(donationUrlProblemOf("https://example.org/притулок")).toBeNull();
+  });
+
+  it("leaves a string that is not a URL to the URL schema", () => {
+    expect(donationUrlProblemOf("not a url")).toBeNull();
+    expect(DonationProposalUrlSchema.safeParse("not a url").success).toBe(false);
   });
 });

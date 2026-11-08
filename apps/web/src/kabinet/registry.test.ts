@@ -223,7 +223,7 @@ const createInput = () => {
 describe("without LOCATION_HMAC_SECRET", () => {
   it("answers 503 to every registry call, and leaves the shelter surface alone", async () => {
     const s = await shelter();
-    // Every one of the twenty-three, by path: the route refuses before the input is read.
+    // Every one of the twenty-four, by path: the route refuses before the input is read.
     const paths = [
       "registry.shelters.list",
       "registry.shelters.byId",
@@ -241,6 +241,7 @@ describe("without LOCATION_HMAC_SECRET", () => {
       "registry.earlyListing.revoke",
       "registry.donation.approve",
       "registry.donation.reject",
+      "registry.donation.remove",
       "registry.admins.invite",
       "registry.admins.resendInvite",
       "registry.admins.remove",
@@ -1575,12 +1576,246 @@ describe("registry.donation.approve / reject (N20)", () => {
     },
   );
 
+  it("refuses to approve while suspended, decides nothing, and still allows a reject", async () => {
+    const suspended = {
+      status: "suspended",
+      suspendedAt: NOW,
+      suspendedBy: OPERATOR as ModeratorId,
+      reason: { code: "unresponsive", note: null },
+      priorState: { status: "verified", verifiedAt: NOW, verifiedBy: OPERATOR as ModeratorId },
+      evidence,
+    } as const;
+    const s = await shelter({ verification: suspended, pendingDonation: pending() });
+    const approve = await call<RegistryShelterView>("registry.donation.approve", {
+      shelterId: s.id,
+      expectedVersion: 0,
+    });
+    expect(approve.status).toBe(200);
+    const after = await reload(s.id);
+    expect(after.donation).toBeNull();
+    expect(after.pendingDonation?.link).toEqual(pending().link);
+    expect(await history(s.id)).toEqual([]);
+    const reject = await call<RegistryShelterView>("registry.donation.reject", {
+      shelterId: s.id,
+      expectedVersion: 0,
+    });
+    expect(reject.body.pendingDonation).toBeNull();
+    expect(await history(s.id)).toEqual([expect.objectContaining({ decision: "rejected" })]);
+  });
+
   it("decides nothing when nothing is pending", async () => {
     const s = await shelter();
     expect(
       (await call("registry.donation.approve", { shelterId: s.id, expectedVersion: 0 })).status,
     ).toBe(200);
     expect(await history(s.id)).toEqual([]);
+  });
+});
+
+describe("registry.donation.remove", () => {
+  const live = { url: "https://send.monobank.ua/jar/live", provider: "monobank_jar" } as const;
+  const waiting = {
+    link: { url: "https://send.monobank.ua/jar/waiting", provider: "monobank_jar" },
+    proposedAt: NOW,
+    proposedBy: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+  } as const;
+  const reason = { code: "wrong_destination", note: "Веде на чужу сторінку" } as const;
+
+  it("clears the live link and a waiting proposal, and records who, what and why", async () => {
+    const s = await shelter({
+      verification: STATES.verified,
+      donation: live,
+      pendingDonation: waiting,
+    });
+    const removed = await call<RegistryShelterView>("registry.donation.remove", {
+      shelterId: s.id,
+      expectedVersion: 0,
+      reason,
+    });
+    expect(removed.status).toBe(200);
+    expect(removed.body.donation).toBeNull();
+    expect(removed.body.pendingDonation).toBeNull();
+    expect(await history(s.id)).toEqual([
+      expect.objectContaining({
+        kind: "donation_removed",
+        previousLive: live,
+        clearedPending: true,
+        reason,
+      }),
+    ]);
+    // The stored row, not only the answer: nothing public can read the link any more.
+    const after = await reload(s.id);
+    expect(after.donation).toBeNull();
+    expect(after.pendingDonation).toBeNull();
+  });
+
+  it("records that no proposal went with it when none was waiting", async () => {
+    const s = await shelter({ verification: STATES.verified, donation: live });
+    await call("registry.donation.remove", { shelterId: s.id, expectedVersion: 0, reason });
+    expect(await history(s.id)).toEqual([expect.objectContaining({ clearedPending: false })]);
+  });
+
+  it("refuses a stale version with CONFLICT and removes nothing", async () => {
+    const s = await shelter({ verification: STATES.verified, donation: live });
+    const stale = await call("registry.donation.remove", {
+      shelterId: s.id,
+      expectedVersion: 7,
+      reason,
+    });
+    expect(stale.status).toBe(409);
+    expect((await reload(s.id)).donation).toEqual(live);
+    expect(await history(s.id)).toEqual([]);
+  });
+
+  it("requires a code from the list and a note", async () => {
+    const s = await shelter({ verification: STATES.verified, donation: live });
+    for (const bad of [
+      { code: "wrong_destination", note: "  " },
+      { code: "spam", note: "x" },
+    ]) {
+      expect(
+        (
+          await call("registry.donation.remove", {
+            shelterId: s.id,
+            expectedVersion: 0,
+            reason: bad,
+          })
+        ).status,
+      ).toBe(400);
+    }
+    expect((await reload(s.id)).donation).toEqual(live);
+  });
+
+  it("writes nothing when there is no live link", async () => {
+    const s = await shelter({ verification: STATES.verified, pendingDonation: waiting });
+    const result = await call("registry.donation.remove", {
+      shelterId: s.id,
+      expectedVersion: 0,
+      reason,
+    });
+    expect(result.status).toBe(200);
+    expect(await history(s.id)).toEqual([]);
+    expect((await reload(s.id)).pendingDonation?.link).toEqual(waiting.link);
+  });
+
+  it("gives the shelter its own history line with the code and the note verbatim, no moderator id", async () => {
+    const s = await shelter({ verification: STATES.verified, donation: live });
+    await call("registry.donation.remove", { shelterId: s.id, expectedVersion: 0, reason });
+    const asAdmin: KabinetPrincipal = {
+      kind: "shelter_admin",
+      shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+      shelterId: s.id,
+    };
+    const listed = await call<{ items: { kind: string }[] }>(
+      "shelter.history.list",
+      { cursor: null, limit: 10 },
+      { principal: asAdmin },
+    );
+    expect(listed.body.items).toEqual([
+      expect.objectContaining({ kind: "donation_removed", reason, previousLive: live }),
+    ]);
+    expect(JSON.stringify(listed.body)).not.toContain("moderatorId");
+  });
+});
+
+describe("registry.verification.suspend and the donation link", () => {
+  const live = { url: "https://send.monobank.ua/jar/live", provider: "monobank_jar" } as const;
+  const newer = {
+    link: { url: "https://send.monobank.ua/jar/newer", provider: "monobank_jar" },
+    proposedAt: NOW,
+    proposedBy: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+  } as const;
+  const reason = { code: "complaint_upheld", note: "Перевіряю скаргу" } as const;
+
+  it("moves the live link to pending when nothing newer waits, in the same write", async () => {
+    const s = await shelter({ verification: STATES.verified, donation: live });
+    const suspended = await call<RegistryShelterView>("registry.verification.suspend", {
+      shelterId: s.id,
+      reason,
+    });
+    expect(suspended.status).toBe(200);
+    expect(suspended.body.donation).toBeNull();
+    expect(suspended.body.pendingDonation).toEqual(
+      expect.objectContaining({ link: live, proposedBy: null }),
+    );
+    expect((await history(s.id)).map((entry) => entry.kind).sort()).toEqual([
+      "donation_suspended",
+      "verification",
+    ]);
+    expect(await history(s.id)).toContainEqual(
+      expect.objectContaining({
+        kind: "donation_suspended",
+        previousLive: live,
+        outcome: "moved_to_pending",
+      }),
+    );
+    // One write: one version bump for the status and the link together.
+    expect((await reload(s.id)).version).toBe(1);
+  });
+
+  it("keeps a newer proposal and only records the old live link", async () => {
+    const s = await shelter({
+      verification: STATES.verified,
+      donation: live,
+      pendingDonation: newer,
+    });
+    const suspended = await call<RegistryShelterView>("registry.verification.suspend", {
+      shelterId: s.id,
+      reason,
+    });
+    expect(suspended.body.donation).toBeNull();
+    expect(suspended.body.pendingDonation).toEqual(
+      expect.objectContaining({ link: newer.link, proposedBy: newer.proposedBy }),
+    );
+    expect(await history(s.id)).toContainEqual(
+      expect.objectContaining({
+        kind: "donation_suspended",
+        previousLive: live,
+        outcome: "pending_kept",
+      }),
+    );
+  });
+
+  it("never revives the link on reinstate: it stays pending until the operator approves it", async () => {
+    const s = await shelter({ verification: STATES.verified, donation: live });
+    await call("registry.verification.suspend", { shelterId: s.id, reason });
+    const reinstated = await call<RegistryShelterView>("registry.verification.reinstate", {
+      shelterId: s.id,
+    });
+    expect(reinstated.body.verification.status).toBe("verified");
+    expect(reinstated.body.donation).toBeNull();
+    expect(reinstated.body.pendingDonation?.link).toEqual(live);
+    const approved = await call<RegistryShelterView>("registry.donation.approve", {
+      shelterId: s.id,
+      expectedVersion: reinstated.body.version,
+    });
+    expect(approved.body.donation).toEqual(live);
+  });
+
+  it("writes no link entry when there was no live link", async () => {
+    const s = await shelter({ verification: STATES.verified, pendingDonation: newer });
+    await call("registry.verification.suspend", { shelterId: s.id, reason });
+    expect((await history(s.id)).map((entry) => entry.kind)).toEqual(["verification"]);
+    expect((await reload(s.id)).pendingDonation?.link).toEqual(newer.link);
+  });
+
+  it("demotes a link of a shelter suspended out of a pause as well", async () => {
+    const s = await shelter({
+      verification: {
+        status: "paused",
+        verifiedAt: NOW,
+        verifiedBy: OPERATOR as ModeratorId,
+        pausedAt: NOW,
+        pausedBy: { kind: "moderator", moderatorId: OPERATOR as ModeratorId },
+        reason: { code: "seasonal_closure", note: null },
+        evidence,
+      },
+      donation: live,
+    });
+    await call("registry.verification.suspend", { shelterId: s.id, reason });
+    const after = await reload(s.id);
+    expect(after.donation).toBeNull();
+    expect(after.pendingDonation?.link).toEqual(live);
   });
 });
 

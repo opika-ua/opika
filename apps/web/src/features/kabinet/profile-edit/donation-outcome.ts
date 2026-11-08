@@ -1,4 +1,5 @@
 import type { ShelterHistoryItemView } from "@opika/contracts";
+import type { DonationRemovalCode } from "@opika/domain";
 
 /**
  * Whether K4 says the last proposed donation link was declined (K4 sheet,
@@ -13,7 +14,13 @@ import type { ShelterHistoryItemView } from "@opika/contracts";
  * means here: one message for one decision, not a log of every past refusal.
  * No per-viewer "seen" state is kept (inbox K4-T3).
  */
-export type DonationOutcome = { kind: "declined" } | { kind: "none" };
+export type DonationOutcome =
+  | { kind: "declined" }
+  /** The operator took the live link away; the shelter reads the code and the note verbatim. */
+  | { kind: "removed"; reason: { code: DonationRemovalCode; note: string } }
+  /** A suspension stopped the live link being live; what waits is in the shelter's own view. */
+  | { kind: "suspended" }
+  | { kind: "none" };
 
 export function latestDonationOutcomeOf(
   newestFirst: readonly ShelterHistoryItemView[],
@@ -22,6 +29,10 @@ export function latestDonationOutcomeOf(
     switch (item.kind) {
       case "donation_decided":
         return item.decision === "rejected" ? { kind: "declined" } : { kind: "none" };
+      case "donation_removed":
+        return { kind: "removed", reason: item.reason };
+      case "donation_suspended":
+        return { kind: "suspended" };
       case "donation_proposed":
       case "donation_proposal_cancelled":
         return { kind: "none" };

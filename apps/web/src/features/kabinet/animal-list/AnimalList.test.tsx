@@ -1194,7 +1194,9 @@ describe("when nobody can see the cards", () => {
     [
       "suspended",
       { status: "suspended", at: NOW, reason: { code: "unresponsive", note: null } },
-      ["Поки притулок призупинено, його тварин немає в галереї."],
+      [
+        "Поки притулок призупинено, його тварин немає в галереї, а посилання на збір не показується.",
+      ],
     ],
   ] as const)(
     "%s: the line that says why, and no line saying people see the cards",

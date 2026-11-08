@@ -3,8 +3,9 @@
 import "../../../../zod-client-config";
 import type { RegistryShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "../../../../ui/Button";
+import { DonationRemoveDialog } from "./DonationRemoveDialog";
 import { useOperatorActions } from "./operator-actions";
 import { ACTIONS, NOTICE } from "./styles";
 
@@ -14,7 +15,9 @@ type Decision = "approve" | "reject";
 type Notice =
   | { kind: "none" }
   | { kind: "decided"; decision: Decision }
+  | { kind: "removed" }
   | { kind: "conflict" }
+  | { kind: "remove_conflict" }
   | { kind: "failed" };
 
 /**
@@ -34,6 +37,8 @@ export function DonationDecision() {
   const busy = phase.kind !== "idle";
   const mine = busy && phase.owner === OWNER;
   const pending = view.pendingDonation;
+  const [removing, setRemoving] = useState(false);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
 
   const decide = async (decision: Decision) => {
     if (busy || pending === null) return;
@@ -78,15 +83,34 @@ export function DonationDecision() {
 
   return (
     <div className="flex flex-col gap-3">
-      {pending !== null ? (
+      {view.donation !== null ? (
         <div className={ACTIONS}>
           <Button
+            variant="secondary"
             aria-disabled={busy || undefined}
-            aria-busy={mine || undefined}
-            onClick={() => decide("approve")}
+            onClick={(event) => {
+              if (busy) return;
+              setNotice({ kind: "none" });
+              openerRef.current = event.currentTarget;
+              setRemoving(true);
+            }}
           >
-            {t.donation.approve}
+            {t.donation.remove}
           </Button>
+        </div>
+      ) : null}
+      {pending !== null ? (
+        <div className={ACTIONS}>
+          {/* Not offered while suspended: a reinstatement must not publish it unseen. */}
+          {view.verification.status === "suspended" ? null : (
+            <Button
+              aria-disabled={busy || undefined}
+              aria-busy={mine || undefined}
+              onClick={() => decide("approve")}
+            >
+              {t.donation.approve}
+            </Button>
+          )}
           <Button
             variant="secondary"
             aria-disabled={busy || undefined}
@@ -103,14 +127,38 @@ export function DonationDecision() {
             ? notice.decision === "approve"
               ? t.donation.approved
               : t.donation.rejected
-            : notice.kind === "conflict"
-              ? t.donation.conflict
-              : null}
+            : notice.kind === "removed"
+              ? t.donation.removed
+              : notice.kind === "conflict"
+                ? t.donation.conflict
+                : notice.kind === "remove_conflict"
+                  ? t.donation.removeConflict
+                  : null}
       </p>
       {notice.kind === "failed" ? (
         <p role="alert" className={NOTICE}>
           {t.errors.failed}
         </p>
+      ) : null}
+      {removing ? (
+        <DonationRemoveDialog
+          owner={OWNER}
+          onClose={() => {
+            setRemoving(false);
+            const opener = openerRef.current;
+            requestAnimationFrame(() => opener?.focus());
+          }}
+          onDone={(outcome) => {
+            setRemoving(false);
+            setNotice(
+              outcome === "removed"
+                ? { kind: "removed" }
+                : outcome === "conflict"
+                  ? { kind: "remove_conflict" }
+                  : { kind: "failed" },
+            );
+          }}
+        />
       ) : null}
     </div>
   );
