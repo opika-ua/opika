@@ -86,6 +86,24 @@ const persistCache = (): void => {
   }
 };
 
+const listeners = new Set<() => void>();
+
+/**
+ * The saved page asks the server about every saved id anyway: what it learned replaces what the
+ * header cached (a pause inside the cache window would otherwise keep counting), and the header
+ * is told to recount.
+ */
+export function recordSavedAvailability(
+  states: ReadonlyMap<string, SavedAvailability>,
+  now: number,
+): void {
+  restoreCache(now);
+  for (const [id, state] of states) known.set(id, state);
+  if (loadedAt === 0) loadedAt = now;
+  persistCache();
+  for (const listener of listeners) listener();
+}
+
 /** Test seam: forgets what was learned so one test cannot leak into the next. */
 export const resetSavedAvailabilityForTests = (): void => {
   known.clear();
@@ -168,8 +186,10 @@ export function watchServableSavedCount(
   };
   read();
   const unsubscribe = subscribeToLikesChanges(read);
+  listeners.add(publish);
   return () => {
     cancelled = true;
+    listeners.delete(publish);
     unsubscribe();
   };
 }

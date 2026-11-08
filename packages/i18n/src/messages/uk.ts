@@ -817,7 +817,7 @@ export const uk = {
         birthDateLabel: "Дата народження",
         bucketLabel: "Вік на ту дату",
         bucketRangeUnder: "до {max}",
-        bucketRange: "{min}-{max}",
+        bucketRange: "{min}–{max}",
         bucketRangeFrom: "{min}+",
         asOfLabel: "Станом на",
         /** True with D3 (Oleksii: "keep the chosen «Станом на» date"): the server stores it. */

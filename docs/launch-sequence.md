@@ -464,6 +464,31 @@ confirming it, a day or two after step 14's deploy:
 **Rollback:** n/a - there is nothing to roll back; "allow indexing" is an observation that
 step 14 worked, not an action with its own state.
 
+### Post-flip checklist: what cannot be verified while the gate is on
+
+Behind the gate every page is 403 and the sitemap is empty, so these were only ever checked by unit
+tests with the flag mocked. After step 14's deploy, check them on the live site (from a machine with
+no gate cookie):
+
+- **Sitemap contents** (`/sitemap.xml`): no `/` (it redirects, a sitemap lists only 200s); `/tvaryny`,
+  `/pro`, `/prytulkam` present; `/tvaryny/<id>` present for every verified shelter's visible
+  animal, and `/prytulky/<id>` for each such shelter. Absent: an early-listed shelter and its
+  animals, a paused shelter's animals, an unverified or suspended shelter's anything, adopted or
+  withdrawn cards. Source: `galleryRepo.sitemapRows` (`"verified_only"` feed predicate).
+- **Noindex, per page versus site-wide:** the site-wide `noindex` and the `X-Robots-Tag` header are
+  gone. A paused shelter's animal page and an early-listed shelter's animal page still carry
+  `<meta name="robots" content="noindex, follow">` (`animalMetadataOf`, the page's own `robots`); a
+  verified shelter's animal page carries none. Check `/prytulky/<id>` of an early-listed shelter the
+  same way, and that a rate-limited answer carries `noindex, nofollow`. Link-preview images stay
+  `X-Robots-Tag: noindex`.
+- **`og:description` per animal:** with `REGISTRY_HAS_NO_REAL_SHELTERS` false (step 13) it is
+  `animalMetaDescription` (`{species} {name} · {city} · {shelter}. {the animal's own description,
+  trimmed}`), or `uk.underReview.sharePreview` for an early-listed shelter's animal; the demo banner
+  text (`uk.demo.bannerNotice`) appears only while that flag is still true. View source on a
+  verified animal's page: `og:description` equals the `description` meta and is not the demo banner
+  text. If the banner text shows after step 13, that is a bug; stop and report it. Site-wide
+  pages use `uk.firstRun.promise` the same way.
+
 ---
 
 ## Per-IP limits on the adopter API, and where to see a refusal

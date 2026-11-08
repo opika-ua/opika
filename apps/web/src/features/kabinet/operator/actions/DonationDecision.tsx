@@ -125,7 +125,10 @@ export function DonationDecision() {
           ? t.errors.lostAnswer
           : notice.kind === "decided"
             ? notice.decision === "approve"
-              ? t.donation.approved
+              ? // A later suspension demotes the live link; the old line must not outlive it.
+                view.donation === null
+                ? null
+                : t.donation.approved
               : t.donation.rejected
             : notice.kind === "removed"
               ? t.donation.removed

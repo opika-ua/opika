@@ -17,7 +17,8 @@ export function TabLabel({
   if (status === null) return label;
   return (
     <>
-      <span>{label}</span>
+      {/* A bare text node, so every accessibility tree reads the tab's name from its own text. */}
+      {label}
       <span
         aria-hidden="true"
         className="ml-2 inline-grid size-6 place-items-center rounded-pill border-2 border-current align-middle text-caption leading-none"

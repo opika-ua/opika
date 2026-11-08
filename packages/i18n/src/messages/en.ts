@@ -884,7 +884,7 @@ export const en = {
         birthDateLabel: "Birth date",
         bucketLabel: "Age on that date",
         bucketRangeUnder: "under {max}",
-        bucketRange: "{min}-{max}",
+        bucketRange: "{min}–{max}",
         bucketRangeFrom: "{min}+",
         asOfLabel: "As of",
         asOfHint: "When you made this estimate. Usually the day the animal came to the shelter.",

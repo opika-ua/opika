@@ -8,9 +8,11 @@ import {
 } from "./likes-store";
 import {
   classifySavedItems,
+  recordSavedAvailability,
   refreshSavedAvailability,
   resetSavedAvailabilityForTests,
   servableCount,
+  watchServableSavedCount,
 } from "./saved-availability";
 
 const save = (...ids: string[]) => {
@@ -129,5 +131,28 @@ describe("a paused shelter's animal", () => {
     }));
     await refreshSavedAvailability(ask, Date.now(), pruneSavedAnimals);
     expect(ask).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("recordSavedAvailability", () => {
+  it("drops a paused animal from the header count that the cache still called available", async () => {
+    save("a", "b");
+    const counts: number[] = [];
+    const answer = async () => ({
+      items: [
+        { kind: "available" as const, animalId: "a" },
+        { kind: "available" as const, animalId: "b" },
+      ],
+    });
+    const stop = watchServableSavedCount(
+      (n) => counts.push(n),
+      async () => answer,
+      pruneSavedAnimals,
+    );
+    await vi.waitFor(() => expect(counts.at(-1)).toBe(2));
+    // The saved page learns that "b" is paused now, inside the cache window.
+    recordSavedAvailability(new Map([["b", "paused"]]), Date.now());
+    expect(counts.at(-1)).toBe(1);
+    stop();
   });
 });
