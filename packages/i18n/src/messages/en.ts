@@ -1230,6 +1230,7 @@ export const en = {
     /** History lines (IN-Q14); see the Ukrainian catalogue. */
     history: {
       adminJoined: `{email} now has access to the cabinet`,
+      adminJoinedErased: `Cabinet access opened: address deleted`,
     },
     /** R-UI, the operator's screens: the English sense of uk.ts's final Ukrainian (2026-10-17). */
     operator: {
@@ -1345,7 +1346,7 @@ export const en = {
         siteVisitDateHint: "The visit date can't be in the future.",
         addTitle: "Add evidence",
         addIntro:
-          "New evidence is added to what is on file. The status doesn't change, and the shelter's history won't show this entry.",
+          "New evidence is added to what is on file. The status doesn't change. Only you see this entry in the history: the shelter itself does not.",
         addNeeded: "Add at least one piece of evidence.",
         addSubmit: "Add",
         addDone: "Evidence added.",
@@ -1389,9 +1390,12 @@ export const en = {
           reinstate: "Reinstated → «{status}»",
           resubmit: "Returned for verification",
           pause: "Enquiries paused",
+          pause_reason: "Enquiries paused: {reason}",
           resume: "Pause lifted",
         },
         admin_invited: "Invitation sent: {name}, {email}",
+        admin_invited_erased: "Invitation sent: address deleted",
+        addressErased: "address deleted",
         admin_invitation_resent: "Invitation sent again: {name}",
         admin_removed: "Access closed: {name}",
         admin_removed_pending: "Invitation withdrawn: {name}",
@@ -1554,14 +1558,15 @@ export const en = {
           identity_unverifiable: "Who is behind the shelter couldn't be confirmed",
           duplicate_submission: "Repeat application",
           out_of_service_area: "Outside the area the site works in",
-          spam: "Spam",
+          spam: "The application doesn't look like a shelter's",
           other: "Other",
         },
         suspension: {
           unresponsive: "No contact with the shelter",
-          complaint_upheld: "A complaint was upheld",
-          listing_quality: "The cards don't match reality",
-          suspected_fraud: "Suspected fraud",
+          complaint_upheld: "Checked complaint",
+          listing_quality: "The data in the cards needs correcting",
+          suspected_fraud: "Couldn't confirm the shelter's details",
+          cannot_confirm_details: "Couldn't confirm the shelter's details",
           other: "Other",
         },
         donationRemoval: {

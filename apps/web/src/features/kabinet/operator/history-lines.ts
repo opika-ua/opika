@@ -2,6 +2,7 @@ import type { ShelterAdminView } from "@opika/contracts";
 import {
   type AnimalEditedField,
   donationHost,
+  ERASED_ADMIN_EMAIL,
   historyEntryAt,
   type ListingKind,
   type ModeratorId,
@@ -64,7 +65,15 @@ const actorOf = (actor: ShelterActor, people: HistoryPeople): string =>
  * invitees; for anyone no longer there it isn't known (RU1-T3).
  */
 const nameAt = (email: string, people: HistoryPeople): string | null =>
-  people.admins.find((admin) => admin.email.toLowerCase() === email.toLowerCase())?.name ?? null;
+  // Every erased address is the same placeholder, so a lookup would match some other erased invitation.
+  email === ERASED_ADMIN_EMAIL
+    ? null
+    : (people.admins.find((admin) => admin.email.toLowerCase() === email.toLowerCase())?.name ??
+      null);
+
+/** What an address reads as in a line: the label once it was erased, else its name or the address. */
+const addressOrName = (email: string, people: HistoryPeople): string =>
+  email === ERASED_ADMIN_EMAIL ? t.addressErased : (nameAt(email, people) ?? email);
 
 const listingLabel = (kind: ListingKind): string => labels.listing[kind];
 
@@ -146,7 +155,16 @@ function verificationLine(
     case "resubmit":
       return { text: v.resubmit, actor: actorOf(event.actor, people) };
     case "pause":
-      return { text: v.pause, actor: actorOf(event.actor, people) };
+      return {
+        // `other` carries no information, so it keeps the plain line.
+        text:
+          event.reason.code === "other"
+            ? v.pause
+            : fillTemplate(v.pause_reason, {
+                reason: uk.kabinet.profileEdit.pause.reason[event.reason.code],
+              }),
+        actor: actorOf(event.actor, people),
+      };
     case "resume":
       return { text: v.resume, actor: actorOf(event.actor, people) };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled event; unreachable at runtime */
@@ -173,28 +191,34 @@ function lineOf(
       return {
         // The line shows the address beside the name, so an unknown name reads
         // «Не записано» rather than repeating the address (RU1-T3).
-        text: fillTemplate(t.admin_invited, {
-          name: nameAt(entry.email, people) ?? uk.kabinet.profileNotRecorded,
-          email: entry.email,
-        }),
+        text:
+          entry.email === ERASED_ADMIN_EMAIL
+            ? t.admin_invited_erased
+            : fillTemplate(t.admin_invited, {
+                name: nameAt(entry.email, people) ?? uk.kabinet.profileNotRecorded,
+                email: entry.email,
+              }),
         actor: operatorActor(entry.moderatorId, people),
       };
     case "admin_invitation_resent":
       return {
         text: fillTemplate(t.admin_invitation_resent, {
-          name: nameAt(entry.email, people) ?? entry.email,
+          name: addressOrName(entry.email, people),
         }),
         actor: operatorActor(entry.moderatorId, people),
       };
     case "admin_joined":
       return {
-        text: fillTemplate(uk.kabinet.history.adminJoined, { email: entry.email }),
+        text:
+          entry.email === ERASED_ADMIN_EMAIL
+            ? uk.kabinet.history.adminJoinedErased
+            : fillTemplate(uk.kabinet.history.adminJoined, { email: entry.email }),
         actor: adminActor(entry.shelterAdminId, people),
       };
     case "admin_removed":
       return {
         text: fillTemplate(entry.wasPending ? t.admin_removed_pending : t.admin_removed, {
-          name: nameAt(entry.email, people) ?? entry.email,
+          name: addressOrName(entry.email, people),
         }),
         actor: operatorActor(entry.moderatorId, people),
       };

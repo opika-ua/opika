@@ -170,12 +170,13 @@ otherwise there is none.
 | | `identity_unverifiable` | couldn't confirm who you are | - |
 | | `duplicate_submission` | already registered / duplicate | - |
 | | `out_of_service_area` | outside the oblast we cover | - |
-| | `spam` | not a shelter application | - |
+| | `spam` | not a shelter application | «Заявка не схожа на звернення притулку» |
 | | `other` | other (see note) | - |
 | Suspension | `unresponsive` | not answering adopters | - |
-| | `complaint_upheld` | a complaint was checked and upheld | - |
-| | `listing_quality` | listings not kept accurate | - |
-| | `suspected_fraud` | suspected fraud | - |
+| | `complaint_upheld` | a complaint was checked | «Перевірена скарга» |
+| | `listing_quality` | data in the cards needs correcting | «Дані в картках потребують виправлення» |
+| | `cannot_confirm_details` | the shelter's details could not be confirmed | «Не вдалося підтвердити дані притулку» |
+| | `suspected_fraud` | retired: not offered, old records show the `cannot_confirm_details` text | «Не вдалося підтвердити дані притулку» |
 | | `other` | other (see note) | - |
 | Pause (shelter's own) | `seasonal_closure` | seasonal break | «Сезонна перерва» |
 | | `relocation` | moving | «Переїзд» |

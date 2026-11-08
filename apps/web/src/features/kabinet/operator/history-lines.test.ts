@@ -1,4 +1,5 @@
 import {
+  ERASED_ADMIN_EMAIL,
   type ModeratorId,
   type ShelterAdminId,
   type ShelterHistoryEntry,
@@ -105,7 +106,39 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
       "verified",
       "paused",
     ),
+    "Прийом звернень призупинено: Переїзд · Олена",
+  ],
+  [
+    "pause with the reason other keeps the plain line",
+    verification(
+      { type: "pause", at: AT, actor: byOlena, reason: { code: "other", note: "Свої причини" } },
+      "verified",
+      "paused",
+    ),
     "Прийом звернень призупинено · Олена",
+  ],
+  [
+    "suspend with a legacy suspected_fraud shows the neutral label",
+    verification(
+      { type: "suspend", at: AT, moderatorId: ME, reason: { code: "suspected_fraud", note: null } },
+      "verified",
+      "suspended",
+    ),
+    "Призупинено: Не вдалося підтвердити дані притулку. · ви",
+  ],
+  [
+    "suspend with cannot_confirm_details",
+    verification(
+      {
+        type: "suspend",
+        at: AT,
+        moderatorId: ME,
+        reason: { code: "cannot_confirm_details", note: "Немає ЄДР" },
+      },
+      "verified",
+      "suspended",
+    ),
+    "Призупинено: Не вдалося підтвердити дані притулку. Немає ЄДР · ви",
   ],
   [
     "resume, by the operator",
@@ -451,7 +484,7 @@ describe("historyLineOf: who the actor is", () => {
       ),
       people,
     );
-    expect(historyLineText(line)).toBe("Відхилено: Спам. · ви");
+    expect(historyLineText(line)).toBe("Відхилено: Заявка не схожа на звернення притулку. · ви");
   });
 
   it("an invitee no longer on the shelter: «Не записано» beside the address, the address alone where there is no address slot", () => {
@@ -471,6 +504,38 @@ describe("historyLineOf: who the actor is", () => {
         ),
       ),
     ).toBe("Запрошення надіслано ще раз: petro@example.org · ви");
+  });
+
+  it("an erased address reads as «адреса видалена» in every admin line, never the placeholder", () => {
+    const erasedPeople: HistoryPeople = {
+      ...people,
+      // Two erased invitations share the placeholder; neither may take the other's name.
+      admins: [...people.admins, { id: GONE, name: "Степан", email: ERASED_ADMIN_EMAIL }],
+    };
+    const line = (entry: ShelterHistoryEntry) =>
+      historyLineText(historyLineOf(entry, erasedPeople));
+    const email = ERASED_ADMIN_EMAIL;
+    expect(line({ kind: "admin_invited", at: AT, moderatorId: ME, email })).toBe(
+      "Надіслано запрошення: адреса видалена · ви",
+    );
+    expect(line({ kind: "admin_invitation_resent", at: AT, moderatorId: ME, email })).toBe(
+      "Запрошення надіслано ще раз: адреса видалена · ви",
+    );
+    expect(line({ kind: "admin_removed", at: AT, moderatorId: ME, email, wasPending: false })).toBe(
+      "Доступ закрито: адреса видалена · ви",
+    );
+    expect(line({ kind: "admin_removed", at: AT, moderatorId: ME, email, wasPending: true })).toBe(
+      "Запрошення скасовано: адреса видалена · ви",
+    );
+    expect(
+      line({
+        kind: "admin_joined",
+        at: AT,
+        shelterAdminId: GONE,
+        invitationId: "66666666-6666-4666-8666-666666666666" as never,
+        email,
+      }),
+    ).toBe("Доступ до кабінету відкрито: адреса видалена · Степан");
   });
 
   it("the removal of a current invitee names them", () => {

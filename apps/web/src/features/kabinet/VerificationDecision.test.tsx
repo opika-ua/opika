@@ -68,7 +68,7 @@ describe("a rejected shelter reads the decision", () => {
         [
           "Перевірку не пройдено",
           "Тварин притулку не буде в галереї, доки перевірку не пройдено.",
-          "Причина: Спам.",
+          "Причина: Заявка не схожа на звернення притулку.",
           "Пояснення:",
           NOTE,
           "Олексій Колотенко",
@@ -112,6 +112,16 @@ describe("a rejected shelter reads the decision", () => {
 });
 
 describe("a suspended shelter reads the decision", () => {
+  it("a legacy suspected_fraud suspension reads the neutral label", () => {
+    renderAs(
+      { status: "suspended", at: AT, reason: { code: "suspected_fraud", note: "Давній запис." } },
+      "admin",
+    );
+    const region = screen.getByRole("region", { name: "Притулок тимчасово призупинено" });
+    expect(region.textContent).toContain("Причина: Не вдалося підтвердити дані притулку.");
+    expect(region.textContent).not.toContain("шахрайств");
+  });
+
   it.each(["admin", "support"] as const)("%s: its own title and effect, signed", (viewer) => {
     renderAs(
       {
@@ -126,7 +136,7 @@ describe("a suspended shelter reads the decision", () => {
       [
         "Притулок тимчасово призупинено",
         "Поки притулок призупинено, його тварин немає в галереї, а посилання на збір не показується.",
-        "Причина: Скарга підтвердилася.",
+        "Причина: Перевірена скарга.",
         "Пояснення:",
         "Скарга від ветклініки. Чекаю на ваші фото.",
         "Олексій Колотенко",

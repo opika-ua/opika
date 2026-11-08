@@ -197,7 +197,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
         "whatBeforeVerification",
       ],
       registry: ["tellPersonally"],
-      history: ["adminJoined"],
+      history: ["adminJoined", "adminJoinedErased"],
     });
   });
 
@@ -885,12 +885,12 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
       "Не вдалося підтвердити, хто стоїть за притулком",
     "operator.codes.rejection.duplicate_submission": "Повторна заявка",
     "operator.codes.rejection.out_of_service_area": "Поза територією, де працює сайт",
-    "operator.codes.rejection.spam": "Спам",
+    "operator.codes.rejection.spam": "Заявка не схожа на звернення притулку",
     "operator.codes.rejection.other": "Інше",
     "operator.codes.suspension.unresponsive": "Немає звʼязку з притулком",
-    "operator.codes.suspension.complaint_upheld": "Скарга підтвердилася",
-    "operator.codes.suspension.listing_quality": "Картки не відповідають дійсності",
-    "operator.codes.suspension.suspected_fraud": "Підозра на шахрайство",
+    "operator.codes.suspension.complaint_upheld": "Перевірена скарга",
+    "operator.codes.suspension.listing_quality": "Дані в картках потребують виправлення",
+    "operator.codes.suspension.suspected_fraud": "Не вдалося підтвердити дані притулку",
     "operator.codes.suspension.other": "Інше",
     "operator.donation.approve": "Схвалити",
     "operator.donation.reject": "Відхилити",
@@ -968,11 +968,19 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.errors.nameTooLong": "Назва довша за {max} символів.",
   };
 
+  /** Owner-approved 2026-11-08 (sitting-2 follow-up copy table): new keys; its changed strings sit in their own groups. */
+  const SITTING2_FOLLOWUP_COPY: Record<string, string> = {
+    "operator.history.verification.pause_reason": "Прийом звернень призупинено: {reason}",
+    "operator.history.admin_invited_erased": "Надіслано запрошення: адреса видалена",
+    "operator.history.addressErased": "адреса видалена",
+    "operator.codes.suspension.cannot_confirm_details": "Не вдалося підтвердити дані притулку",
+  };
+
   /** Owner-approved 2026-11-04 (evidence add, copy table rows 1-9, plus the gap-line item text). */
   const EVIDENCE_ADD_COPY: Record<string, string> = {
     "operator.evidence.addTitle": "Додати докази",
     "operator.evidence.addIntro":
-      "Нові докази додаються до наявних. Статус не змінюється, а в історії притулку цього запису не буде.",
+      "Нові докази додаються до наявних. Статус не змінюється. В історії цей запис бачите лише ви: сам притулок його не бачить.",
     "operator.evidence.addNeeded": "Додайте хоча б один доказ.",
     "operator.evidence.addSubmit": "Додати",
     "operator.evidence.addDone": "Докази додано.",
@@ -1059,6 +1067,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(ROUND_4C_RUI4_F2),
         ...Object.keys(PET_CARD_PR3B_LOGO_CHANGED),
         ...Object.keys(EVIDENCE_ADD_COPY),
+        ...Object.keys(SITTING2_FOLLOWUP_COPY),
         ...Object.keys(EARLY_LISTING_OPERATOR_COPY),
         ...Object.keys(DONATION_SAFETY_OPERATOR_COPY),
       ].sort(),
@@ -1081,6 +1090,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 
   it.each(Object.entries(PET_CARD_PR3B_LOGO_CHANGED))("%s is his final text", (path, text) => {
+    expect(valueAt(path)).toBe(text);
+  });
+
+  it.each(Object.entries(SITTING2_FOLLOWUP_COPY))("%s is the owner-approved text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
 

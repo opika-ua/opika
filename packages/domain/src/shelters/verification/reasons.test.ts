@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   OfferedRejectionCodeSchema,
+  OfferedSuspensionCodeSchema,
   RETIRED_REJECTION_CODES,
   RejectionCodeSchema,
   RejectionReasonSchema,
+  SuspensionCodeSchema,
+  SuspensionReasonSchema,
 } from "./reasons";
 
 describe("retired rejection codes", () => {
@@ -28,5 +31,25 @@ describe("retired rejection codes", () => {
     expect(
       RejectionReasonSchema.parse({ code: "out_of_service_area", note: "Поза межами" }).code,
     ).toBe("out_of_service_area");
+  });
+});
+
+describe("retired suspension codes", () => {
+  it("offer cannot_confirm_details and not suspected_fraud", () => {
+    expect(OfferedSuspensionCodeSchema.options).toEqual([
+      "unresponsive",
+      "complaint_upheld",
+      "listing_quality",
+      "cannot_confirm_details",
+      "other",
+    ]);
+    expect(OfferedSuspensionCodeSchema.safeParse("suspected_fraud").success).toBe(false);
+  });
+
+  it("still parse suspected_fraud as a stored value", () => {
+    expect(SuspensionCodeSchema.parse("suspected_fraud")).toBe("suspected_fraud");
+    expect(SuspensionReasonSchema.parse({ code: "suspected_fraud", note: "x" }).code).toBe(
+      "suspected_fraud",
+    );
   });
 });

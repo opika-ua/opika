@@ -765,6 +765,15 @@ describe("the operator's reject/suspend note", () => {
     }
   });
 
+  it("suspend refuses the retired suspected_fraud on input and accepts cannot_confirm_details", () => {
+    expect(parse("suspend", "suspected_fraud", "Є підстави.")?.success).toBe(false);
+    expect(parse("suspend", "cannot_confirm_details", "Є підстави.")?.success).toBe(true);
+    for (const code of ["unresponsive", "complaint_upheld", "listing_quality", "other"]) {
+      expect(parse("suspend", code, "Є підстави.")?.success, code).toBe(true);
+    }
+    expect(parse("reject", "spam", "Є підстави.")?.success).toBe(true);
+  });
+
   it("is trimmed before it is stored, so the shelter reads no stray whitespace", () => {
     const result = parse("reject", "other", "  Я не зміг перевірити адресу.  ");
     expect(result?.success).toBe(true);

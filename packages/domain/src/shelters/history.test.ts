@@ -202,6 +202,21 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
 };
 
 describe("ShelterHistoryEntrySchema", () => {
+  it("still parses a stored suspension that holds the retired suspected_fraud code", () => {
+    const stored = {
+      kind: "verification",
+      event: {
+        type: "suspend",
+        at: new Date("2026-10-01T00:00:00.000Z"),
+        moderatorId: MOD,
+        reason: { code: "suspected_fraud", note: "Давній запис" },
+      },
+      from: "verified",
+      to: "suspended",
+    };
+    expect(ShelterHistoryEntrySchema.parse(stored)).toEqual(stored);
+  });
+
   it("covers every kind the union defines", () => {
     expect(Object.keys(ENTRIES).length).toBe(ShelterHistoryEntrySchema.options.length);
   });

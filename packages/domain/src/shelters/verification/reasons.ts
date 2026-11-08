@@ -43,9 +43,16 @@ export const SuspensionCodeSchema = z.enum([
   "complaint_upheld",
   "listing_quality",
   "suspected_fraud",
+  "cannot_confirm_details",
   "other",
 ]);
 export type SuspensionCode = z.infer<typeof SuspensionCodeSchema>;
+
+/** `suspected_fraud` read as an accusation to the shelter; old suspensions keep parsing and show a neutral label. */
+export const RETIRED_SUSPENSION_CODES = ["suspected_fraud"] as const;
+
+export const OfferedSuspensionCodeSchema = SuspensionCodeSchema.exclude(RETIRED_SUSPENSION_CODES);
+export type OfferedSuspensionCode = z.infer<typeof OfferedSuspensionCodeSchema>;
 
 /**
  * Why a verified shelter is temporarily not taking adopters, by its own choice.

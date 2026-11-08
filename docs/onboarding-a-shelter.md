@@ -658,14 +658,16 @@ public page, even when it was suspended mid-pause (`shelterAvailabilityOf`, `pub
 
 **Rejection reasons** you can pick today: `insufficient_evidence` («Недостатньо доказів»),
 `identity_unverifiable` («Не вдалося підтвердити, хто стоїть за притулком»), `duplicate_submission`
-(«Повторна заявка»), `spam` («Спам»), `other` («Інше»). The code `out_of_service_area` («Поза
+(«Повторна заявка»), `spam` («Заявка не схожа на звернення притулку»), `other` («Інше»). The code `out_of_service_area` («Поза
 територією, де працює сайт») is retired because the site is nationwide: it is no longer offered
 (`RETIRED_REJECTION_CODES`, `reasons.ts`), but an old rejection that holds it still parses and
 displays. A rejection always carries a written note; the shelter reads it verbatim.
 
-**Suspension reasons**: `unresponsive` («Немає звʼязку з притулком»), `complaint_upheld` («Скарга
-підтвердилася»), `listing_quality` («Картки не відповідають дійсності»), `suspected_fraud` («Підозра
-на шахрайство»), `other`, again with a required note. Suspension is imposed; a pause is the
+**Suspension reasons**: `unresponsive` («Немає звʼязку з притулком»), `complaint_upheld` («Перевірена
+скарга»), `listing_quality` («Дані в картках потребують виправлення»), `cannot_confirm_details`
+(«Не вдалося підтвердити дані притулку»), `other`, again with a required note. `suspected_fraud` is
+retired (`RETIRED_SUSPENSION_CODES`, `reasons.ts`): never offered, but an old suspension that holds it
+still parses and displays the same neutral text as `cannot_confirm_details`. Suspension is imposed; a pause is the
 shelter's own choice, so the two have separate lists and separate exits.
 
 ## What the operator's buttons do

@@ -243,7 +243,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
       "aria-disabled",
       "true",
     );
-    await dialog.getByLabel("Причина").selectOption({ label: "Скарга підтвердилася" });
+    await dialog.getByLabel("Причина").selectOption({ label: "Перевірена скарга" });
     await dialog.getByLabel("Пояснення").fill(NOTE);
     await dialog.getByRole("button", { name: "Призупинити" }).click();
     await expect(dialog).toBeHidden();
@@ -256,7 +256,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
     const kabinet = await shelterAdmin.newPage();
     expect((await kabinet.goto("/kabinet"))?.status()).toBe(200);
     const notice = kabinet.getByRole("region", { name: "Притулок тимчасово призупинено" });
-    await expect(notice.getByText("Причина: Скарга підтвердилася.")).toBeVisible();
+    await expect(notice.getByText("Причина: Перевірена скарга.")).toBeVisible();
     await expect(notice.getByText("Пояснення:", { exact: true })).toBeVisible();
     await expect(notice.getByText(NOTE, { exact: true })).toBeVisible();
     await expect(notice.getByText(OPERATOR_NAME, { exact: true })).toBeVisible();
@@ -291,7 +291,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
     // Approved twice: before the suspension, and again after it.
     await expect(history.getByText(/^Посилання на збір схвалено/)).toHaveCount(2);
     await expect(
-      history.getByText(`Призупинено: Скарга підтвердилася. ${NOTE}`, { exact: false }),
+      history.getByText(`Призупинено: Перевірена скарга. ${NOTE}`, { exact: false }),
     ).toBeVisible();
     await expect(history.getByText(/^Відновлено → «Перевірено»/)).toBeVisible();
     await expect(
