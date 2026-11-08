@@ -1,3 +1,4 @@
+import { R4_2_ANALYTICS_SENTENCE } from "@opika/i18n";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { metadata, renderAboutPage } from "./page";
@@ -60,7 +61,8 @@ describe("AboutPage", () => {
     expect(screen.getByText(/Дані, які вносить притулок/)).toBeTruthy();
     expect(
       screen.getByText(
-        "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами.",
+        "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами. " +
+          R4_2_ANALYTICS_SENTENCE,
       ),
     ).toBeTruthy();
     expect(screen.getByText("Написати мені: hello@opika.org.ua")).toBeTruthy();

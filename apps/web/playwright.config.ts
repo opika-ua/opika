@@ -3,9 +3,7 @@ import { defineConfig } from "@playwright/test";
 import {
   CURSOR_HMAC_SECRET,
   HARNESS_BETTER_AUTH_SECRET,
-  HARNESS_PRELAUNCH_GATE_SECRET,
   HARNESS_RATE_LIMIT_KEY_SECRET,
-  PRELAUNCH_GATE_STORAGE_STATE_PATH,
   R2_PUBLIC_BASE_URL,
 } from "./test/harness-env";
 
@@ -66,25 +64,7 @@ export default defineConfig({
     deviceScaleFactor: 1,
   },
 
-  projects: [
-    /**
-     * Runs once, before `chromium`, and only opens the pre-launch gate
-     * (`test/harness/prelaunch-gate.setup.ts`) - `proxy.ts` 403s every
-     * request while `SITE_IS_PUBLICLY_DISCOVERABLE` is false
-     * (`apps/web/src/seo-flags.ts`), this harness's real server included,
-     * on purpose: there is no test-only bypass, or the harness would stop
-     * covering the gate at all. `chromium`'s `dependencies` below is what
-     * orders this ahead of every other project - Playwright's own
-     * `webServer` guarantee (server ready before any project runs) covers
-     * the rest.
-     */
-    { name: "setup", testMatch: /.*\.setup\.ts$/ },
-    {
-      name: "chromium",
-      use: { browserName: "chromium", storageState: PRELAUNCH_GATE_STORAGE_STATE_PATH },
-      dependencies: ["setup"],
-    },
-  ],
+  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
 
   webServer: {
     // Builds before serving on purpose. `next dev` compiles per-request and
@@ -132,7 +112,6 @@ export default defineConfig({
       DATABASE_URL: HARNESS_DATABASE_URL,
       CURSOR_HMAC_SECRET,
       NEXT_PUBLIC_R2_PUBLIC_BASE_URL: R2_PUBLIC_BASE_URL,
-      PRELAUNCH_GATE_SECRET: HARNESS_PRELAUNCH_GATE_SECRET,
       // Fully configured, so production mode is the only reason sign-in is off.
       BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
       BETTER_AUTH_URL: ORIGIN,

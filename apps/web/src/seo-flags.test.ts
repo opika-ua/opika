@@ -249,8 +249,10 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
     ).not.toThrow();
   });
 
-  it("defaults to the real flag – permits today's actual, incomplete copy while still not discoverable", () => {
-    expect(() => assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY)).not.toThrow();
+  it("defaults to the real flag – refuses the incomplete copy now that the site is discoverable", () => {
+    expect(() => assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY)).toThrowError(
+      /SITE_IS_PUBLICLY_DISCOVERABLE.*uk\.about\.analytics/s,
+    );
   });
 
   it("defaults to the real copy and the real flag – today's actual state on both", () => {

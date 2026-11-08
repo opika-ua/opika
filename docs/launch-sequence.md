@@ -49,7 +49,7 @@ only. "Both" means Production and Preview; a separate value on each where noted.
 |---|---|---|---|
 | `DATABASE_URL` (pooled) | Production | boot | `api/env.ts:148` |
 | `CURSOR_HMAC_SECRET` | both | boot, 32+ | `api/env.ts:149` |
-| `PRELAUNCH_GATE_SECRET` | both, same value | boot, 32+, until step 14 | `api/env.ts:155`, `api/prelaunch-gate.ts:80` |
+| `PRELAUNCH_GATE_SECRET` | both, same value | boot, 32+, until step 14 (the step 14 commit drops the requirement; delete it from Vercel after that deploy) | `api/prelaunch-gate.ts` only, unreachable after step 14 |
 | `CRON_SECRET` | Production | build and boot, 32+ | `api/build-env.ts:81` |
 | `RATE_LIMIT_KEY_SECRET` | both, separate values | build and boot, 32+ | `api/build-env.ts:152` |
 | `LOCATION_HMAC_SECRET` (the onboarding script's value) | Production | build and boot, 32+ | `api/build-env.ts:106` |
@@ -365,7 +365,7 @@ nothing has served it yet, nothing is lost by removing it).
 ### 13. Flip `REGISTRY_HAS_NO_REAL_SHELTERS`
 
 A one-line code change: `apps/web/src/seo-flags.ts`, `REGISTRY_HAS_NO_REAL_SHELTERS = true`
-→ `false`. Commit, push, let the deploy land. This is independent of step 14 below - real
+→ `false` (prepared as PR #444, branch `launch/step-13-registry-flag`; the owner enqueues it). Commit, push, let the deploy land. This is independent of step 14 below - real
 shelters existing is not the same fact as the site being publicly discoverable
 (`docs/standing-constraints.md`'s "two facts that happen to be true at the same time are not
 one fact"; `seo-flags.ts`'s own doc comment on this constant has the full reasoning).
@@ -381,7 +381,7 @@ chat or a file). The gallery's demo banner is gone. There is no card "перев
 
 ### 14. Remove the gate, flip `SITE_IS_PUBLICLY_DISCOVERABLE`, land R4-2 - one commit
 
-Four changes, one commit, because `assertAnalyticsCopyMatchesGateState` (`seo-flags.ts`)
+Prepared on branch `launch/step-14-discoverable` (built on step 13's branch, so the boot invariant holds; no PR yet - open it after step 13 merges). Four changes, one commit, because `assertAnalyticsCopyMatchesGateState` (`seo-flags.ts`)
 is a test-time tripwire that fails CI if they land out of step with each other (it does not
 throw at boot - `instrumentation.ts`'s `assertDemoDiscoverabilityInvariant` is the one
 boot-time check, and it covers the other pair of constants, step 13 above):
@@ -456,8 +456,8 @@ Nothing left to *do* - step 14 already made the site crawlable and indexable. Th
 confirming it, a day or two after step 14's deploy:
 
 - Google Search Console (if not already verified for `opika.org.ua`, verify it now) - submit
-  `/sitemap.xml` there: `robots.txt` has no `Sitemap` line, and the sitemap is empty until the
-  flip, so Search Console is how the crawler learns of it.
+  `/sitemap.xml` there: `robots.txt` carries the `Sitemap` line (`app/robots.ts`) and the sitemap was empty until
+  the flip; submitting it in Search Console is still the faster way for the crawler to learn of it.
 - Spot-check `https://opika.org.ua/robots.txt` allows `/` (it always has, D-3) and a real page
   no longer carries `noindex` (same check as step 14's verification).
 

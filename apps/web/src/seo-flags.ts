@@ -88,7 +88,7 @@ export const REGISTRY_HAS_NO_REAL_SHELTERS = false;
  * gate, not a flag to flip casually. See `docs/build-plan.md`'s launch-gate
  * list.
  */
-export const SITE_IS_PUBLICLY_DISCOVERABLE = false;
+export const SITE_IS_PUBLICLY_DISCOVERABLE = true;
 
 /**
  * The one relationship these two constants are allowed to have: the

@@ -7,15 +7,11 @@
  */
 import { harnessPort } from "@opika/db/test";
 import { expect, type Page, test } from "@playwright/test";
-import { PRELAUNCH_GATE_QUERY_PARAM } from "../../src/api/prelaunch-gate";
-import { HARNESS_PRELAUNCH_GATE_SECRET } from "../harness-env";
 
 const ORIGIN = `http://127.0.0.1:${harnessPort()}`;
 
 const IP_HEADERS = { "x-forwarded-for": "198.51.100.60" };
 test.use({ extraHTTPHeaders: IP_HEADERS });
-
-const GATE = `${PRELAUNCH_GATE_QUERY_PARAM}=${HARNESS_PRELAUNCH_GATE_SECRET}`;
 
 function expectSecurityHeaders(headers: Record<string, string>, what: string) {
   expect(headers["x-content-type-options"], what).toBe("nosniff");
@@ -31,7 +27,7 @@ function expectSecurityHeaders(headers: Record<string, string>, what: string) {
 
 test.describe("security headers (audit F5)", () => {
   test("a page and an API answer both carry them", async ({ request }) => {
-    const page = await request.get(`/tvaryny?${GATE}`, { headers: IP_HEADERS });
+    const page = await request.get("/tvaryny", { headers: IP_HEADERS });
     expect(page.status()).toBe(200);
     expectSecurityHeaders(page.headers(), "GET /tvaryny");
 
@@ -51,37 +47,20 @@ test.describe("security headers (audit F5)", () => {
   }
 
   test("a 404 page, a build asset and a public file carry them", async ({ request }) => {
-    const notFound = await request.get(`/tvaryny/not-a-real-id?${GATE}`, { headers: IP_HEADERS });
+    const notFound = await request.get("/tvaryny/not-a-real-id", { headers: IP_HEADERS });
     expect(notFound.status()).toBe(404);
     expectEnforced(notFound.headers(), "the 404 page");
 
-    const gallery = await (await request.get(`/tvaryny?${GATE}`, { headers: IP_HEADERS })).text();
+    const gallery = await (await request.get("/tvaryny", { headers: IP_HEADERS })).text();
     const asset = /\/_next\/static\/[^"'\s]+\.js/.exec(gallery)?.[0];
     expect(asset, "the gallery links a build asset").toBeDefined();
     const built = await request.get(asset ?? "", { headers: IP_HEADERS });
     expect(built.status()).toBe(200);
     expectEnforced(built.headers(), `the build asset ${asset}`);
 
-    const publicFile = await request.get(`/brand-v3/logo.svg?${GATE}`, { headers: IP_HEADERS });
+    const publicFile = await request.get("/brand-v3/logo.svg", { headers: IP_HEADERS });
     expect(publicFile.status()).toBe(200);
     expectEnforced(publicFile.headers(), "a file under /public");
-  });
-
-  // Its own test: a request that carried the gate query earlier would leave the cookie in the
-  // context's jar and make this one pass the gate.
-  test.describe("without the project's gate cookie", () => {
-    test.use({ storageState: { cookies: [], origins: [] } });
-
-    test("the proxy's own refusal carries them", async ({ request }) => {
-      expect(
-        (await request.storageState()).cookies,
-        "the request context must carry no gate cookie",
-      ).toHaveLength(0);
-      // `proxy.ts` answers this itself (the pre-launch gate), as it does its 429s.
-      const gated = await request.get("/prytulkam", { headers: IP_HEADERS });
-      expect(gated.status()).toBe(403);
-      expectEnforced(gated.headers(), "the proxy's own refusal");
-    });
   });
 
   /** Every report-only violation the page raises, collected as the browser fires them. */

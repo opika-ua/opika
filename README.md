@@ -3,7 +3,6 @@
 A registry of verified Ukrainian shelters' animals, nationwide. Free for shelters, and no
 money is handled: donations are external links to a shelter's own payment page.
 
-The site is pre-launch and sits behind an access gate, so it is not open to the public yet.
 All data in this repository is fictional; no real shelter or animal data is ever committed
 here.
 
@@ -49,7 +48,6 @@ docker compose up -d      # Postgres + PostGIS on localhost:5433
 # Create apps/web/.env.local (gitignored) with:
 #   DATABASE_URL=postgresql://opika:opika@localhost:5433/opika
 #   CURSOR_HMAC_SECRET=<openssl rand -hex 32>
-#   PRELAUNCH_GATE_SECRET=<openssl rand -hex 32>
 # Section 3 of .env.example explains each value.
 
 # The db scripts read DATABASE_URL from the shell, not from .env.local:
@@ -60,8 +58,7 @@ pnpm --filter @opika/db run db:seed      # fictional cities, shelters and animal
 pnpm --filter @opika/web dev
 ```
 
-Open `http://localhost:3000/tvaryny?gate=<PRELAUNCH_GATE_SECRET>` once; the gate sets a
-cookie for the rest of the session. The seed script refuses any non-local database.
+The seed script refuses any non-local database.
 
 `docker-compose.yml` maps Postgres to host port 5433, not 5432; set `OPIKA_DB_PORT` to use
 another. Stop the database with `docker compose down` (add `-v` to drop the data).
