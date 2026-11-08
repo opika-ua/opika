@@ -85,7 +85,7 @@ describe("reject: code and note, both required", () => {
       "Недостатньо доказів",
       "Не вдалося підтвердити, хто стоїть за притулком",
       "Повторна заявка",
-      "Спам",
+      "Заявка не схожа на звернення притулку",
       "Інше",
     ]);
     expect(
@@ -104,7 +104,10 @@ describe("reject: code and note, both required", () => {
     expect(confirm.getAttribute("aria-disabled")).toBe("true");
     await userEvent.click(confirm);
 
-    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Спам");
+    await userEvent.selectOptions(
+      dialog.getByLabelText("Причина"),
+      "Заявка не схожа на звернення притулку",
+    );
     expect(confirm.getAttribute("aria-disabled")).toBe("true");
     await userEvent.click(confirm);
 
@@ -135,7 +138,10 @@ describe("reject: code and note, both required", () => {
       reread: async () => rejectedWith("Надішліть виписку з ЄДР."),
     });
     const dialog = await openReject();
-    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Спам");
+    await userEvent.selectOptions(
+      dialog.getByLabelText("Причина"),
+      "Заявка не схожа на звернення притулку",
+    );
     await userEvent.type(dialog.getByLabelText("Пояснення"), "  Надішліть виписку з ЄДР.  ");
     await userEvent.click(dialog.getByRole("button", { name: "Відхилити" }));
     expect(reject).toHaveBeenCalledExactlyOnceWith({
@@ -143,7 +149,9 @@ describe("reject: code and note, both required", () => {
       reason: { code: "spam", note: "Надішліть виписку з ЄДР." },
     });
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(panel().getByText("Спам. Надішліть виписку з ЄДР.")).toBeTruthy();
+    expect(
+      panel().getByText("Заявка не схожа на звернення притулку. Надішліть виписку з ЄДР."),
+    ).toBeTruthy();
   });
 
   it("stops the note at the contract's 2,000", async () => {
@@ -213,12 +221,12 @@ describe("suspend", () => {
     ).toEqual([
       "Оберіть причину",
       "Немає звʼязку з притулком",
-      "Скарга підтвердилася",
-      "Картки не відповідають дійсності",
-      "Підозра на шахрайство",
+      "Перевірена скарга",
+      "Дані в картках потребують виправлення",
+      "Не вдалося підтвердити дані притулку",
       "Інше",
     ]);
-    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Скарга підтвердилася");
+    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Перевірена скарга");
     await userEvent.type(dialog.getByLabelText("Пояснення"), "Скарга від ветклініки.");
     await userEvent.click(dialog.getByRole("button", { name: "Призупинити" }));
     expect(suspend).toHaveBeenCalledExactlyOnceWith({
@@ -233,7 +241,10 @@ describe("suspend", () => {
 describe("outcomes inside the dialog", () => {
   async function fillAndSend() {
     const dialog = await openReject();
-    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Спам");
+    await userEvent.selectOptions(
+      dialog.getByLabelText("Причина"),
+      "Заявка не схожа на звернення притулку",
+    );
     await userEvent.type(dialog.getByLabelText("Пояснення"), "Надішліть виписку.");
     await userEvent.click(dialog.getByRole("button", { name: "Відхилити" }));
     return dialog;

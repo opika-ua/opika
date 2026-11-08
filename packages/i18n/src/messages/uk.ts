@@ -1391,6 +1391,8 @@ export const uk = {
      */
     history: {
       adminJoined: "{email} отримує доступ до кабінету",
+      /** The address was erased (GDPR), so it cannot be the subject of the sentence. */
+      adminJoinedErased: "Доступ до кабінету відкрито: адреса видалена",
     },
     /**
      * R-UI · the operator's own screens (`docs/r-ui-copy-sheet.md`, keys and
@@ -1525,7 +1527,7 @@ export const uk = {
         siteVisitDateHint: "Дата візиту не може бути в майбутньому.",
         addTitle: "Додати докази",
         addIntro:
-          "Нові докази додаються до наявних. Статус не змінюється, а в історії притулку цього запису не буде.",
+          "Нові докази додаються до наявних. Статус не змінюється. В історії цей запис бачите лише ви: сам притулок його не бачить.",
         addNeeded: "Додайте хоча б один доказ.",
         addSubmit: "Додати",
         addDone: "Докази додано.",
@@ -1576,9 +1578,13 @@ export const uk = {
           reinstate: "Відновлено → «{status}»",
           resubmit: "Повернуто на перевірку",
           pause: "Прийом звернень призупинено",
+          /** `{reason}` the pause reason label; `other` keeps the plain line. */
+          pause_reason: "Прийом звернень призупинено: {reason}",
           resume: "Паузу знято",
         },
         admin_invited: "Надіслано запрошення: {name}, {email}",
+        admin_invited_erased: "Надіслано запрошення: адреса видалена",
+        addressErased: "адреса видалена",
         admin_invitation_resent: "Запрошення надіслано ще раз: {name}",
         admin_removed: "Доступ закрито: {name}",
         admin_removed_pending: "Запрошення скасовано: {name}",
@@ -1770,14 +1776,16 @@ export const uk = {
           identity_unverifiable: "Не вдалося підтвердити, хто стоїть за притулком",
           duplicate_submission: "Повторна заявка",
           out_of_service_area: "Поза територією, де працює сайт",
-          spam: "Спам",
+          spam: "Заявка не схожа на звернення притулку",
           other: "Інше",
         },
         suspension: {
           unresponsive: "Немає звʼязку з притулком",
-          complaint_upheld: "Скарга підтвердилася",
-          listing_quality: "Картки не відповідають дійсності",
-          suspected_fraud: "Підозра на шахрайство",
+          complaint_upheld: "Перевірена скарга",
+          listing_quality: "Дані в картках потребують виправлення",
+          // Retired: no longer offered, old records show the same neutral text.
+          suspected_fraud: "Не вдалося підтвердити дані притулку",
+          cannot_confirm_details: "Не вдалося підтвердити дані притулку",
           other: "Інше",
         },
         donationRemoval: {

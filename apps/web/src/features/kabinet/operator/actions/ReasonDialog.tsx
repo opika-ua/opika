@@ -5,9 +5,10 @@ import { OperatorNoteSchema, type RegistryShelterView } from "@opika/contracts";
 import {
   type OfferedRejectionCode,
   OfferedRejectionCodeSchema,
+  type OfferedSuspensionCode,
+  OfferedSuspensionCodeSchema,
   type RejectionCode,
   type SuspensionCode,
-  SuspensionCodeSchema,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useId, useState } from "react";
@@ -64,7 +65,7 @@ export function ReasonDialog({
   const t = uk.kabinet.operator.reasonDialog;
   const pause = uk.kabinet.profileEdit.pause;
   const id = useId();
-  const [code, setCode] = useState<OfferedRejectionCode | SuspensionCode | "">("");
+  const [code, setCode] = useState<OfferedRejectionCode | OfferedSuspensionCode | "">("");
   const [note, setNote] = useState("");
   const [failed, setFailed] = useState(false);
 
@@ -74,7 +75,7 @@ export function ReasonDialog({
   };
   const ready = code !== "" && note.trim() !== "";
   const codes =
-    kind === "reject" ? OfferedRejectionCodeSchema.options : SuspensionCodeSchema.options;
+    kind === "reject" ? OfferedRejectionCodeSchema.options : OfferedSuspensionCodeSchema.options;
   const codeLabel = (option: string): string =>
     kind === "reject"
       ? uk.kabinet.operator.codes.rejection[option as RejectionCode]
@@ -95,7 +96,7 @@ export function ReasonDialog({
             })
           : client.registry.verification.suspend({
               shelterId,
-              reason: { code: code as SuspensionCode, note: reason.note },
+              reason: { code: code as OfferedSuspensionCode, note: reason.note },
             }),
       viewOf: (answered) => answered,
       landed: (fresh) => holdsReason(fresh, kind, reason),
@@ -142,7 +143,7 @@ export function ReasonDialog({
         value={code}
         required
         onChange={(event) =>
-          setCode(event.target.value as OfferedRejectionCode | SuspensionCode | "")
+          setCode(event.target.value as OfferedRejectionCode | OfferedSuspensionCode | "")
         }
       >
         <option value="" disabled>

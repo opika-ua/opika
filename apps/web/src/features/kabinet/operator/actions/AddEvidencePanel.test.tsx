@@ -62,6 +62,15 @@ describe("«Додати докази»", () => {
     expect(section().getByText(/^Нові докази додаються до наявних/)).toBeTruthy();
   });
 
+  it("tells the operator that only he sees the entry, not the shelter", () => {
+    renderWithActions(<AddEvidencePanel />, { view: pending });
+    expect(
+      section().getByText(
+        "Нові докази додаються до наявних. Статус не змінюється. В історії цей запис бачите лише ви: сам притулок його не бачить.",
+      ),
+    ).toBeTruthy();
+  });
+
   it("is not offered once the decision is made", () => {
     const verified = withVerification(registryView(), {
       status: "verified",

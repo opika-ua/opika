@@ -355,7 +355,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // (`donation.previewLabelUnverified`, `removed`, `suspendedNote`, `reinstatedPending` and two
     // `errors.donation*`) and seventeen `operator.*` (four history lines, five removal codes,
     // four `donation.*` and the four-string `donation.removeDialog`).
-    expect(pending.length + written.length).toBe(785);
+    // 790 with the sitting-2 follow-up copy (owner-approved 2026-11-08): `history.adminJoinedErased`,
+    // `operator.history.addressErased`, `admin_invited_erased`, `verification.pause_reason` and
+    // `codes.suspension.cannot_confirm_details`.
+    expect(pending.length + written.length).toBe(790);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

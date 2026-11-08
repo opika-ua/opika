@@ -85,7 +85,7 @@ return of a verified shelter to review, no reject from paused or verified (suspe
    Never put suspicion, a third party's name or an internal note there.
 
    Codes offered now: «Недостатньо доказів», «Не вдалося підтвердити, хто стоїть за притулком»,
-   «Повторна заявка», «Спам», «Інше». The sixth code, «Поза територією, де працює сайт»
+   «Повторна заявка», «Заявка не схожа на звернення притулку», «Інше». The sixth code, «Поза територією, де працює сайт»
    (`out_of_service_area`), is retired: the site is nationwide, so it is no longer offered, but old
    rejections that carry it still display.
 6. **«Повернути на перевірку»** (rejected to pending): you send the evidence back, amended or not. The
@@ -141,8 +141,8 @@ Purpose: let a shelter's cards be public while the review runs. It sits beside t
 
 **Suspend** is for a verified or paused shelter. Dialog «Призупинити «{shelter}»?»: «Причина», «Пояснення»
 (required). The note is shown to the shelter as written (see the warning in section 3). Codes:
-«Немає звʼязку з притулком», «Скарга підтвердилася», «Картки не відповідають дійсності»,
-«Підозра на шахрайство», «Інше». Effect: animals leave the gallery at once; shelter and animal pages answer
+«Немає звʼязку з притулком», «Перевірена скарга», «Дані в картках потребують виправлення»,
+«Не вдалося підтвердити дані притулку», «Інше». Effect: animals leave the gallery at once; shelter and animal pages answer
 404; the shelter's admins can still sign in and read the decision. If the shelter was paused when you
 suspended it, that pause is kept inside the suspension and does not show publicly.
 
@@ -271,7 +271,7 @@ No answer by the date: move up.
   it. (A live link cannot be cleared by you.)
 
 **High (money requested in advance, impersonation, a confirmed false identity).**
-1. Suspend now: «Призупинити…», code «Підозра на шахрайство» (or «Скарга підтвердилася»), with a
+1. Suspend now: «Призупинити…», code «Не вдалося підтвердити дані притулку» (or «Перевірена скарга»), with a
    neutral explanation (template C). Animals and pages disappear immediately.
 2. Do not delete anything. Keep the history, the reveals and the support record.
 3. Save the evidence off-repo (section 12) before you write to the shelter.

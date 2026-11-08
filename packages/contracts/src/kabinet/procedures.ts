@@ -26,6 +26,7 @@ import {
   MedicalDeclarationInputSchema,
   normalizeFreshnessSentenceText,
   OfferedRejectionCodeSchema,
+  OfferedSuspensionCodeSchema,
   PauseCodeSchema,
   type PauseReason,
   RegionIdSchema,
@@ -36,7 +37,6 @@ import {
   ShelterIdSchema,
   ShelterLegalEntitySchema,
   SizeBucketSchema,
-  SuspensionCodeSchema,
   TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
   TemperamentSchema,
   TextProvenanceSchema,
@@ -839,7 +839,7 @@ export const registryVerificationContract = {
     .input(
       z.strictObject({
         shelterId: ShelterIdSchema,
-        reason: z.strictObject({ code: SuspensionCodeSchema, note: OperatorNoteSchema }),
+        reason: z.strictObject({ code: OfferedSuspensionCodeSchema, note: OperatorNoteSchema }),
       }),
     )
     .errors({ ...registryErrors, ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION }),
