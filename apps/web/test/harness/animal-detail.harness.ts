@@ -362,14 +362,8 @@ test.describe("the detail page's freshness block is the day count only", () => {
 });
 
 /**
- * D-2: `REGISTRY_HAS_NO_REAL_SHELTERS` (`apps/web/src/seo-flags.ts`) is a
- * hardcoded source constant, `true` in the build this harness runs against
- * - the same build production runs. This asserts the real, current state;
- * it cannot exercise the `false` branch, since that would need a second
- * build with the source flipped. That branch has no automated coverage at
- * all today (no component test file exists for `AnimalDetailScreen`) -
- * recorded here rather than silently assumed correct, same discipline
- * DECK-3 used for the text-scaling gap it also couldn't assert.
+ * The "verified by hand" badge is retired (pet card PR 5), so it renders nowhere,
+ * whatever `REGISTRY_HAS_NO_REAL_SHELTERS` says (`apps/web/src/seo-flags.ts`).
  */
 test.describe("shelter-verified badge – suppressed while the registry holds no real shelters", () => {
   test("the manually-verified-years badge does not render on a real seeded animal's page", async ({
