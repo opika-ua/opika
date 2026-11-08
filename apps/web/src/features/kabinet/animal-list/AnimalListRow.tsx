@@ -55,8 +55,8 @@ const FORWARD_VARIANT: Record<Exclude<RowAction, "edit">, Exclude<ButtonVariant,
  * in «Ще» too. The repeated buttons get the animal's name through `aria-describedby` (P4); the
  * photo is a second, hidden way into the same form for people who tap the picture.
  *
- * `editable` false (the support view, S5) keeps every write visible and `aria-disabled`,
- * focusable, doing nothing; «Редагувати» stays a link, to K3's read-only page.
+ * `editable` false (the support view, S5) leaves out every write button (they looked live and did
+ * nothing); «Редагувати» and «Переглянути на сайті» stay links, to K3's read-only page and the site.
  */
 export function AnimalListRow({
   row,
@@ -145,7 +145,7 @@ export function AnimalListRow({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {undoSeconds !== null ? (
+            {!editable ? null : undoSeconds !== null ? (
               <>
                 <Text look="label">
                   <span aria-hidden="true">✓ </span>
@@ -177,7 +177,7 @@ export function AnimalListRow({
               </Button>
             ) : null}
 
-            {forward !== null && forward !== "edit" ? (
+            {editable && forward !== null && forward !== "edit" ? (
               <Button
                 variant={FORWARD_VARIANT[forward]}
                 className={forward === "publish" ? "flex-1 tablet:flex-none" : undefined}
@@ -199,44 +199,46 @@ export function AnimalListRow({
               triggerId={moreButtonId(row.id)}
               className="ml-auto"
             >
-              {menu.map((action) => (
-                <Fragment key={action}>
-                  {DANGER_ENTRIES.has(action) && action === firstDanger ? <MenuDivider /> : null}
-                  <MenuItem tone={DANGER_ENTRIES.has(action) ? "danger" : "default"}>
-                    {action === "edit" ? (
-                      <LinkButton
-                        variant="ghost"
-                        href={href}
-                        prefetch={false}
-                        className="w-full justify-start"
-                      >
-                        {actionLabelOf(action)}
-                      </LinkButton>
-                    ) : action === "viewOnSite" ? (
-                      <LinkButton
-                        variant="ghost"
-                        href={publicAnimalPath(row.id)}
-                        target="_blank"
-                        rel="noopener"
-                        prefetch={false}
-                        className="w-full justify-start"
-                      >
-                        {actionLabelOf(action)}
-                        <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
-                      </LinkButton>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        aria-disabled={inert || undefined}
-                        onClick={() => act(action)}
-                      >
-                        {actionLabelOf(action)}
-                      </Button>
-                    )}
-                  </MenuItem>
-                </Fragment>
-              ))}
+              {menu
+                .filter((action) => editable || action === "edit" || action === "viewOnSite")
+                .map((action) => (
+                  <Fragment key={action}>
+                    {DANGER_ENTRIES.has(action) && action === firstDanger ? <MenuDivider /> : null}
+                    <MenuItem tone={DANGER_ENTRIES.has(action) ? "danger" : "default"}>
+                      {action === "edit" ? (
+                        <LinkButton
+                          variant="ghost"
+                          href={href}
+                          prefetch={false}
+                          className="w-full justify-start"
+                        >
+                          {actionLabelOf(action)}
+                        </LinkButton>
+                      ) : action === "viewOnSite" ? (
+                        <LinkButton
+                          variant="ghost"
+                          href={publicAnimalPath(row.id)}
+                          target="_blank"
+                          rel="noopener"
+                          prefetch={false}
+                          className="w-full justify-start"
+                        >
+                          {actionLabelOf(action)}
+                          <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
+                        </LinkButton>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start"
+                          aria-disabled={inert || undefined}
+                          onClick={() => act(action)}
+                        >
+                          {actionLabelOf(action)}
+                        </Button>
+                      )}
+                    </MenuItem>
+                  </Fragment>
+                ))}
             </Menu>
           </div>
         </div>

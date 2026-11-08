@@ -75,6 +75,21 @@ describe("donation decision", () => {
     expect(screen.queryByRole("button", { name: "Схвалити" })).toBeNull();
   });
 
+  it("«Посилання схвалено.» does not outlive a suspension that demoted the live link", async () => {
+    const demoted = registryView({
+      donation: null,
+      pendingDonation: proposal(PROPOSED),
+      version: 9,
+    });
+    renderWithActions(<DonationDecision />, {
+      view: withProposal,
+      client: { donation: { approve: vi.fn(async () => demoted) } },
+      reread: async () => demoted,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Схвалити" }));
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
   it("reject sends the version read, then says so", async () => {
     const reject = vi.fn(async () => rejectedView);
     renderWithActions(<DonationDecision />, {

@@ -1251,8 +1251,8 @@ describe("when nobody can see the cards", () => {
   });
 });
 
-describe("the support view (S5): everything visible, nothing writes", () => {
-  it("every action disabled, no «Додати тварину», no resume; «Редагувати» still opens K3", async () => {
+describe("the support view (S5): nothing writes, so no write control is shown", () => {
+  it("no write buttons in a row or its menu, no «Додати тварину», no resume; «Редагувати» still opens K3", async () => {
     const calls = renderList({
       viewer: "support",
       editing: { kind: "read_only" },
@@ -1260,17 +1260,10 @@ describe("the support view (S5): everything visible, nothing writes", () => {
     });
     expect(screen.queryByRole("link", { name: "Додати тварину" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Відновити прийом звернень" })).toBeNull();
-    const confirm = inRow("Рекс").getByRole("button", { name: "Ще шукає" });
-    expect(confirm.getAttribute("aria-disabled")).toBe("true");
-    await userEvent.click(confirm);
+    expect(inRow("Рекс").queryByRole("button", { name: "Ще шукає" })).toBeNull();
     await openMenu("Рекс");
-    const reserve = screen.getByRole("button", { name: "Почали домовлятися" });
-    expect(reserve.getAttribute("aria-disabled")).toBe("true");
-    await userEvent.click(reserve);
-    const withdraw = screen.getByRole("button", { name: "Зняти з показу" });
-    expect(withdraw.getAttribute("aria-disabled")).toBe("true");
-    await userEvent.click(withdraw);
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Почали домовлятися" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Зняти з показу" })).toBeNull();
     expect(calls.confirm).not.toHaveBeenCalled();
     expect(calls.transition).not.toHaveBeenCalled();
     expect(screen.getByRole("link", { name: "Редагувати" }).getAttribute("href")).toBe(

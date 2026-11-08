@@ -1598,7 +1598,7 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.age.birthDateLabel": "Дата народження",
     "kabinet.animalForm.age.bucketLabel": "Вік на ту дату",
     "kabinet.animalForm.age.bucketRangeUnder": "до {max}",
-    "kabinet.animalForm.age.bucketRange": "{min}-{max}",
+    "kabinet.animalForm.age.bucketRange": "{min}–{max}",
     "kabinet.animalForm.age.bucketRangeFrom": "{min}+",
     "kabinet.animalForm.age.asOfLabel": "Станом на",
     "kabinet.animalForm.age.asOfHint":
