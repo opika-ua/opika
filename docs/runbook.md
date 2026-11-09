@@ -47,6 +47,10 @@ daily at 04:00 UTC. Each pings Healthchecks.io when `HEALTHCHECK_URL_AUTH_CLEANU
 
 1. Vercel, Deployments, pick the last good Production deployment, "Instant Rollback". No rebuild;
    the alias moves back at once. Skew protection (12 h) keeps open tabs working.
+   **Never roll back to a deployment older than `80c4cf3` (launch step 14, PR #448):** those builds
+   still carry the pre-launch gate and `noindex`, and a deployment keeps the env values it was built
+   with (section 6) while `PRELAUNCH_GATE_SECRET` is deleted in Vercel, so visitors would get a 403.
+   Roll back only to `80c4cf3` or later.
 2. Rolling back does not undo a database migration. If the bad deploy shipped one, stop and decide
    with the migration's reviewer: migrations here are additive unless the PR said otherwise.
 3. Fix forward on a branch and promote only through the normal merge. The next merge to the default
@@ -97,8 +101,8 @@ running deployment keeps the old value.
 ## 7. Quick kill options (smallest first)
 
 - **No gate any more:** the pre-launch gate came down at launch (2026-11-09, PR #448), so there is no
-  switch that hides the site. To take it offline fast use Vercel Attack Challenge Mode below, or
-  roll back the deployment (section 3).
+  switch that hides the site. To take it offline use Vercel Pause Project (Settings); for a flood or
+  abuse use Attack Challenge Mode below. A rollback does not hide the site (see the warning in section 3).
 - **Vercel, Settings, Cron Jobs, "Disable Cron Jobs":** stops both crons without a deploy. Re-enable
   afterwards; Healthchecks will alert on the gap.
 - **Vercel Attack Challenge Mode** (Firewall): challenges all traffic; use it for a flood. Turn it

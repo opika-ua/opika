@@ -111,9 +111,9 @@ the code again this pass:
   about which ids were asked for.
 
 **Everything in `about.data` checks out against the code.** It says nothing at all about
-adopter data beyond the held R4-2 sentence (the one-cookie disclosure, not yet live - it
-exists as `PENDING_R4_2_ANALYTICS_SENTENCE`, `packages/i18n/src/messages/uk.ts`, and lands
-once the pre-launch gate comes down, tracked on the branch that opened PR #194), nothing
+adopter data beyond the held R4-2 sentence (the one-cookie disclosure, which went live with
+launch step 14, PR #448, 2026-11-09; at the time of this analysis it was held as
+`PENDING_R4_2_ANALYTICS_SENTENCE`), nothing
 about processors, nothing about a legal basis, and nothing about how to exercise a
 data-subject right.
 
