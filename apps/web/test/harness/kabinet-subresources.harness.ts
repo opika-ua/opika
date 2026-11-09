@@ -12,10 +12,21 @@ import { readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDatabase, productionLocationPolicy } from "@opika/db";
-import { kabinetInvitationRepo, kabinetInviteTokenRepo, kabinetShelterRepo } from "@opika/db/repos";
+import {
+  animalRepo,
+  kabinetInvitationRepo,
+  kabinetInviteTokenRepo,
+  kabinetShelterRepo,
+} from "@opika/db/repos";
 import { authMember, authUser, cities, superAdmins } from "@opika/db/schema";
-import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
-import { type ModeratorId, publicLocationOf, type Shelter, type ShelterId } from "@opika/domain";
+import { assertDisposableTestDatabase, makeAnimal, testDatabaseUrl } from "@opika/db/test";
+import {
+  type CityId,
+  type ModeratorId,
+  publicLocationOf,
+  type Shelter,
+  type ShelterId,
+} from "@opika/domain";
 import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { HARNESS_LOCATION_HMAC_SECRET } from "../harness-env";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
@@ -67,8 +78,14 @@ async function signedInContext(
 }
 
 /** Opens `path`, lets the page settle, and returns every same-origin sub-resource that is not 200. */
-async function nonOkAssets(page: Page, path: string, origin: string): Promise<string[]> {
+async function nonOkAssets(
+  page: Page,
+  path: string,
+  origin: string,
+  mustLoad?: string,
+): Promise<string[]> {
   const bad: string[] = [];
+  const loaded: string[] = [];
   let seen = 0;
   page.on("response", (response) => {
     const url = new URL(response.url());
@@ -78,6 +95,7 @@ async function nonOkAssets(page: Page, path: string, origin: string): Promise<st
     // The document itself is judged below (a not-found page is a 404 on purpose).
     if (response.request().isNavigationRequest()) return;
     seen += 1;
+    loaded.push(url.pathname);
     if (response.status() !== 200) bad.push(`${response.status()} ${url.pathname}`);
   });
   const document = await page.goto(path, { waitUntil: "networkidle" });
@@ -85,6 +103,13 @@ async function nonOkAssets(page: Page, path: string, origin: string): Promise<st
   // The confirm route answers a bare document with no sub-resources; every other page loads some.
   if (!path.startsWith("/kabinet/vkhid/pidtverdzhennia")) {
     expect(seen, `${path} loaded no same-origin assets at all`).toBeGreaterThan(0);
+  }
+  // A page that should show a photo must have asked for it, or a vanished image slips through.
+  if (mustLoad !== undefined) {
+    expect(
+      loaded.some((p) => p.includes(mustLoad)),
+      `${path} never requested ${mustLoad}`,
+    ).toBe(true);
   }
   return bad;
 }
@@ -94,6 +119,7 @@ test.describe("kabinet pages load every same-origin asset", () => {
   let admin: BrowserContext | undefined;
   let operator: BrowserContext | undefined;
   let shelterId = "";
+  let animalId = "";
   let inviteToken = "";
   const db = createDatabase(HARNESS_DATABASE_URL);
   // Every path actually opened (query stripped), so the last test can prove no page dropped out.
@@ -107,14 +133,14 @@ test.describe("kabinet pages load every same-origin asset", () => {
     const [city] = await db.select({ id: cities.id }).from(cities).limit(1);
     if (city === undefined) throw new Error("no seeded city");
 
-    // Fictional verified shelters with no animals: the admin's list shows its empty state.
+    // Fictional verified shelters.
     const newShelter = (displayName: string): Shelter => {
       const id = randomUUID() as ShelterId;
       const exactAddress = {
         line1: "вул. Тестова, 1",
         line2: null,
         postalCode: null,
-        cityId: city.id as never,
+        cityId: city.id as CityId,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
       };
@@ -168,6 +194,16 @@ test.describe("kabinet pages load every same-origin asset", () => {
       },
     });
     shelterId = shelter.id;
+
+    // One existing animal with a stored photo: its edit page renders the real photo variants. The
+    // fixture key is a file under apps/web/public, so the photo is a same-origin sub-resource.
+    const animal = makeAnimal({
+      shelterId: shelter.id,
+      photos: [{ storageKey: "seed-photos/dog-1.jpg", width: 1200, height: 1500, alt: null }],
+      listing: { kind: "published", publishedAt: now, confirmedAt: now, undoable: null },
+    });
+    await animalRepo(db).insert(animal, city.id as CityId);
+    animalId = animal.id;
 
     server = await startSignInServer(HARNESS_DATABASE_URL, {
       LOCATION_HMAC_SECRET: HARNESS_LOCATION_HMAC_SECRET,
@@ -232,7 +268,7 @@ test.describe("kabinet pages load every same-origin asset", () => {
         entry: {
           kind: "admin_invited",
           at: now,
-          moderatorId: operatorId as never,
+          moderatorId: operatorId as ModeratorId,
           email: inviteeEmail,
         },
       },
@@ -257,12 +293,12 @@ test.describe("kabinet pages load every same-origin asset", () => {
     await server?.stop();
   });
 
-  async function expectAllOk(context: BrowserContext | undefined, path: string) {
+  async function expectAllOk(context: BrowserContext | undefined, path: string, mustLoad?: string) {
     if (context === undefined || server === undefined) throw new Error("not set up");
     opened.add(path.split("?")[0] ?? path);
     const page = await context.newPage();
     try {
-      expect(await nonOkAssets(page, path, server.origin), path).toEqual([]);
+      expect(await nonOkAssets(page, path, server.origin, mustLoad), path).toEqual([]);
     } finally {
       await page.close();
     }
@@ -297,7 +333,7 @@ test.describe("kabinet pages load every same-origin asset", () => {
     for (const path of paths) await anonymous(browser, path);
   });
 
-  test("a shelter admin's pages, including the empty animal list and a missing animal", async () => {
+  test("a shelter admin's pages, including an animal with a photo and a missing animal", async () => {
     test.setTimeout(120_000);
     for (const path of [
       "/kabinet/tvaryny",
@@ -308,6 +344,9 @@ test.describe("kabinet pages load every same-origin asset", () => {
     ]) {
       await expectAllOk(admin, path);
     }
+    // The photo tab shows the stored photo: a same-origin file under /public, so a 404 on it fails the check.
+    await expectAllOk(admin, `/kabinet/tvaryny/${animalId}`);
+    await expectAllOk(admin, `/kabinet/tvaryny/${animalId}?tab=foto`, "dog-1");
   });
 
   test("the operator's pages", async () => {
