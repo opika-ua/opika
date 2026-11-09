@@ -449,12 +449,12 @@ the commit no longer restores it. To take the site back out of search, set
 
 ### 15. Allow indexing
 
-Deferred by the owner: do this once the gallery has about 10 real animals, not right after the flip.
+Indexing of the live site started with step 14 and is intended: the site is real, production holds no demo data, and pending and early-listed pages are already `noindex`. What is deferred until the gallery has about 10 real animals is only the Search Console verification and the sitemap submission. No extra switch is added.
 
 Nothing left to *do* - step 14 already made the site crawlable and indexable. This step is
-confirming it, a day or two after step 14's deploy:
+confirming it; the spot-check can be done any time after step 14's deploy, the Search Console item waits as above:
 
-- Google Search Console (if not already verified for `opika.org.ua`, verify it now) - submit
+- Once the gallery has about 10 real animals: Google Search Console (if not already verified for `opika.org.ua`, verify it now) - submit
   `/sitemap.xml` there: `robots.txt` carries the `Sitemap` line (`app/robots.ts`) and the sitemap was empty until
   the flip; submitting it in Search Console is still the faster way for the crawler to learn of it.
 - Spot-check `https://opika.org.ua/robots.txt` allows `/` (it always has, D-3) and a real page
