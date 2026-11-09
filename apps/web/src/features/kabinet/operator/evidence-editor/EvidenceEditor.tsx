@@ -293,6 +293,7 @@ function EvidenceCard({
             label={t.field.notes}
             value={row.notes}
             onChange={(event) => patch({ notes: event.target.value })}
+            hint={errors.notes === undefined ? t.videoCallNotesHint : undefined}
             error={evidenceFieldMessage(errors.notes)}
           />
         </>

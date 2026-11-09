@@ -117,10 +117,10 @@ async function fillInitiative(visitedOn = "2026-10-12") {
   const contacts = within(screen.getByRole("region", { name: "Контакти" }));
   await u.type(contacts.getByLabelText(/^Телефон/), "+380 50 111-22-33");
 
-  await u.selectOptions(screen.getByLabelText("Тип доказу"), "Візит на місце");
+  await u.selectOptions(screen.getByLabelText("Тип доказу"), "Відеодзвінок");
   await u.click(screen.getByRole("button", { name: "+ Додати доказ" }));
-  const visit = within(screen.getByRole("group", { name: "Візит на місце" }));
-  fireEvent.change(visit.getByLabelText("Дата візиту"), { target: { value: visitedOn } });
+  const visit = within(screen.getByRole("group", { name: "Відеодзвінок" }));
+  fireEvent.change(visit.getByLabelText("Дата дзвінка"), { target: { value: visitedOn } });
   await u.type(visit.getByLabelText("Нотатка"), "Оглянув вольєри.");
 
   for (const [n, phone] of [
@@ -432,7 +432,7 @@ describe("refusals", () => {
         data: { reason: "site_visit_in_future" },
         defined: true,
       }),
-      "Дата візиту не може бути в майбутньому.",
+      "Дата дзвінка не може бути в майбутньому.",
     ],
     [
       "the city is unknown",
@@ -550,11 +550,11 @@ describe("checked before anything is sent", () => {
     const u = await fillInitiative("2026-10-09");
     await u.click(submit());
     expect(fns.create).not.toHaveBeenCalled();
-    const visit = within(screen.getByRole("group", { name: "Візит на місце" }));
-    expect(visit.getByText("Дата візиту не може бути в майбутньому.")).toBeDefined();
-    expect(document.activeElement).toBe(visit.getByLabelText("Дата візиту"));
+    const visit = within(screen.getByRole("group", { name: "Відеодзвінок" }));
+    expect(visit.getByText("Дата дзвінка не може бути в майбутньому.")).toBeDefined();
+    expect(document.activeElement).toBe(visit.getByLabelText("Дата дзвінка"));
 
-    fireEvent.change(visit.getByLabelText("Дата візиту"), { target: { value: "2026-10-08" } });
+    fireEvent.change(visit.getByLabelText("Дата дзвінка"), { target: { value: "2026-10-08" } });
     await u.click(submit());
     expect(fns.create).toHaveBeenCalledTimes(1);
   });
@@ -631,7 +631,7 @@ describe("the evidence editor", () => {
       "Реєстрація · ЄДРПОУ",
       "Власник банківського рахунку",
       "Рекомендація",
-      "Візит на місце",
+      "Відеодзвінок",
     ]);
     await u.selectOptions(picker, "Власник банківського рахунку");
     await u.click(screen.getByRole("button", { name: "+ Додати доказ" }));
@@ -648,12 +648,31 @@ describe("the evidence editor", () => {
   it("has no visitor field on a site visit: whoever records it is the visitor", async () => {
     renderForm(async () => createdView(null));
     const u = user();
-    await u.selectOptions(screen.getByLabelText("Тип доказу"), "Візит на місце");
+    await u.selectOptions(screen.getByLabelText("Тип доказу"), "Відеодзвінок");
     await u.click(screen.getByRole("button", { name: "+ Додати доказ" }));
-    const card = screen.getByRole("group", { name: "Візит на місце" });
+    const card = screen.getByRole("group", { name: "Відеодзвінок" });
     const labels = [...card.querySelectorAll("input, textarea, select")].map(
       (control) => (control as HTMLInputElement).labels?.[0]?.textContent,
     );
-    expect(labels).toEqual(["Дата візиту", "Нотатка"]);
+    expect(labels).toEqual(["Дата дзвінка", "Нотатка"]);
+  });
+
+  it("explains what the notes should say on a video call, and on no other kind", async () => {
+    renderForm(async () => createdView(null));
+    const u = user();
+    const hint =
+      "Що показали під час дзвінка: приміщення, тварин, людей. Якщо дзвінок був телефонний – додайте, яке відео надіслали.";
+    await u.selectOptions(screen.getByLabelText("Тип доказу"), "Відеодзвінок");
+    await u.click(screen.getByRole("button", { name: "+ Додати доказ" }));
+    const notes = within(screen.getByRole("group", { name: "Відеодзвінок" })).getByLabelText(
+      "Нотатка",
+    );
+    const describedBy = notes.getAttribute("aria-describedby") ?? "";
+    expect(
+      describedBy.split(" ").some((id) => document.getElementById(id)?.textContent === hint),
+    ).toBe(true);
+    await u.selectOptions(screen.getByLabelText("Тип доказу"), "Рекомендація");
+    await u.click(screen.getByRole("button", { name: "+ Додати доказ" }));
+    expect(screen.getAllByText(hint)).toHaveLength(1);
   });
 });

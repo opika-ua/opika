@@ -703,7 +703,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.evidence.kind.edrpou_registration": "Реєстрація · ЄДРПОУ",
     "operator.evidence.kind.bank_account_holder": "Власник банківського рахунку",
     "operator.evidence.kind.reference_contact": "Рекомендація",
-    "operator.evidence.kind.site_visit": "Візит на місце",
+    "operator.evidence.kind.site_visit": "Відеодзвінок",
     "operator.evidence.kind.supporting_document": "Документ",
     "operator.evidence.added": "додано {date}",
     "operator.evidence.field.registeredName": "Назва в ЄДР",
@@ -715,7 +715,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.evidence.relationship.local_authority": "Місцева влада",
     "operator.evidence.relationship.partner_organisation": "Партнерська організація",
     "operator.evidence.relationship.other": "Інше",
-    "operator.evidence.field.visitedOn": "Дата візиту",
+    "operator.evidence.field.visitedOn": "Дата дзвінка",
     "operator.evidence.field.notes": "Нотатка",
     "operator.evidence.field.label": "Підпис",
     "operator.evidence.noDocument": "Документ не додано – для цього типу доказу це дозволено.",
@@ -808,7 +808,9 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.evidence.add": "+ Додати доказ",
     "operator.evidence.remove": "Прибрати",
     "operator.evidence.typePicker": "Тип доказу",
-    "operator.evidence.siteVisitDateHint": "Дата візиту не може бути в майбутньому.",
+    "operator.evidence.siteVisitDateHint": "Дата дзвінка не може бути в майбутньому.",
+    "operator.evidence.videoCallNotesHint":
+      "Що показали під час дзвінка: приміщення, тварин, людей. Якщо дзвінок був телефонний – додайте, яке відео надіслали.",
     "operator.create.created": "Притулок створено.",
     "operator.email.sent": "Запрошення надіслано на {email}.",
     "operator.email.sentUnchecked":
@@ -835,7 +837,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
       "Це адреса адміністратора сайту. Для притулку потрібна інша.",
     "operator.create.errors.addressHasARole.invited_elsewhere":
       "На цю адресу вже надіслано чинне запрошення до іншого притулку.",
-    "operator.create.errors.siteVisitInFuture": "Дата візиту не може бути в майбутньому.",
+    "operator.create.errors.siteVisitInFuture": "Дата дзвінка не може бути в майбутньому.",
     "operator.create.errors.unknownCity": "Такого населеного пункту немає у списку.",
     "operator.create.errors.lostAnswer":
       "Відповідь не надійшла. Притулок міг створитися – перевірте список, перш ніж пробувати знову.",
@@ -1034,7 +1036,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.earlyListing.extendNote": "Чому подовжуєте показ",
     "operator.earlyListing.limitReached": "Показ до перевірки вже дозволяли двічі.",
     "operator.earlyListing.evidenceMinimum":
-      "Щоб дозволити показ, потрібен хоча б візит на місце або одна рекомендація.",
+      "Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.",
   };
   /** Pet card PR 3b. His final text (2026-10-27): the builder's draft, approved as written. */
   const PET_CARD_PR3B_LOGO_CHANGED: Record<string, string> = {
@@ -1075,7 +1077,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 
   it("sanity: his file's 220 strings (216 as written, 3 replaced in round 2, 1 in round 3) and 4 later keys", () => {
-    expect(Object.keys(RUI_FINAL).length).toBe(216);
+    expect(Object.keys(RUI_FINAL).length).toBe(217);
     expect(Object.keys(ROUND_3_N7)).toHaveLength(2);
     expect(Object.keys(ROUND_4C_RUI4_F2)).toHaveLength(1);
     expect(Object.keys(PET_CARD_PR3B_LOGO_CHANGED)).toHaveLength(1);

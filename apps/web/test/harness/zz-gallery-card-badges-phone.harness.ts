@@ -59,13 +59,13 @@ test("393 px: the under-review and reserved badges sit on the photo, clear of th
   try {
     const page = await operator.newPage();
     await page.goto(`/kabinet/prytulky/${fixture.shelterId}`);
-    await page.getByLabel("Тип доказу").selectOption({ label: "Візит на місце" });
+    await page.getByLabel("Тип доказу").selectOption({ label: "Відеодзвінок" });
     await page.getByRole("button", { name: "+ Додати доказ" }).click();
-    const visit = page.getByRole("group", { name: "Візит на місце" });
+    const visit = page.getByRole("group", { name: "Відеодзвінок" });
     const yesterday = new Date(Date.now() - 86_400_000).toLocaleDateString("en-CA", {
       timeZone: "Europe/Kyiv",
     });
-    await visit.getByLabel("Дата візиту").fill(yesterday);
+    await visit.getByLabel("Дата дзвінка").fill(yesterday);
     await visit.getByLabel("Нотатка").fill("Оглянув вольєри, журнал прийому ведеться.");
     await page.getByRole("button", { name: "Додати", exact: true }).click();
     await expect(page.getByText("Докази додано.")).toBeVisible();
