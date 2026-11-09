@@ -4,328 +4,35 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cookieName } from "./api/prelaunch-gate";
-
-const SECRET = "test-proxy-secret";
 
 function request(url: string, headers: Record<string, string> = {}): NextRequest {
   return new NextRequest(new URL(url, "http://127.0.0.1:3000"), { headers });
 }
 
 /**
- * `vi.doMock` + `vi.resetModules()` per test, same pattern `seo-flags.test.ts`
- * already established (and the same reason: the module cache must be torn
- * down between tests, or the second test to run would silently import the
- * first test's mock). `./proxy` reads `SITE_IS_PUBLICLY_DISCOVERABLE` as a
- * plain imported binding - not a function closing over another module's own
- * copy of it - so mocking `./seo-flags` and re-importing `./proxy` fresh is
- * enough; no closure gotcha to work around here.
- *
- * `proxy` is async as of Phase 3, block 4 (`apiRateLimiter.check` is a
- * `Promise<boolean>` once a shared Upstash store can back it) - every call
- * below is awaited now. No Upstash env vars are set anywhere in this file,
- * so `apiRateLimiter` resolves to the in-memory implementation
- * (`rate-limit.ts`'s own module-scope branch), the same one these tests
- * always exercised.
+ * `vi.resetModules()` per test so each import gets a fresh `apiRateLimiter`. No Upstash env vars are
+ * set in this file, so the limiter is the in-memory one.
  */
 describe("proxy", () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.stubEnv("PRELAUNCH_GATE_SECRET", SECRET);
   });
 
   afterEach(() => {
-    vi.doUnmock("./seo-flags");
     vi.doUnmock("./api/rate-limit");
     vi.unstubAllEnvs();
   });
 
-  describe("while SITE_IS_PUBLICLY_DISCOVERABLE is false", () => {
-    beforeEach(() => {
-      vi.doMock("./seo-flags", () => ({ SITE_IS_PUBLICLY_DISCOVERABLE: false }));
-    });
-
-    it("denies a request with no gate cookie and no gate query parameter", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(request("https://opika.example/tvaryny"));
-      expect(response.status).toBe(403);
-    });
-
-    it("denies a request whose gate cookie is wrong", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(
-        request("https://opika.example/tvaryny", { cookie: `${cookieName()}=wrong` }),
-      );
-      expect(response.status).toBe(403);
-    });
-
-    it("allows a request whose gate cookie is correct, and does not mint a new one", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(
-        request("https://opika.example/tvaryny", { cookie: `${cookieName()}=${SECRET}` }),
-      );
-      expect(response.status).toBe(200);
-      expect(response.headers.get("set-cookie")).toBeNull();
-    });
-
-    it("allows a request whose gate query parameter is correct, and mints the cookie", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(request(`https://opika.example/tvaryny?gate=${SECRET}`));
-      expect(response.status).toBe(200);
-      expect(response.headers.get("set-cookie")).toContain(`${cookieName()}=${SECRET}`);
-    });
-
-    /**
-     * IN-Q1 (Oleksii, verbatim: "Test both directions: exempt paths pass;
-     * every other /api/* path (incl. /api/authx, /api/registry) still
-     * 403s."): no gate cookie, no gate parameter, as a fresh browser opening
-     * a magic link arrives.
-     */
-    it.each([
-      "/api/auth",
-      "/api/auth/sign-in/magic-link",
-      "/api/auth/magic-link/verify",
-      "/api/kabinet",
-      "/api/kabinet/registry/shelters/list",
-      "/kabinet",
-      "/kabinet/vkhid",
-      "/api/monitoring",
-      "/api/monitoring/test",
-    ])(
-      "lets %s through without the gate (the kabinet's own routes, the error tunnel)",
-      async (path) => {
-        const { proxy } = await import("./proxy");
-        expect((await proxy(request(`https://opika.example${path}`))).status).toBe(200);
-      },
-    );
-
-    it("lets /api/health through without the gate, but not its look-alikes", async () => {
-      const { proxy } = await import("./proxy");
-      expect((await proxy(request("https://opika.example/api/health"))).status).toBe(200);
-      for (const path of ["/api/healthx", "/api/health/deep", "/api/health-old"]) {
-        expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
-      }
-    });
-
-    it.each([
-      "/api/authx",
-      "/api/auth-old",
-      "/api/registry",
-      "/api/kabinetx",
-      "/api/monitoringx",
-      "/api/rpc/animals.byId",
-      "/api",
-      "/kabinetx",
-      "/kabinet-old",
-      "/tvaryny?next=/kabinet",
-      "/prytulkam/kabinet",
-      // Encoded traversal and case (review of 7294f5e, finding 5). URL
-      // parsing resolves `%2e%2e` segments before proxy sees the path, so the
-      // first two reach proxy as /prytulkam and /api/rpc/gallery.list: they
-      // pin the parser's normalisation, not proxy's own handling. Paths are
-      // case-sensitive, so /API/auth is not the exempt /api/auth, and a
-      // change that lowercased the path would turn it red.
-      "/kabinet/%2e%2e/prytulkam",
-      "/api/auth/%2e%2e/rpc/gallery.list",
-      "/API/auth/x",
-      // An encoded slash survives parsing as one segment, so this reaches
-      // proxy undecoded and gated. If proxy ever decoded the path before
-      // matching, it would read "/kabinet/../prytulkam" and exempt it: this
-      // is the case that turns red (review pass 2, finding 2).
-      "/kabinet%2f..%2fprytulkam",
-    ])("still gates %s, which only looks like a kabinet route", async (path) => {
-      const { proxy } = await import("./proxy");
-      expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
-    });
-
-    /**
-     * Review of 7294f5e, finding 6: on an exempt path the gate isn't
-     * evaluated at all, so `?gate=` mints no cookie there. Harmless: the
-     * kabinet's routes never need it, and the cookie is still minted on any
-     * gated page that carries the parameter.
-     */
-    it("mints no gate cookie on an exempt path, even with the gate parameter", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(request(`https://opika.example/kabinet/vkhid?gate=${SECRET}`));
-      expect(response.status).toBe(200);
-      expect(response.headers.get("set-cookie")).toBeNull();
-    });
-
-    it("denies a request to a route outside /tvaryny just the same - the gate covers the whole site", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(request("https://opika.example/prytulkam"));
-      expect(response.status).toBe(403);
-    });
-
-    it("lets Vercel's cron reach /api/cron/auth-cleanup without the gate cookie (KH-T5)", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(request("https://opika.example/api/cron/auth-cleanup"));
-      expect(response.status).toBe(200);
-    });
-
-    /**
-     * Oleksii, 2026-10-14 (KH-T5): "only /api/cron/auth-cleanup. Test that
-     * other /api/cron/* paths stay gated." Siblings, prefix extensions, child
-     * paths, a trailing slash, case and percent-encoded spellings: none of
-     * them is the exact pathname, so all stay behind the gate. (`%61` is "a",
-     * `%2D` is "-", `%2F` is "/"; the URL parser keeps them encoded in
-     * `pathname`, so they can only ever miss the exemption, never widen it.)
-     */
-    it.each([
-      "/api/cron",
-      "/api/cron/",
-      "/api/cron/other",
-      "/api/cron/auth-cleanupx",
-      "/api/cron/auth-cleanup-x",
-      "/api/cron/auth-cleanup.json",
-      "/api/cron/auth-cleanup/x",
-      "/api/cron/auth-cleanup/extra",
-      "/api/cron/auth-cleanup/",
-      "/api/cron//auth-cleanup",
-      "/api/cron/other/auth-cleanup",
-      "/API/CRON/AUTH-CLEANUP",
-      "/api/cron/Auth-Cleanup",
-      "/api/cron/%61uth-cleanup",
-      "/api/cron/auth%2Dcleanup",
-      "/api/cron/auth-cleanup%2F",
-      "/api/cron/auth-cleanup%2Fextra",
-      "/api/cron%2Fauth-cleanup",
-    ])("still gates %s: the exemption is that one exact path", async (path) => {
-      const { proxy } = await import("./proxy");
-      expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
-    });
-
-    it("exempts the path whatever its query string, since the route is the same", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(request("https://opika.example/api/cron/auth-cleanup?x=1"));
-      expect(response.status).toBe(200);
-    });
-
-    it("denies the RPC endpoint just the same as a page route", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(request("https://opika.example/api/rpc/gallery/list"));
-      expect(response.status).toBe(403);
-    });
-
-    /**
-     * S8: `animals.cardsByIds` is built to send no cookie at all
-     * (`credentials: "omit"`, DR1-Q2), so it can never carry the gate's own
-     * cookie either. Without this exact-path exemption it would 403 on every
-     * call before launch - found running the saved-page harness for real,
-     * not inferred from the gate's code. Oleksii's own answer (S8-D1, not a
-     * builder default), recorded in `docs/decisions-inbox.md` (folded from
-     * `feat-dr1-s8-saved-page.md` at #186's merge).
-     */
-    it("exempts animals.cardsByIds, the one RPC path built to carry no cookie (S8)", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(request("https://opika.example/api/rpc/animals/cardsByIds"));
-      expect(response.status).toBe(200);
-    });
-
-    it("mints no gate cookie on that exempt RPC path either, even with the gate parameter", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(
-        request(`https://opika.example/api/rpc/animals/cardsByIds?gate=${SECRET}`),
-      );
-      expect(response.status).toBe(200);
-      expect(response.headers.get("set-cookie")).toBeNull();
-    });
-
-    // The per-animal image is gated NOW on purpose (owner, 2026-11-02). This case has to change at the
-    // discoverability flip: docs/launch-sequence.md step 14, "exempt per-animal OG images".
-    it("exempts the site-wide link-preview image and nothing next to it (BR-7)", async () => {
-      const { proxy } = await import("./proxy");
-      expect((await proxy(request("https://opika.example/opengraph-image"))).status).toBe(200);
-      for (const path of [
-        "/opengraph-image/",
-        "/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc/opengraph-image",
-      ]) {
-        expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
-      }
-    });
-
-    it.each([
-      "/api/rpc/animals",
-      "/api/rpc/animals/",
-      "/api/rpc/animals/cardsbyids",
-      "/api/rpc/animals/cardsByIdsx",
-      "/api/rpc/animals/cardsByIds/",
-      "/api/rpc/animals/cardsByIds/extra",
-      "/api/rpc/animal/cardsByIds",
-      "/api/rpc/gallery/cardsByIds",
-    ])("still gates %s: the exemption is that one exact path", async (path) => {
-      const { proxy } = await import("./proxy");
-      expect((await proxy(request(`https://opika.example${path}`))).status).toBe(403);
-    });
-
-    it.each([
-      "/manifest.webmanifest",
-      "/icons/icon-192.png",
-      "/icons/icon-512.png",
-      "/icons/icon-maskable-512.png",
-      "/apple-icon.png",
-    ])("lets the install assets through the gate without a cookie: %s", async (path) => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(request(`https://opika.example${path}`));
-      expect(response.status).toBe(200);
-      expect(response.headers.get("set-cookie")).toBeNull();
-    });
-
-    it.each(["POST", "PUT", "DELETE"])("still refuses %s on an install asset", async (method) => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(
-        new NextRequest("https://opika.example/manifest.webmanifest", { method }),
-      );
-      expect(response.status).toBe(403);
-    });
-
-    it("still gates a sibling of the install assets", async () => {
-      const { proxy } = await import("./proxy");
-      expect((await proxy(request("https://opika.example/icons/other.png"))).status).toBe(403);
-    });
-
-    it("carries no user-agent carve-out: a Telegram-bot-shaped user agent is denied identically", async () => {
-      const { proxy } = await import("./proxy");
-      const response = await proxy(
-        request("https://opika.example/tvaryny/some-id", {
-          "user-agent": "TelegramBot (like TwitterBot)",
-        }),
-      );
-      expect(response.status).toBe(403);
-    });
-  });
-
-  describe("while SITE_IS_PUBLICLY_DISCOVERABLE is true", () => {
-    beforeEach(() => {
-      vi.doMock("./seo-flags", () => ({ SITE_IS_PUBLICLY_DISCOVERABLE: true }));
-    });
-
-    it("allows a request with no gate cookie and no gate query parameter at all", async () => {
+  describe("a launched site", () => {
+    it("serves a request with no cookie and no query parameter", async () => {
       const { proxy } = await import("./proxy");
       const response = await proxy(request("https://opika.example/tvaryny"));
       expect(response.status).toBe(200);
     });
 
-    /**
-     * `proxy` is async now - an async function never throws synchronously
-     * even if its body does (the throw surfaces as a rejected Promise
-     * instead), so `expect(() => proxy(...)).not.toThrow()` would pass
-     * trivially regardless of whether the call actually succeeds. Asserting
-     * against the resolved Promise is what keeps this test capable of
-     * failing - would have let a reintroduced read of
-     * `PRELAUNCH_GATE_SECRET` on this path go undetected.
-     */
-    it("never reads PRELAUNCH_GATE_SECRET at all - an unset secret does not break a launched site", async () => {
-      vi.unstubAllEnvs();
-      const { proxy } = await import("./proxy");
-      await expect(proxy(request("https://opika.example/tvaryny"))).resolves.toBeDefined();
-    });
-
-    // docs/launch-sequence.md step 14.1 and 14.4: flipping the flag alone removes the gate, and with it the
-    // per-animal link-preview image is reachable without a cookie. The image itself is noindex and short-cached
-    // for revocable shelters (seo/og-image.test.tsx); early-listed and paused pages stay noindex
-    // (post-flip-noindex.test.ts). The pre-flip counterpart is the "exempts the site-wide link-preview" case.
-    it("serves the per-animal link-preview image and every page without a gate cookie (step 14.4)", async () => {
+    // Step 14.4: the per-animal link-preview image is reachable without a cookie; its noindex and short
+    // cache for revocable shelters are pinned in seo/og-image.test.tsx and post-flip-noindex.test.ts.
+    it("serves the per-animal link-preview image and every page without a cookie (step 14.4)", async () => {
       const { proxy } = await import("./proxy");
       for (const path of [
         "/opengraph-image",
@@ -351,11 +58,7 @@ describe("proxy", () => {
     });
   });
 
-  describe("the discovery-page rate limiter, independent of the gate", () => {
-    beforeEach(() => {
-      vi.doMock("./seo-flags", () => ({ SITE_IS_PUBLICLY_DISCOVERABLE: true }));
-    });
-
+  describe("the discovery-page rate limiter", () => {
     it("429s a request past the per-IP limit on /tvaryny", async () => {
       const { proxy } = await import("./proxy");
       let last = await proxy(

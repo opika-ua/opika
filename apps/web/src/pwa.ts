@@ -11,14 +11,4 @@ export const PWA_ICONS = [
   { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
 ] as const;
 
-/** The apple-touch icon is the `app/apple-icon.png` file convention, served here. */
-export const APPLE_TOUCH_ICON_PATH = "/apple-icon.png";
-
-/** Every public path the manifest and the install prompt fetch without the gate cookie. */
-export const PWA_PUBLIC_PATHS: readonly string[] = [
-  "/manifest.webmanifest",
-  ...PWA_ICONS.map((icon) => icon.src),
-  APPLE_TOUCH_ICON_PATH,
-];
-
 export const PWA_NAMES = { name: titled(SITE_TITLE), shortName: WORDMARK } as const;

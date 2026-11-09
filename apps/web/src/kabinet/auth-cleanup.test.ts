@@ -296,12 +296,10 @@ describe("the auth clean-up is scheduled and reachable", () => {
     expect(authCleanupCrons).toHaveLength(1);
   });
 
-  it("the path has a GET route and skips the pre-launch gate", async () => {
+  it("the path has a GET route", async () => {
     expect(existsSync(join(WEB, "src/app/api/cron/auth-cleanup/route.ts"))).toBe(true);
     const { GET } = await import("../app/api/cron/auth-cleanup/route");
     expect(typeof GET).toBe("function");
-    const { isCronPath } = await import("../proxy");
-    expect(isCronPath(AUTH_CLEANUP_PATH)).toBe(true);
   });
 });
 

@@ -1,44 +1,25 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { clientIp } from "./api/client-ip";
-import { evaluatePrelaunchGate, PRELAUNCH_GATE_QUERY_PARAM } from "./api/prelaunch-gate";
 import { apiRateLimiter } from "./api/rate-limit";
 import { ipRateLimitKey } from "./api/rate-limit-key";
 import { retryAfterSecondsOf } from "./api/retry-after";
 import { kabinetLimiters } from "./kabinet/limiters";
 import { isChargedKabinetPageLoad, kabinetPageLoadAllowed } from "./kabinet/page-limit";
 import { isTokenPage, TOKEN_PAGE_HEADERS } from "./kabinet/token-pages";
-import { PWA_PUBLIC_PATHS } from "./pwa";
-import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
 
 /**
- * Two independent responsibilities, both here because `proxy.ts` is the one
- * place in this app that sees a request before any page renders or any
+ * The one place in this app that sees a request before any page renders or any
  * `/api/rpc` handler runs.
  *
- * **The pre-launch gate**, added 2026-09-13 - a bot shutter, NOT a security
- * boundary. While `SITE_IS_PUBLICLY_DISCOVERABLE` is false (`./seo-flags.ts`),
- * every request 403s unless it carries the shared secret below, except the
- * kabinet's own routes (`isGateExemptPath`, IN-Q1), which have their own
- * authentication and must work from a magic link in a fresh browser, and
- * Vercel's cron calls (`isCronPath`, KH-T5), which carry `CRON_SECRET`. Full
- * reasoning for what this does and does not protect, why there's no
- * user-agent carve-out, and why the `?gate=` secret appearing in logs and
- * browser history is accepted rather than fixed: `./api/prelaunch-gate.ts`'s
- * own top comment - the authoritative source, not duplicated here. Incident
- * writeup: `docs/decisions-pending-review.md`. The gate comes down in the
- * same change that flips `SITE_IS_PUBLICLY_DISCOVERABLE` - see that flag's
- * own comment and `docs/build-plan.md`'s launch-gate section.
- *
- * **Per-IP rate limiting**, for pages that render through the in-process
+ * Per-IP rate limiting, for pages that render through the in-process
  * router client (`api/server-client.ts`), not the HTTP `/api/rpc` route.
  * `docs/gallery-contract-decisions.md` §5 decided that Server Components
  * call the router in-process - no HTTP request, no code path through
  * `app/api/rpc/[...rpc]/route.ts`, and therefore none of the rate limiting
  * that route applies. A page URL is a more natural scrape target than the
  * raw RPC endpoint the HTTP path still protects, so this closes that gap
- * for the pages it covers (`isDiscoveryPagePath` below) - narrower than the
- * gate above, which covers the whole site. The `/kabinet` pages have the
+ * for the pages it covers (`isDiscoveryPagePath` below). The `/kabinet` pages have the
  * same gap and are limited here too, on the kabinet's own limiters
  * (`kabinet/page-limit.ts`, KH-Q8).
  *
@@ -62,28 +43,6 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./seo-flags";
  * so neither half of the story is missed reading this file in isolation.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  if (
-    !SITE_IS_PUBLICLY_DISCOVERABLE &&
-    !isGateExemptPath(request.nextUrl.pathname) &&
-    !isCronPath(request.nextUrl.pathname) &&
-    !isGateExemptExactPath(request.nextUrl.pathname) &&
-    !isInstallAssetRequest(request.method, request.nextUrl.pathname) &&
-    !isExemptPageAssetRequest(request.method, request.nextUrl.pathname)
-  ) {
-    const decision = evaluatePrelaunchGate(
-      request.headers.get("cookie"),
-      request.nextUrl.searchParams.get(PRELAUNCH_GATE_QUERY_PARAM),
-    );
-    if (decision.kind === "denied") {
-      return new NextResponse("Not Found", { status: 403 });
-    }
-    if (decision.kind === "allowed_mint_cookie") {
-      const response = await respectingRateLimit(request);
-      response.headers.append("Set-Cookie", decision.setCookieHeader);
-      return response;
-    }
-  }
-
   return respectingRateLimit(request);
 }
 
@@ -133,98 +92,6 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
 }
 
 /**
- * The kabinet's own routes skip the pre-launch gate (IN-Q1, Oleksii: "exempt
- * exactly /api/auth/*, /api/kabinet/*, /kabinet/*"). A magic link opened in a
- * fresh browser carries no gate cookie, so without this a shelter could
- * never complete sign-in. These routes have their own authentication; the
- * gate is a bot shutter, not that. Matched by whole path segment, so
- * `/api/authx`, `/api/kabinetx` and `/kabinetx` stay gated like everything
- * else.
- */
-// `/api/monitoring` (H5) is the browser's error-report tunnel: a visitor without the gate cookie must be
-// able to report a crash, and it holds no listing data (its own limiter, DSN check and size cap).
-const GATE_EXEMPT_PREFIXES = ["/api/auth", "/api/kabinet", "/kabinet", "/api/monitoring"] as const;
-
-export function isGateExemptPath(pathname: string): boolean {
-  return GATE_EXEMPT_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-}
-
-/**
- * Vercel's cron calls skip the pre-launch gate (inbox KH-T5): Vercel sends no
- * gate cookie, so a gated cron path would answer 403 on every run and never
- * delete anything, and the /pro promise that expired sign-in records go
- * within a day (KH-Q12) would be false from the first day. Each cron route
- * authenticates itself with `CRON_SECRET` and fails closed without it
- * (`kabinet/auth-cleanup.ts`); the gate is a bot shutter, not that. Exact
- * paths, not a prefix, so a route added under `/api/cron/` later is gated
- * until someone lists it here on purpose.
- */
-const CRON_PATHS: readonly string[] = ["/api/cron/auth-cleanup", "/api/cron/r2-cleanup"];
-
-export function isCronPath(pathname: string): boolean {
-  return CRON_PATHS.includes(pathname);
-}
-
-/**
- * S8's saved-page batch read (`animals.cardsByIds`) is built to carry no
- * cookie at all - `credentials: "omit"` (DR1-Q2), so the request can never
- * be tied to an adopter's session or correlated across visits, and can
- * never satisfy this gate's own cookie check either. Without this
- * exemption, the endpoint 403s on every call before launch, making the
- * feature permanently non-functional rather than merely logged-out-looking
- * - found by running the saved-page harness against a real server, not
- * inferred.
- *
- * **S8-D1, settled.** An earlier version of this comment claimed the
- * exemption "leaks nothing… the same shape and visibility `/tvaryny`
- * already serves through the gate" — a reviewer correctly called that
- * false (`/tvaryny` still requires the gate cookie; this path, once
- * exempted, answers *anyone* holding an animal id and no cookie at all).
- * Oleksii's own answer, 2026-10-23 (option (b), exempt it): the gate is a
- * bot shutter, not a security boundary - his own 2026-09-13 note, quoted
- * in full in `prelaunch-gate.ts`'s own top comment. The ids this path is
- * ever called with come only from gated pages (the gallery, the animal
- * page - both require the gate cookie to reach at all), so exempting this
- * one batch-read procedure adds no way to enumerate ids that gating it
- * would otherwise have closed off. Enforced and tested, per his answer:
- * POST only (`route.ts`, `CARDS_BY_IDS_PATH`); at most 200 valid animal
- * ids (`MAX_SAVED_CARDS_PER_REQUEST`); the same per-IP rate limit as every
- * other procedure; the public `ShelterSummaryView` shape only, the same
- * shelter projection `/tvaryny/{id}` itself returns; `Cache-Control:
- * no-store`; nothing logged about which ids were asked for. Full record:
- * `docs/decisions-inbox.md` (S8-D1, folded from `feat-dr1-s8-saved-page.md` at #186's merge).
- */
-// `/api/health` is the uptime monitor's probe: no cookie, no data beyond the build SHA, own limiter.
-// BR-7: the site-wide link-preview image is a fixed wordmark card with no listing data; the per-animal
-// image stays behind the gate with its page.
-const GATE_EXEMPT_EXACT_PATHS: readonly string[] = [
-  "/api/rpc/animals/cardsByIds",
-  "/api/health",
-  "/opengraph-image",
-];
-
-// The manifest and install icons are fetched by the browser without the gate cookie and carry
-// no listing data. Read-only methods only, so anything else on those paths stays refused.
-export function isInstallAssetRequest(method: string, pathname: string): boolean {
-  return (method === "GET" || method === "HEAD") && PWA_PUBLIC_PATHS.includes(pathname);
-}
-
-// Static files the gate-exempt pages (kabinet, sign-in) render: the header logo and the favicon. Exact
-// file paths, never a directory prefix, so no other file under `public/` and no page is reachable
-// through them; `proxy-exempt-assets.test.ts` derives the list from the exempt pages' own source.
-export const GATE_EXEMPT_PAGE_ASSET_PATHS: readonly string[] = ["/brand-v3/logo.svg", "/icon.svg"];
-
-export function isExemptPageAssetRequest(method: string, pathname: string): boolean {
-  return (method === "GET" || method === "HEAD") && GATE_EXEMPT_PAGE_ASSET_PATHS.includes(pathname);
-}
-
-export function isGateExemptExactPath(pathname: string): boolean {
-  return GATE_EXEMPT_EXACT_PATHS.includes(pathname);
-}
-
-/**
  * RL-F1: the per-IP refusal on `/tvaryny` pages (and, since S6, the shelter page under
  * `/prytulky`). Oleksii, 2026-10-20, verbatim: "gives the rate-limited case its own state on both
  * the full page and the drawer, using the existing «Забагато запитів. Спробуйте ще раз пізніше.».
@@ -264,18 +131,10 @@ function isDiscoveryPagePath(pathname: string): boolean {
 }
 
 /**
- * Every request this file's matcher runs against, except: Next's hashed static assets
- * (`_next/static`, `_next/image`), `favicon.ico`, and `/api/kabinet` and `/api/auth`. The last two
- * are out because a matched non-GET request has its whole body buffered before the route runs,
- * which defeats `/api/kabinet`'s 16 KB cap; both are gate-exempt by path and take no other proxy
- * effect (the page charges and token-page headers are for `/kabinet/*` pages). Every other path,
- * `/api/rpc/*`, `/api/monitoring/*`, `/api/cron/*` and every page, is matched, and what the proxy
- * exempts inside `proxy` (the kabinet pages, the cron paths) it still buffers; that buffering is
+ * Every request except Next's hashed static assets, `favicon.ico`, and `/api/kabinet` and
+ * `/api/auth`. Those two are out because a matched non-GET request has its whole body buffered
+ * before the route runs, which defeats `/api/kabinet`'s 16 KB cap; buffering for the rest is
  * bounded by `PROXY_CLIENT_MAX_BODY_BYTES` in `next.config.ts`.
- *
- * Not every response passes through here: `redirects()` in `next.config.ts` (`/`, `/discovery` and `/tvaryny/gortaty`)
- * run before this file, and stay 308s regardless of the gate. They serve no content, only a
- * redirect to a route the gate does cover.
  */
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|api/kabinet(?:/|$)|api/auth(?:/|$)).*)"],

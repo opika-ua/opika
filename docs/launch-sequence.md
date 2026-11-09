@@ -49,7 +49,6 @@ only. "Both" means Production and Preview; a separate value on each where noted.
 |---|---|---|---|
 | `DATABASE_URL` (pooled) | Production | boot | `api/env.ts:148` |
 | `CURSOR_HMAC_SECRET` | both | boot, 32+ | `api/env.ts:149` |
-| `PRELAUNCH_GATE_SECRET` | both, same value | boot, 32+, until step 14 (the step 14 commit drops the requirement; delete it from Vercel after that deploy) | `api/prelaunch-gate.ts` only, unreachable after step 14 |
 | `CRON_SECRET` | Production | build and boot, 32+ | `api/build-env.ts:81` |
 | `RATE_LIMIT_KEY_SECRET` | both, separate values | build and boot, 32+ | `api/build-env.ts:152` |
 | `LOCATION_HMAC_SECRET` (the onboarding script's value) | Production | build and boot, 32+ | `api/build-env.ts:106` |
@@ -365,15 +364,13 @@ nothing has served it yet, nothing is lost by removing it).
 ### 13. Flip `REGISTRY_HAS_NO_REAL_SHELTERS`
 
 A one-line code change: `apps/web/src/seo-flags.ts`, `REGISTRY_HAS_NO_REAL_SHELTERS = true`
-→ `false` (prepared as PR #444, branch `launch/step-13-registry-flag`; the owner enqueues it). Commit, push, let the deploy land. This is independent of step 14 below - real
+→ `false` (shipped as PR #444). Commit, push, let the deploy land. This is independent of step 14 below - real
 shelters existing is not the same fact as the site being publicly discoverable
 (`docs/standing-constraints.md`'s "two facts that happen to be true at the same time are not
 one fact"; `seo-flags.ts`'s own doc comment on this constant has the full reasoning).
 
 **Verification:** `seo-flags.test.ts`'s own assertions pass in CI before this merges. After
-deploy, the site is still gated (step 14 removes the gate): open
-`/tvaryny?gate=<PRELAUNCH_GATE_SECRET>` (the value from your own notes, never pasted into
-chat or a file). The gallery's demo banner is gone. There is no card "перевірений" suffix any more
+deploy (at the time still gated; step 14 below removed the gate), the gallery's demo banner is gone. There is no card "перевірений" suffix any more
 (`verificationSuffix` was removed 2026-11-03); surfaces gate on this flag inline.
 
 **Rollback:** flip it back to `true`, commit, redeploy. Reversible at any point before step
@@ -381,7 +378,7 @@ chat or a file). The gallery's demo banner is gone. There is no card "перев
 
 ### 14. Remove the gate, flip `SITE_IS_PUBLICLY_DISCOVERABLE`, land R4-2 - one commit
 
-Prepared on branch `launch/step-14-discoverable` (built on step 13's branch, so the boot invariant holds; no PR yet - open it after step 13 merges). Four changes, one commit, because `assertAnalyticsCopyMatchesGateState` (`seo-flags.ts`)
+Shipped as PR #448 (merged as 80c4cf3, deployed to Production); the owner deleted `PRELAUNCH_GATE_SECRET` from Vercel after the deploy. The dead gate code was removed in a follow-up cleanup. Four changes, one commit, because `assertAnalyticsCopyMatchesGateState` (`seo-flags.ts`)
 is a test-time tripwire that fails CI if they land out of step with each other (it does not
 throw at boot - `instrumentation.ts`'s `assertDemoDiscoverabilityInvariant` is the one
 boot-time check, and it covers the other pair of constants, step 13 above):
@@ -446,11 +443,13 @@ no `<meta name="robots" content="noindex...">`. `/pro`'s analytics paragraph inc
   on); only the meta tag does it, since the `X-Robots-Tag` header is gone. `/sitemap.xml` lists
   verified shelters' animals only.
 
-**Rollback:** revert the commit, redeploy (re-set `PRELAUNCH_GATE_SECRET` in Vercel first if it
-was already deleted, or the reverted build refuses to boot). All four changes are plain
-code/copy; nothing here is a data migration.
+**Rollback:** none for the gate. The gate code and `PRELAUNCH_GATE_SECRET` are gone, so reverting
+the commit no longer restores it. To take the site back out of search, set
+`SITE_IS_PUBLICLY_DISCOVERABLE` to `false` (noindex returns; nothing 403s).
 
 ### 15. Allow indexing
+
+Deferred by the owner: do this once the gallery has about 10 real animals, not right after the flip.
 
 Nothing left to *do* - step 14 already made the site crawlable and indexable. This step is
 confirming it, a day or two after step 14's deploy:
@@ -549,8 +548,8 @@ onboarding checklist) is this document. The two-constants distinction it was sup
 record (`REGISTRY_HAS_NO_REAL_SHELTERS` vs `SITE_IS_PUBLICLY_DISCOVERABLE`, steps 13-14 above)
 is unchanged by the move to a full reset - that window (a real shelter live, not yet
 publicly discoverable) still exists and is still deliberate, for the same reason it always
-was: a shelter's first real listing needs to be checkable (the `?gate=` preview link, step
-5's rehearsal having already proven the mechanism works) before the whole site is meant to be
+was: a shelter's first real listing needed to be checkable (the `?gate=` preview link, since
+removed with the gate) before the whole site is meant to be
 found.
 
 `docs/launch-gate.md`'s rows for D-7, the wipe-and-flip script/runbook, and the

@@ -18,29 +18,22 @@
 export const COPY_PENDING = "[COPY PENDING]";
 
 /**
- * R4-2, Oleksii's own Ukrainian - held here rather than appended to
- * `uk.about.analytics` yet, because it can't go live while the pre-launch
- * gate still gives a real visitor a second, undisclosed cookie
- * (`docs/observations.md`'s "/pro sentence" section has the full gating
- * decision). The text has moved since his original 2026-10-06 draft
+ * R4-2, Oleksii's own Ukrainian, now appended to `uk.about.analytics` (the pre-launch gate and
+ * its second cookie are gone). The text has moved since his original 2026-10-06 draft
  * (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`): PR #186 (S8)
  * appended the saved-list sentence; the global rename in copy audit #19
  * (2026-10-22, PR #183) made the right-swipe word «Написати» everywhere at
  * the time - «Запитати» no longer named anything in the product. Pet card
  * PR 5 (2026-10-27) renamed this constant (dropping the `PENDING_` prefix -
- * it was never about *his* approval being pending, only about the gate
- * above; the text itself has been his approved words since 2026-10-06) and
+ * it was never about *his* approval being pending, only about the gate;
+ * the text itself has been his approved words since 2026-10-06) and
  * swapped «Написати» for «Дати сімʼю», the pet card's own reveal-trigger
- * label. **This constant, not
- * the 2026-10-06 file, is what lands** when R4-2 actually ships. Still held:
- * the pre-launch cookie-disclosure gate this sentence waits on is unrelated
- * to PR 5 and remains unresolved. `apps/web/src/seo-flags.ts`'s
+ * label. **This constant, not the 2026-10-06 file, is the text.**
+ * `apps/web/src/seo-flags.ts`'s
  * `assertAnalyticsCopyMatchesGateState` checks for this exact string, not a
  * loose substring, so that a reworded or partial version of the sentence
- * still trips the tripwire. When this lands, append this constant to
- * `uk.about.analytics` directly - `+ " " + R4_2_ANALYTICS_SENTENCE` or
- * equivalent - rather than retyping the text, so the landed sentence and
- * this constant can never drift apart.
+ * still trips the tripwire. `uk.about.analytics` appends this constant
+ * rather than retyping it, so the two can never drift apart.
  *
  * 2026-11-03 (owner): the swipe deck is retired, so the cookie now follows only «Дати сімʼю».
  */
@@ -1100,8 +1093,7 @@ export const ukPublic = {
       "Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто – адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють – їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин – лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку.\n\n" +
       "Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.\n\n" +
       // DR1-Q4, his sentence, verbatim: landed with S8 (the saved page). Distinct from the
-      // held R4-2 amendment above - that one is gated off /pro until the pre-launch cookie
-      // conflict clears; this standalone sentence has no such gate and ships now.
+      // R4-2 amendment above, which is appended separately.
       "Список збережених тварин зберігається лише в цьому браузері. Щоб показати його актуальним, сайт запитує дані про цих тварин без кукі й не зберігає, яких саме.\n\n" +
       // H5, his sentence, verbatim (2026-11-01): names Sentry; what the code sends is pinned by
       // apps/web/src/observability tests.
