@@ -6,7 +6,7 @@
  * spend another spec's per-IP budget.
  */
 import { harnessPort } from "@opika/db/test";
-import { expect, type Page, test } from "@playwright/test";
+import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
 
 const ORIGIN = `http://127.0.0.1:${harnessPort()}`;
 
@@ -61,6 +61,44 @@ test.describe("security headers (audit F5)", () => {
     const publicFile = await request.get("/brand-v3/logo.svg", { headers: IP_HEADERS });
     expect(publicFile.status()).toBe(200);
     expectEnforced(publicFile.headers(), "a file under /public");
+  });
+
+  /**
+   * Spends one budget on a unique spoofed IP (nothing in front of the harness server rewrites
+   * it) and returns the first 429. The budgets are the limiters' own, in `api/rate-limit.ts`
+   * and `kabinet/rate-limits.ts`.
+   */
+  async function firstRefusal(
+    request: APIRequestContext,
+    path: string,
+    budget: number,
+    ip: string,
+  ) {
+    for (let i = 0; i < budget + 1; i++) {
+      const response = await request.get(path, {
+        headers: { "x-forwarded-for": ip },
+        maxRedirects: 0,
+      });
+      if (response.status() === 429) {
+        expect(i, `${path} refused before its budget of ${budget}`).toBe(budget);
+        return response;
+      }
+    }
+    throw new Error(`${path} never answered 429 within ${budget + 1} requests`);
+  }
+
+  // The proxy answers these itself (the F5 headers come from next.config, not from page code),
+  // so a response it builds must still carry them; no other check reaches that path.
+  test("the proxy's own 429 on a /kabinet page carries them", async ({ request }) => {
+    const refused = await firstRefusal(request, "/kabinet", 300, "198.51.100.61");
+    expect(await refused.text()).toBe("Too Many Requests");
+    expectEnforced(refused.headers(), "the proxy's /kabinet 429");
+  });
+
+  test("the proxy's rate-limit rewrite on a gallery page carries them", async ({ request }) => {
+    const refused = await firstRefusal(request, "/tvaryny", 100, "198.51.100.62");
+    expect(refused.headers()["retry-after"]).toBeDefined();
+    expectEnforced(refused.headers(), "the proxy's /tvaryny 429");
   });
 
   /** Every report-only violation the page raises, collected as the browser fires them. */
