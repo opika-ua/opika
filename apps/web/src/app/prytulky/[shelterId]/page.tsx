@@ -15,7 +15,7 @@ import {
 import { parseShelterPageQuery } from "../../../features/shelters/shelter-url";
 import { JsonLd } from "../../../seo/json-ld";
 import { shelterBreadcrumbs } from "../../../seo/json-ld-builders";
-import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
+import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
 import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
 
 /** Live listing data, like `/tvaryny`: prerendering would bake in a stale snapshot. */
@@ -107,7 +107,11 @@ export async function generateMetadata({
   searchParams: Promise<SearchParams>;
 }): Promise<Metadata> {
   const { shelterId } = await params;
-  const load = await loadShelterPageOnce(shelterId, await searchParams);
+  return shelterMetadataOf(await loadShelterPageOnce(shelterId, await searchParams));
+}
+
+/** Exported so a test can read the metadata of each load result without a database. */
+export function shelterMetadataOf(load: ShelterPageLoad): Metadata {
   if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
   if (load.kind !== "shelter") return {};
   const { shelter, cityName } = load.view;
@@ -124,5 +128,11 @@ export async function generateMetadata({
     // lowercase form every other link on the site actually uses.
     alternates: { canonical: `/prytulky/${shelter.id}` },
     openGraph: { type: "website", description },
+    // A paused page is reachable by link only: after the discoverability flip it must not be indexed.
+    // Paused, or still under review: reachable by link, never indexed (owner, 2026-11-04).
+    ...((shelter.availability.kind === "paused" ||
+      shelter.verification === "listed_before_verification") && {
+      robots: { index: false, follow: SITE_IS_PUBLICLY_DISCOVERABLE },
+    }),
   };
 }

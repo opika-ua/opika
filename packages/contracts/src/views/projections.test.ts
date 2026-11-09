@@ -62,6 +62,7 @@ const derived = {
   ageBucket: "young",
   freshness: freshnessOf(AT, AT, DEFAULT_FRESHNESS_POLICY),
   listingKind: "published" as const,
+  availability: { kind: "open" as const },
 };
 
 /**
@@ -105,6 +106,7 @@ describe("animal views expose exactly their intended fields", () => {
 
     expect(Object.keys(parsed).sort()).toEqual([
       "ageBucket",
+      "availability",
       "coatLength",
       "colour",
       "description",
@@ -296,6 +298,7 @@ describe("public location is the city only (EM-Q10)", () => {
       ...fuzzedShelterSummary,
       description: { uk: "Опис", en: null },
       donation: null,
+      availability: { kind: "open" },
       createdAt: AT,
     });
     expect(shelter.publicLocation).toEqual({ cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
@@ -305,6 +308,7 @@ describe("public location is the city only (EM-Q10)", () => {
 describe("shelter views expose exactly their intended fields", () => {
   it("PublicShelterView", () => {
     expect(Object.keys(PublicShelterViewSchema.shape).sort()).toEqual([
+      "availability",
       "createdAt",
       "description",
       "displayName",

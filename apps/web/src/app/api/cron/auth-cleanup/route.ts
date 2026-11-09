@@ -11,6 +11,7 @@ export async function GET(request: Request): Promise<Response> {
     cronSecret: process.env.CRON_SECRET,
     db: kabinetDb,
     now: new Date(),
+    healthcheckUrl: process.env.HEALTHCHECK_URL_AUTH_CLEANUP,
     log: (line) => console.info(line),
   });
 }

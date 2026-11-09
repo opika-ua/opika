@@ -29,21 +29,27 @@ import {
  * handler must accept only keys it issued itself, in the private evidence
  * bucket (H2-6), never an arbitrary string.
  */
+/** Upper bounds on operator-typed evidence text, so one item cannot carry a megabyte into the record. */
+export const EVIDENCE_NAME_MAX_LENGTH = 300;
+export const EVIDENCE_NOTES_MAX_LENGTH = 2000;
+export const EVIDENCE_LABEL_MAX_LENGTH = 200;
+export const EVIDENCE_DOCUMENT_KEY_MAX_LENGTH = 200;
+
 export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("edrpou_registration"),
     edrpou: EdrpouSchema,
-    registeredName: z.string().min(1),
-    documentKey: z.string().min(1).nullable().default(null),
+    registeredName: z.string().min(1).max(EVIDENCE_NAME_MAX_LENGTH),
+    documentKey: z.string().min(1).max(EVIDENCE_DOCUMENT_KEY_MAX_LENGTH).nullable().default(null),
   }),
   z.object({
     kind: z.literal("bank_account_holder"),
-    holderName: z.string().min(1),
-    documentKey: z.string().min(1).nullable().default(null),
+    holderName: z.string().min(1).max(EVIDENCE_NAME_MAX_LENGTH),
+    documentKey: z.string().min(1).max(EVIDENCE_DOCUMENT_KEY_MAX_LENGTH).nullable().default(null),
   }),
   z.object({
     kind: z.literal("reference_contact"),
-    name: z.string().min(1),
+    name: z.string().min(1).max(EVIDENCE_NAME_MAX_LENGTH),
     channel: ContactChannelInputSchema,
     relationship: ReferenceRelationshipSchema,
   }),
@@ -56,12 +62,12 @@ export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("site_visit"),
     visitedOn: z.iso.date(),
-    notes: z.string().min(1),
+    notes: z.string().min(1).max(EVIDENCE_NOTES_MAX_LENGTH),
   }),
   z.object({
     kind: z.literal("supporting_document"),
-    labelUk: z.string().min(1),
-    documentKey: z.string().min(1),
+    labelUk: z.string().min(1).max(EVIDENCE_LABEL_MAX_LENGTH),
+    documentKey: z.string().min(1).max(EVIDENCE_DOCUMENT_KEY_MAX_LENGTH),
   }),
 ]);
 export type EvidenceItemInput = z.infer<typeof EvidenceItemInputSchema>;

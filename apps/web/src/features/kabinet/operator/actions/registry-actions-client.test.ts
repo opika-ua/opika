@@ -14,7 +14,7 @@ import { registryActionsBrowserContract } from "./registry-actions-client";
  * own `decideAccess`, lets a super_admin outside support mode in and nobody
  * else, a support view of the very shelter included. The served route's
  * refusal of each of these procedures, with a real request, is
- * `kabinet-registry-access.test.ts`'s (all nineteen registry procedures).
+ * `kabinet-registry-access.test.ts`'s (every registry procedure).
  */
 
 type Leaf = { path: string; node: { "~orpc": { meta: unknown } } };
@@ -42,8 +42,12 @@ const EXPECTED_PATHS = [
   "registry.verification.suspend",
   "registry.verification.reinstate",
   "registry.verification.resubmit",
+  "registry.verification.addEvidence",
+  "registry.earlyListing.allow",
+  "registry.earlyListing.revoke",
   "registry.donation.approve",
   "registry.donation.reject",
+  "registry.donation.remove",
   "registry.admins.invite",
   "registry.admins.resendInvite",
   "registry.admins.remove",

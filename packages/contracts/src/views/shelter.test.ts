@@ -55,6 +55,7 @@ const shelter: Shelter = {
   donation: null,
   logo: null,
   pendingDonation: null,
+  earlyListingSince: null,
   version: 0,
   freshnessSentence: null,
   verification: {
@@ -68,7 +69,27 @@ const shelter: Shelter = {
 };
 
 describe("public shelter projections withhold the private fields", () => {
-  const projected = PublicShelterViewSchema.parse({ ...shelter, verification: "verified" });
+  const projected = PublicShelterViewSchema.parse({
+    ...shelter,
+    verification: "verified",
+    availability: { kind: "open" },
+  });
+
+  it("a paused shelter's availability carries the reason code only, never a note, actor or date", () => {
+    const paused = PublicShelterViewSchema.parse({
+      ...shelter,
+      verification: "verified",
+      availability: {
+        kind: "paused",
+        reason: "relocation",
+        note: "private note",
+        pausedAt: AT,
+        pausedBy: { kind: "moderator" },
+      },
+    });
+    expect(paused.availability).toEqual({ kind: "paused", reason: "relocation" });
+    expect(JSON.stringify(paused)).not.toContain("private note");
+  });
 
   it("does not carry the exact address", () => {
     expect(projected).not.toHaveProperty("exactAddress");
@@ -95,7 +116,11 @@ describe("public shelter projections withhold the private fields", () => {
   });
 
   it("withholds the same fields from the card summary", () => {
-    const summary = ShelterSummaryViewSchema.parse({ ...shelter, verification: "verified" });
+    const summary = ShelterSummaryViewSchema.parse({
+      ...shelter,
+      verification: "verified",
+      availability: { kind: "open" },
+    });
     expect(summary).not.toHaveProperty("exactAddress");
     expect(summary).not.toHaveProperty("contact");
   });
@@ -108,12 +133,20 @@ describe("public shelter projections withhold the private fields", () => {
       ...shelter,
       logo: { storageKey: "shelters/x/logo/y", width: 160, height: 160 },
     };
-    expect(PublicShelterViewSchema.parse({ ...withLogo, verification: "verified" }).logo).toEqual(
-      withLogo.logo,
-    );
-    expect(ShelterSummaryViewSchema.parse({ ...withLogo, verification: "verified" }).logo).toEqual(
-      withLogo.logo,
-    );
+    expect(
+      PublicShelterViewSchema.parse({
+        ...withLogo,
+        verification: "verified",
+        availability: { kind: "open" },
+      }).logo,
+    ).toEqual(withLogo.logo);
+    expect(
+      ShelterSummaryViewSchema.parse({
+        ...withLogo,
+        verification: "verified",
+        availability: { kind: "open" },
+      }).logo,
+    ).toEqual(withLogo.logo);
   });
 
   /**
@@ -127,6 +160,7 @@ describe("public shelter projections withhold the private fields", () => {
       ...shelter,
       freshnessSentence: { uk: "Оновлюємо щосуботи.", en: null },
       verification: "verified" as const,
+      availability: { kind: "open" as const },
     };
     expect(PublicShelterViewSchema.parse(withSentence).freshnessSentence).toEqual({
       uk: "Оновлюємо щосуботи.",
@@ -152,6 +186,7 @@ describe("public shelter projections withhold the private fields", () => {
         proposedBy: "44444444-4444-4444-8444-444444444444" as never,
       },
       verification: "verified" as const,
+      availability: { kind: "open" as const },
     };
     for (const view of [
       PublicShelterViewSchema.parse(withPending),
@@ -159,6 +194,28 @@ describe("public shelter projections withhold the private fields", () => {
     ]) {
       expect(view).not.toHaveProperty("pendingDonation");
       expect(JSON.stringify(view)).not.toContain("swapped");
+    }
+  });
+
+  /**
+   * Listing before verification (owner, 2026-11-04): the public sees a label that the review is
+   * running, never when the permission started or ends.
+   */
+  it("carries the under-review label and never the permission's dates, in either view", () => {
+    const SINCE = new Date("2026-10-01T08:30:00.000Z");
+    const early = {
+      ...shelter,
+      earlyListingSince: SINCE,
+      verification: "listed_before_verification" as const,
+      availability: { kind: "open" as const },
+    };
+    for (const view of [
+      PublicShelterViewSchema.parse(early),
+      ShelterSummaryViewSchema.parse(early),
+    ]) {
+      expect(view.verification).toBe("listed_before_verification");
+      expect(view).not.toHaveProperty("earlyListingSince");
+      expect(JSON.stringify(view)).not.toContain(SINCE.toISOString());
     }
   });
 });
@@ -179,6 +236,7 @@ describe("the reveal is the one sanctioned path to the contact details, and neve
     animalId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     revealedAt: AT,
     shelterContact: { source: "current", displayName: shelter.displayName, contact },
+    shelterListing: "verified",
     shelterAtFirstReveal: record,
     animalSnapshot: { name: "Мурчик", primaryPhoto: null },
     ...extra,
@@ -218,6 +276,23 @@ describe("the reveal is the one sanctioned path to the contact details, and neve
     const parsed = ContactRevealViewSchema.parse(revealOf());
     expect(parsed.shelterAtFirstReveal.verificationStatusAtReveal).toBe("verified");
   });
+
+  /** The operator's words never reach an adopter: only the two public labels parse. */
+  it("accepts only the public labels for the status at reveal, never a raw status", () => {
+    const withStatus = (status: string) =>
+      ContactRevealViewSchema.safeParse(
+        revealOf({
+          shelterAtFirstReveal: {
+            ...revealOf().shelterAtFirstReveal,
+            verificationStatusAtReveal: status,
+          },
+        }),
+      ).success;
+    expect(withStatus("listed_before_verification")).toBe(true);
+    for (const raw of ["pending", "under_review", "rejected", "paused", "suspended"]) {
+      expect(withStatus(raw), raw).toBe(false);
+    }
+  });
 });
 
 /**
@@ -249,6 +324,7 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
       donation: null,
       pauseNote: "internal",
     },
+    shelterListing: null,
     animalSnapshot: { name: "Мурчик", primaryPhoto: null },
   };
 
@@ -276,6 +352,7 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
         "revealedAt",
         "shelterAtFirstReveal",
         "shelterContact",
+        "shelterListing",
       ]);
       expect(Object.keys(view.shelterContact).sort()).toEqual(["contact", "displayName", "source"]);
       expect(view.shelterContact.source).toBe(source);
@@ -283,7 +360,6 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
       // The first-reveal object carries neither the name nor the contacts: they
       // are `shelterContact`'s alone, so they come from one moment (RUI4-F1).
       expect(Object.keys(view.shelterAtFirstReveal).sort()).toEqual([
-        "donation",
         "publicLocation",
         "shelterId",
         "verificationStatusAtReveal",
@@ -362,8 +438,13 @@ describe("the pause note reaches no public view (K4-B4)", () => {
   });
 
   it("their keys are exactly these", () => {
-    const publicView = PublicShelterViewSchema.parse({ ...paused, verification: "unverified" });
+    const publicView = PublicShelterViewSchema.parse({
+      ...paused,
+      verification: "unverified",
+      availability: { kind: "open" },
+    });
     expect(Object.keys(publicView).sort()).toEqual([
+      "availability",
       "createdAt",
       "description",
       "displayName",

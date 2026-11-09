@@ -64,8 +64,7 @@ swipe deck.**
 
 The gallery becomes the **primary surface**, not the deck - it's what search engines
 index, what gets pasted into a Telegram group, what a grant reviewer or shelter director
-opens on a laptop. The deck remains the differentiator and still ships, but as a mode
-entered from the gallery, and off the critical path for launch. Full reasoning -
+opens on a laptop. (The deck was to remain as a mode entered from the gallery; it was retired instead, see the update above.) Full reasoning -
 including the pattern behind the three verification incidents, now generalised into
 `docs/standing-constraints.md` rather than restated per-document - is in
 `docs/course-correction.md`.
@@ -1052,12 +1051,10 @@ weeks.
 
 ### Before the first real shelter or animal record is inserted
 
-- [ ] **PG-F3 merged: a hard item.** Oleksii, 2026-10-19, verbatim: "Add PG-F3 to the launch gate as
+- [x] **PG-F3 merged: a hard item. DONE (PR #352 merged, smoke sitting done).** Oleksii, 2026-10-19, verbatim: "Add PG-F3 to the launch gate as
   a hard item: no real shelters before it's merged." `db:migrate` could reach a database the
   production guard never checked (drizzle-kit's own config file and env-file loading). The fix is
-  on `fix/pgf3-migrate-bypass` (db:migrate applies migrations in its own process; tests written
-  2026-11-01): it waits for the full Tier 1 review. No real shelter is onboarded before it
-  merges.
+  landed in #352 (db:migrate applies migrations in its own process). The condition is met.
 - [x] **PW1-F5 merged.** Done. PR #158 (`fix/pw1-f5-atomic-session-revoke`) merged 2026-10-20
   (`f490ae6`): an additive migration, `0013`, one function and two triggers on `auth_account`.
   His rehearsal (`9013a35` on child `ep-CHILD-BRANCH`: migrate ok, smoke 13/13) and his
@@ -1110,6 +1107,10 @@ weeks.
 New shelters reach the operator by message (email/Telegram from «Для притулків»), and he
 creates them in the operator screens (RU-B3, option A). No public application form for now
 (RU-F1). The onboarding script stays a back-up for bulk import, not the normal path (RU-B2).
+
+**Superseded (2026-10-24, `docs/launch-sequence.md`):** launch uses the full reset, run twice,
+so neither this order (item 3 above) nor the `demo:remove` wipe below is the launch path.
+`demo:remove` stays only to remove one mistakenly onboarded real shelter.
 
 **Remove every test shelter before the first real shelter** (Oleksii, 2026-10-15, inbox DR-B2,
 verbatim: "remove all test shelters (demo + mine) before the first real shelter"). Two kinds:

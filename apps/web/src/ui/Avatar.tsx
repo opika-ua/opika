@@ -3,7 +3,9 @@ import { Photo } from "./Photo";
 
 /**
  * A shelter's logo, or - with none - the initials of its name. Decorative either way: the name is
- * always shown as text beside it, so it is hidden from assistive tech.
+ * always shown as text beside it, so it is hidden from assistive tech. The initials are CSS
+ * content from `data-initials`, not text: an accessible-name check counts hidden text as visible,
+ * so the link around the avatar could never contain its visible text.
  */
 const SIZE = {
   sm: { box: "size-8 text-caption", sizes: "32px" },
@@ -47,13 +49,12 @@ export function Avatar(props: AvatarProps) {
   return (
     <span
       aria-hidden="true"
+      data-initials={initialsOf(props.name)}
       className={cx(
-        "inline-flex shrink-0 items-center justify-center rounded-pill bg-line font-semibold text-ink",
+        "avatar-initials inline-flex shrink-0 items-center justify-center rounded-pill bg-line font-semibold text-ink",
         box,
         props.className,
       )}
-    >
-      {initialsOf(props.name)}
-    </span>
+    />
   );
 }

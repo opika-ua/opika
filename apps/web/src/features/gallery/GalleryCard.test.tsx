@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { FeedCardView } from "@opika/contracts";
 import {
   DEFAULT_GALLERY_SORT,
@@ -6,7 +8,7 @@ import {
   NO_FILTERS,
 } from "@opika/domain";
 import { freshnessLabel } from "@opika/ui";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { GalleryCard } from "./GalleryCard";
 
@@ -50,6 +52,18 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
     ...overrides,
   } as FeedCardView;
 }
+
+describe("GalleryCard under-review label", () => {
+  it("shows «На перевірці» for a shelter listed before verification and nothing for a verified one", () => {
+    const listed = makeCard();
+    listed.shelter = { ...listed.shelter, verification: "listed_before_verification" };
+    render(<GalleryCard card={listed} cityName="Бровари" {...NO_CONTEXT} />);
+    expect(screen.getByTestId("under-review-badge").textContent).toBe("На перевірці");
+    cleanup();
+    render(<GalleryCard card={makeCard()} cityName="Бровари" {...NO_CONTEXT} />);
+    expect(screen.queryByTestId("under-review-badge")).toBeNull();
+  });
+});
 
 describe("GalleryCard link", () => {
   it("is exactly one link, and only one - the pill is not a nested button or anchor", () => {
@@ -262,5 +276,17 @@ describe("GalleryCard photo loading", () => {
     const { container } = render(<GalleryCard card={withPhoto} cityName={null} {...NO_CONTEXT} />);
     expect(img(container)?.getAttribute("loading")).toBe("lazy");
     expect(img(container)?.getAttribute("fetchpriority")).toBeNull();
+  });
+
+  it("one freshness chip for both species: page fill, ink text, species only as the dot", () => {
+    const css = readFileSync(join(__dirname, "../../app/globals.css"), "utf8");
+    const chip = css.match(/@utility gcard-fresh \{([^}]*)\}/)?.[1] ?? "";
+    expect(chip).toContain("tablet:bg-page");
+    expect(chip).toContain("tablet:text-ink");
+    expect(chip).toContain("tablet:shadow-float");
+    expect(chip).not.toContain("--dot");
+    expect(css).not.toContain("--on-dot");
+    expect(css).toMatch(/@utility gcard-cat \{\s*--dot: var\(--color-species-cat\);/);
+    expect(css).toMatch(/@utility gcard-dog \{\s*--dot: var\(--color-species-dog\);/);
   });
 });

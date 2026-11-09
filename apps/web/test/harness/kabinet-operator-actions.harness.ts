@@ -141,6 +141,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
         proposedBy: randomUUID() as ShelterAdminId,
       },
       version: 0,
+      earlyListingSince: null,
       freshnessSentence: null,
       verification: {
         status: "pending",
@@ -242,7 +243,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
       "aria-disabled",
       "true",
     );
-    await dialog.getByLabel("Причина").selectOption({ label: "Скарга підтвердилася" });
+    await dialog.getByLabel("Причина").selectOption({ label: "Перевірена скарга" });
     await dialog.getByLabel("Пояснення").fill(NOTE);
     await dialog.getByRole("button", { name: "Призупинити" }).click();
     await expect(dialog).toBeHidden();
@@ -255,25 +256,55 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
     const kabinet = await shelterAdmin.newPage();
     expect((await kabinet.goto("/kabinet"))?.status()).toBe(200);
     const notice = kabinet.getByRole("region", { name: "Притулок тимчасово призупинено" });
-    await expect(notice.getByText("Причина: Скарга підтвердилася.")).toBeVisible();
+    await expect(notice.getByText("Причина: Перевірена скарга.")).toBeVisible();
     await expect(notice.getByText("Пояснення:", { exact: true })).toBeVisible();
     await expect(notice.getByText(NOTE, { exact: true })).toBeVisible();
-    await expect(notice.getByText(`- ${OPERATOR_NAME}`, { exact: true })).toBeVisible();
+    await expect(notice.getByText(OPERATOR_NAME, { exact: true })).toBeVisible();
     await kabinet.close();
 
     await decision.getByRole("button", { name: "Відновити → «Перевірено»" }).click();
     await expect(decision.getByRole("button", { name: "Призупинити…" })).toBeVisible();
+
+    // A suspension took the live link away: it waits for the operator, labelled as such, and a
+    // reinstatement did not bring it back by itself.
+    await expect(donation.getByText(/^Було чинним до призупинення/)).toBeVisible();
+    await expect(donation.getByRole("button", { name: "Прибрати посилання…" })).toHaveCount(0);
+    await donation.getByRole("button", { name: "Схвалити" }).click();
+    await expect(donation.getByText("Посилання схвалено.")).toBeVisible();
+
+    // Removing the live link asks for a reason and tells the operator who reads it.
+    await donation.getByRole("button", { name: "Прибрати посилання…" }).click();
+    const removal = page.getByRole("dialog", { name: /^Прибрати посилання на збір «/ });
+    await expect(removal.getByText("Цей текст побачить притулок.")).toBeVisible();
+    await removal.getByLabel("Причина").selectOption({ label: "Посилання веде не туди" });
+    await removal.getByLabel("Пояснення").fill(NOTE);
+    await removal.getByRole("button", { name: "Прибрати", exact: true }).click();
+    await expect(removal).toBeHidden();
+    await expect(donation.getByText("Посилання прибрано.")).toBeVisible();
+    await expect(donation.getByRole("button", { name: "Прибрати посилання…" })).toHaveCount(0);
 
     // S4's history (R-UI 1) shows each move, impersonal, the actor
     // appended, brought in by the page's own re-reads (no reload).
     const history = page.getByRole("region", { name: "Історія" });
     await expect(history.getByText(/^Взято на розгляд/)).toBeVisible();
     await expect(history.getByText(/^Схвалено → «Перевірено»/)).toBeVisible();
-    await expect(history.getByText(/^Посилання на збір схвалено/)).toBeVisible();
+    // Approved twice: before the suspension, and again after it.
+    await expect(history.getByText(/^Посилання на збір схвалено/)).toHaveCount(2);
     await expect(
-      history.getByText(`Призупинено: Скарга підтвердилася. ${NOTE}`, { exact: false }),
+      history.getByText(`Призупинено: Перевірена скарга. ${NOTE}`, { exact: false }),
     ).toBeVisible();
     await expect(history.getByText(/^Відновлено → «Перевірено»/)).toBeVisible();
+    await expect(
+      history.getByText(/^Посилання на збір send\.monobank\.ua переведено на повторне схвалення/),
+    ).toBeVisible();
+    await expect(
+      history.getByText(
+        `Посилання на збір прибрано: send.monobank.ua. Посилання веде не туди. ${NOTE}`,
+        {
+          exact: false,
+        },
+      ),
+    ).toBeVisible();
     await page.close();
   });
 

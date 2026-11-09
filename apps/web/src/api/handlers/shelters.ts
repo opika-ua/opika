@@ -1,5 +1,11 @@
 import type { apiErrors, PublicShelterView, SheltersByIdInputSchema } from "@opika/contracts";
 import { shelterRepo } from "@opika/db/repos";
+import {
+  earlyListingOf,
+  publicDonationOf,
+  publicListingBasisOf,
+  shelterAvailabilityOf,
+} from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
@@ -21,9 +27,24 @@ export async function sheltersById(
   const shelters = shelterRepo(context.db);
   const shelter = await shelters.findById(input.shelterId);
 
-  // A shelter that exists but is not verified answers NOT_FOUND, same as
-  // one that does not exist. Distinguishing would leak moderation state.
-  if (shelter?.verification.status !== "verified") {
+  // Only verified and paused shelters are reachable. Every other state answers NOT_FOUND, same as
+  // an id that does not exist, so moderation state (a suspension, even one made mid-pause) is not
+  // told apart from absence.
+  // An early listing still running makes the page reachable, labelled; a lapsed one is as hidden
+  // as no permission (read-time rule, `publicListingBasisOf`).
+  const listedEarly =
+    shelter !== null &&
+    publicListingBasisOf(
+      shelter.verification,
+      earlyListingOf(shelter.earlyListingSince),
+      context.now,
+    ).kind === "listed_before_verification";
+  const availability = listedEarly
+    ? ({ kind: "open" } as const)
+    : shelter
+      ? shelterAvailabilityOf(shelter.verification)
+      : null;
+  if (!shelter || availability === null) {
     throw errors.NOT_FOUND();
   }
 
@@ -32,10 +53,12 @@ export async function sheltersById(
     displayName: shelter.displayName,
     description: shelter.description,
     publicLocation: cityOnlyLocationOf(shelter.publicLocation),
-    donation: shelter.donation,
+    // Only a verified (or paused) shelter shows its link; an early listing, a review or a suspension shows none.
+    donation: publicDonationOf(shelter),
     logo: shelter.logo,
     createdAt: shelter.createdAt,
     freshnessSentence: shelter.freshnessSentence,
-    verification: "verified",
+    verification: listedEarly ? "listed_before_verification" : "verified",
+    availability,
   };
 }

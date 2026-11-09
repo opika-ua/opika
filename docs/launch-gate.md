@@ -25,7 +25,8 @@ superseded branch-inbox files deleted.
 
 | Item | Owner | Status | Done means | Depends on |
 |---|---|---|---|---|
-| **PG-F3** - `db:migrate` can reach a database the prod guard never checked | A fresh Tier 1 reviewer, then a smoke sitting on a fresh Neon child branch | Tests written (13), PR open on `fix/pgf3-migrate-bypass`; waiting for Tier 1 | Tier 1 PASS, merged | nothing |
+| **PG-F3** - `db:migrate` can reach a database the prod guard never checked | A fresh Tier 1 reviewer, then a smoke sitting on a fresh Neon child branch | **DONE** (PR #352 merged; the smoke sitting is done) | - | - |
+| **All migrations applied to production** (every file in `packages/db/drizzle`, `0023_early_listing_since` and any later one included) | Oleksii runs `pnpm --filter @opika/db db:migrate --expect ep-PRODUCTION --prod`, then `db:check-hashes` | **OPEN**, before `docs/launch-sequence.md` step 1 | Every migration reports `match`; done before the first full reset | nothing |
 | **PW1-F5** | - | **DONE** (PR #158) | - | - |
 | **PW1-F6** | - | **DONE** (PR #159) | - | - |
 | **S8-F5** - a card's real name can come back for a listing that was never actually rendered publicly, in two distinct windows: a shelter paused/suspended after being verified, publishing-then-withdrawing a new card inside that window; *and* a shelter still pending/under_review, publishing-then-withdrawing a card before it's ever verified at all | - | **DONE** (PR #196, merged `2fca25b`) - a per-listing `ever_served_at` fact, set the first time a listing is simultaneously discoverable and its shelter publicly verified, via three exhaustive write-path hooks. Migration `0015` rehearsed and applied to production by Oleksii; a first Tier 1 review (STOP, two blockers plus five further findings, all fixed with mutation-verified tests) and a second Tier 1 delta review (PASS WITH NOTES, non-blocking, batched) both passed. Deployed, and Oleksii's post-deploy `everServed:backfill` run on production closed the migrate→merge deploy window (dry run, then `--commit`, remaining candidates 0) | - | - |
@@ -46,16 +47,17 @@ superseded branch-inbox files deleted.
 
 ## C. Before any route is indexed
 
-All three rows below are now one assembled step, `docs/launch-sequence.md`'s step 14 (one
-commit, since `assertAnalyticsCopyMatchesGateState` is a test-time tripwire that fails CI if
+The three rows below, plus the per-animal OG-image exemption (BR-7, no row of its own: it holds
+once the gate is unreachable, step 14.4), are one assembled step, `docs/launch-sequence.md`'s
+step 14 - four changes in one commit, since `assertAnalyticsCopyMatchesGateState` is a test-time tripwire that fails CI if
 they land out of step with each other - it does not throw at boot; that's
-`assertDemoDiscoverabilityInvariant`, for the other pair of constants) - the runbook exists;
+`assertDemoDiscoverabilityInvariant`, for the other pair of constants. The runbook exists;
 execution is still open.
 
 | Item | Owner | Status | Done means | Depends on |
 |---|---|---|---|---|
 | **Flip `SITE_IS_PUBLICLY_DISCOVERABLE`** | Oleksii decides the moment; local agent flips + verifies | **OPEN** - currently `false`; runbook ready (`docs/launch-sequence.md` step 14.1) | Flag `true`, tests green, runtime invariant checked | `REGISTRY_HAS_NO_REAL_SHELTERS` already `false` (step 13); shared-store rate limiter (**already true**) |
-| **Remove the pre-launch access gate**, in the same change | Local agent | **OPEN** - runbook ready (step 14.1 removes it by flipping the same flag; `proxy.ts`'s gate only runs when the flag is still `false`) | Gate removed/no-ops, verified against a real unauthenticated request; `PRELAUNCH_GATE_SECRET` dropped from env schema same commit (step 14.2) | Same commit as the flip |
+| **Remove the pre-launch access gate**, in the same change | Local agent | **OPEN** - runbook ready (step 14.1 removes it by flipping the same flag; `proxy.ts`'s gate only runs when the flag is still `false`) | Gate removed/no-ops, verified against a real unauthenticated request; `PRELAUNCH_GATE_SECRET` dropped from env schema same commit (step 14.2), the Vercel variable deleted after the deploy, and the harness specs and `.env.example` entries that pin the gate go with it (step 14's file list) | Same commit as the flip |
 | **Land the R4-2 sentence**, same change as the gate removal | Local agent | **OPEN but prepared** - runbook ready (step 14.3); current constant value (with the saved-list sentence and the «Написати» fix already landed) just needs appending to `uk.about.analytics`; the tripwire (`assertAnalyticsCopyMatchesGateState`) already enforces this | Sentence lands, tripwire green | Same commit as the gate removal |
 | **Shared-store rate limiter** | - | **DONE** | - | - |
 
@@ -75,4 +77,4 @@ execution is still open.
 | **Wipe-and-flip script + runbook** | Local agent prepared (`packages/db/src/full-reset.ts`, `docs/launch-sequence.md`); Oleksii runs it | A script plus a runbook, building on existing `demo:remove` and the onboarding doc's "Retiring the rehearsal shelter" | **DONE, different scope** - superseded by `docs/launch-sequence.md`'s two-cycle full reset (Oleksii's own pivot, 2026-10-24: a full reset, not a demo-only wipe; corrected 2026-10-25 on the order and the two-run design - reset before the rehearsal, run twice, no `demo:remove --shelter` step), built and tested (`full-reset.test.ts`, `full-reset-table-coverage.test.ts`, the CLI's own guard tests in `prod-guard.test.ts`), with a Tier 1 STOP and its six findings fixed the same round; not yet run - that's `docs/launch-sequence.md` steps 2 and 8, his to execute, each preceded by the one-time child-branch rehearsal above |
 | **Email: DMARC + Postmaster + Brevo removal** | DNS: Oleksii. Code-removal PR: local agent | DMARC/Postmaster runbooks exist (above); Brevo removed from the code (provider, block-list reader, `BREVO_API_KEY`, delivery-test flags) and from DNS | **DONE:** DNS records removed 2026-11-01, code removed by the removal PR (auth email is Resend only). DMARC and Postmaster are done (section A) |
 | **Discoverability-flip runbook** | Local agent writes it; Oleksii executes | One ordered runbook assembling section C's three items with verification steps | **DONE** - `docs/launch-sequence.md` step 14 is this runbook, assembling the three Section C items into the one commit the CI tripwire requires; not yet executed |
-| **PG-F3** | Oleksii | Tier 1 + smoke sitting | tests written, PR open |
+| **PG-F3** | Oleksii | Tier 1 + smoke sitting | **DONE** (PR #352 merged, sitting done) |

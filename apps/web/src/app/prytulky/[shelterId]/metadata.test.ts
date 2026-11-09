@@ -61,8 +61,8 @@ describe("the shelter page's metadata (PR B, the SEO review of page titles)", ()
   });
 
   /**
-   * `REGISTRY_HAS_NO_REAL_SHELTERS` is `true` today, so the two branches need their
-   * own module mock to reach each one - the same `vi.doMock` + `vi.resetModules` +
+   * `REGISTRY_HAS_NO_REAL_SHELTERS` is `false` since launch step 13, so the demo branch needs a
+   * module mock to be reached - the same `vi.doMock` + `vi.resetModules` +
    * dynamic re-import pattern `AnimalDetailScreen.test.tsx` uses for its own
    * demo-gated branches.
    */

@@ -13,7 +13,10 @@ export async function GET(request: Request): Promise<Response> {
     cronSecret: process.env.CRON_SECRET,
     db: kabinetDb,
     now: new Date(),
+    healthcheckUrl: process.env.HEALTHCHECK_URL_R2_CLEANUP,
     r2State: r2CleanupStateOf(process.env),
     log: (line) => console.info(line),
+    // biome-ignore lint/suspicious/noConsole: the cap trip must reach the error log
+    logError: (line) => console.error(line),
   });
 }

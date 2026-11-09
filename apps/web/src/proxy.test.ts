@@ -320,6 +320,35 @@ describe("proxy", () => {
       const { proxy } = await import("./proxy");
       await expect(proxy(request("https://opika.example/tvaryny"))).resolves.toBeDefined();
     });
+
+    // docs/launch-sequence.md step 14.1 and 14.4: flipping the flag alone removes the gate, and with it the
+    // per-animal link-preview image is reachable without a cookie. The image itself is noindex and short-cached
+    // for revocable shelters (seo/og-image.test.tsx); early-listed and paused pages stay noindex
+    // (post-flip-noindex.test.ts). The pre-flip counterpart is the "exempts the site-wide link-preview" case.
+    it("serves the per-animal link-preview image and every page without a gate cookie (step 14.4)", async () => {
+      const { proxy } = await import("./proxy");
+      for (const path of [
+        "/opengraph-image",
+        "/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc/opengraph-image",
+        "/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        "/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      ]) {
+        const response = await proxy(request(`https://opika.example${path}`));
+        expect(response.status, path).toBe(200);
+        expect(response.headers.get("set-cookie"), path).toBeNull();
+      }
+    });
+
+    it("answers the discovery rate limit with noindex, so a refusal is never indexed as the page", async () => {
+      const { apiRateLimiter } = await import("./api/rate-limit");
+      vi.spyOn(apiRateLimiter, "check").mockResolvedValue(false);
+      const { proxy } = await import("./proxy");
+      const response = await proxy(
+        request("https://opika.example/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc"),
+      );
+      expect(response.status).toBe(429);
+      expect(response.headers.get("x-robots-tag")).toBe("noindex");
+    });
   });
 
   describe("the discovery-page rate limiter, independent of the gate", () => {

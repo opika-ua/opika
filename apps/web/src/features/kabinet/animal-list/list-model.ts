@@ -4,6 +4,7 @@ import {
   type KabinetAnimalRowView,
   type KabinetAnimalView,
   type KabinetDraftAnimalView,
+  type KabinetEarlyListing,
   type ShelterKabinetContract,
 } from "@opika/contracts";
 import {
@@ -22,6 +23,7 @@ import { animalFactsParts, fillTemplate, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 import type { InferContractRouterOutputs } from "@orpc/contract";
 import { publishedAnnouncementOf, type ShelterVisibility } from "../animal-form/labels";
+import { countPhrase } from "../shared/count-phrase";
 
 /**
  * K2's words and rules that depend on a value, pure and free of server code,
@@ -104,7 +106,7 @@ export const sameFilter = (a: KabinetAnimalListFilter, b: KabinetAnimalListFilte
 export const staleLineOf = (count: number): string =>
   fillTemplate(t.stale.count, {
     cards: fillTemplate(pluralizeUk(count, t.stale.countCards), { count: integer.format(count) }),
-    days: integer.format(DEFAULT_FRESHNESS_POLICY.agingMaxDays),
+    days: countPhrase(DEFAULT_FRESHNESS_POLICY.agingMaxDays, uk.kabinet.units.days),
   });
 
 /**
@@ -373,6 +375,14 @@ export type VisibilityNotice =
   | { kind: "paused"; line: string }
   | { kind: "line"; text: string };
 
+/** «1 грудня», no year: the sentence it ends is closed by its own full stop, and «р.» would double it. */
+export const dayAndMonth = (date: Date): string =>
+  new Intl.DateTimeFormat("uk-UA", {
+    day: "numeric",
+    month: "long",
+    timeZone: KYIV_TIME_ZONE,
+  }).format(date);
+
 const longDay = (date: Date): string =>
   new Intl.DateTimeFormat("uk-UA", {
     day: "numeric",
@@ -381,7 +391,10 @@ const longDay = (date: Date): string =>
     timeZone: KYIV_TIME_ZONE,
   }).format(date);
 
-export const visibilityNoticeOf = (verification: ShelterFacingVerification): VisibilityNotice => {
+export const visibilityNoticeOf = (
+  verification: ShelterFacingVerification,
+  earlyListing: KabinetEarlyListing,
+): VisibilityNotice => {
   switch (verification.status) {
     case "verified":
       return { kind: "none" };
@@ -397,7 +410,10 @@ export const visibilityNoticeOf = (verification: ShelterFacingVerification): Vis
     }
     case "pending":
     case "under_review":
-      return { kind: "line", text: t.notVisible.pending };
+      // While the dated banner shows, it says it (the label is said once on the page).
+      return earlyListing.kind === "running"
+        ? { kind: "none" }
+        : { kind: "line", text: t.notVisible.pending };
     case "rejected":
       return { kind: "line", text: uk.kabinet.verificationDecision.rejectedEffect };
     case "suspended":

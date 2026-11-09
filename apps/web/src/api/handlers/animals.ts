@@ -37,7 +37,7 @@ export async function animalsById(
   errors: AnimalsByIdErrors,
 ): Promise<AnimalDetailView> {
   // The animal and its shelter in one statement: the detail page's first (and only) wait.
-  const found = await animalRepo(context.db).findWithShelterById(input.animalId);
+  const found = await animalRepo(context.db).findWithShelterById(input.animalId, context.now);
   const animal = found?.animal;
   const shelter = found?.shelter;
 
@@ -48,7 +48,13 @@ export async function animalsById(
     throw errors.NOT_FOUND();
   }
 
-  if (shelter?.verification !== "verified") {
+  // A paused shelter's page stays reachable, but only for an animal that was once actually served:
+  // one published during the pause (`everServedAt` null) was never shown and stays NOT_FOUND.
+  if (
+    !shelter ||
+    shelter.availability === "unreachable" ||
+    (shelter.availability === "paused" && animal.everServedAt === null)
+  ) {
     throw errors.NOT_FOUND();
   }
 
@@ -76,8 +82,12 @@ export async function animalsById(
       displayName: shelter.displayName,
       logo: shelter.logo,
       publicLocation: cityOnlyLocationOf(shelter.publicLocation),
-      verification: "verified",
+      // Not reachable as "unverified": the guard above refuses an unreachable shelter, and a
+      // paused one is `verified` in the trust sense.
+      verification:
+        shelter.verification === "listed_before_verification" ? shelter.verification : "verified",
     },
+    availability: { kind: shelter.availability === "paused" ? "paused" : "open" },
   };
 }
 
@@ -104,7 +114,7 @@ export async function animalsCardsByIds(
   if (input.animalIds.length === 0) return { items: [], cityLabels: [] };
 
   // One statement: the animals with their shelters and card cities (JOINs), whatever their kind.
-  const rows = await animalRepo(context.db).findCardsByIds(input.animalIds);
+  const rows = await animalRepo(context.db).findCardsByIds(input.animalIds, context.now);
   const rowById = new Map(rows.map((row) => [row.animal.id, row]));
 
   const items = input.animalIds.map((animalId) => {
@@ -121,11 +131,21 @@ export async function animalsCardsByIds(
     // `null` here regardless of what the shelter's own history later holds.
     const everServedAt = animal?.everServedAt ?? null;
 
+    // A paused shelter's served animal leaves the gallery but keeps its page: a link, not a card.
+    if (
+      animal &&
+      isDiscoverableAnimal(animal) &&
+      shelter?.availability === "paused" &&
+      everServedAt !== null
+    ) {
+      return { kind: "paused" as const, animalId, name: animal.name };
+    }
+
     if (
       !animal ||
       !isDiscoverableAnimal(animal) ||
       !shelter ||
-      shelter.verification !== "verified"
+      shelter.verification === "unverified"
     ) {
       // The row exists and was once shown but isn't any more (adopted,
       // withdrawn, a paused or no-longer-verified shelter) - its name is
@@ -168,7 +188,7 @@ export async function animalsCardsByIds(
           displayName: shelter.displayName,
           logo: shelter.logo,
           publicLocation: cityOnlyLocationOf(shelter.publicLocation),
-          verification: "verified" as const,
+          verification: shelter.verification,
         },
       },
     };

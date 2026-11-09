@@ -132,10 +132,10 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
       .getByLabel(/^Телефон/)
       .fill("+380 50 111-22-33");
 
-    await page.getByLabel("Тип доказу").selectOption({ label: "Візит на місце" });
+    await page.getByLabel("Тип доказу").selectOption({ label: "Відеодзвінок" });
     await page.getByRole("button", { name: "+ Додати доказ" }).click();
-    const visit = page.getByRole("group", { name: "Візит на місце" });
-    await visit.getByLabel("Дата візиту").fill(kyivDateDaysAgo(1));
+    const visit = page.getByRole("group", { name: "Відеодзвінок" });
+    await visit.getByLabel("Дата дзвінка").fill(kyivDateDaysAgo(1));
     await visit.getByLabel("Нотатка").fill("Оглянув вольєри, журнал прийому ведеться.");
 
     for (const [n, phone] of [

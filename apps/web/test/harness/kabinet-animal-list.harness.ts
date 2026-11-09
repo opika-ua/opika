@@ -163,7 +163,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
 
   const rowOf = (page: Page, name: string): Locator => page.getByRole("listitem", { name });
 
-  test("from the landing, «Тварини»: the list, its rows, and «Показати ці N» opening the stale cards", async () => {
+  test("from the landing, «Тварини»: the list, its rows, and «Показати ці картки (N)» opening the stale cards", async () => {
     const page = await open("/kabinet");
     await page
       .getByRole("navigation", { name: "Розділи кабінету" })
@@ -176,7 +176,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     await expect(rowOf(page, ARRANGING).getByText("Домовляються", { exact: true })).toBeVisible();
     await expect(page.getByText(/ви не підтверджували понад 30 днів\.$/)).toBeVisible();
 
-    await page.getByRole("button", { name: /^Показати ці \d+$/ }).click();
+    await page.getByRole("button", { name: /^Показати ці картки \(\d+\)$/ }).click();
     await expect(rowOf(page, STALE)).toBeVisible();
     // A card confirmed two days ago isn't stale: the server's filter leaves it out.
     await expect(rowOf(page, ARRANGING)).toHaveCount(0);

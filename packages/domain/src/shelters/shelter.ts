@@ -50,6 +50,8 @@ export const ShelterSchema = z.object({
   pendingDonation: PendingDonationSchema.nullable(),
   freshnessSentence: FreshnessSentenceSchema,
   verification: ShelterVerificationSchema,
+  /** Operator permission to list before verification (nothing reads it yet); cleared on every status change. */
+  earlyListingSince: z.date().nullable(),
   createdAt: z.date(),
   lastUpdatedAt: z.date(),
   /**

@@ -45,11 +45,10 @@ describe("the shelter page", () => {
     expect(within(section).getByText(`«${SENTENCE}»`)).toBeTruthy();
   });
 
-  it("shows the section with only the part the shelter wrote", () => {
+  it("hides the block when the shelter has no sentence, even with a description", () => {
     renderScreen({ shelter: makeShelterPageShelter({ freshnessSentence: null }) });
-    const section = screen.getByRole("region", { name: WORDS_HEADING });
-    expect(within(section).getByText(DESCRIPTION)).toBeTruthy();
-    expect(within(section).queryByText(/«/)).toBeNull();
+    expect(screen.queryByRole("region", { name: WORDS_HEADING })).toBeNull();
+    expect(screen.queryByText(DESCRIPTION)).toBeNull();
   });
 
   it("omits the section entirely when the shelter wrote neither: no heading over nothing", () => {
@@ -70,7 +69,7 @@ describe("the shelter page", () => {
       }),
     });
     expect(screen.queryByText(/імʼя/)).toBeNull();
-    expect(screen.getByRole("region", { name: WORDS_HEADING })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: WORDS_HEADING })).toBeNull();
   });
 
   it("shows the donation link's domain as text before the tap (commitment 5)", () => {
@@ -161,6 +160,16 @@ describe("the shelter page, states", () => {
     expect(line).not.toContain("Перевірено");
   });
 
+  it("a shelter under review reads «Притулок на перевірці», never the verified line", () => {
+    renderScreen({
+      shelter: makeShelterPageShelter({ verification: "listed_before_verification" }),
+    });
+    const line = screen.getByTestId("shelter-trust-line").textContent ?? "";
+    expect(line).toBe("Притулок на перевірці");
+    expect(line).not.toContain("Перевірений вручну");
+    expect(screen.queryByTestId("shelter-verified-badge")).toBeNull();
+  });
+
   it("has no «Шукають дім» count chip: the heading is the only place the count shows", () => {
     renderScreen({ animals: makeListOutput([makeCardView(1), makeCardView(2)]) });
     expect(screen.getAllByText("Шукають дім: 2")).toHaveLength(1);
@@ -202,10 +211,10 @@ describe("the shelter page, filters", () => {
     expect(screen.queryByTestId("species-toggle-mobile")).toBeNull();
   });
 
-  it("with filterUi: the species switch, the «Фільтри» sheet and the desktop selectors, but no Область or Місто", () => {
+  it("with filterUi: the species switch, the «Фільтри» sheet and the desktop selectors, but no Область or Місто", async () => {
     renderScreen({ animals: many, filterUi: UI });
     expect(screen.getByTestId("species-toggle-mobile")).toBeTruthy();
-    expect(screen.getByTestId("filter-sheet-trigger")).toBeTruthy();
+    expect(await screen.findByTestId("filter-sheet-trigger")).toBeTruthy();
     const desktop = screen.getByTestId("gallery-filter-dropdowns");
     expect(within(desktop).getByRole("button", { name: /^Вік/ })).toBeTruthy();
     expect(within(desktop).queryByRole("combobox", { name: /Область|Місто/ })).toBeNull();

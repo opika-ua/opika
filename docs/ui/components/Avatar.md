@@ -2,7 +2,7 @@
 
 File: `apps/web/src/ui/Avatar.tsx`
 
-**Purpose.** A shelter's logo, or its initials.
+**Purpose.** A shelter's logo, or its initials. The initials are drawn from `data-initials` (CSS), so they are not text in the DOM.
 
 **Props and variants.** `kind`: logo (`src`) or initials (`name`); `size`: sm, md, lg, xl, identity (the shelter page: 64px beside the name on a phone, 132px from desktop).
 

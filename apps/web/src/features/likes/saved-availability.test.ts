@@ -1,0 +1,158 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  LIKES_STORAGE_KEY,
+  pruneSavedAnimals,
+  readLikesStore,
+  resetLikesStoreMemoryForTests,
+  toggleSavedAnimal,
+} from "./likes-store";
+import {
+  classifySavedItems,
+  recordSavedAvailability,
+  refreshSavedAvailability,
+  resetSavedAvailabilityForTests,
+  servableCount,
+  watchServableSavedCount,
+} from "./saved-availability";
+
+const save = (...ids: string[]) => {
+  for (const id of ids) toggleSavedAnimal(id, new Date());
+};
+const stored = () => readLikesStore().items.map((item) => item.animalId);
+
+beforeEach(() => {
+  resetLikesStoreMemoryForTests();
+  resetSavedAvailabilityForTests();
+  window.localStorage.removeItem(LIKES_STORAGE_KEY);
+});
+
+describe("classifySavedItems / servableCount", () => {
+  it("counts only what the server serves; ids not asked about yet still count", () => {
+    const known = classifySavedItems(
+      ["live", "adopted", "reset"],
+      [
+        { kind: "available", animalId: "live" },
+        { kind: "unavailable", animalId: "adopted", name: "Мурчик" },
+        { kind: "unavailable", animalId: "reset", name: null },
+      ],
+    );
+    expect(known.get("adopted")).toBe("unavailable");
+    expect(known.get("reset")).toBe("gone");
+    expect(servableCount(["live", "adopted", "reset", "fresh-save"], known)).toBe(2);
+  });
+
+  it("treats an id missing from the answer as gone", () => {
+    expect(classifySavedItems(["x"], []).get("x")).toBe("gone");
+  });
+});
+
+describe("refreshSavedAvailability", () => {
+  it("prunes ids that no longer exist but keeps a paused or adopted animal's id", async () => {
+    save("live", "paused", "reset");
+    const prune = vi.fn(pruneSavedAnimals);
+    await refreshSavedAvailability(
+      async () => ({
+        items: [
+          { kind: "available", animalId: "live" },
+          { kind: "unavailable", animalId: "paused", name: "Рижик" },
+          { kind: "unavailable", animalId: "reset", name: null },
+        ],
+      }),
+      Date.now(),
+      prune,
+    );
+    expect(prune).toHaveBeenCalledWith(["reset"]);
+    expect(stored().sort()).toEqual(["live", "paused"]);
+  });
+
+  it("changes nothing when the request fails", async () => {
+    save("a", "b");
+    await refreshSavedAvailability(
+      async () => {
+        throw new Error("offline");
+      },
+      Date.now(),
+      pruneSavedAnimals,
+    );
+    expect(stored().sort()).toEqual(["a", "b"]);
+  });
+
+  it("does not ask again within the cache window, and asks only for new ids", async () => {
+    save("a");
+    const ask = vi.fn(async ({ animalIds }: { animalIds: string[] }) => ({
+      items: animalIds.map((animalId) => ({ kind: "available" as const, animalId })),
+    }));
+    const now = Date.now();
+    await refreshSavedAvailability(ask, now, pruneSavedAnimals);
+    await refreshSavedAvailability(ask, now + 1000, pruneSavedAnimals);
+    expect(ask).toHaveBeenCalledTimes(1);
+    save("b");
+    await refreshSavedAvailability(ask, now + 2000, pruneSavedAnimals);
+    expect(ask).toHaveBeenLastCalledWith({ animalIds: ["b"] });
+  });
+});
+
+describe("a paused shelter's animal", () => {
+  it("is its own state, not counted, and its id stays stored", async () => {
+    const known = classifySavedItems(
+      ["live", "paused"],
+      [
+        { kind: "available", animalId: "live" },
+        { kind: "paused", animalId: "paused", name: "Рижик" },
+      ],
+    );
+    expect(known.get("paused")).toBe("paused");
+    expect(servableCount(["live", "paused"], known)).toBe(1);
+
+    save("live", "paused");
+    const prune = vi.fn(pruneSavedAnimals);
+    await refreshSavedAvailability(
+      async () => ({
+        items: [
+          { kind: "available", animalId: "live" },
+          { kind: "paused", animalId: "paused", name: "Рижик" },
+        ],
+      }),
+      Date.now(),
+      prune,
+    );
+    expect(prune).not.toHaveBeenCalled();
+    expect(stored().sort()).toEqual(["live", "paused"]);
+  });
+
+  it("ignores a cache written under the old key, so a v1 answer cannot be misread", async () => {
+    save("a");
+    window.sessionStorage.setItem(
+      "saved-availability.v1",
+      JSON.stringify({ at: Date.now(), states: { a: "unavailable" } }),
+    );
+    const ask = vi.fn(async () => ({
+      items: [{ kind: "paused" as const, animalId: "a", name: "Рижик" }],
+    }));
+    await refreshSavedAvailability(ask, Date.now(), pruneSavedAnimals);
+    expect(ask).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("recordSavedAvailability", () => {
+  it("drops a paused animal from the header count that the cache still called available", async () => {
+    save("a", "b");
+    const counts: number[] = [];
+    const answer = async () => ({
+      items: [
+        { kind: "available" as const, animalId: "a" },
+        { kind: "available" as const, animalId: "b" },
+      ],
+    });
+    const stop = watchServableSavedCount(
+      (n) => counts.push(n),
+      async () => answer,
+      pruneSavedAnimals,
+    );
+    await vi.waitFor(() => expect(counts.at(-1)).toBe(2));
+    // The saved page learns that "b" is paused now, inside the cache window.
+    recordSavedAvailability(new Map([["b", "paused"]]), Date.now());
+    expect(counts.at(-1)).toBe(1);
+    stop();
+  });
+});

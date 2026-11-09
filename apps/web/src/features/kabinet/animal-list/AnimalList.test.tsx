@@ -151,11 +151,15 @@ function fakeClient(handlers: Handlers = {}) {
 }
 
 const VERIFIED = { status: "verified", since: new Date("2025-03-14T10:00:00Z") } as const;
-const shelterIn = (verification: KabinetShelterView["verification"]) =>
+const shelterIn = (
+  verification: KabinetShelterView["verification"],
+  earlyListing: KabinetShelterView["earlyListing"] = { kind: "none" },
+) =>
   ({
     id: "51000000-0000-4000-8000-000000000001",
     displayName: "Притулок «Домівка»",
     verification,
+    earlyListing,
   }) as unknown as KabinetShelterView;
 
 const OPEN: AnimalFormEditing = { kind: "open" };
@@ -163,6 +167,7 @@ const OPEN: AnimalFormEditing = { kind: "open" };
 function renderList({
   first = FIRST,
   verification = VERIFIED,
+  earlyListing = { kind: "none" },
   editing = OPEN,
   viewer = "admin",
   handlers = {},
@@ -170,6 +175,7 @@ function renderList({
 }: {
   first?: AnimalListPageData;
   verification?: KabinetShelterView["verification"];
+  earlyListing?: KabinetShelterView["earlyListing"];
   editing?: AnimalFormEditing;
   viewer?: "admin" | "support";
   handlers?: Handlers;
@@ -178,7 +184,7 @@ function renderList({
   const { client, calls } = fakeClient(handlers);
   render(
     <AnimalList
-      shelter={shelterIn(verification)}
+      shelter={shelterIn(verification, earlyListing)}
       first={first}
       viewer={viewer}
       editing={editing}
@@ -192,7 +198,9 @@ function renderList({
 const rowOf = (name: string) => screen.getByRole("listitem", { name });
 const inRow = (name: string) => within(rowOf(name));
 const openMenu = async (name: string) => {
-  await userEvent.click(inRow(name).getByRole("button", { name: /^Дії з карткою/ }));
+  await userEvent.click(
+    inRow(name).getAllByRole("button", { name: /^Дії з карткою/ })[0] as HTMLElement,
+  );
 };
 const statusText = () => screen.getByRole("status").textContent;
 const alertText = () =>
@@ -216,7 +224,7 @@ describe("the page: header, rows, order note", () => {
     );
     // The order note sits behind a «?» button, closed until pressed.
     const NOTE =
-      "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.";
+      "У галереї картки впорядковані за датою: відвідувач сам обирає, спочатку найсвіжіші чи ті, хто чекає найдовше. Змінити порядок або підняти картку тут не можна.";
     expect(screen.queryByText(NOTE)).toBeNull();
     const info = screen.getByRole("button", { name: "Як впорядковано список" });
     expect(info.getAttribute("aria-expanded")).toBe("false");
@@ -368,7 +376,7 @@ describe("the stale strip (N5)", () => {
       first: { ...FIRST, staleCount: 3 },
       handlers: { list: async () => ({ ...FIRST, items: [PUBLISHED], staleCount: 3 }) },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Показати ці 3" }));
+    await userEvent.click(screen.getByRole("button", { name: "Показати ці картки (3)" }));
     expect(calls.list).toHaveBeenLastCalledWith({
       filter: { kind: "stale" },
       cursor: null,
@@ -389,7 +397,7 @@ describe("the stale strip (N5)", () => {
     const strip = screen.getByRole("region", {
       name: "1 картку ви не підтверджували понад 30 днів.",
     });
-    expect(within(strip).getByRole("button", { name: "Показати ці 1" })).toBeTruthy();
+    expect(within(strip).getByRole("button", { name: "Показати ці картки (1)" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Показати всі" })).toBeNull();
   });
 
@@ -576,7 +584,7 @@ describe("«Уже вдома» (his answer 8a)", () => {
     const dialog = screen.getByRole("dialog", { name: "Мурка уже вдома?" });
     expect(
       within(dialog).getByText(
-        "Картка зникне з галереї та стрічки, а її сторінка повідомлятиме, що тварини там уже немає. У вашому списку картка лишиться з позначкою «Удома». Скасувати це не можна: якщо тварина повернеться, додайте її як нову картку.",
+        "Картка зникне з галереї, а її сторінка стане недоступною. У вашому списку картка лишиться з позначкою «Удома». Скасувати це не можна: якщо тварина повернеться, додайте її як нову картку.",
       ),
     ).toBeTruthy();
     await userEvent.click(within(dialog).getByRole("button", { name: "Так, уже вдома" }));
@@ -1166,8 +1174,8 @@ describe("when nobody can see the cards", () => {
         reason: { code: "relocation", note: null },
       },
       [
-        "Прийом на паузі з 10 жовтня 2026 р. · Переїзд",
-        "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає.",
+        "Прийом звернень на паузі з 10 жовтня 2026 р. · Переїзд",
+        "Поки прийом звернень на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом звернень на паузі.",
       ],
     ],
     [
@@ -1188,7 +1196,9 @@ describe("when nobody can see the cards", () => {
     [
       "suspended",
       { status: "suspended", at: NOW, reason: { code: "unresponsive", note: null } },
-      ["Поки притулок призупинено, його тварин немає в галереї."],
+      [
+        "Поки притулок призупинено, його тварин немає в галереї, а посилання на збір не показується.",
+      ],
     ],
   ] as const)(
     "%s: the line that says why, and no line saying people see the cards",
@@ -1201,55 +1211,61 @@ describe("when nobody can see the cards", () => {
     },
   );
 
+  it("pending but allowed to show: no list line at all (the screen's banner says it once)", () => {
+    renderList({
+      verification: { status: "pending", since: NOW } as KabinetShelterView["verification"],
+      earlyListing: { kind: "running", expiresAt: new Date("2026-12-01T00:00:00Z") },
+    });
+    expect(screen.queryByText(/на перевірці/)).toBeNull();
+    expect(
+      screen.queryByText(
+        "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
+      ),
+    ).toBeNull();
+  });
+
   it("verified: no such line", () => {
     renderList();
     expect(screen.queryByText(/щойно притулок пройде перевірку/)).toBeNull();
     expect(screen.queryByText(/на паузі/)).toBeNull();
   });
 
-  it("paused: «Відновити прийом тварин» resumes, and the banner goes", async () => {
+  it("paused: «Відновити прийом звернень» resumes, and the banner goes", async () => {
     const calls = renderList({
       verification: { status: "paused", since: NOW, reason: { code: "relocation", note: null } },
       handlers: { resume: async () => shelterIn(VERIFIED) },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом тварин" }));
+    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом звернень" }));
     expect(calls.resume).toHaveBeenCalledWith({});
-    expect(statusText()).toBe("Прийом відновлено. Ваших тварин знову видно.");
-    expect(screen.queryByText(/Поки прийом на паузі/)).toBeNull();
+    expect(statusText()).toBe("Прийом звернень відновлено. Ваших тварин знову видно.");
+    expect(screen.queryByText(/Поки прийом звернень на паузі/)).toBeNull();
   });
 
-  it("a refused resume: his «Звідси прийом зараз не відновити»", async () => {
+  it("a refused resume: his «Звідси прийом звернень зараз не відновити»", async () => {
     renderList({
       verification: { status: "paused", since: NOW, reason: { code: "relocation", note: null } },
       handlers: { resume: async () => Promise.reject(apiError("ILLEGAL_TRANSITION")) },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом тварин" }));
+    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом звернень" }));
     expect(alertText()).toContain(
-      "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
+      "Звідси прийом звернень зараз не відновити: статус притулку змінився. Напишіть мені.",
     );
   });
 });
 
-describe("the support view (S5): everything visible, nothing writes", () => {
-  it("every action disabled, no «Додати тварину», no resume; «Редагувати» still opens K3", async () => {
+describe("the support view (S5): nothing writes, so no write control is shown", () => {
+  it("no write buttons in a row or its menu, no «Додати тварину», no resume; «Редагувати» still opens K3", async () => {
     const calls = renderList({
       viewer: "support",
       editing: { kind: "read_only" },
       verification: { status: "paused", since: NOW, reason: { code: "relocation", note: null } },
     });
     expect(screen.queryByRole("link", { name: "Додати тварину" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Відновити прийом тварин" })).toBeNull();
-    const confirm = inRow("Рекс").getByRole("button", { name: "Ще шукає" });
-    expect(confirm.getAttribute("aria-disabled")).toBe("true");
-    await userEvent.click(confirm);
+    expect(screen.queryByRole("button", { name: "Відновити прийом звернень" })).toBeNull();
+    expect(inRow("Рекс").queryByRole("button", { name: "Ще шукає" })).toBeNull();
     await openMenu("Рекс");
-    const reserve = screen.getByRole("button", { name: "Почали домовлятися" });
-    expect(reserve.getAttribute("aria-disabled")).toBe("true");
-    await userEvent.click(reserve);
-    const withdraw = screen.getByRole("button", { name: "Зняти з показу" });
-    expect(withdraw.getAttribute("aria-disabled")).toBe("true");
-    await userEvent.click(withdraw);
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Почали домовлятися" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Зняти з показу" })).toBeNull();
     expect(calls.confirm).not.toHaveBeenCalled();
     expect(calls.transition).not.toHaveBeenCalled();
     expect(screen.getByRole("link", { name: "Редагувати" }).getAttribute("href")).toBe(
@@ -1261,7 +1277,7 @@ describe("the support view (S5): everything visible, nothing writes", () => {
 describe("«Ще» is a disclosure", () => {
   it("opens and closes, says so, and Escape closes it with focus back on «Ще»", async () => {
     renderList();
-    const more = inRow("Рекс").getByRole("button", { name: /^Дії з карткою/ });
+    const more = inRow("Рекс").getAllByRole("button", { name: /^Дії з карткою/ })[0] as HTMLElement;
     expect(more.getAttribute("aria-expanded")).toBe("false");
     await userEvent.click(more);
     expect(more.getAttribute("aria-expanded")).toBe("true");
@@ -1279,7 +1295,7 @@ describe("«Ще» is a disclosure", () => {
       inRow("Рекс").getByRole("button", { name: "Ще шукає" }).getAttribute("aria-describedby"),
     ).toContain(name.id);
     // The ⋯ button carries the name in its own accessible name instead.
-    expect(inRow("Рекс").getByRole("button", { name: "Дії з карткою Рекс" })).toBeTruthy();
+    expect(inRow("Рекс").getAllByRole("button", { name: "Дії з карткою Рекс" })).toHaveLength(2);
   });
 });
 
@@ -1296,7 +1312,7 @@ describe("the name is the way into the card's form, and «Ще» closes on a pre
   it("a press outside the open «Ще» closes it", async () => {
     renderList();
     await openMenu("Рекс");
-    const more = inRow("Рекс").getByRole("button", { name: /^Дії з карткою/ });
+    const more = inRow("Рекс").getAllByRole("button", { name: /^Дії з карткою/ })[0] as HTMLElement;
     expect(more.getAttribute("aria-expanded")).toBe("true");
     await userEvent.click(screen.getByRole("heading", { level: 1, name: "Тварини" }));
     expect(more.getAttribute("aria-expanded")).toBe("false");

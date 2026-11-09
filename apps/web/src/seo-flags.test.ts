@@ -151,6 +151,7 @@ describe("app/robots.ts – always allows crawling", () => {
   it("always allows – reads no flag at all", async () => {
     const robots = (await import("./app/robots")).default;
     expect(robots().rules).toEqual({ userAgent: "*", allow: "/" });
+    expect(robots().sitemap).toBe(`${SITE_ORIGIN}/sitemap.xml`);
   });
 });
 
@@ -248,8 +249,10 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
     ).not.toThrow();
   });
 
-  it("defaults to the real flag – permits today's actual, incomplete copy while still not discoverable", () => {
-    expect(() => assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY)).not.toThrow();
+  it("defaults to the real flag – refuses the incomplete copy now that the site is discoverable", () => {
+    expect(() => assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY)).toThrowError(
+      /SITE_IS_PUBLICLY_DISCOVERABLE.*uk\.about\.analytics/s,
+    );
   });
 
   it("defaults to the real copy and the real flag – today's actual state on both", () => {
@@ -266,8 +269,7 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
  */
 const DEMO_BANNER_NOTICE =
   "На сайті поки немає справжніх притулків – усі картки тут демонстраційні.";
-const REAL_PROMISE =
-  "Собаки й коти з перевірених притулків України шукають дім. Перегляньте список.";
+const REAL_PROMISE = "Собаки й коти з притулків України шукають дім. Перегляньте список.";
 
 /**
  * D-2: a shared link's preview must not claim verified shelters exist while
@@ -353,7 +355,7 @@ describe("/prytulkam – description is its own opening sentence, never the demo
       const { metadata } = await import("./app/prytulkam/page");
 
       const whatThisIs =
-        "Opika – сайт, де тварини з перевірених притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку.";
+        "Opika – сайт, де тварини з притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку. Притулки, які ще проходять перевірку, мають позначку «на перевірці».";
       expect(metadata.description).toBe(whatThisIs);
       expect(metadata.openGraph?.description).toBe(whatThisIs);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
@@ -380,7 +382,7 @@ describe("/pro – description is its own opening sentence, never the demo swap"
       const { metadata } = await import("./app/pro/page");
 
       const intro =
-        "Opika – сайт, де тварини з притулків України шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.";
+        "Opika – сайт, де тварини з притулків України шукають дім. Його робить одна людина, у вільний від роботи час і незалежно: немає команди й інвестора. Це не державний і не міський сервіс.";
       expect(metadata.description).toBe(intro);
       expect(metadata.openGraph?.description).toBe(intro);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
@@ -419,6 +421,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview des
     description: { uk: "Лагідний кіт.", en: null },
     photos: [],
     publicLocation: null,
+    availability: { kind: "open" },
     shelter: {
       id: "d0000000-0000-4000-8000-000000000001",
       publicLocation: { cityId: CITY_ID },

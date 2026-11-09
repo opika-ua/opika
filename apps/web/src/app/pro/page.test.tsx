@@ -1,13 +1,17 @@
+import { R4_2_ANALYTICS_SENTENCE } from "@opika/i18n";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { metadata, renderAboutPage } from "./page";
 
 describe("AboutPage", () => {
-  it("states it is run by one person, independent of any state or city service", () => {
+  it("states in one line that it is run by one person, independent of any state or city service", () => {
     render(renderAboutPage(false));
     expect(
-      screen.getByText("Opika робить одна людина, незалежно. Це не державний і не міський сервіс."),
+      screen.getByText(
+        "Opika – сайт, де тварини з притулків України шукають дім. Його робить одна людина, у вільний від роботи час і незалежно: немає команди й інвестора. Це не державний і не міський сервіс.",
+      ),
     ).toBeTruthy();
+    expect(screen.queryByText(/робить одна людина, незалежно/)).toBeNull();
   });
 
   it("sets its own canonical (PR B, the SEO review of page titles)", () => {
@@ -57,7 +61,8 @@ describe("AboutPage", () => {
     expect(screen.getByText(/Дані, які вносить притулок/)).toBeTruthy();
     expect(
       screen.getByText(
-        "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами.",
+        "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами. " +
+          R4_2_ANALYTICS_SENTENCE,
       ),
     ).toBeTruthy();
     expect(screen.getByText("Написати мені: hello@opika.org.ua")).toBeTruthy();

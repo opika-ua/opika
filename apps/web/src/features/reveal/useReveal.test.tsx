@@ -26,6 +26,7 @@ function revealFor(animalId: typeof ANIMAL_A, name: string): ContactRevealView {
     id: REVEAL_ID,
     animalId,
     revealedAt: new Date("2026-08-08T10:00:00Z"),
+    shelterListing: "verified",
     shelterContact: {
       source: "current",
       displayName: "Притулок «Домівка»",
@@ -35,7 +36,6 @@ function revealFor(animalId: typeof ANIMAL_A, name: string): ContactRevealView {
       shelterId: SHELTER_ID,
       publicLocation: { cityId: CITY_ID },
       verificationStatusAtReveal: "verified",
-      donation: null,
     },
     animalSnapshot: { name, primaryPhoto: null },
   };
@@ -86,6 +86,19 @@ describe("useReveal's error reason", () => {
 
     await waitFor(() =>
       expect(result.current.state).toMatchObject({ kind: "error", reason: "rateLimited" }),
+    );
+  });
+
+  it("a SHELTER_PAUSED oRPC error maps to reason: 'shelterPaused'", async () => {
+    revealCall.mockRejectedValueOnce(new ORPCError("SHELTER_PAUSED", { defined: true }));
+
+    const { result } = renderHook(() => useReveal());
+    act(() => {
+      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+    });
+
+    await waitFor(() =>
+      expect(result.current.state).toMatchObject({ kind: "error", reason: "shelterPaused" }),
     );
   });
 

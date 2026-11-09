@@ -1,4 +1,8 @@
-import { ContactRevealSchema, ShelterContactSnapshotSchema } from "@opika/domain";
+import {
+  ContactRevealSchema,
+  PUBLIC_LISTING_LABELS,
+  ShelterContactSnapshotSchema,
+} from "@opika/domain";
 import { z } from "zod";
 import { PublicCityLocationViewSchema } from "./location";
 
@@ -43,8 +47,9 @@ export type RevealShelterContactView = z.infer<typeof RevealShelterContactViewSc
 
 /**
  * What an adopter receives of the shelter as it stood at their first reveal of
- * this animal, from the reveal's stored snapshot (the record): its donation
- * link, the verification status it held then, and its city. Never its exact
+ * this animal, from the reveal's stored snapshot (the record): the verification status it
+ * held then, and its city. No donation link: that is read from the shelter's public page, where
+ * it is shown only while the shelter is verified; the snapshot still keeps what it held. Never its exact
  * address, district or coordinates. Named for when it was taken: a repeat
  * reveal returns the same stored reveal, so none of this is re-read from the
  * shelter; only `shelterContact` (the name and the channels) can be current.
@@ -72,9 +77,14 @@ export type RevealShelterContactView = z.infer<typeof RevealShelterContactViewSc
  */
 export const ShelterAtFirstRevealViewSchema = ShelterContactSnapshotSchema.pick({
   shelterId: true,
-  verificationStatusAtReveal: true,
-  donation: true,
-}).extend({ publicLocation: PublicCityLocationViewSchema });
+}).extend({
+  publicLocation: PublicCityLocationViewSchema,
+  /**
+   * The public label, never the stored raw status: `pending` and `under_review` are the
+   * operator's words and must not reach an adopter (the stored record keeps them).
+   */
+  verificationStatusAtReveal: z.enum(PUBLIC_LISTING_LABELS),
+});
 export type ShelterAtFirstRevealView = z.infer<typeof ShelterAtFirstRevealViewSchema>;
 
 export const ContactRevealViewSchema = ContactRevealSchema.pick({
@@ -84,6 +94,12 @@ export const ContactRevealViewSchema = ContactRevealSchema.pick({
   animalSnapshot: true,
 }).extend({
   shelterContact: RevealShelterContactViewSchema,
+  /**
+   * How the shelter is listed right now: `listed_before_verification` makes the dialog say the
+   * review is still running. A label only, never a date; `null` where the shelter is not listed
+   * (a «Мої запити» item for a hidden shelter, which carries the first-reveal record instead).
+   */
+  shelterListing: z.enum(PUBLIC_LISTING_LABELS).nullable(),
   shelterAtFirstReveal: ShelterAtFirstRevealViewSchema,
 });
 export type ContactRevealView = z.infer<typeof ContactRevealViewSchema>;

@@ -12,7 +12,15 @@ import {
   type RegistryListPosition,
   shelterRepo,
 } from "@opika/db/repos";
-import type { CityId, Shelter, ShelterAdminId, ShelterId, VerificationStatus } from "@opika/domain";
+import {
+  type CityId,
+  earlyListingOf,
+  earlyListingRemaining,
+  type Shelter,
+  type ShelterAdminId,
+  type ShelterId,
+  type VerificationStatus,
+} from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { KabinetContext } from "../context";
@@ -31,6 +39,19 @@ const adminViewOf = (row: RegistryAdminRow): ShelterAdminView => ({
   invite: row.invite,
 });
 
+const earlyListingViewOf = (
+  shelter: Shelter,
+  periodsUsed: number,
+  now: Date,
+): RegistryShelterView["earlyListing"] => {
+  const remaining = earlyListingRemaining(
+    shelter.verification,
+    earlyListingOf(shelter.earlyListingSince),
+    now,
+  );
+  return { state: remaining, periodsUsed };
+};
+
 /**
  * S3/S4's full record. Built field by field, the way the view is `pick`ed:
  * the operator sees evidence and moderator ids, but still nothing that only
@@ -39,6 +60,7 @@ const adminViewOf = (row: RegistryAdminRow): ShelterAdminView => ({
 export function registryShelterViewOf(
   shelter: Shelter,
   admins: readonly RegistryAdminRow[],
+  early: { periodsUsed: number; now: Date },
 ): RegistryShelterView {
   return {
     id: shelter.id,
@@ -56,6 +78,7 @@ export function registryShelterViewOf(
     lastUpdatedAt: shelter.lastUpdatedAt,
     version: shelter.version,
     admins: admins.map(adminViewOf),
+    earlyListing: earlyListingViewOf(shelter, early.periodsUsed, early.now),
   };
 }
 
@@ -71,10 +94,14 @@ export async function loadShelterOr404(
 }
 
 export async function registryShelterView(
-  deps: Pick<RegistryDeps, "db">,
+  deps: Pick<RegistryDeps, "db" | "now">,
   shelter: Shelter,
 ): Promise<RegistryShelterView> {
-  return registryShelterViewOf(shelter, await kabinetRegistryRepo(deps.db).adminsOf(shelter.id));
+  const [admins, periodsUsed] = await Promise.all([
+    kabinetRegistryRepo(deps.db).adminsOf(shelter.id),
+    kabinetShelterRepo(deps.db).earlyListingPeriodsUsed(shelter.id),
+  ]);
+  return registryShelterViewOf(shelter, admins, { periodsUsed, now: deps.now });
 }
 
 export async function registrySheltersList(
@@ -110,7 +137,7 @@ export async function registrySheltersList(
 }
 
 export async function registrySheltersById(
-  deps: Pick<RegistryDeps, "db">,
+  deps: Pick<RegistryDeps, "db" | "now">,
   input: { shelterId: ShelterId },
   errors: NotFound,
 ): Promise<RegistryShelterView> {

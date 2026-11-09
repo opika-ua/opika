@@ -110,8 +110,8 @@ describe("resubmit", () => {
     expect((reference.getByLabelText("Ким доводиться притулку") as HTMLSelectElement).value).toBe(
       "veterinary_clinic",
     );
-    const visit = card("Візит на місце");
-    expect((visit.getByLabelText("Дата візиту") as HTMLInputElement).value).toBe("2026-10-05");
+    const visit = card("Відеодзвінок");
+    expect((visit.getByLabelText("Дата дзвінка") as HTMLInputElement).value).toBe("2026-10-05");
     expect((visit.getByLabelText("Нотатка") as HTMLTextAreaElement).value).toBe(
       "Чисто, вольєри з навісом.",
     );
@@ -130,7 +130,7 @@ describe("resubmit", () => {
     const reference = card("Рекомендація");
     await u.clear(reference.getByLabelText("Хто"));
     await u.type(reference.getByLabelText("Хто"), "Д-р Марина Шевчук-Коваль");
-    await u.click(card("Візит на місце").getByRole("button", { name: "Прибрати" }));
+    await u.click(card("Відеодзвінок").getByRole("button", { name: "Прибрати" }));
     await u.selectOptions(panel().getByLabelText("Тип доказу"), "Рекомендація");
     await u.click(panel().getByRole("button", { name: "+ Додати доказ" }));
     const added = card("Рекомендація", 1);
@@ -163,12 +163,12 @@ describe("resubmit", () => {
       view: rejectedWith([REFERENCE, VISIT]),
       client: { verification: { resubmit } },
     });
-    const notes = card("Візит на місце").getByLabelText("Нотатка");
+    const notes = card("Відеодзвінок").getByLabelText("Нотатка");
     await userEvent.clear(notes);
     await userEvent.click(resubmitButton());
     expect(resubmit).not.toHaveBeenCalled();
     expect(notes.getAttribute("aria-invalid")).toBe("true");
-    expect(card("Візит на місце").getByText("Це поле потрібне.")).toBeTruthy();
+    expect(card("Відеодзвінок").getByText("Це поле потрібне.")).toBeTruthy();
     expect(document.activeElement).toBe(notes);
     expect(resubmitButton()).toBeTruthy();
   });
@@ -194,14 +194,12 @@ describe("resubmit", () => {
       view: rejectedWith([VISIT]),
       client: { verification: { resubmit } },
     });
-    const visitedOn = card("Візит на місце").getByLabelText("Дата візиту") as HTMLInputElement;
+    const visitedOn = card("Відеодзвінок").getByLabelText("Дата дзвінка") as HTMLInputElement;
     expect(visitedOn.max).toBe("2026-10-17");
     fireEvent.change(visitedOn, { target: { value: "2026-10-18" } });
     await userEvent.click(screen.getByRole("button", { name: "Повернути на перевірку" }));
     expect(resubmit).not.toHaveBeenCalled();
-    expect(
-      card("Візит на місце").getByText("Дата візиту не може бути в майбутньому."),
-    ).toBeTruthy();
+    expect(card("Відеодзвінок").getByText("Дата дзвінка не може бути в майбутньому.")).toBeTruthy();
     fireEvent.change(visitedOn, { target: { value: "2026-10-17" } });
     await userEvent.click(screen.getByRole("button", { name: "Повернути на перевірку" }));
     expect(resubmit).toHaveBeenCalledOnce();
@@ -219,7 +217,7 @@ describe("resubmit", () => {
       },
     });
     await userEvent.click(resubmitButton());
-    expect(panel().getByRole("alert").textContent).toBe("Дата візиту не може бути в майбутньому.");
+    expect(panel().getByRole("alert").textContent).toBe("Дата дзвінка не може бути в майбутньому.");
     expect(resubmitButton()).toBeTruthy();
   });
 

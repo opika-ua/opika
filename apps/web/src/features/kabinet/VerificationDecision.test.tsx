@@ -22,6 +22,7 @@ import { VerificationDecision } from "./VerificationDecision";
 const view = (verification: KabinetShelterView["verification"]): KabinetShelterView => ({
   id: "51000000-0000-4000-8000-000000000001" as KabinetShelterView["id"],
   displayName: "Притулок «Домівка»",
+  earlyListing: { kind: "none" },
   description: { uk: "Опис", en: null },
   legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" },
   exactAddress: {
@@ -67,10 +68,10 @@ describe("a rejected shelter reads the decision", () => {
         [
           "Перевірку не пройдено",
           "Тварин притулку не буде в галереї, доки перевірку не пройдено.",
-          "Причина: Спам.",
+          "Причина: Заявка не схожа на звернення притулку.",
           "Пояснення:",
           NOTE,
-          "- Олексій Колотенко",
+          "Олексій Колотенко",
           "Якщо маєте питання, напишіть мені.",
         ].join(""),
       );
@@ -78,9 +79,14 @@ describe("a rejected shelter reads the decision", () => {
       const quote = section.querySelector("blockquote");
       expect(quote?.textContent).toBe(NOTE);
       expect(section.querySelector("figcaption")?.textContent).toBe("Пояснення:");
-      expect(screen.getByText("- Олексій Колотенко").closest("blockquote")).toBeNull();
+      expect(screen.getByText("Олексій Колотенко").closest("blockquote")).toBeNull();
     },
   );
+
+  it("a rejection stored with the retired out_of_service_area still shows its label", () => {
+    renderAs({ status: "rejected", at: AT, reason: { code: "out_of_service_area", note: null } });
+    expect(screen.getByText("Причина: Поза територією, де працює сайт.")).toBeTruthy();
+  });
 
   it("a reason stored without a note shows the code: no label, no empty quotation, no signature", () => {
     renderAs({ status: "rejected", at: AT, reason: { code: "insufficient_evidence", note: null } });
@@ -101,11 +107,21 @@ describe("a rejected shelter reads the decision", () => {
       kind: "configured",
       name: "Олексій $& $1",
     });
-    expect(screen.getByText("- Олексій $& $1")).toBeTruthy();
+    expect(screen.getByText("Олексій $& $1")).toBeTruthy();
   });
 });
 
 describe("a suspended shelter reads the decision", () => {
+  it("a legacy suspected_fraud suspension reads the neutral label", () => {
+    renderAs(
+      { status: "suspended", at: AT, reason: { code: "suspected_fraud", note: "Давній запис." } },
+      "admin",
+    );
+    const region = screen.getByRole("region", { name: "Притулок тимчасово призупинено" });
+    expect(region.textContent).toContain("Причина: Не вдалося підтвердити дані притулку.");
+    expect(region.textContent).not.toContain("шахрайств");
+  });
+
   it.each(["admin", "support"] as const)("%s: its own title and effect, signed", (viewer) => {
     renderAs(
       {
@@ -119,11 +135,11 @@ describe("a suspended shelter reads the decision", () => {
     expect(section.textContent).toBe(
       [
         "Притулок тимчасово призупинено",
-        "Поки притулок призупинено, його тварин немає в галереї.",
-        "Причина: Скарга підтвердилася.",
+        "Поки притулок призупинено, його тварин немає в галереї, а посилання на збір не показується.",
+        "Причина: Перевірена скарга.",
         "Пояснення:",
         "Скарга від ветклініки. Чекаю на ваші фото.",
-        "- Олексій Колотенко",
+        "Олексій Колотенко",
         "Якщо маєте питання, напишіть мені.",
       ].join(""),
     );
@@ -138,14 +154,14 @@ describe("a suspended shelter reads the decision", () => {
  * different screen since kabinet redesign Phase 2 PR 1.
  */
 describe("with no operator name configured", () => {
-  it("signs «- Адміністратор сайту»", () => {
+  it("signs «Адміністратор сайту»", () => {
     renderAs(
       { status: "suspended", at: AT, reason: { code: "other", note: "Чекаю на ваші фото." } },
       "admin",
       { kind: "fallback" },
     );
     const section = screen.getByRole("region", { name: "Притулок тимчасово призупинено" });
-    expect(section.textContent).toContain("Чекаю на ваші фото.- Адміністратор сайту");
+    expect(section.textContent).toContain("Чекаю на ваші фото.Адміністратор сайту");
   });
 });
 
@@ -165,7 +181,7 @@ describe("every other status sees none of it", () => {
       "Притулок тимчасово призупинено",
       "Якщо маєте питання, напишіть мені.",
       "Пояснення:",
-      "- Олексій Колотенко",
+      "Олексій Колотенко",
     ]) {
       expect(screen.queryByText(text)).toBeNull();
     }

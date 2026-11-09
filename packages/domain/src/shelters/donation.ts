@@ -28,6 +28,54 @@ export const DonationLinkSchema = z.object({
 export type DonationLink = z.infer<typeof DonationLinkSchema>;
 
 /**
+ * Why a link a shelter would not mind showing is still not ours to send people to. Applied to a
+ * NEW proposal only, never to stored links (`DonationLinkSchema` stays lenient so old rows parse).
+ * `userinfo`: `https://user@host` reads as `user`'s site in a hurry. `idn`: a lookalike host
+ * (Cyrillic letters, any `xn--` label) cannot be told apart from the real one by eye.
+ */
+export type DonationUrlProblem = "userinfo" | "idn";
+
+export const donationUrlProblemOf = (raw: string): DonationUrlProblem | null => {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  // The parser turns a Unicode host into its `xn--` form, so the parsed host catches both IDN
+  // cases; the raw authority is checked too, because the parser also folds some lookalikes into
+  // plain ASCII, and for a bare `@`, which it drops from the parsed result.
+  const authority =
+    raw
+      .trim()
+      .replace(/^[^:]*:\/*/, "")
+      .split(/[/?#]/, 1)[0] ?? "";
+  if (url.username !== "" || url.password !== "" || authority.includes("@")) return "userinfo";
+  if ([...authority].some((char) => char.charCodeAt(0) > 0x7f)) return "idn";
+  if (url.hostname.split(".").some((label) => label.toLowerCase().startsWith("xn--"))) return "idn";
+  return null;
+};
+
+/** The URL of a new proposal: an https link without userinfo or an IDN host. */
+export const DonationProposalUrlSchema = DonationLinkSchema.shape.url.superRefine((value, ctx) => {
+  const problem = donationUrlProblemOf(value);
+  if (problem !== null) ctx.addIssue({ code: "custom", message: `donation_${problem}` });
+});
+
+/**
+ * Why the operator took a live link away. A code the shelter reads as a label, plus a required
+ * note (as for reject and suspend).
+ */
+export const DonationRemovalCodeSchema = z.enum([
+  "wrong_destination",
+  "not_shelters_own",
+  "cannot_confirm",
+  "shelter_request",
+  "other",
+]);
+export type DonationRemovalCode = z.infer<typeof DonationRemovalCodeSchema>;
+
+/**
  * Derived rather than stored: the destination shown to a user must be the
  * destination they are sent to, and a second field can disagree with the link
  * it describes.
@@ -73,6 +121,7 @@ export const donationProviderOf = (url: string): DonationProvider => {
 export const PendingDonationSchema = z.object({
   link: DonationLinkSchema,
   proposedAt: z.date(),
-  proposedBy: ShelterAdminIdSchema,
+  /** `null`: not proposed by anyone; the live link was moved here when its shelter was suspended. */
+  proposedBy: ShelterAdminIdSchema.nullable(),
 });
 export type PendingDonation = z.infer<typeof PendingDonationSchema>;

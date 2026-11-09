@@ -33,7 +33,7 @@ const COUNTS: GalleryFacetCounts = {
   species: { dog: 7, cat: 5 },
 };
 
-function renderRow(filters: FeedFilters = NO_FILTERS, counts: GalleryFacetCounts = COUNTS) {
+async function renderRow(filters: FeedFilters = NO_FILTERS, counts: GalleryFacetCounts = COUNTS) {
   const router = mockAppRouter();
   render(
     <WithMockRouter router={router}>
@@ -48,6 +48,8 @@ function renderRow(filters: FeedFilters = NO_FILTERS, counts: GalleryFacetCounts
       <button type="button">Поза</button>
     </WithMockRouter>,
   );
+  // The city and oblast fields load their combobox lazily.
+  await screen.findAllByRole("combobox");
   return router;
 }
 
@@ -64,8 +66,8 @@ const pillNames = (group: HTMLElement) =>
     .map((pill) => pill.getAttribute("aria-label"));
 
 describe("GalleryFilterDropdowns", () => {
-  it("renders the five selectors - oblast, city, age, size, sex - after the species toggle", () => {
-    renderRow();
+  it("renders the five selectors - oblast, city, age, size, sex - after the species toggle", async () => {
+    await renderRow();
     for (const name of ["Область", "Місто"]) {
       expect(field(name).getAttribute("aria-expanded")).toBe("false");
     }
@@ -75,19 +77,19 @@ describe("GalleryFilterDropdowns", () => {
     expect(screen.getByRole("group", { name: "Вид" })).toBe(screen.getByTestId("species-toggle"));
   });
 
-  it("names the field by the dimension while nothing is chosen", () => {
-    renderRow();
+  it("names the field by the dimension while nothing is chosen", async () => {
+    await renderRow();
     expect(field("Місто").getAttribute("placeholder")).toBe("Місто");
   });
 
-  it("names the chosen options on the field in the order they were chosen, joined by «, »", () => {
-    renderRow({ ...NO_FILTERS, cities: { kind: "oneOf", values: [IRPIN, BROVARY] } });
+  it("names the chosen options on the field in the order they were chosen, joined by «, »", async () => {
+    await renderRow({ ...NO_FILTERS, cities: { kind: "oneOf", values: [IRPIN, BROVARY] } });
     expect(field("Місто: Ірпінь, Бровари").getAttribute("placeholder")).toBe("Ірпінь, Бровари");
     expect(screen.getByRole("img", { name: "Вибрано: 2" }).textContent).toBe("2");
   });
 
-  it("opens a labelled group of pills and moves focus into it", () => {
-    renderRow();
+  it("opens a labelled group of pills and moves focus into it", async () => {
+    await renderRow();
     fireEvent.click(trigger("Розмір: Розмір"));
 
     expect(trigger("Розмір: Розмір").getAttribute("aria-expanded")).toBe("true");
@@ -100,16 +102,16 @@ describe("GalleryFilterDropdowns", () => {
     expect(document.activeElement).toBe(within(group).getAllByRole("button")[0]);
   });
 
-  it("puts the count in each pill's name and on the pill itself", () => {
-    renderRow();
+  it("puts the count in each pill's name and on the pill itself", async () => {
+    await renderRow();
     fireEvent.click(trigger("Вік: Вік"));
     const pill = screen.getByRole("button", { name: "Дорослий, 22 тварини" });
     expect(pill.textContent).toBe("Дорослий22");
     expect(pill.getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("orders cities by count, most first, then alphabetically, a city with none left last and disabled", () => {
-    renderRow();
+  it("orders cities by count, most first, then alphabetically, a city with none left last and disabled", async () => {
+    await renderRow();
     fireEvent.click(field("Місто"));
     expect(optionNames()).toEqual(["Бровари, 14 тварин", "Ірпінь, 14 тварин", "Буча, 0 тварин"]);
     expect(
@@ -117,8 +119,8 @@ describe("GalleryFilterDropdowns", () => {
     ).toBe("true");
   });
 
-  it("keeps the other dimensions in their natural order whatever the counts", () => {
-    renderRow();
+  it("keeps the other dimensions in their natural order whatever the counts", async () => {
+    await renderRow();
     fireEvent.click(trigger("Стать: Стать"));
     expect(pillNames(panel("Стать"))).toEqual([
       "Хлопчик, 4 тварини",
@@ -127,8 +129,8 @@ describe("GalleryFilterDropdowns", () => {
     ]);
   });
 
-  it("marks the chosen pill pressed", () => {
-    renderRow({ ...NO_FILTERS, ages: { kind: "oneOf", values: ["young"] } });
+  it("marks the chosen pill pressed", async () => {
+    await renderRow({ ...NO_FILTERS, ages: { kind: "oneOf", values: ["young"] } });
     fireEvent.click(trigger("Вік: Молодий"));
     expect(
       screen.getByRole("button", { name: "Молодий, 3 тварини" }).getAttribute("aria-pressed"),
@@ -138,8 +140,8 @@ describe("GalleryFilterDropdowns", () => {
     ).toBe("false");
   });
 
-  it("a row applies at once through the URL, and the list stays open for the next", () => {
-    const router = renderRow({ ...NO_FILTERS, sizes: { kind: "oneOf", values: ["large"] } });
+  it("a row applies at once through the URL, and the list stays open for the next", async () => {
+    const router = await renderRow({ ...NO_FILTERS, sizes: { kind: "oneOf", values: ["large"] } });
     fireEvent.click(field("Місто"));
     act(() => {
       fireEvent.click(screen.getByRole("option", { name: "Ірпінь, 14 тварин" }));
@@ -151,15 +153,15 @@ describe("GalleryFilterDropdowns", () => {
     expect(screen.getByRole("listbox", { name: "Місто" })).toBeTruthy();
   });
 
-  it("ignores a press on a row with nothing to find", () => {
-    const router = renderRow();
+  it("ignores a press on a row with nothing to find", async () => {
+    const router = await renderRow();
     fireEvent.click(field("Місто"));
     fireEvent.click(screen.getByRole("option", { name: "Буча, 0 тварин" }));
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it("keeps a chosen row with nothing to find usable, so it can be cleared", () => {
-    const router = renderRow({ ...NO_FILTERS, cities: { kind: "oneOf", values: [BUCHA] } });
+  it("keeps a chosen row with nothing to find usable, so it can be cleared", async () => {
+    const router = await renderRow({ ...NO_FILTERS, cities: { kind: "oneOf", values: [BUCHA] } });
     fireEvent.click(field("Місто: Буча"));
     const chosen = screen.getByRole("option", { name: "Буча, 0 тварин" });
 
@@ -171,8 +173,8 @@ describe("GalleryFilterDropdowns", () => {
     expect(router.replace).toHaveBeenCalledWith("/tvaryny", { scroll: false });
   });
 
-  it("Escape closes it and returns focus to the trigger", () => {
-    renderRow();
+  it("Escape closes it and returns focus to the trigger", async () => {
+    await renderRow();
     fireEvent.click(trigger("Вік: Вік"));
     fireEvent.keyDown(document, { key: "Escape" });
 
@@ -180,16 +182,16 @@ describe("GalleryFilterDropdowns", () => {
     expect(document.activeElement).toBe(trigger("Вік: Вік"));
   });
 
-  it("the trigger closes it again", () => {
-    renderRow();
+  it("the trigger closes it again", async () => {
+    await renderRow();
     fireEvent.click(trigger("Вік: Вік"));
     fireEvent.click(trigger("Вік: Вік"));
     expect(screen.queryByRole("group", { name: "Вік" })).toBeNull();
     expect(trigger("Вік: Вік").getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("a press outside closes it; a press inside does not", () => {
-    renderRow();
+  it("a press outside closes it; a press inside does not", async () => {
+    await renderRow();
     fireEvent.click(trigger("Стать: Стать"));
     fireEvent.pointerDown(screen.getByRole("button", { name: "Хлопчик, 4 тварини" }));
     expect(panel("Стать")).toBeTruthy();
@@ -202,8 +204,8 @@ describe("GalleryFilterDropdowns", () => {
    * Oleksii, on the dropdown this replaces, verbatim: "replacing chevron icon with X to clear
    * all filters [in] 1 click". Each ✕ clears only its own dimension.
    */
-  it("offers a ✕ per chosen dimension that clears only that dimension", () => {
-    renderRow({
+  it("offers a ✕ per chosen dimension that clears only that dimension", async () => {
+    await renderRow({
       ...NO_FILTERS,
       sizes: { kind: "oneOf", values: ["large"] },
       ages: { kind: "oneOf", values: ["young"] },
@@ -218,15 +220,15 @@ describe("GalleryFilterDropdowns", () => {
     expect(screen.queryByRole("link", { name: "Скинути Місто" })).toBeNull();
   });
 
-  it("the species toggle writes vyd=cat for the cat segment, exclusively", () => {
-    renderRow({ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } });
+  it("the species toggle writes vyd=cat for the cat segment, exclusively", async () => {
+    await renderRow({ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } });
     expect(screen.getByTestId("species-dog").getAttribute("aria-current")).toBe("true");
     expect(screen.getByTestId("species-cat").getAttribute("href")).toBe("/tvaryny?vyd=cat");
     expect(screen.getByTestId("species-any").getAttribute("href")).toBe("/tvaryny");
   });
 
-  it("the species toggle marks «Усі» active when no species is chosen, and only «Усі»", () => {
-    renderRow();
+  it("the species toggle marks «Усі» active when no species is chosen, and only «Усі»", async () => {
+    await renderRow();
     expect(screen.getByTestId("species-any").getAttribute("aria-current")).toBe("true");
     expect(screen.getByTestId("species-dog").getAttribute("aria-current")).toBeNull();
     expect(screen.getByTestId("species-cat").getAttribute("aria-current")).toBeNull();
@@ -242,8 +244,8 @@ describe("GalleryFilterDropdowns", () => {
       ],
     };
 
-    it("lists every oblast with counts in two groups, a zero-count one disabled in place", () => {
-      renderRow(NO_FILTERS, TWO_REGIONS);
+    it("lists every oblast with counts in two groups, a zero-count one disabled in place", async () => {
+      await renderRow(NO_FILTERS, TWO_REGIONS);
       fireEvent.click(field("Область"));
       expect(optionNames()).toEqual([
         "Київська, 28 тварин",
@@ -257,8 +259,8 @@ describe("GalleryFilterDropdowns", () => {
       ).toBe("true");
     });
 
-    it("a row applies at once through the URL as `obl`, keeping the other filters", () => {
-      const router = renderRow(
+    it("a row applies at once through the URL as `obl`, keeping the other filters", async () => {
+      const router = await renderRow(
         { ...NO_FILTERS, sizes: { kind: "oneOf", values: ["large"] } },
         TWO_REGIONS,
       );
@@ -271,14 +273,17 @@ describe("GalleryFilterDropdowns", () => {
       });
     });
 
-    it("narrows the city field to the chosen oblast's cities", () => {
-      renderRow({ ...NO_FILTERS, regions: { kind: "oneOf", values: [LVIV_OBL] } }, TWO_REGIONS);
+    it("narrows the city field to the chosen oblast's cities", async () => {
+      await renderRow(
+        { ...NO_FILTERS, regions: { kind: "oneOf", values: [LVIV_OBL] } },
+        TWO_REGIONS,
+      );
       fireEvent.click(field("Місто"));
       expect(optionNames()).toEqual(["Львів, 5 тварин"]);
     });
 
-    it("deselecting an oblast also drops the cities that narrowed it", () => {
-      const router = renderRow(
+    it("deselecting an oblast also drops the cities that narrowed it", async () => {
+      const router = await renderRow(
         {
           ...NO_FILTERS,
           regions: { kind: "oneOf", values: [KYIV_OBL, LVIV_OBL] },
@@ -296,8 +301,8 @@ describe("GalleryFilterDropdowns", () => {
       });
     });
 
-    it("offers a ✕ that clears only the oblast", () => {
-      const router = renderRow({
+    it("offers a ✕ that clears only the oblast", async () => {
+      const router = await renderRow({
         ...NO_FILTERS,
         regions: { kind: "oneOf", values: [KYIV_OBL] },
         sizes: { kind: "oneOf", values: ["large"] },

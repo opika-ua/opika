@@ -126,3 +126,33 @@ describe("NoMatch: an empty oblast", () => {
     );
   });
 });
+
+describe("NoMatch: an empty registry versus filters that exclude everything", () => {
+  const slugs = new Map<never, string>();
+
+  it("with no filter set says the registry is empty and offers no reset", () => {
+    render(<NoMatch filters={NO_FILTERS} sort="freshest" citySlugs={slugs} relaxations={[]} />);
+    expect(screen.getByRole("heading", { name: "Тут поки немає тварин." })).toBeTruthy();
+    expect(
+      screen.getByText("Притулки тільки починають додавати картки. Зазирніть трохи згодом."),
+    ).toBeTruthy();
+    expect(screen.queryByText("Це не помилка пошуку.")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Скинути" })).toBeNull();
+  });
+
+  it("with a filter set keeps the filter wording and the reset, whatever the registry holds", () => {
+    render(
+      <NoMatch
+        filters={{ ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } }}
+        sort="freshest"
+        citySlugs={slugs}
+        relaxations={[]}
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Під ці фільтри зараз нікого немає." }),
+    ).toBeTruthy();
+    expect(screen.getByText("Це не помилка пошуку.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Скинути" })).toBeTruthy();
+  });
+});

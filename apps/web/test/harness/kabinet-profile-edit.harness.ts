@@ -233,17 +233,19 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
 
   test("pause with a reason, then resume", async () => {
     const page = await profilePage();
-    await page.getByRole("button", { name: "Призупинити прийом тварин" }).click();
-    const dialog = page.getByRole("dialog", { name: "Призупинити прийом тварин?" });
+    await page.getByRole("button", { name: "Призупинити прийом звернень" }).click();
+    const dialog = page.getByRole("dialog", { name: "Призупинити прийом звернень?" });
     await dialog.getByLabel("Причина").selectOption({ label: "Сезонна перерва" });
-    await dialog.getByRole("button", { name: "Призупинити прийом" }).click();
+    await dialog.getByRole("button", { name: "Призупинити прийом звернень" }).click();
     await expect(dialog).toBeHidden();
-    await expect(page.getByText("Прийом на паузі.", { exact: true })).toBeVisible();
-    await expect(page.getByText(/^Прийом на паузі з .+ · Сезонна перерва$/)).toBeVisible();
+    await expect(page.getByText("Прийом звернень на паузі.", { exact: true })).toBeVisible();
+    await expect(page.getByText(/^Прийом звернень на паузі з .+ · Сезонна перерва$/)).toBeVisible();
 
-    await page.getByRole("button", { name: "Відновити прийом тварин" }).click();
-    await expect(page.getByText("Прийом відновлено. Ваших тварин знову видно.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Призупинити прийом тварин" })).toBeVisible();
+    await page.getByRole("button", { name: "Відновити прийом звернень" }).click();
+    await expect(
+      page.getByText("Прийом звернень відновлено. Ваших тварин знову видно."),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Призупинити прийом звернень" })).toBeVisible();
     await page.close();
   });
 

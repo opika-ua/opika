@@ -10,12 +10,13 @@ import {
 import { LocalizedTextSchema } from "../primitives/localized-text";
 import { ShelterActorSchema } from "./actor";
 import { ShelterContactSchema } from "./contact";
-import { DonationLinkSchema } from "./donation";
+import { DonationLinkSchema, DonationRemovalCodeSchema } from "./donation";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
 import { ShelterLogoSchema } from "./logo";
 import { FreshnessSentenceSchema } from "./shelter";
 import { VerificationEventSchema } from "./verification/events";
+import { EvidenceKindSchema } from "./verification/evidence";
 import { VerificationStatusSchema } from "./verification/state";
 
 /**
@@ -175,6 +176,31 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     previousLive: DonationLinkSchema.nullable(),
   }),
   /**
+   * The operator took the live link away (money safety). Names the link that went and why, like a
+   * suspension: a code plus a required note the shelter reads verbatim. `clearedPending` says a
+   * waiting proposal went with it.
+   */
+  z.object({
+    kind: z.literal("donation_removed"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    previousLive: DonationLinkSchema,
+    clearedPending: z.boolean(),
+    reason: z.object({ code: DonationRemovalCodeSchema, note: z.string().min(1) }),
+  }),
+  /**
+   * A suspension stopped the live link being live. `moved_to_pending`: nothing newer was waiting,
+   * so the old link now waits for the operator; `pending_kept`: a newer proposal already waited,
+   * which stays, and the old link is only recorded here.
+   */
+  z.object({
+    kind: z.literal("donation_suspended"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    previousLive: DonationLinkSchema,
+    outcome: z.enum(["moved_to_pending", "pending_kept"]),
+  }),
+  /**
    * The operator editing what verification checked (S4). No approval step:
    * the operator is already the authority, with no one above to ask
    * (decisions §5). The record of the change is the safeguard.
@@ -195,6 +221,43 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
         next: ExactAddressSchema,
       }),
     ]),
+  }),
+  /**
+   * The operator added evidence while the shelter was pending or under review.
+   * Operator-only history: the shelter-facing projection omits it entirely
+   * (owner, 2026-11-04). Kinds only, never contents: a reference holds a third
+   * party's name and phone, and this log is append-only.
+   */
+  z.object({
+    kind: z.literal("evidence_added"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    items: z.array(z.object({ kind: EvidenceKindSchema })).min(1),
+    statusAt: z.enum(["pending", "under_review"]),
+  }),
+  /**
+   * The operator let the shelter's cards be public while its review runs (owner, 2026-11-04).
+   * `period` is 1 or 2; the note is required for 2 and is operator-only like the entry.
+   */
+  z.object({
+    kind: z.literal("early_listing_allowed"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    period: z.int().min(1),
+    note: z.string().min(1).nullable(),
+  }),
+  z.object({
+    kind: z.literal("early_listing_revoked"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+  }),
+  /**
+   * A period ran out on its own. `at` is the expiry instant, not the write that records it: read-time
+   * expiry writes nothing, so the next audited write that clears the column adds this line.
+   */
+  z.object({
+    kind: z.literal("early_listing_lapsed"),
+    at: z.date(),
   }),
   /**
    * The operator renamed the shelter on S4 (R-UI 4; Oleksii, R-UI answer 8,
@@ -328,7 +391,13 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "donation_proposed":
     case "donation_proposal_cancelled":
     case "donation_decided":
+    case "donation_removed":
+    case "donation_suspended":
     case "verified_data_changed":
+    case "evidence_added":
+    case "early_listing_allowed":
+    case "early_listing_revoked":
+    case "early_listing_lapsed":
     case "display_name_changed":
     case "shelter_created":
     case "admin_invited":

@@ -3,7 +3,7 @@
 import "../../../zod-client-config";
 import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
-import { Fragment, useId } from "react";
+import { Fragment, useId, useState } from "react";
 import { Button, type ButtonVariant, LinkButton } from "../../../ui/Button";
 import { FreshnessPips } from "../../../ui/FreshnessPips";
 import { Heading } from "../../../ui/Heading";
@@ -29,6 +29,8 @@ const t = uk.kabinet.animalList;
 
 /** «Ще»'s id, so the list can give it focus back when a dialog it opened closes. */
 export const moreButtonId = (animalId: string): string => `animal-more-${animalId}`;
+/** The phone's copy of the menu (top-right corner); only one of the two is ever displayed. */
+export const moreButtonPhoneId = (animalId: string): string => `animal-more-phone-${animalId}`;
 
 /** Filled only for the one move that changes what people see; routine upkeep outlined; the rest plain. */
 const FORWARD_VARIANT: Record<Exclude<RowAction, "edit">, Exclude<ButtonVariant, "icon">> = {
@@ -55,8 +57,8 @@ const FORWARD_VARIANT: Record<Exclude<RowAction, "edit">, Exclude<ButtonVariant,
  * in «Ще» too. The repeated buttons get the animal's name through `aria-describedby` (P4); the
  * photo is a second, hidden way into the same form for people who tap the picture.
  *
- * `editable` false (the support view, S5) keeps every write visible and `aria-disabled`,
- * focusable, doing nothing; «Редагувати» stays a link, to K3's read-only page.
+ * `editable` false (the support view, S5) leaves out every write button (they looked live and did
+ * nothing); «Редагувати» and «Переглянути на сайті» stay links, to K3's read-only page and the site.
  */
 export function AnimalListRow({
   row,
@@ -83,6 +85,9 @@ export function AnimalListRow({
   onUndo: () => void;
 }) {
   const id = useId();
+  // Two triggers in the DOM, one displayed per breakpoint (the phone's sits in the card's top-right
+  // corner, ahead of the confirm button in tab order); `via` keeps just the clicked one open.
+  const [via, setVia] = useState<"top" | "bottom">("bottom");
   const nameId = `${id}-name`;
   const gapsId = `${id}-gaps`;
   const kind = row.listing.kind;
@@ -98,6 +103,51 @@ export function AnimalListRow({
     onToggleMenu(false);
     onAction(action);
   };
+
+  const items = (
+    <>
+      {menu
+        .filter((action) => editable || action === "edit" || action === "viewOnSite")
+        .map((action) => (
+          <Fragment key={action}>
+            {DANGER_ENTRIES.has(action) && action === firstDanger ? <MenuDivider /> : null}
+            <MenuItem tone={DANGER_ENTRIES.has(action) ? "danger" : "default"}>
+              {action === "edit" ? (
+                <LinkButton
+                  variant="ghost"
+                  href={href}
+                  prefetch={false}
+                  className="w-full justify-start"
+                >
+                  {actionLabelOf(action)}
+                </LinkButton>
+              ) : action === "viewOnSite" ? (
+                <LinkButton
+                  variant="ghost"
+                  href={publicAnimalPath(row.id)}
+                  target="_blank"
+                  rel="noopener"
+                  prefetch={false}
+                  className="w-full justify-start"
+                >
+                  {actionLabelOf(action)}
+                  <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
+                </LinkButton>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  aria-disabled={inert || undefined}
+                  onClick={() => act(action)}
+                >
+                  {actionLabelOf(action)}
+                </Button>
+              )}
+            </MenuItem>
+          </Fragment>
+        ))}
+    </>
+  );
 
   return (
     <li aria-labelledby={nameId}>
@@ -115,19 +165,34 @@ export function AnimalListRow({
               className="size-20 rounded-panel tablet:size-24 desktop:size-28"
             />
           </Link>
-          <div className="flex min-w-0 flex-col gap-2">
-            <Heading level={2} look="body-l" id={nameId} className="break-words">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <Heading level={2} look="body-l" id={nameId} className="min-w-0 tablet:break-words">
               <Link
                 href={href}
                 prefetch={false}
-                className="inline-flex min-h-target items-center focus-ring rounded-field underline-offset-4 hover:underline"
+                className="inline-flex min-h-target max-w-full items-center focus-ring rounded-field underline-offset-4 hover:underline"
               >
-                {row.name}
+                <span className="min-w-0 truncate tablet:whitespace-normal tablet:break-words">
+                  {row.name}
+                </span>
               </Link>
             </Heading>
             <ListingStatusChip kind={kind} />
             <p className="text-body text-ink-2">{metaLineOf(row, now)}</p>
           </div>
+          <Menu
+            open={menuOpen && via === "top"}
+            onOpenChange={(open) => {
+              setVia("top");
+              onToggleMenu(open);
+            }}
+            trigger="icon-plain"
+            label={fillTemplate(t.row.menuLabel, { name: row.name })}
+            triggerId={moreButtonPhoneId(row.id)}
+            className="-mr-2 shrink-0 tablet:hidden"
+          >
+            {items}
+          </Menu>
         </div>
 
         <div className="flex min-w-0 flex-col gap-4 desktop:flex-1">
@@ -145,7 +210,7 @@ export function AnimalListRow({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {undoSeconds !== null ? (
+            {!editable ? null : undoSeconds !== null ? (
               <>
                 <Text look="label">
                   <span aria-hidden="true">✓ </span>
@@ -177,7 +242,7 @@ export function AnimalListRow({
               </Button>
             ) : null}
 
-            {forward !== null && forward !== "edit" ? (
+            {editable && forward !== null && forward !== "edit" ? (
               <Button
                 variant={FORWARD_VARIANT[forward]}
                 className={forward === "publish" ? "flex-1 tablet:flex-none" : undefined}
@@ -192,51 +257,17 @@ export function AnimalListRow({
             ) : null}
 
             <Menu
-              open={menuOpen}
-              onOpenChange={onToggleMenu}
+              open={menuOpen && via === "bottom"}
+              onOpenChange={(open) => {
+                setVia("bottom");
+                onToggleMenu(open);
+              }}
               trigger="icon"
               label={fillTemplate(t.row.menuLabel, { name: row.name })}
               triggerId={moreButtonId(row.id)}
-              className="ml-auto"
+              className="ml-auto hidden tablet:block"
             >
-              {menu.map((action) => (
-                <Fragment key={action}>
-                  {DANGER_ENTRIES.has(action) && action === firstDanger ? <MenuDivider /> : null}
-                  <MenuItem tone={DANGER_ENTRIES.has(action) ? "danger" : "default"}>
-                    {action === "edit" ? (
-                      <LinkButton
-                        variant="ghost"
-                        href={href}
-                        prefetch={false}
-                        className="w-full justify-start"
-                      >
-                        {actionLabelOf(action)}
-                      </LinkButton>
-                    ) : action === "viewOnSite" ? (
-                      <LinkButton
-                        variant="ghost"
-                        href={publicAnimalPath(row.id)}
-                        target="_blank"
-                        rel="noopener"
-                        prefetch={false}
-                        className="w-full justify-start"
-                      >
-                        {actionLabelOf(action)}
-                        <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
-                      </LinkButton>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        aria-disabled={inert || undefined}
-                        onClick={() => act(action)}
-                      >
-                        {actionLabelOf(action)}
-                      </Button>
-                    )}
-                  </MenuItem>
-                </Fragment>
-              ))}
+              {items}
             </Menu>
           </div>
         </div>

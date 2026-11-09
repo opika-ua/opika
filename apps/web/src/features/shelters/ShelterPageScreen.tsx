@@ -16,7 +16,7 @@ import { ActiveFilterChips } from "../gallery/ActiveFilterChips";
 import { ArrowKeyGrid } from "../gallery/ArrowKeyGrid";
 import { activeFilterChips, activeFilterCount } from "../gallery/active-filters";
 import { cardCityId } from "../gallery/card-text";
-import { FilterSheet } from "../gallery/FilterSheet";
+import { FilterSheet } from "../gallery/FilterSheetLazy";
 import { type CitySlugsById, NO_PLACE_IDS, resetFiltersHref } from "../gallery/filter-url";
 import { GalleryCard } from "../gallery/GalleryCard";
 import { GalleryControlBlock } from "../gallery/GalleryControlBlock";
@@ -24,6 +24,7 @@ import { GalleryFilterDropdowns, SpeciesToggle } from "../gallery/GalleryFilterD
 import { hasPagination } from "../gallery/gallery-pagination";
 import { NoMatch } from "../gallery/NoMatch";
 import { ReplaceNav } from "../gallery/ReplaceNav";
+import { PauseNotice } from "./PauseNotice";
 import { ShelterLogoAvatar } from "./ShelterLogoAvatar";
 import { ShelterWordsSection } from "./ShelterWordsSection";
 import { isLongShelterName } from "./shelter-identity";
@@ -157,12 +158,14 @@ export function ShelterPageScreen({
                     <span aria-hidden="true">✓ </span>
                     {fillTemplate(uk.detail.shelterVerifiedYears, { site: WORDMARK, year })}
                   </span>
+                ) : shelter.verification === "listed_before_verification" ? (
+                  <span data-testid="shelter-under-review">{uk.underReview.shelter}</span>
                 ) : (
                   fillTemplate(uk.shelterPage.sinceYear, { year })
                 )}
               </span>
-              {/* Commitment 7: the shelter's sentence renders here and on no card or animal page. */}
-              {words !== null && (
+              {/* Commitment 7: the sentence renders here only; without one the block is hidden, not left as a heading over the description. */}
+              {words?.sentence != null && (
                 <div className="basis-full desktop:order-last">
                   <ShelterWordsSection words={words} headingLevel={2} variant="quote" />
                 </div>
@@ -185,7 +188,14 @@ export function ShelterPageScreen({
           </div>
         </div>
 
-        {animals.totalMatching === 0 && filterUi === null ? (
+        {shelter.availability.kind === "paused" ? (
+          // The gallery list is empty for a paused shelter by design; say why instead of claiming
+          // it has no animals, and offer no filters.
+          <div data-testid="shelter-paused" className="flex flex-col gap-4">
+            <PauseNotice reason={shelter.availability.reason} />
+            <p className="text-body text-ink-2">{uk.pause.shelterNotListed}</p>
+          </div>
+        ) : animals.totalMatching === 0 && filterUi === null ? (
           <div
             data-testid="shelter-no-animals"
             className="relative mt-8 flex flex-col items-center gap-3 rounded-card border-2 border-dashed border-line px-4 py-8 text-center"

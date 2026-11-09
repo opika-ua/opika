@@ -1,6 +1,6 @@
 import type { ContactRevealView } from "@opika/contracts";
 import { AnimalIdSchema, CityIdSchema, RevealIdSchema, ShelterIdSchema } from "@opika/domain";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ContactRevealDialog } from "./ContactRevealDialog";
 
@@ -10,6 +10,7 @@ const reveal: ContactRevealView = {
   id: RevealIdSchema.parse("bbbbbbbb-cccc-4ddd-8eee-ffffffffffff"),
   animalId: ANIMAL_ID,
   revealedAt: new Date("2026-08-08T10:00:00Z"),
+  shelterListing: "verified",
   shelterContact: {
     source: "current",
     displayName: "Притулок «Домівка»",
@@ -19,7 +20,6 @@ const reveal: ContactRevealView = {
     shelterId: ShelterIdSchema.parse("66666666-7777-4888-8999-aaaaaaaaaaaa"),
     publicLocation: { cityId: CityIdSchema.parse("12121212-3434-4565-8787-909090909090") },
     verificationStatusAtReveal: "verified",
-    donation: null,
   },
   animalSnapshot: { name: "Пес $& $1", primaryPhoto: null },
 };
@@ -183,6 +183,22 @@ function revealWith(contact: ContactRevealView["shelterContact"]["contact"]): Co
   };
 }
 
+/** Listing before verification: the one required line (N3) shows only for such a shelter. */
+describe("the reveal for a shelter still under review", () => {
+  it("shows the notice for a listed shelter and none for a verified one", () => {
+    renderOpen({ ...revealWith(BOTH), shelterListing: "listed_before_verification" });
+    expect(screen.getByTestId("reveal-under-review").textContent).toBe(
+      "Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.",
+    );
+    cleanup();
+    renderOpen({ ...revealWith(BOTH), shelterListing: "verified" });
+    expect(screen.queryByTestId("reveal-under-review")).toBeNull();
+    cleanup();
+    renderOpen({ ...revealWith(BOTH), shelterListing: null });
+    expect(screen.queryByTestId("reveal-under-review")).toBeNull();
+  });
+});
+
 /** Reveal redesign (owner-approved copy): header row, one ✕, action rows, one location line. */
 describe("the redesigned reveal", () => {
   it("heads the dialog with the animal's name and «{shelter} · {city}», then the title and the reassurance", () => {
@@ -195,7 +211,7 @@ describe("the redesigned reveal", () => {
     );
     expect(
       within(dialog).getByText(
-        "Притулок не знає про цей запит, поки ви не напишете самі. Нічого не сталося автоматично.",
+        "Притулок не знає про це звернення, поки ви не напишете самі. Нічого не надсилається автоматично.",
       ),
     ).toBeTruthy();
   });
@@ -308,5 +324,25 @@ describe("«Повернутися до картки»", () => {
     unmount();
     renderOpen(reveal);
     expect(screen.queryByRole("button", { name: "Повернутися до картки" })).toBeNull();
+  });
+});
+
+describe("the error dialog for a paused shelter", () => {
+  it("says the notice and offers no retry", () => {
+    render(
+      <ContactRevealDialog
+        state={{
+          kind: "error",
+          reason: "shelterPaused",
+          animalId: ANIMAL_ID,
+          animalName: "Мурчик",
+          cityName: null,
+        }}
+        onClose={() => {}}
+        onRetry={() => {}}
+      />,
+    );
+    expect(screen.getByText("Притулок тимчасово не приймає нових звернень")).toBeTruthy();
+    expect(screen.queryByTestId("reveal-retry")).toBeNull();
   });
 });

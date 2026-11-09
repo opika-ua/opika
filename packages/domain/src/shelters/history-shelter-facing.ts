@@ -2,7 +2,7 @@ import { z } from "zod";
 import { LISTING_KINDS } from "../animals/listing-transition";
 import { LocalizedTextSchema } from "../primitives/localized-text";
 import { ShelterContactSchema } from "./contact";
-import { DonationLinkSchema } from "./donation";
+import { DonationLinkSchema, DonationRemovalCodeSchema } from "./donation";
 import {
   ANIMAL_EDITED_FIELDS,
   HistoryWithdrawalReasonSchema,
@@ -92,6 +92,19 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
     previousLive: DonationLinkSchema.nullable(),
   }),
   z.object({
+    kind: z.literal("donation_removed"),
+    ...base,
+    previousLive: DonationLinkSchema,
+    clearedPending: z.boolean(),
+    reason: z.object({ code: DonationRemovalCodeSchema, note: z.string().min(1) }),
+  }),
+  z.object({
+    kind: z.literal("donation_suspended"),
+    ...base,
+    previousLive: DonationLinkSchema,
+    outcome: z.enum(["moved_to_pending", "pending_kept"]),
+  }),
+  z.object({
     kind: z.literal("verified_data_changed"),
     ...base,
     change: z.discriminatedUnion("field", [
@@ -114,6 +127,11 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
     from: z.string().min(1),
     to: z.string().min(1),
   }),
+  /** Allowed and revoked by the operator; the period number, the note and the moderator id stay operator-only. */
+  z.object({ kind: z.literal("early_listing_allowed"), ...base }),
+  z.object({ kind: z.literal("early_listing_revoked"), ...base }),
+  /** Nobody did it: the period ran out, so there is no actor. */
+  z.object({ kind: z.literal("early_listing_lapsed"), at: z.date() }),
   z.object({ kind: z.literal("shelter_created"), ...base }),
   z.object({ kind: z.literal("admin_invited"), ...base, email: z.email() }),
   z.object({ kind: z.literal("admin_invitation_resent"), ...base, email: z.email() }),
@@ -149,14 +167,14 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
 export type ShelterFacingHistoryItem = z.infer<typeof ShelterFacingHistoryItemSchema>;
 
 /**
- * Projects one history entry for the shelter. Field by field, never a spread
+ * Projects one history entry for the shelter, or `null` for an entry the shelter never sees. Field by field, never a spread
  * with deletions: a field added to an entry later can't reach the shelter by
  * default (the same reasoning as `pick` over `omit`).
  */
 export function shelterFacingHistoryOf(
   entry: ShelterHistoryEntry,
   operatorDisplayName: string,
-): ShelterFacingHistoryItem {
+): ShelterFacingHistoryItem | null {
   const operator: HistoryActorView = { kind: "operator", displayName: operatorDisplayName };
   const shelterActorView = (actor: { kind: "moderator" | "shelter_admin" }): HistoryActorView =>
     actor.kind === "moderator" ? operator : { kind: "shelter" };
@@ -236,8 +254,33 @@ export function shelterFacingHistoryOf(
         link: entry.link,
         previousLive: entry.previousLive,
       };
+    case "donation_removed":
+      return {
+        kind: "donation_removed",
+        at: entry.at,
+        actor: operator,
+        previousLive: entry.previousLive,
+        clearedPending: entry.clearedPending,
+        reason: entry.reason,
+      };
+    case "donation_suspended":
+      return {
+        kind: "donation_suspended",
+        at: entry.at,
+        actor: operator,
+        previousLive: entry.previousLive,
+        outcome: entry.outcome,
+      };
     case "verified_data_changed":
       return { kind: "verified_data_changed", at: entry.at, actor: operator, change: entry.change };
+    // Operator-only (owner, 2026-11-04): the shelter learns nothing of it.
+    case "evidence_added":
+      return null;
+    case "early_listing_allowed":
+    case "early_listing_revoked":
+      return { kind: entry.kind, at: entry.at, actor: operator };
+    case "early_listing_lapsed":
+      return { kind: "early_listing_lapsed", at: entry.at };
     case "display_name_changed":
       return {
         kind: "display_name_changed",

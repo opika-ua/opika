@@ -19,7 +19,12 @@ afterEach(() => {
 describe("a limiter's refusal is logged by name, and only that", () => {
   it("a shared limiter: one line per refusal, none while it allows", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const limiter = sharedRateLimiter({ name: "test-limiter", windowMs: 60_000, maxRequests: 2 });
+    const limiter = sharedRateLimiter({
+      name: "test-limiter",
+      windowMs: 60_000,
+      maxRequests: 2,
+      onUnavailable: "deny",
+    });
     const now = new Date("2026-10-28T12:00:00Z");
     expect(await limiter.check(KEY, now)).toBe(true);
     expect(await limiter.check(KEY, now)).toBe(true);

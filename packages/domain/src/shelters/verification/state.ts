@@ -151,6 +151,17 @@ export const FEED_VISIBLE_VERIFICATION_STATUSES = [
   "verified",
 ] as const satisfies readonly VerificationStatus[];
 
+/**
+ * Whether a shelter's own pages answer at all. Two facts, not one: "listed in the gallery"
+ * (`FEED_VISIBLE_VERIFICATION_STATUSES`) and "reachable by link" differ for a paused shelter, whose
+ * pages stay up with a notice while its animals leave the gallery. Never use this in SQL; the
+ * gallery predicate stays on the feed constant.
+ */
+export const REACHABLE_VERIFICATION_STATUSES = [
+  "verified",
+  "paused",
+] as const satisfies readonly VerificationStatus[];
+
 export const isPubliclyVerified = (state: ShelterVerification): boolean =>
   (FEED_VISIBLE_VERIFICATION_STATUSES as readonly string[]).includes(state.status);
 

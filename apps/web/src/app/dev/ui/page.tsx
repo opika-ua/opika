@@ -244,8 +244,6 @@ export default function DevUiPage() {
           </Chip>
         </Row>
         <Row label="Badge">
-          <Badge tone="dog">Dog</Badge>
-          <Badge tone="cat">Cat</Badge>
           <Badge tone="ink">Reserved</Badge>
           <Badge tone="neutral">Neutral</Badge>
         </Row>
@@ -576,9 +574,8 @@ export default function DevUiPage() {
             <span className="flex items-center">
               Long
               <InfoTip label="How the list is ordered (long)" closeLabel="Close">
-                Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті,
-                хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут
-                порядок змінити не можна, і просування немає.
+                У галереї картки впорядковані за датою: відвідувач сам обирає, спочатку найсвіжіші
+                чи ті, хто чекає найдовше. Змінити порядок або підняти картку тут не можна.
               </InfoTip>
             </span>
             <span className="flex items-center">

@@ -17,7 +17,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { expectReachableByTab, noSidewaysScroll, openRoute } from "./harness";
+import { expectReachableByTab, noSidewaysScroll, openRoute, servedAnimalIds } from "./harness";
 import { DESKTOP, DETAIL_PHONE, NARROW_PHONE, PHONE } from "./viewports";
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.31" } });
@@ -65,17 +65,13 @@ async function firstAnimalHref(page: import("@playwright/test").Page): Promise<s
  * for that navigation, same as every later one on this page.
  */
 async function seedASavedAnimal(page: import("@playwright/test").Page): Promise<void> {
-  await page.addInitScript(() => {
+  const [animalId] = await servedAnimalIds(page, 1);
+  await page.addInitScript((id) => {
     window.localStorage.setItem(
       "likes.v1",
-      JSON.stringify({
-        version: 1,
-        items: [
-          { animalId: "00000000-0000-4000-8000-000000000000", likedAt: new Date().toISOString() },
-        ],
-      }),
+      JSON.stringify({ version: 1, items: [{ animalId: id, likedAt: new Date().toISOString() }] }),
     );
-  });
+  }, animalId);
 }
 
 /** MK-7: the independence line sits in the content of «Про проєкт» and «Для притулків». */
@@ -87,7 +83,9 @@ test.describe("the independence line is visible and does not widen the page", ()
         await openRoute(page, route, viewport, { readySelector: HEADER });
         await expect(
           page.getByText(
-            "Opika робить одна людина, незалежно. Це не державний і не міський сервіс.",
+            route === ABOUT
+              ? "Його робить одна людина, у вільний від роботи час і незалежно: немає команди й інвестора. Це не державний і не міський сервіс."
+              : "Opika робить одна людина, незалежно. Це не державний і не міський сервіс.",
           ),
         ).toBeVisible();
         expect(await noSidewaysScroll(page)).toBe(true);
@@ -139,22 +137,14 @@ test.describe("the header is on every user-facing surface", () => {
 });
 
 /**
- * D-2: the demo banner (`detail-demo-banner`) shows on the detail page while
- * the registry holds no real shelters. `NARROW_PHONE` (320) is this
- * project's own narrowest supported width (`docs/stack-decision.md`, "budget
- * Android"). Its clipping and the pages' sideways overflow were measured
- * here until 2026-10-20 (removed with the other UI-measuring tests).
- *
- * The gallery's own banner (`gallery-demo-banner`) is gone - Oleksii,
- * mid-build, verbatim: "remove На сайті поки немає справжніх притулків —
- * усі картки тут демонстраційні. as we hide our app anyways and people
- * without gate cant access it ye[t]." Only the detail page's instance is
- * still asserted.
+ * D-2: the demo banner (`detail-demo-banner`) shows only while the registry holds no real
+ * shelters; step 13 of the launch sequence turned `REGISTRY_HAS_NO_REAL_SHELTERS` off, so the
+ * detail page must carry none. `NARROW_PHONE` (320) is the narrowest supported width.
  */
-test.describe("the demo banner is visible on the detail page", () => {
-  test("detail page banner is visible at 320", async ({ page }) => {
+test.describe("the demo banner is gone from the detail page", () => {
+  test("detail page has no demo banner at 320", async ({ page }) => {
     await openRoute(page, await firstAnimalHref(page), NARROW_PHONE, { readySelector: HEADER });
-    await expect(page.getByTestId("detail-demo-banner")).toBeVisible();
+    await expect(page.getByTestId("detail-demo-banner")).toHaveCount(0);
   });
 });
 

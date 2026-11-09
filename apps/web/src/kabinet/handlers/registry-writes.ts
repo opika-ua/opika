@@ -1,17 +1,26 @@
 import { type apiErrors, type RegistryShelterView, UNKNOWN_CITY_MESSAGE } from "@opika/contracts";
 import { type AuditedShelterChange, cityRepo, kabinetShelterRepo } from "@opika/db/repos";
 import {
+  addEvidence,
+  allowEarlyListing,
   type CityId,
   DEFAULT_VERIFICATION_POLICY,
+  type DonationRemovalCode,
+  donationOnSuspension,
   type EvidenceItemInput,
   type ExactAddress,
+  earlyListingOf,
   evidenceGaps,
   type FreshnessSentence,
+  keepsEarlyListing,
   type LocalizedText,
   type LocationPrivacyPolicy,
+  lapsedAtOf,
+  MAX_EVIDENCE_ITEMS,
   type ModeratorId,
   publicLocationOf,
   type RejectionCode,
+  revokeEarlyListing,
   type Shelter,
   type ShelterActor,
   type ShelterContact,
@@ -90,12 +99,12 @@ const MAX_ATTEMPTS = 3;
 async function tapWithRetry(
   deps: RegistryDeps,
   shelterId: ShelterId,
-  plan: (shelter: Shelter) => Planned,
+  plan: (shelter: Shelter) => Planned | Promise<Planned>,
   errors: E<never>,
 ): Promise<RegistryShelterView> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const shelter = await loadShelterOr404(deps, shelterId, errors);
-    if ((await writePlanned(deps, shelter, plan(shelter))) !== "conflict") {
+    if ((await writePlanned(deps, shelter, await plan(shelter))) !== "conflict") {
       return registryShelterView(deps, await loadShelterOr404(deps, shelterId, errors));
     }
   }
@@ -287,6 +296,7 @@ function verificationMove(
   eventOf: (shelter: Shelter) => VerificationEvent,
   errors: MoveErrors,
   precheck: (shelter: Shelter) => void = () => {},
+  alongside: (shelter: Shelter) => Planned = () => ({ changes: [], entries: [] }),
 ): Promise<RegistryShelterView> {
   return tapWithRetry(
     deps,
@@ -307,8 +317,9 @@ function verificationMove(
         );
       }
       precheck(shelter);
+      const extra = alongside(shelter);
       return {
-        changes: [{ kind: "verification", verification: result.next }],
+        changes: [{ kind: "verification", verification: result.next }, ...extra.changes],
         entries: [
           {
             kind: "verification",
@@ -316,6 +327,12 @@ function verificationMove(
             from: shelter.verification.status,
             to: result.next.status,
           },
+          // The write clears an expired permission (approve, reject); the lapse is recorded then,
+          // dated at its expiry. `start_review` keeps the permission, so records nothing.
+          ...(keepsEarlyListing(shelter.verification.status, result.next.status)
+            ? []
+            : lapsedEntries(shelter, deps.now)),
+          ...extra.entries,
         ],
       };
     },
@@ -402,6 +419,34 @@ export const registrySuspend = (
     input.shelterId,
     () => ({ type: "suspend", at: deps.now, moderatorId, reason: input.reason }),
     errors,
+    undefined,
+    // Planned from the same read the transition is, and written in the same compare-and-set
+    // statement: a link that stops being live can never outlive the suspension that ended it.
+    (shelter) => {
+      const outcome = donationOnSuspension(shelter, deps.now);
+      if (outcome.kind === "nothing_live") return { changes: [], entries: [] };
+      return {
+        changes: [
+          {
+            kind: "donation_state",
+            donation: null,
+            pendingDonation:
+              outcome.kind === "moved_to_pending"
+                ? outcome.pendingDonation
+                : shelter.pendingDonation,
+          },
+        ],
+        entries: [
+          {
+            kind: "donation_suspended",
+            at: deps.now,
+            moderatorId,
+            previousLive: outcome.previousLive,
+            outcome: outcome.kind,
+          },
+        ],
+      };
+    },
   );
 
 /**
@@ -421,20 +466,168 @@ export function registryResubmit(
   deps: RegistryDeps,
   moderatorId: ModeratorId,
   input: { shelterId: ShelterId; evidence: readonly EvidenceItemInput[] },
-  errors: E<"ILLEGAL_TRANSITION" | "INVALID_EVIDENCE">,
+  errors: E<"ILLEGAL_TRANSITION" | "INVALID_EVIDENCE" | "EVIDENCE_LIMIT_REACHED">,
 ): Promise<RegistryShelterView> {
+  // Before validating any item: an oversized list is refused on its length alone, as at creation.
+  if (input.evidence.length > MAX_EVIDENCE_ITEMS) {
+    throw errors.EVIDENCE_LIMIT_REACHED({ data: { limit: MAX_EVIDENCE_ITEMS } });
+  }
   const accepted = acceptEvidence(input.evidence, { moderatorId, now: deps.now });
   if (accepted.kind === "refused")
     throw errors.INVALID_EVIDENCE({ data: { reason: accepted.reason } });
   return verificationMove(
     deps,
     input.shelterId,
-    (shelter) => ({
-      type: "resubmit",
-      at: deps.now,
-      actor: moderatorActor(moderatorId),
-      evidence: withEvidenceOnFile(shelter.verification.evidence, accepted.evidence),
-    }),
+    (shelter) => {
+      const evidence = withEvidenceOnFile(shelter.verification.evidence, accepted.evidence);
+      // Counted after the carried documents are put back: that is the list the shelter will hold.
+      if (evidence.items.length > MAX_EVIDENCE_ITEMS) {
+        throw errors.EVIDENCE_LIMIT_REACHED({ data: { limit: MAX_EVIDENCE_ITEMS } });
+      }
+      return { type: "resubmit", at: deps.now, actor: moderatorActor(moderatorId), evidence };
+    },
+    errors,
+  );
+}
+
+// ─── earlyListing.allow / revoke ────────────────────────────────────────────
+
+/** The lapse line for a permission that ran out on its own, dated at its expiry, or nothing. */
+const lapsedEntries = (shelter: Shelter, now: Date): ShelterHistoryEntry[] => {
+  const at = lapsedAtOf(earlyListingOf(shelter.earlyListingSince), now);
+  return at === null ? [] : [{ kind: "early_listing_lapsed", at }];
+};
+
+/**
+ * Operator only (the registry matrix). Not a verification move: the FSM, the evidence and the
+ * reviewer are untouched. Re-read on a lost race, so an approval that lands meanwhile answers
+ * wrong_status instead of leaving a permission on a verified shelter. A re-allow after a lapse
+ * writes the lapse line first, then the allow; the note is operator-only history.
+ */
+export function registryAllowEarlyListing(
+  deps: RegistryDeps,
+  moderatorId: ModeratorId,
+  input: { shelterId: ShelterId; note?: string | undefined },
+  errors: E<"EARLY_LISTING_REFUSED">,
+): Promise<RegistryShelterView> {
+  return tapWithRetry(
+    deps,
+    input.shelterId,
+    async (shelter) => {
+      const result = allowEarlyListing({
+        verification: shelter.verification,
+        early: earlyListingOf(shelter.earlyListingSince),
+        periodsUsed: await kabinetShelterRepo(deps.db).earlyListingPeriodsUsed(shelter.id),
+        note: input.note ?? null,
+        now: deps.now,
+      });
+      if (result.kind !== "ok") {
+        throw errors.EARLY_LISTING_REFUSED({ data: { reason: result.kind } });
+      }
+      return {
+        changes: [{ kind: "early_listing_allowed", since: result.since }],
+        entries: [
+          ...lapsedEntries(shelter, deps.now),
+          {
+            kind: "early_listing_allowed",
+            at: deps.now,
+            moderatorId,
+            period: result.period,
+            note: input.note ?? null,
+          },
+        ],
+      };
+    },
+    errors,
+  );
+}
+
+export function registryRevokeEarlyListing(
+  deps: RegistryDeps,
+  moderatorId: ModeratorId,
+  input: { shelterId: ShelterId },
+  errors: E<"EARLY_LISTING_REFUSED">,
+): Promise<RegistryShelterView> {
+  return tapWithRetry(
+    deps,
+    input.shelterId,
+    (shelter) => {
+      const result = revokeEarlyListing(
+        shelter.verification,
+        earlyListingOf(shelter.earlyListingSince),
+        deps.now,
+      );
+      if (result.kind !== "ok") {
+        throw errors.EARLY_LISTING_REFUSED({ data: { reason: "not_running" } });
+      }
+      return {
+        changes: [{ kind: "early_listing_revoked" }],
+        entries: [{ kind: "early_listing_revoked", at: deps.now, moderatorId }],
+      };
+    },
+    errors,
+  );
+}
+
+// ─── verification.addEvidence ───────────────────────────────────────────────
+
+/**
+ * The operator appends evidence while the shelter is pending or under review.
+ * Not a verification move: status, timestamps and reviewer are untouched and
+ * the shelter is not told (its history projection omits `evidence_added`). The
+ * entry names the kinds only, never contents. Duplicates (same kind and key
+ * field, see `evidenceDuplicateKey`) are dropped, so a repeat writes nothing.
+ * No version in the input: appends commute, and a lost race re-plans on what is
+ * there now, so a shelter approved or rejected meanwhile answers
+ * EVIDENCE_NOT_EDITABLE rather than taking the item. Approval re-reads the
+ * list at approve time, so the new items count with no extra code.
+ */
+export function registryAddEvidence(
+  deps: RegistryDeps,
+  moderatorId: ModeratorId,
+  input: { shelterId: ShelterId; evidence: readonly EvidenceItemInput[] },
+  errors: E<"INVALID_EVIDENCE" | "EVIDENCE_NOT_EDITABLE" | "EVIDENCE_LIMIT_REACHED">,
+): Promise<RegistryShelterView> {
+  const accepted = acceptEvidence(input.evidence, { moderatorId, now: deps.now });
+  if (accepted.kind === "refused")
+    throw errors.INVALID_EVIDENCE({ data: { reason: accepted.reason } });
+  return tapWithRetry(
+    deps,
+    input.shelterId,
+    (shelter) => {
+      const result = addEvidence(shelter.verification, accepted.evidence.items);
+      switch (result.kind) {
+        case "not_open":
+          throw errors.EVIDENCE_NOT_EDITABLE({ data: { from: result.from } });
+        case "too_many":
+          throw errors.EVIDENCE_LIMIT_REACHED({ data: { limit: result.limit } });
+        case "nothing_new":
+          return { changes: [], entries: [] };
+        case "ok": {
+          const statusAt = shelter.verification.status;
+          if (statusAt !== "pending" && statusAt !== "under_review") {
+            throw new Error("addEvidence returned ok from a closed status");
+          }
+          return {
+            changes: [{ kind: "verification", verification: result.next }],
+            entries: [
+              {
+                kind: "evidence_added",
+                at: deps.now,
+                moderatorId,
+                items: result.added.map((item) => ({ kind: item.kind })),
+                statusAt,
+              },
+            ],
+          };
+        }
+        /* v8 ignore next 4 -- exists so the compiler rejects an unhandled result; unreachable at runtime */
+        default: {
+          const unreachable: never = result;
+          return unreachable;
+        }
+      }
+    },
     errors,
   );
 }
@@ -454,6 +647,11 @@ const donationDecisionPlan =
   (shelter: Shelter): Planned => {
     const pending = shelter.pendingDonation;
     if (pending === null) return { changes: [], entries: [] };
+    // Approving while suspended would let a reinstatement publish the link with no decision after
+    // it; rejecting stays possible. Nothing is written, as with nothing pending.
+    if (decision === "approved" && shelter.verification.status === "suspended") {
+      return { changes: [], entries: [] };
+    }
     return {
       changes: [
         decision === "approved"
@@ -491,3 +689,41 @@ const donationDecision =
 
 export const registryDonationApprove = donationDecision("approved");
 export const registryDonationReject = donationDecision("rejected");
+
+/**
+ * Takes the live link away for good and clears a waiting proposal with it, for a reason the
+ * shelter reads. Versioned: the operator removes the link they read, anything newer is CONFLICT.
+ * With no live link there is nothing to remove, so nothing is written.
+ */
+export const registryDonationRemove = (
+  deps: RegistryDeps,
+  moderatorId: ModeratorId,
+  input: {
+    shelterId: ShelterId;
+    expectedVersion: number;
+    reason: { code: DonationRemovalCode; note: string };
+  },
+  errors: E<"CONFLICT">,
+) =>
+  editFromForm(
+    deps,
+    input.shelterId,
+    input.expectedVersion,
+    (shelter) =>
+      shelter.donation === null
+        ? { changes: [], entries: [] }
+        : {
+            changes: [{ kind: "donation_state", donation: null, pendingDonation: null }],
+            entries: [
+              {
+                kind: "donation_removed",
+                at: deps.now,
+                moderatorId,
+                previousLive: shelter.donation,
+                clearedPending: shelter.pendingDonation !== null,
+                reason: input.reason,
+              },
+            ],
+          },
+    errors,
+  );

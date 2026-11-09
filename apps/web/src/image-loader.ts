@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  IMAGE_VARIANTS,
   isRealPhotoKey,
   LOGO_VARIANTS,
   nearestVariant,
@@ -71,7 +72,10 @@ export default function opikaImageLoader({ src, width }: ImageLoaderProps): stri
       // something a real shelter's photo would silently vanish behind.
       throw new Error("Missing required environment variable: NEXT_PUBLIC_R2_PUBLIC_BASE_URL");
     }
-    const variants = SHELTER_LOGO_KEY_PATTERN.test(src) ? LOGO_VARIANTS : SERVED_IMAGE_VARIANTS;
+    // Build-time flag: photos uploaded before mid/compact existed have no such object (404).
+    const animalVariants =
+      process.env.NEXT_PUBLIC_R2_EXTRA_VARIANTS === "1" ? IMAGE_VARIANTS : SERVED_IMAGE_VARIANTS;
+    const variants = SHELTER_LOGO_KEY_PATTERN.test(src) ? LOGO_VARIANTS : animalVariants;
     return r2PublicUrl(publicBaseUrl, src, nearestVariant(variants, width));
   }
 

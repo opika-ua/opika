@@ -1,5 +1,6 @@
 import { uk } from "@opika/i18n";
 import { WORDMARK } from "../brand";
+import { countPhrase } from "../features/kabinet/shared/count-phrase";
 import type { OutgoingEmail } from "./email-provider";
 
 /**
@@ -58,7 +59,7 @@ export function emailBody(to: string, parts: EmailParts): OutgoingEmail {
   if (link !== null && looksLikeUrl(link.label)) {
     throw new Error("An email link's text must be a label, never a URL (IN-E8).");
   }
-  // A line break inside one paragraph (the invite's `- {operator}` signature
+  // A line break inside one paragraph (the invite's `{operator}` signature
   // under its last sentence) stays a line break in HTML, not a collapsed space.
   const paragraph = (text: string) => `<p>${escapeHtml(text).replaceAll("\n", "<br>")}</p>`;
   const html = [
@@ -81,7 +82,7 @@ const fill = (template: string, values: Record<string, string>) =>
  * never consumes the token). Since Oleksii's delivery test 2 (2026-10-14:
  * the personal invite reached Gmail's Primary tab, the short impersonal
  * sign-in email Promotions) it has the invite's personal shape: a greeting,
- * and the last line signed `- {operator}`, filled the way the invite's is.
+ * and the last line signed `{operator}`, filled the way the invite's is.
  */
 export function magicLinkEmail(input: {
   to: string;
@@ -96,7 +97,7 @@ export function magicLinkEmail(input: {
     before: [copy.intro],
     link: { label: copy.action, url: input.url },
     after: [
-      fill(copy.expiry, { minutes: String(input.ttlMinutes) }),
+      fill(copy.expiry, { minutes: countPhrase(input.ttlMinutes, uk.kabinet.units.minutes) }),
       fill(copy.notYou, { operator: input.operatorName }),
     ],
   });
@@ -105,7 +106,7 @@ export function magicLinkEmail(input: {
 /**
  * E2: the invite email. Not a sign-in link (IN-Q3): it opens the invite
  * landing. Oleksii's final copy (2026-10-14) is a personal note: the intro has
- * no `{operator}`, and the name signs the last line instead (`- {operator}`,
+ * no `{operator}`, and the name signs the last line instead (`{operator}`,
  * nominative, `operatorDisplayName`'s value). The intro names the site (`{site}`,
  * audit 2026-10-22 #46: «на сайті» alone doesn't say which one, in a mail opened
  * days later), filled from app config, never typed in the catalogue.
@@ -132,7 +133,7 @@ export function invitationEmail(input: {
     ],
     link: { label: copy.action, url: input.url },
     after: [
-      fill(copy.expiry, { hours: String(input.ttlHours) }),
+      fill(copy.expiry, { hours: countPhrase(input.ttlHours, uk.kabinet.units.hours) }),
       fill(copy.notYou, { operator: input.operatorName }),
     ],
   });
@@ -143,7 +144,7 @@ export function invitationEmail(input: {
  * shelter admin's address, never the operator's (§4.6). Its link is the reset
  * page (`RESET_LINK`), whose GET only shows the form, so a mail scanner that
  * opens it consumes nothing; Better Auth's own redirecting
- * `/reset-password/:token` is never emailed. Signed `- {operator}` like the
+ * `/reset-password/:token` is never emailed. Signed `{operator}` like the
  * others.
  */
 export function passwordResetEmail(input: {

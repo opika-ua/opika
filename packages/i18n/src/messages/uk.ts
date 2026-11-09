@@ -67,7 +67,8 @@ export const uk = {
     },
     /** §1 - one sentence. What this is. Nothing else. */
     whatThisIs:
-      "{site} – сайт, де тварини з перевірених притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку.",
+      "{site} – сайт, де тварини з притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку. " +
+      "Притулки, які ще проходять перевірку, мають позначку «на перевірці».",
     /** §2 - free now and later. Early, because it is what they are bracing for. */
     cost: "Це безкоштовно, сьогодні і далі. Якщо це колись зміниться, ви дізнаєтеся заздалегідь, а не з рахунку.",
     /**
@@ -91,7 +92,7 @@ export const uk = {
     /** §4 - the trust section. The actor is the system, so «Opika», never «я». */
     whoContactsWhom:
       "Людина, яка хоче взяти тварину, пише вам напряму – на той контакт, який ви вкажете. " +
-      "Opika не пише за вас, не пише від вашого імені і не спілкується з нею замість вас.",
+      "{site} не пише за вас, не пише від вашого імені і не спілкується з нею замість вас.",
     /** §4b - no lead queue. Commitment 2; H2 is where this breaks by accident. */
     noObligation:
       "Ви не дізнаєтеся, що хтось дивився картку, поки ця людина сама вам не напише. Немає списку " +
@@ -105,13 +106,15 @@ export const uk = {
     money:
       "Сайт не бере і не переказує грошей: ні комісії, ні оплати, ні збору донатів через сайт. " +
       "Якщо у вас є власна сторінка для донатів – банка в monobank, наприклад – на сторінці тварини " +
-      "буде посилання на неї, і людина побачить, куди воно веде, ще до того як натисне.",
+      "буде посилання на неї (коли притулок пройшов перевірку), і людина побачить, куди воно веде, ще до того як натисне.",
     /** §6 - checked against DEFAULT_VERIFICATION_POLICY, not against prose. */
     verification:
       "«Перевірений» означає, що вас перевіряла людина. Ось що це означає конкретно.\n\n" +
       "Зареєстрована організація показує ЄДРПОУ, банківські реквізити на ту саму організацію і одну " +
       "незалежну рекомендацію.\n\n" +
-      "Незареєстрована ініціатива показує візит і дві незалежні рекомендації.",
+      "Незареєстрована ініціатива показує відеодзвінок і дві незалежні рекомендації.\n\n" +
+      "Поки перевірка триває, я можу дозволити показ карток до 60 днів – з позначкою «на перевірці». " +
+      "Позначку «перевірений» притулок отримує лише після повної перевірки.",
     /**
      * §6b - ends on «Ваш другий номер телефону - не рекомендація», the only
      * sentence that anticipates someone gaming the process. It proves the
@@ -121,8 +124,8 @@ export const uk = {
      * opening on «потрібно небагато» must stay adjacent to it.
      */
     verificationOpenToVolunteers:
-      "«Візит» не означає, що хтось обовʼязково приїде. Справжня телефонна розмова, після якої я " +
-      "можу переказати її зміст, теж рахується. Рекомендація має бути від когось іншого, ніж ви: " +
+      "Перевірка проходить дистанційно: відеодзвінок, на якому ви показуєте приміщення, тварин і людей. " +
+      "Якщо звʼязок не тягне відео – телефонна розмова і коротке відео приміщення, зняте того ж дня. Рекомендація має бути від когось іншого, ніж ви: " +
       "сусідній притулок, ветклініка, з якою ви працюєте, будь-хто, хто може підтвердити, що ви " +
       "існуєте і робите те, що кажете. Ваш другий номер телефону – не рекомендація.",
     /**
@@ -165,8 +168,7 @@ export const uk = {
      * §9 - what a shelter does when an animal finds a home. Commitment 6.
      * ¶1 and ¶3 are his PR 6 text (pr6-copy-uk.md §1.2, ¶3's first sentence
      * from his Q2 answer): the shelter marks it itself with K2's «Уже вдома»
-     * (published and reserved cards), the card leaves the gallery and the
-     * deck at once, and the kabinet list keeps it as «Удома». ¶2 says «на
+     * (published and reserved cards), the card leaves the gallery at once, and the kabinet list keeps it as «Удома». ¶2 says «на
      * сайті» since his Q3 answer, so it can't be read as that kabinet list.
      */
     whenAnimalFindsHome:
@@ -174,7 +176,7 @@ export const uk = {
       "Тварина, яка вже вдома, але досі на сайті, – це єдине, що робить усі інші картки " +
       "недостовірними: людина дзвонить, чує «її забрали три місяці тому», і далі не вірить жодній " +
       "картці – ні вашій, ні чужій.\n\n" +
-      "Кожна опублікована картка в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї та стрічки, а у вашому списку лишається з позначкою «Удома».",
+      "Кожна опублікована картка в кабінеті має кнопку «Уже вдома». Після неї картка одразу зникає з галереї, а у вашому списку лишається з позначкою «Удома».",
     /**
      * §9b - how to leave. The largest unspoken objection on the page: the
      * first question anyone asks before handing their data to a stranger with
@@ -185,17 +187,28 @@ export const uk = {
       "Без питань і без умов. Ви нічого не підписували і нічого не втрачаєте.",
     /** §10 - one person. `about.intro`'s framing; the smallness is the credential. */
     whoIsBehindThis:
-      "Opika робить одна людина – я, поза основною роботою. Немає команди, немає інвестора, немає " +
+      "{site} робить одна людина – я, поза основною роботою. Немає команди, немає інвестора, немає " +
       "відділу підтримки: коли ви пишете на цю адресу, відповідаю я.",
     /** §11 - one instruction, and what happens next. `{contact}` filled by the page. */
     howToStart:
       "Напишіть на {contact}: хто ви і скільки у вас тварин. Після розмови я створю притулок на сайті " +
-      "й надішлю вам доступ до кабінету. Тварин ви додаєте самі, поки триває перевірка, про яку " +
-      "йшлося вище, а ті, хто шукає тварину, бачать картки, щойно її пройдено.",
+      "й надішлю вам доступ до кабінету. Тварин ви додаєте самі. Ті, хто шукає тварину, бачать " +
+      "картки, щойно притулок пройде перевірку – або раніше, з позначкою «на перевірці», якщо я " +
+      "дозволю показ.",
     /** PW-2: the link to the kabinet's sign-in, `/kabinet/vkhid` (his scope item 1, verbatim). */
     signInLink: "Увійти в кабінет",
   },
   kabinet: {
+    /**
+     * A count with its noun, for the slots that carry a time span (`{hours}`, `{minutes}`, `{days}`,
+     * `{years}`): the noun is picked by `pluralizeUk`, never typed after a placeholder.
+     */
+    units: {
+      hours: { one: "{count} годину", few: "{count} години", many: "{count} годин" },
+      minutes: { one: "{count} хвилину", few: "{count} хвилини", many: "{count} хвилин" },
+      days: { one: "{count} день", few: "{count} дні", many: "{count} днів" },
+      years: { one: "{count} рік", few: "{count} роки", many: "{count} років" },
+    },
     /**
      * The settlement picker (nationwide N4). The owner's approved rows of the Phase 0 copy table
      * (2026-10-29): label «Населений пункт», «Оберіть населений пункт зі списку», «Пошук…».
@@ -220,7 +233,7 @@ export const uk = {
      * "Email signature fallback: capitalise it → «— Адміністратор сайту»."
      *
      * `operatorFallbackName` stands alone, so it is capitalised: both emails'
-     * «- {operator}» signature, the shelter-facing history actor, the
+     * «{operator}» signature, the shelter-facing history actor, the
      * operator's header. `operatorFallbackNameInSentence` sits mid-sentence
      * (`profile.lockedNote`'s «встановлює {operator}»), in lower case as he
      * wrote the role, where a capital would read as a proper name.
@@ -298,8 +311,9 @@ export const uk = {
      * The password fields every password form shares (`docs/shelter-passwords-copy-uk.md` §B,
      * his Ukrainian, 2026-10-19, verbatim). PW-1 renders these three on the reset page and in
      * «Змінити пароль»; the invitation's «Створіть пароль» (PW-2) adds its title, intro and
-     * button. `hint` is the live hint under the field: «Символів: {count} з {min}», the length so
-     * far against the minimum, worded to avoid a plural.
+     * button. `hint` is the static rule under the field («Щонайменше {min} символів», owner
+     * 2026-11-04); `remaining` (per `Intl.PluralRules("uk")` category) and `enough` are the live
+     * line under it, below and at-or-above the minimum.
      */
     setPassword: {
       /** PW-2: the invitation link's page (his scope item 2, verbatim). */
@@ -308,7 +322,14 @@ export const uk = {
       intro: "Пароль для кабінету притулку «{shelter}». Адреса для входу: {email}.",
       newLabel: "Пароль",
       repeatLabel: "Повторіть пароль",
-      hint: "Символів: {count} з {min}",
+      hint: "Щонайменше {min} символів",
+      /** `{n}` characters still missing. */
+      remaining: {
+        one: "Ще {n} символ",
+        few: "Ще {n} символи",
+        many: "Ще {n} символів",
+      },
+      enough: "Достатньо",
       submit: "Зберегти й увійти",
     },
     /**
@@ -417,11 +438,18 @@ export const uk = {
        */
       voiceNote: "Одне речення від першої особи, написане вами.",
       /**
-       * G3 (audit 2026-10-22): shown while the shelter is «Очікує перевірки» or «На розгляді».
+       * G3 (audit 2026-10-22): shown while the shelter is «На перевірці» (pending or under review).
        * A claim about the operator's conduct, accepted by Oleksii as proposed.
        */
       pendingNote:
         "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваших тварин бачите лише ви.",
+      /**
+       * B5 while the dated banner (`earlyListingBanner`) shows (owner, 2026-11-06): only the first
+       * sentence, so the label is said once on the page.
+       */
+      pendingNoteLead: "Перевірку проводжу я: напишу або зателефоную, щоб домовитися.",
+      /** N13, owner-approved 2026-11-04: the shelter may see the end date, the public never does. `{date}` is a Kyiv day. */
+      earlyListingBanner: "Ваші картки показуються з позначкою «на перевірці» до {date}.",
       lockedTitle: "Встановлено під час перевірки",
       /** `{operator}` is the operator's display name (RS-Q2). */
       lockedNote:
@@ -444,19 +472,27 @@ export const uk = {
     },
     /** N12's verification chip labels, as KABINET.md drafts them. */
     profileStatus: {
-      pending: "Очікує перевірки",
-      under_review: "На розгляді",
+      pending: "На перевірці",
+      under_review: "На перевірці",
       verified: "Перевірено",
       rejected: "Відхилено",
       paused: "На паузі",
       suspended: "Призупинено",
+    },
+    /**
+     * The operator's own two stage names (owner, 2026-11-06): the operator tells «Очікує перевірки»
+     * from «На розгляді»; shelter and public surfaces say «На перевірці» for both (`profileStatus`).
+     */
+    operatorStatus: {
+      pending: "Очікує перевірки",
+      under_review: "На розгляді",
     },
     /** Contact channel row labels on the profile. */
     profileChannel: {
       phone: "Телефон",
       telegram: "Telegram",
       viber: "Viber",
-      email: "Ел. пошта",
+      email: "Електронна пошта",
       website: "Сайт",
     },
     /**
@@ -541,16 +577,20 @@ export const uk = {
           "Профіль змінили після того, як ви його відкрили. Ваші зміни не збережено. Ось поточна версія – внесіть зміни ще раз.",
         conflictReload: "Показати поточну версію",
         illegalTransitionPause:
-          "Зараз не вийде поставити прийом на паузу: статус притулку змінився. Оновіть сторінку.",
+          "Зараз не вийде поставити прийом звернень на паузу: статус притулку змінився. Оновіть сторінку.",
         illegalTransitionResume:
-          "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
+          "Звідси прийом звернень зараз не відновити: статус притулку змінився. Напишіть мені.",
         phoneFormat: "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
         telegramFormat:
-          "Імʼя користувача в Telegram: 5-32 латинські літери, цифри або підкреслення. @ можна не писати.",
+          "Імʼя користувача в Telegram: 5–32 латинські літери, цифри або підкреслення. @ можна не писати.",
         viberFormat: "Вкажіть український номер: +380 і ще 9 цифр, наприклад +380 67 123 45 67.",
         emailFormat: "Схоже, це не адреса пошти.",
         httpsOnly: "Лише посилання, що починаються з https://.",
         notAUrl: "Це не схоже на посилання.",
+        donationUserinfo:
+          "У посиланні не має бути імені чи пароля перед адресою сайту (як у https://імʼя@сайт). Скопіюйте адресу з рядка браузера.",
+        donationIdn:
+          "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
         /** `{max}` is 280. */
         sentenceTooLong: "Речення довше за {max} символів.",
         /** `{token}` is the braced text the shelter typed. `{імʼя}` is literal. */
@@ -589,17 +629,19 @@ export const uk = {
         counterOver: "Зайвих символів: {over}",
         /** DR1-Q1, his text (and the next two); `previewNoAnimals` deleted by his answer. */
         emptyMeans:
-          "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде „Оновлено … тому“.",
+          "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде «Оновлено … тому».",
         previewLabel: "Так це виглядає на сторінці притулку:",
         previewEmpty: "Речення немає – на сторінці притулку його не буде.",
       },
       donation: {
         optional: "· необовʼязково",
         previewLabel: "Так це побачать люди:",
+        /** Shown instead of `previewLabel` while nobody can see the link yet: not verified or paused. */
+        previewLabelUnverified: "Так це побачать люди, коли притулок пройде перевірку:",
         previewHost: "{host} ↗",
         propose: "Надіслати на перевірку",
         proposeNote:
-          "Нове посилання зʼявиться на картках після того, як я його перевірю. До того люди бачать поточне.",
+          "Нове посилання зʼявиться, щойно я його перевірю, якщо притулок уже пройшов перевірку. До того люди бачать поточне, якщо воно є.",
         /** Answer 8. */
         pendingTitle: "Чекає на перевірку",
         pendingHost: "Запропоновано: {host}",
@@ -612,22 +654,28 @@ export const uk = {
         /** Answer 12: shown while the newest donation line is the operator declining. */
         declined:
           "Останнє запропоноване посилання не підтверджено. Якщо незрозуміло чому – напишіть мені.",
+        /** `{code}` the reason's label, `{note}` the operator's text verbatim. */
+        removed:
+          "Посилання на збір більше не показується: {code}. {note} Надішліть нове – я його перевірю.",
+        suspendedNote:
+          "Поки притулок призупинено, посилання на збір не показується. Після відновлення я перевірю його ще раз.",
+        reinstatedPending: "Посилання {host} чекає, поки я знову його схвалю.",
       },
       pause: {
-        button: "Призупинити прийом тварин",
-        resumeButton: "Відновити прийом тварин",
+        button: "Призупинити прийом звернень",
+        resumeButton: "Відновити прийом звернень",
         /** `{date}` the pause's date, `{reason}` the code's label only, never the note (fix 5). */
-        pausedLine: "Прийом на паузі з {date} · {reason}",
-        dialogTitle: "Призупинити прийом тварин?",
+        pausedLine: "Прийом звернень на паузі з {date} · {reason}",
+        dialogTitle: "Призупинити прийом звернень?",
         dialogBody:
-          "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає. Відновити можна тут будь-коли.",
+          "Поки прийом звернень на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом звернень на паузі.",
         reasonLabel: "Причина",
         reasonPlaceholder: "Оберіть причину",
         reason: {
           seasonal_closure: "Сезонна перерва",
           relocation: "Переїзд",
-          capacity_reached: "Немає місця",
-          staff_shortage: "Брак людей",
+          capacity_reached: "Немає вільних місць",
+          staff_shortage: "Бракує волонтерів",
           other: "Інше",
         },
         noteLabel: "Коментар",
@@ -639,11 +687,11 @@ export const uk = {
          */
         noteHint:
           "Коментар бачите ви, інші адміністратори притулку і я. Людям, які шукають тварину, він не показується.",
-        confirm: "Призупинити прийом",
+        confirm: "Призупинити прийом звернень",
         cancel: "Скасувати",
         close: "Закрити",
-        paused: "Прийом на паузі.",
-        resumed: "Прийом відновлено. Ваших тварин знову видно.",
+        paused: "Прийом звернень на паузі.",
+        resumed: "Прийом звернень відновлено. Ваших тварин знову видно.",
       },
       /**
        * Pet card PR 3b §C. His final Ukrainian (2026-10-27): `add`,
@@ -730,12 +778,12 @@ export const uk = {
         sizeHintRange: "{min}–{max} кг",
         sizeHintFrom: "від {min} кг",
       },
-      /** DR1 (S3), his text (2026-10-20). Optional, and clearable back to «Не вказано». */
+      /** DR1 (S3), his text (2026-10-20). Optional, and clearable back to «Не записано». */
       coat: {
         label: "Шерсть",
         short: "Коротка",
         long: "Довга",
-        unknown: "Не вказано",
+        unknown: "Не записано",
       },
       /**
        * Pet card redesign. These four, `temperament`'s four below and the
@@ -753,7 +801,7 @@ export const uk = {
        */
       colour: {
         title: "Забарвлення",
-        unknown: "Не вказано",
+        unknown: "Не записано",
         other: "Інше",
         customPlaceholder: "Своїми словами",
       },
@@ -769,7 +817,7 @@ export const uk = {
         birthDateLabel: "Дата народження",
         bucketLabel: "Вік на ту дату",
         bucketRangeUnder: "до {max}",
-        bucketRange: "{min}-{max}",
+        bucketRange: "{min}–{max}",
         bucketRangeFrom: "{min}+",
         asOfLabel: "Станом на",
         /** True with D3 (Oleksii: "keep the chosen «Станом на» date"): the server stores it. */
@@ -817,6 +865,9 @@ export const uk = {
       medicalNotes: {
         title: "Що ще варто знати про здоровʼя",
         hint: "Необовʼязково. Ті, хто шукає тварину, побачать цей текст у розділі «Медичний стан».",
+        /** Owner-approved 2026-11-06: the notes are public, so no personal data in them. */
+        publicNote:
+          "Нотатки видно всім на сторінці тварини, тож не пишіть тут імен і контактів людей.",
       },
       photos: {
         title: "Фото",
@@ -947,6 +998,9 @@ export const uk = {
          */
         publishedNotShown:
           "Опубліковано. Ті, хто шукає тварину, побачать картку, щойно притулок пройде перевірку.",
+        /** B6, owner-approved 2026-11-04: while the operator has allowed showing cards before verification. */
+        publishedListed:
+          "Опубліковано. Картку видно всім з позначкою «на перевірці», поки притулок проходить перевірку.",
         viewPublic: "Відкрити сторінку тварини",
         stateChanged:
           "Картка змінилася в іншому вікні. Оновіть сторінку, щоб побачити поточну версію.",
@@ -980,7 +1034,7 @@ export const uk = {
         birthDateFuture: "Дата народження не може бути в майбутньому.",
         asOfFuture: "Дата «Станом на» не може бути в майбутньому.",
         /** «років» is the form for 30, `AGE_DATE_MAX_YEARS_BACK` (his note: "pin the plural for 30"). */
-        dateTooOld: "Ця дата надто давня – понад {years} років тому.",
+        dateTooOld: "Ця дата надто давня – понад {years} тому.",
       },
     },
     /**
@@ -1058,7 +1112,7 @@ export const uk = {
       },
       adoptDialog: {
         title: "{name} уже вдома?",
-        body: "Картка зникне з галереї та стрічки, а її сторінка повідомлятиме, що тварини там уже немає. У вашому списку картка лишиться з позначкою «Удома». Скасувати це не можна: якщо тварина повернеться, додайте її як нову картку.",
+        body: "Картка зникне з галереї, а її сторінка стане недоступною. У вашому списку картка лишиться з позначкою «Удома». Скасувати це не можна: якщо тварина повернеться, додайте її як нову картку.",
         confirm: "Так, уже вдома",
       },
       withdrawDialog: {
@@ -1090,7 +1144,7 @@ export const uk = {
       },
       deleted: "Чернетку «{name}» видалено.",
       stale: {
-        count: "{cards} ви не підтверджували понад {days} днів.",
+        count: "{cards} ви не підтверджували понад {days}.",
         countCards: {
           one: "{count} картку",
           few: "{count} картки",
@@ -1098,17 +1152,18 @@ export const uk = {
         },
         caption:
           "Ті, хто шукає тварину, бачать на них давню дату. Якщо нічого не змінилося, достатньо натиснути «Ще шукає» чи «Ще домовляються».",
-        show: "Показати ці {count}",
+        show: "Показати ці картки ({count})",
         showAll: "Показати всі",
       },
       paused: {
-        hidden: "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає.",
+        hidden:
+          "Поки прийом звернень на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом звернень на паузі.",
       },
       notVisible: {
         pending: "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
       },
       orderNote:
-        "Порядок у галереї – за датою: людина сама обирає, спочатку найсвіжіші картки чи ті, хто чекає найдовше. Повнота картки впливає лише на порядок у режимі «по одній». Тут порядок змінити не можна, і просування немає.",
+        "У галереї картки впорядковані за датою: відвідувач сам обирає, спочатку найсвіжіші чи ті, хто чекає найдовше. Змінити порядок або підняти картку тут не можна.",
       empty: {
         title: "Тут поки немає тварин.",
         body: "Додайте першу. Ті, хто шукає тварину, побачать картку після публікації.",
@@ -1171,12 +1226,12 @@ export const uk = {
     /**
      * The two kabinet emails (`docs/h2-invite-copy-sheet.md` E1/E2), Oleksii's
      * final Ukrainian (2026-10-14). The invite email is a personal note in his
-     * «я» voice (IN-E14), signed `- {operator}` on its last line (`notYou`):
+     * «я» voice (IN-E14), signed `{operator}` on its last line (`notYou`):
      * the display name, nominative, from the same config as the history
      * actor. The sign-in email took the same personal shape on 2026-10-14
      * (his delivery test 2: the invite reached Gmail's Primary tab, the short
      * impersonal sign-in email Promotions): «Добрий день.» opens it and the
-     * same `- {operator}` signs its `notYou`. The plural nouns in `signIn.expiry` («хвилин», 15) and
+     * same `{operator}` signs its `notYou`. The plural nouns in `signIn.expiry` («хвилин», 15) and
      * `invite.expiry` («години», 72) are typed for those exact values;
      * `copy-plural-pins.test.ts` fails if a TTL changes under them. `action`
      * is the link's label in the HTML part: a label, never the URL itself
@@ -1192,9 +1247,9 @@ export const uk = {
         subject: "Посилання для входу до кабінету притулку",
         intro: "Добрий день. На цю адресу запитали посилання для входу до кабінету притулку.",
         action: "Відкрити сторінку входу",
-        expiry: "Посилання спрацює один раз і діє {minutes} хвилин.",
+        expiry: "Посилання спрацює один раз і діє {minutes}.",
         notYou:
-          "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n- {operator}",
+          "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\n{operator}",
       },
       invite: {
         subject: "Ваш доступ до кабінету притулку",
@@ -1210,21 +1265,21 @@ export const uk = {
          */
         what: "У кабінеті ви бачите дані притулку – і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі, і зміни зʼявляються одразу після збереження. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки – юридичну особу, ЄДРПОУ чи адресу, – напишіть мені.",
         whatBeforeVerification:
-          "У кабінеті ви бачите дані притулку – і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку. Посилання на збір запрацює, щойно я його перевірю. Щоб змінити дані з перевірки – юридичну особу, ЄДРПОУ чи адресу, – напишіть мені.",
+          "У кабінеті ви бачите дані притулку – і те, що бачать люди, і дані з перевірки. Контакти, речення на сторінці притулку і картки тварин ви змінюєте самі. Ті, хто шукає тварину, побачать їх, щойно притулок пройде перевірку або я дозволю показ із позначкою «на перевірці». Посилання на збір зʼявиться, коли я його перевірю і притулок пройде перевірку. Щоб змінити дані з перевірки – юридичну особу, ЄДРПОУ чи адресу, – напишіть мені.",
         action: "Створити пароль",
-        expiry: "Запрошення діє {hours} години. Якщо не встигнете – я надішлю нове.",
+        expiry: "Запрошення діє {hours}. Якщо не встигнете – я надішлю нове.",
         /**
          * PW-2 (Oleksii, 2026-10-20, Q2, verbatim): the link sets a password, so whoever holds it
-         * can; the paragraph says so, and not to forward it. Signed `- {operator}` as before.
+         * can; the paragraph says so, and not to forward it. Signed `{operator}` as before.
          */
         notYou:
-          "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n- {operator}",
+          "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.\n{operator}",
       },
       /**
        * F1, the reset link (`docs/shelter-passwords-copy-uk.md`, his Ukrainian, 2026-10-19,
        * verbatim), sent only to a shelter admin's address. `{minutes}` is the link's lifetime,
        * 60; «хв.» needs no plural. `action` is the link's label in the HTML part (IN-E8). Signed
-       * `- {operator}` like the other emails.
+       * `{operator}` like the other emails.
        */
       reset: {
         subject: "Новий пароль до кабінету притулку",
@@ -1232,7 +1287,7 @@ export const uk = {
         action: "Створити новий пароль",
         expiry: "Посилання спрацює один раз і діє {minutes} хв.",
         notYou:
-          "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\n- {operator}",
+          "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\n{operator}",
       },
       /**
        * F2, the notice after a reset and after a change (his §9 answer 4, verbatim: "Yes:
@@ -1242,7 +1297,7 @@ export const uk = {
       passwordChanged: {
         subject: "Кабінет притулку: пароль змінено",
         body: "Пароль до кабінету притулку для цієї адреси щойно змінено. На інших пристроях виконано вихід.",
-        notYou: "Якщо це не ви – напишіть мені: {contact}\n- {operator}",
+        notYou: "Якщо це не ви – напишіть мені: {contact}\n{operator}",
       },
     },
     /**
@@ -1336,6 +1391,8 @@ export const uk = {
      */
     history: {
       adminJoined: "{email} отримує доступ до кабінету",
+      /** The address was erased (GDPR), so it cannot be the subject of the sentence. */
+      adminJoinedErased: "Доступ до кабінету відкрито: адреса видалена",
     },
     /**
      * R-UI · the operator's own screens (`docs/r-ui-copy-sheet.md`, keys and
@@ -1405,6 +1462,17 @@ export const uk = {
         approved: "Посилання схвалено.",
         rejected: "Посилання відхилено.",
         conflict: "Пропозиція змінилася, поки сторінка була відкрита. Тут – поточна.",
+        remove: "Прибрати посилання…",
+        removed: "Посилання прибрано.",
+        removeConflict: "Посилання змінилося, поки сторінка була відкрита. Тут – поточне.",
+        /** A pending link that came from a suspension, not from the shelter. */
+        afterSuspension: "Було чинним до призупинення. Схваліть одним кліком після відновлення.",
+        removeDialog: {
+          title: "Прибрати посилання на збір «{shelter}»?",
+          body: "Посилання одразу зникне зі сторінок. Притулок побачить причину у своєму кабінеті й зможе запропонувати нове. Пропозиція, що чекає, теж зникне.",
+          shelterSeesNote: "Цей текст побачить притулок.",
+          confirm: "Прибрати",
+        },
       },
       admins: {
         title: "Адміністратори",
@@ -1414,8 +1482,8 @@ export const uk = {
         none: "Адміністраторів немає",
         remove: "Прибрати",
         removeConfirm: {
-          title: "Закрити доступ? {name} більше не зможе входити в кабінет.",
-          body: "Доступ до кабінету закриється одразу, усі сеанси завершаться.",
+          title: "Закрити доступ для {name}?",
+          body: "Користувач більше не зможе входити в кабінет. Доступ закриється одразу, усі сеанси завершаться.",
         },
         inviteAnother: "Запросити ще одного",
         /** The invite button while the shelter has no admin and no invitation (N7). */
@@ -1430,7 +1498,7 @@ export const uk = {
           edrpou_registration: "Реєстрація · ЄДРПОУ",
           bank_account_holder: "Власник банківського рахунку",
           reference_contact: "Рекомендація",
-          site_visit: "Візит на місце",
+          site_visit: "Відеодзвінок",
           supporting_document: "Документ",
         },
         added: "додано {date}",
@@ -1440,7 +1508,7 @@ export const uk = {
           who: "Хто",
           channel: "Як звʼязатися",
           relationship: "Ким доводиться притулку",
-          visitedOn: "Дата візиту",
+          visitedOn: "Дата дзвінка",
           notes: "Нотатка",
           label: "Підпис",
         },
@@ -1452,10 +1520,22 @@ export const uk = {
         },
         noDocument: "Документ не додано – для цього типу доказу це дозволено.",
         gaps: "Для схвалення бракує: {kind} – {provided} з {minimum}.",
+        gapItem: "{kind} – {provided} з {minimum}",
         add: "+ Додати доказ",
         remove: "Прибрати",
         typePicker: "Тип доказу",
-        siteVisitDateHint: "Дата візиту не може бути в майбутньому.",
+        siteVisitDateHint: "Дата дзвінка не може бути в майбутньому.",
+        videoCallNotesHint:
+          "Що показали під час дзвінка: приміщення, тварин, людей. Якщо дзвінок був телефонний – додайте, яке відео надіслали.",
+        addTitle: "Додати докази",
+        addIntro:
+          "Нові докази додаються до наявних. Статус не змінюється. В історії цей запис бачите лише ви: сам притулок його не бачить.",
+        addNeeded: "Додайте хоча б один доказ.",
+        addSubmit: "Додати",
+        addDone: "Докази додано.",
+        addNothingNew: "Ці докази вже є.",
+        notEditable: "Докази можна додати, лише поки рішення не ухвалено.",
+        limit: "У заявці може бути щонайбільше 30 доказів, за раз – до 10.",
       },
       blocked: {
         title: "Адреси, на які поштовий сервіс не доставляє листи",
@@ -1499,10 +1579,14 @@ export const uk = {
           suspend: "Призупинено: {code}. {note}",
           reinstate: "Відновлено → «{status}»",
           resubmit: "Повернуто на перевірку",
-          pause: "Прийом тварин призупинено",
+          pause: "Прийом звернень призупинено",
+          /** `{reason}` the pause reason label; `other` keeps the plain line. */
+          pause_reason: "Прийом звернень призупинено: {reason}",
           resume: "Паузу знято",
         },
         admin_invited: "Надіслано запрошення: {name}, {email}",
+        admin_invited_erased: "Надіслано запрошення: адреса видалена",
+        addressErased: "адреса видалена",
         admin_invitation_resent: "Запрошення надіслано ще раз: {name}",
         admin_removed: "Доступ закрито: {name}",
         admin_removed_pending: "Запрошення скасовано: {name}",
@@ -1520,6 +1604,13 @@ export const uk = {
         donation_proposal_cancelled: "Пропозицію посилання скасовано",
         donation_approved: "Посилання на збір схвалено",
         donation_rejected: "Посилання на збір відхилено",
+        /** `{host}` the link that went; `{code}` the reason's label; `{note}` the operator's text. */
+        donation_removed: "Посилання на збір прибрано: {host}. {code}. {note}",
+        donation_removed_pending: "Пропозицію, що чекала, скасовано разом із посиланням",
+        donation_suspended_to_pending:
+          "Посилання на збір {host} переведено на повторне схвалення: притулок призупинено",
+        donation_suspended_recorded:
+          "Чинне посилання {host} більше не показується: притулок призупинено. Новіша пропозиція лишається в очікуванні",
         verified_data_changed: {
           legal_entity: "Змінено юридичні дані",
           exact_address: "Змінено адресу приміщення",
@@ -1529,6 +1620,10 @@ export const uk = {
         animal_edited: "Змінено картку {name}: {fields}",
         animal_listing_changed: "{name}: «{from}» → «{to}»",
         animal_deleted: "Видалено чернетку: {name}",
+        evidence_added: "Додано докази: {kinds}",
+        early_listing_allowed: "Показ карток до завершення перевірки дозволено",
+        early_listing_revoked: "Показ карток до завершення перевірки знято",
+        early_listing_lapsed: "Строк показу карток до завершення перевірки минув",
       },
       create: {
         title: "Новий притулок",
@@ -1581,11 +1676,12 @@ export const uk = {
         cancel: "Скасувати",
         whatHappens: {
           title: "Що буде далі",
-          step1: "Притулок зʼявиться у списку зі статусом «Очікує».",
+          step1: "Притулок зʼявиться у списку зі статусом «Очікує перевірки».",
           /** «72 години» is typed for INVITATION_TTL_MS; `copy-plural-pins.test.ts` pins it. */
           step2:
             "{name} отримає запрошення: посилання, щоб створити пароль, діє 72 години. Його можна надіслати ще раз.",
-          step3: "Тварин притулку не буде в галереї, доки ви не схвалите перевірку.",
+          step3:
+            "Тварин притулку не буде в галереї, доки ви не схвалите перевірку або не дозволите показ до її завершення.",
         },
         created: "Притулок створено.",
         createdNoInvite:
@@ -1599,7 +1695,7 @@ export const uk = {
             operator: "Це адреса адміністратора сайту. Для притулку потрібна інша.",
             invited_elsewhere: "На цю адресу вже надіслано чинне запрошення до іншого притулку.",
           },
-          siteVisitInFuture: "Дата візиту не може бути в майбутньому.",
+          siteVisitInFuture: "Дата дзвінка не може бути в майбутньому.",
           unknownCity: "Такого населеного пункту немає у списку.",
           lostAnswer:
             "Відповідь не надійшла. Притулок міг створитися – перевірте список, перш ніж пробувати знову.",
@@ -1655,7 +1751,7 @@ export const uk = {
           reinstateExplainPaused:
             "Кнопка «Відновити» поверне притулок на паузу, а не в «Перевірено». Тварини лишаться прихованими, доки притулок сам не зніме паузу.",
           reinstateExplainVerified:
-            "Кнопка «Відновити» поверне статус «Перевірено», і тварини знову зʼявляться в галереї.",
+            "Кнопка «Відновити» поверне статус «Перевірено», і тварини знову зʼявляться в галереї. Посилання на збір сайт сам не поверне: схваліть його окремо.",
         },
         noConfirm: "Підтвердження не потрібне: ця дія нічого не приховує.",
         rejected: {
@@ -1669,7 +1765,7 @@ export const uk = {
         rejectBody:
           "Притулок побачить це пояснення дослівно у своєму кабінеті. Його тварин не буде в галереї.",
         suspendBody:
-          "Тварини притулку одразу зникнуть із галереї. Притулок побачить це пояснення у своєму кабінеті. Відновити можна будь-коли.",
+          "Тварини притулку одразу зникнуть із галереї. Притулок побачить це пояснення у своєму кабінеті. Відновити можна будь-коли. Посилання на збір теж перестане показуватися; після відновлення його треба схвалити знову.",
         codeLabel: "Причина",
         reasonLabel: "Пояснення",
         reasonHint: "Обовʼязково. Пишіть так, щоб людина знала, що робити далі.",
@@ -1682,16 +1778,46 @@ export const uk = {
           identity_unverifiable: "Не вдалося підтвердити, хто стоїть за притулком",
           duplicate_submission: "Повторна заявка",
           out_of_service_area: "Поза територією, де працює сайт",
-          spam: "Спам",
+          spam: "Заявка не схожа на звернення притулку",
           other: "Інше",
         },
         suspension: {
           unresponsive: "Немає звʼязку з притулком",
-          complaint_upheld: "Скарга підтвердилася",
-          listing_quality: "Картки не відповідають дійсності",
-          suspected_fraud: "Підозра на шахрайство",
+          complaint_upheld: "Перевірена скарга",
+          listing_quality: "Дані в картках потребують виправлення",
+          // Retired: no longer offered, old records show the same neutral text.
+          suspected_fraud: "Не вдалося підтвердити дані притулку",
+          cannot_confirm_details: "Не вдалося підтвердити дані притулку",
           other: "Інше",
         },
+        donationRemoval: {
+          wrong_destination: "Посилання веде не туди",
+          not_shelters_own: "Це не власна сторінка притулку",
+          cannot_confirm: "Не вдалося підтвердити, куди веде посилання",
+          shelter_request: "Прохання притулку",
+          other: "Інше",
+        },
+      },
+      /**
+       * Listing before verification, operator side (owner-approved copy table, 2026-11-04: N7–N12).
+       * `daysLeft` takes `{count}`, through `pluralizeUk`.
+       */
+      earlyListing: {
+        /** The panel's heading (owner-approved 2026-11-06). */
+        title: "Показ до завершення перевірки",
+        allow: "Дозволити показ до завершення перевірки",
+        revoke: "Зняти дозвіл",
+        confirm:
+          "Картки притулку побачать усі, з позначкою «на перевірці». Дозвіл діє до 60 днів, зняти його можна будь-коли.",
+        daysLeft: {
+          one: "До кінця показу: {count} день",
+          few: "До кінця показу: {count} дні",
+          many: "До кінця показу: {count} днів",
+        },
+        expired: "Показ завершився {date}",
+        extendNote: "Чому подовжуєте показ",
+        limitReached: "Показ до перевірки вже дозволяли двічі.",
+        evidenceMinimum: "Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.",
       },
       errors: {
         illegalTransition: "З поточного статусу так не можна. Сторінку оновлено.",
@@ -1727,9 +1853,10 @@ export const uk = {
        * name standing alone, as both emails sign: `standaloneOperatorName`, the
        * configured name, else «Адміністратор сайту».
        */
-      signature: "- {operator}",
+      signature: "{operator}",
       contact: "Якщо маєте питання, напишіть мені.",
-      suspendedEffect: "Поки притулок призупинено, його тварин немає в галереї.",
+      suspendedEffect:
+        "Поки притулок призупинено, його тварин немає в галереї, а посилання на збір не показується.",
       rejectedEffect: "Тварин притулку не буде в галереї, доки перевірку не пройдено.",
     },
     /**

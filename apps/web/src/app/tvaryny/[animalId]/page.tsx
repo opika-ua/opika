@@ -15,7 +15,7 @@ import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-si
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import { JsonLd } from "../../../seo/json-ld";
 import { animalBreadcrumbs } from "../../../seo/json-ld-builders";
-import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../seo-flags";
+import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
 import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
 
 /**
@@ -119,7 +119,11 @@ export async function generateMetadata({
   params: Promise<{ animalId: string }>;
 }): Promise<Metadata> {
   const { animalId } = await params;
-  const load = await loadAnimalPageOnce(animalId);
+  return animalMetadataOf(await loadAnimalPageOnce(animalId));
+}
+
+/** Exported so a test can read the metadata of each load result without a database. */
+export function animalMetadataOf(load: AnimalPageLoad): Metadata {
   // A refusal says nothing about the animal; a search engine that met it
   // must not keep it as this URL's page (RL-F1).
   if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
@@ -127,9 +131,13 @@ export async function generateMetadata({
   const { animal, shelter, cityName } = load.view;
 
   const title = [animal.name, speciesLabel(animal.species), cityName].filter(Boolean).join(", ");
+  const listedEarly = shelter.verification === "listed_before_verification";
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice
-    : animalMetaDescription(animal, shelter.displayName, cityName);
+    : listedEarly
+      ? // A link preview must not suggest a verified shelter (N14).
+        uk.underReview.sharePreview
+      : animalMetaDescription(animal, shelter.displayName, cityName);
   return {
     title,
     description,
@@ -145,6 +153,11 @@ export async function generateMetadata({
       description,
     },
     twitter: { card: "summary_large_image" },
+    // A paused shelter's animal page is reachable by link only: never indexed, even after the flip.
+    // Paused, or an early-listed shelter's animal: by link only, whatever the discoverability flag.
+    ...((animal.availability.kind === "paused" || listedEarly) && {
+      robots: { index: false, follow: SITE_IS_PUBLICLY_DISCOVERABLE },
+    }),
   };
 }
 

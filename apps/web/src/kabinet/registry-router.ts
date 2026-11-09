@@ -26,12 +26,16 @@ import {
   registrySheltersList,
 } from "./handlers/registry-reads";
 import {
+  registryAddEvidence,
+  registryAllowEarlyListing,
   registryApprove,
   registryDonationApprove,
   registryDonationReject,
+  registryDonationRemove,
   registryReinstate,
   registryReject,
   registryResubmit,
+  registryRevokeEarlyListing,
   registryStartReview,
   registrySuspend,
   registryUpdateProfile,
@@ -138,6 +142,17 @@ export const registryRouter = guarded.router({
       resubmit: guarded.registry.verification.resubmit.handler(({ context, input, errors }) =>
         registryResubmit(context, operator(context.access), input, errors),
       ),
+      addEvidence: guarded.registry.verification.addEvidence.handler(({ context, input, errors }) =>
+        registryAddEvidence(context, operator(context.access), input, errors),
+      ),
+    },
+    earlyListing: {
+      allow: guarded.registry.earlyListing.allow.handler(({ context, input, errors }) =>
+        registryAllowEarlyListing(context, operator(context.access), input, errors),
+      ),
+      revoke: guarded.registry.earlyListing.revoke.handler(({ context, input, errors }) =>
+        registryRevokeEarlyListing(context, operator(context.access), input, errors),
+      ),
     },
     donation: {
       approve: guarded.registry.donation.approve.handler(({ context, input, errors }) =>
@@ -145,6 +160,9 @@ export const registryRouter = guarded.router({
       ),
       reject: guarded.registry.donation.reject.handler(({ context, input, errors }) =>
         registryDonationReject(context, operator(context.access), input, errors),
+      ),
+      remove: guarded.registry.donation.remove.handler(({ context, input, errors }) =>
+        registryDonationRemove(context, operator(context.access), input, errors),
       ),
     },
     admins: {

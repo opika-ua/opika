@@ -2,6 +2,7 @@ import {
   blockedStatusOf,
   blockListReaderOf,
   type EmailProviderConfig,
+  type EmailSender,
   fetchEmailSender,
 } from "./email-provider";
 import {
@@ -12,6 +13,7 @@ import {
   providerPasswordMail,
 } from "./email-senders";
 import { MAGIC_LINK_TTL_SECONDS, type MagicLinkSender } from "./magic-link-sender";
+import { noteMailSent } from "./mail-volume";
 import { type PasswordMailSender, RESET_PASSWORD_TTL_SECONDS } from "./password-mail";
 import type { ProductionSignIn } from "./production-sign-in";
 
@@ -43,8 +45,33 @@ type Deps = {
   log?: (line: string) => void;
 };
 
+/** Counts each send that succeeded toward the daily mail warning (`mail-volume.ts`). */
+export const MAIL_COUNT_TIMEOUT_MS = 500;
+
+/** A hung counter store must not delay a mail that has already been sent. */
+export const countingSender = (
+  inner: EmailSender,
+  note: (now: Date) => Promise<void> = noteMailSent,
+): EmailSender => ({
+  async send(email) {
+    const sent = await inner.send(email);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const gaveUp = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, MAIL_COUNT_TIMEOUT_MS);
+    });
+    try {
+      await Promise.race([note(new Date()).catch(() => {}), gaveUp]);
+    } catch {
+      // Counting never affects a send.
+    } finally {
+      clearTimeout(timer);
+    }
+    return sent;
+  },
+});
+
 const providerMailOf = (config: EmailProviderConfig, fetchImpl: typeof fetch): ProviderMail => ({
-  sender: fetchEmailSender(config, fetchImpl),
+  sender: countingSender(fetchEmailSender(config, fetchImpl)),
   blockedStatus: async () => blockedStatusOf(config),
   refuseCopyPending: true,
 });

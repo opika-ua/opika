@@ -1,6 +1,7 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { logRateLimited, type RateLimitedLog } from "./rate-limit-log";
+import { warnLimiterUnreachable } from "./rate-limit-unreachable";
 import { redisCredentialsOf } from "./redis-credentials";
 import { retryAfterSecondsOf } from "./retry-after";
 
@@ -152,6 +153,10 @@ export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: numbe
  * Oleksii accepted the recommendation of one Upstash database with two
  * prefixes over two separate databases.
  *
+ * **Per-limiter fail mode (`onUnavailable`, owner 2026-11-06).** The text below describes
+ * RL-1's original fail-closed behaviour, now the `deny` mode; `allow` returns true on the same
+ * two paths and logs the same warning.
+ *
  * **Fails closed on a store error or a slow store, with a bounded
  * timeout - RL-1, resolved (Oleksii accepted the recommendation).** Two
  * distinct failure shapes, found to need two distinct fixes by reading
@@ -189,12 +194,29 @@ export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: numbe
  */
 const UPSTASH_CHECK_TIMEOUT_MS = 1_000;
 
+/**
+ * What a limiter answers when its store cannot be reached. Required on every limiter (no default)
+ * so a new one must choose: `allow` for surfaces whose outage cost is worse than unthrottled
+ * traffic (public reads, health and monitoring probes), `deny` for everything that guards a
+ * credential, a mail or a write.
+ */
+export type OnUnavailable = "allow" | "deny";
+
+/** Every limiter built here, by name, so a guard test can see that none lacks a choice. */
+export const registeredLimiters = new Map<
+  string,
+  { onUnavailable: OnUnavailable; limiter: RateLimiter }
+>();
+
 export function upstashRateLimiter(opts: {
   redis: Redis;
   windowMs: number;
   maxRequests: number;
   prefix: string;
+  onUnavailable: OnUnavailable;
 }): RateLimiter {
+  const unavailable = opts.onUnavailable === "allow";
+  const outcome = unavailable ? "failing open" : "failing closed";
   const windowSeconds = Math.max(1, Math.round(opts.windowMs / 1000));
   const ratelimit = new Ratelimit({
     redis: opts.redis,
@@ -222,13 +244,15 @@ export function upstashRateLimiter(opts: {
           resets.delete(key);
         }
         if (result.reason === "timeout") {
-          console.error("apiRateLimiter: Upstash check timed out - failing closed (RL-1)");
-          return false;
+          console.error(`apiRateLimiter: Upstash check timed out - ${outcome} (RL-1)`);
+          warnLimiterUnreachable(opts.prefix, "timeout");
+          return unavailable;
         }
         return result.success;
       } catch (err) {
-        console.error("apiRateLimiter: Upstash check failed - failing closed (RL-1)", err);
-        return false;
+        console.error(`apiRateLimiter: Upstash check failed - ${outcome} (RL-1)`, err);
+        warnLimiterUnreachable(opts.prefix, "error");
+        return unavailable;
       }
     },
   };
@@ -365,6 +389,7 @@ export function loggingRefusals(
   };
 }
 
+// Public reads fail open: a dead store must not take the whole site down with it.
 export const apiRateLimiter: RateLimiter = loggingRefusals(
   "api",
   RESOLVED_REDIS_URL && RESOLVED_REDIS_TOKEN
@@ -377,12 +402,14 @@ export const apiRateLimiter: RateLimiter = loggingRefusals(
         windowMs: 60_000,
         maxRequests: 100,
         prefix: `opika-api-ratelimit-${VERCEL_ENV}`,
+        onUnavailable: "allow",
       })
     : inMemoryRateLimiter({
         windowMs: 60_000,
         maxRequests: 100,
       }),
 );
+registeredLimiters.set("api", { onUnavailable: "allow", limiter: apiRateLimiter });
 
 /**
  * Another limiter on the same backing store as `apiRateLimiter`: Upstash when
@@ -394,14 +421,18 @@ export function sharedRateLimiter(opts: {
   name: string;
   windowMs: number;
   maxRequests: number;
+  onUnavailable: OnUnavailable;
 }): RateLimiter {
-  return loggingRefusals(opts.name, sharedStoreLimiter(opts));
+  const limiter = loggingRefusals(opts.name, sharedStoreLimiter(opts));
+  registeredLimiters.set(opts.name, { onUnavailable: opts.onUnavailable, limiter });
+  return limiter;
 }
 
 function sharedStoreLimiter(opts: {
   name: string;
   windowMs: number;
   maxRequests: number;
+  onUnavailable: OnUnavailable;
 }): RateLimiter {
   return RESOLVED_REDIS_URL && RESOLVED_REDIS_TOKEN
     ? upstashRateLimiter({
@@ -413,6 +444,7 @@ function sharedStoreLimiter(opts: {
         windowMs: opts.windowMs,
         maxRequests: opts.maxRequests,
         prefix: `opika-${opts.name}-ratelimit-${VERCEL_ENV}`,
+        onUnavailable: opts.onUnavailable,
       })
     : inMemoryRateLimiter({ windowMs: opts.windowMs, maxRequests: opts.maxRequests });
 }

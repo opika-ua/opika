@@ -11,7 +11,7 @@ import { CONTROL, ERROR, HINT, INVALID, LABEL } from "../../../ui/form";
  * does («Показати пароль» / «Сховати пароль»), so a screen reader hears the
  * state from the name; the field keeps its value and focus either way.
  *
- * `hint` (the live length, §9 answer 2) and `error` are linked to the field
+ * `hint` (the static rule) and `error` are linked to the field
  * with `aria-describedby`, as the shared `TextField` links its own.
  */
 export function PasswordField({
@@ -21,6 +21,7 @@ export function PasswordField({
   onChange,
   autoComplete,
   hint,
+  status,
   error,
   inputRef,
 }: {
@@ -30,6 +31,8 @@ export function PasswordField({
   onChange: (value: string) => void;
   autoComplete: "current-password" | "new-password";
   hint?: string;
+  /** The live line under the hint (how many characters are missing), announced politely. */
+  status?: string;
   error?: string | null;
   inputRef?: Ref<HTMLInputElement>;
 }) {
@@ -75,6 +78,11 @@ export function PasswordField({
       {hint !== undefined ? (
         <p id={`${id}-hint`} className={HINT}>
           {hint}
+        </p>
+      ) : null}
+      {status !== undefined ? (
+        <p aria-live="polite" className={HINT}>
+          {status}
         </p>
       ) : null}
     </div>

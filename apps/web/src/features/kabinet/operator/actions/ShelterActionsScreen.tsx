@@ -2,9 +2,11 @@ import type { BlockedAddressesView, RegistryShelterView } from "@opika/contracts
 import type { ModeratorId } from "@opika/domain";
 import type { HistoryPage } from "../pages";
 import { ShelterScreen } from "../ShelterScreen";
+import { AddEvidencePanel } from "./AddEvidencePanel";
 import { AdminsManager } from "./AdminsManager";
 import { DecisionPanel } from "./DecisionPanel";
 import { DonationDecision } from "./DonationDecision";
+import { EarlyListingPanel } from "./EarlyListingPanel";
 import { OperatorActionsRoot } from "./OperatorActionsRoot";
 import { RenameForm } from "./RenameForm";
 import { SupportEntry } from "./SupportEntry";
@@ -43,7 +45,13 @@ export function ShelterActionsScreen({
         actions={{
           supportEntry: <SupportEntry />,
           rename: <RenameForm />,
-          decision: <DecisionPanel />,
+          decision: (
+            <>
+              <DecisionPanel />
+              <AddEvidencePanel />
+              <EarlyListingPanel />
+            </>
+          ),
           donationDecision: <DonationDecision />,
           admins: <AdminsManager now={now} />,
         }}

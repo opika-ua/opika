@@ -36,7 +36,12 @@ export interface RevealSnapshot {
  * different fact from the reveal budget. It reads «Забагато запитів…», not
  * «на нашому боці» (audit 2026-10-22, G1).
  */
-export type RevealErrorReason = "rateLimited" | "tooManyRequests" | "offline" | "loadFailed";
+export type RevealErrorReason =
+  | "rateLimited"
+  | "tooManyRequests"
+  | "shelterPaused"
+  | "offline"
+  | "loadFailed";
 
 export type RevealState =
   | { kind: "idle" }
@@ -106,9 +111,11 @@ export function useReveal() {
           ? "offline"
           : revealError && isDefinedError(revealError) && revealError.code === "RATE_LIMITED"
             ? "rateLimited"
-            : isTooManyRequests(revealError)
-              ? "tooManyRequests"
-              : "loadFailed";
+            : revealError && isDefinedError(revealError) && revealError.code === "SHELTER_PAUSED"
+              ? "shelterPaused"
+              : isTooManyRequests(revealError)
+                ? "tooManyRequests"
+                : "loadFailed";
       setState({ kind: "error", reason, ...snapshot });
       return;
     }

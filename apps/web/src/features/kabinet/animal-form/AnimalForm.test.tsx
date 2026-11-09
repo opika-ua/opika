@@ -249,7 +249,6 @@ const expectRefusedInlineAndInSummary = (text: string | RegExp) => {
 };
 
 const SAVE_DRAFT = "Зберегти чернетку";
-const MISSING_ALL = "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.";
 const MISSING_ITEMS_ALL = [
   "Стать (Основне)",
   "Розмір (Основне)",
@@ -1522,6 +1521,8 @@ describe("publishing", () => {
       event: { type: "publish" },
     });
     expect(await screen.findByText(PUBLISH_DONE)).toBeTruthy();
+    // The Publish button is gone; keyboard focus lands on the status that says it worked.
+    expect(document.activeElement).toBe(screen.getByText(PUBLISH_DONE));
     expect(
       screen.getByRole("link", { name: "Відкрити сторінку тварини" }).getAttribute("href"),
     ).toBe(`/tvaryny/${ID}`);
@@ -1609,7 +1610,8 @@ describe("publishing", () => {
     const client = renderForm(draft());
     await user.click(screen.getByRole("button", { name: "Опублікувати" }));
     expect(client.calls.transition).not.toHaveBeenCalled();
-    expect(formStatus().textContent).toBe(MISSING_ALL);
+    // The list is the panel's bullets only, not repeated in the status line.
+    expect(formStatus().textContent).toBe("");
   });
 
   it("the server's own gap list wins (another window removed the photo)", async () => {
@@ -1712,7 +1714,7 @@ describe("a listed animal saves only when asked (T8)", () => {
 });
 
 /**
- * DR1 (S3): fur, his words «Шерсть», «Коротка», «Довга», «Не вказано»
+ * DR1 (S3): fur, his words «Шерсть», «Коротка», «Довга», «Не записано»
  * (2026-10-20). Optional for publishing, and the only fact that can go back
  * to unknown once chosen.
  */
@@ -1721,14 +1723,14 @@ describe("fur", () => {
   const checked = (label: string) =>
     (coatGroup().getByLabelText(label) as HTMLInputElement).checked;
 
-  it("is a labelled radio group, starting on «Не вказано» on /nova", () => {
+  it("is a labelled radio group, starting on «Не записано» on /nova", () => {
     renderForm(null);
     expect(
       coatGroup()
         .getAllByRole("radio")
         .map((radio) => radio.closest("label")?.textContent),
-    ).toEqual(["Коротка", "Довга", "Не вказано"]);
-    expect(checked("Не вказано")).toBe(true);
+    ).toEqual(["Коротка", "Довга", "Не записано"]);
+    expect(checked("Не записано")).toBe(true);
   });
 
   it("isn't one of the publish gaps", () => {
@@ -1751,15 +1753,15 @@ describe("fur", () => {
     });
   });
 
-  it("shows the stored value, and «Не вказано» clears it on a published card", async () => {
+  it("shows the stored value, and «Не записано» clears it on a published card", async () => {
     const client = renderForm(published({ coatLength: "short" }));
     expect(checked("Коротка")).toBe(true);
-    fireEvent.click(coatGroup().getByLabelText("Не вказано"));
+    fireEvent.click(coatGroup().getByLabelText("Не записано"));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     });
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { coatLength: null } });
-    expect(checked("Не вказано")).toBe(true);
+    expect(checked("Не записано")).toBe(true);
   });
 
   it("on /nova, the draft is made from a name and a species, and fur follows in the next save", async () => {
@@ -1953,7 +1955,7 @@ describe("colour", () => {
   const checked = (label: string) =>
     (group().getByRole("radio", { name: label }) as HTMLInputElement).checked;
 
-  it("is a labelled radio group of the ten colours, «Інше» and «Не вказано», starting on «Не вказано»", () => {
+  it("is a labelled radio group of the ten colours, «Інше» and «Не записано», starting on «Не записано»", () => {
     renderForm(null);
     expect(
       group()
@@ -1971,9 +1973,9 @@ describe("colour", () => {
       "Смугасте",
       "Плямисте",
       "Інше",
-      "Не вказано",
+      "Не записано",
     ]);
-    expect(checked("Не вказано")).toBe(true);
+    expect(checked("Не записано")).toBe(true);
   });
 
   it("saves a preset colour on a draft as the one changed field", async () => {
@@ -2023,12 +2025,12 @@ describe("colour", () => {
     expect(client.calls.update).not.toHaveBeenCalled();
   });
 
-  it("shows the stored colour, and «Не вказано» clears it on a published card", async () => {
+  it("shows the stored colour, and «Не записано» clears it on a published card", async () => {
     const client = renderForm(
       published({ colour: { kind: "preset", colour: "ginger" } } as Partial<KabinetAnimalView>),
     );
     expect(checked("Руде")).toBe(true);
-    fireEvent.click(group().getByLabelText("Не вказано"));
+    fireEvent.click(group().getByLabelText("Не записано"));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     });
@@ -2122,7 +2124,7 @@ describe("medical note", () => {
   });
 
   it("isn't one of the publish gaps, unlike description", () => {
-    // `MISSING_ALL` (`"...розмір, вік, опис і фото."`) is the exact gap list a fresh form
+    // `MISSING_ITEMS_ALL` is the exact gap list a fresh form
     // shows - A3: an empty medical note never adds itself to it, the way an empty
     // description does.
     renderForm(null);

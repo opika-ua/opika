@@ -25,8 +25,8 @@ import { animalPageHref, type CitySlugsById } from "./filter-url";
  * 2.5.3), plus the city as screen-reader-only text; the aria-hidden pill stays out of it.
  *
  * Two layouts of one DOM (`layout`): on a phone the text sits under the photo with the freshness as
- * a species-coloured dot plus its words; from `tablet` the gallery keeps the Figma panel over the
- * photo. The pill is decorative and exists only in that panel.
+ * a species-coloured dot plus its words; from `tablet` the same dot and words sit in a page-coloured
+ * chip on the photo, and the gallery keeps the Figma panel over it. The pill is decorative and exists only in that panel.
  */
 
 /**
@@ -43,7 +43,7 @@ const SIZES = {
     "(max-width:599px) calc(50vw - 22px),(max-width:1023px) calc(34vw - 26px),(max-width:1511px) calc(25vw - 50.5px),328px",
 } as const;
 
-// Sets `--dot`: the phone's dot and, from tablet, the badge fill.
+// Sets `--dot`, the species dot at every width.
 const SPECIES = { dog: "gcard-dog", cat: "gcard-cat" } as const;
 
 interface GalleryCardProps {
@@ -118,13 +118,20 @@ export function GalleryCard({
         >
           {freshnessLabel(card.freshness)}
         </span>
-        {reserved && (
-          <span data-testid="reserved-badge" className="contents">
-            <Badge tone="ink" className="absolute top-2 left-2 tablet:static">
-              {uk.reserved.badge}
-            </Badge>
-          </span>
-        )}
+        {/* Phone: one top-left stack. The card's top-left corner is the photo's (no padding above
+            it), so this anchors to the photo; a bottom anchor landed on the freshness line. */}
+        <div className="absolute top-2 left-2 flex flex-col items-start gap-1 tablet:contents">
+          {reserved && (
+            <span data-testid="reserved-badge" className="contents">
+              <Badge tone="ink">{uk.reserved.badge}</Badge>
+            </span>
+          )}
+          {card.shelter.verification === "listed_before_verification" && (
+            <span data-testid="under-review-badge" className="contents">
+              <Badge tone="neutral">{uk.underReview.card}</Badge>
+            </span>
+          )}
+        </div>
       </div>
 
       <div className={stacked ? "gcard-info-st" : "gcard-info"}>

@@ -11,11 +11,11 @@ import type {
 } from "@opika/domain";
 import { isExplicitlySelected, relaxDimension } from "@opika/domain/core";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOptimistic, useTransition } from "react";
 import { Chip } from "../../ui/Chip";
-import { ComboboxMulti } from "../../ui/ComboboxMulti";
 import { cx } from "../../ui/cx";
 import { SEGMENT, SEGMENT_HIT, SEGMENT_OFF, SEGMENT_ON, SEGMENT_TRACK } from "../../ui/form";
 import { Popover } from "../../ui/Popover";
@@ -59,6 +59,9 @@ const SPECIES_LABEL: Record<AnimalSpecies, string> = {
   dog: uk.filters.speciesDogs,
   cat: uk.filters.speciesCats,
 };
+
+// Split from the first-load chunks; server-rendered, so the closed field is in the HTML.
+const ComboboxMulti = dynamic(() => import("../../ui/ComboboxMulti").then((m) => m.ComboboxMulti));
 
 /**
  * One filter selector (handoff `88:1906`): a field-shaped trigger naming the chosen options, and

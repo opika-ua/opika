@@ -108,11 +108,13 @@ describe("remove asks first", () => {
     await userEvent.click(row("Олена").getByRole("button", { name: "Прибрати" }));
     const dialog = within(
       screen.getByRole("dialog", {
-        name: "Закрити доступ? Олена більше не зможе входити в кабінет.",
+        name: "Закрити доступ для Олена?",
       }),
     );
     expect(
-      dialog.getByText("Доступ до кабінету закриється одразу, усі сеанси завершаться."),
+      dialog.getByText(
+        "Користувач більше не зможе входити в кабінет. Доступ закриється одразу, усі сеанси завершаться.",
+      ),
     ).toBeTruthy();
     await userEvent.click(dialog.getByRole("button", { name: "Скасувати" }));
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -335,6 +337,17 @@ describe("invite (a shelter with no admin yet, so the button reads «Запро�
     ).toBeTruthy();
     expect(emailField().getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(emailField());
+    // The sentence is about the address that was sent: editing or clearing it takes it away.
+    await userEvent.type(emailField(), "x");
+    expect(
+      screen.queryByText("Це адреса адміністратора сайту. Для притулку потрібна інша."),
+    ).toBeNull();
+    expect(emailField().getAttribute("aria-invalid")).toBeNull();
+    await userEvent.click(submit());
+    await userEvent.clear(emailField());
+    expect(
+      screen.queryByText("Це адреса адміністратора сайту. Для притулку потрібна інша."),
+    ).toBeNull();
   });
 
   it("a lost invite the re-read shows done: the form clears, and no email outcome is claimed", async () => {

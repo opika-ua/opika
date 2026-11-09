@@ -1,8 +1,10 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { KabinetProfileClient } from "../../../api/kabinet-browser-client";
+import type { DonationOutcome } from "./donation-outcome";
+import { LiveVerificationChip, LiveVerificationStatus } from "./LiveVerificationStatus";
 import { ProfileEditor } from "./ProfileEditor";
 
 /**
@@ -17,6 +19,7 @@ import { ProfileEditor } from "./ProfileEditor";
 const baseView = (overrides: Partial<KabinetShelterView> = {}): KabinetShelterView => ({
   id: "51000000-0000-4000-8000-000000000001" as KabinetShelterView["id"],
   displayName: "Притулок «Домівка»",
+  earlyListing: { kind: "none" },
   description: { uk: "Опис", en: null },
   legalEntity: {
     kind: "registered_ngo",
@@ -94,7 +97,7 @@ function renderEditor(
   options: {
     view?: KabinetShelterView;
     overrides?: Partial<Fake>;
-    donationDeclined?: boolean;
+    donationOutcome?: DonationOutcome;
   } = {},
 ) {
   const view = options.view ?? baseView();
@@ -104,7 +107,7 @@ function renderEditor(
       initialView={view}
       cityName="Бровари"
       operatorName="Олексій"
-      donationDeclined={options.donationDeclined ?? false}
+      donationOutcome={options.donationOutcome ?? { kind: "none" }}
       client={client}
     />,
   );
@@ -248,7 +251,7 @@ describe("contacts (answer 3, answer 4)", () => {
     const kindOptions = within(rows[0] as HTMLElement)
       .getAllByRole("option")
       .map((option) => option.textContent);
-    expect(kindOptions).toEqual(["Телефон", "Telegram", "Viber", "Ел. пошта", "Сайт"]);
+    expect(kindOptions).toEqual(["Телефон", "Telegram", "Viber", "Електронна пошта", "Сайт"]);
     expect(c.queryByRole("button", { name: "Додати ще один спосіб звʼязку" })).toBeNull();
     await userEvent.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Прибрати" }));
     await userEvent.click(c.getByRole("button", { name: "Додати ще один спосіб звʼязку" }));
@@ -257,7 +260,7 @@ describe("contacts (answer 3, answer 4)", () => {
       within(added)
         .getAllByRole("option")
         .map((option) => option.textContent),
-    ).toEqual(["Viber", "Ел. пошта", "Сайт"]);
+    ).toEqual(["Viber", "Електронна пошта", "Сайт"]);
   });
 
   it("shows his contacts caption (K4-B4, answer 1: reveal views carry the current contacts)", () => {
@@ -423,7 +426,7 @@ describe("the voice sentence (N11)", () => {
     ).toBeTruthy();
     expect(
       v.getByText(
-        "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде „Оновлено … тому“.",
+        "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде «Оновлено … тому».",
       ),
     ).toBeTruthy();
     expect(
@@ -472,6 +475,90 @@ describe("the donation link (N20)", () => {
     expect(fns.proposeDonation).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "https://send.monobank.ua@evil.example/jar",
+      "У посиланні не має бути імені чи пароля перед адресою сайту (як у https://імʼя@сайт). Скопіюйте адресу з рядка браузера.",
+    ],
+    [
+      "https://xn--monobank-9ve.ua/jar",
+      "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
+    ],
+    [
+      "https://send.m\u043enobank.ua/jar",
+      "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
+    ],
+  ])("refuses %s before sending, as the server would", async (url, message) => {
+    const fns = renderEditor();
+    const d = within(donation());
+    await userEvent.clear(field());
+    await userEvent.type(field(), url);
+    expect(d.queryByText("send.monobank.ua ↗")).toBeNull();
+    await userEvent.click(d.getByRole("button", { name: "Надіслати на перевірку" }));
+    expect(d.getByText(message)).toBeTruthy();
+    expect(fns.proposeDonation).not.toHaveBeenCalled();
+  });
+
+  it("promises the preview only for a shelter people can already see", async () => {
+    const unverified = baseView({
+      verification: { status: "suspended", since: new Date("2026-10-01T00:00:00Z") } as never,
+    });
+    renderEditor({ view: unverified });
+    const d = within(donation());
+    await userEvent.clear(field());
+    await userEvent.type(field(), "https://send.monobank.ua/jar/abc");
+    expect(d.getByText("Так це побачать люди, коли притулок пройде перевірку:")).toBeTruthy();
+    expect(d.queryByText("Так це побачать люди:")).toBeNull();
+  });
+
+  it("tells the shelter the operator removed the link, with the reason and the note verbatim", () => {
+    renderEditor({
+      view: baseView({ donation: null }),
+      donationOutcome: {
+        kind: "removed",
+        reason: { code: "cannot_confirm", note: "Сторінка не відкривається" },
+      },
+    });
+    expect(
+      within(donation()).getByText(
+        "Посилання на збір більше не показується: Не вдалося підтвердити, куди веде посилання. Сторінка не відкривається Надішліть нове – я його перевірю.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("explains a suspension that parked the link, while suspended and after reinstatement", () => {
+    const pendingDonation = {
+      link: { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" },
+      proposedAt: new Date("2026-10-16T09:00:00Z"),
+      proposedBy: null,
+    } as never;
+    const suspended = renderEditor({
+      view: baseView({
+        donation: null,
+        pendingDonation,
+        verification: { status: "suspended", since: new Date("2026-10-20T00:00:00Z") } as never,
+      }),
+      donationOutcome: { kind: "suspended" },
+    });
+    expect(suspended).toBeDefined();
+    const d = within(donation());
+    expect(
+      d.getByText(
+        "Поки притулок призупинено, посилання на збір не показується. Після відновлення я перевірю його ще раз.",
+      ),
+    ).toBeTruthy();
+    expect(d.queryByText(/чекає, поки я знову його схвалю/)).toBeNull();
+    cleanup();
+
+    renderEditor({
+      view: baseView({ donation: null, pendingDonation }),
+      donationOutcome: { kind: "suspended" },
+    });
+    expect(
+      within(donation()).getByText("Посилання send.monobank.ua чекає, поки я знову його схвалю."),
+    ).toBeTruthy();
+  });
+
   it("proposes, then shows the waiting block, and cancels it", async () => {
     const fns = renderEditor();
     const d = within(donation());
@@ -513,7 +600,7 @@ describe("the donation link (N20)", () => {
   });
 
   it("shows the declined line (answer 12) until a new proposal", async () => {
-    renderEditor({ donationDeclined: true });
+    renderEditor({ donationOutcome: { kind: "declined" } });
     const d = within(donation());
     const declined =
       "Останнє запропоноване посилання не підтверджено. Якщо незрозуміло чому – напишіть мені.";
@@ -546,15 +633,21 @@ describe("the donation link (N20)", () => {
 const renderInAccount = (options: Parameters<typeof renderEditor>[0] = {}) => renderEditor(options);
 
 describe("pause and resume (N21)", () => {
-  const REASONS = ["Сезонна перерва", "Переїзд", "Немає місця", "Брак людей", "Інше"];
+  const REASONS = [
+    "Сезонна перерва",
+    "Переїзд",
+    "Немає вільних місць",
+    "Бракує волонтерів",
+    "Інше",
+  ];
 
   it("pauses through the reason dialog, which needs a reason; the note is optional", async () => {
     const fns = renderInAccount();
-    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
-    const dialog = within(screen.getByRole("dialog", { name: "Призупинити прийом тварин?" }));
+    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом звернень" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Призупинити прийом звернень?" }));
     expect(
       dialog.getByText(
-        "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає. Відновити можна тут будь-коли.",
+        "Поки прийом звернень на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом звернень на паузі.",
       ),
     ).toBeTruthy();
     const select = dialog.getByLabelText("Причина");
@@ -563,29 +656,35 @@ describe("pause and resume (N21)", () => {
         .getAllByRole("option")
         .map((option) => option.textContent),
     ).toEqual(["Оберіть причину", ...REASONS]);
-    await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом звернень" }));
     expect(fns.pause).not.toHaveBeenCalled();
     expect(select.getAttribute("aria-invalid")).toBe("true");
+    // The refusal is words, not only a flag: visible, and what the focused select is described by.
+    const message = dialog.getByText("Оберіть причину", { selector: "p" });
+    expect(select.getAttribute("aria-describedby")).toContain(message.id);
+    expect(document.activeElement).toBe(select);
     await userEvent.selectOptions(select, "Переїзд");
     await userEvent.type(dialog.getByLabelText(/^Коментар/), "  Переїжджаємо до Бучі  ");
-    await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом звернень" }));
     expect(fns.pause).toHaveBeenCalledWith({
       reason: { code: "relocation", note: "Переїжджаємо до Бучі" },
     });
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByText("Прийом на паузі.")).toBeTruthy();
+    expect(screen.getByText("Прийом звернень на паузі.")).toBeTruthy();
     // The paused line names the reason's label and never the note (fix 5);
     // the note sits under it, labelled «Коментар» (K4-B4, answer 2).
-    expect(screen.getByText(/^Прийом на паузі з \d+ жовтня 2026 р?\.? ?· Переїзд$/)).toBeTruthy();
+    expect(
+      screen.getByText(/^Прийом звернень на паузі з \d+ жовтня 2026 р?\.? ?· Переїзд$/),
+    ).toBeTruthy();
     const note = screen.getByText("Переїжджаємо до Бучі");
     expect(note.tagName).toBe("DD");
     expect(note.previousElementSibling?.textContent).toBe("Коментар");
-    expect(screen.getByRole("button", { name: "Відновити прийом тварин" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Відновити прийом звернень" })).toBeTruthy();
   });
 
   it("shows his note hint under the note field (K4-B4, answer 2)", async () => {
     renderInAccount();
-    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
+    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом звернень" }));
     const dialog = within(screen.getByRole("dialog"));
     const hint = dialog.getByText(
       "Коментар бачите ви, інші адміністратори притулку і я. Людям, які шукають тварину, він не показується.",
@@ -608,10 +707,10 @@ describe("pause and resume (N21)", () => {
 
   it("Escape and ✕ close the dialog without pausing", async () => {
     const fns = renderInAccount();
-    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
+    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом звернень" }));
     expect(pressEscape()).toBe(false);
     expect(screen.queryByRole("dialog")).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
+    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом звернень" }));
     await userEvent.click(screen.getByRole("button", { name: "Закрити" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(fns.pause).not.toHaveBeenCalled();
@@ -625,12 +724,12 @@ describe("pause and resume (N21)", () => {
         }),
       },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
+    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом звернень" }));
     const dialog = within(screen.getByRole("dialog"));
-    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Немає місця");
-    await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
+    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Немає вільних місць");
+    await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом звернень" }));
     expect(dialog.getByRole("alert").textContent).toBe(
-      "Зараз не вийде поставити прийом на паузу: статус притулку змінився. Оновіть сторінку.",
+      "Зараз не вийде поставити прийом звернень на паузу: статус притулку змінився. Оновіть сторінку.",
     );
   });
 
@@ -646,18 +745,18 @@ describe("pause and resume (N21)", () => {
         ),
       },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
-    const dialog = within(screen.getByRole("dialog", { name: "Призупинити прийом тварин?" }));
-    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Немає місця");
-    await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
+    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом звернень" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Призупинити прийом звернень?" }));
+    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Немає вільних місць");
+    await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом звернень" }));
     expect(pressEscape()).toBe(true);
     await userEvent.click(dialog.getByRole("button", { name: "Закрити" }));
     await userEvent.click(dialog.getByRole("button", { name: "Скасувати" }));
-    expect(screen.getByRole("dialog", { name: "Призупинити прийом тварин?" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Призупинити прийом звернень?" })).toBeTruthy();
 
     await act(async () => answer(apiError("ILLEGAL_TRANSITION")));
     expect(dialog.getByRole("alert").textContent).toBe(
-      "Зараз не вийде поставити прийом на паузу: статус притулку змінився. Оновіть сторінку.",
+      "Зараз не вийде поставити прийом звернень на паузу: статус притулку змінився. Оновіть сторінку.",
     );
     // Answered, it closes again as before.
     expect(pressEscape()).toBe(false);
@@ -677,10 +776,37 @@ describe("pause and resume (N21)", () => {
     const fns = renderInAccount({ view: paused() });
     // The stored note, under the paused line (K4-B4, answer 2).
     expect(screen.getByText("Повні вольєри").previousElementSibling?.textContent).toBe("Коментар");
-    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом тварин" }));
+    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом звернень" }));
     expect(fns.resume).toHaveBeenCalledOnce();
-    expect(screen.getByText("Прийом відновлено. Ваших тварин знову видно.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Призупинити прийом тварин" })).toBeTruthy();
+    expect(screen.getByText("Прийом звернень відновлено. Ваших тварин знову видно.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Призупинити прийом звернень" })).toBeTruthy();
+  });
+
+  it("the page header chip follows a pause and a resume, not the stale server render", async () => {
+    const view = baseView();
+    const { client } = fakeClient(view);
+    render(
+      <LiveVerificationStatus initial="verified">
+        <LiveVerificationChip fallback="verified" />
+        <ProfileEditor
+          initialView={view}
+          cityName="Бровари"
+          operatorName="Олексій"
+          donationOutcome={{ kind: "none" }}
+          client={client}
+        />
+      </LiveVerificationStatus>,
+    );
+    // The first match is the header chip (the Перевірка tab holds a second).
+    const chip = () => screen.getAllByText(/^(Перевірено|На паузі)$/)[0] as HTMLElement;
+    expect(chip().textContent).toBe("Перевірено");
+    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом звернень" }));
+    const dialog = within(screen.getByRole("dialog"));
+    await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Переїзд");
+    await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом звернень" }));
+    await waitFor(() => expect(chip().textContent).toBe("На паузі"));
+    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом звернень" }));
+    await waitFor(() => expect(chip().textContent).toBe("Перевірено"));
   });
 
   it("ILLEGAL_TRANSITION on resume: his message", async () => {
@@ -692,21 +818,21 @@ describe("pause and resume (N21)", () => {
         }),
       },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом тварин" }));
+    await userEvent.click(screen.getByRole("button", { name: "Відновити прийом звернень" }));
     expect(screen.getByRole("alert").textContent).toBe(
-      "Звідси прийом зараз не відновити: статус притулку змінився. Напишіть мені.",
+      "Звідси прийом звернень зараз не відновити: статус притулку змінився. Напишіть мені.",
     );
   });
 
   it.each(["pending", "under_review"] as const)("offers neither while %s", (status) => {
     renderInAccount({ view: baseView({ verification: { status, since: new Date() } }) });
-    expect(screen.queryByRole("button", { name: /прийом тварин/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /прийом звернень/ })).toBeNull();
   });
 
   it("the pause control is on the Профіль tab, with its explanation", () => {
     renderInAccount();
     const panel = screen.getByRole("tabpanel", { name: "Профіль" });
-    expect(within(panel).getByRole("button", { name: "Призупинити прийом тварин" })).toBeTruthy();
+    expect(within(panel).getByRole("button", { name: "Призупинити прийом звернень" })).toBeTruthy();
     expect(screen.queryByRole("tab", { name: "Акаунт" })).toBeNull();
   });
 
@@ -714,15 +840,15 @@ describe("pause and resume (N21)", () => {
     renderInAccount();
     const panel = screen.getByRole("tabpanel", { name: "Профіль" });
     const explanation = within(panel).getByText(
-      "Поки прийом на паузі, ваших тварин не бачать ті, хто шукає. Відновити можна тут будь-коли.",
+      "Поки прийом звернень на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом звернень на паузі.",
     );
-    const button = within(panel).getByRole("button", { name: "Призупинити прийом тварин" });
+    const button = within(panel).getByRole("button", { name: "Призупинити прийом звернень" });
     expect(
       explanation.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(within(panel).getAllByText("Призупинити прийом тварин")).toHaveLength(1);
+    expect(within(panel).getAllByText("Призупинити прийом звернень")).toHaveLength(1);
     // The section is still named, by its button.
-    expect(within(panel).getByRole("region", { name: "Призупинити прийом тварин" })).toBeTruthy();
+    expect(within(panel).getByRole("region", { name: "Призупинити прийом звернень" })).toBeTruthy();
   });
 
   it("does not repeat the tab's name as a heading", () => {
@@ -733,13 +859,13 @@ describe("pause and resume (N21)", () => {
 
   it("after pausing, the control offers to resume", async () => {
     renderInAccount();
-    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом тварин" }));
+    await userEvent.click(screen.getByRole("button", { name: "Призупинити прийом звернень" }));
     const dialog = within(screen.getByRole("dialog"));
     await userEvent.selectOptions(dialog.getByLabelText("Причина"), "Переїзд");
     await act(async () => {
-      await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом" }));
+      await userEvent.click(dialog.getByRole("button", { name: "Призупинити прийом звернень" }));
     });
-    expect(screen.getByRole("button", { name: "Відновити прийом тварин" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Відновити прийом звернень" })).toBeTruthy();
   });
 });
 

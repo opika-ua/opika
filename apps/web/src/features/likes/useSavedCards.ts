@@ -5,12 +5,14 @@ import { useCallback, useEffect, useState } from "react";
 import { savedBrowserClient } from "../../api/browser-client";
 import {
   likesStorageIsBlocked,
+  pruneSavedAnimals,
   type RemovedSave,
   readLikesStore,
   removeSavedAnimal,
   restoreSavedAnimal,
   subscribeToLikesChanges,
 } from "./likes-store";
+import { classifySavedItems, recordSavedAvailability } from "./saved-availability";
 
 export type SavedCardResult = Awaited<
   ReturnType<typeof savedBrowserClient.animals.cardsByIds>
@@ -110,6 +112,11 @@ export function useSavedCards(): SavedCardsState {
           return next;
         });
         setCityLabels(res.cityLabels);
+        // Ids with nothing to show (reset, deleted) are dropped from the store; paused ones stay.
+        const states = classifySavedItems(ids, res.items);
+        pruneSavedAnimals(ids.filter((id) => states.get(id) === "gone"));
+        // The header count must agree with this page about what is available.
+        recordSavedAvailability(states, Date.now());
       })
       .catch(() => {
         // Offline, or the per-IP limit - the page keeps its last known

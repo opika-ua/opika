@@ -76,6 +76,12 @@ const shelterView = (s: Shelter) => ({
   logo: s.logo,
   publicLocation: s.publicLocation,
   verification: s.verification.status === "verified" ? "verified" : "unverified",
+  availability:
+    s.verification.status === "verified"
+      ? "open"
+      : s.verification.status === "paused"
+        ? "paused"
+        : "unreachable",
 });
 const cityView = (c: City) => ({
   id: c.id,
@@ -200,7 +206,7 @@ describe("galleryRepo.listCards equals list + shelters + cities", () => {
     });
     const first = page.items[0];
     expect(Object.keys(first?.shelter ?? {}).sort()).toEqual(
-      ["displayName", "id", "logo", "publicLocation", "verification"].sort(),
+      ["availability", "displayName", "id", "logo", "publicLocation", "verification"].sort(),
     );
     expect(Object.keys(first?.city ?? {}).sort()).toEqual(
       ["district", "id", "kind", "name", "nameScope", "regionId", "slug"].sort(),
@@ -230,7 +236,7 @@ describe("animalRepo.findWithShelterById equals findById + shelter findById", ()
     for (const id of ids) {
       const old = await animalRepo(db).findById(id);
       const oldShelter = old ? await shelterRepo(db).findById(old.shelterId) : null;
-      const joined = await animalRepo(db).findWithShelterById(id);
+      const joined = await animalRepo(db).findWithShelterById(id, new Date());
       expect(joined?.animal ?? null).toEqual(old);
       expect(joined?.shelter ?? null).toEqual(oldShelter ? shelterView(oldShelter) : null);
     }
@@ -254,7 +260,7 @@ describe("animalRepo.findCardsByIds equals findByIds + shelters + cities", () =>
       old.map((a) => cardCityId(a, shelterById.get(a.shelterId) as Shelter)),
     );
     const cityById = new Map(cityRows.map((c) => [c.id, c]));
-    const joined = await animalRepo(db).findCardsByIds(mix);
+    const joined = await animalRepo(db).findCardsByIds(mix, new Date());
     const byId = <T extends { id: string }>(xs: readonly T[]) =>
       [...xs].sort((a, b) => a.id.localeCompare(b.id));
 
@@ -265,7 +271,7 @@ describe("animalRepo.findCardsByIds equals findByIds + shelters + cities", () =>
       const city = cityById.get(cardCityId(j.animal, shelter));
       expect(j.city).toEqual(city ? cityView(city) : null);
     }
-    expect(await animalRepo(db).findCardsByIds([])).toEqual([]);
+    expect(await animalRepo(db).findCardsByIds([], new Date())).toEqual([]);
   });
 });
 

@@ -70,6 +70,21 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     link: LINK,
     previousLive: null,
   },
+  donation_removed: {
+    kind: "donation_removed",
+    at: new Date("2026-10-07T01:00:00.000Z"),
+    moderatorId: MOD,
+    previousLive: LINK,
+    clearedPending: true,
+    reason: { code: "cannot_confirm", note: "Не відкривається" },
+  },
+  donation_suspended: {
+    kind: "donation_suspended",
+    at: new Date("2026-10-07T02:00:00.000Z"),
+    moderatorId: MOD,
+    previousLive: LINK,
+    outcome: "moved_to_pending",
+  },
   verified_data_changed: {
     kind: "verified_data_changed",
     at: new Date("2026-10-08T00:00:00.000Z"),
@@ -164,9 +179,44 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     previous: null,
     next: { storageKey: "shelters/s/logo/0", width: 160, height: 160 },
   },
+  evidence_added: {
+    kind: "evidence_added",
+    at: new Date("2026-10-21T00:00:00.000Z"),
+    moderatorId: MOD,
+    items: [{ kind: "reference_contact" }],
+    statusAt: "pending",
+  },
+  early_listing_allowed: {
+    kind: "early_listing_allowed",
+    at: new Date("2026-10-22T00:00:00.000Z"),
+    moderatorId: MOD,
+    period: 1,
+    note: null,
+  },
+  early_listing_revoked: {
+    kind: "early_listing_revoked",
+    at: new Date("2026-10-23T00:00:00.000Z"),
+    moderatorId: MOD,
+  },
+  early_listing_lapsed: { kind: "early_listing_lapsed", at: new Date("2026-12-21T00:00:00.000Z") },
 };
 
 describe("ShelterHistoryEntrySchema", () => {
+  it("still parses a stored suspension that holds the retired suspected_fraud code", () => {
+    const stored = {
+      kind: "verification",
+      event: {
+        type: "suspend",
+        at: new Date("2026-10-01T00:00:00.000Z"),
+        moderatorId: MOD,
+        reason: { code: "suspected_fraud", note: "Давній запис" },
+      },
+      from: "verified",
+      to: "suspended",
+    };
+    expect(ShelterHistoryEntrySchema.parse(stored)).toEqual(stored);
+  });
+
   it("covers every kind the union defines", () => {
     expect(Object.keys(ENTRIES).length).toBe(ShelterHistoryEntrySchema.options.length);
   });
@@ -177,12 +227,46 @@ describe("ShelterHistoryEntrySchema", () => {
     });
   }
 
+  it("refuses a removal without a note or by a shelter admin", () => {
+    const removed = ENTRIES.donation_removed;
+    expect(
+      ShelterHistoryEntrySchema.safeParse({ ...removed, reason: { code: "other", note: "" } })
+        .success,
+    ).toBe(false);
+    expect(ShelterHistoryEntrySchema.safeParse({ ...removed, moderatorId: ADMIN }).success).toBe(
+      false,
+    );
+  });
+
   /** Who can decide a donation is part of the shape: a shelter admin can't approve their own link. */
   it("refuses a donation decision by a shelter admin", () => {
     expect(
       ShelterHistoryEntrySchema.safeParse({ ...ENTRIES.donation_decided, moderatorId: ADMIN })
         .success,
     ).toBe(false);
+  });
+});
+
+describe("evidence_added", () => {
+  const added = ENTRIES.evidence_added;
+
+  it("is operator-authored, names at least one kind, and only pending or under_review", () => {
+    expect(ShelterHistoryEntrySchema.safeParse({ ...added, moderatorId: ADMIN }).success).toBe(
+      false,
+    );
+    expect(ShelterHistoryEntrySchema.safeParse({ ...added, items: [] }).success).toBe(false);
+    expect(ShelterHistoryEntrySchema.safeParse({ ...added, statusAt: "verified" }).success).toBe(
+      false,
+    );
+  });
+
+  it("stores kinds only: a content field on an item is stripped, never kept", () => {
+    const parsed = ShelterHistoryEntrySchema.parse({
+      ...added,
+      items: [{ kind: "reference_contact", name: "Клініка", channel: { kind: "phone" } }],
+    });
+    expect(JSON.stringify(parsed)).not.toContain("Клініка");
+    expect(Object.keys(added).sort()).toEqual(["at", "items", "kind", "moderatorId", "statusAt"]);
   });
 });
 
@@ -302,6 +386,8 @@ describe("historyEntryAt", () => {
         "2026-10-05",
         "2026-10-06",
         "2026-10-07",
+        "2026-10-07",
+        "2026-10-07",
         "2026-10-08",
         "2026-10-09",
         "2026-10-10",
@@ -315,6 +401,10 @@ describe("historyEntryAt", () => {
         "2026-10-18",
         "2026-10-19",
         "2026-10-20",
+        "2026-10-21",
+        "2026-10-22",
+        "2026-10-23",
+        "2026-12-21",
       ],
     );
   });

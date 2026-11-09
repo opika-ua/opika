@@ -42,7 +42,7 @@ describe("productionSignInOf", () => {
 
   /**
    * Oleksii, 2026-10-14 (delivery test 2): the sign-in email is signed
-   * `- {operator}` like the invite. Production's config carries the name
+   * `{operator}` like the invite. Production's config carries the name
    * the wiring hands to `providerMagicLinkSender`; a missing or blank one is
    * the catalogue's fallback, never a reason to stay off (RS-Q2).
    */
@@ -343,7 +343,23 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // `shell.toSite` and `shell.accountAndPassword` replace `shell.viewSite` and
     // `profileTabs.account`. The page title is the shelter's name alone (no wrapper string).
     // 716 with `animalList.sexNotStated` (owner-approved 2026-11-03, UX-2).
-    expect(pending.length + written.length).toBe(716);
+    // 726 with the evidence-add strings (owner-approved 2026-11-04): eight `operator.evidence.add*`
+    // and notices, plus `operator.history.evidence_added`.
+    // 730 with the password counter (owner-approved 2026-11-04): `setPassword.remaining` (three
+    // forms) and `enough`; `hint` is reworded.
+    // 733 with the early-listing history lines (owner's copy table N4–N6, 2026-11-04).
+    // 747 with the early-listing operator, banner and listed-variant lines (N7-N13, B5 and B6, 2026-11-04; B7 was removed in #426).
+    // 762 with the copy proofread (owner-approved 2026-11-06): `units` (twelve count forms),
+    // `operatorStatus` (two) and `animalForm.medicalNotes.publicNote`.
+    // 785 with the donation link safety copy (owner-approved 2026-11-06): six `profileEdit.*`
+    // (`donation.previewLabelUnverified`, `removed`, `suspendedNote`, `reinstatedPending` and two
+    // `errors.donation*`) and seventeen `operator.*` (four history lines, five removal codes,
+    // four `donation.*` and the four-string `donation.removeDialog`).
+    // 790 with the sitting-2 follow-up copy (owner-approved 2026-11-08): `history.adminJoinedErased`,
+    // `operator.history.addressErased`, `admin_invited_erased`, `verification.pause_reason` and
+    // `codes.suspension.cannot_confirm_details`.
+    // 791 with `operator.evidence.videoCallNotesHint` (video call replaces site visit, owner-approved 2026-11-09).
+    expect(pending.length + written.length).toBe(791);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

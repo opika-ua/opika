@@ -32,6 +32,7 @@ import { authExpiryRepo, KABINET_SESSION_LIMITS } from "../src/repos/auth-expiry
 import { authRevokeRepo } from "../src/repos/auth-revoke-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { galleryRepo } from "../src/repos/gallery-repo";
+import { kabinetActorRepo } from "../src/repos/kabinet-actor-repo";
 import {
   type AnimalHistoryRow,
   isCheckViolation,
@@ -78,6 +79,8 @@ import {
   makeShelter,
 } from "../src/test-utils/fixtures";
 import { type SmokeTarget, smokeTarget } from "../src/test-utils/smoke-target";
+import { runDonationSmoke } from "./neon-smoke-donation";
+import { runEarlyListingSmoke } from "./neon-smoke-early-listing";
 import { runFiltersSmoke } from "./neon-smoke-filters";
 import { runGeographySmoke } from "./neon-smoke-geography";
 import { runRoundTripsSmoke } from "./neon-smoke-round-trips";
@@ -1176,6 +1179,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     id: randomUUID() as ShelterId,
     displayName: uncountedName,
     pendingDonation: null,
+    earlyListingSince: null,
   });
   for (const s of [countedBase, uncountedBase]) {
     await insertShelterFromScript(
@@ -1212,6 +1216,16 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       createdAt: NOW,
     });
   }
+  // roleOf's membership lookup now has a deterministic ORDER BY (created_at, id): same answer on neon-http.
+  const memberRole =
+    countedMember.kind === "invited"
+      ? await kabinetActorRepo(db).roleOf(countedMember.userId)
+      : { kind: "not_invited" as const };
+  check(
+    "roleOf with the ordered membership lookup: the invited member administers the counted shelter",
+    memberRole.kind === "shelter_admin" && memberRole.shelterId === countedBase.id,
+    memberRole.kind,
+  );
   const onlyRow = async (name: string, id: ShelterId) => {
     const { items } = await registry.listPage({
       search: name,
@@ -2705,6 +2719,8 @@ async function main(): Promise<void> {
     ...(await runSearchSmoke(database)),
     ...(await runFiltersSmoke(database)),
     ...(await runRoundTripsSmoke(database)),
+    ...(await runEarlyListingSmoke(database)),
+    ...(await runDonationSmoke(database)),
   ];
   for (const o of outcomes) console.log(`${o.ok ? "PASS" : "FAIL"}  ${o.name}: ${o.detail}`);
   const failed = outcomes.filter((o) => !o.ok).length;

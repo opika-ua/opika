@@ -213,9 +213,20 @@ describe("the operator's events are the registry's verification procedures", () 
     resubmit: "resubmit",
   };
 
+  /** Edits of the evidence list, not verification events: kept out of the FSM parity on purpose. */
+  const NON_FSM_PROCEDURES = ["addEvidence"];
+
   it("one procedure per operator event, and no procedure without one", () => {
+    expect(
+      Object.keys(registryContract.registry.verification)
+        .filter((name) => !NON_FSM_PROCEDURES.includes(name))
+        .sort(),
+    ).toEqual(OPERATOR_VERIFICATION_EVENTS.map((event) => PROCEDURE[event]).sort());
     expect(Object.keys(registryContract.registry.verification).sort()).toEqual(
-      OPERATOR_VERIFICATION_EVENTS.map((event) => PROCEDURE[event]).sort(),
+      [
+        ...NON_FSM_PROCEDURES,
+        ...OPERATOR_VERIFICATION_EVENTS.map((event) => PROCEDURE[event]),
+      ].sort(),
     );
   });
 

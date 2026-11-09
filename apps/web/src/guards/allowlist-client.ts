@@ -45,6 +45,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/gallery/CityFacetChoices.tsx":
     "expanded and query state for the long city list (show all, local filter)",
   "features/gallery/ArrowKeyGrid.tsx": "2D arrow-key navigation over the card grid",
+  "features/gallery/FilterSheetLazy.tsx": "next/dynamic must be called from a client module",
   "features/gallery/FilterSheet.tsx":
     "draft state, drill-down views, form submit and close through the router",
   "features/gallery/GalleryFilterDropdowns.tsx":
@@ -70,11 +71,17 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     "SERVER CANDIDATE (server rows + island for the filter): row list with status filter and browser-client paging",
   "features/kabinet/operator/actions/AdminsManager.tsx": "invite/remove admins form + dialog",
   "features/kabinet/operator/actions/DecisionPanel.tsx": "verification decision controls + dialogs",
-  "features/kabinet/operator/actions/DonationDecision.tsx": "approve/reject donation link buttons",
+  "features/kabinet/operator/actions/DonationDecision.tsx":
+    "approve/reject/remove donation link buttons",
+  "features/kabinet/operator/actions/DonationRemoveDialog.tsx":
+    "reason textarea inside the kit Modal",
   "features/kabinet/operator/actions/OperatorActionsRoot.tsx":
     "router.refresh wrapper around the provider",
   "features/kabinet/operator/actions/ReasonDialog.tsx": "reason textarea inside the kit Modal",
   "features/kabinet/operator/actions/RenameForm.tsx": "inline rename form, focus management",
+  "features/kabinet/operator/actions/AddEvidencePanel.tsx": "add-evidence panel with state",
+  "features/kabinet/operator/actions/EarlyListingPanel.tsx":
+    "allow/withdraw early listing: confirm dialog and request state",
   "features/kabinet/operator/actions/ResubmitPanel.tsx": "resubmit evidence panel with state",
   "features/kabinet/operator/actions/SupportEntry.tsx": "start-support-view button",
   "features/kabinet/operator/actions/operator-actions.tsx":
@@ -97,6 +104,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/profile-edit/ContactFields.tsx": "controlled contact inputs",
   "features/kabinet/profile-edit/ContactsSection.tsx": "section form with save state",
   "features/kabinet/profile-edit/DonationSection.tsx": "donation link form",
+  "features/kabinet/profile-edit/LiveVerificationStatus.tsx":
+    "context so the header chip follows a pause or resume",
   "features/kabinet/profile-edit/LogoSection.tsx": "logo upload via browser client",
   "features/kabinet/profile-edit/PauseControl.tsx": "pause/unpause dialog",
   "features/kabinet/profile-edit/ProfileEditor.tsx": "editor shell: section states, browser client",

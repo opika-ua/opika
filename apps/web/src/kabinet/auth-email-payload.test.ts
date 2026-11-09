@@ -121,8 +121,8 @@ describe("every outgoing auth email carries exactly its provider's fields, and n
         .filter((body) => body.subject === "Ваш доступ до кабінету притулку");
       expect(invites).toHaveLength(2);
       for (const invite of invites) {
-        expect(invite.text?.endsWith(`\n\n${INVITE_NOT_YOU}\n- Олексій`)).toBe(true);
-        expect(invite.html).toContain(`${INVITE_NOT_YOU}<br>- Олексій</p>`);
+        expect(invite.text?.endsWith(`\n\n${INVITE_NOT_YOU}\nОлексій`)).toBe(true);
+        expect(invite.html).toContain(`${INVITE_NOT_YOU}<br>Олексій</p>`);
       }
     },
   );
@@ -145,7 +145,7 @@ describe("the two password emails (his F1 and F2, transcribed)", () => {
       "Надійшов запит на новий пароль до кабінету притулку для цієї адреси.",
       "https://example.org/kabinet/vkhid/novyi-parol?token=abc&x=1",
       "Посилання спрацює один раз і діє 60 хв.",
-      "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\n- Олексій",
+      "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\nОлексій",
     ]);
     expect(email.html).toContain(
       '<a href="https://example.org/kabinet/vkhid/novyi-parol?token=abc&amp;x=1">Створити новий пароль</a>',
@@ -161,7 +161,7 @@ describe("the two password emails (his F1 and F2, transcribed)", () => {
     expect(email.subject).toBe("Кабінет притулку: пароль змінено");
     expect(email.text.split("\n\n")).toEqual([
       "Пароль до кабінету притулку для цієї адреси щойно змінено. На інших пристроях виконано вихід.",
-      "Якщо це не ви – напишіть мені: hello@example.org\n- Олексій",
+      "Якщо це не ви – напишіть мені: hello@example.org\nОлексій",
     ]);
     expect(email.html).not.toContain("<a ");
   });

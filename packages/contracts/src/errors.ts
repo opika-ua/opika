@@ -83,10 +83,20 @@ export const apiErrors = {
    * "not found" would identify a shelter a moderator had suspended or rejected.
    * Same status as NOT_FOUND, deliberately - the point is that a client can't
    * tell the two apart from the status alone, only from the code.
+   * A pause is the exception: the pages of a paused shelter are public, so it has
+   * its own code (SHELTER_PAUSED) and never travels as this one.
    */
   SHELTER_NOT_VISIBLE: {
     status: 404,
     message: "The shelter is not currently verified.",
+  },
+  /**
+   * A paused shelter's contact reveal. Safe to name because the shelter and animal pages show the
+   * pause; a suspended shelter (even one suspended mid-pause) still answers SHELTER_NOT_VISIBLE.
+   */
+  SHELTER_PAUSED: {
+    status: 409,
+    message: "The shelter is not taking requests right now.",
   },
   /**
    * The session cookie is absent, expired, or was not issued by this server.
@@ -236,6 +246,40 @@ export const apiErrors = {
     status: 422,
     message: "The evidence couldn't be accepted.",
     data: z.object({ reason: z.enum(["site_visit_in_future", "document_not_supported_yet"]) }),
+  },
+  /**
+   * Evidence can be added only while the shelter is pending or under review
+   * (`data.from` is the status it is in now). Not ILLEGAL_TRANSITION: adding
+   * evidence is not a verification event.
+   */
+  EVIDENCE_NOT_EDITABLE: {
+    status: 409,
+    message: "Evidence can't be added to this shelter in its current status.",
+    data: z.object({ from: VerificationStatusSchema }),
+  },
+  /**
+   * The operator's allow or revoke of listing before verification was refused (`data.reason`).
+   * Not ILLEGAL_TRANSITION: it is not a verification event.
+   */
+  EARLY_LISTING_REFUSED: {
+    status: 409,
+    message: "Listing before verification can't be changed this way.",
+    data: z.object({
+      reason: z.enum([
+        "wrong_status",
+        "already_running",
+        "not_running",
+        "evidence_below_minimum",
+        "note_required",
+        "limit_reached",
+      ]),
+    }),
+  },
+  /** The evidence list would pass the most a shelter can hold (`data.limit`). */
+  EVIDENCE_LIMIT_REACHED: {
+    status: 422,
+    message: "The shelter already holds the most evidence it can.",
+    data: z.object({ limit: z.int().positive() }),
   },
   /**
    * Photo uploads are switched off on this deployment (P-Q10): only

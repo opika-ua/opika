@@ -191,9 +191,9 @@ describe("pending → «Взяти на розгляд» → «Схвалити�
         .getAllByRole("listitem")
         .map((li) => li.textContent),
     ).toEqual([
-      "Для схвалення бракує: Реєстрація · ЄДРПОУ – 0 з 1.",
-      "Для схвалення бракує: Власник банківського рахунку – 0 з 1.",
-      "Для схвалення бракує: Рекомендація – 0 з 1.",
+      "Реєстрація · ЄДРПОУ – 0 з 1",
+      "Власник банківського рахунку – 0 з 1",
+      "Рекомендація – 0 з 1",
     ]);
     await userEvent.click(approve);
     expect(fns.verification.approve).not.toHaveBeenCalled();
@@ -234,7 +234,7 @@ describe("reinstate names the status it returns to", () => {
     });
     expect(
       panel().getByText(
-        "Кнопка «Відновити» поверне статус «Перевірено», і тварини знову зʼявляться в галереї.",
+        "Кнопка «Відновити» поверне статус «Перевірено», і тварини знову зʼявляться в галереї. Посилання на збір сайт сам не поверне: схваліть його окремо.",
       ),
     ).toBeTruthy();
     expect(panel().getByText("Підтвердження не потрібне: ця дія нічого не приховує.")).toBeTruthy();
@@ -262,7 +262,7 @@ describe("reinstate names the status it returns to", () => {
     expect(panel().getByText("Притулок призупинено")).toBeTruthy();
     const label = panel().getByText("Пояснення, яке бачить притулок");
     expect(label.nextElementSibling?.textContent).toBe(
-      "Скарга підтвердилася. Скарга від ветклініки. Пишіть мені.",
+      "Перевірена скарга. Скарга від ветклініки. Пишіть мені.",
     );
     expect(panel().getByText(/^з 14 березня 2026 р\.?$/)).toBeTruthy();
   });
@@ -272,7 +272,9 @@ describe("rejected", () => {
   it("shows «Відхилено» with the code and the note", () => {
     renderWithActions(<DecisionPanel />, { view: rejected });
     expect(panel().getByText("Відхилено")).toBeTruthy();
-    expect(panel().getByText("Спам. Це не притулок.")).toBeTruthy();
+    expect(
+      panel().getByText("Заявка не схожа на звернення притулку. Це не притулок."),
+    ).toBeTruthy();
   });
 });
 

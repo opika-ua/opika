@@ -2,6 +2,7 @@ import type { ShelterAdminView } from "@opika/contracts";
 import {
   type AnimalEditedField,
   donationHost,
+  ERASED_ADMIN_EMAIL,
   historyEntryAt,
   type ListingKind,
   type ModeratorId,
@@ -11,6 +12,7 @@ import {
   type VerificationEvent,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
+import { operatorStatusLabel } from "../verification-label";
 
 /**
  * One line of a shelter's history as the operator reads it on S4 (R-UI 1).
@@ -23,7 +25,8 @@ import { fillTemplate, uk } from "@opika/i18n";
  * Pure, no hooks and no clock: the server page and the client «Показати ще»
  * both render with it, and every entry kind is tested table by table.
  */
-export type HistoryLine = { at: Date; text: string; actor: string };
+/** `actor` is `null` for a line nobody did: a period that ran out on its own. */
+export type HistoryLine = { at: Date; text: string; actor: string | null };
 
 /** Who the people in a history are, as far as the page can tell. */
 export type HistoryPeople = {
@@ -33,7 +36,8 @@ export type HistoryPeople = {
   admins: readonly Pick<ShelterAdminView, "id" | "name" | "email">[];
 };
 
-export const historyLineText = (line: HistoryLine): string => `${line.text} · ${line.actor}`;
+export const historyLineText = (line: HistoryLine): string =>
+  line.actor === null ? line.text : `${line.text} · ${line.actor}`;
 
 const t = uk.kabinet.operator.history;
 const labels = uk.kabinet.animalHistoryLabels;
@@ -61,7 +65,15 @@ const actorOf = (actor: ShelterActor, people: HistoryPeople): string =>
  * invitees; for anyone no longer there it isn't known (RU1-T3).
  */
 const nameAt = (email: string, people: HistoryPeople): string | null =>
-  people.admins.find((admin) => admin.email.toLowerCase() === email.toLowerCase())?.name ?? null;
+  // Every erased address is the same placeholder, so a lookup would match some other erased invitation.
+  email === ERASED_ADMIN_EMAIL
+    ? null
+    : (people.admins.find((admin) => admin.email.toLowerCase() === email.toLowerCase())?.name ??
+      null);
+
+/** What an address reads as in a line: the label once it was erased, else its name or the address. */
+const addressOrName = (email: string, people: HistoryPeople): string =>
+  email === ERASED_ADMIN_EMAIL ? t.addressErased : (nameAt(email, people) ?? email);
 
 const listingLabel = (kind: ListingKind): string => labels.listing[kind];
 
@@ -137,13 +149,22 @@ function verificationLine(
       };
     case "reinstate":
       return {
-        text: fillTemplate(v.reinstate, { status: uk.kabinet.profileStatus[to.to] }),
+        text: fillTemplate(v.reinstate, { status: operatorStatusLabel(to.to) }),
         actor: operatorActor(event.moderatorId, people),
       };
     case "resubmit":
       return { text: v.resubmit, actor: actorOf(event.actor, people) };
     case "pause":
-      return { text: v.pause, actor: actorOf(event.actor, people) };
+      return {
+        // `other` carries no information, so it keeps the plain line.
+        text:
+          event.reason.code === "other"
+            ? v.pause
+            : fillTemplate(v.pause_reason, {
+                reason: uk.kabinet.profileEdit.pause.reason[event.reason.code],
+              }),
+        actor: actorOf(event.actor, people),
+      };
     case "resume":
       return { text: v.resume, actor: actorOf(event.actor, people) };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled event; unreachable at runtime */
@@ -157,7 +178,7 @@ function verificationLine(
 function lineOf(
   entry: ShelterHistoryEntry,
   people: HistoryPeople,
-): { text: string; actor: string } {
+): Pick<HistoryLine, "text" | "actor"> {
   switch (entry.kind) {
     case "verification":
       return verificationLine(entry.event, entry, people);
@@ -170,28 +191,34 @@ function lineOf(
       return {
         // The line shows the address beside the name, so an unknown name reads
         // «Не записано» rather than repeating the address (RU1-T3).
-        text: fillTemplate(t.admin_invited, {
-          name: nameAt(entry.email, people) ?? uk.kabinet.profileNotRecorded,
-          email: entry.email,
-        }),
+        text:
+          entry.email === ERASED_ADMIN_EMAIL
+            ? t.admin_invited_erased
+            : fillTemplate(t.admin_invited, {
+                name: nameAt(entry.email, people) ?? uk.kabinet.profileNotRecorded,
+                email: entry.email,
+              }),
         actor: operatorActor(entry.moderatorId, people),
       };
     case "admin_invitation_resent":
       return {
         text: fillTemplate(t.admin_invitation_resent, {
-          name: nameAt(entry.email, people) ?? entry.email,
+          name: addressOrName(entry.email, people),
         }),
         actor: operatorActor(entry.moderatorId, people),
       };
     case "admin_joined":
       return {
-        text: fillTemplate(uk.kabinet.history.adminJoined, { email: entry.email }),
+        text:
+          entry.email === ERASED_ADMIN_EMAIL
+            ? uk.kabinet.history.adminJoinedErased
+            : fillTemplate(uk.kabinet.history.adminJoined, { email: entry.email }),
         actor: adminActor(entry.shelterAdminId, people),
       };
     case "admin_removed":
       return {
         text: fillTemplate(entry.wasPending ? t.admin_removed_pending : t.admin_removed, {
-          name: nameAt(entry.email, people) ?? entry.email,
+          name: addressOrName(entry.email, people),
         }),
         actor: operatorActor(entry.moderatorId, people),
       };
@@ -215,6 +242,27 @@ function lineOf(
         text: entry.decision === "approved" ? t.donation_approved : t.donation_rejected,
         actor: operatorActor(entry.moderatorId, people),
       };
+    case "donation_removed": {
+      const removed = fillTemplate(t.donation_removed, {
+        host: donationHost(entry.previousLive),
+        code: uk.kabinet.operator.codes.donationRemoval[entry.reason.code],
+        note: entry.reason.note,
+      }).trimEnd();
+      return {
+        text: entry.clearedPending ? `${removed} ${t.donation_removed_pending}` : removed,
+        actor: operatorActor(entry.moderatorId, people),
+      };
+    }
+    case "donation_suspended":
+      return {
+        text: fillTemplate(
+          entry.outcome === "moved_to_pending"
+            ? t.donation_suspended_to_pending
+            : t.donation_suspended_recorded,
+          { host: donationHost(entry.previousLive) },
+        ),
+        actor: operatorActor(entry.moderatorId, people),
+      };
     case "verified_data_changed":
       return {
         text: t.verified_data_changed[entry.change.field],
@@ -225,6 +273,20 @@ function lineOf(
         text: renameLine(entry.from, entry.to),
         actor: operatorActor(entry.moderatorId, people),
       };
+    case "evidence_added":
+      return {
+        text: fillTemplate(t.evidence_added, {
+          kinds: entry.items.map((item) => uk.kabinet.operator.evidence.kind[item.kind]).join(", "),
+        }),
+        actor: operatorActor(entry.moderatorId, people),
+      };
+    // The approved N4-N6 lines, as the shelter reads them; the period and note stay in the record.
+    case "early_listing_allowed":
+      return { text: t.early_listing_allowed, actor: operatorActor(entry.moderatorId, people) };
+    case "early_listing_revoked":
+      return { text: t.early_listing_revoked, actor: operatorActor(entry.moderatorId, people) };
+    case "early_listing_lapsed":
+      return { text: t.early_listing_lapsed, actor: null };
     case "animals_imported":
       return {
         text: fillTemplate(t.animals_imported, { count: String(entry.count) }),

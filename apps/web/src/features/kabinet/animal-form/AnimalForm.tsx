@@ -42,6 +42,7 @@ import {
   valuesOf,
 } from "./form-values";
 import {
+  cardsArePublic,
   createdWhen,
   missingSentence,
   publishedAnnouncementOf,
@@ -168,6 +169,7 @@ export function AnimalForm({
   // summary takes focus. Never for an autosave, which must not pull focus from the typing.
   const [summaryFocus, setSummaryFocus] = useState(0);
   const summaryRef = useRef<HTMLDivElement | null>(null);
+  const statusRef = useRef<HTMLParagraphElement | null>(null);
   const inFlight = useRef<Promise<SaveOutcome> | null>(null);
   // How many `saveNow` calls are pending or queued right now: incremented
   // the instant a call is made, decremented only once that call's own
@@ -368,6 +370,11 @@ export function AnimalForm({
     if (summaryFocus > 0) summaryRef.current?.focus();
   }, [summaryFocus]);
 
+  // The Publish button unmounts with the draft actions; focus goes to the status line that says it worked.
+  useEffect(() => {
+    if (published) statusRef.current?.focus();
+  }, [published]);
+
   /** A person's own request to save: a refusal for a field sends focus to the summary. */
   const saveFromButton = useCallback(async () => {
     const outcome = await saveNow();
@@ -465,9 +472,9 @@ export function AnimalForm({
   }
 
   const heading = view === null ? t.titleNew : view.name;
-  const shelterShown = shelterVisibility === "visible";
+  const shelterShown = cardsArePublic(shelterVisibility);
   // Seen by people: a published or reserved card of a shelter whose cards
-  // are on the public surfaces (verified, not paused). Both halves, because
+  // are on the public surfaces (verified or listed before verification, not paused). Both halves, because
   // the feed, the gallery and `animals.byId` each check both.
   const visibleListing = view !== null && isDiscoverable(view.listing) && shelterShown;
   // «Тепер картку бачать…» only where the card is shown, «…щойно притулок
@@ -478,8 +485,7 @@ export function AnimalForm({
   const publish = async () => {
     if (!editable || publishing) return;
     if (gaps.length > 0) {
-      setAnnouncement(missingSentence(gaps));
-      // The gaps are written in «Публікація», next to the links that lead to each.
+      // The gaps are listed once, in «Публікація», next to the links that lead to each; no second sentence.
       goTo("publikatsiia", "#publication");
       return;
     }
@@ -716,7 +722,12 @@ export function AnimalForm({
           />
         </StickyActionBar>
       ) : (
-        <p role="status" className="text-caption text-ink-2 empty:sr-only">
+        <p
+          ref={statusRef}
+          role="status"
+          tabIndex={-1}
+          className="text-caption text-ink-2 focus-ring empty:sr-only"
+        >
           {announcement}
         </p>
       )}

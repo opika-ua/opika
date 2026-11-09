@@ -9,9 +9,13 @@ import {
   type AdopterId,
   type Animal,
   type ContactReveal,
+  earlyListingOf,
   isDiscoverable,
-  isPubliclyVerified,
+  type PublicListingLabel,
   primaryPhoto,
+  publicListingBasisOf,
+  publicListingLabelAtReveal,
+  publicListingLabelOf,
   type RevealId,
   RevealIdSchema,
   type Shelter,
@@ -30,6 +34,7 @@ export type AnimalsRevealErrors = ORPCErrorConstructorMap<{
   NOT_FOUND: typeof apiErrors.NOT_FOUND;
   ANIMAL_NOT_AVAILABLE: typeof apiErrors.ANIMAL_NOT_AVAILABLE;
   SHELTER_NOT_VISIBLE: typeof apiErrors.SHELTER_NOT_VISIBLE;
+  SHELTER_PAUSED: typeof apiErrors.SHELTER_PAUSED;
   UNAUTHENTICATED: typeof apiErrors.UNAUTHENTICATED;
   RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
 }>;
@@ -72,7 +77,15 @@ export async function animalsReveal(
   const shelters = shelterRepo(context.db);
   const shelter = await shelters.findById(animal.shelterId);
 
-  if (shelter?.verification.status !== "verified") {
+  // Ahead of every other branch, the idempotent existing reveal and the kabinet viewer included: a
+  // paused shelter hands out no contacts. SHELTER_PAUSED only where the page was reachable (the
+  // animal was once served); otherwise the pause must not be told apart from a hidden shelter.
+  if (shelter?.verification.status === "paused" && animal.everServedAt !== null) {
+    throw errors.SHELTER_PAUSED();
+  }
+  // Verified, or listed before verification and still inside its period (read-time, no cron).
+  const listing = shelter ? listingOf(shelter, context.now) : null;
+  if (!shelter || listing === null) {
     throw errors.SHELTER_NOT_VISIBLE();
   }
 
@@ -86,14 +99,14 @@ export async function animalsReveal(
     if (!(await spendPerIpBudget(context.caller, "newShelterReveals", context.now))) {
       throw perIpBudgetSpent();
     }
-    return toView(revealOf(context.adopterId, animal, shelter, context.now), current);
+    return toView(revealOf(context.adopterId, animal, shelter, context.now), current, listing);
   }
 
   // Idempotent: return existing reveal if one exists
   const reveals = revealRepo(context.db);
   const existing = await reveals.findByAdopterAndAnimal(context.adopterId, animal.id);
   if (existing) {
-    return toView(existing, current);
+    return toView(existing, current, listing);
   }
 
   // Rate limit check - persisted in Postgres, survives across instances.
@@ -117,8 +130,14 @@ export async function animalsReveal(
   const reveal = revealOf(context.adopterId, animal, shelter, context.now);
 
   // The check above can be passed by two reveals at once; this write holds the budget (audit F8).
-  return toView(await writeRevealWithinRateLimit(context.db, reveal, errors), current);
+  return toView(await writeRevealWithinRateLimit(context.db, reveal, errors), current, listing);
 }
+
+/** How a shelter is publicly listed at `now`, or `null` when it is not (hidden, paused, lapsed). */
+export const listingOf = (shelter: Shelter, now: Date): PublicListingLabel | null =>
+  publicListingLabelOf(
+    publicListingBasisOf(shelter.verification, earlyListingOf(shelter.earlyListingSince), now),
+  );
 
 /** A lookup that throws or is unavailable means a visitor: the normal, recorded path. */
 async function isKabinetViewer(context: AppContext): Promise<boolean> {
@@ -173,8 +192,8 @@ const currentShelterContactOf = (shelter: Shelter): RevealShelterContactView => 
  * views and «Мої запити» show the shelter's CURRENT contacts; the snapshot
  * stays stored as the record."), labelled with where it came from (K4-B5):
  *
- * - `current`, the shelter's name and channels now, while it is visible
- *   (`isPubliclyVerified`, the feed's own rule), so a shelter that changes its
+ * - `current`, the shelter's name and channels now, while it is publicly listed
+ *   (`listingOf`, the feed's own rule: verified, or listed before verification), so a shelter that changes its
  *   number in K4 is reached on the new one, by people who asked before the
  *   change too, and a shelter the operator renamed (R-UI 4) is named as it is
  *   now;
@@ -190,8 +209,9 @@ const currentShelterContactOf = (shelter: Shelter): RevealShelterContactView => 
 export const shelterContactOf = (
   reveal: ContactReveal,
   shelter: Shelter | null | undefined,
+  now: Date,
 ): RevealShelterContactView =>
-  shelter !== null && shelter !== undefined && isPubliclyVerified(shelter.verification)
+  shelter !== null && shelter !== undefined && listingOf(shelter, now) !== null
     ? currentShelterContactOf(shelter)
     : {
         source: "first_reveal",
@@ -204,7 +224,7 @@ export const shelterContactOf = (
  * 2026-10-15: "the exact address never leaves the server for adopters"): the
  * name and contacts the caller chose (`shelterContact`: current, or the
  * first-reveal record's, K4-B5, RUI4-F1), and from the first-reveal record the
- * shelter's donation link, status and city. The exact address, district and
+ * shelter's status and city. The exact address, district and
  * point stay in the stored record, the operator's. Shared by `animals.reveal`
  * and `reveals.listMine`.
  *
@@ -215,6 +235,7 @@ export const shelterContactOf = (
 export function toView(
   reveal: ContactReveal,
   shelterContact: RevealShelterContactView,
+  shelterListing: PublicListingLabel | null,
 ): ContactRevealView {
   const record = reveal.shelterSnapshot;
   return {
@@ -222,10 +243,10 @@ export function toView(
     animalId: reveal.animalId,
     revealedAt: reveal.revealedAt,
     shelterContact,
+    shelterListing,
     shelterAtFirstReveal: {
       shelterId: record.shelterId,
-      verificationStatusAtReveal: record.verificationStatusAtReveal,
-      donation: record.donation,
+      verificationStatusAtReveal: publicListingLabelAtReveal(record.verificationStatusAtReveal),
       publicLocation: cityOnlyLocationOf(record.publicLocation),
     },
     animalSnapshot: reveal.animalSnapshot,

@@ -3,13 +3,12 @@ import type { FeedFilterDimension, FeedFilters, GallerySort, RegionId } from "@o
 import { ANY, pluralizeUk, relaxDimension } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { LinkButton } from "../../ui/Button";
-import { cx } from "../../ui/cx";
 import { Heading } from "../../ui/Heading";
-import { MASCOT_RESERVE_CLASS, Mascot } from "../../ui/Mascot";
+import { Mascot } from "../../ui/Mascot";
 import { mascotKindFor } from "../../ui/mascot-species";
 import { Panel } from "../../ui/Panel";
-import { PerchedWords } from "../../ui/PerchedWords";
 import { Text } from "../../ui/Text";
+import { anyFilterSet } from "./active-filters";
 import type { CitySlugsById } from "./filter-url";
 import { galleryHref, resetFiltersHref } from "./filter-url";
 
@@ -86,6 +85,9 @@ export function NoMatch({
   regionEmpty = false,
   basePath,
 }: NoMatchProps) {
+  // The registry itself is empty (the gallery page only renders this at zero matches): no filter to
+  // blame, nothing to reset. A shelter page (`basePath`) keeps the filter wording.
+  const registryEmpty = !anyFilterSet(filters) && basePath === undefined;
   // A removal that would add nothing is no suggestion ("no suggestion without a number" means a useful one).
   const offered = relaxations.filter((suggestion) => suggestion.additional > 0);
   const nothingToOffer = offered.length === 0 && neighbourRegions.length === 0;
@@ -98,22 +100,17 @@ export function NoMatch({
     >
       <div data-testid="gallery-no-match" className="flex w-full flex-col items-start gap-8">
         <div className="flex flex-col gap-3">
-          <Heading
-            level={2}
-            look="display-l"
-            id="gallery-no-match-heading"
-            className={cx("text-pretty", MASCOT_RESERVE_CLASS[48])}
-          >
-            <PerchedWords
-              text={uk.noMatch.heading}
-              initial={2}
-              mascot={
-                <Mascot kind={mascotKindFor(filters.species)} pose="lie" size={48} perch="word" />
-              }
-            />
+          {/* In the flow above the heading, not perched on a word: a perch sits on the letters and covered the last word at desktop width. */}
+          {mascotKindFor(filters.species) === "dog" ? (
+            <Mascot kind="dog" pose="lie" size={48} className="self-start" />
+          ) : (
+            <Mascot kind="cat" pose="lie" size={48} className="self-start" />
+          )}
+          <Heading level={2} look="display-l" id="gallery-no-match-heading" className="text-pretty">
+            {registryEmpty ? uk.emptyRegistry.heading : uk.noMatch.heading}
           </Heading>
           <Text look="body" className="text-ink-2 text-pretty">
-            {uk.noMatch.reassurance}
+            {registryEmpty ? uk.emptyRegistry.line : uk.noMatch.reassurance}
           </Text>
           {regionEmpty && (
             <Text
@@ -153,7 +150,7 @@ export function NoMatch({
           </div>
         )}
 
-        {nothingToOffer && (
+        {nothingToOffer && !registryEmpty && (
           <LinkButton
             variant="secondary"
             href={resetFiltersHref(sort, basePath)}

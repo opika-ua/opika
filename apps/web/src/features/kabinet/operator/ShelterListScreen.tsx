@@ -6,6 +6,7 @@ import { TextField } from "../../../ui/form";
 import { Heading } from "../../../ui/Heading";
 import { Text } from "../../../ui/Text";
 import { NEW_SHELTER_PATH, OPERATOR_HOME } from "../routes";
+import { operatorStatusLabel } from "../verification-label";
 import { isFiltered, LIST_PARAMS, listHrefOf, type ShelterListFilters } from "./list-params";
 import type { ShelterListPage } from "./pages";
 import { ShelterRows } from "./ShelterRows";
@@ -119,7 +120,7 @@ function StatusFilter({
     ...VERIFICATION_STATUSES.map((status) => ({
       status,
       label: fillTemplate(t.filterStatus, {
-        status: uk.kabinet.profileStatus[status],
+        status: operatorStatusLabel(status),
         count: String(counts[status]),
       }),
     })),

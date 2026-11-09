@@ -1,5 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Database } from "@opika/db";
+import type { R2CleanupReport } from "@opika/db/image-pipeline/server";
+import { pingHealthcheck } from "./cron-healthcheck";
 import type { R2CleanupState } from "./r2-cleanup-env";
 
 /**
@@ -43,10 +45,18 @@ export async function handleR2CleanupCron(
     now: Date;
     r2State: R2CleanupState;
     log: (line: string) => void;
+    /** Loud channel for a tripped cap or a crash; falls back to `log`. */
+    logError?: (line: string) => void;
+    /** Healthchecks.io ping URL (`HEALTHCHECK_URL_R2_CLEANUP`); unset means no check-in. */
+    healthcheckUrl?: string | undefined;
+    fetchImpl?: typeof fetch;
   },
 ): Promise<Response> {
+  const ping = (outcome: "ok" | "fail") =>
+    pingHealthcheck(deps.healthcheckUrl, outcome, deps.fetchImpl);
   if (!deps.cronSecret) {
     deps.log(JSON.stringify({ event: "r2_cleanup", outcome: "refused_no_secret" }));
+    await ping("fail");
     return new Response("Cron secret not configured", { status: 500 });
   }
   if (!bearerMatches(request.headers.get("authorization"), deps.cronSecret)) {
@@ -54,19 +64,50 @@ export async function handleR2CleanupCron(
   }
   if (deps.r2State.kind === "off") {
     deps.log(JSON.stringify({ event: "r2_cleanup", outcome: "off" }));
+    await ping("ok");
     return Response.json({ outcome: "off" });
   }
   if (deps.r2State.kind === "misconfigured") {
     deps.log(JSON.stringify({ event: "r2_cleanup", outcome: "refused_misconfigured" }));
+    await ping("fail");
     return new Response("R2 clean-up credentials misconfigured", { status: 500 });
   }
 
-  const pipeline = await import("@opika/db/image-pipeline/server");
-  const r2 = pipeline.createR2CleanupClient(deps.r2State.config);
-  const report = await pipeline.runR2Cleanup(deps.db(), r2, deps.now, {
-    commit: true,
-    graceDays: undefined,
-  });
+  let report: R2CleanupReport;
+  try {
+    const pipeline = await import("@opika/db/image-pipeline/server");
+    const r2 = pipeline.createR2CleanupClient(deps.r2State.config);
+    // No maxDelete: the cron always runs under the default cap; only the CLI can raise it.
+    report = await pipeline.runR2Cleanup(deps.db(), r2, deps.now, {
+      commit: true,
+      graceDays: undefined,
+    });
+  } catch (error) {
+    await ping("fail");
+    throw error;
+  }
+
+  if (report.capTripped !== null) {
+    (deps.logError ?? deps.log)(
+      JSON.stringify({
+        event: "r2_cleanup",
+        outcome: "refused_over_cap",
+        dueForDeletion: report.capTripped.due,
+        cap: report.capTripped.cap,
+        scanned: report.scanned,
+        deleted: 0,
+      }),
+    );
+    await ping("fail");
+    return Response.json(
+      {
+        outcome: "refused_over_cap",
+        dueForDeletion: report.capTripped.due,
+        cap: report.capTripped.cap,
+      },
+      { status: 500 },
+    );
+  }
 
   deps.log(
     JSON.stringify({
@@ -81,6 +122,7 @@ export async function handleR2CleanupCron(
       snapshotsNulled: report.snapshotsNulled,
     }),
   );
+  await ping(report.failed.length > 0 ? "fail" : "ok");
   return Response.json({
     scanned: report.scanned,
     newlyTracked: report.newlyTracked,

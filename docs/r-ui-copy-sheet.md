@@ -241,7 +241,7 @@ shelter never submits evidence.
 | `reasonDialog.reasonLabel` / `.reasonHint` | Note, required; written so the person knows what to do next | «Причина» / «Обовʼязково. Пишіть так, щоб людина знала, що робити далі.» | |
 | `reasonDialog.confirmReject` / `.confirmSuspend` | Confirm | «Відхилити» / none | |
 | `codes.rejection.insufficient_evidence` / `.identity_unverifiable` / `.duplicate_submission` / `.out_of_service_area` / `.spam` / `.other` | Rejection codes | none | |
-| `codes.suspension.unresponsive` / `.complaint_upheld` / `.listing_quality` / `.suspected_fraud` / `.other` | Suspension codes | none | |
+| `codes.suspension.unresponsive` / `.complaint_upheld` / `.listing_quality` / `.cannot_confirm_details` / `.suspected_fraud` (retired, same text as `.cannot_confirm_details`) / `.other` | Suspension codes | none | |
 
 ### 3.3 Donation, admins, errors, support
 

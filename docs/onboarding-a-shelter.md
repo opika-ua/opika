@@ -4,6 +4,8 @@ Follow this while on the phone with a volunteer, in order. Don't improvise
 the sequence - the dry run exists specifically so you see the computed
 public location before anything touches the live database.
 
+Once a shelter is live and something looks wrong with it, use `docs/operator-playbook.md` instead.
+
 ## PowerShell 5.1: reading a secret
 
 Windows PowerShell 5.1 has no `Read-Host -MaskInput`. Every connection string in this runbook is
@@ -37,16 +39,15 @@ Never paste a connection string into a command line, a file or a chat.
   never touches money).
 - **A freshness sentence, in their own words** - one or two sentences about
   how current their listings are. Required; don't onboard without it.
-  It is shown **word for word**: until K2, nothing fills in an animal's name,
-  and nothing will ever fill in a date (inbox VH-Q1). So keep a specific date
-  and any animal's name out of it: a
-  typed date goes stale while it still reads as current, and `{date}` or
-  `{name}` would appear with their braces.
+  It is shown **word for word** on the shelter's page: nothing fills in an animal's
+  name or a date. Every write path refuses `{імʼя}` and any other `{…}` (DR1-Q5), and
+  the sentence is at most 280 characters. So keep a specific date and any animal's name
+  out of it: a typed date goes stale while it still reads as current.
 - **Real verification evidence** - see below. Not their name for the record;
   actual evidence the domain's own verification policy requires, or the
   script refuses to write a `verified` shelter at all.
 - **For each animal**: name, species, sex, size bucket, age bucket, a short
-  description, and at least one real photo file - see "Photos" below.
+  description, and one to ten real photo files (`MAX_ANIMAL_PHOTOS`) - see "Photos" below.
 
 ## The input file
 
@@ -88,7 +89,7 @@ before anything is computed):
       {
         "kind": "site_visit",
         "visitedOn": "2026-09-01",
-        "notes": "Дзвінок з Оленою 1 вересня — розповіла про притулок, показала фото тварин на місці."
+        "notes": "Дзвінок з Оленою 1 вересня – розповіла про притулок, показала фото тварин на місці."
       },
       {
         "kind": "reference_contact",
@@ -134,7 +135,7 @@ script - `buildShelter` checks against it and refuses to produce a
 
 | Legal shape | Needs |
 |---|---|
-| `unregistered_initiative` (most volunteer groups) | 1× `site_visit`, 2× `reference_contact` |
+| `unregistered_initiative` (most volunteer groups) | 1× `site_visit` (a video call), 2× `reference_contact` |
 | `registered_ngo` / `sole_proprietor` | 1× `edrpou_registration`, 1× `bank_account_holder`, 1× `reference_contact` |
 
 A `reference_contact`'s `channel` must be someone **other than the shelter
@@ -144,14 +145,21 @@ phone number isn't evidence, it's the thing being verified restating
 itself, and an earlier version of this script did exactly that by mistake
 (caught on review, fixed before ever being used for real).
 
-A `site_visit` doesn't require you to have physically gone anywhere - a
-real phone call where you actually talked to someone and can say what you
-learned counts; `notes` should say what actually happened, in your own
-words, since this becomes a permanent part of the shelter's record.
+`site_visit` is the stored name for a **video call**: verification is remote, nobody
+has to go anywhere. If the connection can't carry video, a phone call plus a short video
+of the premises filmed the same day is the fallback. `notes` should say what was shown
+(premises, animals, people) and, for the fallback, which video was sent, in your own
+words. The notes are shown to the operator only.
 
-**`visitedOn` is required** (`YYYY-MM-DD`): the day the visit or call
+A `reference_contact`'s `relationship` is one of `veterinary_clinic`, `local_authority`,
+`partner_organisation`, `other`. A `bank_account_holder` carries `holderName` (the
+account holder as the bank shows it). Text limits: names 300 characters, `site_visit`
+`notes` 2000. A shelter holds at most 30 evidence items, and one add takes at most 10
+(`MAX_EVIDENCE_ITEMS`, `MAX_EVIDENCE_ITEMS_PER_ADD`).
+
+**`visitedOn` is required** (`YYYY-MM-DD`): the day the video call
 actually happened, not the day you're filling in this file. A date after
-today is refused, because a visit that hasn't happened can't back a
+today is refused, because a call that hasn't happened can't back a
 verification. The script records you (its founder stand-in) as the person
 who vouches for it; there's no field for that.
 
@@ -190,14 +198,16 @@ directory**, not wherever you happen to run the command from. Keep a
     lastivka-2.jpg
 ```
 
-You don't supply width/height - the script reads the real file for its
+This script takes any file sharp can decode. The kabinet is stricter: JPEG, PNG or WebP
+(`sniff.ts`), and a HEIC is converted in the browser where it can be, else refused
+(ask for a JPG). You don't supply width/height - the script reads the real file for its
 actual dimensions, both in dry run and `--commit`. A missing file or one
 sharp can't decode (wrong format, corrupted download) fails immediately,
 before anything is uploaded or written, with the file path in the error.
 
 Uploading only happens on `--commit` - the dry run validates that every
 photo file exists and is readable, and nothing more. `--commit` generates
-three real sizes per photo (thumbnail, gallery-card, detail-page) and
+five real sizes per photo (thumb, card, compact, mid, detail) and
 uploads each to R2; see "R2 credentials" below for what that step needs.
 
 ## Run it: dry run, then commit
@@ -323,6 +333,8 @@ shell: `ep-PRODUCTION`, the value of `PROD_NEON_ENDPOINT`.
 
 ## Removing the demo corpus (once, after the first real shelter)
 
+**Superseded as the launch path** (`docs/launch-sequence.md`): launch uses the full reset, run twice. `demo:remove` is kept only to remove one mistakenly onboarded real shelter.
+
 The seeded demo shelters (ids `51000000-…`) go when the first real shelter is in
 (RG-Q11). `db:seed` can't do it: it truncates every table. `demo:remove` deletes
 only the demo shelters and what hangs off them (inbox DR-B1): their animals,
@@ -398,6 +410,8 @@ confirmation they are gone.
 
 ## Retiring the rehearsal shelter (at launch, before the first real invite)
 
+**Superseded as the launch path** (`docs/launch-sequence.md`): launch uses the full reset, run twice. `demo:remove` is kept only to remove one mistakenly onboarded real shelter.
+
 The rehearsal shelter «Притулок «Репетиція»» (`<rehearsal-shelter-uuid>`, onboarded 2026-10-17
 for the K4/photo rehearsal) is a test shelter on the real location key. It goes in the launch
 order below, after the first real shelter is onboarded. Every step is Oleksii's to run.
@@ -446,7 +460,7 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
 ## Dress rehearsal (UI only), before any public posting
 
 The launch gate after PR 6 and the operator screens (RU-B4). **UI only:** no console rpc, no
-scripts, no `KABINET_WRITE_ALLOWLIST`. The pre-launch gate cookie is the only non-UI piece
+scripts (the retired `KABINET_WRITE_ALLOWLIST` is gone from the code). The pre-launch gate cookie is the only non-UI piece
 (RU-B1). Three people, three browsers: Oleksii as the operator in his own screens, a test shelter
 as the client, and a third browser as the adopter. His script, verbatim (RU-B5) except step 2,
 which he reworded on 2026-10-17 (RU-Q6, verbatim: "Reword rehearsal step 2 to "resend, or invite
@@ -460,7 +474,7 @@ a second address""), because creating a shelter already invites its first admin:
    the final dress-rehearsal script: invite → set password → sign out → sign in with password →
    forgot password → reset." As steps, before step 3 (the invitation from step 1 or 2 is the
    one used):
-   1. The shelter admin opens the invite email's «Відкрити запрошення»: «Створіть пароль» names
+   1. The shelter admin opens the invite email's «Створити пароль»: «Створіть пароль» names
       the shelter and the address (masked). Set a password (the repeat field must match) and
       press «Зберегти й увійти»: the kabinet opens, signed in.
    2. Open the same invite link again: «Цим запрошенням не можна скористатися» (the link works
@@ -489,7 +503,7 @@ a second address""), because creating a shelter already invites its first admin:
    2026-10-19 per his own words quoted there; the rest of the script is verbatim RU-B5.)
 
 Until then the current rehearsal shelter (`<rehearsal-shelter-uuid>`) stays as the dev test bed, and
-`KABINET_WRITE_ALLOWLIST` serves only that interim; it goes away with PR 6.
+the allowlist that served that interim went away with PR 6 (#133).
 
 ## Where `LOCATION_HMAC_SECRET` comes from
 
@@ -554,7 +568,7 @@ removed; keep the eligibility part.
 ## Taking a photo down (P-Q14)
 
 Removing a photo in the kabinet (`shelter.photos.remove`) only takes it off
-the animal: its three files stay in the bucket and stay reachable by their URL.
+the animal: its five files stay in the bucket and stay reachable by their URL.
 Nothing links to them any more, but anyone who saved the URL can still open it
 - until the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
 R2-B1) deletes it on its own, automatically, once it has sat unreferenced for the
@@ -571,10 +585,10 @@ which fields changed (`fields: ["photos"]`, K-Q7), never a key. So list the
 animal's prefix in the bucket: R2 → the photo bucket → Objects → prefix
 `animals/{animalId}/` (the animal's id is still in the database and the
 kabinet). Each photo is one folder, `animals/{animalId}/{uuid}/`, holding
-`thumb.webp`, `card.webp` and `detail.webp`. The folders whose key is still in
+`thumb.webp`, `card.webp`, `compact.webp`, `mid.webp` and `detail.webp`. The folders whose key is still in
 the animal's `photos` are on the card; any other folder is a removed or orphaned
-photo. Open its `card.webp` to confirm it is the one, then delete all three
-files and purge those three URLs from the CDN cache.
+photo. Open its `card.webp` to confirm it is the one, then delete all five
+files and purge those five URLs from the CDN cache.
 
 A takedown script (DR-F3) will replace this; until then it is a manual, logged
 step. The same applies to a file logged as `{event:"photo_orphaned",
@@ -588,9 +602,10 @@ Every put carries `IfNoneMatch: "*"`, so R2 should refuse (HTTP 412) to write
 to a key that already holds an object. That is asserted in code, not yet
 observed against R2.
 
-**When: before uploads open to any shelter**, the allowlisted test shelter
-included (`KABINET_WRITE_ALLOWLIST`, K-Q4/K-Q17). Until it has passed, no
-shelter's kabinet may store a photo.
+**When: before uploads open to any shelter**, the test shelter included. Shelter
+writes are open to every shelter since PR 6 (#133, the allowlist is gone), so run this
+before the first real shelter uploads. Until it has passed, no shelter's kabinet should
+store a photo.
 
 **Who and with what:** the operator, by hand, from his own shell, with the
 **onboarding token** (`R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`, the one in
@@ -622,6 +637,162 @@ If the second put succeeds, R2 ignored the header: report it, and do not open
 uploads to any shelter. No permanent bucket lock replaces this (Oleksii: it
 would also block the DR-F3 takedown script; if one is ever added, a short
 retention only).
+
+## Shelter statuses, and what each side sees
+
+A shelter is in one of six verification states (`packages/domain/src/shelters/verification/state.ts`).
+The operator's screen splits the first two; every other surface says «На перевірці» for both
+(owner, 2026-11-06).
+
+| State | Operator sees | Shelter sees (its chip) | Adopters |
+|---|---|---|---|
+| `pending` | «Очікує перевірки» | «На перевірці» | Nothing: no page, no cards (unless early listing runs, below) |
+| `under_review` | «На розгляді» | «На перевірці» | Same |
+| `verified` | «Перевірено» | «Перевірено» | Cards in the gallery; the shelter page |
+| `rejected` | «Відхилено» | «Відхилено», with the code and your note word for word | Nothing |
+| `paused` | «На паузі» | «На паузі» | Pages by link only, with a notice; animals out of the gallery (see "Pause") |
+| `suspended` | «Призупинено» | «Призупинено», with the code and your note word for word | Nothing: the pages answer as if the shelter did not exist |
+
+The labels are `kabinet.operatorStatus` and `kabinet.profileStatus` in
+`packages/i18n/src/messages/uk.ts`. A suspended shelter is not told apart from a missing one on any
+public page, even when it was suspended mid-pause (`shelterAvailabilityOf`, `public-pause.ts`).
+
+**Rejection reasons** you can pick today: `insufficient_evidence` («Недостатньо доказів»),
+`identity_unverifiable` («Не вдалося підтвердити, хто стоїть за притулком»), `duplicate_submission`
+(«Повторна заявка»), `spam` («Заявка не схожа на звернення притулку»), `other` («Інше»). The code `out_of_service_area` («Поза
+територією, де працює сайт») is retired because the site is nationwide: it is no longer offered
+(`RETIRED_REJECTION_CODES`, `reasons.ts`), but an old rejection that holds it still parses and
+displays. A rejection always carries a written note; the shelter reads it verbatim.
+
+**Suspension reasons**: `unresponsive` («Немає звʼязку з притулком»), `complaint_upheld` («Перевірена
+скарга»), `listing_quality` («Дані в картках потребують виправлення»), `cannot_confirm_details`
+(«Не вдалося підтвердити дані притулку»), `other`, again with a required note. `suspected_fraud` is
+retired (`RETIRED_SUSPENSION_CODES`, `reasons.ts`): never offered, but an old suspension that holds it
+still parses and displays the same neutral text as `cannot_confirm_details`. Suspension is imposed; a pause is the
+shelter's own choice, so the two have separate lists and separate exits.
+
+## What the operator's buttons do
+
+On the shelter's page in the registry (`ShelterActionsScreen.tsx`). Which buttons appear is exactly
+what the verification FSM allows from the current state (`offered-actions.ts`, held against
+`transition()` by a parity test). The shelter's own pause and resume are never operator buttons.
+
+| State | Buttons (exact labels) | What each does |
+|---|---|---|
+| `pending` | «Взяти на розгляд»; «Відхилити…» | Moves to `under_review`, recording you as the reviewer. Reject goes straight to `rejected` with no review step (obvious spam needs none). There is no approve from `pending` |
+| `under_review` | «Схвалити → «Перевірено»»; «Відхилити…» | Approve is refused while the evidence misses the policy (see "Evidence" above): the screen then lists the gaps after «Схвалити поки не можна – бракує доказів:». Approving puts the animals in the gallery at once |
+| `verified` | «Призупинити…» | Suspends (reason code and note required). The animals leave the gallery at once and the shelter sees the note |
+| `paused` | «Призупинити…» | Suspends the paused shelter: a complaint does not wait for it to reopen |
+| `rejected` | «Повернути на перевірку» | Opens the evidence editor, started from the evidence on file; sending it moves the shelter back to `pending` |
+| `suspended` | «Відновити → «{status}»»; «Відхилити…» | Reinstate returns to what the suspension interrupted: «Перевірено» or «На паузі». A shelter suspended mid-pause comes back paused, and its animals stay hidden until it lifts the pause itself |
+
+Two panels sit beside these and are not verification moves (no FSM event, no status change):
+
+- **«+ Додати доказ»** (dialog «Додати докази»): appends evidence while the shelter is `pending` or
+  `under_review` only («Докази можна додати, лише поки рішення не ухвалено.»). A repeat of an item
+  already on file is dropped («Ці докази вже є.»). At most 30 items on file, 10 per add. The shelter
+  is not told: the entry is in the operator's history («Додано докази: {kinds}», kinds only) and
+  never in the shelter's.
+- **«Дозволити показ до завершення перевірки» / «Зняти дозвіл»**: early listing, next.
+
+Every reject and suspend opens a dialog with a reason code and a required note. The dialog says
+the shelter reads the note verbatim, so write it as instructions for what to do next.
+
+## Early listing: public cards while the review runs
+
+Owner decision, 2026-11-04. You can let a `pending` or `under_review` shelter's cards be public,
+labelled, while the review is still running. It sits beside the verification FSM in its own column
+(`shelters.early_listing_since`); allow and revoke are audited operator toggles, not verification
+events (`early-listing.ts`).
+
+- **Who and where.** Operator only. Panel «Показ до завершення перевірки» on the shelter's registry
+  page, shown in `pending` and `under_review` only.
+- **Minimum evidence.** At least one `site_visit` (video call) or one `reference_contact` on file
+  (`EARLY_LISTING_EVIDENCE_KINDS`). This is weaker than approval and is not the table in "Evidence".
+  Otherwise refused with «Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.»
+- **Length.** 60 days from the moment you allow it (`EARLY_LISTING_DAYS`), an exact instant sum with
+  no calendar maths. Expiry is worked out when read, with no job: at the boundary instant the
+  shelter is already hidden. While it runs the panel shows «До кінця показу: {n} день/дні/днів»,
+  emphasised at 7 days or fewer; after it ends, «Показ завершився {date}».
+- **One re-allow, with a note.** At most two periods per shelter (`EARLY_LISTING_MAX_PERIODS`). The
+  second needs a written reason (field «Чому подовжуєте показ»); a running period cannot be
+  stacked, and the third is refused («Показ до перевірки вже дозволяли двічі.»). Periods are counted
+  from history, so a revoke does not give one back.
+- **Revoking.** «Зняти дозвіл» ends it at once, and only while it runs. The cards leave the gallery.
+- **A decision ends it.** Approve, reject and resubmit clear the permission; `start_review` and an
+  evidence add keep it (`keepsEarlyListing`).
+- **What adopters see.** The cards are in the gallery and search with the badge «На перевірці»; the
+  shelter page shows «Притулок на перевірці» in place of the trust line; the contact-reveal dialog
+  warns «Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.» (`uk-public.ts`,
+  `underReview`). Never the end date, and never the word «Перевірено».
+- **Search engines.** The shelter and animal pages are `noindex`, and follow only when
+  `SITE_IS_PUBLICLY_DISCOVERABLE` is true. The sitemap lists verified shelters only (`sitemapRows`,
+  `gallery-repo.ts`).
+- **What the shelter sees.** On its animals page, under «На перевірці», only the first sentence of
+  the usual note, so the label is said once, and a dated banner: «Ваші картки показуються з
+  позначкою «на перевірці» до {date}.» The date is the end day; the public never gets it.
+
+## Pause: the shelter closes intake itself
+
+Only a `verified` shelter can pause, and only its own administrator does: the control is on the
+shelter's profile page, not in the registry. A pending, rejected or suspended shelter does not see
+it.
+
+- **What the shelter does.** «Призупинити прийом звернень» opens a dialog «Призупинити прийом
+  звернень?» with a required reason and an optional comment (field «Коментар»). Reasons:
+  «Сезонна перерва», «Переїзд», «Немає вільних місць», «Бракує волонтерів», «Інше». While paused the
+  profile reads «Прийом звернень на паузі з {date} · {reason}» and the button becomes «Відновити
+  прийом звернень».
+- **Who sees the comment.** The shelter's administrators and you. The public view carries the reason
+  code only, never the comment, the actor or the date (`public-pause.ts`).
+- **What adopters see.** The shelter's animals leave the gallery and search. The shelter page stays
+  reachable by link and says «Притулок тимчасово не приймає нових звернень», then «Причина:
+  {reason}» (left out for «Інше»), then «Тварини з цього притулку зараз не показуються в галереї.»
+  An animal's own page also stays reachable by link, but only for an animal that was actually served
+  in the gallery before the pause; one never served answers as not found (`handlers/animals.ts`).
+  Both pages are `noindex` once the site is discoverable.
+- **Resuming.** «Відновити прийом звернень», by the shelter: no moderator needed. The animals are
+  back at once.
+- **Suspension while paused.** Allowed. «Відновити → «На паузі»» then returns the shelter to the
+  pause, not to «Перевірено».
+
+## The invitation lifetime: 72 hours
+
+An administrator's invitation link is good for 72 hours from the moment it is sent
+(`INVITATION_TTL_MS`, `kabinet-invitation-repo.ts`). It opens the «Створіть пароль» page, and the
+set-password token expires with the invitation, never later. The creation screen already says so
+(«посилання, щоб створити пароль, діє 72 години. Його можна надіслати ще раз.»).
+
+- **See it.** The admins list on the shelter's registry page reads «Запрошено · посилання діє до
+  {date}», and «Запрошено · посилання вже не діє» after the 72 hours.
+- **Resend.** «Надіслати ще раз» on that row makes the same invitation valid for a fresh 72 hours
+  and emails it again (history: «Запрошення надіслано ще раз: {name}»). It works for a pending admin
+  only. If the row is gone, invite the address again with «Запросити ще одного». If the email seems
+  not to have arrived, run the next section's checks before resending.
+- **Withdraw.** «Прибрати» on a pending admin cancels the invitation (history: «Запрошення
+  скасовано: {name}»); on a member it closes access and ends every session at once («Доступ закрито:
+  {name}»). Removing the last admin is allowed.
+- **Clean-up.** An invited account that holds no membership and no live invitation is erased,
+  signed in or not. It runs whenever the shelter's admins list is touched, and the scheduled sweep
+  does it too.
+
+## What the shelter sees in its own history
+
+The shelter-facing history (`shelter.history.list`, projected by `shelterFacingHistoryOf` in
+`history-shelter-facing.ts`) is built field by field: no evidence and no ids reach it. The kabinet
+renders no history screen from it yet (its only reader is the donation-declined notice, `home.ts`),
+so this is what the API hands any screen that shows it.
+
+- **Shown**, with the actor as your display name or "the shelter": verification moves (review
+  started, approved, rejected and suspended with code and note, reinstated, resubmitted, paused with
+  its reason, resumed); contact, freshness sentence, description, logo and name changes; donation
+  proposed, cancelled, approved or rejected; legal-entity or address changes you made; admin
+  invited, resent, joined, removed; animals imported; a card created, edited, listing-changed or
+  deleted; early listing allowed, revoked, or lapsed (the lapse has no actor).
+- **Not shown**: evidence added, the early-listing period number and your note, every id (moderator,
+  admin, invitation, animal), the evidence list inside a resubmission.
+- **Your own history** (registry) shows all of it, plus the evidence kinds, the period number and
+  the note.
 
 ## A shelter says the invitation never arrived
 
@@ -728,12 +899,11 @@ also carries a signature made with `BETTER_AUTH_SECRET` (next section), so no ro
 for a token alone. This happened once, on 2026-10-15, with the operator's own session, and was
 closed exactly this way (inbox RO-E1).
 
-## The operator's own `/kabinet` answers 404
+## The operator's own `/kabinet` redirects to the shelter list
 
-Signed in as the operator (super_admin) and outside support mode, `/kabinet` answers 404. That is
-intended for now (inbox RO-D1): the kabinet shows one shelter's profile, and the operator account
-belongs to no shelter. The operator works through the registry API instead. A minimal operator
-landing (one line plus «Вийти») is a low-priority follow-up (RO-F1).
+Signed in as the operator (super_admin), `/kabinet` redirects to `/kabinet/prytulky`
+(`OPERATOR_HOME`, `apps/web/src/app/kabinet/page.tsx`); the operator account belongs to no
+shelter, so there is no profile to show. This replaced the earlier 404 (RO-D1, RU-T1).
 
 ## Rotating `BETTER_AUTH_SECRET` (kabinet sign-in)
 
@@ -913,7 +1083,7 @@ production check (whole-payload search)." The same checklist as PW-1's above, on
 link instead of the reset link (production, once PW-2 has merged and deployed):
 
 1. From his screens, invite a test address on the Репетиція shelter (or resend its pending
-   invite), and open the email's «Відкрити запрошення».
+   invite), and open the email's «Створити пароль».
 2. In DevTools → Network, filter for `insights` / `vitals`: each analytics request's payload URL
    is `/kabinet/vkhid` with no query string.
 3. In each of those analytics requests, search the whole payload (not just the URL field) for

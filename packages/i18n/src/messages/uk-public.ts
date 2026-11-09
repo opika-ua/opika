@@ -85,7 +85,7 @@ export const ukPublic = {
      * link-preview copy only, but still an accurate invitation to the page
      * it describes.
      */
-    promise: "Собаки й коти з перевірених притулків України шукають дім. Перегляньте список.",
+    promise: "Собаки й коти з притулків України шукають дім. Перегляньте список.",
   },
 
   /**
@@ -376,6 +376,9 @@ export const ukPublic = {
      * given a sentence; `SavedPageScreen.tsx` never reaches this key for a `null` name).
      */
     unavailable: "{name} більше не показується на сайті.",
+    /** A paused shelter's animal: out of the gallery, page still open. `{name}` is the animal's name. */
+    paused: "{name} зараз не показується в галереї: притулок тимчасово не приймає звернень.",
+    openPausedPage: "Відкрити сторінку",
     /** The remove control on each saved-page card: its accessible name and tooltip (owner-approved, 2026-11-01). */
     removeFromSaved: "Прибрати зі збережених",
     /** The toast shown after a card is removed from the saved page. */
@@ -451,6 +454,22 @@ export const ukPublic = {
      */
     lineFostered: "{place} · на перетримці",
     lineAtShelter: "{place}",
+  },
+
+  // --- A paused shelter's pages (owner-approved 2026-11-04) ---
+  pause: {
+    notice: "Притулок тимчасово не приймає нових звернень",
+    /** `{reason}` is one of `reason` below; the line is omitted for the code `other`. */
+    reasonLine: "Причина: {reason}",
+    /** Public labels; `other` has none on purpose. */
+    reason: {
+      seasonal_closure: "Сезонна перерва",
+      relocation: "Переїзд",
+      capacity_reached: "Немає вільних місць",
+      staff_shortage: "Бракує волонтерів",
+    },
+    /** The shelter page, in place of the animals list. */
+    shelterNotListed: "Тварини з цього притулку зараз не показуються в галереї.",
   },
 
   // --- Shelter page (designer round 1, S6) ---
@@ -593,7 +612,7 @@ export const ukPublic = {
   reveal: {
     title: "Як звʼязатися з притулком",
     subtitle:
-      "Притулок не знає про цей запит, поки ви не напишете самі. Нічого не сталося автоматично.",
+      "Притулок не знає про це звернення, поки ви не напишете самі. Нічого не надсилається автоматично.",
     /**
      * Template: "Контакти такі, якими були {date}, коли ви їх відкрили."
      * ({date} is the first reveal's; «є сьогодні» next to a past date said
@@ -606,7 +625,7 @@ export const ukPublic = {
     reflectionHeading: "Перед тим як писати – три речі",
     reflection1: "Це роки разом, а не вихідні.",
     reflection2: "Корм, ветеринар, перевезення – щомісячні витрати.",
-    reflection3: "Чи згодні всі, хто живе з вами.",
+    reflection3: "Згода всіх, хто живе з вами.",
     writeTelegram: "Написати в Telegram",
     /**
      * Not every shelter's primary contact channel is Telegram - real seed
@@ -639,14 +658,18 @@ export const ukPublic = {
 
   // --- My reveals (06) ---
   myReveals: {
-    title: "Мої запити",
-    deviceOnly: "Зберігається лише на цьому пристрої. Ми не знаємо, хто ви.",
+    title: "Мої звернення",
+    deviceOnly: "Зберігається лише на цьому пристрої. Сайт не знає, хто ви.",
     /** Template: "Притулок каже: {name} уже вдома." */
     resolved: "Притулок каже: {name} уже вдома.",
   },
 
   // --- Error states (08) ---
   errors: {
+    /** The contact reveal refused because the shelter is paused (same words as `pause.notice`); no retry. */
+    shelterPaused: {
+      title: "Притулок тимчасово не приймає нових звернень",
+    },
     offline: {
       eyebrow: "БЕЗ ЗВʼЯЗКУ",
       title: "Немає звʼязку із сайтом. Перевірте інтернет і спробуйте ще раз.",
@@ -684,6 +707,19 @@ export const ukPublic = {
   },
 
   // --- Reserved badge ---
+  /**
+   * A shelter shown before its verification is complete (owner's copy table, 2026-11-04, N1–N3).
+   * `card` is the short label on a card and the animal page, `shelter` the shelter page's trust
+   * line, `revealNotice` the one required line in the contact dialog. A label only, never a date.
+   */
+  underReview: {
+    card: "На перевірці",
+    shelter: "Притулок на перевірці",
+    revealNotice: "Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.",
+    /** The link-preview description of an animal at such a shelter (N14). */
+    sharePreview: "Тварина з притулку, який ще проходить перевірку.",
+  },
+
   reserved: {
     badge: "Уже домовляються",
     /** The gallery card's tablet (600-1023) layout, shown instead of `badge` when the compact horizontal card has less room - docs/design/README.md, "The Gallery" > "Card". */
@@ -746,7 +782,7 @@ export const ukPublic = {
      * gallery-v3 (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`): the
      * redesigned card's meta line names sex as its own word instead of
      * folding it into the age word's grammatical gender (`ageYoungFemale`
-     * etc. above, unchanged - the deck and the old card still use those).
+     * etc. above, unchanged).
      * Builder-prompt-approved exact strings, same words already used for
      * the kabinet animal form's `who.sexMale`/`who.sexFemale`
      * (`messages/uk.ts`'s kabinet block) - not re-derived, reused verbatim
@@ -896,6 +932,12 @@ export const ukPublic = {
     hromadaShort: "{name} громада",
   },
 
+  /** The registry itself has no animals (no filter is set): nothing to reset, so no «Скинути». */
+  emptyRegistry: {
+    heading: "Тут поки немає тварин.",
+    line: "Притулки тільки починають додавати картки. Зазирніть трохи згодом.",
+  },
+
   noMatch: {
     heading: "Під ці фільтри зараз нікого немає.",
     reassurance: "Це не помилка пошуку.",
@@ -977,7 +1019,7 @@ export const ukPublic = {
    * it too.
    *
    * Not in `docs/design/README.md`'s own header content list (line 337 gives
-   * mark + wordmark, city chip, «Мої запити · N», «UA / EN», «Гортати по
+   * mark + wordmark, city chip, «Мої звернення · N», «UA / EN», «Гортати по
    * одній») - composed for Phase T to close the critique's E5/E1/E3, and
    * recorded as composition rather than specification.
    */
@@ -1018,12 +1060,12 @@ export const ukPublic = {
   about: {
     title: "Про проєкт",
     intro:
-      "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина – я, у вільний від роботи час. Немає команди й інвестора.",
+      "{site} – сайт, де тварини з притулків України шукають дім. Його робить одна людина, у вільний від роботи час і незалежно: немає команди й інвестора. Це не державний і не міський сервіс.",
     /** MK-7, owner-verbatim (2026-11-01); also shown on «Для притулків». */
     independent: "{site} робить одна людина, незалежно. Це не державний і не міський сервіс.",
     free: "Сайт безкоштовний для притулків, без платних тарифів. Якщо це колись зміниться, кожен притулок дізнається про це заздалегідь, а не постфактум.",
     money:
-      "Opika ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) – сайт лише показує посилання, гроші йдуть напряму, і видно, куди саме.",
+      "{site} ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) – сайт лише показує посилання, гроші йдуть напряму, і видно, куди саме. Кнопка є лише в перевірених притулків.",
     /**
      * His PR 6 text (pr6-copy-uk.md §1.5), every claim checked against code:
      * - «бачить лише місто»: every adopter-facing view carries the city only
@@ -1065,7 +1107,8 @@ export const ukPublic = {
       // apps/web/src/observability tests.
       "Якщо на сайті стається збій, до сервісу відстеження помилок Sentry (сервери в ЄС) надсилається лише технічний опис: тип помилки, місце в коді, адреса сторінки без параметрів, браузер і система. Контакти, пошта, номери телефонів, вміст форм і кукі туди не потрапляють, а IP-адреси не зберігаються.",
     analytics:
-      "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами.",
+      "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами. " +
+      R4_2_ANALYTICS_SENTENCE,
     contact: "Написати мені: {contact}",
     /** Owner-approved 2026-10-30 (attribution copy table); the licence wording is the dataset record's, no version. */
     sources: {

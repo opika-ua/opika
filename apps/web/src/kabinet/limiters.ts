@@ -17,37 +17,74 @@ import { SIGN_IN_LIMITS } from "./sign-in-limit";
  */
 
 export const signInLimiters = {
-  perAddress: sharedRateLimiter({ name: "kabinet-sign-in-address", ...SIGN_IN_LIMITS.perAddress }),
-  perIp: sharedRateLimiter({ name: "kabinet-sign-in-ip", ...SIGN_IN_LIMITS.perIp }),
+  perAddress: sharedRateLimiter({
+    name: "kabinet-sign-in-address",
+    ...SIGN_IN_LIMITS.perAddress,
+    onUnavailable: "deny",
+  }),
+  perIp: sharedRateLimiter({
+    name: "kabinet-sign-in-ip",
+    ...SIGN_IN_LIMITS.perIp,
+    onUnavailable: "deny",
+  }),
 };
 
 /** HS-Q10: never the adopter `apiRateLimiter`. */
 export const kabinetLimiters = {
-  perUser: sharedRateLimiter({ name: "kabinet-user", ...KABINET_RATE_LIMITS.perUser }),
-  perIp: sharedRateLimiter({ name: "kabinet-ip", ...KABINET_RATE_LIMITS.perIp }),
+  perUser: sharedRateLimiter({
+    name: "kabinet-user",
+    ...KABINET_RATE_LIMITS.perUser,
+    onUnavailable: "deny",
+  }),
+  perIp: sharedRateLimiter({
+    name: "kabinet-ip",
+    ...KABINET_RATE_LIMITS.perIp,
+    onUnavailable: "deny",
+  }),
 };
 
 /** P-Q12: per shelter, an hour and a day. */
 export const photoUploadLimiters = {
-  perHour: sharedRateLimiter({ name: "kabinet-photo-hour", ...PHOTO_UPLOAD_RATE_LIMITS.perHour }),
-  perDay: sharedRateLimiter({ name: "kabinet-photo-day", ...PHOTO_UPLOAD_RATE_LIMITS.perDay }),
+  perHour: sharedRateLimiter({
+    name: "kabinet-photo-hour",
+    ...PHOTO_UPLOAD_RATE_LIMITS.perHour,
+    onUnavailable: "deny",
+  }),
+  perDay: sharedRateLimiter({
+    name: "kabinet-photo-day",
+    ...PHOTO_UPLOAD_RATE_LIMITS.perDay,
+    onUnavailable: "deny",
+  }),
 };
 
 /** PW-2, §4.3: «Створіть пароль»'s POST, 20 an hour per IP (the link is single use, so nothing per address). */
 export const inviteLimiters = {
-  perIp: sharedRateLimiter({ name: "kabinet-invite-ip", ...PASSWORD_LIMITS.invitePerIp }),
+  perIp: sharedRateLimiter({
+    name: "kabinet-invite-ip",
+    ...PASSWORD_LIMITS.invitePerIp,
+    onUnavailable: "deny",
+  }),
 };
 
 const signInDelayStore = sharedRedisStore("kabinet-sign-in-delay");
 
 /** §4.3: «Забули пароль?», a reset link's POST, and the password sign-in's increasing delays. */
 export const passwordLimiters: PasswordLimiters = {
-  forgotPerIp: sharedRateLimiter({ name: "kabinet-forgot-ip", ...PASSWORD_LIMITS.forgotPerIp }),
+  forgotPerIp: sharedRateLimiter({
+    name: "kabinet-forgot-ip",
+    ...PASSWORD_LIMITS.forgotPerIp,
+    onUnavailable: "deny",
+  }),
   forgotPerAddress: sharedRateLimiter({
     name: "kabinet-forgot-address",
     ...PASSWORD_LIMITS.forgotPerAddress,
+    onUnavailable: "deny",
   }),
-  resetPerIp: sharedRateLimiter({ name: "kabinet-reset-ip", ...PASSWORD_LIMITS.resetPerIp }),
+  resetPerIp: sharedRateLimiter({
+    name: "kabinet-reset-ip",
+    ...PASSWORD_LIMITS.resetPerIp,
+    onUnavailable: "deny",
+  }),
   signInDelay:
     signInDelayStore === null
       ? inMemoryDelayStore()

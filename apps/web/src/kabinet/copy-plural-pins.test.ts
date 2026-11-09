@@ -5,12 +5,14 @@ import {
   ANIMAL_NAME_MAX_CHARACTERS,
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   DEFAULT_FRESHNESS_POLICY,
+  EARLY_LISTING_DAYS,
   TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import { nameTooLongMessage } from "../features/kabinet/operator/display-name";
 import { throttledMessage } from "../features/kabinet/password/password-copy";
+import { countPhrase } from "../features/kabinet/shared/count-phrase";
 import { MAGIC_LINK_TTL_SECONDS } from "./auth";
 import { SIGN_IN_DELAY } from "./password-limits";
 import { RESET_PASSWORD_TTL_SECONDS } from "./password-mail";
@@ -44,11 +46,18 @@ describe("the TTLs the copy's plural nouns were written for", () => {
     ).toBe(72);
   });
 
+  it("an early listing lasts 60 days («днів») in the operator's confirm text and the /prytulkam rule", () => {
+    expect(
+      EARLY_LISTING_DAYS,
+      `EARLY_LISTING_DAYS changed: «60 днів» in operator.earlyListing.confirm and forShelters.verification was written for 60 and must be rechecked before this pin moves`,
+    ).toBe(60);
+    expect(uk.kabinet.operator.earlyListing.confirm).toContain(`${EARLY_LISTING_DAYS} днів`);
+    expect(uk.forShelters.verification).toContain(`${EARLY_LISTING_DAYS} днів`);
+  });
+
   /** The forms in the copy, from his answer sheet: what the pins above protect. */
   it("the copy carries the noun forms those values take", () => {
-    expect(uk.kabinet.email.signIn.expiry).toContain("{minutes} хвилин.");
     expect(uk.kabinet.signIn.sentBody).toContain("15 хвилин");
-    expect(uk.kabinet.email.invite.expiry).toContain("{hours} години.");
     expect(uk.kabinet.operator.create.whatHappens.step2).toContain("72 години");
   });
 
@@ -94,7 +103,6 @@ describe("the caps K3's plural nouns were written for", () => {
     expect(t.description.counter).toContain("{max} символів");
     expect(t.validation.descriptionTooLong).toContain("{max} символів.");
     expect(t.validation.nameTooLong).toContain("{max} символів.");
-    expect(t.validation.dateTooOld).toContain("{years} років тому.");
   });
 
   it("1,500, 60 and 30 fall in the plural category «символів» and «років» take", () => {
@@ -140,7 +148,6 @@ describe("the stale cut-off K2's plural noun was written for", () => {
   });
 
   it("the copy carries the noun form that value takes", () => {
-    expect(uk.kabinet.animalList.stale.count).toContain("понад {days} днів.");
     expect(new Intl.PluralRules("uk").select(30)).toBe("many");
   });
 });
@@ -185,5 +192,39 @@ describe("the password copy's {minutes} (PW-1)", () => {
     ).toBe(60);
     expect(uk.kabinet.forgot.sent.endsWith("Воно діє {minutes} хв.")).toBe(true);
     expect(uk.kabinet.email.reset.expiry).toBe("Посилання спрацює один раз і діє {minutes} хв.");
+  });
+});
+
+/**
+ * Owner, 2026-11-06: the span slots (`{hours}`, `{minutes}`, `{days}`, `{years}`) carry their own
+ * noun, picked by `pluralizeUk` from `kabinet.units`, so no TTL or cap change can break the grammar.
+ */
+describe("count phrases pick the noun form from the number", () => {
+  const u = uk.kabinet.units;
+  it.each([
+    [1, u.hours, "1 годину"],
+    [2, u.hours, "2 години"],
+    [5, u.hours, "5 годин"],
+    [21, u.hours, "21 годину"],
+    [72, u.hours, "72 години"],
+    [1, u.minutes, "1 хвилину"],
+    [15, u.minutes, "15 хвилин"],
+    [22, u.minutes, "22 хвилини"],
+    [11, u.days, "11 днів"],
+    [21, u.days, "21 день"],
+    [30, u.days, "30 днів"],
+    [31, u.days, "31 день"],
+    [21, u.years, "21 рік"],
+    [22, u.years, "22 роки"],
+    [30, u.years, "30 років"],
+  ])("%i", (count, forms, expected) => {
+    expect(countPhrase(count, forms)).toBe(expected);
+  });
+
+  it("the sign-in and invite emails and the stale strip use them", () => {
+    expect(uk.kabinet.email.signIn.expiry).toBe("Посилання спрацює один раз і діє {minutes}.");
+    expect(uk.kabinet.email.invite.expiry).toContain("Запрошення діє {hours}.");
+    expect(uk.kabinet.animalList.stale.count).toContain("понад {days}.");
+    expect(uk.kabinet.animalForm.validation.dateTooOld).toContain("понад {years} тому.");
   });
 });

@@ -28,6 +28,42 @@ const other: ShelterHistoryItemView = {
   animalName: "Рекс",
 };
 
+const removed: ShelterHistoryItemView = {
+  kind: "donation_removed",
+  at,
+  actor: operator,
+  previousLive: link,
+  clearedPending: false,
+  reason: { code: "other", note: "Пояснення" },
+};
+const suspended: ShelterHistoryItemView = {
+  kind: "donation_suspended",
+  at,
+  actor: operator,
+  previousLive: link,
+  outcome: "moved_to_pending",
+};
+
+describe("removal and suspension lines", () => {
+  it("a removal on top says so, with the reason as written", () => {
+    expect(latestDonationOutcomeOf([removed, decided("approved")])).toEqual({
+      kind: "removed",
+      reason: { code: "other", note: "Пояснення" },
+    });
+  });
+
+  it("a suspension on top says so", () => {
+    expect(latestDonationOutcomeOf([suspended, decided("rejected")])).toEqual({
+      kind: "suspended",
+    });
+  });
+
+  it("a newer proposal wipes either message", () => {
+    expect(latestDonationOutcomeOf([proposed, removed])).toEqual({ kind: "none" });
+    expect(latestDonationOutcomeOf([proposed, suspended])).toEqual({ kind: "none" });
+  });
+});
+
 describe("latestDonationOutcomeOf (answer 12)", () => {
   it("declined when the newest donation line is a rejection, other lines above it or not", () => {
     expect(latestDonationOutcomeOf([other, decided("rejected"), proposed])).toEqual({

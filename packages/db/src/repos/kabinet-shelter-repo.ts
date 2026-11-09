@@ -1,6 +1,7 @@
 import {
   DISCOVERABLE_LISTING_KINDS,
   type DonationLink,
+  EARLY_LISTING_STATUSES,
   type ExactAddress,
   type FreshnessSentence,
   historyEntryAt,
@@ -32,7 +33,15 @@ export type AuditedShelterChange =
   | { kind: "contact"; contact: ShelterContact }
   | { kind: "freshness_sentence"; freshnessSentence: FreshnessSentence }
   | { kind: "pending_donation"; pendingDonation: PendingDonation | null }
+  /**
+   * Any verification change. The stored early-listing permission survives it only when the shelter
+   * stays inside pending/under_review (`start_review`, an evidence add); approve, reject and
+   * resubmit clear it, decided in the statement itself (`keepsEarlyListing`).
+   */
   | { kind: "verification"; verification: ShelterVerification }
+  /** The operator allowed listing before verification; `since` is the write's own `now`. */
+  | { kind: "early_listing_allowed"; since: Date }
+  | { kind: "early_listing_revoked" }
   | { kind: "description"; description: LocalizedText }
   | { kind: "legal_entity"; legalEntity: ShelterLegalEntity }
   /** The shelter's own logo, set or cleared (pet card PR 3b). */
@@ -45,6 +54,15 @@ export type AuditedShelterChange =
   | { kind: "exact_address"; exactAddress: ExactAddress; publicLocation: PublicLocation }
   /** The operator approved the proposed link: it goes live and the proposal clears (N20). */
   | { kind: "donation_approved"; donation: DonationLink }
+  /**
+   * The live link and the proposal set together: removal clears both, a suspension takes the live
+   * link away (and may park it as the proposal). One change, so the two columns never disagree.
+   */
+  | {
+      kind: "donation_state";
+      donation: DonationLink | null;
+      pendingDonation: PendingDonation | null;
+    }
   /** The operator renamed the shelter (R-UI 4); recorded as `display_name_changed`. */
   | { kind: "display_name"; displayName: string };
 
@@ -67,7 +85,18 @@ function columnsOf(change: AuditedShelterChange) {
       return {
         verification: change.verification,
         verificationStatus: change.verification.status,
+        // The single invariant: a permission never survives a status change, except a move that
+        // stays in the open statuses. The old status is the row's own, read inside the UPDATE.
+        earlyListingSince: (EARLY_LISTING_STATUSES as readonly string[]).includes(
+          change.verification.status,
+        )
+          ? sql`CASE WHEN ${inArray(shelters.verificationStatus, [...EARLY_LISTING_STATUSES])} THEN ${shelters.earlyListingSince} ELSE NULL END`
+          : null,
       };
+    case "early_listing_allowed":
+      return { earlyListingSince: change.since };
+    case "early_listing_revoked":
+      return { earlyListingSince: null };
     case "description": {
       const columns = localizedTextToColumns(change.description);
       return {
@@ -90,6 +119,8 @@ function columnsOf(change: AuditedShelterChange) {
       };
     case "donation_approved":
       return { donation: change.donation, pendingDonation: null };
+    case "donation_state":
+      return { donation: change.donation, pendingDonation: change.pendingDonation };
     case "display_name":
       return { displayName: change.displayName };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
@@ -175,8 +206,11 @@ export function kabinetShelterRepo(db: Database) {
       // were published while this shelter was pending, paused or suspended.
       // Every one of that shelter's currently-discoverable, not-yet-stamped
       // animals gets it in the same statement as the shelter's own write.
+      // Allowing an early listing also makes cards public, so it stamps the same way.
       const becomesVerified = input.changes.some(
-        (change) => change.kind === "verification" && change.verification.status === "verified",
+        (change) =>
+          change.kind === "early_listing_allowed" ||
+          (change.kind === "verification" && change.verification.status === "verified"),
       );
       const extraWrites: WriteCte[] = [];
       // Tier 1 review finding 5 (PR #196): an address move and a verification
@@ -266,6 +300,20 @@ export function kabinetShelterRepo(db: Database) {
         at: historyEntryAt(input.entry),
         entry: input.entry,
       });
+    },
+
+    /** How many periods the operator has allowed so far, for the two-period limit. */
+    async earlyListingPeriodsUsed(shelterId: ShelterId): Promise<number> {
+      const rows = await db
+        .select({ n: sql<number>`count(*)`.mapWith(Number) })
+        .from(shelterHistory)
+        .where(
+          and(
+            eq(shelterHistory.shelterId, shelterId),
+            eq(shelterHistory.kind, "early_listing_allowed"),
+          ),
+        );
+      return rows[0]?.n ?? 0;
     },
 
     /**

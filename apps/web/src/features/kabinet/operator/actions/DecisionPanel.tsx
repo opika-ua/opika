@@ -10,6 +10,7 @@ import { Heading } from "../../../../ui/Heading";
 import { Panel } from "../../../../ui/Panel";
 import { Text } from "../../../../ui/Text";
 import { VerificationStatusChip } from "../../StatusChips";
+import { operatorStatusLabel } from "../../verification-label";
 import { formatDate } from "../format";
 import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { type OfferedAction, offeredActionsOf } from "./offered-actions";
@@ -32,7 +33,7 @@ const reasonText = (label: string, reason: Reason): string =>
       });
 
 const gapText = (gap: EvidenceGap): string =>
-  fillTemplate(uk.kabinet.operator.evidence.gaps, {
+  fillTemplate(uk.kabinet.operator.evidence.gapItem, {
     kind: uk.kabinet.operator.evidence.kind[gap.kind],
     provided: String(gap.provided),
     minimum: String(gap.minimum),
@@ -344,7 +345,7 @@ function ReinstateControl({
           : t.suspended.reinstateExplainVerified}
       </Text>
       <Button aria-disabled={busy || undefined} aria-busy={mine || undefined} onClick={onReinstate}>
-        {fillTemplate(t.reinstate, { status: uk.kabinet.profileStatus[to.status] })}
+        {fillTemplate(t.reinstate, { status: operatorStatusLabel(to.status) })}
       </Button>
       <Text look="hint">{t.noConfirm}</Text>
     </div>
@@ -379,7 +380,7 @@ function SuspendedDetails({
         <div className="flex flex-col gap-2">
           <dt className="text-caption text-ink-2">{t.priorLabel}</dt>
           <dd className="flex flex-col items-start gap-1">
-            <VerificationStatusChip status={prior.status} />
+            <VerificationStatusChip status={prior.status} audience="operator" />
             <span className="text-caption text-ink-2">
               {prior.status === "paused"
                 ? fillTemplate(t.priorPausedSince, { date: formatDate(prior.pausedAt) })

@@ -116,8 +116,12 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "registry.verification.reject": REGISTRY,
   "registry.verification.suspend": REGISTRY,
   "registry.verification.resubmit": REGISTRY,
+  "registry.verification.addEvidence": REGISTRY,
+  "registry.earlyListing.allow": REGISTRY,
+  "registry.earlyListing.revoke": REGISTRY,
   "registry.donation.approve": REGISTRY,
   "registry.donation.reject": REGISTRY,
+  "registry.donation.remove": REGISTRY,
   "registry.admins.invite": REGISTRY,
   "registry.admins.resendInvite": REGISTRY,
   "registry.admins.remove": REGISTRY,
@@ -169,6 +173,40 @@ describe("registry.donation.* compare-and-set on the version (RG-Q12)", () => {
       expect(internals(path).errorMap.CONFLICT?.status).toBe(409);
     },
   );
+});
+
+describe("registry.donation.remove", () => {
+  const shelterId = "51000000-0000-4000-8000-000000000001";
+  const input = () => internals("registry.donation.remove").inputSchema;
+  const reason = { code: "cannot_confirm", note: "Не відкривається" };
+
+  it("requires the version read, a code from the list and a non-blank note", () => {
+    expect(input()?.safeParse({ shelterId, expectedVersion: 3, reason }).success).toBe(true);
+    expect(input()?.safeParse({ shelterId, reason }).success).toBe(false);
+    expect(
+      input()?.safeParse({ shelterId, expectedVersion: 3, reason: { ...reason, code: "spam" } })
+        .success,
+    ).toBe(false);
+    expect(
+      input()?.safeParse({ shelterId, expectedVersion: 3, reason: { ...reason, note: "   " } })
+        .success,
+    ).toBe(false);
+  });
+
+  it("declares CONFLICT 409", () => {
+    expect(internals("registry.donation.remove").errorMap.CONFLICT?.status).toBe(409);
+  });
+});
+
+describe("shelter.profile.proposeDonation", () => {
+  const input = () => internals("shelter.profile.proposeDonation").inputSchema;
+
+  it("takes an https link and refuses userinfo and IDN hosts at the contract", () => {
+    expect(input()?.safeParse({ url: "https://send.monobank.ua/jar/x" }).success).toBe(true);
+    expect(input()?.safeParse({ url: "https://user@send.monobank.ua/jar/x" }).success).toBe(false);
+    expect(input()?.safeParse({ url: "https://xn--monobank-9ve.ua/jar/x" }).success).toBe(false);
+    expect(input()?.safeParse({ url: "http://send.monobank.ua/jar/x" }).success).toBe(false);
+  });
 });
 
 describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
@@ -226,6 +264,8 @@ describe("kabinet error statuses", () => {
       PUBLISH_REQUIREMENTS_UNMET: apiErrors.PUBLISH_REQUIREMENTS_UNMET.status,
       UNDO_EXPIRED: apiErrors.UNDO_EXPIRED.status,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE.status,
+      EVIDENCE_NOT_EDITABLE: apiErrors.EVIDENCE_NOT_EDITABLE.status,
+      EVIDENCE_LIMIT_REACHED: apiErrors.EVIDENCE_LIMIT_REACHED.status,
       REGISTRY_CONFIRMED: apiErrors.REGISTRY_CONFIRMED.status,
       ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE.status,
       PHOTO_UPLOADS_UNAVAILABLE: apiErrors.PHOTO_UPLOADS_UNAVAILABLE.status,
@@ -242,6 +282,8 @@ describe("kabinet error statuses", () => {
       PUBLISH_REQUIREMENTS_UNMET: 422,
       UNDO_EXPIRED: 409,
       INVALID_EVIDENCE: 422,
+      EVIDENCE_NOT_EDITABLE: 409,
+      EVIDENCE_LIMIT_REACHED: 422,
       REGISTRY_CONFIRMED: 409,
       ADDRESS_HAS_A_ROLE: 409,
       PHOTO_UPLOADS_UNAVAILABLE: 503,
@@ -322,8 +364,13 @@ describe("kabinet views carry exactly their listed keys", () => {
         "logo",
         "version",
         "verification",
+        "earlyListing",
       ].sort(),
     );
+    // The shelter may see when the period ends and nothing else about it (no period count, no note).
+    expect(
+      KabinetShelterViewSchema.shape.earlyListing.options.map((o) => Object.keys(o.shape).sort()),
+    ).toEqual([["kind"], ["expiresAt", "kind"]]);
     // The operator's record carries evidence and moderator ids; this one must not parse it.
     const verification = KabinetShelterViewSchema.shape.verification;
     expect(
@@ -371,6 +418,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "lastUpdatedAt",
         "version",
         "admins",
+        "earlyListing",
       ].sort(),
     );
   });
@@ -558,8 +606,13 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     donation_proposed: ["kind", "at", "actor", "link"],
     donation_proposal_cancelled: ["kind", "at", "actor"],
     donation_decided: ["kind", "at", "actor", "decision", "link", "previousLive"],
+    donation_removed: ["kind", "at", "actor", "previousLive", "clearedPending", "reason"],
+    donation_suspended: ["kind", "at", "actor", "previousLive", "outcome"],
     verified_data_changed: ["kind", "at", "actor", "change"],
     display_name_changed: ["kind", "at", "actor", "from", "to"],
+    early_listing_allowed: ["kind", "at", "actor"],
+    early_listing_revoked: ["kind", "at", "actor"],
+    early_listing_lapsed: ["kind", "at"],
     shelter_created: ["kind", "at", "actor"],
     admin_invited: ["kind", "at", "actor", "email"],
     admin_invitation_resent: ["kind", "at", "actor", "email"],
@@ -710,6 +763,15 @@ describe("the operator's reject/suspend note", () => {
     for (const note of ["   \n\t ", "", null, undefined]) {
       expect(parse(procedure, code, note)?.success, JSON.stringify(note)).toBe(false);
     }
+  });
+
+  it("suspend refuses the retired suspected_fraud on input and accepts cannot_confirm_details", () => {
+    expect(parse("suspend", "suspected_fraud", "Є підстави.")?.success).toBe(false);
+    expect(parse("suspend", "cannot_confirm_details", "Є підстави.")?.success).toBe(true);
+    for (const code of ["unresponsive", "complaint_upheld", "listing_quality", "other"]) {
+      expect(parse("suspend", code, "Є підстави.")?.success, code).toBe(true);
+    }
+    expect(parse("reject", "spam", "Є підстави.")?.success).toBe(true);
   });
 
   it("is trimmed before it is stored, so the shelter reads no stray whitespace", () => {
@@ -916,6 +978,10 @@ describe("the Ukrainian phone rule on every write that carries a contact", () =>
       contact: contactOf(e164),
     }),
     "registry.verification.resubmit (reference contact)": (e164: string) => ({
+      shelterId: SHELTER,
+      evidence: [reference(e164)],
+    }),
+    "registry.verification.addEvidence (reference contact)": (e164: string) => ({
       shelterId: SHELTER,
       evidence: [reference(e164)],
     }),

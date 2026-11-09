@@ -10,12 +10,15 @@ import { Text } from "../../ui/Text";
 import type { ProfileEditing } from "./home";
 import { KabinetNav } from "./KabinetNav";
 import { channelValue, Facts, LockedBlock, Row } from "./ProfileParts";
+import {
+  LiveVerificationChip,
+  LiveVerificationStatus,
+} from "./profile-edit/LiveVerificationStatus";
 import { PausedStatus } from "./profile-edit/PausedStatus";
 import { ProfileEditor } from "./profile-edit/ProfileEditor";
 import { profileTabOf } from "./profile-edit/profile-tabs";
 import { animalListShownTo, publicShelterPath } from "./routes";
 import { ShelterShell } from "./ShelterShell";
-import { VerificationStatusChip } from "./StatusChips";
 
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"; mock
@@ -87,86 +90,88 @@ export function ShelterProfile({
 
   return (
     <ShelterShell shelterName={view.displayName} viewer={viewer} person={person} nav={nav}>
-      <header className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          {/* The name alone, two lines at most, balanced; a longer one ends in an ellipsis. */}
-          <Heading
-            level={1}
-            look="display-m"
-            className="line-clamp-2 min-w-0 break-words text-balance"
+      <LiveVerificationStatus initial={view.verification.status}>
+        <header className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {/* The name alone, two lines at most, balanced; a longer one ends in an ellipsis. */}
+            <Heading
+              level={1}
+              look="display-m"
+              className="line-clamp-2 min-w-0 break-words text-balance"
+            >
+              {view.displayName}
+            </Heading>
+            <LiveVerificationChip fallback={view.verification.status} />
+          </div>
+          <a
+            href={publicShelterPath(view.id)}
+            target="_blank"
+            rel="noopener"
+            className="inline-flex min-h-target items-center gap-1 self-start rounded-field text-label text-ink underline underline-offset-4 focus-ring"
           >
-            {view.displayName}
-          </Heading>
-          <VerificationStatusChip status={view.verification.status} />
-        </div>
-        <a
-          href={publicShelterPath(view.id)}
-          target="_blank"
-          rel="noopener"
-          className="inline-flex min-h-target items-center gap-1 self-start rounded-field text-label text-ink underline underline-offset-4 focus-ring"
-        >
-          {t.viewOnSite}
-          <Icon name="arrow-up-right" size="md" />
-          <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
-        </a>
-        <Text look="hint" className="hidden tablet:block">
-          {t.intro}
-        </Text>
-      </header>
+            {t.viewOnSite}
+            <Icon name="arrow-up-right" size="md" />
+            <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
+          </a>
+          <Text look="hint" className="hidden tablet:block">
+            {t.intro}
+          </Text>
+        </header>
 
-      {editorOpen ? (
-        <ProfileEditor
-          initialView={view}
-          cityName={cityName}
-          operatorName={operatorName}
-          donationDeclined={editing.donationDeclined}
-          initialTab={profileTabOf(tab)}
-        />
-      ) : (
-        <div className="flex min-w-0 flex-col gap-4 desktop:gap-6">
-          <FormSection id="contacts" title={t.contactsTitle} description={t.contactsNote}>
-            <Facts>
-              {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
-                <Row
-                  key={`${channel.kind}-${index}`}
-                  label={uk.kabinet.profileChannel[channel.kind]}
-                >
-                  {channelValue(channel)}
-                </Row>
-              ))}
-            </Facts>
-          </FormSection>
+        {editorOpen ? (
+          <ProfileEditor
+            initialView={view}
+            cityName={cityName}
+            operatorName={operatorName}
+            donationOutcome={editing.donationOutcome}
+            initialTab={profileTabOf(tab)}
+          />
+        ) : (
+          <div className="flex min-w-0 flex-col gap-4 desktop:gap-6">
+            <FormSection id="contacts" title={t.contactsTitle} description={t.contactsNote}>
+              <Facts>
+                {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
+                  <Row
+                    key={`${channel.kind}-${index}`}
+                    label={uk.kabinet.profileChannel[channel.kind]}
+                  >
+                    {channelValue(channel)}
+                  </Row>
+                ))}
+              </Facts>
+            </FormSection>
 
-          <FormSection id="voice" title={t.voiceTitle} description={t.voiceNote}>
-            <Facts>
-              <Row label={t.voiceLabel}>{view.freshnessSentence?.uk ?? notRecorded}</Row>
-            </Facts>
-          </FormSection>
+            <FormSection id="voice" title={t.voiceTitle} description={t.voiceNote}>
+              <Facts>
+                <Row label={t.voiceLabel}>{view.freshnessSentence?.uk ?? notRecorded}</Row>
+              </Facts>
+            </FormSection>
 
-          <FormSection id="donation" title={t.donationTitle}>
-            <Facts>
-              <Row label={t.donationLink}>{view.donation?.url ?? notRecorded}</Row>
-              {view.pendingDonation !== null ? (
-                <Row label={t.donationPending}>{view.pendingDonation.link.url}</Row>
-              ) : null}
-            </Facts>
-            <Text look="hint">{t.donationNote}</Text>
-          </FormSection>
+            <FormSection id="donation" title={t.donationTitle}>
+              <Facts>
+                <Row label={t.donationLink}>{view.donation?.url ?? notRecorded}</Row>
+                {view.pendingDonation !== null ? (
+                  <Row label={t.donationPending}>{view.pendingDonation.link.url}</Row>
+                ) : null}
+              </Facts>
+              <Text look="hint">{t.donationNote}</Text>
+            </FormSection>
 
-          <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />
-          {/* K4-B4, answer 2: the pause note, for this shelter's admins and the support view. */}
-          {view.verification.status === "paused" ? (
-            <Card as="section" tone="outline" aria-labelledby="kabinet-paused">
-              <div className="flex flex-col gap-3 p-4 tablet:p-6">
-                <h2 id="kabinet-paused" className="sr-only">
-                  {uk.kabinet.profileStatus.paused}
-                </h2>
-                <PausedStatus since={view.verification.since} reason={view.verification.reason} />
-              </div>
-            </Card>
-          ) : null}
-        </div>
-      )}
+            <LockedBlock view={view} cityName={cityName} operatorName={operatorName} />
+            {/* K4-B4, answer 2: the pause note, for this shelter's admins and the support view. */}
+            {view.verification.status === "paused" ? (
+              <Card as="section" tone="outline" aria-labelledby="kabinet-paused">
+                <div className="flex flex-col gap-3 p-4 tablet:p-6">
+                  <h2 id="kabinet-paused" className="sr-only">
+                    {uk.kabinet.profileStatus.paused}
+                  </h2>
+                  <PausedStatus since={view.verification.since} reason={view.verification.reason} />
+                </div>
+              </Card>
+            ) : null}
+          </div>
+        )}
+      </LiveVerificationStatus>
     </ShelterShell>
   );
 }

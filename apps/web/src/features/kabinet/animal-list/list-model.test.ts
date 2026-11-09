@@ -311,7 +311,7 @@ describe("why nobody sees the cards (his answer 5)", () => {
     verified: { kind: "none" },
     paused: {
       kind: "paused",
-      line: "Прийом на паузі з 10 жовтня 2026 р. · Переїзд",
+      line: "Прийом звернень на паузі з 10 жовтня 2026 р. · Переїзд",
     },
     pending: {
       kind: "line",
@@ -325,7 +325,10 @@ describe("why nobody sees the cards (his answer 5)", () => {
       kind: "line",
       text: "Тварин притулку не буде в галереї, доки перевірку не пройдено.",
     },
-    suspended: { kind: "line", text: "Поки притулок призупинено, його тварин немає в галереї." },
+    suspended: {
+      kind: "line",
+      text: "Поки притулок призупинено, його тварин немає в галереї, а посилання на збір не показується.",
+    },
   } as const;
 
   const verificationIn = (status: (typeof VERIFICATION_STATUSES)[number]) => {
@@ -350,6 +353,8 @@ describe("why nobody sees the cards (his answer 5)", () => {
   });
 
   it.each(VERIFICATION_STATUSES)("%s", (status) => {
-    expect(visibilityNoticeOf(verificationIn(status) as never)).toEqual(EXPECTED[status]);
+    expect(visibilityNoticeOf(verificationIn(status) as never, { kind: "none" })).toEqual(
+      EXPECTED[status],
+    );
   });
 });

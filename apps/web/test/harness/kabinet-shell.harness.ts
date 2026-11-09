@@ -108,6 +108,7 @@ test.describe("/kabinet shell", () => {
       logo: null,
       pendingDonation: null,
       version: 0,
+      earlyListingSince: null,
       freshnessSentence: null,
       verification: {
         status: "verified",
@@ -232,13 +233,15 @@ test.describe("/kabinet shell", () => {
 
   test("Профіль holds the pause control with its explanation; the account page has none", async () => {
     const page = await open(admin, "/kabinet/prytulok");
-    const pause = page.getByRole("button", { name: "Призупинити прийом тварин" });
+    const pause = page.getByRole("button", { name: "Призупинити прийом звернень" });
     await expect(pause).toBeVisible();
     await pause.scrollIntoViewIfNeeded();
     await shot(page, "prytulok-profil-pause");
     await page.close();
     const account = await open(admin, "/kabinet/akaunt");
-    await expect(account.getByRole("button", { name: "Призупинити прийом тварин" })).toHaveCount(0);
+    await expect(account.getByRole("button", { name: "Призупинити прийом звернень" })).toHaveCount(
+      0,
+    );
     await account.close();
   });
 

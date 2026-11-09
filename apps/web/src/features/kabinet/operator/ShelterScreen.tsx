@@ -222,13 +222,15 @@ function DonationCard({ view, decision }: { view: RegistryShelterView; decision:
         <Panel tone="sunken" className="flex flex-col gap-2">
           <Text look="label">
             {
-              // The date ends in «р.», and the sentence's own full stop follows
-              // it: one stop serves both, as Ukrainian writes an abbreviation at
-              // a sentence's end.
-              fillTemplate(d.proposed, {
-                host: donationHost(view.pendingDonation.link),
-                date: formatDate(view.pendingDonation.proposedAt),
-              }).replace(" р.. ", " р. ")
+              // `proposedBy: null` is a link a suspension moved here, not a proposal. The date of
+              // a proposal ends in «р.», and the sentence's own full stop follows it: one stop
+              // serves both, as Ukrainian writes an abbreviation at a sentence's end.
+              view.pendingDonation.proposedBy === null
+                ? d.afterSuspension
+                : fillTemplate(d.proposed, {
+                    host: donationHost(view.pendingDonation.link),
+                    date: formatDate(view.pendingDonation.proposedAt),
+                  }).replace(" р.. ", " р. ")
             }
           </Text>
           <Text className="break-words">{view.pendingDonation.link.url}</Text>
@@ -352,7 +354,7 @@ export function ShelterScreen({
           })}
         </Text>
         <p className="flex flex-wrap items-center gap-2">
-          <VerificationStatusChip status={view.verification.status} />
+          <VerificationStatusChip status={view.verification.status} audience="operator" />
           <Text as="span">
             {fillTemplate(t.shelter.timeInState, {
               date: formatDate(enteredAt(view.verification)),

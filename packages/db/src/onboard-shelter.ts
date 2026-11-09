@@ -380,6 +380,7 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
     donation: input.donation,
     logo: null,
     pendingDonation: null,
+    earlyListingSince: null,
     version: 0,
     freshnessSentence: { uk: input.freshnessSentenceUk, en: null },
     verification: {

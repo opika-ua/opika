@@ -11,7 +11,8 @@ import {
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   CoatLengthSchema,
   characterCount,
-  DonationLinkSchema,
+  DonationProposalUrlSchema,
+  DonationRemovalCodeSchema,
   EvidenceItemInputSchema,
   ExactAddressSchema,
   type FreshnessSentence,
@@ -20,13 +21,15 @@ import {
   type LocalizedText,
   LocalizedTextSchema,
   MAX_ANIMAL_PHOTOS,
+  MAX_EVIDENCE_ITEMS_PER_ADD,
   MEDICAL_NOTES_MAX_CHARACTERS,
   MedicalDeclarationInputSchema,
   normalizeFreshnessSentenceText,
+  OfferedRejectionCodeSchema,
+  OfferedSuspensionCodeSchema,
   PauseCodeSchema,
   type PauseReason,
   RegionIdSchema,
-  RejectionCodeSchema,
   ReportIdSchema,
   ShelterAdminIdSchema,
   ShelterContactInputSchema,
@@ -34,7 +37,6 @@ import {
   ShelterIdSchema,
   ShelterLegalEntitySchema,
   SizeBucketSchema,
-  SuspensionCodeSchema,
   TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
   TemperamentSchema,
   TextProvenanceSchema,
@@ -354,7 +356,7 @@ export const shelterProfileContract = {
     .errors(shelterCasErrors),
   /** The provider is derived from the URL on the server (`donationProviderOf`), never sent. */
   proposeDonation: shelterProfileWrite
-    .input(DonationLinkSchema.pick({ url: true }).strict())
+    .input(z.strictObject({ url: DonationProposalUrlSchema }))
     .errors(shelterScopedErrors),
   cancelDonationProposal: shelterProfileWrite.input(empty).errors(shelterScopedErrors),
   pause: shelterProfileWrite
@@ -765,6 +767,7 @@ export const registrySheltersContract = {
       UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
       FORBIDDEN: apiErrors.FORBIDDEN,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE,
+      EVIDENCE_LIMIT_REACHED: apiErrors.EVIDENCE_LIMIT_REACHED,
       // Its first admin may already have a role: a shelter, an operator grant, or a live invitation elsewhere (RG-T10).
       ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE,
     }),
@@ -828,7 +831,7 @@ export const registryVerificationContract = {
     .input(
       z.strictObject({
         shelterId: ShelterIdSchema,
-        reason: z.strictObject({ code: RejectionCodeSchema, note: OperatorNoteSchema }),
+        reason: z.strictObject({ code: OfferedRejectionCodeSchema, note: OperatorNoteSchema }),
       }),
     )
     .errors({ ...registryErrors, ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION }),
@@ -836,7 +839,7 @@ export const registryVerificationContract = {
     .input(
       z.strictObject({
         shelterId: ShelterIdSchema,
-        reason: z.strictObject({ code: SuspensionCodeSchema, note: OperatorNoteSchema }),
+        reason: z.strictObject({ code: OfferedSuspensionCodeSchema, note: OperatorNoteSchema }),
       }),
     )
     .errors({ ...registryErrors, ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION }),
@@ -851,7 +854,49 @@ export const registryVerificationContract = {
       ...registryErrors,
       ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION,
       INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE,
+      EVIDENCE_LIMIT_REACHED: apiErrors.EVIDENCE_LIMIT_REACHED,
     }),
+  /**
+   * Appends evidence while pending or under review. Not a verification move:
+   * no status change, so it is not an FSM event and has no ILLEGAL_TRANSITION.
+   * Duplicates are dropped (same kind and key field, `evidenceDuplicateKey`),
+   * so a repeat call is idempotent. Operator only; the shelter never sees it.
+   */
+  addEvidence: registryShelter
+    .input(
+      z.strictObject({
+        shelterId: ShelterIdSchema,
+        evidence: z
+          .array(EvidenceItemInputSchema)
+          .min(1)
+          .max(MAX_EVIDENCE_ITEMS_PER_ADD)
+          .readonly(),
+      }),
+    )
+    .errors({
+      ...registryErrors,
+      INVALID_EVIDENCE: apiErrors.INVALID_EVIDENCE,
+      EVIDENCE_NOT_EDITABLE: apiErrors.EVIDENCE_NOT_EDITABLE,
+      EVIDENCE_LIMIT_REACHED: apiErrors.EVIDENCE_LIMIT_REACHED,
+    }),
+};
+
+/**
+ * Listing before verification (owner, 2026-11-04), operator only and beside the verification
+ * moves: not FSM events. Allow records a written note for the second period; a third is refused.
+ */
+export const registryEarlyListingContract = {
+  allow: registryShelter
+    .input(
+      z.strictObject({
+        shelterId: ShelterIdSchema,
+        note: OperatorNoteSchema.optional(),
+      }),
+    )
+    .errors({ ...registryErrors, EARLY_LISTING_REFUSED: apiErrors.EARLY_LISTING_REFUSED }),
+  revoke: registryShelter
+    .input(shelterRef)
+    .errors({ ...registryErrors, EARLY_LISTING_REFUSED: apiErrors.EARLY_LISTING_REFUSED }),
 };
 
 /**
@@ -868,6 +913,19 @@ export const registryDonationContract = {
     .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
   reject: registryShelter
     .input(donationDecision)
+    .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
+  /**
+   * Takes the live link away (and any waiting proposal with it) for a reason the shelter reads.
+   * Versioned like the decisions: the operator removes the link they read.
+   */
+  remove: registryShelter
+    .input(
+      z.strictObject({
+        shelterId: ShelterIdSchema,
+        expectedVersion,
+        reason: z.strictObject({ code: DonationRemovalCodeSchema, note: OperatorNoteSchema }),
+      }),
+    )
     .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
 };
 

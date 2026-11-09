@@ -9,6 +9,7 @@ const errors = createORPCErrorConstructorMap({
   NOT_FOUND: apiErrors.NOT_FOUND,
   ANIMAL_NOT_AVAILABLE: apiErrors.ANIMAL_NOT_AVAILABLE,
   SHELTER_NOT_VISIBLE: apiErrors.SHELTER_NOT_VISIBLE,
+  SHELTER_PAUSED: apiErrors.SHELTER_PAUSED,
   UNAUTHENTICATED: apiErrors.UNAUTHENTICATED,
   RATE_LIMITED: apiErrors.RATE_LIMITED,
 });
@@ -121,6 +122,19 @@ describe("animals.reveal with a validated kabinet session", () => {
       code: "SHELTER_NOT_VISIBLE",
     });
     expect(ipBudget).not.toHaveBeenCalled();
+  });
+});
+
+describe("animals.reveal on a paused shelter", () => {
+  it("a kabinet viewer is refused with SHELTER_PAUSED, never handed the contact", async () => {
+    findAnimal.mockResolvedValue({ ...animal, everServedAt: new Date("2026-09-01T00:00:00Z") });
+    findShelter.mockResolvedValue({ ...shelter, verification: { status: "paused" } as never });
+
+    await expect(reveal(context(async () => true))).rejects.toMatchObject({
+      code: "SHELTER_PAUSED",
+    });
+    expect(ipBudget).not.toHaveBeenCalled();
+    expect(writeReveal).not.toHaveBeenCalled();
   });
 });
 

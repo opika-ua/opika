@@ -1,8 +1,10 @@
 import {
   type City,
   CitySlugSchema,
-  FEED_VISIBLE_VERIFICATION_STATUSES,
+  type PublicListingLabel,
+  publicListingBasisOfColumns,
   type Shelter,
+  type VerificationStatus,
 } from "@opika/domain";
 import { type SQL, sql } from "drizzle-orm";
 import { animals } from "../schema/animals";
@@ -16,7 +18,9 @@ import { shelters } from "../schema/shelters";
  * repeated per-row copy small.
  */
 export type CardShelter = Pick<Shelter, "id" | "displayName" | "logo" | "publicLocation"> & {
-  readonly verification: "verified" | "unverified";
+  readonly verification: PublicListingLabel | "unverified";
+  /** From the status already selected: `paused` for a pause only, `unreachable` for the rest. */
+  readonly availability: "open" | "paused" | "unreachable";
 };
 
 /** The city fields of a public label (`cityLabelOf`), nothing else: no centroid, KATOTTG or search keys. */
@@ -35,6 +39,7 @@ export const cardShelterColumns = {
   logo: shelters.logo,
   publicLocation: shelters.publicLocation,
   status: shelters.verificationStatus,
+  earlyListingSince: shelters.earlyListingSince,
 };
 
 export const cardCityColumns = {
@@ -53,17 +58,28 @@ type CardShelterRow = {
   logo: Shelter["logo"] | null;
   publicLocation: Shelter["publicLocation"];
   status: string;
+  earlyListingSince: Date | null;
 };
 
-export function toCardShelter(row: CardShelterRow): CardShelter {
+/**
+ * `now` is a parameter because an early listing lapses at read time: the same row is "open" at
+ * one instant and "unreachable" at the next, by `publicListingBasisOfColumns` (the domain rule the
+ * SQL predicate is tested against).
+ */
+export function toCardShelter(row: CardShelterRow, now: Date): CardShelter {
+  const listing = publicListingBasisOfColumns(
+    row.status as VerificationStatus,
+    row.earlyListingSince,
+    now,
+  );
   return {
     id: row.id,
     displayName: row.displayName,
     logo: row.logo ?? null,
     publicLocation: row.publicLocation,
-    verification: (FEED_VISIBLE_VERIFICATION_STATUSES as readonly string[]).includes(row.status)
-      ? "verified"
-      : "unverified",
+    verification: listing === "not_listed" ? "unverified" : listing,
+    availability:
+      listing !== "not_listed" ? "open" : row.status === "paused" ? "paused" : "unreachable",
   };
 }
 

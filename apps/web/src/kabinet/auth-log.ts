@@ -20,7 +20,10 @@ export type AuthLogConsole = Pick<Console, "error" | "warn" | "log">;
  * also with a fullwidth `＠` or a double-encoded `%2540`. The domain is letters, combining marks,
  * digits, underscores, hyphens and dots (`%2E` too); the local part stops at whitespace and
  * `" ' < > ( ) , ; : @ & = | / ? #`, so `to=a@x.org&cc=b@x.org` is two addresses, not one that
- * swallows the second. Known, not masked: a quoted local part with a space (`"first last"@host`).
+ * swallows the second. Known, not masked: a quoted local part with a space (`"first last"@host`);
+ * a fullwidth dot (`。`/`．`) or a zero-width space inside the domain; a triple-encoded `%252540`.
+ * A line over the cap with no whitespace logs only " …[truncated]". Known, over-matched: a
+ * schema-qualified name such as `kabinet@schema_v1.table` reads as an address and is masked.
  */
 const EMAIL =
   /[^\s"'<>(),;:@&=|/?#]+(?:@|＠|%40|%2540)[\p{L}\p{M}\p{N}_-]+(?:(?:\.|%2E)[\p{L}\p{M}\p{N}_-]+)+/giu;
