@@ -33,7 +33,8 @@ export const moreButtonId = (animalId: string): string => `animal-more-${animalI
 export const moreButtonPhoneId = (animalId: string): string => `animal-more-phone-${animalId}`;
 
 /** The freshness line's phone slot: the photo's column, under the chip. */
-const PHONE_FRESHNESS = "max-tablet:col-span-2 max-tablet:col-start-2 max-tablet:row-start-4 min-w-0";
+const PHONE_FRESHNESS =
+  "max-tablet:col-span-2 max-tablet:col-start-2 max-tablet:row-start-4 min-w-0";
 
 /** Filled only for the one move that changes what people see; routine upkeep outlined; the rest plain. */
 const FORWARD_VARIANT: Record<Exclude<RowAction, "edit">, Exclude<ButtonVariant, "icon">> = {
