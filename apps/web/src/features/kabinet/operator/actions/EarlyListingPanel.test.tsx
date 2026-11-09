@@ -148,7 +148,7 @@ describe("«Дозволити показ до завершення переві
     await u.click(screen.getByRole("button", { name: ALLOW }));
     await u.click(within(screen.getByRole("dialog")).getByRole("button", { name: ALLOW }));
     expect((await screen.findByRole("alert")).textContent).toBe(
-      "Щоб дозволити показ, потрібен хоча б візит на місце або одна рекомендація.",
+      "Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
   });

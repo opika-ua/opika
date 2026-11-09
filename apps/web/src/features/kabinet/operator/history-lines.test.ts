@@ -407,7 +407,7 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
       items: [{ kind: "site_visit" }],
       statusAt: "pending",
     },
-    "Додано докази: Візит на місце · ви",
+    "Додано докази: Відеодзвінок · ви",
   ],
   [
     "early_listing_allowed",

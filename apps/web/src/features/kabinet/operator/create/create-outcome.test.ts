@@ -50,7 +50,7 @@ describe("create's refusals", () => {
       data: { reason: "site_visit_in_future" },
       defined: true,
     });
-    expect(message(error)).toBe("Дата візиту не може бути в майбутньому.");
+    expect(message(error)).toBe("Дата дзвінка не може бути в майбутньому.");
   });
 
   it("an unknown city: the server's undeclared 400 with its own message", () => {

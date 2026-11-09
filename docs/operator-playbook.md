@@ -63,16 +63,17 @@ return of a verified shelter to review, no reject from paused or verified (suspe
 
 1. **«Взяти на розгляд»** (pending to under review). One click, no dialog. Changes nothing public.
 2. **Evidence.** Section «Докази для перевірки» lists what is on file. Kinds, with the label you see:
-   «Реєстрація · ЄДРПОУ», «Власник банківського рахунку», «Рекомендація», «Візит на місце», «Документ».
+   «Реєстрація · ЄДРПОУ», «Власник банківського рахунку», «Рекомендація», «Відеодзвінок», «Документ».
    The editor offers the four kinds that need no file; document upload is not built, and the server refuses
-   any item carrying a document key. A site visit is stamped with you as the visitor and its date cannot be
-   in the future.
+   any item carrying a document key. A video call (stored as `site_visit`) is stamped with you as the person who made it and its
+   date cannot be in the future. If the connection can't carry video, a phone call plus a short video of
+   the premises filmed the same day counts; say which video in the notes.
 3. **Minimum to approve**, by legal form («Юридичні дані»):
 
    | Legal form | Required |
    |---|---|
    | «Громадська організація чи фонд», «ФОП» | 1 EDRPOU registration, 1 bank account holder, 1 reference |
-   | «Ініціатива без реєстрації» | 1 site visit, 2 references |
+   | «Ініціатива без реєстрації» | 1 video call, 2 references |
 
    When short, «Схвалити» is blocked and the screen says «Схвалити поки не можна – бракує доказів:» and
    lists each gap. The server checks the same rule again at approval, so the button cannot be bypassed.
@@ -100,7 +101,7 @@ resubmit are recorded in the shelter's history with you as the actor.
 Section «Докази для перевірки», button «+ Додати доказ», then «Додати докази» / «Додати». Allowed only while
 the shelter is pending or under review (otherwise «Докази можна додати, лише поки рішення не ухвалено.»).
 New items are appended; an item that duplicates one on file (same kind and same key field: EDRPOU code,
-holder name, contact channel, visit date) is dropped, and if nothing is new you get «Ці докази вже є.»
+holder name, contact channel, call date) is dropped, and if nothing is new you get «Ці докази вже є.»
 Limits: 30 items on a shelter, 10 per add. It writes a history line naming the kinds only, never contents,
 and the shelter is not told. Approval re-reads the list, so new items count immediately.
 
@@ -110,8 +111,8 @@ Purpose: let a shelter's cards be public while the review runs. It sits beside t
 
 - Panel «Показ до завершення перевірки». Buttons «Дозволити показ до завершення перевірки» and
   «Зняти дозвіл». Only for pending or under review.
-- **Precondition:** at least one site visit or one reference on file («Щоб дозволити показ, потрібен
-  хоча б візит на місце або одна рекомендація.»).
+- **Precondition:** at least one video call or one reference on file («Щоб дозволити показ, потрібен
+  хоча б відеодзвінок або одна рекомендація.»).
 - **Length:** 60 days from the allow, an instant sum. At the boundary instant it is already hidden. The
   panel counts «До кінця показу: N днів» and reminds you at 7 days or fewer. Nothing needs a cron: the
   public pages check the clock on every read, so an expired permission simply stops showing.
@@ -208,7 +209,7 @@ the early-listing period number and reason, and every internal id. It does see r
 and notes word for word, and early listing allowed or revoked without a reason.
 
 **What is not stored anywhere:** a private operator note. Apart from the early-listing reason (stored, not
-displayed) and the notes on a site visit (shown to you only), the product has no free-text place for your
+displayed) and the notes on a video call (shown to you only), the product has no free-text place for your
 suspicions. Keep them outside (section 12).
 
 **Contact reveals, and what adopters saw before a suspension.** A reveal is an immutable record written
@@ -235,7 +236,7 @@ Observable signals, in rough order of weight:
 2. **A reference that does not hold up.** The vet clinic or local authority named as reference does not
    recognise the shelter, or the contact given for them is the shelter's own.
 3. **Cannot be reached.** Phone and messenger unanswered, invitation mail bounced (see the blocked
-   addresses block), no admin ever joined, a promised visit keeps slipping.
+   addresses block), no admin ever joined, a promised video call keeps slipping.
 4. **Any request for money before an adoption**, reported to you by an adopter: advance payment, a
    "reservation fee", payment to a private card, pressure to pay quickly. This is the central fraud
    pattern; the product never touches money and never asks adopters for any.
@@ -305,7 +306,7 @@ neutral; never name a suspicion.
 **A. Asking for more evidence**
 
 > Добрий день. Я перевіряю заявку вашого притулку, і мені бракує одного підтвердження.
-> Надішліть, будь ласка, [що саме: контакт ветклініки чи місцевої влади, що вас знає / дату можливого візиту].
+> Надішліть, будь ласка, [що саме: контакт ветклініки чи місцевої влади, що вас знає / дату можливого відеодзвінка].
 > Щойно я його отримаю, я продовжу перевірку.
 > Якщо щось незрозуміло, напишіть мені.
 

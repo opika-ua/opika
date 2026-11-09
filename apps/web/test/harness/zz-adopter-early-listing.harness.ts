@@ -49,16 +49,16 @@ test("early listing: evidence minimum, label, revoke, re-allow with a note", asy
     let dialog = await confirmAllow();
     await dialog.getByRole("button", { name: ALLOW }).click();
     await expect(
-      page.getByText("Щоб дозволити показ, потрібен хоча б візит на місце або одна рекомендація."),
+      page.getByText("Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація."),
     ).toBeVisible();
 
-    await page.getByLabel("Тип доказу").selectOption({ label: "Візит на місце" });
+    await page.getByLabel("Тип доказу").selectOption({ label: "Відеодзвінок" });
     await page.getByRole("button", { name: "+ Додати доказ" }).click();
-    const visit = page.getByRole("group", { name: "Візит на місце" });
+    const visit = page.getByRole("group", { name: "Відеодзвінок" });
     const yesterday = new Date(Date.now() - 86_400_000).toLocaleDateString("en-CA", {
       timeZone: "Europe/Kyiv",
     });
-    await visit.getByLabel("Дата візиту").fill(yesterday);
+    await visit.getByLabel("Дата дзвінка").fill(yesterday);
     await visit.getByLabel("Нотатка").fill("Оглянув вольєри, журнал прийому ведеться.");
     await page.getByRole("button", { name: "Додати", exact: true }).click();
     await expect(page.getByText("Докази додано.")).toBeVisible();
