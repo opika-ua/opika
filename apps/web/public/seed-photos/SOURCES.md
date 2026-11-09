@@ -90,3 +90,13 @@ unwritten "owner's permission," not a real licence - a licence gap in a public r
 flagged in `#27`'s review. Replaced with a CC0 Flickr photo from the same curation process
 as the other eight (see the table above), so all nine entries are now CC0 and verifiable
 the same way, per `docs/standing-constraints.md`'s "verify, don't assume" standard.
+
+## Audit 2026-11-04
+
+All 15 seed photos (these nine plus the six in `d6-real/`) were viewed
+one by one: every one shows an animal, and none shows an identifiable person. Licences: the
+nine above are CC0 per Openverse/Flickr; the `d6-real/` files are CC0 per their Wikimedia
+Commons pages (`d6-real/SOURCES.md`; that file records the source page but not each author).
+Notes: `dog-1.jpg` has the photographer's shadow on the sand; `d6-real/dog-large-4000px-chihuahua.jpg`
+has two out-of-focus passers-by far in the background. `d6-real/dog-small-400px-joydogs.jpg`
+showed a human forearm and was removed; the six-photo seed animal now uses `dog-3.jpg` in its place.

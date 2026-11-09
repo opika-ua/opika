@@ -377,9 +377,11 @@ const D6_REAL_DOG_PHOTOS: AnimalPhoto[] = [
     alt: null,
   },
   {
-    storageKey: "seed-photos/d6-real/dog-small-400px-joydogs.jpg",
-    width: 393,
-    height: 387,
+    // Was the 393px joydogs photo, dropped: a human forearm was in frame. dog-3 is
+    // another licensed dog from the regular pool, kept for its distinct 1.31 ratio.
+    storageKey: "seed-photos/dog-3.jpg",
+    width: 1023,
+    height: 782,
     alt: null,
   },
 ];
@@ -1438,7 +1440,7 @@ export function buildAnimals(
     const id = animalId(i);
     // D-6 (docs/build-plan.md) + O-10/critique-C6: `SIX_PHOTO_INDEX`'s own
     // photos are real CC0 Commons photographs at deliberately awkward
-    // aspect ratios (9:16 tall, 16:9 wide, ~400px small, ~4000px large - see
+    // aspect ratios (9:16 tall, 16:9 wide, 1.31 landscape, ~4000px large - see
     // `D6_REAL_DOG_PHOTOS` above and `apps/web/public/seed-photos/d6-real/
     // SOURCES.md`) instead of the regular cycling pool, so the detail page's
     // photo gallery has one deterministic, findable-by-query animal whose
