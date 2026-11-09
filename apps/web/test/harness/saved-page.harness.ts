@@ -142,17 +142,13 @@ test.describe("the saved page's batch read", () => {
   });
 
   /**
-   * S8-D1 (Oleksii, 2026-10-23): exempting this path from the pre-launch
-   * gate must not also exempt it from `apiRateLimiter` - the two are
-   * independent checks in `route.ts`, but nothing short of actually
-   * spending the budget proves the exemption didn't accidentally skip
-   * both. Same pattern as `gallery-rate-limit.harness.ts`: a random,
-   * unique IP so this test's deliberate exhaustion can never collide with
-   * another test's budget, and the `request` API context rather than
-   * `page`, since this needs no browser and no gate cookie at all - the
-   * whole point of the exemption.
+   * S8-D1 (Oleksii, 2026-10-23): this cookie-less path must still be covered by
+   * `apiRateLimiter`; only actually spending the budget proves it. Same pattern as
+   * `gallery-rate-limit.harness.ts`: a random, unique IP so this test's deliberate exhaustion can
+   * never collide with another test's budget, and the `request` API context rather than `page`,
+   * since this needs no browser and no cookie at all.
    */
-  test("the per-IP rate limit still applies, even though the gate doesn't", async ({ request }) => {
+  test("the per-IP rate limit applies to the cookie-less batch read", async ({ request }) => {
     const testIp = `203.0.113.${Math.floor(Math.random() * 254) + 1}`;
     const BUDGET = 100;
     const body = JSON.stringify({ json: { animalIds: [] } });
@@ -175,7 +171,7 @@ test.describe("the saved page's batch read", () => {
 
     expect(
       lastStatus,
-      `request ${BUDGET + 1} was not rate-limited – the gate exemption may have skipped the rate limiter too`,
+      `request ${BUDGET + 1} was not rate-limited – the rate limiter may have been skipped for this path`,
     ).toBe(429);
   });
 });

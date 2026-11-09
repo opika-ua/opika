@@ -122,9 +122,9 @@ export function assertDemoDiscoverabilityInvariant(
 }
 
 /**
- * R4-2: `/pro` may say "one cookie" only once the pre-launch gate's second cookie is gone, so the
- * sentence (`R4_2_ANALYTICS_SENTENCE`) and `SITE_IS_PUBLICLY_DISCOVERABLE` must agree. A test-time
- * tripwire, not a boot-time throw: missing copy must not take a production boot down.
+ * R4-2: while the site is publicly discoverable, `/pro` must carry the "one cookie" sentence
+ * (`R4_2_ANALYTICS_SENTENCE`). One-sided: the claim is true whatever the flag says, so turning
+ * the flag off (a rollback) must not fail it. A test-time tripwire, not a boot-time throw.
  *
  * Both inputs are parameters (defaulted to the real values) because `vi.doMock` cannot rewrite what
  * a copied-across function closes over, as with `assertDemoDiscoverabilityInvariant` above.
@@ -133,24 +133,11 @@ export function assertAnalyticsCopyMatchesGateState(
   analyticsText: string = uk.about.analytics,
   siteIsPubliclyDiscoverable: boolean = SITE_IS_PUBLICLY_DISCOVERABLE,
 ): void {
-  const hasR42Sentence = analyticsText.includes(R4_2_ANALYTICS_SENTENCE);
-
-  if (siteIsPubliclyDiscoverable && !hasR42Sentence) {
+  if (siteIsPubliclyDiscoverable && !analyticsText.includes(R4_2_ANALYTICS_SENTENCE)) {
     throw new Error(
-      "Invariant violated: SITE_IS_PUBLICLY_DISCOVERABLE is true (the pre-launch gate is " +
-        "down, apps/web/src/seo-flags.ts) but uk.about.analytics (packages/i18n/src/" +
-        "messages/uk.ts) still doesn't carry R4-2's sentence " +
-        "(R4_2_ANALYTICS_SENTENCE). It needs to land before launch.",
-    );
-  }
-
-  if (!siteIsPubliclyDiscoverable && hasR42Sentence) {
-    throw new Error(
-      "Invariant violated: uk.about.analytics already carries R4-2's 'одне кукі' sentence " +
-        "(R4_2_ANALYTICS_SENTENCE) but SITE_IS_PUBLICLY_DISCOVERABLE is still false " +
-        "(apps/web/src/seo-flags.ts) - the pre-launch gate's __Host-prelaunch-gate cookie " +
-        "makes 'one cookie' false while the gate still exists. Either hold the sentence back " +
-        "until the gate comes down, or the gate removal shipped without this flag.",
+      "Invariant violated: SITE_IS_PUBLICLY_DISCOVERABLE is true (apps/web/src/seo-flags.ts) but " +
+        "uk.about.analytics (packages/i18n/src/messages/uk.ts) no longer carries R4-2's sentence " +
+        "(R4_2_ANALYTICS_SENTENCE).",
     );
   }
 }

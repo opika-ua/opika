@@ -205,19 +205,10 @@ describe("assertDemoDiscoverabilityInvariant", () => {
 
 /**
  * R4-2's tripwire (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`):
- * `uk.about.analytics` must carry `R4_2_ANALYTICS_SENTENCE` exactly
- * when `SITE_IS_PUBLICLY_DISCOVERABLE` is true, and must not carry it while
- * that flag is false - two-sided, not one, because the sentence landing
- * early is its own violation («одне кукі» would be false while the gate
- * still exists), not just the sentence missing late. Matched against the
- * real exported constant, not a hand-typed substring like "кукі" - a
+ * `uk.about.analytics` must carry `R4_2_ANALYTICS_SENTENCE` while
+ * `SITE_IS_PUBLICLY_DISCOVERABLE` is true; with the flag false (a rollback) anything passes.
+ * Matched against the real exported constant, not a hand-typed substring like "кукі" - a
  * reworded or partially-landed sentence must still trip this.
- *
- * The real flag is `false` today, so both "today's actual state" cases
- * below are deliberately the vacuous half of each direction - neither has
- * anything to catch yet, because the condition each guards hasn't happened.
- * The two throwing cases above them are what prove each direction actually
- * fires once it does.
  */
 describe("assertAnalyticsCopyMatchesGateState", () => {
   it("throws when the site is publicly discoverable but the analytics copy still lacks R4-2's sentence", () => {
@@ -230,10 +221,8 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
     expect(() => assertAnalyticsCopyMatchesGateState(LANDED_ANALYTICS_COPY, true)).not.toThrow();
   });
 
-  it("throws when R4-2's sentence has already landed but the site is not yet publicly discoverable", () => {
-    expect(() => assertAnalyticsCopyMatchesGateState(LANDED_ANALYTICS_COPY, false)).toThrowError(
-      /SITE_IS_PUBLICLY_DISCOVERABLE.*false/s,
-    );
+  it("permits the sentence whichever way the flag is set", () => {
+    expect(() => assertAnalyticsCopyMatchesGateState(LANDED_ANALYTICS_COPY, false)).not.toThrow();
   });
 
   it("does not match on a reworded or partial version of R4-2's sentence", () => {
@@ -243,7 +232,7 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
     );
   });
 
-  it("permits today's incomplete copy while the site is not yet discoverable – the pre-launch window", () => {
+  it("permits incomplete copy while the site is not discoverable – a rollback with the flag off", () => {
     expect(() =>
       assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY, false),
     ).not.toThrow();
@@ -255,7 +244,7 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
     );
   });
 
-  it("defaults to the real copy and the real flag – today's actual state on both", () => {
+  it("defaults to the real copy and the real flag – the shipped state passes", () => {
     expect(() => assertAnalyticsCopyMatchesGateState()).not.toThrow();
   });
 });
