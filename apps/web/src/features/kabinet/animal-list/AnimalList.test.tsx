@@ -264,6 +264,12 @@ describe("the row's thumbnail", () => {
     expect(decodeURIComponent(cover?.getAttribute("src") ?? "")).toContain("/photos/1.jpg");
     expect(rowOf("Сірко").querySelector("img")).toBeNull();
   });
+
+  it("the photo link stays out of the tab order and out of the accessibility tree", () => {
+    renderList();
+    const photoLink = rowOf("Рекс").querySelector("a[aria-hidden='true']");
+    expect(photoLink?.getAttribute("tabindex")).toBe("-1");
+  });
 });
 
 describe("filters and counts (N3)", () => {
