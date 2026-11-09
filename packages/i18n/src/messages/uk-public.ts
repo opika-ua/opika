@@ -334,7 +334,7 @@ export const ukPublic = {
     /** Template: "Прибрати фільтр {name}", `{name}` in the nominative as the chip shows it. */
     removeFilter: "Прибрати фільтр {name}",
     close: "Закрити",
-    /** Template: "Активних фільтрів: {count}", the accessible name of the badge on the «Фільтри» pill. */
+    /** Template: "Активних фільтрів: {count}", the accessible description of the «Фільтри» pill. */
     activeCount: "Активних фільтрів: {count}",
   },
 

@@ -4,7 +4,7 @@ File: `apps/web/src/ui/Sheet.tsx`
 
 **Purpose.** A bottom sheet with its own trigger.
 
-**Props and variants.** `id`, `label`, `closeLabel`, `trigger`, `triggerClassName?`, `hideFrom?` (`tablet` | `desktop`: the sheet and its :target reveal are off from that breakpoint; pair it with the trigger's own hiding class), `triggerTestId?`/`dialogTestId?` (harness hooks). Client component, on the shared core.
+**Props and variants.** `id`, `label`, `closeLabel`, `trigger`, `triggerLabel?` (`null`: the trigger is named by its visible content, no aria-label), `triggerDescribedBy?` (id of an element outside the trigger that describes it), `triggerClassName?`, `hideFrom?` (`tablet` | `desktop`: the sheet and its :target reveal are off from that breakpoint; pair it with the trigger's own hiding class), `triggerTestId?`/`dialogTestId?` (harness hooks). Client component, on the shared core.
 
 **Title.** `title="none"` drops the visible title (only the ✕ shows); `label` still names the dialog.
 
