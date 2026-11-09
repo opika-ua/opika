@@ -237,7 +237,7 @@ Errors only, no tracing, no replay, no profiling, no feedback widget. Code: `app
   $CRON_SECRET` throws on purpose (the server error then arrives through `onRequestError`). It answers 404
   to anyone without that header and when no DSN or secret is set, and 429 past 5 calls a minute per address
   (checked before the secret), so it is not a public endpoint; the thrown message is fixed. The path is
-  exempt from the pre-launch gate. Windows PowerShell 5.1, the secret typed into `Read-Secret`, only the
+  not behind any gate. Windows PowerShell 5.1, the secret typed into `Read-Secret`, only the
   status printed (500 means the error was thrown):
   ```powershell
   $secret = Read-Secret "CRON_SECRET (production)"
@@ -248,6 +248,6 @@ Errors only, no tracing, no replay, no profiling, no feedback widget. Code: `app
   thrown on purpose by POST /api/monitoring/test", with a stack, no user, no request data.
 - **Uptime probe: `GET /api/health`.** Answers 200 with `{"sha":"<VERCEL_GIT_COMMIT_SHA>"}` (or `"unknown"`)
   and nothing else; `Cache-Control: no-store`; GET and HEAD only (405 otherwise). No database call, so it says
-  the deploy answers, not that Neon does. Exempt from the pre-launch gate (exact path, `proxy.ts`) and has its
+  the deploy answers, not that Neon does. Has its
   own limiter (30 per minute per address, 429 with `Retry-After`). Point a Sentry uptime monitor at
   `https://<production-host>/api/health` (owner's click-through: `Claude outputs/SENTRY-uptime-steps.md`).

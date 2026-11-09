@@ -460,8 +460,7 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
 ## Dress rehearsal (UI only), before any public posting
 
 The launch gate after PR 6 and the operator screens (RU-B4). **UI only:** no console rpc, no
-scripts (the retired `KABINET_WRITE_ALLOWLIST` is gone from the code). The pre-launch gate cookie is the only non-UI piece
-(RU-B1). Three people, three browsers: Oleksii as the operator in his own screens, a test shelter
+scripts (the retired `KABINET_WRITE_ALLOWLIST` is gone from the code). (The pre-launch gate cookie it once needed was removed at launch, 2026-11-09.) Three people, three browsers: Oleksii as the operator in his own screens, a test shelter
 as the client, and a third browser as the adopter. His script, verbatim (RU-B5) except step 2,
 which he reworded on 2026-10-17 (RU-Q6, verbatim: "Reword rehearsal step 2 to "resend, or invite
 a second address""), because creating a shelter already invites its first admin:
@@ -486,7 +485,7 @@ a second address""), because creating a shelter already invites its first admin:
    5. Sign in with the new password.
 3. The shelter admin signs in on a phone, fills the profile, adds 2-3 animals with photos taken
    on the phone, and publishes.
-4. The adopter (a separate browser plus the gate cookie) finds them in the gallery,
+4. The adopter (a separate browser) finds them in the gallery,
    reveals contacts, and messages the shelter.
 5. The shelter marks one adopted and hides one. He approves a donation link, then suspends and
    reinstates the shelter, and checks that the history shows all of it.
@@ -932,10 +931,9 @@ limit, up to 30 days idle for a shelter admin (7 for the operator), far past
 the day /pro promises (inbox KH-Q9, KH-Q10, KH-Q12).
 
 What rotation leaves alone, exactly. `CURSOR_HMAC_SECRET` and
-`LOCATION_HMAC_SECRET` sign with their own keys, the pre-launch gate checks
-its own `PRELAUNCH_GATE_SECRET`, and an adopter's anonymous device session is
+`LOCATION_HMAC_SECRET` sign with their own keys, and an adopter's anonymous device session is
 a random token stored as its hash, with no key at all. None of them read
-`BETTER_AUTH_SECRET`, so feed cursors, fuzzed locations, the gate cookie and
+`BETTER_AUTH_SECRET`, so feed cursors, fuzzed locations and
 adopters' sessions all keep working.
 
 What it also leaves alone, and this one matters: **rotation on its own leaves
