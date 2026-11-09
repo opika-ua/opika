@@ -48,6 +48,8 @@ test("393 px: a focused text field's ring lies inside its flush FormSection's Ca
       const frame = section.getBoundingClientRect();
       return {
         reach,
+        width: Number.parseFloat(style.outlineWidth),
+        offset: Number.parseFloat(style.outlineOffset),
         ringLeft: box.left - reach,
         ringRight: box.right + reach,
         cardLeft: frame.left,
@@ -57,7 +59,8 @@ test("393 px: a focused text field's ring lies inside its flush FormSection's Ca
       };
     });
 
-    expect(measured.reach, "the focused field draws a ring").toBeGreaterThan(0);
+    // The global focus-ring (3px + 3px) must not win over the text field's thinner 2px + 2px ring.
+    expect([measured.width, measured.offset], "outline width and offset").toEqual([2, 2]);
     expect(measured.ringLeft, "ring inside the Card on the left").toBeGreaterThanOrEqual(
       measured.cardLeft - 0.5,
     );
