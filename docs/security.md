@@ -12,7 +12,7 @@ addresses in tracked files (placeholders: `ep-PRODUCTION`, `<owner email>`, `<re
 - **L6, a signed-in kabinet account skips the per-adopter reveal limit.** Decision from #347; the
   per-IP budget still applies and contacts are public once revealed.
 - **`/api/health` returns the git SHA.** The repo is public and the SHA helps operations; low value to an attacker.
-- **The gate cookie equals the gate secret.** A bot shutter, not a boundary; removed at launch.
+- **The gate cookie equals the gate secret.** A bot shutter, not a boundary; removed at launch (2026-11-09, PR #448), kept here as history.
 - **No CODEOWNERS.** Solo developer; every merge is the owner's.
 
 ## Later

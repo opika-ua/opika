@@ -6,8 +6,8 @@ rules (a Neon child branch for anything experimental; `--prod --expect ep-...` f
 
 ## 1. Site down
 
-1. Is it the site or the network? Open `https://opika.org.ua/api/health` (no database call, exempt
-   from the pre-launch gate, its own limiter). 200 means the app answers and the fault is further in.
+1. Is it the site or the network? Open `https://opika.org.ua/api/health` (no database call, its own
+   limiter). 200 means the app answers and the fault is further in.
 2. Vercel dashboard, Deployments: did a deploy go out just before it broke? If yes, go to section 3.
 3. Vercel, Logs (Runtime): look for `rate_limiter_unreachable` (Upstash down; see "When Upstash is
    down" below for which routes stay open), database errors (Neon: check
@@ -87,7 +87,6 @@ running deployment keeps the old value.
 | `BETTER_AUTH_SECRET` | Signs every admin out. Follow `docs/onboarding-a-shelter.md`, "Rotating `BETTER_AUTH_SECRET`" (including the required sign-in clean-up). |
 | `RATE_LIMIT_KEY_SECRET` | Resets the rate-limit buckets only. |
 | `CURSOR_HMAC_SECRET` | Pagination cursors already handed out stop working. |
-| `PRELAUNCH_GATE_SECRET` | Every pre-launch link and cookie stops opening the site. |
 | `LOCATION_HMAC_SECRET` | Not config-only: every shelter's public location must be recomputed in one migration (`docs/decisions-inbox.md`, RG-Q10). Do not rotate without that plan. |
 | `RESEND_API_KEY` | Create the new key in Resend, set it, redeploy, then delete the old key. Auth mail fails between the delete and the redeploy. |
 | `R2_UPLOAD_*`, `R2_CLEANUP_*` | Create the new API token in Cloudflare, set it, redeploy, then revoke the old one. |
@@ -97,9 +96,9 @@ running deployment keeps the old value.
 
 ## 7. Quick kill options (smallest first)
 
-- **Pre-launch gate:** while `SITE_IS_PUBLICLY_DISCOVERABLE` is false (`seo-flags.ts`), every request
-  403s without `PRELAUNCH_GATE_SECRET`. A kill option only until launch; it is a compile-time
-  constant, so it is not a runtime switch after launch.
+- **No gate any more:** the pre-launch gate came down at launch (2026-11-09, PR #448), so there is no
+  switch that hides the site. To take it offline fast use Vercel Attack Challenge Mode below, or
+  roll back the deployment (section 3).
 - **Vercel, Settings, Cron Jobs, "Disable Cron Jobs":** stops both crons without a deploy. Re-enable
   afterwards; Healthchecks will alert on the gap.
 - **Vercel Attack Challenge Mode** (Firewall): challenges all traffic; use it for a flood. Turn it

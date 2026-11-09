@@ -51,14 +51,15 @@ The three rows below, plus the per-animal OG-image exemption (BR-7, no row of it
 once the gate is unreachable, step 14.4), are one assembled step, `docs/launch-sequence.md`'s
 step 14 - four changes in one commit, since `assertAnalyticsCopyMatchesGateState` is a test-time tripwire that fails CI if
 they land out of step with each other - it does not throw at boot; that's
-`assertDemoDiscoverabilityInvariant`, for the other pair of constants. The runbook exists;
-execution is still open.
+`assertDemoDiscoverabilityInvariant`, for the other pair of constants. Executed 2026-11-09 (PR #448).
+
+Step 15 (Google Search Console and the sitemap submission) is deferred by the owner until the gallery holds about 10 real animals; the site is discoverable meanwhile, so crawlers may find it on their own.
 
 | Item | Owner | Status | Done means | Depends on |
 |---|---|---|---|---|
-| **Flip `SITE_IS_PUBLICLY_DISCOVERABLE`** | Oleksii decides the moment; local agent flips + verifies | **OPEN** - currently `false`; runbook ready (`docs/launch-sequence.md` step 14.1) | Flag `true`, tests green, runtime invariant checked | `REGISTRY_HAS_NO_REAL_SHELTERS` already `false` (step 13); shared-store rate limiter (**already true**) |
-| **Remove the pre-launch access gate**, in the same change | Local agent | **OPEN** - runbook ready (step 14.1 removes it by flipping the same flag; `proxy.ts`'s gate only runs when the flag is still `false`) | Gate removed/no-ops, verified against a real unauthenticated request; `PRELAUNCH_GATE_SECRET` dropped from env schema same commit (step 14.2), the Vercel variable deleted after the deploy, and the harness specs and `.env.example` entries that pin the gate go with it (step 14's file list) | Same commit as the flip |
-| **Land the R4-2 sentence**, same change as the gate removal | Local agent | **OPEN but prepared** - runbook ready (step 14.3); current constant value (with the saved-list sentence and the «Написати» fix already landed) just needs appending to `uk.about.analytics`; the tripwire (`assertAnalyticsCopyMatchesGateState`) already enforces this | Sentence lands, tripwire green | Same commit as the gate removal |
+| **Flip `SITE_IS_PUBLICLY_DISCOVERABLE`** | Oleksii decides the moment; local agent flips + verifies | **DONE, 2026-11-09** (PR #448, `80c4cf3`) - now `true` (`seo-flags.ts`) | Flag `true`, tests green, runtime invariant checked | `REGISTRY_HAS_NO_REAL_SHELTERS` already `false` (step 13); shared-store rate limiter (**already true**) |
+| **Remove the pre-launch access gate**, in the same change | Local agent | **DONE, 2026-11-09** (PR #448, `80c4cf3`; the owner deleted `PRELAUNCH_GATE_SECRET` from Vercel after the deploy). `PRELAUNCH_GATE_SECRET` is gone from the env schema; the leftover dead gate code in `proxy.ts` and `prelaunch-gate.ts` is removed in a follow-up clean-up PR | Gate removed/no-ops, verified against a real unauthenticated request; `PRELAUNCH_GATE_SECRET` dropped from env schema same commit (step 14.2), the Vercel variable deleted after the deploy, and the harness specs and `.env.example` entries that pin the gate go with it (step 14's file list) | Same commit as the flip |
+| **Land the R4-2 sentence**, same change as the gate removal | Local agent | **DONE, 2026-11-09** (PR #448, step 14.3, same commit as the flip; the tripwire `assertAnalyticsCopyMatchesGateState` enforced the pairing) | Sentence lands, tripwire green | Same commit as the gate removal |
 | **Shared-store rate limiter** | - | **DONE** | - | - |
 
 ## D. Before the MVP gate (lower urgency)
