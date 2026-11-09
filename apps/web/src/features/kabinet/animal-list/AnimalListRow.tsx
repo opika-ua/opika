@@ -32,6 +32,9 @@ export const moreButtonId = (animalId: string): string => `animal-more-${animalI
 /** The phone's copy of the menu (top-right corner); only one of the two is ever displayed. */
 export const moreButtonPhoneId = (animalId: string): string => `animal-more-phone-${animalId}`;
 
+/** The freshness line's phone slot: the photo's column, under the chip. */
+const PHONE_FRESHNESS = "max-tablet:col-span-2 max-tablet:col-start-2 max-tablet:row-start-4 min-w-0";
+
 /** Filled only for the one move that changes what people see; routine upkeep outlined; the rest plain. */
 const FORWARD_VARIANT: Record<Exclude<RowAction, "edit">, Exclude<ButtonVariant, "icon">> = {
   publish: "primary",
@@ -151,22 +154,37 @@ export function AnimalListRow({
 
   return (
     <li aria-labelledby={nameId}>
+      {/* Phone: a framed card laid out as a grid (photo | name | menu, then meta, chip, freshness
+          beside the photo, then the gaps hint and the button full width); the wrappers are
+          `contents` there so the freshness line can sit up in the photo's column without a second
+          copy in the DOM. From `tablet` they are the flex boxes they always were. */}
       <Panel
-        padding="lg"
-        className="flex flex-col gap-4 desktop:flex-row desktop:items-center desktop:justify-between desktop:gap-8"
+        padding="none"
+        className="grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-x-3 gap-y-2 p-3.5 max-tablet:rounded-card max-tablet:border-[1.5px] max-tablet:border-line tablet:flex tablet:flex-col tablet:gap-4 tablet:p-5 desktop:flex-row desktop:items-center desktop:justify-between desktop:gap-8 desktop:p-6"
       >
-        <div className="flex min-w-0 gap-4 desktop:w-72 desktop:flex-none">
-          <Link href={href} prefetch={false} tabIndex={-1} aria-hidden="true" className="shrink-0">
+        <div className="contents min-w-0 tablet:flex tablet:gap-4 desktop:w-72 desktop:flex-none">
+          <Link
+            href={href}
+            prefetch={false}
+            tabIndex={-1}
+            aria-hidden="true"
+            className="shrink-0 max-tablet:col-start-1 max-tablet:row-span-4 max-tablet:row-start-1 max-tablet:flex"
+          >
             <Photo
               src={row.coverPhoto?.storageKey ?? null}
               alt=""
               sizes="(min-width: 1024px) 112px, (min-width: 600px) 96px, 80px"
               aspect="square"
-              className="size-20 rounded-panel tablet:size-24 desktop:size-28"
+              className="w-24 rounded-panel max-tablet:min-h-28 tablet:size-24 desktop:size-28"
             />
           </Link>
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <Heading level={2} look="body-l" id={nameId} className="min-w-0 tablet:break-words">
+          <div className="contents min-w-0 tablet:flex tablet:flex-1 tablet:flex-col tablet:gap-2">
+            <Heading
+              level={2}
+              look="body-l"
+              id={nameId}
+              className="min-w-0 max-tablet:col-start-2 max-tablet:row-start-1 tablet:break-words"
+            >
               <Link
                 href={href}
                 prefetch={false}
@@ -177,8 +195,12 @@ export function AnimalListRow({
                 </span>
               </Link>
             </Heading>
-            <ListingStatusChip kind={kind} />
-            <p className="text-body text-ink-2">{metaLineOf(row, now)}</p>
+            <div className="max-tablet:col-span-2 max-tablet:col-start-2 max-tablet:row-start-3 tablet:contents">
+              <ListingStatusChip kind={kind} />
+            </div>
+            <p className="truncate text-body text-ink-2 max-tablet:col-span-2 max-tablet:col-start-2 max-tablet:row-start-2 tablet:overflow-visible tablet:text-clip tablet:whitespace-normal">
+              {metaLineOf(row, now)}
+            </p>
           </div>
           <Menu
             open={menuOpen && via === "top"}
@@ -189,27 +211,33 @@ export function AnimalListRow({
             trigger="icon-plain"
             label={fillTemplate(t.row.menuLabel, { name: row.name })}
             triggerId={moreButtonPhoneId(row.id)}
-            className="-mr-2 shrink-0 tablet:hidden"
+            className="-mr-2 shrink-0 max-tablet:col-start-3 max-tablet:row-start-1 tablet:hidden"
           >
             {items}
           </Menu>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-4 desktop:flex-1">
-          <div className="flex flex-col gap-1">
+        <div className="contents min-w-0 tablet:flex tablet:flex-col tablet:gap-4 desktop:flex-1">
+          <div className="contents tablet:flex tablet:flex-col tablet:gap-1">
             {row.freshness !== null ? (
-              <FreshnessPips kind={row.freshness.kind} label={statusLineOf(row, now)} />
+              <FreshnessPips
+                kind={row.freshness.kind}
+                label={statusLineOf(row, now)}
+                className={PHONE_FRESHNESS}
+              />
             ) : (
-              <Text look="body">{statusLineOf(row, now)}</Text>
+              <Text look="body" className={PHONE_FRESHNESS}>
+                {statusLineOf(row, now)}
+              </Text>
             )}
             {unready ? (
-              <Text look="hint" id={gapsId}>
+              <Text look="hint" id={gapsId} className="max-tablet:col-span-3 max-tablet:mt-1">
                 {missingSentence(row.publishGaps)}
               </Text>
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 max-tablet:col-span-3 max-tablet:mt-1">
             {!editable ? null : undoSeconds !== null ? (
               <>
                 <Text look="label">

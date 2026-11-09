@@ -264,6 +264,18 @@ describe("the row's thumbnail", () => {
     expect(decodeURIComponent(cover?.getAttribute("src") ?? "")).toContain("/photos/1.jpg");
     expect(rowOf("Сірко").querySelector("img")).toBeNull();
   });
+
+  it("the photo link stays out of the tab order and the reading order starts at the name", () => {
+    renderList();
+    const card = rowOf("Рекс");
+    const photoLink = card.querySelector("a[aria-hidden='true']");
+    expect(photoLink?.getAttribute("tabindex")).toBe("-1");
+    const name = within(card).getByRole("heading", { level: 2 });
+    // The decorative photo link is hidden from assistive technology, so the name is read first;
+    // the phone grid only re-places things visually, the freshness line still follows the name.
+    const freshness = within(card).getByText("Оновлено 40 днів тому");
+    expect(name.compareDocumentPosition(freshness)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
 });
 
 describe("filters and counts (N3)", () => {

@@ -2,7 +2,7 @@
  * Owner-requested geometry exception to "test logic, not looks": on a 393 px phone the kabinet
  * animal card's «⋯» menu sits in the card's top-right corner, level with the name, and the single
  * full-width confirm button stays at the bottom. Tab order is name, menu, confirm; a very long
- * name is cut off instead of pushing the menu out of the card. Fictional verified shelter. Named
+ * name is cut off instead of pushing the menu out of the card. A second test (also owner-requested) pins that the photo ends level with the freshness line, so no empty space is left under it. Fictional verified shelter. Named
  * zz-* to run last (see fictional-shelter.ts). Own `x-forwarded-for` (.75).
  */
 
@@ -108,6 +108,64 @@ test("393 px: the card menu is in the top-right corner, clear of the confirm but
       .first()
       .click();
     await expect(page.getByRole("link", { name: "Редагувати" })).toBeVisible();
+  } finally {
+    await admin.close();
+    await server.stop();
+  }
+});
+
+test("360 and 393 px: the photo ends level with the freshness line, nothing overflows, the button is a full target", async ({
+  browser,
+}) => {
+  test.setTimeout(180_000);
+  const server = await startSignInServer(HARNESS_DATABASE_URL, LOCATION_ENV);
+  const fixture = await createFixture("cardphoto", (operatorId, now) => ({
+    status: "verified",
+    verifiedAt: now,
+    verifiedBy: operatorId,
+    evidence: { items: [], submittedAt: now },
+  }));
+  const longName = "Бровко Довгоіменний!".slice(0, 20);
+  const db = createDatabase(HARNESS_DATABASE_URL);
+  const stored = await shelterRepo(db).findById(fixture.shelterId);
+  if (stored === null) throw new Error("the shelter isn't stored");
+  const lately = new Date(Date.now() - 86_400_000);
+  await animalRepo(db).insert(
+    makeAnimal({
+      shelterId: fixture.shelterId,
+      name: longName,
+      listing: { kind: "published", publishedAt: lately, confirmedAt: lately, undoable: null },
+    }),
+    stored.publicLocation.cityId,
+  );
+  const admin = await signedIn(browser, server, fixture.adminEmail, FORWARDED_FOR);
+  try {
+    const page = await admin.newPage();
+    for (const width of [360, 393]) {
+      await page.setViewportSize({ width, height: 852 });
+      await page.goto("/kabinet/tvaryny");
+      for (const name of [fixture.animalName, longName]) {
+        const card = page
+          .getByRole("listitem")
+          .filter({ has: page.getByRole("heading", { name }) });
+        await card.scrollIntoViewIfNeeded();
+        const photo = await box(card.locator("a[aria-hidden='true'] > div"));
+        const freshness = await box(card.getByText(/^Оновлено/));
+        const button = await box(card.getByRole("button", { name: /^✓|Ще шукає/ }).first());
+        const panel = await box(card);
+        const label = `${width}px ${name}`;
+        expect(
+          Math.abs(photo.y + photo.height - (freshness.y + freshness.height)),
+          `${label}: photo ends level with the freshness line`,
+        ).toBeLessThanOrEqual(8);
+        expect(button.height, `${label}: button is a full target`).toBeGreaterThanOrEqual(44);
+        expect(inside(button, panel), `${label}: button inside the card`).toBe(true);
+        expect(
+          await card.evaluate((el) => el.scrollWidth <= el.clientWidth),
+          `${label}: the card doesn't overflow`,
+        ).toBe(true);
+      }
+    }
   } finally {
     await admin.close();
     await server.stop();
