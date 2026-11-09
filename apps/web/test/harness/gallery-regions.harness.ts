@@ -68,6 +68,9 @@ test.describe("/tvaryny, the oblast filter", () => {
     });
 
     await expect(page.getByText("У вибраних областях поки немає тварин.")).toBeVisible();
+    // The empty state is the page's one main landmark, and the skip link's target.
+    await expect(page.locator("main")).toHaveCount(1);
+    await expect(page.locator("main#main-content [data-testid='gallery-no-match']")).toBeVisible();
     const neighbour = page.getByRole("link", { name: /^Сусідня область: Київська \(\+\d+ / });
     await expect(neighbour).toBeVisible();
 

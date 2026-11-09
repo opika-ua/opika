@@ -37,6 +37,7 @@ import { throwIfGalleryTestFailure } from "../../features/gallery/test-only-fail
 import { Container } from "../../ui/Container";
 import { cx } from "../../ui/cx";
 import { Heading } from "../../ui/Heading";
+import { MAIN_LANDMARK } from "../../ui/landmark";
 import { MASCOT_RESERVE_CLASS, Mascot } from "../../ui/Mascot";
 import { mascotKindFor } from "../../ui/mascot-species";
 import { PerchedWords } from "../../ui/PerchedWords";
@@ -387,14 +388,17 @@ export async function renderGallery(
             actually reaches it by Tab, which is exactly who needs it.
           */}
           {page.totalMatching === 0 ? (
-            <NoMatch
-              filters={filters}
-              sort={sort}
-              citySlugs={citySlugs}
-              relaxations={relaxations}
-              neighbourRegions={neighbourRegions}
-              regionEmpty={regionHoldsNoAnimals(filters, facetCounts.regions)}
-            />
+            // The page's only <main> when there is no grid (the grid is the <main> otherwise).
+            <main {...MAIN_LANDMARK}>
+              <NoMatch
+                filters={filters}
+                sort={sort}
+                citySlugs={citySlugs}
+                relaxations={relaxations}
+                neighbourRegions={neighbourRegions}
+                regionEmpty={regionHoldsNoAnimals(filters, facetCounts.regions)}
+              />
+            </main>
           ) : (
             <>
               {/*

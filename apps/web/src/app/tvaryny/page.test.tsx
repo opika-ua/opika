@@ -114,6 +114,40 @@ describe("/tvaryny (renderGallery)", () => {
     expect(screen.getByRole("heading", { name: "Тут поки немає тварин." })).toBeTruthy();
   });
 
+  it("the empty state has exactly one main landmark, the skip link's target", async () => {
+    const element = await renderGallery(anonymousRouterClient(h.db));
+    const { container } = render(<WithMockRouter>{element}</WithMockRouter>);
+
+    const mains = screen.getAllByRole("main");
+    expect(mains).toHaveLength(1);
+    expect(mains[0]?.id).toBe("main-content");
+    expect(container.querySelectorAll("main")).toHaveLength(1);
+    expect(within(mains[0] as HTMLElement).getByTestId("gallery-no-match")).toBeTruthy();
+  });
+
+  it("a page with animals still has exactly one main landmark, the grid", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: {
+        precision: "fuzzed_address",
+        cityId: city.id,
+        district: null,
+        approximate: { center: { lat: 50.51, lng: 30.79 }, precisionMetres: 1000 } as never,
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id }), city.id);
+
+    const element = await renderGallery(anonymousRouterClient(h.db));
+    render(<WithMockRouter>{element}</WithMockRouter>);
+
+    const mains = screen.getAllByRole("main");
+    expect(mains).toHaveLength(1);
+    expect(mains[0]?.id).toBe("main-content");
+    expect(mains[0]?.getAttribute("data-testid")).toBe("gallery-grid");
+  });
+
   it("an empty registry shows no count line, and nothing on the page claims a non-zero count", async () => {
     const element = await renderGallery(anonymousRouterClient(h.db));
     const { container } = render(<WithMockRouter>{element}</WithMockRouter>);
