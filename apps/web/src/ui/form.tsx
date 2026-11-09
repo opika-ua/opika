@@ -13,7 +13,7 @@ import { cx } from "./cx";
  * zoom on focus), labelled, and linked to its hint and error with `aria-describedby`. Invalid is an
  * inset ink ring plus the error's words, never a colour alone.
  */
-// `focus-within` too: a date input's calendar button is inside its shadow tree, where `:focus-visible` never matches the input.
+// `focus-within` too: a date input's calendar button is inside its shadow tree, where `:focus-visible` never matches the input. It also sets the field's ring size (2px + 2px): it sorts after the `focus-ring` utility, so it wins over its 3px + 3px.
 export const CONTROL =
   "min-h-target w-full min-w-0 rounded-field border-2 border-line bg-surface px-4 text-body text-ink focus-ring focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus";
 export const INVALID = "ring-2 ring-inset ring-ink";

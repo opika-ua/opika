@@ -1,9 +1,7 @@
 /**
- * Owner-requested regression guard (a geometry check, an exception to "test logic, not looks"):
- * on a 393 px phone a focused text field's focus ring, in a `flush` FormSection inside the Card's
- * `overflow-clip`, lies fully inside the Card, so the ring is not cut on the left and right.
- * Read from computed styles, not hard-coded numbers. Fictional verified shelter. Named zz-* to run
- * last (see fictional-shelter.ts). Own `x-forwarded-for` (.96).
+ * Owner-requested narrow geometry guard (an exception to "test logic, not looks"): at 393 px a
+ * focused text field's ring in a flush FormSection stays inside the Card's `overflow-clip`.
+ * Own `x-forwarded-for` (.96).
  */
 
 import { expect, test } from "@playwright/test";
