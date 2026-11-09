@@ -26,7 +26,7 @@ export type FormSectionProps = {
   titleExtra?: ReactNode;
   /** One quiet line under the title: what this section is for. */
   description?: ReactNode;
-  /** `card` (default) is a white card with inner padding; `flush` has no frame or side padding, so its content shares the left edge of whatever sits above it (tabs). */
+  /** `card` (default) is a white card with inner padding; `flush` has no frame, so its content shares the left edge of whatever sits above it (tabs); it bleeds 8px (`-mx-2`) and pads 8px back so a control's focus ring is not clipped by the Card. */
   framing?: "card" | "flush";
   /** Layout only. */
   className?: string;
@@ -51,12 +51,12 @@ export function FormSection({
       id={id}
       {...(titleless ? { tabIndex: -1 } : { "aria-labelledby": titleId })}
       tone={framing === "flush" ? "page" : "surface"}
-      className={cx("scroll-mt-4", className)}
+      className={cx("scroll-mt-4", framing === "flush" && "-mx-2", className)}
     >
       <div
         className={cx(
           "flex flex-col gap-5 tablet:gap-6",
-          framing === "flush" ? "py-4 tablet:py-6" : "p-4 tablet:p-6 desktop:p-8",
+          framing === "flush" ? "px-2 py-4 tablet:py-6" : "p-4 tablet:p-6 desktop:p-8",
         )}
       >
         {titleless ? (
