@@ -118,20 +118,20 @@ export function GalleryCard({
         >
           {freshnessLabel(card.freshness)}
         </span>
-        {reserved && (
-          <span data-testid="reserved-badge" className="contents">
-            <Badge tone="ink" className="absolute top-2 left-2 tablet:static">
-              {uk.reserved.badge}
-            </Badge>
-          </span>
-        )}
-        {card.shelter.verification === "listed_before_verification" && (
-          <span data-testid="under-review-badge" className="contents">
-            <Badge tone="neutral" className="absolute bottom-2 left-2 tablet:static">
-              {uk.underReview.card}
-            </Badge>
-          </span>
-        )}
+        {/* Phone: one top-left stack. The card's top-left corner is the photo's (no padding above
+            it), so this anchors to the photo; a bottom anchor landed on the freshness line. */}
+        <div className="absolute top-2 left-2 flex flex-col items-start gap-1 tablet:contents">
+          {reserved && (
+            <span data-testid="reserved-badge" className="contents">
+              <Badge tone="ink">{uk.reserved.badge}</Badge>
+            </span>
+          )}
+          {card.shelter.verification === "listed_before_verification" && (
+            <span data-testid="under-review-badge" className="contents">
+              <Badge tone="neutral">{uk.underReview.card}</Badge>
+            </span>
+          )}
+        </div>
       </div>
 
       <div className={stacked ? "gcard-info-st" : "gcard-info"}>
