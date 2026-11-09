@@ -112,7 +112,7 @@ describe("seed corpus - D-4 hostile cases", () => {
       if (!match) throw new Error("expected an animal with six photos (asserted above)");
 
       for (const photo of match.photos) {
-        expect(photo.storageKey).toMatch(/^seed-photos\/d6-real\//);
+        expect(photo.storageKey).toMatch(/^seed-photos\//);
       }
 
       // Real, measured aspect-ratio variance - not four copies of the same

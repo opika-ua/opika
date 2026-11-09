@@ -181,7 +181,7 @@ describe("buildDemoAnimals", () => {
     const matches = animals.filter((a) => a.photos.length === 6);
     expect(matches).toHaveLength(1);
     for (const photo of matches[0]!.photos) {
-      expect(photo.storageKey).toMatch(/^seed-photos\/d6-real\//);
+      expect(photo.storageKey).toMatch(/^seed-photos\//);
     }
   });
 

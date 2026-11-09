@@ -377,9 +377,11 @@ const D6_REAL_DOG_PHOTOS: AnimalPhoto[] = [
     alt: null,
   },
   {
-    storageKey: "seed-photos/d6-real/dog-small-400px-joydogs.jpg",
-    width: 393,
-    height: 387,
+    // Was the 393px joydogs photo, dropped: a human forearm was in frame. dog-3 is
+    // another licensed dog from the regular pool, kept for its distinct 1.31 ratio.
+    storageKey: "seed-photos/dog-3.jpg",
+    width: 1023,
+    height: 782,
     alt: null,
   },
 ];
