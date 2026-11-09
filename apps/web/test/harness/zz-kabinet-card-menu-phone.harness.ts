@@ -191,9 +191,8 @@ test("360 and 393 px: the photo ends level with the status line, the menu stays 
         if (width === 393 && name === fixture.animalName) {
           const meta = await box(card.getByText(/^Кіт|^Собака/).first());
           const title = await box(card.getByRole("heading", { name }).locator("span"));
-          console.log(
-            `name-to-meta at 393: gap ${(meta.y - (title.y + title.height)).toFixed(1)}px, centres ${(meta.y + meta.height / 2 - (title.y + title.height / 2)).toFixed(1)}px`,
-          );
+          const centres = meta.y + meta.height / 2 - (title.y + title.height / 2);
+          expect(centres, `${label}: name to meta, centre to centre`).toBeLessThan(40);
         }
       }
     }
