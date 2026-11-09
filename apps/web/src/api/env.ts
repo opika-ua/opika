@@ -151,9 +151,10 @@ export function validateEnv(): void {
      * message in `RequiredProductionEnvSchema` already names its own
      * variable, so joining messages loses nothing a bare name would have
      * given. Joining paths instead, as an earlier version of this function
-     * did, silently discarded `CURSOR_HMAC_SECRET`'s length-floor
-     * message: a 20-character value would fail validation and report
-     * "Missing required environment variable(s): CURSOR_HMAC_SECRET" -
+     * did, silently discarded the length-floor message (found on
+     * `PRELAUNCH_GATE_SECRET`, since removed; the same guard covers
+     * `CURSOR_HMAC_SECRET` and the other secrets): a 20-character value
+     * would fail validation and report "Missing required environment variable(s)" -
      * true-sounding but wrong, since the operator would find the variable
      * genuinely set in Vercel and have no way to learn *why* boot still
      * refused it. Found by a reviewer's own mutation, not read from the
