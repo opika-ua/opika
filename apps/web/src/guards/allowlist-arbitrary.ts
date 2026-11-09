@@ -6,8 +6,7 @@ import type { Reasoned } from "./ratchet";
  */
 export const ARBITRARY_VALUES: Readonly<Record<string, Reasoned>> = {
   "features/kabinet/animal-list/AnimalListRow.tsx": {
-    max: 2,
-    reason:
-      "Phone card: owner-specified 1.5px frame and a 96px photo / 1fr name / auto menu grid, neither a token or a stock utility",
+    max: 1,
+    reason: "Phone card: the 96px photo / 1fr name / auto menu grid has no stock utility",
   },
 };

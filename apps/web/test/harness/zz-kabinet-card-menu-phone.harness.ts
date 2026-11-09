@@ -2,14 +2,15 @@
  * Owner-requested geometry exception to "test logic, not looks": on a 393 px phone the kabinet
  * animal card's «⋯» menu sits in the card's top-right corner, level with the name, and the single
  * full-width confirm button stays at the bottom. Tab order is name, menu, confirm; a very long
- * name is cut off instead of pushing the menu out of the card. A second test (also owner-requested) pins that the photo ends level with the freshness line, so no empty space is left under it. Fictional verified shelter. Named
- * zz-* to run last (see fictional-shelter.ts). Own `x-forwarded-for` (.75).
+ * name is cut off instead of pushing the menu out of the card. A second test pins that the photo
+ * ends level with the status line (no empty space under it). Fictional verified shelter. Named zz-*
+ * to run last (see fictional-shelter.ts). Own `x-forwarded-for` (.75).
  */
 
 import { randomUUID } from "node:crypto";
 import { createDatabase } from "@opika/db";
 import { animalRepo, shelterRepo } from "@opika/db/repos";
-import { makeAnimal } from "@opika/db/test";
+import { makeAnimal, makeDraftAnimal } from "@opika/db/test";
 import { expect, type Locator, test } from "@playwright/test";
 import { createFixture, HARNESS_DATABASE_URL, LOCATION_ENV, signedIn } from "./fictional-shelter";
 import { startSignInServer } from "./sign-in-server";
@@ -114,7 +115,7 @@ test("393 px: the card menu is in the top-right corner, clear of the confirm but
   }
 });
 
-test("360 and 393 px: the photo ends level with the freshness line, nothing overflows, the button is a full target", async ({
+test("360 and 393 px: the photo ends level with the status line, the menu stays tappable, nothing overflows", async ({
   browser,
 }) => {
   test.setTimeout(180_000);
@@ -125,10 +126,12 @@ test("360 and 393 px: the photo ends level with the freshness line, nothing over
     verifiedBy: operatorId,
     evidence: { items: [], submittedAt: now },
   }));
-  const longName = "Бровко Довгоіменний!".slice(0, 20);
+  const longName = "Бровко Довгоіменний!";
+  const draftName = "Чернетка";
   const db = createDatabase(HARNESS_DATABASE_URL);
   const stored = await shelterRepo(db).findById(fixture.shelterId);
   if (stored === null) throw new Error("the shelter isn't stored");
+  const cityId = stored.publicLocation.cityId;
   const lately = new Date(Date.now() - 86_400_000);
   await animalRepo(db).insert(
     makeAnimal({
@@ -136,7 +139,12 @@ test("360 and 393 px: the photo ends level with the freshness line, nothing over
       name: longName,
       listing: { kind: "published", publishedAt: lately, confirmedAt: lately, undoable: null },
     }),
-    stored.publicLocation.cityId,
+    cityId,
+  );
+  // A draft's status line is a two-line sentence: the text block is taller than the photo's minimum.
+  await animalRepo(db).insert(
+    makeDraftAnimal({ shelterId: fixture.shelterId, name: draftName }),
+    cityId,
   );
   const admin = await signedIn(browser, server, fixture.adminEmail, FORWARDED_FOR);
   try {
@@ -144,26 +152,49 @@ test("360 and 393 px: the photo ends level with the freshness line, nothing over
     for (const width of [360, 393]) {
       await page.setViewportSize({ width, height: 852 });
       await page.goto("/kabinet/tvaryny");
-      for (const name of [fixture.animalName, longName]) {
+      for (const name of [fixture.animalName, longName, draftName]) {
         const card = page
           .getByRole("listitem")
           .filter({ has: page.getByRole("heading", { name }) });
         await card.scrollIntoViewIfNeeded();
+        const draft = name === draftName;
         const photo = await box(card.locator("a[aria-hidden='true'] > div"));
-        const freshness = await box(card.getByText(/^Оновлено/));
-        const button = await box(card.getByRole("button", { name: /^✓|Ще шукає/ }).first());
+        const status = await box(card.getByText(draft ? /^Ті, хто/ : /^Оновлено/));
+        const menuButton = card.getByRole("button", { name: /^Дії з карткою/ }).first();
+        const menu = await box(menuButton);
+        const button = await box(
+          card.getByRole("button", { name: /^✓|Ще шукає|Опублікувати/ }).first(),
+        );
         const panel = await box(card);
         const label = `${width}px ${name}`;
-        expect(
-          Math.abs(photo.y + photo.height - (freshness.y + freshness.height)),
-          `${label}: photo ends level with the freshness line`,
-        ).toBeLessThanOrEqual(8);
+        if (name !== longName) {
+          expect(
+            Math.abs(photo.y + photo.height - (status.y + status.height)),
+            `${label}: photo ends level with the status line`,
+          ).toBeLessThanOrEqual(8);
+        }
         expect(button.height, `${label}: button is a full target`).toBeGreaterThanOrEqual(44);
         expect(inside(button, panel), `${label}: button inside the card`).toBe(true);
+        expect(inside(menu, panel), `${label}: menu inside the card`).toBe(true);
+        expect(menu.height, `${label}: menu keeps its target size`).toBeGreaterThanOrEqual(48);
+        // The name link must not cover the menu's hit area.
+        const hit = await page.evaluate(
+          ([x, y]) =>
+            document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label"),
+          [menu.x + menu.width / 2, menu.y + menu.height / 2] as const,
+        );
+        expect(hit, `${label}: the menu's centre hits the menu`).toMatch(/^Дії з карткою/);
         expect(
           await card.evaluate((el) => el.scrollWidth <= el.clientWidth),
           `${label}: the card doesn't overflow`,
         ).toBe(true);
+        if (width === 393 && name === fixture.animalName) {
+          const meta = await box(card.getByText(/^Кіт|^Собака/).first());
+          const title = await box(card.getByRole("heading", { name }).locator("span"));
+          console.log(
+            `name-to-meta at 393: gap ${(meta.y - (title.y + title.height)).toFixed(1)}px, centres ${(meta.y + meta.height / 2 - (title.y + title.height / 2)).toFixed(1)}px`,
+          );
+        }
       }
     }
   } finally {

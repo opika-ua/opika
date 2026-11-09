@@ -155,13 +155,11 @@ export function AnimalListRow({
 
   return (
     <li aria-labelledby={nameId}>
-      {/* Phone: a framed card laid out as a grid (photo | name | menu, then meta, chip, freshness
-          beside the photo, then the gaps hint and the button full width); the wrappers are
-          `contents` there so the freshness line can sit up in the photo's column without a second
-          copy in the DOM. From `tablet` they are the flex boxes they always were. */}
+      {/* Phone: a grid (photo | name | menu, meta, chip, freshness, then the button full width).
+          The wrappers are `contents` there, so freshness moves up with no second DOM copy. */}
       <Panel
         padding="none"
-        className="grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-x-3 gap-y-2 p-3.5 max-tablet:rounded-card max-tablet:border-[1.5px] max-tablet:border-line tablet:flex tablet:flex-col tablet:gap-4 tablet:p-5 desktop:flex-row desktop:items-center desktop:justify-between desktop:gap-8 desktop:p-6"
+        className="grid grid-cols-[6rem_minmax(0,1fr)_auto] gap-x-3 gap-y-2 p-3.5 max-tablet:rounded-card max-tablet:border-2 max-tablet:border-line tablet:flex tablet:flex-col tablet:gap-4 tablet:p-5 desktop:flex-row desktop:items-center desktop:justify-between desktop:gap-8 desktop:p-6"
       >
         <div className="contents min-w-0 tablet:flex tablet:gap-4 desktop:w-72 desktop:flex-none">
           <Link
@@ -169,12 +167,12 @@ export function AnimalListRow({
             prefetch={false}
             tabIndex={-1}
             aria-hidden="true"
-            className="shrink-0 max-tablet:col-start-1 max-tablet:row-span-4 max-tablet:row-start-1 max-tablet:flex"
+            className="shrink-0 max-tablet:col-start-1 max-tablet:row-span-4 max-tablet:row-start-1 max-tablet:flex max-tablet:self-stretch"
           >
             <Photo
               src={row.coverPhoto?.storageKey ?? null}
               alt=""
-              sizes="(min-width: 1024px) 112px, (min-width: 600px) 96px, 80px"
+              sizes="(min-width: 1024px) 112px, 96px"
               aspect="square"
               className="w-24 rounded-panel max-tablet:min-h-28 tablet:size-24 desktop:size-28"
             />
@@ -184,7 +182,7 @@ export function AnimalListRow({
               level={2}
               look="body-l"
               id={nameId}
-              className="min-w-0 max-tablet:col-start-2 max-tablet:row-start-1 tablet:break-words"
+              className="min-w-0 max-tablet:col-start-2 max-tablet:row-start-1 max-tablet:-my-2 tablet:break-words"
             >
               <Link
                 href={href}
@@ -212,7 +210,7 @@ export function AnimalListRow({
             trigger="icon-plain"
             label={fillTemplate(t.row.menuLabel, { name: row.name })}
             triggerId={moreButtonPhoneId(row.id)}
-            className="-mr-2 shrink-0 max-tablet:col-start-3 max-tablet:row-start-1 tablet:hidden"
+            className="-mr-2 shrink-0 max-tablet:col-start-3 max-tablet:row-start-1 max-tablet:-my-2 tablet:hidden"
           >
             {items}
           </Menu>
