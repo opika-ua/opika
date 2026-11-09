@@ -13,7 +13,7 @@ own Wikimedia Commons page at the time of download - not a category-level or sit
 Re-verify at the source URL before relying on the licence for anything formal; Commons pages
 can and do change.
 
-**Only two of these five (three seeded photos with `../dog-3.jpg`) are currently wired into seed data.** `packages/db/src/seed.ts`'s
+**Only three of these five are currently wired into seed data (a fourth photo, `../dog-3.jpg`, comes from the regular pool).** `packages/db/src/seed.ts`'s
 `D6_REAL_DOG_PHOTOS` - the set `SIX_PHOTO_INDEX`'s animal actually renders - is dog-only:
 `dog-tall-9x16-sugarbelle.jpg`, `dogs-wide-16x9-bulldogs-lifejackets.jpg`,
 `dog-large-4000px-chihuahua.jpg`, plus `../dog-3.jpg` from the regular pool. The two cat photos,

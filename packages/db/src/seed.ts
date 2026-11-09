@@ -1440,7 +1440,7 @@ export function buildAnimals(
     const id = animalId(i);
     // D-6 (docs/build-plan.md) + O-10/critique-C6: `SIX_PHOTO_INDEX`'s own
     // photos are real CC0 Commons photographs at deliberately awkward
-    // aspect ratios (9:16 tall, 16:9 wide, ~400px small, ~4000px large - see
+    // aspect ratios (9:16 tall, 16:9 wide, 1.31 landscape, ~4000px large - see
     // `D6_REAL_DOG_PHOTOS` above and `apps/web/public/seed-photos/d6-real/
     // SOURCES.md`) instead of the regular cycling pool, so the detail page's
     // photo gallery has one deterministic, findable-by-query animal whose
