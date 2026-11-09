@@ -135,7 +135,7 @@ script - `buildShelter` checks against it and refuses to produce a
 
 | Legal shape | Needs |
 |---|---|
-| `unregistered_initiative` (most volunteer groups) | 1× `site_visit`, 2× `reference_contact` |
+| `unregistered_initiative` (most volunteer groups) | 1× `site_visit` (a video call), 2× `reference_contact` |
 | `registered_ngo` / `sole_proprietor` | 1× `edrpou_registration`, 1× `bank_account_holder`, 1× `reference_contact` |
 
 A `reference_contact`'s `channel` must be someone **other than the shelter
@@ -145,10 +145,11 @@ phone number isn't evidence, it's the thing being verified restating
 itself, and an earlier version of this script did exactly that by mistake
 (caught on review, fixed before ever being used for real).
 
-A `site_visit` doesn't require you to have physically gone anywhere - a
-real phone call where you actually talked to someone and can say what you
-learned counts; `notes` should say what actually happened, in your own
-words, since this becomes a permanent part of the shelter's record.
+`site_visit` is the stored name for a **video call**: verification is remote, nobody
+has to go anywhere. If the connection can't carry video, a phone call plus a short video
+of the premises filmed the same day is the fallback. `notes` should say what was shown
+(premises, animals, people) and, for the fallback, which video was sent, in your own
+words. The notes are shown to the operator only.
 
 A `reference_contact`'s `relationship` is one of `veterinary_clinic`, `local_authority`,
 `partner_organisation`, `other`. A `bank_account_holder` carries `holderName` (the
@@ -156,9 +157,9 @@ account holder as the bank shows it). Text limits: names 300 characters, `site_v
 `notes` 2000. A shelter holds at most 30 evidence items, and one add takes at most 10
 (`MAX_EVIDENCE_ITEMS`, `MAX_EVIDENCE_ITEMS_PER_ADD`).
 
-**`visitedOn` is required** (`YYYY-MM-DD`): the day the visit or call
+**`visitedOn` is required** (`YYYY-MM-DD`): the day the video call
 actually happened, not the day you're filling in this file. A date after
-today is refused, because a visit that hasn't happened can't back a
+today is refused, because a call that hasn't happened can't back a
 verification. The script records you (its founder stand-in) as the person
 who vouches for it; there's no field for that.
 
@@ -706,9 +707,9 @@ events (`early-listing.ts`).
 
 - **Who and where.** Operator only. Panel «Показ до завершення перевірки» on the shelter's registry
   page, shown in `pending` and `under_review` only.
-- **Minimum evidence.** At least one `site_visit` or one `reference_contact` on file
+- **Minimum evidence.** At least one `site_visit` (video call) or one `reference_contact` on file
   (`EARLY_LISTING_EVIDENCE_KINDS`). This is weaker than approval and is not the table in "Evidence".
-  Otherwise refused with «Щоб дозволити показ, потрібен хоча б візит на місце або одна рекомендація.»
+  Otherwise refused with «Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.»
 - **Length.** 60 days from the moment you allow it (`EARLY_LISTING_DAYS`), an exact instant sum with
   no calendar maths. Expiry is worked out when read, with no job: at the boundary instant the
   shelter is already hidden. While it runs the panel shows «До кінця показу: {n} день/дні/днів»,

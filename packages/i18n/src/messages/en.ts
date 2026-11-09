@@ -1317,7 +1317,7 @@ export const en = {
           edrpou_registration: "Registration · EDRPOU",
           bank_account_holder: "Bank account holder",
           reference_contact: "Reference",
-          site_visit: "Site visit",
+          site_visit: "Video call",
           supporting_document: "Document",
         },
         added: "added {date}",
@@ -1327,7 +1327,7 @@ export const en = {
           who: "Who",
           channel: "How to reach them",
           relationship: "Relation to the shelter",
-          visitedOn: "Visit date",
+          visitedOn: "Call date",
           notes: "Note",
           label: "Label",
         },
@@ -1343,7 +1343,9 @@ export const en = {
         add: "+ Add evidence",
         remove: "Remove",
         typePicker: "Kind of evidence",
-        siteVisitDateHint: "The visit date can't be in the future.",
+        siteVisitDateHint: "The call date can't be in the future.",
+        videoCallNotesHint:
+          "What was shown on the call: the premises, the animals, the people. If the call was by phone, add which video was sent.",
         addTitle: "Add evidence",
         addIntro:
           "New evidence is added to what is on file. The status doesn't change. Only you see this entry in the history: the shelter itself does not.",
@@ -1480,7 +1482,7 @@ export const en = {
             invited_elsewhere:
               "A live invitation to another shelter was already sent to this address.",
           },
-          siteVisitInFuture: "The visit date can't be in the future.",
+          siteVisitInFuture: "The call date can't be in the future.",
           unknownCity: "That settlement isn't in the list.",
           lostAnswer:
             "No answer came back. The shelter may have been created: check the list before trying again.",
@@ -1591,7 +1593,7 @@ export const en = {
         expired: "Showing ended on {date}",
         extendNote: "Why are you extending the showing",
         limitReached: "Showing before the review has already been allowed twice.",
-        evidenceMinimum: "To allow showing, at least a site visit or one reference is needed.",
+        evidenceMinimum: "To allow showing, at least a video call or one reference is needed.",
       },
       errors: {
         illegalTransition: "That isn't possible from the current status. The page was refreshed.",

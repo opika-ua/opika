@@ -19,7 +19,7 @@ import { Text } from "../../../ui/Text";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
 import { cardsArePublic, missingSentence, shelterVisibilityOf } from "../animal-form/labels";
 import { NEW_ANIMAL_PATH } from "../routes";
-import { AnimalListRow, moreButtonId } from "./AnimalListRow";
+import { AnimalListRow, moreButtonId, moreButtonPhoneId } from "./AnimalListRow";
 import { AdoptDialog, DeleteDialog, type DialogResult, WithdrawDialog } from "./ListDialogs";
 import {
   type ActionFailure,
@@ -487,9 +487,13 @@ export function AnimalList({
     setDialog(null);
     // Focus back where the dialog was opened from, or to the heading if that row is gone.
     requestAnimationFrame(() => {
-      const target =
-        (animalId !== undefined ? document.getElementById(moreButtonId(animalId)) : null) ??
-        document.getElementById("animal-list-title");
+      // Two triggers exist (phone corner, tablet+ row); the displayed one has a layout box.
+      const shown = (
+        animalId !== undefined ? [moreButtonPhoneId(animalId), moreButtonId(animalId)] : []
+      )
+        .map((triggerId) => document.getElementById(triggerId))
+        .find((el) => el !== null && el.getClientRects().length > 0);
+      const target = shown ?? document.getElementById("animal-list-title");
       target?.focus();
     });
   };

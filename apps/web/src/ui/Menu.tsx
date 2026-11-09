@@ -23,9 +23,10 @@ export type MenuProps = {
   label: string;
   /**
    * `text` (default): the label and a chevron. `icon`: a ⋯ button, 48px square, named by `label`.
+   * `icon-plain`: the same ⋯ with no border or shadow, for a card's corner.
    * `icon-compact`: a 32px circle inside a 44px target, for a button laid over a photo.
    */
-  trigger?: "text" | "icon" | "icon-compact";
+  trigger?: "text" | "icon" | "icon-compact" | "icon-plain";
   /** Id of the trigger, so the page can return focus to it. */
   triggerId?: string;
   /** Ids that give the trigger its context (a screen reader hears whose «Ще» it is). */
@@ -141,12 +142,14 @@ export function Menu({
         className={
           trigger === "icon"
             ? buttonClass("icon")
-            : trigger === "icon-compact"
-              ? "inline-flex size-11 items-center justify-center rounded-pill focus-ring"
-              : buttonClass("ghost")
+            : trigger === "icon-plain"
+              ? "inline-flex size-target items-center justify-center rounded-pill text-ink focus-ring"
+              : trigger === "icon-compact"
+                ? "inline-flex size-11 items-center justify-center rounded-pill focus-ring"
+                : buttonClass("ghost")
         }
       >
-        {trigger === "icon" ? (
+        {trigger === "icon" || trigger === "icon-plain" ? (
           <Icon name="more" size="md" />
         ) : trigger === "icon-compact" ? (
           <span
