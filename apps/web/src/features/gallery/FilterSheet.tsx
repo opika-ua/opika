@@ -426,7 +426,7 @@ export function FilterSheet({
   return (
     <>
       {activeCount > 0 ? (
-        <span id={descriptionId} className="sr-only">
+        <span id={descriptionId} hidden>
           {fillTemplate(uk.filters.activeCount, { count: String(activeCount) })}
         </span>
       ) : null}
