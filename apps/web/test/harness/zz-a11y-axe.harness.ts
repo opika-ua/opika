@@ -40,10 +40,11 @@ for (const viewport of VIEWPORTS) {
         .locator(ready ?? "main")
         .first()
         .waitFor({ state: "visible" });
-      const { violations } = await new AxeBuilder({ page })
-        .withTags(TAGS)
-        .withRules(["landmark-one-main"])
-        .analyze();
+      // Two runs: withTags and withRules both set runOnly and the last call wins, so chaining
+      // them would silently drop the WCAG rules.
+      const wcag = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+      const landmark = await new AxeBuilder({ page }).withRules(["landmark-one-main"]).analyze();
+      const violations = [...wcag.violations, ...landmark.violations];
       expect(
         violations.map((v) => ({
           rule: v.id,
