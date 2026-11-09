@@ -26,7 +26,7 @@ export const publicRpcHandler = new RPCHandler(router, {
 });
 
 /**
- * Cookie-less and gate-exempt (S8-D1). POST only, checked before anything else:
+ * Cookie-less (S8-D1). POST only, checked before anything else:
  * oRPC's codec would decode a GET's `?data=`, putting the ids into access logs.
  */
 export const CARDS_BY_IDS_PATH = `${PUBLIC_RPC_PREFIX}/animals/cardsByIds`;

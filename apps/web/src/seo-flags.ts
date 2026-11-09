@@ -69,17 +69,8 @@ export const REGISTRY_HAS_NO_REAL_SHELTERS = false;
  * allows crawling, so a crawler can actually reach the header and the
  * metadata this flag drives.
  *
- * **This reasoning is currently inoperative, not wrong - recorded here so
- * the next reader doesn't have to rediscover why.** `proxy.ts`'s pre-launch
- * gate (added 2026-09-13, `docs/decisions-pending-review.md`) 403s every
- * request while this flag is false, including a crawler's request for
- * `robots.txt` or any page - so nothing actually reaches the header or the
- * metadata described above today. The paragraph is still correct about
- * *why `robots.ts` allows crawling rather than disallowing it*, and that
- * reasoning becomes load-bearing again the moment the gate is removed,
- * which happens in the same change that flips this flag (see `proxy.ts`
- * and `docs/build-plan.md`'s launch-gate section) - before this flag can
- * ever be `true` while the gate still exists.
+ * The pre-launch gate that once 403d every request is gone, so a crawler reaches the header and
+ * the metadata above.
  *
  * Independent of `REGISTRY_HAS_NO_REAL_SHELTERS`: a verified real shelter
  * can exist in the database, reachable by direct link, while this is still
@@ -131,69 +122,22 @@ export function assertDemoDiscoverabilityInvariant(
 }
 
 /**
- * R4-2 (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`): `/pro`'s
- * `uk.about.analytics` can't honestly say "one cookie" while the pre-launch
- * gate still 403s every request - a real visitor reaching the page through
- * the gate link already carries a second, undisclosed cookie
- * (`__Host-prelaunch-gate`, `apps/web/src/api/prelaunch-gate.ts`). Oleksii's
- * own R4-2 Ukrainian is drafted and held in `R4_2_ANALYTICS_SENTENCE`
- * (`packages/i18n/src/messages/uk.ts`), not yet appended to
- * `uk.about.analytics` - `docs/build-plan.md`'s R4 row. The current sentence
- * isn't false, only incomplete, so this is a test-time tripwire, not a
- * `[COPY_PENDING]` marker or a boot-time throw like
- * `assertDemoDiscoverabilityInvariant` above - a missing copy sentence
- * shouldn't be able to take a production boot down the way indexing
- * fictional data would.
+ * R4-2: while the site is publicly discoverable, `/pro` must carry the "one cookie" sentence
+ * (`R4_2_ANALYTICS_SENTENCE`). One-sided: the claim is true whatever the flag says, so turning
+ * the flag off (a rollback) must not fail it. A test-time tripwire, not a boot-time throw.
  *
- * Two-sided, not one: the gate down with the sentence still missing is one
- * violation, but the sentence landed while the gate is still up is the
- * *other* half of the same invariant - «одне кукі» would be false for
- * exactly the reason this whole tripwire exists, the moment the sentence
- * ships early. Checked against `R4_2_ANALYTICS_SENTENCE` itself,
- * not a loose keyword like "кукі", so a reworded or partially-landed
- * version of the sentence still trips this rather than passing on a
- * coincidental substring match.
- *
- * Checks `SITE_IS_PUBLICLY_DISCOVERABLE`, not a separate "is the gate
- * removed" signal, because today they are the same code change: `proxy.ts`
- * only runs the gate `if (!SITE_IS_PUBLICLY_DISCOVERABLE)`, and this file's
- * own comment on that flag says so explicitly - "[the gate] comes down in
- * the same change that flips this flag." **This reads a compile-time
- * constant** (`SITE_IS_PUBLICLY_DISCOVERABLE` is a literal `false` in this
- * file's source, not a runtime read) - **if the gate's own switch ever
- * moves to an env var or other runtime config, or gate removal and this
- * flag's flip are ever decoupled, this check has to move with it**;
- * checking the wrong signal would make this tripwire silently stop meaning
- * anything.
- *
- * `analyticsText` and the flag are both parameters, defaulted to the real
- * values, for the same reason `assertDemoDiscoverabilityInvariant` above
- * takes its own flag as a parameter: `vi.doMock` builds a different module
- * namespace than the one a copied-across function still closes over, so a
- * parameter is what actually makes every combination testable, not a mock.
+ * Both inputs are parameters (defaulted to the real values) because `vi.doMock` cannot rewrite what
+ * a copied-across function closes over, as with `assertDemoDiscoverabilityInvariant` above.
  */
 export function assertAnalyticsCopyMatchesGateState(
   analyticsText: string = uk.about.analytics,
   siteIsPubliclyDiscoverable: boolean = SITE_IS_PUBLICLY_DISCOVERABLE,
 ): void {
-  const hasR42Sentence = analyticsText.includes(R4_2_ANALYTICS_SENTENCE);
-
-  if (siteIsPubliclyDiscoverable && !hasR42Sentence) {
+  if (siteIsPubliclyDiscoverable && !analyticsText.includes(R4_2_ANALYTICS_SENTENCE)) {
     throw new Error(
-      "Invariant violated: SITE_IS_PUBLICLY_DISCOVERABLE is true (the pre-launch gate is " +
-        "down, apps/web/src/seo-flags.ts) but uk.about.analytics (packages/i18n/src/" +
-        "messages/uk.ts) still doesn't carry R4-2's sentence " +
-        "(R4_2_ANALYTICS_SENTENCE). It needs to land before launch.",
-    );
-  }
-
-  if (!siteIsPubliclyDiscoverable && hasR42Sentence) {
-    throw new Error(
-      "Invariant violated: uk.about.analytics already carries R4-2's 'одне кукі' sentence " +
-        "(R4_2_ANALYTICS_SENTENCE) but SITE_IS_PUBLICLY_DISCOVERABLE is still false " +
-        "(apps/web/src/seo-flags.ts) - the pre-launch gate's __Host-prelaunch-gate cookie " +
-        "makes 'one cookie' false while the gate still exists. Either hold the sentence back " +
-        "until the gate comes down, or the gate removal shipped without this flag.",
+      "Invariant violated: SITE_IS_PUBLICLY_DISCOVERABLE is true (apps/web/src/seo-flags.ts) but " +
+        "uk.about.analytics (packages/i18n/src/messages/uk.ts) no longer carries R4-2's sentence " +
+        "(R4_2_ANALYTICS_SENTENCE).",
     );
   }
 }

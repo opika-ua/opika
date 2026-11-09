@@ -5,8 +5,7 @@ import { TOKEN_PAGE_PATHS } from "./token-pages";
 /**
  * Oleksii, 2026-10-20, verbatim: "On /kabinet/vkhid* pages that carry a token: Cache-Control:
  * no-store and Referrer-Policy: no-referrer." The reset link's page gets both from the proxy,
- * which every page load passes; driven through the real `proxy`, with the site launched so the
- * pre-launch gate stays out of the way (its own tests are `proxy.test.ts`).
+ * which every page load passes; driven through the real `proxy`.
  */
 describe("the token pages' headers, set by the proxy", () => {
   beforeEach(() => {

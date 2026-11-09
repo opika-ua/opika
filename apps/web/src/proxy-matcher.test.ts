@@ -7,8 +7,8 @@ import { describe, expect, it } from "vitest";
 
 describe("proxy matcher", () => {
   // Next buffers a matched non-GET request's whole body before the route or the proxy's own
-  // 403/429 can answer, which defeats `/api/kabinet`'s 16 KB cap; both excluded prefixes are
-  // gate-exempt by path and take no other proxy effect.
+  // 403/429 can answer, which defeats `/api/kabinet`'s 16 KB cap; both excluded prefixes take
+  // no other proxy effect.
   async function matches(pathname: string): Promise<boolean> {
     const { config } = await import("./proxy");
     const { unstable_doesMiddlewareMatch } = await import("next/experimental/testing/server");
