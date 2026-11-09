@@ -87,16 +87,18 @@ test.describe("security headers (audit F5)", () => {
     throw new Error(`${path} never answered 429 within ${budget + 1} requests`);
   }
 
-  // The proxy answers these itself (the F5 headers come from next.config, not from page code),
-  // so a response it builds must still carry them; no other check reaches that path.
+  // The F5 headers come from next.config, not page code, so a response the proxy builds must
+  // still carry them; no other check reaches that path. Only the /kabinet 429 is built by the
+  // proxy ("Too Many Requests" pins that branch); /tvaryny is a rewrite to the rate-limited route.
+  // Each test's IP (.67, .68) is used by no other spec: its budget is spent on purpose.
   test("the proxy's own 429 on a /kabinet page carries them", async ({ request }) => {
-    const refused = await firstRefusal(request, "/kabinet", 300, "198.51.100.61");
+    const refused = await firstRefusal(request, "/kabinet", 300, "198.51.100.67");
     expect(await refused.text()).toBe("Too Many Requests");
     expectEnforced(refused.headers(), "the proxy's /kabinet 429");
   });
 
   test("the proxy's rate-limit rewrite on a gallery page carries them", async ({ request }) => {
-    const refused = await firstRefusal(request, "/tvaryny", 100, "198.51.100.62");
+    const refused = await firstRefusal(request, "/tvaryny", 100, "198.51.100.68");
     expect(refused.headers()["retry-after"]).toBeDefined();
     expectEnforced(refused.headers(), "the proxy's /tvaryny 429");
   });
