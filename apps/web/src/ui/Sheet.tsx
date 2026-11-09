@@ -21,8 +21,10 @@ export type SheetProps = {
   id: string;
   /** The accessible name of the sheet, and of the trigger unless `triggerLabel` says otherwise. */
   label: string;
-  /** The trigger's own accessible name, when it carries more than the sheet's (a count of active filters). */
-  triggerLabel?: string;
+  /** The trigger's own accessible name; `null` drops the aria-label so the name is the trigger's visible content (WCAG 2.5.3). */
+  triggerLabel?: string | null;
+  /** Id of an element outside the trigger that describes it. */
+  triggerDescribedBy?: string | undefined;
   /** Fires once the dialog has closed however it closed (✕, Esc, backdrop, Back), e.g. to drop unsaved edits. */
   onClosed?: () => void;
   closeLabel: string;
@@ -56,6 +58,7 @@ export function Sheet({
   id,
   label,
   triggerLabel,
+  triggerDescribedBy,
   onClosed,
   closeLabel,
   trigger,
@@ -119,7 +122,8 @@ export function Sheet({
         ref={triggerRef}
         href={`#${id}`}
         onClick={openWithJs}
-        aria-label={triggerLabel ?? label}
+        aria-label={triggerLabel === null ? undefined : (triggerLabel ?? label)}
+        aria-describedby={triggerDescribedBy}
         aria-haspopup="dialog"
         aria-controls={id}
         aria-expanded={open}

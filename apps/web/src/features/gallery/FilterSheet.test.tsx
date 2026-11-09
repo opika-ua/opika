@@ -84,20 +84,25 @@ const checklistNames = () =>
     .map((box) => box.getAttribute("aria-label"));
 
 describe("FilterSheet: the main screen", () => {
-  it("names its trigger «Фільтри»", () => {
+  it("names its trigger «Фільтри», with no description, while nothing is active", () => {
     renderSheet();
-    expect(screen.getByTestId("filter-sheet-trigger").getAttribute("aria-label")).toBe("Фільтри");
+    const trigger = screen.getByRole("link", { name: "Фільтри" });
+    expect(trigger.getAttribute("aria-label")).toBeNull();
+    expect(trigger.hasAttribute("aria-describedby")).toBe(false);
   });
 
-  it("counts the active filters in the trigger's accessible name and badge", () => {
+  it("names the trigger by its visible text and the count, and describes the count in words", () => {
     renderSheet({
       ...NO_FILTERS,
       sizes: { kind: "oneOf", values: ["small"] },
       ages: { kind: "oneOf", values: ["young", "adult"] },
     });
-    const trigger = screen.getByTestId("filter-sheet-trigger");
-    expect(trigger.getAttribute("aria-label")).toBe("Фільтри, Активних фільтрів: 3");
-    expect(trigger.textContent).toBe("Фільтри3");
+    const trigger = screen.getByRole("link", { name: "Фільтри 3" });
+    expect(trigger.getAttribute("aria-label")).toBeNull();
+    expect(trigger.textContent).toBe("Фільтри 3");
+    const describedBy = trigger.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(describedBy)?.textContent).toBe("Активних фільтрів: 3");
+    expect(trigger.contains(document.getElementById(describedBy))).toBe(false);
   });
 
   it("shows Область and Місто as rows with «Усі» while nothing is chosen, and no pill wall", () => {

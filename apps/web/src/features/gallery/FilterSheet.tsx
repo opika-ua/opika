@@ -5,7 +5,7 @@ import type { CityId, FeedFilters, FilterSelection, GallerySort, RegionId } from
 import { ANIMAL_SPECIES, ANY, isExplicitlySelected } from "@opika/domain/core";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Button, LinkButton } from "../../ui/Button";
 import { Chip, choiceClass } from "../../ui/Chip";
 import { cx } from "../../ui/cx";
@@ -266,6 +266,7 @@ export function FilterSheet({
   };
   const shownCount = js ? liveResultCount(filters, live, counts, resultCount) : resultCount;
   const activeCount = activeFilterCount(filters);
+  const descriptionId = useId();
   const species = ANIMAL_SPECIES.find((value) => isExplicitlySelected(filters.species, value));
 
   const form = (close: ReactNode) => (
@@ -423,43 +424,45 @@ export function FilterSheet({
   );
 
   return (
-    <Sheet
-      id={SHEET_ID}
-      label={uk.filters.title}
-      triggerLabel={
-        activeCount > 0
-          ? `${uk.filters.title}, ${fillTemplate(uk.filters.activeCount, { count: String(activeCount) })}`
-          : uk.filters.title
-      }
-      closeLabel={uk.filters.close}
-      hideFrom="desktop"
-      presentation="screen"
-      onClosed={() => {
-        setView("main");
-        setQuery("");
-        setDraft(filters);
-        setTicked(null);
-        setDiscards((count) => count + 1);
-      }}
-      trigger={
-        <>
-          {uk.filters.title}
-          {activeCount > 0 ? (
-            <span
-              aria-hidden="true"
-              className="inline-flex size-6 items-center justify-center rounded-pill bg-accent text-caption text-on-ink"
-            >
-              {activeCount}
-            </span>
-          ) : null}
-        </>
-      }
-      triggerClassName="desktop:hidden shrink-0 rounded-pill border-2 border-ink px-4 tablet:px-5"
-      triggerTestId="filter-sheet-trigger"
-      dialogTestId="filter-sheet"
-    >
-      {({ close }) => form(close)}
-    </Sheet>
+    <>
+      {activeCount > 0 ? (
+        <span id={descriptionId} className="sr-only">
+          {fillTemplate(uk.filters.activeCount, { count: String(activeCount) })}
+        </span>
+      ) : null}
+      <Sheet
+        id={SHEET_ID}
+        label={uk.filters.title}
+        triggerLabel={null}
+        triggerDescribedBy={activeCount > 0 ? descriptionId : undefined}
+        closeLabel={uk.filters.close}
+        hideFrom="desktop"
+        presentation="screen"
+        onClosed={() => {
+          setView("main");
+          setQuery("");
+          setDraft(filters);
+          setTicked(null);
+          setDiscards((count) => count + 1);
+        }}
+        trigger={
+          <>
+            {uk.filters.title}
+            {activeCount > 0 ? " " : null}
+            {activeCount > 0 ? (
+              <span className="inline-flex size-6 items-center justify-center rounded-pill bg-accent text-caption text-on-ink">
+                {activeCount}
+              </span>
+            ) : null}
+          </>
+        }
+        triggerClassName="desktop:hidden shrink-0 rounded-pill border-2 border-ink px-4 tablet:px-5"
+        triggerTestId="filter-sheet-trigger"
+        dialogTestId="filter-sheet"
+      >
+        {({ close }) => form(close)}
+      </Sheet>
+    </>
   );
 }
 

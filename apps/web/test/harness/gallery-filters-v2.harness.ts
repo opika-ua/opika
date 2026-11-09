@@ -88,9 +88,9 @@ test.describe("/tvaryny phone: the sheet, the drill-down and the chips", () => {
 
     const chips = page.getByTestId("active-filter-chips");
     await expect(chips.getByRole("link", { name: "Прибрати фільтр Київська" })).toBeVisible();
-    await expect(page.getByTestId("filter-sheet-trigger")).toHaveAttribute(
-      "aria-label",
-      "Фільтри, Активних фільтрів: 1",
+    await expect(page.getByTestId("filter-sheet-trigger")).toHaveAccessibleName("Фільтри 1");
+    await expect(page.getByTestId("filter-sheet-trigger")).toHaveAccessibleDescription(
+      "Активних фільтрів: 1",
     );
     await chips.getByRole("link", { name: "Прибрати фільтр Київська" }).click();
     await page.waitForURL((url) => !url.search.includes("obl="));
