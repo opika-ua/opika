@@ -11,7 +11,7 @@ import {
   type ShelterVerification,
 } from "@opika/domain";
 import { type Browser, type BrowserContext, expect } from "@playwright/test";
-import { HARNESS_LOCATION_HMAC_SECRET, PRELAUNCH_GATE_STORAGE_STATE_PATH } from "../harness-env";
+import { HARNESS_LOCATION_HMAC_SECRET } from "../harness-env";
 import type { SignInServer } from "./sign-in-server";
 
 /*
@@ -159,10 +159,9 @@ export async function signedIn(
   return context;
 }
 
-/** An adopter's context on the sign-in server: no session, only the pre-launch gate cookie. */
+/** An adopter's context on the sign-in server: no session. */
 export const adopterContext = (browser: Browser, server: SignInServer, forwardedFor: string) =>
   browser.newContext({
     baseURL: server.origin,
-    storageState: PRELAUNCH_GATE_STORAGE_STATE_PATH,
     extraHTTPHeaders: { "x-forwarded-for": forwardedFor },
   });

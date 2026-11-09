@@ -1,8 +1,7 @@
 /**
  * Accessibility gate: axe (WCAG 2.0/2.1 A and AA rules only) on the key public pages at a phone
  * and a desktop width. Fails on any violation; `incomplete` results (axe could not decide) and
- * best-practice rules are not part of the gate. Own `x-forwarded-for` (TEST-NET-2 .74); the
- * pre-launch gate cookie comes from the shared storage state like every other spec. Named `zz-` so it
+ * best-practice rules are not part of the gate. Own `x-forwarded-for` (TEST-NET-2 .74). Named `zz-` so it
  * runs last: run first, it changed which seeded shelter the older specs' unordered scans pick.
  */
 

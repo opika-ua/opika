@@ -2,12 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { expect } from "@playwright/test";
-import {
-  CURSOR_HMAC_SECRET,
-  HARNESS_BETTER_AUTH_SECRET,
-  HARNESS_PRELAUNCH_GATE_SECRET,
-  R2_PUBLIC_BASE_URL,
-} from "../harness-env";
+import { CURSOR_HMAC_SECRET, HARNESS_BETTER_AUTH_SECRET, R2_PUBLIC_BASE_URL } from "../harness-env";
 
 /**
  * A second server on the same build, with kabinet sign-in available (KS-T3,
@@ -77,7 +72,6 @@ export async function startSignInServer(
         DATABASE_URL: databaseUrl,
         CURSOR_HMAC_SECRET,
         NEXT_PUBLIC_R2_PUBLIC_BASE_URL: R2_PUBLIC_BASE_URL,
-        PRELAUNCH_GATE_SECRET: HARNESS_PRELAUNCH_GATE_SECRET,
         BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
         BETTER_AUTH_URL: origin,
         ...extraEnv,

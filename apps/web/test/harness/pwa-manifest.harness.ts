@@ -1,6 +1,5 @@
 /**
- * The manifest and its icons against a real server, with no gate cookie: a browser fetches them
- * without credentials, so the pre-launch gate must let exactly these through. Own forwarded IP so
+ * The manifest and its icons against a real server, without credentials, as a browser fetches them. Own forwarded IP so
  * no other spec's per-IP budget is spent.
  */
 import { expect, test } from "@playwright/test";
@@ -36,17 +35,5 @@ test.describe("web app manifest, against a real server", () => {
       1,
     );
     await expect(page.locator('link[rel="manifest"]')).toHaveCount(1);
-  });
-
-  test.describe("without the project's gate cookie", () => {
-    test.use({ storageState: { cookies: [], origins: [] } });
-
-    test("the gate still denies a page without a cookie", async ({ request }) => {
-      expect(
-        (await request.storageState()).cookies,
-        "the request context must carry no gate cookie",
-      ).toHaveLength(0);
-      expect((await request.get("/tvaryny")).status()).toBe(403);
-    });
   });
 });
