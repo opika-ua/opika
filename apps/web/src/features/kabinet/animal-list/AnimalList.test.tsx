@@ -198,7 +198,9 @@ function renderList({
 const rowOf = (name: string) => screen.getByRole("listitem", { name });
 const inRow = (name: string) => within(rowOf(name));
 const openMenu = async (name: string) => {
-  await userEvent.click(inRow(name).getByRole("button", { name: /^Дії з карткою/ }));
+  await userEvent.click(
+    inRow(name).getAllByRole("button", { name: /^Дії з карткою/ })[0] as HTMLElement,
+  );
 };
 const statusText = () => screen.getByRole("status").textContent;
 const alertText = () =>
@@ -1275,7 +1277,7 @@ describe("the support view (S5): nothing writes, so no write control is shown", 
 describe("«Ще» is a disclosure", () => {
   it("opens and closes, says so, and Escape closes it with focus back on «Ще»", async () => {
     renderList();
-    const more = inRow("Рекс").getByRole("button", { name: /^Дії з карткою/ });
+    const more = inRow("Рекс").getAllByRole("button", { name: /^Дії з карткою/ })[0] as HTMLElement;
     expect(more.getAttribute("aria-expanded")).toBe("false");
     await userEvent.click(more);
     expect(more.getAttribute("aria-expanded")).toBe("true");
@@ -1293,7 +1295,7 @@ describe("«Ще» is a disclosure", () => {
       inRow("Рекс").getByRole("button", { name: "Ще шукає" }).getAttribute("aria-describedby"),
     ).toContain(name.id);
     // The ⋯ button carries the name in its own accessible name instead.
-    expect(inRow("Рекс").getByRole("button", { name: "Дії з карткою Рекс" })).toBeTruthy();
+    expect(inRow("Рекс").getAllByRole("button", { name: "Дії з карткою Рекс" })).toHaveLength(2);
   });
 });
 
@@ -1310,7 +1312,7 @@ describe("the name is the way into the card's form, and «Ще» closes on a pre
   it("a press outside the open «Ще» closes it", async () => {
     renderList();
     await openMenu("Рекс");
-    const more = inRow("Рекс").getByRole("button", { name: /^Дії з карткою/ });
+    const more = inRow("Рекс").getAllByRole("button", { name: /^Дії з карткою/ })[0] as HTMLElement;
     expect(more.getAttribute("aria-expanded")).toBe("true");
     await userEvent.click(screen.getByRole("heading", { level: 1, name: "Тварини" }));
     expect(more.getAttribute("aria-expanded")).toBe("false");
