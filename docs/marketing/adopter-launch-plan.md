@@ -181,7 +181,9 @@ not a date.
 
 ### Phase 0 - Before the first real shelter (now → rehearsal passed)
 
-**Entry:** now. **Shelters:** 0 real; demo corpus behind the pre-launch gate.
+Done 2026-11-09: site public (step 14, #448, 80c4cf3).
+
+**Entry:** now. **Shelters:** 0 real as of launch (2026-11-09); site public, no demo data in production (reset 2).
 
 | # | Item | Depends on | Effort |
 |---|---|---|---|
