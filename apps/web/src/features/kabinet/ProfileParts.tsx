@@ -93,7 +93,8 @@ export function LockedBlock({
   const t = uk.kabinet.profile;
   const notRecorded = uk.kabinet.profileNotRecorded;
   const legal = view.legalEntity;
-  const address = [cityName, view.exactAddress.line1, view.exactAddress.line2]
+  // No address on file yet: the city alone.
+  const address = [cityName, view.exactAddress?.line1 ?? null, view.exactAddress?.line2 ?? null]
     .filter((part): part is string => part !== null && part !== "")
     .join(", ");
   return (
@@ -107,7 +108,9 @@ export function LockedBlock({
         </div>
         <Text look="hint">{fillTemplate(t.lockedNote, { operator: operatorName })}</Text>
         <Facts>
-          {legal.kind === "unregistered_initiative" ? (
+          {legal === null ? (
+            <Row label={t.legalName}>{uk.kabinet.notFilledYet}</Row>
+          ) : legal.kind === "unregistered_initiative" ? (
             <Row label={t.contactPerson}>{legal.contactPersonName}</Row>
           ) : (
             <>

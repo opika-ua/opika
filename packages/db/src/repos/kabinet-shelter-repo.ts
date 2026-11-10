@@ -22,7 +22,7 @@ import { animals } from "../schema/animals";
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
 import { historyRowSelect } from "./history-sql";
-import { localizedTextToColumns, shelterToRow } from "./mappers";
+import { exactPointColumns, localizedTextToColumns, shelterToRow } from "./mappers";
 
 /**
  * One audited change to a shelter, as a union rather than an arbitrary column
@@ -114,8 +114,7 @@ function columnsOf(change: AuditedShelterChange) {
         exactAddress: change.exactAddress,
         publicLocation: change.publicLocation,
         cityId: change.publicLocation.cityId,
-        exactLat: String(change.exactAddress.coordinates.lat),
-        exactLng: String(change.exactAddress.coordinates.lng),
+        ...exactPointColumns(change.exactAddress),
       };
     case "donation_approved":
       return { donation: change.donation, pendingDonation: null };

@@ -17,6 +17,7 @@ import {
   OPERATOR_VERIFICATION_EVENTS,
   type OperatorVerificationEvent,
   offeredActionsOf,
+  type VerifiedData,
 } from "./offered-actions";
 
 /**
@@ -38,6 +39,17 @@ const NGO: ShelterLegalEntity = {
   edrpou: "43218765" as never,
   registeredAt: new Date("2020-01-01T00:00:00.000Z"),
 };
+
+const ADDRESS: VerifiedData["exactAddress"] = {
+  line1: "вул. Київська, 300",
+  line2: null,
+  postalCode: null,
+  cityId: "c1000000-0000-4000-8000-000000000001" as never,
+  district: null,
+  coordinates: null,
+};
+
+const DATA: VerifiedData = { legalEntity: NGO, exactAddress: ADDRESS };
 
 const reference = (name: string): EvidenceItem => ({
   kind: "reference_contact",
@@ -158,7 +170,7 @@ const accepted = (state: ShelterVerification): OperatorVerificationEvent[] =>
   });
 
 const offered = (state: ShelterVerification): OperatorVerificationEvent[] =>
-  offeredActionsOf(state, NGO).map((action) => action.event);
+  offeredActionsOf(state, DATA).map((action) => action.event);
 
 describe("offered actions = the operator events transition() accepts (FSM parity)", () => {
   it("covers all six statuses (not vacuous)", () => {
@@ -247,8 +259,14 @@ describe("approve is gated by the domain's evidence policy", () => {
     evidence: evidenceOf(items),
   });
 
-  const approveOf = (state: ShelterVerification, legalEntity: ShelterLegalEntity) => {
-    const action = offeredActionsOf(state, legalEntity).find((a) => a.event === "approve");
+  const approveOf = (
+    state: ShelterVerification,
+    legalEntity: ShelterLegalEntity | null,
+    exactAddress: VerifiedData["exactAddress"] = ADDRESS,
+  ) => {
+    const action = offeredActionsOf(state, { legalEntity, exactAddress }).find(
+      (a) => a.event === "approve",
+    );
     if (action?.event !== "approve") throw new Error("approve not offered");
     return action.gate;
   };
@@ -257,8 +275,8 @@ describe("approve is gated by the domain's evidence policy", () => {
     expect(approveOf(underReview([reference("Ветклініка")]), NGO)).toEqual({
       kind: "blocked",
       gaps: [
-        { kind: "edrpou_registration", minimum: 1, provided: 0 },
-        { kind: "site_visit", minimum: 1, provided: 0 },
+        { on: "evidence", kind: "edrpou_registration", minimum: 1, provided: 0 },
+        { on: "evidence", kind: "site_visit", minimum: 1, provided: 0 },
       ],
     });
   });
@@ -276,7 +294,7 @@ describe("approve is gated by the domain's evidence policy", () => {
     };
     expect(approveOf(underReview([visit]), initiative)).toEqual({
       kind: "blocked",
-      gaps: [{ kind: "reference_contact", minimum: 1, provided: 0 }],
+      gaps: [{ on: "evidence", kind: "reference_contact", minimum: 1, provided: 0 }],
     });
     expect(approveOf(underReview([visit, reference("Ветклініка")]), initiative)).toEqual({
       kind: "open",
@@ -296,6 +314,24 @@ describe("approve is gated by the domain's evidence policy", () => {
     expect(approveOf(underReview(items), NGO)).toEqual({ kind: "open" });
   });
 
+  it("missing legal data and address block it first, before any evidence is measured", () => {
+    expect(approveOf(underReview([]), null, null)).toEqual({
+      kind: "blocked",
+      gaps: [
+        { on: "verified_data", field: "legal_entity" },
+        { on: "verified_data", field: "exact_address" },
+      ],
+    });
+    expect(approveOf(underReview([]), NGO, null)).toEqual({
+      kind: "blocked",
+      gaps: [
+        { on: "verified_data", field: "exact_address" },
+        { on: "evidence", kind: "edrpou_registration", minimum: 1, provided: 0 },
+        { on: "evidence", kind: "site_visit", minimum: 1, provided: 0 },
+      ],
+    });
+  });
+
   it("uses the policy it is given, so a tuned threshold moves the gate", () => {
     const stricter = {
       requirementsByLegalEntity: {
@@ -303,12 +339,15 @@ describe("approve is gated by the domain's evidence policy", () => {
         registered_ngo: [{ kind: "reference_contact", minimum: 3 }],
       },
     } as const;
-    const action = offeredActionsOf(underReview([reference("А")]), NGO, stricter).find(
+    const action = offeredActionsOf(underReview([reference("А")]), DATA, stricter).find(
       (a) => a.event === "approve",
     );
     expect(action).toEqual({
       event: "approve",
-      gate: { kind: "blocked", gaps: [{ kind: "reference_contact", minimum: 3, provided: 1 }] },
+      gate: {
+        kind: "blocked",
+        gaps: [{ on: "evidence", kind: "reference_contact", minimum: 3, provided: 1 }],
+      },
     });
   });
 });
@@ -317,7 +356,10 @@ describe("reinstate names the state the suspension interrupted", () => {
   it("carries the prior state whole, verified or paused", () => {
     for (const state of statesFor("suspended")) {
       if (state.status !== "suspended") throw new Error("sample is not suspended");
-      expect(offeredActionsOf(state, NGO)[0]).toEqual({ event: "reinstate", to: state.priorState });
+      expect(offeredActionsOf(state, DATA)[0]).toEqual({
+        event: "reinstate",
+        to: state.priorState,
+      });
     }
   });
 });

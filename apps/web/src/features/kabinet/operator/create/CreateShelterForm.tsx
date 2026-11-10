@@ -30,7 +30,7 @@ import {
 } from "./create-input";
 import { type CreateRefusal, createRefusalOf, refusalMessage } from "./create-outcome";
 import { type RegistryCreateClient, registryCreateBrowserClient } from "./registry-create-client";
-import { AddressFields, LegalFields, useCityPicker } from "./VerifiedDataFields";
+import { AddressFields, CityField, LegalFields, useCityPicker } from "./VerifiedDataFields";
 
 /** Where S2 stands. A submission is one request; nothing retries it (RU-T9). */
 type Phase =
@@ -163,6 +163,14 @@ export function CreateShelterForm({
               onChange={(event) => set("displayName", event.target.value)}
               error={err("displayName")}
             />
+            <CityField
+              idPrefix={id}
+              city={city}
+              setCity={setCity}
+              setCityId={(cityId) => set("cityId", cityId)}
+              picker={cityPicker}
+              error={errors.fields.cityId === undefined ? null : uk.kabinet.cityPicker.mustPick}
+            />
             <TextArea
               id={`${id}-description`}
               label={t.description}
@@ -175,23 +183,21 @@ export function CreateShelterForm({
           </div>
         </Card>
 
-        <FormSection id={`${id}-address`} title={uk.kabinet.profile.address}>
+        <FormSection
+          id={`${id}-address`}
+          title={uk.kabinet.profile.address}
+          description={t.laterHint}
+        >
           <AddressFields
             idPrefix={id}
             form={form}
             set={set}
-            city={city}
-            setCity={setCity}
-            picker={cityPicker}
-            errors={{
-              cityId: errors.fields.cityId === undefined ? null : uk.kabinet.cityPicker.mustPick,
-              line1: err("line1"),
-              coordinates: err("coordinates"),
-            }}
+            street="optional"
+            errors={{ line1: err("line1"), coordinates: err("coordinates") }}
           />
         </FormSection>
 
-        <FormSection id={`${id}-legal`} title={t.legalTitle}>
+        <FormSection id={`${id}-legal`} title={t.legalTitle} description={t.laterHint}>
           <LegalFields
             idPrefix={id}
             labelledBy={`${id}-legal-title`}

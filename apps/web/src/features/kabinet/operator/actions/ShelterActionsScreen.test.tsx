@@ -143,3 +143,34 @@ describe("S4 with its actions", () => {
     expect(section("Історія").getByText(/^Взято на розгляд/)).toBeTruthy();
   });
 });
+
+describe("S4 for a shelter created without its legal data and address", () => {
+  const minimal = withVerification(registryView({ legalEntity: null, exactAddress: null }), {
+    status: "pending",
+    submittedAt: AT,
+    evidence: { items: [], submittedAt: AT },
+  });
+
+  it("reads «Ще не заповнено» on both blocks, each with «Додати» that opens its edit form", async () => {
+    render(
+      <ShelterActionsScreen
+        view={minimal}
+        cityName="Бровари"
+        history={{ items: [created], nextCursor: null }}
+        blocked={CHECKED_NONE}
+        me={MODERATOR as ModeratorId}
+        now={NOW}
+      />,
+    );
+    for (const name of ["Юридичні дані", "Адреса приміщення"]) {
+      expect(section(name).getByText("Ще не заповнено")).toBeTruthy();
+      expect(section(name).queryByRole("button", { name: "Змінити" })).toBeNull();
+    }
+    await userEvent.click(section("Юридичні дані").getByRole("button", { name: "Додати" }));
+    expect(section("Юридичні дані").getByRole("radio", { name: "ФОП" })).toBeTruthy();
+    await userEvent.click(section("Адреса приміщення").getByRole("button", { name: "Додати" }));
+    expect(
+      section("Адреса приміщення").getByRole("textbox", { name: /Вулиця, будинок/ }),
+    ).toBeTruthy();
+  });
+});

@@ -1,6 +1,8 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  type CityId,
+  cityPublicLocationOf,
   type ExactAddress,
   type LocationPrivacyPolicy,
   type PublicLocation,
@@ -57,7 +59,8 @@ const canonical = (value: unknown): string =>
 
 export type StoredLocationRow = {
   id: string;
-  /** Nullable in the schema; nothing writes null yet, so `storedWith` throws on it. */
+  cityId: string;
+  /** Null until the operator adds it: the stored location is then the city alone. */
   exactAddress: ExactAddress | null;
   publicLocation: PublicLocation;
 };
@@ -67,15 +70,12 @@ export type StoredLocationRow = {
  * `demo:remove` uses it with the seed's policy to refuse while a shelter
  * outside the seed range sits on the test-only key (RG-Q11's privacy bug).
  */
-export const storedWith = (row: StoredLocationRow, policy: LocationPrivacyPolicy): boolean => {
-  if (row.exactAddress === null) {
-    throw new Error(`Shelter ${row.id} has no address; this check does not handle that yet`);
-  }
-  return (
-    canonical(publicLocationOf(row.id as ShelterId, row.exactAddress, policy)) ===
-    canonical(row.publicLocation)
-  );
-};
+export const storedWith = (row: StoredLocationRow, policy: LocationPrivacyPolicy): boolean =>
+  canonical(
+    row.exactAddress === null
+      ? cityPublicLocationOf(row.cityId as CityId, null)
+      : publicLocationOf(row.id as ShelterId, row.exactAddress, policy),
+  ) === canonical(row.publicLocation);
 
 export function compareLocations(
   rows: readonly StoredLocationRow[],
@@ -103,6 +103,7 @@ export async function verifyShelterLocations(
   const rows = await db
     .select({
       id: shelters.id,
+      cityId: shelters.cityId,
       exactAddress: shelters.exactAddress,
       publicLocation: shelters.publicLocation,
     })

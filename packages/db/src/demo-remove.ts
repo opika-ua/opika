@@ -314,6 +314,7 @@ export async function planDemoRemoval(
   const outsideSeedRange = await db
     .select({
       id: shelters.id,
+      cityId: shelters.cityId,
       exactAddress: shelters.exactAddress,
       publicLocation: shelters.publicLocation,
     })

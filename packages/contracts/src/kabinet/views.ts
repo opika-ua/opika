@@ -130,6 +130,8 @@ export const KabinetShelterViewSchema = ShelterSchema.pick({
   logo: true,
   version: true,
 }).extend({
+  /** The shelter's city on its own, since the address that used to carry it may be missing. */
+  cityId: CityIdSchema,
   verification: ShelterFacingVerificationSchema,
   earlyListing: KabinetEarlyListingSchema,
 });

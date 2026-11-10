@@ -1,6 +1,5 @@
 import type { KabinetCursor, KabinetShelterView } from "@opika/contracts";
 import { cityRepo } from "@opika/db/repos";
-import type { CityId } from "@opika/domain";
 import { createRouterClient, ORPCError, type RouterClient } from "@orpc/server";
 import { decideAccess, registryOperatorOf } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
@@ -144,7 +143,7 @@ export async function kabinetHomeOf(
   }
   // A city is public data (it names the card's location), not something the
   // shelter view withholds; the view carries only its id.
-  const city = await cityRepo(deps.db).findById(view.exactAddress.cityId as CityId);
+  const city = await cityRepo(deps.db).findById(view.cityId);
   const write = decideAccess({ surface: "shelter", mode: "write" }, principal, deps.shelterWrites);
   const editing: ProfileEditing =
     write.kind === "allow_shelter_write"

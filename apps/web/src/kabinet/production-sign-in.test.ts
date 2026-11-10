@@ -363,7 +363,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 795 with `profile.earlyListingEnded` and `operator.earlyListing.oneMoreLeft` (gap 6, 2026-11-10).
     // 799 with the Instagram and Facebook contact kinds (owner-approved 2026-11-10): two
     // `profileChannel.*` and two `profileEdit.errors.*Format`.
-    expect(pending.length + written.length).toBe(799);
+    // 806 with the minimal create (owner-approved 2026-11-10): `notFilledYet`, `operator.shelter.add`,
+    // `operator.create.laterHint`, two `operator.evidence.missingData.*` and two
+    // `operator.history.verified_data_added.*`.
+    expect(pending.length + written.length).toBe(806);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

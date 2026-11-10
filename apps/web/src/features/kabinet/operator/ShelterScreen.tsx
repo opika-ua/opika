@@ -4,11 +4,11 @@ import type {
   RegistryShelterView,
 } from "@opika/contracts";
 import {
+  approvalGaps,
   DEFAULT_VERIFICATION_POLICY,
   donationHost,
   type EvidenceItem,
   enteredAt,
-  evidenceGaps,
   type ModeratorId,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
@@ -26,6 +26,7 @@ import type { HistoryPage } from "./pages";
 
 const t = uk.kabinet.operator;
 const notRecorded = uk.kabinet.profileNotRecorded;
+const notFilledYet = uk.kabinet.notFilledYet;
 
 /** One fact, label over value: a description list row, nothing editable. */
 function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -67,7 +68,7 @@ function EvidenceCard({ view }: { view: RegistryShelterView }) {
   // or under review): the domain's own rule, never a copy of it.
   const gaps =
     view.verification.status === "pending" || view.verification.status === "under_review"
-      ? evidenceGaps(view.legalEntity, evidence, DEFAULT_VERIFICATION_POLICY)
+      ? approvalGaps(view, evidence, DEFAULT_VERIFICATION_POLICY)
       : [];
   return (
     <Section id="operator-evidence" title={e.title}>
@@ -93,15 +94,21 @@ function EvidenceCard({ view }: { view: RegistryShelterView }) {
           ))}
         </ul>
       )}
-      {gaps.map((gap) => (
-        <Text key={gap.kind} look="label">
-          {fillTemplate(e.gaps, {
-            kind: e.kind[gap.kind],
-            provided: String(gap.provided),
-            minimum: String(gap.minimum),
-          })}
-        </Text>
-      ))}
+      {gaps.map((gap) =>
+        gap.on === "verified_data" ? (
+          <Text key={gap.field} look="label">
+            {e.missingData[gap.field]}
+          </Text>
+        ) : (
+          <Text key={gap.kind} look="label">
+            {fillTemplate(e.gaps, {
+              kind: e.kind[gap.kind],
+              provided: String(gap.provided),
+              minimum: String(gap.minimum),
+            })}
+          </Text>
+        ),
+      )}
     </Section>
   );
 }
@@ -160,20 +167,26 @@ function LegalCard({ view, edit }: { view: RegistryShelterView; edit: ReactNode 
   const legal = view.legalEntity;
   return (
     <Section id="operator-legal" title={t.create.legalTitle}>
-      <Text>{t.create.legalKind[legal.kind]}</Text>
-      <dl className="flex flex-col gap-3">
-        {legal.kind === "unregistered_initiative" ? (
-          <Fact label={p.contactPerson}>{legal.contactPersonName}</Fact>
-        ) : (
-          <>
-            <Fact label={p.legalName}>{legal.legalName}</Fact>
-            <Fact label={p.edrpou}>{groupEdrpou(legal.edrpou)}</Fact>
-            {legal.kind === "registered_ngo" ? (
-              <Fact label={t.create.registeredAt}>{formatDate(legal.registeredAt)}</Fact>
-            ) : null}
-          </>
-        )}
-      </dl>
+      {legal === null ? (
+        <Text>{notFilledYet}</Text>
+      ) : (
+        <>
+          <Text>{t.create.legalKind[legal.kind]}</Text>
+          <dl className="flex flex-col gap-3">
+            {legal.kind === "unregistered_initiative" ? (
+              <Fact label={p.contactPerson}>{legal.contactPersonName}</Fact>
+            ) : (
+              <>
+                <Fact label={p.legalName}>{legal.legalName}</Fact>
+                <Fact label={p.edrpou}>{groupEdrpou(legal.edrpou)}</Fact>
+                {legal.kind === "registered_ngo" ? (
+                  <Fact label={t.create.registeredAt}>{formatDate(legal.registeredAt)}</Fact>
+                ) : null}
+              </>
+            )}
+          </dl>
+        </>
+      )}
       <Text look="hint">{t.shelter.legalNote}</Text>
       {edit}
     </Section>
@@ -190,17 +203,25 @@ function AddressCard({
   edit: ReactNode;
 }) {
   const address = view.exactAddress;
-  const line = [cityName, address.line1, address.line2, address.postalCode]
-    .filter((part): part is string => part !== null && part !== "")
-    .join(", ");
+  const line =
+    address === null
+      ? ""
+      : [cityName, address.line1, address.line2, address.postalCode]
+          .filter((part): part is string => part !== null && part !== "")
+          .join(", ");
+  const point = address?.coordinates ?? null;
   return (
     <Section id="operator-address" title={uk.kabinet.profile.address}>
-      <dl className="flex flex-col gap-3">
-        <Fact label={uk.kabinet.profile.address}>{line === "" ? notRecorded : line}</Fact>
-        <Fact label={t.create.coordinates}>
-          {address.coordinates.lat}, {address.coordinates.lng}
-        </Fact>
-      </dl>
+      {address === null ? (
+        <Text>{notFilledYet}</Text>
+      ) : (
+        <dl className="flex flex-col gap-3">
+          <Fact label={uk.kabinet.profile.address}>{line === "" ? notRecorded : line}</Fact>
+          <Fact label={t.create.coordinates}>
+            {point === null ? notFilledYet : `${point.lat}, ${point.lng}`}
+          </Fact>
+        </dl>
+      )}
       <Text look="hint">{uk.kabinet.profile.addressNote}</Text>
       {edit}
     </Section>
@@ -319,7 +340,7 @@ const historyKeyOf = (page: HistoryPage): string => {
 export type ShelterScreenActions = {
   supportEntry: ReactNode;
   rename: ReactNode;
-  /** «Змінити» on the two locked blocks (`updateVerifiedData`). */
+  /** «Змінити», or «Додати» on an empty one, on the two locked blocks (`updateVerifiedData`). */
   legalEdit: ReactNode;
   addressEdit: ReactNode;
   decision: ReactNode;

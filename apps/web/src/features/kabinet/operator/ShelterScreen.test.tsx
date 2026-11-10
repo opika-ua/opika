@@ -179,6 +179,14 @@ describe("S4 evidence", () => {
     expect(within(evidence).queryByText(/Для схвалення бракує/)).toBeNull();
   });
 
+  it("names the missing legal data and address before any evidence, and no evidence without a legal form", () => {
+    renderScreen({ legalEntity: null, exactAddress: null });
+    const evidence = section("Докази для перевірки");
+    expect(within(evidence).getByText("Для схвалення бракує юридичних даних.")).toBeTruthy();
+    expect(within(evidence).getByText("Для схвалення бракує адреси приміщення.")).toBeTruthy();
+    expect(within(evidence).queryByText(/Для схвалення бракує: /)).toBeNull();
+  });
+
   it("names no gap once approval is not the next decision", () => {
     renderScreen({
       verification: {
@@ -222,6 +230,19 @@ describe("S4 legal data, address, contacts, description", () => {
     expect(
       within(address).getByText("Ті, хто шукає тварину, не бачать точної адреси – лише місто."),
     ).toBeTruthy();
+  });
+
+  it("reads «Ще не заповнено» where the legal data, the address or its point is missing", () => {
+    renderScreen({ legalEntity: null, exactAddress: null });
+    expect(within(section("Юридичні дані")).getByText("Ще не заповнено")).toBeTruthy();
+    expect(within(section("Адреса приміщення")).getByText("Ще не заповнено")).toBeTruthy();
+  });
+
+  it("an address without its point reads «Ще не заповнено» for the coordinates only", () => {
+    renderScreen({ exactAddress: { ...view().exactAddress, coordinates: null } as never });
+    const address = section("Адреса приміщення");
+    expect(within(address).getByText("Бровари, вул. Київська, 300, 07400")).toBeTruthy();
+    expect(within(address).getByText("Ще не заповнено")).toBeTruthy();
   });
 
   it("shows the contacts and the description", () => {

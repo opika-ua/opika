@@ -205,9 +205,24 @@ describe("0024 optional verified data: what the database accepts", () => {
     },
   );
 
-  it("a read of a null row throws at the mapper rather than reaching a view typed as complete", async () => {
+  it("a read of a null row maps both fields to null", async () => {
     const shelter = await seedShelter();
-    await client`UPDATE shelters SET legal_entity = NULL WHERE id = ${shelter.id}`;
-    await expect(shelterRepo(db).findById(shelter.id)).rejects.toThrow(/legal entity or address/);
+    await client`UPDATE shelters SET legal_entity = NULL, exact_address = NULL, exact_lat = NULL, exact_lng = NULL WHERE id = ${shelter.id}`;
+    const read = await shelterRepo(db).findById(shelter.id);
+    expect([read?.legalEntity, read?.exactAddress]).toEqual([null, null]);
+  });
+
+  it("writes no point for an address without coordinates", async () => {
+    const city = makeCity();
+    await cityRepo(db).insertMissing([city]);
+    const base = makeShelter({ verification: PENDING });
+    const shelter = {
+      ...base,
+      exactAddress: { ...base.exactAddress, cityId: city.id, coordinates: null },
+      publicLocation: { precision: "city" as const, cityId: city.id, district: null },
+    };
+    await db.insert(shelters).values(shelterToRow(shelter));
+    const [row] = await db.select().from(shelters).where(eq(shelters.id, shelter.id));
+    expect([row?.exactLat, row?.exactLng]).toEqual([null, null]);
   });
 });

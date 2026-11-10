@@ -8,6 +8,7 @@ import {
   animalDescriptionProblem,
   animalDescriptionProblemMessage,
   CalendarDateSchema,
+  CityIdSchema,
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   CoatLengthSchema,
   characterCount,
@@ -419,7 +420,7 @@ export type AgeEstimateInput = z.infer<typeof AgeEstimateInputSchema>;
  * the shelter-declared attestation and refuses to overwrite a registry one.
  * `documentReadiness` is in no kabinet input (proposal §1.7). Photos have
  * their own procedures (`shelter.photos.*`, below); a foster location waits
- * for a write path through `animalPublicLocationOf`.
+ * for a write path through `cityPublicLocationOf`.
  *
  * Only the description can be cleared (null), and only on a draft (F-B1): a
  * listed animal answers `LISTING_FACT_REQUIRED`. A size or an age bucket is a
@@ -754,9 +755,13 @@ export const registrySheltersContract = {
       z.strictObject({
         // RUI4-F2: the shared rule, trimmed, required, at most 100 characters.
         displayName: ShelterDisplayNameInputSchema,
+        /** The shelter's city, required on its own: the address is optional. */
+        cityId: CityIdSchema,
         description: LocalizedTextSchema,
-        legalEntity: ShelterLegalEntitySchema,
-        exactAddress: ExactAddressSchema,
+        /** Null: added later through `updateVerifiedData`; approval waits for it. */
+        legalEntity: ShelterLegalEntitySchema.nullable(),
+        /** Without `cityId`: the address is in the shelter's city by construction. */
+        exactAddress: ExactAddressSchema.omit({ cityId: true }).nullable(),
         contact: ShelterContactInputSchema,
         freshnessSentence: FreshnessSentenceInputSchema,
         evidence: z.array(EvidenceItemInputSchema).readonly(),
@@ -823,6 +828,7 @@ export const registryVerificationContract = {
   approve: registryShelter.input(shelterRef).errors({
     ...registryErrors,
     ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION,
+    VERIFIED_DATA_MISSING: apiErrors.VERIFIED_DATA_MISSING,
     EVIDENCE_INSUFFICIENT: apiErrors.EVIDENCE_INSUFFICIENT,
   }),
   reinstate: verificationMove,

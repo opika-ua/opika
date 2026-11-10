@@ -8,6 +8,7 @@ import type {
   CityId,
   CoatColour,
   ContactReveal,
+  ExactAddress,
   LocalizedText,
   Shelter,
   Temperament,
@@ -200,24 +201,23 @@ export function shelterToRow(shelter: Shelter): ShelterInsert {
     verification: shelter.verification,
     earlyListingSince: shelter.earlyListingSince,
     cityId: shelter.publicLocation.cityId,
-    exactLat: String(shelter.exactAddress.coordinates.lat),
-    exactLng: String(shelter.exactAddress.coordinates.lng),
+    ...exactPointColumns(shelter.exactAddress),
     createdAt: shelter.createdAt,
     lastUpdatedAt: shelter.lastUpdatedAt,
   };
 }
 
-/**
- * The columns are nullable for the minimal create, but `Shelter` still says both are present and
- * nothing writes null yet: a null row throws here, as the old NOT NULL would have refused it.
- */
+/** The write-only point columns: both null when the address, or just its point, is not known. */
+export const exactPointColumns = (
+  exactAddress: ExactAddress | null,
+): { exactLat: string | null; exactLng: string | null } => {
+  const point = exactAddress?.coordinates ?? null;
+  return point === null
+    ? { exactLat: null, exactLng: null }
+    : { exactLat: String(point.lat), exactLng: String(point.lng) };
+};
+
 export function rowToShelter(row: ShelterRow): Shelter {
-  const { legalEntity, exactAddress } = row;
-  if (legalEntity === null || exactAddress === null) {
-    throw new Error(
-      `Shelter ${row.id} lacks its legal entity or address; no reader handles that yet`,
-    );
-  }
   return {
     id: row.id,
     displayName: row.displayName,
@@ -226,9 +226,9 @@ export function rowToShelter(row: ShelterRow): Shelter {
       row.descriptionEnText,
       row.descriptionEnProvenance,
     ),
-    legalEntity,
+    legalEntity: row.legalEntity ?? null,
     publicLocation: row.publicLocation,
-    exactAddress,
+    exactAddress: row.exactAddress ?? null,
     contact: row.contact,
     donation: row.donation ?? null,
     logo: row.logo ?? null,

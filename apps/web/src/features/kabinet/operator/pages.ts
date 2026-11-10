@@ -180,7 +180,7 @@ export async function operatorShelterOf(
     const [history, blocked, city] = await Promise.all([
       client.registry.history.list({ shelterId, cursor: null, limit: HISTORY_PAGE }),
       client.registry.admins.blockedAddresses({ shelterId }),
-      cityRepo(deps.db).findById(view.exactAddress.cityId as CityId),
+      cityRepo(deps.db).findById(view.publicLocation.cityId),
     ]);
     // The operator reading, for «ви» in history: the decision the middleware just made.
     const me = registryOperatorOf(principal, deps.shelterWrites);

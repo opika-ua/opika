@@ -83,8 +83,9 @@ return of a verified shelter to review, no reject from paused or verified (suspe
    (Owner decision, 2026-11-10. A bank account holder can still be added but counts toward no minimum, and
    a second reference is extra. You check the account holder by hand when approving a donation link, section 15.)
 
-   When short, «Схвалити» is blocked and the screen says «Схвалити поки не можна – бракує доказів:» and
-   lists each gap. The server checks the same rule again at approval, so the button cannot be bypassed.
+   When short, «Схвалити» is blocked and the screen says «Схвалити поки не можна – бракує:» and
+   lists each gap: first «Юридичні дані» or «Адреса приміщення» if a minimal create left them out
+   («Додати» on the shelter's page adds them), then the evidence. The server checks the same rule again at approval, so the button cannot be bypassed.
    The product counts items by kind. It does not judge whether they are true: that is your work.
 4. **«Схвалити → «Перевірено»»** (under review to verified). Animals appear in the gallery at once.
    Approval is only possible from «На розгляді», never straight from «Очікує перевірки».

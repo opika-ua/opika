@@ -260,6 +260,7 @@ describe("kabinet error statuses", () => {
       FORBIDDEN: apiErrors.FORBIDDEN.status,
       CONFLICT: apiErrors.CONFLICT.status,
       ILLEGAL_TRANSITION: apiErrors.ILLEGAL_TRANSITION.status,
+      VERIFIED_DATA_MISSING: apiErrors.VERIFIED_DATA_MISSING.status,
       EVIDENCE_INSUFFICIENT: apiErrors.EVIDENCE_INSUFFICIENT.status,
       PUBLISH_REQUIREMENTS_UNMET: apiErrors.PUBLISH_REQUIREMENTS_UNMET.status,
       UNDO_EXPIRED: apiErrors.UNDO_EXPIRED.status,
@@ -278,6 +279,7 @@ describe("kabinet error statuses", () => {
       FORBIDDEN: 403,
       CONFLICT: 409,
       ILLEGAL_TRANSITION: 409,
+      VERIFIED_DATA_MISSING: 422,
       EVIDENCE_INSUFFICIENT: 422,
       PUBLISH_REQUIREMENTS_UNMET: 422,
       UNDO_EXPIRED: 409,
@@ -355,6 +357,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "id",
         "displayName",
         "description",
+        "cityId",
         "legalEntity",
         "exactAddress",
         "contact",
@@ -949,13 +952,13 @@ describe("the Ukrainian phone rule on every write that carries a contact", () =>
   });
   const create = (contact: unknown, evidence: unknown[] = []) => ({
     displayName: "Лапа допомоги",
+    cityId: "c1000000-0000-4000-8000-000000000001",
     description: { uk: "Опис", en: null },
     legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" },
     exactAddress: {
       line1: "вул. Київська, 300",
       line2: null,
       postalCode: "07400",
-      cityId: "c1000000-0000-4000-8000-000000000001",
       district: null,
       coordinates: { lat: 50.5, lng: 30.8 },
     },
@@ -999,4 +1002,53 @@ describe("the Ukrainian phone rule on every write that carries a contact", () =>
       expect(JSON.stringify(parsed?.data)).not.toContain(LOCAL);
     },
   );
+});
+
+describe("registry.shelters.create: the minimal shelter", () => {
+  const MINIMAL = {
+    displayName: "Лапа допомоги",
+    cityId: "c1000000-0000-4000-8000-000000000001",
+    description: { uk: "Опис", en: null },
+    legalEntity: null,
+    exactAddress: null,
+    contact: { primary: { kind: "email", address: "lapa@example.org" }, additional: [] },
+    freshnessSentence: null,
+    evidence: [],
+    firstAdmin: { name: "Олена", email: "olena@example.org" },
+  };
+  const input = () => internals("registry.shelters.create").inputSchema;
+
+  it("accepts a name, a city, a first admin and an email contact, with no legal data or address", () => {
+    expect(input()?.safeParse(MINIMAL).success).toBe(true);
+  });
+
+  it("accepts an address without its point", () => {
+    const address = { line1: "вул. Київська, 300", line2: null, postalCode: null, district: null };
+    expect(
+      input()?.safeParse({ ...MINIMAL, exactAddress: { ...address, coordinates: null } }).success,
+    ).toBe(true);
+  });
+
+  it.each(["displayName", "cityId", "firstAdmin", "contact"])("refuses it without %s", (key) => {
+    const { [key as keyof typeof MINIMAL]: _dropped, ...rest } = MINIMAL;
+    expect(input()?.safeParse(rest).success).toBe(false);
+  });
+
+  it("refuses a first admin without a name or an email", () => {
+    for (const firstAdmin of [{ name: "Олена" }, { email: "olena@example.org" }]) {
+      expect(input()?.safeParse({ ...MINIMAL, firstAdmin }).success).toBe(false);
+    }
+  });
+});
+
+describe("registry.verification.approve: missing verified data", () => {
+  it("declares VERIFIED_DATA_MISSING, which lists the missing fields", () => {
+    expect(Object.keys(internals("registry.verification.approve").errorMap)).toContain(
+      "VERIFIED_DATA_MISSING",
+    );
+    const data = apiErrors.VERIFIED_DATA_MISSING.data;
+    expect(data.safeParse({ missing: ["legal_entity", "exact_address"] }).success).toBe(true);
+    expect(data.safeParse({ missing: [] }).success).toBe(false);
+    expect(data.safeParse({ missing: ["contact"] }).success).toBe(false);
+  });
 });

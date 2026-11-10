@@ -184,7 +184,7 @@ describe("pending → «Взяти на розгляд» → «Схвалити�
     expect(approve.getAttribute("aria-disabled")).toBe("true");
     const description = approve.getAttribute("aria-describedby") ?? "";
     const blocked = document.getElementById(description);
-    expect(blocked?.textContent).toContain("Схвалити поки не можна – бракує доказів:");
+    expect(blocked?.textContent).toContain("Схвалити поки не можна – бракує:");
     expect(
       within(blocked as HTMLElement)
         .getAllByRole("listitem")
@@ -216,7 +216,44 @@ describe("pending → «Взяти на розгляд» → «Схвалити�
         .getByRole("button", { name: "Схвалити → «Перевірено»" })
         .getAttribute("aria-disabled"),
     ).toBe("true");
-    expect(panel().getByText("Схвалити поки не можна – бракує доказів:")).toBeTruthy();
+    expect(panel().getByText("Схвалити поки не можна – бракує:")).toBeTruthy();
+  });
+});
+
+describe("approve while the legal data or the address is missing (minimal create)", () => {
+  const missingData = { ...readyForApproval, legalEntity: null, exactAddress: null };
+
+  it("is disabled, and the list names the missing blocks before any evidence", async () => {
+    const { fns } = renderWithActions(<DecisionPanel />, { view: missingData });
+    const approve = panel().getByRole("button", { name: "Схвалити → «Перевірено»" });
+    expect(approve.getAttribute("aria-disabled")).toBe("true");
+    const blocked = document.getElementById(approve.getAttribute("aria-describedby") ?? "");
+    expect(blocked?.textContent).toContain("Схвалити поки не можна – бракує:");
+    expect(
+      within(blocked as HTMLElement)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(["Юридичні дані", "Адреса приміщення"]);
+    await userEvent.click(approve);
+    expect(fns.verification.approve).not.toHaveBeenCalled();
+  });
+
+  it("VERIFIED_DATA_MISSING (the data changed meanwhile): re-reads, and the panel shows what is missing", async () => {
+    const { reread } = renderWithActions(<DecisionPanel />, {
+      view: readyForApproval,
+      client: {
+        verification: {
+          approve: vi.fn(async () => {
+            throw apiError("VERIFIED_DATA_MISSING", { missing: ["exact_address"] });
+          }),
+        },
+      },
+      reread: async () => ({ ...readyForApproval, exactAddress: null }),
+    });
+    await userEvent.click(panel().getByRole("button", { name: "Схвалити → «Перевірено»" }));
+    expect(reread).toHaveBeenCalledOnce();
+    expect(panel().getByText("Схвалити поки не можна – бракує:")).toBeTruthy();
+    expect(panel().getByText("Адреса приміщення")).toBeTruthy();
   });
 });
 

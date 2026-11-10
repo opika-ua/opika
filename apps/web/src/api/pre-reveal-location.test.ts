@@ -1,6 +1,6 @@
 import { animalRepo, cityRepo, shelterRepo } from "@opika/db/repos";
 import { makeAnimal, makeCity, makeShelter } from "@opika/db/test";
-import { animalPublicLocationOf, NO_FILTERS } from "@opika/domain";
+import { cityPublicLocationOf, NO_FILTERS } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestHarness, type TestHarness } from "./test-harness";
 
@@ -68,7 +68,7 @@ async function seed() {
   await animalRepo(h.db).insert(atShelter, city.id);
   const fostered = makeAnimal({
     shelterId: shelter.id,
-    publicLocation: animalPublicLocationOf(city.id, { uk: FOSTER_DISTRICT, en: null }),
+    publicLocation: cityPublicLocationOf(city.id, { uk: FOSTER_DISTRICT, en: null }),
   });
   await animalRepo(h.db).insert(fostered, city.id);
   return { city, shelter, atShelter, fostered };

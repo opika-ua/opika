@@ -25,6 +25,7 @@ const view = (verification: KabinetShelterView["verification"]): KabinetShelterV
   earlyListing: { kind: "none" },
   description: { uk: "Опис", en: null },
   legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" },
+  cityId: "c1000000-0000-4000-8000-000000000001" as never,
   exactAddress: {
     line1: "вул. Київська, 300",
     line2: null,

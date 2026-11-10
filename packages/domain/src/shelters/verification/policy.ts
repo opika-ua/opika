@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ShelterLegalEntity } from "../legal-entity";
+import type { ExactAddress } from "../location";
 import {
   countEvidence,
   type EvidenceKind,
@@ -74,3 +75,34 @@ export const meetsEvidenceRequirements = (
   evidence: VerificationEvidence,
   policy: VerificationPolicy,
 ): boolean => evidenceGaps(legalEntity, evidence, policy).length === 0;
+
+/** The verified data a minimal create may leave out, in the order approval asks for it. */
+export const VERIFIED_DATA_FIELDS = ["legal_entity", "exact_address"] as const;
+export const VerifiedDataFieldSchema = z.enum(VERIFIED_DATA_FIELDS);
+export type VerifiedDataField = z.infer<typeof VerifiedDataFieldSchema>;
+
+export type ApprovalGap =
+  | { on: "verified_data"; field: VerifiedDataField }
+  | ({ on: "evidence" } & EvidenceGap);
+
+/**
+ * Verified data first (in this order), then evidence. Evidence requirements depend on the legal
+ * form, so with no legal entity there is nothing to measure evidence against yet.
+ */
+export const approvalGaps = (
+  shelter: { legalEntity: ShelterLegalEntity | null; exactAddress: ExactAddress | null },
+  evidence: VerificationEvidence,
+  policy: VerificationPolicy,
+): readonly ApprovalGap[] => [
+  ...(shelter.legalEntity === null
+    ? [{ on: "verified_data", field: "legal_entity" } as const]
+    : []),
+  ...(shelter.exactAddress === null
+    ? [{ on: "verified_data", field: "exact_address" } as const]
+    : []),
+  ...(shelter.legalEntity === null
+    ? []
+    : evidenceGaps(shelter.legalEntity, evidence, policy).map(
+        (gap) => ({ on: "evidence", ...gap }) as const,
+      )),
+];

@@ -112,7 +112,7 @@ describe("public shelter projections withhold the private fields", () => {
     // publicLocationOf above); the public view no longer serializes it.
     expect(publicLocation.precision).toBe("fuzzed_address");
     expect(projected.publicLocation).toEqual({ cityId: CITY_ID });
-    expect(JSON.stringify(projected)).not.toContain(String(exactAddress.coordinates.lat));
+    expect(JSON.stringify(projected)).not.toContain(String(exactAddress.coordinates?.lat));
   });
 
   it("withholds the same fields from the card summary", () => {

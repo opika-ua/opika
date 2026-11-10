@@ -2,7 +2,7 @@
 
 import "../../../../zod-client-config";
 import type { RegistryShelterView } from "@opika/contracts";
-import type { EvidenceGap, InterruptedState } from "@opika/domain";
+import type { ApprovalGap, InterruptedState } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useId, useRef, useState } from "react";
 import { Button } from "../../../../ui/Button";
@@ -32,12 +32,19 @@ const reasonText = (label: string, reason: Reason): string =>
         note: reason.note,
       });
 
-const gapText = (gap: EvidenceGap): string =>
-  fillTemplate(uk.kabinet.operator.evidence.gapItem, {
-    kind: uk.kabinet.operator.evidence.kind[gap.kind],
-    provided: String(gap.provided),
-    minimum: String(gap.minimum),
-  });
+/** Missing verified data reads as its block's title, an evidence gap as kind and count. */
+const gapText = (gap: ApprovalGap): string =>
+  gap.on === "verified_data"
+    ? gap.field === "legal_entity"
+      ? uk.kabinet.operator.create.legalTitle
+      : uk.kabinet.profile.address
+    : fillTemplate(uk.kabinet.operator.evidence.gapItem, {
+        kind: uk.kabinet.operator.evidence.kind[gap.kind],
+        provided: String(gap.provided),
+        minimum: String(gap.minimum),
+      });
+
+const gapKey = (gap: ApprovalGap): string => (gap.on === "verified_data" ? gap.field : gap.kind);
 
 /** What a single-tap move's lost answer must find on the re-read record to count as done. */
 const landedFor = (action: "start_review" | "approve" | "reinstate", view: RegistryShelterView) => {
@@ -87,7 +94,7 @@ export function DecisionPanel() {
   const busy = phase.kind !== "idle";
   const mine = busy && phase.owner === DECISION_OWNER;
   const verification = view.verification;
-  const offered = offeredActionsOf(verification, view.legalEntity);
+  const offered = offeredActionsOf(verification, view);
 
   const report = (outcome: DecisionOutcome) => {
     setNotice(outcome.kind === "moved" ? { kind: "none" } : outcome);
@@ -125,7 +132,10 @@ export function DecisionPanel() {
         const { failure, reread } = settled;
         if (failure.kind === "illegal_transition") {
           report(reread === "done" ? { kind: "illegal_transition" } : { kind: "failed" });
-        } else if (failure.kind === "evidence_insufficient" && reread === "done") {
+        } else if (
+          (failure.kind === "evidence_insufficient" || failure.kind === "verified_data_missing") &&
+          reread === "done"
+        ) {
           // The re-read panel shows approve disabled with the gaps: that is the message.
           report({ kind: "moved" });
         } else {
@@ -312,7 +322,7 @@ function ApproveControl({
           <Text look="label">{t.approveBlocked}</Text>
           <ul className="flex flex-col gap-1">
             {gate.gaps.map((gap) => (
-              <li key={gap.kind} className="text-caption text-ink-2">
+              <li key={gapKey(gap)} className="text-caption text-ink-2">
                 {gapText(gap)}
               </li>
             ))}

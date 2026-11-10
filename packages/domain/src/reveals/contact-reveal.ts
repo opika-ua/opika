@@ -26,7 +26,8 @@ export const ShelterContactSnapshotSchema = z.object({
   shelterId: ShelterIdSchema,
   displayName: z.string().min(1),
   contact: ShelterContactSchema,
-  exactAddress: ExactAddressSchema,
+  /** Null when an early-listed shelter is revealed before its address is on file. */
+  exactAddress: ExactAddressSchema.nullable(),
   publicLocation: PublicLocationSchema,
   /**
    * Derived from the lifecycle rather than restated, so adding a status cannot

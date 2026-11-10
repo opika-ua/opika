@@ -3,8 +3,8 @@ import { ShelterIdSchema } from "../primitives/ids";
 import { LocalizedTextSchema } from "../primitives/localized-text";
 import { ShelterContactSchema } from "./contact";
 import { DonationLinkSchema, PendingDonationSchema } from "./donation";
-import { ShelterLegalEntitySchema } from "./legal-entity";
-import { ExactAddressSchema, PublicLocationSchema } from "./location";
+import { type ShelterLegalEntity, ShelterLegalEntitySchema } from "./legal-entity";
+import { type ExactAddress, ExactAddressSchema, PublicLocationSchema } from "./location";
 import { ShelterLogoSchema } from "./logo";
 import { ShelterVerificationSchema } from "./verification/state";
 
@@ -34,9 +34,11 @@ export const ShelterSchema = z.object({
   id: ShelterIdSchema,
   displayName: z.string().min(1),
   description: LocalizedTextSchema,
-  legalEntity: ShelterLegalEntitySchema,
+  /** Null until the operator adds it (minimal create); approval is refused while null (`approvalGaps`). */
+  legalEntity: ShelterLegalEntitySchema.nullable(),
   publicLocation: PublicLocationSchema,
-  exactAddress: ExactAddressSchema,
+  /** Null until the operator adds it; the city is then only `publicLocation.cityId`. */
+  exactAddress: ExactAddressSchema.nullable(),
   contact: ShelterContactSchema,
   donation: DonationLinkSchema.nullable(),
   /** Null until the shelter uploads one; the fallback is a client-rendered
@@ -64,3 +66,9 @@ export const ShelterSchema = z.object({
   version: z.int().nonnegative(),
 });
 export type Shelter = z.infer<typeof ShelterSchema>;
+
+/** A shelter with its verified data on file: the full onboarding path, seeds and fixtures. */
+export type ShelterWithVerifiedData = Shelter & {
+  legalEntity: ShelterLegalEntity;
+  exactAddress: ExactAddress;
+};

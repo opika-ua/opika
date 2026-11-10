@@ -3,6 +3,7 @@ import { type AuditedShelterChange, cityRepo, kabinetShelterRepo } from "@opika/
 import {
   addEvidence,
   allowEarlyListing,
+  approvalGaps,
   type CityId,
   DEFAULT_VERIFICATION_POLICY,
   type DonationRemovalCode,
@@ -10,7 +11,6 @@ import {
   type EvidenceItemInput,
   type ExactAddress,
   earlyListingOf,
-  evidenceGaps,
   type FreshnessSentence,
   keepsEarlyListing,
   type LocalizedText,
@@ -354,16 +354,17 @@ export const registryStartReview = (
   );
 
 /**
- * Approval is refused while the evidence on file misses the policy for the
- * shelter's legal form (`DEFAULT_VERIFICATION_POLICY`), with the gaps as
- * data. Checked after legality, so an approve on the wrong state is
- * ILLEGAL_TRANSITION whatever the evidence.
+ * Approval is refused while the legal entity or address is missing
+ * (VERIFIED_DATA_MISSING, checked first), then while the evidence misses the
+ * policy for the shelter's legal form (EVIDENCE_INSUFFICIENT), each with the
+ * gaps as data. Checked after legality, so an approve on the wrong state is
+ * ILLEGAL_TRANSITION whatever the data.
  */
 export const registryApprove = (
   deps: RegistryDeps,
   moderatorId: ModeratorId,
   input: { shelterId: ShelterId },
-  errors: E<"ILLEGAL_TRANSITION" | "EVIDENCE_INSUFFICIENT">,
+  errors: E<"ILLEGAL_TRANSITION" | "VERIFIED_DATA_MISSING" | "EVIDENCE_INSUFFICIENT">,
 ) =>
   verificationMove(
     deps,
@@ -371,12 +372,21 @@ export const registryApprove = (
     () => ({ type: "approve", at: deps.now, moderatorId }),
     errors,
     (shelter) => {
-      const gaps = evidenceGaps(
-        shelter.legalEntity,
+      const gaps = approvalGaps(
+        shelter,
         shelter.verification.evidence,
         DEFAULT_VERIFICATION_POLICY,
       );
-      const [first, ...rest] = gaps;
+      const [missing, ...moreMissing] = gaps.flatMap((gap) =>
+        gap.on === "verified_data" ? [gap.field] : [],
+      );
+      if (missing !== undefined)
+        throw errors.VERIFIED_DATA_MISSING({ data: { missing: [missing, ...moreMissing] } });
+      const [first, ...rest] = gaps.flatMap((gap) =>
+        gap.on === "evidence"
+          ? [{ kind: gap.kind, minimum: gap.minimum, provided: gap.provided }]
+          : [],
+      );
       if (first !== undefined)
         throw errors.EVIDENCE_INSUFFICIENT({ data: { gaps: [first, ...rest] } });
     },

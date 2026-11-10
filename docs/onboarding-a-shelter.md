@@ -673,7 +673,7 @@ what the verification FSM allows from the current state (`offered-actions.ts`, h
 | State | Buttons (exact labels) | What each does |
 |---|---|---|
 | `pending` | «Взяти на розгляд»; «Відхилити…» | Moves to `under_review`, recording you as the reviewer. Reject goes straight to `rejected` with no review step (obvious spam needs none). There is no approve from `pending` |
-| `under_review` | «Схвалити → «Перевірено»»; «Відхилити…» | Approve is refused while the evidence misses the policy (see "Evidence" above): the screen then lists the gaps after «Схвалити поки не можна – бракує доказів:». Approving puts the animals in the gallery at once |
+| `under_review` | «Схвалити → «Перевірено»»; «Відхилити…» | Approve is refused while the legal data or the address is missing, then while the evidence misses the policy (see "Evidence" above): the screen lists the gaps after «Схвалити поки не можна – бракує:». Approving puts the animals in the gallery at once |
 | `verified` | «Призупинити…» | Suspends (reason code and note required). The animals leave the gallery at once and the shelter sees the note |
 | `paused` | «Призупинити…» | Suspends the paused shelter: a complaint does not wait for it to reopen |
 | `rejected` | «Повернути на перевірку» | Opens the evidence editor, started from the evidence on file; sending it moves the shelter back to `pending` |

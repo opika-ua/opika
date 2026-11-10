@@ -212,12 +212,13 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     change: z.discriminatedUnion("field", [
       z.object({
         field: z.literal("legal_entity"),
-        previous: ShelterLegalEntitySchema,
+        /** Null: it was added, not changed (minimal create). */
+        previous: ShelterLegalEntitySchema.nullable(),
         next: ShelterLegalEntitySchema,
       }),
       z.object({
         field: z.literal("exact_address"),
-        previous: ExactAddressSchema,
+        previous: ExactAddressSchema.nullable(),
         next: ExactAddressSchema,
       }),
     ]),
