@@ -51,11 +51,17 @@ const codeOf = (error: unknown): string | null =>
     ? error.code
     : null;
 
+const reasonOf = (error: unknown): unknown => {
+  if (typeof error !== "object" || error === null || !("data" in error)) return null;
+  const { data } = error;
+  return typeof data === "object" && data !== null && "reason" in data ? data.reason : null;
+};
+
 /** A device-side refusal, in his words (P-T8 (1)-(3)); retrying the same file can't help. */
 const compressionMessage = (result: Exclude<CompressedPhoto, { kind: "ok" }>): string => {
   switch (result.kind) {
-    case "heic_unsupported":
-      return t.photoErrors.heicUnsupported;
+    case "unsupported_format":
+      return t.photoErrors.unsupportedFormat;
     case "unreadable":
       return t.photoErrors.unreadable;
     case "too_large":
@@ -72,7 +78,14 @@ const compressionMessage = (result: Exclude<CompressedPhoto, { kind: "ok" }>): s
 const uploadFailure = (error: unknown): { message: string; retryable: boolean } => {
   switch (codeOf(error)) {
     case "PHOTO_REJECTED":
-      return { message: t.photoErrors.rejected, retryable: false };
+      // A format the server doesn't take gets the device's own wording (gap 9).
+      return {
+        message:
+          reasonOf(error) === "unsupported_type"
+            ? t.photoErrors.unsupportedFormat
+            : t.photoErrors.rejected,
+        retryable: false,
+      };
     case "PHOTO_LIMIT_REACHED":
       return {
         message: fillTemplate(t.photoErrors.limitReached, {

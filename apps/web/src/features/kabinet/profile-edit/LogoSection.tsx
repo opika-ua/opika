@@ -32,8 +32,8 @@ type UploadState =
 /** A device-side refusal, the same three outcomes `PhotoSection`'s own compression step can produce. */
 const compressionMessage = (result: Exclude<CompressedPhoto, { kind: "ok" }>): string => {
   switch (result.kind) {
-    case "heic_unsupported":
-      return photoErrors.heicUnsupported;
+    case "unsupported_format":
+      return photoErrors.unsupportedFormat;
     case "unreadable":
       return photoErrors.unreadable;
     case "too_large":

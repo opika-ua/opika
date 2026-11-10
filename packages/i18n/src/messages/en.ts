@@ -963,8 +963,7 @@ export const en = {
           "Every change to the photos updates the date on the card, and it moves back among the freshest.",
       },
       photoErrors: {
-        heicUnsupported:
-          "This phone or browser can't open HEIC photos. Please choose a JPG or PNG.",
+        unsupportedFormat: "Save the photo as JPEG or PNG",
         unreadable: "This file couldn't be opened as a photo.",
         tooLarge: "Even after shrinking, this photo is too large. Try another one.",
         rejected: "The site can't use this file as a photo.",

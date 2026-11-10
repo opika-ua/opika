@@ -929,8 +929,8 @@ export const uk = {
           "Кожна зміна у фото оновлює дату на картці, і вона знову зʼявляється серед найсвіжіших.",
       },
       photoErrors: {
-        heicUnsupported:
-          "Цей телефон чи браузер не відкриває фото у форматі HEIC. Виберіть, будь ласка, JPG або PNG.",
+        /** His gap-9 wording, verbatim: a HEIC (or other format) the device can't convert. */
+        unsupportedFormat: "Збережіть фото як JPEG або PNG",
         unreadable: "Цей файл не вдалося відкрити як фото.",
         tooLarge: "Навіть після зменшення це фото завелике. Спробуйте інше.",
         rejected: "Сайт не може використати цей файл як фото.",
