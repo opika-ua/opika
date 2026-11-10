@@ -51,6 +51,11 @@ agent to.
      as a disciplinary decision. **GAP: soft archive (item 7) is not built.**
    - **Delete:** go on.
 7. **Delete with `demo:remove`** (`docs/onboarding-a-shelter.md`, "Removing your own test shelters").
+   **The one exception to full removal: an open report or complaint on this shelter (step 3).** Then
+   do not run this step yet. What the report needs is kept, hidden: the shelter record with its
+   evidence, its history, its animals and their photos, and the reveals on its animals (the record of
+   what adopters were shown). The admins are still removed (step 5). Run this step once the matter is
+   closed. No other reason keeps anything back.
    1. Rehearse first on a **fresh Neon child branch** of production, `PROD_NEON_ENDPOINT` set, the
       child's direct URL in your shell, `--expect <child ep- id>` and no `--prod`: dry run, `--commit`,
       dry run again. Delete the child branch afterwards.
