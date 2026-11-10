@@ -78,7 +78,7 @@ describe("AddressEdit", () => {
   it("sends the changed address, keeping the stored district", async () => {
     const view = registryView({
       version: 3,
-      exactAddress: { ...before.exactAddress, district: "Центральний" },
+      exactAddress: { ...before.exactAddress, district: { uk: "Центральний", en: null } },
     });
     const updateVerifiedData = vi.fn(async () => view);
     renderWithActions(<AddressEdit cityName="Бровари" cities={{ search: vi.fn() }} />, {

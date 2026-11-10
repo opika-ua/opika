@@ -1458,8 +1458,8 @@ describe("registry.verification.addEvidence", () => {
       shelterId: s.id,
     });
     expect(blocked.status).toBe(422);
-    expect(blocked.body.data.gaps).toHaveLength(3);
-    expect((await add(s.id, [EDRPOU, BANK, REF("+380501112233")])).status).toBe(200);
+    expect(blocked.body.data.gaps).toHaveLength(2);
+    expect((await add(s.id, [EDRPOU, VISIT_ON("2026-10-12")])).status).toBe(200);
     const approved = await call<RegistryShelterView>("registry.verification.approve", {
       shelterId: s.id,
     });
