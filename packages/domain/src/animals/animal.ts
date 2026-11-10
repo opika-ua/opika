@@ -81,7 +81,7 @@ const animalCoreShape = {
    * residence. The city centroid is `City.centroid`, honestly labelled as
    * such, rather than posing as the animal's position (not served to
    * adopters since 2026-10-14: EM-Q10 sends the city only). Built via
-   * `animalPublicLocationOf(cityId, district)`.
+   * `cityPublicLocationOf(cityId, district)`.
    */
   publicLocation: PublicLocationSchema.nullable(),
   /**

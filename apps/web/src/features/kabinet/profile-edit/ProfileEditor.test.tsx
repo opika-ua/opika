@@ -27,6 +27,7 @@ const baseView = (overrides: Partial<KabinetShelterView> = {}): KabinetShelterVi
     edrpou: "43218765" as never,
     registeredAt: new Date("2020-01-01T00:00:00Z"),
   },
+  cityId: "c1000000-0000-4000-8000-000000000001" as never,
   exactAddress: {
     line1: "вул. Київська, 300",
     line2: null,

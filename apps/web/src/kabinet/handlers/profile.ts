@@ -48,6 +48,7 @@ export function kabinetShelterViewOf(shelter: Shelter, now: Date): KabinetShelte
     description: shelter.description,
     legalEntity: shelter.legalEntity,
     exactAddress: shelter.exactAddress,
+    cityId: shelter.publicLocation.cityId,
     contact: shelter.contact,
     donation: shelter.donation,
     pendingDonation: shelter.pendingDonation,

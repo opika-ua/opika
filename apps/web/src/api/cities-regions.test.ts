@@ -1,7 +1,7 @@
 import { animalRepo, cityRepo, shelterRepo } from "@opika/db/repos";
 import { citySlugAliases } from "@opika/db/schema";
 import { makeAnimal, makeCity, makeShelter } from "@opika/db/test";
-import { animalPublicLocationOf, NO_FILTERS } from "@opika/domain";
+import { cityPublicLocationOf, NO_FILTERS } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestHarness, type TestHarness } from "./test-harness";
 
@@ -47,7 +47,7 @@ async function seedPlaces() {
   const atShelter = makeAnimal({ shelterId: shelter.id });
   const fostered = makeAnimal({
     shelterId: shelter.id,
-    publicLocation: animalPublicLocationOf(irpin.id, { uk: "Центр", en: null }),
+    publicLocation: cityPublicLocationOf(irpin.id, { uk: "Центр", en: null }),
   });
   await animalRepo(h.db).insert(atShelter, brovary.id);
   await animalRepo(h.db).insert(fostered, irpin.id);

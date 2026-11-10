@@ -53,23 +53,53 @@ export function useCityPicker(cities: CitySearch) {
   return { messages, search };
 }
 
+/** The settlement picker: S2 asks for it on its own (the address is optional there), S4 with the address. */
+export function CityField({
+  idPrefix,
+  city,
+  setCity,
+  setCityId,
+  picker,
+  error,
+}: {
+  idPrefix: string;
+  city: ComboboxOption | null;
+  setCity: (next: ComboboxOption | null) => void;
+  setCityId: (cityId: string) => void;
+  picker: ReturnType<typeof useCityPicker>;
+  error: string | null;
+}) {
+  return (
+    <Combobox
+      id={`${idPrefix}-city`}
+      label={uk.kabinet.operator.create.city}
+      name="cityId"
+      required
+      value={city}
+      onChange={(next) => {
+        setCity(next);
+        setCityId(next?.value ?? "");
+      }}
+      search={picker.search}
+      messages={picker.messages}
+      error={error}
+    />
+  );
+}
+
+/** `street`: S2's address block is optional as a whole, S4's address edit always needs the street. */
 export function AddressFields({
   idPrefix,
   form,
   set,
-  city,
-  setCity,
-  picker,
+  street,
   errors,
 }: {
   idPrefix: string;
   form: AddressForm;
   set: <K extends keyof AddressForm>(key: K, value: AddressForm[K]) => void;
-  city: ComboboxOption | null;
-  setCity: (next: ComboboxOption | null) => void;
-  picker: ReturnType<typeof useCityPicker>;
+  street: "required" | "optional";
   errors: {
-    cityId: string | null;
     line1: string | null;
     coordinates: string | null;
   };
@@ -77,26 +107,12 @@ export function AddressFields({
   const t = uk.kabinet.operator.create;
   return (
     <>
-      <Combobox
-        id={`${idPrefix}-city`}
-        label={t.city}
-        name="cityId"
-        required
-        value={city}
-        onChange={(next) => {
-          setCity(next);
-          set("cityId", next?.value ?? "");
-        }}
-        search={picker.search}
-        messages={picker.messages}
-        error={errors.cityId}
-      />
       <TextField
         id={`${idPrefix}-line1`}
         label={t.address.line1}
         type="text"
         autoComplete="off"
-        required
+        required={street === "required"}
         value={form.line1}
         onChange={(event) => set("line1", event.target.value)}
         error={errors.line1}
@@ -124,7 +140,6 @@ export function AddressFields({
         hint={t.coordinatesHint}
         type="text"
         autoComplete="off"
-        required
         value={form.coordinates}
         onChange={(event) => set("coordinates", event.target.value)}
         error={errors.coordinates}

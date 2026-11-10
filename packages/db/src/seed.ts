@@ -35,11 +35,11 @@ import {
   type AnimalPhoto,
   type AnimalSex,
   type AnimalSpecies,
-  animalPublicLocationOf,
   type City,
   type CityId,
   COAT_COLOURS,
   type CoatLength,
+  cityPublicLocationOf,
   citySlugOf,
   type DocumentReadiness,
   type Edrpou,
@@ -56,6 +56,7 @@ import {
   type ShelterId,
   type ShelterLegalEntity,
   type ShelterVerification,
+  type ShelterWithVerifiedData,
   type SizeBucket,
   type SpayNeuterStatus,
   TEMPERAMENT_TRAITS,
@@ -781,7 +782,7 @@ function buildVerification(def: ShelterDef): ShelterVerification {
   }
 }
 
-export function buildShelters(cities: City[]): Shelter[] {
+export function buildShelters(cities: City[]): ShelterWithVerifiedData[] {
   return SHELTER_DEFS.map((def, i) => {
     const id = shelterId(i);
     const city = cities[def.cityIndex]!;
@@ -939,7 +940,7 @@ const DEMO_EMAIL_LOCAL_PARTS: Readonly<Record<number, string>> = {
   5: "demo-prykhystok-lisova",
 };
 
-export function buildDemoShelters(cities: City[]): Shelter[] {
+export function buildDemoShelters(cities: City[]): ShelterWithVerifiedData[] {
   const all = buildShelters(cities);
   return DEMO_SHELTER_DEF_INDICES.map((defIndex) => {
     const shelter = all[defIndex]!;
@@ -1477,7 +1478,7 @@ export function buildAnimals(
       // Pick a different city from the shelter's city
       const otherCities = cities.filter((c) => c.id !== shelterCity.id);
       const fosterCity = otherCities[i % otherCities.length]!;
-      publicLocation = animalPublicLocationOf(
+      publicLocation = cityPublicLocationOf(
         fosterCity.id,
         null, // district unknown for foster
       );

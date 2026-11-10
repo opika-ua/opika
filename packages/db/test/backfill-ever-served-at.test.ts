@@ -1,4 +1,4 @@
-import type { Shelter } from "@opika/domain";
+import type { Shelter, ShelterWithVerifiedData } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { countBackfillCandidates, runBackfill } from "../src/backfill-ever-served-at";
 import { animalRepo } from "../src/repos/animal-repo";
@@ -38,7 +38,7 @@ beforeEach(async () => {
 });
 
 /** `makeShelter`'s default exact address points at its own fixed city, not the one this suite inserts per test. */
-const shelterInCity = (overrides: Partial<Shelter> = {}): Shelter =>
+const shelterInCity = (overrides: Partial<ShelterWithVerifiedData> = {}): Shelter =>
   makeShelter({
     ...overrides,
     publicLocation: { ...makeShelter().publicLocation, cityId } as never,

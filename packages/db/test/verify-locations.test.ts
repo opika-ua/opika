@@ -68,6 +68,25 @@ describe("location:verify", () => {
     expect(exitCodeOf(report)).toBe(1);
   });
 
+  it("matches a shelter with no address, stored at city precision, under any key", async () => {
+    const base = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId } as never,
+    });
+    await shelterRepo(db).insert({
+      ...base,
+      legalEntity: null,
+      exactAddress: null,
+      publicLocation: { precision: "city", cityId: base.publicLocation.cityId, district: null },
+      verification: {
+        status: "pending",
+        submittedAt: base.createdAt,
+        evidence: base.verification.evidence,
+      },
+    });
+    const report = await verifyShelterLocations(db, OTHER_KEY);
+    expect(report).toEqual({ match: 1, demo: 0, testKeyOnRealShelter: 0, mismatch: 0 });
+  });
+
   it("counts a stored location changed after the fact as a mismatch", async () => {
     const shelter = await insertWith(production);
     await insertWith(production);

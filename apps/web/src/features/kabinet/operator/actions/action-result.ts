@@ -15,6 +15,8 @@ import { refusedForNameLength } from "../display-name";
  * - `evidence_insufficient`: approve refused on the evidence on file, which
  *   changed since the page was read (the button is gated on the same rule);
  *   the re-read panel shows the gaps.
+ * - `verified_data_missing`: approve refused while the legal entity or address
+ *   is missing (checked before the evidence); the same re-read path.
  * - `not_found`: the admin is already gone (removed, or accepted meanwhile
  *   for a resend); S4 re-reads (`admins.gone`).
  * - `address_has_a_role`: invite or resend refused for an address that has a
@@ -30,6 +32,7 @@ export type ActionFailure =
   | { kind: "illegal_transition" }
   | { kind: "conflict" }
   | { kind: "evidence_insufficient" }
+  | { kind: "verified_data_missing" }
   | { kind: "evidence_not_editable" }
   | { kind: "evidence_limit_reached" }
   | { kind: "early_listing_refused"; reason: EarlyListingRefusal }
@@ -68,6 +71,8 @@ export function actionFailureOf(error: unknown): ActionFailure {
       return { kind: "conflict" };
     case "EVIDENCE_INSUFFICIENT":
       return { kind: "evidence_insufficient" };
+    case "VERIFIED_DATA_MISSING":
+      return { kind: "verified_data_missing" };
     case "EVIDENCE_NOT_EDITABLE":
       return { kind: "evidence_not_editable" };
     case "EVIDENCE_LIMIT_REACHED":
@@ -109,6 +114,7 @@ export const staleAfter = (failure: ActionRefusal): boolean =>
   failure.kind === "illegal_transition" ||
   failure.kind === "conflict" ||
   failure.kind === "evidence_insufficient" ||
+  failure.kind === "verified_data_missing" ||
   failure.kind === "evidence_not_editable" ||
   // The status or the running period moved under the page; the other reasons are about the input.
   (failure.kind === "early_listing_refused" &&

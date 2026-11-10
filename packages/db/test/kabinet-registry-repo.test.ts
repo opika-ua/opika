@@ -5,6 +5,7 @@ import {
   type ShelterAdminId,
   type ShelterId,
   type ShelterVerification,
+  type ShelterWithVerifiedData,
 } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { animalRepo } from "../src/repos/animal-repo";
@@ -58,7 +59,7 @@ beforeEach(async () => {
 async function shelter(
   displayName: string,
   status: keyof typeof STATES,
-  extra: Partial<Shelter> = {},
+  extra: Partial<ShelterWithVerifiedData> = {},
 ): Promise<Shelter> {
   const s = makeShelter({
     displayName,

@@ -138,12 +138,42 @@ export function coordinatesOf(raw: string): Coordinates | null {
 const EmailSchema = z.email();
 
 type LegalResult =
-  | { kind: "ok"; legalEntity: RegistryCreateInput["legalEntity"] }
+  | { kind: "ok"; legalEntity: NonNullable<RegistryCreateInput["legalEntity"]> }
   | { kind: "invalid" };
 
+/** The street part of an address, as create sends it (the city is the shelter's own field). */
+type StreetAddress = NonNullable<RegistryCreateInput["exactAddress"]>;
+
+type StreetResult = { kind: "ok"; street: StreetAddress } | { kind: "invalid" };
+
 type AddressResult =
-  | { kind: "ok"; exactAddress: RegistryCreateInput["exactAddress"] }
+  | { kind: "ok"; exactAddress: StreetAddress & { cityId: string } }
   | { kind: "invalid" };
+
+/** The street is required once any address field is typed; the point is optional. */
+function streetAddressOf(
+  form: AddressForm,
+  errors: Partial<Record<CreateField, CreateFieldError>>,
+): StreetResult {
+  const line1 = trimmedOrNull(form.line1);
+  if (line1 === null) errors.line1 = "required";
+  let coordinates: Coordinates | null = null;
+  if (form.coordinates.trim() !== "") {
+    coordinates = coordinatesOf(form.coordinates);
+    if (coordinates === null) errors.coordinates = "coordinatesFormat";
+  }
+  if (line1 === null || errors.coordinates !== undefined) return { kind: "invalid" };
+  return {
+    kind: "ok",
+    street: {
+      line1,
+      line2: trimmedOrNull(form.line2),
+      postalCode: trimmedOrNull(form.postalCode),
+      district: null,
+      coordinates,
+    },
+  };
+}
 
 /** The address fields as the contract's `ExactAddress`; the district is never collected (RU-T6). */
 export function exactAddressOf(
@@ -151,31 +181,29 @@ export function exactAddressOf(
   errors: Partial<Record<CreateField, CreateFieldError>>,
 ): AddressResult {
   if (form.cityId === "") errors.cityId = "required";
-  const line1 = trimmedOrNull(form.line1);
-  if (line1 === null) errors.line1 = "required";
-  let coordinates: Coordinates | null = null;
-  if (form.coordinates.trim() === "") errors.coordinates = "required";
-  else {
-    coordinates = coordinatesOf(form.coordinates);
-    if (coordinates === null) errors.coordinates = "coordinatesFormat";
-  }
-  if (form.cityId === "" || line1 === null || coordinates === null) return { kind: "invalid" };
-  return {
-    kind: "ok",
-    exactAddress: {
-      line1,
-      line2: trimmedOrNull(form.line2),
-      postalCode: trimmedOrNull(form.postalCode),
-      cityId: form.cityId,
-      district: null,
-      coordinates,
-    },
-  };
+  const street = streetAddressOf(form, errors);
+  if (form.cityId === "" || street.kind !== "ok") return { kind: "invalid" };
+  return { kind: "ok", exactAddress: { ...street.street, cityId: form.cityId } };
 }
 
-/** A stored legal entity as S4's edit form starts: every field the picked form has, filled in. */
-export function legalFormOf(legal: ShelterLegalEntity): LegalForm {
+/** S2: nothing typed in the address block is no address yet, added later on S4. */
+function optionalStreetAddressOf(
+  form: AddressForm,
+  errors: Partial<Record<CreateField, CreateFieldError>>,
+): { kind: "ok"; street: StreetAddress | null } | { kind: "invalid" } {
+  const typed = [form.line1, form.line2, form.postalCode, form.coordinates].some(
+    (value) => value.trim() !== "",
+  );
+  return typed ? streetAddressOf(form, errors) : { kind: "ok", street: null };
+}
+
+/**
+ * A stored legal entity as S4's edit form starts: every field the picked form has, filled in.
+ * None on file yet: no form picked, nothing typed.
+ */
+export function legalFormOf(legal: ShelterLegalEntity | null): LegalForm {
   const empty = { legalName: "", edrpou: "", registeredAt: "", contactPersonName: "" };
+  if (legal === null) return { ...empty, kind: null };
   switch (legal.kind) {
     case "registered_ngo":
       return {
@@ -197,14 +225,20 @@ export function legalFormOf(legal: ShelterLegalEntity): LegalForm {
   }
 }
 
-/** A stored premises address as S4's edit form starts; the district is kept by the caller. */
-export const addressFormOf = (address: ExactAddress): AddressForm => ({
-  cityId: address.cityId,
-  line1: address.line1,
-  line2: address.line2 ?? "",
-  postalCode: address.postalCode ?? "",
-  coordinates: `${address.coordinates.lat}, ${address.coordinates.lng}`,
-});
+/**
+ * A stored premises address as S4's edit form starts; the district is kept by the caller.
+ * None on file yet: the shelter's city, nothing else.
+ */
+export const addressFormOf = (address: ExactAddress | null, cityId: string): AddressForm => {
+  const point = address?.coordinates ?? null;
+  return {
+    cityId: address?.cityId ?? cityId,
+    line1: address?.line1 ?? "",
+    line2: address?.line2 ?? "",
+    postalCode: address?.postalCode ?? "",
+    coordinates: point === null ? "" : `${point.lat}, ${point.lng}`,
+  };
+};
 
 export function legalEntityOf(
   legal: LegalForm,
@@ -267,8 +301,13 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
   else if (isShelterDisplayNameTooLong(displayName)) fields.displayName = "nameTooLong";
   const description = trimmedOrNull(form.description);
   if (description === null) fields.description = "required";
-  const address = exactAddressOf(form, fields);
-  const legal = legalEntityOf(form.legal, fields);
+  if (form.cityId === "") fields.cityId = "required";
+  const address = optionalStreetAddressOf(form, fields);
+  // No legal form picked: added later on S4, whatever was typed under a form and then left.
+  const legal: { kind: "ok"; legalEntity: null } | LegalResult =
+    form.legal.kind === null
+      ? { kind: "ok", legalEntity: null }
+      : legalEntityOf(form.legal, fields);
   const contacts = contactOfForm(form.contacts);
   const evidence = evidenceOfRows(form.evidence, now);
   const adminName = trimmedOrNull(form.adminName);
@@ -302,9 +341,10 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
     kind: "ok",
     input: {
       displayName,
+      cityId: form.cityId,
       description: { uk: description, en: null },
       legalEntity: legal.legalEntity,
-      exactAddress: address.exactAddress,
+      exactAddress: address.street,
       contact: contacts.contact,
       freshnessSentence: null,
       evidence: items,

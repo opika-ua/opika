@@ -660,11 +660,9 @@ async function main(): Promise<void> {
   console.log(`\n${commit ? "COMMIT" : "DRY RUN"} - ${input.shelter.displayName}\n`);
   console.log("Computed public location (productionLocationPolicy output, not the input address):");
   console.log(JSON.stringify(shelter.publicLocation, null, 2));
-  if (shelter.publicLocation.precision === "fuzzed_address") {
-    const offset = haversineMetres(
-      input.shelter.exactAddress.coordinates,
-      shelter.publicLocation.approximate.center,
-    );
+  const point = input.shelter.exactAddress.coordinates;
+  if (shelter.publicLocation.precision === "fuzzed_address" && point !== null) {
+    const offset = haversineMetres(point, shelter.publicLocation.approximate.center);
     console.log(
       `Offset from the real address: ${Math.round(offset)}m ` +
         `(radius: ${shelter.publicLocation.approximate.precisionMetres}m) - ` +

@@ -671,6 +671,7 @@ export const en = {
       website: "Website",
     },
     profileNotRecorded: "Not recorded",
+    notFilledYet: "Not filled in yet",
     profileTabs: {
       label: "Shelter sections",
       profile: "Profile",
@@ -1272,6 +1273,7 @@ export const en = {
           "The shelter sees these fields read-only. A change of legal entity or EDRPOU doesn't change the status by itself: the decision is yours.",
         descriptionTitle: "Shelter description",
         edit: "Change",
+        add: "Add",
       },
       donation: {
         live: "Live link",
@@ -1341,6 +1343,10 @@ export const en = {
         noDocument: "No document attached: allowed for this kind of evidence.",
         gaps: "Missing for approval: {kind}, {provided} of {minimum}.",
         gapItem: "{kind}, {provided} of {minimum}",
+        missingData: {
+          legal_entity: "Approval needs the legal details.",
+          exact_address: "Approval needs the premises address.",
+        },
         add: "+ Add evidence",
         remove: "Remove",
         typePicker: "Kind of evidence",
@@ -1420,6 +1426,10 @@ export const en = {
           legal_entity: "Legal details changed",
           exact_address: "Premises address changed",
         },
+        verified_data_added: {
+          legal_entity: "Legal details added",
+          exact_address: "Premises address added",
+        },
         animals_imported: "Animals added from a file: {count}",
         animal_created: "Card created: {name}",
         animal_edited: "Card {name} changed: {fields}",
@@ -1449,6 +1459,7 @@ export const en = {
         coordinatesHint:
           "Copy them from a map as «latitude, longitude». Never shown: people see the city only.",
         legalTitle: "Legal details",
+        laterHint: "Can be filled in later. The shelter can't be approved without it.",
         legalKind: {
           registered_ngo: "NGO or foundation",
           sole_proprietor: "Sole proprietor",
@@ -1521,7 +1532,7 @@ export const en = {
         approveShort: "Approve",
         approveNote:
           "Once approved, the shelter's animals appear in the gallery at once. A rejection needs an explanation.",
-        approveBlocked: "Can't approve yet: evidence is missing:",
+        approveBlocked: "Can't approve yet. Missing:",
         reject: "Reject…",
         suspend: "Suspend…",
         reinstate: "Reinstate → «{status}»",

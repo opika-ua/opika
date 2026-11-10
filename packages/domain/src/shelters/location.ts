@@ -15,13 +15,13 @@ import { type LocalizedText, LocalizedTextSchema } from "../primitives/localized
  * discouraged, and forces the UI to switch on `precision` and decide what to
  * render.
  *
- * `fuzzed_address`: the shelter has an exact address; this holds the city,
- * district, and fuzzed coordinates. Shelters always produce this variant.
+ * `fuzzed_address`: the shelter has an exact address with its point; this
+ * holds the city, district, and fuzzed coordinates.
  *
  * `city`: we know only the city (and optionally the district). No coordinates
  * at all - the city centroid is `City.centroid`, honestly labelled as such,
  * rather than posing as the animal's position.
- * Fostered animals with no known address produce this variant.
+ * Fostered animals and shelters with no known point produce this variant.
  *
  * District is nullable in both variants because smaller towns are not
  * subdivided, and null survives a JSON round trip in a way an absent property
@@ -69,7 +69,8 @@ export const ExactAddressSchema = z.object({
   postalCode: z.string().min(1).nullable(),
   cityId: CityIdSchema,
   district: LocalizedTextSchema.nullable(),
-  coordinates: CoordinatesSchema,
+  /** Null when the street is known but not its point; nothing public ever used the point. */
+  coordinates: CoordinatesSchema.nullable(),
 });
 export type ExactAddress = z.infer<typeof ExactAddressSchema>;
 
@@ -80,21 +81,26 @@ export type ExactAddress = z.infer<typeof ExactAddressSchema>;
  * Having one constructor matters more than it looks: the alternative is every
  * repository and every seed script assembling a `PublicLocation` by hand, and
  * it only takes one of them to pass the exact coordinates through. Here the
- * fuzzing is not something a caller remembers to do.
+ * fuzzing is not something a caller remembers to do. An address without its
+ * point yields the honest `city` variant, never a city-centre guess.
  */
 export const publicLocationOf = (
   shelterId: ShelterId,
   exactAddress: ExactAddress,
   policy: LocationPrivacyPolicy,
-): PublicLocation => ({
-  precision: "fuzzed_address",
-  cityId: exactAddress.cityId,
-  district: exactAddress.district,
-  approximate: fuzzCoordinates(exactAddress.coordinates, shelterId, policy),
-});
+): PublicLocation =>
+  exactAddress.coordinates === null
+    ? cityPublicLocationOf(exactAddress.cityId, exactAddress.district)
+    : {
+        precision: "fuzzed_address",
+        cityId: exactAddress.cityId,
+        district: exactAddress.district,
+        approximate: fuzzCoordinates(exactAddress.coordinates, shelterId, policy),
+      };
 
 /**
- * Public location for an animal fostered away from its shelter.
+ * Public location when only the city is known: an animal fostered away from
+ * its shelter, or a shelter with no address (or no point) on file yet.
  *
  * Produces a `city`-precision location - no coordinates at all. The city
  * centroid is `City.centroid`, honestly labelled as a centroid rather than
@@ -103,7 +109,7 @@ export const publicLocationOf = (
  * precision: a random point within 1 km of city centre reads as "we know
  * roughly where this animal is" when in fact we only know the city.
  */
-export const animalPublicLocationOf = (
+export const cityPublicLocationOf = (
   cityId: CityId,
   district: LocalizedText | null,
 ): PublicLocation => ({

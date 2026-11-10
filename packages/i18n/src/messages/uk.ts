@@ -500,6 +500,8 @@ export const uk = {
      * so it is not pending.
      */
     profileNotRecorded: "Не записано",
+    /** Verified data expected but not given yet (minimal create; owner-approved 2026-11-10). */
+    notFilledYet: "Ще не заповнено",
     /**
      * K4 · editing the shelter profile (`docs/k4-copy-sheet.md`). Oleksii's
      * final Ukrainian (`k4-copy-uk.md`, 2026-10-17) with his later fixes
@@ -1453,6 +1455,8 @@ export const uk = {
         descriptionTitle: "Опис притулку",
         /** Opens the edit form of «Юридичні дані» or «Адреса приміщення» (owner, 2026-11-10). */
         edit: "Змінити",
+        /** The same form, on a block that is still empty. */
+        add: "Додати",
       },
       donation: {
         live: "Чинне посилання",
@@ -1524,6 +1528,10 @@ export const uk = {
         noDocument: "Документ не додано – для цього типу доказу це дозволено.",
         gaps: "Для схвалення бракує: {kind} – {provided} з {minimum}.",
         gapItem: "{kind} – {provided} з {minimum}",
+        missingData: {
+          legal_entity: "Для схвалення бракує юридичних даних.",
+          exact_address: "Для схвалення бракує адреси приміщення.",
+        },
         add: "+ Додати доказ",
         remove: "Прибрати",
         typePicker: "Тип доказу",
@@ -1618,6 +1626,11 @@ export const uk = {
           legal_entity: "Змінено юридичні дані",
           exact_address: "Змінено адресу приміщення",
         },
+        /** The first value, where the shelter was created without it. */
+        verified_data_added: {
+          legal_entity: "Додано юридичні дані",
+          exact_address: "Додано адресу приміщення",
+        },
         animals_imported: "Додано тварин з файлу: {count}",
         animal_created: "Створено картку: {name}",
         animal_edited: "Змінено картку {name}: {fields}",
@@ -1664,6 +1677,8 @@ export const uk = {
         coordinatesHint:
           "Скопіюйте з карти у форматі «широта, довгота». Ніде не показуються: люди бачать лише місто.",
         legalTitle: "Юридичні дані",
+        /** Under «Юридичні дані» and the address block: both are optional at create. */
+        laterHint: "Можна заповнити пізніше. Без цього притулок не схвалити.",
         legalKind: {
           registered_ngo: "Громадська організація чи фонд",
           sole_proprietor: "ФОП",
@@ -1741,7 +1756,7 @@ export const uk = {
         approveShort: "Схвалити",
         approveNote:
           "Після схвалення тварини притулку одразу зʼявляються в галереї. Для відхилення потрібне пояснення.",
-        approveBlocked: "Схвалити поки не можна – бракує доказів:",
+        approveBlocked: "Схвалити поки не можна – бракує:",
         reject: "Відхилити…",
         suspend: "Призупинити…",
         reinstate: "Відновити → «{status}»",

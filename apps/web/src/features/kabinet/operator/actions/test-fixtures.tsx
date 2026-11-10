@@ -16,32 +16,37 @@ export const SHELTER_ID = "51000000-0000-4000-8000-000000000001" as RegistryShel
 export const MODERATOR = "11111111-1111-4111-8111-111111111111" as never;
 export const ADMIN_ID = "33333333-3333-4333-8333-333333333333" as never;
 
+/** The fixture's verified data, named so a test can spread it whole (the view's fields are nullable). */
+export const FIXTURE_LEGAL_ENTITY = {
+  kind: "registered_ngo",
+  legalName: "ГО «Домівка для хвостатих»",
+  edrpou: "43218765" as never,
+  registeredAt: new Date("2020-01-01T00:00:00Z"),
+} as const satisfies NonNullable<RegistryShelterView["legalEntity"]>;
+
+export const FIXTURE_ADDRESS = {
+  line1: "вул. Київська, 300",
+  line2: null,
+  postalCode: "07400",
+  cityId: "c1000000-0000-4000-8000-000000000001" as never,
+  district: null,
+  coordinates: { lat: 50.5, lng: 30.8 },
+} as const satisfies NonNullable<RegistryShelterView["exactAddress"]>;
+
 export function registryView(overrides: Partial<RegistryShelterView> = {}): RegistryShelterView {
   return {
     id: SHELTER_ID,
     displayName: "Домівка",
     earlyListing: { state: { kind: "none" }, periodsUsed: 0 },
     description: { uk: "Опис", en: null },
-    legalEntity: {
-      kind: "registered_ngo",
-      legalName: "ГО «Домівка для хвостатих»",
-      edrpou: "43218765" as never,
-      registeredAt: new Date("2020-01-01T00:00:00Z"),
-    },
+    legalEntity: FIXTURE_LEGAL_ENTITY,
     publicLocation: {
       precision: "fuzzed_address",
       cityId: "c1000000-0000-4000-8000-000000000001" as never,
       district: null,
       approximate: { lat: 50.5, lng: 30.8 } as never,
     },
-    exactAddress: {
-      line1: "вул. Київська, 300",
-      line2: null,
-      postalCode: "07400",
-      cityId: "c1000000-0000-4000-8000-000000000001" as never,
-      district: null,
-      coordinates: { lat: 50.5, lng: 30.8 },
-    },
+    exactAddress: FIXTURE_ADDRESS,
     contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
     donation: null,
     pendingDonation: null,

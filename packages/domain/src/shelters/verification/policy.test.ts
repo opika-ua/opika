@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { EdrpouSchema, ModeratorIdSchema } from "../../primitives/ids";
+import { CityIdSchema, EdrpouSchema, ModeratorIdSchema } from "../../primitives/ids";
 import type { ShelterLegalEntity } from "../legal-entity";
+import type { ExactAddress } from "../location";
 import type { EvidenceItem, VerificationEvidence } from "./evidence";
-import { DEFAULT_VERIFICATION_POLICY, evidenceGaps, meetsEvidenceRequirements } from "./policy";
+import {
+  approvalGaps,
+  DEFAULT_VERIFICATION_POLICY,
+  evidenceGaps,
+  meetsEvidenceRequirements,
+} from "./policy";
 
 const AT = new Date("2026-01-01T00:00:00.000Z");
 const MODERATOR = ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111");
@@ -117,5 +123,58 @@ describe("evidence requirements", () => {
         false,
       );
     }
+  });
+});
+
+const ADDRESS: ExactAddress = {
+  line1: "вул. Тестова, 1",
+  line2: null,
+  postalCode: null,
+  cityId: CityIdSchema.parse("22222222-2222-4222-8222-222222222222"),
+  district: null,
+  coordinates: null,
+};
+
+describe("approval gaps", () => {
+  it("lists the missing verified data first, legal details before the address", () => {
+    const gaps = approvalGaps(
+      { legalEntity: null, exactAddress: null },
+      evidence([]),
+      DEFAULT_VERIFICATION_POLICY,
+    );
+    expect(gaps).toEqual([
+      { on: "verified_data", field: "legal_entity" },
+      { on: "verified_data", field: "exact_address" },
+    ]);
+  });
+
+  it("measures no evidence while the legal form is unknown", () => {
+    const gaps = approvalGaps(
+      { legalEntity: null, exactAddress: ADDRESS },
+      evidence([]),
+      DEFAULT_VERIFICATION_POLICY,
+    );
+    expect(gaps).toEqual([{ on: "verified_data", field: "legal_entity" }]);
+  });
+
+  it("follows a missing address with the evidence gaps of the known legal form", () => {
+    const gaps = approvalGaps(
+      { legalEntity: NGO, exactAddress: null },
+      evidence([VIDEO_CALL]),
+      DEFAULT_VERIFICATION_POLICY,
+    );
+    expect(gaps).toEqual([
+      { on: "verified_data", field: "exact_address" },
+      { on: "evidence", kind: "edrpou_registration", minimum: 1, provided: 0 },
+    ]);
+  });
+
+  it("is empty once the data is on file and the evidence suffices, even without a point", () => {
+    const gaps = approvalGaps(
+      { legalEntity: INITIATIVE, exactAddress: ADDRESS },
+      evidence([VIDEO_CALL, reference("Ветклініка")]),
+      DEFAULT_VERIFICATION_POLICY,
+    );
+    expect(gaps).toEqual([]);
   });
 });

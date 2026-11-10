@@ -21,6 +21,7 @@ import {
 } from "@opika/db/repos";
 import {
   type CityId,
+  cityPublicLocationOf,
   type EvidenceItemInput,
   type ExactAddress,
   type FreshnessSentence,
@@ -205,9 +206,10 @@ export async function registrySheltersCreate(
   policy: LocationPrivacyPolicy,
   input: {
     displayName: string;
+    cityId: CityId;
     description: LocalizedText;
-    legalEntity: ShelterLegalEntity;
-    exactAddress: ExactAddress;
+    legalEntity: ShelterLegalEntity | null;
+    exactAddress: Omit<ExactAddress, "cityId"> | null;
     contact: ShelterContact;
     freshnessSentence: FreshnessSentence;
     evidence: readonly EvidenceItemInput[];
@@ -222,7 +224,7 @@ export async function registrySheltersCreate(
   if (accepted.kind === "refused") {
     throw errors.INVALID_EVIDENCE({ data: { reason: accepted.reason } });
   }
-  if ((await cityRepo(deps.db).findCurrentById(input.exactAddress.cityId as CityId)) === null) {
+  if ((await cityRepo(deps.db).findCurrentById(input.cityId)) === null) {
     // A client fault (the form offers known cities only), not one of the
     // contract's typed refusals; answered as a bad request, never a 500.
     throw new ORPCError("BAD_REQUEST", { status: 400, message: UNKNOWN_CITY_MESSAGE });
@@ -239,13 +241,19 @@ export async function registrySheltersCreate(
   if (role !== null) throw errors.ADDRESS_HAS_A_ROLE({ data: { reason: role } });
 
   const id = deps.newId() as ShelterId;
+  const exactAddress: ExactAddress | null =
+    input.exactAddress === null ? null : { ...input.exactAddress, cityId: input.cityId };
   const shelter: Shelter = {
     id,
     displayName: input.displayName,
     description: input.description,
     legalEntity: input.legalEntity,
-    publicLocation: publicLocationOf(id, input.exactAddress, policy),
-    exactAddress: input.exactAddress,
+    // No address yet: the city alone, never a guessed point.
+    publicLocation:
+      exactAddress === null
+        ? cityPublicLocationOf(input.cityId, null)
+        : publicLocationOf(id, exactAddress, policy),
+    exactAddress,
     contact: input.contact,
     donation: null,
     logo: null,

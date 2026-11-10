@@ -854,7 +854,6 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.verification.approveShort": "Схвалити",
     "operator.verification.approveNote":
       "Після схвалення тварини притулку одразу зʼявляються в галереї. Для відхилення потрібне пояснення.",
-    "operator.verification.approveBlocked": "Схвалити поки не можна – бракує доказів:",
     "operator.verification.reject": "Відхилити…",
     "operator.verification.suspend": "Призупинити…",
     "operator.verification.reinstate": "Відновити → «{status}»",
@@ -996,6 +995,17 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.history.early_listing_lapsed": "Строк показу карток до завершення перевірки минув",
     "operator.evidence.gapItem": "{kind} – {provided} з {minimum}",
   };
+  /** Owner-approved 2026-11-10 (minimal shelter create, design item 1, §1.5). */
+  const MINIMAL_CREATE_COPY: Record<string, string> = {
+    "operator.shelter.add": "Додати",
+    "operator.verification.approveBlocked": "Схвалити поки не можна – бракує:",
+    "operator.evidence.missingData.legal_entity": "Для схвалення бракує юридичних даних.",
+    "operator.evidence.missingData.exact_address": "Для схвалення бракує адреси приміщення.",
+    "operator.history.verified_data_added.legal_entity": "Додано юридичні дані",
+    "operator.history.verified_data_added.exact_address": "Додано адресу приміщення",
+    "operator.create.laterHint": "Можна заповнити пізніше. Без цього притулок не схвалити.",
+    notFilledYet: "Ще не заповнено",
+  };
   /** Owner-given 2026-11-10 (the locked-block edit forms and the donation-approve hint). */
   const VERIFIED_DATA_EDIT_COPY: Record<string, string> = {
     "operator.shelter.edit": "Змінити",
@@ -1078,12 +1088,14 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(EARLY_LISTING_OPERATOR_COPY),
         ...Object.keys(DONATION_SAFETY_OPERATOR_COPY),
         ...Object.keys(VERIFIED_DATA_EDIT_COPY),
+        ...Object.keys(MINIMAL_CREATE_COPY).filter((path) => path.startsWith("operator.")),
       ].sort(),
     );
   });
 
   it("sanity: his file's 220 strings (216 as written, 3 replaced in round 2, 1 in round 3) and 4 later keys", () => {
-    expect(Object.keys(RUI_FINAL).length).toBe(217);
+    // 216 since approveBlocked's wording moved to MINIMAL_CREATE_COPY.
+    expect(Object.keys(RUI_FINAL).length).toBe(216);
     expect(Object.keys(ROUND_3_N7)).toHaveLength(2);
     expect(Object.keys(ROUND_4C_RUI4_F2)).toHaveLength(1);
     expect(Object.keys(PET_CARD_PR3B_LOGO_CHANGED)).toHaveLength(1);
@@ -1110,6 +1122,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 
   it.each(Object.entries(VERIFIED_DATA_EDIT_COPY))("%s is the owner-given text", (path, text) => {
+    expect(valueAt(path)).toBe(text);
+  });
+
+  it.each(Object.entries(MINIMAL_CREATE_COPY))("%s is the owner-approved text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
 

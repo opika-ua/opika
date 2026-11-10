@@ -313,6 +313,45 @@ describe("creating a shelter", () => {
   });
 });
 
+describe("the minimal shelter", () => {
+  it("sends a name, a description, a city, a contact and the first admin, with no legal data or address", async () => {
+    const fns = renderForm(async () => createdView({ kind: "sent", blockCheck: "clear" }, null));
+    const u = user();
+    await u.type(screen.getByLabelText("Назва притулку"), "Лапа Вишгорода");
+    await u.type(screen.getByLabelText("Опис притулку"), "Волонтери з Вишгорода.");
+    await pickCity(u, "Виш");
+    const contacts = within(screen.getByRole("region", { name: "Контакти" }));
+    await u.type(contacts.getByLabelText(/^Телефон/), "+380 50 111-22-33");
+    await u.type(screen.getByLabelText("Імʼя"), "Ірина");
+    await u.type(screen.getByLabelText("Електронна пошта"), "iryna@example.org");
+    await u.click(submit());
+    expect(fns.create).toHaveBeenCalledTimes(1);
+    const input = fns.create.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(createInputSchema.safeParse(input).success).toBe(true);
+    expect(input).toMatchObject({ cityId: CITY.id, legalEntity: null, exactAddress: null });
+  });
+
+  it("says under the legal data and the address that both can wait, but approval can't", () => {
+    renderForm(async () => createdView(null));
+    for (const name of ["Юридичні дані", "Адреса приміщення"]) {
+      expect(
+        within(screen.getByRole("region", { name })).getByText(
+          "Можна заповнити пізніше. Без цього притулок не схвалити.",
+        ),
+      ).toBeDefined();
+    }
+  });
+
+  it("asks for the street once anything else in the address is typed", async () => {
+    const fns = renderForm(async () => createdView(null));
+    const u = user();
+    await u.type(screen.getByLabelText("Координати"), "50.5843, 30.4890");
+    await u.click(submit());
+    expect(fns.create).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Вулиця, будинок").getAttribute("aria-invalid")).toBe("true");
+  });
+});
+
 describe("one request only", () => {
   it("a second press while the first is in flight sends nothing, and the button says «Збереження…»", async () => {
     let finish: (view: CreatedShelterView) => void = () => {};
@@ -499,7 +538,9 @@ describe("checked before anything is sent", () => {
     const name = screen.getByLabelText("Назва притулку");
     expect(name.getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(name);
-    expect(screen.getAllByText("Це поле потрібне.").length).toBeGreaterThan(5);
+    // Name, description, the first admin's name and address; the city has its own message.
+    expect(screen.getAllByText("Це поле потрібне.")).toHaveLength(4);
+    expect(screen.getByText("Оберіть населений пункт зі списку")).toBeDefined();
     expect(screen.getByText("Залиште хоча б один спосіб звʼязку.")).toBeDefined();
   });
 
@@ -510,8 +551,8 @@ describe("checked before anything is sent", () => {
     const option = fns.search.mock.calls.at(-1)?.[0];
     expect(option).toEqual({ query: "Виш", regionBias: null });
     expect(fns.create).toHaveBeenCalledTimes(1);
-    const input = fns.create.mock.calls[0]?.[0] as { exactAddress: { cityId: string } };
-    expect(input.exactAddress.cityId).toBe(CITY.id);
+    const input = fns.create.mock.calls[0]?.[0] as { cityId: string };
+    expect(input.cityId).toBe(CITY.id);
   });
 
   it("shows the district and oblast under the name so same-named places differ", async () => {
@@ -531,8 +572,8 @@ describe("checked before anything is sent", () => {
     fireEvent.blur(picker);
     expect(picker.value).toBe("м. Вишгород");
     await u.click(submit());
-    const input = fns.create.mock.calls[0]?.[0] as { exactAddress: { cityId: string } };
-    expect(input.exactAddress.cityId).toBe(CITY.id);
+    const input = fns.create.mock.calls[0]?.[0] as { cityId: string };
+    expect(input.cityId).toBe(CITY.id);
   });
 
   it("asks for a pick from the list when no place was chosen", async () => {

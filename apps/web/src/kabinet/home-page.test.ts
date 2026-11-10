@@ -125,6 +125,7 @@ describe("kabinetHomeOf", () => {
     if (home.kind !== "shelter") throw new Error("unreachable");
     expect(Object.keys(home).sort()).toEqual(["cityName", "editing", "kind", "view", "viewer"]);
     expect(Object.keys(home.view).sort()).toEqual([
+      "cityId",
       "contact",
       "description",
       "displayName",

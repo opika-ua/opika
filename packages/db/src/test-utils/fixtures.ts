@@ -16,9 +16,9 @@ import {
   type ListedAnimal,
   type NonDraftListing,
   publicLocationOf,
-  type Shelter,
   type ShelterContact,
   type ShelterVerification,
+  type ShelterWithVerifiedData,
   testOnlyLocationPolicy,
   UNKNOWN_DOCUMENT_READINESS,
 } from "@opika/domain";
@@ -81,7 +81,9 @@ export function makeCity(overrides: Partial<City> = {}): City {
   };
 }
 
-export function makeShelter(overrides: Partial<Shelter> = {}): Shelter {
+export function makeShelter(
+  overrides: Partial<ShelterWithVerifiedData> = {},
+): ShelterWithVerifiedData {
   const id = overrides.id ?? uuid();
   const exactAddress = overrides.exactAddress ?? {
     ...defaultExactAddress,

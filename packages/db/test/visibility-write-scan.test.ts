@@ -67,7 +67,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/mappers.ts",
-    line: 199,
+    line: 200,
     text: "verificationStatus: shelter.verification.status,",
     kind: "write",
     why:

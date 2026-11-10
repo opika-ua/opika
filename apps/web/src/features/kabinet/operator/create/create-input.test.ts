@@ -77,13 +77,13 @@ describe("the form as registry.shelters.create's input", () => {
     expect(parse(input).success).toBe(true);
     expect(input).toEqual({
       displayName: "Лапа Вишгорода",
+      cityId: CITY,
       description: { uk: "Волонтери з Вишгорода, 18 собак і 6 котів.", en: null },
       legalEntity: { kind: "unregistered_initiative", contactPersonName: "Ірина Коваль" },
       exactAddress: {
         line1: "вул. Мечникова, 4",
         line2: null,
         postalCode: null,
-        cityId: CITY,
         district: null,
         coordinates: { lat: 50.5843, lng: 30.489 },
       },
@@ -137,8 +137,8 @@ describe("the form as registry.shelters.create's input", () => {
       edrpou: "43902117",
       registeredAt: new Date("2021-03-04T00:00:00.000Z"),
     });
-    expect(input.exactAddress.line2).toBe("корпус 2");
-    expect(input.exactAddress.postalCode).toBe("07300");
+    expect(input.exactAddress?.line2).toBe("корпус 2");
+    expect(input.exactAddress?.postalCode).toBe("07300");
   });
 
   it("maps a sole proprietor with no registration date, and the contract accepts it", () => {
@@ -226,6 +226,63 @@ describe("no documentKey, ever", () => {
   });
 });
 
+describe("the minimal shelter: legal data and address left for later", () => {
+  const minimal = (patch: Partial<CreateShelterForm> = {}): CreateShelterForm => ({
+    ...emptyCreateForm(),
+    displayName: "Лапа",
+    description: "Волонтери з Вишгорода.",
+    cityId: CITY,
+    contacts: {
+      phone: "",
+      telegram: "",
+      others: [{ id: "o", kind: "email", value: "lapa@example.org", stored: false }],
+    },
+    adminName: "Ірина",
+    adminEmail: "iryna@example.org",
+    ...patch,
+  });
+
+  it("sends no legal entity and no address when neither is typed, and the contract accepts it", () => {
+    const input = okInput(minimal());
+    expect(input.cityId).toBe(CITY);
+    expect(input.legalEntity).toBeNull();
+    expect(input.exactAddress).toBeNull();
+    expect(input.contact.primary).toEqual({ kind: "email", address: "lapa@example.org" });
+    expect(parse(input).success).toBe(true);
+  });
+
+  it("does not send what was typed under a legal form while none is picked", () => {
+    const input = okInput(minimal({ legal: legal({ legalName: "ГО «Лапа»" }) }));
+    expect(input.legalEntity).toBeNull();
+  });
+
+  it("sends a street without its point", () => {
+    const input = okInput(minimal({ line1: "вул. Мечникова, 4" }));
+    expect(input.exactAddress).toEqual({
+      line1: "вул. Мечникова, 4",
+      line2: null,
+      postalCode: null,
+      district: null,
+      coordinates: null,
+    });
+    expect(parse(input).success).toBe(true);
+  });
+
+  it.each<[string, Partial<CreateShelterForm>]>([
+    ["coordinates", { coordinates: "50.5843, 30.4890" }],
+    ["line 2", { line2: "корпус 2" }],
+    ["a postcode", { postalCode: "07300" }],
+  ])("asks for the street once %s is typed", (_case, patch) => {
+    const result = createInputOf(minimal(patch), NOW);
+    expect(result.kind === "invalid" && result.errors.fields).toEqual({ line1: "required" });
+  });
+
+  it("still requires the city", () => {
+    const result = createInputOf(minimal({ cityId: "" }), NOW);
+    expect(result.kind === "invalid" && result.errors.fields).toEqual({ cityId: "required" });
+  });
+});
+
 describe("what the form refuses, and the contract refuses too", () => {
   const valid = okInput(initiative());
 
@@ -244,13 +301,7 @@ describe("what the form refuses, and the contract refuses too", () => {
       "required",
       { ...valid, description: { uk: "", en: null } },
     ],
-    [
-      "no city",
-      { cityId: "" },
-      "cityId",
-      "required",
-      { ...valid, exactAddress: { ...valid.exactAddress, cityId: "" } },
-    ],
+    ["no city", { cityId: "" }, "cityId", "required", { ...valid, cityId: "" }],
     [
       "no street",
       { line1: " " },
@@ -302,9 +353,7 @@ describe("what the form refuses, and the contract refuses too", () => {
     ).toBe(false);
   });
 
-  it("no legal form picked, and each picked form's own required fields", () => {
-    const none = createInputOf(initiative({ legal: legal({}) }), NOW);
-    expect(none.kind === "invalid" && none.errors.fields).toEqual({ legalKind: "required" });
+  it("each picked legal form's own required fields", () => {
     const ngo = createInputOf(initiative({ legal: legal({ kind: "registered_ngo" }) }), NOW);
     expect(ngo.kind === "invalid" && ngo.errors.fields).toEqual({
       legalName: "required",

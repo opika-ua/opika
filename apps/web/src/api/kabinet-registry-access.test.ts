@@ -96,6 +96,7 @@ const REGISTRY_CALLS = (shelter: Shelter): [string, unknown][] => {
       "registry.shelters.create",
       {
         displayName: "Нова",
+        cityId: shelter.publicLocation.cityId,
         description: shelter.description,
         legalEntity: shelter.legalEntity,
         exactAddress: shelter.exactAddress,

@@ -1,7 +1,8 @@
 import {
+  type ApprovalGap,
+  approvalGaps,
   DEFAULT_VERIFICATION_POLICY,
-  type EvidenceGap,
-  evidenceGaps,
+  type ExactAddress,
   type InterruptedState,
   type ShelterLegalEntity,
   type ShelterVerification,
@@ -29,14 +30,20 @@ export type OperatorVerificationEvent = (typeof OPERATOR_VERIFICATION_EVENTS)[nu
 
 /**
  * Whether «Схвалити» can be pressed. Decided by the domain's own
- * `evidenceGaps`, the same check the server runs before it approves
+ * `approvalGaps`, the same check the server runs before it approves
  * (`registryApprove`), so the button never offers what the API refuses and
- * the operator is told which evidence to chase instead of being told "no".
+ * the operator is told which data or evidence to chase instead of being told "no".
  * A non-empty tuple: a blocked gate always has a gap to show.
  */
 export type ApproveGate =
   | { kind: "open" }
-  | { kind: "blocked"; gaps: readonly [EvidenceGap, ...EvidenceGap[]] };
+  | { kind: "blocked"; gaps: readonly [ApprovalGap, ...ApprovalGap[]] };
+
+/** The verified data approval checks, as S4's view carries it. */
+export type VerifiedData = {
+  legalEntity: ShelterLegalEntity | null;
+  exactAddress: ExactAddress | null;
+};
 
 /**
  * One move S4 offers, with what its control needs to say about it. `reinstate`
@@ -52,11 +59,11 @@ export type OfferedAction =
   | { event: "resubmit" };
 
 const approveGateOf = (
-  legalEntity: ShelterLegalEntity,
+  data: VerifiedData,
   verification: ShelterVerification,
   policy: VerificationPolicy,
 ): ApproveGate => {
-  const [first, ...rest] = evidenceGaps(legalEntity, verification.evidence, policy);
+  const [first, ...rest] = approvalGaps(data, verification.evidence, policy);
   return first === undefined ? { kind: "open" } : { kind: "blocked", gaps: [first, ...rest] };
 };
 
@@ -74,7 +81,7 @@ const approveGateOf = (
  */
 export function offeredActionsOf(
   verification: ShelterVerification,
-  legalEntity: ShelterLegalEntity,
+  data: VerifiedData,
   policy: VerificationPolicy = DEFAULT_VERIFICATION_POLICY,
 ): readonly OfferedAction[] {
   switch (verification.status) {
@@ -82,7 +89,7 @@ export function offeredActionsOf(
       return [{ event: "start_review" }, { event: "reject" }];
     case "under_review":
       return [
-        { event: "approve", gate: approveGateOf(legalEntity, verification, policy) },
+        { event: "approve", gate: approveGateOf(data, verification, policy) },
         { event: "reject" },
       ];
     case "verified":
