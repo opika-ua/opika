@@ -20,6 +20,8 @@ Can:
 - Take a shelter off the public site at once (suspend), and put it back (section 6).
 - Close a shelter admin's access and have their account erased (section 7).
 - Look at a shelter's cabinet exactly as its admin sees it, read-only and logged (section 8).
+- Correct a shelter's legal data or premises address: «Змінити» on «Юридичні дані» or «Адреса приміщення».
+  Each change is a history line the shelter also sees; the status does not change.
 
 Cannot (plain, so nobody plans around a feature that is not there):
 
@@ -72,8 +74,11 @@ return of a verified shelter to review, no reject from paused or verified (suspe
 
    | Legal form | Required |
    |---|---|
-   | «Громадська організація чи фонд», «ФОП» | 1 EDRPOU registration, 1 bank account holder, 1 reference |
-   | «Ініціатива без реєстрації» | 1 video call, 2 references |
+   | «Громадська організація чи фонд», «ФОП» | 1 EDRPOU registration, 1 video call |
+   | «Ініціатива без реєстрації» | 1 video call, 1 reference |
+
+   (Owner decision, 2026-11-10. A bank account holder can still be added but counts toward no minimum, and
+   a second reference is extra. You check the account holder by hand when approving a donation link, section 15.)
 
    When short, «Схвалити» is blocked and the screen says «Схвалити поки не можна – бракує доказів:» and
    lists each gap. The server checks the same rule again at approval, so the button cannot be bypassed.
@@ -245,8 +250,8 @@ Observable signals, in rough order of weight:
 6. **Cards that do not match reality**: photos that look reused from elsewhere, one animal listed under
    several names, details that contradict the shelter's own freshness sentence.
 7. **A donation link change** on an account that was quiet (a swapped link on a compromised account is the
-   realistic fraud vector; the product holds a proposed link until you approve it). Check the host against
-   the bank holder on file.
+   realistic fraud vector; the product holds a proposed link until you approve it). Check the host, and
+   that the account holder matches the organisation (section 15).
 8. **A sudden contact change** (history «Змінено контакти») shortly before complaints.
 
 If an adopter's report arrives (no in-product channel): write down only what they said and the dates,
@@ -374,6 +379,8 @@ neutral; never name a suspicion.
   link does not change meanwhile. The URL must be `https`. The provider is derived from the host (known
   bank and payment hosts are recognised, anything else is "other" and is not refused, so a host that looks
   like a bank but is not will not be flagged by the product: read the host yourself). A new proposal
-  replaces the pending one. «Схвалити» makes it live, «Відхилити» clears the proposal and leaves the
+  replaces the pending one. Before approving, check that the account holder matches the organisation;
+  the screen reminds you: «Перевірте, що власник рахунку збігається з організацією» (since
+  2026-11-10 this check is no longer part of verification). «Схвалити» makes it live, «Відхилити» clears the proposal and leaves the
   current live link as it was. Both are single clicks with no reason field and no confirmation, and
   are recorded in the history and shown to the shelter. There is no action to remove a live link.

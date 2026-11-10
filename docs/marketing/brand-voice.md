@@ -129,7 +129,7 @@ one. See §6.
 | **притулок** | any verified lister - registered NGO, sole proprietor or volunteer group |
 | **тварина / собака / кіт** | always |
 | **картка** | an animal's listing |
-| **перевірений** / **перевірений вручну** | a human checked registration + bank details + references, or a visit/real call + two references. Nothing more. |
+| **перевірений** / **перевірений вручну** | a human checked registration + a video call, or a video call + one independent reference (since 2026-11-10). Nothing more. |
 | **оновлено N днів тому** | when the information was last updated. Not confirmed. Not checked. |
 | **Запитати / Написати** | the right-swipe / reveal action - an inquiry, not a choice |
 | **Не зараз** | the left-swipe - a filter, not a judgement |

@@ -41,12 +41,11 @@ const fullEvidence = {
       registeredName: "ГО «Домівка»",
       documentKey: null,
     },
-    { kind: "bank_account_holder" as const, holderName: "ГО «Домівка»", documentKey: null },
     {
-      kind: "reference_contact" as const,
-      name: "Ветклініка «Айболить»",
-      channel: { kind: "phone" as const, e164: "+380501234567" },
-      relationship: "veterinary_clinic" as const,
+      kind: "site_visit" as const,
+      visitedAt: AT,
+      visitedBy: MODERATOR,
+      notes: "Відеодзвінок",
     },
   ],
   submittedAt: AT,
@@ -190,11 +189,7 @@ describe("pending → «Взяти на розгляд» → «Схвалити�
       within(blocked as HTMLElement)
         .getAllByRole("listitem")
         .map((li) => li.textContent),
-    ).toEqual([
-      "Реєстрація · ЄДРПОУ – 0 з 1",
-      "Власник банківського рахунку – 0 з 1",
-      "Рекомендація – 0 з 1",
-    ]);
+    ).toEqual(["Реєстрація · ЄДРПОУ – 0 з 1", "Відеодзвінок – 0 з 1"]);
     await userEvent.click(approve);
     expect(fns.verification.approve).not.toHaveBeenCalled();
   });

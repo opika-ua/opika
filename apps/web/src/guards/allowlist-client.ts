@@ -84,6 +84,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     "allow/withdraw early listing: confirm dialog and request state",
   "features/kabinet/operator/actions/ResubmitPanel.tsx": "resubmit evidence panel with state",
   "features/kabinet/operator/actions/SupportEntry.tsx": "start-support-view button",
+  "features/kabinet/operator/actions/VerifiedDataEditor.tsx":
+    "legal-data and address edit forms with state",
   "features/kabinet/operator/actions/operator-actions.tsx":
     "React context + pending/outcome state for operator actions",
   "features/kabinet/operator/actions/use-router-reread.ts":

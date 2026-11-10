@@ -5,6 +5,7 @@ import type { RegistryShelterView } from "@opika/contracts";
 import { uk } from "@opika/i18n";
 import { useRef, useState } from "react";
 import { Button } from "../../../../ui/Button";
+import { Text } from "../../../../ui/Text";
 import { DonationRemoveDialog } from "./DonationRemoveDialog";
 import { useOperatorActions } from "./operator-actions";
 import { ACTIONS, NOTICE } from "./styles";
@@ -98,6 +99,9 @@ export function DonationDecision() {
             {t.donation.remove}
           </Button>
         </div>
+      ) : null}
+      {pending !== null && view.verification.status !== "suspended" ? (
+        <Text look="hint">{t.donation.approveHint}</Text>
       ) : null}
       {pending !== null ? (
         <div className={ACTIONS}>

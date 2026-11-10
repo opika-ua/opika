@@ -105,6 +105,7 @@ export function fakeClient(overrides: FakeOverrides = {}) {
   const fns: Fns = {
     shelters: {
       updateProfile: unexpected("shelters.updateProfile"),
+      updateVerifiedData: unexpected("shelters.updateVerifiedData"),
       ...overrides.shelters,
     },
     verification: {

@@ -972,8 +972,7 @@ export const en = {
           "Every change to the photos updates the date on the card, and it moves back among the freshest.",
       },
       photoErrors: {
-        heicUnsupported:
-          "This phone or browser can't open HEIC photos. Please choose a JPG or PNG.",
+        unsupportedFormat: "Save the photo as JPEG or PNG",
         unreadable: "This file couldn't be opened as a photo.",
         tooLarge: "Even after shrinking, this photo is too large. Try another one.",
         rejected: "The site can't use this file as a photo.",
@@ -1281,12 +1280,14 @@ export const en = {
         legalNote:
           "The shelter sees these fields read-only. A change of legal entity or EDRPOU doesn't change the status by itself: the decision is yours.",
         descriptionTitle: "Shelter description",
+        edit: "Change",
       },
       donation: {
         live: "Live link",
         none: "No link",
         proposed: "The shelter proposed {host} on {date}. Waiting for your decision.",
         approve: "Approve",
+        approveHint: "Check that the account holder matches the organisation",
         reject: "Reject",
         approved: "Link approved.",
         rejected: "Link rejected.",
