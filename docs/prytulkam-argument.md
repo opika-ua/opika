@@ -112,13 +112,18 @@ side and it has to mean something specific here.
 
 Must establish: a person checks, and here is what checking is.
 
-- A registered organisation shows its EDRPOU registration and a bank record in
-  the organisation's name, plus one independent reference.
-- An unregistered volunteer group - most groups - is **not excluded**. It
-  substitutes a visit and two independent references who can confirm the group
-  is real and does what it says.
-- "A visit" includes a real phone conversation where an actual person talked to
-  them and can say what they learned. It does not require anyone to travel.
+- A registered organisation shows its EDRPOU registration and has a video call.
+- An unregistered volunteer group - most groups - is **not excluded**. It has a
+  video call and gives one independent reference who can confirm the group is
+  real and does what it says.
+- The video call is remote; nobody has to travel. If the connection can't carry
+  video, a phone call plus a short video of the premises filmed the same day
+  counts.
+- (Changed 2026-11-10, owner decision: before, a registered organisation also
+  needed a bank record in its name and a reference, and a volunteer group two
+  references. The live text now reads «Зареєстрована організація показує ЄДРПОУ
+  і проходить відеодзвінок.» and «Незареєстрована ініціатива проходить
+  відеодзвінок і показує одну незалежну рекомендацію.»)
 - A reference has to be someone other than the shelter itself - a neighbouring
   shelter, a vet clinic they work with. Not their own second phone number.
 

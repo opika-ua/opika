@@ -996,6 +996,11 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.history.early_listing_lapsed": "Строк показу карток до завершення перевірки минув",
     "operator.evidence.gapItem": "{kind} – {provided} з {minimum}",
   };
+  /** Owner-given 2026-11-10 (the locked-block edit forms and the donation-approve hint). */
+  const VERIFIED_DATA_EDIT_COPY: Record<string, string> = {
+    "operator.shelter.edit": "Змінити",
+    "operator.donation.approveHint": "Перевірте, що власник рахунку збігається з організацією",
+  };
   /** Owner-approved 2026-11-06 (donation link safety: copy table N1–N14, N18, and the approvals file). */
   const DONATION_SAFETY_OPERATOR_COPY: Record<string, string> = {
     "operator.history.donation_removed": "Посилання на збір прибрано: {host}. {code}. {note}",
@@ -1074,6 +1079,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(SITTING2_FOLLOWUP_COPY),
         ...Object.keys(EARLY_LISTING_OPERATOR_COPY),
         ...Object.keys(DONATION_SAFETY_OPERATOR_COPY),
+        ...Object.keys(VERIFIED_DATA_EDIT_COPY),
       ].sort(),
     );
   });
@@ -1102,6 +1108,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 
   it.each(Object.entries(EVIDENCE_ADD_COPY))("%s is the owner-approved text", (path, text) => {
+    expect(valueAt(path)).toBe(text);
+  });
+
+  it.each(Object.entries(VERIFIED_DATA_EDIT_COPY))("%s is the owner-given text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
 
@@ -1661,8 +1671,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
       "Фото змінилися в іншому вікні. Тут – поточний набір, спробуйте ще раз.",
     "kabinet.animalForm.photos.removedStillReachable":
       "Фото зникло з картки. Сам файл не видаляється одразу – якщо його треба прибрати зовсім, напишіть мені.",
-    "kabinet.animalForm.photoErrors.heicUnsupported":
-      "Цей телефон чи браузер не відкриває фото у форматі HEIC. Виберіть, будь ласка, JPG або PNG.",
+    // Replaced by his gap-9 wording (2026-11-10), verbatim.
+    "kabinet.animalForm.photoErrors.unsupportedFormat": "Збережіть фото як JPEG або PNG",
     "kabinet.animalForm.photoErrors.unreadable": "Цей файл не вдалося відкрити як фото.",
     "kabinet.animalForm.photoErrors.tooLarge":
       "Навіть після зменшення це фото завелике. Спробуйте інше.",

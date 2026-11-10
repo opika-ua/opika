@@ -72,6 +72,8 @@ const CHECKED_NONE: BlockedAddressesView = { kind: "checked", asOf: NOW, blocked
 const NO_ACTIONS: ShelterScreenActions = {
   supportEntry: null,
   rename: null,
+  legalEdit: null,
+  addressEdit: null,
   decision: null,
   donationDecision: null,
   admins: null,
@@ -121,11 +123,11 @@ describe("S4 evidence", () => {
     renderScreen();
     const evidence = section("Докази для перевірки");
     expect(within(evidence).getByText("Доказів поки немає.")).toBeTruthy();
-    // A registered NGO needs one of each (DEFAULT_VERIFICATION_POLICY).
+    // A registered NGO needs its registration and a video call (DEFAULT_VERIFICATION_POLICY).
     expect(
       within(evidence).getByText("Для схвалення бракує: Реєстрація · ЄДРПОУ – 0 з 1."),
     ).toBeTruthy();
-    expect(within(evidence).getByText("Для схвалення бракує: Рекомендація – 0 з 1.")).toBeTruthy();
+    expect(within(evidence).getByText("Для схвалення бракує: Відеодзвінок – 0 з 1.")).toBeTruthy();
   });
 
   it("shows each item's facts, and that no document is attached where that is allowed", () => {

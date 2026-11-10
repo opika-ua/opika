@@ -135,8 +135,14 @@ script - `buildShelter` checks against it and refuses to produce a
 
 | Legal shape | Needs |
 |---|---|
-| `unregistered_initiative` (most volunteer groups) | 1× `site_visit` (a video call), 2× `reference_contact` |
-| `registered_ngo` / `sole_proprietor` | 1× `edrpou_registration`, 1× `bank_account_holder`, 1× `reference_contact` |
+| `unregistered_initiative` (most volunteer groups) | 1× `site_visit` (a video call), 1× `reference_contact` |
+| `registered_ngo` / `sole_proprietor` | 1× `edrpou_registration`, 1× `site_visit` (a video call) |
+
+(Changed 2026-11-10, owner decision: previously an initiative needed two references, and a
+registered shape needed a `bank_account_holder` and a `reference_contact` instead of the video
+call. Both kinds can still be added as extra evidence; neither is required for a registered
+shape. Instead, the donation-link approval reminds you to check by hand that the account
+holder matches the organisation: «Перевірте, що власник рахунку збігається з організацією».)
 
 A `reference_contact`'s `channel` must be someone **other than the shelter
 itself** - a neighbouring shelter, a vet clinic they work with, anyone who
@@ -165,7 +171,7 @@ who vouches for it; there's no field for that.
 
 **An `edrpou_registration` needs `registeredName`**: the name exactly as ЄДР
 shows it on the day you check the code. A reviewer compares it with the
-shelter's own name and the bank holder's name, so copy it from the
+shelter's own name (and a bank holder's name, if one is on file), so copy it from the
 registry, don't retype it from the shelter's message. Leave `documentKey`
 out of `edrpou_registration` and `bank_account_holder`: the script refuses
 one until the private evidence bucket exists, because a key typed here
@@ -693,6 +699,10 @@ Two panels sit beside these and are not verification moves (no FSM event, no sta
   is not told: the entry is in the operator's history («Додано докази: {kinds}», kinds only) and
   never in the shelter's.
 - **«Дозволити показ до завершення перевірки» / «Зняти дозвіл»**: early listing, next.
+
+**«Змінити»** on the «Юридичні дані» and «Адреса приміщення» blocks edits the legal data or the
+premises address (`registry.shelters.updateVerifiedData`). Each change writes a
+`verified_data_changed` history line, which the shelter also sees; the status does not change.
 
 Every reject and suspend opens a dialog with a reason code and a required note. The dialog says
 the shelter reads the note verbatim, so write it as instructions for what to do next.

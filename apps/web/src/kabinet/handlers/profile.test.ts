@@ -52,7 +52,24 @@ describe("kabinetShelterViewOf: earlyListing", () => {
       reason: { code: "spam", note: null },
       evidence,
     };
-    for (const verification of [verified, rejected]) {
+    const paused: ShelterVerification = {
+      status: "paused",
+      verifiedAt: AT,
+      verifiedBy: MOD,
+      pausedAt: AT,
+      pausedBy: { kind: "moderator", moderatorId: MOD },
+      reason: { code: "relocation", note: null },
+      evidence,
+    };
+    const suspended: ShelterVerification = {
+      status: "suspended",
+      suspendedAt: AT,
+      suspendedBy: MOD,
+      reason: { code: "unresponsive", note: null },
+      priorState: { status: "verified", verifiedAt: AT, verifiedBy: MOD },
+      evidence,
+    };
+    for (const verification of [verified, rejected, paused, suspended]) {
       expect(viewAt(verification, SINCE, END), verification.status).toEqual({ kind: "none" });
       expect(viewAt(verification, SINCE, SINCE), verification.status).toEqual({ kind: "none" });
     }

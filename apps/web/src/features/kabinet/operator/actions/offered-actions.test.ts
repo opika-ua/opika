@@ -258,12 +258,12 @@ describe("approve is gated by the domain's evidence policy", () => {
       kind: "blocked",
       gaps: [
         { kind: "edrpou_registration", minimum: 1, provided: 0 },
-        { kind: "bank_account_holder", minimum: 1, provided: 0 },
+        { kind: "site_visit", minimum: 1, provided: 0 },
       ],
     });
   });
 
-  it("an unregistered initiative with a site visit and one reference: one reference short", () => {
+  it("an unregistered initiative: a video call alone is one reference short; with one, open", () => {
     const initiative: ShelterLegalEntity = {
       kind: "unregistered_initiative",
       contactPersonName: "Олена Коваль",
@@ -274,16 +274,16 @@ describe("approve is gated by the domain's evidence policy", () => {
       visitedBy: MODERATOR,
       notes: "Чисто",
     };
-    expect(approveOf(underReview([visit, reference("Ветклініка")]), initiative)).toEqual({
+    expect(approveOf(underReview([visit]), initiative)).toEqual({
       kind: "blocked",
-      gaps: [{ kind: "reference_contact", minimum: 2, provided: 1 }],
+      gaps: [{ kind: "reference_contact", minimum: 1, provided: 0 }],
     });
-    expect(
-      approveOf(underReview([visit, reference("Ветклініка"), reference("Громада")]), initiative),
-    ).toEqual({ kind: "open" });
+    expect(approveOf(underReview([visit, reference("Ветклініка")]), initiative)).toEqual({
+      kind: "open",
+    });
   });
 
-  it("a registered NGO with all three: open", () => {
+  it("a registered NGO with registration and a video call: open", () => {
     const items: EvidenceItem[] = [
       {
         kind: "edrpou_registration",
@@ -291,8 +291,7 @@ describe("approve is gated by the domain's evidence policy", () => {
         registeredName: "ГО «Домівка»",
         documentKey: null,
       },
-      { kind: "bank_account_holder", holderName: "ГО «Домівка»", documentKey: null },
-      reference("Ветклініка"),
+      { kind: "site_visit", visitedAt: STATE_AT, visitedBy: MODERATOR, notes: "Відеодзвінок" },
     ];
     expect(approveOf(underReview(items), NGO)).toEqual({ kind: "open" });
   });

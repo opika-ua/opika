@@ -8,7 +8,8 @@ const { shelters, verification, donation, admins, support, earlyListing } =
 
 /**
  * What S4's action controls may call from the browser: the registry writes
- * R-UI 3 needs and R-UI 4's rename (`shelters.updateProfile`), picked, never
+ * R-UI 3 needs, R-UI 4's rename (`shelters.updateProfile`) and the locked
+ * blocks' edit forms (`shelters.updateVerifiedData`), picked, never
  * the whole registry contract, for the reason
  * `api/kabinet-browser-client.ts` gives (a procedure added to the contract
  * later is not callable from client JavaScript by default).
@@ -17,7 +18,7 @@ const { shelters, verification, donation, admins, support, earlyListing } =
  * (r-ui-plan §4: "each page guards itself"), and a control that needs the
  * record again asks the page to re-render (`use-router-reread.ts`) rather
  * than fetching it from the browser. `shelters.create` belongs to R-UI 2's
- * own client, `updateVerifiedData` to an edit form not built yet, and
+ * own client (whose city search the address form reuses), and
  * `support.enter`'s counterpart (`session.exitSupport`) is the support
  * banner's.
  *
@@ -31,6 +32,7 @@ export const registryActionsBrowserContract = {
   registry: {
     shelters: {
       updateProfile: shelters.updateProfile,
+      updateVerifiedData: shelters.updateVerifiedData,
     },
     verification: {
       startReview: verification.startReview,
