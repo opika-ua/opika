@@ -22,16 +22,17 @@ agent to.
 - **Photo files:** only the R2 clean-up job deletes them, once unreferenced for 7 days (daily scheduled
   run, or the `r2:cleanup` CLI). Nothing else deletes R2 objects.
 - **Not built:** a soft archive (item 7 on the owner's list); any scrub of a value from history,
-  evidence or reveal snapshots; any way to find or erase an adopter's rows; a committed response time.
-  Each is marked **GAP** where it bites.
+  evidence or reveal snapshots; any way to find or erase an adopter's rows. Each is marked **GAP** or
+  **NEEDS TOOL** where it bites.
 
 ## A. A shelter wants to leave
 
 1. **Log the request** in your own records (template line at the end). Do nothing public yet.
 2. **Check who is asking.** Only a joined admin of that shelter may ask (under «Адміністратори», status
-   «Має доступ»). If the mail came from that address, go on. If it came from anywhere else, do not reply
-   to the sender with anything about the shelter: send template E **to the admin address on file** and
-   wait for the answer from it. A shelter with no joined admin: confirm by a call to the phone in its
+   «Має доступ»). Always send template E **to the admin address on file**, even when the request came
+   from it (a matching From address alone can be forged), and tell the sender nothing about the shelter
+   if it came from anywhere else. **Nothing changes until a reply to that mail arrives**, and no
+   `--commit` (step 7) without it. A shelter with no joined admin: confirm by a call to the phone in its
    contacts and note the call.
 3. **Open complaint or investigation on this shelter?** Then do steps 4 and 5 only and stop: hide, do not
    delete, until the matter is closed (playbook sections 11 and 14).
@@ -55,7 +56,8 @@ agent to.
       dry run again. Delete the child branch afterwards.
    2. Production, from the repo root checkout: dry run
       `pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter <id>`.
-      Check the name it prints, and that it lists no refusal.
+      Check the name it prints, and that it lists no refusal. It also refuses when no other shelter
+      would remain (playbook section 7); then the site would be empty, so stop and decide.
    3. **Refused for a support session** (you once used «Переглянути як притулок» on it): stop. Support
       records are never deleted, so this shelter cannot be deleted today, and the promise in step 6
       cannot be kept in full. It stays hidden; do not send template G; decide with the count in front
@@ -67,9 +69,13 @@ agent to.
    grace: `pnpm --filter @opika/db r2:cleanup --expect <production ep- id> --prod` (dry run, read the
    count), then the same with `--commit --max-delete <that count>`. Never `--grace-days 0` here: it
    would also take other shelters' photos still inside their grace. Do not delete files by hand.
-   The CDN edge forgets a deleted file within 4 hours.
+   The CDN edge drops a deleted file within 4 hours only for objects uploaded after the `s-maxage`
+   change (`docs/onboarding-a-shelter.md`, "Image caching"); a browser that already loaded one may keep
+   it for up to a year (`max-age=31536000`).
 9. **Send template G** to the admin address once step 7 has passed (it was erased from the database,
-   not from your mailbox). Put in it the date by which step 8 will be done.
+   not from your mailbox). Put in it the date by which step 8 will be done. Keep its bracketed sentence
+   about the address **only when step 5's history shows «адреса видалена» for every admin**: an admin
+   with another shelter, a live invitation elsewhere or an operator role keeps the account.
 10. **Close the log line.** Delete your own notes on the shelter when no dispute is open (playbook
     section 14).
 
@@ -85,16 +91,17 @@ agent to.
 
 ## B. A personal-data deletion request from a person
 
-**Response time:** `docs/gdpr-analysis.md` commits to none (G1: no privacy policy yet; G4: no request
-procedure). Do not promise a date you cannot keep. **GAP: the owner decides one and states it in the
-privacy policy (Phase H5).**
+**Response time: 30 calendar days from the request** (owner decision 2026-11-10). GDPR Art. 12(3) gives
+one month; the owner also cites Art. 16 of the Ukrainian personal data law. The privacy policy (Phase H5)
+will state the same number when it is written.
 
 1. **Log the request** (template line at the end).
 2. **Who may ask:** the person the data is about, for their own data only. A shelter's admin may also
    ask about the shelter's own records (that is scenario A).
 3. **Identity check:** reply only to an address or phone that is already on file for that person (the
-   admin address, the contact channel). Never ask for an identity document, and never ask an adopter for
-   their cookie value or a session token.
+   admin address, the contact channel), never only to the sender: a matching From address alone can be
+   forged. **Nothing changes until that channel confirms.** Never ask for an identity document, and
+   never ask an adopter for their cookie value or a session token.
 4. **Find the case in the table and do what it says.**
 
 | Person | Where their data is | What you can do today |
@@ -135,22 +142,19 @@ privacy policy (Phase H5).**
 
 ## Gaps (owner to build or decide)
 
-1. **Response time** for a data request: none committed (B). Decide it with the privacy policy (H5).
-2. **Soft archive** (item 7): "leave but keep the record" is an indefinite suspension today (A, step 6).
-3. **Support session blocks deletion:** a shelter you ever viewed in support mode cannot be deleted, so
+1. **Soft archive** (item 7): "leave but keep the record" is an indefinite suspension today (A, step 6).
+2. **Support session blocks deletion:** a shelter you ever viewed in support mode cannot be deleted, so
    the `/prytulkam` promise «приберу все» fails for it (A, step 7.3). Decide: allow deleting or
-   anonymising the support record, or narrow the promise.
-4. **NEEDS TOOL, value scrub:** an owner-run script, dry run then `--commit`, that replaces one exact
+   anonymising the support record, or narrow the promise. The future «Увійти як притулок · зі змінами»
+   mode must not block `demo:remove` the same way.
+3. **NEEDS TOOL, value scrub:** an owner-run script, dry run then `--commit`, that replaces one exact
    value (phone, email, name) with a placeholder in `shelters`, `shelter_history`, evidence and
    `reveals.shelter_snapshot`, in one transaction, the same shape as the admin erasure. Tier 1.
-5. **NEEDS TOOL, adopter erasure:** a «forget this device» action on the site that deletes that
+4. **NEEDS TOOL, adopter erasure:** a «forget this device» action on the site that deletes that
    session's reveals, session and adopter row, in that order (`docs/gdpr-analysis.md`, G4). Tier 1.
-6. **Faster photo takedown:** `docs/operator-playbook.md` section 15 and `docs/onboarding-a-shelter.md`
-   ("Taking a photo down") still describe deleting files by hand in Cloudflare, which the repo's hard
-   rule now forbids ("Nothing deletes R2 objects except the photo clean-up job"). Reconcile the two.
-7. **Legal data edit form:** not built, so a wrong or withdrawn name in legal data cannot be corrected
+5. **Legal data edit form:** not built, so a wrong or withdrawn name in legal data cannot be corrected
    from a screen (B, table).
-8. **Clean-up cap:** a leaving shelter with more than 20 photos always needs the manual
+6. **Clean-up cap:** a leaving shelter with more than 20 photos always needs the manual
    `r2:cleanup --max-delete` run (A, step 8).
 
 ## Log line (your own records, never the repo)
@@ -182,7 +186,7 @@ They go out from your own mailbox; F goes into the suspend or reject dialog and 
 **G. Shelter removed**
 
 > Добрий день. Притулку [назва] більше немає на сайті.
-> Тварин, історію та запис притулку видалено, доступ до кабінету закрито, вашу адресу пошти видалено.
+> Тварин, історію та запис притулку видалено, доступ до кабінету закрито. [Лише якщо так, див. крок 9: Вашу адресу пошти видалено.]
 > Файли фотографій зникнуть зі сховища до [дата].
 > Контакти, які люди вже отримали на сайті, лишаються в них, і забрати їх я не можу.
 > Якщо захочете повернутися, напишіть мені.

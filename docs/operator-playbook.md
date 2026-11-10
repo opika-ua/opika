@@ -37,8 +37,11 @@ Cannot (plain, so nobody plans around a feature that is not there):
   hand, in your own notes.
 - **No lookup against the company registry or a bank.** The EDRPOU code and the registered name are typed
   in by you after you checked them; the product only records them and compares counts.
-- **No operator action removes a live donation link** (section 11). The ways out are suspension, or
-  approving a replacement.
+- **A live donation link: removable by you only, not by the shelter.** «Прибрати посилання…» (shown
+  while a link is live; `DonationRemoveDialog`) asks for «Причина» and a required «Пояснення» the
+  shelter reads, then clears the live link and any waiting proposal at once and writes a history line.
+  The shelter can propose a new link. (Sections 11 and 15 still say no such action exists; this replaces
+  that.)
 - **No UI deletes a shelter.** Deletion is the `demo:remove` script (owner-run, section 7).
 - **No email on a status change.** The product mails only sign-in links, invitations and password mails.
   A request for evidence, a suspension notice and so on go out from your own mailbox (templates, section 13).
@@ -367,8 +370,9 @@ neutral; never name a suspicion.
   automatic deletion is the daily clean-up (04:00 UTC), which removes a photo or logo only after it has been
   unreferenced for 7 days, re-checks right before deleting, and refuses a run that would delete more than
   100 objects (it logs `refused_over_cap`, deletes nothing, and only the CLI can raise the cap). A photo
-  that must go sooner (for example one showing a person) is a manual takedown in the Cloudflare dashboard,
-  your step, described in `docs/onboarding-a-shelter.md` ("Taking a photo down"). Nothing but that job
+  that must go (for example one showing a person) goes through that job too: take it off the card, then
+  the job deletes it after the 7 days; over the cap, the `r2:cleanup` dry run then `--commit --max-delete
+  <n>` (`docs/operator-leaving-and-erasure.md`, A step 8). Never delete files by hand. Nothing but that job
   deletes R2 objects, and the bucket has no versioning (`docs/runbook.md`, section 8).
 - **Donation link rules.** A shelter only ever proposes a link; it is held until you decide, and the live
   link does not change meanwhile. The URL must be `https`. The provider is derived from the host (known
