@@ -377,3 +377,10 @@ neutral; never name a suspicion.
   replaces the pending one. «Схвалити» makes it live, «Відхилити» clears the proposal and leaves the
   current live link as it was. Both are single clicks with no reason field and no confirmation, and
   are recorded in the history and shown to the shelter. There is no action to remove a live link.
+
+## 16. A shelter leaving, and a personal-data deletion request
+
+Its own runbook: `docs/operator-leaving-and-erasure.md`. Scenario A, a shelter that stops participating
+(identity check, hide, remove admins, `demo:remove`, photo clean-up, confirmation); scenario B, a request
+from a shelter admin, a shelter's contact person or an adopter to delete their data (what can go today,
+what needs a tool). It lists the gaps that only the owner can build or decide.
