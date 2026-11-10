@@ -359,7 +359,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // `operator.history.addressErased`, `admin_invited_erased`, `verification.pause_reason` and
     // `codes.suspension.cannot_confirm_details`.
     // 791 with `operator.evidence.videoCallNotesHint` (video call replaces site visit, owner-approved 2026-11-09).
-    expect(pending.length + written.length).toBe(791);
+    // 795 with the Instagram and Facebook contact kinds (owner-approved 2026-11-10): two
+    // `profileChannel.*` and two `profileEdit.errors.*Format`.
+    expect(pending.length + written.length).toBe(795);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");
