@@ -10,6 +10,7 @@ import { EarlyListingPanel } from "./EarlyListingPanel";
 import { OperatorActionsRoot } from "./OperatorActionsRoot";
 import { RenameForm } from "./RenameForm";
 import { SupportEntry } from "./SupportEntry";
+import { AddressEdit, LegalEdit } from "./VerifiedDataEditor";
 
 /**
  * S4 as the page serves it: R-UI 1's screen with R-UI 3's controls and
@@ -45,6 +46,8 @@ export function ShelterActionsScreen({
         actions={{
           supportEntry: <SupportEntry />,
           rename: <RenameForm />,
+          legalEdit: <LegalEdit />,
+          addressEdit: <AddressEdit cityName={cityName} />,
           decision: (
             <>
               <DecisionPanel />

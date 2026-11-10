@@ -79,7 +79,7 @@ in Ukrainian with oblast-level detail.
 | **TailHarbor** (EU) | ✓ claimed ("rescue shelters and verified welfare organisations only") | **✓** ("not confirmed since <date>") | ✗ (breeders excluded) | ✗ (visit shelter site) | ✓ | ✗ (auto-translated; UA names transliterated) | ? | ✓ web |
 | **Petfinder** (US ref.) | ✓ (approval, ongoing monitoring) | ~ (members must keep listings current; 90-day inactivity rule) | ✗ (breeders excluded) | ✗ | ✓ | n/a | ✓ | ✓ |
 | **Pets4Homes** (UK ref.) | ~ (ad vetting; breeders allowed) | ? | ✓ | ✗ | ? | n/a | ✓ | ✓ |
-| **Opika (as built)** | ✓ manual, named person (registration / account holder / references / site visit) | ✓ every card, in words, «коли інформацію востаннє оновлювали» | ✗ - shelters only | ✗ - reveal contact, adopter writes directly | ✓ with notice before change | ✓ UA-only, edited | ~ design target; not yet measured on a low-end device | ✓ `?stor=N`, per-animal OG metadata, city slugs |
+| **Opika (as built)** | ✓ manual, named person (registration + video call, or video call + a reference; since 2026-11-10) | ✓ every card, in words, «коли інформацію востаннє оновлювали» | ✗ - shelters only | ✗ - reveal contact, adopter writes directly | ✓ with notice before change | ✓ UA-only, edited | ~ design target; not yet measured on a low-end device | ✓ `?stor=N`, per-animal OG metadata, city slugs |
 
 The **date** column is the most telling. Only TailHarbor shows one, and it shows a
 *confirmation* date - exactly the claim Opika's commitment #7 forbids itself from making

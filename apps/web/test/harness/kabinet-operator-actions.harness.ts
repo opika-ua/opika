@@ -15,7 +15,7 @@
  * (the magic link off its stdout), the operator by a `super_admins` grant in
  * this run's own database, the shelter's admin by a membership. The shelter
  * is created here, fictional, with the evidence an unregistered initiative
- * needs (a site visit and two references), so approve is open, and a
+ * needs (a site visit and at least one reference), so approve is open, and a
  * proposed donation link. The registry needs `LOCATION_HMAC_SECRET` (RG-Q10),
  * given to that server only, with a fictional `KABINET_OPERATOR_DISPLAY_NAME`
  * so the signature the shelter reads is this run's, not a developer's.

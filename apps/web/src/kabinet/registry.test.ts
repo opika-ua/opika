@@ -569,6 +569,33 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
     expect((await reload(s.id)).exactAddress).toEqual(s.exactAddress);
   });
 
+  it("replaces the legal entity and records a verified_data_changed line, leaving the status", async () => {
+    const s = await shelter();
+    const next = {
+      kind: "registered_ngo",
+      legalName: "ГО «Хвостатий тест»",
+      edrpou: "12345678",
+      registeredAt: new Date("2020-05-01T00:00:00.000Z"),
+    };
+    const result = await call<RegistryShelterView>("registry.shelters.updateVerifiedData", {
+      shelterId: s.id,
+      expectedVersion: 0,
+      change: { field: "legal_entity", next },
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.version).toBe(1);
+    const stored = await reload(s.id);
+    expect(stored.legalEntity).toEqual(next);
+    expect(stored.verification.status).toBe(s.verification.status);
+    expect(await history(s.id)).toEqual([
+      expect.objectContaining({
+        kind: "verified_data_changed",
+        moderatorId: OPERATOR,
+        change: { field: "legal_entity", previous: s.legalEntity, next },
+      }),
+    ]);
+  });
+
   it("refuses a stale version with CONFLICT and changes nothing", async () => {
     const s = await shelter();
     const result = await call("registry.shelters.updateVerifiedData", {
@@ -1023,8 +1050,7 @@ describe("registry.verification.*", () => {
     expect(refused.status).toBe(422);
     expect(refused.body.data.gaps).toEqual([
       { kind: "edrpou_registration", minimum: 1, provided: 0 },
-      { kind: "bank_account_holder", minimum: 1, provided: 0 },
-      { kind: "reference_contact", minimum: 1, provided: 0 },
+      { kind: "site_visit", minimum: 1, provided: 0 },
     ]);
     expect((await reload(s.id)).verification.status).toBe("under_review");
   });

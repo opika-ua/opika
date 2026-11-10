@@ -63,6 +63,8 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    the registration and banking records a registered entity supplies.
    ⚠ Those thresholds are my proposal, not your specification - the shape is
    settled, the numbers are yours to change.
+   2026-11-10, owner decision, new minimums: registered NGO or sole proprietor = 1 EDRPOU + 1
+   `site_visit` (video call); unregistered initiative = 1 `site_visit` + 1 reference.
 7. **`RejectionReason` and `SuspensionReason` are separate code lists**
    (+ optional free-text note). A shelter is rejected for reasons about its
    application and suspended for reasons about its conduct; one merged enum
