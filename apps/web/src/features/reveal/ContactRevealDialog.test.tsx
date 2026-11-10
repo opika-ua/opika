@@ -321,6 +321,13 @@ describe("Instagram and Facebook rows", () => {
     expect(within(row).queryByRole("button")).toBeNull();
   });
 
+  it("links a canonical Cyrillic people/ URL, escaped", () => {
+    const url = `https://www.facebook.com/people/${encodeURIComponent("Притулок-Добрі-Лапки")}/100012345678901`;
+    renderOpen(revealWith({ primary: { kind: "facebook", url }, additional: [] }));
+    const link = within(rowOf("Відкрити Facebook")).getByRole("link");
+    expect(link.getAttribute("href")).toBe(url);
+  });
+
   it.each([
     "https://www.facebook.com/l.php?u=https://evil.com",
     "https://u@www.facebook.com/x",

@@ -87,8 +87,19 @@ const FACEBOOK_NOT_A_PAGE = new Set([
   "settings",
   "help",
 ]);
-/** After the host's slash; a page or group path is far shorter, so a longer one is not a page. */
+/** After the host's slash, counted decoded so a Cyrillic name is not penalised for its escapes. */
 const FACEBOOK_MAX_PATH = 100;
+/** A hard ceiling on the escaped form, which can be many times the decoded length. */
+const FACEBOOK_MAX_ENCODED_PATH = 600;
+
+/** Decoded length in characters, or null where the escapes do not decode. */
+const decodedLengthOf = (encoded: string): number | null => {
+  try {
+    return [...decodeURIComponent(encoded)].length;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * An https facebook.com / www. / m. / fb.com / www.fb.com URL ->
@@ -112,7 +123,9 @@ export function normalizeFacebook(raw: string): FacebookNormalized {
   if (!FACEBOOK_HOSTS.has(url.hostname)) return refuse;
   if (!/^[A-Za-z0-9._\-/%]+$/.test(url.pathname)) return refuse;
   const path = url.pathname.replace(/\/+$/, "");
-  if (path.length - 1 > FACEBOOK_MAX_PATH) return refuse;
+  const decodedLength = decodedLengthOf(path.slice(1));
+  if (path.length - 1 > FACEBOOK_MAX_ENCODED_PATH) return refuse;
+  if (decodedLength === null || decodedLength > FACEBOOK_MAX_PATH) return refuse;
   const segments = path.split("/").slice(1);
   const first = segments[0]?.toLowerCase();
   if (first === undefined || segments.some((segment) => segment === "")) return refuse;
