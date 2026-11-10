@@ -494,6 +494,8 @@ export const uk = {
       viber: "Viber",
       email: "Електронна пошта",
       website: "Сайт",
+      instagram: "Instagram",
+      facebook: "Facebook",
     },
     /**
      * Shown for any value the record doesn't hold. The standing constraints
@@ -587,6 +589,10 @@ export const uk = {
         emailFormat: "Схоже, це не адреса пошти.",
         httpsOnly: "Лише посилання, що починаються з https://.",
         notAUrl: "Це не схоже на посилання.",
+        instagramFormat:
+          "Нікнейм в Instagram: до 30 латинських літер, цифр, крапок або підкреслень. Можна вставити посилання на профіль.",
+        facebookFormat:
+          "Потрібне посилання на сторінку в Facebook, наприклад https://www.facebook.com/…",
         donationUserinfo:
           "У посиланні не має бути імені чи пароля перед адресою сайту (як у https://імʼя@сайт). Скопіюйте адресу з рядка браузера.",
         donationIdn:

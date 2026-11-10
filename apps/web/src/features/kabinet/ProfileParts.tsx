@@ -56,8 +56,10 @@ export const channelValue = (channel: Channel): string => {
     case "email":
       return channel.address;
     case "telegram":
+    case "instagram":
       return `@${channel.handle}`;
     case "website":
+    case "facebook":
       return channel.url;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled channel; unreachable at runtime */
     default: {

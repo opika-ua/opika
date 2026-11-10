@@ -235,12 +235,15 @@ export const en = {
     writeEmail: "Send an email",
     writeViber: "Message on Viber",
     openWebsite: "Open the website",
+    openInstagram: "Open Instagram",
+    openFacebook: "Open Facebook",
     copy: "Copy",
     copied: "Copied.",
     copyPhoneLabel: "Copy the phone number",
     copyTelegramLabel: "Copy the Telegram username",
     copyViberLabel: "Copy the Viber number",
     copyEmailLabel: "Copy the email address",
+    copyInstagramLabel: "Copy the Instagram username",
     backToFeed: "Back to the gallery",
   },
 
@@ -669,6 +672,8 @@ export const en = {
       viber: "Viber",
       email: "Email",
       website: "Website",
+      instagram: "Instagram",
+      facebook: "Facebook",
     },
     profileNotRecorded: "Not recorded",
     profileTabs: {
@@ -729,6 +734,10 @@ export const en = {
         donationIdn:
           "Addresses with Cyrillic letters (or starting with «xn--») are not accepted. Use a fundraising page on a service with a Latin address, such as monobank.",
         notAUrl: "That doesn't look like a link.",
+        instagramFormat:
+          "An Instagram username: up to 30 Latin letters, digits, dots or underscores. A profile link works too.",
+        facebookFormat:
+          "A link to a Facebook page is needed, for example https://www.facebook.com/…",
         sentenceTooLong: "The sentence is longer than {max} characters.",
         unknownToken: "Only {імʼя} is filled in. Remove «{token}», or write it without braces.",
         dateTokenGone:

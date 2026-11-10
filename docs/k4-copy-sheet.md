@@ -139,7 +139,7 @@ No approve/reject strings: those are S4's.
 | Key | English sense | Where | Vars | Mock draft |
 |---|---|---|---|---|
 | `profileEdit.contacts.otherLabel` | Another way to reach you | third field label | - | «Інший спосіб зв'язку» + «· необов'язково» (MOCK:30) |
-| `profileEdit.contacts.otherKind` | Which kind | kind picker for the other contact (Viber / Ел. пошта / Сайт via `profileChannel.*`) | - | no draft. Mock placeholder «Viber, e-mail, Instagram…» (MOCK:30) **is false: Instagram is not a channel kind** (`ContactChannelSchema`) |
+| `profileEdit.contacts.otherKind` | Which kind | kind picker for the other contact (Viber / Ел. пошта / Сайт via `profileChannel.*`) | - | no draft. Mock placeholder «Viber, e-mail, Instagram…» (MOCK:30) was false when written; Instagram and Facebook became channel kinds later (`ContactChannelSchema`) |
 | `profileEdit.contacts.phonePlaceholder` | +380 … | phone placeholder | - | «+380 67 123 45 67» shown as value (MOCK:30) |
 | `profileEdit.contacts.telegramPlaceholder` | @username | Telegram placeholder | - | «@domivka_brovary» shown as value (MOCK:30) |
 | `profileEdit.contacts.removeOther` | Remove | removes the optional contact | - | no draft |

@@ -2,6 +2,7 @@ import type { ContactRevealView } from "@opika/contracts";
 import { AnimalIdSchema, CityIdSchema, RevealIdSchema, ShelterIdSchema } from "@opika/domain";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { Icon } from "../../ui/Icon";
 import { ContactRevealDialog } from "./ContactRevealDialog";
 
 const ANIMAL_ID = AnimalIdSchema.parse("11111111-2222-4333-8444-555555555555");
@@ -275,6 +276,74 @@ describe("the redesigned reveal", () => {
     expect(within(row).getByRole("link").getAttribute("href")).toBe("https://domivka.example");
     expect(within(row).getByText("Відкрити сайт")).toBeTruthy();
     expect(within(row).queryByRole("button")).toBeNull();
+  });
+});
+
+describe("Instagram and Facebook rows", () => {
+  const SOCIAL = {
+    primary: { kind: "instagram", handle: "dobri_lapy" },
+    additional: [{ kind: "facebook", url: "https://www.facebook.com/dobri.lapy" }],
+  } as const;
+  const rowOf = (label: string): HTMLElement => {
+    const row = screen
+      .getAllByTestId("reveal-contact-row")
+      .find((candidate) => within(candidate).queryByText(label) !== null);
+    if (row === undefined) throw new Error(`no row labelled ${label}`);
+    return row;
+  };
+  const iconMarkup = (name: "instagram" | "facebook"): string =>
+    render(<Icon name={name} />).container.innerHTML;
+
+  it("opens the Instagram profile built from the handle, in a new tab, and copies @handle", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    renderOpen(revealWith(SOCIAL));
+    const row = rowOf("Відкрити Instagram");
+    const link = within(row).getByRole("link", { name: /Відкрити Instagram/ });
+    expect(link.getAttribute("href")).toBe("https://www.instagram.com/dobri_lapy/");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(within(link).getByText("@dobri_lapy")).toBeTruthy();
+    expect(link.querySelector("svg")?.outerHTML).toBe(iconMarkup("instagram"));
+
+    fireEvent.click(within(row).getByRole("button", { name: "Копіювати нікнейм в Instagram" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("@dobri_lapy"));
+  });
+
+  it("opens the stored Facebook URL in a new tab, with no copy button", () => {
+    renderOpen(revealWith(SOCIAL));
+    const row = rowOf("Відкрити Facebook");
+    const link = within(row).getByRole("link", { name: /Відкрити Facebook/ });
+    expect(link.getAttribute("href")).toBe("https://www.facebook.com/dobri.lapy");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.querySelector("svg")?.outerHTML).toBe(iconMarkup("facebook"));
+    expect(within(row).queryByRole("button")).toBeNull();
+  });
+
+  it("sends no referrer from any external row, and gives app hand-offs no target or rel", () => {
+    renderOpen(
+      revealWith({
+        primary: { kind: "phone", e164: "+380671234567" },
+        additional: [
+          { kind: "telegram", handle: "domivka_brovary" },
+          { kind: "website", url: "https://domivka.example" },
+          { kind: "email", address: "a@domivka.example" },
+        ],
+      }),
+    );
+    const links = screen
+      .getAllByTestId("reveal-contact-row")
+      .map((row) => within(row).getByRole("link"));
+    const external = links.filter((link) => link.getAttribute("target") === "_blank");
+    expect(external.map((link) => link.getAttribute("href"))).toEqual([
+      "https://t.me/domivka_brovary",
+      "https://domivka.example",
+    ]);
+    for (const link of external) expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    for (const link of links.filter((candidate) => !external.includes(candidate))) {
+      expect(link.getAttribute("rel")).toBeNull();
+    }
   });
 });
 
