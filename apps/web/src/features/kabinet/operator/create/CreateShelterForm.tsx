@@ -1,15 +1,15 @@
 "use client";
 
 import "../../../../zod-client-config";
-import type { CreatedShelterView, PlaceOptionView } from "@opika/contracts";
+import type { CreatedShelterView } from "@opika/contracts";
 import { kyivCalendarDateOf } from "@opika/domain";
-import { fillTemplate, placeLabel, uk } from "@opika/i18n";
-import { type FormEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { fillTemplate, uk } from "@opika/i18n";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { Button, LinkButton } from "../../../../ui/Button";
 import { Card } from "../../../../ui/Card";
-import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../../ui/Combobox";
+import type { ComboboxOption } from "../../../../ui/Combobox";
 import { FormSection } from "../../../../ui/FormSection";
-import { FieldError, Radio, TextArea, TextField } from "../../../../ui/form";
+import { TextArea, TextField } from "../../../../ui/form";
 import { Heading } from "../../../../ui/Heading";
 import { Panel } from "../../../../ui/Panel";
 import { Text } from "../../../../ui/Text";
@@ -25,23 +25,12 @@ import {
   type CreateFormErrors,
   createInputOf,
   emptyCreateForm,
-  LEGAL_KINDS,
   type LegalForm,
   noCreateErrors,
 } from "./create-input";
 import { type CreateRefusal, createRefusalOf, refusalMessage } from "./create-outcome";
 import { type RegistryCreateClient, registryCreateBrowserClient } from "./registry-create-client";
-
-/** A settlement as the picker prints it: the kind's prefix and name, then what tells namesakes apart. */
-function placeOptionOf(place: PlaceOptionView): ComboboxOption {
-  return {
-    value: place.id,
-    label: placeLabel(place.kind, place.name),
-    detail: [place.district, place.hromada, place.region.ukShort]
-      .filter((part): part is string => part !== null)
-      .join(" · "),
-  };
-}
+import { AddressFields, LegalFields, useCityPicker } from "./VerifiedDataFields";
 
 /** Where S2 stands. A submission is one request; nothing retries it (RU-T9). */
 type Phase =
@@ -90,31 +79,7 @@ export function CreateShelterForm({
   const inFlight = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const today = kyivCalendarDateOf(now());
-  const picker = uk.kabinet.cityPicker;
-  const cityMessages = useMemo(
-    () => ({
-      placeholder: picker.placeholder,
-      tooShort: picker.tooShort,
-      loading: picker.loading,
-      empty: picker.empty,
-      error: picker.error,
-      retry: picker.retry,
-      found: (count: number) => fillTemplate(picker.found, { count: String(count) }),
-      clear: picker.clear,
-      close: picker.close,
-    }),
-    [picker],
-  );
-  // The server stays the authority on what is too short and on which id exists (create checks it again).
-  const searchCities = useCallback(
-    async (query: string, signal: AbortSignal): Promise<ComboboxResult> => {
-      const answer = await client.registry.cities.search({ query, regionBias: null }, { signal });
-      return answer.kind === "too_short"
-        ? { kind: "too_short" }
-        : { kind: "options", options: answer.places.map(placeOptionOf) };
-    },
-    [client],
-  );
+  const cityPicker = useCityPicker(client.registry.cities);
 
   useEffect(() => {
     if (focusFirstError === 0) return;
@@ -168,7 +133,6 @@ export function CreateShelterForm({
   const submitting = phase.kind === "submitting";
   const refusal = phase.kind === "editing" ? phase.refusal : null;
   const legal = form.legal;
-  const legalKindError = err("legalKind");
   const adminName = form.adminName.trim();
 
   return (
@@ -212,131 +176,36 @@ export function CreateShelterForm({
         </Card>
 
         <FormSection id={`${id}-address`} title={uk.kabinet.profile.address}>
-          <Combobox
-            id={`${id}-city`}
-            label={t.city}
-            name="cityId"
-            required
-            value={city}
-            onChange={(next) => {
-              setCity(next);
-              set("cityId", next?.value ?? "");
+          <AddressFields
+            idPrefix={id}
+            form={form}
+            set={set}
+            city={city}
+            setCity={setCity}
+            picker={cityPicker}
+            errors={{
+              cityId: errors.fields.cityId === undefined ? null : uk.kabinet.cityPicker.mustPick,
+              line1: err("line1"),
+              coordinates: err("coordinates"),
             }}
-            search={searchCities}
-            messages={cityMessages}
-            error={errors.fields.cityId === undefined ? null : picker.mustPick}
-          />
-          <TextField
-            id={`${id}-line1`}
-            label={t.address.line1}
-            type="text"
-            autoComplete="off"
-            required
-            value={form.line1}
-            onChange={(event) => set("line1", event.target.value)}
-            error={err("line1")}
-          />
-          <TextField
-            id={`${id}-line2`}
-            label={t.address.line2}
-            type="text"
-            autoComplete="off"
-            value={form.line2}
-            onChange={(event) => set("line2", event.target.value)}
-          />
-          <TextField
-            id={`${id}-postal-code`}
-            label={t.address.postalCode}
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            value={form.postalCode}
-            onChange={(event) => set("postalCode", event.target.value)}
-          />
-          <TextField
-            id={`${id}-coordinates`}
-            label={t.coordinates}
-            hint={t.coordinatesHint}
-            type="text"
-            autoComplete="off"
-            required
-            value={form.coordinates}
-            onChange={(event) => set("coordinates", event.target.value)}
-            error={err("coordinates")}
           />
         </FormSection>
 
         <FormSection id={`${id}-legal`} title={t.legalTitle}>
-          <div
-            role="radiogroup"
-            aria-labelledby={`${id}-legal-title`}
-            aria-describedby={legalKindError !== null ? `${id}-legal-error` : undefined}
-            className="flex min-w-0 flex-col gap-2"
-          >
-            {LEGAL_KINDS.map((kind) => (
-              <Radio
-                key={kind}
-                label={t.legalKind[kind]}
-                name={`${id}-legal-kind`}
-                value={kind}
-                checked={legal.kind === kind}
-                onChange={() => setLegal({ kind })}
-                aria-invalid={legalKindError !== null ? true : undefined}
-              />
-            ))}
-          </div>
-          {legalKindError !== null ? (
-            <FieldError id={`${id}-legal-error`}>{legalKindError}</FieldError>
-          ) : null}
-          {legal.kind === "registered_ngo" || legal.kind === "sole_proprietor" ? (
-            <>
-              <TextField
-                id={`${id}-legal-name`}
-                label={uk.kabinet.profile.legalName}
-                type="text"
-                autoComplete="off"
-                required
-                value={legal.legalName}
-                onChange={(event) => setLegal({ legalName: event.target.value })}
-                error={err("legalName")}
-              />
-              <TextField
-                id={`${id}-edrpou`}
-                label={uk.kabinet.profile.edrpou}
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                required
-                value={legal.edrpou}
-                onChange={(event) => setLegal({ edrpou: event.target.value })}
-                error={err("edrpou")}
-              />
-            </>
-          ) : null}
-          {legal.kind === "registered_ngo" ? (
-            <TextField
-              id={`${id}-registered-at`}
-              label={t.registeredAt}
-              type="date"
-              max={today}
-              required
-              value={legal.registeredAt}
-              onChange={(event) => setLegal({ registeredAt: event.target.value })}
-              error={err("registeredAt")}
-            />
-          ) : null}
-          {legal.kind === "unregistered_initiative" ? (
-            <TextField
-              id={`${id}-contact-person`}
-              label={uk.kabinet.profile.contactPerson}
-              type="text"
-              autoComplete="off"
-              required
-              value={legal.contactPersonName}
-              onChange={(event) => setLegal({ contactPersonName: event.target.value })}
-              error={err("contactPersonName")}
-            />
-          ) : null}
+          <LegalFields
+            idPrefix={id}
+            labelledBy={`${id}-legal-title`}
+            legal={legal}
+            setLegal={setLegal}
+            today={today}
+            errors={{
+              legalKind: err("legalKind"),
+              legalName: err("legalName"),
+              edrpou: err("edrpou"),
+              registeredAt: err("registeredAt"),
+              contactPersonName: err("contactPersonName"),
+            }}
+          />
         </FormSection>
 
         <FormSection id={`${id}-contacts`} title={uk.kabinet.profile.contactsTitle}>

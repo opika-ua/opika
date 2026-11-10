@@ -3,8 +3,10 @@ import {
   type Coordinates,
   CoordinatesSchema,
   EdrpouSchema,
+  type ExactAddress,
   instantOfCalendarDate,
   isShelterDisplayNameTooLong,
+  kyivCalendarDateOf,
   type ShelterLegalEntity,
 } from "@opika/domain";
 import { z } from "zod";
@@ -64,6 +66,12 @@ export type CreateShelterForm = {
   adminName: string;
   adminEmail: string;
 };
+
+/** The premises address as typed: S2's fields, and S4's address edit form. */
+export type AddressForm = Pick<
+  CreateShelterForm,
+  "cityId" | "line1" | "line2" | "postalCode" | "coordinates"
+>;
 
 export const emptyCreateForm = (): CreateShelterForm => ({
   displayName: "",
@@ -133,7 +141,72 @@ type LegalResult =
   | { kind: "ok"; legalEntity: RegistryCreateInput["legalEntity"] }
   | { kind: "invalid" };
 
-function legalEntityOf(
+type AddressResult =
+  | { kind: "ok"; exactAddress: RegistryCreateInput["exactAddress"] }
+  | { kind: "invalid" };
+
+/** The address fields as the contract's `ExactAddress`; the district is never collected (RU-T6). */
+export function exactAddressOf(
+  form: AddressForm,
+  errors: Partial<Record<CreateField, CreateFieldError>>,
+): AddressResult {
+  if (form.cityId === "") errors.cityId = "required";
+  const line1 = trimmedOrNull(form.line1);
+  if (line1 === null) errors.line1 = "required";
+  let coordinates: Coordinates | null = null;
+  if (form.coordinates.trim() === "") errors.coordinates = "required";
+  else {
+    coordinates = coordinatesOf(form.coordinates);
+    if (coordinates === null) errors.coordinates = "coordinatesFormat";
+  }
+  if (form.cityId === "" || line1 === null || coordinates === null) return { kind: "invalid" };
+  return {
+    kind: "ok",
+    exactAddress: {
+      line1,
+      line2: trimmedOrNull(form.line2),
+      postalCode: trimmedOrNull(form.postalCode),
+      cityId: form.cityId,
+      district: null,
+      coordinates,
+    },
+  };
+}
+
+/** A stored legal entity as S4's edit form starts: every field the picked form has, filled in. */
+export function legalFormOf(legal: ShelterLegalEntity): LegalForm {
+  const empty = { legalName: "", edrpou: "", registeredAt: "", contactPersonName: "" };
+  switch (legal.kind) {
+    case "registered_ngo":
+      return {
+        ...empty,
+        kind: legal.kind,
+        legalName: legal.legalName,
+        edrpou: legal.edrpou,
+        registeredAt: kyivCalendarDateOf(legal.registeredAt),
+      };
+    case "sole_proprietor":
+      return { ...empty, kind: legal.kind, legalName: legal.legalName, edrpou: legal.edrpou };
+    case "unregistered_initiative":
+      return { ...empty, kind: legal.kind, contactPersonName: legal.contactPersonName };
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
+    default: {
+      const unreachable: never = legal;
+      return unreachable;
+    }
+  }
+}
+
+/** A stored premises address as S4's edit form starts; the district is kept by the caller. */
+export const addressFormOf = (address: ExactAddress): AddressForm => ({
+  cityId: address.cityId,
+  line1: address.line1,
+  line2: address.line2 ?? "",
+  postalCode: address.postalCode ?? "",
+  coordinates: `${address.coordinates.lat}, ${address.coordinates.lng}`,
+});
+
+export function legalEntityOf(
   legal: LegalForm,
   errors: Partial<Record<CreateField, CreateFieldError>>,
 ): LegalResult {
@@ -194,15 +267,7 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
   else if (isShelterDisplayNameTooLong(displayName)) fields.displayName = "nameTooLong";
   const description = trimmedOrNull(form.description);
   if (description === null) fields.description = "required";
-  if (form.cityId === "") fields.cityId = "required";
-  const line1 = trimmedOrNull(form.line1);
-  if (line1 === null) fields.line1 = "required";
-  let coordinates: Coordinates | null = null;
-  if (form.coordinates.trim() === "") fields.coordinates = "required";
-  else {
-    coordinates = coordinatesOf(form.coordinates);
-    if (coordinates === null) fields.coordinates = "coordinatesFormat";
-  }
+  const address = exactAddressOf(form, fields);
   const legal = legalEntityOf(form.legal, fields);
   const contacts = contactOfForm(form.contacts);
   const evidence = evidenceOfRows(form.evidence, now);
@@ -215,8 +280,7 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
   if (
     displayName === null ||
     description === null ||
-    line1 === null ||
-    coordinates === null ||
+    address.kind !== "ok" ||
     legal.kind !== "ok" ||
     contacts.kind !== "ok" ||
     evidence.kind !== "ok" ||
@@ -240,14 +304,7 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
       displayName,
       description: { uk: description, en: null },
       legalEntity: legal.legalEntity,
-      exactAddress: {
-        line1,
-        line2: trimmedOrNull(form.line2),
-        postalCode: trimmedOrNull(form.postalCode),
-        cityId: form.cityId,
-        district: null,
-        coordinates,
-      },
+      exactAddress: address.exactAddress,
       contact: contacts.contact,
       freshnessSentence: null,
       evidence: items,

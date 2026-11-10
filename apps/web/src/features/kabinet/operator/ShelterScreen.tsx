@@ -155,7 +155,7 @@ function EvidenceFacts({ item }: { item: EvidenceItem }) {
   }
 }
 
-function LegalCard({ view }: { view: RegistryShelterView }) {
+function LegalCard({ view, edit }: { view: RegistryShelterView; edit: ReactNode }) {
   const p = uk.kabinet.profile;
   const legal = view.legalEntity;
   return (
@@ -175,11 +175,20 @@ function LegalCard({ view }: { view: RegistryShelterView }) {
         )}
       </dl>
       <Text look="hint">{t.shelter.legalNote}</Text>
+      {edit}
     </Section>
   );
 }
 
-function AddressCard({ view, cityName }: { view: RegistryShelterView; cityName: string | null }) {
+function AddressCard({
+  view,
+  cityName,
+  edit,
+}: {
+  view: RegistryShelterView;
+  cityName: string | null;
+  edit: ReactNode;
+}) {
   const address = view.exactAddress;
   const line = [cityName, address.line1, address.line2, address.postalCode]
     .filter((part): part is string => part !== null && part !== "")
@@ -193,6 +202,7 @@ function AddressCard({ view, cityName }: { view: RegistryShelterView; cityName: 
         </Fact>
       </dl>
       <Text look="hint">{uk.kabinet.profile.addressNote}</Text>
+      {edit}
     </Section>
   );
 }
@@ -309,6 +319,9 @@ const historyKeyOf = (page: HistoryPage): string => {
 export type ShelterScreenActions = {
   supportEntry: ReactNode;
   rename: ReactNode;
+  /** «Змінити» on the two locked blocks (`updateVerifiedData`). */
+  legalEdit: ReactNode;
+  addressEdit: ReactNode;
   decision: ReactNode;
   donationDecision: ReactNode;
   admins: ReactNode;
@@ -367,8 +380,8 @@ export function ShelterScreen({
       <div className="grid grid-cols-1 items-start gap-4 desktop:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-4">
           <EvidenceCard view={view} />
-          <LegalCard view={view} />
-          <AddressCard view={view} cityName={cityName} />
+          <LegalCard view={view} edit={actions.legalEdit} />
+          <AddressCard view={view} cityName={cityName} edit={actions.addressEdit} />
           <ContactsCard view={view} />
           <Section id="operator-description" title={t.shelter.descriptionTitle}>
             <Text className="whitespace-pre-line break-words">{view.description.uk}</Text>

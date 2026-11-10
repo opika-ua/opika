@@ -1272,12 +1272,14 @@ export const en = {
         legalNote:
           "The shelter sees these fields read-only. A change of legal entity or EDRPOU doesn't change the status by itself: the decision is yours.",
         descriptionTitle: "Shelter description",
+        edit: "Change",
       },
       donation: {
         live: "Live link",
         none: "No link",
         proposed: "The shelter proposed {host} on {date}. Waiting for your decision.",
         approve: "Approve",
+        approveHint: "Check that the account holder matches the organisation",
         reject: "Reject",
         approved: "Link approved.",
         rejected: "Link rejected.",

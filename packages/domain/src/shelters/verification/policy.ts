@@ -14,11 +14,13 @@ export type VerificationPolicy = {
 };
 
 /**
- * An unregistered volunteer group can reach `verified`, but not on paperwork it
- * does not have. It substitutes a moderator site visit and a second independent
- * reference for the registration and banking records a registered entity
- * supplies. Excluding such groups entirely would exclude most wartime shelter
- * activity in the target oblast from the product.
+ * Every legal form needs a moderator's video call (stored as `site_visit`, shown
+ * as «Відеодзвінок»). A registered entity adds its ЄДРПОУ registration; an
+ * unregistered volunteer group, which has no paperwork, adds one independent
+ * reference instead. Excluding such groups entirely would exclude most wartime
+ * shelter activity in the target oblast from the product. Bank-account and
+ * further reference items stay addable as evidence but are not required (owner,
+ * 2026-11-10); the operator's donation-approve hint asks for the holder check.
  *
  * Thresholds live here rather than inside the check for the same reason the
  * freshness thresholds do: they will be tuned against the first ten real
@@ -29,17 +31,15 @@ export const DEFAULT_VERIFICATION_POLICY: VerificationPolicy = {
   requirementsByLegalEntity: {
     registered_ngo: [
       { kind: "edrpou_registration", minimum: 1 },
-      { kind: "bank_account_holder", minimum: 1 },
-      { kind: "reference_contact", minimum: 1 },
+      { kind: "site_visit", minimum: 1 },
     ],
     sole_proprietor: [
       { kind: "edrpou_registration", minimum: 1 },
-      { kind: "bank_account_holder", minimum: 1 },
-      { kind: "reference_contact", minimum: 1 },
+      { kind: "site_visit", minimum: 1 },
     ],
     unregistered_initiative: [
       { kind: "site_visit", minimum: 1 },
-      { kind: "reference_contact", minimum: 2 },
+      { kind: "reference_contact", minimum: 1 },
     ],
   },
 };

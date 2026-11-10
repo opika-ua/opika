@@ -36,6 +36,7 @@ const picked = leaves(registryActionsBrowserContract);
 /** What R-UI 3's controls and R-UI 4's rename form call, by hand (the tasks' lists). */
 const EXPECTED_PATHS = [
   "registry.shelters.updateProfile",
+  "registry.shelters.updateVerifiedData",
   "registry.verification.startReview",
   "registry.verification.approve",
   "registry.verification.reject",
@@ -86,17 +87,16 @@ const PRINCIPALS: [string, KabinetPrincipal, string][] = [
 ];
 
 describe("the S4 actions browser client", () => {
-  it("reaches exactly the thirteen registry writes R-UI 3 and R-UI 4 call", () => {
+  it("reaches exactly the registry writes R-UI 3, R-UI 4 and the locked-block edits call", () => {
     expect(picked.map((leaf) => leaf.path).sort()).toEqual([...EXPECTED_PATHS].sort());
   });
 
-  it("has no read, no create, no locked-field edit, and nothing from another surface", () => {
+  it("has no read, no create, and nothing from another surface", () => {
     const paths = picked.map((leaf) => leaf.path);
     for (const absent of [
       "registry.shelters.byId",
       "registry.shelters.list",
       "registry.shelters.create",
-      "registry.shelters.updateVerifiedData",
       "registry.history.list",
       "registry.admins.blockedAddresses",
       "session.exitSupport",
