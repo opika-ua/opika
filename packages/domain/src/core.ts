@@ -12,6 +12,7 @@ import type { CityId } from "./primitives/ids";
 export * from "./geography/place-search";
 export * from "./geography/transliterate";
 export * from "./primitives/plural";
+export * from "./shelters/contact-links";
 
 export const ANIMAL_SPECIES = ["dog", "cat"] as const;
 export type AnimalSpecies = (typeof ANIMAL_SPECIES)[number];
