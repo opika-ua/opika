@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
-import type { CompressedPhoto } from "../photos/compress-photo";
+import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
 import { confirmLeave } from "../shared/unsaved-changes";
 import { AnimalForm, type AnimalFormEditing } from "./AnimalForm";
 import type { AnimalTab } from "./animal-tabs";
@@ -1151,10 +1151,7 @@ describe("photos", () => {
   });
 
   it.each([
-    [
-      "heic_unsupported",
-      "Цей телефон чи браузер не відкриває фото у форматі HEIC. Виберіть, будь ласка, JPG або PNG.",
-    ],
+    ["unsupported_format", "Збережіть фото як JPEG або PNG"],
     ["unreadable", "Цей файл не вдалося відкрити як фото."],
     ["too_large", "Навіть після зменшення це фото завелике. Спробуйте інше."],
   ] as const)("a device refusal (%s) is his message, with no retry", async (kind, message) => {
@@ -1169,6 +1166,20 @@ describe("photos", () => {
     expect(screen.queryByRole("button", { name: "Спробувати ще раз" })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Прибрати фото, яке не завантажилось" }));
     expect(screen.queryByText(message)).toBeNull();
+  });
+
+  it("an iPhone HEIC this browser can't decode, with no type reported: «Збережіть фото як JPEG або PNG», nothing sent", async () => {
+    // A drop applies no accept filter, and Windows/iOS Safari can report an empty type.
+    const user = userEvent.setup({ applyAccept: false });
+    const client = renderForm(draft(), {
+      compress: (file) => compressPhoto(file, { decode: async () => null }),
+    });
+    await user.upload(
+      screen.getByTestId("photo-file-input"),
+      new File(["not decodable here"], "IMG_0001.HEIC", { type: "" }),
+    );
+    expect(await screen.findByText("Збережіть фото як JPEG або PNG")).toBeTruthy();
+    expect(client.calls.add).not.toHaveBeenCalled();
   });
 
   it("a decoder that throws reads as an unreadable file, and the next photo still goes up", async () => {
@@ -1208,6 +1219,24 @@ describe("photos", () => {
     expect(await screen.findByText("Фото додано.")).toBeTruthy();
     expect(client.calls.add).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    ["unsupported_type", "Збережіть фото як JPEG або PNG"],
+    ["format_mismatch", "Сайт не може використати цей файл як фото."],
+  ] as const)(
+    "the server's PHOTO_REJECTED (%s) is his message, with no retry",
+    async (reason, message) => {
+      const user = userEvent.setup();
+      const client = renderForm(draft());
+      client.calls.add.mockRejectedValueOnce(apiError("PHOTO_REJECTED", { reason }));
+      await user.upload(
+        screen.getByTestId("photo-file-input"),
+        new File(["x"], "a.jpg", { type: "image/jpeg" }),
+      );
+      expect(await screen.findByText(message)).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Спробувати ще раз" })).toBeNull();
+    },
+  );
 
   it("the ⋯ menu: «Зробити обкладинкою» sends the new order in one reorder call", async () => {
     const user = userEvent.setup();

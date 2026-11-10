@@ -1664,8 +1664,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
       "Фото змінилися в іншому вікні. Тут – поточний набір, спробуйте ще раз.",
     "kabinet.animalForm.photos.removedStillReachable":
       "Фото зникло з картки. Сам файл не видаляється одразу – якщо його треба прибрати зовсім, напишіть мені.",
-    "kabinet.animalForm.photoErrors.heicUnsupported":
-      "Цей телефон чи браузер не відкриває фото у форматі HEIC. Виберіть, будь ласка, JPG або PNG.",
+    // Replaced by his gap-9 wording (2026-11-10), verbatim.
+    "kabinet.animalForm.photoErrors.unsupportedFormat": "Збережіть фото як JPEG або PNG",
     "kabinet.animalForm.photoErrors.unreadable": "Цей файл не вдалося відкрити як фото.",
     "kabinet.animalForm.photoErrors.tooLarge":
       "Навіть після зменшення це фото завелике. Спробуйте інше.",

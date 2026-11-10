@@ -15,16 +15,16 @@ import { PHOTO_MAX_EDGE_PX } from "@opika/domain";
  * HEIC (P-Q6, Oleksii: "the browser accepts HEIC where it can decode it and
  * uploads JPEG/WebP; where it can't decode it (e.g. Chrome on Windows), show a
  * clear error asking for JPG"): whatever the browser can decode becomes a
- * JPEG; a HEIC it can't decode is `heic_unsupported`, which the screen (PR 4)
- * turns into that message. Its copy key ships with the K3 sheet, so no string
- * lives here.
+ * JPEG; a HEIC (or any other format) it can't decode is `unsupported_format`,
+ * which the screen turns into «Збережіть фото як JPEG або PNG» (gap 9). The
+ * server can't convert it instead: prebuilt sharp has no HEVC decoder.
  */
 
 export type CompressedPhoto =
   | { kind: "ok"; file: Blob; width: number; height: number }
-  /** A HEIC/HEIF file this browser can't decode: ask for a JPG. */
-  | { kind: "heic_unsupported" }
-  /** Anything else the browser can't decode as an image. */
+  /** A HEIC/HEIF (or other non-JPEG/PNG/WebP) file this browser can't decode. */
+  | { kind: "unsupported_format" }
+  /** A JPEG, PNG or WebP by its bytes that still won't decode: a broken file. */
   | { kind: "unreadable" }
   /** Still over the byte limit at the lowest quality tried (not expected at 2000 px). */
   | { kind: "too_large" };
@@ -73,15 +73,38 @@ const HEIF_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "mi
 
 /**
  * Whether a file is HEIC/HEIF, by its `ftyp` box (bytes 4-11) or, failing
- * that, by the type or name the system gave it. Only used to choose which
- * refusal to show when decoding fails, so a false answer costs a less
- * specific message, never a wrong upload.
+ * that, by the type or name the system gave it (case-insensitive; Windows and
+ * some iOS paths send an empty type). Only used to choose which refusal to show
+ * when decoding fails, so a false answer never causes a wrong upload.
  */
 export function isHeif(file: { type: string; name?: string }, head: Uint8Array): boolean {
   const ascii = (from: number, to: number) => String.fromCharCode(...head.subarray(from, to));
   if (head.length >= 12 && ascii(4, 8) === "ftyp" && HEIF_BRANDS.has(ascii(8, 12))) return true;
   if (/^image\/hei[cf]/i.test(file.type)) return true;
   return /\.hei[cf]$/i.test(file.name ?? "");
+}
+
+const startsWith = (head: Uint8Array, signature: readonly number[], offset = 0): boolean =>
+  head.length >= offset + signature.length &&
+  signature.every((byte, i) => head[offset + i] === byte);
+
+const bytesOf = (ascii: string) => Array.from(ascii, (char) => char.charCodeAt(0));
+
+/**
+ * Why a file the browser couldn't decode is refused. Only a file whose bytes
+ * say JPEG, PNG or WebP (the formats the server takes) is a broken file;
+ * anything else (HEIC, TIFF, PDF, no bytes at all) is a format to save differently.
+ */
+export function undecodableRefusal(
+  file: { type: string; name?: string },
+  head: Uint8Array,
+): "unsupported_format" | "unreadable" {
+  if (isHeif(file, head)) return "unsupported_format";
+  const accepted =
+    startsWith(head, [0xff, 0xd8, 0xff]) ||
+    startsWith(head, [0x89, ...bytesOf("PNG"), 0x0d, 0x0a, 0x1a, 0x0a]) ||
+    (startsWith(head, bytesOf("RIFF")) && startsWith(head, bytesOf("WEBP"), 8));
+  return accepted ? "unreadable" : "unsupported_format";
 }
 
 export async function compressPhoto(
@@ -96,8 +119,7 @@ export async function compressPhoto(
   } catch {
     decoded = null;
   }
-  if (decoded === null)
-    return isHeif(file, head) ? { kind: "heic_unsupported" } : { kind: "unreadable" };
+  if (decoded === null) return { kind: undecodableRefusal(file, head) };
   try {
     const size = scaledSize(decoded.width, decoded.height);
     for (const quality of JPEG_QUALITY_STEPS) {
