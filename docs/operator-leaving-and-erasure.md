@@ -172,7 +172,7 @@ will state the same number when it is written.
 
 ## Messages
 
-**Proposed, pending the owner's approval in the PR that added this page.** Same voice as playbook
+**Owner-approved (2026-11-10).** Same voice as playbook
 section 13: «я», lowercase «ви», no «ми», no exclamation marks, apostrophe ʼ. Square brackets are slots.
 They go out from your own mailbox; F goes into the suspend or reject dialog and the shelter reads it.
 
