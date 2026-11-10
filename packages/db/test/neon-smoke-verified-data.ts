@@ -31,9 +31,10 @@ function refusalOf(error: unknown): string {
   return "error";
 }
 
-async function outcomeOf(statement: Promise<unknown>): Promise<string> {
+/** A thunk, so a raw `.execute` stays a whole discarded statement (`raw-execute-reads.test.ts`). */
+async function outcomeOf(run: () => Promise<void>): Promise<string> {
   try {
-    await statement;
+    await run();
     return "accepted";
   } catch (error) {
     return refusalOf(error);
@@ -65,15 +66,15 @@ export async function runVerifiedDataSmoke(db: Database): Promise<Outcome[]> {
     publicLocation: { precision: "city", cityId: city.id, district: null },
     verification: PENDING,
   });
-  const bareInsert = await outcomeOf(
-    db.insert(shelters).values({
+  const bareInsert = await outcomeOf(async () => {
+    await db.insert(shelters).values({
       ...shelterToRow(bare),
       legalEntity: null,
       exactAddress: null,
       exactLat: null,
       exactLng: null,
-    }),
-  );
+    });
+  });
   const [bareRow] = await db
     .select({ legal: shelters.legalEntity, address: shelters.exactAddress, lat: shelters.exactLat })
     .from(shelters)
@@ -88,9 +89,9 @@ export async function runVerifiedDataSmoke(db: Database): Promise<Outcome[]> {
   );
 
   const half = await seed("half");
-  const halfPoint = await outcomeOf(
-    db.execute(sql`UPDATE shelters SET exact_lng = NULL WHERE id = ${half.id}`),
-  );
+  const halfPoint = await outcomeOf(async () => {
+    await db.execute(sql`UPDATE shelters SET exact_lng = NULL WHERE id = ${half.id}`);
+  });
   check(
     "0024: a latitude without a longitude is refused by shelters_exact_point_all_or_none",
     halfPoint === "shelters_exact_point_all_or_none",
@@ -98,9 +99,9 @@ export async function runVerifiedDataSmoke(db: Database): Promise<Outcome[]> {
   );
 
   const pointOnly = await seed("point");
-  const pointNoAddress = await outcomeOf(
-    db.execute(sql`UPDATE shelters SET exact_address = NULL WHERE id = ${pointOnly.id}`),
-  );
+  const pointNoAddress = await outcomeOf(async () => {
+    await db.execute(sql`UPDATE shelters SET exact_address = NULL WHERE id = ${pointOnly.id}`);
+  });
   check(
     "0024: a point without an address is refused by shelters_exact_point_needs_address",
     pointNoAddress === "shelters_exact_point_needs_address",
@@ -108,11 +109,11 @@ export async function runVerifiedDataSmoke(db: Database): Promise<Outcome[]> {
   );
 
   const approved = await seed("verified");
-  const verifiedBare = await outcomeOf(
-    db.execute(
+  const verifiedBare = await outcomeOf(async () => {
+    await db.execute(
       sql`UPDATE shelters SET verification_status = 'verified', legal_entity = NULL WHERE id = ${approved.id}`,
-    ),
-  );
+    );
+  });
   check(
     "0024: a verified shelter without its legal entity is refused by shelters_verified_has_verified_data",
     verifiedBare === "shelters_verified_has_verified_data",
