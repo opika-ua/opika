@@ -5,6 +5,8 @@ import {
   contactOfForm,
   contactsFormOf,
   linkProblem,
+  NEW_OTHER_KINDS,
+  parseChannel,
   sentenceCheck,
   sentenceLength,
 } from "./fields";
@@ -129,6 +131,42 @@ describe("contactOfForm", () => {
       contact: { primary: { kind: "phone", e164: "+380501112233" }, additional: [] },
     });
   });
+});
+
+describe("Instagram and Facebook rows", () => {
+  it("are offered for new «other» rows", () => {
+    expect(NEW_OTHER_KINDS).toContain("instagram");
+    expect(NEW_OTHER_KINDS).toContain("facebook");
+  });
+
+  it.each(["@Dobri_Lapy", "dobri_lapy", "https://www.instagram.com/dobri_lapy/?igsh=x"])(
+    "Instagram %s is the handle",
+    (typed) =>
+      expect(parseChannel("instagram", typed)).toEqual({
+        kind: "ok",
+        channel: { kind: "instagram", handle: "dobri_lapy" },
+      }),
+  );
+
+  it("Facebook keeps the canonical URL only", () => {
+    expect(parseChannel("facebook", "https://fb.com/dobri.lapy?ref=x")).toEqual({
+      kind: "ok",
+      channel: { kind: "facebook", url: "https://www.facebook.com/dobri.lapy" },
+    });
+  });
+
+  it.each([
+    ["instagram", "https://instagram.com/p/abc", "instagramFormat"],
+    ["instagram", "http://instagram.com/dobri_lapy", "httpsOnly"],
+    ["instagram", "a..b", "instagramFormat"],
+    ["facebook", "https://evil.example/dobri.lapy", "facebookFormat"],
+    ["facebook", "https://www.facebook.com/l.php?u=https%3A%2F%2Fevil.example", "facebookFormat"],
+    ["facebook", "http://www.facebook.com/dobri.lapy", "httpsOnly"],
+    ["facebook", "facebook.com/dobri.lapy", "httpsOnly"],
+    ["facebook", "просто текст", "notAUrl"],
+  ] as const)("%s %s -> %s", (kind, typed, error) =>
+    expect(parseChannel(kind, typed)).toEqual({ kind: "error", error }),
+  );
 });
 
 describe("linkProblem", () => {

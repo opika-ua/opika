@@ -5,7 +5,9 @@ import {
   DonationLinkSchema,
   donationUrlProblemOf,
   FRESHNESS_SENTENCE_MAX_CHARACTERS,
+  normalizeFacebook,
   normalizeFreshnessSentenceText,
+  normalizeInstagram,
   normalizeUaPhone,
   type ShelterContact,
 } from "@opika/domain";
@@ -27,12 +29,15 @@ export type ChannelKind = ContactChannel["kind"];
  * Telegram fields (each optional) + up to 2 «other» rows (Viber / email /
  * website)"). A row holding an already-stored contact may be any kind (fix 3,
  * verbatim: "«other» rows accept any kind for already-stored extras
- * (editable); new additions stay Viber/email/website").
+ * (editable); new additions stay Viber/email/website"). Instagram and Facebook
+ * joined them with the contact kinds (owner-approved design, 2026-11-10).
  */
 export const NEW_OTHER_KINDS = [
   "viber",
   "email",
   "website",
+  "instagram",
+  "facebook",
 ] as const satisfies readonly ChannelKind[];
 export const ALL_KINDS = [
   "phone",
@@ -40,6 +45,8 @@ export const ALL_KINDS = [
   "viber",
   "email",
   "website",
+  "instagram",
+  "facebook",
 ] as const satisfies readonly ChannelKind[];
 
 /** The cap on adding rows (answer 3: "the 2-row cap applies to adding new ones"). */
@@ -65,8 +72,10 @@ export const channelText = (channel: ContactChannel): string => {
     case "email":
       return channel.address;
     case "telegram":
+    case "instagram":
       return `@${channel.handle}`;
     case "website":
+    case "facebook":
       return channel.url;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled channel; unreachable at runtime */
     default: {
@@ -117,7 +126,9 @@ export type FieldError =
   | "viberFormat"
   | "emailFormat"
   | "httpsOnly"
-  | "notAUrl";
+  | "notAUrl"
+  | "instagramFormat"
+  | "facebookFormat";
 
 export type ParsedChannel =
   | { kind: "ok"; channel: ContactChannel }
@@ -187,6 +198,21 @@ export function parseChannel(kind: ChannelKind, raw: string): ParsedChannel {
       return problem === null
         ? checked({ kind: "website", url: raw.trim() }, "notAUrl")
         : { kind: "error", error: problem };
+    }
+    case "instagram": {
+      const handle = normalizeInstagram(raw);
+      if (handle !== null) return checked({ kind: "instagram", handle }, "instagramFormat");
+      // An http:// profile link is the https rule, not a malformed handle.
+      return {
+        kind: "error",
+        error: /^http:\/\//i.test(raw.trim()) ? "httpsOnly" : "instagramFormat",
+      };
+    }
+    case "facebook": {
+      const normalized = normalizeFacebook(raw);
+      return normalized.kind === "ok"
+        ? checked({ kind: "facebook", url: normalized.url }, "facebookFormat")
+        : { kind: "error", error: normalized.error };
     }
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled channel; unreachable at runtime */
     default: {

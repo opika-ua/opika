@@ -16,7 +16,7 @@ import type { RevealErrorReason, RevealState } from "./useReveal";
 
 /**
  * One action row per channel the shelter gave: its label, the link that does the thing, and an icon.
- * `external` links open in a new tab (Telegram, website); `tel:`, `mailto:` and `viber:` hand off to
+ * `external` links open in a new tab (Telegram, Instagram, Facebook, website); `tel:`, `mailto:` and `viber:` hand off to
  * the phone's own app. The row's visible value is `contactChannelText`; `copyLabel` names the copy
  * button for a screen reader (it starts with the visible «Копіювати», WCAG 2.5.3) and is null where
  * a copy makes no sense (a website is opened, not pasted).
@@ -75,6 +75,24 @@ function channelAction(channel: ContactChannel): {
         copyLabel: null,
         copyValue: channel.url,
       };
+    case "instagram":
+      return {
+        label: uk.reveal.openInstagram,
+        href: `https://www.instagram.com/${channel.handle}/`,
+        external: true,
+        icon: "instagram",
+        copyLabel: uk.reveal.copyInstagramLabel,
+        copyValue: `@${channel.handle}`,
+      };
+    case "facebook":
+      return {
+        label: uk.reveal.openFacebook,
+        href: channel.url,
+        external: true,
+        icon: "facebook",
+        copyLabel: null,
+        copyValue: channel.url,
+      };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = channel;
@@ -109,7 +127,10 @@ function contactChannelText(channel: ContactChannel): string {
       return `@${channel.handle}`;
     case "viber":
       return channel.e164;
+    case "instagram":
+      return `@${channel.handle}`;
     case "website":
+    case "facebook":
       return channel.url;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
@@ -341,7 +362,8 @@ function RevealContent({
               <a
                 href={action.href}
                 target={action.external ? "_blank" : undefined}
-                rel={action.external ? "noopener" : undefined}
+                // noreferrer too: the page URL names the animal, and the other site needs none of it.
+                rel={action.external ? "noopener noreferrer" : undefined}
                 data-testid={filled ? "reveal-primary-action" : undefined}
                 className="flex min-h-15 min-w-0 flex-1 items-center gap-3 rounded-field focus-ring"
               >

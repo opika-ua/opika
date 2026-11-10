@@ -36,6 +36,8 @@ export const REFERENCE_CHANNEL_KINDS = [
   "viber",
   "email",
   "website",
+  "instagram",
+  "facebook",
 ] as const satisfies readonly ChannelKind[];
 
 export const REFERENCE_RELATIONSHIPS = [

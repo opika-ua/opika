@@ -34,6 +34,10 @@ const channelKey = (channel: ContactChannel): string => {
       return `telegram:${channel.handle.toLowerCase()}`;
     case "website":
       return `website:${channel.url}`;
+    case "instagram":
+      return `instagram:${channel.handle.toLowerCase()}`;
+    case "facebook":
+      return `facebook:${channel.url}`;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = channel;

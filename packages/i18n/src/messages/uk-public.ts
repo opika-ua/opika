@@ -632,6 +632,8 @@ export const ukPublic = {
     /** Viber and website rows (reveal redesign, owner-approved wording). */
     writeViber: "Написати у Viber",
     openWebsite: "Відкрити сайт",
+    openInstagram: "Відкрити Instagram",
+    openFacebook: "Відкрити Facebook",
     /** Desktop only: the visible label of each row's copy button; the aria-labels name the channel (WCAG 2.5.3). */
     copy: "Копіювати",
     copied: "Скопійовано.",
@@ -639,6 +641,7 @@ export const ukPublic = {
     copyTelegramLabel: "Копіювати нікнейм у Telegram",
     copyViberLabel: "Копіювати номер у Viber",
     copyEmailLabel: "Копіювати адресу пошти",
+    copyInstagramLabel: "Копіювати нікнейм в Instagram",
     /**
      * The mock (R1/R2) says «Повернутися до галереї», but on the animal page
      * and in the gallery's overlay this button only closes the dialog

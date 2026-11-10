@@ -251,7 +251,15 @@ describe("contacts (answer 3, answer 4)", () => {
     const kindOptions = within(rows[0] as HTMLElement)
       .getAllByRole("option")
       .map((option) => option.textContent);
-    expect(kindOptions).toEqual(["Телефон", "Telegram", "Viber", "Електронна пошта", "Сайт"]);
+    expect(kindOptions).toEqual([
+      "Телефон",
+      "Telegram",
+      "Viber",
+      "Електронна пошта",
+      "Сайт",
+      "Instagram",
+      "Facebook",
+    ]);
     expect(c.queryByRole("button", { name: "Додати ще один спосіб звʼязку" })).toBeNull();
     await userEvent.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Прибрати" }));
     await userEvent.click(c.getByRole("button", { name: "Додати ще один спосіб звʼязку" }));
@@ -260,7 +268,57 @@ describe("contacts (answer 3, answer 4)", () => {
       within(added)
         .getAllByRole("option")
         .map((option) => option.textContent),
-    ).toEqual(["Viber", "Електронна пошта", "Сайт"]);
+    ).toEqual(["Viber", "Електронна пошта", "Сайт", "Instagram", "Facebook"]);
+  });
+
+  it("takes an Instagram @handle and a Facebook link in new rows and saves their canonical forms", async () => {
+    const fns = renderEditor();
+    const c = within(contacts());
+    const addRow = async (kind: string, value: string) => {
+      await userEvent.click(c.getByRole("button", { name: "Додати ще один спосіб звʼязку" }));
+      const row = c.getAllByRole("group", { name: /Інший спосіб звʼязку/ }).at(-1) as HTMLElement;
+      await userEvent.selectOptions(within(row).getByLabelText("Тип"), kind);
+      await userEvent.type(within(row).getByLabelText(kind), value);
+    };
+    await addRow("Instagram", "@Dobri_Lapy");
+    await addRow("Facebook", "https://m.facebook.com/dobri.lapy/?ref=x");
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(fns.updateContact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contact: expect.objectContaining({
+          additional: expect.arrayContaining([
+            { kind: "instagram", handle: "dobri_lapy" },
+            { kind: "facebook", url: "https://www.facebook.com/dobri.lapy" },
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("names a bad Instagram or Facebook value with its own message and sends nothing", async () => {
+    const fns = renderEditor();
+    const c = within(contacts());
+    for (const [kind, value] of [
+      ["Instagram", "https://instagram.com/p/abc"],
+      ["Facebook", "https://evil.example/dobri.lapy"],
+    ] as const) {
+      await userEvent.click(c.getByRole("button", { name: "Додати ще один спосіб звʼязку" }));
+      const row = c.getAllByRole("group", { name: /Інший спосіб звʼязку/ }).at(-1) as HTMLElement;
+      await userEvent.selectOptions(within(row).getByLabelText("Тип"), kind);
+      await userEvent.type(within(row).getByLabelText(kind), value);
+    }
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(
+      c.getByText(
+        "Нікнейм в Instagram: до 30 латинських літер, цифр, крапок або підкреслень. Можна вставити посилання на профіль.",
+      ),
+    ).toBeTruthy();
+    expect(
+      c.getByText(
+        "Потрібне посилання на сторінку в Facebook, наприклад https://www.facebook.com/…",
+      ),
+    ).toBeTruthy();
+    expect(fns.updateContact).not.toHaveBeenCalled();
   });
 
   it("shows his contacts caption (K4-B4, answer 1: reveal views carry the current contacts)", () => {

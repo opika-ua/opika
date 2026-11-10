@@ -213,6 +213,42 @@ describe("registry.shelters.updateProfile's whole input", () => {
   });
 });
 
+/** Every write that takes a shelter's contact, checked through its own declared input. */
+const contactFields: readonly [string, Parser][] = [
+  ["shelter.profile.updateContact", fieldOf(shelterProfileContract.updateContact, "contact")],
+  ["registry.shelters.create", fieldOf(registrySheltersContract.create, "contact")],
+  ["registry.shelters.updateProfile", fieldOf(registrySheltersContract.updateProfile, "contact")],
+];
+
+describe.each(contactFields)("%s contact: Instagram and Facebook", (_path, field) => {
+  it("hands the handler only the canonical forms", () => {
+    expect(
+      field.safeParse({
+        primary: { kind: "instagram", handle: "@Dobri_Lapy" },
+        additional: [{ kind: "facebook", url: "https://m.facebook.com/dobri.lapy/?ref=x" }],
+      }),
+    ).toEqual({
+      success: true,
+      data: {
+        primary: { kind: "instagram", handle: "dobri_lapy" },
+        additional: [{ kind: "facebook", url: "https://www.facebook.com/dobri.lapy" }],
+      },
+    });
+  });
+
+  it.each([
+    ["an off-site Facebook link", { kind: "facebook", url: "https://evil.com/dobri.lapy" }],
+    [
+      "a Facebook redirector",
+      { kind: "facebook", url: "https://l.facebook.com/l.php?u=https%3A%2F%2Fevil.com" },
+    ],
+    ["a javascript: link", { kind: "facebook", url: "javascript:alert(1)" }],
+    ["an Instagram post link", { kind: "instagram", handle: "https://instagram.com/p/abc" }],
+  ])("refuses %s", (_label, primary) => {
+    expect(field.safeParse({ primary, additional: [] }).success).toBe(false);
+  });
+});
+
 const description = (uk: string, en: string | null = null) => ({
   uk,
   en: en === null ? null : { text: en, provenance: "machine" },
