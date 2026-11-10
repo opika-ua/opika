@@ -360,9 +360,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // `codes.suspension.cannot_confirm_details`.
     // 791 with `operator.evidence.videoCallNotesHint` (video call replaces site visit, owner-approved 2026-11-09).
     // 793 with `operator.shelter.edit` and `operator.donation.approveHint` (owner-given 2026-11-10).
-    // 797 with the Instagram and Facebook contact kinds (owner-approved 2026-11-10): two
+    // 795 with `profile.earlyListingEnded` and `operator.earlyListing.oneMoreLeft` (gap 6, 2026-11-10).
+    // 799 with the Instagram and Facebook contact kinds (owner-approved 2026-11-10): two
     // `profileChannel.*` and two `profileEdit.errors.*Format`.
-    expect(pending.length + written.length).toBe(797);
+    expect(pending.length + written.length).toBe(799);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

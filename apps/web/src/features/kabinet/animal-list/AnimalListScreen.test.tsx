@@ -22,13 +22,13 @@ const shelterIn = (
     earlyListing,
   }) as unknown as KabinetShelterView;
 
-const renderScreen = (shelter: KabinetShelterView) =>
+const renderScreen = (shelter: KabinetShelterView, viewer: "admin" | "support" = "admin") =>
   render(
     <AnimalListScreen
       page={{
         kind: "list",
         shelter,
-        viewer: "admin",
+        viewer,
         editing: { kind: "open" },
         first: {
           items: [],
@@ -78,5 +78,28 @@ describe("the kabinet banner while cards are shown before verification", () => {
     expect(screen.queryByText(/до 1 грудня/)).toBeNull();
     expect(screen.queryByText(/позначкою «на перевірці»/)).toBeNull();
     expect(screen.getByText(/ваших тварин бачите лише ви/)).toBeTruthy();
+  });
+});
+
+describe("the kabinet line once the period has ended, review still open (gap 6)", () => {
+  const ended = () =>
+    shelterIn({ status: "under_review", since: AT } as KabinetShelterView["verification"], {
+      kind: "ended",
+      endedAt: new Date("2026-12-01T09:00:00Z"),
+    });
+
+  it("says when it ended, keeps the full pending note, and shows no running banner", () => {
+    renderScreen(ended());
+    expect(
+      screen.getByText("Показ ваших карток з позначкою «на перевірці» завершився 1 грудня."),
+    ).toBeTruthy();
+    expect(screen.getByText(/ваших тварин бачите лише ви/)).toBeTruthy();
+    expect(screen.queryByText(/показуються з позначкою/)).toBeNull();
+  });
+
+  it("in the support view still omits the «я» panel, and the dated line stays", () => {
+    renderScreen(ended(), "support");
+    expect(screen.queryByText(/Перевірку проводжу я/)).toBeNull();
+    expect(screen.getByText(/завершився 1 грудня/)).toBeTruthy();
   });
 });
