@@ -207,7 +207,17 @@ export function shelterToRow(shelter: Shelter): ShelterInsert {
   };
 }
 
+/**
+ * The columns are nullable for the minimal create, but `Shelter` still says both are present and
+ * nothing writes null yet: a null row throws here, as the old NOT NULL would have refused it.
+ */
 export function rowToShelter(row: ShelterRow): Shelter {
+  const { legalEntity, exactAddress } = row;
+  if (legalEntity === null || exactAddress === null) {
+    throw new Error(
+      `Shelter ${row.id} lacks its legal entity or address; no reader handles that yet`,
+    );
+  }
   return {
     id: row.id,
     displayName: row.displayName,
@@ -216,9 +226,9 @@ export function rowToShelter(row: ShelterRow): Shelter {
       row.descriptionEnText,
       row.descriptionEnProvenance,
     ),
-    legalEntity: row.legalEntity,
+    legalEntity,
     publicLocation: row.publicLocation,
-    exactAddress: row.exactAddress,
+    exactAddress,
     contact: row.contact,
     donation: row.donation ?? null,
     logo: row.logo ?? null,

@@ -57,7 +57,8 @@ const canonical = (value: unknown): string =>
 
 export type StoredLocationRow = {
   id: string;
-  exactAddress: ExactAddress;
+  /** Nullable in the schema; nothing writes null yet, so `storedWith` throws on it. */
+  exactAddress: ExactAddress | null;
   publicLocation: PublicLocation;
 };
 
@@ -66,9 +67,15 @@ export type StoredLocationRow = {
  * `demo:remove` uses it with the seed's policy to refuse while a shelter
  * outside the seed range sits on the test-only key (RG-Q11's privacy bug).
  */
-export const storedWith = (row: StoredLocationRow, policy: LocationPrivacyPolicy): boolean =>
-  canonical(publicLocationOf(row.id as ShelterId, row.exactAddress, policy)) ===
-  canonical(row.publicLocation);
+export const storedWith = (row: StoredLocationRow, policy: LocationPrivacyPolicy): boolean => {
+  if (row.exactAddress === null) {
+    throw new Error(`Shelter ${row.id} has no address; this check does not handle that yet`);
+  }
+  return (
+    canonical(publicLocationOf(row.id as ShelterId, row.exactAddress, policy)) ===
+    canonical(row.publicLocation)
+  );
+};
 
 export function compareLocations(
   rows: readonly StoredLocationRow[],
