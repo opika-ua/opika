@@ -167,6 +167,9 @@ export function EarlyListingPanel() {
       {state.kind === "lapsed" ? (
         <Text look="hint">{fillTemplate(t.expired, { date: formatDate(state.expiredAt) })}</Text>
       ) : null}
+      {state.kind === "lapsed" && periodsUsed === EARLY_LISTING_MAX_PERIODS - 1 ? (
+        <Text look="hint">{t.oneMoreLeft}</Text>
+      ) : null}
       {state.kind !== "running" && limitReached ? <Text look="hint">{t.limitReached}</Text> : null}
       <div className={ACTIONS}>
         {state.kind === "running" ? (

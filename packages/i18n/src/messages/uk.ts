@@ -450,6 +450,8 @@ export const uk = {
       pendingNoteLead: "Перевірку проводжу я: напишу або зателефоную, щоб домовитися.",
       /** N13, owner-approved 2026-11-04: the shelter may see the end date, the public never does. `{date}` is a Kyiv day. */
       earlyListingBanner: "Ваші картки показуються з позначкою «на перевірці» до {date}.",
+      /** Owner-approved 2026-11-10 (gap 6): the period ran out, review still open. `{date}` is a Kyiv day. */
+      earlyListingEnded: "Показ ваших карток з позначкою «на перевірці» завершився {date}.",
       lockedTitle: "Встановлено під час перевірки",
       /** `{operator}` is the operator's display name (RS-Q2). */
       lockedNote:
@@ -1819,6 +1821,8 @@ export const uk = {
           many: "До кінця показу: {count} днів",
         },
         expired: "Показ завершився {date}",
+        /** Owner-approved 2026-11-10 (gap 6): under `expired` when one period is left. */
+        oneMoreLeft: "Можна дозволити ще один, останній період – з поясненням.",
         extendNote: "Чому подовжуєте показ",
         limitReached: "Показ до перевірки вже дозволяли двічі.",
         evidenceMinimum: "Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.",

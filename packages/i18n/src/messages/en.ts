@@ -644,6 +644,7 @@ export const en = {
         "I carry out the verification myself: I will write or call to arrange it. Until it is finished, only you can see your animals.",
       pendingNoteLead: "I carry out the verification myself: I will write or call to arrange it.",
       earlyListingBanner: "Your cards are shown with the label «under review» until {date}.",
+      earlyListingEnded: "Showing your cards with the label «under review» ended on {date}.",
       lockedTitle: "Set during verification",
       lockedNote:
         "{operator} sets these details while verifying the shelter. Here they are read-only.",
@@ -1592,6 +1593,7 @@ export const en = {
           many: "Until the showing ends: {count} days",
         },
         expired: "Showing ended on {date}",
+        oneMoreLeft: "One more, final period can be allowed – with an explanation.",
         extendNote: "Why are you extending the showing",
         limitReached: "Showing before the review has already been allowed twice.",
         evidenceMinimum: "To allow showing, at least a video call or one reference is needed.",

@@ -32,6 +32,8 @@ export function AnimalListScreen({
   const early = page.shelter.earlyListing;
   const listedUntil = pending && early.kind === "running" ? early.expiresAt : null;
   const listed = listedUntil !== null;
+  // Without this line an ended period would read the same as one never allowed (gap 6).
+  const endedAt = pending && early.kind === "ended" ? early.endedAt : null;
   return (
     <ShelterShell
       shelterName={page.shelter.displayName}
@@ -73,6 +75,15 @@ export function AnimalListScreen({
                 <Text look="label">
                   {fillTemplate(uk.kabinet.profile.earlyListingBanner, {
                     date: dayAndMonth(listedUntil),
+                  })}
+                </Text>
+              </Panel>
+            ) : null}
+            {endedAt !== null ? (
+              <Panel tone="outline" padding="md">
+                <Text look="label">
+                  {fillTemplate(uk.kabinet.profile.earlyListingEnded, {
+                    date: dayAndMonth(endedAt),
                   })}
                 </Text>
               </Panel>
