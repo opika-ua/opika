@@ -169,6 +169,13 @@
       "when": 1793801051582,
       "tag": "0023_early_listing_since",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794331291343,
+      "tag": "0024_optional_verified_data",
+      "breakpoints": true
     }
   ]
 }

@@ -10,7 +10,8 @@ import type {
   ShelterVerification,
   VerificationStatus,
 } from "@opika/domain";
-import { index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { check, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { authOrganization } from "./auth";
 import { cities } from "./cities";
 import { jsonb } from "./helpers";
@@ -25,9 +26,11 @@ export const shelters = pgTable(
     descriptionEnProvenance: text("description_en_provenance", {
       enum: ["human", "machine"],
     }),
-    legalEntity: jsonb<ShelterLegalEntity>("legal_entity").notNull(),
+    /** Null until the operator adds it (minimal create); a verified shelter always has it. */
+    legalEntity: jsonb<ShelterLegalEntity>("legal_entity"),
     publicLocation: jsonb<PublicLocation>("public_location").notNull(),
-    exactAddress: jsonb<ExactAddress>("exact_address").notNull(),
+    /** Null until the operator adds it; the city is then only `city_id` / `public_location`. */
+    exactAddress: jsonb<ExactAddress>("exact_address"),
     contact: jsonb<ShelterContact>("contact").notNull(),
     donation: jsonb<DonationLink>("donation"),
     logo: jsonb<ShelterLogo>("logo"),
@@ -54,8 +57,9 @@ export const shelters = pgTable(
     cityId: text("city_id")
       .notNull()
       .references(() => cities.id),
-    exactLat: text("exact_lat").notNull(),
-    exactLng: text("exact_lng").notNull(),
+    /** The premises point, write-only; null when the address (or just its point) is not known. */
+    exactLat: text("exact_lat"),
+    exactLng: text("exact_lng"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     lastUpdatedAt: timestamp("last_updated_at", {
@@ -76,5 +80,18 @@ export const shelters = pgTable(
   (t) => [
     index("shelters_city_id_idx").on(t.cityId),
     index("shelters_verification_status_idx").on(t.verificationStatus),
+    check(
+      "shelters_exact_point_all_or_none",
+      sql`(${t.exactLat} IS NULL) = (${t.exactLng} IS NULL)`,
+    ),
+    check(
+      "shelters_exact_point_needs_address",
+      sql`${t.exactLat} IS NULL OR ${t.exactAddress} IS NOT NULL`,
+    ),
+    /** The approve gate, held by the database too: verified, paused and suspended all come from approval. */
+    check(
+      "shelters_verified_has_verified_data",
+      sql`${t.verificationStatus} IN ('pending', 'under_review', 'rejected') OR (${t.legalEntity} IS NOT NULL AND ${t.exactAddress} IS NOT NULL)`,
+    ),
   ],
 );
