@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ContactChannelInputSchema,
   ContactChannelSchema,
+  isCanonicalFacebookUrl,
   normalizeFacebook,
   normalizeInstagram,
   normalizeUaPhone,
@@ -202,5 +203,113 @@ describe("Instagram and Facebook channels", () => {
       ContactChannelSchema.safeParse({ kind: "facebook", url: "https://www.facebook.com/x" })
         .success,
     ).toBe(true);
+  });
+});
+
+describe("hardening: reserved Instagram names, Facebook path length, stored rows", () => {
+  const RESERVED = ["p", "reel", "reels", "tv", "stories", "explore", "accounts", "direct"];
+
+  it.each(RESERVED)("refuses the route name %s as a bare handle, with or without @", (name) => {
+    expect(normalizeInstagram(name)).toBeNull();
+    expect(normalizeInstagram(`@${name.toUpperCase()}`)).toBeNull();
+    expect(ContactChannelInputSchema.safeParse({ kind: "instagram", handle: name }).success).toBe(
+      false,
+    );
+    expect(ContactChannelSchema.safeParse({ kind: "instagram", handle: name }).success).toBe(false);
+  });
+
+  it("still accepts a handle that only starts with a route name", () => {
+    expect(normalizeInstagram("explore_dogs")).toBe("explore_dogs");
+    expect(normalizeInstagram("p.s")).toBe("p.s");
+  });
+
+  const FB = "https://www.facebook.com/";
+  const refused = { kind: "error", error: "facebookFormat" };
+
+  it("counts the Facebook path decoded: 100 characters pass, 101 are refused", () => {
+    expect(normalizeFacebook(`${FB}${"a".repeat(100)}/`)).toEqual({
+      kind: "ok",
+      url: `${FB}${"a".repeat(100)}`,
+    });
+    expect(normalizeFacebook(`${FB}${"a".repeat(101)}`)).toEqual(refused);
+    expect(normalizeFacebook(`${FB}groups/${"1".repeat(94)}`)).toEqual(refused);
+    // 100 Cyrillic letters escape to exactly 600 characters, the encoded ceiling.
+    const at100 = normalizeFacebook(`${FB}${"д".repeat(100)}`);
+    expect(at100.kind === "ok" && at100.url.length - FB.length).toBe(600);
+    expect(normalizeFacebook(`${FB}${"д".repeat(101)}`)).toEqual(refused);
+  });
+
+  it("caps the escaped path at 600 characters even when the decoded one is short", () => {
+    const dogs = "🐕".repeat(50);
+    const at600 = normalizeFacebook(`${FB}${dogs}`);
+    expect(at600.kind === "ok" && at600.url.length - FB.length).toBe(600);
+    expect(normalizeFacebook(`${FB}${dogs}a`)).toEqual(refused);
+  });
+
+  it("refuses a path whose escapes do not decode", () => {
+    expect(normalizeFacebook(`${FB}%D0`)).toEqual(refused);
+    expect(isCanonicalFacebookUrl(`${FB}%D0`)).toBe(false);
+  });
+
+  it("takes a Cyrillic people/ URL on input and on read", () => {
+    const typed = `${FB}people/Притулок-Добрі-Лапки/100012345678901`;
+    const result = normalizeFacebook(typed);
+    if (result.kind !== "ok") throw new Error("refused");
+    expect(result.url).toHaveLength(158);
+    expect(isCanonicalFacebookUrl(result.url)).toBe(true);
+    expect(ContactChannelSchema.safeParse({ kind: "facebook", url: result.url }).success).toBe(
+      true,
+    );
+    expect(ContactChannelInputSchema.parse({ kind: "facebook", url: typed })).toEqual({
+      kind: "facebook",
+      url: result.url,
+    });
+  });
+
+  // The parser drops a bare `@` and folds fullwidth letters to ASCII; only the raw authority shows them.
+  it.each(["https://@www.facebook.com/x", "https://www.ｆａｃｅｂｏｏｋ.com/x"])(
+    "refuses %s, which the URL parser alone would read as www.facebook.com",
+    (url) => {
+      expect(normalizeFacebook(url)).toEqual(refused);
+    },
+  );
+
+  it.each(["https://@instagram.com/dobri_lapy", "https://ｉｎｓｔａｇｒａｍ.com/dobri_lapy"])(
+    "refuses %s, which the URL parser alone would read as instagram.com",
+    (url) => {
+      expect(normalizeInstagram(url)).toBeNull();
+    },
+  );
+
+  const STORED_HOSTILE = [
+    "https://www.facebook.com/l.php?u=https://evil.com",
+    "https://u@www.facebook.com/x",
+    "https://www.facebook.com:8443/x",
+  ];
+
+  it.each(STORED_HOSTILE)("the normaliser refuses %s", (url) => {
+    expect(normalizeFacebook(url)).toEqual({ kind: "error", error: "facebookFormat" });
+    expect(isCanonicalFacebookUrl(url)).toBe(false);
+  });
+
+  it.each([
+    ...STORED_HOSTILE,
+    "https://www.facebook.com/x/",
+    "https://www.facebook.com/x?ref=evil",
+    "https://www.facebook.com/x#top",
+    `https://www.facebook.com/${"a".repeat(101)}`,
+  ])("the read schema refuses the stored row %s", (url) => {
+    expect(ContactChannelSchema.safeParse({ kind: "facebook", url }).success).toBe(false);
+  });
+
+  it("the read schema still takes canonical rows", () => {
+    for (const url of [
+      "https://www.facebook.com/dobri.lapy",
+      "https://www.facebook.com/profile.php?id=42",
+      `https://www.facebook.com/${"a".repeat(100)}`,
+    ]) {
+      expect(isCanonicalFacebookUrl(url)).toBe(true);
+      expect(ContactChannelSchema.safeParse({ kind: "facebook", url }).success).toBe(true);
+    }
   });
 });

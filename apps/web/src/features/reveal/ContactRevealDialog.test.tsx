@@ -321,6 +321,32 @@ describe("Instagram and Facebook rows", () => {
     expect(within(row).queryByRole("button")).toBeNull();
   });
 
+  it("links a canonical Cyrillic people/ URL, escaped", () => {
+    const url = `https://www.facebook.com/people/${encodeURIComponent("Притулок-Добрі-Лапки")}/100012345678901`;
+    renderOpen(revealWith({ primary: { kind: "facebook", url }, additional: [] }));
+    const link = within(rowOf("Відкрити Facebook")).getByRole("link");
+    expect(link.getAttribute("href")).toBe(url);
+  });
+
+  it.each([
+    "https://www.facebook.com/l.php?u=https://evil.com",
+    "https://u@www.facebook.com/x",
+    "https://www.facebook.com:8443/x",
+  ])("renders no row and no link for a stored non-canonical Facebook URL %s", (url) => {
+    expect(() =>
+      renderOpen(
+        revealWith({
+          primary: { kind: "phone", e164: "+380671234567" },
+          additional: [{ kind: "facebook", url }],
+        }),
+      ),
+    ).not.toThrow();
+    expect(screen.getAllByTestId("reveal-contact-row")).toHaveLength(1);
+    expect(screen.queryByText("Відкрити Facebook")).toBeNull();
+    const hrefs = screen.getAllByRole("link").map((link) => link.getAttribute("href"));
+    expect(hrefs.some((href) => href?.includes("facebook") || href?.includes("evil"))).toBe(false);
+  });
+
   it("sends no referrer from any external row, and gives app hand-offs no target or rel", () => {
     renderOpen(
       revealWith({

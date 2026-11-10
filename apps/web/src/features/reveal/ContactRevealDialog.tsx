@@ -2,7 +2,7 @@
 
 import type { ContactRevealView } from "@opika/contracts";
 import type { ContactChannel } from "@opika/domain";
-import { allChannels } from "@opika/domain/core";
+import { allChannels, isCanonicalFacebookUrl } from "@opika/domain/core";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { useEffect, useState } from "react";
 import { Button } from "../../ui/Button";
@@ -173,6 +173,13 @@ function contactsFootnoteOf(reveal: ContactRevealView): string | null {
   }
 }
 
+/**
+ * The server's read schema already refuses a non-canonical Facebook URL; this is the second lock,
+ * so a stored URL that slipped past it (a redirector, userinfo, a port) is never made a link.
+ */
+const isLinkable = (channel: ContactChannel): boolean =>
+  channel.kind !== "facebook" || isCanonicalFacebookUrl(channel.url);
+
 type DialogState = Extract<RevealState, { kind: "error" }> | Extract<RevealState, { kind: "open" }>;
 
 interface ContactRevealDialogProps {
@@ -281,6 +288,7 @@ function RevealContent({
   // first reveal otherwise (RUI4-F1).
   const { displayName, contact } = reveal.shelterContact;
   const footnote = contactsFootnoteOf(reveal);
+  const channels = allChannels(contact).filter(isLinkable);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   // Mounted only after a click, so `window` is there; the section starts open on a desktop only.
   const [reflectionOpen, setReflectionOpen] = useState(
@@ -346,7 +354,7 @@ function RevealContent({
         </p>
       )}
       <ul className="flex flex-col gap-3">
-        {allChannels(contact).map((channel, index) => {
+        {channels.map((channel, index) => {
           const action = channelAction(channel);
           const key = `${channel.kind}:${contactChannelText(channel)}`;
           const filled = index === 0;
