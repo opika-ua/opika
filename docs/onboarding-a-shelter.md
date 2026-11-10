@@ -401,9 +401,9 @@ and so on). **Photos stay in R2, unlinked**: `demo:remove` itself never deletes 
 objects (K-Q2). Since the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
 R2-B1), that's no longer the whole story: once an animal's row is gone, its photos are
 unreferenced, and the daily scheduled sweep deletes them on its own once they've sat
-unreferenced for the grace period (~7 days) - the one named exception to K-Q2. Delete the
-keys by hand in Cloudflare first if you want them gone sooner (a dedicated takedown script
-is still follow-up DR-F3). `--commit` prints the keys again.
+unreferenced for the grace period (~7 days) - the one named exception to K-Q2. Never delete
+them by hand; over the job's 100-object cap, run `r2:cleanup` (dry run, then `--commit
+--max-delete <n>`, `docs/operator-leaving-and-erasure.md`, A step 8). `--commit` prints the keys again.
 
 Besides every refusal above (member, support session, test-only key, crossing
 reveal, `NODE_ENV=production`, `--expect`, `--prod`), it refuses an id that isn't a
@@ -445,12 +445,11 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    pnpm --filter @opika/db demo:remove --expect <production ep- id> --prod --shelter <rehearsal-shelter-uuid> --commit
    ```
    The dry run names the shelter and prints the R2 keys of its animals' photos, including the
-   ones uploaded from the kabinet. **Add those keys to the DR-F3 takedown list** if you want
-   them gone sooner than the automatic sweep - the GDPR R2 clean-up job (R2-B1) deletes a
+   ones uploaded from the kabinet. The GDPR R2 clean-up job (R2-B1) deletes a
    photo's objects on its own, with no action here, once they've sat unreferenced for the
-   grace period (~7 days). `demo:remove` itself still deletes nothing from R2; DR-F3's
-   operator-run script, or the Cloudflare dashboard by hand, is only for deleting sooner than
-   that. Run the dry run again afterwards: every count is 0, and it refuses with «no
+   grace period (~7 days). `demo:remove` itself still deletes nothing from R2, and nothing is
+   deleted by hand; over the job's 100-object cap, run `r2:cleanup` (dry run, then `--commit
+   --max-delete <n>`). Run the dry run again afterwards: every count is 0, and it refuses with «no
    shelter has id …», which confirms the shelter is gone.
 4. **`KABINET_WRITE_ALLOWLIST`**: PR 6 has merged by then: delete `KABINET_WRITE_ALLOWLIST`,
    then redeploy (environment changes apply only to new deployments). Oleksii, 2026-10-17,
@@ -579,27 +578,16 @@ Nothing links to them any more, but anyone who saved the URL can still open it
 R2-B1) deletes it on its own, automatically, once it has sat unreferenced for the
 grace period (~7 days). That job - `DeleteObjectsCommand`/`ListObjectsV2Command`
 in `r2-cleanup-client.ts` - is the one named exception to K-Q2's "no code path
-deletes an object"; no other code path does. When a photo must go sooner than the
-grace period allows (a shelter asks for it right away, or it shows something it
-shouldn't), delete it by hand in Cloudflare's dashboard - the manual path still
-works exactly as before, it's just no longer the only path.
+deletes an object"; no other code path does. **Never delete a file by hand**, even
+when a photo must go (a shelter asks, or it shows something it shouldn't): take it
+off the card, and the job deletes it after the grace period. When a run is over the
+job's 100-object cap, run `r2:cleanup` (dry run, then `--commit --max-delete <n>`;
+`docs/operator-leaving-and-erasure.md`, A step 8, and `docs/runbook.md`, section 8).
+The CDN edge drops a deleted file within 4 h (above).
 
-**Where the key comes from: the bucket, not the database.** A removed photo's
-key has already left `animals.photos`, and the animal's history records only
-which fields changed (`fields: ["photos"]`, K-Q7), never a key. So list the
-animal's prefix in the bucket: R2 → the photo bucket → Objects → prefix
-`animals/{animalId}/` (the animal's id is still in the database and the
-kabinet). Each photo is one folder, `animals/{animalId}/{uuid}/`, holding
-`thumb.webp`, `card.webp`, `compact.webp`, `mid.webp` and `detail.webp`. The folders whose key is still in
-the animal's `photos` are on the card; any other folder is a removed or orphaned
-photo. Open its `card.webp` to confirm it is the one, then delete all five
-files and purge those five URLs from the CDN cache.
-
-A takedown script (DR-F3) will replace this; until then it is a manual, logged
-step. The same applies to a file logged as `{event:"photo_orphaned",
-storageKey}` (an upload stored but never attached): harmless, delete it the
-same way if it matters; that log line is the one place a key outside the
-bucket listing is recorded.
+A file logged as `{event:"photo_orphaned", storageKey}` (an upload stored but never
+attached) is unreferenced too, so the same job deletes it; that log line is the one
+place a key outside the bucket listing is recorded.
 
 ## One-off check: R2 refuses to overwrite (P-Q11)
 

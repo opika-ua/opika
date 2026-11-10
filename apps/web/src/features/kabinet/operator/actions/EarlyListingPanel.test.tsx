@@ -37,6 +37,7 @@ const lapsed = (periodsUsed: number) =>
   }) as const;
 
 const ALLOW = "Дозволити показ до завершення перевірки";
+const ONE_MORE_LEFT = "Можна дозволити ще один, останній період – з поясненням.";
 const CONFIRM =
   "Картки притулку побачать усі, з позначкою «на перевірці». Дозвіл діє до 60 днів, зняти його можна будь-коли.";
 
@@ -129,11 +130,18 @@ describe("«Дозволити показ до завершення переві
     renderWithActions(<EarlyListingPanel />, { view: withEarlyListing(pending, lapsed(2)) });
     expect(screen.getByText("Показ до перевірки вже дозволяли двічі.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: ALLOW })).toBeNull();
+    expect(screen.queryByText(ONE_MORE_LEFT)).toBeNull();
   });
 
   it("says when the last period ended", () => {
     renderWithActions(<EarlyListingPanel />, { view: withEarlyListing(pending, lapsed(1)) });
     expect(screen.getByText(/^Показ завершився /)).toBeTruthy();
+  });
+
+  it("after the first period ended, says one last period is left, with a reason (gap 6)", () => {
+    renderWithActions(<EarlyListingPanel />, { view: withEarlyListing(pending, lapsed(1)) });
+    expect(screen.getByText(ONE_MORE_LEFT)).toBeTruthy();
+    expect(screen.queryByText("Показ до перевірки вже дозволяли двічі.")).toBeNull();
   });
 
   it("a refusal for too little evidence says what is needed", async () => {

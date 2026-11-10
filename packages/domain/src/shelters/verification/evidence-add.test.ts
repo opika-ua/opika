@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EdrpouSchema, ModeratorIdSchema } from "../../primitives/ids";
+import type { ContactChannel } from "../contact";
 import { VERIFICATION_EVENT_TYPES } from "./events";
 import type { EvidenceItem, VerificationEvidence } from "./evidence";
 import {
@@ -175,6 +176,28 @@ describe("addEvidence: duplicates (same kind + same key field, notes ignored)", 
       relationship: "veterinary_clinic",
     };
     expect(addEvidence(state, [viber]).kind).toBe("ok");
+  });
+
+  it("reference: Instagram (any case) and Facebook repeat as duplicates", () => {
+    const reference = (channel: ContactChannel): EvidenceItem => ({
+      kind: "reference_contact",
+      name: "Клініка",
+      channel,
+      relationship: "veterinary_clinic",
+    });
+    const state = pending([
+      reference({ kind: "instagram", handle: "vet.clinic" }),
+      reference({ kind: "facebook", url: "https://www.facebook.com/vet.clinic" }),
+    ]);
+    expect(
+      addEvidence(state, [
+        reference({ kind: "instagram", handle: "VET.clinic" }),
+        reference({ kind: "facebook", url: "https://www.facebook.com/vet.clinic" }),
+      ]),
+    ).toEqual({ kind: "nothing_new" });
+    expect(addEvidence(state, [reference({ kind: "instagram", handle: "other.vet" })]).kind).toBe(
+      "ok",
+    );
   });
 
   it("site visit: same date is a duplicate whatever the notes or recorder; another date with the same notes is new", () => {

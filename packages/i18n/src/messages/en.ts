@@ -235,12 +235,15 @@ export const en = {
     writeEmail: "Send an email",
     writeViber: "Message on Viber",
     openWebsite: "Open the website",
+    openInstagram: "Open Instagram",
+    openFacebook: "Open Facebook",
     copy: "Copy",
     copied: "Copied.",
     copyPhoneLabel: "Copy the phone number",
     copyTelegramLabel: "Copy the Telegram username",
     copyViberLabel: "Copy the Viber number",
     copyEmailLabel: "Copy the email address",
+    copyInstagramLabel: "Copy the Instagram username",
     backToFeed: "Back to the gallery",
   },
 
@@ -508,7 +511,7 @@ export const en = {
     whatToPrepare: `${COPY_PENDING} 7. What to prepare.`,
     whyThatSentence: `${COPY_PENDING} 8. Why we ask for the freshness sentence.`,
     whenAnimalFindsHome: `${COPY_PENDING} 9. When an animal finds a home.`,
-    howToLeave: `${COPY_PENDING} 9b. How to leave – write, and everything is removed, no conditions.`,
+    howToLeave: `${COPY_PENDING} 9b. How to leave – write, and everything is removed; no reason needed, only a confirming email.`,
     whoIsBehindThis: `${COPY_PENDING} 10. Who is behind this.`,
     howToStart: `${COPY_PENDING} 11. How to start – write to {contact}.`,
     signInLink: `Sign in to the cabinet`,
@@ -644,6 +647,7 @@ export const en = {
         "I carry out the verification myself: I will write or call to arrange it. Until it is finished, only you can see your animals.",
       pendingNoteLead: "I carry out the verification myself: I will write or call to arrange it.",
       earlyListingBanner: "Your cards are shown with the label «under review» until {date}.",
+      earlyListingEnded: "Showing your cards with the label «under review» ended on {date}.",
       lockedTitle: "Set during verification",
       lockedNote:
         "{operator} sets these details while verifying the shelter. Here they are read-only.",
@@ -669,6 +673,8 @@ export const en = {
       viber: "Viber",
       email: "Email",
       website: "Website",
+      instagram: "Instagram",
+      facebook: "Facebook",
     },
     profileNotRecorded: "Not recorded",
     notFilledYet: "Not filled in yet",
@@ -730,6 +736,10 @@ export const en = {
         donationIdn:
           "Addresses with Cyrillic letters (or starting with «xn--») are not accepted. Use a fundraising page on a service with a Latin address, such as monobank.",
         notAUrl: "That doesn't look like a link.",
+        instagramFormat:
+          "An Instagram username: up to 30 Latin letters, digits, dots or underscores. A profile link works too.",
+        facebookFormat:
+          "A link to a Facebook page is needed, for example https://www.facebook.com/…",
         sentenceTooLong: "The sentence is longer than {max} characters.",
         unknownToken: "Only {імʼя} is filled in. Remove «{token}», or write it without braces.",
         dateTokenGone:
@@ -1603,6 +1613,7 @@ export const en = {
           many: "Until the showing ends: {count} days",
         },
         expired: "Showing ended on {date}",
+        oneMoreLeft: "One more, final period can be allowed – with an explanation.",
         extendNote: "Why are you extending the showing",
         limitReached: "Showing before the review has already been allowed twice.",
         evidenceMinimum: "To allow showing, at least a video call or one reference is needed.",

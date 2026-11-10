@@ -181,10 +181,10 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       inviteLanding: ["expired", "pageTitle", "signIn", "unusableTitle"],
       // 25 with addressNote back (row 57, his replacement, 2026-10-14): deleted as
       // a false claim (a map no adopter sees), restored once adopters receive
-      // the city only (EM-Q10).
-      profile: 29,
+      // the city only (EM-Q10). 30 with earlyListingEnded (gap 6, 2026-11-10).
+      profile: 30,
       profileStatus: ["paused", "pending", "rejected", "suspended", "under_review", "verified"],
-      profileChannel: ["email", "phone", "telegram", "viber", "website"],
+      profileChannel: ["email", "facebook", "instagram", "phone", "telegram", "viber", "website"],
       support: ["body", "exit", "exitFailed", "signOutDisabled", "title", "viewingAs"],
       emailSignIn: ["action", "expiry", "intro", "notYou", "subject"],
       emailInvite: [
@@ -407,6 +407,11 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
       "У посиланні не має бути імені чи пароля перед адресою сайту (як у https://імʼя@сайт). Скопіюйте адресу з рядка браузера.",
     "profileEdit.errors.donationIdn":
       "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
+    // Owner-approved 2026-11-10 (contact kinds Instagram and Facebook; facebookFormat with his «в» fix).
+    "profileEdit.errors.instagramFormat":
+      "Нікнейм в Instagram: до 30 латинських літер, цифр, крапок або підкреслень. Можна вставити посилання на профіль.",
+    "profileEdit.errors.facebookFormat":
+      "Потрібне посилання на сторінку в Facebook, наприклад https://www.facebook.com/…",
     // k4-copy-uk.md
     "profileEdit.donation.previewHost": "{host} ↗",
     // k4-copy-uk.md
@@ -1048,6 +1053,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.earlyListing.daysLeft.few": "До кінця показу: {count} дні",
     "operator.earlyListing.daysLeft.many": "До кінця показу: {count} днів",
     "operator.earlyListing.expired": "Показ завершився {date}",
+    // Gap 6, owner-approved 2026-11-10.
+    "operator.earlyListing.oneMoreLeft": "Можна дозволити ще один, останній період – з поясненням.",
     "operator.earlyListing.extendNote": "Чому подовжуєте показ",
     "operator.earlyListing.limitReached": "Показ до перевірки вже дозволяли двічі.",
     "operator.earlyListing.evidenceMinimum":
@@ -1462,6 +1469,11 @@ describe("listing before verification (owner's copy table, 2026-11-04, N1–N3 a
       uk.kabinet.profile.earlyListingBanner,
       "Ваші картки показуються з позначкою «на перевірці» до {date}.",
     ],
+    [
+      "kabinet.profile.earlyListingEnded (gap 6, owner-approved 2026-11-10)",
+      uk.kabinet.profile.earlyListingEnded,
+      "Показ ваших карток з позначкою «на перевірці» завершився {date}.",
+    ],
   ])("%s is the approved text", (_name, actual, expected) => {
     expect(actual).toBe(expected);
   });
@@ -1582,8 +1594,8 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
     // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
-    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six.
-    expect(k4.length).toBe(98);
+    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors.
+    expect(k4.length).toBe(100);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

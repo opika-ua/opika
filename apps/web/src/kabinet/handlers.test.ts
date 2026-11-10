@@ -195,14 +195,15 @@ describe("shelter.profile: the early listing as the shelter is told it", () => {
     });
   });
 
-  it("is none once the period has run out, and for a verified shelter whatever is stored", async () => {
+  it("is ended once the period has run out, and none for a verified shelter whatever is stored", async () => {
+    const lapsedSince = new Date(Date.now() - 61 * DAY);
     const lapsed = makeShelter({
       verification: {
         status: "pending",
         submittedAt: new Date(),
         evidence: { items: [], submittedAt: new Date() },
       },
-      earlyListingSince: new Date(Date.now() - 61 * DAY),
+      earlyListingSince: lapsedSince,
       publicLocation: { ...makeShelter().publicLocation, cityId: cityId as never },
     });
     await shelterRepo(db).insert(lapsed);
@@ -214,7 +215,7 @@ describe("shelter.profile: the early listing as the shelter is told it", () => {
     expect(
       (await call<KabinetShelterView>("shelter.profile.get", {}, { principal: asLapsed })).body
         .earlyListing,
-    ).toEqual({ kind: "none" });
+    ).toEqual({ kind: "ended", endedAt: new Date(lapsedSince.getTime() + 60 * DAY) });
     expect((await call<KabinetShelterView>("shelter.profile.get", {})).body.earlyListing).toEqual({
       kind: "none",
     });

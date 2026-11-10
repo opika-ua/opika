@@ -1,11 +1,11 @@
-import type { apiErrors, KabinetShelterView } from "@opika/contracts";
+import type { apiErrors, KabinetEarlyListing, KabinetShelterView } from "@opika/contracts";
 import { type AuditedShelterChange, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
 import {
   donationProviderOf,
   earlyListingOf,
+  earlyListingRemaining,
   type FreshnessSentence,
   type PauseReason,
-  publicListingBasisOf,
   type Shelter,
   type ShelterActor,
   type ShelterContact,
@@ -33,15 +33,10 @@ type TransitionErrors = ORPCErrorConstructorMap<{
  * The shelter's own view of itself (K4). Built field by field, the way the
  * view is `pick`ed: nothing reaches a shelter because it happened to be on
  * the row. Verification is the shelter-facing projection, with no evidence
- * and no moderator ids. `earlyListing` carries the end date only while the permission runs
- * (N13); the public never gets a date.
+ * and no moderator ids. `earlyListing` carries the end date while the permission runs (N13)
+ * and the date it ended while the review is still open; the public never gets a date.
  */
 export function kabinetShelterViewOf(shelter: Shelter, now: Date): KabinetShelterView {
-  const basis = publicListingBasisOf(
-    shelter.verification,
-    earlyListingOf(shelter.earlyListingSince),
-    now,
-  );
   return {
     id: shelter.id,
     displayName: shelter.displayName,
@@ -56,11 +51,30 @@ export function kabinetShelterViewOf(shelter: Shelter, now: Date): KabinetShelte
     logo: shelter.logo,
     version: shelter.version,
     verification: shelterFacingVerificationOf(shelter.verification),
-    earlyListing:
-      basis.kind === "listed_before_verification"
-        ? { kind: "running", expiresAt: basis.expiresAt }
-        : { kind: "none" },
+    earlyListing: kabinetEarlyListingOf(shelter, now),
   };
+}
+
+/** The operator panel's own rule (`earlyListingRemaining`), so both sides read one clock. */
+function kabinetEarlyListingOf(shelter: Shelter, now: Date): KabinetEarlyListing {
+  const remaining = earlyListingRemaining(
+    shelter.verification,
+    earlyListingOf(shelter.earlyListingSince),
+    now,
+  );
+  switch (remaining.kind) {
+    case "none":
+      return { kind: "none" };
+    case "running":
+      return { kind: "running", expiresAt: remaining.expiresAt };
+    case "lapsed":
+      return { kind: "ended", endedAt: remaining.expiredAt };
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
+    default: {
+      const unreachable: never = remaining;
+      return unreachable;
+    }
+  }
 }
 
 /**

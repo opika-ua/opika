@@ -373,7 +373,7 @@ describe("kabinet views carry exactly their listed keys", () => {
     // The shelter may see when the period ends and nothing else about it (no period count, no note).
     expect(
       KabinetShelterViewSchema.shape.earlyListing.options.map((o) => Object.keys(o.shape).sort()),
-    ).toEqual([["kind"], ["expiresAt", "kind"]]);
+    ).toEqual([["kind"], ["expiresAt", "kind"], ["endedAt", "kind"]]);
     // The operator's record carries evidence and moderator ids; this one must not parse it.
     const verification = KabinetShelterViewSchema.shape.verification;
     expect(
