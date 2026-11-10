@@ -101,11 +101,13 @@ export type KabinetAnimalView = KabinetDraftAnimalView | KabinetListedAnimalView
 /**
  * Whether the operator lets this shelter's cards be public before verification, as the shelter
  * is told: it may see the end date (N13), the public never does. Derived at read from the stored
- * permission and the status, so a lapsed or cleared one is `none`.
+ * permission and the status: `ended` once the period ran out while the review is still open, so
+ * the shelter can tell it from never allowed; `none` if never allowed, cleared, or the status moved on.
  */
 export const KabinetEarlyListingSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("none") }),
   z.object({ kind: z.literal("running"), expiresAt: z.date() }),
+  z.object({ kind: z.literal("ended"), endedAt: z.date() }),
 ]);
 export type KabinetEarlyListing = z.infer<typeof KabinetEarlyListingSchema>;
 

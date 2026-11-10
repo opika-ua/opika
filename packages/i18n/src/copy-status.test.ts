@@ -181,8 +181,8 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       inviteLanding: ["expired", "pageTitle", "signIn", "unusableTitle"],
       // 25 with addressNote back (row 57, his replacement, 2026-10-14): deleted as
       // a false claim (a map no adopter sees), restored once adopters receive
-      // the city only (EM-Q10).
-      profile: 29,
+      // the city only (EM-Q10). 30 with earlyListingEnded (gap 6, 2026-11-10).
+      profile: 30,
       profileStatus: ["paused", "pending", "rejected", "suspended", "under_review", "verified"],
       profileChannel: ["email", "phone", "telegram", "viber", "website"],
       support: ["body", "exit", "exitFailed", "signOutDisabled", "title", "viewingAs"],
@@ -1033,6 +1033,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.earlyListing.daysLeft.few": "До кінця показу: {count} дні",
     "operator.earlyListing.daysLeft.many": "До кінця показу: {count} днів",
     "operator.earlyListing.expired": "Показ завершився {date}",
+    // Gap 6, owner-approved 2026-11-10.
+    "operator.earlyListing.oneMoreLeft": "Можна дозволити ще один, останній період – з поясненням.",
     "operator.earlyListing.extendNote": "Чому подовжуєте показ",
     "operator.earlyListing.limitReached": "Показ до перевірки вже дозволяли двічі.",
     "operator.earlyListing.evidenceMinimum":
@@ -1435,6 +1437,11 @@ describe("listing before verification (owner's copy table, 2026-11-04, N1–N3 a
       "kabinet.profile.earlyListingBanner (N13)",
       uk.kabinet.profile.earlyListingBanner,
       "Ваші картки показуються з позначкою «на перевірці» до {date}.",
+    ],
+    [
+      "kabinet.profile.earlyListingEnded (gap 6, owner-approved 2026-11-10)",
+      uk.kabinet.profile.earlyListingEnded,
+      "Показ ваших карток з позначкою «на перевірці» завершився {date}.",
     ],
   ])("%s is the approved text", (_name, actual, expected) => {
     expect(actual).toBe(expected);
