@@ -270,6 +270,28 @@ describe("the reveal is the one sanctioned path to the contact details, and neve
     expect(view.shelterContact.contact.primary).toEqual(contact.primary);
   });
 
+  it("still reads every contact kind stored before WhatsApp and form, and the two new ones", () => {
+    const stored = {
+      primary: { kind: "phone", e164: "+48600100200" },
+      additional: [
+        { kind: "email", address: "a@domivka.example" },
+        { kind: "telegram", handle: "domivka_brovary" },
+        { kind: "viber", e164: "+380671234567" },
+        { kind: "website", url: "https://domivka.example" },
+        { kind: "instagram", handle: "dobri_lapy" },
+        { kind: "facebook", url: "https://www.facebook.com/dobri.lapy" },
+        { kind: "whatsapp", e164: "+380671234567" },
+        { kind: "form", url: "https://forms.example/anketa" },
+      ],
+    };
+    const view = ContactRevealViewSchema.parse(
+      revealOf({
+        shelterContact: { source: "current", displayName: shelter.displayName, contact: stored },
+      }),
+    );
+    expect(view.shelterContact.contact).toEqual(stored);
+  });
+
   it("records the verification status as it stood at reveal time", () => {
     // A shelter suspended next month was verified when this adopter was sent
     // to it, and both facts matter when a complaint is investigated.

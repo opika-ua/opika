@@ -2,7 +2,7 @@
 
 import type { ContactRevealView } from "@opika/contracts";
 import type { ContactChannel } from "@opika/domain";
-import { allChannels, isCanonicalFacebookUrl } from "@opika/domain/core";
+import { isCanonicalFacebookUrl, revealChannels } from "@opika/domain/core";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { useEffect, useState } from "react";
 import { Button } from "../../ui/Button";
@@ -16,7 +16,7 @@ import type { RevealErrorReason, RevealState } from "./useReveal";
 
 /**
  * One action row per channel the shelter gave: its label, the link that does the thing, and an icon.
- * `external` links open in a new tab (Telegram, Instagram, Facebook, website); `tel:`, `mailto:` and `viber:` hand off to
+ * `external` links open in a new tab (Telegram, Instagram, Facebook, WhatsApp, website, form); `tel:`, `mailto:` and `viber:` hand off to
  * the phone's own app. The row's visible value is `contactChannelText`; `copyLabel` names the copy
  * button for a screen reader (it starts with the visible «Копіювати», WCAG 2.5.3) and is null where
  * a copy makes no sense (a website is opened, not pasted).
@@ -93,6 +93,25 @@ function channelAction(channel: ContactChannel): {
         copyLabel: null,
         copyValue: channel.url,
       };
+    case "whatsapp":
+      return {
+        label: uk.reveal.writeWhatsapp,
+        // wa.me takes the international number as digits only, without the +.
+        href: `https://wa.me/${channel.e164.replace(/\D/g, "")}`,
+        external: true,
+        icon: "chat",
+        copyLabel: uk.reveal.copyWhatsappLabel,
+        copyValue: channel.e164,
+      };
+    case "form":
+      return {
+        label: uk.reveal.openForm,
+        href: channel.url,
+        external: true,
+        icon: "form",
+        copyLabel: null,
+        copyValue: channel.url,
+      };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = channel;
@@ -111,8 +130,8 @@ function channelAction(channel: ContactChannel): {
  * shelter - an empty dialog that had still spent one of the adopter's 30
  * daily reveals.
  *
- * `allChannels` (packages/domain) is the domain's own primary-then-additional
- * ordering; the mock's row order is the same.
+ * `revealChannels` (packages/domain) is the domain's primary-then-additional
+ * ordering with an application form moved first (owner); the mock's order otherwise.
  *
  * A Viber number and a phone number are both bare `+380…` strings; what tells the rows apart
  * is their label («Подзвонити» / «Написати у Viber») and icon, not the value.
@@ -126,11 +145,13 @@ function contactChannelText(channel: ContactChannel): string {
     case "telegram":
       return `@${channel.handle}`;
     case "viber":
+    case "whatsapp":
       return channel.e164;
     case "instagram":
       return `@${channel.handle}`;
     case "website":
     case "facebook":
+    case "form":
       return channel.url;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
@@ -288,7 +309,7 @@ function RevealContent({
   // first reveal otherwise (RUI4-F1).
   const { displayName, contact } = reveal.shelterContact;
   const footnote = contactsFootnoteOf(reveal);
-  const channels = allChannels(contact).filter(isLinkable);
+  const channels = revealChannels(contact).filter(isLinkable);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   // Mounted only after a click, so `window` is there; the section starts open on a desktop only.
   const [reflectionOpen, setReflectionOpen] = useState(

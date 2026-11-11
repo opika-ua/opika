@@ -328,6 +328,18 @@ export const allChannels = <C>(contact: {
   readonly additional: readonly C[];
 }): readonly C[] => [contact.primary, ...contact.additional];
 
+/** The reveal's order (owner): an application form first, then every channel as `allChannels` lists it. */
+export const revealChannels = <C extends { readonly kind: string }>(contact: {
+  readonly primary: C;
+  readonly additional: readonly C[];
+}): readonly C[] => {
+  const channels = allChannels(contact);
+  return [
+    ...channels.filter((channel) => channel.kind === "form"),
+    ...channels.filter((channel) => channel.kind !== "form"),
+  ];
+};
+
 /**
  * The sign-and-unit contract for relative time, in one place.
  *

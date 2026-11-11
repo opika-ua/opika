@@ -24,9 +24,11 @@ function focusFirstProblem(prefix: string, form: ContactsForm, errors: ContactsE
       ? `${prefix}-phone`
       : errors.telegram !== null
         ? `${prefix}-telegram`
-        : otherId !== undefined
-          ? `${prefix}-${otherId}-value`
-          : `${prefix}-phone`;
+        : errors.form !== null
+          ? `${prefix}-form`
+          : otherId !== undefined
+            ? `${prefix}-${otherId}-value`
+            : `${prefix}-phone`;
   document.getElementById(target)?.focus();
 }
 

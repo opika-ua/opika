@@ -237,18 +237,22 @@ describe("contacts (answer 3, answer 4)", () => {
     expect(screen.queryByText("Не вдалося зберегти")).toBeNull();
   });
 
-  it("stored contacts that don't fit show as editable «other» rows of any kind; adding stops at two rows", async () => {
+  it("stored contacts that don't fit show as editable «other» rows of any kind; adding stops at four rows", async () => {
     renderEditor({
       view: baseView({
         contact: {
           primary: { kind: "email", address: "a@example.org" },
-          additional: [{ kind: "email", address: "b@example.org" }],
+          additional: [
+            { kind: "email", address: "b@example.org" },
+            { kind: "email", address: "c@example.org" },
+            { kind: "email", address: "d@example.org" },
+          ],
         },
       }),
     });
     const c = within(contacts());
     const rows = c.getAllByRole("group", { name: /Інший спосіб звʼязку/ });
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(4);
     const kindOptions = within(rows[0] as HTMLElement)
       .getAllByRole("option")
       .map((option) => option.textContent);
@@ -256,6 +260,7 @@ describe("contacts (answer 3, answer 4)", () => {
       "Телефон",
       "Telegram",
       "Viber",
+      "WhatsApp",
       "Електронна пошта",
       "Сайт",
       "Instagram",
@@ -264,12 +269,14 @@ describe("contacts (answer 3, answer 4)", () => {
     expect(c.queryByRole("button", { name: "Додати ще один спосіб звʼязку" })).toBeNull();
     await userEvent.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Прибрати" }));
     await userEvent.click(c.getByRole("button", { name: "Додати ще один спосіб звʼязку" }));
-    const added = c.getAllByRole("group", { name: /Інший спосіб звʼязку/ })[1] as HTMLElement;
+    const added = c.getAllByRole("group", { name: /Інший спосіб звʼязку/ })[3] as HTMLElement;
     expect(
       within(added)
         .getAllByRole("option")
         .map((option) => option.textContent),
-    ).toEqual(["Viber", "Електронна пошта", "Сайт", "Instagram", "Facebook"]);
+    ).toEqual(["Viber", "WhatsApp", "Електронна пошта", "Сайт", "Instagram", "Facebook"]);
+    // The form has its own field; it is never offered as an «other» kind.
+    expect(c.getByRole("textbox", { name: /Анкета/ })).toBeTruthy();
   });
 
   it("takes an Instagram @handle and a Facebook link in new rows and saves their canonical forms", async () => {

@@ -37,6 +37,7 @@ superseded. The mock's «Зберегти» bar caption «Зміни з'явля
 | `kabinet.profile.contactsTitle` / `contactsNote` | «Контакти» / «Ці контакти бачить людина…» | contacts card title and caption |
 | `kabinet.profileChannel.phone` / `.telegram` | «Телефон» / «Telegram» | field labels |
 | `kabinet.profileChannel.viber` / `.email` / `.website` | «Viber» / «Ел. пошта» / «Сайт» | the "other contact" kind picker (see Q3) |
+| `kabinet.profileChannel.whatsapp` / `.form` | «WhatsApp» / «Анкета» | WhatsApp in the «other» kind picker; «Анкета» labels the form's own optional field (`contacts.formPlaceholder`, `contacts.formHint`). A form is never the primary and there is at most one; up to four «other» rows (owner, 2026-11-11) |
 | `kabinet.profile.donationTitle` / `donationLink` / `donationNote` | «Збір коштів» / «Посилання на збір» / «Лише https. Реєстр не приймає…» | donation card, field label, hint |
 | `kabinet.profile.donationPending` | «Запропоноване посилання — чекає на підтвердження оператора.» | pending block heading (see 6; KAB:233 drafts «Очікує підтвердження оператора», which differs) |
 | `detail.donateShelter` | «Підтримати притулок» | the adopter-view preview button (MOCK:30 shows it there) |

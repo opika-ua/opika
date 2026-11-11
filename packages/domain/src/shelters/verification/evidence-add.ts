@@ -27,6 +27,7 @@ const channelKey = (channel: ContactChannel): string => {
   switch (channel.kind) {
     case "phone":
     case "viber":
+    case "whatsapp":
       return `${channel.kind}:${channel.e164}`;
     case "email":
       return `email:${channel.address.trim().toLowerCase()}`;
@@ -38,6 +39,8 @@ const channelKey = (channel: ContactChannel): string => {
       return `instagram:${channel.handle.toLowerCase()}`;
     case "facebook":
       return `facebook:${channel.url}`;
+    case "form":
+      return `form:${channel.url}`;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = channel;

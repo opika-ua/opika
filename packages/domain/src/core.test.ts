@@ -16,6 +16,7 @@ import {
   parseCityId,
   parseEnum,
   parseFeedFilters,
+  revealChannels,
   SIZE_BUCKETS,
 } from "./core";
 import { GallerySortSchema } from "./discovery/gallery-sort";
@@ -190,5 +191,21 @@ describe("parseEnum and parseCityId", () => {
 describe("allChannels", () => {
   it("lists the primary first, then the additional channels", () => {
     expect(allChannels({ primary: "a", additional: ["b", "c"] })).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("revealChannels", () => {
+  it("moves an application form first and keeps every other channel in order", () => {
+    const phone = { kind: "phone" };
+    const viber = { kind: "viber" };
+    const form = { kind: "form" };
+    const telegram = { kind: "telegram" };
+    expect(revealChannels({ primary: phone, additional: [viber, form, telegram] })).toEqual([
+      form,
+      phone,
+      viber,
+      telegram,
+    ]);
+    expect(revealChannels({ primary: phone, additional: [viber] })).toEqual([phone, viber]);
   });
 });
