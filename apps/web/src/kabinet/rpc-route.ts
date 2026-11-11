@@ -12,6 +12,7 @@ import type { KabinetAuthAvailability } from "./auth-route";
 import { isSameOriginPost } from "./confirm-route";
 import { invitationRouter } from "./invitation-router";
 import { INVITE_PASSWORDS_OFF, type InvitePasswords } from "./invite-password";
+import type { ShelterNotifier } from "./notify/intents";
 import { PHOTO_UPLOADS_NOT_CONFIGURED, type PhotoUploads } from "./photo-uploads";
 import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
 import { registryRouter } from "./registry-router";
@@ -150,6 +151,8 @@ export async function handleKabinetRpc(
      * link can't be used.
      */
     invitePasswords?: () => InvitePasswords;
+    /** The served route passes the `after()` notifier; left out, no notification mail is planned. */
+    notify?: ShelterNotifier;
   },
 ): Promise<Response> {
   const ipKey = ipRateLimitKey(deps.ip);
@@ -233,6 +236,7 @@ export async function handleKabinetRpc(
       shelterWrites: deps.shelterWrites,
       photoUploads: deps.photoUploads ?? PHOTO_UPLOADS_NOT_CONFIGURED,
       invitePasswords: deps.invitePasswords?.() ?? INVITE_PASSWORDS_OFF,
+      ...(deps.notify === undefined ? {} : { notify: deps.notify }),
     },
   });
   if (!result.matched) return new Response("Not Found", { status: 404 });

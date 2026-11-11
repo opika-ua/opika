@@ -7,6 +7,7 @@ import { kabinetAuthAvailability } from "../../../../kabinet/auth-route";
 import { inviteCredentialsOf } from "../../../../kabinet/invite-password";
 import { kabinetDb } from "../../../../kabinet/kabinet-db";
 import { inviteLimiters, kabinetLimiters, photoUploadLimiters } from "../../../../kabinet/limiters";
+import { afterResponseNotifier } from "../../../../kabinet/notify/runtime";
 import { operatorDisplayName } from "../../../../kabinet/operator";
 import { photoUploadConfigOf } from "../../../../kabinet/photo-upload-env";
 import {
@@ -85,6 +86,7 @@ async function handle(request: Request): Promise<Response> {
     // The one served write policy, read from no environment variable.
     shelterWrites: SHELTER_WRITE_POLICY,
     photoUploads: photoUploads(),
+    notify: afterResponseNotifier(process.env),
     invitePasswords: () => ({
       kind: "on",
       perIp: inviteLimiters.perIp,
