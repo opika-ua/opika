@@ -368,9 +368,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // `operator.history.verified_data_added.*`.
     // 810 with the WhatsApp and form contact kinds (2026-11-11): two `profileChannel.*` and the
     // form field's `contacts.formPlaceholder` and `contacts.formHint`.
-    // 846 with the notification emails (items 4 and 5, owner-approved 2026-11-10): thirty-six
+    // 811 with `profileEdit.contacts.tooMany`, the channel cap's message (2026-11-11).
+    // 847 with the notification emails (items 4 and 5, owner-approved 2026-11-10): thirty-six
     // `email.*` strings (O1, O2, O3 with its five kind labels, O4, S1-S4).
-    expect(pending.length + written.length).toBe(846);
+    expect(pending.length + written.length).toBe(847);
     expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");
