@@ -147,8 +147,9 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
 
       # Browser download is split from the apt system deps (a cache hit covers only the
-      # former). Runner DNS blips broke `--with-deps` and ejected PRs from the merge queue,
-      # so apt retries itself and the deps step retries 3 times (10s, 30s).
+      # former). Runner DNS blips broke `--with-deps` and ejected PRs from the merge queue:
+      # apt retries itself, each deps attempt is capped at 180s (a blip can hang apt for
+      # 20 min, not fail it), and the step retries 3 times (10s, 30s).
       - name: Install Playwright Chromium
         if: steps.classify.outputs.code != 'false'
         run: |
@@ -156,7 +157,7 @@ jobs:
           echo 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/80-retries
           retry() {
             local attempt=1 max=3 delays=(10 30)
-            until "$@"; do
+            until timeout --kill-after=10 180 "$@"; do
               if (( attempt >= max )); then
                 echo "::error::'$*' failed after $attempt attempts" >&2
                 return 1
