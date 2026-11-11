@@ -58,6 +58,9 @@ export const shelters = pgTable(
      */
     earlyListingSince: timestamp("early_listing_since", { withTimezone: true }),
 
+    /** Set by hand when an admin asks to stop the weekly freshness reminder; null means it is sent. */
+    freshnessReminderOffAt: timestamp("freshness_reminder_off_at", { withTimezone: true }),
+
     cityId: text("city_id")
       .notNull()
       .references(() => cities.id),

@@ -91,7 +91,10 @@ async function outcomeOf(statement: Promise<unknown>): Promise<string> {
 describe("0024 optional verified data: the migration", () => {
   it("keeps an existing full row, loosens the four columns and adds the three CHECKs", async () => {
     await resetTo(TAG);
-    // The schema's other columns are identical before and after 0024, so the repo writes the row.
+    // The repo insert names a later column (0025); added here so a fixture row can be written.
+    await client.unsafe(
+      "ALTER TABLE shelters ADD COLUMN IF NOT EXISTS freshness_reminder_off_at timestamptz",
+    );
     const shelter = await seedShelter("verified");
     await applyMigration(TAG);
 

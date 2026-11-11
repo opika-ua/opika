@@ -20,6 +20,7 @@ import {
   supportSessions,
 } from "../src/schema/auth";
 import { cities } from "../src/schema/cities";
+import { notificationSends } from "../src/schema/notification-sends";
 import { r2UnreferencedObjects } from "../src/schema/r2-cleanup";
 import { sessions } from "../src/schema/sessions";
 import { shelters } from "../src/schema/shelters";
@@ -186,6 +187,15 @@ async function populateEveryResetTable() {
   await db.insert(r2UnreferencedObjects).values({
     objectKey: `animals/orphan-${randomUUID()}/card.webp`,
     firstSeenUnreferencedAt: NOW,
+  });
+  await db.insert(notificationSends).values({
+    dedupKey: `h:${randomUUID()}:${adminId}`,
+    kind: "approved",
+    shelterId: shelter.id,
+    recipientUserId: adminId,
+    status: "sent",
+    createdAt: NOW,
+    updatedAt: NOW,
   });
 
   return { city };

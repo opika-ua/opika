@@ -67,6 +67,13 @@ export {
 } from "./kabinet-shelter-repo";
 export { kabinetSupportRepo, SUPPORT_IDLE_MS } from "./kabinet-support-repo";
 export {
+  MAX_SEND_ATTEMPTS,
+  type NotificationSendRow,
+  notificationSendsRepo,
+  RETRY_WINDOW_HOURS,
+  SEND_LOG_RETENTION_DAYS,
+} from "./notification-sends-repo";
+export {
   afterDeleted,
   recordScan,
   referencedObjectKeys,

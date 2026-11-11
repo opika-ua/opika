@@ -84,6 +84,8 @@ export const FULL_RESET_TABLES = [
   // repopulates it fresh from the bucket listing and the post-reset reference
   // set, so nothing is lost by resetting it too.
   "r2_unreferenced_objects",
+  // References shelters and auth_user, so it has to be in the same TRUNCATE; holds only a send log.
+  "notification_sends",
 ] as const;
 export type FullResetTable = (typeof FULL_RESET_TABLES)[number];
 

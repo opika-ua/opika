@@ -12,6 +12,7 @@ import {
   authUser,
   authVerification,
   invitationCreatedUsers,
+  notificationSends,
 } from "@opika/db/schema";
 import { makeAdopter, setupTestDatabase, truncateAll } from "@opika/db/test";
 import type { AdopterId } from "@opika/domain";
@@ -45,6 +46,9 @@ const LAPSED_ADOPTER = "bbbbbbbb-0000-4000-8000-00000000000b" as AdopterId;
 const LIVE_ADOPTER = "cccccccc-0000-4000-8000-00000000000c" as AdopterId;
 const LAPSED_HASH = "a".repeat(64);
 const LIVE_HASH = "b".repeat(64);
+/** The send log keeps 90 days: one row past it, one inside. */
+const OLD_SEND = "h:old-send:u";
+const LIVE_SEND = "h:live-send:u";
 
 beforeEach(async () => {
   await truncateAll(db);
@@ -90,6 +94,14 @@ beforeEach(async () => {
     );
     await sessionRepo(db).insert({ tokenHash, adopterId: id, createdAt, lastSeenAt: createdAt });
   }
+  for (const [dedupKey, createdAt] of [
+    [OLD_SEND, at(-91 * 86_400_000)],
+    [LIVE_SEND, at(-89 * 86_400_000)],
+  ] as const) {
+    await db
+      .insert(notificationSends)
+      .values({ dedupKey, kind: "approved", status: "sent", createdAt, updatedAt: createdAt });
+  }
 });
 
 const rows = async () => ({
@@ -99,12 +111,14 @@ const rows = async () => ({
     .sort(),
   adopterSessions: (await db.select().from(adopterSessionRows)).map((r) => r.tokenHash).sort(),
   adopters: (await db.select().from(adopterRows)).map((r) => r.id).sort(),
+  sends: (await db.select().from(notificationSends)).map((r) => r.dedupKey).sort(),
 });
 const ALL = {
   sessions: ["session-expired", "session-live"],
   verifications: ["verification-expired", "verification-live"],
   adopterSessions: [LAPSED_HASH, LIVE_HASH],
   adopters: [LAPSED_ADOPTER, LIVE_ADOPTER],
+  sends: [LIVE_SEND, OLD_SEND],
 };
 
 async function run(
@@ -129,12 +143,14 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       erasedInvitedUsers: 0,
       adopterSessions: 1,
       orphanedAdopters: 1,
+      notificationSends: 1,
     });
     expect(await rows()).toEqual({
       sessions: ["session-live"],
       verifications: ["verification-live"],
       adopterSessions: [LIVE_HASH],
       adopters: [LIVE_ADOPTER],
+      sends: [LIVE_SEND],
     });
   });
 
@@ -147,6 +163,7 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       erasedInvitedUsers: 0,
       adopterSessions: 0,
       orphanedAdopters: 0,
+      notificationSends: 0,
     });
   });
 
@@ -161,6 +178,7 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       erasedInvitedUsers: 0,
       adopterSessions: 1,
       orphanedAdopters: 1,
+      notificationSends: 1,
     });
     for (const secretish of [
       EMAIL,
@@ -172,6 +190,7 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       SECRET,
       LAPSED_ADOPTER,
       LAPSED_HASH,
+      OLD_SEND,
     ]) {
       expect(lines[0]).not.toContain(secretish);
     }
