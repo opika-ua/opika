@@ -15,6 +15,7 @@ import { Panel } from "../../../../ui/Panel";
 import { Text } from "../../../../ui/Text";
 import { ContactFields, NO_CONTACT_ERRORS } from "../../profile-edit/ContactFields";
 import { OPERATOR_HOME } from "../../routes";
+import { aboutTooLongMessage } from "../about-text";
 import { nameTooLongMessage } from "../display-name";
 import { EvidenceEditor } from "../evidence-editor/EvidenceEditor";
 import { CreatedShelter } from "./CreatedShelter";
@@ -41,6 +42,7 @@ type Phase =
 const fieldMessage = (error: CreateFieldError | undefined): string | null => {
   if (error === undefined) return null;
   if (error === "nameTooLong") return nameTooLongMessage();
+  if (error === "descriptionTooLong") return aboutTooLongMessage();
   return error === "emailFormat"
     ? uk.kabinet.profileEdit.errors.emailFormat
     : uk.kabinet.operator.create.errors[error];
@@ -117,9 +119,13 @@ export function CreateShelterForm({
       setPhase({ kind: "created", view });
     } catch (error) {
       const refusal = createRefusalOf(error);
-      if (refusal.kind === "name_too_long") {
-        // The server's count of the name went over the cap: on the field, as the form's own check says it.
-        setErrors({ ...noCreateErrors(), fields: { displayName: "nameTooLong" } });
+      if (refusal.kind === "name_too_long" || refusal.kind === "description_too_long") {
+        // The server's count went over a cap: on the field, as the form's own check says it.
+        const fields =
+          refusal.kind === "name_too_long"
+            ? { displayName: "nameTooLong" as const }
+            : { description: "descriptionTooLong" as const };
+        setErrors({ ...noCreateErrors(), fields });
         setPhase({ kind: "editing", refusal: null });
         setFocusFirstError((n) => n + 1);
       } else {
@@ -175,7 +181,6 @@ export function CreateShelterForm({
               id={`${id}-description`}
               label={t.description}
               hint={t.descriptionHint}
-              required
               value={form.description}
               onChange={(event) => set("description", event.target.value)}
               error={err("description")}

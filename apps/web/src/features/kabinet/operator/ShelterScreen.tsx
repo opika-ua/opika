@@ -343,6 +343,8 @@ export type ShelterScreenActions = {
   /** «Змінити», or «Додати» on an empty one, on the two locked blocks (`updateVerifiedData`). */
   legalEdit: ReactNode;
   addressEdit: ReactNode;
+  /** «Змінити», or «Додати» with no text yet, on «Про притулок» (`updateProfile`). */
+  aboutEdit: ReactNode;
   decision: ReactNode;
   donationDecision: ReactNode;
   admins: ReactNode;
@@ -405,7 +407,10 @@ export function ShelterScreen({
           <AddressCard view={view} cityName={cityName} edit={actions.addressEdit} />
           <ContactsCard view={view} />
           <Section id="operator-description" title={t.shelter.descriptionTitle}>
-            <Text className="whitespace-pre-line break-words">{view.description.uk}</Text>
+            <Text className="whitespace-pre-line break-words">
+              {view.description?.uk ?? notRecorded}
+            </Text>
+            {actions.aboutEdit}
           </Section>
         </div>
         <div className="flex min-w-0 flex-col gap-4">

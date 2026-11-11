@@ -86,6 +86,27 @@ describe("create's refusals", () => {
     expect(message(error)).toBe("Назва довша за 100 символів.");
   });
 
+  it("the shelter text's cap is told apart from the name's and carries its own message", () => {
+    const error = fromBody({
+      code: "BAD_REQUEST",
+      status: 400,
+      message: "Input validation failed",
+      data: {
+        issues: [
+          {
+            path: ["description", "uk"],
+            message: "The shelter description is longer than 1500 characters",
+          },
+        ],
+      },
+    });
+    expect(createRefusalOf(error)).toEqual({ kind: "description_too_long" });
+    // `Intl` groups 1,500 with a no-break space.
+    expect(message(error).replace(String.fromCharCode(0xa0), " ")).toBe(
+      "Текст довший за 1 500 символів. Скоротіть його, щоб зберегти.",
+    );
+  });
+
   it.each([
     ["no response at all (fetch threw)", new TypeError("Failed to fetch")],
     ["an error with no code", new Error("Cannot parse response body")],

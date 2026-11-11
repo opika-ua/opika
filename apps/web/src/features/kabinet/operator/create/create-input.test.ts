@@ -284,6 +284,38 @@ describe("the minimal shelter: legal data and address left for later", () => {
   });
 });
 
+describe("the shelter's text is optional", () => {
+  const withText = (description: string) =>
+    okInput({
+      ...initiative(),
+      description,
+    });
+
+  it.each(["", "   ", "\n "])(
+    "a blank field (%j) sends no description, and the contract accepts it",
+    (blank) => {
+      const input = withText(blank);
+      expect("description" in input).toBe(false);
+      expect(parse(input).success).toBe(true);
+    },
+  );
+
+  it("sends a typed text trimmed, with no English", () => {
+    expect(withText("  Волонтери з Вишгорода.  ").description).toEqual({
+      uk: "Волонтери з Вишгорода.",
+      en: null,
+    });
+  });
+
+  it("takes exactly 1,500 characters and refuses 1,501", () => {
+    expect(parse(withText("а".repeat(1500))).success).toBe(true);
+    const result = createInputOf(initiative({ description: "а".repeat(1501) }), NOW);
+    expect(result.kind === "invalid" && result.errors.fields).toEqual({
+      description: "descriptionTooLong",
+    });
+  });
+});
+
 describe("what the form refuses, and the contract refuses too", () => {
   const valid = okInput(initiative());
 
@@ -296,11 +328,11 @@ describe("what the form refuses, and the contract refuses too", () => {
       { ...valid, displayName: "   " },
     ],
     [
-      "a blank description",
-      { description: "" },
+      "a description over 1,500 characters",
+      { description: "а".repeat(1501) },
       "description",
-      "required",
-      { ...valid, description: { uk: "", en: null } },
+      "descriptionTooLong",
+      { ...valid, description: { uk: "а".repeat(1501), en: null } },
     ],
     ["no city", { cityId: "" }, "cityId", "required", { ...valid, cityId: "" }],
     [

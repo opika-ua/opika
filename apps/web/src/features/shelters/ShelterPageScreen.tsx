@@ -25,19 +25,18 @@ import { hasPagination } from "../gallery/gallery-pagination";
 import { NoMatch } from "../gallery/NoMatch";
 import { ReplaceNav } from "../gallery/ReplaceNav";
 import { PauseNotice } from "./PauseNotice";
+import { ShelterAboutSection, shownAboutText } from "./ShelterAboutSection";
 import { ShelterLogoAvatar } from "./ShelterLogoAvatar";
-import { ShelterWordsSection } from "./ShelterWordsSection";
 import { isLongShelterName } from "./shelter-identity";
 import type { ShelterPageView } from "./shelter-page-load";
 import { shelterPageHref, shelterPagePath } from "./shelter-url";
-import { shelterWordsOf } from "./shelter-words";
 
 /** The shelter page parses no filters, so `GalleryCard`'s href gets the "never consulted" pair (as the saved page). */
 const EMPTY_CITY_SLUGS: CitySlugsById = new Map();
 
 /**
  * The shelter page (option A): back link, identity (logo, name, city, trust line, donate pill, and the
- * shelter's own words as a quote; each left out without data), then the heading, sort, grid and
+ * shelter's own text under «Про притулок»; each left out without data), then the heading, sort, grid and
  * pagination of its discoverable animals, or a dashed note when it has none. Date sorts only and no engagement figure
  * anywhere (commitments 1 and 2); every control is a plain link, so it works without JS.
  */
@@ -51,7 +50,7 @@ export function ShelterPageScreen({
   kabinetSignedIn = false,
 }: ShelterPageView & { kabinetSignedIn?: boolean }) {
   const animalsHeadingId = useId();
-  const words = shelterWordsOf(shelter);
+  const about = shownAboutText(shelter.description);
   const year = String(shelter.createdAt.getFullYear());
   // With filters on, the heading is the shelter's whole count and the filtered one has its own line.
   const animalsCountText = fillTemplate(uk.shelterPage.animalsHeading, {
@@ -164,12 +163,6 @@ export function ShelterPageScreen({
                   fillTemplate(uk.shelterPage.sinceYear, { year })
                 )}
               </span>
-              {/* Commitment 7: the sentence renders here only; without one the block is hidden, not left as a heading over the description. */}
-              {words?.sentence != null && (
-                <div className="basis-full desktop:order-last">
-                  <ShelterWordsSection words={words} headingLevel={2} variant="quote" />
-                </div>
-              )}
               {shelter.donation && (
                 <a
                   href={shelter.donation.url}
@@ -187,6 +180,8 @@ export function ShelterPageScreen({
             </div>
           </div>
         </div>
+
+        <ShelterAboutSection text={about} />
 
         {shelter.availability.kind === "paused" ? (
           // The gallery list is empty for a paused shelter by design; say why instead of claiming

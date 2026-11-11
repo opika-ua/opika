@@ -2,6 +2,9 @@ import type { ShelterContact } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
   ALL_KINDS,
+  aboutLength,
+  aboutOverBy,
+  aboutTextOf,
   type ContactsForm,
   contactOfForm,
   contactsFormOf,
@@ -9,8 +12,6 @@ import {
   MAX_OTHER_ROWS,
   NEW_OTHER_KINDS,
   parseChannel,
-  sentenceCheck,
-  sentenceLength,
   tooManyOthers,
 } from "./fields";
 
@@ -197,51 +198,24 @@ describe("linkProblem", () => {
   });
 });
 
-describe("sentenceCheck (his messages for the K-Q6 rule)", () => {
-  it("blank is no sentence", () => {
-    expect(sentenceCheck("   ")).toEqual({ kind: "ok", text: null });
+describe("the shelter's text («Про притулок»)", () => {
+  it("a blank text is no text; anything else is trimmed", () => {
+    expect(aboutTextOf("   ")).toBeNull();
+    expect(aboutTextOf("  Волонтери з Броварів. ")).toBe("Волонтери з Броварів.");
   });
 
-  it("trims what it accepts", () => {
-    expect(sentenceCheck("  Оновлюємо щосуботи. ")).toEqual({
-      kind: "ok",
-      text: "Оновлюємо щосуботи.",
-    });
+  it("braces are plain text, shown verbatim", () => {
+    expect(aboutTextOf("Оновлюємо {щосуботи}")).toBe("Оновлюємо {щосуботи}");
   });
 
-  it("refuses {імʼя} in any spelling with its own message (DR1-Q5)", () => {
-    for (const text of ["{ім'я} досі шукає дім.", "Чи {імʼя} тут?", "{ІМ’Я}"]) {
-      expect(sentenceCheck(text)).toEqual({ kind: "invalid", error: { key: "nameTokenGone" } });
-    }
+  it("counts characters as a reader sees them, after trimming", () => {
+    expect(aboutLength("  🐾 ок  ")).toBe(4);
   });
 
-  it("{дата} gets its own message (answer 5), in any case and spacing", () => {
-    for (const text of ["Оновлено {дата}.", "Оновлено {Дата}.", "Оновлено { дата }."]) {
-      expect(sentenceCheck(text)).toEqual({ kind: "invalid", error: { key: "dateTokenGone" } });
-    }
-  });
-
-  it("any other braced text is an unknown token, named", () => {
-    expect(sentenceCheck("Привіт, {name}.")).toEqual({
-      kind: "invalid",
-      error: { key: "unknownToken", token: "{name}" },
-    });
-  });
-
-  it("a stray brace, and over 280 characters", () => {
-    expect(sentenceCheck("Дужка { без пари")).toEqual({
-      kind: "invalid",
-      error: { key: "strayBrace" },
-    });
-    expect(sentenceCheck("а".repeat(281))).toEqual({
-      kind: "invalid",
-      error: { key: "sentenceTooLong" },
-    });
-    expect(sentenceCheck("а".repeat(280))).toEqual({ kind: "ok", text: "а".repeat(280) });
-  });
-
-  it("counts characters as a reader sees them", () => {
-    expect(sentenceLength("  🐾 ок  ")).toBe(4);
+  it("is over the cap only past 1,500 characters, by exactly the extra ones", () => {
+    expect(aboutOverBy("а".repeat(1500))).toBe(0);
+    expect(aboutOverBy("а".repeat(1501))).toBe(1);
+    expect(aboutOverBy(`${"а".repeat(1500)}   `)).toBe(0);
   });
 });
 

@@ -74,6 +74,7 @@ const NO_ACTIONS: ShelterScreenActions = {
   rename: null,
   legalEdit: null,
   addressEdit: null,
+  aboutEdit: null,
   decision: null,
   donationDecision: null,
   admins: null,
@@ -248,7 +249,12 @@ describe("S4 legal data, address, contacts, description", () => {
   it("shows the contacts and the description", () => {
     renderScreen();
     expect(within(section("Контакти")).getByText("+380671234567")).toBeTruthy();
-    expect(within(section("Опис притулку")).getByText("Опис притулку для тесту.")).toBeTruthy();
+    expect(within(section("Про притулок")).getByText("Опис притулку для тесту.")).toBeTruthy();
+  });
+
+  it("reads «Не записано» under «Про притулок» when the shelter has no text", () => {
+    renderScreen({ description: null });
+    expect(within(section("Про притулок")).getByText("Не записано")).toBeTruthy();
   });
 });
 

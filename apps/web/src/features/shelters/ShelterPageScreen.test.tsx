@@ -4,13 +4,11 @@ import { describe, expect, it } from "vitest";
 import { WithMockRouter } from "../gallery/test-router";
 import { ShelterPageScreen } from "./ShelterPageScreen";
 import {
-  DESCRIPTION,
   makeCardView,
   makeFacetCounts,
   makeListOutput,
   makeShelterPageShelter,
   makeShelterPageView,
-  SENTENCE,
   SHELTER_ID,
 } from "./test-fixtures";
 
@@ -19,7 +17,7 @@ import {
  * it: by role, label and text. His copy is transcribed from his message
  * (`docs/designer-round-1.md` §11 item 4), never read from the catalogue.
  */
-const WORDS_HEADING = "Слова притулку";
+const ABOUT_HEADING = "Про притулок";
 const PAGE = `/prytulky/${SHELTER_ID}`;
 
 function renderScreen(overrides: Parameters<typeof makeShelterPageView>[0] = {}) {
@@ -38,38 +36,42 @@ describe("the shelter page", () => {
     expect(screen.getByText("м. Бровари")).toBeTruthy();
   });
 
-  it("holds the description and the sentence under «Слова притулку»", () => {
-    renderScreen();
-    const section = screen.getByRole("region", { name: WORDS_HEADING });
-    expect(within(section).getByText(DESCRIPTION)).toBeTruthy();
-    expect(within(section).getByText(`«${SENTENCE}»`)).toBeTruthy();
-  });
-
-  it("hides the block when the shelter has no sentence, even with a description", () => {
-    renderScreen({ shelter: makeShelterPageShelter({ freshnessSentence: null }) });
-    expect(screen.queryByRole("region", { name: WORDS_HEADING })).toBeNull();
-    expect(screen.queryByText(DESCRIPTION)).toBeNull();
-  });
-
-  it("omits the section entirely when the shelter wrote neither: no heading over nothing", () => {
+  it("shows the shelter's text under «Про притулок», plain: no quotes, line breaks kept", () => {
     renderScreen({
       shelter: makeShelterPageShelter({
-        description: { uk: "   ", en: null },
-        freshnessSentence: null,
+        description: { uk: "Волонтери з Броварів.\n\nОновлюємо картки щосуботи.", en: null },
       }),
     });
-    expect(screen.queryByRole("region", { name: WORDS_HEADING })).toBeNull();
-    expect(screen.queryByText(WORDS_HEADING)).toBeNull();
+    const section = screen.getByRole("region", { name: ABOUT_HEADING });
+    expect(within(section).getByRole("heading", { level: 2 }).textContent).toBe(ABOUT_HEADING);
+    const text = within(section).getByText(/Волонтери з Броварів/);
+    expect(text.textContent).toBe("Волонтери з Броварів.\n\nОновлюємо картки щосуботи.");
+    expect(section.textContent).not.toMatch(/[«»]/);
   });
 
-  it("leaves out a sentence still carrying {імʼя}, rather than show the braces (DR1-Q5)", () => {
+  it("shows braces as written", () => {
     renderScreen({
-      shelter: makeShelterPageShelter({
-        freshnessSentence: { uk: "Чи {імʼя} ще з нами? Пишіть.", en: null },
-      }),
+      shelter: makeShelterPageShelter({ description: { uk: "Пишіть {щодня}.", en: null } }),
     });
-    expect(screen.queryByText(/імʼя/)).toBeNull();
-    expect(screen.queryByRole("region", { name: WORDS_HEADING })).toBeNull();
+    expect(screen.getByText("Пишіть {щодня}.")).toBeTruthy();
+  });
+
+  it("shows a stored text over 1,500 characters in full", () => {
+    const long = "а".repeat(1800);
+    renderScreen({ shelter: makeShelterPageShelter({ description: { uk: long, en: null } }) });
+    expect(screen.getByText(long)).toBeTruthy();
+  });
+
+  it("draws no section, heading or placeholder when the shelter has no text", () => {
+    renderScreen({ shelter: makeShelterPageShelter({ description: null }) });
+    expect(screen.queryByRole("region", { name: ABOUT_HEADING })).toBeNull();
+    expect(screen.queryByText(ABOUT_HEADING)).toBeNull();
+    expect(screen.queryByText("Не записано")).toBeNull();
+  });
+
+  it("treats a text of only blanks as none", () => {
+    renderScreen({ shelter: makeShelterPageShelter({ description: { uk: "   ", en: null } }) });
+    expect(screen.queryByRole("region", { name: ABOUT_HEADING })).toBeNull();
   });
 
   it("shows the donation link's domain as text before the tap (commitment 5)", () => {
@@ -184,7 +186,7 @@ describe("the shelter page, states", () => {
     expect(screen.getByRole("navigation", { name: "Сортування" })).toBeTruthy();
   });
 
-  it("with no animals: no animals heading, no sort, the sentence and a link to all animals", () => {
+  it("with no animals: no animals heading, no sort, a note and a link to all animals", () => {
     renderScreen({ animals: makeListOutput([]) });
     expect(screen.queryByRole("heading", { level: 2, name: /Шукають дім/ })).toBeNull();
     expect(screen.queryByRole("navigation", { name: "Сортування" })).toBeNull();

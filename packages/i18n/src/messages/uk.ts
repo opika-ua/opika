@@ -59,7 +59,7 @@ export const uk = {
       money: "Що з грошима",
       verification: "Що означає «перевірений»",
       whatToPrepare: "Що підготувати",
-      whyThatSentence: "Навіщо те речення про оновлення",
+      whyHowOften: "Навіщо розповідати, як ви оновлюєте картки",
       whenAnimalFindsHome: "Коли тварина знайшла дім",
       howToLeave: "Якщо ви захочете піти",
       whoIsBehindThis: "Хто це робить",
@@ -140,7 +140,7 @@ export const uk = {
       "кілька речень про кожну: імʼя, приблизний вік, розмір, вдача;\n" +
       "контакт, на який ви справді відповідаєте;\n" +
       "посилання на донати, якщо воно у вас є;\n" +
-      "і одне речення про те, як часто ви оновлюєте інформацію – про нього нижче.\n\n" +
+      "і кілька речень про притулок: хто ви, як працюєте і як часто оновлюєте картки – про це нижче.\n\n" +
       "Фотографії використовуються тільки для сторінок ваших тварин.\n\n" +
       // A1 (row 91, final, Oleksii 2026-10-14): directly before the last
       // paragraph, shipped with the commit that turns production sign-in on.
@@ -156,12 +156,13 @@ export const uk = {
      * домовляються» (one animal per tap, no bulk) and by a photo change on a
      * card people can see (RH-B7); a text edit never moves it. Each of those
      * is named here, so the sentence can be read literally. See commitment 7.
-     * ¶1 is his DR1-Q1 text (designer round 1, S6): the sentence is on the
-     * shelter page now, not the animal's; ¶2 and ¶3 are unchanged.
+     * ¶1's first sentence is his DR1-Q1 text (designer round 1, S6); its tail and
+     * ¶2's last sentence name the «Про притулок» text (owner-approved with the
+     * shelter description, 2026-11); ¶3 is unchanged.
      */
-    whyThatSentence:
-      "Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого – позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а на сторінці притулку – ваше речення про те, як часто ви це робите, вашими словами.\n\n" +
-      "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють – так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».\n\n" +
+    whyHowOften:
+      "Людина, яка обирає між двома собаками, ніяк не дізнається, про кого з них писали минулого тижня, а про кого – позаторік. Тому на картці видно, коли ви востаннє підтвердили, що тварина ще шукає дім, а в розділі «Про притулок» на сторінці притулку ви самі розповідаєте, як часто це робите.\n\n" +
+      "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють – так вона показує саме те, що обіцяє. Текст про притулок пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».\n\n" +
       "Саме це робить решту карток вартими довіри. Коли видно, що ви підтверджуєте картки щосуботи, ваше «ця тварина ще шукає дім» означає рівно те, що написано.",
     /**
      * §9 - what a shelter does when an animal finds a home. Commitment 6.
@@ -416,7 +417,7 @@ export const uk = {
       /**
        * CB-B1 (Oleksii, 2026-10-17): no «реєстр» in user-facing copy, since it
        * implies a state service. Applies to this note, `donationNote` and
-       * `profileEdit.voice.hint`; the other strings are his separate call.
+       * `profileEdit.about.hint`; the other strings are his separate call.
        */
       contactsNote:
         "Ці контакти бачить людина, коли натискає «Дати сімʼю», – і пише вам сама. Листування йде напряму, без посередників.",
@@ -428,15 +429,6 @@ export const uk = {
        * operator's «я» (K4 sheet, answer 8, Oleksii, 2026-10-17).
        */
       donationPending: "Запропоноване посилання чекає, поки я його перевірю.",
-      voiceTitle: "Голос притулку",
-      voiceLabel: "Ваші слова на сторінці притулку",
-      /**
-       * The second sentence (that the registry fills in {date} and {name})
-       * was deleted 2026-10-15 as false: nothing substitutes anything, the
-       * sentence renders verbatim (`textIn`). A fuller replacement, if K2
-       * ever builds substitution, is new copy and goes through the gate.
-       */
-      voiceNote: "Одне речення від першої особи, написане вами.",
       /**
        * G3 (audit 2026-10-22): shown while the shelter is «На перевірці» (pending or under review).
        * A claim about the operator's conduct, accepted by Oleksii as proposed.
@@ -567,7 +559,7 @@ export const uk = {
            * before the change gets the new ones too.
            */
           contacts: "Нові контакти побачать одразу після збереження – коли натиснуть «Дати сімʼю».",
-          voice: "Нове речення зʼявиться на сторінці притулку одразу після збереження.",
+          about: "Текст зʼявиться на сторінці притулку одразу після збереження.",
         },
         unsavedLeave: "Зміни не збережено. Все одно вийти?",
       },
@@ -603,21 +595,8 @@ export const uk = {
           "У посиланні не має бути імені чи пароля перед адресою сайту (як у https://імʼя@сайт). Скопіюйте адресу з рядка браузера.",
         donationIdn:
           "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
-        /** `{max}` is 280. */
-        sentenceTooLong: "Речення довше за {max} символів.",
-        /** `{token}` is the braced text the shelter typed. `{імʼя}` is literal. */
-        unknownToken:
-          "Підставляється лише {імʼя}. Приберіть «{token}» або напишіть без фігурних дужок.",
-        /** Answer 5; DR1-Q1, his text. `{дата}` is literal. */
-        dateTokenGone:
-          "Дата оновлення показується на кожній картці, тому {дата} у реченні писати не потрібно.",
-        /**
-         * DR1-Q5, his text: the sentence shows on the shelter page only, so
-         * `{імʼя}` (literal here) is refused in any spelling.
-         */
-        nameTokenGone:
-          "Тепер речення показується на сторінці притулку, тому {імʼя} у ньому не використовується. Приберіть його й збережіть ще раз.",
-        strayBrace: "Є дужка без пари. Фігурні дужки потрібні лише для {імʼя}.",
+        /** Owner-approved 2026-11 with the shelter description. `{max}` is 1,500 (`integer.format`). */
+        aboutTooLong: "Текст довший за {max} символів. Скоротіть його, щоб зберегти.",
       },
       contacts: {
         otherLabel: "Інший спосіб звʼязку",
@@ -635,20 +614,9 @@ export const uk = {
         /** `{max}` from the domain's `MAX_OTHER_CONTACTS`, so the number cannot drift. */
         tooMany: "Можна залишити до {max} інших способів звʼязку. Приберіть зайві, щоб зберегти.",
       },
-      voice: {
-        /**
-         * DR1-Q1, his text. `nameStaysHint` and `insertName` («Вставити
-         * {імʼя}») are deleted with the token they explained (DR1-Q5): the
-         * editor refuses it now, so a button inserting it would be broken.
-         */
-        hint: "Одне речення від першої особи, вашими словами, про те, як часто ви оновлюєте картки. Воно показується на сторінці притулку.",
-        counter: "{count} / {max}",
-        counterOver: "Зайвих символів: {over}",
-        /** DR1-Q1, his text (and the next two); `previewNoAnimals` deleted by his answer. */
-        emptyMeans:
-          "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде «Оновлено … тому».",
-        previewLabel: "Так це виглядає на сторінці притулку:",
-        previewEmpty: "Речення немає – на сторінці притулку його не буде.",
+      /** The shelter's text. Its counter is `animalForm.description.counter`/`counterOver`. */
+      about: {
+        hint: "Розкажіть, хто ви і як працюєте. Варто додати, як часто ви оновлюєте картки.",
       },
       donation: {
         optional: "· необовʼязково",
@@ -1468,7 +1436,7 @@ export const uk = {
         timeInState: "з {date}",
         legalNote:
           "Ці поля притулок бачить лише для читання. Зміна юридичної особи чи ЄДРПОУ не змінює статус автоматично – рішення за вами.",
-        descriptionTitle: "Опис притулку",
+        descriptionTitle: "Про притулок",
         /** Opens the edit form of «Юридичні дані» or «Адреса приміщення» (owner, 2026-11-10). */
         edit: "Змінити",
         /** The same form, on a block that is still empty. */
@@ -1671,18 +1639,13 @@ export const uk = {
          * fuller hint, if he wants one, is his to write.
          */
         nameHint: "Як притулок називає себе.",
-        description: "Опис притулку",
+        description: "Про притулок · необовʼязково",
         /**
-         * His round-2 replacement (answer 5), verbatim. His first draft said
-         * people looking for an animal see it on the shelter's animal pages,
-         * which no page does: the animal page reads the shelter's
-         * `freshnessSentence` instead (`AnimalDetailScreen.tsx`), and only the
-         * operator's own S4 renders the description. It can be public all the
-         * same: the public `shelters.byId` returns it for a verified shelter.
-         * «Може бути публічним» claims exactly that much.
+         * Owner-approved 2026-11 with the shelter description: the text shows on the
+         * shelter page, so «показується» is true; the operator's own editor reuses it.
          */
         descriptionHint:
-          "Короткий опис притулку. Він може бути публічним, тож не пишіть тут нічого приватного.",
+          "Цей текст показується на сторінці притулку. Не пишіть тут нічого приватного.",
         city: "Населений пункт",
         address: {
           line1: "Вулиця, будинок",

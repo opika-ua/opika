@@ -1,4 +1,7 @@
-import { CONTACT_TOO_MANY_CHANNELS_MESSAGE } from "@opika/domain";
+import {
+  CONTACT_TOO_MANY_CHANNELS_MESSAGE,
+  SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
+} from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { writeFailureOf } from "./write-result";
 
@@ -13,6 +16,16 @@ describe("writeFailureOf", () => {
         issues: [{ path: ["contact", "additional"], message: CONTACT_TOO_MANY_CHANNELS_MESSAGE }],
       }),
       { kind: "too_many_channels" },
+    ],
+    [
+      err("BAD_REQUEST", {
+        issues: [{ path: ["description", "uk"], message: SHELTER_DESCRIPTION_TOO_LONG_MESSAGE }],
+      }),
+      { kind: "description_too_long" },
+    ],
+    [
+      err("FORBIDDEN", { issues: [{ message: SHELTER_DESCRIPTION_TOO_LONG_MESSAGE }] }),
+      { kind: "failed" },
     ],
     [
       err("BAD_REQUEST", { issues: [{ path: ["contact"], message: "Too big" }] }),

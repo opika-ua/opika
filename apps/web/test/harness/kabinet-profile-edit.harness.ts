@@ -297,8 +297,8 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
         "TextAreaField",
         "Профіль",
         page
-          .getByRole("region", { name: "Голос притулку" })
-          .getByLabel("Ваші слова на сторінці притулку"),
+          .getByRole("region", { name: "Про притулок" })
+          .getByRole("textbox", { name: "Про притулок" }),
       ],
       ["SegmentedControl", null, form.getByRole("radio", { name: "Собака" })],
     ] as const;

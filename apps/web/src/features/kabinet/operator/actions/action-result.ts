@@ -1,5 +1,6 @@
 import { apiErrors, type EmailSendOutcome } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
+import { refusedForAboutLength } from "../about-text";
 import { refusedForNameLength } from "../display-name";
 
 /**
@@ -24,6 +25,7 @@ import { refusedForNameLength } from "../display-name";
  * - `invalid_evidence`: resubmit refused on the evidence sent.
  * - `name_too_long`: the rename refused by the input check for the display
  *   name's cap (RUI4-F2), which the rename form shows on its field.
+ * - `description_too_long`: the same for the shelter's text over its cap, shown on the about form.
  * - `no_answer`: nothing came back at all (the connection dropped, a
  *   timeout). The server may have done it anyway, so S4 re-reads before
  *   saying anything (inbox K4-T16's pattern).
@@ -40,6 +42,7 @@ export type ActionFailure =
   | { kind: "address_has_a_role"; reason: AddressRoleReason }
   | { kind: "invalid_evidence"; reason: InvalidEvidenceReason }
   | { kind: "name_too_long" }
+  | { kind: "description_too_long" }
   | { kind: "no_answer" }
   | { kind: "failed" };
 
@@ -99,7 +102,8 @@ export function actionFailureOf(error: unknown): ActionFailure {
         : { kind: "failed" };
     }
     case "BAD_REQUEST":
-      return refusedForNameLength(error) ? { kind: "name_too_long" } : { kind: "failed" };
+      if (refusedForNameLength(error)) return { kind: "name_too_long" };
+      return refusedForAboutLength(error) ? { kind: "description_too_long" } : { kind: "failed" };
     default:
       return { kind: "failed" };
   }

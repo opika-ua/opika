@@ -369,8 +369,11 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 810 with the WhatsApp and form contact kinds (2026-11-11): two `profileChannel.*` and the
     // form field's `contacts.formPlaceholder` and `contacts.formHint`.
     // 811 with `profileEdit.contacts.tooMany`, the channel cap's message (2026-11-11).
-    expect(pending.length + written.length).toBe(811);
-    expect(written).toContain("kabinet.profileEdit.errors.nameTokenGone");
+    // 799 with the shelter description replacing the sentence: less `profile.voiceTitle`,
+    // `voiceLabel`, `voiceNote`, five `profileEdit.errors.*` sentence messages and six
+    // `profileEdit.voice.*`; plus `errors.aboutTooLong` and `about.hint`.
+    expect(pending.length + written.length).toBe(799);
+    expect(written).toContain("kabinet.profileEdit.errors.aboutTooLong");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");
     expect(written).toContain("kabinet.operator.create.errors.nameTooLong");

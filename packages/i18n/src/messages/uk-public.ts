@@ -392,12 +392,6 @@ export const ukPublic = {
      * «· дата автоматична» deleted 2026-10-15 (VH-Q2, Oleksii): nothing fills a
      * date into the shelter's sentence, and the design drops `{date}` (VH-Q1).
      */
-    /**
-     * Since designer round 1 (S6), the heading of the shelter page's section
-     * holding the shelter's description and its sentence, and nowhere else
-     * (Oleksii's DR1-Q1: «Слова притулку» only on the shelter page).
-     */
-    attribution: "Слова притулку",
   },
 
   // --- Medical ---
@@ -468,11 +462,15 @@ export const ukPublic = {
   // --- Shelter page (designer round 1, S6) ---
   /**
    * His text (`docs/designer-round-1.md` §11 item 4). The page's title is the
-   * shelter's name alone, its «Слова притулку» heading is
-   * `freshness.attribution`, and its city line is `cardMeta.atShelter`: three
+   * shelter's name alone and its city line is `cardMeta.atShelter`: two
    * reuses he confirmed, so no key of their own here.
    */
   shelterPage: {
+    /**
+     * Owner-approved 2026-11 (shelter description). The heading of the shelter's own text on its
+     * page, and the label of that field in the kabinet and in the operator's editor.
+     */
+    aboutHeading: "Про притулок",
     /** `{count}` is the number of the shelter's animals adopters can see. */
     animalsHeading: "Шукають дім: {count}",
     noAnimals: "Зараз тут немає тварин, які шукають дім.",

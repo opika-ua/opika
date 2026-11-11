@@ -1,4 +1,4 @@
-import { type FeedFilters, type GallerySort, textIn } from "@opika/domain";
+import type { FeedFilters, GallerySort } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -7,6 +7,7 @@ import { cache } from "react";
 import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import type { SearchParams } from "../../../features/gallery/filter-url";
+import { shownAboutText } from "../../../features/shelters/ShelterAboutSection";
 import { ShelterPageScreen } from "../../../features/shelters/ShelterPageScreen";
 import {
   loadShelterPage,
@@ -116,9 +117,13 @@ export function shelterMetadataOf(load: ShelterPageLoad): Metadata {
   if (load.kind !== "shelter") return {};
   const { shelter, cityName } = load.view;
   const title = [shelter.displayName, cityName].filter(Boolean).join(", ");
+  // No text: `undefined`, so the root layout's default description applies.
+  const about = shownAboutText(shelter.description);
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice
-    : trimAtWordBoundary(textIn(shelter.description, "uk"), META_DESCRIPTION_MAX_LENGTH);
+    : about === null
+      ? undefined
+      : trimAtWordBoundary(about, META_DESCRIPTION_MAX_LENGTH);
   return {
     title,
     description,
@@ -127,7 +132,7 @@ export function shelterMetadataOf(load: ShelterPageLoad): Metadata {
     // happened to use uppercase would otherwise get a canonical that disagrees with the
     // lowercase form every other link on the site actually uses.
     alternates: { canonical: `/prytulky/${shelter.id}` },
-    openGraph: { type: "website", description },
+    openGraph: { type: "website", ...(description === undefined ? {} : { description }) },
     // A paused page is reachable by link only: after the discoverability flip it must not be indexed.
     // Paused, or still under review: reachable by link, never indexed (owner, 2026-11-04).
     ...((shelter.availability.kind === "paused" ||

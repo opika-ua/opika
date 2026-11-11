@@ -1,5 +1,8 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import { CONTACT_TOO_MANY_CHANNELS_MESSAGE } from "@opika/domain";
+import {
+  CONTACT_TOO_MANY_CHANNELS_MESSAGE,
+  SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
+} from "@opika/domain";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -67,6 +70,9 @@ function fakeClient(view: KabinetShelterView, overrides: Partial<Fake> = {}) {
     updateContact: echo((input: { contact: KabinetShelterView["contact"] }) => ({
       contact: input.contact,
     })),
+    updateDescription: echo((input: { description: KabinetShelterView["description"] }) => ({
+      description: input.description,
+    })),
     updateFreshnessSentence: echo(
       (input: { freshnessSentence: KabinetShelterView["freshnessSentence"] }) => ({
         freshnessSentence: input.freshnessSentence,
@@ -127,7 +133,9 @@ const inPanel = (tab: string) => {
   return screen.getByRole("tabpanel", { name: tab });
 };
 const contacts = () => inPanel("Контакти");
-const voice = () => inTab("Профіль", "Голос притулку");
+const about = () => inTab("Профіль", "Про притулок");
+const aboutField = () =>
+  within(about()).getByRole("textbox", { name: "Про притулок" }) as HTMLTextAreaElement;
 const donation = () => inPanel("Збір коштів");
 
 describe("contacts (answer 3, answer 4)", () => {
@@ -416,160 +424,200 @@ describe("contacts (answer 3, answer 4)", () => {
 });
 
 describe("per-section saves share one version (answer 1)", () => {
-  it("saving contacts and then the sentence sends the version the first save returned", async () => {
+  it("saving contacts and then the shelter's text sends the version the first save returned", async () => {
     const fns = renderEditor();
     const c = within(contacts());
     const phone = c.getByLabelText(/^Телефон/);
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380501112233");
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
-    const v = within(voice());
-    await userEvent.type(v.getByLabelText("Ваші слова на сторінці притулку"), " Пишіть.");
+    await userEvent.type(aboutField(), " Пишіть.");
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
-    expect(fns.updateFreshnessSentence).toHaveBeenCalledWith(
+    expect(fns.updateDescription).toHaveBeenCalledWith(
       expect.objectContaining({ expectedVersion: 4 }),
     );
   });
 });
 
-describe("the voice sentence (N11)", () => {
-  const textarea = () =>
-    within(voice()).getByLabelText("Ваші слова на сторінці притулку") as HTMLTextAreaElement;
+describe("the shelter's text («Про притулок»)", () => {
+  /** `Intl` puts a no-break space in 1,500; the text queries collapse it to a plain one. */
+  const counter = (count: number | string) => `${count} з 1 500 символів`;
+  const TOO_LONG = "Текст довший за 1 500 символів. Скоротіть його, щоб зберегти.";
+  const paste = async (text: string) => {
+    await userEvent.click(aboutField());
+    await userEvent.paste(text);
+  };
+  const save = () => userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+  const withText = (text: string | null) =>
+    baseView({ description: text === null ? null : { uk: text, en: null } });
 
-  it("counts characters as «{count} / 280», and the extra ones past 280", async () => {
-    renderEditor({ view: baseView({ freshnessSentence: null }) });
-    const v = within(voice());
-    await userEvent.type(textarea(), "Оновлюємо щодня");
-    expect(v.getByText("15 / 280")).toBeTruthy();
-    await userEvent.clear(textarea());
-    await userEvent.click(textarea());
-    await userEvent.paste("а".repeat(285));
-    expect(v.getByText("Зайвих символів: 5")).toBeTruthy();
-  });
-
-  it("makes the counter a polite live region only near the limit", async () => {
-    renderEditor({ view: baseView({ freshnessSentence: null }) });
-    const counter = within(voice()).getByText("0 / 280");
-    expect(counter.getAttribute("aria-live")).toBe("off");
-    await userEvent.click(textarea());
-    await userEvent.paste("а".repeat(265));
-    expect(within(voice()).getByText("265 / 280").getAttribute("aria-live")).toBe("polite");
-  });
-
-  it("offers no button to insert {імʼя} any more (DR1-Q5)", () => {
+  it("shows the owner's hint and the live-on-save caption, and no preview", () => {
     renderEditor();
-    expect(within(voice()).queryByRole("button", { name: /імʼя/ })).toBeNull();
+    const section = within(about());
+    expect(
+      section.getByText(
+        "Розкажіть, хто ви і як працюєте. Варто додати, як часто ви оновлюєте картки.",
+      ),
+    ).toBeTruthy();
+    expect(
+      section.getByText("Текст зʼявиться на сторінці притулку одразу після збереження."),
+    ).toBeTruthy();
+    expect(section.queryByText(/Так це виглядає/)).toBeNull();
   });
 
-  it.each([
-    [
-      "{дата} (answer 5; his DR1-Q1 text)",
-      "Оновлено {дата}.",
-      "Дата оновлення показується на кожній картці, тому {дата} у реченні писати не потрібно.",
-    ],
-    [
-      "{імʼя} (DR1-Q5, his text)",
-      "Напишіть, чи {імʼя} ще з нами.",
-      "Тепер речення показується на сторінці притулку, тому {імʼя} у ньому не використовується. Приберіть його й збережіть ще раз.",
-    ],
-    [
-      "{імʼя} typed with an ASCII apostrophe (DR1-Q5)",
-      "Чи {ім'я} ще з нами?",
-      "Тепер речення показується на сторінці притулку, тому {імʼя} у ньому не використовується. Приберіть його й збережіть ще раз.",
-    ],
-    [
-      "an unknown token, named",
-      "Привіт від {name}.",
-      "Підставляється лише {імʼя}. Приберіть «{name}» або напишіть без фігурних дужок.",
-    ],
-    [
-      "a stray brace",
-      "Дужка { без пари.",
-      "Є дужка без пари. Фігурні дужки потрібні лише для {імʼя}.",
-    ],
-    ["over 280", "а".repeat(281), "Речення довше за 280 символів."],
-  ])("refuses %s with his message, sending nothing", async (_label, typed, message) => {
-    const fns = renderEditor({ view: baseView({ freshnessSentence: null }) });
-    await userEvent.click(textarea());
-    await userEvent.paste(typed);
-    await userEvent.click((voice(), screen.getByRole("button", { name: "Зберегти" })));
-    expect(within(voice()).getByText(message)).toBeTruthy();
-    expect(textarea().getAttribute("aria-invalid")).toBe("true");
-    expect(fns.updateFreshnessSentence).not.toHaveBeenCalled();
+  it("loads the stored text, and an empty one as an empty field", () => {
+    renderEditor({ view: withText("Волонтери з Броварів.") });
+    expect(aboutField().value).toBe("Волонтери з Броварів.");
+    cleanup();
+    renderEditor({ view: withText(null) });
+    expect(aboutField().value).toBe("");
   });
 
-  /**
-   * Designer round 1, S6: the preview is the shelter page's «Слова притулку»
-   * section, so it needs no animal, and his DR1-Q1 label and empty text
-   * (transcribed from his message).
-   */
-  it("previews the sentence as the shelter page shows it, with no animal", async () => {
-    renderEditor();
-    const preview = within(within(voice()).getByTestId("voice-preview"));
-    expect(preview.getByText("Так це виглядає на сторінці притулку:")).toBeTruthy();
-    expect(preview.getByRole("heading", { name: "Слова притулку" })).toBeTruthy();
-    expect(preview.getByText("«Оновлюємо картки щосуботи.»")).toBeTruthy();
-    await userEvent.clear(textarea());
-    expect(preview.queryByText(/щосуботи/)).toBeNull();
-    expect(preview.queryByRole("heading", { name: "Слова притулку" })).toBeNull();
-    expect(preview.getByText("Речення немає – на сторінці притулку його не буде.")).toBeTruthy();
+  it("counts characters as «{count} з 1 500 символів», and the extra ones past the cap", async () => {
+    renderEditor({ view: withText(null) });
+    const section = within(about());
+    await userEvent.type(aboutField(), "Оновлюємо щодня");
+    expect(section.getByText(counter(15))).toBeTruthy();
+    await userEvent.clear(aboutField());
+    await paste("а".repeat(1505));
+    expect(section.getByText("Зайвих символів: 5")).toBeTruthy();
   });
 
-  /** His words: "Existing test-shelter sentences containing it are re-saved, not migrated." */
-  it("a stored sentence with {імʼя} is shown as written, and saving it asks for it to go", async () => {
+  it("makes the counter a polite live region only near the cap", async () => {
+    renderEditor({ view: withText(null) });
+    const section = within(about());
+    expect(section.getByText(counter(0)).getAttribute("aria-live")).toBe("off");
+    await paste("а".repeat(1450));
+    expect(section.getByText(counter("1 450")).getAttribute("aria-live")).toBe("polite");
+  });
+
+  it("saves the typed text trimmed with the version read; the stored English goes back as it is", async () => {
+    const stored = { text: "A small shelter.", provenance: "human" as const };
     const fns = renderEditor({
-      view: baseView({ freshnessSentence: { uk: "Чи {імʼя} ще з нами?", en: null } }),
+      view: baseView({ description: { uk: "Невеликий притулок.", en: stored } }),
     });
-    expect(textarea().value).toBe("Чи {імʼя} ще з нами?");
-    await userEvent.type(textarea(), " Пишіть.");
-    await userEvent.click((voice(), screen.getByRole("button", { name: "Зберегти" })));
-    expect(
-      within(voice()).getByText(
-        "Тепер речення показується на сторінці притулку, тому {імʼя} у ньому не використовується. Приберіть його й збережіть ще раз.",
-      ),
-    ).toBeTruthy();
+    await userEvent.type(aboutField(), " Пишіть.  ");
+    await save();
+    expect(fns.updateDescription).toHaveBeenCalledWith({
+      description: { uk: "Невеликий притулок. Пишіть.", en: stored },
+      expectedVersion: 3,
+    });
     expect(fns.updateFreshnessSentence).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
   });
 
-  it("sends the stored English back with the new Ukrainian (the server clears it, answer 13)", async () => {
+  it("a blank text is saved as no text (null)", async () => {
     const fns = renderEditor();
-    await userEvent.type(textarea(), " Пишіть.");
-    await userEvent.click((voice(), screen.getByRole("button", { name: "Зберегти" })));
-    expect(fns.updateFreshnessSentence).toHaveBeenCalledWith({
-      freshnessSentence: {
-        uk: "Оновлюємо картки щосуботи. Пишіть.",
-        en: { text: "We update the cards every Saturday.", provenance: "human" },
+    await userEvent.clear(aboutField());
+    await userEvent.type(aboutField(), "   ");
+    await save();
+    expect(fns.updateDescription).toHaveBeenCalledWith({ description: null, expectedVersion: 3 });
+  });
+
+  it("takes braces and line breaks as plain text", async () => {
+    const fns = renderEditor({ view: withText(null) });
+    await userEvent.type(aboutField(), "Пишіть {{щодня}.{Enter}Дякуємо.");
+    await save();
+    expect(fns.updateDescription).toHaveBeenCalledWith({
+      description: { uk: "Пишіть {щодня}.\nДякуємо.", en: null },
+      expectedVersion: 3,
+    });
+  });
+
+  it("accepts exactly 1,500 characters and refuses 1,501 on the page, sending nothing", async () => {
+    const fns = renderEditor({ view: withText(null) });
+    await paste("а".repeat(1500));
+    await save();
+    expect(fns.updateDescription).toHaveBeenCalledTimes(1);
+    cleanup();
+    const refused = renderEditor({ view: withText(null) });
+    await paste("а".repeat(1501));
+    expect(within(about()).getByText(TOO_LONG)).toBeTruthy();
+    await save();
+    expect(refused.updateDescription).not.toHaveBeenCalled();
+    expect(aboutField().getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(aboutField());
+  });
+
+  it("a stored text over the cap loads with the over-limit counter and the message at once", () => {
+    renderEditor({ view: withText("а".repeat(1520)) });
+    const section = within(about());
+    expect(section.getByText("Зайвих символів: 20")).toBeTruthy();
+    expect(section.getByText(TOO_LONG)).toBeTruthy();
+    expect(aboutField().getAttribute("aria-invalid")).toBe("true");
+    expect(aboutField().value).toHaveLength(1520);
+  });
+
+  it("an untouched over-cap text does not block saving the contacts, and is not sent", async () => {
+    const fns = renderEditor({ view: withText("а".repeat(1520)) });
+    const phone = within(contacts()).getByLabelText(/^Телефон/);
+    await userEvent.clear(phone);
+    await userEvent.type(phone, "+380501112233");
+    await save();
+    expect(fns.updateContact).toHaveBeenCalledTimes(1);
+    expect(fns.updateDescription).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
+  });
+
+  it("once edited, the over-cap text is refused on the page until it is trimmed, then saves", async () => {
+    const fns = renderEditor({ view: withText("а".repeat(1520)) });
+    await userEvent.type(aboutField(), "б");
+    await save();
+    expect(fns.updateDescription).not.toHaveBeenCalled();
+    expect(within(about()).getByText(TOO_LONG)).toBeTruthy();
+    await userEvent.clear(aboutField());
+    await userEvent.type(aboutField(), "Коротко.");
+    expect(within(about()).queryByText(TOO_LONG)).toBeNull();
+    await save();
+    expect(fns.updateDescription).toHaveBeenCalledWith({
+      description: { uk: "Коротко.", en: null },
+      expectedVersion: 3,
+    });
+  });
+
+  it("a server refusal with the cap's fixed message shows the same message, then clears when edited", async () => {
+    const tooLong = Object.assign(new Error("BAD_REQUEST"), {
+      code: "BAD_REQUEST",
+      data: {
+        issues: [{ path: ["description", "uk"], message: SHELTER_DESCRIPTION_TOO_LONG_MESSAGE }],
       },
-      expectedVersion: 3,
     });
+    const fns = renderEditor({
+      view: withText(null),
+      overrides: { updateDescription: vi.fn(async () => Promise.reject(tooLong)) },
+    });
+    await userEvent.type(aboutField(), "Невелика.");
+    await save();
+    expect(fns.updateDescription).toHaveBeenCalledTimes(1);
+    expect(within(about()).getByText(TOO_LONG)).toBeTruthy();
+    expect(screen.queryByText("Не вдалося зберегти")).toBeNull();
+    await userEvent.type(aboutField(), "!");
+    expect(within(about()).queryByText(TOO_LONG)).toBeNull();
   });
 
-  it("an emptied sentence is saved as no sentence", async () => {
-    const fns = renderEditor();
-    await userEvent.clear(textarea());
-    await userEvent.click((voice(), screen.getByRole("button", { name: "Зберегти" })));
-    expect(fns.updateFreshnessSentence).toHaveBeenCalledWith({
-      freshnessSentence: null,
-      expectedVersion: 3,
+  it("another BAD_REQUEST is the generic failure, not the cap's message", async () => {
+    renderEditor({
+      view: withText(null),
+      overrides: { updateDescription: vi.fn(async () => Promise.reject(apiError("BAD_REQUEST"))) },
     });
+    await userEvent.type(aboutField(), "Невелика.");
+    await save();
+    expect(within(about()).queryByText(TOO_LONG)).toBeNull();
+    expect(screen.getAllByText("Не вдалося зберегти").length).toBeGreaterThan(0);
   });
 
-  it("shows his per-section caption and hints (his DR1-Q1 text)", () => {
-    renderEditor();
-    const v = within(voice());
-    expect(
-      v.getByText("Нове речення зʼявиться на сторінці притулку одразу після збереження."),
-    ).toBeTruthy();
-    expect(
-      v.getByText(
-        "Якщо залишити порожнім, на сторінці притулку цього речення не буде, а на картках, як і раніше, буде «Оновлено … тому».",
-      ),
-    ).toBeTruthy();
-    expect(
-      v.getByText(
-        "Одне речення від першої особи, вашими словами, про те, як часто ви оновлюєте картки. Воно показується на сторінці притулку.",
-      ),
-    ).toBeTruthy();
+  it("a CONFLICT offers the current version, which replaces the field", async () => {
+    const current = baseView({ version: 4, description: { uk: "Хтось змінив текст.", en: null } });
+    renderEditor({
+      overrides: {
+        updateDescription: vi.fn(async () => Promise.reject(apiError("CONFLICT"))),
+        get: vi.fn(async () => current),
+      },
+    });
+    await userEvent.type(aboutField(), " Пишіть.");
+    await save();
+    await userEvent.click(screen.getByRole("button", { name: "Показати поточну версію" }));
+    expect(aboutField().value).toBe("Хтось змінив текст.");
   });
 });
 
@@ -1051,20 +1099,16 @@ describe("a save whose answer is lost (K4-T16)", () => {
     expect(screen.getAllByText(FAILED).length).toBeGreaterThan(0);
   });
 
-  it("voice: the re-read shows the new sentence (English dropped by the server), so it counts as saved", async () => {
+  it("the text: the re-read shows the new text (English dropped by the server), so it counts as saved", async () => {
     const fns = renderEditor({
       overrides: {
-        updateFreshnessSentence: lost(),
+        updateDescription: lost(),
         get: vi.fn(async () =>
-          baseView({
-            version: 4,
-            freshnessSentence: { uk: "Оновлюємо картки щосуботи. Пишіть.", en: null },
-          }),
+          baseView({ version: 4, description: { uk: "Опис Пишіть.", en: null } }),
         ),
       },
     });
-    const v = within(voice());
-    await userEvent.type(v.getByLabelText("Ваші слова на сторінці притулку"), " Пишіть.");
+    await userEvent.type(aboutField(), " Пишіть.");
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(fns.get).toHaveBeenCalledOnce();
     expect(screen.getAllByText(/^Усі зміни збережено$/).length).toBeGreaterThan(0);
@@ -1095,11 +1139,8 @@ describe("the page's one save bar and the sub-tabs", () => {
     await userEvent.clear(phone);
     await userEvent.type(phone, "+380 50 111-22-33");
   };
-  const dirtySentence = async () => {
-    await userEvent.type(
-      within(voice()).getByLabelText("Ваші слова на сторінці притулку"),
-      " Пишіть.",
-    );
+  const dirtyAbout = async () => {
+    await userEvent.type(aboutField(), " Пишіть.");
   };
   /** Resolves a microtask after the commit that makes `node` read `text`: the first frame showing it. */
   const whenReads = (node: HTMLElement, text: RegExp) =>
@@ -1141,10 +1182,10 @@ describe("the page's one save bar and the sub-tabs", () => {
   it("one press of «Зберегти» saves every unsaved section in turn, each with the fresh version", async () => {
     const fns = renderEditor();
     await dirtyPhone();
-    await dirtySentence();
+    await dirtyAbout();
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
-    // Page order: the sentence (Профіль) first with the version read, then the contacts with the one it returned.
-    expect(fns.updateFreshnessSentence).toHaveBeenCalledWith(
+    // Page order: the text (Профіль) first with the version read, then the contacts with the one it returned.
+    expect(fns.updateDescription).toHaveBeenCalledWith(
       expect.objectContaining({ expectedVersion: 3 }),
     );
     expect(fns.updateContact).toHaveBeenCalledWith(expect.objectContaining({ expectedVersion: 4 }));
@@ -1156,7 +1197,7 @@ describe("the page's one save bar and the sub-tabs", () => {
   it("the unsaved bar is gone in the same frame the last save lands", async () => {
     renderEditor();
     await dirtyPhone();
-    await dirtySentence();
+    await dirtyAbout();
     // The status line reads «Усі зміни збережено» only once every save has landed.
     const line = screen.getAllByText("Є незбережені зміни")[0]?.closest('[role="status"]');
     const saved = whenReads(line as HTMLElement, /^Усі зміни збережено$/);
@@ -1169,7 +1210,7 @@ describe("the page's one save bar and the sub-tabs", () => {
   it("«Скасувати» puts every unsaved section back and hides the bar", async () => {
     renderEditor();
     await dirtyPhone();
-    await dirtySentence();
+    await dirtyAbout();
     await userEvent.click(screen.getByRole("button", { name: "Скасувати" }));
     expect((within(contacts()).getByLabelText(/^Телефон/) as HTMLInputElement).value).toBe(
       "+380671234567",
@@ -1208,7 +1249,7 @@ describe("the page's one save bar and the sub-tabs", () => {
 
   it("after a save, «Переглянути» opens the public shelter page in a new tab", async () => {
     renderEditor();
-    await dirtySentence();
+    await dirtyAbout();
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     const link = screen.getByRole("link", { name: /^Переглянути/ });
     expect(link.getAttribute("href")).toBe(`/prytulky/${baseView().id}`);
@@ -1219,11 +1260,8 @@ describe("the page's one save bar and the sub-tabs", () => {
 });
 
 describe("the save pill on the shelter page", () => {
-  const dirtySentence = async () => {
-    await userEvent.type(
-      within(voice()).getByLabelText("Ваші слова на сторінці притулку"),
-      " Пишіть.",
-    );
+  const dirtyAbout = async () => {
+    await userEvent.type(aboutField(), " Пишіть.");
   };
 
   it("S1: nothing to act on shows no pill, only the quiet line under the tabs", () => {
@@ -1251,30 +1289,30 @@ describe("the save pill on the shelter page", () => {
   });
 
   it("S6: a failed save shows only the short failure, never the long one, and the retry repeats it", async () => {
-    const updateFreshnessSentence = vi
+    const updateDescription = vi
       .fn()
       .mockRejectedValueOnce(apiError("INTERNAL_SERVER_ERROR"))
       .mockResolvedValueOnce(baseView({ version: 4 }));
-    renderEditor({ overrides: { updateFreshnessSentence } });
-    await dirtySentence();
+    renderEditor({ overrides: { updateDescription } });
+    await dirtyAbout();
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(screen.getAllByText("Не вдалося зберегти")).toHaveLength(2);
     expect(screen.queryByText(/^Не збереглося/)).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Спробувати ще раз" }));
-    expect(updateFreshnessSentence).toHaveBeenCalledTimes(2);
+    expect(updateDescription).toHaveBeenCalledTimes(2);
     expect(screen.queryByText("Не вдалося зберегти")).toBeNull();
   });
 
   it("S3: both buttons are inert while saving", async () => {
     let finish: (view: KabinetShelterView) => void = () => {};
-    const updateFreshnessSentence = vi.fn(
+    const updateDescription = vi.fn(
       () =>
         new Promise<KabinetShelterView>((resolve) => {
           finish = resolve;
         }),
     );
-    renderEditor({ overrides: { updateFreshnessSentence } });
-    await dirtySentence();
+    renderEditor({ overrides: { updateDescription } });
+    await dirtyAbout();
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(screen.getAllByText("Збереження…")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Зберегти" }).getAttribute("aria-disabled")).toBe(
@@ -1291,7 +1329,7 @@ describe("the save pill on the shelter page", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       renderEditor();
-      await dirtySentence();
+      await dirtyAbout();
       await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
       const link = screen.getByRole("link", { name: /^Переглянути/ });
       const bar = link.parentElement?.parentElement as HTMLElement;

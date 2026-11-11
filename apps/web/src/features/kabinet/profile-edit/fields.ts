@@ -1,13 +1,12 @@
 import {
+  ANIMAL_DESCRIPTION_MAX_CHARACTERS,
   type ContactChannel,
   ContactChannelInputSchema,
   characterCount,
   DonationLinkSchema,
   donationUrlProblemOf,
-  FRESHNESS_SENTENCE_MAX_CHARACTERS,
   MAX_OTHER_CONTACTS,
   normalizeFacebook,
-  normalizeFreshnessSentenceText,
   normalizeInstagram,
   normalizeUaPhone,
   type ShelterContact,
@@ -19,7 +18,7 @@ import {
  * t.me/handle, spaced/dashed numbers; normalise silently."), and which of his
  * messages a field gets. No React, no I/O: the components call these, and the
  * server checks everything again (`ShelterContactInputSchema`,
- * `FreshnessSentenceInputSchema`), so these exist to tell a person what to fix
+ * `ShelterDescriptionInputSchema`), so these exist to tell a person what to fix
  * before a round trip, never to decide what is stored.
  */
 
@@ -324,60 +323,14 @@ export function contactOfForm(form: ContactsForm): ContactsCheck {
   return { kind: "ok", contact: { primary, additional } };
 }
 
-// ─── the voice sentence (N11) ───────────────────────────────────────────────
+// ─── the shelter's text («Про притулок») ─────────────────────────────────────
 
-export type SentenceError =
-  | { key: "sentenceTooLong" }
-  /** DR1-Q5: `{імʼя}` in any spelling; the sentence shows on the shelter page now. */
-  | { key: "nameTokenGone" }
-  | { key: "unknownToken"; token: string }
-  /** Answer 5: `{дата}` typed by habit gets its own explanation. */
-  | { key: "dateTokenGone" }
-  | { key: "strayBrace" };
-
-export type SentenceCheck =
-  | { kind: "ok"; text: string | null }
-  | { kind: "invalid"; error: SentenceError };
-
-/** `{дата}` in any case, with stray spaces inside the braces: the token the mock used to show. */
-const DATE_TOKEN = /^\{\s*дата\s*\}$/iu;
-
-/** The domain's own rule (K-Q6), mapped to his messages. */
-export function sentenceCheck(raw: string): SentenceCheck {
-  const normalized = normalizeFreshnessSentenceText(raw);
-  switch (normalized.kind) {
-    case "ok":
-      return { kind: "ok", text: normalized.text };
-    case "empty":
-      return { kind: "ok", text: null };
-    case "invalid": {
-      const { problem } = normalized;
-      switch (problem.kind) {
-        case "too_long":
-          return { kind: "invalid", error: { key: "sentenceTooLong" } };
-        case "name_token":
-          return { kind: "invalid", error: { key: "nameTokenGone" } };
-        case "unknown_token":
-          return DATE_TOKEN.test(problem.token)
-            ? { kind: "invalid", error: { key: "dateTokenGone" } }
-            : { kind: "invalid", error: { key: "unknownToken", token: problem.token } };
-        case "stray_brace":
-          return { kind: "invalid", error: { key: "strayBrace" } };
-        /* v8 ignore next 4 -- exists so the compiler rejects an unhandled problem; unreachable at runtime */
-        default: {
-          const unreachable: never = problem;
-          return unreachable;
-        }
-      }
-    }
-    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled case; unreachable at runtime */
-    default: {
-      const unreachable: never = normalized;
-      return unreachable;
-    }
-  }
-}
+/** What is saved for the typed text: trimmed, or null for a blank one (it clears the text). */
+export const aboutTextOf = (raw: string): string | null => raw.trim() || null;
 
 /** The counter's number: characters as the server counts them, after trimming. */
-export const sentenceLength = (raw: string): number => characterCount(raw.trim());
-export const SENTENCE_MAX = FRESHNESS_SENTENCE_MAX_CHARACTERS;
+export const aboutLength = (raw: string): number => characterCount(raw.trim());
+
+/** How many characters past the cap, 0 when it fits. */
+export const aboutOverBy = (raw: string): number =>
+  Math.max(0, aboutLength(raw) - ANIMAL_DESCRIPTION_MAX_CHARACTERS);

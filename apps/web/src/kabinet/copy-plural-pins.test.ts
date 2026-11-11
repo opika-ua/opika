@@ -105,6 +105,11 @@ describe("the caps K3's plural nouns were written for", () => {
     expect(t.validation.nameTooLong).toContain("{max} символів.");
   });
 
+  /** The shelter's text shares the description cap; its message was written for 1,500 as well. */
+  it("the shelter text's message carries the form 1,500 takes", () => {
+    expect(uk.kabinet.profileEdit.errors.aboutTooLong).toContain("{max} символів.");
+  });
+
   it("1,500, 60 and 30 fall in the plural category «символів» and «років» take", () => {
     const rules = new Intl.PluralRules("uk");
     expect(rules.select(1500)).toBe("many");

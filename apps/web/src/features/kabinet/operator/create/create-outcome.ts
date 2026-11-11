@@ -1,6 +1,7 @@
 import { apiErrors, type EmailSendOutcome, UNKNOWN_CITY_MESSAGE } from "@opika/contracts";
 import { fillTemplate, uk } from "@opika/i18n";
 import type { z } from "zod";
+import { aboutTooLongMessage, refusedForAboutLength } from "../about-text";
 import { nameTooLongMessage, refusedForNameLength } from "../display-name";
 import { formatDayMonth, formatTime } from "../format";
 
@@ -28,6 +29,8 @@ type EvidenceRefusalReason = z.infer<typeof apiErrors.INVALID_EVIDENCE.data>["re
  * - `name_too_long`: oRPC's input-validation 400 naming the display name's
  *   cap (RUI4-F2, `refusedForNameLength`). The form puts his sentence on the
  *   name field, where its own check would have put it.
+ * - `description_too_long`: the same for the shelter's text over its cap; the form puts the
+ *   message on that field.
  * - `lost_answer`: no answer reached the page (the request threw before any
  *   response), or any 5xx. A 500, or a gateway's 502 or 504, can come after
  *   the shelter was written (RG-T6: shelter, then invitation, no
@@ -47,6 +50,7 @@ export type CreateRefusal =
   | { kind: "site_visit_in_future" }
   | { kind: "unknown_city" }
   | { kind: "name_too_long" }
+  | { kind: "description_too_long" }
   | { kind: "lost_answer" }
   | { kind: "failed" };
 
@@ -90,7 +94,8 @@ export function createRefusalOf(error: unknown): CreateRefusal {
     }
     case "BAD_REQUEST":
       if (shape.message === UNKNOWN_CITY_MESSAGE) return { kind: "unknown_city" };
-      return refusedForNameLength(error) ? { kind: "name_too_long" } : { kind: "failed" };
+      if (refusedForNameLength(error)) return { kind: "name_too_long" };
+      return refusedForAboutLength(error) ? { kind: "description_too_long" } : { kind: "failed" };
     default:
       return { kind: "failed" };
   }
@@ -112,6 +117,8 @@ export function refusalMessage(refusal: CreateRefusal): string {
       return t.unknownCity;
     case "name_too_long":
       return nameTooLongMessage();
+    case "description_too_long":
+      return aboutTooLongMessage();
     case "lost_answer":
       return t.lostAnswer;
     case "failed":

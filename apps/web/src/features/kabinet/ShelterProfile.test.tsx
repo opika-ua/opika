@@ -69,6 +69,7 @@ const rowValue = (label: string): string => {
 };
 
 const t = uk.kabinet.profile;
+const aboutRegion = () => screen.getByRole("region", { name: "Про притулок" });
 
 describe("ShelterProfile (K4, read-only)", () => {
   it("shows every contact channel as a row, primary first, labelled by kind", () => {
@@ -89,21 +90,18 @@ describe("ShelterProfile (K4, read-only)", () => {
   it("reads «Не записано» for a value the record doesn't hold, never blank", () => {
     renderProfile();
     expect(rowValue(t.donationLink)).toBe("Не записано");
-    expect(rowValue(t.voiceLabel)).toBe("Не записано");
   });
 
-  // The caption once promised that the registry fills {date} and {name} into the
-  // sentence. Nothing filled either. Since K-Q6 the deck and the animal page fill
-  // {імʼя}, but this screen shows the sentence as written (the tests below), and
-  // the caption is pinned to its whole literal text: any claim about substitution
-  // is new copy for the copy gate, not something to slip in here (review of
-  // a4fe384, note 1).
-  it("the voice caption claims no substitution: exactly the first-person sentence", () => {
-    renderProfile();
-    const voice = screen.getByRole("region", { name: t.voiceTitle });
-    const caption = voice.querySelector("p");
-    if (caption === null) throw new Error("the voice card has no caption");
-    expect(caption.textContent).toBe("Одне речення від першої особи, написане вами.");
+  it("reads «Не записано» under «Про притулок» when the shelter has no text", () => {
+    renderProfile({ description: null });
+    expect(within(aboutRegion()).getByText("Не записано")).toBeTruthy();
+  });
+
+  it("shows the shelter's text under «Про притулок» as written, line breaks kept and braces plain", () => {
+    renderProfile({ description: { uk: "Ми з Броварів.\n\nОновлюємо {щосуботи}.", en: null } });
+    const text = within(aboutRegion()).getByText(/Ми з Броварів/);
+    expect(text.textContent).toBe("Ми з Броварів.\n\nОновлюємо {щосуботи}.");
+    expect(within(aboutRegion()).queryByText("Не записано")).toBeNull();
   });
 
   // CB-B1, items 1 and 2: his replacements, transcribed (no «реєстр»).
@@ -121,7 +119,7 @@ describe("ShelterProfile (K4, read-only)", () => {
     ).toBeTruthy();
   });
 
-  it("shows the live link, the proposal waiting for approval, and the shelter's sentence when set", () => {
+  it("shows the live link, and the proposal waiting for approval", () => {
     renderProfile({
       donation: { url: "https://dobro.ua/fund/domivka", provider: "dobro_ua" as never },
       pendingDonation: {
@@ -129,20 +127,9 @@ describe("ShelterProfile (K4, read-only)", () => {
         proposedAt: new Date(),
         proposedBy: "33333333-3333-4333-8333-333333333333" as never,
       },
-      freshnessSentence: { uk: "Ми оновлювали цю картку {дата}.", en: null },
     });
     expect(rowValue(t.donationLink)).toBe("https://dobro.ua/fund/domivka");
     expect(rowValue(t.donationPending)).toBe("https://send.monobank.ua/jar/abc");
-    expect(rowValue(t.voiceLabel)).toBe("Ми оновлювали цю картку {дата}.");
-  });
-
-  // K-Q6: only the deck and the animal page fill the token. Here the shelter
-  // reads its sentence exactly as it wrote it, token included.
-  it("shows {імʼя} as written: the kabinet never fills in an animal's name", () => {
-    renderProfile({
-      freshnessSentence: { uk: "Напишіть, і ми скажемо, чи {імʼя} ще з нами.", en: null },
-    });
-    expect(rowValue(t.voiceLabel)).toBe("Напишіть, і ми скажемо, чи {імʼя} ще з нами.");
   });
 
   it("keeps the verified details in their own block: legal name, grouped EDRPOU, status with its date, address", () => {
@@ -338,7 +325,7 @@ describe("ShelterProfile with K4 editing", () => {
       />,
     );
     expect(screen.getByLabelText(/^Телефон/)).toBeTruthy();
-    expect(screen.getByLabelText("Ваші слова на сторінці притулку")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Про притулок" })).toBeTruthy();
   });
 
   it("a support view stays read-only even if editing were open", () => {
