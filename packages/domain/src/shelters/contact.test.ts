@@ -313,3 +313,67 @@ describe("hardening: reserved Instagram names, Facebook path length, stored rows
     }
   });
 });
+
+describe("Facebook path escapes", () => {
+  const FB = "https://www.facebook.com/";
+  const refused = { kind: "error", error: "facebookFormat" };
+
+  it("counts code points, not UTF-16 units: 49 dogs and abc pass", () => {
+    const path = `${"🐕".repeat(49)}abc`;
+    const result = normalizeFacebook(`${FB}${path}`);
+    if (result.kind !== "ok") throw new Error("refused");
+    expect(result.url.length - FB.length).toBe(591);
+    expect([...path]).toHaveLength(52);
+    expect(path).toHaveLength(101);
+    expect(isCanonicalFacebookUrl(result.url)).toBe(true);
+  });
+
+  const HIDDEN = [
+    `${FB}%6C.php?u=https://evil.com`,
+    `${FB}%4C.PHP?u=https://evil.com`,
+    `${FB}dialog%2Ffeed`,
+    `${FB}%2Fevil.com`,
+    `${FB}x%25y`,
+    `${FB}x%00y`,
+    `${FB}x%0Ay`,
+    `${FB}%E2%80%AEevil`,
+    `${FB}x%E2%81%A6y`,
+    `${FB}x%E2%80%8Fy`,
+    `${FB}x%D8%9Cy`,
+    `${FB}x\u202Ey`,
+  ];
+
+  it.each(HIDDEN)("refuses %s on input", (typed) => {
+    expect(normalizeFacebook(typed)).toEqual(refused);
+    expect(ContactChannelInputSchema.safeParse({ kind: "facebook", url: typed }).success).toBe(
+      false,
+    );
+  });
+
+  it.each(HIDDEN.map((url) => url.replace(/\?.*$/, "")))("refuses the stored row %s", (url) => {
+    expect(isCanonicalFacebookUrl(url)).toBe(false);
+    expect(ContactChannelSchema.safeParse({ kind: "facebook", url }).success).toBe(false);
+  });
+
+  it("reads an escaped profile.php as profile.php, so only the id form is stored", () => {
+    expect(normalizeFacebook(`${FB}profile%2Ephp?id=42`)).toEqual({
+      kind: "ok",
+      url: `${FB}profile.php?id=42`,
+    });
+    expect(isCanonicalFacebookUrl(`${FB}profile%2Ephp?id=42`)).toBe(false);
+    expect(normalizeFacebook(`${FB}profile%2Ephp`)).toEqual(refused);
+  });
+
+  it("still takes the Cyrillic people/ URL", () => {
+    const result = normalizeFacebook(`${FB}people/Притулок-Добрі-Лапки/100012345678901`);
+    expect(result.kind === "ok" && isCanonicalFacebookUrl(result.url)).toBe(true);
+  });
+
+  // Instagram has no such gap: a handle allows no `%`, so any escaped spelling is refused outright.
+  it.each(["https://instagram.com/%65xplore", "https://instagram.com/dobri%5Flapy"])(
+    "Instagram refuses the escaped spelling %s",
+    (typed) => {
+      expect(normalizeInstagram(typed)).toBeNull();
+    },
+  );
+});

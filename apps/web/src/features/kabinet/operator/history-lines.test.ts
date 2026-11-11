@@ -333,6 +333,26 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     "Змінено адресу приміщення · ви",
   ],
   [
+    "verified_data_changed, legal entity added (minimal create)",
+    {
+      kind: "verified_data_changed",
+      at: AT,
+      moderatorId: ME,
+      change: { field: "legal_entity", previous: null, next: legal },
+    },
+    "Додано юридичні дані · ви",
+  ],
+  [
+    "verified_data_changed, premises address added (minimal create)",
+    {
+      kind: "verified_data_changed",
+      at: AT,
+      moderatorId: ME,
+      change: { field: "exact_address", previous: null, next: address },
+    },
+    "Додано адресу приміщення · ви",
+  ],
+  [
     "display_name_changed (R-UI 4), both names",
     {
       kind: "display_name_changed",

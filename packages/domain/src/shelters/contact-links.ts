@@ -92,10 +92,14 @@ const FACEBOOK_MAX_PATH = 100;
 /** A hard ceiling on the escaped form, which can be many times the decoded length. */
 const FACEBOOK_MAX_ENCODED_PATH = 600;
 
-/** Decoded length in characters, or null where the escapes do not decode. */
-const decodedLengthOf = (encoded: string): number | null => {
+/** An escape may not spell a slash, a percent sign, a control or a format (bidi) character. */
+const UNSAFE_DECODED = /[/%\p{Cc}\p{Cf}]/u;
+
+/** Each path segment decoded, or null where an escape does not decode or spells something unsafe. */
+const decodedSegmentsOf = (path: string): string[] | null => {
   try {
-    return [...decodeURIComponent(encoded)].length;
+    const segments = path.split("/").slice(1).map(decodeURIComponent);
+    return segments.some((segment) => UNSAFE_DECODED.test(segment)) ? null : segments;
   } catch {
     return null;
   }
@@ -123,14 +127,15 @@ export function normalizeFacebook(raw: string): FacebookNormalized {
   if (!FACEBOOK_HOSTS.has(url.hostname)) return refuse;
   if (!/^[A-Za-z0-9._\-/%]+$/.test(url.pathname)) return refuse;
   const path = url.pathname.replace(/\/+$/, "");
-  const decodedLength = decodedLengthOf(path.slice(1));
+  // The ceiling first, so an oversized path is never decoded.
   if (path.length - 1 > FACEBOOK_MAX_ENCODED_PATH) return refuse;
-  if (decodedLength === null || decodedLength > FACEBOOK_MAX_PATH) return refuse;
-  const segments = path.split("/").slice(1);
+  const segments = decodedSegmentsOf(path);
+  if (segments === null || [...segments.join("/")].length > FACEBOOK_MAX_PATH) return refuse;
+  // Decoded, so `%6C.php` is still the `l.php` redirector.
   const first = segments[0]?.toLowerCase();
   if (first === undefined || segments.some((segment) => segment === "")) return refuse;
   if (FACEBOOK_NOT_A_PAGE.has(first)) return refuse;
-  if (path.toLowerCase() === "/profile.php") {
+  if (segments.length === 1 && first === "profile.php") {
     const id = url.searchParams.get("id") ?? "";
     return /^\d{1,20}$/.test(id)
       ? { kind: "ok", url: `https://www.facebook.com/profile.php?id=${id}` }
