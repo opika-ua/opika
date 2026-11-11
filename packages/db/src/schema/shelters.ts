@@ -21,7 +21,8 @@ export const shelters = pgTable(
   {
     id: text().primaryKey().$type<ShelterId>(),
     displayName: text("display_name").notNull(),
-    descriptionUk: text("description_uk").notNull(),
+    /** Null when the shelter has written no description; English only ever with Ukrainian (CHECK below). */
+    descriptionUk: text("description_uk"),
     descriptionEnText: text("description_en_text"),
     descriptionEnProvenance: text("description_en_provenance", {
       enum: ["human", "machine"],
@@ -94,6 +95,10 @@ export const shelters = pgTable(
     check(
       "shelters_exact_point_needs_address",
       sql`${t.exactLat} IS NULL OR ${t.exactAddress} IS NOT NULL`,
+    ),
+    check(
+      "shelters_description_en_check",
+      sql`${t.descriptionUk} IS NOT NULL OR (${t.descriptionEnText} IS NULL AND ${t.descriptionEnProvenance} IS NULL)`,
     ),
     /** The approve gate, held by the database too: verified, paused and suspended all come from approval. */
     check(

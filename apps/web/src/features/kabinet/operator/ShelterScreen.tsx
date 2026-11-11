@@ -405,7 +405,7 @@ export function ShelterScreen({
           <AddressCard view={view} cityName={cityName} edit={actions.addressEdit} />
           <ContactsCard view={view} />
           <Section id="operator-description" title={t.shelter.descriptionTitle}>
-            <Text className="whitespace-pre-line break-words">{view.description.uk}</Text>
+            <Text className="whitespace-pre-line break-words">{view.description?.uk}</Text>
           </Section>
         </div>
         <div className="flex min-w-0 flex-col gap-4">

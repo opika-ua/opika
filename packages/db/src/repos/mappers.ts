@@ -74,7 +74,7 @@ function columnsToLocalizedText(
 }
 
 /** An optional `LocalizedText` as its three nullable columns: all null when there is none. */
-function optionalTextToColumns(lt: LocalizedText | null): {
+export function optionalTextToColumns(lt: LocalizedText | null): {
   uk: string | null;
   enText: string | null;
   enProvenance: TextProvenance | null;
@@ -180,7 +180,7 @@ export function rowToCity(row: CityRow): City {
 // --- Shelter ---
 
 export function shelterToRow(shelter: Shelter): ShelterInsert {
-  const desc = localizedTextToColumns(shelter.description);
+  const desc = optionalTextToColumns(shelter.description);
   return {
     id: shelter.id,
     displayName: shelter.displayName,
@@ -221,7 +221,7 @@ export function rowToShelter(row: ShelterRow): Shelter {
   return {
     id: row.id,
     displayName: row.displayName,
-    description: columnsToLocalizedText(
+    description: columnsToOptionalText(
       row.descriptionUk,
       row.descriptionEnText,
       row.descriptionEnProvenance,

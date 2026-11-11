@@ -20,7 +20,8 @@ export type ShelterWords = {
 export function shelterWordsOf(
   shelter: Pick<PublicShelterView, "description" | "freshnessSentence">,
 ): ShelterWords | null {
-  const description = textIn(shelter.description, "uk").trim() || null;
+  const description =
+    shelter.description === null ? null : textIn(shelter.description, "uk").trim() || null;
   const sentence = shownSentence(shelter.freshnessSentence);
   return description === null && sentence === null ? null : { description, sentence };
 }

@@ -56,6 +56,7 @@ import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { ShelterReadScope, ShelterWriteScope } from "../access";
 import type { KabinetContext } from "../context";
+import { textAfterEdit } from "./text-after-edit";
 
 export type AnimalDeps = Pick<KabinetContext, "db" | "now" | "newId">;
 
@@ -226,19 +227,6 @@ function editedAge(
   const problem = ageDateProblem(input.kind === "birth_date" ? input.date : input.asOf, now);
   if (problem !== null) throw errors.AGE_DATE_OUT_OF_RANGE({ data: { problem: problem.kind } });
   return ageOfInput(input, now);
-}
-
-/**
- * The text an edit stores: the description, the medical note, or a custom
- * temperament or colour (decision taken T5, by analogy with Oleksii's K4-B1
- * answer 13 for the shelter's sentence, verbatim: "Clear `en` when `uk`
- * changes; a stale translation would be a false claim."). A changed Ukrainian
- * text stores no English, whatever the request carried; an unchanged one
- * keeps the English sent with it.
- */
-export function textAfterEdit(stored: LocalizedText | null, edited: LocalizedText): LocalizedText {
-  if (stored !== null && stored.uk === edited.uk) return edited;
-  return { uk: edited.uk, en: null };
 }
 
 /** A temperament's custom entry by `textAfterEdit`'s rule, against the stored custom entry. */

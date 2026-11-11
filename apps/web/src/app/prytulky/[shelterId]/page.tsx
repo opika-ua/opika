@@ -118,7 +118,9 @@ export function shelterMetadataOf(load: ShelterPageLoad): Metadata {
   const title = [shelter.displayName, cityName].filter(Boolean).join(", ");
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice
-    : trimAtWordBoundary(textIn(shelter.description, "uk"), META_DESCRIPTION_MAX_LENGTH);
+    : shelter.description === null
+      ? undefined
+      : trimAtWordBoundary(textIn(shelter.description, "uk"), META_DESCRIPTION_MAX_LENGTH);
   return {
     title,
     description,

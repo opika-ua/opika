@@ -121,6 +121,55 @@ describe("kabinetShelterRepo.applyAudited", () => {
     expect((await shelterRepo(db).findById(s.id))?.freshnessSentence).toEqual(sentence);
   });
 
+  describe("the description", () => {
+    const write = (shelterId: string, previous: unknown, next: unknown, historyId: string) =>
+      kabinetShelterRepo(db).applyAudited({
+        shelterId: shelterId as never,
+        expectedVersion: 0,
+        change: { kind: "description", description: next as never },
+        entry: {
+          kind: "description_changed",
+          at: NOW,
+          actor: ADMIN,
+          previous,
+          next,
+        } as ShelterHistoryEntry,
+        historyId,
+        now: NOW,
+      });
+
+    it("writes null as three NULL columns and records previous and next", async () => {
+      const s = await shelter();
+      expect(await write(s.id, s.description, null, "h1")).toEqual({ kind: "ok" });
+      expect((await shelterRepo(db).findById(s.id))?.description).toBeNull();
+      expect(await kabinetShelterRepo(db).historyOf(s.id)).toMatchObject([
+        { kind: "description_changed", previous: s.description, next: null },
+      ]);
+    });
+
+    it("writes a text back over none, with its English", async () => {
+      const s = await shelter();
+      await write(s.id, s.description, null, "h1");
+      const text = { uk: "Опис", en: { text: "Text", provenance: "human" as const } };
+      const result = await kabinetShelterRepo(db).applyAudited({
+        shelterId: s.id,
+        expectedVersion: 1,
+        change: { kind: "description", description: text },
+        entry: {
+          kind: "description_changed",
+          at: NOW,
+          actor: ADMIN,
+          previous: null,
+          next: text,
+        },
+        historyId: "h2",
+        now: NOW,
+      });
+      expect(result).toEqual({ kind: "ok" });
+      expect((await shelterRepo(db).findById(s.id))?.description).toEqual(text);
+    });
+  });
+
   describe("a rename (R-UI 4)", () => {
     const MODERATOR = "0ec0ec0e-0000-4000-8000-000000000001" as never;
     const renamed = (from: string, to: string): ShelterHistoryEntry => ({

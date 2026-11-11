@@ -207,7 +207,7 @@ export async function registrySheltersCreate(
   input: {
     displayName: string;
     cityId: CityId;
-    description: LocalizedText;
+    description?: LocalizedText | null | undefined;
     legalEntity: ShelterLegalEntity | null;
     exactAddress: Omit<ExactAddress, "cityId"> | null;
     contact: ShelterContact;
@@ -246,7 +246,7 @@ export async function registrySheltersCreate(
   const shelter: Shelter = {
     id,
     displayName: input.displayName,
-    description: input.description,
+    description: input.description ?? null,
     legalEntity: input.legalEntity,
     // No address yet: the city alone, never a guessed point.
     publicLocation:
