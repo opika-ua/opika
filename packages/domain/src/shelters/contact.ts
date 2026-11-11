@@ -35,13 +35,16 @@ export function normalizeUaPhone(raw: string): string | null {
   return national !== null && /^[1-9]\d{8}$/.test(national) ? `+380${national}` : null;
 }
 
+/** A typed contact value past this length is refused before any normaliser or parser runs. */
+export const CONTACT_INPUT_MAX_LENGTH = 2048;
+const capped = z.string().max(CONTACT_INPUT_MAX_LENGTH);
+
 /**
  * Input side only. A write must carry a Ukrainian number, but stored rows and reveal outputs
  * keep the wider `E164Schema`: older contacts may be non-Ukrainian, and tightening what is read
  * back would make those rows fail output validation.
  */
-const UaPhoneInputSchema = z
-  .string()
+const UaPhoneInputSchema = capped
   .transform((raw) => normalizeUaPhone(raw) ?? raw)
   .pipe(z.string().regex(UA_PHONE));
 
@@ -57,19 +60,20 @@ const FacebookUrlSchema = z
 const InstagramHandleSchema = z.string().refine(isInstagramHandle);
 
 /** Input side: typed Instagram forms become the bare lowercase handle. */
-const InstagramInputSchema = z
-  .string()
+const InstagramInputSchema = capped
   .transform((raw) => normalizeInstagram(raw) ?? raw)
   .pipe(InstagramHandleSchema);
 
 /** Input side: only a URL the normaliser accepts is stored, and only in its canonical form. */
-const FacebookInputSchema = z
-  .string()
+const FacebookInputSchema = capped
   .transform((raw) => {
     const normalized = normalizeFacebook(raw);
     return normalized.kind === "ok" ? normalized.url : raw;
   })
   .pipe(FacebookUrlSchema);
+
+const TelegramHandleSchema = z.string().regex(/^[A-Za-z0-9_]{5,32}$/);
+const WebsiteUrlSchema = z.url({ protocol: /^https$/ });
 
 /**
  * Channels are separate variants rather than a generic { type, value } pair
@@ -83,31 +87,26 @@ const FacebookInputSchema = z
 export const ContactChannelSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("phone"), e164: E164Schema }),
   z.object({ kind: z.literal("email"), address: z.email() }),
-  z.object({
-    kind: z.literal("telegram"),
-    handle: z.string().regex(/^[A-Za-z0-9_]{5,32}$/),
-  }),
+  z.object({ kind: z.literal("telegram"), handle: TelegramHandleSchema }),
   z.object({ kind: z.literal("viber"), e164: E164Schema }),
-  z.object({ kind: z.literal("website"), url: z.url({ protocol: /^https$/ }) }),
+  z.object({ kind: z.literal("website"), url: WebsiteUrlSchema }),
   z.object({ kind: z.literal("instagram"), handle: InstagramHandleSchema }),
   z.object({ kind: z.literal("facebook"), url: FacebookUrlSchema }),
 ]);
 export type ContactChannel = z.infer<typeof ContactChannelSchema>;
 
-const NORMALISED_ON_INPUT = new Set(["phone", "viber", "instagram", "facebook"]);
-
 /**
  * `ContactChannelSchema` for writes: phone and Viber must be Ukrainian numbers, Instagram and
- * Facebook take their canonical forms (all normalised here).
+ * Facebook take their canonical forms (all normalised here); every value is length-capped first.
  */
 export const ContactChannelInputSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("phone"), e164: UaPhoneInputSchema }),
   z.object({ kind: z.literal("viber"), e164: UaPhoneInputSchema }),
+  z.object({ kind: z.literal("email"), address: capped.pipe(z.email()) }),
+  z.object({ kind: z.literal("telegram"), handle: capped.pipe(TelegramHandleSchema) }),
+  z.object({ kind: z.literal("website"), url: capped.pipe(WebsiteUrlSchema) }),
   z.object({ kind: z.literal("instagram"), handle: InstagramInputSchema }),
   z.object({ kind: z.literal("facebook"), url: FacebookInputSchema }),
-  ...ContactChannelSchema.options.filter(
-    (option) => !NORMALISED_ON_INPUT.has(option.shape.kind.value),
-  ),
 ]);
 
 export const ShelterContactSchema = z.object({
