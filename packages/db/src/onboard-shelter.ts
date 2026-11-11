@@ -12,6 +12,7 @@ import {
   AnimalSpeciesSchema,
   animalDescriptionProblem,
   animalDescriptionProblemMessage,
+  CONTACT_INPUT_MAX_LENGTH,
   type Coordinates,
   DEFAULT_VERIFICATION_POLICY,
   DonationLinkSchema,
@@ -20,6 +21,7 @@ import {
   everServedAtAfter,
   freshnessSentenceProblemMessage,
   type ListedAnimal,
+  MAX_ADDITIONAL_CHANNELS,
   MAX_ANIMAL_PHOTOS,
   type ModeratorId,
   ModeratorIdSchema,
@@ -262,6 +264,56 @@ export const OnboardInputSchema = z.object({
 });
 
 type OnboardInput = z.infer<typeof OnboardInputSchema>;
+
+/**
+ * Zod's own line for a refine is just "Invalid input", so the contact rules the kabinet editor
+ * shares (the same `ShelterContactInputSchema`) are said in words here, after its own report.
+ */
+function contactRefusalHints(error: z.ZodError): string[] {
+  const hints = new Set<string>();
+  for (const issue of error.issues) {
+    const [root, field, part] = issue.path;
+    if (root !== "shelter" || field !== "contact") continue;
+    if (part === "primary" && issue.path.length === 3 && issue.code === "custom") {
+      hints.add(
+        "contact.primary cannot be an application form; give a phone, email, Telegram, Viber or WhatsApp, and put the form in additional.",
+      );
+    } else if (
+      part === "additional" &&
+      issue.path.length === 3 &&
+      issue.code === "too_big" &&
+      issue.origin === "array"
+    ) {
+      hints.add(`contact.additional holds at most ${MAX_ADDITIONAL_CHANNELS} channels.`);
+    } else if (part === "additional" && issue.path.length === 3 && issue.code === "custom") {
+      hints.add("contact.additional may hold at most one application form.");
+    } else if (issue.code === "too_big" && issue.origin === "string") {
+      hints.add(`a contact value is longer than ${CONTACT_INPUT_MAX_LENGTH} characters.`);
+    }
+  }
+  return [...hints];
+}
+
+export type OnboardParse =
+  | { kind: "ok"; input: OnboardInput }
+  | { kind: "refused"; message: string };
+
+/**
+ * The first gate: the whole file against the schema, before anything is built, uploaded or
+ * written. A refusal carries the message `main` prints.
+ */
+export function parseOnboardInput(raw: unknown): OnboardParse {
+  const parsed = OnboardInputSchema.safeParse(raw);
+  if (parsed.success) return { kind: "ok", input: parsed.data };
+  return {
+    kind: "refused",
+    message: [
+      "input file does not match the expected shape.",
+      z.prettifyError(parsed.error),
+      ...contactRefusalHints(parsed.error),
+    ].join("\n"),
+  };
+}
 
 const RETIRED_CITY_MESSAGE =
   "that settlement is retired (no longer in the current settlement register); a shelter cannot be onboarded there. Use its current settlement.";
@@ -602,13 +654,12 @@ async function main(): Promise<void> {
     console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
-  const parsed = OnboardInputSchema.safeParse(raw);
-  if (!parsed.success) {
-    console.error("ERROR: input file does not match the expected shape.");
-    console.error(z.prettifyError(parsed.error));
+  const parsed = parseOnboardInput(raw);
+  if (parsed.kind === "refused") {
+    console.error(`ERROR: ${parsed.message}`);
     process.exit(1);
   }
-  const input = parsed.data;
+  const input = parsed.input;
 
   const now = new Date();
   const shelter = buildShelter(input.shelter, now, secret);

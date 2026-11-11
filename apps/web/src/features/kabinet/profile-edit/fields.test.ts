@@ -11,6 +11,7 @@ import {
   parseChannel,
   sentenceCheck,
   sentenceLength,
+  tooManyOthers,
 } from "./fields";
 
 const form = (overrides: Partial<ContactsForm> = {}): ContactsForm => ({
@@ -78,6 +79,7 @@ describe("contactOfForm", () => {
       telegram: null,
       form: null,
       others: {},
+      tooMany: false,
       atLeastOne: true,
     });
   });
@@ -99,6 +101,7 @@ describe("contactOfForm", () => {
       telegram: "telegramFormat",
       form: null,
       others: { n1: "emailFormat", n2: "httpsOnly" },
+      tooMany: false,
       atLeastOne: false,
     });
   });
@@ -276,6 +279,7 @@ describe("WhatsApp rows and the form field", () => {
       telegram: null,
       form: null,
       others: {},
+      tooMany: false,
       atLeastOne: true,
     });
   });
@@ -310,5 +314,49 @@ describe("WhatsApp rows and the form field", () => {
     expect(NEW_OTHER_KINDS as readonly string[]).not.toContain("form");
     expect(ALL_KINDS as readonly string[]).not.toContain("form");
     expect(MAX_OTHER_ROWS).toBe(4);
+  });
+});
+
+describe("the «other» rows cap (contacts.tooMany)", () => {
+  const email = (n: number) => ({
+    id: `r${n}`,
+    kind: "email" as const,
+    value: `a${n}@domivka.example`,
+    stored: true,
+  });
+  const rows = (count: number) => Array.from({ length: count }, (_, index) => email(index + 1));
+
+  it("saves the phone, Telegram, the form and four others", () => {
+    const result = contactOfForm(
+      form({
+        phone: "0671234567",
+        telegram: "@domivka_brovary",
+        form: "https://forms.example/anketa",
+        others: rows(4),
+      }),
+    );
+    expect(result.kind).toBe("ok");
+  });
+
+  it("refuses a fifth filled «other» row with tooMany and no field error", () => {
+    const result = contactOfForm(form({ phone: "0671234567", others: rows(5) }));
+    expect(result).toEqual({
+      kind: "invalid",
+      phone: null,
+      telegram: null,
+      form: null,
+      others: {},
+      tooMany: true,
+      atLeastOne: false,
+    });
+  });
+
+  it("does not count empty rows, and reports a field error beside the cap", () => {
+    expect(tooManyOthers(form({ others: [...rows(4), { ...email(5), value: "  " }] }))).toBe(false);
+    expect(tooManyOthers(form({ others: rows(5) }))).toBe(true);
+    const result = contactOfForm(
+      form({ others: [...rows(4), { ...email(5), value: "not-an-email" }] }),
+    );
+    expect(result).toMatchObject({ kind: "invalid", tooMany: true, others: { r5: "emailFormat" } });
   });
 });

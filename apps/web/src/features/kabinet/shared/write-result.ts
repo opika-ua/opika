@@ -1,4 +1,5 @@
 import type { KabinetShelterView } from "@opika/contracts";
+import { CONTACT_TOO_MANY_CHANNELS_MESSAGE } from "@opika/domain";
 
 /**
  * What a K4 write came back as, in the terms the screen speaks: the new view,
@@ -11,16 +12,35 @@ import type { KabinetShelterView } from "@opika/contracts";
  *   server may have saved it anyway, so a form section reads the profile
  *   again before saying anything (inbox K4-T16, Oleksii: "fine"): the saved
  *   value there means «Збережено.», anything else `state.failed`.
+ * - `too_many_channels`: the input check refused a contact over the channel cap; the contacts
+ *   section says which rule and how to fix it.
  * - `failed`: the server answered with any other refusal.
  */
 export type WriteResult =
   | { kind: "ok"; view: KabinetShelterView }
   | { kind: "conflict" }
+  | { kind: "too_many_channels" }
   | { kind: "illegal_transition" }
   | { kind: "no_answer" }
   | { kind: "failed" };
 
 export type WriteFailure = Exclude<WriteResult, { kind: "ok" }>;
+
+/** oRPC answers a failed input check with BAD_REQUEST and the schema's issues as its data. */
+const hasIssueMessage = (error: unknown, message: string): boolean => {
+  const data = (error as { data?: unknown }).data;
+  if (typeof data !== "object" || data === null) return false;
+  const { issues } = data as { issues?: unknown };
+  return (
+    Array.isArray(issues) &&
+    issues.some(
+      (issue: unknown) =>
+        typeof issue === "object" &&
+        issue !== null &&
+        (issue as { message?: unknown }).message === message,
+    )
+  );
+};
 
 const codeOf = (error: unknown): string | null =>
   typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
@@ -36,6 +56,10 @@ export function writeFailureOf(error: unknown): WriteFailure {
     case null:
       // No error code: no answer from the server reached us (fetch threw).
       return { kind: "no_answer" };
+    case "BAD_REQUEST":
+      return hasIssueMessage(error, CONTACT_TOO_MANY_CHANNELS_MESSAGE)
+        ? { kind: "too_many_channels" }
+        : { kind: "failed" };
     default:
       return { kind: "failed" };
   }

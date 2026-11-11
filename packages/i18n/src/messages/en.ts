@@ -764,6 +764,7 @@ export const en = {
         removeOther: "Remove",
         addOther: "Add another way to reach you",
         atLeastOne: "Keep at least one way to reach you.",
+        tooMany: "You can keep up to {max} other ways to reach you. Remove the extra ones to save.",
       },
       voice: {
         hint: "One sentence in the first person, in your own words, about how often you update your cards. It shows on the shelter page.",

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CONTACT_INPUT_MAX_LENGTH,
+  CONTACT_TOO_MANY_CHANNELS_MESSAGE,
   ContactChannelInputSchema,
   ContactChannelSchema,
   isCanonicalFacebookUrl,
@@ -617,5 +618,18 @@ describe("how many channels a write may carry", () => {
     expect(ShelterContactInputSchema.safeParse(seven).success).toBe(false);
     // Reads stay permissive: a longer stored list still parses.
     expect(ShelterContactSchema.safeParse(seven).success).toBe(true);
+  });
+});
+
+describe("the channel cap's refusal", () => {
+  it("carries the message the editor matches, at the cap plus one", () => {
+    const email = (n: number) => ({ kind: "email", address: `a${n}@domivka.example` }) as const;
+    const result = ShelterContactInputSchema.safeParse({
+      primary: { kind: "phone", e164: "+380671234567" },
+      additional: Array.from({ length: MAX_ADDITIONAL_CHANNELS + 1 }, (_, n) => email(n)),
+    });
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      CONTACT_TOO_MANY_CHANNELS_MESSAGE,
+    ]);
   });
 });
