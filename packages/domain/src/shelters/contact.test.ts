@@ -4,10 +4,12 @@ import {
   ContactChannelInputSchema,
   ContactChannelSchema,
   isCanonicalFacebookUrl,
+  MAX_ADDITIONAL_CHANNELS,
   normalizeFacebook,
   normalizeInstagram,
   normalizeUaPhone,
   ShelterContactInputSchema,
+  ShelterContactSchema,
 } from "./contact";
 
 describe("normalizeUaPhone", () => {
@@ -488,5 +490,132 @@ describe("contact input length cap", () => {
     expect(isCanonicalFacebookUrl(huge)).toBe(false);
     // Generous: the trim alone takes seconds on this input.
     expect(performance.now() - started).toBeLessThan(200);
+  });
+});
+
+describe("WhatsApp and application form channels", () => {
+  it.each([
+    ["+380671234567", "+380671234567"],
+    ["380671234567", "+380671234567"],
+    ["0671234567", "+380671234567"],
+    ["(067) 123-45-67", "+380671234567"],
+  ])("WhatsApp %s is stored as %s, like Viber", (typed, e164) => {
+    expect(ContactChannelInputSchema.parse({ kind: "whatsapp", e164: typed })).toEqual({
+      kind: "whatsapp",
+      e164,
+    });
+  });
+
+  it.each(["+48600100200", "+380670000002213", "abc", ""])(
+    "WhatsApp refuses %s on input",
+    (typed) => {
+      expect(ContactChannelInputSchema.safeParse({ kind: "whatsapp", e164: typed }).success).toBe(
+        false,
+      );
+    },
+  );
+
+  it("reads a stored non-Ukrainian WhatsApp number (the wide read schema)", () => {
+    expect(ContactChannelSchema.safeParse({ kind: "whatsapp", e164: "+48600100200" }).success).toBe(
+      true,
+    );
+    expect(ContactChannelSchema.safeParse({ kind: "whatsapp", e164: "0671234567" }).success).toBe(
+      false,
+    );
+  });
+
+  it("a form takes any https host, as typed", () => {
+    const url = "https://docs.google.com/forms/d/e/abc/viewform";
+    expect(ContactChannelInputSchema.parse({ kind: "form", url })).toEqual({ kind: "form", url });
+    expect(ContactChannelSchema.safeParse({ kind: "form", url }).success).toBe(true);
+  });
+
+  it.each(["http://forms.example/a", "javascript:alert(1)", "forms.example/a", ""])(
+    "a form refuses %s",
+    (url) => {
+      expect(ContactChannelInputSchema.safeParse({ kind: "form", url }).success).toBe(false);
+      expect(ContactChannelSchema.safeParse({ kind: "form", url }).success).toBe(false);
+    },
+  );
+
+  it("caps both new inputs at the shared limit, before parsing", () => {
+    const over = (value: string) => value + " ".repeat(CONTACT_INPUT_MAX_LENGTH + 1 - value.length);
+    for (const channel of [
+      { kind: "whatsapp", e164: over("+380671234567") },
+      { kind: "form", url: `https://f.example/?q=${"a".repeat(CONTACT_INPUT_MAX_LENGTH)}` },
+      { kind: "form", url: "x".repeat(CONTACT_INPUT_MAX_LENGTH + 1) },
+    ]) {
+      const result = ContactChannelInputSchema.safeParse(channel);
+      expect(result.error?.issues.map((issue) => issue.code)).toEqual(["too_big"]);
+    }
+    expect(
+      ContactChannelInputSchema.safeParse({
+        kind: "whatsapp",
+        e164: "+380671234567".padEnd(CONTACT_INPUT_MAX_LENGTH, " "),
+      }).success,
+    ).toBe(true);
+  });
+
+  const phone = { kind: "phone", e164: "+380671234567" } as const;
+  const form = { kind: "form", url: "https://forms.example/anketa" } as const;
+
+  it("refuses a form as the primary on input, and reads one stored that way", () => {
+    expect(
+      ShelterContactInputSchema.safeParse({ primary: form, additional: [phone] }).success,
+    ).toBe(false);
+    expect(
+      ShelterContactInputSchema.safeParse({ primary: phone, additional: [form] }).success,
+    ).toBe(true);
+    expect(ShelterContactSchema.safeParse({ primary: form, additional: [phone] }).success).toBe(
+      true,
+    );
+  });
+
+  it("refuses a second form on input, and reads two stored that way", () => {
+    const second = { kind: "form", url: "https://forms.example/other" } as const;
+    expect(
+      ShelterContactInputSchema.safeParse({ primary: phone, additional: [form, second] }).success,
+    ).toBe(false);
+    expect(
+      ShelterContactSchema.safeParse({ primary: phone, additional: [form, second] }).success,
+    ).toBe(true);
+  });
+});
+
+describe("rows stored before WhatsApp and form still read (contact is jsonb, no migration)", () => {
+  it("parses every earlier kind, a non-Ukrainian phone included", () => {
+    const stored = {
+      primary: { kind: "phone", e164: "+48600100200" },
+      additional: [
+        { kind: "email", address: "a@domivka.example" },
+        { kind: "telegram", handle: "domivka_brovary" },
+        { kind: "viber", e164: "+380671234567" },
+        { kind: "website", url: "https://domivka.example" },
+        { kind: "instagram", handle: "dobri_lapy" },
+        { kind: "facebook", url: "https://www.facebook.com/dobri.lapy" },
+      ],
+    };
+    expect(ShelterContactSchema.parse(stored)).toEqual(stored);
+  });
+});
+
+describe("how many channels a write may carry", () => {
+  it("takes Telegram, a form and four others beside the primary, and refuses one more", () => {
+    const email = (n: number) => ({ kind: "email", address: `a${n}@domivka.example` }) as const;
+    const additional = [
+      { kind: "telegram", handle: "domivka_brovary" },
+      { kind: "form", url: "https://forms.example/anketa" },
+      email(1),
+      email(2),
+      email(3),
+      email(4),
+    ];
+    const primary = { kind: "phone", e164: "+380671234567" } as const;
+    expect(MAX_ADDITIONAL_CHANNELS).toBe(6);
+    expect(ShelterContactInputSchema.safeParse({ primary, additional }).success).toBe(true);
+    const seven = { primary, additional: [...additional, email(5)] };
+    expect(ShelterContactInputSchema.safeParse(seven).success).toBe(false);
+    // Reads stay permissive: a longer stored list still parses.
+    expect(ShelterContactSchema.safeParse(seven).success).toBe(true);
   });
 });

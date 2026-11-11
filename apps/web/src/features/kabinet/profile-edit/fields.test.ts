@@ -1,10 +1,12 @@
 import type { ShelterContact } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
+  ALL_KINDS,
   type ContactsForm,
   contactOfForm,
   contactsFormOf,
   linkProblem,
+  MAX_OTHER_ROWS,
   NEW_OTHER_KINDS,
   parseChannel,
   sentenceCheck,
@@ -14,6 +16,7 @@ import {
 const form = (overrides: Partial<ContactsForm> = {}): ContactsForm => ({
   phone: "",
   telegram: "",
+  form: "",
   others: [],
   ...overrides,
 });
@@ -73,6 +76,7 @@ describe("contactOfForm", () => {
       kind: "invalid",
       phone: null,
       telegram: null,
+      form: null,
       others: {},
       atLeastOne: true,
     });
@@ -93,6 +97,7 @@ describe("contactOfForm", () => {
       kind: "invalid",
       phone: "phoneFormat",
       telegram: "telegramFormat",
+      form: null,
       others: { n1: "emailFormat", n2: "httpsOnly" },
       atLeastOne: false,
     });
@@ -234,5 +239,76 @@ describe("sentenceCheck (his messages for the K-Q6 rule)", () => {
 
   it("counts characters as a reader sees them", () => {
     expect(sentenceLength("  🐾 ок  ")).toBe(4);
+  });
+});
+
+describe("WhatsApp rows and the form field", () => {
+  it("normalises a WhatsApp row like Viber and refuses a foreign number with the phone message", () => {
+    const row = (value: string) => ({ id: "n1", kind: "whatsapp" as const, value, stored: false });
+    expect(contactOfForm(form({ phone: "0671234567", others: [row("050 111 22 33")] }))).toEqual({
+      kind: "ok",
+      contact: {
+        primary: { kind: "phone", e164: "+380671234567" },
+        additional: [{ kind: "whatsapp", e164: "+380501112233" }],
+      },
+    });
+    expect(contactOfForm(form({ others: [row("+48600100200")] }))).toMatchObject({
+      kind: "invalid",
+      others: { n1: "phoneFormat" },
+    });
+  });
+
+  it("puts the form field in the additional list, never in primary", () => {
+    const anketa = "https://forms.example/anketa";
+    expect(contactOfForm(form({ form: anketa, telegram: "@domivka_brovary" }))).toEqual({
+      kind: "ok",
+      contact: {
+        primary: { kind: "telegram", handle: "domivka_brovary" },
+        additional: [{ kind: "form", url: anketa }],
+      },
+    });
+  });
+
+  it("a form alone is no way to call or write: contacts.atLeastOne", () => {
+    expect(contactOfForm(form({ form: "https://forms.example/anketa" }))).toEqual({
+      kind: "invalid",
+      phone: null,
+      telegram: null,
+      form: null,
+      others: {},
+      atLeastOne: true,
+    });
+  });
+
+  it.each([
+    ["http://forms.example/anketa", "httpsOnly"],
+    ["forms.example/anketa", "httpsOnly"],
+    ["просто текст", "notAUrl"],
+  ] as const)("the form field refuses %s with %s", (typed, error) => {
+    expect(contactOfForm(form({ phone: "0671234567", form: typed }))).toMatchObject({
+      kind: "invalid",
+      form: error,
+    });
+  });
+
+  it("loads a stored form into its field, not into an «other» row, and back unchanged", () => {
+    const stored = {
+      primary: { kind: "phone", e164: "+380671234567" },
+      additional: [
+        { kind: "form", url: "https://forms.example/anketa" },
+        { kind: "whatsapp", e164: "+380501112233" },
+      ],
+    } as const;
+    const loaded = contactsFormOf(stored);
+    expect(loaded.form).toBe("https://forms.example/anketa");
+    expect(loaded.others.map((row) => row.kind)).toEqual(["whatsapp"]);
+    expect(contactOfForm(loaded)).toEqual({ kind: "ok", contact: stored });
+  });
+
+  it("offers WhatsApp and never a form as an «other» kind; the add cap is the domain's four", () => {
+    expect(NEW_OTHER_KINDS).toContain("whatsapp");
+    expect(NEW_OTHER_KINDS as readonly string[]).not.toContain("form");
+    expect(ALL_KINDS as readonly string[]).not.toContain("form");
+    expect(MAX_OTHER_ROWS).toBe(4);
   });
 });

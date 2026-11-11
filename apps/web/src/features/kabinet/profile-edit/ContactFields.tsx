@@ -18,32 +18,34 @@ import { Optional } from "./Optional";
 export type ContactsErrors = {
   phone: FieldError | null;
   telegram: FieldError | null;
+  form: FieldError | null;
   others: Readonly<Record<string, FieldError>>;
   atLeastOne: boolean;
 };
 export const NO_CONTACT_ERRORS: ContactsErrors = {
   phone: null,
   telegram: null,
+  form: null,
   others: {},
   atLeastOne: false,
 };
 
 export const inputModeOf = (kind: ChannelKind) =>
-  kind === "phone" || kind === "viber"
+  kind === "phone" || kind === "viber" || kind === "whatsapp"
     ? "tel"
     : kind === "email"
       ? "email"
-      : kind === "website" || kind === "facebook"
+      : kind === "website" || kind === "facebook" || kind === "form"
         ? "url"
         : "text";
 
 /**
- * K4's contact fields (N6, answer 3): an optional phone, an optional
- * Telegram, and up to two «other» rows. A stored contact that fits neither
- * field shows as an «other» row of its own kind, editable (fix 3); a new row
- * is Viber, email, a website, Instagram or Facebook. Shared by K4's contacts section and the
- * operator's create form (R-UI 2), which hold the form themselves and check
- * it with `contactOfForm`; this renders the fields and nothing else.
+ * K4's contact fields (N6, answer 3): an optional phone, an optional Telegram,
+ * an optional application form, and up to four «other» rows. A stored contact
+ * that fits no field shows as an «other» row of its own kind, editable (fix 3);
+ * a new row is Viber, WhatsApp, email, a website, Instagram or Facebook. Shared
+ * by K4's contacts section and the operator's create form (R-UI 2), which hold
+ * the form themselves and check it with `contactOfForm`; this renders the fields.
  */
 export function ContactFields({
   idPrefix,
@@ -107,6 +109,25 @@ export function ContactFields({
           update((current) => ({ ...current, telegram: value }));
         }}
         error={message(errors.telegram)}
+      />
+      <TextField
+        id={`${idPrefix}-form`}
+        label={
+          <>
+            {channel.form} {optional}
+          </>
+        }
+        hint={t.contacts.formHint}
+        type="text"
+        inputMode="url"
+        autoComplete="off"
+        placeholder={t.contacts.formPlaceholder}
+        value={form.form}
+        onChange={(event) => {
+          const value = event.target.value;
+          update((current) => ({ ...current, form: value }));
+        }}
+        error={message(errors.form)}
       />
       {form.others.map((row) => {
         const kinds: readonly ChannelKind[] = row.stored ? ALL_KINDS : NEW_OTHER_KINDS;

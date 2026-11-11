@@ -178,6 +178,32 @@ describe("addEvidence: duplicates (same kind + same key field, notes ignored)", 
     expect(addEvidence(state, [viber]).kind).toBe("ok");
   });
 
+  it("reference: WhatsApp and Viber with one number, form and website with one URL, are distinct", () => {
+    const reference = (channel: ContactChannel): EvidenceItem => ({
+      kind: "reference_contact",
+      name: "Клініка",
+      channel,
+      relationship: "veterinary_clinic",
+    });
+    const url = "https://vet.example/anketa";
+    const state = pending([
+      reference({ kind: "viber", e164: "+380501234567" }),
+      reference({ kind: "website", url }),
+    ]);
+    const whatsapp = reference({ kind: "whatsapp", e164: "+380501234567" });
+    const form = reference({ kind: "form", url });
+    expect(evidenceDuplicateKey(whatsapp)).not.toBe(
+      evidenceDuplicateKey(reference({ kind: "viber", e164: "+380501234567" })),
+    );
+    expect(evidenceDuplicateKey(form)).not.toBe(
+      evidenceDuplicateKey(reference({ kind: "website", url })),
+    );
+    expect(addEvidence(state, [whatsapp, form]).kind).toBe("ok");
+    expect(addEvidence(pending([whatsapp, form]), [whatsapp, form])).toEqual({
+      kind: "nothing_new",
+    });
+  });
+
   it("reference: Instagram (any case) and Facebook repeat as duplicates", () => {
     const reference = (channel: ContactChannel): EvidenceItem => ({
       kind: "reference_contact",

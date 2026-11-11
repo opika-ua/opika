@@ -82,7 +82,7 @@ export const emptyCreateForm = (): CreateShelterForm => ({
   postalCode: "",
   coordinates: "",
   legal: { kind: null, legalName: "", edrpou: "", registeredAt: "", contactPersonName: "" },
-  contacts: { phone: "", telegram: "", others: [] },
+  contacts: { phone: "", telegram: "", form: "", others: [] },
   evidence: [],
   adminName: "",
   adminEmail: "",

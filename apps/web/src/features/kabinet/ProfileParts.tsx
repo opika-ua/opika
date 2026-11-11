@@ -52,6 +52,7 @@ export const channelValue = (channel: Channel): string => {
   switch (channel.kind) {
     case "phone":
     case "viber":
+    case "whatsapp":
       return channel.e164;
     case "email":
       return channel.address;
@@ -60,6 +61,7 @@ export const channelValue = (channel: Channel): string => {
       return `@${channel.handle}`;
     case "website":
     case "facebook":
+    case "form":
       return channel.url;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled channel; unreachable at runtime */
     default: {

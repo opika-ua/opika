@@ -184,7 +184,17 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       // the city only (EM-Q10). 30 with earlyListingEnded (gap 6, 2026-11-10).
       profile: 30,
       profileStatus: ["paused", "pending", "rejected", "suspended", "under_review", "verified"],
-      profileChannel: ["email", "facebook", "instagram", "phone", "telegram", "viber", "website"],
+      profileChannel: [
+        "email",
+        "facebook",
+        "form",
+        "instagram",
+        "phone",
+        "telegram",
+        "viber",
+        "website",
+        "whatsapp",
+      ],
       support: ["body", "exit", "exitFailed", "signOutDisabled", "title", "viewingAs"],
       emailSignIn: ["action", "expiry", "intro", "notYou", "subject"],
       emailInvite: [
@@ -449,6 +459,10 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     "profileEdit.contacts.phonePlaceholder": "+380 …",
     // k4-copy-uk.md
     "profileEdit.contacts.telegramPlaceholder": "@username",
+    // The dedicated form field: owner-approved 2026-11-11 (contact kinds WhatsApp and form).
+    "profileEdit.contacts.formPlaceholder": "https://…",
+    "profileEdit.contacts.formHint":
+      "Посилання на анкету, яку ви просите заповнити перед знайомством. У контактах вона буде першою.",
     // k4-copy-uk.md
     "profileEdit.contacts.removeOther": "Прибрати",
     // k4-copy-uk.md
@@ -1594,8 +1608,8 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
     // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
-    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors.
-    expect(k4.length).toBe(100);
+    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field.
+    expect(k4.length).toBe(102);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

@@ -92,11 +92,14 @@ export const ContactChannelSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("website"), url: WebsiteUrlSchema }),
   z.object({ kind: z.literal("instagram"), handle: InstagramHandleSchema }),
   z.object({ kind: z.literal("facebook"), url: FacebookUrlSchema }),
+  z.object({ kind: z.literal("whatsapp"), e164: E164Schema }),
+  /** An application form the shelter asks adopters to fill in; any https host, like a website. */
+  z.object({ kind: z.literal("form"), url: WebsiteUrlSchema }),
 ]);
 export type ContactChannel = z.infer<typeof ContactChannelSchema>;
 
 /**
- * `ContactChannelSchema` for writes: phone and Viber must be Ukrainian numbers, Instagram and
+ * `ContactChannelSchema` for writes: phone, Viber and WhatsApp must be Ukrainian numbers, Instagram and
  * Facebook take their canonical forms (all normalised here); every value is length-capped first.
  */
 export const ContactChannelInputSchema = z.discriminatedUnion("kind", [
@@ -107,6 +110,8 @@ export const ContactChannelInputSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("website"), url: capped.pipe(WebsiteUrlSchema) }),
   z.object({ kind: z.literal("instagram"), handle: InstagramInputSchema }),
   z.object({ kind: z.literal("facebook"), url: FacebookInputSchema }),
+  z.object({ kind: z.literal("whatsapp"), e164: UaPhoneInputSchema }),
+  z.object({ kind: z.literal("form"), url: capped.pipe(WebsiteUrlSchema) }),
 ]);
 
 export const ShelterContactSchema = z.object({
@@ -115,9 +120,22 @@ export const ShelterContactSchema = z.object({
 });
 export type ShelterContact = z.infer<typeof ShelterContactSchema>;
 
+/** «Other» channels the editor adds beside its phone, Telegram and form fields (owner, 2026-11-11). */
+export const MAX_OTHER_CONTACTS = 4;
+/** Telegram and the form have their own fields, so the additional list holds them and the others. */
+export const MAX_ADDITIONAL_CHANNELS = MAX_OTHER_CONTACTS + 2;
+
+/**
+ * On a write a form is never the primary (the reveal must always offer a way to call or write),
+ * there is at most one (one questionnaire), and the list is capped. Reads stay permissive.
+ */
 export const ShelterContactInputSchema = z.object({
-  primary: ContactChannelInputSchema,
-  additional: z.array(ContactChannelInputSchema).readonly(),
+  primary: ContactChannelInputSchema.refine((channel) => channel.kind !== "form"),
+  additional: z
+    .array(ContactChannelInputSchema)
+    .max(MAX_ADDITIONAL_CHANNELS)
+    .readonly()
+    .refine((channels) => channels.filter((channel) => channel.kind === "form").length <= 1),
 });
 
 // In `../core` so the reveal dialog reaches them without zod.

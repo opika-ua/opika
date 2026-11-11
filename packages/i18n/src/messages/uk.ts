@@ -498,6 +498,8 @@ export const uk = {
       website: "Сайт",
       instagram: "Instagram",
       facebook: "Facebook",
+      whatsapp: "WhatsApp",
+      form: "Анкета",
     },
     /**
      * Shown for any value the record doesn't hold. The standing constraints
@@ -622,6 +624,9 @@ export const uk = {
         otherKind: "Тип",
         phonePlaceholder: "+380 …",
         telegramPlaceholder: "@username",
+        formPlaceholder: "https://…",
+        formHint:
+          "Посилання на анкету, яку ви просите заповнити перед знайомством. У контактах вона буде першою.",
         removeOther: "Прибрати",
         /** Answer 3. */
         addOther: "Додати ще один спосіб звʼязку",
