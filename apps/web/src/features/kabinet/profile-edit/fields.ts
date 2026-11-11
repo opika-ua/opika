@@ -240,6 +240,13 @@ export function parseChannel(kind: ChannelKind, raw: string): ParsedChannel {
   }
 }
 
+/**
+ * More filled «other» rows than the editor allows: a contact stored before the cap. Within the
+ * cap the input schema's `additional` limit always holds.
+ */
+export const tooManyOthers = (form: ContactsForm): boolean =>
+  form.others.filter((row) => row.value.trim() !== "").length > MAX_OTHER_ROWS;
+
 export type ContactsCheck =
   | { kind: "ok"; contact: ShelterContact }
   | {
@@ -249,6 +256,8 @@ export type ContactsCheck =
       form: FieldError | null;
       /** By row id. */
       others: Readonly<Record<string, FieldError>>;
+      /** More filled «other» rows than `MAX_OTHER_ROWS` (`contacts.tooMany`). */
+      tooMany: boolean;
       /** Every field empty (answer 3: at least one channel). */
       atLeastOne: boolean;
     };
@@ -273,6 +282,7 @@ export function contactOfForm(form: ContactsForm): ContactsCheck {
       telegram: null,
       form: null,
       others: {},
+      tooMany: false,
       atLeastOne: true,
     };
   }
@@ -283,9 +293,18 @@ export function contactOfForm(form: ContactsForm): ContactsCheck {
     if (parsed.kind === "ok") channels.push(parsed.channel);
     else errors[row.key] = parsed.error;
   }
-  if (Object.keys(errors).length > 0) {
-    const { phone = null, telegram = null, form = null, ...others } = errors;
-    return { kind: "invalid", phone, telegram, form, others, atLeastOne: false };
+  const tooMany = tooManyOthers(form);
+  if (Object.keys(errors).length > 0 || tooMany) {
+    const { phone = null, telegram = null, form: formError = null, ...others } = errors;
+    return {
+      kind: "invalid",
+      phone,
+      telegram,
+      form: formError,
+      others,
+      tooMany,
+      atLeastOne: false,
+    };
   }
   // A form is never the primary (the input schema's rule); a form alone is no way to call or write.
   const primaryIndex = channels.findIndex((channel) => channel.kind !== "form");
@@ -297,6 +316,7 @@ export function contactOfForm(form: ContactsForm): ContactsCheck {
       telegram: null,
       form: null,
       others: {},
+      tooMany: false,
       atLeastOne: true,
     };
   }

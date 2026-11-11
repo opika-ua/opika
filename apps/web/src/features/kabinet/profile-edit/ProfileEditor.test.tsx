@@ -1,4 +1,5 @@
 import type { KabinetShelterView } from "@opika/contracts";
+import { CONTACT_TOO_MANY_CHANNELS_MESSAGE } from "@opika/domain";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -191,6 +192,60 @@ describe("contacts (answer 3, answer 4)", () => {
     expect(c.getByText("Лише посилання, що починаються з https://.")).toBeTruthy();
     expect(screen.getAllByText("Перевірте 2 поля").length).toBeGreaterThan(0);
     expect(fns.updateContact).not.toHaveBeenCalled();
+  });
+
+  it("a stored contact over the cap loads with the cap's message; removing a row lets it save", async () => {
+    const email = (n: number) => ({ kind: "email", address: `a${n}@domivka.example` }) as const;
+    const fns = renderEditor({
+      view: baseView({
+        contact: {
+          primary: { kind: "phone", e164: "+380671234567" },
+          additional: [email(1), email(2), email(3), email(4), email(5)],
+        },
+      }),
+    });
+    const c = within(contacts());
+    const message = "Можна залишити до 4 інших способів звʼязку. Приберіть зайві, щоб зберегти.";
+    expect(c.getByText(message)).toBeTruthy();
+    const phone = c.getByLabelText(/^Телефон/);
+    await userEvent.clear(phone);
+    await userEvent.type(phone, "067 123 45 67");
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(c.getByRole("alert").textContent).toBe(message);
+    expect(fns.updateContact).not.toHaveBeenCalled();
+
+    const rows = c.getAllByRole("group", { name: /Інший спосіб звʼязку/ });
+    expect(rows).toHaveLength(5);
+    await userEvent.click(within(rows[4] as HTMLElement).getByRole("button", { name: "Прибрати" }));
+    expect(c.queryByText(message)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(fns.updateContact).toHaveBeenCalledTimes(1);
+  });
+
+  it("maps the server's channel-cap refusal to the same message", async () => {
+    const fns = renderEditor({
+      overrides: {
+        updateContact: vi.fn(async () => {
+          throw Object.assign(new Error("BAD_REQUEST"), {
+            code: "BAD_REQUEST",
+            data: {
+              issues: [
+                { path: ["contact", "additional"], message: CONTACT_TOO_MANY_CHANNELS_MESSAGE },
+              ],
+            },
+          });
+        }),
+      },
+    });
+    const c = within(contacts());
+    const phone = c.getByLabelText(/^Телефон/);
+    await userEvent.clear(phone);
+    await userEvent.type(phone, "067 123 45 67");
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(fns.updateContact).toHaveBeenCalledTimes(1);
+    expect((await c.findByRole("alert")).textContent).toBe(
+      "Можна залишити до 4 інших способів звʼязку. Приберіть зайві, щоб зберегти.",
+    );
   });
 
   it("refuses to save with no channel at all", async () => {

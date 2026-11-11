@@ -632,6 +632,8 @@ export const uk = {
         addOther: "Додати ще один спосіб звʼязку",
         /** Answer 3: no required phone, at least one channel. */
         atLeastOne: "Залиште хоча б один спосіб звʼязку.",
+        /** `{max}` from the domain's `MAX_OTHER_CONTACTS`, so the number cannot drift. */
+        tooMany: "Можна залишити до {max} інших способів звʼязку. Приберіть зайві, щоб зберегти.",
       },
       voice: {
         /**
