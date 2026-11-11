@@ -132,18 +132,42 @@ jobs:
         if: steps.classify.outputs.code != 'false'
         run: pnpm --filter @opika/web run check:route-bundles
 
-      # ~170MB and unchanged between runs of the same Playwright version, so
-      # key the cache on the lockfile: a version bump busts it.
+      # The exact installed version, not a lockfile hash: any lockfile change used to miss
+      # the ~170MB browser cache although the browsers had not changed.
+      - name: Resolve Playwright version
+        id: playwright
+        if: steps.classify.outputs.code != 'false'
+        run: echo "version=$(pnpm --filter @opika/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
       - name: Cache Playwright browsers
         if: steps.classify.outputs.code != 'false'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
 
+      # Browser download is split from the apt system deps (a cache hit covers only the
+      # former). Runner DNS blips broke `--with-deps` and ejected PRs from the merge queue,
+      # so apt retries itself and the deps step retries 3 times (10s, 30s).
       - name: Install Playwright Chromium
         if: steps.classify.outputs.code != 'false'
-        run: pnpm --filter @opika/web exec playwright install --with-deps chromium
+        run: |
+          set -euo pipefail
+          echo 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/80-retries
+          retry() {
+            local attempt=1 max=3 delays=(10 30)
+            until "$@"; do
+              if (( attempt >= max )); then
+                echo "::error::'$*' failed after $attempt attempts" >&2
+                return 1
+              fi
+              echo "::warning::'$*' failed (attempt $attempt of $max), retrying in ${delays[attempt-1]}s"
+              sleep "${delays[attempt-1]}"
+              attempt=$((attempt + 1))
+            done
+          }
+          pnpm --filter @opika/web exec playwright install chromium
+          retry pnpm --filter @opika/web exec playwright install-deps chromium
 
       # DO NOT REMOVE. The gate for the browser layer: flows, keyboard operation
       # and real pointer events in a real browser, against the built app. It
