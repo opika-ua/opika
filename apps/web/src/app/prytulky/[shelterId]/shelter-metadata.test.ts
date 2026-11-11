@@ -4,6 +4,7 @@ import {
   makeShelterPageShelter,
   makeShelterPageView,
 } from "../../../features/shelters/test-fixtures";
+import { LINK_PREVIEW_DESCRIPTION } from "../../../seo-text";
 import { shelterMetadataOf } from "./page";
 
 const metadataFor = (description: { uk: string; en: null } | null) =>
@@ -19,12 +20,12 @@ describe("the shelter page's meta description", () => {
     expect(metadata.openGraph?.description).toBe(DESCRIPTION);
   });
 
-  it("is left to the root layout's default when the shelter has no text", () => {
+  it("falls back to the root layout's default, for the page and the share preview, when the shelter has no text", () => {
     for (const none of [null, { uk: "   ", en: null } as const]) {
       const metadata = metadataFor(none);
-      expect(metadata.description).toBeUndefined();
-      expect(metadata.openGraph?.description).toBeUndefined();
-      expect(metadata.title).toBeDefined();
+      expect(metadata.description).toBe(LINK_PREVIEW_DESCRIPTION);
+      expect(metadata.openGraph?.description).toBe(LINK_PREVIEW_DESCRIPTION);
+      expect(String(metadata.openGraph?.description).length).toBeGreaterThan(0);
     }
   });
 
