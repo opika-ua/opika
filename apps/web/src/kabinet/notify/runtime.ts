@@ -10,6 +10,12 @@ import type { ComposeContext } from "./compose";
 import type { NotifyDeps } from "./deliver";
 import type { ShelterNotifier } from "./intents";
 
+/** The one place a notification warning reaches the console. */
+function warn(line: string): void {
+  // biome-ignore lint/suspicious/noConsole: the masked line is the only trace of an unsent mail
+  console.warn(line);
+}
+
 /** Event mails a Kyiv day may send in all, unless `NOTIFICATION_DAILY_EVENT_CAP` says otherwise. */
 export const DEFAULT_DAILY_EVENT_CAP = 40;
 
@@ -21,7 +27,7 @@ let reportedBadCap = false;
  */
 export function eventCapOf(
   env: Readonly<Record<string, string | undefined>>,
-  log: (line: string) => void = (line) => console.warn(line),
+  log: (line: string) => void = warn,
 ): number {
   const raw = env.NOTIFICATION_DAILY_EVENT_CAP?.trim();
   if (raw === undefined || raw === "") return DEFAULT_DAILY_EVENT_CAP;
@@ -89,8 +95,7 @@ export const notifyDepsOf = (
   eventCap: runtime.eventCap,
   now: () => new Date(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-  // biome-ignore lint/suspicious/noConsole: the masked failure line is the only trace of an unsent mail
-  log: (line) => console.warn(line),
+  log: warn,
 });
 
 /**
