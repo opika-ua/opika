@@ -54,6 +54,30 @@ export function notificationSendsRepo(db: Database) {
       return rows.length === 1;
     },
 
+    /**
+     * Ends a claimed send as failed with every attempt spent, in one statement, so no sweep can
+     * take it back between a mark and a second write. For a send that got no answer and may have
+     * been delivered: it must never be resent.
+     */
+    async closeFailed(
+      now: Date,
+      dedupKey: string,
+      maxAttempts = MAX_SEND_ATTEMPTS,
+    ): Promise<boolean> {
+      const rows = await db
+        .update(notificationSends)
+        .set({
+          status: "failed",
+          attempts: sql`greatest(${notificationSends.attempts}, ${maxAttempts})`,
+          updatedAt: now,
+        })
+        .where(
+          and(eq(notificationSends.dedupKey, dedupKey), eq(notificationSends.status, "claimed")),
+        )
+        .returning({ dedupKey: notificationSends.dedupKey });
+      return rows.length === 1;
+    },
+
     /** Failed sends created within the window that have attempts left, oldest first. */
     async retryable(
       now: Date,

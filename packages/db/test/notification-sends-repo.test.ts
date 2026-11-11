@@ -3,7 +3,7 @@ import type { ShelterId } from "@opika/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { cityRepo } from "../src/repos/city-repo";
-import { notificationSendsRepo } from "../src/repos/notification-sends-repo";
+import { MAX_SEND_ATTEMPTS, notificationSendsRepo } from "../src/repos/notification-sends-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { authUser } from "../src/schema/auth";
 import { notificationSends } from "../src/schema/notification-sends";
@@ -204,6 +204,31 @@ describe("purgeOlderThan", () => {
     const repo = notificationSendsRepo(db);
     expect(await repo.purgeOlderThan(NOW)).toBe(0);
     expect(await repo.purgeOlderThan(NOW, 7)).toBe(1);
+  });
+});
+
+describe("closeFailed", () => {
+  it("fails a claimed row with every attempt spent, so retryable never offers it", async () => {
+    await seed("c", { status: "claimed", attempts: 1 });
+    const repo = notificationSendsRepo(db);
+    expect(await repo.closeFailed(NOW, "c")).toBe(true);
+    expect(await rowOf("c")).toMatchObject({ status: "failed", attempts: MAX_SEND_ATTEMPTS });
+    expect(await repo.retryable(NOW)).toEqual([]);
+    expect(await repo.reclaim(NOW, "c")).toBe(false);
+  });
+
+  it("keeps a higher attempt count, and leaves a sent, a failed or a missing row alone", async () => {
+    await seed("sent", { status: "sent" });
+    await seed("failed", { status: "failed", attempts: 1 });
+    await seed("third", { status: "claimed", attempts: 5 });
+    const repo = notificationSendsRepo(db);
+    expect(await repo.closeFailed(NOW, "sent")).toBe(false);
+    expect(await repo.closeFailed(NOW, "failed")).toBe(false);
+    expect(await repo.closeFailed(NOW, "missing")).toBe(false);
+    expect(await repo.closeFailed(NOW, "third")).toBe(true);
+    expect((await rowOf("third"))?.attempts).toBe(5);
+    expect(await rowOf("sent")).toMatchObject({ status: "sent" });
+    expect(await rowOf("failed")).toMatchObject({ status: "failed", attempts: 1 });
   });
 });
 

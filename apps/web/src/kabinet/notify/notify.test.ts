@@ -1,6 +1,6 @@
 import type { Database } from "@opika/db";
 import { notificationSendsRepo } from "@opika/db/repos";
-import { authMember, notificationSends, shelterHistory } from "@opika/db/schema";
+import { authMember, notificationSends, shelterHistory, shelters } from "@opika/db/schema";
 import { setupTestDatabase, truncateAll } from "@opika/db/test";
 import type { ModeratorId, Shelter, ShelterHistoryEntry } from "@opika/domain";
 import { EARLY_LISTING_DAYS } from "@opika/domain";
@@ -8,6 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { handleNotificationsCron } from "../notifications-cron";
 import { notifyAfterWrite } from "./after-write";
 import { DAILY_SEND_BUDGET, runDailyNotifications } from "./daily";
+import { dedupKeyOf } from "./dedup";
 import { SEND_SPACING_MS } from "./deliver";
 import type { HistoryLine } from "./intents";
 import {
@@ -355,8 +356,20 @@ describe("runDailyNotifications: O4", () => {
     expect(second).toMatchObject({ endingSent: 2, duplicates: 4, deferred: 0 });
   });
 
-  it("the budget is 60, short of Resend's 100 a day", () => {
-    expect(DAILY_SEND_BUDGET).toBe(60);
+  it("the budget is 20, so the cap (40) plus a full run is 60 of Resend's 100 a day", () => {
+    expect(DAILY_SEND_BUDGET).toBe(20);
+  });
+
+  it("a run with the default budget sends at most 20 and leaves the rest for tomorrow", async () => {
+    for (let n = 0; n < 11; n += 1) {
+      await seedShelter(db, { overrides: early(ago(EARLY_LISTING_DAYS - 2 - (n % 5))) });
+    }
+    await seedOperator(db, "op1@example.org");
+    await seedOperator(db, "op2@example.org");
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail));
+    expect(sent).toHaveLength(DAILY_SEND_BUDGET);
+    expect(counts).toMatchObject({ endingSent: 20, deferred: 2 });
   });
 
   it("waits at least 500 ms between sends, and not before the first", async () => {
@@ -695,5 +708,115 @@ describe("the daily time guard", () => {
     );
     expect(provider.sent).toHaveLength(5);
     expect(second).toMatchObject({ endingSent: 2, stoppedForTime: false });
+  });
+});
+describe("a retry of a per-day mail (O1, O2) is rebuilt from the shelter as it is now", () => {
+  const link = { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" } as const;
+
+  /** A failed first attempt left by the real path: a proposal or a review request that the provider refused. */
+  async function failedFirstAttempt(kind: "proposal" | "review", overrides: Partial<Shelter>) {
+    const operator = await seedOperator(db, "op@example.org");
+    const { shelter } = await seedShelter(db, { overrides });
+    const line: HistoryLine =
+      kind === "proposal"
+        ? {
+            id: "dp-1",
+            entry: {
+              kind: "donation_proposed",
+              at: NOW,
+              actor: asAdmin,
+              link,
+            } as unknown as ShelterHistoryEntry,
+          }
+        : resubmitLine(asAdmin, "rr-1");
+    const failing = fakeMail();
+    failing.state.failing = true;
+    await notifyAfterWrite(depsOf(db, failing.mail), shelter, [line]);
+    const [row] = await sendRows();
+    expect(row).toMatchObject({ status: "failed", attempts: 1 });
+    return { shelter, operator, row };
+  }
+  const pendingDonation = { link, proposedAt: NOW, proposedBy: null };
+
+  it("sends a proposal that is still waiting, naming the link the shelter has now", async () => {
+    const { shelter } = await failedFirstAttempt("proposal", {
+      pendingDonation,
+    } as Partial<Shelter>);
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail));
+    expect(counts).toMatchObject({ retried: 1, retrySent: 1 });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.text).toContain("send.monobank.ua");
+    expect(shelter.id).toBeDefined();
+  });
+
+  it("closes the row without a mail once the proposal is gone (approved, rejected or cancelled)", async () => {
+    await failedFirstAttempt("proposal", { pendingDonation } as Partial<Shelter>);
+    await db.update(shelters).set({ pendingDonation: null });
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail));
+    expect(counts).toMatchObject({ retried: 1, retryDropped: 1, retrySent: 0 });
+    expect(sent).toEqual([]);
+    expect(await sendRows()).toMatchObject([{ status: "failed", attempts: 2 }]);
+  });
+
+  it("sends a review request while the shelter still waits", async () => {
+    await failedFirstAttempt("review", { verification: PENDING } as Partial<Shelter>);
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail));
+    expect(counts).toMatchObject({ retried: 1, retrySent: 1 });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.subject).toContain("Повторна перевірка");
+  });
+
+  it("drops a review request once the shelter is no longer waiting", async () => {
+    await failedFirstAttempt("review", { verification: PENDING } as Partial<Shelter>);
+    await db.update(shelters).set({
+      verificationStatus: "under_review",
+      verification: {
+        status: "under_review",
+        startedAt: NOW,
+        reviewerId: MODERATOR as ModeratorId,
+        evidence: { items: [], submittedAt: NOW },
+      },
+    });
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail));
+    expect(counts).toMatchObject({ retried: 1, retryDropped: 1, retrySent: 0 });
+    expect(sent).toEqual([]);
+    expect(await sendRows()).toMatchObject([{ status: "failed", attempts: 2 }]);
+  });
+
+  it("never rebuilds a row whose key names another shelter or a day it was not claimed on", async () => {
+    const operator = await seedOperator(db, "op@example.org");
+    const { shelter } = await seedShelter(db, {
+      overrides: { pendingDonation } as Partial<Shelter>,
+    });
+    const other = await seedShelter(db, { overrides: { pendingDonation } as Partial<Shelter> });
+    const sends = notificationSendsRepo(db);
+    const claim = async (dedupBase: string, shelterId: string) => {
+      const dedupKey = dedupKeyOf(dedupBase, operator);
+      await sends.claim(NOW, {
+        dedupKey,
+        kind: "donationProposed",
+        shelterId: shelterId as never,
+        recipientUserId: operator,
+      });
+      await sends.mark(NOW, dedupKey, "failed");
+      return dedupKey;
+    };
+    const today = "2026-11-10";
+    const otherShelter = await claim(`dp:${other.shelter.id}:${today}`, shelter.id);
+    const otherDay = await claim(`dp:${shelter.id}:2026-11-08`, shelter.id);
+    const rightKey = await claim(`dp:${shelter.id}:${today}`, shelter.id);
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail));
+    expect(counts).toMatchObject({ retried: 3, retrySent: 1, retryDropped: 2 });
+    expect(sent).toHaveLength(1);
+    const status = async (key: string) =>
+      (await sendRows()).find((row) => row.dedupKey === key)?.status;
+    expect(await status(rightKey)).toBe("sent");
+    expect(await status(otherShelter)).toBe("failed");
+    expect(await status(otherDay)).toBe("failed");
   });
 });

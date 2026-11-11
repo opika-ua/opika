@@ -1,7 +1,12 @@
 import { EARLY_LISTING_DAYS, type Shelter, type ShelterHistoryEntry } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { dedupKeyOf, userHashOf } from "./dedup";
-import { type HistoryLine, planEarlyListingEnding, planEventIntents } from "./intents";
+import {
+  type HistoryLine,
+  planEarlyListingEnding,
+  planEventIntents,
+  rebuildDailyIntent,
+} from "./intents";
 
 /** The planners are pure: who gets which mail, decided from the history lines and nothing else. */
 
@@ -178,6 +183,42 @@ describe("per-day dedup of the two mails a shelter can repeat (O1, O2)", () => {
 
   it("the shelter's mails stay keyed per history line", () => {
     expect(baseOf([verification({ type: "approve" })])).toBe("h:h1");
+  });
+});
+
+describe("rebuildDailyIntent", () => {
+  const shelter = (patch: object) =>
+    ({
+      id: SHELTER.id,
+      displayName: "Лапа",
+      verification: { status: "pending" },
+      pendingDonation: null,
+      ...patch,
+    }) as unknown as Shelter;
+  const waiting = { link: LINK, proposedAt: NOW, proposedBy: null };
+
+  it("rebuilds a review request only while the shelter is still pending", () => {
+    expect(rebuildDailyIntent(shelter({}), "rr", "2026-11-10")).toMatchObject({
+      kind: "reviewRequested",
+      audience: "operators",
+      dedupBase: `rr:${SHELTER.id}:2026-11-10`,
+    });
+    for (const status of ["under_review", "verified", "rejected", "paused", "suspended"]) {
+      expect(
+        rebuildDailyIntent(shelter({ verification: { status } }), "rr", "2026-11-10"),
+      ).toBeNull();
+    }
+  });
+
+  it("rebuilds a proposal from the link waiting now, and nothing once none waits", () => {
+    expect(
+      rebuildDailyIntent(shelter({ pendingDonation: waiting }), "dp", "2026-11-10"),
+    ).toMatchObject({
+      kind: "donationProposed",
+      host: "donate.example.org",
+      dedupBase: `dp:${SHELTER.id}:2026-11-10`,
+    });
+    expect(rebuildDailyIntent(shelter({}), "dp", "2026-11-10")).toBeNull();
   });
 });
 

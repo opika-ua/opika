@@ -137,5 +137,8 @@ Event mails (review requests, donation links, decisions, early-listing reminders
 `NOTIFICATION_DAILY_EVENT_CAP` a Kyiv day (default 40), counted from `notification_sends` rows
 created since Kyiv midnight. Over the cap a mail is skipped, not queued: the log line
 `notification event cap reached: N mail(s) not sent` (or `skippedOverCap` in the cron's line) says
-how many. Raise the variable in Vercel and redeploy only if the day was real; a loop of requests
-from one shelter is the usual cause (the same request twice a day is already one mail).
+how many. Raise the variable in Vercel and redeploy only if the day was real: a shelter that
+repeats itself is already held to one review-request mail and one proposed-link mail per
+operator per Kyiv day, so a day over the cap means many shelters or many decisions. The daily cron
+sends at most 20 mails a run (retries and early-listing reminders together, not counted against
+the cap), so the worst case is 40 + 20 = 60 of the provider's 100 a day.

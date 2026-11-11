@@ -13,7 +13,7 @@ import type { Database } from "../src/client";
 import { cityRepo } from "../src/repos/city-repo";
 import { kabinetInvitationRepo } from "../src/repos/kabinet-invitation-repo";
 import { notificationRecipientsRepo } from "../src/repos/notification-recipients-repo";
-import { notificationSendsRepo } from "../src/repos/notification-sends-repo";
+import { MAX_SEND_ATTEMPTS, notificationSendsRepo } from "../src/repos/notification-sends-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { authMember, authOrganization, authUser, superAdmins } from "../src/schema/auth";
 import { cities } from "../src/schema/cities";
@@ -310,23 +310,47 @@ export async function runNotificationRecipientsSmoke(db: Database): Promise<Outc
 
     const sendsRepo = notificationSendsRepo(db);
     const countKey = (label: string) => `smoke:${tag}:count-${label}`;
-    sendKeys.push(countKey("now"), countKey("old"), countKey("other"));
+    // Kinds unique to this run, so the counts are exact whatever else is on the branch.
+    const kindA = `smoke-${tag}-a`;
+    const kindB = `smoke-${tag}-b`;
+    sendKeys.push(countKey("a-now"), countKey("a-old"), countKey("b-now"), countKey("close"));
     const hourAgo = new Date(now.getTime() - 3_600_000);
     const base = { shelterId: null, recipientUserId: null };
-    await sendsRepo.claim(now, { ...base, dedupKey: countKey("now"), kind: "approved" });
+    await sendsRepo.claim(now, { ...base, dedupKey: countKey("a-now"), kind: kindA });
     await sendsRepo.claim(new Date(now.getTime() - 3 * DAY), {
       ...base,
-      dedupKey: countKey("old"),
-      kind: "approved",
+      dedupKey: countKey("a-old"),
+      kind: kindA,
     });
-    await sendsRepo.claim(now, { ...base, dedupKey: countKey("other"), kind: "smoke-other" });
-    const counted = await sendsRepo.countCreatedSince(hourAgo, ["approved"]);
-    const countedBoth = await sendsRepo.countCreatedSince(hourAgo, ["approved", "smoke-other"]);
-    const none = await sendsRepo.countCreatedSince(hourAgo, []);
+    await sendsRepo.claim(now, { ...base, dedupKey: countKey("b-now"), kind: kindB });
+    const countA = await sendsRepo.countCreatedSince(hourAgo, [kindA]);
+    const countB = await sendsRepo.countCreatedSince(hourAgo, [kindB]);
+    const countBoth = await sendsRepo.countCreatedSince(hourAgo, [kindA, kindB]);
+    const countNone = await sendsRepo.countCreatedSince(hourAgo, []);
     check(
-      "notify: countCreatedSince counts the fixture rows of the given kinds created since the instant (a 3-day-old row and another kind are not counted)",
-      countedBoth - counted === 1 && counted >= 1 && none === 0,
-      `approved ${counted}, with the other kind ${countedBoth}, no kinds ${none}`,
+      "notify: countCreatedSince counts exactly today's fixture rows of the given kinds (A 1, B 1, both 2, none 0); the 3-day-old row is not counted",
+      countA === 1 && countB === 1 && countBoth === 2 && countNone === 0,
+      `A ${countA}, B ${countB}, both ${countBoth}, none ${countNone}`,
+    );
+
+    await sendsRepo.claim(now, { ...base, dedupKey: countKey("close"), kind: kindA });
+    const closed = await sendsRepo.closeFailed(now, countKey("close"));
+    const closedAgain = await sendsRepo.closeFailed(now, countKey("close"));
+    const [closedRow] = await db
+      .select()
+      .from(notificationSends)
+      .where(eq(notificationSends.dedupKey, countKey("close")));
+    const offered = (await sendsRepo.retryable(now)).some((r) => r.dedupKey === countKey("close"));
+    const reclaimed = await sendsRepo.reclaim(now, countKey("close"));
+    check(
+      "notify: closeFailed ends a claimed row as failed with attempts at the cap in one statement; it is not retryable or reclaimable, and a second call changes nothing",
+      closed &&
+        !closedAgain &&
+        closedRow?.status === "failed" &&
+        closedRow.attempts === MAX_SEND_ATTEMPTS &&
+        !offered &&
+        !reclaimed,
+      `closed ${closed}, again ${closedAgain}, ${closedRow?.status} attempts ${closedRow?.attempts}, offered ${offered}, reclaimed ${reclaimed}`,
     );
 
     await db.delete(authMember).where(eq(authMember.id, memberARow));

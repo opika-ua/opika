@@ -114,12 +114,10 @@ export async function sendClaimed(
     );
   }
   const sends = notificationSendsRepo(deps.db);
-  await sends.mark(deps.now(), dedupKey, status);
-  if (unanswered) {
-    // Closed, not retryable: a second send could double a mail that did arrive. The reclaim
-    // spends the row's last attempt (a no-op when the retry already did), then it stays failed.
-    if (await sends.reclaim(deps.now(), dedupKey)) await sends.mark(deps.now(), dedupKey, "failed");
-  }
+  // Closed, not retryable, when nothing answered: a second send could double a mail that did
+  // arrive. One statement, so no sweep can reclaim the row in between.
+  if (unanswered) await sends.closeFailed(deps.now(), dedupKey);
+  else await sends.mark(deps.now(), dedupKey, status);
   return status;
 }
 

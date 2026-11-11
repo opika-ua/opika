@@ -27,10 +27,10 @@ describe("runNotificationRecipientsSmoke against the local database", () => {
     sends: (await db.select().from(notificationSends)).length,
   });
 
-  it("passes every check, there are 12, and every fixture row is gone", async () => {
+  it("passes every check, there are 13, and every fixture row is gone", async () => {
     const outcomes = await runNotificationRecipientsSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes).toHaveLength(12);
+    expect(outcomes).toHaveLength(13);
     expect(await leftovers()).toEqual({
       users: 0,
       grants: 0,
@@ -56,7 +56,7 @@ describe("runNotificationRecipientsSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runNotificationRecipientsSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes).toHaveLength(12);
+    expect(outcomes).toHaveLength(13);
     expect(await leftovers()).toEqual({
       users: 0,
       grants: 0,

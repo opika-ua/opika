@@ -13,7 +13,7 @@ export type NotificationSendStatus = (typeof NOTIFICATION_SEND_STATUSES)[number]
  * delivered twice, two writers racing). Holds no address and no text: the recipient is a
  * user id, so the row is pseudonymous. The recipient column is nulled when that account is
  * erased, and the dedup key carries only an unsalted hash of the user id (`h:{historyId}:{hash}`,
- * `notify/dedup.ts`). The hash can be recomputed from an id that history still holds, so a row is
+ * `rr:`/`dp:{shelterId}:{kyivDay}:{hash}`, `el-end:{shelterId}:{since}:{hash}`; `notify/dedup.ts`). The hash can be recomputed from an id that history still holds, so a row is
  * pseudonymous, not anonymous, until the 90-day purge by the 6-hourly auth clean-up
  * (`notificationSendsRepo`).
  *

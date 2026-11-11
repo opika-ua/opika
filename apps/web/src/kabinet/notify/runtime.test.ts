@@ -69,10 +69,8 @@ describe("eventCapOf", () => {
     for (const bad of ["0", "-3", "4.5", "ten", "1e3", "99999999999999999999"]) {
       expect(eventCapOf({ NOTIFICATION_DAILY_EVENT_CAP: bad }, log), bad).toBe(40);
     }
-    expect(seen.length).toBeLessThanOrEqual(1);
-    for (const line of seen) {
-      expect(line).toContain("NOTIFICATION_DAILY_EVENT_CAP");
-      expect(line).not.toMatch(/ten|99999/);
-    }
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toContain("NOTIFICATION_DAILY_EVENT_CAP");
+    expect(seen[0]).not.toMatch(/ten|99999/);
   });
 });

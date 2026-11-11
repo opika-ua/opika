@@ -5,6 +5,7 @@ import {
   notificationSendsRepo,
   shelterRepo,
 } from "@opika/db/repos";
+import { kyivCalendarDateOf } from "@opika/domain";
 import { dedupKeyOf } from "./dedup";
 import { createPacer, deliver, type NotifyDeps, openEventCap, sendClaimed } from "./deliver";
 import {
@@ -15,10 +16,11 @@ import {
 } from "./intents";
 
 /**
- * Mails one run may send. Resend's free plan allows 100 a day and a sign-in link must always
- * have room, so a run stops well short of it and leaves the rest for tomorrow.
+ * Mails one run may send, retries and O4 together. Resend's free plan allows 100 a day and a
+ * sign-in link must always have room: the event cap (40) plus this is a worst case of 60, which
+ * leaves 40. Retries are not counted against the cap (owner to decide, `docs/runbook.md` 10).
  */
-export const DAILY_SEND_BUDGET = 60;
+export const DAILY_SEND_BUDGET = 20;
 
 /**
  * A run stops claiming after this long (Vercel gives the route 300 s): a send can take its 10 s
@@ -64,12 +66,22 @@ async function rebuilt(
     (row.dedupKey.startsWith("rr:") || row.dedupKey.startsWith("dp:")) &&
     row.shelterId !== null
   ) {
+    const [prefix, , day] = row.dedupKey.split(":");
     const shelter = await shelterRepo(deps.db).findById(row.shelterId);
-    const intent =
-      shelter === null
-        ? null
-        : rebuildDailyIntent(shelter, row.dedupKey.slice(0, row.dedupKey.lastIndexOf(":")));
-    if (intent !== null) intents.push(intent);
+    // The key must name a day this row was claimed on (the claim can land just after Kyiv midnight
+    // of the line's day); its shelter is checked by the final key match below.
+    const claimedOn = [row.createdAt, new Date(row.createdAt.getTime() - 600_000)].map(
+      kyivCalendarDateOf,
+    );
+    if (
+      shelter !== null &&
+      (prefix === "rr" || prefix === "dp") &&
+      day !== undefined &&
+      (claimedOn as string[]).includes(day)
+    ) {
+      const intent = rebuildDailyIntent(shelter, prefix, day);
+      if (intent !== null) intents.push(intent);
+    }
   } else if (row.dedupKey.startsWith("el-end:") && row.shelterId !== null) {
     const shelter = await shelterRepo(deps.db).findById(row.shelterId);
     if (shelter !== null) {

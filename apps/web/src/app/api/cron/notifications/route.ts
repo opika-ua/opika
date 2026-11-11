@@ -3,9 +3,9 @@ import { handleNotificationsCron } from "../../../../kabinet/notifications-cron"
 import { notifyDepsOf, notifyRuntimeOf } from "../../../../kabinet/notify/runtime";
 
 /**
- * 60 sends at 500 ms apart plus the provider's answer, each up to its 10 s timeout, could take
- * about 660 s in the worst case, longer than this limit. That is safe: the run stops claiming
- * after 240 s (`DAILY_TIME_GUARD_MS`), and an unclaimed mail waits for the next run.
+ * A run sends at most 20 mails (`DAILY_SEND_BUDGET`), 500 ms apart plus the provider's answer,
+ * each up to its 10 s timeout: about 220 s in the worst case. The run also stops claiming after
+ * 240 s (`DAILY_TIME_GUARD_MS`), and an unclaimed mail waits for the next run.
  */
 export const maxDuration = 300;
 

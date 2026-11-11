@@ -158,20 +158,23 @@ export function planEarlyListingEnding(
  * so it is rebuilt from the shelter as it is now: still waiting for review, or a link still
  * waiting for the operator. Otherwise null, and the retry is dropped.
  */
-export function rebuildDailyIntent(shelter: Shelter, dedupBase: string): NotificationIntent | null {
+export function rebuildDailyIntent(
+  shelter: Shelter,
+  prefix: "rr" | "dp",
+  day: string,
+): NotificationIntent | null {
   const shared = {
     audience: "operators",
     shelterId: shelter.id,
     shelterName: shelter.displayName,
-    dedupBase,
+    dedupBase: `${prefix}:${shelter.id}:${day}`,
   } as const;
-  if (dedupBase.startsWith("rr:")) {
+  if (prefix === "rr") {
     return shelter.verification.status === "pending"
       ? { ...shared, kind: "reviewRequested" }
       : null;
   }
-  if (dedupBase.startsWith("dp:") && shelter.pendingDonation !== null) {
-    return { ...shared, kind: "donationProposed", host: hostOf(shelter.pendingDonation.link.url) };
-  }
-  return null;
+  return shelter.pendingDonation === null
+    ? null
+    : { ...shared, kind: "donationProposed", host: hostOf(shelter.pendingDonation.link.url) };
 }
