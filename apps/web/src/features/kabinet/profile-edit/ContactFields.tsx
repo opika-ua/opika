@@ -40,12 +40,12 @@ export const inputModeOf = (kind: ChannelKind) =>
         : "text";
 
 /**
- * K4's contact fields (N6, answer 3): an optional phone, an optional
- * Telegram, an optional application form, and up to four «other» rows. A stored contact that fits neither
- * field shows as an «other» row of its own kind, editable (fix 3); a new row
- * is Viber, WhatsApp, email, a website, Instagram or Facebook. Shared by K4's contacts section and the
- * operator's create form (R-UI 2), which hold the form themselves and check
- * it with `contactOfForm`; this renders the fields and nothing else.
+ * K4's contact fields (N6, answer 3): an optional phone, an optional Telegram,
+ * an optional application form, and up to four «other» rows. A stored contact
+ * that fits no field shows as an «other» row of its own kind, editable (fix 3);
+ * a new row is Viber, WhatsApp, email, a website, Instagram or Facebook. Shared
+ * by K4's contacts section and the operator's create form (R-UI 2), which hold
+ * the form themselves and check it with `contactOfForm`; this renders the fields.
  */
 export function ContactFields({
   idPrefix,

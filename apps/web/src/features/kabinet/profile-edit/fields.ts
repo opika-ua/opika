@@ -5,10 +5,10 @@ import {
   DonationLinkSchema,
   donationUrlProblemOf,
   FRESHNESS_SENTENCE_MAX_CHARACTERS,
+  MAX_OTHER_CONTACTS,
   normalizeFacebook,
   normalizeFreshnessSentenceText,
   normalizeInstagram,
-  MAX_OTHER_CONTACTS,
   normalizeUaPhone,
   type ShelterContact,
 } from "@opika/domain";
@@ -53,7 +53,7 @@ export const ALL_KINDS = [
   "facebook",
 ] as const satisfies readonly ChannelKind[];
 
-/** The cap on adding rows: the domain's, so the editor and the input schema agree (owner, 2026-11-11). */
+/** The cap on adding rows: the domain's, so the editor and the input schema agree (2026-11-11). */
 export const MAX_OTHER_ROWS = MAX_OTHER_CONTACTS;
 
 export type OtherRow = {
@@ -98,9 +98,9 @@ export const channelText = (channel: ContactChannel): string => {
 
 /**
  * The stored contact as the form (answer 3): the first phone in the phone
- * field, the first Telegram in the Telegram field, the first form in the form field, and every other stored
- * channel, in stored order, as an «other» row, so nothing stored is hidden or
- * lost (two emails, a second phone, a website and a Viber all stay visible).
+ * field, the first Telegram in the Telegram field, the first form in the form
+ * field, and every other stored channel, in stored order, as an «other» row,
+ * so nothing stored is hidden or lost (two emails, a second phone, a website and a Viber all stay visible).
  */
 export function contactsFormOf(contact: ShelterContact): ContactsForm {
   const channels = [contact.primary, ...contact.additional];

@@ -16,7 +16,8 @@ import type { RevealErrorReason, RevealState } from "./useReveal";
 
 /**
  * One action row per channel the shelter gave: its label, the link that does the thing, and an icon.
- * `external` links open in a new tab (Telegram, Instagram, Facebook, WhatsApp, website, form); `tel:`, `mailto:` and `viber:` hand off to
+ * `external` links open in a new tab (Telegram, Instagram, Facebook, WhatsApp, website, form);
+ * `tel:`, `mailto:` and `viber:` hand off to
  * the phone's own app. The row's visible value is `contactChannelText`; `copyLabel` names the copy
  * button for a screen reader (it starts with the visible «Копіювати», WCAG 2.5.3) and is null where
  * a copy makes no sense (a website is opened, not pasted).

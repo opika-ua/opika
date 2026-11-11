@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CONTACT_INPUT_MAX_LENGTH,
   ContactChannelInputSchema,
-  MAX_ADDITIONAL_CHANNELS,
   ContactChannelSchema,
   isCanonicalFacebookUrl,
+  MAX_ADDITIONAL_CHANNELS,
   normalizeFacebook,
   normalizeInstagram,
   normalizeUaPhone,
