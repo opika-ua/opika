@@ -124,6 +124,8 @@ export type ShelterContact = z.infer<typeof ShelterContactSchema>;
 export const MAX_OTHER_CONTACTS = 4;
 /** Telegram and the form have their own fields, so the additional list holds them and the others. */
 export const MAX_ADDITIONAL_CHANNELS = MAX_OTHER_CONTACTS + 2;
+/** The cap's refusal, matched by the editor to say which rule it broke (as the display name's is). */
+export const CONTACT_TOO_MANY_CHANNELS_MESSAGE = `A contact holds at most ${MAX_ADDITIONAL_CHANNELS} additional channels`;
 
 /**
  * On a write a form is never the primary (the reveal must always offer a way to call or write),
@@ -133,7 +135,7 @@ export const ShelterContactInputSchema = z.object({
   primary: ContactChannelInputSchema.refine((channel) => channel.kind !== "form"),
   additional: z
     .array(ContactChannelInputSchema)
-    .max(MAX_ADDITIONAL_CHANNELS)
+    .max(MAX_ADDITIONAL_CHANNELS, { message: CONTACT_TOO_MANY_CHANNELS_MESSAGE })
     .readonly()
     .refine((channels) => channels.filter((channel) => channel.kind === "form").length <= 1),
 });

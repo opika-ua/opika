@@ -391,6 +391,9 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // k4-copy-uk.md
     // K4-B4, answer 3: U+02BC, as in every one of his K4 strings
     "profileEdit.contacts.atLeastOne": "Залиште хоча б один спосіб звʼязку.",
+    // The channel cap's message (2026-11-11): proposed in the PR's copy table, for the owner.
+    "profileEdit.contacts.tooMany":
+      "Можна залишити до {max} інших способів звʼязку. Приберіть зайві, щоб зберегти.",
     // replaced by his DR1-Q1 text (2026-10-20); nameStaysHint and insertName deleted with
     // the {імʼя} token they explained (DR1-Q5)
     "profileEdit.voice.hint":
@@ -1608,8 +1611,8 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
     // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
-    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field.
-    expect(k4.length).toBe(102);
+    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field; 103 with the channel cap's message.
+    expect(k4.length).toBe(103);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

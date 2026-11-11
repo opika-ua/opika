@@ -1,7 +1,7 @@
 "use client";
 
 import "../../../zod-client-config";
-import { uk } from "@opika/i18n";
+import { fillTemplate, uk } from "@opika/i18n";
 import { useState } from "react";
 import { Button } from "../../../ui/Button";
 import { ERROR, LABEL, Select, TextField } from "../../../ui/form";
@@ -12,6 +12,7 @@ import {
   type FieldError,
   MAX_OTHER_ROWS,
   NEW_OTHER_KINDS,
+  tooManyOthers,
 } from "./fields";
 import { Optional } from "./Optional";
 
@@ -20,6 +21,8 @@ export type ContactsErrors = {
   telegram: FieldError | null;
   form: FieldError | null;
   others: Readonly<Record<string, FieldError>>;
+  /** Set by a refused save; the message also shows while the rows are over the cap. */
+  tooMany: boolean;
   atLeastOne: boolean;
 };
 export const NO_CONTACT_ERRORS: ContactsErrors = {
@@ -27,6 +30,7 @@ export const NO_CONTACT_ERRORS: ContactsErrors = {
   telegram: null,
   form: null,
   others: {},
+  tooMany: false,
   atLeastOne: false,
 };
 
@@ -192,6 +196,15 @@ export function ContactFields({
         >
           {t.contacts.addOther}
         </Button>
+      ) : null}
+      {errors.tooMany || tooManyOthers(form) ? (
+        <p
+          role={errors.tooMany ? "alert" : undefined}
+          id={`${idPrefix}-too-many`}
+          className={ERROR}
+        >
+          {fillTemplate(t.contacts.tooMany, { max: String(MAX_OTHER_ROWS) })}
+        </p>
       ) : null}
       {errors.atLeastOne ? (
         <p role="alert" id={`${idPrefix}-at-least-one`} className={ERROR}>

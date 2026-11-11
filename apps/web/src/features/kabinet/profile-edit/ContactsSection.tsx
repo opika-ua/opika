@@ -18,7 +18,10 @@ import { type ContactsForm, contactOfForm, contactsFormOf, sameContactsForm } fr
  * at all there is no one field to blame: the phone is where a person starts.
  */
 function focusFirstProblem(prefix: string, form: ContactsForm, errors: ContactsErrors): void {
-  const otherId = form.others.find((row) => errors.others[row.id] !== undefined)?.id;
+  // Over the cap, the first «other» row is where removing one starts.
+  const otherId =
+    form.others.find((row) => errors.others[row.id] !== undefined)?.id ??
+    (errors.tooMany ? form.others[0]?.id : undefined);
   const target =
     errors.phone !== null
       ? `${prefix}-phone`
@@ -74,6 +77,7 @@ export function ContactsSection({
         (checked.phone === null ? 0 : 1) +
         (checked.telegram === null ? 0 : 1) +
         (checked.form === null ? 0 : 1) +
+        (checked.tooMany ? 1 : 0) +
         Object.keys(checked.others).length;
       return { kind: "invalid", count: Math.max(count, 1) };
     }
@@ -91,6 +95,13 @@ export function ContactsSection({
         return { kind: "ok" };
       }
       return { kind: "failed" };
+    }
+    if (result.kind === "too_many_channels") {
+      // Reached only when the server counts more than the page did; same message, same fix.
+      const refused = { ...NO_CONTACT_ERRORS, tooMany: true };
+      setErrors(refused);
+      focusFirstProblem(id, form, refused);
+      return { kind: "invalid", count: 1 };
     }
     return result.kind === "conflict" ? { kind: "conflict" } : { kind: "failed" };
   };
@@ -114,7 +125,16 @@ export function ContactsSection({
       titleless
       description={uk.kabinet.profile.contactsNote}
     >
-      <ContactFields idPrefix={id} form={form} update={setForm} errors={errors} />
+      <ContactFields
+        idPrefix={id}
+        form={form}
+        update={(change) => {
+          setForm(change);
+          // The cap's message then follows the rows themselves (`tooManyOthers`).
+          setErrors((current) => (current.tooMany ? { ...current, tooMany: false } : current));
+        }}
+        errors={errors}
+      />
       <Text look="hint">{t.actions.liveOnSave.contacts}</Text>
     </FormSection>
   );
