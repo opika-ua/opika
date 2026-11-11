@@ -69,7 +69,7 @@ export function Modal({
       className={cx(
         "fixed inset-x-0 bottom-0 top-auto m-0 w-full max-w-none rounded-t-panel border-0 bg-surface p-0 text-ink backdrop:bg-ink/40",
         perched === undefined ? "overflow-y-auto" : "overflow-visible",
-        "max-h-dvh tablet:inset-0 tablet:m-auto tablet:h-fit tablet:max-w-xl tablet:rounded-card",
+        "scroll-pt-20 max-h-dvh tablet:inset-0 tablet:m-auto tablet:h-fit tablet:max-w-xl tablet:rounded-card",
       )}
     >
       {perched === undefined ? null : (
@@ -80,14 +80,22 @@ export function Modal({
       <div
         className={cx(
           "flex flex-col gap-5 p-5 pb-safe tablet:p-8",
-          perched !== undefined && "max-h-dvh overflow-y-auto rounded-t-panel tablet:rounded-card",
+          perched !== undefined &&
+            "scroll-pt-20 max-h-dvh overflow-y-auto rounded-t-panel tablet:rounded-card",
         )}
       >
         <span
           aria-hidden="true"
           className="mx-auto -mt-2 h-1 w-10 rounded-pill bg-muted tablet:hidden"
         />
-        <div className="flex items-start justify-between gap-4">
+        {/* Sticky: the close stays reachable in a tall dialog. -my-2 py-2 nets no shift; scroll-pt-20 keeps a focused control from under it. */}
+        <div
+          className={cx(
+            "sticky z-10 -mx-5 -my-2 flex items-start justify-between gap-4 bg-surface px-5 py-2 tablet:-mx-8 tablet:px-8",
+            // Sticky insets by the scroller's padding: the padded content box scrolls when perched, the unpadded dialog otherwise.
+            perched === undefined ? "top-0" : "-top-5 tablet:-top-8",
+          )}
+        >
           {header === undefined ? (
             <h2 id={`${id}-title`} ref={titleRef} tabIndex={-1} className="text-title text-ink">
               {title}
