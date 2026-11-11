@@ -1,4 +1,15 @@
 import { z } from "zod";
+import { ANIMAL_NAME_MAX_CHARACTERS, characterCount } from "../text-limits";
+
+// Re-exported so imports from this file keep working; the definitions live in text-limits.
+export {
+  ANIMAL_DESCRIPTION_MAX_CHARACTERS,
+  ANIMAL_NAME_MAX_CHARACTERS,
+  type AnimalDescriptionProblem,
+  animalDescriptionProblem,
+  animalDescriptionProblemMessage,
+  characterCount,
+} from "../text-limits";
 
 /**
  * The animal-name slot the sentence used to carry (VH-Q1, K-Q6), now refused.
@@ -19,42 +30,6 @@ export const ANIMAL_NAME_TOKEN = "{імʼя}";
 
 /** K-Q6: 280 characters, counted as a reader sees them, after normalisation. */
 export const FRESHNESS_SENTENCE_MAX_CHARACTERS = 280;
-
-/** S2: 60 characters, counted the same way, after trimming. */
-export const ANIMAL_NAME_MAX_CHARACTERS = 60;
-
-/**
- * Built on first use, never at module load: this module ships in client
- * bundles (the deck, the animal page), and a browser without
- * `Intl.Segmenter` (Firefox before 125) would otherwise throw while loading
- * it and break hydration for a page that never counts anything (review
- * finding 3).
- */
-let graphemes: Intl.Segmenter | undefined;
-
-const graphemeSegmenter = (): Intl.Segmenter | undefined => {
-  if (graphemes === undefined && typeof Intl.Segmenter === "function") {
-    graphemes = new Intl.Segmenter("uk", { granularity: "grapheme" });
-  }
-  return graphemes;
-};
-
-/**
- * Characters as a person counts them: an emoji, a flag or a letter with a
- * combining accent is one. `String.length` counts UTF-16 units, so a limit
- * measured that way would cut a shelter off early for writing «🐾» and
- * disagree with whatever counter the form shows.
- *
- * Without `Intl.Segmenter` this falls back to code points rather than
- * throwing. That over-counts a ZWJ sequence, a flag, a skin tone or a
- * combining accent, so an old browser's counter is stricter than the limit,
- * never looser. The server (Node 24, which has `Intl.Segmenter`) is the one
- * whose count is enforced.
- */
-export const characterCount = (text: string): number => {
-  const segmenter = graphemeSegmenter();
-  return segmenter === undefined ? [...text].length : [...segmenter.segment(text)].length;
-};
 
 /**
  * The spellings a person actually types for the old token: the ASCII apostrophe,
@@ -142,31 +117,6 @@ export const animalNameProblem = (name: string): AnimalNameProblem | null => {
   }
   return null;
 };
-
-/**
- * K3's limit (docs/design/KABINET.md), counted as characters like the
- * sentence and the name. Here rather than in contracts so the onboarding
- * script (packages/db) applies the same cap: a longer onboarded description
- * couldn't be saved again in K3 until the shelter cut it (review finding 6).
- */
-export const ANIMAL_DESCRIPTION_MAX_CHARACTERS = 1500;
-
-export type AnimalDescriptionProblem = {
-  readonly kind: "too_long";
-  readonly characters: number;
-  readonly max: number;
-};
-
-/** One language's description text against the cap; `null` when it fits. */
-export const animalDescriptionProblem = (text: string): AnimalDescriptionProblem | null => {
-  const characters = characterCount(text);
-  return characters > ANIMAL_DESCRIPTION_MAX_CHARACTERS
-    ? { kind: "too_long", characters, max: ANIMAL_DESCRIPTION_MAX_CHARACTERS }
-    : null;
-};
-
-export const animalDescriptionProblemMessage = (problem: AnimalDescriptionProblem): string =>
-  `Description is ${problem.characters} characters; the maximum is ${problem.max}`;
 
 export const freshnessSentenceProblemMessage = (problem: FreshnessSentenceProblem): string => {
   switch (problem.kind) {

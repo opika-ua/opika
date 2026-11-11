@@ -1,4 +1,4 @@
-import { characterCount } from "./freshness-sentence";
+import { characterCount } from "../text-limits";
 
 /**
  * A shelter admin's password (`docs/shelter-passwords.md` §3; Oleksii's scope

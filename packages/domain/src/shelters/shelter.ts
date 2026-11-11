@@ -33,7 +33,8 @@ export type FreshnessSentence = z.infer<typeof FreshnessSentenceSchema>;
 export const ShelterSchema = z.object({
   id: ShelterIdSchema,
   displayName: z.string().min(1),
-  description: LocalizedTextSchema,
+  /** Null when the shelter has written none; read side never caps (a longer stored text still loads). */
+  description: LocalizedTextSchema.nullable(),
   /** Null until the operator adds it (minimal create); approval is refused while null (`approvalGaps`). */
   legalEntity: ShelterLegalEntitySchema.nullable(),
   publicLocation: PublicLocationSchema,

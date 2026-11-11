@@ -32,6 +32,7 @@ import {
   type PauseReason,
   RegionIdSchema,
   ReportIdSchema,
+  SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
   ShelterAdminIdSchema,
   ShelterContactInputSchema,
   ShelterDisplayNameInputSchema,
@@ -285,6 +286,35 @@ const AnimalDescriptionInputSchema = LocalizedTextSchema.superRefine((descriptio
   if (description.en !== null) withinDescriptionLimit(description.en.text, ["en", "text"], ctx);
 });
 
+const ShelterDescriptionTextSchema = z.string().trim().min(1);
+
+const withinShelterDescriptionLimit = (text: string, path: PropertyKey[], ctx: z.RefinementCtx) => {
+  if (animalDescriptionProblem(text) !== null) {
+    ctx.addIssue({ code: "custom", path, message: SHELTER_DESCRIPTION_TOO_LONG_MESSAGE });
+  }
+};
+
+/**
+ * What every shelter-description write accepts; null clears it. Blank text is
+ * refused here (the editor sends null for a blank field). The fixed message
+ * is what the editor matches to show its own text, as for the contact cap.
+ */
+export const ShelterDescriptionInputSchema = z
+  .object({
+    uk: ShelterDescriptionTextSchema,
+    en: z
+      .object({ text: ShelterDescriptionTextSchema, provenance: TextProvenanceSchema })
+      .nullable(),
+  })
+  .superRefine((description, ctx) => {
+    withinShelterDescriptionLimit(description.uk, ["uk"], ctx);
+    if (description.en !== null) {
+      withinShelterDescriptionLimit(description.en.text, ["en", "text"], ctx);
+    }
+  })
+  .nullable();
+export type ShelterDescriptionInput = z.infer<typeof ShelterDescriptionInputSchema>;
+
 /**
  * The same check as the description's, for the pet card's shorter texts:
  * each language against its own field's cap, counted as a reader sees them
@@ -351,6 +381,9 @@ export const shelterProfileContract = {
   get: shelterProfileRead.input(empty).errors(shelterScopedErrors),
   updateContact: shelterProfileWrite
     .input(z.strictObject({ contact: ShelterContactInputSchema, expectedVersion }))
+    .errors(shelterCasErrors),
+  updateDescription: shelterProfileWrite
+    .input(z.strictObject({ description: ShelterDescriptionInputSchema, expectedVersion }))
     .errors(shelterCasErrors),
   updateFreshnessSentence: shelterProfileWrite
     .input(z.strictObject({ freshnessSentence: FreshnessSentenceInputSchema, expectedVersion }))
@@ -757,7 +790,8 @@ export const registrySheltersContract = {
         displayName: ShelterDisplayNameInputSchema,
         /** The shelter's city, required on its own: the address is optional. */
         cityId: CityIdSchema,
-        description: LocalizedTextSchema,
+        /** Absent and null both mean none. */
+        description: ShelterDescriptionInputSchema.optional(),
         /** Null: added later through `updateVerifiedData`; approval waits for it. */
         legalEntity: ShelterLegalEntitySchema.nullable(),
         /** Without `cityId`: the address is in the shelter's city by construction. */
@@ -808,7 +842,8 @@ export const registrySheltersContract = {
           expectedVersion,
           displayName: ShelterDisplayNameInputSchema.optional(),
           contact: ShelterContactInputSchema.optional(),
-          description: LocalizedTextSchema.optional(),
+          /** Undefined = unchanged, null = clear. */
+          description: ShelterDescriptionInputSchema.optional(),
           freshnessSentence: FreshnessSentenceInputSchema.optional(),
         })
         .refine(

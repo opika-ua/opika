@@ -132,8 +132,9 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     kind: z.literal("description_changed"),
     at: z.date(),
     actor: ShelterActorSchema,
-    previous: LocalizedTextSchema,
-    next: LocalizedTextSchema,
+    /** Null: added or cleared. Old entries are all non-null. */
+    previous: LocalizedTextSchema.nullable(),
+    next: LocalizedTextSchema.nullable(),
   }),
   /**
    * The shelter's own logo, set or cleared (pet card PR 3b). Same shape as

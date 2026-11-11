@@ -73,8 +73,8 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("description_changed"),
     ...base,
-    previous: LocalizedTextSchema,
-    next: LocalizedTextSchema,
+    previous: LocalizedTextSchema.nullable(),
+    next: LocalizedTextSchema.nullable(),
   }),
   z.object({
     kind: z.literal("logo_changed"),

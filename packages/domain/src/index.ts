@@ -7,3 +7,4 @@ export * from "./primitives/index";
 export * from "./reports/index";
 export * from "./reveals/index";
 export * from "./shelters/index";
+export * from "./text-limits";
