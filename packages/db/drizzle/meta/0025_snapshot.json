@@ -70,16 +70,12 @@
         "adopters_device_session_id_unique": {
           "name": "adopters_device_session_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "device_session_id"
-          ]
+          "columns": ["device_session_id"]
         },
         "adopters_account_id_unique": {
           "name": "adopters_account_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "account_id"
-          ]
+          "columns": ["account_id"]
         }
       },
       "policies": {},
@@ -477,12 +473,8 @@
           "name": "animals_shelter_id_shelters_id_fk",
           "tableFrom": "animals",
           "tableTo": "shelters",
-          "columnsFrom": [
-            "shelter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shelter_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -490,12 +482,8 @@
           "name": "animals_city_id_cities_id_fk",
           "tableFrom": "animals",
           "tableTo": "cities",
-          "columnsFrom": [
-            "city_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["city_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -640,12 +628,8 @@
           "name": "auth_account_user_id_auth_user_id_fk",
           "tableFrom": "auth_account",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -746,12 +730,8 @@
           "name": "auth_invitation_organization_id_auth_organization_id_fk",
           "tableFrom": "auth_invitation",
           "tableTo": "auth_organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -759,12 +739,8 @@
           "name": "auth_invitation_inviter_id_auth_user_id_fk",
           "tableFrom": "auth_invitation",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "inviter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["inviter_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -847,12 +823,8 @@
           "name": "auth_member_organization_id_auth_organization_id_fk",
           "tableFrom": "auth_member",
           "tableTo": "auth_organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -860,12 +832,8 @@
           "name": "auth_member_user_id_auth_user_id_fk",
           "tableFrom": "auth_member",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -924,9 +892,7 @@
         "auth_organization_slug_unique": {
           "name": "auth_organization_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -1014,12 +980,8 @@
           "name": "auth_session_user_id_auth_user_id_fk",
           "tableFrom": "auth_session",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1029,9 +991,7 @@
         "auth_session_token_unique": {
           "name": "auth_session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -1092,9 +1052,7 @@
         "auth_user_email_unique": {
           "name": "auth_user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -1365,12 +1323,8 @@
           "name": "cities_region_id_regions_id_fk",
           "tableFrom": "cities",
           "tableTo": "regions",
-          "columnsFrom": [
-            "region_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["region_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1380,16 +1334,12 @@
         "cities_slug_unique": {
           "name": "cities_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         },
         "cities_katottg_code_unique": {
           "name": "cities_katottg_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "katottg_code"
-          ]
+          "columns": ["katottg_code"]
         }
       },
       "policies": {},
@@ -1469,12 +1419,8 @@
           "name": "city_slug_aliases_city_id_cities_id_fk",
           "tableFrom": "city_slug_aliases",
           "tableTo": "cities",
-          "columnsFrom": [
-            "city_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["city_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1525,12 +1471,8 @@
           "name": "invitation_created_users_user_id_auth_user_id_fk",
           "tableFrom": "invitation_created_users",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1538,12 +1480,8 @@
           "name": "invitation_created_users_invitation_id_auth_invitation_id_fk",
           "tableFrom": "invitation_created_users",
           "tableTo": "auth_invitation",
-          "columnsFrom": [
-            "invitation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["invitation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1636,12 +1574,8 @@
           "name": "notification_sends_shelter_id_shelters_id_fk",
           "tableFrom": "notification_sends",
           "tableTo": "shelters",
-          "columnsFrom": [
-            "shelter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shelter_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1649,12 +1583,8 @@
           "name": "notification_sends_recipient_user_id_auth_user_id_fk",
           "tableFrom": "notification_sends",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "recipient_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["recipient_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1755,16 +1685,12 @@
         "regions_code_unique": {
           "name": "regions_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
+          "columns": ["code"]
         },
         "regions_slug_unique": {
           "name": "regions_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -1891,12 +1817,8 @@
           "name": "reveals_adopter_id_adopters_id_fk",
           "tableFrom": "reveals",
           "tableTo": "adopters",
-          "columnsFrom": [
-            "adopter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["adopter_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1904,12 +1826,8 @@
           "name": "reveals_animal_id_animals_id_fk",
           "tableFrom": "reveals",
           "tableTo": "animals",
-          "columnsFrom": [
-            "animal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["animal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1917,12 +1835,8 @@
           "name": "reveals_shelter_id_shelters_id_fk",
           "tableFrom": "reveals",
           "tableTo": "shelters",
-          "columnsFrom": [
-            "shelter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shelter_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1984,12 +1898,8 @@
           "name": "sessions_adopter_id_adopters_id_fk",
           "tableFrom": "sessions",
           "tableTo": "adopters",
-          "columnsFrom": [
-            "adopter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["adopter_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2069,12 +1979,8 @@
           "name": "shelter_history_shelter_id_shelters_id_fk",
           "tableFrom": "shelter_history",
           "tableTo": "shelters",
-          "columnsFrom": [
-            "shelter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shelter_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2278,12 +2184,8 @@
           "name": "shelters_city_id_cities_id_fk",
           "tableFrom": "shelters",
           "tableTo": "cities",
-          "columnsFrom": [
-            "city_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["city_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2291,12 +2193,8 @@
           "name": "shelters_organization_id_auth_organization_id_fk",
           "tableFrom": "shelters",
           "tableTo": "auth_organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2306,9 +2204,7 @@
         "shelters_organization_id_unique": {
           "name": "shelters_organization_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "organization_id"
-          ]
+          "columns": ["organization_id"]
         }
       },
       "policies": {},
@@ -2380,12 +2276,8 @@
           "name": "super_admins_user_id_auth_user_id_fk",
           "tableFrom": "super_admins",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2471,12 +2363,8 @@
           "name": "support_sessions_operator_user_id_auth_user_id_fk",
           "tableFrom": "support_sessions",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "operator_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["operator_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2484,12 +2372,8 @@
           "name": "support_sessions_shelter_id_shelters_id_fk",
           "tableFrom": "support_sessions",
           "tableTo": "shelters",
-          "columnsFrom": [
-            "shelter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shelter_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2499,9 +2383,7 @@
         "support_sessions_token_hash_unique": {
           "name": "support_sessions_token_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
+          "columns": ["token_hash"]
         }
       },
       "policies": {},

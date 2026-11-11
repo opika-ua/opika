@@ -171,6 +171,19 @@ describe("retryable and reclaim", () => {
     expect(await repo.reclaim(NOW, "r")).toBe(false);
     expect((await rowOf("r"))?.attempts).toBe(2);
   });
+
+  it("reclaim refuses a sent row and a claimed row, and changes neither", async () => {
+    await seed("done", { status: "sent" });
+    await seed("in-flight", { status: "claimed" });
+    const repo = notificationSendsRepo(db);
+
+    expect(await repo.reclaim(NOW, "done")).toBe(false);
+    expect(await repo.reclaim(NOW, "in-flight")).toBe(false);
+    expect(await repo.reclaim(NOW, "missing")).toBe(false);
+
+    expect(await rowOf("done")).toMatchObject({ status: "sent", attempts: 1 });
+    expect(await rowOf("in-flight")).toMatchObject({ status: "claimed", attempts: 1 });
+  });
 });
 
 describe("purgeOlderThan", () => {
