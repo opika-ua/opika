@@ -45,7 +45,7 @@ catalog:
   # Kabinet auth only (ADR §Auth; adopters keep decision #13's session). Pinned
   # exactly (HS-Q7). Our repos write invitations and read Better Auth's rows, so
   # an upgrade must pass the kabinet auth suites (apps/web/src/kabinet/*.test.ts)
-  # and the Neon auth smoke. 1.7.14 since S1 (1.7.7+ clears GHSA-965c-763c-88jm).
+  # and the Neon auth smoke. 1.7.18 since #461 (1.7.7+ clears GHSA-965c-763c-88jm).
   better-auth: 1.7.18
   # Same version as better-auth, which depends on it: apps/web imports its `context` export
   # (auth-log.ts) to run server-side adapter calls inside a logger-bearing context.
