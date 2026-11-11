@@ -21,7 +21,7 @@ import { TEST_SESSION_COOKIE } from "./test-session-cookie";
  * router actually mounted on `/api/kabinet/*` and reading the access each one
  * declares, not from a list written here, so a write added later is held to
  * the same assertions automatically. The count is pinned too
- * (`toHaveLength(18)`), as a tripwire: a new write fails it, and the edit
+ * (`toHaveLength(19)`), as a tripwire: a new write fails it, and the edit
  * that bumps it is where someone confirms who may call it.
  *
  * Until PR 6 this file was `shelter-writes-refused.test.ts` and pinned the
@@ -135,8 +135,8 @@ async function snapshot() {
 }
 
 describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
-  it("finds the eighteen shelter writes, confirm, update, the photo writes and the logo writes among them", () => {
-    expect(shelterWrites).toHaveLength(18);
+  it("finds the nineteen shelter writes, confirm, update, the photo writes and the logo writes among them", () => {
+    expect(shelterWrites).toHaveLength(19);
     expect(shelterWrites).toEqual(
       expect.arrayContaining([
         "shelter.animals.confirm",
@@ -147,6 +147,7 @@ describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
         "shelter.logo.set",
         "shelter.logo.remove",
         "shelter.profile.updateContact",
+        "shelter.profile.updateDescription",
         "shelter.verification.requestReview",
       ]),
     );

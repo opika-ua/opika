@@ -341,6 +341,28 @@ describe("shelterFacingHistoryOf", () => {
     });
   });
 
+  it("projects a description added or cleared, and an old sentence entry, for the shelter", () => {
+    const text = { uk: "Опис", en: null };
+    const base = ENTRIES.description_changed;
+    expect(
+      facing({ ...base, previous: null, next: text } as ShelterHistoryEntry, OPERATOR),
+    ).toMatchObject({
+      kind: "description_changed",
+      previous: null,
+      next: text,
+    });
+    expect(
+      facing({ ...base, previous: text, next: null } as ShelterHistoryEntry, OPERATOR),
+    ).toMatchObject({
+      kind: "description_changed",
+      previous: text,
+      next: null,
+    });
+    expect(facing(ENTRIES.freshness_sentence_changed, OPERATOR).kind).toBe(
+      "freshness_sentence_changed",
+    );
+  });
+
   it("shows the operator by the display name it was given, never by id", () => {
     expect(facing(ENTRIES.admin_invited, OPERATOR).actor).toEqual({
       kind: "operator",

@@ -263,6 +263,10 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
         }),
     ],
     [
+      "shelter.profile.updateDescription",
+      () => smuggle({ description: { uk: "Не Б", en: null }, expectedVersion: 0 }),
+    ],
+    [
       "shelter.profile.updateFreshnessSentence",
       () => smuggle({ freshnessSentence: { uk: "Не Б", en: null }, expectedVersion: 0 }),
     ],
@@ -409,6 +413,7 @@ describe("coverage", () => {
       "shelter.photos.remove",
       "shelter.profile.get",
       "shelter.profile.updateContact",
+      "shelter.profile.updateDescription",
       "shelter.profile.updateFreshnessSentence",
       "shelter.profile.proposeDonation",
       "shelter.profile.cancelDonationProposal",
@@ -421,7 +426,7 @@ describe("coverage", () => {
       "shelter.logo.set",
       "shelter.logo.remove",
     ];
-    expect(new Set(covered).size).toBe(22);
+    expect(new Set(covered).size).toBe(23);
     expect([...covered].sort()).toEqual(pathsOf(shelterKabinetContract.shelter, "shelter").sort());
   });
 });

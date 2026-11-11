@@ -5,6 +5,7 @@ import {
   earlyListingOf,
   earlyListingRemaining,
   type FreshnessSentence,
+  type LocalizedText,
   type PauseReason,
   type Shelter,
   type ShelterActor,
@@ -21,6 +22,7 @@ import type { ShelterReadScope, ShelterWriteScope } from "../access";
 import type { KabinetContext } from "../context";
 import { shelterUploadKey } from "../rate-limits";
 import { withinBudget } from "./photos";
+import { optionalTextAfterEdit } from "./text-after-edit";
 
 export type ProfileDeps = Pick<KabinetContext, "db" | "now" | "newId" | "photoUploads">;
 
@@ -182,6 +184,34 @@ export const profileUpdateContact = (
         next: input.contact,
       },
     }),
+    errors,
+  );
+
+/** The shelter's own text; a changed Ukrainian drops the stale English, null clears it. */
+export const profileUpdateDescription = (
+  deps: ProfileDeps,
+  scope: ShelterWriteScope,
+  input: { description: LocalizedText | null; expectedVersion: number },
+  errors: CasErrors,
+) =>
+  editFromForm(
+    deps,
+    scope,
+    input.expectedVersion,
+    (shelter) => {
+      const next = optionalTextAfterEdit(shelter.description, input.description);
+      return {
+        kind: "write",
+        change: { kind: "description", description: next },
+        entry: {
+          kind: "description_changed",
+          at: deps.now,
+          actor: actorOf(scope),
+          previous: shelter.description,
+          next,
+        },
+      };
+    },
     errors,
   );
 

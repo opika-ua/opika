@@ -1,3 +1,4 @@
+import { SHELTER_DESCRIPTION_TOO_LONG_MESSAGE } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
   AnimalPatchSchema,
@@ -134,6 +135,61 @@ describe("FreshnessSentenceInputSchema", () => {
       expect(field.safeParse({ uk: "{дата}", en: null }).success).toBe(false);
     }
     expect(FreshnessSentenceInputSchema.safeParse({ uk: "{дата}", en: null }).success).toBe(false);
+  });
+});
+
+/** Every write that accepts the shelter's own description shares one rule. */
+const descriptionFields: readonly [string, Parser][] = [
+  [
+    "shelter.profile.updateDescription",
+    fieldOf(shelterProfileContract.updateDescription, "description"),
+  ],
+  ["registry.shelters.create", fieldOf(registrySheltersContract.create, "description")],
+  [
+    "registry.shelters.updateProfile",
+    fieldOf(registrySheltersContract.updateProfile, "description"),
+  ],
+];
+
+describe.each(descriptionFields)("%s description", (_path, field) => {
+  it("accepts exactly 1,500 characters and refuses 1,501 with the fixed message", () => {
+    expect(field.safeParse({ uk: "я".repeat(1500), en: null }).success).toBe(true);
+    const over = field.safeParse({ uk: "я".repeat(1501), en: null });
+    expect(over.success).toBe(false);
+    expect(over.error?.issues.map((issue) => issue.message)).toEqual([
+      SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
+    ]);
+  });
+
+  it("counts characters as a reader sees them: 1,500 emoji fit", () => {
+    expect(field.safeParse({ uk: "🐾".repeat(1500), en: null }).success).toBe(true);
+  });
+
+  it("caps the English text too, on its own path", () => {
+    const result = field.safeParse({
+      uk: "Опис",
+      en: { text: "a".repeat(1501), provenance: "human" },
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["en", "text"],
+      message: SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
+    });
+  });
+
+  it("trims, and treats null as clearing", () => {
+    expect(field.safeParse({ uk: "  Опис  ", en: null })).toMatchObject({
+      success: true,
+      data: { uk: "Опис", en: null },
+    });
+    expect(field.safeParse(null)).toMatchObject({ success: true, data: null });
+  });
+
+  it("refuses blank text: the editor sends null for a blank field", () => {
+    expect(field.safeParse({ uk: "   ", en: null }).success).toBe(false);
+    expect(field.safeParse({ uk: "Опис", en: { text: " ", provenance: "human" } }).success).toBe(
+      false,
+    );
   });
 });
 

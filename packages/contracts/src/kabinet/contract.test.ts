@@ -3,6 +3,7 @@ import {
   HistoryActorViewSchema,
   LISTING_EVENT_TYPES,
   LISTING_KINDS,
+  SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
   WithdrawalCodeSchema,
 } from "@opika/domain";
 import { describe, expect, it } from "vitest";
@@ -85,6 +86,7 @@ const REGISTRY = { surface: "registry" } as const;
 const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "shelter.profile.get": READ,
   "shelter.profile.updateContact": WRITE,
+  "shelter.profile.updateDescription": WRITE,
   "shelter.profile.updateFreshnessSentence": WRITE,
   "shelter.profile.proposeDonation": WRITE,
   "shelter.profile.cancelDonationProposal": WRITE,
@@ -237,12 +239,12 @@ describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
 describe("no procedure declares the retired SHELTER_WRITES_NOT_YET_AVAILABLE (P6-Q8)", () => {
   const RETIRED = ["SHELTER", "WRITES", "NOT", "YET", "AVAILABLE"].join("_");
 
-  it("sanity: the matrix still names the eighteen shelter writes", () => {
+  it("sanity: the matrix still names the nineteen shelter writes", () => {
     expect(
       Object.values(EXPECTED_ACCESS).filter(
         (access) => access.surface === "shelter" && access.mode === "write",
       ),
-    ).toHaveLength(18);
+    ).toHaveLength(19);
   });
 
   it("is no API error any more", () => {
@@ -545,6 +547,7 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
   const EXPECTED_OUTPUT_KEYS: Record<string, readonly string[]> = {
     "shelter.profile.get": SHELTER_VIEW_KEYS,
     "shelter.profile.updateContact": SHELTER_VIEW_KEYS,
+    "shelter.profile.updateDescription": SHELTER_VIEW_KEYS,
     "shelter.profile.updateFreshnessSentence": SHELTER_VIEW_KEYS,
     "shelter.profile.proposeDonation": SHELTER_VIEW_KEYS,
     "shelter.profile.cancelDonationProposal": SHELTER_VIEW_KEYS,
@@ -1032,6 +1035,21 @@ describe("registry.shelters.create: the minimal shelter", () => {
   it.each(["displayName", "cityId", "firstAdmin", "contact"])("refuses it without %s", (key) => {
     const { [key as keyof typeof MINIMAL]: _dropped, ...rest } = MINIMAL;
     expect(input()?.safeParse(rest).success).toBe(false);
+  });
+
+  it("accepts no description, an absent one and a null one alike", () => {
+    const { description: _dropped, ...without } = MINIMAL;
+    expect(input()?.safeParse(without).success).toBe(true);
+    expect(input()?.safeParse({ ...MINIMAL, description: null }).success).toBe(true);
+  });
+
+  it("refuses a description over the cap with the fixed message", () => {
+    const over = { ...MINIMAL, description: { uk: "я".repeat(1501), en: null } };
+    const result = input()?.safeParse(over) as
+      | { success: boolean; error?: { issues: unknown[] } }
+      | undefined;
+    expect(result?.success).toBe(false);
+    expect(JSON.stringify(result?.error?.issues)).toContain(SHELTER_DESCRIPTION_TOO_LONG_MESSAGE);
   });
 
   it("refuses a first admin without a name or an email", () => {
