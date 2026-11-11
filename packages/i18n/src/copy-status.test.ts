@@ -1029,6 +1029,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   const VERIFIED_DATA_EDIT_COPY: Record<string, string> = {
     "operator.shelter.edit": "Змінити",
     "operator.donation.approveHint": "Перевірте, що власник рахунку збігається з організацією",
+    "operator.donation.approveHintInitiative":
+      "Перевірте, що власник рахунку – контактна особа ініціативи",
   };
   /** Owner-approved 2026-11-06 (donation link safety: copy table N1–N14, N18, and the approvals file). */
   const DONATION_SAFETY_OPERATOR_COPY: Record<string, string> = {

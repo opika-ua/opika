@@ -1479,6 +1479,8 @@ export const uk = {
         approve: "Схвалити",
         /** Beside «Схвалити»: the account holder is no longer verification evidence (owner, 2026-11-10). */
         approveHint: "Перевірте, що власник рахунку збігається з організацією",
+        /** The same hint for an unregistered initiative, which has no organisation (owner, 2026-11-11). */
+        approveHintInitiative: "Перевірте, що власник рахунку – контактна особа ініціативи",
         reject: "Відхилити",
         approved: "Посилання схвалено.",
         rejected: "Посилання відхилено.",

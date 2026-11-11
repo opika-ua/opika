@@ -23,7 +23,7 @@ const EXACT_ADDRESS = {
   coordinates: { lat: 50.5111, lng: 30.7903 },
 };
 
-/** Satisfies DEFAULT_VERIFICATION_POLICY's unregistered_initiative row: one site_visit, two reference_contacts. */
+/** Satisfies DEFAULT_VERIFICATION_POLICY's unregistered_initiative row (one site_visit, one reference_contact); the second reference is extra. */
 const SUFFICIENT_EVIDENCE = [
   {
     kind: "site_visit" as const,

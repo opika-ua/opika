@@ -101,7 +101,11 @@ export function DonationDecision() {
         </div>
       ) : null}
       {pending !== null && view.verification.status !== "suspended" ? (
-        <Text look="hint">{t.donation.approveHint}</Text>
+        <Text look="hint">
+          {view.legalEntity?.kind === "unregistered_initiative"
+            ? t.donation.approveHintInitiative
+            : t.donation.approveHint}
+        </Text>
       ) : null}
       {pending !== null ? (
         <div className={ACTIONS}>

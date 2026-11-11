@@ -6,6 +6,7 @@ import { DonationDecision } from "./DonationDecision";
 import {
   ADMIN_ID,
   apiError,
+  FIXTURE_LEGAL_ENTITY,
   lostAnswer,
   registryView,
   renderWithActions,
@@ -59,6 +60,40 @@ describe("donation decision", () => {
   it("no live link: nothing to remove", () => {
     renderWithActions(<DonationDecision />, { view: registryView({ donation: null }) });
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  describe("the approve hint follows the legal form", () => {
+    const REGISTERED_HINT = "Перевірте, що власник рахунку збігається з організацією";
+    const INITIATIVE_HINT = "Перевірте, що власник рахунку – контактна особа ініціативи";
+    const hintFor = (legalEntity: RegistryShelterView["legalEntity"]) => {
+      renderWithActions(<DonationDecision />, { view: { ...withProposal, legalEntity } });
+      return {
+        registered: screen.queryByText(REGISTERED_HINT) !== null,
+        initiative: screen.queryByText(INITIATIVE_HINT) !== null,
+      };
+    };
+
+    it("an unregistered initiative is told to check the contact person", () => {
+      const initiative = { kind: "unregistered_initiative", contactPersonName: "Олена" } as const;
+      expect(hintFor(initiative)).toEqual({ registered: false, initiative: true });
+    });
+
+    it("a registered organisation is told to check the organisation", () => {
+      expect(hintFor(FIXTURE_LEGAL_ENTITY)).toEqual({ registered: true, initiative: false });
+    });
+
+    it("a sole proprietor gets the organisation hint", () => {
+      const sole = {
+        kind: "sole_proprietor",
+        legalName: "ФОП Коваль",
+        edrpou: "43218765" as never,
+      } as const;
+      expect(hintFor(sole)).toEqual({ registered: true, initiative: false });
+    });
+
+    it("a shelter created without legal data gets the organisation hint", () => {
+      expect(hintFor(null)).toEqual({ registered: true, initiative: false });
+    });
   });
 
   it("approve sends the version read, then says so", async () => {

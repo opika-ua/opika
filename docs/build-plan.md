@@ -1122,8 +1122,9 @@ verbatim: "remove all test shelters (demo + mine) before the first real shelter"
 - [ ] **Oleksii's own test shelters** (onboarded on production with the real key, e.g. the
   `rehearsal-` input), at the same moment: `demo:remove --expect ep-… --prod --shelter <id>
   [--shelter <id> …]`, after removing their admins with `registry/admins/remove` (DR-F2, DR-B3;
-  runbook "Removing your own test shelters"). Their R2 photos stay, listed by the dry run for
-  deletion by hand (DR-F3, open).
+  runbook "Removing your own test shelters"). Their R2 photos are listed by the dry run and are
+  deleted by the daily clean-up job once unreferenced for the 7-day grace period (DR-F3 only
+  covers going sooner, open).
 
 This is the sharp one. It is not "before launch" - shelter onboarding can happen the moment
 someone says yes to an outreach email, independent of whatever else is or isn't ready.
