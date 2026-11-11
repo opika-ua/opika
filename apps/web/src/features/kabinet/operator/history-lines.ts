@@ -265,7 +265,10 @@ function lineOf(
       };
     case "verified_data_changed":
       return {
-        text: t.verified_data_changed[entry.change.field],
+        // A null previous is the first value of a shelter created without it (minimal create).
+        text: (entry.change.previous === null ? t.verified_data_added : t.verified_data_changed)[
+          entry.change.field
+        ],
         actor: operatorActor(entry.moderatorId, people),
       };
     case "display_name_changed":
