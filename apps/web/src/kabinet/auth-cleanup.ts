@@ -1,6 +1,12 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Database } from "@opika/db";
-import { adopterRepo, authExpiryRepo, kabinetInvitedUsersRepo, sessionRepo } from "@opika/db/repos";
+import {
+  adopterRepo,
+  authExpiryRepo,
+  kabinetInvitedUsersRepo,
+  notificationSendsRepo,
+  sessionRepo,
+} from "@opika/db/repos";
 import { pingHealthcheck } from "./cron-healthcheck";
 
 /**
@@ -35,6 +41,8 @@ import { pingHealthcheck } from "./cron-healthcheck";
  *   by), then adopters left with no session or reveal (`adopterRepo.deleteOrphaned`),
  *   at most `ADOPTER_CLEANUP_BATCH` of each per run, so a backlog takes several runs rather
  *   than one long statement. Sessions first, so an adopter whose session goes now can go too.
+ * - **And the notification send log** (`notificationSendsRepo.purgeOlderThan`): rows older
+ *   than 90 days, the retention `docs/gdpr-analysis.md` states for it.
  * - **Who may call it:** Vercel's cron, which sends
  *   `Authorization: Bearer <CRON_SECRET>`. Compared in constant time over
  *   SHA-256 digests (fixed length, so neither the value nor its length
@@ -91,6 +99,7 @@ async function runAuthCleanup(deps: {
         );
   const adopterSessions = await sessionRepo(deps.db()).deleteLapsed(deps.now);
   const orphanedAdopters = await adopterRepo(deps.db()).deleteOrphaned(deps.now);
+  const notificationSends = await notificationSendsRepo(deps.db()).purgeOlderThan(deps.now);
   deps.log(
     JSON.stringify({
       event: "kabinet_auth_cleanup",
@@ -100,9 +109,16 @@ async function runAuthCleanup(deps: {
       erasedInvitedUsers,
       adopterSessions,
       orphanedAdopters,
+      notificationSends,
     }),
   );
-  return Response.json({ ...counts, erasedInvitedUsers, adopterSessions, orphanedAdopters });
+  return Response.json({
+    ...counts,
+    erasedInvitedUsers,
+    adopterSessions,
+    orphanedAdopters,
+    notificationSends,
+  });
 }
 
 const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
