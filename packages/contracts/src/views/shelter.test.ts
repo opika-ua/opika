@@ -57,7 +57,6 @@ const shelter: Shelter = {
   pendingDonation: null,
   earlyListingSince: null,
   version: 0,
-  freshnessSentence: null,
   verification: {
     status: "verified",
     verifiedAt: AT,
@@ -150,24 +149,22 @@ describe("public shelter projections withhold the private fields", () => {
   });
 
   /**
-   * Designer round 1, S6 (Oleksii's DR1-Q1, verbatim: "the shelter’s freshness
-   * sentence leaves the deck and animal pages and shows only on the shelter
-   * page."): the shelter page's view carries it, the card summary never does,
-   * even when handed a shelter that has one.
+   * Designer round 1, S6 (Oleksii's DR1-Q1): the shelter's own text shows on the shelter page only.
+   * The page's view carries it, the card summary never does, even when handed a shelter that has one.
    */
-  it("carries the freshness sentence on the shelter page's view only, never on a card", () => {
-    const withSentence = {
+  it("carries the shelter's text on the shelter page's view only, never on a card", () => {
+    const withText = {
       ...shelter,
-      freshnessSentence: { uk: "Оновлюємо щосуботи.", en: null },
+      description: { uk: "Оновлюємо щосуботи.", en: null },
       verification: "verified" as const,
       availability: { kind: "open" as const },
     };
-    expect(PublicShelterViewSchema.parse(withSentence).freshnessSentence).toEqual({
+    expect(PublicShelterViewSchema.parse(withText).description).toEqual({
       uk: "Оновлюємо щосуботи.",
       en: null,
     });
-    const summary = ShelterSummaryViewSchema.parse(withSentence);
-    expect(summary).not.toHaveProperty("freshnessSentence");
+    const summary = ShelterSummaryViewSchema.parse(withText);
+    expect(summary).not.toHaveProperty("description");
     expect(JSON.stringify(summary)).not.toContain("щосуботи");
   });
 
@@ -471,7 +468,6 @@ describe("the pause note reaches no public view (K4-B4)", () => {
       "description",
       "displayName",
       "donation",
-      "freshnessSentence",
       "id",
       "logo",
       "publicLocation",

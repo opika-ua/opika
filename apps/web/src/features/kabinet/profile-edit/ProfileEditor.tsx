@@ -14,6 +14,7 @@ import { LockedBlock } from "../ProfileParts";
 import { publicShelterPath } from "../routes";
 import { PageSave, PageSaveStatus } from "../shared/page-save";
 import { runWrite } from "../shared/write-result";
+import { AboutSection } from "./AboutSection";
 import { ContactsSection } from "./ContactsSection";
 import { DonationSection } from "./DonationSection";
 import type { DonationOutcome } from "./donation-outcome";
@@ -21,14 +22,13 @@ import { useReportVerification } from "./LiveVerificationStatus";
 import { LogoSection } from "./LogoSection";
 import { PauseControl } from "./PauseControl";
 import { type ProfileTab, profileTabOf } from "./profile-tabs";
-import { VoiceSection } from "./VoiceSection";
 
 /** Which tab holds each section that can refuse a save, so a refusal shows the tab it is on. */
-const SECTION_TAB: Record<string, ProfileTab> = { contacts: "kontakty", voice: "profil" };
+const SECTION_TAB: Record<string, ProfileTab> = { contacts: "kontakty", about: "profil" };
 
 /**
  * K4 with writes open for this shelter (the page decided, with the router's own `decideAccess`
- * and policy), as sub-tabs: Профіль (logo, the sentence, pause), Контакти, Збір коштів, Перевірка
+ * and policy), as sub-tabs: Профіль (logo, the text about the shelter, pause), Контакти, Збір коштів, Перевірка
  * (read-only). The tab is addressable as `?tab=` and kept in the URL
  * without a navigation; every panel stays mounted, so an unsaved edit survives a tab switch.
  *
@@ -97,7 +97,6 @@ export function ProfileEditor({
       label: t.profile,
       panel: (
         <div className="flex flex-col gap-4 desktop:gap-6">
-          {/* The tab is named «Профіль» already; the sentence stays. */}
           <Text look="hint">{t.profileNote}</Text>
           <LogoSection
             logo={view.logo}
@@ -105,12 +104,12 @@ export function ProfileEditor({
             onView={adopt}
             client={client}
           />
-          <VoiceSection
-            sentence={view.freshnessSentence}
-            save={(freshnessSentence) =>
+          <AboutSection
+            description={view.description}
+            save={(description) =>
               write(() =>
-                profile.updateFreshnessSentence({
-                  freshnessSentence,
+                profile.updateDescription({
+                  description,
                   expectedVersion: versionRef.current,
                 }),
               )

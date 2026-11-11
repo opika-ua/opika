@@ -37,12 +37,13 @@ Never paste a connection string into a command line, a file or a chat.
 - **A contact channel** they actually answer on - phone, Telegram, or both.
 - **A donation link**, if they have one (their own page - this platform
   never touches money).
-- **A freshness sentence, in their own words** - one or two sentences about
-  how current their listings are. Required; don't onboard without it.
-  It is shown **word for word** on the shelter's page: nothing fills in an animal's
-  name or a date. Every write path refuses `{імʼя}` and any other `{…}` (DR1-Q5), and
-  the sentence is at most 280 characters. So keep a specific date and any animal's name
-  out of it: a typed date goes stale while it still reads as current.
+- **A text about the shelter, in their own words** (`descriptionUk`) - a few
+  sentences: who they are, how they work, and how often they update their cards.
+  It is shown **word for word**, under «Про притулок», on the shelter's page; nothing
+  fills in an animal's name or a date, and braces are plain text. At most 1,500
+  characters (the script refuses a longer one). Keep a specific date out of it: a
+  typed date goes stale while it still reads as current. The shelter rewrites it in
+  the kabinet whenever it likes.
 - **Real verification evidence** - see below. Not their name for the record;
   actual evidence the domain's own verification policy requires, or the
   script refuses to write a `verified` shelter at all.
@@ -66,7 +67,7 @@ before anything is computed):
   "shelter": {
     "idSeed": "domivka-brovary",
     "displayName": "Притулок «Домівка»",
-    "descriptionUk": "Невеликий притулок у Броварах, шукаємо дім для 12 собак і 5 котів.",
+    "descriptionUk": "Невеликий притулок у Броварах, шукаємо дім для 12 собак і 5 котів. Оновлюємо картки щотижня, у суботу.",
     "legalEntity": {
       "kind": "unregistered_initiative",
       "contactPersonName": "Олена Ковальчук"
@@ -84,7 +85,6 @@ before anything is computed):
       "additional": [{ "kind": "phone", "e164": "+380671234567" }]
     },
     "donation": { "url": "https://send.monobank.ua/jar/example", "provider": "monobank_jar" },
-    "freshnessSentenceUk": "Оновлюємо картки щотижня, у суботу.",
     "evidence": [
       {
         "kind": "site_visit",
@@ -782,7 +782,7 @@ so this is what the API hands any screen that shows it.
 
 - **Shown**, with the actor as your display name or "the shelter": verification moves (review
   started, approved, rejected and suspended with code and note, reinstated, resubmitted, paused with
-  its reason, resumed); contact, freshness sentence, description, logo and name changes; donation
+  its reason, resumed); contact, description («Про притулок»), logo and name changes (an older «речення на сторінці притулку» edit still reads as before); donation
   proposed, cancelled, approved or rejected; legal-entity or address changes you made; admin
   invited, resent, joined, removed; animals imported; a card created, edited, listing-changed or
   deleted; early listing allowed, revoked, or lapsed (the lapse has no actor).

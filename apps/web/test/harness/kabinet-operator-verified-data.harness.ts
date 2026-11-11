@@ -84,7 +84,6 @@ test.describe("S4 locked blocks: the operator changes ЄДРПОУ", () => {
       pendingDonation: null,
       version: 0,
       earlyListingSince: null,
-      freshnessSentence: null,
       verification: {
         status: "pending",
         submittedAt: now,

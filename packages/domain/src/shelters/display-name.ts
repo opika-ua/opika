@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { characterCount } from "./freshness-sentence";
+import { characterCount } from "../text-limits";
 
 /**
  * RUI4-F2: the cap on a shelter's display name as new input takes it (his

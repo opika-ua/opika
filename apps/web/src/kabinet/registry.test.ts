@@ -34,6 +34,7 @@ import {
   ERASED_ADMIN_EMAIL,
   type ModeratorId,
   publicLocationOf,
+  SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
   type ShelterAdminId,
   type ShelterHistoryEntry,
   type ShelterVerification,
@@ -206,7 +207,6 @@ const createInput = () => {
     legalEntity: base.legalEntity,
     exactAddress: street,
     contact: base.contact,
-    freshnessSentence: null,
     evidence: [
       { kind: "edrpou_registration", edrpou: "12345678", registeredName: "ГО Лапа" },
       { kind: "bank_account_holder", holderName: "ГО Лапа" },
@@ -527,7 +527,6 @@ describe("the minimal shelter: created without legal data or address", () => {
     legalEntity: null,
     exactAddress: null,
     contact: { primary: { kind: "email", address: "lapa@example.org" }, additional: [] },
-    freshnessSentence: null,
     evidence: [],
     firstAdmin: { name: "Олена", email: "olena@example.org" },
   });
@@ -737,11 +736,10 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
       expectedVersion: 0,
       contact,
       description: s.description,
-      freshnessSentence: { uk: "Оновлюємо щотижня", en: null },
     });
     expect(result.status).toBe(200);
     const kinds = (await history(s.id)).map((entry) => entry.kind).sort();
-    expect(kinds).toEqual(["contact_changed", "freshness_sentence_changed"]);
+    expect(kinds).toEqual(["contact_changed"]);
     for (const entry of await history(s.id)) {
       expect(entry).toMatchObject({ actor: { kind: "moderator", moderatorId: OPERATOR } });
     }
@@ -3003,5 +3001,248 @@ describe("registry.earlyListing", () => {
     }
     expect(await sinceOf(s.id)).toBeNull();
     expect(await history(s.id)).toEqual([]);
+  });
+});
+
+// ─── the shelter's own description (C1) ─────────────────────────────────────
+
+describe("the shelter description: both write paths", () => {
+  const ADMIN = "33333333-3333-4333-8333-333333333333" as ShelterAdminId;
+  const adminOf = (shelterId: string): KabinetPrincipal => ({
+    kind: "shelter_admin",
+    shelterAdminId: ADMIN,
+    shelterId: shelterId as never,
+  });
+  const text = (uk: string) => ({ uk, en: null });
+  const byShelter = (shelterId: string, description: unknown, expectedVersion = 0) =>
+    call<RegistryShelterView>(
+      "shelter.profile.updateDescription",
+      { description, expectedVersion },
+      { principal: adminOf(shelterId) },
+    );
+  const byOperator = (shelterId: string, description: unknown, expectedVersion = 0) =>
+    call<RegistryShelterView>("registry.shelters.updateProfile", {
+      shelterId,
+      expectedVersion,
+      description,
+    });
+
+  it("accepts exactly 1,500 characters on both paths and refuses 1,501 with the fixed message", async () => {
+    const s = await shelter();
+    expect((await byShelter(s.id, text("я".repeat(1500)))).status).toBe(200);
+    const t = await shelter();
+    expect((await byOperator(t.id, text("я".repeat(1500)))).status).toBe(200);
+
+    const u = await shelter();
+    for (const refused of [
+      await byShelter(u.id, text("я".repeat(1501))),
+      await byOperator(u.id, text("я".repeat(1501))),
+    ]) {
+      expect(refused.status).toBe(400);
+      expect(JSON.stringify(refused.body)).toContain(SHELTER_DESCRIPTION_TOO_LONG_MESSAGE);
+    }
+    expect((await reload(u.id)).description).toEqual(u.description);
+    expect(await history(u.id)).toEqual([]);
+  });
+
+  it("null clears it on both paths, recording previous and next with the actor", async () => {
+    const s = await shelter({ description: text("Опис притулку") });
+    const cleared = await byShelter(s.id, null);
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.description).toBeNull();
+    expect((await reload(s.id)).description).toBeNull();
+
+    const t = await shelter({ description: text("Опис притулку") });
+    expect((await byOperator(t.id, null)).status).toBe(200);
+    expect((await reload(t.id)).description).toBeNull();
+
+    expect(await history(s.id)).toMatchObject([
+      {
+        kind: "description_changed",
+        previous: text("Опис притулку"),
+        next: null,
+        actor: { kind: "shelter_admin", shelterAdminId: ADMIN },
+      },
+    ]);
+    expect(await history(t.id)).toMatchObject([
+      {
+        kind: "description_changed",
+        previous: text("Опис притулку"),
+        next: null,
+        actor: { kind: "moderator", moderatorId: OPERATOR },
+      },
+    ]);
+  });
+
+  it("adds a description to a shelter that has none, and an unchanged operator save records nothing", async () => {
+    const s = await shelter({ description: null });
+    expect((await byShelter(s.id, text("Новий опис"))).status).toBe(200);
+    expect(await history(s.id)).toMatchObject([
+      { kind: "description_changed", previous: null, next: text("Новий опис") },
+    ]);
+    const again = await byOperator(s.id, text("Новий опис"), 1);
+    expect(again.status).toBe(200);
+    expect(await history(s.id)).toHaveLength(1);
+    expect((await reload(s.id)).version).toBe(1);
+  });
+
+  it("drops a stale English translation when the Ukrainian changes, on both paths", async () => {
+    const stored = { uk: "Старий", en: { text: "Old", provenance: "human" as const } };
+    const sent = { uk: "Новий", en: stored.en };
+    const s = await shelter({ description: stored });
+    expect((await byShelter(s.id, sent)).status).toBe(200);
+    expect((await reload(s.id)).description).toEqual(text("Новий"));
+    const t = await shelter({ description: stored });
+    expect((await byOperator(t.id, sent)).status).toBe(200);
+    expect((await reload(t.id)).description).toEqual(text("Новий"));
+    const kept = await shelter({ description: stored });
+    expect((await byShelter(kept.id, stored)).status).toBe(200);
+    expect((await reload(kept.id)).description).toEqual(stored);
+  });
+
+  it("a create without a description stores none, whether absent or null", async () => {
+    const { description: _dropped, ...without } = createInput();
+    const absent = await call<RegistryShelterView>("registry.shelters.create", without);
+    expect(absent.status).toBe(200);
+    expect((await reload(absent.body.id)).description).toBeNull();
+    const explicit = await call<RegistryShelterView>("registry.shelters.create", {
+      ...createInput(),
+      description: null,
+      firstAdmin: { name: "Ірина", email: "iryna@example.org" },
+    });
+    expect(explicit.status).toBe(200);
+    expect((await reload(explicit.body.id)).description).toBeNull();
+  });
+
+  it("a create over the cap is refused and creates nothing; at the cap it is stored", async () => {
+    const over = await call("registry.shelters.create", {
+      ...createInput(),
+      description: text("я".repeat(1501)),
+    });
+    expect(over.status).toBe(400);
+    expect(JSON.stringify(over.body)).toContain(SHELTER_DESCRIPTION_TOO_LONG_MESSAGE);
+    expect(await db.select().from(shelters)).toHaveLength(0);
+    const at = await call<RegistryShelterView>("registry.shelters.create", {
+      ...createInput(),
+      description: text("я".repeat(1500)),
+    });
+    expect(at.status).toBe(200);
+  });
+
+  it("CONFLICT, shelter first: the operator's stale save is refused and the shelter's text stays", async () => {
+    const s = await shelter();
+    expect((await byShelter(s.id, text("Від притулку"))).status).toBe(200);
+    expect((await byOperator(s.id, text("Від оператора"), 0)).status).toBe(409);
+    expect((await reload(s.id)).description).toEqual(text("Від притулку"));
+    expect(await history(s.id)).toMatchObject([
+      { kind: "description_changed", actor: { kind: "shelter_admin" } },
+    ]);
+  });
+
+  it("CONFLICT, operator first: the shelter's stale save is refused and the operator's text stays", async () => {
+    const s = await shelter();
+    expect((await byOperator(s.id, text("Від оператора"))).status).toBe(200);
+    expect((await byShelter(s.id, text("Від притулку"), 0)).status).toBe(409);
+    expect((await reload(s.id)).description).toEqual(text("Від оператора"));
+    expect(await history(s.id)).toMatchObject([
+      { kind: "description_changed", actor: { kind: "moderator", moderatorId: OPERATOR } },
+    ]);
+  });
+
+  it("a support view is refused the write and nothing changes", async () => {
+    const s = await shelter();
+    const support: KabinetPrincipal = {
+      kind: "support_view",
+      moderatorId: OPERATOR as ModeratorId,
+      shelterId: s.id,
+    };
+    const result = await call(
+      "shelter.profile.updateDescription",
+      { description: text("Хтось інший"), expectedVersion: 0 },
+      { principal: support },
+    );
+    expect(result.status).toBe(403);
+    expect((await reload(s.id)).description).toEqual(s.description);
+  });
+
+  describe("a stored text over the cap (the first real shelter's merged text is longer)", () => {
+    const longText = "я".repeat(1737);
+
+    it("reads in full through the public, kabinet and registry views", async () => {
+      const s = await shelter({ description: text(longText) });
+      const pub = await publicCall<{ description: { uk: string } }>("shelters.byId", {
+        shelterId: s.id,
+      });
+      expect(pub.status).toBe(200);
+      expect(pub.body.description.uk).toBe(longText);
+      const own = await call<{ description: { uk: string } }>(
+        "shelter.profile.get",
+        {},
+        { principal: adminOf(s.id) },
+      );
+      expect(own.body.description.uk).toBe(longText);
+      const registry = await call<{ description: { uk: string } }>("registry.shelters.byId", {
+        shelterId: s.id,
+      });
+      expect(registry.body.description.uk).toBe(longText);
+    });
+
+    it("refuses a save at that length, accepts it trimmed, and never blocks a contacts save", async () => {
+      const s = await shelter({ description: text(longText) });
+      expect((await byShelter(s.id, text(longText))).status).toBe(400);
+      expect((await byOperator(s.id, text(longText))).status).toBe(400);
+      const contact = { primary: { kind: "telegram", handle: "lapa_shelter" }, additional: [] };
+      const contacts = await call(
+        "shelter.profile.updateContact",
+        { contact, expectedVersion: 0 },
+        { principal: adminOf(s.id) },
+      );
+      expect(contacts.status).toBe(200);
+      expect((await reload(s.id)).description).toEqual(text(longText));
+      expect((await byShelter(s.id, text(longText.slice(0, 1500)), 1)).status).toBe(200);
+    });
+
+    it("keeps the over-cap text readable in the operator history after a trim", async () => {
+      const s = await shelter({ description: text(longText) });
+      expect((await byOperator(s.id, text("Коротко"))).status).toBe(200);
+      const operatorHistory = await call<{ items: { kind: string; previous: { uk: string } }[] }>(
+        "registry.history.list",
+        { shelterId: s.id, cursor: null, limit: 10 },
+      );
+      expect(operatorHistory.status).toBe(200);
+      expect(operatorHistory.body.items[0]?.previous.uk).toBe(longText);
+    });
+  });
+
+  it("an old freshness_sentence_changed line still reads in both histories", async () => {
+    const s = await shelter();
+    // Nothing writes this kind any more; an entry from before is written straight to the log.
+    const written = await kabinetShelterRepo(db).applyAudited({
+      shelterId: s.id,
+      expectedVersion: 0,
+      change: { kind: "contact", contact: s.contact },
+      entry: {
+        kind: "freshness_sentence_changed",
+        at: new Date("2026-10-01T00:00:00.000Z"),
+        actor: { kind: "shelter_admin", shelterAdminId: ADMIN },
+        previous: null,
+        next: text("Оновлюємо щосуботи."),
+      },
+      historyId: "legacy-sentence",
+      now: new Date("2026-10-01T00:00:00.000Z"),
+    });
+    expect(written).toEqual({ kind: "ok" });
+    const own = await call<{ items: { kind: string }[] }>(
+      "shelter.history.list",
+      { cursor: null, limit: 10 },
+      { principal: adminOf(s.id) },
+    );
+    expect(own.body.items.map((item) => item.kind)).toEqual(["freshness_sentence_changed"]);
+    const operator = await call<{ items: { kind: string }[] }>("registry.history.list", {
+      shelterId: s.id,
+      cursor: null,
+      limit: 10,
+    });
+    expect(operator.body.items.map((item) => item.kind)).toEqual(["freshness_sentence_changed"]);
   });
 });

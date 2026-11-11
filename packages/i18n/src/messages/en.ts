@@ -132,7 +132,6 @@ export const en = {
   freshness: {
     /** Rendered by Intl.RelativeTimeFormat('en'), not this string. */
     updatedAgo: "Updated {days}",
-    attribution: "The shelter's own words",
   },
 
   // --- Medical ---
@@ -172,6 +171,7 @@ export const en = {
 
   // --- Shelter page (designer round 1, S6) ---
   shelterPage: {
+    aboutHeading: "About the shelter",
     animalsHeading: "Looking for a home: {count}",
     noAnimals: "No animals here are looking for a home right now.",
     sinceYear: "on the site since {year}",
@@ -497,7 +497,7 @@ export const en = {
       money: "About money",
       verification: "What «verified» means",
       whatToPrepare: "What to prepare",
-      whyThatSentence: "Why we ask for that sentence",
+      whyHowOften: "Why say how often you update your cards",
       whenAnimalFindsHome: "When an animal finds a home",
       howToLeave: "If you want to leave",
       whoIsBehindThis: "Who is behind this",
@@ -512,7 +512,7 @@ export const en = {
     verification: `${COPY_PENDING} 6. What "verified" means.`,
     verificationOpenToVolunteers: `${COPY_PENDING} 6b. Open to unregistered volunteer groups.`,
     whatToPrepare: `${COPY_PENDING} 7. What to prepare.`,
-    whyThatSentence: `${COPY_PENDING} 8. Why we ask for the freshness sentence.`,
+    whyHowOften: `${COPY_PENDING} 8. Why say how often you update your cards.`,
     whenAnimalFindsHome: `${COPY_PENDING} 9. When an animal finds a home.`,
     howToLeave: `${COPY_PENDING} 9b. How to leave – write, and everything is removed; no reason needed, only a confirming email.`,
     whoIsBehindThis: `${COPY_PENDING} 10. Who is behind this.`,
@@ -643,9 +643,6 @@ export const en = {
       donationLink: "Fundraising link",
       donationNote: "https only. No money passes through the site: this is an external link.",
       donationPending: "The proposed link is waiting for me to check it.",
-      voiceTitle: "The shelter's voice",
-      voiceLabel: "Your words on the shelter page",
-      voiceNote: "One sentence in the first person, written by you.",
       pendingNote:
         "I carry out the verification myself: I will write or call to arrange it. Until it is finished, only you can see your animals.",
       pendingNoteLead: "I carry out the verification myself: I will write or call to arrange it.",
@@ -709,7 +706,7 @@ export const en = {
         liveOnSave: {
           contacts:
             "People see the new contacts as soon as you save, when they tap «Write to the shelter».",
-          voice: "The new sentence appears on the shelter page as soon as you save.",
+          about: "The text appears on the shelter page as soon as you save.",
         },
         unsavedLeave: "Your changes aren't saved. Leave anyway?",
       },
@@ -745,13 +742,7 @@ export const en = {
           "An Instagram username: up to 30 Latin letters, digits, dots or underscores. A profile link works too.",
         facebookFormat:
           "A link to a Facebook page is needed, for example https://www.facebook.com/…",
-        sentenceTooLong: "The sentence is longer than {max} characters.",
-        unknownToken: "Only {імʼя} is filled in. Remove «{token}», or write it without braces.",
-        dateTokenGone:
-          "Every card shows when it was updated, so {дата} isn't needed in the sentence.",
-        nameTokenGone:
-          "The sentence now shows on the shelter page, so {імʼя} isn't used in it. Remove it and save again.",
-        strayBrace: "A brace without its pair. Braces are only for {імʼя}.",
+        aboutTooLong: "The text is longer than {max} characters. Shorten it to save.",
       },
       contacts: {
         otherLabel: "Another way to reach you",
@@ -766,14 +757,8 @@ export const en = {
         atLeastOne: "Keep at least one way to reach you.",
         tooMany: "You can keep up to {max} other ways to reach you. Remove the extra ones to save.",
       },
-      voice: {
-        hint: "One sentence in the first person, in your own words, about how often you update your cards. It shows on the shelter page.",
-        counter: "{count} / {max}",
-        counterOver: "Characters over: {over}",
-        emptyMeans:
-          "Leave it empty and the shelter page has no sentence; the cards still show “Updated … ago”.",
-        previewLabel: "This is how it looks on the shelter page:",
-        previewEmpty: "No sentence: the shelter page won't show one.",
+      about: {
+        hint: "Tell people who you are and how you work. It helps to say how often you update your cards.",
       },
       donation: {
         optional: "· optional",
@@ -1345,7 +1330,7 @@ export const en = {
         timeInState: "since {date}",
         legalNote:
           "The shelter sees these fields read-only. A change of legal entity or EDRPOU doesn't change the status by itself: the decision is yours.",
-        descriptionTitle: "Shelter description",
+        descriptionTitle: "About the shelter",
         edit: "Change",
         add: "Add",
       },
@@ -1520,9 +1505,9 @@ export const en = {
           "Here you enter everything about the shelter: name, address, legal details and evidence. The first administrator gets an invitation by email.",
         name: "Shelter name",
         nameHint: "What the shelter calls itself.",
-        description: "Shelter description",
+        description: "About the shelter · optional",
         descriptionHint:
-          "A short description of the shelter. It may be public, so don't write anything private here.",
+          "This text appears on the shelter page. Don't write anything private here.",
         city: "Settlement",
         address: {
           line1: "Street, building",

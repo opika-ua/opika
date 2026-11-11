@@ -38,6 +38,17 @@ describe("actionFailureOf", () => {
       { kind: "name_too_long" },
     ],
     [
+      err("BAD_REQUEST", {
+        issues: [
+          {
+            path: ["description", "uk"],
+            message: "The shelter description is longer than 1500 characters",
+          },
+        ],
+      }),
+      { kind: "description_too_long" },
+    ],
+    [
       err("BAD_REQUEST", { issues: [{ path: ["displayName"], message: "Too small" }] }),
       { kind: "failed" },
     ],
@@ -78,6 +89,7 @@ describe("staleAfter: which refusals mean the page is out of date", () => {
     expect(staleAfter({ kind: "address_has_a_role", reason: "operator" })).toBe(false);
     expect(staleAfter({ kind: "invalid_evidence", reason: "site_visit_in_future" })).toBe(false);
     expect(staleAfter({ kind: "name_too_long" })).toBe(false);
+    expect(staleAfter({ kind: "description_too_long" })).toBe(false);
     for (const reason of ["evidence_below_minimum", "note_required", "limit_reached"] as const) {
       expect(staleAfter({ kind: "early_listing_refused", reason }), reason).toBe(false);
     }

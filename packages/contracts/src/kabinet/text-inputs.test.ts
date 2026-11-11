@@ -1,7 +1,7 @@
+import { SHELTER_DESCRIPTION_TOO_LONG_MESSAGE } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
   AnimalPatchSchema,
-  FreshnessSentenceInputSchema,
   PAUSE_NOTE_MAX_CHARACTERS,
   PauseReasonInputSchema,
   registrySheltersContract,
@@ -25,115 +25,58 @@ const inputOf = (procedure: WithInput): Parser => procedure["~orpc"].inputSchema
 const fieldOf = (procedure: WithInput, field: string): Parser =>
   (procedure["~orpc"].inputSchema as { shape: Record<string, Parser> }).shape[field] as Parser;
 
-/** Every write that accepts a freshness sentence, checked through its own declared input. */
-const freshnessFields: readonly [string, Parser][] = [
+/** Every write that accepts the shelter's own description shares one rule. */
+const descriptionFields: readonly [string, Parser][] = [
   [
-    "shelter.profile.updateFreshnessSentence",
-    fieldOf(shelterProfileContract.updateFreshnessSentence, "freshnessSentence"),
+    "shelter.profile.updateDescription",
+    fieldOf(shelterProfileContract.updateDescription, "description"),
   ],
-  ["registry.shelters.create", fieldOf(registrySheltersContract.create, "freshnessSentence")],
+  ["registry.shelters.create", fieldOf(registrySheltersContract.create, "description")],
   [
     "registry.shelters.updateProfile",
-    fieldOf(registrySheltersContract.updateProfile, "freshnessSentence"),
+    fieldOf(registrySheltersContract.updateProfile, "description"),
   ],
 ];
 
-describe.each(freshnessFields)("%s freshnessSentence", (_path, field) => {
-  /**
-   * DR1-Q5 (Oleksii, verbatim: "The sentence is shelter-level, and the editor
-   * refuses {імʼя}."): refused at the contract too, in Ukrainian and English,
-   * whatever its spelling, so no write path can store it.
-   */
-  it.each([
-    ["Ukrainian, ASCII apostrophe", { uk: "  Чи {Ім'я} ще з нами?  ", en: null }],
-    ["Ukrainian, canonical", { uk: `Чи ${TOKEN} ще з нами?`, en: null }],
-    [
-      "English",
-      { uk: "Оновлюємо щотижня.", en: { text: "Is {ім’я} still here?", provenance: "human" } },
-    ],
-  ])("refuses {імʼя} (%s)", (_label, value) => {
-    const result = field.safeParse(value);
-    expect(result.success).toBe(false);
-    expect(JSON.stringify(result.error?.issues)).toContain("shelter page");
+describe.each(descriptionFields)("%s description", (_path, field) => {
+  it("accepts exactly 1,500 characters and refuses 1,501 with the fixed message", () => {
+    expect(field.safeParse({ uk: "я".repeat(1500), en: null }).success).toBe(true);
+    const over = field.safeParse({ uk: "я".repeat(1501), en: null });
+    expect(over.success).toBe(false);
+    expect(over.error?.issues.map((issue) => issue.message)).toEqual([
+      SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
+    ]);
   });
 
-  it("trims what it accepts", () => {
-    expect(field.safeParse({ uk: "  Оновлюємо щосуботи.  ", en: null })).toMatchObject({
-      success: true,
-      data: { uk: "Оновлюємо щосуботи.", en: null },
+  it("counts characters as a reader sees them: 1,500 emoji fit", () => {
+    expect(field.safeParse({ uk: "🐾".repeat(1500), en: null }).success).toBe(true);
+  });
+
+  it("caps the English text too, on its own path", () => {
+    const result = field.safeParse({
+      uk: "Опис",
+      en: { text: "a".repeat(1501), provenance: "human" },
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["en", "text"],
+      message: SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
     });
   });
 
-  it.each([
-    ["an unknown token", { uk: "Оновлено {дата}.", en: null }, "{дата}"],
-    ["a stray brace", { uk: "Оновлено }.", en: null }, "brace"],
-    ["281 characters", { uk: "я".repeat(281), en: null }, "281"],
-    [
-      "an English text with an unknown token",
-      { uk: "Оновлюємо.", en: { text: "Updated {date}.", provenance: "machine" } },
-      "{date}",
-    ],
-  ])("refuses %s", (_label, value, inMessage) => {
-    const result = field.safeParse(value);
-    expect(result.success).toBe(false);
-    expect(result.error?.issues[0]?.message).toContain(inMessage);
-  });
-
-  it("accepts 280 characters", () => {
-    expect(field.safeParse({ uk: "я".repeat(280), en: null }).success).toBe(true);
-  });
-
-  it("clears the sentence when the Ukrainian is blank", () => {
-    expect(field.safeParse({ uk: "   ", en: null })).toMatchObject({ success: true, data: null });
+  it("trims, and treats null as clearing", () => {
+    expect(field.safeParse({ uk: "  Опис  ", en: null })).toMatchObject({
+      success: true,
+      data: { uk: "Опис", en: null },
+    });
     expect(field.safeParse(null)).toMatchObject({ success: true, data: null });
   });
 
-  it("drops a blank English translation", () => {
-    expect(
-      field.safeParse({ uk: "Оновлюємо.", en: { text: " ", provenance: "human" } }),
-    ).toMatchObject({ success: true, data: { uk: "Оновлюємо.", en: null } });
-  });
-
-  it("refuses an English text whose Ukrainian is blank, rather than throwing it away", () => {
-    const result = field.safeParse({
-      uk: "",
-      en: { text: "Updated weekly.", provenance: "human" },
-    });
-    expect(result.success).toBe(false);
-    expect(result.error?.issues[0]?.path).toEqual(["uk"]);
-  });
-});
-
-describe("updateFreshnessSentence's whole input", () => {
-  it("hands the handler the trimmed text", () => {
-    expect(
-      inputOf(shelterProfileContract.updateFreshnessSentence).safeParse({
-        freshnessSentence: { uk: " Оновлюємо щосуботи. ", en: null },
-        expectedVersion: 3,
-      }),
-    ).toEqual({
-      success: true,
-      data: { freshnessSentence: { uk: "Оновлюємо щосуботи.", en: null }, expectedVersion: 3 },
-    });
-  });
-
-  it("refuses {імʼя} in any spelling (DR1-Q5)", () => {
-    expect(
-      inputOf(shelterProfileContract.updateFreshnessSentence).safeParse({
-        freshnessSentence: { uk: "{ІМ`Я} чекає.", en: null },
-        expectedVersion: 3,
-      }).success,
-    ).toBe(false);
-  });
-});
-
-describe("FreshnessSentenceInputSchema", () => {
-  it("is what the three writes use", () => {
-    for (const [, field] of freshnessFields) {
-      // updateProfile wraps it in .optional(), so compare behaviour, not identity.
-      expect(field.safeParse({ uk: "{дата}", en: null }).success).toBe(false);
-    }
-    expect(FreshnessSentenceInputSchema.safeParse({ uk: "{дата}", en: null }).success).toBe(false);
+  it("refuses blank text: the editor sends null for a blank field", () => {
+    expect(field.safeParse({ uk: "   ", en: null }).success).toBe(false);
+    expect(field.safeParse({ uk: "Опис", en: { text: " ", provenance: "human" } }).success).toBe(
+      false,
+    );
   });
 });
 

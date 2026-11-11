@@ -101,24 +101,53 @@ describe("kabinetShelterRepo.applyAudited", () => {
     expect(await repo.historyOf(s.id)).toHaveLength(1);
   });
 
-  it("writes the freshness sentence into its two columns", async () => {
-    const s = await shelter();
-    const sentence = { uk: "Оновлюємо щосуботи", en: null };
-    await kabinetShelterRepo(db).applyAudited({
-      shelterId: s.id,
-      expectedVersion: 0,
-      change: { kind: "freshness_sentence", freshnessSentence: sentence },
-      entry: {
-        kind: "freshness_sentence_changed",
-        at: NOW,
-        actor: ADMIN,
-        previous: s.freshnessSentence,
-        next: sentence,
-      },
-      historyId: "h1",
-      now: NOW,
+  describe("the description", () => {
+    const write = (shelterId: string, previous: unknown, next: unknown, historyId: string) =>
+      kabinetShelterRepo(db).applyAudited({
+        shelterId: shelterId as never,
+        expectedVersion: 0,
+        change: { kind: "description", description: next as never },
+        entry: {
+          kind: "description_changed",
+          at: NOW,
+          actor: ADMIN,
+          previous,
+          next,
+        } as ShelterHistoryEntry,
+        historyId,
+        now: NOW,
+      });
+
+    it("writes null as three NULL columns and records previous and next", async () => {
+      const s = await shelter();
+      expect(await write(s.id, s.description, null, "h1")).toEqual({ kind: "ok" });
+      expect((await shelterRepo(db).findById(s.id))?.description).toBeNull();
+      expect(await kabinetShelterRepo(db).historyOf(s.id)).toMatchObject([
+        { kind: "description_changed", previous: s.description, next: null },
+      ]);
     });
-    expect((await shelterRepo(db).findById(s.id))?.freshnessSentence).toEqual(sentence);
+
+    it("writes a text back over none, with its English", async () => {
+      const s = await shelter();
+      await write(s.id, s.description, null, "h1");
+      const text = { uk: "Опис", en: { text: "Text", provenance: "human" as const } };
+      const result = await kabinetShelterRepo(db).applyAudited({
+        shelterId: s.id,
+        expectedVersion: 1,
+        change: { kind: "description", description: text },
+        entry: {
+          kind: "description_changed",
+          at: NOW,
+          actor: ADMIN,
+          previous: null,
+          next: text,
+        },
+        historyId: "h2",
+        now: NOW,
+      });
+      expect(result).toEqual({ kind: "ok" });
+      expect((await shelterRepo(db).findById(s.id))?.description).toEqual(text);
+    });
   });
 
   describe("a rename (R-UI 4)", () => {
@@ -299,9 +328,9 @@ describe("kabinetShelterRepo.historyPage", () => {
       const result = await repo.applyAudited({
         shelterId: s.id,
         expectedVersion: i,
-        change: { kind: "freshness_sentence", freshnessSentence: { uk: historyId, en: null } },
+        change: { kind: "description", description: { uk: historyId, en: null } },
         entry: {
-          kind: "freshness_sentence_changed",
+          kind: "description_changed",
           at,
           actor: ADMIN,
           previous: null,

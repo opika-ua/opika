@@ -2,6 +2,7 @@ import type { BlockedAddressesView, RegistryShelterView } from "@opika/contracts
 import type { ModeratorId } from "@opika/domain";
 import type { HistoryPage } from "../pages";
 import { ShelterScreen } from "../ShelterScreen";
+import { AboutForm } from "./AboutForm";
 import { AddEvidencePanel } from "./AddEvidencePanel";
 import { AdminsManager } from "./AdminsManager";
 import { DecisionPanel } from "./DecisionPanel";
@@ -48,6 +49,7 @@ export function ShelterActionsScreen({
           rename: <RenameForm />,
           legalEdit: <LegalEdit />,
           addressEdit: <AddressEdit cityName={cityName} />,
+          aboutEdit: <AboutForm />,
           decision: (
             <>
               <DecisionPanel />

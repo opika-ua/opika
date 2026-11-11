@@ -4,6 +4,7 @@ import {
   type InvitationReminder,
   registrySheltersContract,
 } from "@opika/contracts";
+import { SHELTER_DESCRIPTION_TOO_LONG_MESSAGE } from "@opika/domain";
 import { ORPCError } from "@orpc/client";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -124,7 +125,7 @@ async function pickCity(u: ReturnType<typeof user>, typed: string) {
 async function fillInitiative(visitedOn = "2026-10-12") {
   const u = user();
   await u.type(screen.getByLabelText("Назва притулку"), "Лапа Вишгорода");
-  await u.type(screen.getByLabelText("Опис притулку"), "Волонтери з Вишгорода.");
+  await u.type(screen.getByLabelText("Про притулок · необовʼязково"), "Волонтери з Вишгорода.");
   await pickCity(u, "Виш");
   await u.type(screen.getByLabelText("Вулиця, будинок"), "вул. Мечникова, 4");
   await u.type(screen.getByLabelText("Координати"), "50.5843, 30.4890");
@@ -334,7 +335,7 @@ describe("the minimal shelter", () => {
     const fns = renderForm(async () => createdView({ kind: "sent", blockCheck: "clear" }, null));
     const u = user();
     await u.type(screen.getByLabelText("Назва притулку"), "Лапа Вишгорода");
-    await u.type(screen.getByLabelText("Опис притулку"), "Волонтери з Вишгорода.");
+    await u.type(screen.getByLabelText("Про притулок · необовʼязково"), "Волонтери з Вишгорода.");
     await pickCity(u, "Виш");
     const contacts = within(screen.getByRole("region", { name: "Контакти" }));
     await u.type(contacts.getByLabelText(/^Телефон/), "+380 50 111-22-33");
@@ -546,6 +547,74 @@ describe("refusals", () => {
   });
 });
 
+describe("the shelter's text («Про притулок · необовʼязково»)", () => {
+  const TOO_LONG = "Текст довший за 1 500 символів. Скоротіть його, щоб зберегти.";
+  const field = () => screen.getByLabelText("Про притулок · необовʼязково") as HTMLTextAreaElement;
+
+  /** The minimum the form needs, leaving the text field to the test. */
+  async function fillMinimum(u: ReturnType<typeof user>) {
+    await u.type(screen.getByLabelText("Назва притулку"), "Лапа Вишгорода");
+    await pickCity(u, "Виш");
+    const contacts = within(screen.getByRole("region", { name: "Контакти" }));
+    await u.type(contacts.getByLabelText(/^Телефон/), "+380 50 111-22-33");
+    await u.type(screen.getByLabelText("Імʼя"), "Ірина");
+    await u.type(screen.getByLabelText("Електронна пошта"), "iryna@example.org");
+  }
+
+  it("is not required: a blank field creates the shelter with no description at all", async () => {
+    const fns = renderForm(async () => createdView({ kind: "sent", blockCheck: "clear" }, null));
+    const u = user();
+    await fillMinimum(u);
+    expect(field().required).toBe(false);
+    await u.click(submit());
+    expect(fns.create).toHaveBeenCalledTimes(1);
+    const input = fns.create.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect("description" in input).toBe(false);
+    expect(createInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it("says the text shows on the shelter page and not to write anything private", () => {
+    renderForm(async () => createdView(null));
+    expect(
+      screen.getByText(
+        "Цей текст показується на сторінці притулку. Не пишіть тут нічого приватного.",
+      ),
+    ).toBeDefined();
+  });
+
+  it("over 1,500 characters sends nothing, says so on the field and moves focus to it", async () => {
+    const fns = renderForm(async () => createdView(null));
+    const u = user();
+    await fillMinimum(u);
+    await u.click(field());
+    await u.paste("а".repeat(1501));
+    await u.click(submit());
+    expect(fns.create).not.toHaveBeenCalled();
+    expect(screen.getByText(TOO_LONG)).toBeDefined();
+    expect(field().getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(field());
+  });
+
+  it("the server's refusal for the cap lands on the same field with the same message", async () => {
+    const fns = renderForm(async () => {
+      throw Object.assign(new Error("BAD_REQUEST"), {
+        code: "BAD_REQUEST",
+        status: 400,
+        data: {
+          issues: [{ path: ["description", "uk"], message: SHELTER_DESCRIPTION_TOO_LONG_MESSAGE }],
+        },
+      });
+    });
+    const u = user();
+    await fillMinimum(u);
+    await u.type(field(), "Волонтери.");
+    await u.click(submit());
+    expect(fns.create).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(TOO_LONG)).toBeDefined();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
 describe("checked before anything is sent", () => {
   it("an empty form sends nothing, marks the required fields and moves focus to the first", async () => {
     const fns = renderForm(async () => createdView(null));
@@ -554,8 +623,8 @@ describe("checked before anything is sent", () => {
     const name = screen.getByLabelText("Назва притулку");
     expect(name.getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(name);
-    // Name, description, the first admin's name and address; the city has its own message.
-    expect(screen.getAllByText("Це поле потрібне.")).toHaveLength(4);
+    // Name, the first admin's name and address (the shelter's text is optional); the city has its own message.
+    expect(screen.getAllByText("Це поле потрібне.")).toHaveLength(3);
     expect(screen.getByText("Оберіть населений пункт зі списку")).toBeDefined();
     expect(screen.getByText("Залиште хоча б один спосіб звʼязку.")).toBeDefined();
   });

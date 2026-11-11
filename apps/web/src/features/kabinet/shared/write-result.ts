@@ -1,5 +1,8 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import { CONTACT_TOO_MANY_CHANNELS_MESSAGE } from "@opika/domain";
+import {
+  CONTACT_TOO_MANY_CHANNELS_MESSAGE,
+  SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
+} from "@opika/domain";
 
 /**
  * What a K4 write came back as, in the terms the screen speaks: the new view,
@@ -14,12 +17,14 @@ import { CONTACT_TOO_MANY_CHANNELS_MESSAGE } from "@opika/domain";
  *   value there means «Збережено.», anything else `state.failed`.
  * - `too_many_channels`: the input check refused a contact over the channel cap; the contacts
  *   section says which rule and how to fix it.
+ * - `description_too_long`: the same, for the shelter's text over its cap (`SHELTER_DESCRIPTION_TOO_LONG_MESSAGE`).
  * - `failed`: the server answered with any other refusal.
  */
 export type WriteResult =
   | { kind: "ok"; view: KabinetShelterView }
   | { kind: "conflict" }
   | { kind: "too_many_channels" }
+  | { kind: "description_too_long" }
   | { kind: "illegal_transition" }
   | { kind: "no_answer" }
   | { kind: "failed" };
@@ -57,8 +62,11 @@ export function writeFailureOf(error: unknown): WriteFailure {
       // No error code: no answer from the server reached us (fetch threw).
       return { kind: "no_answer" };
     case "BAD_REQUEST":
-      return hasIssueMessage(error, CONTACT_TOO_MANY_CHANNELS_MESSAGE)
-        ? { kind: "too_many_channels" }
+      if (hasIssueMessage(error, CONTACT_TOO_MANY_CHANNELS_MESSAGE)) {
+        return { kind: "too_many_channels" };
+      }
+      return hasIssueMessage(error, SHELTER_DESCRIPTION_TOO_LONG_MESSAGE)
+        ? { kind: "description_too_long" }
         : { kind: "failed" };
     default:
       return { kind: "failed" };

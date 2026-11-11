@@ -74,7 +74,7 @@ function columnsToLocalizedText(
 }
 
 /** An optional `LocalizedText` as its three nullable columns: all null when there is none. */
-function optionalTextToColumns(lt: LocalizedText | null): {
+export function optionalTextToColumns(lt: LocalizedText | null): {
   uk: string | null;
   enText: string | null;
   enProvenance: TextProvenance | null;
@@ -180,7 +180,7 @@ export function rowToCity(row: CityRow): City {
 // --- Shelter ---
 
 export function shelterToRow(shelter: Shelter): ShelterInsert {
-  const desc = localizedTextToColumns(shelter.description);
+  const desc = optionalTextToColumns(shelter.description);
   return {
     id: shelter.id,
     displayName: shelter.displayName,
@@ -195,8 +195,6 @@ export function shelterToRow(shelter: Shelter): ShelterInsert {
     logo: shelter.logo,
     pendingDonation: shelter.pendingDonation,
     version: shelter.version,
-    freshnessSentenceUk: shelter.freshnessSentence?.uk ?? null,
-    freshnessSentenceEn: shelter.freshnessSentence?.en?.text ?? null,
     verificationStatus: shelter.verification.status,
     verification: shelter.verification,
     earlyListingSince: shelter.earlyListingSince,
@@ -221,7 +219,7 @@ export function rowToShelter(row: ShelterRow): Shelter {
   return {
     id: row.id,
     displayName: row.displayName,
-    description: columnsToLocalizedText(
+    description: columnsToOptionalText(
       row.descriptionUk,
       row.descriptionEnText,
       row.descriptionEnProvenance,
@@ -234,9 +232,6 @@ export function rowToShelter(row: ShelterRow): Shelter {
     logo: row.logo ?? null,
     pendingDonation: row.pendingDonation ?? null,
     version: row.version,
-    freshnessSentence: row.freshnessSentenceUk
-      ? columnsToLocalizedText(row.freshnessSentenceUk, row.freshnessSentenceEn ?? null, "human")
-      : null,
     verification: row.verification,
     earlyListingSince: row.earlyListingSince ?? null,
     createdAt: row.createdAt,

@@ -27,7 +27,7 @@ const kabinetProfileBrowserContract = {
     profile: {
       get: shelterKabinetContract.shelter.profile.get,
       updateContact: shelterKabinetContract.shelter.profile.updateContact,
-      updateFreshnessSentence: shelterKabinetContract.shelter.profile.updateFreshnessSentence,
+      updateDescription: shelterKabinetContract.shelter.profile.updateDescription,
       proposeDonation: shelterKabinetContract.shelter.profile.proposeDonation,
       cancelDonationProposal: shelterKabinetContract.shelter.profile.cancelDonationProposal,
       pause: shelterKabinetContract.shelter.profile.pause,

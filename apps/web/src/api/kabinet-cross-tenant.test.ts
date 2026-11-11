@@ -263,8 +263,8 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
         }),
     ],
     [
-      "shelter.profile.updateFreshnessSentence",
-      () => smuggle({ freshnessSentence: { uk: "Не Б", en: null }, expectedVersion: 0 }),
+      "shelter.profile.updateDescription",
+      () => smuggle({ description: { uk: "Не Б", en: null }, expectedVersion: 0 }),
     ],
     ["shelter.profile.proposeDonation", () => smuggle({ url: "https://send.monobank.ua/jar/x" })],
     ["shelter.profile.cancelDonationProposal", () => smuggle({})],
@@ -324,9 +324,9 @@ describe("cross-tenant: history", () => {
     const written = await kabinetShelterRepo(db).applyAudited({
       shelterId: shelterB.id,
       expectedVersion: 0,
-      change: { kind: "freshness_sentence", freshnessSentence: { uk: "Тільки Б", en: null } },
+      change: { kind: "description", description: { uk: "Тільки Б", en: null } },
       entry: {
-        kind: "freshness_sentence_changed",
+        kind: "description_changed",
         at: new Date(),
         actor: { kind: "moderator", moderatorId: "11111111-1111-4111-8111-111111111111" as never },
         previous: null,
@@ -409,7 +409,7 @@ describe("coverage", () => {
       "shelter.photos.remove",
       "shelter.profile.get",
       "shelter.profile.updateContact",
-      "shelter.profile.updateFreshnessSentence",
+      "shelter.profile.updateDescription",
       "shelter.profile.proposeDonation",
       "shelter.profile.cancelDonationProposal",
       "shelter.profile.pause",

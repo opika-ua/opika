@@ -83,7 +83,7 @@ test.describe("/kabinet/prytulky/novyi, the minimal shelter", () => {
     const page = await context.newPage();
     expect((await page.goto("/kabinet/prytulky/novyi"))?.status()).toBe(200);
     await page.getByLabel("Назва притулку").fill(displayName);
-    await page.getByLabel("Опис притулку").fill("Волонтери, 18 собак і 6 котів.");
+    await page.getByLabel("Про притулок · необовʼязково").fill("Волонтери, 18 собак і 6 котів.");
     await page.getByRole("combobox", { name: /Населений пункт/ }).fill(city.name);
     await page
       .getByRole("option", { name: new RegExp(city.name) })

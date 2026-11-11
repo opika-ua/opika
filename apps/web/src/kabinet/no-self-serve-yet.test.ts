@@ -21,7 +21,7 @@ import { productionSignInOf } from "./production-sign-in";
  *   §7  `forShelters.whatToPrepare`        A1, and his PR 6 last paragraph (the shelter keeps its own cards)
  *   §9  `forShelters.whenAnimalFindsHome`  his PR 6 ¶1 and ¶3 («Уже вдома» is the shelter's own)
  *   §10 `forShelters.whoIsBehindThis`      A3 («відповідаю я»), kept
- *   §8  `forShelters.whyThatSentence`      B1, his PR 6 text (what moves the date)
+ *   §8  `forShelters.whyHowOften`          B1, his PR 6 text (what moves the date), with the «Про притулок» wording
  *
  * What PR 6 did not open, and this file still pins: a shelter can sign in
  * only once someone holds a membership, and the operator alone decides who
@@ -79,7 +79,7 @@ const ACCEPT_CALLER = "apps/web/src/kabinet/invitation-accept.ts";
 
 const COPY_GATE =
   "/prytulkam §7 whatToPrepare, §9 whenAnimalFindsHome, §10 whoIsBehindThis and §8 " +
-  "whyThatSentence describe this: see docs/standing-constraints.md, commitments 6 and 7";
+  "whyHowOften describe this: see docs/standing-constraints.md, commitments 6 and 7";
 
 describe(`a shelter membership is created by the automatic accept only – ${COPY_GATE}`, () => {
   it("sanity: the scan sees the source tree", () => {
@@ -219,10 +219,10 @@ describe(`a shelter membership is created by the automatic accept only – ${COP
     );
     expect(uk.forShelters.whatToPrepare, COPY_GATE).not.toContain("я внесу все сам");
     // B1 (pr6-copy-uk.md §1.3): what moves the date, named, and a text edit not among it.
-    expect(uk.forShelters.whyThatSentence, COPY_GATE).toContain(
-      "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють – так вона показує саме те, що обіцяє. Речення пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».",
+    expect(uk.forShelters.whyHowOften, COPY_GATE).toContain(
+      "Дату ніхто не вписує вручну: вона оновлюється, коли ви публікуєте картку, натискаєте «Ще шукає» чи «Ще домовляються» або змінюєте фото. Правки в тексті дату не змінюють – так вона показує саме те, що обіцяє. Текст про притулок пишете ви, коли вам зручно, і можете змінити його будь-коли: «оновлюємо щосуботи», «дзвоніть, ми скажемо точно», «влітку рідше».",
     );
-    expect(uk.forShelters.whyThatSentence, COPY_GATE).not.toContain(
+    expect(uk.forShelters.whyHowOften, COPY_GATE).not.toContain(
       "коли інформацію востаннє оновлювали",
     );
     // A3: kept as is (answer 3), and still true: one person answers.

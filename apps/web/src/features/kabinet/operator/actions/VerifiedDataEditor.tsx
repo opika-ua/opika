@@ -34,7 +34,10 @@ type Notice = { kind: "none" } | { kind: "saved" } | { kind: "conflict" } | { ki
 type FieldErrors = Partial<Record<CreateField, CreateFieldError>>;
 
 const message = (error: CreateFieldError | undefined): string | null =>
-  error === undefined || error === "nameTooLong" || error === "emailFormat"
+  error === undefined ||
+  error === "nameTooLong" ||
+  error === "emailFormat" ||
+  error === "descriptionTooLong"
     ? null
     : uk.kabinet.operator.create.errors[error];
 

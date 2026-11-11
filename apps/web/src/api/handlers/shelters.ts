@@ -57,7 +57,6 @@ export async function sheltersById(
     donation: publicDonationOf(shelter),
     logo: shelter.logo,
     createdAt: shelter.createdAt,
-    freshnessSentence: shelter.freshnessSentence,
     verification: listedEarly ? "listed_before_verification" : "verified",
     availability,
   };

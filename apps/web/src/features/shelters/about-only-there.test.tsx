@@ -9,10 +9,10 @@ import { GalleryCard } from "../gallery/GalleryCard";
 import { WithMockRouter } from "../gallery/test-router";
 import { ShelterPageScreen } from "./ShelterPageScreen";
 import {
+  DESCRIPTION,
   makeCardView,
   makeShelterPageShelter,
   makeShelterPageView,
-  SENTENCE,
 } from "./test-fixtures";
 
 vi.mock("../../api/browser-client", () => ({
@@ -20,45 +20,44 @@ vi.mock("../../api/browser-client", () => ({
 }));
 
 /**
- * Oleksii's DR1-Q1, verbatim: "«Слова притулку» only on the shelter page.
- * What moves: the shelter’s freshness sentence leaves the deck and animal pages
- * and shows only on the shelter page. «Оновлено … тому» stays on every card."
+ * Oleksii's DR1-Q1, verbatim: "«Слова притулку» only on the shelter page. What moves: the shelter's
+ * words leave the deck and animal pages and show only on the shelter page. «Оновлено … тому» stays
+ * on every card." Since the shelter description absorbed the sentence, those words are the
+ * «Про притулок» text.
  *
- * Every surface an adopter meets an animal on is rendered for a shelter that
- * HAS a sentence, handed the sentence even where the view no longer carries it
- * (a regressed handler or view would do exactly that), and the rendered text
- * is read: neither the sentence nor «Слова притулку» may appear, and the day
- * count must. The shelter page is the control: the same data shows both there.
- * The words are literals from his message and the shelter's sentence, never
- * the catalogue constant.
+ * Every surface an adopter meets an animal on is rendered for a shelter that HAS a text, handed the
+ * text even where the view no longer carries it (a regressed handler or view would do exactly
+ * that), and the rendered text is read: neither the text nor «Про притулок» may appear, and the day
+ * count must. The shelter page is the control: the same data shows both there. The heading is a
+ * literal from the owner's approved string, never the catalogue constant.
  */
-const ATTRIBUTION = "Слова притулку";
+const ABOUT_HEADING = "Про притулок";
 /** «Оновлено …» in whatever words the day count takes (its exact form is `freshnessLabel`'s, tested there). */
 const DAY_COUNT = /Оновлено /;
 
-/** A card summary as a regressed view would hand it: the sentence still on it. */
-const summaryWithSentence = (summary: ShelterSummaryView): ShelterSummaryView => {
-  const handed = { ...summary, freshnessSentence: { uk: SENTENCE, en: null } };
+/** A card summary as a regressed view would hand it: the text still on it. */
+const summaryWithText = (summary: ShelterSummaryView): ShelterSummaryView => {
+  const handed = { ...summary, description: { uk: DESCRIPTION, en: null } };
   return handed;
 };
 
 const card: FeedCardView = (() => {
   const base = makeCardView(1);
-  return { ...base, shelter: summaryWithSentence(base.shelter) };
+  return { ...base, shelter: summaryWithText(base.shelter) };
 })();
 
 const animal: AnimalDetailView = (() => {
   const base = makeDetailAnimal();
-  return { ...base, shelter: summaryWithSentence(base.shelter) };
+  return { ...base, shelter: summaryWithText(base.shelter) };
 })();
 
-function expectNoSentence(surface: string, root: HTMLElement) {
+function expectNoAbout(surface: string, root: HTMLElement) {
   const text = root.textContent ?? "";
-  expect(text, `${surface} shows the shelter's sentence`).not.toContain(SENTENCE);
-  expect(text, `${surface} shows «${ATTRIBUTION}»`).not.toContain(ATTRIBUTION);
+  expect(text, `${surface} shows the shelter's text`).not.toContain(DESCRIPTION);
+  expect(text, `${surface} shows «${ABOUT_HEADING}»`).not.toContain(ABOUT_HEADING);
 }
 
-describe("the shelter's sentence and «Слова притулку» show only on the shelter page", () => {
+describe("the shelter's text and «Про притулок» show only on the shelter page", () => {
   it("the animal page: neither, and its day count stays", () => {
     const { container } = render(
       <AnimalDetailScreen
@@ -68,7 +67,7 @@ describe("the shelter's sentence and «Слова притулку» show only o
         cityPlace="м. Бровари"
       />,
     );
-    expectNoSentence("the animal page", container);
+    expectNoAbout("the animal page", container);
     expect(container.textContent).toMatch(DAY_COUNT);
   });
 
@@ -89,7 +88,7 @@ describe("the shelter's sentence and «Слова притулку» show only o
         </AnimalOverlay>
       </WithMockRouter>,
     );
-    expectNoSentence("the overlay", document.body);
+    expectNoAbout("the overlay", document.body);
     expect(document.body.textContent).toMatch(DAY_COUNT);
   });
 
@@ -103,12 +102,12 @@ describe("the shelter's sentence and «Слова притулку» show only o
         citySlugs={new Map()}
       />,
     );
-    expectNoSentence("the gallery card", container);
+    expectNoAbout("the gallery card", container);
   });
 
   it("the shelter page (the control): both, from the same shelter", () => {
     const { container } = render(<ShelterPageScreen {...makeShelterPageView()} />);
-    expect(container.textContent).toContain(SENTENCE);
-    expect(container.textContent).toContain(ATTRIBUTION);
+    expect(container.textContent).toContain(DESCRIPTION);
+    expect(container.textContent).toContain(ABOUT_HEADING);
   });
 });

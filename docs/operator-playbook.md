@@ -207,7 +207,7 @@ Suspension does not touch photo files or adopters' stored data (sections 9 and 1
 **Your screen, section «Історія»** (newest first, impersonal lines with the actor beside). Recorded:
 shelter created or loaded from file; every verification move with its reason and note; early listing
 allowed, revoked, lapsed; evidence added (kinds only); admin invited, re-invited, joined, removed;
-contacts, description, freshness sentence, logo, display name changes; donation proposed, cancelled,
+contacts, the «Про притулок» text (description), logo, display name changes (earlier freshness-sentence edits stay in the list as «Змінено речення на сторінці притулку»); donation proposed, cancelled,
 approved, rejected; changes to legal data or the exact address; animals created, edited, listing changes,
 deleted drafts, imports. Not recorded: adopter activity of any kind, and the "still looking / still
 negotiating" confirmations. Entries are append-only; the one in-place edit is the erasure placeholder above.
@@ -252,7 +252,7 @@ Observable signals, in rough order of weight:
 5. **The same phone, bank holder, EDRPOU, address or reference on two shelters.** Only you can see it, by
    comparing your own notes (section 1, no cross-shelter check).
 6. **Cards that do not match reality**: photos that look reused from elsewhere, one animal listed under
-   several names, details that contradict the shelter's own freshness sentence.
+   several names, details that contradict what the shelter wrote in its «Про притулок» text.
 7. **A donation link change** on an account that was quiet (a swapped link on a compromised account is the
    realistic fraud vector; the product holds a proposed link until you approve it). Check the host, and
    that the account holder matches the organisation (section 15).

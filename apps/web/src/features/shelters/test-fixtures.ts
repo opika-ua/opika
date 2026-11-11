@@ -13,8 +13,6 @@ import type { ShelterPageClient, ShelterPageView } from "./shelter-page-load";
 export const SHELTER_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 export const CITY_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
-/** The sentence a shelter wrote, used wherever a test needs one to look for. */
-export const SENTENCE = "Оновлюємо картки щосуботи, пишіть у будь-який день.";
 export const DESCRIPTION = "Невеликий притулок на околиці міста, працюємо з 2019 року.";
 
 export function makeShelterPageShelter(
@@ -23,7 +21,6 @@ export function makeShelterPageShelter(
   return makeDetailShelter({
     displayName: "Лапа допомоги",
     description: { uk: DESCRIPTION, en: null },
-    freshnessSentence: { uk: SENTENCE, en: null },
     ...overrides,
   });
 }

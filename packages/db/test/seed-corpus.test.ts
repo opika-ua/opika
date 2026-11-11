@@ -194,10 +194,6 @@ describe("seed corpus - D-4 hostile cases", () => {
    * this file doesn't make.
    */
   describe("already true, audited and pinned by D-4 rather than newly built", () => {
-    it("has at least one shelter with no freshness sentence", () => {
-      expect(shelters.some((s) => s.freshnessSentence === null)).toBe(true);
-    });
-
     it("has at least one shelter with no donation link", () => {
       expect(shelters.some((s) => s.donation === null)).toBe(true);
     });
