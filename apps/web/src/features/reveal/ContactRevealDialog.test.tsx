@@ -427,6 +427,34 @@ describe("WhatsApp and form rows", () => {
   });
 });
 
+/** The sheet scrolls with many rows; its ✕ must stay the first control, so it is the first Tab stop. */
+describe("the ✕ with many contact rows", () => {
+  const MANY = {
+    primary: { kind: "phone", e164: "+380671234567" },
+    additional: [
+      { kind: "telegram", handle: "domivka_brovary" },
+      { kind: "whatsapp", e164: "+380501112233" },
+      { kind: "viber", e164: "+380671234567" },
+      { kind: "instagram", handle: "dobri_lapy" },
+      { kind: "facebook", url: "https://www.facebook.com/dobri.lapy" },
+      { kind: "form", url: "https://forms.example/anketa" },
+    ],
+  } as const;
+
+  it("comes before every contact row in focus order, and closes the dialog", () => {
+    renderOpen(revealWith(MANY));
+    const dialog = screen.getByRole("dialog") as HTMLDialogElement;
+    const close = screen.getByRole("button", { name: "Закрити" });
+    expect(screen.getAllByTestId("reveal-contact-row")).toHaveLength(7);
+    const tabStops = Array.from(
+      dialog.querySelectorAll<HTMLElement>("a[href], button, summary, [tabindex='0']"),
+    );
+    expect(tabStops[0]).toBe(close);
+    fireEvent.click(close);
+    expect(dialog.open).toBe(false);
+  });
+});
+
 /** «Перед тим як писати – три речі»: open on a desktop, collapsed on a phone. */
 describe("the «Перед тим як писати» disclosure", () => {
   const original = window.matchMedia;
