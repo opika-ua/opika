@@ -218,7 +218,7 @@ Each becomes the failed tile's message, or a live-region message for reorder or 
 
 | Key | English sense | What triggers it | Vars | Mock draft |
 |---|---|---|---|---|
-| `animalForm.photoErrors.heicUnsupported` | This phone or browser can't open HEIC photos. Please choose a JPG. | device: `compressPhoto` → `heic_unsupported` (P-T8 (1)) | - | no draft. **His key** (P-B1, verbatim: "where it can't decode it (e.g. Chrome on Windows), show a clear error asking for JPG — new copy key, I'll write it with the K3 sheet.") |
+| `animalForm.photoErrors.heicUnsupported` (renamed `unsupportedFormat` in #463, text now «Збережіть фото як JPEG або PNG») | This phone or browser can't open HEIC photos. Please choose a JPG. | device: `compressPhoto` → `heic_unsupported` (P-T8 (1)) | - | no draft. **His key** (P-B1, verbatim: "where it can't decode it (e.g. Chrome on Windows), show a clear error asking for JPG — new copy key, I'll write it with the K3 sheet.") |
 | `animalForm.photoErrors.unreadable` | This file couldn't be opened as a photo. | device: `unreadable` (P-T8 (2)) | - | no draft |
 | `animalForm.photoErrors.tooLarge` | Even after shrinking, this photo is too large to send. Try another. | device: `too_large`, not expected at 2000 px (P-T8 (3)) | - | no draft |
 | `animalForm.photoErrors.rejected` | The site can't use this file as a photo. | server: `PHOTO_REJECTED`, whatever `data.reason` says (`unsupported_type`, `format_mismatch`, `dimensions_exceeded`, `unreadable`). Only a client that skipped compression gets here, so one message (P-T8 (4)) | - | no draft. P-T8's English said "the registry": brand rule |

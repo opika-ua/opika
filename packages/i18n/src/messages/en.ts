@@ -1340,6 +1340,8 @@ export const en = {
         proposed: "The shelter proposed {host} on {date}. Waiting for your decision.",
         approve: "Approve",
         approveHint: "Check that the account holder matches the organisation",
+        approveHintInitiative:
+          "Check that the bank account holder is the initiative’s contact person.",
         reject: "Reject",
         approved: "Link approved.",
         rejected: "Link rejected.",

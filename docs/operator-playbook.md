@@ -42,8 +42,7 @@ Cannot (plain, so nobody plans around a feature that is not there):
 - **A live donation link: removable by you only, not by the shelter.** «Прибрати посилання…» (shown
   while a link is live; `DonationRemoveDialog`) asks for «Причина» and a required «Пояснення» the
   shelter reads, then clears the live link and any waiting proposal at once and writes a history line.
-  The shelter can propose a new link. (Sections 11 and 15 still say no such action exists; this replaces
-  that.)
+  The shelter can propose a new link. (Sections 11 and 15 describe the same action.)
 - **No UI deletes a shelter.** Deletion is the `demo:remove` script (owner-run, section 7).
 - **No email on a status change.** The product mails only sign-in links, invitations and password mails.
   A request for evidence, a suspension notice and so on go out from your own mailbox (templates, section 13).
@@ -134,7 +133,9 @@ Purpose: let a shelter's cards be public while the review runs. It sits beside t
 - **Revoke:** «Зняти дозвіл» works on a running permission only. New reveals stop at once (the shelter
   counts as not visible); contacts already given stay with the adopters.
 - **What the shelter sees:** history lines «Показ карток до завершення перевірки дозволено» / «…знято» /
-  «Строк … минув» and a banner with the end date. The period number and your reason are stored but are not
+  «Строк … минув» and a banner with the end date. Once the period has ended, its animals page says so
+  with a dated line, «Показ ваших карток з позначкою «на перевірці» завершився {date}.», and your panel
+  says when one last period is left: «Можна дозволити ще один, останній період – з поясненням.» The period number and your reason are stored but are not
   shown to the shelter, and the operator history line does not display them either: they are in the record
   only.
 
@@ -278,7 +279,7 @@ No answer by the date: move up.
 - Verified: ask the shelter to pause itself if it agrees (it ends the public listing without any finding
   against it). The product gives you no pause button; if it declines, go to high or keep watching.
 - Check the donation link and the contacts against the evidence; if the proposed link is wrong, «Відхилити»
-  it. (A live link cannot be cleared by you.)
+  it. A live link that is wrong you clear with «Прибрати посилання…» (section 15).
 
 **High (money requested in advance, impersonation, a confirmed false identity).**
 1. Suspend now: «Призупинити…», code «Не вдалося підтвердити дані притулку» (or «Перевірена скарга»), with a
@@ -384,11 +385,21 @@ neutral; never name a suspicion.
   link does not change meanwhile. The URL must be `https`. The provider is derived from the host (known
   bank and payment hosts are recognised, anything else is "other" and is not refused, so a host that looks
   like a bank but is not will not be flagged by the product: read the host yourself). A new proposal
-  replaces the pending one. Before approving, check that the account holder matches the organisation;
-  the screen reminds you: «Перевірте, що власник рахунку збігається з організацією» (since
-  2026-11-10 this check is no longer part of verification). «Схвалити» makes it live, «Відхилити» clears the proposal and leaves the
+  replaces the pending one. Before approving, check that the account holder matches the organisation
+  (for an unregistered initiative: that the holder is its contact person); the screen reminds you:
+  «Перевірте, що власник рахунку збігається з організацією», or for an initiative «Перевірте, що власник
+  рахунку – контактна особа ініціативи». Since 2026-11-10 «Перевірено» no longer includes the
+  bank-account check; it is a hand check at donation approval. When you approve a link, add the evidence
+  «Власник банківського рахунку» (section 4), as long as the shelter is pending or under review.
+  «Схвалити» makes the link live, «Відхилити» clears the proposal and leaves the
   current live link as it was. Both are single clicks with no reason field and no confirmation, and
-  are recorded in the history and shown to the shelter. There is no action to remove a live link.
+  are recorded in the history and shown to the shelter. To take a live link down, use
+  «Прибрати посилання…» (section 1): it asks for «Причина» and a required «Пояснення».
+
+  **Approving a link on an already verified shelter.** The evidence list is closed after the decision
+  (section 4), so «Власник банківського рахунку» cannot be added. Check the account holder the same way
+  and record the result in your own notes (section 12). The approve step has no comment field, so the
+  product keeps no record of this check.
 
 ## 16. A shelter leaving, and a personal-data deletion request
 

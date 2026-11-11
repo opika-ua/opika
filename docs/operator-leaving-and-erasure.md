@@ -32,8 +32,9 @@ agent to.
    «Має доступ»). Always send template E **to the admin address on file**, even when the request came
    from it (a matching From address alone can be forged), and tell the sender nothing about the shelter
    if it came from anywhere else. **Nothing changes until a reply to that mail arrives**, and no
-   `--commit` (step 7) without it. A shelter with no joined admin: confirm by a call to the phone in its
-   contacts and note the call.
+   `--commit` (step 7) without it. The confirmation is the admin's reply from that address, as template E
+   asks («Підтвердіть, будь ласка, відповіддю на цей лист»), not a phone call. A shelter with no joined admin:
+   confirm by a call to the phone in its contacts and note the call.
 3. **Open complaint or investigation on this shelter?** Then do steps 4 and 5 only and stop: hide, do not
    delete, until the matter is closed (playbook sections 11 and 14).
 4. **Hide it now.**
@@ -114,7 +115,7 @@ will state the same number when it is written.
 | Shelter admin (account holder) | `auth_user`, `auth_account`, `auth_session`; their address in history lines and invitations | «Прибрати» on every shelter they belong to. Erasure follows automatically once no shelter remains (playbook section 7). If they are the shelter's only admin, invite the replacement first, or the shelter loses its cabinet |
 | Invitee who never joined | Same | «Прибрати» withdraws it; an expired one is erased by the 6-hourly clean-up |
 | A shelter's contact person (phone, name, email in its public contacts) | `shelters.contact`; the old value in `contact_changed` history lines; `reveals.shelter_snapshot` | The shelter's admin replaces the contact in its cabinet (it goes off the public pages at once). **NEEDS TOOL** for the history lines and snapshots |
-| Named person in legal data (an initiative's contact person, a sole proprietor's name) | `shelters.legal_entity`; `verified_data_changed` history lines | No screen edits it: the API call exists (`registry.shelters.updateVerifiedData`), its form is not built, and a change keeps the old value in history. **NEEDS TOOL** |
+| Named person in legal data (an initiative's contact person, a sole proprietor's name) | `shelters.legal_entity` (empty for a shelter created minimally until you add it); `verified_data_changed` history lines | You edit it on the shelter's page, «Юридичні дані» → «Змінити» (`registry.shelters.updateVerifiedData`), but a change keeps the old value in history. **NEEDS TOOL** for the history lines |
 | A reference, a bank account holder, video-call notes (evidence) | `shelters.verification` | Evidence can only be added, never edited or removed. **NEEDS TOOL** |
 | A person shown in a photo or a logo | R2, referenced from `animals.photos` / `shelters.logo` | The shelter removes the photo or logo in its cabinet; the clean-up job deletes the files after 7 days. Not faster: nothing else deletes R2 objects |
 | Adopter | `sessions`, `adopters`, `reveals` (no name, email or phone); the saved list only in their browser | Nothing to look up by: you cannot find their rows without their cookie, and must not ask for it. Without reveals, the clean-up deletes their rows within about 31 days. With a reveal, the rows are kept (G3). Send template I. **NEEDS TOOL** |
@@ -157,8 +158,8 @@ will state the same number when it is written.
    `reveals.shelter_snapshot`, in one transaction, the same shape as the admin erasure. Tier 1.
 4. **NEEDS TOOL, adopter erasure:** a «forget this device» action on the site that deletes that
    session's reveals, session and adopter row, in that order (`docs/gdpr-analysis.md`, G4). Tier 1.
-5. **Legal data edit form:** not built, so a wrong or withdrawn name in legal data cannot be corrected
-   from a screen (B, table).
+5. **Legal data in history:** the operator's edit form replaces a wrong or withdrawn name in
+   `shelters.legal_entity`, but the old value stays in `verified_data_changed` history lines (B, table).
 6. **Clean-up cap:** a leaving shelter with more than 20 photos always needs the manual
    `r2:cleanup --max-delete` run (A, step 8).
 
