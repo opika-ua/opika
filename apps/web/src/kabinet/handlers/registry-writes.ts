@@ -203,6 +203,7 @@ export const registryUpdateProfile = (
     displayName?: string | undefined;
     contact?: ShelterContact | undefined;
     description?: LocalizedText | null | undefined;
+    weeklyReminder?: "on" | "off" | undefined;
   },
   errors: E<"CONFLICT">,
 ) =>
@@ -243,6 +244,19 @@ export const registryUpdateProfile = (
             actor,
             previous: shelter.description,
             next,
+          });
+        }
+      }
+      // Only a real change is written: asking for the state it is already in records nothing.
+      if (input.weeklyReminder !== undefined) {
+        const off = input.weeklyReminder === "off";
+        if (off !== (shelter.freshnessReminderOffAt !== null)) {
+          plan.changes.push({ kind: "freshness_reminder", offAt: off ? deps.now : null });
+          plan.entries.push({
+            kind: "freshness_reminder_changed",
+            at: deps.now,
+            moderatorId,
+            off,
           });
         }
       }

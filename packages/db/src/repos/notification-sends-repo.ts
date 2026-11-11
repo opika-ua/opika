@@ -78,6 +78,19 @@ export function notificationSendsRepo(db: Database) {
       return rows.length === 1;
     },
 
+    /**
+     * Which of these keys already have a row, whatever its status: lets a batch tell a mail it
+     * sent before from one it would send, without claiming anything.
+     */
+    async claimedKeys(dedupKeys: readonly string[]): Promise<Set<string>> {
+      if (dedupKeys.length === 0) return new Set();
+      const rows = await db
+        .select({ dedupKey: notificationSends.dedupKey })
+        .from(notificationSends)
+        .where(inArray(notificationSends.dedupKey, [...dedupKeys]));
+      return new Set(rows.map((row) => row.dedupKey));
+    },
+
     /** Failed sends created within the window that have attempts left, oldest first. */
     async retryable(
       now: Date,
@@ -120,17 +133,25 @@ export function notificationSendsRepo(db: Database) {
     },
 
     /**
-     * How many sends of these kinds were claimed at or after `since`: the day's tally the event
-     * cap reads. Every claimed row counts, sent or failed, because each one reached the provider.
+     * How many sends of these kinds went out at or after `since`: the day's tally the event cap
+     * reads. A first attempt counts on the day its row was created, a retry (attempts 2 or more)
+     * on the day the row was last touched, so a row retried the day after it was created counts
+     * once on each. Sent or failed, each one reached the provider. A closed row (attempts spent
+     * without a retry) counts its spent attempt too: the tally errs on the side of the cap.
      */
-    async countCreatedSince(since: Date, kinds: readonly string[]): Promise<number> {
+    async countSendsSince(since: Date, kinds: readonly string[]): Promise<number> {
       if (kinds.length === 0) return 0;
+      const sinceIso = since.toISOString();
       const rows = await db
-        .select({ n: sql<number>`count(*)`.mapWith(Number) })
+        .select({
+          n: sql<number>`(
+            count(*) FILTER (WHERE ${notificationSends.createdAt} >= ${sinceIso}::timestamptz)
+            + count(*) FILTER (WHERE ${notificationSends.attempts} >= 2
+                AND ${notificationSends.updatedAt} >= ${sinceIso}::timestamptz)
+          )`.mapWith(Number),
+        })
         .from(notificationSends)
-        .where(
-          and(gte(notificationSends.createdAt, since), inArray(notificationSends.kind, [...kinds])),
-        );
+        .where(inArray(notificationSends.kind, [...kinds]));
       return rows[0]?.n ?? 0;
     },
 

@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { pingHealthcheck } from "./cron-healthcheck";
-import { type DailyCounts, runDailyNotifications } from "./notify/daily";
+import { runDailyNotifications } from "./notify/daily";
 import type { NotifyDeps } from "./notify/deliver";
 
 /**
@@ -15,22 +15,29 @@ import type { NotifyDeps } from "./notify/deliver";
  *   quiet success that hides a missing provider.
  * - **What it logs:** counts only, never an address, a shelter name or an id.
  */
-export async function handleNotificationsCron(
+export type NotifyCronDeps = {
+  cronSecret: string | undefined;
+  /** Null when this deployment cannot send (`notifyRuntimeOf` is off). */
+  notify: () => NotifyDeps | null;
+  log: (line: string) => void;
+  /** Healthchecks.io ping URL; unset means no check-in. */
+  healthcheckUrl?: string | undefined;
+  fetchImpl?: typeof fetch;
+};
+
+/**
+ * The door every notification cron shares: the secret, the bearer, "can this deployment send at
+ * all", the check-in and the counts-only log. `event` names the cron in the log; `run` is its work.
+ */
+export async function handleNotifyCron<Counts extends object>(
   request: Request,
-  deps: {
-    cronSecret: string | undefined;
-    /** Null when this deployment cannot send (`notifyRuntimeOf` is off). */
-    notify: () => NotifyDeps | null;
-    log: (line: string) => void;
-    /** Healthchecks.io ping URL (`HEALTHCHECK_URL_NOTIFICATIONS`); unset means no check-in. */
-    healthcheckUrl?: string | undefined;
-    fetchImpl?: typeof fetch;
-  },
+  deps: NotifyCronDeps,
+  cron: { event: string; run: (notify: NotifyDeps) => Promise<Counts> },
 ): Promise<Response> {
   const ping = (outcome: "ok" | "fail") =>
     pingHealthcheck(deps.healthcheckUrl, outcome, deps.fetchImpl);
   if (!deps.cronSecret) {
-    deps.log(JSON.stringify({ event: "kabinet_notifications", outcome: "refused_no_secret" }));
+    deps.log(JSON.stringify({ event: cron.event, outcome: "refused_no_secret" }));
     await ping("fail");
     return new Response("Cron secret not configured", { status: 500 });
   }
@@ -39,13 +46,13 @@ export async function handleNotificationsCron(
   }
   const notify = deps.notify();
   if (notify === null) {
-    deps.log(JSON.stringify({ event: "kabinet_notifications", outcome: "not_configured" }));
+    deps.log(JSON.stringify({ event: cron.event, outcome: "not_configured" }));
     await ping("fail");
     return new Response("Notifications are not configured", { status: 503 });
   }
   try {
-    const counts: DailyCounts = await runDailyNotifications(notify);
-    deps.log(JSON.stringify({ event: "kabinet_notifications", outcome: "done", ...counts }));
+    const counts = await cron.run(notify);
+    deps.log(JSON.stringify({ event: cron.event, outcome: "done", ...counts }));
     await ping("ok");
     return Response.json(counts);
   } catch (error) {
@@ -53,6 +60,12 @@ export async function handleNotificationsCron(
     throw error;
   }
 }
+
+export const handleNotificationsCron = (request: Request, deps: NotifyCronDeps) =>
+  handleNotifyCron(request, deps, {
+    event: "kabinet_notifications",
+    run: (notify) => runDailyNotifications(notify),
+  });
 
 const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
 

@@ -416,6 +416,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "donation",
         "pendingDonation",
         "verification",
+        "freshnessReminderOffAt",
         "createdAt",
         "lastUpdatedAt",
         "version",

@@ -232,18 +232,31 @@ describe("closeFailed", () => {
   });
 });
 
-describe("countCreatedSince", () => {
-  it("counts rows of the given kinds created at or after the instant, whatever their status", async () => {
+describe("countSendsSince", () => {
+  it("counts first attempts by creation and retries by the day they were made, whatever the status", async () => {
     const since = ago(2 * HOUR);
     await seed("on-the-instant", { createdAt: since, status: "sent" });
     await seed("after", { createdAt: ago(HOUR), status: "failed" });
     await seed("before", { createdAt: ago(2 * HOUR + 1) });
     await seed("other-kind", { createdAt: ago(HOUR), kind: "freshnessReminder" });
     const repo = notificationSendsRepo(db);
-    expect(await repo.countCreatedSince(since, ["approved"])).toBe(2);
-    expect(await repo.countCreatedSince(since, ["approved", "freshnessReminder"])).toBe(3);
-    expect(await repo.countCreatedSince(since, [])).toBe(0);
-    expect(await repo.countCreatedSince(NOW, ["approved"])).toBe(0);
+    expect(await repo.countSendsSince(since, ["approved"])).toBe(2);
+    expect(await repo.countSendsSince(since, ["approved", "freshnessReminder"])).toBe(3);
+    expect(await repo.countSendsSince(since, [])).toBe(0);
+    expect(await repo.countSendsSince(NOW, ["approved"])).toBe(0);
+  });
+
+  it("counts a retry made today on a row created earlier, and a row created and retried today twice", async () => {
+    const since = ago(2 * HOUR);
+    // Created yesterday, retried today: one send today.
+    await seed("retried", { createdAt: ago(DAY), updatedAt: ago(HOUR), attempts: 2 });
+    // Created yesterday, failed once, touched today but not retried: no send today.
+    await seed("only-touched", { createdAt: ago(DAY), updatedAt: ago(HOUR), attempts: 1 });
+    // Created yesterday, retried yesterday: no send today.
+    await seed("old-retry", { createdAt: ago(DAY), updatedAt: ago(DAY), attempts: 2 });
+    // Created today and retried today: two sends today.
+    await seed("both", { createdAt: ago(HOUR), updatedAt: ago(HOUR / 2), attempts: 2 });
+    expect(await notificationSendsRepo(db).countSendsSince(since, ["approved"])).toBe(3);
   });
 });
 

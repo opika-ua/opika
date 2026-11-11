@@ -221,6 +221,7 @@ export function buildPerfShelters(cityList: readonly City[], now: Date): Shelter
       logo: null,
       pendingDonation: null,
       earlyListingSince: null,
+      freshnessReminderOffAt: null,
       version: 0,
       verification,
       createdAt: daysAgo(120),

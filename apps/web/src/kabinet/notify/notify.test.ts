@@ -739,7 +739,7 @@ describe("a retry of a per-day mail (O1, O2) is rebuilt from the shelter as it i
   const pendingDonation = { link, proposedAt: NOW, proposedBy: null };
 
   it("sends a proposal that is still waiting, naming the link the shelter has now", async () => {
-    const { shelter } = await failedFirstAttempt("proposal", {
+    await failedFirstAttempt("proposal", {
       pendingDonation,
     } as Partial<Shelter>);
     const { mail, sent } = fakeMail();
@@ -747,7 +747,6 @@ describe("a retry of a per-day mail (O1, O2) is rebuilt from the shelter as it i
     expect(counts).toMatchObject({ retried: 1, retrySent: 1 });
     expect(sent).toHaveLength(1);
     expect(sent[0]?.text).toContain("send.monobank.ua");
-    expect(shelter.id).toBeDefined();
   });
 
   it("closes the row without a mail once the proposal is gone (approved, rejected or cancelled)", async () => {
@@ -818,5 +817,117 @@ describe("a retry of a per-day mail (O1, O2) is rebuilt from the shelter as it i
     expect(await status(rightKey)).toBe("sent");
     expect(await status(otherShelter)).toBe("failed");
     expect(await status(otherDay)).toBe("failed");
+  });
+});
+describe("retries count against the daily event cap", () => {
+  async function failedMails(count: number) {
+    // `count` operator mails that the provider refused, left failed and retryable.
+    await seedShelter(db, {
+      overrides: {
+        verification: PENDING,
+        earlyListingSince: new Date(NOW.getTime() - (EARLY_LISTING_DAYS - 3) * DAY),
+      } as Partial<Shelter>,
+    });
+    for (let n = 0; n < count; n += 1) await seedOperator(db, `retry-${n}@example.org`);
+    const failing = fakeMail();
+    failing.state.failing = true;
+    await runDailyNotifications(depsOf(db, failing.mail));
+    expect((await sendRows()).filter((row) => row.status === "failed")).toHaveLength(count);
+  }
+
+  it("cap reached: no retry reaches the sender, the rows stay failed and it is counted", async () => {
+    await failedMails(2);
+    const { mail, sent } = fakeMail();
+    // Two sends already today (the two failed first attempts): the cap of 2 is spent.
+    const counts = await runDailyNotifications(depsOf(db, mail, { eventCap: 2 }));
+    expect(sent).toEqual([]);
+    expect(counts).toMatchObject({ retried: 0, retrySent: 0, skippedOverCap: 2 });
+    expect(await sendRows()).toMatchObject([
+      { status: "failed", attempts: 1 },
+      { status: "failed", attempts: 1 },
+    ]);
+  });
+
+  it("cap not reached: the retry is sent", async () => {
+    await failedMails(2);
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail, { eventCap: 40 }));
+    expect(sent).toHaveLength(2);
+    expect(counts).toMatchObject({ retried: 2, retrySent: 2, skippedOverCap: 0 });
+  });
+
+  it("room for exactly one more: one retry goes, the other waits for a later run", async () => {
+    await failedMails(2);
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail, { eventCap: 3 }));
+    expect(sent).toHaveLength(1);
+    expect(counts).toMatchObject({ retrySent: 1, skippedOverCap: 1 });
+    const statuses = (await sendRows()).map((row) => `${row.status}:${row.attempts}`).sort();
+    expect(statuses).toEqual(["failed:1", "sent:2"]);
+  });
+
+  it("a retry made today uses a slot for the events that follow it", async () => {
+    await failedMails(1);
+    // The failed row is from yesterday, so only its retry counts today.
+    await db.update(notificationSends).set({ createdAt: new Date(NOW.getTime() - 20 * 3_600_000) });
+    const { mail, sent } = fakeMail();
+    await runDailyNotifications(depsOf(db, mail, { eventCap: 2 }));
+    expect(sent).toHaveLength(1);
+    const { shelter } = await seedShelter(db, { admins: ["x@example.org", "y@example.org"] });
+    const deps = depsOf(db, mail, { eventCap: 2 });
+    await notifyAfterWrite(deps, shelter, [approveLine("after-retry")]);
+    // 2 slots, 1 taken by the retry: one of the two admins is mailed.
+    expect(sent).toHaveLength(2);
+    expect(deps.logs).toEqual(["[kabinet] notification event cap reached: 1 mail(s) not sent"]);
+  });
+});
+
+describe("the retry sweep, budget and recipient keys (Tier 1 follow-ups)", () => {
+  it("a retry past the budget is not taken: it stays failed with attempts 1", async () => {
+    await seedShelter(db, {
+      overrides: {
+        verification: PENDING,
+        earlyListingSince: new Date(NOW.getTime() - (EARLY_LISTING_DAYS - 3) * DAY),
+      } as Partial<Shelter>,
+    });
+    for (let n = 0; n < 3; n += 1) await seedOperator(db, `budget-${n}@example.org`);
+    const failing = fakeMail();
+    failing.state.failing = true;
+    await runDailyNotifications(depsOf(db, failing.mail));
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail), 2);
+    expect(sent).toHaveLength(2);
+    expect(counts).toMatchObject({ retried: 2, retrySent: 2, deferred: 1 });
+    const attempts = (await sendRows()).map((row) => `${row.status}:${row.attempts}`).sort();
+    expect(attempts).toEqual(["failed:1", "sent:2", "sent:2"]);
+  });
+
+  it("a key whose user hash is another person's is never rebuilt, whatever its shelter and day", async () => {
+    const operator = await seedOperator(db, "op@example.org");
+    const other = await seedOperator(db, "other@example.org");
+    const { shelter } = await seedShelter(db, {
+      overrides: {
+        pendingDonation: {
+          link: { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" },
+          proposedAt: NOW,
+          proposedBy: null,
+        },
+      } as Partial<Shelter>,
+    });
+    const sends = notificationSendsRepo(db);
+    const base = `dp:${shelter.id}:2026-11-10`;
+    // The row says it is for `operator`, but its key carries `other`'s hash.
+    const dedupKey = dedupKeyOf(base, other);
+    await sends.claim(NOW, {
+      dedupKey,
+      kind: "donationProposed",
+      shelterId: shelter.id,
+      recipientUserId: operator,
+    });
+    await sends.mark(NOW, dedupKey, "failed");
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail));
+    expect(sent).toEqual([]);
+    expect(counts).toMatchObject({ retried: 1, retryDropped: 1 });
   });
 });

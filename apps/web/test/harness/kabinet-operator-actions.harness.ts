@@ -142,6 +142,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
       },
       version: 0,
       earlyListingSince: null,
+      freshnessReminderOffAt: null,
       verification: {
         status: "pending",
         submittedAt: now,

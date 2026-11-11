@@ -785,12 +785,15 @@ export const registrySheltersContract = {
           contact: ShelterContactInputSchema.optional(),
           /** Undefined = unchanged, null = clear. */
           description: ShelterDescriptionInputSchema.optional(),
+          /** The weekly «непідтверджені картки» email: undefined = unchanged. */
+          weeklyReminder: z.enum(["on", "off"]).optional(),
         })
         .refine(
           (input) =>
             input.displayName !== undefined ||
             input.contact !== undefined ||
-            input.description !== undefined,
+            input.description !== undefined ||
+            input.weeklyReminder !== undefined,
           { message: "Nothing to update" },
         ),
     )

@@ -6,19 +6,21 @@ import {
   shelterRepo,
 } from "@opika/db/repos";
 import { kyivCalendarDateOf } from "@opika/domain";
+import { kyivIsoWeekOf } from "./day";
 import { dedupKeyOf } from "./dedup";
 import { createPacer, deliver, type NotifyDeps, openEventCap, sendClaimed } from "./deliver";
 import {
   type NotificationIntent,
   planEarlyListingEnding,
   planEventIntents,
+  planFreshnessReminder,
   rebuildDailyIntent,
 } from "./intents";
 
 /**
  * Mails one run may send, retries and O4 together. Resend's free plan allows 100 a day and a
- * sign-in link must always have room: the event cap (40) plus this is a worst case of 60, which
- * leaves 40. Retries are not counted against the cap (owner to decide, `docs/runbook.md` 10).
+ * sign-in link must always have room. Retries and O4 count against the event cap (40) like any
+ * event mail, so a day's total is the cap, give or take a few when two runs read the tally at once.
  */
 export const DAILY_SEND_BUDGET = 20;
 
@@ -38,7 +40,7 @@ export type DailyCounts = {
   /** Mails left for the next run because the budget ran out. */
   deferred: number;
   errors: number;
-  /** O4 mails left unsent because the day's event cap was already reached. */
+  /** Retries and O4 mails left unsent because the day's event cap was already reached. */
   skippedOverCap: number;
   /** True when the run stopped claiming because `DAILY_TIME_GUARD_MS` had passed. */
   stoppedForTime: boolean;
@@ -82,6 +84,17 @@ async function rebuilt(
       const intent = rebuildDailyIntent(shelter, prefix, day);
       if (intent !== null) intents.push(intent);
     }
+  } else if (row.dedupKey.startsWith("fr:") && row.shelterId !== null) {
+    const week = row.dedupKey.split(":")[2];
+    const claimedIn = [row.createdAt, new Date(row.createdAt.getTime() - 600_000)].map(
+      kyivIsoWeekOf,
+    );
+    // Rebuilt from the cards as they are now: none left to name (or the shelter switched the mail
+    // off, or lost its listing) and the retry is dropped.
+    if (week !== undefined && claimedIn.includes(week)) {
+      const [due] = await recipients.freshnessReminderDue(now, { onlyShelter: row.shelterId });
+      if (due !== undefined) intents.push(planFreshnessReminder(due, week));
+    }
   } else if (row.dedupKey.startsWith("el-end:") && row.shelterId !== null) {
     const shelter = await shelterRepo(deps.db).findById(row.shelterId);
     if (shelter !== null) {
@@ -105,7 +118,8 @@ async function rebuilt(
 /**
  * The daily batch: first one retry of mails that failed in the last 48 hours, then O4 (early
  * listing ends within 7 days) once per period. Sends one at a time, spaced, and stops at the
- * budget; a mail past it is not claimed, so the next run finds it still due.
+ * budget; a mail past it is not claimed, so the next run finds it still due. Retries and O4 both
+ * draw on the day's event cap, and one over it is left for a later run.
  */
 export async function runDailyNotifications(
   deps: NotifyDeps,
@@ -133,14 +147,24 @@ export async function runDailyNotifications(
     return counts.stoppedForTime;
   };
 
+  // One tally for retries and fresh mails alike: a retry is a send like any other.
+  const cap = await openEventCap(deps);
   for (const row of await sends.retryable(now)) {
     if (left <= 0 || outOfTime()) {
       counts.deferred += 1;
       continue;
     }
     try {
+      // Over the cap the row is not taken: it stays failed and retryable for a later run.
+      if (!cap.take()) {
+        counts.skippedOverCap += 1;
+        continue;
+      }
       // The attempt is counted before the send, and of two racing runs only one wins the row.
-      if (!(await sends.reclaim(now, row.dedupKey))) continue;
+      if (!(await sends.reclaim(now, row.dedupKey))) {
+        cap.refund();
+        continue;
+      }
       counts.retried += 1;
       const mail = await rebuilt(deps, row, now);
       if (mail === null) {
@@ -166,9 +190,19 @@ export async function runDailyNotifications(
     if (intent !== null) due.push(intent);
   }
   const operators = due.length === 0 ? [] : await recipients.operators();
-  const cap = await openEventCap(deps);
+  // A period's mail is offered on each of its last 7 days; the ones already sent are not new
+  // work, so they take no budget and no cap and are not counted as skipped.
+  const alreadyClaimed = await sends.claimedKeys(
+    due.flatMap((intent) =>
+      operators.map((operator) => dedupKeyOf(intent.dedupBase, operator.userId)),
+    ),
+  );
   for (const intent of due) {
     for (const operator of operators) {
+      if (alreadyClaimed.has(dedupKeyOf(intent.dedupBase, operator.userId))) {
+        counts.duplicates += 1;
+        continue;
+      }
       if (left <= 0 || outOfTime()) {
         counts.deferred += 1;
         continue;

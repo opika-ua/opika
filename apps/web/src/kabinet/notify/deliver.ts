@@ -28,7 +28,7 @@ export type NotifyDeps = {
  * Soft by design: two runs reading the same tally at once can overshoot by a few mails.
  */
 export async function openEventCap(deps: Pick<NotifyDeps, "db" | "now" | "eventCap">) {
-  const used = await notificationSendsRepo(deps.db).countCreatedSince(
+  const used = await notificationSendsRepo(deps.db).countSendsSince(
     kyivDayStartOf(deps.now()),
     EVENT_KINDS,
   );

@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "@opika/db";
-import { cityRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
+import { animalRepo, cityRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
 import { authMember, authUser, superAdmins } from "@opika/db/schema";
-import { makeCity, makeShelter } from "@opika/db/test";
-import type { Shelter, ShelterVerification } from "@opika/domain";
+import { makeAnimal, makeCity, makeShelter } from "@opika/db/test";
+import type { AnimalListingState, Shelter, ShelterVerification } from "@opika/domain";
 import { type OutgoingEmail, ProviderSendError } from "../../email-provider";
 import type { ProviderMail } from "../../email-senders";
 import type { NotifyDeps } from "../deliver";
@@ -135,3 +135,36 @@ export const VERIFIED = {
   verifiedBy: "0ec0ec0e-0000-4000-8000-000000000001",
   evidence,
 } as unknown as ShelterVerification;
+
+/** One card of a shelter, in the listing state given; its last confirmation is `confirmedAt`. */
+export async function seedCard(
+  db: Database,
+  shelter: Shelter,
+  listing:
+    | { kind: "published" | "reserved"; confirmedAt: Date }
+    | { kind: "draft" | "adopted" | "withdrawn" },
+): Promise<void> {
+  const state: AnimalListingState =
+    listing.kind === "published"
+      ? {
+          kind: "published",
+          publishedAt: listing.confirmedAt,
+          confirmedAt: listing.confirmedAt,
+          undoable: null,
+        }
+      : listing.kind === "reserved"
+        ? {
+            kind: "reserved",
+            since: listing.confirmedAt,
+            publishedAt: listing.confirmedAt,
+            confirmedAt: listing.confirmedAt,
+            undoable: null,
+          }
+        : listing.kind === "adopted"
+          ? { kind: "adopted", adoptedAt: NOW }
+          : listing.kind === "withdrawn"
+            ? { kind: "withdrawn", withdrawnAt: NOW, reason: { code: "other", note: null } }
+            : { kind: "draft" };
+  const animal = makeAnimal({ shelterId: shelter.id, listing: state } as never);
+  await animalRepo(db).insert(animal, shelter.publicLocation.cityId as never);
+}

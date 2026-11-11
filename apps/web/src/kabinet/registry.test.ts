@@ -3246,3 +3246,84 @@ describe("the shelter description: both write paths", () => {
     expect(operator.body.items.map((item) => item.kind)).toEqual(["freshness_sentence_changed"]);
   });
 });
+
+describe("registry.shelters.updateProfile: the weekly reminder switch", () => {
+  const toggle = (shelterId: string, weeklyReminder: unknown, expectedVersion = 0) =>
+    call<RegistryShelterView>("registry.shelters.updateProfile", {
+      shelterId,
+      expectedVersion,
+      weeklyReminder,
+    });
+
+  it("turns the mail off with a timestamp and one operator-only history line, and back on", async () => {
+    const s = await shelter();
+    const off = await toggle(s.id, "off");
+    expect(off.status).toBe(200);
+    expect(off.body.freshnessReminderOffAt).toEqual(NOW);
+    expect(off.body.version).toBe(1);
+    expect((await reload(s.id)).freshnessReminderOffAt).toEqual(NOW);
+    const on = await toggle(s.id, "on", 1);
+    expect(on.status).toBe(200);
+    expect(on.body.freshnessReminderOffAt).toBeNull();
+    expect((await reload(s.id)).freshnessReminderOffAt).toBeNull();
+    // Both lines carry the same instant, so the order between them is not asserted.
+    const lines = await history(s.id);
+    expect(lines).toHaveLength(2);
+    expect(lines).toEqual(
+      expect.arrayContaining([
+        { kind: "freshness_reminder_changed", at: NOW, moderatorId: OPERATOR, off: false },
+        { kind: "freshness_reminder_changed", at: NOW, moderatorId: OPERATOR, off: true },
+      ]),
+    );
+  });
+
+  it("asking for the state it is already in changes nothing and records nothing", async () => {
+    const s = await shelter();
+    expect((await toggle(s.id, "on")).body.version).toBe(0);
+    await toggle(s.id, "off");
+    const again = await toggle(s.id, "off", 1);
+    expect(again.status).toBe(200);
+    expect(again.body.version).toBe(1);
+    expect(await history(s.id)).toHaveLength(1);
+  });
+
+  it("is refused on a stale version, a bad value, and to anyone but the operator", async () => {
+    const s = await shelter();
+    expect((await toggle(s.id, "off", 7)).status).toBe(409);
+    expect((await toggle(s.id, "sometimes")).status).toBe(400);
+    expect((await reload(s.id)).freshnessReminderOffAt).toBeNull();
+    const shelterAdmin: KabinetPrincipal = {
+      kind: "shelter_admin",
+      shelterAdminId: "33333333-3333-4333-8333-333333333333" as never,
+      shelterId: s.id,
+    };
+    const refused = await call(
+      "registry.shelters.updateProfile",
+      {
+        shelterId: s.id,
+        expectedVersion: 0,
+        weeklyReminder: "off",
+      },
+      { principal: shelterAdmin },
+    );
+    expect(refused.status).toBe(403);
+    expect((await reload(s.id)).freshnessReminderOffAt).toBeNull();
+  });
+
+  it("the shelter's own history never shows it", async () => {
+    const s = await shelter();
+    await toggle(s.id, "off");
+    const own = await call<{ items: { kind: string }[] }>(
+      "shelter.history.list",
+      { cursor: null, limit: 20 },
+      {
+        principal: {
+          kind: "shelter_admin",
+          shelterAdminId: "33333333-3333-4333-8333-333333333333" as never,
+          shelterId: s.id,
+        },
+      },
+    );
+    expect(own.body.items.map((item) => item.kind)).not.toContain("freshness_reminder_changed");
+  });
+});

@@ -276,6 +276,7 @@ export function shelterFacingHistoryOf(
       return { kind: "verified_data_changed", at: entry.at, actor: operator, change: entry.change };
     // Operator-only (owner, 2026-11-04): the shelter learns nothing of it.
     case "evidence_added":
+    case "freshness_reminder_changed":
       return null;
     case "early_listing_allowed":
     case "early_listing_revoked":

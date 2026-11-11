@@ -276,6 +276,11 @@ function lineOf(
         text: renameLine(entry.from, entry.to),
         actor: operatorActor(entry.moderatorId, people),
       };
+    case "freshness_reminder_changed":
+      return {
+        text: entry.off ? t.freshness_reminder_off : t.freshness_reminder_on,
+        actor: operatorActor(entry.moderatorId, people),
+      };
     case "evidence_added":
       return {
         text: fillTemplate(t.evidence_added, {

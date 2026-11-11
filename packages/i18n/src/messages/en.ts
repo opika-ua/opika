@@ -1251,6 +1251,16 @@ export const en = {
         action: `Open the shelter page`,
         help: `If anything is unclear, just reply to this email.\n{operator}`,
       },
+      freshnessReminder: {
+        subject: {
+          one: `{count} card is waiting to be confirmed`,
+          few: `{count} cards are waiting to be confirmed`,
+          many: `{count} cards are waiting to be confirmed`,
+        },
+        body: `Hello. You haven't confirmed {cards} of the shelter «{shelter}» for at least {days}. People looking for an animal see on the card when it was last confirmed. If nothing has changed, it is enough to tap «Still looking» or «Still arranging», and if the animal is already at home, «Already home».`,
+        action: `Open the animal list`,
+        help: `This email arrives every Monday while there are unconfirmed cards. If you don't need it, just reply to this email.\n{operator}`,
+      },
       donationRejected: {
         subject: `The fundraising link was not confirmed`,
         body: `Hello. The proposed fundraising link {host} was not confirmed. The current link, if there is one, stays as it is.`,
@@ -1498,6 +1508,8 @@ export const en = {
         early_listing_allowed: "Your cards are shown while the review continues",
         early_listing_revoked: "Showing cards before the review ends was withdrawn",
         early_listing_lapsed: "The period for showing cards before the review ended has run out",
+        freshness_reminder_off: "The weekly email about unconfirmed cards was turned off",
+        freshness_reminder_on: "The weekly email about unconfirmed cards was turned on",
       },
       create: {
         title: "New shelter",
@@ -1666,6 +1678,13 @@ export const en = {
         extendNote: "Why are you extending the showing",
         limitReached: "Showing before the review has already been allowed twice.",
         evidenceMinimum: "To allow showing, at least a video call or one reference is needed.",
+      },
+      reminder: {
+        title: "Email about unconfirmed cards",
+        on: "Every Monday the shelter's administrators get an email about cards not confirmed for at least {days}.",
+        off: "The email was turned off on {date}: the shelter does not receive it.",
+        turnOff: "Turn the email off",
+        turnOn: "Turn the email on",
       },
       errors: {
         illegalTransition: "That isn't possible from the current status. The page was refreshed.",

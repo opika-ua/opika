@@ -24,6 +24,7 @@ const INTENTS: NotificationIntent[] = [
     shownNow: true,
   },
   { ...base, kind: "donationRejected", audience: "shelter_admins", host: "donate.example.org" },
+  { ...base, kind: "freshnessReminder", audience: "shelter_admins", staleCards: 3 },
 ];
 const anchorTexts = (html: string) =>
   [...html.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => match[1] ?? "");
@@ -117,6 +118,39 @@ describe("composeNotification", () => {
       for (const label of labels) expect(`${subject} ${text}`).not.toContain(label);
       expect(`${subject} ${text}`).not.toContain("повідомили");
     }
+  });
+});
+
+describe("the weekly reminder (F1)", () => {
+  const reminder = (staleCards: number) =>
+    composeNotification(
+      { ...base, kind: "freshnessReminder", audience: "shelter_admins", staleCards },
+      "to@example.org",
+      CONTEXT,
+    );
+
+  it.each([
+    [1, "1 картка чекає на підтвердження", "1 картку"],
+    [2, "2 картки чекають на підтвердження", "2 картки"],
+    [5, "5 карток чекають на підтвердження", "5 карток"],
+    [11, "11 карток чекають на підтвердження", "11 карток"],
+    [21, "21 картка чекає на підтвердження", "21 картку"],
+    [22, "22 картки чекають на підтвердження", "22 картки"],
+  ])("with %i cards the subject and the body agree in number", (count, subject, cards) => {
+    const email = reminder(count);
+    expect(email.subject).toBe(subject);
+    expect(email.text).toContain(
+      `Добрий день. ${cards} притулку «Лапа» ви не підтверджували щонайменше 14 днів.`,
+    );
+  });
+
+  it("names the three taps, links to the animal list and says it comes every Monday", () => {
+    const { text } = reminder(3);
+    expect(text).toContain("«Ще шукає» чи «Ще домовляються»");
+    expect(text).toContain("«Уже вдома»");
+    expect(text).toContain("https://example.org/kabinet/tvaryny");
+    expect(text).toContain("Такий лист приходить щопонеділка, поки є непідтверджені картки.");
+    expect(text).toContain("дайте відповідь на цей лист.\nОлексій");
   });
 });
 

@@ -69,6 +69,7 @@ export { kabinetSupportRepo, SUPPORT_IDLE_MS } from "./kabinet-support-repo";
 export {
   type NotificationRecipient,
   notificationRecipientsRepo,
+  type StaleShelter,
 } from "./notification-recipients-repo";
 export {
   MAX_SEND_ATTEMPTS,

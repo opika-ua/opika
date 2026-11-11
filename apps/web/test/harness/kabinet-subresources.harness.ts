@@ -161,6 +161,7 @@ test.describe("kabinet pages load every same-origin asset", () => {
         pendingDonation: null,
         version: 0,
         earlyListingSince: null,
+        freshnessReminderOffAt: null,
         verification: {
           status: "verified",
           verifiedAt: now,

@@ -1,12 +1,15 @@
 import {
+  confirmationReminderCutoff,
+  DISCOVERABLE_LISTING_KINDS,
   EARLY_LISTING_STATUSES,
   earlyListingCutoff,
   type Shelter,
   type ShelterHistoryEntry,
   type ShelterId,
 } from "@opika/domain";
-import { and, asc, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { Database } from "../client";
+import { animals } from "../schema/animals";
 import { authMember, authUser, superAdmins } from "../schema/auth";
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
@@ -14,6 +17,9 @@ import { rowToShelter } from "./mappers";
 
 /** Who a notification email goes to: the account and the address it signs in with. */
 export type NotificationRecipient = { userId: string; email: string };
+
+/** A shelter with visible cards nobody has confirmed for the reminder's 14 days. */
+export type StaleShelter = { shelterId: ShelterId; displayName: string; staleCards: number };
 
 /**
  * The reads behind notification emails (`apps/web/src/kabinet/notify`). Builder queries only, so
@@ -41,6 +47,67 @@ export function notificationRecipientsRepo(db: Database) {
         .innerJoin(authUser, eq(authUser.id, authMember.userId))
         .where(eq(shelters.id, shelterId))
         .orderBy(asc(authMember.createdAt), asc(authUser.id));
+    },
+
+    /** The same, for several shelters in one query, each row naming its shelter. */
+    async shelterAdminsOf(
+      shelterIds: readonly ShelterId[],
+    ): Promise<(NotificationRecipient & { shelterId: ShelterId })[]> {
+      if (shelterIds.length === 0) return [];
+      return db
+        .select({ shelterId: shelters.id, userId: authUser.id, email: authUser.email })
+        .from(shelters)
+        .innerJoin(authMember, eq(authMember.organizationId, shelters.organizationId))
+        .innerJoin(authUser, eq(authUser.id, authMember.userId))
+        .where(inArray(shelters.id, [...shelterIds]))
+        .orderBy(asc(shelters.id), asc(authMember.createdAt), asc(authUser.id));
+    },
+
+    /**
+     * Shelters the weekly reminder may name: one grouped query over the cards, no query per
+     * shelter. A card counts when it is visible (published or reserved) and its last confirmation
+     * is at or before the 14-day cut-off. A shelter counts only while it is publicly listed
+     * (verified, or inside a running early-listing period) and has not been switched off;
+     * paused, suspended, rejected and unlisted ones never appear. `onlyShelter` narrows the same
+     * query for a retry.
+     */
+    async freshnessReminderDue(
+      now: Date,
+      options: { onlyShelter?: ShelterId } = {},
+    ): Promise<StaleShelter[]> {
+      const staleCards = sql<number>`count(*)`.mapWith(Number);
+      const rows = await db
+        .select({
+          shelterId: animals.shelterId,
+          displayName: shelters.displayName,
+          staleCards,
+        })
+        .from(animals)
+        .innerJoin(shelters, eq(shelters.id, animals.shelterId))
+        .where(
+          and(
+            inArray(animals.listingKind, [...DISCOVERABLE_LISTING_KINDS]),
+            lte(animals.lastConfirmedAt, confirmationReminderCutoff(now)),
+            isNull(shelters.freshnessReminderOffAt),
+            or(
+              eq(shelters.verificationStatus, "verified"),
+              and(
+                inArray(shelters.verificationStatus, [...EARLY_LISTING_STATUSES]),
+                gt(shelters.earlyListingSince, earlyListingCutoff(now)),
+              ),
+            ),
+            options.onlyShelter === undefined
+              ? undefined
+              : eq(animals.shelterId, options.onlyShelter),
+          ),
+        )
+        .groupBy(animals.shelterId, shelters.displayName)
+        .orderBy(asc(animals.shelterId));
+      return rows.map((row) => ({
+        shelterId: row.shelterId as ShelterId,
+        displayName: row.displayName,
+        staleCards: row.staleCards,
+      }));
     },
 
     /** One account, for a retry whose row names only the user id. Null once the account is erased. */

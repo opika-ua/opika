@@ -56,6 +56,7 @@ const shelter: Shelter = {
   logo: null,
   pendingDonation: null,
   earlyListingSince: null,
+  freshnessReminderOffAt: null,
   version: 0,
   verification: {
     status: "verified",
