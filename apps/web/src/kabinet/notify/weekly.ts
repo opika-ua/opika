@@ -71,9 +71,8 @@ export async function runWeeklyReminders(
     admins.map((admin) => dedupKeyOf(`fr:${admin.shelterId}:${week}`, admin.userId)),
   );
   const pacer = createPacer(deps);
-  const cap = await openEventCap(deps);
+  const cap = openEventCap(deps);
   const startedAt = now.getTime();
-  let left = await remainingBatchBudget(deps, budget);
 
   for (const shelter of due) {
     const to = admins.filter((admin) => admin.shelterId === shelter.shelterId);
@@ -88,20 +87,17 @@ export async function runWeeklyReminders(
         continue;
       }
       if (deps.now().getTime() - startedAt > DAILY_TIME_GUARD_MS) counts.stoppedForTime = true;
-      if (left <= 0 || counts.stoppedForTime) {
+      if (counts.stoppedForTime || (await remainingBatchBudget(deps, budget)) <= 0) {
         counts.deferred += 1;
         continue;
       }
       try {
-        if (!cap.take()) {
+        if (!(await cap.take())) {
           counts.skippedOverCap += 1;
           continue;
         }
-        left -= 1;
         const result = await deliver(deps, pacer, intent, recipient);
         if (result === "duplicate") {
-          left += 1;
-          cap.refund();
           counts.duplicates += 1;
         } else if (result === "sent") counts.sent += 1;
         else counts.failed += 1;

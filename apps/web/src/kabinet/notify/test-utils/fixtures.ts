@@ -20,11 +20,14 @@ export function fakeMail() {
     /** The HTTP status a failing send reports; null is "no answer" (a timeout). */
     status: number | null;
     onSend: (() => void) | null;
-  } = { failing: false, status: 500, onSend: null };
+    /** How long a send takes, so two runs at once really interleave. */
+    delayMs: number;
+  } = { failing: false, status: 500, onSend: null, delayMs: 0 };
   const mail: ProviderMail = {
     sender: {
       async send(email) {
         state.onSend?.();
+        if (state.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, state.delayMs));
         if (state.failing) throw new ProviderSendError("resend", state.status, "provider down");
         sent.push(email);
         return { status: 200, messageId: null };

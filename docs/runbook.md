@@ -147,12 +147,14 @@ repeats itself is already held to one review-request mail and one proposed-link 
 operator per Kyiv day, so a day over the cap means many shelters or many decisions.
 
 The two scheduled crons also share one batch budget of 20 sends a Kyiv day: the daily cron's
-retries and early-listing reminders and, on Mondays, the weekly reminder together (the weekly run
-reads what the daily one already sent). A Monday cannot send more than 20 between them; what does
-not fit waits, and the weekly run serves the shelter that waited longest first, so none is starved.
-The arithmetic: event cap 40 plus batch budget 20 is at most 60 of the provider's 100 a day (and in
-practice within the cap, give or take a few when two runs read the tally at once), so 40 or more stay
-free for sign-in. The log's `deferred` (budget or time) and `skippedOverCap` (cap) say what waited.
+retries and early-listing reminders and, on Mondays, the weekly reminder together. Both the budget
+and the cap are re-read from `notification_sends` before every claim, so two runs at the same moment
+see each other's sends. A Monday cannot send more than 20 between them, plus at most one mail in
+flight per run that is still unclaimed when the other run reads (the residual bound: 20 + 1 per
+concurrent run, so 22 for the daily and weekly crons at once, and the cap of 40 + 1 per run likewise).
+What does not fit waits, and the weekly run serves the shelter that waited longest first, so none is
+starved. The arithmetic: event cap 40 plus batch budget 20 is at most 60 of the provider's 100 a day
+(and in practice within the cap), so about 38 or more stay free for sign-in even at the residual bound. The log's `deferred` (budget or time) and `skippedOverCap` (cap) say what waited.
 
 The weekly email can be switched off for one shelter on its operator page («Лист про непідтверджені
 картки»), usually because the shelter replied to ask; the page records who and when in the history.

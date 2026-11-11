@@ -393,6 +393,80 @@ describe("the daily and the weekly cron share one budget; the quota arithmetic i
     expect(daily.skippedOverCap).toBeGreaterThanOrEqual(1);
     expect(weekly.skippedOverCap).toBeGreaterThanOrEqual(1);
     expect(more).toHaveLength(1);
-    expect((await db.select().from(notificationSends)).length).toBe(before.length);
+    // The same rows, attempts and statuses included: nothing was claimed, retried or closed.
+    const byKey = <T extends { dedupKey: string }>(rows: T[]) =>
+      [...rows].sort((a, b) => a.dedupKey.localeCompare(b.dedupKey));
+    expect(byKey(await db.select().from(notificationSends))).toEqual(byKey(before));
+  });
+});
+describe("two runs at the same moment (a Monday's daily and weekly cron, or a cron delivered twice)", () => {
+  const dueEarlyListing = async (shelters: number) => {
+    for (let n = 0; n < shelters; n += 1) {
+      await seedShelter(db, {
+        overrides: {
+          verification: PENDING,
+          earlyListingSince: new Date(NOW.getTime() - (EARLY_LISTING_DAYS - 2 - (n % 5)) * DAY),
+        } as Partial<Shelter>,
+      });
+    }
+    await seedOperator(db, "op1@example.org");
+    await seedOperator(db, "op2@example.org");
+  };
+  const staleWithAdmins = async (count: number) => {
+    for (let n = 0; n < count; n += 1) {
+      const shelter = await listedShelter([`concurrent-${n}@example.org`]);
+      await seedCard(db, shelter, stale());
+    }
+  };
+  /** One mail per run may be in flight between its read of the tally and its claim. */
+  const IN_FLIGHT_PER_RUN = 1;
+
+  it("the daily and the weekly run together send the budget, not a budget each", async () => {
+    await dueEarlyListing(13);
+    await staleWithAdmins(30);
+    const daily = fakeMail();
+    const weekly = fakeMail();
+    daily.state.delayMs = 3;
+    weekly.state.delayMs = 3;
+    await Promise.all([
+      runDailyNotifications(depsOf(db, daily.mail, { eventCap: 1000 })),
+      runWeeklyReminders(depsOf(db, weekly.mail, { eventCap: 1000 })),
+    ]);
+    const combined = daily.sent.length + weekly.sent.length;
+    expect(combined).toBeGreaterThanOrEqual(DAILY_SEND_BUDGET);
+    expect(combined).toBeLessThanOrEqual(DAILY_SEND_BUDGET + 2 * IN_FLIGHT_PER_RUN);
+    expect(daily.sent.length).toBeGreaterThan(0);
+    expect(weekly.sent.length).toBeGreaterThan(0);
+  });
+
+  it("two runs at the same moment stay inside the event cap too", async () => {
+    await dueEarlyListing(13);
+    await staleWithAdmins(30);
+    const daily = fakeMail();
+    const weekly = fakeMail();
+    daily.state.delayMs = 3;
+    weekly.state.delayMs = 3;
+    await Promise.all([
+      runDailyNotifications(depsOf(db, daily.mail, { eventCap: 12 })),
+      runWeeklyReminders(depsOf(db, weekly.mail, { eventCap: 12 })),
+    ]);
+    const combined = daily.sent.length + weekly.sent.length;
+    expect(combined).toBeGreaterThanOrEqual(12);
+    expect(combined).toBeLessThanOrEqual(12 + 2 * IN_FLIGHT_PER_RUN);
+  });
+
+  it("a weekly cron delivered twice at once mails nobody twice", async () => {
+    await staleWithAdmins(10);
+    const first = fakeMail();
+    const second = fakeMail();
+    first.state.delayMs = 3;
+    second.state.delayMs = 3;
+    await Promise.all([
+      runWeeklyReminders(depsOf(db, first.mail, { eventCap: 1000 })),
+      runWeeklyReminders(depsOf(db, second.mail, { eventCap: 1000 })),
+    ]);
+    const recipients = sentTo([...first.sent, ...second.sent]);
+    expect(recipients).toHaveLength(10);
+    expect(new Set(recipients).size).toBe(10);
   });
 });

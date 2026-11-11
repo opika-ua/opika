@@ -998,7 +998,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.evidence.gapItem": "{kind} – {provided} з {minimum}",
   };
   /** Owner-approved 2026-11-10 (minimal shelter create, design item 1, §1.5). */
-  /** The weekly email's switch on S4 (item 5): the operator's proposed copy, pending his approval. */
+  /** The weekly email's switch on S4 (item 5): the owner-approved copy (2026-11-11). */
   const WEEKLY_REMINDER_OPERATOR_COPY: Record<string, string> = {
     "operator.history.freshness_reminder_off": "Щотижневий лист про непідтверджені картки вимкнено",
     "operator.history.freshness_reminder_on": "Щотижневий лист про непідтверджені картки увімкнено",
@@ -1144,7 +1144,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 
   it.each(Object.entries(WEEKLY_REMINDER_OPERATOR_COPY))(
-    "%s is the proposed text",
+    "%s is the owner-approved text",
     (path, text) => {
       expect(valueAt(path)).toBe(text);
     },

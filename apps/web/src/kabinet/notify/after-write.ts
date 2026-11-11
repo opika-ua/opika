@@ -19,7 +19,7 @@ export async function notifyAfterWrite(
     if (intents.length === 0) return;
     const recipients = notificationRecipientsRepo(deps.db);
     const pacer = createPacer(deps);
-    const cap = await openEventCap(deps);
+    const cap = openEventCap(deps);
     for (const intent of intents) {
       const to =
         intent.audience === "operators"
@@ -27,8 +27,8 @@ export async function notifyAfterWrite(
           : await recipients.shelterAdmins(intent.shelterId);
       for (const recipient of to) {
         try {
-          if (!cap.take()) continue;
-          if ((await deliver(deps, pacer, intent, recipient)) === "duplicate") cap.refund();
+          if (!(await cap.take())) continue;
+          await deliver(deps, pacer, intent, recipient);
         } catch (error) {
           deps.log(
             `[kabinet] notification ${intent.kind} not delivered (${errorClassNameOf(error)})`,

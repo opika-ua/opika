@@ -29,8 +29,8 @@ import {
  * and O4, and the weekly reminder on Mondays share this one budget (`remainingBatchBudget`).
  * Resend's free plan allows 100 a day and a sign-in link must always have room. Everything they
  * send also counts against the event cap (40), so a day's event mails stay within 40 plus 20 = 60
- * at the very most, and in practice within the cap, give or take a few when two runs read the
- * tally at once.
+ * at the very most, and in practice within the cap. Both tallies are re-read before every claim,
+ * so concurrent runs overshoot by at most the one mail each has in flight.
  */
 export const DAILY_SEND_BUDGET = 20;
 
@@ -150,7 +150,7 @@ export async function runDailyNotifications(
     skippedOverCap: 0,
     stoppedForTime: false,
   };
-  let left = await remainingBatchBudget(deps, budget);
+  const noRoom = async () => (await remainingBatchBudget(deps, budget)) <= 0;
   const startedAt = now.getTime();
   const outOfTime = () => {
     if (deps.now().getTime() - startedAt > DAILY_TIME_GUARD_MS) counts.stoppedForTime = true;
@@ -158,23 +158,20 @@ export async function runDailyNotifications(
   };
 
   // One tally for retries and fresh mails alike: a retry is a send like any other.
-  const cap = await openEventCap(deps);
+  const cap = openEventCap(deps);
   for (const row of await sends.retryable(now)) {
-    if (left <= 0 || outOfTime()) {
+    if (outOfTime() || (await noRoom())) {
       counts.deferred += 1;
       continue;
     }
     try {
       // Over the cap the row is not taken: it stays failed and retryable for a later run.
-      if (!cap.take()) {
+      if (!(await cap.take())) {
         counts.skippedOverCap += 1;
         continue;
       }
       // The attempt is counted before the send, and of two racing runs only one wins the row.
-      if (!(await sends.reclaim(now, row.dedupKey))) {
-        cap.refund();
-        continue;
-      }
+      if (!(await sends.reclaim(now, row.dedupKey))) continue;
       counts.retried += 1;
       const mail = await rebuilt(deps, row, now);
       if (mail === null) {
@@ -182,7 +179,6 @@ export async function runDailyNotifications(
         counts.retryDropped += 1;
         continue;
       }
-      left -= 1;
       const status = await sendClaimed(deps, pacer, mail.intent, mail.recipient, row.dedupKey);
       if (status === "sent") counts.retrySent += 1;
       else counts.failed += 1;
@@ -213,20 +209,17 @@ export async function runDailyNotifications(
         counts.duplicates += 1;
         continue;
       }
-      if (left <= 0 || outOfTime()) {
+      if (outOfTime() || (await noRoom())) {
         counts.deferred += 1;
         continue;
       }
       try {
-        if (!cap.take()) {
+        if (!(await cap.take())) {
           counts.skippedOverCap += 1;
           continue;
         }
-        left -= 1;
         const result = await deliver(deps, pacer, intent, operator);
         if (result === "duplicate") {
-          left += 1;
-          cap.refund();
           counts.duplicates += 1;
         } else if (result === "sent") counts.endingSent += 1;
         else counts.failed += 1;

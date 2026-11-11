@@ -23,40 +23,36 @@ export type NotifyDeps = {
 };
 
 /**
- * The day's room for event mails: the cap less the sends already claimed since Kyiv midnight,
- * read once. `take` is asked before each claim and `refund` given back when the claim was lost.
- * Soft by design: two runs reading the same tally at once can overshoot by a few mails.
+ * The day's room for event mails: the cap less the sends already counted since Kyiv midnight,
+ * read afresh at every `take`, which is asked before each claim. Re-reading (not counting down a
+ * number read once) is what keeps two runs at the same moment honest: each sees the other's
+ * claims. What stays is the one mail each run can have in flight between its read and its
+ * claim, so concurrent runs can overshoot the cap by at most one mail per run.
  */
-export async function openEventCap(deps: Pick<NotifyDeps, "db" | "now" | "eventCap">) {
-  const used = await notificationSendsRepo(deps.db).countSendsSince(
-    kyivDayStartOf(deps.now()),
-    EVENT_KINDS,
-  );
-  let left = Math.max(0, deps.eventCap - used);
+export function openEventCap(deps: Pick<NotifyDeps, "db" | "now" | "eventCap">) {
   const cap = {
     skipped: 0,
-    take(): boolean {
-      if (left <= 0) {
-        cap.skipped += 1;
-        return false;
-      }
-      left -= 1;
-      return true;
-    },
-    refund(): void {
-      left += 1;
+    async take(): Promise<boolean> {
+      const used = await notificationSendsRepo(deps.db).countSendsSince(
+        kyivDayStartOf(deps.now()),
+        EVENT_KINDS,
+      );
+      if (deps.eventCap - used > 0) return true;
+      cap.skipped += 1;
+      return false;
     },
   };
   return cap;
 }
 
-export type EventCap = Awaited<ReturnType<typeof openEventCap>>;
+export type EventCap = ReturnType<typeof openEventCap>;
 
 /**
  * What is left of the day's one budget for the two scheduled batches (the daily and the weekly
  * cron together, so a Monday cannot send more than the budget): the budget less what they and the
- * retry sweep already sent since Kyiv midnight, read when a run starts. A mail past it is not
- * claimed, so it stays due for a later run.
+ * retry sweep already sent since Kyiv midnight, read afresh before each claim (like the cap, so a
+ * Monday's two crons running at once see each other; at most one in-flight mail per run of
+ * overshoot). A mail past it is not claimed, so it stays due for a later run.
  */
 export async function remainingBatchBudget(
   deps: Pick<NotifyDeps, "db" | "now">,

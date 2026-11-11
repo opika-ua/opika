@@ -1900,7 +1900,7 @@ export const uk = {
         limitReached: "Показ до перевірки вже дозволяли двічі.",
         evidenceMinimum: "Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.",
       },
-      /** The weekly «непідтверджені картки» email's switch on S4 (proposed copy, pending approval). */
+      /** The weekly «непідтверджені картки» email's switch on S4 (approved by the owner, 2026-11-11). */
       reminder: {
         title: "Лист про непідтверджені картки",
         on: "Щопонеділка адміністратори притулку отримують лист про картки, яких не підтверджували щонайменше {days}.",
