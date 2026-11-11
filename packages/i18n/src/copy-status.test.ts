@@ -1023,6 +1023,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   const VERIFIED_DATA_EDIT_COPY: Record<string, string> = {
     "operator.shelter.edit": "Змінити",
     "operator.donation.approveHint": "Перевірте, що власник рахунку збігається з організацією",
+    "operator.donation.approveHintInitiative":
+      "Перевірте, що власник рахунку – контактна особа ініціативи",
   };
   /** Owner-approved 2026-11-06 (donation link safety: copy table N1–N14, N18, and the approvals file). */
   const DONATION_SAFETY_OPERATOR_COPY: Record<string, string> = {
@@ -1147,6 +1149,12 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
       expect(valueAt(path)).toBe(text);
     },
   );
+
+  it("the initiative hint's English text is the owner's, with his apostrophe (U+2019)", () => {
+    expect(en.kabinet.operator.donation.approveHintInitiative).toBe(
+      "Check that the bank account holder is the initiative’s contact person.",
+    );
+  });
 
   it.each(Object.entries(MINIMAL_CREATE_COPY))("%s is the owner-approved text", (path, text) => {
     expect(valueAt(path)).toBe(text);

@@ -374,10 +374,11 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 835 with the shelter description replacing the sentence: less `profile.voiceTitle`,
     // `voiceLabel`, `voiceNote`, five `profileEdit.errors.*` sentence messages and six
     // `profileEdit.voice.*`; plus `errors.aboutTooLong` and `about.hint`.
-    // 849 with the weekly reminder (item 5): seven `email.freshnessReminder.*` (subject in three
+    // 836 with `operator.donation.approveHintInitiative` (owner-given 2026-11-11).
+    // 850 with the weekly reminder (item 5): seven `email.freshnessReminder.*` (subject in three
     // forms, body, action, frequency, stop), two `operator.history.freshness_reminder_*` and five
     // `operator.reminder.*` for the operator's switch.
-    expect(pending.length + written.length).toBe(849);
+    expect(pending.length + written.length).toBe(850);
     expect(written).toContain("kabinet.profileEdit.errors.aboutTooLong");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

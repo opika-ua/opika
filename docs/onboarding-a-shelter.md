@@ -142,7 +142,8 @@ script - `buildShelter` checks against it and refuses to produce a
 registered shape needed a `bank_account_holder` and a `reference_contact` instead of the video
 call. Both kinds can still be added as extra evidence; neither is required for a registered
 shape. Instead, the donation-link approval reminds you to check by hand that the account
-holder matches the organisation: «Перевірте, що власник рахунку збігається з організацією».)
+holder matches the organisation: «Перевірте, що власник рахунку збігається з організацією»; for an
+unregistered initiative, «Перевірте, що власник рахунку – контактна особа ініціативи».)
 
 A `reference_contact`'s `channel` must be someone **other than the shelter
 itself** - a neighbouring shelter, a vet clinic they work with, anyone who

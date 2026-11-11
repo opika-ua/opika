@@ -40,7 +40,10 @@ Exists - `transition.ts`'s `rejected` state handles `resubmit` → `pending`.
   only, matching the schema exactly today - no change needed there. Oleksii's own reasoning,
   verbatim sense: *the verification copy promises "реквізити на ту саму організацію" - the
   holder-name check is the check, and storing account data adds risk without adding rigour.* The
-  design's S3 table is corrected to drop "bank, masked IBAN".
+  design's S3 table is corrected to drop "bank, masked IBAN". Superseded in part (owner,
+  2026-11-10): the account holder is no longer required verification evidence, and the copy no
+  longer promises it; the operator checks it by hand when approving a donation link
+  (`operator.donation.approveHint`).
 - **`edrpou_registration`: add `registeredName`.** The schema gains one field - the name as it
   appears in ЄДР at the time evidence is checked - so the card can show it **side by side with the
   shelter's own `displayName`/`holderName`**, which is the other half of the same identity check

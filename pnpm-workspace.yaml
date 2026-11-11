@@ -35,9 +35,8 @@ catalog:
   happy-dom: 21.0.4
   "@testing-library/react": 16.3.3
   "@testing-library/user-event": 14.6.8
-  # Styling. tailwindcss/@tailwindcss/postcss pinned at 4.3.3 (published
-  # 2026-07-16, well clear of the 24h quarantine); postcss at 8.5.25 rather
-  # than the newer 8.5.26, which published 2026-08-06 – inside the window.
+  # Styling. tailwindcss and @tailwindcss/postcss move together, exact pins, one patch at a time;
+  # a pin one patch behind latest is usually the 24h quarantine (minimumReleaseAge).
   tailwindcss: 4.3.5
   "@tailwindcss/postcss": 4.3.5
   postcss: 8.5.32
@@ -45,7 +44,7 @@ catalog:
   # Kabinet auth only (ADR §Auth; adopters keep decision #13's session). Pinned
   # exactly (HS-Q7). Our repos write invitations and read Better Auth's rows, so
   # an upgrade must pass the kabinet auth suites (apps/web/src/kabinet/*.test.ts)
-  # and the Neon auth smoke. 1.7.18 since #461 (1.7.7+ clears GHSA-965c-763c-88jm).
+  # and the Neon auth smoke. Never below 1.7.7 (GHSA-965c-763c-88jm).
   better-auth: 1.7.18
   # Same version as better-auth, which depends on it: apps/web imports its `context` export
   # (auth-log.ts) to run server-side adapter calls inside a logger-bearing context.

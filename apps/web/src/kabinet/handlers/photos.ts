@@ -79,8 +79,8 @@ const writePhotos = (deps: PhotoDeps, scope: ShelterWriteScope, read: Animal, ne
   );
 
 /**
- * A file stored that no animal points at: logged so it can be found and
- * taken down by hand (P-Q2, P-Q14). Nothing deletes it in code (K-Q2).
+ * A file stored that no animal points at: logged so it can be found. The
+ * daily clean-up job deletes it after the grace period; nothing else does (K-Q2).
  */
 const logOrphan = (storageKey: string) => console.error({ event: "photo_orphaned", storageKey });
 
