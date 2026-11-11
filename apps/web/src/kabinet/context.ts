@@ -4,6 +4,7 @@ import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import type { InvitationSender } from "./email-senders";
 import type { InvitePasswords } from "./invite-password";
+import type { ShelterNotifier } from "./notify/intents";
 import type { PhotoUploads } from "./photo-uploads";
 
 /**
@@ -45,4 +46,9 @@ export type KabinetContext = {
    * (`INVITE_PASSWORDS_OFF`) for in-process page clients, which never call it.
    */
   invitePasswords: InvitePasswords;
+  /**
+   * Hands a committed write's history lines to the notification mails (`notify/`). Only the
+   * served route sets it, so in-process page clients and tests send nothing unless they ask to.
+   */
+  notify?: ShelterNotifier;
 };

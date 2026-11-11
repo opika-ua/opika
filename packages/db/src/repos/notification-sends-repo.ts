@@ -1,5 +1,5 @@
 import type { ShelterId } from "@opika/domain";
-import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { notificationSends } from "../schema/notification-sends";
 
@@ -54,6 +54,30 @@ export function notificationSendsRepo(db: Database) {
       return rows.length === 1;
     },
 
+    /**
+     * Ends a claimed send as failed with every attempt spent, in one statement, so no sweep can
+     * take it back between a mark and a second write. For a send that got no answer and may have
+     * been delivered: it must never be resent.
+     */
+    async closeFailed(
+      now: Date,
+      dedupKey: string,
+      maxAttempts = MAX_SEND_ATTEMPTS,
+    ): Promise<boolean> {
+      const rows = await db
+        .update(notificationSends)
+        .set({
+          status: "failed",
+          attempts: sql`greatest(${notificationSends.attempts}, ${maxAttempts})`,
+          updatedAt: now,
+        })
+        .where(
+          and(eq(notificationSends.dedupKey, dedupKey), eq(notificationSends.status, "claimed")),
+        )
+        .returning({ dedupKey: notificationSends.dedupKey });
+      return rows.length === 1;
+    },
+
     /** Failed sends created within the window that have attempts left, oldest first. */
     async retryable(
       now: Date,
@@ -93,6 +117,21 @@ export function notificationSendsRepo(db: Database) {
         )
         .returning({ dedupKey: notificationSends.dedupKey });
       return rows.length === 1;
+    },
+
+    /**
+     * How many sends of these kinds were claimed at or after `since`: the day's tally the event
+     * cap reads. Every claimed row counts, sent or failed, because each one reached the provider.
+     */
+    async countCreatedSince(since: Date, kinds: readonly string[]): Promise<number> {
+      if (kinds.length === 0) return 0;
+      const rows = await db
+        .select({ n: sql<number>`count(*)`.mapWith(Number) })
+        .from(notificationSends)
+        .where(
+          and(gte(notificationSends.createdAt, since), inArray(notificationSends.kind, [...kinds])),
+        );
+      return rows[0]?.n ?? 0;
     },
 
     /** Deletes rows created strictly more than `days` ago; returns how many went. */

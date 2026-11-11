@@ -1217,6 +1217,61 @@ export const en = {
         body: `The password to the shelter's cabinet for this address has just been changed. Other devices have been signed out.`,
         notYou: `If this wasn't you, write to me: {contact}\n{operator}`,
       },
+      /** The English sense of the notification emails (see the Ukrainian catalogue); signed `{operator}` where the Ukrainian is. */
+      reviewRequested: {
+        subject: `Second review: {shelter}`,
+        body: `The shelter {shelter} asks to be reviewed again.`,
+        action: `Open the shelter`,
+      },
+      donationProposed: {
+        subject: `New fundraising link: {shelter}`,
+        body: `The shelter {shelter} proposed a fundraising link: {host}. It is waiting to be checked.`,
+        action: `Check the link`,
+      },
+      reportReceived: {
+        subject: `A report about a card: {animal}`,
+        body: `A report was made about the card «{animal}» of the shelter {shelter}: {kind}.`,
+        action: `Open the shelter`,
+      },
+      reportKinds: {
+        outdated: `the information is out of date`,
+        photo: `a problem with the photo`,
+        scam: `looks like a scam`,
+        wrongInfo: `a mistake in the card`,
+        other: `other`,
+      },
+      earlyListingEnding: {
+        subject: `Listing before verification is ending: {shelter}`,
+        body: `The display of the cards of the shelter {shelter} while the review runs ends on {date}. After that people will see the cards only once the shelter has passed verification.`,
+        extendable: `The display can be extended one more time.`,
+        action: `Open the shelter`,
+      },
+      approved: {
+        subject: `The shelter has passed verification`,
+        body: `Hello. The shelter «{shelter}» has passed verification. Everyone looking for an animal can now see the published cards.`,
+        action: `Open the cabinet`,
+        help: `If anything is unclear, just reply to this email.\n{operator}`,
+      },
+      earlyListingAllowed: {
+        subject: `The shelter's cards are now visible`,
+        body: `Hello. The cards of the shelter «{shelter}» are now visible to everyone looking for an animal, with the label «under review». The display lasts until {date}, while the review carries on.`,
+        action: `Open the animal list`,
+        help: `If anything is unclear, just reply to this email.\n{operator}`,
+      },
+      donationApproved: {
+        subject: `The fundraising link has been checked`,
+        body: `Hello. The fundraising link {host} has been checked.`,
+        shownNow: `People can see it on the shelter's page.`,
+        notYet: `People will see it as soon as the shelter has passed verification.`,
+        action: `Open the shelter page`,
+        help: `If anything is unclear, just reply to this email.\n{operator}`,
+      },
+      donationRejected: {
+        subject: `The fundraising link was not confirmed`,
+        body: `Hello. The proposed fundraising link {host} was not confirmed. The current link, if there is one, stays as it is.`,
+        action: `Open the shelter page`,
+        help: `If you don't understand why, just reply to this email.\n{operator}`,
+      },
     },
     signInCard: {
       notArrived: `If the email hasn't arrived in a few minutes, write to me at {contact}.`,
