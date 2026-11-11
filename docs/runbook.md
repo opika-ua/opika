@@ -144,11 +144,15 @@ skipped, not queued, and a retry is left failed for a later run: the log line
 `notification event cap reached: N mail(s) not sent` (or `skippedOverCap` in a cron's line) says
 how many. A weekly mail that a Monday cap skipped waits for next Monday. Raise the variable in Vercel and redeploy only if the day was real: a shelter that
 repeats itself is already held to one review-request mail and one proposed-link mail per
-operator per Kyiv day, so a day over the cap means many shelters or many decisions. The two crons
-also have their own per-run budgets (20 for the daily one, retries and early-listing reminders
-together; 30 for the weekly one), but both draw on the same cap, so a Kyiv day's event mails stay
-at the cap, give or take a few when two runs read the tally at once: at most about 40 of the
-provider's 100 a day, and the rest is left for sign-in.
+operator per Kyiv day, so a day over the cap means many shelters or many decisions.
+
+The two scheduled crons also share one batch budget of 20 sends a Kyiv day: the daily cron's
+retries and early-listing reminders and, on Mondays, the weekly reminder together (the weekly run
+reads what the daily one already sent). A Monday cannot send more than 20 between them; what does
+not fit waits, and the weekly run serves the shelter that waited longest first, so none is starved.
+The arithmetic: event cap 40 plus batch budget 20 is at most 60 of the provider's 100 a day (and in
+practice within the cap, give or take a few when two runs read the tally at once), so 40 or more stay
+free for sign-in. The log's `deferred` (budget or time) and `skippedOverCap` (cap) say what waited.
 
 The weekly email can be switched off for one shelter on its operator page («Лист про непідтверджені
 картки»), usually because the shelter replied to ask; the page records who and when in the history.

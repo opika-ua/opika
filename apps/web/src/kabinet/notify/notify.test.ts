@@ -351,7 +351,9 @@ describe("runDailyNotifications: O4", () => {
     expect(sent).toHaveLength(4);
     expect(first).toMatchObject({ endingSent: 4, deferred: 2 });
     expect(await sendRows()).toHaveLength(4);
-    const second = await runDailyNotifications(depsOf(db, mail), 4);
+    // The budget is the day's: what was left over is finished the next day.
+    const tomorrow = new Date(NOW.getTime() + DAY);
+    const second = await runDailyNotifications(depsOf(db, mail, { now: tomorrow }), 4);
     expect(sent).toHaveLength(6);
     expect(second).toMatchObject({ endingSent: 2, duplicates: 4, deferred: 0 });
   });
@@ -895,7 +897,8 @@ describe("the retry sweep, budget and recipient keys (Tier 1 follow-ups)", () =>
     failing.state.failing = true;
     await runDailyNotifications(depsOf(db, failing.mail));
     const { mail, sent } = fakeMail();
-    const counts = await runDailyNotifications(depsOf(db, mail), 2);
+    const tomorrow = new Date(NOW.getTime() + DAY);
+    const counts = await runDailyNotifications(depsOf(db, mail, { now: tomorrow }), 2);
     expect(sent).toHaveLength(2);
     expect(counts).toMatchObject({ retried: 2, retrySent: 2, deferred: 1 });
     const attempts = (await sendRows()).map((row) => `${row.status}:${row.attempts}`).sort();

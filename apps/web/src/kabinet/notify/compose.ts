@@ -125,7 +125,7 @@ export function composeNotification(
           }),
         ],
         link: shelterLink(copy.action, "/kabinet/tvaryny"),
-        after: [fillTemplate(copy.help, { operator })],
+        after: [`${copy.frequency} ${fillTemplate(copy.stop, { operator })}`],
       });
     }
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */

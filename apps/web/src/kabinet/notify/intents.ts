@@ -55,6 +55,9 @@ const AUDIENCE: Record<NotificationKind, Audience> = {
   freshnessReminder: "shelter_admins",
 };
 
+/** The kinds the two scheduled batches create (the early-listing and the weekly mail): what their shared budget counts. */
+export const BATCH_KINDS: readonly NotificationKind[] = ["earlyListingEnding", "freshnessReminder"];
+
 /** Every mail kind an event or the daily batch sends: what the event cap counts. */
 export const EVENT_KINDS = Object.keys(AUDIENCE) as NotificationKind[];
 

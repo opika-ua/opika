@@ -8,7 +8,14 @@ import {
 import { kyivCalendarDateOf } from "@opika/domain";
 import { kyivIsoWeekOf } from "./day";
 import { dedupKeyOf } from "./dedup";
-import { createPacer, deliver, type NotifyDeps, openEventCap, sendClaimed } from "./deliver";
+import {
+  createPacer,
+  deliver,
+  type NotifyDeps,
+  openEventCap,
+  remainingBatchBudget,
+  sendClaimed,
+} from "./deliver";
 import {
   type NotificationIntent,
   planEarlyListingEnding,
@@ -18,9 +25,12 @@ import {
 } from "./intents";
 
 /**
- * Mails one run may send, retries and O4 together. Resend's free plan allows 100 a day and a
- * sign-in link must always have room. Retries and O4 count against the event cap (40) like any
- * event mail, so a day's total is the cap, give or take a few when two runs read the tally at once.
+ * Mails the two scheduled batches may send in a Kyiv day, all together: the daily cron's retries
+ * and O4, and the weekly reminder on Mondays share this one budget (`remainingBatchBudget`).
+ * Resend's free plan allows 100 a day and a sign-in link must always have room. Everything they
+ * send also counts against the event cap (40), so a day's event mails stay within 40 plus 20 = 60
+ * at the very most, and in practice within the cap, give or take a few when two runs read the
+ * tally at once.
  */
 export const DAILY_SEND_BUDGET = 20;
 
@@ -140,7 +150,7 @@ export async function runDailyNotifications(
     skippedOverCap: 0,
     stoppedForTime: false,
   };
-  let left = budget;
+  let left = await remainingBatchBudget(deps, budget);
   const startedAt = now.getTime();
   const outOfTime = () => {
     if (deps.now().getTime() - startedAt > DAILY_TIME_GUARD_MS) counts.stoppedForTime = true;

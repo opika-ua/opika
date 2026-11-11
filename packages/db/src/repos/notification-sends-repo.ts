@@ -155,6 +155,55 @@ export function notificationSendsRepo(db: Database) {
       return rows[0]?.n ?? 0;
     },
 
+    /**
+     * The sends the two scheduled batches (the daily and the weekly cron) made at or after `since`,
+     * the tally their one shared budget reads: a first attempt of a batch kind counts on the day
+     * its row was created, and any retry (attempts 2 or more, of any kind, because the daily sweep
+     * makes them) on the day it was made.
+     */
+    async countBatchSendsSince(since: Date, batchKinds: readonly string[]): Promise<number> {
+      const sinceIso = since.toISOString();
+      const rows = await db
+        .select({
+          n: sql<number>`(
+            count(*) FILTER (WHERE ${notificationSends.createdAt} >= ${sinceIso}::timestamptz
+                AND ${inArray(notificationSends.kind, [...batchKinds])})
+            + count(*) FILTER (WHERE ${notificationSends.attempts} >= 2
+                AND ${notificationSends.updatedAt} >= ${sinceIso}::timestamptz)
+          )`.mapWith(Number),
+        })
+        .from(notificationSends);
+      return rows[0]?.n ?? 0;
+    },
+
+    /**
+     * When each of these shelters was last sent a mail of this kind (newest row), by shelter id;
+     * a shelter never sent one is absent. The weekly run serves the longest-waiting first, so a
+     * shelter its budget skipped one week leads the next.
+     */
+    async lastSentAtByShelter(
+      kind: string,
+      shelterIds: readonly ShelterId[],
+    ): Promise<Map<string, Date>> {
+      if (shelterIds.length === 0) return new Map();
+      const rows = await db
+        .select({
+          shelterId: notificationSends.shelterId,
+          last: sql<Date>`max(${notificationSends.createdAt})`.mapWith(notificationSends.createdAt),
+        })
+        .from(notificationSends)
+        .where(
+          and(
+            eq(notificationSends.kind, kind),
+            inArray(notificationSends.shelterId, [...shelterIds]),
+          ),
+        )
+        .groupBy(notificationSends.shelterId);
+      return new Map(
+        rows.flatMap((row) => (row.shelterId === null ? [] : [[row.shelterId, row.last] as const])),
+      );
+    },
+
     /** Deletes rows created strictly more than `days` ago; returns how many went. */
     async purgeOlderThan(now: Date, days = SEND_LOG_RETENTION_DAYS): Promise<number> {
       const rows = await db

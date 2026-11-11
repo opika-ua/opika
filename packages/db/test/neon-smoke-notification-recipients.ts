@@ -472,6 +472,99 @@ export async function runNotificationRecipientsSmoke(db: Database): Promise<Outc
       `${claimed.size} of 2 found`,
     );
 
+    // The one shared batch budget: first attempts of the batch kinds today, plus every retry made today.
+    const batchKind = `smoke-${tag}-batch`;
+    const retriedKind = `smoke-${tag}-retried`;
+    const batchKey = (label: string) => `smoke:${tag}:batch-${label}`;
+    sendKeys.push(batchKey("a"), batchKey("b"), batchKey("old"), batchKey("retried"));
+    const batchBefore = await sendsRepo.countBatchSendsSince(hourAgo, [batchKind]);
+    await sendsRepo.claim(now, { ...base, dedupKey: batchKey("a"), kind: batchKind });
+    await sendsRepo.claim(now, { ...base, dedupKey: batchKey("b"), kind: batchKind });
+    await sendsRepo.claim(new Date(now.getTime() - 3 * DAY), {
+      ...base,
+      dedupKey: batchKey("old"),
+      kind: batchKind,
+    });
+    await sendsRepo.claim(new Date(now.getTime() - 3 * DAY), {
+      ...base,
+      dedupKey: batchKey("retried"),
+      kind: retriedKind,
+    });
+    await sendsRepo.mark(now, batchKey("retried"), "failed");
+    await sendsRepo.reclaim(now, batchKey("retried"));
+    const batchAfter = await sendsRepo.countBatchSendsSince(hourAgo, [batchKind]);
+    check(
+      "notify: countBatchSendsSince adds today's batch-kind rows (2) and a retry made today of a 3-day-old row (1), and not a 3-day-old batch row that was not retried",
+      batchAfter - batchBefore === 3,
+      `before ${batchBefore}, after ${batchAfter}`,
+    );
+
+    const lastKind = "freshnessReminder";
+    const lastKey = (label: string) => `smoke:${tag}:last-${label}`;
+    sendKeys.push(lastKey("old"), lastKey("new"), lastKey("other"));
+    await sendsRepo.claim(new Date(now.getTime() - 10 * DAY), {
+      shelterId: shelterA.id,
+      recipientUserId: null,
+      dedupKey: lastKey("old"),
+      kind: lastKind,
+    });
+    await sendsRepo.claim(new Date(now.getTime() - 3 * DAY), {
+      shelterId: shelterA.id,
+      recipientUserId: null,
+      dedupKey: lastKey("new"),
+      kind: lastKind,
+    });
+    await sendsRepo.claim(now, {
+      shelterId: shelterB.id,
+      recipientUserId: null,
+      dedupKey: lastKey("other"),
+      kind: "approved",
+    });
+    const lastSent = await sendsRepo.lastSentAtByShelter(lastKind, [shelterA.id, shelterB.id]);
+    check(
+      "notify: lastSentAtByShelter returns each shelter's newest row of the kind (A's 3-day-old, not its 10-day-old), leaves out a shelter with a row of another kind only, and is empty for no shelters",
+      lastSent.size === 1 &&
+        lastSent.get(shelterA.id)?.getTime() === now.getTime() - 3 * DAY &&
+        (await sendsRepo.lastSentAtByShelter(lastKind, [])).size === 0,
+      `${lastSent.size} shelter(s), A ${lastSent.get(shelterA.id)?.toISOString()}`,
+    );
+
+    // The Monday peak, as the SQL sees it: the cap and the batch budget are both spent while a
+    // retry is waiting and a weekly reminder is due, so every gate reads "room: none".
+    const peakShelter = await shelter("peak", { verification: verificationOf("verified") });
+    await card(peakShelter, publishedAt(since(30)));
+    const peakEvent = `smoke-${tag}-peak-event`;
+    const peakRetry = `smoke:${tag}:peak-retry`;
+    sendKeys.push(`smoke:${tag}:peak-1`, `smoke:${tag}:peak-2`, `smoke:${tag}:peak-3`, peakRetry);
+    for (const n of [1, 2, 3]) {
+      await sendsRepo.claim(now, {
+        ...base,
+        dedupKey: `smoke:${tag}:peak-${n}`,
+        kind: peakEvent,
+      });
+    }
+    await sendsRepo.claim(now, { ...base, dedupKey: peakRetry, kind: "smoke-peak-retry" });
+    await sendsRepo.mark(now, peakRetry, "failed");
+    const eventCap = 3;
+    const eventLeft = Math.max(
+      0,
+      eventCap - (await sendsRepo.countSendsSince(hourAgo, [peakEvent])),
+    );
+    // The day's budget is exactly what the batch rows above spent (`batchAfter`): none left, and
+    // one more unit of budget would leave exactly one, so the count is the number that matters.
+    const budgetUsed = await sendsRepo.countBatchSendsSince(hourAgo, [batchKind]);
+    const batchLeft = Math.max(0, batchAfter - budgetUsed);
+    const oneMoreLeft = Math.max(0, batchAfter + 1 - budgetUsed);
+    const retryWaiting = (await sendsRepo.retryable(now)).some((row) => row.dedupKey === peakRetry);
+    const reminderDue = (await repo.freshnessReminderDue(now)).some(
+      (row) => row.shelterId === peakShelter.id,
+    );
+    check(
+      "notify: Monday peak - with the event cap spent (3 of 3) and the batch budget spent, a failed retry waiting and a weekly reminder due, the cap and the budget both read no room left",
+      eventLeft === 0 && batchLeft === 0 && oneMoreLeft === 1 && retryWaiting && reminderDue,
+      `event room ${eventLeft}, batch room ${batchLeft}, retry waiting ${retryWaiting}, reminder due ${reminderDue}`,
+    );
+
     await db.delete(authMember).where(eq(authMember.id, memberARow));
     await db.delete(superAdmins).where(eq(superAdmins.id, grants[0]?.id ?? ""));
     const operatorsAfter = ours(addressesOf(await repo.operators()));

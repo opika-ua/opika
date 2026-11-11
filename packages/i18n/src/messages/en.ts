@@ -1259,7 +1259,8 @@ export const en = {
         },
         body: `Hello. You haven't confirmed {cards} of the shelter «{shelter}» for at least {days}. People looking for an animal see on the card when it was last confirmed. If nothing has changed, it is enough to tap «Still looking» or «Still arranging», and if the animal is already at home, «Already home».`,
         action: `Open the animal list`,
-        help: `This email arrives every Monday while there are unconfirmed cards. If you don't need it, just reply to this email.\n{operator}`,
+        frequency: `This email arrives every Monday while there are unconfirmed cards.`,
+        stop: `To stop receiving these emails, reply to this email.\n{operator}`,
       },
       donationRejected: {
         subject: `The fundraising link was not confirmed`,

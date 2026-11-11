@@ -2,7 +2,7 @@ import { handleFreshnessReminderCron } from "../../../../kabinet/freshness-remin
 import { kabinetDb } from "../../../../kabinet/kabinet-db";
 import { notifyDepsOf, notifyRuntimeOf } from "../../../../kabinet/notify/runtime";
 
-/** At most 30 sends 500 ms apart plus the provider's answer: well inside this, and the run also stops claiming after 240 s. */
+/** At most 20 sends in all (the budget it shares with the daily cron) 500 ms apart plus the provider's answer: well inside this, and the run also stops claiming after 240 s. */
 export const maxDuration = 300;
 
 /**

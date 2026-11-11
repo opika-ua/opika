@@ -5,7 +5,7 @@ import { maskAddress, type ProviderMail, sendChecked } from "../email-senders";
 import { type ComposeContext, composeNotification } from "./compose";
 import { kyivDayStartOf } from "./day";
 import { dedupKeyOf } from "./dedup";
-import { EVENT_KINDS, type NotificationIntent } from "./intents";
+import { BATCH_KINDS, EVENT_KINDS, type NotificationIntent } from "./intents";
 
 /** Resend answers 2 requests a second per team; a mail every 500 ms stays under it. */
 export const SEND_SPACING_MS = 500;
@@ -51,6 +51,23 @@ export async function openEventCap(deps: Pick<NotifyDeps, "db" | "now" | "eventC
 }
 
 export type EventCap = Awaited<ReturnType<typeof openEventCap>>;
+
+/**
+ * What is left of the day's one budget for the two scheduled batches (the daily and the weekly
+ * cron together, so a Monday cannot send more than the budget): the budget less what they and the
+ * retry sweep already sent since Kyiv midnight, read when a run starts. A mail past it is not
+ * claimed, so it stays due for a later run.
+ */
+export async function remainingBatchBudget(
+  deps: Pick<NotifyDeps, "db" | "now">,
+  budget: number,
+): Promise<number> {
+  const used = await notificationSendsRepo(deps.db).countBatchSendsSince(
+    kyivDayStartOf(deps.now()),
+    BATCH_KINDS,
+  );
+  return Math.max(0, budget - used);
+}
 
 /** Keeps successive sends at least `SEND_SPACING_MS` apart within one run. */
 export function createPacer(deps: Pick<NotifyDeps, "now" | "sleep">) {

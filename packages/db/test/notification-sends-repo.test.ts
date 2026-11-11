@@ -260,6 +260,54 @@ describe("countSendsSince", () => {
   });
 });
 
+describe("countBatchSendsSince", () => {
+  const batch = ["earlyListingEnding", "freshnessReminder"];
+
+  it("counts the batch kinds' first attempts by creation day and every retry by the day it was made", async () => {
+    const since = ago(2 * HOUR);
+    await seed("batch-today", { createdAt: ago(HOUR), kind: "freshnessReminder" });
+    await seed("batch-yesterday", { createdAt: ago(DAY), kind: "earlyListingEnding" });
+    await seed("event-today", { createdAt: ago(HOUR), kind: "approved" });
+    // An event mail created yesterday and retried today: the sweep's send is a batch send.
+    await seed("event-retried", {
+      createdAt: ago(DAY),
+      updatedAt: ago(HOUR),
+      attempts: 2,
+      kind: "approved",
+    });
+    // A batch row created today and retried today: two sends.
+    await seed("batch-retried", {
+      createdAt: ago(HOUR),
+      updatedAt: ago(HOUR / 2),
+      attempts: 2,
+      kind: "earlyListingEnding",
+    });
+    expect(await notificationSendsRepo(db).countBatchSendsSince(since, batch)).toBe(4);
+  });
+});
+
+describe("lastSentAtByShelter", () => {
+  it("returns each shelter's newest row of the kind, and leaves out one that has none", async () => {
+    const first = await shelter();
+    const second = await shelter();
+    const third = await shelter();
+    await seed("old", { shelterId: first, kind: "freshnessReminder", createdAt: ago(10 * DAY) });
+    await seed("new", { shelterId: first, kind: "freshnessReminder", createdAt: ago(3 * DAY) });
+    await seed("other", { shelterId: second, kind: "approved", createdAt: ago(DAY) });
+    await seed("unowned", { shelterId: null, kind: "freshnessReminder", createdAt: ago(DAY) });
+    const last = await notificationSendsRepo(db).lastSentAtByShelter("freshnessReminder", [
+      first,
+      second,
+      third,
+    ]);
+    expect([...last.keys()]).toEqual([first]);
+    expect(last.get(first)).toEqual(ago(3 * DAY));
+    expect(await notificationSendsRepo(db).lastSentAtByShelter("freshnessReminder", [])).toEqual(
+      new Map(),
+    );
+  });
+});
+
 describe("references", () => {
   it("keeps the row, with the recipient cleared, when the user is deleted", async () => {
     const recipientUserId = await user();

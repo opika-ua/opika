@@ -1,8 +1,9 @@
 import { notificationSends, shelters } from "@opika/db/schema";
 import { setupTestDatabase, truncateAll } from "@opika/db/test";
-import type { Shelter } from "@opika/domain";
+import { EARLY_LISTING_DAYS, type Shelter } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { runDailyNotifications } from "./daily";
+import { DAILY_SEND_BUDGET, runDailyNotifications } from "./daily";
+import { DEFAULT_DAILY_EVENT_CAP } from "./runtime";
 import {
   DAY,
   depsOf,
@@ -14,7 +15,7 @@ import {
   seedShelter,
   VERIFIED,
 } from "./test-utils/fixtures";
-import { runWeeklyReminders, WEEKLY_SEND_BUDGET } from "./weekly";
+import { runWeeklyReminders } from "./weekly";
 
 /** The weekly reminder against a real database; only the provider is fake. */
 
@@ -171,7 +172,6 @@ describe("runWeeklyReminders: once a week, within the cap and the budget", () =>
     expect(sent).toHaveLength(2);
     expect(counts).toMatchObject({ sent: 2, deferred: 1 });
     expect(await db.select().from(notificationSends)).toHaveLength(2);
-    expect(WEEKLY_SEND_BUDGET).toBe(30);
   });
 
   it("spaces its sends by at least 500 ms", async () => {
@@ -251,5 +251,148 @@ describe("the operator is not mailed the weekly reminder", () => {
     const { mail, sent } = fakeMail();
     await runWeeklyReminders(depsOf(db, mail));
     expect(sentTo(sent)).toEqual(["a@example.org"]);
+  });
+});
+describe("the daily and the weekly cron share one budget; the quota arithmetic is pinned", () => {
+  const fill = async (count: number, kind: string, createdAt = NOW) => {
+    for (let n = 0; n < count; n += 1) {
+      await db.insert(notificationSends).values({
+        dedupKey: `fill:${kind}:${createdAt.toISOString()}:${n}`,
+        kind,
+        shelterId: null,
+        recipientUserId: null,
+        status: "sent",
+        attempts: 1,
+        createdAt,
+        updatedAt: createdAt,
+      });
+    }
+  };
+  const staleShelters = async (count: number, prefix = "weekly") => {
+    const emails: string[] = [];
+    for (let n = 0; n < count; n += 1) {
+      const email = `${prefix}-${n}@example.org`;
+      emails.push(email);
+      const shelter = await listedShelter([email]);
+      await seedCard(db, shelter, stale());
+    }
+    return emails;
+  };
+  const NEXT_WEEK = new Date(NOW.getTime() + 7 * DAY);
+
+  it("pins the arithmetic: event cap 40 plus the batch budget 20 is at most 60 of the 100 a day", () => {
+    expect(DEFAULT_DAILY_EVENT_CAP).toBe(40);
+    expect(DAILY_SEND_BUDGET).toBe(20);
+    expect(DEFAULT_DAILY_EVENT_CAP + DAILY_SEND_BUDGET).toBeLessThanOrEqual(60);
+  });
+
+  it("Monday: what the daily run left of the budget is all the weekly run may send", async () => {
+    await staleShelters(3);
+    await fill(18, "earlyListingEnding");
+    const { mail, sent } = fakeMail();
+    const counts = await runWeeklyReminders(depsOf(db, mail, { eventCap: 1000 }));
+    expect(sent).toHaveLength(2);
+    expect(counts).toMatchObject({ sent: 2, deferred: 1 });
+  });
+
+  it("Monday: with the budget spent the weekly run sends none and carries every shelter to next week", async () => {
+    const emails = await staleShelters(3);
+    await fill(20, "earlyListingEnding");
+    const { mail, sent } = fakeMail();
+    const counts = await runWeeklyReminders(depsOf(db, mail, { eventCap: 1000 }));
+    expect(sent).toEqual([]);
+    expect(counts).toMatchObject({ shelters: 3, sent: 0, deferred: 3 });
+    // Nothing was claimed, so nothing reads as sent.
+    expect(
+      (await db.select().from(notificationSends)).filter((row) => row.kind === "freshnessReminder"),
+    ).toEqual([]);
+    await runWeeklyReminders(depsOf(db, mail, { now: NEXT_WEEK, eventCap: 1000 }));
+    expect(sentTo(sent)).toEqual([...emails].sort());
+  });
+
+  it("a shelter the budget skipped leads the next week, so the same ones are never starved", async () => {
+    const emails = await staleShelters(3);
+    const { mail, sent } = fakeMail();
+    await runWeeklyReminders(depsOf(db, mail, { eventCap: 1000 }), 2);
+    const served = sentTo(sent);
+    expect(served).toHaveLength(2);
+    const skipped = emails.find((email) => !served.includes(email));
+    expect(skipped).toBeDefined();
+    const second = fakeMail();
+    await runWeeklyReminders(depsOf(db, second.mail, { now: NEXT_WEEK, eventCap: 1000 }), 1);
+    expect(sentTo(second.sent)).toEqual([skipped]);
+    // And the week after, the one served longest ago goes first.
+    const third = fakeMail();
+    await runWeeklyReminders(
+      depsOf(db, third.mail, { now: new Date(NOW.getTime() + 14 * DAY), eventCap: 1000 }),
+      1,
+    );
+    expect(sentTo(third.sent)).toHaveLength(1);
+    expect(sentTo(third.sent)[0]).not.toBe(skipped);
+  });
+
+  it("a day that is not Monday: the daily run alone sends at most the budget, and a second run none", async () => {
+    for (let n = 0; n < 13; n += 1) {
+      await seedShelter(db, {
+        overrides: {
+          verification: PENDING,
+          earlyListingSince: new Date(NOW.getTime() - (EARLY_LISTING_DAYS - 2 - (n % 5)) * DAY),
+        } as Partial<Shelter>,
+      });
+    }
+    await seedOperator(db, "op1@example.org");
+    await seedOperator(db, "op2@example.org");
+    const { mail, sent } = fakeMail();
+    const first = await runDailyNotifications(depsOf(db, mail, { eventCap: 1000 }));
+    expect(sent).toHaveLength(20);
+    expect(first.endingSent).toBe(20);
+    const again = await runDailyNotifications(depsOf(db, mail, { eventCap: 1000 }));
+    expect(sent).toHaveLength(20);
+    expect(again.endingSent).toBe(0);
+  });
+
+  it("events and batches together stay within the cap: 25 events leave room for 15 of the 20", async () => {
+    await fill(25, "approved");
+    for (let n = 0; n < 13; n += 1) {
+      await seedShelter(db, {
+        overrides: {
+          verification: PENDING,
+          earlyListingSince: new Date(NOW.getTime() - (EARLY_LISTING_DAYS - 2 - (n % 5)) * DAY),
+        } as Partial<Shelter>,
+      });
+    }
+    await seedOperator(db, "op1@example.org");
+    await seedOperator(db, "op2@example.org");
+    await staleShelters(2);
+    const { mail, sent } = fakeMail();
+    const daily = await runDailyNotifications(depsOf(db, mail));
+    expect(sent).toHaveLength(15);
+    expect(daily.skippedOverCap).toBeGreaterThan(0);
+    const weekly = await runWeeklyReminders(depsOf(db, mail));
+    expect(sent).toHaveLength(15);
+    expect(weekly).toMatchObject({ sent: 0, skippedOverCap: 2 });
+    const total = (await db.select().from(notificationSends)).length;
+    expect(total).toBe(40);
+  });
+
+  it("Monday peak: cap reached with a pending retry and a weekly reminder due, nothing reaches the sender", async () => {
+    // A failed retry from yesterday and one more failed mail today, then a weekly reminder due.
+    await staleShelters(1);
+    const failing = fakeMail();
+    failing.state.failing = true;
+    await runWeeklyReminders(depsOf(db, failing.mail, { eventCap: 1000 }));
+    await db.update(notificationSends).set({ createdAt: new Date(NOW.getTime() - 20 * 3_600_000) });
+    await fill(2, "approved");
+    const before = await db.select().from(notificationSends);
+    const { mail, sent } = fakeMail();
+    const deps = { eventCap: 2 };
+    const daily = await runDailyNotifications(depsOf(db, mail, deps));
+    const more = await staleShelters(1, "late");
+    const weekly = await runWeeklyReminders(depsOf(db, mail, deps));
+    expect(sent).toEqual([]);
+    expect(daily.skippedOverCap).toBeGreaterThanOrEqual(1);
+    expect(weekly.skippedOverCap).toBeGreaterThanOrEqual(1);
+    expect(more).toHaveLength(1);
+    expect((await db.select().from(notificationSends)).length).toBe(before.length);
   });
 });

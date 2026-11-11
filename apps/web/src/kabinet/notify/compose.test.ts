@@ -149,8 +149,16 @@ describe("the weekly reminder (F1)", () => {
     expect(text).toContain("«Ще шукає» чи «Ще домовляються»");
     expect(text).toContain("«Уже вдома»");
     expect(text).toContain("https://example.org/kabinet/tvaryny");
-    expect(text).toContain("Такий лист приходить щопонеділка, поки є непідтверджені картки.");
-    expect(text).toContain("дайте відповідь на цей лист.\nОлексій");
+    expect(text).toContain(
+      "Такий лист приходить щопонеділка, поки є непідтверджені картки. Щоб не отримувати ці листи, дайте відповідь на цей лист.\nОлексій",
+    );
+  });
+
+  it("tells the shelter how to stop the mail, once, and has no other reply line", () => {
+    const { text } = reminder(3);
+    expect(text.match(/дайте відповідь на цей лист/g)).toHaveLength(1);
+    expect(text).toContain("Щоб не отримувати ці листи, дайте відповідь на цей лист.");
+    expect(text).not.toContain("Якщо він вам не потрібен");
   });
 });
 

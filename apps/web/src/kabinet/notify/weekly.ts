@@ -1,16 +1,15 @@
-import { createHash } from "node:crypto";
 import { notificationRecipientsRepo, notificationSendsRepo } from "@opika/db/repos";
-import { DAILY_TIME_GUARD_MS } from "./daily";
+import { DAILY_SEND_BUDGET, DAILY_TIME_GUARD_MS } from "./daily";
 import { kyivIsoWeekOf } from "./day";
 import { dedupKeyOf } from "./dedup";
-import { createPacer, deliver, type NotifyDeps, openEventCap } from "./deliver";
+import {
+  createPacer,
+  deliver,
+  type NotifyDeps,
+  openEventCap,
+  remainingBatchBudget,
+} from "./deliver";
 import { planFreshnessReminder } from "./intents";
-
-/**
- * Mails the weekly run may send. Below the daily 20 plus the event cap's 40: a Monday run shares
- * the day's cap and leaves the provider's 100 a day room for sign-in.
- */
-export const WEEKLY_SEND_BUDGET = 30;
 
 export type WeeklyCounts = {
   /** Shelters with unconfirmed cards that are listed and not switched off. */
@@ -27,20 +26,17 @@ export type WeeklyCounts = {
   stoppedForTime: boolean;
 };
 
-/** A hash order that changes with the week, so a budget that cannot reach everyone does not always skip the same shelters. */
-const rotation = (week: string, shelterId: string): string =>
-  createHash("sha256").update(`${week}:${shelterId}`).digest("hex");
-
 /**
  * The weekly «непідтверджені картки» mail (F1) to every admin of each shelter that has visible
  * cards nobody confirmed for 14 days. One grouped query finds the shelters and one the admins;
  * the claim key `fr:{shelterId}:{week}:{userHash}` makes a duplicate cron event or a manual
- * re-run send nothing new. Sends one at a time, spaced, under the budget, the time guard and the
- * day's event cap; what is not reached waits for next Monday.
+ * re-run send nothing new. Sends one at a time, spaced, under the day's one batch budget (shared
+ * with the daily cron, `remainingBatchBudget`), the time guard and the event cap; what is not
+ * reached waits for next Monday, first in line then.
  */
 export async function runWeeklyReminders(
   deps: NotifyDeps,
-  budget: number = WEEKLY_SEND_BUDGET,
+  budget: number = DAILY_SEND_BUDGET,
 ): Promise<WeeklyCounts> {
   const now = deps.now();
   const week = kyivIsoWeekOf(now);
@@ -56,8 +52,17 @@ export async function runWeeklyReminders(
     errors: 0,
     stoppedForTime: false,
   };
-  const due = (await recipients.freshnessReminderDue(now)).sort((a, b) =>
-    rotation(week, a.shelterId).localeCompare(rotation(week, b.shelterId)),
+  const stale = await recipients.freshnessReminderDue(now);
+  // Longest-waiting first: a shelter the budget skipped has an older (or no) last mail than the
+  // ones it served, so next week it leads. A mail that was not sent has no row to say otherwise.
+  const lastSent = await notificationSendsRepo(deps.db).lastSentAtByShelter(
+    "freshnessReminder",
+    stale.map((shelter) => shelter.shelterId),
+  );
+  const due = [...stale].sort(
+    (a, b) =>
+      (lastSent.get(a.shelterId)?.getTime() ?? 0) - (lastSent.get(b.shelterId)?.getTime() ?? 0) ||
+      a.shelterId.localeCompare(b.shelterId),
   );
   counts.shelters = due.length;
   if (due.length === 0) return counts;
@@ -68,7 +73,7 @@ export async function runWeeklyReminders(
   const pacer = createPacer(deps);
   const cap = await openEventCap(deps);
   const startedAt = now.getTime();
-  let left = budget;
+  let left = await remainingBatchBudget(deps, budget);
 
   for (const shelter of due) {
     const to = admins.filter((admin) => admin.shelterId === shelter.shelterId);

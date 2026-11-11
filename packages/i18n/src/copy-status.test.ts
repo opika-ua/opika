@@ -2830,3 +2830,26 @@ describe("owner-approved copy, 2026-11-02", () => {
     expect(uk.errors.rateLimited.body).not.toContain(String.fromCodePoint(0x2014));
   });
 });
+describe("the weekly reminder email (F1): owner-approved text, 2026-11-10 and 2026-11-11", () => {
+  const copy = uk.kabinet.email.freshnessReminder;
+
+  it("is the approved table, the stop line the owner's own words", () => {
+    expect(copy.subject).toEqual({
+      one: "{count} картка чекає на підтвердження",
+      few: "{count} картки чекають на підтвердження",
+      many: "{count} карток чекають на підтвердження",
+    });
+    expect(copy.body).toBe(
+      "Добрий день. {cards} притулку «{shelter}» ви не підтверджували щонайменше {days}. Ті, хто шукає тварину, бачать на картці, коли її востаннє підтверджували. Якщо нічого не змінилося, достатньо натиснути «Ще шукає» чи «Ще домовляються», а якщо тварина вже вдома – «Уже вдома».",
+    );
+    expect(copy.action).toBe("Відкрити список тварин");
+    expect(copy.frequency).toBe("Такий лист приходить щопонеділка, поки є непідтверджені картки.");
+    expect(copy.stop).toBe("Щоб не отримувати ці листи, дайте відповідь на цей лист.\n{operator}");
+  });
+
+  it("has the English sense of the stop line", () => {
+    expect(en.kabinet.email.freshnessReminder.stop).toBe(
+      "To stop receiving these emails, reply to this email.\n{operator}",
+    );
+  });
+});
