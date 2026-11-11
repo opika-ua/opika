@@ -152,7 +152,6 @@ describe("registry writes", () => {
         legalEntity: base.legalEntity,
         exactAddress: street,
         contact: base.contact,
-        freshnessSentence: null,
         evidence: EVIDENCE_INPUT,
         firstAdmin: { name: "Олена", email: "Olena@Example.org" },
       },
