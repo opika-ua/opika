@@ -73,6 +73,7 @@ export function ContactsSection({
       const count =
         (checked.phone === null ? 0 : 1) +
         (checked.telegram === null ? 0 : 1) +
+        (checked.form === null ? 0 : 1) +
         Object.keys(checked.others).length;
       return { kind: "invalid", count: Math.max(count, 1) };
     }

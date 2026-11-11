@@ -459,7 +459,7 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     "profileEdit.contacts.phonePlaceholder": "+380 …",
     // k4-copy-uk.md
     "profileEdit.contacts.telegramPlaceholder": "@username",
-    // The dedicated form field (2026-11-11): proposed in the PR's copy table, approved before queueing.
+    // The dedicated form field: owner-approved 2026-11-11 (contact kinds WhatsApp and form).
     "profileEdit.contacts.formPlaceholder": "https://…",
     "profileEdit.contacts.formHint":
       "Посилання на анкету, яку ви просите заповнити перед знайомством. У контактах вона буде першою.",

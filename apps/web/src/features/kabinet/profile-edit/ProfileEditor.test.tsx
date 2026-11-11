@@ -178,6 +178,21 @@ describe("contacts (answer 3, answer 4)", () => {
     expect(fns.updateContact).not.toHaveBeenCalled();
   });
 
+  it("names a bad form link under its own field and counts it with the others", async () => {
+    const fns = renderEditor();
+    const c = within(contacts());
+    const phone = c.getByLabelText(/^Телефон/);
+    await userEvent.clear(phone);
+    await userEvent.type(phone, "+380670000002213");
+    const form = c.getByRole("textbox", { name: /Анкета/ });
+    await userEvent.type(form, "http://forms.example/anketa");
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(form.getAttribute("aria-invalid")).toBe("true");
+    expect(c.getByText("Лише посилання, що починаються з https://.")).toBeTruthy();
+    expect(screen.getAllByText("Перевірте 2 поля").length).toBeGreaterThan(0);
+    expect(fns.updateContact).not.toHaveBeenCalled();
+  });
+
   it("refuses to save with no channel at all", async () => {
     const fns = renderEditor();
     const c = within(contacts());
