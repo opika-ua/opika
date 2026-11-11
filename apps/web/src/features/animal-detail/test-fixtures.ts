@@ -58,7 +58,6 @@ export function makeDetailShelter(overrides: Partial<PublicShelterView> = {}): P
     donation: { url: "https://pay.example.org/domivka", provider: "monobank_jar" },
     logo: null,
     createdAt: new Date("2023-01-01T00:00:00.000Z"),
-    freshnessSentence: null,
     verification: "verified",
     availability: { kind: "open" },
     ...overrides,

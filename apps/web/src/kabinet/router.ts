@@ -41,7 +41,6 @@ import {
   profileSetLogo,
   profileUpdateContact,
   profileUpdateDescription,
-  profileUpdateFreshnessSentence,
   verificationRequestReview,
 } from "./handlers/profile";
 
@@ -103,10 +102,6 @@ export const shelterKabinetRouter = guarded.router({
       updateDescription: guarded.shelter.profile.updateDescription.handler(
         ({ context, input, errors }) =>
           profileUpdateDescription(context, writeScope(context.access), input, errors),
-      ),
-      updateFreshnessSentence: guarded.shelter.profile.updateFreshnessSentence.handler(
-        ({ context, input, errors }) =>
-          profileUpdateFreshnessSentence(context, writeScope(context.access), input, errors),
       ),
       proposeDonation: guarded.shelter.profile.proposeDonation.handler(({ context, input }) =>
         profileProposeDonation(context, writeScope(context.access), input),

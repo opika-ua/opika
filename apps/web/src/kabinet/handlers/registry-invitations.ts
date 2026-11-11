@@ -24,7 +24,6 @@ import {
   cityPublicLocationOf,
   type EvidenceItemInput,
   type ExactAddress,
-  type FreshnessSentence,
   type LocalizedText,
   type LocationPrivacyPolicy,
   MAX_EVIDENCE_ITEMS,
@@ -211,7 +210,6 @@ export async function registrySheltersCreate(
     legalEntity: ShelterLegalEntity | null;
     exactAddress: Omit<ExactAddress, "cityId"> | null;
     contact: ShelterContact;
-    freshnessSentence: FreshnessSentence;
     evidence: readonly EvidenceItemInput[];
     firstAdmin: { name: string; email: string };
   },
@@ -260,7 +258,6 @@ export async function registrySheltersCreate(
     pendingDonation: null,
     earlyListingSince: null,
     version: 0,
-    freshnessSentence: input.freshnessSentence,
     verification: { status: "pending", submittedAt: deps.now, evidence: accepted.evidence },
     createdAt: deps.now,
     lastUpdatedAt: deps.now,

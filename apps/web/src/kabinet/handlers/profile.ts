@@ -4,7 +4,6 @@ import {
   donationProviderOf,
   earlyListingOf,
   earlyListingRemaining,
-  type FreshnessSentence,
   type LocalizedText,
   type PauseReason,
   type Shelter,
@@ -49,7 +48,6 @@ export function kabinetShelterViewOf(shelter: Shelter, now: Date): KabinetShelte
     contact: shelter.contact,
     donation: shelter.donation,
     pendingDonation: shelter.pendingDonation,
-    freshnessSentence: shelter.freshnessSentence,
     logo: shelter.logo,
     version: shelter.version,
     verification: shelterFacingVerificationOf(shelter.verification),
@@ -208,52 +206,6 @@ export const profileUpdateDescription = (
           at: deps.now,
           actor: actorOf(scope),
           previous: shelter.description,
-          next,
-        },
-      };
-    },
-    errors,
-  );
-
-/**
- * The sentence a shelter's edit stores (K4 sheet, answer 13, Oleksii,
- * verbatim: "Clear `en` when `uk` changes; a stale translation would be a
- * false claim."). The English translates one particular Ukrainian sentence;
- * once the Ukrainian is different, keeping it would show English readers
- * words the shelter no longer says. So a changed `uk` stores no `en`,
- * whatever the request carried, and an unchanged `uk` keeps the `en` sent
- * with it (the K4 editor sends the stored one back). Contacts have no
- * localised field, so `updateContact` has nothing to clear.
- */
-export function freshnessSentenceAfterEdit(
-  stored: FreshnessSentence,
-  edited: FreshnessSentence,
-): FreshnessSentence {
-  if (edited === null) return null;
-  if (stored !== null && stored.uk === edited.uk) return edited;
-  return { uk: edited.uk, en: null };
-}
-
-export const profileUpdateFreshnessSentence = (
-  deps: ProfileDeps,
-  scope: ShelterWriteScope,
-  input: { freshnessSentence: FreshnessSentence; expectedVersion: number },
-  errors: CasErrors,
-) =>
-  editFromForm(
-    deps,
-    scope,
-    input.expectedVersion,
-    (shelter) => {
-      const next = freshnessSentenceAfterEdit(shelter.freshnessSentence, input.freshnessSentence);
-      return {
-        kind: "write",
-        change: { kind: "freshness_sentence", freshnessSentence: next },
-        entry: {
-          kind: "freshness_sentence_changed",
-          at: deps.now,
-          actor: actorOf(scope),
-          previous: shelter.freshnessSentence,
           next,
         },
       };

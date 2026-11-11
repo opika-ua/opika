@@ -87,7 +87,6 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "shelter.profile.get": READ,
   "shelter.profile.updateContact": WRITE,
   "shelter.profile.updateDescription": WRITE,
-  "shelter.profile.updateFreshnessSentence": WRITE,
   "shelter.profile.proposeDonation": WRITE,
   "shelter.profile.cancelDonationProposal": WRITE,
   "shelter.profile.pause": WRITE,
@@ -239,12 +238,12 @@ describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
 describe("no procedure declares the retired SHELTER_WRITES_NOT_YET_AVAILABLE (P6-Q8)", () => {
   const RETIRED = ["SHELTER", "WRITES", "NOT", "YET", "AVAILABLE"].join("_");
 
-  it("sanity: the matrix still names the nineteen shelter writes", () => {
+  it("sanity: the matrix still names the eighteen shelter writes", () => {
     expect(
       Object.values(EXPECTED_ACCESS).filter(
         (access) => access.surface === "shelter" && access.mode === "write",
       ),
-    ).toHaveLength(19);
+    ).toHaveLength(18);
   });
 
   it("is no API error any more", () => {
@@ -365,7 +364,6 @@ describe("kabinet views carry exactly their listed keys", () => {
         "contact",
         "donation",
         "pendingDonation",
-        "freshnessSentence",
         "logo",
         "version",
         "verification",
@@ -417,7 +415,6 @@ describe("kabinet views carry exactly their listed keys", () => {
         "contact",
         "donation",
         "pendingDonation",
-        "freshnessSentence",
         "verification",
         "createdAt",
         "lastUpdatedAt",
@@ -548,7 +545,6 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
     "shelter.profile.get": SHELTER_VIEW_KEYS,
     "shelter.profile.updateContact": SHELTER_VIEW_KEYS,
     "shelter.profile.updateDescription": SHELTER_VIEW_KEYS,
-    "shelter.profile.updateFreshnessSentence": SHELTER_VIEW_KEYS,
     "shelter.profile.proposeDonation": SHELTER_VIEW_KEYS,
     "shelter.profile.cancelDonationProposal": SHELTER_VIEW_KEYS,
     "shelter.profile.pause": SHELTER_VIEW_KEYS,
@@ -966,7 +962,6 @@ describe("the Ukrainian phone rule on every write that carries a contact", () =>
       coordinates: { lat: 50.5, lng: 30.8 },
     },
     contact,
-    freshnessSentence: null,
     evidence,
     firstAdmin: { name: "Олена", email: "olena@example.org" },
   });
@@ -1015,7 +1010,6 @@ describe("registry.shelters.create: the minimal shelter", () => {
     legalEntity: null,
     exactAddress: null,
     contact: { primary: { kind: "email", address: "lapa@example.org" }, additional: [] },
-    freshnessSentence: null,
     evidence: [],
     firstAdmin: { name: "Олена", email: "olena@example.org" },
   };

@@ -101,7 +101,6 @@ const REGISTRY_CALLS = (shelter: Shelter): [string, unknown][] => {
         legalEntity: shelter.legalEntity,
         exactAddress: shelter.exactAddress,
         contact: shelter.contact,
-        freshnessSentence: null,
         evidence: [],
         firstAdmin: { name: "Олена", email: "olena@example.org" },
       },

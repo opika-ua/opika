@@ -132,7 +132,6 @@ describe("kabinetHomeOf", () => {
       "donation",
       "earlyListing",
       "exactAddress",
-      "freshnessSentence",
       "id",
       "legalEntity",
       "logo",

@@ -191,7 +191,6 @@ describe("anonymousRouterClient", () => {
       "description",
       "displayName",
       "donation",
-      "freshnessSentence",
       "id",
       "logo",
       "publicLocation",

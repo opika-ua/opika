@@ -50,7 +50,6 @@ const view = (overrides: Partial<RegistryShelterView> = {}): RegistryShelterView
   contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
   donation: null,
   pendingDonation: null,
-  freshnessSentence: null,
   verification: {
     status: "pending",
     submittedAt: new Date("2026-10-15T09:00:00Z"),

@@ -3,7 +3,6 @@ import {
   type DonationLink,
   EARLY_LISTING_STATUSES,
   type ExactAddress,
-  type FreshnessSentence,
   historyEntryAt,
   type LocalizedText,
   type PendingDonation,
@@ -31,7 +30,6 @@ import { exactPointColumns, optionalTextToColumns, shelterToRow } from "./mapper
  */
 export type AuditedShelterChange =
   | { kind: "contact"; contact: ShelterContact }
-  | { kind: "freshness_sentence"; freshnessSentence: FreshnessSentence }
   | { kind: "pending_donation"; pendingDonation: PendingDonation | null }
   /**
    * Any verification change. The stored early-listing permission survives it only when the shelter
@@ -74,11 +72,6 @@ function columnsOf(change: AuditedShelterChange) {
   switch (change.kind) {
     case "contact":
       return { contact: change.contact };
-    case "freshness_sentence":
-      return {
-        freshnessSentenceUk: change.freshnessSentence?.uk ?? null,
-        freshnessSentenceEn: change.freshnessSentence?.en?.text ?? null,
-      };
     case "pending_donation":
       return { pendingDonation: change.pendingDonation };
     case "verification":

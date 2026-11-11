@@ -16,8 +16,6 @@ import {
   DonationRemovalCodeSchema,
   EvidenceItemInputSchema,
   ExactAddressSchema,
-  type FreshnessSentence,
-  freshnessSentenceProblemMessage,
   LISTING_KINDS,
   type LocalizedText,
   LocalizedTextSchema,
@@ -25,7 +23,6 @@ import {
   MAX_EVIDENCE_ITEMS_PER_ADD,
   MEDICAL_NOTES_MAX_CHARACTERS,
   MedicalDeclarationInputSchema,
-  normalizeFreshnessSentenceText,
   OfferedRejectionCodeSchema,
   OfferedSuspensionCodeSchema,
   PauseCodeSchema,
@@ -213,58 +210,6 @@ const animalRef = z.strictObject({ animalId: AnimalIdSchema });
 /** A person's name (an admin's): trimmed, then required. A shelter's name has its own rule, with a cap. */
 const humanName = z.string().trim().min(1);
 
-/**
- * One language's freshness sentence, checked and trimmed by the domain rule
- * (K-Q6), so the handler never receives a brace: since DR1-Q5 not even
- * `{імʼя}`, the sentence being shelter-level. Blank becomes null: the sentence is optional, and a shelter who
- * clears the field means "no sentence", which a refusal would only make them
- * retype as an explicit null.
- */
-const freshnessSentenceText = z.string().transform((raw, ctx): string | null => {
-  const normalized = normalizeFreshnessSentenceText(raw);
-  switch (normalized.kind) {
-    case "ok":
-      return normalized.text;
-    case "empty":
-      return null;
-    case "invalid":
-      ctx.addIssue({
-        code: "custom",
-        message: freshnessSentenceProblemMessage(normalized.problem),
-      });
-      return z.NEVER;
-  }
-});
-
-/**
- * What a write accepts for `freshnessSentence`; its output is the stored
- * `FreshnessSentenceSchema` shape, which stays as it was. A blank English text
- * drops the translation; a blank Ukrainian one clears the sentence, unless an
- * English text was sent with it, which is refused rather than silently thrown
- * away (English is never stored without the Ukrainian it translates).
- */
-export const FreshnessSentenceInputSchema = z
-  .object({
-    uk: freshnessSentenceText,
-    en: z.object({ text: freshnessSentenceText, provenance: TextProvenanceSchema }).nullable(),
-  })
-  .nullable()
-  .transform((input, ctx): FreshnessSentence => {
-    if (input === null) return null;
-    const en =
-      input.en === null || input.en.text === null
-        ? null
-        : { text: input.en.text, provenance: input.en.provenance };
-    if (input.uk !== null) return { uk: input.uk, en };
-    if (en === null) return null;
-    ctx.addIssue({
-      code: "custom",
-      path: ["uk"],
-      message: "An English freshness sentence needs the Ukrainian it translates",
-    });
-    return z.NEVER;
-  });
-
 /** K3's cap (`ANIMAL_DESCRIPTION_MAX_CHARACTERS`, in domain so onboarding shares it). */
 const withinDescriptionLimit = (
   text: string,
@@ -384,9 +329,6 @@ export const shelterProfileContract = {
     .errors(shelterCasErrors),
   updateDescription: shelterProfileWrite
     .input(z.strictObject({ description: ShelterDescriptionInputSchema, expectedVersion }))
-    .errors(shelterCasErrors),
-  updateFreshnessSentence: shelterProfileWrite
-    .input(z.strictObject({ freshnessSentence: FreshnessSentenceInputSchema, expectedVersion }))
     .errors(shelterCasErrors),
   /** The provider is derived from the URL on the server (`donationProviderOf`), never sent. */
   proposeDonation: shelterProfileWrite
@@ -797,7 +739,6 @@ export const registrySheltersContract = {
         /** Without `cityId`: the address is in the shelter's city by construction. */
         exactAddress: ExactAddressSchema.omit({ cityId: true }).nullable(),
         contact: ShelterContactInputSchema,
-        freshnessSentence: FreshnessSentenceInputSchema,
         evidence: z.array(EvidenceItemInputSchema).readonly(),
         firstAdmin: z.strictObject({ name: humanName, email: z.email() }),
       }),
@@ -844,14 +785,12 @@ export const registrySheltersContract = {
           contact: ShelterContactInputSchema.optional(),
           /** Undefined = unchanged, null = clear. */
           description: ShelterDescriptionInputSchema.optional(),
-          freshnessSentence: FreshnessSentenceInputSchema.optional(),
         })
         .refine(
           (input) =>
             input.displayName !== undefined ||
             input.contact !== undefined ||
-            input.description !== undefined ||
-            input.freshnessSentence !== undefined,
+            input.description !== undefined,
           { message: "Nothing to update" },
         ),
     )

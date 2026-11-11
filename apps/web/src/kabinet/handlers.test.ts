@@ -281,19 +281,19 @@ describe("shelter.profile", () => {
     expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
   });
 
-  it("updateFreshnessSentence writes, bumps the version and records previous and next", async () => {
+  it("updateDescription writes, bumps the version and records previous and next", async () => {
     const next = { uk: "Оновлюємо картки щосуботи.", en: null };
-    const result = await call<KabinetShelterView>("shelter.profile.updateFreshnessSentence", {
-      freshnessSentence: next,
+    const result = await call<KabinetShelterView>("shelter.profile.updateDescription", {
+      description: next,
       expectedVersion: 0,
     });
     expect(result.status).toBe(200);
     expect(result.body.version).toBe(1);
-    expect(result.body.freshnessSentence).toEqual(next);
+    expect(result.body.description).toEqual(next);
     expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toMatchObject([
       {
-        kind: "freshness_sentence_changed",
-        previous: shelter.freshnessSentence,
+        kind: "description_changed",
+        previous: shelter.description,
         next,
         actor: { kind: "shelter_admin", shelterAdminId: ADMIN },
       },
@@ -301,10 +301,10 @@ describe("shelter.profile", () => {
   });
 
   /**
-   * K4 sheet, answer 13 (Oleksii, verbatim: "Clear `en` when `uk` changes; a
-   * stale translation would be a false claim."). The shelter starts with a
-   * Ukrainian sentence and its English translation; the requests below send
-   * that same English back, as the K4 editor does.
+   * K4 sheet, answer 13 (Oleksii, verbatim: "Clear `en` when `uk` changes; a stale translation
+   * would be a false claim."), now for the shelter's text. The shelter starts with a Ukrainian
+   * text and its English translation; the requests below send that same English back, as the
+   * kabinet editor does.
    */
   describe("the English translation (answer 13)", () => {
     const stored = {
@@ -312,7 +312,7 @@ describe("shelter.profile", () => {
       en: { text: "We update the cards every Saturday.", provenance: "human" as const },
     };
 
-    const reseed = async (freshnessSentence: Shelter["freshnessSentence"]) => {
+    const reseed = async (description: Shelter["description"]) => {
       await truncateAll(db);
       const city = makeCity();
       await cityRepo(db).insert(city);
@@ -320,7 +320,7 @@ describe("shelter.profile", () => {
       shelter = makeShelter({
         id: shelter.id,
         publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
-        freshnessSentence,
+        description,
       });
       await shelterRepo(db).insert(shelter);
     };
@@ -328,69 +328,58 @@ describe("shelter.profile", () => {
     it("is cleared when the Ukrainian changes, even if the request carries the old English", async () => {
       await reseed(stored);
       const changed = { uk: "Пишіть нам у будь-який день.", en: null };
-      const result = await call<KabinetShelterView>("shelter.profile.updateFreshnessSentence", {
-        freshnessSentence: { uk: changed.uk, en: stored.en },
+      const result = await call<KabinetShelterView>("shelter.profile.updateDescription", {
+        description: { uk: changed.uk, en: stored.en },
         expectedVersion: 0,
       });
       expect(result.status).toBe(200);
-      expect(result.body.freshnessSentence).toEqual(changed);
-      expect((await shelterRepo(db).findById(shelter.id))?.freshnessSentence).toEqual(changed);
+      expect(result.body.description).toEqual(changed);
+      expect((await shelterRepo(db).findById(shelter.id))?.description).toEqual(changed);
       // History records what was stored, not what was sent.
       expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toMatchObject([
-        { kind: "freshness_sentence_changed", previous: stored, next: changed },
+        { kind: "description_changed", previous: stored, next: changed },
       ]);
     });
 
     it("is kept when the Ukrainian is unchanged", async () => {
       await reseed(stored);
-      const result = await call<KabinetShelterView>("shelter.profile.updateFreshnessSentence", {
-        freshnessSentence: stored,
+      const result = await call<KabinetShelterView>("shelter.profile.updateDescription", {
+        description: stored,
         expectedVersion: 0,
       });
       expect(result.status).toBe(200);
-      expect(result.body.freshnessSentence).toEqual(stored);
+      expect(result.body.description).toEqual(stored);
     });
 
     it("compares the trimmed Ukrainian: surrounding spaces are not a change", async () => {
-      const sentence = { uk: "Оновлюємо картки щосуботи.", en: stored.en };
-      await reseed(sentence);
-      const result = await call<KabinetShelterView>("shelter.profile.updateFreshnessSentence", {
-        freshnessSentence: { uk: "  Оновлюємо картки щосуботи.  ", en: stored.en },
+      await reseed(stored);
+      const result = await call<KabinetShelterView>("shelter.profile.updateDescription", {
+        description: { uk: "  Оновлюємо картки щосуботи.  ", en: stored.en },
         expectedVersion: 0,
       });
       expect(result.status).toBe(200);
-      expect(result.body.freshnessSentence).toEqual(sentence);
+      expect(result.body.description).toEqual(stored);
     });
 
-    /**
-     * DR1-Q5 (Oleksii, verbatim: "the editor refuses {імʼя}. … Existing
-     * test-shelter sentences containing it are re-saved, not migrated."): a
-     * sentence stored with the token can't be saved again with it, in any
-     * spelling, and nothing is written.
-     */
-    it("refuses {імʼя} with 400 and writes nothing, even over a stored sentence carrying it", async () => {
-      const withToken = { uk: "{імʼя} досі шукає дім.", en: null };
-      await reseed(withToken);
-      for (const uk of ["{імʼя} досі шукає дім. Пишіть.", "{ім'я} досі шукає дім."]) {
-        const result = await call("shelter.profile.updateFreshnessSentence", {
-          freshnessSentence: { uk, en: null },
-          expectedVersion: 0,
-        });
-        expect(result.status, uk).toBe(400);
-      }
-      expect((await shelterRepo(db).findById(shelter.id))?.freshnessSentence).toEqual(withToken);
+    it("takes braces as plain text: the text is shown verbatim", async () => {
+      await reseed(stored);
+      const text = { uk: "{імʼя} досі шукає дім, пишіть {щодня}.", en: null };
+      const result = await call<KabinetShelterView>("shelter.profile.updateDescription", {
+        description: text,
+        expectedVersion: 0,
+      });
+      expect(result.status).toBe(200);
+      expect((await shelterRepo(db).findById(shelter.id))?.description).toEqual(text);
     });
   });
 
-  it("updateFreshnessSentence from a stale form is CONFLICT and writes nothing", async () => {
-    const result = await call("shelter.profile.updateFreshnessSentence", {
-      freshnessSentence: { uk: "Інше речення.", en: null },
+  it("updateDescription from a stale form is CONFLICT and writes nothing", async () => {
+    const result = await call("shelter.profile.updateDescription", {
+      description: { uk: "Інше речення.", en: null },
       expectedVersion: 5,
     });
     expect(result.status).toBe(409);
-    expect((await shelterRepo(db).findById(shelter.id))?.freshnessSentence).toEqual(
-      shelter.freshnessSentence,
-    );
+    expect((await shelterRepo(db).findById(shelter.id))?.description).toEqual(shelter.description);
     expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
   });
 
@@ -1701,9 +1690,9 @@ describe("shelter.history.list (RG-Q8)", () => {
         await repo.applyAudited({
           shelterId: shelter.id,
           expectedVersion: 0,
-          change: { kind: "freshness_sentence", freshnessSentence: { uk: "Щосуботи", en: null } },
+          change: { kind: "description", description: { uk: "Щосуботи", en: null } },
           entry: {
-            kind: "freshness_sentence_changed",
+            kind: "description_changed",
             at: new Date("2026-10-01T00:00:00.000Z"),
             actor: { kind: "moderator", moderatorId: MOD as never },
             previous: null,
@@ -1736,7 +1725,7 @@ describe("shelter.history.list (RG-Q8)", () => {
       nextCursor: string | null;
     }>("shelter.history.list", { cursor: first.body.nextCursor, limit: 1 });
     expect(second.body.items[0]).toMatchObject({
-      kind: "freshness_sentence_changed",
+      kind: "description_changed",
       actor: { kind: "operator", displayName: "Олексій" },
     });
     expect(second.body.nextCursor).toBeNull();

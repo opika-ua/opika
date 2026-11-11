@@ -156,7 +156,6 @@ test.describe("listing before verification, operator and shelter sides", () => {
       pendingDonation: null,
       version: 0,
       earlyListingSince: null,
-      freshnessSentence: null,
       verification: {
         status: "pending",
         submittedAt: now,

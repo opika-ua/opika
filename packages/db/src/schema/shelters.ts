@@ -42,6 +42,7 @@ export const shelters = pgTable(
      */
     pendingDonation: jsonb<PendingDonation>("pending_donation"),
 
+    /** No reader and no writer since the shelter description absorbed the sentence; dropped by a later migration. */
     freshnessSentenceUk: text("freshness_sentence_uk"),
     freshnessSentenceEn: text("freshness_sentence_en"),
 

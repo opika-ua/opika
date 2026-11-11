@@ -14,10 +14,16 @@ import { DonationLinkSchema, DonationRemovalCodeSchema } from "./donation";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
 import { ShelterLogoSchema } from "./logo";
-import { FreshnessSentenceSchema } from "./shelter";
 import { VerificationEventSchema } from "./verification/events";
 import { EvidenceKindSchema } from "./verification/evidence";
 import { VerificationStatusSchema } from "./verification/state";
+
+/**
+ * The freshness sentence a shelter used to write, kept only so old `freshness_sentence_changed`
+ * entries still parse and render. Nothing writes it any more: the shelter's words are the
+ * description.
+ */
+export const FreshnessSentenceSchema = LocalizedTextSchema.nullable();
 
 /**
  * The fields an `animal_edited` entry can name: the kabinet's

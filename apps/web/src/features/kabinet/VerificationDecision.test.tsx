@@ -37,7 +37,6 @@ const view = (verification: KabinetShelterView["verification"]): KabinetShelterV
   contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
   donation: null,
   pendingDonation: null,
-  freshnessSentence: null,
   logo: null,
   version: 3,
   verification,

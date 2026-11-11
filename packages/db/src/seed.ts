@@ -564,7 +564,6 @@ interface ShelterDef {
   telegram: string | null;
   donationUrl: string | null;
   donationProvider: "monobank_jar" | "liqpay" | null;
-  freshnessSentenceUk: string | null;
   verificationStatus: "verified" | "pending" | "suspended";
 }
 
@@ -585,8 +584,6 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "dobri_lapy",
     donationUrl: "https://send.monobank.ua/jar/dobrilapy",
     donationProvider: "monobank_jar",
-    freshnessSentenceUk:
-      "Ми оновлювали цю картку 12 серпня. Напишіть - скажемо, чи тварина ще з нами.",
     verificationStatus: "verified",
   },
   {
@@ -605,7 +602,6 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "khvostatyi_dim",
     donationUrl: "https://send.monobank.ua/jar/khvostatyidim",
     donationProvider: "monobank_jar",
-    freshnessSentenceUk: "Ми заходили сюди 3 вересня. Напишіть - уточнимо, чи тварина ще чекає.",
     verificationStatus: "verified",
   },
   {
@@ -637,7 +633,6 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: null,
     donationProvider: null,
-    freshnessSentenceUk: null,
     verificationStatus: "verified",
   },
   {
@@ -656,7 +651,6 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "murchyk_bucha",
     donationUrl: "https://www.liqpay.ua/uk/checkout/murchyk",
     donationProvider: "liqpay",
-    freshnessSentenceUk: "Ми перевіряли 20 липня, чи тварина ще в нас. Просто напишіть.",
     verificationStatus: "verified",
   },
   {
@@ -675,7 +669,6 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: "nadiya_brovary",
     donationUrl: null,
     donationProvider: null,
-    freshnessSentenceUk: null,
     verificationStatus: "verified",
   },
   {
@@ -706,7 +699,6 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: "https://send.monobank.ua/jar/lapusyk",
     donationProvider: "monobank_jar",
-    freshnessSentenceUk: "Картку оновлено 5 червня. Напишіть - скажемо, чи тварина ще шукає дім.",
     verificationStatus: "verified",
   },
   {
@@ -725,7 +717,6 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: null,
     donationProvider: null,
-    freshnessSentenceUk: null,
     verificationStatus: "pending",
   },
   {
@@ -743,7 +734,6 @@ const SHELTER_DEFS: ShelterDef[] = [
     telegram: null,
     donationUrl: null,
     donationProvider: null,
-    freshnessSentenceUk: null,
     verificationStatus: "suspended",
   },
 ];
@@ -859,7 +849,6 @@ export function buildShelters(cities: City[]): ShelterWithVerifiedData[] {
       pendingDonation: null,
       earlyListingSince: null,
       version: 0,
-      freshnessSentence: def.freshnessSentenceUk ? { uk: def.freshnessSentenceUk, en: null } : null,
       verification: buildVerification(def),
       createdAt: daysAgo(120),
       lastUpdatedAt: daysAgo(1),
@@ -876,8 +865,7 @@ export function buildShelters(cities: City[]): ShelterWithVerifiedData[] {
  * property of the identity itself, with no special-casing needed:
  *   - index 2, «Вірний друг» - already `unregistered_initiative`
  *     (CLAUDE.md decision #6's "an unregistered volunteer group can reach
- *     verified") and already has no freshness sentence
- *     (`freshnessSentenceUk: null` on its own `ShelterDef` above).
+ *     verified").
  *   - index 5, «Благодійна організація «Прихисток на Лісовій»» - already
  *     the corpus's deliberately long shelter name (critique C1).
  * Both are `verified` - the demo corpus never needs to exercise the

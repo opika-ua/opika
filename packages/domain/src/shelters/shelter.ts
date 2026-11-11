@@ -14,22 +14,6 @@ import { ShelterVerificationSchema } from "./verification/state";
  * listing the fields a view may contain, never by subtracting the fields it may
  * not - so a field added here cannot leak by default.
  */
-/**
- * A shelter's own sentence describing how current its information is.
- *
- * Written in the shelter's own words and rendered as written: nothing is
- * generated, paraphrased or filled in. It belongs to the shelter, not to an
- * animal, and shows on the shelter page only (designer round 1, DR1-Q1); the
- * `{імʼя}` slot it used to carry is refused since DR1-Q5
- * (`ANIMAL_NAME_TOKEN`). There is no `{date}`: every card's day count already
- * says how current it is. Every write path checks the text with
- * `normalizeFreshnessSentenceText`, so what is stored from now on holds no
- * braces; this schema itself stays the stored shape and doesn't re-check it.
- * A shelter with no sentence falls back to the marker + day count alone.
- */
-export const FreshnessSentenceSchema = LocalizedTextSchema.nullable();
-export type FreshnessSentence = z.infer<typeof FreshnessSentenceSchema>;
-
 export const ShelterSchema = z.object({
   id: ShelterIdSchema,
   displayName: z.string().min(1),
@@ -51,7 +35,6 @@ export const ShelterSchema = z.object({
    * `pick`, and a test asserts this field is absent from it.
    */
   pendingDonation: PendingDonationSchema.nullable(),
-  freshnessSentence: FreshnessSentenceSchema,
   verification: ShelterVerificationSchema,
   /** Operator permission to list before verification (nothing reads it yet); cleared on every status change. */
   earlyListingSince: z.date().nullable(),

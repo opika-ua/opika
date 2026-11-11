@@ -109,7 +109,6 @@ test.describe("/kabinet shell", () => {
       pendingDonation: null,
       version: 0,
       earlyListingSince: null,
-      freshnessSentence: null,
       verification: {
         status: "verified",
         verifiedAt: now,

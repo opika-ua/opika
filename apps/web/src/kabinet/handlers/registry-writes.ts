@@ -11,7 +11,6 @@ import {
   type EvidenceItemInput,
   type ExactAddress,
   earlyListingOf,
-  type FreshnessSentence,
   keepsEarlyListing,
   type LocalizedText,
   type LocationPrivacyPolicy,
@@ -199,7 +198,6 @@ export const registryUpdateProfile = (
     displayName?: string | undefined;
     contact?: ShelterContact | undefined;
     description?: LocalizedText | null | undefined;
-    freshnessSentence?: FreshnessSentence | undefined;
   },
   errors: E<"CONFLICT">,
 ) =>
@@ -242,22 +240,6 @@ export const registryUpdateProfile = (
             next,
           });
         }
-      }
-      if (
-        input.freshnessSentence !== undefined &&
-        !same(shelter.freshnessSentence, input.freshnessSentence)
-      ) {
-        plan.changes.push({
-          kind: "freshness_sentence",
-          freshnessSentence: input.freshnessSentence,
-        });
-        plan.entries.push({
-          kind: "freshness_sentence_changed",
-          at: deps.now,
-          actor,
-          previous: shelter.freshnessSentence,
-          next: input.freshnessSentence,
-        });
       }
       return plan;
     },

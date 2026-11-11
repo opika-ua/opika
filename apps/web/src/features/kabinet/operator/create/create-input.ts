@@ -347,7 +347,6 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
       legalEntity: legal.legalEntity,
       exactAddress: address.street,
       contact: contacts.contact,
-      freshnessSentence: null,
       evidence: items,
       firstAdmin: { name: adminName, email: adminEmail },
     },

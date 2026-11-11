@@ -88,7 +88,6 @@ describe("the form as registry.shelters.create's input", () => {
         coordinates: { lat: 50.5843, lng: 30.489 },
       },
       contact: { primary: { kind: "phone", e164: "+380501112233" }, additional: [] },
-      freshnessSentence: null,
       evidence: [
         {
           kind: "site_visit",

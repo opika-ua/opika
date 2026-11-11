@@ -26,7 +26,6 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
       displayName: "Тестовий притулок",
       logo: null,
       publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
-      freshnessSentence: null,
       verification: "verified",
     },
     ...overrides,

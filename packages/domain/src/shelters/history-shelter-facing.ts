@@ -5,13 +5,13 @@ import { ShelterContactSchema } from "./contact";
 import { DonationLinkSchema, DonationRemovalCodeSchema } from "./donation";
 import {
   ANIMAL_EDITED_FIELDS,
+  FreshnessSentenceSchema,
   HistoryWithdrawalReasonSchema,
   type ShelterHistoryEntry,
 } from "./history";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
 import { ShelterLogoSchema } from "./logo";
-import { FreshnessSentenceSchema } from "./shelter";
 import {
   PauseReasonSchema,
   RejectionReasonSchema,

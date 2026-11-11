@@ -46,10 +46,6 @@ const baseView = (overrides: Partial<KabinetShelterView> = {}): KabinetShelterVi
   },
   donation: { url: "https://dobro.ua/fund/domivka", provider: "other" },
   pendingDonation: null,
-  freshnessSentence: {
-    uk: "Оновлюємо картки щосуботи.",
-    en: { text: "We update the cards every Saturday.", provenance: "human" },
-  },
   logo: null,
   version: 3,
   verification: { status: "verified", since: new Date("2025-03-14T10:00:00Z") },
@@ -73,11 +69,6 @@ function fakeClient(view: KabinetShelterView, overrides: Partial<Fake> = {}) {
     updateDescription: echo((input: { description: KabinetShelterView["description"] }) => ({
       description: input.description,
     })),
-    updateFreshnessSentence: echo(
-      (input: { freshnessSentence: KabinetShelterView["freshnessSentence"] }) => ({
-        freshnessSentence: input.freshnessSentence,
-      }),
-    ),
     proposeDonation: echo((input: { url: string }) => ({
       pendingDonation: {
         link: { url: input.url, provider: "other" },
@@ -502,7 +493,6 @@ describe("the shelter's text («Про притулок»)", () => {
       description: { uk: "Невеликий притулок. Пишіть.", en: stored },
       expectedVersion: 3,
     });
-    expect(fns.updateFreshnessSentence).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
   });
 

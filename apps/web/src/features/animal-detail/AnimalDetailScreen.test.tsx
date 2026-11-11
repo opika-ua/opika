@@ -60,7 +60,6 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
     donation: null,
     logo: null,
     createdAt: new Date("2023-01-01T00:00:00.000Z"),
-    freshnessSentence: null,
     verification: "verified",
     availability: { kind: "open" },
     ...overrides,

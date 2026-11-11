@@ -207,7 +207,6 @@ const createInput = () => {
     legalEntity: base.legalEntity,
     exactAddress: street,
     contact: base.contact,
-    freshnessSentence: null,
     evidence: [
       { kind: "edrpou_registration", edrpou: "12345678", registeredName: "ГО Лапа" },
       { kind: "bank_account_holder", holderName: "ГО Лапа" },
@@ -528,7 +527,6 @@ describe("the minimal shelter: created without legal data or address", () => {
     legalEntity: null,
     exactAddress: null,
     contact: { primary: { kind: "email", address: "lapa@example.org" }, additional: [] },
-    freshnessSentence: null,
     evidence: [],
     firstAdmin: { name: "Олена", email: "olena@example.org" },
   });
@@ -738,11 +736,10 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
       expectedVersion: 0,
       contact,
       description: s.description,
-      freshnessSentence: { uk: "Оновлюємо щотижня", en: null },
     });
     expect(result.status).toBe(200);
     const kinds = (await history(s.id)).map((entry) => entry.kind).sort();
-    expect(kinds).toEqual(["contact_changed", "freshness_sentence_changed"]);
+    expect(kinds).toEqual(["contact_changed"]);
     for (const entry of await history(s.id)) {
       expect(entry).toMatchObject({ actor: { kind: "moderator", moderatorId: OPERATOR } });
     }
@@ -3219,12 +3216,22 @@ describe("the shelter description: both write paths", () => {
 
   it("an old freshness_sentence_changed line still reads in both histories", async () => {
     const s = await shelter();
-    const written = await call(
-      "shelter.profile.updateFreshnessSentence",
-      { freshnessSentence: text("Оновлюємо щосуботи."), expectedVersion: 0 },
-      { principal: adminOf(s.id) },
-    );
-    expect(written.status).toBe(200);
+    // Nothing writes this kind any more; an entry from before is written straight to the log.
+    const written = await kabinetShelterRepo(db).applyAudited({
+      shelterId: s.id,
+      expectedVersion: 0,
+      change: { kind: "contact", contact: s.contact },
+      entry: {
+        kind: "freshness_sentence_changed",
+        at: new Date("2026-10-01T00:00:00.000Z"),
+        actor: { kind: "shelter_admin", shelterAdminId: ADMIN },
+        previous: null,
+        next: text("Оновлюємо щосуботи."),
+      },
+      historyId: "legacy-sentence",
+      now: new Date("2026-10-01T00:00:00.000Z"),
+    });
+    expect(written).toEqual({ kind: "ok" });
     const own = await call<{ items: { kind: string }[] }>(
       "shelter.history.list",
       { cursor: null, limit: 10 },

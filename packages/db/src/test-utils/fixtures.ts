@@ -108,7 +108,6 @@ export function makeShelter(
     pendingDonation: null,
     earlyListingSince: null,
     version: 0,
-    freshnessSentence: null,
     verification: defaultVerification,
     createdAt: now,
     lastUpdatedAt: now,
