@@ -1,5 +1,5 @@
 import type { PlaceOptionView } from "@opika/contracts";
-import { fillTemplate, placeLabel, uk } from "@opika/i18n";
+import { fillTemplate, isOwnRegion, placeLabel, uk } from "@opika/i18n";
 import { useCallback, useMemo } from "react";
 import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../../ui/Combobox";
 import { FieldError, Radio, TextField } from "../../../../ui/form";
@@ -13,12 +13,21 @@ import type { RegistryCreateClient } from "./registry-create-client";
 
 /** A settlement as the picker prints it: the kind's prefix and name, then what tells namesakes apart. */
 function placeOptionOf(place: PlaceOptionView): ComboboxOption {
+  // Kyiv and Sevastopol are their own region: the label already says it.
+  const region = isOwnRegion({
+    kind: place.kind,
+    name: place.name,
+    regionShort: place.region.ukShort,
+  })
+    ? null
+    : place.region.ukShort;
+  const detail = [place.district, place.hromada, region]
+    .filter((part): part is string => part !== null)
+    .join(" · ");
   return {
     value: place.id,
     label: placeLabel(place.kind, place.name),
-    detail: [place.district, place.hromada, place.region.ukShort]
-      .filter((part): part is string => part !== null)
-      .join(" · "),
+    ...(detail === "" ? {} : { detail }),
   };
 }
 

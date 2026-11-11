@@ -20,16 +20,16 @@ catalog:
   "@types/node": 24.19.2
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
-  "@orpc/client": 1.16.1
-  "@orpc/contract": 1.16.1
-  "@orpc/server": 1.16.1
+  "@orpc/client": 1.16.2
+  "@orpc/contract": 1.16.2
+  "@orpc/server": 1.16.2
   "@vitest/coverage-v8": 4.1.12
   # Browser-layer verification. Playwright drives the rendering harness
   # (apps/web/test/harness) and is the e2e dependency the build plan calls
   # for at M12; happy-dom + Testing Library give apps/web a DOM environment
   # so React components can be asserted on at all. See CLAUDE.md,
   # "How work is verified".
-  "@playwright/test": 1.64.1
+  "@playwright/test": 1.65.0
   # Accessibility gate in the harness (a11y-axe.harness.ts); axe-core comes with it.
   "@axe-core/playwright": 4.14.0
   happy-dom: 21.0.4
@@ -38,18 +38,18 @@ catalog:
   # Styling. tailwindcss/@tailwindcss/postcss pinned at 4.3.3 (published
   # 2026-07-16, well clear of the 24h quarantine); postcss at 8.5.25 rather
   # than the newer 8.5.26, which published 2026-08-06 – inside the window.
-  tailwindcss: 4.3.4
-  "@tailwindcss/postcss": 4.3.4
+  tailwindcss: 4.3.5
+  "@tailwindcss/postcss": 4.3.5
   postcss: 8.5.32
   drizzle-orm: 0.45.4
   # Kabinet auth only (ADR §Auth; adopters keep decision #13's session). Pinned
   # exactly (HS-Q7). Our repos write invitations and read Better Auth's rows, so
   # an upgrade must pass the kabinet auth suites (apps/web/src/kabinet/*.test.ts)
-  # and the Neon auth smoke. 1.7.14 since S1 (1.7.7+ clears GHSA-965c-763c-88jm).
-  better-auth: 1.7.15
+  # and the Neon auth smoke. 1.7.18 since #461 (1.7.7+ clears GHSA-965c-763c-88jm).
+  better-auth: 1.7.18
   # Same version as better-auth, which depends on it: apps/web imports its `context` export
   # (auth-log.ts) to run server-side adapter calls inside a logger-bearing context.
-  "@better-auth/core": 1.7.15
+  "@better-auth/core": 1.7.18
   drizzle-kit: 0.31.11
   # O-9, 2026-09-06 reprioritisation ("2.1"): production's DB-backed pages
   # plateau at a ~1s floor (reconfirmed against the live site before this
@@ -77,7 +77,7 @@ catalog:
   # so this declares an existing resolution rather than introducing a new
   # one.
   tsx: 4.23.15
-  next: 16.4.4
+  next: 16.4.5
   postgres: 3.4.9
   react: 19.3.1
   react-dom: 19.3.1
@@ -91,9 +91,9 @@ catalog:
   # watch it, don't assume "free." See apps/web/src/app/layout.tsx for the
   # mount.
   "@vercel/analytics": 2.0.1
-  "@vercel/speed-insights": 2.0.0
+  "@vercel/speed-insights": 2.1.0
   # H5 observability. Errors only: tracing off, collection explicitly minimal (src/observability).
-  "@sentry/nextjs": 11.10.0
+  "@sentry/nextjs": 11.11.0
   # H1's image pipeline. sharp generates the three real variants server-side
   # at upload time (packages/db/src/image-pipeline); @aws-sdk/client-s3
   # talks to R2's S3-compatible API – the standard client Cloudflare's own
@@ -105,7 +105,7 @@ catalog:
   # N2 importer: unzips the ministry's XLSX codifier. MIT, no dependencies; imported only by
   # packages/db/src/import (the script and its tests), never by apps/web or a runtime path.
   fflate: 0.8.3
-  "@aws-sdk/client-s3": 3.1161.0
+  "@aws-sdk/client-s3": 3.1164.0
   # Phase 3, block 4 (launch-gate infra, docs/handoff-2026-10-04.md §3):
   # `apiRateLimiter` (apps/web/src/api/rate-limit.ts) is in-memory and does
   # not survive serverless cold starts – each instance gets its own budget,

@@ -33,6 +33,15 @@ const CITY = {
   hromada: null,
   region: { id: "kyivska", ukShort: "Київська обл." },
 };
+const KYIV = {
+  id: "c1000000-0000-4000-8000-000000000002",
+  kind: "special_status_city",
+  slug: "kyiv",
+  name: "Київ",
+  district: null,
+  hromada: null,
+  region: { id: "kyiv", ukShort: "м. Київ" },
+};
 /** 10:00 in Kyiv. */
 const NOW = new Date("2026-10-13T07:00:00.000Z");
 const createInputSchema = registrySheltersContract.create["~orpc"].inputSchema as z.ZodType;
@@ -72,7 +81,14 @@ function fakeClient(create: (input: unknown) => Promise<CreatedShelterView>) {
     search: vi.fn(async (input: { query: string }) =>
       input.query.length < 2
         ? { kind: "too_short" as const }
-        : { kind: "results" as const, places: input.query.startsWith("Виш") ? [CITY] : [] },
+        : {
+            kind: "results" as const,
+            places: input.query.startsWith("Виш")
+              ? [CITY]
+              : input.query.startsWith("Київ")
+                ? [KYIV]
+                : [],
+          },
     ),
     create: vi.fn(create),
     resendInvite: vi.fn(async () => ({
@@ -630,6 +646,13 @@ describe("checked before anything is sent", () => {
     await u.type(screen.getByRole("combobox", { name: /Населений пункт/ }), "Виш");
     const option = await screen.findByRole("option", { name: /м\. Вишгород/ });
     expect(option.textContent).toContain("Вишгородський район · Київська обл.");
+  });
+
+  it("names Kyiv once: its oblast is itself, so the option has no second line saying so", async () => {
+    renderForm(async () => createdView(null));
+    await user().type(screen.getByRole("combobox", { name: /Населений пункт/ }), "Київ");
+    const option = await screen.findByRole("option", { name: /м\. Київ/ });
+    expect(option.textContent?.match(/Київ/g)).toHaveLength(1);
   });
 
   it("never commits typed text: leaving the picker restores the chosen place, and the id is still sent", async () => {

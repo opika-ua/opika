@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { hromadaShort, type PlaceLabel, placeHint, placeName, placeText } from "./place";
+import {
+  hromadaShort,
+  isOwnRegion,
+  type PlaceLabel,
+  placeHint,
+  placeName,
+  placeText,
+} from "./place";
 
 const label = (overrides: Partial<PlaceLabel> = {}): PlaceLabel => ({
   name: "Бровари",
@@ -125,5 +132,75 @@ describe("tail stripping on any whitespace, in linear time", () => {
     expect(hromadaShort(`а${hostile}міська${hostile}територіальна${hostile}x`)).toContain("а");
     expect(hromadaShort(`${hostile}міська${hostile}територіальна`)).toContain("територіальна");
     expect(performance.now() - start).toBeLessThan(50);
+  });
+});
+
+describe("a city that is its own region", () => {
+  const kyiv = label({
+    kind: "special_status_city",
+    name: "Київ",
+    regionShort: "м. Київ",
+    raion: null,
+  });
+  const sevastopol = label({
+    kind: "special_status_city",
+    name: "Севастополь",
+    regionShort: "м. Севастополь",
+    raion: null,
+  });
+
+  it("is printed once in every context and scope, never «м. Київ, м. Київ»", () => {
+    for (const place of [kyiv, sevastopol]) {
+      const once = `м. ${place.name}`;
+      for (const nameScope of [
+        "unique_in_ukraine",
+        "unique_in_region",
+        "unique_in_district",
+        "shared_in_district",
+      ] as const) {
+        for (const context of ["card", "full", "address"] as const) {
+          expect(placeText({ ...place, nameScope }, context)).toBe(once);
+        }
+        expect(placeName({ ...place, nameScope })).toBe(place.name);
+        expect(placeHint({ ...place, nameScope })).toBeNull();
+      }
+    }
+  });
+
+  it("is told by the printed name too, when its kind was stored as a plain city", () => {
+    const plain = { ...kyiv, kind: "city" as const, nameScope: "unique_in_region" as const };
+    expect(isOwnRegion(plain)).toBe(true);
+    expect(placeText(plain, "address")).toBe("м. Київ");
+  });
+
+  it("an ordinary city and its oblast keep both, on an address line even when unique", () => {
+    const lviv = label({ name: "Львів", regionShort: "Львівська обл.", raion: "Львівський район" });
+    expect(isOwnRegion(lviv)).toBe(false);
+    expect(placeText(lviv, "address")).toBe("м. Львів, Львівська обл.");
+    expect(placeText(lviv, "full")).toBe("м. Львів");
+  });
+
+  it("a settlement whose name merely contains the region's keeps the region", () => {
+    const village = label({
+      kind: "village",
+      name: "Новий Київ",
+      nameScope: "unique_in_region",
+      regionShort: "м. Київ",
+    });
+    expect(isOwnRegion(village)).toBe(false);
+    expect(placeText(village)).toBe("с. Новий Київ, м. Київ");
+    const named = label({
+      name: "Київське",
+      nameScope: "unique_in_region",
+      regionShort: "Київська обл.",
+    });
+    expect(placeText(named)).toBe("м. Київське, Київська обл.");
+    expect(placeHint(named)).toBe("Київська обл.");
+  });
+
+  it("copes with a missing oblast: nothing to repeat, nothing invented", () => {
+    const noRegion = label({ regionShort: "" });
+    expect(isOwnRegion(noRegion)).toBe(false);
+    expect(placeText(noRegion)).toBe("м. Бровари");
   });
 });

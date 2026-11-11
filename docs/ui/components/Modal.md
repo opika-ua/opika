@@ -8,7 +8,7 @@ File: `apps/web/src/ui/Modal.tsx`
 
 **Accessibility.** Native `<dialog>` with `showModal()`: focus trap, Esc, Android Back, focus returns to the opener. Focus lands on the title. Page scroll locked while open.
 
-**Responsive.** `dvh` max height; safe-area padding below. On a phone a decorative grab handle tops the sheet.
+**Responsive.** `dvh` max height; safe-area padding below. The title/close row is sticky to the top of the scrolling box, so the ✕ stays reachable in a tall dialog; `scroll-pt-20` keeps a focused control from landing under it. On a phone a decorative grab handle tops the sheet.
 
 **Example.**
 

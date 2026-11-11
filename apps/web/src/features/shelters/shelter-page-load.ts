@@ -1,10 +1,4 @@
-import type {
-  CityLabelView,
-  GalleryFacetCounts,
-  GalleryRelaxation,
-  PublicShelterView,
-  RegionView,
-} from "@opika/contracts";
+import type { GalleryFacetCounts, GalleryRelaxation, PublicShelterView } from "@opika/contracts";
 import {
   type CityId,
   FEED_FILTER_DIMENSIONS,
@@ -12,7 +6,7 @@ import {
   NO_FILTERS,
   ShelterIdSchema,
 } from "@opika/domain";
-import { fillTemplate, placeName, placeText, uk } from "@opika/i18n";
+import { placeName, placeText } from "@opika/i18n";
 import { pageRefusalOf } from "../../api/page-refusal";
 import { anonymousRouterClient } from "../../api/server-client";
 import type { ShelterPageQuery } from "./shelter-url";
@@ -20,7 +14,7 @@ import type { ShelterPageQuery } from "./shelter-url";
 /** The procedures the shelter page reads; a test passes a stub of just these. */
 export type ShelterPageClient = Pick<
   ReturnType<typeof anonymousRouterClient>,
-  "shelters" | "gallery" | "cities" | "regions"
+  "shelters" | "gallery" | "cities"
 >;
 
 /** Everything `ShelterPageScreen` is given. */
@@ -28,7 +22,7 @@ export interface ShelterPageView {
   shelter: PublicShelterView;
   /** The shelter's city as a title names it (bare, with its oblast where the name repeats); null only if its id does not resolve. */
   cityName: string | null;
-  /** The same city as the page's location line prints it («м. Бровари, Київська обл.»; Kyiv and Sevastopol bare). */
+  /** The same city as the page's location line prints it («м. Бровари, Київська обл.»; a city that is its own region stays bare). */
   cityPlace: string | null;
   /** One page of the shelter's discoverable animals, in the requested date sort. */
   animals: Awaited<ReturnType<ShelterPageClient["gallery"]["list"]>>;
@@ -51,25 +45,6 @@ export interface ShelterFilterUi {
   hasBothSpecies: boolean;
   /** Suggestions for a no-match page; empty otherwise. */
   relaxations: readonly GalleryRelaxation[];
-}
-
-/** Kyiv and Sevastopol are cities with a region's status: their name already is the region. */
-const CITY_REGION_SLUGS: ReadonlySet<string> = new Set(["kyiv", "sevastopol"]);
-
-/**
- * The shelter page's location line: the settlement and its oblast, even for a name that is unique
- * (it is the shelter's address line). A name shared elsewhere already carries its oblast in
- * `placeText`, and a city-region (`regions`' own slugs, not hard-coded ids) has none to add.
- */
-export function shelterLocationText(
-  city: CityLabelView,
-  regions: readonly Pick<RegionView, "id" | "slug">[],
-): string {
-  const place = placeText(city, "full");
-  const regionSlug = regions.find((region) => region.id === city.regionId)?.slug;
-  if (city.nameScope !== "unique_in_ukraine" || CITY_REGION_SLUGS.has(regionSlug ?? ""))
-    return place;
-  return fillTemplate(uk.place.withRegion, { place, region: city.regionShort });
 }
 
 /**
@@ -156,8 +131,6 @@ export async function loadShelterPage(
       animals.cityLabels.find((city) => city.id === shelterCityId) ??
       cityRows?.find((city) => city.id === shelterCityId) ??
       null;
-    // The 27 regions are a constant (no query behind it); read only to tell a city-region from an oblast.
-    const regions = await client.regions.list({});
     const cityNames = new Map<CityId, string>(
       animals.cityLabels.map((city) => [city.id, placeName(city)]),
     );
@@ -166,7 +139,7 @@ export async function loadShelterPage(
       view: {
         shelter,
         cityName: shelterCity ? placeName(shelterCity) : null,
-        cityPlace: shelterCity ? shelterLocationText(shelterCity, regions) : null,
+        cityPlace: shelterCity ? placeText(shelterCity, "address") : null,
         animals,
         cityNames,
         query,
