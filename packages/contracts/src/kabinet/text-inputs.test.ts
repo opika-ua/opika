@@ -249,6 +249,38 @@ describe.each(contactFields)("%s contact: Instagram and Facebook", (_path, field
   });
 });
 
+describe.each(contactFields)("%s contact: WhatsApp and form", (_path, field) => {
+  const phone = { kind: "phone", e164: "+380671234567" } as const;
+  const form = { kind: "form", url: "https://forms.example/anketa" } as const;
+
+  it("normalises WhatsApp like Viber and keeps a form as typed", () => {
+    expect(
+      field.safeParse({ primary: { kind: "whatsapp", e164: "067 123 45 67" }, additional: [form] }),
+    ).toEqual({
+      success: true,
+      data: { primary: { kind: "whatsapp", e164: "+380671234567" }, additional: [form] },
+    });
+  });
+
+  it.each([
+    ["a form as the primary", { primary: form, additional: [phone] }],
+    [
+      "a second form",
+      { primary: phone, additional: [form, { kind: "form", url: "https://forms.example/b" }] },
+    ],
+    [
+      "an http form",
+      { primary: phone, additional: [{ kind: "form", url: "http://forms.example" }] },
+    ],
+    [
+      "a non-Ukrainian WhatsApp",
+      { primary: { kind: "whatsapp", e164: "+48600100200" }, additional: [] },
+    ],
+  ])("refuses %s", (_label, contact) => {
+    expect(field.safeParse(contact).success).toBe(false);
+  });
+});
+
 const description = (uk: string, en: string | null = null) => ({
   uk,
   en: en === null ? null : { text: en, provenance: "machine" },

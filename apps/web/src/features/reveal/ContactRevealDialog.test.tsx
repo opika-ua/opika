@@ -373,6 +373,60 @@ describe("Instagram and Facebook rows", () => {
   });
 });
 
+describe("WhatsApp and form rows", () => {
+  const FORM = "https://forms.example/anketa";
+  const FULL = {
+    primary: { kind: "phone", e164: "+380671234567" },
+    additional: [
+      { kind: "telegram", handle: "domivka_brovary" },
+      { kind: "whatsapp", e164: "+380501112233" },
+      { kind: "viber", e164: "+380671234567" },
+      { kind: "instagram", handle: "dobri_lapy" },
+      { kind: "facebook", url: "https://www.facebook.com/dobri.lapy" },
+      { kind: "form", url: FORM },
+    ],
+  } as const;
+
+  it("opens wa.me with the number as digits only, in a new tab, and copies the +380 number", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    renderOpen(revealWith(FULL));
+    const link = screen.getByRole("link", { name: /Написати в WhatsApp/ });
+    expect(link.getAttribute("href")).toBe("https://wa.me/380501112233");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    fireEvent.click(screen.getByRole("button", { name: "Копіювати номер WhatsApp" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("+380501112233"));
+  });
+
+  it("puts the form first, labelled «Заповнити анкету», then the primary, then the rest in order", () => {
+    renderOpen(revealWith(FULL));
+    const rows = screen.getAllByTestId("reveal-contact-row");
+    expect(rows).toHaveLength(7);
+    const labels = rows.map((row) => within(row).getByRole("link").textContent);
+    expect(labels).toEqual([
+      `Заповнити анкету${FORM}`,
+      "Подзвонити+380671234567",
+      "Написати в Telegram@domivka_brovary",
+      "Написати в WhatsApp+380501112233",
+      "Написати у Viber+380671234567",
+      "Відкрити Instagram@dobri_lapy",
+      "Відкрити Facebookhttps://www.facebook.com/dobri.lapy",
+    ]);
+    const form = within(rows[0] as HTMLElement).getByRole("link", { name: /Заповнити анкету/ });
+    expect(form.getAttribute("href")).toBe(FORM);
+    expect(form.getAttribute("rel")).toBe("noopener noreferrer");
+    // A form is opened, not pasted: no copy button on its row.
+    expect(within(rows[0] as HTMLElement).queryByRole("button")).toBeNull();
+    for (const row of rows) {
+      const link = within(row).getByRole("link");
+      if (link.getAttribute("target") === "_blank") {
+        expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+      }
+    }
+  });
+});
+
 /** «Перед тим як писати – три речі»: open on a desktop, collapsed on a phone. */
 describe("the «Перед тим як писати» disclosure", () => {
   const original = window.matchMedia;

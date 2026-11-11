@@ -5,6 +5,7 @@ import {
   DonationLinkSchema,
   donationUrlProblemOf,
   FRESHNESS_SENTENCE_MAX_CHARACTERS,
+  MAX_OTHER_CONTACTS,
   normalizeFacebook,
   normalizeFreshnessSentenceText,
   normalizeInstagram,
@@ -30,10 +31,12 @@ export type ChannelKind = ContactChannel["kind"];
  * website)"). A row holding an already-stored contact may be any kind (fix 3,
  * verbatim: "«other» rows accept any kind for already-stored extras
  * (editable); new additions stay Viber/email/website"). Instagram and Facebook
- * joined them with the contact kinds (owner-approved design, 2026-11-10).
+ * joined them (2026-11-10), WhatsApp too (2026-11-11). A form is never an «other» row: it has
+ * its own field (owner, 2026-11-11).
  */
 export const NEW_OTHER_KINDS = [
   "viber",
+  "whatsapp",
   "email",
   "website",
   "instagram",
@@ -43,14 +46,15 @@ export const ALL_KINDS = [
   "phone",
   "telegram",
   "viber",
+  "whatsapp",
   "email",
   "website",
   "instagram",
   "facebook",
 ] as const satisfies readonly ChannelKind[];
 
-/** The cap on adding rows (answer 3: "the 2-row cap applies to adding new ones"). */
-export const MAX_OTHER_ROWS = 2;
+/** The cap on adding rows: the domain's, so the editor and the input schema agree (2026-11-11). */
+export const MAX_OTHER_ROWS = MAX_OTHER_CONTACTS;
 
 export type OtherRow = {
   /** Stable React key; never sent. */
@@ -61,13 +65,19 @@ export type OtherRow = {
   stored: boolean;
 };
 
-export type ContactsForm = { phone: string; telegram: string; others: readonly OtherRow[] };
+export type ContactsForm = {
+  phone: string;
+  telegram: string;
+  form: string;
+  others: readonly OtherRow[];
+};
 
 /** A channel as the shelter reads and edits it: the stored value, with Telegram's @. */
 export const channelText = (channel: ContactChannel): string => {
   switch (channel.kind) {
     case "phone":
     case "viber":
+    case "whatsapp":
       return channel.e164;
     case "email":
       return channel.address;
@@ -76,6 +86,7 @@ export const channelText = (channel: ContactChannel): string => {
       return `@${channel.handle}`;
     case "website":
     case "facebook":
+    case "form":
       return channel.url;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled channel; unreachable at runtime */
     default: {
@@ -87,22 +98,25 @@ export const channelText = (channel: ContactChannel): string => {
 
 /**
  * The stored contact as the form (answer 3): the first phone in the phone
- * field, the first Telegram in the Telegram field, and every other stored
- * channel, in stored order, as an «other» row, so nothing stored is hidden or
- * lost (two emails, a second phone, a website and a Viber all stay visible).
+ * field, the first Telegram in the Telegram field, the first form in the form
+ * field, and every other stored channel, in stored order, as an «other» row,
+ * so nothing stored is hidden or lost (two emails, a second phone, a website and a Viber all stay visible).
  */
 export function contactsFormOf(contact: ShelterContact): ContactsForm {
   const channels = [contact.primary, ...contact.additional];
   const phoneIndex = channels.findIndex((channel) => channel.kind === "phone");
   const telegramIndex = channels.findIndex((channel) => channel.kind === "telegram");
+  const formIndex = channels.findIndex((channel) => channel.kind === "form");
   const phone = channels[phoneIndex];
   const telegram = channels[telegramIndex];
+  const form = channels[formIndex];
   return {
     phone: phone === undefined ? "" : channelText(phone),
     telegram: telegram === undefined ? "" : channelText(telegram),
+    form: form === undefined ? "" : channelText(form),
     others: channels
       .map((channel, index) => ({ channel, index }))
-      .filter(({ index }) => index !== phoneIndex && index !== telegramIndex)
+      .filter(({ index }) => index !== phoneIndex && index !== telegramIndex && index !== formIndex)
       .map(({ channel, index }) => ({
         id: `stored-${index}`,
         kind: channel.kind,
@@ -115,6 +129,7 @@ export function contactsFormOf(contact: ShelterContact): ContactsForm {
 export const sameContactsForm = (a: ContactsForm, b: ContactsForm): boolean =>
   a.phone === b.phone &&
   a.telegram === b.telegram &&
+  a.form === b.form &&
   a.others.length === b.others.length &&
   a.others.every(
     (row, index) => row.kind === b.others[index]?.kind && row.value === b.others[index]?.value,
@@ -189,14 +204,17 @@ export function parseChannel(kind: ChannelKind, raw: string): ParsedChannel {
       return checked({ kind: "phone", e164: normalizePhone(raw) }, "phoneFormat");
     case "viber":
       return checked({ kind: "viber", e164: normalizePhone(raw) }, "viberFormat");
+    case "whatsapp":
+      return checked({ kind: "whatsapp", e164: normalizePhone(raw) }, "phoneFormat");
     case "telegram":
       return checked({ kind: "telegram", handle: normalizeTelegram(raw) }, "telegramFormat");
     case "email":
       return checked({ kind: "email", address: raw.trim() }, "emailFormat");
-    case "website": {
+    case "website":
+    case "form": {
       const problem = linkProblem(raw);
       return problem === null
-        ? checked({ kind: "website", url: raw.trim() }, "notAUrl")
+        ? checked({ kind, url: raw.trim() }, "notAUrl")
         : { kind: "error", error: problem };
     }
     case "instagram": {
@@ -228,6 +246,7 @@ export type ContactsCheck =
       kind: "invalid";
       phone: FieldError | null;
       telegram: FieldError | null;
+      form: FieldError | null;
       /** By row id. */
       others: Readonly<Record<string, FieldError>>;
       /** Every field empty (answer 3: at least one channel). */
@@ -241,13 +260,21 @@ export type ContactsCheck =
  * Telegram, else the first other"); everything else follows in form order.
  */
 export function contactOfForm(form: ContactsForm): ContactsCheck {
-  const rows: { key: "phone" | "telegram" | string; kind: ChannelKind; raw: string }[] = [
+  const rows: { key: "phone" | "telegram" | "form" | string; kind: ChannelKind; raw: string }[] = [
     { key: "phone", kind: "phone" as const, raw: form.phone },
     { key: "telegram", kind: "telegram" as const, raw: form.telegram },
+    { key: "form", kind: "form" as const, raw: form.form },
     ...form.others.map((row) => ({ key: row.id, kind: row.kind, raw: row.value })),
   ].filter((row) => row.raw.trim() !== "");
   if (rows.length === 0) {
-    return { kind: "invalid", phone: null, telegram: null, others: {}, atLeastOne: true };
+    return {
+      kind: "invalid",
+      phone: null,
+      telegram: null,
+      form: null,
+      others: {},
+      atLeastOne: true,
+    };
   }
   const channels: ContactChannel[] = [];
   const errors: Record<string, FieldError> = {};
@@ -257,11 +284,23 @@ export function contactOfForm(form: ContactsForm): ContactsCheck {
     else errors[row.key] = parsed.error;
   }
   if (Object.keys(errors).length > 0) {
-    const { phone = null, telegram = null, ...others } = errors;
-    return { kind: "invalid", phone, telegram, others, atLeastOne: false };
+    const { phone = null, telegram = null, form = null, ...others } = errors;
+    return { kind: "invalid", phone, telegram, form, others, atLeastOne: false };
   }
-  const [primary, ...additional] = channels;
-  if (primary === undefined) throw new Error("unreachable: rows were non-empty");
+  // A form is never the primary (the input schema's rule); a form alone is no way to call or write.
+  const primaryIndex = channels.findIndex((channel) => channel.kind !== "form");
+  const primary = channels[primaryIndex];
+  if (primary === undefined) {
+    return {
+      kind: "invalid",
+      phone: null,
+      telegram: null,
+      form: null,
+      others: {},
+      atLeastOne: true,
+    };
+  }
+  const additional = channels.filter((_, index) => index !== primaryIndex);
   return { kind: "ok", contact: { primary, additional } };
 }
 

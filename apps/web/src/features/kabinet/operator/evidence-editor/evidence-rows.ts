@@ -34,6 +34,7 @@ export const REFERENCE_CHANNEL_KINDS = [
   "phone",
   "telegram",
   "viber",
+  "whatsapp",
   "email",
   "website",
   "instagram",

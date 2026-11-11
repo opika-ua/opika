@@ -113,7 +113,7 @@ const initiative = (patch: Partial<CreateShelterForm> = {}): CreateShelterForm =
     kind: "unregistered_initiative",
     contactPersonName: "Ірина",
   },
-  contacts: { phone: "+380 50 111-22-33", telegram: "", others: [] },
+  contacts: { phone: "+380 50 111-22-33", telegram: "", form: "", others: [] },
   evidence: [
     { id: "v", kind: "site_visit", visitedOn: "2026-10-12", notes: "Оглянув вольєри." },
     ...["+380 50 555 21 08", "+380 67 000 11 22"].map((phone, n) => ({

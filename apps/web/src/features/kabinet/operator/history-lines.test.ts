@@ -585,3 +585,24 @@ describe("historyLineOf: who the actor is", () => {
     ).toEqual(later);
   });
 });
+
+describe("historyLineOf: contact changes name no channel kind", () => {
+  it("a change that adds WhatsApp and a form reads «Змінено контакти» like any other", () => {
+    const phone = { kind: "phone", e164: "+380671234567" } as const;
+    const entry: ShelterHistoryEntry = {
+      kind: "contact_changed",
+      at: AT,
+      actor: byOlena,
+      previous: { primary: phone, additional: [] },
+      next: {
+        primary: phone,
+        additional: [
+          { kind: "whatsapp", e164: "+380671234567" },
+          { kind: "form", url: "https://forms.example/anketa" },
+        ],
+      },
+    };
+    expect(ShelterHistoryEntrySchema.safeParse(entry).success).toBe(true);
+    expect(historyLineText(historyLineOf(entry, people))).toBe("Змінено контакти · Олена");
+  });
+});

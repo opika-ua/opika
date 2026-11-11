@@ -54,7 +54,7 @@ const initiative = (patch: Partial<CreateShelterForm> = {}): CreateShelterForm =
   line1: "вул. Мечникова, 4",
   coordinates: "50.5843, 30.4890",
   legal: legal({ kind: "unregistered_initiative", contactPersonName: "Ірина Коваль" }),
-  contacts: { phone: "+380 50 111-22-33", telegram: "", others: [] },
+  contacts: { phone: "+380 50 111-22-33", telegram: "", form: "", others: [] },
   evidence: [
     siteVisit("2026-10-12"),
     reference("ref-1", "+380 50 555 21 08"),
@@ -235,6 +235,7 @@ describe("the minimal shelter: legal data and address left for later", () => {
     contacts: {
       phone: "",
       telegram: "",
+      form: "",
       others: [{ id: "o", kind: "email", value: "lapa@example.org", stored: false }],
     },
     adminName: "Ірина",
@@ -375,7 +376,7 @@ describe("what the form refuses, and the contract refuses too", () => {
 
   it("no way of contact at all (K4's at-least-one rule), which the contract has no primary for", () => {
     const result = createInputOf(
-      initiative({ contacts: { phone: "", telegram: "", others: [] } }),
+      initiative({ contacts: { phone: "", telegram: "", form: "", others: [] } }),
       NOW,
     );
     expect(result.kind === "invalid" && result.errors.contacts?.atLeastOne).toBe(true);
