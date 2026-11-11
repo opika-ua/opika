@@ -391,11 +391,11 @@ describe("WhatsApp and form rows", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     renderOpen(revealWith(FULL));
-    const link = screen.getByRole("link", { name: /Написати у WhatsApp/ });
+    const link = screen.getByRole("link", { name: /Написати в WhatsApp/ });
     expect(link.getAttribute("href")).toBe("https://wa.me/380501112233");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
-    fireEvent.click(screen.getByRole("button", { name: "Копіювати номер у WhatsApp" }));
+    fireEvent.click(screen.getByRole("button", { name: "Копіювати номер WhatsApp" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("+380501112233"));
   });
 
@@ -408,7 +408,7 @@ describe("WhatsApp and form rows", () => {
       `Заповнити анкету${FORM}`,
       "Подзвонити+380671234567",
       "Написати в Telegram@domivka_brovary",
-      "Написати у WhatsApp+380501112233",
+      "Написати в WhatsApp+380501112233",
       "Написати у Viber+380671234567",
       "Відкрити Instagram@dobri_lapy",
       "Відкрити Facebookhttps://www.facebook.com/dobri.lapy",

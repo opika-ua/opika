@@ -238,7 +238,7 @@ export const en = {
     openWebsite: "Open the website",
     openInstagram: "Open Instagram",
     openFacebook: "Open Facebook",
-    openForm: "Fill in the form",
+    openForm: "Fill in the application form",
     copy: "Copy",
     copied: "Copied.",
     copyPhoneLabel: "Copy the phone number",
@@ -246,7 +246,7 @@ export const en = {
     copyViberLabel: "Copy the Viber number",
     copyEmailLabel: "Copy the email address",
     copyInstagramLabel: "Copy the Instagram username",
-    copyWhatsappLabel: "Copy the WhatsApp number",
+    copyWhatsappLabel: "Copy WhatsApp number",
     backToFeed: "Back to the gallery",
   },
 
