@@ -92,14 +92,14 @@ const FACEBOOK_MAX_PATH = 100;
 /** A hard ceiling on the escaped form, which can be many times the decoded length. */
 const FACEBOOK_MAX_ENCODED_PATH = 600;
 
-/** An escape may not spell a slash, a percent sign, a control or a format (bidi) character. */
-const UNSAFE_DECODED = /[/%\p{Cc}\p{Cf}]/u;
+/** A decoded segment: letters (Cyrillic too), marks, digits, `.`, `-`, `_` and nothing else. */
+const DECODED_SEGMENT = /^[\p{L}\p{M}\p{N}._-]+$/u;
 
-/** Each path segment decoded, or null where an escape does not decode or spells something unsafe. */
+/** Each path segment decoded, or null where one does not decode or leaves the allowlist. */
 const decodedSegmentsOf = (path: string): string[] | null => {
   try {
     const segments = path.split("/").slice(1).map(decodeURIComponent);
-    return segments.some((segment) => UNSAFE_DECODED.test(segment)) ? null : segments;
+    return segments.every((segment) => DECODED_SEGMENT.test(segment)) ? segments : null;
   } catch {
     return null;
   }
@@ -125,10 +125,10 @@ export function normalizeFacebook(raw: string): FacebookNormalized {
   const refuse: FacebookNormalized = { kind: "error", error: "facebookFormat" };
   if (hasDisguisedAuthority(value, url) || url.port !== "") return refuse;
   if (!FACEBOOK_HOSTS.has(url.hostname)) return refuse;
+  // The ceiling first, on the untrimmed path: the trim below is quadratic on a run of slashes.
+  if (url.pathname.length - 1 > FACEBOOK_MAX_ENCODED_PATH) return refuse;
   if (!/^[A-Za-z0-9._\-/%]+$/.test(url.pathname)) return refuse;
   const path = url.pathname.replace(/\/+$/, "");
-  // The ceiling first, so an oversized path is never decoded.
-  if (path.length - 1 > FACEBOOK_MAX_ENCODED_PATH) return refuse;
   const segments = decodedSegmentsOf(path);
   if (segments === null || [...segments.join("/")].length > FACEBOOK_MAX_PATH) return refuse;
   // Decoded, so `%6C.php` is still the `l.php` redirector.

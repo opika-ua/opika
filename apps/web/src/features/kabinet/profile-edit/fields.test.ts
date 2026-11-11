@@ -167,6 +167,14 @@ describe("Instagram and Facebook rows", () => {
   ] as const)("%s %s -> %s", (kind, typed, error) =>
     expect(parseChannel(kind, typed)).toEqual({ kind: "error", error }),
   );
+
+  // Valid but over the input cap: the field's existing message, no new copy.
+  it.each([
+    ["website", `https://a.org/?q=${"a".repeat(2048)}`, "notAUrl"],
+    ["email", `${"a".repeat(2043)}@b.org`, "emailFormat"],
+  ] as const)("%s over the length cap -> %s", (kind, typed, error) =>
+    expect(parseChannel(kind, typed)).toEqual({ kind: "error", error }),
+  );
 });
 
 describe("linkProblem", () => {

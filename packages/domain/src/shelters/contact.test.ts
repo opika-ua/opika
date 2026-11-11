@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  CONTACT_INPUT_MAX_LENGTH,
   ContactChannelInputSchema,
   ContactChannelSchema,
   isCanonicalFacebookUrl,
@@ -240,10 +241,11 @@ describe("hardening: reserved Instagram names, Facebook path length, stored rows
   });
 
   it("caps the escaped path at 600 characters even when the decoded one is short", () => {
-    const dogs = "🐕".repeat(50);
-    const at600 = normalizeFacebook(`${FB}${dogs}`);
+    // U+1D400, a letter outside the BMP: 12 characters escaped, one code point.
+    const letters = "𝐀".repeat(50);
+    const at600 = normalizeFacebook(`${FB}${letters}`);
     expect(at600.kind === "ok" && at600.url.length - FB.length).toBe(600);
-    expect(normalizeFacebook(`${FB}${dogs}a`)).toEqual(refused);
+    expect(normalizeFacebook(`${FB}${letters}a`)).toEqual(refused);
   });
 
   it("refuses a path whose escapes do not decode", () => {
@@ -318,8 +320,8 @@ describe("Facebook path escapes", () => {
   const FB = "https://www.facebook.com/";
   const refused = { kind: "error", error: "facebookFormat" };
 
-  it("counts code points, not UTF-16 units: 49 dogs and abc pass", () => {
-    const path = `${"🐕".repeat(49)}abc`;
+  it("counts code points, not UTF-16 units: 49 non-BMP letters and abc pass", () => {
+    const path = `${"𝐀".repeat(49)}abc`;
     const result = normalizeFacebook(`${FB}${path}`);
     if (result.kind !== "ok") throw new Error("refused");
     expect(result.url.length - FB.length).toBe(591);
@@ -376,4 +378,115 @@ describe("Facebook path escapes", () => {
       expect(normalizeInstagram(typed)).toBeNull();
     },
   );
+});
+
+describe("Facebook decoded-path allowlist", () => {
+  const FB = "https://www.facebook.com/";
+
+  it.each([
+    "https://www.facebook.com/dobri.lapy",
+    "https://www.facebook.com/groups/my.group",
+    "https://www.facebook.com/people/%d0%bb%d0%b0%d0%bf%d0%b8/100012345678901",
+    "https://www.facebook.com/x%2Dy",
+    "https://www.facebook.com/dobri_lapy",
+    "https://www.facebook.com/groups/12345",
+    // «Й» spelled as И plus a combining breve: a letter and a mark.
+    "https://www.facebook.com/%D0%98%CC%86%D0%B6%D0%B0%D0%BA",
+  ])("keeps %s", (url) => {
+    expect(normalizeFacebook(url)).toEqual({ kind: "ok", url });
+    expect(isCanonicalFacebookUrl(url)).toBe(true);
+    expect(ContactChannelSchema.safeParse({ kind: "facebook", url }).success).toBe(true);
+  });
+
+  it.each([
+    ["https://www.facebook.com/Profile.PHP?id=1", `${FB}profile.php?id=1`],
+    ["https://www.facebook.com/profile%2ephp?id=1", `${FB}profile.php?id=1`],
+  ])("takes %s on input as %s", (typed, expected) => {
+    expect(normalizeFacebook(typed)).toEqual({ kind: "ok", url: expected });
+    expect(isCanonicalFacebookUrl(expected)).toBe(true);
+  });
+
+  it("takes the Cyrillic people/ URL on input and on read", () => {
+    const result = normalizeFacebook(`${FB}people/Притулок-Добрі-Лапки/100012345678901`);
+    if (result.kind !== "ok") throw new Error("refused");
+    expect(result.url).toHaveLength(158);
+    expect(ContactChannelSchema.safeParse({ kind: "facebook", url: result.url }).success).toBe(
+      true,
+    );
+  });
+
+  const OUTSIDE = [
+    ["?", "x%3Fy"],
+    ["#", "x%23y"],
+    [";", "x%3By"],
+    ["backslash", "x%5Cy"],
+    ["space", "x%20y"],
+    ["tab", "x%09y"],
+    ["NUL", "x%00y"],
+    ["RLO", "x%E2%80%AEy"],
+    ["%", "x%25y"],
+    ["apostrophe", "x%27y"],
+    ["emoji", "x%F0%9F%90%95y"],
+  ] as const;
+
+  it.each(OUTSIDE)("refuses a decoded %s on input and in a stored row", (_what, path) => {
+    const url = `${FB}${path}`;
+    expect(normalizeFacebook(url)).toEqual({ kind: "error", error: "facebookFormat" });
+    expect(isCanonicalFacebookUrl(url)).toBe(false);
+    expect(ContactChannelSchema.safeParse({ kind: "facebook", url }).success).toBe(false);
+  });
+});
+
+describe("contact input length cap", () => {
+  afterEach(() => vi.restoreAllMocks());
+  const MAX = CONTACT_INPUT_MAX_LENGTH;
+  const pad = (value: string, length: number): string => value + " ".repeat(length - value.length);
+
+  /** [kind, field, a value of exactly `length` characters, whether that value is valid] */
+  const KINDS = [
+    ["phone", "e164", (length: number) => pad("+380671234567", length), true],
+    ["viber", "e164", (length: number) => pad("+380671234567", length), true],
+    ["email", "address", (length: number) => `${"a".repeat(length - 6)}@b.org`, true],
+    ["telegram", "handle", (length: number) => "a".repeat(length), false],
+    ["website", "url", (length: number) => `https://a.org/?q=${"a".repeat(length - 17)}`, true],
+    ["instagram", "handle", (length: number) => pad("dobri_lapy", length), true],
+    [
+      "facebook",
+      "url",
+      (length: number) => pad("https://www.facebook.com/dobri.lapy", length),
+      true,
+    ],
+  ] as const;
+
+  it.each(KINDS)(
+    "%s: the cap lets the limit through and refuses one more",
+    (kind, field, at, valid) => {
+      expect(at(MAX)).toHaveLength(MAX);
+      const atCap = ContactChannelInputSchema.safeParse({ kind, [field]: at(MAX) });
+      expect(atCap.success).toBe(valid);
+      expect(atCap.error?.issues.some((issue) => issue.code === "too_big") ?? false).toBe(false);
+      const over = ContactChannelInputSchema.safeParse({ kind, [field]: at(MAX + 1) });
+      expect(over.error?.issues.map((issue) => issue.code)).toEqual(["too_big"]);
+      // Malformed and over the cap: a format check that ran first would report instead.
+      const junk = ContactChannelInputSchema.safeParse({ kind, [field]: "x".repeat(MAX + 1) });
+      expect(junk.error?.issues.map((issue) => issue.code)).toEqual(["too_big"]);
+    },
+  );
+
+  it("refuses 100k slashes before any URL is parsed", () => {
+    const urlSpy = vi.spyOn(globalThis, "URL");
+    const huge = `https://www.facebook.com/${"/".repeat(100_000)}x`;
+    const result = ContactChannelInputSchema.safeParse({ kind: "facebook", url: huge });
+    expect(result.error?.issues.map((issue) => issue.code)).toEqual(["too_big"]);
+    expect(urlSpy).not.toHaveBeenCalled();
+  });
+
+  it("the normaliser itself refuses 100k slashes without the quadratic trim", () => {
+    const huge = `https://www.facebook.com/${"/".repeat(100_000)}x`;
+    const started = performance.now();
+    expect(normalizeFacebook(huge)).toEqual({ kind: "error", error: "facebookFormat" });
+    expect(isCanonicalFacebookUrl(huge)).toBe(false);
+    // Generous: the trim alone takes seconds on this input.
+    expect(performance.now() - started).toBeLessThan(200);
+  });
 });
