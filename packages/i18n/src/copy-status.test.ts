@@ -1148,6 +1148,12 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     expect(valueAt(path)).toBe(text);
   });
 
+  it("the initiative hint's English text is the owner's, with his apostrophe (U+2019)", () => {
+    expect(en.kabinet.operator.donation.approveHintInitiative).toBe(
+      "Check that the bank account holder is the initiative’s contact person.",
+    );
+  });
+
   it.each(Object.entries(MINIMAL_CREATE_COPY))("%s is the owner-approved text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });

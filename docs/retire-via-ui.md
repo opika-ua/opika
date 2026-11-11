@@ -1,3 +1,5 @@
+> Historical analysis (2026-10-18). For the current state of removing a shelter, see [the leaving and erasure runbook](operator-leaving-and-erasure.md).
+
 # Retiring a test shelter through the UI: what's missing (round 3, step d)
 
 His request, verbatim (2026-10-18): "Retiring the rehearsal shelter through the UI: list what's

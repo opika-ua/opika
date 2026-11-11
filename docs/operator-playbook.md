@@ -390,12 +390,16 @@ neutral; never name a suspicion.
   «Перевірте, що власник рахунку збігається з організацією», or for an initiative «Перевірте, що власник
   рахунку – контактна особа ініціативи». Since 2026-11-10 «Перевірено» no longer includes the
   bank-account check; it is a hand check at donation approval. When you approve a link, add the evidence
-  «Власник банківського рахунку» (section 4), as long as the shelter is pending or under review; once
-  it is verified the evidence list is closed, so keep the check in your own notes (section 12).
+  «Власник банківського рахунку» (section 4), as long as the shelter is pending or under review.
   «Схвалити» makes the link live, «Відхилити» clears the proposal and leaves the
   current live link as it was. Both are single clicks with no reason field and no confirmation, and
   are recorded in the history and shown to the shelter. To take a live link down, use
   «Прибрати посилання…» (section 1): it asks for «Причина» and a required «Пояснення».
+
+  **Approving a link on an already verified shelter.** The evidence list is closed after the decision
+  (section 4), so «Власник банківського рахунку» cannot be added. Check the account holder the same way
+  and record the result in your own notes (section 12). The approve step has no comment field, so the
+  product keeps no record of this check.
 
 ## 16. A shelter leaving, and a personal-data deletion request
 
