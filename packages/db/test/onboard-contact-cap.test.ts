@@ -1,5 +1,4 @@
 import { CityIdSchema, CONTACT_INPUT_MAX_LENGTH, MAX_ADDITIONAL_CHANNELS } from "@opika/domain";
-import { count } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   buildShelter,
@@ -8,15 +7,14 @@ import {
   parseOnboardInput,
 } from "../src/onboard-shelter";
 import { cityRepo } from "../src/repos/city-repo";
-import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
 import { makeCity, setupTestDatabase, truncateAll } from "../src/test-utils/index";
 
 /**
  * `onboard:shelter` must never create a contact the kabinet editor could not save: it parses the
  * file with the editor's own `ShelterContactInputSchema`, and these pin that, with the refusal
- * said in words. `main` exits on a refusal before anything is built, so a refused file writes
- * nothing; the database checks below hold that to account.
+ * said in words. "Nothing is written on a refusal" rests on `main` exiting before it builds
+ * anything; it is not tested here, since `parseOnboardInput` itself never writes.
  */
 
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
@@ -86,11 +84,6 @@ const refusal = (contact: unknown): string => {
   return parsed.message;
 };
 
-const writes = async () => ({
-  shelters: (await db.select({ n: count() }).from(shelters))[0]?.n,
-  history: (await db.select({ n: count() }).from(shelterHistory))[0]?.n,
-});
-
 describe("onboard:shelter refuses what the kabinet editor could not save", () => {
   const SEVEN = Array.from({ length: MAX_ADDITIONAL_CHANNELS + 1 }, (_, i) => other(i));
   const cases: { name: string; contact: unknown; says: RegExp }[] = [
@@ -121,10 +114,22 @@ describe("onboard:shelter refuses what the kabinet editor could not save", () =>
     },
   ];
 
-  it.each(cases)("refuses $name, in words, before any write", async ({ contact, says }) => {
+  it.each(cases)("refuses $name, in words", ({ contact, says }) => {
     expect(refusal(contact)).toMatch(says);
-    expect(await writes()).toEqual({ shelters: 0, history: 0 });
   });
+
+  // An unrelated custom issue deeper in the contact (a reserved Instagram name) must not borrow
+  // the form or cap sentences.
+  it.each([
+    ["primary", { primary: { kind: "instagram", handle: "explore" }, additional: [] }],
+    ["additional", { primary: phone, additional: [{ kind: "instagram", handle: "explore" }] }],
+  ])(
+    "says nothing about the form or the cap for a reserved Instagram name in %s",
+    (_where, contact) => {
+      const message = refusal(contact);
+      expect(message).not.toMatch(/application form|holds at most|longer than/);
+    },
+  );
 
   it("onboards a legal contact at the cap: four others, Telegram and one form", async () => {
     const additional = [

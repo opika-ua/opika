@@ -274,13 +274,18 @@ function contactRefusalHints(error: z.ZodError): string[] {
   for (const issue of error.issues) {
     const [root, field, part] = issue.path;
     if (root !== "shelter" || field !== "contact") continue;
-    if (part === "primary" && issue.code === "custom") {
+    if (part === "primary" && issue.path.length === 3 && issue.code === "custom") {
       hints.add(
         "contact.primary cannot be an application form; give a phone, email, Telegram, Viber or WhatsApp, and put the form in additional.",
       );
-    } else if (part === "additional" && issue.code === "too_big" && issue.origin === "array") {
+    } else if (
+      part === "additional" &&
+      issue.path.length === 3 &&
+      issue.code === "too_big" &&
+      issue.origin === "array"
+    ) {
       hints.add(`contact.additional holds at most ${MAX_ADDITIONAL_CHANNELS} channels.`);
-    } else if (part === "additional" && issue.code === "custom") {
+    } else if (part === "additional" && issue.path.length === 3 && issue.code === "custom") {
       hints.add("contact.additional may hold at most one application form.");
     } else if (issue.code === "too_big" && issue.origin === "string") {
       hints.add(`a contact value is longer than ${CONTACT_INPUT_MAX_LENGTH} characters.`);
