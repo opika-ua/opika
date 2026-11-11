@@ -1536,6 +1536,14 @@ describe("/prytulkam §8 B1 (forShelters.whyHowOften)", () => {
     }
   });
 
+  it("the §8 heading and §7's fifth bullet are the owner-approved 2026-11 text", () => {
+    expect(uk.forShelters.headings.whyHowOften).toBe("Навіщо розповідати, як ви оновлюєте картки");
+    expect(uk.forShelters.whatToPrepare).toContain(
+      "і кілька речень про притулок: хто ви, як працюєте і як часто оновлюєте картки – про це нижче.",
+    );
+    expect(uk.forShelters.whatToPrepare).not.toContain("одне речення");
+  });
+
   it("K-Q14 (a): the cards keep «Оновлено {days}»", () => {
     expect(uk.freshness.updatedAgo).toBe("Оновлено {days}");
   });
