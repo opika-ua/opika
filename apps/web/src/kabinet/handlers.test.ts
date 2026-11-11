@@ -457,19 +457,27 @@ describe("shelter.profile", () => {
 
   /**
    * RG-Q12 (Oleksii): the operator's donation decision compares-and-sets on
-   * `version`, so every proposal and cancellation must move it, a
-   * re-proposal of the very same link included; otherwise a decision made on
-   * a stale read would pass the check.
+   * `version`, so every proposal and cancellation must move it; otherwise a decision made on
+   * a stale read would pass the check. One exception, the owner's, 2026-11-11: re-proposing the
+   * very link already waiting changes nothing (no history line, no version bump, no mail), since
+   * a decision on that link is a decision on the link the operator read.
    */
-  it("every proposal and cancellation bumps the version, a same-link re-proposal too", async () => {
+  it("every change of the proposal bumps the version; the same link again changes nothing", async () => {
     const url = "https://send.monobank.ua/jar/abc";
+    const other = "https://send.monobank.ua/jar/def";
     const versionAfter = async (path: string, input: unknown) =>
       (await call<KabinetShelterView>(path, input)).body.version;
     expect(await versionAfter("shelter.profile.proposeDonation", { url })).toBe(1);
-    expect(await versionAfter("shelter.profile.proposeDonation", { url })).toBe(2);
+    expect(await versionAfter("shelter.profile.proposeDonation", { url })).toBe(1);
+    expect(await versionAfter("shelter.profile.proposeDonation", { url: other })).toBe(2);
     expect(await versionAfter("shelter.profile.cancelDonationProposal", {})).toBe(3);
     // Nothing pending: nothing changes, so nothing to bump.
     expect(await versionAfter("shelter.profile.cancelDonationProposal", {})).toBe(3);
+    expect(
+      (await kabinetShelterRepo(db).historyOf(shelter.id)).filter(
+        (e) => e.kind === "donation_proposed",
+      ),
+    ).toHaveLength(2);
   });
 
   it("pause then resume, each a verification history entry", async () => {

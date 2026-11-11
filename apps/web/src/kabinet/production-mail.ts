@@ -118,3 +118,17 @@ export function productionMailFor(on: Extract<ProductionSignIn, { kind: "on" }>)
   if (cached?.key !== key) cached = { key, mail: productionMailOf(on) };
   return cached.mail;
 }
+
+/**
+ * The same Resend route as the invite, for notification emails (`notify/`): same From, Reply-To,
+ * `[COPY PENDING]` refusal and volume counting. Built once per process, like `productionMailFor`.
+ */
+let cachedNotification: { key: string; mail: ProviderMail } | undefined;
+
+export function notificationMailFor(on: Extract<ProductionSignIn, { kind: "on" }>): ProviderMail {
+  const key = JSON.stringify(on.email.invite);
+  if (cachedNotification?.key !== key) {
+    cachedNotification = { key, mail: providerMailOf(on.email.invite, fetch) };
+  }
+  return cachedNotification.mail;
+}

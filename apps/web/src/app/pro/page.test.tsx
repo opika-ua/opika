@@ -95,7 +95,7 @@ describe("AboutPage", () => {
     );
     const sessions = screen.getByText(/^Для притулків із доступом до кабінету/);
     expect(sessions.textContent).toContain(
-      "щоб надсилати запрошення, посилання для входу чи нового пароля і повідомлення про зміну пароля, а також технічний запис",
+      "щоб надсилати запрошення, посилання для входу чи нового пароля, повідомлення про зміну пароля, про рішення щодо перевірки й посилання на збір, а також технічний запис",
     );
     // GDPR-F1 (2026-10-24): the departed-admin erasure sentence, its own paragraph
     // between the kabinet-access one above and the history one below.
