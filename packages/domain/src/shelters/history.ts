@@ -14,10 +14,16 @@ import { DonationLinkSchema, DonationRemovalCodeSchema } from "./donation";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
 import { ShelterLogoSchema } from "./logo";
-import { FreshnessSentenceSchema } from "./shelter";
 import { VerificationEventSchema } from "./verification/events";
 import { EvidenceKindSchema } from "./verification/evidence";
 import { VerificationStatusSchema } from "./verification/state";
+
+/**
+ * The freshness sentence a shelter used to write, kept only so old `freshness_sentence_changed`
+ * entries still parse and render. Nothing writes it any more: the shelter's words are the
+ * description.
+ */
+export const FreshnessSentenceSchema = LocalizedTextSchema.nullable();
 
 /**
  * The fields an `animal_edited` entry can name: the kabinet's
@@ -132,8 +138,9 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     kind: z.literal("description_changed"),
     at: z.date(),
     actor: ShelterActorSchema,
-    previous: LocalizedTextSchema,
-    next: LocalizedTextSchema,
+    /** Null: added or cleared. Old entries are all non-null. */
+    previous: LocalizedTextSchema.nullable(),
+    next: LocalizedTextSchema.nullable(),
   }),
   /**
    * The shelter's own logo, set or cleared (pet card PR 3b). Same shape as

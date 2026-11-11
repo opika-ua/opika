@@ -5,13 +5,13 @@ import { ShelterContactSchema } from "./contact";
 import { DonationLinkSchema, DonationRemovalCodeSchema } from "./donation";
 import {
   ANIMAL_EDITED_FIELDS,
+  FreshnessSentenceSchema,
   HistoryWithdrawalReasonSchema,
   type ShelterHistoryEntry,
 } from "./history";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
 import { ShelterLogoSchema } from "./logo";
-import { FreshnessSentenceSchema } from "./shelter";
 import {
   PauseReasonSchema,
   RejectionReasonSchema,
@@ -73,8 +73,8 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("description_changed"),
     ...base,
-    previous: LocalizedTextSchema,
-    next: LocalizedTextSchema,
+    previous: LocalizedTextSchema.nullable(),
+    next: LocalizedTextSchema.nullable(),
   }),
   z.object({
     kind: z.literal("logo_changed"),

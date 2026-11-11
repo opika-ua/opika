@@ -194,15 +194,15 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
 
       {/*
           §8 is the paragraph the argument document marks as needing the most
-          care - no shelter has been asked for a freshness sentence before, so
-          the reason has to land or the request reads as strange. Given the
+          care - the reason for saying how often cards are updated has to land
+          or the request reads as strange. Given the
           page's one piece of emphasis for that reason, using the same
           sunken Panel the freshness display itself uses, so the
           explanation and the thing it explains share a surface.
         */}
-      <Section heading={h.whyThatSentence}>
+      <Section heading={h.whyHowOften}>
         <Panel tone="sunken" className="flex flex-col gap-2">
-          <Body>{uk.forShelters.whyThatSentence}</Body>
+          <Body>{uk.forShelters.whyHowOften}</Body>
         </Panel>
       </Section>
       <Section heading={h.whenAnimalFindsHome}>

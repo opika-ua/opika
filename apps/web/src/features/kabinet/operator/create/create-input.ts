@@ -11,6 +11,7 @@ import {
 } from "@opika/domain";
 import { z } from "zod";
 import { type ContactsCheck, type ContactsForm, contactOfForm } from "../../profile-edit/fields";
+import { aboutInputOf, aboutOverBy } from "../about-text";
 import {
   type DocumentFreeEvidenceInput,
   type EvidenceRow,
@@ -94,7 +95,8 @@ export type CreateFieldError =
   | "nameTooLong"
   | "edrpouFormat"
   | "coordinatesFormat"
-  | "emailFormat";
+  | "emailFormat"
+  | "descriptionTooLong";
 
 export type CreateField =
   | "displayName"
@@ -286,11 +288,11 @@ export function legalEntityOf(
  * The form as `registry.shelters.create`'s input, or every field's message.
  * `now` is the moment of submitting: it decides "today" for a site visit.
  *
- * The district is never collected and goes as null (RU-T6). The description
- * is Ukrainian only; English goes as null, the shape every operator-entered
- * text takes until a translation exists. The freshness sentence is the
- * shelter's own voice and the contract allows none: null, set later from
- * the shelter's side.
+ * The district is never collected and goes as null (RU-T6). The shelter's text
+ * is optional: a blank field sends nothing, and the text is Ukrainian only
+ * (English goes as null, the shape every operator-entered text takes until a
+ * translation exists). Its cap is checked here so the field says so before a
+ * round trip.
  */
 export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCheck {
   const fields: Partial<Record<CreateField, CreateFieldError>> = {};
@@ -299,8 +301,8 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
   if (displayName === null) fields.displayName = "required";
   // RUI4-F2: the contract's cap, checked here so the field says so before a round trip.
   else if (isShelterDisplayNameTooLong(displayName)) fields.displayName = "nameTooLong";
-  const description = trimmedOrNull(form.description);
-  if (description === null) fields.description = "required";
+  const description = aboutInputOf(form.description);
+  if (aboutOverBy(form.description) > 0) fields.description = "descriptionTooLong";
   if (form.cityId === "") fields.cityId = "required";
   const address = optionalStreetAddressOf(form, fields);
   // No legal form picked: added later on S4, whatever was typed under a form and then left.
@@ -318,7 +320,6 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
 
   if (
     displayName === null ||
-    description === null ||
     address.kind !== "ok" ||
     legal.kind !== "ok" ||
     contacts.kind !== "ok" ||
@@ -342,11 +343,10 @@ export function createInputOf(form: CreateShelterForm, now: Date): CreateInputCh
     input: {
       displayName,
       cityId: form.cityId,
-      description: { uk: description, en: null },
+      ...(description === null ? {} : { description: { uk: description, en: null } }),
       legalEntity: legal.legalEntity,
       exactAddress: address.street,
       contact: contacts.contact,
-      freshnessSentence: null,
       evidence: items,
       firstAdmin: { name: adminName, email: adminEmail },
     },

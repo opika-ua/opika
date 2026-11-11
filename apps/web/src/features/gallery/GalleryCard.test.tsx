@@ -46,7 +46,6 @@ function makeCard(overrides: Partial<FeedCardView> = {}): FeedCardView {
         district: null,
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
-      freshnessSentence: null,
       verification: "verified",
     },
     ...overrides,

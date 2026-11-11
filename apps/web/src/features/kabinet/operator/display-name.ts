@@ -20,13 +20,11 @@ export const nameTooLongMessage = (): string =>
   });
 
 /**
- * Whether a refusal is the server's input check turning the name down for
- * its length: oRPC answers a failed input check with BAD_REQUEST and the
- * schema's issues as its data, and only the display name's rule carries this
- * message. Reached when the server counts a name longer than the page did
- * (a browser segmenting an emoji differently, a page older than the cap).
+ * Whether a refusal is the server's input check turning a field down with this fixed message:
+ * oRPC answers a failed input check with BAD_REQUEST and the schema's issues as its data. Shared by
+ * the two operator fields with a cap whose editor says it on the field.
  */
-export function refusedForNameLength(error: unknown): boolean {
+export function refusedWithIssueMessage(error: unknown, message: string): boolean {
   if (typeof error !== "object" || error === null) return false;
   const { code, data } = error as { code?: unknown; data?: unknown };
   if (code !== "BAD_REQUEST" || typeof data !== "object" || data === null) return false;
@@ -37,7 +35,15 @@ export function refusedForNameLength(error: unknown): boolean {
       (issue: unknown) =>
         typeof issue === "object" &&
         issue !== null &&
-        (issue as { message?: unknown }).message === SHELTER_DISPLAY_NAME_TOO_LONG_MESSAGE,
+        (issue as { message?: unknown }).message === message,
     )
   );
 }
+
+/**
+ * Whether a refusal is the display name's cap, only that rule carries this message. Reached when
+ * the server counts a name longer than the page did (a browser segmenting an emoji differently, a
+ * page older than the cap).
+ */
+export const refusedForNameLength = (error: unknown): boolean =>
+  refusedWithIssueMessage(error, SHELTER_DISPLAY_NAME_TOO_LONG_MESSAGE);

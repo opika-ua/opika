@@ -116,7 +116,7 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
     ).toHaveAttribute("aria-current", "page");
 
     await page.getByLabel("Назва притулку").fill(displayName);
-    await page.getByLabel("Опис притулку").fill("Волонтери, 18 собак і 6 котів.");
+    await page.getByLabel("Про притулок · необовʼязково").fill("Волонтери, 18 собак і 6 котів.");
     // Select-only search: type, then take the offered place (typed text alone never commits).
     await page.getByRole("combobox", { name: /Населений пункт/ }).fill(city.name);
     await page

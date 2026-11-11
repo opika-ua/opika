@@ -11,7 +11,6 @@ import {
   type EvidenceItemInput,
   type ExactAddress,
   earlyListingOf,
-  type FreshnessSentence,
   keepsEarlyListing,
   type LocalizedText,
   type LocationPrivacyPolicy,
@@ -34,8 +33,10 @@ import {
   type VerificationEvidence,
 } from "@opika/domain";
 import { ORPCError, type ORPCErrorConstructorMap } from "@orpc/server";
+import { handOver } from "../notify/hand-over";
 import { withEvidenceOnFile } from "./evidence-on-file";
 import { loadShelterOr404, type RegistryDeps, registryShelterView } from "./registry-reads";
+import { optionalTextAfterEdit } from "./text-after-edit";
 
 type E<K extends keyof typeof apiErrors> = ORPCErrorConstructorMap<
   Pick<typeof apiErrors, K | "NOT_FOUND">
@@ -54,19 +55,23 @@ type Planned = {
   entries: ShelterHistoryEntry[];
 };
 
-async function writePlanned(
+/** Exported for the hand-over test: a lost compare-and-set must hand nothing over. */
+export async function writePlanned(
   deps: RegistryDeps,
   shelter: Shelter,
   plan: Planned,
 ): Promise<"ok" | "conflict" | "no_change"> {
   if (plan.entries.length === 0) return "no_change";
+  const lines = plan.entries.map((entry) => ({ id: deps.newId(), entry }));
   const result = await kabinetShelterRepo(deps.db).applyAuditedMany({
     shelterId: shelter.id,
     expectedVersion: shelter.version,
     changes: plan.changes,
-    entries: plan.entries.map((entry) => ({ id: deps.newId(), entry })),
+    entries: lines,
     now: deps.now,
   });
+  // A lost race recorded no history, so there is nothing to tell anyone.
+  if (result.kind === "ok") handOver(deps.notify, shelter, lines);
   return result.kind;
 }
 
@@ -197,8 +202,7 @@ export const registryUpdateProfile = (
     expectedVersion: number;
     displayName?: string | undefined;
     contact?: ShelterContact | undefined;
-    description?: LocalizedText | undefined;
-    freshnessSentence?: FreshnessSentence | undefined;
+    description?: LocalizedText | null | undefined;
   },
   errors: E<"CONFLICT">,
 ) =>
@@ -229,31 +233,18 @@ export const registryUpdateProfile = (
           next: input.contact,
         });
       }
-      if (input.description !== undefined && !same(shelter.description, input.description)) {
-        plan.changes.push({ kind: "description", description: input.description });
-        plan.entries.push({
-          kind: "description_changed",
-          at: deps.now,
-          actor,
-          previous: shelter.description,
-          next: input.description,
-        });
-      }
-      if (
-        input.freshnessSentence !== undefined &&
-        !same(shelter.freshnessSentence, input.freshnessSentence)
-      ) {
-        plan.changes.push({
-          kind: "freshness_sentence",
-          freshnessSentence: input.freshnessSentence,
-        });
-        plan.entries.push({
-          kind: "freshness_sentence_changed",
-          at: deps.now,
-          actor,
-          previous: shelter.freshnessSentence,
-          next: input.freshnessSentence,
-        });
+      if (input.description !== undefined) {
+        const next = optionalTextAfterEdit(shelter.description, input.description);
+        if (!same(shelter.description, next)) {
+          plan.changes.push({ kind: "description", description: next });
+          plan.entries.push({
+            kind: "description_changed",
+            at: deps.now,
+            actor,
+            previous: shelter.description,
+            next,
+          });
+        }
       }
       return plan;
     },

@@ -1,4 +1,4 @@
-import { type FeedFilters, type GallerySort, textIn } from "@opika/domain";
+import type { FeedFilters, GallerySort } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -7,6 +7,7 @@ import { cache } from "react";
 import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import type { SearchParams } from "../../../features/gallery/filter-url";
+import { shownAboutText } from "../../../features/shelters/ShelterAboutSection";
 import { ShelterPageScreen } from "../../../features/shelters/ShelterPageScreen";
 import {
   loadShelterPage,
@@ -16,7 +17,11 @@ import { parseShelterPageQuery } from "../../../features/shelters/shelter-url";
 import { JsonLd } from "../../../seo/json-ld";
 import { shelterBreadcrumbs } from "../../../seo/json-ld-builders";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
-import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
+import {
+  LINK_PREVIEW_DESCRIPTION,
+  META_DESCRIPTION_MAX_LENGTH,
+  trimAtWordBoundary,
+} from "../../../seo-text";
 
 /** Live listing data, like `/tvaryny`: prerendering would bake in a stale snapshot. */
 export const dynamic = "force-dynamic";
@@ -116,9 +121,14 @@ export function shelterMetadataOf(load: ShelterPageLoad): Metadata {
   if (load.kind !== "shelter") return {};
   const { shelter, cityName } = load.view;
   const title = [shelter.displayName, cityName].filter(Boolean).join(", ");
+  // No text: the root layout's default, for the page and the share preview alike (a Next page
+  // `openGraph` replaces the layout's, so the preview needs its own copy).
+  const about = shownAboutText(shelter.description);
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice
-    : trimAtWordBoundary(textIn(shelter.description, "uk"), META_DESCRIPTION_MAX_LENGTH);
+    : about === null
+      ? LINK_PREVIEW_DESCRIPTION
+      : trimAtWordBoundary(about, META_DESCRIPTION_MAX_LENGTH);
   return {
     title,
     description,

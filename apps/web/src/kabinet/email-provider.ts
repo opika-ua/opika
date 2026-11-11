@@ -43,8 +43,10 @@ export type EmailProvider = (typeof EMAIL_PROVIDERS)[number];
 /**
  * The providers config may route to: Resend only. Every email this config
  * serves is an auth email (`production-mail.ts`: the magic link and the
- * invite, and the reset link and «пароль змінено» on the sign-in route), his
- * rule is "no tracking on any auth email, ever" (2026-10-19). Oleksii,
+ * invite, and the reset link and «пароль змінено» on the sign-in route) or a
+ * notification email that rides the invite's route (`notify/`, so it inherits
+ * the same untracked domain), his rule is "no tracking on any auth email,
+ * ever" (2026-10-19). Oleksii,
  * 2026-10-20 (inbox PW1-Q4), verbatim: "PW1-Q4: (a). Lock auth emails
  * (sign-in, invite, reset, password changed) to Resend in config."
  *

@@ -54,7 +54,6 @@ const shelterSummary = {
     district: null,
     approximate: { center: { lat: 49.99, lng: 36.23 }, precisionMetres: 1000 },
   },
-  freshnessSentence: null,
   verification: "verified",
 };
 
@@ -313,7 +312,6 @@ describe("shelter views expose exactly their intended fields", () => {
       "description",
       "displayName",
       "donation",
-      "freshnessSentence",
       "id",
       "logo",
       "publicLocation",

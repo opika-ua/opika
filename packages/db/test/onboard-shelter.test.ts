@@ -55,7 +55,6 @@ const SHELTER_INPUT = {
     additional: [],
   },
   donation: null,
-  freshnessSentenceUk: "Оновлюємо щотижня.",
   evidence: SUFFICIENT_EVIDENCE,
 };
 
@@ -258,29 +257,22 @@ describe("OnboardInputSchema's text rules", () => {
     expect(parsed.data?.shelter.contact.primary).toEqual({ kind: "phone", e164: "+380671234567" });
   });
 
-  it("trims the freshness sentence", () => {
-    const parsed = parse({ freshnessSentenceUk: " Оновлюємо щосуботи. " });
-    expect(parsed.success).toBe(true);
-    expect(parsed.data?.shelter.freshnessSentenceUk).toBe("Оновлюємо щосуботи.");
+  it("takes a text up to 1,500 characters and refuses 1,501, as every other write path does", () => {
+    const text = (descriptionUk: string) => parse({ descriptionUk });
+    expect(text("я".repeat(1500)).success).toBe(true);
+    expect(text("я".repeat(1501)).success).toBe(false);
   });
 
-  // DR1-Q5: the sentence is shelter-level, so the operator's script refuses the
-  // name token too, as the kabinet does; nothing it writes can carry one.
-  it.each([["{імʼя}"], ["{Ім'я}"]])("refuses a freshness sentence with %s", (token) => {
-    expect(parse({ freshnessSentenceUk: `Чи ${token} ще з нами?` }).success).toBe(false);
+  it("takes braces in the text as plain characters", () => {
+    expect(parse({ descriptionUk: "Оновлюємо {щосуботи}." }).success).toBe(true);
   });
 
-  it.each([
-    ["an unknown token", "Оновлено {дата}."],
-    ["a stray brace", "Оновлено }."],
-    ["281 characters", "я".repeat(281)],
-    ["a blank sentence (it is required here)", "   "],
-  ])("refuses a freshness sentence with %s", (_label, freshnessSentenceUk) => {
-    expect(parse({ freshnessSentenceUk }).success).toBe(false);
-  });
-
-  it("accepts a 280-character freshness sentence", () => {
-    expect(parse({ freshnessSentenceUk: "я".repeat(280) }).success).toBe(true);
+  // The sentence is gone: a non-strict object would drop the key silently, so it is refused by name.
+  it("refuses a leftover freshnessSentenceUk, naming descriptionUk", () => {
+    const parsed = parse({ freshnessSentenceUk: "Оновлюємо щотижня." });
+    expect(parsed.success).toBe(false);
+    expect(JSON.stringify(parsed.error?.issues)).toContain("descriptionUk");
+    expect(JSON.stringify(parsed.error?.issues)).toContain("freshnessSentenceUk");
   });
 
   // K-Q11: the same ten-photo cap as the kabinet, so an onboarded animal is one K3 can edit.

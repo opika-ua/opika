@@ -247,6 +247,32 @@ describe("ShelterHistoryEntrySchema", () => {
   });
 });
 
+describe("description_changed: the description can be added or cleared", () => {
+  const entry = (previous: unknown, next: unknown) => ({
+    ...ENTRIES.description_changed,
+    previous,
+    next,
+  });
+  const text = { uk: "Опис", en: null };
+
+  it("parses a null previous (added) and a null next (cleared), and an old non-null pair", () => {
+    expect(ShelterHistoryEntrySchema.safeParse(entry(null, text)).success).toBe(true);
+    expect(ShelterHistoryEntrySchema.safeParse(entry(text, null)).success).toBe(true);
+    expect(ShelterHistoryEntrySchema.safeParse(entry(text, text)).success).toBe(true);
+  });
+
+  it("parses a stored text of any length: the read side has no cap", () => {
+    const long = { uk: "я".repeat(1737), en: null };
+    expect(ShelterHistoryEntrySchema.safeParse(entry(long, null)).success).toBe(true);
+  });
+
+  it("still parses a freshness_sentence_changed entry written before the merge", () => {
+    expect(ShelterHistoryEntrySchema.parse(ENTRIES.freshness_sentence_changed).kind).toBe(
+      "freshness_sentence_changed",
+    );
+  });
+});
+
 describe("evidence_added", () => {
   const added = ENTRIES.evidence_added;
 

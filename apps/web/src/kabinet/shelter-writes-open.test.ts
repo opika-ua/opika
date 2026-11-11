@@ -134,6 +134,47 @@ async function snapshot() {
   };
 }
 
+/**
+ * The shelter sentence's write path is gone (the shelter description absorbed it). Removing a
+ * procedure must not leave another one unguarded, so the served router is walked again: every
+ * leaf declares an access (a missing one is how a route would escape `decideAccess`), the sentence
+ * procedure is not served anywhere, and the shelter's text is written through the same shelter
+ * write access as the contacts.
+ */
+describe("after the sentence's removal, the served router has no unprotected write path", () => {
+  it("every served procedure declares an access", () => {
+    expect(served.length).toBeGreaterThan(40);
+    expect(served.filter((leaf) => leaf.access === null).map((leaf) => leaf.path)).toEqual([]);
+  });
+
+  it("serves no procedure named for the freshness sentence", () => {
+    expect(served.map((leaf) => leaf.path).filter((path) => /freshness/i.test(path))).toEqual([]);
+  });
+
+  it("writes the shelter's text through the shelter write access, like the contacts", () => {
+    const accessOf = (path: string) => served.find((leaf) => leaf.path === path)?.access;
+    expect(accessOf("shelter.profile.updateDescription")).toEqual(
+      accessOf("shelter.profile.updateContact"),
+    );
+    expect(accessOf("shelter.profile.updateDescription")).toMatchObject({
+      surface: "shelter",
+      mode: "write",
+    });
+  });
+
+  it("every procedure under shelter.profile that changes data is a shelter write", () => {
+    const profileWrites = served
+      .filter(
+        (leaf) => leaf.path.startsWith("shelter.profile.") && leaf.path !== "shelter.profile.get",
+      )
+      .map((leaf) => leaf.access);
+    expect(profileWrites.length).toBeGreaterThan(0);
+    expect(
+      profileWrites.every((access) => access?.surface === "shelter" && access.mode === "write"),
+    ).toBe(true);
+  });
+});
+
 describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
   it("finds the eighteen shelter writes, confirm, update, the photo writes and the logo writes among them", () => {
     expect(shelterWrites).toHaveLength(18);
@@ -147,6 +188,7 @@ describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
         "shelter.logo.set",
         "shelter.logo.remove",
         "shelter.profile.updateContact",
+        "shelter.profile.updateDescription",
         "shelter.verification.requestReview",
       ]),
     );

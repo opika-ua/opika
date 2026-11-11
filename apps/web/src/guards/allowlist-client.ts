@@ -78,6 +78,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/operator/actions/OperatorActionsRoot.tsx":
     "router.refresh wrapper around the provider",
   "features/kabinet/operator/actions/ReasonDialog.tsx": "reason textarea inside the kit Modal",
+  "features/kabinet/operator/actions/AboutForm.tsx":
+    "inline edit form for the shelter's text, focus management",
   "features/kabinet/operator/actions/RenameForm.tsx": "inline rename form, focus management",
   "features/kabinet/operator/actions/AddEvidencePanel.tsx": "add-evidence panel with state",
   "features/kabinet/operator/actions/EarlyListingPanel.tsx":
@@ -103,6 +105,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/password/SetPasswordCard.tsx": "set-password form, token strip",
   "features/kabinet/password/use-token-out-of-address-bar.ts":
     "hook: history.replaceState to drop the token",
+  "features/kabinet/profile-edit/AboutSection.tsx":
+    "text form with the live counter and save state",
   "features/kabinet/profile-edit/ContactFields.tsx": "controlled contact inputs",
   "features/kabinet/profile-edit/ContactsSection.tsx": "section form with save state",
   "features/kabinet/profile-edit/DonationSection.tsx": "donation link form",
@@ -111,7 +115,6 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/profile-edit/LogoSection.tsx": "logo upload via browser client",
   "features/kabinet/profile-edit/PauseControl.tsx": "pause/unpause dialog",
   "features/kabinet/profile-edit/ProfileEditor.tsx": "editor shell: section states, browser client",
-  "features/kabinet/profile-edit/VoiceSection.tsx": "sentence form with live announce",
   "features/likes/SaveButton.tsx": "toggles saved state in localStorage",
   "features/likes/SavedButton.tsx": "reads saved count from localStorage after hydration",
   "features/likes/SavedCards.tsx":

@@ -1,4 +1,3 @@
-import { uk } from "@opika/i18n";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SITE_ORIGIN, SITE_TITLE, TITLE_TEMPLATE, titled, WORDMARK } from "../brand";
@@ -8,7 +7,8 @@ import { SAVED_PREPAINT_SCRIPT } from "../features/chrome/saved-prepaint";
 import { PAGE_COLOR } from "../pwa";
 import { JsonLd } from "../seo/json-ld";
 import { organizationJsonLd } from "../seo/json-ld-builders";
-import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
+import { SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
+import { LINK_PREVIEW_DESCRIPTION } from "../seo-text";
 import { brandDisplay, brandUi } from "./fonts";
 
 /**
@@ -45,9 +45,7 @@ import { brandDisplay, brandUi } from "./fonts";
  * never meant to reach those two specifically, and reaching them was an
  * unconfirmed scope expansion, corrected here.
  */
-const linkPreviewDescription = REGISTRY_HAS_NO_REAL_SHELTERS
-  ? uk.demo.bannerNotice
-  : uk.firstRun.promise;
+const linkPreviewDescription = LINK_PREVIEW_DESCRIPTION;
 
 export const viewport: Viewport = { themeColor: PAGE_COLOR };
 

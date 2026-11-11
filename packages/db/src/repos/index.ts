@@ -67,6 +67,10 @@ export {
 } from "./kabinet-shelter-repo";
 export { kabinetSupportRepo, SUPPORT_IDLE_MS } from "./kabinet-support-repo";
 export {
+  type NotificationRecipient,
+  notificationRecipientsRepo,
+} from "./notification-recipients-repo";
+export {
   MAX_SEND_ATTEMPTS,
   type NotificationSendRow,
   notificationSendsRepo,

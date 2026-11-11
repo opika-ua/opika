@@ -1,4 +1,9 @@
-import type { FeedCardView, GalleryFacetCounts, PublicShelterView } from "@opika/contracts";
+import type {
+  CityLabelView,
+  FeedCardView,
+  GalleryFacetCounts,
+  PublicShelterView,
+} from "@opika/contracts";
 import { NO_FILTERS } from "@opika/domain";
 import { ORPCError } from "@orpc/server";
 import { vi } from "vitest";
@@ -8,8 +13,6 @@ import type { ShelterPageClient, ShelterPageView } from "./shelter-page-load";
 export const SHELTER_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 export const CITY_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
-/** The sentence a shelter wrote, used wherever a test needs one to look for. */
-export const SENTENCE = "Оновлюємо картки щосуботи, пишіть у будь-який день.";
 export const DESCRIPTION = "Невеликий притулок на околиці міста, працюємо з 2019 року.";
 
 export function makeShelterPageShelter(
@@ -18,7 +21,6 @@ export function makeShelterPageShelter(
   return makeDetailShelter({
     displayName: "Лапа допомоги",
     description: { uk: DESCRIPTION, en: null },
-    freshnessSentence: { uk: SENTENCE, en: null },
     ...overrides,
   });
 }
@@ -73,6 +75,17 @@ export function makeShelterPageView(overrides: Partial<ShelterPageView> = {}): S
   };
 }
 
+const BROVARY_LABEL: CityLabelView = {
+  id: CITY_ID as CityLabelView["id"],
+  slug: "brovary" as CityLabelView["slug"],
+  kind: "city",
+  nameScope: "unique_in_ukraine",
+  regionId: "814661e1-67de-532e-a38e-2216d8b521ff" as CityLabelView["regionId"],
+  name: "Бровари",
+  regionShort: "Київська обл.",
+  raion: "Броварський район",
+};
+
 /** What `shelters.byId` does in a test: answer, refuse with an oRPC code, or fail outright. */
 export type ShelterByIdBehaviour =
   | { kind: "answer"; shelter?: PublicShelterView }
@@ -82,6 +95,7 @@ export type ShelterByIdBehaviour =
 export function stubShelterPageClient(
   byId: ShelterByIdBehaviour = { kind: "answer" },
   list: ListOutput = makeListOutput([makeCardView(1)]),
+  city: CityLabelView = BROVARY_LABEL,
 ) {
   const sheltersById = vi.fn(async () => {
     switch (byId.kind) {
@@ -99,38 +113,7 @@ export function stubShelterPageClient(
   const client = {
     shelters: { byId: sheltersById },
     gallery: { list: galleryList, facetCounts, relaxationCounts },
-    regions: {
-      list: vi.fn(async () => [
-        {
-          id: "814661e1-67de-532e-a38e-2216d8b521ff",
-          slug: "kyivska",
-          label: "Київська",
-          short: "Київська обл.",
-          neighbours: [],
-        },
-        {
-          id: "f421e743-f9dd-5198-86bd-8a05911ec75b",
-          slug: "kyiv",
-          label: "Київ",
-          short: "м. Київ",
-          neighbours: [],
-        },
-      ]),
-    },
-    cities: {
-      byIds: vi.fn(async () => [
-        {
-          id: CITY_ID,
-          slug: "brovary",
-          kind: "city",
-          nameScope: "unique_in_ukraine",
-          regionId: "814661e1-67de-532e-a38e-2216d8b521ff",
-          name: "Бровари",
-          regionShort: "Київська обл.",
-          raion: "Броварський район",
-        },
-      ]),
-    },
+    cities: { byIds: vi.fn(async () => [city]) },
   };
   return {
     client: client as unknown as ShelterPageClient,

@@ -3,7 +3,6 @@ import {
   type DonationLink,
   EARLY_LISTING_STATUSES,
   type ExactAddress,
-  type FreshnessSentence,
   historyEntryAt,
   type LocalizedText,
   type PendingDonation,
@@ -22,7 +21,7 @@ import { animals } from "../schema/animals";
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
 import { historyRowSelect } from "./history-sql";
-import { exactPointColumns, localizedTextToColumns, shelterToRow } from "./mappers";
+import { exactPointColumns, optionalTextToColumns, shelterToRow } from "./mappers";
 
 /**
  * One audited change to a shelter, as a union rather than an arbitrary column
@@ -31,7 +30,6 @@ import { exactPointColumns, localizedTextToColumns, shelterToRow } from "./mappe
  */
 export type AuditedShelterChange =
   | { kind: "contact"; contact: ShelterContact }
-  | { kind: "freshness_sentence"; freshnessSentence: FreshnessSentence }
   | { kind: "pending_donation"; pendingDonation: PendingDonation | null }
   /**
    * Any verification change. The stored early-listing permission survives it only when the shelter
@@ -42,7 +40,7 @@ export type AuditedShelterChange =
   /** The operator allowed listing before verification; `since` is the write's own `now`. */
   | { kind: "early_listing_allowed"; since: Date }
   | { kind: "early_listing_revoked" }
-  | { kind: "description"; description: LocalizedText }
+  | { kind: "description"; description: LocalizedText | null }
   | { kind: "legal_entity"; legalEntity: ShelterLegalEntity }
   /** The shelter's own logo, set or cleared (pet card PR 3b). */
   | { kind: "logo"; logo: ShelterLogo | null }
@@ -74,11 +72,6 @@ function columnsOf(change: AuditedShelterChange) {
   switch (change.kind) {
     case "contact":
       return { contact: change.contact };
-    case "freshness_sentence":
-      return {
-        freshnessSentenceUk: change.freshnessSentence?.uk ?? null,
-        freshnessSentenceEn: change.freshnessSentence?.en?.text ?? null,
-      };
     case "pending_donation":
       return { pendingDonation: change.pendingDonation };
     case "verification":
@@ -98,7 +91,7 @@ function columnsOf(change: AuditedShelterChange) {
     case "early_listing_revoked":
       return { earlyListingSince: null };
     case "description": {
-      const columns = localizedTextToColumns(change.description);
+      const columns = optionalTextToColumns(change.description);
       return {
         descriptionUk: columns.uk,
         descriptionEnText: columns.enText,

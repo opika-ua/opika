@@ -47,7 +47,6 @@ const fileWith = (contact: unknown) => ({
     },
     contact,
     donation: null,
-    freshnessSentenceUk: "Оновлюємо щотижня.",
     evidence: [
       { kind: "site_visit", visitedOn: "2026-09-01", notes: "Особисто говорив з Оленою." },
       {

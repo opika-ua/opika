@@ -4,7 +4,7 @@ import {
   donationProviderOf,
   earlyListingOf,
   earlyListingRemaining,
-  type FreshnessSentence,
+  type LocalizedText,
   type PauseReason,
   type Shelter,
   type ShelterActor,
@@ -19,10 +19,12 @@ import {
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { ShelterReadScope, ShelterWriteScope } from "../access";
 import type { KabinetContext } from "../context";
+import { handOver } from "../notify/hand-over";
 import { shelterUploadKey } from "../rate-limits";
 import { withinBudget } from "./photos";
+import { optionalTextAfterEdit } from "./text-after-edit";
 
-export type ProfileDeps = Pick<KabinetContext, "db" | "now" | "newId" | "photoUploads">;
+export type ProfileDeps = Pick<KabinetContext, "db" | "now" | "newId" | "photoUploads" | "notify">;
 
 type CasErrors = ORPCErrorConstructorMap<{ CONFLICT: typeof apiErrors.CONFLICT }>;
 type TransitionErrors = ORPCErrorConstructorMap<{
@@ -47,7 +49,6 @@ export function kabinetShelterViewOf(shelter: Shelter, now: Date): KabinetShelte
     contact: shelter.contact,
     donation: shelter.donation,
     pendingDonation: shelter.pendingDonation,
-    freshnessSentence: shelter.freshnessSentence,
     logo: shelter.logo,
     version: shelter.version,
     verification: shelterFacingVerificationOf(shelter.verification),
@@ -98,16 +99,26 @@ type Planned =
   | { kind: "write"; change: AuditedShelterChange; entry: ShelterHistoryEntry }
   | { kind: "no_change" };
 
-async function write(deps: ProfileDeps, shelter: Shelter, expectedVersion: number, plan: Planned) {
+/** Exported for the hand-over test: a lost compare-and-set must hand nothing over. */
+export async function write(
+  deps: ProfileDeps,
+  shelter: Shelter,
+  expectedVersion: number,
+  plan: Planned,
+) {
   if (plan.kind === "no_change") return { kind: "ok" } as const;
-  return kabinetShelterRepo(deps.db).applyAudited({
+  const historyId = deps.newId();
+  const result = await kabinetShelterRepo(deps.db).applyAudited({
     shelterId: shelter.id,
     expectedVersion,
     change: plan.change,
     entry: plan.entry,
-    historyId: deps.newId(),
+    historyId,
     now: deps.now,
   });
+  // A lost race recorded no history, so there is nothing to tell anyone.
+  if (result.kind === "ok") handOver(deps.notify, shelter, [{ id: historyId, entry: plan.entry }]);
+  return result;
 }
 
 /**
@@ -185,29 +196,11 @@ export const profileUpdateContact = (
     errors,
   );
 
-/**
- * The sentence a shelter's edit stores (K4 sheet, answer 13, Oleksii,
- * verbatim: "Clear `en` when `uk` changes; a stale translation would be a
- * false claim."). The English translates one particular Ukrainian sentence;
- * once the Ukrainian is different, keeping it would show English readers
- * words the shelter no longer says. So a changed `uk` stores no `en`,
- * whatever the request carried, and an unchanged `uk` keeps the `en` sent
- * with it (the K4 editor sends the stored one back). Contacts have no
- * localised field, so `updateContact` has nothing to clear.
- */
-export function freshnessSentenceAfterEdit(
-  stored: FreshnessSentence,
-  edited: FreshnessSentence,
-): FreshnessSentence {
-  if (edited === null) return null;
-  if (stored !== null && stored.uk === edited.uk) return edited;
-  return { uk: edited.uk, en: null };
-}
-
-export const profileUpdateFreshnessSentence = (
+/** The shelter's own text; a changed Ukrainian drops the stale English, null clears it. */
+export const profileUpdateDescription = (
   deps: ProfileDeps,
   scope: ShelterWriteScope,
-  input: { freshnessSentence: FreshnessSentence; expectedVersion: number },
+  input: { description: LocalizedText | null; expectedVersion: number },
   errors: CasErrors,
 ) =>
   editFromForm(
@@ -215,15 +208,15 @@ export const profileUpdateFreshnessSentence = (
     scope,
     input.expectedVersion,
     (shelter) => {
-      const next = freshnessSentenceAfterEdit(shelter.freshnessSentence, input.freshnessSentence);
+      const next = optionalTextAfterEdit(shelter.description, input.description);
       return {
         kind: "write",
-        change: { kind: "freshness_sentence", freshnessSentence: next },
+        change: { kind: "description", description: next },
         entry: {
-          kind: "freshness_sentence_changed",
+          kind: "description_changed",
           at: deps.now,
           actor: actorOf(scope),
-          previous: shelter.freshnessSentence,
+          previous: shelter.description,
           next,
         },
       };
@@ -242,14 +235,20 @@ export const profileProposeDonation = (
   input: { url: string },
 ) => {
   const link = { url: input.url, provider: donationProviderOf(input.url) };
-  return tapWithRetry(deps, scope, () => ({
-    kind: "write",
-    change: {
-      kind: "pending_donation",
-      pendingDonation: { link, proposedAt: deps.now, proposedBy: scope.shelterAdminId },
-    },
-    entry: { kind: "donation_proposed", at: deps.now, actor: actorOf(scope), link },
-  }));
+  return tapWithRetry(deps, scope, (shelter) =>
+    // The very link already waiting changes nothing: no history line, no version bump, no mail
+    // (owner, 2026-11-11, after a loop of identical proposals could have burned the mail quota).
+    shelter.pendingDonation?.link.url === link.url
+      ? { kind: "no_change" }
+      : {
+          kind: "write",
+          change: {
+            kind: "pending_donation",
+            pendingDonation: { link, proposedAt: deps.now, proposedBy: scope.shelterAdminId },
+          },
+          entry: { kind: "donation_proposed", at: deps.now, actor: actorOf(scope), link },
+        },
+  );
 };
 
 /** Withdraws a pending proposal. With nothing pending there is nothing to change or record. */

@@ -23,7 +23,7 @@ import { ShelterShell } from "./ShelterShell";
 /**
  * The read-only "your shelter" page (KS-Q1, Oleksii: "A"; mock
  * `Opika Kabinet.dc.html`, «K4 Профіль притулку» 1440 and 360). K4's sections
- * in K4's order (contacts and fundraising, then the shelter's voice and the
+ * in K4's order (contacts and fundraising, then the shelter's text about itself and the
  * block set during verification), with every value a label-value row: the
  * pattern K4 already uses for its locked block (N10), so nothing on the page
  * looks editable. No inputs, no Save bar, and no view or inquiry counts in any
@@ -141,10 +141,10 @@ export function ShelterProfile({
               </Facts>
             </FormSection>
 
-            <FormSection id="voice" title={t.voiceTitle} description={t.voiceNote}>
-              <Facts>
-                <Row label={t.voiceLabel}>{view.freshnessSentence?.uk ?? notRecorded}</Row>
-              </Facts>
+            <FormSection id="about" title={uk.shelterPage.aboutHeading}>
+              <Text className="whitespace-pre-line break-words">
+                {view.description?.uk ?? notRecorded}
+              </Text>
             </FormSection>
 
             <FormSection id="donation" title={t.donationTitle}>

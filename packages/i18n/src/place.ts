@@ -26,6 +26,28 @@ const PREFIX: Record<PlaceLabel["kind"], string> = {
 
 const WHITESPACE = /\s/u;
 
+/** Case- and spacing-insensitive form of a name, split on whitespace (linear, no `\s+` regex). */
+function squash(text: string): string {
+  return text.toLowerCase().split(WHITESPACE).filter(Boolean).join(" ");
+}
+
+/**
+ * True for a city that is its own region (Kyiv, Sevastopol): naming the region after it only says
+ * the same word twice. The settlement kind is the data model's signal; the printed-name check also
+ * catches a row whose kind was stored as a plain city.
+ */
+export function isOwnRegion(place: Pick<PlaceLabel, "kind" | "name" | "regionShort">): boolean {
+  return (
+    place.kind === "special_status_city" ||
+    squash(`${PREFIX[place.kind]} ${place.name}`) === squash(place.regionShort)
+  );
+}
+
+/** Whether naming the oblast after the place says anything: it must exist and not be the place itself. */
+function hasRegionToAdd(place: PlaceLabel): boolean {
+  return squash(place.regionShort) !== "" && !isOwnRegion(place);
+}
+
 /**
  * Removes the words of `tail` (each slot lists its alternatives) from the end of `text`, with at
  * least one whitespace character before each, and the whitespace before the first. Null when the
@@ -67,9 +89,14 @@ export function hromadaShort(hromada: string): string {
  * A settlement as a meta line prints it: the kind prefix and the name, then only as much of the
  * oblast and raion as the name needs to be unambiguous (`nameScope`, computed across the whole
  * settlement list at import). A card adds the oblast whenever the name is not unique in Ukraine;
- * a page that has room (`full`) adds the raion too when the name repeats inside its oblast.
+ * a page that has room (`full`) adds the raion too when the name repeats inside its oblast. An
+ * `address` line (the shelter's location) is `full` plus the oblast even for a unique name. A city
+ * that is its own region (`isOwnRegion`) never gets the oblast added.
  */
-export function placeText(place: PlaceLabel, context: "card" | "full" = "card"): string {
+export function placeText(
+  place: PlaceLabel,
+  context: "card" | "full" | "address" = "card",
+): string {
   const base = `${PREFIX[place.kind]} ${place.name}`;
   return qualify(base, place, context);
 }
@@ -88,7 +115,7 @@ export function placeName(place: PlaceLabel): string {
  * `null` for a unique name, so a row never prints a hint that says nothing.
  */
 export function placeHint(place: PlaceLabel): string | null {
-  if (place.nameScope === "unique_in_ukraine") return null;
+  if (place.nameScope === "unique_in_ukraine" || !hasRegionToAdd(place)) return null;
   const needsRaion =
     place.raion !== null &&
     (place.nameScope === "unique_in_district" || place.nameScope === "shared_in_district");
@@ -97,10 +124,11 @@ export function placeHint(place: PlaceLabel): string | null {
     : place.regionShort;
 }
 
-function qualify(base: string, place: PlaceLabel, context: "card" | "full"): string {
-  if (place.nameScope === "unique_in_ukraine") return base;
+function qualify(base: string, place: PlaceLabel, context: "card" | "full" | "address"): string {
+  if (!hasRegionToAdd(place)) return base;
+  if (place.nameScope === "unique_in_ukraine" && context !== "address") return base;
   const needsRaion =
-    context === "full" &&
+    context !== "card" &&
     place.raion !== null &&
     (place.nameScope === "unique_in_district" || place.nameScope === "shared_in_district");
   if (needsRaion && place.raion !== null) {

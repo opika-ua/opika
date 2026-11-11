@@ -132,7 +132,6 @@ export const en = {
   freshness: {
     /** Rendered by Intl.RelativeTimeFormat('en'), not this string. */
     updatedAgo: "Updated {days}",
-    attribution: "The shelter's own words",
   },
 
   // --- Medical ---
@@ -172,6 +171,7 @@ export const en = {
 
   // --- Shelter page (designer round 1, S6) ---
   shelterPage: {
+    aboutHeading: "About the shelter",
     animalsHeading: "Looking for a home: {count}",
     noAnimals: "No animals here are looking for a home right now.",
     sinceYear: "on the site since {year}",
@@ -497,7 +497,7 @@ export const en = {
       money: "About money",
       verification: "What «verified» means",
       whatToPrepare: "What to prepare",
-      whyThatSentence: "Why we ask for that sentence",
+      whyHowOften: "Why say how often you update your cards",
       whenAnimalFindsHome: "When an animal finds a home",
       howToLeave: "If you want to leave",
       whoIsBehindThis: "Who is behind this",
@@ -512,7 +512,7 @@ export const en = {
     verification: `${COPY_PENDING} 6. What "verified" means.`,
     verificationOpenToVolunteers: `${COPY_PENDING} 6b. Open to unregistered volunteer groups.`,
     whatToPrepare: `${COPY_PENDING} 7. What to prepare.`,
-    whyThatSentence: `${COPY_PENDING} 8. Why we ask for the freshness sentence.`,
+    whyHowOften: `${COPY_PENDING} 8. Why say how often you update your cards.`,
     whenAnimalFindsHome: `${COPY_PENDING} 9. When an animal finds a home.`,
     howToLeave: `${COPY_PENDING} 9b. How to leave – write, and everything is removed; no reason needed, only a confirming email.`,
     whoIsBehindThis: `${COPY_PENDING} 10. Who is behind this.`,
@@ -643,9 +643,6 @@ export const en = {
       donationLink: "Fundraising link",
       donationNote: "https only. No money passes through the site: this is an external link.",
       donationPending: "The proposed link is waiting for me to check it.",
-      voiceTitle: "The shelter's voice",
-      voiceLabel: "Your words on the shelter page",
-      voiceNote: "One sentence in the first person, written by you.",
       pendingNote:
         "I carry out the verification myself: I will write or call to arrange it. Until it is finished, only you can see your animals.",
       pendingNoteLead: "I carry out the verification myself: I will write or call to arrange it.",
@@ -709,7 +706,7 @@ export const en = {
         liveOnSave: {
           contacts:
             "People see the new contacts as soon as you save, when they tap «Write to the shelter».",
-          voice: "The new sentence appears on the shelter page as soon as you save.",
+          about: "The text appears on the shelter page as soon as you save.",
         },
         unsavedLeave: "Your changes aren't saved. Leave anyway?",
       },
@@ -745,13 +742,7 @@ export const en = {
           "An Instagram username: up to 30 Latin letters, digits, dots or underscores. A profile link works too.",
         facebookFormat:
           "A link to a Facebook page is needed, for example https://www.facebook.com/…",
-        sentenceTooLong: "The sentence is longer than {max} characters.",
-        unknownToken: "Only {імʼя} is filled in. Remove «{token}», or write it without braces.",
-        dateTokenGone:
-          "Every card shows when it was updated, so {дата} isn't needed in the sentence.",
-        nameTokenGone:
-          "The sentence now shows on the shelter page, so {імʼя} isn't used in it. Remove it and save again.",
-        strayBrace: "A brace without its pair. Braces are only for {імʼя}.",
+        aboutTooLong: "The text is longer than {max} characters. Shorten it to save.",
       },
       contacts: {
         otherLabel: "Another way to reach you",
@@ -766,14 +757,8 @@ export const en = {
         atLeastOne: "Keep at least one way to reach you.",
         tooMany: "You can keep up to {max} other ways to reach you. Remove the extra ones to save.",
       },
-      voice: {
-        hint: "One sentence in the first person, in your own words, about how often you update your cards. It shows on the shelter page.",
-        counter: "{count} / {max}",
-        counterOver: "Characters over: {over}",
-        emptyMeans:
-          "Leave it empty and the shelter page has no sentence; the cards still show “Updated … ago”.",
-        previewLabel: "This is how it looks on the shelter page:",
-        previewEmpty: "No sentence: the shelter page won't show one.",
+      about: {
+        hint: "Tell people who you are and how you work. It helps to say how often you update your cards.",
       },
       donation: {
         optional: "· optional",
@@ -1199,8 +1184,8 @@ export const en = {
       invite: {
         subject: `Your access to the shelter's cabinet`,
         intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» on the site {site} for this address.`,
-        what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
-        whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the sentence on the shelter page and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification, or once I allow them to be shown with the label «under review». The fundraising link appears once I have checked it and the shelter has passed verification. To change the verification details (the legal entity, EDRPOU or the address), write to me.`,
+        what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the «About the shelter» text and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details, write to me.`,
+        whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the «About the shelter» text and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification, or once I allow them to be shown with the label «under review». The fundraising link appears once I have checked it and the shelter has passed verification. To change the verification details, write to me.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours}. If you miss it, I will send a new one.`,
         notYou: `If you weren't expecting this email, just ignore it and don't forward it to anyone: while the invitation is valid, this link lets someone create a password for this address, once.\n{operator}`,
@@ -1216,6 +1201,61 @@ export const en = {
         subject: `Shelter cabinet: password changed`,
         body: `The password to the shelter's cabinet for this address has just been changed. Other devices have been signed out.`,
         notYou: `If this wasn't you, write to me: {contact}\n{operator}`,
+      },
+      /** The English sense of the notification emails (see the Ukrainian catalogue); signed `{operator}` where the Ukrainian is. */
+      reviewRequested: {
+        subject: `Second review: {shelter}`,
+        body: `The shelter {shelter} asks to be reviewed again.`,
+        action: `Open the shelter`,
+      },
+      donationProposed: {
+        subject: `New fundraising link: {shelter}`,
+        body: `The shelter {shelter} proposed a fundraising link: {host}. It is waiting to be checked.`,
+        action: `Check the link`,
+      },
+      reportReceived: {
+        subject: `A report about a card: {animal}`,
+        body: `A report was made about the card «{animal}» of the shelter {shelter}: {kind}.`,
+        action: `Open the shelter`,
+      },
+      reportKinds: {
+        outdated: `the information is out of date`,
+        photo: `a problem with the photo`,
+        scam: `looks like a scam`,
+        wrongInfo: `a mistake in the card`,
+        other: `other`,
+      },
+      earlyListingEnding: {
+        subject: `Listing before verification is ending: {shelter}`,
+        body: `The display of the cards of the shelter {shelter} while the review runs ends on {date}. After that people will see the cards only once the shelter has passed verification.`,
+        extendable: `The display can be extended one more time.`,
+        action: `Open the shelter`,
+      },
+      approved: {
+        subject: `The shelter has passed verification`,
+        body: `Hello. The shelter «{shelter}» has passed verification. Everyone looking for an animal can now see the published cards.`,
+        action: `Open the cabinet`,
+        help: `If anything is unclear, just reply to this email.\n{operator}`,
+      },
+      earlyListingAllowed: {
+        subject: `The shelter's cards are now visible`,
+        body: `Hello. The cards of the shelter «{shelter}» are now visible to everyone looking for an animal, with the label «under review». The display lasts until {date}, while the review carries on.`,
+        action: `Open the animal list`,
+        help: `If anything is unclear, just reply to this email.\n{operator}`,
+      },
+      donationApproved: {
+        subject: `The fundraising link has been checked`,
+        body: `Hello. The fundraising link {host} has been checked.`,
+        shownNow: `People can see it on the shelter's page.`,
+        notYet: `People will see it as soon as the shelter has passed verification.`,
+        action: `Open the shelter page`,
+        help: `If anything is unclear, just reply to this email.\n{operator}`,
+      },
+      donationRejected: {
+        subject: `The fundraising link was not confirmed`,
+        body: `Hello. The proposed fundraising link {host} was not confirmed. The current link, if there is one, stays as it is.`,
+        action: `Open the shelter page`,
+        help: `If you don't understand why, just reply to this email.\n{operator}`,
       },
     },
     signInCard: {
@@ -1290,7 +1330,7 @@ export const en = {
         timeInState: "since {date}",
         legalNote:
           "The shelter sees these fields read-only. A change of legal entity or EDRPOU doesn't change the status by itself: the decision is yours.",
-        descriptionTitle: "Shelter description",
+        descriptionTitle: "About the shelter",
         edit: "Change",
         add: "Add",
       },
@@ -1467,9 +1507,9 @@ export const en = {
           "Here you enter everything about the shelter: name, address, legal details and evidence. The first administrator gets an invitation by email.",
         name: "Shelter name",
         nameHint: "What the shelter calls itself.",
-        description: "Shelter description",
+        description: "About the shelter · optional",
         descriptionHint:
-          "A short description of the shelter. It may be public, so don't write anything private here.",
+          "This text appears on the shelter page. Don't write anything private here.",
         city: "Settlement",
         address: {
           line1: "Street, building",

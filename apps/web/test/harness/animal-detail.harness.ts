@@ -340,24 +340,19 @@ test.describe("/tvaryny/[animalId] contact reveal – before, after, and close",
 /**
  * Designer round 1, S6. Oleksii's DR1-Q1, verbatim: "the shelter’s freshness
  * sentence leaves the deck and animal pages and shows only on the shelter
- * page. «Оновлено … тому» stays on every card." This test used to require the
- * sentence here (it once quoted the shelter's description by mistake); it now
- * requires the opposite: the pips' day count and nothing of the shelter's
- * words, in a real browser. Whether this animal's shelter has a sentence is
- * the data's business; that it would not render if it had one is pinned with
- * a sentence present in `sentence-only-there.test.tsx`.
+ * page. «Оновлено … тому» stays on every card." Since the shelter description
+ * absorbed the sentence, those words are the «Про притулок» text: this test
+ * requires the pips' day count and nothing of the shelter's words, in a real
+ * browser. That the text would not render here if the view carried it is pinned
+ * in `about-only-there.test.tsx`.
  */
 test.describe("the detail page's freshness block is the day count only", () => {
-  test("shows «Оновлено …» and neither the shelter's sentence nor «Слова притулку»", async ({
-    page,
-    browser,
-  }) => {
+  test("shows «Оновлено …» and no «Про притулок» block", async ({ page, browser }) => {
     await openRoute(page, await discoverFirstAnimalHref(browser), DETAIL_DESKTOP, {
       readySelector: PHOTO,
     });
     await expect(page.getByTestId("freshness-block")).toContainText("Оновлено");
-    await expect(page.getByText("Слова притулку")).toHaveCount(0);
-    await expect(page.getByTestId("shelter-freshness-sentence")).toHaveCount(0);
+    await expect(page.getByText("Про притулок")).toHaveCount(0);
   });
 });
 

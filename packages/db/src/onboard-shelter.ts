@@ -19,14 +19,12 @@ import {
   EvidenceItemInputSchema,
   ExactAddressSchema,
   everServedAtAfter,
-  freshnessSentenceProblemMessage,
   type ListedAnimal,
   MAX_ADDITIONAL_CHANNELS,
   MAX_ANIMAL_PHOTOS,
   type ModeratorId,
   ModeratorIdSchema,
   meetsEvidenceRequirements,
-  normalizeFreshnessSentenceText,
   publicLocationOf,
   type Shelter,
   ShelterContactInputSchema,
@@ -177,27 +175,18 @@ const OnboardPhotoSchema = z.object({
 });
 
 /**
- * The operator's sentences get the same validation as the kabinet's (K-Q6):
- * no braces at all (`{імʼя}` included since DR1-Q5: the sentence shows on the
- * shelter page, where no animal's name fills it), 280 characters. Unlike the kabinet, blank is refused rather than cleared,
- * because this field is required (see `freshnessSentenceUk` below).
+ * The shelter's text, with the cap every write path shares (the kabinet and the operator's forms
+ * refuse a longer one too). Shown word for word under «Про притулок»; braces are plain text.
  */
-const OnboardFreshnessSentenceUkSchema = z.string().transform((raw, ctx) => {
-  const normalized = normalizeFreshnessSentenceText(raw);
-  switch (normalized.kind) {
-    case "ok":
-      return normalized.text;
-    case "empty":
-      ctx.addIssue({ code: "custom", message: "Freshness sentence is empty" });
-      return z.NEVER;
-    case "invalid":
-      ctx.addIssue({
-        code: "custom",
-        message: freshnessSentenceProblemMessage(normalized.problem),
-      });
-      return z.NEVER;
-  }
-});
+const OnboardShelterDescriptionUkSchema = z
+  .string()
+  .min(1)
+  .superRefine((text, ctx) => {
+    const problem = animalDescriptionProblem(text);
+    if (problem !== null) {
+      ctx.addIssue({ code: "custom", message: animalDescriptionProblemMessage(problem) });
+    }
+  });
 
 const OnboardAnimalSchema = z.object({
   idSeed: z.string().min(1),
@@ -235,17 +224,21 @@ export const OnboardInputSchema = z.object({
   shelter: z.object({
     idSeed: z.string().min(1),
     displayName: z.string().min(1),
-    descriptionUk: z.string().min(1),
+    descriptionUk: OnboardShelterDescriptionUkSchema,
     legalEntity: ShelterLegalEntitySchema,
     exactAddress: ExactAddressSchema,
     contact: ShelterContactInputSchema,
     donation: DonationLinkSchema.nullable(),
     /**
-     * Required, not optional: this is the sentence the shelter writes in
-     * its own words, and a required field is what stops onboarding a
-     * shelter nobody actually asked for one.
+     * Gone: the shelter's own words are `descriptionUk` now. A non-strict object would drop this
+     * key without a word, so a leftover one is refused by name instead.
      */
-    freshnessSentenceUk: OnboardFreshnessSentenceUkSchema,
+    freshnessSentenceUk: z
+      .never({
+        error:
+          "freshnessSentenceUk is no longer accepted: put the text in descriptionUk (who they are, how often they update)",
+      })
+      .optional(),
     /**
      * What you actually have, not a name this script used to turn into a
      * fabricated `reference_contact` pointing at the shelter's own phone
@@ -434,7 +427,6 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
     pendingDonation: null,
     earlyListingSince: null,
     version: 0,
-    freshnessSentence: { uk: input.freshnessSentenceUk, en: null },
     verification: {
       status: "verified",
       verifiedAt: now,

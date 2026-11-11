@@ -53,7 +53,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "schema/shelters.ts",
-    line: 48,
+    line: 50,
     text: 'verificationStatus: text("verification_status", {',
     kind: "definition",
     why: "the column itself",
@@ -67,7 +67,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/mappers.ts",
-    line: 200,
+    line: 198,
     text: "verificationStatus: shelter.verification.status,",
     kind: "write",
     why:
@@ -77,7 +77,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/mappers.ts",
-    line: 291,
+    line: 286,
     text: "listingKind: animal.listing.kind,",
     kind: "write",
     why:
@@ -99,7 +99,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/kabinet-shelter-repo.ts",
-    line: 87,
+    line: 80,
     text: "verificationStatus: change.verification.status,",
     kind: "write",
     why: "applyAuditedMany's columnsOf - the one UPDATE of this column; its own `becomesVerified` check is hook 2",

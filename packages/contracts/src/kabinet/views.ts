@@ -126,7 +126,6 @@ export const KabinetShelterViewSchema = ShelterSchema.pick({
   contact: true,
   donation: true,
   pendingDonation: true,
-  freshnessSentence: true,
   logo: true,
   version: true,
 }).extend({
@@ -309,7 +308,6 @@ export const RegistryShelterViewSchema = ShelterSchema.pick({
   contact: true,
   donation: true,
   pendingDonation: true,
-  freshnessSentence: true,
   verification: true,
   createdAt: true,
   lastUpdatedAt: true,

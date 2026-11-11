@@ -60,16 +60,14 @@ describe("buildDemoShelters", () => {
   });
 
   /**
-   * Two of the handoff's five named hostile cases ("unregistered_initiative",
-   * "no freshness sentence") are supposed to be free properties of the
-   * reused «Вірний друг» identity, not something this function adds
-   * separately - asserted here so a future change to which indices
-   * `buildDemoShelters` reuses can't silently drop them.
+   * One of the handoff's named hostile cases ("unregistered_initiative") is supposed to be a free
+   * property of the reused «Вірний друг» identity, not something this function adds separately -
+   * asserted here so a future change to which indices `buildDemoShelters` reuses can't silently
+   * drop it.
    */
-  it("includes the unregistered_initiative shelter, with no freshness sentence, for free", () => {
+  it("includes the unregistered_initiative shelter for free", () => {
     const match = shelters.find((s) => s.legalEntity.kind === "unregistered_initiative");
     expect(match).toBeDefined();
-    expect(match?.freshnessSentence).toBeNull();
   });
 
   // The third named case living on a shelter identity ("long name").

@@ -29,9 +29,10 @@ the per-IP reveal budget, because each guards a credential, a mail, a write or s
 
 ## 2. A cron stopped
 
-Two crons (`apps/web/vercel.json`): `/api/cron/auth-cleanup` every 6 hours, `/api/cron/r2-cleanup`
-daily at 04:00 UTC. Each pings Healthchecks.io when `HEALTHCHECK_URL_AUTH_CLEANUP` /
-`HEALTHCHECK_URL_R2_CLEANUP` is set; a missed or `/fail` ping is the alert.
+Three crons (`apps/web/vercel.json`): `/api/cron/auth-cleanup` every 6 hours, `/api/cron/r2-cleanup`
+daily at 04:00 UTC, `/api/cron/notifications` daily at 06:00 UTC (early listing ends in 7 days, one
+retry of failed notification mails). Each pings Healthchecks.io when `HEALTHCHECK_URL_AUTH_CLEANUP` /
+`HEALTHCHECK_URL_R2_CLEANUP` / `HEALTHCHECK_URL_NOTIFICATIONS` is set; a missed or `/fail` ping is the alert.
 
 1. Vercel, Settings, Cron Jobs: is the job listed and enabled? (Disabled by hand, or removed by a
    deploy that lost `crons`?)
@@ -129,3 +130,15 @@ owner: shelters can re-upload photos and logos. The protection is the clean-up j
 
 Not an outage: a shelter that is unreachable, inconsistent or suspected of asking adopters for money.
 Follow `docs/operator-playbook.md` (signals, triage, suspend and reinstate, what to record, draft messages).
+
+## 10. Notification mails skipped ("event cap reached")
+
+Event mails (review requests, donation links, decisions, early-listing reminders) share a cap of
+`NOTIFICATION_DAILY_EVENT_CAP` a Kyiv day (default 40), counted from `notification_sends` rows
+created since Kyiv midnight. Over the cap a mail is skipped, not queued: the log line
+`notification event cap reached: N mail(s) not sent` (or `skippedOverCap` in the cron's line) says
+how many. Raise the variable in Vercel and redeploy only if the day was real: a shelter that
+repeats itself is already held to one review-request mail and one proposed-link mail per
+operator per Kyiv day, so a day over the cap means many shelters or many decisions. The daily cron
+sends at most 20 mails a run (retries and early-listing reminders together, not counted against
+the cap), so the worst case is 40 + 20 = 60 of the provider's 100 a day.

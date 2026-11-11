@@ -1,3 +1,16 @@
+import { uk } from "@opika/i18n";
+import { REGISTRY_HAS_NO_REAL_SHELTERS } from "./seo-flags";
+
+/**
+ * The root layout's default description, for the page and for a shared link's preview. D-2: a
+ * preview must not claim verified shelters exist while `REGISTRY_HAS_NO_REAL_SHELTERS`. A page
+ * with nothing of its own to say (a shelter with no text) uses it too, so its share preview
+ * never comes out empty.
+ */
+export const LINK_PREVIEW_DESCRIPTION = REGISTRY_HAS_NO_REAL_SHELTERS
+  ? uk.demo.bannerNotice
+  : uk.firstRun.promise;
+
 /** The shared meta-description ceiling (Google's practical limit) - one constant, not a
  * copy in every page that builds one. */
 export const META_DESCRIPTION_MAX_LENGTH = 160;
