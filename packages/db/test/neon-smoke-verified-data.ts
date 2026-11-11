@@ -18,7 +18,7 @@ const PENDING: ShelterVerification = {
 };
 
 /** The SQLSTATE and constraint name from the error chain (Drizzle wraps the driver's error). */
-function refusalOf(error: unknown): string {
+export function refusalOf(error: unknown): string {
   for (
     let e: unknown = error;
     e !== null && typeof e === "object";
@@ -32,7 +32,7 @@ function refusalOf(error: unknown): string {
 }
 
 /** A thunk, so a raw `.execute` stays a whole discarded statement (`raw-execute-reads.test.ts`). */
-async function outcomeOf(run: () => Promise<void>): Promise<string> {
+export async function outcomeOf(run: () => Promise<void>): Promise<string> {
   try {
     await run();
     return "accepted";
