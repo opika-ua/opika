@@ -1,5 +1,5 @@
 import type { RegistryShelterView } from "@opika/contracts";
-import { cityRepo } from "@opika/db/repos";
+import { cityRepo, kabinetShelterRepo } from "@opika/db/repos";
 import { authMember, authUser, shelters } from "@opika/db/schema";
 import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
 import {
@@ -15,12 +15,15 @@ import { fromRpcBody, toRpcBody } from "../../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "../access";
 import type { KabinetPrincipal } from "../actor";
 import { capturingInvitationSender } from "../email-senders";
+import { write } from "../handlers/profile";
+import { writePlanned } from "../handlers/registry-writes";
 import { capturingPasswordMail } from "../password-mail";
+import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../photo-uploads";
 import { handleKabinetRpc } from "../rpc-route";
 import { TEST_SESSION_COOKIE } from "../test-session-cookie";
 import { notifyAfterWrite } from "./after-write";
 import type { HistoryLine } from "./intents";
-import { depsOf, fakeMail, NOW, seedOperator, seedShelter, seedUser } from "./test-fixtures";
+import { depsOf, fakeMail, NOW, seedOperator, seedShelter, seedUser } from "./test-utils/fixtures";
 
 /**
  * The two write choke points hand a committed write to the notifier, through the served router.
@@ -304,5 +307,108 @@ describe("the shelter's own writes", () => {
       asAdmin(shelter),
     );
     expect(result.status).toBe(200);
+  });
+});
+describe("a repeat of the link already waiting", () => {
+  const ADMIN = "33333333-3333-4333-8333-333333333333" as ShelterAdminId;
+
+  it("writes no history line, hands nothing over and mails nobody", async () => {
+    await seedOperator(db, "op@example.org");
+    const { shelter } = await seedShelter(db, { admins: ["shelter@example.org"] });
+    const principal: KabinetPrincipal = {
+      kind: "shelter_admin",
+      shelterAdminId: ADMIN,
+      shelterId: shelter.id,
+    };
+    const url = { url: "https://send.monobank.ua/jar/abc" };
+    expect((await call("shelter.profile.proposeDonation", url, principal)).status).toBe(200);
+    expect(provider.sent).toHaveLength(1);
+    const again = await call("shelter.profile.proposeDonation", url, principal);
+    expect(again.status).toBe(200);
+    expect(handedOver).toHaveLength(1);
+    expect(provider.sent).toHaveLength(1);
+    const lines = await kabinetShelterRepo(db).historyOf(shelter.id);
+    expect(lines.filter((line) => line.kind === "donation_proposed")).toHaveLength(1);
+  });
+
+  it("five different links in a day still mail each operator once", async () => {
+    await seedOperator(db, "op1@example.org");
+    await seedOperator(db, "op2@example.org");
+    const { shelter } = await seedShelter(db, { admins: ["shelter@example.org"] });
+    const principal: KabinetPrincipal = {
+      kind: "shelter_admin",
+      shelterAdminId: ADMIN,
+      shelterId: shelter.id,
+    };
+    for (let n = 0; n < 5; n += 1) {
+      const result = await call(
+        "shelter.profile.proposeDonation",
+        { url: `https://send.monobank.ua/jar/${n}` },
+        principal,
+      );
+      expect(result.status).toBe(200);
+    }
+    expect(handedOver).toHaveLength(5);
+    expect(sentTo()).toEqual(["op1@example.org", "op2@example.org"]);
+  });
+});
+
+describe("hand-over happens only when the write landed", () => {
+  const ADMIN = "33333333-3333-4333-8333-333333333333" as ShelterAdminId;
+  const link = { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" } as const;
+  const proposed = (at: Date) =>
+    ({
+      kind: "donation_proposed",
+      at,
+      actor: { kind: "shelter_admin", shelterAdminId: ADMIN },
+      link,
+    }) as const;
+  const change = (at: Date) =>
+    ({
+      kind: "pending_donation",
+      pendingDonation: { link, proposedAt: at, proposedBy: ADMIN },
+    }) as const;
+
+  it("registry writePlanned hands over on ok and not on a lost compare-and-set", async () => {
+    const { shelter } = await seedShelter(db, { admins: ["shelter@example.org"] });
+    const calls: unknown[] = [];
+    const deps = {
+      db,
+      now: NOW,
+      newId: () => crypto.randomUUID(),
+      operatorDisplayName: "Олексій",
+      invites: capturingInvitationSender(),
+      linkBaseURL: "http://localhost",
+      notify: (...args: unknown[]) => {
+        calls.push(args);
+      },
+    };
+    const plan = { changes: [change(NOW)], entries: [proposed(NOW)] };
+    const stale = { ...shelter, version: shelter.version + 5 };
+    expect(await writePlanned(deps, stale, plan)).toBe("conflict");
+    expect(calls).toEqual([]);
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
+    expect(await writePlanned(deps, shelter, plan)).toBe("ok");
+    expect(calls).toHaveLength(1);
+  });
+
+  it("the shelter's own write hands over on ok and not on a lost compare-and-set", async () => {
+    const { shelter } = await seedShelter(db, { admins: ["shelter@example.org"] });
+    const calls: unknown[] = [];
+    const deps = {
+      db,
+      now: NOW,
+      newId: () => crypto.randomUUID(),
+      photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
+      notify: (...args: unknown[]) => {
+        calls.push(args);
+      },
+    };
+    const plan = { kind: "write", change: change(NOW), entry: proposed(NOW) } as const;
+    const lost = await write(deps, shelter, shelter.version + 5, plan);
+    expect(lost.kind).toBe("conflict");
+    expect(calls).toEqual([]);
+    expect((await write(deps, shelter, shelter.version, plan)).kind).toBe("ok");
+    expect(calls).toHaveLength(1);
   });
 });

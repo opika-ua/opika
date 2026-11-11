@@ -130,3 +130,12 @@ owner: shelters can re-upload photos and logos. The protection is the clean-up j
 
 Not an outage: a shelter that is unreachable, inconsistent or suspected of asking adopters for money.
 Follow `docs/operator-playbook.md` (signals, triage, suspend and reinstate, what to record, draft messages).
+
+## 10. Notification mails skipped ("event cap reached")
+
+Event mails (review requests, donation links, decisions, early-listing reminders) share a cap of
+`NOTIFICATION_DAILY_EVENT_CAP` a Kyiv day (default 40), counted from `notification_sends` rows
+created since Kyiv midnight. Over the cap a mail is skipped, not queued: the log line
+`notification event cap reached: N mail(s) not sent` (or `skippedOverCap` in the cron's line) says
+how many. Raise the variable in Vercel and redeploy only if the day was real; a loop of requests
+from one shelter is the usual cause (the same request twice a day is already one mail).

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   type CityId,
+  earlyListingCutoff,
   earlyListingOf,
   earlyListingRemaining,
   type ModeratorId,
@@ -12,9 +13,11 @@ import type { Database } from "../src/client";
 import { cityRepo } from "../src/repos/city-repo";
 import { kabinetInvitationRepo } from "../src/repos/kabinet-invitation-repo";
 import { notificationRecipientsRepo } from "../src/repos/notification-recipients-repo";
+import { notificationSendsRepo } from "../src/repos/notification-sends-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { authMember, authOrganization, authUser, superAdmins } from "../src/schema/auth";
 import { cities } from "../src/schema/cities";
+import { notificationSends } from "../src/schema/notification-sends";
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
 import { makeCity, makeShelter } from "../src/test-utils/index";
@@ -43,18 +46,29 @@ export async function runNotificationRecipientsSmoke(db: Database): Promise<Outc
   const verificationOf = (status: string) =>
     (status === "pending"
       ? { status, submittedAt: now, evidence }
-      : {
-          status,
-          verifiedAt: now,
-          verifiedBy: moderator,
-          evidence,
-        }) as unknown as ShelterVerification;
+      : status === "under_review"
+        ? { status, startedAt: now, reviewerId: moderator, evidence }
+        : status === "rejected"
+          ? {
+              status,
+              rejectedAt: now,
+              rejectedBy: moderator,
+              reason: { code: "insufficient_evidence", note: null },
+              evidence,
+            }
+          : {
+              status,
+              verifiedAt: now,
+              verifiedBy: moderator,
+              evidence,
+            }) as unknown as ShelterVerification;
 
   const city = makeCity({ id: randomUUID() as CityId, slug: `smoke-${randomUUID()}` as never });
   const userIds: string[] = [];
   const shelterIds: string[] = [];
   const organizationIds: string[] = [];
   const historyId = `smoke-${tag}-history`;
+  const sendKeys: string[] = [];
 
   const user = async (label: string) => {
     const id = randomUUID();
@@ -217,6 +231,104 @@ export async function runNotificationRecipientsSmoke(db: Database): Promise<Outc
       `fixture shelters returned ${mine.length} of 2, excluded ones returned ${[expired.id, verified.id, paused.id, suspended.id].filter((id) => ids.includes(id)).length}, due ${reminding.length}`,
     );
 
+    const reviewing = await shelter("review-20", {
+      verification: verificationOf("under_review"),
+      earlyListingSince: since(20),
+    });
+    const rejected = await shelter("rejected-20", {
+      verification: verificationOf("rejected"),
+      earlyListingSince: since(20),
+    });
+    const atCutoff = await shelter("cutoff-60", {
+      verification: verificationOf("pending"),
+      earlyListingSince: earlyListingCutoff(now),
+    });
+    const justInside = await shelter("inside-60", {
+      verification: verificationOf("pending"),
+      earlyListingSince: new Date(earlyListingCutoff(now).getTime() + 1),
+    });
+    const second = await repo.earlyListingRunning(now);
+    const secondIds = second.map((c) => c.id as string);
+    check(
+      "notify: earlyListingRunning returns an under_review shelter and not a rejected one",
+      secondIds.includes(reviewing.id) && !secondIds.includes(rejected.id),
+      `under_review returned ${secondIds.includes(reviewing.id)}, rejected returned ${secondIds.includes(rejected.id)}`,
+    );
+    check(
+      "notify: earlyListingRunning excludes a shelter whose early_listing_since is exactly the 60-day cut-off and includes one a millisecond inside it",
+      !secondIds.includes(atCutoff.id) && secondIds.includes(justInside.id),
+      `at the cut-off returned ${secondIds.includes(atCutoff.id)}, 1 ms inside returned ${secondIds.includes(justInside.id)}`,
+    );
+
+    const noOrganization = await repo.shelterAdmins(due.id);
+    check(
+      "notify: shelterAdmins for a shelter with organization_id NULL returns an empty list",
+      noOrganization.length === 0,
+      `${noOrganization.length} member(s)`,
+    );
+
+    const dueRow = second.find((c) => c.id === due.id);
+    check(
+      "notify: a returned shelter has early_listing_since as a Date and its verification parsed (status, submittedAt as a Date)",
+      dueRow !== undefined &&
+        dueRow.earlyListingSince instanceof Date &&
+        dueRow.earlyListingSince.getTime() === since(53).getTime() &&
+        dueRow.verification.status === "pending" &&
+        "submittedAt" in dueRow.verification &&
+        dueRow.verification.submittedAt instanceof Date,
+      `since ${dueRow?.earlyListingSince?.constructor.name}, status ${dueRow?.verification.status}`,
+    );
+
+    const decidedId = `smoke-${tag}-decided`;
+    const decidedLink = {
+      url: `https://send.monobank.ua/jar/smoke-${tag}`,
+      provider: "monobank_jar",
+    } as const;
+    await db.insert(shelterHistory).values({
+      id: decidedId,
+      shelterId: shelterA.id,
+      kind: "donation_decided",
+      at: lineAt,
+      entry: {
+        kind: "donation_decided",
+        at: lineAt,
+        moderatorId: moderator,
+        decision: "approved",
+        link: decidedLink,
+        previousLive: null,
+      },
+    });
+    const decided = await repo.historyEntry(decidedId);
+    check(
+      "notify: a donation_decided history entry comes back from jsonb with its link object and a Date",
+      decided?.entry.kind === "donation_decided" &&
+        decided.entry.link.url === decidedLink.url &&
+        decided.entry.link.provider === "monobank_jar" &&
+        decided.entry.at instanceof Date,
+      `kind ${decided?.entry.kind}, link ${decided?.entry.kind === "donation_decided" ? decided.entry.link.provider : "none"}`,
+    );
+
+    const sendsRepo = notificationSendsRepo(db);
+    const countKey = (label: string) => `smoke:${tag}:count-${label}`;
+    sendKeys.push(countKey("now"), countKey("old"), countKey("other"));
+    const hourAgo = new Date(now.getTime() - 3_600_000);
+    const base = { shelterId: null, recipientUserId: null };
+    await sendsRepo.claim(now, { ...base, dedupKey: countKey("now"), kind: "approved" });
+    await sendsRepo.claim(new Date(now.getTime() - 3 * DAY), {
+      ...base,
+      dedupKey: countKey("old"),
+      kind: "approved",
+    });
+    await sendsRepo.claim(now, { ...base, dedupKey: countKey("other"), kind: "smoke-other" });
+    const counted = await sendsRepo.countCreatedSince(hourAgo, ["approved"]);
+    const countedBoth = await sendsRepo.countCreatedSince(hourAgo, ["approved", "smoke-other"]);
+    const none = await sendsRepo.countCreatedSince(hourAgo, []);
+    check(
+      "notify: countCreatedSince counts the fixture rows of the given kinds created since the instant (a 3-day-old row and another kind are not counted)",
+      countedBoth - counted === 1 && counted >= 1 && none === 0,
+      `approved ${counted}, with the other kind ${countedBoth}, no kinds ${none}`,
+    );
+
     await db.delete(authMember).where(eq(authMember.id, memberARow));
     await db.delete(superAdmins).where(eq(superAdmins.id, grants[0]?.id ?? ""));
     const operatorsAfter = ours(addressesOf(await repo.operators()));
@@ -231,6 +343,9 @@ export async function runNotificationRecipientsSmoke(db: Database): Promise<Outc
   } finally {
     // Delete failures must not hide a failed check above, so this runs whatever happened.
     await db.delete(shelterHistory).where(eq(shelterHistory.id, historyId));
+    if (sendKeys.length > 0) {
+      await db.delete(notificationSends).where(inArray(notificationSends.dedupKey, sendKeys));
+    }
     if (userIds.length > 0) {
       await db.delete(superAdmins).where(inArray(superAdmins.userId, userIds));
     }

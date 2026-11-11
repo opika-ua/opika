@@ -2,6 +2,7 @@ import type { SQL } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "../src/client";
 import { authMember, authOrganization, authUser, superAdmins } from "../src/schema/auth";
+import { notificationSends } from "../src/schema/notification-sends";
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
 import { setupTestDatabase } from "../src/test-utils/index";
@@ -23,12 +24,13 @@ describe("runNotificationRecipientsSmoke against the local database", () => {
     organizations: (await db.select().from(authOrganization)).length,
     shelters: (await db.select().from(shelters)).length,
     history: (await db.select().from(shelterHistory)).length,
+    sends: (await db.select().from(notificationSends)).length,
   });
 
-  it("passes every check, there are 6, and every fixture row is gone", async () => {
+  it("passes every check, there are 12, and every fixture row is gone", async () => {
     const outcomes = await runNotificationRecipientsSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes).toHaveLength(6);
+    expect(outcomes).toHaveLength(12);
     expect(await leftovers()).toEqual({
       users: 0,
       grants: 0,
@@ -36,6 +38,7 @@ describe("runNotificationRecipientsSmoke against the local database", () => {
       organizations: 0,
       shelters: 0,
       history: 0,
+      sends: 0,
     });
   });
 
@@ -53,7 +56,7 @@ describe("runNotificationRecipientsSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runNotificationRecipientsSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes).toHaveLength(6);
+    expect(outcomes).toHaveLength(12);
     expect(await leftovers()).toEqual({
       users: 0,
       grants: 0,
@@ -61,6 +64,7 @@ describe("runNotificationRecipientsSmoke against the local database", () => {
       organizations: 0,
       shelters: 0,
       history: 0,
+      sends: 0,
     });
   });
 });

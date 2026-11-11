@@ -68,6 +68,7 @@ only. "Both" means Production and Preview; a separate value on each where noted.
 | `EMAIL_SIGN_IN_PROVIDER` | Production | no; leave unset (only `resend` is accepted) | `kabinet/sign-in-env.ts:72` |
 | `KABINET_OPERATOR_DISPLAY_NAME` | Production | no (falls back to the catalogue's wording) | `app/api/kabinet/[...rpc]/route.ts:81` |
 | `NEXT_PUBLIC_SENTRY_DSN` | Production | no; unset means Sentry never loads, silently | `instrumentation.ts:34` |
+| `NOTIFICATION_DAILY_EVENT_CAP` (event emails per Kyiv day) | Production | no; unset, empty or invalid means 40 | `kabinet/notify/runtime.ts` |
 | `HEALTHCHECK_URL_AUTH_CLEANUP`, `HEALTHCHECK_URL_R2_CLEANUP`, `HEALTHCHECK_URL_NOTIFICATIONS` (Healthchecks.io ping URLs, one per cron) | Production only | no; unset means the cron sends no check-in | `kabinet/auth-cleanup.ts`, `kabinet/r2-cleanup-cron.ts`, `kabinet/notifications-cron.ts` |
 
 (Paths relative to `apps/web/src`; `.env.example` has the long form of each.)

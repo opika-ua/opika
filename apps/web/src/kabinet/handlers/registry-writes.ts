@@ -55,7 +55,8 @@ type Planned = {
   entries: ShelterHistoryEntry[];
 };
 
-async function writePlanned(
+/** Exported for the hand-over test: a lost compare-and-set must hand nothing over. */
+export async function writePlanned(
   deps: RegistryDeps,
   shelter: Shelter,
   plan: Planned,

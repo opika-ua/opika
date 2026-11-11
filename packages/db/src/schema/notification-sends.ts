@@ -12,9 +12,10 @@ export type NotificationSendStatus = (typeof NOTIFICATION_SEND_STATUSES)[number]
  * `dedup_key` first sends, everyone else sees a conflict and stays quiet (a cron event
  * delivered twice, two writers racing). Holds no address and no text: the recipient is a
  * user id, so the row is pseudonymous. The recipient column is nulled when that account is
- * erased, and the dedup key carries only a hash of the user id (`h:{historyId}:{hash}`,
- * `notify/dedup.ts`), so nothing in the row points back to the account afterwards. Purged after
- * 90 days by the 6-hourly auth clean-up (`notificationSendsRepo`).
+ * erased, and the dedup key carries only an unsalted hash of the user id (`h:{historyId}:{hash}`,
+ * `notify/dedup.ts`). The hash can be recomputed from an id that history still holds, so a row is
+ * pseudonymous, not anonymous, until the 90-day purge by the 6-hourly auth clean-up
+ * (`notificationSendsRepo`).
  *
  * `kind` is plain text, not a CHECK: a new mail kind is a code change, not a migration.
  * Both foreign keys SET NULL, so erasing a shelter or a user never needs to touch this table.

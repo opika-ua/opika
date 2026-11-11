@@ -10,9 +10,35 @@ import type { ComposeContext } from "./compose";
 import type { NotifyDeps } from "./deliver";
 import type { ShelterNotifier } from "./intents";
 
+/** Event mails a Kyiv day may send in all, unless `NOTIFICATION_DAILY_EVENT_CAP` says otherwise. */
+export const DEFAULT_DAILY_EVENT_CAP = 40;
+
+let reportedBadCap = false;
+
+/**
+ * `NOTIFICATION_DAILY_EVENT_CAP` as a positive integer, or the default. A bad value is ignored
+ * with one line per process that names the variable and never its value.
+ */
+export function eventCapOf(
+  env: Readonly<Record<string, string | undefined>>,
+  log: (line: string) => void = (line) => console.warn(line),
+): number {
+  const raw = env.NOTIFICATION_DAILY_EVENT_CAP?.trim();
+  if (raw === undefined || raw === "") return DEFAULT_DAILY_EVENT_CAP;
+  const value = Number(raw);
+  if (/^\d+$/.test(raw) && Number.isSafeInteger(value) && value > 0) return value;
+  if (!reportedBadCap) {
+    reportedBadCap = true;
+    log(
+      `[kabinet] NOTIFICATION_DAILY_EVENT_CAP is not a positive integer; using ${DEFAULT_DAILY_EVENT_CAP}`,
+    );
+  }
+  return DEFAULT_DAILY_EVENT_CAP;
+}
+
 /** Whether this deployment can send notification emails at all, and how. */
 export type NotifyRuntime =
-  | { kind: "on"; mail: ProviderMail; context: ComposeContext }
+  | { kind: "on"; mail: ProviderMail; context: ComposeContext; eventCap: number }
   | { kind: "off" };
 
 /** Development prints the subject and a masked address, never the body: nothing leaves the machine. */
@@ -41,6 +67,7 @@ export function notifyRuntimeOf(env: Readonly<Record<string, string | undefined>
       kind: "on",
       mail: notificationMailFor(signIn),
       context: { baseURL: signIn.baseURL, operatorName: signIn.operatorName },
+      eventCap: eventCapOf(env),
     };
   }
   if (!env.BETTER_AUTH_URL) return { kind: "off" };
@@ -48,6 +75,7 @@ export function notifyRuntimeOf(env: Readonly<Record<string, string | undefined>
     kind: "on",
     mail: consoleMail,
     context: { baseURL: env.BETTER_AUTH_URL, operatorName: operatorDisplayName(env) },
+    eventCap: eventCapOf(env),
   };
 }
 
@@ -58,6 +86,7 @@ export const notifyDepsOf = (
   db,
   mail: runtime.mail,
   context: runtime.context,
+  eventCap: runtime.eventCap,
   now: () => new Date(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   // biome-ignore lint/suspicious/noConsole: the masked failure line is the only trace of an unsent mail

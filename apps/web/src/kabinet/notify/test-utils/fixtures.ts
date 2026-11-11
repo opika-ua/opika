@@ -4,9 +4,9 @@ import { cityRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
 import { authMember, authUser, superAdmins } from "@opika/db/schema";
 import { makeCity, makeShelter } from "@opika/db/test";
 import type { Shelter, ShelterVerification } from "@opika/domain";
-import type { OutgoingEmail } from "../email-provider";
-import type { ProviderMail } from "../email-senders";
-import type { NotifyDeps } from "./deliver";
+import { type OutgoingEmail, ProviderSendError } from "../../email-provider";
+import type { ProviderMail } from "../../email-senders";
+import type { NotifyDeps } from "../deliver";
 
 /** Shared by the notify tests only: a fake provider and the rows a mail's recipients come from. */
 
@@ -15,11 +15,17 @@ export const DAY = 24 * 60 * 60 * 1000;
 
 export function fakeMail() {
   const sent: OutgoingEmail[] = [];
-  const state = { failing: false };
+  const state: {
+    failing: boolean;
+    /** The HTTP status a failing send reports; null is "no answer" (a timeout). */
+    status: number | null;
+    onSend: (() => void) | null;
+  } = { failing: false, status: 500, onSend: null };
   const mail: ProviderMail = {
     sender: {
       async send(email) {
-        if (state.failing) throw new Error("provider down");
+        state.onSend?.();
+        if (state.failing) throw new ProviderSendError("resend", state.status, "provider down");
         sent.push(email);
         return { status: 200, messageId: null };
       },
@@ -33,7 +39,7 @@ export function fakeMail() {
 export function depsOf(
   db: Database,
   mail: ProviderMail,
-  options: { now?: Date } = {},
+  options: { now?: Date | (() => Date); eventCap?: number } = {},
 ): NotifyDeps & { sleeps: number[]; logs: string[] } {
   const sleeps: number[] = [];
   const logs: string[] = [];
@@ -41,8 +47,9 @@ export function depsOf(
     db,
     mail,
     context: { baseURL: "https://example.org", operatorName: "Олексій" },
-    // A clock that never moves, so every send after the first has to ask for the full spacing.
-    now: () => options.now ?? NOW,
+    // A clock that never moves unless asked to, so every send after the first asks for the full spacing.
+    now: () => (typeof options.now === "function" ? options.now() : (options.now ?? NOW)),
+    eventCap: options.eventCap ?? 40,
     sleep: async (ms) => {
       sleeps.push(ms);
     },

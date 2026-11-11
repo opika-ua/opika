@@ -99,7 +99,13 @@ type Planned =
   | { kind: "write"; change: AuditedShelterChange; entry: ShelterHistoryEntry }
   | { kind: "no_change" };
 
-async function write(deps: ProfileDeps, shelter: Shelter, expectedVersion: number, plan: Planned) {
+/** Exported for the hand-over test: a lost compare-and-set must hand nothing over. */
+export async function write(
+  deps: ProfileDeps,
+  shelter: Shelter,
+  expectedVersion: number,
+  plan: Planned,
+) {
   if (plan.kind === "no_change") return { kind: "ok" } as const;
   const historyId = deps.newId();
   const result = await kabinetShelterRepo(deps.db).applyAudited({
@@ -247,14 +253,20 @@ export const profileProposeDonation = (
   input: { url: string },
 ) => {
   const link = { url: input.url, provider: donationProviderOf(input.url) };
-  return tapWithRetry(deps, scope, () => ({
-    kind: "write",
-    change: {
-      kind: "pending_donation",
-      pendingDonation: { link, proposedAt: deps.now, proposedBy: scope.shelterAdminId },
-    },
-    entry: { kind: "donation_proposed", at: deps.now, actor: actorOf(scope), link },
-  }));
+  return tapWithRetry(deps, scope, (shelter) =>
+    // The very link already waiting changes nothing: no history line, no version bump, no mail
+    // (owner, 2026-11-11, after a loop of identical proposals could have burned the mail quota).
+    shelter.pendingDonation?.link.url === link.url
+      ? { kind: "no_change" }
+      : {
+          kind: "write",
+          change: {
+            kind: "pending_donation",
+            pendingDonation: { link, proposedAt: deps.now, proposedBy: scope.shelterAdminId },
+          },
+          entry: { kind: "donation_proposed", at: deps.now, actor: actorOf(scope), link },
+        },
+  );
 };
 
 /** Withdraws a pending proposal. With nothing pending there is nothing to change or record. */

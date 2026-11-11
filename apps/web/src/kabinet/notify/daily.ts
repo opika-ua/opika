@@ -6,14 +6,25 @@ import {
   shelterRepo,
 } from "@opika/db/repos";
 import { dedupKeyOf } from "./dedup";
-import { createPacer, deliver, type NotifyDeps, sendClaimed } from "./deliver";
-import { type NotificationIntent, planEarlyListingEnding, planEventIntents } from "./intents";
+import { createPacer, deliver, type NotifyDeps, openEventCap, sendClaimed } from "./deliver";
+import {
+  type NotificationIntent,
+  planEarlyListingEnding,
+  planEventIntents,
+  rebuildDailyIntent,
+} from "./intents";
 
 /**
  * Mails one run may send. Resend's free plan allows 100 a day and a sign-in link must always
  * have room, so a run stops well short of it and leaves the rest for tomorrow.
  */
 export const DAILY_SEND_BUDGET = 60;
+
+/**
+ * A run stops claiming after this long (Vercel gives the route 300 s): a send can take its 10 s
+ * timeout, and what is left stays unclaimed for tomorrow's run.
+ */
+export const DAILY_TIME_GUARD_MS = 240_000;
 
 export type DailyCounts = {
   retried: number;
@@ -25,6 +36,10 @@ export type DailyCounts = {
   /** Mails left for the next run because the budget ran out. */
   deferred: number;
   errors: number;
+  /** O4 mails left unsent because the day's event cap was already reached. */
+  skippedOverCap: number;
+  /** True when the run stopped claiming because `DAILY_TIME_GUARD_MS` had passed. */
+  stoppedForTime: boolean;
 };
 
 /** The mail a failed row stood for, rebuilt from current state, or null when it no longer applies. */
@@ -45,6 +60,16 @@ async function rebuilt(
     if (line !== null && shelter !== null) {
       intents.push(...planEventIntents(shelter, [{ id: historyId, entry: line.entry }]));
     }
+  } else if (
+    (row.dedupKey.startsWith("rr:") || row.dedupKey.startsWith("dp:")) &&
+    row.shelterId !== null
+  ) {
+    const shelter = await shelterRepo(deps.db).findById(row.shelterId);
+    const intent =
+      shelter === null
+        ? null
+        : rebuildDailyIntent(shelter, row.dedupKey.slice(0, row.dedupKey.lastIndexOf(":")));
+    if (intent !== null) intents.push(intent);
   } else if (row.dedupKey.startsWith("el-end:") && row.shelterId !== null) {
     const shelter = await shelterRepo(deps.db).findById(row.shelterId);
     if (shelter !== null) {
@@ -86,11 +111,18 @@ export async function runDailyNotifications(
     duplicates: 0,
     deferred: 0,
     errors: 0,
+    skippedOverCap: 0,
+    stoppedForTime: false,
   };
   let left = budget;
+  const startedAt = now.getTime();
+  const outOfTime = () => {
+    if (deps.now().getTime() - startedAt > DAILY_TIME_GUARD_MS) counts.stoppedForTime = true;
+    return counts.stoppedForTime;
+  };
 
   for (const row of await sends.retryable(now)) {
-    if (left <= 0) {
+    if (left <= 0 || outOfTime()) {
       counts.deferred += 1;
       continue;
     }
@@ -122,17 +154,23 @@ export async function runDailyNotifications(
     if (intent !== null) due.push(intent);
   }
   const operators = due.length === 0 ? [] : await recipients.operators();
+  const cap = await openEventCap(deps);
   for (const intent of due) {
     for (const operator of operators) {
-      if (left <= 0) {
+      if (left <= 0 || outOfTime()) {
         counts.deferred += 1;
         continue;
       }
       try {
+        if (!cap.take()) {
+          counts.skippedOverCap += 1;
+          continue;
+        }
         left -= 1;
         const result = await deliver(deps, pacer, intent, operator);
         if (result === "duplicate") {
           left += 1;
+          cap.refund();
           counts.duplicates += 1;
         } else if (result === "sent") counts.endingSent += 1;
         else counts.failed += 1;

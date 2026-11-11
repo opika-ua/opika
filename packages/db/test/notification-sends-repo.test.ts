@@ -207,6 +207,21 @@ describe("purgeOlderThan", () => {
   });
 });
 
+describe("countCreatedSince", () => {
+  it("counts rows of the given kinds created at or after the instant, whatever their status", async () => {
+    const since = ago(2 * HOUR);
+    await seed("on-the-instant", { createdAt: since, status: "sent" });
+    await seed("after", { createdAt: ago(HOUR), status: "failed" });
+    await seed("before", { createdAt: ago(2 * HOUR + 1) });
+    await seed("other-kind", { createdAt: ago(HOUR), kind: "freshnessReminder" });
+    const repo = notificationSendsRepo(db);
+    expect(await repo.countCreatedSince(since, ["approved"])).toBe(2);
+    expect(await repo.countCreatedSince(since, ["approved", "freshnessReminder"])).toBe(3);
+    expect(await repo.countCreatedSince(since, [])).toBe(0);
+    expect(await repo.countCreatedSince(NOW, ["approved"])).toBe(0);
+  });
+});
+
 describe("references", () => {
   it("keeps the row, with the recipient cleared, when the user is deleted", async () => {
     const recipientUserId = await user();

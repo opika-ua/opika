@@ -20,7 +20,7 @@ import {
   seedShelter,
   seedUser,
   VERIFIED,
-} from "./test-fixtures";
+} from "./test-utils/fixtures";
 
 /**
  * The send path against a real database: the claim is a property of the SQL, the recipients come
@@ -492,5 +492,208 @@ describe("the cron handler over a real run", () => {
     expect(logged).not.toContain("@");
     expect(logged).not.toContain(shelter.id);
     expect(logged).not.toContain(shelter.displayName);
+  });
+});
+describe("the daily cap on event mails", () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  async function claimedRows(count: number, createdAt: Date, kind = "approved") {
+    for (let n = 0; n < count; n += 1) {
+      await db.insert(notificationSends).values({
+        dedupKey: `fill:${kind}:${createdAt.toISOString()}:${n}`,
+        kind,
+        shelterId: null,
+        recipientUserId: null,
+        status: "sent",
+        attempts: 1,
+        createdAt,
+        updatedAt: createdAt,
+      });
+    }
+  }
+  const admins = (count: number) => Array.from({ length: count }, (_, n) => `cap-${n}@example.org`);
+
+  it("sends up to the cap, skips the rest with a log line and no handoff to the sender", async () => {
+    const { shelter } = await seedShelter(db, { admins: admins(5) });
+    const { mail, sent } = fakeMail();
+    const deps = depsOf(db, mail, { eventCap: 3 });
+    await notifyAfterWrite(deps, shelter, [approveLine()]);
+    expect(sent).toHaveLength(3);
+    expect(await sendRows()).toHaveLength(3);
+    expect(deps.logs).toEqual(["[kabinet] notification event cap reached: 2 mail(s) not sent"]);
+  });
+
+  it("with the default 40: the 40th of the day sends and the 41st does not", async () => {
+    await claimedRows(38, NOW);
+    const { shelter } = await seedShelter(db, { admins: admins(3) });
+    const { mail, sent } = fakeMail();
+    await notifyAfterWrite(depsOf(db, mail), shelter, [approveLine()]);
+    expect(sent).toHaveLength(2);
+    expect(await sendRows()).toHaveLength(40);
+  });
+
+  it("counts event mails only, and only those claimed in the current Kyiv day", async () => {
+    // 21:30 UTC on 9 November is 23:30 in Kyiv: the day before the one NOW is in.
+    await claimedRows(10, new Date("2026-11-09T21:30:00.000Z"));
+    await claimedRows(10, NOW, "something-else");
+    const { shelter } = await seedShelter(db, { admins: admins(2) });
+    const { mail, sent } = fakeMail();
+    await notifyAfterWrite(depsOf(db, mail, { eventCap: 2 }), shelter, [approveLine()]);
+    expect(sent).toHaveLength(2);
+  });
+
+  it("the day turns over at Kyiv midnight, not UTC midnight", async () => {
+    const afterMidnight = new Date("2026-11-10T22:30:00.000Z");
+    await claimedRows(2, new Date("2026-11-10T21:30:00.000Z"));
+    await claimedRows(1, new Date("2026-11-10T22:10:00.000Z"));
+    const { shelter } = await seedShelter(db, { admins: admins(3) });
+    const { mail, sent } = fakeMail();
+    // 22:30 UTC is 00:30 on the 11th in Kyiv: the two rows from 21:30 are yesterday's.
+    await notifyAfterWrite(depsOf(db, mail, { now: afterMidnight, eventCap: 3 }), shelter, [
+      approveLine(),
+    ]);
+    expect(sent).toHaveLength(2);
+  });
+
+  it("the next day sends again where the cap had stopped it", async () => {
+    const { shelter } = await seedShelter(db, { admins: admins(2) });
+    const { mail, sent } = fakeMail();
+    await notifyAfterWrite(depsOf(db, mail, { eventCap: 1 }), shelter, [approveLine("day-1")]);
+    expect(sent).toHaveLength(1);
+    const tomorrow = new Date(NOW.getTime() + DAY_MS);
+    await notifyAfterWrite(depsOf(db, mail, { now: tomorrow, eventCap: 1 }), shelter, [
+      approveLine("day-2"),
+    ]);
+    expect(sent).toHaveLength(2);
+  });
+
+  it("the cron's O4 mails count against it too, and a capped one is counted, not sent", async () => {
+    await seedShelter(db, {
+      overrides: {
+        verification: PENDING,
+        earlyListingSince: new Date(NOW.getTime() - (EARLY_LISTING_DAYS - 5) * DAY),
+      } as Partial<Shelter>,
+    });
+    await seedOperator(db, "op1@example.org");
+    await seedOperator(db, "op2@example.org");
+    await claimedRows(1, NOW);
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail, { eventCap: 2 }));
+    expect(sent).toHaveLength(1);
+    expect(counts).toMatchObject({ endingSent: 1, skippedOverCap: 1 });
+  });
+});
+
+describe("a shelter that repeats itself mails the operators once a day (O1, O2)", () => {
+  const proposal = (id: string, at: Date, url: string): HistoryLine => ({
+    id,
+    entry: {
+      kind: "donation_proposed",
+      at,
+      actor: asAdmin,
+      link: { url, provider: "other" },
+    } as unknown as ShelterHistoryEntry,
+  });
+
+  it("five proposals in a day send one mail per operator; the next Kyiv day sends one more", async () => {
+    await seedOperator(db, "op1@example.org");
+    await seedOperator(db, "op2@example.org");
+    const { shelter } = await seedShelter(db, { admins: ["s@example.org"] });
+    const { mail, sent } = fakeMail();
+    for (let n = 0; n < 5; n += 1) {
+      const at = new Date(NOW.getTime() + n * 60_000);
+      await notifyAfterWrite(depsOf(db, mail, { now: at }), shelter, [
+        proposal(`p-${n}`, at, `https://example.org/give/${n}`),
+      ]);
+    }
+    expect(sent).toHaveLength(2);
+    const tomorrow = new Date(NOW.getTime() + DAY);
+    await notifyAfterWrite(depsOf(db, mail, { now: tomorrow }), shelter, [
+      proposal("p-next", tomorrow, "https://example.org/give/next"),
+    ]);
+    expect(sent).toHaveLength(4);
+  });
+
+  it("the day is a Kyiv day: 23:59 and 00:01 Kyiv are two", async () => {
+    await seedOperator(db, "op@example.org");
+    const { shelter } = await seedShelter(db);
+    const { mail, sent } = fakeMail();
+    for (const [id, iso] of [
+      ["a", "2026-11-10T21:59:00.000Z"],
+      ["b", "2026-11-10T22:01:00.000Z"],
+    ] as const) {
+      const at = new Date(iso);
+      await notifyAfterWrite(depsOf(db, mail, { now: at }), shelter, [
+        proposal(id, at, "https://example.org/give"),
+      ]);
+    }
+    expect(sent).toHaveLength(2);
+  });
+});
+
+describe("a send that got no answer is never retried", () => {
+  async function firstAttempt(status: number | null) {
+    const { shelter } = await seedShelter(db, { admins: ["a@example.org"] });
+    await db.insert(shelterHistory).values({
+      id: "approve-7",
+      shelterId: shelter.id,
+      kind: "verification",
+      at: NOW,
+      entry: approveLine("approve-7").entry,
+    });
+    const failing = fakeMail();
+    failing.state.failing = true;
+    failing.state.status = status;
+    await notifyAfterWrite(depsOf(db, failing.mail), shelter, [approveLine("approve-7")]);
+    return shelter;
+  }
+
+  it("a timeout may have delivered the mail: the row is closed, the next sweep sends nothing", async () => {
+    await firstAttempt(null);
+    expect(await sendRows()).toMatchObject([{ status: "failed", attempts: 2 }]);
+    const { mail, sent } = fakeMail();
+    const counts = await runDailyNotifications(depsOf(db, mail));
+    expect(sent).toEqual([]);
+    expect(counts.retried).toBe(0);
+  });
+
+  it("an answered refusal stays retryable once", async () => {
+    await firstAttempt(500);
+    expect(await sendRows()).toMatchObject([{ status: "failed", attempts: 1 }]);
+    const { mail, sent } = fakeMail();
+    await runDailyNotifications(depsOf(db, mail));
+    expect(sent).toHaveLength(1);
+  });
+});
+
+describe("the daily time guard", () => {
+  it("stops claiming after 240 s, leaves the rest unclaimed and finishes them next run", async () => {
+    for (let n = 0; n < 5; n += 1) {
+      await seedShelter(db, {
+        overrides: {
+          verification: PENDING,
+          earlyListingSince: new Date(NOW.getTime() - (EARLY_LISTING_DAYS - 2 - n) * DAY),
+        } as Partial<Shelter>,
+      });
+    }
+    await seedOperator(db, "op@example.org");
+    const provider = fakeMail();
+    let elapsed = 0;
+    // Each send takes 100 s on this clock.
+    provider.state.onSend = () => {
+      elapsed += 100_000;
+    };
+    const first = await runDailyNotifications(
+      depsOf(db, provider.mail, { now: () => new Date(NOW.getTime() + elapsed) }),
+    );
+    expect(provider.sent).toHaveLength(3);
+    expect(first).toMatchObject({ endingSent: 3, deferred: 2, stoppedForTime: true });
+    expect(await sendRows()).toHaveLength(3);
+    elapsed = 0;
+    const second = await runDailyNotifications(
+      depsOf(db, provider.mail, { now: () => new Date(NOW.getTime() + elapsed) }),
+    );
+    expect(provider.sent).toHaveLength(5);
+    expect(second).toMatchObject({ endingSent: 2, stoppedForTime: false });
   });
 });

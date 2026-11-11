@@ -3,6 +3,8 @@ import {
   earlyListingExpiresAt,
   earlyListingOf,
   earlyListingRemaining,
+  historyEntryAt,
+  kyivCalendarDateOf,
   publicDonationOf,
   type Shelter,
   type ShelterHistoryEntry,
@@ -50,8 +52,23 @@ const AUDIENCE: Record<NotificationKind, Audience> = {
   donationRejected: "shelter_admins",
 };
 
+/** Every mail kind an event or the daily batch sends: what the event cap counts. */
+export const EVENT_KINDS = Object.keys(AUDIENCE) as NotificationKind[];
+
 /** The link's host only: the full URL stays out of a mail kept in the provider's logs. */
 const hostOf = (url: string): string => new URL(url).host;
+
+/**
+ * The two mails a shelter can trigger as often as it likes (ask for review, propose a link) are
+ * claimed once per shelter per Kyiv day, so a loop of identical taps cannot burn the day's mail
+ * quota; every other mail is claimed per history line.
+ */
+const DAILY_PREFIX = { reviewRequested: "rr", donationProposed: "dp" } as const;
+
+const dedupBaseOf = (kind: NotificationKind, shelterId: ShelterId, historyId: string, at: Date) =>
+  kind === "reviewRequested" || kind === "donationProposed"
+    ? `${DAILY_PREFIX[kind]}:${shelterId}:${kyivCalendarDateOf(at)}`
+    : `h:${historyId}`;
 
 type PlannedShelter = Pick<Shelter, "id" | "displayName" | "verification">;
 
@@ -105,7 +122,7 @@ export function planEventIntents(
         audience: AUDIENCE[body.kind],
         shelterId: shelter.id,
         shelterName: shelter.displayName,
-        dedupBase: `h:${id}`,
+        dedupBase: dedupBaseOf(body.kind, shelter.id, id, historyEntryAt(entry)),
       },
     ];
   });
@@ -134,4 +151,27 @@ export function planEarlyListingEnding(
     period: Math.min(Math.max(periodsUsed, 1), EARLY_LISTING_MAX_PERIODS),
     dedupBase: `el-end:${shelter.id}:${since.toISOString()}`,
   };
+}
+
+/**
+ * A retry of a per-day mail has no history line to read (its key names the shelter and the day),
+ * so it is rebuilt from the shelter as it is now: still waiting for review, or a link still
+ * waiting for the operator. Otherwise null, and the retry is dropped.
+ */
+export function rebuildDailyIntent(shelter: Shelter, dedupBase: string): NotificationIntent | null {
+  const shared = {
+    audience: "operators",
+    shelterId: shelter.id,
+    shelterName: shelter.displayName,
+    dedupBase,
+  } as const;
+  if (dedupBase.startsWith("rr:")) {
+    return shelter.verification.status === "pending"
+      ? { ...shared, kind: "reviewRequested" }
+      : null;
+  }
+  if (dedupBase.startsWith("dp:") && shelter.pendingDonation !== null) {
+    return { ...shared, kind: "donationProposed", host: hostOf(shelter.pendingDonation.link.url) };
+  }
+  return null;
 }

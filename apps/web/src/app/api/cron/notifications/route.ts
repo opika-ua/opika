@@ -2,7 +2,11 @@ import { kabinetDb } from "../../../../kabinet/kabinet-db";
 import { handleNotificationsCron } from "../../../../kabinet/notifications-cron";
 import { notifyDepsOf, notifyRuntimeOf } from "../../../../kabinet/notify/runtime";
 
-/** A run sends at most 60 mails, one per 500 ms plus the provider's answer: well past the default. */
+/**
+ * 60 sends at 500 ms apart plus the provider's answer, each up to its 10 s timeout, could take
+ * about 660 s in the worst case, longer than this limit. That is safe: the run stops claiming
+ * after 240 s (`DAILY_TIME_GUARD_MS`), and an unclaimed mail waits for the next run.
+ */
 export const maxDuration = 300;
 
 /**

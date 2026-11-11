@@ -142,6 +142,45 @@ describe("planEventIntents", () => {
   });
 });
 
+describe("per-day dedup of the two mails a shelter can repeat (O1, O2)", () => {
+  const proposed = (id: string, at: Date) =>
+    line(id, { kind: "donation_proposed", at, actor: asAdmin, link: LINK });
+  const resubmit = (id: string, at: Date) =>
+    line(id, {
+      kind: "verification",
+      event: { type: "resubmit", at, actor: asAdmin },
+      from: "rejected",
+      to: "pending",
+    });
+  const baseOf = (lines: HistoryLine[]) => planEventIntents(SHELTER, lines)[0]?.dedupBase;
+
+  it("proposals on one Kyiv day share a key whatever their history ids", () => {
+    const morning = new Date("2026-11-10T06:00:00.000Z");
+    const evening = new Date("2026-11-10T19:00:00.000Z");
+    expect(baseOf([proposed("a", morning)])).toBe(baseOf([proposed("b", evening)]));
+    expect(baseOf([proposed("a", morning)])).toBe(`dp:${SHELTER.id}:2026-11-10`);
+  });
+
+  it("the day changes at Kyiv midnight, not at UTC midnight", () => {
+    // 21:59 UTC is 23:59 in Kyiv in November, 22:01 UTC is 00:01 the next day.
+    const before = baseOf([proposed("a", new Date("2026-11-10T21:59:00.000Z"))]);
+    const after = baseOf([proposed("b", new Date("2026-11-10T22:01:00.000Z"))]);
+    expect(before).toBe(`dp:${SHELTER.id}:2026-11-10`);
+    expect(after).toBe(`dp:${SHELTER.id}:2026-11-11`);
+  });
+
+  it("review requests are keyed the same way, under their own prefix", () => {
+    expect(baseOf([resubmit("a", NOW)])).toBe(`rr:${SHELTER.id}:2026-11-10`);
+    expect(baseOf([resubmit("a", NOW)])).toBe(
+      baseOf([resubmit("z", new Date(NOW.getTime() + 3600_000))]),
+    );
+  });
+
+  it("the shelter's mails stay keyed per history line", () => {
+    expect(baseOf([verification({ type: "approve" })])).toBe("h:h1");
+  });
+});
+
 describe("planEarlyListingEnding (O4)", () => {
   const SHELTER_ID = "22222222-2222-4222-8222-222222222222";
   const shelter = (since: Date | null, status = "under_review") =>

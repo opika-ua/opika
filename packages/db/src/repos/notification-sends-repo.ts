@@ -1,5 +1,5 @@
 import type { ShelterId } from "@opika/domain";
-import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { notificationSends } from "../schema/notification-sends";
 
@@ -93,6 +93,21 @@ export function notificationSendsRepo(db: Database) {
         )
         .returning({ dedupKey: notificationSends.dedupKey });
       return rows.length === 1;
+    },
+
+    /**
+     * How many sends of these kinds were claimed at or after `since`: the day's tally the event
+     * cap reads. Every claimed row counts, sent or failed, because each one reached the provider.
+     */
+    async countCreatedSince(since: Date, kinds: readonly string[]): Promise<number> {
+      if (kinds.length === 0) return 0;
+      const rows = await db
+        .select({ n: sql<number>`count(*)`.mapWith(Number) })
+        .from(notificationSends)
+        .where(
+          and(gte(notificationSends.createdAt, since), inArray(notificationSends.kind, [...kinds])),
+        );
+      return rows[0]?.n ?? 0;
     },
 
     /** Deletes rows created strictly more than `days` ago; returns how many went. */
