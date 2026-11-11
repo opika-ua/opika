@@ -34,7 +34,7 @@ without promising anything.
 |---|---|---|---|
 | **Oleksii, in first person singular** | Any human action: verification, entering data, removing an animal, replying, deleting a shelter's record, talking to a shelter someone recommended | **я** | *live* «ви розкажете, а я внесу все сам» · «напишіть, і я приберу» · «коли ви пишете на цю адресу, відповідаю я» |
 | **The registry, as a mechanism** | What the system does or doesn't do; errors; empty states | impersonal, or «реєстр» as subject | *live* «Реєстр не бере і не переказує грошей» · «Дата ставиться сама.» |
-| **The shelter, in its own words** | The freshness sentence, animal descriptions the shelter supplied | quoted «…», attributed | *live* «Слова притулку · дата автоматична» |
+| **The shelter, in its own words** | The «Про притулок» text and the animal descriptions the shelter supplied | shown verbatim under a heading, not quoted «…», not attributed | *live* «Про притулок» (heading over the shelter's text, shelter page) · «Моя історія» (heading over an animal's description) |
 
 **Never «ми», «наша команда», «ми з'єднуємо».** There is no "we". Until self-serve shelter
 accounts ship (commitment #6), a «ми» in a sentence about a human action is a false claim of a
@@ -133,7 +133,7 @@ one. See §6.
 | **оновлено N днів тому** | when the information was last updated. Not confirmed. Not checked. |
 | **Запитати / Написати** | the right-swipe / reveal action - an inquiry, not a choice |
 | **Не зараз** | the left-swipe - a filter, not a judgement |
-| **Слова притулку** | marks text the shelter wrote |
+| **Про притулок** | the heading over the text the shelter wrote about itself, on the shelter page; the text is shown as written |
 | **Уже домовляються** | reserved - the animal stays visible |
 | **реєстр** (lowercase, as a common noun) | Opika itself, when a subject is needed |
 
