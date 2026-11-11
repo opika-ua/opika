@@ -34,6 +34,7 @@ import {
   type VerificationEvidence,
 } from "@opika/domain";
 import { ORPCError, type ORPCErrorConstructorMap } from "@orpc/server";
+import { handOver } from "../notify/hand-over";
 import { withEvidenceOnFile } from "./evidence-on-file";
 import { loadShelterOr404, type RegistryDeps, registryShelterView } from "./registry-reads";
 
@@ -60,13 +61,16 @@ async function writePlanned(
   plan: Planned,
 ): Promise<"ok" | "conflict" | "no_change"> {
   if (plan.entries.length === 0) return "no_change";
+  const lines = plan.entries.map((entry) => ({ id: deps.newId(), entry }));
   const result = await kabinetShelterRepo(deps.db).applyAuditedMany({
     shelterId: shelter.id,
     expectedVersion: shelter.version,
     changes: plan.changes,
-    entries: plan.entries.map((entry) => ({ id: deps.newId(), entry })),
+    entries: lines,
     now: deps.now,
   });
+  // A lost race recorded no history, so there is nothing to tell anyone.
+  if (result.kind === "ok") handOver(deps.notify, shelter, lines);
   return result.kind;
 }
 

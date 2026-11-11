@@ -29,9 +29,10 @@ the per-IP reveal budget, because each guards a credential, a mail, a write or s
 
 ## 2. A cron stopped
 
-Two crons (`apps/web/vercel.json`): `/api/cron/auth-cleanup` every 6 hours, `/api/cron/r2-cleanup`
-daily at 04:00 UTC. Each pings Healthchecks.io when `HEALTHCHECK_URL_AUTH_CLEANUP` /
-`HEALTHCHECK_URL_R2_CLEANUP` is set; a missed or `/fail` ping is the alert.
+Three crons (`apps/web/vercel.json`): `/api/cron/auth-cleanup` every 6 hours, `/api/cron/r2-cleanup`
+daily at 04:00 UTC, `/api/cron/notifications` daily at 06:00 UTC (early listing ends in 7 days, one
+retry of failed notification mails). Each pings Healthchecks.io when `HEALTHCHECK_URL_AUTH_CLEANUP` /
+`HEALTHCHECK_URL_R2_CLEANUP` / `HEALTHCHECK_URL_NOTIFICATIONS` is set; a missed or `/fail` ping is the alert.
 
 1. Vercel, Settings, Cron Jobs: is the job listed and enabled? (Disabled by hand, or removed by a
    deploy that lost `crons`?)

@@ -1309,6 +1309,67 @@ export const uk = {
         body: "Пароль до кабінету притулку для цієї адреси щойно змінено. На інших пристроях виконано вихід.",
         notYou: "Якщо це не ви – напишіть мені: {contact}\n{operator}",
       },
+      /**
+       * Notification emails (items 4 and 5, owner-approved copy table, 2026-11-10). The operator's
+       * (O1, O2, O3, O4) have no greeting and no signature: he reads them about his own queue.
+       * The shelter's four (S1-S4) open «Добрий день.» and are signed `{operator}`. `{shelter}` is
+       * the display name, `{host}` the donation link's host, `{date}` a Kyiv date.
+       * `reportReceived` and `reportKinds` wait for the reports handler (O3 is not wired yet).
+       */
+      reviewRequested: {
+        subject: "Повторна перевірка: {shelter}",
+        body: "Притулок {shelter} просить перевірити його ще раз.",
+        action: "Відкрити притулок",
+      },
+      donationProposed: {
+        subject: "Нове посилання на збір: {shelter}",
+        body: "Притулок {shelter} запропонував посилання на збір: {host}. Воно чекає на перевірку.",
+        action: "Перевірити посилання",
+      },
+      reportReceived: {
+        subject: "Повідомлення про картку: {animal}",
+        body: "Про картку «{animal}» притулку {shelter} повідомили: {kind}.",
+        action: "Відкрити притулок",
+      },
+      reportKinds: {
+        outdated: "інформація застаріла",
+        photo: "проблема з фото",
+        scam: "схоже на шахрайство",
+        wrongInfo: "помилка в картці",
+        other: "інше",
+      },
+      earlyListingEnding: {
+        subject: "Показ до перевірки закінчується: {shelter}",
+        body: "Показ карток притулку {shelter} до завершення перевірки закінчиться {date}. Після цього картки побачать, лише коли притулок пройде перевірку.",
+        extendable: "Подовжити показ можна ще один раз.",
+        action: "Відкрити притулок",
+      },
+      approved: {
+        subject: "Притулок пройшов перевірку",
+        body: "Добрий день. Притулок «{shelter}» пройшов перевірку. Тепер опубліковані картки видно всім, хто шукає тварину.",
+        action: "Відкрити кабінет",
+        help: "Якщо щось незрозуміло – просто відповідіть на цей лист.\n{operator}",
+      },
+      earlyListingAllowed: {
+        subject: "Картки притулку вже видно",
+        body: "Добрий день. Картки притулку «{shelter}» тепер видно всім, хто шукає тварину, з позначкою «на перевірці». Показ діє до {date}, а перевірка тим часом триває.",
+        action: "Відкрити список тварин",
+        help: "Якщо щось незрозуміло – просто відповідіть на цей лист.\n{operator}",
+      },
+      donationApproved: {
+        subject: "Посилання на збір перевірено",
+        body: "Добрий день. Посилання на збір {host} перевірено.",
+        shownNow: "Люди бачать його на сторінці притулку.",
+        notYet: "Люди побачать його, щойно притулок пройде перевірку.",
+        action: "Відкрити сторінку притулку",
+        help: "Якщо щось незрозуміло – просто відповідіть на цей лист.\n{operator}",
+      },
+      donationRejected: {
+        subject: "Посилання на збір не підтверджено",
+        body: "Добрий день. Запропоноване посилання на збір {host} не підтверджено. Поточне посилання, якщо воно є, лишається без змін.",
+        action: "Відкрити сторінку притулку",
+        help: "Якщо незрозуміло чому – просто відповідіть на цей лист.\n{operator}",
+      },
     },
     /**
      * Under the sign-in card's «check your email» (IN-E7's resolution): the

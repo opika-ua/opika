@@ -19,10 +19,11 @@ import {
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { ShelterReadScope, ShelterWriteScope } from "../access";
 import type { KabinetContext } from "../context";
+import { handOver } from "../notify/hand-over";
 import { shelterUploadKey } from "../rate-limits";
 import { withinBudget } from "./photos";
 
-export type ProfileDeps = Pick<KabinetContext, "db" | "now" | "newId" | "photoUploads">;
+export type ProfileDeps = Pick<KabinetContext, "db" | "now" | "newId" | "photoUploads" | "notify">;
 
 type CasErrors = ORPCErrorConstructorMap<{ CONFLICT: typeof apiErrors.CONFLICT }>;
 type TransitionErrors = ORPCErrorConstructorMap<{
@@ -100,14 +101,18 @@ type Planned =
 
 async function write(deps: ProfileDeps, shelter: Shelter, expectedVersion: number, plan: Planned) {
   if (plan.kind === "no_change") return { kind: "ok" } as const;
-  return kabinetShelterRepo(deps.db).applyAudited({
+  const historyId = deps.newId();
+  const result = await kabinetShelterRepo(deps.db).applyAudited({
     shelterId: shelter.id,
     expectedVersion,
     change: plan.change,
     entry: plan.entry,
-    historyId: deps.newId(),
+    historyId,
     now: deps.now,
   });
+  // A lost race recorded no history, so there is nothing to tell anyone.
+  if (result.kind === "ok") handOver(deps.notify, shelter, [{ id: historyId, entry: plan.entry }]);
+  return result;
 }
 
 /**

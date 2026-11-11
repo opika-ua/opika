@@ -27,7 +27,7 @@ import type { KabinetContext } from "../context";
 
 export type RegistryDeps = Pick<
   KabinetContext,
-  "db" | "now" | "newId" | "operatorDisplayName" | "invites" | "linkBaseURL"
+  "db" | "now" | "newId" | "operatorDisplayName" | "invites" | "linkBaseURL" | "notify"
 >;
 
 type NotFound = ORPCErrorConstructorMap<{ NOT_FOUND: typeof apiErrors.NOT_FOUND }>;
