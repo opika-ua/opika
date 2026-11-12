@@ -284,6 +284,17 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     to: z.string().min(1),
   }),
   /**
+   * The operator turned the shelter's weekly «непідтверджені картки» email off or back on, usually
+   * because the shelter asked. Operator-only, like `evidence_added`: the shelter-facing history
+   * does not carry it.
+   */
+  z.object({
+    kind: z.literal("freshness_reminder_changed"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    off: z.boolean(),
+  }),
+  /**
    * The shelter came into being, created by the operator through the
    * registry (S2) or entered by a script on the shelter's behalf (RG-Q8).
    */
@@ -407,6 +418,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "early_listing_revoked":
     case "early_listing_lapsed":
     case "display_name_changed":
+    case "freshness_reminder_changed":
     case "shelter_created":
     case "admin_invited":
     case "admin_invitation_resent":

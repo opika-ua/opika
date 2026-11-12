@@ -467,7 +467,7 @@ export const en = {
     free: "The site is free for shelters, with no paid tiers. If that ever changes, every shelter will know well in advance, not after the fact.",
     money:
       '{site} never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) – the site only shows the link; the money goes directly, and you can see exactly where. The button exists only for verified shelters.',
-    data: "Data a shelter enters – address, contact details, animal listings – belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address (to send sign-in links), and a technical record of the browser and device used to sign in. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. So that a photo can be cropped again, an uncropped copy of it is kept too – without metadata, including where it was taken. It is deleted together with the photo. A photo removed from a card is no longer shown, and its files are deleted automatically in about a week. If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
+    data: "Data a shelter enters – address, contact details, animal listings – belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address. That address receives invitations, sign-in or new-password links, password-change notices, notices of verification decisions and fundraising links, and a weekly reminder about unconfirmed cards. A technical record of the browser and device used to sign in is kept separately. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. So that a photo can be cropped again, an uncropped copy of it is kept too – without metadata, including where it was taken. It is deleted together with the photo. A photo removed from a card is no longer shown, and its files are deleted automatically in about a week. If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
     analytics:
       "The site collects basic visit statistics – how many people visit and how fast the pages load – with no advertising.",
     /** Template: "Get in touch: {contact}" */
@@ -1281,6 +1281,17 @@ export const en = {
         action: `Open the shelter page`,
         help: `If anything is unclear, just reply to this email.\n{operator}`,
       },
+      freshnessReminder: {
+        subject: {
+          one: `{count} card is waiting to be confirmed`,
+          few: `{count} cards are waiting to be confirmed`,
+          many: `{count} cards are waiting to be confirmed`,
+        },
+        body: `Hello. You haven't confirmed {cards} of the shelter «{shelter}» for at least {days}. People looking for an animal see on the card when it was last confirmed. If nothing has changed, it is enough to tap «Still looking» or «Still arranging», and if the animal is already at home, «Already home».`,
+        action: `Open the animal list`,
+        frequency: `This email arrives every Monday while there are unconfirmed cards.`,
+        stop: `To stop receiving these emails, reply to this email.\n{operator}`,
+      },
       donationRejected: {
         subject: `The fundraising link was not confirmed`,
         body: `Hello. The proposed fundraising link {host} was not confirmed. The current link, if there is one, stays as it is.`,
@@ -1536,6 +1547,8 @@ export const en = {
         early_listing_allowed: "Your cards are shown while the review continues",
         early_listing_revoked: "Showing cards before the review ends was withdrawn",
         early_listing_lapsed: "The period for showing cards before the review ended has run out",
+        freshness_reminder_off: "The weekly email about unconfirmed cards was turned off",
+        freshness_reminder_on: "The weekly email about unconfirmed cards was turned on",
       },
       create: {
         title: "New shelter",
@@ -1705,6 +1718,13 @@ export const en = {
         extendNote: "Why are you extending the showing",
         limitReached: "Showing before the review has already been allowed twice.",
         evidenceMinimum: "To allow showing, at least a video call or one reference is needed.",
+      },
+      reminder: {
+        title: "Email about unconfirmed cards",
+        on: "Every Monday the shelter's administrators get an email about cards not confirmed for at least {days}.",
+        off: "The email was turned off on {date}: the shelter does not receive it.",
+        turnOff: "Turn the email off",
+        turnOn: "Turn the email on",
       },
       errors: {
         illegalTransition: "That isn't possible from the current status. The page was refreshed.",

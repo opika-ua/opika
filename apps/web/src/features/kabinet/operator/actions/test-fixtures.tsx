@@ -50,6 +50,7 @@ export function registryView(overrides: Partial<RegistryShelterView> = {}): Regi
     contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
     donation: null,
     pendingDonation: null,
+    freshnessReminderOffAt: null,
     verification: {
       status: "pending",
       submittedAt: new Date("2026-10-01T09:00:00Z"),

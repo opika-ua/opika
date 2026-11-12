@@ -199,6 +199,12 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     moderatorId: MOD,
   },
   early_listing_lapsed: { kind: "early_listing_lapsed", at: new Date("2026-12-21T00:00:00.000Z") },
+  freshness_reminder_changed: {
+    kind: "freshness_reminder_changed",
+    at: new Date("2026-11-11T00:00:00.000Z"),
+    moderatorId: MOD,
+    off: true,
+  },
 };
 
 describe("ShelterHistoryEntrySchema", () => {
@@ -431,6 +437,7 @@ describe("historyEntryAt", () => {
         "2026-10-22",
         "2026-10-23",
         "2026-12-21",
+        "2026-11-11",
       ],
     );
   });

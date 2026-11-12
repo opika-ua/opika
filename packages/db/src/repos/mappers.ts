@@ -198,6 +198,7 @@ export function shelterToRow(shelter: Shelter): ShelterInsert {
     verificationStatus: shelter.verification.status,
     verification: shelter.verification,
     earlyListingSince: shelter.earlyListingSince,
+    freshnessReminderOffAt: shelter.freshnessReminderOffAt,
     cityId: shelter.publicLocation.cityId,
     ...exactPointColumns(shelter.exactAddress),
     createdAt: shelter.createdAt,
@@ -234,6 +235,7 @@ export function rowToShelter(row: ShelterRow): Shelter {
     version: row.version,
     verification: row.verification,
     earlyListingSince: row.earlyListingSince ?? null,
+    freshnessReminderOffAt: row.freshnessReminderOffAt ?? null,
     createdAt: row.createdAt,
     lastUpdatedAt: row.lastUpdatedAt,
   };

@@ -86,6 +86,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/operator/actions/AddEvidencePanel.tsx": "add-evidence panel with state",
   "features/kabinet/operator/actions/EarlyListingPanel.tsx":
     "allow/withdraw early listing: confirm dialog and request state",
+  "features/kabinet/operator/actions/ReminderPanel.tsx":
+    "operator switch for the weekly reminder email: request state and notices",
   "features/kabinet/operator/actions/ResubmitPanel.tsx": "resubmit evidence panel with state",
   "features/kabinet/operator/actions/SupportEntry.tsx": "start-support-view button",
   "features/kabinet/operator/actions/VerifiedDataEditor.tsx":

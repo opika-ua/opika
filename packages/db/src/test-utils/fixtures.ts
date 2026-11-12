@@ -107,6 +107,7 @@ export function makeShelter(
     logo: null,
     pendingDonation: null,
     earlyListingSince: null,
+    freshnessReminderOffAt: null,
     version: 0,
     verification: defaultVerification,
     createdAt: now,

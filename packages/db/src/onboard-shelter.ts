@@ -529,6 +529,7 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
     logo: null,
     pendingDonation: null,
     earlyListingSince: null,
+    freshnessReminderOffAt: null,
     version: 0,
     verification: {
       status: "verified",

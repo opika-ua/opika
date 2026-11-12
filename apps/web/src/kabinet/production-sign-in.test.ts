@@ -380,7 +380,10 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 846 with the DateField (owner-approved 2026-11-12): `dateField.day`, `month`, `year`,
     // `incomplete`, `noSuchDate` and `operator.create.errors.registeredAtFuture`.
     // 859 with the crop frame's thirteen `animalForm.photos.crop*`/`zoom*` strings (owner-approved 2026-11-12).
-    expect(pending.length + written.length).toBe(859);
+    // 873 with the weekly reminder (item 5): seven `email.freshnessReminder.*` (subject in three
+    // forms, body, action, frequency, stop), two `operator.history.freshness_reminder_*` and five
+    // `operator.reminder.*` for the operator's switch.
+    expect(pending.length + written.length).toBe(873);
     expect(written).toContain("kabinet.profileEdit.errors.aboutTooLong");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

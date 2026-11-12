@@ -101,6 +101,47 @@ describe("kabinetShelterRepo.applyAudited", () => {
     expect(await repo.historyOf(s.id)).toHaveLength(1);
   });
 
+  describe("the weekly reminder switch", () => {
+    const write = (
+      shelterId: string,
+      offAt: Date | null,
+      expectedVersion: number,
+      historyId: string,
+    ) =>
+      kabinetShelterRepo(db).applyAudited({
+        shelterId: shelterId as never,
+        expectedVersion,
+        change: { kind: "freshness_reminder", offAt },
+        entry: {
+          kind: "freshness_reminder_changed",
+          at: NOW,
+          moderatorId: "0ec0ec0e-0000-4000-8000-000000000001",
+          off: offAt !== null,
+        } as ShelterHistoryEntry,
+        historyId,
+        now: NOW,
+      });
+
+    it("writes the timestamp, then NULL, with the history line in the same statement", async () => {
+      const s = await shelter();
+      expect(await write(s.id, NOW, 0, "h1")).toEqual({ kind: "ok" });
+      expect((await shelterRepo(db).findById(s.id))?.freshnessReminderOffAt).toEqual(NOW);
+      expect(await write(s.id, null, 1, "h2")).toEqual({ kind: "ok" });
+      expect((await shelterRepo(db).findById(s.id))?.freshnessReminderOffAt).toBeNull();
+      expect((await kabinetShelterRepo(db).historyOf(s.id)).map((e) => e.kind)).toEqual([
+        "freshness_reminder_changed",
+        "freshness_reminder_changed",
+      ]);
+    });
+
+    it("a stale version changes nothing and writes no history", async () => {
+      const s = await shelter();
+      expect(await write(s.id, NOW, 3, "h1")).toEqual({ kind: "conflict" });
+      expect((await shelterRepo(db).findById(s.id))?.freshnessReminderOffAt).toBeNull();
+      expect(await kabinetShelterRepo(db).historyOf(s.id)).toEqual([]);
+    });
+  });
+
   describe("the description", () => {
     const write = (shelterId: string, previous: unknown, next: unknown, historyId: string) =>
       kabinetShelterRepo(db).applyAudited({

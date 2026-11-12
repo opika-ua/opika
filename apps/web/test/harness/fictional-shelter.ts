@@ -88,6 +88,7 @@ export async function createFixture(
     pendingDonation: null,
     version: 0,
     earlyListingSince: null,
+    freshnessReminderOffAt: null,
     verification: verification(operator.id as ModeratorId, now),
     createdAt: now,
     lastUpdatedAt: now,

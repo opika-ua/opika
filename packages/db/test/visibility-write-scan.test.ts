@@ -77,7 +77,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/mappers.ts",
-    line: 286,
+    line: 288,
     text: "listingKind: animal.listing.kind,",
     kind: "write",
     why:
@@ -99,7 +99,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/kabinet-shelter-repo.ts",
-    line: 80,
+    line: 82,
     text: "verificationStatus: change.verification.status,",
     kind: "write",
     why: "applyAuditedMany's columnsOf - the one UPDATE of this column; its own `becomesVerified` check is hook 2",
