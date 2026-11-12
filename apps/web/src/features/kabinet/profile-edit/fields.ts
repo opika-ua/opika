@@ -4,6 +4,7 @@ import {
   ContactChannelInputSchema,
   characterCount,
   DonationLinkSchema,
+  type DonationUrlProblem,
   donationUrlProblemOf,
   MAX_OTHER_CONTACTS,
   normalizeFacebook,
@@ -175,17 +176,23 @@ export function linkProblem(raw: string): "httpsOnly" | "notAUrl" | null {
   return DonationLinkSchema.shape.url.safeParse(value).success ? null : "notAUrl";
 }
 
+const DONATION_FIELD_ERRORS = {
+  userinfo: "donationUserinfo",
+  idn: "donationIdn",
+  checkout_session: "donationCheckoutSession",
+} as const satisfies Record<DonationUrlProblem, string>;
+
 /**
- * `linkProblem` plus the rules only a donation link has (userinfo, IDN hosts), from the same
- * domain function the server applies, so the form refuses what the API would.
+ * `linkProblem` plus the rules only a donation link has (userinfo, IDN hosts, a LiqPay checkout
+ * session), from the same domain function the server applies, so the form refuses what the API would.
  */
 export function donationLinkProblem(
   raw: string,
-): "httpsOnly" | "notAUrl" | "donationUserinfo" | "donationIdn" | null {
+): "httpsOnly" | "notAUrl" | (typeof DONATION_FIELD_ERRORS)[DonationUrlProblem] | null {
   const problem = linkProblem(raw);
   if (problem !== null) return problem;
   const extra = donationUrlProblemOf(raw);
-  return extra === null ? null : extra === "userinfo" ? "donationUserinfo" : "donationIdn";
+  return extra === null ? null : DONATION_FIELD_ERRORS[extra];
 }
 
 /**

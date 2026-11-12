@@ -744,6 +744,8 @@ export const en = {
           "The link must not contain a name or password before the site address (as in https://name@site). Copy the address from the browser bar.",
         donationIdn:
           "Addresses with Cyrillic letters (or starting with «xn--») are not accepted. Use a fundraising page on a service with a Latin address, such as monobank.",
+        donationCheckoutSession:
+          "This is a one-time payment page; it will stop working. Add a permanent link: the fundraising page on your website or a monobank jar.",
         notAUrl: "That doesn't look like a link.",
         instagramFormat:
           "An Instagram username: up to 30 Latin letters, digits, dots or underscores. A profile link works too.",
@@ -1358,6 +1360,12 @@ export const en = {
         removeConflict: "The link changed while the page was open. The current one is shown here.",
         afterSuspension:
           "Was live before the suspension. Approve with one click after reinstatement.",
+        cannotApprove: {
+          userinfo: "Can't be approved: the link has a name or password before the site address.",
+          idn: "Can't be approved: the site address has Cyrillic letters or «xn--».",
+          checkout_session:
+            "Can't be approved: this is a one-time LiqPay payment page; it will stop working.",
+        },
         removeDialog: {
           title: "Remove the fundraising link of «{shelter}»?",
           body: "The link disappears from the pages at once. The shelter sees the reason in its cabinet and can propose a new one. A pending proposal disappears too.",
