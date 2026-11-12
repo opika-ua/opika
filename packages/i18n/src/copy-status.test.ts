@@ -1863,8 +1863,6 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(CROP_FRAME_COPY),
         // The photo tile pill's words, pinned in their own block below.
         ...Object.keys(PHOTO_TILE_PILL_COPY),
-        // The keyboard reorder's hint: builder-proposed, real text, his approval due before queueing.
-        ...Object.keys(PHOTO_KEYBOARD_COPY),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -2493,7 +2491,6 @@ const PHOTO_MANAGER_COPY: Record<string, string> = {
   "kabinet.animalForm.photos.addDrop": "можна перетягнути файли сюди",
   "kabinet.animalForm.photos.dragPickUp": "Фото {n} підняте. Позиція {pos} з {total}.",
   "kabinet.animalForm.photos.dragMove": "Позиція {pos} з {total}.",
-  "kabinet.animalForm.photos.dragDrop": "Фото {n} на позиції {pos} з {total}.",
   "kabinet.animalForm.photos.dragCancel": "Переміщення скасовано.",
 };
 
@@ -2529,9 +2526,9 @@ const CROP_FRAME_COPY: Record<string, string> = {
 };
 
 /**
- * The photo tile pill: owner-given 2026-11-12, verbatim. The ⋯ menu and its entries, the separate
- * «Обкладинка» badge, the two pointer-specific hints and «Це максимум – {max} фото.» are retired;
- * «Обрізати фото {n}» (`cropTitle`) also names the crop button, and the undo is `likes.undo`.
+ * The photo tile pill and its keyboard reorder: owner-given or owner-approved 2026-11-12, verbatim.
+ * `dragDrop` drops the photo's old number (it could read «Фото 3 на позиції 1»). Retired: the ⋯ menu,
+ * the «Обкладинка» badge, the pointer-specific hints and «Це максимум – {max} фото.».
  */
 const PHOTO_TILE_PILL_COPY: Record<string, string> = {
   "kabinet.animalForm.photos.orderHint":
@@ -2541,6 +2538,9 @@ const PHOTO_TILE_PILL_COPY: Record<string, string> = {
   "kabinet.animalForm.photos.limitNote":
     "Досягнуто ліміту: {max} фото. Приберіть одне, щоб додати нове.",
   "kabinet.animalForm.photos.removed": "Фото прибрано",
+  "kabinet.animalForm.photos.keyboardHint":
+    "Щоб посунути фото на одне місце, натисніть Alt і стрілку вліво або вправо.",
+  "kabinet.animalForm.photos.dragDrop": "Фото тепер на позиції {pos} з {total}.",
 };
 
 describe("photo tile pill copy (owner-given 2026-11-12)", () => {
@@ -2557,29 +2557,6 @@ describe("photo tile pill copy (owner-given 2026-11-12)", () => {
 
   it("the toast's action is the saved page's «Повернути», reused", () => {
     expect(uk.likes.undo).toBe("Повернути");
-  });
-});
-
-/**
- * Keyboard reorder (his option A, 2026-11-12): the screen-reader hint on every pill button is
- * builder-proposed, awaiting his approval before the PR queues. A move is announced with the
- * approved `dragDrop`, the drag's own line, so it needs no string of its own.
- */
-const PHOTO_KEYBOARD_COPY: Record<string, string> = {
-  "kabinet.animalForm.photos.keyboardHint":
-    "Щоб посунути фото на одне місце, натисніть Alt і стрілку вліво чи вправо.",
-};
-
-describe("photo keyboard reorder copy (proposed 2026-11-12)", () => {
-  it.each(Object.entries(PHOTO_KEYBOARD_COPY))("%s is the proposed text, exactly", (path, text) => {
-    const found = path
-      .split(".")
-      .slice(1)
-      .reduce<unknown>(
-        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
-        uk.kabinet,
-      );
-    expect(found).toBe(text);
   });
 });
 

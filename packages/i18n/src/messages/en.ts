@@ -954,7 +954,7 @@ export const en = {
         addDrop: "you can drop files here",
         dragPickUp: "Photo {n} picked up. Position {pos} of {total}.",
         dragMove: "Position {pos} of {total}.",
-        dragDrop: "Photo {n} at position {pos} of {total}.",
+        dragDrop: "The photo is now at position {pos} of {total}.",
         dragCancel: "Move cancelled.",
         preparing: "Preparing the photo…",
         uploading: "Uploading the photo…",

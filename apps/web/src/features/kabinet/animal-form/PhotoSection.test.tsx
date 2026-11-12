@@ -432,11 +432,13 @@ describe("«×» and «Повернути»", () => {
       nextPhotoKeys: [key(4), key(2), key(1), key(3)],
     });
     expect(shown()).toEqual([key(4), key(1), key(3)]);
+    // A drop says where the photo is now, never its old number.
+    expect(screen.getByText("Фото тепер на позиції 1 з 3.")).toBeTruthy();
   });
 });
 
 describe("Alt+← and Alt+→ (the keyboard's way to the order)", () => {
-  const HINT = "Щоб посунути фото на одне місце, натисніть Alt і стрілку вліво чи вправо.";
+  const HINT = "Щоб посунути фото на одне місце, натисніть Alt і стрілку вліво або вправо.";
   /** Presses Alt+arrow on a button; false when the page kept the browser from acting on it. */
   const alt = (button: Element | null, key: "ArrowLeft" | "ArrowRight") =>
     fireEvent.keyDown(button as Element, { key, altKey: true });
@@ -447,7 +449,7 @@ describe("Alt+← and Alt+→ (the keyboard's way to the order)", () => {
     crop.focus();
     expect(alt(crop, "ArrowRight")).toBe(false);
     expect(shown()).toEqual([key(2), key(1), key(3)]);
-    expect(screen.getByText("Фото 1 на позиції 2 з 3.")).toBeTruthy();
+    expect(screen.getByText("Фото тепер на позиції 2 з 3.")).toBeTruthy();
     // The same button of the same photo, now photo 2.
     expect(document.activeElement).toBe(crop);
     expect(document.activeElement).toBe(cropButton(2));
@@ -473,7 +475,7 @@ describe("Alt+← and Alt+→ (the keyboard's way to the order)", () => {
     expect(document.activeElement).toBe(removeButton(1));
     const cover = screen.getByText("1 · Обкладинка").closest("li");
     expect(cover?.querySelector("img")?.getAttribute("src")).toBe(key(2));
-    expect(screen.getByText("Фото 2 на позиції 1 з 3.")).toBeTruthy();
+    expect(screen.getByText("Фото тепер на позиції 1 з 3.")).toBeTruthy();
     await settle();
     expect(calls.reorder).toHaveBeenCalledTimes(1);
   });
@@ -509,7 +511,7 @@ describe("Alt+← and Alt+→ (the keyboard's way to the order)", () => {
     alt(crop, "ArrowRight");
     alt(document.activeElement, "ArrowRight");
     expect(shown()).toEqual([key(2), key(3), key(1)]);
-    expect(screen.getByText("Фото 2 на позиції 3 з 3.")).toBeTruthy();
+    expect(screen.getByText("Фото тепер на позиції 3 з 3.")).toBeTruthy();
     expect(document.activeElement).toBe(cropButton(3));
     await settle();
     expect(calls.reorder.mock.calls.map(([input]) => input)).toEqual([
@@ -557,6 +559,18 @@ describe("Alt+← and Alt+→ (the keyboard's way to the order)", () => {
     fireEvent.click(undo());
     expect(shown()).toEqual([key(1), key(2), key(4), key(3)]);
     expect(calls.remove).not.toHaveBeenCalled();
+  });
+
+  it("a second move to the same place is spoken again: a new line, not the same text left in place", () => {
+    setup();
+    alt(cropButton(1), "ArrowRight");
+    const first = screen.getByText("Фото тепер на позиції 2 з 3.");
+    // Photo 3 one place earlier lands on place 2 too.
+    alt(cropButton(3), "ArrowLeft");
+    const second = screen.getByText("Фото тепер на позиції 2 з 3.");
+    expect(second).not.toBe(first);
+    expect(first.isConnected).toBe(false);
+    expect(second.closest('[role="status"]')).not.toBeNull();
   });
 
   it("a refused move puts the server's order back", async () => {

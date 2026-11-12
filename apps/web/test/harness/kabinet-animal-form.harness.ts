@@ -519,7 +519,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await page.keyboard.press("Alt+ArrowRight");
     await expect(page.getByRole("button", { name: "Прибрати фото 2" })).toBeFocused();
     await expect(
-      page.getByRole("status").filter({ hasText: "Фото 1 на позиції 2 з 3." }),
+      page.getByRole("status").filter({ hasText: "Фото тепер на позиції 2 з 3." }),
     ).toHaveCount(1);
     await expect.poll(seedOrder).toEqual(["2", "1", "3"]);
     await expect(page.getByText("Порядок змінено.")).toBeVisible();

@@ -162,7 +162,9 @@ function PhotoManager({
   const [writing, setWriting] = useState(false);
   const [status, setStatus] = useState("");
   const [removedOnce, setRemovedOnce] = useState(false);
-  const [announce, setAnnounce] = useState("");
+  // A new node per message, so the live region speaks a line even when it repeats the last one.
+  const [announced, setAnnounced] = useState({ text: "", id: 0 });
+  const setAnnounce = (text: string) => setAnnounced((current) => ({ text, id: current.id + 1 }));
   const [dropTarget, setDropTarget] = useState(false);
   // Hidden by «×», remove not yet confirmed by the server.
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
@@ -481,7 +483,6 @@ function PhotoManager({
     focusNext.current = { button };
     setAnnounce(
       fillTemplate(t.photos.dragDrop, {
-        n: integer.format(slot + 1),
         pos: integer.format(to + 1),
         total: integer.format(photos.length),
       }),
@@ -556,7 +557,7 @@ function PhotoManager({
       ),
     onMove: (over) => setAnnounce(fillTemplate(t.photos.dragMove, where(over))),
     onDrop: (from, to) => {
-      setAnnounce(fillTemplate(t.photos.dragDrop, { n: integer.format(from + 1), ...where(to) }));
+      setAnnounce(fillTemplate(t.photos.dragDrop, where(to)));
       move(from, to);
     },
     onCancel: () => setAnnounce(t.photos.dragCancel),
@@ -809,7 +810,7 @@ function PhotoManager({
           )
         : null}
       <p role="status" className="sr-only">
-        {announce}
+        <span key={announced.id}>{announced.text}</span>
       </p>
       {cropping !== null && croppingView !== undefined && croppingImage !== null ? (
         <Suspense fallback={null}>

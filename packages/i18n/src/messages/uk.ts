@@ -874,11 +874,8 @@ export const uk = {
         counter: "{n} з {max}",
         /** Owner-given 2026-11-12 (the photo tile pill): one hint for every input, above the grid. */
         orderHint: "Утримуйте й перетягніть фото, щоб змінити порядок. Перше фото – обкладинка.",
-        /**
-         * Screen-reader only, describes every pill button: the keyboard's way to the order. Proposed
-         * 2026-11-12, awaiting his approval; the move itself is announced with `dragDrop`.
-         */
-        keyboardHint: "Щоб посунути фото на одне місце, натисніть Alt і стрілку вліво чи вправо.",
+        /** Screen-reader only, on every pill button (owner-approved 2026-11-12); a move says `dragDrop`. */
+        keyboardHint: "Щоб посунути фото на одне місце, натисніть Alt і стрілку вліво або вправо.",
         infoLabel: "Про фото",
         infoText:
           "Підійде будь-яке фото з телефона чи компʼютера. Великі знімки стискаються ще до відправлення, тож мобільного трафіку піде менше. Місце зйомки та інші приховані дані з фото прибираються автоматично.",
@@ -887,7 +884,8 @@ export const uk = {
         addDrop: "можна перетягнути файли сюди",
         dragPickUp: "Фото {n} підняте. Позиція {pos} з {total}.",
         dragMove: "Позиція {pos} з {total}.",
-        dragDrop: "Фото {n} на позиції {pos} з {total}.",
+        /** After a drag or an Alt+arrow move (owner-given 2026-11-12): no number that a move just changed. */
+        dragDrop: "Фото тепер на позиції {pos} з {total}.",
         dragCancel: "Переміщення скасовано.",
         preparing: "Фото готується…",
         uploading: "Фото завантажується…",

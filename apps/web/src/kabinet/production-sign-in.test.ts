@@ -383,8 +383,8 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 853 with the photo tile pill (owner-given 2026-11-12): plus `orderHint`, `coverChip`,
     // `removeLabel`, `limitNote`; less `orderHintMouse`, `orderHintTouch`, `menuLabel`, `cover`,
     // `makeCover`, `moveEarlier`, `moveLater`, `remove`, `crop`, `capReached`.
-    // 854 with the keyboard reorder's `photos.keyboardHint` (proposed 2026-11-12; the move's
-    // announcement reuses `dragDrop`).
+    // 854 with the keyboard reorder's `photos.keyboardHint` (owner-approved 2026-11-12; a move is
+    // announced with `dragDrop`, reworded the same day).
     expect(pending.length + written.length).toBe(854);
     expect(written).toContain("kabinet.profileEdit.errors.aboutTooLong");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
