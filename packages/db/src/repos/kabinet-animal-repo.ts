@@ -16,12 +16,14 @@ import {
 } from "@opika/domain";
 import { and, desc, eq, inArray, isNull, lt, lte, or, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
+import { animalPhotoSources } from "../schema/animal-photo-sources";
 import { animals } from "../schema/animals";
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
 import { listedShelterCondition } from "./feed-predicate";
 import { historyRowSelect } from "./history-sql";
 import { animalToRowWithCity, rowToAnimal } from "./mappers";
+import { type PhotoSource, sourceRowSelect } from "./photo-sources-repo";
 
 /** A history line of one kind, with the id it is stored under. */
 export type AnimalHistoryRow<K extends ShelterHistoryEntry["kind"]> = {
@@ -139,6 +141,12 @@ export type ListingWriteGuard =
   | { kind: "publish"; expectedVersion: number };
 
 /**
+ * The kept source a photo write records for the photo it adds (an upload, or a crop's new key),
+ * in the same statement, so a lost race records nothing (crop-frame shape §5).
+ */
+export type PhotoSourceChange = { kind: "none" } | { kind: "record"; source: PhotoSource };
+
+/**
  * The kabinet's animal reads and writes. A handler's ownership check is
  * `findOwnedWithCity` (id and shelter in one WHERE), so another shelter's id
  * and a missing one are the same null (QA-2026-10-29: a FORBIDDEN confirmed an
@@ -171,9 +179,10 @@ export function kabinetAnimalRepo(db: Database) {
     cte: WriteCte,
     name: "created" | "upd" | "del",
     history: { id: string; entry: ShelterHistoryEntry },
+    alongside: readonly WriteCte[] = [],
   ): Promise<ConditionalWrite> => {
     const inserted = await db
-      .with(cte)
+      .with(cte, ...alongside)
       .insert(shelterHistory)
       .select(
         sql`SELECT ${historyRowSelect(history, sql.raw(`"${name}"."shelter_id"`))} FROM ${sql.raw(`"${name}"`)}`,
@@ -418,6 +427,10 @@ export function kabinetAnimalRepo(db: Database) {
      * form is open must neither make the form's save a conflict nor be undone
      * by it (the form never writes `photos`, RH-B3; Oleksii: "Animals.version
      * stays unchanged (P-Q3)").
+     *
+     * The same statement deletes the source row of every photo that leaves the
+     * list (a removal, or the key a crop replaced) and inserts `source`'s row
+     * for the photo it adds; a lost race does neither.
      */
     async writePhotosIf(
       animalId: AnimalId,
@@ -425,9 +438,22 @@ export function kabinetAnimalRepo(db: Database) {
       listing: { next: AnimalListingState; expected: AnimalListingState },
       lastUpdatedAt: Date,
       history: AnimalHistoryRow<"animal_edited">,
+      source: PhotoSourceChange = { kind: "none" },
     ): Promise<ConditionalWrite> {
       if (listing.next.kind !== listing.expected.kind) {
         throw new Error(`Animal ${animalId}: a photo change never moves the listing's kind`);
+      }
+      if (source.kind === "record") {
+        const key = source.source.storageKey;
+        const adds =
+          photos.next.some((photo) => photo.storageKey === key) &&
+          !photos.expected.some((photo) => photo.storageKey === key);
+        // A frame never changes in place: a crop is a new key (shape §2), so a source is new too.
+        if (!adds) {
+          throw new Error(
+            `Animal ${animalId}: a source is recorded only for a photo this write adds`,
+          );
+        }
       }
       const update = db
         .update(animals)
@@ -445,8 +471,32 @@ export function kabinetAnimalRepo(db: Database) {
             sql`${animals.listing} = ${JSON.stringify(listing.expected)}::text::jsonb`,
           ),
         )
-        .returning({ shelterId: animals.shelterId });
-      return writeWithHistory(db.$with("upd").as(update), "upd", history);
+        .returning({ shelterId: animals.shelterId, id: animals.id, photos: animals.photos });
+      const gone = db.$with("gone").as(
+        db
+          .delete(animalPhotoSources)
+          .where(
+            and(
+              sql`${animalPhotoSources.animalId} IN (SELECT "id" FROM "upd")`,
+              sql`NOT EXISTS (SELECT 1 FROM "upd", jsonb_array_elements("upd"."photos") AS photo WHERE photo->>'storageKey' = ${animalPhotoSources.storageKey})`,
+            ),
+          )
+          .returning({ storageKey: animalPhotoSources.storageKey }),
+      );
+      const alongside: WriteCte[] = [gone];
+      if (source.kind === "record") {
+        alongside.push(
+          db.$with("src").as(
+            db
+              .insert(animalPhotoSources)
+              .select(
+                sql`SELECT ${sourceRowSelect(source.source, sql`"upd"."id"`, lastUpdatedAt)} FROM "upd"`,
+              )
+              .returning({ storageKey: animalPhotoSources.storageKey }),
+          ),
+        );
+      }
+      return writeWithHistory(db.$with("upd").as(update), "upd", history, alongside);
     },
 
     /**
