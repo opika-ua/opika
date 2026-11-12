@@ -614,18 +614,27 @@ function PhotoManager({
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <InfoTip label={t.photos.infoLabel} closeLabel={uk.kabinet.profileEdit.pause.close}>
-          {t.photos.infoText}
-        </InfoTip>
-        <span className="text-body text-ink-2">
+      <InfoTip
+        label={t.photos.infoLabel}
+        closeLabel={uk.kabinet.profileEdit.pause.close}
+        className="self-start"
+      >
+        {t.photos.infoText}
+      </InfoTip>
+      {/* The count ends the hint's line (owner, 2026-11-12), not a row of its own under the «?». */}
+      <div className="flex items-baseline justify-between gap-3">
+        {editable ? (
+          <Text look="hint" className="min-w-0">
+            {t.photos.orderHint}
+          </Text>
+        ) : null}
+        <span className="shrink-0 text-body text-ink-2">
           {fillTemplate(t.photos.counter, {
             n: integer.format(total),
             max: integer.format(MAX_ANIMAL_PHOTOS),
           })}
         </span>
       </div>
-      {editable ? <Text look="hint">{t.photos.orderHint}</Text> : null}
       {reorderable ? (
         <p id={keyboardHintId} className="sr-only">
           {t.photos.keyboardHint}
