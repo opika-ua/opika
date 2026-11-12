@@ -126,6 +126,12 @@ async function chargedUploads(
  */
 const logOrphan = (storageKey: string) => console.error({ event: "photo_orphaned", storageKey });
 
+/** An upload or a crop past its budget fails like any failure, logged without the file or a key. */
+const overBudget = (budgetMs: number): Error => {
+  console.error({ event: "photo_processing_over_budget", budgetMs });
+  return new Error("Photo processing ran past its budget");
+};
+
 /**
  * The processing, or `over_budget` once `budgetMs` passes first. The work
  * itself isn't stopped (sharp can't be interrupted while it builds a
@@ -197,10 +203,7 @@ export async function photosAdd(
     pipeline.prepareUploadedPhoto(bytes),
     uploads.processingBudgetMs,
   );
-  if (processed.kind === "over_budget") {
-    console.error({ event: "photo_processing_over_budget", budgetMs: uploads.processingBudgetMs });
-    throw new Error("Photo processing ran past its budget");
-  }
+  if (processed.kind === "over_budget") throw overBudget(uploads.processingBudgetMs);
   const prepared = processed.value;
   if (prepared.kind === "rejected") {
     throw errors.PHOTO_REJECTED({ data: { reason: prepared.reason } });
@@ -400,10 +403,7 @@ export async function photosCrop(
     })(),
     uploads.processingBudgetMs,
   );
-  if (processed.kind === "over_budget") {
-    console.error({ event: "photo_processing_over_budget", budgetMs: uploads.processingBudgetMs });
-    throw new Error("Photo processing ran past its budget");
-  }
+  if (processed.kind === "over_budget") throw overBudget(uploads.processingBudgetMs);
 
   const storageKey = pipeline.animalPhotoStorageKeyFor(animal.id, deps.newId());
   const source: PhotoSource = {
