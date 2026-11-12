@@ -1091,18 +1091,22 @@ export const en = {
         adoptedSince: "Home since {date}",
         withdrawnOn: "Withdrawn from display {date} · {reason}",
         more: "More",
-        menuLabel: "Actions for the card {name}",
       },
       orderInfoLabel: "How the list is ordered",
       actions: {
-        viewOnSite: "View on the site",
         edit: "Edit",
-        reserve: "Started arranging",
-        release: "Didn't work out: looking again",
-        adopt: "Already home",
-        withdraw: "Withdraw from display",
         restore: "Back to drafts",
         deleteDraft: "Delete draft",
+      },
+      statusMenu: {
+        label: "Status: {status}. Change the status of {name}",
+        adopt: "Already home…",
+        withdraw: "Withdraw from display…",
+      },
+      more: {
+        label: "More actions: {name}",
+        openOnSite: "Open on the site",
+        copyLink: "Copy link",
       },
       confirm: {
         stillLooking: "Still looking",
@@ -1117,8 +1121,8 @@ export const en = {
       },
       adoptDialog: {
         title: "Is {name} already home?",
-        body: "The card leaves the gallery, and its page becomes unavailable. In your list the card stays, marked «Home». This can't be undone: if the animal comes back, add it as a new card.",
-        confirm: "Yes, already home",
+        body: "The card leaves search. It can't be brought back.",
+        confirm: "Yes, home",
       },
       withdrawDialog: {
         title: "Withdraw from display: {name}?",
@@ -1149,7 +1153,11 @@ export const en = {
       },
       deleted: "Draft «{name}» deleted.",
       stale: {
-        count: "You haven't confirmed {cards} for more than {days}.",
+        line: {
+          one: "{count} card not updated for a long time",
+          few: "{count} cards not updated for a long time",
+          many: "{count} cards not updated for a long time",
+        },
         countCards: {
           one: "{count} card",
           few: "{count} cards",
@@ -1157,7 +1165,6 @@ export const en = {
         },
         caption:
           "People looking for an animal see an old date on them. If nothing has changed, a tap on «Still looking» or «Still arranging» is enough.",
-        show: "Show these {count}",
         showAll: "Show all",
       },
       paused: {

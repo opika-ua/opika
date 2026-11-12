@@ -45,6 +45,13 @@ export function chipClass(selected: boolean): string {
   return cx(CONTROL, selected ? ON : OFF);
 }
 
+export type StatusTone = keyof typeof STATUS;
+
+/** A status chip's fill and text, for a control drawn as one (Menu's `status` trigger). */
+export function statusToneClass(tone: StatusTone): string {
+  return STATUS[tone];
+}
+
 // 44px drawn, 48px to the pointer: `before:` overhangs 2px above and below (the
 // rows' 12px gap leaves room), and a click on it is a click on the chip. Behind
 // the text (`isolate` + `-z-10`), so the label's own text stays on top.
@@ -120,7 +127,7 @@ type FactChip = {
 };
 
 type InfoChip = { kind: "info"; tone?: keyof typeof INFO; children: ReactNode };
-type StatusChip = { kind: "status"; tone: keyof typeof STATUS; children: ReactNode };
+type StatusChip = { kind: "status"; tone: StatusTone; children: ReactNode };
 
 export type ChipProps = (
   | OptionChip

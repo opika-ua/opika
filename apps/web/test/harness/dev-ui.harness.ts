@@ -147,6 +147,23 @@ test.describe("kit behaviour in a real browser", () => {
     await expect(trigger).toBeFocused();
   });
 
+  test("Menu by keyboard: Enter opens it, Tab reaches its items, Esc closes it with focus back", async ({
+    page,
+  }) => {
+    await openRoute(page, ROUTE, PHONE_360, { readySelector: READY });
+    const trigger = page.getByRole("button", {
+      name: "Status: Arranging. Change the status of Murka",
+    });
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Published" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(trigger).toBeFocused();
+  });
+
   test("Tabs switch panel with the arrow keys; a Toast announces and can be dismissed", async ({
     page,
   }) => {

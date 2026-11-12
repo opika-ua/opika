@@ -162,8 +162,10 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
   };
 
   const rowOf = (page: Page, name: string): Locator => page.getByRole("listitem", { name });
+  const statusOf = (page: Page, name: string): Locator =>
+    rowOf(page, name).getByRole("button", { name: /^Статус: / });
 
-  test("from the landing, «Тварини»: the list, its rows, and «Показати ці картки (N)» opening the stale cards", async () => {
+  test("from the landing, «Тварини»: the list, its cards, and the strip's «Показати» opening the stale cards", async () => {
     const page = await open("/kabinet");
     await page
       .getByRole("navigation", { name: "Розділи кабінету" })
@@ -174,9 +176,9 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
 
     await expect(rowOf(page, STALE).getByText("Оновлено 40 днів тому")).toBeVisible();
     await expect(rowOf(page, ARRANGING).getByText("Домовляються", { exact: true })).toBeVisible();
-    await expect(page.getByText(/ви не підтверджували понад 30 днів\.$/)).toBeVisible();
+    await expect(page.getByText(/^\d+ карт\S+ давно не оновлювал/)).toBeVisible();
 
-    await page.getByRole("button", { name: /^Показати ці картки \(\d+\)$/ }).click();
+    await page.getByRole("button", { name: "Показати", exact: true }).click();
     await expect(rowOf(page, STALE)).toBeVisible();
     // A card confirmed two days ago isn't stale: the server's filter leaves it out.
     await expect(rowOf(page, ARRANGING)).toHaveCount(0);
@@ -208,15 +210,40 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     await page.close();
   });
 
-  test("«Уже вдома»: the dialog says it can't be undone, and the card is home", async () => {
+  test("«Домовляються» from the status chip by keyboard, then the toast's «Скасувати»: published again, as stored", async () => {
     const page = await open("/kabinet/tvaryny");
-    await rowOf(page, ARRANGING)
-      .getByRole("button", { name: /^Дії з карткою/ })
-      .click();
-    await page.getByRole("button", { name: "Уже вдома" }).click();
+    const status = statusOf(page, LEAVING);
+    await status.focus();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Tab");
+    const item = page.getByRole("button", { name: "Домовляються", exact: true });
+    await expect(item).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText(`${LEAVING}: почали домовлятися.`)).toBeVisible();
+    await expect(statusOf(page, LEAVING)).toHaveText("Домовляються");
+
+    await page.getByRole("button", { name: "Скасувати", exact: true }).click();
+    await expect(page.getByText(`${LEAVING}: знову шукає дім.`)).toBeVisible();
+    await expect(statusOf(page, LEAVING)).toHaveText("Опубліковано");
+    await page.reload();
+    await expect(statusOf(page, LEAVING)).toHaveText("Опубліковано");
+
+    // Escape closes the menu and gives focus back to the chip.
+    await statusOf(page, LEAVING).click();
+    await page.keyboard.press("Escape");
+    await expect(statusOf(page, LEAVING)).toBeFocused();
+    await page.close();
+  });
+
+  test("«Уже вдома…»: the dialog says it can't be undone, and the card is home", async () => {
+    const page = await open("/kabinet/tvaryny");
+    await statusOf(page, ARRANGING).click();
+    await page.getByRole("button", { name: "Уже вдома…" }).click();
     const dialog = page.getByRole("dialog", { name: `${ARRANGING} уже вдома?` });
-    await expect(dialog.getByText(/Скасувати це не можна/)).toBeVisible();
-    await dialog.getByRole("button", { name: "Так, уже вдома" }).click();
+    await expect(
+      dialog.getByText("Картка зникне з пошуку. Повернути її буде не можна."),
+    ).toBeVisible();
+    await dialog.getByRole("button", { name: "Так, удома" }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.getByText(`${ARRANGING}: уже вдома.`)).toBeVisible();
 
@@ -229,9 +256,8 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
 
   test("«Зняти з показу» with a reason and a note: the card is withdrawn, and its row says why", async () => {
     const page = await open("/kabinet/tvaryny");
-    const row = rowOf(page, LEAVING);
-    await row.getByRole("button", { name: /^Дії з карткою/ }).click();
-    await page.getByRole("button", { name: "Зняти з показу" }).click();
+    await statusOf(page, LEAVING).click();
+    await page.getByRole("button", { name: "Зняти з показу…" }).click();
     const dialog = page.getByRole("dialog", { name: `Зняти з показу: ${LEAVING}?` });
     await dialog.getByLabel("Причина").selectOption({ label: "додано помилково" });
     await dialog.getByLabel(/Коментар/).fill("дубль картки");
@@ -243,9 +269,8 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     await expect(
       rowOf(page, LEAVING).getByText(/^Знято з показу .+ · додано помилково · «дубль картки»$/),
     ).toBeVisible();
-    await expect(
-      rowOf(page, LEAVING).getByRole("button", { name: "Повернути в чернетки" }),
-    ).toBeVisible();
+    await statusOf(page, LEAVING).click();
+    await expect(page.getByRole("button", { name: "Повернути в чернетки" })).toBeVisible();
     await page.close();
   });
 

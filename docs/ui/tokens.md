@@ -29,6 +29,7 @@ From the owner's foundations sheet (2026-11-12). Columns are fluid (`1fr`): the 
 | `--container-content` | `max-w-content` | 1200 | 1200 | 1200 | the content's maximum width |
 | `--container-reading` | `max-w-reading` | 690 | 690 | 690 | running text: seven desktop columns, lines under ~80 characters |
 | `--spacing-sidebar` | `w-sidebar` | – | – | 240 | the kabinet sidebar; the grid beside it keeps a 48 margin (`px-12`) |
+| `--grid-template-columns-cards` | `grid-cols-cards` | auto | auto | auto | a card grid (the kabinet's animals): `repeat(auto-fill, minmax(min(320px, 100%), 1fr))` with `gap-gutter`; the column count follows the width the grid has, never a viewport query |
 
 - **Page box:** `mx-auto box-content max-w-content px-margin`. Content-box, so the 1200 cap is the
   content's and the margin sits outside it.
