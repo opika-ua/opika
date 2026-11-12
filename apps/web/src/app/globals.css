@@ -200,6 +200,34 @@
 }
 
 /*
+ * Layout grid (the owner's foundations sheet, 2026-11-12; docs/ui/tokens.md "Layout grid"). Phone
+ * values here; tablet and desktop values are set on :root below, so `grid-cols-page`, `gap-gutter`
+ * and `px-margin` follow the breakpoint by themselves.
+ */
+@theme {
+  --grid-template-columns-page: repeat(4, minmax(0, 1fr));
+  --spacing-gutter: 12px;
+  --spacing-margin: 16px;
+  --container-content: 1200px;
+  /* Seven desktop columns: reading lines stay under ~80 characters. */
+  --container-reading: 690px;
+  --spacing-sidebar: 240px;
+}
+@variant tablet {
+  :root {
+    --grid-template-columns-page: repeat(8, minmax(0, 1fr));
+    --spacing-gutter: 16px;
+    --spacing-margin: 24px;
+  }
+}
+@variant desktop {
+  :root {
+    --grid-template-columns-page: repeat(12, minmax(0, 1fr));
+    --spacing-gutter: 24px;
+  }
+}
+
+/*
  * Height of the sticky site header (ui/anchored.ts reads it to close a popover whose trigger slides
  * under the header). SiteHeader's row takes its min-height from it. Same breakpoints as `tablet`/`desktop`.
  */

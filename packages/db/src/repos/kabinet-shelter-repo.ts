@@ -62,7 +62,9 @@ export type AuditedShelterChange =
       pendingDonation: PendingDonation | null;
     }
   /** The operator renamed the shelter (R-UI 4); recorded as `display_name_changed`. */
-  | { kind: "display_name"; displayName: string };
+  | { kind: "display_name"; displayName: string }
+  /** The operator turned the weekly reminder email off (a timestamp) or back on (null). */
+  | { kind: "freshness_reminder"; offAt: Date | null };
 
 export type AuditedWriteResult = { kind: "ok" } | { kind: "conflict" };
 
@@ -115,6 +117,8 @@ function columnsOf(change: AuditedShelterChange) {
       return { donation: change.donation, pendingDonation: change.pendingDonation };
     case "display_name":
       return { displayName: change.displayName };
+    case "freshness_reminder":
+      return { freshnessReminderOffAt: change.offAt };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
       const unreachable: never = change;

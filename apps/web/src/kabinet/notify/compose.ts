@@ -1,5 +1,6 @@
-import { KYIV_TIME_ZONE } from "@opika/domain";
+import { CONFIRMATION_REMINDER_DAYS, KYIV_TIME_ZONE } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
+import { countPhrase } from "../../features/kabinet/shared/count-phrase";
 import { emailBody } from "../email-message";
 import type { OutgoingEmail } from "../email-provider";
 import type { NotificationIntent } from "./intents";
@@ -110,6 +111,21 @@ export function composeNotification(
         before: [fillTemplate(copy.body, { host: intent.host })],
         link: shelterLink(copy.action, "/kabinet/prytulok"),
         after: [fillTemplate(copy.help, { operator })],
+      });
+    }
+    case "freshnessReminder": {
+      const copy = uk.kabinet.email.freshnessReminder;
+      return emailBody(to, {
+        subject: countPhrase(intent.staleCards, copy.subject),
+        before: [
+          fillTemplate(copy.body, {
+            cards: countPhrase(intent.staleCards, uk.kabinet.animalList.stale.countCards),
+            shelter,
+            days: countPhrase(CONFIRMATION_REMINDER_DAYS, uk.kabinet.units.days),
+          }),
+        ],
+        link: shelterLink(copy.action, "/kabinet/tvaryny"),
+        after: [`${copy.frequency} ${fillTemplate(copy.stop, { operator })}`],
       });
     }
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */

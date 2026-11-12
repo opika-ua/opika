@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import {
+  type AnimalListingState,
   type CityId,
+  confirmationReminderCutoff,
   earlyListingCutoff,
   earlyListingOf,
   earlyListingRemaining,
@@ -10,17 +12,20 @@ import {
 } from "@opika/domain";
 import { eq, inArray } from "drizzle-orm";
 import type { Database } from "../src/client";
+import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { kabinetInvitationRepo } from "../src/repos/kabinet-invitation-repo";
+import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
 import { notificationRecipientsRepo } from "../src/repos/notification-recipients-repo";
 import { MAX_SEND_ATTEMPTS, notificationSendsRepo } from "../src/repos/notification-sends-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
+import { animals } from "../src/schema/animals";
 import { authMember, authOrganization, authUser, superAdmins } from "../src/schema/auth";
 import { cities } from "../src/schema/cities";
 import { notificationSends } from "../src/schema/notification-sends";
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
-import { makeCity, makeShelter } from "../src/test-utils/index";
+import { makeAnimal, makeCity, makeShelter } from "../src/test-utils/index";
 
 type Outcome = { name: string; ok: boolean; detail: string };
 
@@ -313,7 +318,13 @@ export async function runNotificationRecipientsSmoke(db: Database): Promise<Outc
     // Kinds unique to this run, so the counts are exact whatever else is on the branch.
     const kindA = `smoke-${tag}-a`;
     const kindB = `smoke-${tag}-b`;
-    sendKeys.push(countKey("a-now"), countKey("a-old"), countKey("b-now"), countKey("close"));
+    sendKeys.push(
+      countKey("a-now"),
+      countKey("a-old"),
+      countKey("a-retry"),
+      countKey("b-now"),
+      countKey("close"),
+    );
     const hourAgo = new Date(now.getTime() - 3_600_000);
     const base = { shelterId: null, recipientUserId: null };
     await sendsRepo.claim(now, { ...base, dedupKey: countKey("a-now"), kind: kindA });
@@ -323,13 +334,21 @@ export async function runNotificationRecipientsSmoke(db: Database): Promise<Outc
       kind: kindA,
     });
     await sendsRepo.claim(now, { ...base, dedupKey: countKey("b-now"), kind: kindB });
-    const countA = await sendsRepo.countCreatedSince(hourAgo, [kindA]);
-    const countB = await sendsRepo.countCreatedSince(hourAgo, [kindB]);
-    const countBoth = await sendsRepo.countCreatedSince(hourAgo, [kindA, kindB]);
-    const countNone = await sendsRepo.countCreatedSince(hourAgo, []);
+    // A row from 3 days ago that failed and was retried today: one send today.
+    await sendsRepo.claim(new Date(now.getTime() - 3 * DAY), {
+      ...base,
+      dedupKey: countKey("a-retry"),
+      kind: kindA,
+    });
+    await sendsRepo.mark(now, countKey("a-retry"), "failed");
+    await sendsRepo.reclaim(now, countKey("a-retry"));
+    const countA = await sendsRepo.countSendsSince(hourAgo, [kindA]);
+    const countB = await sendsRepo.countSendsSince(hourAgo, [kindB]);
+    const countBoth = await sendsRepo.countSendsSince(hourAgo, [kindA, kindB]);
+    const countNone = await sendsRepo.countSendsSince(hourAgo, []);
     check(
-      "notify: countCreatedSince counts exactly today's fixture rows of the given kinds (A 1, B 1, both 2, none 0); the 3-day-old row is not counted",
-      countA === 1 && countB === 1 && countBoth === 2 && countNone === 0,
+      "notify: countSendsSince counts exactly today's sends of the given kinds (A 2: one created today and one 3-day-old row retried today; B 1; both 3; none 0); a 3-day-old row not retried is not counted",
+      countA === 2 && countB === 1 && countBoth === 3 && countNone === 0,
       `A ${countA}, B ${countB}, both ${countBoth}, none ${countNone}`,
     );
 
@@ -353,6 +372,199 @@ export async function runNotificationRecipientsSmoke(db: Database): Promise<Outc
       `closed ${closed}, again ${closedAgain}, ${closedRow?.status} attempts ${closedRow?.attempts}, offered ${offered}, reclaimed ${reclaimed}`,
     );
 
+    const adminsBoth = await repo.shelterAdminsOf([shelterA.id, shelterB.id]);
+    const adminsOnlyB = await repo.shelterAdminsOf([shelterB.id]);
+    check(
+      "notify: shelterAdminsOf returns each shelter's own member in one query (A's with A, B's with B), only B's when asked for B, and nothing for no ids",
+      adminsBoth.length === 2 &&
+        adminsBoth.some((row) => row.shelterId === shelterA.id && row.userId === memberA) &&
+        adminsBoth.some((row) => row.shelterId === shelterB.id && row.userId === memberB) &&
+        adminsOnlyB.length === 1 &&
+        adminsOnlyB[0]?.userId === memberB &&
+        (await repo.shelterAdminsOf([])).length === 0,
+      `both ${adminsBoth.length}, only B ${adminsOnlyB.length}`,
+    );
+
+    const staleAt = confirmationReminderCutoff(now);
+    const publishedAt = (confirmedAt: Date) =>
+      ({ kind: "published", publishedAt: confirmedAt, confirmedAt, undoable: null }) as const;
+    const card = async (s2: Shelter, listing: AnimalListingState) =>
+      animalRepo(db).insert(makeAnimal({ shelterId: s2.id, listing } as never), city.id as never);
+    const reminded = await shelter("fr-due", { verification: verificationOf("verified") });
+    const remindedOff = await shelter("fr-off", {
+      verification: verificationOf("verified"),
+      freshnessReminderOffAt: now,
+    });
+    const remindedPending = await shelter("fr-pending", {
+      verification: verificationOf("pending"),
+    });
+    const remindedPaused = await shelter("fr-paused", { verification: verificationOf("paused") });
+    const remindedEarly = await shelter("fr-early", {
+      verification: verificationOf("pending"),
+      earlyListingSince: since(10),
+    });
+    // At the 14-day cut-off exactly: counted. One millisecond fresher, a draft and an adopted card: not.
+    await card(reminded, publishedAt(staleAt));
+    await card(reminded, publishedAt(new Date(staleAt.getTime() + 1)));
+    await card(reminded, { kind: "draft" });
+    await card(reminded, { kind: "adopted", adoptedAt: since(30) });
+    for (const other of [remindedOff, remindedPending, remindedPaused, remindedEarly]) {
+      await card(other, publishedAt(since(30)));
+    }
+    const dueRows = await repo.freshnessReminderDue(now);
+    const dueIds = dueRows.map((row) => row.shelterId as string);
+    const dueMine = dueRows.find((row) => row.shelterId === reminded.id);
+    check(
+      "notify: freshnessReminderDue counts a card at exactly the 14-day cut-off and not a fresher one, a draft or an adopted one; a switched-off, pending-without-early-listing and paused shelter are left out, a shelter in a running early-listing period is in",
+      dueMine?.staleCards === 1 &&
+        dueIds.includes(remindedEarly.id) &&
+        ![remindedOff.id, remindedPending.id, remindedPaused.id].some((id) => dueIds.includes(id)),
+      `counted ${dueMine?.staleCards}, early in ${dueIds.includes(remindedEarly.id)}`,
+    );
+    const narrowed = await repo.freshnessReminderDue(now, { onlyShelter: reminded.id });
+    check(
+      "notify: freshnessReminderDue narrowed to one shelter returns only that shelter",
+      narrowed.length === 1 && narrowed[0]?.shelterId === reminded.id,
+      `${narrowed.length} row(s)`,
+    );
+
+    const moderatorId = randomUUID() as ModeratorId;
+    const toggle = (offAt: Date | null, expectedVersion: number, id: string) =>
+      kabinetShelterRepo(db).applyAudited({
+        shelterId: reminded.id,
+        expectedVersion,
+        change: { kind: "freshness_reminder", offAt },
+        entry: { kind: "freshness_reminder_changed", at: now, moderatorId, off: offAt !== null },
+        historyId: id,
+        now,
+      });
+    const switchedOff = await toggle(now, 0, `smoke-${tag}-off`);
+    const stale = await toggle(null, 0, `smoke-${tag}-stale`);
+    const afterOff = await shelterRepo(db).findById(reminded.id);
+    const droppedOut = (await repo.freshnessReminderDue(now)).every(
+      (row) => row.shelterId !== reminded.id,
+    );
+    const switchedOn = await toggle(null, 1, `smoke-${tag}-on`);
+    const afterOn = await shelterRepo(db).findById(reminded.id);
+    const lines = (await kabinetShelterRepo(db).historyOf(reminded.id)).filter(
+      (entry) => entry.kind === "freshness_reminder_changed",
+    );
+    check(
+      "notify: the reminder switch writes the timestamp with its history line in one statement, a stale version is a conflict with no line, the shelter then drops out of freshnessReminderDue, and switching on clears the column",
+      switchedOff.kind === "ok" &&
+        stale.kind === "conflict" &&
+        afterOff?.freshnessReminderOffAt?.getTime() === now.getTime() &&
+        droppedOut &&
+        switchedOn.kind === "ok" &&
+        afterOn?.freshnessReminderOffAt === null &&
+        lines.length === 2,
+      `off ${switchedOff.kind}, stale ${stale.kind}, dropped out ${droppedOut}, on ${switchedOn.kind}, ${lines.length} line(s)`,
+    );
+
+    const taken = [countKey("a-now"), countKey("b-now")];
+    const claimed = await sendsRepo.claimedKeys([...taken, countKey("never-claimed")]);
+    check(
+      "notify: claimedKeys returns exactly the keys that have a row, whatever their status, and an empty set for no keys",
+      claimed.size === 2 &&
+        taken.every((key) => claimed.has(key)) &&
+        !claimed.has(countKey("never-claimed")) &&
+        (await sendsRepo.claimedKeys([])).size === 0,
+      `${claimed.size} of 2 found`,
+    );
+
+    // The one shared batch budget: first attempts of the batch kinds today, plus every retry made today.
+    const batchKind = `smoke-${tag}-batch`;
+    const retriedKind = `smoke-${tag}-retried`;
+    const batchKey = (label: string) => `smoke:${tag}:batch-${label}`;
+    sendKeys.push(batchKey("a"), batchKey("b"), batchKey("old"), batchKey("retried"));
+    const batchBefore = await sendsRepo.countBatchSendsSince(hourAgo, [batchKind]);
+    await sendsRepo.claim(now, { ...base, dedupKey: batchKey("a"), kind: batchKind });
+    await sendsRepo.claim(now, { ...base, dedupKey: batchKey("b"), kind: batchKind });
+    await sendsRepo.claim(new Date(now.getTime() - 3 * DAY), {
+      ...base,
+      dedupKey: batchKey("old"),
+      kind: batchKind,
+    });
+    await sendsRepo.claim(new Date(now.getTime() - 3 * DAY), {
+      ...base,
+      dedupKey: batchKey("retried"),
+      kind: retriedKind,
+    });
+    await sendsRepo.mark(now, batchKey("retried"), "failed");
+    await sendsRepo.reclaim(now, batchKey("retried"));
+    const batchAfter = await sendsRepo.countBatchSendsSince(hourAgo, [batchKind]);
+    check(
+      "notify: countBatchSendsSince adds today's batch-kind rows (2) and a retry made today of a 3-day-old row (1), and not a 3-day-old batch row that was not retried",
+      batchAfter - batchBefore === 3,
+      `before ${batchBefore}, after ${batchAfter}`,
+    );
+
+    const lastKind = "freshnessReminder";
+    const lastKey = (label: string) => `smoke:${tag}:last-${label}`;
+    sendKeys.push(lastKey("old"), lastKey("new"), lastKey("other"));
+    await sendsRepo.claim(new Date(now.getTime() - 10 * DAY), {
+      shelterId: shelterA.id,
+      recipientUserId: null,
+      dedupKey: lastKey("old"),
+      kind: lastKind,
+    });
+    await sendsRepo.claim(new Date(now.getTime() - 3 * DAY), {
+      shelterId: shelterA.id,
+      recipientUserId: null,
+      dedupKey: lastKey("new"),
+      kind: lastKind,
+    });
+    await sendsRepo.claim(now, {
+      shelterId: shelterB.id,
+      recipientUserId: null,
+      dedupKey: lastKey("other"),
+      kind: "approved",
+    });
+    const lastSent = await sendsRepo.lastSentAtByShelter(lastKind, [shelterA.id, shelterB.id]);
+    check(
+      "notify: lastSentAtByShelter returns each shelter's newest row of the kind (A's 3-day-old, not its 10-day-old), leaves out a shelter with a row of another kind only, and is empty for no shelters",
+      lastSent.size === 1 &&
+        lastSent.get(shelterA.id)?.getTime() === now.getTime() - 3 * DAY &&
+        (await sendsRepo.lastSentAtByShelter(lastKind, [])).size === 0,
+      `${lastSent.size} shelter(s), A ${lastSent.get(shelterA.id)?.toISOString()}`,
+    );
+
+    // The Monday peak, as the SQL sees it: the cap and the batch budget are both spent while a
+    // retry is waiting and a weekly reminder is due, so every gate reads "room: none".
+    const peakShelter = await shelter("peak", { verification: verificationOf("verified") });
+    await card(peakShelter, publishedAt(since(30)));
+    const peakEvent = `smoke-${tag}-peak-event`;
+    const peakRetry = `smoke:${tag}:peak-retry`;
+    sendKeys.push(`smoke:${tag}:peak-1`, `smoke:${tag}:peak-2`, `smoke:${tag}:peak-3`, peakRetry);
+    for (const n of [1, 2, 3]) {
+      await sendsRepo.claim(now, {
+        ...base,
+        dedupKey: `smoke:${tag}:peak-${n}`,
+        kind: peakEvent,
+      });
+    }
+    await sendsRepo.claim(now, { ...base, dedupKey: peakRetry, kind: "smoke-peak-retry" });
+    await sendsRepo.mark(now, peakRetry, "failed");
+    const eventCap = 3;
+    const eventLeft = Math.max(
+      0,
+      eventCap - (await sendsRepo.countSendsSince(hourAgo, [peakEvent])),
+    );
+    // The day's budget is exactly what the batch rows above spent (`batchAfter`): none left, and
+    // one more unit of budget would leave exactly one, so the count is the number that matters.
+    const budgetUsed = await sendsRepo.countBatchSendsSince(hourAgo, [batchKind]);
+    const batchLeft = Math.max(0, batchAfter - budgetUsed);
+    const oneMoreLeft = Math.max(0, batchAfter + 1 - budgetUsed);
+    const retryWaiting = (await sendsRepo.retryable(now)).some((row) => row.dedupKey === peakRetry);
+    const reminderDue = (await repo.freshnessReminderDue(now)).some(
+      (row) => row.shelterId === peakShelter.id,
+    );
+    check(
+      "notify: Monday peak - with the event cap spent (3 of 3) and the batch budget spent, a failed retry waiting and a weekly reminder due, the cap and the budget both read no room left",
+      eventLeft === 0 && batchLeft === 0 && oneMoreLeft === 1 && retryWaiting && reminderDue,
+      `event room ${eventLeft}, batch room ${batchLeft}, retry waiting ${retryWaiting}, reminder due ${reminderDue}`,
+    );
+
     await db.delete(authMember).where(eq(authMember.id, memberARow));
     await db.delete(superAdmins).where(eq(superAdmins.id, grants[0]?.id ?? ""));
     const operatorsAfter = ours(addressesOf(await repo.operators()));
@@ -374,6 +586,7 @@ export async function runNotificationRecipientsSmoke(db: Database): Promise<Outc
       await db.delete(superAdmins).where(inArray(superAdmins.userId, userIds));
     }
     if (shelterIds.length > 0) {
+      await db.delete(animals).where(inArray(animals.shelterId, shelterIds as never));
       await db.delete(shelterHistory).where(inArray(shelterHistory.shelterId, shelterIds as never));
       await db.delete(shelters).where(inArray(shelters.id, shelterIds as never));
     }

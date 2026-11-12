@@ -364,6 +364,16 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     "Назва притулку: «Лапа» → «Притулок «Лапа допомоги»» · ви",
   ],
   [
+    "freshness_reminder_changed, off",
+    { kind: "freshness_reminder_changed", at: AT, moderatorId: ME, off: true },
+    "Щотижневий лист про непідтверджені картки вимкнено · ви",
+  ],
+  [
+    "freshness_reminder_changed, on",
+    { kind: "freshness_reminder_changed", at: AT, moderatorId: OTHER_OPERATOR, off: false },
+    "Щотижневий лист про непідтверджені картки увімкнено · адміністратор сайту",
+  ],
+  [
     "animals_imported",
     { kind: "animals_imported", at: AT, moderatorId: OTHER_OPERATOR, count: 12 },
     "Додано тварин з файлу: 12 · адміністратор сайту",

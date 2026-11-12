@@ -5,7 +5,11 @@ import {
   type PasswordLimiters,
   upstashDelayStore,
 } from "./password-limits";
-import { KABINET_RATE_LIMITS, PHOTO_UPLOAD_RATE_LIMITS } from "./rate-limits";
+import {
+  KABINET_RATE_LIMITS,
+  PHOTO_CROP_ATTEMPT_LIMITS,
+  PHOTO_UPLOAD_RATE_LIMITS,
+} from "./rate-limits";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
 
 /**
@@ -43,7 +47,7 @@ export const kabinetLimiters = {
   }),
 };
 
-/** P-Q12: per shelter, an hour and a day. */
+/** P-Q12: per shelter, an hour and a day; and the crop attempts beside them. */
 export const photoUploadLimiters = {
   perHour: sharedRateLimiter({
     name: "kabinet-photo-hour",
@@ -55,6 +59,18 @@ export const photoUploadLimiters = {
     ...PHOTO_UPLOAD_RATE_LIMITS.perDay,
     onUnavailable: "deny",
   }),
+  cropAttempts: {
+    perHour: sharedRateLimiter({
+      name: "kabinet-crop-attempt-hour",
+      ...PHOTO_CROP_ATTEMPT_LIMITS.perHour,
+      onUnavailable: "deny",
+    }),
+    perDay: sharedRateLimiter({
+      name: "kabinet-crop-attempt-day",
+      ...PHOTO_CROP_ATTEMPT_LIMITS.perDay,
+      onUnavailable: "deny",
+    }),
+  },
 };
 
 /** PW-2, §4.3: «Створіть пароль»'s POST, 20 an hour per IP (the link is single use, so nothing per address). */

@@ -73,6 +73,7 @@ export function registryShelterViewOf(
     donation: shelter.donation,
     pendingDonation: shelter.pendingDonation,
     verification: shelter.verification,
+    freshnessReminderOffAt: shelter.freshnessReminderOffAt,
     createdAt: shelter.createdAt,
     lastUpdatedAt: shelter.lastUpdatedAt,
     version: shelter.version,

@@ -52,6 +52,12 @@ export interface RateLimiter {
   retryAfterSeconds?(key: string, now: Date): number;
 }
 
+/** A limiter that can also be asked without spending: the crop checks its allowance this way. */
+export type PeekableRateLimiter = RateLimiter & {
+  /** Whether `check(key, now)` would pass, taking nothing. An unreachable store answers its mode. */
+  wouldAllow(key: string, now: Date): Promise<boolean>;
+};
+
 type SlidingWindowEntry = { timestamps: number[] };
 
 /**
@@ -64,7 +70,10 @@ type SlidingWindowEntry = { timestamps: number[] };
  * credentials are configured, which is true everywhere except a real
  * Vercel deployment.
  */
-export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: number }): RateLimiter {
+export function inMemoryRateLimiter(opts: {
+  windowMs: number;
+  maxRequests: number;
+}): PeekableRateLimiter {
   const store = new Map<string, SlidingWindowEntry>();
 
   return {
@@ -92,6 +101,11 @@ export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: numbe
     retryAfterSeconds(key: string, now: Date): number {
       const oldest = store.get(key)?.timestamps[0];
       return oldest === undefined ? 1 : (oldest + opts.windowMs - now.getTime()) / 1000;
+    },
+    async wouldAllow(key: string, now: Date): Promise<boolean> {
+      const cutoff = now.getTime() - opts.windowMs;
+      const counted = store.get(key)?.timestamps.filter((t) => t > cutoff).length ?? 0;
+      return counted < opts.maxRequests;
     },
   };
 }
@@ -214,7 +228,7 @@ export function upstashRateLimiter(opts: {
   maxRequests: number;
   prefix: string;
   onUnavailable: OnUnavailable;
-}): RateLimiter {
+}): PeekableRateLimiter {
   const unavailable = opts.onUnavailable === "allow";
   const outcome = unavailable ? "failing open" : "failing closed";
   const windowSeconds = Math.max(1, Math.round(opts.windowMs / 1000));
@@ -253,6 +267,25 @@ export function upstashRateLimiter(opts: {
         console.error(`apiRateLimiter: Upstash check failed - ${outcome} (RL-1)`, err);
         warnLimiterUnreachable(opts.prefix, "error");
         return unavailable;
+      }
+    },
+    // `getRemaining` runs `limit`'s window arithmetic and writes nothing. It has no timeout of its
+    // own, so it gets the check's; unreachable or slow, the limiter's mode answers.
+    async wouldAllow(key: string, _now: Date): Promise<boolean> {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timedOut = new Promise<"timeout">((resolve) => {
+        timer = setTimeout(() => resolve("timeout"), UPSTASH_CHECK_TIMEOUT_MS);
+      });
+      try {
+        const result = await Promise.race([ratelimit.getRemaining(key), timedOut]);
+        if (result !== "timeout") return result.remaining > 0;
+        warnLimiterUnreachable(opts.prefix, "timeout");
+        return unavailable;
+      } catch {
+        warnLimiterUnreachable(opts.prefix, "error");
+        return unavailable;
+      } finally {
+        clearTimeout(timer);
       }
     },
   };
@@ -376,9 +409,9 @@ const VERCEL_ENV = process.env.VERCEL_ENV || "unknown";
 /** `inner`, logging each refusal by `name` only (`rate-limit-log.ts`). */
 export function loggingRefusals(
   name: string,
-  inner: RateLimiter,
+  inner: PeekableRateLimiter,
   log?: RateLimitedLog,
-): RateLimiter {
+): PeekableRateLimiter {
   return {
     async check(key: string, now: Date): Promise<boolean> {
       const allowed = await inner.check(key, now);
@@ -386,6 +419,12 @@ export function loggingRefusals(
       return allowed;
     },
     retryAfterSeconds: (key: string, now: Date) => retryAfterSecondsOf(inner, key, now),
+    // A "no" here refuses a request too, so it is logged like one.
+    async wouldAllow(key: string, now: Date): Promise<boolean> {
+      const allowed = await inner.wouldAllow(key, now);
+      if (!allowed) logRateLimited(name, log);
+      return allowed;
+    },
   };
 }
 
@@ -422,7 +461,7 @@ export function sharedRateLimiter(opts: {
   windowMs: number;
   maxRequests: number;
   onUnavailable: OnUnavailable;
-}): RateLimiter {
+}): PeekableRateLimiter {
   const limiter = loggingRefusals(opts.name, sharedStoreLimiter(opts));
   registeredLimiters.set(opts.name, { onUnavailable: opts.onUnavailable, limiter });
   return limiter;
@@ -433,7 +472,7 @@ function sharedStoreLimiter(opts: {
   windowMs: number;
   maxRequests: number;
   onUnavailable: OnUnavailable;
-}): RateLimiter {
+}): PeekableRateLimiter {
   return RESOLVED_REDIS_URL && RESOLVED_REDIS_TOKEN
     ? upstashRateLimiter({
         redis: new Redis({

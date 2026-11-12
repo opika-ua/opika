@@ -664,7 +664,8 @@ export const shelterPhotosContract = {
     }),
   /**
    * Cuts the variants again from the kept source under a new key that replaces `storageKey`: a
-   * key is never written twice (CDN, shape §2). Charged like `add`; `attention` is the automatic crop.
+   * key is never written twice (CDN, shape §2). Charged like `add` only once it lands; `attention`
+   * is the automatic crop. NOT_FOUND also covers a photo with no file to cut from (seed or demo).
    */
   crop: animalWrite
     .input(
@@ -818,12 +819,15 @@ export const registrySheltersContract = {
           contact: ShelterContactInputSchema.optional(),
           /** Undefined = unchanged, null = clear. */
           description: ShelterDescriptionInputSchema.optional(),
+          /** The weekly «непідтверджені картки» email: undefined = unchanged. */
+          weeklyReminder: z.enum(["on", "off"]).optional(),
         })
         .refine(
           (input) =>
             input.displayName !== undefined ||
             input.contact !== undefined ||
-            input.description !== undefined,
+            input.description !== undefined ||
+            input.weeklyReminder !== undefined,
           { message: "Nothing to update" },
         ),
     )

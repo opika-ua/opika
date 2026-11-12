@@ -1001,6 +1001,17 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.evidence.gapItem": "{kind} – {provided} з {minimum}",
   };
   /** Owner-approved 2026-11-10 (minimal shelter create, design item 1, §1.5). */
+  /** The weekly email's switch on S4 (item 5): the owner-approved copy (2026-11-11). */
+  const WEEKLY_REMINDER_OPERATOR_COPY: Record<string, string> = {
+    "operator.history.freshness_reminder_off": "Щотижневий лист про непідтверджені картки вимкнено",
+    "operator.history.freshness_reminder_on": "Щотижневий лист про непідтверджені картки увімкнено",
+    "operator.reminder.title": "Лист про непідтверджені картки",
+    "operator.reminder.on":
+      "Щопонеділка адміністратори притулку отримують лист про картки, яких не підтверджували щонайменше {days}.",
+    "operator.reminder.off": "Лист вимкнено {date}: притулок його не отримує.",
+    "operator.reminder.turnOff": "Вимкнути лист",
+    "operator.reminder.turnOn": "Увімкнути лист",
+  };
   const MINIMAL_CREATE_COPY: Record<string, string> = {
     "operator.shelter.add": "Додати",
     "operator.verification.approveBlocked": "Схвалити поки не можна – бракує:",
@@ -1115,6 +1126,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(LIQPAY_SESSION_OPERATOR_COPY),
         ...Object.keys(VERIFIED_DATA_EDIT_COPY),
         ...Object.keys(MINIMAL_CREATE_COPY).filter((path) => path.startsWith("operator.")),
+        ...Object.keys(WEEKLY_REMINDER_OPERATOR_COPY),
         ...Object.keys(DATE_FIELD_OPERATOR_COPY),
       ].sort(),
     );
@@ -1151,6 +1163,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   it.each(Object.entries(VERIFIED_DATA_EDIT_COPY))("%s is the owner-given text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
+
+  it.each(Object.entries(WEEKLY_REMINDER_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
 
   it.each(Object.entries(DATE_FIELD_OPERATOR_COPY))(
     "%s is the owner-approved text",
@@ -1451,10 +1470,12 @@ describe("/pro about.data (his PR 6 text, and PW-1's two sentences)", () => {
   // GDPR-F1 (2026-10-24), his own dictated sentence, checked word for word against
   // `eraseUsersAndScrubHistory`: a new paragraph, between the kabinet-access one it
   // continues and the history paragraph it's a specific case of - six in total now.
+  // Paragraph 2's first three sentences are owner-confirmed, 2026-11-12 (the weekly reminder joined
+  // the list, and the browser record is stated as kept separately, not as something the site sends).
   it("is his text, byte for byte, in seven paragraphs", () => {
     expect(uk.about.data.split("\n\n")).toEqual([
       "Дані, які вносить притулок – адреса, контакти, картки тварин, – належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент.",
-      "Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора, щоб надсилати запрошення, посилання для входу чи нового пароля, повідомлення про зміну пароля, про рішення щодо перевірки й посилання на збір, а також технічний запис про браузер і пристрій, з якого виконано вхід. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби.",
+      "Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора. На цю адресу надходять запрошення, посилання для входу чи нового пароля, повідомлення про зміну пароля, про рішення щодо перевірки й посилання на збір, а також щотижневе нагадування про непідтверджені картки. Окремо зберігається технічний запис про браузер і пристрій, з якого виконано вхід. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби.",
       "Коли адміністратора притулку прибирають із кабінету, скасовують його запрошення або запрошення так і не прийняли, обліковий запис і адреса пошти видаляються, якщо ця адреса не має доступу до іншого притулку і не запрошена до нього. Тоді ж адресу прибирають з історії притулку: там лишається лише запис про те, що адміністратора запрошено, додано чи прибрано.",
       "Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто – адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють – їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин – лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку.",
       "Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Щоб фото можна було обрізати заново, зберігається також його необрізана копія – без метаданих, зокрема без місця зйомки. Вона видаляється разом із фото. Фото, прибране з картки, більше не показується, а його файли видаляються автоматично приблизно за тиждень.",
@@ -2937,6 +2958,29 @@ describe("owner-approved copy, 2026-11-02", () => {
   it("B1-1: the throttle body names a window, not a calendar day, and has no em dash", () => {
     expect(uk.errors.rateLimited.body).toContain("Наступні стануть доступні протягом доби.");
     expect(uk.errors.rateLimited.body).not.toContain(String.fromCodePoint(0x2014));
+  });
+});
+describe("the weekly reminder email (F1): owner-approved text, 2026-11-10 and 2026-11-11", () => {
+  const copy = uk.kabinet.email.freshnessReminder;
+
+  it("is the approved table, the stop line the owner's own words", () => {
+    expect(copy.subject).toEqual({
+      one: "{count} картка чекає на підтвердження",
+      few: "{count} картки чекають на підтвердження",
+      many: "{count} карток чекають на підтвердження",
+    });
+    expect(copy.body).toBe(
+      "Добрий день. {cards} притулку «{shelter}» ви не підтверджували щонайменше {days}. Ті, хто шукає тварину, бачать на картці, коли її востаннє підтверджували. Якщо нічого не змінилося, достатньо натиснути «Ще шукає» чи «Ще домовляються», а якщо тварина вже вдома – «Уже вдома».",
+    );
+    expect(copy.action).toBe("Відкрити список тварин");
+    expect(copy.frequency).toBe("Такий лист приходить щопонеділка, поки є непідтверджені картки.");
+    expect(copy.stop).toBe("Щоб не отримувати ці листи, дайте відповідь на цей лист.\n{operator}");
+  });
+
+  it("has the English sense of the stop line", () => {
+    expect(en.kabinet.email.freshnessReminder.stop).toBe(
+      "To stop receiving these emails, reply to this email.\n{operator}",
+    );
   });
 });
 

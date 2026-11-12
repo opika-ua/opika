@@ -148,7 +148,11 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
           throw new Error("NoSuchKey");
         },
       },
-      limiters: { perHour: generousLimiters.perUser, perDay: generousLimiters.perUser },
+      limiters: {
+        perHour: generousLimiters.perUser,
+        perDay: generousLimiters.perUser,
+        cropAttempts: { perHour: generousLimiters.perUser, perDay: generousLimiters.perUser },
+      },
       processingBudgetMs: 10_000,
     },
   });

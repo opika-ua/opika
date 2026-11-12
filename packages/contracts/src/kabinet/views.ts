@@ -343,6 +343,7 @@ export const RegistryShelterViewSchema = ShelterSchema.pick({
   donation: true,
   pendingDonation: true,
   verification: true,
+  freshnessReminderOffAt: true,
   createdAt: true,
   lastUpdatedAt: true,
   version: true,

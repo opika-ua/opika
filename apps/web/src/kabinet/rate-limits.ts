@@ -1,4 +1,4 @@
-import type { RateLimiter } from "../api/rate-limit";
+import type { PeekableRateLimiter, RateLimiter } from "../api/rate-limit";
 
 /**
  * HS-Q10 (Oleksii): the kabinet's own limits, on the shared Upstash store but
@@ -51,6 +51,22 @@ export const PHOTO_UPLOAD_RATE_LIMITS = {
   perDay: { windowMs: 24 * 60 * 60_000, maxRequests: 300 },
 } as const;
 
-export type PhotoUploadLimiters = { perHour: RateLimiter; perDay: RateLimiter };
+/**
+ * Every crop attempt, landed or not, taken before its work and never given back (owner,
+ * 2026-11-12). A shelter's photo work is then at most uploads and landed crops (60 an hour, 300 a
+ * day) plus failed crops (30 an hour, 150 a day); a shelter can crop at most 30 an hour either way.
+ */
+export const PHOTO_CROP_ATTEMPT_LIMITS = {
+  perHour: { windowMs: 60 * 60_000, maxRequests: 30 },
+  perDay: { windowMs: 24 * 60 * 60_000, maxRequests: 150 },
+} as const;
+
+/** The allowance's limiters can be asked without spending: a crop checks first, charges on landing. */
+export type PhotoUploadLimiters = {
+  perHour: PeekableRateLimiter;
+  perDay: PeekableRateLimiter;
+  cropAttempts: { perHour: RateLimiter; perDay: RateLimiter };
+};
 
 export const shelterUploadKey = (shelterId: string) => `shelter:${shelterId}`;
+export const shelterCropAttemptKey = (shelterId: string) => `shelter:${shelterId}:crop`;

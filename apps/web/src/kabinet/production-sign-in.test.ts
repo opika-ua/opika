@@ -385,7 +385,12 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // `makeCover`, `moveEarlier`, `moveLater`, `remove`, `crop`, `capReached`.
     // 854 with the keyboard reorder's `photos.keyboardHint` (owner-approved 2026-11-12; a move is
     // announced with `dragDrop`, reworded the same day).
-    expect(pending.length + written.length).toBe(854);
+    // 873 with the weekly reminder (item 5): seven `email.freshnessReminder.*` (subject in three
+    // forms, body, action, frequency, stop), two `operator.history.freshness_reminder_*` and five
+    // `operator.reminder.*` for the operator's switch.
+    // 868 with both: the two counts above each started from 859; the reminder's +14 and the photo
+    // tile pill's net -5.
+    expect(pending.length + written.length).toBe(868);
     expect(written).toContain("kabinet.profileEdit.errors.aboutTooLong");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

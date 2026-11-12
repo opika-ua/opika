@@ -169,6 +169,12 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     from: "Лапа",
     to: "Лапа допомоги",
   },
+  freshness_reminder_changed: {
+    kind: "freshness_reminder_changed",
+    at: AT,
+    moderatorId: MOD,
+    off: false,
+  },
   evidence_added: {
     kind: "evidence_added",
     at: AT,
@@ -187,7 +193,7 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
   early_listing_lapsed: { kind: "early_listing_lapsed", at: AT },
 };
 
-const OPERATOR_ONLY: string[] = ["evidence_added"];
+const OPERATOR_ONLY: string[] = ["evidence_added", "freshness_reminder_changed"];
 
 /** The projection of an entry the shelter does see; fails the test on `null`. */
 const facing = (entry: ShelterHistoryEntry, operatorName: string) => {
@@ -231,6 +237,10 @@ describe("shelterFacingHistoryOf", () => {
   }
 
   /** Owner, 2026-11-04: the shelter learns nothing of evidence the operator adds. */
+  it("freshness_reminder_changed: hidden from the shelter entirely", () => {
+    expect(shelterFacingHistoryOf(ENTRIES.freshness_reminder_changed, OPERATOR)).toBeNull();
+  });
+
   it("evidence_added: hidden from the shelter entirely", () => {
     expect(shelterFacingHistoryOf(ENTRIES.evidence_added, OPERATOR)).toBeNull();
   });

@@ -57,16 +57,8 @@
  * again inside the transaction and rolls back if any table's deleted count
  * differs from that plan. A second dry run afterwards reports all zeros.
  *
- * This script itself never deletes photos from R2 - it holds no R2
- * credentials, and removing the `animals` rows just leaves their photos
- * unreferenced. The plan lists the R2 object keys of the targeted animals'
- * real photos so Oleksii can delete them by hand sooner than the grace
- * period (DR-B3, answer 2; the GDPR photo-retention job,
- * `docs/gdpr-analysis.md`, R2-B1, deletes them automatically once
- * unreferenced for long enough, with no action here) - a dedicated
- * immediate-deletion script is follow-up DR-F3, narrowed by R2-B1's
- * automatic sweep to a way of going sooner than the grace period, not the
- * only path left at all.
+ * It never deletes from R2 (no credentials): the photos it unlinks are listed, and only the
+ * clean-up job deletes them, after the grace period (R2-B1; nothing else deletes R2 objects).
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -616,7 +608,7 @@ const noun = (target: RemovalTarget) => (target.kind === "demo_range" ? "demo" :
 export function formatPhotoKeys(plan: DemoRemovalPlan): string[] {
   if (plan.target.kind === "demo_range" && plan.photoObjectKeys.length === 0) return [];
   return [
-    `R2 photo objects of these animals: ${plan.photoObjectKeys.length} (left in R2, unlinked; delete by hand in Cloudflare if wanted)`,
+    `R2 photo objects of these animals: ${plan.photoObjectKeys.length} (unlinked; the clean-up job deletes them after the 7-day grace period)`,
     ...plan.photoObjectKeys.map((key) => `  ${key}`),
   ];
 }

@@ -1,3 +1,4 @@
+import type { StaleShelter } from "@opika/db/repos";
 import {
   EARLY_LISTING_MAX_PERIODS,
   earlyListingExpiresAt,
@@ -27,7 +28,8 @@ type Body =
   | { kind: "approved" }
   | { kind: "earlyListingAllowed"; expiresAt: Date }
   | { kind: "donationApproved"; host: string; shownNow: boolean }
-  | { kind: "donationRejected"; host: string };
+  | { kind: "donationRejected"; host: string }
+  | { kind: "freshnessReminder"; staleCards: number };
 
 export type NotificationKind = Body["kind"];
 
@@ -50,7 +52,11 @@ const AUDIENCE: Record<NotificationKind, Audience> = {
   earlyListingAllowed: "shelter_admins",
   donationApproved: "shelter_admins",
   donationRejected: "shelter_admins",
+  freshnessReminder: "shelter_admins",
 };
+
+/** The kinds the two scheduled batches create (the early-listing and the weekly mail): what their shared budget counts. */
+export const BATCH_KINDS: readonly NotificationKind[] = ["earlyListingEnding", "freshnessReminder"];
 
 /** Every mail kind an event or the daily batch sends: what the event cap counts. */
 export const EVENT_KINDS = Object.keys(AUDIENCE) as NotificationKind[];
@@ -150,6 +156,22 @@ export function planEarlyListingEnding(
     expiresAt: remaining.expiresAt,
     period: Math.min(Math.max(periodsUsed, 1), EARLY_LISTING_MAX_PERIODS),
     dedupBase: `el-end:${shelter.id}:${since.toISOString()}`,
+  };
+}
+
+/**
+ * F1: one mail per shelter admin per ISO week (Kyiv), naming how many visible cards have gone
+ * unconfirmed for 14 days. The key's week makes a duplicate cron event or a manual re-run send
+ * nothing new.
+ */
+export function planFreshnessReminder(shelter: StaleShelter, week: string): NotificationIntent {
+  return {
+    kind: "freshnessReminder",
+    audience: AUDIENCE.freshnessReminder,
+    shelterId: shelter.shelterId,
+    shelterName: shelter.displayName,
+    staleCards: shelter.staleCards,
+    dedupBase: `fr:${shelter.shelterId}:${week}`,
   };
 }
 

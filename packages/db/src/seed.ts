@@ -848,6 +848,7 @@ export function buildShelters(cities: City[]): ShelterWithVerifiedData[] {
       logo: null,
       pendingDonation: null,
       earlyListingSince: null,
+      freshnessReminderOffAt: null,
       version: 0,
       verification: buildVerification(def),
       createdAt: daysAgo(120),

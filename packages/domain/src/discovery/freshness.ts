@@ -47,6 +47,17 @@ export const DEFAULT_FRESHNESS_POLICY: FreshnessPolicy = {
 const MS_PER_DAY = 86_400_000;
 
 /**
+ * A visible card nobody has confirmed for this many days is named in the shelter's weekly email.
+ * Its own number, shorter than the 30 days at which the card reads «stale» to adopters: a nudge
+ * before the badge, not the badge's own threshold (owner, proposal Q1).
+ */
+export const CONFIRMATION_REMINDER_DAYS = 14;
+
+/** The instant a card's last confirmation must be at or before to be named in the reminder. */
+export const confirmationReminderCutoff = (now: Date): Date =>
+  new Date(now.getTime() - CONFIRMATION_REMINDER_DAYS * MS_PER_DAY);
+
+/**
  * `policy` is required rather than defaulted. A default parameter is how a
  * tuning knob quietly stops being threaded through, and these thresholds are
  * meant to be tuned against real shelter cadence.

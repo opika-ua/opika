@@ -38,6 +38,12 @@ export const ShelterSchema = z.object({
   verification: ShelterVerificationSchema,
   /** Operator permission to list before verification (nothing reads it yet); cleared on every status change. */
   earlyListingSince: z.date().nullable(),
+  /**
+   * Set by the operator when the shelter asks to stop the weekly «непідтверджені картки» email
+   * (`freshness_reminder_off_at`); null while it is on. Operator-only: no public or shelter view
+   * carries it.
+   */
+  freshnessReminderOffAt: z.date().nullable(),
   createdAt: z.date(),
   lastUpdatedAt: z.date(),
   /**
