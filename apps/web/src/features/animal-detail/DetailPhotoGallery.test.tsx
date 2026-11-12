@@ -147,22 +147,22 @@ describe("DetailPhotoGallery", () => {
     expect(screen.queryByRole("button", { name: "Попереднє фото" })).toBeNull();
   });
 
-  it("when the photos overflow: next shows and scrolls forward, prev appears once scrolled", () => {
-    stubWidths(360, 1128);
+  it("when the photos overflow: next shows and scrolls forward one photo, prev appears once scrolled", () => {
+    stubWidths(376, 1128);
     render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
     const scroller = screen.getByRole("region", REGION);
-    const scrollBy = vi.fn();
-    Object.defineProperty(scroller, "scrollBy", { value: scrollBy, configurable: true });
+    const scrollTo = vi.fn();
+    Object.defineProperty(scroller, "scrollTo", { value: scrollTo, configurable: true });
 
     expect(screen.queryByRole("button", { name: "Попереднє фото" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Наступне фото" }));
-    expect(scrollBy).toHaveBeenCalledTimes(1);
-    expect(scrollBy.mock.calls[0]?.[0].left).toBeGreaterThan(0);
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo.mock.calls[0]?.[0].left).toBe(376);
 
-    Object.defineProperty(scroller, "scrollLeft", { value: 300, configurable: true });
+    Object.defineProperty(scroller, "scrollLeft", { value: 376, configurable: true });
     fireEvent.scroll(scroller);
     fireEvent.click(screen.getByRole("button", { name: "Попереднє фото" }));
-    expect(scrollBy.mock.calls[1]?.[0].left).toBeLessThan(0);
+    expect(scrollTo.mock.calls[1]?.[0].left).toBe(0);
   });
 
   it("next disappears once scrolled to the end - no wrap-around", () => {
@@ -183,11 +183,11 @@ describe("DetailPhotoGallery", () => {
     );
     render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
     const scroller = screen.getByRole("region", REGION);
-    const scrollBy = vi.fn();
-    Object.defineProperty(scroller, "scrollBy", { value: scrollBy, configurable: true });
+    const scrollTo = vi.fn();
+    Object.defineProperty(scroller, "scrollTo", { value: scrollTo, configurable: true });
 
     fireEvent.click(screen.getByRole("button", { name: "Наступне фото" }));
 
-    expect(scrollBy.mock.calls[0]?.[0].behavior).toBe("auto");
+    expect(scrollTo.mock.calls[0]?.[0].behavior).toBe("auto");
   });
 });

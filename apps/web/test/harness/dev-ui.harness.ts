@@ -50,6 +50,9 @@ for (const viewport of [PHONE_360, DESKTOP_1440]) {
           // Prose links sit inside a text block, and a chip's input is inside its 48px label.
           if (el.closest("p, span.text-body, [data-inline-link]")) continue;
           if (el.matches("input[type=radio], input[type=checkbox]")) continue;
+          // Visually hidden until focused (the phone slider's keyboard-only arrows), like a chip's
+          // sr-only input: not a touch target. Focused, it is the kit's 48px icon button.
+          if (getComputedStyle(el).clipPath === "inset(50%)") continue;
           const min = Number.parseFloat(getComputedStyle(el).minHeight);
           const height = el.getBoundingClientRect().height;
           if (Math.max(min, height) < 48) {

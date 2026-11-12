@@ -555,6 +555,14 @@ export const ukPublic = {
     /** The phone photo counter's accessible name; the visible text is «1/4». Owner-approved with photoPrev/photoNext (2026-10-30). */
     photoCounter: "Фото {n} з {total}",
     /**
+     * Owner-given 2026-11-12 (the animal page's photo strip). From desktop three photos are in view
+     * and each arrow moves by one: the arrows' accessible names and the visible counter on the
+     * third photo (`{first}`, `{last}`, `{total}` are numbers).
+     */
+    photoRowPrev: "Попередні фото",
+    photoRowNext: "Наступні фото",
+    photoRowCounter: "{first}–{last} з {total}",
+    /**
      * Pet card PR 5 (Figma `75:425`/`88:1929`). The prev/next labels above
      * the panel, the two header pills, the three section headings and the
      * share-copied confirmation are the design's own owner-approved words

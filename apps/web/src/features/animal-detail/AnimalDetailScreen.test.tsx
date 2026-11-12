@@ -196,6 +196,28 @@ describe("AnimalDetailScreen – the shelter row (designer round 1, S6)", () => 
     expect(donate.getAttribute("href")).toBe("https://send.monobank.ua/jar/abc");
     expect(donate.textContent).toContain("send.monobank.ua");
   });
+
+  /** Owner, 2026-11-12 (option A): the pill fits its own words; the domain is plain text after it. */
+  it("the pill holds only «Підтримати притулок ↗»; the domain is its own text beside it, in the link", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter({
+          donation: { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" },
+        })}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+      />,
+    );
+    const donate = screen.getByTestId("donate-link");
+    const pill = within(donate).getByText("Підтримати притулок");
+    const host = within(donate).getByText("send.monobank.ua");
+    expect(pill.textContent).toBe("Підтримати притулок↗");
+    expect(pill.contains(host)).toBe(false);
+    expect(donate.getAttribute("target")).toBe("_blank");
+    expect(screen.getByRole("link", { name: "Підтримати притулок send.monobank.ua" })).toBe(donate);
+  });
 });
 
 describe("AnimalDetailScreen – a city name is printed literally (review finding 2)", () => {
@@ -636,5 +658,51 @@ describe("links in the shelter's words", () => {
     expect(story.getAttribute("href")).toBe("https://example.org/murchyk");
     const notes = within(medicalBlock()).getByRole("link", { name: "example.org/vet" });
     expect(notes.getAttribute("href")).toBe("https://example.org/vet");
+  });
+});
+
+/**
+ * The desktop strip (owner, 2026-11-12): photo slots are columns 1-4 / 5-8 / 9-12, and a slot the
+ * photos leave free takes the text that would otherwise sit below, never shown twice.
+ */
+describe("AnimalDetailScreen – what sits in which desktop columns, by photo count", () => {
+  const photos = (count: number): AnimalDetailView["photos"] =>
+    Array.from({ length: count }, (_, index) => ({
+      storageKey: `/p${index}.jpg`,
+      width: 1200,
+      height: 1500,
+      alt: null,
+    }));
+  const columnsOf = (element: Element | undefined) =>
+    element?.closest("[data-columns]")?.getAttribute("data-columns");
+  const only = (name: string) => {
+    const headings = screen.getAllByRole("heading", { level: 2, name });
+    expect(headings).toHaveLength(1);
+    return headings[0];
+  };
+
+  it.each([
+    [1, "1-4", "5-12", "5-12"],
+    [2, "1-8", "9-12", "9-12"],
+    [3, "1-12", "1-12", "9-12"],
+    [5, "1-12", "1-12", "9-12"],
+  ] as const)(
+    "%i photos: photos in %s, «Про мене» in %s, health in %s, the story in 1-8",
+    async (count, photoColumns, aboutColumns, medicalColumns) => {
+      await renderAnimal({ photos: photos(count) });
+      const strip = screen.getByRole("region", { name: "Фотогалерея" });
+      expect(strip.children).toHaveLength(count);
+      expect(columnsOf(strip)).toBe(photoColumns);
+      expect(columnsOf(only("Про мене"))).toBe(aboutColumns);
+      expect(columnsOf(only("Медичний стан"))).toBe(medicalColumns);
+      expect(columnsOf(only("Моя історія"))).toBe("1-8");
+    },
+  );
+
+  it("no photos: «Про мене» takes the full width, the story and health below it", async () => {
+    await renderAnimal({ photos: [] });
+    expect(columnsOf(only("Про мене"))).toBe("1-12");
+    expect(columnsOf(only("Моя історія"))).toBe("1-8");
+    expect(columnsOf(only("Медичний стан"))).toBe("9-12");
   });
 });

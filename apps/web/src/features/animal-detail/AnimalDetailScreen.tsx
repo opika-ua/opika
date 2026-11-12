@@ -16,7 +16,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
 import { Avatar } from "../../ui/Avatar";
-import { LinkButton } from "../../ui/Button";
+import { buttonLookClass } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
 import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
@@ -35,10 +35,14 @@ import { MedicalStatus } from "./MedicalStatus";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
 import { ShareButton } from "./ShareButton";
+import { STRIP_SLOTS, stripLayoutFor } from "./strip-layout";
 
-// The Figma panel's 1084px on the spacing scale (271 x 4px). Below desktop the panel is a single
-// column of at most 640px (centred on a tablet, the whole width on a phone).
-const PANEL_WIDTH = "max-w-160 desktop:max-w-271";
+// Below desktop the panel is a single column of at most 640px (centred on a tablet, the whole width
+// on a phone); from desktop it fills its place on the page grid (columns 2-11).
+const PANEL_WIDTH = "max-w-160 desktop:max-w-none";
+// From desktop each section of the sheet is its own 12-column grid with the page's gutter, so photos,
+// story and health share column edges.
+const SHEET_GRID = "desktop:grid desktop:grid-cols-page desktop:gap-x-gutter";
 
 interface AnimalDetailScreenProps {
   animal: AnimalDetailView;
@@ -92,8 +96,13 @@ export function AnimalDetailScreen({
             {uk.detail.notFound.action}
           </Link>
         </div>
-        <div className="flex flex-1 flex-col desktop:pt-10">
-          <AnimalDetailContent {...content} />
+        {/* From desktop the panel sits on page columns 2-11, the same place as the overlay's sheet. */}
+        <div className="flex flex-1 flex-col desktop:block desktop:pt-10">
+          <div className="flex flex-1 flex-col desktop:mx-auto desktop:box-content desktop:grid desktop:max-w-content desktop:grid-cols-page desktop:gap-x-gutter desktop:px-margin">
+            <div className="flex flex-1 flex-col desktop:col-span-10 desktop:col-start-2">
+              <AnimalDetailContent {...content} />
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -120,15 +129,18 @@ export function AnimalDetailContent({
   const showDocuments =
     animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
   const customTemperament = animal.temperament.find((entry) => entry.kind === "custom");
+  const slots = STRIP_SLOTS[stripLayoutFor(animal.photos.length)];
 
   return (
     <div
-      className={`mx-auto flex w-full flex-1 max-desktop:min-h-full ${PANEL_WIDTH} flex-col gap-4 px-4 pb-0 tablet:px-6 desktop:gap-13 desktop:p-10`}
+      className={`mx-auto flex w-full flex-1 max-desktop:min-h-full ${PANEL_WIDTH} flex-col gap-4 px-4 pb-0 tablet:px-6 desktop:gap-12 desktop:p-10`}
     >
       {/* Header. Below desktop its wrappers dissolve (`contents`) so the action bar can stick to the
           bottom of the whole panel, not of the header. */}
-      <div className="flex flex-col gap-4 max-desktop:contents">
-        <div className="flex flex-col gap-6 desktop:flex-row desktop:items-start desktop:justify-between max-desktop:contents">
+      <div className={`flex flex-col gap-4 max-desktop:contents ${SHEET_GRID} desktop:gap-y-4`}>
+        {/* From desktop the name and the actions share a line while both fit; otherwise the actions
+            drop below, still right-aligned, rather than squeezing the name until a word breaks. */}
+        <div className="flex flex-col gap-6 desktop:col-span-12 desktop:flex-row desktop:flex-wrap desktop:items-start desktop:justify-between max-desktop:contents">
           <div className="flex min-w-0 flex-col gap-1">
             <Heading level={1} look="display-l" className="break-words desktop:text-display-xl">
               {animal.name}
@@ -136,10 +148,10 @@ export function AnimalDetailContent({
             <MetaLine parts={metaParts(animal)} />
           </div>
           {/* Wraps onto two lines on a phone rather than overflowing; «Дати сімʼю» stays the one primary action. */}
-          {/* Phone: the bar that is always on screen (sticky to the bottom of the panel's scroll), «Дати сімʼю» taking the width and two 52px circles; from desktop, the header's own row. */}
+          {/* Phone: the bar that is always on screen (sticky to the bottom of the panel's scroll), «Дати сімʼю» taking the width and two 52px circles; from desktop, the header's own row, right-aligned. */}
           <div
             data-testid="action-bar"
-            className="sticky bottom-0 z-10 order-last -mx-4 mt-auto flex items-center gap-2.5 border-line border-t bg-surface px-4 pt-3 pb-inset tablet:-mx-6 tablet:px-6 desktop:static desktop:order-none desktop:m-0 desktop:flex-none desktop:flex-wrap desktop:gap-4 desktop:border-0 desktop:bg-transparent desktop:p-0"
+            className="sticky bottom-0 z-10 order-last -mx-4 mt-auto flex items-center gap-2.5 border-line border-t bg-surface px-4 pt-3 pb-inset tablet:-mx-6 tablet:px-6 desktop:static desktop:order-none desktop:m-0 desktop:ml-auto desktop:flex-none desktop:flex-wrap desktop:justify-end desktop:gap-4 desktop:border-0 desktop:bg-transparent desktop:p-0"
           >
             {animal.availability.kind === "paused" ? null : (
               <RevealFlow
@@ -155,12 +167,15 @@ export function AnimalDetailContent({
         </div>
 
         {animal.availability.kind === "paused" && (
-          <PauseNotice
-            reason={shelter.availability.kind === "paused" ? shelter.availability.reason : null}
-          />
+          <div className="desktop:col-span-8">
+            <PauseNotice
+              reason={shelter.availability.kind === "paused" ? shelter.availability.reason : null}
+            />
+          </div>
         )}
 
-        <div className="flex flex-col gap-4 desktop:flex-row desktop:flex-wrap desktop:items-center desktop:justify-between">
+        {/* The meta row: one dotted line from desktop; stacked on a phone. */}
+        <div className="flex flex-col gap-4 desktop:col-span-8 desktop:flex-row desktop:flex-wrap desktop:items-center desktop:gap-x-3 desktop:gap-y-2">
           {/* Wraps the reserved chip below the freshness one when there is no room. */}
           <div className="flex flex-wrap items-center gap-2">
             <span data-testid="freshness-block" className="w-fit">
@@ -179,7 +194,8 @@ export function AnimalDetailContent({
               </span>
             )}
           </div>
-          <div className="flex min-w-0 items-center justify-between gap-3 desktop:flex-wrap desktop:justify-start desktop:gap-8">
+          <MetaDot />
+          <div className="flex min-w-0 items-center justify-between gap-3 desktop:justify-start">
             <Link
               href={shelterPagePath(shelter.id)}
               prefetch={false}
@@ -196,105 +212,108 @@ export function AnimalDetailContent({
               </Text>
             </Link>
             {cityName && (
-              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap desktop:gap-2">
-                <Image
-                  src="/pet-card/icon-location.svg"
-                  alt=""
-                  aria-hidden="true"
-                  width={32}
-                  height={32}
-                  unoptimized
-                  className="size-6 desktop:size-8"
-                />
-                <span data-testid="shelter-city">
-                  <Text as="span" look="label" className="text-accent-text">
-                    {cityName}
-                  </Text>
+              <>
+                <MetaDot />
+                <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap desktop:gap-2">
+                  <Image
+                    src="/pet-card/icon-location.svg"
+                    alt=""
+                    aria-hidden="true"
+                    width={32}
+                    height={32}
+                    unoptimized
+                    className="size-6 desktop:size-8"
+                  />
+                  <span data-testid="shelter-city">
+                    <Text as="span" look="label" className="text-accent-text">
+                      {cityName}
+                    </Text>
+                  </span>
                 </span>
-              </span>
+              </>
+            )}
+          </div>
+          {/* No dot before it: the outline sets it apart, and when it wraps no dot is left at a line's end. */}
+          {shelter.donation && (
+            <SupportLink url={shelter.donation.url} host={donationHost(shelter.donation)} />
+          )}
+        </div>
+      </div>
+
+      {/* The body: photos, «Про мене», the story and the health block, placed by photo count
+          (`strip-layout.ts`). Below desktop it dissolves into the phone's single column. */}
+      <div className={`max-desktop:contents ${SHEET_GRID} desktop:gap-y-12 ${slots.body}`}>
+        <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} slot={slots.photos} />
+
+        <div
+          data-columns={slots.about.columns}
+          className={`flex flex-col gap-4 max-desktop:pt-2 ${slots.about.className}`}
+        >
+          <Heading level={2}>{uk.detail.aboutMeHeading}</Heading>
+          <div className="flex flex-wrap gap-2">
+            <FilterableChipLink
+              species={animal.species}
+              dimension="ages"
+              value={animal.ageBucket}
+              visibleText={capitalised(
+                animal.ageSpan === null
+                  ? ageWordFor(animal.ageBucket, animal.sex)
+                  : ageSpanLabel(animal.ageSpan),
+              )}
+            />
+            <SexChip species={animal.species} sex={animal.sex} />
+            <FilterableChipLink
+              species={animal.species}
+              dimension="sizes"
+              value={animal.size}
+              visibleText={capitalised(sizeWordFor(animal.size, animal.sex))}
+            />
+            {animal.temperament
+              .filter((entry) => entry.kind === "preset")
+              .map((entry) => (
+                <PlainChip key={entry.trait} text={temperamentLabelFor(entry.trait, animal.sex)} />
+              ))}
+            {customTemperament?.kind === "custom" && (
+              <PlainChip text={textIn(customTemperament.text, "uk")} />
+            )}
+            {animal.colour?.kind === "preset" && (
+              <PlainChip text={colourChipLabel(animal.colour.colour)} />
+            )}
+            {animal.colour?.kind === "custom" && (
+              <PlainChip text={textIn(animal.colour.text, "uk")} />
+            )}
+            {animal.coatLength && <PlainChip text={COAT_WORDS[animal.coatLength]} />}
+            {showDocuments && animal.documentReadiness.kind === "tracked" && (
+              <>
+                {animal.documentReadiness.microchip.kind === "present" && (
+                  <PlainChip text={uk.documents.chipPresent} />
+                )}
+                {animal.documentReadiness.rabiesVaccination.kind === "present" && (
+                  <PlainChip text={uk.documents.rabiesPresent} />
+                )}
+              </>
             )}
           </div>
         </div>
-        {/* Commitment 5: donations are external links to the shelter's own payment page, domain visible before the tap. */}
-        {shelter.donation && (
-          <LinkButton
-            variant="secondary"
-            href={shelter.donation.url}
-            target="_blank"
-            rel="noopener"
-            data-testid="donate-link"
-            className="w-fit"
+
+        {/* Моя історія / Медичний стан: stacked on a phone; from desktop each takes its own slot. */}
+        <div className="flex flex-col gap-13 desktop:contents">
+          <div
+            data-columns={slots.story.columns}
+            className={`flex flex-1 flex-col gap-3 ${slots.story.className}`}
           >
-            <span>{uk.detail.donateShelter}</span>
-            <span className="text-ink-2">{donationHost(shelter.donation)} ↗</span>
-          </LinkButton>
-        )}
-      </div>
-
-      {/* Photo slider */}
-      <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} />
-
-      {/* Про мене */}
-      <div className="flex flex-col gap-4 max-desktop:pt-2">
-        <Heading level={2}>{uk.detail.aboutMeHeading}</Heading>
-        <div className="flex flex-wrap gap-2">
-          <FilterableChipLink
-            species={animal.species}
-            dimension="ages"
-            value={animal.ageBucket}
-            visibleText={capitalised(
-              animal.ageSpan === null
-                ? ageWordFor(animal.ageBucket, animal.sex)
-                : ageSpanLabel(animal.ageSpan),
-            )}
-          />
-          <SexChip species={animal.species} sex={animal.sex} />
-          <FilterableChipLink
-            species={animal.species}
-            dimension="sizes"
-            value={animal.size}
-            visibleText={capitalised(sizeWordFor(animal.size, animal.sex))}
-          />
-          {animal.temperament
-            .filter((entry) => entry.kind === "preset")
-            .map((entry) => (
-              <PlainChip key={entry.trait} text={temperamentLabelFor(entry.trait, animal.sex)} />
-            ))}
-          {customTemperament?.kind === "custom" && (
-            <PlainChip text={textIn(customTemperament.text, "uk")} />
-          )}
-          {animal.colour?.kind === "preset" && (
-            <PlainChip text={colourChipLabel(animal.colour.colour)} />
-          )}
-          {animal.colour?.kind === "custom" && (
-            <PlainChip text={textIn(animal.colour.text, "uk")} />
-          )}
-          {animal.coatLength && <PlainChip text={COAT_WORDS[animal.coatLength]} />}
-          {showDocuments && animal.documentReadiness.kind === "tracked" && (
-            <>
-              {animal.documentReadiness.microchip.kind === "present" && (
-                <PlainChip text={uk.documents.chipPresent} />
-              )}
-              {animal.documentReadiness.rabiesVaccination.kind === "present" && (
-                <PlainChip text={uk.documents.rabiesPresent} />
-              )}
-            </>
-          )}
+            <Heading level={2}>{uk.detail.myStoryHeading}</Heading>
+            <Text look="lead" className="text-ink-2">
+              <LinkedText text={textIn(animal.description, "uk")} />
+            </Text>
+          </div>
+          <div data-columns={slots.medical.columns} className={slots.medical.className}>
+            <MedicalStatus
+              rows={[vaccinationRow(animal.vaccination), spayNeuterRow(animal.spayNeuter)]}
+              notes={animal.medicalNotes === null ? null : textIn(animal.medicalNotes, "uk")}
+            />
+          </div>
         </div>
-      </div>
-
-      {/* Моя історія / Медичний стан */}
-      <div className="flex flex-col gap-13 desktop:flex-row">
-        <div className="flex flex-1 flex-col gap-3">
-          <Heading level={2}>{uk.detail.myStoryHeading}</Heading>
-          <Text look="lead" className="text-ink-2">
-            <LinkedText text={textIn(animal.description, "uk")} />
-          </Text>
-        </div>
-        <MedicalStatus
-          rows={[vaccinationRow(animal.vaccination), spayNeuterRow(animal.spayNeuter)]}
-          notes={animal.medicalNotes === null ? null : textIn(animal.medicalNotes, "uk")}
-        />
       </div>
 
       {/* Footer divider */}
@@ -331,6 +350,37 @@ export function AnimalDetailContent({
   );
 }
 
+/** The meta row's separator, from desktop only (a phone stacks the parts). */
+function MetaDot() {
+  return (
+    <span aria-hidden="true" className="size-1 shrink-0 rounded-pill bg-ink-2 max-desktop:hidden" />
+  );
+}
+
+/**
+ * Commitment 5: donations are external links to the shelter's own payment page, with the domain
+ * visible before the tap (owner, 2026-11-12: plain text after the pill, wrapping below it when the
+ * line is full; the pill itself never wraps or stretches).
+ */
+function SupportLink({ url, host }: { url: string; host: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener"
+      data-testid="donate-link"
+      className="inline-flex min-h-target w-fit max-w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-field focus-ring"
+    >
+      <span className={`${buttonLookClass("secondary")} whitespace-nowrap`}>
+        {uk.detail.donateShelter}
+        <span aria-hidden="true">↗</span>
+      </span>
+      <Text as="span" look="hint" className="break-all">
+        {host}
+      </Text>
+    </a>
+  );
+}
 /** Species, sex, age bucket and size: the shared facts line, same as every other animal surface. */
 function metaParts(animal: AnimalDetailView): string[] {
   return animalFactsParts({
