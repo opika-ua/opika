@@ -211,7 +211,7 @@ Migration `0021_drop_orphan_animal_indexes` (PR #376) dropped the two unused `an
 
 **Prisma 7 (Nov 2025) is a genuine turnaround** - Rust engine gone, ~90% smaller bundle, ~3× faster queries, generated code in your source tree. The historical complaints are substantially fixed. But:
 
-> **Prisma closed [issue #25768](https://github.com/prisma/prisma/issues/25768) — geometry/geography support — as "not planned."**
+> **Prisma closed [issue #25768](https://github.com/prisma/prisma/issues/25768) – geometry/geography support – as "not planned."**
 
 You'd model spatial columns as `Unsupported("geometry")`, which Prisma Client cannot read or write, and run every geo query through `$queryRaw` with hand-written types. For a product whose core query is proximity search, that puts your most important code path outside the ORM permanently.
 
@@ -272,6 +272,8 @@ Structurally: **auth data lives in your Postgres, so auth cost scales with your 
 - **Adopter:** low-friction. Email OTP or Google/Apple. Do **not** require signup to *browse* - require it only at the reveal moment. Anonymous swiping with a device-scoped session that upgrades to an account on first reveal is the right funnel, and Better Auth's anonymous plugin supports exactly this.
 - **Shelter partner:** high-friction on purpose. Invitation-only into an organization, created by you after manual verification (NGO registration, bank account in the org's name, external reference). **Verification is a human process with a database field, not a feature.** Don't build a self-serve shelter signup flow at MVP - it's the single largest source of fraud risk in this product, and manual review of ~15 shelters is an afternoon.
 - **Worth knowing for later:** **Дія.Підпис (Diia.Signature) is available to businesses today** - free, contract-based, used by Nova Poshta and AUTO.RiA - and is the natural upgrade path for strongly verifying a shelter representative's identity when manual review stops scaling. It requires certifying no ties to Russia or Belarus.
+
+> **Superseded (as of 2026-11-13): shelters sign in by magic link, password or invitation; adopters have no accounts.** The adopter bullet above (email OTP or Google/Apple, anonymous swiping upgrading to an account) was never built. Shelters sign in only after an operator invitation, with no social sign-in and no self-serve signup. An adopter has no sign-in and no account: the only adopter identity is an anonymous device session, minted when someone reveals a contact (the `account` identity kind exists in the `adopters` table but no code creates it). The original text stays above as the record. Code: [Better Auth config (magic link, organization plugin, password, invitations)](../apps/web/src/kabinet/auth.ts) · [sign-in pages and routes](../apps/web/src/app/kabinet/vkhid/page.tsx) ([confirm route](../apps/web/src/app/kabinet/vkhid/pidtverdzhennia/route.ts), [forgot password](../apps/web/src/app/kabinet/vkhid/zabuly/route.ts), [new password](../apps/web/src/app/kabinet/vkhid/novyi-parol/page.tsx)) · [invitation handlers](../apps/web/src/kabinet/handlers/registry-invitations.ts) · [sign-in card](../apps/web/src/features/kabinet/SignInCard.tsx) · [anonymous adopter session](../apps/web/src/api/handlers/session.ts) · [`adopters` table](../packages/db/src/schema/adopters.ts).
 
 **Sources:** [Better Auth organization plugin](https://www.better-auth.com/docs/plugins/organization) · [Clerk pricing](https://clerk.com/pricing) · [WorkOS pricing](https://workos.com/pricing) · [Kinde pricing](https://www.kinde.com/pricing/) · [Diia integration](https://integration.diia.gov.ua/) · npm registry, 2026-08-05
 
@@ -563,8 +565,8 @@ type ShelterVerification =
 > makes" before building this.** `/prytulkam` states, to the shelters being
 > recruited, that ordering inputs are date plus card completeness in the deck
 > and *nothing else* («Це все, що впливає на порядок»). Ads sitting **beside**
-> listings leave that true. Ads influencing **order** — paid placement, a
-> "featured" flag, a boost — make a page written to earn a volunteer's trust
+> listings leave that true. Ads influencing **order** – paid placement, a
+> "featured" flag, a boost – make a page written to earn a volunteer's trust
 > into a false one. That is a product decision available to be taken
 > deliberately; it is not one to arrive at by implementation.
 
@@ -764,7 +766,7 @@ Shopify's evidence is the useful one here: they evaluated microservices, **rejec
 
 The trigger, stated precisely so you can test it rather than argue about it:
 
-> **If profiling shows the feed endpoint is CPU-bound in the Node process — not waiting on Postgres, not waiting on Redis, but burning CPU — extract that scoring step into a separate service.**
+> **If profiling shows the feed endpoint is CPU-bound in the Node process – not waiting on Postgres, not waiting on Redis, but burning CPU – extract that scoring step into a separate service.**
 
 The realistic cause would be real-time ML ranking scoring thousands of candidates per request in-process. Nothing in your roadmap implies that. And even then, the first three fixes are cache, keyset pagination, and a read replica - and the service you'd extract is a stateless scorer, which is the afternoon-sized extraction.
 

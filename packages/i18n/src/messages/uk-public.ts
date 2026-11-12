@@ -1,9 +1,8 @@
 /**
  * Ukrainian UI strings for the discovery flow.
  *
- * Every user-facing string lives here so M9 (i18n) can swap the source
- * to next-intl message files without touching components. Keys mirror
- * the design string table in docs/design/.
+ * Every user-facing string lives here, apart from the components (next-intl is not
+ * adopted, 2026-11-13). Keys mirror the design string table in docs/design/.
  */
 
 /**
