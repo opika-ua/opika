@@ -228,8 +228,8 @@ export const uk = {
     },
     /**
      * The kit's `DateField` (day, month, year) on every kabinet date: the parts' labels and the two
-     * refusals only a typed date can have. Builder-drafted, awaiting the owner's approval (the
-     * date-field PR); the month names come from `Intl` (`monthNamesOf`), not from here.
+     * refusals only a typed date can have. Owner-approved 2026-11-12 (the date-field PR); the
+     * month names come from `Intl` (`monthNamesOf`), not from here.
      */
     dateField: {
       day: "День",
@@ -1768,7 +1768,7 @@ export const uk = {
             invited_elsewhere: "На цю адресу вже надіслано чинне запрошення до іншого притулку.",
           },
           siteVisitInFuture: "Дата дзвінка не може бути в майбутньому.",
-          /** Builder-drafted, awaiting the owner's approval (the date-field PR). */
+          /** Owner-approved 2026-11-12 (the date-field PR). */
           registeredAtFuture: "Дата реєстрації не може бути в майбутньому.",
           unknownCity: "Такого населеного пункту немає у списку.",
           lostAnswer:

@@ -1009,8 +1009,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     notFilledYet: "Ще не заповнено",
   };
   /**
-   * The date-field PR: a registration date can no longer be typed past today, so it needs its own
-   * refusal. Builder-drafted on the pattern of `siteVisitInFuture`, awaiting the owner's approval.
+   * Owner-approved 2026-11-12 (the date-field PR): a registration date can no longer be typed
+   * past today, so it has its own refusal, on the pattern of `siteVisitInFuture`.
    */
   const DATE_FIELD_OPERATOR_COPY: Record<string, string> = {
     "operator.create.errors.registeredAtFuture": "Дата реєстрації не може бути в майбутньому.",
@@ -1139,9 +1139,12 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     expect(valueAt(path)).toBe(text);
   });
 
-  it.each(Object.entries(DATE_FIELD_OPERATOR_COPY))("%s is the drafted text", (path, text) => {
-    expect(valueAt(path)).toBe(text);
-  });
+  it.each(Object.entries(DATE_FIELD_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
 
   it("the initiative hint's English text is the owner's, with his apostrophe (U+2019)", () => {
     expect(en.kabinet.operator.donation.approveHintInitiative).toBe(
@@ -1222,11 +1225,11 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
 });
 
 /**
- * The kit's `DateField` on every kabinet date (the date-field PR): the parts' labels and a typed
- * date's two refusals. Builder-drafted, awaiting the owner's approval: real text, never
- * `COPY_PENDING`, because a real shelter's animal form shows it. Exactly these keys.
+ * The kit's `DateField` on every kabinet date: the parts' labels and a typed date's two
+ * refusals, owner-approved 2026-11-12 as proposed (the date-field PR; the month select's blank
+ * first option too, so no placeholder string). Exactly these keys.
  */
-describe("kabinet date field copy (drafted, awaiting approval)", () => {
+describe("kabinet date field copy (owner-approved, 2026-11-12)", () => {
   const DATE_FIELD_COPY = {
     day: "День",
     month: "Місяць",
@@ -1235,7 +1238,7 @@ describe("kabinet date field copy (drafted, awaiting approval)", () => {
     noSuchDate: "Такої дати в календарі немає.",
   };
 
-  it("holds exactly these strings", () => {
+  it("holds exactly his approved strings", () => {
     expect(uk.kabinet.dateField).toEqual(DATE_FIELD_COPY);
   });
 

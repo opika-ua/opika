@@ -375,7 +375,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // `voiceLabel`, `voiceNote`, five `profileEdit.errors.*` sentence messages and six
     // `profileEdit.voice.*`; plus `errors.aboutTooLong` and `about.hint`.
     // 836 with `operator.donation.approveHintInitiative` (owner-given 2026-11-11).
-    expect(pending.length + written.length).toBe(836);
+    // 842 with the DateField (owner-approved 2026-11-12): `dateField.day`, `month`, `year`,
+    // `incomplete`, `noSuchDate` and `operator.create.errors.registeredAtFuture`.
+    expect(pending.length + written.length).toBe(842);
     expect(written).toContain("kabinet.profileEdit.errors.aboutTooLong");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");
