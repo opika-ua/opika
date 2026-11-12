@@ -47,6 +47,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [Button](components/Button.md) | `Button.tsx` | The one button. Replaces controls.Button, CircleButton, PillButton and the deck's ActionButton. |
 | [LinkButton](components/LinkButton.md) | `Button.tsx` | A link that looks like a Button, for navigation. |
 | [TextLink](components/TextLink.md) | `TextLink.tsx` | An inline link inside prose. |
+| [LinkedText](components/LinkedText.md) | `LinkedText.tsx` | Shelter-written text with its http(s) links clickable (`linkify.ts` splits it). |
 | [Icon](components/Icon.md) | `Icon.tsx` | The one inline-SVG icon set. |
 | [Heading](components/Heading.md) | `Heading.tsx` | Headings mapped to the type scale. |
 | [Text](components/Text.md) | `Text.tsx` | Body copy. |

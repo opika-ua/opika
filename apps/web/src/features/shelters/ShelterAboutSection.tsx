@@ -1,10 +1,11 @@
 import { uk } from "@opika/i18n";
 import { useId } from "react";
 import { Heading } from "../../ui/Heading";
+import { LinkedText } from "../../ui/LinkedText";
 
 /**
  * «Про притулок» on the shelter page: the shelter's own text under its heading, shown verbatim
- * (line breaks kept, no quotes). The only page it renders on. The caller passes null for a shelter
+ * (line breaks kept, no quotes, http(s) links clickable). The only page it renders on. The caller passes null for a shelter
  * with no text and nothing is drawn: no heading over nothing and no placeholder.
  */
 export function ShelterAboutSection({ text }: { text: string | null }) {
@@ -15,7 +16,9 @@ export function ShelterAboutSection({ text }: { text: string | null }) {
       <Heading level={2} look="section" id={headingId}>
         {uk.shelterPage.aboutHeading}
       </Heading>
-      <p className="whitespace-pre-line break-words text-body text-ink-2">{text}</p>
+      <p className="whitespace-pre-line break-words text-body text-ink-2">
+        <LinkedText text={text} />
+      </p>
     </section>
   );
 }

@@ -25,6 +25,7 @@ import { CheckboxGroup, ChipGroup, RadioGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
 import { ICON_NAMES, Icon } from "../../../ui/Icon";
 import { InfoTip } from "../../../ui/InfoTip";
+import { LinkedText } from "../../../ui/LinkedText";
 import { MASCOT_RESERVE_CLASS, Mascot, MascotPerch, type MascotPose } from "../../../ui/Mascot";
 import { MetaLine } from "../../../ui/MetaLine";
 import { Pagination } from "../../../ui/Pagination";
@@ -169,6 +170,11 @@ export default function DevUiPage() {
           </LinkButton>
           <Text as="span">
             Inline <TextLink href="/dev/ui">text link</TextLink> in a sentence.
+          </Text>
+        </Row>
+        <Row label="LinkedText (shelter-written text)">
+          <Text className="max-w-160">
+            <LinkedText text="More on FIV: https://hatul-madan.org/blogs/fiv-in-cats-a-very-long-address-that-has-to-break. And «http://example.org/a»." />
           </Text>
         </Row>
       </Group>
