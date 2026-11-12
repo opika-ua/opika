@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AnimalPhotoSchema } from "@opika/domain";
@@ -41,7 +42,8 @@ function* walk(dir: string): Generator<string> {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) yield* walk(path);
-    else if (entry.isFile() && path.endsWith(".ts") && !path.endsWith(".test.ts")) yield path;
+    // .tsx too: a page reading a repository is code like any other (review of #490).
+    else if (entry.isFile() && /\.tsx?$/.test(path) && !/\.test\.tsx?$/.test(path)) yield path;
   }
 }
 
@@ -473,7 +475,9 @@ describe("a photo source's object key stays in the owning shelter's kabinet", ()
   it("only the kabinet's photo code in packages/db names the sources table; no public read does", () => {
     // gallery-repo, animal-repo, reveal-repo, mappers and r2-cleanup-repo stay off this list: the
     // clean-up must never read it either, or a leftover row would keep an object alive.
+    // demo-remove.ts: the operator's removal counts the cascade and prints the source keys it leaves.
     expect(filesUnderSrc(DB_SRC, /\banimalPhotoSources\b|\banimal_photo_sources\b/)).toEqual([
+      "demo-remove.ts",
       "full-reset.ts",
       "repos/kabinet-animal-repo.ts",
       "repos/photo-sources-repo.ts",
@@ -483,11 +487,43 @@ describe("a photo source's object key stays in the owning shelter's kabinet", ()
     ]);
   });
 
-  it("in apps/web only the kabinet's server code reads the sources repository", () => {
-    const outside = scan(WEB_SRC, /\bphotoSourcesRepo\b|\blistForAnimal\b/).filter(
-      (hit) => !hit.file.includes("/src/kabinet/"),
-    );
-    expect(outside).toEqual([]);
+  // Exact files, not a folder or the table's name alone: review of #490 planted a gallery-repo
+  // read and an app page read, and both passed. The source key then reaches only K3's view.
+  const USES_SOURCES = /\bphotoSourcesRepo\b|\bsourceRowSelect\b|\blistForAnimal\b/;
+
+  it("in packages/db only the photo write, the onboarding script and the repo itself use the sources", () => {
+    expect(filesUnderSrc(DB_SRC, USES_SOURCES)).toEqual([
+      "onboard-shelter.ts",
+      "repos/index.ts",
+      "repos/kabinet-animal-repo.ts",
+      "repos/photo-sources-repo.ts",
+    ]);
+  });
+
+  it("in apps/web only the two kabinet handlers read them, pages (.tsx) included", () => {
+    expect(filesUnderSrc(WEB_SRC, USES_SOURCES)).toEqual([
+      "kabinet/handlers/animals.ts",
+      "kabinet/handlers/photos.ts",
+    ]);
+    // The walk really reads pages: this one is a .tsx file.
+    expect(filesUnderSrc(WEB_SRC, /export default async function AboutPage/)).toEqual([
+      "app/pro/page.tsx",
+    ]);
+  });
+
+  it("catches the two leaks the review planted: a public repo and an app page", () => {
+    const root = mkdtempSync(join(tmpdir(), "opika-scan-"));
+    try {
+      const src = join(root, "pkg", "src");
+      mkdirSync(join(src, "repos"), { recursive: true });
+      mkdirSync(join(src, "app", "x"), { recursive: true });
+      const read = "const rows = await photoSourcesRepo(db).listForAnimal(a, s);\n";
+      writeFileSync(join(src, "repos", "gallery-repo.ts"), read);
+      writeFileSync(join(src, "app", "x", "page.tsx"), read);
+      expect(filesUnderSrc(src, USES_SOURCES)).toEqual(["app/x/page.tsx", "repos/gallery-repo.ts"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("no domain schema, and no contract outside kabinet/, declares a source-key field", () => {

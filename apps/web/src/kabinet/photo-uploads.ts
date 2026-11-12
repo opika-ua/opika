@@ -49,12 +49,18 @@ export const PHOTO_UPLOADS_NOT_CONFIGURED: PhotoUploads = Object.freeze({
  */
 export function lazyR2Storage(config: R2Config): ImageStorageClient {
   let client: Promise<ImageStorageClient> | undefined;
+  const loaded = () => {
+    client ??= import("@opika/db/image-pipeline/server").then((pipeline) =>
+      pipeline.createR2Client(config),
+    );
+    return client;
+  };
   return {
     async put(key, body, contentType) {
-      client ??= import("@opika/db/image-pipeline/server").then((pipeline) =>
-        pipeline.createR2Client(config),
-      );
-      await (await client).put(key, body, contentType);
+      await (await loaded()).put(key, body, contentType);
+    },
+    async get(key) {
+      return (await loaded()).get(key);
     },
   };
 }

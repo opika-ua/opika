@@ -149,6 +149,24 @@ export function shelterLogoStorageKeyFor(shelterId: ShelterId, logoId: string): 
   return `shelters/${shelterId}/logo/${logoId}`;
 }
 
+/**
+ * The most a crop reads back (`r2-client.ts`'s `get`): above any stored source, since a 2000 × 2000
+ * source of uniform noise, the worst case, measured 3.19 MiB at quality 90.
+ */
+export const PHOTO_SOURCE_MAX_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Where a photo's kept source sits (crop frame): a direct child of its storage key, so the clean-up
+ * job's parent-path rule keeps it exactly as long as the variants, under an unguessable name
+ * (migration 0027's CHECK). A fresh v4 UUID each time, for the reason above.
+ */
+export function photoSourceObjectKeyFor(storageKey: string, sourceId: string): string {
+  if (!UUID_V4.test(sourceId)) {
+    throw new Error("A photo source's key needs a fresh random (v4 UUID) id");
+  }
+  return `${storageKey}/source-${sourceId}.webp`;
+}
+
 /** The real R2 object key for one variant of one photo or logo - never stored, always derived. */
 export function variantObjectKey(
   storageKey: string,

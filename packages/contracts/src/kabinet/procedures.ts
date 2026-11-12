@@ -656,11 +656,8 @@ export const shelterPhotosContract = {
       PHOTOS_REQUIRED_WHILE_VISIBLE: apiErrors.PHOTOS_REQUIRED_WHILE_VISIBLE,
     }),
   /**
-   * Cuts the photo's variants again from its kept source (or, for an older photo, its detail
-   * variant) under a new random key, which replaces `storageKey` in place: the CDN keeps a variant
-   * for a year, so a key is never written twice (crop-frame shape §2, §6). `attention` is the
-   * automatic crop. Charged to the upload limits like `add`; the old key's files go with the
-   * clean-up job.
+   * Cuts the variants again from the kept source under a new key that replaces `storageKey`: a
+   * key is never written twice (CDN, shape §2). Charged like `add`; `attention` is the automatic crop.
    */
   crop: animalWrite
     .input(

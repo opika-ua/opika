@@ -3,7 +3,7 @@ import { LOGO_VARIANT_NAMES, type LogoVariantName, variantObjectKey } from "./va
 
 /**
  * Puts one logo's two variants under its storage key - the logo's own
- * `storePhotoVariants` (pet card PR 3b), separate because the variant set
+ * `storePhoto` (pet card PR 3b), separate because the variant set
  * differs (`LOGO_VARIANT_NAMES`, not `IMAGE_VARIANT_NAMES`); the shape of the
  * loop is otherwise identical.
  */
