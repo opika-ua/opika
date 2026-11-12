@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initClientSentry } from "./client";
 import { recordingTransport } from "./fake-transport";
 
@@ -130,8 +130,18 @@ const contextsOf = (sent: ReturnType<typeof recordingTransport>) =>
     items.map(([, payload]) => (payload as { contexts?: Record<string, unknown> }).contexts),
   );
 
+// 2026-01-01T00:00:00Z. Its forms (1767225600, 1767225600000, 2026-01-01T00:00:00.000Z) hold no "18.1".
+const FROZEN_NOW = new Date("2026-01-01T00:00:00.000Z");
+
 describe("browser and system context in a browser error", () => {
+  // The leak check below scans the whole report, which carries float timestamps; a real clock
+  // would collide with "18.1" by chance now and then, so the clock is frozen for this block.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date", "performance"], now: FROZEN_NOW });
+  });
+
   afterEach(() => {
+    vi.useRealTimers();
     Reflect.deleteProperty(navigator, "userAgent");
     Reflect.deleteProperty(navigator, "userAgentData");
   });
