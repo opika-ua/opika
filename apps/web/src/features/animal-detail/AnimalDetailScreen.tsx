@@ -20,6 +20,7 @@ import { Chip } from "../../ui/Chip";
 import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
 import { Icon } from "../../ui/Icon";
+import { LinkedText } from "../../ui/LinkedText";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { MetaLine } from "../../ui/MetaLine";
 import { Text } from "../../ui/Text";
@@ -282,7 +283,7 @@ export function AnimalDetailContent({
         <div className="flex flex-1 flex-col gap-3">
           <Heading level={2}>{uk.detail.myStoryHeading}</Heading>
           <Text look="lead" className="text-ink-2">
-            {textIn(animal.description, "uk")}
+            <LinkedText text={textIn(animal.description, "uk")} />
           </Text>
         </div>
         <MedicalStatus

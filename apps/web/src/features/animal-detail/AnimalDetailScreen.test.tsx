@@ -581,3 +581,16 @@ describe("AnimalDetailScreen – reserved chip", () => {
     expect(screen.queryByText("Уже домовляються")).toBeNull();
   });
 });
+
+describe("links in the shelter's words", () => {
+  it("makes a link in the story and in the medical notes clickable", async () => {
+    await renderAnimal({
+      description: { uk: "Більше про мене: https://example.org/murchyk.", en: null },
+      medicalNotes: { uk: "Аналізи: https://example.org/vet", en: null },
+    });
+    const story = screen.getByRole("link", { name: "example.org/murchyk" });
+    expect(story.getAttribute("href")).toBe("https://example.org/murchyk");
+    const notes = within(medicalBlock()).getByRole("link", { name: "example.org/vet" });
+    expect(notes.getAttribute("href")).toBe("https://example.org/vet");
+  });
+});
