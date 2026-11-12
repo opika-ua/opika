@@ -873,7 +873,12 @@ export const uk = {
         title: "Фото",
         counter: "{n} з {max}",
         /** Owner-given 2026-11-12 (the photo tile pill): one hint for every input, above the grid. */
-        orderHint: "Перетягніть, щоб змінити порядок. Перше фото – обкладинка.",
+        orderHint: "Утримуйте й перетягніть фото, щоб змінити порядок. Перше фото – обкладинка.",
+        /**
+         * Screen-reader only, describes every pill button: the keyboard's way to the order. Proposed
+         * 2026-11-12, awaiting his approval; the move itself is announced with `dragDrop`.
+         */
+        keyboardHint: "Щоб посунути фото на одне місце, натисніть Alt і стрілку вліво чи вправо.",
         infoLabel: "Про фото",
         infoText:
           "Підійде будь-яке фото з телефона чи компʼютера. Великі знімки стискаються ще до відправлення, тож мобільного трафіку піде менше. Місце зйомки та інші приховані дані з фото прибираються автоматично.",

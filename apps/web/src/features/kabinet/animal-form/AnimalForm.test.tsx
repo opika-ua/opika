@@ -1574,7 +1574,9 @@ describe("photos", () => {
   it("the hint is his one sentence, the same for a mouse and a finger", () => {
     renderForm(draft({ photos: photos10(2) } as Partial<KabinetAnimalView>));
     expect(
-      screen.getByText("Перетягніть, щоб змінити порядок. Перше фото – обкладинка."),
+      screen.getByText(
+        "Утримуйте й перетягніть фото, щоб змінити порядок. Перше фото – обкладинка.",
+      ),
     ).toBeTruthy();
     expect(screen.queryByText("Утримуйте фото, щоб перетягнути.")).toBeNull();
   });

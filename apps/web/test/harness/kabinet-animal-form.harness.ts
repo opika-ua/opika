@@ -393,7 +393,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       await shot(page, `photo-manager-${width}`);
     }
     await expect(
-      page.getByText("Перетягніть, щоб змінити порядок. Перше фото – обкладинка."),
+      page.getByText("Утримуйте й перетягніть фото, щоб змінити порядок. Перше фото – обкладинка."),
     ).toBeVisible();
     await page.close();
   });
@@ -492,6 +492,43 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await expect(page.getByRole("group", { name: /^Фото \d з 3$/ })).toHaveCount(3);
     await expect(page.getByRole("button", { name: "Прибрати фото 2" })).toBeFocused();
     expect(removes).toBe(0);
+    await page.close();
+  });
+
+  test("Alt+→ and Alt+← move a photo from its pill, focus stays on it, and Alt+← never leaves the page", async () => {
+    await withThreePhotos();
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    await openTab(page, /^Фото/);
+    const url = page.url();
+    const seedOrder = () =>
+      page
+        .locator("li[data-photo-slot] img")
+        .evaluateAll((images) =>
+          images.map((image) => /dog-(\d)/.exec(image.getAttribute("src") ?? "")?.[1]),
+        );
+    const reorders: string[] = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/photos/reorder")) reorders.push(request.url());
+    });
+
+    // At the first place Alt+← does nothing, and the browser's Back does not happen either.
+    await page.getByRole("button", { name: "Прибрати фото 1" }).focus();
+    await page.keyboard.press("Alt+ArrowLeft");
+    expect(page.url()).toBe(url);
+
+    await page.keyboard.press("Alt+ArrowRight");
+    await expect(page.getByRole("button", { name: "Прибрати фото 2" })).toBeFocused();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Фото 1 на позиції 2 з 3." }),
+    ).toHaveCount(1);
+    await expect.poll(seedOrder).toEqual(["2", "1", "3"]);
+    await expect(page.getByText("Порядок змінено.")).toBeVisible();
+
+    await page.keyboard.press("Alt+ArrowLeft");
+    await expect(page.getByRole("button", { name: "Прибрати фото 1" })).toBeFocused();
+    await expect.poll(seedOrder).toEqual(["1", "2", "3"]);
+    await expect.poll(() => reorders.length).toBe(2);
+    expect(page.url()).toBe(url);
     await page.close();
   });
 });

@@ -79,6 +79,36 @@ describe("ActionPill", () => {
     );
   });
 
+  it("describedBy is added to every button, after a blocked action's own reason", () => {
+    render(
+      <ActionPill
+        describedBy="keys"
+        actions={[
+          ready("Обрізати"),
+          { id: "remove", kind: "blocked", icon: "close", label: "Прибрати", reasonId: "why" },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Обрізати" }).getAttribute("aria-describedby")).toBe(
+      "keys",
+    );
+    expect(screen.getByRole("button", { name: "Прибрати" }).getAttribute("aria-describedby")).toBe(
+      "why keys",
+    );
+  });
+
+  it("onKeyDown hears a key on any button, with that button's action", () => {
+    const onKeyDown = vi.fn();
+    render(<ActionPill onKeyDown={onKeyDown} actions={[ready("Перша"), ready("Друга")]} />);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Друга" }), {
+      key: "ArrowLeft",
+      altKey: true,
+    });
+    expect(onKeyDown).toHaveBeenCalledTimes(1);
+    expect(onKeyDown.mock.calls[0]?.[0].key).toBe("ArrowLeft");
+    expect(onKeyDown.mock.calls[0]?.[1].label).toBe("Друга");
+  });
+
   it("no actions, no pill", () => {
     const { container } = render(<ActionPill actions={[]} />);
     expect(container.innerHTML).toBe("");

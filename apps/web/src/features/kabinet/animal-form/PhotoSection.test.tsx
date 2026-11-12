@@ -133,7 +133,9 @@ describe("the tile pill", () => {
     expect(screen.getByText("1 · Обкладинка")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Дії з фото/ })).toBeNull();
     expect(
-      screen.getByText("Перетягніть, щоб змінити порядок. Перше фото – обкладинка."),
+      screen.getByText(
+        "Утримуйте й перетягніть фото, щоб змінити порядок. Перше фото – обкладинка.",
+      ),
     ).toBeTruthy();
     expect(screen.getByText("3 з 10")).toBeTruthy();
   });
@@ -430,6 +432,141 @@ describe("«×» and «Повернути»", () => {
       nextPhotoKeys: [key(4), key(2), key(1), key(3)],
     });
     expect(shown()).toEqual([key(4), key(1), key(3)]);
+  });
+});
+
+describe("Alt+← and Alt+→ (the keyboard's way to the order)", () => {
+  const HINT = "Щоб посунути фото на одне місце, натисніть Alt і стрілку вліво чи вправо.";
+  /** Presses Alt+arrow on a button; false when the page kept the browser from acting on it. */
+  const alt = (button: Element | null, key: "ArrowLeft" | "ArrowRight") =>
+    fireEvent.keyDown(button as Element, { key, altKey: true });
+
+  it("Alt+→ moves the photo one place later, once, says where it went and keeps focus on it", async () => {
+    const { calls } = setup();
+    const crop = cropButton(1) as HTMLElement;
+    crop.focus();
+    expect(alt(crop, "ArrowRight")).toBe(false);
+    expect(shown()).toEqual([key(2), key(1), key(3)]);
+    expect(screen.getByText("Фото 1 на позиції 2 з 3.")).toBeTruthy();
+    // The same button of the same photo, now photo 2.
+    expect(document.activeElement).toBe(crop);
+    expect(document.activeElement).toBe(cropButton(2));
+    await settle();
+    expect(calls.reorder.mock.calls).toEqual([
+      [
+        {
+          animalId: ID,
+          expectedPhotoKeys: [key(1), key(2), key(3)],
+          nextPhotoKeys: [key(2), key(1), key(3)],
+        },
+      ],
+    ]);
+    expect(shown()).toEqual([key(2), key(1), key(3)]);
+  });
+
+  it("Alt+← on «×» moves it one place earlier; to the first place it becomes the cover", async () => {
+    const { calls } = setup();
+    const remove = removeButton(2);
+    remove.focus();
+    alt(remove, "ArrowLeft");
+    expect(shown()).toEqual([key(2), key(1), key(3)]);
+    expect(document.activeElement).toBe(removeButton(1));
+    const cover = screen.getByText("1 · Обкладинка").closest("li");
+    expect(cover?.querySelector("img")?.getAttribute("src")).toBe(key(2));
+    expect(screen.getByText("Фото 2 на позиції 1 з 3.")).toBeTruthy();
+    await settle();
+    expect(calls.reorder).toHaveBeenCalledTimes(1);
+  });
+
+  it("at either end it does nothing, and still keeps the browser's Back from leaving the page", async () => {
+    const { calls } = setup();
+    expect(alt(cropButton(1), "ArrowLeft")).toBe(false);
+    expect(alt(removeButton(3), "ArrowRight")).toBe(false);
+    await settle();
+    expect(calls.reorder).not.toHaveBeenCalled();
+    expect(shown()).toEqual([key(1), key(2), key(3)]);
+    expect(screen.queryByText(/на позиції/)).toBeNull();
+  });
+
+  it("an arrow without Alt, or with another modifier too, is left alone", async () => {
+    const { calls } = setup();
+    expect(fireEvent.keyDown(cropButton(1) as Element, { key: "ArrowRight" })).toBe(true);
+    expect(
+      fireEvent.keyDown(cropButton(1) as Element, {
+        key: "ArrowRight",
+        altKey: true,
+        ctrlKey: true,
+      }),
+    ).toBe(true);
+    await settle();
+    expect(calls.reorder).not.toHaveBeenCalled();
+  });
+
+  it("two quick presses show both moves at once and send them in turn, the second on the order the first left", async () => {
+    const { calls } = setup();
+    const crop = cropButton(1) as HTMLElement;
+    crop.focus();
+    alt(crop, "ArrowRight");
+    alt(document.activeElement, "ArrowRight");
+    expect(shown()).toEqual([key(2), key(3), key(1)]);
+    expect(screen.getByText("Фото 2 на позиції 3 з 3.")).toBeTruthy();
+    expect(document.activeElement).toBe(cropButton(3));
+    await settle();
+    expect(calls.reorder.mock.calls.map(([input]) => input)).toEqual([
+      {
+        animalId: ID,
+        expectedPhotoKeys: [key(1), key(2), key(3)],
+        nextPhotoKeys: [key(2), key(1), key(3)],
+      },
+      {
+        animalId: ID,
+        expectedPhotoKeys: [key(2), key(1), key(3)],
+        nextPhotoKeys: [key(2), key(3), key(1)],
+      },
+    ]);
+  });
+
+  it("the hint describes every pill button; with one photo there is nothing to move and no hint", () => {
+    const { unmount } = setup();
+    const hint = screen.getByText(HINT);
+    for (const n of [1, 2, 3]) {
+      for (const button of [cropButton(n), removeButton(n)]) {
+        expect(button?.getAttribute("aria-describedby")?.split(" ")).toContain(hint.id);
+      }
+    }
+    unmount();
+    setup(view([key(1)]));
+    expect(screen.queryByText(HINT)).toBeNull();
+    expect(removeButton(1).getAttribute("aria-describedby")).toBeNull();
+  });
+
+  it("a move while a remove waits keeps the hidden photo in its slot, and «Повернути» puts it back there", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { calls } = setup(view([key(1), key(2), key(3), key(4)]));
+    fireEvent.click(removeButton(2));
+    expect(shown()).toEqual([key(1), key(3), key(4)]);
+    // Shown photo 3 is key 4: one place earlier.
+    alt(cropButton(3), "ArrowLeft");
+    expect(shown()).toEqual([key(1), key(4), key(3)]);
+    await settle();
+    expect(calls.reorder.mock.calls[0]?.[0]).toEqual({
+      animalId: ID,
+      expectedPhotoKeys: [key(1), key(2), key(3), key(4)],
+      nextPhotoKeys: [key(1), key(2), key(4), key(3)],
+    });
+    fireEvent.click(undo());
+    expect(shown()).toEqual([key(1), key(2), key(4), key(3)]);
+    expect(calls.remove).not.toHaveBeenCalled();
+  });
+
+  it("a refused move puts the server's order back", async () => {
+    const { calls } = setup();
+    calls.reorder.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    alt(cropButton(1), "ArrowRight");
+    expect(shown()).toEqual([key(2), key(1), key(3)]);
+    await settle();
+    expect(shown()).toEqual([key(1), key(2), key(3)]);
+    expect(screen.getByText(/^Не збереглося/)).toBeTruthy();
   });
 });
 

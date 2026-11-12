@@ -944,7 +944,8 @@ export const en = {
       photos: {
         title: "Photos",
         counter: "{n} of {max}",
-        orderHint: "Drag to change the order. The first photo is the cover.",
+        orderHint: "Hold and drag a photo to change the order. The first photo is the cover.",
+        keyboardHint: "To move the photo one place, press Alt and the left or right arrow.",
         infoLabel: "About photos",
         infoText:
           "Any photo from a phone or computer will do. Large photos are compressed before they are sent, so less mobile data is used. The place the photo was taken and other hidden data are removed automatically.",

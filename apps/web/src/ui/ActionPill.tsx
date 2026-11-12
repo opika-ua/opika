@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, type KeyboardEvent } from "react";
 import { cx } from "./cx";
 import { Icon, type IconName } from "./Icon";
 
@@ -26,11 +26,15 @@ export type ActionPillAction =
 
 export type ActionPillProps = {
   actions: readonly ActionPillAction[];
+  /** One more description for every button: the id of a hint, such as a keyboard shortcut's. */
+  describedBy?: string;
+  /** A key pressed on any button, with that button's action: a shortcut for the whole pill. */
+  onKeyDown?: (event: KeyboardEvent<HTMLButtonElement>, action: ActionPillAction) => void;
   /** Layout only: where the pill sits (`absolute right-2 bottom-2`). */
   className?: string;
 };
 
-export function ActionPill({ actions, className }: ActionPillProps) {
+export function ActionPill({ actions, describedBy, onKeyDown, className }: ActionPillProps) {
   if (actions.length === 0) return null;
   return (
     <div
@@ -39,24 +43,30 @@ export function ActionPill({ actions, className }: ActionPillProps) {
         className,
       )}
     >
-      {actions.map((action, index) => (
-        <Fragment key={action.id}>
-          {index === 0 ? null : <span aria-hidden="true" className="h-5 w-px shrink-0 bg-line" />}
-          <button
-            type="button"
-            id={action.buttonId}
-            aria-label={action.label}
-            aria-disabled={action.kind === "blocked" || undefined}
-            aria-describedby={action.kind === "blocked" ? action.reasonId : undefined}
-            onClick={action.kind === "ready" ? action.onClick : undefined}
-            onPointerEnter={action.onIntent}
-            onFocus={action.onIntent}
-            className="inline-flex min-h-target w-11 shrink-0 cursor-pointer items-center justify-center rounded-pill focus-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
-          >
-            <Icon name={action.icon} size="md" />
-          </button>
-        </Fragment>
-      ))}
+      {actions.map((action, index) => {
+        const described = [action.kind === "blocked" ? action.reasonId : undefined, describedBy]
+          .filter((id) => id !== undefined)
+          .join(" ");
+        return (
+          <Fragment key={action.id}>
+            {index === 0 ? null : <span aria-hidden="true" className="h-5 w-px shrink-0 bg-line" />}
+            <button
+              type="button"
+              id={action.buttonId}
+              aria-label={action.label}
+              aria-disabled={action.kind === "blocked" || undefined}
+              aria-describedby={described === "" ? undefined : described}
+              onClick={action.kind === "ready" ? action.onClick : undefined}
+              onKeyDown={onKeyDown === undefined ? undefined : (event) => onKeyDown(event, action)}
+              onPointerEnter={action.onIntent}
+              onFocus={action.onIntent}
+              className="inline-flex min-h-target w-11 shrink-0 cursor-pointer items-center justify-center rounded-pill focus-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+            >
+              <Icon name={action.icon} size="md" />
+            </button>
+          </Fragment>
+        );
+      })}
     </div>
   );
 }

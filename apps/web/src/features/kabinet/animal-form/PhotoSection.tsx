@@ -5,7 +5,15 @@ import type { KabinetAnimalView } from "@opika/contracts";
 import { isRealPhotoKey } from "@opika/db/image-pipeline";
 import { isDiscoverable, MAX_ANIMAL_PHOTOS, type PhotoFraming } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import { type ComponentType, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ComponentType,
+  type KeyboardEvent,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
 import { ActionPill, type ActionPillAction } from "../../../ui/ActionPill";
@@ -158,6 +166,9 @@ function PhotoManager({
   const [dropTarget, setDropTarget] = useState(false);
   // Hidden by «×», remove not yet confirmed by the server.
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
+  // The order a drag or Alt+arrow asked for, shown until the reorders on their way have landed.
+  const [asked, setAsked] = useState<readonly string[] | null>(null);
+  const reordersOnTheirWay = useRef(0);
   const pending = useRef(new Map<string, PendingRemove>());
   // The list the server last gave: every write compare-and-sets on it when its turn comes.
   const serverPhotos = useRef(animal.photos);
@@ -184,7 +195,15 @@ function PhotoManager({
     focusAfterCrop.current = null;
   });
 
-  const photos = animal.photos.filter((photo) => !hidden.has(photo.storageKey));
+  const byKey = new Map(animal.photos.map((photo) => [photo.storageKey, photo]));
+  const arranged =
+    asked === null
+      ? animal.photos
+      : refillOrder(
+          animal.photos.map((photo) => photo.storageKey),
+          asked,
+        ).flatMap((key) => byKey.get(key) ?? []);
+  const photos = arranged.filter((photo) => !hidden.has(photo.storageKey));
   const visibleListing = isDiscoverable(animal.listing);
   const lastPhotoLocked = visibleListing && photos.length === 1;
   // «бачать люди» is true only while the shelter's cards are shown. His other
@@ -296,18 +315,23 @@ function PhotoManager({
     return id;
   };
   const cropButtonIdOf = (key: string) => `${animal.id}-photo-crop-${tileIdOf(key)}`;
+  const removeButtonIdOf = (key: string) => `${animal.id}-photo-remove-${tileIdOf(key)}`;
 
-  /** Where focus goes after «×» or «Повернути»: a photo's key or `ADD_TILE`, once it is on screen. */
-  const focusNext = useRef<string | null>(null);
+  /** Where focus goes once on screen: after «×» or «Повернути» a photo's key (or `ADD_TILE`); after Alt+arrow, a button's id. */
+  const focusNext = useRef<{ tile: string } | { button: string } | null>(null);
   useEffect(() => {
     const target = focusNext.current;
     if (target === null) return;
     focusNext.current = null;
     const element =
-      target === ADD_TILE
-        ? addTile.current
-        : document.querySelector<HTMLElement>(`[data-photo-tile="${tileIdOf(target)}"] button`);
-    element?.focus();
+      "button" in target
+        ? document.getElementById(target.button)
+        : target.tile === ADD_TILE
+          ? addTile.current
+          : document.querySelector<HTMLElement>(
+              `[data-photo-tile="${tileIdOf(target.tile)}"] button`,
+            );
+    if (element !== null && element !== document.activeElement) element.focus();
   });
 
   const unhide = (key: string) =>
@@ -376,7 +400,7 @@ function PhotoManager({
     pending.current.delete(key);
     unhide(key);
     // The toast's button is gone once pressed: focus goes to the photo that came back.
-    focusNext.current = key;
+    focusNext.current = { tile: key };
   };
 
   /** «×»: hidden now, removed once «Повернути» has had its time. */
@@ -386,7 +410,7 @@ function PhotoManager({
     pending.current.set(key, entry);
     setHidden((current) => new Set(current).add(key));
     const neighbour = photos[slot + 1] ?? photos[slot - 1];
-    focusNext.current = neighbour === undefined ? ADD_TILE : neighbour.storageKey;
+    focusNext.current = { tile: neighbour === undefined ? ADD_TILE : neighbour.storageKey };
     entry.toast = show(t.photos.removed, "info", {
       durationMs: UNDO_MS,
       action: { label: uk.likes.undo, onAction: () => restore(key) },
@@ -413,13 +437,15 @@ function PhotoManager({
     for (const upload of added) enqueue(upload);
   };
 
-  // A drag reorders the shown photos (`from`, `to` are shown slots); the cover is slot 0 (P-Q9).
+  // A drag or Alt+arrow reorders the shown photos (`from`, `to` are shown slots); slot 0 is the
+  // cover (P-Q9). Shown at once, so focus and the next keypress follow the new order.
   const move = (from: number, to: number) => {
     const order = photos.map((photo) => photo.storageKey);
     const [moved] = order.splice(from, 1);
     if (moved === undefined || from === to) return;
     order.splice(to, 0, moved);
-    setWriting(true);
+    setAsked(order);
+    reordersOnTheirWay.current += 1;
     void serial(async () => {
       const keys = serverKeys();
       const next = refillOrder(keys, order);
@@ -434,9 +460,33 @@ function PhotoManager({
         );
         setStatus(t.photos.reordered);
       } catch (error) {
+        setAsked(null);
         await refused(error);
       }
-    }).finally(() => setWriting(false));
+    }).finally(() => {
+      reordersOnTheirWay.current -= 1;
+      if (reordersOnTheirWay.current === 0) setAsked(null);
+    });
+  };
+
+  /** Alt+← and Alt+→ on a photo's pill move it one place: the keyboard's way to the order. */
+  const moveByKey = (event: KeyboardEvent<HTMLButtonElement>, slot: number, button: string) => {
+    if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const step = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
+    if (step === 0) return;
+    // Alt+← is also the browser's Back: never leave the page from here, even at either end.
+    event.preventDefault();
+    const to = slot + step;
+    if (to < 0 || to >= photos.length) return;
+    focusNext.current = { button };
+    setAnnounce(
+      fillTemplate(t.photos.dragDrop, {
+        n: integer.format(slot + 1),
+        pos: integer.format(to + 1),
+        total: integer.format(photos.length),
+      }),
+    );
+    move(slot, to);
   };
 
   // One entry per photo is the contract; a photo without one is simply not offered a crop.
@@ -521,6 +571,8 @@ function PhotoManager({
   }
 
   const lastPhotoNoteId = `${animal.id}-last-photo`;
+  const keyboardHintId = `${animal.id}-photo-keys`;
+  const reorderable = editable && total > 1;
   const sizes = "(min-width: 600px) 200px, 50vw";
   const croppingView = cropping === null ? undefined : cropViewOf(cropping.key);
   const croppingImage = cropping === null ? null : cropImageFor(cropping.key);
@@ -533,6 +585,7 @@ function PhotoManager({
           kind: "blocked",
           icon: "close",
           label: removeLabel,
+          buttonId: removeButtonIdOf(key),
           reasonId: lastPhotoNoteId,
         }
       : {
@@ -540,6 +593,7 @@ function PhotoManager({
           kind: "ready",
           icon: "close",
           label: removeLabel,
+          buttonId: removeButtonIdOf(key),
           onClick: () => hide(key, slot),
         };
     if (!cropOffered(key)) return [remove];
@@ -571,6 +625,11 @@ function PhotoManager({
         </span>
       </div>
       {editable ? <Text look="hint">{t.photos.orderHint}</Text> : null}
+      {reorderable ? (
+        <p id={keyboardHintId} className="sr-only">
+          {t.photos.keyboardHint}
+        </p>
+      ) : null}
       <ul className="photo-grid items-start gap-3">
         {order.map((photo, slot) => {
           const key = photo.storageKey;
@@ -627,6 +686,16 @@ function PhotoManager({
                     {editable ? (
                       <ActionPill
                         actions={actionsFor(key, slot, n)}
+                        {...(reorderable
+                          ? {
+                              describedBy: keyboardHintId,
+                              onKeyDown: (event, action) => {
+                                if (action.buttonId !== undefined) {
+                                  moveByKey(event, slot, action.buttonId);
+                                }
+                              },
+                            }
+                          : {})}
                         className="absolute right-2 bottom-2"
                       />
                     ) : null}
