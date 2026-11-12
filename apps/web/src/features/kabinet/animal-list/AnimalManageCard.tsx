@@ -17,6 +17,15 @@ import type { MenuStatus, AnimalManageCard as Model, StatusMenuItem } from "./ma
 
 const t = uk.kabinet.animalList;
 
+/*
+ * The action row: the primary action left, «Редагувати» and ⋯ right. Both may grow, the pair a
+ * thousand times more: on one line the pair takes the spare room (pushed right) and the primary
+ * keeps its width; wrapped, each fills its own line, so the primary goes full width and the pair
+ * sits right-aligned below. No width threshold, so it holds for any label and card width.
+ */
+const PRIMARY = "grow";
+const REST = "flex grow-1000 items-center justify-end gap-2";
+
 /** Ids the list returns focus to when a dialog or an undo it started is done. */
 export const statusTriggerId = (animalId: string): string => `animal-status-${animalId}`;
 export const moreTriggerId = (animalId: string): string => `animal-more-${animalId}`;
@@ -126,8 +135,7 @@ export function AnimalManageCard({
   const moreLabel = fillTemplate(t.more.label, { name: card.name });
 
   return (
-    // A container: on a card narrower than `@sm` the primary action takes a row of its own.
-    <Card as="li" tone="outline" aria-labelledby={nameId} className="@container flex flex-col">
+    <Card as="li" tone="outline" aria-labelledby={nameId} className="flex flex-col">
       <div className="flex flex-1 flex-col gap-4 p-4">
         <div className="flex gap-3">
           <Link
@@ -181,11 +189,11 @@ export function AnimalManageCard({
           </div>
         </div>
 
-        <div className="mt-auto flex flex-wrap items-center justify-end gap-2">
+        <div className="mt-auto flex flex-wrap items-center gap-2">
           {card.status === "published" || card.status === "reserved" ? (
             <>
               {!editable ? null : undoSeconds !== null ? (
-                <div className="flex w-full flex-wrap items-center justify-end gap-2 @sm:w-auto">
+                <div className={`${PRIMARY} flex flex-wrap items-center gap-2`}>
                   <Text look="label">
                     <span aria-hidden="true">✓ </span>
                     {t.confirm.done}
@@ -204,7 +212,7 @@ export function AnimalManageCard({
               ) : (
                 <Button
                   variant={card.confirm.emphasis === "prompt" ? "primary" : "secondary"}
-                  className="w-full @sm:w-auto"
+                  className={PRIMARY}
                   aria-describedby={describedBy}
                   aria-disabled={inert || undefined}
                   onClick={() => {
@@ -215,7 +223,7 @@ export function AnimalManageCard({
                   <Icon name="check" size="sm" />
                 </Button>
               )}
-              <div className="flex items-center gap-2">
+              <div className={REST}>
                 {edit}
                 <Menu
                   {...menuProps("more")}
@@ -258,7 +266,7 @@ export function AnimalManageCard({
               {editable ? (
                 <Button
                   variant="primary"
-                  className="w-full @sm:w-auto"
+                  className={PRIMARY}
                   aria-describedby={
                     card.publish.kind === "blocked" ? `${describedBy} ${gapsId}` : describedBy
                   }
@@ -270,7 +278,7 @@ export function AnimalManageCard({
                   {uk.kabinet.animalForm.publish.button}
                 </Button>
               ) : null}
-              <div className="flex items-center gap-2">
+              <div className={REST}>
                 {edit}
                 {editable ? (
                   <Menu
@@ -294,7 +302,7 @@ export function AnimalManageCard({
               </div>
             </>
           ) : (
-            edit
+            <div className={REST}>{edit}</div>
           )}
         </div>
       </div>

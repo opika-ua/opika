@@ -1464,6 +1464,20 @@ describe("each status shows only its own actions (the card spec)", () => {
       inRow("Мурка").getByRole("button", { name: "Ще домовляються" }).className,
     );
   });
+
+  /** The owner's row (2026-11-12): the primary first, then «Редагувати» and ⋯ as one pair; the wrap is the harness's. */
+  it.each([
+    ["Рекс", "Ще шукає"],
+    ["Мурка", "Ще домовляються"],
+    ["Ластівка", "Опублікувати"],
+  ])("%s: «%s» first, «Редагувати» and ⋯ kept together after it", (name, primary) => {
+    renderList();
+    const pair = inRow(name).getByRole("link", { name: "Редагувати" }).parentElement as HTMLElement;
+    const first = inRow(name).getByRole("button", { name: primary });
+    expect(pair.contains(moreOf(name))).toBe(true);
+    expect(pair.contains(first)).toBe(false);
+    expect(first.compareDocumentPosition(pair) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
 
 describe("the name is the way into the card's form, and a menu closes on a press outside", () => {
