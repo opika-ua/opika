@@ -555,9 +555,8 @@ export const ukPublic = {
     /** The phone photo counter's accessible name; the visible text is «1/4». Owner-approved with photoPrev/photoNext (2026-10-30). */
     photoCounter: "Фото {n} з {total}",
     /**
-     * Owner-given 2026-11-12 (the animal page's photo strip). From desktop three photos are in view
-     * and each arrow moves by one: the arrows' accessible names and the visible counter on the
-     * third photo (`{first}`, `{last}`, `{total}` are numbers).
+     * Owner-given and owner-approved 2026-11-12 (the photo strip, #497): the desktop arrows' names
+     * and the counter on the third photo (`{first}`, `{last}`, `{total}` are numbers).
      */
     photoRowPrev: "Попередні фото",
     photoRowNext: "Наступні фото",
