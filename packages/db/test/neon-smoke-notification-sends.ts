@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { eq, inArray, sql } from "drizzle-orm";
+import { count, eq, inArray, lt, sql } from "drizzle-orm";
 import type { Database } from "../src/client";
 import { executeRows } from "../src/raw-rows";
-import { notificationSendsRepo } from "../src/repos/notification-sends-repo";
+import {
+  notificationSendsRepo,
+  SEND_LOG_RETENTION_DAYS,
+} from "../src/repos/notification-sends-repo";
 import { authUser } from "../src/schema/auth";
 import { notificationSends } from "../src/schema/notification-sends";
 import { outcomeOf } from "./neon-smoke-verified-data";
@@ -14,8 +17,10 @@ const DAY = 86_400_000;
 /**
  * Migration 0025 on Neon's driver: the claim, reclaim, mark and purge statements, the user-delete
  * SET NULL, and the catalog (FKs, CHECK, index, the new shelters column). Fixture rows are
- * deleted at the end, so the table is back to 0 rows; run it on a fresh child branch, where it
- * starts at 0 (the purge check counts on that).
+ * deleted at the end. Nothing here counts on an empty table: the purge takes every row past 90
+ * days, so a copy of production made before its six-hourly purge got to one holds more, and the
+ * check compares with a count taken just before; the operator's switch may have set the new
+ * column on a copied shelter, so its check reads the catalog, not the rows.
  */
 export async function runNotificationSendsSmoke(db: Database): Promise<Outcome[]> {
   const out: Outcome[] = [];
@@ -68,14 +73,21 @@ export async function runNotificationSendsSmoke(db: Database): Promise<Outcome[]
     const recent = new Date(now.getTime() - DAY);
     await repo.claim(old, { ...base, dedupKey: key("old") });
     await repo.claim(recent, { ...base, dedupKey: key("recent") });
-    // The three rows above were created just now (inside the window), so only the old one goes.
+    const [pastWindow] = await db
+      .select({ n: count() })
+      .from(notificationSends)
+      .where(
+        lt(notificationSends.createdAt, new Date(now.getTime() - SEND_LOG_RETENTION_DAYS * DAY)),
+      );
+    const due = pastWindow?.n ?? -1;
     const purged = await repo.purgeOlderThan(now);
     check(
-      "0025: purgeOlderThan(90 days) deletes exactly the 91-day-old row and keeps the 1-day-old one",
-      purged === 1 &&
+      "0025: purgeOlderThan(90 days) deletes every row past 90 days (this run's 91-day-old one among them) and keeps the 1-day-old one",
+      due >= 1 &&
+        purged === due &&
         (await rowOf(key("old"))) === undefined &&
         (await rowOf(key("recent"))) !== undefined,
-      `purged ${purged}`,
+      `purged ${purged} of the ${due} row(s) past 90 days (this run's 91-day-old one among them)`,
     );
 
     await db.insert(authUser).values({
@@ -131,9 +143,9 @@ export async function runNotificationSendsSmoke(db: Database): Promise<Outcome[]
       `${index.length} found`,
     );
 
-    const column = await executeRows<{ is_nullable: string }>(
+    const column = await executeRows<{ is_nullable: string; column_default: string | null }>(
       db,
-      sql`SELECT is_nullable FROM information_schema.columns
+      sql`SELECT is_nullable, column_default FROM information_schema.columns
           WHERE table_name = 'shelters' AND column_name = 'freshness_reminder_off_at'`,
     );
     const [set] = await executeRows<{ n: number | string }>(
@@ -141,9 +153,9 @@ export async function runNotificationSendsSmoke(db: Database): Promise<Outcome[]
       sql`SELECT count(*)::int AS n FROM shelters WHERE freshness_reminder_off_at IS NOT NULL`,
     );
     check(
-      "0025: shelters.freshness_reminder_off_at exists, is nullable and is NULL on every shelter",
-      column.length === 1 && column[0]?.is_nullable === "YES" && Number(set?.n) === 0,
-      `${column.length} column, nullable ${column[0]?.is_nullable}, ${set?.n} shelters with it set`,
+      "0025: shelters.freshness_reminder_off_at exists, is nullable and has no default (a shelter starts with it unset)",
+      column.length === 1 && column[0]?.is_nullable === "YES" && column[0]?.column_default === null,
+      `${column.length} column, nullable ${column[0]?.is_nullable}, default ${column[0]?.column_default ?? "none"}; ${set?.n} shelter(s) switched off on this branch (reported, not checked)`,
     );
   } finally {
     // Delete failures must not hide a failed check above, so this runs whatever happened.

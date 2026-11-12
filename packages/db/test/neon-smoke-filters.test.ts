@@ -16,4 +16,12 @@ describe("runFiltersSmoke against the local database", () => {
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
     expect(outcomes).toHaveLength(9);
   });
+
+  // The 2026-11-12 sitting's 152 passed, 3 failed: a second run on one branch doubled the
+  // region-wide counts. They are read as differences now, so a rerun passes too.
+  it("passes again on the same database, over the first run's rows", async () => {
+    const outcomes = await runFiltersSmoke(db);
+    expect(outcomes.filter((o) => !o.ok)).toEqual([]);
+    expect(outcomes).toHaveLength(9);
+  });
 });
