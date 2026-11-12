@@ -90,10 +90,12 @@ const kabinetAnimalBrowserContract = {
 /**
  * Per call: an upload passes `onUploadProgress` and travels over
  * `XMLHttpRequest` (`xhrFetch`), which can report how much has been sent;
- * every other call uses `fetch`, as the profile's client does.
+ * every other call uses `fetch`, as the profile's client does. `keepalive`
+ * lets a small write sent as the page closes (a pending photo remove) finish.
  */
 export type KabinetAnimalClientContext = {
   onUploadProgress?: (progress: UploadProgress) => void;
+  keepalive?: boolean;
 };
 
 export type KabinetAnimalClient = ContractRouterClient<
@@ -104,8 +106,9 @@ export type KabinetAnimalClient = ContractRouterClient<
 const animalLink = new RPCLink<KabinetAnimalClientContext>({
   url: () => `${window.location.origin}/api/kabinet`,
   fetch: (request, init, options) => {
-    const onProgress = options.context.onUploadProgress;
-    return onProgress === undefined ? fetch(request, init) : xhrFetch(request, onProgress);
+    const { onUploadProgress, keepalive } = options.context;
+    if (onUploadProgress !== undefined) return xhrFetch(request, onUploadProgress);
+    return fetch(request, keepalive === true ? { ...init, keepalive } : init);
   },
 });
 

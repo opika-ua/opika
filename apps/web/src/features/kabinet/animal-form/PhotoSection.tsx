@@ -2,25 +2,23 @@
 
 import "../../../zod-client-config";
 import type { KabinetAnimalView } from "@opika/contracts";
-import {
-  type AnimalPhoto,
-  isDiscoverable,
-  MAX_ANIMAL_PHOTOS,
-  type PhotoFraming,
-} from "@opika/domain";
+import { isRealPhotoKey } from "@opika/db/image-pipeline";
+import { isDiscoverable, MAX_ANIMAL_PHOTOS, type PhotoFraming } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { type ComponentType, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
+import { ActionPill, type ActionPillAction } from "../../../ui/ActionPill";
 import { Badge } from "../../../ui/Badge";
 import { Button } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
 import { cx } from "../../../ui/cx";
 import { InlineStatus } from "../../../ui/feedback";
 import { Icon } from "../../../ui/Icon";
-import { Menu, MenuDivider, MenuItem } from "../../../ui/Menu";
+import { InfoTip } from "../../../ui/InfoTip";
 import { Photo } from "../../../ui/Photo";
 import { Text } from "../../../ui/Text";
+import { type ToastHandle, ToastProvider, useToast } from "../../../ui/Toast";
 import type { CropDialogProps } from "../photos/CropDialog";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
 import { cropImageOf } from "../photos/crop-geometry";
@@ -29,26 +27,17 @@ import { cardsArePublic, type ShelterVisibility, uploadProgressText } from "./la
 import { usePhotoDrag } from "./use-photo-drag";
 
 /**
- * K3's «Фото» section body (N9), inside a `FormSection`: the photos as tiles in their order (the
- * first is the cover, P-Q9), an add tile, and one tile per photo on its way up. A failed upload
- * is a full-width row, not a tile: its sentence has to be readable on a phone.
- *
- * Every photo goes through `compressPhoto` on the device first (K-Q2: 2000 px,
- * re-encoded, which also drops its location data), then up over
- * `XMLHttpRequest`, so the tile can say how much has gone (answer 12). Uploads
- * run one after another: a budget phone decodes one large photo at a time.
- *
- * The order changes by dragging the tile (pointer events, `use-photo-drag`: a mouse drags, a held
- * finger lifts) or with each tile's ⋯ menu, the keyboard's and screen reader's way in. Photo writes go one at a
- * time: the server compare-and-sets on the list the screen shows (P-Q3), so
- * a second write planned on the same list would only come back CONFLICT.
- *
- * «Обрізати» opens the crop dialog (`photos/CropDialog`, its own lazy chunk, fetched when a menu
- * opens). A saved crop gives the photo a new key, so its tile keeps the old trigger id.
+ * K3's «Фото» section (N9). «×» hides a photo and only sends the remove when its undo toast leaves
+ * (or the section or page goes away). Writes run one at a time, each planned on the server's list
+ * as it is when its turn comes: the server compare-and-sets on that list (P-Q3).
  */
 
 const t = uk.kabinet.animalForm;
 const integer = new Intl.NumberFormat("uk");
+/** How long «Повернути» stays (the saved page's undo is the same 6 s). */
+const UNDO_MS = 6000;
+/** `focusNext` value for the add tile (a storage key never looks like this). */
+const ADD_TILE = "add-tile";
 
 type UploadState =
   | { kind: "preparing" }
@@ -56,6 +45,9 @@ type UploadState =
   | { kind: "failed"; message: string; retryable: boolean };
 
 type Upload = { id: number; file: File; state: UploadState };
+
+/** A photo «×» has hidden: waiting out its toast, then `sent` once its remove is on the queue. */
+type PendingRemove = { toast: ToastHandle | null; sent: boolean };
 
 const codeOf = (error: unknown): string | null =>
   typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
@@ -67,6 +59,8 @@ const reasonOf = (error: unknown): unknown => {
   const { data } = error;
   return typeof data === "object" && data !== null && "reason" in data ? data.reason : null;
 };
+
+const noop = () => undefined;
 
 /** A device-side refusal, in his words (P-T8 (1)-(3)); retrying the same file can't help. */
 const compressionMessage = (result: Exclude<CompressedPhoto, { kind: "ok" }>): string => {
@@ -113,7 +107,40 @@ const uploadFailure = (error: unknown): { message: string; retryable: boolean } 
   }
 };
 
-export function PhotoSection({
+/**
+ * The shown photos' new order laid over the server's list: the slots the shown photos hold get them
+ * in their new order; a photo waiting out its undo, or one added meanwhile, keeps its own slot.
+ */
+export function refillOrder(current: readonly string[], shown: readonly string[]): string[] {
+  const present = new Set(current);
+  const wanted = shown.filter((key) => present.has(key));
+  const moving = new Set(wanted);
+  let next = 0;
+  return current.map((key) => (moving.has(key) ? (wanted[next++] ?? key) : key));
+}
+
+export type PhotoSectionProps = {
+  animal: KabinetAnimalView;
+  editable: boolean;
+  /** Where the shelter's cards stand with the public (`shelterVisibilityOf`). */
+  shelterVisibility: ShelterVisibility;
+  client: KabinetAnimalClient;
+  onView: (view: KabinetAnimalView) => void;
+  /** Reads the animal again after a refused write; the fresh view, or null if that failed too. */
+  reload: () => Promise<KabinetAnimalView | null>;
+  compress?: (file: File) => Promise<CompressedPhoto>;
+};
+
+/** Its own toast region: the undo belongs to this section and leaves with it. */
+export function PhotoSection(props: PhotoSectionProps) {
+  return (
+    <ToastProvider dismissLabel={uk.kabinet.profileEdit.pause.close} durationMs={UNDO_MS}>
+      <PhotoManager {...props} />
+    </ToastProvider>
+  );
+}
+
+function PhotoManager({
   animal,
   editable,
   shelterVisibility,
@@ -121,27 +148,25 @@ export function PhotoSection({
   onView,
   reload,
   compress = compressPhoto,
-}: {
-  animal: KabinetAnimalView;
-  editable: boolean;
-  /** Where the shelter's cards stand with the public (`shelterVisibilityOf`). */
-  shelterVisibility: ShelterVisibility;
-  client: KabinetAnimalClient;
-  onView: (view: KabinetAnimalView) => void;
-  reload: () => Promise<void>;
-  compress?: (file: File) => Promise<CompressedPhoto>;
-}) {
-  const photos = animal.photos;
+}: PhotoSectionProps) {
+  const { show } = useToast();
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [writing, setWriting] = useState(false);
   const [status, setStatus] = useState("");
   const [removedOnce, setRemovedOnce] = useState(false);
   const [announce, setAnnounce] = useState("");
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState(false);
+  // Hidden by «×», remove not yet confirmed by the server.
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
+  const pending = useRef(new Map<string, PendingRemove>());
+  // The list the server last gave: every write compare-and-sets on it when its turn comes.
+  const serverPhotos = useRef(animal.photos);
+  serverPhotos.current = animal.photos;
+  const writes = useRef<Promise<void>>(Promise.resolve());
   const pointerType = useRef("mouse");
   const tileIds = useRef(new Map<string, number>());
   const fileInput = useRef<HTMLInputElement>(null);
+  const addTile = useRef<HTMLButtonElement>(null);
   const nextId = useRef(1);
   const queue = useRef<Promise<void>>(Promise.resolve());
   // A fresh lazy component per opening: `lazy` would keep a failed chunk load for good.
@@ -150,15 +175,16 @@ export function PhotoSection({
     n: string;
     Dialog: ComponentType<CropDialogProps>;
   } | null>(null);
-  /** The ⋯ trigger to focus once the crop dialog is gone; the native dialog's opener has unmounted. */
+  /** The crop button to focus once the crop dialog is gone; the native dialog's opener has unmounted. */
   const focusAfterCrop = useRef<string | null>(null);
   useEffect(() => {
-    // While a write is in flight the tiles' fieldsets are disabled, and so is the trigger.
+    // While a write is in flight the tiles' fieldsets are disabled, and so is the button.
     if (cropping !== null || writing || focusAfterCrop.current === null) return;
     document.getElementById(focusAfterCrop.current)?.focus();
     focusAfterCrop.current = null;
   });
 
+  const photos = animal.photos.filter((photo) => !hidden.has(photo.storageKey));
   const visibleListing = isDiscoverable(animal.listing);
   const lastPhotoLocked = visibleListing && photos.length === 1;
   // «бачать люди» is true only while the shelter's cards are shown. His other
@@ -167,8 +193,39 @@ export function PhotoSection({
   const lastPhotoText = cardsArePublic(shelterVisibility)
     ? t.photos.lastPhotoKept
     : t.photos.lastPhotoKeptNotShown;
-  const room =
-    MAX_ANIMAL_PHOTOS - photos.length - uploads.filter((u) => u.state.kind !== "failed").length;
+  const inProgress = uploads.filter((upload) => upload.state.kind !== "failed");
+  const failed = uploads.filter((upload) => upload.state.kind === "failed");
+  const room = MAX_ANIMAL_PHOTOS - photos.length - inProgress.length;
+
+  const serverKeys = () => serverPhotos.current.map((photo) => photo.storageKey);
+  const took = (view: KabinetAnimalView) => {
+    serverPhotos.current = view.photos;
+    onView(view);
+  };
+  const refresh = async () => {
+    const fresh = await reload();
+    if (fresh !== null) serverPhotos.current = fresh.photos;
+  };
+  /** One photo write at a time; a failed one never stops those queued behind it. */
+  const serial = <T,>(task: () => Promise<T>): Promise<T> => {
+    const run = writes.current.then(task);
+    writes.current = run.then(noop, noop);
+    return run;
+  };
+  /** A reorder or removal the server refused: the screen goes back to what the server holds. */
+  const refused = async (error: unknown) => {
+    const code = codeOf(error);
+    if (code === "CONFLICT") {
+      setStatus(t.photos.conflict);
+      await refresh();
+    } else if (code === "PHOTOS_REQUIRED_WHILE_VISIBLE") {
+      setStatus(lastPhotoText);
+      await refresh();
+    } else {
+      // K4's «Не збереглося – на картках нічого не змінилося…» says exactly that.
+      setStatus(uk.kabinet.profileEdit.state.failed);
+    }
+  };
 
   const patchUpload = (id: number, state: UploadState | null) =>
     setUploads((current) =>
@@ -194,6 +251,8 @@ export function PhotoSection({
         return;
       }
       patchUpload(upload.id, { kind: "uploading", progress: null });
+      // Removes sent to make room for this photo land first; the cap counts what the server holds.
+      await writes.current;
       try {
         const view = await client.shelter.photos.add(
           {
@@ -207,6 +266,7 @@ export function PhotoSection({
             },
           },
         );
+        serverPhotos.current = view.photos;
         onView(view);
         patchUpload(upload.id, null);
         setStatus(t.photos.added);
@@ -226,9 +286,124 @@ export function PhotoSection({
       );
   };
 
+  // Ids only grow (size + 1 stays above every id handed out, a crop's carried one included).
+  const tileIdOf = (key: string) => {
+    let id = tileIds.current.get(key);
+    if (id === undefined) {
+      id = tileIds.current.size + 1;
+      tileIds.current.set(key, id);
+    }
+    return id;
+  };
+  const cropButtonIdOf = (key: string) => `${animal.id}-photo-crop-${tileIdOf(key)}`;
+
+  /** Where focus goes after «×» or «Повернути»: a photo's key or `ADD_TILE`, once it is on screen. */
+  const focusNext = useRef<string | null>(null);
+  useEffect(() => {
+    const target = focusNext.current;
+    if (target === null) return;
+    focusNext.current = null;
+    const element =
+      target === ADD_TILE
+        ? addTile.current
+        : document.querySelector<HTMLElement>(`[data-photo-tile="${tileIdOf(target)}"] button`);
+    element?.focus();
+  });
+
+  const unhide = (key: string) =>
+    setHidden((current) => {
+      if (!current.has(key)) return current;
+      const next = new Set(current);
+      next.delete(key);
+      return next;
+    });
+
+  /** The removal itself, planned on the server's list as it is now; keepalive outlives a closing tab. */
+  const sendRemove = async (key: string, keepalive: boolean) => {
+    const keys = serverKeys();
+    try {
+      // Already gone (another window, or a reload after a refusal): nothing to send.
+      if (!keys.includes(key)) return;
+      const input = { animalId: animal.id, expectedPhotoKeys: keys, storageKey: key };
+      const view = await (keepalive
+        ? client.shelter.photos.remove(input, { context: { keepalive: true } })
+        : client.shelter.photos.remove(input));
+      took(view);
+      setRemovedOnce(true);
+    } catch (error) {
+      await refused(error);
+    } finally {
+      pending.current.delete(key);
+      unhide(key);
+    }
+  };
+
+  const commit = (key: string, keepalive: boolean) => {
+    const entry = pending.current.get(key);
+    if (entry === undefined || entry.sent) return;
+    entry.sent = true;
+    // Closing the toast calls `onClose` again; `sent` makes that a no-op.
+    entry.toast?.dismiss();
+    void serial(() => sendRemove(key, keepalive));
+  };
+
+  /** Sends every remove still waiting on its toast, now. */
+  const flush = (keepalive: boolean) => {
+    for (const key of [...pending.current.keys()]) commit(key, keepalive);
+  };
+  const latest = useRef({ commit, flush });
+  latest.current = { commit, flush };
+
+  // Leaving (unmount, a hidden or closing tab) sends what is waiting; a tab killed outright keeps
+  // the photo, the safe way to fail.
+  useEffect(() => {
+    const leave = () => latest.current.flush(true);
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") leave();
+    };
+    window.addEventListener("pagehide", leave);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", leave);
+      document.removeEventListener("visibilitychange", onVisibility);
+      leave();
+    };
+  }, []);
+
+  const restore = (key: string) => {
+    const entry = pending.current.get(key);
+    if (entry === undefined || entry.sent) return;
+    pending.current.delete(key);
+    unhide(key);
+    // The toast's button is gone once pressed: focus goes to the photo that came back.
+    focusNext.current = key;
+  };
+
+  /** «×»: hidden now, removed once «Повернути» has had its time. */
+  const hide = (key: string, slot: number) => {
+    if (pending.current.has(key)) return;
+    const entry: PendingRemove = { toast: null, sent: false };
+    pending.current.set(key, entry);
+    setHidden((current) => new Set(current).add(key));
+    const neighbour = photos[slot + 1] ?? photos[slot - 1];
+    focusNext.current = neighbour === undefined ? ADD_TILE : neighbour.storageKey;
+    entry.toast = show(t.photos.removed, "info", {
+      durationMs: UNDO_MS,
+      action: { label: uk.likes.undo, onAction: () => restore(key) },
+      onClose: (reason) => {
+        if (reason !== "action") latest.current.commit(key, false);
+      },
+    });
+  };
+
   const choose = (files: FileList | null) => {
     if (files === null) return;
     const accepted = [...files].slice(0, Math.max(0, room));
+    if (accepted.length === 0) return;
+    // The server still counts the photos waiting out their undo: past the cap, send those first.
+    if (serverPhotos.current.length + inProgress.length + accepted.length > MAX_ANIMAL_PHOTOS) {
+      flush(false);
+    }
     const added = accepted.map((file) => ({
       id: nextId.current++,
       file,
@@ -238,62 +413,30 @@ export function PhotoSection({
     for (const upload of added) enqueue(upload);
   };
 
-  const writePhotos = async (call: () => Promise<KabinetAnimalView>, done: string) => {
-    setWriting(true);
-    try {
-      onView(await call());
-      setStatus(done);
-      return true;
-    } catch (error) {
-      const code = codeOf(error);
-      if (code === "CONFLICT") {
-        setStatus(t.photos.conflict);
-        await reload();
-      } else if (code === "PHOTOS_REQUIRED_WHILE_VISIBLE") {
-        setStatus(lastPhotoText);
-        await reload();
-      } else {
-        // A reorder or removal that didn't go through left the card as it
-        // was: K4's «Не збереглося — на картках нічого не змінилося…» says
-        // exactly that («Не завантажилось» is the upload tile's word).
-        setStatus(uk.kabinet.profileEdit.state.failed);
-      }
-      return false;
-    } finally {
-      setWriting(false);
-    }
-  };
-
-  // Every reorder, from the menu or a drag, is this one call; «Зробити обкладинкою» is move(i, 0).
+  // A drag reorders the shown photos (`from`, `to` are shown slots); the cover is slot 0 (P-Q9).
   const move = (from: number, to: number) => {
-    if (from === to || to < 0 || to >= photos.length) return Promise.resolve(false);
-    const keys = photos.map((photo) => photo.storageKey);
-    const next = [...keys];
-    const [moved] = next.splice(from, 1);
-    if (moved === undefined) return Promise.resolve(false);
-    next.splice(to, 0, moved);
-    return writePhotos(
-      () =>
-        client.shelter.photos.reorder({
-          animalId: animal.id,
-          expectedPhotoKeys: keys,
-          nextPhotoKeys: next,
-        }),
-      t.photos.reordered,
-    );
-  };
-
-  const remove = async (photo: AnimalPhoto) => {
-    const removed = await writePhotos(
-      () =>
-        client.shelter.photos.remove({
-          animalId: animal.id,
-          expectedPhotoKeys: photos.map((p) => p.storageKey),
-          storageKey: photo.storageKey,
-        }),
-      t.photos.removed,
-    );
-    if (removed) setRemovedOnce(true);
+    const order = photos.map((photo) => photo.storageKey);
+    const [moved] = order.splice(from, 1);
+    if (moved === undefined || from === to) return;
+    order.splice(to, 0, moved);
+    setWriting(true);
+    void serial(async () => {
+      const keys = serverKeys();
+      const next = refillOrder(keys, order);
+      if (next.every((key, index) => key === keys[index])) return;
+      try {
+        took(
+          await client.shelter.photos.reorder({
+            animalId: animal.id,
+            expectedPhotoKeys: keys,
+            nextPhotoKeys: next,
+          }),
+        );
+        setStatus(t.photos.reordered);
+      } catch (error) {
+        await refused(error);
+      }
+    }).finally(() => setWriting(false));
   };
 
   // One entry per photo is the contract; a photo without one is simply not offered a crop.
@@ -305,52 +448,53 @@ export function PhotoSection({
       ? null
       : cropImageOf(crop, process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL);
   };
+  // A seed or demo key has no R2 object to cut from; a support view's source is withheld.
+  const cropOffered = (key: string) => isRealPhotoKey(key) && cropImageFor(key) !== null;
 
-  const openCrop = (key: string, n: string) => {
-    setOpenMenu(null);
-    setCropping({ key, n, Dialog: lazyCropDialog() });
-  };
+  const openCrop = (key: string, n: string) => setCropping({ key, n, Dialog: lazyCropDialog() });
   const closeCrop = (key: string) => {
-    focusAfterCrop.current = triggerIdOf(key);
+    focusAfterCrop.current = cropButtonIdOf(key);
     setCropping(null);
   };
+  // Pointing at or focusing a crop button fetches the dialog's chunk, so it opens at once.
+  const prefetchCrop = () => void loadCropDialog().catch(() => undefined);
 
   /** The crop write: null once saved or superseded (the dialog closes), else the dialog's sentence. */
-  const saveCrop = async (key: string, framing: PhotoFraming): Promise<string | null> => {
-    const keys = photos.map((photo) => photo.storageKey);
+  const saveCrop = (key: string, framing: PhotoFraming): Promise<string | null> => {
     setWriting(true);
-    try {
-      const view = await client.shelter.photos.crop({
-        animalId: animal.id,
-        expectedPhotoKeys: keys,
-        storageKey: key,
-        framing,
-      });
-      // The crop writes a new key in the same place; the tile keeps its trigger's id.
-      const next = view.photos[keys.indexOf(key)]?.storageKey;
-      if (next !== undefined) tileIds.current.set(next, tileIdOf(key));
-      closeCrop(key);
-      onView(view);
-      setStatus(t.photos.cropped);
-      return null;
-    } catch (error) {
-      switch (codeOf(error)) {
-        case "CONFLICT":
-          closeCrop(key);
-          setStatus(t.photos.conflict);
-          await reload();
-          return null;
-        case "RATE_LIMITED":
-          return t.photoErrors.rateLimited;
-        case "PHOTO_UPLOADS_UNAVAILABLE":
-          return t.photoErrors.uploadsUnavailable;
-        default:
-          // PHOTO_FRAME_REJECTED too: the cropper keeps to its rules, and the card is unchanged.
-          return uk.kabinet.profileEdit.state.failed;
+    return serial(async () => {
+      const keys = serverKeys();
+      try {
+        const view = await client.shelter.photos.crop({
+          animalId: animal.id,
+          expectedPhotoKeys: keys,
+          storageKey: key,
+          framing,
+        });
+        // The crop writes a new key in the same place; the tile keeps its button's id.
+        const next = view.photos[keys.indexOf(key)]?.storageKey;
+        if (next !== undefined) tileIds.current.set(next, tileIdOf(key));
+        closeCrop(key);
+        took(view);
+        setStatus(t.photos.cropped);
+        return null;
+      } catch (error) {
+        switch (codeOf(error)) {
+          case "CONFLICT":
+            closeCrop(key);
+            setStatus(t.photos.conflict);
+            await refresh();
+            return null;
+          case "RATE_LIMITED":
+            return t.photoErrors.rateLimited;
+          case "PHOTO_UPLOADS_UNAVAILABLE":
+            return t.photoErrors.uploadsUnavailable;
+          default:
+            // PHOTO_FRAME_REJECTED too: the cropper keeps to its rules, and the card is unchanged.
+            return uk.kabinet.profileEdit.state.failed;
+        }
       }
-    } finally {
-      setWriting(false);
-    }
+    }).finally(() => setWriting(false));
   };
 
   const total = photos.length;
@@ -363,49 +507,74 @@ export function PhotoSection({
     onMove: (over) => setAnnounce(fillTemplate(t.photos.dragMove, where(over))),
     onDrop: (from, to) => {
       setAnnounce(fillTemplate(t.photos.dragDrop, { n: integer.format(from + 1), ...where(to) }));
-      void move(from, to);
+      move(from, to);
     },
     onCancel: () => setAnnounce(t.photos.dragCancel),
   });
   const canDrag = editable && !writing && total > 1;
+  const lifted = drag === null ? undefined : photos[drag.from];
   // While dragging, the others reflow around the slot where the photo would land.
-  const order = photos.map((photo, index) => ({ photo, index }));
-  if (drag !== null) {
-    const [lifted] = order.splice(drag.from, 1);
-    if (lifted !== undefined) order.splice(drag.over, 0, lifted);
+  const order = [...photos];
+  if (drag !== null && lifted !== undefined) {
+    order.splice(drag.from, 1);
+    order.splice(drag.over, 0, lifted);
   }
-  // Ids only grow (size + 1 stays above every id handed out, a crop's carried one included).
-  const tileIdOf = (key: string) => {
-    let id = tileIds.current.get(key);
-    if (id === undefined) {
-      id = tileIds.current.size + 1;
-      tileIds.current.set(key, id);
-    }
-    return id;
-  };
-  const triggerIdOf = (key: string) => `${animal.id}-photo-menu-${tileIdOf(key)}`;
-  // The menu closes first; focus then goes back to the tile's ⋯ (gone after a removal: no-op).
-  const runFromMenu = async (key: string, action: () => Promise<unknown>) => {
-    setOpenMenu(null);
-    await action();
-    document.getElementById(triggerIdOf(key))?.focus();
-  };
 
   const lastPhotoNoteId = `${animal.id}-last-photo`;
-  const failed = uploads.filter((upload) => upload.state.kind === "failed");
-  const inProgress = uploads.filter((upload) => upload.state.kind !== "failed");
   const sizes = "(min-width: 600px) 200px, 50vw";
-  const lifted = drag === null ? undefined : photos[drag.from];
-  const menuItem = "w-full justify-start";
   const croppingView = cropping === null ? undefined : cropViewOf(cropping.key);
   const croppingImage = cropping === null ? null : cropImageFor(cropping.key);
 
+  const actionsFor = (key: string, slot: number, n: string): ActionPillAction[] => {
+    const removeLabel = fillTemplate(t.photos.removeLabel, { n });
+    const remove: ActionPillAction = lastPhotoLocked
+      ? {
+          id: "remove",
+          kind: "blocked",
+          icon: "close",
+          label: removeLabel,
+          reasonId: lastPhotoNoteId,
+        }
+      : {
+          id: "remove",
+          kind: "ready",
+          icon: "close",
+          label: removeLabel,
+          onClick: () => hide(key, slot),
+        };
+    if (!cropOffered(key)) return [remove];
+    return [
+      {
+        id: "crop",
+        kind: "ready",
+        icon: "crop",
+        label: fillTemplate(t.photos.cropTitle, { n }),
+        buttonId: cropButtonIdOf(key),
+        onClick: () => openCrop(key, n),
+        onIntent: prefetchCrop,
+      },
+      remove,
+    ];
+  };
+
   return (
     <>
+      <div className="flex items-center gap-3">
+        <InfoTip label={t.photos.infoLabel} closeLabel={uk.kabinet.profileEdit.pause.close}>
+          {t.photos.infoText}
+        </InfoTip>
+        <span className="text-body text-ink-2">
+          {fillTemplate(t.photos.counter, {
+            n: integer.format(total),
+            max: integer.format(MAX_ANIMAL_PHOTOS),
+          })}
+        </span>
+      </div>
+      {editable ? <Text look="hint">{t.photos.orderHint}</Text> : null}
       <ul className="photo-grid items-start gap-3">
-        {order.map(({ photo, index }, slot) => {
+        {order.map((photo, slot) => {
           const key = photo.storageKey;
-          if (drag !== null && index === drag.from) {
+          if (photo === lifted) {
             return (
               <li
                 key={key}
@@ -416,9 +585,13 @@ export function PhotoSection({
             );
           }
           const n = integer.format(slot + 1);
-          const croppable = editable && cropImageFor(key) !== null;
           return (
-            <li key={key} data-photo-slot={slot} className="min-w-0">
+            <li
+              key={key}
+              data-photo-slot={slot}
+              data-photo-tile={tileIdOf(key)}
+              className="min-w-0"
+            >
               <Card tone="outline">
                 <fieldset
                   aria-label={fillTemplate(t.photos.tileLabel, { n, total: integer.format(total) })}
@@ -428,8 +601,8 @@ export function PhotoSection({
                   <div className="relative">
                     <Photo src={key} alt="" aspect="portrait" sizes={sizes} />
                     {canDrag ? (
-                      // The whole tile is the drag target: a mouse drags, a held finger lifts the
-                      // photo. The menu is the keyboard's and screen reader's way to every move.
+                      // The photo is the drag target: a mouse drags, a held finger lifts it. The
+                      // pill is a sibling above it, so a press there never starts a drag.
                       // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only layer over the photo
                       <div
                         className="absolute inset-0 cursor-grab select-none"
@@ -441,94 +614,21 @@ export function PhotoSection({
                         onPointerDown={(event) => {
                           pointerType.current = event.pointerType;
                           if (event.button !== 0) return;
-                          if ((event.target as Element).closest("button")) return;
                           start(slot, event);
                         }}
                       />
                     ) : null}
                     <Badge tone="ink" className="pointer-events-none absolute top-2 left-2">
-                      <span aria-hidden="true">{n}</span>
+                      {/* The tile's name says the number; the hint says the first is the cover. */}
+                      <span aria-hidden="true">
+                        {slot === 0 ? fillTemplate(t.photos.coverChip, { n }) : n}
+                      </span>
                     </Badge>
-                    {slot === 0 ? (
-                      <Badge tone="ink" className="pointer-events-none absolute bottom-2 left-2">
-                        {t.photos.cover}
-                      </Badge>
-                    ) : null}
                     {editable ? (
-                      <>
-                        <div className="absolute top-0.5 right-0.5">
-                          <Menu
-                            open={openMenu === key}
-                            onOpenChange={(open) => {
-                              // Fetch the crop dialog's chunk now, so «Обрізати» opens at once.
-                              if (open && croppable) void loadCropDialog().catch(() => undefined);
-                              setOpenMenu(open ? key : null);
-                            }}
-                            trigger="icon-compact"
-                            label={fillTemplate(t.photos.menuLabel, { n })}
-                            triggerId={triggerIdOf(key)}
-                          >
-                            {croppable ? (
-                              <MenuItem>
-                                <Button
-                                  variant="ghost"
-                                  className={menuItem}
-                                  onClick={() => openCrop(key, n)}
-                                >
-                                  {t.photos.crop}
-                                </Button>
-                              </MenuItem>
-                            ) : null}
-                            {slot > 0 ? (
-                              <MenuItem>
-                                <Button
-                                  variant="ghost"
-                                  className={menuItem}
-                                  onClick={() => void runFromMenu(key, () => move(slot, 0))}
-                                >
-                                  {t.photos.makeCover}
-                                </Button>
-                              </MenuItem>
-                            ) : null}
-                            {slot > 0 ? (
-                              <MenuItem>
-                                <Button
-                                  variant="ghost"
-                                  className={menuItem}
-                                  onClick={() => void runFromMenu(key, () => move(slot, slot - 1))}
-                                >
-                                  {t.photos.moveEarlier}
-                                </Button>
-                              </MenuItem>
-                            ) : null}
-                            {slot < total - 1 ? (
-                              <MenuItem>
-                                <Button
-                                  variant="ghost"
-                                  className={menuItem}
-                                  onClick={() => void runFromMenu(key, () => move(slot, slot + 1))}
-                                >
-                                  {t.photos.moveLater}
-                                </Button>
-                              </MenuItem>
-                            ) : null}
-                            {total > 1 || croppable ? <MenuDivider /> : null}
-                            <MenuItem tone="danger">
-                              <Button
-                                variant="ghost"
-                                className={menuItem}
-                                aria-disabled={lastPhotoLocked || undefined}
-                                aria-describedby={lastPhotoLocked ? lastPhotoNoteId : undefined}
-                                onClick={() => {
-                                  if (!lastPhotoLocked) void runFromMenu(key, () => remove(photo));
-                                }}
-                              >
-                                {t.photos.remove}
-                              </Button>
-                            </MenuItem>
-                          </Menu>
-                        </div>
-                      </>
+                      <ActionPill
+                        actions={actionsFor(key, slot, n)}
+                        className="absolute right-2 bottom-2"
+                      />
                     ) : null}
                   </div>
                 </fieldset>
@@ -586,6 +686,7 @@ export function PhotoSection({
         {editable && room > 0 ? (
           <li className="min-w-0">
             <button
+              ref={addTile}
               type="button"
               onClick={() => fileInput.current?.click()}
               onDragOver={(event) => {
@@ -611,6 +712,13 @@ export function PhotoSection({
                 <span className="hidden pointer-fine:inline"> · {t.photos.addDrop}</span>
               </span>
             </button>
+          </li>
+        ) : null}
+        {editable && room <= 0 ? (
+          <li className="col-span-full rounded-card border-2 border-dashed border-line p-4">
+            <Text>
+              {fillTemplate(t.photos.limitNote, { max: integer.format(MAX_ANIMAL_PHOTOS) })}
+            </Text>
           </li>
         ) : null}
       </ul>
@@ -658,11 +766,6 @@ export function PhotoSection({
             event.currentTarget.value = "";
           }}
         />
-      ) : null}
-      {editable && room <= 0 ? (
-        <Text look="hint">
-          {fillTemplate(t.photos.capReached, { max: integer.format(MAX_ANIMAL_PHOTOS) })}
-        </Text>
       ) : null}
       {editable && lastPhotoLocked ? (
         <Text look="hint" id={lastPhotoNoteId}>

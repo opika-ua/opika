@@ -53,6 +53,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [Text](components/Text.md) | `Text.tsx` | Body copy. |
 | [MetaLine](components/MetaLine.md) | `MetaLine.tsx` | Facts joined by a drawn separator: «Хлопчик · дорослий · середній». |
 | [Badge](components/Badge.md) | `Badge.tsx` | A small tag that sits on a photo. |
+| [ActionPill](components/ActionPill.md) | `ActionPill.tsx` | A few icon actions in one small pill over a photo (crop, «×»): 40px to the eye, 48px targets. |
 | [Spinner](components/Spinner.md) | `Spinner.tsx` | Indeterminate progress. |
 | [Mascot](components/Mascot.md) | `Mascot.tsx` | Decorative cat and dog, inline SVG, perches on an edge or on a word (`PerchedWords`). `MascotPerch` seats a pair. |
 | [PerchedWords](components/PerchedWords.md) | `PerchedWords.tsx` | Display-heading text with a mascot seated on the last word of its first line (client). |
@@ -87,7 +88,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [Popover](components/Popover.md) | `Popover.tsx` | A panel under its trigger (the filter selectors): chip or field trigger, list or pills. |
 | [Combobox](components/Combobox.md) | `Combobox.tsx`, `ComboboxMulti.tsx` | A select-only search field: async options, the value must come from the list; a list under the field, a full-screen dialog on phones. Multi-select mode: several values from a list already held, a count badge, a top-layer list. |
 | [Toast](components/Toast.md) | `Toast.tsx` | One toast, presentational, with an optional action button (an undo). `ToastProvider` renders these; it is exported for the showcase and tests. |
-| [ToastProvider](components/ToastProvider.md) | `Toast.tsx` | Holds the toast queue and the live region. Wrap the page once; call `useToast().show(message, tone, { action?, durationMs? })` from client components. |
+| [ToastProvider](components/ToastProvider.md) | `Toast.tsx` | Holds the toast queue and the live region. Wrap the page once; call `useToast().show(message, tone, { action?, durationMs?, onClose? })` from client components; it returns a handle that can dismiss that toast. |
 | [CheckboxGroup](components/CheckboxGroup.md) | `groups.tsx` | A question with several choices: fieldset, legend, hint, error. |
 | [ChipGroup](components/ChipGroup.md) | `groups.tsx` | A question with many short answers as wrapping chips, in a fieldset. |
 | [ErrorSummary](components/ErrorSummary.md) | `ErrorSummary.tsx` | A refused save listed once at the top; each problem takes you to its field. |

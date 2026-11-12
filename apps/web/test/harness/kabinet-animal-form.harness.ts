@@ -343,7 +343,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     const page = await open(`/kabinet/tvaryny/${draftId}`);
     await openTab(page, /^Фото/);
     await expect(page.getByRole("group", { name: "Фото 1 з 1" })).toBeVisible();
-    await expect(page.getByText("Обкладинка", { exact: true })).toBeVisible();
+    await expect(page.getByText("1 · Обкладинка", { exact: true })).toBeVisible();
     await openTab(page, "Публікація");
     await expect(page.getByText("Усе потрібне заповнено. Можна публікувати.")).toBeVisible();
     await expect(missingLinks(page)).toHaveCount(0);
@@ -392,7 +392,9 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       }
       await shot(page, `photo-manager-${width}`);
     }
-    await expect(page.getByText("Перетягніть, щоб змінити порядок.")).toBeVisible();
+    await expect(
+      page.getByText("Перетягніть, щоб змінити порядок. Перше фото – обкладинка."),
+    ).toBeVisible();
     await page.close();
   });
 
@@ -420,7 +422,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await page.close();
   });
 
-  test("the photo manager at 393: ⋯ targets are 44 px, a held finger lifts a photo, a quick swipe does not", async () => {
+  test("the photo manager at 393: «×» targets are 44 by 48 px, a held finger lifts a photo, a quick swipe does not", async () => {
     await withThreePhotos();
     const page = await open(`/kabinet/tvaryny/${draftId}`);
     await page.setViewportSize({ width: 393, height: 852 });
@@ -428,9 +430,9 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     for (const n of [1, 2, 3]) {
       const tile = await page.locator(`[data-photo-slot="${n - 1}"]`).boundingBox();
       expect(tile?.width ?? 0).toBeGreaterThanOrEqual(140);
-      const box = await page.getByRole("button", { name: `Дії з фото ${n}` }).boundingBox();
+      const box = await page.getByRole("button", { name: `Прибрати фото ${n}` }).boundingBox();
       expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(48);
     }
     await shot(page, "photo-manager-393");
 
@@ -466,26 +468,30 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await page.close();
   });
 
-  test("the photo manager at 360: nothing overflows sideways and the ⋯ menu opens", async () => {
+  test("the photo manager at 360: nothing overflows sideways; «×» hides a photo and «Повернути» puts it back", async () => {
     await withThreePhotos();
     const page = await open(`/kabinet/tvaryny/${draftId}`);
     await page.setViewportSize({ width: 360, height: 800 });
     await openTab(page, /^Фото/);
     const tile360 = await page.locator('[data-photo-slot="0"]').boundingBox();
     expect(tile360?.width ?? 0).toBeGreaterThanOrEqual(140);
-    const box = await page.getByRole("button", { name: "Дії з фото 2" }).boundingBox();
-    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     expect(overflow).toBeLessThanOrEqual(0);
+    // Seed keys have no R2 object to crop from: «×» is the pill's only action.
+    await expect(page.getByRole("button", { name: /^Обрізати фото/ })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Дії з фото 2" }).click();
-    await expect(page.getByRole("button", { name: "Посунути раніше" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Прибрати" })).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("button", { name: "Посунути раніше" })).toBeHidden();
+    let removes = 0;
+    page.on("request", (request) => {
+      if (request.url().includes("/photos/remove")) removes += 1;
+    });
+    await page.getByRole("button", { name: "Прибрати фото 2" }).click();
+    await expect(page.getByRole("group", { name: /^Фото \d з 2$/ })).toHaveCount(2);
+    await page.getByRole("button", { name: "Повернути" }).click();
+    await expect(page.getByRole("group", { name: /^Фото \d з 3$/ })).toHaveCount(3);
+    await expect(page.getByRole("button", { name: "Прибрати фото 2" })).toBeFocused();
+    expect(removes).toBe(0);
     await page.close();
   });
 });

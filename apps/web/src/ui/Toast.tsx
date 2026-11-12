@@ -99,9 +99,18 @@ type ToastEntry = {
   action?: ToastAction | undefined;
   durationMs: number;
 };
-export type ShowToastOptions = { action?: ToastAction; durationMs?: number };
+/** Why a toast left: its action ran, it was dismissed (its ✕ or `ToastHandle.dismiss`), or its time ran out. */
+export type ToastCloseReason = "action" | "dismissed" | "expired";
+export type ShowToastOptions = {
+  action?: ToastAction;
+  durationMs?: number;
+  /** Called once when the toast leaves, never when the provider itself unmounts. */
+  onClose?: (reason: ToastCloseReason) => void;
+};
+/** What `show` returns: takes that toast away early (its `onClose` hears `dismissed`). */
+export type ToastHandle = { dismiss: () => void };
 type ToastApi = {
-  show: (message: string, tone?: ToastTone, options?: ShowToastOptions) => void;
+  show: (message: string, tone?: ToastTone, options?: ShowToastOptions) => ToastHandle;
 };
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -124,38 +133,47 @@ export function ToastProvider({
   const [toasts, setToasts] = useState<readonly ToastEntry[]>([]);
   const nextId = useRef(0);
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  // The toasts still on screen and their `onClose`: a toast closes once, however it leaves.
+  const open = useRef(new Map<number, ShowToastOptions["onClose"]>());
 
-  const dismiss = useCallback((id: number) => {
+  const close = useCallback((id: number, reason: ToastCloseReason) => {
+    if (!open.current.has(id)) return;
+    const onClose = open.current.get(id);
+    open.current.delete(id);
     const timer = timers.current.get(id);
     if (timer !== undefined) clearTimeout(timer);
     timers.current.delete(id);
     setToasts((current) => current.filter((toast) => toast.id !== id));
+    onClose?.(reason);
   }, []);
 
   const arm = useCallback(
     (id: number, ms: number) => {
+      if (!open.current.has(id)) return;
       const old = timers.current.get(id);
       if (old !== undefined) clearTimeout(old);
       timers.current.set(
         id,
-        setTimeout(() => dismiss(id), ms),
+        setTimeout(() => close(id, "expired"), ms),
       );
     },
-    [dismiss],
+    [close],
   );
 
   const show = useCallback(
-    (message: string, tone: ToastTone = "info", options: ShowToastOptions = {}) => {
+    (message: string, tone: ToastTone = "info", options: ShowToastOptions = {}): ToastHandle => {
       nextId.current += 1;
       const id = nextId.current;
       const ms = options.durationMs ?? durationMs;
+      open.current.set(id, options.onClose);
       setToasts((current) => [
         ...current,
         { id, message, tone, action: options.action, durationMs: ms },
       ]);
       arm(id, ms);
+      return { dismiss: () => close(id, "dismissed") };
     },
-    [arm, durationMs],
+    [arm, close, durationMs],
   );
 
   // Holding clears the timer; letting go starts the full time again.
@@ -174,9 +192,11 @@ export function ToastProvider({
 
   useEffect(() => {
     const pending = timers.current;
+    const shown = open.current;
     return () => {
       for (const timer of pending.values()) clearTimeout(timer);
       pending.clear();
+      shown.clear();
     };
   }, []);
 
@@ -195,7 +215,7 @@ export function ToastProvider({
             tone={toast.tone}
             message={toast.message}
             dismissLabel={dismissLabel}
-            onDismiss={() => dismiss(toast.id)}
+            onDismiss={() => close(toast.id, "dismissed")}
             onHold={(held) => hold(toast, held)}
             action={
               toast.action === undefined
@@ -203,7 +223,7 @@ export function ToastProvider({
                 : {
                     label: toast.action.label,
                     onAction: () => {
-                      dismiss(toast.id);
+                      close(toast.id, "action");
                       toast.action?.onAction();
                     },
                   }

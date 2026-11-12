@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ActionPill } from "../../../ui/ActionPill";
 import { Button } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
 import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../ui/Combobox";
@@ -16,6 +17,7 @@ import {
   MultiSelectListbox,
   type MultiSelectRow,
 } from "../../../ui/MultiSelectRows";
+import { Photo } from "../../../ui/Photo";
 import { Popover } from "../../../ui/Popover";
 import { Sheet } from "../../../ui/Sheet";
 import { Text } from "../../../ui/Text";
@@ -310,6 +312,60 @@ function ToastButtons() {
         Show toast with an action
       </Button>
     </>
+  );
+}
+
+/** Two photos with the pill: both actions ready, and a remove that is blocked with its reason. */
+export function ActionPillDemo() {
+  const [pressed, setPressed] = useState("");
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-3">
+        <div className="relative w-40">
+          <Photo src="seed-photos/dog-1.jpg" alt="" sizes="160px" aspect="portrait" />
+          <ActionPill
+            className="absolute right-2 bottom-2"
+            actions={[
+              {
+                id: "crop",
+                kind: "ready",
+                icon: "crop",
+                label: "Crop photo 1",
+                onClick: () => setPressed("Crop photo 1"),
+              },
+              {
+                id: "remove",
+                kind: "ready",
+                icon: "close",
+                label: "Remove photo 1",
+                onClick: () => setPressed("Remove photo 1"),
+              },
+            ]}
+          />
+        </div>
+        <div className="relative w-40">
+          <Photo src="seed-photos/dog-2.jpg" alt="" sizes="160px" aspect="portrait" />
+          <ActionPill
+            className="absolute right-2 bottom-2"
+            actions={[
+              {
+                id: "remove",
+                kind: "blocked",
+                icon: "close",
+                label: "Remove photo 2",
+                reasonId: "dev-ui-pill-reason",
+              },
+            ]}
+          />
+        </div>
+      </div>
+      <Text look="hint" id="dev-ui-pill-reason">
+        One photo has to stay.
+      </Text>
+      <Text look="hint" as="span">
+        {pressed === "" ? "Nothing pressed yet" : `Pressed: ${pressed}`}
+      </Text>
+    </div>
   );
 }
 

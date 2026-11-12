@@ -1142,10 +1142,40 @@ describe("the unsaved-work warning and the saved-time line", () => {
   });
 });
 
-/** The tile's ⋯ menu for photo `n` (1-based): its entries are then found by name on the screen. */
-const openPhotoMenu = async (user: ReturnType<typeof userEvent.setup>, n: number) =>
-  user.click(screen.getByRole("button", { name: `Дії з фото ${n}` }));
-const menuEntry = (name: string) => screen.queryByRole("button", { name });
+/** Photo `n`'s «×» in its tile pill (1-based). The pill itself is `PhotoSection.test.tsx`'s. */
+const removeButton = (n: number) => screen.getByRole("button", { name: `Прибрати фото ${n}` });
+/** Drags photo `from` onto the slot of photo `to` (1-based) with a mouse. */
+const dragPhoto = (from: number, to: number, total: number) => {
+  const surface = screen
+    .getByRole("group", { name: `Фото ${from} з ${total}` })
+    .querySelector("[data-photo-surface]") as Element;
+  const elementFromPoint = document.elementFromPoint;
+  document.elementFromPoint = () => document.querySelector(`[data-photo-slot="${to - 1}"]`);
+  try {
+    fireEvent.pointerDown(surface, {
+      button: 0,
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX: 10,
+      clientY: 300,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX: 30,
+      clientY: 330,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX: 60,
+      clientY: 330,
+    });
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: 60, clientY: 330 });
+  } finally {
+    document.elementFromPoint = elementFromPoint;
+  }
+};
 const photos10 = (count: number) =>
   Array.from({ length: count }, (_, index) => ({
     ...PHOTO,
@@ -1174,7 +1204,7 @@ describe("photos", () => {
     expect(await screen.findByText("Фото додано.")).toBeTruthy();
     expect(screen.queryByText(/Щоб опублікувати, ще потрібно/)).toBeNull();
     expect(screen.getByRole("group", { name: "Фото 1 з 1" })).toBeTruthy();
-    expect(screen.getByText("Обкладинка")).toBeTruthy();
+    expect(screen.getByText("1 · Обкладинка")).toBeTruthy();
   });
 
   it("without a measured size, the tile says «Фото завантажується…»", async () => {
@@ -1292,13 +1322,11 @@ describe("photos", () => {
     },
   );
 
-  it("the ⋯ menu: «Зробити обкладинкою» sends the new order in one reorder call", async () => {
-    const user = userEvent.setup();
+  it("dragging photo 2 to the front makes it the cover in one reorder call", async () => {
     const second = { ...PHOTO, storageKey: "/photos/2.jpg" };
     const client = renderForm(published({ photos: [PHOTO, second] }));
-    await openPhotoMenu(user, 2);
-    await user.click(menuEntry("Зробити обкладинкою") as HTMLElement);
-    expect(client.calls.reorder).toHaveBeenCalledTimes(1);
+    dragPhoto(2, 1, 2);
+    await waitFor(() => expect(client.calls.reorder).toHaveBeenCalledTimes(1));
     expect(client.calls.reorder).toHaveBeenCalledWith({
       animalId: ID,
       expectedPhotoKeys: ["/photos/1.jpg", "/photos/2.jpg"],
@@ -1307,51 +1335,49 @@ describe("photos", () => {
     expect(await screen.findByText("Порядок змінено.")).toBeTruthy();
   });
 
-  it("«Посунути раніше» and «Посунути пізніше» move one place", async () => {
-    const user = userEvent.setup();
+  it("a second drag is planned on the order the first one left", async () => {
     const client = renderForm(draft({ photos: photos10(3) } as Partial<KabinetAnimalView>));
-    await openPhotoMenu(user, 1);
-    await user.click(menuEntry("Посунути пізніше") as HTMLElement);
+    dragPhoto(1, 2, 3);
+    expect(await screen.findByText("Порядок змінено.")).toBeTruthy();
     expect(client.calls.reorder.mock.calls[0]?.[0]).toMatchObject({
       nextPhotoKeys: ["/photos/2.jpg", "/photos/1.jpg", "/photos/3.jpg"],
     });
-    await screen.findByText("Порядок змінено.");
-    await openPhotoMenu(user, 3);
-    await user.click(menuEntry("Посунути раніше") as HTMLElement);
+    dragPhoto(3, 2, 3);
+    await waitFor(() => expect(client.calls.reorder).toHaveBeenCalledTimes(2));
     expect(client.calls.reorder.mock.calls[1]?.[0]).toMatchObject({
       expectedPhotoKeys: ["/photos/2.jpg", "/photos/1.jpg", "/photos/3.jpg"],
       nextPhotoKeys: ["/photos/2.jpg", "/photos/3.jpg", "/photos/1.jpg"],
     });
   });
 
-  it("the menu hides what makes no sense at the ends", async () => {
-    const user = userEvent.setup();
+  it("no ⋯ menu and no reorder buttons: the order changes by dragging", () => {
     renderForm(draft({ photos: photos10(3) } as Partial<KabinetAnimalView>));
-    await openPhotoMenu(user, 1);
-    expect(menuEntry("Зробити обкладинкою")).toBeNull();
-    expect(menuEntry("Посунути раніше")).toBeNull();
-    expect(menuEntry("Посунути пізніше")).toBeTruthy();
-    expect(menuEntry("Прибрати")).toBeTruthy();
-    await user.keyboard("{Escape}");
-    await openPhotoMenu(user, 3);
-    expect(menuEntry("Посунути пізніше")).toBeNull();
-    expect(menuEntry("Зробити обкладинкою")).toBeTruthy();
-    expect(menuEntry("Посунути раніше")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Дії з фото/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Зробити обкладинкою" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Посунути/ })).toBeNull();
+    expect(screen.queryByText("Обкладинка", { exact: true })).toBeNull();
+    expect(screen.getByText("1 · Обкладинка")).toBeTruthy();
   });
 
-  it("a removal says the photo is off the card and the file isn't deleted at once", async () => {
-    const user = userEvent.setup();
+  it("a removal, once its undo has had its time, says the photo is off the card and the file isn't deleted at once", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const second = { ...PHOTO, storageKey: "/photos/2.jpg" };
     const client = renderForm(published({ photos: [PHOTO, second] }));
     expect(screen.queryByText(/Сам файл не видаляється одразу/)).toBeNull();
-    await openPhotoMenu(user, 2);
-    await user.click(menuEntry("Прибрати") as HTMLElement);
+    fireEvent.click(removeButton(2));
+    expect(screen.getByText("Фото прибрано")).toBeTruthy();
+    expect(client.calls.remove).not.toHaveBeenCalled();
+    await act(async () => {
+      vi.advanceTimersByTime(6000);
+    });
+    vi.useRealTimers();
+    await waitFor(() => expect(client.calls.remove).toHaveBeenCalledTimes(1));
     expect(client.calls.remove).toHaveBeenCalledWith({
       animalId: ID,
       expectedPhotoKeys: ["/photos/1.jpg", "/photos/2.jpg"],
       storageKey: "/photos/2.jpg",
     });
-    expect(await screen.findByText("Фото прибрано.")).toBeTruthy();
+    expect(await screen.findByText(/Сам файл не видаляється одразу/)).toBeTruthy();
     expect(
       screen.getByText(
         "Фото зникло з картки. Сам файл не видаляється одразу – якщо його треба прибрати зовсім, напишіть мені.",
@@ -1360,13 +1386,11 @@ describe("photos", () => {
   });
 
   it("photos changed in another window: says so and shows the current set", async () => {
-    const user = userEvent.setup();
     const second = { ...PHOTO, storageKey: "/photos/2.jpg" };
     const client = renderForm(published({ photos: [PHOTO, second] }));
     client.calls.reorder.mockRejectedValueOnce(apiError("CONFLICT"));
     client.calls.byId.mockResolvedValueOnce(published({ photos: [second] }));
-    await openPhotoMenu(user, 2);
-    await user.click(menuEntry("Зробити обкладинкою") as HTMLElement);
+    dragPhoto(2, 1, 2);
     expect(
       await screen.findByText(
         "Фото змінилися в іншому вікні. Тут – поточний набір, спробуйте ще раз.",
@@ -1376,12 +1400,10 @@ describe("photos", () => {
   });
 
   it("a reorder that didn't go through says the card is unchanged", async () => {
-    const user = userEvent.setup();
     const second = { ...PHOTO, storageKey: "/photos/2.jpg" };
     const client = renderForm(published({ photos: [PHOTO, second] }));
     client.calls.reorder.mockRejectedValueOnce(new TypeError("Failed to fetch"));
-    await openPhotoMenu(user, 2);
-    await user.click(menuEntry("Зробити обкладинкою") as HTMLElement);
+    dragPhoto(2, 1, 2);
     expect(
       await screen.findByText(
         "Не збереглося – на картках нічого не змінилося. Перевірте зʼєднання і спробуйте ще раз.",
@@ -1389,10 +1411,13 @@ describe("photos", () => {
     ).toBeTruthy();
   });
 
-  it("at the cap the add tile gives way to his sentence", () => {
+  it("at the cap the add tile gives way to his note", () => {
     renderForm(draft({ photos: photos10(10) } as Partial<KabinetAnimalView>));
     expect(screen.queryByRole("button", { name: /^Додати фото/ })).toBeNull();
-    expect(screen.getByText("Це максимум – 10 фото.")).toBeTruthy();
+    expect(
+      screen.getByText("Досягнуто ліміту: 10 фото. Приберіть одне, щоб додати нове."),
+    ).toBeTruthy();
+    expect(screen.queryByText("Це максимум – 10 фото.")).toBeNull();
     expect(screen.getByText(/10 з 10/)).toBeTruthy();
   });
 
@@ -1441,11 +1466,11 @@ describe("photos", () => {
       vi.unstubAllGlobals();
     });
 
-    it("there is no drag handle: the tile itself is the target, ⋯ is the only button on it", () => {
+    it("there is no drag handle: the tile itself is the target, the pill's «×» the only button on a photo with no crop", () => {
       three();
       expect(screen.queryByRole("button", { name: /^Перетягнути фото/ })).toBeNull();
       const tile = screen.getByRole("group", { name: "Фото 1 з 3" });
-      expect(within(tile).getAllByRole("button")).toHaveLength(1);
+      expect(within(tile).getAllByRole("button")).toEqual([removeButton(1)]);
     });
 
     it("a mouse drag makes one reorder call with the new order", async () => {
@@ -1546,27 +1571,12 @@ describe("photos", () => {
     });
   });
 
-  it("the hint says what to do once, by input: a mouse drags, a finger holds", () => {
+  it("the hint is his one sentence, the same for a mouse and a finger", () => {
     renderForm(draft({ photos: photos10(2) } as Partial<KabinetAnimalView>));
-    expect(screen.getByText("Перетягніть, щоб змінити порядок.")).toBeTruthy();
+    expect(
+      screen.getByText("Перетягніть, щоб змінити порядок. Перше фото – обкладинка."),
+    ).toBeTruthy();
     expect(screen.queryByText("Утримуйте фото, щоб перетягнути.")).toBeNull();
-  });
-
-  it("on a touch screen the hint says to hold the photo", () => {
-    const real = window.matchMedia;
-    window.matchMedia = ((media: string) => ({
-      media,
-      matches: false,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    })) as unknown as typeof real;
-    try {
-      renderForm(draft({ photos: photos10(2) } as Partial<KabinetAnimalView>));
-      expect(screen.getByText("Утримуйте фото, щоб перетягнути.")).toBeTruthy();
-      expect(screen.queryByText("Перетягніть, щоб змінити порядок.")).toBeNull();
-    } finally {
-      window.matchMedia = real;
-    }
   });
 
   it("the photo notes: one line about the date, the info card holds the rest, and the old paragraphs are gone", async () => {
@@ -1766,16 +1776,15 @@ describe("a listed animal saves only when asked (T8)", () => {
     );
   });
 
-  it("on a visible card, the photo section says a photo change moves the card among the freshest", async () => {
+  it("on a visible card, the photo section says a photo change moves the card among the freshest", () => {
     renderForm(published());
-    await openPhotoMenu(userEvent.setup(), 1);
     expect(
       screen.getByText(
         "Кожна зміна у фото оновлює дату на картці, і вона знову зʼявляється серед найсвіжіших.",
       ),
     ).toBeTruthy();
     expect(screen.getByText("Цю картку бачать люди, тож одне фото має лишитися.")).toBeTruthy();
-    expect(menuEntry("Прибрати")?.getAttribute("aria-disabled")).toBe("true");
+    expect(removeButton(1).getAttribute("aria-disabled")).toBe("true");
   });
 
   it.each(NOT_VISIBLE_KINDS)(
@@ -2413,12 +2422,11 @@ describe("who may change what", () => {
     ),
   )(
     "while a shelter %s has its cards hidden (writes open by %s), the last-photo note doesn't say people see the card",
-    async (_who, _grant, visibility, editing) => {
+    (_who, _grant, visibility, editing) => {
       renderForm(published(), { shelterVisibility: visibility, editing });
-      await openPhotoMenu(userEvent.setup(), 1);
       expect(screen.queryByText("Цю картку бачать люди, тож одне фото має лишитися.")).toBeNull();
       const note = screen.getByText(LAST_PHOTO_KEPT_NOT_SHOWN);
-      expect(menuEntry("Прибрати")?.getAttribute("aria-describedby")).toBe(note.id);
+      expect(removeButton(1).getAttribute("aria-describedby")).toBe(note.id);
     },
   );
 });
