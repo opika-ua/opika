@@ -51,6 +51,7 @@ import {
   MenuClippedDemo,
   MenuDemo,
   MenuIconDemo,
+  MenuStatusDemo,
   ModalDemo,
   ModalHeaderDemo,
   MultiSelectRowsDemo,
@@ -588,6 +589,9 @@ export default function DevUiPage() {
         </Row>
         <Row label="Menu (⋯ trigger, divider, danger item)">
           <MenuIconDemo />
+        </Row>
+        <Row label="Menu (status trigger: a status chip that opens the moves from it)">
+          <MenuStatusDemo />
         </Row>
         <Row label="Menu in a box that clips (top layer)">
           <MenuClippedDemo />

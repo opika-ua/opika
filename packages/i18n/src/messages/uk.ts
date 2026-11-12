@@ -1064,10 +1064,10 @@ export const uk = {
      * are read from their own homes, not copied here.
      *
      * - `captionCards` / `stale.countCards` are the three forms his `{cards}`
-     *   takes (nominative for the header, accusative for the strip), picked by
-     *   `pluralizeUk`.
-     * - `stale.count` types «днів» for `{days}` = `agingMaxDays` (30), pinned in
-     *   `copy-plural-pins.test.ts`.
+     *   takes (nominative for the header, accusative for the weekly email),
+     *   picked by `pluralizeUk`.
+     * - The card grid (owner-approved 2026-11-12): `statusMenu.*`, `more.*` and
+     *   `stale.line.*`, whole phrases per plural form so the verb agrees.
      * - `stale.caption` and `empty.body` say people see the cards, so they show
      *   only while the shelter is verified (his answer 5); otherwise one line
      *   says why (`paused.hidden`, `notVisible.pending`, or R-UI's lines).
@@ -1100,20 +1100,29 @@ export const uk = {
         adoptedSince: "Удома з {date}",
         withdrawnOn: "Знято з показу {date} · {reason}",
         more: "Ще",
-        /** The ⋯ button's accessible name; `{name}` is the animal's name as stored (nominative, never inflected). */
-        menuLabel: "Дії з карткою {name}",
       },
       /** The ordering note moved behind a «?» button; this is that button's accessible name. */
       orderInfoLabel: "Як впорядковано список",
       actions: {
         edit: "Редагувати",
-        viewOnSite: "Переглянути на сайті",
-        reserve: "Почали домовлятися",
-        release: "Не домовилися – знову шукає",
-        adopt: "Уже вдома",
-        withdraw: "Зняти з показу",
         restore: "Повернути в чернетки",
         deleteDraft: "Видалити чернетку",
+      },
+      /**
+       * The status chip as a menu button. `label` is its accessible name (the visible status, then
+       * what it does); the items «…» open a dialog first. Release and reserve read as the status
+       * they lead to (`listingStatus.*`). `{name}` is the animal's name as stored, never inflected.
+       */
+      statusMenu: {
+        label: "Статус: {status}. Змінити статус {name}",
+        adopt: "Уже вдома…",
+        withdraw: "Зняти з показу…",
+      },
+      /** The card's ⋯: the public page and its link, or a draft's delete. */
+      more: {
+        label: "Інші дії: {name}",
+        openOnSite: "Відкрити на сайті",
+        copyLink: "Копіювати посилання",
       },
       confirm: {
         stillLooking: "Ще шукає",
@@ -1128,8 +1137,8 @@ export const uk = {
       },
       adoptDialog: {
         title: "{name} уже вдома?",
-        body: "Картка зникне з галереї, а її сторінка стане недоступною. У вашому списку картка лишиться з позначкою «Удома». Скасувати це не можна: якщо тварина повернеться, додайте її як нову картку.",
-        confirm: "Так, уже вдома",
+        body: "Картка зникне з пошуку. Повернути її буде не можна.",
+        confirm: "Так, удома",
       },
       withdrawDialog: {
         title: "Зняти з показу: {name}?",
@@ -1160,7 +1169,11 @@ export const uk = {
       },
       deleted: "Чернетку «{name}» видалено.",
       stale: {
-        count: "{cards} ви не підтверджували понад {days}.",
+        line: {
+          one: "{count} картка давно не оновлювалась",
+          few: "{count} картки давно не оновлювались",
+          many: "{count} карток давно не оновлювались",
+        },
         countCards: {
           one: "{count} картку",
           few: "{count} картки",
@@ -1168,7 +1181,6 @@ export const uk = {
         },
         caption:
           "Ті, хто шукає тварину, бачать на них давню дату. Якщо нічого не змінилося, достатньо натиснути «Ще шукає» чи «Ще домовляються».",
-        show: "Показати ці картки ({count})",
         showAll: "Показати всі",
       },
       paused: {

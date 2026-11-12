@@ -2,7 +2,7 @@
 
 import "../../../zod-client-config";
 import type { KabinetAnimalListFilter, KabinetCursor, KabinetShelterView } from "@opika/contracts";
-import { UNDO_SHOWN_MS } from "@opika/domain";
+import { type ListingKind, UNDO_SHOWN_MS } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -16,10 +16,17 @@ import { Heading } from "../../../ui/Heading";
 import { InfoTip } from "../../../ui/InfoTip";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
+import { ToastProvider, useToast } from "../../../ui/Toast";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
 import { cardsArePublic, missingSentence, shelterVisibilityOf } from "../animal-form/labels";
 import { NEW_ANIMAL_PATH } from "../routes";
-import { AnimalListRow, moreButtonId, moreButtonPhoneId } from "./AnimalListRow";
+import {
+  AnimalManageCard,
+  type CardMenu,
+  moreTriggerId,
+  nameLinkId,
+  statusTriggerId,
+} from "./AnimalManageCard";
 import { AdoptDialog, DeleteDialog, type DialogResult, WithdrawDialog } from "./ListDialogs";
 import {
   type ActionFailure,
@@ -32,14 +39,15 @@ import {
   confirmedAtOf,
   filterChipsOf,
   listingAfter,
+  type Move,
   movedAnnouncementOf,
-  type RowAction,
   rowAfterMove,
   sameFilter,
   staleLineOf,
   totalOf,
   visibilityNoticeOf,
 } from "./list-model";
+import { type StatusMenuItem, toAnimalManageCard } from "./manage-card";
 
 /**
  * K2 · the shelter's animal list (KABINET K2; `docs/k2-copy-sheet.md`), built from the kit.
@@ -53,11 +61,13 @@ import {
  *   the stale cards (N5's «Показати ці N»), always the server's own filter
  *   (`shelter.animals.list`), never the loaded page filtered here, so a stale
  *   card on a later page is found too (P7).
- * - **Moves**: the forward action and «Ще» (sheet §4). «Уже вдома» and
- *   «Зняти з показу» confirm in N15's dialog; the others act on one tap. A
- *   move answers the animal, and its row changes in place (no move touches
- *   `lastUpdatedAt`, so none reorders the list, HS-T9); the counts and the
- *   strip are then read again.
+ * - **Moves** (the card spec, 2026-11-12): the status chip's menu holds what
+ *   the FSM allows (`manage-card.ts`). Reserve and release act at once with a
+ *   toast whose «Скасувати» runs the reverse move; «Уже вдома…» and «Зняти з
+ *   показу…» confirm in a dialog first. A moved card changes in place on «Усі»
+ *   and leaves a status tab it no longer belongs to (spec rule 3); no move
+ *   touches `lastUpdatedAt`, so none reorders the list (HS-T9). The counts and
+ *   the strip are then read again.
  * - **«Ще шукає» / «Ще домовляються»** (N4): one animal per tap, never all
  *   (commitment #7). For 8 seconds the cell reads «Підтверджено сьогодні» with
  *   «Скасувати · N с»; the server takes the undo for 13 (its slack), so a tap
@@ -74,7 +84,6 @@ import {
 
 const t = uk.kabinet.animalList;
 
-type Move = Exclude<RowAction, "deleteDraft" | "edit">;
 type Load = { kind: "idle" } | { kind: "loading" } | { kind: "failed" };
 type Notice = { kind: "status" | "alert"; text: string } | null;
 /** What a re-read after a lost answer found (`reread`). */
@@ -92,11 +101,11 @@ const CARD_DIDNT_LOAD = uk.kabinet.animalForm.errors.loadFailed;
 /** The re-read found no such card: his K3 not-found sentence, as for NOT_FOUND. */
 const NOT_FOUND = uk.kabinet.animalForm.errors.notFound;
 
-type Dialog =
-  | { kind: "adopt"; row: AnimalRow }
-  | { kind: "withdraw"; row: AnimalRow }
-  | { kind: "delete"; row: AnimalRow }
-  | null;
+/** `returnTo` is the id focus goes back to when the dialog closes (the control that opened it). */
+type Dialog = { kind: "adopt" | "withdraw" | "delete"; row: AnimalRow; returnTo: string } | null;
+
+/** How long the reserve/release toast offers its undo (the saved page's undo is 6 s too). */
+const MOVE_UNDO_MS = 6_000;
 
 /** A refusal in the screen's words; a lost answer is read again before it gets here. */
 const refusalOf = (failure: ActionFailure, otherwise: string): string => {
@@ -124,15 +133,7 @@ const refusalOf = (failure: ActionFailure, otherwise: string): string => {
   }
 };
 
-export function AnimalList({
-  shelter,
-  first,
-  viewer,
-  editing,
-  client = kabinetAnimalListBrowserClient,
-  clock = () => new Date(),
-  attention = null,
-}: {
+type AnimalListProps = {
   shelter: KabinetShelterView;
   first: AnimalListPageData;
   viewer: "admin" | "support";
@@ -141,7 +142,27 @@ export function AnimalList({
   clock?: () => Date;
   /** Server-rendered notices that govern everything below (rejected, suspended, pending), shown under the title. */
   attention?: ReactNode;
-}) {
+};
+
+/** The list inside the kit's toast region (the reserve/release undo and «Посилання скопійовано.»). */
+export function AnimalList(props: AnimalListProps) {
+  return (
+    <ToastProvider dismissLabel={uk.kabinet.profileEdit.pause.close} placement="above-nav">
+      <AnimalListBody {...props} />
+    </ToastProvider>
+  );
+}
+
+function AnimalListBody({
+  shelter,
+  first,
+  viewer,
+  editing,
+  client = kabinetAnimalListBrowserClient,
+  clock = () => new Date(),
+  attention = null,
+}: AnimalListProps) {
+  const toast = useToast();
   const editable = editing.kind === "open" && viewer === "admin";
   const [verification, setVerification] = useState(shelter.verification);
   const [filter, setFilter] = useState<KabinetAnimalListFilter>({ kind: "all" });
@@ -154,12 +175,15 @@ export function AnimalList({
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
   /** Animal id → when its «Підтверджено сьогодні» and undo stop showing (client clock, ms). */
   const [undoable, setUndoable] = useState<Readonly<Record<string, number>>>({});
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [openMenu, setOpenMenu] = useState<{ id: string; menu: CardMenu } | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [resuming, setResuming] = useState(false);
   const [, setTick] = useState(0);
   const loadRequest = useRef(0);
+  // Read by the toast's undo, which may run after the filter changed.
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
 
   const now = clock();
   const visibility = shelterVisibilityOf(verification.status, shelter.earlyListing);
@@ -190,10 +214,33 @@ export function AnimalList({
       return next;
     });
 
-  const replaceRow = (view: Parameters<typeof rowAfterMove>[1]) =>
-    setItems((rows) =>
-      rows.map((row) => (row.id === view.id ? rowAfterMove(row, view, clock()) : row)),
-    );
+  /** Whether a card of this kind stays under the current filter: a status tab keeps only its own. */
+  const belongs = (kind: ListingKind) => {
+    const current = filterRef.current;
+    return current.kind !== "listing" || current.listing === kind;
+  };
+
+  /**
+   * The card after a write: changed in place, or gone from a status tab it no longer belongs to
+   * (spec rule 3). `restore` puts a card an undo brings back where it was.
+   */
+  const placeRow = (
+    view: Parameters<typeof rowAfterMove>[1],
+    restore?: { row: AnimalRow; at: number },
+  ) =>
+    setItems((rows) => {
+      const index = rows.findIndex((row) => row.id === view.id);
+      if (!belongs(view.listing.kind)) {
+        return index === -1 ? rows : rows.filter((row) => row.id !== view.id);
+      }
+      if (index !== -1) {
+        return rows.map((row) => (row.id === view.id ? rowAfterMove(row, view, clock()) : row));
+      }
+      if (restore === undefined) return rows;
+      const next = [...rows];
+      next.splice(Math.min(restore.at, next.length), 0, rowAfterMove(restore.row, view, clock()));
+      return next;
+    });
 
   const forgetUndo = (animalId: string) =>
     setUndoable((current) => {
@@ -283,25 +330,29 @@ export function AnimalList({
   const reread = async (animalId: string): Promise<Reread> => {
     try {
       const view = await client.shelter.animals.byId({ animalId: animalId as AnimalRow["id"] });
-      replaceRow(view);
+      placeRow(view);
       return { kind: "found", view };
     } catch (error) {
       return actionFailureOf(error).kind === "not_found" ? { kind: "gone" } : { kind: "unknown" };
     }
   };
 
+  const announceInNotice = (text: string) => setNotice({ kind: "status", text });
+
   const runMove = async (
     row: AnimalRow,
     move: Move,
     event: Parameters<KabinetAnimalListClient["shelter"]["animals"]["transition"]>[0]["event"],
+    announce: (text: string) => void = announceInNotice,
+    restore?: { row: AnimalRow; at: number },
   ): Promise<DialogResult> => {
     setRowBusy(row.id, true);
     setNotice(null);
     try {
       const view = await client.shelter.animals.transition({ animalId: row.id, event });
-      replaceRow(view);
+      placeRow(view, restore);
       forgetUndo(row.id);
-      setNotice({ kind: "status", text: movedAnnouncementOf(move, row.name, visibility) });
+      announce(movedAnnouncementOf(move, row.name, visibility));
       void refreshCounts();
       return null;
     } catch (error) {
@@ -312,7 +363,7 @@ export function AnimalList({
       if (stored.kind === "gone") return NOT_FOUND;
       // Read back where it was: it didn't move, which «Не вдалося» says.
       if (stored.view.listing.kind !== listingAfter[move]) return t.errors.actionFailed;
-      setNotice({ kind: "status", text: movedAnnouncementOf(move, row.name, visibility) });
+      announce(movedAnnouncementOf(move, row.name, visibility));
       void refreshCounts();
       return null;
     } finally {
@@ -324,35 +375,64 @@ export function AnimalList({
     if (refusal !== null) setNotice({ kind: "alert", text: refusal });
   };
 
-  const onAction = (row: AnimalRow, action: Exclude<RowAction, "edit">) => {
+  /** Focus back on a card's control once what it started is done, or on the page title if the card left. */
+  const focusBack = (ids: readonly string[]) =>
+    requestAnimationFrame(() => {
+      const target = [...ids, "animal-list-title"]
+        .map((id) => document.getElementById(id))
+        .find((el) => el !== null);
+      target?.focus();
+    });
+
+  /** A status-menu move, run the way the FSM table says it runs (`MOVE_BEHAVIOUR`). */
+  const onMove = (row: AnimalRow, item: StatusMenuItem) => {
     if (!editable) return;
-    switch (action) {
-      case "adopt":
-        setDialog({ kind: "adopt", row });
+    const returnTo = statusTriggerId(row.id);
+    switch (item.kind) {
+      case "confirm_dialog":
+        setDialog({ kind: "adopt", row, returnTo });
         return;
-      case "withdraw":
-        setDialog({ kind: "withdraw", row });
+      case "reason_dialog":
+        setDialog({ kind: "withdraw", row, returnTo });
         return;
-      case "deleteDraft":
-        setDialog({ kind: "delete", row });
+      case "instant":
+        void runMove(row, item.event, { type: item.event }).then(alertOrNull);
         return;
-      case "publish":
-        void runMove(row, "publish", { type: "publish" }).then(alertOrNull);
+      case "undoable": {
+        const { undo } = item;
+        const at = items.findIndex((candidate) => candidate.id === row.id);
+        const undone = (text: string) => {
+          toast.show(text);
+          focusBack([statusTriggerId(row.id), nameLinkId(row.id)]);
+        };
+        const moved = (text: string) =>
+          toast.show(text, "info", {
+            durationMs: MOVE_UNDO_MS,
+            action: {
+              label: uk.kabinet.profileEdit.pause.cancel,
+              onAction: () => {
+                void runMove(row, undo, { type: undo }, undone, { row, at }).then(alertOrNull);
+              },
+            },
+          });
+        void runMove(row, item.event, { type: item.event }, moved).then(alertOrNull);
         return;
-      case "reserve":
-        void runMove(row, "reserve", { type: "reserve" }).then(alertOrNull);
-        return;
-      case "release":
-        void runMove(row, "release", { type: "release" }).then(alertOrNull);
-        return;
-      case "restore":
-        void runMove(row, "restore", { type: "restore_to_draft" }).then(alertOrNull);
-        return;
-      /* v8 ignore next 4 -- exists so the compiler rejects an unhandled action; unreachable at runtime */
+      }
+      /* v8 ignore next 4 -- exists so the compiler rejects an unhandled behaviour; unreachable at runtime */
       default: {
-        const unreachable: never = action;
+        const unreachable: never = item;
         return unreachable;
       }
+    }
+  };
+
+  const copyLink = async (href: string) => {
+    if (typeof navigator.clipboard?.writeText !== "function") return;
+    try {
+      await navigator.clipboard.writeText(new URL(href, window.location.origin).href);
+      toast.show(uk.detail.shareCopied, "success");
+    } catch {
+      // No clipboard permission or a non-secure context: nothing was copied, so nothing is said.
     }
   };
 
@@ -386,7 +466,7 @@ export function AnimalList({
     setNotice(null);
     try {
       const { animal } = await client.shelter.animals.confirm({ animalId: row.id });
-      replaceRow(animal);
+      placeRow(animal);
       setUndoable((current) => ({ ...current, [row.id]: clock().getTime() + UNDO_SHOWN_MS }));
       setNotice({ kind: "status", text: t.confirm.done });
       void refreshCounts();
@@ -422,7 +502,7 @@ export function AnimalList({
     setNotice(null);
     try {
       const view = await client.shelter.animals.undoConfirm({ animalId: row.id });
-      replaceRow(view);
+      placeRow(view);
       forgetUndo(row.id);
       setNotice({ kind: "status", text: t.confirm.undone });
       void refreshCounts();
@@ -482,20 +562,11 @@ export function AnimalList({
     }
   };
 
+  // Focus back where the dialog was opened from, then the card's name, then the page title.
   const closeDialog = () => {
-    const animalId = dialog?.row.id;
+    const opened = dialog;
     setDialog(null);
-    // Focus back where the dialog was opened from, or to the heading if that row is gone.
-    requestAnimationFrame(() => {
-      // Two triggers exist (phone corner, tablet+ row); the displayed one has a layout box.
-      const shown = (
-        animalId !== undefined ? [moreButtonPhoneId(animalId), moreButtonId(animalId)] : []
-      )
-        .map((triggerId) => document.getElementById(triggerId))
-        .find((el) => el !== null && el.getClientRects().length > 0);
-      const target = shown ?? document.getElementById("animal-list-title");
-      target?.focus();
-    });
+    if (opened !== null) focusBack([opened.returnTo, nameLinkId(opened.row.id)]);
   };
 
   const undoSecondsOf = (animalId: string): number | null => {
@@ -517,8 +588,12 @@ export function AnimalList({
       {t.stale.showAll}
     </Button>
   ) : (
-    <Button variant="secondary" onClick={() => void loadFirst({ kind: "stale" })}>
-      {fillTemplate(t.stale.show, { count: String(staleCount) })}
+    <Button
+      variant="ghost"
+      aria-describedby="animal-list-stale"
+      onClick={() => void loadFirst({ kind: "stale" })}
+    >
+      {t.filter.label}
     </Button>
   );
 
@@ -620,15 +695,20 @@ export function AnimalList({
               <Panel
                 as="section"
                 tone="sunken"
-                padding="lg"
+                padding="md"
                 aria-labelledby="animal-list-stale"
-                className="flex flex-col items-start gap-3"
+                className="flex flex-col items-start gap-1"
               >
-                <Text look="label" id="animal-list-stale">
-                  {staleLineOf(staleCount)}
-                </Text>
+                <div className="flex flex-wrap items-center gap-x-2">
+                  <Text look="label" id="animal-list-stale">
+                    {staleLineOf(staleCount)}
+                  </Text>
+                  <span aria-hidden="true" className="text-label text-ink-2">
+                    ·
+                  </span>
+                  {staleButton}
+                </div>
                 {shown ? <Text look="hint">{t.stale.caption}</Text> : null}
-                {staleButton}
               </Panel>
             ) : (
               <div className="flex">{staleButton}</div>
@@ -680,20 +760,28 @@ export function AnimalList({
             ) : items.length === 0 ? (
               <Text look="body">{t.filterEmpty}</Text>
             ) : (
-              <ul className="flex flex-col gap-3">
+              <ul className="grid grid-cols-cards gap-gutter">
                 {items.map((row) => (
-                  <AnimalListRow
+                  <AnimalManageCard
                     key={row.id}
-                    row={row}
-                    now={now}
+                    card={toAnimalManageCard(row, now)}
                     editable={editable}
                     busy={busy.has(row.id)}
                     undoSeconds={undoSecondsOf(row.id)}
-                    menuOpen={openMenu === row.id}
-                    onToggleMenu={(open) => setOpenMenu(open ? row.id : null)}
-                    onAction={(action) => onAction(row, action)}
+                    openMenu={openMenu?.id === row.id ? openMenu.menu : null}
+                    onOpenMenu={(menu) => setOpenMenu(menu === null ? null : { id: row.id, menu })}
+                    onMove={(item) => onMove(row, item)}
+                    onPublish={() => {
+                      if (editable)
+                        void runMove(row, "publish", { type: "publish" }).then(alertOrNull);
+                    }}
                     onConfirm={() => void confirm(row)}
                     onUndo={() => void undo(row)}
+                    onDelete={() => {
+                      if (editable)
+                        setDialog({ kind: "delete", row, returnTo: moreTriggerId(row.id) });
+                    }}
+                    onCopyLink={(href) => void copyLink(href)}
                   />
                 ))}
               </ul>
