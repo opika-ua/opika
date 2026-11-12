@@ -28,12 +28,16 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createDatabase } from "@opika/db";
-import { animalRepo, kabinetInvitationRepo } from "@opika/db/repos";
+import { animalRepo, kabinetInvitationRepo, photoSourcesRepo } from "@opika/db/repos";
 import { animals, authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
-import type { AnimalId, CityId } from "@opika/domain";
+import type { AnimalId, CityId, PhotoFraming } from "@opika/domain";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { R2_PUBLIC_BASE_URL } from "../harness-env";
 import { expectToastClearOfBottomBars } from "./bottom-bars";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
@@ -41,6 +45,19 @@ const FORWARDED_FOR = "198.51.100.36";
 test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" });
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
+
+/** A fictional seed photo, served as every CDN object in the crop test: the harness never reaches R2. */
+const SEED_PHOTO = readFileSync(
+  resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+    "public",
+    "seed-photos",
+    "dog-1.jpg",
+  ),
+);
+const SEED_PHOTO_SIZE = { width: 1024, height: 768 };
 
 /** K-Q2: the longest side the device sends. Transcribed, not imported, so a change there fails here. */
 const MAX_EDGE_PX = 2000;
@@ -548,5 +565,93 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await expect.poll(() => reorders.length).toBe(2);
     expect(page.url()).toBe(url);
     await page.close();
+  });
+
+  // Sentry WEB-2 (React #185): reopening a cropped photo looped the cropper and took the page down.
+  test("crop from the pill, save, then crop the same photo again: the dialog opens, settles and saves the same frame", async () => {
+    if (draftId === undefined || context === undefined) throw new Error("no draft or no sign-in");
+    const id = draftId;
+    /** The draft's one photo under `storageKey`, with its kept source and `framing`: the crop write's rows. */
+    const storePhoto = async (storageKey: string, framing: PhotoFraming) => {
+      const draft = await animalRepo(db).findById(id);
+      const row = (await db.select({ id: animals.id, cityId: animals.cityId }).from(animals)).find(
+        (candidate) => candidate.id === id,
+      );
+      if (draft === null || row === undefined) throw new Error("the draft isn't stored");
+      await animalRepo(db).update(
+        { ...draft, photos: [{ storageKey, width: 1600, height: 2000, alt: null }] },
+        row.cityId as CityId,
+      );
+      const source = {
+        storageKey,
+        sourceObjectKey: `${storageKey}/source-${randomUUID()}.webp`,
+        origin: "upload" as const,
+        ...SEED_PHOTO_SIZE,
+        framing,
+      };
+      expect(await photoSourcesRepo(db).insertForAnimal(id, [source], new Date())).toBe(1);
+    };
+    await storePhoto(`animals/${id}/${randomUUID()}`, { kind: "attention" });
+
+    const page = await context.newPage();
+    const loops: string[] = [];
+    page.on("pageerror", (error) => loops.push(error.message));
+    page.on("console", (message) => {
+      if (/Maximum update depth|errors\/185/.test(message.text())) loops.push(message.text());
+    });
+    await page.route(`${R2_PUBLIC_BASE_URL}/**`, (route) =>
+      route.fulfill({ body: SEED_PHOTO, contentType: "image/jpeg" }),
+    );
+    // Uploads are off here: the crop is answered as the server would, the photo under a new key
+    // with the frame sent, read back by `byId`.
+    const framings: PhotoFraming[] = [];
+    await page.route("**/api/kabinet/shelter/photos/crop", async (route) => {
+      const { framing } = (route.request().postDataJSON() as { json: { framing: PhotoFraming } })
+        .json;
+      framings.push(framing);
+      await storePhoto(`animals/${id}/${randomUUID()}`, framing);
+      const response = await route.fetch({
+        url: route.request().url().replace("/shelter/photos/crop", "/shelter/animals/byId"),
+        postData: JSON.stringify({ json: { animalId: id } }),
+      });
+      await route.fulfill({ response });
+    });
+
+    try {
+      expect((await page.goto(`/kabinet/tvaryny/${id}`))?.status()).toBe(200);
+      await openTab(page, /^Фото/);
+      const cropButton = page.getByRole("button", { name: "Обрізати фото 1" });
+      const dialog = page.getByRole("dialog", { name: "Обрізати фото 1" });
+      const area = dialog.getByRole("application", { name: "Рамка кадру. Стрілки зсувають фото." });
+      const save = dialog.getByRole("button", { name: "Зберегти кадр" });
+
+      // The first crop: the automatic frame, saved as shown.
+      await cropButton.click();
+      await expect(area).toBeVisible();
+      await expect(save).not.toHaveAttribute("aria-disabled", "true");
+      await save.click();
+      await expect(dialog).toBeHidden();
+      await expect(page.getByText("Кадр збережено.")).toBeVisible();
+
+      // The same photo again, now with its stored frame: it opens and takes a keypress.
+      await cropButton.click();
+      await expect(area).toBeVisible();
+      await area.press("ArrowLeft");
+      await expect(area).toBeVisible();
+      await expect(save).not.toHaveAttribute("aria-disabled", "true");
+      await expect(page.getByTestId("global-error")).toHaveCount(0);
+      expect(loops).toEqual([]);
+
+      // It opened where it was left: moved back, it saves the stored frame again.
+      await area.press("ArrowRight");
+      await save.click();
+      await expect(dialog).toBeHidden();
+      expect(framings).toHaveLength(2);
+      expect(framings[1]).toEqual(framings[0]);
+      expect(loops).toEqual([]);
+    } finally {
+      await page.close();
+      await withThreePhotos();
+    }
   });
 });

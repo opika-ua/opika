@@ -1,7 +1,7 @@
 import type { KabinetAnimalView, KabinetPhotoCropView } from "@opika/contracts";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createElement, useEffect, useState } from "react";
+import { createElement, useEffect, useLayoutEffect, useState } from "react";
 import type { CropperProps } from "react-easy-crop";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
@@ -16,6 +16,13 @@ const easyCrop = vi.hoisted(() => ({
   imported: 0,
   natural: { width: 2000, height: 1125 },
   zoom: [] as number[],
+  // Throws in the commit, as the real one's update loop did (React #185).
+  throws: false,
+}));
+const reported = vi.hoisted(() => [] as unknown[]);
+
+vi.mock("../../../observability/load-client", () => ({
+  reportClientError: (error: unknown) => reported.push(error),
 }));
 
 vi.mock("react-easy-crop", () => {
@@ -31,6 +38,9 @@ vi.mock("react-easy-crop", () => {
   }: CropperProps) {
     easyCrop.zoom.push(zoom);
     const { width, height } = easyCrop.natural;
+    useLayoutEffect(() => {
+      if (easyCrop.throws) throw new Error("the cropper failed");
+    });
     useEffect(() => {
       onMediaLoaded?.({ width, height, naturalWidth: width, naturalHeight: height });
     }, []);
@@ -165,6 +175,8 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", BASE);
   easyCrop.natural = { width: 2000, height: 1125 };
   easyCrop.zoom = [];
+  easyCrop.throws = false;
+  reported.length = 0;
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -308,6 +320,30 @@ describe("the dialog", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Спробувати ще раз" }));
     expect(await cropArea()).toBeTruthy();
     expect(within(dialog).queryByText("Не вдалося відкрити фото. Спробуйте ще раз.")).toBeNull();
+  });
+});
+
+describe("a cropper that fails", () => {
+  it("ends in its own dialog with the load sentence, is reported, and the photo manager stays", async () => {
+    easyCrop.throws = true;
+    setup();
+    await userEvent.click(cropButton(1));
+    const dialog = await screen.findByRole("dialog", { name: "Обрізати фото 1" });
+    expect(
+      await within(dialog).findByText("Не вдалося відкрити фото. Спробуйте ще раз."),
+    ).toBeTruthy();
+    expect(within(dialog).queryByRole("application")).toBeNull();
+    expect(reported).toEqual([new Error("the cropper failed")]);
+    // The page is still up: every photo and its pill.
+    expect(screen.getByRole("group", { name: "Фото 1 з 2" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Фото 2 з 2" })).toBeTruthy();
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Закрити" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // «Обрізати» again is a fresh dialog.
+    easyCrop.throws = false;
+    await openCrop(1);
+    expect(await cropArea()).toBeTruthy();
   });
 });
 
