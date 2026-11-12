@@ -5,11 +5,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestHarness, type TestHarness } from "./test-harness";
 
 /**
- * Crop frame, the owner's condition 1: a photo's kept source sits in the public bucket under an
- * unguessable key, so that key must reach no public API response. Every public procedure that
- * carries an animal or its photo is called on an animal whose photos all have a kept source, and
- * the wire text is searched for the source keys and for the name every source has.
- * `photo-storage-key-scan.test.ts` holds the same line on the schemas.
+ * Crop frame, owner's condition 1: no public response carries a kept source's key. Each public
+ * procedure with an animal or photo, wire text searched (the schemas: `photo-storage-key-scan`).
  */
 let h: TestHarness;
 beforeAll(async () => {

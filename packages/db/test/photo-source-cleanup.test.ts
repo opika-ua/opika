@@ -41,10 +41,8 @@ import {
 } from "../src/test-utils/index";
 
 /**
- * Crop frame, the owner's condition 3: a photo's kept source goes with the photo, the animal and
- * a shelter leaving. Nothing deletes it but the clean-up job, so each path is run end to end here:
- * the photo's objects as `storePhoto` writes them, the path, then the job on day 0 (it tracks) and
- * day 8 (it deletes). The source must be deleted exactly when its photo's variants are.
+ * Crop frame, owner's condition 3: a kept source is deleted exactly when its photo's variants are.
+ * Each path end to end: `storePhoto`'s objects, the path, the clean-up on day 0 and day 8.
  */
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
 let cleanup: () => Promise<void>;
@@ -277,8 +275,8 @@ describe("a photo's source goes with its photo, through the clean-up job only (c
   });
 
   /**
-   * The owner's /pro promise: an admin's erasure removes the person, not the shelter's photos. The
-   * source names no one, stays with its photo, and goes with it once the photo itself is removed.
+   * Condition 3's erasure path: it removes the account, not the shelter's photos. The source names
+   * no one, so it stays with its photo and goes when the photo is removed (/pro: «разом із фото»).
    */
   it("admin erasure: the account goes; the photo's six objects and its source row stay, naming no one, until the photo is removed", async () => {
     const store = bucket();

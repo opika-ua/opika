@@ -653,7 +653,7 @@ describe("demo:remove --shelter: exactly these shelters", () => {
     expect(plan.photoObjectKeys).toContain("animals/photo-animal/0/compact.webp");
     const printed = formatPlan(plan, "Would delete");
     expect(printed).toContain(
-      `R2 photo objects of these animals: ${2 * IMAGE_VARIANT_NAMES.length} (left in R2, unlinked; delete by hand in Cloudflare if wanted)`,
+      `R2 photo objects of these animals: ${2 * IMAGE_VARIANT_NAMES.length} (unlinked; the clean-up job deletes them after the 7-day grace period)`,
     );
     expect(printed).toContain("  animals/photo-animal/1/detail.webp");
     expect(printed.join("\n")).not.toContain("seed-photos");
@@ -661,7 +661,7 @@ describe("demo:remove --shelter: exactly these shelters", () => {
     // A target with no real photo still says so; a seed-range run prints no photo section at all.
     const bare = await planDemoRemoval(db, testKey, shelterTarget(f.testB.id));
     expect(formatPlan(bare, "Would delete")).toContain(
-      "R2 photo objects of these animals: 0 (left in R2, unlinked; delete by hand in Cloudflare if wanted)",
+      "R2 photo objects of these animals: 0 (unlinked; the clean-up job deletes them after the 7-day grace period)",
     );
     const demo = await planDemoRemoval(db, testKey, DEMO_RANGE);
     expect(formatPlan(demo, "Would delete").join("\n")).not.toContain("R2 photo objects");

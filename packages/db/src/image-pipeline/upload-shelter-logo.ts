@@ -2,10 +2,8 @@ import type { ImageStorageClient } from "./r2-client";
 import { LOGO_VARIANT_NAMES, type LogoVariantName, variantObjectKey } from "./variants";
 
 /**
- * Puts one logo's two variants under its storage key - the logo's own
- * `storePhoto` (pet card PR 3b), separate because the variant set
- * differs (`LOGO_VARIANT_NAMES`, not `IMAGE_VARIANT_NAMES`); the shape of the
- * loop is otherwise identical.
+ * Puts one logo's two variants under its storage key (pet card PR 3b): the logo's counterpart of
+ * `storePhoto`, with its own variant set and no kept source, since a logo is never cropped.
  */
 export async function storeLogoVariants(
   storage: ImageStorageClient,
