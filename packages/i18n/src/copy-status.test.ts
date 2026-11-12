@@ -526,15 +526,28 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
           leafPaths(child, `${prefix}.${key}`),
         );
 
+  /** Proposed 2026-11-12 from the owner's wording (LiqPay checkout sessions); awaiting his approval in the PR. */
+  const LIQPAY_SESSION_SHELTER_COPY: Record<string, string> = {
+    "profileEdit.errors.donationCheckoutSession":
+      "Це одноразова сторінка оплати, вона перестане працювати. Додайте постійне посилання: сторінку збору на вашому сайті або банку в monobank.",
+  };
+
   it("profileEdit holds exactly his keys, no more and no fewer", () => {
     // P6-Q8 (Oleksii, verbatim: "Q8 / 0.3b: delete `refused_until_edit_screens`,
     // `SHELTER_WRITES_NOT_YET_AVAILABLE` and `profileEdit.errors.notAvailable`.").
     expect(Object.keys(uk.kabinet.profileEdit.errors)).not.toContain("notAvailable");
     expect(leafPaths(uk.kabinet.profileEdit, "profileEdit").sort()).toEqual(
-      Object.keys(K4_FINAL)
+      [...Object.keys(K4_FINAL), ...Object.keys(LIQPAY_SESSION_SHELTER_COPY)]
         .filter((path) => path.startsWith("profileEdit."))
         .sort(),
     );
+  });
+
+  it.each(Object.entries(LIQPAY_SESSION_SHELTER_COPY))("%s is the proposed text", (path, text) => {
+    const value = path
+      .split(".")
+      .reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], uk.kabinet);
+    expect(value).toBe(text);
   });
 
   it("has no placeholder under profileEdit", () => {
@@ -1015,6 +1028,15 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.donation.approveHintInitiative":
       "Перевірте, що власник рахунку – контактна особа ініціативи",
   };
+  /** Proposed 2026-11-12 (LiqPay checkout sessions); awaiting the owner's approval in the PR. */
+  const LIQPAY_SESSION_OPERATOR_COPY: Record<string, string> = {
+    "operator.donation.cannotApprove.userinfo":
+      "Схвалити не можна: у посиланні є імʼя чи пароль перед адресою сайту.",
+    "operator.donation.cannotApprove.idn":
+      "Схвалити не можна: в адресі сайту є кириличні літери або «xn--».",
+    "operator.donation.cannotApprove.checkout_session":
+      "Схвалити не можна: це одноразова сторінка оплати LiqPay, вона перестане працювати.",
+  };
   /** Owner-approved 2026-11-06 (donation link safety: copy table N1–N14, N18, and the approvals file). */
   const DONATION_SAFETY_OPERATOR_COPY: Record<string, string> = {
     "operator.history.donation_removed": "Посилання на збір прибрано: {host}. {code}. {note}",
@@ -1093,6 +1115,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(SITTING2_FOLLOWUP_COPY),
         ...Object.keys(EARLY_LISTING_OPERATOR_COPY),
         ...Object.keys(DONATION_SAFETY_OPERATOR_COPY),
+        ...Object.keys(LIQPAY_SESSION_OPERATOR_COPY),
         ...Object.keys(VERIFIED_DATA_EDIT_COPY),
         ...Object.keys(MINIMAL_CREATE_COPY).filter((path) => path.startsWith("operator.")),
       ].sort(),
@@ -1128,6 +1151,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 
   it.each(Object.entries(VERIFIED_DATA_EDIT_COPY))("%s is the owner-given text", (path, text) => {
+    expect(valueAt(path)).toBe(text);
+  });
+
+  it.each(Object.entries(LIQPAY_SESSION_OPERATOR_COPY))("%s is the proposed text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
 
@@ -1604,8 +1631,8 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
     // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
-    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field; 103 with the channel cap's message; 94 since the shelter description replaced the sentence editor (five error messages and six voice strings went, aboutTooLong and about.hint came).
-    expect(k4.length).toBe(94);
+    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field; 103 with the channel cap's message; 94 since the shelter description replaced the sentence editor (five error messages and six voice strings went, aboutTooLong and about.hint came); 95 with the LiqPay checkout-session error.
+    expect(k4.length).toBe(95);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });
