@@ -79,6 +79,30 @@ describe("cardFactsParts", () => {
     expect(cardFactsParts(card)).toEqual(["Дорослий", "великий"]);
   });
 
+  it("a declared range's span takes the age slot: «3–4 роки», «10+ років», «До 1 року»", () => {
+    expect(
+      cardFactsParts(
+        makeCard({ ageBucket: "adult", ageSpan: { kind: "between", from: 3, to: 4 } }),
+      ),
+    ).toEqual(["Хлопчик", "3–4 роки", "малий"]);
+    expect(
+      cardFactsParts(makeCard({ ageBucket: "senior", ageSpan: { kind: "at_least", from: 10 } })),
+    ).toEqual(["Хлопчик", "10+ років", "малий"]);
+    expect(
+      cardFactsParts(
+        makeCard({ sex: "unknown", ageBucket: "baby", ageSpan: { kind: "under_one" } }),
+      ),
+    ).toEqual(["До 1 року", "малий"]);
+  });
+
+  it("a null span keeps today's bucket word (a birth date, a stored bucket)", () => {
+    expect(cardFactsParts(makeCard({ sex: "male", ageBucket: "young", ageSpan: null }))).toEqual([
+      "Хлопчик",
+      "молодий",
+      "малий",
+    ]);
+  });
+
   it("never mentions the city - city stays in the accessible name only", () => {
     const card = makeCard({
       publicLocation: { cityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as never },

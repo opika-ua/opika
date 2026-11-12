@@ -329,6 +329,13 @@ export const en = {
     fosteredHousing: "in foster care, {place}",
     sexMale: "boy",
     sexFemale: "girl",
+    ageUnderOneYear: "under 1 year",
+    ageYearsBetween: {
+      one: "{from}–{count} years",
+      few: "{from}–{count} years",
+      many: "{from}–{count} years",
+    },
+    ageYearsAtLeast: "{from}+ years",
   },
 
   // --- The pet card's temperament (English drafts; see the uk keys) ---

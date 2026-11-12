@@ -59,6 +59,7 @@ const shelterSummary = {
 
 const derived = {
   ageBucket: "young",
+  ageSpan: null,
   freshness: freshnessOf(AT, AT, DEFAULT_FRESHNESS_POLICY),
   listingKind: "published" as const,
   availability: { kind: "open" as const },
@@ -82,6 +83,7 @@ describe("animal views expose exactly their intended fields", () => {
 
     expect(Object.keys(parsed).sort()).toEqual([
       "ageBucket",
+      "ageSpan",
       "coatLength",
       "freshness",
       "id",
@@ -105,6 +107,7 @@ describe("animal views expose exactly their intended fields", () => {
 
     expect(Object.keys(parsed).sort()).toEqual([
       "ageBucket",
+      "ageSpan",
       "availability",
       "coatLength",
       "colour",
@@ -240,6 +243,28 @@ describe("animal views expose exactly their intended fields", () => {
       expect(parsed).not.toHaveProperty("createdAt");
       expect(parsed).not.toHaveProperty("listing");
       expect(parsed).not.toHaveProperty("shelterId");
+    }
+  });
+
+  it("carries a declared range as numbers aged to today, every span kind and null", () => {
+    for (const ageSpan of [
+      null,
+      { kind: "under_one" },
+      { kind: "between", from: 3, to: 4 },
+      { kind: "at_least", from: 12 },
+    ]) {
+      const input = { ...animal, ...derived, ageSpan, primaryPhoto: null, shelter: shelterSummary };
+      expect(FeedCardViewSchema.parse(input).ageSpan).toEqual(ageSpan);
+      expect(AnimalDetailViewSchema.parse(input).ageSpan).toEqual(ageSpan);
+    }
+    // A single year count is no span (owner, 2026-11-12: always a range); nor is text.
+    for (const ageSpan of [
+      { kind: "about", years: 2 },
+      { kind: "between", from: 3.5, to: 4 },
+      "3–4 роки",
+    ]) {
+      const input = { ...animal, ...derived, ageSpan, primaryPhoto: null, shelter: shelterSummary };
+      expect(FeedCardViewSchema.safeParse(input).success, JSON.stringify(ageSpan)).toBe(false);
     }
   });
 });

@@ -794,6 +794,17 @@ export const ukPublic = {
      */
     sexMale: "Хлопчик",
     sexFemale: "Дівчинка",
+    /**
+     * A declared age range, aged to today (Oleksii, 2026-11-12, S1, S3, S4). Always a range,
+     * with no «≈»: a range already says "about". The years noun agrees with the upper number.
+     */
+    ageUnderOneYear: "до 1 року",
+    ageYearsBetween: {
+      one: "{from}–{count} рік",
+      few: "{from}–{count} роки",
+      many: "{from}–{count} років",
+    },
+    ageYearsAtLeast: "{from}+ років",
   },
 
   // --- The pet card's temperament: chips, kabinet checkboxes, filter options ---

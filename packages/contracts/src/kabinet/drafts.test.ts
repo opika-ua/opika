@@ -217,6 +217,22 @@ describe("AgeEstimateInputSchema (D3: the chosen «Станом на» date is k
       expect(AgeEstimateInputSchema.safeParse(value).success, JSON.stringify(value)).toBe(false);
     }
   });
+
+  it("takes a declared range as of a date, unchanged by the parse", () => {
+    const input = { kind: "declared_range", range: "3_4", asOf: "2026-10-01" };
+    expect(AgeEstimateInputSchema.parse(input)).toEqual(input);
+  });
+
+  it("refuses a range with an extra key, an unknown range or no «as of»", () => {
+    for (const value of [
+      { kind: "declared_range", range: "3_4", asOf: "2026-10-01", declaredAt: AT },
+      { kind: "declared_range", range: "3_4", asOf: "2026-10-01", bucket: "adult" },
+      { kind: "declared_range", range: "2_3", asOf: "2026-10-01" },
+      { kind: "declared_range", range: "3_4" },
+    ]) {
+      expect(AgeEstimateInputSchema.safeParse(value).success, JSON.stringify(value)).toBe(false);
+    }
+  });
 });
 
 describe("the kabinet animal views are the union (T2)", () => {
@@ -239,6 +255,18 @@ describe("the kabinet animal views are the union (T2)", () => {
     expect(
       KabinetAnimalViewSchema.safeParse({ ...draftView, ...facts, listing: published }).success,
     ).toBe(true);
+  });
+
+  it("carry a declared range as stored, the published view and a draft alike", () => {
+    const age = { kind: "declared_range", range: "5_7", declaredAt: AT };
+    const parsed = KabinetAnimalViewSchema.parse({
+      ...draftView,
+      ...facts,
+      age,
+      listing: published,
+    });
+    expect(parsed.age).toEqual(age);
+    expect(KabinetAnimalViewSchema.safeParse({ ...draftView, age }).success).toBe(true);
   });
 
   it("a published animal's temperament, colour and medical note may be unrecorded", () => {
@@ -279,6 +307,7 @@ describe("the public views pick from ListedAnimalSchema", () => {
     size: "small",
     publicLocation: null,
     ageBucket: "young",
+    ageSpan: null,
     freshness,
     primaryPhoto: null,
     shelter,

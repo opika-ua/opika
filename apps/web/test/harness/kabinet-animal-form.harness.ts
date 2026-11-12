@@ -234,11 +234,12 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     });
     await page.getByRole("group", { name: "Стать" }).getByText("Хлопчик").click();
     await page.getByRole("group", { name: "Розмір" }).getByText("Середній").click();
+    // A new animal's age is one of the six ranges (owner, 2026-11-12), «Станом на» today.
     await page
       .getByRole("group", { name: "Вік на ту дату" })
-      .getByText(/^Молодий/)
+      .getByText("1–2 роки", { exact: true })
       .click();
-    await expect(page.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeVisible();
+    await expect(page.getByText("Ті, хто шукає тварину, побачать: «1–2 роки».")).toBeVisible();
     // Switching tabs keeps what was chosen on the first one.
     await openTab(page, /^Про тварину/);
     await page.getByLabel(/^Опис/).fill("Спокійний, любить гуляти в парку.");

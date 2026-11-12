@@ -1128,6 +1128,73 @@ describe("galleryRepo.facetCounts", () => {
   });
 });
 
+/**
+ * Age as a declared range (owner, 2026-11-12): no new column. The range lives in the age JSONB
+ * and the filter reads `age_anchor_at`, the range's lower bound back from its date.
+ */
+describe("a declared range", () => {
+  const TWO_YEARS_ON = new Date(NOW.getTime() + 2 * 365.2425 * 86_400_000);
+  const RANGES = ["1_2", "3_4", "5_7"] as const;
+
+  async function seedRanges() {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = await makeShelterInCity(city.id);
+    const animals = RANGES.map((range) =>
+      makeAnimal({
+        shelterId: shelter.id,
+        name: range,
+        age: { kind: "declared_range", range, declaredAt: NOW },
+      }),
+    );
+    await animalRepo(db).insertMany(animals.map((animal) => ({ animal, cityId: city.id })));
+    return animals;
+  }
+
+  const namesAged = async (age: "baby" | "young" | "adult" | "senior", now: Date) =>
+    (
+      await galleryRepo(db).list({
+        filters: { ...NO_FILTERS, ages: { kind: "oneOf", values: [age] } },
+        scope: EVERYONE_SCOPE,
+        sort: "freshest",
+        page: 1,
+        pageSize: 10,
+        now,
+      })
+    ).items
+      .map((animal) => animal.name)
+      .sort();
+
+  it("round-trips through the age column, its date read back as a Date", async () => {
+    const [first] = await seedRanges();
+    const stored = await animalRepo(db).findById((first as Animal).id);
+    expect(stored?.age).toEqual({ kind: "declared_range", range: "1_2", declaredAt: NOW });
+    expect(stored?.age?.kind === "declared_range" && stored.age.declaredAt instanceof Date).toBe(
+      true,
+    );
+  });
+
+  it("the age filter finds a range by its lower bound: «adult» holds 3–4 and 5–7, and 1–2 two years on", async () => {
+    await seedRanges();
+    expect(await namesAged("young", NOW)).toEqual(["1_2"]);
+    expect(await namesAged("adult", NOW)).toEqual(["3_4", "5_7"]);
+    expect(await namesAged("young", TWO_YEARS_ON)).toEqual([]);
+    expect(await namesAged("adult", TWO_YEARS_ON)).toEqual(["1_2", "3_4", "5_7"]);
+  });
+
+  it("the facet counts equal what the list finds, today and two years on", async () => {
+    await seedRanges();
+    for (const now of [NOW, TWO_YEARS_ON]) {
+      const counts = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now });
+      for (const age of ["baby", "young", "adult", "senior"] as const) {
+        expect(counts.ages[age], `${age} at ${now.toISOString()}`).toBe(
+          (await namesAged(age, now)).length,
+        );
+      }
+    }
+  });
+});
+
 describe("galleryRepo.neighbours", () => {
   it.each<GallerySort>(["freshest", "longest_waiting"])(
     "walks in exactly %s's own list order, with null at both ends",

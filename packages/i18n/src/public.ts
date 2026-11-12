@@ -5,6 +5,7 @@
  */
 export {
   ageBucketLabel,
+  ageSpanLabel,
   ageWordFor,
   animalFactsParts,
   sexWordFor,

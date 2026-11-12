@@ -241,18 +241,33 @@ function declared<T extends VaccinationStatus | SpayNeuterStatus>(
  * The date is the shelter's knowledge, not the save time: «Коли ви це
  * оцінили. Зазвичай - день, коли тварина потрапила до притулку.»
  */
-const ageOfInput = (input: AgeEstimateInput, now: Date): AgeEstimate =>
-  input.kind === "birth_date"
-    ? { kind: "birth_date", date: instantOfCalendarDate(input.date), precision: "day" }
-    : {
+const ageOfInput = (input: AgeEstimateInput, now: Date): AgeEstimate => {
+  switch (input.kind) {
+    case "birth_date":
+      return { kind: "birth_date", date: instantOfCalendarDate(input.date), precision: "day" };
+    case "declared_bucket":
+      return {
         kind: "declared_bucket",
         bucket: input.bucket,
         declaredAt: declaredAtOfCalendarDate(input.asOf, now),
       };
+    case "declared_range":
+      return {
+        kind: "declared_range",
+        range: input.range,
+        declaredAt: declaredAtOfCalendarDate(input.asOf, now),
+      };
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = input;
+      return unreachable;
+    }
+  }
+};
 
 /**
  * Whether the input names exactly the stored age, compared as the form shows
- * it: the same kind, the same bucket and the same calendar date (Kyiv), the
+ * it: the same kind, bucket or range, and calendar date (Kyiv), the
  * way `declared` keeps a medical fact's `declaredAt`. A form that re-sends an
  * unchanged age must not restamp it: a legacy bucket stamped at save time, or
  * a birth date stored at month precision, would otherwise be rewritten by a
@@ -264,6 +279,9 @@ const sameAge = (current: AgeEstimate, input: AgeEstimateInput): boolean => {
   }
   if (current.kind === "declared_bucket" && input.kind === "declared_bucket") {
     return current.bucket === input.bucket && kyivCalendarDateOf(current.declaredAt) === input.asOf;
+  }
+  if (current.kind === "declared_range" && input.kind === "declared_range") {
+    return current.range === input.range && kyivCalendarDateOf(current.declaredAt) === input.asOf;
   }
   return false;
 };

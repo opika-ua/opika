@@ -1,7 +1,8 @@
-import { AGE_BUCKETS, SIZE_BUCKETS } from "@opika/domain";
+import { AGE_BUCKETS, type AgeSpan, SIZE_BUCKETS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
   ageBucketLabel,
+  ageSpanLabel,
   ageWordFor,
   animalFactsParts,
   sexWordFor,
@@ -103,6 +104,94 @@ describe("animalFactsParts", () => {
       "малий",
     ]);
     expect(animalFactsParts(facts)).toEqual(["Кіт", "дорослий", "малий"]);
+  });
+});
+
+/**
+ * Age as a declared range (Oleksii, 2026-11-12: S1, S3, S4; no «≈», always a range), his words
+ * transcribed, never read from the catalogue. The noun agrees with the upper number: the 1, 2,
+ * 5, 11, 21, 22 plural boundaries; a range takes an en dash (U+2013).
+ */
+describe("a declared range's words", () => {
+  it.each([
+    [1, 2, "1–2 роки"],
+    [2, 3, "2–3 роки"],
+    [4, 5, "4–5 років"],
+    [9, 11, "9–11 років"],
+    [10, 11, "10–11 років"],
+    [20, 21, "20–21 рік"],
+    [19, 21, "19–21 рік"],
+    [21, 22, "21–22 роки"],
+  ])("between %i and %i → «%s»", (from, to, text) => {
+    expect(ageSpanLabel({ kind: "between", from, to })).toBe(text);
+  });
+
+  it("the open end and the first year", () => {
+    expect(ageSpanLabel({ kind: "at_least", from: 10 })).toBe("10+ років");
+    expect(ageSpanLabel({ kind: "at_least", from: 12 })).toBe("12+ років");
+    expect(ageSpanLabel({ kind: "at_least", from: 21 })).toBe("21+ років");
+    expect(ageSpanLabel({ kind: "under_one" })).toBe("до 1 року");
+  });
+
+  it("no «≈», no no-break space, and an en dash, never a hyphen or an em dash", () => {
+    const spans: AgeSpan[] = [
+      { kind: "under_one" },
+      { kind: "between", from: 3, to: 4 },
+      { kind: "at_least", from: 10 },
+    ];
+    for (const span of spans) expect(ageSpanLabel(span)).not.toMatch(/[\u2248\u00A0\u2014-]/);
+    expect(ageSpanLabel({ kind: "between", from: 3, to: 4 })).toContain("3\u20134");
+  });
+
+  it("K3's six chips are the declared spans at the declared date", () => {
+    const chips: AgeSpan[] = [
+      { kind: "under_one" },
+      { kind: "between", from: 1, to: 2 },
+      { kind: "between", from: 3, to: 4 },
+      { kind: "between", from: 5, to: 7 },
+      { kind: "between", from: 8, to: 10 },
+      { kind: "at_least", from: 10 },
+    ];
+    expect(chips.map(ageSpanLabel)).toEqual([
+      "до 1 року",
+      "1–2 роки",
+      "3–4 роки",
+      "5–7 років",
+      "8–10 років",
+      "10+ років",
+    ]);
+  });
+
+  it("replaces the bucket word in the facts line, and starts it capitalised", () => {
+    const between: AgeSpan = { kind: "between", from: 3, to: 4 };
+    expect(
+      animalFactsParts({ sex: "male", ageBucket: "adult", ageSpan: between, size: "small" }).join(
+        " · ",
+      ),
+    ).toBe("Хлопчик · 3–4 роки · малий");
+    expect(
+      animalFactsParts({
+        sex: "unknown",
+        ageBucket: "baby",
+        ageSpan: { kind: "under_one" },
+        size: "small",
+      }).join(" · "),
+    ).toBe("До 1 року · малий");
+    expect(
+      animalFactsParts({
+        species: "dog",
+        sex: "female",
+        ageBucket: "senior",
+        ageSpan: { kind: "at_least", from: 12 },
+        size: "large",
+      }),
+    ).toEqual(["Собака", "дівчинка", "12+ років", "велика"]);
+  });
+
+  it("a null span keeps the bucket word, exactly as before", () => {
+    expect(
+      animalFactsParts({ sex: "female", ageBucket: "young", ageSpan: null, size: "small" }),
+    ).toEqual(["Дівчинка", "молода", "мала"]);
   });
 });
 

@@ -47,8 +47,11 @@ Never paste a connection string into a command line, a file or a chat.
 - **Real verification evidence** - see below. Not their name for the record;
   actual evidence the domain's own verification policy requires, or the
   script refuses to write a `verified` shelter at all.
-- **For each animal**: name, species, sex, size bucket, age bucket, a short
+- **For each animal**: name, species, sex, size bucket, age, a short
   description, and one to ten real photo files (`MAX_ANIMAL_PHOTOS`) - see "Photos" below.
+  The age is exactly one of `ageRange` (`under_1`, `1_2`, `3_4`, `5_7`, `8_10`, `10_plus`:
+  whole years, as K3 asks) or the older `ageBucket`, plus an optional `ageAsOf` (`YYYY-MM-DD`,
+  the day the shelter estimated it; today when left out, never in the future).
 
 ## The input file
 
@@ -112,7 +115,8 @@ before anything is computed):
       "species": "dog",
       "sex": "female",
       "size": "medium",
-      "ageBucket": "adult",
+      "ageRange": "3_4",
+      "ageAsOf": "2026-09-01",
       "descriptionUk": "Спокійна, любить дітей, вже привчена до повідка.",
       "photos": [
         { "localPath": "photos/lastivka-1.jpg" }

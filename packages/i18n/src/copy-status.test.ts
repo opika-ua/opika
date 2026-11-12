@@ -2914,3 +2914,25 @@ describe("owner-approved copy, 2026-11-02", () => {
     expect(uk.errors.rateLimited.body).not.toContain(String.fromCodePoint(0x2014));
   });
 });
+
+/**
+ * Age as a declared range (owner, 2026-11-12): S1, S3 and S4 verbatim. S2 (a single year count)
+ * and S5 («≈ {age}») were withdrawn the same day: a range already says "about".
+ */
+describe("declared age range copy (owner, 2026-11-12)", () => {
+  it("S1, S3 and S4 are his text", () => {
+    expect(uk.cardMeta.ageUnderOneYear).toBe("до 1 року");
+    expect(uk.cardMeta.ageYearsBetween).toEqual({
+      one: "{from}–{count} рік",
+      few: "{from}–{count} роки",
+      many: "{from}–{count} років",
+    });
+    expect(uk.cardMeta.ageYearsAtLeast).toBe("{from}+ років");
+  });
+
+  it("S2 and S5 are gone, and no card word carries «≈»", () => {
+    expect(Object.keys(uk.cardMeta)).not.toContain("ageYears");
+    expect(Object.keys(uk.cardMeta)).not.toContain("ageApprox");
+    expect(JSON.stringify(uk.cardMeta)).not.toContain("≈");
+  });
+});

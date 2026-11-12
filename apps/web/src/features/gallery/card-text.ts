@@ -53,5 +53,10 @@ export function housingCityLabel(card: FeedCardView, cityName: string | null): s
 
 /** The card's visible facts line, as parts: the shared formatter, no species and no city (the city is in the accessible name only). */
 export function cardFactsParts(card: FeedCardView): readonly string[] {
-  return animalFactsParts({ sex: card.sex, ageBucket: card.ageBucket, size: card.size });
+  return animalFactsParts({
+    sex: card.sex,
+    ageBucket: card.ageBucket,
+    ageSpan: card.ageSpan,
+    size: card.size,
+  });
 }
