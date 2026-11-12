@@ -139,14 +139,10 @@ export type PhotoSectionProps = {
   compress?: (file: File) => Promise<CompressedPhoto>;
 };
 
-/** Its own toast region: the undo belongs to this section and leaves with it. Clear of the phone tab bar. */
+/** Its own toast region: the undo belongs to this section and leaves with it. */
 export function PhotoSection(props: PhotoSectionProps) {
   return (
-    <ToastProvider
-      dismissLabel={uk.kabinet.profileEdit.pause.close}
-      durationMs={UNDO_MS}
-      placement="above-nav"
-    >
+    <ToastProvider dismissLabel={uk.kabinet.profileEdit.pause.close} durationMs={UNDO_MS}>
       <PhotoManager {...props} />
     </ToastProvider>
   );
