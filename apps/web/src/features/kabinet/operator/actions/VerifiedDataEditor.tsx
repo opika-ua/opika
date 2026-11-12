@@ -7,6 +7,7 @@ import { uk } from "@opika/i18n";
 import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { Button } from "../../../../ui/Button";
 import type { ComboboxOption } from "../../../../ui/Combobox";
+import { typedDateMessage } from "../../shared/kabinet-date";
 import {
   type AddressForm,
   addressFormOf,
@@ -33,13 +34,13 @@ type Change = Parameters<
 type Notice = { kind: "none" } | { kind: "saved" } | { kind: "conflict" } | { kind: "failed" };
 type FieldErrors = Partial<Record<CreateField, CreateFieldError>>;
 
-const message = (error: CreateFieldError | undefined): string | null =>
-  error === undefined ||
-  error === "nameTooLong" ||
-  error === "emailFormat" ||
-  error === "descriptionTooLong"
+const message = (error: CreateFieldError | undefined): string | null => {
+  if (error === undefined) return null;
+  if (error === "dateIncomplete" || error === "dateNoSuchDate") return typedDateMessage(error);
+  return error === "nameTooLong" || error === "emailFormat" || error === "descriptionTooLong"
     ? null
     : uk.kabinet.operator.create.errors[error];
+};
 
 // Key order and a date's time of day are not differences: the form holds calendar days only.
 const canonical = (value: unknown): unknown => {

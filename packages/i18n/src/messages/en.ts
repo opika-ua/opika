@@ -539,6 +539,13 @@ export const en = {
       clear: "Clear",
       close: "Close",
     },
+    dateField: {
+      day: "Day",
+      month: "Month",
+      year: "Year",
+      incomplete: "Give the full date: day, month and year.",
+      noSuchDate: "There's no such date in the calendar.",
+    },
     /**
      * The operator's name when `KABINET_OPERATOR_DISPLAY_NAME` is unset
      * (RS-Q2): the English sense of the Ukrainian, standing alone (a signature
@@ -1556,6 +1563,7 @@ export const en = {
               "A live invitation to another shelter was already sent to this address.",
           },
           siteVisitInFuture: "The call date can't be in the future.",
+          registeredAtFuture: "The registration date can't be in the future.",
           unknownCity: "That settlement isn't in the list.",
           lostAnswer:
             "No answer came back. The shelter may have been created: check the list before trying again.",

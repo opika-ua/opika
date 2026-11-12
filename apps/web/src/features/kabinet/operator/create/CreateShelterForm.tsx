@@ -15,6 +15,7 @@ import { Panel } from "../../../../ui/Panel";
 import { Text } from "../../../../ui/Text";
 import { ContactFields, NO_CONTACT_ERRORS } from "../../profile-edit/ContactFields";
 import { OPERATOR_HOME } from "../../routes";
+import { typedDateMessage } from "../../shared/kabinet-date";
 import { aboutTooLongMessage } from "../about-text";
 import { nameTooLongMessage } from "../display-name";
 import { EvidenceEditor } from "../evidence-editor/EvidenceEditor";
@@ -43,6 +44,7 @@ const fieldMessage = (error: CreateFieldError | undefined): string | null => {
   if (error === undefined) return null;
   if (error === "nameTooLong") return nameTooLongMessage();
   if (error === "descriptionTooLong") return aboutTooLongMessage();
+  if (error === "dateIncomplete" || error === "dateNoSuchDate") return typedDateMessage(error);
   return error === "emailFormat"
     ? uk.kabinet.profileEdit.errors.emailFormat
     : uk.kabinet.operator.create.errors[error];

@@ -1,7 +1,8 @@
 import type { RegistryShelterView } from "@opika/contracts";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { typeDate } from "../../../../ui/test-date-field";
 import { DecisionPanel } from "./DecisionPanel";
 import { ResubmitPanel } from "./ResubmitPanel";
 import {
@@ -111,7 +112,14 @@ describe("resubmit", () => {
       "veterinary_clinic",
     );
     const visit = card("Відеодзвінок");
-    expect((visit.getByLabelText("Дата дзвінка") as HTMLInputElement).value).toBe("2026-10-05");
+    const visitedOn = within(visit.getByRole("group", { name: "Дата дзвінка" }));
+    expect(
+      [
+        visitedOn.getByRole("textbox", { name: "День" }),
+        visitedOn.getByRole("combobox", { name: "Місяць" }),
+        visitedOn.getByRole("textbox", { name: "Рік" }),
+      ].map((part) => (part as HTMLInputElement).value),
+    ).toEqual(["5", "10", "2026"]);
     expect((visit.getByLabelText("Нотатка") as HTMLTextAreaElement).value).toBe(
       "Чисто, вольєри з навісом.",
     );
@@ -194,14 +202,14 @@ describe("resubmit", () => {
       view: rejectedWith([VISIT]),
       client: { verification: { resubmit } },
     });
-    const visitedOn = card("Відеодзвінок").getByLabelText("Дата дзвінка") as HTMLInputElement;
-    expect(visitedOn.max).toBe("2026-10-17");
-    fireEvent.change(visitedOn, { target: { value: "2026-10-18" } });
-    await userEvent.click(screen.getByRole("button", { name: "Повернути на перевірку" }));
+    const user = userEvent.setup();
+    const visit = screen.getByRole("group", { name: "Відеодзвінок" });
+    await typeDate(user, visit, "Дата дзвінка", "2026-10-18");
+    await user.click(screen.getByRole("button", { name: "Повернути на перевірку" }));
     expect(resubmit).not.toHaveBeenCalled();
     expect(card("Відеодзвінок").getByText("Дата дзвінка не може бути в майбутньому.")).toBeTruthy();
-    fireEvent.change(visitedOn, { target: { value: "2026-10-17" } });
-    await userEvent.click(screen.getByRole("button", { name: "Повернути на перевірку" }));
+    await typeDate(user, visit, "Дата дзвінка", "2026-10-17");
+    await user.click(screen.getByRole("button", { name: "Повернути на перевірку" }));
     expect(resubmit).toHaveBeenCalledOnce();
   });
 

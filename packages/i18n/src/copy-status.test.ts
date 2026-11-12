@@ -1008,6 +1008,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.laterHint": "Можна заповнити пізніше. Без цього притулок не схвалити.",
     notFilledYet: "Ще не заповнено",
   };
+  /**
+   * The date-field PR: a registration date can no longer be typed past today, so it needs its own
+   * refusal. Builder-drafted on the pattern of `siteVisitInFuture`, awaiting the owner's approval.
+   */
+  const DATE_FIELD_OPERATOR_COPY: Record<string, string> = {
+    "operator.create.errors.registeredAtFuture": "Дата реєстрації не може бути в майбутньому.",
+  };
   /** Owner-given 2026-11-10 (the locked-block edit forms and the donation-approve hint). */
   const VERIFIED_DATA_EDIT_COPY: Record<string, string> = {
     "operator.shelter.edit": "Змінити",
@@ -1095,6 +1102,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(DONATION_SAFETY_OPERATOR_COPY),
         ...Object.keys(VERIFIED_DATA_EDIT_COPY),
         ...Object.keys(MINIMAL_CREATE_COPY).filter((path) => path.startsWith("operator.")),
+        ...Object.keys(DATE_FIELD_OPERATOR_COPY),
       ].sort(),
     );
   });
@@ -1128,6 +1136,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 
   it.each(Object.entries(VERIFIED_DATA_EDIT_COPY))("%s is the owner-given text", (path, text) => {
+    expect(valueAt(path)).toBe(text);
+  });
+
+  it.each(Object.entries(DATE_FIELD_OPERATOR_COPY))("%s is the drafted text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
 
@@ -1206,6 +1218,32 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     expect(offending).toEqual([]);
     // Sanity: the letter-apostrophe is really there.
     expect(uk.kabinet.operator.evidence.field.channel).toContain(String.fromCodePoint(0x2bc));
+  });
+});
+
+/**
+ * The kit's `DateField` on every kabinet date (the date-field PR): the parts' labels and a typed
+ * date's two refusals. Builder-drafted, awaiting the owner's approval: real text, never
+ * `COPY_PENDING`, because a real shelter's animal form shows it. Exactly these keys.
+ */
+describe("kabinet date field copy (drafted, awaiting approval)", () => {
+  const DATE_FIELD_COPY = {
+    day: "День",
+    month: "Місяць",
+    year: "Рік",
+    incomplete: "Вкажіть повну дату: день, місяць і рік.",
+    noSuchDate: "Такої дати в календарі немає.",
+  };
+
+  it("holds exactly these strings", () => {
+    expect(uk.kabinet.dateField).toEqual(DATE_FIELD_COPY);
+  });
+
+  it("nothing is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
+    for (const [key, text] of Object.entries(uk.kabinet.dateField)) {
+      expect(text, key).not.toContain(COPY_PENDING);
+      expect(text, key).not.toMatch(/['’]/);
+    }
   });
 });
 

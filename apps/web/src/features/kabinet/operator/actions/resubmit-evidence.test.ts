@@ -101,7 +101,7 @@ describe("resubmit prefill", () => {
       {
         id: "on-file-3",
         kind: "site_visit",
-        visitedOn: "2026-10-05",
+        visitedOn: { kind: "date", date: "2026-10-05" },
         notes: "Приміщення на вул. Мечникова, 18 собак і 6 котів.",
       },
     ]);
