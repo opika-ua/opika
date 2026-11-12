@@ -107,8 +107,11 @@ the code again this pass:
   in it; deleted with the shelter record. True of the data `about.data` is describing -
   **but silent on the departed-admin case in G4**, which isn't a claim this paragraph makes
   false, just one it doesn't address at all.
-- **¶4 (photos):** no location metadata; removed photos stop showing, files deleted by
-  hand on request.
+- **¶4 (photos):** no location metadata; an uncropped copy of each photo is kept so it can be
+  cropped again, also without metadata, and goes with the photo; removed photos stop showing,
+  and their files are deleted automatically in about a week (the clean-up job's 7-day grace
+  plus its daily run). Updated with the crop frame (2026-11-12), replacing "files deleted by
+  hand on request", retired by PR #464.
 - **¶5 (saved list):** `localStorage` only, no cookie on the batch read, nothing logged
   about which ids were asked for.
 

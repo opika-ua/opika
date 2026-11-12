@@ -53,12 +53,11 @@ function isKeyOwnedByThisJob(objectKey: string): boolean {
 const DELETE_BATCH_SIZE = 1000;
 
 /**
- * Blast-radius cap: one run deletes at most this many objects, else it deletes nothing. A photo is
- * five variants, so 100 is about 20 photos a day, well above real churn; a bug or a wiped table that
- * makes everything look unreferenced trips it instead of emptying the bucket (R2 has no versioning).
- * The scheduled job always uses this default; only the CLI can raise it (`--max-delete`).
+ * Blast-radius cap, else nothing is deleted: six objects a photo or crop (five variants, the source),
+ * so about 100 a day (owner, crop-frame Q4; `photo-source-cleanup.test.ts` pins it). Only the CLI
+ * raises it (`--max-delete`); a wiped table trips it instead of emptying the bucket.
  */
-export const DEFAULT_MAX_DELETE_PER_RUN = 100;
+export const DEFAULT_MAX_DELETE_PER_RUN = 600;
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const chunks: T[][] = [];

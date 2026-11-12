@@ -205,6 +205,14 @@ directory**, not wherever you happen to run the command from. Keep a
     lastivka-2.jpg
 ```
 
+A photo may carry a crop frame, `"frame": { "left": 400, "top": 100, "width": 800, "height": 1000 }`:
+a box in pixels on the photo as an image viewer shows it (rotation applied), 4:5
+(width = height × 0.8), inside the photo, and at least 400 px wide on the stored copy (a
+photo larger than 2000 px is stored scaled to fit 2000 × 2000, so its box must be wider in
+the original's pixels). The card then shows exactly that frame; without one it gets the
+automatic crop, as before. The shelter can change either later in the kabinet (owner,
+crop-frame Q1). A refused frame fails the dry run with the reason, before anything uploads.
+
 This script takes any file sharp can decode. The kabinet is stricter: JPEG, PNG or WebP
 (`sniff.ts`), and a HEIC is converted in the browser where it can be, else refused
 (ask for a JPG). You don't supply width/height - the script reads the real file for its
@@ -213,9 +221,12 @@ sharp can't decode (wrong format, corrupted download) fails immediately,
 before anything is uploaded or written, with the file path in the error.
 
 Uploading only happens on `--commit` - the dry run validates that every
-photo file exists and is readable, and nothing more. `--commit` generates
-five real sizes per photo (thumb, card, compact, mid, detail) and
-uploads each to R2; see "R2 credentials" below for what that step needs.
+photo file exists and is readable, and that its frame (if any) can be cut, and
+nothing more. `--commit` generates five real sizes per photo (thumb, card,
+compact, mid, detail) and the photo's kept source (the whole photo, re-encoded
+to WebP without metadata, at most 2000 px, so the shelter can crop it again),
+uploads all six to R2 and records the source with the animal; see "R2
+credentials" below for what that step needs.
 
 ## Run it: dry run, then commit
 
@@ -398,12 +409,12 @@ touches the demo corpus (run the two separately). The dry run prints each target
 id and name (check them before `--commit`), how many other shelters stay (demo
 shelters included, never named), the same per-table and cascade counts as above,
 and the R2 keys of the target animals' photos (every variant, `animals/…/thumb.webp`
-and so on). **Photos stay in R2, unlinked**: `demo:remove` itself never deletes R2
+and so on, and each photo's kept source, `animals/…/source-….webp`). **Photos stay in R2, unlinked**: `demo:remove` itself never deletes R2
 objects (K-Q2). Since the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
 R2-B1), that's no longer the whole story: once an animal's row is gone, its photos are
 unreferenced, and the daily scheduled sweep deletes them on its own once they've sat
 unreferenced for the grace period (~7 days) - the one named exception to K-Q2. Never delete
-them by hand; over the job's 100-object cap, run `r2:cleanup` (dry run, then `--commit
+them by hand; over the job's 600-object cap, run `r2:cleanup` (dry run, then `--commit
 --max-delete <n>`, `docs/operator-leaving-and-erasure.md`, A step 8). `--commit` prints the keys again.
 
 Besides every refusal above (member, support session, test-only key, crossing
@@ -449,7 +460,7 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    ones uploaded from the kabinet. The GDPR R2 clean-up job (R2-B1) deletes a
    photo's objects on its own, with no action here, once they've sat unreferenced for the
    grace period (~7 days). `demo:remove` itself still deletes nothing from R2, and nothing is
-   deleted by hand; over the job's 100-object cap, run `r2:cleanup` (dry run, then `--commit
+   deleted by hand; over the job's 600-object cap, run `r2:cleanup` (dry run, then `--commit
    --max-delete <n>`). Run the dry run again afterwards: every count is 0, and it refuses with «no
    shelter has id …», which confirms the shelter is gone.
 4. **`KABINET_WRITE_ALLOWLIST`**: PR 6 has merged by then: delete `KABINET_WRITE_ALLOWLIST`,
@@ -573,7 +584,9 @@ removed; keep the eligibility part.
 ## Taking a photo down (P-Q14)
 
 Removing a photo in the kabinet (`shelter.photos.remove`) only takes it off
-the animal: its five files stay in the bucket and stay reachable by their URL.
+the animal: its six files (five variants and its kept source) stay in the bucket
+and stay reachable by their URL. A crop (`shelter.photos.crop`) leaves the same six
+behind under the photo's old key, and they go the same way.
 Nothing links to them any more, but anyone who saved the URL can still open it
 - until the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-photo-cleanup.md`,
 R2-B1) deletes it on its own, automatically, once it has sat unreferenced for the
@@ -582,7 +595,7 @@ in `r2-cleanup-client.ts` - is the one named exception to K-Q2's "no code path
 deletes an object"; no other code path does. **Never delete a file by hand**, even
 when a photo must go (a shelter asks, or it shows something it shouldn't): take it
 off the card, and the job deletes it after the grace period. When a run is over the
-job's 100-object cap, run `r2:cleanup` (dry run, then `--commit --max-delete <n>`;
+job's 600-object cap, run `r2:cleanup` (dry run, then `--commit --max-delete <n>`;
 `docs/operator-leaving-and-erasure.md`, A step 8, and `docs/runbook.md`, section 8).
 The CDN edge drops a deleted file within 4 h (above).
 

@@ -1,6 +1,8 @@
 import realSharp, { type SharpOptions } from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cutPhotoVariants } from "./crop-photo";
 import { generateVariants } from "./generate-variants";
+import { encodePhotoSource } from "./photo-source";
 import { prepareUploadedPhoto, UPLOAD_PIXEL_LIMIT } from "./prepare-uploaded-photo";
 import { IMAGE_VARIANTS } from "./variants";
 
@@ -50,8 +52,8 @@ describe("UPLOAD_PIXEL_LIMIT", () => {
     const [headerRead, ...decodes] = given.options;
     expect(headerRead).toEqual({ limitInputPixels: false });
     // generateVariants' own header read, five crops, and the enlargements of
-    // `detail`'s and `mid`'s crops.
-    expect(decodes).toHaveLength(8);
+    // `detail`'s and `mid`'s crops; then the source's header read and its encode.
+    expect(decodes).toHaveLength(10);
     decodes.forEach((options, i) => {
       expect(options?.limitInputPixels, `decode ${i + 1} of ${decodes.length}`).toBe(
         UPLOAD_PIXEL_LIMIT,
@@ -68,5 +70,23 @@ describe("UPLOAD_PIXEL_LIMIT", () => {
         limitInputPixels: UPLOAD_PIXEL_LIMIT,
       }),
     ).rejects.toThrow("Input image exceeds pixel limit");
+  });
+
+  it("reaches every decode of a crop, the shared raw pixels included", async () => {
+    const source = await encodePhotoSource(await solid(1200, 900));
+    given.options.length = 0;
+
+    await cutPhotoVariants(
+      source.bytes,
+      source,
+      { kind: "frame", box: { left: 100, top: 0, width: 720, height: 900 } },
+      { limitInputPixels: UPLOAD_PIXEL_LIMIT },
+    );
+
+    // The header read, the one decode to raw pixels, and five cuts from them.
+    expect(given.options).toHaveLength(7);
+    given.options.forEach((options, i) => {
+      expect(options?.limitInputPixels, `decode ${i + 1}`).toBe(UPLOAD_PIXEL_LIMIT);
+    });
   });
 });

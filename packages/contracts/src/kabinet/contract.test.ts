@@ -27,7 +27,9 @@ import {
   InvitedAdminViewSchema,
   KabinetAnimalRowViewSchema,
   KabinetAnimalViewSchema,
+  KabinetPhotoCropViewSchema,
   KabinetShelterViewSchema,
+  PhotoCropSourceViewSchema,
   RegistryShelterRowViewSchema,
   RegistryShelterViewSchema,
   ShelterAdminViewSchema,
@@ -103,6 +105,7 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "shelter.photos.add": WRITE,
   "shelter.photos.reorder": WRITE,
   "shelter.photos.remove": WRITE,
+  "shelter.photos.crop": WRITE,
   "shelter.logo.set": WRITE,
   "shelter.logo.remove": WRITE,
   "shelter.history.list": READ,
@@ -249,12 +252,12 @@ describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
 describe("no procedure declares the retired SHELTER_WRITES_NOT_YET_AVAILABLE (P6-Q8)", () => {
   const RETIRED = ["SHELTER", "WRITES", "NOT", "YET", "AVAILABLE"].join("_");
 
-  it("sanity: the matrix still names the eighteen shelter writes", () => {
+  it("sanity: the matrix still names the nineteen shelter writes", () => {
     expect(
       Object.values(EXPECTED_ACCESS).filter(
         (access) => access.surface === "shelter" && access.mode === "write",
       ),
-    ).toHaveLength(18);
+    ).toHaveLength(19);
   });
 
   it("is no API error any more", () => {
@@ -284,6 +287,7 @@ describe("kabinet error statuses", () => {
       PHOTO_UPLOADS_UNAVAILABLE: apiErrors.PHOTO_UPLOADS_UNAVAILABLE.status,
       PHOTO_REJECTED: apiErrors.PHOTO_REJECTED.status,
       PHOTO_LIMIT_REACHED: apiErrors.PHOTO_LIMIT_REACHED.status,
+      PHOTO_FRAME_REJECTED: apiErrors.PHOTO_FRAME_REJECTED.status,
       PHOTOS_REQUIRED_WHILE_VISIBLE: apiErrors.PHOTOS_REQUIRED_WHILE_VISIBLE.status,
       LISTING_FACT_REQUIRED: apiErrors.LISTING_FACT_REQUIRED.status,
       AGE_DATE_OUT_OF_RANGE: apiErrors.AGE_DATE_OUT_OF_RANGE.status,
@@ -303,6 +307,7 @@ describe("kabinet error statuses", () => {
       PHOTO_UPLOADS_UNAVAILABLE: 503,
       PHOTO_REJECTED: 422,
       PHOTO_LIMIT_REACHED: 409,
+      PHOTO_FRAME_REJECTED: 422,
       PHOTOS_REQUIRED_WHILE_VISIBLE: 409,
       LISTING_FACT_REQUIRED: 422,
       AGE_DATE_OUT_OF_RANGE: 422,
@@ -359,8 +364,26 @@ describe("kabinet views carry exactly their listed keys", () => {
         "createdAt",
         "lastUpdatedAt",
         "version",
+        "photoCrops",
       ].sort(),
     );
+  });
+
+  /**
+   * Crop frame, owner's conditions 1 and 2: only `kept` carries a source key, and a support view's
+   * `withheld` carries nothing but its kind.
+   */
+  it("KabinetPhotoCropView: a frame and a source; only a kept source names its object key", () => {
+    expect(keys(KabinetPhotoCropViewSchema)).toEqual(["framing", "source", "storageKey"]);
+    expect(
+      Object.fromEntries(
+        PhotoCropSourceViewSchema.options.map((option) => [option.shape.kind.value, keys(option)]),
+      ),
+    ).toEqual({
+      kept: ["height", "kind", "objectKey", "origin", "width"],
+      variants_only: ["kind"],
+      withheld: ["kind"],
+    });
   });
 
   it("KabinetShelterView, with the shelter-facing verification, not the operator's", () => {
@@ -572,6 +595,7 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
     "shelter.photos.add": ANIMAL_VIEW_KEYS,
     "shelter.photos.reorder": ANIMAL_VIEW_KEYS,
     "shelter.photos.remove": ANIMAL_VIEW_KEYS,
+    "shelter.photos.crop": ANIMAL_VIEW_KEYS,
     "shelter.logo.set": SHELTER_VIEW_KEYS,
     "shelter.logo.remove": SHELTER_VIEW_KEYS,
     "shelter.history.list": ["items", "nextCursor"],

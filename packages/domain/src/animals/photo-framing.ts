@@ -89,6 +89,14 @@ export function centredBox(box: PixelBox, aspect: number): PixelBox {
 }
 
 /**
+ * Within 4:5: the relative tolerance, or each side off by at most its edges' rounding (1 px),
+ * which on a small frame is more than the tolerance (review of #490: 222 px and under).
+ */
+const isNearFrameAspect = (width: number, height: number): boolean =>
+  Math.abs(width / height - PHOTO_FRAME_ASPECT) <= PHOTO_FRAME_ASPECT_TOLERANCE ||
+  Math.abs(width - height * PHOTO_FRAME_ASPECT) <= EDGE_ROUNDING_PX * (1 + PHOTO_FRAME_ASPECT);
+
+/**
  * The 4:5 pixel box a frame cuts from a source of this size, or why it can't. A frame narrower
  * than 400 px (or than the widest 4:5 box a small source allows) would enlarge too far.
  */
@@ -98,23 +106,27 @@ export function frameBoxOf(frame: PhotoFrame, source: { width: number; height: n
   const top = Math.round(frame.y * source.height);
   const right = Math.round((frame.x + frame.w) * source.width);
   const bottom = Math.round((frame.y + frame.h) * source.height);
+  // A NaN edge passes every comparison below; the schema refuses one, this holds without it.
+  if (![left, top, right, bottom].every(Number.isFinite)) {
+    return { kind: "rejected", reason: "outside" };
+  }
   if (left < 0 || top < 0 || right > source.width || bottom > source.height) {
     return { kind: "rejected", reason: "outside" };
   }
   if (right <= left || bottom <= top) return { kind: "rejected", reason: "too_small" };
   const requested = { left, top, width: right - left, height: bottom - top };
-  if (
-    Math.abs(requested.width / requested.height - PHOTO_FRAME_ASPECT) > PHOTO_FRAME_ASPECT_TOLERANCE
-  ) {
+  const minimum = Math.min(
+    MIN_FRAME_WIDTH_PX,
+    centredBox({ left: 0, top: 0, width: source.width, height: source.height }, PHOTO_FRAME_ASPECT)
+      .width,
+  );
+  // The minimum before the aspect, so a frame that is both says it is too small.
+  if (requested.width + EDGE_ROUNDING_PX < minimum)
+    return { kind: "rejected", reason: "too_small" };
+  if (!isNearFrameAspect(requested.width, requested.height)) {
     return { kind: "rejected", reason: "aspect" };
   }
   const box = centredBox(requested, PHOTO_FRAME_ASPECT);
-  const widest = centredBox(
-    { left: 0, top: 0, width: source.width, height: source.height },
-    PHOTO_FRAME_ASPECT,
-  ).width;
-  if (box.width + EDGE_ROUNDING_PX < Math.min(MIN_FRAME_WIDTH_PX, widest)) {
-    return { kind: "rejected", reason: "too_small" };
-  }
+  if (box.width + EDGE_ROUNDING_PX < minimum) return { kind: "rejected", reason: "too_small" };
   return { kind: "ok", box };
 }

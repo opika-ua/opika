@@ -40,6 +40,7 @@ const animal = (overrides: Record<string, unknown> = {}): KabinetAnimalView =>
     age: null,
     description: null,
     photos: [],
+    photoCrops: [],
     temperament: [],
     colour: null,
     medicalNotes: null,

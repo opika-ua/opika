@@ -89,3 +89,58 @@ describe("remove names a photo the screen shows", () => {
     ).toBe(false);
   });
 });
+
+describe("crop names a photo the screen shows, with a frame or the automatic crop", () => {
+  const crop = input(shelterPhotosContract.crop);
+  const frame = { kind: "frame", frame: { x: 0.1, y: 0.1, w: 0.5, h: 0.5 } } as const;
+
+  it("accepts one of the expected keys with a frame or attention", () => {
+    for (const framing of [frame, { kind: "attention" }]) {
+      expect(
+        crop.safeParse({
+          animalId: ANIMAL,
+          expectedPhotoKeys: [key(1)],
+          storageKey: key(1),
+          framing,
+        }).success,
+      ).toBe(true);
+    }
+  });
+
+  it("refuses a key the screen doesn't show", () => {
+    expect(
+      crop.safeParse({
+        animalId: ANIMAL,
+        expectedPhotoKeys: [key(1)],
+        storageKey: key(2),
+        framing: frame,
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each([
+    ["a frame past the right edge", { kind: "frame", frame: { x: 0.6, y: 0, w: 0.5, h: 0.5 } }],
+    ["a zero-width frame", { kind: "frame", frame: { x: 0, y: 0, w: 0, h: 0.5 } }],
+    ["an extra key on the frame", { kind: "frame", frame: { ...frame.frame, z: 1 } }],
+    ["a frame without its kind", frame.frame],
+    ["an unknown kind", { kind: "centre" }],
+  ])("refuses %s", (_label, framing) => {
+    expect(
+      crop.safeParse({ animalId: ANIMAL, expectedPhotoKeys: [key(1)], storageKey: key(1), framing })
+        .success,
+    ).toBe(false);
+  });
+
+  it("is strict: a source key or a shelter id sent along is refused", () => {
+    const base = {
+      animalId: ANIMAL,
+      expectedPhotoKeys: [key(1)],
+      storageKey: key(1),
+      framing: frame,
+    };
+    expect(crop.safeParse({ ...base, sourceObjectKey: `${key(1)}/source-x.webp` }).success).toBe(
+      false,
+    );
+    expect(crop.safeParse({ ...base, shelterId: ANIMAL }).success).toBe(false);
+  });
+});

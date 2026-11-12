@@ -294,6 +294,7 @@ describe("demo:remove, the plan (dry run)", () => {
       invitation_created_users: 2,
       auth_session: 1,
       auth_account: 1,
+      animal_photo_sources: 0,
     });
     const printed = formatPlan(plan, "Would delete").join("\n");
     expect(printed).toContain(`${seedId(1)}  Демо А`);

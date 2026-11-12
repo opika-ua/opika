@@ -1,19 +1,31 @@
 import type { apiErrors, KabinetAnimalView } from "@opika/contracts";
-import { type AnimalHistoryRow, kabinetAnimalRepo } from "@opika/db/repos";
+import { IMAGE_VARIANTS, variantObjectKey } from "@opika/db/image-pipeline";
+import type { VariantCut } from "@opika/db/image-pipeline/server";
+import {
+  type AnimalHistoryRow,
+  kabinetAnimalRepo,
+  type PhotoSource,
+  type PhotoSourceChange,
+  photoSourcesRepo,
+} from "@opika/db/repos";
 import {
   type Animal,
   type AnimalId,
   type AnimalPhoto,
+  frameBoxOf,
+  frameUnitsOf,
   isDiscoverable,
   isDraftAnimal,
   listingAfterPhotoChange,
   MAX_ANIMAL_PHOTOS,
+  type PhotoFraming,
 } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { ShelterWriteScope } from "../access";
 import type { KabinetContext } from "../context";
+import type { PhotoUploads } from "../photo-uploads";
 import { shelterUploadKey } from "../rate-limits";
-import { actorOf, kabinetAnimalViewOf, type OwnErrors, owned } from "./animals";
+import { actorOf, kabinetAnimalViewFor, type OwnErrors, owned } from "./animals";
 
 export type PhotoDeps = Pick<KabinetContext, "db" | "now" | "newId" | "photoUploads">;
 
@@ -64,25 +76,61 @@ const afterPhotoChange = (animal: Animal, photos: readonly AnimalPhoto[], now: D
 };
 
 /**
- * One compare-and-set photo write: the photo list and the listing as read
- * are both the token (P-Q3, K3-T7), so a publish, a «Ще шукає» or another
- * photo change landing in between makes this write nothing, and the caller
- * re-reads and re-plans. The listing written is `afterPhotoChange`'s.
+ * Compare-and-set on the photo list and the listing as read (P-Q3, K3-T7): a change in between
+ * writes nothing and the caller re-plans. The same statement drops a leaving photo's source row
+ * and records `source`'s (crop frame).
  */
-const writePhotos = (deps: PhotoDeps, scope: ShelterWriteScope, read: Animal, next: Animal) =>
+const writePhotos = (
+  deps: PhotoDeps,
+  scope: ShelterWriteScope,
+  read: Animal,
+  next: Animal,
+  source: PhotoSourceChange = { kind: "none" },
+) =>
   kabinetAnimalRepo(deps.db).writePhotosIf(
     read.id,
     { next: next.photos, expected: read.photos },
     { next: next.listing, expected: read.listing },
     deps.now,
     photosLine(deps, scope, read),
+    source,
   );
+
+type UploadsOn = Extract<PhotoUploads, { kind: "on" }>;
+type UploadErrors = ORPCErrorConstructorMap<{
+  RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
+  PHOTO_UPLOADS_UNAVAILABLE: typeof apiErrors.PHOTO_UPLOADS_UNAVAILABLE;
+}>;
+
+/**
+ * Uploads on for this deployment (P-Q10), and the shelter's hourly and daily
+ * allowances charged (P-Q12), before anything else is read. A crop is charged
+ * like an upload (crop-frame Q5): it does the same work and the same writes.
+ */
+async function chargedUploads(
+  deps: PhotoDeps,
+  scope: ShelterWriteScope,
+  errors: UploadErrors,
+): Promise<UploadsOn> {
+  const uploads = deps.photoUploads;
+  if (uploads.kind === "off") throw errors.PHOTO_UPLOADS_UNAVAILABLE();
+  const allowanceKey = shelterUploadKey(scope.shelterId);
+  if (!(await uploads.limiters.perHour.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
+  if (!(await uploads.limiters.perDay.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
+  return uploads;
+}
 
 /**
  * A file stored that no animal points at: logged so it can be found. The
  * daily clean-up job deletes it after the grace period; nothing else does (K-Q2).
  */
 const logOrphan = (storageKey: string) => console.error({ event: "photo_orphaned", storageKey });
+
+/** An upload or a crop past its budget fails like any failure, logged without the file or a key. */
+const overBudget = (budgetMs: number): Error => {
+  console.error({ event: "photo_processing_over_budget", budgetMs });
+  return new Error("Photo processing ran past its budget");
+};
 
 /**
  * The processing, or `over_budget` once `budgetMs` passes first. The work
@@ -118,9 +166,11 @@ export async function withinBudget<T>(
  *    processing budget: past it, the upload fails as any unexpected failure
  *    does (a 500, «Не завантажилось» on the screen), logged without the file,
  *    its name or any key, and nothing is stored;
- * 5. every variant is stored under a fresh random key (P-Q4);
+ * 5. every variant, and the photo's source (crop frame), is stored under a
+ *    fresh random key (P-Q4);
  * 6. the photo is appended, compare-and-set on the photo list as re-read, so
- *    two uploads at once both land or the eleventh is refused, never lost.
+ *    two uploads at once both land or the eleventh is refused, never lost;
+ *    its source row is written in the same statement, with no frame.
  *
  * Steps 5-6 can leave a stored file no animal points at (the animal deleted,
  * filled to ten meanwhile, or a failure in between): logged as
@@ -135,19 +185,13 @@ export async function photosAdd(
   scope: ShelterWriteScope,
   input: { animalId: AnimalId; file: File },
   errors: OwnErrors &
+    UploadErrors &
     ORPCErrorConstructorMap<{
-      RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
-      PHOTO_UPLOADS_UNAVAILABLE: typeof apiErrors.PHOTO_UPLOADS_UNAVAILABLE;
       PHOTO_REJECTED: typeof apiErrors.PHOTO_REJECTED;
       PHOTO_LIMIT_REACHED: typeof apiErrors.PHOTO_LIMIT_REACHED;
     }>,
 ): Promise<KabinetAnimalView> {
-  const uploads = deps.photoUploads;
-  if (uploads.kind === "off") throw errors.PHOTO_UPLOADS_UNAVAILABLE();
-
-  const allowanceKey = shelterUploadKey(scope.shelterId);
-  if (!(await uploads.limiters.perHour.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
-  if (!(await uploads.limiters.perDay.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
+  const uploads = await chargedUploads(deps, scope, errors);
 
   const limitReached = () => errors.PHOTO_LIMIT_REACHED({ data: { max: MAX_ANIMAL_PHOTOS } });
   const { animal } = await owned(deps, scope, input.animalId, errors);
@@ -159,10 +203,7 @@ export async function photosAdd(
     pipeline.prepareUploadedPhoto(bytes),
     uploads.processingBudgetMs,
   );
-  if (processed.kind === "over_budget") {
-    console.error({ event: "photo_processing_over_budget", budgetMs: uploads.processingBudgetMs });
-    throw new Error("Photo processing ran past its budget");
-  }
+  if (processed.kind === "over_budget") throw overBudget(uploads.processingBudgetMs);
   const prepared = processed.value;
   if (prepared.kind === "rejected") {
     throw errors.PHOTO_REJECTED({ data: { reason: prepared.reason } });
@@ -175,14 +216,25 @@ export async function photosAdd(
     height: prepared.height,
     alt: null,
   };
+  const source: PhotoSource = {
+    storageKey,
+    sourceObjectKey: pipeline.photoSourceObjectKeyFor(storageKey, deps.newId()),
+    origin: "upload",
+    width: prepared.source.width,
+    height: prepared.source.height,
+    framing: { kind: "attention" },
+  };
   try {
-    await pipeline.storePhotoVariants(uploads.storage, storageKey, prepared.variants);
+    await pipeline.storePhoto(uploads.storage, storageKey, prepared.variants, {
+      objectKey: source.sourceObjectKey,
+      bytes: prepared.source.bytes,
+    });
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       const current = attempt === 1 ? animal : (await owned(deps, scope, animal.id, errors)).animal;
       if (current.photos.length >= MAX_ANIMAL_PHOTOS) throw limitReached();
       const next = afterPhotoChange(current, [...current.photos, photo], deps.now);
-      const result = await writePhotos(deps, scope, current, next);
-      if (result.kind === "ok") return kabinetAnimalViewOf(next);
+      const result = await writePhotos(deps, scope, current, next, { kind: "record", source });
+      if (result.kind === "ok") return kabinetAnimalViewFor(deps, scope, next);
     }
     throw new Error(`Animal ${animal.id}: lost ${MAX_ATTEMPTS} photo races in a row`);
   } catch (error) {
@@ -215,10 +267,12 @@ async function rewritePhotos(
     const photos = plan(animal);
     // Nothing changed (a reorder into the same order): nothing written, no
     // edit time, no date, no history line, the rule a form save follows.
-    if (sameOrder(keysOf(photos), keysOf(animal.photos))) return kabinetAnimalViewOf(animal);
+    if (sameOrder(keysOf(photos), keysOf(animal.photos))) {
+      return kabinetAnimalViewFor(deps, scope, animal);
+    }
     const next = afterPhotoChange(animal, photos, deps.now);
     const result = await writePhotos(deps, scope, animal, next);
-    if (result.kind === "ok") return kabinetAnimalViewOf(next);
+    if (result.kind === "ok") return kabinetAnimalViewFor(deps, scope, next);
   }
   throw new Error(`Animal ${animalId}: lost ${MAX_ATTEMPTS} photo races in a row`);
 }
@@ -266,4 +320,118 @@ export function photosRemove(
     }
     return next;
   });
+}
+
+/** An older photo's crop starts from its detail variant: the largest pixels it has (shape §1). */
+const DETAIL = IMAGE_VARIANTS.detail;
+
+const sameFraming = (a: PhotoFraming, b: PhotoFraming): boolean => {
+  if (a.kind === "attention" || b.kind === "attention") return a.kind === b.kind;
+  const x = frameUnitsOf(a.frame);
+  const y = frameUnitsOf(b.frame);
+  return x.x === y.x && x.y === y.y && x.w === y.w && x.h === y.h;
+};
+
+/**
+ * `shelter.photos.crop`, crop-frame shape §6's steps: cut from the kept source (or an older photo's
+ * detail variant) and stored under a new key, since the CDN keeps a variant for a year. The old
+ * key's files, and any a failure leaves (`photo_orphaned`), go with the clean-up job.
+ */
+export async function photosCrop(
+  deps: PhotoDeps,
+  scope: ShelterWriteScope,
+  input: {
+    animalId: AnimalId;
+    expectedPhotoKeys: readonly string[];
+    storageKey: string;
+    framing: PhotoFraming;
+  },
+  errors: CasErrors &
+    UploadErrors &
+    ORPCErrorConstructorMap<{ PHOTO_FRAME_REJECTED: typeof apiErrors.PHOTO_FRAME_REJECTED }>,
+): Promise<KabinetAnimalView> {
+  const uploads = await chargedUploads(deps, scope, errors);
+
+  const { animal } = await owned(deps, scope, input.animalId, errors);
+  if (!sameOrder(keysOf(animal.photos), input.expectedPhotoKeys)) throw errors.CONFLICT();
+  const photo = animal.photos.find((candidate) => candidate.storageKey === input.storageKey);
+  // The contract makes `storageKey` one of the expected keys, just checked equal to the stored.
+  if (photo === undefined)
+    throw new Error(`Crop names ${input.storageKey}, which the animal lacks`);
+
+  const kept = (await photoSourcesRepo(deps.db).listForAnimal(animal.id, scope.shelterId)).find(
+    (source) => source.storageKey === photo.storageKey,
+  );
+  const from =
+    kept === undefined
+      ? {
+          objectKey: variantObjectKey(photo.storageKey, "detail"),
+          origin: "detail_variant" as const,
+          width: DETAIL.width,
+          height: DETAIL.height,
+          framing: { kind: "attention" } as const,
+        }
+      : {
+          objectKey: kept.sourceObjectKey,
+          origin: kept.origin,
+          width: kept.width,
+          height: kept.height,
+          framing: kept.framing,
+        };
+  // Nothing to change: nothing written, no new files, no date (a form save's rule).
+  if (sameFraming(from.framing, input.framing)) return kabinetAnimalViewFor(deps, scope, animal);
+
+  let cut: VariantCut;
+  if (input.framing.kind === "frame") {
+    const box = frameBoxOf(input.framing.frame, from);
+    if (box.kind === "rejected") {
+      throw errors.PHOTO_FRAME_REJECTED({ data: { reason: box.reason } });
+    }
+    cut = { kind: "frame", box: box.box };
+  } else {
+    cut = { kind: "attention" };
+  }
+
+  const pipeline = await import("@opika/db/image-pipeline/server");
+  const processed = await withinBudget(
+    (async () => {
+      const bytes = await uploads.storage.get(from.objectKey);
+      const variants = await pipeline.cutPhotoVariants(bytes, from, cut, {
+        limitInputPixels: pipeline.UPLOAD_PIXEL_LIMIT,
+      });
+      return { bytes, variants };
+    })(),
+    uploads.processingBudgetMs,
+  );
+  if (processed.kind === "over_budget") throw overBudget(uploads.processingBudgetMs);
+
+  const storageKey = pipeline.animalPhotoStorageKeyFor(animal.id, deps.newId());
+  const source: PhotoSource = {
+    storageKey,
+    sourceObjectKey: pipeline.photoSourceObjectKeyFor(storageKey, deps.newId()),
+    origin: from.origin,
+    width: from.width,
+    height: from.height,
+    framing: input.framing,
+  };
+  try {
+    await pipeline.storePhoto(uploads.storage, storageKey, processed.value.variants, {
+      objectKey: source.sourceObjectKey,
+      bytes: processed.value.bytes,
+    });
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+      const current = attempt === 1 ? animal : (await owned(deps, scope, animal.id, errors)).animal;
+      if (!sameOrder(keysOf(current.photos), input.expectedPhotoKeys)) throw errors.CONFLICT();
+      const photos = current.photos.map((candidate) =>
+        candidate.storageKey === input.storageKey ? { ...candidate, storageKey } : candidate,
+      );
+      const next = afterPhotoChange(current, photos, deps.now);
+      const result = await writePhotos(deps, scope, current, next, { kind: "record", source });
+      if (result.kind === "ok") return kabinetAnimalViewFor(deps, scope, next);
+    }
+    throw new Error(`Animal ${animal.id}: lost ${MAX_ATTEMPTS} photo races in a row`);
+  } catch (error) {
+    logOrphan(storageKey);
+    throw error;
+  }
 }

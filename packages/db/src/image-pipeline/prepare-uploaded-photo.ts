@@ -1,6 +1,7 @@
 import { PHOTO_MAX_EDGE_PX, type PhotoRejectionReason } from "@opika/domain";
 import sharp, { type Metadata } from "sharp";
 import { generateVariants } from "./generate-variants";
+import { encodePhotoSource, type PhotoSourceImage } from "./photo-source";
 import { displayedDimensions } from "./resolve-local-photo";
 import { sniffImageType } from "./sniff";
 import {
@@ -13,7 +14,7 @@ import {
 type PreparedImage<Name extends string> =
   | {
       kind: "ok";
-      /** The only bytes ever stored: re-encoded WebP, no metadata, never the original. */
+      /** Re-encoded WebP, no metadata, never the original file. */
       variants: Record<Name, Buffer>;
       /** As displayed (EXIF orientation applied), like `validateLocalPhoto`'s. */
       width: number;
@@ -21,7 +22,12 @@ type PreparedImage<Name extends string> =
     }
   | { kind: "rejected"; reason: PhotoRejectionReason };
 
-export type PreparedPhoto = PreparedImage<ImageVariantName>;
+type Rejected = Extract<PreparedImage<string>, { kind: "rejected" }>;
+
+/** A photo also keeps its source, re-encoded the same way, for later crops (crop frame). */
+export type PreparedPhoto =
+  | (Extract<PreparedImage<ImageVariantName>, { kind: "ok" }> & { source: PhotoSourceImage })
+  | Rejected;
 export type PreparedLogo = PreparedImage<LogoVariantName>;
 
 /**
@@ -105,8 +111,16 @@ async function prepareUploadedImage<Name extends string>(
   return { kind: "ok", variants: generated, width, height };
 }
 
-export function prepareUploadedPhoto(bytes: Buffer): Promise<PreparedPhoto> {
-  return prepareUploadedImage(bytes, IMAGE_VARIANTS);
+/** The checks and variants every image gets, plus the source, decoded under the same pixel limit. */
+export async function prepareUploadedPhoto(bytes: Buffer): Promise<PreparedPhoto> {
+  const prepared = await prepareUploadedImage(bytes, IMAGE_VARIANTS);
+  if (prepared.kind === "rejected") return prepared;
+  try {
+    const source = await encodePhotoSource(bytes, { limitInputPixels: UPLOAD_PIXEL_LIMIT });
+    return { ...prepared, source };
+  } catch {
+    return { kind: "rejected", reason: "unreadable" };
+  }
 }
 
 export function prepareUploadedLogo(bytes: Buffer): Promise<PreparedLogo> {

@@ -70,6 +70,9 @@ function capturingStore() {
       async put(key: string, bytes: Buffer, contentType: string) {
         puts.push({ key, contentType, bytes });
       },
+      async get(): Promise<Buffer> {
+        throw new Error("a logo never reads");
+      },
     },
   };
 }

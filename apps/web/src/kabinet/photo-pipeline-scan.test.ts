@@ -16,11 +16,13 @@ import { describe, expect, it } from "vitest";
  *   commands are checked separately, below, against its own narrower
  *   allowlist - never folded into the general "no destructive calls" check,
  *   which still holds for every other file unchanged;
- * - no SDK command but `PutObjectCommand` is named in any other non-test
- *   source, and `@aws-sdk/lib-storage` (multipart uploads, which assemble
- *   an object from copied parts) appears in none;
+ * - no SDK command but `PutObjectCommand` and `GetObjectCommand` is named in
+ *   any other non-test source, `GetObjectCommand` only in `r2-client.ts` (a
+ *   crop reads a photo's kept source back, then puts a copy under a new key,
+ *   never a server-side copy), and `@aws-sdk/lib-storage` (multipart uploads,
+ *   which assemble an object from copied parts) appears in none;
  * - the AWS SDK is imported in exactly two source files (`r2-client.ts`,
- *   put-only, and `r2-cleanup-client.ts`, list-and-delete-only), each as
+ *   put and get, and `r2-cleanup-client.ts`, list-and-delete-only), each as
  *   exactly its own named set from `@aws-sdk/client-s3`, so the first rule
  *   has two places to look, never a third; `r2-client.ts`'s put carries
  *   `IfNoneMatch` (P-Q11). Each file's own test is the one other importer,
@@ -111,7 +113,7 @@ const sdkImportNamesOf = (text: string): string[] | null => {
  * still declared there, so the exemption can't come to cover something else.
  */
 const COMMAND_NAME = /\b[A-Z][A-Za-z0-9]*Command\b/g;
-const NOT_SDK_COMMANDS = new Set(["PutObjectCommand", "AdminCommand"]);
+const NOT_SDK_COMMANDS = new Set(["PutObjectCommand", "GetObjectCommand", "AdminCommand"]);
 const otherCommandNamesIn = (files: readonly { path: string; text: string }[]) =>
   files.flatMap((file) =>
     [...new Set(file.text.match(COMMAND_NAME) ?? [])]
@@ -180,12 +182,24 @@ describe("the photo pipeline's never-rules (K-Q2, P-Q11)", () => {
     );
   });
 
-  it("r2-client.ts (and its test) import exactly { PutObjectCommand, S3Client } from client-s3", () => {
+  it("r2-client.ts (and its test) import exactly { GetObjectCommand, PutObjectCommand, S3Client } from client-s3", () => {
     for (const path of [R2_CLIENT, R2_CLIENT_TEST]) {
       const text = all.find((file) => file.path === path)?.text ?? "";
       expect(text, path).not.toBe("");
-      expect(sdkImportNamesOf(text), path).toEqual(["PutObjectCommand", "S3Client"]);
+      expect(sdkImportNamesOf(text), path).toEqual([
+        "GetObjectCommand",
+        "PutObjectCommand",
+        "S3Client",
+      ]);
     }
+  });
+
+  it("GetObjectCommand is named in r2-client.ts alone among non-test sources, and sent once there", () => {
+    expect(
+      nonTest.filter((file) => /\bGetObjectCommand\b/.test(file.text)).map((file) => file.path),
+    ).toEqual([R2_CLIENT]);
+    const text = all.find((file) => file.path === R2_CLIENT)?.text ?? "";
+    expect(text.match(/new GetObjectCommand\(/g)).toHaveLength(1);
   });
 
   it("r2-cleanup-client.ts (and its test) import exactly { DeleteObjectsCommand, ListObjectsV2Command, S3Client }", () => {
@@ -200,7 +214,7 @@ describe("the photo pipeline's never-rules (K-Q2, P-Q11)", () => {
     }
   });
 
-  it("no non-test source names an SDK command but PutObjectCommand, or lib-storage, outside the named exception", () => {
+  it("no non-test source names an SDK command but PutObjectCommand or GetObjectCommand, or lib-storage, outside the named exception", () => {
     const nonTestExceptCleanup = nonTest.filter((file) => file.path !== R2_CLEANUP_CLIENT);
     expect(otherCommandNamesIn(nonTestExceptCleanup)).toEqual([]);
     expect(filesNamingLibStorage(nonTest)).toEqual([]);
@@ -278,7 +292,7 @@ describe("the photo pipeline's never-rules (K-Q2, P-Q11)", () => {
     ]);
     expect(
       otherCommandNamesIn([
-        file("a.ts", "new PutObjectCommand({}); type T = AdminCommand;"),
+        file("a.ts", "new PutObjectCommand({}); new GetObjectCommand({}); type T = AdminCommand;"),
         file("b.ts", "client.send(new UploadPartCopyCommand(input));"),
         file("c.ts", "await client.send(new CompleteMultipartUploadCommand(input));"),
         file("d.ts", "// a comment naming DeleteObjectCommand counts too"),

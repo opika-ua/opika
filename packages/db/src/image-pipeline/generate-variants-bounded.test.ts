@@ -1,6 +1,9 @@
+import { frameBoxOf, type PhotoFrame } from "@opika/domain";
 import sharp from "sharp";
 import { expect, it } from "vitest";
-import { prepareUploadedPhoto } from "./prepare-uploaded-photo";
+import { cutPhotoVariants } from "./crop-photo";
+import { encodePhotoSource } from "./photo-source";
+import { prepareUploadedPhoto, UPLOAD_PIXEL_LIMIT } from "./prepare-uploaded-photo";
 
 /**
  * The work an upload costs is bounded by the source and the variants, whatever
@@ -70,6 +73,51 @@ it("extreme aspect ratios stay within a fixed memory ceiling, every variant at i
   expect(sharp.cache().memory.high, "precondition: a fresh process").toBeLessThan(64);
   for (const [label, make, expected] of SHAPES) {
     expect(await uploaded(await make()), label).toEqual(expected);
+    expect(sharp.cache().memory.high, `${label}: MB libvips allocated at its peak`).toBeLessThan(
+      VIPS_MEMORY_CEILING_MB,
+    );
+  }
+});
+
+/**
+ * The same bound for a crop (shape §7): the smallest frame a 2000 × 10 source allows (8 × 10,
+ * enlarged 140 times for `detail`) and the whole of a 10 × 2000 one, each as an upload keeps it.
+ */
+const FRAMED: readonly [string, () => Promise<Buffer>, PhotoFrame][] = [
+  [
+    "minimum frame on 2000×10",
+    () => solid(2000, 10).png().toBuffer(),
+    { x: 0.5, y: 0, w: 8 / 2000, h: 1 },
+  ],
+  [
+    "full frame on 10×2000",
+    () => solid(10, 2000).png().toBuffer(),
+    { x: 0, y: 0.4, w: 1, h: 13 / 2000 },
+  ],
+  [
+    "full frame on 2000×2000",
+    () => solid(2000, 2000).png().toBuffer(),
+    { x: 0.1, y: 0, w: 0.8, h: 1 },
+  ],
+];
+
+it("a crop's variants stay within the same ceiling, every variant at its exact size", async () => {
+  for (const [label, make, frame] of FRAMED) {
+    const source = await encodePhotoSource(await make(), { limitInputPixels: UPLOAD_PIXEL_LIMIT });
+    const box = frameBoxOf(frame, source);
+    if (box.kind !== "ok") throw new Error(`${label}: ${box.reason}`);
+    const variants = await cutPhotoVariants(
+      source.bytes,
+      source,
+      { kind: "frame", box: box.box },
+      { limitInputPixels: UPLOAD_PIXEL_LIMIT },
+    );
+    const sizes: Record<string, [number, number]> = {};
+    for (const [name, bytes] of Object.entries(variants)) {
+      const meta = await sharp(bytes).metadata();
+      sizes[name] = [meta.width ?? 0, meta.height ?? 0];
+    }
+    expect(sizes, label).toEqual(accepted(0, 0).variants);
     expect(sharp.cache().memory.high, `${label}: MB libvips allocated at its peak`).toBeLessThan(
       VIPS_MEMORY_CEILING_MB,
     );

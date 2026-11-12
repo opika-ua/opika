@@ -27,6 +27,7 @@ import {
   OfferedSuspensionCodeSchema,
   PauseCodeSchema,
   type PauseReason,
+  PhotoFramingSchema,
   RegionIdSchema,
   ReportIdSchema,
   SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
@@ -653,6 +654,31 @@ export const shelterPhotosContract = {
       ...shelterCasErrors,
       NOT_FOUND: apiErrors.NOT_FOUND,
       PHOTOS_REQUIRED_WHILE_VISIBLE: apiErrors.PHOTOS_REQUIRED_WHILE_VISIBLE,
+    }),
+  /**
+   * Cuts the variants again from the kept source under a new key that replaces `storageKey`: a
+   * key is never written twice (CDN, shape §2). Charged like `add`; `attention` is the automatic crop.
+   */
+  crop: animalWrite
+    .input(
+      z
+        .strictObject({
+          animalId: AnimalIdSchema,
+          expectedPhotoKeys: photoKeyList,
+          storageKey: photoStorageKey,
+          framing: PhotoFramingSchema,
+        })
+        .refine((input) => input.expectedPhotoKeys.includes(input.storageKey), {
+          message: "The photo to crop must be one the screen shows",
+          path: ["storageKey"],
+        }),
+    )
+    .errors({
+      ...shelterCasErrors,
+      NOT_FOUND: apiErrors.NOT_FOUND,
+      RATE_LIMITED: apiErrors.RATE_LIMITED,
+      PHOTO_UPLOADS_UNAVAILABLE: apiErrors.PHOTO_UPLOADS_UNAVAILABLE,
+      PHOTO_FRAME_REJECTED: apiErrors.PHOTO_FRAME_REJECTED,
     }),
 };
 
