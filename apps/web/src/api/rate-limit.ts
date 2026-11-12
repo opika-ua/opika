@@ -52,6 +52,12 @@ export interface RateLimiter {
   retryAfterSeconds?(key: string, now: Date): number;
 }
 
+/** A limiter that can give back a unit: a write charged before work that may fail (the crop). */
+export type RefundableRateLimiter = RateLimiter & {
+  /** Gives back one unit `check(key, now)` took with this same `now`. Never throws. */
+  refund(key: string, now: Date): Promise<void>;
+};
+
 type SlidingWindowEntry = { timestamps: number[] };
 
 /**
@@ -64,7 +70,10 @@ type SlidingWindowEntry = { timestamps: number[] };
  * credentials are configured, which is true everywhere except a real
  * Vercel deployment.
  */
-export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: number }): RateLimiter {
+export function inMemoryRateLimiter(opts: {
+  windowMs: number;
+  maxRequests: number;
+}): RefundableRateLimiter {
   const store = new Map<string, SlidingWindowEntry>();
 
   return {
@@ -92,6 +101,11 @@ export function inMemoryRateLimiter(opts: { windowMs: number; maxRequests: numbe
     retryAfterSeconds(key: string, now: Date): number {
       const oldest = store.get(key)?.timestamps[0];
       return oldest === undefined ? 1 : (oldest + opts.windowMs - now.getTime()) / 1000;
+    },
+    async refund(key: string, now: Date): Promise<void> {
+      const timestamps = store.get(key)?.timestamps;
+      const taken = timestamps?.lastIndexOf(now.getTime()) ?? -1;
+      if (taken >= 0) timestamps?.splice(taken, 1);
     },
   };
 }
@@ -214,7 +228,7 @@ export function upstashRateLimiter(opts: {
   maxRequests: number;
   prefix: string;
   onUnavailable: OnUnavailable;
-}): RateLimiter {
+}): RefundableRateLimiter {
   const unavailable = opts.onUnavailable === "allow";
   const outcome = unavailable ? "failing open" : "failing closed";
   const windowSeconds = Math.max(1, Math.round(opts.windowMs / 1000));
@@ -253,6 +267,16 @@ export function upstashRateLimiter(opts: {
         console.error(`apiRateLimiter: Upstash check failed - ${outcome} (RL-1)`, err);
         warnLimiterUnreachable(opts.prefix, "error");
         return unavailable;
+      }
+    },
+    // A negative rate is the library's refund: it skips the limit check and lifts a cached block.
+    // Unreachable, the unit stays taken: the shelter loses one, nothing more.
+    async refund(key: string, _now: Date): Promise<void> {
+      try {
+        const result = await ratelimit.limit(key, { rate: -1 });
+        if (result.reason === "timeout") warnLimiterUnreachable(opts.prefix, "timeout");
+      } catch {
+        warnLimiterUnreachable(opts.prefix, "error");
       }
     },
   };
@@ -376,9 +400,9 @@ const VERCEL_ENV = process.env.VERCEL_ENV || "unknown";
 /** `inner`, logging each refusal by `name` only (`rate-limit-log.ts`). */
 export function loggingRefusals(
   name: string,
-  inner: RateLimiter,
+  inner: RefundableRateLimiter,
   log?: RateLimitedLog,
-): RateLimiter {
+): RefundableRateLimiter {
   return {
     async check(key: string, now: Date): Promise<boolean> {
       const allowed = await inner.check(key, now);
@@ -386,6 +410,7 @@ export function loggingRefusals(
       return allowed;
     },
     retryAfterSeconds: (key: string, now: Date) => retryAfterSecondsOf(inner, key, now),
+    refund: (key: string, now: Date) => inner.refund(key, now),
   };
 }
 
@@ -422,7 +447,7 @@ export function sharedRateLimiter(opts: {
   windowMs: number;
   maxRequests: number;
   onUnavailable: OnUnavailable;
-}): RateLimiter {
+}): RefundableRateLimiter {
   const limiter = loggingRefusals(opts.name, sharedStoreLimiter(opts));
   registeredLimiters.set(opts.name, { onUnavailable: opts.onUnavailable, limiter });
   return limiter;
@@ -433,7 +458,7 @@ function sharedStoreLimiter(opts: {
   windowMs: number;
   maxRequests: number;
   onUnavailable: OnUnavailable;
-}): RateLimiter {
+}): RefundableRateLimiter {
   return RESOLVED_REDIS_URL && RESOLVED_REDIS_TOKEN
     ? upstashRateLimiter({
         redis: new Redis({

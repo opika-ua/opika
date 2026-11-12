@@ -19,21 +19,20 @@ import {
 } from "@opika/domain";
 import sharp from "sharp";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { inMemoryRateLimiter, type RateLimiter } from "../api/rate-limit";
+import { inMemoryRateLimiter, type RefundableRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, rpcRequestInit } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { PHOTO_PROCESSING_BUDGET_MS, type PhotoUploads } from "./photo-uploads";
+import { shelterCropAttemptKey, shelterUploadKey } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
- * `shelter.photos.crop` (crop-frame shape §6) through the served router: a real request, the
- * access middleware, the handler, real sharp and real Postgres, with a bucket in memory that
- * answers a get with what was put. Synthetic images only: a grey photo with a red block where the
- * frame goes, so a variant cut from the frame is red through its middle.
+ * `shelter.photos.crop` (crop-frame shape §6) through the served router, real sharp and Postgres,
+ * a bucket in memory. Synthetic images: grey with a red block where the frame goes.
  */
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
 let cleanup: () => Promise<void>;
@@ -64,7 +63,10 @@ beforeEach(async () => {
 
 type Put = { key: string; contentType: string; bytes: Buffer };
 
-function bucket(onGet: (key: string) => Promise<void> = async () => {}) {
+function bucket(
+  onGet: (key: string) => Promise<void> = async () => {},
+  onPut: (key: string) => Promise<void> = async () => {},
+) {
   const puts: Put[] = [];
   const gets: string[] = [];
   return {
@@ -72,6 +74,7 @@ function bucket(onGet: (key: string) => Promise<void> = async () => {}) {
     gets,
     storage: {
       async put(key: string, bytes: Buffer, contentType: string) {
+        await onPut(key);
         puts.push({ key, contentType, bytes });
       },
       async get(key: string) {
@@ -90,14 +93,42 @@ const generous = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_0
 
 const uploadsOf = (
   store: Bucket,
-  limiters: { perHour?: RateLimiter } = {},
+  limiters: { perHour?: RefundableRateLimiter; perDay?: RefundableRateLimiter } = {},
   processingBudgetMs = PHOTO_PROCESSING_BUDGET_MS,
 ): PhotoUploads => ({
   kind: "on",
   storage: store.storage,
-  limiters: { perHour: limiters.perHour ?? generous(), perDay: generous() },
+  limiters: { perHour: limiters.perHour ?? generous(), perDay: limiters.perDay ?? generous() },
   processingBudgetMs,
 });
+
+/** Allows every call and keeps each key's net units: `check` takes one, `refund` gives it back. */
+function ledger() {
+  const net = new Map<string, number>();
+  const move = (key: string, by: number) => net.set(key, (net.get(key) ?? 0) + by);
+  const limiter: RefundableRateLimiter = {
+    async check(key) {
+      move(key, 1);
+      return true;
+    },
+    async refund(key) {
+      move(key, -1);
+    },
+  };
+  return { limiter, units: (key: string) => net.get(key) ?? 0 };
+}
+
+/** An hour and a day ledger, and what one shelter holds on each: allowance and crop attempts. */
+function ledgers() {
+  const hour = ledger();
+  const day = ledger();
+  const held = (key: string) => [hour.units(key), day.units(key)];
+  return {
+    limiters: { perHour: hour.limiter, perDay: day.limiter },
+    allowance: () => held(shelterUploadKey(shelter.id)),
+    attempts: () => held(shelterCropAttemptKey(shelter.id)),
+  };
+}
 
 async function call<T = KabinetAnimalView>(
   path: string,
@@ -493,25 +524,31 @@ describe("shelter.photos.crop", () => {
     expect(errorOf(result.body).code).toBe("PHOTO_UPLOADS_UNAVAILABLE");
   });
 
-  it("charges the upload allowance like an upload (crop-frame Q5), a refused frame included", async () => {
+  it("spends the upload allowance like an upload once it lands (crop-frame Q5); a refused frame doesn't", async () => {
     const { target, photo, store } = await withUploadedPhoto();
     const perHour = inMemoryRateLimiter({ windowMs: 3_600_000, maxRequests: 1 });
+    const uploads = uploadsOf(store, { perHour });
     const refused = await call(
       "shelter.photos.crop",
       crop(target, photo.storageKey, { kind: "frame", frame: { x: 0, y: 0, w: 0.5, h: 0.5 } }),
-      { uploads: uploadsOf(store, { perHour }) },
+      { uploads },
     );
     expect(refused.status).toBe(422);
-    const limited = await call(
+    const cropped = await call(
       "shelter.photos.crop",
       crop(target, photo.storageKey, ON_THE_BLOCK),
       {
-        uploads: uploadsOf(store, { perHour }),
+        uploads,
       },
+    );
+    expect(cropped.status).toBe(200);
+    const limited = await call(
+      "shelter.photos.add",
+      { animalId: target.id, file: await photoFile() },
+      { uploads },
     );
     expect(limited.status).toBe(429);
     expect(errorOf(limited.body).code).toBe("RATE_LIMITED");
-    expect(store.gets).toEqual([]);
   });
 
   it("a lost race to a changed photo list is CONFLICT, and the new files are logged as orphaned", async () => {
@@ -523,11 +560,12 @@ describe("shelter.photos.crop", () => {
     const uploaded = await withUploadedPhoto(store);
     target = uploaded.target;
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const count = ledgers();
 
     const result = await call(
       "shelter.photos.crop",
       crop(uploaded.target, uploaded.photo.storageKey, ON_THE_BLOCK),
-      { uploads: uploadsOf(store) },
+      { uploads: uploadsOf(store, count.limiters) },
     );
 
     expect(result.status).toBe(409);
@@ -535,6 +573,7 @@ describe("shelter.photos.crop", () => {
     const orphan = store.puts.at(-1)?.key.replace(/\/[^/]+$/, "");
     expect(logged).toHaveBeenCalledWith({ event: "photo_orphaned", storageKey: orphan });
     expect((await reload(uploaded.target.id)).photos).toEqual([]);
+    expect(count.allowance()).toEqual([0, 0]);
   });
 
   it("past the processing budget it fails like an upload, and what it cut late is never stored", async () => {
@@ -551,16 +590,210 @@ describe("shelter.photos.crop", () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     holding = true;
 
+    const count = ledgers();
     const result = await call("shelter.photos.crop", crop(target, photo.storageKey, ON_THE_BLOCK), {
-      uploads: uploadsOf(store, {}, 50),
+      uploads: uploadsOf(store, count.limiters, 50),
     });
 
     expect(result.status).toBe(500);
     expect(logged.mock.calls).toEqual([[{ event: "photo_processing_over_budget", budgetMs: 50 }]]);
+    expect(count.allowance()).toEqual([0, 0]);
     release();
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(store.puts).toHaveLength(putsBefore);
     expect((await reload(target.id)).photos).toEqual(target.photos);
+  });
+});
+
+describe("the upload allowance: a crop that fails costs none (owner, 2026-11-12)", () => {
+  /** A crop's tries fail from here on: `fail` set after the photo is uploaded. */
+  async function withFailing(where: "get" | "put") {
+    let failing = false;
+    const fail = async (key: string) => {
+      if (failing && (where === "get" || key.includes("/source-"))) throw new Error(`R2 ${where}`);
+    };
+    const uploaded = await withUploadedPhoto(
+      where === "get" ? bucket(fail) : bucket(undefined, fail),
+    );
+    failing = true;
+    return uploaded;
+  }
+
+  it("a crop that lands takes exactly one unit an hour and one a day, and one attempt", async () => {
+    const { target, photo, store } = await withUploadedPhoto();
+    const count = ledgers();
+    const result = await call("shelter.photos.crop", crop(target, photo.storageKey, ON_THE_BLOCK), {
+      uploads: uploadsOf(store, count.limiters),
+    });
+    expect(result.status).toBe(200);
+    expect(count.allowance()).toEqual([1, 1]);
+    expect(count.attempts()).toEqual([1, 1]);
+  });
+
+  it("a refusal before the work takes nothing: a stale list, a refused frame, the framing it has", async () => {
+    const { target, photo, store } = await withUploadedPhoto();
+    const count = ledgers();
+    const uploads = uploadsOf(store, count.limiters);
+    const stale = {
+      ...crop(target, photo.storageKey, ON_THE_BLOCK),
+      expectedPhotoKeys: [photo.storageKey, "animals/x/gone"],
+    };
+    const refused = crop(target, photo.storageKey, {
+      kind: "frame",
+      frame: { x: 0, y: 0, w: 0.5, h: 0.5 },
+    });
+    const same = crop(target, photo.storageKey, { kind: "attention" });
+    const statuses: number[] = [];
+    for (const input of [stale, refused, same]) {
+      statuses.push((await call("shelter.photos.crop", input, { uploads })).status);
+    }
+    expect(statuses).toEqual([409, 422, 200]);
+    expect(store.gets).toEqual([]);
+    expect([count.allowance(), count.attempts()]).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
+  });
+
+  it("a seed or demo photo has no file to cut from: 404 NOT_FOUND, before any charge or read", async () => {
+    const store = bucket();
+    const storageKey = "seed-photos/dog-1.jpg";
+    const target = makeAnimal({
+      shelterId: shelter.id,
+      photos: [{ storageKey, width: 1024, height: 768, alt: null }],
+    });
+    await animalRepo(db).insert(target, cityId as never);
+    const count = ledgers();
+
+    const result = await call("shelter.photos.crop", crop(target, storageKey, ON_THE_BLOCK), {
+      uploads: uploadsOf(store, count.limiters),
+    });
+
+    expect(result.status).toBe(404);
+    expect(errorOf(result.body).code).toBe("NOT_FOUND");
+    expect([store.gets, store.puts]).toEqual([[], []]);
+    expect([count.allowance(), count.attempts()]).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
+  });
+
+  it("a source it can't read: 500, and the unit is given back", async () => {
+    const { target, photo, store } = await withFailing("get");
+    const count = ledgers();
+    const result = await call("shelter.photos.crop", crop(target, photo.storageKey, ON_THE_BLOCK), {
+      uploads: uploadsOf(store, count.limiters),
+    });
+    expect(result.status).toBe(500);
+    expect(count.allowance()).toEqual([0, 0]);
+    expect((await reload(target.id)).photos).toEqual(target.photos);
+  });
+
+  it("a put that fails: 500, what it stored is logged as orphaned, and the unit is given back", async () => {
+    const { target, photo, store } = await withFailing("put");
+    const putsBefore = store.puts.length;
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const count = ledgers();
+    const result = await call("shelter.photos.crop", crop(target, photo.storageKey, ON_THE_BLOCK), {
+      uploads: uploadsOf(store, count.limiters),
+    });
+    expect(result.status).toBe(500);
+    const orphan = store.puts.at(-1)?.key.replace(/\/[^/]+$/, "");
+    expect(store.puts).toHaveLength(putsBefore + IMAGE_VARIANT_NAMES.length);
+    expect(logged).toHaveBeenCalledWith({ event: "photo_orphaned", storageKey: orphan });
+    expect(count.allowance()).toEqual([0, 0]);
+    expect((await reload(target.id)).photos).toEqual(target.photos);
+  });
+
+  it("a source over the decoder's pixel ceiling (limitInputPixels) is refused: 500, nothing stored, the unit given back", async () => {
+    // 2001 x 2000 is one column over UPLOAD_PIXEL_LIMIT (2000 x 2000), and its row says so, so
+    // only sharp's own ceiling can refuse it: without it, this crop lands.
+    const store = bucket();
+    const draft = makeAnimal({ shelterId: shelter.id });
+    const storageKey = `animals/${draft.id}/${crypto.randomUUID()}`;
+    const target = { ...draft, photos: [{ storageKey, width: 2001, height: 2000, alt: null }] };
+    await animalRepo(db).insert(target, cityId as never);
+    const sourceObjectKey = `${storageKey}/source-${crypto.randomUUID()}.webp`;
+    await photoSourcesRepo(db).insertForAnimal(
+      target.id,
+      [
+        {
+          storageKey,
+          sourceObjectKey,
+          origin: "upload",
+          width: 2001,
+          height: 2000,
+          framing: { kind: "attention" },
+        },
+      ],
+      new Date(),
+    );
+    const oversized = await sharp({
+      create: { width: 2001, height: 2000, channels: 3, background: { r: 60, g: 60, b: 60 } },
+    })
+      .webp()
+      .toBuffer();
+    await store.storage.put(sourceObjectKey, oversized, "image/webp");
+    const putsBefore = store.puts.length;
+    const count = ledgers();
+
+    const result = await call(
+      "shelter.photos.crop",
+      crop(target, storageKey, { kind: "frame", frame: { x: 0, y: 0, w: 0.4, h: 0.5 } }),
+      { uploads: uploadsOf(store, count.limiters) },
+    );
+
+    expect(result.status).toBe(500);
+    expect(store.gets).toEqual([sourceObjectKey]);
+    expect(store.puts).toHaveLength(putsBefore);
+    expect(count.allowance()).toEqual([0, 0]);
+    expect((await reload(target.id)).photos).toEqual(target.photos);
+  });
+
+  it("refused by the day after the hour took its unit: 429, and every unit taken goes back", async () => {
+    const { target, photo, store } = await withUploadedPhoto();
+    const now = new Date();
+    const hour = ledger();
+    const day = inMemoryRateLimiter({ windowMs: 86_400_000, maxRequests: 1 });
+    // The day's allowance already spent by an upload; its attempts are not.
+    await day.check(shelterUploadKey(shelter.id), now);
+
+    const result = await call("shelter.photos.crop", crop(target, photo.storageKey, ON_THE_BLOCK), {
+      uploads: uploadsOf(store, { perHour: hour.limiter, perDay: day }),
+      now,
+    });
+
+    expect(result.status).toBe(429);
+    expect(errorOf(result.body).code).toBe("RATE_LIMITED");
+    expect(store.gets).toEqual([]);
+    expect(hour.units(shelterUploadKey(shelter.id))).toBe(0);
+    expect(hour.units(shelterCropAttemptKey(shelter.id))).toBe(0);
+    expect(await day.check(shelterCropAttemptKey(shelter.id), now)).toBe(true);
+  });
+
+  it("failures aren't free without bound: each keeps its attempt, so a run of them meets P-Q12's limit while uploads still pass", async () => {
+    const { target, photo, store } = await withFailing("get");
+    const perHour = inMemoryRateLimiter({ windowMs: 3_600_000, maxRequests: 2 });
+    const uploads = uploadsOf(store, { perHour });
+    const statuses: number[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const result = await call(
+        "shelter.photos.crop",
+        crop(target, photo.storageKey, ON_THE_BLOCK),
+        { uploads },
+      );
+      statuses.push(result.status);
+    }
+    expect(statuses).toEqual([500, 500, 429]);
+    // The allowance itself is untouched: two uploads still fit in this hour's two.
+    for (let i = 0; i < 2; i += 1) {
+      const added = await call(
+        "shelter.photos.add",
+        { animalId: target.id, file: await photoFile() },
+        { uploads },
+      );
+      expect(added.status).toBe(200);
+    }
   });
 });
 

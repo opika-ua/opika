@@ -13,7 +13,7 @@ import {
 } from "@opika/db/test";
 import type { Animal, AnimalPhoto, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { inMemoryRateLimiter, type RateLimiter } from "../api/rate-limit";
+import { inMemoryRateLimiter, type RefundableRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, rpcRequestInit } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
@@ -121,7 +121,7 @@ const generous = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_0
 
 function uploadsOn(
   store = capturingStore(),
-  limiters: { perHour?: RateLimiter; perDay?: RateLimiter } = {},
+  limiters: { perHour?: RefundableRateLimiter; perDay?: RefundableRateLimiter } = {},
   processingBudgetMs = PHOTO_PROCESSING_BUDGET_MS,
 ): { uploads: PhotoUploads; puts: Put[] } {
   return {
@@ -502,11 +502,12 @@ describe("per-shelter upload limits (P-Q12)", () => {
 
   it("is keyed by the shelter, so its admins share one allowance", async () => {
     const keys: string[] = [];
-    const spying: RateLimiter = {
+    const spying: RefundableRateLimiter = {
       async check(key) {
         keys.push(key);
         return true;
       },
+      refund: async () => {},
     };
     const target = await animal({ photos: [] });
     const { uploads } = uploadsOn(undefined, { perHour: spying, perDay: spying });

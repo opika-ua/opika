@@ -408,29 +408,9 @@ export function kabinetAnimalRepo(db: Database) {
     },
 
     /**
-     * A photo change (add, reorder, remove, P-Q3): `photos`,
-     * `last_updated_at` and the listing as `listingAfterPhotoChange` left it,
-     * compare-and-set on both the photo list and the listing as the request
-     * read them (jsonb equality), with its `animal_edited` line
-     * (`fields: ["photos"]`) in the same statement, so a lost race writes and
-     * records nothing.
-     *
-     * The listing is written because of RH-B7 (Oleksii, D4 option (i)): on a
-     * published or reserved card a photo change moves the confirmation date
-     * «Оновлено» counts from, so `listing.confirmedAt` and
-     * `last_confirmed_at` move together. Its kind never changes here, so
-     * `listing_kind`, `wait_anchor_at` and `first_published_at` stay as they
-     * are. Comparing on the listing also closes K3-T7's race (§7.5): a
-     * last-photo removal planned on a draft can't land after a publish.
-     *
-     * Not `version`: that is the K3 form's token, and a photo added while the
-     * form is open must neither make the form's save a conflict nor be undone
-     * by it (the form never writes `photos`, RH-B3; Oleksii: "Animals.version
-     * stays unchanged (P-Q3)").
-     *
-     * The same statement deletes the source row of every photo that leaves the
-     * list (a removal, or the key a crop replaced) and inserts `source`'s row
-     * for the photo it adds; a lost race does neither.
+     * A photo change (P-Q3) in one statement: photos, «Оновлено» (RH-B7), the history line, leaving
+     * photos' source rows out and `source`'s in; compare-and-set on the photo list and the listing
+     * (K3-T7), so a lost race writes nothing. Not `version`: the K3 form's token (RH-B3).
      */
     async writePhotosIf(
       animalId: AnimalId,

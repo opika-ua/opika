@@ -1,4 +1,4 @@
-import type { RateLimiter } from "../api/rate-limit";
+import type { RateLimiter, RefundableRateLimiter } from "../api/rate-limit";
 
 /**
  * HS-Q10 (Oleksii): the kabinet's own limits, on the shared Upstash store but
@@ -51,6 +51,12 @@ export const PHOTO_UPLOAD_RATE_LIMITS = {
   perDay: { windowMs: 24 * 60 * 60_000, maxRequests: 300 },
 } as const;
 
-export type PhotoUploadLimiters = { perHour: RateLimiter; perDay: RateLimiter };
+export type PhotoUploadLimiters = { perHour: RefundableRateLimiter; perDay: RefundableRateLimiter };
 
 export const shelterUploadKey = (shelterId: string) => `shelter:${shelterId}`;
+
+/**
+ * A crop's attempts, on the same limiters under their own key and never given back: a failed crop
+ * returns its allowance unit (owner, 2026-11-12), so this keeps its work within P-Q12's numbers.
+ */
+export const shelterCropAttemptKey = (shelterId: string) => `shelter:${shelterId}:crop`;

@@ -52,6 +52,21 @@ describe("inMemoryRateLimiter", () => {
     expect(retryAfterSecondsOf(stub, "k", new Date())).toBe(60);
   });
 
+  it("refund gives back the unit check took at that moment, and only that one", async () => {
+    const { inMemoryRateLimiter } = await import("./rate-limit");
+    const limiter = inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 2 });
+    const t0 = new Date("2026-01-01T00:00:00Z");
+    const t1 = new Date(t0.getTime() + 1_000);
+
+    expect(await limiter.check("k", t0)).toBe(true);
+    expect(await limiter.check("k", t1)).toBe(true);
+    await limiter.refund("k", t1);
+    await limiter.refund("k", t1);
+    await limiter.refund("other", t1);
+    expect(await limiter.check("k", t1)).toBe(true);
+    expect(await limiter.check("k", t1)).toBe(false);
+  });
+
   it("tracks separate keys independently", async () => {
     const { inMemoryRateLimiter } = await import("./rate-limit");
     const limiter = inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 1 });
@@ -238,6 +253,30 @@ describe("upstashRateLimiter", () => {
     expect(await limiter.check("1.2.3.4", new Date())).toBe(false);
     expect(consoleErrorSpy).toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
+  });
+
+  it("refund is the SDK's negative rate, and a store it can't reach is warned, never thrown", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { upstashRateLimiter } = await import("./rate-limit");
+    const { Redis } = await import("@upstash/redis");
+    const limiter = upstashRateLimiter({
+      redis: new Redis({ url: "https://example.invalid", token: "x" }),
+      windowMs: 60_000,
+      maxRequests: 100,
+      prefix: "test-refund",
+      onUnavailable: "deny",
+    });
+
+    limitMock.mockResolvedValue({ success: true });
+    await limiter.refund("shelter:s1", new Date());
+    expect(limitMock).toHaveBeenCalledWith("shelter:s1", { rate: -1 });
+
+    limitMock.mockRejectedValue(new Error("getaddrinfo ENOTFOUND example.invalid"));
+    await expect(limiter.refund("shelter:s1", new Date())).resolves.toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "rate_limiter_unreachable", limiter: "test-refund" }),
+    );
+    warnSpy.mockRestore();
   });
 
   /**

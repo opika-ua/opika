@@ -53,9 +53,9 @@ function isKeyOwnedByThisJob(objectKey: string): boolean {
 const DELETE_BATCH_SIZE = 1000;
 
 /**
- * Blast-radius cap, else nothing is deleted: six objects a photo or crop (five variants, the source),
- * so about 100 a day (owner, crop-frame Q4; `photo-source-cleanup.test.ts` pins it). Only the CLI
- * raises it (`--max-delete`); a wiped table trips it instead of emptying the bucket.
+ * Blast-radius cap, else nothing is deleted: six objects a photo or crop, ~100 a run (crop-frame
+ * Q4, pinned in `photo-source-cleanup.test.ts`); only `--max-delete` raises it. A wiped table trips
+ * it only above ~100 photos; below that, the 7-day grace period is the only guard.
  */
 export const DEFAULT_MAX_DELETE_PER_RUN = 600;
 
