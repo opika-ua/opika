@@ -21,8 +21,9 @@ type Slots = {
   medical: Slot;
 };
 
-const STORY: Slot = { columns: "1-8", className: "desktop:col-span-8 desktop:max-w-reading" };
-const MEDICAL_BESIDE_STORY: Slot = { columns: "9-12", className: "desktop:col-span-4" };
+// Story and health side by side: five columns give the health labels one line (owner, 2026-11-12).
+const STORY: Slot = { columns: "1-7", className: "desktop:col-span-7 desktop:max-w-reading" };
+const MEDICAL_BESIDE_STORY: Slot = { columns: "8-12", className: "desktop:col-span-5" };
 
 export const STRIP_SLOTS: Record<StripLayout, Slots> = {
   // The phone's placeholder is not shown from desktop, so the text starts the body.
@@ -40,8 +41,8 @@ export const STRIP_SLOTS: Record<StripLayout, Slots> = {
     photos: { columns: "1-4", className: "desktop:col-span-4 desktop:row-span-2" },
     about: { columns: "5-12", className: "desktop:col-span-8" },
     story: {
-      columns: STORY.columns,
-      className: `${STORY.className} desktop:col-start-1 desktop:row-start-3`,
+      columns: "1-8",
+      className: "desktop:col-span-8 desktop:max-w-reading desktop:col-start-1 desktop:row-start-3",
     },
     medical: {
       columns: "5-12",

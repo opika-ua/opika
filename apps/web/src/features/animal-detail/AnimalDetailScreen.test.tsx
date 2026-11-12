@@ -682,27 +682,27 @@ describe("AnimalDetailScreen – what sits in which desktop columns, by photo co
   };
 
   it.each([
-    [1, "1-4", "5-12", "5-12"],
-    [2, "1-8", "9-12", "9-12"],
-    [3, "1-12", "1-12", "9-12"],
-    [5, "1-12", "1-12", "9-12"],
+    [1, "1-4", "5-12", "5-12", "1-8"],
+    [2, "1-8", "9-12", "8-12", "1-7"],
+    [3, "1-12", "1-12", "8-12", "1-7"],
+    [5, "1-12", "1-12", "8-12", "1-7"],
   ] as const)(
-    "%i photos: photos in %s, «Про мене» in %s, health in %s, the story in 1-8",
-    async (count, photoColumns, aboutColumns, medicalColumns) => {
+    "%i photos: photos in %s, «Про мене» in %s, health in %s, the story in %s",
+    async (count, photoColumns, aboutColumns, medicalColumns, storyColumns) => {
       await renderAnimal({ photos: photos(count) });
       const strip = screen.getByRole("region", { name: "Фотогалерея" });
       expect(strip.children).toHaveLength(count);
       expect(columnsOf(strip)).toBe(photoColumns);
       expect(columnsOf(only("Про мене"))).toBe(aboutColumns);
       expect(columnsOf(only("Медичний стан"))).toBe(medicalColumns);
-      expect(columnsOf(only("Моя історія"))).toBe("1-8");
+      expect(columnsOf(only("Моя історія"))).toBe(storyColumns);
     },
   );
 
   it("no photos: «Про мене» takes the full width, the story and health below it", async () => {
     await renderAnimal({ photos: [] });
     expect(columnsOf(only("Про мене"))).toBe("1-12");
-    expect(columnsOf(only("Моя історія"))).toBe("1-8");
-    expect(columnsOf(only("Медичний стан"))).toBe("9-12");
+    expect(columnsOf(only("Моя історія"))).toBe("1-7");
+    expect(columnsOf(only("Медичний стан"))).toBe("8-12");
   });
 });
