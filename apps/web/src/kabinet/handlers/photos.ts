@@ -102,20 +102,6 @@ type UploadErrors = ORPCErrorConstructorMap<{
   PHOTO_UPLOADS_UNAVAILABLE: typeof apiErrors.PHOTO_UPLOADS_UNAVAILABLE;
 }>;
 
-/** Uploads on (P-Q10) and the shelter's allowances charged (P-Q12) before anything is read. */
-async function chargedUploads(
-  deps: PhotoDeps,
-  scope: ShelterWriteScope,
-  errors: UploadErrors,
-): Promise<UploadsOn> {
-  const uploads = deps.photoUploads;
-  if (uploads.kind === "off") throw errors.PHOTO_UPLOADS_UNAVAILABLE();
-  const allowanceKey = shelterUploadKey(scope.shelterId);
-  if (!(await uploads.limiters.perHour.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
-  if (!(await uploads.limiters.perDay.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
-  return uploads;
-}
-
 /** The photo writes' log lines, through one console call (the Biome ratchet counts each). */
 const logPhotoEvent = (
   line: { event: "photo_orphaned"; storageKey: string } | { event: "photo_crop_uncharged" },
@@ -189,7 +175,11 @@ export async function photosAdd(
       PHOTO_LIMIT_REACHED: typeof apiErrors.PHOTO_LIMIT_REACHED;
     }>,
 ): Promise<KabinetAnimalView> {
-  const uploads = await chargedUploads(deps, scope, errors);
+  const uploads = deps.photoUploads;
+  if (uploads.kind === "off") throw errors.PHOTO_UPLOADS_UNAVAILABLE();
+  const allowanceKey = shelterUploadKey(scope.shelterId);
+  if (!(await uploads.limiters.perHour.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
+  if (!(await uploads.limiters.perDay.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
 
   const limitReached = () => errors.PHOTO_LIMIT_REACHED({ data: { max: MAX_ANIMAL_PHOTOS } });
   const { animal } = await owned(deps, scope, input.animalId, errors);
