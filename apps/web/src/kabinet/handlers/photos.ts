@@ -104,7 +104,14 @@ type UploadErrors = ORPCErrorConstructorMap<{
 
 /** The photo writes' log lines, through one console call (the Biome ratchet counts each). */
 const logPhotoEvent = (
-  line: { event: "photo_orphaned"; storageKey: string } | { event: "photo_crop_uncharged" },
+  line:
+    | { event: "photo_orphaned"; storageKey: string }
+    | {
+        event:
+          | "photo_crop_uncharged"
+          | "photo_crop_charged_hourly_only"
+          | "photo_crop_charged_daily_only";
+      },
 ) => console.error(line);
 
 /** A file stored that no animal points at: the clean-up job deletes it after the grace (K-Q2). */
@@ -336,13 +343,21 @@ async function takeCropAttempt(deps: PhotoDeps, scope: ShelterWriteScope, upload
 
 /**
  * A landed crop's allowance unit. Crops in flight together all passed the pre-check, so they can
- * overshoot by their number (the attempts bound it); refused, or the store down, the crop stays.
+ * overshoot by their number (the attempts bound it); refused, or the store down, the crop stays,
+ * and the log line names the limiter that still took its unit, if one did.
  */
 async function chargeLandedCrop(deps: PhotoDeps, scope: ShelterWriteScope, uploads: UploadsOn) {
   const key = shelterUploadKey(scope.shelterId);
   const hour = await uploads.limiters.perHour.check(key, deps.now);
   const day = await uploads.limiters.perDay.check(key, deps.now);
-  if (!(hour && day)) logPhotoEvent({ event: "photo_crop_uncharged" });
+  if (hour && day) return;
+  logPhotoEvent({
+    event: hour
+      ? "photo_crop_charged_hourly_only"
+      : day
+        ? "photo_crop_charged_daily_only"
+        : "photo_crop_uncharged",
+  });
 }
 
 type CropFrom = {
