@@ -1,3 +1,4 @@
+import { centredBox, type PixelBox } from "@opika/domain";
 import sharp, { type SharpOptions } from "sharp";
 import { displayedDimensions } from "./resolve-local-photo";
 
@@ -97,6 +98,54 @@ export async function generateVariants<T extends Record<string, Size>>(
         ...input,
         raw: { width: info.width, height: info.height, channels: info.channels },
       })
+        .resize(variant.width, variant.height, { fit: "cover" })
+        .webp({ quality: 82 })
+        .toBuffer();
+      return [name, buffer] as const;
+    }),
+  );
+  return Object.fromEntries(entries) as Record<keyof T, Buffer>;
+}
+
+/**
+ * The region of a framed source one variant is cut from: the 4:5 frame itself for the 4:5
+ * variants, the centred square of side = frame width for the thumb (crop-frame shape §6).
+ */
+export function framedRegionOf(frame: PixelBox, variant: Size): PixelBox {
+  return centredBox(frame, variant.width / variant.height);
+}
+
+/**
+ * Decoded once to raw pixels, then each variant `extract`s before it `resize`s: work bounded by the
+ * source and the variant, not the frame. Five separate WebP decodes peaked at 260 MB of libvips
+ * memory at 2000 × 2000, this at 83 MB (`generate-variants-bounded.test.ts`).
+ */
+export async function generateFramedVariants<T extends Record<string, Size>>(
+  variants: T,
+  source: Buffer,
+  frame: PixelBox,
+  input: Pick<SharpOptions, "limitInputPixels"> = {},
+): Promise<Record<keyof T, Buffer>> {
+  // `.rotate()` first, so the frame is read on the photo as displayed.
+  const { data, info } = await sharp(source, input)
+    .rotate()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  if (
+    frame.left < 0 ||
+    frame.top < 0 ||
+    frame.width < 1 ||
+    frame.height < 1 ||
+    frame.left + frame.width > info.width ||
+    frame.top + frame.height > info.height
+  ) {
+    throw new Error("The frame lies outside the source");
+  }
+  const raw = { width: info.width, height: info.height, channels: info.channels };
+  const entries = await Promise.all(
+    (Object.entries(variants) as [keyof T, Size][]).map(async ([name, variant]) => {
+      const buffer = await sharp(data, { ...input, raw })
+        .extract(framedRegionOf(frame, variant))
         .resize(variant.width, variant.height, { fit: "cover" })
         .webp({ quality: 82 })
         .toBuffer();

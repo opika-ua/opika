@@ -143,6 +143,10 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
         async put(key) {
           stored.push(key);
         },
+        async get(key) {
+          stored.push(`get:${key}`);
+          throw new Error("NoSuchKey");
+        },
       },
       limiters: { perHour: generousLimiters.perUser, perDay: generousLimiters.perUser },
       processingBudgetMs: 10_000,
@@ -202,6 +206,16 @@ const animalIdCases: [string, (id: string) => unknown | Promise<unknown>][] = [
       animalId: id,
       expectedPhotoKeys: ["animals/b/one"],
       storageKey: "animals/b/one",
+    }),
+  ],
+  // Refused before the source is read: `stored` (puts and gets) stays empty.
+  [
+    "shelter.photos.crop",
+    (id) => ({
+      animalId: id,
+      expectedPhotoKeys: ["animals/b/one"],
+      storageKey: "animals/b/one",
+      framing: { kind: "frame", frame: { x: 0, y: 0, w: 0.5, h: 0.5 } },
     }),
   ],
 ];
@@ -407,6 +421,7 @@ describe("coverage", () => {
       "shelter.photos.add",
       "shelter.photos.reorder",
       "shelter.photos.remove",
+      "shelter.photos.crop",
       "shelter.profile.get",
       "shelter.profile.updateContact",
       "shelter.profile.updateDescription",
@@ -421,7 +436,7 @@ describe("coverage", () => {
       "shelter.logo.set",
       "shelter.logo.remove",
     ];
-    expect(new Set(covered).size).toBe(22);
+    expect(new Set(covered).size).toBe(23);
     expect([...covered].sort()).toEqual(pathsOf(shelterKabinetContract.shelter, "shelter").sort());
   });
 });

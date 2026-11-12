@@ -376,7 +376,7 @@ neutral; never name a suspicion.
   stay referenced, stay in the bucket, and stay reachable to anyone who already has a file URL. The only
   automatic deletion is the daily clean-up (04:00 UTC), which removes a photo or logo only after it has been
   unreferenced for 7 days, re-checks right before deleting, and refuses a run that would delete more than
-  100 objects (it logs `refused_over_cap`, deletes nothing, and only the CLI can raise the cap). A photo
+  600 objects (it logs `refused_over_cap`, deletes nothing, and only the CLI can raise the cap). A photo
   that must go (for example one showing a person) goes through that job too: take it off the card, then
   the job deletes it after the 7 days; over the cap, the `r2:cleanup` dry run then `--commit --max-delete
   <n>` (`docs/operator-leaving-and-erasure.md`, A step 8). Never delete files by hand. Nothing but that job

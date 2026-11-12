@@ -92,11 +92,9 @@ const ANIMAL_VIEW_FIELDS = {
   version: true,
 } as const;
 /**
- * What a crop is cut from (crop-frame shape §4). `kept`: the source stored beside the photo, by
- * its object key, which only the owning shelter's own kabinet receives; `origin: "detail_variant"`
- * is an older photo's detail variant, so its crop only zooms. `variants_only`: an older photo never
- * cropped, whose crop starts from `{storageKey}/detail.webp`. `withheld`: a support view, which
- * never receives a source key (owner's condition 2, crop-frame approvals).
+ * What a crop is cut from: `kept` (its object key, for the owning shelter's admin only; a
+ * `detail_variant` origin only zooms), `variants_only` (an older photo: `{storageKey}/detail.webp`)
+ * or `withheld` (a support view never receives a source key, owner's condition 2).
  */
 export const PhotoCropSourceViewSchema = z.discriminatedUnion("kind", [
   z.object({

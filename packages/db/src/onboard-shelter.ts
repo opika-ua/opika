@@ -19,12 +19,17 @@ import {
   EvidenceItemInputSchema,
   ExactAddressSchema,
   everServedAtAfter,
+  FRAME_UNITS,
+  frameBoxOf,
+  frameOfUnits,
   type ListedAnimal,
   MAX_ADDITIONAL_CHANNELS,
   MAX_ANIMAL_PHOTOS,
   type ModeratorId,
   ModeratorIdSchema,
   meetsEvidenceRequirements,
+  PhotoFrameSchema,
+  type PhotoFraming,
   publicLocationOf,
   type Shelter,
   ShelterContactInputSchema,
@@ -42,13 +47,14 @@ import { createDatabaseWithClient, type Database } from "./client";
 import {
   createR2Client,
   type ImageStorageClient,
+  photoSourceSizeOf,
   resolveLocalPhotoPath,
   uploadAnimalPhoto,
   validateLocalPhoto,
 } from "./image-pipeline/server";
 import { productionLocationPolicy } from "./location-policy";
 import { assertProductionWriteAllowed } from "./prod-guard";
-import { animalRepo, cityRepo, shelterRepo } from "./repos";
+import { animalRepo, cityRepo, type PhotoSource, photoSourcesRepo, shelterRepo } from "./repos";
 import type { CurrentCityResolution } from "./repos/city-repo";
 import { insertShelterFromScript, recordAnimalsImported, type ScriptActor } from "./script-history";
 
@@ -172,7 +178,64 @@ const FOUNDER_MODERATOR_ID = ModeratorIdSchema.parse(
  */
 const OnboardPhotoSchema = z.object({
   localPath: z.string().min(1),
+  /**
+   * The crop frame the operator chose (crop-frame Q1: kabinet crops, plus an optional frame when
+   * the operator enters first cards, inside commitment #6), as a pixel box on the photo as an
+   * image viewer shows it. Must be 4:5. Without it, the automatic crop, as before.
+   */
+  frame: z
+    .strictObject({
+      left: z.int().min(0),
+      top: z.int().min(0),
+      width: z.int().positive(),
+      height: z.int().positive(),
+    })
+    .optional(),
 });
+type OnboardFrame = NonNullable<z.infer<typeof OnboardPhotoSchema>["frame"]>;
+
+/**
+ * An operator's pixel box as a stored frame, or why it is refused. The box's edges are taken to
+ * 1/10 000 of the photo, so the frame lies inside it once stored, and `frameBoxOf` then judges it
+ * on the kept source's size (a photo over 2000 px is stored scaled, and 400 px is that copy's).
+ */
+export function framingOfOnboardFrame(
+  frame: OnboardFrame | undefined,
+  displayed: { width: number; height: number },
+): { kind: "ok"; framing: PhotoFraming } | { kind: "refused"; message: string } {
+  if (frame === undefined) return { kind: "ok", framing: { kind: "attention" } };
+  const right = frame.left + frame.width;
+  const bottom = frame.top + frame.height;
+  if (right > displayed.width || bottom > displayed.height) {
+    return {
+      kind: "refused",
+      message: `frame ${frame.left},${frame.top} ${frame.width}x${frame.height} reaches past the ${displayed.width}x${displayed.height} photo`,
+    };
+  }
+  const unitsOf = (px: number, side: number) => Math.round((px / side) * FRAME_UNITS);
+  const x = unitsOf(frame.left, displayed.width);
+  const y = unitsOf(frame.top, displayed.height);
+  const parsed = PhotoFrameSchema.safeParse(
+    frameOfUnits({
+      x,
+      y,
+      w: unitsOf(right, displayed.width) - x,
+      h: unitsOf(bottom, displayed.height) - y,
+    }),
+  );
+  if (!parsed.success) return { kind: "refused", message: "frame is too small to store" };
+  const source = photoSourceSizeOf(displayed);
+  const box = frameBoxOf(parsed.data, source);
+  if (box.kind === "rejected") {
+    const why = {
+      aspect: "is not 4:5 (width = height x 0.8)",
+      too_small: `is narrower than 400 px of the stored ${source.width}x${source.height} copy`,
+      outside: "reaches past the photo",
+    }[box.reason];
+    return { kind: "refused", message: `frame ${why}` };
+  }
+  return { kind: "ok", framing: { kind: "frame", frame: parsed.data } };
+}
 
 /**
  * The shelter's text, with the cap every write path shares (the kabinet and the operator's forms
@@ -514,42 +577,51 @@ export function buildAnimal(
  * right, add --commit" message, the same reasoning `buildShelter`'s
  * evidence-policy check already applies to verification evidence.
  */
+type ValidatedPhoto = {
+  resolvedPath: string;
+  dimensions: { width: number; height: number };
+  framing: PhotoFraming;
+};
+
 async function validateAnimalPhotos(
   inputPath: string,
   animal: z.infer<typeof OnboardAnimalSchema>,
-): Promise<Array<{ resolvedPath: string; dimensions: { width: number; height: number } }>> {
+): Promise<ValidatedPhoto[]> {
   return Promise.all(
     animal.photos.map(async (photo) => {
       const resolvedPath = resolveLocalPhotoPath(inputPath, photo.localPath);
       const dimensions = await validateLocalPhoto(resolvedPath);
-      return { resolvedPath, dimensions };
+      const framed = framingOfOnboardFrame(photo.frame, dimensions);
+      if (framed.kind === "refused") throw new Error(`${resolvedPath}: ${framed.message}`);
+      return { resolvedPath, dimensions, framing: framed.framing };
     }),
   );
 }
 
 /**
- * `NOT VERIFIED against a real bucket` - this is `--commit`-only, and the
- * one place in this script that calls `uploadAnimalPhoto`, which is itself
- * the one place that calls the R2 client. See `docs/h1-decisions.md`.
- *
- * Photo ids are random, unlike the animal and shelter ids above (P-Q13): a
- * storage key is never reused, so no upload can overwrite an object (every
- * put also refuses an existing key, `r2-client.ts`). The cost: a run that
- * fails after uploading but before inserting the animal leaves those files
- * unreferenced, and the re-run uploads fresh ones. Unreferenced files are
- * harmless (nothing links to them) and are not cleaned up by code, which
- * never deletes an object (K-Q2).
+ * `--commit` only. Photo ids are random (P-Q13), so nothing is overwritten; a failed run's files
+ * stay unreferenced for the clean-up job. Each keeps its source; rows follow the animal's insert.
  */
 async function uploadAnimalPhotos(
   r2: ImageStorageClient,
   animalId: AnimalId,
-  validated: Array<{ resolvedPath: string; dimensions: { width: number; height: number } }>,
-): Promise<AnimalPhoto[]> {
+  validated: readonly ValidatedPhoto[],
+): Promise<{ photos: AnimalPhoto[]; sources: PhotoSource[] }> {
   const photos: AnimalPhoto[] = [];
-  for (const { resolvedPath, dimensions } of validated) {
-    photos.push(await uploadAnimalPhoto(r2, resolvedPath, animalId, randomUUID(), dimensions));
+  const sources: PhotoSource[] = [];
+  for (const { resolvedPath, dimensions, framing } of validated) {
+    const uploaded = await uploadAnimalPhoto(
+      r2,
+      resolvedPath,
+      animalId,
+      { photoId: randomUUID(), sourceId: randomUUID() },
+      dimensions,
+      framing,
+    );
+    photos.push(uploaded.photo);
+    sources.push(uploaded.source);
   }
-  return photos;
+  return { photos, sources };
 }
 
 /**
@@ -715,10 +787,11 @@ async function main(): Promise<void> {
   console.log(`\nShelter id:  ${shelter.id}`);
   console.log(`Animals (${input.animals.length}):`);
   for (const [i, animalInput] of input.animals.entries()) {
-    const photoCount = validatedPhotosFor(i).length;
+    const validated = validatedPhotosFor(i);
+    const framed = validated.filter((photo) => photo.framing.kind === "frame").length;
     console.log(
       `  ${animalIdFor(animalInput.idSeed)}  ${animalInput.name}  ` +
-        `(${photoCount} photo(s) found and validated, not yet uploaded)`,
+        `(${validated.length} photo(s) found and validated, ${framed} with a frame, not yet uploaded)`,
     );
   }
 
@@ -846,11 +919,19 @@ async function main(): Promise<void> {
       continue;
     }
     console.log(`Uploading ${validated.length} photo(s) for ${animalInput.name}...`);
-    const photos = await uploadAnimalPhotos(r2, animalId, validated);
+    const { photos, sources } = await uploadAnimalPhotos(r2, animalId, validated);
     await animalsRepo.insert(
       buildAnimal(animalInput, photos, { id: shelter.id, verification: shelterVerification }, now),
       cityId,
     );
+    // After the animal: a row names one of its photos. A failure here leaves those photos
+    // crop-able only from their detail variant; their files still go with the photo.
+    const recorded = await photoSourcesRepo(db).insertForAnimal(animalId, sources, now);
+    if (recorded !== sources.length) {
+      throw new Error(
+        `${animalInput.name}: recorded ${recorded} of ${sources.length} photo sources`,
+      );
+    }
     insertedCount += 1;
   }
 

@@ -6,6 +6,7 @@ import {
   buildAnimal,
   buildShelter,
   deterministicId,
+  framingOfOnboardFrame,
   OnboardInputSchema,
   refuseIfInsideRepo,
   withCityIdFromSlug,
@@ -282,6 +283,16 @@ describe("OnboardInputSchema's text rules", () => {
     expect(parse({}, { photos: photos(11) }).success).toBe(false);
   });
 
+  // Crop frame, owner's answer 1: an optional frame per photo, a pixel box, nothing else.
+  it("takes a photo with a pixel frame, and refuses a frame with a missing or extra side", () => {
+    const framed = (frame: object) => parse({}, { photos: [{ localPath: "dog-1.jpg", frame }] });
+    expect(framed({ left: 0, top: 0, width: 800, height: 1000 }).success).toBe(true);
+    expect(framed({ left: 0, top: 0, width: 800 }).success).toBe(false);
+    expect(framed({ left: 0, top: 0, width: 800, height: 1000, right: 800 }).success).toBe(false);
+    expect(framed({ left: -1, top: 0, width: 800, height: 1000 }).success).toBe(false);
+    expect(framed({ left: 0.5, top: 0, width: 800, height: 1000 }).success).toBe(false);
+  });
+
   it.each([
     ["the token", "{імʼя}"],
     ["a brace", "Ласт}івка"],
@@ -461,5 +472,58 @@ describe("withCityIdFromSlug", () => {
     const address = (resolved as { shelter: { exactAddress: { cityId: string } } }).shelter
       .exactAddress;
     expect(address.cityId).toBe(CITY_ID);
+  });
+});
+
+/**
+ * Crop frame (owner's answer 1): the operator's pixel box on the photo as an image viewer shows
+ * it, taken to the stored frame, and judged on the kept source's size before anything uploads.
+ */
+describe("framingOfOnboardFrame", () => {
+  it("no frame is the automatic crop", () => {
+    expect(framingOfOnboardFrame(undefined, { width: 1600, height: 1200 })).toEqual({
+      kind: "ok",
+      framing: { kind: "attention" },
+    });
+  });
+
+  it("a 4:5 box becomes the frame in fractions of the photo", () => {
+    expect(
+      framingOfOnboardFrame(
+        { left: 400, top: 100, width: 800, height: 1000 },
+        { width: 1600, height: 1200 },
+      ),
+    ).toEqual({
+      kind: "ok",
+      framing: { kind: "frame", frame: { x: 0.25, y: 0.0833, w: 0.5, h: 0.8334 } },
+    });
+  });
+
+  it("a box to the photo's far edges stays inside it once stored", () => {
+    const framed = framingOfOnboardFrame(
+      { left: 333, top: 0, width: 1000, height: 1250 },
+      { width: 1333, height: 1250 },
+    );
+    expect(framed.kind).toBe("ok");
+    if (framed.kind !== "ok" || framed.framing.kind !== "frame") return;
+    const { x, w } = framed.framing.frame;
+    expect(Math.round(x * 10_000) + Math.round(w * 10_000)).toBeLessThanOrEqual(10_000);
+  });
+
+  it.each([
+    ["past the photo", { left: 900, top: 0, width: 800, height: 1000 }, /reaches past/],
+    ["not 4:5", { left: 0, top: 0, width: 800, height: 800 }, /is not 4:5/],
+    // 4000 px wide is stored at 2000: 700 px of the original is 350 of the copy.
+    [
+      "narrower than 400 px of the stored copy",
+      { left: 0, top: 0, width: 700, height: 875 },
+      /narrower than 400 px of the stored 2000x1500 copy/,
+    ],
+  ])("refuses a box %s, saying why", (_label, frame, message) => {
+    const width = message.source.includes("2000x1500") ? 4000 : 1600;
+    const height = message.source.includes("2000x1500") ? 3000 : 1200;
+    const framed = framingOfOnboardFrame(frame, { width, height });
+    expect(framed.kind).toBe("refused");
+    expect(framed.kind === "refused" ? framed.message : "").toMatch(message);
   });
 });

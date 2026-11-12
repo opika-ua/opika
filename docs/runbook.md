@@ -120,8 +120,9 @@ owner: shelters can re-upload photos and logos. The protection is the clean-up j
 
 - an object is deleted only after 7 days unreferenced, re-checked right before the delete, and only
   under `animals/` and logo-shaped `shelters/` keys;
-- one run refuses to delete more than 100 objects (`DEFAULT_MAX_DELETE_PER_RUN`; about 20 photos at
-  five variants each): over that it deletes nothing, logs `refused_over_cap` with the counts, and the
+- one run refuses to delete more than 600 objects (`DEFAULT_MAX_DELETE_PER_RUN`; about 100 photos or
+  crops at six objects each, five variants and the kept source): over that it deletes nothing, logs
+  `refused_over_cap` with the counts, and the
   cron answers 500. The cron has no way to raise the cap. Only the CLI does, after someone has looked
   at why so much is due: `pnpm --filter @opika/db r2:cleanup --prod --expect ep-... --commit --max-delete <n>`
   (dry run first, without `--commit`).

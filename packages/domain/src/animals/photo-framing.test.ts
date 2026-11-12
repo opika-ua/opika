@@ -119,6 +119,20 @@ describe("frameBoxOf's aspect tolerance", () => {
     });
   });
 
+  // Review of #490: on a small frame one pixel of edge rounding is more than the tolerance.
+  it("an exact 4:5 frame on a small source is not refused for its edges' rounding (221x278)", () => {
+    expect(
+      frameBoxOf({ x: 0.0348, y: 0.0014, w: 0.5293, h: 0.9972 }, { width: 419, height: 278 }),
+    ).toEqual({ kind: "ok", box: { left: 15, top: 1, width: 221, height: 276 } });
+  });
+
+  it("a frame both too small and off 4:5 says it is too small (101x125)", () => {
+    expect(frameBoxOf({ x: 0, y: 0, w: 0.0505, h: 0.0625 }, SQUARE)).toEqual({
+      kind: "rejected",
+      reason: "too_small",
+    });
+  });
+
   it("refuses a box further than the tolerance from 4:5", () => {
     expect(frameBoxOf({ x: 0, y: 0, w: 0.405, h: 0.5 }, SQUARE)).toEqual({
       kind: "rejected",
@@ -174,6 +188,16 @@ describe("frameBoxOf refuses a frame outside its source", () => {
       { x: 0, y: -0.1, w: 0.4, h: 0.4 },
     ]) {
       expect(frameBoxOf(frame, portrait)).toEqual({ kind: "rejected", reason: "outside" });
+    }
+  });
+
+  // Review of #490: unparsed input with a NaN once came back `ok` with a NaN box.
+  it("a frame with a non-finite side, never parsed, is refused rather than cut", () => {
+    for (const frame of [
+      { x: Number.NaN, y: 0, w: 0.4, h: 0.5 },
+      { x: 0, y: 0, w: Number.POSITIVE_INFINITY, h: 0.5 },
+    ]) {
+      expect(frameBoxOf(frame, SQUARE)).toEqual({ kind: "rejected", reason: "outside" });
     }
   });
 });

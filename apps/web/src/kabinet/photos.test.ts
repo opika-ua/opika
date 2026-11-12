@@ -91,17 +91,31 @@ beforeEach(async () => {
 
 type Put = { key: string; contentType: string; bytes: Buffer };
 
+/** A bucket in memory: every put captured, and a get answers what was put (crop frame). */
 function capturingStore() {
   const puts: Put[] = [];
+  const gets: string[] = [];
   return {
     puts,
+    gets,
     storage: {
       async put(key: string, bytes: Buffer, contentType: string) {
         puts.push({ key, contentType, bytes });
       },
+      async get(key: string) {
+        gets.push(key);
+        const found = puts.findLast((put) => put.key === key);
+        if (found === undefined) throw new Error("NoSuchKey");
+        return found.bytes;
+      },
     },
   };
 }
+
+/** Five variants and the kept source (crop frame). */
+const OBJECTS_PER_PHOTO = IMAGE_VARIANT_NAMES.length + 1;
+const SOURCE_NAME =
+  /^source-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/;
 
 const generous = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 });
 
@@ -233,9 +247,13 @@ describe("shelter.photos.add", () => {
       ),
     );
     expect(added).toMatchObject({ width: 1200, height: 900, alt: null });
-    expect(puts.map((p) => p.key).sort()).toEqual(
+    const [sourceKey, ...variantKeys] = puts.map((p) => p.key).reverse();
+    expect(variantKeys.sort()).toEqual(
       [...IMAGE_VARIANT_NAMES].sort().map((v) => `${added?.storageKey}/${v}.webp`),
     );
+    // The kept source, a direct child of the same key (crop frame).
+    expect(sourceKey?.startsWith(`${added?.storageKey}/`)).toBe(true);
+    expect(sourceKey?.slice(`${added?.storageKey}/`.length)).toMatch(SOURCE_NAME);
     expect(puts.every((p) => p.contentType === "image/webp")).toBe(true);
     // Never the original: every stored byte is WebP.
     for (const put of puts) expect((await imageFactsOf(put.bytes)).format).toBe("webp");
@@ -272,7 +290,8 @@ describe("shelter.photos.add", () => {
       { uploads },
     );
 
-    expect(puts).toHaveLength(IMAGE_VARIANT_NAMES.length);
+    // The kept source included (crop frame).
+    expect(puts).toHaveLength(OBJECTS_PER_PHOTO);
     for (const put of puts) {
       expect(put.bytes.includes("CANARY-SHELTER-YARD")).toBe(false);
       expect(await imageFactsOf(put.bytes)).toEqual({ format: "webp", hasMetadata: false });
@@ -422,8 +441,8 @@ describe("the ten-photo cap (K-Q11)", () => {
     const stored = await reload(target.id);
     expect(stored.photos).toHaveLength(10);
     // Both were stored (each passed the count check before either appended)…
-    expect(puts).toHaveLength(2 * IMAGE_VARIANT_NAMES.length);
-    const storedKeys = new Set(puts.map((p) => p.key.replace(/\/[a-z]+\.webp$/, "")));
+    expect(puts).toHaveLength(2 * OBJECTS_PER_PHOTO);
+    const storedKeys = new Set(puts.map((p) => p.key.replace(/\/[^/]+$/, "")));
     const referenced = new Set(stored.photos.map((p) => p.storageKey));
     const orphaned = [...storedKeys].filter((key) => !referenced.has(key));
     // …and exactly the unreferenced one is logged, by key.
@@ -464,7 +483,7 @@ describe("per-shelter upload limits (P-Q12)", () => {
     );
     expect(third.status).toBe(429);
     expect(errorOf(third.body).code).toBe("RATE_LIMITED");
-    expect(puts).toHaveLength(IMAGE_VARIANT_NAMES.length);
+    expect(puts).toHaveLength(OBJECTS_PER_PHOTO);
   });
 
   it("the daily allowance refuses on its own", async () => {

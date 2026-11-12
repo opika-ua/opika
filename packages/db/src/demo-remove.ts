@@ -83,6 +83,7 @@ import {
   PROD_FLAG,
 } from "./prod-guard";
 
+import { animalPhotoSources } from "./schema/animal-photo-sources";
 import { animals } from "./schema/animals";
 import {
   authAccount,
@@ -144,16 +145,15 @@ export type DemoRemovalRefusal =
   | { kind: "target_not_found"; ids: readonly string[] };
 
 /**
- * Rows that go by foreign-key cascade rather than by a delete of their own,
- * shown so the dry run hides nothing (review of the pre-commit diff, finding
- * 4): `invitation_created_users` rows of the targeted invitations (including
- * those of users who stay, such as one who has since joined a real shelter),
- * and the sessions and accounts of the users deleted.
+ * Rows that go by foreign-key cascade, shown so the dry run hides nothing: the targeted
+ * invitations' `invitation_created_users`, the deleted users' sessions and accounts, and the
+ * deleted animals' photo-source rows.
  */
 export type DemoRemovalCascades = {
   invitation_created_users: number;
   auth_session: number;
   auth_account: number;
+  animal_photo_sources: number;
 };
 
 /**
@@ -175,10 +175,8 @@ export type DemoRemovalPlan = {
   /** Support sessions on a targeted shelter: any at all is a refusal (RS-Q0, DR-Q1), so none is ever deleted. */
   demoSupportSessions: number;
   /**
-   * R2 object keys of the targeted animals' real photos (`animals/…`), every
-   * variant. Left in R2 by this script (DR-B3, answer 2); listed so they can
-   * be deleted by hand. Seed photos (`seed-photos/…`) are repo files, not R2
-   * objects, so they never appear here.
+   * R2 keys of the targeted animals' real photos: every variant and each kept source. Left in R2
+   * (DR-B3, answer 2) for the clean-up job; seed photos are repo files and never listed.
    */
   photoObjectKeys: readonly string[];
   refusals: readonly DemoRemovalRefusal[];
@@ -281,11 +279,21 @@ function scopeOf(target: RemovalTarget): Scope {
   };
 }
 
-/** Every R2 object one real photo occupies: its variants (no original is stored, `upload-animal-photo.ts`). */
-const photoObjectKeysOf = (photos: readonly { storageKey: string }[]): string[] =>
+/**
+ * Every R2 object one real photo occupies: its variants and, when kept, its source (never the
+ * uploaded file itself, `upload-animal-photo.ts`). `sourceOf` maps a storage key to its source.
+ */
+const photoObjectKeysOf = (
+  photos: readonly { storageKey: string }[],
+  sourceOf: ReadonlyMap<string, string>,
+): string[] =>
   photos
     .filter((photo) => isRealPhotoKey(photo.storageKey))
-    .flatMap((photo) => IMAGE_VARIANT_NAMES.map((v) => variantObjectKey(photo.storageKey, v)));
+    .flatMap((photo) => {
+      const variants = IMAGE_VARIANT_NAMES.map((v) => variantObjectKey(photo.storageKey, v));
+      const source = sourceOf.get(photo.storageKey);
+      return source === undefined ? variants : [...variants, source];
+    });
 
 export async function planDemoRemoval(
   db: Executor,
@@ -340,6 +348,10 @@ export async function planDemoRemoval(
     ),
     auth_session: await countOf(authSession, sql`${authSession.userId} IN ${scope.onlyUserIds}`),
     auth_account: await countOf(authAccount, sql`${authAccount.userId} IN ${scope.onlyUserIds}`),
+    animal_photo_sources: await countOf(
+      animalPhotoSources,
+      sql`${animalPhotoSources.animalId} IN (SELECT ${animals.id} FROM ${animals} WHERE ${scope.targets.animals.where})`,
+    ),
   };
 
   const [crossing] = await db
@@ -355,7 +367,17 @@ export async function planDemoRemoval(
     .from(animals)
     .where(scope.targets.animals.where)
     .orderBy(animals.id);
-  const photoObjectKeys = targetPhotos.flatMap((row) => photoObjectKeysOf(row.photos));
+  const targetSources = await db
+    .select({
+      storageKey: animalPhotoSources.storageKey,
+      objectKey: animalPhotoSources.sourceObjectKey,
+    })
+    .from(animalPhotoSources)
+    .where(
+      sql`${animalPhotoSources.animalId} IN (SELECT ${animals.id} FROM ${animals} WHERE ${scope.targets.animals.where})`,
+    );
+  const sourceOf = new Map(targetSources.map((row) => [row.storageKey, row.objectKey]));
+  const photoObjectKeys = targetPhotos.flatMap((row) => photoObjectKeysOf(row.photos, sourceOf));
 
   const otherShelters = remaining?.n ?? 0;
   const refusals: DemoRemovalRefusal[] = [];
