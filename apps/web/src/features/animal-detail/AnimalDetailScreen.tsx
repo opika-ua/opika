@@ -197,7 +197,9 @@ export function AnimalDetailContent({
             )}
           </div>
           <MetaDot />
-          <div className="flex min-w-0 items-center justify-between gap-3 desktop:justify-start">
+          {/* Phone: the city on a line under the name, so the name has the width beside the logo
+              (owner, 2026-11-13); desktop: one row. */}
+          <div className="flex min-w-0 flex-col items-start gap-1 desktop:flex-row desktop:items-center desktop:gap-3">
             <Link
               href={shelterPagePath(shelter.id)}
               prefetch={false}
@@ -209,7 +211,7 @@ export function AnimalDetailContent({
               ) : (
                 <Avatar kind="logo" src={shelter.logo.storageKey} />
               )}
-              {/* A long name wraps, never cut short (owner, 2026-11-12); the city keeps its place. */}
+              {/* A long name wraps, never cut short (owner, 2026-11-12). */}
               <Text as="span" look="label" className="min-w-0 break-words">
                 {shelter.displayName}
               </Text>
@@ -217,7 +219,8 @@ export function AnimalDetailContent({
             {cityName && (
               <>
                 <MetaDot />
-                <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap desktop:gap-2">
+                {/* pl-13: the avatar (size-10) and the link's gap-3, so the city starts under the name. */}
+                <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap max-desktop:pl-13 desktop:gap-2">
                   <Image
                     src="/pet-card/icon-location.svg"
                     alt=""

@@ -152,8 +152,9 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
     ).not.toThrow();
   });
 
-  // The seed's longest name, 44 characters (owner, 2026-11-12: it was cut to «Благодійна організа…»).
-  test("360 – a long shelter name wraps whole, never cut short, with the city still on its right", async ({
+  // The seed's longest name, 44 characters (owner, 2026-11-12: it was cut to «Благодійна організа…»;
+  // 2026-11-13: on a phone the city goes under it, so it fits in two lines).
+  test("360 – a long shelter name is shown whole in at most two lines, never cut short, with the city under it", async ({
     page,
   }) => {
     const LONG_NAME = "Благодійна організація «Прихисток на Лісовій»";
@@ -174,16 +175,25 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
       exact: true,
     });
     await expect(name).toBeVisible();
-    const clipped = await name.evaluate((element) => element.scrollWidth > element.clientWidth);
-    expect(clipped, "the whole name is shown, not cut off").toBe(false);
+    const shown = await name.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        clipped: element.scrollWidth > element.clientWidth,
+        ellipsis: style.textOverflow === "ellipsis",
+        lines: Math.round(
+          element.getBoundingClientRect().height / Number.parseFloat(style.lineHeight),
+        ),
+      };
+    });
+    expect(shown.clipped, "the whole name is shown, not cut off").toBe(false);
+    expect(shown.ellipsis, "no ellipsis").toBe(false);
+    expect(shown.lines, "at most two lines").toBeLessThanOrEqual(2);
     const nameBox = await name.boundingBox();
     const cityBox = await page.getByTestId("shelter-city").boundingBox();
     if (nameBox === null || cityBox === null) throw new Error("the name or the city has no box");
-    expect(cityBox.x, "the city sits right of the name").toBeGreaterThanOrEqual(
-      nameBox.x + nameBox.width,
+    expect(cityBox.y, "the city sits under the name").toBeGreaterThanOrEqual(
+      nameBox.y + nameBox.height,
     );
-    expect(cityBox.y, "the city shares the name's row").toBeLessThan(nameBox.y + nameBox.height);
-    expect(cityBox.y + cityBox.height).toBeGreaterThan(nameBox.y);
   });
 
   test("clicking a gallery card actually reaches a real animal, not a 404", async ({ page }) => {
