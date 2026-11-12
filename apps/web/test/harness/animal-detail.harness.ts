@@ -184,13 +184,6 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
     );
     expect(cityBox.y, "the city shares the name's row").toBeLessThan(nameBox.y + nameBox.height);
     expect(cityBox.y + cityBox.height).toBeGreaterThan(nameBox.y);
-    const dir = process.env.PHOTO_SCREENSHOT_DIR;
-    if (dir !== undefined && dir !== "") {
-      await page.screenshot({
-        path: `${dir}/long-shelter-name-360.png`,
-        clip: { x: 0, y: 0, width: 360, height: 900 },
-      });
-    }
   });
 
   test("clicking a gallery card actually reaches a real animal, not a 404", async ({ page }) => {

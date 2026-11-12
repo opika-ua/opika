@@ -248,10 +248,6 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
       expect(await expectToastClearOfBottomBars(page, `${LEAVING}: почали домовлятися.`)).toBe(
         bars,
       );
-      const dir = process.env.PHOTO_SCREENSHOT_DIR;
-      if (dir !== undefined && dir !== "") {
-        await page.screenshot({ path: `${dir}/toast-above-tab-bar-${size.width}.png` });
-      }
       await page.getByRole("button", { name: "Скасувати", exact: true }).click();
       await expect(statusOf(page, LEAVING)).toHaveText("Опубліковано");
     }

@@ -507,7 +507,6 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       await openTab(page, /^Фото/);
       await page.getByRole("button", { name: "Прибрати фото 2" }).click();
       expect(await expectToastClearOfBottomBars(page, "Фото прибрано")).toBeGreaterThanOrEqual(1);
-      await shot(page, `toast-above-save-bar-${size.width}`);
       await page.getByRole("button", { name: "Повернути" }).click();
       await expect(page.getByRole("group", { name: /^Фото \d з 3$/ })).toHaveCount(3);
     }
