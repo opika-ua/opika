@@ -595,7 +595,7 @@ export const uk = {
           "У посиланні не має бути імені чи пароля перед адресою сайту (як у https://імʼя@сайт). Скопіюйте адресу з рядка браузера.",
         donationIdn:
           "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
-        /** A LiqPay checkout session (`checkout_session`), from the owner's wording of 2026-11-12. */
+        /** A LiqPay checkout session (`checkout_session`); owner-approved 2026-11-12. */
         donationCheckoutSession:
           "Це одноразова сторінка оплати, вона перестане працювати. Додайте постійне посилання: сторінку збору на вашому сайті або банку в monobank.",
         /** Owner-approved 2026-11 with the shelter description. `{max}` is 1,500 (`integer.format`). */

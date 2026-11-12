@@ -404,6 +404,9 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
       "У посиланні не має бути імені чи пароля перед адресою сайту (як у https://імʼя@сайт). Скопіюйте адресу з рядка браузера.",
     "profileEdit.errors.donationIdn":
       "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
+    // Owner-approved 2026-11-12 (LiqPay checkout sessions: PR #487's copy table).
+    "profileEdit.errors.donationCheckoutSession":
+      "Це одноразова сторінка оплати, вона перестане працювати. Додайте постійне посилання: сторінку збору на вашому сайті або банку в monobank.",
     // Owner-approved 2026-11-10 (contact kinds Instagram and Facebook; facebookFormat with his «в» fix).
     "profileEdit.errors.instagramFormat":
       "Нікнейм в Instagram: до 30 латинських літер, цифр, крапок або підкреслень. Можна вставити посилання на профіль.",
@@ -526,28 +529,15 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
           leafPaths(child, `${prefix}.${key}`),
         );
 
-  /** Proposed 2026-11-12 from the owner's wording (LiqPay checkout sessions); awaiting his approval in the PR. */
-  const LIQPAY_SESSION_SHELTER_COPY: Record<string, string> = {
-    "profileEdit.errors.donationCheckoutSession":
-      "Це одноразова сторінка оплати, вона перестане працювати. Додайте постійне посилання: сторінку збору на вашому сайті або банку в monobank.",
-  };
-
   it("profileEdit holds exactly his keys, no more and no fewer", () => {
     // P6-Q8 (Oleksii, verbatim: "Q8 / 0.3b: delete `refused_until_edit_screens`,
     // `SHELTER_WRITES_NOT_YET_AVAILABLE` and `profileEdit.errors.notAvailable`.").
     expect(Object.keys(uk.kabinet.profileEdit.errors)).not.toContain("notAvailable");
     expect(leafPaths(uk.kabinet.profileEdit, "profileEdit").sort()).toEqual(
-      [...Object.keys(K4_FINAL), ...Object.keys(LIQPAY_SESSION_SHELTER_COPY)]
+      Object.keys(K4_FINAL)
         .filter((path) => path.startsWith("profileEdit."))
         .sort(),
     );
-  });
-
-  it.each(Object.entries(LIQPAY_SESSION_SHELTER_COPY))("%s is the proposed text", (path, text) => {
-    const value = path
-      .split(".")
-      .reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], uk.kabinet);
-    expect(value).toBe(text);
   });
 
   it("has no placeholder under profileEdit", () => {
@@ -1028,7 +1018,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.donation.approveHintInitiative":
       "Перевірте, що власник рахунку – контактна особа ініціативи",
   };
-  /** Proposed 2026-11-12 (LiqPay checkout sessions); awaiting the owner's approval in the PR. */
+  /** Owner-approved 2026-11-12 (LiqPay checkout sessions: PR #487's copy table). */
   const LIQPAY_SESSION_OPERATOR_COPY: Record<string, string> = {
     "operator.donation.cannotApprove.userinfo":
       "Схвалити не можна: у посиланні є імʼя чи пароль перед адресою сайту.",
@@ -1154,9 +1144,12 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     expect(valueAt(path)).toBe(text);
   });
 
-  it.each(Object.entries(LIQPAY_SESSION_OPERATOR_COPY))("%s is the proposed text", (path, text) => {
-    expect(valueAt(path)).toBe(text);
-  });
+  it.each(Object.entries(LIQPAY_SESSION_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
 
   it("the initiative hint's English text is the owner's, with his apostrophe (U+2019)", () => {
     expect(en.kabinet.operator.donation.approveHintInitiative).toBe(
