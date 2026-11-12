@@ -177,6 +177,15 @@ describe("registry.donation.* compare-and-set on the version (RG-Q12)", () => {
       expect(internals(path).errorMap.CONFLICT?.status).toBe(409);
     },
   );
+
+  /** A proposal sent before a rule existed is checked again when it would go live. */
+  it("approve declares DONATION_LINK_REFUSED 422, naming the problem", () => {
+    const refused = internals("registry.donation.approve").errorMap.DONATION_LINK_REFUSED;
+    expect(refused?.status).toBe(422);
+    expect(
+      apiErrors.DONATION_LINK_REFUSED.data.safeParse({ problem: "checkout_session" }).success,
+    ).toBe(true);
+  });
 });
 
 describe("registry.donation.remove", () => {
@@ -205,11 +214,13 @@ describe("registry.donation.remove", () => {
 describe("shelter.profile.proposeDonation", () => {
   const input = () => internals("shelter.profile.proposeDonation").inputSchema;
 
-  it("takes an https link and refuses userinfo and IDN hosts at the contract", () => {
+  it("takes an https link and refuses userinfo, IDN hosts and LiqPay checkout sessions at the contract", () => {
     expect(input()?.safeParse({ url: "https://send.monobank.ua/jar/x" }).success).toBe(true);
     expect(input()?.safeParse({ url: "https://user@send.monobank.ua/jar/x" }).success).toBe(false);
     expect(input()?.safeParse({ url: "https://xn--monobank-9ve.ua/jar/x" }).success).toBe(false);
     expect(input()?.safeParse({ url: "http://send.monobank.ua/jar/x" }).success).toBe(false);
+    const session = "https://www.liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42";
+    expect(input()?.safeParse({ url: session }).success).toBe(false);
   });
 });
 

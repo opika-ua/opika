@@ -2,7 +2,9 @@ import type { PlaceOptionView } from "@opika/contracts";
 import { fillTemplate, isOwnRegion, placeLabel, uk } from "@opika/i18n";
 import { useCallback, useMemo } from "react";
 import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../../ui/Combobox";
+import { DateField } from "../../../../ui/DateField";
 import { FieldError, Radio, TextField } from "../../../../ui/form";
+import { DATE_FIELD_LABELS } from "../../shared/kabinet-date";
 import { type AddressForm, LEGAL_KINDS, type LegalForm } from "./create-input";
 import type { RegistryCreateClient } from "./registry-create-client";
 
@@ -230,14 +232,14 @@ export function LegalFields({
         </>
       ) : null}
       {legal.kind === "registered_ngo" ? (
-        <TextField
+        <DateField
           id={`${idPrefix}-registered-at`}
-          label={t.registeredAt}
-          type="date"
-          max={today}
+          legend={t.registeredAt}
+          labels={DATE_FIELD_LABELS}
+          today={today}
           required
           value={legal.registeredAt}
-          onChange={(event) => setLegal({ registeredAt: event.target.value })}
+          onChange={(registeredAt) => setLegal({ registeredAt })}
           error={errors.registeredAt}
         />
       ) : null}

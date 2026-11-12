@@ -29,11 +29,21 @@ export type DonationLink = z.infer<typeof DonationLinkSchema>;
 
 /**
  * Why a link a shelter would not mind showing is still not ours to send people to. Applied to a
- * NEW proposal only, never to stored links (`DonationLinkSchema` stays lenient so old rows parse).
+ * new proposal and again when the operator approves one, never to stored live links
+ * (`DonationLinkSchema` stays lenient so old rows parse).
  * `userinfo`: `https://user@host` reads as `user`'s site in a hurry. `idn`: a lookalike host
  * (Cyrillic letters, any `xn--` label) cannot be told apart from the real one by eye.
+ * `checkout_session`: a LiqPay checkout session, a one-time payment page that stops working.
  */
-export type DonationUrlProblem = "userinfo" | "idn";
+export const DONATION_URL_PROBLEMS = ["userinfo", "idn", "checkout_session"] as const;
+export type DonationUrlProblem = (typeof DONATION_URL_PROBLEMS)[number];
+
+/** `checkout_<timestamp>_<token>`: the path segment of a LiqPay checkout session (seen 2026-11-12). */
+const CHECKOUT_SESSION_SEGMENT = /^checkout_\d+_[^/]+$/i;
+
+const isCheckoutSession = (url: URL): boolean =>
+  donationProviderOf(url.href) === "liqpay" &&
+  url.pathname.split("/").some((segment) => CHECKOUT_SESSION_SEGMENT.test(segment));
 
 export const donationUrlProblemOf = (raw: string): DonationUrlProblem | null => {
   let url: URL;
@@ -53,10 +63,11 @@ export const donationUrlProblemOf = (raw: string): DonationUrlProblem | null => 
   if (url.username !== "" || url.password !== "" || authority.includes("@")) return "userinfo";
   if ([...authority].some((char) => char.charCodeAt(0) > 0x7f)) return "idn";
   if (url.hostname.split(".").some((label) => label.toLowerCase().startsWith("xn--"))) return "idn";
+  if (isCheckoutSession(url)) return "checkout_session";
   return null;
 };
 
-/** The URL of a new proposal: an https link without userinfo or an IDN host. */
+/** The URL of a new proposal: an https link without any `DonationUrlProblem`. */
 export const DonationProposalUrlSchema = DonationLinkSchema.shape.url.superRefine((value, ctx) => {
   const problem = donationUrlProblemOf(value);
   if (problem !== null) ctx.addIssue({ code: "custom", message: `donation_${problem}` });

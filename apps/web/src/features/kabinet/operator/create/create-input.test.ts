@@ -1,6 +1,7 @@
 import { registrySheltersContract } from "@opika/contracts";
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
+import { dateValue, EMPTY_DATE } from "../../../../ui/date-field";
 import type { ChannelKind } from "../../profile-edit/fields";
 import type { EvidenceRow } from "../evidence-editor/evidence-rows";
 import {
@@ -28,7 +29,7 @@ const NOW = new Date("2026-10-13T07:00:00.000Z");
 const siteVisit = (visitedOn: string, id = "visit"): EvidenceRow => ({
   id,
   kind: "site_visit",
-  visitedOn,
+  visitedOn: dateValue(visitedOn),
   notes: "Оглянув вольєри, журнал прийому ведеться.",
 });
 const reference = (id: string, channelValue: string): EvidenceRow => ({
@@ -118,7 +119,7 @@ describe("the form as registry.shelters.create's input", () => {
           kind: "registered_ngo",
           legalName: "ГО «Лапа Вишгорода»",
           edrpou: "43 902 117",
-          registeredAt: "2021-03-04",
+          registeredAt: dateValue("2021-03-04"),
           contactPersonName: "left from the other form, not sent",
         }),
         line2: "корпус 2",
@@ -428,7 +429,7 @@ describe("what the form refuses, and the contract refuses too", () => {
             channelValue: "050",
             relationship: "",
           },
-          { id: "s", kind: "site_visit", visitedOn: "", notes: "" },
+          { id: "s", kind: "site_visit", visitedOn: EMPTY_DATE, notes: "" },
         ],
       }),
       NOW,
@@ -469,6 +470,62 @@ describe("a site visit's date, on Kyiv's calendar", () => {
     expect(result.kind === "invalid" && result.errors.evidence).toEqual({
       visit: { visitedOn: "siteVisitInFuture" },
     });
+  });
+});
+
+/** `DateField`'s typed states reach both operator dates as their own messages, never as sent dates. */
+describe("an operator date typed in parts", () => {
+  const parts = (day: string, month: string, year: string) =>
+    ({ kind: "invalid", reason: "incomplete", parts: { day, month, year } }) as const;
+
+  it.each([
+    ["incomplete", parts("12", "10", "202"), "dateIncomplete"],
+    [
+      "no such date",
+      { ...parts("31", "9", "2026"), reason: "no_such_date" as const },
+      "dateNoSuchDate",
+    ],
+    [
+      "after today",
+      { ...parts("14", "10", "2026"), reason: "after_max" as const },
+      "siteVisitInFuture",
+    ],
+  ])("a site visit: %s", (_case, visitedOn, error) => {
+    const result = createInputOf(
+      initiative({ evidence: [{ id: "visit", kind: "site_visit", visitedOn, notes: "Оглянув." }] }),
+      NOW,
+    );
+    expect(result.kind === "invalid" && result.errors.evidence).toEqual({
+      visit: { visitedOn: error },
+    });
+  });
+
+  it.each([
+    ["empty", EMPTY_DATE, "required"],
+    ["incomplete", parts("", "3", "2021"), "dateIncomplete"],
+    [
+      "no such date",
+      { ...parts("29", "2", "2021"), reason: "no_such_date" as const },
+      "dateNoSuchDate",
+    ],
+    [
+      "after today",
+      { ...parts("14", "10", "2026"), reason: "after_max" as const },
+      "registeredAtFuture",
+    ],
+  ])("a registration date: %s", (_case, registeredAt, error) => {
+    const result = createInputOf(
+      initiative({
+        legal: legal({
+          kind: "registered_ngo",
+          legalName: "ГО «Лапа Вишгорода»",
+          edrpou: "43902117",
+          registeredAt,
+        }),
+      }),
+      NOW,
+    );
+    expect(result.kind === "invalid" && result.errors.fields).toEqual({ registeredAt: error });
   });
 });
 

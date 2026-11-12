@@ -16,6 +16,7 @@ import {
   type Coordinates,
   DEFAULT_VERIFICATION_POLICY,
   DonationLinkSchema,
+  DonationProposalUrlSchema,
   EvidenceItemInputSchema,
   ExactAddressSchema,
   everServedAtAfter,
@@ -291,7 +292,8 @@ export const OnboardInputSchema = z.object({
     legalEntity: ShelterLegalEntitySchema,
     exactAddress: ExactAddressSchema,
     contact: ShelterContactInputSchema,
-    donation: DonationLinkSchema.nullable(),
+    // Live at once, with no operator approval after it: a new proposal's rules apply.
+    donation: DonationLinkSchema.extend({ url: DonationProposalUrlSchema }).nullable(),
     /**
      * Gone: the shelter's own words are `descriptionUk` now. A non-strict object would drop this
      * key without a word, so a leftover one is refused by name instead.

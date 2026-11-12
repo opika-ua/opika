@@ -388,8 +388,11 @@ neutral; never name a suspicion.
   replaces the pending one. Before approving, check that the account holder matches the organisation
   (for an unregistered initiative: that the holder is its contact person); the screen reminds you:
   «Перевірте, що власник рахунку збігається з організацією», or for an initiative «Перевірте, що власник
-  рахунку – контактна особа ініціативи». Since 2026-11-10 «Перевірено» no longer includes the
-  bank-account check; it is a hand check at donation approval. When you approve a link, add the evidence
+  рахунку – контактна особа ініціативи». Also open the link in a private window and confirm it is a
+  permanent page, not a one-time payment page that stops working (the product itself refuses a LiqPay
+  checkout session, `…/checkout_<timestamp>_…`, but not other services' one-time pages).
+  Since 2026-11-10 «Перевірено» no longer includes the bank-account check; it is a hand check at
+  donation approval. When you approve a link, add the evidence
   «Власник банківського рахунку» (section 4), as long as the shelter is pending or under review.
   «Схвалити» makes the link live, «Відхилити» clears the proposal and leaves the
   current live link as it was. Both are single clicks with no reason field and no confirmation, and

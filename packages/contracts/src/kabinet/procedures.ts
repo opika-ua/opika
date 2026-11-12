@@ -914,9 +914,11 @@ export const registryEarlyListingContract = {
 const donationDecision = z.strictObject({ shelterId: ShelterIdSchema, expectedVersion });
 
 export const registryDonationContract = {
-  approve: registryShelter
-    .input(donationDecision)
-    .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
+  approve: registryShelter.input(donationDecision).errors({
+    ...registryErrors,
+    CONFLICT: apiErrors.CONFLICT,
+    DONATION_LINK_REFUSED: apiErrors.DONATION_LINK_REFUSED,
+  }),
   reject: registryShelter
     .input(donationDecision)
     .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
