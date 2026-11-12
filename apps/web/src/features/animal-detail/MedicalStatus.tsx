@@ -32,15 +32,17 @@ export function MedicalStatus({
       <Heading level={2}>{uk.detail.medicalHeading}</Heading>
       <dl className="m-0 flex flex-col rounded-field border-2 border-line bg-surface">
         {rows.map((row) => (
-          // dt and dd sit directly in the pair's div (valid dl content); the grid keeps the
-          // label and source stacked on the left and the value centred on the right.
+          // dt and dd sit directly in the pair's div (valid dl content); the grid keeps the label (and
+          // its own source, when the rows differ) on the left and the value centred on the right.
           <div
             key={row.label}
-            className="grid grid-flow-col grid-rows-2 items-center justify-between gap-x-4 border-line px-4 py-3 not-first:border-t-2"
+            className={`grid min-h-target grid-flow-col items-center justify-between gap-x-4 border-line px-4 py-3 not-first:border-t-2 ${shared === null ? "grid-rows-2" : ""}`}
           >
             <dt className="text-body text-ink">{row.label}</dt>
             {shared === null && <dd className="m-0 text-caption text-ink-2">{rowSource(row)}</dd>}
-            <dd className="row-span-2 m-0 flex shrink-0 items-center gap-2 text-label text-ink">
+            <dd
+              className={`m-0 flex shrink-0 items-center gap-2 text-label text-ink ${shared === null ? "row-span-2" : ""}`}
+            >
               <span aria-hidden="true" className={`size-2 rounded-pill ${VALUE_DOT[row.value]}`} />
               {MEDICAL_VALUE_TEXT[row.value]}
             </dd>

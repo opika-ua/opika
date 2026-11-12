@@ -2980,3 +2980,21 @@ describe("declared age range copy (owner, 2026-11-12)", () => {
     expect(JSON.stringify(uk.cardMeta)).not.toContain("≈");
   });
 });
+
+/**
+ * The animal page's photo strip: his own text, owner-approved 2026-11-12 with PR #497. From
+ * desktop three photos are in view and each arrow moves by one; the range dash is an en dash.
+ */
+describe("animal page photo strip copy (owner-given and owner-approved, 2026-11-12)", () => {
+  it("the arrows' names and the counter are his approved text", () => {
+    expect(uk.detail.photoRowPrev).toBe("Попередні фото");
+    expect(uk.detail.photoRowNext).toBe("Наступні фото");
+    expect(uk.detail.photoRowCounter).toBe("{first}–{last} з {total}");
+  });
+
+  it("has the English sense", () => {
+    expect(en.detail.photoRowPrev).toBe("Previous photos");
+    expect(en.detail.photoRowNext).toBe("Next photos");
+    expect(en.detail.photoRowCounter).toBe("{first}–{last} of {total}");
+  });
+});

@@ -1,10 +1,10 @@
 /**
  * O-10/C6 + D-6 (`feat/d-6-detail-photo-gallery`), updated for pet card PR 5
- * (Figma `75:425`/`88:1929`, owner decision 7): the old dot indicator
- * (mobile) and thumbnail strip (desktop) are gone, replaced by a native
- * scroll-snap slider with a "next" button (always present once there's more
- * than one photo) and a "prev" button (present once scrolled). This file
- * now checks the next button is in the real tab order -
+ * (Figma `75:425`/`88:1929`, owner decision 7) and for the desktop strip
+ * (owner, 2026-11-12): from desktop three whole photos are in view, and with
+ * four or more the row's «Наступні фото» arrow moves it one photo at a time,
+ * «Попередні фото» appearing once it has moved. This file checks those arrows
+ * are in the real tab order -
  * `docs/standing-constraints.md`'s "a UI item may not be marked done on the
  * basis of inspecting markup," applied to the new control the way it was to
  * the old ones.
@@ -16,12 +16,11 @@
  * TEST-NET-2 (198.51.100.0/24), `.33`, the next unclaimed address (`.21`
  * through `.32` are claimed by other harness files).
  *
- * Finding an animal with ≥2 photos (needed for the next button to render at
+ * Finding an animal with ≥4 photos (needed for the next button to render at
  * all) without hardcoding an id: `packages/db/src/seed.ts`'s `photoCount`
  * formula gives every published, non-special-cased animal `1 + (i % 5)`
- * photos - 2 to 5 for 4 out of every 5 indices, only `i % 5 === 0` ever
- * yields exactly 1 - so the first few gallery cards are overwhelmingly
- * likely to already qualify. This checks real candidates from the real
+ * photos - 4 or 5 for 2 out of every 5 indices - so the first few gallery
+ * cards are very likely to include one. This checks real candidates from the real
  * gallery rather than asserting that probability, and fails with a clear
  * message (not a silent false pass) if the corpus's distribution ever
  * changes enough that none of the first few do.
@@ -61,19 +60,15 @@ async function discoverMultiPhotoAnimalHref(
     for (const href of realHrefs.slice(0, MAX_CANDIDATES)) {
       await page.goto(href, { waitUntil: "load" });
       await page.locator(DETAIL_READY).first().waitFor({ state: "visible" });
-      // 3, not 2: at the panel's own desktop width (max-w-271, p-10), 2 photos
-      // (2*360 + 16 = 736px) fit inside the ~1004px content area with nothing to
-      // scroll - `scrollBy` is a no-op and the prev button never appears. 3 photos
-      // (3*360 + 32 = 1112px) genuinely overflow, which is what this file's own prev-
-      // button test needs a real animal for.
+      // 4, not 3: up to three photos fit whole in the desktop row, with no arrows at all.
       const photoCount = await page.locator("section[aria-label='Фотогалерея'] > div").count();
-      if (photoCount >= 3) {
+      if (photoCount >= 4) {
         cachedMultiPhotoHref = href;
         return href;
       }
     }
     throw new Error(
-      `none of the first ${MAX_CANDIDATES} gallery animals have 3+ photos – ` +
+      `none of the first ${MAX_CANDIDATES} gallery animals have 4+ photos – ` +
         "packages/db/src/seed.ts's photoCount distribution may have changed; this harness " +
         "needs a real multi-photo animal to exercise the slider's prev/next buttons at all.",
     );
@@ -89,7 +84,7 @@ test.describe("detail page photo gallery – keyboard reachability", () => {
 
     await expectReachableByTab(page, {
       label: "photo-next button",
-      locator: page.getByRole("button", { name: "Наступне фото" }),
+      locator: page.getByRole("button", { name: "Наступні фото" }),
     });
   });
 
@@ -105,9 +100,9 @@ test.describe("detail page photo gallery – keyboard reachability", () => {
     const href = await discoverMultiPhotoAnimalHref(browser);
     await openRoute(page, href, DETAIL_DESKTOP, { readySelector: DETAIL_READY });
 
-    await expect(page.getByRole("button", { name: "Попереднє фото" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Наступне фото" }).click();
-    const prev = page.getByRole("button", { name: "Попереднє фото" });
+    await expect(page.getByRole("button", { name: "Попередні фото" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Наступні фото" }).click();
+    const prev = page.getByRole("button", { name: "Попередні фото" });
     await expect(prev).toBeVisible();
     await expectReachableByTab(page, { label: "photo-prev button", locator: prev });
   });

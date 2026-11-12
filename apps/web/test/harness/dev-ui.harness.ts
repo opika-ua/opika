@@ -50,9 +50,14 @@ for (const viewport of [PHONE_360, DESKTOP_1440]) {
           // Prose links sit inside a text block, and a chip's input is inside its 48px label.
           if (el.closest("p, span.text-body, [data-inline-link]")) continue;
           if (el.matches("input[type=radio], input[type=checkbox]")) continue;
+          // Hidden until focused (the phone slider's keyboard-only arrows): measured as it shows.
+          const hiddenUntilFocused = getComputedStyle(el).clipPath === "inset(50%)";
+          if (hiddenUntilFocused) el.focus({ preventScroll: true });
           const min = Number.parseFloat(getComputedStyle(el).minHeight);
           const height = el.getBoundingClientRect().height;
-          if (Math.max(min, height) < 48) {
+          const stillHidden = hiddenUntilFocused && getComputedStyle(el).clipPath === "inset(50%)";
+          if (hiddenUntilFocused) el.blur();
+          if (Math.max(min, height) < 48 || stillHidden) {
             out.push(
               `${el.tagName} «${(el.getAttribute("aria-label") ?? el.textContent ?? "").trim()}» ${height}px`,
             );
