@@ -12,7 +12,31 @@ One set, defined in `apps/web/src/app/globals.css` (`@theme`). Class names have 
 | Z-index | `--z-header/popover/sheet/modal/toast` | use `z-(--z-popover)`; dialogs use the top layer |
 | Breakpoints | `tablet` 600, `desktop` 1024, `wide` 1440, `ultrawide` 2000 | mobile first |
 | Spacing | Tailwind's 4px steps; `target` = 48px | `min-h-target`, `size-target` |
+| Layout grid | `grid-cols-page`, `gutter`, `margin`, `content`, `reading`, `sidebar` | the page grid, below |
 | Utilities | `focus-ring`, `focus-ring-within`, `focus-ring-on-ink` (white ring on an ink surface), `pb-safe` (sheets), `pb-inset` (fixed bars), `bottom-above-nav` (a bar that sticks above the kabinet's phone nav) | every control; chips with a hidden input; sheets and fixed bars |
+
+## Layout grid
+
+From the owner's foundations sheet (2026-11-12). Columns are fluid (`1fr`): the sheet's column widths
+(73, 76, 78) are what they come to at 360, 768 and 1440. The values switch at the existing `tablet` and
+`desktop` breakpoints; the sheet draws its cut points at 768 and 1200, which is open with the owner.
+
+| Token | Utility | Phone | `tablet` | `desktop` | Use |
+|---|---|---|---|---|---|
+| `--grid-template-columns-page` | `grid-cols-page` | 4 | 8 | 12 | the page grid; blocks take `col-span-*` |
+| `--spacing-gutter` | `gap-gutter`, `gap-x-gutter` | 12 | 16 | 24 | between columns, and between cards in a grid |
+| `--spacing-margin` | `px-margin`; `-mx-margin` to bleed | 16 | 24 | 24 | the page's side margin; from `desktop` the content is also capped and centred, so the margin grows (120 at 1440) |
+| `--container-content` | `max-w-content` | 1200 | 1200 | 1200 | the content's maximum width |
+| `--container-reading` | `max-w-reading` | 690 | 690 | 690 | running text: seven desktop columns, lines under ~80 characters |
+| `--spacing-sidebar` | `w-sidebar` | – | – | 240 | the kabinet sidebar; the grid beside it keeps a 48 margin (`px-12`) |
+
+- **Page box:** `mx-auto box-content max-w-content px-margin`. Content-box, so the 1200 cap is the
+  content's and the margin sits outside it.
+- **Grid:** `grid grid-cols-page gap-gutter`, blocks on `col-span-*`. A block four columns wide
+  (`col-span-4`) is one per row on a phone, two from `tablet`, three from `desktop`.
+- **Full bleed:** only photos in the animal viewer and nav dividers ignore the margin (`-mx-margin`).
+- **Spacing roles** (Tailwind steps, the sheet's scale is 1, 2, 3, 4, 6, 8, 12, 16): inside a group 12
+  or less; between groups 16 to 24; between sections 32 on a phone, 48 on desktop; the page bottom 64.
 
 ## Mascot colours
 
