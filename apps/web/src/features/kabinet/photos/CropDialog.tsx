@@ -3,8 +3,8 @@
 import "../../../zod-client-config";
 import { PHOTO_FRAME_ASPECT, type PhotoFraming } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { useId, useState } from "react";
-import Cropper, { type MediaSize, type Point } from "react-easy-crop";
+import { useCallback, useId, useLayoutEffect, useMemo, useState } from "react";
+import Cropper, { type Area, type MediaSize, type Point } from "react-easy-crop";
 import { Button } from "../../../ui/Button";
 import { InlineStatus } from "../../../ui/feedback";
 import { Modal } from "../../../ui/Modal";
@@ -33,6 +33,13 @@ const CROPPER_CLASSES = {
   cropAreaClassName:
     "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-2 border-on-ink ring-2000 ring-ink/60 focus-ring-inset",
 };
+
+// Below these a move or zoom is float noise, not the person: no re-render for it.
+const CROP_EPSILON_PX = 0.01;
+const ZOOM_EPSILON = 0.001;
+
+const isFiniteArea = (area: Area) =>
+  [area.x, area.y, area.width, area.height].every((value) => Number.isFinite(value));
 
 export type CropDialogProps = {
   /** «Обрізати фото {n}», filled. */
@@ -66,7 +73,47 @@ export function CropDialog({ title, image, framing, onSave, onClose }: CropDialo
   const busy = sending !== null;
   const bounds = zoomBoundsOf(size);
   const shownZoom = Math.min(bounds.max, Math.max(bounds.min, zoom));
-  const initialArea = initialAreaOf(framing);
+  // Read once: the cropper takes the stored frame on load only, so nothing here re-feeds it.
+  const [initialArea] = useState(() => initialAreaOf(framing));
+  // The cropper measures its box on mount; in a dialog not yet shown that is 0 x 0, a stored frame's
+  // zoom comes out NaN and it updates until React stops it (#185). Modal's showModal is a child's
+  // layout effect, so it has run before this one.
+  const [dialogShown, setDialogShown] = useState(false);
+  useLayoutEffect(() => setDialogShown(true), []);
+
+  // A non-finite value is the cropper measuring nothing; neither it nor float noise re-renders.
+  const moveTo = useCallback(
+    (next: Point) =>
+      setCrop((current) =>
+        Number.isFinite(next.x) &&
+        Number.isFinite(next.y) &&
+        (Math.abs(next.x - current.x) >= CROP_EPSILON_PX ||
+          Math.abs(next.y - current.y) >= CROP_EPSILON_PX)
+          ? next
+          : current,
+      ),
+    [],
+  );
+  const zoomTo = useCallback(
+    (next: number) =>
+      setZoom((current) =>
+        Number.isFinite(next) && Math.abs(next - current) >= ZOOM_EPSILON ? next : current,
+      ),
+    [],
+  );
+  const showArea = useCallback((next: Area) => {
+    if (isFiniteArea(next)) setArea(next);
+  }, []);
+  const takeSize = useCallback(
+    (media: MediaSize) => setSize({ width: media.naturalWidth, height: media.naturalHeight }),
+    [],
+  );
+  const mediaProps = useMemo(() => ({ onError: () => setFailed(true) }), []);
+  const describedBy = image.zoomOnly ? `${hintId} ${noteId}` : hintId;
+  const cropperProps = useMemo(
+    () => ({ role: "application", "aria-label": t.cropAreaLabel, "aria-describedby": describedBy }),
+    [describedBy],
+  );
 
   const close = () => {
     if (!busy) onClose();
@@ -101,7 +148,7 @@ export function CropDialog({ title, image, framing, onSave, onClose }: CropDialo
         </Text>
       ) : null}
       <div className="relative h-72 overflow-clip rounded-panel bg-ink tablet:h-80">
-        {failed ? null : (
+        {failed || !dialogShown ? null : (
           <Cropper
             key={attempt}
             image={image.url}
@@ -114,20 +161,14 @@ export function CropDialog({ title, image, framing, onSave, onClose }: CropDialo
             maxZoom={bounds.max}
             keyboardStep={10}
             {...(initialArea === undefined ? {} : { initialCroppedAreaPercentages: initialArea })}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onCropAreaChange={setArea}
-            onMediaLoaded={(media: MediaSize) =>
-              setSize({ width: media.naturalWidth, height: media.naturalHeight })
-            }
+            onCropChange={moveTo}
+            onZoomChange={zoomTo}
+            onCropAreaChange={showArea}
+            onMediaLoaded={takeSize}
             disableAutomaticStylesInjection
             classes={CROPPER_CLASSES}
-            mediaProps={{ onError: () => setFailed(true) }}
-            cropperProps={{
-              role: "application",
-              "aria-label": t.cropAreaLabel,
-              "aria-describedby": image.zoomOnly ? `${hintId} ${noteId}` : hintId,
-            }}
+            mediaProps={mediaProps}
+            cropperProps={cropperProps}
           />
         )}
       </div>
