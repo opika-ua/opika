@@ -209,7 +209,8 @@ export function AnimalDetailContent({
               ) : (
                 <Avatar kind="logo" src={shelter.logo.storageKey} />
               )}
-              <Text as="span" look="label" className="min-w-0 max-desktop:truncate">
+              {/* A long name wraps, never cut short (owner, 2026-11-12); the city keeps its place. */}
+              <Text as="span" look="label" className="min-w-0 break-words">
                 {shelter.displayName}
               </Text>
             </Link>
