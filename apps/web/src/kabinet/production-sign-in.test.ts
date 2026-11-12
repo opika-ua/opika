@@ -379,7 +379,8 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // `profileEdit.errors.donationCheckoutSession` and three `operator.donation.cannotApprove.*`.
     // 846 with the DateField (owner-approved 2026-11-12): `dateField.day`, `month`, `year`,
     // `incomplete`, `noSuchDate` and `operator.create.errors.registeredAtFuture`.
-    expect(pending.length + written.length).toBe(846);
+    // 859 with the crop frame's thirteen `animalForm.photos.crop*`/`zoom*` strings (owner-approved 2026-11-12).
+    expect(pending.length + written.length).toBe(859);
     expect(written).toContain("kabinet.profileEdit.errors.aboutTooLong");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

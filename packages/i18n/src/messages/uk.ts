@@ -927,6 +927,22 @@ export const uk = {
         /** True with RH-B7 (D4 option (i)). Shown for a published or reserved card only. */
         dateNote:
           "Кожна зміна у фото оновлює дату на картці, і вона знову зʼявляється серед найсвіжіших.",
+        /** The crop frame, owner-approved 2026-11-12 (crop-frame shape §10, as proposed). */
+        crop: "Обрізати",
+        cropTitle: "Обрізати фото {n}",
+        cropHint: "Пересуньте й наблизьте фото, щоб тварина була в рамці.",
+        cropAreaLabel: "Рамка кадру. Стрілки зсувають фото.",
+        zoomIn: "Наблизити",
+        zoomOut: "Віддалити",
+        cropPreview: "Так фото виглядатиме на картці",
+        cropThumbPreview: "Мініатюра",
+        cropSave: "Зберегти кадр",
+        cropped: "Кадр збережено.",
+        cropLegacyNote:
+          "Це фото додане до появи обрізання, тож його можна лише наблизити. Щоб вибрати інший кадр, додайте фото ще раз.",
+        cropLoadFailed: "Не вдалося відкрити фото. Спробуйте ще раз.",
+        /** Owner-approved 2026-11-12: shown only once a frame is stored. */
+        cropReset: "Повернути автоматичний кадр",
       },
       photoErrors: {
         /** His gap-9 wording, verbatim: a HEIC (or other format) the device can't convert. */

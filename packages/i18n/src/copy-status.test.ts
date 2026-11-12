@@ -1863,6 +1863,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(EDITOR_TABS_COPY),
         // The photo manager's words (animal editor PR 3), pinned in their own block below.
         ...Object.keys(PHOTO_MANAGER_COPY),
+        // The crop frame's words, pinned in their own block below.
+        ...Object.keys(CROP_FRAME_COPY),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -2503,6 +2505,38 @@ const PHOTO_MANAGER_COPY: Record<string, string> = {
 
 describe("animal editor photo manager copy", () => {
   it.each(Object.entries(PHOTO_MANAGER_COPY))("%s is the approved text, exactly", (path, text) => {
+    const found = path
+      .split(".")
+      .slice(1)
+      .reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+        uk.kabinet,
+      );
+    expect(found).toBe(text);
+  });
+});
+
+/** The crop frame: owner-approved 2026-11-12, section 10 of the crop-frame shape, as proposed. */
+const CROP_FRAME_COPY: Record<string, string> = {
+  "kabinet.animalForm.photos.crop": "Обрізати",
+  "kabinet.animalForm.photos.cropTitle": "Обрізати фото {n}",
+  "kabinet.animalForm.photos.cropHint": "Пересуньте й наблизьте фото, щоб тварина була в рамці.",
+  "kabinet.animalForm.photos.cropAreaLabel": "Рамка кадру. Стрілки зсувають фото.",
+  "kabinet.animalForm.photos.zoomIn": "Наблизити",
+  "kabinet.animalForm.photos.zoomOut": "Віддалити",
+  "kabinet.animalForm.photos.cropPreview": "Так фото виглядатиме на картці",
+  "kabinet.animalForm.photos.cropThumbPreview": "Мініатюра",
+  "kabinet.animalForm.photos.cropSave": "Зберегти кадр",
+  "kabinet.animalForm.photos.cropped": "Кадр збережено.",
+  "kabinet.animalForm.photos.cropLegacyNote":
+    "Це фото додане до появи обрізання, тож його можна лише наблизити. Щоб вибрати інший кадр, додайте фото ще раз.",
+  "kabinet.animalForm.photos.cropLoadFailed": "Не вдалося відкрити фото. Спробуйте ще раз.",
+  // The reset to the automatic crop: owner-approved 2026-11-12, after the shape.
+  "kabinet.animalForm.photos.cropReset": "Повернути автоматичний кадр",
+};
+
+describe("crop frame copy (owner-approved 2026-11-12)", () => {
+  it.each(Object.entries(CROP_FRAME_COPY))("%s is the approved text, exactly", (path, text) => {
     const found = path
       .split(".")
       .slice(1)

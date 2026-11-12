@@ -975,6 +975,20 @@ export const en = {
           "The photo is gone from the card. The file itself isn't deleted right away; if it needs to go completely, write to me.",
         dateNote:
           "Every change to the photos updates the date on the card, and it moves back among the freshest.",
+        crop: "Crop",
+        cropTitle: "Crop photo {n}",
+        cropHint: "Move and zoom the photo so the animal is inside the frame.",
+        cropAreaLabel: "Crop frame. Arrow keys move the photo.",
+        zoomIn: "Zoom in",
+        zoomOut: "Zoom out",
+        cropPreview: "How the photo will look on the card",
+        cropThumbPreview: "Thumbnail",
+        cropSave: "Save the crop",
+        cropped: "Crop saved.",
+        cropLegacyNote:
+          "Added before cropping existed, so it can only be zoomed. To pick another frame, add the photo again.",
+        cropLoadFailed: "Couldn't open the photo. Try again.",
+        cropReset: "Go back to the automatic crop",
       },
       photoErrors: {
         unsupportedFormat: "Save the photo as JPEG or PNG",
