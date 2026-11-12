@@ -1,7 +1,13 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StickyActionBar } from "./StickyActionBar";
-import { keyboardInsetOf, revealAboveBar } from "./sticky-bar";
+import {
+  BOTTOM_BAR,
+  bottomBarBoxes,
+  keyboardInsetOf,
+  liftAboveBars,
+  revealAboveBar,
+} from "./sticky-bar";
 
 describe("keyboardInsetOf", () => {
   const base = { layoutHeight: 780, viewportHeight: 780, viewportOffsetTop: 0, scale: 1 };
@@ -51,6 +57,64 @@ describe("revealAboveBar", () => {
     button.getBoundingClientRect = () => ({ bottom: 900 }) as DOMRect;
     revealAboveBar(button, 650);
     expect(scrollBy).not.toHaveBeenCalled();
+  });
+});
+
+describe("liftAboveBars", () => {
+  const H = 800;
+  const TOAST = 72;
+
+  it("leaves the toast on the bottom edge when no bar is in its way", () => {
+    expect(liftAboveBars([], H, TOAST)).toBe(0);
+    // A bar higher up the screen (a form bar left in the flow) is not touched by the toast.
+    expect(liftAboveBars([{ top: 300, bottom: 400 }], H, TOAST)).toBe(0);
+    // Off screen below.
+    expect(liftAboveBars([{ top: 820, bottom: 900 }], H, TOAST)).toBe(0);
+  });
+
+  it("puts it on the top edge of a bar along the bottom (the tab bar, a draft's save bar)", () => {
+    expect(liftAboveBars([{ top: 734, bottom: 800 }], H, TOAST)).toBe(66);
+    expect(liftAboveBars([{ top: 700, bottom: 784 }], H, TOAST)).toBe(100);
+  });
+
+  it("clears a bar stacked on another, in whatever order they are found", () => {
+    const nav = { top: 734, bottom: 800 };
+    const pill = { top: 664, bottom: 720 };
+    expect(liftAboveBars([nav, pill], H, TOAST)).toBe(136);
+    expect(liftAboveBars([pill, nav], H, TOAST)).toBe(136);
+  });
+
+  it("counts a bar the toast would only graze, never one it already clears", () => {
+    expect(liftAboveBars([{ top: 650, bottom: 729 }], H, TOAST)).toBe(150);
+    expect(liftAboveBars([{ top: 650, bottom: 728 }], H, TOAST)).toBe(0);
+  });
+});
+
+describe("bottomBarBoxes", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  const bar = (style: string, box: { top: number; bottom: number } | null) => {
+    const element = document.createElement("div");
+    element.setAttribute("data-bottom-bar", BOTTOM_BAR["data-bottom-bar"]);
+    element.setAttribute("style", style);
+    element.getBoundingClientRect = () =>
+      ({ top: box?.top ?? 0, bottom: box?.bottom ?? 0 }) as DOMRect;
+    element.getClientRects = () => (box === null ? [] : [box]) as unknown as DOMRectList;
+    document.body.append(element);
+  };
+
+  it("reads only marked bars that are fixed or sticky and displayed", () => {
+    bar("position: fixed", { top: 734, bottom: 800 });
+    bar("position: sticky", { top: 700, bottom: 784 });
+    // The nav as a side rail from desktop, and a nav the form hides on a phone.
+    bar("position: static", { top: 100, bottom: 400 });
+    bar("position: fixed", null);
+    expect(bottomBarBoxes()).toEqual([
+      { top: 734, bottom: 800 },
+      { top: 700, bottom: 784 },
+    ]);
   });
 });
 

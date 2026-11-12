@@ -34,6 +34,7 @@ import { animals, authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import type { AnimalId, CityId } from "@opika/domain";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { expectToastClearOfBottomBars } from "./bottom-bars";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.36";
@@ -492,6 +493,24 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await expect(page.getByRole("group", { name: /^Фото \d з 3$/ })).toHaveCount(3);
     await expect(page.getByRole("button", { name: "Прибрати фото 2" })).toBeFocused();
     expect(removes).toBe(0);
+    await page.close();
+  });
+
+  test("the undo toast sits above the draft's save bar at 360 and 1024, and «Зберегти» and «Опублікувати» stay clickable", async () => {
+    await withThreePhotos();
+    const page = await open(`/kabinet/tvaryny/${draftId}`);
+    for (const size of [
+      { width: 360, height: 800 },
+      { width: 1024, height: 768 },
+    ]) {
+      await page.setViewportSize(size);
+      await openTab(page, /^Фото/);
+      await page.getByRole("button", { name: "Прибрати фото 2" }).click();
+      expect(await expectToastClearOfBottomBars(page, "Фото прибрано")).toBeGreaterThanOrEqual(1);
+      await shot(page, `toast-above-save-bar-${size.width}`);
+      await page.getByRole("button", { name: "Повернути" }).click();
+      await expect(page.getByRole("group", { name: /^Фото \d з 3$/ })).toHaveCount(3);
+    }
     await page.close();
   });
 

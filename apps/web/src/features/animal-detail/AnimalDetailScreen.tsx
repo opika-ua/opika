@@ -24,6 +24,7 @@ import { Icon } from "../../ui/Icon";
 import { LinkedText } from "../../ui/LinkedText";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { MetaLine } from "../../ui/MetaLine";
+import { BOTTOM_BAR } from "../../ui/sticky-bar";
 import { Text } from "../../ui/Text";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { chipDisplayLabel, similarAnimalsHref, similarAnimalsLabel } from "../gallery/filter-url";
@@ -150,6 +151,7 @@ export function AnimalDetailContent({
           {/* Wraps onto two lines on a phone rather than overflowing; «Дати сімʼю» stays the one primary action. */}
           {/* Phone: the bar that is always on screen (sticky to the bottom of the panel's scroll), «Дати сімʼю» taking the width and two 52px circles; from desktop, the header's own row, right-aligned. */}
           <div
+            {...BOTTOM_BAR}
             data-testid="action-bar"
             className="sticky bottom-0 z-10 order-last -mx-4 mt-auto flex items-center gap-2.5 border-line border-t bg-surface px-4 pt-3 pb-inset tablet:-mx-6 tablet:px-6 desktop:static desktop:order-none desktop:m-0 desktop:ml-auto desktop:flex-none desktop:flex-wrap desktop:justify-end desktop:gap-4 desktop:border-0 desktop:bg-transparent desktop:p-0"
           >

@@ -6,6 +6,8 @@ import { CheckboxGroup, RadioGroup } from "./groups";
 import { Pagination } from "./Pagination";
 import { PrevNext } from "./PrevNext";
 import { paginationWindow } from "./pagination-window";
+import { StickyActionBar } from "./StickyActionBar";
+import { BOTTOM_BAR } from "./sticky-bar";
 import { Tabs } from "./Tabs";
 import { Toast, type ToastCloseReason, type ToastHandle, ToastProvider, useToast } from "./Toast";
 import { Toggle } from "./Toggle";
@@ -344,6 +346,55 @@ describe("Toast", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  // The one rule for every screen: a shown toast sits on the top edge of a fixed bottom bar.
+  it("a shown toast's region is lifted over a marked fixed bar, and back to the edge with none", () => {
+    Object.defineProperty(document.documentElement, "clientHeight", {
+      value: 800,
+      configurable: true,
+    });
+    const height = vi
+      .spyOn(HTMLElement.prototype, "offsetHeight", "get")
+      .mockImplementation(function (this: HTMLElement) {
+        return this.getAttribute("aria-live") === "polite" ? 72 : 0;
+      });
+    try {
+      const { container } = render(
+        <ToastProvider dismissLabel="Закрити">
+          <Trigger />
+          <div {...BOTTOM_BAR} data-testid="bar" style={{ position: "fixed" }} />
+        </ToastProvider>,
+      );
+      const bar = screen.getByTestId("bar");
+      bar.getBoundingClientRect = () => ({ top: 712, bottom: 800 }) as DOMRect;
+      bar.getClientRects = () => [{}] as unknown as DOMRectList;
+      const region = container.querySelector('[aria-live="polite"]') as HTMLElement;
+      fireEvent.click(screen.getByRole("button", { name: "Показати" }));
+      expect(region.style.bottom).toBe("88px");
+      fireEvent.click(screen.getByRole("button", { name: "Закрити" }));
+      expect(region.style.bottom).toBe("");
+    } finally {
+      height.mockRestore();
+      Reflect.deleteProperty(document.documentElement, "clientHeight");
+    }
+  });
+
+  it("the tab bar and the save bar carry the marker the toast reads", () => {
+    render(
+      <>
+        <BottomNav label="Розділи" current="a" items={[{ key: "a", href: "/a", label: "А" }]} />
+        <StickyActionBar>
+          <button type="button">Зберегти</button>
+        </StickyActionBar>
+      </>,
+    );
+    expect(
+      screen.getByRole("navigation", { name: "Розділи" }).hasAttribute("data-bottom-bar"),
+    ).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Зберегти" }).closest("[data-bottom-bar]"),
+    ).not.toBeNull();
   });
 
   it("showing a toast with an action does not move focus", () => {

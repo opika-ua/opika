@@ -8,7 +8,7 @@ File: `apps/web/src/ui/Toast.tsx`
 
 **Accessibility.** `role=alert` for error. Dismiss button is named by `dismissLabel` and is 48px; so is the action. The action never takes focus on its own; whoever runs it moves focus afterwards (the button is gone).
 
-**Responsive.** Max width 28rem, centred above the safe area.
+**Responsive.** Max width 28rem, centred above the safe area; `ToastProvider` keeps it above every fixed bottom bar.
 
 **Example.**
 

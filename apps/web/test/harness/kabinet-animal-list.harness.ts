@@ -26,6 +26,7 @@ import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, makeAnimal, testDatabaseUrl } from "@opika/db/test";
 import type { ShelterId } from "@opika/domain";
 import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
+import { expectToastClearOfBottomBars } from "./bottom-bars";
 import { expectTabRowSound } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
@@ -232,6 +233,28 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     await statusOf(page, LEAVING).click();
     await page.keyboard.press("Escape");
     await expect(statusOf(page, LEAVING)).toBeFocused();
+    await page.close();
+  });
+
+  test("the undo toast sits above the phone tab bar at 360 (the rail at 1024 is not a bar), and the tabs stay clickable", async () => {
+    const page = await open("/kabinet/tvaryny");
+    for (const [size, bars] of [
+      [{ width: 360, height: 800 }, 1],
+      [{ width: 1024, height: 768 }, 0],
+    ] as const) {
+      await page.setViewportSize(size);
+      await statusOf(page, LEAVING).click();
+      await page.getByRole("button", { name: "Домовляються", exact: true }).click();
+      expect(await expectToastClearOfBottomBars(page, `${LEAVING}: почали домовлятися.`)).toBe(
+        bars,
+      );
+      const dir = process.env.PHOTO_SCREENSHOT_DIR;
+      if (dir !== undefined && dir !== "") {
+        await page.screenshot({ path: `${dir}/toast-above-tab-bar-${size.width}.png` });
+      }
+      await page.getByRole("button", { name: "Скасувати", exact: true }).click();
+      await expect(statusOf(page, LEAVING)).toHaveText("Опубліковано");
+    }
     await page.close();
   });
 

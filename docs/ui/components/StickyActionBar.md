@@ -8,7 +8,7 @@ File: `apps/web/src/ui/StickyActionBar.tsx` (client; logic in `sticky-bar.ts`)
 
 **Accessibility.** The buttons are ordinary tab stops. On a phone the on-screen keyboard overlays the layout viewport, which sticky and fixed bars are laid out against; the bar reads `window.visualViewport` and lifts itself by the covered height, so Save stays reachable with the keyboard open. It sets `scroll-padding-bottom` on the page for the bar's height while mounted and, when a form field gets focus under the bar, scrolls it clear (a button in the bar never scrolls the page). A pinch zoom is not treated as a keyboard. Without JS it is a plain sticky bar.
 
-**Responsive.** An inset card (16px page gutter), 8px or the home-indicator inset above the bottom edge (`pb-inset`).
+**Responsive.** An inset card (16px page gutter), 8px or the home-indicator inset above the bottom edge (`pb-inset`). Marked `BOTTOM_BAR`, so a toast sits above it, never over its buttons.
 
 **Example.**
 

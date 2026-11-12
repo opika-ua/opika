@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ActionPill } from "../../../ui/ActionPill";
+import { BottomNav } from "../../../ui/BottomNav";
 import { Button } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
 import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../ui/Combobox";
@@ -409,10 +410,25 @@ export function TooltipDemo() {
   );
 }
 
+/** The live toasts; pinning a real tab bar to the screen's bottom shows them sitting above it. */
 export function ToastDemo() {
+  const [pinned, setPinned] = useState(false);
   return (
     <ToastProvider dismissLabel="Dismiss">
       <ToastButtons />
+      <Button variant="ghost" aria-pressed={pinned} onClick={() => setPinned(!pinned)}>
+        Pin a tab bar to the bottom
+      </Button>
+      {pinned ? (
+        <BottomNav
+          label="Pinned demo tabs"
+          current="animals"
+          items={[
+            { key: "animals", href: "/dev/ui?pinned=animals", label: "Animals" },
+            { key: "profile", href: "/dev/ui?pinned=profile", label: "Shelter" },
+          ]}
+        />
+      ) : null}
     </ToastProvider>
   );
 }

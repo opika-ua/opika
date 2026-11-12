@@ -147,7 +147,7 @@ type AnimalListProps = {
 /** The list inside the kit's toast region (the reserve/release undo and «Посилання скопійовано.»). */
 export function AnimalList(props: AnimalListProps) {
   return (
-    <ToastProvider dismissLabel={uk.kabinet.profileEdit.pause.close} placement="above-nav">
+    <ToastProvider dismissLabel={uk.kabinet.profileEdit.pause.close}>
       <AnimalListBody {...props} />
     </ToastProvider>
   );

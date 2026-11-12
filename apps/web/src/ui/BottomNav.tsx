@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cx } from "./cx";
+import { BOTTOM_BAR } from "./sticky-bar";
 
 /**
  * A short top-level nav (the kabinet's «Тварини · Притулок»). Text only. `layout`: `bar` stays a
@@ -34,6 +35,7 @@ const MARKER = {
 export function BottomNav({ label, items, current, layout = "bar" }: BottomNavProps) {
   return (
     <nav
+      {...BOTTOM_BAR}
       aria-label={label}
       className={cx(
         "fixed inset-x-0 bottom-0 z-(--z-header) flex gap-1 border-t-2 border-line bg-surface px-2 pt-2 pb-inset",
