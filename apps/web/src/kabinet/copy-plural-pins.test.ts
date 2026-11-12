@@ -4,7 +4,6 @@ import {
   ANIMAL_DESCRIPTION_MAX_CHARACTERS,
   ANIMAL_NAME_MAX_CHARACTERS,
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
-  DEFAULT_FRESHNESS_POLICY,
   EARLY_LISTING_DAYS,
   TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
 } from "@opika/domain";
@@ -138,26 +137,6 @@ describe("the caps the pet card fields' counters were written for", () => {
 });
 
 /**
- * K2's strip (Oleksii, 2026-10-18) types «днів» after `{days}`: «{cards} ви не
- * підтверджували понад {days} днів.», `{days}` filled with the freshness
- * policy's `agingMaxDays` (his note, verbatim: "{days} pinned to agingMaxDays
- * (30)"). «днів» is right for 30, not for 31 («день») or 32 («дні»). The
- * `{cards}` forms are picked by `pluralizeUk`, so they need no pin.
- */
-describe("the stale cut-off K2's plural noun was written for", () => {
-  it("a card goes stale after 30 days («днів»)", () => {
-    expect(
-      DEFAULT_FRESHNESS_POLICY.agingMaxDays,
-      "agingMaxDays changed: «днів» in kabinet.animalList.stale.count was written for 30 and must be rechecked before this pin moves",
-    ).toBe(30);
-  });
-
-  it("the copy carries the noun form that value takes", () => {
-    expect(new Intl.PluralRules("uk").select(30)).toBe("many");
-  });
-});
-
-/**
  * RUI4-F2 (Oleksii, 2026-10-18), verbatim: "Error copy: «Назва довша за {max} символів.» (plural
  * pin for 100)." The sentence the operator's two name fields show, filled from the shared cap, is
  * pinned whole against his literal for 100: «символів» is right for 100, not for every number.
@@ -226,10 +205,9 @@ describe("count phrases pick the noun form from the number", () => {
     expect(countPhrase(count, forms)).toBe(expected);
   });
 
-  it("the sign-in and invite emails and the stale strip use them", () => {
+  it("the sign-in and invite emails and the age date check use them", () => {
     expect(uk.kabinet.email.signIn.expiry).toBe("Посилання спрацює один раз і діє {minutes}.");
     expect(uk.kabinet.email.invite.expiry).toContain("Запрошення діє {hours}.");
-    expect(uk.kabinet.animalList.stale.count).toContain("понад {days}.");
     expect(uk.kabinet.animalForm.validation.dateTooOld).toContain("понад {years} тому.");
   });
 });

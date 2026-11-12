@@ -1950,7 +1950,10 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
  * verbatim: "Final. ʼ (U+02BC). «…» top level, „…“ nested. No «ми», no
  * «адоптери», no «реєстр», pronoun-free for the animal." `captionCards.*` and
  * `stale.countCards.*` are the three forms his `{cards}` takes in `caption`
- * and `stale.count` (one, few, many, in his order).
+ * and the weekly email (one, few, many, in his order). The kabinet card grid
+ * (owner-approved 2026-11-12, the types doc's §6 as proposed with «Уже вдома…»)
+ * replaced the row actions with the status menu and the ⋯, the strip with
+ * `stale.line.*`, and the adopt dialog's body and button with the card spec's.
  */
 describe("kabinet K2 copy (final, 2026-10-18)", () => {
   const K2_FINAL: Record<string, string> = {
@@ -1986,14 +1989,10 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
       "Скасувати вже не можна: час минув або картку змінено. На картці – сьогоднішня дата.",
     "kabinet.animalList.confirm.failed":
       "Не підтверджено: дата на картці не змінилася. Перевірте зʼєднання і спробуйте ще раз.",
-    "kabinet.animalList.actions.reserve": "Почали домовлятися",
-    "kabinet.animalList.actions.release": "Не домовилися – знову шукає",
-    "kabinet.animalList.actions.adopt": "Уже вдома",
     "kabinet.animalList.adoptDialog.title": "{name} уже вдома?",
-    "kabinet.animalList.adoptDialog.body":
-      "Картка зникне з галереї, а її сторінка стане недоступною. У вашому списку картка лишиться з позначкою «Удома». Скасувати це не можна: якщо тварина повернеться, додайте її як нову картку.",
-    "kabinet.animalList.adoptDialog.confirm": "Так, уже вдома",
-    "kabinet.animalList.actions.withdraw": "Зняти з показу",
+    // The card spec's dialog (owner-approved 2026-11-12).
+    "kabinet.animalList.adoptDialog.body": "Картка зникне з пошуку. Повернути її буде не можна.",
+    "kabinet.animalList.adoptDialog.confirm": "Так, удома",
     "kabinet.animalList.withdrawDialog.title": "Зняти з показу: {name}?",
     "kabinet.animalList.withdrawDialog.body":
       "Ті, хто шукає тварину, більше не бачитимуть картку, а її сторінка повідомлятиме, що тварини там уже немає. У вашому списку картка лишиться, її можна повернути в чернетки. Якщо опублікувати її знову, дата й час очікування почнуться з того дня.",
@@ -2008,9 +2007,17 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.withdrawReason.other": "інша причина",
     "kabinet.animalList.actions.restore": "Повернути в чернетки",
     // Kabinet UX round 2 (owner-approved, 2026-10-29).
-    "kabinet.animalList.actions.viewOnSite": "Переглянути на сайті",
     "kabinet.animalList.orderInfoLabel": "Як впорядковано список",
-    "kabinet.animalList.row.menuLabel": "Дії з карткою {name}",
+    // The kabinet card grid (owner-approved 2026-11-12).
+    "kabinet.animalList.statusMenu.label": "Статус: {status}. Змінити статус {name}",
+    "kabinet.animalList.statusMenu.adopt": "Уже вдома…",
+    "kabinet.animalList.statusMenu.withdraw": "Зняти з показу…",
+    "kabinet.animalList.more.label": "Інші дії: {name}",
+    "kabinet.animalList.more.openOnSite": "Відкрити на сайті",
+    "kabinet.animalList.more.copyLink": "Копіювати посилання",
+    "kabinet.animalList.stale.line.one": "{count} картка давно не оновлювалась",
+    "kabinet.animalList.stale.line.few": "{count} картки давно не оновлювались",
+    "kabinet.animalList.stale.line.many": "{count} карток давно не оновлювались",
     "kabinet.animalList.moved.reserved": "{name}: почали домовлятися.",
     "kabinet.animalList.moved.released": "{name}: знову шукає дім.",
     "kabinet.animalList.moved.adopted": "{name}: уже вдома.",
@@ -2025,13 +2032,11 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.deleted": "Чернетку «{name}» видалено.",
     "kabinet.deleteDraft.refused.wasPublished":
       "Цю картку вже публікували, тож видалити її не можна. Вона лишається у вашому списку як чернетка, і ті, хто шукає тварину, її не бачать.",
-    "kabinet.animalList.stale.count": "{cards} ви не підтверджували понад {days}.",
     "kabinet.animalList.stale.countCards.one": "{count} картку",
     "kabinet.animalList.stale.countCards.few": "{count} картки",
     "kabinet.animalList.stale.countCards.many": "{count} карток",
     "kabinet.animalList.stale.caption":
       "Ті, хто шукає тварину, бачать на них давню дату. Якщо нічого не змінилося, достатньо натиснути «Ще шукає» чи «Ще домовляються».",
-    "kabinet.animalList.stale.show": "Показати ці картки ({count})",
     "kabinet.animalList.stale.showAll": "Показати всі",
     "kabinet.animalList.paused.hidden":
       "Поки прийом звернень на паузі, ваших тварин немає в галереї та пошуку. Сторінки тварин і притулку відкриваються за прямим посиланням – там видно, що прийом звернень на паузі.",
@@ -3003,5 +3008,23 @@ describe("declared age range copy (owner, 2026-11-12)", () => {
     expect(Object.keys(uk.cardMeta)).not.toContain("ageYears");
     expect(Object.keys(uk.cardMeta)).not.toContain("ageApprox");
     expect(JSON.stringify(uk.cardMeta)).not.toContain("≈");
+  });
+});
+
+/**
+ * The animal page's photo strip: his own text, owner-approved 2026-11-12 with PR #497. From
+ * desktop three photos are in view and each arrow moves by one; the range dash is an en dash.
+ */
+describe("animal page photo strip copy (owner-given and owner-approved, 2026-11-12)", () => {
+  it("the arrows' names and the counter are his approved text", () => {
+    expect(uk.detail.photoRowPrev).toBe("Попередні фото");
+    expect(uk.detail.photoRowNext).toBe("Наступні фото");
+    expect(uk.detail.photoRowCounter).toBe("{first}–{last} з {total}");
+  });
+
+  it("has the English sense", () => {
+    expect(en.detail.photoRowPrev).toBe("Previous photos");
+    expect(en.detail.photoRowNext).toBe("Next photos");
+    expect(en.detail.photoRowCounter).toBe("{first}–{last} of {total}");
   });
 });

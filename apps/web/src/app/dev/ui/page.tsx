@@ -52,6 +52,7 @@ import {
   MenuClippedDemo,
   MenuDemo,
   MenuIconDemo,
+  MenuStatusDemo,
   ModalDemo,
   ModalHeaderDemo,
   MultiSelectRowsDemo,
@@ -159,6 +160,9 @@ export default function DevUiPage() {
           </Button>
           <Button variant="icon" size="lg" aria-label="Close">
             <Icon name="close" />
+          </Button>
+          <Button variant="scrim" aria-label="Next photos">
+            <Icon name="chevron-right" />
           </Button>
         </Row>
         <Row label="States: disabled, loading">
@@ -333,6 +337,27 @@ export default function DevUiPage() {
             nextLabel="Next photo"
             aspect="tall"
             slide="full"
+            className="w-full"
+          />
+        </Row>
+        <Row label="PhotoSlider hero (phone: full width, dots, N/M; desktop: three whole photos, one step per arrow, range counter)">
+          <PhotoSlider
+            photos={[
+              { src: "seed-photos/cat-1.jpg", alt: "" },
+              { src: "seed-photos/cat-2.jpg", alt: "" },
+              { src: "seed-photos/cat-3.jpg", alt: "" },
+              { src: "seed-photos/cat-4.jpg", alt: "" },
+              { src: "seed-photos/dog-1.jpg", alt: "" },
+            ]}
+            sizes="(max-width: 1023px) 100vw, 300px"
+            label="Photos"
+            prevLabel="Previous photo"
+            nextLabel="Next photo"
+            counterTemplate="Photo {n} of {total}"
+            rowPrevLabel="Previous photos"
+            rowNextLabel="Next photos"
+            rowCounterTemplate="{first}–{last} of {total}"
+            slide="hero"
             className="w-full"
           />
         </Row>
@@ -568,6 +593,9 @@ export default function DevUiPage() {
         </Row>
         <Row label="Menu (⋯ trigger, divider, danger item)">
           <MenuIconDemo />
+        </Row>
+        <Row label="Menu (status trigger: a status chip that opens the moves from it)">
+          <MenuStatusDemo />
         </Row>
         <Row label="Menu in a box that clips (top layer)">
           <MenuClippedDemo />

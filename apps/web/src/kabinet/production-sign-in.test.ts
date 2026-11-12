@@ -390,7 +390,11 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // `operator.reminder.*` for the operator's switch.
     // 868 with both: the two counts above each started from 859; the reminder's +14 and the photo
     // tile pill's net -5.
-    expect(pending.length + written.length).toBe(868);
+    // 874 with the kabinet card grid (owner-approved 2026-11-12): nine new (three `statusMenu.*`,
+    // three `more.*`, three `stale.line.*`), eight gone (four row `actions.*`, `actions.viewOnSite`,
+    // `row.menuLabel`, `stale.count`, `stale.show`).
+    // 869 with both: the card grid's 874 counts from 873, before the photo tile pill's net -5.
+    expect(pending.length + written.length).toBe(869);
     expect(written).toContain("kabinet.profileEdit.errors.aboutTooLong");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

@@ -1,5 +1,5 @@
 import type { KabinetAnimalView } from "@opika/contracts";
-import { type ListingKind, VERIFICATION_STATUSES } from "@opika/domain";
+import { VERIFICATION_STATUSES } from "@opika/domain";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { describe, expect, it } from "vitest";
@@ -10,7 +10,6 @@ import {
   captionOf,
   dayOf,
   metaLineOf,
-  rowActionsOf,
   rowAfterMove,
   staleLineOf,
   statusLineOf,
@@ -70,12 +69,15 @@ describe("the header caption counts cards in three forms (his answer 6)", () => 
   });
 });
 
-describe("the stale strip's sentence", () => {
+/** The brief's boundaries (1, 2, 5, 11, 21) plus 22: the noun and the verb agree in each form. */
+describe("the stale strip's sentence (owner-approved 2026-11-12)", () => {
   it.each([
-    [1, "1 картку ви не підтверджували понад 30 днів."],
-    [3, "3 картки ви не підтверджували понад 30 днів."],
-    [5, "5 карток ви не підтверджували понад 30 днів."],
-    [21, "21 картку ви не підтверджували понад 30 днів."],
+    [1, "1 картка давно не оновлювалась"],
+    [2, "2 картки давно не оновлювались"],
+    [5, "5 карток давно не оновлювались"],
+    [11, "11 карток давно не оновлювались"],
+    [21, "21 картка давно не оновлювалась"],
+    [22, "22 картки давно не оновлювались"],
   ])("%i", (count, line) => {
     expect(staleLineOf(count)).toBe(line);
   });
@@ -206,21 +208,6 @@ describe("the row's status line", () => {
     expect(withdrawalReasonOf({ code: "adopted_elsewhere", note: null })).toBe(
       "дім знайдено іншим шляхом",
     );
-  });
-});
-
-describe("which actions a row offers (sheet §4, his answers 7 and 8)", () => {
-  /** Written out state by state, not derived. */
-  const EXPECTED: Record<ListingKind, { forward: string | null; menu: string[] }> = {
-    draft: { forward: "publish", menu: ["edit", "deleteDraft"] },
-    published: { forward: null, menu: ["edit", "reserve", "adopt", "viewOnSite", "withdraw"] },
-    reserved: { forward: null, menu: ["edit", "release", "adopt", "viewOnSite", "withdraw"] },
-    adopted: { forward: null, menu: ["edit"] },
-    withdrawn: { forward: "restore", menu: ["edit"] },
-  };
-
-  it.each(Object.entries(EXPECTED))("%s", (kind, expected) => {
-    expect(rowActionsOf(kind as ListingKind)).toEqual(expected);
   });
 });
 

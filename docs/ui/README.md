@@ -98,7 +98,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [PrevNext](components/PrevNext.md) | `PrevNext.tsx` | Previous and next as icon links. |
 | [Tabs](components/Tabs.md) | `Tabs.tsx` | Tabs that switch panels in place (ARIA tabs pattern). |
 | [BottomNav](components/BottomNav.md) | `BottomNav.tsx` | A short top-level nav as a fixed bottom bar (the kabinet). |
-| [PhotoSlider](components/PhotoSlider.md) | `PhotoSlider.tsx` | Photos that scroll sideways and snap. |
+| [PhotoSlider](components/PhotoSlider.md) | `PhotoSlider.tsx` | Photos that scroll sideways and snap; `hero` is the pet card's phone hero and desktop row of three. |
 | [FormSection](components/FormSection.md) | `FormSection.tsx` | One named section of a long form, with an optional step number. |
 | [FormSteps](components/FormSteps.md) | `FormSection.tsx` | The form's sections as a row of anchor links. |
 | [StickyActionBar](components/StickyActionBar.md) | `StickyActionBar.tsx` | The save / publish bar: sticky, safe-area aware, lifted above the on-screen keyboard. |

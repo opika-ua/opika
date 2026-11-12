@@ -64,8 +64,10 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     "photo upload with pointer drag-reorder, browser client",
   "features/kabinet/photos/CropDialog.tsx":
     "crop frame: react-easy-crop's drag, pinch and zoom state inside the kit Modal (lazy chunk)",
-  "features/kabinet/animal-list/AnimalList.tsx": "row menus, dialogs, browser-client mutations",
-  "features/kabinet/animal-list/AnimalListRow.tsx": "row menu toggle and keyboard",
+  "features/kabinet/animal-list/AnimalList.tsx":
+    "card menus, dialogs, toasts, browser-client mutations",
+  "features/kabinet/animal-list/AnimalManageCard.tsx":
+    "the card's status and ⋯ menus (kit Menu, controlled)",
   "features/kabinet/animal-list/ListDialogs.tsx": "three confirm dialogs with local state",
   "features/kabinet/operator/HistoryList.tsx":
     'SERVER CANDIDATE (server list + small load-more island): "load more" through the browser client',

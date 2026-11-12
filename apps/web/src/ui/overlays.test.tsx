@@ -300,4 +300,33 @@ describe("Menu", () => {
     fireEvent.pointerDown(screen.getByRole("button", { name: "Поза меню" }));
     expect(screen.getByRole("button", { name: "Ще" }).getAttribute("aria-expanded")).toBe("false");
   });
+
+  it("the status trigger shows the status and is named in full by its label", () => {
+    function StatusMenu() {
+      const [open, setOpen] = useState(false);
+      return (
+        <Menu
+          open={open}
+          onOpenChange={setOpen}
+          trigger="status"
+          tone="published"
+          text="Опубліковано"
+          label="Статус: Опубліковано. Змінити статус Рекс"
+        >
+          <MenuItem>
+            <button type="button">Домовляються</button>
+          </MenuItem>
+        </Menu>
+      );
+    }
+    render(<StatusMenu />);
+    const trigger = screen.getByRole("button", {
+      name: "Статус: Опубліковано. Змінити статус Рекс",
+    });
+    // The visible status is part of the name (label in name, WCAG 2.5.3).
+    expect(trigger.textContent).toBe("Опубліковано");
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Домовляються" })).toBeTruthy();
+  });
 });

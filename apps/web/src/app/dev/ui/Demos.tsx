@@ -104,6 +104,32 @@ export function MenuDemo() {
   );
 }
 
+export function MenuStatusDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Menu
+      open={open}
+      onOpenChange={setOpen}
+      trigger="status"
+      tone="reserved"
+      text="Arranging"
+      label="Status: Arranging. Change the status of Murka"
+      align="start"
+    >
+      <MenuItem>
+        <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
+          Published
+        </Button>
+      </MenuItem>
+      <MenuItem>
+        <Button variant="ghost" className="w-full justify-start" onClick={() => setOpen(false)}>
+          Already home…
+        </Button>
+      </MenuItem>
+    </Menu>
+  );
+}
+
 export function FilterTabsDemo() {
   const [value, setValue] = useState("all");
   return (

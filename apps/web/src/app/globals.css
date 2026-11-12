@@ -212,6 +212,8 @@
   /* Seven desktop columns: reading lines stay under ~80 characters. */
   --container-reading: 690px;
   --spacing-sidebar: 240px;
+  /* Card grids: columns from the width available, not the viewport; `min` keeps one card on a narrow screen. */
+  --grid-template-columns-cards: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
 }
 @variant tablet {
   :root {

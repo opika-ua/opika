@@ -124,10 +124,13 @@ export function useToast(): ToastApi {
 export function ToastProvider({
   dismissLabel,
   durationMs = 5000,
+  placement = "bottom",
   children,
 }: {
   dismissLabel: string;
   durationMs?: number;
+  /** `above-nav`: clear of the kabinet's fixed phone tab bar below `desktop` (as StickyActionBar). */
+  placement?: "bottom" | "above-nav";
   children: ReactNode;
 }) {
   const [toasts, setToasts] = useState<readonly ToastEntry[]>([]);
@@ -207,7 +210,12 @@ export function ToastProvider({
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-4 bottom-0 z-(--z-toast) flex flex-col items-center gap-2 pb-inset"
+        className={cx(
+          "pointer-events-none fixed inset-x-4 z-(--z-toast) flex flex-col items-center gap-2",
+          placement === "above-nav"
+            ? "bottom-above-nav pb-2 desktop:bottom-0 desktop:pb-inset"
+            : "bottom-0 pb-inset",
+        )}
       >
         {toasts.map((toast) => (
           <Toast

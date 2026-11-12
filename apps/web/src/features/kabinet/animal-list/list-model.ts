@@ -14,6 +14,7 @@ import {
   freshnessOf,
   KYIV_TIME_ZONE,
   LISTING_KINDS,
+  type ListingEventType,
   type ListingKind,
   type PublishGap,
   pluralizeUk,
@@ -24,7 +25,6 @@ import { animalFactsParts, fillTemplate, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 import type { InferContractRouterOutputs } from "@orpc/contract";
 import { publishedAnnouncementOf, type ShelterVisibility } from "../animal-form/labels";
-import { countPhrase } from "../shared/count-phrase";
 
 /**
  * K2's words and rules that depend on a value, pure and free of server code,
@@ -99,16 +99,9 @@ export const filterChipsOf = (
 export const sameFilter = (a: KabinetAnimalListFilter, b: KabinetAnimalListFilter): boolean =>
   a.kind === b.kind && (a.kind !== "listing" || (b.kind === "listing" && a.listing === b.listing));
 
-/**
- * «3 картки ви не підтверджували понад 30 днів.»: `{days}` is the policy's
- * own cut-off, the one the server's stale filter and the pips use, so the
- * number in the sentence is the rule the count was made with.
- */
+/** «3 картки давно не оновлювались»: `count` is the server's `staleCount`, the pips' own «stale». */
 export const staleLineOf = (count: number): string =>
-  fillTemplate(t.stale.count, {
-    cards: fillTemplate(pluralizeUk(count, t.stale.countCards), { count: integer.format(count) }),
-    days: countPhrase(DEFAULT_FRESHNESS_POLICY.agingMaxDays, uk.kabinet.units.days),
-  });
+  fillTemplate(pluralizeUk(count, t.stale.line), { count: integer.format(count) });
 
 /**
  * Species · sex · age · size, the shared facts line (his answer 3, UX-2). A draft's missing size
@@ -174,76 +167,17 @@ export const statusLineOf = (row: AnimalRow, now: Date): string => {
   }
 };
 
-/** «Ще шукає» on a published card, «Ще домовляються» on a reserved one; nothing else carries the date. */
-export const confirmLabelOf = (kind: ListingKind): string | null =>
-  kind === "published"
-    ? t.confirm.stillLooking
-    : kind === "reserved"
-      ? t.confirm.stillArranging
-      : null;
-
-/** A listing move K2 offers, plus the two actions that aren't moves. */
-export type RowAction =
-  | "publish"
-  | "reserve"
-  | "release"
-  | "adopt"
-  | "withdraw"
-  | "restore"
-  | "deleteDraft"
-  | "edit";
-
-/**
- * What a row's ⋯ menu may hold: every row action, plus the link to the card on the public site
- * (a new tab; only where the card is public).
- */
-export type MenuEntry = RowAction | "viewOnSite";
-
-/** The entries drawn after a divider, in the danger colour: the ones that take a card out of sight or away. */
-export const DANGER_ENTRIES: ReadonlySet<MenuEntry> = new Set(["withdraw", "deleteDraft"]);
-
-/**
- * Which actions a row offers: one primary action beside the row and the rest in the ⋯ menu. The
- * primary is the move a shelter makes most: «Опублікувати» on a draft, «Повернути в чернетки» on a
- * withdrawn card; on a published or reserved card it is the date confirmation («Ще шукає» /
- * «Ще домовляються», drawn by the row from `confirmLabelOf`), so `forward` is null there and the
- * status moves sit in the menu. The menu: «Редагувати», the status moves, «Переглянути на сайті»
- * (published and reserved only), then, after a divider, «Зняти з показу» or «Видалити чернетку».
- * Adopted is terminal (H2-7), so it offers editing only.
- */
-export const rowActionsOf = (
-  kind: ListingKind,
-): { forward: RowAction | null; menu: readonly MenuEntry[] } => {
-  switch (kind) {
-    case "draft":
-      return { forward: "publish", menu: ["edit", "deleteDraft"] };
-    case "published":
-      return { forward: null, menu: ["edit", "reserve", "adopt", "viewOnSite", "withdraw"] };
-    case "reserved":
-      return { forward: null, menu: ["edit", "release", "adopt", "viewOnSite", "withdraw"] };
-    case "adopted":
-      return { forward: null, menu: ["edit"] };
-    case "withdrawn":
-      return { forward: "restore", menu: ["edit"] };
-    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
-    default: {
-      const unreachable: never = kind;
-      return unreachable;
-    }
-  }
-};
-
-export const actionLabelOf = (action: MenuEntry): string =>
-  action === "publish" ? uk.kabinet.animalForm.publish.button : t.actions[action];
+/** A listing move the list makes through `shelter.animals.transition` (confirm has its own procedures). */
+export type Move = Exclude<ListingEventType, "confirm" | "undo_confirm">;
 
 /** The listing a move leaves the card in, for the re-read after a lost answer. */
-export const listingAfter: Record<Exclude<RowAction, "deleteDraft" | "edit">, ListingKind> = {
+export const listingAfter: Record<Move, ListingKind> = {
   publish: "published",
   reserve: "reserved",
   release: "published",
   adopt: "adopted",
   withdraw: "withdrawn",
-  restore: "draft",
+  restore_to_draft: "draft",
 };
 
 /**
@@ -253,7 +187,7 @@ export const listingAfter: Record<Exclude<RowAction, "deleteDraft" | "edit">, Li
  * answer 5; `publishedAnnouncementOf`).
  */
 export const movedAnnouncementOf = (
-  action: Exclude<RowAction, "deleteDraft" | "edit">,
+  action: Move,
   name: string,
   visibility: ShelterVisibility,
 ): string => {
@@ -268,7 +202,7 @@ export const movedAnnouncementOf = (
       return fillTemplate(t.moved.adopted, { name });
     case "withdraw":
       return fillTemplate(t.moved.withdrawn, { name });
-    case "restore":
+    case "restore_to_draft":
       return fillTemplate(t.moved.restored, { name });
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled action; unreachable at runtime */
     default: {

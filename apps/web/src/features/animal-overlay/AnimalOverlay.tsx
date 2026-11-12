@@ -61,6 +61,13 @@ function clearEntranceSkip(): void {
  * retracting header leaves (`animate-panel-up`, only on a fresh open).
  */
 const DIALOG_BASE = "relative flex h-full flex-col outline-none";
+/**
+ * From desktop the dialog is the page box (content width, page margin), and the top bar and the sheet
+ * each sit on its 12 columns at 2-11, so the buttons line up with the sheet's edges.
+ */
+const PAGE_BOX = "desktop:mx-auto desktop:box-content desktop:max-w-content desktop:px-margin";
+const PAGE_COLUMNS = "desktop:grid desktop:grid-cols-page desktop:gap-x-gutter";
+const SHEET_COLUMNS = "desktop:col-span-10 desktop:col-start-2 desktop:max-w-none";
 /** The photo is the top of the card on a phone: the page background fills the whole screen under it. */
 /**
  * The close and prev/next buttons sit on the backdrop, flush with the panel's side edges. The
@@ -73,18 +80,17 @@ const DIALOG_BASE = "relative flex h-full flex-col outline-none";
 // never shrink it below the existing clearance.
 // Desktop: a row above the sheet. Below it: one layer over the photo (✕ left, ‹ › right), which
 // turns into the 60px compact bar once the photo has scrolled out of view.
-const TOP_BAR_OFFSET =
-  "absolute inset-x-0 top-0 z-10 desktop:static desktop:z-auto desktop:shrink-0 desktop:pt-safe-top desktop:pb-6";
+const TOP_BAR_OFFSET = `absolute inset-x-0 top-0 z-10 desktop:static desktop:z-auto desktop:shrink-0 desktop:pt-safe-top desktop:pb-6 ${PAGE_COLUMNS}`;
 const TOP_BAR_COMPACT = "max-desktop:border-b max-desktop:border-line max-desktop:bg-page";
-const TOP_BAR =
-  "relative mx-auto flex w-full max-w-160 items-center gap-2 px-4 pt-inset-top pb-3 tablet:px-6 desktop:max-w-271 desktop:justify-center desktop:p-0";
+const TOP_BAR = `relative mx-auto flex w-full max-w-160 items-center gap-2 px-4 pt-inset-top pb-3 tablet:px-6 desktop:justify-center desktop:p-0 ${SHEET_COLUMNS}`;
 /**
  * Only the top corners are rounded. Two boxes: Chrome's classic scrollbar is not reliably clipped
  * by a scroller's own `border-radius`, so `FRAME_CLIP` clips with both `overflow-hidden` and
  * `clip-path` at the same radius, and `FRAME_SCROLL` owns the scrolling.
  */
-const FRAME_CLIP =
-  "relative flex-1 mx-auto w-full max-w-160 overflow-hidden bg-surface desktop:max-w-271 desktop:rounded-t-sheet desktop:[clip-path:inset(0_round_var(--radius-sheet)_var(--radius-sheet)_0_0)]";
+const FRAME_CLIP = `relative flex-1 mx-auto w-full max-w-160 overflow-hidden bg-surface desktop:rounded-t-sheet desktop:[clip-path:inset(0_round_var(--radius-sheet)_var(--radius-sheet)_0_0)] ${SHEET_COLUMNS}`;
+/** Holds the sheet below the top bar: the rest of the height, on the page columns from desktop. */
+const FRAME_ROW = `flex min-h-0 flex-1 flex-col desktop:grid-rows-1 ${PAGE_COLUMNS}`;
 const FRAME_SCROLL = "h-full overflow-y-auto overscroll-contain brand-scrollbar";
 
 export type OverlayNeighbour = { name: string; href: string } | null;
@@ -153,7 +159,7 @@ export function AnimalOverlay({
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}
-        className={`${DIALOG_BASE} ${shouldAnimate ? "animate-panel-up" : ""}`}
+        className={`${DIALOG_BASE} ${PAGE_BOX} ${shouldAnimate ? "animate-panel-up" : ""}`}
       >
         <div className={`${TOP_BAR_OFFSET} ${compact ? TOP_BAR_COMPACT : ""}`}>
           <div className={TOP_BAR}>
@@ -172,9 +178,11 @@ export function AnimalOverlay({
             <NeighbourLink neighbour={neighbours.next} align="right" />
           </div>
         </div>
-        <div className={FRAME_CLIP}>
-          <div ref={scrollRef} className={FRAME_SCROLL}>
-            {children}
+        <div className={FRAME_ROW}>
+          <div className={FRAME_CLIP}>
+            <div ref={scrollRef} className={FRAME_SCROLL}>
+              {children}
+            </div>
           </div>
         </div>
       </div>

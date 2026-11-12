@@ -8,18 +8,17 @@ import { PhotoSlider } from "../../ui/PhotoSlider";
  */
 const BLEED = "-mx-4 tablet:-mx-6 order-first desktop:mx-0 desktop:order-none";
 
-/**
- * The pet card's photo row on the kit's `PhotoSlider`: a full-width hero below desktop (counter,
- * dots, swipe), one 3:4 photo per slide (capped at 360px) from desktop. `detail` R2 variant via the
- * global loader; the first photo is the one high-priority image.
- */
+/** The pet card's photos on the kit's `PhotoSlider` (`hero`); the first is the one priority image. */
 export function DetailPhotoGallery({
   photos,
   altFallback,
+  slot,
 }: {
   photos: readonly AnimalPhoto[];
   /** `animal.name` - used when a photo's own `alt` is unset. */
   altFallback: string;
+  /** Its place on the sheet's desktop grid: the columns it spans («1-4») and their classes. */
+  slot?: { columns: string; className: string } | null;
 }) {
   // The overlay watches this marker leave the top of its scroll to swap its floating controls for
   // the compact bar; it sits on the photo's bottom edge.
@@ -38,17 +37,20 @@ export function DetailPhotoGallery({
     );
   }
   return (
-    <div className={`${BLEED} relative`}>
+    <div data-columns={slot?.columns} className={`${BLEED} relative ${slot?.className ?? ""}`}>
       <PhotoSlider
         photos={photos.map((photo) => ({
           src: photo.storageKey,
           alt: photo.alt?.uk ?? altFallback,
         }))}
-        sizes="(max-width: 599px) 100vw, (max-width: 1023px) 640px, 360px"
+        sizes="(max-width: 599px) 100vw, (max-width: 1023px) 640px, 300px"
         label={uk.detail.photoGalleryLabel}
         prevLabel={uk.detail.photoPrev}
         nextLabel={uk.detail.photoNext}
         counterTemplate={uk.detail.photoCounter}
+        rowPrevLabel={uk.detail.photoRowPrev}
+        rowNextLabel={uk.detail.photoRowNext}
+        rowCounterTemplate={uk.detail.photoRowCounter}
         aspect="portrait"
         slide="hero"
       />

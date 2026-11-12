@@ -50,9 +50,14 @@ for (const viewport of [PHONE_360, DESKTOP_1440]) {
           // Prose links sit inside a text block, and a chip's input is inside its 48px label.
           if (el.closest("p, span.text-body, [data-inline-link]")) continue;
           if (el.matches("input[type=radio], input[type=checkbox]")) continue;
+          // Hidden until focused (the phone slider's keyboard-only arrows): measured as it shows.
+          const hiddenUntilFocused = getComputedStyle(el).clipPath === "inset(50%)";
+          if (hiddenUntilFocused) el.focus({ preventScroll: true });
           const min = Number.parseFloat(getComputedStyle(el).minHeight);
           const height = el.getBoundingClientRect().height;
-          if (Math.max(min, height) < 48) {
+          const stillHidden = hiddenUntilFocused && getComputedStyle(el).clipPath === "inset(50%)";
+          if (hiddenUntilFocused) el.blur();
+          if (Math.max(min, height) < 48 || stillHidden) {
             out.push(
               `${el.tagName} «${(el.getAttribute("aria-label") ?? el.textContent ?? "").trim()}» ${height}px`,
             );
@@ -142,6 +147,23 @@ test.describe("kit behaviour in a real browser", () => {
     await trigger.click();
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
     await expect(page.getByRole("radio", { name: "Kyiv" })).toBeAttached();
+    await page.keyboard.press("Escape");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(trigger).toBeFocused();
+  });
+
+  test("Menu by keyboard: Enter opens it, Tab reaches its items, Esc closes it with focus back", async ({
+    page,
+  }) => {
+    await openRoute(page, ROUTE, PHONE_360, { readySelector: READY });
+    const trigger = page.getByRole("button", {
+      name: "Status: Arranging. Change the status of Murka",
+    });
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Published" })).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
     await expect(trigger).toBeFocused();
