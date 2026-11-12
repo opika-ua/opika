@@ -11,7 +11,7 @@ import {
 } from "@opika/db/test";
 import type { CityId, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { inMemoryRateLimiter, type RefundableRateLimiter } from "../api/rate-limit";
+import { inMemoryRateLimiter, type PeekableRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, rpcRequestInit } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
@@ -81,14 +81,18 @@ const generous = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_0
 
 function uploadsOn(
   store = capturingStore(),
-  limiters: { perHour?: RefundableRateLimiter; perDay?: RefundableRateLimiter } = {},
+  limiters: { perHour?: PeekableRateLimiter; perDay?: PeekableRateLimiter } = {},
 ): { uploads: PhotoUploads; puts: Put[] } {
   return {
     puts: store.puts,
     uploads: {
       kind: "on",
       storage: store.storage,
-      limiters: { perHour: limiters.perHour ?? generous(), perDay: limiters.perDay ?? generous() },
+      limiters: {
+        perHour: limiters.perHour ?? generous(),
+        perDay: limiters.perDay ?? generous(),
+        cropAttempts: { perHour: generous(), perDay: generous() },
+      },
       processingBudgetMs: PHOTO_PROCESSING_BUDGET_MS,
     },
   };

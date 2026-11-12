@@ -52,19 +52,17 @@ describe("inMemoryRateLimiter", () => {
     expect(retryAfterSecondsOf(stub, "k", new Date())).toBe(60);
   });
 
-  it("refund gives back the unit check took at that moment, and only that one", async () => {
+  it("wouldAllow answers what check would, and takes nothing", async () => {
     const { inMemoryRateLimiter } = await import("./rate-limit");
-    const limiter = inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 2 });
+    const limiter = inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 1 });
     const t0 = new Date("2026-01-01T00:00:00Z");
-    const t1 = new Date(t0.getTime() + 1_000);
 
+    expect(await limiter.wouldAllow("k", t0)).toBe(true);
+    expect(await limiter.wouldAllow("k", t0)).toBe(true);
     expect(await limiter.check("k", t0)).toBe(true);
-    expect(await limiter.check("k", t1)).toBe(true);
-    await limiter.refund("k", t1);
-    await limiter.refund("k", t1);
-    await limiter.refund("other", t1);
-    expect(await limiter.check("k", t1)).toBe(true);
-    expect(await limiter.check("k", t1)).toBe(false);
+    expect(await limiter.wouldAllow("k", t0)).toBe(false);
+    expect(await limiter.wouldAllow("other", t0)).toBe(true);
+    expect(await limiter.wouldAllow("k", new Date(t0.getTime() + 60_001))).toBe(true);
   });
 
   it("tracks separate keys independently", async () => {
@@ -90,14 +88,16 @@ describe("inMemoryRateLimiter", () => {
  */
 describe("upstashRateLimiter", () => {
   const limitMock = vi.fn();
+  const getRemainingMock = vi.fn();
   const slidingWindowMock = vi.fn((max: number, window: string) => ({ max, window }));
   const ratelimitConstructorMock = vi.fn(function RatelimitMock() {
-    return { limit: limitMock };
+    return { limit: limitMock, getRemaining: getRemainingMock };
   });
 
   beforeEach(() => {
     vi.resetModules();
     limitMock.mockReset();
+    getRemainingMock.mockReset();
     slidingWindowMock.mockClear();
     ratelimitConstructorMock.mockClear();
     vi.doMock("@upstash/ratelimit", () => ({
@@ -255,28 +255,42 @@ describe("upstashRateLimiter", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("refund is the SDK's negative rate, and a store it can't reach is warned, never thrown", async () => {
+  it("wouldAllow reads getRemaining, never limit(); unreachable or slow, it answers the mode", async () => {
+    vi.useFakeTimers();
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { upstashRateLimiter } = await import("./rate-limit");
     const { Redis } = await import("@upstash/redis");
-    const limiter = upstashRateLimiter({
-      redis: new Redis({ url: "https://example.invalid", token: "x" }),
-      windowMs: 60_000,
-      maxRequests: 100,
-      prefix: "test-refund",
-      onUnavailable: "deny",
-    });
+    const limiterIn = (onUnavailable: "allow" | "deny") =>
+      upstashRateLimiter({
+        redis: new Redis({ url: "https://example.invalid", token: "x" }),
+        windowMs: 60_000,
+        maxRequests: 100,
+        prefix: `test-peek-${onUnavailable}`,
+        onUnavailable,
+      });
+    const deny = limiterIn("deny");
 
-    limitMock.mockResolvedValue({ success: true });
-    await limiter.refund("shelter:s1", new Date());
-    expect(limitMock).toHaveBeenCalledWith("shelter:s1", { rate: -1 });
+    getRemainingMock.mockResolvedValueOnce({ remaining: 1, reset: 0, limit: 100 });
+    expect(await deny.wouldAllow("shelter:s1", new Date())).toBe(true);
+    getRemainingMock.mockResolvedValueOnce({ remaining: 0, reset: 0, limit: 100 });
+    expect(await deny.wouldAllow("shelter:s1", new Date())).toBe(false);
+    expect(getRemainingMock).toHaveBeenCalledWith("shelter:s1");
+    expect(limitMock).not.toHaveBeenCalled();
 
-    limitMock.mockRejectedValue(new Error("getaddrinfo ENOTFOUND example.invalid"));
-    await expect(limiter.refund("shelter:s1", new Date())).resolves.toBeUndefined();
+    getRemainingMock.mockRejectedValueOnce(new Error("getaddrinfo ENOTFOUND example.invalid"));
+    expect(await deny.wouldAllow("shelter:s1", new Date())).toBe(false);
+    getRemainingMock.mockRejectedValueOnce(new Error("getaddrinfo ENOTFOUND example.invalid"));
+    expect(await limiterIn("allow").wouldAllow("shelter:s1", new Date())).toBe(true);
+
+    getRemainingMock.mockReturnValueOnce(new Promise(() => {}));
+    const slow = deny.wouldAllow("shelter:s1", new Date());
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await slow).toBe(false);
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ event: "rate_limiter_unreachable", limiter: "test-refund" }),
+      expect.objectContaining({ event: "rate_limiter_unreachable", limiter: "test-peek-deny" }),
     );
     warnSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   /**

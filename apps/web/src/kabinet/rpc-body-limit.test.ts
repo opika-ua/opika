@@ -68,6 +68,10 @@ function deps(lookup: "throws" | "signedIn" = "throws") {
         limiters: {
           perHour: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
           perDay: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
+          cropAttempts: {
+            perHour: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
+            perDay: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
+          },
         },
         processingBudgetMs: PHOTO_PROCESSING_BUDGET_MS,
       },

@@ -116,11 +116,13 @@ async function chargedUploads(
   return uploads;
 }
 
-/**
- * A file stored that no animal points at: logged so it can be found. The
- * daily clean-up job deletes it after the grace period; nothing else does (K-Q2).
- */
-const logOrphan = (storageKey: string) => console.error({ event: "photo_orphaned", storageKey });
+/** The photo writes' log lines, through one console call (the Biome ratchet counts each). */
+const logPhotoEvent = (
+  line: { event: "photo_orphaned"; storageKey: string } | { event: "photo_crop_uncharged" },
+) => console.error(line);
+
+/** A file stored that no animal points at: the clean-up job deletes it after the grace (K-Q2). */
+const logOrphan = (storageKey: string) => logPhotoEvent({ event: "photo_orphaned", storageKey });
 
 /** An upload or a crop past its budget fails like any failure, logged without the file or a key. */
 const overBudget = (budgetMs: number): Error => {
@@ -328,34 +330,29 @@ const sameFraming = (a: PhotoFraming, b: PhotoFraming): boolean => {
   return x.x === y.x && x.y === y.y && x.w === y.w && x.h === y.h;
 };
 
-/**
- * A crop's charge, once every cheap refusal has passed and before the source is read: an attempt
- * (kept, bounding the work) and an allowance unit, which `refund` gives back if the crop fails.
- */
-async function chargeCrop(
-  deps: PhotoDeps,
-  scope: ShelterWriteScope,
-  uploads: UploadsOn,
-): Promise<{ refund: () => Promise<void> } | null> {
+/** Room in the shelter's allowance (P-Q12), read without taking a unit. */
+async function allowanceHasRoom(deps: PhotoDeps, scope: ShelterWriteScope, uploads: UploadsOn) {
+  const key = shelterUploadKey(scope.shelterId);
   const { perHour, perDay } = uploads.limiters;
-  const attempt = shelterCropAttemptKey(scope.shelterId);
-  const allowance = shelterUploadKey(scope.shelterId);
-  const units = [
-    { limiter: perHour, key: attempt },
-    { limiter: perDay, key: attempt },
-    { limiter: perHour, key: allowance },
-    { limiter: perDay, key: allowance },
-  ];
-  const giveBack = async (taken: typeof units) => {
-    for (const unit of taken) await unit.limiter.refund(unit.key, deps.now);
-  };
-  for (const [i, unit] of units.entries()) {
-    if (await unit.limiter.check(unit.key, deps.now)) continue;
-    // Refused, so no work done: every unit taken goes back, the attempt's too.
-    await giveBack(units.slice(0, i));
-    return null;
-  }
-  return { refund: () => giveBack(units.slice(2)) };
+  return (await perHour.wouldAllow(key, deps.now)) && (await perDay.wouldAllow(key, deps.now));
+}
+
+/** One crop attempt, never given back. A day's refusal keeps the hour's: it errs to the bound. */
+async function takeCropAttempt(deps: PhotoDeps, scope: ShelterWriteScope, uploads: UploadsOn) {
+  const key = shelterCropAttemptKey(scope.shelterId);
+  const { perHour, perDay } = uploads.limiters.cropAttempts;
+  return (await perHour.check(key, deps.now)) && (await perDay.check(key, deps.now));
+}
+
+/**
+ * A landed crop's allowance unit. Crops in flight together all passed the pre-check, so they can
+ * overshoot by their number (the attempts bound it); refused, or the store down, the crop stays.
+ */
+async function chargeLandedCrop(deps: PhotoDeps, scope: ShelterWriteScope, uploads: UploadsOn) {
+  const key = shelterUploadKey(scope.shelterId);
+  const hour = await uploads.limiters.perHour.check(key, deps.now);
+  const day = await uploads.limiters.perDay.check(key, deps.now);
+  if (!(hour && day)) logPhotoEvent({ event: "photo_crop_uncharged" });
 }
 
 type CropFrom = {
@@ -368,8 +365,8 @@ type CropFrom = {
 
 /**
  * `shelter.photos.crop`, crop-frame shape §6's steps: cut from the kept source (or an older photo's
- * detail variant) and stored under a new key, since the CDN keeps a variant for a year. A failed
- * crop costs no allowance (owner, 2026-11-12); old and orphaned files go with the clean-up job.
+ * detail variant) and stored under a new key, since the CDN keeps a variant for a year. Only a
+ * landed crop spends allowance (owner, 2026-11-12); old and orphaned files go with the clean-up job.
  */
 export async function photosCrop(
   deps: PhotoDeps,
@@ -429,15 +426,11 @@ export async function photosCrop(
     cut = { kind: "attention" };
   }
 
-  const charge = await chargeCrop(deps, scope, uploads);
-  if (charge === null) throw errors.RATE_LIMITED();
-  let landed: Animal;
-  try {
-    landed = await cutAndSwap(deps, scope, input, errors, uploads, { animal, from, cut });
-  } catch (error) {
-    await charge.refund();
-    throw error;
-  }
+  // The allowance is only read here and charged once the crop lands (owner, 2026-11-12).
+  if (!(await allowanceHasRoom(deps, scope, uploads))) throw errors.RATE_LIMITED();
+  if (!(await takeCropAttempt(deps, scope, uploads))) throw errors.RATE_LIMITED();
+  const landed = await cutAndSwap(deps, scope, input, errors, uploads, { animal, from, cut });
+  await chargeLandedCrop(deps, scope, uploads);
   return kabinetAnimalViewFor(deps, scope, landed);
 }
 
