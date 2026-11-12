@@ -407,3 +407,76 @@ describe("saving", () => {
     await waitFor(() => expect(document.activeElement).toBe(menuTrigger(1)));
   });
 });
+
+describe("«Повернути автоматичний кадр»", () => {
+  const RESET = "Повернути автоматичний кадр";
+  const AUTO_KEY = "/photos/1-auto.jpg";
+  const AFTER_RESET = view([kept(AUTO_KEY), older(OLD_KEY)]);
+
+  it("is offered only for a photo with a stored frame", async () => {
+    setup(AFTER_CROP);
+    const framed = await openCrop(1);
+    expect(within(framed).getByRole("button", { name: RESET })).toBeTruthy();
+    await userEvent.click(within(framed).getByRole("button", { name: "Скасувати" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // Photo 2 is still on the automatic crop: nothing to go back to.
+    const automatic = await openCrop(2);
+    expect(within(automatic).queryByRole("button", { name: RESET })).toBeNull();
+  });
+
+  it("sends the automatic crop, says «Кадр збережено.», and focus returns to the photo's ⋯", async () => {
+    const calls = setup(AFTER_CROP, async () => AFTER_RESET);
+    const triggerId = menuTrigger(1).id;
+    const dialog = await openCrop(1);
+    await userEvent.click(within(dialog).getByRole("button", { name: RESET }));
+    expect(calls.crop.mock.calls[0]?.[0]).toEqual({
+      animalId: ID,
+      expectedPhotoKeys: [CROPPED_KEY, OLD_KEY],
+      storageKey: CROPPED_KEY,
+      framing: { kind: "attention" },
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("Кадр збережено.").getAttribute("role")).toBe("status");
+    await waitFor(() => expect(document.activeElement).toBe(menuTrigger(1)));
+    expect(menuTrigger(1).id).toBe(triggerId);
+  });
+
+  it("a refusal stays in the dialog and says why", async () => {
+    const calls = setup(AFTER_CROP, async () => {
+      throw apiError("RATE_LIMITED");
+    });
+    const dialog = await openCrop(1);
+    await userEvent.click(within(dialog).getByRole("button", { name: RESET }));
+    expect((await within(dialog).findByRole("alert")).textContent).toBe(
+      "Забагато фото за короткий час. Спробуйте трохи пізніше.",
+    );
+    expect(calls.crop).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Кадр збережено.")).toBeNull();
+  });
+
+  it("photos changed in another window: closes, says so, and shows the current set", async () => {
+    const calls = setup(AFTER_CROP, async () => {
+      throw apiError("CONFLICT");
+    });
+    const dialog = await openCrop(1);
+    await userEvent.click(within(dialog).getByRole("button", { name: RESET }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(
+      screen.getByText("Фото змінилися в іншому вікні. Тут – поточний набір, спробуйте ще раз."),
+    ).toBeTruthy();
+    expect(calls.byId).toHaveBeenCalledTimes(1);
+  });
+
+  it("while either write is in flight, neither can be sent again", async () => {
+    let finish: (value: KabinetAnimalView) => void = () => undefined;
+    const calls = setup(AFTER_CROP, () => new Promise((resolve) => (finish = resolve)));
+    const dialog = await openCrop(1);
+    await cropArea();
+    await userEvent.click(within(dialog).getByRole("button", { name: RESET }));
+    await userEvent.click(within(dialog).getByRole("button", { name: RESET }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Зберегти кадр" }));
+    expect(calls.crop).toHaveBeenCalledTimes(1);
+    await act(async () => finish(AFTER_RESET));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+});

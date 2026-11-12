@@ -926,6 +926,8 @@ export const uk = {
         cropLegacyNote:
           "Це фото додане до появи обрізання, тож його можна лише наблизити. Щоб вибрати інший кадр, додайте фото ще раз.",
         cropLoadFailed: "Не вдалося відкрити фото. Спробуйте ще раз.",
+        /** Owner-approved 2026-11-12: shown only once a frame is stored. */
+        cropReset: "Повернути автоматичний кадр",
       },
       photoErrors: {
         /** His gap-9 wording, verbatim: a HEIC (or other format) the device can't convert. */

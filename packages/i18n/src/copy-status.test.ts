@@ -2470,6 +2470,8 @@ const CROP_FRAME_COPY: Record<string, string> = {
   "kabinet.animalForm.photos.cropLegacyNote":
     "Це фото додане до появи обрізання, тож його можна лише наблизити. Щоб вибрати інший кадр, додайте фото ще раз.",
   "kabinet.animalForm.photos.cropLoadFailed": "Не вдалося відкрити фото. Спробуйте ще раз.",
+  // The reset to the automatic crop: owner-approved 2026-11-12, after the shape.
+  "kabinet.animalForm.photos.cropReset": "Повернути автоматичний кадр",
 };
 
 describe("crop frame copy (owner-approved 2026-11-12)", () => {

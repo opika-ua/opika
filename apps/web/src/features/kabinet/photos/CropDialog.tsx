@@ -60,8 +60,10 @@ export function CropDialog({ title, image, framing, onSave, onClose }: CropDialo
   const [size, setSize] = useState(image.size);
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
-  const [busy, setBusy] = useState(false);
+  // Which write is in flight: the frame shown, or the reset to the automatic crop.
+  const [sending, setSending] = useState<PhotoFraming["kind"] | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const busy = sending !== null;
   const bounds = zoomBoundsOf(size);
   const shownZoom = Math.min(bounds.max, Math.max(bounds.min, zoom));
   const initialArea = initialAreaOf(framing);
@@ -72,17 +74,22 @@ export function CropDialog({ title, image, framing, onSave, onClose }: CropDialo
   const zoomBy = (direction: "in" | "out") => {
     if (!busy) setZoom(stepZoom(shownZoom, direction, bounds));
   };
-  const save = async () => {
-    if (busy || area === null) return;
-    setBusy(true);
+  const send = async (next: PhotoFraming) => {
+    setSending(next.kind);
     setRefusal(null);
     try {
-      setRefusal(await onSave({ kind: "frame", frame: frameOfArea(area, size) }));
+      setRefusal(await onSave(next));
     } catch {
       setRefusal(state.failed);
     } finally {
-      setBusy(false);
+      setSending(null);
     }
+  };
+  const save = () => {
+    if (!busy && area !== null) void send({ kind: "frame", frame: frameOfArea(area, size) });
+  };
+  const reset = () => {
+    if (!busy) void send({ kind: "attention" });
   };
 
   return (
@@ -168,16 +175,28 @@ export function CropDialog({ title, image, framing, onSave, onClose }: CropDialo
       <div className="flex flex-col gap-2 tablet:flex-row">
         <Button
           variant="primary"
-          status={busy ? "loading" : "idle"}
+          status={sending === "frame" ? "loading" : "idle"}
           aria-disabled={busy || area === null || undefined}
-          onClick={() => void save()}
+          onClick={save}
         >
-          {busy ? state.saving : t.cropSave}
+          {sending === "frame" ? state.saving : t.cropSave}
         </Button>
         <Button variant="secondary" onClick={close}>
           {pause.cancel}
         </Button>
       </div>
+      {/* Only a stored frame has something to undo; the reset needs no image, so it works if that failed. */}
+      {framing.kind === "frame" ? (
+        <Button
+          variant="ghost"
+          status={sending === "attention" ? "loading" : "idle"}
+          aria-disabled={busy || undefined}
+          className="self-start"
+          onClick={reset}
+        >
+          {t.cropReset}
+        </Button>
+      ) : null}
     </Modal>
   );
 }

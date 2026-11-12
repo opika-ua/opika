@@ -979,6 +979,7 @@ export const en = {
         cropLegacyNote:
           "Added before cropping existed, so it can only be zoomed. To pick another frame, add the photo again.",
         cropLoadFailed: "Couldn't open the photo. Try again.",
+        cropReset: "Go back to the automatic crop",
       },
       photoErrors: {
         unsupportedFormat: "Save the photo as JPEG or PNG",
