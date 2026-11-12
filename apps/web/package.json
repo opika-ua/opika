@@ -47,6 +47,7 @@
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "react-easy-crop": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

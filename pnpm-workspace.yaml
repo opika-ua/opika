@@ -125,6 +125,10 @@ catalog:
   # this exact constraint, just above.
   "@upstash/ratelimit": 2.2.0
   "@upstash/redis": 1.41.0
+  # The kabinet's crop frame, apps/web only, in a lazy chunk. MIT, about 8 KB gzip with its one
+  # dependency; drag, pinch, wheel, a fixed aspect and keyboard moves (ADR §12: cropping is "buy").
+  # Exactly 6.2.4: 6.2.5 was under the owner's 7-day rule (crop-frame approvals, Q9).
+  react-easy-crop: 6.2.4
 
 allowBuilds:
   esbuild: true
