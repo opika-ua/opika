@@ -1755,6 +1755,50 @@ describe("registry.donation.approve / reject (N20)", () => {
     ).toBe(200);
     expect(await history(s.id)).toEqual([]);
   });
+
+  /**
+   * A proposal stored before the rule existed (the shelter path refuses it now): approving it is
+   * refused with the problem named, nothing goes live, and rejecting it still works. Made-up values.
+   */
+  it.each([
+    "https://www.liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42",
+    "https://liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42",
+    "https://WWW.LIQPAY.UA/UK/CHECKOUT/CARD/CHECKOUT_1700000000000_TESTTOKEN42",
+  ])("refuses to approve the LiqPay checkout session %s", async (session) => {
+    const link = { url: session, provider: donationProviderOf(session) };
+    const s = await shelter({ pendingDonation: { ...pending(), link } });
+    const approve = await call("registry.donation.approve", {
+      shelterId: s.id,
+      expectedVersion: 0,
+    });
+    expect(approve.status).toBe(422);
+    expect(approve.body).toMatchObject({
+      code: "DONATION_LINK_REFUSED",
+      data: { problem: "checkout_session" },
+    });
+    const after = await reload(s.id);
+    expect(after.donation).toBeNull();
+    expect(after.pendingDonation?.link).toEqual(link);
+    expect(after.version).toBe(0);
+    expect(await history(s.id)).toEqual([]);
+    const reject = await call<RegistryShelterView>("registry.donation.reject", {
+      shelterId: s.id,
+      expectedVersion: 0,
+    });
+    expect(reject.body.pendingDonation).toBeNull();
+  });
+
+  it("approves a LiqPay page that is not a checkout session", async () => {
+    const page = "https://www.liqpay.ua/uk/checkout/domivka";
+    const link = { url: page, provider: donationProviderOf(page) };
+    const s = await shelter({ pendingDonation: { ...pending(), link } });
+    const approved = await call<RegistryShelterView>("registry.donation.approve", {
+      shelterId: s.id,
+      expectedVersion: 0,
+    });
+    expect(approved.status).toBe(200);
+    expect(approved.body.donation).toEqual(link);
+  });
 });
 
 describe("registry.donation.remove", () => {

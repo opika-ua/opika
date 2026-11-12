@@ -8,6 +8,7 @@ import type {
   KabinetAnimalView,
   KabinetCursor,
   KabinetListingEventInputSchema,
+  KabinetPhotoCropView,
 } from "@opika/contracts";
 import {
   type ConditionalWrite,
@@ -15,6 +16,8 @@ import {
   kabinetAnimalRepo,
   type ListingMoveHistory,
   type ListingWriteGuard,
+  type PhotoSource,
+  photoSourcesRepo,
   shelterRepo,
 } from "@opika/db/repos";
 import {
@@ -25,6 +28,7 @@ import {
   type AnimalEditedField,
   type AnimalId,
   type AnimalListingState,
+  type AnimalPhoto,
   ageDateProblem,
   type CityId,
   DEFAULT_FRESHNESS_POLICY,
@@ -79,8 +83,12 @@ const visibleConfirmation = (animal: Animal): Date | null =>
  * result to type-check as that half's view (F-B1), so a draft's nulls can
  * only ever reach the draft view.
  */
-export function kabinetAnimalViewOf(animal: Animal): KabinetAnimalView {
+export function kabinetAnimalViewOf(
+  animal: Animal,
+  photoCrops: readonly KabinetPhotoCropView[],
+): KabinetAnimalView {
   const core = {
+    photoCrops,
     id: animal.id,
     name: animal.name,
     species: animal.species,
@@ -113,6 +121,60 @@ export function kabinetAnimalViewOf(animal: Animal): KabinetAnimalView {
         description: animal.description,
         listing: animal.listing,
       };
+}
+
+/**
+ * Each photo's crop, in the photos' order (crop-frame shape §4). A source key goes only to the
+ * shelter's own admin: a support view gets `withheld` for every photo (owner's condition 2). A
+ * photo with no kept source is an older one, cropped from its detail variant.
+ */
+export function photoCropsOf(
+  photos: readonly AnimalPhoto[],
+  sources: readonly PhotoSource[],
+  scope: ShelterReadScope,
+): KabinetPhotoCropView[] {
+  const byKey = new Map(sources.map((source) => [source.storageKey, source]));
+  return photos.map(({ storageKey }) => {
+    const source = byKey.get(storageKey);
+    const framing = source?.framing ?? { kind: "attention" };
+    switch (scope.kind) {
+      case "support_view":
+        return { storageKey, framing, source: { kind: "withheld" } };
+      case "shelter_admin":
+        return {
+          storageKey,
+          framing,
+          source:
+            source === undefined
+              ? { kind: "variants_only" }
+              : {
+                  kind: "kept",
+                  objectKey: source.sourceObjectKey,
+                  origin: source.origin,
+                  width: source.width,
+                  height: source.height,
+                },
+        };
+      /* v8 ignore next 4 -- exists so the compiler rejects an unhandled scope; unreachable at runtime */
+      default: {
+        const unreachable: never = scope;
+        return unreachable;
+      }
+    }
+  });
+}
+
+/** The K3 view with its crops: one indexed read, none for an animal with no photo. */
+export async function kabinetAnimalViewFor(
+  deps: Pick<AnimalDeps, "db">,
+  scope: ShelterReadScope,
+  animal: Animal,
+): Promise<KabinetAnimalView> {
+  const sources =
+    animal.photos.length === 0
+      ? []
+      : await photoSourcesRepo(deps.db).listForAnimal(animal.id, scope.shelterId);
+  return kabinetAnimalViewOf(animal, photoCropsOf(animal.photos, sources, scope));
 }
 
 /**
@@ -179,18 +241,33 @@ function declared<T extends VaccinationStatus | SpayNeuterStatus>(
  * The date is the shelter's knowledge, not the save time: «Коли ви це
  * оцінили. Зазвичай - день, коли тварина потрапила до притулку.»
  */
-const ageOfInput = (input: AgeEstimateInput, now: Date): AgeEstimate =>
-  input.kind === "birth_date"
-    ? { kind: "birth_date", date: instantOfCalendarDate(input.date), precision: "day" }
-    : {
+const ageOfInput = (input: AgeEstimateInput, now: Date): AgeEstimate => {
+  switch (input.kind) {
+    case "birth_date":
+      return { kind: "birth_date", date: instantOfCalendarDate(input.date), precision: "day" };
+    case "declared_bucket":
+      return {
         kind: "declared_bucket",
         bucket: input.bucket,
         declaredAt: declaredAtOfCalendarDate(input.asOf, now),
       };
+    case "declared_range":
+      return {
+        kind: "declared_range",
+        range: input.range,
+        declaredAt: declaredAtOfCalendarDate(input.asOf, now),
+      };
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = input;
+      return unreachable;
+    }
+  }
+};
 
 /**
  * Whether the input names exactly the stored age, compared as the form shows
- * it: the same kind, the same bucket and the same calendar date (Kyiv), the
+ * it: the same kind, bucket or range, and calendar date (Kyiv), the
  * way `declared` keeps a medical fact's `declaredAt`. A form that re-sends an
  * unchanged age must not restamp it: a legacy bucket stamped at save time, or
  * a birth date stored at month precision, would otherwise be rewritten by a
@@ -202,6 +279,9 @@ const sameAge = (current: AgeEstimate, input: AgeEstimateInput): boolean => {
   }
   if (current.kind === "declared_bucket" && input.kind === "declared_bucket") {
     return current.bucket === input.bucket && kyivCalendarDateOf(current.declaredAt) === input.asOf;
+  }
+  if (current.kind === "declared_range" && input.kind === "declared_range") {
+    return current.range === input.range && kyivCalendarDateOf(current.declaredAt) === input.asOf;
   }
   return false;
 };
@@ -438,7 +518,11 @@ export async function animalsById(
   input: { animalId: AnimalId },
   errors: OwnErrors,
 ): Promise<KabinetAnimalView> {
-  return kabinetAnimalViewOf((await owned(deps, scope, input.animalId, errors)).animal);
+  return kabinetAnimalViewFor(
+    deps,
+    scope,
+    (await owned(deps, scope, input.animalId, errors)).animal,
+  );
 }
 
 /**
@@ -490,7 +574,7 @@ export async function animalsCreateDraft(
       animalName: animal.name,
     },
   });
-  return kabinetAnimalViewOf(animal);
+  return kabinetAnimalViewOf(animal, []);
 }
 
 /**
@@ -582,7 +666,7 @@ export async function animalsUpdate(
     edited = { ...animal, ...common, size: patch.size ?? animal.size, age, description: kept };
   }
   const [first, ...rest] = changedFields(animal, edited);
-  if (first === undefined) return kabinetAnimalViewOf(animal);
+  if (first === undefined) return kabinetAnimalViewFor(deps, scope, animal);
   const next = { ...edited, lastUpdatedAt: deps.now, version: animal.version + 1 };
   const result = await kabinetAnimalRepo(deps.db).writeEditIf(next, cityId, animal.version, {
     id: deps.newId(),
@@ -596,7 +680,7 @@ export async function animalsUpdate(
     },
   });
   if (result.kind === "conflict") throw errors.CONFLICT();
-  return kabinetAnimalViewOf(next);
+  return kabinetAnimalViewFor(deps, scope, next);
 }
 
 /** Publish, reserve, release, adopt, withdraw, back to draft: the server stamps `at`. */
@@ -641,7 +725,7 @@ export async function animalsTransition(
       },
     }),
   );
-  return kabinetAnimalViewOf(next);
+  return kabinetAnimalViewFor(deps, scope, next);
 }
 
 /**
@@ -664,7 +748,7 @@ export async function animalsConfirm(
     CONFIRMATION_NOT_RECORDED,
   );
   return {
-    animal: kabinetAnimalViewOf(next),
+    animal: await kabinetAnimalViewFor(deps, scope, next),
     undoUntil: new Date(deps.now.getTime() + UNDO_WINDOW_MS),
   };
 }
@@ -684,7 +768,7 @@ export async function animalsUndoConfirm(
       moved(animal, { type: "undo_confirm", at: deps.now }, errors, () => errors.UNDO_EXPIRED()),
     CONFIRMATION_NOT_RECORDED,
   );
-  return kabinetAnimalViewOf(next);
+  return kabinetAnimalViewFor(deps, scope, next);
 }
 
 /**

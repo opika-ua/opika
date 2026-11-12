@@ -8,6 +8,7 @@ import {
   DEFAULT_VERIFICATION_POLICY,
   type DonationRemovalCode,
   donationOnSuspension,
+  donationUrlProblemOf,
   type EvidenceItemInput,
   type ExactAddress,
   earlyListingOf,
@@ -686,24 +687,41 @@ const donationDecisionPlan =
     };
   };
 
-const donationDecision =
-  (decision: "approved" | "rejected") =>
-  (
-    deps: RegistryDeps,
-    moderatorId: ModeratorId,
-    input: { shelterId: ShelterId; expectedVersion: number },
-    errors: E<"CONFLICT">,
-  ) =>
-    editFromForm(
-      deps,
-      input.shelterId,
-      input.expectedVersion,
-      donationDecisionPlan(moderatorId, decision, deps.now),
-      errors,
-    );
+type DonationDecisionInput = { shelterId: ShelterId; expectedVersion: number };
 
-export const registryDonationApprove = donationDecision("approved");
-export const registryDonationReject = donationDecision("rejected");
+export const registryDonationApprove = (
+  deps: RegistryDeps,
+  moderatorId: ModeratorId,
+  input: DonationDecisionInput,
+  errors: E<"CONFLICT" | "DONATION_LINK_REFUSED">,
+) =>
+  editFromForm(
+    deps,
+    input.shelterId,
+    input.expectedVersion,
+    (shelter) => {
+      // The proposal's own rules again: one sent before a rule existed must not go live.
+      const url = shelter.pendingDonation?.link.url;
+      const problem = url === undefined ? null : donationUrlProblemOf(url);
+      if (problem !== null) throw errors.DONATION_LINK_REFUSED({ data: { problem } });
+      return donationDecisionPlan(moderatorId, "approved", deps.now)(shelter);
+    },
+    errors,
+  );
+
+export const registryDonationReject = (
+  deps: RegistryDeps,
+  moderatorId: ModeratorId,
+  input: DonationDecisionInput,
+  errors: E<"CONFLICT">,
+) =>
+  editFromForm(
+    deps,
+    input.shelterId,
+    input.expectedVersion,
+    donationDecisionPlan(moderatorId, "rejected", deps.now),
+    errors,
+  );
 
 /**
  * Takes the live link away for good and clears a waiting proposal with it, for a reason the

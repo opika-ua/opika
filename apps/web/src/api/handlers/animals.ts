@@ -8,7 +8,13 @@ import type {
   apiErrors,
 } from "@opika/contracts";
 import { animalRepo, galleryRepo } from "@opika/db/repos";
-import { ageBucketOf, isDiscoverableAnimal, isListedAnimal, primaryPhoto } from "@opika/domain";
+import {
+  ageBucketOf,
+  ageSpanOf,
+  isDiscoverableAnimal,
+  isListedAnimal,
+  primaryPhoto,
+} from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
@@ -75,6 +81,7 @@ export async function animalsById(
     colour: animal.colour,
     medicalNotes: animal.medicalNotes,
     ageBucket: ageBucketOf(animal.age, context.now),
+    ageSpan: ageSpanOf(animal.age, context.now),
     freshness: listingFreshness(animal.listing, context.now),
     listingKind: discoverableListingKind(animal.listing),
     shelter: {
@@ -180,6 +187,7 @@ export async function animalsCardsByIds(
         coatLength: animal.coatLength,
         publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
         ageBucket: ageBucketOf(animal.age, context.now),
+        ageSpan: ageSpanOf(animal.age, context.now),
         freshness: listingFreshness(animal.listing, context.now),
         primaryPhoto: primaryPhoto(animal),
         listingKind: discoverableListingKind(animal.listing),

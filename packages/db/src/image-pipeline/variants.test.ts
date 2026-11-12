@@ -8,6 +8,7 @@ import {
   LOGO_VARIANT_NAMES,
   LOGO_VARIANTS,
   nearestVariant,
+  photoSourceObjectKeyFor,
   r2EndpointUrl,
   r2PublicUrl,
   SERVED_IMAGE_VARIANTS,
@@ -186,5 +187,28 @@ describe("IMAGE_VARIANTS", () => {
 
   it("thumb is square, matching the detail page's 88px thumbnails", () => {
     expect(IMAGE_VARIANTS.thumb.width).toBe(IMAGE_VARIANTS.thumb.height);
+  });
+});
+
+describe("photoSourceObjectKeyFor (crop frame)", () => {
+  const storageKey = animalPhotoStorageKeyFor(ANIMAL_ID, "b1000000-0000-4000-8000-000000000001");
+
+  it("is a direct child of the photo's key, named source-<uuid>.webp", () => {
+    expect(photoSourceObjectKeyFor(storageKey, "c2000000-0000-4000-8000-000000000002")).toBe(
+      `${storageKey}/source-c2000000-0000-4000-8000-000000000002.webp`,
+    );
+  });
+
+  it.each([
+    ["an index", "0"],
+    ["an upper-case uuid", "C2000000-0000-4000-8000-000000000002"],
+    ["a path", "../x"],
+  ])("refuses %s as its id", (_label, id) => {
+    expect(() => photoSourceObjectKeyFor(storageKey, id)).toThrow(/fresh random/);
+  });
+
+  it("is no variant: the clean-up's snapshot step derives no storage key from it", () => {
+    const key = photoSourceObjectKeyFor(storageKey, "c2000000-0000-4000-8000-000000000002");
+    expect(storageKeyFromObjectKey(key)).toBeNull();
   });
 });

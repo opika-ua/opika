@@ -34,6 +34,7 @@ export function makeCardView(index: number, overrides: Partial<FeedCardView> = {
     size: "medium",
     coatLength: null,
     ageBucket: "adult",
+    ageSpan: null,
     publicLocation: null,
     primaryPhoto: null,
     freshness: { kind: "fresh", ageDays: 2, confirmedAt: new Date("2026-10-19T00:00:00Z") },

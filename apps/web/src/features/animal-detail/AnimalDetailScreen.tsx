@@ -1,6 +1,7 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
 import { donationHost, hasAnyDocumentEvidence, textIn } from "@opika/domain";
 import {
+  ageSpanLabel,
   ageWordFor,
   animalFactsParts,
   colourChipLabel,
@@ -20,6 +21,7 @@ import { Chip } from "../../ui/Chip";
 import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
 import { Icon } from "../../ui/Icon";
+import { LinkedText } from "../../ui/LinkedText";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { MetaLine } from "../../ui/MetaLine";
 import { Text } from "../../ui/Text";
@@ -52,8 +54,8 @@ interface AnimalDetailScreenProps {
  * overlay (`AnimalOverlay.tsx`) renders too. Prev/next lives only in the overlay: the full page
  * never fetches neighbours, and shows no back-link row (owner decision B).
  *
- * Deviations from the Figma frame (full list in the pet card PR 5 body): the meta line shows the
- * age bucket, not "N років" (the contract carries only the bucket); the freshness tag reuses
+ * Deviations from the Figma frame (full list in the pet card PR 5 body): the meta line shows a
+ * declared range's span («3–4 роки»), else the age bucket, not "N років"; the freshness tag reuses
  * `freshnessLabel` verbatim, without the mock's colon.
  */
 export function AnimalDetailScreen({
@@ -240,7 +242,11 @@ export function AnimalDetailContent({
             species={animal.species}
             dimension="ages"
             value={animal.ageBucket}
-            visibleText={capitalised(ageWordFor(animal.ageBucket, animal.sex))}
+            visibleText={capitalised(
+              animal.ageSpan === null
+                ? ageWordFor(animal.ageBucket, animal.sex)
+                : ageSpanLabel(animal.ageSpan),
+            )}
           />
           <SexChip species={animal.species} sex={animal.sex} />
           <FilterableChipLink
@@ -282,7 +288,7 @@ export function AnimalDetailContent({
         <div className="flex flex-1 flex-col gap-3">
           <Heading level={2}>{uk.detail.myStoryHeading}</Heading>
           <Text look="lead" className="text-ink-2">
-            {textIn(animal.description, "uk")}
+            <LinkedText text={textIn(animal.description, "uk")} />
           </Text>
         </div>
         <MedicalStatus
@@ -331,6 +337,7 @@ function metaParts(animal: AnimalDetailView): string[] {
     species: animal.species,
     sex: animal.sex,
     ageBucket: animal.ageBucket,
+    ageSpan: animal.ageSpan,
     size: animal.size,
   });
 }

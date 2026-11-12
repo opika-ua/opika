@@ -33,6 +33,7 @@ export {
   kabinetAnimalRepo,
   type ListingMoveHistory,
   type ListingWriteGuard,
+  type PhotoSourceChange,
 } from "./kabinet-animal-repo";
 export {
   type InvitationAcceptResult,
@@ -78,6 +79,7 @@ export {
   RETRY_WINDOW_HOURS,
   SEND_LOG_RETENTION_DAYS,
 } from "./notification-sends-repo";
+export { type PhotoSource, photoSourcesRepo } from "./photo-sources-repo";
 export {
   afterDeleted,
   recordScan,

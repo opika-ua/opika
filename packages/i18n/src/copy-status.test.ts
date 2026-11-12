@@ -404,6 +404,9 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
       "У посиланні не має бути імені чи пароля перед адресою сайту (як у https://імʼя@сайт). Скопіюйте адресу з рядка браузера.",
     "profileEdit.errors.donationIdn":
       "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
+    // Owner-approved 2026-11-12 (LiqPay checkout sessions: PR #487's copy table).
+    "profileEdit.errors.donationCheckoutSession":
+      "Це одноразова сторінка оплати, вона перестане працювати. Додайте постійне посилання: сторінку збору на вашому сайті або банку в monobank.",
     // Owner-approved 2026-11-10 (contact kinds Instagram and Facebook; facebookFormat with his «в» fix).
     "profileEdit.errors.instagramFormat":
       "Нікнейм в Instagram: до 30 латинських літер, цифр, крапок або підкреслень. Можна вставити посилання на профіль.",
@@ -1019,12 +1022,28 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.laterHint": "Можна заповнити пізніше. Без цього притулок не схвалити.",
     notFilledYet: "Ще не заповнено",
   };
+  /**
+   * Owner-approved 2026-11-12 (the date-field PR): a registration date can no longer be typed
+   * past today, so it has its own refusal, on the pattern of `siteVisitInFuture`.
+   */
+  const DATE_FIELD_OPERATOR_COPY: Record<string, string> = {
+    "operator.create.errors.registeredAtFuture": "Дата реєстрації не може бути в майбутньому.",
+  };
   /** Owner-given 2026-11-10 (the locked-block edit forms and the donation-approve hint). */
   const VERIFIED_DATA_EDIT_COPY: Record<string, string> = {
     "operator.shelter.edit": "Змінити",
     "operator.donation.approveHint": "Перевірте, що власник рахунку збігається з організацією",
     "operator.donation.approveHintInitiative":
       "Перевірте, що власник рахунку – контактна особа ініціативи",
+  };
+  /** Owner-approved 2026-11-12 (LiqPay checkout sessions: PR #487's copy table). */
+  const LIQPAY_SESSION_OPERATOR_COPY: Record<string, string> = {
+    "operator.donation.cannotApprove.userinfo":
+      "Схвалити не можна: у посиланні є імʼя чи пароль перед адресою сайту.",
+    "operator.donation.cannotApprove.idn":
+      "Схвалити не можна: в адресі сайту є кириличні літери або «xn--».",
+    "operator.donation.cannotApprove.checkout_session":
+      "Схвалити не можна: це одноразова сторінка оплати LiqPay, вона перестане працювати.",
   };
   /** Owner-approved 2026-11-06 (donation link safety: copy table N1–N14, N18, and the approvals file). */
   const DONATION_SAFETY_OPERATOR_COPY: Record<string, string> = {
@@ -1104,9 +1123,11 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(SITTING2_FOLLOWUP_COPY),
         ...Object.keys(EARLY_LISTING_OPERATOR_COPY),
         ...Object.keys(DONATION_SAFETY_OPERATOR_COPY),
+        ...Object.keys(LIQPAY_SESSION_OPERATOR_COPY),
         ...Object.keys(VERIFIED_DATA_EDIT_COPY),
         ...Object.keys(MINIMAL_CREATE_COPY).filter((path) => path.startsWith("operator.")),
         ...Object.keys(WEEKLY_REMINDER_OPERATOR_COPY),
+        ...Object.keys(DATE_FIELD_OPERATOR_COPY),
       ].sort(),
     );
   });
@@ -1144,6 +1165,20 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 
   it.each(Object.entries(WEEKLY_REMINDER_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
+
+  it.each(Object.entries(DATE_FIELD_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
+
+  it.each(Object.entries(LIQPAY_SESSION_OPERATOR_COPY))(
     "%s is the owner-approved text",
     (path, text) => {
       expect(valueAt(path)).toBe(text);
@@ -1225,6 +1260,32 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     expect(offending).toEqual([]);
     // Sanity: the letter-apostrophe is really there.
     expect(uk.kabinet.operator.evidence.field.channel).toContain(String.fromCodePoint(0x2bc));
+  });
+});
+
+/**
+ * The kit's `DateField` on every kabinet date: the parts' labels and a typed date's two
+ * refusals, owner-approved 2026-11-12 as proposed (the date-field PR; the month select's blank
+ * first option too, so no placeholder string). Exactly these keys.
+ */
+describe("kabinet date field copy (owner-approved, 2026-11-12)", () => {
+  const DATE_FIELD_COPY = {
+    day: "День",
+    month: "Місяць",
+    year: "Рік",
+    incomplete: "Вкажіть повну дату: день, місяць і рік.",
+    noSuchDate: "Такої дати в календарі немає.",
+  };
+
+  it("holds exactly his approved strings", () => {
+    expect(uk.kabinet.dateField).toEqual(DATE_FIELD_COPY);
+  });
+
+  it("nothing is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
+    for (const [key, text] of Object.entries(uk.kabinet.dateField)) {
+      expect(text, key).not.toContain(COPY_PENDING);
+      expect(text, key).not.toMatch(/['’]/);
+    }
   });
 });
 
@@ -1417,7 +1478,7 @@ describe("/pro about.data (his PR 6 text, and PW-1's two sentences)", () => {
       "Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора. На цю адресу надходять запрошення, посилання для входу чи нового пароля, повідомлення про зміну пароля, про рішення щодо перевірки й посилання на збір, а також щотижневе нагадування про непідтверджені картки. Окремо зберігається технічний запис про браузер і пристрій, з якого виконано вхід. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби.",
       "Коли адміністратора притулку прибирають із кабінету, скасовують його запрошення або запрошення так і не прийняли, обліковий запис і адреса пошти видаляються, якщо ця адреса не має доступу до іншого притулку і не запрошена до нього. Тоді ж адресу прибирають з історії притулку: там лишається лише запис про те, що адміністратора запрошено, додано чи прибрано.",
       "Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто – адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють – їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин – лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку.",
-      "Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Фото, прибране з картки, більше не показується, а сам файл я видаляю на прохання притулку.",
+      "Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Щоб фото можна було обрізати заново, зберігається також його необрізана копія – без метаданих, зокрема без місця зйомки. Вона видаляється разом із фото. Фото, прибране з картки, більше не показується, а його файли видаляються автоматично приблизно за тиждень.",
       "Список збережених тварин зберігається лише в цьому браузері. Щоб показати його актуальним, сайт запитує дані про цих тварин без кукі й не зберігає, яких саме.",
       // H5 (Sentry), his sentence verbatim, 2026-11-01.
       "Якщо на сайті стається збій, до сервісу відстеження помилок Sentry (сервери в ЄС) надсилається лише технічний опис: тип помилки, місце в коді, адреса сторінки без параметрів, браузер і система. Контакти, пошта, номери телефонів, вміст форм і кукі туди не потрапляють, а IP-адреси не зберігаються.",
@@ -1625,8 +1686,8 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
     // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
-    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field; 103 with the channel cap's message; 94 since the shelter description replaced the sentence editor (five error messages and six voice strings went, aboutTooLong and about.hint came).
-    expect(k4.length).toBe(94);
+    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field; 103 with the channel cap's message; 94 since the shelter description replaced the sentence editor (five error messages and six voice strings went, aboutTooLong and about.hint came); 95 with the LiqPay checkout-session error.
+    expect(k4.length).toBe(95);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });
@@ -1823,6 +1884,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(EDITOR_TABS_COPY),
         // The photo manager's words (animal editor PR 3), pinned in their own block below.
         ...Object.keys(PHOTO_MANAGER_COPY),
+        // The crop frame's words, pinned in their own block below.
+        ...Object.keys(CROP_FRAME_COPY),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -2474,6 +2537,38 @@ describe("animal editor photo manager copy", () => {
   });
 });
 
+/** The crop frame: owner-approved 2026-11-12, section 10 of the crop-frame shape, as proposed. */
+const CROP_FRAME_COPY: Record<string, string> = {
+  "kabinet.animalForm.photos.crop": "Обрізати",
+  "kabinet.animalForm.photos.cropTitle": "Обрізати фото {n}",
+  "kabinet.animalForm.photos.cropHint": "Пересуньте й наблизьте фото, щоб тварина була в рамці.",
+  "kabinet.animalForm.photos.cropAreaLabel": "Рамка кадру. Стрілки зсувають фото.",
+  "kabinet.animalForm.photos.zoomIn": "Наблизити",
+  "kabinet.animalForm.photos.zoomOut": "Віддалити",
+  "kabinet.animalForm.photos.cropPreview": "Так фото виглядатиме на картці",
+  "kabinet.animalForm.photos.cropThumbPreview": "Мініатюра",
+  "kabinet.animalForm.photos.cropSave": "Зберегти кадр",
+  "kabinet.animalForm.photos.cropped": "Кадр збережено.",
+  "kabinet.animalForm.photos.cropLegacyNote":
+    "Це фото додане до появи обрізання, тож його можна лише наблизити. Щоб вибрати інший кадр, додайте фото ще раз.",
+  "kabinet.animalForm.photos.cropLoadFailed": "Не вдалося відкрити фото. Спробуйте ще раз.",
+  // The reset to the automatic crop: owner-approved 2026-11-12, after the shape.
+  "kabinet.animalForm.photos.cropReset": "Повернути автоматичний кадр",
+};
+
+describe("crop frame copy (owner-approved 2026-11-12)", () => {
+  it.each(Object.entries(CROP_FRAME_COPY))("%s is the approved text, exactly", (path, text) => {
+    const found = path
+      .split(".")
+      .slice(1)
+      .reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+        uk.kabinet,
+      );
+    expect(found).toBe(text);
+  });
+});
+
 describe("animal editor tabs copy", () => {
   it.each(Object.entries(EDITOR_TABS_COPY))("%s is the approved text, exactly", (path, text) => {
     const found = path
@@ -2861,5 +2956,27 @@ describe("the weekly reminder email (F1): owner-approved text, 2026-11-10 and 20
     expect(en.kabinet.email.freshnessReminder.stop).toBe(
       "To stop receiving these emails, reply to this email.\n{operator}",
     );
+  });
+});
+
+/**
+ * Age as a declared range (owner, 2026-11-12): S1, S3 and S4 verbatim. S2 (a single year count)
+ * and S5 («≈ {age}») were withdrawn the same day: a range already says "about".
+ */
+describe("declared age range copy (owner, 2026-11-12)", () => {
+  it("S1, S3 and S4 are his text", () => {
+    expect(uk.cardMeta.ageUnderOneYear).toBe("до 1 року");
+    expect(uk.cardMeta.ageYearsBetween).toEqual({
+      one: "{from}–{count} рік",
+      few: "{from}–{count} роки",
+      many: "{from}–{count} років",
+    });
+    expect(uk.cardMeta.ageYearsAtLeast).toBe("{from}+ років");
+  });
+
+  it("S2 and S5 are gone, and no card word carries «≈»", () => {
+    expect(Object.keys(uk.cardMeta)).not.toContain("ageYears");
+    expect(Object.keys(uk.cardMeta)).not.toContain("ageApprox");
+    expect(JSON.stringify(uk.cardMeta)).not.toContain("≈");
   });
 });

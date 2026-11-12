@@ -1,5 +1,4 @@
 import {
-  CalendarDateSchema,
   type Coordinates,
   CoordinatesSchema,
   EdrpouSchema,
@@ -10,7 +9,9 @@ import {
   type ShelterLegalEntity,
 } from "@opika/domain";
 import { z } from "zod";
+import { type DateFieldValue, dateValue, EMPTY_DATE } from "../../../../ui/date-field";
 import { type ContactsCheck, type ContactsForm, contactOfForm } from "../../profile-edit/fields";
+import { requiredDateError, type TypedDateError } from "../../shared/kabinet-date";
 import { aboutInputOf, aboutOverBy } from "../about-text";
 import {
   type DocumentFreeEvidenceInput,
@@ -46,8 +47,8 @@ export type LegalForm = {
   kind: LegalKind | null;
   legalName: string;
   edrpou: string;
-  /** `YYYY-MM-DD`, as a date input gives it. */
-  registeredAt: string;
+  /** As `DateField` holds it: empty, a date, or what was typed while it is not one. */
+  registeredAt: DateFieldValue;
   contactPersonName: string;
 };
 
@@ -82,21 +83,32 @@ export const emptyCreateForm = (): CreateShelterForm => ({
   line2: "",
   postalCode: "",
   coordinates: "",
-  legal: { kind: null, legalName: "", edrpou: "", registeredAt: "", contactPersonName: "" },
+  legal: {
+    kind: null,
+    legalName: "",
+    edrpou: "",
+    registeredAt: EMPTY_DATE,
+    contactPersonName: "",
+  },
   contacts: { phone: "", telegram: "", form: "", others: [] },
   evidence: [],
   adminName: "",
   adminEmail: "",
 });
 
-/** `create.errors.*` by name, plus K4's `emailFormat` for the first admin's address. */
+/**
+ * `create.errors.*` by name, plus K4's `emailFormat` for the first admin's address and a typed
+ * date's own two (`kabinet.dateField.*`).
+ */
 export type CreateFieldError =
   | "required"
   | "nameTooLong"
   | "edrpouFormat"
   | "coordinatesFormat"
   | "emailFormat"
-  | "descriptionTooLong";
+  | "descriptionTooLong"
+  | "registeredAtFuture"
+  | TypedDateError;
 
 export type CreateField =
   | "displayName"
@@ -204,7 +216,7 @@ function optionalStreetAddressOf(
  * None on file yet: no form picked, nothing typed.
  */
 export function legalFormOf(legal: ShelterLegalEntity | null): LegalForm {
-  const empty = { legalName: "", edrpou: "", registeredAt: "", contactPersonName: "" };
+  const empty = { legalName: "", edrpou: "", registeredAt: EMPTY_DATE, contactPersonName: "" };
   if (legal === null) return { ...empty, kind: null };
   switch (legal.kind) {
     case "registered_ngo":
@@ -213,7 +225,7 @@ export function legalFormOf(legal: ShelterLegalEntity | null): LegalForm {
         kind: legal.kind,
         legalName: legal.legalName,
         edrpou: legal.edrpou,
-        registeredAt: kyivCalendarDateOf(legal.registeredAt),
+        registeredAt: dateValue(kyivCalendarDateOf(legal.registeredAt)),
       };
     case "sole_proprietor":
       return { ...empty, kind: legal.kind, legalName: legal.legalName, edrpou: legal.edrpou };
@@ -267,9 +279,10 @@ export function legalEntityOf(
     if (legalName === null || errors.edrpou !== undefined) return { kind: "invalid" };
     return { kind: "ok", legalEntity: { kind: legal.kind, legalName, edrpou } };
   }
-  const registeredAt = CalendarDateSchema.safeParse(legal.registeredAt);
-  if (!registeredAt.success) errors.registeredAt = "required";
-  if (legalName === null || errors.edrpou !== undefined || !registeredAt.success) {
+  const registeredAt = legal.registeredAt;
+  const dateError = requiredDateError(registeredAt, "registeredAtFuture");
+  if (dateError !== null) errors.registeredAt = dateError;
+  if (legalName === null || errors.edrpou !== undefined || registeredAt.kind !== "date") {
     return { kind: "invalid" };
   }
   return {
@@ -279,7 +292,7 @@ export function legalEntityOf(
       legalName,
       edrpou,
       // A calendar date, stored as UTC midnight of that date like every stored day.
-      registeredAt: instantOfCalendarDate(registeredAt.data),
+      registeredAt: instantOfCalendarDate(registeredAt.date),
     },
   };
 }

@@ -12,6 +12,7 @@ import {
   type CoatColour,
   type CoatLength,
   characterCount,
+  type DeclaredAgeRange,
   kyivCalendarDateOf,
   type LocalizedText,
   type MedicalState,
@@ -21,6 +22,13 @@ import {
   type TemperamentTrait,
 } from "@opika/domain";
 import type { z } from "zod";
+import {
+  type DateFieldValue,
+  type DateInvalidReason,
+  dateValue,
+  EMPTY_DATE,
+  sameDateValue,
+} from "../../../ui/date-field";
 
 /**
  * K3's form as the screen holds it, and the one translation each way:
@@ -33,7 +41,7 @@ import type { z } from "zod";
  * shows no size selected, and saving it sends no size (K-Q5, F-B1).
  */
 
-export type AgeMode = "birth_date" | "declared_bucket";
+export type AgeMode = "birth_date" | "declared";
 
 export type FormValues = {
   name: string;
@@ -44,11 +52,14 @@ export type FormValues = {
   /** Null is «Не вказано», an answer in its own right: unlike size, it can be chosen again after a value (DR1-D10). */
   coatLength: CoatLength | null;
   ageMode: AgeMode;
-  /** `YYYY-MM-DD`, or "" while not given. */
-  birthDate: string;
-  bucket: AgeBucket | null;
-  /** `YYYY-MM-DD`; defaults to today in Kyiv (KAB:189: "defaults to today"). */
-  asOf: string;
+  /** Empty while not given; what was typed while it is not a date yet (`DateField`). */
+  birthDate: DateFieldValue;
+  /** The range chip picked; null before a choice, or while the legacy bucket's chip is checked. */
+  range: DeclaredAgeRange | null;
+  /** A stored bucket (Q5): its own chip, checked until a range is picked; never converted. */
+  legacyBucket: AgeBucket | null;
+  /** Defaults to today in Kyiv (KAB:189: "defaults to today"). */
+  asOf: DateFieldValue;
   /** The Ukrainian description as typed; blank means none. */
   description: string;
   /** The Ukrainian medical note as typed (pet card PR 5's «Медичний стан»); blank means none,
@@ -81,10 +92,11 @@ export const emptyValues = (today: CalendarDate): FormValues => ({
   sex: "unknown",
   size: null,
   coatLength: null,
-  ageMode: "declared_bucket",
-  birthDate: "",
-  bucket: null,
-  asOf: today,
+  ageMode: "declared",
+  birthDate: EMPTY_DATE,
+  range: null,
+  legacyBucket: null,
+  asOf: dateValue(today),
   description: "",
   medicalNotes: "",
   temperamentTraits: [],
@@ -103,21 +115,55 @@ export const emptyValues = (today: CalendarDate): FormValues => ({
  */
 const storedAgeInputOf = (age: KabinetAnimalView["age"]): AgeEstimateInput | null => {
   if (age === null) return null;
-  return age.kind === "birth_date"
-    ? { kind: "birth_date", date: kyivCalendarDateOf(age.date) }
-    : { kind: "declared_bucket", bucket: age.bucket, asOf: kyivCalendarDateOf(age.declaredAt) };
+  switch (age.kind) {
+    case "birth_date":
+      return { kind: "birth_date", date: kyivCalendarDateOf(age.date) };
+    case "declared_bucket":
+      return {
+        kind: "declared_bucket",
+        bucket: age.bucket,
+        asOf: kyivCalendarDateOf(age.declaredAt),
+      };
+    case "declared_range":
+      return { kind: "declared_range", range: age.range, asOf: kyivCalendarDateOf(age.declaredAt) };
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = age;
+      return unreachable;
+    }
+  }
 };
 
 const ageFieldsOf = (
   age: KabinetAnimalView["age"],
   today: CalendarDate,
-): Pick<FormValues, "ageMode" | "birthDate" | "bucket" | "asOf"> => {
+): Pick<FormValues, "ageMode" | "birthDate" | "range" | "legacyBucket" | "asOf"> => {
+  const none = {
+    birthDate: EMPTY_DATE,
+    range: null,
+    legacyBucket: null,
+    asOf: dateValue(today),
+  };
   const stored = storedAgeInputOf(age);
-  if (stored === null)
-    return { ageMode: "declared_bucket", birthDate: "", bucket: null, asOf: today };
-  return stored.kind === "birth_date"
-    ? { ageMode: "birth_date", birthDate: stored.date, bucket: null, asOf: today }
-    : { ageMode: "declared_bucket", birthDate: "", bucket: stored.bucket, asOf: stored.asOf };
+  if (stored === null) return { ...none, ageMode: "declared" };
+  switch (stored.kind) {
+    case "birth_date":
+      return { ...none, ageMode: "birth_date", birthDate: dateValue(stored.date) };
+    case "declared_bucket":
+      return {
+        ...none,
+        ageMode: "declared",
+        legacyBucket: stored.bucket,
+        asOf: dateValue(stored.asOf),
+      };
+    case "declared_range":
+      return { ...none, ageMode: "declared", range: stored.range, asOf: dateValue(stored.asOf) };
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = stored;
+      return unreachable;
+    }
+  }
 };
 
 /** The temperament's custom entry, which `TemperamentSchema` keeps last; null when there is none. */
@@ -159,20 +205,27 @@ const sameList = <T>(a: readonly T[], b: readonly T[]): boolean =>
 /** Field by field, so a `/nova` form with nothing typed can be told from one with something in it, even before a name and a species exist to diff against. */
 export function valuesEqual(a: FormValues, b: FormValues): boolean {
   return (Object.keys(a) as (keyof FormValues)[]).every((key) => {
+    if (key === "birthDate" || key === "asOf") return sameDateValue(a[key], b[key]);
     const left = a[key];
     const right = b[key];
     return Array.isArray(left) && Array.isArray(right) ? sameList(left, right) : left === right;
   });
 }
 
-/** The age the fields give, or null while the chosen mode isn't filled in. */
+/** The age the fields give, or null while the chosen mode isn't filled in with a date. */
 export const ageInputOf = (values: FormValues): AgeEstimateInput | null => {
   if (values.ageMode === "birth_date") {
-    return values.birthDate === "" ? null : { kind: "birth_date", date: values.birthDate };
+    return values.birthDate.kind === "date"
+      ? { kind: "birth_date", date: values.birthDate.date }
+      : null;
   }
-  return values.bucket === null || values.asOf === ""
+  if (values.asOf.kind !== "date") return null;
+  if (values.range !== null) {
+    return { kind: "declared_range", range: values.range, asOf: values.asOf.date };
+  }
+  return values.legacyBucket === null
     ? null
-    : { kind: "declared_bucket", bucket: values.bucket, asOf: values.asOf };
+    : { kind: "declared_bucket", bucket: values.legacyBucket, asOf: values.asOf.date };
 };
 
 const sameAgeInput = (a: AgeEstimateInput | null, b: AgeEstimateInput | null): boolean => {
@@ -180,6 +233,9 @@ const sameAgeInput = (a: AgeEstimateInput | null, b: AgeEstimateInput | null): b
   if (a.kind === "birth_date" && b.kind === "birth_date") return a.date === b.date;
   if (a.kind === "declared_bucket" && b.kind === "declared_bucket") {
     return a.bucket === b.bucket && a.asOf === b.asOf;
+  }
+  if (a.kind === "declared_range" && b.kind === "declared_range") {
+    return a.range === b.range && a.asOf === b.asOf;
   }
   return false;
 };
@@ -289,14 +345,36 @@ export type FieldProblem =
   | { field: "description"; key: "descriptionTooLong" | "requiredOnceListed" }
   /** Never a publish gap, unlike `description` - A3: medical notes is optional for every listing kind. */
   | { field: "medicalNotes"; key: "medicalNotesTooLong" }
-  | { field: "birthDate"; key: "birthDateFuture" | "dateTooOld" }
-  | { field: "asOf"; key: "asOfFuture" | "dateTooOld" }
+  | { field: "birthDate"; key: "birthDateFuture" | DateProblemKey }
+  | { field: "asOf"; key: "asOfFuture" | DateProblemKey }
   /**
    * The pet card's custom texts over their caps. `over` is how many
    * characters too many, which the field says in the counter's own words
    * («Зайвих символів»): no sentence of its own exists for these two yet.
    */
   | { field: "temperamentCustom" | "colourCustom"; key: "overLimit"; over: number };
+
+/** The keys both age dates share; a date in the future has a sentence per field. */
+type DateProblemKey = "dateTooOld" | "dateIncomplete" | "dateNoSuchDate";
+
+const INVALID_DATE_KEY: Record<DateInvalidReason, "future" | DateProblemKey> = {
+  incomplete: "dateIncomplete",
+  no_such_date: "dateNoSuchDate",
+  before_min: "dateTooOld",
+  after_max: "future",
+};
+
+/**
+ * An age date's problem: a typed one's own reason (`DateField` checks the same bounds), or
+ * `ageDateProblem`'s answer for a date, which a stored one may need as time passes.
+ */
+const ageDateKeyOf = (value: DateFieldValue, now: Date): "future" | DateProblemKey | null => {
+  if (value.kind === "empty") return null;
+  if (value.kind === "invalid") return INVALID_DATE_KEY[value.reason];
+  const problem = ageDateProblem(value.date, now);
+  if (problem === null) return null;
+  return problem.kind === "future" ? "future" : "dateTooOld";
+};
 
 /** How far a text is over its cap, counted as the server counts it; 0 when it fits. */
 const overBy = (text: string, max: number): number => Math.max(0, characterCount(text) - max);
@@ -348,23 +426,15 @@ export function problemsOf(
       ? overBy(values.colourCustom.trim(), COAT_COLOUR_CUSTOM_MAX_CHARACTERS)
       : 0;
   if (colourOver > 0) problems.push({ field: "colourCustom", key: "overLimit", over: colourOver });
-  if (values.ageMode === "birth_date" && values.birthDate !== "") {
-    const problem = ageDateProblem(values.birthDate, now);
-    if (problem !== null) {
-      problems.push({
-        field: "birthDate",
-        key: problem.kind === "future" ? "birthDateFuture" : "dateTooOld",
-      });
+  if (values.ageMode === "birth_date") {
+    const key = ageDateKeyOf(values.birthDate, now);
+    if (key !== null) {
+      problems.push({ field: "birthDate", key: key === "future" ? "birthDateFuture" : key });
     }
   }
-  if (values.ageMode === "declared_bucket" && values.asOf !== "") {
-    const problem = ageDateProblem(values.asOf, now);
-    if (problem !== null) {
-      problems.push({
-        field: "asOf",
-        key: problem.kind === "future" ? "asOfFuture" : "dateTooOld",
-      });
-    }
+  if (values.ageMode === "declared") {
+    const key = ageDateKeyOf(values.asOf, now);
+    if (key !== null) problems.push({ field: "asOf", key: key === "future" ? "asOfFuture" : key });
   }
   return problems;
 }

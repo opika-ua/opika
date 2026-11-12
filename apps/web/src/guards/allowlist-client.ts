@@ -62,6 +62,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     "Low value to change (only used inside client AnimalForm): controlled inputs (onChange props)",
   "features/kabinet/animal-form/PhotoSection.tsx":
     "photo upload with pointer drag-reorder, browser client",
+  "features/kabinet/photos/CropDialog.tsx":
+    "crop frame: react-easy-crop's drag, pinch and zoom state inside the kit Modal (lazy chunk)",
   "features/kabinet/animal-list/AnimalList.tsx": "row menus, dialogs, browser-client mutations",
   "features/kabinet/animal-list/AnimalListRow.tsx": "row menu toggle and keyboard",
   "features/kabinet/animal-list/ListDialogs.tsx": "three confirm dialogs with local state",

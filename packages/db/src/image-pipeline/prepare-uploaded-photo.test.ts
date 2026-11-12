@@ -1,8 +1,11 @@
+import { randomBytes } from "node:crypto";
 import { crc32 } from "node:zlib";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
+import { encodePhotoSource } from "./photo-source";
 import { prepareUploadedPhoto } from "./prepare-uploaded-photo";
 import { sniffImageType } from "./sniff";
+import { PHOTO_SOURCE_MAX_BYTES } from "./variants";
 
 const solid = (width: number, height: number) =>
   sharp({ create: { width, height, channels: 3, background: { r: 10, g: 120, b: 200 } } });
@@ -118,6 +121,42 @@ describe("prepareUploadedPhoto strips every piece of metadata (K-Q2)", () => {
         expect(bytes.includes(canary), `${name} still holds ${canary}`).toBe(false);
       }
     }
+  });
+
+  it("the kept source carries no EXIF, XMP or IPTC either, and no canary in any byte (crop frame)", async () => {
+    const prepared = await prepareUploadedPhoto(await gpsTaggedJpeg());
+    if (prepared.kind !== "ok") throw new Error(`refused: ${prepared.reason}`);
+    const meta = await sharp(prepared.source.bytes).metadata();
+    expect({
+      format: meta.format,
+      exif: meta.exif !== undefined,
+      xmp: meta.xmp !== undefined,
+      iptc: meta.iptc !== undefined,
+      size: [meta.width, meta.height],
+    }).toEqual({ format: "webp", exif: false, xmp: false, iptc: false, size: [1200, 900] });
+    for (const canary of Object.values(CANARY)) {
+      expect(prepared.source.bytes.includes(canary), `source still holds ${canary}`).toBe(false);
+    }
+    expect([prepared.source.width, prepared.source.height]).toEqual([1200, 900]);
+  });
+
+  it("keeps the source as displayed: a 90°-rotated upload's source is upright, with no tag", async () => {
+    const rotated = await solid(1200, 900).jpeg().withMetadata({ orientation: 6 }).toBuffer();
+    const prepared = await prepareUploadedPhoto(rotated);
+    if (prepared.kind !== "ok") throw new Error(`refused: ${prepared.reason}`);
+    const meta = await sharp(prepared.source.bytes).metadata();
+    expect([meta.width, meta.height, meta.orientation]).toEqual([900, 1200, undefined]);
+    expect([prepared.source.width, prepared.source.height]).toEqual([900, 1200]);
+  });
+
+  it("the costliest source an upload can make, 2000 × 2000 of noise, fits under what a crop reads back", async () => {
+    const noise = await sharp(randomBytes(2000 * 2000 * 3), {
+      raw: { width: 2000, height: 2000, channels: 3 },
+    })
+      .png({ compressionLevel: 0 })
+      .toBuffer();
+    const source = await encodePhotoSource(noise);
+    expect(source.bytes.byteLength).toBeLessThan(PHOTO_SOURCE_MAX_BYTES);
   });
 
   it("reports the photo's own displayed size, not a variant's", async () => {

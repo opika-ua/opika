@@ -1,9 +1,10 @@
-import type { KabinetAnimalView } from "@opika/contracts";
+import type { AgeEstimateInput, KabinetAnimalView } from "@opika/contracts";
 import { ANIMAL_DESCRIPTION_MAX_CHARACTERS } from "@opika/domain";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
+import { typeDate } from "../../../ui/test-date-field";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
 import { confirmLeave } from "../shared/unsaved-changes";
 import { AnimalForm, type AnimalFormEditing } from "./AnimalForm";
@@ -83,6 +84,26 @@ type FakeClient = KabinetAnimalClient & {
   };
 };
 
+/** The age the server stores for an input, as `ageOfInput` does (dates at UTC midnight). */
+const storedAgeOf = (age: AgeEstimateInput): KabinetAnimalView["age"] => {
+  switch (age.kind) {
+    case "birth_date":
+      return { kind: "birth_date", date: new Date(`${age.date}T00:00:00Z`), precision: "day" };
+    case "declared_bucket":
+      return {
+        kind: "declared_bucket",
+        bucket: age.bucket,
+        declaredAt: new Date(`${age.asOf}T00:00:00Z`),
+      };
+    case "declared_range":
+      return {
+        kind: "declared_range",
+        range: age.range,
+        declaredAt: new Date(`${age.asOf}T00:00:00Z`),
+      };
+  }
+};
+
 function fakeClient(start: KabinetAnimalView | null): FakeClient {
   let current = start;
   const createDraft = vi.fn(async (input: { name: string; species: "dog" | "cat" }) => {
@@ -104,22 +125,7 @@ function fakeClient(start: KabinetAnimalView | null): FakeClient {
         ...(patch.colour !== undefined ? { colour: patch.colour } : {}),
         ...(patch.medicalNotes !== undefined ? { medicalNotes: patch.medicalNotes } : {}),
         ...(patch.description !== undefined ? { description: patch.description } : {}),
-        ...(patch.age !== undefined
-          ? {
-              age:
-                (patch.age as { kind: string }).kind === "birth_date"
-                  ? {
-                      kind: "birth_date",
-                      date: new Date(`${(patch.age as { date: string }).date}T00:00:00Z`),
-                      precision: "day",
-                    }
-                  : {
-                      kind: "declared_bucket",
-                      bucket: (patch.age as { bucket: string }).bucket,
-                      declaredAt: new Date(`${(patch.age as { asOf: string }).asOf}T00:00:00Z`),
-                    },
-            }
-          : {}),
+        ...(patch.age !== undefined ? { age: storedAgeOf(patch.age as AgeEstimateInput) } : {}),
         version: current.version + 1,
       } as KabinetAnimalView;
       return current;
@@ -517,13 +523,13 @@ describe("a draft saves itself (T6)", () => {
     ).toBeTruthy();
   });
 
-  it("the age line quotes the card's own word once a bucket is chosen", async () => {
+  it("the age line quotes the card's own text once a range is chosen", async () => {
     const user = userEvent.setup();
     renderForm(draft());
     await user.click(
-      within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText(/Молодий/),
+      within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText("3–4 роки"),
     );
-    expect(screen.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeTruthy();
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «3–4 роки».")).toBeTruthy();
   });
 
   // AW-F5. The age words are his Q9 copy (#125), transcribed from his answer,
@@ -531,11 +537,17 @@ describe("a draft saves itself (T6)", () => {
   // unrecorded sex, «малюк» / «молодий».
   it("the age line follows the form's sex, as the card does (Q9)", async () => {
     const user = userEvent.setup();
-    renderForm(draft());
-    const sex = within(screen.getByRole("group", { name: /^Стать/ }));
-    await user.click(
-      within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText(/Молодий/),
+    // A stored bucket keeps its word (Q5), so the word still agrees with the sex.
+    renderForm(
+      draft({
+        age: {
+          kind: "declared_bucket",
+          bucket: "young",
+          declaredAt: new Date("2026-10-17T00:00:00Z"),
+        },
+      } as Partial<KabinetAnimalView>),
     );
+    const sex = within(screen.getByRole("group", { name: /^Стать/ }));
     // «Не записано», where the form starts: today's word.
     expect(screen.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeTruthy();
     await user.click(sex.getByLabelText("Дівчинка"));
@@ -551,9 +563,7 @@ describe("a draft saves itself (T6)", () => {
         name: /Відома дата народження/,
       }),
     );
-    fireEvent.change(screen.getByLabelText("Дата народження"), {
-      target: { value: "2026-03-01" },
-    });
+    await typeDate(user, document.body, "Дата народження", "2026-03-01");
     expect(screen.getByText("Ті, хто шукає тварину, побачать: «малючка».")).toBeTruthy();
     await user.click(sex.getByLabelText("Не записано"));
     expect(screen.getByText("Ті, хто шукає тварину, побачать: «малюк».")).toBeTruthy();
@@ -584,16 +594,22 @@ describe("a draft saves itself (T6)", () => {
     expect(screen.queryByText(onCard("молода"))).toBeNull();
   });
 
-  it("an «as of» date after today in Kyiv is refused inline and not sent", async () => {
+  it("an «as of» date after today in Kyiv is refused inline and not sent; a past one is", async () => {
     const user = userEvent.setup();
     const client = renderForm(draft());
     await user.click(
-      within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText(/Молодий/),
+      within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText("3–4 роки"),
     );
-    fireEvent.change(screen.getByLabelText("Станом на"), { target: { value: "2026-10-18" } });
+    await typeDate(user, document.body, "Станом на", "2026-10-18");
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expectRefusedInlineAndInSummary("Дата «Станом на» не може бути в майбутньому.");
-    expect(client.calls.update).not.toHaveBeenCalled();
+    // Leaving the range's radio may autosave today's date; tomorrow's is never sent.
+    expect(JSON.stringify(client.calls.update.mock.calls)).not.toContain("2026-10-18");
+    await typeDate(user, document.body, "Станом на", "2026-09-01");
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update.mock.calls.at(-1)?.[0]).toMatchObject({
+      patch: { age: { kind: "declared_range", range: "3_4", asOf: "2026-09-01" } },
+    });
   });
 
   it("a birth date after today, or more than 30 years back, is refused inline and not sent", async () => {
@@ -604,19 +620,57 @@ describe("a draft saves itself (T6)", () => {
         name: /Відома дата народження/,
       }),
     );
-    const birth = screen.getByLabelText("Дата народження");
-    fireEvent.change(birth, { target: { value: "2026-10-18" } });
+    await typeDate(user, document.body, "Дата народження", "2026-10-18");
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expectRefusedInlineAndInSummary("Дата народження не може бути в майбутньому.");
-    fireEvent.change(birth, { target: { value: "1996-10-16" } });
+    await typeDate(user, document.body, "Дата народження", "1996-10-16");
     expectRefusedInlineAndInSummary("Ця дата надто давня – понад 30 років тому.");
     expect(client.calls.update).not.toHaveBeenCalled();
     // Exactly thirty years back is allowed, and saves as the birth date chosen.
-    fireEvent.change(birth, { target: { value: "1996-10-17" } });
+    await typeDate(user, document.body, "Дата народження", "1996-10-17");
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
       patch: { age: { kind: "birth_date", date: "1996-10-17" } },
     });
+  });
+
+  it("an unfinished birth date, or 30 February, is refused inline and in the summary, not sent", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.click(
+      within(screen.getByRole("group", { name: "Що відомо про вік" })).getByRole("radio", {
+        name: /Відома дата народження/,
+      }),
+    );
+    const birth = within(screen.getByRole("group", { name: "Дата народження" }));
+    await user.type(birth.getByRole("textbox", { name: "День" }), "30");
+    await user.selectOptions(birth.getByRole("combobox", { name: "Місяць" }), "лютого");
+    // Still typing: moving between the parts shows nothing yet.
+    expect(screen.queryByText("Вкажіть повну дату: день, місяць і рік.")).toBeNull();
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expectRefusedInlineAndInSummary("Вкажіть повну дату: день, місяць і рік.");
+    await user.type(birth.getByRole("textbox", { name: "Рік" }), "2024");
+    expectRefusedInlineAndInSummary("Такої дати в календарі немає.");
+    expect(client.calls.update).not.toHaveBeenCalled();
+    // The summary's link lands on the date's first part.
+    await user.click(
+      within(screen.getByRole("alert")).getByRole("button", {
+        name: "Такої дати в календарі немає.",
+      }),
+    );
+    expect(document.activeElement).toBe(birth.getByRole("textbox", { name: "День" }));
+  });
+
+  it("leaving a half-typed date shows its problem under the field once focus leaves the group", async () => {
+    const user = userEvent.setup();
+    renderForm(draft());
+    const asOf = within(screen.getByRole("group", { name: "Станом на" }));
+    await user.clear(asOf.getByRole("textbox", { name: "Рік" }));
+    await user.type(asOf.getByRole("textbox", { name: "Рік" }), "20");
+    await user.click(asOf.getByRole("textbox", { name: "День" }));
+    expect(screen.queryByText("Вкажіть повну дату: день, місяць і рік.")).toBeNull();
+    await user.click(screen.getByLabelText("Імʼя"));
+    expect(screen.getByText("Вкажіть повну дату: день, місяць і рік.")).toBeTruthy();
   });
 
   it("the server's own date refusal (its clock decides) lands on the date field", async () => {
@@ -627,7 +681,7 @@ describe("a draft saves itself (T6)", () => {
     );
     renderForm(draft(), { client });
     await user.click(
-      within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText(/Дорослий/),
+      within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText("5–7 років"),
     );
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     // The refusal may come from the autosave the radio's blur starts, which must not pull
@@ -1739,6 +1793,108 @@ describe("a listed animal saves only when asked (T8)", () => {
     );
     expect(screen.getByText("Цю картку зараз ніхто не бачить.")).toBeTruthy();
     expect(screen.getByText("Удома")).toBeTruthy();
+  });
+});
+
+/**
+ * Age as a declared range (owner, 2026-11-12): six radio chips under «Вік на ту дату», labelled
+ * with his S1/S3/S4 words, no «≈» anywhere; a stored bucket keeps its own chip (his answer 5).
+ */
+describe("age as a declared range", () => {
+  const ageGroup = () => within(screen.getByRole("group", { name: "Вік на ту дату" }));
+  const checked = (label: string) => (ageGroup().getByLabelText(label) as HTMLInputElement).checked;
+  const RANGE_CHIPS = ["до 1 року", "1–2 роки", "3–4 роки", "5–7 років", "8–10 років", "10+ років"];
+
+  it("a new animal shows the six ranges, youngest first, none chosen", () => {
+    renderForm(null);
+    const radios = ageGroup().getAllByRole("radio");
+    expect(radios.map((radio) => radio.closest("label")?.textContent)).toEqual(RANGE_CHIPS);
+    expect(radios.some((radio) => (radio as HTMLInputElement).checked)).toBe(false);
+  });
+
+  it("«3–4 роки» as of a date is sent as a declared range", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.click(ageGroup().getByLabelText("3–4 роки"));
+    await typeDate(user, document.body, "Станом на", "2026-09-01");
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update.mock.calls.at(-1)?.[0]).toMatchObject({
+      patch: { age: { kind: "declared_range", range: "3_4", asOf: "2026-09-01" } },
+    });
+  });
+
+  it("the line says what the card will say today: a range declared two years back has aged", async () => {
+    const user = userEvent.setup();
+    renderForm(draft());
+    await user.click(ageGroup().getByLabelText("3–4 роки"));
+    await typeDate(user, document.body, "Станом на", "2024-09-01");
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «5–6 років».")).toBeTruthy();
+    await typeDate(user, document.body, "Станом на", "2026-10-17");
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «3–4 роки».")).toBeTruthy();
+  });
+
+  it("the open end, and «до 1 року» growing into a range a year on", async () => {
+    const user = userEvent.setup();
+    renderForm(draft());
+    await user.click(ageGroup().getByLabelText("10+ років"));
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «10+ років».")).toBeTruthy();
+    await user.click(ageGroup().getByLabelText("до 1 року"));
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «до 1 року».")).toBeTruthy();
+    await typeDate(user, document.body, "Станом на", "2025-09-01");
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «1–2 роки».")).toBeTruthy();
+    expect(document.body.textContent).not.toContain("≈");
+  });
+
+  it("a stored bucket is a seventh chip under its own label, checked; an untouched save sends no age, a picked range replaces it", async () => {
+    const user = userEvent.setup();
+    // `published()` stores «Молодий» as of 1 September.
+    const client = renderForm(published());
+    expect(checked("Молодий · 1–3")).toBe(true);
+    expect(ageGroup().getAllByRole("radio")).toHaveLength(7);
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
+    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(client.calls.update.mock.calls.at(-1)?.[0].patch).toEqual({
+      description: { uk: "Лагідна.", en: null },
+    });
+    await user.click(ageGroup().getByLabelText("1–2 роки"));
+    expect(checked("Молодий · 1–3")).toBe(false);
+    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(client.calls.update.mock.calls.at(-1)?.[0].patch).toEqual({
+      age: { kind: "declared_range", range: "1_2", asOf: "2026-09-01" },
+    });
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «1–2 роки».")).toBeTruthy();
+  });
+
+  it("a stored range loads checked with its date, and re-saving it sends no age", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(
+      published({
+        age: { kind: "declared_range", range: "3_4", declaredAt: new Date("2026-09-01T00:00:00Z") },
+      } as Partial<KabinetAnimalView>),
+    );
+    expect(checked("3–4 роки")).toBe(true);
+    expect(ageGroup().getAllByRole("radio")).toHaveLength(6);
+    const asOf = within(screen.getByRole("group", { name: "Станом на" }));
+    expect((asOf.getByRole("textbox", { name: "День" }) as HTMLInputElement).value).toBe("1");
+    expect((asOf.getByRole("combobox", { name: "Місяць" }) as HTMLSelectElement).value).toBe("9");
+    expect((asOf.getByRole("textbox", { name: "Рік" }) as HTMLInputElement).value).toBe("2026");
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «3–4 роки».")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
+    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(client.calls.update.mock.calls.at(-1)?.[0].patch).toEqual({
+      description: { uk: "Лагідна.", en: null },
+    });
+  });
+
+  it("arrow keys move the choice from one range to the next", async () => {
+    const user = userEvent.setup();
+    renderForm(draft());
+    await user.click(ageGroup().getByLabelText("1–2 роки"));
+    await user.keyboard("{ArrowRight}");
+    expect(checked("3–4 роки")).toBe(true);
+    expect(checked("1–2 роки")).toBe(false);
+    await user.keyboard("{ArrowLeft}{ArrowLeft}");
+    expect(checked("до 1 року")).toBe(true);
   });
 });
 

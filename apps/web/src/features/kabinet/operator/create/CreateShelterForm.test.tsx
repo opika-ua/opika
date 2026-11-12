@@ -10,6 +10,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
+import { typeDate } from "../../../../ui/test-date-field";
 import { CreatedShelter } from "./CreatedShelter";
 import { CreateShelterForm } from "./CreateShelterForm";
 import type { RegistryCreateClient } from "./registry-create-client";
@@ -137,7 +138,7 @@ async function fillInitiative(visitedOn = "2026-10-12") {
   await u.selectOptions(screen.getByLabelText("Тип доказу"), "Відеодзвінок");
   await u.click(screen.getByRole("button", { name: "+ Додати доказ" }));
   const visit = within(screen.getByRole("group", { name: "Відеодзвінок" }));
-  fireEvent.change(visit.getByLabelText("Дата дзвінка"), { target: { value: visitedOn } });
+  await typeDate(u, screen.getByRole("group", { name: "Відеодзвінок" }), "Дата дзвінка", visitedOn);
   await u.type(visit.getByLabelText("Нотатка"), "Оглянув вольєри.");
 
   for (const [n, phone] of [
@@ -187,6 +188,36 @@ describe("creating a shelter", () => {
       },
     ]);
     expect(JSON.stringify(input)).not.toMatch(/documentKey|visitedBy/);
+  });
+
+  it("a registered NGO's registration date is typed in parts, refused after today, and sent as that day", async () => {
+    const fns = renderForm(async () => createdView(null));
+    const u = await fillInitiative();
+    await u.click(screen.getByRole("radio", { name: "Громадська організація чи фонд" }));
+    await u.type(screen.getByLabelText("Юридична особа"), "ГО «Лапа Вишгорода»");
+    await u.type(screen.getByLabelText("Код ЄДРПОУ"), "43902117");
+    const legal = screen.getByRole("region", { name: "Юридичні дані" });
+    await typeDate(u, legal, "Дата реєстрації", "2026-10-14");
+    await u.click(submit());
+    expect(fns.create).not.toHaveBeenCalled();
+    const registeredAt = within(legal).getByRole("group", { name: "Дата реєстрації" });
+    expect(
+      within(registeredAt).getByText("Дата реєстрації не може бути в майбутньому."),
+    ).toBeDefined();
+    expect(document.activeElement).toBe(
+      within(registeredAt).getByRole("textbox", { name: "День" }),
+    );
+
+    await typeDate(u, legal, "Дата реєстрації", "2021-03-04");
+    await u.click(submit());
+    expect(fns.create).toHaveBeenCalledTimes(1);
+    const input = fns.create.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(input.legalEntity).toEqual({
+      kind: "registered_ngo",
+      legalName: "ГО «Лапа Вишгорода»",
+      edrpou: "43902117",
+      registeredAt: new Date("2021-03-04T00:00:00.000Z"),
+    });
   });
 
   it("shows «Очікує перевірки», the fact, the outcome, the expiry and the reminder, with resend and open", async () => {
@@ -685,9 +716,19 @@ describe("checked before anything is sent", () => {
     expect(fns.create).not.toHaveBeenCalled();
     const visit = within(screen.getByRole("group", { name: "Відеодзвінок" }));
     expect(visit.getByText("Дата дзвінка не може бути в майбутньому.")).toBeDefined();
-    expect(document.activeElement).toBe(visit.getByLabelText("Дата дзвінка"));
+    // Focus goes to the date's first part, the day.
+    expect(document.activeElement).toBe(
+      within(visit.getByRole("group", { name: "Дата дзвінка" })).getByRole("textbox", {
+        name: "День",
+      }),
+    );
 
-    fireEvent.change(visit.getByLabelText("Дата дзвінка"), { target: { value: "2026-10-08" } });
+    await typeDate(
+      u,
+      screen.getByRole("group", { name: "Відеодзвінок" }),
+      "Дата дзвінка",
+      "2026-10-08",
+    );
     await u.click(submit());
     expect(fns.create).toHaveBeenCalledTimes(1);
   });
@@ -787,7 +828,8 @@ describe("the evidence editor", () => {
     const labels = [...card.querySelectorAll("input, textarea, select")].map(
       (control) => (control as HTMLInputElement).labels?.[0]?.textContent,
     );
-    expect(labels).toEqual(["Дата дзвінка", "Нотатка"]);
+    expect(within(card).getByRole("group", { name: "Дата дзвінка" })).toBeDefined();
+    expect(labels).toEqual(["День", "Місяць", "Рік", "Нотатка"]);
   });
 
   it("explains what the notes should say on a video call, and on no other kind", async () => {

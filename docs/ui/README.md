@@ -20,7 +20,7 @@ the sitemap). Screenshot it at 360 and 1440 when you change a component. The har
 `test/harness/dev-ui.harness.ts` loads it at both widths and fails on horizontal overflow.
 
 Guards (`src/guards/ui-guards.test.ts`): no raw hex, one token set (retired `rg-`/`brand-`/bare classes fail on any reintroduction), arbitrary values (the allowlist is empty and stays as a permanent test),
-no raw `<img>`, the client-file budget, and guard 7: every exported component in `src/ui` has a
+no raw `<img>`, no native date input (every date is a `DateField`), the client-file budget, and guard 7: every exported component in `src/ui` has a
 `docs/ui/components/<Name>.md` and is rendered in `/dev/ui`.
 
 ## Overlays: one core, two shapes
@@ -47,6 +47,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [Button](components/Button.md) | `Button.tsx` | The one button. Replaces controls.Button, CircleButton, PillButton and the deck's ActionButton. |
 | [LinkButton](components/LinkButton.md) | `Button.tsx` | A link that looks like a Button, for navigation. |
 | [TextLink](components/TextLink.md) | `TextLink.tsx` | An inline link inside prose. |
+| [LinkedText](components/LinkedText.md) | `LinkedText.tsx` | Shelter-written text with its http(s) links clickable (`linkify.ts` splits it). |
 | [Icon](components/Icon.md) | `Icon.tsx` | The one inline-SVG icon set. |
 | [Heading](components/Heading.md) | `Heading.tsx` | Headings mapped to the type scale. |
 | [Text](components/Text.md) | `Text.tsx` | Body copy. |
@@ -71,6 +72,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [TextField](components/TextField.md) | `form.tsx` | Label, input, hint and error as one unit. |
 | [TextArea](components/TextArea.md) | `form.tsx` | TextField for long text. |
 | [Select](components/Select.md) | `form.tsx` | A native select with the field frame. |
+| [DateField](components/DateField.md) | `DateField.tsx`, `date-field.ts` | A calendar date as day, month (by name) and year in one fieldset; the only date input. |
 | [Radio](components/Radio.md) | `form.tsx` | One option of a radio group; the whole row is the target. |
 | [Checkbox](components/Checkbox.md) | `form.tsx` | One option of a multi-choice group. |
 | [SegmentedControl](components/SegmentedControl.md) | `form.tsx` | A choice of a few, built from native radios. |

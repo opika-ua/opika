@@ -3,7 +3,12 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import { attentionCropBox, generateVariants } from "./generate-variants";
+import {
+  attentionCropBox,
+  framedRegionOf,
+  generateFramedVariants,
+  generateVariants,
+} from "./generate-variants";
 import { IMAGE_VARIANTS } from "./variants";
 
 // Deliberate cross-package coupling, not an accident - real photographs
@@ -186,5 +191,122 @@ describe("attentionCropBox", () => {
       width: 1,
       height: 1,
     });
+  });
+});
+
+/**
+ * Crop frame (shape §6, §7): every variant from a chosen frame. A synthetic source with a red
+ * block at a known place: a frame around the block makes every variant red in its middle, and
+ * the thumb is the square centred in the frame, side = frame width.
+ */
+describe("generateFramedVariants", () => {
+  /** A grey source with a red block at (left, top, size × size). */
+  const withBlock = async (
+    width: number,
+    height: number,
+    block: { left: number; top: number; size: number },
+  ) => {
+    const red = await sharp({
+      create: { width: block.size, height: block.size, channels: 3, background: "#ff0000" },
+    })
+      .png()
+      .toBuffer();
+    return sharp({ create: { width, height, channels: 3, background: { r: 50, g: 50, b: 50 } } })
+      .composite([{ input: red, left: block.left, top: block.top }])
+      .webp({ quality: 90 })
+      .toBuffer();
+  };
+
+  const centreOf = async (bytes: Buffer) => {
+    const { data, info } = await sharp(bytes).raw().toBuffer({ resolveWithObject: true });
+    return pixelAt(data, info, Math.floor(info.width / 2), Math.floor(info.height / 2));
+  };
+
+  it.each([
+    ["landscape 2000×1200", 2000, 1200, { left: 1400, top: 300, size: 500 }],
+    ["portrait 1200×2000", 1200, 2000, { left: 100, top: 1300, size: 500 }],
+    ["square 1500×1500", 1500, 1500, { left: 900, top: 900, size: 500 }],
+  ])(
+    "%s: a frame around the block cuts every variant at its size, red in the middle",
+    async (_label, width, height, block) => {
+      const source = await withBlock(width, height, block);
+      // A 400 × 500 frame centred on the block.
+      const frame = { left: block.left + 50, top: block.top, width: 400, height: 500 };
+      const variants = await generateFramedVariants(IMAGE_VARIANTS, source, frame);
+      for (const [name, bytes] of Object.entries(variants)) {
+        const meta = await sharp(bytes).metadata();
+        const spec = IMAGE_VARIANTS[name as keyof typeof IMAGE_VARIANTS];
+        expect([meta.format, meta.width, meta.height], name).toEqual([
+          "webp",
+          spec.width,
+          spec.height,
+        ]);
+        expect(isRed(await centreOf(bytes)), name).toBe(true);
+      }
+    },
+  );
+
+  it("the same frame elsewhere misses the block: the frame, not attention, decides", async () => {
+    const source = await withBlock(2000, 1200, { left: 1400, top: 300, size: 500 });
+    const variants = await generateFramedVariants(IMAGE_VARIANTS, source, {
+      left: 0,
+      top: 0,
+      width: 400,
+      height: 500,
+    });
+    for (const [name, bytes] of Object.entries(variants)) {
+      expect(isRed(await centreOf(bytes)), name).toBe(false);
+    }
+  });
+
+  it("the thumb is the square centred in the frame, side = frame width", () => {
+    const frame = { left: 100, top: 40, width: 800, height: 1000 };
+    expect(framedRegionOf(frame, IMAGE_VARIANTS.thumb)).toEqual({
+      left: 100,
+      top: 140,
+      width: 800,
+      height: 800,
+    });
+    for (const name of ["card", "mid", "detail", "compact"] as const) {
+      expect(framedRegionOf(frame, IMAGE_VARIANTS[name]), name).toEqual(frame);
+    }
+  });
+
+  it("reads the frame on the photo as displayed: EXIF orientation is applied first", async () => {
+    // Stored 300 × 200 with the marker at the stored top-left; orientation 6 shows it 200 × 300
+    // with the marker at the displayed top-right (the attention test's fixture above).
+    const marker = await sharp({
+      create: { width: 60, height: 60, channels: 3, background: { r: 255, g: 0, b: 0 } },
+    })
+      .png()
+      .toBuffer();
+    const source = await sharp({
+      create: { width: 300, height: 200, channels: 3, background: { r: 50, g: 50, b: 50 } },
+    })
+      .composite([{ input: marker, left: 0, top: 0 }])
+      .withMetadata({ orientation: 6 })
+      .jpeg()
+      .toBuffer();
+    // The displayed top-right 40 × 50: inside the marker only once rotated.
+    const variants = await generateFramedVariants(IMAGE_VARIANTS, source, {
+      left: 150,
+      top: 5,
+      width: 40,
+      height: 50,
+    });
+    for (const [name, bytes] of Object.entries(variants)) {
+      expect(isRed(await centreOf(bytes)), name).toBe(true);
+    }
+  });
+
+  it.each([
+    ["past the right edge", { left: 1700, top: 0, width: 400, height: 500 }],
+    ["past the bottom", { left: 0, top: 800, width: 400, height: 500 }],
+    ["a negative edge", { left: -1, top: 0, width: 400, height: 500 }],
+  ])("refuses a frame %s", async (_label, frame) => {
+    const source = await withBlock(2000, 1200, { left: 0, top: 0, size: 10 });
+    await expect(generateFramedVariants(IMAGE_VARIANTS, source, frame)).rejects.toThrow(
+      /outside the source/,
+    );
   });
 });

@@ -5,6 +5,7 @@ import { countFullResetTables, FULL_RESET_TABLES, truncateFullReset } from "../s
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { photoSourcesRepo } from "../src/repos/photo-sources-repo";
 import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import {
@@ -67,8 +68,26 @@ async function populateEveryResetTable() {
     publicLocation: { ...makeShelter().publicLocation, cityId: city.id } as never,
   });
   await shelterRepo(db).insert(shelter);
-  const animal = makeAnimal({ shelterId: shelter.id });
+  const photoKey = `animals/${randomUUID()}/${randomUUID()}`;
+  const animal = makeAnimal({
+    shelterId: shelter.id,
+    photos: [{ storageKey: photoKey, width: 800, height: 1000, alt: null }],
+  });
   await animalRepo(db).insert(animal, city.id as never);
+  await photoSourcesRepo(db).insertForAnimal(
+    animal.id,
+    [
+      {
+        storageKey: photoKey,
+        sourceObjectKey: `${photoKey}/source-${randomUUID()}.webp`,
+        origin: "upload",
+        width: 800,
+        height: 1000,
+        framing: { kind: "attention" },
+      },
+    ],
+    NOW,
+  );
   const adopter = makeAdopter();
   await adopterRepo(db).insert(adopter);
   await revealRepo(db).insert(

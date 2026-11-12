@@ -27,7 +27,9 @@ import {
   InvitedAdminViewSchema,
   KabinetAnimalRowViewSchema,
   KabinetAnimalViewSchema,
+  KabinetPhotoCropViewSchema,
   KabinetShelterViewSchema,
+  PhotoCropSourceViewSchema,
   RegistryShelterRowViewSchema,
   RegistryShelterViewSchema,
   ShelterAdminViewSchema,
@@ -103,6 +105,7 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "shelter.photos.add": WRITE,
   "shelter.photos.reorder": WRITE,
   "shelter.photos.remove": WRITE,
+  "shelter.photos.crop": WRITE,
   "shelter.logo.set": WRITE,
   "shelter.logo.remove": WRITE,
   "shelter.history.list": READ,
@@ -174,6 +177,15 @@ describe("registry.donation.* compare-and-set on the version (RG-Q12)", () => {
       expect(internals(path).errorMap.CONFLICT?.status).toBe(409);
     },
   );
+
+  /** A proposal sent before a rule existed is checked again when it would go live. */
+  it("approve declares DONATION_LINK_REFUSED 422, naming the problem", () => {
+    const refused = internals("registry.donation.approve").errorMap.DONATION_LINK_REFUSED;
+    expect(refused?.status).toBe(422);
+    expect(
+      apiErrors.DONATION_LINK_REFUSED.data.safeParse({ problem: "checkout_session" }).success,
+    ).toBe(true);
+  });
 });
 
 describe("registry.donation.remove", () => {
@@ -202,11 +214,13 @@ describe("registry.donation.remove", () => {
 describe("shelter.profile.proposeDonation", () => {
   const input = () => internals("shelter.profile.proposeDonation").inputSchema;
 
-  it("takes an https link and refuses userinfo and IDN hosts at the contract", () => {
+  it("takes an https link and refuses userinfo, IDN hosts and LiqPay checkout sessions at the contract", () => {
     expect(input()?.safeParse({ url: "https://send.monobank.ua/jar/x" }).success).toBe(true);
     expect(input()?.safeParse({ url: "https://user@send.monobank.ua/jar/x" }).success).toBe(false);
     expect(input()?.safeParse({ url: "https://xn--monobank-9ve.ua/jar/x" }).success).toBe(false);
     expect(input()?.safeParse({ url: "http://send.monobank.ua/jar/x" }).success).toBe(false);
+    const session = "https://www.liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42";
+    expect(input()?.safeParse({ url: session }).success).toBe(false);
   });
 });
 
@@ -238,12 +252,12 @@ describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
 describe("no procedure declares the retired SHELTER_WRITES_NOT_YET_AVAILABLE (P6-Q8)", () => {
   const RETIRED = ["SHELTER", "WRITES", "NOT", "YET", "AVAILABLE"].join("_");
 
-  it("sanity: the matrix still names the eighteen shelter writes", () => {
+  it("sanity: the matrix still names the nineteen shelter writes", () => {
     expect(
       Object.values(EXPECTED_ACCESS).filter(
         (access) => access.surface === "shelter" && access.mode === "write",
       ),
-    ).toHaveLength(18);
+    ).toHaveLength(19);
   });
 
   it("is no API error any more", () => {
@@ -273,6 +287,7 @@ describe("kabinet error statuses", () => {
       PHOTO_UPLOADS_UNAVAILABLE: apiErrors.PHOTO_UPLOADS_UNAVAILABLE.status,
       PHOTO_REJECTED: apiErrors.PHOTO_REJECTED.status,
       PHOTO_LIMIT_REACHED: apiErrors.PHOTO_LIMIT_REACHED.status,
+      PHOTO_FRAME_REJECTED: apiErrors.PHOTO_FRAME_REJECTED.status,
       PHOTOS_REQUIRED_WHILE_VISIBLE: apiErrors.PHOTOS_REQUIRED_WHILE_VISIBLE.status,
       LISTING_FACT_REQUIRED: apiErrors.LISTING_FACT_REQUIRED.status,
       AGE_DATE_OUT_OF_RANGE: apiErrors.AGE_DATE_OUT_OF_RANGE.status,
@@ -292,6 +307,7 @@ describe("kabinet error statuses", () => {
       PHOTO_UPLOADS_UNAVAILABLE: 503,
       PHOTO_REJECTED: 422,
       PHOTO_LIMIT_REACHED: 409,
+      PHOTO_FRAME_REJECTED: 422,
       PHOTOS_REQUIRED_WHILE_VISIBLE: 409,
       LISTING_FACT_REQUIRED: 422,
       AGE_DATE_OUT_OF_RANGE: 422,
@@ -348,8 +364,26 @@ describe("kabinet views carry exactly their listed keys", () => {
         "createdAt",
         "lastUpdatedAt",
         "version",
+        "photoCrops",
       ].sort(),
     );
+  });
+
+  /**
+   * Crop frame, owner's conditions 1 and 2: only `kept` carries a source key, and a support view's
+   * `withheld` carries nothing but its kind.
+   */
+  it("KabinetPhotoCropView: a frame and a source; only a kept source names its object key", () => {
+    expect(keys(KabinetPhotoCropViewSchema)).toEqual(["framing", "source", "storageKey"]);
+    expect(
+      Object.fromEntries(
+        PhotoCropSourceViewSchema.options.map((option) => [option.shape.kind.value, keys(option)]),
+      ),
+    ).toEqual({
+      kept: ["height", "kind", "objectKey", "origin", "width"],
+      variants_only: ["kind"],
+      withheld: ["kind"],
+    });
   });
 
   it("KabinetShelterView, with the shelter-facing verification, not the operator's", () => {
@@ -562,6 +596,7 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
     "shelter.photos.add": ANIMAL_VIEW_KEYS,
     "shelter.photos.reorder": ANIMAL_VIEW_KEYS,
     "shelter.photos.remove": ANIMAL_VIEW_KEYS,
+    "shelter.photos.crop": ANIMAL_VIEW_KEYS,
     "shelter.logo.set": SHELTER_VIEW_KEYS,
     "shelter.logo.remove": SHELTER_VIEW_KEYS,
     "shelter.history.list": ["items", "nextCursor"],

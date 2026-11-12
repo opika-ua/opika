@@ -12,6 +12,7 @@ import {
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   CoatLengthSchema,
   characterCount,
+  DeclaredAgeRangeSchema,
   DonationProposalUrlSchema,
   DonationRemovalCodeSchema,
   EvidenceItemInputSchema,
@@ -27,6 +28,7 @@ import {
   OfferedSuspensionCodeSchema,
   PauseCodeSchema,
   type PauseReason,
+  PhotoFramingSchema,
   RegionIdSchema,
   ReportIdSchema,
   SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
@@ -374,17 +376,23 @@ export const shelterHistoryContract = {
 /**
  * An age as K3's form gives it (D3, Oleksii: "keep the chosen «Станом на»
  * date"): calendar dates, no time of day, as a date input yields them. A
- * birth date is stored at day precision; a bucket is stored with `asOf` as
- * its `declaredAt`, the date the shelter made the estimate, not the save
- * time. The handler refuses a date after today in Kyiv or more than thirty
- * years back (`ageDateProblem`, `AGE_DATE_OUT_OF_RANGE`): that needs the
- * server's clock, which a schema doesn't have.
+ * birth date is stored at day precision; a range or a bucket is stored with
+ * `asOf` as its `declaredAt`, the date the shelter made the estimate, not the
+ * save time. The handler refuses a date after today in Kyiv or more than
+ * thirty years back (`ageDateProblem`, `AGE_DATE_OUT_OF_RANGE`): that needs
+ * the server's clock, which a schema doesn't have. `declared_bucket` stays
+ * accepted: a legacy animal re-saved, or a page loaded before ranges shipped.
  */
 export const AgeEstimateInputSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("birth_date"), date: CalendarDateSchema }),
   z.strictObject({
     kind: z.literal("declared_bucket"),
     bucket: AgeBucketSchema,
+    asOf: CalendarDateSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("declared_range"),
+    range: DeclaredAgeRangeSchema,
     asOf: CalendarDateSchema,
   }),
 ]);
@@ -654,6 +662,31 @@ export const shelterPhotosContract = {
       NOT_FOUND: apiErrors.NOT_FOUND,
       PHOTOS_REQUIRED_WHILE_VISIBLE: apiErrors.PHOTOS_REQUIRED_WHILE_VISIBLE,
     }),
+  /**
+   * Cuts the variants again from the kept source under a new key that replaces `storageKey`: a
+   * key is never written twice (CDN, shape §2). Charged like `add`; `attention` is the automatic crop.
+   */
+  crop: animalWrite
+    .input(
+      z
+        .strictObject({
+          animalId: AnimalIdSchema,
+          expectedPhotoKeys: photoKeyList,
+          storageKey: photoStorageKey,
+          framing: PhotoFramingSchema,
+        })
+        .refine((input) => input.expectedPhotoKeys.includes(input.storageKey), {
+          message: "The photo to crop must be one the screen shows",
+          path: ["storageKey"],
+        }),
+    )
+    .errors({
+      ...shelterCasErrors,
+      NOT_FOUND: apiErrors.NOT_FOUND,
+      RATE_LIMITED: apiErrors.RATE_LIMITED,
+      PHOTO_UPLOADS_UNAVAILABLE: apiErrors.PHOTO_UPLOADS_UNAVAILABLE,
+      PHOTO_FRAME_REJECTED: apiErrors.PHOTO_FRAME_REJECTED,
+    }),
 };
 
 // ─── shelter.logo ───────────────────────────────────────────────────────────
@@ -891,9 +924,11 @@ export const registryEarlyListingContract = {
 const donationDecision = z.strictObject({ shelterId: ShelterIdSchema, expectedVersion });
 
 export const registryDonationContract = {
-  approve: registryShelter
-    .input(donationDecision)
-    .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
+  approve: registryShelter.input(donationDecision).errors({
+    ...registryErrors,
+    CONFLICT: apiErrors.CONFLICT,
+    DONATION_LINK_REFUSED: apiErrors.DONATION_LINK_REFUSED,
+  }),
   reject: registryShelter
     .input(donationDecision)
     .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),

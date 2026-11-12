@@ -37,6 +37,7 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
     colour: null,
     medicalNotes: null,
     ageBucket: "young",
+    ageSpan: null,
     freshness: freshnessOf(AT, NOW, DEFAULT_FRESHNESS_POLICY),
     listingKind: "published",
     availability: { kind: "open" },
@@ -333,6 +334,49 @@ describe("AnimalDetailScreen meta line, by sex", () => {
   );
 
   /**
+   * A declared range (owner, 2026-11-12, answer 6): the chip shows the span and still links to
+   * the bucket the filter puts it in; the meta line shows the same span, with no «≈». The overlay
+   * renders this same screen.
+   */
+  it("a declared range: the age chip reads its span and links to the mapped bucket", async () => {
+    await renderAnimal({
+      sex: "female",
+      ageBucket: "adult",
+      ageSpan: { kind: "between", from: 3, to: 4 },
+    });
+    const chip = screen.getByRole("link", { name: "3–4 роки: показати схожих котів" });
+    expect(chip.textContent).toBe("3–4 роки");
+    expect(new URL(chip.getAttribute("href") ?? "", "http://x").searchParams.get("vik")).toBe(
+      "adult",
+    );
+    const parts = Array.from(
+      document.querySelector(".meta-line")?.querySelectorAll(".meta-part") ?? [],
+    ).map((part) => part.textContent);
+    expect(parts).toEqual(["Кіт", "дівчинка", "3–4 роки", "мала"]);
+    expect(screen.queryByText("Доросла")).toBeNull();
+    expect(document.body.textContent).not.toContain("≈");
+  });
+
+  it("the open end and the first year, on the chip", async () => {
+    await renderAnimal({ ageBucket: "senior", ageSpan: { kind: "at_least", from: 12 } });
+    expect(screen.getByRole("link", { name: "12+ років: показати схожих котів" }).textContent).toBe(
+      "12+ років",
+    );
+    cleanup();
+    await renderAnimal({ sex: "unknown", ageBucket: "baby", ageSpan: { kind: "under_one" } });
+    expect(screen.getByRole("link", { name: "до 1 року: показати схожих котів" }).textContent).toBe(
+      "До 1 року",
+    );
+  });
+
+  it("no span (a birth date, a stored bucket): the chip keeps the bucket word, as before", async () => {
+    await renderAnimal({ sex: "male", ageBucket: "young", ageSpan: null });
+    expect(screen.getByRole("link", { name: "молодий: показати схожих котів" }).textContent).toBe(
+      "Молодий",
+    );
+  });
+
+  /**
    * The sex chip's own filterable link (gallery filter restructure
    * reverses SF-D5): same `FilterableChipLink` pattern age/size already
    * use, writing `stat=` rather than a `filters.sex*`-worded href for any
@@ -579,5 +623,18 @@ describe("AnimalDetailScreen – reserved chip", () => {
   it("a published animal shows no reserved chip", async () => {
     await renderKind("published");
     expect(screen.queryByText("Уже домовляються")).toBeNull();
+  });
+});
+
+describe("links in the shelter's words", () => {
+  it("makes a link in the story and in the medical notes clickable", async () => {
+    await renderAnimal({
+      description: { uk: "Більше про мене: https://example.org/murchyk.", en: null },
+      medicalNotes: { uk: "Аналізи: https://example.org/vet", en: null },
+    });
+    const story = screen.getByRole("link", { name: "example.org/murchyk" });
+    expect(story.getAttribute("href")).toBe("https://example.org/murchyk");
+    const notes = within(medicalBlock()).getByRole("link", { name: "example.org/vet" });
+    expect(notes.getAttribute("href")).toBe("https://example.org/vet");
   });
 });

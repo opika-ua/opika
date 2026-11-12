@@ -329,6 +329,13 @@ export const en = {
     fosteredHousing: "in foster care, {place}",
     sexMale: "boy",
     sexFemale: "girl",
+    ageUnderOneYear: "under 1 year",
+    ageYearsBetween: {
+      one: "{from}–{count} years",
+      few: "{from}–{count} years",
+      many: "{from}–{count} years",
+    },
+    ageYearsAtLeast: "{from}+ years",
   },
 
   // --- The pet card's temperament (English drafts; see the uk keys) ---
@@ -460,7 +467,7 @@ export const en = {
     free: "The site is free for shelters, with no paid tiers. If that ever changes, every shelter will know well in advance, not after the fact.",
     money:
       '{site} never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) – the site only shows the link; the money goes directly, and you can see exactly where. The button exists only for verified shelters.',
-    data: "Data a shelter enters – address, contact details, animal listings – belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address. That address receives invitations, sign-in or new-password links, password-change notices, notices of verification decisions and fundraising links, and a weekly reminder about unconfirmed cards. A technical record of the browser and device used to sign in is kept separately. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. A photo removed from a card is no longer shown, and I delete the file itself when the shelter asks. If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
+    data: "Data a shelter enters – address, contact details, animal listings – belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address. That address receives invitations, sign-in or new-password links, password-change notices, notices of verification decisions and fundraising links, and a weekly reminder about unconfirmed cards. A technical record of the browser and device used to sign in is kept separately. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. So that a photo can be cropped again, an uncropped copy of it is kept too – without metadata, including where it was taken. It is deleted together with the photo. A photo removed from a card is no longer shown, and its files are deleted automatically in about a week. If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
     analytics:
       "The site collects basic visit statistics – how many people visit and how fast the pages load – with no advertising.",
     /** Template: "Get in touch: {contact}" */
@@ -538,6 +545,13 @@ export const en = {
       found: "Found: {count}",
       clear: "Clear",
       close: "Close",
+    },
+    dateField: {
+      day: "Day",
+      month: "Month",
+      year: "Year",
+      incomplete: "Give the full date: day, month and year.",
+      noSuchDate: "There's no such date in the calendar.",
     },
     /**
      * The operator's name when `KABINET_OPERATOR_DISPLAY_NAME` is unset
@@ -737,6 +751,8 @@ export const en = {
           "The link must not contain a name or password before the site address (as in https://name@site). Copy the address from the browser bar.",
         donationIdn:
           "Addresses with Cyrillic letters (or starting with «xn--») are not accepted. Use a fundraising page on a service with a Latin address, such as monobank.",
+        donationCheckoutSession:
+          "This is a one-time payment page; it will stop working. Add a permanent link: the fundraising page on your website or a monobank jar.",
         notAUrl: "That doesn't look like a link.",
         instagramFormat:
           "An Instagram username: up to 30 Latin letters, digits, dots or underscores. A profile link works too.",
@@ -966,6 +982,20 @@ export const en = {
           "The photo is gone from the card. The file itself isn't deleted right away; if it needs to go completely, write to me.",
         dateNote:
           "Every change to the photos updates the date on the card, and it moves back among the freshest.",
+        crop: "Crop",
+        cropTitle: "Crop photo {n}",
+        cropHint: "Move and zoom the photo so the animal is inside the frame.",
+        cropAreaLabel: "Crop frame. Arrow keys move the photo.",
+        zoomIn: "Zoom in",
+        zoomOut: "Zoom out",
+        cropPreview: "How the photo will look on the card",
+        cropThumbPreview: "Thumbnail",
+        cropSave: "Save the crop",
+        cropped: "Crop saved.",
+        cropLegacyNote:
+          "Added before cropping existed, so it can only be zoomed. To pick another frame, add the photo again.",
+        cropLoadFailed: "Couldn't open the photo. Try again.",
+        cropReset: "Go back to the automatic crop",
       },
       photoErrors: {
         unsupportedFormat: "Save the photo as JPEG or PNG",
@@ -1362,6 +1392,12 @@ export const en = {
         removeConflict: "The link changed while the page was open. The current one is shown here.",
         afterSuspension:
           "Was live before the suspension. Approve with one click after reinstatement.",
+        cannotApprove: {
+          userinfo: "Can't be approved: the link has a name or password before the site address.",
+          idn: "Can't be approved: the site address has Cyrillic letters or «xn--».",
+          checkout_session:
+            "Can't be approved: this is a one-time LiqPay payment page; it will stop working.",
+        },
         removeDialog: {
           title: "Remove the fundraising link of «{shelter}»?",
           body: "The link disappears from the pages at once. The shelter sees the reason in its cabinet and can propose a new one. A pending proposal disappears too.",
@@ -1569,6 +1605,7 @@ export const en = {
               "A live invitation to another shelter was already sent to this address.",
           },
           siteVisitInFuture: "The call date can't be in the future.",
+          registeredAtFuture: "The registration date can't be in the future.",
           unknownCity: "That settlement isn't in the list.",
           lostAnswer:
             "No answer came back. The shelter may have been created: check the list before trying again.",

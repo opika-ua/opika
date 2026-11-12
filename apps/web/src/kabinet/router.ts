@@ -30,7 +30,7 @@ import {
   animalsUpdate,
 } from "./handlers/animals";
 import { historyList } from "./handlers/history";
-import { photosAdd, photosRemove, photosReorder } from "./handlers/photos";
+import { photosAdd, photosCrop, photosRemove, photosReorder } from "./handlers/photos";
 import {
   profileCancelDonationProposal,
   profileGet,
@@ -204,6 +204,9 @@ export const shelterKabinetRouter = guarded.router({
       ),
       remove: guarded.shelter.photos.remove.handler(({ context, input, errors }) =>
         photosRemove(context, writeScope(context.access), input, errors),
+      ),
+      crop: guarded.shelter.photos.crop.handler(({ context, input, errors }) =>
+        photosCrop(context, writeScope(context.access), input, errors),
       ),
     },
     logo: {

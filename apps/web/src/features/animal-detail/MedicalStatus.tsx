@@ -1,5 +1,6 @@
 import { uk } from "@opika/i18n";
 import { Heading } from "../../ui/Heading";
+import { LinkedText } from "../../ui/LinkedText";
 import { Text } from "../../ui/Text";
 import {
   MEDICAL_VALUE_TEXT,
@@ -25,7 +26,7 @@ export function MedicalStatus({
   notes: string | null;
 }) {
   const shared = sharedSource(rows);
-  const hasNotes = notes !== null && notes.trim() !== "";
+  const shownNotes = notes !== null && notes.trim() !== "" ? notes : null;
   return (
     <div className="flex flex-1 flex-col gap-3">
       <Heading level={2}>{uk.detail.medicalHeading}</Heading>
@@ -47,9 +48,9 @@ export function MedicalStatus({
         ))}
       </dl>
       {shared !== null && <Text look="hint">{shared}</Text>}
-      {hasNotes && (
+      {shownNotes !== null && (
         <Text look="lead" className="border-line border-t pt-3 text-ink-2 break-words">
-          {notes}
+          <LinkedText text={shownNotes} />
         </Text>
       )}
     </div>

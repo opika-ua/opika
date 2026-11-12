@@ -1,35 +1,18 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { r2EndpointUrl } from "./variants";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { PHOTO_SOURCE_MAX_BYTES, r2EndpointUrl } from "./variants";
 
 /**
- * Deliberately thin - `put`, nothing else, and that `put` only ever creates.
- * Every decision that isn't "make an authenticated HTTP call to R2" (which
- * variants to generate, what key to use, what URL the browser fetches) lives
- * in `variants.ts`, `generate-variants.ts` and `prepare-uploaded-photo.ts`,
- * all pure and fully tested. This file is the one piece that can't be
- * exercised without a real bucket, so it stays small on purpose - see
- * `docs/h1-decisions.md`, "what stays unverified until a real bucket exists."
- *
- * No delete, copy or lifecycle call exists here (K-Q2: "no code path that
- * overwrites or deletes an existing object") — a source scan in
- * `apps/web/src/kabinet/photo-pipeline-scan.test.ts` keeps it that way, and
- * keeps this and `r2-cleanup-client.ts` the only two files that import the
- * S3 client. That second file is the one named exception to K-Q2's delete
- * half, for the GDPR photo-retention job (`docs/gdpr-analysis.md`) - never
- * a reason to weaken the rule here, which still holds. Two callers
- * since PR 3: the onboarding script, from an operator's machine, and the
- * kabinet's upload (`shelter.photos.add`), from the deployed app, with its
- * own token (P-Q10).
- *
- * `@aws-sdk/client-s3`: R2 is S3-API-compatible by design (Cloudflare's own
- * docs recommend this exact client), and there's no lighter-weight official
- * alternative - this is the standard way to talk to R2 from Node.
+ * Thin on purpose, the one piece untestable without a bucket (`docs/h1-decisions.md`): a `put` that
+ * only creates and a `get` that only reads (a crop's source). No delete, copy or lifecycle call
+ * (K-Q2), held by `photo-pipeline-scan.test.ts`; Cloudflare recommends this S3 client for R2.
  */
 // Immutable UUID keys: browsers keep 1 year; s-maxage 4 h because deletions (clean-up, erasure) do not purge the CDN.
 export const IMAGE_CACHE_CONTROL = "public, max-age=31536000, s-maxage=14400, immutable";
 
 export interface ImageStorageClient {
   put(key: string, body: Buffer, contentType: string): Promise<void>;
+  /** The object's bytes; refuses one larger than `PHOTO_SOURCE_MAX_BYTES` without reading past it. */
+  get(key: string): Promise<Buffer>;
 }
 
 export interface R2Config {
@@ -77,6 +60,23 @@ export function createR2Client(config: R2Config): ImageStorageClient {
           IfNoneMatch: "*",
         }),
       );
+    },
+    async get(key) {
+      // One byte past the cap is asked for, so an object over it is told apart without reading it whole.
+      const result = await client.send(
+        new GetObjectCommand({
+          Bucket: config.bucketName,
+          Key: key,
+          Range: `bytes=0-${PHOTO_SOURCE_MAX_BYTES}`,
+        }),
+      );
+      // Neither message names the key: a source's key stays out of logs and error reports.
+      if (result.Body === undefined) throw new Error("R2 returned no body");
+      const bytes = await result.Body.transformToByteArray();
+      if (bytes.byteLength > PHOTO_SOURCE_MAX_BYTES) {
+        throw new Error(`The object is larger than ${PHOTO_SOURCE_MAX_BYTES} bytes`);
+      }
+      return Buffer.from(bytes);
     },
   };
 }

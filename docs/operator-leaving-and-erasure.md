@@ -70,8 +70,9 @@ agent to.
       of you. **GAP.**
    4. Same command with `--commit`. Then the dry run again: it must refuse with "no shelter has id".
 8. **Photos and logo.** After step 7 nothing references them; the daily clean-up deletes them once they
-   have sat unreferenced for 7 days. Each photo is 5 objects, and a run due to delete more than 100
-   deletes none (`refused_over_cap` in the log). So for a shelter with more than 20 photos, after the
+   have sat unreferenced for 7 days. Each photo is 6 objects (five variants and its kept source),
+   and a run due to delete more than 600 deletes none (`refused_over_cap` in the log). So for a
+   shelter with more than 100 photos (crops count too), after the
    grace: `pnpm --filter @opika/db r2:cleanup --expect <production ep- id> --prod` (dry run, read the
    count), then the same with `--commit --max-delete <that count>`. Never `--grace-days 0` here: it
    would also take other shelters' photos still inside their grace. Do not delete files by hand.
@@ -117,7 +118,7 @@ will state the same number when it is written.
 | A shelter's contact person (phone, name, email in its public contacts) | `shelters.contact`; the old value in `contact_changed` history lines; `reveals.shelter_snapshot` | The shelter's admin replaces the contact in its cabinet (it goes off the public pages at once). **NEEDS TOOL** for the history lines and snapshots |
 | Named person in legal data (an initiative's contact person, a sole proprietor's name) | `shelters.legal_entity` (empty for a shelter created minimally until you add it); `verified_data_changed` history lines | You edit it on the shelter's page, «Юридичні дані» → «Змінити» (`registry.shelters.updateVerifiedData`), but a change keeps the old value in history. **NEEDS TOOL** for the history lines |
 | A reference, a bank account holder, video-call notes (evidence) | `shelters.verification` | Evidence can only be added, never edited or removed. **NEEDS TOOL** |
-| A person shown in a photo or a logo | R2, referenced from `animals.photos` / `shelters.logo` | The shelter removes the photo or logo in its cabinet; the clean-up job deletes the files after 7 days. Not faster: nothing else deletes R2 objects |
+| A person shown in a photo or a logo | R2, referenced from `animals.photos` / `shelters.logo`; a photo's kept source (`animal_photo_sources`) | The shelter removes the photo or logo in its cabinet; the clean-up job deletes the files, the kept source with them, after 7 days. Cropping the person out is not enough: the uncropped source is kept with the photo until the photo is removed. Not faster: nothing else deletes R2 objects |
 | Adopter | `sessions`, `adopters`, `reveals` (no name, email or phone); the saved list only in their browser | Nothing to look up by: you cannot find their rows without their cookie, and must not ask for it. Without reveals, the clean-up deletes their rows within about 31 days. With a reveal, the rows are kept (G3). Send template I. **NEEDS TOOL** |
 
 5. **Locate, read-only, if you need to know where a value sits** (an address, a phone in E.164, a name
@@ -160,7 +161,7 @@ will state the same number when it is written.
    session's reveals, session and adopter row, in that order (`docs/gdpr-analysis.md`, G4). Tier 1.
 5. **Legal data in history:** the operator's edit form replaces a wrong or withdrawn name in
    `shelters.legal_entity`, but the old value stays in `verified_data_changed` history lines (B, table).
-6. **Clean-up cap:** a leaving shelter with more than 20 photos always needs the manual
+6. **Clean-up cap:** a leaving shelter with more than 100 photos always needs the manual
    `r2:cleanup --max-delete` run (A, step 8).
 
 ## Log line (your own records, never the repo)

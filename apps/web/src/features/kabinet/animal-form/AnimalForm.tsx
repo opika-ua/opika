@@ -404,7 +404,7 @@ export function AnimalForm({
     }
   }, [client, clock, view]);
 
-  /** A photo write changes the photos, the edit time and (RH-B7) the listing: only those are taken from it. */
+  /** A photo write changes the photos and their crops, the edit time and (RH-B7) the listing: only those are taken from it. */
   const onPhotoView = useCallback((photoView: KabinetAnimalView) => {
     setView((current) =>
       current === null
@@ -412,6 +412,7 @@ export function AnimalForm({
         : ({
             ...current,
             photos: photoView.photos,
+            photoCrops: photoView.photoCrops,
             listing: photoView.listing,
             lastUpdatedAt: photoView.lastUpdatedAt,
           } as KabinetAnimalView),
@@ -689,6 +690,9 @@ export function AnimalForm({
         }}
         onBlur={(event) => {
           const field = fieldOfTarget(event.target);
+          // Moving between a date's day, month and year is still typing that one date.
+          const datePart = field === "birthDate" || field === "asOf";
+          if (datePart && fieldOfTarget(event.relatedTarget) === field) return;
           if (field !== null) setTouched((current) => new Set([...current, field]));
           if (autosaving && dirty) void saveNow();
         }}
@@ -746,15 +750,18 @@ export function AnimalForm({
 }
 
 /** Which validated field an element belongs to, by the id the sections give it. */
-const fieldOfTarget = (target: EventTarget): FieldProblem["field"] | null => {
+const fieldOfTarget = (target: EventTarget | null): FieldProblem["field"] | null => {
+  if (target === null) return null;
   const id = (target as HTMLElement).id ?? "";
   const name = (target as HTMLInputElement).name ?? "";
+  // A date's parts: the day carries the field's id, the month and year add a suffix.
+  const datePart = id.replace(/-(?:month|year)$/, "");
   if (id === "animal-name") return "name";
   if (name === "animal-species") return "species";
   if (id === "animal-description") return "description";
   if (id === "animal-medical-notes") return "medicalNotes";
-  if (id === "animal-birth-date") return "birthDate";
-  if (id === "animal-as-of") return "asOf";
+  if (datePart === "animal-birth-date") return "birthDate";
+  if (datePart === "animal-as-of") return "asOf";
   if (id === "animal-temperament-custom") return "temperamentCustom";
   if (id === "animal-colour-custom") return "colourCustom";
   return null;

@@ -1,4 +1,5 @@
 import { apiErrors, type EmailSendOutcome } from "@opika/contracts";
+import type { DonationUrlProblem } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { refusedForAboutLength } from "../about-text";
 import { refusedForNameLength } from "../display-name";
@@ -23,6 +24,8 @@ import { refusedForNameLength } from "../display-name";
  * - `address_has_a_role`: invite or resend refused for an address that has a
  *   role elsewhere (`create.errors.addressHasARole.*`).
  * - `invalid_evidence`: resubmit refused on the evidence sent.
+ * - `donation_link_refused`: approve refused for a link a new proposal could not be
+ *   (`donation.cannotApprove.*`).
  * - `name_too_long`: the rename refused by the input check for the display
  *   name's cap (RUI4-F2), which the rename form shows on its field.
  * - `description_too_long`: the same for the shelter's text over its cap, shown on the about form.
@@ -41,6 +44,7 @@ export type ActionFailure =
   | { kind: "not_found" }
   | { kind: "address_has_a_role"; reason: AddressRoleReason }
   | { kind: "invalid_evidence"; reason: InvalidEvidenceReason }
+  | { kind: "donation_link_refused"; problem: DonationUrlProblem }
   | { kind: "name_too_long" }
   | { kind: "description_too_long" }
   | { kind: "no_answer" }
@@ -99,6 +103,12 @@ export function actionFailureOf(error: unknown): ActionFailure {
       const data = apiErrors.INVALID_EVIDENCE.data.safeParse(fieldOf(error, "data"));
       return data.success
         ? { kind: "invalid_evidence", reason: data.data.reason }
+        : { kind: "failed" };
+    }
+    case "DONATION_LINK_REFUSED": {
+      const data = apiErrors.DONATION_LINK_REFUSED.data.safeParse(fieldOf(error, "data"));
+      return data.success
+        ? { kind: "donation_link_refused", problem: data.data.problem }
         : { kind: "failed" };
     }
     case "BAD_REQUEST":

@@ -376,7 +376,7 @@ neutral; never name a suspicion.
   stay referenced, stay in the bucket, and stay reachable to anyone who already has a file URL. The only
   automatic deletion is the daily clean-up (04:00 UTC), which removes a photo or logo only after it has been
   unreferenced for 7 days, re-checks right before deleting, and refuses a run that would delete more than
-  100 objects (it logs `refused_over_cap`, deletes nothing, and only the CLI can raise the cap). A photo
+  600 objects (it logs `refused_over_cap`, deletes nothing, and only the CLI can raise the cap). A photo
   that must go (for example one showing a person) goes through that job too: take it off the card, then
   the job deletes it after the 7 days; over the cap, the `r2:cleanup` dry run then `--commit --max-delete
   <n>` (`docs/operator-leaving-and-erasure.md`, A step 8). Never delete files by hand. Nothing but that job
@@ -388,8 +388,11 @@ neutral; never name a suspicion.
   replaces the pending one. Before approving, check that the account holder matches the organisation
   (for an unregistered initiative: that the holder is its contact person); the screen reminds you:
   «Перевірте, що власник рахунку збігається з організацією», or for an initiative «Перевірте, що власник
-  рахунку – контактна особа ініціативи». Since 2026-11-10 «Перевірено» no longer includes the
-  bank-account check; it is a hand check at donation approval. When you approve a link, add the evidence
+  рахунку – контактна особа ініціативи». Also open the link in a private window and confirm it is a
+  permanent page, not a one-time payment page that stops working (the product itself refuses a LiqPay
+  checkout session, `…/checkout_<timestamp>_…`, but not other services' one-time pages).
+  Since 2026-11-10 «Перевірено» no longer includes the bank-account check; it is a hand check at
+  donation approval. When you approve a link, add the evidence
   «Власник банківського рахунку» (section 4), as long as the shelter is pending or under review.
   «Схвалити» makes the link live, «Відхилити» clears the proposal and leaves the
   current live link as it was. Both are single clicks with no reason field and no confirmation, and

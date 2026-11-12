@@ -445,6 +445,25 @@ describe("shelter.profile", () => {
     expect(result.body.donation).toEqual(shelter.donation);
   });
 
+  // Made-up timestamp and token in the real shape (public repo).
+  it.each([
+    "https://www.liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42",
+    "https://liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42",
+    "https://WWW.LIQPAY.UA/UK/CHECKOUT/CARD/CHECKOUT_1700000000000_TESTTOKEN42",
+  ])("proposeDonation refuses the LiqPay checkout session %s and writes nothing", async (url) => {
+    const result = await call("shelter.profile.proposeDonation", { url });
+    expect(result.status).toBe(400);
+    expect(JSON.stringify(result.body)).toContain("donation_checkout_session");
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
+  });
+
+  it("proposeDonation takes a LiqPay page that is not a checkout session", async () => {
+    const url = "https://www.liqpay.ua/uk/checkout/domivka";
+    const result = await call<KabinetShelterView>("shelter.profile.proposeDonation", { url });
+    expect(result.status).toBe(200);
+    expect(result.body.pendingDonation?.link).toEqual({ url, provider: "liqpay" });
+  });
+
   it("cancelDonationProposal clears it; with nothing pending it records nothing", async () => {
     await call("shelter.profile.proposeDonation", { url: "https://example.org/give" });
     expect(
@@ -1280,6 +1299,79 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
     });
   });
 
+  /** Age as a declared range (owner, 2026-11-12): stored with its «as of» date, as a bucket is. */
+  describe("a declared range", () => {
+    const now = new Date("2026-10-17T09:00:00.000Z");
+    const save = (a: { id: string; version: number }, age: unknown, at = now) =>
+      call<KabinetAnimalView>(
+        "shelter.animals.update",
+        { animalId: a.id, expectedVersion: a.version, patch: { age } },
+        { now: at },
+      );
+
+    it("is stored with the date the shelter chose, at UTC midnight, and recorded", async () => {
+      const a = await animal();
+      const result = await save(a, { kind: "declared_range", range: "3_4", asOf: "2026-09-01" });
+      expect(result.status).toBe(200);
+      expect((await reload(a.id)).age).toEqual({
+        kind: "declared_range",
+        range: "3_4",
+        declaredAt: new Date("2026-09-01T00:00:00.000Z"),
+      });
+      expect(
+        (await animalLines()).map((l) => (l.kind === "animal_edited" ? l.fields : l.kind)),
+      ).toEqual([["age"]]);
+    });
+
+    it("declared today before 03:00 Kyiv is anchored at now, not at the UTC midnight still ahead", async () => {
+      const kyivAt0130 = new Date("2026-10-16T22:30:00.000Z");
+      const a = await animal();
+      const result = await save(
+        a,
+        { kind: "declared_range", range: "1_2", asOf: "2026-10-17" },
+        kyivAt0130,
+      );
+      expect(result.status).toBe(200);
+      expect((await reload(a.id)).age).toEqual({
+        kind: "declared_range",
+        range: "1_2",
+        declaredAt: kyivAt0130,
+      });
+    });
+
+    it("re-sent with the same range and date is no change: nothing restamped or recorded", async () => {
+      const declaredAt = new Date("2026-09-01T00:00:00.000Z");
+      const a = await animal({ age: { kind: "declared_range", range: "5_7", declaredAt } });
+      const result = await save(a, { kind: "declared_range", range: "5_7", asOf: "2026-09-01" });
+      expect(result.status).toBe(200);
+      expect(result.body.version).toBe(a.version);
+      expect((await reload(a.id)).age).toEqual({
+        kind: "declared_range",
+        range: "5_7",
+        declaredAt,
+      });
+      expect(await animalLines()).toEqual([]);
+    });
+
+    it("replaces a stored bucket", async () => {
+      const a = await animal({
+        age: {
+          kind: "declared_bucket",
+          bucket: "young",
+          declaredAt: new Date("2026-09-01T00:00:00.000Z"),
+        },
+      });
+      const result = await save(a, { kind: "declared_range", range: "1_2", asOf: "2026-09-01" });
+      expect(result.status).toBe(200);
+      expect(result.body.version).toBe(a.version + 1);
+      expect((await reload(a.id)).age).toEqual({
+        kind: "declared_range",
+        range: "1_2",
+        declaredAt: new Date("2026-09-01T00:00:00.000Z"),
+      });
+    });
+  });
+
   /** D3: "Refuse a date in the future (Kyiv) or older than 30 years." */
   describe("the age date is refused outside Kyiv's today and thirty years back", () => {
     // 01:30 on 17 October in Kyiv, while UTC's date is still the 16th.
@@ -1312,6 +1404,16 @@ describe("a shelter's animal writes are history (K-Q7)", () => {
       ],
       ["Kyiv's tomorrow as a birth date", { kind: "birth_date", date: "2026-10-18" }, "future"],
       ["thirty years and a day back", { kind: "birth_date", date: "1996-10-16" }, "too_old"],
+      [
+        "Kyiv's tomorrow as a range's «as of»",
+        { kind: "declared_range", range: "1_2", asOf: "2026-10-18" },
+        "future",
+      ],
+      [
+        "a range's «as of» thirty years and a day back",
+        { kind: "declared_range", range: "10_plus", asOf: "1996-10-16" },
+        "too_old",
+      ],
     ])("refuses %s with AGE_DATE_OUT_OF_RANGE, writing nothing", async (_label, age, problem) => {
       const { result, stored, before } = await update(age);
       expect(result.status).toBe(422);

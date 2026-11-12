@@ -88,7 +88,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/kabinet-animal-repo.ts",
-    line: 369,
+    line: 378,
     text: "listingKind: next.kind,",
     kind: "write",
     why:
