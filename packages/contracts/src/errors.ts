@@ -1,4 +1,5 @@
 import {
+  DONATION_URL_PROBLEMS,
   EvidenceGapSchema,
   LISTING_EVENT_TYPES,
   LISTING_KINDS,
@@ -284,6 +285,15 @@ export const apiErrors = {
         "limit_reached",
       ]),
     }),
+  },
+  /**
+   * Approving a proposed donation link that a new proposal could not be (`data.problem`, from
+   * `donationUrlProblemOf`): a proposal sent before a rule existed never goes live unchecked.
+   */
+  DONATION_LINK_REFUSED: {
+    status: 422,
+    message: "That donation link can't be approved.",
+    data: z.object({ problem: z.enum(DONATION_URL_PROBLEMS) }),
   },
   /** The evidence list would pass the most a shelter can hold (`data.limit`). */
   EVIDENCE_LIMIT_REACHED: {

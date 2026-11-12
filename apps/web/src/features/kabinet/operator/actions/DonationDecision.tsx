@@ -2,6 +2,7 @@
 
 import "../../../../zod-client-config";
 import type { RegistryShelterView } from "@opika/contracts";
+import { type DonationUrlProblem, donationUrlProblemOf } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useRef, useState } from "react";
 import { Button } from "../../../../ui/Button";
@@ -19,6 +20,7 @@ type Notice =
   | { kind: "removed" }
   | { kind: "conflict" }
   | { kind: "remove_conflict" }
+  | { kind: "link_refused"; problem: DonationUrlProblem }
   | { kind: "failed" };
 
 /**
@@ -30,6 +32,8 @@ type Notice =
  *
  * The proposal itself (`donation.proposed`, the live link beside it) is the
  * read-only donation section's; this sits under it (`ShelterActionsScreen`).
+ * A link a new proposal could not be (a LiqPay checkout session, say) is not
+ * offered for approval, and the server refuses it too (`DONATION_LINK_REFUSED`).
  */
 export function DonationDecision() {
   const { view, phase, run } = useOperatorActions();
@@ -38,6 +42,8 @@ export function DonationDecision() {
   const busy = phase.kind !== "idle";
   const mine = busy && phase.owner === OWNER;
   const pending = view.pendingDonation;
+  const problem = pending === null ? null : donationUrlProblemOf(pending.link.url);
+  const approvable = view.verification.status !== "suspended" && problem === null;
   const [removing, setRemoving] = useState(false);
   const openerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -71,7 +77,9 @@ export function DonationDecision() {
         setNotice(
           settled.failure.kind === "conflict" && settled.reread === "done"
             ? { kind: "conflict" }
-            : { kind: "failed" },
+            : settled.failure.kind === "donation_link_refused"
+              ? { kind: "link_refused", problem: settled.failure.problem }
+              : { kind: "failed" },
         );
         return;
       /* v8 ignore next 4 -- exists so the compiler rejects an unhandled outcome; unreachable at runtime */
@@ -100,17 +108,18 @@ export function DonationDecision() {
           </Button>
         </div>
       ) : null}
-      {pending !== null && view.verification.status !== "suspended" ? (
+      {pending !== null && approvable ? (
         <Text look="hint">
           {view.legalEntity?.kind === "unregistered_initiative"
             ? t.donation.approveHintInitiative
             : t.donation.approveHint}
         </Text>
       ) : null}
+      {problem !== null ? <Text look="body">{t.donation.cannotApprove[problem]}</Text> : null}
       {pending !== null ? (
         <div className={ACTIONS}>
-          {/* Not offered while suspended: a reinstatement must not publish it unseen. */}
-          {view.verification.status === "suspended" ? null : (
+          {/* Not offered while suspended (a reinstatement must not publish it unseen) or refused. */}
+          {approvable ? (
             <Button
               aria-disabled={busy || undefined}
               aria-busy={mine || undefined}
@@ -118,7 +127,7 @@ export function DonationDecision() {
             >
               {t.donation.approve}
             </Button>
-          )}
+          ) : null}
           <Button
             variant="secondary"
             aria-disabled={busy || undefined}
@@ -146,9 +155,11 @@ export function DonationDecision() {
                   ? t.donation.removeConflict
                   : null}
       </p>
-      {notice.kind === "failed" ? (
+      {notice.kind === "failed" || notice.kind === "link_refused" ? (
         <p role="alert" className={NOTICE}>
-          {t.errors.failed}
+          {notice.kind === "link_refused"
+            ? t.donation.cannotApprove[notice.problem]
+            : t.errors.failed}
         </p>
       ) : null}
       {removing ? (
