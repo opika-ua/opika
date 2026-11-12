@@ -53,8 +53,7 @@ export const PHOTO_UPLOAD_RATE_LIMITS = {
 
 /**
  * Every crop attempt, landed or not, taken before its work and never given back (owner,
- * 2026-11-12). A shelter's photo work is then at most uploads and landed crops (60 an hour, 300 a
- * day) plus failed crops (30 an hour, 150 a day); a shelter can crop at most 30 an hour either way.
+ * 2026-11-12): a shelter's photo work is at most 60 uploads plus 30 crops an hour (300 and 150 a day).
  */
 export const PHOTO_CROP_ATTEMPT_LIMITS = {
   perHour: { windowMs: 60 * 60_000, maxRequests: 30 },
