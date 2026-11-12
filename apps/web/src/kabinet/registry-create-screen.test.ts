@@ -14,6 +14,7 @@ import {
 } from "../features/kabinet/operator/create/create-input";
 import { createRefusalOf } from "../features/kabinet/operator/create/create-outcome";
 import type { RegistryCreateInput } from "../features/kabinet/operator/create/registry-create-client";
+import { dateValue } from "../ui/date-field";
 import { SHELTER_WRITE_POLICY } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
@@ -115,7 +116,7 @@ const initiative = (patch: Partial<CreateShelterForm> = {}): CreateShelterForm =
   },
   contacts: { phone: "+380 50 111-22-33", telegram: "", form: "", others: [] },
   evidence: [
-    { id: "v", kind: "site_visit", visitedOn: "2026-10-12", notes: "Оглянув вольєри." },
+    { id: "v", kind: "site_visit", visitedOn: dateValue("2026-10-12"), notes: "Оглянув вольєри." },
     ...["+380 50 555 21 08", "+380 67 000 11 22"].map((phone, n) => ({
       id: `r${n}`,
       kind: "reference_contact" as const,
@@ -214,7 +215,11 @@ describe("the server's refusals, as the screen reads them", () => {
 describe("a site visit's date on the server, Kyiv's calendar", () => {
   const justAfterKyivMidnight = new Date("2026-10-07T22:30:00.000Z");
   const visitOn = (visitedOn: string): CreateShelterForm =>
-    initiative({ evidence: [{ id: "v", kind: "site_visit", visitedOn, notes: "Сьогодні." }] });
+    initiative({
+      evidence: [
+        { id: "v", kind: "site_visit", visitedOn: dateValue(visitedOn), notes: "Сьогодні." },
+      ],
+    });
 
   it("accepts Kyiv's today just after local midnight, while UTC's date is still yesterday", async () => {
     const { status } = await create(

@@ -15,6 +15,7 @@ import {
   LOCATION_ENV,
   signedIn,
 } from "./fictional-shelter";
+import { fillDateField } from "./harness";
 import { startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.72";
@@ -58,7 +59,7 @@ test("early listing: evidence minimum, label, revoke, re-allow with a note", asy
     const yesterday = new Date(Date.now() - 86_400_000).toLocaleDateString("en-CA", {
       timeZone: "Europe/Kyiv",
     });
-    await visit.getByLabel("Дата дзвінка").fill(yesterday);
+    await fillDateField(visit, "Дата дзвінка", yesterday);
     await visit.getByLabel("Нотатка").fill("Оглянув вольєри, журнал прийому ведеться.");
     await page.getByRole("button", { name: "Додати", exact: true }).click();
     await expect(page.getByText("Докази додано.")).toBeVisible();

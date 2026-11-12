@@ -5,10 +5,13 @@ import type { ReferenceRelationship } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useEffect, useState } from "react";
 import { Button } from "../../../../ui/Button";
+import { DateField } from "../../../../ui/DateField";
+import type { DateFieldValue } from "../../../../ui/date-field";
 import { Select, TextArea, TextField } from "../../../../ui/form";
 import { Text } from "../../../../ui/Text";
 import { inputModeOf } from "../../profile-edit/ContactFields";
 import type { ChannelKind } from "../../profile-edit/fields";
+import { DATE_FIELD_LABELS, typedDateMessage } from "../../shared/kabinet-date";
 import {
   EDITABLE_EVIDENCE_KINDS,
   type EditableEvidenceKind,
@@ -21,8 +24,13 @@ import {
   REFERENCE_RELATIONSHIPS,
 } from "./evidence-rows";
 
-/** A change to a card's typed text: its own fields only, never `id` or `kind`. */
-type RowPatch = Partial<Record<EvidenceField | "channelKind", string>>;
+/** A text field of a card: every field but the visit's date. */
+type TextFieldName = Exclude<EvidenceField, "visitedOn">;
+
+/** A change to a card's typed fields: its own fields only, never `id` or `kind`. */
+type RowPatch = Partial<Record<TextFieldName | "channelKind", string>> & {
+  visitedOn?: DateFieldValue;
+};
 
 /** The message for a field, from `create.errors.*` or, for a reference's channel, K4's contact errors. */
 export function evidenceFieldMessage(error: EvidenceFieldError | undefined): string | null {
@@ -35,6 +43,9 @@ export function evidenceFieldMessage(error: EvidenceFieldError | undefined): str
       return create.edrpouFormat;
     case "siteVisitInFuture":
       return create.siteVisitInFuture;
+    case "dateIncomplete":
+    case "dateNoSuchDate":
+      return typedDateMessage(error);
     default:
       return uk.kabinet.profileEdit.errors[error];
   }
@@ -67,7 +78,7 @@ const firstFieldId = (idPrefix: string, row: EvidenceRow): string => {
  * the caller holds the rows, so S2 starts it empty and R-UI 3's resubmit can
  * start it prefilled. Checked by `evidenceOfRows`, again by the server.
  *
- * `today` is Kyiv's date (`YYYY-MM-DD`), the date input's upper bound: the
+ * `today` is Kyiv's date (`YYYY-MM-DD`), the visit date's upper bound: the
  * same "not in the future" the server enforces (`isSiteVisitInFuture`).
  */
 export function EvidenceEditor({
@@ -177,7 +188,7 @@ function EvidenceCard({
   const t = uk.kabinet.operator.evidence;
   const id = (field: string) => `${idPrefix}-${row.id}-${field}`;
   const field = (
-    name: string,
+    name: TextFieldName,
     value: string,
     label: string,
     error: EvidenceFieldError | undefined,
@@ -277,13 +288,13 @@ function EvidenceCard({
       ) : null}
       {row.kind === "site_visit" ? (
         <>
-          <TextField
+          <DateField
             id={id("visitedOn")}
-            label={t.field.visitedOn}
-            type="date"
-            max={today}
+            legend={t.field.visitedOn}
+            labels={DATE_FIELD_LABELS}
+            today={today}
             value={row.visitedOn}
-            onChange={(event) => patch({ visitedOn: event.target.value })}
+            onChange={(visitedOn) => patch({ visitedOn })}
             // The hint and the refusal are the same sentence: one at a time.
             hint={errors.visitedOn === undefined ? t.siteVisitDateHint : undefined}
             error={evidenceFieldMessage(errors.visitedOn)}

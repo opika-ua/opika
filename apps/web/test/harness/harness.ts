@@ -122,6 +122,15 @@ export async function useClientAddressPerRepetition(
   await page.setExtraHTTPHeaders({ "x-forwarded-for": `192.0.2.${lastOctet}` });
 }
 
+/** Fills the kit's DateField named `legend` inside `scope` with an ISO date: day, month by number, year. */
+export async function fillDateField(scope: Locator, legend: string, iso: string): Promise<void> {
+  const [year = "", month = "", day = ""] = iso.split("-");
+  const group = scope.getByRole("group", { name: legend });
+  await group.getByLabel("День", { exact: true }).fill(String(Number(day)));
+  await group.getByLabel("Місяць", { exact: true }).selectOption(String(Number(month)));
+  await group.getByLabel("Рік", { exact: true }).fill(year);
+}
+
 /** The touch-target floor: the control's box is at least 48px tall. */
 export async function expectMinTargetHeight(locator: Locator, minimum = 48): Promise<void> {
   const box = await locator.boundingBox();

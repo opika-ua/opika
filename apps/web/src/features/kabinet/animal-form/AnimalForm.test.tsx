@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
+import { typeDate } from "../../../ui/test-date-field";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
 import { confirmLeave } from "../shared/unsaved-changes";
 import { AnimalForm, type AnimalFormEditing } from "./AnimalForm";
@@ -551,9 +552,7 @@ describe("a draft saves itself (T6)", () => {
         name: /Відома дата народження/,
       }),
     );
-    fireEvent.change(screen.getByLabelText("Дата народження"), {
-      target: { value: "2026-03-01" },
-    });
+    await typeDate(user, document.body, "Дата народження", "2026-03-01");
     expect(screen.getByText("Ті, хто шукає тварину, побачать: «малючка».")).toBeTruthy();
     await user.click(sex.getByLabelText("Не записано"));
     expect(screen.getByText("Ті, хто шукає тварину, побачать: «малюк».")).toBeTruthy();
@@ -584,16 +583,22 @@ describe("a draft saves itself (T6)", () => {
     expect(screen.queryByText(onCard("молода"))).toBeNull();
   });
 
-  it("an «as of» date after today in Kyiv is refused inline and not sent", async () => {
+  it("an «as of» date after today in Kyiv is refused inline and not sent; a past one is", async () => {
     const user = userEvent.setup();
     const client = renderForm(draft());
     await user.click(
       within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText(/Молодий/),
     );
-    fireEvent.change(screen.getByLabelText("Станом на"), { target: { value: "2026-10-18" } });
+    await typeDate(user, document.body, "Станом на", "2026-10-18");
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expectRefusedInlineAndInSummary("Дата «Станом на» не може бути в майбутньому.");
-    expect(client.calls.update).not.toHaveBeenCalled();
+    // Leaving the bucket's radio may autosave today's date; tomorrow's is never sent.
+    expect(JSON.stringify(client.calls.update.mock.calls)).not.toContain("2026-10-18");
+    await typeDate(user, document.body, "Станом на", "2026-09-01");
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update.mock.calls.at(-1)?.[0]).toMatchObject({
+      patch: { age: { kind: "declared_bucket", bucket: "young", asOf: "2026-09-01" } },
+    });
   });
 
   it("a birth date after today, or more than 30 years back, is refused inline and not sent", async () => {
@@ -604,19 +609,57 @@ describe("a draft saves itself (T6)", () => {
         name: /Відома дата народження/,
       }),
     );
-    const birth = screen.getByLabelText("Дата народження");
-    fireEvent.change(birth, { target: { value: "2026-10-18" } });
+    await typeDate(user, document.body, "Дата народження", "2026-10-18");
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expectRefusedInlineAndInSummary("Дата народження не може бути в майбутньому.");
-    fireEvent.change(birth, { target: { value: "1996-10-16" } });
+    await typeDate(user, document.body, "Дата народження", "1996-10-16");
     expectRefusedInlineAndInSummary("Ця дата надто давня – понад 30 років тому.");
     expect(client.calls.update).not.toHaveBeenCalled();
     // Exactly thirty years back is allowed, and saves as the birth date chosen.
-    fireEvent.change(birth, { target: { value: "1996-10-17" } });
+    await typeDate(user, document.body, "Дата народження", "1996-10-17");
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
       patch: { age: { kind: "birth_date", date: "1996-10-17" } },
     });
+  });
+
+  it("an unfinished birth date, or 30 February, is refused inline and in the summary, not sent", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(draft());
+    await user.click(
+      within(screen.getByRole("group", { name: "Що відомо про вік" })).getByRole("radio", {
+        name: /Відома дата народження/,
+      }),
+    );
+    const birth = within(screen.getByRole("group", { name: "Дата народження" }));
+    await user.type(birth.getByRole("textbox", { name: "День" }), "30");
+    await user.selectOptions(birth.getByRole("combobox", { name: "Місяць" }), "лютого");
+    // Still typing: moving between the parts shows nothing yet.
+    expect(screen.queryByText("Вкажіть повну дату: день, місяць і рік.")).toBeNull();
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expectRefusedInlineAndInSummary("Вкажіть повну дату: день, місяць і рік.");
+    await user.type(birth.getByRole("textbox", { name: "Рік" }), "2024");
+    expectRefusedInlineAndInSummary("Такої дати в календарі немає.");
+    expect(client.calls.update).not.toHaveBeenCalled();
+    // The summary's link lands on the date's first part.
+    await user.click(
+      within(screen.getByRole("alert")).getByRole("button", {
+        name: "Такої дати в календарі немає.",
+      }),
+    );
+    expect(document.activeElement).toBe(birth.getByRole("textbox", { name: "День" }));
+  });
+
+  it("leaving a half-typed date shows its problem under the field once focus leaves the group", async () => {
+    const user = userEvent.setup();
+    renderForm(draft());
+    const asOf = within(screen.getByRole("group", { name: "Станом на" }));
+    await user.clear(asOf.getByRole("textbox", { name: "Рік" }));
+    await user.type(asOf.getByRole("textbox", { name: "Рік" }), "20");
+    await user.click(asOf.getByRole("textbox", { name: "День" }));
+    expect(screen.queryByText("Вкажіть повну дату: день, місяць і рік.")).toBeNull();
+    await user.click(screen.getByLabelText("Імʼя"));
+    expect(screen.getByText("Вкажіть повну дату: день, місяць і рік.")).toBeTruthy();
   });
 
   it("the server's own date refusal (its clock decides) lands on the date field", async () => {

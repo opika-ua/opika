@@ -227,6 +227,18 @@ export const uk = {
       close: "Закрити",
     },
     /**
+     * The kit's `DateField` (day, month, year) on every kabinet date: the parts' labels and the two
+     * refusals only a typed date can have. Owner-approved 2026-11-12 (the date-field PR); the
+     * month names come from `Intl` (`monthNamesOf`), not from here.
+     */
+    dateField: {
+      day: "День",
+      month: "Місяць",
+      year: "Рік",
+      incomplete: "Вкажіть повну дату: день, місяць і рік.",
+      noSuchDate: "Такої дати в календарі немає.",
+    },
+    /**
      * The operator's name when `KABINET_OPERATOR_DISPLAY_NAME` is unset
      * (RS-Q2), nominative, in two forms (`kabinet/operator.ts` picks). Oleksii's
      * R-UI answer 9, verbatim: "Role label «адміністратор сайту» (also replaces
@@ -1766,6 +1778,8 @@ export const uk = {
             invited_elsewhere: "На цю адресу вже надіслано чинне запрошення до іншого притулку.",
           },
           siteVisitInFuture: "Дата дзвінка не може бути в майбутньому.",
+          /** Owner-approved 2026-11-12 (the date-field PR). */
+          registeredAtFuture: "Дата реєстрації не може бути в майбутньому.",
           unknownCity: "Такого населеного пункту немає у списку.",
           lostAnswer:
             "Відповідь не надійшла. Притулок міг створитися – перевірте список, перш ніж пробувати знову.",

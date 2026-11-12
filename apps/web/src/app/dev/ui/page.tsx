@@ -46,6 +46,7 @@ import {
   ChoiceChipDemo,
   ComboboxDemo,
   ComboboxMultiDemo,
+  DateFieldDemo,
   FilterTabsDemo,
   MenuClippedDemo,
   MenuDemo,
@@ -348,6 +349,7 @@ export default function DevUiPage() {
           <option>One</option>
           <option>Two</option>
         </Select>
+        <DateFieldDemo />
         <fieldset className="flex flex-col gap-2">
           <legend className="text-label text-ink">Radio and checkbox</legend>
           <Radio name="r" label="Radio option" defaultChecked />

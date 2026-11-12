@@ -1011,6 +1011,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.laterHint": "Можна заповнити пізніше. Без цього притулок не схвалити.",
     notFilledYet: "Ще не заповнено",
   };
+  /**
+   * Owner-approved 2026-11-12 (the date-field PR): a registration date can no longer be typed
+   * past today, so it has its own refusal, on the pattern of `siteVisitInFuture`.
+   */
+  const DATE_FIELD_OPERATOR_COPY: Record<string, string> = {
+    "operator.create.errors.registeredAtFuture": "Дата реєстрації не може бути в майбутньому.",
+  };
   /** Owner-given 2026-11-10 (the locked-block edit forms and the donation-approve hint). */
   const VERIFIED_DATA_EDIT_COPY: Record<string, string> = {
     "operator.shelter.edit": "Змінити",
@@ -1108,6 +1115,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(LIQPAY_SESSION_OPERATOR_COPY),
         ...Object.keys(VERIFIED_DATA_EDIT_COPY),
         ...Object.keys(MINIMAL_CREATE_COPY).filter((path) => path.startsWith("operator.")),
+        ...Object.keys(DATE_FIELD_OPERATOR_COPY),
       ].sort(),
     );
   });
@@ -1143,6 +1151,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   it.each(Object.entries(VERIFIED_DATA_EDIT_COPY))("%s is the owner-given text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
+
+  it.each(Object.entries(DATE_FIELD_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
 
   it.each(Object.entries(LIQPAY_SESSION_OPERATOR_COPY))(
     "%s is the owner-approved text",
@@ -1226,6 +1241,32 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     expect(offending).toEqual([]);
     // Sanity: the letter-apostrophe is really there.
     expect(uk.kabinet.operator.evidence.field.channel).toContain(String.fromCodePoint(0x2bc));
+  });
+});
+
+/**
+ * The kit's `DateField` on every kabinet date: the parts' labels and a typed date's two
+ * refusals, owner-approved 2026-11-12 as proposed (the date-field PR; the month select's blank
+ * first option too, so no placeholder string). Exactly these keys.
+ */
+describe("kabinet date field copy (owner-approved, 2026-11-12)", () => {
+  const DATE_FIELD_COPY = {
+    day: "День",
+    month: "Місяць",
+    year: "Рік",
+    incomplete: "Вкажіть повну дату: день, місяць і рік.",
+    noSuchDate: "Такої дати в календарі немає.",
+  };
+
+  it("holds exactly his approved strings", () => {
+    expect(uk.kabinet.dateField).toEqual(DATE_FIELD_COPY);
+  });
+
+  it("nothing is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
+    for (const [key, text] of Object.entries(uk.kabinet.dateField)) {
+      expect(text, key).not.toContain(COPY_PENDING);
+      expect(text, key).not.toMatch(/['’]/);
+    }
   });
 });
 

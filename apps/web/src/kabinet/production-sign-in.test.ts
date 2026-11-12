@@ -377,7 +377,9 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
     // 836 with `operator.donation.approveHintInitiative` (owner-given 2026-11-11).
     // 840 with the LiqPay checkout-session copy (owner-approved 2026-11-12): one
     // `profileEdit.errors.donationCheckoutSession` and three `operator.donation.cannotApprove.*`.
-    expect(pending.length + written.length).toBe(840);
+    // 846 with the DateField (owner-approved 2026-11-12): `dateField.day`, `month`, `year`,
+    // `incomplete`, `noSuchDate` and `operator.create.errors.registeredAtFuture`.
+    expect(pending.length + written.length).toBe(846);
     expect(written).toContain("kabinet.profileEdit.errors.aboutTooLong");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");
