@@ -8,31 +8,36 @@ here.
 
 ## What you can see
 
-- **`/tvaryny`** - the gallery: a filterable grid of animals with nationwide city search.
+- **`/tvaryny`** - the gallery: a grid of animals filtered by oblast and city (searchable lists),
+  species, sex, size and age.
 - **`/tvaryny/[animalId]`** - an animal's page, with contact reveal.
 - **`/prytulky/[shelterId]`** - a shelter's page.
 - **`/zberezheni`** - the saved list.
 - **`/pro`** and **`/prytulkam`** - about the project, and the page for shelters.
-- **`/kabinet`** - the cabinet where verified shelters manage their own animals.
+- **`/kabinet`** - the cabinet: a shelter's invited admins manage its profile (`/kabinet/prytulok`)
+  and animals (`/kabinet/tvaryny`); the operator runs the shelter registry (`/kabinet/prytulky`).
+  Sign-in is at `/kabinet/vkhid`, a forgotten password at `/kabinet/vkhid/zabuly`, and a new one
+  is set at `/kabinet/vkhid/novyi-parol`.
 
 ## Stack
 
 | Layer | Choice |
 |---|---|
-| Client | Next.js 16 App Router, React 19, Tailwind v4 |
-| API | oRPC contract-first, Zod 4 |
-| Database | Postgres 18 (local: Docker; production: Neon), Drizzle ORM |
+| Client | Next.js 16.4 App Router, React 19.3, Tailwind 4.3 |
+| API | oRPC 1.16 contract-first, Zod 4.6 |
+| Database | Postgres 18 (local: Docker; production: Neon), Drizzle ORM 0.45 |
 | Adopter session | Anonymous device session, no accounts |
-| Shelter auth | Better Auth, magic-link sign-in for the kabinet |
+| Shelter auth | Better Auth 1.7: a shelter admin signs in with email and password, or a magic link; the operator by magic link only, never a password |
 | Images | Cloudflare R2, `sharp`-generated variants |
-| Email | Resend (auth emails only) |
+| Email | Resend: sign-in, invitation and password emails, and notification emails (operator and shelter notices, the weekly reminder) |
 | Errors | Sentry (EU region, scrubbed) |
 | Rate limits | Upstash |
 | Hosting | Vercel |
-| Testing | Vitest 4, Testing Library, Playwright (rendering harness) |
-| Repo | pnpm workspaces + catalogs |
+| Testing | Vitest 4.1, Testing Library, happy-dom, Playwright 1.65 (rendering harness) |
+| Repo | pnpm 11 workspaces + catalogs |
 
-Full rationale and version sources: [`docs/stack-decision.md`](./docs/stack-decision.md).
+Versions are the `catalog:` pins in [`pnpm-workspace.yaml`](./pnpm-workspace.yaml). Full
+rationale: [`docs/stack-decision.md`](./docs/stack-decision.md).
 Engineering rules: [`CLAUDE.md`](./CLAUDE.md) and
 [`docs/standing-constraints.md`](./docs/standing-constraints.md).
 
