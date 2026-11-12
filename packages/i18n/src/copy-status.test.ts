@@ -1768,17 +1768,13 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.photos.uploading": "Фото завантажується…",
     "kabinet.animalForm.photos.uploadingProgress": "Завантаження · {percent} · {sent} з {total} МБ",
     "kabinet.animalForm.photos.done": "Готово",
-    "kabinet.animalForm.photos.cover": "Обкладинка",
     "kabinet.animalForm.photos.failed": "Не завантажилось",
     "kabinet.animalForm.photos.dismissFailed": "Прибрати",
     "kabinet.animalForm.photos.tileLabel": "Фото {n} з {total}",
-    "kabinet.animalForm.photos.makeCover": "Зробити обкладинкою",
-    "kabinet.animalForm.photos.capReached": "Це максимум – {max} фото.",
     "kabinet.animalForm.photos.lastPhotoKept": "Цю картку бачать люди, тож одне фото має лишитися.",
     "kabinet.animalForm.photos.lastPhotoKeptNotShown":
       "Картка опублікована, тож одне фото має лишитися – навіть поки її ще не бачать.",
     "kabinet.animalForm.photos.added": "Фото додано.",
-    "kabinet.animalForm.photos.removed": "Фото прибрано.",
     "kabinet.animalForm.photos.reordered": "Порядок змінено.",
     "kabinet.animalForm.photos.conflict":
       "Фото змінилися в іншому вікні. Тут – поточний набір, спробуйте ще раз.",
@@ -1886,6 +1882,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(PHOTO_MANAGER_COPY),
         // The crop frame's words, pinned in their own block below.
         ...Object.keys(CROP_FRAME_COPY),
+        // The photo tile pill's words, pinned in their own block below.
+        ...Object.keys(PHOTO_TILE_PILL_COPY),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -2504,13 +2502,11 @@ const EDITOR_TABS_COPY: Record<string, string> = {
 
 /**
  * The photo manager (animal editor PR 3): the owner approved the PR 3 section of the editor copy
- * table "as proposed" (2026-10-31). `moveEarlier`, `moveLater` and `remove` replace K3's older
- * «Перемістити вперед/назад» and «Прибрати фото {n}»; `photos.add` is retired.
+ * table "as proposed" (2026-10-31); `photos.add` is retired. The ⋯ menu's entries left with the
+ * photo tile pill (2026-11-12), as did the two pointer-specific hints.
  */
 const PHOTO_MANAGER_COPY: Record<string, string> = {
   "kabinet.animalForm.photos.counter": "{n} з {max}",
-  "kabinet.animalForm.photos.orderHintMouse": "Перетягніть, щоб змінити порядок.",
-  "kabinet.animalForm.photos.orderHintTouch": "Утримуйте фото, щоб перетягнути.",
   "kabinet.animalForm.photos.infoLabel": "Про фото",
   "kabinet.animalForm.photos.infoText":
     "Підійде будь-яке фото з телефона чи компʼютера. Великі знімки стискаються ще до відправлення, тож мобільного трафіку піде менше. Місце зйомки та інші приховані дані з фото прибираються автоматично.",
@@ -2519,13 +2515,8 @@ const PHOTO_MANAGER_COPY: Record<string, string> = {
   "kabinet.animalForm.photos.addTile": "Додати фото",
   "kabinet.animalForm.photos.addLeft": "Ще {left}",
   "kabinet.animalForm.photos.addDrop": "можна перетягнути файли сюди",
-  "kabinet.animalForm.photos.moveEarlier": "Посунути раніше",
-  "kabinet.animalForm.photos.moveLater": "Посунути пізніше",
-  "kabinet.animalForm.photos.remove": "Прибрати",
-  "kabinet.animalForm.photos.menuLabel": "Дії з фото {n}",
   "kabinet.animalForm.photos.dragPickUp": "Фото {n} підняте. Позиція {pos} з {total}.",
   "kabinet.animalForm.photos.dragMove": "Позиція {pos} з {total}.",
-  "kabinet.animalForm.photos.dragDrop": "Фото {n} на позиції {pos} з {total}.",
   "kabinet.animalForm.photos.dragCancel": "Переміщення скасовано.",
 };
 
@@ -2544,7 +2535,6 @@ describe("animal editor photo manager copy", () => {
 
 /** The crop frame: owner-approved 2026-11-12, section 10 of the crop-frame shape, as proposed. */
 const CROP_FRAME_COPY: Record<string, string> = {
-  "kabinet.animalForm.photos.crop": "Обрізати",
   "kabinet.animalForm.photos.cropTitle": "Обрізати фото {n}",
   "kabinet.animalForm.photos.cropHint": "Пересуньте й наблизьте фото, щоб тварина була в рамці.",
   "kabinet.animalForm.photos.cropAreaLabel": "Рамка кадру. Стрілки зсувають фото.",
@@ -2560,6 +2550,41 @@ const CROP_FRAME_COPY: Record<string, string> = {
   // The reset to the automatic crop: owner-approved 2026-11-12, after the shape.
   "kabinet.animalForm.photos.cropReset": "Повернути автоматичний кадр",
 };
+
+/**
+ * The photo tile pill and its keyboard reorder: owner-given or owner-approved 2026-11-12, verbatim.
+ * `dragDrop` drops the photo's old number (it could read «Фото 3 на позиції 1»). Retired: the ⋯ menu,
+ * the «Обкладинка» badge, the pointer-specific hints and «Це максимум – {max} фото.».
+ */
+const PHOTO_TILE_PILL_COPY: Record<string, string> = {
+  "kabinet.animalForm.photos.orderHint":
+    "Утримуйте й перетягніть фото, щоб змінити порядок. Перше фото – обкладинка.",
+  "kabinet.animalForm.photos.coverChip": "{n} · Обкладинка",
+  "kabinet.animalForm.photos.removeLabel": "Прибрати фото {n}",
+  "kabinet.animalForm.photos.limitNote":
+    "Досягнуто ліміту: {max} фото. Приберіть одне, щоб додати нове.",
+  "kabinet.animalForm.photos.removed": "Фото прибрано",
+  "kabinet.animalForm.photos.keyboardHint":
+    "Щоб посунути фото на одне місце, натисніть Alt і стрілку вліво або вправо.",
+  "kabinet.animalForm.photos.dragDrop": "Фото тепер на позиції {pos} з {total}.",
+};
+
+describe("photo tile pill copy (owner-given 2026-11-12)", () => {
+  it.each(Object.entries(PHOTO_TILE_PILL_COPY))("%s is his text, exactly", (path, text) => {
+    const found = path
+      .split(".")
+      .slice(1)
+      .reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+        uk.kabinet,
+      );
+    expect(found).toBe(text);
+  });
+
+  it("the toast's action is the saved page's «Повернути», reused", () => {
+    expect(uk.likes.undo).toBe("Повернути");
+  });
+});
 
 describe("crop frame copy (owner-approved 2026-11-12)", () => {
   it.each(Object.entries(CROP_FRAME_COPY))("%s is the approved text, exactly", (path, text) => {

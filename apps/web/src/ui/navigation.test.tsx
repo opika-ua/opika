@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { BottomNav } from "./BottomNav";
 import { CheckboxGroup, RadioGroup } from "./groups";
@@ -6,7 +7,7 @@ import { Pagination } from "./Pagination";
 import { PrevNext } from "./PrevNext";
 import { paginationWindow } from "./pagination-window";
 import { Tabs } from "./Tabs";
-import { Toast, ToastProvider, useToast } from "./Toast";
+import { Toast, type ToastCloseReason, type ToastHandle, ToastProvider, useToast } from "./Toast";
 import { Toggle } from "./Toggle";
 
 describe("paginationWindow", () => {
@@ -355,6 +356,89 @@ describe("Toast", () => {
     trigger.focus();
     fireEvent.click(trigger);
     expect(document.activeElement).toBe(trigger);
+  });
+
+  function ClosingTrigger({ onClose }: { onClose: (reason: ToastCloseReason) => void }) {
+    const { show } = useToast();
+    const [handle, setHandle] = useState<ToastHandle | null>(null);
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() =>
+            setHandle(
+              show("Прибрано", "info", {
+                durationMs: 6000,
+                action: { label: "Повернути", onAction: () => {} },
+                onClose,
+              }),
+            )
+          }
+        >
+          Показати
+        </button>
+        <button type="button" onClick={() => handle?.dismiss()}>
+          Прибрати тост
+        </button>
+      </>
+    );
+  }
+
+  it("onClose hears once why the toast left: expired, dismissed (✕ or the handle) or action", () => {
+    vi.useFakeTimers();
+    try {
+      const onClose = vi.fn();
+      render(
+        <ToastProvider dismissLabel="Закрити">
+          <ClosingTrigger onClose={onClose} />
+        </ToastProvider>,
+      );
+      const open = () => fireEvent.click(screen.getByRole("button", { name: "Показати" }));
+
+      open();
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(onClose.mock.calls).toEqual([["expired"]]);
+
+      open();
+      fireEvent.click(screen.getByRole("button", { name: "Закрити" }));
+      open();
+      fireEvent.click(screen.getByRole("button", { name: "Прибрати тост" }));
+      open();
+      fireEvent.click(screen.getByRole("button", { name: "Повернути" }));
+      act(() => {
+        vi.advanceTimersByTime(20000);
+      });
+      expect(onClose.mock.calls).toEqual([["expired"], ["dismissed"], ["dismissed"], ["action"]]);
+      expect(screen.queryByRole("button", { name: "Повернути" })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a handle used after its toast left does nothing; an unmounted provider calls no onClose", () => {
+    vi.useFakeTimers();
+    try {
+      const onClose = vi.fn();
+      const { unmount } = render(
+        <ToastProvider dismissLabel="Закрити">
+          <ClosingTrigger onClose={onClose} />
+        </ToastProvider>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Показати" }));
+      fireEvent.click(screen.getByRole("button", { name: "Повернути" }));
+      fireEvent.click(screen.getByRole("button", { name: "Прибрати тост" }));
+      expect(onClose.mock.calls).toEqual([["action"]]);
+      fireEvent.click(screen.getByRole("button", { name: "Показати" }));
+      unmount();
+      act(() => {
+        vi.advanceTimersByTime(20000);
+      });
+      expect(onClose.mock.calls).toEqual([["action"]]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("useToast outside a provider fails loudly", () => {

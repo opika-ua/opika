@@ -43,6 +43,7 @@ import { TextLink } from "../../../ui/TextLink";
 import { Toast } from "../../../ui/Toast";
 import { Toggle } from "../../../ui/Toggle";
 import {
+  ActionPillDemo,
   ChoiceChipDemo,
   ComboboxDemo,
   ComboboxMultiDemo,
@@ -176,6 +177,9 @@ export default function DevUiPage() {
           <Text as="span">
             Inline <TextLink href="/dev/ui">text link</TextLink> in a sentence.
           </Text>
+        </Row>
+        <Row label="ActionPill (over a photo: crop and remove, and a blocked remove)">
+          <ActionPillDemo />
         </Row>
         <Row label="LinkedText (shelter-written text)">
           <Text className="max-w-160">

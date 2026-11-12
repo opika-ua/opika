@@ -872,35 +872,36 @@ export const uk = {
       photos: {
         title: "Фото",
         counter: "{n} з {max}",
-        /** Shown once, chosen by pointer capability: a mouse drags, a finger holds. */
-        orderHintMouse: "Перетягніть, щоб змінити порядок.",
-        orderHintTouch: "Утримуйте фото, щоб перетягнути.",
+        /** Owner-given 2026-11-12 (the photo tile pill): one hint for every input, above the grid. */
+        orderHint: "Утримуйте й перетягніть фото, щоб змінити порядок. Перше фото – обкладинка.",
+        /** Screen-reader only, on every pill button (owner-approved 2026-11-12); a move says `dragDrop`. */
+        keyboardHint: "Щоб посунути фото на одне місце, натисніть Alt і стрілку вліво або вправо.",
         infoLabel: "Про фото",
         infoText:
           "Підійде будь-яке фото з телефона чи компʼютера. Великі знімки стискаються ще до відправлення, тож мобільного трафіку піде менше. Місце зйомки та інші приховані дані з фото прибираються автоматично.",
         addTile: "Додати фото",
         addLeft: "Ще {left}",
         addDrop: "можна перетягнути файли сюди",
-        menuLabel: "Дії з фото {n}",
         dragPickUp: "Фото {n} підняте. Позиція {pos} з {total}.",
         dragMove: "Позиція {pos} з {total}.",
-        dragDrop: "Фото {n} на позиції {pos} з {total}.",
+        /** After a drag or an Alt+arrow move (owner-given 2026-11-12): no number that a move just changed. */
+        dragDrop: "Фото тепер на позиції {pos} з {total}.",
         dragCancel: "Переміщення скасовано.",
         preparing: "Фото готується…",
         uploading: "Фото завантажується…",
         uploadingProgress: "Завантаження · {percent} · {sent} з {total} МБ",
         done: "Готово",
-        cover: "Обкладинка",
+        /** The first photo's order chip (owner-given 2026-11-12); the others show the number alone. */
+        coverChip: "{n} · Обкладинка",
         failed: "Не завантажилось",
         dismissFailed: "Прибрати",
         /** The accessible name for `dismissFailed`, his answer: «Прибрати фото, яке не завантажилось». */
         dismissFailedName: "Прибрати фото, яке не завантажилось",
         tileLabel: "Фото {n} з {total}",
-        makeCover: "Зробити обкладинкою",
-        moveEarlier: "Посунути раніше",
-        moveLater: "Посунути пізніше",
-        remove: "Прибрати",
-        capReached: "Це максимум – {max} фото.",
+        /** The tile pill's «×» (owner-given 2026-11-12); its crop button is named by `cropTitle`. */
+        removeLabel: "Прибрати фото {n}",
+        /** In place of the add tile at the cap (owner-given 2026-11-12). */
+        limitNote: "Досягнуто ліміту: {max} фото. Приберіть одне, щоб додати нове.",
         /**
          * Also `PHOTOS_REQUIRED_WHILE_VISIBLE`'s message (his answer: "same
          * key/text"). Only while the shelter's cards are shown (verified, not
@@ -919,7 +920,8 @@ export const uk = {
         lastPhotoKeptNotShown:
           "Картка опублікована, тож одне фото має лишитися – навіть поки її ще не бачать.",
         added: "Фото додано.",
-        removed: "Фото прибрано.",
+        /** The undo toast after «×» (owner-given 2026-11-12); its action is `likes.undo`. */
+        removed: "Фото прибрано",
         reordered: "Порядок змінено.",
         conflict: "Фото змінилися в іншому вікні. Тут – поточний набір, спробуйте ще раз.",
         removedStillReachable:
@@ -928,7 +930,6 @@ export const uk = {
         dateNote:
           "Кожна зміна у фото оновлює дату на картці, і вона знову зʼявляється серед найсвіжіших.",
         /** The crop frame, owner-approved 2026-11-12 (crop-frame shape §10, as proposed). */
-        crop: "Обрізати",
         cropTitle: "Обрізати фото {n}",
         cropHint: "Пересуньте й наблизьте фото, щоб тварина була в рамці.",
         cropAreaLabel: "Рамка кадру. Стрілки зсувають фото.",

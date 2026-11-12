@@ -8,10 +8,8 @@ import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
 import { PhotoSection } from "../animal-form/PhotoSection";
 
 /**
- * The crop frame in the photo manager, behaviour only. react-easy-crop is replaced by a stand-in
- * that does what the dialog relies on: it loads the image, reports the area it shows (centred, as
- * with no drag) for the zoom it is given, and spreads `cropperProps` on its focusable crop area.
- * Every Ukrainian string is the owner-approved text of the crop-frame shape §10, written out here.
+ * The crop frame in the photo manager, behaviour only. react-easy-crop is a stand-in that loads the
+ * image, reports the centred area for its zoom and spreads `cropperProps` on its crop area.
  */
 
 const easyCrop = vi.hoisted(() => ({
@@ -54,13 +52,17 @@ vi.mock("react-easy-crop", () => {
   return { default: FakeCropper };
 });
 
+// Real `animals/` keys (only those are offered a crop); next/image's own loader refuses them here.
+vi.mock("next/image", () => ({
+  default: (props: { src: string; alt: string }) => <img src={props.src} alt={props.alt} />,
+}));
+
 const NOW = new Date("2026-11-12T09:00:00.000Z");
 const ID = "a1000000-0000-4000-8000-000000000001" as KabinetAnimalView["id"];
 const BASE = "https://img.example.test";
-// Root-relative keys: vitest runs next/image with its default loader, not the app's R2 one.
-const KEPT_KEY = "/photos/1.jpg";
-const OLD_KEY = "/photos/2.jpg";
-const CROPPED_KEY = "/photos/1-cropped.jpg";
+const KEPT_KEY = "animals/a1/p1";
+const OLD_KEY = "animals/a1/p2";
+const CROPPED_KEY = "animals/a1/p1-cropped";
 const photo = (storageKey: string) => ({ storageKey, width: 1600, height: 2000, alt: null });
 
 const kept = (storageKey: string): KabinetPhotoCropView => ({
@@ -139,7 +141,11 @@ function setup(
         shelterVisibility="visible"
         client={client}
         onView={setAnimal}
-        reload={async () => setAnimal(await calls.byId())}
+        reload={async () => {
+          const fresh = await calls.byId();
+          setAnimal(fresh);
+          return fresh;
+        }}
       />
     );
   }
@@ -147,19 +153,9 @@ function setup(
   return calls;
 }
 
-const menuTrigger = (n: number) => screen.getByRole("button", { name: `Дії з фото ${n}` });
-const openMenu = async (n: number) => {
-  const trigger = menuTrigger(n);
-  await userEvent.click(trigger);
-  const panel = document.getElementById(trigger.getAttribute("aria-controls") ?? "");
-  if (panel === null) throw new Error(`menu ${n} is open`);
-  return within(panel)
-    .queryAllByRole("button")
-    .map((item) => item.textContent);
-};
+const cropButton = (n: number) => screen.getByRole("button", { name: `Обрізати фото ${n}` });
 const openCrop = async (n: number) => {
-  await userEvent.click(menuTrigger(n));
-  await userEvent.click(screen.getByRole("button", { name: "Обрізати" }));
+  await userEvent.click(cropButton(n));
   return screen.findByRole("dialog", { name: `Обрізати фото ${n}` });
 };
 const cropArea = () =>
@@ -175,35 +171,33 @@ afterEach(() => {
 });
 
 describe("loading", () => {
-  // First in the file: the module registry keeps the chunk once any test has opened a menu.
-  it("the dialog and react-easy-crop are fetched only once a ⋯ menu opens", async () => {
+  // First in the file: the module registry keeps the chunk once any test has fetched it.
+  it("the dialog and react-easy-crop are fetched only once a crop button is pointed at", async () => {
     setup();
     expect(easyCrop.imported).toBe(0);
-    await openMenu(1);
+    fireEvent.pointerEnter(cropButton(1));
     await waitFor(() => expect(easyCrop.imported).toBe(1));
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
 
-describe("«Обрізати» in the ⋯ menu", () => {
-  it("is the first item of every photo's menu, a new upload and an older photo alike", async () => {
+describe("the crop button in the tile pill", () => {
+  it("is the first action of every photo, a new upload and an older photo alike", () => {
     setup();
-    expect((await openMenu(1))[0]).toBe("Обрізати");
-    await userEvent.keyboard("{Escape}");
-    expect((await openMenu(2))[0]).toBe("Обрізати");
+    for (const n of [1, 2]) {
+      const tile = screen.getByRole("group", { name: `Фото ${n} з 2` });
+      expect(within(tile).getAllByRole("button")[0]).toBe(cropButton(n));
+    }
   });
 
-  it("a support view's photo (source withheld) is never offered it", async () => {
+  it("a support view's photo (source withheld) is never offered it", () => {
     setup(view([withheld(KEPT_KEY), withheld(OLD_KEY)]));
-    expect(await openMenu(1)).not.toContain("Обрізати");
-    await userEvent.keyboard("{Escape}");
-    expect(await openMenu(2)).not.toContain("Обрізати");
+    expect(screen.queryByRole("button", { name: /^Обрізати фото/ })).toBeNull();
   });
 
-  it("a read-only form has no ⋯ menu, so nothing to crop", () => {
+  it("a read-only form has no pill, so nothing to crop", () => {
     setup(START, undefined, false);
-    expect(screen.queryByRole("button", { name: /Дії з фото/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Обрізати" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Обрізати фото/ })).toBeNull();
   });
 });
 
@@ -291,13 +285,13 @@ describe("the dialog", () => {
     expect(within(dialog).queryByText(/додане до появи обрізання/)).toBeNull();
   });
 
-  it("«Скасувати» closes it with nothing sent, and focus goes back to that photo's ⋯", async () => {
+  it("«Скасувати» closes it with nothing sent, and focus goes back to that photo's crop button", async () => {
     const calls = setup();
     await openCrop(2);
     await userEvent.click(screen.getByRole("button", { name: "Скасувати" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(calls.crop).not.toHaveBeenCalled();
-    await waitFor(() => expect(document.activeElement).toBe(menuTrigger(2)));
+    await waitFor(() => expect(document.activeElement).toBe(cropButton(2)));
   });
 
   it("a photo that won't load says so, and «Спробувати ще раз» loads it again", async () => {
@@ -318,9 +312,9 @@ describe("the dialog", () => {
 });
 
 describe("saving", () => {
-  it("sends the frame shown, says «Кадр збережено.», and focus returns to the photo's ⋯ under its new key", async () => {
+  it("sends the frame shown, says «Кадр збережено.», and focus returns to its crop button under the new key", async () => {
     const calls = setup();
-    const triggerId = menuTrigger(1).id;
+    const triggerId = cropButton(1).id;
     await openCrop(1);
     await cropArea();
     await userEvent.click(screen.getByRole("button", { name: "Зберегти кадр" }));
@@ -334,10 +328,10 @@ describe("saving", () => {
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByText("Кадр збережено.").getAttribute("role")).toBe("status");
-    // The tile now shows the new key, and its ⋯ kept its id, so focus lands on it.
-    expect(document.querySelector(`img[src*="${encodeURIComponent(CROPPED_KEY)}"]`)).not.toBeNull();
-    await waitFor(() => expect(document.activeElement).toBe(menuTrigger(1)));
-    expect(menuTrigger(1).id).toBe(triggerId);
+    // The tile now shows the new key, and its crop button kept its id, so focus lands on it.
+    expect(document.querySelector(`img[src="${CROPPED_KEY}"]`)).not.toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(cropButton(1)));
+    expect(cropButton(1).id).toBe(triggerId);
   });
 
   it("a zoomed frame is sent as zoomed", async () => {
@@ -404,13 +398,13 @@ describe("saving", () => {
       screen.getByText("Фото змінилися в іншому вікні. Тут – поточний набір, спробуйте ще раз."),
     ).toBeTruthy();
     expect(calls.byId).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(document.activeElement).toBe(menuTrigger(1)));
+    await waitFor(() => expect(document.activeElement).toBe(cropButton(1)));
   });
 });
 
 describe("«Повернути автоматичний кадр»", () => {
   const RESET = "Повернути автоматичний кадр";
-  const AUTO_KEY = "/photos/1-auto.jpg";
+  const AUTO_KEY = "animals/a1/p1-auto";
   const AFTER_RESET = view([kept(AUTO_KEY), older(OLD_KEY)]);
 
   it("is offered only for a photo with a stored frame", async () => {
@@ -424,9 +418,9 @@ describe("«Повернути автоматичний кадр»", () => {
     expect(within(automatic).queryByRole("button", { name: RESET })).toBeNull();
   });
 
-  it("sends the automatic crop, says «Кадр збережено.», and focus returns to the photo's ⋯", async () => {
+  it("sends the automatic crop, says «Кадр збережено.», and focus returns to the photo's crop button", async () => {
     const calls = setup(AFTER_CROP, async () => AFTER_RESET);
-    const triggerId = menuTrigger(1).id;
+    const triggerId = cropButton(1).id;
     const dialog = await openCrop(1);
     await userEvent.click(within(dialog).getByRole("button", { name: RESET }));
     expect(calls.crop.mock.calls[0]?.[0]).toEqual({
@@ -437,8 +431,8 @@ describe("«Повернути автоматичний кадр»", () => {
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByText("Кадр збережено.").getAttribute("role")).toBe("status");
-    await waitFor(() => expect(document.activeElement).toBe(menuTrigger(1)));
-    expect(menuTrigger(1).id).toBe(triggerId);
+    await waitFor(() => expect(document.activeElement).toBe(cropButton(1)));
+    expect(cropButton(1).id).toBe(triggerId);
   });
 
   it("a refusal stays in the dialog and says why", async () => {

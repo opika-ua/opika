@@ -2,12 +2,7 @@
 
 import "../../../zod-client-config";
 import type { KabinetAnimalView } from "@opika/contracts";
-import {
-  isDiscoverable,
-  kyivCalendarDateOf,
-  MAX_ANIMAL_PHOTOS,
-  type PublishGap,
-} from "@opika/domain";
+import { isDiscoverable, kyivCalendarDateOf, type PublishGap } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -19,7 +14,6 @@ import { ErrorSummary } from "../../../ui/ErrorSummary";
 import { FormSection } from "../../../ui/FormSection";
 import { InlineStatus } from "../../../ui/feedback";
 import { Heading } from "../../../ui/Heading";
-import { InfoTip } from "../../../ui/InfoTip";
 import { StickyActionBar } from "../../../ui/StickyActionBar";
 import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
@@ -53,7 +47,6 @@ import { MissingPanel, TAB_LABEL } from "./MissingPanel";
 import { PhotoSection } from "./PhotoSection";
 import { GAP_TAB, GAP_TARGET, gapsOf, tabStatusOf } from "./publish-gaps";
 import { TabLabel } from "./TabLabel";
-import { useFinePointer } from "./use-fine-pointer";
 
 /**
  * K3 · add / edit animal (KABINET K3; `docs/k3-copy-sheet.md`). One form in five tabs (`?tab=`):
@@ -205,7 +198,6 @@ export function AnimalForm({
   const isDraft = listingKind === "new" || listingKind === "draft";
   const problems = [...problemsOf(values, listingKind, now), ...serverProblems];
   const shownProblems = attempted ? problems : problems.filter((p) => touched.has(p.field));
-  const finePointer = useFinePointer();
   const creatable = values.name.trim() !== "" && values.species !== null;
   const dirty = dirtyOf(view, values, initialValuesRef.current);
   const gaps = gapsOf(values, view?.photos.length ?? 0);
@@ -391,16 +383,18 @@ export function AnimalForm({
     return () => window.clearTimeout(timer);
   }, [autosaving, dirty, saveNow, values]);
 
-  const reload = useCallback(async () => {
-    if (view === null) return;
+  const reload = useCallback(async (): Promise<KabinetAnimalView | null> => {
+    if (view === null) return null;
     try {
       const current = await client.shelter.animals.byId({ animalId: view.id });
       setView(current);
       setValues(valuesOf(current, kyivCalendarDateOf(clock())));
       setServerProblems([]);
       setSave({ kind: "idle" });
+      return current;
     } catch {
       setAnnouncement(t.errors.loadFailed);
+      return null;
     }
   }, [client, clock, view]);
 
@@ -568,34 +562,7 @@ export function AnimalForm({
       </FormSection>
     ),
     foto: (
-      <FormSection
-        framing="flush"
-        id="photos"
-        title={t.photos.title}
-        titleless
-        titleExtra={
-          view === null ? undefined : (
-            <>
-              <InfoTip label={t.photos.infoLabel} closeLabel={uk.kabinet.profileEdit.pause.close}>
-                {t.photos.infoText}
-              </InfoTip>
-              <span className="text-body text-ink-2">
-                {fillTemplate(t.photos.counter, {
-                  n: new Intl.NumberFormat("uk").format(view.photos.length),
-                  max: new Intl.NumberFormat("uk").format(MAX_ANIMAL_PHOTOS),
-                })}
-              </span>
-            </>
-          )
-        }
-        description={
-          view === null
-            ? undefined
-            : finePointer
-              ? t.photos.orderHintMouse
-              : t.photos.orderHintTouch
-        }
-      >
+      <FormSection framing="flush" id="photos" title={t.photos.title} titleless>
         {view !== null ? (
           <PhotoSection
             animal={view}
