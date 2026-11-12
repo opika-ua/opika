@@ -59,6 +59,7 @@ export async function setupTestDatabase() {
   await client.unsafe(`
     DROP TABLE IF EXISTS r2_unreferenced_objects CASCADE;
     DROP TABLE IF EXISTS notification_sends CASCADE;
+    DROP TABLE IF EXISTS animal_photo_sources CASCADE;
     DROP TABLE IF EXISTS support_sessions CASCADE;
     DROP TABLE IF EXISTS invitation_created_users CASCADE;
     DROP TABLE IF EXISTS shelter_history CASCADE;

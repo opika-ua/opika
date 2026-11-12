@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { AnimalPhotoSchema } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -417,5 +418,65 @@ describe("every schema field that can hold a photo's storage key is classified (
     ]) {
       expect(entry.why.length).toBeGreaterThan(20);
     }
+  });
+});
+
+/**
+ * Crop frame (shape §5, condition 1): a photo's kept source sits in the public bucket under an
+ * unguessable key, so that key must never reach a public view, an API response or the reveal snapshot.
+ */
+describe("a photo source's object key stays in the owning shelter's kabinet", () => {
+  const DB_SRC = resolve(dirname(fileURLToPath(import.meta.url)), "..", "src");
+  const WEB_SRC = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+    "..",
+    "apps",
+    "web",
+    "src",
+  );
+  const filesUnderSrc = (root: string, pattern: RegExp): string[] =>
+    [...new Set(scan(root, pattern).map((hit) => hit.file))]
+      .map((file) => file.slice(file.indexOf("/src/") + "/src/".length))
+      .sort();
+
+  it("the photo record every public view embeds has no field a source key could ride in", () => {
+    expect(Object.keys(AnimalPhotoSchema.shape).sort()).toEqual([
+      "alt",
+      "height",
+      "storageKey",
+      "width",
+    ]);
+  });
+
+  it("only the kabinet's photo code in packages/db names the sources table; no public read does", () => {
+    // gallery-repo, animal-repo, reveal-repo, mappers and r2-cleanup-repo stay off this list: the
+    // clean-up must never read it either, or a leftover row would keep an object alive.
+    expect(filesUnderSrc(DB_SRC, /\banimalPhotoSources\b|\banimal_photo_sources\b/)).toEqual([
+      "full-reset.ts",
+      "repos/kabinet-animal-repo.ts",
+      "repos/photo-sources-repo.ts",
+      "schema/animal-photo-sources.ts",
+      "schema/index.ts",
+      "test-utils/setup.ts",
+    ]);
+  });
+
+  it("in apps/web only the kabinet's server code reads the sources repository", () => {
+    const outside = scan(WEB_SRC, /\bphotoSourcesRepo\b|\blistForAnimal\b/).filter(
+      (hit) => !hit.file.includes("/src/kabinet/"),
+    );
+    expect(outside).toEqual([]);
+  });
+
+  it("no domain schema, and no contract outside kabinet/, declares a source-key field", () => {
+    const SOURCE_KEY_FIELD = /\b\w*(?:source\w*Key|objectKey)\s*:/i;
+    expect(scan(DOMAIN_ROOT, SOURCE_KEY_FIELD)).toEqual([]);
+    expect(
+      scan(CONTRACTS_ROOT, SOURCE_KEY_FIELD).filter(
+        (hit) => !hit.file.startsWith("contracts/src/kabinet/"),
+      ),
+    ).toEqual([]);
   });
 });

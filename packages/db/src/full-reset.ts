@@ -86,6 +86,8 @@ export const FULL_RESET_TABLES = [
   "r2_unreferenced_objects",
   // References shelters and auth_user, so it has to be in the same TRUNCATE; holds only a send log.
   "notification_sends",
+  // References animals, so it has to be in the same TRUNCATE; its R2 objects go with the variants.
+  "animal_photo_sources",
 ] as const;
 export type FullResetTable = (typeof FULL_RESET_TABLES)[number];
 
