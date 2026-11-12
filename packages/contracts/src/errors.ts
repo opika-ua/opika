@@ -2,6 +2,7 @@ import {
   EvidenceGapSchema,
   LISTING_EVENT_TYPES,
   LISTING_KINDS,
+  PHOTO_FRAME_REJECTION_REASONS,
   PHOTO_REJECTION_REASONS,
   PublishGapSchema,
   REPORT_EVENT_TYPES,
@@ -307,6 +308,16 @@ export const apiErrors = {
     status: 422,
     message: "That file can't be used as a photo.",
     data: z.object({ reason: z.enum(PHOTO_REJECTION_REASONS) }),
+  },
+  /**
+   * A crop frame the server can't cut from this photo (`data.reason`, `frameBoxOf`): not 4:5,
+   * narrower than the minimum, or outside the photo. The cropper keeps to all three, so this
+   * reaches a shelter only from a client that doesn't.
+   */
+  PHOTO_FRAME_REJECTED: {
+    status: 422,
+    message: "That crop frame can't be used for this photo.",
+    data: z.object({ reason: z.enum(PHOTO_FRAME_REJECTION_REASONS) }),
   },
   /** The animal already has the most photos it can have (K-Q11; `data.max`). */
   PHOTO_LIMIT_REACHED: {

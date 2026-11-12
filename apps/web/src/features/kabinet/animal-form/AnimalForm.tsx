@@ -404,7 +404,7 @@ export function AnimalForm({
     }
   }, [client, clock, view]);
 
-  /** A photo write changes the photos, the edit time and (RH-B7) the listing: only those are taken from it. */
+  /** A photo write changes the photos and their crops, the edit time and (RH-B7) the listing: only those are taken from it. */
   const onPhotoView = useCallback((photoView: KabinetAnimalView) => {
     setView((current) =>
       current === null
@@ -412,6 +412,7 @@ export function AnimalForm({
         : ({
             ...current,
             photos: photoView.photos,
+            photoCrops: photoView.photoCrops,
             listing: photoView.listing,
             lastUpdatedAt: photoView.lastUpdatedAt,
           } as KabinetAnimalView),

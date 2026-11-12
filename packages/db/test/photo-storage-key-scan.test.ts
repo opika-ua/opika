@@ -329,6 +329,26 @@ const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
       "(PR 3b's upload), so no live key anywhere today, but a future embedding or " +
       "`logo: true` pick elsewhere no longer passes silently.",
   },
+  {
+    file: "contracts/src/kabinet/views.ts",
+    line: 116,
+    text: "objectKey: z.string().min(1),",
+    kind: "view",
+    why:
+      "PhotoCropSourceViewSchema's kept source (crop frame): the source's R2 object key, read per " +
+      "request from animal_photo_sources for the owning shelter's kabinet only, never a public " +
+      "view. A child of its photo's storage key, so the clean-up's parent-path rule keeps it alive " +
+      "exactly while animals.photos names that key; it adds no reference of its own.",
+  },
+  {
+    file: "contracts/src/kabinet/views.ts",
+    line: 128,
+    text: "storageKey: z.string().min(1),",
+    kind: "view",
+    why:
+      "KabinetPhotoCropViewSchema (crop frame): which photo an entry describes, a per-request echo " +
+      "of a key already in the same view's photos array, never a second stored copy.",
+  },
 ];
 
 /**

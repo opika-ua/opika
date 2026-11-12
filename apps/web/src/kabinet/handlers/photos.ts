@@ -8,12 +8,13 @@ import {
   isDraftAnimal,
   listingAfterPhotoChange,
   MAX_ANIMAL_PHOTOS,
+  type PhotoFraming,
 } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { ShelterWriteScope } from "../access";
 import type { KabinetContext } from "../context";
 import { shelterUploadKey } from "../rate-limits";
-import { actorOf, kabinetAnimalViewOf, type OwnErrors, owned } from "./animals";
+import { actorOf, kabinetAnimalViewFor, type OwnErrors, owned } from "./animals";
 
 export type PhotoDeps = Pick<KabinetContext, "db" | "now" | "newId" | "photoUploads">;
 
@@ -182,7 +183,7 @@ export async function photosAdd(
       if (current.photos.length >= MAX_ANIMAL_PHOTOS) throw limitReached();
       const next = afterPhotoChange(current, [...current.photos, photo], deps.now);
       const result = await writePhotos(deps, scope, current, next);
-      if (result.kind === "ok") return kabinetAnimalViewOf(next);
+      if (result.kind === "ok") return kabinetAnimalViewFor(deps, scope, next);
     }
     throw new Error(`Animal ${animal.id}: lost ${MAX_ATTEMPTS} photo races in a row`);
   } catch (error) {
@@ -215,10 +216,12 @@ async function rewritePhotos(
     const photos = plan(animal);
     // Nothing changed (a reorder into the same order): nothing written, no
     // edit time, no date, no history line, the rule a form save follows.
-    if (sameOrder(keysOf(photos), keysOf(animal.photos))) return kabinetAnimalViewOf(animal);
+    if (sameOrder(keysOf(photos), keysOf(animal.photos))) {
+      return kabinetAnimalViewFor(deps, scope, animal);
+    }
     const next = afterPhotoChange(animal, photos, deps.now);
     const result = await writePhotos(deps, scope, animal, next);
-    if (result.kind === "ok") return kabinetAnimalViewOf(next);
+    if (result.kind === "ok") return kabinetAnimalViewFor(deps, scope, next);
   }
   throw new Error(`Animal ${animalId}: lost ${MAX_ATTEMPTS} photo races in a row`);
 }
@@ -266,4 +269,24 @@ export function photosRemove(
     }
     return next;
   });
+}
+
+/** `shelter.photos.crop`: the contract lands first so the crop dialog can build on it. */
+export async function photosCrop(
+  _deps: PhotoDeps,
+  _scope: ShelterWriteScope,
+  _input: {
+    animalId: AnimalId;
+    expectedPhotoKeys: readonly string[];
+    storageKey: string;
+    framing: PhotoFraming;
+  },
+  errors: CasErrors &
+    ORPCErrorConstructorMap<{
+      RATE_LIMITED: typeof apiErrors.RATE_LIMITED;
+      PHOTO_UPLOADS_UNAVAILABLE: typeof apiErrors.PHOTO_UPLOADS_UNAVAILABLE;
+      PHOTO_FRAME_REJECTED: typeof apiErrors.PHOTO_FRAME_REJECTED;
+    }>,
+): Promise<KabinetAnimalView> {
+  throw errors.PHOTO_UPLOADS_UNAVAILABLE();
 }

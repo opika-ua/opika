@@ -32,6 +32,7 @@ const draftView = {
   age: null,
   description: null,
   photos: [],
+  photoCrops: [],
   temperament: [],
   colour: null,
   medicalNotes: null,

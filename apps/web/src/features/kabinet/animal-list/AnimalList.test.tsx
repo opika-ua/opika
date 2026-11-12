@@ -101,6 +101,7 @@ const viewOf = (from: AnimalRow, listing: KabinetAnimalView["listing"]): Kabinet
     age: from.age,
     description: { uk: "Опис", en: null },
     photos: from.coverPhoto === null ? [] : [from.coverPhoto],
+    photoCrops: [],
     vaccination: { source: "shelter_declared", state: "unknown", declaredAt: NOW },
     spayNeuter: { source: "shelter_declared", state: "unknown", declaredAt: NOW },
     documentReadiness: { kind: "unknown" },

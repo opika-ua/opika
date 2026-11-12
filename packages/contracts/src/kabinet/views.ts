@@ -7,6 +7,9 @@ import {
   FreshnessSchema,
   LISTING_KINDS,
   ListedAnimalSchema,
+  MAX_ANIMAL_PHOTOS,
+  PHOTO_SOURCE_ORIGINS,
+  PhotoFramingSchema,
   PublishGapSchema,
   RegionIdSchema,
   ReportIdSchema,
@@ -88,8 +91,41 @@ const ANIMAL_VIEW_FIELDS = {
   lastUpdatedAt: true,
   version: true,
 } as const;
-export const KabinetDraftAnimalViewSchema = DraftAnimalSchema.pick(ANIMAL_VIEW_FIELDS);
-export const KabinetListedAnimalViewSchema = ListedAnimalSchema.pick(ANIMAL_VIEW_FIELDS);
+/**
+ * What a crop is cut from (crop-frame shape §4). `kept`: the source stored beside the photo, by
+ * its object key, which only the owning shelter's own kabinet receives; `origin: "detail_variant"`
+ * is an older photo's detail variant, so its crop only zooms. `variants_only`: an older photo never
+ * cropped, whose crop starts from `{storageKey}/detail.webp`. `withheld`: a support view, which
+ * never receives a source key (owner's condition 2, crop-frame approvals).
+ */
+export const PhotoCropSourceViewSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("kept"),
+    objectKey: z.string().min(1),
+    origin: z.enum(PHOTO_SOURCE_ORIGINS),
+    width: z.int().positive(),
+    height: z.int().positive(),
+  }),
+  z.object({ kind: z.literal("variants_only") }),
+  z.object({ kind: z.literal("withheld") }),
+]);
+export type PhotoCropSourceView = z.infer<typeof PhotoCropSourceViewSchema>;
+
+/** One entry per photo, in the photos' order: its frame (`attention` if never cropped) and its source. */
+export const KabinetPhotoCropViewSchema = z.object({
+  storageKey: z.string().min(1),
+  framing: PhotoFramingSchema,
+  source: PhotoCropSourceViewSchema,
+});
+export type KabinetPhotoCropView = z.infer<typeof KabinetPhotoCropViewSchema>;
+
+const animalViewExtras = {
+  photoCrops: z.array(KabinetPhotoCropViewSchema).max(MAX_ANIMAL_PHOTOS).readonly(),
+};
+export const KabinetDraftAnimalViewSchema =
+  DraftAnimalSchema.pick(ANIMAL_VIEW_FIELDS).extend(animalViewExtras);
+export const KabinetListedAnimalViewSchema =
+  ListedAnimalSchema.pick(ANIMAL_VIEW_FIELDS).extend(animalViewExtras);
 export const KabinetAnimalViewSchema = z.union([
   KabinetDraftAnimalViewSchema,
   KabinetListedAnimalViewSchema,
