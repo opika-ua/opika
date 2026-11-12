@@ -6,7 +6,6 @@
 export {
   ageBucketLabel,
   ageSpanLabel,
-  ageSpanWords,
   ageWordFor,
   animalFactsParts,
   sexWordFor,

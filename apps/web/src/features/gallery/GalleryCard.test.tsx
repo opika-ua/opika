@@ -73,7 +73,9 @@ describe("GalleryCard age", () => {
         {...NO_CONTEXT}
       />,
     );
-    expect(screen.getByTestId("card-meta").textContent).toContain("≈\u00A03–4 роки");
+    expect(screen.getByTestId("card-meta").textContent).toContain("3–4 роки");
+    // The link's name is its visible text: no «≈» is read out either.
+    expect(screen.getByRole("link").textContent).not.toContain("≈");
     expect(screen.getByTestId("card-meta").textContent).not.toContain("дорослий");
   });
 

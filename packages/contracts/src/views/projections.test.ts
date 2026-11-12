@@ -250,7 +250,6 @@ describe("animal views expose exactly their intended fields", () => {
     for (const ageSpan of [
       null,
       { kind: "under_one" },
-      { kind: "about", years: 2 },
       { kind: "between", from: 3, to: 4 },
       { kind: "at_least", from: 12 },
     ]) {
@@ -258,7 +257,12 @@ describe("animal views expose exactly their intended fields", () => {
       expect(FeedCardViewSchema.parse(input).ageSpan).toEqual(ageSpan);
       expect(AnimalDetailViewSchema.parse(input).ageSpan).toEqual(ageSpan);
     }
-    for (const ageSpan of [{ kind: "about", years: 2.5 }, { kind: "range" }, "≈ 3–4 роки"]) {
+    // A single year count is no span (owner, 2026-11-12: always a range); nor is text.
+    for (const ageSpan of [
+      { kind: "about", years: 2 },
+      { kind: "between", from: 3.5, to: 4 },
+      "3–4 роки",
+    ]) {
       const input = { ...animal, ...derived, ageSpan, primaryPhoto: null, shelter: shelterSummary };
       expect(FeedCardViewSchema.safeParse(input).success, JSON.stringify(ageSpan)).toBe(false);
     }

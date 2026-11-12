@@ -330,14 +330,12 @@ export const en = {
     sexMale: "boy",
     sexFemale: "girl",
     ageUnderOneYear: "under 1 year",
-    ageYears: { one: "{count} year", few: "{count} years", many: "{count} years" },
     ageYearsBetween: {
       one: "{from}–{count} years",
       few: "{from}–{count} years",
       many: "{from}–{count} years",
     },
     ageYearsAtLeast: "{from}+ years",
-    ageApprox: "≈\u00A0{age}",
   },
 
   // --- The pet card's temperament (English drafts; see the uk keys) ---

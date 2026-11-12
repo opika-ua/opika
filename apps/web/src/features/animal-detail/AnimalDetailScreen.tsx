@@ -55,7 +55,7 @@ interface AnimalDetailScreenProps {
  * never fetches neighbours, and shows no back-link row (owner decision B).
  *
  * Deviations from the Figma frame (full list in the pet card PR 5 body): the meta line shows a
- * declared range's span («≈ 3–4 роки»), else the age bucket, not "N років"; the freshness tag reuses
+ * declared range's span («3–4 роки»), else the age bucket, not "N років"; the freshness tag reuses
  * `freshnessLabel` verbatim, without the mock's colon.
  */
 export function AnimalDetailScreen({

@@ -123,12 +123,19 @@ describe("the meta line: [species] · sex · age · size (UX-2)", () => {
   it("a declared range reads as its span today, aged from its date (owner, 2026-11-12)", () => {
     const declared = { kind: "declared_range", range: "1_2", declaredAt: new Date("2025-09-01") };
     expect(metaLineOf(row({ age: declared } as Partial<AnimalRow>), NOW)).toBe(
-      "Собака · хлопчик · ≈\u00A02–3 роки · середній",
+      "Собака · хлопчик · 2–3 роки · середній",
     );
     const open = { kind: "declared_range", range: "10_plus", declaredAt: new Date("2026-09-01") };
     expect(metaLineOf(row({ age: open } as Partial<AnimalRow>), NOW)).toBe(
       "Собака · хлопчик · 10+ років · середній",
     );
+    // Under a year in its first year, then a range: «1–2 роки» a year on.
+    const young = (declaredAt: string) =>
+      row({
+        age: { kind: "declared_range", range: "under_1", declaredAt: new Date(declaredAt) },
+      } as Partial<AnimalRow>);
+    expect(metaLineOf(young("2026-09-01"), NOW)).toBe("Собака · хлопчик · до 1 року · середній");
+    expect(metaLineOf(young("2025-09-01"), NOW)).toBe("Собака · хлопчик · 1–2 роки · середній");
   });
 
   it("a birth date and a stored bucket keep the bucket word, exactly as before", () => {

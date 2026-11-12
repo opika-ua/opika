@@ -85,8 +85,7 @@ export type AgeEstimate = z.infer<typeof AgeEstimateSchema>;
  */
 export const AgeSpanSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("under_one") }),
-  z.object({ kind: z.literal("about"), years: z.int().min(1) }),
-  z.object({ kind: z.literal("between"), from: z.int().min(0), to: z.int().min(1) }),
+  z.object({ kind: z.literal("between"), from: z.int().min(1), to: z.int().min(2) }),
   z.object({ kind: z.literal("at_least"), from: z.int().min(0) }),
 ]);
 export type AgeSpan = z.infer<typeof AgeSpanSchema>;
@@ -168,15 +167,15 @@ export const ageBucketOf = (estimate: AgeEstimate, now: Date): AgeBucket =>
   bucketForYears(elapsedYears(ageAnchorOf(estimate), now));
 
 /**
- * A range declared `wholeYearsSince` whole years ago, aged by that many years.
- * A one-year range (under_1) stays one number as it ages: «до 1 року», then 1, 2, …
+ * A range declared `wholeYearsSince` whole years ago, aged by that many years. Always a
+ * range (owner, 2026-11-12): under_1 reads «до 1 року» in its first year, then n to n + 1.
  */
 export const declaredRangeSpan = (range: DeclaredAgeRange, wholeYearsSince: number): AgeSpan => {
   const { min, max } = DECLARED_AGE_RANGE_YEARS[range];
   const from = min + wholeYearsSince;
   if (max === null) return { kind: "at_least", from };
-  if (max === min) return from === 0 ? { kind: "under_one" } : { kind: "about", years: from };
-  return { kind: "between", from, to: max + wholeYearsSince };
+  if (from === 0) return { kind: "under_one" };
+  return { kind: "between", from, to: max === min ? from + 1 : max + wholeYearsSince };
 };
 
 /**

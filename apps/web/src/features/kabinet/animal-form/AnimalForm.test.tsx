@@ -528,7 +528,7 @@ describe("a draft saves itself (T6)", () => {
     await user.click(
       within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText("3–4 роки"),
     );
-    expect(screen.getByText("Ті, хто шукає тварину, побачать: «≈ 3–4 роки».")).toBeTruthy();
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «3–4 роки».")).toBeTruthy();
   });
 
   // AW-F5. The age words are his Q9 copy (#125), transcribed from his answer,
@@ -1755,7 +1755,7 @@ describe("a listed animal saves only when asked (T8)", () => {
 
 /**
  * Age as a declared range (owner, 2026-11-12): six radio chips under «Вік на ту дату», labelled
- * with his S1/S3/S4 words without «≈»; a stored bucket keeps its own chip (his answer 5).
+ * with his S1/S3/S4 words, no «≈» anywhere; a stored bucket keeps its own chip (his answer 5).
  */
 describe("age as a declared range", () => {
   const ageGroup = () => within(screen.getByRole("group", { name: "Вік на ту дату" }));
@@ -1785,20 +1785,21 @@ describe("age as a declared range", () => {
     renderForm(draft());
     await user.click(ageGroup().getByLabelText("3–4 роки"));
     fireEvent.change(screen.getByLabelText("Станом на"), { target: { value: "2024-09-01" } });
-    const line = screen.getByText("Ті, хто шукає тварину, побачать: «≈ 5–6 років».");
-    // A no-break space after «≈», so the sign never ends a line on its own.
-    expect(line.textContent).toContain("«≈\u00A05–6 років»");
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «5–6 років».")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Станом на"), { target: { value: "2026-10-17" } });
-    expect(screen.getByText("Ті, хто шукає тварину, побачать: «≈ 3–4 роки».")).toBeTruthy();
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «3–4 роки».")).toBeTruthy();
   });
 
-  it("the open end and «до 1 року» are quoted without «≈»", async () => {
+  it("the open end, and «до 1 року» growing into a range a year on", async () => {
     const user = userEvent.setup();
     renderForm(draft());
     await user.click(ageGroup().getByLabelText("10+ років"));
     expect(screen.getByText("Ті, хто шукає тварину, побачать: «10+ років».")).toBeTruthy();
     await user.click(ageGroup().getByLabelText("до 1 року"));
     expect(screen.getByText("Ті, хто шукає тварину, побачать: «до 1 року».")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Станом на"), { target: { value: "2025-09-01" } });
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «1–2 роки».")).toBeTruthy();
+    expect(document.body.textContent).not.toContain("≈");
   });
 
   it("a stored bucket is a seventh chip under its own label, checked; an untouched save sends no age, a picked range replaces it", async () => {
@@ -1818,7 +1819,7 @@ describe("age as a declared range", () => {
     expect(client.calls.update.mock.calls.at(-1)?.[0].patch).toEqual({
       age: { kind: "declared_range", range: "1_2", asOf: "2026-09-01" },
     });
-    expect(screen.getByText("Ті, хто шукає тварину, побачать: «≈ 1–2 роки».")).toBeTruthy();
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «1–2 роки».")).toBeTruthy();
   });
 
   it("a stored range loads checked with its date, and re-saving it sends no age", async () => {
@@ -1831,7 +1832,7 @@ describe("age as a declared range", () => {
     expect(checked("3–4 роки")).toBe(true);
     expect(ageGroup().getAllByRole("radio")).toHaveLength(6);
     expect((screen.getByLabelText("Станом на") as HTMLInputElement).value).toBe("2026-09-01");
-    expect(screen.getByText("Ті, хто шукає тварину, побачать: «≈ 3–4 роки».")).toBeTruthy();
+    expect(screen.getByText("Ті, хто шукає тварину, побачать: «3–4 роки».")).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
     await user.click(screen.getByRole("button", { name: "Зберегти" }));
     expect(client.calls.update.mock.calls.at(-1)?.[0].patch).toEqual({

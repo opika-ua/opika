@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   ageBucketLabel,
   ageSpanLabel,
-  ageSpanWords,
   ageWordFor,
   animalFactsParts,
   sexWordFor,
@@ -109,48 +108,42 @@ describe("animalFactsParts", () => {
 });
 
 /**
- * Age as a declared range (Oleksii, 2026-11-12, S1–S5 and answer 7), transcribed, never read
- * from the catalogue. «≈» is followed by a no-break space (U+00A0); a range takes an en dash.
- * The noun agrees with the upper number: the 1, 2, 5, 11, 21, 22 plural boundaries.
+ * Age as a declared range (Oleksii, 2026-11-12: S1, S3, S4; no «≈», always a range), his words
+ * transcribed, never read from the catalogue. The noun agrees with the upper number: the 1, 2,
+ * 5, 11, 21, 22 plural boundaries; a range takes an en dash (U+2013).
  */
 describe("a declared range's words", () => {
-  const NBSP = "\u00A0";
-
   it.each([
-    [1, `≈${NBSP}1 рік`],
-    [2, `≈${NBSP}2 роки`],
-    [5, `≈${NBSP}5 років`],
-    [11, `≈${NBSP}11 років`],
-    [21, `≈${NBSP}21 рік`],
-    [22, `≈${NBSP}22 роки`],
-  ])("about %i → «%s»", (years, text) => {
-    expect(ageSpanLabel({ kind: "about", years })).toBe(text);
-  });
-
-  it.each([
-    [1, 2, `≈${NBSP}1–2 роки`],
-    [4, 5, `≈${NBSP}4–5 років`],
-    [9, 11, `≈${NBSP}9–11 років`],
-    [19, 21, `≈${NBSP}19–21 рік`],
-    [21, 22, `≈${NBSP}21–22 роки`],
+    [1, 2, "1–2 роки"],
+    [2, 3, "2–3 роки"],
+    [4, 5, "4–5 років"],
+    [9, 11, "9–11 років"],
+    [10, 11, "10–11 років"],
+    [20, 21, "20–21 рік"],
+    [19, 21, "19–21 рік"],
+    [21, 22, "21–22 роки"],
   ])("between %i and %i → «%s»", (from, to, text) => {
     expect(ageSpanLabel({ kind: "between", from, to })).toBe(text);
   });
 
-  it("the open end and «до 1 року» carry no «≈» (his answer 7)", () => {
+  it("the open end and the first year", () => {
     expect(ageSpanLabel({ kind: "at_least", from: 10 })).toBe("10+ років");
     expect(ageSpanLabel({ kind: "at_least", from: 12 })).toBe("12+ років");
     expect(ageSpanLabel({ kind: "at_least", from: 21 })).toBe("21+ років");
     expect(ageSpanLabel({ kind: "under_one" })).toBe("до 1 року");
   });
 
-  it("every range is joined by an en dash (U+2013), never a hyphen or an em dash", () => {
-    const text = ageSpanLabel({ kind: "between", from: 3, to: 4 });
-    expect(text).toContain("3–4");
-    expect(text).not.toMatch(/[-\u2014]/);
+  it("no «≈», no no-break space, and an en dash, never a hyphen or an em dash", () => {
+    const spans: AgeSpan[] = [
+      { kind: "under_one" },
+      { kind: "between", from: 3, to: 4 },
+      { kind: "at_least", from: 10 },
+    ];
+    for (const span of spans) expect(ageSpanLabel(span)).not.toMatch(/[\u2248\u00A0\u2014-]/);
+    expect(ageSpanLabel({ kind: "between", from: 3, to: 4 })).toContain("3\u20134");
   });
 
-  it("K3's six chips are the declared spans without «≈»", () => {
+  it("K3's six chips are the declared spans at the declared date", () => {
     const chips: AgeSpan[] = [
       { kind: "under_one" },
       { kind: "between", from: 1, to: 2 },
@@ -159,7 +152,7 @@ describe("a declared range's words", () => {
       { kind: "between", from: 8, to: 10 },
       { kind: "at_least", from: 10 },
     ];
-    expect(chips.map(ageSpanWords)).toEqual([
+    expect(chips.map(ageSpanLabel)).toEqual([
       "до 1 року",
       "1–2 роки",
       "3–4 роки",
@@ -175,7 +168,7 @@ describe("a declared range's words", () => {
       animalFactsParts({ sex: "male", ageBucket: "adult", ageSpan: between, size: "small" }).join(
         " · ",
       ),
-    ).toBe(`Хлопчик · ≈${NBSP}3–4 роки · малий`);
+    ).toBe("Хлопчик · 3–4 роки · малий");
     expect(
       animalFactsParts({
         sex: "unknown",

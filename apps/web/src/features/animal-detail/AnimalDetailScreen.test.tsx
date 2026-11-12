@@ -335,8 +335,8 @@ describe("AnimalDetailScreen meta line, by sex", () => {
 
   /**
    * A declared range (owner, 2026-11-12, answer 6): the chip shows the span and still links to
-   * the bucket the filter puts it in; the meta line shows the same span. The overlay renders this
-   * same screen.
+   * the bucket the filter puts it in; the meta line shows the same span, with no «≈». The overlay
+   * renders this same screen.
    */
   it("a declared range: the age chip reads its span and links to the mapped bucket", async () => {
     await renderAnimal({
@@ -344,19 +344,20 @@ describe("AnimalDetailScreen meta line, by sex", () => {
       ageBucket: "adult",
       ageSpan: { kind: "between", from: 3, to: 4 },
     });
-    const chip = screen.getByRole("link", { name: "≈\u00A03–4 роки: показати схожих котів" });
-    expect(chip.textContent).toBe("≈\u00A03–4 роки");
+    const chip = screen.getByRole("link", { name: "3–4 роки: показати схожих котів" });
+    expect(chip.textContent).toBe("3–4 роки");
     expect(new URL(chip.getAttribute("href") ?? "", "http://x").searchParams.get("vik")).toBe(
       "adult",
     );
     const parts = Array.from(
       document.querySelector(".meta-line")?.querySelectorAll(".meta-part") ?? [],
     ).map((part) => part.textContent);
-    expect(parts).toEqual(["Кіт", "дівчинка", "≈\u00A03–4 роки", "мала"]);
+    expect(parts).toEqual(["Кіт", "дівчинка", "3–4 роки", "мала"]);
     expect(screen.queryByText("Доросла")).toBeNull();
+    expect(document.body.textContent).not.toContain("≈");
   });
 
-  it("the open end and «до 1 року» carry no «≈», on the chip and in the meta line", async () => {
+  it("the open end and the first year, on the chip", async () => {
     await renderAnimal({ ageBucket: "senior", ageSpan: { kind: "at_least", from: 12 } });
     expect(screen.getByRole("link", { name: "12+ років: показати схожих котів" }).textContent).toBe(
       "12+ років",

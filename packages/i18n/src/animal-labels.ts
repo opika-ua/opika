@@ -58,15 +58,11 @@ export function ageWordFor(bucket: AgeBucket, sex: AnimalSex): string {
 
 const integer = new Intl.NumberFormat("uk");
 
-/** A declared range's words without «≈»: «до 1 року», «3–4 роки», «10+ років» (K3's chips). */
-export function ageSpanWords(span: AgeSpan): string {
+/** A declared range as every surface prints it: «до 1 року», «3–4 роки», «10+ років». */
+export function ageSpanLabel(span: AgeSpan): string {
   switch (span.kind) {
     case "under_one":
       return uk.cardMeta.ageUnderOneYear;
-    case "about":
-      return fillTemplate(pluralizeUk(span.years, uk.cardMeta.ageYears), {
-        count: integer.format(span.years),
-      });
     case "between":
       return fillTemplate(pluralizeUk(span.to, uk.cardMeta.ageYearsBetween), {
         from: integer.format(span.from),
@@ -80,14 +76,6 @@ export function ageSpanWords(span: AgeSpan): string {
       return unreachable;
     }
   }
-}
-
-/** One animal's declared age as the card and page print it: «≈ 3–4 роки», «≈ 2 роки», «10+ років», «до 1 року». */
-export function ageSpanLabel(span: AgeSpan): string {
-  const words = ageSpanWords(span);
-  return span.kind === "about" || span.kind === "between"
-    ? fillTemplate(uk.cardMeta.ageApprox, { age: words })
-    : words;
 }
 
 const SPECIES_WORD_LABELS: Record<AnimalSpecies, string> = {

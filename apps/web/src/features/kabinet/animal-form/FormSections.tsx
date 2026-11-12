@@ -35,7 +35,6 @@ import {
 } from "@opika/domain";
 import {
   ageSpanLabel,
-  ageSpanWords,
   ageWordFor,
   colourFilterLabel,
   fillTemplate,
@@ -341,7 +340,7 @@ export function BasicsFields({
                   checked={values.range === range}
                   onChange={() => set({ range })}
                 >
-                  {ageSpanWords(declaredRangeSpan(range, 0))}
+                  {ageSpanLabel(declaredRangeSpan(range, 0))}
                 </Chip>
               ))}
               {values.legacyBucket !== null ? (

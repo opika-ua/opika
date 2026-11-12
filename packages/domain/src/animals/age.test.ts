@@ -296,8 +296,9 @@ describe("declaredAtOfCalendarDate (a bucket declared «станом на» toda
 
 /**
  * Age as a declared range (owner, 2026-11-12): six ranges, aged in whole
- * 365.2425-day years from the declared date. The table is the approved
- * shape's §1, transcribed: the span and the filter bucket after n whole years.
+ * 365.2425-day years from the declared date, always shown as a range. The table
+ * is the shape's §1 with his later rule for under_1 («до 1 року», then n–n+1):
+ * the span and the filter bucket after n whole years.
  */
 describe("declared ranges", () => {
   const YEAR_MS = 365.2425 * 86_400_000;
@@ -331,9 +332,9 @@ describe("declared ranges", () => {
 
   const TABLE: ReadonlyArray<[DeclaredAgeRange, number, AgeSpan, AgeBucket]> = [
     ["under_1", 0, { kind: "under_one" }, "baby"],
-    ["under_1", 1, { kind: "about", years: 1 }, "young"],
-    ["under_1", 2, { kind: "about", years: 2 }, "young"],
-    ["under_1", 5, { kind: "about", years: 5 }, "adult"],
+    ["under_1", 1, { kind: "between", from: 1, to: 2 }, "young"],
+    ["under_1", 2, { kind: "between", from: 2, to: 3 }, "young"],
+    ["under_1", 5, { kind: "between", from: 5, to: 6 }, "adult"],
     ["1_2", 0, { kind: "between", from: 1, to: 2 }, "young"],
     ["1_2", 1, { kind: "between", from: 2, to: 3 }, "young"],
     ["1_2", 2, { kind: "between", from: 3, to: 4 }, "adult"],
@@ -380,7 +381,15 @@ describe("declared ranges", () => {
   describe("the tick: one ms before, and exactly at, k × 365.2425 days", () => {
     const cases: ReadonlyArray<[DeclaredAgeRange, number, AgeSpan, AgeSpan, AgeBucket, AgeBucket]> =
       [
-        ["under_1", 1, { kind: "under_one" }, { kind: "about", years: 1 }, "baby", "young"],
+        ["under_1", 1, { kind: "under_one" }, { kind: "between", from: 1, to: 2 }, "baby", "young"],
+        [
+          "under_1",
+          2,
+          { kind: "between", from: 1, to: 2 },
+          { kind: "between", from: 2, to: 3 },
+          "young",
+          "young",
+        ],
         [
           "1_2",
           2,
@@ -449,8 +458,6 @@ describe("declared ranges", () => {
     switch (span.kind) {
       case "under_one":
         return 0;
-      case "about":
-        return span.years;
       case "between":
       case "at_least":
         return span.from;
@@ -476,6 +483,18 @@ describe("declared ranges", () => {
           expect(BUCKET_ORDER[bucket]).toBeGreaterThanOrEqual(previous);
           previous = BUCKET_ORDER[bucket];
         }
+      }
+    }
+  });
+
+  it("stays a range as it ages: only under_1's first year is «до 1 року», and from < to always", () => {
+    for (const r of DECLARED_AGE_RANGES) {
+      for (let n = 0; n <= 40; n += 1) {
+        const span = ageSpanOf(range(r), after(n + 0.5));
+        if (r === "under_1" && n === 0) expect(span).toEqual({ kind: "under_one" });
+        else if (r === "10_plus") expect(span).toEqual({ kind: "at_least", from: 10 + n });
+        else if (span?.kind !== "between") throw new Error(`${r} at ${n}: ${JSON.stringify(span)}`);
+        else expect(span.to, `${r} at ${n}`).toBeGreaterThan(span.from);
       }
     }
   });

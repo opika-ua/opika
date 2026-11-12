@@ -79,12 +79,12 @@ describe("cardFactsParts", () => {
     expect(cardFactsParts(card)).toEqual(["Дорослий", "великий"]);
   });
 
-  it("a declared range's span takes the age slot: «≈ 3–4 роки», «10+ років», «До 1 року»", () => {
+  it("a declared range's span takes the age slot: «3–4 роки», «10+ років», «До 1 року»", () => {
     expect(
       cardFactsParts(
         makeCard({ ageBucket: "adult", ageSpan: { kind: "between", from: 3, to: 4 } }),
       ),
-    ).toEqual(["Хлопчик", "≈\u00A03–4 роки", "малий"]);
+    ).toEqual(["Хлопчик", "3–4 роки", "малий"]);
     expect(
       cardFactsParts(makeCard({ ageBucket: "senior", ageSpan: { kind: "at_least", from: 10 } })),
     ).toEqual(["Хлопчик", "10+ років", "малий"]);
