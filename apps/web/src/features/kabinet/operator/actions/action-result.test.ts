@@ -28,6 +28,11 @@ describe("actionFailureOf", () => {
       err("INVALID_EVIDENCE", { reason: "site_visit_in_future" }),
       { kind: "invalid_evidence", reason: "site_visit_in_future" },
     ],
+    [
+      err("DONATION_LINK_REFUSED", { problem: "checkout_session" }),
+      { kind: "donation_link_refused", problem: "checkout_session" },
+    ],
+    [err("DONATION_LINK_REFUSED", { problem: "nonsense" }), { kind: "failed" }],
     // RUI4-F2: the input check's 400 for the display name's cap, and any other 400.
     [
       err("BAD_REQUEST", {
@@ -90,6 +95,7 @@ describe("staleAfter: which refusals mean the page is out of date", () => {
     expect(staleAfter({ kind: "invalid_evidence", reason: "site_visit_in_future" })).toBe(false);
     expect(staleAfter({ kind: "name_too_long" })).toBe(false);
     expect(staleAfter({ kind: "description_too_long" })).toBe(false);
+    expect(staleAfter({ kind: "donation_link_refused", problem: "checkout_session" })).toBe(false);
     for (const reason of ["evidence_below_minimum", "note_required", "limit_reached"] as const) {
       expect(staleAfter({ kind: "early_listing_refused", reason }), reason).toBe(false);
     }
