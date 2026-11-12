@@ -662,16 +662,44 @@ describe("the donation link (N20)", () => {
       "https://send.m\u043enobank.ua/jar",
       "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
     ],
+    // A LiqPay checkout session: made-up timestamp and token in the real shape.
+    ...[
+      "https://www.liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42",
+      "https://liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42",
+      "https://WWW.LIQPAY.UA/UK/CHECKOUT/CARD/CHECKOUT_1700000000000_TESTTOKEN42",
+    ].map((url) => [
+      url,
+      "Це одноразова сторінка оплати, вона перестане працювати. Додайте постійне посилання: сторінку збору на вашому сайті або банку в monobank.",
+    ]),
   ])("refuses %s before sending, as the server would", async (url, message) => {
     const fns = renderEditor();
     const d = within(donation());
     await userEvent.clear(field());
     await userEvent.type(field(), url);
     expect(d.queryByText("send.monobank.ua ↗")).toBeNull();
+    expect(d.queryByText(/liqpay\.ua ↗/i)).toBeNull();
     await userEvent.click(d.getByRole("button", { name: "Надіслати на перевірку" }));
     expect(d.getByText(message)).toBeTruthy();
+    // On the field: it is invalid and its description is the message.
+    const description = (field().getAttribute("aria-describedby") ?? "")
+      .split(" ")
+      .map((id) => document.getElementById(id)?.textContent ?? "");
+    expect(field().getAttribute("aria-invalid")).toBe("true");
+    expect(description).toContain(message);
     expect(fns.proposeDonation).not.toHaveBeenCalled();
   });
+
+  it.each(["https://www.liqpay.ua/uk/checkout/domivka", "https://send.monobank.ua/jar/TestJar42"])(
+    "sends %s, a page that stays",
+    async (url) => {
+      const fns = renderEditor();
+      const d = within(donation());
+      await userEvent.clear(field());
+      await userEvent.type(field(), url);
+      await userEvent.click(d.getByRole("button", { name: "Надіслати на перевірку" }));
+      expect(fns.proposeDonation).toHaveBeenCalledExactlyOnceWith({ url });
+    },
+  );
 
   it("promises the preview only for a shelter people can already see", async () => {
     const unverified = baseView({

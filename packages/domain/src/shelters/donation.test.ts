@@ -88,6 +88,29 @@ describe("donationUrlProblemOf", () => {
     expect(DonationProposalUrlSchema.safeParse(url).success).toBe(false);
   });
 
+  // Made-up timestamp and token in the real shape: never a shelter's own session URL (public repo).
+  it.each([
+    ["https://www.liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42"],
+    ["https://liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42"],
+    ["HTTPS://WWW.LIQPAY.UA/UK/CHECKOUT/CARD/CHECKOUT_1700000000000_TESTTOKEN42"],
+    ["https://www.liqpay.ua/checkout/card/checkout_1700000000000_test_token-42/?lang=uk#pay"],
+  ])("refuses a LiqPay checkout session: %s", (url) => {
+    expect(donationUrlProblemOf(url)).toBe("checkout_session");
+    expect(DonationProposalUrlSchema.safeParse(url).success).toBe(false);
+  });
+
+  it.each([
+    ["https://www.liqpay.ua/api/3/checkout?data=x&signature=y"],
+    ["https://www.liqpay.ua/uk/checkout/domivka"],
+    ["https://www.liqpay.ua/uk/checkout/card/checkout_without_timestamp"],
+    ["https://send.monobank.ua/jar/TestJar42"],
+    // The segment alone is not LiqPay's: another host's page is the shelter's own business.
+    ["https://example.org/checkout/card/checkout_1700000000000_TestToken42"],
+  ])("accepts any other LiqPay page, and other hosts: %s", (url) => {
+    expect(donationUrlProblemOf(url)).toBeNull();
+    expect(DonationProposalUrlSchema.safeParse(url).success).toBe(true);
+  });
+
   it("does not take a non-ASCII path or query for a host", () => {
     expect(donationUrlProblemOf("https://example.org/притулок")).toBeNull();
   });

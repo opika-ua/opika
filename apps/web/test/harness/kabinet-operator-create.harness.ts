@@ -24,6 +24,7 @@ import { authUser, cities, superAdmins } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { type BrowserContext, expect, test } from "@playwright/test";
 import { HARNESS_LOCATION_HMAC_SECRET } from "../harness-env";
+import { fillDateField } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.41";
@@ -135,7 +136,7 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
     await page.getByLabel("Тип доказу").selectOption({ label: "Відеодзвінок" });
     await page.getByRole("button", { name: "+ Додати доказ" }).click();
     const visit = page.getByRole("group", { name: "Відеодзвінок" });
-    await visit.getByLabel("Дата дзвінка").fill(kyivDateDaysAgo(1));
+    await fillDateField(visit, "Дата дзвінка", kyivDateDaysAgo(1));
     await visit.getByLabel("Нотатка").fill("Оглянув вольєри, журнал прийому ведеться.");
 
     for (const [n, phone] of [

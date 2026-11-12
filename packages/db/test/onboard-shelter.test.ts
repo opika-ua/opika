@@ -324,6 +324,18 @@ describe("OnboardInputSchema's text rules", () => {
   it.each([["male"], ["female"]])("accepts an animal with sex %s", (sex) => {
     expect(parse({}, { sex }).success).toBe(true);
   });
+
+  // The link goes live with no operator step after it, so a proposal's rules apply. Made-up values.
+  it("refuses a LiqPay checkout session as the donation link and takes a monobank jar", () => {
+    const donation = (url: string, provider: string) => parse({ donation: { url, provider } });
+    const session = "https://www.liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42";
+    const refused = donation(session, "liqpay");
+    expect(refused.success).toBe(false);
+    expect(refused.error?.issues.map((issue) => issue.message)).toEqual([
+      "donation_checkout_session",
+    ]);
+    expect(donation("https://send.monobank.ua/jar/TestJar42", "monobank_jar").success).toBe(true);
+  });
 });
 
 /** Owner, 2026-11-12: the operator's create path takes a range too, as K3 now asks. */

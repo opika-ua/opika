@@ -404,6 +404,9 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
       "У посиланні не має бути імені чи пароля перед адресою сайту (як у https://імʼя@сайт). Скопіюйте адресу з рядка браузера.",
     "profileEdit.errors.donationIdn":
       "Адреси з кириличними літерами (і такі, що починаються з «xn--») не приймаються. Вкажіть сторінку збору на сервісі з латинською адресою, наприклад monobank.",
+    // Owner-approved 2026-11-12 (LiqPay checkout sessions: PR #487's copy table).
+    "profileEdit.errors.donationCheckoutSession":
+      "Це одноразова сторінка оплати, вона перестане працювати. Додайте постійне посилання: сторінку збору на вашому сайті або банку в monobank.",
     // Owner-approved 2026-11-10 (contact kinds Instagram and Facebook; facebookFormat with his «в» fix).
     "profileEdit.errors.instagramFormat":
       "Нікнейм в Instagram: до 30 латинських літер, цифр, крапок або підкреслень. Можна вставити посилання на профіль.",
@@ -1008,12 +1011,28 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.laterHint": "Можна заповнити пізніше. Без цього притулок не схвалити.",
     notFilledYet: "Ще не заповнено",
   };
+  /**
+   * Owner-approved 2026-11-12 (the date-field PR): a registration date can no longer be typed
+   * past today, so it has its own refusal, on the pattern of `siteVisitInFuture`.
+   */
+  const DATE_FIELD_OPERATOR_COPY: Record<string, string> = {
+    "operator.create.errors.registeredAtFuture": "Дата реєстрації не може бути в майбутньому.",
+  };
   /** Owner-given 2026-11-10 (the locked-block edit forms and the donation-approve hint). */
   const VERIFIED_DATA_EDIT_COPY: Record<string, string> = {
     "operator.shelter.edit": "Змінити",
     "operator.donation.approveHint": "Перевірте, що власник рахунку збігається з організацією",
     "operator.donation.approveHintInitiative":
       "Перевірте, що власник рахунку – контактна особа ініціативи",
+  };
+  /** Owner-approved 2026-11-12 (LiqPay checkout sessions: PR #487's copy table). */
+  const LIQPAY_SESSION_OPERATOR_COPY: Record<string, string> = {
+    "operator.donation.cannotApprove.userinfo":
+      "Схвалити не можна: у посиланні є імʼя чи пароль перед адресою сайту.",
+    "operator.donation.cannotApprove.idn":
+      "Схвалити не можна: в адресі сайту є кириличні літери або «xn--».",
+    "operator.donation.cannotApprove.checkout_session":
+      "Схвалити не можна: це одноразова сторінка оплати LiqPay, вона перестане працювати.",
   };
   /** Owner-approved 2026-11-06 (donation link safety: copy table N1–N14, N18, and the approvals file). */
   const DONATION_SAFETY_OPERATOR_COPY: Record<string, string> = {
@@ -1093,8 +1112,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(SITTING2_FOLLOWUP_COPY),
         ...Object.keys(EARLY_LISTING_OPERATOR_COPY),
         ...Object.keys(DONATION_SAFETY_OPERATOR_COPY),
+        ...Object.keys(LIQPAY_SESSION_OPERATOR_COPY),
         ...Object.keys(VERIFIED_DATA_EDIT_COPY),
         ...Object.keys(MINIMAL_CREATE_COPY).filter((path) => path.startsWith("operator.")),
+        ...Object.keys(DATE_FIELD_OPERATOR_COPY),
       ].sort(),
     );
   });
@@ -1130,6 +1151,20 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   it.each(Object.entries(VERIFIED_DATA_EDIT_COPY))("%s is the owner-given text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
+
+  it.each(Object.entries(DATE_FIELD_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
+
+  it.each(Object.entries(LIQPAY_SESSION_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
 
   it("the initiative hint's English text is the owner's, with his apostrophe (U+2019)", () => {
     expect(en.kabinet.operator.donation.approveHintInitiative).toBe(
@@ -1206,6 +1241,32 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     expect(offending).toEqual([]);
     // Sanity: the letter-apostrophe is really there.
     expect(uk.kabinet.operator.evidence.field.channel).toContain(String.fromCodePoint(0x2bc));
+  });
+});
+
+/**
+ * The kit's `DateField` on every kabinet date: the parts' labels and a typed date's two
+ * refusals, owner-approved 2026-11-12 as proposed (the date-field PR; the month select's blank
+ * first option too, so no placeholder string). Exactly these keys.
+ */
+describe("kabinet date field copy (owner-approved, 2026-11-12)", () => {
+  const DATE_FIELD_COPY = {
+    day: "День",
+    month: "Місяць",
+    year: "Рік",
+    incomplete: "Вкажіть повну дату: день, місяць і рік.",
+    noSuchDate: "Такої дати в календарі немає.",
+  };
+
+  it("holds exactly his approved strings", () => {
+    expect(uk.kabinet.dateField).toEqual(DATE_FIELD_COPY);
+  });
+
+  it("nothing is pending, and no U+0027 or U+2019 apostrophe is in it", () => {
+    for (const [key, text] of Object.entries(uk.kabinet.dateField)) {
+      expect(text, key).not.toContain(COPY_PENDING);
+      expect(text, key).not.toMatch(/['’]/);
+    }
   });
 });
 
@@ -1604,8 +1665,8 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
     // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
-    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field; 103 with the channel cap's message; 94 since the shelter description replaced the sentence editor (five error messages and six voice strings went, aboutTooLong and about.hint came).
-    expect(k4.length).toBe(94);
+    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field; 103 with the channel cap's message; 94 since the shelter description replaced the sentence editor (five error messages and six voice strings went, aboutTooLong and about.hint came); 95 with the LiqPay checkout-session error.
+    expect(k4.length).toBe(95);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

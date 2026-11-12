@@ -1,4 +1,5 @@
 import { type EvidenceItem, kyivCalendarDateOf, type VerificationEvidence } from "@opika/domain";
+import { dateValue } from "../../../../ui/date-field";
 import { channelText } from "../../profile-edit/fields";
 import type { EvidenceRow } from "../evidence-editor/evidence-rows";
 
@@ -53,7 +54,7 @@ const rowOf = (item: EvidenceItem, id: string): EvidenceRow | null => {
       return {
         id,
         kind: item.kind,
-        visitedOn: kyivCalendarDateOf(item.visitedAt),
+        visitedOn: dateValue(kyivCalendarDateOf(item.visitedAt)),
         notes: item.notes,
       };
     case "supporting_document":

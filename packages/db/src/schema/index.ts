@@ -1,4 +1,5 @@
 export { adopters } from "./adopters";
+export { animalPhotoSources } from "./animal-photo-sources";
 export { animals } from "./animals";
 export {
   authAccount,

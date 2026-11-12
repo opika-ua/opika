@@ -1,12 +1,13 @@
 import {
-  CalendarDateSchema,
   type ContactChannel,
   EdrpouSchema,
   type EvidenceItemInput,
   isSiteVisitInFuture,
   type ReferenceRelationship,
 } from "@opika/domain";
+import { type DateFieldValue, EMPTY_DATE } from "../../../../ui/date-field";
 import { type ChannelKind, type FieldError, parseChannel } from "../../profile-edit/fields";
+import { requiredDateError, type TypedDateError } from "../../shared/kabinet-date";
 
 /**
  * The operator's evidence editor, pure half (R-UI 2, S2; R-UI 3's resubmit
@@ -66,7 +67,7 @@ export type EvidenceRow =
       /** Empty until one is picked: no default, so the choice is the operator's. */
       relationship: ReferenceRelationship | "";
     }
-  | { id: string; kind: "site_visit"; visitedOn: string; notes: string };
+  | { id: string; kind: "site_visit"; visitedOn: DateFieldValue; notes: string };
 
 /**
  * What the editor sends: the contract's evidence input, minus everything a
@@ -93,7 +94,7 @@ export function emptyEvidenceRow(kind: EditableEvidenceKind, id: string): Eviden
     case "reference_contact":
       return { id, kind, name: "", channelKind: "phone", channelValue: "", relationship: "" };
     case "site_visit":
-      return { id, kind, visitedOn: "", notes: "" };
+      return { id, kind, visitedOn: EMPTY_DATE, notes: "" };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
       const unreachable: never = kind;
@@ -102,8 +103,16 @@ export function emptyEvidenceRow(kind: EditableEvidenceKind, id: string): Eviden
   }
 }
 
-/** Which message a field gets: `create.errors.*`, or K4's contact messages for the reference's channel. */
-export type EvidenceFieldError = "required" | "edrpouFormat" | "siteVisitInFuture" | FieldError;
+/**
+ * Which message a field gets: `create.errors.*`, K4's contact messages for the reference's
+ * channel, or a typed date's own (`kabinet.dateField.*`).
+ */
+export type EvidenceFieldError =
+  | "required"
+  | "edrpouFormat"
+  | "siteVisitInFuture"
+  | TypedDateError
+  | FieldError;
 
 /** A card's fields by name; only the fields its kind has ever appear. */
 export type EvidenceRowErrors = Readonly<Partial<Record<EvidenceField, EvidenceFieldError>>>;
@@ -181,14 +190,18 @@ function rowResult(row: EvidenceRow, now: Date): RowResult {
     }
     case "site_visit": {
       const notes = trimmedOrNull(row.notes);
-      const visitedOn = CalendarDateSchema.safeParse(row.visitedOn);
-      if (!visitedOn.success) errors.visitedOn = "required";
-      else if (isSiteVisitInFuture(visitedOn.data, now)) errors.visitedOn = "siteVisitInFuture";
+      const visitedOn = row.visitedOn;
+      const dateError = requiredDateError(visitedOn, "siteVisitInFuture");
+      if (dateError !== null) errors.visitedOn = dateError;
+      // Again on the submit's clock: a visit on file never went through the field.
+      else if (visitedOn.kind === "date" && isSiteVisitInFuture(visitedOn.date, now)) {
+        errors.visitedOn = "siteVisitInFuture";
+      }
       if (notes === null) errors.notes = "required";
-      if (Object.keys(errors).length > 0 || !visitedOn.success || notes === null) {
+      if (Object.keys(errors).length > 0 || visitedOn.kind !== "date" || notes === null) {
         return { kind: "invalid", errors };
       }
-      return { kind: "ok", item: { kind: row.kind, visitedOn: visitedOn.data, notes } };
+      return { kind: "ok", item: { kind: row.kind, visitedOn: visitedOn.date, notes } };
     }
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {

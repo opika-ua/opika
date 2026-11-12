@@ -445,6 +445,25 @@ describe("shelter.profile", () => {
     expect(result.body.donation).toEqual(shelter.donation);
   });
 
+  // Made-up timestamp and token in the real shape (public repo).
+  it.each([
+    "https://www.liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42",
+    "https://liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42",
+    "https://WWW.LIQPAY.UA/UK/CHECKOUT/CARD/CHECKOUT_1700000000000_TESTTOKEN42",
+  ])("proposeDonation refuses the LiqPay checkout session %s and writes nothing", async (url) => {
+    const result = await call("shelter.profile.proposeDonation", { url });
+    expect(result.status).toBe(400);
+    expect(JSON.stringify(result.body)).toContain("donation_checkout_session");
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
+  });
+
+  it("proposeDonation takes a LiqPay page that is not a checkout session", async () => {
+    const url = "https://www.liqpay.ua/uk/checkout/domivka";
+    const result = await call<KabinetShelterView>("shelter.profile.proposeDonation", { url });
+    expect(result.status).toBe(200);
+    expect(result.body.pendingDonation?.link).toEqual({ url, provider: "liqpay" });
+  });
+
   it("cancelDonationProposal clears it; with nothing pending it records nothing", async () => {
     await call("shelter.profile.proposeDonation", { url: "https://example.org/give" });
     expect(

@@ -57,6 +57,39 @@ describe("donation decision", () => {
     expect(screen.getByRole("button", { name: "Відхилити" })).toBeTruthy();
   });
 
+  describe("a LiqPay checkout session (made-up timestamp and token)", () => {
+    const SESSION = {
+      url: "https://www.liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42",
+      provider: "liqpay",
+    } as const;
+    const LINE =
+      "Схвалити не можна: це одноразова сторінка оплати LiqPay, вона перестане працювати.";
+
+    it("is not offered for approval and says why; it can still be rejected", () => {
+      renderWithActions(<DonationDecision />, {
+        view: registryView({ donation: LIVE as never, pendingDonation: proposal(SESSION) }),
+      });
+      expect(screen.queryByRole("button", { name: "Схвалити" })).toBeNull();
+      expect(screen.getByText(LINE)).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Відхилити" })).toBeTruthy();
+    });
+
+    it("a refusal from the server says the same, not a generic failure", async () => {
+      renderWithActions(<DonationDecision />, {
+        view: withProposal,
+        client: {
+          donation: {
+            approve: vi.fn(async () => {
+              throw apiError("DONATION_LINK_REFUSED", { problem: "checkout_session" });
+            }),
+          },
+        },
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Схвалити" }));
+      expect(screen.getByRole("alert").textContent).toBe(LINE);
+    });
+  });
+
   it("no live link: nothing to remove", () => {
     renderWithActions(<DonationDecision />, { view: registryView({ donation: null }) });
     expect(screen.queryByRole("button")).toBeNull();

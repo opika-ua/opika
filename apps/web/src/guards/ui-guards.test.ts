@@ -5,9 +5,9 @@ import { ARBITRARY_VALUES } from "./allowlist-arbitrary";
 import { CLIENT_FILES } from "./allowlist-client";
 import { RAW_HEX, RAW_IMG } from "./allowlist-misc";
 import { TOKEN_CEILINGS } from "./allowlist-tokens";
-import { ARBITRARY, HEX, IMG, TOKEN_PATTERNS } from "./patterns";
+import { ARBITRARY, HEX, IMG, NATIVE_DATE, TOKEN_PATTERNS } from "./patterns";
 import { ceilingsOf, ratchetProblems } from "./ratchet";
-import { clientFiles, hitsByFile, SRC_ROOT } from "./scan";
+import { clientFiles, formatHits, hitsByFile, SRC_ROOT } from "./scan";
 
 /**
  * Source scans, not pixel checks ("Test logic, not looks"): they keep the UI
@@ -55,6 +55,24 @@ describe("guard 3: arbitrary Tailwind values", () => {
 describe("guard 4: no raw <img>", () => {
   it("photos go through next/image; the exceptions are listed", () => {
     expectNoProblems(ratchetProblems("raw <img>", hitsByFile(IMG), ceilingsOf(RAW_IMG)));
+  });
+});
+
+describe("guard 5: no native date input", () => {
+  // Its order follows the browser's language (mm/dd/yyyy in an English Chrome) and it takes a
+  // five-digit year: every date is the kit's DateField.
+  it("finds none in apps/web/src", () => {
+    const hits = [...hitsByFile(NATIVE_DATE).values()].flat();
+    expect(hits, formatHits(hits)).toEqual([]);
+  });
+
+  it("the pattern catches each way of writing one, and nothing else", () => {
+    for (const written of ['type="date"', 'type={"date"}', 'type: "date"', "type='date'"]) {
+      expect(written.match(NATIVE_DATE), written).not.toBeNull();
+    }
+    for (const other of ['type="text"', 'kind: "date"', 'inputType="date"']) {
+      expect(other.match(NATIVE_DATE), other).toBeNull();
+    }
   });
 });
 

@@ -5,6 +5,8 @@ import { Button } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
 import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../ui/Combobox";
 import { ComboboxMulti } from "../../../ui/ComboboxMulti";
+import { DateField, type DateFieldLabels } from "../../../ui/DateField";
+import { type DateFieldValue, dateValue, EMPTY_DATE, monthNamesOf } from "../../../ui/date-field";
 import { FilterTabs, filterTabId } from "../../../ui/FilterTabs";
 import { Icon } from "../../../ui/Icon";
 import { Menu, MenuDivider, MenuItem } from "../../../ui/Menu";
@@ -221,6 +223,59 @@ export function ChoiceChipDemo() {
     >
       Choice
     </Chip>
+  );
+}
+
+const DATE_LABELS: DateFieldLabels = {
+  day: "День",
+  month: "Місяць",
+  year: "Рік",
+  months: monthNamesOf("uk"),
+};
+const DEMO_TODAY = "2026-11-12";
+
+/** What the field says about its value, so a reader of the showcase can see the union change. */
+const describeDate = (value: DateFieldValue): string =>
+  value.kind === "date" ? value.date : value.kind === "invalid" ? value.reason : "empty";
+
+export function DateFieldDemo() {
+  const [birth, setBirth] = useState<DateFieldValue>(EMPTY_DATE);
+  const [visit, setVisit] = useState<DateFieldValue>({
+    kind: "invalid",
+    reason: "no_such_date",
+    parts: { day: "30", month: "2", year: "2024" },
+  });
+  return (
+    <div className="flex flex-col gap-6" data-testid="date-field-demo">
+      <DateField
+        id="demo-birth"
+        legend="Date with a minimum (thirty years back)"
+        labels={DATE_LABELS}
+        value={birth}
+        today={DEMO_TODAY}
+        min="1996-11-12"
+        hint={`Value: ${describeDate(birth)}`}
+        onChange={setBirth}
+      />
+      <DateField
+        id="demo-visit"
+        legend="With an error"
+        labels={DATE_LABELS}
+        value={visit}
+        today={DEMO_TODAY}
+        error="Такої дати в календарі немає."
+        onChange={setVisit}
+      />
+      <DateField
+        id="demo-disabled"
+        legend="Disabled"
+        labels={DATE_LABELS}
+        value={dateValue("2025-11-05")}
+        today={DEMO_TODAY}
+        disabled
+        onChange={() => {}}
+      />
+    </div>
   );
 }
 

@@ -17,12 +17,14 @@ import {
   COAT_LENGTHS,
   type CoatColour,
   type CoatLength,
+  calendarDateYearsBefore,
   characterCount,
   DECLARED_AGE_RANGES,
   declaredAtOfCalendarDate,
   declaredRangeSpan,
   instantOfCalendarDate,
   isAgeEstimateUncertain,
+  kyivCalendarDateOf,
   MEDICAL_NOTES_MAX_CHARACTERS,
   type MedicalState,
   type PublishGap,
@@ -42,6 +44,7 @@ import {
   uk,
 } from "@opika/i18n";
 import { Chip } from "../../../ui/Chip";
+import { DateField } from "../../../ui/DateField";
 import { type Segment, SegmentedControl, TextArea, TextField } from "../../../ui/form";
 import { ChipGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
@@ -49,6 +52,7 @@ import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 import { MEDICAL_VALUE_TEXT, rowSource, vaccinationRow } from "../../animal-detail/medical-labels";
 import { countPhrase } from "../shared/count-phrase";
+import { DATE_FIELD_LABELS } from "../shared/kabinet-date";
 import type { AgeMode, FieldProblem, FormValues } from "./form-values";
 import { ageInputOf } from "./form-values";
 import { bucketRange, dateEndingSentenceOf, sizeHint } from "./labels";
@@ -127,6 +131,10 @@ export const problemText = (
       return fillTemplate(t.validation.dateTooOld, {
         years: countPhrase(AGE_DATE_MAX_YEARS_BACK, uk.kabinet.units.years),
       });
+    case "dateIncomplete":
+      return uk.kabinet.dateField.incomplete;
+    case "dateNoSuchDate":
+      return uk.kabinet.dateField.noSuchDate;
     case "overLimit":
       return fillTemplate(t.description.counterOver, { over: integer.format(problem.over) });
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled problem; unreachable at runtime */
@@ -259,6 +267,9 @@ export function BasicsFields({
     storedAge !== null &&
     storedAge.kind === "declared_bucket" &&
     isAgeEstimateUncertain(storedAge, now);
+  // Both age dates: not after today in Kyiv, not more than 30 years back (`ageDateProblem`).
+  const today = kyivCalendarDateOf(now);
+  const earliest = calendarDateYearsBefore(today, AGE_DATE_MAX_YEARS_BACK);
   return (
     <>
       <TextField
@@ -317,14 +328,16 @@ export function BasicsFields({
           onChange={(ageMode) => set({ ageMode })}
         />
         {values.ageMode === "birth_date" ? (
-          <TextField
+          <DateField
             id="animal-birth-date"
-            type="date"
-            label={t.age.birthDateLabel}
+            legend={t.age.birthDateLabel}
+            labels={DATE_FIELD_LABELS}
             value={values.birthDate}
+            today={today}
+            min={earliest}
             error={problemText(problems, "birthDate")}
             disabled={disabled}
-            onChange={(event) => set({ birthDate: event.currentTarget.value })}
+            onChange={(birthDate) => set({ birthDate })}
           />
         ) : (
           <>
@@ -357,15 +370,17 @@ export function BasicsFields({
                 </Chip>
               ) : null}
             </ChipGroup>
-            <TextField
+            <DateField
               id="animal-as-of"
-              type="date"
-              label={t.age.asOfLabel}
+              legend={t.age.asOfLabel}
+              labels={DATE_FIELD_LABELS}
               hint={t.age.asOfHint}
               value={values.asOf}
+              today={today}
+              min={earliest}
               error={problemText(problems, "asOf")}
               disabled={disabled}
-              onChange={(event) => set({ asOf: event.currentTarget.value })}
+              onChange={(asOf) => set({ asOf })}
             />
           </>
         )}

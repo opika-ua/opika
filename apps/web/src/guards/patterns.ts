@@ -17,3 +17,6 @@ export const TOKEN_PATTERNS = {
 export const ARBITRARY = /(?<![A-Za-z0-9_[])(?:[a-z0-9]+:)*!?-?[a-z]+(?:-[a-z0-9]+)*-\[[^\]\s]+\]/g;
 
 export const IMG = /<img(?:\s|$)/g;
+
+/** A native date input, in JSX (`type="date"`, `type={"date"}`) or in a props object (`type: "date"`). */
+export const NATIVE_DATE = /\btype(?:=\{?|:\s*)["'`]date["'`]/g;
