@@ -64,6 +64,25 @@ describe("GalleryCard under-review label", () => {
   });
 });
 
+describe("GalleryCard age", () => {
+  it("shows a declared range's span in the facts line (owner, 2026-11-12)", () => {
+    render(
+      <GalleryCard
+        card={makeCard({ ageBucket: "adult", ageSpan: { kind: "between", from: 3, to: 4 } })}
+        cityName="Бровари"
+        {...NO_CONTEXT}
+      />,
+    );
+    expect(screen.getByTestId("card-meta").textContent).toContain("≈\u00A03–4 роки");
+    expect(screen.getByTestId("card-meta").textContent).not.toContain("дорослий");
+  });
+
+  it("keeps the bucket word when there is no span", () => {
+    render(<GalleryCard card={makeCard({ ageSpan: null })} cityName="Бровари" {...NO_CONTEXT} />);
+    expect(screen.getByTestId("card-meta").textContent).toContain("молодий");
+  });
+});
+
 describe("GalleryCard link", () => {
   it("is exactly one link, and only one - the pill is not a nested button or anchor", () => {
     render(<GalleryCard card={makeCard()} cityName="Бровари" {...NO_CONTEXT} />);

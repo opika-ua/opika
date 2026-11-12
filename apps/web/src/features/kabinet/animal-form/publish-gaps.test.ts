@@ -8,7 +8,7 @@ const filled: FormValues = {
   ...emptyValues("2026-10-17"),
   sex: "male",
   size: "medium",
-  bucket: "young",
+  range: "1_2",
   description: "Спокійна.",
 };
 
@@ -27,7 +27,7 @@ const valuesFor = (present: Present): FormValues => ({
   ...filled,
   sex: present.sex ? "male" : "unknown",
   size: present.size ? "medium" : null,
-  bucket: present.age ? "young" : null,
+  range: present.age ? "1_2" : null,
   description: present.description ? "Спокійна." : "   ",
 });
 

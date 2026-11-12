@@ -7,7 +7,7 @@ import type {
   GalleryRelaxationCountsOutputSchema,
 } from "@opika/contracts";
 import { galleryRepo } from "@opika/db/repos";
-import { ageBucketOf, canonicalizeFilters, primaryPhoto } from "@opika/domain";
+import { ageBucketOf, ageSpanOf, canonicalizeFilters, primaryPhoto } from "@opika/domain";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { cityLabelOf } from "./city-labels";
@@ -60,6 +60,7 @@ export async function galleryList(
     coatLength: animal.coatLength,
     publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
     ageBucket: ageBucketOf(animal.age, context.now),
+    ageSpan: ageSpanOf(animal.age, context.now),
     freshness: listingFreshness(animal.listing, context.now),
     primaryPhoto: primaryPhoto(animal),
     listingKind: discoverableListingKind(animal.listing),

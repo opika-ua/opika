@@ -12,6 +12,7 @@ import {
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   CoatLengthSchema,
   characterCount,
+  DeclaredAgeRangeSchema,
   DonationProposalUrlSchema,
   DonationRemovalCodeSchema,
   EvidenceItemInputSchema,
@@ -374,17 +375,23 @@ export const shelterHistoryContract = {
 /**
  * An age as K3's form gives it (D3, Oleksii: "keep the chosen «Станом на»
  * date"): calendar dates, no time of day, as a date input yields them. A
- * birth date is stored at day precision; a bucket is stored with `asOf` as
- * its `declaredAt`, the date the shelter made the estimate, not the save
- * time. The handler refuses a date after today in Kyiv or more than thirty
- * years back (`ageDateProblem`, `AGE_DATE_OUT_OF_RANGE`): that needs the
- * server's clock, which a schema doesn't have.
+ * birth date is stored at day precision; a range or a bucket is stored with
+ * `asOf` as its `declaredAt`, the date the shelter made the estimate, not the
+ * save time. The handler refuses a date after today in Kyiv or more than
+ * thirty years back (`ageDateProblem`, `AGE_DATE_OUT_OF_RANGE`): that needs
+ * the server's clock, which a schema doesn't have. `declared_bucket` stays
+ * accepted: a legacy animal re-saved, or a page loaded before ranges shipped.
  */
 export const AgeEstimateInputSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("birth_date"), date: CalendarDateSchema }),
   z.strictObject({
     kind: z.literal("declared_bucket"),
     bucket: AgeBucketSchema,
+    asOf: CalendarDateSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("declared_range"),
+    range: DeclaredAgeRangeSchema,
     asOf: CalendarDateSchema,
   }),
 ]);

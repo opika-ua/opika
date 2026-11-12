@@ -1,5 +1,6 @@
 import {
   AgeBucketSchema,
+  AgeSpanSchema,
   AnimalPhotoSchema,
   DISCOVERABLE_LISTING_KINDS,
   FreshnessSchema,
@@ -16,10 +17,12 @@ import { ShelterSummaryViewSchema } from "./shelter";
  * The client has no trustworthy clock - a device with a wrong date could
  * otherwise render a stale listing as fresh, or a senior animal as a puppy.
  * Deriving on the server makes the honesty guarantee something the platform
- * provides rather than something it hopes for.
+ * provides rather than something it hopes for. `ageSpan` is a declared range
+ * aged to today (numbers only), null for the kinds that show the bucket word.
  */
 const derivedAnimalFacts = {
   ageBucket: AgeBucketSchema,
+  ageSpan: AgeSpanSchema.nullable(),
   freshness: FreshnessSchema,
 };
 

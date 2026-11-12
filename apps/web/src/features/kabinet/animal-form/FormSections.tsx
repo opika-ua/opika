@@ -1,22 +1,26 @@
 "use client";
 
 import "../../../zod-client-config";
-import type { KabinetAnimalView } from "@opika/contracts";
+import type { AgeEstimateInput, KabinetAnimalView } from "@opika/contracts";
 import {
-  AGE_BUCKETS,
   AGE_DATE_MAX_YEARS_BACK,
+  type AgeBucket,
+  type AgeEstimate,
   ANIMAL_DESCRIPTION_MAX_CHARACTERS,
   ANIMAL_NAME_MAX_CHARACTERS,
   type AnimalSex,
   type AnimalSpecies,
   ageBucketOf,
+  ageSpanOf,
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   COAT_COLOURS,
   COAT_LENGTHS,
   type CoatColour,
   type CoatLength,
   characterCount,
+  DECLARED_AGE_RANGES,
   declaredAtOfCalendarDate,
+  declaredRangeSpan,
   instantOfCalendarDate,
   isAgeEstimateUncertain,
   MEDICAL_NOTES_MAX_CHARACTERS,
@@ -29,7 +33,15 @@ import {
   type TemperamentTrait,
   type VaccinationStatus,
 } from "@opika/domain";
-import { ageWordFor, colourFilterLabel, fillTemplate, temperamentLabelFor, uk } from "@opika/i18n";
+import {
+  ageSpanLabel,
+  ageSpanWords,
+  ageWordFor,
+  colourFilterLabel,
+  fillTemplate,
+  temperamentLabelFor,
+  uk,
+} from "@opika/i18n";
 import { Chip } from "../../../ui/Chip";
 import { type Segment, SegmentedControl, TextArea, TextField } from "../../../ui/form";
 import { ChipGroup } from "../../../ui/groups";
@@ -171,11 +183,42 @@ const COLOUR: readonly { value: ColourChoice; label: string }[] = [
   { value: "unknown", label: t.colour.unknown },
 ];
 
-const AGE_NAME: Record<(typeof AGE_BUCKETS)[number], string> = {
+const AGE_NAME: Record<AgeBucket, string> = {
   baby: uk.filters.ageBaby,
   young: uk.filters.ageYoung,
   adult: uk.filters.ageAdult,
   senior: uk.filters.ageSenior,
+};
+
+/** The age the server stores for this input (`ageOfInput`'s rule), so the preview is the card's. */
+const estimateOfInput = (input: AgeEstimateInput, now: Date): AgeEstimate => {
+  switch (input.kind) {
+    case "birth_date":
+      return { kind: "birth_date", date: instantOfCalendarDate(input.date), precision: "day" };
+    case "declared_bucket":
+      return {
+        kind: "declared_bucket",
+        bucket: input.bucket,
+        declaredAt: declaredAtOfCalendarDate(input.asOf, now),
+      };
+    case "declared_range":
+      return {
+        kind: "declared_range",
+        range: input.range,
+        declaredAt: declaredAtOfCalendarDate(input.asOf, now),
+      };
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = input;
+      return unreachable;
+    }
+  }
+};
+
+/** The card's age text: a range's span, else the bucket word agreeing with the sex (Q9). */
+const cardAgeText = (estimate: AgeEstimate, sex: AnimalSex, now: Date): string => {
+  const span = ageSpanOf(estimate, now);
+  return span === null ? ageWordFor(ageBucketOf(estimate, now), sex) : ageSpanLabel(span);
 };
 
 /**
@@ -199,7 +242,7 @@ export function BasicsFields({
       label: <Responsive short={t.age.modeBirthDateShort} full={t.age.modeBirthDate} />,
     },
     {
-      value: "declared_bucket",
+      value: "declared",
       label: <Responsive short={t.age.modeBucketShort} full={t.age.modeBucket} />,
     },
   ];
@@ -207,28 +250,12 @@ export function BasicsFields({
   const dateProblem =
     problems.find((p) => p.field === (values.ageMode === "birth_date" ? "birthDate" : "asOf")) !==
     undefined;
-  // The card's own word, from what the fields say now, the sex included (his
+  // The card's own text, from what the fields say now, the sex included (his
   // answer 9: quoted as it is; Q9: the card's word agrees with the sex).
   const label =
     input === null || dateProblem
       ? null
-      : ageWordFor(
-          ageBucketOf(
-            input.kind === "birth_date"
-              ? {
-                  kind: "birth_date",
-                  date: instantOfCalendarDate(input.date),
-                  precision: "day",
-                }
-              : {
-                  kind: "declared_bucket",
-                  bucket: input.bucket,
-                  declaredAt: declaredAtOfCalendarDate(input.asOf, now),
-                },
-            now,
-          ),
-          values.sex,
-        );
+      : cardAgeText(estimateOfInput(input, now), values.sex, now);
   const uncertain =
     storedAge !== null &&
     storedAge.kind === "declared_bucket" &&
@@ -302,17 +329,35 @@ export function BasicsFields({
           />
         ) : (
           <>
-            <SegmentedControl
-              name="animal-age-bucket"
-              legend={t.age.bucketLabel}
-              segments={AGE_BUCKETS.map((bucket) => ({
-                value: bucket,
-                label: `${AGE_NAME[bucket]} · ${bucketRange(bucket)}`,
-              }))}
-              value={values.bucket}
-              disabled={disabled}
-              onChange={(bucket) => set({ bucket })}
-            />
+            {/* Six ranges as wrapping radio chips: six segments don't fit a 360px phone. */}
+            <ChipGroup name="animal-age-bucket" legend={t.age.bucketLabel} disabled={disabled}>
+              {DECLARED_AGE_RANGES.map((range) => (
+                <Chip
+                  key={range}
+                  kind="option"
+                  type="radio"
+                  name="animal-age-bucket"
+                  value={range}
+                  checked={values.range === range}
+                  onChange={() => set({ range })}
+                >
+                  {ageSpanWords(declaredRangeSpan(range, 0))}
+                </Chip>
+              ))}
+              {values.legacyBucket !== null ? (
+                // A stored bucket keeps its own label (Q5): converting it would invent precision.
+                <Chip
+                  kind="option"
+                  type="radio"
+                  name="animal-age-bucket"
+                  value={values.legacyBucket}
+                  checked={values.range === null}
+                  onChange={() => set({ range: null })}
+                >
+                  {`${AGE_NAME[values.legacyBucket]} · ${bucketRange(values.legacyBucket)}`}
+                </Chip>
+              ) : null}
+            </ChipGroup>
             <TextField
               id="animal-as-of"
               type="date"

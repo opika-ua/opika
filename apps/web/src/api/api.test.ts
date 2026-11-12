@@ -789,6 +789,75 @@ describe("gallery.list", () => {
   });
 });
 
+/**
+ * Age as a declared range (owner, 2026-11-12): the span is aged on the server's clock, like the
+ * bucket, so a device with a wrong date can't make an animal younger. The older kinds send null
+ * and keep their bucket word.
+ */
+describe("a declared range on the public views", () => {
+  const NOW = new Date("2026-08-01T12:00:00Z");
+  const TWO_YEARS_ON = new Date(NOW.getTime() + 2 * 365.2425 * 86_400_000);
+  const declaredAt = new Date("2026-07-01T00:00:00Z");
+
+  async function seedThreeKinds() {
+    const {
+      city,
+      shelter,
+      animal: ranged,
+    } = await seedFeedAnimal({
+      name: "Діапазон",
+      age: { kind: "declared_range", range: "1_2", declaredAt },
+    });
+    const bucketed = makeAnimal({
+      shelterId: shelter.id,
+      name: "Кошик",
+      age: { kind: "declared_bucket", bucket: "young", declaredAt },
+    });
+    const born = makeAnimal({
+      shelterId: shelter.id,
+      name: "Народжений",
+      age: { kind: "birth_date", date: new Date("2025-01-01T00:00:00Z"), precision: "day" },
+    });
+    await animalRepo(h.db).insert(bucketed, city.id);
+    await animalRepo(h.db).insert(born, city.id);
+    return { ranged };
+  }
+
+  const ageOf = async (now: Date) => {
+    const res = await h.call("gallery.list", { filters: NO_FILTERS }, { now });
+    const items = (res.body as { items: { name: string; ageBucket: string; ageSpan: unknown }[] })
+      .items;
+    return Object.fromEntries(items.map((item) => [item.name, [item.ageBucket, item.ageSpan]]));
+  };
+
+  it("the gallery sends a range's span as of the request's now; the older kinds send null", async () => {
+    await seedThreeKinds();
+    expect(await ageOf(NOW)).toEqual({
+      Діапазон: ["young", { kind: "between", from: 1, to: 2 }],
+      Кошик: ["young", null],
+      Народжений: ["young", null],
+    });
+    expect((await ageOf(TWO_YEARS_ON)).Діапазон).toEqual([
+      "adult",
+      { kind: "between", from: 3, to: 4 },
+    ]);
+  });
+
+  it("the animal page and the saved cards send the same span", async () => {
+    const { ranged } = await seedThreeKinds();
+    const page = await h.call("animals.byId", { animalId: ranged.id }, { now: TWO_YEARS_ON });
+    expect((page.body as { ageSpan: unknown }).ageSpan).toEqual({
+      kind: "between",
+      from: 3,
+      to: 4,
+    });
+    const cards = await h.call("animals.cardsByIds", { animalIds: [ranged.id] }, { now: NOW });
+    expect(
+      (cards.body as { items: { card?: { ageSpan: unknown } }[] }).items[0]?.card?.ageSpan,
+    ).toEqual({ kind: "between", from: 1, to: 2 });
+  });
+});
+
 describe("gallery.relaxationCounts", () => {
   it("reports the gain from dropping each applied filter, and nothing for the rest", async () => {
     const city = makeCity();

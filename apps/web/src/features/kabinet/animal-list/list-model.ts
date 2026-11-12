@@ -9,6 +9,7 @@ import {
 } from "@opika/contracts";
 import {
   ageBucketOf,
+  ageSpanOf,
   DEFAULT_FRESHNESS_POLICY,
   freshnessOf,
   KYIV_TIME_ZONE,
@@ -119,6 +120,7 @@ export const metaLineOf = (row: AnimalRow, now: Date): string =>
     species: row.species,
     sex: row.sex,
     ageBucket: row.age === null ? null : ageBucketOf(row.age, now),
+    ageSpan: row.age === null ? null : ageSpanOf(row.age, now),
     size: row.size,
     unknownSexText: t.sexNotStated,
   }).join(" · ");

@@ -37,6 +37,7 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
     colour: null,
     medicalNotes: null,
     ageBucket: "young",
+    ageSpan: null,
     freshness: freshnessOf(AT, NOW, DEFAULT_FRESHNESS_POLICY),
     listingKind: "published",
     availability: { kind: "open" },
@@ -331,6 +332,48 @@ describe("AnimalDetailScreen meta line, by sex", () => {
       expect(chip.textContent).toBe(word);
     },
   );
+
+  /**
+   * A declared range (owner, 2026-11-12, answer 6): the chip shows the span and still links to
+   * the bucket the filter puts it in; the meta line shows the same span. The overlay renders this
+   * same screen.
+   */
+  it("a declared range: the age chip reads its span and links to the mapped bucket", async () => {
+    await renderAnimal({
+      sex: "female",
+      ageBucket: "adult",
+      ageSpan: { kind: "between", from: 3, to: 4 },
+    });
+    const chip = screen.getByRole("link", { name: "≈\u00A03–4 роки: показати схожих котів" });
+    expect(chip.textContent).toBe("≈\u00A03–4 роки");
+    expect(new URL(chip.getAttribute("href") ?? "", "http://x").searchParams.get("vik")).toBe(
+      "adult",
+    );
+    const parts = Array.from(
+      document.querySelector(".meta-line")?.querySelectorAll(".meta-part") ?? [],
+    ).map((part) => part.textContent);
+    expect(parts).toEqual(["Кіт", "дівчинка", "≈\u00A03–4 роки", "мала"]);
+    expect(screen.queryByText("Доросла")).toBeNull();
+  });
+
+  it("the open end and «до 1 року» carry no «≈», on the chip and in the meta line", async () => {
+    await renderAnimal({ ageBucket: "senior", ageSpan: { kind: "at_least", from: 12 } });
+    expect(screen.getByRole("link", { name: "12+ років: показати схожих котів" }).textContent).toBe(
+      "12+ років",
+    );
+    cleanup();
+    await renderAnimal({ sex: "unknown", ageBucket: "baby", ageSpan: { kind: "under_one" } });
+    expect(screen.getByRole("link", { name: "до 1 року: показати схожих котів" }).textContent).toBe(
+      "До 1 року",
+    );
+  });
+
+  it("no span (a birth date, a stored bucket): the chip keeps the bucket word, as before", async () => {
+    await renderAnimal({ sex: "male", ageBucket: "young", ageSpan: null });
+    expect(screen.getByRole("link", { name: "молодий: показати схожих котів" }).textContent).toBe(
+      "Молодий",
+    );
+  });
 
   /**
    * The sex chip's own filterable link (gallery filter restructure

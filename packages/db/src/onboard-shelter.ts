@@ -3,6 +3,8 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
+  AgeBucketSchema,
+  type AgeEstimate,
   type AnimalId,
   AnimalIdSchema,
   type AnimalListingState,
@@ -10,12 +12,16 @@ import {
   type AnimalPhoto,
   AnimalSexSchema,
   AnimalSpeciesSchema,
+  ageDateProblem,
   animalDescriptionProblem,
   animalDescriptionProblemMessage,
+  CalendarDateSchema,
   CONTACT_INPUT_MAX_LENGTH,
   type Coordinates,
   DEFAULT_VERIFICATION_POLICY,
+  DeclaredAgeRangeSchema,
   DonationLinkSchema,
+  declaredAtOfCalendarDate,
   EvidenceItemInputSchema,
   ExactAddressSchema,
   everServedAtAfter,
@@ -199,7 +205,10 @@ const OnboardAnimalSchema = z.object({
     message: "Onboarded animals must have a known sex (male or female), not unknown",
   }),
   size: SizeBucketSchema,
-  ageBucket: z.enum(["baby", "young", "adult", "senior"]),
+  // Exactly one of the two (owner, 2026-11-12), checked by `onboardAgeOf`; ageAsOf defaults to today.
+  ageBucket: AgeBucketSchema.optional(),
+  ageRange: DeclaredAgeRangeSchema.optional(),
+  ageAsOf: CalendarDateSchema.optional(),
   // K3's cap: an onboarded description over it couldn't be saved again in K3.
   descriptionUk: z
     .string()
@@ -213,6 +222,35 @@ const OnboardAnimalSchema = z.object({
   // K-Q11: the cap every write path shares (`MAX_ANIMAL_PHOTOS`, domain).
   photos: z.array(OnboardPhotoSchema).min(1).max(MAX_ANIMAL_PHOTOS),
 });
+
+/**
+ * An onboarded animal's age: exactly one of `ageBucket`/`ageRange`, declared as of `ageAsOf` or
+ * `now`. A date after today in Kyiv or more than thirty years back is refused, as K3 refuses it.
+ */
+export function onboardAgeOf(
+  input: Pick<z.infer<typeof OnboardAnimalSchema>, "ageBucket" | "ageRange" | "ageAsOf">,
+  now: Date,
+): AgeEstimate {
+  let declaredAt = now;
+  if (input.ageAsOf !== undefined) {
+    const problem = ageDateProblem(input.ageAsOf, now);
+    if (problem !== null) {
+      throw new Error(
+        problem.kind === "future"
+          ? `ageAsOf ${input.ageAsOf} is after today in Kyiv`
+          : `ageAsOf ${input.ageAsOf} is more than ${problem.maxYearsBack} years back`,
+      );
+    }
+    declaredAt = declaredAtOfCalendarDate(input.ageAsOf, now);
+  }
+  if (input.ageRange !== undefined && input.ageBucket === undefined) {
+    return { kind: "declared_range", range: input.ageRange, declaredAt };
+  }
+  if (input.ageBucket !== undefined && input.ageRange === undefined) {
+    return { kind: "declared_bucket", bucket: input.ageBucket, declaredAt };
+  }
+  throw new Error("give exactly one of ageBucket or ageRange");
+}
 
 /**
  * Evidence input is `EvidenceItemInputSchema` from `@opika/domain`, shared with
@@ -475,7 +513,7 @@ export function buildAnimal(
     // with fur «Не записано», and the shelter records it in the kabinet.
     coatLength: null,
     size: input.size,
-    age: { kind: "declared_bucket", bucket: input.ageBucket, declaredAt: now },
+    age: onboardAgeOf(input, now),
     description: { uk: input.descriptionUk, en: null },
     photos,
     vaccination: UNKNOWN_ATTESTATION(now),
@@ -662,6 +700,8 @@ async function main(): Promise<void> {
   // posture buildShelter's own evidence-policy check already applies.
   let animalPhotoValidations: Awaited<ReturnType<typeof validateAnimalPhotos>>[];
   try {
+    // An «as of» date K3 would refuse is refused here too, before the dry-run printout.
+    for (const animal of input.animals) onboardAgeOf(animal, now);
     animalPhotoValidations = await Promise.all(
       input.animals.map((animal) => validateAnimalPhotos(inputPath, animal)),
     );

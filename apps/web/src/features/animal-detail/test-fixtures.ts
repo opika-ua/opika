@@ -35,6 +35,7 @@ export function makeDetailAnimal(overrides: Partial<AnimalDetailView> = {}): Ani
     colour: null,
     medicalNotes: null,
     ageBucket: "young",
+    ageSpan: null,
     freshness: { kind: "aging", confirmedAt: AT, ageDays: 5 },
     listingKind: "published",
     availability: { kind: "open" },

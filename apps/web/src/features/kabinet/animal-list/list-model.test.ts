@@ -119,6 +119,25 @@ describe("the meta line: [species] · sex · age · size (UX-2)", () => {
       "Собака · хлопчик · молодий · середній",
     );
   });
+
+  it("a declared range reads as its span today, aged from its date (owner, 2026-11-12)", () => {
+    const declared = { kind: "declared_range", range: "1_2", declaredAt: new Date("2025-09-01") };
+    expect(metaLineOf(row({ age: declared } as Partial<AnimalRow>), NOW)).toBe(
+      "Собака · хлопчик · ≈\u00A02–3 роки · середній",
+    );
+    const open = { kind: "declared_range", range: "10_plus", declaredAt: new Date("2026-09-01") };
+    expect(metaLineOf(row({ age: open } as Partial<AnimalRow>), NOW)).toBe(
+      "Собака · хлопчик · 10+ років · середній",
+    );
+  });
+
+  it("a birth date and a stored bucket keep the bucket word, exactly as before", () => {
+    const born = { kind: "birth_date", date: new Date("2024-01-01"), precision: "day" };
+    expect(metaLineOf(row({ age: born } as Partial<AnimalRow>), NOW)).toBe(
+      "Собака · хлопчик · молодий · середній",
+    );
+    expect(metaLineOf(row({ sex: "female" }), NOW)).toBe("Собака · дівчинка · молода · середня");
+  });
 });
 
 describe("dates on Kyiv's calendar", () => {

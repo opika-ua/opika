@@ -1,12 +1,15 @@
+import type { AgeSpan } from "@opika/domain";
 import {
   type AgeBucket,
   type AnimalSex,
   type AnimalSpecies,
   type GrammaticalGender,
   grammaticalGenderOf,
+  pluralizeUk,
   type SizeBucket,
 } from "@opika/domain/core";
 import { ukPublic as uk } from "./messages/uk-public";
+import { fillTemplate } from "./template";
 
 /**
  * Both maps are `Record`s over the domain's own bucket types, not a
@@ -51,6 +54,40 @@ const FEMININE_AGE_BUCKET_LABELS: Record<AgeBucket, string> = {
 export function ageWordFor(bucket: AgeBucket, sex: AnimalSex): string {
   const gender: GrammaticalGender = grammaticalGenderOf(sex);
   return gender === "feminine" ? FEMININE_AGE_BUCKET_LABELS[bucket] : AGE_BUCKET_LABELS[bucket];
+}
+
+const integer = new Intl.NumberFormat("uk");
+
+/** A declared range's words without «≈»: «до 1 року», «3–4 роки», «10+ років» (K3's chips). */
+export function ageSpanWords(span: AgeSpan): string {
+  switch (span.kind) {
+    case "under_one":
+      return uk.cardMeta.ageUnderOneYear;
+    case "about":
+      return fillTemplate(pluralizeUk(span.years, uk.cardMeta.ageYears), {
+        count: integer.format(span.years),
+      });
+    case "between":
+      return fillTemplate(pluralizeUk(span.to, uk.cardMeta.ageYearsBetween), {
+        from: integer.format(span.from),
+        count: integer.format(span.to),
+      });
+    case "at_least":
+      return fillTemplate(uk.cardMeta.ageYearsAtLeast, { from: integer.format(span.from) });
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = span;
+      return unreachable;
+    }
+  }
+}
+
+/** One animal's declared age as the card and page print it: «≈ 3–4 роки», «≈ 2 роки», «10+ років», «до 1 року». */
+export function ageSpanLabel(span: AgeSpan): string {
+  const words = ageSpanWords(span);
+  return span.kind === "about" || span.kind === "between"
+    ? fillTemplate(uk.cardMeta.ageApprox, { age: words })
+    : words;
 }
 
 const SPECIES_WORD_LABELS: Record<AnimalSpecies, string> = {
@@ -123,20 +160,25 @@ export function sizeWordFor(size: SizeBucket, sex: AnimalSex): string {
  * Age and size agree with the sex (girl feminine, boy and unknown masculine); an unknown sex has
  * no word, so the line starts with the age, unless the caller passes `unknownSexText` (the
  * kabinet, where the shelter can fix the gap). Missing age or size (a kabinet draft) is left out.
- * The first part is capitalised, the rest lowercase.
+ * A declared range's span replaces the bucket word. The first part is capitalised, the rest lowercase.
  */
 export function animalFactsParts(facts: {
   species?: AnimalSpecies;
   sex: AnimalSex;
   ageBucket: AgeBucket | null;
+  ageSpan?: AgeSpan | null;
   size: SizeBucket | null;
   unknownSexText?: string;
 }): string[] {
-  const { species, sex, ageBucket, size, unknownSexText } = facts;
+  const { species, sex, ageBucket, ageSpan = null, size, unknownSexText } = facts;
   const parts = [
     species === undefined ? null : SPECIES_NEUTRAL_LABELS[species],
     sexWordFor(sex) ?? unknownSexText ?? null,
-    ageBucket === null ? null : ageWordFor(ageBucket, sex),
+    ageSpan !== null
+      ? ageSpanLabel(ageSpan)
+      : ageBucket === null
+        ? null
+        : ageWordFor(ageBucket, sex),
     size === null ? null : sizeWordFor(size, sex),
   ]
     .filter((part): part is string => part !== null && part !== "")

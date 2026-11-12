@@ -32,6 +32,24 @@ const MS_PER_DAY = 86_400_000;
 const MS_PER_YEAR = DAYS_PER_YEAR * MS_PER_DAY;
 const ONE_DAY_IN_YEARS = 1 / DAYS_PER_YEAR;
 
+/** K3's six answers to "how old on that date" (owner, 2026-11-12), youngest first. */
+export const DECLARED_AGE_RANGES = ["under_1", "1_2", "3_4", "5_7", "8_10", "10_plus"] as const;
+export const DeclaredAgeRangeSchema = z.enum(DECLARED_AGE_RANGES);
+export type DeclaredAgeRange = z.infer<typeof DeclaredAgeRangeSchema>;
+
+/** Whole years at the declared date; `max: null` is open-ended. */
+export const DECLARED_AGE_RANGE_YEARS: Record<
+  DeclaredAgeRange,
+  { readonly min: number; readonly max: number | null }
+> = {
+  under_1: { min: 0, max: 0 },
+  "1_2": { min: 1, max: 2 },
+  "3_4": { min: 3, max: 4 },
+  "5_7": { min: 5, max: 7 },
+  "8_10": { min: 8, max: 10 },
+  "10_plus": { min: 10, max: null },
+};
+
 /**
  * `declared_bucket` exists because a shelter that took in a street dog often
  * genuinely knows only "adult". Forcing a birth date would record a fabricated
@@ -39,7 +57,8 @@ const ONE_DAY_IN_YEARS = 1 / DAYS_PER_YEAR;
  *
  * `declaredAt` is what makes a coarse answer usable: an animal only gets older,
  * so a bucket declared two years ago can be carried forward rather than
- * repeated.
+ * repeated. `declared_range` is the same idea in finer steps; new ages use it,
+ * and a stored bucket stays as it was.
  */
 export const AgeEstimateSchema = z.discriminatedUnion("kind", [
   z.object({
@@ -52,8 +71,25 @@ export const AgeEstimateSchema = z.discriminatedUnion("kind", [
     bucket: AgeBucketSchema,
     declaredAt: z.date(),
   }),
+  z.object({
+    kind: z.literal("declared_range"),
+    range: DeclaredAgeRangeSchema,
+    declaredAt: z.date(),
+  }),
 ]);
 export type AgeEstimate = z.infer<typeof AgeEstimateSchema>;
+
+/**
+ * A declared range as the card states it today, in whole years: numbers only,
+ * so the words stay in `packages/i18n`.
+ */
+export const AgeSpanSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("under_one") }),
+  z.object({ kind: z.literal("about"), years: z.int().min(1) }),
+  z.object({ kind: z.literal("between"), from: z.int().min(0), to: z.int().min(1) }),
+  z.object({ kind: z.literal("at_least"), from: z.int().min(0) }),
+]);
+export type AgeSpan = z.infer<typeof AgeSpanSchema>;
 
 const bucketForYears = (years: number): AgeBucket => {
   if (years < AGE_BUCKET_MIN_YEARS.young) return "baby";
@@ -85,6 +121,10 @@ export const ageAnchorOf = (estimate: AgeEstimate): Date => {
     case "declared_bucket":
       return new Date(
         estimate.declaredAt.getTime() - AGE_BUCKET_MIN_YEARS[estimate.bucket] * MS_PER_YEAR,
+      );
+    case "declared_range":
+      return new Date(
+        estimate.declaredAt.getTime() - DECLARED_AGE_RANGE_YEARS[estimate.range].min * MS_PER_YEAR,
       );
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
     default: {
@@ -128,18 +168,41 @@ export const ageBucketOf = (estimate: AgeEstimate, now: Date): AgeBucket =>
   bucketForYears(elapsedYears(ageAnchorOf(estimate), now));
 
 /**
+ * A range declared `wholeYearsSince` whole years ago, aged by that many years.
+ * A one-year range (under_1) stays one number as it ages: «до 1 року», then 1, 2, …
+ */
+export const declaredRangeSpan = (range: DeclaredAgeRange, wholeYearsSince: number): AgeSpan => {
+  const { min, max } = DECLARED_AGE_RANGE_YEARS[range];
+  const from = min + wholeYearsSince;
+  if (max === null) return { kind: "at_least", from };
+  if (max === min) return from === 0 ? { kind: "under_one" } : { kind: "about", years: from };
+  return { kind: "between", from, to: max + wholeYearsSince };
+};
+
+/**
+ * The span a declared range states at `now`, or null for the two older kinds,
+ * which keep the bucket word. It ages in the same 365.2425-day years as the
+ * anchor, so its lower bound always lands in `ageBucketOf`'s bucket.
+ */
+export const ageSpanOf = (estimate: AgeEstimate, now: Date): AgeSpan | null =>
+  estimate.kind === "declared_range"
+    ? declaredRangeSpan(estimate.range, Math.floor(elapsedYears(estimate.declaredAt, now)))
+    : null;
+
+/**
  * True when the animal's possible age now spans more than one bucket, so the
  * displayed value is a floor rather than a fact.
  *
- * A birth date is never uncertain. A declared bucket becomes uncertain as soon
- * as enough time passes that its upper bound crosses into the next bucket.
+ * A birth date is never uncertain, and neither is a range: the card states the
+ * range itself. A declared bucket becomes uncertain as soon as enough time
+ * passes that its upper bound crosses into the next bucket.
  *
  * Note for whoever builds the confirm flow: re-declaring the *derived* bucket
  * resets the anchor and makes the animal younger again. Confirmation should
  * carry the existing anchor forward, or capture a real birth date.
  */
 export const isAgeEstimateUncertain = (estimate: AgeEstimate, now: Date): boolean => {
-  if (estimate.kind === "birth_date") return false;
+  if (estimate.kind !== "declared_bucket") return false;
 
   const maxYears = AGE_BUCKET_MAX_YEARS[estimate.bucket];
   if (maxYears === null) return false;

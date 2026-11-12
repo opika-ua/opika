@@ -12,6 +12,7 @@ import {
   type CoatColour,
   type CoatLength,
   characterCount,
+  type DeclaredAgeRange,
   kyivCalendarDateOf,
   type LocalizedText,
   type MedicalState,
@@ -33,7 +34,7 @@ import type { z } from "zod";
  * shows no size selected, and saving it sends no size (K-Q5, F-B1).
  */
 
-export type AgeMode = "birth_date" | "declared_bucket";
+export type AgeMode = "birth_date" | "declared";
 
 export type FormValues = {
   name: string;
@@ -46,7 +47,10 @@ export type FormValues = {
   ageMode: AgeMode;
   /** `YYYY-MM-DD`, or "" while not given. */
   birthDate: string;
-  bucket: AgeBucket | null;
+  /** The range chip picked; null before a choice, or while the legacy bucket's chip is checked. */
+  range: DeclaredAgeRange | null;
+  /** A stored bucket (Q5): its own chip, checked until a range is picked; never converted. */
+  legacyBucket: AgeBucket | null;
   /** `YYYY-MM-DD`; defaults to today in Kyiv (KAB:189: "defaults to today"). */
   asOf: string;
   /** The Ukrainian description as typed; blank means none. */
@@ -81,9 +85,10 @@ export const emptyValues = (today: CalendarDate): FormValues => ({
   sex: "unknown",
   size: null,
   coatLength: null,
-  ageMode: "declared_bucket",
+  ageMode: "declared",
   birthDate: "",
-  bucket: null,
+  range: null,
+  legacyBucket: null,
   asOf: today,
   description: "",
   medicalNotes: "",
@@ -103,21 +108,45 @@ export const emptyValues = (today: CalendarDate): FormValues => ({
  */
 const storedAgeInputOf = (age: KabinetAnimalView["age"]): AgeEstimateInput | null => {
   if (age === null) return null;
-  return age.kind === "birth_date"
-    ? { kind: "birth_date", date: kyivCalendarDateOf(age.date) }
-    : { kind: "declared_bucket", bucket: age.bucket, asOf: kyivCalendarDateOf(age.declaredAt) };
+  switch (age.kind) {
+    case "birth_date":
+      return { kind: "birth_date", date: kyivCalendarDateOf(age.date) };
+    case "declared_bucket":
+      return {
+        kind: "declared_bucket",
+        bucket: age.bucket,
+        asOf: kyivCalendarDateOf(age.declaredAt),
+      };
+    case "declared_range":
+      return { kind: "declared_range", range: age.range, asOf: kyivCalendarDateOf(age.declaredAt) };
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = age;
+      return unreachable;
+    }
+  }
 };
 
 const ageFieldsOf = (
   age: KabinetAnimalView["age"],
   today: CalendarDate,
-): Pick<FormValues, "ageMode" | "birthDate" | "bucket" | "asOf"> => {
+): Pick<FormValues, "ageMode" | "birthDate" | "range" | "legacyBucket" | "asOf"> => {
+  const none = { birthDate: "", range: null, legacyBucket: null, asOf: today };
   const stored = storedAgeInputOf(age);
-  if (stored === null)
-    return { ageMode: "declared_bucket", birthDate: "", bucket: null, asOf: today };
-  return stored.kind === "birth_date"
-    ? { ageMode: "birth_date", birthDate: stored.date, bucket: null, asOf: today }
-    : { ageMode: "declared_bucket", birthDate: "", bucket: stored.bucket, asOf: stored.asOf };
+  if (stored === null) return { ...none, ageMode: "declared" };
+  switch (stored.kind) {
+    case "birth_date":
+      return { ...none, ageMode: "birth_date", birthDate: stored.date };
+    case "declared_bucket":
+      return { ...none, ageMode: "declared", legacyBucket: stored.bucket, asOf: stored.asOf };
+    case "declared_range":
+      return { ...none, ageMode: "declared", range: stored.range, asOf: stored.asOf };
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = stored;
+      return unreachable;
+    }
+  }
 };
 
 /** The temperament's custom entry, which `TemperamentSchema` keeps last; null when there is none. */
@@ -170,9 +199,12 @@ export const ageInputOf = (values: FormValues): AgeEstimateInput | null => {
   if (values.ageMode === "birth_date") {
     return values.birthDate === "" ? null : { kind: "birth_date", date: values.birthDate };
   }
-  return values.bucket === null || values.asOf === ""
+  if (values.asOf === "") return null;
+  if (values.range !== null)
+    return { kind: "declared_range", range: values.range, asOf: values.asOf };
+  return values.legacyBucket === null
     ? null
-    : { kind: "declared_bucket", bucket: values.bucket, asOf: values.asOf };
+    : { kind: "declared_bucket", bucket: values.legacyBucket, asOf: values.asOf };
 };
 
 const sameAgeInput = (a: AgeEstimateInput | null, b: AgeEstimateInput | null): boolean => {
@@ -180,6 +212,9 @@ const sameAgeInput = (a: AgeEstimateInput | null, b: AgeEstimateInput | null): b
   if (a.kind === "birth_date" && b.kind === "birth_date") return a.date === b.date;
   if (a.kind === "declared_bucket" && b.kind === "declared_bucket") {
     return a.bucket === b.bucket && a.asOf === b.asOf;
+  }
+  if (a.kind === "declared_range" && b.kind === "declared_range") {
+    return a.range === b.range && a.asOf === b.asOf;
   }
   return false;
 };
@@ -357,7 +392,7 @@ export function problemsOf(
       });
     }
   }
-  if (values.ageMode === "declared_bucket" && values.asOf !== "") {
+  if (values.ageMode === "declared" && values.asOf !== "") {
     const problem = ageDateProblem(values.asOf, now);
     if (problem !== null) {
       problems.push({

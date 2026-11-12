@@ -794,6 +794,20 @@ export const ukPublic = {
      */
     sexMale: "Хлопчик",
     sexFemale: "Дівчинка",
+    /**
+     * A declared age range, aged to today (Oleksii, 2026-11-12, S1–S5). The years noun agrees
+     * with the upper number. «≈» (no-break space after it) marks a count or a closed range only:
+     * «до 1 року» and the open end «10+ років» carry none (his answer 7).
+     */
+    ageUnderOneYear: "до 1 року",
+    ageYears: { one: "{count} рік", few: "{count} роки", many: "{count} років" },
+    ageYearsBetween: {
+      one: "{from}–{count} рік",
+      few: "{from}–{count} роки",
+      many: "{from}–{count} років",
+    },
+    ageYearsAtLeast: "{from}+ років",
+    ageApprox: "≈\u00A0{age}",
   },
 
   // --- The pet card's temperament: chips, kabinet checkboxes, filter options ---

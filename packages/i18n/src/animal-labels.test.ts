@@ -1,7 +1,9 @@
-import { AGE_BUCKETS, SIZE_BUCKETS } from "@opika/domain";
+import { AGE_BUCKETS, type AgeSpan, SIZE_BUCKETS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import {
   ageBucketLabel,
+  ageSpanLabel,
+  ageSpanWords,
   ageWordFor,
   animalFactsParts,
   sexWordFor,
@@ -103,6 +105,100 @@ describe("animalFactsParts", () => {
       "малий",
     ]);
     expect(animalFactsParts(facts)).toEqual(["Кіт", "дорослий", "малий"]);
+  });
+});
+
+/**
+ * Age as a declared range (Oleksii, 2026-11-12, S1–S5 and answer 7), transcribed, never read
+ * from the catalogue. «≈» is followed by a no-break space (U+00A0); a range takes an en dash.
+ * The noun agrees with the upper number: the 1, 2, 5, 11, 21, 22 plural boundaries.
+ */
+describe("a declared range's words", () => {
+  const NBSP = "\u00A0";
+
+  it.each([
+    [1, `≈${NBSP}1 рік`],
+    [2, `≈${NBSP}2 роки`],
+    [5, `≈${NBSP}5 років`],
+    [11, `≈${NBSP}11 років`],
+    [21, `≈${NBSP}21 рік`],
+    [22, `≈${NBSP}22 роки`],
+  ])("about %i → «%s»", (years, text) => {
+    expect(ageSpanLabel({ kind: "about", years })).toBe(text);
+  });
+
+  it.each([
+    [1, 2, `≈${NBSP}1–2 роки`],
+    [4, 5, `≈${NBSP}4–5 років`],
+    [9, 11, `≈${NBSP}9–11 років`],
+    [19, 21, `≈${NBSP}19–21 рік`],
+    [21, 22, `≈${NBSP}21–22 роки`],
+  ])("between %i and %i → «%s»", (from, to, text) => {
+    expect(ageSpanLabel({ kind: "between", from, to })).toBe(text);
+  });
+
+  it("the open end and «до 1 року» carry no «≈» (his answer 7)", () => {
+    expect(ageSpanLabel({ kind: "at_least", from: 10 })).toBe("10+ років");
+    expect(ageSpanLabel({ kind: "at_least", from: 12 })).toBe("12+ років");
+    expect(ageSpanLabel({ kind: "at_least", from: 21 })).toBe("21+ років");
+    expect(ageSpanLabel({ kind: "under_one" })).toBe("до 1 року");
+  });
+
+  it("every range is joined by an en dash (U+2013), never a hyphen or an em dash", () => {
+    const text = ageSpanLabel({ kind: "between", from: 3, to: 4 });
+    expect(text).toContain("3–4");
+    expect(text).not.toMatch(/[-\u2014]/);
+  });
+
+  it("K3's six chips are the declared spans without «≈»", () => {
+    const chips: AgeSpan[] = [
+      { kind: "under_one" },
+      { kind: "between", from: 1, to: 2 },
+      { kind: "between", from: 3, to: 4 },
+      { kind: "between", from: 5, to: 7 },
+      { kind: "between", from: 8, to: 10 },
+      { kind: "at_least", from: 10 },
+    ];
+    expect(chips.map(ageSpanWords)).toEqual([
+      "до 1 року",
+      "1–2 роки",
+      "3–4 роки",
+      "5–7 років",
+      "8–10 років",
+      "10+ років",
+    ]);
+  });
+
+  it("replaces the bucket word in the facts line, and starts it capitalised", () => {
+    const between: AgeSpan = { kind: "between", from: 3, to: 4 };
+    expect(
+      animalFactsParts({ sex: "male", ageBucket: "adult", ageSpan: between, size: "small" }).join(
+        " · ",
+      ),
+    ).toBe(`Хлопчик · ≈${NBSP}3–4 роки · малий`);
+    expect(
+      animalFactsParts({
+        sex: "unknown",
+        ageBucket: "baby",
+        ageSpan: { kind: "under_one" },
+        size: "small",
+      }).join(" · "),
+    ).toBe("До 1 року · малий");
+    expect(
+      animalFactsParts({
+        species: "dog",
+        sex: "female",
+        ageBucket: "senior",
+        ageSpan: { kind: "at_least", from: 12 },
+        size: "large",
+      }),
+    ).toEqual(["Собака", "дівчинка", "12+ років", "велика"]);
+  });
+
+  it("a null span keeps the bucket word, exactly as before", () => {
+    expect(
+      animalFactsParts({ sex: "female", ageBucket: "young", ageSpan: null, size: "small" }),
+    ).toEqual(["Дівчинка", "молода", "мала"]);
   });
 });
 

@@ -7,6 +7,7 @@ import {
   buildShelter,
   deterministicId,
   OnboardInputSchema,
+  onboardAgeOf,
   refuseIfInsideRepo,
   withCityIdFromSlug,
 } from "../src/onboard-shelter";
@@ -322,6 +323,84 @@ describe("OnboardInputSchema's text rules", () => {
 
   it.each([["male"], ["female"]])("accepts an animal with sex %s", (sex) => {
     expect(parse({}, { sex }).success).toBe(true);
+  });
+});
+
+/** Owner, 2026-11-12: the operator's create path takes a range too, as K3 now asks. */
+describe("an onboarded animal's age", () => {
+  const ANIMAL = {
+    idSeed: "test-age",
+    name: "Ластівка",
+    species: "dog" as const,
+    sex: "female" as const,
+    size: "medium" as const,
+    descriptionUk: "Опис.",
+    photos: [{ localPath: "dog-1.jpg" }],
+  };
+  const parseAnimal = (age: object) =>
+    OnboardInputSchema.safeParse({ shelter: SHELTER_INPUT, animals: [{ ...ANIMAL, ...age }] });
+
+  it("takes a range, a bucket and an «as of» date in the file; refuses an unknown range or date", () => {
+    expect(parseAnimal({ ageRange: "3_4", ageAsOf: "2026-09-01" }).success).toBe(true);
+    expect(parseAnimal({ ageBucket: "adult" }).success).toBe(true);
+    expect(parseAnimal({ ageRange: "2_3" }).success).toBe(false);
+    expect(parseAnimal({ ageRange: "3_4", ageAsOf: "2026-13-01" }).success).toBe(false);
+  });
+
+  it("stores a range as of the given date (UTC midnight), or as of now", () => {
+    expect(onboardAgeOf({ ageRange: "3_4", ageAsOf: "2026-09-01" }, now)).toEqual({
+      kind: "declared_range",
+      range: "3_4",
+      declaredAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+    expect(onboardAgeOf({ ageRange: "10_plus" }, now)).toEqual({
+      kind: "declared_range",
+      range: "10_plus",
+      declaredAt: now,
+    });
+  });
+
+  it("stores a bucket as before, as of now unless a date is given", () => {
+    expect(onboardAgeOf({ ageBucket: "adult" }, now)).toEqual({
+      kind: "declared_bucket",
+      bucket: "adult",
+      declaredAt: now,
+    });
+    expect(onboardAgeOf({ ageBucket: "baby", ageAsOf: "2026-08-01" }, now)).toEqual({
+      kind: "declared_bucket",
+      bucket: "baby",
+      declaredAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+  });
+
+  it("refuses both, or neither", () => {
+    expect(() => onboardAgeOf({ ageBucket: "adult", ageRange: "3_4" }, now)).toThrow(
+      "exactly one of ageBucket or ageRange",
+    );
+    expect(() => onboardAgeOf({}, now)).toThrow("exactly one of ageBucket or ageRange");
+  });
+
+  it("refuses an «as of» date after today in Kyiv, or more than thirty years back, as K3 does", () => {
+    expect(() => onboardAgeOf({ ageRange: "1_2", ageAsOf: "2026-09-07" }, now)).toThrow(
+      "after today in Kyiv",
+    );
+    expect(() => onboardAgeOf({ ageRange: "1_2", ageAsOf: "1996-09-05" }, now)).toThrow(
+      "more than 30 years back",
+    );
+    expect(onboardAgeOf({ ageRange: "1_2", ageAsOf: "1996-09-06" }, now).kind).toBe(
+      "declared_range",
+    );
+  });
+
+  it("buildAnimal stores the range", () => {
+    const shelter = buildShelter(SHELTER_INPUT, now, SECRET_A);
+    const animal = buildAnimal(
+      { ...ANIMAL, ageRange: "5_7" },
+      [{ storageKey: "animals/test/2", width: 800, height: 1000, alt: null }],
+      shelter,
+      now,
+    );
+    expect(animal.age).toEqual({ kind: "declared_range", range: "5_7", declaredAt: now });
   });
 });
 
