@@ -198,9 +198,11 @@ export function PhotoSlider(props: PhotoSliderProps) {
       <Icon name={direction === 1 ? "chevron-right" : "chevron-left"} />
     </Button>
   );
-  // On a phone the hero's arrows are for keyboard users: out of sight until focused, since touch
-  // swipes. From desktop the row's own arrows replace them.
-  const phoneArrow = hero ? "max-desktop:sr-only max-desktop:focus:not-sr-only desktop:hidden" : "";
+  // On a phone the hero's arrows are for keyboard users: clipped out of sight until focused, since
+  // touch swipes. Only clipped, so a focused arrow shows in place at its full 48px (not `sr-only`).
+  const phoneArrow = hero
+    ? "max-desktop:[clip-path:inset(50%)] max-desktop:focus:[clip-path:none] desktop:hidden"
+    : "";
   const rowSlide = ROW_SLIDE[Math.min(count, ROW_VIEW) - 1];
   const rowLast = Math.min(first + ROW_VIEW, count);
 
