@@ -158,6 +158,7 @@ the parts are §1's labels). A draft's missing size or age goes in the gap line,
 | `animalList.row.withdrawnOn` | Withdrawn on {date} · {reason} | withdrawn row | `{date}` `withdrawnAt`; `{reason}` the code's label (§6), then the shelter's note in «…» when there is one | «Знято 2 жовтня · «переїхав в інший притулок»» (MOCK:28, KAB:153): the mock shows a sample note only; its «переїхав» is the shelter's own words |
 | `animalList.row.more` | More | «Ще ▾» menu button (the ▾ is a glyph, hidden from screen readers) | - | «Ще ▾» (MOCK:28-29) |
 | `animalList.actions.edit` | Edit | menu, every state (opens K3) | - | no draft |
+| `animalList.actions.editNamed` | Edit {name}: the pencil's accessible name on an aging or stale card (opens K3); its tooltip is `actions.edit` | published/reserved card, aging or stale | `{name}` | «Редагувати картку: {name}» (owner, 2026-11-13) |
 
 Published and reserved rows show the pips and `freshnessLabel` (§1). Which actions a row offers:
 
@@ -175,8 +176,7 @@ Published and reserved rows show the pips and `freshnessLabel` (§1). Which acti
 |---|---|---|---|---|
 | `animalList.confirm.stillLooking` | Still looking: confirms this animal is still looking for a home; the card's date becomes today. One animal per tap; there is no "confirm all" (commitment #7, KAB:157-161) | published row, under the freshness marker | - | «✓ Ще шукає» (MOCK:28, KAB:150). The ✓ is a glyph, hidden from screen readers (P4) |
 | `animalList.confirm.stillArranging` | Still arranging: confirms the arrangement still stands; the card's date becomes today | reserved row | - | «✓ Ще домовляються» (MOCK:28, KAB:151) |
-| `animalList.confirm.done` | Confirmed today | the cell for 8 s after a confirm | - | «✓ Підтверджено сьогодні» (MOCK:28, KAB:158). Its word vs the public «Оновлено» follows K-Q14 |
-| `animalList.confirm.undo` | Undo · {seconds} s | button beside `confirm.done`, counting down from 8. The server accepts it up to 13 s (`UNDO_WINDOW_MS`), so a tap at the last second still lands | `{seconds}` | «Скасувати · 8 с» (MOCK:28, KAB:158) |
+| `animalList.confirm.doneNamed` | {name}: confirmed today | the toast after a confirm, with «Скасувати» (`profileEdit.pause.cancel`) for 8 s; the server accepts the undo up to 13 s (`UNDO_WINDOW_MS`). Named so a run of confirms says which animal each toast is about (owner, 2026-11-13; it replaced `confirm.done` and the in-card «Скасувати · {seconds} с») | `{name}` | «{name}: підтверджено сьогодні» |
 | `animalList.confirm.undone` | Undone: the card's date is back to what it was | live region after a successful undo (the exact previous date, H2-16) | - | no draft |
 | `animalList.confirm.undoExpired` | Too late to undo: the card changed after this confirmation, or the time ran out. Its date stays today | `UNDO_EXPIRED`. Reached past the 13 s window, or after a newer write to the listing; **since RH-B7, a photo change on this card in K3 during the 8 s is one** (§0). In every case the date is today: the confirm or the photo change set it. Says nothing about who changed it | - | no draft |
 | `animalList.confirm.failed` | Not confirmed: the card's date hasn't changed. Check the connection and try again | after a failed confirm. When no answer arrived at all, K2 re-reads the row first (K4-T16's pattern) and shows this only if the date really didn't move | - | no draft |

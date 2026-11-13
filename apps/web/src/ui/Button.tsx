@@ -6,10 +6,10 @@ import { cx } from "./cx";
  * The one button. Replaces controls.Button, CircleButton, PillButton.
  * `cursor-pointer` is explicit: Tailwind's preflight resets buttons to `cursor: default`.
  */
-export type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "icon";
+export type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "link" | "icon";
 /** The glyph button on a photo. Kept out of `ButtonVariant` so `Exclude<ButtonVariant, "icon">` stays the text looks. */
 type Variant = ButtonVariant | "scrim";
-export type ButtonSize = "md" | "lg";
+export type ButtonSize = "md" | "compact" | "lg";
 export type ButtonStatus = "idle" | "loading";
 
 const LAYOUT = "inline-flex shrink-0 items-center justify-center gap-2";
@@ -24,6 +24,8 @@ const VARIANT: Record<Variant, string> = {
   accent: "rounded-pill bg-accent-strong text-on-accent-strong",
   secondary: "rounded-pill border-2 border-ink bg-transparent text-ink",
   ghost: "rounded-pill bg-transparent text-ink underline-offset-4 hover:underline",
+  // An action inside a line of text that reads as a link: underlined at rest, not only on hover.
+  link: "rounded-field bg-transparent text-ink underline underline-offset-4",
   // The surface and page tokens are near-identical, so the shadow alone leaves the circle invisible on
   // the page; the ink-2 edge keeps it above 3:1 (WCAG 1.4.11) on a page and on a photo alike.
   icon: "rounded-pill border border-ink-2 bg-surface text-ink shadow-float",
@@ -31,23 +33,28 @@ const VARIANT: Record<Variant, string> = {
   scrim: "rounded-pill bg-ink/70 bg-clip-content p-1 text-on-ink hover:bg-ink/85",
 };
 
-// md is 48px (the target floor); lg is 64px on desktop and stays 52px on a phone.
+// md is 48px (the target floor); compact is md with half the side padding, for a pill sharing a tight
+// row with icon buttons; lg is 64px on desktop and stays 52px on a phone.
 const SIZE: Record<Variant, Record<ButtonSize, string>> = {
   primary: {
     md: "min-h-target px-6",
+    compact: "min-h-target px-3",
     lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 font-bold desktop:text-body-l",
   },
   accent: {
     md: "min-h-target px-6",
+    compact: "min-h-target px-3",
     lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11",
   },
   secondary: {
     md: "min-h-target px-6",
+    compact: "min-h-target px-3",
     lg: "min-h-13 px-6 desktop:min-h-16 desktop:px-11 font-bold desktop:text-body-l",
   },
-  ghost: { md: "min-h-target px-3", lg: "min-h-13 px-4 font-bold" },
-  icon: { md: "size-target", lg: "size-13" },
-  scrim: { md: "size-target", lg: "size-13" },
+  ghost: { md: "min-h-target px-3", compact: "min-h-target px-3", lg: "min-h-13 px-4 font-bold" },
+  link: { md: "min-h-target px-1", compact: "min-h-target px-1", lg: "min-h-13 px-1 font-bold" },
+  icon: { md: "size-target", compact: "size-target", lg: "size-13" },
+  scrim: { md: "size-target", compact: "size-target", lg: "size-13" },
 };
 
 /** The class string, for the rare element that cannot be a Button or LinkButton. */

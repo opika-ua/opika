@@ -1982,8 +1982,6 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.actions.edit": "Редагувати",
     "kabinet.animalList.confirm.stillLooking": "Ще шукає",
     "kabinet.animalList.confirm.stillArranging": "Ще домовляються",
-    "kabinet.animalList.confirm.done": "Підтверджено сьогодні",
-    "kabinet.animalList.confirm.undo": "Скасувати · {seconds} с",
     "kabinet.animalList.confirm.undone": "Скасовано: на картці знову попередня дата.",
     "kabinet.animalList.confirm.undoExpired":
       "Скасувати вже не можна: час минув або картку змінено. На картці – сьогоднішня дата.",
@@ -2024,6 +2022,9 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.moved.withdrawn": "{name}: знято з показу.",
     "kabinet.animalList.moved.restored": "{name}: повернуто в чернетки.",
     "kabinet.animalList.actions.deleteDraft": "Видалити чернетку",
+    // The card's freshness actions (owner, 2026-11-13).
+    "kabinet.animalList.actions.editNamed": "Редагувати картку: {name}",
+    "kabinet.animalList.confirm.doneNamed": "{name}: підтверджено сьогодні",
     "kabinet.animalList.deleteDialog.title": "Видалити чернетку «{name}»?",
     "kabinet.animalList.deleteDialog.body": "Вона назавжди зникне з вашого списку.",
     "kabinet.animalList.deleteDialog.photosStay":

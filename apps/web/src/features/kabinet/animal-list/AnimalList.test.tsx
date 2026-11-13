@@ -213,6 +213,8 @@ const restoreDusia = async () => {
   await openStatus("Дуся");
   await userEvent.click(screen.getByRole("button", { name: "Повернути в чернетки" }));
 };
+/** The line a card control sits in: the freshness line or the action row. */
+const lineOf = (control: HTMLElement) => control.parentElement as HTMLElement;
 const statusText = () => screen.getByRole("status").textContent;
 const alertText = () =>
   screen
@@ -830,7 +832,25 @@ describe("«Видалити чернетку» (K2-T4, his answers 2 and 8b)", 
   });
 });
 
-describe("«Ще шукає» / «Ще домовляються» and the 8-second undo (N4)", () => {
+/** Рекс at 40 days is stale and Мурка at 3 is fresh; this one, at 12, is aging. */
+const AGING = row(7, {
+  name: "Деймос",
+  listing: {
+    kind: "reserved",
+    since: NOW,
+    publishedAt: OLD,
+    confirmedAt: new Date(NOW.getTime() - 12 * DAY),
+    undoable: null,
+  },
+  freshness: { kind: "aging", confirmedAt: new Date(NOW.getTime() - 12 * DAY), ageDays: 12 },
+});
+
+/** The toast's «Скасувати» (exact: nothing else on the page is named only that). */
+const toastUndo = () => screen.getByRole("button", { name: "Скасувати" });
+const pencilOf = (name: string) =>
+  inRow(name).getByRole("link", { name: `Редагувати картку: ${name}` });
+
+describe("«Ще шукає» / «Ще домовляються» and the 8-second undo (N4; the toast, owner 2026-11-13)", () => {
   const confirmedNow = (from: AnimalRow) =>
     viewOf(from, {
       kind: from.listing.kind as "published",
@@ -848,8 +868,8 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     }
   });
 
-  it("confirms one animal, the date becomes today, and the undo counts down from 8 and then goes", async () => {
-    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+  it("confirms one animal: the request, the card turns fresh (button to link), and the named toast offers «Скасувати» for 8 s", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     vi.setSystemTime(NOW);
     const calls = renderList({
       clock: () => new Date(),
@@ -860,24 +880,30 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
         }),
       },
     });
+    expect(pencilOf("Рекс")).toBeTruthy();
     await act(async () => {
       fireEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
     });
     expect(calls.confirm).toHaveBeenCalledWith({ animalId: PUBLISHED.id });
     expect(calls.confirm).toHaveBeenCalledTimes(1);
-    expect(inRow("Рекс").getByText("Підтверджено сьогодні")).toBeTruthy();
     expect(inRow("Рекс").getByText("Оновлено сьогодні")).toBeTruthy();
-    expect(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" })).toBeTruthy();
+    // Fresh now: the confirm is the freshness line's link, «Редагувати» is back in the row.
+    expect(lineOf(inRow("Рекс").getByRole("button", { name: "Ще шукає" })).textContent).toContain(
+      "Оновлено сьогодні",
+    );
+    expect(inRow("Рекс").getByRole("link", { name: "Редагувати" })).toBeTruthy();
+    expect(inRow("Рекс").queryByRole("link", { name: /^Редагувати картку/ })).toBeNull();
+    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
+    expect(toastUndo()).toBeTruthy();
     await act(async () => {
-      vi.advanceTimersByTime(3_000);
+      vi.advanceTimersByTime(7_900);
     });
-    expect(inRow("Рекс").getByRole("button", { name: "Скасувати · 5 с" })).toBeTruthy();
+    expect(toastUndo()).toBeTruthy();
     await act(async () => {
-      vi.advanceTimersByTime(5_000);
+      vi.advanceTimersByTime(200);
     });
-    expect(inRow("Рекс").queryByRole("button", { name: /^Скасувати/ })).toBeNull();
-    expect(inRow("Рекс").queryByText("Підтверджено сьогодні")).toBeNull();
-    expect(inRow("Рекс").getByRole("button", { name: "Ще шукає" })).toBeTruthy();
+    expect(screen.queryByText("Рекс: підтверджено сьогодні")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
   });
 
   /** One animal per tap (commitment #7): a second tap while the first is in flight sends nothing. */
@@ -898,10 +924,47 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     await act(async () => {
       answer({ animal: confirmedNow(PUBLISHED), undoUntil: NOW });
     });
-    expect(inRow("Рекс").getByText("Підтверджено сьогодні")).toBeTruthy();
+    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
   });
 
-  it("a second tap on «Скасувати» while the undo is in flight sends nothing", async () => {
+  it("several confirms in a row: one toast for each, each naming its animal", async () => {
+    renderList({
+      first: { ...FIRST, items: [PUBLISHED, AGING] },
+      handlers: {
+        confirm: async (input: { animalId: string }) => ({
+          animal: confirmedNow(input.animalId === AGING.id ? AGING : PUBLISHED),
+          undoUntil: NOW,
+        }),
+      },
+    });
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
+    await userEvent.click(inRow("Деймос").getByRole("button", { name: "Ще домовляються" }));
+    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
+    expect(screen.getByText("Деймос: підтверджено сьогодні")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Скасувати" })).toHaveLength(2);
+  });
+
+  it("undo from the toast: the request, his line, the previous date back, and the filled button again", async () => {
+    const calls = renderList({
+      handlers: {
+        confirm: async () => ({ animal: confirmedNow(PUBLISHED), undoUntil: NOW }),
+        undoConfirm: async () => viewOf(PUBLISHED, PUBLISHED.listing),
+      },
+    });
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
+    await userEvent.click(toastUndo());
+    expect(calls.undoConfirm).toHaveBeenCalledWith({ animalId: PUBLISHED.id });
+    expect(statusText()).toBe("Скасовано: на картці знову попередня дата.");
+    expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
+    // Stale again: the confirm is back in the row with the pencil.
+    expect(pencilOf("Рекс")).toBeTruthy();
+    expect(
+      lineOf(inRow("Рекс").getByRole("button", { name: "Ще шукає" })).contains(pencilOf("Рекс")),
+    ).toBe(true);
+  });
+
+  it("the toast's «Скасувати» runs once: the toast goes with the tap, so nothing is sent twice", async () => {
     let answer: (value: unknown) => void = () => {};
     const calls = renderList({
       handlers: {
@@ -913,9 +976,8 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
       },
     });
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
-    const undo = inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" });
-    await userEvent.click(undo);
-    await userEvent.click(undo);
+    await userEvent.click(toastUndo());
+    expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
     expect(calls.undoConfirm).toHaveBeenCalledTimes(1);
     await act(async () => {
       answer(viewOf(PUBLISHED, PUBLISHED.listing));
@@ -923,7 +985,7 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     expect(statusText()).toBe("Скасовано: на картці знову попередня дата.");
   });
 
-  it("an undo with no answer: re-read; the previous date back is «Скасовано», today's date keeps the undo", async () => {
+  it("an undo with no answer: re-read; today's date offers the undo again, the previous date back is «Скасовано»", async () => {
     let stored = viewOf(PUBLISHED, PUBLISHED.listing);
     renderList({
       handlers: {
@@ -935,48 +997,50 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
     // The re-read still shows today's date: the undo didn't happen, and it can be tried again.
     stored = confirmedNow(PUBLISHED);
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" }));
+    await userEvent.click(toastUndo());
     expect(alertText()).toContain("Не вдалося. Перевірте зʼєднання і спробуйте ще раз.");
     expect(inRow("Рекс").getByText("Оновлено сьогодні")).toBeTruthy();
+    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
     // It did land: the re-read shows the date from before the confirmation.
     stored = viewOf(PUBLISHED, PUBLISHED.listing);
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: /^Скасувати · \d с$/ }));
+    await userEvent.click(toastUndo());
     expect(statusText()).toBe("Скасовано: на картці знову попередня дата.");
     expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
-    expect(inRow("Рекс").queryByRole("button", { name: /^Скасувати/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
   });
 
-  it("undo inside the window: the request, his line, and the previous date back", async () => {
-    const calls = renderList({
-      handlers: {
-        confirm: async () => ({ animal: confirmedNow(PUBLISHED), undoUntil: NOW }),
-        undoConfirm: async () => viewOf(PUBLISHED, PUBLISHED.listing),
-      },
-    });
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" }));
-    expect(calls.undoConfirm).toHaveBeenCalledWith({ animalId: PUBLISHED.id });
-    expect(statusText()).toBe("Скасовано: на картці знову попередня дата.");
-    expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
-    expect(inRow("Рекс").queryByRole("button", { name: /^Скасувати/ })).toBeNull();
-  });
-
-  it("undo after the server's window (or after a newer write): his «вже не можна», today's date stays", async () => {
+  it("undo after the server's window (or after a newer write): his «вже не можна», today's date stays, no undo again", async () => {
     renderList({
+      first: { ...FIRST, items: [AGING] },
       handlers: {
-        confirm: async () => ({ animal: confirmedNow(RESERVED), undoUntil: NOW }),
+        confirm: async () => ({ animal: confirmedNow(AGING), undoUntil: NOW }),
         undoConfirm: async () => Promise.reject(apiError("UNDO_EXPIRED")),
         // What the server holds then: today's confirmation (the screen reads it before speaking).
-        byId: async () => confirmedNow(RESERVED),
+        byId: async () => confirmedNow(AGING),
       },
     });
-    await userEvent.click(inRow("Мурка").getByRole("button", { name: "Ще домовляються" }));
-    await userEvent.click(inRow("Мурка").getByRole("button", { name: "Скасувати · 8 с" }));
+    await userEvent.click(inRow("Деймос").getByRole("button", { name: "Ще домовляються" }));
+    await userEvent.click(toastUndo());
     expect(alertText()).toContain(
       "Скасувати вже не можна: час минув або картку змінено. На картці – сьогоднішня дата.",
     );
-    expect(inRow("Мурка").getByText("Оновлено сьогодні")).toBeTruthy();
-    expect(inRow("Мурка").queryByRole("button", { name: /^Скасувати/ })).toBeNull();
+    expect(inRow("Деймос").getByText("Оновлено сьогодні")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
+  });
+
+  it("a move after a confirmation takes its undo away (the server would refuse it)", async () => {
+    renderList({
+      handlers: {
+        confirm: async () => ({ animal: confirmedNow(PUBLISHED), undoUntil: NOW }),
+        transition: async () => viewOf(PUBLISHED, RESERVED_REX),
+      },
+    });
+    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
+    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
+    await openStatus("Рекс");
+    await userEvent.click(screen.getByRole("button", { name: "Домовляються" }));
+    expect(await screen.findByText("Рекс: почали домовлятися.")).toBeTruthy();
+    expect(screen.queryByText("Рекс: підтверджено сьогодні")).toBeNull();
   });
 
   it("a confirmation the server refuses: his «Не підтверджено», the date unchanged", async () => {
@@ -990,7 +1054,7 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
   });
 
-  it("no answer: re-read; a date that moved is confirmed (no undo offered), one that didn't is «Не підтверджено»", async () => {
+  it("no answer: re-read; a date that moved is confirmed (the named toast, no undo), one that didn't is «Не підтверджено»", async () => {
     let stored = viewOf(PUBLISHED, PUBLISHED.listing);
     const calls = renderList({
       handlers: {
@@ -1004,9 +1068,33 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
 
     stored = confirmedNow(PUBLISHED);
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
-    expect(statusText()).toBe("Підтверджено сьогодні");
+    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
     expect(inRow("Рекс").getByText("Оновлено сьогодні")).toBeTruthy();
-    expect(inRow("Рекс").queryByRole("button", { name: /^Скасувати/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
+  });
+
+  it("by keyboard: the pressed button becomes the link and keeps focus; undo gives it back to the button", async () => {
+    renderList({
+      handlers: {
+        confirm: async () => ({ animal: confirmedNow(PUBLISHED), undoUntil: NOW }),
+        undoConfirm: async () => viewOf(PUBLISHED, PUBLISHED.listing),
+      },
+    });
+    inRow("Рекс").getByRole("button", { name: "Ще шукає" }).focus();
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(document.activeElement).toBe(inRow("Рекс").getByRole("button", { name: "Ще шукає" })),
+    );
+    expect(lineOf(document.activeElement as HTMLElement).textContent).toContain(
+      "Оновлено сьогодні",
+    );
+    toastUndo().focus();
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy());
+    await waitFor(() =>
+      expect(document.activeElement).toBe(inRow("Рекс").getByRole("button", { name: "Ще шукає" })),
+    );
+    expect(lineOf(document.activeElement as HTMLElement).contains(pencilOf("Рекс"))).toBe(true);
   });
 });
 
@@ -1052,10 +1140,11 @@ describe("after a lost answer, only what is known", () => {
       },
     });
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" }));
+    await userEvent.click(toastUndo());
     expect(alertText()).toContain(CARD_DIDNT_LOAD);
     expect(alertText()).not.toContain("Не вдалося");
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: /^Скасувати · \d с$/ }));
+    // Nothing is known, so the undo is offered again.
+    await userEvent.click(toastUndo());
     expect(alertText()).not.toContain("сьогоднішня дата");
     expect(statusText()).toBe("Скасовано: на картці знову попередня дата.");
     expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
@@ -1070,7 +1159,7 @@ describe("after a lost answer, only what is known", () => {
       },
     });
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" }));
+    await userEvent.click(toastUndo());
     expect(alertText()).toContain(
       "Скасувати вже не можна: час минув або картку змінено. На картці – сьогоднішня дата.",
     );
@@ -1085,7 +1174,7 @@ describe("after a lost answer, only what is known", () => {
       },
     });
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
-    await userEvent.click(inRow("Рекс").getByRole("button", { name: "Скасувати · 8 с" }));
+    await userEvent.click(toastUndo());
     expect(alertText()).toContain(CARD_DIDNT_LOAD);
     expect(alertText()).not.toContain("сьогоднішня дата");
   });
@@ -1407,15 +1496,24 @@ describe("both menus are keyboard-operable disclosures", () => {
     );
   });
 
-  it("the card's repeated buttons are described by the animal's name (P4)", () => {
+  it("the card's repeated buttons are described by the animal's name (P4); the pencil names it", () => {
     renderList();
-    const name = inRow("Рекс").getByRole("heading", { name: "Рекс" });
-    for (const control of [
-      inRow("Рекс").getByRole("button", { name: "Ще шукає" }),
-      inRow("Рекс").getByRole("link", { name: "Редагувати" }),
-    ]) {
-      expect(control.getAttribute("aria-describedby")).toContain(name.id);
+    for (const [animal, controls] of [
+      ["Рекс", [inRow("Рекс").getByRole("button", { name: "Ще шукає" })]],
+      [
+        "Мурка",
+        [
+          inRow("Мурка").getByRole("button", { name: "Ще домовляються" }),
+          inRow("Мурка").getByRole("link", { name: "Редагувати" }),
+        ],
+      ],
+    ] as const) {
+      const name = inRow(animal).getByRole("heading", { name: animal });
+      for (const control of controls) {
+        expect(control.getAttribute("aria-describedby")).toContain(name.id);
+      }
     }
+    expect(pencilOf("Рекс").getAttribute("aria-label")).toBe("Редагувати картку: Рекс");
   });
 });
 
@@ -1434,10 +1532,12 @@ describe("each status shows only its own actions (the card spec)", () => {
   ])("%s", (name, buttons) => {
     renderList();
     expect(buttonsOf(name)).toEqual(buttons);
-    // «Редагувати» on every card, a link to the card's form.
-    expect(inRow(name).getByRole("link", { name: "Редагувати" }).getAttribute("href")).toMatch(
-      /^\/kabinet\/tvaryny\//,
-    );
+    // «Редагувати», or an aging or stale card's pencil, on every card: a link to the card's form.
+    expect(
+      inRow(name)
+        .getByRole("link", { name: /^Редагувати( картку: .+)?$/ })
+        .getAttribute("href"),
+    ).toMatch(/^\/kabinet\/tvaryny\//);
   });
 
   it.each([
@@ -1457,37 +1557,69 @@ describe("each status shows only its own actions (the card spec)", () => {
     },
   );
 
-  it("the confirm button is filled once the date is aging or stale, outlined while fresh", () => {
+  /** The owner's card (2026-11-13): the biggest control is the thing to do now. */
+  it.each([
+    ["Рекс", "Ще шукає", "stale"],
+    ["Деймос", "Ще домовляються", "aging"],
+  ])(
+    "%s (%s, %s): the filled confirm, the pencil and ⋯ in one row, in that order",
+    (name, label) => {
+      renderList({ first: { ...FIRST, items: [PUBLISHED, RESERVED, AGING] } });
+      const confirm = inRow(name).getByRole("button", { name: label });
+      const row = lineOf(confirm);
+      expect(row.contains(pencilOf(name))).toBe(true);
+      expect(row.contains(moreOf(name))).toBe(true);
+      expect(
+        confirm.compareDocumentPosition(pencilOf(name)) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        pencilOf(name).compareDocumentPosition(moreOf(name)) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(inRow(name).queryByRole("link", { name: "Редагувати" })).toBeNull();
+      expect(row.textContent).not.toContain("Оновлено");
+    },
+  );
+
+  it("fresh: the confirm is a link at the end of the freshness line; the row holds «Редагувати» and ⋯", () => {
     renderList();
-    // Рекс: 40 days (stale); Мурка: 3 days (fresh).
-    expect(inRow("Рекс").getByRole("button", { name: "Ще шукає" }).className).not.toBe(
-      inRow("Мурка").getByRole("button", { name: "Ще домовляються" }).className,
-    );
+    const confirm = inRow("Мурка").getByRole("button", { name: "Ще домовляються" });
+    expect(lineOf(confirm).textContent).toContain("Оновлено 3 дні тому");
+    const edit = inRow("Мурка").getByRole("link", { name: "Редагувати" });
+    const row = lineOf(edit);
+    expect(row.contains(moreOf("Мурка"))).toBe(true);
+    expect(row.contains(confirm)).toBe(false);
+    expect(confirm.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(inRow("Мурка").queryByRole("link", { name: /^Редагувати картку/ })).toBeNull();
   });
 
-  /** The owner's row (2026-11-12): the primary first, then «Редагувати» and ⋯ as one pair; the wrap is the harness's. */
-  it.each([
-    ["Рекс", "Ще шукає"],
-    ["Мурка", "Ще домовляються"],
-    ["Ластівка", "Опублікувати"],
-  ])("%s: «%s» first, «Редагувати» and ⋯ kept together after it", (name, primary) => {
+  it("the pencil opens the card's form and shows «Редагувати» on hover", async () => {
     renderList();
-    const pair = inRow(name).getByRole("link", { name: "Редагувати" }).parentElement as HTMLElement;
-    const first = inRow(name).getByRole("button", { name: primary });
-    expect(pair.contains(moreOf(name))).toBe(true);
+    expect(pencilOf("Рекс").getAttribute("href")).toBe(`/kabinet/tvaryny/${PUBLISHED.id}`);
+    await userEvent.hover(pencilOf("Рекс"));
+    expect((await screen.findByRole("tooltip")).textContent).toBe("Редагувати");
+  });
+
+  /** A draft keeps #498's row: «Опублікувати» first, «Редагувати» and ⋯ kept together after it. */
+  it("Ластівка: «Опублікувати» first, «Редагувати» and ⋯ kept together after it", () => {
+    renderList();
+    const pair = inRow("Ластівка").getByRole("link", { name: "Редагувати" })
+      .parentElement as HTMLElement;
+    const first = inRow("Ластівка").getByRole("button", { name: "Опублікувати" });
+    expect(pair.contains(moreOf("Ластівка"))).toBe(true);
     expect(pair.contains(first)).toBe(false);
     expect(first.compareDocumentPosition(pair) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
 describe("the name is the way into the card's form, and a menu closes on a press outside", () => {
-  it("the name and «Редагувати» link to the card's form", async () => {
+  it("the name, «Редагувати» and the pencil link to the card's form", async () => {
     renderList();
     expect(inRow("Рекс").getByRole("link", { name: "Рекс" }).getAttribute("href")).toBe(
       `/kabinet/tvaryny/${PUBLISHED.id}`,
     );
-    expect(inRow("Рекс").getByRole("link", { name: "Редагувати" }).getAttribute("href")).toBe(
-      `/kabinet/tvaryny/${PUBLISHED.id}`,
+    expect(pencilOf("Рекс").getAttribute("href")).toBe(`/kabinet/tvaryny/${PUBLISHED.id}`);
+    expect(inRow("Мурка").getByRole("link", { name: "Редагувати" }).getAttribute("href")).toBe(
+      `/kabinet/tvaryny/${RESERVED.id}`,
     );
   });
 

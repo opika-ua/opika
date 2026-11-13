@@ -188,14 +188,14 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     await page.close();
   });
 
-  test("«Ще шукає», then «Скасувати»: the date goes to today and back, and the server kept what the screen says", async () => {
+  test("«Ще шукає», then the toast's «Скасувати»: the date goes to today and back, and the server kept what the screen says", async () => {
     const page = await open("/kabinet/tvaryny");
     const row = rowOf(page, STALE);
     await row.getByRole("button", { name: "Ще шукає" }).click();
-    await expect(row.getByText("Підтверджено сьогодні")).toBeVisible();
+    await expect(page.getByText(`${STALE}: підтверджено сьогодні`)).toBeVisible();
     await expect(row.getByText("Оновлено сьогодні")).toBeVisible();
 
-    await row.getByRole("button", { name: /^Скасувати · \d с$/ }).click();
+    await page.getByRole("button", { name: "Скасувати", exact: true }).click();
     await expect(page.getByText("Скасовано: на картці знову попередня дата.")).toBeVisible();
     await expect(row.getByText("Оновлено 40 днів тому")).toBeVisible();
 
@@ -205,7 +205,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
 
     // Confirmed for real this time, and left to stand.
     await rowOf(page, STALE).getByRole("button", { name: "Ще шукає" }).click();
-    await expect(rowOf(page, STALE).getByText("Підтверджено сьогодні")).toBeVisible();
+    await expect(page.getByText(`${STALE}: підтверджено сьогодні`)).toBeVisible();
     await page.reload();
     await expect(rowOf(page, STALE).getByText("Оновлено сьогодні")).toBeVisible();
     await page.close();

@@ -27,11 +27,14 @@ const PIP: Record<Fill, string> = {
 export function FreshnessPips({
   kind,
   label,
+  trail = "none",
   className,
 }: {
   kind: FreshnessKind;
   /** The day count in words («Оновлено 3 дні тому»), from the caller's catalogue. Required: pips never stand alone. */
   label: string;
+  /** `dot`: the line goes on after the words (an action beside them), so a «·» follows the last word, wrapping with it. */
+  trail?: "none" | "dot";
   /** Layout only. */
   className?: string;
 }) {
@@ -43,7 +46,10 @@ export function FreshnessPips({
           <span key={index} className={cx("size-3 rounded-pill", PIP[fill])} />
         ))}
       </span>
-      <span className="text-body text-ink">{label}</span>
+      <span className="text-body text-ink">
+        {label}
+        {trail === "dot" ? <span aria-hidden="true">{"\u00a0·"}</span> : null}
+      </span>
     </span>
   );
 }

@@ -1093,6 +1093,7 @@ export const en = {
       orderInfoLabel: "How the list is ordered",
       actions: {
         edit: "Edit",
+        editNamed: "Edit {name}",
         restore: "Back to drafts",
         deleteDraft: "Delete draft",
       },
@@ -1109,8 +1110,7 @@ export const en = {
       confirm: {
         stillLooking: "Still looking",
         stillArranging: "Still arranging",
-        done: "Confirmed today",
-        undo: "Undo · {seconds} s",
+        doneNamed: "{name}: confirmed today",
         undone: "Undone: the card shows its previous date again.",
         undoExpired:
           "It can't be undone any more: the time ran out or the card changed. The card shows today's date.",
