@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { cx } from "./cx";
-import { keyboardInsetOf, revealAboveBar } from "./sticky-bar";
+import { BOTTOM_BAR, keyboardInsetOf, revealAboveBar } from "./sticky-bar";
 
 /**
  * The save / publish bar of a long form: it sticks to the bottom edge of the screen while the form
@@ -91,6 +91,7 @@ export function StickyActionBar({
 
   return (
     <div
+      {...BOTTOM_BAR}
       ref={ref}
       style={inset > 0 ? { transform: `translateY(-${inset}px)` } : undefined}
       className={cx(

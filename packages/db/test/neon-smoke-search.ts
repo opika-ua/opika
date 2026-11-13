@@ -1,13 +1,23 @@
 import { randomUUID } from "node:crypto";
 import { placeQueryOf, type RegionId } from "@opika/domain";
-import { sql } from "drizzle-orm";
+import { and, inArray, isNull, sql } from "drizzle-orm";
 import type { Database } from "../src/client";
 import { REGION_BY_CODE } from "../src/geography/regions-data";
 import { cityRepo } from "../src/repos/city-repo";
 import { citySearchRepo, cyrillicTrigramsAvailable } from "../src/repos/city-search-repo";
+import { cities } from "../src/schema/cities";
 import { makeCity } from "../src/test-utils/index";
 
 type Outcome = { name: string; ok: boolean; detail: string };
+
+/** Every fixture name below. */
+export const SEARCH_FIXTURE_NAMES = [
+  "Смокова",
+  "Смоковата",
+  "Смоково",
+  "Смокіївка",
+  "Смококримськ",
+] as const;
 
 /**
  * Nationwide track N2: the checks for `cities.search`'s query, appended after the geography
@@ -15,6 +25,10 @@ type Outcome = { name: string; ok: boolean; detail: string };
  * query-builder shape, never a raw `db.execute`, because neon-http and postgres-js return
  * different raw result shapes. Fixture rows use names no real settlement has, carry no code (the
  * importer leaves such rows alone) and stay on the child branch, which is thrown away.
+ *
+ * A search returns 20 rows, ties broken by id, so an earlier run's copies of the same names could
+ * push this run's out of them (from about the seventh run on one branch). Rows with these names
+ * and no code are deleted before the fixtures go in.
  */
 export async function runSearchSmoke(db: Database): Promise<Outcome[]> {
   const out: Outcome[] = [];
@@ -56,6 +70,9 @@ export async function runSearchSmoke(db: Database): Promise<Outcome[]> {
         : "Cyrillic trigrams EMPTY: typo tolerance falls back to the Latin key",
   );
 
+  await db
+    .delete(cities)
+    .where(and(inArray(cities.nameUk, [...SEARCH_FIXTURE_NAMES]), isNull(cities.katottgCode)));
   const exact = named("Смокова", "Smokova");
   const prefix = named("Смоковата", "Smokovata");
   const typo = named("Смоково", "Smokovo");

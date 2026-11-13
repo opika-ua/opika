@@ -222,6 +222,11 @@ const ON_THE_BLOCK: PhotoFraming = {
   kind: "frame",
   frame: { x: 0.5, y: 0.1, w: 0.25, h: 500 / 1200 },
 };
+/**
+ * A frame the 1120 × 1400 detail variant takes too (560 × 700 px), so for a photo with no kept
+ * source only the seed-key check stands between it and a charged attempt (ON_THE_BLOCK is too small).
+ */
+const ON_ANY_SOURCE: PhotoFraming = { kind: "frame", frame: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 } };
 /** The framing the server stores: fractions rounded to 1/10 000. */
 const stored = (framing: PhotoFraming): PhotoFraming =>
   framing.kind === "attention"
@@ -699,7 +704,7 @@ describe("the upload allowance: spent only once a crop lands (owner, 2026-11-12)
     await animalRepo(db).insert(target, cityId as never);
     const count = ledgers();
 
-    const result = await call("shelter.photos.crop", crop(target, storageKey, ON_THE_BLOCK), {
+    const result = await call("shelter.photos.crop", crop(target, storageKey, ON_ANY_SOURCE), {
       uploads: uploadsOf(store, count.limiters),
     });
 
@@ -853,6 +858,38 @@ describe("the upload allowance: spent only once a crop lands (owner, 2026-11-12)
     expect((await reload(target.id)).photos.map((p) => p.storageKey)).toEqual([newKey]);
     expect(logged.mock.calls).toEqual([[{ event: "photo_crop_uncharged" }]]);
   });
+
+  it.each([
+    ["the hour", "photo_crop_charged_daily_only", [0, 1]],
+    ["the day", "photo_crop_charged_hourly_only", [1, 0]],
+  ] as const)(
+    "refused by %s alone when it lands: the log line names the unit still taken",
+    async (_refuser, event, spent) => {
+      const { target, photo, store } = await withUploadedPhoto();
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      const count = ledgers();
+      const refusing: PeekableRateLimiter = {
+        check: async () => false,
+        wouldAllow: async () => true,
+      };
+      const limiters =
+        event === "photo_crop_charged_daily_only"
+          ? { ...count.limiters, perHour: refusing }
+          : { ...count.limiters, perDay: refusing };
+
+      const result = await call(
+        "shelter.photos.crop",
+        crop(target, photo.storageKey, ON_THE_BLOCK),
+        {
+          uploads: uploadsOf(store, limiters),
+        },
+      );
+
+      expect(result.status).toBe(200);
+      expect(count.allowance()).toEqual(spent);
+      expect(logged.mock.calls).toEqual([[{ event }]]);
+    },
+  );
 });
 
 describe("who receives a source key (crop frame, condition 2)", () => {

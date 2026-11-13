@@ -198,6 +198,83 @@ describe("productionSignInOf", () => {
 });
 
 /**
+ * Leaves per top-level `kabinet` group, pinned so a narrower walk can't pass by seeing fewer. One
+ * line per group with a blank line between: a PR edits only its groups' lines, and edits two lines
+ * apart merge cleanly where neighbouring lines would conflict.
+ */
+const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
+  units: 12,
+
+  cityPicker: 10,
+
+  dateField: 5,
+
+  operatorFallbackName: 1,
+
+  operatorFallbackNameInSentence: 1,
+
+  shell: 5,
+
+  signIn: 21,
+
+  setPassword: 10,
+
+  password: 5,
+
+  forgot: 5,
+
+  reset: 5,
+
+  changePassword: 7,
+
+  profile: 27,
+
+  profileStatus: 6,
+
+  operatorStatus: 2,
+
+  profileChannel: 9,
+
+  profileNotRecorded: 1,
+
+  notFilledYet: 1,
+
+  profileTabs: 5,
+
+  profileEdit: 94,
+
+  listingStatus: 5,
+
+  animalForm: 156,
+
+  animalList: 80,
+
+  nav: 2,
+
+  deleteDraft: 1,
+
+  support: 6,
+
+  email: 63,
+
+  signInCard: 1,
+
+  inviteLanding: 4,
+
+  registry: 1,
+
+  confirm: 9,
+
+  history: 2,
+
+  operator: 283,
+
+  verificationDecision: 8,
+
+  animalHistoryLabels: 16,
+};
+
+/**
  * Oleksii, 2026-10-14, answer 7, verbatim: "Yes. Production sign-in stays off
  * while any kabinet.* or email-template string is [COPY PENDING]. Test it."
  */
@@ -255,8 +332,7 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
    * kabinet.* string, including ones without a visible screen yet." So the
    * gate is the whole `uk.kabinet` subtree, walked here independently of
    * `pendingCopyPaths`: every leaf is either in the gate's list or written,
-   * and the count of leaves is pinned so a narrower walk can't pass by
-   * seeing fewer.
+   * and the leaves are counted per group (`KABINET_STRINGS_PER_GROUP`).
    */
   it("covers every kabinet.* string, the ones with no screen yet included (item 5)", () => {
     const pending: string[] = [];
@@ -269,132 +345,12 @@ describe("production sign-in stays off while kabinet copy is pending (answer 7)"
       }
     };
     walk(uk.kabinet, "kabinet");
-    // 88 rows of the copy export plus operatorFallbackName and profileNotRecorded.
-    // profile.addressNote (row 57) was deleted as a false claim and is back with
-    // his replacement text (2026-10-14, EM-Q10). 91 with confirm.rateLimited,
-    // the over-limit card's notice (the wiring PR; his text, 2026-10-15).
-    // 165 with K4's 74 `profileEdit.*` strings (PR 2 of the K milestone, his
-    // text, 2026-10-17; the key set is pinned in copy-status.test.ts).
-    // 385 with R-UI's 220 `operator.*` and `verificationDecision.*` strings
-    // (his text, 2026-10-17, all three R-UI PRs; pinned in copy-status.test.ts).
-    // 397 with the 12 `animalHistoryLabels.*` words (his K3 words, R-UI 1).
-    // 398 with operatorFallbackNameInSentence, the fallback's lower case for the
-    // locked note once round 2's answer 6 capitalised the standalone one.
-    // 399 with verificationDecision.signature (round 2's answer 2, R-UI 3).
-    // 400 with operator.admins.inviteFirst (his N7, round 3).
-    // 516 with K3 (PR 4): 110 `animalForm.*` and 5 `listingStatus.*` strings
-    // and the one `testShelterOnly.animalForm.*` line (his text, 2026-10-17,
-    // all pinned in copy-status.test.ts).
-    // 594 with K2 (PR 5): his 78 strings (`k2-copy-uk.md`, 2026-10-18): 75
-    // under `animalList.*` (the two `{cards}` groups' six forms included), the
-    // two `nav.*` and `deleteDraft.refused.wasPublished`, pinned in
-    // copy-status.test.ts. `dateUnchanged` moved within the tree (P10), so it
-    // adds nothing. 595 with operator.create.errors.nameTooLong (his RUI4-F2
-    // text, 2026-10-18). 596 with email.invite.whatBeforeVerification (Q-C, 2026-10-19).
-    // 595 since PR 6 deleted profileEdit.errors.notAvailable (P6-Q8).
-    // 635 with PW-1's passwords (his text, 2026-10-19, pinned in copy-status.test.ts): 8 new
-    // `signIn.*` keys less `signIn.send`, 3 `setPassword.*`, 5 `password.*`, 5 `forgot.*`,
-    // 5 `reset.*`, 7 `changePassword.*`, 5 `email.reset.*` and 3 `email.passwordChanged.*`.
-    // 640 with designer round 1's fur (his text, 2026-10-20, pinned in copy-status.test.ts):
-    // the four `animalForm.coat.*` and `animalHistoryLabels.field.coatLength`.
-    // 637 with PW-2: his 3 `setPassword.*` (title, intro, submit), less the magic-link landing's
-    // 6 `inviteLanding.*` (ready, send, sent, title, alreadyAccepted, rateLimited).
-    // 639 with the copy audit's G3 `profile.pendingNote` and G4 `signIn.failed` (2026-10-22).
-    // 637 with designer round 1, S6 (his DR1-Q1 and DR1-Q5 text, 2026-10-20): less
-    // `voice.nameStaysHint`, `voice.insertName` and `voice.previewNoAnimals`, plus
-    // `errors.nameTokenGone`.
-    // 648 with the pet card redesign's 11 (his approval of 2026-10-26, quoted in
-    // copy-status.test.ts's `PET_CARD_COPY`): the four `animalForm.temperament.*`, the four
-    // `animalForm.colour.*` and three `animalHistoryLabels.field.*`. His other two, the medical
-    // note's label and hint, ship in PR 5 with the note's field.
-    // 661 with pet card PR 3b's logo section: the twelve `profileEdit.logo.*` keys (his final
-    // text, 2026-10-27, including `add`) and `operator.history.logo_changed`.
-    // 664 with pet card PR 5's medical note field: his `animalForm.medicalNotes.title`/`.hint`
-    // (given directly, 2026-10-27), plus the builder-drafted
-    // `animalForm.validation.medicalNotesTooLong` (not his words, but real text, never
-    // `COPY_PENDING` - a pending `kabinet.*` string would turn production sign-in off
-    // entirely, which this very test exists to gate).
-    // 665 with the sex-filter feature's one new gap word, `animalForm.publish.gap.sex`
-    // (confirmed directly in chat, pinned in copy-status.test.ts's `SEX_FILTER_COPY`).
-    // 666 with the kabinet redesign Phase 2 PR 1's one new key, `kabinet.nav.home`
-    // («Головна», owner-approved 2026-10-28, pinned in copy-status.test.ts's K2_FINAL).
-    // 670 with the animal form's four section names, `animalForm.sections.*` (owner-approved
-    // 2026-10-28/29, pinned in copy-status.test.ts's FORM_SECTIONS_COPY).
-    // 680 with the settlement picker's ten strings, `cityPicker.*` (owner-approved Phase 0 table,
-    // 2026-10-29, nationwide N4).
-    // 681 with kabinet UX round 2: less `nav.home` (no Головна tab), plus `shell.viewSite` and
-    // `shell.newTab` (owner-approved 2026-10-29).
-    // 684 with kabinet UX round 2's list strings (`animalList.actions.viewOnSite`,
-    // `orderInfoLabel`, `row.menuLabel`; owner-approved 2026-10-29).
-    // 693 with kabinet UX round 2's Притулок sub-tabs and save bar: `profile.viewOnSite`, six
-    // `profileTabs.*` and two `profileEdit.saveBar.*` (owner-approved 2026-10-29).
-    // 699 with the animal editor's tabs (PR 2): seven new keys (`sections.tabsLabel`, two badge
-    // names, `publish.requiredTag`, `missingTitle`, `missingItem`, `allSet`; owner-approved
-    // 2026-10-31, pinned in copy-status.test.ts's EDITOR_TABS_COPY) less `photos.ratioNote`.
-    // 709 with the photo manager (PR 3): eleven new keys (counter, orderHint, addTile, addLeft,
-    // addDrop, menuLabel, dragHandle and four drag announcements; owner-approved 2026-10-31,
-    // pinned in copy-status.test.ts's PHOTO_MANAGER_COPY) less `photos.add`.
-    // 708 with the photo manager fixes: less orderHint, dragHandle, addHint, howItWorks,
-    // privacyNote, dateMoves; plus orderHintMouse, orderHintTouch, infoLabel, infoText, dateNote
-    // (owner-approved 2026-10-31, pinned in copy-status.test.ts's PHOTO_MANAGER_COPY).
-    // 714 with save bar A: `saveBar.allSaved`, `show`, `failed` and the three forms of
-    // `checkFields` (owner-approved 2026-10-31, pinned in copy-status.test.ts).
-    // 715 with the kabinet shell (owner-approved 2026-11-02): plus `shell.operator`;
-    // `shell.toSite` and `shell.accountAndPassword` replace `shell.viewSite` and
-    // `profileTabs.account`. The page title is the shelter's name alone (no wrapper string).
-    // 716 with `animalList.sexNotStated` (owner-approved 2026-11-03, UX-2).
-    // 726 with the evidence-add strings (owner-approved 2026-11-04): eight `operator.evidence.add*`
-    // and notices, plus `operator.history.evidence_added`.
-    // 730 with the password counter (owner-approved 2026-11-04): `setPassword.remaining` (three
-    // forms) and `enough`; `hint` is reworded.
-    // 733 with the early-listing history lines (owner's copy table N4–N6, 2026-11-04).
-    // 747 with the early-listing operator, banner and listed-variant lines (N7-N13, B5 and B6, 2026-11-04; B7 was removed in #426).
-    // 762 with the copy proofread (owner-approved 2026-11-06): `units` (twelve count forms),
-    // `operatorStatus` (two) and `animalForm.medicalNotes.publicNote`.
-    // 785 with the donation link safety copy (owner-approved 2026-11-06): six `profileEdit.*`
-    // (`donation.previewLabelUnverified`, `removed`, `suspendedNote`, `reinstatedPending` and two
-    // `errors.donation*`) and seventeen `operator.*` (four history lines, five removal codes,
-    // four `donation.*` and the four-string `donation.removeDialog`).
-    // 790 with the sitting-2 follow-up copy (owner-approved 2026-11-08): `history.adminJoinedErased`,
-    // `operator.history.addressErased`, `admin_invited_erased`, `verification.pause_reason` and
-    // `codes.suspension.cannot_confirm_details`.
-    // 791 with `operator.evidence.videoCallNotesHint` (video call replaces site visit, owner-approved 2026-11-09).
-    // 793 with `operator.shelter.edit` and `operator.donation.approveHint` (owner-given 2026-11-10).
-    // 795 with `profile.earlyListingEnded` and `operator.earlyListing.oneMoreLeft` (gap 6, 2026-11-10).
-    // 799 with the Instagram and Facebook contact kinds (owner-approved 2026-11-10): two
-    // `profileChannel.*` and two `profileEdit.errors.*Format`.
-    // 806 with the minimal create (owner-approved 2026-11-10): `notFilledYet`, `operator.shelter.add`,
-    // `operator.create.laterHint`, two `operator.evidence.missingData.*` and two
-    // `operator.history.verified_data_added.*`.
-    // 810 with the WhatsApp and form contact kinds (2026-11-11): two `profileChannel.*` and the
-    // form field's `contacts.formPlaceholder` and `contacts.formHint`.
-    // 811 with `profileEdit.contacts.tooMany`, the channel cap's message (2026-11-11).
-    // 847 with the notification emails (items 4 and 5, owner-approved 2026-11-10): thirty-six
-    // `email.*` strings (O1, O2, O3 with its five kind labels, O4, S1-S4).
-    // 835 with the shelter description replacing the sentence: less `profile.voiceTitle`,
-    // `voiceLabel`, `voiceNote`, five `profileEdit.errors.*` sentence messages and six
-    // `profileEdit.voice.*`; plus `errors.aboutTooLong` and `about.hint`.
-    // 836 with `operator.donation.approveHintInitiative` (owner-given 2026-11-11).
-    // 840 with the LiqPay checkout-session copy (owner-approved 2026-11-12): one
-    // `profileEdit.errors.donationCheckoutSession` and three `operator.donation.cannotApprove.*`.
-    // 846 with the DateField (owner-approved 2026-11-12): `dateField.day`, `month`, `year`,
-    // `incomplete`, `noSuchDate` and `operator.create.errors.registeredAtFuture`.
-    // 859 with the crop frame's thirteen `animalForm.photos.crop*`/`zoom*` strings (owner-approved 2026-11-12).
-    // 853 with the photo tile pill (owner-given 2026-11-12): plus `orderHint`, `coverChip`,
-    // `removeLabel`, `limitNote`; less `orderHintMouse`, `orderHintTouch`, `menuLabel`, `cover`,
-    // `makeCover`, `moveEarlier`, `moveLater`, `remove`, `crop`, `capReached`.
-    // 854 with the keyboard reorder's `photos.keyboardHint` (owner-approved 2026-11-12; a move is
-    // announced with `dragDrop`, reworded the same day).
-    // 873 with the weekly reminder (item 5): seven `email.freshnessReminder.*` (subject in three
-    // forms, body, action, frequency, stop), two `operator.history.freshness_reminder_*` and five
-    // `operator.reminder.*` for the operator's switch.
-    // 868 with both: the two counts above each started from 859; the reminder's +14 and the photo
-    // tile pill's net -5.
-    // 874 with the kabinet card grid (owner-approved 2026-11-12): nine new (three `statusMenu.*`,
-    // three `more.*`, three `stale.line.*`), eight gone (four row `actions.*`, `actions.viewOnSite`,
-    // `row.menuLabel`, `stale.count`, `stale.show`).
-    // 869 with both: the card grid's 874 counts from 873, before the photo tile pill's net -5.
-    expect(pending.length + written.length).toBe(869);
+    const perGroup: Record<string, number> = {};
+    for (const path of [...pending, ...written]) {
+      const group = path.split(".")[1] ?? "";
+      perGroup[group] = (perGroup[group] ?? 0) + 1;
+    }
+    expect(perGroup).toEqual(KABINET_STRINGS_PER_GROUP);
     expect(written).toContain("kabinet.profileEdit.errors.aboutTooLong");
     expect(written).toContain("kabinet.animalForm.coat.unknown");
     expect(written).toContain("kabinet.animalForm.temperament.hint");

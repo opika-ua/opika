@@ -25,6 +25,9 @@
  * is a real fix, not a guess.
  */
 
+import { createDatabase } from "@opika/db";
+import { animals, shelters } from "@opika/db/schema";
+import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { citySlugOf } from "@opika/domain";
 import { expect, test } from "@playwright/test";
 import { expectReachableByTab, openRoute } from "./harness";
@@ -147,6 +150,50 @@ test.describe("/tvaryny/[animalId] renders at both mock frame widths", () => {
       () => expectedSlugFor(cityText?.trim() ?? ""),
       `"${cityText}" is a known seeded city`,
     ).not.toThrow();
+  });
+
+  // The seed's longest name, 44 characters (owner, 2026-11-12: it was cut to «Благодійна організа…»;
+  // 2026-11-13: on a phone the city goes under it, so it fits in two lines).
+  test("360 – a long shelter name is shown whole in at most two lines, never cut short, with the city under it", async ({
+    page,
+  }) => {
+    const LONG_NAME = "Благодійна організація «Прихисток на Лісовій»";
+    const db = createDatabase(assertDisposableTestDatabase(testDatabaseUrl("harness")));
+    const shelter = (
+      await db.select({ id: shelters.id, name: shelters.displayName }).from(shelters)
+    ).find((row) => row.name === LONG_NAME);
+    const animal = (
+      await db
+        .select({ id: animals.id, shelterId: animals.shelterId, kind: animals.listingKind })
+        .from(animals)
+    ).find((row) => row.shelterId === shelter?.id && row.kind === "published");
+    if (animal === undefined) throw new Error(`no published animal of «${LONG_NAME}» in the seed`);
+
+    await page.setViewportSize({ width: DETAIL_PHONE.width, height: DETAIL_PHONE.height });
+    await page.goto(`/tvaryny/${animal.id}`, { waitUntil: "load" });
+    const name = page.getByRole("link", { name: new RegExp(LONG_NAME) }).getByText(LONG_NAME, {
+      exact: true,
+    });
+    await expect(name).toBeVisible();
+    const shown = await name.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        clipped: element.scrollWidth > element.clientWidth,
+        ellipsis: style.textOverflow === "ellipsis",
+        lines: Math.round(
+          element.getBoundingClientRect().height / Number.parseFloat(style.lineHeight),
+        ),
+      };
+    });
+    expect(shown.clipped, "the whole name is shown, not cut off").toBe(false);
+    expect(shown.ellipsis, "no ellipsis").toBe(false);
+    expect(shown.lines, "at most two lines").toBeLessThanOrEqual(2);
+    const nameBox = await name.boundingBox();
+    const cityBox = await page.getByTestId("shelter-city").boundingBox();
+    if (nameBox === null || cityBox === null) throw new Error("the name or the city has no box");
+    expect(cityBox.y, "the city sits under the name").toBeGreaterThanOrEqual(
+      nameBox.y + nameBox.height,
+    );
   });
 
   test("clicking a gallery card actually reaches a real animal, not a 404", async ({ page }) => {

@@ -655,7 +655,7 @@ export default function DevUiPage() {
           action={<LinkButton href="/dev/ui">Go back</LinkButton>}
         />
         <ErrorState title="Something went wrong" body="Error state, announced to screen readers." />
-        <Row label="Toast (info, success, error) and a live demo">
+        <Row label="Toast (info, success, error) and a live demo: the toasts always sit above a fixed bottom bar (pin one to see)">
           <Toast tone="info" message="Info toast" dismissLabel="Dismiss" />
           <Toast tone="success" message="Saved" dismissLabel="Dismiss" />
           <Toast tone="error" message="Could not save" dismissLabel="Dismiss" />

@@ -24,6 +24,7 @@ import { Icon } from "../../ui/Icon";
 import { LinkedText } from "../../ui/LinkedText";
 import { MAIN_LANDMARK } from "../../ui/landmark";
 import { MetaLine } from "../../ui/MetaLine";
+import { BOTTOM_BAR } from "../../ui/sticky-bar";
 import { Text } from "../../ui/Text";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { chipDisplayLabel, similarAnimalsHref, similarAnimalsLabel } from "../gallery/filter-url";
@@ -150,6 +151,7 @@ export function AnimalDetailContent({
           {/* Wraps onto two lines on a phone rather than overflowing; «Дати сімʼю» stays the one primary action. */}
           {/* Phone: the bar that is always on screen (sticky to the bottom of the panel's scroll), «Дати сімʼю» taking the width and two 52px circles; from desktop, the header's own row, right-aligned. */}
           <div
+            {...BOTTOM_BAR}
             data-testid="action-bar"
             className="sticky bottom-0 z-10 order-last -mx-4 mt-auto flex items-center gap-2.5 border-line border-t bg-surface px-4 pt-3 pb-inset tablet:-mx-6 tablet:px-6 desktop:static desktop:order-none desktop:m-0 desktop:ml-auto desktop:flex-none desktop:flex-wrap desktop:justify-end desktop:gap-4 desktop:border-0 desktop:bg-transparent desktop:p-0"
           >
@@ -195,7 +197,9 @@ export function AnimalDetailContent({
             )}
           </div>
           <MetaDot />
-          <div className="flex min-w-0 items-center justify-between gap-3 desktop:justify-start">
+          {/* Phone: the city on a line under the name, so the name has the width beside the logo
+              (owner, 2026-11-13); desktop: one row. */}
+          <div className="flex min-w-0 flex-col items-start gap-1 desktop:flex-row desktop:items-center desktop:gap-3">
             <Link
               href={shelterPagePath(shelter.id)}
               prefetch={false}
@@ -207,14 +211,16 @@ export function AnimalDetailContent({
               ) : (
                 <Avatar kind="logo" src={shelter.logo.storageKey} />
               )}
-              <Text as="span" look="label" className="min-w-0 max-desktop:truncate">
+              {/* A long name wraps, never cut short (owner, 2026-11-12). */}
+              <Text as="span" look="label" className="min-w-0 break-words">
                 {shelter.displayName}
               </Text>
             </Link>
             {cityName && (
               <>
                 <MetaDot />
-                <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap desktop:gap-2">
+                {/* pl-13: the avatar (size-10) and the link's gap-3, so the city starts under the name. */}
+                <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap max-desktop:pl-13 desktop:gap-2">
                   <Image
                     src="/pet-card/icon-location.svg"
                     alt=""

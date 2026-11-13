@@ -6,12 +6,14 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { cx } from "./cx";
 import { Icon } from "./Icon";
+import { bottomBarBoxes, liftAboveBars, observeBottomBars } from "./sticky-bar";
 
 /**
  * A short message that confirms something happened and goes away (a saved form, a copied link).
@@ -21,7 +23,8 @@ import { Icon } from "./Icon";
  * its own after `durationMs` and can be dismissed; the timer waits while the pointer or focus is on
  * the toast. An optional action (an «undo») is a button that runs once and dismisses the toast; it
  * never takes focus on its own. Messages, the action and dismiss labels are props: the kit holds no
- * copy. Nothing a person must act on belongs here: use InlineStatus or ErrorState.
+ * copy. Nothing a person must act on belongs here: use InlineStatus or ErrorState. Toasts always
+ * sit above every fixed bottom bar marked `BOTTOM_BAR` (`sticky-bar.ts`), on every screen.
  */
 export type ToastTone = "info" | "success" | "error";
 
@@ -124,16 +127,16 @@ export function useToast(): ToastApi {
 export function ToastProvider({
   dismissLabel,
   durationMs = 5000,
-  placement = "bottom",
   children,
 }: {
   dismissLabel: string;
   durationMs?: number;
-  /** `above-nav`: clear of the kabinet's fixed phone tab bar below `desktop` (as StickyActionBar). */
-  placement?: "bottom" | "above-nav";
   children: ReactNode;
 }) {
   const [toasts, setToasts] = useState<readonly ToastEntry[]>([]);
+  const region = useRef<HTMLDivElement | null>(null);
+  const [lift, setLift] = useState(0);
+  const showing = toasts.length > 0;
   const nextId = useRef(0);
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
   // The toasts still on screen and their `onClose`: a toast closes once, however it leaves.
@@ -203,19 +206,52 @@ export function ToastProvider({
     };
   }, []);
 
+  // Measured before paint, then again when sticky bars move (scroll), the screen resizes, or a
+  // bar or the toasts change size; nothing is listened to while no toast shows.
+  useLayoutEffect(() => {
+    const element = region.current;
+    if (!showing || element === null) {
+      setLift(0);
+      return;
+    }
+    const measure = () =>
+      setLift(
+        liftAboveBars(
+          bottomBarBoxes(),
+          document.documentElement.clientHeight,
+          element.offsetHeight,
+        ),
+      );
+    measure();
+    let frame = 0;
+    const onChange = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(measure);
+    };
+    window.addEventListener("scroll", onChange, { passive: true });
+    window.addEventListener("resize", onChange);
+    const stopBars = observeBottomBars(onChange);
+    const own = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(onChange);
+    own?.observe(element);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onChange);
+      window.removeEventListener("resize", onChange);
+      stopBars();
+      own?.disconnect();
+    };
+  }, [showing]);
+
   const api = useMemo(() => ({ show }), [show]);
 
   return (
     <ToastContext.Provider value={api}>
       {children}
       <div
+        ref={region}
         aria-live="polite"
-        className={cx(
-          "pointer-events-none fixed inset-x-4 z-(--z-toast) flex flex-col items-center gap-2",
-          placement === "above-nav"
-            ? "bottom-above-nav pb-2 desktop:bottom-0 desktop:pb-inset"
-            : "bottom-0 pb-inset",
-        )}
+        style={lift > 0 ? { bottom: `${lift}px` } : undefined}
+        className="pointer-events-none fixed inset-x-4 bottom-0 z-(--z-toast) flex flex-col items-center gap-2 pb-inset"
       >
         {toasts.map((toast) => (
           <Toast

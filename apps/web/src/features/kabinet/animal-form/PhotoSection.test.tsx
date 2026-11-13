@@ -132,12 +132,11 @@ describe("the tile pill", () => {
     }
     expect(screen.getByText("1 · Обкладинка")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Дії з фото/ })).toBeNull();
-    expect(
-      screen.getByText(
-        "Утримуйте й перетягніть фото, щоб змінити порядок. Перше фото – обкладинка.",
-      ),
-    ).toBeTruthy();
-    expect(screen.getByText("3 з 10")).toBeTruthy();
+    const hint = screen.getByText(
+      "Утримуйте й перетягніть фото, щоб змінити порядок. Перше фото – обкладинка.",
+    );
+    // The count shares the hint's line.
+    expect(screen.getByText("3 з 10").parentElement).toBe(hint.parentElement);
   });
 
   it("Tab goes crop, remove, then the next photo, then the add tile", async () => {

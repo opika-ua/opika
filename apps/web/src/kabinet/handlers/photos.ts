@@ -102,23 +102,16 @@ type UploadErrors = ORPCErrorConstructorMap<{
   PHOTO_UPLOADS_UNAVAILABLE: typeof apiErrors.PHOTO_UPLOADS_UNAVAILABLE;
 }>;
 
-/** Uploads on (P-Q10) and the shelter's allowances charged (P-Q12) before anything is read. */
-async function chargedUploads(
-  deps: PhotoDeps,
-  scope: ShelterWriteScope,
-  errors: UploadErrors,
-): Promise<UploadsOn> {
-  const uploads = deps.photoUploads;
-  if (uploads.kind === "off") throw errors.PHOTO_UPLOADS_UNAVAILABLE();
-  const allowanceKey = shelterUploadKey(scope.shelterId);
-  if (!(await uploads.limiters.perHour.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
-  if (!(await uploads.limiters.perDay.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
-  return uploads;
-}
-
 /** The photo writes' log lines, through one console call (the Biome ratchet counts each). */
 const logPhotoEvent = (
-  line: { event: "photo_orphaned"; storageKey: string } | { event: "photo_crop_uncharged" },
+  line:
+    | { event: "photo_orphaned"; storageKey: string }
+    | {
+        event:
+          | "photo_crop_uncharged"
+          | "photo_crop_charged_hourly_only"
+          | "photo_crop_charged_daily_only";
+      },
 ) => console.error(line);
 
 /** A file stored that no animal points at: the clean-up job deletes it after the grace (K-Q2). */
@@ -189,7 +182,11 @@ export async function photosAdd(
       PHOTO_LIMIT_REACHED: typeof apiErrors.PHOTO_LIMIT_REACHED;
     }>,
 ): Promise<KabinetAnimalView> {
-  const uploads = await chargedUploads(deps, scope, errors);
+  const uploads = deps.photoUploads;
+  if (uploads.kind === "off") throw errors.PHOTO_UPLOADS_UNAVAILABLE();
+  const allowanceKey = shelterUploadKey(scope.shelterId);
+  if (!(await uploads.limiters.perHour.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
+  if (!(await uploads.limiters.perDay.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
 
   const limitReached = () => errors.PHOTO_LIMIT_REACHED({ data: { max: MAX_ANIMAL_PHOTOS } });
   const { animal } = await owned(deps, scope, input.animalId, errors);
@@ -346,13 +343,21 @@ async function takeCropAttempt(deps: PhotoDeps, scope: ShelterWriteScope, upload
 
 /**
  * A landed crop's allowance unit. Crops in flight together all passed the pre-check, so they can
- * overshoot by their number (the attempts bound it); refused, or the store down, the crop stays.
+ * overshoot by their number (the attempts bound it); refused, or the store down, the crop stays,
+ * and the log line names the limiter that still took its unit, if one did.
  */
 async function chargeLandedCrop(deps: PhotoDeps, scope: ShelterWriteScope, uploads: UploadsOn) {
   const key = shelterUploadKey(scope.shelterId);
   const hour = await uploads.limiters.perHour.check(key, deps.now);
   const day = await uploads.limiters.perDay.check(key, deps.now);
-  if (!(hour && day)) logPhotoEvent({ event: "photo_crop_uncharged" });
+  if (hour && day) return;
+  logPhotoEvent({
+    event: hour
+      ? "photo_crop_charged_hourly_only"
+      : day
+        ? "photo_crop_charged_daily_only"
+        : "photo_crop_uncharged",
+  });
 }
 
 type CropFrom = {

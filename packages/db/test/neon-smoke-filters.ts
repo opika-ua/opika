@@ -22,11 +22,12 @@ const NOW = new Date();
 /**
  * Nationwide track N3: the oblast filter, the facet roll-up and the token resolver, through
  * neon-http (`neon-smoke.ts` calls this from `main`, after the search steps; no earlier step is
- * edited). Fixtures live in Zakarpattia (UA21), Lviv (UA46) and Crimea (UA01, treated like any region), regions no seeded
- * or production test city is in, so every count below is exact on a child branch of production.
+ * edited). Fixtures live in Zakarpattia (UA21), Lviv (UA46) and Crimea (UA01, treated like any
+ * region), each in fresh cities. A region-wide count also takes in what the branch already holds
+ * there (an earlier run's fixtures, production rows), so those are read before the fixtures and
+ * checked as the difference; every count is exact on any branch, a second run included.
  * Statements are query-builder shapes only (a raw `db.execute` returns a different shape on
- * neon-http). Rows stay on the child branch, which is thrown away; a second run on the same
- * branch doubles them and the counts, so use a fresh one.
+ * neon-http). Rows stay on the child branch, which is thrown away.
  */
 export async function runFiltersSmoke(db: Database): Promise<Outcome[]> {
   const out: Outcome[] = [];
@@ -69,12 +70,6 @@ export async function runFiltersSmoke(db: Database): Promise<Outcome[]> {
     return city;
   };
 
-  const uzhhorod = await place(ZAKARPATTIA, "Смоукужгород", "Smokeuzhhorod", 2);
-  const mukachevo = await place(ZAKARPATTIA, "Смоукмукачево", "Smokemukachevo", 1);
-  const lviv = await place(LVIV, "Смоуклькьів", "Smokelkiv", 2);
-  const empty = await place(ZAKARPATTIA, "Смоукпорожній", "Smokeempty", 0);
-  const yalta = await place(CRIMEA, "Смоукялта", "Smokeyalta", 1);
-
   const total = async (filters: FeedFilters): Promise<number> =>
     (
       await galleryRepo(db).list({
@@ -94,12 +89,32 @@ export async function runFiltersSmoke(db: Database): Promise<Outcome[]> {
     kind: "oneOf",
     values,
   });
+  const regionCountsOf = async (): Promise<Map<string, number>> =>
+    new Map(
+      (
+        await galleryRepo(db).facetCounts({
+          filters: { ...NO_FILTERS, regions: regionsOf(ZAKARPATTIA) },
+          now: NOW,
+        })
+      ).regions.map((r) => [r.regionId as string, r.count]),
+    );
+
+  const zakarpattiaBefore = await total({ ...NO_FILTERS, regions: regionsOf(ZAKARPATTIA) });
+  const regionsBefore = await regionCountsOf();
+  const addedIn = (after: Map<string, number>, regionId: RegionId) =>
+    (after.get(regionId) ?? 0) - (regionsBefore.get(regionId) ?? 0);
+
+  const uzhhorod = await place(ZAKARPATTIA, "Смоукужгород", "Smokeuzhhorod", 2);
+  const mukachevo = await place(ZAKARPATTIA, "Смоукмукачево", "Smokemukachevo", 1);
+  const lviv = await place(LVIV, "Смоуклькьів", "Smokelkiv", 2);
+  const empty = await place(ZAKARPATTIA, "Смоукпорожній", "Smokeempty", 0);
+  const yalta = await place(CRIMEA, "Смоукялта", "Smokeyalta", 1);
 
   const wholeRegion = await total({ ...NO_FILTERS, regions: regionsOf(ZAKARPATTIA) });
   check(
     "an oblast alone lists every animal in its cities (Zakarpattia: 2 + 1)",
-    wholeRegion === 3,
-    `matching ${wholeRegion}`,
+    wholeRegion - zakarpattiaBefore === 3,
+    `matching ${wholeRegion} (${zakarpattiaBefore} before the fixtures)`,
   );
 
   const narrowed = await total({
@@ -120,8 +135,8 @@ export async function runFiltersSmoke(db: Database): Promise<Outcome[]> {
   });
   check(
     "a city in another oblast is added to the oblast, not intersected with it (3 + 2)",
-    united === 5,
-    `matching ${united}`,
+    united - zakarpattiaBefore === 5,
+    `matching ${united} (${zakarpattiaBefore} before the fixtures)`,
   );
 
   const counts = await galleryRepo(db).facetCounts({
@@ -135,10 +150,10 @@ export async function runFiltersSmoke(db: Database): Promise<Outcome[]> {
     cityCount.get(uzhhorod.id) === 2 &&
       cityCount.get(mukachevo.id) === 1 &&
       cityCount.get(lviv.id) === 2 &&
-      regionCount.get(ZAKARPATTIA) === 3 &&
-      regionCount.get(LVIV) === 2 &&
+      addedIn(regionCount, ZAKARPATTIA) === 3 &&
+      addedIn(regionCount, LVIV) === 2 &&
       counts.cities.every((c) => c.city.regionId.length > 0),
-    `uzhhorod ${cityCount.get(uzhhorod.id)}, mukachevo ${cityCount.get(mukachevo.id)}, lviv ${cityCount.get(lviv.id)}; oblasts ${regionCount.get(ZAKARPATTIA)} / ${regionCount.get(LVIV)}`,
+    `uzhhorod ${cityCount.get(uzhhorod.id)}, mukachevo ${cityCount.get(mukachevo.id)}, lviv ${cityCount.get(lviv.id)}; oblasts +${addedIn(regionCount, ZAKARPATTIA)} / +${addedIn(regionCount, LVIV)} (${regionCount.get(ZAKARPATTIA)} / ${regionCount.get(LVIV)} in all)`,
   );
 
   check(
