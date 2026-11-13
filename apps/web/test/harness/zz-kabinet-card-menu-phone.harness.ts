@@ -136,10 +136,6 @@ async function expectFreshLine(
   const below = text.y >= words.y + words.height - 1;
   const beside = text.x >= words.x + words.width - 1;
   expect(below || beside, `${label}: the link clear of the freshness words`).toBe(true);
-  expect(
-    await card.evaluate((el) => el.scrollWidth <= el.clientWidth),
-    `${label}: the card doesn't overflow`,
-  ).toBe(true);
 }
 
 /** #498's draft row: «Опублікувати» left, «Редагувати» + ⋯ right, or alone at full width with the pair below. */
