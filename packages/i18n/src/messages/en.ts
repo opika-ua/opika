@@ -1110,7 +1110,7 @@ export const en = {
       confirm: {
         stillLooking: "Still looking",
         stillArranging: "Still arranging",
-        doneNamed: "{name}: confirmed today",
+        doneNamed: "{name}: confirmed today.",
         undone: "Undone: the card shows its previous date again.",
         undoExpired:
           "It can't be undone any more: the time ran out or the card changed. The card shows today's date.",

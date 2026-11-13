@@ -30,6 +30,7 @@ From the owner's foundations sheet (2026-11-12). Columns are fluid (`1fr`): the 
 | `--container-reading` | `max-w-reading` | 690 | 690 | 690 | running text: seven desktop columns, lines under ~80 characters |
 | `--spacing-sidebar` | `w-sidebar` | – | – | 240 | the kabinet sidebar; the grid beside it keeps a 48 margin (`px-12`) |
 | `--grid-template-columns-cards` | `grid-cols-cards` | auto | auto | auto | a card grid (the kabinet's animals): `repeat(auto-fill, minmax(min(320px, 100%), 1fr))` with `gap-gutter`; the column count follows the width the grid has, never a viewport query |
+| `--grid-template-columns-card-head`, `--grid-template-rows-card-head` | `grid-cols-card-head`, `grid-rows-card-head` | used | used | – | a kabinet card's head below `desktop`: the 96 px photo beside the name and the facts (`6rem minmax(0, 1fr)`), the freshness line as a full row under both (`auto 1fr auto`: the facts' row takes the photo's spare height) |
 
 - **Page box:** `mx-auto box-content max-w-content px-margin`. Content-box, so the 1200 cap is the
   content's and the margin sits outside it.

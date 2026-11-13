@@ -70,7 +70,7 @@ import { type StatusMenuItem, toAnimalManageCard } from "./manage-card";
  *   touches `lastUpdatedAt`, so none reorders the list (HS-T9). The counts and
  *   the strip are then read again.
  * - **«Ще шукає» / «Ще домовляються»** (N4): one animal per tap, never all
- *   (commitment #7). A toast «{name}: підтверджено сьогодні» offers «Скасувати»
+ *   (commitment #7). A toast «{name}: підтверджено сьогодні.» offers «Скасувати»
  *   for 8 seconds (owner, 2026-11-13); the server takes the undo for 13 (its
  *   slack), so a tap in the last second still lands, and refuses it after any
  *   newer write (`UNDO_EXPIRED`, RH-B7's photo change included).
@@ -487,7 +487,7 @@ function AnimalListBody({
   };
 
   /**
-   * «{name}: підтверджено сьогодні» with «Скасувати» until `until`, one toast per animal. The
+   * «{name}: підтверджено сьогодні.» with «Скасувати» until `until`, one toast per animal. The
    * action keeps the offer, so an undo that fails but may still land is offered again for the rest.
    */
   const offerUndo = (row: AnimalRow, until: number) => {

@@ -2024,7 +2024,7 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.actions.deleteDraft": "Видалити чернетку",
     // The card's freshness actions (owner, 2026-11-13).
     "kabinet.animalList.actions.editNamed": "Редагувати картку: {name}",
-    "kabinet.animalList.confirm.doneNamed": "{name}: підтверджено сьогодні",
+    "kabinet.animalList.confirm.doneNamed": "{name}: підтверджено сьогодні.",
     "kabinet.animalList.deleteDialog.title": "Видалити чернетку «{name}»?",
     "kabinet.animalList.deleteDialog.body": "Вона назавжди зникне з вашого списку.",
     "kabinet.animalList.deleteDialog.photosStay":

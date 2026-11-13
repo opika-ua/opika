@@ -893,7 +893,7 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     );
     expect(inRow("Рекс").getByRole("link", { name: "Редагувати" })).toBeTruthy();
     expect(inRow("Рекс").queryByRole("link", { name: /^Редагувати картку/ })).toBeNull();
-    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
+    expect(screen.getByText("Рекс: підтверджено сьогодні.")).toBeTruthy();
     expect(toastUndo()).toBeTruthy();
     await act(async () => {
       vi.advanceTimersByTime(7_900);
@@ -902,7 +902,7 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     await act(async () => {
       vi.advanceTimersByTime(200);
     });
-    expect(screen.queryByText("Рекс: підтверджено сьогодні")).toBeNull();
+    expect(screen.queryByText("Рекс: підтверджено сьогодні.")).toBeNull();
     expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
   });
 
@@ -924,7 +924,7 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     await act(async () => {
       answer({ animal: confirmedNow(PUBLISHED), undoUntil: NOW });
     });
-    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
+    expect(screen.getByText("Рекс: підтверджено сьогодні.")).toBeTruthy();
   });
 
   it("several confirms in a row: one toast for each, each naming its animal", async () => {
@@ -939,8 +939,8 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     });
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
     await userEvent.click(inRow("Деймос").getByRole("button", { name: "Ще домовляються" }));
-    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
-    expect(screen.getByText("Деймос: підтверджено сьогодні")).toBeTruthy();
+    expect(screen.getByText("Рекс: підтверджено сьогодні.")).toBeTruthy();
+    expect(screen.getByText("Деймос: підтверджено сьогодні.")).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "Скасувати" })).toHaveLength(2);
   });
 
@@ -1000,7 +1000,7 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     await userEvent.click(toastUndo());
     expect(alertText()).toContain("Не вдалося. Перевірте зʼєднання і спробуйте ще раз.");
     expect(inRow("Рекс").getByText("Оновлено сьогодні")).toBeTruthy();
-    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
+    expect(screen.getByText("Рекс: підтверджено сьогодні.")).toBeTruthy();
     // It did land: the re-read shows the date from before the confirmation.
     stored = viewOf(PUBLISHED, PUBLISHED.listing);
     await userEvent.click(toastUndo());
@@ -1036,11 +1036,11 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
       },
     });
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
-    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
+    expect(screen.getByText("Рекс: підтверджено сьогодні.")).toBeTruthy();
     await openStatus("Рекс");
     await userEvent.click(screen.getByRole("button", { name: "Домовляються" }));
     expect(await screen.findByText("Рекс: почали домовлятися.")).toBeTruthy();
-    expect(screen.queryByText("Рекс: підтверджено сьогодні")).toBeNull();
+    expect(screen.queryByText("Рекс: підтверджено сьогодні.")).toBeNull();
   });
 
   it("a confirmation the server refuses: his «Не підтверджено», the date unchanged", async () => {
@@ -1068,7 +1068,7 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
 
     stored = confirmedNow(PUBLISHED);
     await userEvent.click(inRow("Рекс").getByRole("button", { name: "Ще шукає" }));
-    expect(screen.getByText("Рекс: підтверджено сьогодні")).toBeTruthy();
+    expect(screen.getByText("Рекс: підтверджено сьогодні.")).toBeTruthy();
     expect(inRow("Рекс").getByText("Оновлено сьогодні")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
   });

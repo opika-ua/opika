@@ -100,15 +100,38 @@ async function expectFreshRow(card: Locator, phone: boolean, label: string): Pro
   }
 }
 
-/** Fresh: the confirm link's words never run into the freshness words, beside them or wrapped below. */
-async function expectFreshLine(card: Locator, link: Locator, label: string): Promise<void> {
-  const words = await box(card.getByText(/^Оновлено /));
+/**
+ * Fresh: below desktop the freshness line is a full row under the photo (owner, 2026-11-13), beside it
+ * from desktop; the link's words stay on one line with the ✓ and never run into the freshness words.
+ */
+async function expectFreshLine(
+  card: Locator,
+  link: Locator,
+  belowPhoto: boolean,
+  label: string,
+): Promise<void> {
+  const [photo, words, lineHeight] = await Promise.all([
+    box(card.locator("a[aria-hidden='true']").first()),
+    box(card.getByText(/^Оновлено /)),
+    link.evaluate((el) => Number.parseFloat(getComputedStyle(el).lineHeight)),
+  ]);
+  if (belowPhoto) {
+    expect(words.y, `${label}: the freshness line under the photo`).toBeGreaterThanOrEqual(
+      photo.y + photo.height,
+    );
+    expect(Math.abs(words.x - photo.x), `${label}: from the photo's left edge`).toBeLessThan(2);
+  } else {
+    expect(words.x, `${label}: the freshness line beside the photo`).toBeGreaterThan(
+      photo.x + photo.width,
+    );
+  }
   const text = await link.evaluate((el) => {
     const range = document.createRange();
     range.selectNodeContents(el);
     const { x, y, width, height } = range.getBoundingClientRect();
     return { x, y, width, height };
   });
+  expect(text.height, `${label}: the link and its ✓ on one line`).toBeLessThan(lineHeight * 1.5);
   const below = text.y >= words.y + words.height - 1;
   const beside = text.x >= words.x + words.width - 1;
   expect(below || beside, `${label}: the link clear of the freshness words`).toBe(true);
@@ -278,7 +301,12 @@ test("320 to 393 px and a 320 px card: tab order, 48 px targets, one-line action
         const card = cardOf(page, name);
         await card.scrollIntoViewIfNeeded();
         await expectFreshRow(card, phone, `${width} ${name}`);
-        await expectFreshLine(card, card.getByRole("button", { name: link }), `${width} ${name}`);
+        await expectFreshLine(
+          card,
+          card.getByRole("button", { name: link }),
+          width !== 1440,
+          `${width} ${name}`,
+        );
       }
       const draft = cardOf(page, draftName);
       await draft.scrollIntoViewIfNeeded();

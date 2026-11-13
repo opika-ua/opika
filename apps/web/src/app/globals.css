@@ -214,6 +214,10 @@
   --spacing-sidebar: 240px;
   /* Card grids: columns from the width available, not the viewport; `min` keeps one card on a narrow screen. */
   --grid-template-columns-cards: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  /* A kabinet card's head below desktop: the photo (w-24) beside the name and the facts, a full row under
+     both; the facts' row takes the photo's spare height, so the name stays at the top. */
+  --grid-template-columns-card-head: 6rem minmax(0, 1fr);
+  --grid-template-rows-card-head: auto 1fr auto;
 }
 @variant tablet {
   :root {

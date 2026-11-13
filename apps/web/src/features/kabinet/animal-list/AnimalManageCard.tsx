@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useId, useLayoutEffect, useRef } from "react";
 import { Button, LinkButton } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
+import { cx } from "../../../ui/cx";
 import { FreshnessPips } from "../../../ui/FreshnessPips";
 import { Heading } from "../../../ui/Heading";
 import { Icon } from "../../../ui/Icon";
@@ -199,14 +200,15 @@ export function AnimalManageCard({
     }
   }, [confirmLook, busy, card.id]);
 
-  // The link keeps its ✓; the filled button drops it and pads tight, so it shares a 320 px row with
-  // two 48 px icons (owner, 2026-11-13). Either label may wrap rather than clip.
+  // The link keeps its ✓ and never wraps apart from it (-my-3 keeps its 48px target off the line
+  // height); the filled button drops the ✓ and pads tight, so it shares a 320 px row with two 48 px
+  // icons and may wrap rather than clip (owner, 2026-11-13).
   const confirm = (offer: ConfirmOffer, look: "link" | "button") => (
     <Button
       id={confirmTriggerId(card.id)}
       variant={look === "link" ? "link" : "primary"}
       size={look === "link" ? "md" : "compact"}
-      className={look === "link" ? "max-w-full compact:-my-3" : "min-w-0 flex-1"}
+      className={look === "link" ? "-my-3 whitespace-nowrap" : "min-w-0 flex-1"}
       aria-describedby={describedBy}
       aria-disabled={inert || undefined}
       onClick={() => {
@@ -224,16 +226,26 @@ export function AnimalManageCard({
     </Button>
   );
 
+  // Below desktop a visible card's freshness line leaves the narrow column beside the photo for a
+  // full row under the photo and name (owner, 2026-11-13); the column's wrapper steps aside for it.
+  const visibleHead = card.status === "published" || card.status === "reserved";
+
   return (
     <Card as="li" tone="outline" aria-labelledby={nameId} className="flex flex-col">
       <div className="flex flex-1 flex-col gap-4 p-4">
-        <div className="flex gap-3">
+        <div
+          className={cx(
+            "flex gap-3",
+            visibleHead &&
+              "max-desktop:grid max-desktop:grid-cols-card-head max-desktop:grid-rows-card-head max-desktop:gap-y-1",
+          )}
+        >
           <Link
             href={card.editHref}
             prefetch={false}
             tabIndex={-1}
             aria-hidden="true"
-            className="shrink-0 self-start"
+            className={cx("shrink-0 self-start", visibleHead && "max-desktop:row-span-2")}
           >
             <Photo
               src={card.photo?.storageKey ?? null}
@@ -243,7 +255,12 @@ export function AnimalManageCard({
               className="w-24 rounded-field"
             />
           </Link>
-          <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+          <div
+            className={cx(
+              "flex min-w-0 flex-1 flex-col items-start gap-1",
+              visibleHead && "max-desktop:contents",
+            )}
+          >
             <div className="flex w-full flex-wrap items-center justify-between gap-x-2">
               <Heading level={2} look="body-l" id={nameId} className="min-w-0 max-w-full">
                 <Link
@@ -257,12 +274,11 @@ export function AnimalManageCard({
               </Heading>
               {status}
             </div>
-            <p className="text-body text-ink-2">{card.meta}</p>
+            <p className="self-start text-body text-ink-2">{card.meta}</p>
             {card.status === "published" || card.status === "reserved" ? (
               confirmLook === "link" ? (
-                // The link wraps under the pips when the line is full. From 360 it is always one line, so
-                // -my-3 keeps its 48px target off the line height; below, it may need two, and its full 48.
-                <div className="mt-1 flex flex-wrap items-center gap-x-1">
+                // The link moves under the pips as one piece when the line is full.
+                <div className="mt-1 flex flex-wrap items-center gap-x-1 max-desktop:col-span-2 max-desktop:mt-2">
                   <FreshnessPips
                     kind={card.freshness.kind}
                     label={card.freshness.label}
@@ -274,7 +290,7 @@ export function AnimalManageCard({
                 <FreshnessPips
                   kind={card.freshness.kind}
                   label={card.freshness.label}
-                  className="mt-1"
+                  className="mt-1 max-desktop:col-span-2 max-desktop:mt-2"
                 />
               )
             ) : card.status === "draft" ? (

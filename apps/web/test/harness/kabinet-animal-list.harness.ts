@@ -192,7 +192,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
     const page = await open("/kabinet/tvaryny");
     const row = rowOf(page, STALE);
     await row.getByRole("button", { name: "Ще шукає" }).click();
-    await expect(page.getByText(`${STALE}: підтверджено сьогодні`)).toBeVisible();
+    await expect(page.getByText(`${STALE}: підтверджено сьогодні.`)).toBeVisible();
     await expect(row.getByText("Оновлено сьогодні")).toBeVisible();
 
     await page.getByRole("button", { name: "Скасувати", exact: true }).click();
@@ -205,7 +205,7 @@ test.describe("/kabinet/tvaryny K2 animal list (a shelter's own admin)", () => {
 
     // Confirmed for real this time, and left to stand.
     await rowOf(page, STALE).getByRole("button", { name: "Ще шукає" }).click();
-    await expect(page.getByText(`${STALE}: підтверджено сьогодні`)).toBeVisible();
+    await expect(page.getByText(`${STALE}: підтверджено сьогодні.`)).toBeVisible();
     await page.reload();
     await expect(rowOf(page, STALE).getByText("Оновлено сьогодні")).toBeVisible();
     await page.close();
