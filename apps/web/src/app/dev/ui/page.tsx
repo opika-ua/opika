@@ -142,11 +142,21 @@ export default function DevUiPage() {
       </Group>
 
       <Group id="g-actions" title="Actions">
-        <Row label="Button md: primary, accent, secondary, ghost">
+        <Row label="Button md: primary, accent, secondary, ghost, link">
           <Button>Primary</Button>
           <Button variant="accent">Accent</Button>
           <Button variant="secondary">Secondary</Button>
           <Button variant="ghost">Ghost</Button>
+          <Button variant="link">
+            Link
+            <Icon name="check" size="sm" />
+          </Button>
+        </Row>
+        <Row label="Button compact (beside icon buttons in a tight row)">
+          <Button size="compact">Compact</Button>
+          <Button variant="icon" aria-label="Edit">
+            <Icon name="pencil" size="md" />
+          </Button>
         </Row>
         <Row label="Button lg">
           <Button size="lg">Primary lg</Button>
@@ -569,6 +579,7 @@ export default function DevUiPage() {
           <FreshnessPips kind="fresh" label="Updated today" />
           <FreshnessPips kind="aging" label="Updated 12 days ago" />
           <FreshnessPips kind="stale" label="Updated 45 days ago" />
+          <FreshnessPips kind="fresh" label="Updated 3 days ago" trail="dot" />
         </Row>
       </Group>
 

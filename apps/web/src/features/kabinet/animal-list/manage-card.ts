@@ -97,7 +97,7 @@ type CardCore = {
 };
 
 export type CardFreshness = { kind: FreshnessKind; label: string };
-/** On every visible card (owner, 2026-11-12): filled once the date is aging or stale, outlined while fresh. */
+/** On every visible card: a link in the freshness line while fresh, the filled button once aging or stale (owner, 2026-11-13). */
 export type ConfirmOffer = { label: string; emphasis: "quiet" | "prompt" };
 export type PublishOffer =
   | { kind: "ready" }

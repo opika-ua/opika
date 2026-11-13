@@ -26,6 +26,15 @@ describe("FreshnessPips", () => {
     expect(container.querySelectorAll("[data-fill] > span")).toHaveLength(3);
   });
 
+  it("a trailing dot follows the words for sight only: the words read as they are", () => {
+    const { container } = render(
+      <FreshnessPips kind="fresh" label="Оновлено 3 дні тому" trail="dot" />,
+    );
+    const dot = container.querySelector("[aria-hidden='true']:not([data-fill])");
+    expect(dot?.textContent).toBe("\u00a0·");
+    expect(screen.getByText("Оновлено 3 дні тому").contains(dot)).toBe(true);
+  });
+
   it("never draws an alarm tone, whatever the age", () => {
     for (const kind of KINDS) {
       const { container, unmount } = render(<FreshnessPips kind={kind} label="x" />);

@@ -1074,6 +1074,9 @@ export const uk = {
      *   says why (`paused.hidden`, `notVisible.pending`, or R-UI's lines).
      * - `withdrawReason.adopted_elsewhere` is a label only: the dialog offers
      *   the other four codes (`KABINET_WITHDRAWAL_CODES`, his answer 10).
+     * - The card's freshness actions (owner, 2026-11-13): `actions.editNamed` names
+     *   the pencil, `confirm.doneNamed` is the confirm toast, named so a run of them
+     *   says which animal each is about.
      */
     animalList: {
       pageTitle: "Тварини",
@@ -1106,6 +1109,7 @@ export const uk = {
       orderInfoLabel: "Як впорядковано список",
       actions: {
         edit: "Редагувати",
+        editNamed: "Редагувати картку: {name}",
         restore: "Повернути в чернетки",
         deleteDraft: "Видалити чернетку",
       },
@@ -1128,8 +1132,7 @@ export const uk = {
       confirm: {
         stillLooking: "Ще шукає",
         stillArranging: "Ще домовляються",
-        done: "Підтверджено сьогодні",
-        undo: "Скасувати · {seconds} с",
+        doneNamed: "{name}: підтверджено сьогодні.",
         undone: "Скасовано: на картці знову попередня дата.",
         undoExpired:
           "Скасувати вже не можна: час минув або картку змінено. На картці – сьогоднішня дата.",

@@ -4,7 +4,7 @@ import "../../../zod-client-config";
 import type { KabinetAnimalListFilter, KabinetCursor, KabinetShelterView } from "@opika/contracts";
 import { type ListingKind, UNDO_SHOWN_MS } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import {
   type KabinetAnimalListClient,
   kabinetAnimalListBrowserClient,
@@ -16,13 +16,14 @@ import { Heading } from "../../../ui/Heading";
 import { InfoTip } from "../../../ui/InfoTip";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
-import { ToastProvider, useToast } from "../../../ui/Toast";
+import { type ToastHandle, ToastProvider, useToast } from "../../../ui/Toast";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
 import { cardsArePublic, missingSentence, shelterVisibilityOf } from "../animal-form/labels";
 import { NEW_ANIMAL_PATH } from "../routes";
 import {
   AnimalManageCard,
   type CardMenu,
+  confirmTriggerId,
   moreTriggerId,
   nameLinkId,
   statusTriggerId,
@@ -69,10 +70,10 @@ import { type StatusMenuItem, toAnimalManageCard } from "./manage-card";
  *   touches `lastUpdatedAt`, so none reorders the list (HS-T9). The counts and
  *   the strip are then read again.
  * - **«Ще шукає» / «Ще домовляються»** (N4): one animal per tap, never all
- *   (commitment #7). For 8 seconds the cell reads «Підтверджено сьогодні» with
- *   «Скасувати · N с»; the server takes the undo for 13 (its slack), so a tap
- *   in the last second still lands, and refuses it after any newer write
- *   (`UNDO_EXPIRED`, RH-B7's photo change included).
+ *   (commitment #7). A toast «{name}: підтверджено сьогодні.» offers «Скасувати»
+ *   for 8 seconds (owner, 2026-11-13); the server takes the undo for 13 (its
+ *   slack), so a tap in the last second still lands, and refuses it after any
+ *   newer write (`UNDO_EXPIRED`, RH-B7's photo change included).
  * - **A lost answer** (no response at all): the server may have done it, so
  *   the row is read again before anything is said (K4-T16's pattern).
  * - **Who can act**: `editing` is the page's `decideAccess` answer with the
@@ -144,7 +145,7 @@ type AnimalListProps = {
   attention?: ReactNode;
 };
 
-/** The list inside the kit's toast region (the reserve/release undo and «Посилання скопійовано.»). */
+/** The list inside the kit's toast region (the confirm and reserve/release undos, «Посилання скопійовано.»). */
 export function AnimalList(props: AnimalListProps) {
   return (
     <ToastProvider dismissLabel={uk.kabinet.profileEdit.pause.close}>
@@ -173,13 +174,12 @@ function AnimalListBody({
   const [load, setLoad] = useState<Load>({ kind: "idle" });
   const [more, setMore] = useState<Load>({ kind: "idle" });
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
-  /** Animal id → when its «Підтверджено сьогодні» and undo stop showing (client clock, ms). */
-  const [undoable, setUndoable] = useState<Readonly<Record<string, number>>>({});
+  /** Animal id → its confirmation's undo: offered until when (client clock, ms), and by which toast. */
+  const undoOffers = useRef(new Map<string, { until: number; toast: ToastHandle }>());
   const [openMenu, setOpenMenu] = useState<{ id: string; menu: CardMenu } | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [resuming, setResuming] = useState(false);
-  const [, setTick] = useState(0);
   const loadRequest = useRef(0);
   // Read by the toast's undo, which may run after the filter changed.
   const filterRef = useRef(filter);
@@ -190,21 +190,6 @@ function AnimalListBody({
   const shown = cardsArePublic(visibility);
   const visibilityNotice = visibilityNoticeOf(verification, shelter.earlyListing);
   const total = totalOf(counts);
-
-  // The undo countdown: one timer while any confirmation is on screen.
-  const pending = Object.keys(undoable).length > 0;
-  useEffect(() => {
-    if (!pending) return;
-    const timer = window.setInterval(() => {
-      const at = clock().getTime();
-      setUndoable((current) => {
-        const kept = Object.entries(current).filter(([, until]) => until > at);
-        return kept.length === Object.keys(current).length ? current : Object.fromEntries(kept);
-      });
-      setTick((tick) => tick + 1);
-    }, 1_000);
-    return () => window.clearInterval(timer);
-  }, [pending, clock]);
 
   const setRowBusy = (animalId: string, on: boolean) =>
     setBusy((current) => {
@@ -242,12 +227,11 @@ function AnimalListBody({
       return next;
     });
 
-  const forgetUndo = (animalId: string) =>
-    setUndoable((current) => {
-      if (!(animalId in current)) return current;
-      const { [animalId]: _gone, ...rest } = current;
-      return rest;
-    });
+  const forgetUndo = (animalId: string) => {
+    const offer = undoOffers.current.get(animalId);
+    undoOffers.current.delete(animalId);
+    offer?.toast.dismiss();
+  };
 
   /** The chips' counts and the strip's count, which a move can change; a failure keeps the old ones. */
   const refreshCounts = useCallback(async () => {
@@ -375,9 +359,14 @@ function AnimalListBody({
     if (refusal !== null) setNotice({ kind: "alert", text: refusal });
   };
 
-  /** Focus back on a card's control once what it started is done, or on the page title if the card left. */
-  const focusBack = (ids: readonly string[]) =>
+  /**
+   * Focus back on a card's control once what it started is done, or on the page title if the card
+   * left. `lost` only catches focus the page dropped (the pressed control changed form or went).
+   */
+  const focusBack = (ids: readonly string[], when: "always" | "lost" = "always") =>
     requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (when === "lost" && active !== null && active !== document.body) return;
       const target = [...ids, "animal-list-title"]
         .map((id) => document.getElementById(id))
         .find((el) => el !== null);
@@ -467,8 +456,8 @@ function AnimalListBody({
     try {
       const { animal } = await client.shelter.animals.confirm({ animalId: row.id });
       placeRow(animal);
-      setUndoable((current) => ({ ...current, [row.id]: clock().getTime() + UNDO_SHOWN_MS }));
-      setNotice({ kind: "status", text: t.confirm.done });
+      // The undo reads the card as it now shows: today's date.
+      offerUndo(rowAfterMove(row, animal, clock()), clock().getTime() + UNDO_SHOWN_MS);
       void refreshCounts();
     } catch (error) {
       const failure = actionFailureOf(error);
@@ -485,7 +474,8 @@ function AnimalListBody({
       const after = confirmedAtOf(stored.view.listing)?.getTime();
       if (after !== undefined && after !== before) {
         // It went through: the date moved. The undo's window isn't known, so none is offered.
-        setNotice({ kind: "status", text: t.confirm.done });
+        forgetUndo(row.id);
+        toast.show(fillTemplate(t.confirm.doneNamed, { name: row.name }));
         void refreshCounts();
         return;
       }
@@ -496,14 +486,39 @@ function AnimalListBody({
     }
   };
 
+  /**
+   * «{name}: підтверджено сьогодні.» with «Скасувати» until `until`, one toast per animal. The
+   * action keeps the offer, so an undo that fails but may still land is offered again for the rest.
+   */
+  const offerUndo = (row: AnimalRow, until: number) => {
+    forgetUndo(row.id);
+    const left = until - clock().getTime();
+    if (left <= 0) return;
+    const handle = toast.show(fillTemplate(t.confirm.doneNamed, { name: row.name }), "info", {
+      durationMs: left,
+      action: { label: uk.kabinet.profileEdit.pause.cancel, onAction: () => void undo(row) },
+      onClose: (reason) => {
+        if (reason !== "action" && undoOffers.current.get(row.id)?.toast === handle) {
+          undoOffers.current.delete(row.id);
+        }
+      },
+    });
+    undoOffers.current.set(row.id, { until, toast: handle });
+  };
+
   const undo = async (row: AnimalRow) => {
     if (!editable) return;
     setRowBusy(row.id, true);
     setNotice(null);
+    // The toast that ran this is gone; it comes back only if the undo may still be retried.
+    const offer = undoOffers.current.get(row.id);
+    undoOffers.current.delete(row.id);
+    const offerAgain = () => {
+      if (offer !== undefined) offerUndo(row, offer.until);
+    };
     try {
       const view = await client.shelter.animals.undoConfirm({ animalId: row.id });
       placeRow(view);
-      forgetUndo(row.id);
       setNotice({ kind: "status", text: t.confirm.undone });
       void refreshCounts();
     } catch (error) {
@@ -511,32 +526,32 @@ function AnimalListBody({
       // An expired undo may be this undo's own earlier attempt, landed with
       // its answer lost: the card is read before anything is said about its date.
       if (failure.kind !== "no_answer" && failure.kind !== "undo_expired") {
-        if (failure.kind === "illegal_transition") forgetUndo(row.id);
+        if (failure.kind !== "illegal_transition") offerAgain();
         setNotice({ kind: "alert", text: refusalOf(failure, t.errors.actionFailed) });
         return;
       }
-      if (failure.kind === "undo_expired") forgetUndo(row.id);
       const stored = await reread(row.id);
       if (stored.kind !== "found") {
-        if (stored.kind === "gone") forgetUndo(row.id);
+        if (stored.kind === "unknown" && failure.kind === "no_answer") offerAgain();
         setNotice({ kind: "alert", text: stored.kind === "gone" ? NOT_FOUND : CARD_DIDNT_LOAD });
         return;
       }
       const shownAt = confirmedAtOf(row.listing)?.getTime();
       const storedAt = confirmedAtOf(stored.view.listing)?.getTime();
       if (shownAt !== undefined && storedAt !== undefined && storedAt < shownAt) {
-        forgetUndo(row.id);
         setNotice({ kind: "status", text: t.confirm.undone });
         void refreshCounts();
         return;
       }
       // Read back with today's date: an expired undo says so; a lost one simply didn't happen.
+      if (failure.kind === "no_answer") offerAgain();
       setNotice({
         kind: "alert",
         text: failure.kind === "undo_expired" ? t.confirm.undoExpired : t.errors.actionFailed,
       });
     } finally {
       setRowBusy(row.id, false);
+      focusBack([confirmTriggerId(row.id), nameLinkId(row.id)], "lost");
     }
   };
 
@@ -567,13 +582,6 @@ function AnimalListBody({
     const opened = dialog;
     setDialog(null);
     if (opened !== null) focusBack([opened.returnTo, nameLinkId(opened.row.id)]);
-  };
-
-  const undoSecondsOf = (animalId: string): number | null => {
-    const until = undoable[animalId];
-    if (until === undefined) return null;
-    const seconds = Math.ceil((until - now.getTime()) / 1_000);
-    return seconds > 0 ? seconds : null;
   };
 
   const caption = captionOf(shelter.displayName, counts);
@@ -767,7 +775,6 @@ function AnimalListBody({
                     card={toAnimalManageCard(row, now)}
                     editable={editable}
                     busy={busy.has(row.id)}
-                    undoSeconds={undoSecondsOf(row.id)}
                     openMenu={openMenu?.id === row.id ? openMenu.menu : null}
                     onOpenMenu={(menu) => setOpenMenu(menu === null ? null : { id: row.id, menu })}
                     onMove={(item) => onMove(row, item)}
@@ -776,7 +783,6 @@ function AnimalListBody({
                         void runMove(row, "publish", { type: "publish" }).then(alertOrNull);
                     }}
                     onConfirm={() => void confirm(row)}
-                    onUndo={() => void undo(row)}
                     onDelete={() => {
                       if (editable)
                         setDialog({ kind: "delete", row, returnTo: moreTriggerId(row.id) });

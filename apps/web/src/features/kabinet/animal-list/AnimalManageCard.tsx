@@ -3,25 +3,31 @@
 import "../../../zod-client-config";
 import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
-import { useId } from "react";
+import { useId, useLayoutEffect, useRef } from "react";
 import { Button, LinkButton } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
+import { cx } from "../../../ui/cx";
 import { FreshnessPips } from "../../../ui/FreshnessPips";
 import { Heading } from "../../../ui/Heading";
 import { Icon } from "../../../ui/Icon";
 import { Menu, MenuItem } from "../../../ui/Menu";
 import { Photo } from "../../../ui/Photo";
 import { Text } from "../../../ui/Text";
+import { Tooltip } from "../../../ui/Tooltip";
 import { ListingStatusChip } from "../StatusChips";
-import type { MenuStatus, AnimalManageCard as Model, StatusMenuItem } from "./manage-card";
+import type {
+  ConfirmOffer,
+  MenuStatus,
+  AnimalManageCard as Model,
+  StatusMenuItem,
+} from "./manage-card";
 
 const t = uk.kabinet.animalList;
 
 /*
- * The action row: the primary action left, «Редагувати» and ⋯ right. Both may grow, the pair a
- * thousand times more: on one line the pair takes the spare room (pushed right) and the primary
- * keeps its width; wrapped, each fills its own line, so the primary goes full width and the pair
- * sits right-aligned below. No width threshold, so it holds for any label and card width.
+ * A draft's action row: «Опублікувати» left, «Редагувати» and ⋯ right. Both may grow, the pair a
+ * thousand times more, so on one line the pair is pushed right; wrapped, «Опублікувати» goes full
+ * width with the pair right-aligned below.
  */
 const PRIMARY = "grow";
 const REST = "flex grow-1000 items-center justify-end gap-2";
@@ -30,40 +36,40 @@ const REST = "flex grow-1000 items-center justify-end gap-2";
 export const statusTriggerId = (animalId: string): string => `animal-status-${animalId}`;
 export const moreTriggerId = (animalId: string): string => `animal-more-${animalId}`;
 export const nameLinkId = (animalId: string): string => `animal-name-${animalId}`;
+/** The confirm, as a link or a button: one id, so focus finds whichever form it has now. */
+export const confirmTriggerId = (animalId: string): string => `animal-confirm-${animalId}`;
 
 export type CardMenu = "status" | "more";
 
 /**
  * One kabinet animal card (owner's spec v2, 2026-11-12), the same at every width: photo, name and
- * status, the facts, where it stands, then the actions. Only the photo, the name and «Редагувати»
- * open the edit page. Tab order: name, status, confirm or publish, «Редагувати», ⋯ (spec rule 6).
- * `editable` false (the support view) leaves out every write: the status is a plain chip.
+ * status, the facts, where it stands, then the actions. The biggest control is the thing to do now
+ * (owner, 2026-11-13): while the date is fresh the confirm is a link at the end of the freshness
+ * line; once it is aging or stale it is the filled button and «Редагувати» shrinks to a pencil.
+ * Photo, name, «Редагувати» and the pencil open the edit page. Tab order: name, status, confirm or
+ * publish, «Редагувати» or the pencil, ⋯ (spec rule 6). `editable` false (the support view) leaves
+ * out every write: the status is a plain chip.
  */
 export function AnimalManageCard({
   card,
   editable,
   busy,
-  undoSeconds,
   openMenu,
   onOpenMenu,
   onMove,
   onPublish,
   onConfirm,
-  onUndo,
   onDelete,
   onCopyLink,
 }: {
   card: Model;
   editable: boolean;
   busy: boolean;
-  /** Seconds left on the confirmation's undo, or null when none of this card is undoable. */
-  undoSeconds: number | null;
   openMenu: CardMenu | null;
   onOpenMenu: (menu: CardMenu | null) => void;
   onMove: (item: StatusMenuItem) => void;
   onPublish: () => void;
   onConfirm: () => void;
-  onUndo: () => void;
   onDelete: () => void;
   onCopyLink: (href: string) => void;
 }) {
@@ -134,16 +140,112 @@ export function AnimalManageCard({
 
   const moreLabel = fillTemplate(t.more.label, { name: card.name });
 
+  /** A visible card's ⋯: its public page, opened or copied. */
+  const siteMore = (href: string) => (
+    <Menu
+      {...menuProps("more")}
+      trigger="icon"
+      label={moreLabel}
+      triggerId={moreTriggerId(card.id)}
+    >
+      <MenuItem>
+        <LinkButton
+          variant="ghost"
+          href={href}
+          target="_blank"
+          rel="noopener"
+          prefetch={false}
+          className="w-full justify-start"
+          onClick={() => onOpenMenu(null)}
+        >
+          {t.more.openOnSite}
+          <Icon name="arrow-up-right" size="sm" />
+          <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
+        </LinkButton>
+      </MenuItem>
+      <MenuItem>
+        <Button
+          variant="ghost"
+          className="w-full justify-start"
+          onClick={() => {
+            onOpenMenu(null);
+            onCopyLink(href);
+          }}
+        >
+          {t.more.copyLink}
+        </Button>
+      </MenuItem>
+    </Menu>
+  );
+
+  // The filled button once the date is aging or stale, a link while fresh, none in the support view.
+  const confirmLook =
+    !editable || (card.status !== "published" && card.status !== "reserved")
+      ? "none"
+      : card.confirm.emphasis === "prompt"
+        ? "button"
+        : "link";
+
+  // This card's confirm or undo (it was busy) moves the control, button ↔ link, dropping focus: it
+  // follows in the same commit. A date that merely crosses a threshold moves nothing.
+  const shown = useRef({ look: confirmLook, busy });
+  useLayoutEffect(() => {
+    const before = shown.current;
+    shown.current = { look: confirmLook, busy };
+    if (!before.busy || before.look === confirmLook || before.look === "none") return;
+    if (confirmLook === "none") return;
+    const active = document.activeElement;
+    if (active === null || active === document.body) {
+      document.getElementById(confirmTriggerId(card.id))?.focus();
+    }
+  }, [confirmLook, busy, card.id]);
+
+  // The link keeps its ✓ and never wraps apart from it (-my-3 keeps its 48px target off the line
+  // height); the filled button drops the ✓ and pads tight, so it shares a 320 px row with two 48 px
+  // icons and may wrap rather than clip (owner, 2026-11-13).
+  const confirm = (offer: ConfirmOffer, look: "link" | "button") => (
+    <Button
+      id={confirmTriggerId(card.id)}
+      variant={look === "link" ? "link" : "primary"}
+      size={look === "link" ? "md" : "compact"}
+      className={look === "link" ? "-my-3 whitespace-nowrap" : "min-w-0 flex-1"}
+      aria-describedby={describedBy}
+      aria-disabled={inert || undefined}
+      onClick={() => {
+        if (!inert) onConfirm();
+      }}
+    >
+      {look === "link" ? (
+        <>
+          {offer.label}
+          <Icon name="check" size="sm" />
+        </>
+      ) : (
+        <span className="text-center">{offer.label}</span>
+      )}
+    </Button>
+  );
+
+  // Below desktop a visible card's freshness line leaves the narrow column beside the photo for a
+  // full row under the photo and name (owner, 2026-11-13); the column's wrapper steps aside for it.
+  const visibleHead = card.status === "published" || card.status === "reserved";
+
   return (
     <Card as="li" tone="outline" aria-labelledby={nameId} className="flex flex-col">
       <div className="flex flex-1 flex-col gap-4 p-4">
-        <div className="flex gap-3">
+        <div
+          className={cx(
+            "flex gap-3",
+            visibleHead &&
+              "max-desktop:grid max-desktop:grid-cols-card-head max-desktop:grid-rows-card-head max-desktop:gap-y-1",
+          )}
+        >
           <Link
             href={card.editHref}
             prefetch={false}
             tabIndex={-1}
             aria-hidden="true"
-            className="shrink-0 self-start"
+            className={cx("shrink-0 self-start", visibleHead && "max-desktop:row-span-2")}
           >
             <Photo
               src={card.photo?.storageKey ?? null}
@@ -153,7 +255,12 @@ export function AnimalManageCard({
               className="w-24 rounded-field"
             />
           </Link>
-          <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+          <div
+            className={cx(
+              "flex min-w-0 flex-1 flex-col items-start gap-1",
+              visibleHead && "max-desktop:contents",
+            )}
+          >
             <div className="flex w-full flex-wrap items-center justify-between gap-x-2">
               <Heading level={2} look="body-l" id={nameId} className="min-w-0 max-w-full">
                 <Link
@@ -167,13 +274,25 @@ export function AnimalManageCard({
               </Heading>
               {status}
             </div>
-            <p className="text-body text-ink-2">{card.meta}</p>
+            <p className="self-start text-body text-ink-2">{card.meta}</p>
             {card.status === "published" || card.status === "reserved" ? (
-              <FreshnessPips
-                kind={card.freshness.kind}
-                label={card.freshness.label}
-                className="mt-1"
-              />
+              confirmLook === "link" ? (
+                // The link moves under the pips as one piece when the line is full.
+                <div className="mt-1 flex flex-wrap items-center gap-x-1 max-desktop:col-span-2 max-desktop:mt-2">
+                  <FreshnessPips
+                    kind={card.freshness.kind}
+                    label={card.freshness.label}
+                    trail="dot"
+                  />
+                  {confirm(card.confirm, "link")}
+                </div>
+              ) : (
+                <FreshnessPips
+                  kind={card.freshness.kind}
+                  label={card.freshness.label}
+                  className="mt-1 max-desktop:col-span-2 max-desktop:mt-2"
+                />
+              )
             ) : card.status === "draft" ? (
               <>
                 <Text look="hint">{card.notice}</Text>
@@ -191,76 +310,37 @@ export function AnimalManageCard({
 
         <div className="mt-auto flex flex-wrap items-center gap-2">
           {card.status === "published" || card.status === "reserved" ? (
-            <>
-              {!editable ? null : undoSeconds !== null ? (
-                <div className={`${PRIMARY} flex flex-wrap items-center gap-2`}>
-                  <Text look="label">
-                    <span aria-hidden="true">✓ </span>
-                    {t.confirm.done}
-                  </Text>
-                  <Button
-                    variant="ghost"
-                    aria-describedby={describedBy}
-                    aria-disabled={inert || undefined}
-                    onClick={() => {
-                      if (!inert) onUndo();
-                    }}
+            confirmLook === "button" ? (
+              // Aging or stale: one row at every width, the confirm taking what the two icons leave.
+              <div className="flex w-full items-center gap-2">
+                {confirm(card.confirm, "button")}
+                <Tooltip text={t.actions.edit}>
+                  <LinkButton
+                    variant="icon"
+                    href={card.editHref}
+                    prefetch={false}
+                    aria-label={fillTemplate(t.actions.editNamed, { name: card.name })}
                   >
-                    {fillTemplate(t.confirm.undo, { seconds: String(undoSeconds) })}
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  variant={card.confirm.emphasis === "prompt" ? "primary" : "secondary"}
-                  className={PRIMARY}
-                  aria-describedby={describedBy}
-                  aria-disabled={inert || undefined}
-                  onClick={() => {
-                    if (!inert) onConfirm();
-                  }}
-                >
-                  {card.confirm.label}
-                  <Icon name="check" size="sm" />
-                </Button>
-              )}
-              <div className={REST}>
-                {edit}
-                <Menu
-                  {...menuProps("more")}
-                  trigger="icon"
-                  label={moreLabel}
-                  triggerId={moreTriggerId(card.id)}
-                >
-                  <MenuItem>
-                    <LinkButton
-                      variant="ghost"
-                      href={card.more.href}
-                      target="_blank"
-                      rel="noopener"
-                      prefetch={false}
-                      className="w-full justify-start"
-                      onClick={() => onOpenMenu(null)}
-                    >
-                      {t.more.openOnSite}
-                      <Icon name="arrow-up-right" size="sm" />
-                      <span className="sr-only"> {uk.kabinet.shell.newTab}</span>
-                    </LinkButton>
-                  </MenuItem>
-                  <MenuItem>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        onOpenMenu(null);
-                        onCopyLink(card.more.href);
-                      }}
-                    >
-                      {t.more.copyLink}
-                    </Button>
-                  </MenuItem>
-                </Menu>
+                    <Icon name="pencil" size="md" />
+                  </LinkButton>
+                </Tooltip>
+                {siteMore(card.more.href)}
               </div>
-            </>
+            ) : (
+              // Fresh, or the support view: «Редагувати» fills a phone's row, natural width from tablet.
+              <div className="flex w-full items-center justify-end gap-2">
+                <LinkButton
+                  variant="secondary"
+                  href={card.editHref}
+                  prefetch={false}
+                  aria-describedby={describedBy}
+                  className="flex-1 tablet:flex-none"
+                >
+                  {t.actions.edit}
+                </LinkButton>
+                {siteMore(card.more.href)}
+              </div>
+            )
           ) : card.status === "draft" ? (
             <>
               {editable ? (
