@@ -110,18 +110,19 @@ async function expectFreshLine(
   belowPhoto: boolean,
   label: string,
 ): Promise<void> {
-  const [photo, words, lineHeight] = await Promise.all([
+  const [photo, pips, words, lineHeight] = await Promise.all([
     box(card.locator("a[aria-hidden='true']").first()),
+    box(card.locator("[data-fill]")),
     box(card.getByText(/^Оновлено /)),
     link.evaluate((el) => Number.parseFloat(getComputedStyle(el).lineHeight)),
   ]);
   if (belowPhoto) {
-    expect(words.y, `${label}: the freshness line under the photo`).toBeGreaterThanOrEqual(
+    expect(pips.y, `${label}: the freshness line under the photo`).toBeGreaterThanOrEqual(
       photo.y + photo.height,
     );
-    expect(Math.abs(words.x - photo.x), `${label}: from the photo's left edge`).toBeLessThan(2);
+    expect(Math.abs(pips.x - photo.x), `${label}: from the photo's left edge`).toBeLessThan(2);
   } else {
-    expect(words.x, `${label}: the freshness line beside the photo`).toBeGreaterThan(
+    expect(pips.x, `${label}: the freshness line beside the photo`).toBeGreaterThan(
       photo.x + photo.width,
     );
   }
@@ -304,7 +305,7 @@ test("320 to 393 px and a 320 px card: tab order, 48 px targets, one-line action
         await expectFreshLine(
           card,
           card.getByRole("button", { name: link }),
-          width !== 1440,
+          phone,
           `${width} ${name}`,
         );
       }
