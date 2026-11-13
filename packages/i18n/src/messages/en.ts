@@ -9,8 +9,8 @@
  * reserved.badge/action. Everything else is new
  * content in that register, not literally specified anywhere - flag any
  * mistranslation rather than trusting it silently; this hasn't had a
- * native-speaker read yet, and next-intl isn't wired until H3, so nothing
- * here is user-visible in production today.
+ * native-speaker read yet, and the app renders Ukrainian only (next-intl is not
+ * adopted, 2026-11-13), so nothing here is user-visible in production today.
  */
 import { COPY_PENDING } from "./uk";
 
@@ -492,7 +492,7 @@ export const en = {
    *
    * ⚠ Pending in BOTH locales, deliberately. The Ukrainian is written first,
    * from `docs/prytulkam-argument.md`; the English is written from the
-   * finished Ukrainian at H3's native-speaker pass, not the other way round.
+   * finished Ukrainian at the native-speaker pass, not the other way round.
    * Filling this side in first would make it the de-facto source and
    * reintroduce exactly the translated-from-English register D3 flagged.
    */

@@ -2,8 +2,24 @@
 
 **Date:** 5 August 2026 · **Author:** research + recommendation for a solo TS/React developer
 **Status:** Proposed · **Amended 2026-11-02 (owner decision): the swipe deck is retired; the product is a gallery-first registry. The deck rows and sections below are kept as the record of the original reasoning, not as current scope.** · **Scope:** MVP (one Ukrainian oblast) with an explicit path through Phases 2-4
+**Facts re-checked against the code 2026-11-13 (owner rule: docs follow the code, no dependency changes): versions are the `pnpm-workspace.yaml` catalog pins, and anything named here but never adopted is kept and marked "not adopted (as of 2026-11-13)" with what the code uses instead. No decision is changed.**
 
 > Every version number, price, and free-tier limit below was verified against a live source on 2026-08-05. Where something could not be verified, it is marked ⚠️ rather than guessed. Sources are listed at the end of each section and consolidated at the bottom.
+
+> **Named in this record but not adopted (as of 2026-11-13).** The original reasoning stays below; the code uses what the right column says. Sources: `pnpm-workspace.yaml` catalog and the `package.json` files.
+>
+> | Named here | Status | What the code uses instead |
+> |---|---|---|
+> | **next-intl 4.13.x** | Not adopted: no package depends on it (build plan row H3 still plans the wiring) | `packages/i18n`: typed `uk` and `en` catalogues (plain TypeScript objects, key parity tested), `fillTemplate` for `{slot}`s (`packages/i18n/src/template.ts`) and native `Intl` for dates, numbers and plurals. The app renders Ukrainian only (`lang="uk"`, `apps/web/src/app/layout.tsx`); the English catalogue is not user-visible |
+> | **MSW 2** | Not adopted | Vitest only: a module that calls out takes a `fetchImpl` and the test passes a stubbed `fetch` (for example `apps/web/src/kabinet/email-delivery-test.test.ts`) |
+> | **Serwist** (offline PWA) | Not adopted | A web manifest (`apps/web/src/app/manifest.ts`) and generated icons including a maskable one (`apps/web/public/icons`). No service worker, no offline support |
+> | **PostHog** (analytics, session replay, feature flags) | Not adopted | `@vercel/analytics` and `@vercel/speed-insights` (cookieless, `apps/web/src/features/chrome/SiteAnalytics.tsx`) for page views and real-device Web Vitals; `@sentry/nextjs` for errors only, with tracing and replay stripped from the bundle (`apps/web/src/observability`). No feature-flag tool |
+> | **Umami** (self-hosted page views) | Not adopted | Vercel Analytics, as above |
+> | **`motion`** (`LazyMotion`) | Not adopted (the swipe deck it served is retired) | No animation library; no `motion` dependency |
+> | **react-hook-form + Zod resolver** | Not adopted | No form library: the forms are built in `apps/web/src/features/kabinet` from the kit's fields, with the Zod schemas from `@opika/contracts` |
+> | **`react-dropzone`**, UploadThing | Not adopted | A native `<input type="file">` (`apps/web/src/features/kabinet/animal-form/PhotoSection.tsx`), `react-easy-crop` for the crop frame (catalog), `sharp` at upload |
+> | **Crowdin OSS**, Tolgee | Not adopted | The catalogues are TypeScript files in `packages/i18n`; no translation platform |
+> | **Blacksmith runners** | Not adopted | GitHub-hosted `ubuntu-latest` (`.github/workflows/ci.yml`) |
 
 ---
 
@@ -11,20 +27,20 @@
 
 | Layer | Choice | Why (one line) |
 |---|---|---|
-| **Client** | Next.js **16.3** App Router, mobile-first **PWA** (Serwist), React 19.2, React Compiler **not enabled** (2026-11-02, see below) | You already know it; one codebase; SEO on animal profiles is a free acquisition channel a native app cannot give you |
-| **Swipe deck** (retired 2026-11-02) | **Hand-rolled `PointerEvent` + `transform`** (0 KB), `motion` w/ `LazyMotion`+`domAnimation` for everything else | The only gesture lib with the right physics (`@use-gesture`) has not shipped since March 2024; the drag itself is ~150 lines |
+| **Client** | Next.js **16.4.5** App Router, mobile-first **PWA** (manifest and icons today; Serwist **not adopted (as of 2026-11-13)**, no service worker), React 19.3.1, React Compiler **not enabled** (2026-11-02, see below) | You already know it; one codebase; SEO on animal profiles is a free acquisition channel a native app cannot give you |
+| **Swipe deck** (retired 2026-11-02) | **Hand-rolled `PointerEvent` + `transform`** (0 KB), `motion` w/ `LazyMotion`+`domAnimation` for everything else (**not adopted (as of 2026-11-13)**: no `motion` dependency) | The only gesture lib with the right physics (`@use-gesture`) has not shipped since March 2024; the drag itself is ~150 lines |
 | **API contract** | **oRPC** in contract-first mode (`@orpc/contract`), Zod 4 schemas | Contract-first is literally your stated principle; same contract emits OpenAPI → native app + registry partners later, without a second source of truth |
 | **Server runtime** | **Node 24 LTS**, inside the Next.js app (route handlers), domain logic in a framework-free package | One deployable at MVP; the domain package is the thing you extract later, not the framework |
 | **DB** | **Postgres 18 on Neon (`aws-eu-central-1`; Free plan today, auto-suspends after 5 min; upgrade to Launch and disable suspend before onboarding)** - PostGIS available, not enabled at MVP | Plain Postgres, `pg_dump` out at any time; scale-to-zero; PostGIS present so the Poland phase is not a migration |
 | **ORM** | **Drizzle 0.45.x** (→ 1.0 when it ships) | Prisma closed geometry/geography support as *not planned*; your primary query is proximity search |
 | **Images** | **Cloudflare R2** + variants pre-generated with `sharp` at upload, served through Cloudflare CDN | Zero egress cost. ~$6/mo at 300k MAU vs ~$530/mo for Supabase transforms, ~$700/mo for Cloudinary |
-| **Auth** | **Better Auth 1.6.x**, self-hosted, `organization` plugin for shelters | $0 at any scale. Clerk at 300k MAU = **$4,625/mo** - more than a year of every other line item combined |
-| **i18n** | **next-intl 4.13.x** + native `Intl` for all dates/numbers/plurals | Paraglide's own docs tell you to use next-intl on Next.js; `Intl` handles Ukrainian's 4 plural forms and month declension correctly for free |
+| **Auth** | **Better Auth 1.7.x** (catalog pin 1.7.18), self-hosted, `organization` plugin for shelters | $0 at any scale. Clerk at 300k MAU = **$4,625/mo** - more than a year of every other line item combined |
+| **i18n** | **next-intl 4.13.x** (**not adopted (as of 2026-11-13)**: the code uses the `packages/i18n` catalogues + `fillTemplate`) + native `Intl` for all dates/numbers/plurals | Paraglide's own docs tell you to use next-intl on Next.js; `Intl` handles Ukrainian's 4 plural forms and month declension correctly for free |
 | **Hosting** | **Vercel Pro ($20/mo)** at MVP, images off-platform, spend cap on day one. Exit ramp: OpenNext → Cloudflare Workers. *2026-10-18: the project is on Vercel Pro, with a spend limit set, as recommended here. It ran on Hobby before that (P-Q7, recorded 2026-10-17); the ads/partners phase is no longer blocked on the plan. Skew protection is on, with a 12 h maximum age: a client keeps talking to the deployment it loaded for up to 12 hours, so a changed response shape only meets clients older than that (H4 re-checks this for an installed app).* | Ops time is your scarcest resource; the $30/mo you'd save self-hosting is noise against a $25-50k grant |
 | **Repo** | **pnpm 11 workspaces + catalogs**. Add Turborepo the day CI exceeds ~3 min | Turborepo has nothing to cache until you have real build steps between packages |
-| **Testing** | Vitest 4 + RTL 16 + MSW 2 + **4-6** Playwright specs; plain Docker PostGIS | Test the matcher, the verification FSM, and Ukrainian plural boundaries. Skip the rest |
-| **CI** | GitHub Actions on a **public repo** ($0, unlimited) | Also unlocks free Crowdin OSS and free Blacksmith runners |
-| **Observability** | Sentry Developer + PostHog free | $0 at MVP, ~$180/mo at 300k MAU (or ~$75 with self-hosted Umami absorbing pageviews) |
+| **Testing** | Vitest 4 + RTL 16 + MSW 2 (**not adopted (as of 2026-11-13)**: stubbed `fetch` via `fetchImpl`) + **4-6** Playwright specs (as built: a rendering harness of 50+ specs, `apps/web/test/harness`); plain Docker PostGIS (`postgis/postgis:18-3.6`) | Test the matcher, the verification FSM, and Ukrainian plural boundaries. Skip the rest |
+| **CI** | GitHub Actions on a **public repo** ($0, unlimited) | Also unlocks free Crowdin OSS and free Blacksmith runners (neither adopted as of 2026-11-13; CI runs on `ubuntu-latest`) |
+| **Observability** | Sentry Developer (`@sentry/nextjs`, errors only) + Vercel Analytics and Speed Insights; PostHog free **not adopted (as of 2026-11-13)** | $0 at MVP, ~$180/mo at 300k MAU (or ~$75 with self-hosted Umami absorbing pageviews) |
 | **Backend language** | **TypeScript. Not Go.** | See §11 - at your load profile the language delta is ~3 ms against a query that dominates by 10-100× |
 
 **All-in infrastructure cost: ~$25/mo at MVP, ~$110-190/mo at 300k MAU.** Under 1% of the grant. The naïve version of this same stack (Clerk + Cloudinary + Vercel images) costs **~$5,500/mo at 300k MAU** - $66k/year, more than the entire grant. Two decisions account for essentially all of that delta: **hosted auth SaaS** and **per-image/per-delivery media pricing**. Get those two right and nothing else you choose can hurt you financially.
@@ -33,7 +49,7 @@
 
 ## 1. Frontend: PWA, React Native, or cross-platform
 
-**Recommendation: mobile-first PWA on Next.js 16.3. Native comes later as a separate Expo app that shares your contract package, not a shared-UI codebase.**
+**Recommendation: mobile-first PWA on Next.js 16.4.5 (catalog pin; written as 16.3 on 2026-08-05). Native comes later as a separate Expo app that shares your contract package, not a shared-UI codebase.**
 
 ### Why not React Native / Expo now
 
@@ -79,7 +95,7 @@ Use `motion` (the Framer Motion rebrand, v12.43) with `LazyMotion` + `domAnimati
 ### Two Next.js decisions you should make deliberately
 
 - **Do not turn on `cacheComponents` (`use cache`) for the MVP.** It's opt-in in 16.3, Vercel has pre-announced it becomes default in a future major, and the caching API already broke once in 16 (`revalidateTag` signature change). Ship dynamic-by-default; adopt it when it's the default.
-- **Budget for monthly security patching.** This is the most under-priced risk in a solo-dev Next.js plan. December 2025 brought **CVE-2025-55182 "React2Shell," a CVSS 10.0 unauthenticated RCE** in the RSC Flight protocol, exploited in the wild. July 2026 brought **9 CVEs in a single batch**, including a middleware/proxy auth bypass and two SSRFs. Vercel now ships security releases on a monthly pre-announced cadence. Pin to an LTS line (16.2 Active LTS, or track 16.3), turn on Dependabot, and treat the patch cadence as a standing calendar item.
+- **Budget for monthly security patching.** This is the most under-priced risk in a solo-dev Next.js plan. December 2025 brought **CVE-2025-55182 "React2Shell," a CVSS 10.0 unauthenticated RCE** in the RSC Flight protocol, exploited in the wild. July 2026 brought **9 CVEs in a single batch**, including a middleware/proxy auth bypass and two SSRFs. Vercel now ships security releases on a monthly pre-announced cadence. Pin to an LTS line (16.2 Active LTS, or track 16.3; the project tracks 16.4, catalog pin 16.4.5), turn on Dependabot, and treat the patch cadence as a standing calendar item.
 - **React Compiler: NOT enabled (owner decision, 2026-11-02).** Measured on branch `perf/react-compiler` (PR #371, closed; it holds the ready-to-use change, `babel-plugin-react-compiler` 1.0.0 exact): +13.5 KB gzip first-load on /tvaryny (+17%), +8 KB on the animal page, +10 KB on the deck; total client JS+CSS +10.7% raw / +15.6% gzip; no measured render benefit (server-first pages, small client islands). Healthcheck: 270/270 components compile, no Rules-of-React violations. Future path: annotation mode (`"use memo"`) for a specific component, only if profiling shows a re-render problem.
 
 **Sources:** [Next.js 16](https://nextjs.org/blog/next-16) · [Next.js 16.3](https://nextjs.org/blog/next-16-3) · [July 2026 security release](https://nextjs.org/blog/july-2026-security-release) · [Unit 42 on React2Shell](https://unit42.paloaltonetworks.com/cve-2025-55182-react-and-cve-2025-66478-next/) · [WebKit tracking prevention](https://webkit.org/tracking-prevention/) · [WebKit storage policy](https://webkit.org/blog/14403/updates-to-storage-policy/) · [Declarative Web Push](https://webkit.org/blog/16535/meet-declarative-web-push/) · [Expo Server Components (beta)](https://docs.expo.dev/guides/server-components/) · [Expo pricing](https://expo.dev/pricing) · [Google Play closed testing rule](https://support.google.com/googleplay/android-developer/answer/14151465) · [StatCounter Ukraine mobile OS](https://gs.statcounter.com/os-market-share/mobile/ukraine) · [Motion bundle size](https://motion.dev/docs/react-reduce-bundle-size) · [React Compiler 1.0](https://react.dev/blog/2025/10/07/react-compiler-1)
@@ -195,7 +211,7 @@ Migration `0021_drop_orphan_animal_indexes` (PR #376) dropped the two unused `an
 
 **Prisma 7 (Nov 2025) is a genuine turnaround** - Rust engine gone, ~90% smaller bundle, ~3× faster queries, generated code in your source tree. The historical complaints are substantially fixed. But:
 
-> **Prisma closed [issue #25768](https://github.com/prisma/prisma/issues/25768) — geometry/geography support — as "not planned."**
+> **Prisma closed [issue #25768](https://github.com/prisma/prisma/issues/25768) – geometry/geography support – as "not planned."**
 
 You'd model spatial columns as `Unsupported("geometry")`, which Prisma Client cannot read or write, and run every geo query through `$queryRaw` with hand-written types. For a product whose core query is proximity search, that puts your most important code path outside the ORM permanently.
 
@@ -226,7 +242,7 @@ On the Vercel bill-shock stories: the canonical case ([Metacast](https://metacas
 
 ## 4. Authentication
 
-**Recommendation: Better Auth 1.6.x, self-hosted, with the `organization` plugin.**
+**Recommendation: Better Auth 1.7.x (catalog pin 1.7.18; written as 1.6.x on 2026-08-05), self-hosted, with the `organization` plugin.**
 
 This is the single highest-stakes cost decision in the document.
 
@@ -257,6 +273,8 @@ Structurally: **auth data lives in your Postgres, so auth cost scales with your 
 - **Shelter partner:** high-friction on purpose. Invitation-only into an organization, created by you after manual verification (NGO registration, bank account in the org's name, external reference). **Verification is a human process with a database field, not a feature.** Don't build a self-serve shelter signup flow at MVP - it's the single largest source of fraud risk in this product, and manual review of ~15 shelters is an afternoon.
 - **Worth knowing for later:** **Дія.Підпис (Diia.Signature) is available to businesses today** - free, contract-based, used by Nova Poshta and AUTO.RiA - and is the natural upgrade path for strongly verifying a shelter representative's identity when manual review stops scaling. It requires certifying no ties to Russia or Belarus.
 
+> **Superseded (as of 2026-11-13): shelters sign in by magic link, password or invitation; adopters have no accounts.** The adopter bullet above (email OTP or Google/Apple, anonymous swiping upgrading to an account) was never built. Shelters sign in only after an operator invitation, with no social sign-in and no self-serve signup. An adopter has no sign-in and no account: the only adopter identity is an anonymous device session, minted when someone reveals a contact (the `account` identity kind exists in the `adopters` table but no code creates it). The original text stays above as the record. Code: [Better Auth config (magic link, organization plugin, password, invitations)](../apps/web/src/kabinet/auth.ts) · [sign-in pages and routes](../apps/web/src/app/kabinet/vkhid/page.tsx) ([confirm route](../apps/web/src/app/kabinet/vkhid/pidtverdzhennia/route.ts), [forgot password](../apps/web/src/app/kabinet/vkhid/zabuly/route.ts), [new password](../apps/web/src/app/kabinet/vkhid/novyi-parol/page.tsx)) · [invitation handlers](../apps/web/src/kabinet/handlers/registry-invitations.ts) · [sign-in card](../apps/web/src/features/kabinet/SignInCard.tsx) · [anonymous adopter session](../apps/web/src/api/handlers/session.ts) · [`adopters` table](../packages/db/src/schema/adopters.ts).
+
 **Sources:** [Better Auth organization plugin](https://www.better-auth.com/docs/plugins/organization) · [Clerk pricing](https://clerk.com/pricing) · [WorkOS pricing](https://workos.com/pricing) · [Kinde pricing](https://www.kinde.com/pricing/) · [Diia integration](https://integration.diia.gov.ua/) · npm registry, 2026-08-05
 
 ---
@@ -264,6 +282,8 @@ Structurally: **auth data lives in your Postgres, so auth cost scales with your 
 ## 5. Internationalization
 
 **Recommendation: `next-intl` 4.13.x, plus native `Intl` for every date, number, currency, and plural.**
+
+> **next-intl: not adopted (as of 2026-11-13).** It is not a dependency of any package. What the code uses instead: the typed `uk` and `en` catalogues in `packages/i18n`, `fillTemplate` for `{slot}`s, and native `Intl` for every date, number and plural, as this section says. The app renders Ukrainian only. The disciplines below that name `NextIntlClientProvider` describe the original plan, not the code.
 
 ### Why not Paraglide, despite the bundle-size story
 
@@ -319,6 +339,8 @@ type Freshness =
 A discriminated union here means the feed ranking, the badge colour, and the "please confirm this animal is still available" nudge to the shelter all derive from one source of truth. That's the DRY win, and it's the difference between "we show a date" and "we're honest about data quality" as a product property.
 
 ### Translation management
+
+> Not adopted (as of 2026-11-13): neither Crowdin nor Tolgee is used; the catalogues are TypeScript files in `packages/i18n`.
 
 **Crowdin** - Ukrainian-founded (Serhiy Dmytryshyn, 2009) - offers a **completely free Open Source program** (OSI license, public source, no associated commercial product, 3+ months active). Their free commercial tier is 60k hosted words / 1 private project. If the repo stays private, **Tolgee's free tier** (500 keys, 3 seats) is the better start.
 
@@ -429,6 +451,8 @@ apps/web/src/features/
 
 **Recommendation: Vitest 4 + RTL 16 + MSW 2 + 4-6 Playwright specs. Plain Docker PostGIS, not Testcontainers. GitHub Actions on a public repo.**
 
+> **As built (2026-11-13).** MSW 2 is not adopted: tests stub `fetch` through a `fetchImpl` parameter. The Playwright rendering harness has grown past 4-6 specs (50+ files in `apps/web/test/harness`, run by `pnpm test:harness`). Vitest 4.1.12, `@testing-library/react` 16.3.3, `@playwright/test` 1.65.0 and `@axe-core/playwright` 4.14.0 (accessibility gate) are the catalog pins.
+
 ### The 80/20, mapped to your three critical paths
 
 | Path | Test | Why this shape |
@@ -447,7 +471,7 @@ apps/web/src/features/
 
 **Don't:** chase coverage percentages, unit-test components that are just markup, or write E2E for anything assertable at the unit level. Skip Playwright component testing (now graduated out of experimental, but you don't need it) and Vitest browser mode.
 
-**Testcontainers vs plain Docker: use plain Docker.** Testcontainers solves per-test-file isolation for teams running concurrently on shared infra. Solo, it adds 3-8s of container startup per suite and a Docker-in-Docker headache in CI to solve a problem you don't have. Use one `docker-compose.yml` with `postgis/postgis:17-3.5`, and per-test transactions that roll back. In GitHub Actions, a native `services:` Postgres container. Revisit Testcontainers if you ever build the registry-integration service.
+**Testcontainers vs plain Docker: use plain Docker.** Testcontainers solves per-test-file isolation for teams running concurrently on shared infra. Solo, it adds 3-8s of container startup per suite and a Docker-in-Docker headache in CI to solve a problem you don't have. Use one `docker-compose.yml` with `postgis/postgis:18-3.6` (written as `17-3.5` on 2026-08-05), and a throwaway database per test run, dropped when the run ends (`packages/db/src/test-utils/test-database.ts`; written as per-test rollback transactions). In GitHub Actions, a native `services:` Postgres container. Revisit Testcontainers if you ever build the registry-integration service.
 
 ### CI/CD
 
@@ -472,6 +496,8 @@ main:  ↑ + drizzle-kit migrate (gated job) → deploy → playwright smoke aga
 - **PostHog free** (1M events/mo, 5k replays, 1M feature-flag requests) for product analytics, session replay, and - the underrated part for a solo dev - **feature flags**, which let you ship matching-algorithm v2 dark and enable it for 5% of traffic.
 - **Instrument the domain events, not the clicks:** `animal_revealed`, `shelter_listing_updated`, `feed_exhausted`, `donation_link_clicked`, `stale_listing_shown`. These are the numbers a grant report needs and the numbers that tell you whether the product works.
 - At 300k MAU: ~$136/mo PostHog (4.5M events) + $26 Sentry. Halve it by putting self-hosted **Umami** (MIT) in front for pageviews - which also keeps visitor data under your control, a nice posture for a Ukrainian platform.
+> **As built (2026-11-13).** Sentry is wired (`@sentry/nextjs`, errors only: no tracing, no replay). PostHog is not adopted (as of 2026-11-13), so there is no session replay, no feature-flag tool and no product-event stream; page views and Web Vitals come from `@vercel/analytics` and `@vercel/speed-insights`. Umami is not adopted either.
+
 - **Defer OpenTelemetry** until you have a second service to trace across. Axiom's permanently-free Personal tier (500 GB/mo ingest) is the one to pick up then.
 
 **Sources:** [Vitest 4](https://voidzero.dev/posts/announcing-vitest-4) · [GitHub Actions billing](https://docs.github.com/en/billing/managing-billing-for-your-products/about-billing-for-github-actions) · [Blacksmith pricing](https://www.blacksmith.sh/pricing) · [drizzle-kit overview](https://orm.drizzle.team/docs/kit-overview) · [Sentry pricing](https://sentry.io/pricing/) · [PostHog pricing](https://posthog.com/pricing)
@@ -480,9 +506,9 @@ main:  ↑ + drizzle-kit migrate (gated job) → deploy → playwright smoke aga
 of this schedule, by explicit owner instruction, not a re-derivation of this ADR. They
 displace only the pageview/RUM slice above - Speed Insights covers real-device Core Web
 Vitals this line never specified a source for at all; Analytics covers what the
-self-hosted Umami line above would have. Sentry + PostHog (errors, session replay,
-feature flags, the `animal_revealed`/`shelter_listing_updated`/… domain events above)
-remain unbuilt and still belong to their original phase. `docs/build-plan.md`'s H5 row
+self-hosted Umami line above would have. Sentry has since been built (H5, errors only);
+PostHog is not adopted (as of 2026-11-13), so session replay, feature flags and the
+`animal_revealed`/`shelter_listing_updated`/… domain events above remain unbuilt. `docs/build-plan.md`'s H5 row
 still owns the privacy policy and consent handling that would normally accompany
 analytics going live; Phase F's «Про проєкт» addition (`uk.about.analytics`) is a
 stopgap disclosure, not a substitute for it - H5 must still land before real shelter
@@ -539,8 +565,8 @@ type ShelterVerification =
 > makes" before building this.** `/prytulkam` states, to the shelters being
 > recruited, that ordering inputs are date plus card completeness in the deck
 > and *nothing else* («Це все, що впливає на порядок»). Ads sitting **beside**
-> listings leave that true. Ads influencing **order** — paid placement, a
-> "featured" flag, a boost — make a page written to earn a volunteer's trust
+> listings leave that true. Ads influencing **order** – paid placement, a
+> "featured" flag, a boost – make a page written to earn a volunteer's trust
 > into a false one. That is a product decision available to be taken
 > deliberately; it is not one to arrive at by implementation.
 
@@ -740,7 +766,7 @@ Shopify's evidence is the useful one here: they evaluated microservices, **rejec
 
 The trigger, stated precisely so you can test it rather than argue about it:
 
-> **If profiling shows the feed endpoint is CPU-bound in the Node process — not waiting on Postgres, not waiting on Redis, but burning CPU — extract that scoring step into a separate service.**
+> **If profiling shows the feed endpoint is CPU-bound in the Node process – not waiting on Postgres, not waiting on Redis, but burning CPU – extract that scoring step into a separate service.**
 
 The realistic cause would be real-time ML ranking scoring thousands of candidates per request in-process. Nothing in your roadmap implies that. And even then, the first three fixes are cache, keyset pagination, and a read replica - and the service you'd extract is a stateless scorer, which is the afternoon-sized extraction.
 
@@ -757,13 +783,13 @@ Everything else points the same way. The performance premise is worth 3 ms again
 | Don't build | Use | Weeks saved |
 |---|---|---|
 | Auth, sessions, OAuth, orgs, invitations, roles | **Better Auth + organization plugin** | 3-4 |
-| Image upload widget, cropping, progress, retry | **`react-dropzone` + `sharp`** in a route handler; or UploadThing if you'd rather not touch it at all | 1-2 |
+| Image upload widget, cropping, progress, retry | **`react-dropzone` + `sharp`** in a route handler; or UploadThing if you'd rather not touch it at all. *Not adopted (as of 2026-11-13): a native file input, `react-easy-crop` for the crop frame and `sharp` at upload.* | 1-2 |
 | Image CDN / transformation pipeline | **R2 + pre-generated variants** (or Bunny Optimizer at $9.50 flat) | 1-2 |
 | Admin CRUD for the shelter dashboard | Next.js Server Actions + a table primitive. Do **not** adopt an admin framework - it will fight your domain model | 1 |
-| Translation workflow, translator UI, review | **Crowdin OSS** (free) | 1 |
-| Error tracking, session replay, feature flags | **Sentry + PostHog** free tiers | 2 |
-| Email (verification, shelter invitations) | **Resend** or **Postmark**. Never self-host SMTP. *2026-10-19: Resend for every auth email (EM-B10; Vercel `EMAIL_PROVIDER=resend`, no `EMAIL_SIGN_IN_PROVIDER`, his check). Sending domain `mail.opika.org.ua`, verified: DKIM and both sending CNAMEs, DNS only. Receiving is off; inbound stays on Cloudflare Email Routing. No tracking subdomain, so click and open tracking are off. **TLS Enforced** (switched from Opportunistic by Oleksii: auth emails carry bearer links, so a server that can't do TLS gets a bounce, never a plaintext copy). Brevo is removed: DNS records 2026-11-01, code in the removal PR (2026-11).* | 1 |
-| Form state + validation | **react-hook-form + Zod resolver**, sharing the schemas from `packages/contracts` | 1 |
+| Translation workflow, translator UI, review | **Crowdin OSS** (free). *Not adopted (as of 2026-11-13): catalogues are TypeScript files in `packages/i18n`.* | 1 |
+| Error tracking, session replay, feature flags | **Sentry + PostHog** free tiers. *Sentry is adopted (errors only); PostHog is not adopted (as of 2026-11-13).* | 2 |
+| Email (verification, shelter invitations, shelter notifications) | **Resend** or **Postmark**. Never self-host SMTP. *As built (2026-11-13): Resend is the only provider config accepts (`AUTH_EMAIL_PROVIDERS`); the Postmark sender stays in code but is unreachable from config. One module, `apps/web/src/kabinet/email-provider.ts`, calls Resend's HTTP API with `fetch`, no SDK. It sends the auth emails (sign-in link, invitation, password reset, password changed) and the shelter notification emails: event mails after a write (`kabinet/notify/after-write.ts`), the daily batch at 06:00 UTC (early listing ending, plus one retry of mails that failed in the last 48 hours) and the weekly freshness reminder on Mondays at 07:00 UTC (crons in `apps/web/vercel.json`). The notification emails ride the invitation's untracked route, and the two batches share one daily budget sized to Resend's 100-a-day free plan, which leaves room for sign-in links.* *2026-10-19: Resend for every auth email (EM-B10; Vercel `EMAIL_PROVIDER=resend`, no `EMAIL_SIGN_IN_PROVIDER`, his check). Sending domain `mail.opika.org.ua`, verified: DKIM and both sending CNAMEs, DNS only. Receiving is off; inbound stays on Cloudflare Email Routing. No tracking subdomain, so click and open tracking are off. **TLS Enforced** (switched from Opportunistic by Oleksii: auth emails carry bearer links, so a server that can't do TLS gets a bounce, never a plaintext copy). Brevo is removed: DNS records 2026-11-01, code in the removal PR (2026-11).* | 1 |
+| Form state + validation | **react-hook-form + Zod resolver**, sharing the schemas from `packages/contracts`. *Not adopted (as of 2026-11-13): no form library; forms are built in `apps/web/src/features/kabinet` with the shared Zod schemas.* | 1 |
 | Date/number/plural formatting | **Native `Intl`** - no `moment`, no `numeral`, and skip `date-fns` unless you need arithmetic | ~0.5, plus correctness |
 | Rate limiting, abuse protection | ~~Cloudflare rules + Better Auth's built-in rate limiter~~ **Superseded, Phase 3 block 4 (2026-10-06):** the hosting choice (§6, Vercel Pro, images off-platform) never put Cloudflare in front of this app's own traffic, and Better Auth isn't wired until H2 - so there was no rate limiter to be "built-in" to yet, and the generic per-IP limiter (`apps/web/src/api/rate-limit.ts`) predates H2 by design (it protects `/tvaryny` and `/api/rpc` for anonymous adopters, not an authenticated surface). Implemented instead: **`@upstash/ratelimit`** (+ `@upstash/redis`, its REST-based client), Upstash's own purpose-built sliding-window rate-limiting SDK against a shared store - replacing the in-memory implementation's per-serverless-instance budget (`limit × instance count` in practice, not the stated limit) with a genuinely shared one. REST-based, not a TCP Redis client, for the same reason `@neondatabase/serverless` is the DB-side pick (`packages/db/src/client.ts`'s own comment, not a separate ADR section): it works from every Vercel runtime without a persistent connection. The in-memory implementation stays as the local-dev/CI/harness fallback - no live Upstash account needed for either. Better Auth's own rate limiter remains the right choice once H2 adds authenticated shelter-admin endpoints; this entry covers only the pre-H2, anonymous-adopter surface | 1 |
 | Content moderation for animal photos | Defer entirely at MVP - 15 verified shelters is human-reviewable | 2+ |
@@ -806,7 +832,7 @@ Ranked by how much they'd cost if wrong:
 | **1** | `packages/contracts` and `packages/domain` first, in that order. Zod schemas for `Shelter`, `Animal`, `AdopterProfile`, `ContactReveal`, plus the verification FSM and `Freshness` as pure functions with exhaustive tests. **No UI, no DB.** Contract-first, literally |
 | **2** | Drizzle schema + migrations + repositories against local Docker PostGIS. Neon project in Frankfurt. Better Auth with the organization plugin. Seed data from one real shelter |
 | **3** | The swipe deck as a standalone route with mocked data. Get the gesture right before anything depends on it. Deploy a branch to Cloudflare Workers via OpenNext once, to prove the exit ramp works |
-| **4** | Wire the feed to the real API with keyset pagination. next-intl with uk + en. Sentry + PostHog. Ship to one shelter and watch a real person swipe |
+| **4** | Wire the feed to the real API with keyset pagination. next-intl with uk + en (not adopted as of 2026-11-13: `packages/i18n` catalogues). Sentry + PostHog (PostHog not adopted as of 2026-11-13). Ship to one shelter and watch a real person swipe |
 
 Then: partner dashboard, image upload, donation links, and the second through fifteenth shelters.
 
