@@ -70,12 +70,13 @@ agent to.
       of you. **GAP.**
    4. Same command with `--commit`. Then the dry run again: it must refuse with "no shelter has id".
 8. **Photos and logo.** After step 7 nothing references them; the daily clean-up deletes them once they
-   have sat unreferenced for 7 days. Each photo is 11 objects (five variants as WebP and as AVIF, and
-   its kept source; 6 for a photo stored before AVIF and not yet backfilled), and a run due to delete
-   more than 1100 deletes none (`refused_over_cap` in the log). So for a shelter with more than 100
-   photos (crops count too), after the
+   have sat unreferenced for 7 days. A run due to delete more than 100 photos or logos deletes none
+   (`refused_over_cap` in the log); it counts photos, not their objects (11 each today: five variants
+   as WebP and as AVIF, and the kept source; older photos have fewer). So for a shelter with more than 100 photos and logo
+   together (crops count too), after the
    grace: `pnpm --filter @opika/db r2:cleanup --expect <production ep- id> --prod` (dry run, read the
-   count), then the same with `--commit --max-delete <that count>`. Never `--grace-days 0` here: it
+   «Photos and logos among them» count), then the same with `--commit --max-photos <that count>`
+   (`--max-delete`, the old object count, is refused). Never `--grace-days 0` here: it
    would also take other shelters' photos still inside their grace. Do not delete files by hand.
    The CDN edge drops a deleted file within 4 hours only for objects uploaded after the `s-maxage`
    change (`docs/onboarding-a-shelter.md`, "Image caching"); a browser that already loaded one may keep
@@ -162,8 +163,8 @@ will state the same number when it is written.
    session's reveals, session and adopter row, in that order (`docs/gdpr-analysis.md`, G4). Tier 1.
 5. **Legal data in history:** the operator's edit form replaces a wrong or withdrawn name in
    `shelters.legal_entity`, but the old value stays in `verified_data_changed` history lines (B, table).
-6. **Clean-up cap:** a leaving shelter with more than 100 photos always needs the manual
-   `r2:cleanup --max-delete` run (A, step 8).
+6. **Clean-up cap:** a leaving shelter with more than 100 photos and logo together always needs the
+   manual `r2:cleanup --max-photos` run (A, step 8).
 
 ## Log line (your own records, never the repo)
 

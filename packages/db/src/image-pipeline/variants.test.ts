@@ -15,6 +15,7 @@ import {
   SERVED_IMAGE_VARIANTS,
   shelterLogoStorageKeyFor,
   storageKeyFromObjectKey,
+  storageKeyFromSourceObjectKey,
   variantObjectKey,
 } from "./variants";
 
@@ -248,5 +249,21 @@ describe("photoSourceObjectKeyFor (crop frame)", () => {
   it("is no variant: the clean-up's snapshot step derives no storage key from it", () => {
     const key = photoSourceObjectKeyFor(storageKey, "c2000000-0000-4000-8000-000000000002");
     expect(storageKeyFromObjectKey(key)).toBeNull();
+  });
+
+  it("storageKeyFromSourceObjectKey recovers the photo's key, the cap's count by photo", () => {
+    const key = photoSourceObjectKeyFor(storageKey, "c2000000-0000-4000-8000-000000000002");
+    expect(storageKeyFromSourceObjectKey(key)).toBe(storageKey);
+  });
+
+  it.each([
+    ["a variant", `${storageKey}/card.webp`],
+    ["no uuid", `${storageKey}/source-1.webp`],
+    ["an upper-case uuid", `${storageKey}/source-C2000000-0000-4000-8000-000000000002.webp`],
+    ["another format", `${storageKey}/source-c2000000-0000-4000-8000-000000000002.avif`],
+    ["no folder", "source-c2000000-0000-4000-8000-000000000002.webp"],
+    ["a prefix on the name", `${storageKey}/xsource-c2000000-0000-4000-8000-000000000002.webp`],
+  ])("storageKeyFromSourceObjectKey refuses %s", (_label, key) => {
+    expect(storageKeyFromSourceObjectKey(key)).toBeNull();
   });
 });

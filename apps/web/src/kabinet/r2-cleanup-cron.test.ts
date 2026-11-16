@@ -64,6 +64,7 @@ describe("the R2 clean-up cron's own boundary", () => {
         newlyTracked: 0,
         clearedBack: 0,
         dueForDeletion: [],
+        duePhotos: 0,
         deleted: [],
         failed: [],
         snapshotsNulled: 0,
@@ -100,6 +101,7 @@ describe("the R2 clean-up cron's own boundary", () => {
           newlyTracked: 0,
           clearedBack: 0,
           dueForDeletion: [],
+          duePhotos: 0,
           deleted: [],
           failed: [],
           snapshotsNulled: 0,
@@ -129,11 +131,12 @@ describe("the R2 clean-up cron's own boundary", () => {
           scanned: 900,
           newlyTracked: 0,
           clearedBack: 0,
-          dueForDeletion: Array.from({ length: 300 }, (_, i) => `k${i}`),
+          dueForDeletion: Array.from({ length: 1300 }, (_, i) => `k${i}`),
+          duePhotos: 130,
           deleted: [],
           failed: [],
           snapshotsNulled: 0,
-          capTripped: { due: 300, cap: 100 },
+          capTripped: { photos: 130, objects: 1300, cap: 100 },
         };
       },
     }));
@@ -160,19 +163,21 @@ describe("the R2 clean-up cron's own boundary", () => {
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
       outcome: "refused_over_cap",
-      dueForDeletion: 300,
-      cap: 100,
+      duePhotos: 130,
+      dueObjects: 1300,
+      capPhotos: 100,
     });
     expect(JSON.parse(errors[0] ?? "")).toMatchObject({
       outcome: "refused_over_cap",
-      dueForDeletion: 300,
-      cap: 100,
+      duePhotos: 130,
+      dueObjects: 1300,
+      capPhotos: 100,
       deleted: 0,
     });
     expect(errors.join("")).not.toContain("k1");
     expect(pings).toEqual(["https://hc.example/ping/slug/fail"]);
     const options = (calls[0] as unknown[])[3] as Record<string, unknown>;
-    expect(options).not.toHaveProperty("maxDelete");
+    expect(options).not.toHaveProperty("maxPhotos");
     vi.doUnmock("@opika/db/image-pipeline/server");
   });
 
@@ -184,6 +189,7 @@ describe("the R2 clean-up cron's own boundary", () => {
         newlyTracked: 0,
         clearedBack: 0,
         dueForDeletion: [],
+        duePhotos: 0,
         deleted: [],
         failed: [],
         snapshotsNulled: 0,
@@ -283,6 +289,7 @@ describe("the R2 clean-up cron's own boundary", () => {
         newlyTracked: 1,
         clearedBack: 0,
         dueForDeletion: ["animals/due-secret/card.webp"],
+        duePhotos: 1,
         deleted: ["animals/deleted-secret/card.webp"],
         failed: [{ key: "animals/failed-secret/card.webp", message: "AccessDenied" }],
         snapshotsNulled: 1,

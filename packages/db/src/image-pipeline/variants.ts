@@ -124,7 +124,8 @@ export function nearestVariant<T extends Record<string, { width: number; height:
   )[0];
 }
 
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const UUID_V4_BODY = "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+const UUID_V4 = new RegExp(`^${UUID_V4_BODY}$`);
 
 /**
  * `AnimalPhoto.storageKey` (`packages/domain/src/animals/photo.ts`) is
@@ -178,6 +179,16 @@ export function photoSourceObjectKeyFor(storageKey: string, sourceId: string): s
     throw new Error("A photo source's key needs a fresh random (v4 UUID) id");
   }
   return `${storageKey}/source-${sourceId}.webp`;
+}
+
+const SOURCE_OBJECT_SUFFIX = new RegExp(`/source-${UUID_V4_BODY}\\.webp$`);
+
+/**
+ * The inverse of `photoSourceObjectKeyFor`, as `storageKeyFromObjectKey` is of the variants: the
+ * photo a kept source belongs to, or `null` for any other key. The clean-up's cap counts by it.
+ */
+export function storageKeyFromSourceObjectKey(objectKey: string): string | null {
+  return SOURCE_OBJECT_SUFFIX.test(objectKey) ? objectKey.replace(SOURCE_OBJECT_SUFFIX, "") : null;
 }
 
 const objectKeyOf = (storageKey: string, variant: string, format: ImageFormat): string =>

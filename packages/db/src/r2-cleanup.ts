@@ -30,8 +30,9 @@
  *     either way (this script only ever targets production - there is
  *     nothing to clean up locally, the same reasoning as `demo:remove`).
  *
- * Blast-radius cap: a run that finds more than `DEFAULT_MAX_DELETE_PER_RUN` objects due deletes
- * none and exits 1; `--max-delete <n>` is the explicit override, CLI only (the cron has no input).
+ * Blast-radius cap: a run that finds more than `DEFAULT_MAX_PHOTOS_PER_RUN` distinct photos or logos
+ * due deletes none and exits 1; `--max-photos <n>` is the explicit override, CLI only (the cron has
+ * no input). The old object-count `--max-delete` is refused, never read as a photo count.
  *
  * Usage (from the repo root; `PROD_NEON_ENDPOINT` from the shell or the root
  * `.env.local`, as for every production-aware script):
@@ -39,6 +40,7 @@
  *   pnpm --filter @opika/db r2:cleanup --expect ep-… --commit        deletes
  *   … --prod                                                           when the target is production
  *   … --grace-days 0 --commit                                          the post-reset one-off, for real
+ *   … --commit --max-photos <n>                                        over the cap, after a dry run
  *
  * R2 credentials are this job's own (`R2_CLEANUP_ACCESS_KEY_ID`/
  * `R2_CLEANUP_SECRET_ACCESS_KEY`), never the upload token
@@ -60,17 +62,18 @@ import { formatReport, runR2Cleanup } from "./r2-cleanup-run";
 
 export {
   ANIMAL_PHOTO_PREFIX,
-  DEFAULT_MAX_DELETE_PER_RUN,
+  DEFAULT_MAX_PHOTOS_PER_RUN,
   formatReport,
+  photosAmong,
   type R2CleanupReport,
   runR2Cleanup,
 } from "./r2-cleanup-run";
 
 export type CleanupArgs =
-  | { kind: "ok"; commit: boolean; graceDays: number | undefined; maxDelete: number | undefined }
+  | { kind: "ok"; commit: boolean; graceDays: number | undefined; maxPhotos: number | undefined }
   | { kind: "refused"; reason: string };
 
-const ARGUMENTS_TAKEN = "--expect <ep>, --commit, --prod, --grace-days <n> and --max-delete <n>";
+const ARGUMENTS_TAKEN = "--expect <ep>, --commit, --prod, --grace-days <n> and --max-photos <n>";
 const FLAG_SPELLING = /^-{1,2}[A-Za-z][A-Za-z0-9-]*$/;
 
 /**
@@ -90,7 +93,7 @@ export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
   const args = argv.slice(2);
   let commit = false;
   let graceDays: number | undefined;
-  let maxDelete: number | undefined;
+  let maxPhotos: number | undefined;
   let expectSeen = false;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i] ?? "";
@@ -129,16 +132,25 @@ export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
       i++;
       continue;
     }
+    // An object count given where a photo count is read would raise the cap about elevenfold.
     if (arg === "--max-delete") {
+      return {
+        kind: "refused",
+        reason:
+          "--max-delete is gone: the cap counts photos and logos now, not objects; give --max-photos <n> instead (the dry run prints the photo count)",
+      };
+    }
+    if (arg === "--max-photos") {
       const trimmed = args[i + 1]?.trim();
-      const n = trimmed === undefined || trimmed === "" ? Number.NaN : Number(trimmed);
-      if (!Number.isInteger(n) || n < 1) {
-        return { kind: "refused", reason: "--max-delete needs a positive whole number after it" };
+      // Digits only: Number() would read "1e9" or "0x64" and switch the cap off by accident.
+      const n = trimmed !== undefined && /^[1-9]\d*$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+      if (!Number.isSafeInteger(n)) {
+        return { kind: "refused", reason: "--max-photos needs a positive whole number after it" };
       }
-      if (maxDelete !== undefined) {
-        return { kind: "refused", reason: "--max-delete is given twice" };
+      if (maxPhotos !== undefined) {
+        return { kind: "refused", reason: "--max-photos is given twice" };
       }
-      maxDelete = n;
+      maxPhotos = n;
       i++;
       continue;
     }
@@ -154,7 +166,7 @@ export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
         "--grace-days needs --commit (a non-default grace period is honoured only on a real run)",
     };
   }
-  return { kind: "ok", commit, graceDays, maxDelete };
+  return { kind: "ok", commit, graceDays, maxPhotos };
 }
 
 async function main(): Promise<void> {
@@ -207,7 +219,7 @@ async function main(): Promise<void> {
     const report = await runR2Cleanup(db, r2, new Date(), {
       commit: args.commit,
       graceDays: args.graceDays,
-      maxDelete: args.maxDelete,
+      maxPhotos: args.maxPhotos,
     });
     for (const line of formatReport(report, args.commit ? "Deleted" : "Would delete")) {
       console.log(line);
