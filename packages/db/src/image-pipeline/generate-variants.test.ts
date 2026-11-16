@@ -9,7 +9,7 @@ import {
   generateFramedVariants,
   generateVariants,
 } from "./generate-variants";
-import { IMAGE_VARIANTS } from "./variants";
+import { IMAGE_VARIANTS, LOGO_VARIANTS, PHOTO_FORMATS } from "./variants";
 
 // Deliberate cross-package coupling, not an accident - real photographs
 // (off-centre subjects, real JPEG artefacts, real varied aspect ratios)
@@ -35,26 +35,65 @@ function isRed([r, g, b]: [number, number, number]): boolean {
   return r > 200 && g < 50 && b < 50;
 }
 
+/** Mean absolute difference per channel of two images of one size, decoded. */
+async function meanDifference(a: Buffer, b: Buffer): Promise<number> {
+  const [left, right] = await Promise.all(
+    [a, b].map((bytes) => sharp(bytes).removeAlpha().raw().toBuffer()),
+  );
+  if (left === undefined || right === undefined || left.length !== right.length) {
+    throw new Error("the two images differ in size");
+  }
+  let sum = 0;
+  for (let i = 0; i < left.length; i += 1) sum += Math.abs((left[i] ?? 0) - (right[i] ?? 0));
+  return sum / left.length;
+}
+
 describe("generateVariants", () => {
-  it("produces exactly the named variants", async () => {
-    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO);
+  it("produces exactly the named variants, each in exactly the formats asked for", async () => {
+    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO, PHOTO_FORMATS);
     expect(Object.keys(variants).sort()).toEqual(["card", "compact", "detail", "mid", "thumb"]);
+    for (const formats of Object.values(variants)) {
+      expect(Object.keys(formats).sort()).toEqual(["avif", "webp"]);
+    }
+    // A logo asks for WebP alone and gets nothing else.
+    const logo = await generateVariants(LOGO_VARIANTS, REAL_PHOTO, ["webp"]);
+    for (const formats of Object.values(logo)) expect(Object.keys(formats)).toEqual(["webp"]);
   });
 
-  it("each variant is a real WebP at exactly its specified dimensions", async () => {
-    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO);
-    for (const [name, buffer] of Object.entries(variants)) {
-      const meta = await sharp(buffer).metadata();
+  it("each variant is a real WebP and a real AVIF at exactly its specified dimensions", async () => {
+    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO, PHOTO_FORMATS);
+    for (const [name, formats] of Object.entries(variants)) {
       const spec = IMAGE_VARIANTS[name as keyof typeof IMAGE_VARIANTS];
-      expect(meta.format, `${name} format`).toBe("webp");
-      expect(meta.width, `${name} width`).toBe(spec.width);
-      expect(meta.height, `${name} height`).toBe(spec.height);
+      for (const format of PHOTO_FORMATS) {
+        const meta = await sharp(formats[format]).metadata();
+        // sharp names an AVIF file by its HEIF container.
+        expect(meta.format, `${name} ${format} format`).toBe(format === "avif" ? "heif" : "webp");
+        expect(meta.compression ?? "webp", `${name} ${format} codec`).toBe(
+          format === "avif" ? "av1" : "webp",
+        );
+        expect(meta.width, `${name} ${format} width`).toBe(spec.width);
+        expect(meta.height, `${name} ${format} height`).toBe(spec.height);
+      }
     }
+  });
+
+  it("a WebP and an AVIF of one variant show the same pixels: one cut, encoded twice", async () => {
+    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO, PHOTO_FORMATS);
+    for (const [name, formats] of Object.entries(variants)) {
+      // Lossy codecs differ by a few levels; a crop one step off differs by far more (below).
+      expect(await meanDifference(formats.webp, formats.avif), name).toBeLessThan(6);
+    }
+    const shifted = await sharp(variants.card.webp)
+      .extract({ left: 8, top: 0, width: 632, height: 800 })
+      .resize(640, 800, { fit: "fill" })
+      .webp()
+      .toBuffer();
+    expect(await meanDifference(shifted, variants.card.avif)).toBeGreaterThan(6);
   });
 
   it("actually shrinks a real photo - sanity check against a no-op bug", async () => {
     const originalSize = REAL_PHOTO.byteLength;
-    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO);
+    const variants = await generateVariants(IMAGE_VARIANTS, REAL_PHOTO, PHOTO_FORMATS);
     // Round-1 review found the original assertion here
     // (`toBeLessThan(originalSize * 2)`) passed even against a mutated
     // pass-through no-op - `originalSize < originalSize * 2` is trivially
@@ -64,10 +103,12 @@ describe("generateVariants", () => {
     // `detail` (1120x1400) has more pixels than cat-1.jpg's original
     // 1024x490 - confirmed empirically against this exact fixture, not
     // assumed to hold for photos in general.
-    const detail = variants.detail;
-    const thumb = variants.thumb;
-    expect(detail.byteLength).toBeLessThan(originalSize);
-    expect(thumb.byteLength).toBeLessThan(detail.byteLength);
+    for (const format of PHOTO_FORMATS) {
+      const detail = variants.detail[format];
+      const thumb = variants.thumb[format];
+      expect(detail.byteLength, format).toBeLessThan(originalSize);
+      expect(thumb.byteLength, format).toBeLessThan(detail.byteLength);
+    }
   });
 
   it("handles a landscape source without distortion - cover crop, not squeeze", async () => {
@@ -80,8 +121,8 @@ describe("generateVariants", () => {
       sourceMeta.height ?? 0,
     );
 
-    const variants = await generateVariants(IMAGE_VARIANTS, landscape);
-    const cardMeta = await sharp(variants.card).metadata();
+    const variants = await generateVariants(IMAGE_VARIANTS, landscape, ["webp"]);
+    const cardMeta = await sharp(variants.card.webp).metadata();
     // fit: "cover" always produces the exact target box regardless of
     // source aspect ratio - this is the property that proves no distortion
     // (a "fill" resize would also hit the target box, but by squeezing).
@@ -115,20 +156,25 @@ describe("generateVariants", () => {
     // Every variant: the displayed 200 × 300 covers `thumb` (scaled down,
     // then cropped) but not `card` or `detail` (cropped, then enlarged), so
     // both paths through `generateVariants` are held to the rotation.
-    const variants = await generateVariants(IMAGE_VARIANTS, source);
-    for (const [name, bytes] of Object.entries(variants)) {
-      const { data, info } = await sharp(bytes).raw().toBuffer({ resolveWithObject: true });
+    const variants = await generateVariants(IMAGE_VARIANTS, source, PHOTO_FORMATS);
+    for (const [name, formats] of Object.entries(variants)) {
+      for (const format of PHOTO_FORMATS) {
+        const { data, info } = await sharp(formats[format])
+          .raw()
+          .toBuffer({ resolveWithObject: true });
+        const label = `${name} ${format}`;
 
-      const topLeft = pixelAt(data, info, 2, 2);
-      const topRight = pixelAt(data, info, info.width - 3, 2);
+        const topLeft = pixelAt(data, info, 2, 2);
+        const topRight = pixelAt(data, info, info.width - 3, 2);
 
-      expect(isRed(topLeft), `${name}: top-left should be background, was rgb(${topLeft})`).toBe(
-        false,
-      );
-      expect(
-        isRed(topRight),
-        `${name}: top-right should carry the rotated marker, was rgb(${topRight})`,
-      ).toBe(true);
+        expect(isRed(topLeft), `${label}: top-left should be background, was rgb(${topLeft})`).toBe(
+          false,
+        );
+        expect(
+          isRed(topRight),
+          `${label}: top-right should carry the rotated marker, was rgb(${topRight})`,
+        ).toBe(true);
+      }
     }
   });
 });
@@ -232,30 +278,33 @@ describe("generateFramedVariants", () => {
       const source = await withBlock(width, height, block);
       // A 400 × 500 frame centred on the block.
       const frame = { left: block.left + 50, top: block.top, width: 400, height: 500 };
-      const variants = await generateFramedVariants(IMAGE_VARIANTS, source, frame);
-      for (const [name, bytes] of Object.entries(variants)) {
-        const meta = await sharp(bytes).metadata();
+      const variants = await generateFramedVariants(IMAGE_VARIANTS, source, frame, PHOTO_FORMATS);
+      for (const [name, formats] of Object.entries(variants)) {
         const spec = IMAGE_VARIANTS[name as keyof typeof IMAGE_VARIANTS];
-        expect([meta.format, meta.width, meta.height], name).toEqual([
-          "webp",
-          spec.width,
-          spec.height,
-        ]);
-        expect(isRed(await centreOf(bytes)), name).toBe(true);
+        for (const format of PHOTO_FORMATS) {
+          const meta = await sharp(formats[format]).metadata();
+          expect([meta.format, meta.width, meta.height], `${name} ${format}`).toEqual([
+            format === "avif" ? "heif" : "webp",
+            spec.width,
+            spec.height,
+          ]);
+          expect(isRed(await centreOf(formats[format])), `${name} ${format}`).toBe(true);
+        }
+        expect(await meanDifference(formats.webp, formats.avif), name).toBeLessThan(6);
       }
     },
   );
 
   it("the same frame elsewhere misses the block: the frame, not attention, decides", async () => {
     const source = await withBlock(2000, 1200, { left: 1400, top: 300, size: 500 });
-    const variants = await generateFramedVariants(IMAGE_VARIANTS, source, {
-      left: 0,
-      top: 0,
-      width: 400,
-      height: 500,
-    });
-    for (const [name, bytes] of Object.entries(variants)) {
-      expect(isRed(await centreOf(bytes)), name).toBe(false);
+    const variants = await generateFramedVariants(
+      IMAGE_VARIANTS,
+      source,
+      { left: 0, top: 0, width: 400, height: 500 },
+      ["webp"],
+    );
+    for (const [name, formats] of Object.entries(variants)) {
+      expect(isRed(await centreOf(formats.webp)), name).toBe(false);
     }
   });
 
@@ -288,14 +337,16 @@ describe("generateFramedVariants", () => {
       .jpeg()
       .toBuffer();
     // The displayed top-right 40 × 50: inside the marker only once rotated.
-    const variants = await generateFramedVariants(IMAGE_VARIANTS, source, {
-      left: 150,
-      top: 5,
-      width: 40,
-      height: 50,
-    });
-    for (const [name, bytes] of Object.entries(variants)) {
-      expect(isRed(await centreOf(bytes)), name).toBe(true);
+    const variants = await generateFramedVariants(
+      IMAGE_VARIANTS,
+      source,
+      { left: 150, top: 5, width: 40, height: 50 },
+      PHOTO_FORMATS,
+    );
+    for (const [name, formats] of Object.entries(variants)) {
+      for (const format of PHOTO_FORMATS) {
+        expect(isRed(await centreOf(formats[format])), `${name} ${format}`).toBe(true);
+      }
     }
   });
 
@@ -305,8 +356,8 @@ describe("generateFramedVariants", () => {
     ["a negative edge", { left: -1, top: 0, width: 400, height: 500 }],
   ])("refuses a frame %s", async (_label, frame) => {
     const source = await withBlock(2000, 1200, { left: 0, top: 0, size: 10 });
-    await expect(generateFramedVariants(IMAGE_VARIANTS, source, frame)).rejects.toThrow(
-      /outside the source/,
-    );
+    await expect(
+      generateFramedVariants(IMAGE_VARIANTS, source, frame, PHOTO_FORMATS),
+    ).rejects.toThrow(/outside the source/);
   });
 });

@@ -91,7 +91,7 @@ function fakeR2(objectKeys: string[]): R2CleanupClient & { remaining(): string[]
 
 describe("runR2Cleanup", () => {
   it("a dry run scans, tracks and reports what's due, but deletes nothing", async () => {
-    const orphan = variantObjectKey("animals/orphan/1", "card");
+    const orphan = variantObjectKey("animals/orphan/1", "card", "webp");
     const r2 = fakeR2([orphan]);
 
     const report = await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
@@ -105,7 +105,7 @@ describe("runR2Cleanup", () => {
   });
 
   it("commits: deletes exactly what's past the grace period, re-checking first, and nulls dangling snapshots", async () => {
-    const orphan = variantObjectKey("animals/orphan/1", "card");
+    const orphan = variantObjectKey("animals/orphan/1", "card", "webp");
     const r2 = fakeR2([orphan]);
     // First scan tracks it as first-seen-unreferenced at NOW.
     await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
@@ -119,11 +119,32 @@ describe("runR2Cleanup", () => {
     expect(await trackedUnreferencedObjects(db)).toEqual([]);
   });
 
+  it("deletes an unreferenced photo's AVIF objects with its WebP ones, and keeps a referenced photo's both (GDPR retention)", async () => {
+    await insertAnimalWithPhotos(["animals/kept/1"]);
+    const objectsOf = (storageKey: string) =>
+      (["webp", "avif"] as const).flatMap((format) =>
+        (["thumb", "card", "detail", "mid", "compact"] as const).map((variant) =>
+          variantObjectKey(storageKey, variant, format),
+        ),
+      );
+    const kept = objectsOf("animals/kept/1");
+    const orphan = objectsOf("animals/orphan/1");
+    const r2 = fakeR2([...kept, ...orphan]);
+
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+    const past = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
+    const report = await runR2Cleanup(db, r2, past, { commit: true, graceDays: undefined });
+
+    expect([...report.deleted].sort()).toEqual([...orphan].sort());
+    expect(orphan.filter((key) => key.endsWith(".avif"))).toHaveLength(5);
+    expect(r2.remaining().sort()).toEqual([...kept].sort());
+  });
+
   it("scans both namespaces in one run: an orphaned animal photo and an orphaned shelter logo, a referenced logo left alone (pet card PR 4)", async () => {
     await insertShelterWithLogo("shelters/kept/logo/1");
-    const keptLogo = variantObjectKey("shelters/kept/logo/1", "small");
-    const orphanLogo = variantObjectKey("shelters/orphan/logo/1", "small");
-    const orphanPhoto = variantObjectKey("animals/orphan/1", "card");
+    const keptLogo = variantObjectKey("shelters/kept/logo/1", "small", "webp");
+    const orphanLogo = variantObjectKey("shelters/orphan/logo/1", "small", "webp");
+    const orphanPhoto = variantObjectKey("animals/orphan/1", "card", "webp");
     const r2 = fakeR2([keptLogo, orphanLogo, orphanPhoto]);
 
     await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
@@ -144,7 +165,7 @@ describe("runR2Cleanup", () => {
     // mark any of these "unreferenced" just as readily as a real orphaned
     // logo, with nothing to tell them apart once they're in scope.
     const evidence = "shelters/s/evidence/statute.pdf";
-    const cover = variantObjectKey("shelters/s/cover/abc", "card");
+    const cover = variantObjectKey("shelters/s/cover/abc", "card", "webp");
     const readme = "shelters/readme.txt";
     const r2 = fakeR2([evidence, cover, readme]);
 
@@ -165,8 +186,8 @@ describe("runR2Cleanup", () => {
     // though no other test here catches it - those tests all arrange for
     // recordScan's own self-heal to clear a re-referenced key before it
     // ever reaches `due`, so they never actually exercise this call.
-    const kept = variantObjectKey("animals/kept/1", "card");
-    const filteredOut = variantObjectKey("animals/filtered-out/1", "card");
+    const kept = variantObjectKey("animals/kept/1", "card", "webp");
+    const filteredOut = variantObjectKey("animals/filtered-out/1", "card", "webp");
     vi.resetModules();
     vi.doMock("../src/repos/r2-cleanup-repo", async (importOriginal) => {
       const actual = await importOriginal<typeof import("../src/repos/r2-cleanup-repo")>();
@@ -225,7 +246,7 @@ describe("runR2Cleanup", () => {
   }, 30_000);
 
   it("a key referenced again before the second run is never deleted, even past the grace period", async () => {
-    const key = variantObjectKey("animals/a/1", "card");
+    const key = variantObjectKey("animals/a/1", "card", "webp");
     const r2 = fakeR2([key]);
     await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined }); // tracked
 
@@ -242,7 +263,7 @@ describe("runR2Cleanup", () => {
   });
 
   it("not yet past the (default) grace period: tracked, but not due", async () => {
-    const orphan = variantObjectKey("animals/orphan/1", "card");
+    const orphan = variantObjectKey("animals/orphan/1", "card", "webp");
     const r2 = fakeR2([orphan]);
     await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
 
@@ -255,7 +276,7 @@ describe("runR2Cleanup", () => {
   });
 
   it("an explicit graceDays: 0 treats the same-instant scan as already due", async () => {
-    const orphan = variantObjectKey("animals/orphan/1", "card");
+    const orphan = variantObjectKey("animals/orphan/1", "card", "webp");
     const r2 = fakeR2([orphan]);
 
     const report = await runR2Cleanup(db, r2, NOW, { commit: true, graceDays: 0 });
@@ -267,7 +288,7 @@ describe("runR2Cleanup", () => {
 
 describe("the per-run delete cap", () => {
   const orphans = (n: number) =>
-    Array.from({ length: n }, (_, i) => variantObjectKey(`animals/orphan/${i}`, "card"));
+    Array.from({ length: n }, (_, i) => variantObjectKey(`animals/orphan/${i}`, "card", "webp"));
   const later = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
 
   it("deletes everything when the due count is at the cap", async () => {

@@ -1,5 +1,12 @@
+import type { EncodedVariants } from "./generate-variants";
 import type { ImageStorageClient } from "./r2-client";
-import { LOGO_VARIANT_NAMES, type LogoVariantName, variantObjectKey } from "./variants";
+import {
+  IMAGE_CONTENT_TYPES,
+  type LOGO_FORMATS,
+  LOGO_VARIANT_NAMES,
+  type LogoVariantName,
+  variantObjectKey,
+} from "./variants";
 
 /**
  * Puts one logo's two variants under its storage key (pet card PR 3b): the logo's counterpart of
@@ -8,9 +15,13 @@ import { LOGO_VARIANT_NAMES, type LogoVariantName, variantObjectKey } from "./va
 export async function storeLogoVariants(
   storage: ImageStorageClient,
   storageKey: string,
-  variants: Record<LogoVariantName, Buffer>,
+  variants: EncodedVariants<LogoVariantName, (typeof LOGO_FORMATS)[number]>,
 ): Promise<void> {
   for (const name of LOGO_VARIANT_NAMES) {
-    await storage.put(variantObjectKey(storageKey, name), variants[name], "image/webp");
+    await storage.put(
+      variantObjectKey(storageKey, name, "webp"),
+      variants[name].webp,
+      IMAGE_CONTENT_TYPES.webp,
+    );
   }
 }

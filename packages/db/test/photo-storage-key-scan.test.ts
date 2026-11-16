@@ -491,8 +491,10 @@ describe("a photo source's object key stays in the owning shelter's kabinet", ()
   // read and an app page read, and both passed. The source key then reaches only K3's view.
   const USES_SOURCES = /\bphotoSourcesRepo\b|\bsourceRowSelect\b|\blistForAnimal\b/;
 
-  it("in packages/db only the photo write, the onboarding script and the repo itself use the sources", () => {
+  it("in packages/db only the photo write, the operator scripts and the repo itself use the sources", () => {
+    // backfill-avif-variants.ts: the operator's CLI reads every row to cut AVIF from kept sources.
     expect(filesUnderSrc(DB_SRC, USES_SOURCES)).toEqual([
+      "backfill-avif-variants.ts",
       "onboard-shelter.ts",
       "repos/index.ts",
       "repos/kabinet-animal-repo.ts",

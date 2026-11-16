@@ -286,7 +286,7 @@ export async function runPhotoSourcesSmoke(db: Database): Promise<Outcome[]> {
     const scanned = await withSources(shelterId, 1);
     const [kept] = scanned.recorded as [PhotoSource];
     const objects = [
-      ...IMAGE_VARIANT_NAMES.map((variant) => variantObjectKey(kept.storageKey, variant)),
+      ...IMAGE_VARIANT_NAMES.map((variant) => variantObjectKey(kept.storageKey, variant, "webp")),
       kept.sourceObjectKey,
     ];
     trackedKeys.push(...objects);

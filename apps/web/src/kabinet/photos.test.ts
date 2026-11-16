@@ -1,5 +1,5 @@
 import type { KabinetAnimalView } from "@opika/contracts";
-import { IMAGE_VARIANT_NAMES } from "@opika/db/image-pipeline";
+import { IMAGE_VARIANT_NAMES, PHOTO_FORMATS } from "@opika/db/image-pipeline";
 import { animalRepo, cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
 import {
   type AnimalFixtureOverrides,
@@ -112,8 +112,8 @@ function capturingStore() {
   };
 }
 
-/** Five variants and the kept source (crop frame). */
-const OBJECTS_PER_PHOTO = IMAGE_VARIANT_NAMES.length + 1;
+/** Five variants as WebP and as AVIF, and the kept source (crop frame). */
+const OBJECTS_PER_PHOTO = IMAGE_VARIANT_NAMES.length * PHOTO_FORMATS.length + 1;
 const SOURCE_NAME =
   /^source-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/;
 
@@ -253,14 +253,19 @@ describe("shelter.photos.add", () => {
     expect(added).toMatchObject({ width: 1200, height: 900, alt: null });
     const [sourceKey, ...variantKeys] = puts.map((p) => p.key).reverse();
     expect(variantKeys.sort()).toEqual(
-      [...IMAGE_VARIANT_NAMES].sort().map((v) => `${added?.storageKey}/${v}.webp`),
+      PHOTO_FORMATS.flatMap((format) =>
+        IMAGE_VARIANT_NAMES.map((v) => `${added?.storageKey}/${v}.${format}`),
+      ).sort(),
     );
     // The kept source, a direct child of the same key (crop frame).
     expect(sourceKey?.startsWith(`${added?.storageKey}/`)).toBe(true);
     expect(sourceKey?.slice(`${added?.storageKey}/`.length)).toMatch(SOURCE_NAME);
-    expect(puts.every((p) => p.contentType === "image/webp")).toBe(true);
-    // Never the original: every stored byte is WebP.
-    for (const put of puts) expect((await imageFactsOf(put.bytes)).format).toBe("webp");
+    // Never the original: every stored byte is what its key and type name (sharp calls AVIF heif).
+    for (const put of puts) {
+      const avif = put.key.endsWith(".avif");
+      expect(put.contentType, put.key).toBe(avif ? "image/avif" : "image/webp");
+      expect((await imageFactsOf(put.bytes)).format, put.key).toBe(avif ? "heif" : "webp");
+    }
 
     const stored = await reload(target.id);
     expect(stored.photos.map((p) => p.storageKey)).toEqual([
@@ -298,7 +303,10 @@ describe("shelter.photos.add", () => {
     expect(puts).toHaveLength(OBJECTS_PER_PHOTO);
     for (const put of puts) {
       expect(put.bytes.includes("CANARY-SHELTER-YARD")).toBe(false);
-      expect(await imageFactsOf(put.bytes)).toEqual({ format: "webp", hasMetadata: false });
+      expect(await imageFactsOf(put.bytes), put.key).toEqual({
+        format: put.key.endsWith(".avif") ? "heif" : "webp",
+        hasMetadata: false,
+      });
     }
   });
 

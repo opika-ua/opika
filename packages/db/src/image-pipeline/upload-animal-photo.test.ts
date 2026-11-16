@@ -6,7 +6,7 @@ import { AnimalIdSchema, type PhotoFraming } from "@opika/domain";
 import sharp from "sharp";
 import { afterAll, describe, expect, it } from "vitest";
 import type { ImageStorageClient } from "./r2-client";
-import { storePhoto, uploadAnimalPhoto } from "./upload-animal-photo";
+import { type PhotoVariants, storePhoto, uploadAnimalPhoto } from "./upload-animal-photo";
 import { IMAGE_VARIANTS } from "./variants";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../..", import.meta.url)));
@@ -62,22 +62,21 @@ async function syntheticFile(width: number, height: number): Promise<string> {
 }
 
 describe("uploadAnimalPhoto", () => {
-  it("uploads every variant and the source under the derived storage key, each as image/webp", async () => {
+  it("uploads every variant as WebP and AVIF, and the source, under the derived storage key", async () => {
     const { client, puts } = fakeR2Client();
     await uploadAnimalPhoto(client, REAL_PHOTO, ANIMAL_ID, IDS, DIMENSIONS, ATTENTION);
 
+    const names = ["card", "compact", "detail", "mid", "thumb"];
     expect(puts.map((p) => p.key).sort()).toEqual(
       [
-        `${KEY}/card.webp`,
-        `${KEY}/compact.webp`,
-        `${KEY}/detail.webp`,
-        `${KEY}/mid.webp`,
+        ...names.map((name) => `${KEY}/${name}.webp`),
+        ...names.map((name) => `${KEY}/${name}.avif`),
         SOURCE_KEY,
-        `${KEY}/thumb.webp`,
       ].sort(),
     );
     for (const p of puts) {
-      expect(p.contentType).toBe("image/webp");
+      // The key's extension and the stored type agree: what the CDN serves is what it names.
+      expect(p.contentType, p.key).toBe(p.key.endsWith(".avif") ? "image/avif" : "image/webp");
       expect(p.body.byteLength).toBeGreaterThan(0);
     }
   });
@@ -157,15 +156,18 @@ describe("uploadAnimalPhoto", () => {
     expect([source.width, source.height]).toEqual([2000, 1500]);
     expect(source.framing).toEqual(framing);
     for (const [name, spec] of Object.entries(IMAGE_VARIANTS)) {
-      const body = puts.find((p) => p.key === `${KEY}/${name}.webp`)?.body;
-      const { data, info } = await sharp(body).raw().toBuffer({ resolveWithObject: true });
-      expect([info.width, info.height], name).toEqual([spec.width, spec.height]);
-      // The frame lies inside the red block, so every variant is red through its middle.
-      const i = (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * 3;
-      expect(
-        [data[i], data[i + 1], data[i + 2]].map((v) => (v ?? 0) > 200),
-        name,
-      ).toEqual([true, false, false]);
+      for (const format of ["webp", "avif"]) {
+        const body = puts.find((p) => p.key === `${KEY}/${name}.${format}`)?.body;
+        const { data, info } = await sharp(body).raw().toBuffer({ resolveWithObject: true });
+        const label = `${name}.${format}`;
+        expect([info.width, info.height], label).toEqual([spec.width, spec.height]);
+        // The frame lies inside the red block, so every variant is red through its middle.
+        const i = (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * 3;
+        expect(
+          [data[i], data[i + 1], data[i + 2]].map((v) => (v ?? 0) > 200),
+          label,
+        ).toEqual([true, false, false]);
+      }
     }
   });
 
@@ -189,8 +191,11 @@ describe("uploadAnimalPhoto", () => {
 
 describe("storePhoto", () => {
   const variants = Object.fromEntries(
-    Object.keys(IMAGE_VARIANTS).map((name) => [name, Buffer.from([1])]),
-  ) as Record<keyof typeof IMAGE_VARIANTS, Buffer>;
+    Object.keys(IMAGE_VARIANTS).map((name) => [
+      name,
+      { webp: Buffer.from([1]), avif: Buffer.from([3]) },
+    ]),
+  ) as PhotoVariants;
 
   it.each([
     ["under another photo's key", `${KEY}x/source-c2000000-0000-4000-8000-000000000002.webp`],

@@ -112,6 +112,52 @@ describe("opikaImageLoader", () => {
       });
     });
 
+    describe("NEXT_PUBLIC_R2_AVIF", () => {
+      afterEach(() => {
+        delete process.env.NEXT_PUBLIC_R2_AVIF;
+        delete process.env.NEXT_PUBLIC_R2_EXTRA_VARIANTS;
+      });
+
+      it("keeps today's .webp URLs exactly while the flag is off, so a photo not yet backfilled cannot 404", () => {
+        for (const value of [undefined, "", "0", "true"]) {
+          if (value === undefined) delete process.env.NEXT_PUBLIC_R2_AVIF;
+          else process.env.NEXT_PUBLIC_R2_AVIF = value;
+          expect(opikaImageLoader({ src: REAL_KEY, width: 300, quality: 75 }), value).toBe(
+            "https://cdn.opika.org.ua/animals/a0000000-0000-4000-8000-000000000000/0/card.webp",
+          );
+        }
+      });
+
+      it("serves the same variant as .avif when it is on, with or without the extra variants", () => {
+        process.env.NEXT_PUBLIC_R2_AVIF = "1";
+        expect(opikaImageLoader({ src: REAL_KEY, width: 300, quality: 75 })).toBe(
+          "https://cdn.opika.org.ua/animals/a0000000-0000-4000-8000-000000000000/0/card.avif",
+        );
+        expect(opikaImageLoader({ src: REAL_KEY, width: 88, quality: 75 })).toMatch(
+          /\/thumb\.avif$/,
+        );
+        expect(opikaImageLoader({ src: REAL_KEY, width: 1120, quality: 75 })).toMatch(
+          /\/detail\.avif$/,
+        );
+        process.env.NEXT_PUBLIC_R2_EXTRA_VARIANTS = "1";
+        expect(opikaImageLoader({ src: REAL_KEY, width: 400, quality: 75 })).toMatch(
+          /\/compact\.avif$/,
+        );
+      });
+
+      it("never asks for a logo as AVIF: a logo is stored as WebP only", () => {
+        process.env.NEXT_PUBLIC_R2_AVIF = "1";
+        for (const width of [40, 80, 4000]) {
+          const url = opikaImageLoader({
+            src: "shelters/51000000-0000-4000-8000-000000000001/logo/0",
+            width,
+            quality: 75,
+          });
+          expect(url).toMatch(/\/(small|large)\.webp$/);
+        }
+      });
+    });
+
     it("throws rather than silently returning a broken path when the CDN base URL is unset", () => {
       delete process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
       expect(() => opikaImageLoader({ src: REAL_KEY, width: 300, quality: 75 })).toThrow(

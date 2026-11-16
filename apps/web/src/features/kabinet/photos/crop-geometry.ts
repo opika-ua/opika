@@ -57,7 +57,7 @@ export function cropImageOf(
       }
       if (base === "") return null;
       return {
-        url: r2PublicUrl(base, storageKey, "detail"),
+        url: r2PublicUrl(base, storageKey, "detail", "webp"),
         size: IMAGE_VARIANTS.detail,
         zoomOnly: true,
       };

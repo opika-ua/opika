@@ -90,7 +90,8 @@ async function photoBytes(storageKey: string): Promise<Buffer | null> {
   if (isRealPhotoKey(storageKey)) {
     const base = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
     if (!base) return null;
-    const res = await fetch(r2PublicUrl(base, storageKey, "card"), {
+    // WebP whatever the gallery serves: every photo has it, and sharp below re-encodes it.
+    const res = await fetch(r2PublicUrl(base, storageKey, "card", "webp"), {
       signal: AbortSignal.timeout(PHOTO_TIMEOUT_MS),
     });
     return res.ok ? Buffer.from(await res.arrayBuffer()) : null;

@@ -1,5 +1,10 @@
 import type { apiErrors, KabinetAnimalView } from "@opika/contracts";
-import { IMAGE_VARIANTS, isRealPhotoKey, variantObjectKey } from "@opika/db/image-pipeline";
+import {
+  IMAGE_VARIANTS,
+  isRealPhotoKey,
+  PHOTO_FORMATS,
+  variantObjectKey,
+} from "@opika/db/image-pipeline";
 import type { VariantCut } from "@opika/db/image-pipeline/server";
 import {
   type AnimalHistoryRow,
@@ -404,7 +409,7 @@ export async function photosCrop(
   const from: CropFrom =
     kept === undefined
       ? {
-          objectKey: variantObjectKey(photo.storageKey, "detail"),
+          objectKey: variantObjectKey(photo.storageKey, "detail", "webp"),
           origin: "detail_variant",
           width: DETAIL.width,
           height: DETAIL.height,
@@ -452,7 +457,7 @@ async function cutAndSwap(
   const processed = await withinBudget(
     (async () => {
       const bytes = await uploads.storage.get(from.objectKey);
-      const variants = await pipeline.cutPhotoVariants(bytes, from, cut, {
+      const variants = await pipeline.cutPhotoVariants(bytes, from, cut, PHOTO_FORMATS, {
         limitInputPixels: pipeline.UPLOAD_PIXEL_LIMIT,
       });
       return { bytes, variants };

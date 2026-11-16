@@ -3,6 +3,7 @@ import type { Database } from "../client";
 import {
   IMAGE_VARIANT_NAMES,
   LOGO_VARIANT_NAMES,
+  PHOTO_FORMATS,
   SHELTER_LOGO_PREFIX,
   storageKeyFromObjectKey,
   variantObjectKey,
@@ -62,28 +63,35 @@ export async function referencedStorageKeys(db: Database): Promise<Set<string>> 
 
 /**
  * Every real R2 object key a currently-referenced storage key derives to -
- * the animal-photo variants for an `animals/` key, the logo variants for a
- * `shelters/` one (`SHELTER_LOGO_PREFIX`), by construction the only two
- * namespaces `referencedStorageKeys` can ever return.
+ * the animal-photo variants in both formats for an `animals/` key, the WebP
+ * logo variants for a `shelters/` one (`SHELTER_LOGO_PREFIX`), by
+ * construction the only two namespaces `referencedStorageKeys` can ever return.
  */
 export async function referencedObjectKeys(db: Database): Promise<Set<string>> {
   const storageKeys = await referencedStorageKeys(db);
   const objectKeys = new Set<string>();
   for (const storageKey of storageKeys) {
-    const variants = storageKey.startsWith(SHELTER_LOGO_PREFIX)
-      ? LOGO_VARIANT_NAMES
-      : IMAGE_VARIANT_NAMES;
-    for (const variant of variants) objectKeys.add(variantObjectKey(storageKey, variant));
+    if (storageKey.startsWith(SHELTER_LOGO_PREFIX)) {
+      for (const variant of LOGO_VARIANT_NAMES) {
+        objectKeys.add(variantObjectKey(storageKey, variant, "webp"));
+      }
+      continue;
+    }
+    for (const format of PHOTO_FORMATS) {
+      for (const variant of IMAGE_VARIANT_NAMES) {
+        objectKeys.add(variantObjectKey(storageKey, variant, format));
+      }
+    }
   }
   return objectKeys;
 }
 
 /**
  * A real bucket object's own parent path - `animals/{animalId}/{photoId}`
- * for `animals/{animalId}/{photoId}/card.webp`, derived structurally (one
- * path segment up), never by parsing a variant name or a file extension
- * out of the key. `variantObjectKey` always writes exactly
- * `${storageKey}/${variant}.webp`, so a referenced photo's storage key IS
+ * for `animals/{animalId}/{photoId}/card.webp` or `…/card.avif`, derived
+ * structurally (one path segment up), never by parsing a variant name or a
+ * file extension out of the key. `variantObjectKey` always writes exactly
+ * `${storageKey}/${variant}.${format}`, so a referenced photo's storage key IS
  * the parent path of every real object under it, by construction, for any
  * variant name and any extension that scheme might ever use.
  */
@@ -204,7 +212,7 @@ export async function stillUnreferenced(
  * `objectKey`: a snapshot names a photo, not a variant, and every one of an
  * animal photo's variants are always deleted together (the reference
  * check above is keyed on `storageKey` too), so this runs once per photo,
- * not three times. A deleted shelter-logo key (two variants, pet card PR 4)
+ * not once per variant or format. A deleted shelter-logo key (two variants, pet card PR 4)
  * groups the same way structurally, but `reveals.animal_snapshot` never
  * names a logo - only `AnimalPhotoSchema` embeds there - so this is a
  * harmless no-op for logos: `storageKeys` still derives, the `UPDATE` just

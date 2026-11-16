@@ -10,7 +10,7 @@ import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
  * than needing a hook in every write path that could touch `animals.photos`
  * or `reveals.animal_snapshot`.
  *
- * `objectKey` is the real R2 object key (`{storageKey}/{variant}.webp`),
+ * `objectKey` is the real R2 object key (`{storageKey}/{variant}.{webp|avif}`),
  * never the bare `storageKey` - the variants of one photo can age out
  * of reference at slightly different scan instants in principle (they never
  * do in practice, since they're always written and referenced together,

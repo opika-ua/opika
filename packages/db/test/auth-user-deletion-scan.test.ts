@@ -48,7 +48,7 @@ const EXPECTED: ReadonlyArray<{
 }> = [
   {
     file: "demo-remove.ts",
-    line: 500,
+    line: 508,
     text: ": tx.delete(authUser).where(inArray(authUser.id, userIds)).returning({ id: authUser.id }),",
     kind: "exception",
     why:

@@ -2040,14 +2040,14 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `${r2Referenced.size} referenced storage key(s), expected one to include this run's`,
   );
   const r2ObjectKeys = await referencedObjectKeys(db);
-  const r2CardKey = variantObjectKey(r2StorageKey, "card");
+  const r2CardKey = variantObjectKey(r2StorageKey, "card", "webp");
   check(
     "r2-cleanup-repo: referencedObjectKeys derives the card variant",
     r2ObjectKeys.has(r2CardKey),
     `${r2ObjectKeys.size} referenced object key(s)`,
   );
 
-  const r2OrphanKey = variantObjectKey(`smoke/${tag}/orphan`, "card");
+  const r2OrphanKey = variantObjectKey(`smoke/${tag}/orphan`, "card", "webp");
   const scanResult = await recordScan(db, [r2CardKey, r2OrphanKey], NOW);
   check(
     "r2-cleanup-repo: recordScan tracks the orphan, leaves the referenced key alone",
@@ -2112,11 +2112,11 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     `${r2LogoReferenced.size} referenced storage key(s), expected one to include this shelter's logo`,
   );
   const r2LogoObjectKeys = await referencedObjectKeys(db);
-  const r2LogoSmallKey = variantObjectKey(r2LogoStorageKey, "small");
+  const r2LogoSmallKey = variantObjectKey(r2LogoStorageKey, "small", "webp");
   check(
     "r2-cleanup-repo: referencedObjectKeys derives the logo's small variant, not the photo variants",
     r2LogoObjectKeys.has(r2LogoSmallKey) &&
-      !r2LogoObjectKeys.has(variantObjectKey(r2LogoStorageKey, "card")),
+      !r2LogoObjectKeys.has(variantObjectKey(r2LogoStorageKey, "card", "webp")),
     `${r2LogoObjectKeys.size} referenced object key(s)`,
   );
 

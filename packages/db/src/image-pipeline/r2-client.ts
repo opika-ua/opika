@@ -1,10 +1,16 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { PHOTO_SOURCE_MAX_BYTES, r2EndpointUrl } from "./variants";
 
 /**
  * Thin on purpose, the one piece untestable without a bucket (`docs/h1-decisions.md`): a `put` that
- * only creates and a `get` that only reads (a crop's source). No delete, copy or lifecycle call
- * (K-Q2), held by `photo-pipeline-scan.test.ts`; Cloudflare recommends this S3 client for R2.
+ * only creates, a `get` that only reads (a crop's source) and an `exists` that only asks (the AVIF
+ * backfill). No delete, copy or lifecycle call (K-Q2), held by `photo-pipeline-scan.test.ts`;
+ * Cloudflare recommends this S3 client for R2.
  */
 // Immutable UUID keys: browsers keep 1 year; s-maxage 4 h because deletions (clean-up, erasure) do not purge the CDN.
 export const IMAGE_CACHE_CONTROL = "public, max-age=31536000, s-maxage=14400, immutable";
@@ -13,6 +19,11 @@ export interface ImageStorageClient {
   put(key: string, body: Buffer, contentType: string): Promise<void>;
   /** The object's bytes; refuses one larger than `PHOTO_SOURCE_MAX_BYTES` without reading past it. */
   get(key: string): Promise<Buffer>;
+}
+
+/** Whether a key holds an object, without reading it: the AVIF backfill's skip check. */
+export interface ObjectExistence {
+  exists(key: string): Promise<boolean>;
 }
 
 export interface R2Config {
@@ -38,7 +49,7 @@ export interface R2Config {
  * (Oleksii's P-Q11 amendment): it would also block the future takedown script
  * (DR-F3).
  */
-export function createR2Client(config: R2Config): ImageStorageClient {
+export function createR2Client(config: R2Config): ImageStorageClient & ObjectExistence {
   const client = new S3Client({
     region: "auto",
     endpoint: r2EndpointUrl(config.accountId),
@@ -78,5 +89,21 @@ export function createR2Client(config: R2Config): ImageStorageClient {
       }
       return Buffer.from(bytes);
     },
+    async exists(key) {
+      try {
+        await client.send(new HeadObjectCommand({ Bucket: config.bucketName, Key: key }));
+        return true;
+      } catch (error) {
+        // A HEAD has no body, so a missing key is only its 404; anything else is a real failure.
+        if (httpStatusOf(error) === 404) return false;
+        throw error;
+      }
+    },
   };
+}
+
+function httpStatusOf(error: unknown): number | undefined {
+  if (typeof error !== "object" || error === null || !("$metadata" in error)) return undefined;
+  const metadata = (error as { $metadata?: { httpStatusCode?: unknown } }).$metadata;
+  return typeof metadata?.httpStatusCode === "number" ? metadata.httpStatusCode : undefined;
 }

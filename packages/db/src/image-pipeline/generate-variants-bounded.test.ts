@@ -4,6 +4,7 @@ import { expect, it } from "vitest";
 import { cutPhotoVariants } from "./crop-photo";
 import { encodePhotoSource } from "./photo-source";
 import { prepareUploadedPhoto, UPLOAD_PIXEL_LIMIT } from "./prepare-uploaded-photo";
+import { PHOTO_FORMATS } from "./variants";
 
 /**
  * The work an upload costs is bounded by the source and the variants, whatever
@@ -29,24 +30,31 @@ async function uploaded(bytes: Buffer) {
   const prepared = await prepareUploadedPhoto(bytes);
   if (prepared.kind !== "ok") return prepared;
   const variants: Record<string, [number, number]> = {};
-  for (const [name, variant] of Object.entries(prepared.variants)) {
-    const meta = await sharp(variant).metadata();
-    variants[name] = [meta.width ?? 0, meta.height ?? 0];
+  for (const [name, formats] of Object.entries(prepared.variants)) {
+    for (const format of PHOTO_FORMATS) {
+      const meta = await sharp(formats[format]).metadata();
+      variants[`${name}.${format}`] = [meta.width ?? 0, meta.height ?? 0];
+    }
   }
   return { kind: prepared.kind, width: prepared.width, height: prepared.height, variants };
 }
 
-/** Every variant at its specified size, transcribed from `IMAGE_VARIANTS`. */
+/** Every variant in both formats at its specified size, transcribed from `IMAGE_VARIANTS`. */
 const accepted = (width: number, height: number) => ({
   kind: "ok",
   width,
   height,
   variants: {
-    thumb: [176, 176],
-    card: [640, 800],
-    detail: [1120, 1400],
-    mid: [840, 1050],
-    compact: [400, 500],
+    "thumb.webp": [176, 176],
+    "card.webp": [640, 800],
+    "detail.webp": [1120, 1400],
+    "mid.webp": [840, 1050],
+    "compact.webp": [400, 500],
+    "thumb.avif": [176, 176],
+    "card.avif": [640, 800],
+    "detail.avif": [1120, 1400],
+    "mid.avif": [840, 1050],
+    "compact.avif": [400, 500],
   },
 });
 
@@ -110,12 +118,15 @@ it("a crop's variants stay within the same ceiling, every variant at its exact s
       source.bytes,
       source,
       { kind: "frame", box: box.box },
+      PHOTO_FORMATS,
       { limitInputPixels: UPLOAD_PIXEL_LIMIT },
     );
     const sizes: Record<string, [number, number]> = {};
-    for (const [name, bytes] of Object.entries(variants)) {
-      const meta = await sharp(bytes).metadata();
-      sizes[name] = [meta.width ?? 0, meta.height ?? 0];
+    for (const [name, formats] of Object.entries(variants)) {
+      for (const format of PHOTO_FORMATS) {
+        const meta = await sharp(formats[format]).metadata();
+        sizes[`${name}.${format}`] = [meta.width ?? 0, meta.height ?? 0];
+      }
     }
     expect(sizes, label).toEqual(accepted(0, 0).variants);
     expect(sharp.cache().memory.high, `${label}: MB libvips allocated at its peak`).toBeLessThan(

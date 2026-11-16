@@ -1,4 +1,9 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createR2Client } from "./r2-client";
 import { PHOTO_SOURCE_MAX_BYTES } from "./variants";
@@ -91,5 +96,37 @@ describe("createR2Client's get (crop frame)", () => {
       Object.assign(new Error("NoSuchKey"), { $metadata: { httpStatusCode: 404 } }),
     );
     await expect(createR2Client(config).get("k")).rejects.toThrow("NoSuchKey");
+  });
+});
+
+describe("createR2Client's exists (the AVIF backfill)", () => {
+  it("sends one HeadObjectCommand and answers true when the object is there", async () => {
+    const sent: unknown[] = [];
+    vi.spyOn(S3Client.prototype, "send").mockImplementation(async (command: unknown) => {
+      sent.push(command);
+      return {};
+    });
+
+    expect(await createR2Client(config).exists("animals/a/b/card.avif")).toBe(true);
+
+    expect(sent).toHaveLength(1);
+    const [command] = sent;
+    expect(command).toBeInstanceOf(HeadObjectCommand);
+    expect((command as HeadObjectCommand).input).toEqual({
+      Bucket: "photos",
+      Key: "animals/a/b/card.avif",
+    });
+  });
+
+  it("answers false for a 404, and rejects on any other failure rather than guessing", async () => {
+    vi.spyOn(S3Client.prototype, "send").mockRejectedValueOnce(
+      Object.assign(new Error("NotFound"), { $metadata: { httpStatusCode: 404 } }),
+    );
+    expect(await createR2Client(config).exists("k")).toBe(false);
+
+    vi.spyOn(S3Client.prototype, "send").mockRejectedValueOnce(
+      Object.assign(new Error("Forbidden"), { $metadata: { httpStatusCode: 403 } }),
+    );
+    await expect(createR2Client(config).exists("k")).rejects.toThrow("Forbidden");
   });
 });

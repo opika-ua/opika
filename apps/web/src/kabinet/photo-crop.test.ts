@@ -1,5 +1,5 @@
 import type { KabinetAnimalView } from "@opika/contracts";
-import { IMAGE_VARIANT_NAMES, IMAGE_VARIANTS } from "@opika/db/image-pipeline";
+import { IMAGE_VARIANT_NAMES, IMAGE_VARIANTS, PHOTO_FORMATS } from "@opika/db/image-pipeline";
 import {
   animalRepo,
   cityRepo,
@@ -267,7 +267,7 @@ describe("shelter.photos.add keeps the source", () => {
   it("stores it beside the variants and the owner's view names it, unframed", async () => {
     const { photo, view, store } = await withUploadedPhoto();
     const sourcePut = store.puts.find(
-      (put) => !/\/(thumb|card|detail|mid|compact)\.webp$/.test(put.key),
+      (put) => !/\/(thumb|card|detail|mid|compact)\.(webp|avif)$/.test(put.key),
     );
     expect(sourcePut?.key.slice(photo.storageKey.length + 1)).toMatch(SOURCE_NAME);
     expect(view.photoCrops).toEqual([
@@ -314,15 +314,18 @@ describe("shelter.photos.crop", () => {
     const written = store.puts.slice(putsBefore);
     const newKey = cropped?.storageKey as string;
     expect(written.every((put) => put.key.startsWith(`${newKey}/`))).toBe(true);
-    expect(written).toHaveLength(IMAGE_VARIANT_NAMES.length + 1);
-    for (const name of IMAGE_VARIANT_NAMES) {
-      const bytes = written.find((put) => put.key === `${newKey}/${name}.webp`)?.bytes as Buffer;
-      const meta = await sharp(bytes).metadata();
-      expect([meta.width, meta.height], name).toEqual([
-        IMAGE_VARIANTS[name].width,
-        IMAGE_VARIANTS[name].height,
-      ]);
-      expect(await isRedInTheMiddle(bytes), name).toBe(true);
+    expect(written).toHaveLength(IMAGE_VARIANT_NAMES.length * PHOTO_FORMATS.length + 1);
+    for (const format of PHOTO_FORMATS) {
+      for (const name of IMAGE_VARIANT_NAMES) {
+        const key = `${newKey}/${name}.${format}`;
+        const bytes = written.find((put) => put.key === key)?.bytes as Buffer;
+        const meta = await sharp(bytes).metadata();
+        expect([meta.width, meta.height], key).toEqual([
+          IMAGE_VARIANTS[name].width,
+          IMAGE_VARIANTS[name].height,
+        ]);
+        expect(await isRedInTheMiddle(bytes), key).toBe(true);
+      }
     }
     // The source is a byte copy, never a server-side copy, under an unguessable new name.
     const newSource = written.at(-1) as Put;
@@ -761,7 +764,7 @@ describe("the upload allowance: spent only once a crop lands (owner, 2026-11-12)
     });
     expect(result.status).toBe(500);
     const orphan = store.puts.at(-1)?.key.replace(/\/[^/]+$/, "");
-    expect(store.puts).toHaveLength(putsBefore + IMAGE_VARIANT_NAMES.length);
+    expect(store.puts).toHaveLength(putsBefore + IMAGE_VARIANT_NAMES.length * PHOTO_FORMATS.length);
     expect(logged).toHaveBeenCalledWith({ event: "photo_orphaned", storageKey: orphan });
     expect(count.allowance()).toEqual([0, 0]);
     expect((await reload(target.id)).photos).toEqual(target.photos);

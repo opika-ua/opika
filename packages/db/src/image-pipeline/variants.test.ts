@@ -8,6 +8,7 @@ import {
   LOGO_VARIANT_NAMES,
   LOGO_VARIANTS,
   nearestVariant,
+  PHOTO_FORMATS,
   photoSourceObjectKeyFor,
   r2EndpointUrl,
   r2PublicUrl,
@@ -87,30 +88,64 @@ describe("shelterLogoStorageKeyFor", () => {
 });
 
 describe("variantObjectKey", () => {
-  it("appends the variant name and .webp extension", () => {
-    expect(variantObjectKey("animals/x/0", "card")).toBe("animals/x/0/card.webp");
-    expect(variantObjectKey("animals/x/0", "thumb")).toBe("animals/x/0/thumb.webp");
-    expect(variantObjectKey("animals/x/0", "detail")).toBe("animals/x/0/detail.webp");
+  it("appends the variant name and the format's extension", () => {
+    expect(variantObjectKey("animals/x/0", "card", "webp")).toBe("animals/x/0/card.webp");
+    expect(variantObjectKey("animals/x/0", "thumb", "webp")).toBe("animals/x/0/thumb.webp");
+    expect(variantObjectKey("animals/x/0", "detail", "webp")).toBe("animals/x/0/detail.webp");
+    expect(variantObjectKey("animals/x/0", "card", "avif")).toBe("animals/x/0/card.avif");
+    expect(variantObjectKey("shelters/s/logo/0", "small", "webp")).toBe(
+      "shelters/s/logo/0/small.webp",
+    );
+  });
+
+  it("is a direct child of the storage key in every format, so the clean-up's parent-path rule covers it", () => {
+    for (const format of PHOTO_FORMATS) {
+      for (const variant of IMAGE_VARIANT_NAMES) {
+        const key = variantObjectKey("animals/x/0", variant, format);
+        expect(key.slice(0, key.lastIndexOf("/")), key).toBe("animals/x/0");
+      }
+    }
   });
 });
 
 describe("storageKeyFromObjectKey (the R2 clean-up job's own need, the inverse of variantObjectKey)", () => {
-  it("recovers the storage key for each real variant", () => {
-    for (const variant of [...IMAGE_VARIANT_NAMES, ...LOGO_VARIANT_NAMES]) {
-      expect(storageKeyFromObjectKey(variantObjectKey("animals/x/0", variant))).toBe("animals/x/0");
+  it("recovers the storage key for each real variant, in each format it is written in", () => {
+    for (const format of PHOTO_FORMATS) {
+      for (const variant of IMAGE_VARIANT_NAMES) {
+        expect(storageKeyFromObjectKey(variantObjectKey("animals/x/0", variant, format))).toBe(
+          "animals/x/0",
+        );
+      }
     }
+    for (const variant of LOGO_VARIANT_NAMES) {
+      expect(storageKeyFromObjectKey(variantObjectKey("shelters/s/logo/0", variant, "webp"))).toBe(
+        "shelters/s/logo/0",
+      );
+    }
+  });
+
+  it("maps a photo's AVIF key and its WebP key to the same storage key", () => {
+    const storageKey = animalPhotoStorageKeyFor(ANIMAL_ID, "b1000000-0000-4000-8000-000000000001");
+    const webp = storageKeyFromObjectKey(`${storageKey}/card.webp`);
+    const avif = storageKeyFromObjectKey(`${storageKey}/card.avif`);
+    expect(webp).toBe(storageKey);
+    expect(avif).toBe(webp);
   });
 
   it("round-trips through variantObjectKey for a realistic key with slashes in the storage key itself", () => {
     const storageKey = animalPhotoStorageKeyFor(ANIMAL_ID, "b1000000-0000-4000-8000-000000000001");
-    expect(storageKeyFromObjectKey(variantObjectKey(storageKey, "card"))).toBe(storageKey);
+    expect(storageKeyFromObjectKey(variantObjectKey(storageKey, "card", "webp"))).toBe(storageKey);
+    expect(storageKeyFromObjectKey(variantObjectKey(storageKey, "card", "avif"))).toBe(storageKey);
   });
 
   it("refuses anything that isn't a real variant object key, rather than mis-parsing it", () => {
     expect(storageKeyFromObjectKey("animals/x/0")).toBeNull();
     expect(storageKeyFromObjectKey("animals/x/0/original.jpg")).toBeNull();
     expect(storageKeyFromObjectKey("animals/x/0/thumb.jpg")).toBeNull();
+    expect(storageKeyFromObjectKey("animals/x/0/card.png")).toBeNull();
     expect(storageKeyFromObjectKey("not-a-photo-key")).toBeNull();
+    // A logo is written as WebP only, so a logo-named AVIF is no object of ours.
+    expect(storageKeyFromObjectKey("shelters/s/logo/0/small.avif")).toBeNull();
   });
 });
 
@@ -146,20 +181,23 @@ describe("isRealPhotoKey", () => {
 });
 
 describe("r2PublicUrl", () => {
-  it("joins the public base url and the derived variant key", () => {
-    expect(r2PublicUrl("https://cdn.example.com", "animals/x/0", "card")).toBe(
+  it("joins the public base url and the derived variant key, in the format asked for", () => {
+    expect(r2PublicUrl("https://cdn.example.com", "animals/x/0", "card", "webp")).toBe(
       "https://cdn.example.com/animals/x/0/card.webp",
+    );
+    expect(r2PublicUrl("https://cdn.example.com", "animals/x/0", "card", "avif")).toBe(
+      "https://cdn.example.com/animals/x/0/card.avif",
     );
   });
 
   it("does not double a trailing slash on the base url", () => {
-    expect(r2PublicUrl("https://cdn.example.com/", "animals/x/0", "card")).toBe(
+    expect(r2PublicUrl("https://cdn.example.com/", "animals/x/0", "card", "webp")).toBe(
       "https://cdn.example.com/animals/x/0/card.webp",
     );
   });
 
   it("derives a logo's own variant too (pet card PR 3b)", () => {
-    expect(r2PublicUrl("https://cdn.example.com", "shelters/s/logo/0", "small")).toBe(
+    expect(r2PublicUrl("https://cdn.example.com", "shelters/s/logo/0", "small", "webp")).toBe(
       "https://cdn.example.com/shelters/s/logo/0/small.webp",
     );
   });

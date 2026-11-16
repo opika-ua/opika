@@ -100,6 +100,18 @@ export function photoSourcesRepo(db: Database) {
     },
 
     /**
+     * Every row, whatever its shelter: the AVIF backfill's read, an operator CLI and never a
+     * request path (`photo-storage-key-scan.test.ts` pins its callers). A plain select.
+     */
+    async listEveryRow(): Promise<PhotoSource[]> {
+      const rows = await db
+        .select()
+        .from(animalPhotoSources)
+        .orderBy(animalPhotoSources.storageKey);
+      return rows.map(rowToPhotoSource);
+    },
+
+    /**
      * Sources for photos an animal already has (onboarding inserts the animal first), in one
      * statement. A source whose key is not one of the animal's photos is not written; the count
      * returned says how many were.
