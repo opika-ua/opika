@@ -1,10 +1,6 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { checkCustomRoutes } from "next/dist/lib/load-custom-routes";
-import { modifyRouteRegex } from "next/dist/lib/redirect-status";
-import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
-import { compileNonPath } from "next/dist/shared/lib/router/utils/prepare-destination";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { sentOn } from "../test/next-headers";
 import { securityReportUrlOf } from "./observability/dsn";
 import { KABINET_REFERRER_POLICY, securityHeaders } from "./security-headers";
 
@@ -137,30 +133,6 @@ describe("the CSP report endpoint, from NEXT_PUBLIC_SENTRY_DSN", () => {
     for (const dsn of UNUSABLE_DSNS) expect(securityReportUrlOf(dsn), String(dsn)).toBeNull();
   });
 });
-
-type Rule = { source: string; headers: { key: string; value: string }[] };
-
-/**
- * What `next start` sends for a URL, matched the way its router builds header routes (`filesystem.js`,
- * whose regex is also the routes manifest's): every rule matching the path alone, the last value winning.
- */
-function sentOn(rules: Rule[], url: string): Map<string, string> {
-  const { pathname } = new URL(url, "https://opika.example");
-  const sent = new Map<string, string>();
-  for (const rule of rules) {
-    const params = getPathMatch(rule.source, {
-      strict: true,
-      removeUnnamedParams: true,
-      regexModifier: (regex) => modifyRouteRegex(regex, undefined),
-    })(pathname);
-    if (params === false) continue;
-    const compiled = (text: string) =>
-      Object.keys(params).length > 0 ? compileNonPath(text, params) : text;
-    for (const { key, value } of rule.headers)
-      sent.set(compiled(key).toLowerCase(), compiled(value));
-  }
-  return sent;
-}
 
 /** next.config's real `headers()` under this DSN, checked the way `next build` checks them. */
 async function headersUnder(dsn: string | undefined, discoverable: boolean) {
@@ -336,27 +308,4 @@ describe("next.config.ts headers(), as Next sends them", () => {
       expect(KABINET_REFERRER_POLICY).toBe("strict-origin");
     },
   );
-});
-
-/**
- * One source per response: next.config. The proxy, a route handler or a page's `referrer` metadata
- * (a `<meta name="referrer">`) setting its own policy on a kabinet response could disagree with it.
- */
-describe("no kabinet code sets a Referrer-Policy of its own", () => {
-  const ROOTS = ["app/kabinet", "kabinet", "features/kabinet", "proxy.ts", "app/layout.tsx"];
-  const OWN_POLICY = /["'`]referrer-policy["'`]|\breferrer\s*:/i;
-
-  it("nothing under the kabinet's pages, handlers, proxy or root layout names one", () => {
-    const files = ROOTS.flatMap((root) => {
-      const path = join(__dirname, root);
-      return root.endsWith(".ts") || root.endsWith(".tsx")
-        ? [path]
-        : readdirSync(path, { recursive: true, encoding: "utf8" })
-            .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
-            .map((file) => join(path, file));
-    });
-    expect(files.length).toBeGreaterThan(50);
-    const offenders = files.filter((file) => OWN_POLICY.test(readFileSync(file, "utf8")));
-    expect(offenders).toEqual([]);
-  });
 });

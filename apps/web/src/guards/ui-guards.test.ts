@@ -5,6 +5,11 @@ import { ARBITRARY_VALUES } from "./allowlist-arbitrary";
 import { CLIENT_FILES } from "./allowlist-client";
 import { RAW_HEX, RAW_IMG } from "./allowlist-misc";
 import { TOKEN_CEILINGS } from "./allowlist-tokens";
+import {
+  clientNavigationsIntoKabinet,
+  exportedKabinetNames,
+  kabinetNavigationsIn,
+} from "./kabinet-entry";
 import { ARBITRARY, HEX, IMG, NATIVE_DATE, TOKEN_PATTERNS } from "./patterns";
 import { ceilingsOf, ratchetProblems } from "./ratchet";
 import { clientFiles, formatHits, hitsByFile, SRC_ROOT } from "./scan";
@@ -140,5 +145,87 @@ describe("guard 7: kit coverage", () => {
       .map((f) => f.replace(/\.md$/, ""))
       .filter((name) => !components.includes(name));
     expect(orphans, `Doc without a component: ${orphans.join(", ")}`).toEqual([]);
+  });
+});
+
+/**
+ * Owner, 2026-11-16: a public page enters /kabinet only by a full document load, through
+ * `KabinetEntryLink`, so the kabinet never runs inside a public document with its CSP reporting and
+ * referrer policy. Static, line by line: a value built at runtime (string concatenation, a prop
+ * under another name, a constant declared over several lines) or an href written on the line after
+ * `href=` is not seen; the harness (`kabinet-entry.harness.ts`) checks the real entry points.
+ */
+describe("guard 8: no client navigation into /kabinet from outside it", () => {
+  it("finds none outside the kabinet's own code (KabinetEntryLink is the way in)", () => {
+    const hits = clientNavigationsIntoKabinet();
+    expect(hits, formatHits(hits)).toEqual([]);
+  });
+
+  it("knows the constants that hold a kabinet path, and not the public ones", () => {
+    const names = exportedKabinetNames();
+    for (const name of [
+      "SHELTER_HOME",
+      "SIGN_IN_PAGE_PATH",
+      "FORGOT_PATH",
+      "OPERATOR_HOME",
+      "NEW_SHELTER_PATH",
+      "animalPath",
+      "SIGN_IN_LINK",
+      "INVITE_LINK",
+      "kabinetEntryHref",
+    ]) {
+      expect(names.has(name), name).toBe(true);
+    }
+    for (const name of ["PUBLIC_GALLERY_PATH", "publicShelterPath", "publicAnimalPath"]) {
+      expect(names.has(name), name).toBe(false);
+    }
+  });
+
+  const hitsIn = (code: string) =>
+    kabinetNavigationsIn(
+      "features/example/Example.tsx",
+      code.split("\n").map((text, index) => ({ file: "x", line: index + 1, text, comment: false })),
+      exportedKabinetNames(),
+    );
+
+  it("catches each way of writing one: a link, a router call, a redirect", () => {
+    for (const written of [
+      '<Link href="/kabinet">',
+      "<Link href='/kabinet/vkhid'>",
+      '<LinkButton href={SIGN_IN_PAGE_PATH} variant="secondary">',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: source text for the scanner, holding a template on purpose
+      "<TextLink href={`/kabinet/tvaryny/${id}`}>",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: source text for the scanner, holding a template on purpose
+      "<Link href={`${ANIMAL_LIST_PATH}/${id}`}>",
+      "<Link href={animalPath(id)}>",
+      '<Link href={{ pathname: "/kabinet" }}>',
+      '{ key: "kabinet", href: "/kabinet/akaunt" }',
+      '<Link href={kabinetEntryHref("home")}>',
+      'router.push("/kabinet")',
+      "router.replace(SHELTER_HOME)",
+      "router.prefetch('/kabinet/vkhid')",
+      'redirect("/kabinet/vkhid")',
+      "permanentRedirect(OPERATOR_HOME)",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: source text for the scanner, holding a template on purpose
+      "redirect(`${SIGN_IN_LINK.path}?token=${token}`)",
+      'const HOME = "/kabinet";\n<Link href={HOME}>',
+    ]) {
+      expect(hitsIn(written), written).not.toEqual([]);
+    }
+  });
+
+  it("leaves alone the way in, public links, full loads and plain declarations", () => {
+    for (const other of [
+      '<KabinetEntryLink to="home" variant="primary">',
+      '<Link href="/prytulkam">',
+      '<Link href="/kabinet-x">',
+      'router.push("/tvaryny")',
+      'redirect("/tvaryny")',
+      'window.location.assign("/kabinet")',
+      'export const SIGN_IN_PAGES_PATH = "/kabinet/vkhid";',
+      "<Link href={publicShelterPath(id)}>",
+    ]) {
+      expect(hitsIn(other), other).toEqual([]);
+    }
   });
 });

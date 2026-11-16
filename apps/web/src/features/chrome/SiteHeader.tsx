@@ -1,9 +1,9 @@
 import { ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
 import { WORDMARK } from "../../brand";
-import { LinkButton } from "../../ui/Button";
 import { Container } from "../../ui/Container";
 import { Icon } from "../../ui/Icon";
+import { KabinetEntryLink } from "../kabinet/KabinetEntryLink";
 import { SavedButton } from "../likes/SavedButton";
 import { type Audience, audienceOf } from "./audience";
 import { BrandLogo } from "./BrandLogo";
@@ -115,21 +115,22 @@ function NavLinks({
         testId={`nav-saved${suffix}`}
         rowClassName={`${MENU_ROW_CLASS} ${current === "saved" ? CURRENT_ROW : ""}`}
       />
+      {/* A plain <a> (a full document load), never next/link: `KabinetEntryLink`. */}
       {audience === "shelter" ? (
         menu ? (
-          <Link
-            href="/kabinet"
+          <KabinetEntryLink
+            to="home"
             data-testid="nav-kabinet-menu"
             className={`${MENU_ROW_CLASS} justify-between`}
           >
             {uk.nav.kabinet}
             <Icon name="user" />
-          </Link>
+          </KabinetEntryLink>
         ) : (
-          <LinkButton href="/kabinet" data-testid="nav-kabinet">
+          <KabinetEntryLink to="home" variant="primary" data-testid="nav-kabinet">
             <Icon name="user" size="md" />
             {uk.nav.kabinet}
-          </LinkButton>
+          </KabinetEntryLink>
         )
       ) : null}
     </>

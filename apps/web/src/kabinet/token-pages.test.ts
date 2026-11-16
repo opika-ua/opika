@@ -5,7 +5,8 @@ import { TOKEN_PAGE_PATHS } from "./token-pages";
 /**
  * Oleksii, 2026-10-20, verbatim: "On /kabinet/vkhid* pages that carry a token: Cache-Control:
  * no-store and Referrer-Policy: no-referrer." `no-store` comes from the proxy, driven here through
- * the real `proxy`; `no-referrer` from next.config on every kabinet page (`security-headers.test.ts`).
+ * the real `proxy`. The referrer half was superseded 2026-11-16 (owner): `strict-origin` on every
+ * kabinet response, from next.config alone (`security-headers.test.ts`), so the proxy sends none.
  */
 describe("the token pages' headers, set by the proxy", () => {
   beforeEach(() => {
@@ -38,8 +39,8 @@ describe("the token pages' headers, set by the proxy", () => {
   /**
    * PW-2 Q1 (Oleksii, 2026-10-20, verbatim): "Token pages send Cache-Control: no-store, plus
    * Referrer-Policy: no-referrer, except that pages whose button submits an ordinary form use
-   * strict-origin (PW1-Q1)." The invitation link's form posts by `fetch`, so it gets both,
-   * whatever the parameter holds.
+   * strict-origin (PW1-Q1)." `no-store` whatever the parameter holds; the referrer half is
+   * superseded as above (`strict-origin` from next.config).
    */
   it("the invitation link's page answers no-store, whatever its parameter holds", async () => {
     for (const path of [
