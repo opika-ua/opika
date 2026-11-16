@@ -34,9 +34,9 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
  * code into one more chunk (+187 bytes of script references, page content byte-identical), so the
  * budget was 83,000; that seed-key fixture measured 82,176.
  * #504 (2026-11-16, owner): the fixture became realistic (real-length R2 keys, production's image
- * flags, AVIF on) and measured 84,221 in CI at 7993491, so the budget is 85,000. After the logo and
- * 176w fixes: estimated unchanged (~84,221), since the fixture's shelter has no logo and the hero
- * never had a 176w; to be replaced with CI's figure.
+ * flags, AVIF on) and measured 84,221 in CI at 7993491, so the budget is 85,000. The logo and 176w
+ * fixes that followed leave the fixture as it was: its shelter has no logo, and the hero never had
+ * a 176w entry (a `100vw` slot starts the srcset at 400w). A live page with a logo saves ~600 bytes.
  */
 export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 85_000;
 
