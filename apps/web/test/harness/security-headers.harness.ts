@@ -11,12 +11,20 @@ import { type APIRequestContext, expect, type Page, test } from "@playwright/tes
 const ORIGIN = `http://127.0.0.1:${harnessPort()}`;
 
 const IP_HEADERS = { "x-forwarded-for": "198.51.100.60" };
+const ENFORCED_CSP =
+  "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
 test.use({ extraHTTPHeaders: IP_HEADERS });
 
-function expectSecurityHeaders(headers: Record<string, string>, what: string) {
+/** The ones the owner wants enforced, on every response, page code or not. */
+function expectEnforced(headers: Record<string, string>, what: string) {
   expect(headers["x-content-type-options"], what).toBe("nosniff");
-  expect(headers["content-security-policy"], what).toBe("frame-ancestors 'none'");
+  expect(headers["content-security-policy"], what).toBe(ENFORCED_CSP);
+  expect(headers["cross-origin-opener-policy"], what).toBe("same-origin");
   expect(headers["strict-transport-security"], what).toBe("max-age=63072000; includeSubDomains");
+}
+
+function expectSecurityHeaders(headers: Record<string, string>, what: string) {
+  expectEnforced(headers, what);
   expect(headers["content-security-policy-report-only"], what).toContain("default-src 'self'");
   expect(headers["referrer-policy"], what).toBe("strict-origin-when-cross-origin");
   expect(headers["permissions-policy"], what).toBe(
@@ -38,13 +46,6 @@ test.describe("security headers (audit F5)", () => {
     expect(api.status()).toBe(200);
     expectSecurityHeaders(api.headers(), "POST /api/rpc/animals/cardsByIds");
   });
-
-  /** The three the owner wants enforced, on responses no page code shapes. */
-  function expectEnforced(headers: Record<string, string>, what: string) {
-    expect(headers["x-content-type-options"], what).toBe("nosniff");
-    expect(headers["content-security-policy"], what).toBe("frame-ancestors 'none'");
-    expect(headers["strict-transport-security"], what).toBe("max-age=63072000; includeSubDomains");
-  }
 
   test("a 404 page, a build asset and a public file carry them", async ({ request }) => {
     const notFound = await request.get("/tvaryny/not-a-real-id", { headers: IP_HEADERS });
@@ -103,7 +104,7 @@ test.describe("security headers (audit F5)", () => {
     expectEnforced(refused.headers(), "the proxy's /tvaryny 429");
   });
 
-  /** Every report-only violation the page raises, collected as the browser fires them. */
+  /** Every CSP violation the page raises, report-only or enforced, as the browser fires them. */
   async function violationsOn(page: Page, path: string): Promise<string[]> {
     await page.addInitScript(() => {
       const seen: string[] = [];

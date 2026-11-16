@@ -1,9 +1,10 @@
 /**
  * Audit F5: the browser security headers on every response (`next.config.ts`).
- * Enforced: no MIME sniffing, no framing by any site, HSTS for two years on
- * every subdomain (no preload), a cross-origin referrer limited to the origin,
- * and the browser features the app never uses switched off. The full policy is
- * report-only until its reports have been read: nothing in it blocks anything yet.
+ * Enforced: no MIME sniffing, no framing by any site, no plugins, no `<base>` rewrite, no form
+ * posting off-site, no cross-origin window sharing our browsing context (COOP), HSTS for two years
+ * on every subdomain (no preload, owner 2026-11-16), a cross-origin referrer limited to the origin,
+ * and the browser features the app never uses switched off. The rest of the policy (scripts,
+ * styles, connections) stays report-only until its reports have been read.
  */
 export type SecurityHeader = { key: string; value: string };
 
@@ -29,7 +30,12 @@ export const REFERRER_POLICY_RULE: { source: string; headers: SecurityHeader[] }
 export function securityHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
   return [
     { key: "X-Content-Type-Options", value: "nosniff" },
-    { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+    // Nothing here embeds plugins, sets <base>, posts a form off-site or needs window.opener.
+    {
+      key: "Content-Security-Policy",
+      value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+    },
+    { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
     { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
     // Nothing here uses these; an empty allowlist also stops an embedded script from asking.
     {
@@ -44,8 +50,8 @@ export function securityHeaders(options: SecurityHeaderOptions): SecurityHeader[
  * No nonce: Next's App Router inlines its own scripts, and a nonce needs every
  * page rendered per request. So scripts and styles allow 'unsafe-inline' and
  * the policy's value is in what it shuts out: other origins' scripts, plugins,
- * `<base>` rewrites, forms posting elsewhere. `frame-ancestors` is left to the
- * enforced header (browsers ignore it in report-only), and there is no
+ * `<base>` rewrites, forms posting elsewhere (the last three are enforced too). `frame-ancestors`
+ * is left to the enforced header (browsers ignore it in report-only), and there is no
  * `report-uri`: violations show in the browser console only.
  */
 function reportOnlyPolicy({ photoBaseUrl, development }: SecurityHeaderOptions): string {

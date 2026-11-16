@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { REFERRER_POLICY_RULE, securityHeaders } from "./security-headers";
 
 /**
- * Audit F5, the owner's scope: three enforced headers (nosniff, no framing,
- * HSTS for two years on subdomains, no preload) and a full policy that only
- * reports. Values are the owner's literals.
+ * Audit F5, the owner's scope: the enforced headers (nosniff; CSP frame-ancestors, object-src,
+ * base-uri, form-action; COOP same-origin; HSTS for two years on subdomains, no preload) and a
+ * full policy that only reports. Values are the owner's literals.
  */
 const PHOTOS = "https://cdn.opika.example/some/path";
 
@@ -26,13 +26,17 @@ describe("securityHeaders", () => {
 
   it("enforces exactly these, and nothing else is enforced", () => {
     expect(headerValue(production, "X-Content-Type-Options")).toBe("nosniff");
-    expect(headerValue(production, "Content-Security-Policy")).toBe("frame-ancestors 'none'");
+    expect(headerValue(production, "Content-Security-Policy")).toBe(
+      "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+    );
+    expect(headerValue(production, "Cross-Origin-Opener-Policy")).toBe("same-origin");
     expect(headerValue(production, "Strict-Transport-Security")).toBe(
       "max-age=63072000; includeSubDomains",
     );
     expect(production.map((h) => h.key).sort()).toEqual([
       "Content-Security-Policy",
       "Content-Security-Policy-Report-Only",
+      "Cross-Origin-Opener-Policy",
       "Permissions-Policy",
       "Strict-Transport-Security",
       "X-Content-Type-Options",
@@ -126,7 +130,10 @@ describe("next.config.ts headers()", () => {
       const everyRoute = entries.filter((entry) => entry.source === "/:path*");
       const sent = everyRoute.flatMap((entry) => entry.headers);
       expect(headerValue(sent, "X-Content-Type-Options")).toBe("nosniff");
-      expect(headerValue(sent, "Content-Security-Policy")).toBe("frame-ancestors 'none'");
+      expect(headerValue(sent, "Content-Security-Policy")).toBe(
+        "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+      );
+      expect(headerValue(sent, "Cross-Origin-Opener-Policy")).toBe("same-origin");
       expect(headerValue(sent, "Strict-Transport-Security")).toBe(
         "max-age=63072000; includeSubDomains",
       );
