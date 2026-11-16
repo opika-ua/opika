@@ -418,7 +418,7 @@ objects (K-Q2). Since the GDPR R2 clean-up job (`docs/decisions-inbox/feat-r2-ph
 R2-B1), that's no longer the whole story: once an animal's row is gone, its photos are
 unreferenced, and the daily scheduled sweep deletes them on its own once they've sat
 unreferenced for the grace period (~7 days) - the one named exception to K-Q2. Never delete
-them by hand; over the job's 600-object cap, run `r2:cleanup` (dry run, then `--commit
+them by hand; over the job's 1100-object cap, run `r2:cleanup` (dry run, then `--commit
 --max-delete <n>`, `docs/operator-leaving-and-erasure.md`, A step 8). `--commit` prints the keys again.
 
 Besides every refusal above (member, support session, test-only key, crossing
@@ -464,7 +464,7 @@ order below, after the first real shelter is onboarded. Every step is Oleksii's 
    ones uploaded from the kabinet. The GDPR R2 clean-up job (R2-B1) deletes a
    photo's objects on its own, with no action here, once they've sat unreferenced for the
    grace period (~7 days). `demo:remove` itself still deletes nothing from R2, and nothing is
-   deleted by hand; over the job's 600-object cap, run `r2:cleanup` (dry run, then `--commit
+   deleted by hand; over the job's 1100-object cap, run `r2:cleanup` (dry run, then `--commit
    --max-delete <n>`). Run the dry run again afterwards: every count is 0, and it refuses with «no
    shelter has id …», which confirms the shelter is gone.
 4. **`KABINET_WRITE_ALLOWLIST`**: PR 6 has merged by then: delete `KABINET_WRITE_ALLOWLIST`,
@@ -599,7 +599,7 @@ in `r2-cleanup-client.ts` - is the one named exception to K-Q2's "no code path
 deletes an object"; no other code path does. **Never delete a file by hand**, even
 when a photo must go (a shelter asks, or it shows something it shouldn't): take it
 off the card, and the job deletes it after the grace period. When a run is over the
-job's 600-object cap, run `r2:cleanup` (dry run, then `--commit --max-delete <n>`;
+job's 1100-object cap (about 100 photos), run `r2:cleanup` (dry run, then `--commit --max-delete <n>`;
 `docs/operator-leaving-and-erasure.md`, A step 8, and `docs/runbook.md`, section 8).
 The CDN edge drops a deleted file within 4 h (above).
 

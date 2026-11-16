@@ -1,7 +1,8 @@
 /**
- * The public animal page's document size, for the heaviest realistic animal: ten photos, every long
- * field at its cap, registry and shelter-declared medical rows. The fixture is written here, in the
- * disposable harness database, and withdrawn afterwards so no gallery spec sees it.
+ * The public animal page's document size, for the heaviest realistic animal: ten photos under
+ * real-shaped R2 keys, every long field at its cap, registry and shelter-declared medical rows. The
+ * fixture is written here, in the disposable harness database, and withdrawn afterwards so no
+ * gallery spec sees it (its photos point at the unreachable test CDN).
  */
 
 import { randomUUID } from "node:crypto";
@@ -52,12 +53,14 @@ test("the heaviest realistic animal page stays within its HTML budget", async ({
   if (shelter === null) throw new Error("the shelter isn't stored");
 
   const now = new Date();
+  const animalId = randomUUID() as AnimalId;
   const animal = makeAnimal({
-    id: randomUUID() as AnimalId,
+    id: animalId,
     shelterId: shelter.id,
     name: "Максимільян-Бровко Довгошерстий",
-    photos: Array.from({ length: MAX_ANIMAL_PHOTOS }, (_, index) => ({
-      storageKey: `seed-photos/dog-${(index % 3) + 1}.jpg`,
+    // Real-shaped keys, so every photo URL is as long as a real one (R2 base, two UUIDs, variant).
+    photos: Array.from({ length: MAX_ANIMAL_PHOTOS }, () => ({
+      storageKey: `animals/${animalId}/${randomUUID()}`,
       width: 1200,
       height: 1500,
       alt: null,

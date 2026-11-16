@@ -1,13 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type { AnimalPhoto, CityId, PhotoFraming, ShelterId } from "@opika/domain";
+import { sql } from "drizzle-orm";
 import sharp from "sharp";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   type BackfillStorage,
   formatPlan,
   loadBackfillPhotos,
+  onACardNow,
   parseBackfillArgs,
   planAvifBackfill,
+  runBackfill,
   writeAvifBackfill,
 } from "../src/backfill-avif-variants";
 import { cutPhotoVariants } from "../src/image-pipeline/crop-photo";
@@ -18,6 +21,7 @@ import {
   photoSourceObjectKeyFor,
   variantObjectKey,
 } from "../src/image-pipeline/variants";
+import { executeRows } from "../src/raw-rows";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { type PhotoSource, photoSourcesRepo } from "../src/repos/photo-sources-repo";
@@ -47,7 +51,10 @@ beforeEach(async () => truncateAll(db));
 function bucket() {
   const objects = new Map<string, Buffer>();
   const puts: { key: string; contentType: string }[] = [];
+  const reads: string[] = [];
   const failingGets = new Set<string>();
+  /** Runs once, on the next get: a photo taken off its card while the run is cutting it. */
+  const onGet: { next: (() => Promise<void>) | null } = { next: null };
   const storage: BackfillStorage = {
     async put(key, body, contentType) {
       if (objects.has(key)) throw new Error("PreconditionFailed");
@@ -55,15 +62,20 @@ function bucket() {
       puts.push({ key, contentType });
     },
     async get(key) {
+      reads.push(key);
+      const hook = onGet.next;
+      onGet.next = null;
+      await hook?.();
       const body = objects.get(key);
       if (body === undefined || failingGets.has(key)) throw new Error("NoSuchKey");
       return body;
     },
     async exists(key) {
+      reads.push(key);
       return objects.has(key);
     },
   };
-  return { objects, puts, failingGets, storage };
+  return { objects, puts, reads, failingGets, onGet, storage };
 }
 type Bucket = ReturnType<typeof bucket>;
 
@@ -151,6 +163,14 @@ async function animalWith(store: Bucket, framings: readonly (PhotoFraming | null
   return stored;
 }
 
+/** The kabinet's removal, as far as the backfill can see it: the key leaves `animals.photos`. */
+async function takeOffItsCard(storageKey: string): Promise<void> {
+  await executeRows(
+    db,
+    sql`UPDATE "animals" SET "photos" = (SELECT jsonb_agg(photo) FROM jsonb_array_elements("photos") AS photo WHERE photo->>'storageKey' <> ${storageKey}) WHERE "photos" @> ${JSON.stringify([{ storageKey }])}::jsonb`,
+  );
+}
+
 const avifKeysOf = (storageKey: string) =>
   IMAGE_VARIANT_NAMES.map((variant) => variantObjectKey(storageKey, variant, "avif"));
 
@@ -174,17 +194,35 @@ const centreIsRed = async (bytes: Buffer) => {
 };
 
 describe("parseBackfillArgs", () => {
-  it("takes --prod, --expect <ep> and --commit, and nothing else", () => {
-    expect(parseBackfillArgs([])).toEqual({ kind: "ok", expect: undefined, commit: false });
-    expect(parseBackfillArgs(["--prod", "--expect", "ep-x", "--commit"])).toEqual({
-      kind: "ok",
-      expect: "ep-x",
-      commit: true,
+  it("takes --prod, --expect <ep>, --commit and --bucket <name>, and nothing else", () => {
+    expect(parseBackfillArgs([])).toEqual({
+      kind: "dry_run",
+      expect: undefined,
+      bucket: undefined,
     });
+    expect(parseBackfillArgs(["--bucket", "photos"])).toEqual({
+      kind: "dry_run",
+      expect: undefined,
+      bucket: "photos",
+    });
+    expect(
+      parseBackfillArgs(["--prod", "--expect", "ep-x", "--commit", "--bucket", "photos"]),
+    ).toEqual({ kind: "commit", expect: "ep-x", bucket: "photos" });
     expect(parseBackfillArgs(["--comit"])).toMatchObject({ kind: "refused" });
     expect(parseBackfillArgs(["--expect"])).toMatchObject({ kind: "refused" });
     expect(parseBackfillArgs(["--expect", "ep-a", "--expect", "ep-b"])).toMatchObject({
       kind: "refused",
+    });
+    expect(parseBackfillArgs(["--bucket"])).toMatchObject({ kind: "refused" });
+    expect(parseBackfillArgs(["--bucket", "a", "--bucket", "b"])).toMatchObject({
+      kind: "refused",
+    });
+  });
+
+  it("refuses --commit without --bucket: the database guard names no bucket", () => {
+    expect(parseBackfillArgs(["--prod", "--expect", "ep-x", "--commit"])).toEqual({
+      kind: "refused",
+      reason: "--commit needs --bucket <name>, the bucket it writes to (the dry run prints it)",
     });
   });
 
@@ -294,7 +332,7 @@ describe("writeAvifBackfill (--commit)", () => {
     const before = new Map(store.objects);
 
     const plans = await planAvifBackfill(store.storage, await loadBackfillPhotos(db));
-    const result = await writeAvifBackfill(store.storage, plans);
+    const result = await writeAvifBackfill(store.storage, plans, onACardNow(db));
 
     const expected = [
       ...avifKeysOf(kept.storageKey).slice(2),
@@ -313,7 +351,7 @@ describe("writeAvifBackfill (--commit)", () => {
     const [kept] = await animalWith(store, [RED_FRAME]);
     if (!kept?.source) throw new Error("fixture");
     const plans = await planAvifBackfill(store.storage, await loadBackfillPhotos(db));
-    await writeAvifBackfill(store.storage, plans);
+    await writeAvifBackfill(store.storage, plans, onACardNow(db));
 
     const plan = plans[0];
     if (plan?.kind !== "write") throw new Error("expected a write");
@@ -340,6 +378,7 @@ describe("writeAvifBackfill (--commit)", () => {
     await writeAvifBackfill(
       store.storage,
       await planAvifBackfill(store.storage, await loadBackfillPhotos(db)),
+      onACardNow(db),
     );
     for (const variant of IMAGE_VARIANT_NAMES) {
       const avif = store.objects.get(variantObjectKey(detailOnly.storageKey, variant, "avif"));
@@ -360,12 +399,17 @@ describe("writeAvifBackfill (--commit)", () => {
     await writeAvifBackfill(
       store.storage,
       await planAvifBackfill(store.storage, await loadBackfillPhotos(db)),
+      onACardNow(db),
     );
     const putsAfterFirst = store.puts.length;
 
     const again = await planAvifBackfill(store.storage, await loadBackfillPhotos(db));
     expect(again.every((plan) => plan.kind === "done")).toBe(true);
-    expect(await writeAvifBackfill(store.storage, again)).toEqual({ written: [], failed: [] });
+    expect(await writeAvifBackfill(store.storage, again, onACardNow(db))).toEqual({
+      written: [],
+      removed: [],
+      failed: [],
+    });
     expect(store.puts).toHaveLength(putsAfterFirst);
   });
 
@@ -378,9 +422,84 @@ describe("writeAvifBackfill (--commit)", () => {
     const result = await writeAvifBackfill(
       store.storage,
       await planAvifBackfill(store.storage, await loadBackfillPhotos(db)),
+      onACardNow(db),
     );
 
     expect(result.failed).toEqual([{ storageKey: broken.storageKey, message: "NoSuchKey" }]);
     expect([...result.written].sort()).toEqual(avifKeysOf(fine.storageKey).sort());
+  });
+
+  it("writes nothing for a photo taken off its card after the plan, and goes on with the rest", async () => {
+    const store = bucket();
+    const [leaving, staying] = await animalWith(store, [null, null]);
+    if (!leaving || !staying) throw new Error("fixture");
+    const plans = await planAvifBackfill(store.storage, await loadBackfillPhotos(db));
+    expect(plans.every((plan) => plan.kind === "write")).toBe(true);
+    // The shelter removes the photo while the run is reading it, after the plan was made.
+    store.onGet.next = () => takeOffItsCard(leaving.storageKey);
+
+    const result = await writeAvifBackfill(store.storage, plans, onACardNow(db));
+
+    expect(result.removed).toEqual([leaving.storageKey]);
+    expect([...result.written].sort()).toEqual(avifKeysOf(staying.storageKey).sort());
+    expect(store.puts.filter((put) => put.key.startsWith(`${leaving.storageKey}/`))).toEqual([]);
+  });
+});
+
+describe("runBackfill (the run past the database guards)", () => {
+  const lines = () => {
+    const printed: string[] = [];
+    return { printed, print: (line: string) => printed.push(line) };
+  };
+
+  it("a dry run prints the bucket and the plan and never puts, with photos to write", async () => {
+    const store = bucket();
+    await animalWith(store, [RED_FRAME, null]);
+    const out = lines();
+
+    const code = await runBackfill(
+      { kind: "dry_run", expect: undefined, bucket: undefined },
+      { db, storage: store.storage, bucketName: "photos", print: out.print },
+    );
+
+    expect(code).toBe(0);
+    expect(store.puts).toEqual([]);
+    expect(out.printed[0]).toBe("Bucket: photos");
+    expect(out.printed).toContain("DRY RUN (nothing is written)");
+    expect(out.printed.join("\n")).toContain("cut from the kept source: 1 (5 AVIF objects)");
+  });
+
+  it("a commit with a --bucket that isn't the configured one reads and writes nothing", async () => {
+    const store = bucket();
+    await animalWith(store, [null]);
+    const out = lines();
+
+    const code = await runBackfill(
+      { kind: "commit", expect: undefined, bucket: "photos-staging" },
+      { db, storage: store.storage, bucketName: "photos", print: out.print },
+    );
+
+    expect(code).toBe(1);
+    expect(store.reads).toEqual([]);
+    expect(store.puts).toEqual([]);
+    expect(out.printed).toEqual([
+      "REFUSED: --bucket does not name the configured bucket (R2_BUCKET_NAME is photos). Nothing was read or written.",
+    ]);
+  });
+
+  it("a commit naming the configured bucket writes every missing AVIF object", async () => {
+    const store = bucket();
+    const [photo] = await animalWith(store, [null]);
+    if (!photo) throw new Error("fixture");
+    const out = lines();
+
+    const code = await runBackfill(
+      { kind: "commit", expect: undefined, bucket: "photos" },
+      { db, storage: store.storage, bucketName: "photos", print: out.print },
+    );
+
+    expect(code).toBe(0);
+    expect(store.puts.map((put) => put.key).sort()).toEqual(avifKeysOf(photo.storageKey).sort());
+    expect(out.printed).toContain("Written: 5 AVIF objects");
   });
 });

@@ -162,6 +162,24 @@ export async function runPhotoSourcesSmoke(db: Database): Promise<Outcome[]> {
       `inserted ${roundTrip.inserted}, write ${framedWrite.kind}, raw ${JSON.stringify(rawFrame)}, listed ${listed.length}`,
     );
 
+    // The AVIF backfill's read (`listEveryRow`): every row, both fixture rows among them, as stored.
+    const everyRow = await sources.listEveryRow();
+    const everyPlain = everyRow.find((s) => s.storageKey === roundTrip.keys[0]);
+    const everyFramed = everyRow.find((s) => s.storageKey === framedKey);
+    check(
+      "listEveryRow returns the fixture's unframed and framed rows with their key, origin, size and frame",
+      everyPlain !== undefined &&
+        everyFramed !== undefined &&
+        JSON.stringify(everyPlain) === JSON.stringify(plain) &&
+        JSON.stringify(everyFramed) === JSON.stringify(framed) &&
+        everyFramed.sourceObjectKey.startsWith(`${framedKey}/source-`) &&
+        everyFramed.origin === "upload" &&
+        everyFramed.width === 1600 &&
+        everyFramed.height === 2000 &&
+        JSON.stringify(everyFramed.framing) === JSON.stringify(FRAMED),
+      `rows ${everyRow.length}, plain ${everyPlain === undefined ? "missing" : "found"}, framed ${JSON.stringify(everyFramed?.framing)}`,
+    );
+
     const checkKey = `animals/${roundTrip.animal.id}/${randomUUID()}`;
     const rawInsert = (row: Partial<typeof animalPhotoSources.$inferInsert>) =>
       outcomeOf(async () => {

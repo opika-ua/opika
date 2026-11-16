@@ -53,10 +53,10 @@ function isKeyOwnedByThisJob(objectKey: string): boolean {
 const DELETE_BATCH_SIZE = 1000;
 
 /**
- * Blast-radius cap, else nothing is deleted: ~100 photos or crops a run (crop-frame Q4), at eleven
- * objects each since AVIF (five variants twice, plus the source; pinned in
- * `photo-source-cleanup.test.ts`); only `--max-delete` raises it. A wiped table trips it only above
- * ~100 photos; below that, the 7-day grace period is the only guard.
+ * Blast-radius cap in objects, else nothing is deleted; only `--max-delete` raises it. ~100 photos
+ * or crops a run (crop-frame Q4) once each is eleven objects (five variants twice, plus the source;
+ * pinned in `photo-source-cleanup.test.ts`); a photo stored before AVIF and not yet backfilled is
+ * six, so until the backfill up to ~183 of those fit. A follow-up counts photos instead (owner).
  */
 export const DEFAULT_MAX_DELETE_PER_RUN = 1100;
 

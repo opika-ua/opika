@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import sharp from "sharp";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnimalPageView } from "../features/animal-detail/animal-page-load";
 import { makeDetailAnimal, makeDetailShelter } from "../features/animal-detail/test-fixtures";
 import { animalOgImage, OG_SIZE, SHORT_ANIMAL_CACHE, siteOgImage } from "./og-image";
@@ -43,6 +44,49 @@ describe("link-preview images (BR-7)", () => {
     expect({ width: withPhoto.width, height: withPhoto.height }).toEqual(OG_SIZE);
     expect({ width: withoutPhoto.width, height: withoutPhoto.height }).toEqual(OG_SIZE);
     expect(withPhoto.bytes.length).toBeGreaterThan(withoutPhoto.bytes.length * 2);
+  });
+
+  describe("a real photo key (R2)", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    });
+
+    // Owner's condition 1: satori reads no AVIF, so the card always comes from card.webp.
+    it("fetches card.webp even with NEXT_PUBLIC_R2_AVIF=1, and the photo shows", async () => {
+      vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "https://cdn.example.test");
+      vi.stubEnv("NEXT_PUBLIC_R2_AVIF", "1");
+      const card = await sharp({
+        create: { width: 640, height: 800, channels: 3, background: { r: 200, g: 40, b: 40 } },
+      })
+        .webp()
+        .toBuffer();
+      const requested: string[] = [];
+      const realFetch = globalThis.fetch;
+      vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input instanceof Request ? input.url : input);
+        if (!url.startsWith("https://cdn.example.test/")) return realFetch(input, init);
+        requested.push(url);
+        return new Response(new Uint8Array(card), { headers: { "content-type": "image/webp" } });
+      });
+      const storageKey =
+        "animals/a0000000-0000-4000-8000-000000000000/b1000000-0000-4000-8000-000000000001";
+
+      const withPhoto = await render(
+        await animalOgImage(
+          viewOf(
+            makeDetailAnimal({ photos: [{ storageKey, width: 800, height: 1000, alt: null }] }),
+          ),
+        ),
+      );
+      const withoutPhoto = await render(
+        await animalOgImage(viewOf(makeDetailAnimal({ photos: [] }))),
+      );
+
+      expect(requested).toEqual([`https://cdn.example.test/${storageKey}/card.webp`]);
+      // A missing photo renders the no-photo card byte for byte (the test below), this one doesn't.
+      expect(withPhoto.bytes.length).not.toBe(withoutPhoto.bytes.length);
+    });
   });
 
   it("a photo that cannot be had degrades to the no-photo card instead of failing", async () => {
