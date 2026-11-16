@@ -43,8 +43,9 @@ const BODY = JSON.stringify({
   phone: "+380 50 123 45 67",
   shelterSnapshot: { contacts: "0501234567" },
 });
+// A version no random event id or timestamp can contain: the leak check scans the whole envelope.
 const PIXEL_UA =
-  "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36";
+  "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/987.0.98765.43 Mobile Safari/537.36";
 const HEADERS = {
   cookie: "opika_session=abc123",
   authorization: "Bearer tok-SECRET-token",
@@ -310,7 +311,7 @@ describe("browser and system context from the request's User-Agent", () => {
     const contexts = contextsOf(sent);
     expect(contexts.length).toBeGreaterThan(0);
     for (const c of contexts) {
-      expect(c.browser).toEqual({ name: "Chrome", version: "130" });
+      expect(c.browser).toEqual({ name: "Chrome", version: "987" });
       expect(c.os).toEqual({ name: "Android", version: "14" });
       expect(Object.keys(c).sort()).toEqual(["browser", "os"]);
     }
@@ -324,7 +325,17 @@ describe("browser and system context from the request's User-Agent", () => {
     await realRequestThatErrors();
     await hostileScope();
     const text = sent.json();
-    for (const part of [PIXEL_UA, "Mozilla", "AppleWebKit", "Pixel", "130.0", "6723"]) {
+    // Dotted, so no hex id can hold them; "6723" alone once matched a random id (#507).
+    const leaks = [
+      PIXEL_UA,
+      "Mozilla",
+      "AppleWebKit",
+      "Pixel",
+      "987.0.98765.43",
+      "987.0.98765",
+      "98765.43",
+    ];
+    for (const part of leaks) {
       expect(text, `leaked: ${part}`).not.toContain(part);
     }
   });
