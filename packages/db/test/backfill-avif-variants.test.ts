@@ -226,6 +226,23 @@ describe("parseBackfillArgs", () => {
     });
   });
 
+  it("takes --verify only with --bucket, and never with --commit", () => {
+    expect(
+      parseBackfillArgs(["--prod", "--expect", "ep-x", "--verify", "--bucket", "photos"]),
+    ).toEqual({ kind: "verify", expect: "ep-x", bucket: "photos" });
+    expect(parseBackfillArgs(["--prod", "--expect", "ep-x", "--verify"])).toEqual({
+      kind: "refused",
+      reason: "--verify needs --bucket <name>, the bucket it checks (the dry run prints it)",
+    });
+    const both = {
+      kind: "refused",
+      reason:
+        "--verify only reads, so it never runs with --commit: run --commit first, then --verify",
+    };
+    expect(parseBackfillArgs(["--verify", "--commit", "--bucket", "photos"])).toEqual(both);
+    expect(parseBackfillArgs(["--commit", "--bucket", "photos", "--verify"])).toEqual(both);
+  });
+
   it("never echoes an argument that could be a pasted URL", () => {
     const refused = parseBackfillArgs(["postgres://user:secret@host/db"]);
     expect(refused.kind).toBe("refused");
@@ -302,11 +319,13 @@ describe("planAvifBackfill (the dry run: reads only)", () => {
       kind: "skip",
       storageKey: lost.storageKey,
       reason: "kept_source_missing",
+      missing: IMAGE_VARIANT_NAMES,
     });
     expect(byKey.get(nothing.storageKey)).toEqual({
       kind: "skip",
       storageKey: nothing.storageKey,
       reason: "no_source",
+      missing: IMAGE_VARIANT_NAMES,
     });
     expect(store.puts).toEqual([]);
     expect(store.objects).toEqual(before);
@@ -501,5 +520,138 @@ describe("runBackfill (the run past the database guards)", () => {
     expect(code).toBe(0);
     expect(store.puts.map((put) => put.key).sort()).toEqual(avifKeysOf(photo.storageKey).sort());
     expect(out.printed).toContain("Written: 5 AVIF objects");
+  });
+});
+
+/** The owner's gate for NEXT_PUBLIC_R2_AVIF (2026-11-16): every photo on a card has all five AVIF objects. */
+describe("runBackfill --verify (read only)", () => {
+  const lines = () => {
+    const printed: string[] = [];
+    return { printed, print: (line: string) => printed.push(line) };
+  };
+  const verify = (store: Bucket, print: (line: string) => void, bucketName = "photos") =>
+    runBackfill(
+      { kind: "verify", expect: undefined, bucket: "photos" },
+      { db, storage: store.storage, bucketName, print },
+    );
+  const withAllAvif = (store: Bucket, photos: readonly Stored[]) => {
+    for (const { storageKey } of photos) {
+      for (const key of avifKeysOf(storageKey)) store.objects.set(key, PLACEHOLDER);
+    }
+  };
+
+  it("passes with every AVIF variant present: 0 missing of M checked, exit 0", async () => {
+    const store = bucket();
+    withAllAvif(store, await animalWith(store, [RED_FRAME, null]));
+    const out = lines();
+
+    const code = await verify(store, out.print);
+
+    expect(code).toBe(0);
+    expect(out.printed).toEqual([
+      "Bucket: photos",
+      "VERIFY (nothing is written)",
+      "PASS: every photo on a card has all 5 AVIF variants in bucket photos.",
+      "0 missing of 2 checked",
+    ]);
+  });
+
+  it("lists a photo lacking one variant, with that variant, and exits 1", async () => {
+    const store = bucket();
+    const photos = await animalWith(store, [RED_FRAME, null, null]);
+    withAllAvif(store, photos);
+    const short = photos[1];
+    if (!short) throw new Error("fixture");
+    store.objects.delete(variantObjectKey(short.storageKey, "mid", "avif"));
+    const out = lines();
+
+    const code = await verify(store, out.print);
+
+    expect(code).toBe(1);
+    expect(out.printed.filter((line) => line.startsWith("  "))).toEqual([
+      `  ${short.storageKey}: missing mid; --commit writes them`,
+    ]);
+    expect(out.printed.at(-1)).toBe("1 missing of 3 checked");
+  });
+
+  it("lists a photo the backfill would skip with the reason, so its re-upload is known", async () => {
+    const store = bucket();
+    const [complete, lost, nothing] = await animalWith(store, [
+      { kind: "attention" },
+      { kind: "attention" },
+      null,
+    ]);
+    if (!complete || !lost || !nothing) throw new Error("fixture");
+    withAllAvif(store, [complete]);
+    store.objects.delete(lost.source?.sourceObjectKey ?? "");
+    store.objects.delete(variantObjectKey(nothing.storageKey, "detail", "webp"));
+    const out = lines();
+
+    const code = await verify(store, out.print);
+
+    expect(code).toBe(1);
+    const all = "thumb, card, detail, mid, compact";
+    expect(out.printed.filter((line) => line.startsWith("  ")).sort()).toEqual(
+      [
+        `  ${lost.storageKey}: missing ${all}; the backfill skips it (its kept source's row names an object the bucket lacks), so it needs a re-upload`,
+        `  ${nothing.storageKey}: missing ${all}; the backfill skips it (no kept source and no detail.webp), so it needs a re-upload`,
+      ].sort(),
+    );
+    expect(out.printed.at(-1)).toBe("2 missing of 3 checked");
+  });
+
+  it("checked no photos is a failure, never a pass", async () => {
+    const store = bucket();
+    const out = lines();
+
+    const code = await verify(store, out.print);
+
+    expect(code).toBe(1);
+    expect(out.printed.slice(-2)).toEqual([
+      "FAIL: checked no photos. An empty listing is never a pass: is DATABASE_URL the site's database?",
+      "0 missing of 0 checked",
+    ]);
+  });
+
+  it("only asks whether objects exist: no put, no get, no delete, the bucket unchanged", async () => {
+    const store = bucket();
+    const [complete, , lost] = await animalWith(store, [RED_FRAME, null, { kind: "attention" }]);
+    if (!complete || !lost) throw new Error("fixture");
+    withAllAvif(store, [complete]);
+    store.objects.delete(lost.source?.sourceObjectKey ?? "");
+    const before = new Map(store.objects);
+    const touched = new Set<string>();
+    const watched = new Proxy(store.storage, {
+      get(target, property, receiver) {
+        touched.add(String(property));
+        return Reflect.get(target, property, receiver);
+      },
+    });
+    const out = lines();
+
+    const code = await runBackfill(
+      { kind: "verify", expect: undefined, bucket: "photos" },
+      { db, storage: watched, bucketName: "photos", print: out.print },
+    );
+
+    expect(code).toBe(1);
+    expect([...touched]).toEqual(["exists"]);
+    expect(store.puts).toEqual([]);
+    expect(store.objects).toEqual(before);
+    expect(out.printed.at(-1)).toBe("2 missing of 3 checked");
+  });
+
+  it("a --bucket that isn't the configured one is refused before anything is read", async () => {
+    const store = bucket();
+    withAllAvif(store, await animalWith(store, [null]));
+    const out = lines();
+
+    const code = await verify(store, out.print, "photos-staging");
+
+    expect(code).toBe(1);
+    expect(store.reads).toEqual([]);
+    expect(out.printed).toEqual([
+      "REFUSED: --bucket does not name the configured bucket (R2_BUCKET_NAME is photos-staging). Nothing was read or written.",
+    ]);
   });
 });
