@@ -19,7 +19,8 @@ const inKabinet = (file: string) => KABINET_DIRS.some((dir) => file.startsWith(d
 const KABINET_LITERAL = String.raw`["'\x60]/kabinet(?![\w-])`;
 const DECLARATION = /^\s*(export\s+)?const\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=(.*)$/;
 const NAMED_IMPORT = /\bimport\s+(?:type\s+)?(?:[\w$]+\s*,\s*)?\{([^}]*)\}\s*from\b/g;
-const escapeName = (name: string) => name.replace(/\$/g, "\\$");
+// The full regex escape (backslash included), though an identifier only ever brings `$`.
+const escapeName = (name: string) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** A kabinet literal, or a name known to hold (or build) one, bare, in a template or on a namespace. */
 function kabinetValue(names: ReadonlySet<string>): string {
