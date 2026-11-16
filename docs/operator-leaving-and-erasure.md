@@ -72,7 +72,7 @@ agent to.
 8. **Photos and logo.** After step 7 nothing references them; the daily clean-up deletes them once they
    have sat unreferenced for 7 days. A run due to delete more than 100 photos or logos deletes none
    (`refused_over_cap` in the log); it counts photos, not their objects (11 each today: five variants
-   as WebP and as AVIF, and the kept source). So for a shelter with more than 100 photos and logo
+   as WebP and as AVIF, and the kept source; older photos have fewer). So for a shelter with more than 100 photos and logo
    together (crops count too), after the
    grace: `pnpm --filter @opika/db r2:cleanup --expect <production ep- id> --prod` (dry run, read the
    «Photos and logos among them» count), then the same with `--commit --max-photos <that count>`

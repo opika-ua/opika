@@ -126,7 +126,8 @@ owner: shelters can re-upload photos and logos. The protection is the clean-up j
 - one run refuses to delete more than 100 distinct photos or logos (`DEFAULT_MAX_PHOTOS_PER_RUN`, a day
   of uploads or crops; owner, 2026-11-16). It counts photos, not objects, so no format change moves it:
   a photo is eleven objects today (five variants as WebP and as AVIF plus the kept source), six if
-  stored before AVIF and not yet backfilled, and any object of no known shape counts as a photo of its
+  stored before AVIF and not yet backfilled, five if stored before kept sources, three before `mid` and
+  `compact`, and any object of no known shape counts as a photo of its
   own. Over the cap it deletes nothing, logs `refused_over_cap` with `duePhotos`, `dueObjects` and
   `capPhotos`, and the cron answers 500. The cron has no way to raise the cap. Only the CLI does, after
   someone has looked at why so much is due:

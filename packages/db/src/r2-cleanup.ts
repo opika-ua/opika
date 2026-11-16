@@ -142,8 +142,9 @@ export function parseCleanupArgs(argv: readonly string[]): CleanupArgs {
     }
     if (arg === "--max-photos") {
       const trimmed = args[i + 1]?.trim();
-      const n = trimmed === undefined || trimmed === "" ? Number.NaN : Number(trimmed);
-      if (!Number.isInteger(n) || n < 1) {
+      // Digits only: Number() would read "1e9" or "0x64" and switch the cap off by accident.
+      const n = trimmed !== undefined && /^[1-9]\d*$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+      if (!Number.isSafeInteger(n)) {
         return { kind: "refused", reason: "--max-photos needs a positive whole number after it" };
       }
       if (maxPhotos !== undefined) {

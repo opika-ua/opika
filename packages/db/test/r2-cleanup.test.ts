@@ -540,14 +540,25 @@ describe("parseCleanupArgs", () => {
     });
   });
 
-  it("reads --max-photos, and refuses a missing, zero, fractional or repeated value", () => {
+  it("reads --max-photos, and refuses a missing, zero, fractional, non-decimal, unsafe or repeated value", () => {
     expect(parseCleanupArgs(argv("--expect", "ep-x", "--commit", "--max-photos", "500"))).toEqual({
       kind: "ok",
       commit: true,
       graceDays: undefined,
       maxPhotos: 500,
     });
-    for (const bad of [[], ["0"], ["1.5"], ["abc"], [""]]) {
+    for (const bad of [
+      [],
+      ["0"],
+      ["1.5"],
+      ["abc"],
+      [""],
+      ["1e9"],
+      ["0x64"],
+      ["5.0"],
+      ["-5"],
+      ["9007199254740993"],
+    ]) {
       expect(parseCleanupArgs(argv("--expect", "ep-x", "--max-photos", ...bad)).kind).toBe(
         "refused",
       );
