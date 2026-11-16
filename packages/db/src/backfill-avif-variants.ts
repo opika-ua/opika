@@ -15,7 +15,8 @@
  * `PROD_NEON_ENDPOINT`; R2 with the operator's onboarding token, never Vercel's):
  *   pnpm --filter @opika/db avif:backfill --prod --expect ep-…                          dry run
  *   pnpm --filter @opika/db avif:backfill --prod --expect ep-… --commit --bucket <name>  writes
- * A local target takes neither `--prod` nor `--expect`.
+ * A local target takes neither `--prod` nor `--expect`. Not on production before the PR that caps the
+ * R2 clean-up at 100 distinct photos a run (owner, 2026-11-16): until then a run may delete ~183.
  *
  * Refuses, with nothing read, an argument it doesn't take, what the production guard refuses
  * (`assertProductionWriteAllowed`), a non-local target that isn't exactly `--expect`

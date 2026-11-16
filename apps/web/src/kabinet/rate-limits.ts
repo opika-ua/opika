@@ -53,7 +53,8 @@ export const PHOTO_UPLOAD_RATE_LIMITS = {
 /**
  * Every upload and every crop attempt, landed or not, taken before its work and never given back
  * (owner: crops 2026-11-12, uploads 2026-11-16). A shelter's photo work is at most 90 upload
- * attempts + 30 crop attempts an hour (450 + 150 a day), whatever fails.
+ * attempts + 30 crop attempts an hour (450 + 150 a day), whatever fails. A logo upload still spends
+ * the shared allowance before its work, so logos add at most 60 an hour (300 a day) on top.
  */
 export const PHOTO_UPLOAD_ATTEMPT_LIMITS = {
   perHour: { windowMs: 60 * 60_000, maxRequests: 90 },

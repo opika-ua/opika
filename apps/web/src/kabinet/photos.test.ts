@@ -737,6 +737,22 @@ describe("who may upload", () => {
     expect((await reload(theirs.id)).photos).toEqual([photo(1)]);
     expect(await photoHistory(other)).toEqual([]);
   });
+
+  it("an upload naming another shelter's animal spends an attempt before the ownership lookup, none of the allowance", async () => {
+    const theirs = await animal({ photos: [photo(1)] }, other);
+    const count = ledgers();
+    const { uploads } = uploadsOn(undefined, count.limiters);
+    const result = await call(
+      "shelter.photos.add",
+      { animalId: theirs.id, file: await jpeg() },
+      { uploads },
+    );
+    expect(result.status).toBe(404);
+    expect([count.allowance(), count.attempts()]).toEqual([
+      [0, 0],
+      [1, 1],
+    ]);
+  });
 });
 
 describe("shelter.photos.reorder (P-Q3, P-Q9)", () => {
