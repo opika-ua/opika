@@ -4,8 +4,8 @@
  * password)"): an existing shelter admin with no password asks for a reset link, sets a password
  * on the reset page, signs in with it, and changes it in the cabinet. Every element is found by
  * role, label or text; nothing is measured. The headers and the address bar are checked as
- * behaviour (Oleksii, 2026-10-20: no-store and no-referrer on a token page; the token out of the
- * address bar).
+ * behaviour (Oleksii, 2026-10-20: no-store on a token page and the token out of the address bar;
+ * owner, 2026-11-16: `strict-origin` on all of /kabinet).
  *
  * On the sign-in server (`sign-in-server.ts`), whose console password mail prints the reset
  * link to its stdout, the channel local development uses. The link is a credential, even a test
@@ -100,11 +100,11 @@ test.describe("shelter passwords, end to end (PW-1)", () => {
     );
     const link = await server.resetLinkFor(email);
 
-    // The reset page: never cached, no referrer, and the token out of the address bar.
+    // The reset page: never cached, the origin alone as referrer, and the token out of the address bar.
     const shown = await page.goto(link);
     expect(shown?.status()).toBe(200);
     expect(shown?.headers()["cache-control"] ?? "").toContain("no-store");
-    expect(shown?.headers()["referrer-policy"]).toBe("no-referrer");
+    expect(shown?.headers()["referrer-policy"]).toBe("strict-origin");
     await expect(page.getByRole("heading", { level: 1, name: "Новий пароль" })).toBeVisible();
     await expect.poll(() => page.url().includes("token=")).toBe(false);
     expect(new URL(page.url()).pathname).toBe("/kabinet/vkhid/novyi-parol");

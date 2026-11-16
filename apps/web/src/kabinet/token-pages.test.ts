@@ -4,8 +4,8 @@ import { TOKEN_PAGE_PATHS } from "./token-pages";
 
 /**
  * Oleksii, 2026-10-20, verbatim: "On /kabinet/vkhid* pages that carry a token: Cache-Control:
- * no-store and Referrer-Policy: no-referrer." The reset link's page gets both from the proxy,
- * which every page load passes; driven through the real `proxy`.
+ * no-store and Referrer-Policy: no-referrer." `no-store` comes from the proxy, driven here through
+ * the real `proxy`; `no-referrer` from next.config on every kabinet page (`security-headers.test.ts`).
  */
 describe("the token pages' headers, set by the proxy", () => {
   beforeEach(() => {
@@ -25,12 +25,13 @@ describe("the token pages' headers, set by the proxy", () => {
     );
   };
 
-  it("the reset page answers no-store and no-referrer, with or without its token", async () => {
+  it("the reset page answers no-store, with or without its token", async () => {
     expect(TOKEN_PAGE_PATHS).toEqual(["/kabinet/vkhid/novyi-parol"]);
     for (const path of ["/kabinet/vkhid/novyi-parol?token=abc123", "/kabinet/vkhid/novyi-parol"]) {
       const response = await load(path);
       expect(response.headers.get("cache-control"), path).toBe("no-store");
-      expect(response.headers.get("referrer-policy"), path).toBe("no-referrer");
+      // One source for the policy: a second one could disagree with next.config's.
+      expect(response.headers.get("referrer-policy"), path).toBeNull();
     }
   });
 
@@ -40,7 +41,7 @@ describe("the token pages' headers, set by the proxy", () => {
    * strict-origin (PW1-Q1)." The invitation link's form posts by `fetch`, so it gets both,
    * whatever the parameter holds.
    */
-  it("the invitation link's page answers no-store and no-referrer, whatever its parameter holds", async () => {
+  it("the invitation link's page answers no-store, whatever its parameter holds", async () => {
     for (const path of [
       `/kabinet/vkhid?zaproshennia=${"A".repeat(43)}`,
       "/kabinet/vkhid?zaproshennia=",
@@ -48,7 +49,7 @@ describe("the token pages' headers, set by the proxy", () => {
     ]) {
       const response = await load(path);
       expect(response.headers.get("cache-control"), path).toBe("no-store");
-      expect(response.headers.get("referrer-policy"), path).toBe("no-referrer");
+      expect(response.headers.get("referrer-policy"), path).toBeNull();
     }
   });
 

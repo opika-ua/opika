@@ -81,9 +81,8 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
     return new NextResponse("Too Many Requests", { status: 429 });
   }
   const response = NextResponse.next();
-  // A sign-in page whose URL carries a credential (a reset link's token, an invitation link's):
-  // never cached, and no referrer sent anywhere (Oleksii, 2026-10-20, verbatim in
-  // `kabinet/token-pages.ts`).
+  // A sign-in page whose URL carries a credential (a reset link's token, an invitation link's) is
+  // never cached. Its Referrer-Policy comes from next.config alone (`kabinet/token-pages.ts`).
   if (isTokenPage(request.nextUrl)) {
     for (const [name, value] of Object.entries(TOKEN_PAGE_HEADERS))
       response.headers.set(name, value);

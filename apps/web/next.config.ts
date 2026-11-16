@@ -2,7 +2,7 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 import { assertBuildEnv } from "./src/api/build-env";
 import { sentryBuildOptions } from "./src/observability/build-options";
-import { REFERRER_POLICY_RULE, securityHeaders } from "./src/security-headers";
+import { cspReportingRules, REFERRER_POLICY_RULES, securityHeaders } from "./src/security-headers";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "./src/seo-flags";
 
 /**
@@ -89,17 +89,19 @@ const nextConfig: NextConfig = {
    * route regardless of that flag.
    */
   async headers() {
-    const security = {
-      source: "/:path*",
-      headers: securityHeaders({
-        photoBaseUrl: process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
-        development: process.env.NODE_ENV === "development",
-      }),
+    const policy = {
+      photoBaseUrl: process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
+      development: process.env.NODE_ENV === "development",
     };
-    if (SITE_IS_PUBLICLY_DISCOVERABLE) return [security, REFERRER_POLICY_RULE];
+    // Order matters: for the same key, the last matching rule's value wins.
+    const security = [
+      { source: "/:path*", headers: securityHeaders(policy) },
+      ...REFERRER_POLICY_RULES,
+      ...cspReportingRules(policy, process.env.NEXT_PUBLIC_SENTRY_DSN),
+    ];
+    if (SITE_IS_PUBLICLY_DISCOVERABLE) return security;
     return [
-      security,
-      REFERRER_POLICY_RULE,
+      ...security,
       {
         source: "/:path*",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],

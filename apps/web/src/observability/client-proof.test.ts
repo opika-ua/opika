@@ -80,6 +80,38 @@ describe.each([
   });
 });
 
+describe("an invitation link's token (owner, 2026-11-16)", () => {
+  const SECRET = "INVITE-SECRET-123";
+  const LINK = `https://opika.org.ua/kabinet/vkhid?zaproshennia=${SECRET}`;
+
+  afterEach(() => window.history.replaceState(null, "", "/"));
+
+  it("is nowhere in an error event, whose request.url and transaction carried it", async () => {
+    window.history.replaceState(null, "", `/kabinet/vkhid?zaproshennia=${SECRET}`);
+    const sent = recordingTransport();
+    initClientSentry(DSN, { transport: sent.transport });
+    Sentry.captureEvent({
+      message: "boom",
+      request: { url: LINK },
+      transaction: LINK,
+      exception: { values: [{ type: "Error", value: "boom" }] },
+    });
+    // The SDK's own request.url, read from the page's address.
+    Sentry.captureException(new Error("boom"));
+    await Sentry.flush(2000);
+
+    const events = sent.envelopes.flatMap(([, items]) =>
+      items.map(([, payload]) => payload as { request?: { url?: string }; transaction?: string }),
+    );
+    expect(events).toHaveLength(2);
+    expect(sent.json()).not.toContain(SECRET);
+    expect(sent.json()).not.toContain("zaproshennia");
+    expect(events[0]?.request?.url).toBe("https://opika.org.ua/kabinet/vkhid");
+    expect(events[0]?.transaction).toBe("https://opika.org.ua/kabinet/vkhid");
+    expect(events[1]?.request?.url).toMatch(/^https?:\/\/[^?#]*\/kabinet\/vkhid$/);
+  });
+});
+
 describe("the browser SDK as configured", () => {
   it("sends only error events: no transaction, span, session or replay", async () => {
     const sent = recordingTransport();

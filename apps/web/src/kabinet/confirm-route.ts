@@ -22,22 +22,12 @@ import type { AcceptInvitation, InvitationAcceptOutcome } from "./invitation-acc
  */
 
 /**
- * On every response: the URL carries a credential.
- *
- * `strict-origin`, not `no-referrer` (IN-T8, Oleksii 2026-10-14). Under
- * `no-referrer` a browser sends `Origin: null` on the «Увійти» form POST, so
- * the Origin check below refused every real sign-in. `strict-origin` sends
- * only the origin, never the path or query (so never the token), to every
- * site including our own, and the POST then carries a real Origin. Not
- * `same-origin`: that sends the full URL, token included, as the Referer of
- * our own POST and into our own request logs.
+ * On every response: the URL carries a credential. No Referrer-Policy here: next.config sends
+ * `strict-origin` on all of /kabinet (owner 2026-11-16, superseding PW1-Q1 (a)), one value only.
  */
-export const CREDENTIAL_PAGE_REFERRER_POLICY = "strict-origin";
-
 export const CONFIRM_HEADERS = {
   "cache-control": "no-store",
   "x-robots-tag": "noindex, nofollow",
-  "referrer-policy": CREDENTIAL_PAGE_REFERRER_POLICY,
 } as const;
 
 /**
@@ -178,7 +168,7 @@ export async function handleKabinetConfirm(
   // the visitor into the attacker's account. Browsers send Origin on every
   // form POST; a request without one, or with `Origin: null`, is refused too.
   // A real Origin arrives only because the page's Referrer-Policy is not
-  // `no-referrer` (CONFIRM_HEADERS, IN-T8): `test/harness/kabinet-confirm.harness.ts`
+  // `no-referrer` (IN-T8; `strict-origin` from next.config): `test/harness/kabinet-confirm.harness.ts`
   // drives a real browser through it.
   if (!isSameOriginPost(request.headers.get("origin"), deps.availability.baseURL)) {
     return plain("Forbidden", 403);

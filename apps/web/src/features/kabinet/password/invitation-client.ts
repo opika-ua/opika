@@ -7,8 +7,8 @@ import { PASSWORD_REFUSAL_CODES, type PasswordRefusal } from "../../../kabinet/p
 /**
  * The browser's one call on the invitation link's page (PW-2): `invitation.acceptWithPassword`,
  * the contract's own object, so its `invitation_link` access meta comes with it. Same origin, so
- * the kabinet route's Origin check applies; under the page's `no-referrer` a `fetch` still sends
- * its real Origin (the harness checks it in Chromium).
+ * the kabinet route's Origin check applies; under the kabinet's `strict-origin` a `fetch` sends its
+ * real Origin (the harness checks it in Chromium).
  */
 const browserContract = {
   invitation: { acceptWithPassword: invitationContract.invitation.acceptWithPassword },

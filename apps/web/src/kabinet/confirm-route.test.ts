@@ -4,10 +4,10 @@ import { uk } from "@opika/i18n";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { ipRateLimitKey } from "../api/rate-limit-key";
+import { KABINET_REFERRER_POLICY } from "../security-headers";
 import { CONFIRM_PATH, createKabinetAuth, type KabinetAuth } from "./auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "./auth-route";
 import {
-  CREDENTIAL_PAGE_REFERRER_POLICY,
   handleKabinetConfirm,
   isSameOriginPost,
   STRIP_TOKEN_FROM_ADDRESS_BAR,
@@ -143,11 +143,12 @@ function expectConfirmHeaders(response: Response) {
   expect({
     cacheControl: response.headers.get("cache-control"),
     robots: response.headers.get("x-robots-tag"),
+    // next.config's `strict-origin` is the one value (owner, 2026-11-16); a second here could differ.
     referrer: response.headers.get("referrer-policy"),
   }).toEqual({
     cacheControl: "no-store",
     robots: "noindex, nofollow",
-    referrer: "strict-origin",
+    referrer: null,
   });
 }
 
@@ -302,27 +303,74 @@ describe("login CSRF (IN-T7)", () => {
 });
 
 /**
- * Oleksii, 2026-10-20, verbatim: "PW1-Q1: (a). Use strict-origin on pages whose button submits an
- * ordinary form (the magic-link confirm page), and no-referrer everywhere else as specified (the
- * reset page included). … Add a test that the confirm page's form submission passes IN-T8, so this
- * can't regress." A browser's Origin on a same-origin form POST (Fetch, "append a request Origin
- * header"): `null` under `no-referrer`, the page's origin under a policy that sends one. The harness
- * (`kabinet-confirm.harness.ts`) drives a real browser through the same POST.
+ * Owner, 2026-11-16 (superseding PW1-Q1 (a)): `strict-origin` on all of /kabinet, the confirm page
+ * included. A browser's Origin on a same-origin form POST (Fetch, "append a request Origin header") is
+ * `null` under `no-referrer` and the page's origin under `strict-origin`, so the «Увійти» POST still
+ * passes IN-T8. The harness (`kabinet-confirm.harness.ts`) drives a real browser through it.
  */
-describe("the confirm page's own Referrer-Policy and IN-T8 (PW1-Q1)", () => {
+describe("the kabinet's Referrer-Policy and the «Увійти» POST (IN-T8)", () => {
+  const SITE = "https://opika.org.ua";
+  const onTheSite: KabinetAuthAvailability = {
+    kind: "available",
+    passwordMail: capturingPasswordMail(),
+    sender: capturingSender(),
+    invites: capturingInvitationSender(),
+    secret: "unused-here",
+    baseURL: SITE,
+  };
   const originOfFormPost = (policy: string, pageOrigin: string): string =>
     policy === "no-referrer" ? "null" : pageOrigin;
 
-  it("under the confirm page's policy, the «Увійти» POST keeps an Origin that passes the check", () => {
-    expect(CREDENTIAL_PAGE_REFERRER_POLICY).not.toBe("no-referrer");
-    expect(isSameOriginPost(originOfFormPost(CREDENTIAL_PAGE_REFERRER_POLICY, BASE), BASE)).toBe(
-      true,
+  /** Better Auth's answer to a good token, stubbed: these cases are about the Origin check alone. */
+  function postOnTheSite(origin: string | null) {
+    const verified: string[] = [];
+    const signedIn = {
+      handler: async (request: Request) => {
+        verified.push(new URL(request.url).pathname);
+        return new Response(JSON.stringify({ user: { id: "user-1" } }), {
+          status: 200,
+          headers: { "set-cookie": "kabinet.session_token=abc; Path=/; HttpOnly" },
+        });
+      },
+    } as unknown as KabinetAuth;
+    const response = handleKabinetConfirm(
+      new Request(`${SITE}${CONFIRM_PATH}`, {
+        method: "POST",
+        headers: origin === null ? {} : { origin },
+        body: new URLSearchParams({ token: "A".repeat(32) }),
+      }),
+      {
+        availability: onTheSite,
+        auth: () => signedIn,
+        acceptInvitation: async () => ({ kind: "nothing_to_accept" }),
+      },
     );
+    return { response, verified };
+  }
+
+  it("under the kabinet's policy, a browser's form POST keeps an Origin that passes the check", () => {
+    expect(KABINET_REFERRER_POLICY).toBe("strict-origin");
+    expect(isSameOriginPost(originOfFormPost(KABINET_REFERRER_POLICY, SITE), SITE)).toBe(true);
+    // Why not `no-referrer`: the same POST would carry `Origin: null` and be refused.
+    expect(isSameOriginPost(originOfFormPost("no-referrer", SITE), SITE)).toBe(false);
   });
 
-  it("under no-referrer the same POST would be refused: why this page alone keeps strict-origin", () => {
-    expect(isSameOriginPost(originOfFormPost("no-referrer", BASE), BASE)).toBe(false);
+  it("a POST with the site's real Origin passes the check and signs in", async () => {
+    const { response, verified } = postOnTheSite(SITE);
+    const answered = await response;
+    expect(answered.status).toBe(303);
+    expect(answered.headers.get("location")).toBe("/kabinet");
+    expect(verified).toEqual(["/api/auth/magic-link/verify"]);
   });
+
+  it.each([null, "null", "https://evil.example", "http://opika.org.ua"])(
+    "a POST with Origin %s is refused before the verify runs",
+    async (origin) => {
+      const { response, verified } = postOnTheSite(origin);
+      expect((await response).status).toBe(403);
+      expect(verified).toEqual([]);
+    },
+  );
 });
 
 /** Production with sign-in off: the harness's own case (`next start` off Vercel). */
@@ -333,7 +381,7 @@ const OFF_IN_PRODUCTION = {
 } as const;
 
 describe("headers on every response", () => {
-  it("no-store, noindex and strict-origin on the GET, the 303, the 400, the 403, the 404 and the 405", async () => {
+  it("no-store and noindex, and no Referrer-Policy of its own, on the GET, the 303, the 400, the 403, the 404 and the 405", async () => {
     const link = await emailedLink();
     const responses = [
       await handleKabinetConfirm(new Request(link), deps()),

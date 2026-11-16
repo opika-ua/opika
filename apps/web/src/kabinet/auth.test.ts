@@ -1216,7 +1216,8 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
     // transcribed here, not read from the catalogue.
     const card = await refused.text();
     expect(refused.headers.get("cache-control")).toBe("no-store");
-    expect(refused.headers.get("referrer-policy")).toBe("strict-origin");
+    // next.config sends the kabinet's one Referrer-Policy; the handler sets none (owner, 2026-11-16).
+    expect(refused.headers.get("referrer-policy")).toBeNull();
     expect(card).toContain(
       '<p role="alert">Забагато спроб входу за короткий час. Посилання ще дійсне – зачекайте хвилину й знову натисніть «Увійти».</p>',
     );
