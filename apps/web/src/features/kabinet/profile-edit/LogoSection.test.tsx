@@ -1,6 +1,6 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LogoSection } from "./LogoSection";
 
 // A set logo renders a real next/image, through ShelterLogoAvatar. next/image's
@@ -15,6 +15,10 @@ vi.mock("next/image", () => ({
 }));
 
 describe("LogoSection", () => {
+  // A logo key resolves to its one CDN URL before next/image (`logoPhotoUrl`), as in production.
+  beforeEach(() => vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL", "https://cdn.opika.org.ua"));
+  afterEach(() => vi.unstubAllEnvs());
+
   it("offers «Додати логотип» when there's no logo yet", () => {
     render(
       <LogoSection
