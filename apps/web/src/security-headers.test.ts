@@ -219,18 +219,32 @@ describe("next.config.ts headers(), as Next sends them", () => {
     },
   );
 
-  it("with a DSN, every allowlisted page reports to Sentry's security endpoint, both ways", async () => {
+  it("with a DSN, every allowlisted page reports to Sentry's security endpoint through the Reporting API only", async () => {
     const sent = await headersUnder(DSN, true);
     for (const url of REPORTING) {
       const headers = sent(url);
       expect(headers.get("reporting-endpoints"), url).toBe(`csp-endpoint="${REPORT_URL}"`);
       const policy = directivesOf(headers.get("content-security-policy-report-only"));
-      expect(policy.get("report-uri"), url).toEqual([REPORT_URL]);
       expect(policy.get("report-to"), url).toEqual(["csp-endpoint"]);
+      // No report-uri: WebKit's report-uri posts carry the full User-Agent (owner, 2026-11-16).
+      expect(policy.has("report-uri"), url).toBe(false);
+      expect(headers.get("content-security-policy-report-only"), url).not.toContain(REPORT_URL);
       // The same policy as everywhere else, only with somewhere to report.
-      policy.delete("report-uri");
       policy.delete("report-to");
       expect(policy, url).toEqual(directivesOf(SITE_WIDE_REPORT_ONLY));
+    }
+  });
+
+  it.each([
+    ["with a DSN", DSN],
+    ["without a DSN", undefined],
+  ])("%s, no route's policy names a report-uri", async (_label, dsn) => {
+    const sent = await headersUnder(dsn, true);
+    for (const url of [...REPORTING, ...NOT_REPORTING]) {
+      const headers = sent(url);
+      for (const key of ["content-security-policy", "content-security-policy-report-only"]) {
+        expect(directivesOf(headers.get(key) ?? "").has("report-uri"), `${url} ${key}`).toBe(false);
+      }
     }
   });
 

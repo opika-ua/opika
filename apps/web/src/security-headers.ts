@@ -68,8 +68,10 @@ const CSP_REPORT_GROUP = "csp-endpoint";
 
 /**
  * The site-wide report-only policy plus where to report, on the allowlisted pages; listed after the
- * site-wide rule, so it replaces that value there. `report-uri` too: Firefox and Safari have no
- * Reporting API. No usable DSN, no rules: nothing reports anywhere.
+ * site-wide rule, so it replaces that value there. `report-to` only, no `report-uri` (owner,
+ * 2026-11-16): WebKit's report-uri posts carry the full User-Agent, and Sentry derives device model
+ * and OS from it before any scrubbing, so Safari, Firefox and iOS in-app views report nothing, by
+ * choice (docs/security.md). No usable DSN, no rules: nothing reports anywhere.
  */
 export function cspReportingRules(
   options: SecurityHeaderOptions,
@@ -82,7 +84,7 @@ export function cspReportingRules(
     headers: [
       {
         key: "Content-Security-Policy-Report-Only",
-        value: `${reportOnlyPolicy(options)}; report-uri ${reportUrl}; report-to ${CSP_REPORT_GROUP}`,
+        value: `${reportOnlyPolicy(options)}; report-to ${CSP_REPORT_GROUP}`,
       },
       { key: "Reporting-Endpoints", value: `${CSP_REPORT_GROUP}="${reportUrl}"` },
     ],
