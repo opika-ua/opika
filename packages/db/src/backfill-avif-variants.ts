@@ -15,14 +15,17 @@
  * `PROD_NEON_ENDPOINT`; R2 with the operator's onboarding token, never Vercel's):
  *   pnpm --filter @opika/db avif:backfill --prod --expect ep-…                          dry run
  *   pnpm --filter @opika/db avif:backfill --prod --expect ep-… --commit --bucket <name>  writes
+ *   pnpm --filter @opika/db avif:backfill --prod --expect ep-… --verify --bucket <name>  checks
+ * `--verify`, after the commit, is the gate for `NEXT_PUBLIC_R2_AVIF` (owner, 2026-11-16): read only,
+ * it lists every photo lacking any AVIF variant and exits 0 only on `0 missing of M checked`, M > 0.
  * A local target takes neither `--prod` nor `--expect`. Production prerequisite: the R2 clean-up capping a
  * run at 100 distinct photos (owner, 2026-11-16) merged and deployed, so the objects this adds can't widen it.
  *
  * Refuses, with nothing read, an argument it doesn't take, what the production guard refuses
  * (`assertProductionWriteAllowed`), a non-local target that isn't exactly `--expect`
- * (`migrateTargetCheck`, as `db:migrate` checks it), and `--commit` without a `--bucket` equal to
- * `R2_BUCKET_NAME`: the database guard says nothing about which bucket is written. The database
- * is only read; a photo that leaves its card during the run gets no AVIF objects.
+ * (`migrateTargetCheck`, as `db:migrate` checks it), `--commit` or `--verify` without a `--bucket`
+ * equal to `R2_BUCKET_NAME` (the database guard says nothing about which bucket is meant), and the
+ * two together. The database is only read; a photo that leaves its card during the run gets no AVIF objects.
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -50,17 +53,19 @@ import { type PhotoSource, photoSourcesRepo } from "./repos/photo-sources-repo";
 import { referencedStorageKeys } from "./repos/r2-cleanup-repo";
 
 const COMMIT_FLAG = "--commit";
+const VERIFY_FLAG = "--verify";
 const BUCKET_FLAG = "--bucket";
-const ARGUMENTS_TAKEN = `${PROD_FLAG}, ${EXPECT_FLAG} <ep>, ${COMMIT_FLAG} and ${BUCKET_FLAG} <name>`;
+const ARGUMENTS_TAKEN = `${PROD_FLAG}, ${EXPECT_FLAG} <ep>, ${COMMIT_FLAG}, ${VERIFY_FLAG} and ${BUCKET_FLAG} <name>`;
 /** A flag's spelling is echoed in a refusal; anything else might be a pasted URL, so it never is. */
 const FLAG_SPELLING = /^-{1,2}[A-Za-z][A-Za-z0-9-]*$/;
 /** HEAD requests in flight while planning; the writes run one photo at a time. */
 const PLAN_CONCURRENCY = 8;
 
-/** A dry run may name the bucket; a commit must, so the bucket it writes is typed, not assumed. */
+/** A dry run may name the bucket; a commit or a verify must, so the bucket meant is typed, not assumed. */
 export type BackfillArgs =
   | { kind: "dry_run"; expect: string | undefined; bucket: string | undefined }
   | { kind: "commit"; expect: string | undefined; bucket: string }
+  | { kind: "verify"; expect: string | undefined; bucket: string }
   | { kind: "refused"; reason: string };
 
 export type BackfillRun = Exclude<BackfillArgs, { kind: "refused" }>;
@@ -70,11 +75,16 @@ export function parseBackfillArgs(args: readonly string[]): BackfillArgs {
   let expect: string | undefined;
   let bucket: string | undefined;
   let commit = false;
+  let verify = false;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i] ?? "";
     if (arg === PROD_FLAG) continue;
     if (arg === COMMIT_FLAG) {
       commit = true;
+      continue;
+    }
+    if (arg === VERIFY_FLAG) {
+      verify = true;
       continue;
     }
     if (arg === EXPECT_FLAG || arg === BUCKET_FLAG) {
@@ -96,14 +106,21 @@ export function parseBackfillArgs(args: readonly string[]): BackfillArgs {
       : `argument ${i + 1} is not one this script takes`;
     return { kind: "refused", reason: `${what}; it takes ${ARGUMENTS_TAKEN}` };
   }
-  if (!commit) return { kind: "dry_run", expect, bucket };
-  if (bucket === undefined) {
+  if (commit && verify) {
     return {
       kind: "refused",
-      reason: `${COMMIT_FLAG} needs ${BUCKET_FLAG} <name>, the bucket it writes to (the dry run prints it)`,
+      reason: `${VERIFY_FLAG} only reads, so it never runs with ${COMMIT_FLAG}: run ${COMMIT_FLAG} first, then ${VERIFY_FLAG}`,
     };
   }
-  return { kind: "commit", expect, bucket };
+  if (!commit && !verify) return { kind: "dry_run", expect, bucket };
+  if (bucket === undefined) {
+    const [flag, what] = commit ? [COMMIT_FLAG, "writes to"] : [VERIFY_FLAG, "checks"];
+    return {
+      kind: "refused",
+      reason: `${flag} needs ${BUCKET_FLAG} <name>, the bucket it ${what} (the dry run prints it)`,
+    };
+  }
+  return { kind: commit ? "commit" : "verify", expect, bucket };
 }
 
 export type BackfillStorage = ImageStorageClient & ObjectExistence;
@@ -119,7 +136,12 @@ export type CutFrom = {
 export type PhotoPlan =
   | { kind: "done"; storageKey: string }
   | { kind: "write"; storageKey: string; from: CutFrom; missing: readonly ImageVariantName[] }
-  | { kind: "skip"; storageKey: string; reason: SkipReason };
+  | {
+      kind: "skip";
+      storageKey: string;
+      reason: SkipReason;
+      missing: readonly ImageVariantName[];
+    };
 
 export type SkipReason = "no_source" | "kept_source_missing" | "frame_refused";
 
@@ -157,13 +179,15 @@ async function planPhoto(
 
   if (source !== null) {
     if (!(await storage.exists(source.sourceObjectKey))) {
-      return { kind: "skip", storageKey, reason: "kept_source_missing" };
+      return { kind: "skip", storageKey, reason: "kept_source_missing", missing };
     }
     const size = { width: source.width, height: source.height };
     let cut: VariantCut = { kind: "attention" };
     if (source.framing.kind === "frame") {
       const box = frameBoxOf(source.framing.frame, size);
-      if (box.kind === "rejected") return { kind: "skip", storageKey, reason: "frame_refused" };
+      if (box.kind === "rejected") {
+        return { kind: "skip", storageKey, reason: "frame_refused", missing };
+      }
       cut = { kind: "frame", box: box.box };
     }
     const from: CutFrom = { path: "kept_source", objectKey: source.sourceObjectKey, size, cut };
@@ -171,7 +195,9 @@ async function planPhoto(
   }
 
   const detail = variantObjectKey(storageKey, "detail", "webp");
-  if (!(await storage.exists(detail))) return { kind: "skip", storageKey, reason: "no_source" };
+  if (!(await storage.exists(detail))) {
+    return { kind: "skip", storageKey, reason: "no_source", missing };
+  }
   const from: CutFrom = {
     path: "detail_variant",
     objectKey: detail,
@@ -267,6 +293,47 @@ export function formatPlan(plans: readonly PhotoPlan[]): string[] {
   ];
 }
 
+type IncompletePlan = Exclude<PhotoPlan, { kind: "done" }>;
+
+/**
+ * `--verify`'s report, the gate for `NEXT_PUBLIC_R2_AVIF`: each photo lacking any AVIF variant, then
+ * `N missing of M checked`. Passes only with none missing and at least one photo checked.
+ */
+export function formatVerification(
+  plans: readonly PhotoPlan[],
+  bucketName: string,
+): { lines: string[]; exitCode: 0 | 1 } {
+  const incomplete = plans.filter((plan): plan is IncompletePlan => plan.kind !== "done");
+  const checked = plans.length;
+  // An empty listing (the wrong database, say) must never read as a pass.
+  const passed = checked > 0 && incomplete.length === 0;
+  const lines: string[] = [];
+  if (incomplete.length > 0) lines.push("Photos missing AVIF variants:");
+  for (const plan of incomplete) {
+    const missing = `missing ${plan.missing.join(", ")}`;
+    lines.push(
+      plan.kind === "skip"
+        ? `  ${plan.storageKey}: ${missing}; the backfill skips it (${SKIP_TEXT[plan.reason]}), so it needs a re-upload`
+        : `  ${plan.storageKey}: ${missing}; ${COMMIT_FLAG} writes them`,
+    );
+  }
+  if (checked === 0) {
+    lines.push(
+      "FAIL: checked no photos. An empty listing is never a pass: is DATABASE_URL the site's database?",
+    );
+  } else if (passed) {
+    lines.push(
+      `PASS: every photo on a card has all ${IMAGE_VARIANT_NAMES.length} AVIF variants in bucket ${bucketName}.`,
+    );
+  } else {
+    lines.push(
+      `FAIL: ${incomplete.length} of ${checked} photos lack AVIF variants in bucket ${bucketName}; leave NEXT_PUBLIC_R2_AVIF unset.`,
+    );
+  }
+  lines.push(`${incomplete.length} missing of ${checked} checked`);
+  return { lines, exitCode: passed ? 0 : 1 };
+}
+
 export type Print = (line: string) => void;
 
 /** stdout and stderr, written to directly: the Biome ratchet counts every `console` call. */
@@ -283,7 +350,7 @@ export type BackfillDeps = {
 
 /**
  * One run past the database guards: refuses a `--bucket` that isn't the configured one before
- * anything is read, prints the bucket and the plan, and writes only for `--commit`.
+ * anything is read, prints the bucket and the plan (or `--verify`'s report), and writes only for `--commit`.
  */
 export async function runBackfill(run: BackfillRun, deps: BackfillDeps): Promise<0 | 1> {
   if (run.bucket !== undefined && run.bucket !== deps.bucketName) {
@@ -294,6 +361,12 @@ export async function runBackfill(run: BackfillRun, deps: BackfillDeps): Promise
   }
   deps.print(`Bucket: ${deps.bucketName}`);
   const plans = await planAvifBackfill(deps.storage, await loadBackfillPhotos(deps.db));
+  if (run.kind === "verify") {
+    deps.print("VERIFY (nothing is written)");
+    const { lines, exitCode } = formatVerification(plans, deps.bucketName);
+    for (const line of lines) deps.print(line);
+    return exitCode;
+  }
   deps.print(run.kind === "commit" ? "COMMIT" : "DRY RUN (nothing is written)");
   for (const line of formatPlan(plans)) deps.print(line);
   if (run.kind === "dry_run") {
@@ -312,7 +385,9 @@ export async function runBackfill(run: BackfillRun, deps: BackfillDeps): Promise
     deps.print(`Failed (nothing of theirs overwritten; re-run to retry): ${result.failed.length}`);
     for (const { storageKey, message } of result.failed) deps.print(`  ${storageKey}: ${message}`);
   }
-  deps.print("Done. Run the dry run again: every photo should already have its AVIF variants.");
+  deps.print(
+    `Done. Now run ${VERIFY_FLAG} ${BUCKET_FLAG} ${deps.bucketName}: NEXT_PUBLIC_R2_AVIF waits for its 0 missing.`,
+  );
   return result.failed.length > 0 ? 1 : 0;
 }
 
