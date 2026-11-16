@@ -1,8 +1,52 @@
 import { centredBox, type PixelBox } from "@opika/domain";
-import sharp, { type SharpOptions } from "sharp";
+import sharp, { type Sharp, type SharpOptions } from "sharp";
 import { displayedDimensions } from "./resolve-local-photo";
+import type { ImageFormat } from "./variants";
 
 type Size = { width: number; height: number };
+
+/** Each named variant, encoded once per requested format. */
+export type EncodedVariants<Name extends PropertyKey, F extends ImageFormat> = Record<
+  Name,
+  Record<F, Buffer>
+>;
+
+/**
+ * AVIF at 60 (owner, 2026-11-16; 50 smoothed fur). Effort 3, not sharp's default 4: on one CPU the
+ * seed photos' five variants took 1.8 s at 3 and 8.5 s at 4, for the same bytes, and an upload's
+ * whole processing has 10 s (`PHOTO_PROCESSING_BUDGET_MS`).
+ */
+export const AVIF_QUALITY = 60;
+export const AVIF_EFFORT = 3;
+export const WEBP_QUALITY = 82;
+
+const ENCODERS: Readonly<Record<ImageFormat, (image: Sharp) => Sharp>> = {
+  webp: (image) => image.webp({ quality: WEBP_QUALITY }),
+  avif: (image) => image.avif({ quality: AVIF_QUALITY, effort: AVIF_EFFORT }),
+};
+
+type RawImage = { data: Buffer; info: { width: number; height: number; channels: 1 | 2 | 3 | 4 } };
+
+/** One variant's pixels, decoded once and encoded in every format, so no two formats differ. */
+async function encodeRaw<F extends ImageFormat>(
+  raw: RawImage,
+  formats: readonly F[],
+  input: Pick<SharpOptions, "limitInputPixels">,
+): Promise<Record<F, Buffer>> {
+  const { width, height, channels } = raw.info;
+  const encoded = await Promise.all(
+    formats.map(
+      async (format) =>
+        [
+          format,
+          await ENCODERS[format](
+            sharp(raw.data, { ...input, raw: { width, height, channels } }),
+          ).toBuffer(),
+        ] as const,
+    ),
+  );
+  return Object.fromEntries(encoded) as Record<F, Buffer>;
+}
 
 /**
  * The box the attention crop cuts from the source, at the source's own scale:
@@ -61,11 +105,12 @@ export function attentionCropBox(source: Size, variant: Size): Size {
  * `attentionCropBox`'s crop shape comes entirely from the variant map's own
  * `{width, height}` entries, never from a hardcoded aspect ratio.
  */
-export async function generateVariants<T extends Record<string, Size>>(
+export async function generateVariants<T extends Record<string, Size>, F extends ImageFormat>(
   variants: T,
   source: Buffer,
+  formats: readonly F[],
   input: Pick<SharpOptions, "limitInputPixels"> = {},
-): Promise<Record<keyof T, Buffer>> {
+): Promise<EncodedVariants<keyof T, F>> {
   const header = await sharp(source, input).metadata();
   if (!header.width || !header.height) throw new Error("The source has no dimensions");
   const displayed = displayedDimensions({
@@ -87,24 +132,25 @@ export async function generateVariants<T extends Record<string, Size>>(
         // orientation.
         .rotate()
         .resize(crop.width, crop.height, { fit: "cover", position: "attention" });
+      const croppedRaw = await cropped.raw().toBuffer({ resolveWithObject: true });
       if (crop.width === variant.width && crop.height === variant.height) {
-        return [name, await cropped.webp({ quality: 82 }).toBuffer()] as const;
+        return [name, await encodeRaw(croppedRaw, formats, input)] as const;
       }
       // The crop has the variant's shape to the nearest pixel, so this only
       // enlarges it; `cover` lands on the exact size without stretching,
       // trimming at most that rounding.
-      const { data, info } = await cropped.raw().toBuffer({ resolveWithObject: true });
-      const buffer = await sharp(data, {
+      const { info } = croppedRaw;
+      const enlarged = await sharp(croppedRaw.data, {
         ...input,
         raw: { width: info.width, height: info.height, channels: info.channels },
       })
         .resize(variant.width, variant.height, { fit: "cover" })
-        .webp({ quality: 82 })
-        .toBuffer();
-      return [name, buffer] as const;
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      return [name, await encodeRaw(enlarged, formats, input)] as const;
     }),
   );
-  return Object.fromEntries(entries) as Record<keyof T, Buffer>;
+  return Object.fromEntries(entries) as EncodedVariants<keyof T, F>;
 }
 
 /**
@@ -120,12 +166,13 @@ export function framedRegionOf(frame: PixelBox, variant: Size): PixelBox {
  * source and the variant, not the frame. Five separate WebP decodes peaked at 260 MB of libvips
  * memory at 2000 × 2000, this at 83 MB (`generate-variants-bounded.test.ts`).
  */
-export async function generateFramedVariants<T extends Record<string, Size>>(
+export async function generateFramedVariants<T extends Record<string, Size>, F extends ImageFormat>(
   variants: T,
   source: Buffer,
   frame: PixelBox,
+  formats: readonly F[],
   input: Pick<SharpOptions, "limitInputPixels"> = {},
-): Promise<Record<keyof T, Buffer>> {
+): Promise<EncodedVariants<keyof T, F>> {
   // `.rotate()` first, so the frame is read on the photo as displayed.
   const { data, info } = await sharp(source, input)
     .rotate()
@@ -144,13 +191,13 @@ export async function generateFramedVariants<T extends Record<string, Size>>(
   const raw = { width: info.width, height: info.height, channels: info.channels };
   const entries = await Promise.all(
     (Object.entries(variants) as [keyof T, Size][]).map(async ([name, variant]) => {
-      const buffer = await sharp(data, { ...input, raw })
+      const cut = await sharp(data, { ...input, raw })
         .extract(framedRegionOf(frame, variant))
         .resize(variant.width, variant.height, { fit: "cover" })
-        .webp({ quality: 82 })
-        .toBuffer();
-      return [name, buffer] as const;
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      return [name, await encodeRaw(cut, formats, input)] as const;
     }),
   );
-  return Object.fromEntries(entries) as Record<keyof T, Buffer>;
+  return Object.fromEntries(entries) as EncodedVariants<keyof T, F>;
 }

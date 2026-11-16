@@ -151,6 +151,7 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
       limiters: {
         perHour: generousLimiters.perUser,
         perDay: generousLimiters.perUser,
+        uploadAttempts: { perHour: generousLimiters.perUser, perDay: generousLimiters.perUser },
         cropAttempts: { perHour: generousLimiters.perUser, perDay: generousLimiters.perUser },
       },
       processingBudgetMs: 10_000,

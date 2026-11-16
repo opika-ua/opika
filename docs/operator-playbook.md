@@ -367,7 +367,9 @@ neutral; never name a suspicion.
 - **Rate limits** (a refused call answers 429; wait, do not retry in a loop): the cabinet and registry
   take 100 requests a minute per signed-in user and 300 a minute per IP; sign-in links 5 an hour per
   address and 20 an hour per IP; password reset 3 an hour per address; invitation page 20 an hour per IP;
-  shelter photo uploads 60 an hour and 300 a day per shelter; an anonymous adopter may reveal contacts of
+  shelter photo uploads 60 an hour and 300 a day per shelter, counted once they land, within 90 upload
+  attempts + 30 crop attempts an hour (450 + 150 a day), plus logo uploads, which spend the same
+  allowance before their work (at most 60 an hour); an anonymous adopter may reveal contacts of
   at most 30 distinct shelters in 24 hours and at most 100 new shelters per IP a day (the IP figure is an
   environment variable with that default); the public API takes 100 a minute. When the shared store is
   unreachable the limiters fail closed, so everything limited answers 429 until it returns
@@ -376,7 +378,7 @@ neutral; never name a suspicion.
   stay referenced, stay in the bucket, and stay reachable to anyone who already has a file URL. The only
   automatic deletion is the daily clean-up (04:00 UTC), which removes a photo or logo only after it has been
   unreferenced for 7 days, re-checks right before deleting, and refuses a run that would delete more than
-  600 objects (it logs `refused_over_cap`, deletes nothing, and only the CLI can raise the cap). A photo
+  1100 objects (about 100 photos; it logs `refused_over_cap`, deletes nothing, and only the CLI can raise the cap). A photo
   that must go (for example one showing a person) goes through that job too: take it off the card, then
   the job deletes it after the 7 days; over the cap, the `r2:cleanup` dry run then `--commit --max-delete
   <n>` (`docs/operator-leaving-and-erasure.md`, A step 8). Never delete files by hand. Nothing but that job

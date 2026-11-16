@@ -23,4 +23,9 @@ export const RAW_IMG: Readonly<Record<string, Reasoned>> = {
     max: 3,
     reason: "satori (next/og) renders plain img elements only; next/image does not exist there.",
   },
+  "photo-picture.tsx": {
+    max: 1,
+    reason:
+      "next/image renders no <picture>; the AVIF form's <img> spreads getImageProps, so the R2 loader and sizes still apply.",
+  },
 };

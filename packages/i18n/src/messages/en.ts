@@ -962,6 +962,7 @@ export const en = {
         preparing: "Preparing the photo…",
         uploading: "Uploading the photo…",
         uploadingProgress: "Uploading · {percent} · {sent} of {total} MB",
+        processing: "Processing the photo…",
         done: "Done",
         coverChip: "{n} · Cover",
         failed: "Didn't upload",

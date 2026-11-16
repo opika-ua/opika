@@ -10,6 +10,7 @@ import {
   SHELTER_LOGO_KEY_PATTERN,
 } from "@opika/db/image-pipeline";
 import type { ImageLoaderProps } from "next/image";
+import { servesAvif } from "./photo-format";
 
 /**
  * Configured globally via `next.config.ts`'s `images.loaderFile`, not passed
@@ -54,13 +55,23 @@ import type { ImageLoaderProps } from "next/image";
  * "global, not just these two cards" reason.
  *
  * `quality` is ignored for real keys, deliberately: R2 variants are
- * pre-generated at upload time (`generateVariants`, fixed WebP quality 82),
+ * pre-generated at upload time (`generateVariants`, fixed WebP 82 and AVIF 60),
  * not transformed on request - there is no per-request quality knob to
  * honour.
  */
 const ABSOLUTE_URL = /^https?:\/\//i;
 
+/** The WebP URL: every `<img>` src and srcset, so a browser without AVIF always has a photo. */
 export default function opikaImageLoader({ src, width }: ImageLoaderProps): string {
+  return photoUrl(src, width, "webp");
+}
+
+/** The AVIF URL for an animal photo's `<source>` (`Photo`); anything else resolves as WebP. */
+export function avifPhotoLoader({ src, width }: ImageLoaderProps): string {
+  return photoUrl(src, width, servesAvif(src) ? "avif" : "webp");
+}
+
+function photoUrl(src: string, width: number, format: "webp" | "avif"): string {
   if (ABSOLUTE_URL.test(src) || src.startsWith("data:")) return src;
 
   if (isRealPhotoKey(src)) {
@@ -72,11 +83,13 @@ export default function opikaImageLoader({ src, width }: ImageLoaderProps): stri
       // something a real shelter's photo would silently vanish behind.
       throw new Error("Missing required environment variable: NEXT_PUBLIC_R2_PUBLIC_BASE_URL");
     }
+    if (SHELTER_LOGO_KEY_PATTERN.test(src)) {
+      return r2PublicUrl(publicBaseUrl, src, nearestVariant(LOGO_VARIANTS, width), "webp");
+    }
     // Build-time flag: photos uploaded before mid/compact existed have no such object (404).
-    const animalVariants =
+    const variants =
       process.env.NEXT_PUBLIC_R2_EXTRA_VARIANTS === "1" ? IMAGE_VARIANTS : SERVED_IMAGE_VARIANTS;
-    const variants = SHELTER_LOGO_KEY_PATTERN.test(src) ? LOGO_VARIANTS : animalVariants;
-    return r2PublicUrl(publicBaseUrl, src, nearestVariant(variants, width));
+    return r2PublicUrl(publicBaseUrl, src, nearestVariant(variants, width), format);
   }
 
   return src.startsWith("/") ? src : `/${src}`;

@@ -1,7 +1,8 @@
 /**
- * The public animal page's document size, for the heaviest realistic animal: ten photos, every long
- * field at its cap, registry and shelter-declared medical rows. The fixture is written here, in the
- * disposable harness database, and withdrawn afterwards so no gallery spec sees it.
+ * The public animal page's document size, for the heaviest realistic animal: ten photos under
+ * real-shaped R2 keys, every long field at its cap, registry and shelter-declared medical rows. The
+ * fixture is written here, in the disposable harness database, and withdrawn afterwards so no
+ * gallery spec sees it (its photos point at the unreachable test CDN).
  */
 
 import { randomUUID } from "node:crypto";
@@ -31,9 +32,13 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
  * `NotFoundHeader` costs +2.1 KB (80,556), so the budget stays at 82,000.
  * #502 (2026-11-13, owner-approved): main measured 81,989; the bundler split this page's own client
  * code into one more chunk (+187 bytes of script references, page content byte-identical), so the
- * budget is 83,000.
+ * budget was 83,000; that seed-key fixture measured 82,176.
+ * #504 (2026-11-16, owner): the fixture became realistic (real-length R2 keys, production's image
+ * flags, AVIF on) and measured 84,221 in CI at 7993491, so the budget is 85,000. The logo and 176w
+ * fixes that followed leave the fixture as it was: its shelter has no logo, and the hero never had
+ * a 176w entry (a `100vw` slot starts the srcset at 400w). A live page with a logo saves ~600 bytes.
  */
-export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 83_000;
+export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 85_000;
 
 const SENTENCE = "Лагідний, грайливий песик, який дуже любить прогулянки та людей. ";
 const textOf = (characters: number): string =>
@@ -52,12 +57,14 @@ test("the heaviest realistic animal page stays within its HTML budget", async ({
   if (shelter === null) throw new Error("the shelter isn't stored");
 
   const now = new Date();
+  const animalId = randomUUID() as AnimalId;
   const animal = makeAnimal({
-    id: randomUUID() as AnimalId,
+    id: animalId,
     shelterId: shelter.id,
     name: "Максимільян-Бровко Довгошерстий",
-    photos: Array.from({ length: MAX_ANIMAL_PHOTOS }, (_, index) => ({
-      storageKey: `seed-photos/dog-${(index % 3) + 1}.jpg`,
+    // Real-shaped keys, so every photo URL is as long as a real one (R2 base, two UUIDs, variant).
+    photos: Array.from({ length: MAX_ANIMAL_PHOTOS }, () => ({
+      storageKey: `animals/${animalId}/${randomUUID()}`,
       width: 1200,
       height: 1500,
       alt: null,

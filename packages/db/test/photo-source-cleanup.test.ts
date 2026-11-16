@@ -14,12 +14,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { formatPlan, planDemoRemoval, removeDemoCorpus } from "../src/demo-remove";
 import type { R2CleanupClient } from "../src/image-pipeline/r2-cleanup-client";
 import type { ImageStorageClient } from "../src/image-pipeline/r2-client";
-import { storePhoto } from "../src/image-pipeline/upload-animal-photo";
-import {
-  IMAGE_VARIANTS,
-  type ImageVariantName,
-  photoSourceObjectKeyFor,
-} from "../src/image-pipeline/variants";
+import { type PhotoVariants, storePhoto } from "../src/image-pipeline/upload-animal-photo";
+import { IMAGE_VARIANTS, photoSourceObjectKeyFor } from "../src/image-pipeline/variants";
 import { DEFAULT_MAX_DELETE_PER_RUN, runR2Cleanup } from "../src/r2-cleanup-run";
 import { executeRows } from "../src/raw-rows";
 import { erasableIf, eraseUsersAndScrubHistory } from "../src/repos/admin-erasure-repo";
@@ -86,8 +82,11 @@ function bucket() {
 type Bucket = ReturnType<typeof bucket>;
 
 const VARIANT_BYTES = Object.fromEntries(
-  Object.keys(IMAGE_VARIANTS).map((name) => [name, Buffer.from([1])]),
-) as Record<ImageVariantName, Buffer>;
+  Object.keys(IMAGE_VARIANTS).map((name) => [
+    name,
+    { webp: Buffer.from([1]), avif: Buffer.from([3]) },
+  ]),
+) as PhotoVariants;
 
 /** One photo as an upload or a crop stores it: five variants and a kept source, plus its row. */
 async function stored(
@@ -185,7 +184,7 @@ const sourceRowsOf = (animalIds: readonly string[]) =>
     .where(inArray(animalPhotoSources.animalId, animalIds as never));
 
 describe("a photo's source goes with its photo, through the clean-up job only (condition 3)", () => {
-  it("photo removed: its variants and its source go; the other photo's six stay", async () => {
+  it("photo removed: its variants and its source go; the other photo's eleven stay", async () => {
     const store = bucket();
     const { animal, photos } = await animalWith(store, 2);
     const [removed, kept] = photos as [(typeof photos)[0], (typeof photos)[0]];
@@ -204,7 +203,7 @@ describe("a photo's source goes with its photo, through the clean-up job only (c
     expect([...store.objects].sort()).toEqual(kept.objects);
   });
 
-  it("photo cropped: the old key's variants and source go; the new key's six stay", async () => {
+  it("photo cropped: the old key's variants and source go; the new key's eleven stay", async () => {
     const store = bucket();
     const { animal, photos } = await animalWith(store, 1);
     const [old] = photos as [(typeof photos)[0]];
@@ -227,7 +226,7 @@ describe("a photo's source goes with its photo, through the clean-up job only (c
     expect([...store.objects].sort()).toEqual(cropped.objects);
   });
 
-  it("animal deleted (a never-published draft): every photo's six go", async () => {
+  it("animal deleted (a never-published draft): every photo's eleven go", async () => {
     const store = bucket();
     const { animal, photos } = await animalWith(store, 2, { kind: "draft" });
     expect(
@@ -247,7 +246,7 @@ describe("a photo's source goes with its photo, through the clean-up job only (c
     expect(store.objects.size).toBe(0);
   });
 
-  it("shelter leaving (demo:remove --shelter): its animals' six per photo go, listed first; another shelter's stay", async () => {
+  it("shelter leaving (demo:remove --shelter): its animals' eleven per photo go, listed first; another shelter's stay", async () => {
     const store = bucket();
     const leaving = await insertShelter();
     const staying = await insertShelter();
@@ -278,7 +277,7 @@ describe("a photo's source goes with its photo, through the clean-up job only (c
    * Condition 3's erasure path: it removes the account, not the shelter's photos. The source names
    * no one, so it stays with its photo and goes when the photo is removed (/pro: «разом із фото»).
    */
-  it("admin erasure: the account goes; the photo's six objects and its source row stay, naming no one, until the photo is removed", async () => {
+  it("admin erasure: the account goes; the photo's eleven objects and its source row stay, naming no one, until the photo is removed", async () => {
     const store = bucket();
     const shelterId = await insertShelter();
     const organizationId = randomUUID();
@@ -334,7 +333,7 @@ describe("a photo's source goes with its photo, through the clean-up job only (c
 
     // (a) the account is gone.
     expect(await db.select().from(authUser).where(eq(authUser.id, admin.id))).toEqual([]);
-    // (b) the photo is untouched: the job, past the grace period, takes none of its six objects.
+    // (b) the photo is untouched: the job, past the grace period, takes none of its eleven objects.
     expect(await sweep(store)).toEqual([]);
     expect([...store.objects].sort()).toEqual(photo.objects);
     // (c) its source row is still there, and nothing in it is the person's.
@@ -366,7 +365,7 @@ describe("a photo's source goes with its photo, through the clean-up job only (c
       for (const personal of Object.values(admin)) expect(String(value)).not.toContain(personal);
     }
 
-    // Then the photo is removed: all six go together, the kept copy included, and its row with them.
+    // Then the photo is removed: all eleven go together, the kept copy included, and its row with them.
     const later = new Date(DAY_8.getTime() + DAYS);
     expect(
       await kabinetAnimalRepo(db).writePhotosIf(
@@ -387,16 +386,16 @@ describe("a photo's source goes with its photo, through the clean-up job only (c
     const store = bucket();
     await animalWith(store, 2);
     expect(await sweep(store)).toEqual([]);
-    expect(store.objects.size).toBe(12);
+    expect(store.objects.size).toBe(22);
   });
 });
 
 describe("the clean-up cap (owner, crop-frame Q4)", () => {
-  it("is 600: one photo or one crop leaves six objects, so a day of 100 fits", async () => {
+  it("is 1100: one photo or one crop leaves eleven objects (WebP and AVIF), so a day of 100 fits", async () => {
     const store = bucket();
     const { objects } = await stored(store, randomUUID());
-    expect(objects).toHaveLength(6);
-    expect(DEFAULT_MAX_DELETE_PER_RUN).toBe(600);
+    expect(objects).toHaveLength(11);
+    expect(DEFAULT_MAX_DELETE_PER_RUN).toBe(1100);
     expect(DEFAULT_MAX_DELETE_PER_RUN).toBe(100 * objects.length);
   });
 });

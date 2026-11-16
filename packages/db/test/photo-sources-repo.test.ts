@@ -475,7 +475,7 @@ describe("every deletion path leaves no source row behind", () => {
 
 describe("the R2 clean-up and source objects", () => {
   const objectsOf = (source: PhotoSource) => [
-    ...IMAGE_VARIANT_NAMES.map((variant) => variantObjectKey(source.storageKey, variant)),
+    ...IMAGE_VARIANT_NAMES.map((variant) => variantObjectKey(source.storageKey, variant, "webp")),
     source.sourceObjectKey,
   ];
   const tracked = async () =>

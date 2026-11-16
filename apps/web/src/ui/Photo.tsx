@@ -1,4 +1,6 @@
 import Image from "next/image";
+import { logoPhotoUrl, servesAvif } from "../photo-format";
+import { PhotoPicture } from "../photo-picture";
 import { cx } from "./cx";
 
 /**
@@ -7,7 +9,9 @@ import { cx } from "./cx";
  * `sizes` is required: a missing one makes the browser fetch the largest variant. A skeleton sits
  * behind the image so a slow photo (or none) never leaves a blank hole, and the box's aspect ratio
  * is fixed so nothing shifts on load. Mark the one above-the-fold (LCP) image `priority`: it
- * is preloaded and fetched at high priority, so mark one per page, never a row.
+ * is preloaded and fetched at high priority, so mark one per page, never a row. With AVIF on
+ * (`servesAvif`), an animal photo is a `<picture>`: AVIF source, WebP `<img>` fallback. A shelter
+ * logo is one URL, its `large` variant, with no srcset (`logoPhotoUrl`).
  */
 const ASPECT = {
   card: "aspect-328/480",
@@ -43,11 +47,16 @@ export function Photo({
   eager = false,
   className,
 }: PhotoProps) {
+  const logo = src === null ? null : logoPhotoUrl(src);
   return (
     <div className={cx("relative overflow-clip bg-line", ASPECT[aspect], className)}>
-      {src === null ? null : (
+      {src === null ? null : servesAvif(src) ? (
+        <PhotoPicture src={src} alt={alt} sizes={sizes} priority={priority} eager={eager} />
+      ) : (
         <Image
-          src={src}
+          src={logo ?? src}
+          // The logo's URL is final: no loader, so no srcset of one file under five widths.
+          unoptimized={logo !== null}
           alt={alt}
           fill
           sizes={sizes}

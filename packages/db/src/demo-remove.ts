@@ -67,7 +67,12 @@ import { count, inArray, type SQL, sql } from "drizzle-orm";
 import type { AnyPgColumn, PgTable } from "drizzle-orm/pg-core";
 import postgres from "postgres";
 import { createDatabaseWithClient, type Database } from "./client";
-import { IMAGE_VARIANT_NAMES, isRealPhotoKey, variantObjectKey } from "./image-pipeline/variants";
+import {
+  IMAGE_VARIANT_NAMES,
+  isRealPhotoKey,
+  PHOTO_FORMATS,
+  variantObjectKey,
+} from "./image-pipeline/variants";
 import {
   assertProductionWriteAllowed,
   databaseTargetLine,
@@ -272,8 +277,9 @@ function scopeOf(target: RemovalTarget): Scope {
 }
 
 /**
- * Every R2 object one real photo occupies: its variants and, when kept, its source (never the
- * uploaded file itself, `upload-animal-photo.ts`). `sourceOf` maps a storage key to its source.
+ * Every R2 object one real photo occupies: its variants in both formats and, when kept, its source
+ * (never the uploaded file itself, `upload-animal-photo.ts`). An AVIF key is listed before the
+ * backfill has written it, so the count is an upper bound. `sourceOf` maps a storage key to its source.
  */
 const photoObjectKeysOf = (
   photos: readonly { storageKey: string }[],
@@ -282,7 +288,9 @@ const photoObjectKeysOf = (
   photos
     .filter((photo) => isRealPhotoKey(photo.storageKey))
     .flatMap((photo) => {
-      const variants = IMAGE_VARIANT_NAMES.map((v) => variantObjectKey(photo.storageKey, v));
+      const variants = PHOTO_FORMATS.flatMap((format) =>
+        IMAGE_VARIANT_NAMES.map((v) => variantObjectKey(photo.storageKey, v, format)),
+      );
       const source = sourceOf.get(photo.storageKey);
       return source === undefined ? variants : [...variants, source];
     });

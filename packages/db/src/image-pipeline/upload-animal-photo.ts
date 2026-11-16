@@ -1,34 +1,48 @@
 import { readFileSync } from "node:fs";
 import { type AnimalId, type AnimalPhoto, frameBoxOf, type PhotoFraming } from "@opika/domain";
 import type { PhotoSource } from "../repos/photo-sources-repo";
-import { generateFramedVariants, generateVariants } from "./generate-variants";
+import {
+  type EncodedVariants,
+  generateFramedVariants,
+  generateVariants,
+} from "./generate-variants";
 import { encodePhotoSource } from "./photo-source";
 import type { ImageStorageClient } from "./r2-client";
 import {
   animalPhotoStorageKeyFor,
+  IMAGE_CONTENT_TYPES,
   IMAGE_VARIANT_NAMES,
   IMAGE_VARIANTS,
   type ImageVariantName,
+  PHOTO_FORMATS,
   photoSourceObjectKeyFor,
   variantObjectKey,
 } from "./variants";
 
+export type PhotoVariants = EncodedVariants<ImageVariantName, (typeof PHOTO_FORMATS)[number]>;
+
 /**
- * Every writer's one put of a photo: re-encoded WebP only, never the uploaded file. The source
+ * Every writer's one put of a photo: re-encoded WebP and AVIF, never the uploaded file. The source
  * must sit directly under the key, or the clean-up job would not take it with the variants.
  */
 export async function storePhoto(
   storage: ImageStorageClient,
   storageKey: string,
-  variants: Record<ImageVariantName, Buffer>,
+  variants: PhotoVariants,
   source: { objectKey: string; bytes: Buffer },
 ): Promise<void> {
   const name = source.objectKey.slice(storageKey.length + 1);
   if (!source.objectKey.startsWith(`${storageKey}/source-`) || name.includes("/")) {
     throw new Error("A photo's source must sit directly under its storage key");
   }
-  for (const variant of IMAGE_VARIANT_NAMES) {
-    await storage.put(variantObjectKey(storageKey, variant), variants[variant], "image/webp");
+  for (const format of PHOTO_FORMATS) {
+    for (const variant of IMAGE_VARIANT_NAMES) {
+      await storage.put(
+        variantObjectKey(storageKey, variant, format),
+        variants[variant][format],
+        IMAGE_CONTENT_TYPES[format],
+      );
+    }
   }
   await storage.put(source.objectKey, source.bytes, "image/webp");
 }
@@ -50,17 +64,17 @@ export async function uploadAnimalPhoto(
   const sourceObjectKey = photoSourceObjectKeyFor(storageKey, ids.sourceId);
   const file = readFileSync(resolvedPath);
   const source = await encodePhotoSource(file);
-  let variants: Record<ImageVariantName, Buffer>;
+  let variants: PhotoVariants;
   switch (framing.kind) {
     case "attention":
-      variants = await generateVariants(IMAGE_VARIANTS, file);
+      variants = await generateVariants(IMAGE_VARIANTS, file, PHOTO_FORMATS);
       break;
     case "frame": {
       const box = frameBoxOf(framing.frame, source);
       if (box.kind === "rejected") {
         throw new Error(`The frame for ${resolvedPath} is refused (${box.reason})`);
       }
-      variants = await generateFramedVariants(IMAGE_VARIANTS, source.bytes, box.box);
+      variants = await generateFramedVariants(IMAGE_VARIANTS, source.bytes, box.box, PHOTO_FORMATS);
       break;
     }
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */

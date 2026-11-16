@@ -14,10 +14,10 @@ describe("runPhotoSourcesSmoke against the local database", () => {
   });
   afterAll(async () => cleanup?.());
 
-  it("passes every check, there are 11, and leaves no clean-up tracking row behind", async () => {
+  it("passes every check, there are 12, and leaves no clean-up tracking row behind", async () => {
     const outcomes = await runPhotoSourcesSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes).toHaveLength(11);
+    expect(outcomes).toHaveLength(12);
     expect(await db.select().from(r2UnreferencedObjects)).toEqual([]);
   });
 
@@ -35,6 +35,6 @@ describe("runPhotoSourcesSmoke against the local database", () => {
     }) as Database;
     const outcomes = await runPhotoSourcesSmoke(neonHttpRawShape);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes).toHaveLength(11);
+    expect(outcomes).toHaveLength(12);
   });
 });

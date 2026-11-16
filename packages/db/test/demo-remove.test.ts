@@ -20,7 +20,7 @@ import {
   type RemovalTarget,
   removeDemoCorpus,
 } from "../src/demo-remove";
-import { IMAGE_VARIANT_NAMES } from "../src/image-pipeline/variants";
+import { IMAGE_VARIANT_NAMES, PHOTO_FORMATS } from "../src/image-pipeline/variants";
 import { expectedTargetOf } from "../src/prod-guard";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
@@ -643,17 +643,21 @@ describe("demo:remove --shelter: exactly these shelters", () => {
   it("lists the R2 keys of every variant of the target animals' real photos, never a seed photo", async () => {
     const f = await withTestShelters();
     const plan = await planDemoRemoval(db, testKey, shelterTarget(f.testA.id, f.testB.id));
-    // Every variant name, so a new variant that demo-remove skipped would fail here.
+    // Every variant name in every format, so a new variant or format that demo-remove skipped
+    // would fail here.
     expect(plan.photoObjectKeys).toEqual(
       ["animals/photo-animal/0", "animals/photo-animal/1"].flatMap((key) =>
-        IMAGE_VARIANT_NAMES.map((name) => `${key}/${name}.webp`),
+        PHOTO_FORMATS.flatMap((format) =>
+          IMAGE_VARIANT_NAMES.map((name) => `${key}/${name}.${format}`),
+        ),
       ),
     );
     expect(plan.photoObjectKeys).toContain("animals/photo-animal/0/mid.webp");
     expect(plan.photoObjectKeys).toContain("animals/photo-animal/0/compact.webp");
+    expect(plan.photoObjectKeys).toContain("animals/photo-animal/0/card.avif");
     const printed = formatPlan(plan, "Would delete");
     expect(printed).toContain(
-      `R2 photo objects of these animals: ${2 * IMAGE_VARIANT_NAMES.length} (unlinked; the clean-up job deletes them after the 7-day grace period)`,
+      `R2 photo objects of these animals: ${2 * PHOTO_FORMATS.length * IMAGE_VARIANT_NAMES.length} (unlinked; the clean-up job deletes them after the 7-day grace period)`,
     );
     expect(printed).toContain("  animals/photo-animal/1/detail.webp");
     expect(printed.join("\n")).not.toContain("seed-photos");

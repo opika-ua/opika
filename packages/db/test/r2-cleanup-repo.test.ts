@@ -1,5 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { IMAGE_VARIANT_NAMES, variantObjectKey } from "../src/image-pipeline/variants";
+import {
+  IMAGE_VARIANT_NAMES,
+  PHOTO_FORMATS,
+  variantObjectKey,
+} from "../src/image-pipeline/variants";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
@@ -87,21 +91,26 @@ async function insertRevealWithPrimaryPhoto(storageKey: string) {
 }
 
 describe("referencedStorageKeys / referencedObjectKeys", () => {
-  it("finds every storageKey across every animal, and derives every variant per key", async () => {
+  it("finds every storageKey across every animal, and derives every variant in every format per key", async () => {
     await insertAnimalWithPhotos(["animals/a/1", "animals/a/2"]);
 
     const storageKeys = await referencedStorageKeys(db);
     expect([...storageKeys].sort()).toEqual(["animals/a/1", "animals/a/2"]);
 
     const objectKeys = await referencedObjectKeys(db);
-    // Built from every variant name, so a variant added to IMAGE_VARIANTS but missed here
+    // Built from every variant name and format, so a variant or format added but missed here
     // would leave its objects "unreferenced" and deleted by the clean-up job.
     expect([...objectKeys].sort()).toEqual(
       ["animals/a/1", "animals/a/2"]
-        .flatMap((key) => IMAGE_VARIANT_NAMES.map((name) => variantObjectKey(key, name)))
+        .flatMap((key) =>
+          PHOTO_FORMATS.flatMap((format) =>
+            IMAGE_VARIANT_NAMES.map((name) => variantObjectKey(key, name, format)),
+          ),
+        )
         .sort(),
     );
     expect(IMAGE_VARIANT_NAMES).toEqual(expect.arrayContaining(["mid", "compact"]));
+    expect(objectKeys.has("animals/a/1/card.avif")).toBe(true);
   });
 
   it("finds a shelter's logo too, deriving the logo (not animal-photo) variants (pet card PR 4)", async () => {
@@ -113,8 +122,8 @@ describe("referencedStorageKeys / referencedObjectKeys", () => {
     const objectKeys = await referencedObjectKeys(db);
     expect([...objectKeys].sort()).toEqual(
       [
-        variantObjectKey("shelters/s/logo/1", "small"),
-        variantObjectKey("shelters/s/logo/1", "large"),
+        variantObjectKey("shelters/s/logo/1", "small", "webp"),
+        variantObjectKey("shelters/s/logo/1", "large", "webp"),
       ].sort(),
     );
   });
@@ -156,8 +165,8 @@ describe("SQL_BATCH_SIZE", () => {
 describe("recordScan", () => {
   it("tracks a bucket key not in the referenced set, leaves a referenced one alone", async () => {
     await insertAnimalWithPhotos(["animals/a/1"]);
-    const referencedKey = variantObjectKey("animals/a/1", "card");
-    const orphanKey = variantObjectKey("animals/orphan/1", "card");
+    const referencedKey = variantObjectKey("animals/a/1", "card", "webp");
+    const orphanKey = variantObjectKey("animals/orphan/1", "card", "webp");
 
     const result = await recordScan(db, [referencedKey, orphanKey], NOW);
 
@@ -166,10 +175,26 @@ describe("recordScan", () => {
     expect(tracked).toEqual([{ objectKey: orphanKey, firstSeenUnreferencedAt: NOW }]);
   });
 
+  it("treats a photo's AVIF objects exactly like its WebP ones: kept while referenced, tracked once not", async () => {
+    await insertAnimalWithPhotos(["animals/a/1"]);
+    const keptWebp = variantObjectKey("animals/a/1", "card", "webp");
+    const keptAvif = variantObjectKey("animals/a/1", "card", "avif");
+    const orphanWebp = variantObjectKey("animals/orphan/1", "card", "webp");
+    const orphanAvif = variantObjectKey("animals/orphan/1", "card", "avif");
+
+    const result = await recordScan(db, [keptWebp, keptAvif, orphanWebp, orphanAvif], NOW);
+
+    expect(result).toEqual({ newlyTracked: 2, cleared: 0 });
+    expect((await trackedUnreferencedObjects(db)).map((row) => row.objectKey).sort()).toEqual(
+      [orphanAvif, orphanWebp].sort(),
+    );
+    expect(await stillUnreferenced(db, [keptAvif, orphanAvif])).toEqual([orphanAvif]);
+  });
+
   it("tracks a shelter logo exactly like an animal photo (pet card PR 4)", async () => {
     await insertShelterWithLogo("shelters/s/logo/1");
-    const referencedLogo = variantObjectKey("shelters/s/logo/1", "small");
-    const orphanLogo = variantObjectKey("shelters/orphan/logo/1", "small");
+    const referencedLogo = variantObjectKey("shelters/s/logo/1", "small", "webp");
+    const orphanLogo = variantObjectKey("shelters/orphan/logo/1", "small", "webp");
 
     const result = await recordScan(db, [referencedLogo, orphanLogo], NOW);
 
@@ -180,7 +205,7 @@ describe("recordScan", () => {
   });
 
   it("is idempotent: a second scan with the same input changes nothing", async () => {
-    const orphanKey = variantObjectKey("animals/orphan/1", "card");
+    const orphanKey = variantObjectKey("animals/orphan/1", "card", "webp");
     await recordScan(db, [orphanKey], NOW);
 
     const second = await recordScan(db, [orphanKey], new Date(NOW.getTime() + 60_000));
@@ -192,7 +217,7 @@ describe("recordScan", () => {
   });
 
   it("self-heals: a tracked key referenced again on a later scan is untracked, no write-path hook needed", async () => {
-    const key = variantObjectKey("animals/a/1", "card");
+    const key = variantObjectKey("animals/a/1", "card", "webp");
     await recordScan(db, [key], NOW); // tracked while nothing references it yet
     expect(await trackedUnreferencedObjects(db)).toHaveLength(1);
 
@@ -218,7 +243,7 @@ describe("recordScan", () => {
     const storageKeys = Array.from({ length: 150 }, (_, a) =>
       Array.from({ length: 10 }, (_, p) => `animals/batch-${a}-${p}`),
     ).flat(); // 150 x 10 (MAX_ANIMAL_PHOTOS) = 1500
-    const objectKeys = storageKeys.map((sk) => variantObjectKey(sk, "card"));
+    const objectKeys = storageKeys.map((sk) => variantObjectKey(sk, "card", "webp"));
 
     await recordScan(db, objectKeys, NOW); // tracked while nothing references them yet
     expect(await trackedUnreferencedObjects(db)).toHaveLength(1500);
@@ -249,8 +274,8 @@ describe("recordScan", () => {
 
 describe("stillUnreferenced", () => {
   it("re-derives fresh: a candidate that became referenced since the scan is filtered out", async () => {
-    const key1 = variantObjectKey("animals/a/1", "card");
-    const key2 = variantObjectKey("animals/a/2", "card");
+    const key1 = variantObjectKey("animals/a/1", "card", "webp");
+    const key2 = variantObjectKey("animals/a/2", "card", "webp");
     await insertAnimalWithPhotos(["animals/a/1"]); // key1 is now referenced
 
     expect(await stillUnreferenced(db, [key1, key2])).toEqual([key2]);
@@ -273,8 +298,8 @@ describe("stillUnreferenced", () => {
 
   it("protects a referenced shelter logo the same way, keeps an orphaned one (pet card PR 4)", async () => {
     await insertShelterWithLogo("shelters/s/logo/1");
-    const referencedLogo = variantObjectKey("shelters/s/logo/1", "small");
-    const orphanLogo = variantObjectKey("shelters/orphan/logo/1", "small");
+    const referencedLogo = variantObjectKey("shelters/s/logo/1", "small", "webp");
+    const orphanLogo = variantObjectKey("shelters/orphan/logo/1", "small", "webp");
 
     expect(await stillUnreferenced(db, [referencedLogo, orphanLogo])).toEqual([orphanLogo]);
   });
@@ -282,7 +307,7 @@ describe("stillUnreferenced", () => {
 
 describe("afterDeleted", () => {
   it("clears the tracking rows for the deleted keys", async () => {
-    const key = variantObjectKey("animals/a/1", "card");
+    const key = variantObjectKey("animals/a/1", "card", "webp");
     await recordScan(db, [key], NOW);
     expect(await trackedUnreferencedObjects(db)).toHaveLength(1);
 
@@ -294,17 +319,25 @@ describe("afterDeleted", () => {
   it("nulls a reveal's primaryPhoto when its storage key's object is deleted, case-insensitively", async () => {
     await insertRevealWithPrimaryPhoto("animals/A/1");
 
-    const result = await afterDeleted(db, [variantObjectKey("animals/a/1", "card")]);
+    const result = await afterDeleted(db, [variantObjectKey("animals/a/1", "card", "webp")]);
 
     expect(result).toEqual({ snapshotsNulled: 1 });
     const [row] = await db.select().from(reveals);
     expect((row?.animalSnapshot as { primaryPhoto: unknown } | undefined)?.primaryPhoto).toBeNull();
   });
 
+  it("nulls it for a deleted AVIF object too: both formats name the same photo", async () => {
+    await insertRevealWithPrimaryPhoto("animals/a/1");
+
+    const result = await afterDeleted(db, [variantObjectKey("animals/a/1", "card", "avif")]);
+
+    expect(result).toEqual({ snapshotsNulled: 1 });
+  });
+
   it("leaves a reveal with a different storage key untouched", async () => {
     await insertRevealWithPrimaryPhoto("animals/other/1");
 
-    const result = await afterDeleted(db, [variantObjectKey("animals/a/1", "card")]);
+    const result = await afterDeleted(db, [variantObjectKey("animals/a/1", "card", "webp")]);
 
     expect(result).toEqual({ snapshotsNulled: 0 });
     const [row] = await db.select().from(reveals);
@@ -364,7 +397,9 @@ describe("afterDeleted", () => {
     );
     await db.insert(reveals).values(revealRows);
 
-    const deletedObjectKeys = storageKeys.map((storageKey) => variantObjectKey(storageKey, "card"));
+    const deletedObjectKeys = storageKeys.map((storageKey) =>
+      variantObjectKey(storageKey, "card", "webp"),
+    );
     const result = await afterDeleted(db, deletedObjectKeys);
 
     expect(result.snapshotsNulled).toBe(count);

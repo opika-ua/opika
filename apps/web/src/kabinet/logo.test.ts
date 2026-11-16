@@ -91,6 +91,7 @@ function uploadsOn(
       limiters: {
         perHour: limiters.perHour ?? generous(),
         perDay: limiters.perDay ?? generous(),
+        uploadAttempts: { perHour: generous(), perDay: generous() },
         cropAttempts: { perHour: generous(), perDay: generous() },
       },
       processingBudgetMs: PHOTO_PROCESSING_BUDGET_MS,

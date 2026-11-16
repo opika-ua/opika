@@ -8,6 +8,7 @@ import {
 import {
   KABINET_RATE_LIMITS,
   PHOTO_CROP_ATTEMPT_LIMITS,
+  PHOTO_UPLOAD_ATTEMPT_LIMITS,
   PHOTO_UPLOAD_RATE_LIMITS,
 } from "./rate-limits";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
@@ -47,7 +48,7 @@ export const kabinetLimiters = {
   }),
 };
 
-/** P-Q12: per shelter, an hour and a day; and the crop attempts beside them. */
+/** P-Q12: per shelter, an hour and a day; and the upload and crop attempts beside them. */
 export const photoUploadLimiters = {
   perHour: sharedRateLimiter({
     name: "kabinet-photo-hour",
@@ -59,6 +60,18 @@ export const photoUploadLimiters = {
     ...PHOTO_UPLOAD_RATE_LIMITS.perDay,
     onUnavailable: "deny",
   }),
+  uploadAttempts: {
+    perHour: sharedRateLimiter({
+      name: "kabinet-upload-attempt-hour",
+      ...PHOTO_UPLOAD_ATTEMPT_LIMITS.perHour,
+      onUnavailable: "deny",
+    }),
+    perDay: sharedRateLimiter({
+      name: "kabinet-upload-attempt-day",
+      ...PHOTO_UPLOAD_ATTEMPT_LIMITS.perDay,
+      onUnavailable: "deny",
+    }),
+  },
   cropAttempts: {
     perHour: sharedRateLimiter({
       name: "kabinet-crop-attempt-hour",

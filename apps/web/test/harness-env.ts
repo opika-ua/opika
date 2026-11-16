@@ -13,6 +13,7 @@ export const CURSOR_HMAC_SECRET = "test-hmac-secret-for-cursor-signing";
  * `CURSOR_HMAC_SECRET` above being a recognizable placeholder, not a real
  * secret.
  */
+// As long as production's image host, so `animal-page-html-budget` measures real-length R2 URLs.
 export const R2_PUBLIC_BASE_URL = "https://cdn.test.invalid";
 
 /**

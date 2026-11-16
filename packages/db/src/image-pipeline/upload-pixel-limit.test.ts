@@ -4,7 +4,7 @@ import { cutPhotoVariants } from "./crop-photo";
 import { generateVariants } from "./generate-variants";
 import { encodePhotoSource } from "./photo-source";
 import { prepareUploadedPhoto, UPLOAD_PIXEL_LIMIT } from "./prepare-uploaded-photo";
-import { IMAGE_VARIANTS } from "./variants";
+import { IMAGE_VARIANTS, PHOTO_FORMATS } from "./variants";
 
 /**
  * The decoder's own pixel ceiling, behind the header check (P-Q5): every
@@ -24,6 +24,8 @@ vi.mock("sharp", async (importOriginal) => {
   return { default: Object.assign(recording, actual) };
 });
 
+const IMAGE_VARIANT_COUNT = Object.keys(IMAGE_VARIANTS).length;
+
 const solid = (width: number, height: number) =>
   realSharp({ create: { width, height, channels: 3, background: { r: 10, g: 120, b: 200 } } })
     .png()
@@ -35,7 +37,7 @@ beforeEach(() => {
 
 describe("UPLOAD_PIXEL_LIMIT", () => {
   it("lets the largest upload P-Q5 allows, 2000 × 2000, decode under it", async () => {
-    const variants = await generateVariants(IMAGE_VARIANTS, await solid(2000, 2000), {
+    const variants = await generateVariants(IMAGE_VARIANTS, await solid(2000, 2000), ["webp"], {
       limitInputPixels: UPLOAD_PIXEL_LIMIT,
     });
     expect(Object.keys(variants).sort()).toEqual(["card", "compact", "detail", "mid", "thumb"]);
@@ -51,9 +53,10 @@ describe("UPLOAD_PIXEL_LIMIT", () => {
 
     const [headerRead, ...decodes] = given.options;
     expect(headerRead).toEqual({ limitInputPixels: false });
-    // generateVariants' own header read, five crops, and the enlargements of
-    // `detail`'s and `mid`'s crops; then the source's header read and its encode.
-    expect(decodes).toHaveLength(10);
+    // generateVariants' own header read, five crops, the enlargements of
+    // `detail`'s and `mid`'s crops, and each variant's pixels opened once per
+    // format to encode; then the source's header read and its encode.
+    expect(decodes).toHaveLength(10 + IMAGE_VARIANT_COUNT * PHOTO_FORMATS.length);
     decodes.forEach((options, i) => {
       expect(options?.limitInputPixels, `decode ${i + 1} of ${decodes.length}`).toBe(
         UPLOAD_PIXEL_LIMIT,
@@ -66,7 +69,7 @@ describe("UPLOAD_PIXEL_LIMIT", () => {
     // (at generateVariants' own header read, the first open that carries it),
     // not the 2000 px side check, which prepareUploadedPhoto runs first.
     await expect(
-      generateVariants(IMAGE_VARIANTS, await solid(2001, 2000), {
+      generateVariants(IMAGE_VARIANTS, await solid(2001, 2000), PHOTO_FORMATS, {
         limitInputPixels: UPLOAD_PIXEL_LIMIT,
       }),
     ).rejects.toThrow("Input image exceeds pixel limit");
@@ -80,11 +83,13 @@ describe("UPLOAD_PIXEL_LIMIT", () => {
       source.bytes,
       source,
       { kind: "frame", box: { left: 100, top: 0, width: 720, height: 900 } },
+      PHOTO_FORMATS,
       { limitInputPixels: UPLOAD_PIXEL_LIMIT },
     );
 
-    // The header read, the one decode to raw pixels, and five cuts from them.
-    expect(given.options).toHaveLength(7);
+    // The header read, the one decode to raw pixels, five cuts from them, and each cut's
+    // pixels opened once per format to encode.
+    expect(given.options).toHaveLength(7 + IMAGE_VARIANT_COUNT * PHOTO_FORMATS.length);
     given.options.forEach((options, i) => {
       expect(options?.limitInputPixels, `decode ${i + 1}`).toBe(UPLOAD_PIXEL_LIMIT);
     });

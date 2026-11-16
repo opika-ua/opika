@@ -50,7 +50,14 @@ const ADD_TILE = "add-tile";
 type UploadState =
   | { kind: "preparing" }
   | { kind: "uploading"; progress: { sent: number; total: number } | null }
+  /** Every byte sent; the server is checking and re-encoding (seconds, not frozen). */
+  | { kind: "processing" }
   | { kind: "failed"; message: string; retryable: boolean };
+
+/** A full static bar instead of the indeterminate one, for visitors who asked for less motion. */
+const prefersReducedMotion = (): boolean =>
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 type Upload = { id: number; file: File; state: UploadState };
 
@@ -283,7 +290,12 @@ function PhotoManager({
           {
             context: {
               onUploadProgress: (progress) =>
-                patchUpload(upload.id, { kind: "uploading", progress }),
+                patchUpload(
+                  upload.id,
+                  progress.total > 0 && progress.sent >= progress.total
+                    ? { kind: "processing" }
+                    : { kind: "uploading", progress },
+                ),
             },
           },
         );
@@ -734,6 +746,18 @@ function PhotoManager({
                       ? t.photos.uploading
                       : uploadProgressText(upload.state.progress.sent, upload.state.progress.total)}
                   </Text>
+                </>
+              ) : null}
+              {upload.state.kind === "processing" ? (
+                <>
+                  {/* No value: indeterminate, the platform's own animation. */}
+                  <progress
+                    className="h-2 w-full accent-ink"
+                    max={1}
+                    value={prefersReducedMotion() ? 1 : undefined}
+                    aria-label={t.photos.processing}
+                  />
+                  <Text look="hint">{t.photos.processing}</Text>
                 </>
               ) : null}
             </Card>

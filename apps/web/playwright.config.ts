@@ -112,6 +112,10 @@ export default defineConfig({
       DATABASE_URL: HARNESS_DATABASE_URL,
       CURSOR_HMAC_SECRET,
       NEXT_PUBLIC_R2_PUBLIC_BASE_URL: R2_PUBLIC_BASE_URL,
+      // As production builds (both set there once the backfill is done), so the HTML budgets
+      // measure the markup as shipped. Seed photos (`seed-photos/…`) never take the AVIF form.
+      NEXT_PUBLIC_R2_EXTRA_VARIANTS: "1",
+      NEXT_PUBLIC_R2_AVIF: "1",
       // Fully configured, so production mode is the only reason sign-in is off.
       BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
       BETTER_AUTH_URL: ORIGIN,

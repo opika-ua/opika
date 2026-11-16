@@ -12,9 +12,7 @@ import type { AnimalId, ShelterId } from "@opika/domain";
  * D2's non-4:5 mobile hero (360×380, ≈19:20) too - cover crops the small
  * excess rather than distorting it. Full reasoning: `docs/h1-decisions.md`.
  *
- * WebP output - broad support, a real compression win over JPEG, `sharp`
- * handles it natively. A default, not derived from the mock; worth revisiting
- * if there's a format preference.
+ * Each variant is stored as WebP and, since 2026-11-16, also as AVIF (`PHOTO_FORMATS`).
  */
 export const SERVED_IMAGE_VARIANTS = {
   thumb: { width: 176, height: 176 },
@@ -54,6 +52,24 @@ export type LogoVariantName = keyof typeof LOGO_VARIANTS;
 
 export const LOGO_VARIANT_NAMES = Object.keys(LOGO_VARIANTS) as LogoVariantName[];
 
+/** An encoding a variant is stored in; the object key's extension names it. */
+export type ImageFormat = "webp" | "avif";
+
+/**
+ * A photo variant is written in both. AVIF is the smaller one gallery and detail pages load
+ * (owner, 2026-11-16); WebP stays for og images (satori reads neither, `og-image.tsx` re-encodes
+ * `card.webp`) and for photos stored before AVIF until the backfill reaches them.
+ */
+export const PHOTO_FORMATS = ["webp", "avif"] as const satisfies readonly ImageFormat[];
+
+/** A logo is WebP only. */
+export const LOGO_FORMATS = ["webp"] as const satisfies readonly ImageFormat[];
+
+export const IMAGE_CONTENT_TYPES: Readonly<Record<ImageFormat, string>> = {
+  webp: "image/webp",
+  avif: "image/avif",
+};
+
 /**
  * Where a shelter logo's storage key starts - `shelterLogoStorageKeyFor`
  * below follows this exactly: `shelters/<shelterId>/logo/<id>`. Shared
@@ -76,9 +92,6 @@ export const SHELTER_LOGO_PREFIX = "shelters/";
  * period (Tier 1 review, PR #220, finding 1 - the STOP this pattern fixes).
  */
 export const SHELTER_LOGO_KEY_PATTERN = /^shelters\/[^/]+\/logo\//;
-
-/** Every variant name this module ever writes, across both namespaces - `storageKeyFromObjectKey`'s own inverse needs the full set, not just one. */
-const ALL_VARIANT_NAMES = [...IMAGE_VARIANT_NAMES, ...LOGO_VARIANT_NAMES];
 
 /**
  * The smallest variant that covers a requested width, never upscaled past
@@ -167,22 +180,43 @@ export function photoSourceObjectKeyFor(storageKey: string, sourceId: string): s
   return `${storageKey}/source-${sourceId}.webp`;
 }
 
-/** The real R2 object key for one variant of one photo or logo - never stored, always derived. */
+const objectKeyOf = (storageKey: string, variant: string, format: ImageFormat): string =>
+  `${storageKey}/${variant}.${format}`;
+
+/**
+ * The real R2 object key for one variant of one photo or logo, in one format - never stored,
+ * always derived, always a direct child of the storage key (the clean-up's parent-path rule).
+ * The overloads keep a logo to WebP, the only format it is written in.
+ */
+export function variantObjectKey(
+  storageKey: string,
+  variant: ImageVariantName,
+  format: ImageFormat,
+): string;
+export function variantObjectKey(
+  storageKey: string,
+  variant: LogoVariantName,
+  format: "webp",
+): string;
 export function variantObjectKey(
   storageKey: string,
   variant: ImageVariantName | LogoVariantName,
+  format: ImageFormat,
 ): string {
-  return `${storageKey}/${variant}.webp`;
+  return objectKeyOf(storageKey, variant, format);
 }
 
-const VARIANT_OBJECT_SUFFIX = new RegExp(`/(${ALL_VARIANT_NAMES.join("|")})\\.webp$`);
+const VARIANT_OBJECT_SUFFIX = new RegExp(
+  `/(?:(?:${IMAGE_VARIANT_NAMES.join("|")})\\.(?:${PHOTO_FORMATS.join("|")})|(?:${LOGO_VARIANT_NAMES.join("|")})\\.(?:${LOGO_FORMATS.join("|")}))$`,
+);
 
 /**
  * The inverse of `variantObjectKey` - the R2 clean-up job's own need (GDPR
  * photo retention): given a real bucket object key, the `storageKey` it was
  * derived from, or `null` if the key doesn't match the one scheme this
  * module ever writes (so a stray or malformed key is skipped, never
- * mis-parsed into treating an unrelated object as one of ours).
+ * mis-parsed into treating an unrelated object as one of ours). Both formats
+ * of a photo variant map to the same storage key.
  */
 export function storageKeyFromObjectKey(objectKey: string): string | null {
   return VARIANT_OBJECT_SUFFIX.test(objectKey)
@@ -215,10 +249,23 @@ export function isRealPhotoKey(storageKey: string): boolean {
 export function r2PublicUrl(
   publicBaseUrl: string,
   storageKey: string,
+  variant: ImageVariantName,
+  format: ImageFormat,
+): string;
+export function r2PublicUrl(
+  publicBaseUrl: string,
+  storageKey: string,
+  variant: LogoVariantName,
+  format: "webp",
+): string;
+export function r2PublicUrl(
+  publicBaseUrl: string,
+  storageKey: string,
   variant: ImageVariantName | LogoVariantName,
+  format: ImageFormat,
 ): string {
   const base = publicBaseUrl.endsWith("/") ? publicBaseUrl.slice(0, -1) : publicBaseUrl;
-  return `${base}/${variantObjectKey(storageKey, variant)}`;
+  return `${base}/${objectKeyOf(storageKey, variant, format)}`;
 }
 
 /**

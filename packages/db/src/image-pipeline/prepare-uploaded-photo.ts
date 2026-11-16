@@ -1,34 +1,39 @@
 import { PHOTO_MAX_EDGE_PX, type PhotoRejectionReason } from "@opika/domain";
 import sharp, { type Metadata } from "sharp";
-import { generateVariants } from "./generate-variants";
+import { type EncodedVariants, generateVariants } from "./generate-variants";
 import { encodePhotoSource, type PhotoSourceImage } from "./photo-source";
 import { displayedDimensions } from "./resolve-local-photo";
 import { sniffImageType } from "./sniff";
 import {
   IMAGE_VARIANTS,
+  type ImageFormat,
   type ImageVariantName,
+  LOGO_FORMATS,
   LOGO_VARIANTS,
   type LogoVariantName,
+  PHOTO_FORMATS,
 } from "./variants";
 
-type PreparedImage<Name extends string> =
+type PreparedImage<Name extends string, F extends ImageFormat> =
   | {
       kind: "ok";
-      /** Re-encoded WebP, no metadata, never the original file. */
-      variants: Record<Name, Buffer>;
+      /** Re-encoded in each format, no metadata, never the original file. */
+      variants: EncodedVariants<Name, F>;
       /** As displayed (EXIF orientation applied), like `validateLocalPhoto`'s. */
       width: number;
       height: number;
     }
   | { kind: "rejected"; reason: PhotoRejectionReason };
 
-type Rejected = Extract<PreparedImage<string>, { kind: "rejected" }>;
+type Rejected = Extract<PreparedImage<string, ImageFormat>, { kind: "rejected" }>;
 
 /** A photo also keeps its source, re-encoded the same way, for later crops (crop frame). */
 export type PreparedPhoto =
-  | (Extract<PreparedImage<ImageVariantName>, { kind: "ok" }> & { source: PhotoSourceImage })
+  | (Extract<PreparedImage<ImageVariantName, (typeof PHOTO_FORMATS)[number]>, { kind: "ok" }> & {
+      source: PhotoSourceImage;
+    })
   | Rejected;
-export type PreparedLogo = PreparedImage<LogoVariantName>;
+export type PreparedLogo = PreparedImage<LogoVariantName, (typeof LOGO_FORMATS)[number]>;
 
 /**
  * The most pixels any decode in the pipeline may open. sharp checks it against
@@ -40,10 +45,9 @@ export type PreparedLogo = PreparedImage<LogoVariantName>;
  */
 export const UPLOAD_PIXEL_LIMIT = PHOTO_MAX_EDGE_PX * PHOTO_MAX_EDGE_PX;
 
-const rejected = <Name extends string>(reason: PhotoRejectionReason): PreparedImage<Name> => ({
-  kind: "rejected",
-  reason,
-});
+const rejected = <Name extends string, F extends ImageFormat>(
+  reason: PhotoRejectionReason,
+): PreparedImage<Name, F> => ({ kind: "rejected", reason });
 
 /**
  * An uploaded file, checked and turned into its stored variants (P-Q2,
@@ -57,9 +61,9 @@ const rejected = <Name extends string>(reason: PhotoRejectionReason): PreparedIm
  *    header claiming a huge image (a decompression bomb) is refused before
  *    anything is decoded;
  * 4. the variants are re-encoded (`generateVariants`: `.rotate()`, resize,
- *    WebP). sharp writes no metadata unless asked (`withMetadata` and its
- *    `keep*` relatives, which nothing in this module calls; a source scan
- *    pins that), so EXIF (GPS above all: a shelter's photo must not reveal
+ *    WebP, and AVIF for a photo). sharp writes no metadata unless asked
+ *    (`withMetadata` and its `keep*` relatives, which nothing in this module
+ *    calls; a source scan pins that), so EXIF (GPS above all: a shelter's photo must not reveal
  *    where it was taken, decision #2), XMP and IPTC never reach a stored file.
  *    This runs for every upload, whatever the checks above found (Oleksii's
  *    P-Q5 amendment: "the server still re-encodes and strips ALL metadata").
@@ -74,10 +78,11 @@ const rejected = <Name extends string>(reason: PhotoRejectionReason): PreparedIm
  * map handed to `generateVariants` differs. `prepareUploadedPhoto` and
  * `prepareUploadedLogo` below are this function with that one map fixed.
  */
-async function prepareUploadedImage<Name extends string>(
+async function prepareUploadedImage<Name extends string, F extends ImageFormat>(
   bytes: Buffer,
   variants: Record<Name, { width: number; height: number }>,
-): Promise<PreparedImage<Name>> {
+  formats: readonly F[],
+): Promise<PreparedImage<Name, F>> {
   const sniffed = sniffImageType(bytes);
   if (sniffed === null) return rejected("unsupported_type");
 
@@ -97,9 +102,11 @@ async function prepareUploadedImage<Name extends string>(
     return rejected("dimensions_exceeded");
   }
 
-  let generated: Record<Name, Buffer>;
+  let generated: EncodedVariants<Name, F>;
   try {
-    generated = await generateVariants(variants, bytes, { limitInputPixels: UPLOAD_PIXEL_LIMIT });
+    generated = await generateVariants(variants, bytes, formats, {
+      limitInputPixels: UPLOAD_PIXEL_LIMIT,
+    });
   } catch {
     return rejected("unreadable");
   }
@@ -113,7 +120,7 @@ async function prepareUploadedImage<Name extends string>(
 
 /** The checks and variants every image gets, plus the source, decoded under the same pixel limit. */
 export async function prepareUploadedPhoto(bytes: Buffer): Promise<PreparedPhoto> {
-  const prepared = await prepareUploadedImage(bytes, IMAGE_VARIANTS);
+  const prepared = await prepareUploadedImage(bytes, IMAGE_VARIANTS, PHOTO_FORMATS);
   if (prepared.kind === "rejected") return prepared;
   try {
     const source = await encodePhotoSource(bytes, { limitInputPixels: UPLOAD_PIXEL_LIMIT });
@@ -124,5 +131,5 @@ export async function prepareUploadedPhoto(bytes: Buffer): Promise<PreparedPhoto
 }
 
 export function prepareUploadedLogo(bytes: Buffer): Promise<PreparedLogo> {
-  return prepareUploadedImage(bytes, LOGO_VARIANTS);
+  return prepareUploadedImage(bytes, LOGO_VARIANTS, LOGO_FORMATS);
 }

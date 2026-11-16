@@ -1,5 +1,5 @@
 import type { KabinetAnimalView } from "@opika/contracts";
-import { IMAGE_VARIANT_NAMES } from "@opika/db/image-pipeline";
+import { IMAGE_VARIANT_NAMES, PHOTO_FORMATS } from "@opika/db/image-pipeline";
 import { animalRepo, cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
 import {
   type AnimalFixtureOverrides,
@@ -20,6 +20,12 @@ import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { PHOTO_PROCESSING_BUDGET_MS, type PhotoUploads } from "./photo-uploads";
+import {
+  PHOTO_UPLOAD_ATTEMPT_LIMITS,
+  type PhotoUploadLimiters,
+  shelterUploadAttemptKey,
+  shelterUploadKey,
+} from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
@@ -112,8 +118,8 @@ function capturingStore() {
   };
 }
 
-/** Five variants and the kept source (crop frame). */
-const OBJECTS_PER_PHOTO = IMAGE_VARIANT_NAMES.length + 1;
+/** Five variants as WebP and as AVIF, and the kept source (crop frame). */
+const OBJECTS_PER_PHOTO = IMAGE_VARIANT_NAMES.length * PHOTO_FORMATS.length + 1;
 const SOURCE_NAME =
   /^source-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/;
 
@@ -121,7 +127,7 @@ const generous = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_0
 
 function uploadsOn(
   store = capturingStore(),
-  limiters: { perHour?: PeekableRateLimiter; perDay?: PeekableRateLimiter } = {},
+  limiters: Partial<PhotoUploadLimiters> = {},
   processingBudgetMs = PHOTO_PROCESSING_BUDGET_MS,
 ): { uploads: PhotoUploads; puts: Put[] } {
   return {
@@ -132,10 +138,50 @@ function uploadsOn(
       limiters: {
         perHour: limiters.perHour ?? generous(),
         perDay: limiters.perDay ?? generous(),
+        uploadAttempts: limiters.uploadAttempts ?? { perHour: generous(), perDay: generous() },
         cropAttempts: { perHour: generous(), perDay: generous() },
       },
       processingBudgetMs,
     },
+  };
+}
+
+/** Counts the units each key spends; `wouldAllow` spends none (the crop tests' own ledger). */
+function ledger(inner = generous()) {
+  const spent = new Map<string, number>();
+  const limiter: PeekableRateLimiter = {
+    async check(key, now) {
+      const allowed = await inner.check(key, now);
+      if (allowed) spent.set(key, (spent.get(key) ?? 0) + 1);
+      return allowed;
+    },
+    wouldAllow: (key, now) => inner.wouldAllow(key, now),
+  };
+  return { limiter, spent: (key: string) => spent.get(key) ?? 0 };
+}
+
+/** What this shelter spent on the allowance and on the upload attempts, hour and day. */
+function ledgers(attempts = { hour: generous(), day: generous() }) {
+  const [hour, day, attemptHour, attemptDay] = [
+    ledger(),
+    ledger(),
+    ledger(attempts.hour),
+    ledger(attempts.day),
+  ];
+  return {
+    limiters: {
+      perHour: hour.limiter,
+      perDay: day.limiter,
+      uploadAttempts: { perHour: attemptHour.limiter, perDay: attemptDay.limiter },
+    },
+    allowance: () => [
+      hour.spent(shelterUploadKey(shelter.id)),
+      day.spent(shelterUploadKey(shelter.id)),
+    ],
+    attempts: () => [
+      attemptHour.spent(shelterUploadAttemptKey(shelter.id)),
+      attemptDay.spent(shelterUploadAttemptKey(shelter.id)),
+    ],
   };
 }
 
@@ -253,14 +299,19 @@ describe("shelter.photos.add", () => {
     expect(added).toMatchObject({ width: 1200, height: 900, alt: null });
     const [sourceKey, ...variantKeys] = puts.map((p) => p.key).reverse();
     expect(variantKeys.sort()).toEqual(
-      [...IMAGE_VARIANT_NAMES].sort().map((v) => `${added?.storageKey}/${v}.webp`),
+      PHOTO_FORMATS.flatMap((format) =>
+        IMAGE_VARIANT_NAMES.map((v) => `${added?.storageKey}/${v}.${format}`),
+      ).sort(),
     );
     // The kept source, a direct child of the same key (crop frame).
     expect(sourceKey?.startsWith(`${added?.storageKey}/`)).toBe(true);
     expect(sourceKey?.slice(`${added?.storageKey}/`.length)).toMatch(SOURCE_NAME);
-    expect(puts.every((p) => p.contentType === "image/webp")).toBe(true);
-    // Never the original: every stored byte is WebP.
-    for (const put of puts) expect((await imageFactsOf(put.bytes)).format).toBe("webp");
+    // Never the original: every stored byte is what its key and type name (sharp calls AVIF heif).
+    for (const put of puts) {
+      const avif = put.key.endsWith(".avif");
+      expect(put.contentType, put.key).toBe(avif ? "image/avif" : "image/webp");
+      expect((await imageFactsOf(put.bytes)).format, put.key).toBe(avif ? "heif" : "webp");
+    }
 
     const stored = await reload(target.id);
     expect(stored.photos.map((p) => p.storageKey)).toEqual([
@@ -298,7 +349,10 @@ describe("shelter.photos.add", () => {
     expect(puts).toHaveLength(OBJECTS_PER_PHOTO);
     for (const put of puts) {
       expect(put.bytes.includes("CANARY-SHELTER-YARD")).toBe(false);
-      expect(await imageFactsOf(put.bytes)).toEqual({ format: "webp", hasMetadata: false });
+      expect(await imageFactsOf(put.bytes), put.key).toEqual({
+        format: put.key.endsWith(".avif") ? "heif" : "webp",
+        hasMetadata: false,
+      });
     }
   });
 
@@ -362,7 +416,8 @@ describe("the processing budget", () => {
    */
   it("past it the upload fails as any upload failure does, logged without the file or a key, and nothing is stored, even once processing finishes", async () => {
     const target = await animal({ photos: [] });
-    const { uploads, puts } = uploadsOn(undefined, {}, 50);
+    const count = ledgers();
+    const { uploads, puts } = uploadsOn(undefined, count.limiters, 50);
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     let release = () => {};
     const released = new Promise<void>((resolve) => {
@@ -398,6 +453,11 @@ describe("the processing budget", () => {
     expect((await reload(target.id)).listing).toEqual(target.listing);
     expect(await photoHistory()).toEqual([]);
     expect(logged.mock.calls).toHaveLength(1);
+    // A failure costs the shelter nothing from its allowance; the attempt it took stays spent.
+    expect([count.allowance(), count.attempts()]).toEqual([
+      [0, 0],
+      [1, 1],
+    ]);
   });
 });
 
@@ -469,17 +529,22 @@ describe("the ten-photo cap (K-Q11)", () => {
 });
 
 describe("per-shelter upload limits (P-Q12)", () => {
-  it("the hourly allowance: the third upload is 429, charged even for a refused file", async () => {
+  it("the hourly allowance counts landed uploads only: a refused file spends an attempt, and the third landing is 429", async () => {
     const target = await animal({ photos: [] });
     const { uploads, puts } = uploadsOn(undefined, {
       perHour: inMemoryRateLimiter({ windowMs: 3_600_000, maxRequests: 2 }),
     });
-    // A rejected file still spends one unit: charged before the bytes are read.
-    await call("shelter.photos.add", { animalId: target.id, file: svgFile() }, { uploads });
+    // A refused file costs no allowance (owner, 2026-11-16), so two photos still land after it.
     expect(
-      (await call("shelter.photos.add", { animalId: target.id, file: await jpeg() }, { uploads }))
+      (await call("shelter.photos.add", { animalId: target.id, file: svgFile() }, { uploads }))
         .status,
-    ).toBe(200);
+    ).toBe(422);
+    for (let i = 0; i < 2; i += 1) {
+      expect(
+        (await call("shelter.photos.add", { animalId: target.id, file: await jpeg() }, { uploads }))
+          .status,
+      ).toBe(200);
+    }
     const third = await call(
       "shelter.photos.add",
       { animalId: target.id, file: await jpeg() },
@@ -487,7 +552,68 @@ describe("per-shelter upload limits (P-Q12)", () => {
     );
     expect(third.status).toBe(429);
     expect(errorOf(third.body).code).toBe("RATE_LIMITED");
-    expect(puts).toHaveLength(OBJECTS_PER_PHOTO);
+    expect(puts).toHaveLength(2 * OBJECTS_PER_PHOTO);
+  });
+
+  it("a landed upload spends one attempt and one allowance unit, hour and day", async () => {
+    const target = await animal({ photos: [] });
+    const count = ledgers();
+    const { uploads } = uploadsOn(undefined, count.limiters);
+    const result = await call(
+      "shelter.photos.add",
+      { animalId: target.id, file: await jpeg() },
+      { uploads },
+    );
+    expect(result.status).toBe(200);
+    expect([count.allowance(), count.attempts()]).toEqual([
+      [1, 1],
+      [1, 1],
+    ]);
+  });
+
+  it("a refused file spends an attempt and none of the allowance", async () => {
+    const target = await animal({ photos: [] });
+    const count = ledgers();
+    const { uploads } = uploadsOn(undefined, count.limiters);
+    const result = await call(
+      "shelter.photos.add",
+      { animalId: target.id, file: svgFile() },
+      { uploads },
+    );
+    expect(result.status).toBe(422);
+    expect([count.allowance(), count.attempts()]).toEqual([
+      [0, 0],
+      [1, 1],
+    ]);
+  });
+
+  it("the 91st attempt in an hour is 429 before the file is read or decoded", async () => {
+    const target = await animal({ photos: [] });
+    const attemptHour = inMemoryRateLimiter(PHOTO_UPLOAD_ATTEMPT_LIMITS.perHour);
+    const count = ledgers({ hour: attemptHour, day: generous() });
+    const now = new Date();
+    for (let i = 0; i < 90; i += 1) {
+      await attemptHour.check(shelterUploadAttemptKey(shelter.id), now);
+    }
+    let decoded = 0;
+    processing.held = (bytes) => {
+      decoded += 1;
+      if (processing.real === null) throw new Error("the real pipeline was never loaded");
+      return processing.real(bytes);
+    };
+    const { uploads, puts } = uploadsOn(undefined, count.limiters);
+
+    const result = await call(
+      "shelter.photos.add",
+      { animalId: target.id, file: await jpeg() },
+      { uploads, now },
+    );
+
+    expect(result.status).toBe(429);
+    expect(errorOf(result.body).code).toBe("RATE_LIMITED");
+    expect(decoded).toBe(0);
+    expect(puts).toEqual([]);
+    expect(count.allowance()).toEqual([0, 0]);
   });
 
   it("the daily allowance refuses on its own", async () => {
@@ -517,6 +643,14 @@ describe("per-shelter upload limits (P-Q12)", () => {
     const { uploads } = uploadsOn(undefined, { perHour: spying, perDay: spying });
     await call("shelter.photos.add", { animalId: target.id, file: await jpeg() }, { uploads });
     expect(keys).toEqual([`shelter:${shelter.id}`, `shelter:${shelter.id}`]);
+  });
+
+  // Literal values from the owner's answer (2026-11-16), not the constant read back.
+  it("the upload attempts are 90 an hour and 450 a day", () => {
+    expect(PHOTO_UPLOAD_ATTEMPT_LIMITS).toEqual({
+      perHour: { windowMs: 3_600_000, maxRequests: 90 },
+      perDay: { windowMs: 86_400_000, maxRequests: 450 },
+    });
   });
 
   // Literal values from the approved answer, not the constant read back.
@@ -602,6 +736,22 @@ describe("who may upload", () => {
     expect(puts).toEqual([]);
     expect((await reload(theirs.id)).photos).toEqual([photo(1)]);
     expect(await photoHistory(other)).toEqual([]);
+  });
+
+  it("an upload naming another shelter's animal spends an attempt before the ownership lookup, none of the allowance", async () => {
+    const theirs = await animal({ photos: [photo(1)] }, other);
+    const count = ledgers();
+    const { uploads } = uploadsOn(undefined, count.limiters);
+    const result = await call(
+      "shelter.photos.add",
+      { animalId: theirs.id, file: await jpeg() },
+      { uploads },
+    );
+    expect(result.status).toBe(404);
+    expect([count.allowance(), count.attempts()]).toEqual([
+      [0, 0],
+      [1, 1],
+    ]);
   });
 });
 

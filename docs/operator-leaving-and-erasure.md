@@ -70,9 +70,10 @@ agent to.
       of you. **GAP.**
    4. Same command with `--commit`. Then the dry run again: it must refuse with "no shelter has id".
 8. **Photos and logo.** After step 7 nothing references them; the daily clean-up deletes them once they
-   have sat unreferenced for 7 days. Each photo is 6 objects (five variants and its kept source),
-   and a run due to delete more than 600 deletes none (`refused_over_cap` in the log). So for a
-   shelter with more than 100 photos (crops count too), after the
+   have sat unreferenced for 7 days. Each photo is 11 objects (five variants as WebP and as AVIF, and
+   its kept source; 6 for a photo stored before AVIF and not yet backfilled), and a run due to delete
+   more than 1100 deletes none (`refused_over_cap` in the log). So for a shelter with more than 100
+   photos (crops count too), after the
    grace: `pnpm --filter @opika/db r2:cleanup --expect <production ep- id> --prod` (dry run, read the
    count), then the same with `--commit --max-delete <that count>`. Never `--grace-days 0` here: it
    would also take other shelters' photos still inside their grace. Do not delete files by hand.

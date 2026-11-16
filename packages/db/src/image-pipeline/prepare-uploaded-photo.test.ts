@@ -90,11 +90,11 @@ describe("prepareUploadedPhoto strips every piece of metadata (K-Q2)", () => {
   });
 
   /**
-   * One comparison per variant, format included, so a failure lists every
-   * block that survived. WebP, the stored format, has no IPTC container in
-   * libvips's writer (even `keepMetadata()` drops it there), so today the
-   * format is what keeps IPTC out; the `iptc` field and its canary are what
-   * still hold if the stored format ever changes to one that carries it.
+   * One comparison per variant and format, so a failure lists every block
+   * that survived. WebP has no IPTC container in libvips's writer (even
+   * `keepMetadata()` drops it there); AVIF (HEIF) can carry EXIF and XMP,
+   * so for it the missing `withMetadata` is what keeps them out, and the
+   * canaries prove it byte by byte.
    */
   it("no variant carries EXIF, XMP or IPTC, and no canary survives in any byte", async () => {
     const prepared = await prepareUploadedPhoto(await gpsTaggedJpeg());
@@ -106,19 +106,26 @@ describe("prepareUploadedPhoto strips every piece of metadata (K-Q2)", () => {
       "mid",
       "thumb",
     ]);
-    for (const [name, bytes] of Object.entries(prepared.variants)) {
-      const meta = await sharp(bytes).metadata();
-      expect(
-        {
-          format: meta.format,
-          exif: meta.exif !== undefined,
-          xmp: meta.xmp !== undefined,
-          iptc: meta.iptc !== undefined,
-        },
-        name,
-      ).toEqual({ format: "webp", exif: false, xmp: false, iptc: false });
-      for (const canary of Object.values(CANARY)) {
-        expect(bytes.includes(canary), `${name} still holds ${canary}`).toBe(false);
+    for (const [name, formats] of Object.entries(prepared.variants)) {
+      for (const [format, bytes] of Object.entries(formats)) {
+        const meta = await sharp(bytes).metadata();
+        expect(
+          {
+            format: meta.format,
+            exif: meta.exif !== undefined,
+            xmp: meta.xmp !== undefined,
+            iptc: meta.iptc !== undefined,
+          },
+          `${name} ${format}`,
+        ).toEqual({
+          format: format === "avif" ? "heif" : "webp",
+          exif: false,
+          xmp: false,
+          iptc: false,
+        });
+        for (const canary of Object.values(CANARY)) {
+          expect(bytes.includes(canary), `${name} ${format} still holds ${canary}`).toBe(false);
+        }
       }
     }
   });
