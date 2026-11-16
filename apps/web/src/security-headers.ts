@@ -67,11 +67,8 @@ export const CSP_REPORTING_SOURCES = [
 const CSP_REPORT_GROUP = "csp-endpoint";
 
 /**
- * The site-wide report-only policy plus where to report, on the allowlisted pages; listed after the
- * site-wide rule, so it replaces that value there. `report-to` only, no `report-uri` (owner,
- * 2026-11-16): WebKit's report-uri posts carry the full User-Agent, and Sentry derives device model
- * and OS from it before any scrubbing, so Safari, Firefox and iOS in-app views report nothing, by
- * choice (docs/security.md). No usable DSN, no rules: nothing reports anywhere.
+ * The report-only policy plus `report-to` on the allowlisted pages, replacing the site-wide value there.
+ * No `report-uri` (WebKit's posts carry the full User-Agent; docs/security.md). No usable DSN, no rules.
  */
 export function cspReportingRules(
   options: SecurityHeaderOptions,

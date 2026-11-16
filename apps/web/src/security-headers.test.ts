@@ -243,7 +243,8 @@ describe("next.config.ts headers(), as Next sends them", () => {
     for (const url of [...REPORTING, ...NOT_REPORTING]) {
       const headers = sent(url);
       for (const key of ["content-security-policy", "content-security-policy-report-only"]) {
-        expect(directivesOf(headers.get(key) ?? "").has("report-uri"), `${url} ${key}`).toBe(false);
+        // Directive names are case-insensitive to a browser, so the check is too.
+        expect((headers.get(key) ?? "").toLowerCase(), `${url} ${key}`).not.toContain("report-uri");
       }
     }
   });
