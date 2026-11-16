@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { REFERRER_POLICY_RULE, securityHeaders } from "./security-headers";
 
 /**
- * Audit F5, the owner's scope: three enforced headers (nosniff, no framing,
- * HSTS for two years on subdomains, no preload) and a full policy that only
- * reports. Values are the owner's literals.
+ * Audit F5, the owner's scope: the enforced headers (nosniff; CSP frame-ancestors, object-src,
+ * base-uri, form-action; COOP same-origin; HSTS for two years on subdomains, no preload) and a
+ * full policy that only reports. Values are the owner's literals.
  */
 const PHOTOS = "https://cdn.opika.example/some/path";
 
