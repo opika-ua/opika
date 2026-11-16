@@ -11,11 +11,14 @@ import { type APIRequestContext, expect, type Page, test } from "@playwright/tes
 const ORIGIN = `http://127.0.0.1:${harnessPort()}`;
 
 const IP_HEADERS = { "x-forwarded-for": "198.51.100.60" };
+const ENFORCED_CSP =
+  "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
 test.use({ extraHTTPHeaders: IP_HEADERS });
 
 function expectSecurityHeaders(headers: Record<string, string>, what: string) {
   expect(headers["x-content-type-options"], what).toBe("nosniff");
-  expect(headers["content-security-policy"], what).toBe("frame-ancestors 'none'");
+  expect(headers["content-security-policy"], what).toBe(ENFORCED_CSP);
+  expect(headers["cross-origin-opener-policy"], what).toBe("same-origin");
   expect(headers["strict-transport-security"], what).toBe("max-age=63072000; includeSubDomains");
   expect(headers["content-security-policy-report-only"], what).toContain("default-src 'self'");
   expect(headers["referrer-policy"], what).toBe("strict-origin-when-cross-origin");
@@ -39,10 +42,11 @@ test.describe("security headers (audit F5)", () => {
     expectSecurityHeaders(api.headers(), "POST /api/rpc/animals/cardsByIds");
   });
 
-  /** The three the owner wants enforced, on responses no page code shapes. */
+  /** The ones the owner wants enforced, on responses no page code shapes. */
   function expectEnforced(headers: Record<string, string>, what: string) {
     expect(headers["x-content-type-options"], what).toBe("nosniff");
-    expect(headers["content-security-policy"], what).toBe("frame-ancestors 'none'");
+    expect(headers["content-security-policy"], what).toBe(ENFORCED_CSP);
+    expect(headers["cross-origin-opener-policy"], what).toBe("same-origin");
     expect(headers["strict-transport-security"], what).toBe("max-age=63072000; includeSubDomains");
   }
 
