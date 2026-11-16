@@ -42,7 +42,7 @@ ping is the alert.
 2. Vercel, Logs, filter by the path: a 401 or a 500 "Cron secret not configured" means `CRON_SECRET`
    is missing or was changed without a redeploy (section 6).
 3. `refused_over_cap` in the r2-cleanup log: the delete cap tripped and nothing was deleted
-   (section 8). Find out why that many objects look unreferenced before raising the cap.
+   (section 8). Find out why that many photos look unreferenced before raising the cap.
 4. `refused_misconfigured`: one of the `R2_CLEANUP_*` credentials is half set or padded.
 5. Run it by hand to see the real error: `curl` the path with the bearer header, the secret read from
    your own password manager, never pasted into chat.
@@ -123,13 +123,15 @@ owner: shelters can re-upload photos and logos. The protection is the clean-up j
 
 - an object is deleted only after 7 days unreferenced, re-checked right before the delete, and only
   under `animals/` and logo-shaped `shelters/` keys;
-- one run refuses to delete more than 1100 objects (`DEFAULT_MAX_DELETE_PER_RUN`; about 100 photos or
-  crops at eleven objects each, five variants as WebP and as AVIF plus the kept source; a photo stored
-  before AVIF and not yet backfilled is six, so up to ~183 of those): over that it deletes nothing, logs
-  `refused_over_cap` with the counts, and the
-  cron answers 500. The cron has no way to raise the cap. Only the CLI does, after someone has looked
-  at why so much is due: `pnpm --filter @opika/db r2:cleanup --prod --expect ep-... --commit --max-delete <n>`
-  (dry run first, without `--commit`).
+- one run refuses to delete more than 100 distinct photos or logos (`DEFAULT_MAX_PHOTOS_PER_RUN`, a day
+  of uploads or crops; owner, 2026-11-16). It counts photos, not objects, so no format change moves it:
+  a photo is eleven objects today (five variants as WebP and as AVIF plus the kept source), six if
+  stored before AVIF and not yet backfilled, and any object of no known shape counts as a photo of its
+  own. Over the cap it deletes nothing, logs `refused_over_cap` with `duePhotos`, `dueObjects` and
+  `capPhotos`, and the cron answers 500. The cron has no way to raise the cap. Only the CLI does, after
+  someone has looked at why so much is due:
+  `pnpm --filter @opika/db r2:cleanup --prod --expect ep-... --commit --max-photos <n>` (dry run first,
+  without `--commit`: it prints the photo count). The old object-count `--max-delete` is refused.
 
 ## 9. A shelter looks wrong
 

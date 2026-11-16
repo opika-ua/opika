@@ -77,7 +77,7 @@ export async function handleR2CleanupCron(
   try {
     const pipeline = await import("@opika/db/image-pipeline/server");
     const r2 = pipeline.createR2CleanupClient(deps.r2State.config);
-    // No maxDelete: the cron always runs under the default cap; only the CLI can raise it.
+    // No maxPhotos: the cron always runs under the default cap; only the CLI can raise it.
     report = await pipeline.runR2Cleanup(deps.db(), r2, deps.now, {
       commit: true,
       graceDays: undefined,
@@ -88,25 +88,22 @@ export async function handleR2CleanupCron(
   }
 
   if (report.capTripped !== null) {
+    const counts = {
+      duePhotos: report.capTripped.photos,
+      dueObjects: report.capTripped.objects,
+      capPhotos: report.capTripped.cap,
+    };
     (deps.logError ?? deps.log)(
       JSON.stringify({
         event: "r2_cleanup",
         outcome: "refused_over_cap",
-        dueForDeletion: report.capTripped.due,
-        cap: report.capTripped.cap,
+        ...counts,
         scanned: report.scanned,
         deleted: 0,
       }),
     );
     await ping("fail");
-    return Response.json(
-      {
-        outcome: "refused_over_cap",
-        dueForDeletion: report.capTripped.due,
-        cap: report.capTripped.cap,
-      },
-      { status: 500 },
-    );
+    return Response.json({ outcome: "refused_over_cap", ...counts }, { status: 500 });
   }
 
   deps.log(

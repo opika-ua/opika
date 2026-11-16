@@ -13,7 +13,12 @@
 import { isPastGracePeriod, R2_CLEANUP_GRACE_PERIOD_DAYS } from "@opika/domain";
 import type { Database } from "./client";
 import type { R2CleanupClient } from "./image-pipeline/r2-cleanup-client";
-import { SHELTER_LOGO_KEY_PATTERN, SHELTER_LOGO_PREFIX } from "./image-pipeline/variants";
+import {
+  SHELTER_LOGO_KEY_PATTERN,
+  SHELTER_LOGO_PREFIX,
+  storageKeyFromObjectKey,
+  storageKeyFromSourceObjectKey,
+} from "./image-pipeline/variants";
 import {
   afterDeleted,
   recordScan,
@@ -53,12 +58,37 @@ function isKeyOwnedByThisJob(objectKey: string): boolean {
 const DELETE_BATCH_SIZE = 1000;
 
 /**
- * Blast-radius cap in objects, else nothing is deleted; only `--max-delete` raises it. ~100 photos
- * or crops a run (crop-frame Q4) once each is eleven objects (five variants twice, plus the source;
- * pinned in `photo-source-cleanup.test.ts`); a photo stored before AVIF and not yet backfilled is
- * six, so until the backfill up to ~183 of those fit. A follow-up counts photos instead (owner).
+ * Blast-radius cap: at most this many distinct photos or logos due in one run, else nothing is
+ * deleted; only the CLI's `--max-photos` raises it. A day of ~100 photos or crops (crop-frame Q4),
+ * counted in photos so no format change moves it (owner, 2026-11-16).
  */
-export const DEFAULT_MAX_DELETE_PER_RUN = 1100;
+export const DEFAULT_MAX_PHOTOS_PER_RUN = 100;
+
+/**
+ * How many photos the cap counts among these keys. A variant or a kept source counts as the photo
+ * whose folder holds it; any other key (or a second source in one folder) counts as a photo of its
+ * own, so an object of no known shape can only tighten the cap, never loosen it.
+ */
+export function photosAmong(objectKeys: readonly string[]): number {
+  const photos = new Set<string>();
+  const sourced = new Set<string>();
+  let alone = 0;
+  for (const key of new Set(objectKeys)) {
+    const variantOf = storageKeyFromObjectKey(key);
+    if (variantOf !== null) {
+      photos.add(variantOf);
+      continue;
+    }
+    const sourceOf = storageKeyFromSourceObjectKey(key);
+    if (sourceOf !== null && !sourced.has(sourceOf)) {
+      sourced.add(sourceOf);
+      photos.add(sourceOf);
+      continue;
+    }
+    alone += 1;
+  }
+  return photos.size + alone;
+}
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -71,11 +101,13 @@ export type R2CleanupReport = {
   newlyTracked: number;
   clearedBack: number;
   dueForDeletion: readonly string[];
+  /** `photosAmong(dueForDeletion)`: what the cap counts, printed so a dry run shows it too. */
+  duePhotos: number;
   deleted: readonly string[];
   failed: readonly { key: string; message: string }[];
   snapshotsNulled: number;
-  /** Set when a commit run found more due objects than the cap allows; nothing was deleted. */
-  capTripped: { due: number; cap: number } | null;
+  /** Set when a commit run found more due photos than the cap allows; nothing was deleted. */
+  capTripped: { photos: number; objects: number; cap: number } | null;
 };
 
 /**
@@ -98,10 +130,14 @@ export async function runR2Cleanup(
   db: Database,
   r2: R2CleanupClient,
   now: Date,
-  options: { commit: boolean; graceDays: number | undefined; maxDelete?: number | undefined },
+  options: { commit: boolean; graceDays: number | undefined; maxPhotos?: number | undefined },
 ): Promise<R2CleanupReport> {
   const graceDays = options.graceDays ?? R2_CLEANUP_GRACE_PERIOD_DAYS;
-  const maxDelete = options.maxDelete ?? DEFAULT_MAX_DELETE_PER_RUN;
+  const maxPhotos = options.maxPhotos ?? DEFAULT_MAX_PHOTOS_PER_RUN;
+  // `n > NaN` is false: a cap that isn't a positive whole number would let everything through.
+  if (!Number.isInteger(maxPhotos) || maxPhotos < 1) {
+    throw new Error("The clean-up's photo cap must be a positive whole number");
+  }
   // One listing call per prefix - R2's own ListObjectsV2 takes exactly one
   // prefix, so the two namespaces can't be scanned in a single call. The
   // shelters/ listing is broader than what this job owns, so it's narrowed
@@ -114,6 +150,7 @@ export async function runR2Cleanup(
   const due = tracked
     .filter((row) => isPastGracePeriod(row.firstSeenUnreferencedAt, now, graceDays))
     .map((row) => row.objectKey);
+  const duePhotos = photosAmong(due);
 
   if (!options.commit || due.length === 0) {
     return {
@@ -121,6 +158,7 @@ export async function runR2Cleanup(
       newlyTracked,
       clearedBack: cleared,
       dueForDeletion: due,
+      duePhotos,
       deleted: [],
       failed: [],
       snapshotsNulled: 0,
@@ -128,16 +166,17 @@ export async function runR2Cleanup(
     };
   }
 
-  if (due.length > maxDelete) {
+  if (duePhotos > maxPhotos) {
     return {
       scanned: bucketKeys.length,
       newlyTracked,
       clearedBack: cleared,
       dueForDeletion: due,
+      duePhotos,
       deleted: [],
       failed: [],
       snapshotsNulled: 0,
-      capTripped: { due: due.length, cap: maxDelete },
+      capTripped: { photos: duePhotos, objects: due.length, cap: maxPhotos },
     };
   }
 
@@ -158,6 +197,7 @@ export async function runR2Cleanup(
     newlyTracked,
     clearedBack: cleared,
     dueForDeletion: due,
+    duePhotos,
     deleted,
     failed,
     snapshotsNulled,
@@ -174,11 +214,13 @@ export function formatReport(
     `Newly tracked as unreferenced: ${report.newlyTracked}`,
     `Referenced again, untracked: ${report.clearedBack}`,
     `Past the grace period (${heading}): ${report.dueForDeletion.length}`,
+    `Photos and logos among them (what the cap counts): ${report.duePhotos}`,
   ];
   for (const key of report.dueForDeletion) lines.push(`  ${key}`);
   if (report.capTripped !== null) {
+    const { photos, objects, cap } = report.capTripped;
     lines.push(
-      `REFUSED: ${report.capTripped.due} objects are due, over the cap of ${report.capTripped.cap} per run. Nothing was deleted. Check why before raising it (--max-delete <n>).`,
+      `REFUSED: ${photos} photos (${objects} objects) are due, over the cap of ${cap} photos per run. Nothing was deleted. Check why before raising it (--max-photos <n>).`,
     );
   }
   if (heading === "Deleted") {

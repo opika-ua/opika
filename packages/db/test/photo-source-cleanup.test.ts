@@ -16,7 +16,7 @@ import type { R2CleanupClient } from "../src/image-pipeline/r2-cleanup-client";
 import type { ImageStorageClient } from "../src/image-pipeline/r2-client";
 import { type PhotoVariants, storePhoto } from "../src/image-pipeline/upload-animal-photo";
 import { IMAGE_VARIANTS, photoSourceObjectKeyFor } from "../src/image-pipeline/variants";
-import { DEFAULT_MAX_DELETE_PER_RUN, runR2Cleanup } from "../src/r2-cleanup-run";
+import { DEFAULT_MAX_PHOTOS_PER_RUN, runR2Cleanup } from "../src/r2-cleanup-run";
 import { executeRows } from "../src/raw-rows";
 import { erasableIf, eraseUsersAndScrubHistory } from "../src/repos/admin-erasure-repo";
 import { animalRepo } from "../src/repos/animal-repo";
@@ -390,12 +390,28 @@ describe("a photo's source goes with its photo, through the clean-up job only (c
   });
 });
 
-describe("the clean-up cap (owner, crop-frame Q4)", () => {
-  it("is 1100: one photo or one crop leaves eleven objects (WebP and AVIF), so a day of 100 fits", async () => {
+describe("the clean-up cap (owner, crop-frame Q4; counted in photos since 2026-11-16)", () => {
+  /** `count` photos as uploads and crops store them, none on a card. */
+  async function offEveryCard(store: Bucket, count: number) {
+    for (let i = 0; i < count; i += 1) await stored(store, randomUUID());
+  }
+
+  it("a day of 100 photos or crops goes in one run, eleven objects each", async () => {
     const store = bucket();
-    const { objects } = await stored(store, randomUUID());
-    expect(objects).toHaveLength(11);
-    expect(DEFAULT_MAX_DELETE_PER_RUN).toBe(1100);
-    expect(DEFAULT_MAX_DELETE_PER_RUN).toBe(100 * objects.length);
-  });
+    await offEveryCard(store, DEFAULT_MAX_PHOTOS_PER_RUN);
+    expect(DEFAULT_MAX_PHOTOS_PER_RUN).toBe(100);
+    expect(store.objects.size).toBe(1100);
+    expect(await sweep(store)).toHaveLength(1100);
+    expect(store.objects.size).toBe(0);
+  }, 30_000);
+
+  it("one photo more is refused whole: nothing goes", async () => {
+    const store = bucket();
+    await offEveryCard(store, DEFAULT_MAX_PHOTOS_PER_RUN + 1);
+    await runR2Cleanup(db, store.r2, DAY_0, { commit: true, graceDays: undefined });
+    const later = await runR2Cleanup(db, store.r2, DAY_8, { commit: true, graceDays: undefined });
+    expect(later.capTripped).toEqual({ photos: 101, objects: 1111, cap: 100 });
+    expect(later.deleted).toEqual([]);
+    expect(store.objects.size).toBe(1111);
+  }, 30_000);
 });

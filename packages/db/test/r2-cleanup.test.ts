@@ -1,10 +1,18 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { R2CleanupClient } from "../src/image-pipeline/r2-cleanup-client";
-import { variantObjectKey } from "../src/image-pipeline/variants";
 import {
-  DEFAULT_MAX_DELETE_PER_RUN,
+  IMAGE_VARIANT_NAMES,
+  type ImageFormat,
+  LOGO_VARIANT_NAMES,
+  photoSourceObjectKeyFor,
+  variantObjectKey,
+} from "../src/image-pipeline/variants";
+import {
+  DEFAULT_MAX_PHOTOS_PER_RUN,
   formatReport,
   parseCleanupArgs,
+  photosAmong,
   runR2Cleanup,
 } from "../src/r2-cleanup";
 import { animalRepo } from "../src/repos/animal-repo";
@@ -237,7 +245,7 @@ describe("runR2Cleanup", () => {
     const report = await mockedRunR2Cleanup(db, r2, past, {
       commit: true,
       graceDays: undefined,
-      maxDelete: 5000,
+      maxPhotos: 5000,
     });
 
     expect(calls).toEqual([1000, 500]); // two batches, re-checked separately
@@ -286,68 +294,196 @@ describe("runR2Cleanup", () => {
   });
 });
 
-describe("the per-run delete cap", () => {
+/** One photo as uploads store it today: the five variants in each format, and its kept source. */
+const photoObjects = (storageKey: string, formats: readonly ImageFormat[] = ["webp", "avif"]) => [
+  ...formats.flatMap((format) =>
+    IMAGE_VARIANT_NAMES.map((variant) => variantObjectKey(storageKey, variant, format)),
+  ),
+  photoSourceObjectKeyFor(storageKey, randomUUID()),
+];
+const photos = (n: number, formats?: readonly ImageFormat[]) =>
+  Array.from({ length: n }, (_, i) => photoObjects(`animals/orphan/${i}`, formats)).flat();
+/** Photos stored before AVIF and not yet backfilled: six objects each. */
+const olderPhotos = (n: number) => photos(n, ["webp"]);
+
+describe("photosAmong (what the cap counts, owner 2026-11-16)", () => {
+  const key = "animals/a/1";
+
+  it("counts a photo's variants in both formats and its kept source as one photo, and a logo's as one", () => {
+    expect(photoObjects(key)).toHaveLength(11);
+    expect(photosAmong(photoObjects(key))).toBe(1);
+    expect(photosAmong(photoObjects(key, ["webp"]))).toBe(1);
+    expect(
+      photosAmong(LOGO_VARIANT_NAMES.map((v) => variantObjectKey("shelters/s/logo/1", v, "webp"))),
+    ).toBe(1);
+    expect(photosAmong([...photos(3), ...photoObjects("animals/b/1", ["webp"])])).toBe(4);
+  });
+
+  it("counts each key of no known shape as a photo of its own, even several in one photo's folder", () => {
+    // Grouped by folder alone, the first three would be one photo.
+    const strays = [
+      `${key}/original.jpg`,
+      `${key}/thumb.jpg`,
+      `${key}/card.png`,
+      "shelters/s/logo/1/small.avif",
+      "animals/loose.webp",
+      `${key}/source-1.webp`,
+    ];
+    expect(photosAmong(strays)).toBe(strays.length);
+    expect(photosAmong([...photoObjects(key), ...strays])).toBe(1 + strays.length);
+  });
+
+  it("never folds a stray key into a photo, even one named exactly like the photo's folder", () => {
+    expect(photosAmong([key, variantObjectKey(key, "card", "webp")])).toBe(2);
+  });
+
+  it("a second kept source in one photo's folder counts as a photo of its own", () => {
+    const twoSources = [
+      variantObjectKey(key, "card", "webp"),
+      photoSourceObjectKeyFor(key, randomUUID()),
+      photoSourceObjectKeyFor(key, randomUUID()),
+    ];
+    expect(photosAmong(twoSources)).toBe(2);
+  });
+});
+
+describe("the per-run cap, in photos", () => {
   const orphans = (n: number) =>
     Array.from({ length: n }, (_, i) => variantObjectKey(`animals/orphan/${i}`, "card", "webp"));
   const later = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
 
-  it("deletes everything when the due count is at the cap", async () => {
-    const r2 = fakeR2(orphans(3));
+  /** Tracks `keys` now, then commits once they're past the grace period. */
+  async function dueLater(keys: string[], maxPhotos?: number) {
+    const r2 = fakeR2(keys);
     await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
     const report = await runR2Cleanup(db, r2, later, {
       commit: true,
       graceDays: undefined,
-      maxDelete: 3,
+      maxPhotos,
     });
+    return { r2, report };
+  }
+
+  it("deletes everything when the due photos are at the cap", async () => {
+    const { r2, report } = await dueLater(orphans(3), 3);
     expect(report.capTripped).toBeNull();
     expect(report.deleted).toHaveLength(3);
     expect(r2.remaining()).toEqual([]);
   });
 
   it("over the cap deletes nothing, reports the counts, and leaves the rows tracked", async () => {
-    const r2 = fakeR2(orphans(4));
-    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
-    const report = await runR2Cleanup(db, r2, later, {
-      commit: true,
-      graceDays: undefined,
-      maxDelete: 3,
-    });
-    expect(report.capTripped).toEqual({ due: 4, cap: 3 });
+    const { r2, report } = await dueLater(orphans(4), 3);
+    expect(report.capTripped).toEqual({ photos: 4, objects: 4, cap: 3 });
     expect(report.deleted).toEqual([]);
     expect(r2.remaining()).toHaveLength(4);
     expect(await trackedUnreferencedObjects(db)).toHaveLength(4);
-    expect(formatReport(report, "Deleted").join("\n")).toContain("REFUSED: 4 objects are due");
+    expect(formatReport(report, "Deleted").join("\n")).toContain(
+      "REFUSED: 4 photos (4 objects) are due, over the cap of 3 photos per run. Nothing was deleted.",
+    );
   });
 
-  it("the override lets the same backlog through, and a dry run is never capped", async () => {
+  it("the override lets the same backlog through, and a dry run is never capped but shows the count", async () => {
     const r2 = fakeR2(orphans(4));
     await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
     const dry = await runR2Cleanup(db, r2, later, {
       commit: false,
       graceDays: undefined,
-      maxDelete: 1,
+      maxPhotos: 1,
     });
     expect(dry.capTripped).toBeNull();
+    expect(r2.remaining()).toHaveLength(4);
+    expect(formatReport(dry, "Would delete").join("\n")).toContain(
+      "Photos and logos among them (what the cap counts): 4",
+    );
     const report = await runR2Cleanup(db, r2, later, {
       commit: true,
       graceDays: undefined,
-      maxDelete: 10,
+      maxPhotos: 10,
     });
     expect(report.deleted).toHaveLength(4);
   });
 
-  it("without an option the default cap applies", async () => {
-    const r2 = fakeR2(orphans(DEFAULT_MAX_DELETE_PER_RUN + 1));
-    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
-    const report = await runR2Cleanup(db, r2, later, { commit: true, graceDays: undefined });
-    expect(report.capTripped).toEqual({
-      due: DEFAULT_MAX_DELETE_PER_RUN + 1,
-      cap: DEFAULT_MAX_DELETE_PER_RUN,
+  it("is 100 photos by default: 100 photos of eleven objects (1100 objects) all go", async () => {
+    const keys = photos(DEFAULT_MAX_PHOTOS_PER_RUN);
+    expect(keys).toHaveLength(1100);
+    const { r2, report } = await dueLater(keys);
+    expect(report.capTripped).toBeNull();
+    expect(report.duePhotos).toBe(100);
+    expect(report.deleted).toHaveLength(1100);
+    expect(r2.remaining()).toEqual([]);
+  }, 30_000);
+
+  it("101 such photos are refused whole, and only an explicit override lets them through", async () => {
+    const { r2, report } = await dueLater(photos(DEFAULT_MAX_PHOTOS_PER_RUN + 1));
+    expect(report.capTripped).toEqual({ photos: 101, objects: 1111, cap: 100 });
+    expect(report.deleted).toEqual([]);
+    expect(r2.remaining()).toHaveLength(1111);
+    expect(await trackedUnreferencedObjects(db)).toHaveLength(1111);
+    expect(formatReport(report, "Deleted").join("\n")).toContain(
+      "REFUSED: 101 photos (1111 objects) are due, over the cap of 100 photos per run. Nothing was deleted. Check why before raising it (--max-photos <n>).",
+    );
+
+    const raised = await runR2Cleanup(db, r2, later, {
+      commit: true,
+      graceDays: undefined,
+      maxPhotos: 101,
     });
-    expect(r2.remaining()).toHaveLength(DEFAULT_MAX_DELETE_PER_RUN + 1);
+    expect(raised.capTripped).toBeNull();
+    expect(raised.deleted).toHaveLength(1111);
+  }, 30_000);
+
+  it("183 photos stored before AVIF (six objects each: 1098, under the old 1100-object cap) are refused", async () => {
+    const keys = olderPhotos(183);
+    expect(keys).toHaveLength(1098);
+    const { r2, report } = await dueLater(keys);
+    expect(report.capTripped).toEqual({ photos: 183, objects: 1098, cap: 100 });
+    expect(report.deleted).toEqual([]);
+    expect(r2.remaining()).toHaveLength(1098);
+  }, 30_000);
+
+  it("a mix of six- and eleven-object photos and a logo counts each photo once", async () => {
+    const keys = [
+      ...olderPhotos(60),
+      ...Array.from({ length: 39 }, (_, i) => photoObjects(`animals/newer/${i}`)).flat(),
+      ...LOGO_VARIANT_NAMES.map((v) => variantObjectKey("shelters/s/logo/1", v, "webp")),
+    ];
+    expect(keys).toHaveLength(60 * 6 + 39 * 11 + 2);
+    const r2 = fakeR2(keys);
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+
+    const under = await runR2Cleanup(db, r2, later, {
+      commit: true,
+      graceDays: undefined,
+      maxPhotos: 99,
+    });
+    expect(under.capTripped).toEqual({ photos: 100, objects: 791, cap: 99 });
+    expect(r2.remaining()).toHaveLength(791);
+
+    const atDefault = await runR2Cleanup(db, r2, later, { commit: true, graceDays: undefined });
+    expect(atDefault.capTripped).toBeNull();
+    expect(atDefault.deleted).toHaveLength(791);
+  }, 30_000);
+
+  it("objects of no known shape count one by one, so they can only tighten the cap", async () => {
+    // 100 real photos are at the default cap; one stray object in a photo's folder takes it over.
+    const stray = "animals/orphan/0/original.jpg";
+    const { r2, report } = await dueLater([...photos(100), stray]);
+    expect(report.capTripped).toEqual({ photos: 101, objects: 1101, cap: 100 });
+    expect(r2.remaining()).toHaveLength(1101);
+    expect(r2.remaining()).toContain(stray);
+  }, 30_000);
+
+  it("refuses a cap that isn't a positive whole number, deleting nothing", async () => {
+    const r2 = fakeR2(orphans(2));
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+    for (const maxPhotos of [0, -1, 1.5, Number.NaN]) {
+      await expect(
+        runR2Cleanup(db, r2, later, { commit: true, graceDays: undefined, maxPhotos }),
+      ).rejects.toThrow(/positive whole number/);
+    }
+    expect(r2.remaining()).toHaveLength(2);
   });
 });
-
 describe("formatReport", () => {
   it("names the heading-appropriate fields; a dry run never claims a deletion count", () => {
     const base = {
@@ -355,6 +491,7 @@ describe("formatReport", () => {
       newlyTracked: 1,
       clearedBack: 0,
       dueForDeletion: ["animals/x/1/card.webp"],
+      duePhotos: 1,
       deleted: [],
       failed: [],
       snapshotsNulled: 0,
@@ -379,6 +516,7 @@ describe("formatReport", () => {
         newlyTracked: 0,
         clearedBack: 0,
         dueForDeletion: ["k"],
+        duePhotos: 1,
         deleted: [],
         failed: [{ key: "k", message: "AccessDenied" }],
         snapshotsNulled: 0,
@@ -402,21 +540,35 @@ describe("parseCleanupArgs", () => {
     });
   });
 
-  it("reads --max-delete, and refuses a missing, zero, fractional or repeated value", () => {
-    expect(parseCleanupArgs(argv("--expect", "ep-x", "--commit", "--max-delete", "500"))).toEqual({
+  it("reads --max-photos, and refuses a missing, zero, fractional or repeated value", () => {
+    expect(parseCleanupArgs(argv("--expect", "ep-x", "--commit", "--max-photos", "500"))).toEqual({
       kind: "ok",
       commit: true,
       graceDays: undefined,
-      maxDelete: 500,
+      maxPhotos: 500,
     });
     for (const bad of [[], ["0"], ["1.5"], ["abc"], [""]]) {
-      expect(parseCleanupArgs(argv("--expect", "ep-x", "--max-delete", ...bad)).kind).toBe(
+      expect(parseCleanupArgs(argv("--expect", "ep-x", "--max-photos", ...bad)).kind).toBe(
         "refused",
       );
     }
     expect(
-      parseCleanupArgs(argv("--expect", "ep-x", "--max-delete", "5", "--max-delete", "6")).kind,
+      parseCleanupArgs(argv("--expect", "ep-x", "--max-photos", "5", "--max-photos", "6")).kind,
     ).toBe("refused");
+  });
+
+  it("refuses the old object-count --max-delete, pointing to --max-photos, never reading it as a photo count", () => {
+    for (const args of [
+      ["--max-delete", "1100"],
+      ["--max-delete"],
+      ["--max-photos", "5", "--max-delete", "500"],
+    ]) {
+      expect(parseCleanupArgs(argv("--expect", "ep-x", "--commit", ...args))).toEqual({
+        kind: "refused",
+        reason:
+          "--max-delete is gone: the cap counts photos and logos now, not objects; give --max-photos <n> instead (the dry run prints the photo count)",
+      });
+    }
   });
 
   it("reads --commit and --grace-days together", () => {
@@ -472,7 +624,7 @@ describe("parseCleanupArgs", () => {
     expect(parseCleanupArgs(argv("--shelter", "x"))).toEqual({
       kind: "refused",
       reason:
-        "--shelter is not an argument this script takes; it takes --expect <ep>, --commit, --prod, --grace-days <n> and --max-delete <n>",
+        "--shelter is not an argument this script takes; it takes --expect <ep>, --commit, --prod, --grace-days <n> and --max-photos <n>",
     });
   });
 });
