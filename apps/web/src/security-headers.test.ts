@@ -309,3 +309,25 @@ describe("next.config.ts headers(), as Next sends them", () => {
     },
   );
 });
+
+// The root layout's fonts call `next/font/local`, which only Next's build transforms (as in seo-flags.test.ts).
+vi.mock("next/font/local", () => ({ default: () => ({ variable: "--font-brand" }) }));
+
+/** A `referrer` in a layout's metadata is a `<meta name="referrer">` on every kabinet page below it. */
+describe("the layouts above a kabinet page set no referrer policy of their own", () => {
+  it.each([
+    ["the root layout", () => import("./app/layout")],
+    ["the kabinet layout", () => import("./app/kabinet/layout")],
+  ])("%s: its metadata has no referrer", async (_, load) => {
+    const layout: Record<string, unknown> = await load();
+    expect(layout.metadata).toBeDefined();
+    expect(layout.metadata).not.toHaveProperty("referrer");
+    if (typeof layout.generateMetadata === "function") {
+      const generated = await layout.generateMetadata(
+        { params: Promise.resolve({}) },
+        Promise.resolve({}),
+      );
+      expect(generated).not.toHaveProperty("referrer");
+    }
+  });
+});

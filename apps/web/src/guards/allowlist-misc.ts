@@ -17,6 +17,21 @@ export const RAW_HEX: Readonly<Record<string, Reasoned>> = {
   },
 };
 
+/**
+ * Files outside the kabinet that may import kabinet modules (guard 8, `kabinet-entry.ts`); a key
+ * ending in "/" covers a folder. Everything else imports only `KabinetEntryLink`.
+ */
+export const KABINET_IMPORTERS: Readonly<Record<string, string>> = {
+  "app/api/":
+    "Route handlers (auth, cron, the kabinet RPC): they answer requests and render no page.",
+  "api/":
+    "Server env checks, the session check and the public RPC's origin check: no page, no navigation.",
+  "proxy.ts":
+    "The request gate: the kabinet's page limits and the token pages' no-store; it renders nothing.",
+  "features/chrome/kabinet-signed-in.ts":
+    "The session cookie's name, read server-side for the header's signed-in hint; no navigation.",
+};
+
 /** Raw `<img>`. Photos go through `next/image` and its R2 loader (`ui/Photo` once it exists). */
 export const RAW_IMG: Readonly<Record<string, Reasoned>> = {
   "seo/og-image.tsx": {

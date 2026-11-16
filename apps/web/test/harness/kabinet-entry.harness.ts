@@ -41,6 +41,13 @@ async function hydrated(page: Page, selector: string): Promise<void> {
   }, selector);
 }
 
+/** Presence only is read (`kabinetSignedInFrom`), so a placeholder value shows the shelter's header. */
+async function signedInHint(page: Page): Promise<void> {
+  await page
+    .context()
+    .addCookies([{ name: "kabinet.session_token", value: "hint", domain: "127.0.0.1", path: "/" }]);
+}
+
 async function markDocument(page: Page): Promise<void> {
   await page.evaluate(() => {
     (window as Marked).__beforeClick = true;
@@ -64,6 +71,8 @@ async function expectKabinetDocument(page: Page, documents: Response[]): Promise
   for (const response of documents) {
     const what = `${response.status()} ${new URL(response.url()).pathname}`;
     expect(await response.headerValues("referrer-policy"), what).toEqual(["strict-origin"]);
+    // These two only bite with a DSN, and this harness builds without one; the window marker
+    // above is the proof of a full load.
     expect(await response.headerValues("reporting-endpoints"), what).toEqual([]);
     const policy = await response.headerValues("content-security-policy-report-only");
     expect(policy.join(" "), what).not.toMatch(/report-(uri|to)/);
@@ -87,12 +96,7 @@ test.describe("public pages enter the kabinet by a full document load", () => {
   });
 
   test("the header's «Кабінет» pill for a signed-in shelter, clicked", async ({ page }) => {
-    // Presence only is read (`kabinetSignedInFrom`), so a placeholder value shows the pill.
-    await page
-      .context()
-      .addCookies([
-        { name: "kabinet.session_token", value: "hint", domain: "127.0.0.1", path: "/" },
-      ]);
+    await signedInHint(page);
     const documents = kabinetDocuments(page);
     await page.goto("/pro", { waitUntil: "load" });
     const pill = page.locator("[data-testid='nav-kabinet']");
@@ -101,6 +105,26 @@ test.describe("public pages enter the kabinet by a full document load", () => {
 
     await markDocument(page);
     await pill.click();
+
+    await expectKabinetDocument(page, documents);
+  });
+
+  test("the phone drawer's «Кабінет» row, by keyboard", async ({ page }) => {
+    await signedInHint(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const documents = kabinetDocuments(page);
+    await page.goto("/pro", { waitUntil: "load" });
+    const trigger = page.locator("[data-testid='nav-menu-trigger']");
+    const row = page.locator("[data-testid='nav-kabinet-menu']");
+    await hydrated(page, "[data-testid='nav-menu-trigger']");
+    await hydrated(page, "[data-testid='nav-kabinet-menu']");
+
+    await expectReachableByTab(page, { label: "the drawer's toggle", locator: trigger });
+    await page.keyboard.press("Enter");
+    await expect(row).toBeVisible();
+    await markDocument(page);
+    await expectReachableByTab(page, { label: "the drawer's «Кабінет» row", locator: row });
+    await page.keyboard.press("Enter");
 
     await expectKabinetDocument(page, documents);
   });

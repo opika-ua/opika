@@ -3,11 +3,12 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ARBITRARY_VALUES } from "./allowlist-arbitrary";
 import { CLIENT_FILES } from "./allowlist-client";
-import { RAW_HEX, RAW_IMG } from "./allowlist-misc";
+import { KABINET_IMPORTERS, RAW_HEX, RAW_IMG } from "./allowlist-misc";
 import { TOKEN_CEILINGS } from "./allowlist-tokens";
 import {
   clientNavigationsIntoKabinet,
   exportedKabinetNames,
+  kabinetImportsIn,
   kabinetNavigationsIn,
 } from "./kabinet-entry";
 import { ARBITRARY, HEX, IMG, NATIVE_DATE, TOKEN_PATTERNS } from "./patterns";
@@ -149,11 +150,14 @@ describe("guard 7: kit coverage", () => {
 });
 
 /**
- * Owner, 2026-11-16: a public page enters /kabinet only by a full document load, through
- * `KabinetEntryLink`, so the kabinet never runs inside a public document with its CSP reporting and
- * referrer policy. Static, line by line: a value built at runtime (string concatenation, a prop
- * under another name, a constant declared over several lines) or an href written on the line after
- * `href=` is not seen; the harness (`kabinet-entry.harness.ts`) checks the real entry points.
+ * Owner, 2026-11-16 (stopgap until #510): a public page enters /kabinet only by a full document load,
+ * through `KabinetEntryLink`. Outside the kabinet's own code (and in any server action) it catches an
+ * href/pathname, a router push/replace/prefetch, a redirect/permanentRedirect or a next/form action
+ * into /kabinet, written as a literal, a template, an exported constant that resolves to one, a local
+ * one, an import alias or a namespace member, the value on the same line or the next; and any import
+ * of a kabinet module but `KabinetEntryLink` and the reasoned `KABINET_IMPORTERS`. It can't see a value
+ * built at runtime (concatenation, a function's result, a prop under another name), a constant
+ * declared over several lines, or a re-export under another name; the harness checks the real entries.
  */
 describe("guard 8: no client navigation into /kabinet from outside it", () => {
   it("finds none outside the kabinet's own code (KabinetEntryLink is the way in)", () => {
@@ -209,6 +213,14 @@ describe("guard 8: no client navigation into /kabinet from outside it", () => {
       // biome-ignore lint/suspicious/noTemplateCurlyInString: source text for the scanner, holding a template on purpose
       "redirect(`${SIGN_IN_LINK.path}?token=${token}`)",
       'const HOME = "/kabinet";\n<Link href={HOME}>',
+      'import { SHELTER_HOME as HOME } from "../kabinet/routes";\n<Link href={HOME}>',
+      'import {\n  SIGN_IN_PAGE_PATH as SIGN_IN,\n} from "../kabinet/routes";\nrouter.push(SIGN_IN)',
+      "<Link href={routes.SHELTER_HOME}>",
+      'router.push(\n  "/kabinet/vkhid",\n)',
+      "redirect(\n  OPERATOR_HOME,\n)",
+      "<Link\n  href={\n    SHELTER_HOME\n  }\n>",
+      '<Form action="/kabinet/vkhid">',
+      '<Form\n  className="x"\n  action={SIGN_IN_PAGE_PATH}\n>',
     ]) {
       expect(hitsIn(written), written).not.toEqual([]);
     }
@@ -224,8 +236,43 @@ describe("guard 8: no client navigation into /kabinet from outside it", () => {
       'window.location.assign("/kabinet")',
       'export const SIGN_IN_PAGES_PATH = "/kabinet/vkhid";',
       "<Link href={publicShelterPath(id)}>",
+      '<form method="post" action="/kabinet/vkhid">',
+      'import { PUBLIC_GALLERY_PATH as GALLERY } from "../kabinet/routes";\n<Link href={GALLERY}>',
     ]) {
       expect(hitsIn(other), other).toEqual([]);
     }
+  });
+
+  const importsIn = (file: string, code: string) =>
+    kabinetImportsIn(
+      file,
+      code.split("\n").map((text, index) => ({ file, line: index + 1, text, comment: false })),
+    );
+
+  it("a public file imports only the entry link from the kabinet; a type costs nothing", () => {
+    const page = "app/prytulkam/page.tsx";
+    for (const allowed of [
+      'import { KabinetEntryLink } from "../../features/kabinet/KabinetEntryLink";',
+      'import type { KabinetAuth } from "../../kabinet/auth";',
+      'import { buttonClass } from "../../ui/Button";',
+    ]) {
+      expect(importsIn(page, allowed), allowed).toEqual([]);
+    }
+    for (const imported of [
+      'import { SignInCard } from "../../features/kabinet/SignInCard";',
+      'import { SHELTER_HOME } from "../../features/kabinet/routes";',
+      'import KabinetLayout from "../kabinet/layout";',
+      'const { kabinetAuth } = await import("../../kabinet/runtime");',
+      'export { SignOutButton } from "../../features/kabinet/SignOutButton";',
+    ]) {
+      expect(importsIn(page, imported), imported).not.toEqual([]);
+    }
+  });
+
+  it("every file allowed to import from the kabinet says why", () => {
+    const thin = Object.entries(KABINET_IMPORTERS)
+      .filter(([, reason]) => reason.trim().length < 20)
+      .map(([file]) => file);
+    expect(thin).toEqual([]);
   });
 });
