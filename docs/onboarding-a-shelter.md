@@ -1070,6 +1070,9 @@ Referrer-Policy: no-referrer. A day later, check that Vercel Analytics → Pages
 /kabinet/vkhid entry with a query string. If any of these fail, it's a fix-forward PR straight
 away. The reset link from step 1 is a real token, so don't paste it anywhere."
 
+> Superseded 2026-11-16 (owner): every /kabinet response sends `Referrer-Policy: strict-origin`, so the
+> header his step checks is now `strict-origin`; the checklist below expects that value.
+
 And the step he added, verbatim (2026-10-20): "Deployment check: add a step. In each analytics
 request, search the whole payload for token= and zaproshennia=, not just the URL field."
 
@@ -1083,7 +1086,7 @@ extends):
    `token=` and `zaproshennia=`: neither appears.
 4. The address bar no longer shows `token=` after the page loads.
 5. The reset page's response headers include `Cache-Control: no-store` and
-   `Referrer-Policy: no-referrer`.
+   `Referrer-Policy: strict-origin` (exactly one value; his `no-referrer` superseded 2026-11-16).
 6. A day later: Vercel Analytics → Pages lists no `/kabinet/vkhid` entry with a query string.
 
 If any of these fail, a fix-forward PR straight away. **The reset link from step 1 is a real
@@ -1104,7 +1107,7 @@ link instead of the reset link (production, once PW-2 has merged and deployed):
    `token=` and `zaproshennia=`: neither appears.
 4. The address bar no longer shows `zaproshennia=` after the page loads.
 5. The page's response headers include `Cache-Control: no-store` and
-   `Referrer-Policy: no-referrer` (PW-2 Q1).
+   `Referrer-Policy: strict-origin` (exactly one value; PW-2 Q1's `no-referrer` superseded 2026-11-16).
 6. A day later: Vercel Analytics → Pages lists no `/kabinet/vkhid` entry with a query string.
 
 If any of these fail, a fix-forward PR straight away. **The invitation link is a real

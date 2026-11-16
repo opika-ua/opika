@@ -190,7 +190,9 @@ stored hashed through the same `storeIdentifier` override, so **no migration** i
   page for every failure kind. It consumes nothing and sends nothing. It adds no budget of its
   own (no invitation, address or sign-in budget); like every `/kabinet` page load it counts
   against the per-IP page budget (PW2-Q1 (a)).
-- **Headers.** `no-store` and `no-referrer`, since the form's POST is a `fetch`.
+- **Headers.** `no-store` and `no-referrer`, since the form's POST is a `fetch`. Superseded
+  2026-11-16 (owner): every /kabinet response sends `Referrer-Policy: strict-origin` (next.config,
+  one value); `no-store` is unchanged.
 - **The token.** Our own `auth_verification` row (`kabinetInviteTokenRepo`): SHA-256 of
   `invite-password:<token>`, value `invitation:<id>`. Better Auth never reads it, so no
   `storeIdentifier` entry was needed.

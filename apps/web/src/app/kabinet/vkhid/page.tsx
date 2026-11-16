@@ -13,7 +13,6 @@ import { invitePasswordLandingOf } from "../../../kabinet/invite-password";
 import { inviteTokensOf } from "../../../kabinet/invite-tokens";
 import { kabinetDb } from "../../../kabinet/kabinet-db";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
-import { TOKEN_PAGE_HEADERS } from "../../../kabinet/token-pages";
 import { kabinetAuthOrNotFound } from "../available-auth";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -24,7 +23,10 @@ function inviteTokenOf(params: SearchParams): string | null {
   return typeof value === "string" ? value : value === undefined ? null : "";
 }
 
-/** K1's route (`docs/design/KABINET.md`, "Actors and routes"), and the invite landing on the same path (IN-Q3). */
+/**
+ * K1's route (`docs/design/KABINET.md`, "Actors and routes"), and the invite landing on the same path
+ * (IN-Q3). No `referrer` here: next.config's `strict-origin` header is the page's only policy.
+ */
 export async function generateMetadata({
   searchParams,
 }: {
@@ -32,15 +34,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   return inviteTokenOf(await searchParams) === null
     ? { title: uk.kabinet.signIn.pageTitle }
-    : {
-        title: uk.kabinet.inviteLanding.pageTitle,
-        // The URL carries the link's token: no referrer leaves the page (his PW-2 Q1: "Token
-        // pages send Cache-Control: no-store, plus Referrer-Policy: no-referrer, except that
-        // pages whose button submits an ordinary form use strict-origin"). The form's POST is a
-        // `fetch`, which keeps its real Origin under `no-referrer`, so this page is not the
-        // exception. The proxy sends the same policy as a header (`TOKEN_PAGE_HEADERS`).
-        referrer: TOKEN_PAGE_HEADERS["Referrer-Policy"],
-      };
+    : { title: uk.kabinet.inviteLanding.pageTitle };
 }
 
 /**

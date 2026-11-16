@@ -1,12 +1,11 @@
+import { securityReportUrlOf } from "./observability/dsn";
+
 /**
- * Audit F5: the browser security headers on every response (`next.config.ts`).
- * Enforced: no MIME sniffing, no framing by any site, no plugins, no `<base>` rewrite, no form
- * posting off-site, no cross-origin window sharing our browsing context (COOP), HSTS for two years
- * on every subdomain (no preload, owner 2026-11-16), a cross-origin referrer limited to the origin,
- * and the browser features the app never uses switched off. The rest of the policy (scripts,
- * styles, connections) stays report-only until its reports have been read.
+ * Audit F5: the browser security headers on every response (`next.config.ts`). The owner's enforced
+ * set is pinned in the test; the rest (scripts, styles, connections) stays report-only until read.
  */
 export type SecurityHeader = { key: string; value: string };
+export type HeaderRule = { source: string; headers: SecurityHeader[] };
 
 export type SecurityHeaderOptions = {
   /** `NEXT_PUBLIC_R2_PUBLIC_BASE_URL`: the CDN the photos are served from. */
@@ -16,16 +15,23 @@ export type SecurityHeaderOptions = {
 };
 
 /**
- * The site-wide Referrer-Policy, on every path except the sign-in pages (`/kabinet/vkhid*`).
- * Those carry a credential in their URL and set their own, stricter policy
- * (`kabinet/token-pages.ts`, `CONFIRM_HEADERS`); a config header would override it, and
- * `strict-origin-when-cross-origin` sends the full URL, token included, as the Referer of
- * their own same-origin POST. The harness (`kabinet-confirm`) caught exactly that.
+ * Every /kabinet response, the token pages and the magic-link confirm page included (owner, 2026-11-16):
+ * the origin alone, never a path or a token; unlike `no-referrer`, a form POST keeps a real Origin (IN-T8).
  */
-export const REFERRER_POLICY_RULE: { source: string; headers: SecurityHeader[] } = {
-  source: "/:path((?!kabinet/vkhid).*)",
-  headers: [{ key: "Referrer-Policy", value: "strict-origin-when-cross-origin" }],
-};
+export const KABINET_REFERRER_POLICY = "strict-origin";
+
+/**
+ * The one source of Referrer-Policy: the proxy, route handlers and page metadata set none, so header
+ * order has nothing to resolve. In order: the last matching rule's value for a key wins (Next's docs).
+ */
+export const REFERRER_POLICY_RULES: readonly HeaderRule[] = [
+  { source: "/:path*", headers: [referrerPolicy("strict-origin-when-cross-origin")] },
+  { source: "/kabinet/:path*", headers: [referrerPolicy(KABINET_REFERRER_POLICY)] },
+];
+
+function referrerPolicy(value: string): SecurityHeader {
+  return { key: "Referrer-Policy", value };
+}
 
 export function securityHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
   return [
@@ -47,12 +53,45 @@ export function securityHeaders(options: SecurityHeaderOptions): SecurityHeader[
 }
 
 /**
- * No nonce: Next's App Router inlines its own scripts, and a nonce needs every
- * page rendered per request. So scripts and styles allow 'unsafe-inline' and
- * the policy's value is in what it shuts out: other origins' scripts, plugins,
- * `<base>` rewrites, forms posting elsewhere (the last three are enforced too). `frame-ancestors`
- * is left to the enforced header (browsers ignore it in report-only), and there is no
- * `report-uri`: violations show in the browser console only.
+ * The only pages whose CSP violations reach Sentry (owner, 2026-11-16): an allowlist, so the
+ * kabinet, a page with a token in its URL and any route added later report nowhere until listed.
+ */
+export const CSP_REPORTING_SOURCES = [
+  "/tvaryny/:path*",
+  "/prytulky/:path*",
+  "/pro",
+  "/prytulkam",
+  "/zberezheni",
+] as const;
+
+const CSP_REPORT_GROUP = "csp-endpoint";
+
+/**
+ * The site-wide report-only policy plus where to report, on the allowlisted pages; listed after the
+ * site-wide rule, so it replaces that value there. `report-uri` too: Firefox and Safari have no
+ * Reporting API. No usable DSN, no rules: nothing reports anywhere.
+ */
+export function cspReportingRules(
+  options: SecurityHeaderOptions,
+  sentryDsn: string | undefined,
+): HeaderRule[] {
+  const reportUrl = securityReportUrlOf(sentryDsn);
+  if (reportUrl === null) return [];
+  return CSP_REPORTING_SOURCES.map((source) => ({
+    source,
+    headers: [
+      {
+        key: "Content-Security-Policy-Report-Only",
+        value: `${reportOnlyPolicy(options)}; report-uri ${reportUrl}; report-to ${CSP_REPORT_GROUP}`,
+      },
+      { key: "Reporting-Endpoints", value: `${CSP_REPORT_GROUP}="${reportUrl}"` },
+    ],
+  }));
+}
+
+/**
+ * No nonce (Next inlines its scripts; a nonce means rendering every page per request), so its value is
+ * in what it shuts out: other origins. No `frame-ancestors`: browsers ignore it in report-only.
  */
 function reportOnlyPolicy({ photoBaseUrl, development }: SecurityHeaderOptions): string {
   const photoOrigin = originOf(photoBaseUrl);

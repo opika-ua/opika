@@ -280,13 +280,14 @@ describe("the invitation link's GET (PW-2 Q1)", () => {
     }
   });
 
-  it("sends no referrer from the link's page, and leaves the plain sign-in page's policy alone", async () => {
-    expect(
-      await generateMetadata({ searchParams: Promise.resolve({ zaproshennia: "x" }) }),
-    ).toMatchObject({ referrer: "no-referrer" });
-    expect(await generateMetadata({ searchParams: Promise.resolve({}) })).not.toHaveProperty(
-      "referrer",
-    );
+  // Owner, 2026-11-16: next.config's `strict-origin` header is every kabinet page's one policy; a
+  // `<meta name="referrer">` would set a second, different one in the page.
+  it("sets no referrer policy of its own, on the link's page or the plain sign-in page", async () => {
+    for (const params of [{ zaproshennia: "x" }, {}]) {
+      expect(await generateMetadata({ searchParams: Promise.resolve(params) })).not.toHaveProperty(
+        "referrer",
+      );
+    }
   });
 });
 

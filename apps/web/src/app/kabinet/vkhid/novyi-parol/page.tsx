@@ -3,20 +3,10 @@ import type { Metadata } from "next";
 import { AuthPage } from "../../../../features/kabinet/AuthPage";
 import { ResetPasswordCard } from "../../../../features/kabinet/password/ResetPasswordCard";
 import { RESET_LINK } from "../../../../kabinet/email-links";
-import { TOKEN_PAGE_HEADERS } from "../../../../kabinet/token-pages";
 import { kabinetAvailabilityOrNotFound } from "../../available-auth";
 
-/**
- * The URL carries the reset token, so no referrer leaves this page at all (Oleksii, 2026-10-20,
- * verbatim: "On /kabinet/vkhid* pages that carry a token: Cache-Control: no-store and
- * Referrer-Policy: no-referrer."): the header comes from the proxy (`TOKEN_PAGE_HEADERS`), this
- * is the same policy in the page itself. Unlike the confirm page's form POST (IN-T8), the form's
- * POST here is a `fetch`, which keeps its `Origin` under `no-referrer`.
- */
-export const metadata: Metadata = {
-  title: uk.kabinet.reset.title,
-  referrer: TOKEN_PAGE_HEADERS["Referrer-Policy"],
-};
+/** No `referrer` here: next.config's `strict-origin` header (all of /kabinet, owner 2026-11-16) is the only policy. */
+export const metadata: Metadata = { title: uk.kabinet.reset.title };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

@@ -3,8 +3,7 @@ import type { Metadata } from "next";
 import { WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
-import { SIGN_IN_PAGE_PATH } from "../../features/kabinet/routes";
-import { LinkButton } from "../../ui/Button";
+import { KabinetEntryLink } from "../../features/kabinet/KabinetEntryLink";
 import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
@@ -152,11 +151,12 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
     >
       {/*
         PW-2, his scope item 1: «Увійти в кабінет» → /kabinet/vkhid. Under the title, so a shelter
-        already in the kabinet, sent here again, finds the way in without reading the page.
+        already in the kabinet, sent here again, finds the way in without reading the page. A plain
+        <a> (a full document load), never next/link: the kabinet gets its own headers.
       */}
-      <LinkButton href={SIGN_IN_PAGE_PATH} variant="secondary" className="self-start">
+      <KabinetEntryLink to="signIn" variant="secondary" className="self-start">
         {uk.forShelters.signInLink}
-      </LinkButton>
+      </KabinetEntryLink>
 
       <Text look="hint">{INDEPENDENT}</Text>
 

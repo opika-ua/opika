@@ -6,7 +6,8 @@
  * the page's `Referrer-Policy`: under `no-referrer` Chromium sends
  * `Origin: null`, so every real sign-in was a 403 while every unit test, which
  * sets `Origin` by hand, passed (review of 9bd1411). Only a real browser
- * pressing the real button can tell the two apart.
+ * pressing the real button can tell the two apart; the kabinet now sends
+ * `strict-origin` (owner, 2026-11-16).
  *
  * **Why a second server** (`sign-in-server.ts`). The harness's main server
  * runs `next start` in production mode with no `VERCEL_ENV`, where production

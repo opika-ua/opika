@@ -6,7 +6,13 @@
  * spend another spec's per-IP budget.
  */
 import { harnessPort } from "@opika/db/test";
-import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
+import {
+  type APIRequestContext,
+  type APIResponse,
+  expect,
+  type Page,
+  test,
+} from "@playwright/test";
 
 const ORIGIN = `http://127.0.0.1:${harnessPort()}`;
 
@@ -102,6 +108,54 @@ test.describe("security headers (audit F5)", () => {
     const refused = await firstRefusal(request, "/tvaryny", 100, "198.51.100.68");
     expect(refused.headers()["retry-after"]).toBeDefined();
     expectEnforced(refused.headers(), "the proxy's /tvaryny 429");
+  });
+
+  /** Every value of a header on the response, duplicates included. */
+  const valuesOf = (response: APIResponse, name: string) =>
+    response
+      .headersArray()
+      .filter((header) => header.name.toLowerCase() === name)
+      .map((header) => header.value);
+
+  // Owner, 2026-11-16: one Referrer-Policy on every kabinet response, `strict-origin`, from next.config
+  // alone. Sign-in is off on this server, so these are 404s, the confirm page's from its own handler.
+  test("every kabinet response sends strict-origin once; public pages keep theirs", async ({
+    request,
+  }) => {
+    for (const path of [
+      "/kabinet",
+      "/kabinet/vkhid",
+      "/kabinet/vkhid?zaproshennia=x",
+      "/kabinet/vkhid/novyi-parol?token=x",
+      `/kabinet/vkhid/pidtverdzhennia?token=${"A".repeat(32)}`,
+    ]) {
+      const response = await request.get(path, { headers: IP_HEADERS, maxRedirects: 0 });
+      expect(valuesOf(response, "referrer-policy"), path).toEqual(["strict-origin"]);
+    }
+    for (const path of ["/tvaryny", "/prytulkam", "/zberezheni", "/pro"]) {
+      const response = await request.get(path, { headers: IP_HEADERS, maxRedirects: 0 });
+      expect(valuesOf(response, "referrer-policy"), path).toEqual([
+        "strict-origin-when-cross-origin",
+      ]);
+    }
+  });
+
+  // The harness builds with no Sentry DSN (playwright.config.ts), so nothing may report anywhere.
+  test("without a DSN no response names a CSP reporting endpoint", async ({ request }) => {
+    for (const path of [
+      "/tvaryny",
+      "/prytulkam",
+      "/zberezheni",
+      "/pro",
+      "/kabinet/vkhid?zaproshennia=x",
+    ]) {
+      const response = await request.get(path, { headers: IP_HEADERS, maxRedirects: 0 });
+      expect(valuesOf(response, "reporting-endpoints"), path).toEqual([]);
+      const policy = valuesOf(response, "content-security-policy-report-only");
+      expect(policy, path).toHaveLength(1);
+      expect(policy[0], path).toContain("default-src 'self'");
+      expect(policy[0], path).not.toMatch(/report-(uri|to)/);
+    }
   });
 
   /** Every CSP violation the page raises, report-only or enforced, as the browser fires them. */

@@ -10,7 +10,7 @@
  * address bar and the POST's Origin are checked as behaviour (his PW-2 Q1 and Q3).
  *
  * Why a browser: the form's POST must carry the site's real Origin (the kabinet route refuses
- * anything else, K-Q8) under the page's `no-referrer`, which only a real browser decides.
+ * anything else, K-Q8) under the kabinet's `strict-origin`, which only a real browser decides.
  *
  * The link is a credential, even a test one: never printed or put in a failure message, and
  * tracing is off.
@@ -122,11 +122,12 @@ test.describe("the invitation link sets a password (PW-2)", () => {
     });
     const page = await context.newPage();
 
-    // The page: never cached, no referrer, the token out of the address bar.
+    // The page: never cached, the origin alone as referrer (owner, 2026-11-16), the token out of the
+    // address bar.
     const shown = await page.goto(linkPath);
     expect(shown?.status()).toBe(200);
     expect(shown?.headers()["cache-control"] ?? "").toContain("no-store");
-    expect(shown?.headers()["referrer-policy"]).toBe("no-referrer");
+    expect(shown?.headers()["referrer-policy"]).toBe("strict-origin");
     await expect(page.getByRole("heading", { level: 1, name: "Створіть пароль" })).toBeVisible();
     // The address, masked (`maskAddress`: first letter, •••, the domain), never in full.
     await expect(page.getByText(/Адреса для входу: h•••@example\.test\./)).toBeVisible();
@@ -148,7 +149,8 @@ test.describe("the invitation link sets a password (PW-2)", () => {
     await page.getByRole("button", { name: "Зберегти й увійти" }).click();
     await expect(page.getByText("Цей пароль надто легко вгадати. Оберіть інший.")).toBeVisible();
 
-    // The password: the POST carries the real Origin and no Referer, and lands in the cabinet.
+    // The password: the POST carries the real Origin and the origin alone as Referer (never the
+    // token), and lands in the cabinet.
     await field.fill(PASSWORD);
     await page.getByLabel("Повторіть пароль").fill(PASSWORD);
     const posted = page.waitForRequest(
@@ -163,7 +165,7 @@ test.describe("the invitation link sets a password (PW-2)", () => {
     const headers = await (await posted).allHeaders();
     expect({ origin: headers.origin, referer: headers.referer ?? null }).toEqual({
       origin,
-      referer: null,
+      referer: `${origin}/`,
     });
     await expect(page.getByRole("heading", { level: 1, name: "Тварини" })).toBeVisible();
     expect(
