@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import opikaImageLoader from "./image-loader";
+import opikaImageLoader, { avifPhotoLoader } from "./image-loader";
+import { servesAvif } from "./photo-format";
 
 describe("opikaImageLoader", () => {
   it("turns a seed placeholder storage key into a root-relative URL, unchanged since before H1", () => {
@@ -128,32 +129,49 @@ describe("opikaImageLoader", () => {
         }
       });
 
-      it("serves the same variant as .avif when it is on, with or without the extra variants", () => {
+      it("the <img> loader stays WebP when it is on: the fallback for a browser without AVIF", () => {
         process.env.NEXT_PUBLIC_R2_AVIF = "1";
         expect(opikaImageLoader({ src: REAL_KEY, width: 300, quality: 75 })).toBe(
+          "https://cdn.opika.org.ua/animals/a0000000-0000-4000-8000-000000000000/0/card.webp",
+        );
+      });
+
+      it("the <source> loader serves the same variant as .avif when it is on, with or without the extra variants", () => {
+        process.env.NEXT_PUBLIC_R2_AVIF = "1";
+        expect(avifPhotoLoader({ src: REAL_KEY, width: 300, quality: 75 })).toBe(
           "https://cdn.opika.org.ua/animals/a0000000-0000-4000-8000-000000000000/0/card.avif",
         );
-        expect(opikaImageLoader({ src: REAL_KEY, width: 88, quality: 75 })).toMatch(
+        expect(avifPhotoLoader({ src: REAL_KEY, width: 88, quality: 75 })).toMatch(
           /\/thumb\.avif$/,
         );
-        expect(opikaImageLoader({ src: REAL_KEY, width: 1120, quality: 75 })).toMatch(
+        expect(avifPhotoLoader({ src: REAL_KEY, width: 1120, quality: 75 })).toMatch(
           /\/detail\.avif$/,
         );
         process.env.NEXT_PUBLIC_R2_EXTRA_VARIANTS = "1";
-        expect(opikaImageLoader({ src: REAL_KEY, width: 400, quality: 75 })).toMatch(
+        expect(avifPhotoLoader({ src: REAL_KEY, width: 400, quality: 75 })).toMatch(
           /\/compact\.avif$/,
         );
       });
 
-      it("never asks for a logo as AVIF: a logo is stored as WebP only", () => {
+      it("the <source> loader stays WebP while the flag is off", () => {
+        expect(servesAvif(REAL_KEY)).toBe(false);
+        expect(avifPhotoLoader({ src: REAL_KEY, width: 300, quality: 75 })).toMatch(
+          /\/card\.webp$/,
+        );
+      });
+
+      it("never asks for a logo or a seed placeholder as AVIF: a logo is stored as WebP only", () => {
         process.env.NEXT_PUBLIC_R2_AVIF = "1";
+        const logo = "shelters/51000000-0000-4000-8000-000000000001/logo/0";
+        expect(servesAvif(logo)).toBe(false);
+        expect(servesAvif("seed-photos/dog-1.jpg")).toBe(false);
         for (const width of [40, 80, 4000]) {
-          const url = opikaImageLoader({
-            src: "shelters/51000000-0000-4000-8000-000000000001/logo/0",
-            width,
-            quality: 75,
-          });
-          expect(url).toMatch(/\/(small|large)\.webp$/);
+          expect(opikaImageLoader({ src: logo, width, quality: 75 })).toMatch(
+            /\/(small|large)\.webp$/,
+          );
+          expect(avifPhotoLoader({ src: logo, width, quality: 75 })).toMatch(
+            /\/(small|large)\.webp$/,
+          );
         }
       });
     });

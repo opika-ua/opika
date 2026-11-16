@@ -1,6 +1,6 @@
 /**
  * `avif:backfill`: writes the AVIF variants (owner, 2026-11-16) of every photo stored before uploads
- * wrote them, so the image loader can switch to AVIF (`NEXT_PUBLIC_R2_AVIF=1`) without a 404.
+ * wrote them, so `Photo` can add its AVIF source (`NEXT_PUBLIC_R2_AVIF=1`) without a 404.
  *
  * New objects only. It never overwrites (every put carries `IfNoneMatch: *`, K-Q2), never deletes,
  * and leaves the WebP variants alone. Idempotent: a photo whose five AVIF objects all exist is

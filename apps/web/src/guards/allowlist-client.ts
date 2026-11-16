@@ -8,6 +8,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "app/dev/ui/SegmentedDemo.tsx": "showcase state for SegmentedControl (dev only)",
   "ui/dialog-core.ts": "hook: showModal, scroll lock, backdrop click on the native dialog",
   "ui/PhotoSlider.tsx": "scroll position state and ResizeObserver for the prev/next buttons",
+  "photo-picture.tsx":
+    "next/image's getImageProps with the client-only loader; keeps the srcsets out of the RSC payload",
   "ui/Tabs.tsx": "selected-tab state and roving focus",
   "ui/Toast.tsx": "toast queue state, timers and context",
   "ui/FilterTabs.tsx": "roving focus and arrow-key handling of the tab row",
