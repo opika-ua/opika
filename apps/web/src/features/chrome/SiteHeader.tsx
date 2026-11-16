@@ -1,6 +1,7 @@
 import { ukPublic as uk } from "@opika/i18n/public";
 import Link from "next/link";
 import { WORDMARK } from "../../brand";
+import { LinkButton } from "../../ui/Button";
 import { Container } from "../../ui/Container";
 import { Icon } from "../../ui/Icon";
 import { KabinetEntryLink } from "../kabinet/KabinetEntryLink";
@@ -127,10 +128,10 @@ function NavLinks({
             <Icon name="user" />
           </KabinetEntryLink>
         ) : (
-          <KabinetEntryLink to="home" variant="primary" data-testid="nav-kabinet">
+          <LinkButton href={["", "kabinet"].join("/")} data-testid="nav-kabinet">
             <Icon name="user" size="md" />
             {uk.nav.kabinet}
-          </KabinetEntryLink>
+          </LinkButton>
         )
       ) : null}
     </>
