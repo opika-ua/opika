@@ -17,9 +17,15 @@ addresses in tracked files (placeholders: `ep-PRODUCTION`, `<owner email>`, `<re
 - **CSP reports can carry ad/social click IDs.** Report-only CSP violations go straight from the browser to
   Sentry on the public adopter routes only (never /kabinet). The page URL in a report keeps whatever query the
   visitor arrived with, so `utm_*`, `fbclid` or `gclid` can reach Sentry; the app's own parameters there are
-  catalogue filters only. The owner adds a Sentry scrubbing rule for those names (option A, 2026-11-16).
-  CSP reports also count against the Sentry project's error quota; the mitigation is Sentry's inbound
-  filters plus spike protection on that project (owner action, not code; 2026-11-16).
+  catalogue filters only. Mitigated by a Sentry scrubbing rule for those names (option A; owner setting,
+  in place since 2026-11-16). CSP reports also count against the Sentry project's error quota; mitigated by
+  Sentry's inbound filters plus spike protection on that project (owner setting, not code; in place since
+  2026-11-16).
+- **CSP reports carry the browser's full User-Agent.** CSP reports go straight from the browser to Sentry, so
+  the app's UA reduction (browser family and major version only, `apps/web/src/observability/scrub.ts`) doesn't
+  apply: the first report (2026-11-16, a Threads in-app browser) arrived with the device model, app version,
+  locale and screen size. Mitigated by Sentry data scrubbing (owner setting, 2026-11-16: the User-Agent
+  header, `contexts.device.**` and `contexts.client_os.**`) and IP storage off. Accepted risk.
 - **The kabinet and the public pages share one root layout.** A client navigation from a public page
   would run the kabinet inside the public document, which keeps the public report-only CSP (with its
   reporting) and the public referrer policy. Stopgap (owner, 2026-11-16): every public entry into
