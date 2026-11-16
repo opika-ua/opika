@@ -67,9 +67,8 @@ export const CSP_REPORTING_SOURCES = [
 const CSP_REPORT_GROUP = "csp-endpoint";
 
 /**
- * The site-wide report-only policy plus where to report, on the allowlisted pages; listed after the
- * site-wide rule, so it replaces that value there. `report-uri` too: Firefox and Safari have no
- * Reporting API. No usable DSN, no rules: nothing reports anywhere.
+ * The report-only policy plus `report-to` on the allowlisted pages, replacing the site-wide value there.
+ * No `report-uri` (WebKit's posts carry the full User-Agent; docs/security.md). No usable DSN, no rules.
  */
 export function cspReportingRules(
   options: SecurityHeaderOptions,
@@ -82,7 +81,7 @@ export function cspReportingRules(
     headers: [
       {
         key: "Content-Security-Policy-Report-Only",
-        value: `${reportOnlyPolicy(options)}; report-uri ${reportUrl}; report-to ${CSP_REPORT_GROUP}`,
+        value: `${reportOnlyPolicy(options)}; report-to ${CSP_REPORT_GROUP}`,
       },
       { key: "Reporting-Endpoints", value: `${CSP_REPORT_GROUP}="${reportUrl}"` },
     ],

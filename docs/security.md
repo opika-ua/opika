@@ -17,15 +17,24 @@ addresses in tracked files (placeholders: `ep-PRODUCTION`, `<owner email>`, `<re
 - **CSP reports can carry ad/social click IDs.** Report-only CSP violations go straight from the browser to
   Sentry on the public adopter routes only (never /kabinet). The page URL in a report keeps whatever query the
   visitor arrived with, so `utm_*`, `fbclid` or `gclid` can reach Sentry; the app's own parameters there are
-  catalogue filters only. Mitigated by a Sentry scrubbing rule for those names (option A; owner setting,
-  in place since 2026-11-16). CSP reports also count against the Sentry project's error quota; mitigated by
-  Sentry's inbound filters plus spike protection on that project (owner setting, not code; in place since
-  2026-11-16).
-- **CSP reports carry the browser's full User-Agent.** CSP reports go straight from the browser to Sentry, so
-  the app's UA reduction (browser family and major version only, `apps/web/src/observability/scrub.ts`) doesn't
-  apply: the first report (2026-11-16, a Threads in-app browser) arrived with the device model, app version,
-  locale and screen size. Mitigated by Sentry data scrubbing (owner setting, 2026-11-16: the User-Agent
-  header, `contexts.device.**` and `contexts.client_os.**`) and IP storage off. Accepted risk.
+  catalogue filters only. Mitigated by Sentry scrubbing (owner settings, 2026-11-16: the click-ID names,
+  `$http.query_string`, `user.geo.**`; IP storage off). Verified 2026-11-16 on a desktop Chrome report (event
+  2abed011): no query-string table, no geography, the document URI's values gone. CSP reports also count
+  against the Sentry project's error quota; mitigated by Sentry's inbound filters plus spike protection on
+  that project (owner settings, not code).
+- **CSP reports come only from browsers that deliver `report-to` (Chromium today), by choice.** A report's request
+  goes straight from the browser to Sentry, so the app's UA reduction (`apps/web/src/observability/scrub.ts`)
+  doesn't apply, and Sentry derives device model and OS from the User-Agent before data scrubbing runs:
+  verified 2026-11-16, where the desktop event 2abed011 kept "Windows >=10" and a simulated iOS report via
+  report-uri (event add9b2fb, the Threads iPhone UA) kept "iPhone 17 Pro" and "iOS 26.6.1" despite the
+  `contexts.device.**` / `contexts.client_os.**` rules; only the raw header was redacted. WebKit sends CSP
+  reports through `report-uri` with its full UA, so the policy has `report-to` and no `report-uri` (owner,
+  2026-11-16): Chromium's reduced UA (browser family and major version, an OS family like "Windows >=10") is
+  accepted, and every iOS browser (all WebKit), Safari and Firefox report nothing today. Two caveats, both
+  unverified: Android in-app WebViews (Instagram, Threads, Facebook) are Chromium but keep a full UA, so if
+  they deliver `report-to` reports, those carry the device model and Android version (check the device
+  field of CSP events in Sentry); and if Firefox or WebKit ship `report-to`, they start reporting with their
+  own UA with no change here.
 - **The kabinet and the public pages share one root layout.** A client navigation from a public page
   would run the kabinet inside the public document, which keeps the public report-only CSP (with its
   reporting) and the public referrer policy. Stopgap (owner, 2026-11-16): every public entry into
@@ -45,3 +54,6 @@ addresses in tracked files (placeholders: `ep-PRODUCTION`, `<owner email>`, `<re
 ## Later
 
 - Enforce CSP with nonces once report-only data is clean (post-launch).
+- Before enforcing a stricter `script-src`: if Safari/iOS coverage of CSP violations is needed, revisit our own
+  collector (option B: `/api/csp-report`, dropping the User-Agent before forwarding), since today only Chromium
+  reports (owner, 2026-11-16).
