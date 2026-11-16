@@ -890,6 +890,8 @@ export const uk = {
         preparing: "Фото готується…",
         uploading: "Фото завантажується…",
         uploadingProgress: "Завантаження · {percent} · {sent} з {total} МБ",
+        /** Owner-given 2026-11-16: from the last byte sent until the server answers. */
+        processing: "Фото обробляється…",
         done: "Готово",
         /** The first photo's order chip (owner-given 2026-11-12); the others show the number alone. */
         coverChip: "{n} · Обкладинка",

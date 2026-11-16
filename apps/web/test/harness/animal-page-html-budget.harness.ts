@@ -32,9 +32,13 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
  * `NotFoundHeader` costs +2.1 KB (80,556), so the budget stays at 82,000.
  * #502 (2026-11-13, owner-approved): main measured 81,989; the bundler split this page's own client
  * code into one more chunk (+187 bytes of script references, page content byte-identical), so the
- * budget is 83,000.
+ * budget was 83,000; that seed-key fixture measured 82,176.
+ * #504 (2026-11-16, owner): the fixture became realistic (real-length R2 keys, production's image
+ * flags, AVIF on) and measured 84,221 in CI at 7993491, so the budget is 85,000. After the logo and
+ * 176w fixes: estimated unchanged (~84,221), since the fixture's shelter has no logo and the hero
+ * never had a 176w; to be replaced with CI's figure.
  */
-export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 83_000;
+export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 85_000;
 
 const SENTENCE = "Лагідний, грайливий песик, який дуже любить прогулянки та людей. ";
 const textOf = (characters: number): string =>

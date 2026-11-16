@@ -107,6 +107,7 @@ const uploadsOf = (
   limiters: {
     perHour: limiters.perHour ?? generous(),
     perDay: limiters.perDay ?? generous(),
+    uploadAttempts: limiters.uploadAttempts ?? { perHour: generous(), perDay: generous() },
     cropAttempts: limiters.cropAttempts ?? { perHour: generous(), perDay: generous() },
   },
   processingBudgetMs,

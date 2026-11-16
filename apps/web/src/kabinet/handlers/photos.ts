@@ -29,7 +29,7 @@ import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { ShelterWriteScope } from "../access";
 import type { KabinetContext } from "../context";
 import type { PhotoUploads } from "../photo-uploads";
-import { shelterCropAttemptKey, shelterUploadKey } from "../rate-limits";
+import { shelterCropAttemptKey, shelterUploadAttemptKey, shelterUploadKey } from "../rate-limits";
 import { actorOf, kabinetAnimalViewFor, type OwnErrors, owned } from "./animals";
 
 export type PhotoDeps = Pick<KabinetContext, "db" | "now" | "newId" | "photoUploads">;
@@ -107,16 +107,27 @@ type UploadErrors = ORPCErrorConstructorMap<{
   PHOTO_UPLOADS_UNAVAILABLE: typeof apiErrors.PHOTO_UPLOADS_UNAVAILABLE;
 }>;
 
+/** The work that spends the shelter's allowance only once it lands, each with its own attempts. */
+type PhotoWork = "upload" | "crop";
+
+/** A landed upload or crop whose allowance unit wasn't fully taken, named by its work. */
+const CHARGE_EVENTS = {
+  upload: {
+    uncharged: "photo_upload_uncharged",
+    hourlyOnly: "photo_upload_charged_hourly_only",
+    dailyOnly: "photo_upload_charged_daily_only",
+  },
+  crop: {
+    uncharged: "photo_crop_uncharged",
+    hourlyOnly: "photo_crop_charged_hourly_only",
+    dailyOnly: "photo_crop_charged_daily_only",
+  },
+} as const;
+type ChargeEvent = (typeof CHARGE_EVENTS)[PhotoWork][keyof (typeof CHARGE_EVENTS)[PhotoWork]];
+
 /** The photo writes' log lines, through one console call (the Biome ratchet counts each). */
 const logPhotoEvent = (
-  line:
-    | { event: "photo_orphaned"; storageKey: string }
-    | {
-        event:
-          | "photo_crop_uncharged"
-          | "photo_crop_charged_hourly_only"
-          | "photo_crop_charged_daily_only";
-      },
+  line: { event: "photo_orphaned"; storageKey: string } | { event: ChargeEvent },
 ) => console.error(line);
 
 /** A file stored that no animal points at: the clean-up job deletes it after the grace (K-Q2). */
@@ -154,8 +165,9 @@ export async function withinBudget<T>(
  * `shelter.photos.add`, one step (P-Q2), in this order:
  *
  * 1. uploads must be on for this deployment (P-Q10), or `PHOTO_UPLOADS_UNAVAILABLE`;
- * 2. the shelter's hourly and daily allowances are charged (P-Q12), before the
- *    file is read, so a refused file still counts;
+ * 2. the shelter's allowance must have room (P-Q12), read without spending, and
+ *    one upload attempt is taken and never given back, before ownership and
+ *    before the file is read, so the attempts bound every decode (owner, 2026-11-16);
  * 3. the animal must be this shelter's and have room (K-Q11);
  * 4. the bytes are checked and re-encoded (`prepareUploadedPhoto`: magic bytes,
  *    2000 px, every piece of metadata stripped), within the deployment's
@@ -166,7 +178,9 @@ export async function withinBudget<T>(
  *    fresh random key (P-Q4);
  * 6. the photo is appended, compare-and-set on the photo list as re-read, so
  *    two uploads at once both land or the eleventh is refused, never lost;
- *    its source row is written in the same statement, with no frame.
+ *    its source row is written in the same statement, with no frame;
+ * 7. only now is the allowance charged: a failure anywhere above costs the
+ *    shelter an attempt, never the allowance, as a crop does.
  *
  * Steps 5-6 can leave a stored file no animal points at (the animal deleted,
  * filled to ten meanwhile, or a failure in between): logged as
@@ -189,9 +203,8 @@ export async function photosAdd(
 ): Promise<KabinetAnimalView> {
   const uploads = deps.photoUploads;
   if (uploads.kind === "off") throw errors.PHOTO_UPLOADS_UNAVAILABLE();
-  const allowanceKey = shelterUploadKey(scope.shelterId);
-  if (!(await uploads.limiters.perHour.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
-  if (!(await uploads.limiters.perDay.check(allowanceKey, deps.now))) throw errors.RATE_LIMITED();
+  if (!(await allowanceHasRoom(deps, scope, uploads))) throw errors.RATE_LIMITED();
+  if (!(await takeAttempt(deps, scope, uploads, "upload"))) throw errors.RATE_LIMITED();
 
   const limitReached = () => errors.PHOTO_LIMIT_REACHED({ data: { max: MAX_ANIMAL_PHOTOS } });
   const { animal } = await owned(deps, scope, input.animalId, errors);
@@ -224,23 +237,28 @@ export async function photosAdd(
     height: prepared.source.height,
     framing: { kind: "attention" },
   };
-  try {
-    await pipeline.storePhoto(uploads.storage, storageKey, prepared.variants, {
-      objectKey: source.sourceObjectKey,
-      bytes: prepared.source.bytes,
-    });
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-      const current = attempt === 1 ? animal : (await owned(deps, scope, animal.id, errors)).animal;
-      if (current.photos.length >= MAX_ANIMAL_PHOTOS) throw limitReached();
-      const next = afterPhotoChange(current, [...current.photos, photo], deps.now);
-      const result = await writePhotos(deps, scope, current, next, { kind: "record", source });
-      if (result.kind === "ok") return kabinetAnimalViewFor(deps, scope, next);
+  const landed = await (async () => {
+    try {
+      await pipeline.storePhoto(uploads.storage, storageKey, prepared.variants, {
+        objectKey: source.sourceObjectKey,
+        bytes: prepared.source.bytes,
+      });
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+        const current =
+          attempt === 1 ? animal : (await owned(deps, scope, animal.id, errors)).animal;
+        if (current.photos.length >= MAX_ANIMAL_PHOTOS) throw limitReached();
+        const next = afterPhotoChange(current, [...current.photos, photo], deps.now);
+        const result = await writePhotos(deps, scope, current, next, { kind: "record", source });
+        if (result.kind === "ok") return next;
+      }
+      throw new Error(`Animal ${animal.id}: lost ${MAX_ATTEMPTS} photo races in a row`);
+    } catch (error) {
+      logOrphan(storageKey);
+      throw error;
     }
-    throw new Error(`Animal ${animal.id}: lost ${MAX_ATTEMPTS} photo races in a row`);
-  } catch (error) {
-    logOrphan(storageKey);
-    throw error;
-  }
+  })();
+  await chargeLanded(deps, scope, uploads, "upload");
+  return kabinetAnimalViewFor(deps, scope, landed);
 }
 
 /**
@@ -339,30 +357,42 @@ async function allowanceHasRoom(deps: PhotoDeps, scope: ShelterWriteScope, uploa
   return (await perHour.wouldAllow(key, deps.now)) && (await perDay.wouldAllow(key, deps.now));
 }
 
-/** One crop attempt, never given back. A day's refusal keeps the hour's: it errs to the bound. */
-async function takeCropAttempt(deps: PhotoDeps, scope: ShelterWriteScope, uploads: UploadsOn) {
-  const key = shelterCropAttemptKey(scope.shelterId);
-  const { perHour, perDay } = uploads.limiters.cropAttempts;
+/**
+ * One upload or crop attempt, never given back, taken before the work: it bounds what failures,
+ * which spend no allowance, can cost. A day's refusal keeps the hour's: it errs to the bound.
+ */
+async function takeAttempt(
+  deps: PhotoDeps,
+  scope: ShelterWriteScope,
+  uploads: UploadsOn,
+  work: PhotoWork,
+) {
+  const key =
+    work === "upload"
+      ? shelterUploadAttemptKey(scope.shelterId)
+      : shelterCropAttemptKey(scope.shelterId);
+  const { perHour, perDay } =
+    work === "upload" ? uploads.limiters.uploadAttempts : uploads.limiters.cropAttempts;
   return (await perHour.check(key, deps.now)) && (await perDay.check(key, deps.now));
 }
 
 /**
- * A landed crop's allowance unit. Crops in flight together all passed the pre-check, so they can
- * overshoot by their number (the attempts bound it); refused, or the store down, the crop stays,
- * and the log line names the limiter that still took its unit, if one did.
+ * A landed upload's or crop's allowance unit. Work in flight together all passed the pre-check, so
+ * it can overshoot by its number (the attempts bound it); refused, or the store down, the photo
+ * stays, and the log line names the work and the limiter that still took its unit, if one did.
  */
-async function chargeLandedCrop(deps: PhotoDeps, scope: ShelterWriteScope, uploads: UploadsOn) {
+async function chargeLanded(
+  deps: PhotoDeps,
+  scope: ShelterWriteScope,
+  uploads: UploadsOn,
+  work: PhotoWork,
+) {
   const key = shelterUploadKey(scope.shelterId);
   const hour = await uploads.limiters.perHour.check(key, deps.now);
   const day = await uploads.limiters.perDay.check(key, deps.now);
   if (hour && day) return;
-  logPhotoEvent({
-    event: hour
-      ? "photo_crop_charged_hourly_only"
-      : day
-        ? "photo_crop_charged_daily_only"
-        : "photo_crop_uncharged",
-  });
+  const events = CHARGE_EVENTS[work];
+  logPhotoEvent({ event: hour ? events.hourlyOnly : day ? events.dailyOnly : events.uncharged });
 }
 
 type CropFrom = {
@@ -438,9 +468,9 @@ export async function photosCrop(
 
   // The allowance is only read here and charged once the crop lands (owner, 2026-11-12).
   if (!(await allowanceHasRoom(deps, scope, uploads))) throw errors.RATE_LIMITED();
-  if (!(await takeCropAttempt(deps, scope, uploads))) throw errors.RATE_LIMITED();
+  if (!(await takeAttempt(deps, scope, uploads, "crop"))) throw errors.RATE_LIMITED();
   const landed = await cutAndSwap(deps, scope, input, errors, uploads, { animal, from, cut });
-  await chargeLandedCrop(deps, scope, uploads);
+  await chargeLanded(deps, scope, uploads, "crop");
   return kabinetAnimalViewFor(deps, scope, landed);
 }
 

@@ -2,6 +2,7 @@ import { render } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { servesAvif } from "../photo-format";
+import { Avatar } from "./Avatar";
 import { Photo } from "./Photo";
 
 const KEY = "animals/a0000000-0000-4000-8000-000000000000/b0000000-0000-4000-8000-000000000000";
@@ -22,6 +23,31 @@ beforeEach(() => {
 afterEach(() => {
   delete process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
   delete process.env.NEXT_PUBLIC_R2_AVIF;
+});
+
+const LOGO =
+  "shelters/51000000-0000-4000-8000-000000000001/logo/c2000000-0000-4000-8000-000000000002";
+/** The animal page's hero (`DetailPhotoGallery`) and the gallery card, as rendered there. */
+const HERO_SIZES = "(max-width: 599px) 100vw, (max-width: 1023px) 640px, 300px";
+const CARD_SIZES =
+  "(max-width:599px) calc(50vw - 22px),(max-width:1023px) calc(50vw - 32px),(max-width:1511px) calc(25vw - 50.5px),328px";
+
+describe("a shelter logo", () => {
+  // Every ladder width mapped to `large.webp`: the same file five times over, now once.
+  it.each(["md", "identity", "xl"] as const)(
+    "at size %s is one URL, its large.webp, with no srcset and the same box and alt",
+    (size) => {
+      const { container } = render(<Avatar kind="logo" src={LOGO} size={size} />);
+      const imgs = container.querySelectorAll("img");
+      expect(imgs).toHaveLength(1);
+      const [img] = imgs;
+      expect(img?.getAttribute("src")).toBe(`https://cdn.opika.org.ua/${LOGO}/large.webp`);
+      expect(img?.getAttribute("srcset")).toBeNull();
+      expect(img?.getAttribute("alt")).toBe("");
+      expect(img?.getAttribute("data-nimg")).toBe("fill");
+      expect(img?.getAttribute("loading")).toBe("lazy");
+    },
+  );
 });
 
 describe("Photo with AVIF off", () => {
@@ -77,6 +103,30 @@ describe("Photo with AVIF on", () => {
     expect(link).toContain(".avif");
     expect(link).not.toContain(".webp");
     expect(html).toMatch(/<img\b[^>]*\bfetchPriority="high"/i);
+  });
+
+  it("the hero's three lists offer no thumb (176w); a gallery card's still do", () => {
+    const html = renderToStaticMarkup(
+      <Photo src={KEY} alt="" sizes={HERO_SIZES} aspect="portrait" priority />,
+    );
+    const lists = [
+      html.match(/<link [^>]*imageSrcSet="([^"]*)"/i)?.[1],
+      html.match(/<source [^>]*srcSet="([^"]*)"/i)?.[1],
+      html.match(/<img [^>]*srcSet="([^"]*)"/i)?.[1],
+    ];
+    expect(lists.every((list) => list !== undefined && list.length > 0)).toBe(true);
+    for (const list of lists)
+      expect(urlsOf(list ?? null).some((u) => u.includes("/thumb."))).toBe(false);
+
+    const card = render(
+      <Photo src={KEY} alt="" sizes={CARD_SIZES} aspect="cardStacked" />,
+    ).container;
+    for (const srcset of [
+      card.querySelector("source")?.getAttribute("srcset") ?? null,
+      card.querySelector("img")?.getAttribute("srcset") ?? null,
+    ]) {
+      expect(urlsOf(srcset).some((u) => u.includes("/thumb."))).toBe(true);
+    }
   });
 
   it("a shelter logo and a seed placeholder stay a single <img>: neither is stored as AVIF", () => {

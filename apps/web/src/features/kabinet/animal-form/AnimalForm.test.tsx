@@ -1207,6 +1207,56 @@ describe("photos", () => {
     expect(screen.getByText("1 · Обкладинка")).toBeTruthy();
   });
 
+  describe("once the last byte is sent, until the server answers", () => {
+    /** An upload whose bytes are all sent and whose answer is held back. */
+    const sentAndWaiting = async () => {
+      const user = userEvent.setup();
+      const client = renderForm(draft());
+      client.calls.add.mockImplementationOnce(async (_input, options) => {
+        options?.context?.onUploadProgress?.({ sent: 655_360, total: 1_048_576 });
+        options?.context?.onUploadProgress?.({ sent: 1_048_576, total: 1_048_576 });
+        return new Promise<KabinetAnimalView>(() => {});
+      });
+      await user.upload(
+        screen.getByTestId("photo-file-input"),
+        new File(["x"], "a.jpg", { type: "image/jpeg" }),
+      );
+    };
+    let mediaSpy: { mockRestore: () => void } | null = null;
+    const reducedMotion = (reduce: boolean) => {
+      mediaSpy = vi.spyOn(window, "matchMedia").mockImplementation(
+        (query: string) =>
+          ({
+            matches: reduce && query === "(prefers-reduced-motion: reduce)",
+            media: query,
+          }) as MediaQueryList,
+      );
+    };
+
+    afterEach(() => mediaSpy?.mockRestore());
+
+    it("the tile says «Фото обробляється…», its bar is indeterminate, and nothing new is announced", async () => {
+      reducedMotion(false);
+      await sentAndWaiting();
+      expect(await screen.findByText("Фото обробляється…")).toBeTruthy();
+      expect(screen.queryByText(/^Завантаження · /)).toBeNull();
+      const bar = screen.getByRole("progressbar", { name: "Фото обробляється…" });
+      expect(bar.hasAttribute("value")).toBe(false);
+      // As while uploading: the tile carries the state; no live region speaks it.
+      for (const region of screen.getAllByRole("status")) {
+        expect(region.textContent).not.toContain("обробляється");
+      }
+    });
+
+    it("with less motion asked for, the bar is full and still, the text the same", async () => {
+      reducedMotion(true);
+      await sentAndWaiting();
+      expect(await screen.findByText("Фото обробляється…")).toBeTruthy();
+      const bar = screen.getByRole("progressbar", { name: "Фото обробляється…" });
+      expect([bar.getAttribute("value"), bar.getAttribute("max")]).toEqual(["1", "1"]);
+    });
+  });
+
   it("without a measured size, the tile says «Фото завантажується…»", async () => {
     const user = userEvent.setup();
     const client = renderForm(draft());

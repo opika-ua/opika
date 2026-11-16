@@ -38,13 +38,12 @@ export const kabinetUserKey = (userId: string) => `user:${userId}`;
  * P-Q12 (K-Q2: "per-shelter upload rate limit"): 60 uploads an hour and 300 a
  * day per shelter, on the shared store in production like every kabinet
  * limit. Keyed by the shelter, not the user, so two admins of one shelter
- * share one allowance, and charged on every `shelter.photos.add` that passed
- * the write policy, before ownership (P-T4) and before the file is sniffed or
- * decoded: a refused file still cost the server the work of reading it, and a
- * call naming another shelter's animal spends a unit too. Since pet card
- * PR 3b, `shelter.logo.set` charges this same allowance too (a decision
- * taken, not a second pool); `shelter.logo.remove` isn't an upload and
- * charges nothing.
+ * share one allowance. A photo upload spends it only once it lands, as a crop
+ * does (owner, 2026-11-16): a refused file, a call naming another shelter's
+ * animal or a run past the processing budget costs an upload attempt
+ * (`PHOTO_UPLOAD_ATTEMPT_LIMITS`), not the allowance. `shelter.logo.set`
+ * charges this same allowance up front (pet card PR 3b, a decision taken,
+ * not a second pool); `shelter.logo.remove` isn't an upload and charges nothing.
  */
 export const PHOTO_UPLOAD_RATE_LIMITS = {
   perHour: { windowMs: 60 * 60_000, maxRequests: 60 },
@@ -52,20 +51,30 @@ export const PHOTO_UPLOAD_RATE_LIMITS = {
 } as const;
 
 /**
- * Every crop attempt, landed or not, taken before its work and never given back (owner,
- * 2026-11-12): a shelter's photo work is at most 60 uploads plus 30 crops an hour (300 and 150 a day).
+ * Every upload and every crop attempt, landed or not, taken before its work and never given back
+ * (owner: crops 2026-11-12, uploads 2026-11-16). A shelter's photo work is at most 90 upload
+ * attempts + 30 crop attempts an hour (450 + 150 a day), whatever fails.
  */
+export const PHOTO_UPLOAD_ATTEMPT_LIMITS = {
+  perHour: { windowMs: 60 * 60_000, maxRequests: 90 },
+  perDay: { windowMs: 24 * 60 * 60_000, maxRequests: 450 },
+} as const;
+
 export const PHOTO_CROP_ATTEMPT_LIMITS = {
   perHour: { windowMs: 60 * 60_000, maxRequests: 30 },
   perDay: { windowMs: 24 * 60 * 60_000, maxRequests: 150 },
 } as const;
 
-/** The allowance's limiters can be asked without spending: a crop checks first, charges on landing. */
+type AttemptLimiters = { perHour: RateLimiter; perDay: RateLimiter };
+
+/** The allowance's limiters can be asked without spending: work checks first, charges on landing. */
 export type PhotoUploadLimiters = {
   perHour: PeekableRateLimiter;
   perDay: PeekableRateLimiter;
-  cropAttempts: { perHour: RateLimiter; perDay: RateLimiter };
+  uploadAttempts: AttemptLimiters;
+  cropAttempts: AttemptLimiters;
 };
 
 export const shelterUploadKey = (shelterId: string) => `shelter:${shelterId}`;
+export const shelterUploadAttemptKey = (shelterId: string) => `shelter:${shelterId}:upload`;
 export const shelterCropAttemptKey = (shelterId: string) => `shelter:${shelterId}:crop`;

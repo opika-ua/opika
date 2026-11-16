@@ -8,7 +8,7 @@ File: `apps/web/src/ui/Avatar.tsx`
 
 **Accessibility.** Decorative: the name is always shown as text beside it.
 
-**Responsive.** lg and xl are smaller on a phone (xl: 96px, 160px from tablet).
+**Responsive.** lg and xl are smaller on a phone (xl: 96px, 160px from tablet). A logo loads one file, its 160px `large` variant, at every size (`Photo`).
 
 **Example.**
 

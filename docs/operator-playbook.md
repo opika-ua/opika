@@ -367,7 +367,8 @@ neutral; never name a suspicion.
 - **Rate limits** (a refused call answers 429; wait, do not retry in a loop): the cabinet and registry
   take 100 requests a minute per signed-in user and 300 a minute per IP; sign-in links 5 an hour per
   address and 20 an hour per IP; password reset 3 an hour per address; invitation page 20 an hour per IP;
-  shelter photo uploads 60 an hour and 300 a day per shelter; an anonymous adopter may reveal contacts of
+  shelter photo uploads 60 an hour and 300 a day per shelter, counted once they land, within 90 upload
+  attempts + 30 crop attempts an hour (450 + 150 a day); an anonymous adopter may reveal contacts of
   at most 30 distinct shelters in 24 hours and at most 100 new shelters per IP a day (the IP figure is an
   environment variable with that default); the public API takes 100 a minute. When the shared store is
   unreachable the limiters fail closed, so everything limited answers 429 until it returns

@@ -8,7 +8,7 @@ File: `apps/web/src/ui/Photo.tsx`
 
 **Accessibility.** Empty `alt` marks it decorative.
 
-**Responsive.** Fixed aspect ratio: no layout shift. Variants come from the R2 loader, never Vercel's optimiser.
+**Responsive.** Fixed aspect ratio: no layout shift. Variants come from the R2 loader, never Vercel's optimiser. A shelter logo (`shelters/*/logo/*`) is the exception: one URL, its `large` variant, no srcset, since every width the ladder offers maps to that one file. With `NEXT_PUBLIC_R2_AVIF=1` an animal photo is a `<picture>` (AVIF source, WebP `<img>`).
 
 **Example.**
 

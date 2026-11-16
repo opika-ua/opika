@@ -532,6 +532,8 @@ with no IP address, email address, cookie or visitor id in it. The names:
 - `kabinet-forgot-ip`, `kabinet-forgot-address`, `kabinet-reset-ip`, `kabinet-invite-ip`:
   «Забули пароль?», the reset form and the invitation link's password.
 - `kabinet-photo-hour`, `kabinet-photo-day`: photo and logo uploads per shelter.
+- `kabinet-upload-attempt-hour`, `kabinet-upload-attempt-day`, `kabinet-crop-attempt-hour`,
+  `kabinet-crop-attempt-day`: photo upload and crop attempts per shelter, landed or not.
 
 A steady trickle of `adopter-mint` or `reveal-ip` from ordinary use is the signal to raise the
 matching variable.

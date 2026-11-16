@@ -1884,6 +1884,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(CROP_FRAME_COPY),
         // The photo tile pill's words, pinned in their own block below.
         ...Object.keys(PHOTO_TILE_PILL_COPY),
+        // The upload's processing state, pinned in its own block below.
+        ...Object.keys(UPLOAD_PROCESSING_COPY),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -2569,6 +2571,24 @@ const PHOTO_TILE_PILL_COPY: Record<string, string> = {
     "Щоб посунути фото на одне місце, натисніть Alt і стрілку вліво або вправо.",
   "kabinet.animalForm.photos.dragDrop": "Фото тепер на позиції {pos} з {total}.",
 };
+
+/** The tile once every byte is sent, until the server answers: owner-given 2026-11-16, verbatim. */
+const UPLOAD_PROCESSING_COPY: Record<string, string> = {
+  "kabinet.animalForm.photos.processing": "Фото обробляється…",
+};
+
+describe("upload processing copy (owner-given 2026-11-16)", () => {
+  it.each(Object.entries(UPLOAD_PROCESSING_COPY))("%s is his text, exactly", (path, text) => {
+    const found = path
+      .split(".")
+      .slice(1)
+      .reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+        uk.kabinet,
+      );
+    expect(found).toBe(text);
+  });
+});
 
 describe("photo tile pill copy (owner-given 2026-11-12)", () => {
   it.each(Object.entries(PHOTO_TILE_PILL_COPY))("%s is his text, exactly", (path, text) => {
