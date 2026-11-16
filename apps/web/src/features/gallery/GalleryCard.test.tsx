@@ -276,12 +276,12 @@ describe("GalleryCard photo loading", () => {
   });
   const img = (container: HTMLElement) => container.querySelector("img");
 
-  it("the first-row photo loads now, without high priority", () => {
+  it("the first-row photo loads now, at low priority so it isn't preloaded beside the LCP photo", () => {
     const { container } = render(
       <GalleryCard card={withPhoto} cityName={null} eager {...NO_CONTEXT} />,
     );
     expect(img(container)?.getAttribute("loading")).toBe("eager");
-    expect(img(container)?.getAttribute("fetchpriority")).toBeNull();
+    expect(img(container)?.getAttribute("fetchpriority")).toBe("low");
   });
 
   it("the priority photo gets fetchpriority high and is not lazy", () => {

@@ -26,7 +26,10 @@ export type PhotoProps = {
   sizes: string;
   aspect: keyof typeof ASPECT;
   priority?: boolean;
-  /** Fetch now without a preload or high priority: for the images of the first visible row. */
+  /**
+   * Fetch now, behind the LCP image: for the first visible row. Low priority is what keeps it out
+   * of `<head>`: React's SSR preloads every image that is neither lazy nor low priority.
+   */
   eager?: boolean;
   className?: string;
 };
@@ -50,7 +53,7 @@ export function Photo({
           sizes={sizes}
           priority={priority}
           loading={eager && !priority ? "eager" : undefined}
-          fetchPriority={priority ? "high" : undefined}
+          fetchPriority={priority ? "high" : eager ? "low" : undefined}
           className="object-cover"
         />
       )}
