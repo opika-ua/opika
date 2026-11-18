@@ -53,7 +53,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "schema/shelters.ts",
-    line: 51,
+    line: 52,
     text: 'verificationStatus: text("verification_status", {',
     kind: "definition",
     why: "the column itself",

@@ -8,6 +8,7 @@ import { cityRepo } from "../src/repos/city-repo";
 import { photoSourcesRepo } from "../src/repos/photo-sources-repo";
 import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
+import { applicationDeletions } from "../src/schema/application-deletions";
 import {
   authAccount,
   authInvitation,
@@ -20,7 +21,6 @@ import {
   superAdmins,
   supportSessions,
 } from "../src/schema/auth";
-import { applicationDeletions } from "../src/schema/application-deletions";
 import { cities } from "../src/schema/cities";
 import { funnelEvents } from "../src/schema/funnel-events";
 import { notificationSends } from "../src/schema/notification-sends";

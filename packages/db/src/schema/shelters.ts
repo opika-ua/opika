@@ -16,6 +16,7 @@ import { check, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-
 import { authOrganization, authUser } from "./auth";
 import { cities } from "./cities";
 import { jsonb } from "./helpers";
+import { withRejectionStage } from "./legacy-shapes";
 
 export const shelters = pgTable(
   "shelters",
@@ -61,7 +62,7 @@ export const shelters = pgTable(
     })
       .notNull()
       .$type<VerificationStatus>(),
-    verification: jsonb<ShelterVerification>("verification").notNull(),
+    verification: jsonb<ShelterVerification>("verification", withRejectionStage).notNull(),
     /**
      * Operator permission to list before verification; expiry is read time, never written here.
      * Kept by moves inside pending/under_review (`keepsEarlyListing`), cleared by revoke and by

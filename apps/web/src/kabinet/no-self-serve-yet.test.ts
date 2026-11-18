@@ -86,7 +86,7 @@ const ACCEPT_CALLER = "apps/web/src/kabinet/invitation-accept.ts";
  */
 const REGISTRATION_MODULE = "packages/db/src/repos/self-registration-repo.ts";
 
-/** Writers that exist in the tree: a named module not written yet can't be required. */
+/** The registration module while it isn't written yet: it can't be required. The accept module always is. */
 const existing = (files: readonly string[]) => files.filter((file) => sourceFiles().includes(file));
 
 const COPY_GATE =
@@ -105,7 +105,7 @@ describe(`a shelter membership is created by the automatic accept only – ${COP
         /\.(insert|update)\(\s*(?:\w+\.)*authMember\b|(INSERT\s+INTO|UPDATE)\s+(?:"?auth_member\b|\$\{\s*(?:\w+\.)*authMember\s*\})/i,
       ).sort(),
       `Only ${ACCEPT_MODULE} (IN-Q12/IN-Q13) and ${REGISTRATION_MODULE} (self-registration) may write auth_member. ${COPY_GATE}`,
-    ).toEqual(existing([ACCEPT_MODULE, REGISTRATION_MODULE]).sort());
+    ).toEqual([ACCEPT_MODULE, ...existing([REGISTRATION_MODULE])].sort());
   });
 
   it("only the app's accept wrapper calls the accept module", () => {

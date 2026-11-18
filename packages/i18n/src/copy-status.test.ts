@@ -1082,8 +1082,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   /** Owner-approved 2026-11-04 (listing before verification, copy table N7–N12). */
   /**
    * Self-registration (2026-11-18): the operator's labels for the new status, event, history line,
-   * evidence kind and rejection code. Appendix A (A1, A5) and the Phase 0 copy table, approved by
-   * Oleksii; «Заявку схвалено» is the builder's history line for «Схвалити».
+   * evidence kind and rejection code. Appendix A (A1, A5), the Phase 0 copy table and «Заявка» /
+   * «Заявку схвалено», all approved by Oleksii (2026-11-18).
    */
   const SELF_REGISTRATION_OPERATOR_COPY: Record<string, string> = {
     "operator.evidence.kind.public_link": "Сайт або сторінка в соцмережі",

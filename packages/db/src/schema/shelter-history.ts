@@ -1,6 +1,7 @@
 import type { ShelterHistoryEntry, ShelterHistoryKind, ShelterId } from "@opika/domain";
 import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { jsonb } from "./helpers";
+import { withRenameActor } from "./legacy-shapes";
 import { shelters } from "./shelters";
 
 /**
@@ -29,7 +30,7 @@ export const shelterHistory = pgTable(
     kind: text("kind").notNull().$type<ShelterHistoryKind>(),
     /** `historyEntryAt(entry)`, denormalised so the newest-first list can seek on an index. */
     at: timestamp("at", { withTimezone: true }).notNull(),
-    entry: jsonb<ShelterHistoryEntry>("entry").notNull(),
+    entry: jsonb<ShelterHistoryEntry>("entry", withRenameActor).notNull(),
   },
   (t) => [index("shelter_history_shelter_at_idx").on(t.shelterId, t.at.desc(), t.id.desc())],
 );

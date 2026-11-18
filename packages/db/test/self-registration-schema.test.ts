@@ -5,6 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { cityRepo } from "../src/repos/city-repo";
 import { funnelRepo } from "../src/repos/funnel-repo";
+import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
 import { registrationFactsRepo } from "../src/repos/registration-facts-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { authUser } from "../src/schema/auth";
@@ -275,5 +276,52 @@ describe("0028's backfills", () => {
       from: "Лапа",
       to: "Лапа допомоги",
     });
+  });
+});
+
+/**
+ * Code from before 0028 can write the old shapes between the production migration and the deploy
+ * (owner, 2026-11-18): every read normalises them, so those rows can't break a screen after it.
+ */
+describe("rows written in the old shapes after 0028 read as today's", () => {
+  it("a stage-less rejection and a moderatorId rename line, through the repositories", async () => {
+    const rejected = makeShelter({
+      verification: {
+        status: "rejected",
+        rejectedAt: NOW,
+        rejectedBy: MOD,
+        reason: { code: "spam", note: null },
+        stage: "verification",
+        evidence: EVIDENCE,
+      },
+    });
+    await shelterRepo(db).insert(rejected);
+    await db.execute(
+      sql`UPDATE shelters SET verification = verification - 'stage' WHERE id = ${rejected.id}`,
+    );
+    const oldRename = {
+      kind: "display_name_changed",
+      at: NOW.toISOString(),
+      moderatorId: MOD,
+      from: "Лапа",
+      to: "Лапа допомоги",
+    };
+    await db.execute(
+      sql`INSERT INTO shelter_history (id, shelter_id, kind, at, entry) VALUES (${crypto.randomUUID()}, ${rejected.id}, 'display_name_changed', ${NOW.toISOString()}, ${JSON.stringify(oldRename)}::jsonb)`,
+    );
+
+    expect((await shelterRepo(db).findById(rejected.id))?.verification).toMatchObject({
+      status: "rejected",
+      stage: "verification",
+    });
+    expect(await kabinetShelterRepo(db).historyOf(rejected.id)).toEqual([
+      {
+        kind: "display_name_changed",
+        at: NOW,
+        actor: { kind: "moderator", moderatorId: MOD },
+        from: "Лапа",
+        to: "Лапа допомоги",
+      },
+    ]);
   });
 });
