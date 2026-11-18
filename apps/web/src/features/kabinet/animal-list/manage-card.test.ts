@@ -185,7 +185,7 @@ describe("photo, name and «Редагувати» open the edit page; the meta 
     for (const from of [row(), published(3), reserved(3), ADOPTED, WITHDRAWN]) {
       expect(card(from)).toMatchObject({
         editHref: `/kabinet/tvaryny/${ID}`,
-        meta: "Собака · хлопчик · молодий · середній",
+        meta: ["Собака", "хлопчик", "молодий", "середній"],
       });
     }
   });

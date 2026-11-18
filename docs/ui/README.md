@@ -51,6 +51,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [Icon](components/Icon.md) | `Icon.tsx` | The one inline-SVG icon set. |
 | [Heading](components/Heading.md) | `Heading.tsx` | Headings mapped to the type scale. |
 | [Text](components/Text.md) | `Text.tsx` | Body copy. |
+| [InlineList](components/InlineList.md) | `InlineList.tsx` | Items on a line joined by a drawn separator that never ends a line, text or controls. |
 | [MetaLine](components/MetaLine.md) | `MetaLine.tsx` | Facts joined by a drawn separator: «Хлопчик · дорослий · середній». |
 | [Badge](components/Badge.md) | `Badge.tsx` | A small tag that sits on a photo. |
 | [ActionPill](components/ActionPill.md) | `ActionPill.tsx` | A few icon actions in one small pill over a photo (crop, «×»): 40px to the eye, 48px targets. |

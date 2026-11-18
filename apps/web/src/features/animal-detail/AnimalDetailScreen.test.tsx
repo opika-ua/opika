@@ -285,7 +285,9 @@ describe("AnimalDetailScreen meta line, by sex", () => {
   ] as const)("%s, %s: the meta line's size word reads «%s»", async (sex, size, word) => {
     await renderAnimal({ sex, size });
     const parts = Array.from(
-      document.querySelector(".meta-line")?.querySelectorAll(".meta-part") ?? [],
+      document
+        .querySelector("[data-testid='animal-meta']")
+        ?.querySelectorAll(".inline-list-row > *") ?? [],
     ).map((part) => part.textContent);
     expect(parts.at(-1)).toBe(word);
   });
@@ -293,9 +295,11 @@ describe("AnimalDetailScreen meta line, by sex", () => {
   it("the header line is species, sex, age, size; an unknown sex has no sex part", async () => {
     await renderAnimal({ species: "cat", sex: "female", ageBucket: "young", size: "large" });
     const read = () =>
-      Array.from(document.querySelector(".meta-line")?.querySelectorAll(".meta-part") ?? []).map(
-        (part) => part.textContent,
-      );
+      Array.from(
+        document
+          .querySelector("[data-testid='animal-meta']")
+          ?.querySelectorAll(".inline-list-row > *") ?? [],
+      ).map((part) => part.textContent);
     expect(read()).toEqual(["Кіт", "дівчинка", "молода", "велика"]);
     cleanup();
     await renderAnimal({ species: "dog", sex: "unknown", ageBucket: "young", size: "large" });
@@ -372,7 +376,9 @@ describe("AnimalDetailScreen meta line, by sex", () => {
       "adult",
     );
     const parts = Array.from(
-      document.querySelector(".meta-line")?.querySelectorAll(".meta-part") ?? [],
+      document
+        .querySelector("[data-testid='animal-meta']")
+        ?.querySelectorAll(".inline-list-row > *") ?? [],
     ).map((part) => part.textContent);
     expect(parts).toEqual(["Кіт", "дівчинка", "3–4 роки", "мала"]);
     expect(screen.queryByText("Доросла")).toBeNull();

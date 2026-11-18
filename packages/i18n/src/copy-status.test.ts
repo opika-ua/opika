@@ -1991,7 +1991,9 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
   const K2_FINAL: Record<string, string> = {
     "kabinet.animalList.pageTitle": "Тварини",
     "kabinet.animalList.title": "Тварини",
-    "kabinet.animalList.caption": "{shelter} · {cards}",
+    // His text, 2026-11-18 (the card's freshness fix), above the cards.
+    "kabinet.animalList.confirmHint":
+      "Підтверджуйте раз на кілька тижнів, що тварина ще шукає дім: люди бачать, коли картку оновили востаннє.",
     "kabinet.animalList.captionCards.one": "{count} картка",
     "kabinet.animalList.captionCards.few": "{count} картки",
     "kabinet.animalList.captionCards.many": "{count} карток",

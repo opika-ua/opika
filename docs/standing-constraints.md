@@ -335,8 +335,9 @@ happened.
 
 ## Product rules that are not negotiable
 
-**Freshness is honest and never alarming.** Three pips plus the day count in words, always
-both. Never red, never amber, never opacity as a carrier of meaning. An unknown field reads
+**Freshness is honest and never alarming.** Freshness is shown in words only; no pips (owner,
+2026-11-18: a shelter admin read them as a rating or an online status). Never red, never amber,
+never opacity as a carrier of meaning. An unknown field reads
 as «Не записано» - never as "no", never as an error.
 
 **A fostered animal never gets a map pin.** City-precision location renders as a place

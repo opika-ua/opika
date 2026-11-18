@@ -14,6 +14,7 @@ import { FilterTabs, filterTabId } from "../../../ui/FilterTabs";
 import { EmptyState, InlineStatus } from "../../../ui/feedback";
 import { Heading } from "../../../ui/Heading";
 import { InfoTip } from "../../../ui/InfoTip";
+import { InlineList } from "../../../ui/InlineList";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
 import { type ToastHandle, ToastProvider, useToast } from "../../../ui/Toast";
@@ -36,7 +37,7 @@ import {
   type AnimalListPageData,
   type AnimalRow,
   actionFailureOf,
-  captionOf,
+  captionCardsOf,
   confirmedAtOf,
   filterChipsOf,
   listingAfter,
@@ -584,10 +585,6 @@ function AnimalListBody({
     if (opened !== null) focusBack([opened.returnTo, nameLinkId(opened.row.id)]);
   };
 
-  const caption = captionOf(shelter.displayName, counts);
-  const captionSplit = caption.lastIndexOf(" · ") + 3;
-  const captionHead = caption.slice(0, captionSplit);
-  const captionTail = caption.slice(captionSplit);
   const closeLabel = uk.kabinet.profileEdit.pause.close;
 
   const stale = filter.kind === "stale";
@@ -612,15 +609,19 @@ function AnimalListBody({
           <Heading level={1} look="display-l" id="animal-list-title">
             {t.title}
           </Heading>
-          {/* «N карток ?» never splits; the shelter's name may wrap before it. */}
-          <div className="flex flex-wrap items-center gap-x-1 text-body text-ink-2">
-            <span>{captionHead}</span>
-            <span className="inline-flex items-center whitespace-nowrap">
-              {captionTail}
-              <InfoTip label={t.orderInfoLabel} closeLabel={closeLabel}>
-                {t.orderNote}
-              </InfoTip>
-            </span>
+          {/* «N карток ?» never splits; the shelter's name may wrap before it, and no separator ends a line. */}
+          <div className="text-body text-ink-2">
+            <InlineList
+              items={[
+                shelter.displayName,
+                <span key="cards" className="inline-flex items-center whitespace-nowrap">
+                  {captionCardsOf(counts)}
+                  <InfoTip label={t.orderInfoLabel} closeLabel={closeLabel}>
+                    {t.orderNote}
+                  </InfoTip>
+                </span>,
+              ]}
+            />
           </div>
         </div>
         {editable ? (
@@ -695,6 +696,8 @@ function AnimalListBody({
         />
       ) : (
         <>
+          {/* For the shelter's own admins only, and not beside the stale strip, which says the same (owner, 2026-11-18). */}
+          {editable && staleCount === 0 ? <Text look="hint">{t.confirmHint}</Text> : null}
           {staleCount > 0 || stale ? (
             // The strip is a region named by its own sentence while there is
             // anything stale; with nothing left to count, only the way back
@@ -707,15 +710,14 @@ function AnimalListBody({
                 aria-labelledby="animal-list-stale"
                 className="flex flex-col items-start gap-1"
               >
-                <div className="flex flex-wrap items-center gap-x-2">
-                  <Text look="label" id="animal-list-stale">
-                    {staleLineOf(staleCount)}
-                  </Text>
-                  <span aria-hidden="true" className="text-label text-ink-2">
-                    ·
-                  </span>
-                  {staleButton}
-                </div>
+                <InlineList
+                  items={[
+                    <Text key="line" look="label" as="span" id="animal-list-stale">
+                      {staleLineOf(staleCount)}
+                    </Text>,
+                    staleButton,
+                  ]}
+                />
                 {shown ? <Text look="hint">{t.stale.caption}</Text> : null}
               </Panel>
             ) : (

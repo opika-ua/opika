@@ -146,7 +146,7 @@ export function AnimalDetailContent({
             <Heading level={1} look="display-l" className="break-words desktop:text-display-xl">
               {animal.name}
             </Heading>
-            <MetaLine parts={metaParts(animal)} />
+            <MetaLine parts={metaParts(animal)} testId="animal-meta" />
           </div>
           {/* Wraps onto two lines on a phone rather than overflowing; «Дати сімʼю» stays the one primary action. */}
           {/* Phone: the bar that is always on screen (sticky to the bottom of the panel's scroll), «Дати сімʼю» taking the width and two 52px circles; from desktop, the header's own row, right-aligned. */}

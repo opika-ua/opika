@@ -10,7 +10,7 @@ import { fillTemplate, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 import { missingSentence } from "../animal-form/labels";
 import { animalPath, publicAnimalPath } from "../routes";
-import { type AnimalRow, metaLineOf, statusLineOf } from "./list-model";
+import { type AnimalRow, metaPartsOf, statusLineOf } from "./list-model";
 
 /**
  * The kabinet animal card's view model (types approved by the owner, 2026-11-12): one variant per
@@ -92,8 +92,8 @@ type CardCore = {
   /** Photo, name and «Редагувати» all open the edit page (spec rule 5). */
   editHref: string;
   photo: AnimalRow["coverPhoto"];
-  /** «Собака · хлопчик · молодий · середній». */
-  meta: string;
+  /** «Собака», «хлопчик», «молодий», «середній»: drawn as one line by `InlineList`. */
+  meta: readonly string[];
 };
 
 export type CardFreshness = { kind: FreshnessKind; label: string };
@@ -139,7 +139,7 @@ export const toAnimalManageCard = (row: AnimalRow, now: Date): AnimalManageCard 
     name: row.name,
     editHref: animalPath(row.id),
     photo: row.coverPhoto,
-    meta: metaLineOf(row, now),
+    meta: metaPartsOf(row, now),
   };
   const { listing } = row;
   switch (listing.kind) {

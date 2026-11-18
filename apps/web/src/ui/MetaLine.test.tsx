@@ -6,7 +6,8 @@ describe("MetaLine", () => {
   it("reads as its parts alone: the separators are drawn, not text", () => {
     render(<MetaLine parts={["Хлопчик", "дорослий", "середній"]} testId="meta" />);
     const meta = screen.getByTestId("meta");
-    expect(Array.from(meta.children).map((part) => part.textContent)).toEqual([
+    const parts = meta.querySelectorAll(".inline-list-row > *");
+    expect(Array.from(parts).map((part) => part.textContent)).toEqual([
       "Хлопчик",
       "дорослий",
       "середній",

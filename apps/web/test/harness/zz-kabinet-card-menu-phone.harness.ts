@@ -102,7 +102,8 @@ async function expectFreshRow(card: Locator, phone: boolean, label: string): Pro
 
 /**
  * Fresh: below desktop the freshness line is a full row under the photo (owner, 2026-11-13), beside it
- * from desktop; the link's words stay on one line with the ✓ and never run into the freshness words.
+ * from desktop; the link's words stay on one line with the ✓, beside the date or below it, and the
+ * drawn separator never ends a line (owner, 2026-11-18).
  */
 async function expectFreshLine(
   card: Locator,
@@ -110,19 +111,18 @@ async function expectFreshLine(
   belowPhoto: boolean,
   label: string,
 ): Promise<void> {
-  const [photo, pips, words, lineHeight] = await Promise.all([
+  const [photo, words, lineHeight] = await Promise.all([
     box(card.locator("a[aria-hidden='true']").first()),
-    box(card.locator("[data-fill]")),
     box(card.getByText(/^Оновлено /)),
     link.evaluate((el) => Number.parseFloat(getComputedStyle(el).lineHeight)),
   ]);
   if (belowPhoto) {
-    expect(pips.y, `${label}: the freshness line under the photo`).toBeGreaterThanOrEqual(
+    expect(words.y, `${label}: the freshness line under the photo`).toBeGreaterThanOrEqual(
       photo.y + photo.height,
     );
-    expect(Math.abs(pips.x - photo.x), `${label}: from the photo's left edge`).toBeLessThan(2);
+    expect(Math.abs(words.x - photo.x), `${label}: from the photo's left edge`).toBeLessThan(2);
   } else {
-    expect(pips.x, `${label}: the freshness line beside the photo`).toBeGreaterThan(
+    expect(words.x, `${label}: the freshness line beside the photo`).toBeGreaterThan(
       photo.x + photo.width,
     );
   }
@@ -135,7 +135,10 @@ async function expectFreshLine(
   expect(text.height, `${label}: the link and its ✓ on one line`).toBeLessThan(lineHeight * 1.5);
   const below = text.y >= words.y + words.height - 1;
   const beside = text.x >= words.x + words.width - 1;
-  expect(below || beside, `${label}: the link clear of the freshness words`).toBe(true);
+  expect(below || beside, `${label}: the link clear of the date`).toBe(true);
+  expect(await card.getByText(/^Оновлено /).textContent(), `${label}: no separator`).not.toContain(
+    "·",
+  );
 }
 
 /** #498's draft row: «Опублікувати» left, «Редагувати» + ⋯ right, or alone at full width with the pair below. */
@@ -262,8 +265,8 @@ test("320 to 393 px and a 320 px card: tab order, 48 px targets, one-line action
       ).toBe(true);
     }
 
-    // The action rows at every phone width, at 1440, and in a card at the grid's 320 px minimum.
-    for (const width of [320, 360, 393, 1440, "320px card"] as const) {
+    // The action rows at every phone width, at 1280 and 1440, and in a card at the grid's 320 px minimum.
+    for (const width of [320, 360, 393, 1280, 1440, "320px card"] as const) {
       await page.setViewportSize({ width: typeof width === "number" ? width : 1440, height: 900 });
       await page.goto("/kabinet/tvaryny");
       if (width === "320px card") {

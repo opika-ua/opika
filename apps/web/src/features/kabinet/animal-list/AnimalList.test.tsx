@@ -216,6 +216,13 @@ const restoreDusia = async () => {
 };
 /** The line a card control sits in: the freshness line or the action row. */
 const lineOf = (control: HTMLElement) => control.parentElement as HTMLElement;
+/** A card's facts, item by item: the first `InlineList` in the card. */
+const factsOf = (name: string) =>
+  Array.from(rowOf(name).querySelectorAll(".inline-list")[0]?.children[0]?.children ?? []).map(
+    (item) => item.textContent,
+  );
+/** The freshness line: the date and, when fresh, the confirm link, drawn as one `InlineList`. */
+const freshnessLineOf = (control: HTMLElement) => control.closest(".inline-list") as HTMLElement;
 const statusText = () => screen.getByRole("status").textContent;
 const alertText = () =>
   screen
@@ -231,8 +238,10 @@ describe("the page: header, rows, order note", () => {
   it("the title, the caption counting every card, and «Додати тварину» to K3's create page", async () => {
     renderList();
     expect(screen.getByRole("heading", { level: 1, name: "Тварини" })).toBeTruthy();
-    expect(screen.getByText("Притулок «Домівка» ·")).toBeTruthy();
+    // The separator is drawn (`InlineList`), so the name and the count are text of their own.
+    expect(screen.getByText("Притулок «Домівка»")).toBeTruthy();
     expect(screen.getByText("6 карток")).toBeTruthy();
+    expect(screen.queryByText(/Домівка» ·/)).toBeNull();
     expect(screen.getByRole("link", { name: "Додати тварину" }).getAttribute("href")).toBe(
       "/kabinet/tvaryny/nova",
     );
@@ -252,11 +261,12 @@ describe("the page: header, rows, order note", () => {
   it("each row: the name, the status chip, the meta line and the line that says where it stands", () => {
     renderList();
     expect(inRow("Рекс").getByText("Опубліковано")).toBeTruthy();
-    expect(inRow("Рекс").getByText("Собака · хлопчик · молодий · середній")).toBeTruthy();
+    // The facts are one line whose separators are drawn (`InlineList`), never text.
+    expect(factsOf("Рекс")).toEqual(["Собака", "хлопчик", "молодий", "середній"]);
     expect(inRow("Рекс").getByText("Оновлено 40 днів тому")).toBeTruthy();
     expect(inRow("Мурка").getByText("Домовляються")).toBeTruthy();
-    expect(inRow("Мурка").getByText("Кіт · дівчинка · молода · мала")).toBeTruthy();
-    expect(inRow("Сірко").getByText("Собака · стать не вказана")).toBeTruthy();
+    expect(factsOf("Мурка")).toEqual(["Кіт", "дівчинка", "молода", "мала"]);
+    expect(factsOf("Сірко")).toEqual(["Собака", "стать не вказана"]);
     expect(inRow("Сірко").getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeTruthy();
     expect(inRow("Бім").getByText("Удома з 12 вересня")).toBeTruthy();
     expect(
@@ -889,9 +899,9 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     expect(calls.confirm).toHaveBeenCalledTimes(1);
     expect(inRow("Рекс").getByText("Оновлено сьогодні")).toBeTruthy();
     // Fresh now: the confirm is the freshness line's link, «Редагувати» is back in the row.
-    expect(lineOf(inRow("Рекс").getByRole("button", { name: "Ще шукає" })).textContent).toContain(
-      "Оновлено сьогодні",
-    );
+    expect(
+      freshnessLineOf(inRow("Рекс").getByRole("button", { name: "Ще шукає" })).textContent,
+    ).toContain("Оновлено сьогодні");
     expect(inRow("Рекс").getByRole("link", { name: "Редагувати" })).toBeTruthy();
     expect(inRow("Рекс").queryByRole("link", { name: /^Редагувати картку/ })).toBeNull();
     expect(screen.getByText("Рекс: підтверджено сьогодні.")).toBeTruthy();
@@ -1086,7 +1096,7 @@ describe("«Ще шукає» / «Ще домовляються» and the 8-seco
     await waitFor(() =>
       expect(document.activeElement).toBe(inRow("Рекс").getByRole("button", { name: "Ще шукає" })),
     );
-    expect(lineOf(document.activeElement as HTMLElement).textContent).toContain(
+    expect(freshnessLineOf(document.activeElement as HTMLElement).textContent).toContain(
       "Оновлено сьогодні",
     );
     toastUndo().focus();
@@ -1581,10 +1591,14 @@ describe("each status shows only its own actions (the card spec)", () => {
     },
   );
 
-  it("fresh: the confirm is a link at the end of the freshness line; the row holds «Редагувати» and ⋯", () => {
+  it("fresh: the confirm is a link after the date, on its line; the row holds «Редагувати» and ⋯", () => {
     renderList();
     const confirm = inRow("Мурка").getByRole("button", { name: "Ще домовляються" });
-    expect(lineOf(confirm).textContent).toContain("Оновлено 3 дні тому");
+    expect(freshnessLineOf(confirm).textContent).toContain("Оновлено 3 дні тому");
+    // The date is its own element; the separator between them is drawn, never text.
+    const date = inRow("Мурка").getByText("Оновлено 3 дні тому");
+    expect(date.contains(confirm)).toBe(false);
+    expect(date.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const edit = inRow("Мурка").getByRole("link", { name: "Редагувати" });
     const row = lineOf(edit);
     expect(row.contains(moreOf("Мурка"))).toBe(true);
@@ -1695,4 +1709,49 @@ describe("the ⋯ menu: the public page, opened or copied", () => {
       expect(inRow(name).queryByRole("button", { name: /^Інші дії/ })).toBeNull();
     },
   );
+});
+
+/** Owner, 2026-11-18: a shelter admin read the pips as a rating or an online status. */
+describe("the freshness line is words only", () => {
+  it("no card draws pips, and no date carries a separator", () => {
+    renderList({ first: { ...FIRST, items: [...FIRST.items, AGING] } });
+    for (const row of screen.getAllByRole("listitem")) {
+      expect(row.querySelector("[data-fill]")).toBeNull();
+    }
+    for (const date of screen.getAllByText(/^Оновлено /)) {
+      expect(date.textContent).not.toContain("·");
+    }
+  });
+
+  it("asks the shelter's own admins to confirm now and then, above the cards", () => {
+    renderList({ first: { ...FIRST, staleCount: 0 } });
+    const hint = screen.getByText(
+      "Підтверджуйте раз на кілька тижнів, що тварина ще шукає дім: люди бачать, коли картку оновили востаннє.",
+    );
+    const firstCard = screen.getAllByRole("listitem")[0] as HTMLElement;
+    expect(hint.compareDocumentPosition(firstCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("leaves the hint out while the stale strip shows: the strip says the same", () => {
+    renderList();
+    expect(screen.getByText("1 картка давно не оновлювалась")).toBeTruthy();
+    expect(
+      screen.queryByText(
+        "Підтверджуйте раз на кілька тижнів, що тварина ще шукає дім: люди бачать, коли картку оновили востаннє.",
+      ),
+    ).toBeNull();
+  });
+
+  it("leaves the hint out of the support view, which confirms nothing", () => {
+    renderList({
+      first: { ...FIRST, staleCount: 0 },
+      viewer: "support",
+      editing: { kind: "read_only" },
+    });
+    expect(
+      screen.queryByText(
+        "Підтверджуйте раз на кілька тижнів, що тварина ще шукає дім: люди бачать, коли картку оновили востаннє.",
+      ),
+    ).toBeNull();
+  });
 });
