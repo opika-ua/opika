@@ -58,7 +58,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/application-deletion-repo.ts",
-    line: 195,
+    line: 187,
     text: "tx.delete(authUser).where(ofUser(eq(authUser.id, uid))),",
     kind: "exception",
     why:
