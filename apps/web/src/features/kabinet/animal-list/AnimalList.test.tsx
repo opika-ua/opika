@@ -1580,10 +1580,14 @@ describe("each status shows only its own actions (the card spec)", () => {
     },
   );
 
-  it("fresh: the confirm is a link at the end of the freshness line; the row holds «Редагувати» and ⋯", () => {
+  it("fresh: the confirm is a link on its own line under the date; the row holds «Редагувати» and ⋯", () => {
     renderList();
     const confirm = inRow("Мурка").getByRole("button", { name: "Ще домовляються" });
     expect(lineOf(confirm).textContent).toContain("Оновлено 3 дні тому");
+    // The date is its own element, so the link never shares (or dangles off) its line.
+    const date = inRow("Мурка").getByText("Оновлено 3 дні тому");
+    expect(date.contains(confirm)).toBe(false);
+    expect(date.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const edit = inRow("Мурка").getByRole("link", { name: "Редагувати" });
     const row = lineOf(edit);
     expect(row.contains(moreOf("Мурка"))).toBe(true);
@@ -1694,4 +1698,35 @@ describe("the ⋯ menu: the public page, opened or copied", () => {
       expect(inRow(name).queryByRole("button", { name: /^Інші дії/ })).toBeNull();
     },
   );
+});
+
+/** Owner, 2026-11-18: a shelter admin read the pips as a rating or an online status. */
+describe("the freshness line is words only", () => {
+  it("no card draws pips, and no date carries a separator", () => {
+    renderList({ first: { ...FIRST, items: [...FIRST.items, AGING] } });
+    for (const row of screen.getAllByRole("listitem")) {
+      expect(row.querySelector("[data-fill]")).toBeNull();
+    }
+    for (const date of screen.getAllByText(/^Оновлено /)) {
+      expect(date.textContent).not.toContain("·");
+    }
+  });
+
+  it("asks the shelter's own admins to confirm now and then, above the cards", () => {
+    renderList();
+    const hint = screen.getByText(
+      "Підтверджуйте раз на кілька тижнів, що тварина ще шукає дім: люди бачать, коли картку оновили востаннє.",
+    );
+    const firstCard = screen.getAllByRole("listitem")[0] as HTMLElement;
+    expect(hint.compareDocumentPosition(firstCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("leaves the hint out of the support view, which confirms nothing", () => {
+    renderList({ viewer: "support", editing: { kind: "read_only" } });
+    expect(
+      screen.queryByText(
+        "Підтверджуйте раз на кілька тижнів, що тварина ще шукає дім: люди бачать, коли картку оновили востаннє.",
+      ),
+    ).toBeNull();
+  });
 });

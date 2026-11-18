@@ -695,6 +695,8 @@ function AnimalListBody({
         />
       ) : (
         <>
+          {/* For the shelter's own admins only; the support view writes nothing (owner, 2026-11-18). */}
+          {editable ? <Text look="hint">{t.confirmHint}</Text> : null}
           {staleCount > 0 || stale ? (
             // The strip is a region named by its own sentence while there is
             // anything stale; with nothing left to count, only the way back

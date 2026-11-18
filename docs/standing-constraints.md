@@ -335,8 +335,11 @@ happened.
 
 ## Product rules that are not negotiable
 
-**Freshness is honest and never alarming.** Three pips plus the day count in words, always
-both. Never red, never amber, never opacity as a carrier of meaning. An unknown field reads
+**Freshness is honest and never alarming.** The day count in words, always; pips, where they
+are drawn, only beside the words, never alone. Never red, never amber, never opacity as a carrier
+of meaning. (Owner, 2026-11-18: the kabinet animal card shows the words only, since a shelter
+admin read the pips as a rating or an online status; the public cards and the animal page already
+show the words only, so no surface draws pips today.) An unknown field reads
 as «Не записано» - never as "no", never as an error.
 
 **A fostered animal never gets a map pin.** City-precision location renders as a place

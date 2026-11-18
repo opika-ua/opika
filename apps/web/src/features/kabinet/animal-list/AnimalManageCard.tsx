@@ -7,7 +7,6 @@ import { useId, useLayoutEffect, useRef } from "react";
 import { Button, LinkButton } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
 import { cx } from "../../../ui/cx";
-import { FreshnessPips } from "../../../ui/FreshnessPips";
 import { Heading } from "../../../ui/Heading";
 import { Icon } from "../../../ui/Icon";
 import { Menu, MenuItem } from "../../../ui/Menu";
@@ -44,8 +43,9 @@ export type CardMenu = "status" | "more";
 /**
  * One kabinet animal card (owner's spec v2, 2026-11-12), the same at every width: photo, name and
  * status, the facts, where it stands, then the actions. The biggest control is the thing to do now
- * (owner, 2026-11-13): while the date is fresh the confirm is a link at the end of the freshness
- * line; once it is aging or stale it is the filled button and «Редагувати» shrinks to a pencil.
+ * (owner, 2026-11-13): while the date is fresh the confirm is a link on its own line under the
+ * date; once it is aging or stale it is the filled button and «Редагувати» shrinks to a pencil.
+ * The date is words only: pips read as a rating or an online status (owner, 2026-11-18).
  * Photo, name, «Редагувати» and the pencil open the edit page. Tab order: name, status, confirm or
  * publish, «Редагувати» or the pencil, ⋯ (spec rule 6). `editable` false (the support view) leaves
  * out every write: the status is a plain chip.
@@ -276,23 +276,12 @@ export function AnimalManageCard({
             </div>
             <p className="self-start text-body text-ink-2">{card.meta}</p>
             {card.status === "published" || card.status === "reserved" ? (
-              confirmLook === "link" ? (
-                // The link moves under the pips as one piece when the line is full.
-                <div className="mt-1 flex flex-wrap items-center gap-x-1 max-desktop:col-span-2 max-desktop:mt-2">
-                  <FreshnessPips
-                    kind={card.freshness.kind}
-                    label={card.freshness.label}
-                    trail="dot"
-                  />
-                  {confirm(card.confirm, "link")}
-                </div>
-              ) : (
-                <FreshnessPips
-                  kind={card.freshness.kind}
-                  label={card.freshness.label}
-                  className="mt-1 max-desktop:col-span-2 max-desktop:mt-2"
-                />
-              )
+              // The link always takes its own line under the date (owner, 2026-11-18): no «·» to
+              // dangle when it wraps, and the same at every width.
+              <div className="mt-1 flex flex-col items-start gap-1 max-desktop:col-span-2 max-desktop:mt-2">
+                <Text look="body">{card.freshness.label}</Text>
+                {confirmLook === "link" ? confirm(card.confirm, "link") : null}
+              </div>
             ) : card.status === "draft" ? (
               <>
                 <Text look="hint">{card.notice}</Text>
