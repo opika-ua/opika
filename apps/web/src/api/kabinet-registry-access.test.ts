@@ -9,6 +9,7 @@ import type { KabinetPrincipal } from "../kabinet/actor";
 import { capturingInvitationSender } from "../kabinet/email-senders";
 import { capturingPasswordMail } from "../kabinet/password-mail";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
+import { roomyCitySearch } from "../kabinet/test-city-search";
 import { TEST_SESSION_COOKIE } from "../kabinet/test-session-cookie";
 import { inMemoryRateLimiter } from "./rate-limit";
 import { fromRpcBody, toRpcBody } from "./test-harness";
@@ -80,6 +81,7 @@ async function call(path: string, input: unknown, principal: KabinetPrincipal) {
     locationPolicy: testOnlyLocationPolicy("access-test"),
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
+    citySearch: roomyCitySearch(),
   });
   const text = await response.text();
   return { status: response.status, body: text ? fromRpcBody(JSON.parse(text)) : null };

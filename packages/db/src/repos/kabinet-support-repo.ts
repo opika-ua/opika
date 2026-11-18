@@ -1,5 +1,5 @@
 import type { ShelterId } from "@opika/domain";
-import { and, eq, gt, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { supportSessions } from "../schema/auth";
 
@@ -66,11 +66,16 @@ export function kabinetSupportRepo(db: Database) {
       const [alive] = await db
         .update(supportSessions)
         .set({ lastSeenAt: input.now })
-        .where(and(mine, gt(supportSessions.lastSeenAt, freshAfter)))
+        // A session whose shelter is gone (0029) views nothing: never kept alive.
+        .where(
+          and(
+            mine,
+            isNotNull(supportSessions.shelterId),
+            gt(supportSessions.lastSeenAt, freshAfter),
+          ),
+        )
         .returning({ shelterId: supportSessions.shelterId });
-      // A deleted application's session outlives its shelter (0029): nothing left to view.
-      if (alive !== undefined)
-        return alive.shelterId === null ? null : (alive.shelterId as ShelterId);
+      if (alive !== undefined) return alive.shelterId as ShelterId | null;
       await db
         .update(supportSessions)
         .set({

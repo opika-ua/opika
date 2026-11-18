@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { PlaceSearchResultSchema } from "@opika/contracts";
 import { REGIONS } from "@opika/db";
 import { cityRepo } from "@opika/db/repos";
@@ -89,7 +91,7 @@ async function search(
       locationPolicy: null,
       production: false,
       shelterWrites: SHELTER_WRITE_POLICY,
-      ...(opts.citySearch === undefined ? {} : { citySearch: opts.citySearch }),
+      citySearch: opts.citySearch ?? inMemoryRateLimiter(CITY_SEARCH_RATE_LIMITS.perUser),
     },
   );
   const text = await response.text();
@@ -135,5 +137,14 @@ describe("shelter.cities.search", () => {
     expect((third.body as { code?: string }).code).toBe("RATE_LIMITED");
     // The operator in a support view has a budget of their own.
     expect((await search(support, { citySearch })).status).toBe(200);
+  });
+
+  it("the served route passes the shared limiter, never a per-request one", () => {
+    const route = readFileSync(
+      fileURLToPath(new URL("../app/api/kabinet/[...rpc]/route.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(route).toContain("citySearch: citySearchLimiter,");
+    expect(route).toMatch(/import \{[^}]*citySearchLimiter[^}]*\} from "[./]*kabinet\/limiters"/);
   });
 });

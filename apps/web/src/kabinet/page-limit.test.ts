@@ -6,6 +6,7 @@ import { isChargedKabinetPageLoad, isKabinetPagePath, kabinetPageLoadAllowed } f
 import { capturingPasswordMail } from "./password-mail";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
+import { roomyCitySearch } from "./test-city-search";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
@@ -139,6 +140,7 @@ describe("a page load and an API call share one allowance", () => {
         locationPolicy: null,
         production: false,
         shelterWrites: SHELTER_WRITE_POLICY,
+        citySearch: roomyCitySearch(),
       },
     );
     return response.status;

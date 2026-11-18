@@ -18,6 +18,7 @@ import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "./photo-uploads";
 import { handleKabinetRpc } from "./rpc-route";
+import { roomyCitySearch } from "./test-city-search";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
@@ -128,6 +129,7 @@ async function call(path: string, input: unknown) {
       locationPolicy: null,
       production: false,
       shelterWrites: SHELTER_WRITE_POLICY,
+      citySearch: roomyCitySearch(),
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
     },
   );

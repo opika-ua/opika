@@ -43,6 +43,7 @@ import { PHOTO_UPLOADS_NOT_CONFIGURED } from "./photo-uploads";
 import { kabinetIdentityOf } from "./principal";
 import { registryRouter } from "./registry-router";
 import { handleKabinetRpc } from "./rpc-route";
+import { roomyCitySearch } from "./test-city-search";
 
 /**
  * The invitation link's «Створіть пароль» end to end (PW-2, `docs/shelter-passwords.md` §4.2,
@@ -212,6 +213,7 @@ async function accept(
     locationPolicy: null,
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
+    citySearch: roomyCitySearch(),
     invitePasswords: () => ({
       kind: "on",
       perIp: invitePerIp,

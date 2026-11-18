@@ -37,6 +37,7 @@ import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
 import { SIGN_IN_LIMITS } from "./sign-in-limit";
 import { enterSupport } from "./support";
+import { roomyCitySearch } from "./test-city-search";
 
 // Better Auth 1.7 asks how a user came to be; it is read only by `validateUserInfo`, which is
 // unset here. These fixtures stand in for the operator's server-side invitation write.
@@ -1404,6 +1405,7 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
         locationPolicy: null,
         production: false,
         shelterWrites: SHELTER_WRITE_POLICY,
+        citySearch: roomyCitySearch(),
       },
     );
     expect(rpc.status).toBe(429);

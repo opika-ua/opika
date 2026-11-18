@@ -12,6 +12,7 @@ import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc } from "./rpc-route";
+import { roomyCitySearch } from "./test-city-search";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
@@ -106,6 +107,7 @@ async function search(
       locationPolicy: testOnlyLocationPolicy("cities-search"),
       production: false,
       shelterWrites: SHELTER_WRITE_POLICY,
+      citySearch: roomyCitySearch(),
     },
   );
   const text = await response.text();

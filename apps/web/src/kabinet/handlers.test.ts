@@ -31,6 +31,7 @@ import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
+import { roomyCitySearch } from "./test-city-search";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
@@ -113,6 +114,7 @@ async function call<T = Record<string, unknown>>(
     production: false,
     // The served policy: every shelter's own admins write (PR 6).
     shelterWrites: SHELTER_WRITE_POLICY,
+    citySearch: roomyCitySearch(),
   });
   const text = await response.text();
   return { status: response.status, body: parsed(text) as T };

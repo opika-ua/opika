@@ -2866,6 +2866,24 @@ describe("«Де зараз тварина» (owner, 2026-11-18)", () => {
     });
   });
 
+  it("a new animal: createDraft first, then the patch carries the location", async () => {
+    const client = renderForm(null, { location: IN_KYIV });
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Імʼя"), "Ластівка");
+    await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Собака"));
+    await user.click(screen.getByRole("radio", { name: "В іншому місті" }));
+    await user.type(screen.getByRole("combobox", { name: /Населений пункт/ }), "Бров");
+    await user.click(await screen.findByRole("option", { name: /м\. Бровари/ }));
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await waitFor(() => expect(client.calls.update).toHaveBeenCalledTimes(1));
+    expect(client.calls.createDraft).toHaveBeenCalledWith({ name: "Ластівка", species: "dog" });
+    expect(client.calls.update.mock.calls[0]?.[0]).toEqual({
+      animalId: ID,
+      expectedVersion: 0,
+      patch: { location: { kind: "own_city", cityId: BROVARY } },
+    });
+  });
+
   it("«В іншому місті» with no city picked is not saved, and says why", async () => {
     const client = renderForm(draft(), { location: IN_KYIV });
     const user = userEvent.setup();

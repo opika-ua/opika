@@ -26,6 +26,7 @@ import type { KabinetPrincipal } from "../kabinet/actor";
 import { capturingInvitationSender } from "../kabinet/email-senders";
 import { capturingPasswordMail } from "../kabinet/password-mail";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
+import { roomyCitySearch } from "../kabinet/test-city-search";
 import { TEST_SESSION_COOKIE } from "../kabinet/test-session-cookie";
 import { inMemoryRateLimiter } from "./rate-limit";
 import { fromRpcBody, rpcRequestInit } from "./test-harness";
@@ -135,6 +136,7 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
     production: false,
     // The served policy: every shelter's own admins write (PR 6).
     shelterWrites: SHELTER_WRITE_POLICY,
+    citySearch: roomyCitySearch(),
     // On, so an upload reaches the ownership check rather than stopping at
     // "uploads unavailable" (which would pass this suite for the wrong reason).
     photoUploads: {

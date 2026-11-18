@@ -9,6 +9,7 @@ import { SHELTER_WRITE_POLICY } from "./access";
 import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc } from "./rpc-route";
+import { roomyCitySearch } from "./test-city-search";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
@@ -70,6 +71,7 @@ async function asShelterAdmin(shelterId: string, path: string, input: unknown) {
     locationPolicy: null,
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
+    citySearch: roomyCitySearch(),
   });
   return fromRpcBody(JSON.parse(await response.text())) as { items: unknown[] };
 }

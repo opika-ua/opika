@@ -3,7 +3,7 @@ import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
 import { boundedBody, readBodyHead } from "../api/bounded-body";
-import { inMemoryRateLimiter, type RateLimiter } from "../api/rate-limit";
+import type { RateLimiter } from "../api/rate-limit";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import { retryAfterSecondsOf } from "../api/retry-after";
 import type { ShelterWritePolicy } from "./access";
@@ -15,7 +15,7 @@ import { invitationRouter } from "./invitation-router";
 import { INVITE_PASSWORDS_OFF, type InvitePasswords } from "./invite-password";
 import type { ShelterNotifier } from "./notify/intents";
 import { PHOTO_UPLOADS_NOT_CONFIGURED, type PhotoUploads } from "./photo-uploads";
-import { CITY_SEARCH_RATE_LIMITS, type KabinetLimiters, kabinetUserKey } from "./rate-limits";
+import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
 import { registryRouter } from "./registry-router";
 import { shelterKabinetRouter } from "./router";
 
@@ -146,8 +146,8 @@ export async function handleKabinetRpc(
      * Left out, uploads are off: a caller that doesn't say can't store.
      */
     photoUploads?: PhotoUploads;
-    /** The served route passes the shared limiter; left out, an in-memory one at the same budget. */
-    citySearch?: RateLimiter;
+    /** `shelter.cities.search`'s per-person limit: the served route passes the shared one. */
+    citySearch: RateLimiter;
     /**
      * The invitation link's «Створіть пароль» (PW-2). Called only once the kabinet is known to be
      * available, since it needs Better Auth. Left out, it is off: the procedure answers that the
@@ -238,7 +238,7 @@ export async function handleKabinetRpc(
       linkBaseURL: deps.availability.baseURL,
       shelterWrites: deps.shelterWrites,
       photoUploads: deps.photoUploads ?? PHOTO_UPLOADS_NOT_CONFIGURED,
-      citySearchLimiter: deps.citySearch ?? inMemoryRateLimiter(CITY_SEARCH_RATE_LIMITS.perUser),
+      citySearchLimiter: deps.citySearch,
       invitePasswords: deps.invitePasswords?.() ?? INVITE_PASSWORDS_OFF,
       ...(deps.notify === undefined ? {} : { notify: deps.notify }),
     },

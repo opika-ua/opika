@@ -78,12 +78,19 @@ describe("0029: support_sessions.shelter_id is ON DELETE SET NULL", () => {
     ]);
   });
 
-  it("an open view of a shelter that is gone resolves to nothing", async () => {
+  it("an open view of a shelter that is gone resolves to nothing, and isn't kept alive", async () => {
     await enter();
     await db.delete(shelters).where(eq(shelters.id, shelterId));
+    const later = new Date(NOW.getTime() + 60_000);
     expect(
-      await kabinetSupportRepo(db).touch({ tokenHash: TOKEN, operatorUserId: OPERATOR, now: NOW }),
+      await kabinetSupportRepo(db).touch({
+        tokenHash: TOKEN,
+        operatorUserId: OPERATOR,
+        now: later,
+      }),
     ).toBeNull();
+    const [row] = await db.select().from(supportSessions);
+    expect(row?.lastSeenAt).toEqual(NOW);
   });
 
   it("still refuses a shelter id that names no shelter", async () => {
