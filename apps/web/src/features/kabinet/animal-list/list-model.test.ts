@@ -7,7 +7,7 @@ import type { kabinetAnimalListBrowserClient } from "../../../api/kabinet-browse
 import {
   type AnimalRow,
   actionFailureOf,
-  captionOf,
+  captionCardsOf,
   dayOf,
   metaLineOf,
   rowAfterMove,
@@ -53,19 +53,19 @@ const row = (overrides: Partial<AnimalRow> = {}): AnimalRow =>
 
 describe("the header caption counts cards in three forms (his answer 6)", () => {
   it.each([
-    [1, "Притулок «Домівка» · 1 картка"],
-    [2, "Притулок «Домівка» · 2 картки"],
-    [5, "Притулок «Домівка» · 5 карток"],
-    [11, "Притулок «Домівка» · 11 карток"],
-    [21, "Притулок «Домівка» · 21 картка"],
-    [22, "Притулок «Домівка» · 22 картки"],
-    [0, "Притулок «Домівка» · 0 карток"],
+    [1, "1 картка"],
+    [2, "2 картки"],
+    [5, "5 карток"],
+    [11, "11 карток"],
+    [21, "21 картка"],
+    [22, "22 картки"],
+    [0, "0 карток"],
   ])("%i", (total, caption) => {
-    expect(captionOf("Притулок «Домівка»", counts(total))).toBe(caption);
+    expect(captionCardsOf(counts(total))).toBe(caption);
   });
 
   it("counts every state, adopted and withdrawn included", () => {
-    expect(captionOf("Х", counts(1, 2, 3, 4, 5))).toBe("Х · 15 карток");
+    expect(captionCardsOf(counts(1, 2, 3, 4, 5))).toBe("15 карток");
   });
 });
 

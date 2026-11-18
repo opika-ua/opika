@@ -25,6 +25,7 @@ import { CheckboxGroup, ChipGroup, RadioGroup } from "../../../ui/groups";
 import { Heading } from "../../../ui/Heading";
 import { ICON_NAMES, Icon } from "../../../ui/Icon";
 import { InfoTip } from "../../../ui/InfoTip";
+import { InlineList } from "../../../ui/InlineList";
 import { LinkedText } from "../../../ui/LinkedText";
 import { MASCOT_RESERVE_CLASS, Mascot, MascotPerch, type MascotPose } from "../../../ui/Mascot";
 import { MetaLine } from "../../../ui/MetaLine";
@@ -274,6 +275,18 @@ export default function DevUiPage() {
         </Row>
         <Row label="MetaLine">
           <MetaLine parts={["Boy", "adult", "medium"]} />
+        </Row>
+        <Row label="InlineList (narrow: no separator ends a line)">
+          <InlineList
+            className="max-w-48"
+            items={[
+              "Shelter «Long name of a shelter»",
+              "6 cards",
+              <Button key="show" variant="link">
+                Show
+              </Button>,
+            ]}
+          />
         </Row>
       </Group>
 

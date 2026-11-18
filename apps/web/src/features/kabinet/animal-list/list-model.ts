@@ -54,12 +54,10 @@ export const totalOf = (counts: AnimalListCounts): number =>
   LISTING_KINDS.reduce((sum, kind) => sum + counts[kind], 0);
 
 /** «Притулок «Домівка» · 14 карток». */
-export const captionOf = (shelterName: string, counts: AnimalListCounts): string => {
+/** «15 карток», every state counted; the header draws its separator from the shelter's name. */
+export const captionCardsOf = (counts: AnimalListCounts): string => {
   const total = totalOf(counts);
-  return fillTemplate(t.caption, {
-    shelter: shelterName,
-    cards: fillTemplate(pluralizeUk(total, t.captionCards), { count: integer.format(total) }),
-  });
+  return fillTemplate(pluralizeUk(total, t.captionCards), { count: integer.format(total) });
 };
 
 /** The chips in N3's order: every card, then one per listing kind, each with its inventory count. */
@@ -99,7 +97,7 @@ export const filterChipsOf = (
 export const sameFilter = (a: KabinetAnimalListFilter, b: KabinetAnimalListFilter): boolean =>
   a.kind === b.kind && (a.kind !== "listing" || (b.kind === "listing" && a.listing === b.listing));
 
-/** «3 картки давно не оновлювались»: `count` is the server's `staleCount`, the pips' own «stale». */
+/** «3 картки давно не оновлювались»: `count` is the server's `staleCount`, freshness's own «stale». */
 export const staleLineOf = (count: number): string =>
   fillTemplate(pluralizeUk(count, t.stale.line), { count: integer.format(count) });
 
@@ -108,7 +106,10 @@ export const staleLineOf = (count: number): string =>
  * or age is left out rather than written «Не записано»: it is a gap, named in the gap line. An
  * unknown sex shows «стать не вказана» here only, where the shelter can fix it. No foster part (K-Q10).
  */
-export const metaLineOf = (row: AnimalRow, now: Date): string =>
+export const metaLineOf = (row: AnimalRow, now: Date): string => metaPartsOf(row, now).join(" · ");
+
+/** The same facts as parts, for a line whose separators are drawn (`InlineList`). */
+export const metaPartsOf = (row: AnimalRow, now: Date): readonly string[] =>
   animalFactsParts({
     species: row.species,
     sex: row.sex,
@@ -116,7 +117,7 @@ export const metaLineOf = (row: AnimalRow, now: Date): string =>
     ageSpan: row.age === null ? null : ageSpanOf(row.age, now),
     size: row.size,
     unknownSexText: t.sexNotStated,
-  }).join(" · ");
+  });
 
 /** A day on Kyiv's calendar in `Intl`'s words, «12 вересня», with the year when it isn't this one. */
 export const dayOf = (date: Date, now: Date): string => {

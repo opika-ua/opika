@@ -346,6 +346,30 @@
 @utility meta-line {
   @apply flex flex-wrap items-center gap-x-2 text-ink-2;
 }
+/*
+ * InlineList: each separator leads the item after it, inside a gutter the row pulls back past its own
+ * start, so on a wrapped line it falls where the row clips. Clipped sideways only, with room left
+ * for a focus ring (3px outline, 3px offset) at a line's start. Owner, 2026-11-18.
+ */
+@utility inline-list {
+  overflow-x: clip;
+  padding-inline-start: --spacing(1.5);
+  margin-inline-start: calc(--spacing(1.5) * -1);
+}
+@utility inline-list-row {
+  @apply flex flex-wrap items-center;
+  margin-inline-start: calc(--spacing(5) * -1);
+}
+@utility inline-list-item {
+  @apply relative min-w-0;
+  padding-inline-start: --spacing(5);
+  &::before {
+    content: "";
+    @apply absolute top-1/2 h-1 w-0.5 -translate-y-1/2 bg-ink-2;
+    inset-inline-start: --spacing(2.5);
+  }
+}
+
 /* The separator trails its part (and wraps with it) and is a pseudo-element, so screen readers never meet it. */
 @utility meta-part {
   @apply flex items-center gap-2 whitespace-nowrap;

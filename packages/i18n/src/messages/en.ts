@@ -1069,7 +1069,6 @@ export const en = {
       title: "Animals",
       confirmHint:
         "Every few weeks, confirm that an animal is still looking for a home: people see when its card was last updated.",
-      caption: "{shelter} · {cards}",
       captionCards: {
         one: "{count} card",
         few: "{count} cards",

@@ -102,8 +102,8 @@ async function expectFreshRow(card: Locator, phone: boolean, label: string): Pro
 
 /**
  * Fresh: below desktop the freshness line is a full row under the photo (owner, 2026-11-13), beside it
- * from desktop; the link's words stay on one line with the ✓, on their own line under the date at
- * every width (owner, 2026-11-18), so no separator is left dangling.
+ * from desktop; the link's words stay on one line with the ✓, beside the date or below it, and the
+ * drawn separator never ends a line (owner, 2026-11-18).
  */
 async function expectFreshLine(
   card: Locator,
@@ -133,9 +133,9 @@ async function expectFreshLine(
     return { x, y, width, height };
   });
   expect(text.height, `${label}: the link and its ✓ on one line`).toBeLessThan(lineHeight * 1.5);
-  expect(text.y, `${label}: the link on its own line under the date`).toBeGreaterThanOrEqual(
-    words.y + words.height - 1,
-  );
+  const below = text.y >= words.y + words.height - 1;
+  const beside = text.x >= words.x + words.width - 1;
+  expect(below || beside, `${label}: the link clear of the date`).toBe(true);
   expect(await card.getByText(/^Оновлено /).textContent(), `${label}: no separator`).not.toContain(
     "·",
   );

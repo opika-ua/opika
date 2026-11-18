@@ -1086,7 +1086,6 @@ export const uk = {
       /** Above the cards, for the shelter's own admins (owner's text, 2026-11-18). */
       confirmHint:
         "Підтверджуйте раз на кілька тижнів, що тварина ще шукає дім: люди бачать, коли картку оновили востаннє.",
-      caption: "{shelter} · {cards}",
       captionCards: {
         one: "{count} картка",
         few: "{count} картки",
