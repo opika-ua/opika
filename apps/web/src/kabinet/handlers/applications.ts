@@ -159,6 +159,7 @@ export async function applicationsList(
       name: row.name,
       version: row.version,
       proposedUrl: row.pendingDonation.link.url,
+      legalEntity: row.legalEntity,
     })),
     funnel: {
       windowDays: FUNNEL_WINDOW_DAYS,

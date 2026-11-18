@@ -127,6 +127,53 @@ describe("ApplicationsBlock", () => {
     expect(screen.getByText("До кінця показу: 22 дні")).toBeTruthy();
   });
 
+  /** D3: money never goes live unchecked, so the queue shows S4's holder check beside «Схвалити». */
+  it.each([
+    [
+      { kind: "registered_ngo", legalName: "ГО «Лапа»", edrpou: "12345678", registeredAt: NOW },
+      "Перевірте, що власник рахунку збігається з організацією",
+      "Юридична особа: ГО «Лапа»",
+    ],
+    [
+      { kind: "unregistered_initiative", contactPersonName: "Олена К." },
+      "Перевірте, що власник рахунку – контактна особа ініціативи",
+      "Контактна особа: Олена К.",
+    ],
+    [
+      null,
+      "Перевірте, що власник рахунку збігається з організацією",
+      "Юридична особа: Не записано",
+    ],
+  ] as const)(
+    "a donation link's card names who should hold the account (%#)",
+    (legalEntity, hint, holder) => {
+      render(
+        <ApplicationsBlock
+          view={view({
+            applications: [],
+            pendingDonations: [
+              {
+                shelterId: OTHER,
+                name: "Лапа",
+                version: 2,
+                proposedUrl: "https://send.monobank.ua/jar/abc",
+                legalEntity: legalEntity as never,
+              },
+            ],
+          })}
+          cityNames={{}}
+          now={NOW}
+        />,
+      );
+      const donation = within(screen.getByRole("listitem"));
+      expect(donation.getByText(hint)).toBeTruthy();
+      // The name to compare sits before «Схвалити», where the decision is made.
+      const name = donation.getByText(holder);
+      const approve = donation.getByRole("button", { name: "Схвалити" });
+      expect(name.compareDocumentPosition(approve) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    },
+  );
+
   it("shows the funnel's counts per step for the last 30 days", () => {
     render(<ApplicationsBlock view={view()} cityNames={{}} now={NOW} />);
     const table = screen.getByRole("table", { name: "Реєстрації за 30 днів" });

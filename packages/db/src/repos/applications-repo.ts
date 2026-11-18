@@ -5,6 +5,7 @@ import {
   type ShelterContact,
   type ShelterHistoryEntry,
   type ShelterId,
+  type ShelterLegalEntity,
   type ShelterVerification,
 } from "@opika/domain";
 import { and, asc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
@@ -52,6 +53,7 @@ export type PendingDonationRow = {
   name: string;
   version: number;
   pendingDonation: PendingDonation;
+  legalEntity: ShelterLegalEntity | null;
 };
 
 /** The two queue decisions, each exactly the columns it changes. */
@@ -214,13 +216,22 @@ export function applicationsRepo(db: Database) {
           name: shelters.displayName,
           version: shelters.version,
           pendingDonation: shelters.pendingDonation,
+          legalEntity: shelters.legalEntity,
         })
         .from(shelters)
         .where(and(donationPendingSql, ne(shelters.verificationStatus, "suspended")))
         .orderBy(asc(shelters.id));
       return rows
         .flatMap((row) =>
-          row.pendingDonation === null ? [] : [{ ...row, pendingDonation: row.pendingDonation }],
+          row.pendingDonation === null
+            ? []
+            : [
+                {
+                  ...row,
+                  pendingDonation: row.pendingDonation,
+                  legalEntity: row.legalEntity ?? null,
+                },
+              ],
         )
         .sort(
           (a, b) => a.pendingDonation.proposedAt.getTime() - b.pendingDonation.proposedAt.getTime(),
@@ -255,6 +266,8 @@ export function applicationsRepo(db: Database) {
             and(
               eq(shelters.id, input.shelterId),
               eq(shelters.version, input.expectedVersion),
+              // Defense in depth beside the version check: a decision only ever lands on an open
+              // application, even if a later write path forgets to bump the version. Keep both.
               eq(shelters.verificationStatus, "application"),
             ),
           )

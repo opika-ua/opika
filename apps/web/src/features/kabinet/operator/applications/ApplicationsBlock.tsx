@@ -142,6 +142,29 @@ function ListedUnverified({
   );
 }
 
+/**
+ * The account-holder check S4 shows beside «Схвалити» (D3): money never goes live unchecked, so the
+ * name to compare the link's holder with sits on the card, with S4's own reminder.
+ */
+function HolderCheck({ legalEntity }: { legalEntity: PendingDonationItemView["legalEntity"] }) {
+  const initiative = legalEntity?.kind === "unregistered_initiative";
+  return (
+    <div className="flex flex-col gap-1">
+      <Text look="hint">
+        {initiative ? op.donation.approveHintInitiative : op.donation.approveHint}
+      </Text>
+      <Text look="body">
+        {initiative ? uk.kabinet.profile.contactPerson : uk.kabinet.profile.legalName}:{" "}
+        {legalEntity === null
+          ? uk.kabinet.profileNotRecorded
+          : legalEntity.kind === "unregistered_initiative"
+            ? legalEntity.contactPersonName
+            : legalEntity.legalName}
+      </Text>
+    </div>
+  );
+}
+
 function PendingDonations({ items }: { items: readonly PendingDonationItemView[] }) {
   return (
     <section aria-labelledby="queue-donations-title" className="flex flex-col gap-2">
@@ -155,6 +178,7 @@ function PendingDonations({ items }: { items: readonly PendingDonationItemView[]
               {item.name}
             </TextLink>
             <SubmittedLink url={item.proposedUrl} />
+            <HolderCheck legalEntity={item.legalEntity} />
             <DonationQueueDecision
               shelterId={item.shelterId}
               version={item.version}
