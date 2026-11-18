@@ -2301,6 +2301,9 @@ export const uk = {
       title: "{name} – {noun} шукає дім, {city}",
       /** `{story}`: the first sentence of the animal's story, trimmed. */
       description: "{name} шукає дім. {city} · {shelter}. {story}",
+      /** When the animal's city doesn't resolve (owner, 2026-11-18). Before `titleWithSite`. */
+      titleNoCity: "{name} – {noun} шукає дім",
+      descriptionNoCity: "{name} шукає дім. {shelter}. {story}",
     },
     shelter: {
       /** Before `titleWithSite`. */
