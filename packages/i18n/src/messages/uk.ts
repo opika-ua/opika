@@ -703,6 +703,10 @@ export const uk = {
       view: "Переглянути",
     },
     profileEdit: {
+      /** The shelter's name and city (§4). `{email}` is the operator's address (owner, 2026-11-18). */
+      identity: {
+        cityLocked: "Ваша адреса вже перевірена, тому місто змінюю я. Напишіть мені на {email}.",
+      },
       saveBar: {
         unsaved: "Є незбережені зміни",
         cancel: "Скасувати",

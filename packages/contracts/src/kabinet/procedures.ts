@@ -354,7 +354,7 @@ export const shelterProfileContract = {
           message: "Empty update",
         }),
     )
-    .errors(shelterCasErrors),
+    .errors({ ...shelterCasErrors, CITY_LOCKED: apiErrors.CITY_LOCKED }),
   /** The provider is derived from the URL on the server (`donationProviderOf`), never sent. */
   proposeDonation: shelterProfileWrite
     .input(z.strictObject({ url: DonationProposalUrlSchema }))

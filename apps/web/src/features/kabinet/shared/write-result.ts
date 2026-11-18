@@ -28,6 +28,8 @@ export type WriteResult =
   | { kind: "too_many_channels" }
   | { kind: "description_too_long" }
   | { kind: "name_too_long" }
+  /** CITY_LOCKED: the address is verified, so the operator moves the city (`cityLockedMessage`). */
+  | { kind: "city_locked" }
   | { kind: "illegal_transition" }
   | { kind: "no_answer" }
   | { kind: "failed" };
@@ -61,6 +63,8 @@ export function writeFailureOf(error: unknown): WriteFailure {
       return { kind: "conflict" };
     case "ILLEGAL_TRANSITION":
       return { kind: "illegal_transition" };
+    case "CITY_LOCKED":
+      return { kind: "city_locked" };
     case null:
       // No error code: no answer from the server reached us (fetch threw).
       return { kind: "no_answer" };

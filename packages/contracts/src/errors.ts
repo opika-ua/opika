@@ -359,6 +359,14 @@ export const apiErrors = {
     message: "This shelter already holds the most drafts it can before approval.",
     data: z.object({ max: z.int().positive() }),
   },
+  /**
+   * The shelter's address is on file (verified by the operator), so its city follows that address
+   * and only the operator moves it (owner, 2026-11-18). The rest of the request is refused too.
+   */
+  CITY_LOCKED: {
+    status: 409,
+    message: "This shelter's city follows its verified address.",
+  },
 } as const;
 
 export type ApiErrorCode = keyof typeof apiErrors;

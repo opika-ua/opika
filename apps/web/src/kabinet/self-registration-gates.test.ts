@@ -72,15 +72,27 @@ const MOD = "11111111-1111-4111-8111-111111111111" as ModeratorId;
  * A shelter in the test's city: an application, an accepted one (moved to pending by the
  * operator's `accept_application`, as the queue does), or one the operator created.
  */
-async function shelterAt(stage: Stage): Promise<Shelter> {
+async function shelterAt(
+  stage: Stage,
+  /** A self-registered shelter has no address on file unless the operator adds one. */
+  address: "none" | "verified" = stage === "operator" ? "verified" : "none",
+): Promise<Shelter> {
   const verification: ShelterVerification =
     stage === "operator"
       ? { status: "pending", submittedAt: NOW, evidence: EVIDENCE }
       : { status: "application", appliedAt: NOW, evidence: EVIDENCE };
-  const shelter = makeShelter({
+  const fixture = makeShelter({
     verification,
     publicLocation: { ...makeShelter().publicLocation, cityId } as never,
   });
+  const shelter: Shelter =
+    address === "verified"
+      ? fixture
+      : {
+          ...fixture,
+          exactAddress: null,
+          publicLocation: { precision: "city", cityId: cityId as never, district: null },
+        };
   await shelterRepo(db).insert(shelter);
   if (stage !== "accepted") return shelter;
   const event = { type: "accept_application", at: NOW, moderatorId: MOD } as const;
@@ -337,6 +349,60 @@ describe("shelter.profile.updateIdentity (§4, D4)", () => {
   });
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  describe("with a verified address on file, the city is the operator's (owner, 2026-11-18)", () => {
+    it("a city change is CITY_LOCKED and writes nothing: shelter, animals, history", async () => {
+      const shelter = await shelterAt("accepted", "verified");
+      const atShelter = makeAnimal({ shelterId: shelter.id });
+      await animalRepo(db).insert(atShelter, cityId as never);
+      const before = await kabinetShelterRepo(db).historyOf(shelter.id);
+      const result = await call<{ code?: string }>(shelter, "shelter.profile.updateIdentity", {
+        cityId: otherCityId,
+        expectedVersion: shelter.version,
+      });
+      expect(result.status).toBe(409);
+      expect(result.body.code).toBe("CITY_LOCKED");
+      expect(await shelterRepo(db).findById(shelter.id)).toEqual(shelter);
+      const rows = await db.select({ id: animals.id, cityId: animals.cityId }).from(animals);
+      expect(rows.find((row) => row.id === atShelter.id)?.cityId).toBe(cityId);
+      expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual(before);
+    });
+
+    it("a name and a city together are refused whole: the name doesn't change either", async () => {
+      const shelter = await shelterAt("accepted", "verified");
+      const before = await kabinetShelterRepo(db).historyOf(shelter.id);
+      const result = await call<{ code?: string }>(shelter, "shelter.profile.updateIdentity", {
+        displayName: "Хвостики",
+        cityId: otherCityId,
+        expectedVersion: shelter.version,
+      });
+      expect(result.body.code).toBe("CITY_LOCKED");
+      expect(await shelterRepo(db).findById(shelter.id)).toEqual(shelter);
+      expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual(before);
+    });
+
+    it("a rename alone still works and is logged (D4)", async () => {
+      const shelter = await shelterAt("accepted", "verified");
+      const result = await call<{ displayName?: string }>(
+        shelter,
+        "shelter.profile.updateIdentity",
+        { displayName: "Хвостики", expectedVersion: shelter.version },
+      );
+      expect(result.status).toBe(200);
+      expect(result.body.displayName).toBe("Хвостики");
+      const kinds = (await kabinetShelterRepo(db).historyOf(shelter.id)).map((e) => e.kind);
+      expect(kinds).toContain("display_name_changed");
+    });
+
+    it("sending the city it already has is no change, not a refusal", async () => {
+      const shelter = await shelterAt("accepted", "verified");
+      const result = await call(shelter, "shelter.profile.updateIdentity", {
+        cityId,
+        expectedVersion: shelter.version,
+      });
+      expect(result.status).toBe(200);
+    });
   });
 
   it("a rename is instant and logged with the shelter admin as actor", async () => {

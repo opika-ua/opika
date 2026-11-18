@@ -17,7 +17,10 @@ import type { ShelterWriteScope } from "../access";
 import { handOver } from "../notify/hand-over";
 import { actorOf, type ProfileDeps, profileGet } from "./profile";
 
-type CasErrors = ORPCErrorConstructorMap<{ CONFLICT: typeof apiErrors.CONFLICT }>;
+type IdentityErrors = ORPCErrorConstructorMap<{
+  CONFLICT: typeof apiErrors.CONFLICT;
+  CITY_LOCKED: typeof apiErrors.CITY_LOCKED;
+}>;
 
 type Identity = { displayName?: string | undefined; cityId?: CityId | undefined };
 
@@ -59,7 +62,7 @@ export async function profileUpdateIdentity(
   deps: ProfileDeps,
   scope: ShelterWriteScope,
   input: Identity & { expectedVersion: number },
-  errors: CasErrors,
+  errors: IdentityErrors,
 ): Promise<KabinetShelterView> {
   // Behind the flag like the rest of self-registration: off, it answers as the Phase 0 stub did.
   if (!isSelfRegistrationEnabled()) {
@@ -75,6 +78,15 @@ export async function profileUpdateIdentity(
   const shelter = await shelterRepo(deps.db).findById(scope.shelterId);
   if (shelter === null) throw new Error(`Scope names missing shelter ${scope.shelterId}`);
   if (shelter.version !== input.expectedVersion) throw errors.CONFLICT();
+  // A verified address fixes the city: only the operator moves it, so the whole request is refused
+  // (owner, 2026-11-18). An address added since the read bumps the version, so the write conflicts.
+  if (
+    input.cityId !== undefined &&
+    input.cityId !== shelter.publicLocation.cityId &&
+    shelter.exactAddress !== null
+  ) {
+    throw errors.CITY_LOCKED();
+  }
   const { changes, entries } = planOf(deps, scope, shelter, input);
   if (changes.length === 0) return profileGet(deps, scope);
   const lines = entries.map((entry) => ({ id: deps.newId(), entry }));

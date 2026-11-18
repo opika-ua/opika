@@ -409,7 +409,19 @@ describe("registry.shelters.list / byId / history.list", () => {
     onTestFinished(() => {
       vi.unstubAllEnvs();
     });
-    const s = await shelter();
+    // No address on file: a verified address would lock the city (CITY_LOCKED).
+    const s = {
+      ...makeShelter({
+        verification: {
+          status: "pending",
+          submittedAt: NOW,
+          evidence: { items: [], submittedAt: NOW },
+        },
+      }),
+      exactAddress: null,
+      publicLocation: { precision: "city", cityId: cityId as never, district: null },
+    } as const;
+    await shelterRepo(db).insert(s);
     const asAdmin = {
       principal: {
         kind: "shelter_admin",
