@@ -110,6 +110,7 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
   },
   shelter_created: { kind: "shelter_created", at: AT, moderatorId: MOD, via: "script" },
   shelter_registered: { kind: "shelter_registered", at: AT, shelterAdminId: ADMIN_ID },
+  not_me_after_approval: { kind: "not_me_after_approval", at: AT },
   admin_invited: { kind: "admin_invited", at: AT, moderatorId: MOD, email: "olena@example.org" },
   admin_invitation_resent: {
     kind: "admin_invitation_resent",
@@ -206,6 +207,7 @@ const OPERATOR_ONLY: string[] = [
   "evidence_added",
   "freshness_reminder_changed",
   "shelter_registered",
+  "not_me_after_approval",
 ];
 
 /** The projection of an entry the shelter does see; fails the test on `null`. */

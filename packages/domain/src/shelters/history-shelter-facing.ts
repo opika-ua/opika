@@ -287,6 +287,7 @@ export function shelterFacingHistoryOf(
     case "evidence_added":
     case "freshness_reminder_changed":
     case "shelter_registered":
+    case "not_me_after_approval":
       return null;
     case "early_listing_allowed":
     case "early_listing_revoked":

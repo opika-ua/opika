@@ -1,7 +1,8 @@
 "use client";
 
-import { uk } from "@opika/i18n";
+import { fillTemplate, uk } from "@opika/i18n";
 import { useState, useTransition } from "react";
+import { OPERATOR_CONTACT } from "../../../brand";
 import type { ResendResult } from "../../../kabinet/registration/resend-confirmation";
 import { Button } from "../../../ui/Button";
 import { InlineStatus } from "../../../ui/feedback";
@@ -13,6 +14,11 @@ const STATUS: Record<
 > = {
   sent: { tone: "info", text: uk.kabinet.signIn.sentTitle },
   rate_limited: { tone: "error", text: uk.registration.errors.rateLimited },
+  // The form's own refusal at the cap, reused (owner's text).
+  daily_cap: {
+    tone: "error",
+    text: fillTemplate(uk.registration.errors.dailyCap, { email: OPERATOR_CONTACT.email }),
+  },
   failed: { tone: "error", text: uk.kabinet.signIn.sendFailed },
 };
 

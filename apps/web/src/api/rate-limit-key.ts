@@ -80,13 +80,17 @@ export const addressRateLimitKey = (
 ): string => addressKeyWith(secretFrom(env), email);
 
 /**
- * A key for another HMAC, derived from the same secret under its own `label`, so it never equals
- * a limiter key and needs no secret of its own (the registration form's signed render time).
+ * A key for another HMAC, derived from the same secret under its own `label` (the registration
+ * form's signed render time). The `derive:` prefix keeps it apart from every limiter key's
+ * digest, even for a label spelled like an address.
  */
+export const derivedKeyWith = (secret: string, label: string): string =>
+  createHmac("sha256", secret).update(`derive:${label}`, "utf8").digest("base64url");
+
 export const derivedSecretKey = (
   label: string,
   env: Readonly<Record<string, string | undefined>> = process.env,
-): string => createHmac("sha256", secretFrom(env)).update(label, "utf8").digest("base64url");
+): string => derivedKeyWith(secretFrom(env), label);
 
 /** The limiter key for `ip`, under the configured secret (read per call). */
 export const ipRateLimitKey = (

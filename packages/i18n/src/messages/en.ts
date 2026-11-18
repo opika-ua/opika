@@ -578,6 +578,8 @@ export const en = {
       rateLimited: "Too many attempts. Try again in a few minutes.",
       emailTaken: "This email is already registered. Sign in or reset the password.",
       generic: "Registration failed. Try again or write to me.",
+      dailyCap:
+        "Too many applications right now. Please try again tomorrow or write to me at {email}.",
     },
     signInPrompt: "No cabinet yet? Register a shelter",
     whatToPrepareAccess:
@@ -607,6 +609,10 @@ export const en = {
     emailConfirmed: "Email confirmed. I'll check the shelter, usually within 2 days.",
     confirmLinkExpired: "The link has expired. Sign in to the cabinet and send the email again.",
     notMeDone: "The application is deleted. If this is a mistake, write to me at {email}.",
+    notMeAfterApproval:
+      "The shelter is already approved, so the application can't be deleted from the link. If you didn't register this shelter, write to me at {email}.",
+    emailTakenSignIn: "Sign in",
+    emailTakenReset: "Reset password",
   },
   kabinet: {
     application: {
@@ -1373,6 +1379,10 @@ export const en = {
         subject: "New application: {name}, {city}",
         action: "Open applications",
       },
+      registrationCapHit: {
+        subject: "Today's application limit is reached",
+        body: "{count} registration and re-confirmation emails were sent today. Until the end of the day the form shows applicants «Too many applications». Check «Заявки»: this may be a mass registration.",
+      },
       signIn: {
         subject: `A sign-in link for the shelter's cabinet`,
         intro: `Hello. A sign-in link for the shelter's cabinet was requested for this address.`,
@@ -1670,6 +1680,8 @@ export const en = {
         shelter_created: "Shelter created",
         shelter_registered: "Shelter registered",
         city_changed: "City changed: {from} – {to}",
+        notMeAfterApproval:
+          "After approval, someone pressed «Not me» in the email. The address may have been given without its owner knowing.",
         shelter_created_script: "Shelter added from a file",
         verification: {
           start_review: "Taken under review",

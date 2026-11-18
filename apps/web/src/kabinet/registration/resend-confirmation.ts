@@ -7,6 +7,8 @@ import type { TransactionalSendResult } from "../registration-email";
 export type ResendResult =
   | { kind: "sent" }
   | { kind: "rate_limited" }
+  /** The day's confirmation emails are used up (`REGISTRATION_MAIL_DAILY_CAP`). */
+  | { kind: "daily_cap" }
   /** Nothing to confirm: already confirmed, decided, not self-registered, or not signed in. */
   | { kind: "not_needed" }
   | { kind: "failed" };
@@ -16,8 +18,10 @@ export type ResendDeps = {
   /** The signed-in shelter admin, or null. */
   userId: string | null;
   now: Date;
-  /** Per user; a refused check sends nothing. */
+  /** Per user (an hour and a day); a refused check sends nothing. */
   allow: (userId: string) => Promise<boolean>;
+  /** One of the day's confirmation emails; false at the cap. */
+  takeDailyMail: () => Promise<boolean>;
   repo: {
     applicationOf: (userId: string) => Promise<RegistrantApplication | null>;
     issueTokens: (userId: string, tokens: RegistrationTokenPair) => Promise<void>;
@@ -45,6 +49,7 @@ export async function resendConfirmationWith(deps: ResendDeps): Promise<ResendRe
     return { kind: "not_needed" };
   }
   if (!(await deps.allow(application.userId))) return { kind: "rate_limited" };
+  if (!(await deps.takeDailyMail())) return { kind: "daily_cap" };
   const confirmToken = deps.newToken();
   const notMeToken = deps.newToken();
   const expiresAt = new Date(deps.now.getTime() + REGISTRATION_LINK_TTL_MS);

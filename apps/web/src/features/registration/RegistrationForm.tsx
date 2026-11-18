@@ -23,7 +23,6 @@ import { TextLink } from "../../ui/TextLink";
 import { KabinetEntryLink } from "../kabinet/KabinetEntryLink";
 import {
   CITY_NAME_NAME,
-  ENHANCED_NAME,
   FIELD_ORDER,
   type FieldErrors,
   fieldIdOf,
@@ -229,13 +228,28 @@ export function RegistrationForm({
         <InlineStatus tone="error">
           <span className="flex flex-col gap-2">
             <span>{copy.emailTaken}</span>
-            <KabinetEntryLink to="signIn" className="underline underline-offset-4 focus-ring">
-              {copy.signIn}
-            </KabinetEntryLink>
+            {/* Plain links, full loads into the kabinet (#509). */}
+            <span className="flex flex-wrap gap-x-6 gap-y-2">
+              <KabinetEntryLink
+                to="signIn"
+                className="inline-flex min-h-target items-center underline underline-offset-4 focus-ring"
+              >
+                {copy.signIn}
+              </KabinetEntryLink>
+              <KabinetEntryLink
+                to="forgot"
+                className="inline-flex min-h-target items-center underline underline-offset-4 focus-ring"
+              >
+                {copy.resetPassword}
+              </KabinetEntryLink>
+            </span>
           </span>
         </InlineStatus>
       ) : null}
       {result?.kind === "failed" ? <InlineStatus tone="error">{copy.generic}</InlineStatus> : null}
+      {result?.kind === "daily_cap" ? (
+        <InlineStatus tone="error">{copy.dailyCap}</InlineStatus>
+      ) : null}
 
       {textField("name", { autoComplete: "organization", type: "text", inputMode: "text" })}
       {hydrated ? (
@@ -307,7 +321,6 @@ export function RegistrationForm({
         <input type="text" name={HONEYPOT_NAME} tabIndex={-1} autoComplete="off" defaultValue="" />
       </div>
       <input type="hidden" name="formStamp" value={state.formStamp} />
-      <input type="hidden" name={ENHANCED_NAME} value={hydrated ? "1" : ""} />
 
       <Button
         type="submit"

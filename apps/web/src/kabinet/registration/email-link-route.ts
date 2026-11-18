@@ -35,7 +35,9 @@ export type RegistrationLinkDeps = {
     useToken: (purpose: RegistrationTokenPurpose, tokenHash: string, now: Date) => Promise<boolean>;
     confirmEmail: (tokenHash: string, now: Date) => Promise<EmailConfirmOutcome>;
     applicationOf: (userId: string) => Promise<RegistrantApplication | null>;
+    recordNotMeAfterApproval: (tokenHash: string, historyId: string, now: Date) => Promise<boolean>;
   };
+  newId: () => string;
   /** The funnel's `email_confirmed` and the operator's email; a failure never changes the answer. */
   afterConfirm: (confirmed: {
     userId: string;
@@ -49,7 +51,9 @@ type PageState =
   | { kind: "form"; token: string }
   | { kind: "expired" }
   | { kind: "confirmed" }
-  | { kind: "withdrawn" };
+  | { kind: "withdrawn" }
+  /** «Це не я» once the operator approved: nothing is deleted, the operator sees the click. */
+  | { kind: "approved" };
 
 const escapeHtml = (text: string) =>
   text.replace(
@@ -72,6 +76,8 @@ function page(purpose: RegistrationTokenPurpose, state: PageState, status: numbe
         return `<p role="alert">${escapeHtml(uk.registration.confirmLinkExpired)}</p>\n${kabinetLink}`;
       case "confirmed":
         return `<p role="status">${escapeHtml(uk.registration.emailConfirmed)}</p>\n${kabinetLink}`;
+      case "approved":
+        return `<p role="alert">${escapeHtml(fillTemplate(uk.registration.notMeAfterApproval, { email: OPERATOR_CONTACT.email }))}</p>`;
       case "withdrawn":
         return `<p role="status">${escapeHtml(fillTemplate(uk.registration.notMeDone, { email: OPERATOR_CONTACT.email }))}</p>`;
       /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
@@ -164,10 +170,15 @@ export async function handleRegistrationLink(
   const userId = await deps.repo.tokenUser("not_me", tokenHash, deps.now);
   if (userId === null) return page(purpose, { kind: "expired" }, 400);
   const application = await deps.repo.applicationOf(userId);
-  // Only an application is withdrawn: once the operator has decided, the link has nothing to do.
-  if (application === null || application.status !== "application") {
+  // Only an application is withdrawn. A refused one has nothing left to withdraw.
+  if (application === null || application.status === "rejected") {
     await deps.repo.useToken("not_me", tokenHash, deps.now);
     return page(purpose, { kind: "expired" }, 400);
+  }
+  // Approved: never deleted from a link; the operator is told someone denies the address.
+  if (application.status !== "application") {
+    await deps.repo.recordNotMeAfterApproval(tokenHash, deps.newId(), deps.now);
+    return page(purpose, { kind: "approved" }, 200);
   }
   const outcome = await deps.deleteApplication(application.shelterId, deps.now);
   if (outcome.kind === "not_due") {

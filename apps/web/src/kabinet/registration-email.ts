@@ -17,6 +17,7 @@ export const REGISTRATION_EMAIL_TEMPLATES = [
   "application_approved",
   "application_rejected",
   "operator_new_application",
+  "registration_cap_hit",
 ] as const;
 export type RegistrationEmailTemplate = (typeof REGISTRATION_EMAIL_TEMPLATES)[number];
 
@@ -44,6 +45,12 @@ export type RegistrationEmail =
       link: string;
       contact: string;
       email: string;
+      queueUrl: string;
+    }
+  | {
+      /** Operator only, once a day: the confirmation emails hit the cap. Nothing about anyone. */
+      template: "registration_cap_hit";
+      count: number;
       queueUrl: string;
     };
 
@@ -112,6 +119,15 @@ export function registrationEmailOf(email: RegistrationEmail, to: string): Outgo
         subject: safeSubject(fillTemplate(c.subject, { name: email.name, city: email.cityName })),
         before: [email.name, email.cityName, email.link, email.contact, email.email],
         link: { label: c.action, url: email.queueUrl },
+        after: [],
+      });
+    }
+    case "registration_cap_hit": {
+      const c = copy.registrationCapHit;
+      return emailBody(to, {
+        subject: safeSubject(c.subject),
+        before: [fillTemplate(c.body, { count: String(email.count) })],
+        link: { label: copy.operatorNewApplication.action, url: email.queueUrl },
         after: [],
       });
     }

@@ -18,8 +18,6 @@ export const PRIVACY_HREF = "/pro#dani";
 
 /** The honeypot's input name: meaningless to autofill, so a password manager leaves it empty. */
 export const HONEYPOT_NAME = "reg_hp_x";
-/** Set by the hydrated form: without it the action answers a 303 (the no-JS path). */
-export const ENHANCED_NAME = "enhanced";
 /** Without JS the city is typed, not picked: resolved on the server by its exact name. */
 export const CITY_NAME_NAME = "cityName";
 
@@ -44,8 +42,14 @@ export const EMPTY_VALUES: RegistrationValues = {
   email: "",
 };
 
+/**
+ * The contract's answers, plus the day's confirmation emails being used up (owner, 2026-11-18):
+ * refused before anything is written, so no application exists without its email.
+ */
+export type RegistrationAnswer = RegistrationResult | { kind: "daily_cap" };
+
 export type RegistrationFormState = {
-  result: RegistrationResult | null;
+  result: RegistrationAnswer | null;
   values: RegistrationValues;
   /** Re-issued with every answer; a refused submit keeps the first render's time. */
   formStamp: string;

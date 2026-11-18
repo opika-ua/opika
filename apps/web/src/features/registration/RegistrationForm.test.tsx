@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   EMPTY_VALUES,
-  ENHANCED_NAME,
   HONEYPOT_NAME,
   type RegistrationAction,
   type RegistrationFormState,
@@ -37,7 +36,7 @@ const type = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 describe("RegistrationForm", () => {
-  it("posts every field by name, the stamp and the hydrated marker, and nothing in a URL", async () => {
+  it("posts every field by name and the stamp", async () => {
     let posted: FormData | null = null;
     renderForm(async (previous, form) => {
       posted = form;
@@ -54,7 +53,8 @@ describe("RegistrationForm", () => {
     expect(form.get("link")).toBe("instagram.com/prytulok_test");
     expect(form.get("email")).toBe("olena@example.org");
     expect(form.get("formStamp")).toBe("s1");
-    expect(form.get(ENHANCED_NAME)).toBe("1");
+    // Nothing in the form says how it was sent: the server reads the Next-Action header.
+    expect(form.has("enhanced")).toBe(false);
     expect(form.get(HONEYPOT_NAME)).toBe("");
   });
 
@@ -127,13 +127,28 @@ describe("RegistrationForm", () => {
     await waitFor(() => expect(assign).toHaveBeenCalledWith("/kabinet"));
   });
 
-  it("email_taken: says so, with the way to sign in by a full page load", async () => {
+  it("email_taken: says so, with «Увійти» and «Відновити пароль» as plain links", async () => {
     renderForm(async (previous) => ({ ...previous, result: { kind: "email_taken" } }));
     await submit();
     expect(await screen.findByText(copy.emailTaken)).toBeTruthy();
     expect(screen.getByRole("link", { name: copy.signIn }).getAttribute("href")).toBe(
       "/kabinet/vkhid",
     );
+    expect(screen.getByRole("link", { name: copy.resetPassword }).getAttribute("href")).toBe(
+      "/kabinet/vkhid/zabuly",
+    );
+    expect(copy.signIn).toBe("Увійти");
+    expect(copy.resetPassword).toBe("Відновити пароль");
+  });
+
+  it("daily_cap: the owner's refusal, with the operator's address", async () => {
+    renderForm(async (previous) => ({ ...previous, result: { kind: "daily_cap" } }));
+    await submit();
+    expect(
+      await screen.findByText(
+        "Зараз забагато заявок. Спробуйте, будь ласка, завтра або напишіть мені на hello@opika.org.ua.",
+      ),
+    ).toBeTruthy();
   });
 
   it("rate_limited and failed each say their sentence", async () => {

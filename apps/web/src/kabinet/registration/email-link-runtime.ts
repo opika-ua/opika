@@ -21,6 +21,7 @@ export function registrationLinkHandler(purpose: RegistrationTokenPurpose) {
       enabled,
       now,
       repo: selfRegistrationRepo(db),
+      newId: () => crypto.randomUUID(),
       afterConfirm: async ({ application }) => {
         if (application === null) return;
         await funnelRepo(db).record("email_confirmed", application.shelterId, now);

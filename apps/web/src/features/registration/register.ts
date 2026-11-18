@@ -5,7 +5,6 @@ import {
   type RegistrationField,
   type RegistrationFieldError,
   RegistrationInputSchema,
-  type RegistrationResult,
 } from "@opika/contracts";
 import type { SelfRegistrationOutcome, SelfRegistrationWrite } from "@opika/db/repos";
 import {
@@ -21,9 +20,9 @@ import { type FormStampVerdict, formStampVerdictOf } from "./form-stamp";
 import {
   CITY_NAME_NAME,
   EMPTY_VALUES,
-  ENHANCED_NAME,
   type FieldErrors,
   HONEYPOT_NAME,
+  type RegistrationAnswer,
   type RegistrationCity,
   type RegistrationFormState,
   type RegistrationValues,
@@ -51,7 +50,7 @@ export type RegisterDeps = {
   /** The stamp's key (`derivedSecretKey(FORM_STAMP_KEY_LABEL)`). */
   stampKey: string;
   issueStamp: (issuedAt: Date) => string;
-  /** Per IP, charged on every submit that gets past the honeypot and the stamp. */
+  /** Per IP (an hour and a day), charged on every submit past the honeypot and the stamp. */
   allowIp: () => Promise<{ kind: "ok" } | { kind: "limited"; retryAfterSeconds: number }>;
   /** Per address, charged once the input is valid. */
   allowAddress: (
@@ -65,6 +64,10 @@ export type RegisterDeps = {
     password: string,
     subject: { email: string; shelterName: string },
   ) => PasswordVerdict;
+  /** A read: the address already has an account (the write checks again, race-safe). */
+  hasAccount: (email: string) => Promise<boolean>;
+  /** Takes one of the day's confirmation emails (`REGISTRATION_MAIL_DAILY_CAP`); false at the cap. */
+  takeDailyMail: () => Promise<boolean>;
   hashPassword: (password: string) => Promise<string>;
   write: (input: SelfRegistrationWrite) => Promise<SelfRegistrationOutcome>;
   newId: () => string;
@@ -75,8 +78,10 @@ export type RegisterDeps = {
   signIn: (email: string, password: string) => Promise<RegistrationSignIn>;
   setCookies: (cookies: readonly string[]) => Promise<void>;
   /** Reason codes only, never a value someone typed (§11.8). */
-  log: (reason: RegistrationFailureReason) => void;
+  log: (reason: RegistrationLogReason) => void;
 };
+
+export type RegistrationLogReason = RegistrationFailureReason | "daily_cap";
 
 type Raw = Record<RegistrationField | "hp" | "formStamp" | "cityName", string>;
 
@@ -135,8 +140,8 @@ const valuesOf = (raw: Raw, city: RegistrationCity | null): RegistrationValues =
 
 /**
  * The registration form's POST (spec §13, plan Agent 1), in this order: the honeypot (silent),
- * the signed render time, the per-IP budget, the fields, the per-address budget, then one atomic
- * write, the funnel and the email, and the sign-in. Answers a state the form renders as it is;
+ * the signed render time, the per-IP budgets, the fields, the per-address budget, a taken
+ * address, the day's email cap, then one atomic write, the funnel and the email, and the sign-in. Answers a state the form renders as it is;
  * the caller turns `registered` into a full page load.
  */
 export async function registerWith(
@@ -145,7 +150,7 @@ export async function registerWith(
 ): Promise<RegistrationFormState> {
   const raw = rawOf(form);
   const state = (
-    result: RegistrationResult,
+    result: RegistrationAnswer,
     values: RegistrationValues,
     issuedAt: Date,
   ): RegistrationFormState => ({ result, values, formStamp: deps.issueStamp(issuedAt) });
@@ -237,6 +242,17 @@ export async function registerWith(
     );
   }
 
+  // Checked before the cap, so a taken address spends none of the day's emails.
+  if (await deps.hasAccount(input.email)) {
+    deps.log("email_taken");
+    return state({ kind: "email_taken" }, values, issuedAt);
+  }
+  // Before any write: no application exists without its confirmation email.
+  if (!(await deps.takeDailyMail())) {
+    deps.log("daily_cap");
+    return state({ kind: "daily_cap" }, values, issuedAt);
+  }
+
   const userId = deps.newId();
   const shelterId = deps.newId() as ShelterId;
   const confirmToken = deps.newToken();
@@ -324,12 +340,23 @@ export async function registerWith(
 }
 
 /**
- * Where a native (no-JS) post goes after a registration: the action answers a 303 there, a new
- * document by definition (#509). A hydrated form says so (`enhanced=1`) and leaves by itself.
+ * Next's client calls a server action with a `Next-Action` header (`getServerActionRequestMetadata`,
+ * Next 16); a native form post carries the action id in its body instead.
  */
-export function nativePostRedirectOf(state: RegistrationFormState, form: FormData): string | null {
+export const SERVER_ACTION_CALL_HEADER = "next-action";
+
+/**
+ * Where a native (no-JS) post goes after a registration: the action answers a 303 there, a new
+ * document by definition (#509). The client's own call leaves by `window.location.assign`.
+ */
+export function nativePostRedirectOf(
+  state: RegistrationFormState,
+  requestHeaders: Headers,
+): string | null {
   const result = state.result;
-  return result?.kind === "registered" && form.get(ENHANCED_NAME) !== "1" ? result.next : null;
+  return result?.kind === "registered" && requestHeaders.get(SERVER_ACTION_CALL_HEADER) === null
+    ? result.next
+    : null;
 }
 
 /** What was typed, for an answer given before `registerWith` reads anything (never the passwords). */

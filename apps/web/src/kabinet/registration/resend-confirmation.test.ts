@@ -27,6 +27,7 @@ function harness(
     userId: "user-1",
     now: NOW,
     allow: async () => true,
+    takeDailyMail: async () => true,
     repo: {
       applicationOf: async () =>
         overrides.application === undefined ? APPLICATION : overrides.application,
@@ -73,6 +74,26 @@ describe("resendConfirmationWith", () => {
     expect(await resendConfirmationWith(h.deps)).toEqual({ kind: "rate_limited" });
     expect(h.issued).toEqual([]);
     expect(h.sends).toEqual([]);
+  });
+
+  it("at the day's cap: daily_cap, nothing issued or sent", async () => {
+    const h = harness({ takeDailyMail: async () => false });
+    expect(await resendConfirmationWith(h.deps)).toEqual({ kind: "daily_cap" });
+    expect(h.issued).toEqual([]);
+    expect(h.sends).toEqual([]);
+  });
+
+  it("over the per-user budget the day's cap is not spent", async () => {
+    let taken = 0;
+    const h = harness({
+      allow: async () => false,
+      takeDailyMail: async () => {
+        taken += 1;
+        return true;
+      },
+    });
+    await resendConfirmationWith(h.deps);
+    expect(taken).toBe(0);
   });
 
   it("says failed when the provider refused, and sent for the same minute's duplicate", async () => {

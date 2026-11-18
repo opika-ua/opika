@@ -19,13 +19,14 @@ import {
   confirmationDedupKey,
   registrationMailOf,
   sendConfirmationEmail,
+  takeDailyConfirmationMail,
 } from "../../kabinet/registration/registration-mail";
 import { kabinetAuth } from "../../kabinet/runtime";
 import { resolveRegistrationCity, searchRegistrationCitiesIn } from "./cities";
 import { isSelfRegistrationEnabled } from "./flag";
 import { FORM_STAMP_KEY_LABEL, issueFormStamp } from "./form-stamp";
 import type { CitySearchAnswer, RegistrationFormState } from "./form-state";
-import { registrationLimiters } from "./limits";
+import { firstRefusal, registrationLimiters } from "./limits";
 import { nativePostRedirectOf, registerWith, typedValuesOf } from "./register";
 import { parseSetCookie } from "./set-cookie";
 
@@ -71,9 +72,10 @@ export async function registerShelter(
     issueStamp: (issuedAt) => issueFormStamp(issuedAt, stampKey),
     allowIp: async () => {
       const key = ipRateLimitKey(ip);
-      return (await limiters.perIp.check(key, now))
+      const refusedBy = await firstRefusal([limiters.perIpHour, limiters.perIpDay], key, now);
+      return refusedBy === null
         ? { kind: "ok" }
-        : { kind: "limited", retryAfterSeconds: retryAfterSecondsOf(limiters.perIp, key, now) };
+        : { kind: "limited", retryAfterSeconds: retryAfterSecondsOf(refusedBy, key, now) };
     },
     allowAddress: async (email) => {
       const key = addressRateLimitKey(email);
@@ -86,6 +88,9 @@ export async function registerShelter(
     },
     resolveCity: (by) => resolveRegistrationCity(db, by),
     passwordVerdict: shelterPasswordVerdictOf,
+    hasAccount: (email) => selfRegistrationRepo(db).hasAccount(email),
+    takeDailyMail: () =>
+      takeDailyConfirmationMail(limiters.mailDailyCap, mail, now, (work) => after(work)),
     hashPassword: async (password) => (await auth.$context).password.hash(password),
     write: (input) => selfRegistrationRepo(db).register(input),
     newId: () => crypto.randomUUID(),
@@ -114,7 +119,7 @@ export async function registerShelter(
 
   // Without JS the form posted natively, so this is a 303 and a new document: the full load #509
   // asks for. With JS the form gets the state and calls `window.location.assign` itself.
-  const nativeExit = nativePostRedirectOf(state, form);
+  const nativeExit = nativePostRedirectOf(state, requestHeaders);
   if (nativeExit !== null) redirect(nativeExit);
   return state;
 }

@@ -18,6 +18,10 @@ import { inMemoryRateLimiter } from "../../api/rate-limit";
 import { resolveRegistrationCity } from "../../features/registration/cities";
 import { issueFormStamp } from "../../features/registration/form-stamp";
 import { HONEYPOT_NAME } from "../../features/registration/form-state";
+import {
+  REGISTRATION_MAIL_DAILY_CAP,
+  registrationLimiters,
+} from "../../features/registration/limits";
 import { type RegisterDeps, registerWith } from "../../features/registration/register";
 import { createKabinetAuth, type KabinetAuth } from "../auth";
 import type { KabinetAuthAvailability } from "../auth-route";
@@ -35,6 +39,7 @@ import {
   type RegistrationMail,
   sendConfirmationEmail,
   sendOperatorNotification,
+  takeDailyConfirmationMail,
 } from "./registration-mail";
 
 /**
@@ -130,6 +135,8 @@ function deps(overrides: Partial<RegisterDeps> = {}): RegisterDeps {
     allowAddress: async () => ({ kind: "ok" }),
     resolveCity: (by) => resolveRegistrationCity(db, by),
     passwordVerdict: shelterPasswordVerdictOf,
+    hasAccount: (email) => selfRegistrationRepo(db).hasAccount(email),
+    takeDailyMail: async () => true,
     hashPassword: async (password) => (await auth.$context).password.hash(password),
     write: (input) => selfRegistrationRepo(db).register(input),
     newId: () => crypto.randomUUID(),
@@ -219,6 +226,7 @@ function linkDeps(): RegistrationLinkDeps {
     enabled: true,
     now,
     repo: selfRegistrationRepo(db),
+    newId: () => crypto.randomUUID(),
     afterConfirm: async ({ application }) => {
       if (application === null) return;
       await funnelRepo(db).record("email_confirmed", application.shelterId, now);
@@ -374,20 +382,38 @@ describe("the confirmation email's links act only on an origin-checked POST", ()
     expect(deleted).toEqual([registered.shelterId]);
   });
 
-  it("«Це не я» after the operator decided deletes nothing and uses the link up", async () => {
+  it("«Це не я» after approval deletes nothing, says so, and tells the operator once", async () => {
     deleted.length = 0;
     const registered = await register();
-    // The only shelter here: the operator moved it on.
+    // The only shelter here: the operator approved it.
     await db.update(shelters).set({ verificationStatus: "pending" });
+    const answer = await post(NOT_ME, registered.notMeToken, BASE);
+    expect(answer.status).toBe(200);
+    expect(await answer.text()).toContain(
+      "Притулок уже схвалено, тому заявку не можна видалити за посиланням. Якщо ви не реєстрували цей притулок, напишіть мені на hello@opika.org.ua.",
+    );
+    expect(deleted).toEqual([]);
+    const lines = async () =>
+      (await db.select().from(shelterHistory)).filter(
+        (row) => row.kind === "not_me_after_approval",
+      );
+    expect((await lines()).map((row) => row.shelterId)).toEqual([registered.shelterId]);
+    // The link is used up: a second click records nothing more.
+    expect((await post(NOT_ME, registered.notMeToken, BASE)).status).toBe(400);
+    expect(await lines()).toHaveLength(1);
+  });
+
+  it("«Це не я» on a refused application deletes nothing and records nothing", async () => {
+    deleted.length = 0;
+    const registered = await register();
+    await db.update(shelters).set({ verificationStatus: "rejected" });
     expect((await post(NOT_ME, registered.notMeToken, BASE)).status).toBe(400);
     expect(deleted).toEqual([]);
     expect(
-      await selfRegistrationRepo(db).tokenUser(
-        "not_me",
-        hashRegistrationToken(registered.notMeToken),
-        now,
+      (await db.select().from(shelterHistory)).filter(
+        (row) => row.kind === "not_me_after_approval",
       ),
-    ).toBeNull();
+    ).toEqual([]);
   });
 
   it("is a 404 with the flag off, GET or POST", async () => {
@@ -402,5 +428,63 @@ describe("the confirmation email's links act only on an origin-checked POST", ()
         )
       ).status,
     ).toBe(404);
+  });
+});
+
+describe("the day's cap on confirmation emails", () => {
+  it(`the ${REGISTRATION_MAIL_DAILY_CAP + 1}st is refused; the operator is told once, with nothing about anyone`, async () => {
+    // A day of its own, so no other test's counts reach this key.
+    const day = new Date("2031-03-04T12:00:00.000Z");
+    const scheduled: Promise<void>[] = [];
+    const schedule = (work: () => Promise<void>) => {
+      scheduled.push(work());
+    };
+    const cap = registrationLimiters.mailDailyCap;
+    for (let n = 1; n <= REGISTRATION_MAIL_DAILY_CAP; n += 1) {
+      expect(await takeDailyConfirmationMail(cap, mail(), day, schedule)).toBe(true);
+    }
+    expect(scheduled).toEqual([]);
+    sent = [];
+    // Two refusals at once: both refused, one alarm.
+    const refusals = await Promise.all([
+      takeDailyConfirmationMail(cap, mail(), day, schedule),
+      takeDailyConfirmationMail(cap, mail(), day, schedule),
+    ]);
+    expect(refusals).toEqual([false, false]);
+    await Promise.all(scheduled);
+    expect(sent.map((email) => email.to)).toEqual(["hello@opika.org.ua"]);
+    const [alarm] = sent;
+    expect(alarm?.subject).toBe("Ліміт заявок на сьогодні вичерпано");
+    expect(alarm?.text).toContain(`Сьогодні вже надіслано ${REGISTRATION_MAIL_DAILY_CAP} листів`);
+    expect(alarm?.text).not.toContain("@example.org");
+    expect((await db.select().from(notificationSends)).map((row) => row.dedupKey)).toEqual([
+      "registration_cap_hit:2031-03-04",
+    ]);
+  });
+
+  it("a failed alarm never turns the refusal into anything else", async () => {
+    const day = new Date("2031-03-05T12:00:00.000Z");
+    const full = inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 0 });
+    const broken: RegistrationMail = {
+      ...mail(),
+      deps: {
+        ...mail().deps,
+        mail: {
+          ...providerMail(),
+          sender: {
+            send: async () => {
+              throw new Error("provider down");
+            },
+          },
+        },
+      },
+    };
+    const scheduled: Promise<void>[] = [];
+    expect(
+      await takeDailyConfirmationMail(full, broken, day, (work) => {
+        scheduled.push(work());
+      }),
+    ).toBe(false);
+    await expect(Promise.all(scheduled)).resolves.toBeDefined();
   });
 });

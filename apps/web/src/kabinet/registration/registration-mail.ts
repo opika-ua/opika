@@ -1,8 +1,10 @@
 import type { ApplicationSummary } from "@opika/db/repos";
 import type { ShelterId } from "@opika/domain";
+import type { RateLimiter } from "../../api/rate-limit";
 import { OPERATOR_CONTACT } from "../../brand";
 import { channelText } from "../../features/kabinet/profile-edit/fields";
 import { OPERATOR_HOME } from "../../features/kabinet/routes";
+import { mailCapKeyOf, REGISTRATION_MAIL_DAILY_CAP } from "../../features/registration/limits";
 import { userHashOf } from "../notify/dedup";
 import { notifyRuntimeOf } from "../notify/runtime";
 import {
@@ -95,4 +97,45 @@ export async function sendOperatorNotification(
     `operator_new_application:${application.shelterId}`,
     { shelterId: application.shelterId, recipientUserId: null },
   );
+}
+
+/** Once per UTC day, the day the cap's key counts: `notification_sends` claims it atomically. */
+export const capAlarmDedupKey = (now: Date): string =>
+  `registration_cap_hit:${now.toISOString().slice(0, 10)}`;
+
+/** The operator's alarm: the cap and the queue's link, nothing about any applicant. */
+export async function sendCapAlarm(
+  mail: RegistrationMail,
+  now: Date,
+): Promise<TransactionalSendResult> {
+  return sendTransactionalEmail(
+    mail.deps,
+    {
+      template: "registration_cap_hit",
+      count: REGISTRATION_MAIL_DAILY_CAP,
+      queueUrl: new URL(OPERATOR_HOME, mail.baseURL).toString(),
+    },
+    OPERATOR_CONTACT.email,
+    capAlarmDedupKey(now),
+    { shelterId: null, recipientUserId: null },
+  );
+}
+
+/**
+ * One of the day's confirmation emails (registration or resend), or false at the cap. At the cap
+ * the operator is told, once that day, after the response; a failed alarm changes nothing.
+ */
+export async function takeDailyConfirmationMail(
+  cap: RateLimiter,
+  mail: RegistrationMail | null,
+  now: Date,
+  schedule: (work: () => Promise<void>) => void,
+): Promise<boolean> {
+  if (await cap.check(mailCapKeyOf(now), now)) return true;
+  if (mail !== null) {
+    schedule(async () => {
+      await sendCapAlarm(mail, now).catch(() => undefined);
+    });
+  }
+  return false;
 }

@@ -1,13 +1,13 @@
-import type { RegistrationFailureReason } from "@opika/contracts";
 import type { SelfRegistrationOutcome, SelfRegistrationWrite } from "@opika/db/repos";
 import type { PasswordVerdict } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { issueFormStamp, MIN_FILL_MS } from "./form-stamp";
-import { EMPTY_VALUES, ENHANCED_NAME, HONEYPOT_NAME } from "./form-state";
+import { EMPTY_VALUES, HONEYPOT_NAME } from "./form-state";
 import {
   nativePostRedirectOf,
   type RegisterDeps,
   type RegisteredApplication,
+  type RegistrationLogReason,
   registerWith,
 } from "./register";
 
@@ -45,7 +45,8 @@ type Harness = {
   writes: SelfRegistrationWrite[];
   registered: RegisteredApplication[];
   cookies: string[][];
-  logged: RegistrationFailureReason[];
+  logged: RegistrationLogReason[];
+  mailsTaken: number;
   charged: { ip: number; address: string[] };
 };
 
@@ -57,6 +58,7 @@ function harness(
     registered: [],
     cookies: [],
     logged: [],
+    mailsTaken: 0,
     charged: { ip: 0, address: [] },
     deps: undefined as never,
   };
@@ -73,6 +75,11 @@ function harness(
     allowAddress: async (email) => {
       h.charged.address.push(email);
       return { kind: "ok" };
+    },
+    hasAccount: async () => false,
+    takeDailyMail: async () => {
+      h.mailsTaken += 1;
+      return true;
     },
     resolveCity: async (by) =>
       (by.kind === "id" && by.id === CITY.id) || (by.kind === "name" && by.name === "Бровари")
@@ -351,19 +358,45 @@ describe("nativePostRedirectOf: the no-JS exit", () => {
     formStamp: "",
   };
 
-  it("a native post that registered is a 303 to where it goes", () => {
-    expect(nativePostRedirectOf(registered, new FormData())).toBe("/kabinet");
+  it("a native post (no Next-Action header) that registered is a 303 to where it goes", () => {
+    expect(nativePostRedirectOf(registered, new Headers())).toBe("/kabinet");
   });
 
-  it("a hydrated form leaves by itself (window.location.assign), so no redirect", () => {
-    const form = new FormData();
-    form.set(ENHANCED_NAME, "1");
-    expect(nativePostRedirectOf(registered, form)).toBeNull();
+  it("the client's own call (Next-Action header) leaves by itself, so no redirect", () => {
+    expect(nativePostRedirectOf(registered, new Headers({ "Next-Action": "7f3a" }))).toBeNull();
   });
 
   it("anything but registered stays on the page", () => {
     expect(
-      nativePostRedirectOf({ ...registered, result: { kind: "failed" } }, new FormData()),
+      nativePostRedirectOf({ ...registered, result: { kind: "failed" } }, new Headers()),
     ).toBeNull();
+  });
+});
+
+describe("registerWith: the day's confirmation emails", () => {
+  it("at the cap: refused before anything is written, the typed values kept", async () => {
+    const h = harness({ takeDailyMail: async () => false });
+    const state = await registerWith(formOf(), h.deps);
+    expect(state.result).toEqual({ kind: "daily_cap" });
+    expect(h.writes).toEqual([]);
+    expect(h.registered).toEqual([]);
+    expect(h.cookies).toEqual([]);
+    expect(state.values.link).toBe("instagram.com/prytulok_test");
+    expect(h.logged).toEqual(["daily_cap"]);
+  });
+
+  it("a taken address spends none of the day's emails", async () => {
+    const h = harness({ hasAccount: async () => true });
+    expect((await registerWith(formOf(), h.deps)).result).toEqual({ kind: "email_taken" });
+    expect(h.mailsTaken).toBe(0);
+    expect(h.writes).toEqual([]);
+  });
+
+  it("an invalid submit spends none either; a registration spends one", async () => {
+    const h = harness();
+    await registerWith(formOf({ link: "" }), h.deps);
+    expect(h.mailsTaken).toBe(0);
+    await registerWith(formOf(), h.deps);
+    expect(h.mailsTaken).toBe(1);
   });
 });

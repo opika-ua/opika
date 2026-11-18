@@ -11,7 +11,13 @@ import { authAccount, authMember, authOrganization, authUser } from "../src/sche
 import { registrationEmailTokens } from "../src/schema/registration-email-tokens";
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
-import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "../src/test-utils/index";
+import {
+  holdStatementUncommitted,
+  makeCity,
+  makeShelter,
+  setupTestDatabase,
+  truncateAll,
+} from "../src/test-utils/index";
 
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
 let cleanup: () => Promise<void>;
@@ -126,6 +132,46 @@ describe("selfRegistrationRepo.register", () => {
     expect(await rowCounts()).toEqual(before);
   });
 
+  it("two registrations of one address at once: the loser is email_taken, never an error", async () => {
+    // The first account's insert is held open, so the second's read finds no account and its
+    // write meets the unique email in Postgres, forced rather than raced.
+    const held = holdStatementUncommitted((query) => query.startsWith('insert into "auth_user"'));
+    try {
+      const first = held.db.insert(authUser).values({
+        id: crypto.randomUUID(),
+        name: "Перша",
+        email: "olena@example.org",
+        emailVerified: false,
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+      const firstDone = first.then(() => undefined);
+      await held.ran;
+      const second = selfRegistrationRepo(db).register(registration("olena@example.org", "b"));
+      expect(await held.waitsOnIt(second)).toBe(true);
+      held.release();
+      await firstDone;
+      expect(await second).toEqual({ kind: "email_taken" });
+    } finally {
+      held.release();
+      await held.end();
+    }
+    const counts = await rowCounts();
+    expect(counts).toMatchObject({
+      users: 1,
+      accounts: 0,
+      organizations: 0,
+      members: 0,
+      shelters: 0,
+    });
+  });
+
+  it("hasAccount reads whether the address has an account", async () => {
+    expect(await selfRegistrationRepo(db).hasAccount("olena@example.org")).toBe(false);
+    await selfRegistrationRepo(db).register(registration());
+    expect(await selfRegistrationRepo(db).hasAccount("olena@example.org")).toBe(true);
+  });
+
   it("leaves nothing behind when a later statement of the write fails", async () => {
     const input = registration("olena@example.org", "a");
     // The last statement (the links) collides with a row already there; every earlier one rolls back.
@@ -209,6 +255,23 @@ describe("the confirmation links", () => {
     });
     const [user] = await db.select().from(authUser).where(eq(authUser.id, input.userId));
     expect(user?.emailVerified).toBe(false);
+  });
+
+  it("«Це не я» after approval: one operator-only line, written with the link's use, once", async () => {
+    const input = registration();
+    await selfRegistrationRepo(db).register(input);
+    const repo = selfRegistrationRepo(db);
+    expect(await repo.recordNotMeAfterApproval("notme-a", crypto.randomUUID(), LATER)).toBe(true);
+    expect(await repo.recordNotMeAfterApproval("notme-a", crypto.randomUUID(), LATER)).toBe(false);
+    // The confirmation link is not a «Це не я» link.
+    expect(await repo.recordNotMeAfterApproval("confirm-a", crypto.randomUUID(), LATER)).toBe(false);
+    const lines = (await db.select().from(shelterHistory)).filter(
+      (row) => row.kind === "not_me_after_approval",
+    );
+    expect(lines.map((row) => [row.shelterId, row.entry])).toEqual([
+      [input.shelter.id, { kind: "not_me_after_approval", at: LATER }],
+    ]);
+    expect(await repo.tokenUser("not_me", "notme-a", LATER)).toBeNull();
   });
 
   it("useToken is single use", async () => {

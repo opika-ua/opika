@@ -166,6 +166,39 @@ export function selfRegistrationRepo(db: Database) {
       return { kind: "registered" };
     },
 
+    /** Whether the address (trimmed, lowercased) already has an account. A read only. */
+    async hasAccount(email: string): Promise<boolean> {
+      const [row] = await db
+        .select({ id: authUser.id })
+        .from(authUser)
+        .where(eq(authUser.email, email))
+        .limit(1);
+      return row !== undefined;
+    },
+
+    /**
+     * «Це не я» after approval (owner, 2026-11-18): the link is used up and an operator-only line
+     * written in one statement, so a second click records nothing more. True when it recorded.
+     */
+    async recordNotMeAfterApproval(tokenHash: string, historyId: string, now: Date) {
+      const used = db.$with("used").as(
+        db
+          .update(registrationEmailTokens)
+          .set({ usedAt: now })
+          .where(usable("not_me", tokenHash, now))
+          .returning({ userId: registrationEmailTokens.userId }),
+      );
+      const entry: ShelterHistoryEntry = { kind: "not_me_after_approval", at: now };
+      const rows = await db
+        .with(used)
+        .insert(shelterHistory)
+        .select(
+          sql`SELECT ${historyRowSelect({ id: historyId, entry }, sql`"s"."id"`)} FROM "used" JOIN ${shelters} AS "s" ON "s"."registrant_user_id" = "used"."user_id"`,
+        )
+        .returning({ id: shelterHistory.id });
+      return rows.length === 1;
+    },
+
     /** A resend's two new links; the earlier ones stay good until they expire. */
     async issueTokens(userId: string, tokens: RegistrationTokenPair): Promise<void> {
       await db

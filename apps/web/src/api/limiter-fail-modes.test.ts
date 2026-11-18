@@ -24,10 +24,13 @@ const DENY = [
   "kabinet-forgot-address",
   "kabinet-reset-ip",
   "reveal-ip",
-  "registration-ip",
+  "registration-ip-hour",
+  "registration-ip-day",
   "registration-address",
   "registration-city-search-ip",
-  "registration-resend-user",
+  "registration-resend-user-hour",
+  "registration-resend-user-day",
+  "registration-mail-day",
 ];
 
 const limitMock = vi.fn();
