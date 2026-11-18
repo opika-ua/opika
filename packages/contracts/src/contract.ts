@@ -4,7 +4,11 @@ import {
   animalsNeighboursContract,
   animalsRevealContract,
 } from "./procedures/animals";
-import { citiesByIdsContract, citiesResolveTokensContract } from "./procedures/cities";
+import {
+  citiesByIdsContract,
+  citiesResolveTokensContract,
+  citiesWithPagesContract,
+} from "./procedures/cities";
 import {
   galleryFacetCountsContract,
   galleryListContract,
@@ -30,6 +34,7 @@ export const contract = {
   cities: {
     byIds: citiesByIdsContract,
     resolveTokens: citiesResolveTokensContract,
+    withPages: citiesWithPagesContract,
   },
   regions: {
     list: regionsListContract,

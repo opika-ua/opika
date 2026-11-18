@@ -49,9 +49,14 @@ import { router } from "./router";
  *
  * `gallery.facetCounts` (the filter selectors' counts) is the same shape of
  * safe as `relaxationCounts`: filters-only input, read-only, no cookie.
+ * `cities.withPages` (which cities have a landing page) too: city ids in, nothing written.
  */
 const serverComponentRouter = {
-  cities: { byIds: router.cities.byIds, resolveTokens: router.cities.resolveTokens },
+  cities: {
+    byIds: router.cities.byIds,
+    resolveTokens: router.cities.resolveTokens,
+    withPages: router.cities.withPages,
+  },
   regions: { list: router.regions.list },
   gallery: {
     list: router.gallery.list,

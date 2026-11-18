@@ -1,4 +1,5 @@
 import type { AnimalDetailView, CityLabelView, PublicShelterView } from "@opika/contracts";
+import type { AnimalSpecies, CityId } from "@opika/domain";
 import { ORPCError } from "@orpc/server";
 import { vi } from "vitest";
 import type { AnimalPageClient } from "./animal-page-load";
@@ -96,7 +97,10 @@ export function stubAnimalPageClient(byId: ByIdBehaviour = { kind: "answer" }) {
   const client = {
     animals: { byId: animalsById },
     shelters: { byId: vi.fn(async () => makeDetailShelter()) },
-    cities: { byIds: vi.fn(async () => [CITY_LABEL]) },
+    cities: {
+      byIds: vi.fn(async () => [CITY_LABEL]),
+      withPages: vi.fn(async (): Promise<{ cityId: CityId; species: AnimalSpecies[] }[]> => []),
+    },
     regions: { list: vi.fn(async () => []) },
   };
   return { client: client as unknown as AnimalPageClient, animalsById };

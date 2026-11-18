@@ -1,4 +1,4 @@
-import { CityIdSchema } from "@opika/domain";
+import { AnimalSpeciesSchema, CityIdSchema } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 import { MAX_CITY_TOKEN_LENGTH, MAX_CITY_TOKENS } from "../constants";
@@ -46,6 +46,26 @@ export const CitiesResolveTokensOutputSchema = z
 export const citiesResolveTokensContract = oc
   .input(CitiesResolveTokensInputSchema)
   .output(CitiesResolveTokensOutputSchema)
+  .errors({
+    RATE_LIMITED: apiErrors.RATE_LIMITED,
+  });
+
+/** `ids` narrows the answer to a few cities (one page's question); without it, every such city. */
+export const CitiesWithPagesInputSchema = z.object({
+  ids: z.array(CityIdSchema).max(MAX_CITY_LABEL_IDS).optional(),
+});
+
+/**
+ * The cities with at least one listed animal of a verified shelter whose effective city it is:
+ * the cities a landing page exists for. `species`: what those animals are, for the page's words.
+ */
+export const CitiesWithPagesOutputSchema = z
+  .array(z.object({ cityId: CityIdSchema, species: z.array(AnimalSpeciesSchema).readonly() }))
+  .readonly();
+
+export const citiesWithPagesContract = oc
+  .input(CitiesWithPagesInputSchema)
+  .output(CitiesWithPagesOutputSchema)
   .errors({
     RATE_LIMITED: apiErrors.RATE_LIMITED,
   });

@@ -11,9 +11,9 @@ describe("runEarlyListingSmoke against the local database", () => {
   });
   afterAll(async () => cleanup?.());
 
-  it("passes every check, and there are 6", async () => {
+  it("passes every check, and there are 7", async () => {
     const outcomes = await runEarlyListingSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes).toHaveLength(6);
+    expect(outcomes).toHaveLength(7);
   });
 });

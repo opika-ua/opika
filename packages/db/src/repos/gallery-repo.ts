@@ -27,7 +27,7 @@ import {
   SIZE_BUCKETS,
   type SizeBucket,
 } from "@opika/domain";
-import { and, asc, desc, eq, getTableColumns, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, max, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
 import { cities } from "../schema/cities";
@@ -100,6 +100,14 @@ export type GalleryFacetCounts = {
   readonly sexes: Readonly<Record<AnimalSex, number>>;
   /** The species switch has no counts of its own; a shelter page reads these to show it only when both species are there. */
   readonly species: Readonly<Record<AnimalSpecies, number>>;
+};
+
+/** A city with a landing page: its slug, the newest update among its indexable animals, their species. */
+export type CityPageRow = {
+  readonly cityId: CityId;
+  readonly slug: string;
+  readonly lastModified: Date;
+  readonly species: readonly AnimalSpecies[];
 };
 
 export type NeighbourRow = { readonly id: AnimalId; readonly name: string };
@@ -330,6 +338,48 @@ export function galleryRepo(db: Database) {
           .orderBy(...orderingFor("freshest"))
           .limit(Math.min(opts.limit ?? MAX_GALLERY_NAVIGABLE_ROWS, MAX_GALLERY_NAVIGABLE_ROWS))
       );
+    },
+
+    /**
+     * The cities whose landing page exists (SEO B3): at least one listed animal of an indexable
+     * (verified) shelter whose effective city (`animals.city_id`) it is. One grouped scan over the
+     * sitemap's predicate; `cityIds` narrows it for a page that asks about a few cities.
+     */
+    async cityPages(opts: {
+      now: Date;
+      cityIds?: readonly CityId[];
+    }): Promise<readonly CityPageRow[]> {
+      if (opts.cityIds?.length === 0) return [];
+      const perSpecies = Object.fromEntries(
+        ANIMAL_SPECIES.map((species) => [
+          species,
+          sql<number>`count(*) FILTER (WHERE ${animals.species} = ${species})`.mapWith(Number),
+        ]),
+      ) as Record<AnimalSpecies, SQL<number>>;
+      const rows = await db
+        .select({
+          cityId: cities.id,
+          slug: cities.slug,
+          lastModified: max(animals.lastUpdatedAt),
+          species: perSpecies,
+        })
+        .from(animals)
+        .innerJoin(cities, eq(cities.id, animals.cityId))
+        .where(
+          and(
+            ...buildDiscoverabilityPredicate(opts.now, "verified_only"),
+            opts.cityIds ? inArray(animals.cityId, [...new Set(opts.cityIds)]) : undefined,
+          ),
+        )
+        .groupBy(cities.id)
+        .orderBy(cities.slug);
+      return rows.map((row) => ({
+        cityId: row.cityId,
+        slug: row.slug,
+        // Never null: a group exists only for a matched row, and the column is NOT NULL.
+        lastModified: row.lastModified ?? opts.now,
+        species: ANIMAL_SPECIES.filter((species) => row.species[species] > 0),
+      }));
     },
 
     /**

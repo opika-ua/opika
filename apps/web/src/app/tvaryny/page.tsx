@@ -1,5 +1,6 @@
-import type { FeedFilters, RegionId } from "@opika/domain";
-import { placeName, uk } from "@opika/i18n";
+import type { CityLabelView } from "@opika/contracts";
+import { ANY, type CityId, type FeedFilters, type RegionId } from "@opika/domain";
+import { fillTemplate, placeName, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import { anonymousRouterClient } from "../../api/server-client";
@@ -9,13 +10,19 @@ import { ActiveFilterChips } from "../../features/gallery/ActiveFilterChips";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
 import { activeFilterChips, anyFilterSet } from "../../features/gallery/active-filters";
 import { cardCityId } from "../../features/gallery/card-text";
+import type { CityTokenResolution } from "../../features/gallery/city-tokens";
 import { FilterSheet } from "../../features/gallery/FilterSheetLazy";
 import {
+  cityPageCanonicalPath,
   cityTokensOf,
+  GALLERY_PATH,
+  NO_PLACE_IDS,
   parseGalleryQuery,
   redirectHrefForNonCanonicalCities,
+  regionTokensOf,
   resetFiltersHref,
   type SearchParams,
+  withoutPlaceParams,
 } from "../../features/gallery/filter-url";
 import { GalleryCard } from "../../features/gallery/GalleryCard";
 import { GalleryControlBlock } from "../../features/gallery/GalleryControlBlock";
@@ -42,6 +49,7 @@ import { MAIN_LANDMARK } from "../../ui/landmark";
 import { MASCOT_RESERVE_CLASS, Mascot } from "../../ui/Mascot";
 import { mascotKindFor } from "../../ui/mascot-species";
 import { PerchedWords } from "../../ui/PerchedWords";
+import { Text } from "../../ui/Text";
 
 /**
  * Same reasoning as `../page.tsx`: without this, `next build` would try to
@@ -53,12 +61,44 @@ export const dynamic = "force-dynamic";
 
 /**
  * Handoff B2's title and description, for the page and its previews alike. Every filter, sort and
- * page variant shares this one static object and so one canonical (owner, PR B).
+ * page variant shares the canonical `/tvaryny` (owner, PR B), except one city alone: that is its
+ * landing page's state, so the city page with the same page number is canonical (owner, B3).
  */
-export const metadata: Metadata = {
-  ...GALLERY_SEO,
-  alternates: { canonical: "/tvaryny" },
-};
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}): Promise<Metadata> {
+  return galleryMetadataOf(anonymousRouterClient(), await searchParams);
+}
+
+/** Exported for its test, which passes a stub client. */
+export async function galleryMetadataOf(
+  client: Pick<ReturnType<typeof anonymousRouterClient>, "cities">,
+  rawSearchParams: SearchParams,
+): Promise<Metadata> {
+  return {
+    ...GALLERY_SEO,
+    alternates: { canonical: await galleryCanonicalOf(client, rawSearchParams) },
+  };
+}
+
+async function galleryCanonicalOf(
+  client: Pick<ReturnType<typeof anonymousRouterClient>, "cities">,
+  rawSearchParams: SearchParams,
+): Promise<string> {
+  const tokens = cityTokensOf(rawSearchParams);
+  if (tokens.length !== 1 || regionTokensOf(rawSearchParams).length > 0) return GALLERY_PATH;
+  const [resolved] = await client.cities.resolveTokens({ tokens });
+  const city = resolved?.city;
+  if (!city) return GALLERY_PATH;
+  const [page] = await client.cities.withPages({ ids: [city.id] });
+  if (!page) return GALLERY_PATH;
+  return cityPageCanonicalPath(city.slug, parseGalleryQuery(rawSearchParams, NO_PLACE_IDS).page);
+}
+
+/** The landing page's variant of the gallery (SEO B3): the city fixed, its own heading and intro. */
+export type GalleryCityPage = { readonly city: CityLabelView };
 
 /**
  * Only the first card is the LCP image (preloaded, fetchpriority high). A second preload would
@@ -137,6 +177,7 @@ export async function renderGallery(
   // scope"), caught by running this suite, not inferred. `Page` below is
   // the one real caller and always computes the real value.
   kabinetSignedIn = false,
+  cityPage?: GalleryCityPage,
 ) {
   /**
    * The URL's place tokens are resolved before it can be parsed: an oblast slug against the 27
@@ -145,31 +186,46 @@ export async function renderGallery(
    * list: with every settlement imported it would be ~30k rows. Everything else the page names
    * comes back with its own responses (the cards' cities, the cities that have an animal).
    */
-  const cityTokens = cityTokensOf(rawSearchParams);
-  const [regions, resolutions] = await Promise.all([
+  // A city page fixes its city from the path, so its own query's place params are ignored.
+  const queryParams = cityPage ? withoutPlaceParams(rawSearchParams) : rawSearchParams;
+  const cityTokens = cityTokensOf(queryParams);
+  // Which cities have a landing page, so a link to one city alone goes there (SEO B3). Only the
+  // links need it, so it is awaited with the page's own reads, not before them.
+  const cityPagesRead: Promise<readonly CityId[]> = cityPage
+    ? Promise.resolve([cityPage.city.id])
+    : client.cities.withPages({}).then((rows) => rows.map((row) => row.cityId));
+  cityPagesRead.catch(() => undefined);
+  const [regions, urlResolutions] = await Promise.all([
     client.regions.list({}),
     cityTokens.length > 0 ? client.cities.resolveTokens({ tokens: cityTokens }) : [],
   ]);
+  const resolutions: readonly CityTokenResolution[] = cityPage
+    ? [{ token: cityPage.city.slug, city: cityPage.city, via: "slug" }]
+    : urlResolutions;
 
-  const legacyRedirect = redirectHrefForNonCanonicalCities(
-    rawSearchParams,
-    "/tvaryny",
-    resolutions,
-  );
-  if (legacyRedirect) permanentRedirect(legacyRedirect);
+  if (!cityPage) {
+    const legacyRedirect = redirectHrefForNonCanonicalCities(
+      rawSearchParams,
+      "/tvaryny",
+      resolutions,
+    );
+    if (legacyRedirect) permanentRedirect(legacyRedirect);
+  }
 
-  const {
-    filters,
-    sort,
-    page: pageNumber,
-  } = parseGalleryQuery(rawSearchParams, placeBookOf(regions, [], resolutions).placeIds);
+  const parsed = parseGalleryQuery(queryParams, placeBookOf(regions, [], resolutions).placeIds);
+  const { sort, page: pageNumber } = parsed;
+  const filters: FeedFilters = cityPage
+    ? { ...parsed.filters, regions: ANY, cities: { kind: "oneOf", values: [cityPage.city.id] } }
+    : parsed.filters;
   // The selectors' counts ride with the page rather than a fetch when a selector opens: one
   // grouped scan, in parallel with the page's own, so they cost no extra wait and reach the
   // no-JS sheet too (measured and argued in the filter selectors PR).
-  const [page, facetCounts] = await Promise.all([
+  const [page, facetCounts, cityPageIds] = await Promise.all([
     client.gallery.list({ filters, sort, page: pageNumber }),
     client.gallery.facetCounts({ filters }),
+    cityPagesRead,
   ]);
+  const cityPages = new Set(cityPageIds);
 
   // Labels for every link the page writes: the cities with an animal (the filter's options), the
   // cards' cities, and the cities the URL names (which may have no animal).
@@ -178,6 +234,7 @@ export async function renderGallery(
     regions,
     [...facetCounts.cities.map((entry) => entry.label), ...page.cityLabels],
     resolutions,
+    cityPages,
   );
   const citySlugs = book.slugs;
   const cityNames = new Map([...book.cities].map(([id, label]) => [id, placeName(label)] as const));
@@ -201,6 +258,9 @@ export async function renderGallery(
     page.totalMatching === 0 ? neighbourRegionsOf(filters.regions, book, facetCounts.regions) : [];
 
   const mascotKind = mascotKindFor(filters.species);
+  const heading = cityPage
+    ? fillTemplate(uk.cityPage.heading, { city: placeName(cityPage.city) })
+    : uk.feed.galleryTitle;
   const registryEmpty = page.totalMatching === 0 && !anyFilterSet(filters);
 
   return (
@@ -271,13 +331,18 @@ export async function renderGallery(
                 >
                   {page.totalMatching > 0 ? (
                     <PerchedWords
-                      text={uk.feed.galleryTitle}
+                      text={heading}
                       mascot={<Mascot kind={mascotKind} pose="lie" size={48} perch="word" />}
                     />
                   ) : (
-                    uk.feed.galleryTitle
+                    heading
                   )}
                 </Heading>
+                {cityPage && (
+                  <Text look="lead" className="mt-3 text-ink-2">
+                    {fillTemplate(uk.cityPage.intro, { city: placeName(cityPage.city) })}
+                  </Text>
+                )}
               </div>
             }
             trailing={

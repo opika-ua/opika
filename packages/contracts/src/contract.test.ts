@@ -34,6 +34,7 @@ describe("the contract surface", () => {
       "animals.reveal",
       "cities.byIds",
       "cities.resolveTokens",
+      "cities.withPages",
       "gallery.facetCounts",
       "gallery.list",
       "gallery.relaxationCounts",

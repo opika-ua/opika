@@ -1,7 +1,7 @@
 import type { CityLabelView, RegionView } from "@opika/contracts";
 import type { CityId, RegionId } from "@opika/domain";
 import type { CityTokenResolution } from "./city-tokens";
-import type { CitySlugsById, PlaceIdsBySlug } from "./filter-url";
+import type { CitySlugsById, CityWithPage, PlaceIdsBySlug } from "./filter-url";
 
 /**
  * Everything a gallery-shaped page knows about places, built from what it actually holds: the 27
@@ -23,6 +23,8 @@ export function placeBookOf(
   regions: readonly RegionView[],
   cityLabels: Iterable<CityLabelView> = [],
   resolutions: readonly CityTokenResolution[] = [],
+  /** Cities with a landing page (`cities.withPages`): their links go to that page. */
+  cityPages: ReadonlySet<CityId> = new Set(),
 ): PlaceBook {
   const cities = new Map<CityId, CityLabelView>();
   for (const label of cityLabels) cities.set(label.id, label);
@@ -33,9 +35,11 @@ export function placeBookOf(
   // A former slug or a legacy id the URL used: it parses to the same city as the current slug.
   for (const { token, city } of resolutions) if (city) citiesBySlug.set(token, city.id);
 
-  const slugs = new Map<CityId | RegionId, string>();
+  const slugs = new Map<CityId | RegionId, string | CityWithPage>();
   for (const region of regions) slugs.set(region.id, region.slug);
-  for (const label of cities.values()) slugs.set(label.id, label.slug);
+  for (const label of cities.values()) {
+    slugs.set(label.id, cityPages.has(label.id) ? { slug: label.slug, hasPage: true } : label.slug);
+  }
 
   return {
     placeIds: {

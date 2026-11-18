@@ -63,18 +63,20 @@ const GALLERY_LIST_NOTE =
   "gallery.list (handler + repo) is one wave: the page SELECT joins each card's shelter and city (narrow public columns), and countShelters runs beside it. Only a page past the end or with no match adds a count wave.";
 
 const DETAIL_NOTE =
-  "loadAnimalPage: animals.byId is one statement (animal JOIN shelter); then shelters.byId (the page-only shelter fields) and cities.byIds run together (the card's city is known from the animal view). regions.list has no query. The shelter row is still read a second time for fields the animal view lacks; dropping that needs a contract change.";
+  "loadAnimalPage: animals.byId is one statement (animal JOIN shelter); then shelters.byId (the page-only shelter fields), cities.byIds and cities.withPages (does the city have a landing page) run together (the card's city is known from the animal view). regions.list has no query. The shelter row is still read a second time for fields the animal view lacks; dropping that needs a contract change.";
 
 export const ROUTES: Route[] = [
   {
     label: "/tvaryny (gallery, unfiltered)",
-    reads: "regions.list (no DB) | gallery.list || gallery.facetCounts",
+    reads: "regions.list (no DB) | gallery.list || gallery.facetCounts || cities.withPages",
     needs: () => true,
     run: async (client) => {
+      const pages = client.cities.withPages({});
       await client.regions.list({});
       await Promise.all([
         client.gallery.list({ filters: NO_FILTERS, sort: "freshest", page: 1 } as never),
         client.gallery.facetCounts({ filters: NO_FILTERS } as never),
+        pages,
       ]);
     },
     notes: [
@@ -84,9 +86,11 @@ export const ROUTES: Route[] = [
   },
   {
     label: "/tvaryny?misto=<busiest city>",
-    reads: "regions.list | cities.resolveTokens, then gallery.list || gallery.facetCounts",
+    reads:
+      "regions.list | cities.resolveTokens || cities.withPages, then gallery.list || gallery.facetCounts",
     needs: (p) => p.citySlug !== null && p.cityId !== null,
     run: async (client, _db, pick) => {
+      const pages = client.cities.withPages({});
       const [, resolutions] = await Promise.all([
         client.regions.list({}),
         client.cities.resolveTokens({ tokens: [pick.citySlug as string] }),
@@ -98,6 +102,7 @@ export const ROUTES: Route[] = [
       await Promise.all([
         client.gallery.list({ filters, sort: "freshest", page: 1 } as never),
         client.gallery.facetCounts({ filters } as never),
+        pages,
       ]);
     },
     notes: [
@@ -108,7 +113,7 @@ export const ROUTES: Route[] = [
   {
     label: "/tvaryny/[animalId] (animal page)",
     reads:
-      "loadAnimalPage: animals.byId (animal JOIN shelter) -> shelters.byId || regions.list || cities.byIds",
+      "loadAnimalPage: animals.byId (animal JOIN shelter) -> shelters.byId || regions.list || cities.byIds || cities.withPages",
     needs: (p) => p.animalId !== null,
     run: (client, _db, pick) =>
       loadAnimalPage(pick.animalId as string, client as unknown as AnimalPageClient),
@@ -165,9 +170,14 @@ export const ROUTES: Route[] = [
   },
   {
     label: "/sitemap.xml (every public animal)",
-    reads: "galleryRepo.sitemapRows (ids and shelter ids, one statement up to the navigable bound)",
+    reads:
+      "galleryRepo.sitemapRows (ids and shelter ids, one statement up to the navigable bound) || galleryRepo.cityPages (one grouped statement)",
     needs: () => true,
-    run: (_client, db) => galleryRepo(db).sitemapRows({ now: new Date() }),
+    run: (_client, db) =>
+      Promise.all([
+        galleryRepo(db).sitemapRows({ now: new Date() }),
+        galleryRepo(db).cityPages({ now: new Date() }),
+      ]),
     notes: [
       "One statement. It was a loop of 50-animal gallery pages, each four statements in a row (page, shelter count, shelters, cities): about 4 x ceil(n/50) round trips in sequence.",
     ],

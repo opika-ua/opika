@@ -25,6 +25,7 @@ export { cityRepo } from "./city-repo";
 export { citySearchRepo } from "./city-search-repo";
 export { type FunnelRecordOutcome, funnelRepo } from "./funnel-repo";
 export {
+  type CityPageRow,
   type GalleryCardPage,
   type GalleryPage,
   type GalleryRelaxationCounts,

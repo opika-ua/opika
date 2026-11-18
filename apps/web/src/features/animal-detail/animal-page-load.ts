@@ -60,26 +60,30 @@ export async function loadAnimalPage(
       : animal.shelter.publicLocation.cityId;
     // One city by id, never the settlement list.
     const shelterRead = client.shelters.byId({ shelterId: animal.shelter.id });
-    const restRead = Promise.all([client.regions.list({}), client.cities.byIds({ ids: [cityId] })]);
+    const restRead = Promise.all([
+      client.regions.list({}),
+      client.cities.byIds({ ids: [cityId] }),
+      client.cities.withPages({ ids: [cityId] }),
+    ]);
     // The shelter settles first so its NOT_FOUND wins over a failure of the city read beside it.
     restRead.catch(() => undefined);
     const shelter = await shelterRead;
-    const [regions, found] = await restRead;
+    const [regions, found, pages] = await restRead;
     const city = found.find((c) => c.id === cityId) ?? null;
 
     /**
      * O-12 (`docs/observations.md`): «← Усі тварини у Бровари» has to
      * actually return to Brovary, not the unfiltered gallery: the link's
      * own text is a claim about where it goes. Built through `galleryHref`,
-     * the one URL scheme every city link uses. `/tvaryny` unfiltered only
-     * when the city doesn't resolve (never expected: every animal's
-     * location is a real city).
+     * the one URL scheme every city link uses, so it is the city's landing page when that exists
+     * (SEO B3). `/tvaryny` unfiltered only when the city doesn't resolve (never expected: every
+     * animal's location is a real city).
      */
     const backToGalleryHref = city
       ? galleryHref(
           { ...NO_FILTERS, cities: { kind: "oneOf", values: [city.id] } },
           DEFAULT_GALLERY_SORT,
-          placeBookOf(regions, [city]).slugs,
+          placeBookOf(regions, [city], [], new Set(pages.map((page) => page.cityId))).slugs,
         )
       : "/tvaryny";
 

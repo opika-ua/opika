@@ -391,11 +391,35 @@ describe("/tvaryny – handoff B2's description, the demo disclosure while no re
       assertDemoDiscoverabilityInvariant: vi.fn(),
     }));
 
-    const { metadata } = await import("./app/tvaryny/page");
+    const { galleryMetadataOf } = await import("./app/tvaryny/page");
+    // No `misto` in the URL: the canonical needs no lookup, so the client is never called.
+    const metadata = await galleryMetadataOf({} as never, {});
 
     expect(metadata.description).toBe(description);
     expect(metadata.openGraph?.description).toBe(description);
     expect(metadata.twitter?.description).toBe(description);
+  });
+});
+
+/** A city page (SEO B3) claims shelters and volunteers exist there: the same D-2 swap. */
+describe("/tvaryny/misto/{slug} – handoff B2's city description, the demo disclosure while no real shelters exist", () => {
+  it.each([
+    [true, DEMO_BANNER_NOTICE],
+    [
+      false,
+      "Собаки з притулків і від волонтерів шукають дім – Бровари. Напишіть напряму, контакти – на картці.",
+    ],
+  ])("REGISTRY_HAS_NO_REAL_SHELTERS=%s", async (registryHasNoRealShelters, description) => {
+    vi.resetModules();
+    vi.doMock("./seo-flags", () => ({
+      SITE_IS_PUBLICLY_DISCOVERABLE: false,
+      REGISTRY_HAS_NO_REAL_SHELTERS: registryHasNoRealShelters,
+      assertDemoDiscoverabilityInvariant: vi.fn(),
+    }));
+
+    const { citySeoText } = await import("./app/tvaryny/misto/[slug]/page");
+
+    expect(citySeoText("Бровари", { kind: "listed", key: "dogs" }).description).toBe(description);
   });
 });
 
@@ -461,6 +485,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview des
               raion: null,
             },
           ],
+          withPages: async () => [],
         },
         regions: { list: async () => [] },
       }),

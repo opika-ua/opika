@@ -159,5 +159,34 @@ export async function runEarlyListingSmoke(db: Database): Promise<Outcome[]> {
     reject.kind === "ok" && clearedSince === null,
     `since ${clearedSince?.toISOString() ?? "null"}`,
   );
+
+  // City pages (SEO B3): a verified shelter in the same city, its one animal fostered elsewhere.
+  const fosterCity = makeCity({
+    id: randomUUID() as CityId,
+    slug: `smoke-${randomUUID()}` as never,
+  });
+  await cityRepo(db).insertMissing([fosterCity]);
+  const verified = makeShelter({
+    displayName: `Смоук перевірений ${city.id.slice(0, 6)}`,
+    publicLocation: running.shelter.publicLocation,
+  });
+  await shelterRepo(db).insert(verified);
+  await animalRepo(db).insert(
+    makeAnimal({ shelterId: verified.id, species: "cat" }),
+    fosterCity.id,
+  );
+  const cityPages = await galleryRepo(db).cityPages({
+    now: NOW,
+    cityIds: [city.id, fosterCity.id],
+  });
+  check(
+    "city pages: only the foster city has one (the shelter's city holds only early-listed animals), with a date and its species",
+    cityPages.length === 1 &&
+      cityPages[0]?.cityId === fosterCity.id &&
+      cityPages[0].lastModified instanceof Date &&
+      !Number.isNaN(cityPages[0].lastModified.getTime()) &&
+      cityPages[0].species.join() === "cat",
+    JSON.stringify(cityPages.map((row) => [row.slug === fosterCity.slug, row.species])),
+  );
   return out;
 }

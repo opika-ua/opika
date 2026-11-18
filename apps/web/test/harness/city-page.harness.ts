@@ -1,0 +1,76 @@
+/**
+ * SEO B3: the city landing page against a real server and the seeded corpus (Brovary, slug
+ * `brovary`, has verified shelters' animals). Flows only, found by role, text and the served
+ * `<head>`: the page answers, its canonical keeps the page number and drops the rest, an unknown
+ * city 404s, `?misto=` keeps working with the city page as its canonical, and the animal page
+ * links back to the city page.
+ */
+
+import { expect, test } from "@playwright/test";
+import { openRoute } from "./harness";
+import { DESKTOP, PHONE } from "./viewports";
+
+// TEST-NET-2, a fixed address of its own: `proxy.ts` rate-limits `/tvaryny` pages per IP.
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.131" } });
+
+const CITY_PAGE = "/tvaryny/misto/brovary";
+const CARD = "[data-testid='animal-card']";
+const CANONICAL = "link[rel='canonical']";
+
+test("the city page answers with its heading, the approved intro, the city's cards and B2's title", async ({
+  page,
+}) => {
+  const response = await page.goto(CITY_PAGE);
+  expect(response?.status()).toBe(200);
+  await page.locator(CARD).first().waitFor({ state: "visible" });
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Шукають дім: Бровари");
+  await expect(
+    page.getByText(
+      "Тварини з притулків і від волонтерів із міста Бровари. Оберіть тварину й напишіть напряму – контакти на кожній картці.",
+    ),
+  ).toBeVisible();
+  const title = await page.title();
+  expect(title).toMatch(/^(Собаки|Коти|Собаки й коти) в добрі руки – Бровари( \| Opika)?$/u);
+  await expect(page.locator(CANONICAL)).toHaveAttribute("href", /\/tvaryny\/misto\/brovary$/);
+});
+
+test("the canonical keeps the page number and drops the sort and the filters", async ({ page }) => {
+  await page.goto(`${CITY_PAGE}?vyd=dog&sort=longest_waiting&stor=2`);
+  await expect(page.locator(CANONICAL)).toHaveAttribute(
+    "href",
+    /\/tvaryny\/misto\/brovary\?stor=2$/,
+  );
+});
+
+test("a city with no page is a real 404, never an empty page", async ({ page }) => {
+  const response = await page.goto("/tvaryny/misto/atlantis");
+  expect(response?.status()).toBe(404);
+  await expect(page.getByTestId("not-found-action")).toBeVisible();
+});
+
+test("?misto= keeps working, no redirect, with the city page as its canonical", async ({
+  page,
+}) => {
+  await openRoute(page, "/tvaryny?misto=brovary&stor=1", DESKTOP, { readySelector: CARD });
+  expect(new URL(page.url()).pathname).toBe("/tvaryny");
+  await expect(page.locator(CANONICAL)).toHaveAttribute("href", /\/tvaryny\/misto\/brovary$/);
+});
+
+test("a filter picked on the city page keeps the visitor there", async ({ page }) => {
+  await openRoute(page, CITY_PAGE, DESKTOP, { readySelector: CARD });
+  await page.getByTestId("species-cat").click();
+  await page.waitForURL(
+    (url) => url.pathname === "/tvaryny/misto/brovary" && url.search === "?vyd=cat",
+  );
+});
+
+test("an animal page's way back is the city page", async ({ page }) => {
+  await openRoute(page, CITY_PAGE, PHONE, { readySelector: CARD });
+  const href = await page.locator(CARD).first().getAttribute("href");
+  await page.goto(href?.split("?")[0] as string);
+  await expect(page.getByRole("link", { name: "Усі тварини" })).toHaveAttribute(
+    "href",
+    "/tvaryny/misto/brovary",
+  );
+});
