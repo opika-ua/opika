@@ -23,6 +23,7 @@ import {
   authUser,
   authVerification,
   invitationCreatedUsers,
+  supportSessions,
 } from "../src/schema/auth";
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
@@ -237,6 +238,37 @@ describe("deleteLegacyShelters", () => {
     const links = await db.select({ value: authVerification.value }).from(authVerification);
     expect(links.map((row) => row.value)).not.toContain(`invitation:${a.invitationId}`);
     expect(await legacyInvitedShelters(db)).toEqual([]);
+  });
+
+  /** Decision Q4 (B), 0029: the audit row of a support session outlives the shelter it viewed. */
+  it("a shelter with a support session is deleted all the same; the session stays, its shelter nulled", async () => {
+    const { a } = await scene();
+    const sessionId = randomUUID();
+    await db.insert(supportSessions).values({
+      id: sessionId,
+      operatorUserId: OPERATOR,
+      shelterId: a.id,
+      tokenHash: randomUUID(),
+      startedAt: NOW,
+      lastSeenAt: NOW,
+    });
+    expect((await legacyInvitedShelters(db)).find((s) => s.id === a.id)?.hasSupportSession).toBe(
+      true,
+    );
+    expect(await deleteLegacyShelters(db, 2, NOW)).toEqual({
+      kind: "deleted",
+      count: 2,
+      inviteesErased: 0,
+    });
+    const [session] = await db
+      .select()
+      .from(supportSessions)
+      .where(eq(supportSessions.id, sessionId));
+    expect(session?.shelterId).toBeNull();
+    expect(session?.operatorUserId).toBe(OPERATOR);
+    expect((await db.select({ id: shelters.id }).from(shelters)).map((r) => r.id)).not.toContain(
+      a.id,
+    );
   });
 
   it("aborts whole, writing nothing, when one stops being legacy after the count", async () => {
