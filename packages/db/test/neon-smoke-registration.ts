@@ -195,19 +195,16 @@ export async function runRegistrationSmoke(db: Database): Promise<Outcome[]> {
   // «Це не я» while an application goes through the deletion service.
   const withdrawing = registration(address());
   await repo.register(withdrawing);
-  const deletion = await applicationDeletionRepo(db)
-    .deleteApplication(withdrawing.shelter.id, "not_me", LATER)
-    .then(
-      (result) => ({ kind: "served" as const, result }),
-      (error: unknown) => ({ kind: "threw" as const, message: String(error) }),
-    );
+  const deletion = await applicationDeletionRepo(db).deleteApplication(
+    withdrawing.shelter.id,
+    "not_me",
+    LATER,
+  );
   const left = await written(withdrawing);
   check(
-    "«Це не я» while an application: the deletion service removes it (skipped while it's Phase 0's stub)",
-    deletion.kind === "served"
-      ? deletion.result.kind === "deleted" && same({ ...left, history: 0 }, { ...none, history: 0 })
-      : deletion.message.includes("not served yet"),
-    deletion.kind === "served" ? JSON.stringify(left) : "stub",
+    "«Це не я» while an application: the deletion service removes it and every row it wrote",
+    deletion.kind === "deleted" && same({ ...left, history: 0 }, { ...none, history: 0 }),
+    `${deletion.kind}, ${JSON.stringify(left)}`,
   );
 
   // After approval: only the operator's line, written with the link's use.
