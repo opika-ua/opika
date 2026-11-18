@@ -288,6 +288,8 @@ describe("ApplicationDecision", () => {
       reason: { code: "duplicate_submission", note: null },
     });
     expect(await dialog.findByRole("alert")).toBeTruthy();
+    // Said once: the card keeps quiet while the dialog carries the alert.
+    expect(screen.getAllByRole("alert", { hidden: true })).toHaveLength(1);
     await userEvent.click(confirm);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(await screen.findByText("Відхилено")).toBeTruthy();

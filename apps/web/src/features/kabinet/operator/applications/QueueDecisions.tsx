@@ -182,7 +182,8 @@ export function ApplicationDecision({
       <p role="status" className={NOTICE}>
         {notice.kind === "failed" ? null : text}
       </p>
-      {notice.kind === "failed" ? (
+      {/* While the reject dialog is open it carries its own alert; one announcement, not two. */}
+      {notice.kind === "failed" && !rejecting ? (
         <p role="alert" className={NOTICE}>
           {text}
         </p>

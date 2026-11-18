@@ -29,7 +29,7 @@ export type ApplicationMailContext = {
   telegram: string;
 };
 
-/** The operator's public contact from the approved copy (A4); shared with `registration.help`. */
+/** The operator's public contact from the approved copy (A4). */
 export const OPERATOR_CONTACT = {
   contactEmail: `hello@${new URL(SITE_ORIGIN).host}`,
   telegram: "@oleshaz",

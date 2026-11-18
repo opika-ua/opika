@@ -226,8 +226,6 @@ async function decide(
       return unreachable;
     }
   }
-  if (shelter.version !== input.expectedVersion) throw errors.CONFLICT();
-
   const { decision, entries } = spec.write(shelter, planned);
   const repo = applicationsRepo(deps.db);
   const result = await repo.decide({
