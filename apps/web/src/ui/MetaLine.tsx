@@ -1,8 +1,9 @@
 import { cx } from "./cx";
+import { InlineList } from "./InlineList";
 
 /**
- * «Хлопчик · дорослий · середній»: parts joined by a drawn separator, which screen readers skip.
- * The separator trails the part before it and wraps with it, so a wrapped line never starts with one.
+ * «Хлопчик · дорослий · середній»: facts on an `InlineList`, so a drawn separator never ends or
+ * starts a line (owner, 2026-11-18) and screen readers skip it. Each fact stays unbroken.
  */
 /** `size` caption (14px) is for a narrow card column; the default is the 16px label. */
 export function MetaLine({
@@ -18,15 +19,11 @@ export function MetaLine({
   testId?: string;
 }) {
   return (
-    <span
+    <div
       data-testid={testId}
-      className={cx("meta-line", size === "caption" ? "text-caption" : "text-label", className)}
+      className={cx(size === "caption" ? "text-caption" : "text-label", "text-ink-2", className)}
     >
-      {parts.map((part) => (
-        <span key={part} className="meta-part">
-          {part}
-        </span>
-      ))}
-    </span>
+      <InlineList items={parts} itemWrap="never" />
+    </div>
   );
 }

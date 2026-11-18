@@ -276,7 +276,7 @@ export function AnimalManageCard({
               {status}
             </div>
             <div className="self-start text-body text-ink-2">
-              <InlineList items={card.meta} />
+              <InlineList items={card.meta} itemWrap="never" />
             </div>
             {card.status === "published" || card.status === "reserved" ? (
               // The link follows the date on its line when it fits, below it when not; the drawn

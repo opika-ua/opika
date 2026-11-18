@@ -6,9 +6,9 @@ File: `apps/web/src/ui/MetaLine.tsx`
 
 **Props and variants.** `parts: string[]`; `size`: label (16px, default) or caption (14px, for a narrow card column).
 
-**Accessibility.** Separators are CSS pseudo-elements (`meta-part::after`), never in the accessibility tree. Optional `testId` names the line for tests.
+**Accessibility.** Built on [InlineList](InlineList.md): the separators are pseudo-elements, never in the accessibility tree, and none ends or starts a line (owner, 2026-11-18). Each fact stays unbroken. Optional `testId` names the line for tests.
 
-**Responsive.** Wraps onto more lines.
+**Responsive.** Wraps between facts onto more lines, with no separator left at a line's end.
 
 **Example.**
 

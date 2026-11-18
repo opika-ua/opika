@@ -19,7 +19,7 @@ describe("InlineList", () => {
     const row = container.firstElementChild as HTMLElement;
     expect(row.textContent).toBe("Притулок «Домівка»6 картокПоказати");
     expect(row.textContent).not.toMatch(/[·•|]/u);
-    const items = row.querySelectorAll(".inline-list-item");
+    const items = row.querySelectorAll(".inline-list-row > *");
     expect(Array.from(items).map((item) => item.textContent)).toEqual([
       "Притулок «Домівка»",
       "6 карток",
