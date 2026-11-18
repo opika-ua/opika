@@ -206,6 +206,65 @@ export async function runApplicationCleanupSmoke(db: Database): Promise<Outcome[
     `${notDue.kind}, ${noMark.length} line(s)`,
   );
 
+  // shelters:delete-test (owner, 2026-11-18): a pending rehearsal goes with its registrant's rows.
+  const rehearsal = await application(true);
+  const [named] = await db
+    .update(shelters)
+    .set({
+      verificationStatus: "pending",
+      verification: {
+        status: "pending",
+        submittedAt: NOW,
+        evidence: { items: [], submittedAt: NOW },
+      } as never,
+    })
+    .where(eq(shelters.id, rehearsal.shelterId))
+    .returning({ displayName: shelters.displayName });
+  await authRowsFor(db, rehearsal.userId, rehearsal.organizationId);
+  const rehearsed = await applicationDeletionRepo(db).deleteRehearsal(
+    rehearsal.shelterId,
+    named?.displayName ?? "",
+    NOW,
+  );
+  const rehearsalLeft = await authRowsLeft(db, rehearsal.userId, rehearsal.organizationId);
+  const [rehearsalGone] = await db
+    .select()
+    .from(shelters)
+    .where(eq(shelters.id, rehearsal.shelterId));
+  check(
+    "deleteRehearsal: a pending self-registered shelter goes with its registrant's rows (not_me line)",
+    rehearsed.kind === "deleted" &&
+      rehearsalGone === undefined &&
+      Object.values(rehearsalLeft).every((n) => n === 0),
+    `${rehearsed.kind}, ${JSON.stringify(rehearsalLeft)}`,
+  );
+
+  // A verified self-registered shelter is refused under the lock, nothing written.
+  const verified = makeShelter({
+    displayName: `Смоук перевірений ${randomUUID().slice(0, 6)}`,
+    publicLocation: located,
+  });
+  await shelterRepo(db).insert(verified);
+  await db
+    .update(shelters)
+    .set({ registrationSource: "self_registration", appliedAt: NOW })
+    .where(eq(shelters.id, verified.id));
+  const refusedVerified = await applicationDeletionRepo(db).deleteRehearsal(
+    verified.id,
+    verified.displayName,
+    NOW,
+  );
+  const [stillThere] = await db.select().from(shelters).where(eq(shelters.id, verified.id));
+  const noLine = await db
+    .select()
+    .from(applicationDeletions)
+    .where(eq(applicationDeletions.shelterId, verified.id));
+  check(
+    "deleteRehearsal: a verified shelter is refused, nothing written",
+    refusedVerified.kind === "refused" && stillThere !== undefined && noLine.length === 0,
+    `${refusedVerified.kind}, ${noLine.length} line(s)`,
+  );
+
   return out;
 }
 
