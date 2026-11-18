@@ -7,7 +7,6 @@ import {
   stubAnimalPageClient,
 } from "../../features/animal-detail/test-fixtures";
 import { WithMockRouter } from "../../features/gallery/test-router";
-import { LINK_PREVIEW_DESCRIPTION } from "../../seo-text";
 import { renderAnimalOverlay } from "./@preview/(.)[animalId]/page";
 import { metadata as notFoundMetadata } from "./[animalId]/not-found";
 import AnimalPage, { generateMetadata } from "./[animalId]/page";
@@ -98,7 +97,7 @@ describe("the full page", () => {
       );
     });
 
-    it("a city that doesn't resolve fills neither template: the brand-suffixed name and the site's preview", async () => {
+    it("a city that doesn't resolve takes the owner's no-city title and description (2026-11-18)", async () => {
       // The animal's own location, not the shelter's, wins when both are set (`loadAnimalPage`'s
       // order): a city id absent from the stub's one-city `cities.byIds` is `cityName: null`.
       current = stubAnimalPageClient({
@@ -106,9 +105,11 @@ describe("the full page", () => {
         animal: makeDetailAnimal({ publicLocation: { cityId: "unknown-city-id" as never } }),
       });
       const metadata = await generateMetadata({ params });
-      expect(metadata.title).toEqual({ absolute: "Мурчик – Opika" });
-      expect(metadata.description).toBe(LINK_PREVIEW_DESCRIPTION);
-      expect(String(metadata.description)).not.toContain(" · ");
+      expect(metadata.title).toEqual({ absolute: "Мурчик – кіт шукає дім | Opika" });
+      expect(metadata.description).toMatch(
+        /^Мурчик шукає дім\. [^·]+\. Лагідний кіт, любить сидіти на підвіконні\.$/u,
+      );
+      expect(metadata.openGraph).toMatchObject({ title: "Мурчик – кіт шукає дім | Opika" });
     });
 
     it("canonical is always the bare id, never a query string", async () => {

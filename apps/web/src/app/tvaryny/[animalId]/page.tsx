@@ -5,7 +5,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { cache } from "react";
-import { titled } from "../../../brand";
 import { AnimalDetailScreen } from "../../../features/animal-detail/AnimalDetailScreen";
 import {
   type AnimalPageLoad,
@@ -17,7 +16,7 @@ import { JsonLd } from "../../../seo/json-ld";
 import { animalBreadcrumbs } from "../../../seo/json-ld-builders";
 import { seoMetadata, withSite } from "../../../seo/page-metadata";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
-import { fitTitle, LINK_PREVIEW_DESCRIPTION, truncateDescription } from "../../../seo-text";
+import { fitTitle, truncateDescription } from "../../../seo-text";
 
 /**
  * Same reasoning as `../page.tsx` and `../../page.tsx`: prerendering at
@@ -134,25 +133,31 @@ export function firstSentenceOf(text: string): string {
 
 /**
  * Handoff B2's title and description for the animal page, in the effective city (its own, or the
- * shelter's). The title drops « | Opika» past 60 characters (`fitTitle`); the description stays
- * under 155 with «…» (`truncateDescription`) and, with no story, ends after the shelter. A city
- * that doesn't resolve can't fill either template: the name and the site's own preview stand in.
+ * shelter's); a city that doesn't resolve takes the owner's no-city pair (2026-11-18). The title
+ * drops « | Opika» past 60 characters (`fitTitle`); the description stays under 155 with «…»
+ * (`truncateDescription`) and, with no story, ends after the shelter.
  */
 export function animalSeoText(
   animal: Pick<AnimalDetailView, "name" | "species" | "sex" | "ageBucket" | "description">,
   shelterName: string,
   cityName: string | null,
 ): { title: string; description: string } {
-  if (cityName === null)
-    return { title: titled(animal.name), description: LINK_PREVIEW_DESCRIPTION };
+  const t = uk.seo.animal;
   const noun = uk.seo.nouns[animalNoun(animal.species, animal.sex, animal.ageBucket)];
-  const subject = fillTemplate(uk.seo.animal.title, { name: animal.name, noun, city: cityName });
-  const description = fillTemplate(uk.seo.animal.description, {
+  const values = {
     name: animal.name,
-    city: cityName,
+    noun,
     shelter: shelterName,
     story: firstSentenceOf(textIn(animal.description, "uk")),
-  });
+  };
+  const subject =
+    cityName === null
+      ? fillTemplate(t.titleNoCity, values)
+      : fillTemplate(t.title, { ...values, city: cityName });
+  const description =
+    cityName === null
+      ? fillTemplate(t.descriptionNoCity, values)
+      : fillTemplate(t.description, { ...values, city: cityName });
   return {
     title: fitTitle(withSite(uk.seo.titleWithSite, { title: subject }), subject),
     description: truncateDescription(description),

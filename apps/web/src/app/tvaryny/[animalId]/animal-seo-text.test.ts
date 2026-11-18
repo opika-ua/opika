@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { titled } from "../../../brand";
 import { makeDetailAnimal, makeDetailShelter } from "../../../features/animal-detail/test-fixtures";
-import { LINK_PREVIEW_DESCRIPTION } from "../../../seo-text";
 import { animalMetadataOf, animalSeoText, firstSentenceOf } from "./page";
 
 /** SEO handoff B1–B2 for `/tvaryny/{id}`: the title, the description and the previews. */
@@ -60,11 +58,28 @@ describe("animalSeoText", () => {
     expect(description.endsWith("…")).toBe(true);
   });
 
-  it("a city that doesn't resolve fills neither template", () => {
+  it("a city that doesn't resolve takes the no-city pair (owner, 2026-11-18)", () => {
     expect(animalSeoText(makeDetailAnimal(), "Домівка", null)).toEqual({
-      title: titled("Мурчик"),
-      description: LINK_PREVIEW_DESCRIPTION,
+      title: "Мурчик – кіт шукає дім | Opika",
+      description: "Мурчик шукає дім. Домівка. Лагідний кіт, любить сидіти на підвіконні.",
     });
+  });
+
+  it("no city and no story: the description ends after the shelter", () => {
+    const animal = makeDetailAnimal({ description: { uk: "", en: null } });
+    expect(animalSeoText(animal, "Домівка", null).description).toBe("Мурчик шукає дім. Домівка.");
+  });
+
+  it("no city, over 60 characters: « | Opika» goes first; a long one is cut under 155 with «…»", () => {
+    const animal = makeDetailAnimal({
+      name: "Принцеса Марципанка Найкраща Із Усіх",
+      sex: "female",
+      description: { uk: `${"Дуже добра й лагідна кішка ".repeat(8)}.`, en: null },
+    });
+    const { title, description } = animalSeoText(animal, "Домівка", null);
+    expect(title).toBe("Принцеса Марципанка Найкраща Із Усіх – кішка шукає дім");
+    expect(Array.from(description).length).toBeLessThan(155);
+    expect(description.endsWith("…")).toBe(true);
   });
 
   it("the first sentence ends at . ! ? or …, whitespace collapsed", () => {
