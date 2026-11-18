@@ -5,8 +5,6 @@ import { SiteAnalytics } from "../features/chrome/SiteAnalytics";
 import { SkipLink } from "../features/chrome/SkipLink";
 import { SAVED_PREPAINT_SCRIPT } from "../features/chrome/saved-prepaint";
 import { PAGE_COLOR } from "../pwa";
-import { JsonLd } from "../seo/json-ld";
-import { organizationJsonLd } from "../seo/json-ld-builders";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
 import { LINK_PREVIEW_DESCRIPTION } from "../seo-text";
 import { brandDisplay, brandUi } from "./fonts";
@@ -92,7 +90,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       {/* The default 8px body margin plus content-box padding on a full-height page overflows the viewport. */}
       <body style={{ margin: 0 }}>
         <SkipLink />
-        <JsonLd data={organizationJsonLd()} />
         {children}
         {/*
           Cookieless, no-op without JS - aggregate page views (Analytics)
