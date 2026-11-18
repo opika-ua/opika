@@ -1,0 +1,189 @@
+import type {
+  ApplicationDeletionOutcome,
+  ApplicationSummary,
+  EmailConfirmOutcome,
+  RegistrantApplication,
+  RegistrationTokenPurpose,
+} from "@opika/db/repos";
+import type { ShelterId } from "@opika/domain";
+import { fillTemplate, uk } from "@opika/i18n";
+import { OPERATOR_CONTACT } from "../../brand";
+import { SHELTER_HOME } from "../../features/kabinet/routes";
+import type { KabinetAuthAvailability } from "../auth-route";
+import { CONFIRM_HEADERS, isSameOriginPost, STRIP_TOKEN_FROM_ADDRESS_BAR } from "../confirm-route";
+import {
+  hashRegistrationToken,
+  REGISTRATION_LINK_PATHS,
+  REGISTRATION_TOKEN,
+} from "./registration-links";
+
+/**
+ * The confirmation email's two links (owner, 2026-11-18): mail clients and scanners open links,
+ * so a GET only checks the link and shows one button; only that button's POST acts, with the token
+ * in the form body and the same Origin check as the magic link's page (login CSRF, IN-T7).
+ */
+export type RegistrationLinkDeps = {
+  availability: KabinetAuthAvailability;
+  enabled: boolean;
+  now: Date;
+  repo: {
+    tokenUser: (
+      purpose: RegistrationTokenPurpose,
+      tokenHash: string,
+      now: Date,
+    ) => Promise<string | null>;
+    useToken: (purpose: RegistrationTokenPurpose, tokenHash: string, now: Date) => Promise<boolean>;
+    confirmEmail: (tokenHash: string, now: Date) => Promise<EmailConfirmOutcome>;
+    applicationOf: (userId: string) => Promise<RegistrantApplication | null>;
+    recordNotMeAfterApproval: (tokenHash: string, historyId: string, now: Date) => Promise<boolean>;
+  };
+  newId: () => string;
+  /** The funnel's `email_confirmed` and the operator's email; a failure never changes the answer. */
+  afterConfirm: (confirmed: {
+    userId: string;
+    application: ApplicationSummary | null;
+  }) => Promise<void>;
+  /** The deletion service (`applicationDeletionRepo`), for «Це не я». */
+  deleteApplication: (shelterId: ShelterId, now: Date) => Promise<ApplicationDeletionOutcome>;
+};
+
+type PageState =
+  | { kind: "form"; token: string }
+  | { kind: "expired" }
+  | { kind: "confirmed" }
+  | { kind: "withdrawn" }
+  /** «Це не я» once the operator approved: nothing is deleted, the operator sees the click. */
+  | { kind: "approved" };
+
+const escapeHtml = (text: string) =>
+  text.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c,
+  );
+
+function page(purpose: RegistrationTokenPurpose, state: PageState, status: number): Response {
+  const email = uk.kabinet.email.applicationConfirm;
+  const heading = purpose === "confirm_email" ? email.action : email.notYouAction;
+  const kabinetLink = `<p><a href="${SHELTER_HOME}">${escapeHtml(uk.forShelters.signInLink)}</a></p>`;
+  const body = (() => {
+    switch (state.kind) {
+      case "form":
+        return `${purpose === "not_me" ? `<p>${escapeHtml(email.notYou)}</p>\n` : ""}<form method="post" action="${REGISTRATION_LINK_PATHS[purpose]}">
+<input type="hidden" name="token" value="${escapeHtml(state.token)}">
+<button type="submit">${escapeHtml(heading)}</button>
+</form>`;
+      case "expired":
+        return `<p role="alert">${escapeHtml(uk.registration.confirmLinkExpired)}</p>\n${kabinetLink}`;
+      case "confirmed":
+        return `<p role="status">${escapeHtml(uk.registration.emailConfirmed)}</p>\n${kabinetLink}`;
+      case "approved":
+        return `<p role="alert">${escapeHtml(fillTemplate(uk.registration.notMeAfterApproval, { email: OPERATOR_CONTACT.email }))}</p>`;
+      case "withdrawn":
+        return `<p role="status">${escapeHtml(fillTemplate(uk.registration.notMeDone, { email: OPERATOR_CONTACT.email }))}</p>`;
+      /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
+      default: {
+        const unreachable: never = state;
+        return unreachable;
+      }
+    }
+  })();
+  // Self-contained, as the magic link's page: nothing loaded from anywhere, system colours only.
+  const html = `<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>${escapeHtml(heading)}</title>
+<script>${STRIP_TOKEN_FROM_ADDRESS_BAR}</script>
+<style>
+body{margin:0;font-family:system-ui,sans-serif;font-size:16px;line-height:1.5;background:Canvas;color:CanvasText}
+main{max-width:400px;margin:0 auto;padding:48px 16px}
+button{min-height:48px;width:100%;font:inherit;font-weight:600;cursor:pointer}
+a{display:inline-flex;align-items:center;min-height:48px}
+button:focus-visible,a:focus-visible{outline:3px solid CanvasText;outline-offset:3px}
+</style>
+</head>
+<body><main><h1>${escapeHtml(heading)}</h1>
+${body}
+</main></body>
+</html>`;
+  return new Response(html, {
+    status,
+    headers: { ...CONFIRM_HEADERS, "content-type": "text/html; charset=utf-8" },
+  });
+}
+
+const plain = (text: string, status: number) =>
+  new Response(text, { status, headers: CONFIRM_HEADERS });
+
+/** Off with the flag, and wherever sign-in is unavailable, like every kabinet page. */
+export const registrationLinkNotFound = (): Response => plain("Not Found", 404);
+
+export async function handleRegistrationLink(
+  request: Request,
+  purpose: RegistrationTokenPurpose,
+  deps: RegistrationLinkDeps,
+): Promise<Response> {
+  if (deps.availability.kind === "unavailable" || !deps.enabled) return registrationLinkNotFound();
+
+  if (request.method === "GET") {
+    // A read only: whatever the token, nothing is used up, confirmed or deleted.
+    const token = new URL(request.url).searchParams.get("token") ?? "";
+    if (!REGISTRATION_TOKEN.test(token)) return page(purpose, { kind: "expired" }, 400);
+    const userId = await deps.repo.tokenUser(purpose, hashRegistrationToken(token), deps.now);
+    return userId === null
+      ? page(purpose, { kind: "expired" }, 400)
+      : page(purpose, { kind: "form", token }, 200);
+  }
+  if (request.method !== "POST") {
+    return new Response("Method Not Allowed", {
+      status: 405,
+      headers: { ...CONFIRM_HEADERS, allow: "GET, POST" },
+    });
+  }
+  if (!isSameOriginPost(request.headers.get("origin"), deps.availability.baseURL)) {
+    return plain("Forbidden", 403);
+  }
+
+  let token: unknown;
+  try {
+    token = (await request.formData()).get("token");
+  } catch {
+    return page(purpose, { kind: "expired" }, 400);
+  }
+  if (typeof token !== "string" || !REGISTRATION_TOKEN.test(token)) {
+    return page(purpose, { kind: "expired" }, 400);
+  }
+  const tokenHash = hashRegistrationToken(token);
+
+  if (purpose === "confirm_email") {
+    const confirmed = await deps.repo.confirmEmail(tokenHash, deps.now);
+    if (confirmed.kind === "unusable") return page(purpose, { kind: "expired" }, 400);
+    await deps
+      .afterConfirm({ userId: confirmed.userId, application: confirmed.application })
+      .catch(() => undefined);
+    return page(purpose, { kind: "confirmed" }, 200);
+  }
+
+  const userId = await deps.repo.tokenUser("not_me", tokenHash, deps.now);
+  if (userId === null) return page(purpose, { kind: "expired" }, 400);
+  const application = await deps.repo.applicationOf(userId);
+  // Only an application is withdrawn. A refused one has nothing left to withdraw.
+  if (application === null || application.status === "rejected") {
+    await deps.repo.useToken("not_me", tokenHash, deps.now);
+    return page(purpose, { kind: "expired" }, 400);
+  }
+  // Approved: never deleted from a link; the operator is told someone denies the address.
+  if (application.status !== "application") {
+    await deps.repo.recordNotMeAfterApproval(tokenHash, deps.newId(), deps.now);
+    return page(purpose, { kind: "approved" }, 200);
+  }
+  const outcome = await deps.deleteApplication(application.shelterId, deps.now);
+  if (outcome.kind === "not_due") {
+    await deps.repo.useToken("not_me", tokenHash, deps.now);
+    return page(purpose, { kind: "expired" }, 400);
+  }
+  return page(purpose, { kind: "withdrawn" }, 200);
+}

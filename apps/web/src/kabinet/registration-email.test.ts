@@ -38,6 +38,11 @@ const samples: Record<RegistrationEmail["template"], RegistrationEmail> = {
     email: TO,
     queueUrl: "https://opika.org.ua/kabinet/prytulky",
   },
+  registration_cap_hit: {
+    template: "registration_cap_hit",
+    count: 300,
+    queueUrl: "https://opika.org.ua/kabinet/prytulky",
+  },
 };
 
 describe("safeSubject (header injection, §11.3)", () => {

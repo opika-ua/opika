@@ -255,7 +255,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   support: 6,
 
-  email: 79,
+  email: 82,
 
   signInCard: 1,
 
@@ -267,7 +267,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   history: 2,
 
-  operator: 288,
+  operator: 289,
 
   verificationDecision: 8,
 

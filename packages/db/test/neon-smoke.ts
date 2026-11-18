@@ -88,6 +88,7 @@ import { runKabinetIdentitySmoke } from "./neon-smoke-kabinet-identity";
 import { runNotificationRecipientsSmoke } from "./neon-smoke-notification-recipients";
 import { runNotificationSendsSmoke } from "./neon-smoke-notification-sends";
 import { runPhotoSourcesSmoke } from "./neon-smoke-photo-sources";
+import { runRegistrationSmoke } from "./neon-smoke-registration";
 import { runRoundTripsSmoke } from "./neon-smoke-round-trips";
 import { runSearchSmoke } from "./neon-smoke-search";
 import { runSelfRegistrationSmoke } from "./neon-smoke-self-registration";
@@ -2737,6 +2738,7 @@ async function main(): Promise<void> {
     ...(await runSelfRegistrationSmoke(database)),
     ...(await runApplicationsSmoke(database)),
     ...(await runKabinetIdentitySmoke(database)),
+    ...(await runRegistrationSmoke(database)),
   ];
   for (const o of outcomes) console.log(`${o.ok ? "PASS" : "FAIL"}  ${o.name}: ${o.detail}`);
   const failed = outcomes.filter((o) => !o.ok).length;

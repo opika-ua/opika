@@ -167,6 +167,11 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     "Притулок зареєстровано · Олена",
   ],
   [
+    "not_me_after_approval: no actor, whoever reads the registrant's mail",
+    { kind: "not_me_after_approval", at: AT },
+    "Після схвалення в листі натиснули «Це не я». Можливо, адресу вказали без відома власника.",
+  ],
+  [
     "shelter_created by the script",
     { kind: "shelter_created", at: AT, moderatorId: OTHER_OPERATOR, via: "script" },
     "Притулок додано з файлу · адміністратор сайту",

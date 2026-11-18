@@ -12,7 +12,8 @@ import config from "../playwright.config";
  */
 describe("the harness's web server command", () => {
   const webServer = config.webServer;
-  const command = Array.isArray(webServer) ? undefined : webServer?.command;
+  // The first server builds, migrates, resets and seeds; the flag-on one (#523) reuses all of it.
+  const command = (Array.isArray(webServer) ? webServer[0] : webServer)?.command;
   const steps = (command ?? "").split(" && ");
   const position = (script: string) => steps.indexOf(`pnpm --filter @opika/db run ${script}`);
 

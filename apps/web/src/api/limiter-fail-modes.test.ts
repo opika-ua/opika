@@ -24,6 +24,13 @@ const DENY = [
   "kabinet-forgot-address",
   "kabinet-reset-ip",
   "reveal-ip",
+  "registration-ip-hour",
+  "registration-ip-day",
+  "registration-address",
+  "registration-city-search-ip",
+  "registration-resend-user-hour",
+  "registration-resend-user-day",
+  "registration-mail-day",
 ];
 
 const limitMock = vi.fn();
@@ -49,6 +56,7 @@ async function loadAllLimiters() {
   const { servedPerIpBudgets } = await import("./per-ip-budgets");
   servedPerIpBudgets();
   await import("../kabinet/limiters");
+  await import("../features/registration/limits");
   await import("../app/api/health/route");
   await import("../app/api/monitoring/route");
   await import("../app/api/monitoring/test/route");
@@ -103,6 +111,7 @@ describe("limiter fail modes with the store unreachable", () => {
       "app/api/health/route.ts",
       "app/api/monitoring/route.ts",
       "app/api/monitoring/test/route.ts",
+      "features/registration/limits.ts",
       "kabinet/limiters.ts",
     ]);
   });

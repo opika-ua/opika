@@ -260,6 +260,9 @@ export const uk = {
       rateLimited: "Забагато спроб. Спробуйте за кілька хвилин.",
       emailTaken: "Цей email уже зареєстровано. Увійдіть або відновіть пароль.",
       generic: "Не вдалося зареєструвати. Спробуйте ще раз або напишіть мені.",
+      /** The day's confirmation emails are used up (owner, 2026-11-18); `{email}` from app config. */
+      dailyCap:
+        "Зараз забагато заявок. Спробуйте, будь ласка, завтра або напишіть мені на {email}.",
     },
     /** On /kabinet/vkhid, linking to /prytulkam#reyestratsiia (§13.1; Phase 0 copy table). */
     signInPrompt: "Ще немає кабінету? Зареєструйте притулок",
@@ -298,6 +301,12 @@ export const uk = {
     emailConfirmed: "Email підтверджено. Я перевірю притулок, зазвичай до 2 днів.",
     confirmLinkExpired: "Посилання застаріло. Увійдіть у кабінет і надішліть лист ще раз.",
     notMeDone: "Заявку видалено. Якщо це помилка – напишіть мені на {email}.",
+    /** «Це не я» once the operator has approved (owner, 2026-11-18); `{email}` from app config. */
+    notMeAfterApproval:
+      "Притулок уже схвалено, тому заявку не можна видалити за посиланням. Якщо ви не реєстрували цей притулок, напишіть мені на {email}.",
+    /** Beside `errors.emailTaken` (owner, 2026-11-18): plain links into the kabinet. */
+    emailTakenSignIn: "Увійти",
+    emailTakenReset: "Відновити пароль",
   },
   kabinet: {
     /**
@@ -1475,6 +1484,15 @@ export const uk = {
         subject: "Нова заявка: {name}, {city}",
         action: "Відкрити заявки",
       },
+      /**
+       * Operator only: the day's confirmation emails reached the cap (owner's wording, approved
+       * 2026-11-18). `{count}` is the cap; the button opens S1, the operator's «Заявки».
+       */
+      registrationCapHit: {
+        subject: "Ліміт листів реєстрації на сьогодні вичерпано",
+        body: "Сьогодні надіслано {count} листів реєстрації та повторного підтвердження – це ліміт на добу. До кінця доби нові реєстрації бачать повідомлення «Зараз забагато заявок». Перевір «Заявки» на ознаки зловживання: багато заявок з однаковими назвами, посиланнями чи доменами пошти.",
+        action: "Відкрити «Заявки»",
+      },
       signIn: {
         subject: "Посилання для входу до кабінету притулку",
         intro: "Добрий день. На цю адресу запитали посилання для входу до кабінету притулку.",
@@ -1904,6 +1922,9 @@ export const uk = {
         shelter_registered: "Притулок зареєстровано",
         /** The shelter's own city change (owner-approved, 2026-11-18); city names, nominative. */
         city_changed: "Місто змінено: {from} – {to}",
+        /** Operator only (owner, 2026-11-18): «Це не я» clicked after approval. */
+        notMeAfterApproval:
+          "Після схвалення в листі натиснули «Це не я». Можливо, адресу вказали без відома власника.",
         shelter_created_script: "Притулок додано з файлу",
         verification: {
           start_review: "Взято на розгляд",

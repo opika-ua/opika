@@ -83,8 +83,13 @@ describe("the list is server only", () => {
 
   it("the policy wiring is imported only by the auth hooks, none of them a client module", () => {
     const importers = importersOf("password-checks");
-    // PW-2: the invitation's «Створіть пароль» checks the policy too (§3: every write path).
-    expect(importers).toEqual(["kabinet/invite-password.ts", "kabinet/password-hooks.ts"]);
+    // PW-2: the invitation's «Створіть пароль» checks the policy too (§3: every write path), and
+    // so does self-registration's server action.
+    expect(importers).toEqual([
+      "features/registration/register-shelter.ts",
+      "kabinet/invite-password.ts",
+      "kabinet/password-hooks.ts",
+    ]);
     for (const file of [
       ...importers,
       "kabinet/password-checks.ts",

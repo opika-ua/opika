@@ -20,6 +20,15 @@ const PORT = harnessPort();
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 /**
+ * A second server on the same build, with self-registration on: only the "self-registration"
+ * project's spec talks to it, so every other spec sees /prytulkam as production does. Clear of
+ * every checkout's first port (`harnessPort` is 3100–3599).
+ */
+const REGISTRATION_PORT = PORT + 500;
+const REGISTRATION_ORIGIN = `http://127.0.0.1:${REGISTRATION_PORT}`;
+const REGISTRATION_SPEC = /self-registration\.harness\.ts$/;
+
+/**
  * This checkout's own harness database, `opika_harness_<hash of the checkout
  * path>` (`@opika/db/test`'s `testDatabaseUrl`): never shared with vitest's
  * database or with another checkout's, so a test run elsewhere can't wipe
@@ -30,6 +39,29 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
  * database and any non-local host (`assertDisposableTestDatabase`).
  */
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
+
+/** Every harness server's environment. */
+const SERVER_ENV = {
+  DATABASE_URL: HARNESS_DATABASE_URL,
+  CURSOR_HMAC_SECRET,
+  NEXT_PUBLIC_R2_PUBLIC_BASE_URL: R2_PUBLIC_BASE_URL,
+  // As production builds (both set there once the backfill is done), so the HTML budgets
+  // measure the markup as shipped. Seed photos (`seed-photos/…`) never take the AVIF form.
+  NEXT_PUBLIC_R2_EXTRA_VARIANTS: "1",
+  NEXT_PUBLIC_R2_AVIF: "1",
+  // Fully configured, so production mode is the only reason sign-in is off.
+  BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
+  BETTER_AUTH_URL: ORIGIN,
+  RATE_LIMIT_KEY_SECRET: HARNESS_RATE_LIMIT_KEY_SECRET,
+  // Every spec mints its adopters from 127.0.0.1, far past the per-IP caps (audit F1,
+  // `api/per-ip-budgets.ts`). Ignored on Vercel and wherever the shared store is set.
+  HARNESS_LIFTS_PER_IP_BUDGETS: "1",
+  // The kit showcase at /dev/ui is a 404 in a production build without this.
+  OPIKA_DEV_UI: "1",
+  // Arms the gallery's test-only failure hook (features/gallery/test-only-failure.ts); it still
+  // needs ?opika_test_fail=1 on the request, which only gallery-error.harness.ts sends.
+  OPIKA_TEST_FAIL_GALLERY: "1",
+};
 
 export default defineConfig({
   testDir: "./test/harness",
@@ -64,72 +96,72 @@ export default defineConfig({
     deviceScaleFactor: 1,
   },
 
-  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
-
-  webServer: {
-    // Builds before serving on purpose. `next dev` compiles per-request and
-    // tolerates things a production build rejects, and a stale `.next` from an
-    // earlier run would let the harness pass against code that no longer
-    // exists. The build is a few seconds; a false green is not.
-    //
-    // migrate then seed, ahead of `next start`: gallery-layout.harness.ts
-    // needs real rows behind `/tvaryny` to load their photos, and
-    // db:seed's own safety gate truncates first (packages/db/src/seed.ts),
-    // so this is idempotent across repeated harness runs rather than
-    // accumulating duplicate rows. `--filter @opika/db`, not a relative
-    // `cd`, so this command stays correct regardless of which directory
-    // Playwright resolves it from.
-    //
-    // test-db:reset, between migrate and seed, empties every table, `auth_*`
-    // included, which db:seed's truncate leaves alone: a run stopped after a
-    // kabinet spec invited a seeded shelter would otherwise leave that
-    // shelter's organization slug behind, and the next run's invite of the
-    // same deterministic id would fail on it (packages/db/src/test-utils/
-    // reset-test-database.ts has the full reasoning).
-    command: [
-      "pnpm run build",
-      "pnpm --filter @opika/db run test-db:ensure",
-      "pnpm --filter @opika/db run db:migrate",
-      "pnpm --filter @opika/db run test-db:reset",
-      "pnpm --filter @opika/db run db:seed",
-      `pnpm exec next start --port ${PORT} --hostname 127.0.0.1`,
-    ].join(" && "),
-    // /tvaryny is the real front door and needs no redirect hop to confirm the server is
-    // actually serving pages.
-    url: `${ORIGIN}/tvaryny`,
-    // Not `!process.env.CI`, which is the usual idiom. Reusing a server that
-    // an aborted run left behind on its port would grade the build that server
-    // started with - the same stale-artefact false green the comment above
-    // rejects, just arriving locally instead of in CI. A loud "port in use"
-    // costs seconds; a green run against code that no longer exists is what
-    // this whole harness was written to stop.
-    reuseExistingServer: false,
-    // Was 180s for build+start alone; migrate+seed (300+ animals) add real
-    // time on top, so this needs slack rather than the same number carried
-    // forward unchanged.
-    timeout: 240_000,
-    env: {
-      DATABASE_URL: HARNESS_DATABASE_URL,
-      CURSOR_HMAC_SECRET,
-      NEXT_PUBLIC_R2_PUBLIC_BASE_URL: R2_PUBLIC_BASE_URL,
-      // As production builds (both set there once the backfill is done), so the HTML budgets
-      // measure the markup as shipped. Seed photos (`seed-photos/…`) never take the AVIF form.
-      NEXT_PUBLIC_R2_EXTRA_VARIANTS: "1",
-      NEXT_PUBLIC_R2_AVIF: "1",
-      // Fully configured, so production mode is the only reason sign-in is off.
-      BETTER_AUTH_SECRET: HARNESS_BETTER_AUTH_SECRET,
-      BETTER_AUTH_URL: ORIGIN,
-      RATE_LIMIT_KEY_SECRET: HARNESS_RATE_LIMIT_KEY_SECRET,
-      // Every spec mints its adopters from 127.0.0.1, far past the per-IP caps (audit F1,
-      // `api/per-ip-budgets.ts`). Ignored on Vercel and wherever the shared store is set.
-      HARNESS_LIFTS_PER_IP_BUDGETS: "1",
-      // The kit showcase at /dev/ui is a 404 in a production build without this.
-      OPIKA_DEV_UI: "1",
-      // Arms the gallery's test-only failure hook (features/gallery/test-only-failure.ts); it still
-      // needs ?opika_test_fail=1 on the request, which only gallery-error.harness.ts sends.
-      OPIKA_TEST_FAIL_GALLERY: "1",
+  projects: [
+    { name: "chromium", use: { browserName: "chromium" }, testIgnore: REGISTRATION_SPEC },
+    {
+      name: "self-registration",
+      use: { browserName: "chromium", baseURL: REGISTRATION_ORIGIN },
+      testMatch: REGISTRATION_SPEC,
     },
-    stdout: "pipe",
-    stderr: "pipe",
-  },
+  ],
+
+  webServer: [
+    {
+      // Builds before serving on purpose. `next dev` compiles per-request and
+      // tolerates things a production build rejects, and a stale `.next` from an
+      // earlier run would let the harness pass against code that no longer
+      // exists. The build is a few seconds; a false green is not.
+      //
+      // migrate then seed, ahead of `next start`: gallery-layout.harness.ts
+      // needs real rows behind `/tvaryny` to load their photos, and
+      // db:seed's own safety gate truncates first (packages/db/src/seed.ts),
+      // so this is idempotent across repeated harness runs rather than
+      // accumulating duplicate rows. `--filter @opika/db`, not a relative
+      // `cd`, so this command stays correct regardless of which directory
+      // Playwright resolves it from.
+      //
+      // test-db:reset, between migrate and seed, empties every table, `auth_*`
+      // included, which db:seed's truncate leaves alone: a run stopped after a
+      // kabinet spec invited a seeded shelter would otherwise leave that
+      // shelter's organization slug behind, and the next run's invite of the
+      // same deterministic id would fail on it (packages/db/src/test-utils/
+      // reset-test-database.ts has the full reasoning).
+      command: [
+        "pnpm run build",
+        "pnpm --filter @opika/db run test-db:ensure",
+        "pnpm --filter @opika/db run db:migrate",
+        "pnpm --filter @opika/db run test-db:reset",
+        "pnpm --filter @opika/db run db:seed",
+        `pnpm exec next start --port ${PORT} --hostname 127.0.0.1`,
+      ].join(" && "),
+      // /tvaryny is the real front door and needs no redirect hop to confirm the server is
+      // actually serving pages.
+      url: `${ORIGIN}/tvaryny`,
+      // Not `!process.env.CI`, which is the usual idiom. Reusing a server that
+      // an aborted run left behind on its port would grade the build that server
+      // started with - the same stale-artefact false green the comment above
+      // rejects, just arriving locally instead of in CI. A loud "port in use"
+      // costs seconds; a green run against code that no longer exists is what
+      // this whole harness was written to stop.
+      reuseExistingServer: false,
+      // Was 180s for build+start alone; migrate+seed (300+ animals) add real
+      // time on top, so this needs slack rather than the same number carried
+      // forward unchanged.
+      timeout: 240_000,
+      env: SERVER_ENV,
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+    {
+      // Started after the first is up (Playwright starts its servers in order), so the build and
+      // the seeded database are there already; it serves them with the flag on.
+      command: `pnpm exec next start --port ${REGISTRATION_PORT} --hostname 127.0.0.1`,
+      url: `${REGISTRATION_ORIGIN}/prytulkam`,
+      reuseExistingServer: false,
+      timeout: 60_000,
+      env: { ...SERVER_ENV, BETTER_AUTH_URL: REGISTRATION_ORIGIN, SELF_REGISTRATION_ENABLED: "1" },
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  ],
 });

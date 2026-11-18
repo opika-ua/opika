@@ -327,6 +327,14 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     at: z.date(),
     shelterAdminId: ShelterAdminIdSchema,
   }),
+  /**
+   * «Це не я» from the confirmation email after the operator approved (owner, 2026-11-18): nothing
+   * is deleted, and the click is kept for the operator only. Who clicked is not known.
+   */
+  z.object({
+    kind: z.literal("not_me_after_approval"),
+    at: z.date(),
+  }),
   /** The operator invited an admin (registry.admins.invite). */
   z.object({
     kind: z.literal("admin_invited"),
@@ -445,6 +453,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "freshness_reminder_changed":
     case "shelter_created":
     case "shelter_registered":
+    case "not_me_after_approval":
     case "admin_invited":
     case "admin_invitation_resent":
     case "admin_joined":

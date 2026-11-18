@@ -1091,6 +1091,9 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   const SELF_REGISTRATION_OPERATOR_COPY: Record<string, string> = {
     "operator.evidence.kind.public_link": "Сайт або сторінка в соцмережі",
     "operator.history.shelter_registered": "Притулок зареєстровано",
+    // Owner, 2026-11-18 (Agent 1 follow-ups, item 2).
+    "operator.history.notMeAfterApproval":
+      "Після схвалення в листі натиснули «Це не я». Можливо, адресу вказали без відома власника.",
     "operator.history.verification.accept_application": "Заявку схвалено",
     "operator.codes.rejection.not_animal_welfare": "Це не притулок чи ініціатива допомоги тваринам",
     // The shelter's own city change, the owner's string verbatim (2026-11-18), en dash U+2013.

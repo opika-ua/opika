@@ -197,6 +197,9 @@ function lineOf(
         text: t.shelter_registered,
         actor: actorOf({ kind: "shelter_admin", shelterAdminId: entry.shelterAdminId }, people),
       };
+    case "not_me_after_approval":
+      // Nobody known clicked it: whoever reads the registrant's mail.
+      return { text: t.notMeAfterApproval, actor: null };
     case "admin_invited":
       return {
         // The line shows the address beside the name, so an unknown name reads
